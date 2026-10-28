@@ -23,6 +23,9 @@ const duration = ref<number | undefined>()
 const sale = ref<CrmSaleDraft>({ package_id: null, final_price: null })
 const lostReasonId = ref<number | undefined>()
 const attempted = ref(false)
+// True while anything is entered, so the page can guard the unsent call; it clears when the form goes away.
+const dirty = defineModel<boolean>('dirty', { default: false })
+const entered = computed(() => Boolean(outcomeId.value || note.value.trim() || duration.value || sale.value.package_id || sale.value.final_price !== null || lostReasonId.value))
 
 const outcome = computed(() => props.outcomes.find(item => item.id === outcomeId.value))
 const selling = computed(() => outcome.value?.effect === 'won')
@@ -30,6 +33,8 @@ const askReason = computed(() => outcome.value?.effect === 'lost' && outcome.val
 const locked = computed(() => !hydrated.value || props.pending)
 
 watch(outcomeId, () => { attempted.value = false })
+watch(entered, value => { dirty.value = value }, { immediate: true })
+onBeforeUnmount(() => { dirty.value = false })
 
 function submit() {
   attempted.value = true

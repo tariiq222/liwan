@@ -7,6 +7,10 @@ const emit = defineEmits<{ confirm: [lostReasonId: number]; cancel: [] }>()
 const { t } = useI18n()
 const reasonId = ref<number | undefined>()
 const attempted = ref(false)
+// True while a reason is chosen and not yet confirmed, so the page can guard it; it clears when the form goes away.
+const dirty = defineModel<boolean>('dirty', { default: false })
+watch(reasonId, value => { dirty.value = Boolean(value) }, { immediate: true })
+onBeforeUnmount(() => { dirty.value = false })
 
 function submit() {
   attempted.value = true

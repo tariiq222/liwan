@@ -64,6 +64,23 @@ test('the status filter finds won and lost opportunities, which the default list
   await expect(page.getByRole('link', { name: 'فهد الحربي' })).toBeVisible()
 })
 
+test('an unsent call draft asks before leaving and is dropped after it is recorded', async ({ page }) => {
+  await page.goto('/crm/opportunities/1')
+  const guard = page.getByTestId('unsaved-changes-dialog')
+  await page.locator('#call-note').fill('ملاحظة لم تُرسل')
+  await page.getByRole('link', { name: 'رجوع إلى القائمة' }).click()
+  await expect(guard).toBeVisible()
+  await guard.getByRole('button', { name: 'البقاء في الصفحة', exact: true }).click()
+  await expect(page.locator('#call-note')).toHaveValue('ملاحظة لم تُرسل')
+  await page.getByTestId('crm-call-form').getByRole('combobox').first().click()
+  await page.getByRole('option', { name: 'لا يرد' }).click()
+  await page.getByTestId('crm-call-submit').click()
+  await expect(page.getByTestId('crm-recorded')).toBeVisible()
+  await page.getByRole('link', { name: 'رجوع إلى القائمة' }).click()
+  await expect(page).toHaveURL(/\/crm\/opportunities(\?|$)/)
+  await expect(guard).toHaveCount(0)
+})
+
 test('the board lists the four stages and the stage filter survives back navigation', async ({ page }) => {
   await page.goto('/crm/opportunities?view=board')
   for (const id of [1, 2, 3, 4]) await expect(page.getByTestId(`crm-board-column-${id}`)).toBeVisible()
@@ -157,7 +174,8 @@ test('the details name the package with the company term, price included', async
 test('the mock answers in the contract shapes and refuses like the server', async ({ page }) => {
   const api = page.request
   const list = CrmOpportunityListSchema.parse(await (await api.get('/api/v1/crm/opportunities')).json())
-  expect(list.total).toBe(7)
+  expect(list.total).toBe(6) // the open ones; the status filter reaches the won and lost
+  expect(CrmOpportunityListSchema.parse(await (await api.get('/api/v1/crm/opportunities?status=all')).json()).total).toBe(8)
   expect(CrmOpportunitySchema.parse(await (await api.get('/api/v1/crm/opportunities/6')).json()).status).toBe('lost')
   expect(CrmCallListSchema.parse(await (await api.get('/api/v1/crm/opportunities/1/calls')).json()).total).toBe(1)
 

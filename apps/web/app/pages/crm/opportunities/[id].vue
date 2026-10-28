@@ -58,6 +58,11 @@ const panel = ref<Panel>(null)
 const saleDraft = ref<CrmSaleDraft>({ package_id: null, final_price: null })
 const saleAttempted = ref(false)
 const callFormKey = ref(0)
+// An unsent call, sale or lost reason is a draft: leaving the page asks first. Each form reports what is entered.
+const callDirty = ref(false)
+const lostDirty = ref(false)
+const saleDirty = computed(() => panel.value === 'sale' && (Boolean(saleDraft.value.package_id) || saleDraft.value.final_price !== null))
+const unsent = computed(() => callDirty.value || lostDirty.value || saleDirty.value)
 // A refusal belongs to the form that sent it and shows there only; one from a page action, or whose form went away
 // (a 409 refreshed the record and the form with it), shows at the top of the page.
 type Origin = 'page' | 'call' | 'sale' | 'lost'
@@ -172,9 +177,10 @@ const stageItems = computed(() => movableStages(stages.data.value?.items ?? []).
       </SharedRecordSection>
     </template>
     <template v-if="record">
+      <SharedUnsavedChanges :dirty="unsent" guard-route-updates />
       <UAlert v-if="recorded" role="status" color="success" variant="subtle" :description="recorded" data-testid="crm-recorded" />
       <UAlert v-if="pageFailure" role="alert" color="error" variant="subtle" :description="failureText" data-testid="crm-failure" />
-      <CrmOpportunityLostForm v-if="panel === 'lost' && canWork" :reasons="lostReasons.data.value?.items ?? []" :pending="actions.lose.isPending.value" :error="textFor('lost')" @confirm="closeLost" @cancel="open('lost')" />
+      <CrmOpportunityLostForm v-if="panel === 'lost' && canWork" v-model:dirty="lostDirty" :reasons="lostReasons.data.value?.items ?? []" :pending="actions.lose.isPending.value" :error="textFor('lost')" @confirm="closeLost" @cancel="open('lost')" />
       <SharedRecordSection v-if="panel === 'sale' && canWork" variant="panel" :title="t('crm.opportunities.sale.title', { term: term('package', 'one') })">
         <div class="grid gap-4">
           <CrmOpportunitySaleForm v-model="saleDraft" :packages="packages.data.value?.items ?? []" :disabled="busy" :show-errors="saleAttempted" />
@@ -185,7 +191,7 @@ const stageItems = computed(() => movableStages(stages.data.value?.items ?? []).
           </div>
         </div>
       </SharedRecordSection>
-      <CrmOpportunityCallForm v-if="canWork && panel === null" :key="callFormKey" :outcomes="outcomes.data.value?.items ?? []" :packages="packages.data.value?.items ?? []" :lost-reasons="lostReasons.data.value?.items ?? []" :pending="actions.recordCall.isPending.value" :error="textFor('call')" @record="recordCall" />
+      <CrmOpportunityCallForm v-if="canWork && panel === null" :key="callFormKey" v-model:dirty="callDirty" :outcomes="outcomes.data.value?.items ?? []" :packages="packages.data.value?.items ?? []" :lost-reasons="lostReasons.data.value?.items ?? []" :pending="actions.recordCall.isPending.value" :error="textFor('call')" @record="recordCall" />
       <CrmOpportunityCallLog :calls="calls.data.value?.items ?? []" />
     </template>
     <template v-if="record" #aside>
