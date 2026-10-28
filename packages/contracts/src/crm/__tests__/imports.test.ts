@@ -1,6 +1,7 @@
 import {
   CrmImportBatchListSchema,
   CrmImportFileInfoSchema,
+  CrmImportFileReasonSchema,
   CrmImportFileSchema,
   CrmImportMappingCreateSchema,
   CrmImportMappingSchema,
@@ -72,5 +73,15 @@ describe('import file routes', () => {
   it('refuses a mapping together with a profile', () => {
     const file = { file_name: 'customers.csv', content_base64: 'TmFtZQ==' }
     expect(() => CrmImportRequestSchema.parse({ ...file, mapping: columns, mapping_profile: 4, source_id: 3 })).toThrow()
+  })
+})
+
+describe('CrmImportFileReasonSchema', () => {
+  it('lists every file refusal code the server sends in details.reason', () => {
+    expect([...CrmImportFileReasonSchema.options].sort()).toEqual([
+      'file_bad_csv', 'file_bad_type', 'file_bad_xlsx', 'file_duplicate_header', 'file_empty', 'file_no_rows', 'file_not_utf8',
+      'file_too_large', 'file_too_many_columns', 'file_too_many_rows', 'file_unpacked_too_large',
+    ])
+    expect(() => CrmImportFileReasonSchema.parse('the file is empty')).toThrow()
   })
 })

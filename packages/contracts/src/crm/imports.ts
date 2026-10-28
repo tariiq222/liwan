@@ -70,6 +70,21 @@ export const CrmImportInvalidReasonSchema = z.enum([
   'unknown_package',
 ])
 
+// The stable code of a refused file, in `details.reason` of the 422 on `file` (or on `file_name` for the type); the UI translates it.
+export const CrmImportFileReasonSchema = z.enum([
+  'file_bad_csv',
+  'file_bad_type',
+  'file_bad_xlsx',
+  'file_duplicate_header',
+  'file_empty',
+  'file_no_rows',
+  'file_not_utf8',
+  'file_too_large',
+  'file_too_many_columns',
+  'file_too_many_rows',
+  'file_unpacked_too_large',
+])
+
 export const CrmImportPreviewSchema = z.strictObject({
   new: z.number().int().min(0),
   duplicate: z.number().int().min(0),
@@ -102,6 +117,7 @@ export type CrmImportMapping = z.infer<typeof CrmImportMappingSchema>
 export type CrmImportMappingList = z.infer<typeof CrmImportMappingListSchema>
 export type CrmImportMappingCreate = z.infer<typeof CrmImportMappingCreateSchema>
 export type CrmImportRequest = z.infer<typeof CrmImportRequestSchema>
+export type CrmImportFileReason = z.infer<typeof CrmImportFileReasonSchema>
 export type CrmImportInvalidReason = z.infer<typeof CrmImportInvalidReasonSchema>
 export type CrmImportPreview = z.infer<typeof CrmImportPreviewSchema>
 export type CrmImportBatch = z.infer<typeof CrmImportBatchSchema>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CrmImportInvalidReasonSchema } from '@webvue/contracts'
+import { CrmImportFileReasonSchema, CrmImportInvalidReasonSchema } from '@webvue/contracts'
 import arCrm from '../../../../i18n/locales/ar/crm.json'
 import enCrm from '../../../../i18n/locales/en/crm.json'
 
@@ -41,5 +41,14 @@ describe.each([['ar', arCrm], ['en', enCrm]])('%s crm import reasons', (_locale,
   it('translates every reason the server can send', () => {
     const reasons = (messages.crm.imports as { reasons: Record<string, string> }).reasons
     expect(Object.keys(reasons).sort()).toEqual([...CrmImportInvalidReasonSchema.options].sort())
+  })
+})
+
+// Every file refusal code, and nothing else, has a sentence: the client guard and the server's refusals share these keys.
+describe.each([['ar', arCrm], ['en', enCrm]])('%s crm import file refusals', (_locale, messages) => {
+  it('translates every file refusal code', () => {
+    const file = (messages.crm.imports.errors as { file: Record<string, string> }).file
+    expect(Object.keys(file).sort()).toEqual([...CrmImportFileReasonSchema.options].sort())
+    expect(Object.values(file).every(Boolean)).toBe(true)
   })
 })

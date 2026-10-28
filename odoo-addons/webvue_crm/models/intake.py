@@ -27,20 +27,39 @@ PREVIEW_ROW_LIMIT = 100
 CSV_DELIMITERS = ',;\t'
 FIELDS = ('name', 'phone', 'email', 'notes', 'package')
 REQUIRED_FIELDS = ('name', 'phone')
-FILE_EMPTY = 'the file is empty'
-FILE_NO_ROWS = 'the file has no rows'
-FILE_TOO_LARGE = 'the file is larger than 5 MB'
-FILE_TOO_MANY_ROWS = f'the file has more than {MAX_ROWS} rows'
-FILE_TOO_MANY_COLUMNS = f'the file has more than {MAX_COLUMNS} columns'
-FILE_DUPLICATE_HEADER = 'duplicate_header'
-FILE_NOT_UTF8 = 'the file must be saved as UTF-8'
-FILE_BAD_CSV = 'the file is not a valid CSV file'
-FILE_BAD_XLSX = 'the file is not a valid XLSX workbook'
+# Every file refusal is a 422 on `file` whose `details.reason` is one of these stable codes (the UI translates
+# them); the message is the English sentence for logs and API users.
+FILE_EMPTY = 'file_empty'
+FILE_NO_ROWS = 'file_no_rows'
+FILE_TOO_LARGE = 'file_too_large'
+FILE_UNPACKED_TOO_LARGE = 'file_unpacked_too_large'
+FILE_TOO_MANY_ROWS = 'file_too_many_rows'
+FILE_TOO_MANY_COLUMNS = 'file_too_many_columns'
+FILE_DUPLICATE_HEADER = 'file_duplicate_header'
+FILE_NOT_UTF8 = 'file_not_utf8'
+FILE_BAD_CSV = 'file_bad_csv'
+FILE_BAD_XLSX = 'file_bad_xlsx'
+FILE_BAD_TYPE = 'file_bad_type'
+FILE_MESSAGES = {
+    FILE_EMPTY: 'the file is empty',
+    FILE_NO_ROWS: 'the file has no rows',
+    FILE_TOO_LARGE: 'the file is larger than 5 MB',
+    FILE_UNPACKED_TOO_LARGE: 'the workbook unpacks to more than the allowed size',
+    FILE_TOO_MANY_ROWS: f'the file has more than {MAX_ROWS} rows',
+    FILE_TOO_MANY_COLUMNS: f'the file has more than {MAX_COLUMNS} columns',
+    FILE_DUPLICATE_HEADER: 'two columns of the file have the same name',
+    FILE_NOT_UTF8: 'the file must be saved as UTF-8',
+    FILE_BAD_CSV: 'the file is not a valid CSV file',
+    FILE_BAD_XLSX: 'the file is not a valid XLSX workbook',
+    FILE_BAD_TYPE: 'the file must be a .csv or .xlsx file',
+}
+
+
+def file_error(code, field='file'):
+    return ApiError(422, 'invalid', FILE_MESSAGES[code], field=field, details={'reason': code})
+
+
 READERS = {'.csv': '_webvue_read_csv', '.xlsx': '_webvue_read_xlsx'}
-
-
-def _file_error(message):
-    return ApiError(422, 'invalid', message, field='file')
 
 
 class SourceRow(dict):
@@ -75,13 +94,13 @@ def _header(cells):
     """The column names of the first record (blank names stay, so positions line up)."""
     names = [_cell_text(cell) for cell in cells]
     if not any(names):
-        raise _file_error(FILE_EMPTY)
+        raise file_error(FILE_EMPTY)
     if any(names[MAX_COLUMNS:]):
-        raise _file_error(FILE_TOO_MANY_COLUMNS)
+        raise file_error(FILE_TOO_MANY_COLUMNS)
     names = names[:MAX_COLUMNS]
     named = [name for name in names if name]
     if len(set(named)) != len(named):
-        raise _file_error(FILE_DUPLICATE_HEADER)
+        raise file_error(FILE_DUPLICATE_HEADER)
     return names
 
 
@@ -94,7 +113,7 @@ def _records(table):
     rows = []
     for number, cells in enumerate(table, start=1):
         if number > MAX_SCAN_ROWS:
-            raise _file_error(FILE_TOO_MANY_ROWS)
+            raise file_error(FILE_TOO_MANY_ROWS)
         if names is None:
             names = _header(cells)
             continue
@@ -102,13 +121,13 @@ def _records(table):
         if not any(values):
             continue
         if len(rows) == MAX_ROWS:
-            raise _file_error(FILE_TOO_MANY_ROWS)
+            raise file_error(FILE_TOO_MANY_ROWS)
         values += [''] * (len(names) - len(values))
         rows.append(SourceRow(number, {name: value for name, value in zip(names, values, strict=False) if name}))
     if names is None:
-        raise _file_error(FILE_EMPTY)
+        raise file_error(FILE_EMPTY)
     if not rows:
-        raise _file_error(FILE_NO_ROWS)
+        raise file_error(FILE_NO_ROWS)
     return rows
 
 
@@ -133,9 +152,9 @@ class WebVueCrmIntake(models.AbstractModel):
         """
         extension = next((ext for ext in READERS if filename.lower().endswith(ext)), None)
         if extension is None:
-            raise ApiError(422, 'invalid', 'the file must be a .csv or .xlsx file', field='file_name')
+            raise file_error(FILE_BAD_TYPE, field='file_name')
         if len(content) > MAX_BYTES:
-            raise _file_error(FILE_TOO_LARGE)
+            raise file_error(FILE_TOO_LARGE)
         return getattr(self, READERS[extension])(content)
 
     @api.model
@@ -143,11 +162,11 @@ class WebVueCrmIntake(models.AbstractModel):
         try:
             text = content.decode('utf-8-sig')
         except UnicodeDecodeError:
-            raise _file_error(FILE_NOT_UTF8) from None
+            raise file_error(FILE_NOT_UTF8) from None
         try:
             return _records(csv.reader(io.StringIO(text, newline=''), delimiter=_delimiter(text)))
         except csv.Error:
-            raise _file_error(FILE_BAD_CSV) from None
+            raise file_error(FILE_BAD_CSV) from None
 
     @api.model
     def _webvue_read_xlsx(self, content):
@@ -155,13 +174,13 @@ class WebVueCrmIntake(models.AbstractModel):
             with zipfile.ZipFile(io.BytesIO(content)) as archive:
                 unpacked = sum(entry.file_size for entry in archive.infolist())
         except zipfile.BadZipFile:
-            raise _file_error(FILE_BAD_XLSX) from None
+            raise file_error(FILE_BAD_XLSX) from None
         if unpacked > MAX_UNCOMPRESSED_BYTES:
-            raise _file_error(FILE_TOO_LARGE)
+            raise file_error(FILE_UNPACKED_TOO_LARGE)
         try:
             book = openpyxl.load_workbook(io.BytesIO(content), read_only=True, data_only=True)
         except (zipfile.BadZipFile, InvalidFileException, KeyError, OSError, ValueError):
-            raise _file_error(FILE_BAD_XLSX) from None
+            raise file_error(FILE_BAD_XLSX) from None
         try:
             # One column past the limit lets the header check see an extra named column; max_col also
             # stops a forged sheet range from padding every row to thousands of cells.

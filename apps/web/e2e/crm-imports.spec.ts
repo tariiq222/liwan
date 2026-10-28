@@ -97,22 +97,44 @@ test('a file over 5 MB or of the wrong type is refused before anything is sent',
   await expect(page.getByTestId('crm-import-file-info')).toHaveCount(0)
 })
 
-test('a mapping is saved as a profile and used for the next file', async ({ page }) => {
+test('a mapping is saved as a profile only when the import is confirmed, then used for the next file', async ({ page }) => {
   await upload(page)
   await mapStandardColumns(page)
   await page.getByLabel('احفظ هذا الربط').check()
   await page.getByLabel('اسم الملف المحفوظ').fill('ملف المعرض')
   await page.getByTestId('crm-import-next').click()
   await expect(page.getByTestId('crm-import-count-new')).toContainText('3')
+  const before = await (await page.request.get('/api/v1/crm/import-mappings')).json()
+  expect(before.total).toBe(0)
 
-  await upload(page, 'again.csv')
+  await page.getByTestId('crm-import-confirm').click()
+  await expect(page).toHaveURL(/\/crm\/opportunities/)
+  const after = await (await page.request.get('/api/v1/crm/import-mappings')).json()
+  expect(after.items.map((item: { name: string }) => item.name)).toEqual(['ملف المعرض'])
+
+  const second = ['الاسم,الهاتف,البريد,ملاحظات', 'سلمى الحربي,0561112223,,', 'نايف القرني,0562223334,,', 'مكرر,0541112223,,'].join('\n')
+  await upload(page, 'again.csv', second)
   await page.locator('#import-profile').click()
   await page.getByRole('option', { name: 'ملف المعرض' }).click()
   await expect(page.locator('#import-field-phone')).toContainText('الهاتف')
   await choose(page, 'source', 'معرض')
   await page.getByTestId('crm-import-next').click()
-  await expect(page.getByTestId('crm-import-count-new')).toContainText('3')
+  await expect(page.getByTestId('crm-import-count-new')).toContainText('2')
   await expect(page.getByTestId('crm-import-count-duplicate')).toContainText('1')
+})
+
+test('a saved mapping name that is already taken is refused before any record is created', async ({ page }) => {
+  const columns = { name: 'الاسم', phone: 'الهاتف' }
+  await page.request.post('/api/v1/crm/import-mappings', { data: { name: 'ملف المعرض', columns } })
+  await upload(page)
+  await mapStandardColumns(page)
+  await page.getByLabel('احفظ هذا الربط').check()
+  await page.getByLabel('اسم الملف المحفوظ').fill('ملف المعرض')
+  await page.getByTestId('crm-import-next').click()
+  await page.getByTestId('crm-import-confirm').click()
+  await expect(page.getByTestId('crm-import-confirm-error')).toContainText('يوجد ملف محفوظ بهذا الاسم')
+  const batches = await (await page.request.get('/api/v1/crm/imports')).json()
+  expect(batches.total).toBe(0)
 })
 
 test('the agent is asked for only when distribution is on import', async ({ page }) => {
@@ -144,6 +166,7 @@ test('the dashboard shows the calls due now with a phone link and the manager fi
   await expect(tile('crm-manager-kpis', 'بلا مسؤول')).toContainText('1')
   await expect(tile('crm-manager-kpis', 'تحتاج قرار المدير')).toContainText('1')
   await expect(tile('crm-manager-kpis', 'مبيعات هذا الشهر')).toContainText('108')
+  await expect(page.getByTestId('crm-conversion')).toContainText('هذا الشهر')
   await expect(page.getByTestId('crm-conversion')).toContainText('الموقع')
   await expect(page.getByTestId('crm-agent-table')).toContainText('ليلى الحربي')
 })

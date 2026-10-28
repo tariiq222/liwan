@@ -5,7 +5,13 @@ import binascii
 from odoo.addons.webvue_api.controllers.common import ApiError
 from odoo.addons.webvue_api.serializers.common import iso
 from odoo.addons.webvue_crm.models.crm_lead import NAME_MAX
-from odoo.addons.webvue_crm.models.intake import FIELDS, MAX_BYTES, REQUIRED_FIELDS
+from odoo.addons.webvue_crm.models.intake import (
+    FIELDS,
+    FILE_TOO_LARGE,
+    MAX_BYTES,
+    REQUIRED_FIELDS,
+    file_error,
+)
 from odoo.addons.webvue_crm.serializers.opportunity import (
     parse_id_or_null,
     parse_text,
@@ -114,7 +120,7 @@ def _content(value):
     if not isinstance(value, str):
         raise ApiError(422, 'invalid', 'must be the base64 text of the file', field='content_base64')
     if len(value) > MAX_ENCODED:
-        raise ApiError(422, 'invalid', 'the file is larger than 5 MB', field='file')
+        raise file_error(FILE_TOO_LARGE)
     try:
         return base64.b64decode(value, validate=True)
     except binascii.Error:

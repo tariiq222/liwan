@@ -356,21 +356,23 @@
         "forbidden": "You do not have permission to import.",
         "profileExists": "A saved mapping with this name already exists.",
         "profileGone": "The saved mapping no longer exists.",
-        "fileType": "The file must be a CSV or XLSX file.",
         "file": {
-          "tooLarge": "The file is larger than 5 MB.",
-          "tooManyRows": "The file has more than 5,000 rows.",
-          "tooManyColumns": "The file has more than 50 columns.",
-          "duplicateHeader": "Two headers in the first row have the same name. Rename one.",
-          "encoding": "Save the file as UTF-8 and upload it again.",
-          "unreadable": "The file could not be read. Check that it is a valid CSV or XLSX file.",
-          "noRows": "The file is empty or has no data rows."
+          "file_bad_csv": "The file is not a valid CSV file.",
+          "file_bad_type": "The file must be a CSV or XLSX file.",
+          "file_bad_xlsx": "The file is not a valid XLSX workbook.",
+          "file_duplicate_header": "Two headers in the first row have the same name. Rename one.",
+          "file_empty": "The file is empty.",
+          "file_no_rows": "The file has no data rows.",
+          "file_not_utf8": "Save the file as UTF-8 and upload it again.",
+          "file_too_large": "The file is larger than 5 MB.",
+          "file_too_many_columns": "The file has more than 50 columns.",
+          "file_too_many_rows": "The file has more than 5,000 rows.",
+          "file_unpacked_too_large": "The workbook is larger than allowed once unpacked."
         },
         "mapping": "One of the chosen columns is not in the file.",
         "source": "Choose a valid source.",
         "agentRequired": "Choose the agent for the batch.",
-        "agentRefused": "This agent cannot take this batch. An agent is chosen at import only when distribution is set to on import, and the agent must be eligible.",
-        "tooLarge": "The file is larger than 5 MB."
+        "agentRefused": "This agent cannot take this batch. An agent is chosen at import only when distribution is set to on import, and the agent must be eligible."
       }
     },
     "dashboard": {
@@ -392,7 +394,7 @@
         "dueFollowUps": "Follow-ups due",
         "won": "Sales this month",
         "wonHint": "Worth {value}",
-        "conversionTitle": "Conversion by source",
+        "conversionTitle": "Conversion by source this month",
         "conversionRow": "{won} of {total}",
         "noSource": "No source",
         "conversionEmpty": "No records yet.",
@@ -403,7 +405,8 @@
           "due": "Due",
           "won": "Won"
         },
-        "agentsEmpty": "No agent has records."
+        "agentsEmpty": "No agent has records.",
+        "conversionHint": "Records created this month and how many of them were won."
       }
     }
   }

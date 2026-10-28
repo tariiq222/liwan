@@ -3,14 +3,14 @@ import type { CrmDashboardSourceSchema } from '@webvue/contracts'
 import type { z } from 'zod'
 import { conversionPercent } from '@/utils/crmDashboard'
 
-// Conversion by source: for each source how many of its records were won, as a bar and "won of total". A record
+// Conversion by source over the records created this month: for each source how many of them were won, as a bar and "won of total". A record
 // without a source is its own row.
 defineProps<{ sources: z.infer<typeof CrmDashboardSourceSchema>[] }>()
 const { t } = useI18n()
 </script>
 
 <template>
-  <SharedRecordSection variant="panel" :title="t('crm.dashboard.manager.conversionTitle')" data-testid="crm-conversion">
+  <SharedRecordSection variant="panel" :title="t('crm.dashboard.manager.conversionTitle')" :description="t('crm.dashboard.manager.conversionHint')" data-testid="crm-conversion">
     <SharedEmptyState v-if="!sources.length" :title="t('crm.dashboard.manager.conversionEmpty')" />
     <ul v-else class="grid gap-4">
       <li v-for="source in sources" :key="source.source_id ?? 'none'" class="grid gap-1.5">

@@ -99,6 +99,9 @@ let opportunities = seedOpportunities()
 let calls = seedCalls()
 let batches = []
 let mappings = []
+// When a won record was closed (the contract's opportunity has no such field); the seeded sale closed yesterday.
+const seedClosedAt = () => new Map([[5, iso(-24)]])
+let closedAt = seedClosedAt()
 
 const dumpSettings = () => ({
   values: settings.values,
@@ -159,6 +162,7 @@ export function crmPreviewWrite(method, path, body) {
     calls = seedCalls()
     batches = []
     mappings = []
+    closedAt = seedClosedAt()
     return { status: 200, body: { reset: true } }
   }
   const opportunityWrite = crmOpportunityWrite(method, path, body)
@@ -208,6 +212,7 @@ function sell(lead, body) {
   const discount = body.final_price < pack.price ? Math.round(((pack.price - body.final_price) * 100) / pack.price * 100) / 100 : 0
   if (body.discount_percent != null && Math.round(body.discount_percent * 100) / 100 !== discount) return invalid('discount_percent', 'the discount does not match the prices')
   if (discount > settings.values.discount_max_percent) return { status: 403, body: { code: 'forbidden', message: 'crm.discount.approve capability is required' } }
+  closedAt.set(lead.id, iso(0))
   Object.assign(lead, {
     status: 'won', stage: ref(lists.stages, wonStage().id), package: { id: pack.id, name: pack.name }, list_price: pack.price,
     discount_percent: discount, final_price: body.final_price, expected_revenue: body.final_price, next_call_at: null, needs_manager: false,
@@ -293,16 +298,19 @@ function crmOpportunityWrite(method, path, body) {
 function dashboard() {
   const now = Date.now()
   const startOfDay = new Date().setHours(0, 0, 0, 0)
+  const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime()
   const due = item => item.status === 'pending' && item.next_call_at !== null && Date.parse(item.next_call_at) <= now
+  const thisMonth = item => Date.parse(item.created_at) >= startOfMonth
   const wonThisMonth = rows => {
-    const won = rows.filter(item => item.status === 'won')
+    const won = rows.filter(item => item.status === 'won' && Date.parse(closedAt.get(item.id) ?? item.created_at) >= startOfMonth)
     return { count: won.length, value: won.reduce((sum, item) => sum + item.final_price, 0) }
   }
   const mine = opportunities.filter(item => item.user?.id === 2)
   const open = opportunities.filter(item => item.status === 'pending')
   const sources = [...lists.sources.map(source => ({ source_id: source.id, name: source.name })), { source_id: null, name: '' }]
   const agentIds = [...new Set(opportunities.filter(item => item.user).map(item => item.user.id))]
-  const bySource = (source, status) => opportunities.filter(item => (item.source?.id ?? null) === source.source_id && (!status || item.status === status)).length
+  // Conversion: records created this month per source (lost ones included) and the won among them.
+  const created = source => opportunities.filter(item => thisMonth(item) && (item.source?.id ?? null) === source.source_id)
   return {
     agent: {
       due_now: mine.filter(due).length,
@@ -314,10 +322,10 @@ function dashboard() {
       needs_manager: open.filter(item => item.needs_manager).length,
       due_follow_ups: open.filter(due).length,
       won_this_month: wonThisMonth(opportunities),
-      conversion_by_source: sources.map(source => ({ ...source, total: bySource(source), won: bySource(source, 'won') })).filter(source => source.total > 0),
+      conversion_by_source: sources.map(source => ({ ...source, total: created(source).length, won: created(source).filter(item => item.status === 'won').length })).filter(source => source.total > 0),
       agents: agentIds.map(id => {
         const own = opportunities.filter(item => item.user?.id === id)
-        return { user_id: id, name: USER_NAMES[id] ?? `#${id}`, open: own.filter(item => item.status === 'pending').length, won: own.filter(item => item.status === 'won').length, due: own.filter(due).length }
+        return { user_id: id, name: USER_NAMES[id] ?? `#${id}`, open: own.filter(item => item.status === 'pending').length, won: wonThisMonth(own).count, due: own.filter(due).length }
       }),
     },
   }

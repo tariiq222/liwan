@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import base64
+import csv
 import io
 import re
 import time
@@ -15,6 +16,17 @@ from .common import WebVueCrmCase
 from odoo.addons.webvue_api.controllers.common import ApiError
 from odoo.addons.webvue_api.tests.common import set_probe_feature
 from odoo.addons.webvue_crm.models.intake import (
+    FILE_BAD_CSV,
+    FILE_BAD_TYPE,
+    FILE_BAD_XLSX,
+    FILE_DUPLICATE_HEADER,
+    FILE_EMPTY,
+    FILE_NO_ROWS,
+    FILE_NOT_UTF8,
+    FILE_TOO_LARGE,
+    FILE_TOO_MANY_COLUMNS,
+    FILE_TOO_MANY_ROWS,
+    FILE_UNPACKED_TOO_LARGE,
     MAX_BYTES,
     MAX_COLUMNS,
     MAX_UNCOMPRESSED_BYTES,
@@ -220,8 +232,43 @@ class TestCrmImport(WebVueCrmCase):
                         body = {key: body[key] for key in ('file_name', 'content_base64')}
                     response = self.as_manager().api('POST', url, json=body)
                     self.assertEqual(response.status_code, 422, response.text)
-                    self.assertEqual((response.json()['field'], response.json()['message']), ('file', 'duplicate_header'))
+                    self.assertEqual((response.json()['field'], response.json()['details']), ('file', {'reason': FILE_DUPLICATE_HEADER}))
         self.assertFalse(self.lead_of('+966501234567'))
+
+    def test_every_file_refusal_carries_its_machine_code(self):
+        columns = ','.join(f'Column {number}' for number in range(MAX_COLUMNS + 1))
+        rows = csv_bytes(*[f'Customer {number},0501234567' for number in range(5001)])
+        sheet = {(1, 1): 'Name', (1, 2): 'Phone', (2, 1): 'Sara', (2, 2): '0501234567'}
+        bomb = xlsx_bytes(sheet, extra=MAX_UNCOMPRESSED_BYTES)
+        cases = (
+            (FILE_TOO_LARGE, 'x.csv', csv_of_size(MAX_BYTES + 1), 'file'),
+            (FILE_TOO_LARGE, 'x.csv', csv_of_size(2 * MAX_BYTES), 'file'),
+            (FILE_TOO_MANY_ROWS, 'x.csv', rows, 'file'),
+            (FILE_TOO_MANY_COLUMNS, 'x.csv', f'{columns}\n'.encode(), 'file'),
+            (FILE_UNPACKED_TOO_LARGE, 'x.xlsx', bomb, 'file'),
+            (FILE_DUPLICATE_HEADER, 'x.csv', b'Name,Phone,Name\nSara,0501234567,Omar\n', 'file'),
+            (FILE_NOT_UTF8, 'x.csv', 'الاسم,الهاتف\n'.encode('cp1256'), 'file'),
+            (FILE_BAD_XLSX, 'x.xlsx', b'not a workbook', 'file'),
+            (FILE_EMPTY, 'x.csv', b'', 'file'),
+            (FILE_NO_ROWS, 'x.csv', b'Name,Phone\n', 'file'),
+            (FILE_BAD_TYPE, 'x.txt', b'Name,Phone\n', 'file_name'),
+        )
+        for code, name, content, field in cases:
+            for url in (PREVIEW_URL, COLUMNS_URL):
+                with self.subTest(code=code, name=name, url=url, size=len(content)):
+                    body = self.body(content, file_name=name)
+                    if url == COLUMNS_URL:
+                        body = {key: body[key] for key in ('file_name', 'content_base64')}
+                    response = self.as_manager().api('POST', url, json=body)
+                    self.assertEqual(response.status_code, 422, response.text)
+                    self.assertEqual((response.json()['field'], response.json()['details']), (field, {'reason': code}))
+
+    def test_a_csv_the_reader_cannot_parse_carries_its_code(self):
+        # Odoo lifts the csv field-size limit, so a parser error is simulated instead of crafted.
+        with patch('odoo.addons.webvue_crm.models.intake.csv.reader', side_effect=csv.Error('bad')):
+            with self.assertRaises(ApiError) as caught:
+                self.intake._webvue_read_rows('x.csv', b'Name,Phone\nSara,0501234567\n')
+        self.assertEqual((caught.exception.status, caught.exception.field, caught.exception.details), (422, 'file', {'reason': FILE_BAD_CSV}))
 
     # Row numbers
 

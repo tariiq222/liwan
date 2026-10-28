@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CrmImportFile, CrmImportMapping, CrmImportPreview, CrmImportRequest } from '@webvue/contracts'
+import type { CrmImportColumns, CrmImportFile, CrmImportPreview, CrmImportRequest } from '@webvue/contracts'
 import CrmImportMappingStep from './CrmImportMappingStep.vue'
 import CrmImportPreviewStep from './CrmImportPreviewStep.vue'
 import CrmImportUploadStep from './CrmImportUploadStep.vue'
@@ -8,7 +8,7 @@ import { useCrmSourceChoices } from '@/composables/crm/useCrmLists'
 import { useCrmSettings } from '@/composables/crm/useCrmSettings'
 import { useCrmTerms } from '@/composables/crm/useCrmTerms'
 import { CRM_LIST_PATH } from '@/utils/crmOpportunity'
-import { crmImportErrorMessage, importFileProblem, mappingBody, mappingIsComplete, readImportFile, type MappingDraft } from '@/utils/crmImport'
+import { crmImportErrorMessage, importFileMessageKey, importFileProblem, mappingBody, mappingIsComplete, readImportFile, type MappingDraft } from '@/utils/crmImport'
 
 // The import in three steps inside the route-backed panel: the file, the column mapping with the source (and the agent
 // when distribution is "on import"), then the preview and the confirmation. Nothing is created before the last button.
@@ -70,7 +70,7 @@ async function choose(chosen: File) {
   fileError.value = ''
   const problem = importFileProblem(chosen)
   if (problem) {
-    fileError.value = t(problem === 'tooLarge' ? 'crm.imports.errors.tooLarge' : problem === 'type' ? 'crm.imports.errors.fileType' : 'crm.imports.errors.file.noRows')
+    fileError.value = t(importFileMessageKey(problem))
     upload.value?.reset()
     return
   }
@@ -101,13 +101,7 @@ async function toPreview() {
   }
   checking.value = true
   try {
-    const result = await actions.preview.mutateAsync(body)
-    if (saveProfile.value && profileId.value === null && body.mapping) {
-      const saved: CrmImportMapping = await actions.saveMapping.mutateAsync({ name: profileName.value.trim(), columns: body.mapping })
-      profileId.value = saved.id
-      saveProfile.value = false
-    }
-    preview.value = result
+    preview.value = await actions.preview.mutateAsync(body)
     confirmError.value = ''
     step.value = 'preview'
   } catch (error) {
@@ -117,13 +111,22 @@ async function toPreview() {
   }
 }
 
+// The saved mapping is created here, with the import: a name already taken is refused before any record exists, and
+// the import then goes by the new profile's id.
+async function saveChosenProfile(columns: CrmImportColumns) {
+  const saved = await actions.saveMapping.mutateAsync({ name: profileName.value.trim(), columns })
+  profileId.value = saved.id
+  saveProfile.value = false
+}
+
 async function commitImport() {
-  const body = requestBody()
-  if (!body || checking.value) return
+  if (!requestBody() || checking.value) return
   confirmError.value = ''
   checking.value = true
   try {
-    const batch = await actions.commit.mutateAsync(body)
+    const columns = mappingBody(mapping.value)
+    if (saveProfile.value && profileId.value === null && columns) await saveChosenProfile(columns)
+    const batch = await actions.commit.mutateAsync(requestBody()!)
     finished.value = true
     toast.add({ title: t('crm.imports.flow.preview.done', { count: batch.created, name: batch.file_name }), color: 'success' })
     await navigateTo(CRM_LIST_PATH)
