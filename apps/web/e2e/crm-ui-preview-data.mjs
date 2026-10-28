@@ -67,10 +67,36 @@ const seedLists = () => ({
   ],
 })
 
+const USER_NAMES = { 2: 'Admin', 3: 'ليلى الحربي', 4: 'خالد الشمري' }
+// Opportunities and their calls. Times are relative to the moment the mock starts (or resets), in the contract's UTC format.
+const HOUR = 3_600_000
+const iso = offsetHours => new Date(Math.round((Date.now() + offsetHours * HOUR) / 1000) * 1000).toISOString().replace('.000Z', 'Z')
+const ref = (rows, id) => { const row = rows.find(item => item.id === id); return row ? { id: row.id, name: row.name } : null }
+const mockUserRef = id => (id ? { id, name: USER_NAMES[id] ?? `#${id}` } : null)
+const seedOpportunities = () => {
+  const base = { email: '', lost_reason: null, package: null, list_price: 0, discount_percent: 0, final_price: 0, expected_revenue: 0, attempt_count: 0, next_call_at: null, cycle: 0, recycle_at: null, needs_manager: false, active: true, status: 'pending' }
+  const row = (id, contact_name, phone, stageId, userId, sourceId, extra = {}) => ({ ...base, id, contact_name, phone, stage: ref(seedLists().stages, stageId), user: mockUserRef(userId), source: ref(seedLists().sources, sourceId), created_at: iso(-24 * (10 - id)), ...extra })
+  return [
+    row(1, 'أحمد العتيبي', '0501234567', 1, 2, 1, { attempt_count: 1, next_call_at: iso(-3), email: 'ahmad@example.com' }),
+    row(2, 'سارة القحطاني', '0507654321', 2, 2, 2, { attempt_count: 1, next_call_at: iso(20) }),
+    row(3, 'محمد الدوسري', '0551112233', 3, 3, 1, { next_call_at: iso(48) }),
+    row(4, 'نورة الزهراني', '0559988776', 1, null, 2),
+    row(5, 'فهد الحربي', '0533344556', 4, 2, 1, { status: 'won', package: { id: 1, name: 'باقة أساسية' }, list_price: 120, discount_percent: 10, final_price: 108, expected_revenue: 108 }),
+    row(6, 'ريم السبيعي', '0544455667', 1, 3, 1, { status: 'lost', active: false, lost_reason: { id: 1, name: 'غير مهتم' }, attempt_count: 1 }),
+    row(7, 'عبدالله المطيري', '0566677889', 2, 4, 2, { attempt_count: 3, needs_manager: true }),
+    row(8, 'هند الشهري', '0522200111', 3, 4, 1, { next_call_at: iso(-30) }),
+  ]
+}
+const seedCalls = () => ({
+  1: [{ id: 1, outcome: { id: 1, name: 'لا يرد' }, note: 'رنّ الهاتف ولم يُجب', duration_minutes: 0, user: mockUserRef(2), created_at: iso(-27) }],
+  2: [{ id: 2, outcome: { id: 2, name: 'سيفكر' }, note: 'طلب مهلة حتى نهاية الأسبوع', duration_minutes: 4, user: mockUserRef(2), created_at: iso(-4) }],
+})
+
 let settings = seedSettings()
 let lists = seedLists()
+let opportunities = seedOpportunities()
+let calls = seedCalls()
 
-const USER_NAMES = { 2: 'Admin', 3: 'ليلى الحربي', 4: 'خالد الشمري' }
 const dumpSettings = () => ({
   values: settings.values,
   distribution_users: settings.values.distribution_user_ids.map(id => ({ id, name: USER_NAMES[id] ?? `#${id}` })),
@@ -84,11 +110,38 @@ const merge = (base, patch) => Object.fromEntries(Object.entries(base).map(([key
   patch[key] === undefined ? value : (value && typeof value === 'object' && !Array.isArray(value) ? merge(value, patch[key]) : patch[key]),
 ]))
 
-export function crmPreviewData(path) {
+const page = (rows, url) => {
+  const offset = Number(url.searchParams.get('offset') ?? 0)
+  const limit = Number(url.searchParams.get('limit') ?? 20)
+  return { items: rows.slice(offset, offset + limit), total: rows.length }
+}
+function filterOpportunities(url) {
+  const param = name => url.searchParams.get(name)
+  const q = (param('q') ?? '').trim().toLowerCase()
+  const now = Date.now()
+  return opportunities.filter(item => item.active
+    && (!param('stage_id') || item.stage?.id === Number(param('stage_id')))
+    && (!param('user_id') || item.user?.id === Number(param('user_id')))
+    && (!param('source_id') || item.source?.id === Number(param('source_id')))
+    && (param('due') === null || (param('due') === 'true') === (item.next_call_at !== null && Date.parse(item.next_call_at) <= now))
+    && (param('unassigned') === null || (param('unassigned') === 'true') === (item.user === null))
+    && (param('needs_manager') === null || (param('needs_manager') === 'true') === item.needs_manager)
+    && (!q || `${item.contact_name} ${item.phone} ${item.email}`.toLowerCase().includes(q)))
+}
+
+export function crmPreviewData(path, url) {
   if (path === '/api/v1/crm/settings') return dumpSettings()
   if (path === '/api/v1/crm/terms') return settings.values.terms
   const list = path.match(/^\/api\/v1\/crm\/(stages|outcomes|lost-reasons|sources|packages)$/)
-  if (list) return listPage([...lists[list[1]]])
+  // `?active=all` is the settings page (archived rows too); without it only active rows are offered.
+  if (list) return listPage(lists[list[1]].filter(row => url.searchParams.get('active') === 'all' || row.active))
+  if (path === '/api/v1/crm/opportunities') return page(filterOpportunities(url), url)
+  const record = path.match(/^\/api\/v1\/crm\/opportunities\/(\d+)(\/calls)?$/)
+  if (record) {
+    const found = opportunities.find(item => item.id === Number(record[1]))
+    if (!found) return undefined
+    return record[2] ? page(calls[found.id] ?? [], url) : found
+  }
   return undefined
 }
 
@@ -96,8 +149,12 @@ export function crmPreviewWrite(method, path, body) {
   if (path === '/api/v1/__mock/reset-crm') {
     settings = seedSettings()
     lists = seedLists()
+    opportunities = seedOpportunities()
+    calls = seedCalls()
     return { status: 200, body: { reset: true } }
   }
+  const opportunityWrite = crmOpportunityWrite(method, path, body)
+  if (opportunityWrite) return opportunityWrite
   if (method === 'PATCH' && path === '/api/v1/crm/settings') {
     if (body.revision !== settings.revision) return stale
     const values = body.preset ? { ...PRESETS[body.preset], preset: body.preset } : body.values
@@ -125,4 +182,92 @@ export function crmPreviewWrite(method, path, body) {
     return { status: 200, body: target }
   }
   return undefined
+}
+
+const invalid = (field, message) => ({ status: 422, body: { code: 'invalid', message, field } })
+const closed = { status: 409, body: { code: 'conflict', message: 'the opportunity is closed' } }
+const wonStage = () => lists.stages.find(stage => stage.is_won)
+const firstStage = () => [...lists.stages].filter(stage => stage.active && !stage.is_won).sort((a, b) => a.sequence - b.sequence)[0]
+
+function closeLost(lead, reasonId) {
+  Object.assign(lead, { status: 'lost', active: false, lost_reason: ref(lists['lost-reasons'], reasonId), next_call_at: null })
+}
+function sell(lead, body) {
+  const pack = lists.packages.find(item => item.id === body.package_id)
+  if (!pack) return invalid('package_id', 'package does not exist')
+  const discount = body.final_price < pack.price ? Math.round(((pack.price - body.final_price) * 100) / pack.price * 100) / 100 : 0
+  if (body.discount_percent != null && Math.round(body.discount_percent * 100) / 100 !== discount) return invalid('discount_percent', 'the discount does not match the prices')
+  if (discount > settings.values.discount_max_percent) return { status: 403, body: { code: 'forbidden', message: 'crm.discount.approve capability is required' } }
+  Object.assign(lead, {
+    status: 'won', stage: ref(lists.stages, wonStage().id), package: { id: pack.id, name: pack.name }, list_price: pack.price,
+    discount_percent: discount, final_price: body.final_price, expected_revenue: body.final_price, next_call_at: null, needs_manager: false,
+  })
+  return undefined
+}
+function followUp(lead) {
+  const { followup_attempts: allowed, followup_interval_hours: hours, after_attempts: after } = settings.values
+  lead.attempt_count += 1
+  if (lead.attempt_count <= allowed) lead.next_call_at = iso(hours)
+  else if (after === 'manager') Object.assign(lead, { next_call_at: null, needs_manager: true })
+  else closeLost(lead, 2)
+}
+
+// The opportunity routes of the mock: they follow the server's rules (closed -> 409, duplicate phone -> 422,
+// discount above the ceiling -> 403) and answer with the shapes of packages/contracts/src/crm.
+function crmOpportunityWrite(method, path, body) {
+  if (method === 'POST' && path === '/api/v1/crm/opportunities') {
+    if (opportunities.some(item => item.phone === body.phone)) return invalid('phone', 'duplicate phone')
+    const created = {
+      id: Math.max(0, ...opportunities.map(item => item.id)) + 1, contact_name: body.contact_name, phone: body.phone, email: body.email ?? '',
+      stage: ref(lists.stages, firstStage().id), user: mockUserRef('user_id' in body ? body.user_id : 2), source: ref(lists.sources, body.source_id),
+      package: null, lost_reason: null, status: 'pending', list_price: 0, discount_percent: 0, final_price: 0, expected_revenue: 0, attempt_count: 0,
+      next_call_at: null, cycle: 0, recycle_at: null, needs_manager: false, active: true, created_at: iso(0),
+    }
+    opportunities.unshift(created)
+    return { status: 200, body: created }
+  }
+  const route = path.match(/^\/api\/v1\/crm\/opportunities\/(\d+)(?:\/(calls|won|lost|reopen|assign))?$/)
+  if (!route) return undefined
+  const lead = opportunities.find(item => item.id === Number(route[1]))
+  if (!lead) return { status: 404, body: { code: 'not_found', message: 'Record does not exist' } }
+  const action = route[2]
+  if (method === 'PATCH' && !action) {
+    if (lead.status !== 'pending') return closed
+    if (body.phone && opportunities.some(item => item.id !== lead.id && item.phone === body.phone)) return invalid('phone', 'duplicate phone')
+    const { stage_id: stageId, source_id: sourceId, ...plain } = body
+    Object.assign(lead, plain)
+    if (stageId) lead.stage = ref(lists.stages, stageId)
+    if ('source_id' in body) lead.source = ref(lists.sources, sourceId)
+    return { status: 200, body: lead }
+  }
+  if (method !== 'POST' || !action) return undefined
+  if (action === 'reopen') {
+    if (lead.status === 'won' || (lead.active && !lead.needs_manager)) return { status: 409, body: { code: 'conflict', message: 'only a lost or flagged opportunity can be reopened' } }
+    Object.assign(lead, { status: 'pending', active: true, lost_reason: null, needs_manager: false, attempt_count: 0, next_call_at: null, cycle: lead.cycle + 1, stage: ref(lists.stages, firstStage().id) })
+    return { status: 200, body: lead }
+  }
+  if (lead.status !== 'pending') return closed
+  if (action === 'assign') {
+    Object.assign(lead, { user: mockUserRef(body.user_id), attempt_count: 0, next_call_at: null, needs_manager: false })
+    return { status: 200, body: lead }
+  }
+  if (action === 'lost') {
+    if (!lists['lost-reasons'].some(reason => reason.id === body.lost_reason_id)) return invalid('lost_reason_id', 'lost reason does not exist')
+    closeLost(lead, body.lost_reason_id)
+    return { status: 200, body: lead }
+  }
+  if (action === 'won') return sell(lead, body) ?? { status: 200, body: lead }
+  const outcome = lists.outcomes.find(item => item.id === body.outcome_id)
+  if (!outcome) return invalid('outcome_id', 'outcome does not exist')
+  const saleFields = body.package_id !== undefined
+  if (saleFields && outcome.effect !== 'won') return invalid('package_id', 'only a sold outcome carries a package')
+  if (outcome.effect === 'won') {
+    if (!saleFields) return invalid('package_id', 'a sold outcome needs a package and a final price')
+    const refused = sell(lead, body)
+    if (refused) return refused
+  } else if (outcome.effect === 'lost') closeLost(lead, outcome.lost_reason_id)
+  else if (outcome.effect === 'follow_up') followUp(lead)
+  const call = { id: Math.max(0, ...Object.values(calls).flat().map(item => item.id)) + 1, outcome: { id: outcome.id, name: outcome.name }, note: body.note ?? '', duration_minutes: body.duration_minutes ?? 0, user: mockUserRef(2), created_at: iso(0) }
+  calls[lead.id] = [call, ...(calls[lead.id] ?? [])]
+  return { status: 200, body: { call, opportunity: lead } }
 }

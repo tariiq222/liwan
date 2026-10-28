@@ -136,6 +136,138 @@
         "archived": "Archived",
         "protected": "Protected"
       }
+    },
+    "opportunities": {
+      "list": {
+        "new": "Add {term}",
+        "search": "Search by name, phone or email",
+        "stage": "Stage",
+        "allStages": "All stages",
+        "source": "Source",
+        "allSources": "All sources",
+        "agent": "Agent",
+        "agentPicker": "Choose an agent",
+        "due": "Follow-up due",
+        "unassigned": "No agent",
+        "needsManager": "Needs a manager",
+        "viewList": "List",
+        "viewBoard": "Stage board",
+        "empty": "Nothing here yet. Add the first record.",
+        "results": "{shown} of {total}"
+      },
+      "cols": {
+        "phone": "Phone",
+        "stage": "Stage",
+        "agent": "Agent",
+        "nextCall": "Next call"
+      },
+      "board": {
+        "noStage": "No stage",
+        "emptyColumn": "Empty",
+        "capped": "Showing the first {count} results. Narrow the search to see the rest."
+      },
+      "status": {
+        "pending": "In progress",
+        "won": "Sold",
+        "lost": "Lost"
+      },
+      "tag": {
+        "due": "Follow-up due",
+        "needsManager": "Waiting for a manager",
+        "pool": "No agent"
+      },
+      "record": {
+        "back": "Back to the list",
+        "phone": "Phone",
+        "email": "Email",
+        "stage": "Stage",
+        "agent": "Agent",
+        "source": "Source",
+        "listPrice": "Plan price",
+        "discount": "Discount",
+        "finalPrice": "Final price",
+        "attempts": "Call attempts",
+        "cycle": "Times reopened",
+        "lostReason": "Lost reason",
+        "details": "Details",
+        "created": "Created",
+        "nextCall": "Next call",
+        "nextCallNone": "No call scheduled",
+        "nextCallDue": "Due now",
+        "recycleAt": "Returns to follow-up",
+        "stageChange": "Change stage",
+        "stageSaved": "Stage changed",
+        "assign": "Assign to",
+        "assignAction": "Assign",
+        "assigned": "Assigned",
+        "reopen": "Reopen",
+        "reopened": "Reopened",
+        "managerBanner": "The call attempts are used up and a manager has to decide: assign again or reopen.",
+        "closedWon": "Closed as sold.",
+        "closedLost": "Closed as lost."
+      },
+      "call": {
+        "title": "Record a call",
+        "outcome": "Call outcome",
+        "outcomePlaceholder": "Choose the outcome",
+        "note": "Note",
+        "duration": "Duration (minutes)",
+        "submit": "Record the call",
+        "recorded": "Call recorded",
+        "nextCall": "Next call {relative} ({absolute})",
+        "lostNeedsReason": "This outcome closes the record as lost and has no reason. Choose the reason to close it.",
+        "lostSubmit": "Close as lost",
+        "lostNoCallLog": "The record closes without logging this call.",
+        "outcomeRequired": "Choose the call outcome",
+        "log": "Call log",
+        "logEmpty": "No calls recorded yet",
+        "logBy": "by {name}",
+        "logNoOutcome": "No outcome",
+        "logMinutes": "{minutes} min"
+      },
+      "sale": {
+        "title": "Sell a {term}",
+        "package": "{term}",
+        "packagePlaceholder": "Choose",
+        "listPrice": "{term} price",
+        "finalPrice": "Final price",
+        "discount": "Discount",
+        "discountHint": "Worked out from the difference between the price and the final price.",
+        "submit": "Confirm the sale",
+        "sold": "Sold",
+        "packageRequired": "Choose the plan",
+        "priceRequired": "Enter the final price"
+      },
+      "lost": {
+        "action": "Close as lost",
+        "reason": "Lost reason",
+        "reasonPlaceholder": "Choose the reason",
+        "reasonRequired": "Choose the lost reason",
+        "confirmTitle": "Close this record as lost?",
+        "confirmBody": "It leaves the follow-up. Someone with the assign capability can reopen it.",
+        "confirm": "Close as lost",
+        "done": "Closed as lost"
+      },
+      "form": {
+        "contact": "Name",
+        "phone": "Phone",
+        "email": "Email",
+        "source": "Source",
+        "sourceNone": "No source",
+        "agent": "Agent",
+        "agentHint": "Leave empty to take it yourself. Another agent, or the shared pool, needs the assign capability.",
+        "pool": "Put in the shared pool",
+        "contactRequired": "The name is required",
+        "phoneRequired": "The phone is required",
+        "submit": "Save"
+      },
+      "errors": {
+        "conflict": "This record changed or was closed. Reload the page and try again.",
+        "duplicatePhone": "This phone is already on another record.",
+        "discount": "The discount is not allowed or does not match the prices.",
+        "discountApproval": "This discount is above the allowed limit and needs someone who can approve discounts.",
+        "forbidden": "You cannot do this on this record."
+      }
     }
   }
 }

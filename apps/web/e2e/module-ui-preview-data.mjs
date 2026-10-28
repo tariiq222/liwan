@@ -456,7 +456,7 @@ export function moduleUiPreviewData(path, url) {
   if (normalizedPath === '/api/v1/meeting-series/1/events') return page(events, parsedUrl)
   if (normalizedPath === '/api/v1/meeting-series/1/resolutions') return page([{ ...resolution, meeting_id: 1, meeting_name: meeting.name }], parsedUrl)
 
-  if (normalizedPath.startsWith('/api/v1/crm/')) return crmPreviewData(normalizedPath)
+  if (normalizedPath.startsWith('/api/v1/crm/')) return crmPreviewData(normalizedPath, parsedUrl)
   if (normalizedPath.startsWith('/api/v1/documents')) return documentsPreviewData(normalizedPath, parsedUrl)
   if (normalizedPath.startsWith('/api/v1/hr/payroll/')) return hrPayrollPreviewData(normalizedPath, parsedUrl)
   if (normalizedPath.startsWith('/api/v1/hr/')) return hrPreviewData(normalizedPath, parsedUrl)

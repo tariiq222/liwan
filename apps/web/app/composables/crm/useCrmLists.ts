@@ -22,14 +22,18 @@ const LIST_LIMIT = 200
 interface ListShape<Row> { items: Row[]; total: number }
 
 // The five lists share one route shape: GET all, POST one, PATCH by id. A write refetches its list.
-function useCrmList<Row>(name: CrmListName, schema: ZodType<ListShape<Row>>, enabled: MaybeRefOrGetter<boolean>) {
+// `settings` is the manager's view (archived rows too, crm.settings.read); `choices` is what a record form offers
+// (active rows only, any crm.leads.read holder: the server lets both capabilities read the lists).
+type ListScope = 'settings' | 'choices'
+function useCrmList<Row>(name: CrmListName, schema: ZodType<ListShape<Row>>, enabled: MaybeRefOrGetter<boolean>, scope: ListScope) {
   const { $api } = useApi()
   const { can } = useAccess()
   const { me } = useMe()
+  const settings = scope === 'settings'
   return useQuery({
-    queryKey: crmKeys.list(name),
-    enabled: computed(() => toValue(enabled) && !!me.value && can('crm.settings.read')),
-    queryFn: () => $api(`/api/v1/crm/${name}`, { query: { active: 'all', limit: LIST_LIMIT }, schema }),
+    queryKey: (settings ? crmKeys.list(name) : crmKeys.choices(name)) as readonly unknown[],
+    enabled: computed(() => toValue(enabled) && !!me.value && can(settings ? 'crm.settings.read' : 'crm.leads.read')),
+    queryFn: () => $api(`/api/v1/crm/${name}`, { query: { ...(settings ? { active: 'all' } : {}), limit: LIST_LIMIT }, schema }),
   })
 }
 
@@ -49,7 +53,7 @@ export function useCrmListEditor<Row, Create extends object, Patch extends objec
     busy.value = [...busy.value, id]
     try {
       await request()
-      await qc.invalidateQueries({ queryKey: crmKeys.list(name) })
+      await Promise.all([qc.invalidateQueries({ queryKey: crmKeys.list(name) }), qc.invalidateQueries({ queryKey: crmKeys.choices(name) })])
       return true
     } catch (error) {
       failure.value = error
@@ -66,17 +70,24 @@ export function useCrmListEditor<Row, Create extends object, Patch extends objec
   }
 }
 
-export const useCrmStages = (enabled: MaybeRefOrGetter<boolean> = true) => useCrmList<CrmStage>('stages', CrmStageListSchema, enabled)
-export const useCrmOutcomes = (enabled: MaybeRefOrGetter<boolean> = true) => useCrmList<CrmOutcome>('outcomes', CrmOutcomeListSchema, enabled)
-export const useCrmLostReasons = (enabled: MaybeRefOrGetter<boolean> = true) => useCrmList<CrmLostReason>('lost-reasons', CrmLostReasonListSchema, enabled)
-export const useCrmSources = (enabled: MaybeRefOrGetter<boolean> = true) => useCrmList<CrmSource>('sources', CrmSourceListSchema, enabled)
-export const useCrmPackages = (enabled: MaybeRefOrGetter<boolean> = true) => useCrmList<CrmPackage>('packages', CrmPackageListSchema, enabled)
+export const useCrmStages = (enabled: MaybeRefOrGetter<boolean> = true) => useCrmList<CrmStage>('stages', CrmStageListSchema, enabled, 'settings')
+export const useCrmOutcomes = (enabled: MaybeRefOrGetter<boolean> = true) => useCrmList<CrmOutcome>('outcomes', CrmOutcomeListSchema, enabled, 'settings')
+export const useCrmLostReasons = (enabled: MaybeRefOrGetter<boolean> = true) => useCrmList<CrmLostReason>('lost-reasons', CrmLostReasonListSchema, enabled, 'settings')
+export const useCrmSources = (enabled: MaybeRefOrGetter<boolean> = true) => useCrmList<CrmSource>('sources', CrmSourceListSchema, enabled, 'settings')
+export const useCrmPackages = (enabled: MaybeRefOrGetter<boolean> = true) => useCrmList<CrmPackage>('packages', CrmPackageListSchema, enabled, 'settings')
+
+/** The active rows the opportunity pages offer, for anyone who may read leads. */
+export const useCrmStageChoices = () => useCrmList<CrmStage>('stages', CrmStageListSchema, true, 'choices')
+export const useCrmOutcomeChoices = () => useCrmList<CrmOutcome>('outcomes', CrmOutcomeListSchema, true, 'choices')
+export const useCrmLostReasonChoices = () => useCrmList<CrmLostReason>('lost-reasons', CrmLostReasonListSchema, true, 'choices')
+export const useCrmSourceChoices = () => useCrmList<CrmSource>('sources', CrmSourceListSchema, true, 'choices')
+export const useCrmPackageChoices = () => useCrmList<CrmPackage>('packages', CrmPackageListSchema, true, 'choices')
 
 export function useReorderCrmStages() {
   const { $api } = useApi()
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (ids: number[]) => $api('/api/v1/crm/stages/order', { method: 'POST', body: { ids }, schema: CrmStageListSchema }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: crmKeys.list('stages') }),
+    onSuccess: () => Promise.all([qc.invalidateQueries({ queryKey: crmKeys.list('stages') }), qc.invalidateQueries({ queryKey: crmKeys.choices('stages') })]),
   })
 }
