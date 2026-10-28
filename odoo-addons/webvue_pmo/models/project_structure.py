@@ -18,19 +18,28 @@ class ProjectProject(models.Model):
         return self.env['project.task'].sudo().with_context(active_test=False).search_count(
             [('project_id', '=', self.id), ('stage_id', '=', stage.id)])
 
+    def _webvue_stages_sudo(self):
+        # sudo(): documented manager-write case for project stages. Odoo's
+        # project.task.type rule lets a project user write only personal stages;
+        # the project's shared stages need project.group_project_manager, which a
+        # WebVue role or the project's own manager does not hold. Every caller has
+        # passed _webvue_check_manage first.
+        return self.env['project.task.type'].sudo()
+
     def _webvue_add_stage(self, name, fold=False):
         self._webvue_check_manage()
         last = max(self.type_ids.mapped('sequence'), default=0)
-        return self.env['project.task.type'].create({
+        stage = self._webvue_stages_sudo().create({
             'name': name, 'fold': fold, 'sequence': last + 10, 'project_ids': [(4, self.id)],
         })
+        return self.env['project.task.type'].browse(stage.id)
 
     def _webvue_update_stage(self, stage, vals):
         self._webvue_check_manage()
         if stage not in self.type_ids:
             msg = "stage does not belong to this project"
             raise ValueError(msg)
-        stage.write({k: v for k, v in vals.items() if k in ('name', 'fold')})
+        self._webvue_stages_sudo().browse(stage.id).write({k: v for k, v in vals.items() if k in ('name', 'fold')})
         return stage
 
     def _webvue_reorder_stages(self, ids):
@@ -38,8 +47,9 @@ class ProjectProject(models.Model):
         if sorted(ids) != sorted(self.type_ids.ids):
             msg = "ids must be a permutation of the project's stage ids"
             raise ValueError(msg)
+        Stage = self._webvue_stages_sudo()
         for i, stage_id in enumerate(ids):
-            self.env['project.task.type'].browse(stage_id).write({'sequence': (i + 1) * 10})
+            Stage.browse(stage_id).write({'sequence': (i + 1) * 10})
         return self.type_ids.sorted(lambda s: (s.sequence, s.id))
 
     def _webvue_delete_stage(self, stage):
@@ -54,11 +64,15 @@ class ProjectProject(models.Model):
             # Shared stage: detach from this project only.
             self._webvue_write_as_manager({'type_ids': [(3, stage.id)]})
         else:
-            stage.unlink()
+            self._webvue_stages_sudo().browse(stage.id).unlink()
 
     # --- followers -----------------------------------------------------------
     def _webvue_followers(self):
-        partners = self.message_partner_ids
+        # Read the follower rows, not the computed message_partner_ids: on a
+        # followers-only project, computing that field as the caller runs the
+        # read rule, whose in-memory check reads the same field while it is
+        # being computed and refuses the follower who asked.
+        partners = self.message_follower_ids.partner_id
         return partners.mapped('user_ids').filtered(lambda u: not u.share and u.active)
 
     def _webvue_add_follower(self, user):
