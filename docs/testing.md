@@ -89,6 +89,7 @@ The complete `npm test` sequence remains binding in CI before merge.
 | --- | --- |
 | `npm run check:fast` | Policy checks always, plus ruff, tools tests, contracts/web tests and the web type check only for the layers that changed against `main` (`tools/check_fast.py`). |
 | `npm run test:odoo` | Odoo tests of the changed addons and their dependents on a scratch database cloned from a cached template (`tools/odoo_test.py`). Options: `--addons a,b`, `--all`, `--base`, `--dry-run`, `--keep-db`. |
+| `python3 -B tools/test_slot.py -- <command>` | Machine-wide test queue shared by every session and worktree: at most `WEBVUE_TEST_SLOTS` (default 2) heavy checks run at once, the rest wait and print who holds the slots. `npm test`, `npm run test:odoo`, `npm run check:fast`, the `npm run e2e*` scripts and `npm -w apps/web run lint` already take a slot; wrap any other heavy command (a direct `odoo-bin` test run, `vitest`, Playwright, `vue-tsc`) in it. A command inside a held slot takes no second one. `--status` lists the holders. From a worktree that predates it, call it by the main checkout path. |
 | `npm run wt -- new <area>-<slug> --owner <who> --task <what> --scope <path>` | New task worktree with its own `node_modules`/`.nuxt`, free ports and a scratch DB name in the git-ignored `.env.worktree`, and its ownership claim; accepts any valid branch name as a base and refuses scopes that overlap another active claim unless `--allow-overlap "<reason>"` (`tools/wt.py`, rules in `docs/parallel-work.md`). |
 | `npm run wt -- claim --owner <who> [--task ...] [--scope ...]` | Inside a task worktree: record its claim, change or refresh your own, or take over an expired one (`tools/wt.py`). |
 | `npm run wt -- check` | Read-only report of worktrees that break the location, naming or claim rules; exit 1 when there is one (`tools/wt.py`). |
@@ -322,6 +323,12 @@ The specs use 60s test and 15s expect timeouts for a loaded machine.
 The runner is `e2e` (config: `e2e.config.ts`, models: `e2e/models.ts`, tests:
 `e2e/tests/*.e2e.ts`).
 
+The register of end-user scenarios, with the personas and the status of each scenario
+(planned, manual, automated, failing, gap), is [e2e/scenarios](../e2e/scenarios/README.md).
+A test that covers a scenario cites its ID in the title and updates its row in the same change.
+`python3 -B tools/e2e_scenario_coverage.py` lists every page, Odoo route and capability that has no
+scenario yet (`--check` exits 1 on a gap).
+
 - `npm run e2e` runs all tests, `npm run e2e:smoke` runs the smoke test, and
   `npm run e2e -- e2e/tests/<file>.e2e.ts` runs one file. All args are forwarded to
   `e2e run`.
@@ -349,9 +356,10 @@ The runner is `e2e` (config: `e2e.config.ts`, models: `e2e/models.ts`, tests:
   through `PGPASSWORD`.
   - First run creates the database: installs every release module, then
     `tools/e2e_seed.py` (through `odoo-bin shell`) opens the full entitlement policy
-    (`pmo.enabled` and the other keys) and creates the test accounts `e2e_admin` and
-    `e2e_employee` (credentials declared in `e2e.config.ts`, override with
-    `E2E_USER_<NAME>_PASSWORD`). Expect about 40 s on a warm machine, more on a cold one; a
+    (`pmo.enabled` and the other keys), creates the test accounts `e2e_admin` and
+    `e2e_employee`, and builds the demo company with its role personas (`e2e_ceo`,
+    `e2e_hr_manager`, `e2e_staff1`, ...; credentials declared in `e2e.config.ts`, override
+    with `E2E_USER_<NAME>_PASSWORD`). Expect about 40 s on a warm machine, more on a cold one; a
     failed create drops the half-built database. Later runs reuse it (about 25 s of
     startup).
   - `E2E_ODOO_RESET=1` drops and recreates it; `E2E_ODOO_UPDATE=1` runs `-u` and re-seeds. `E2E_ODOO_SEED=1` only re-runs the seed on the existing database (the seed is idempotent).

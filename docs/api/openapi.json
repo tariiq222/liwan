@@ -30124,6 +30124,59 @@
         ],
         "type": "string"
       },
+      "HrPlanRunCancelSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
+      },
+      "HrPlanRunCancellationSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "by": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "on": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "type": "string"
+          },
+          "reason": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "by",
+          "on",
+          "reason"
+        ],
+        "type": "object"
+      },
       "HrPlanRunCreateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -30154,6 +30207,54 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "can_cancel": {
+            "type": "boolean"
+          },
+          "cancellation": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "by": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name"
+                    ],
+                    "type": "object"
+                  },
+                  "on": {
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                    "type": "string"
+                  },
+                  "reason": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "by",
+                  "on",
+                  "reason"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "done": {
             "maximum": 9007199254740991,
             "minimum": 0,
@@ -30226,7 +30327,8 @@
           "state": {
             "enum": [
               "open",
-              "done"
+              "done",
+              "cancelled"
             ],
             "type": "string"
           },
@@ -30325,7 +30427,9 @@
           "done",
           "total",
           "state",
-          "steps"
+          "cancellation",
+          "steps",
+          "can_cancel"
         ],
         "type": "object"
       },
@@ -30337,6 +30441,51 @@
             "items": {
               "additionalProperties": false,
               "properties": {
+                "cancellation": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "by": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991,
+                              "type": "integer"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name"
+                          ],
+                          "type": "object"
+                        },
+                        "on": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "reason": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "by",
+                        "on",
+                        "reason"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "done": {
                   "maximum": 9007199254740991,
                   "minimum": 0,
@@ -30409,7 +30558,8 @@
                 "state": {
                   "enum": [
                     "open",
-                    "done"
+                    "done",
+                    "cancelled"
                   ],
                   "type": "string"
                 },
@@ -30427,7 +30577,8 @@
                 "launched_by",
                 "done",
                 "total",
-                "state"
+                "state",
+                "cancellation"
               ],
               "type": "object"
             },
@@ -30449,6 +30600,51 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "cancellation": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "by": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name"
+                    ],
+                    "type": "object"
+                  },
+                  "on": {
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                    "type": "string"
+                  },
+                  "reason": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "by",
+                  "on",
+                  "reason"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "done": {
             "maximum": 9007199254740991,
             "minimum": 0,
@@ -30521,7 +30717,8 @@
           "state": {
             "enum": [
               "open",
-              "done"
+              "done",
+              "cancelled"
             ],
             "type": "string"
           },
@@ -30539,7 +30736,8 @@
           "launched_by",
           "done",
           "total",
-          "state"
+          "state",
+          "cancellation"
         ],
         "type": "object"
       },
@@ -30547,7 +30745,8 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
           "open",
-          "done"
+          "done",
+          "cancelled"
         ],
         "type": "string"
       },
@@ -62233,6 +62432,59 @@
         }
       }
     },
+    "/api/v1/hr/leave/allocations/{allocation_id}/revoke": {
+      "post": {
+        "operationId": "webvue_hr.HrLeaveController.revoke_allocation.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "allocation_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Withdraw a grant through stock hr_holidays' refusal.",
+        "tags": [
+          "webvue_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrLeaveController",
+          "feature_keys": [
+            "hr.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "revoke_allocation",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/hr/leave/balances": {
       "get": {
         "operationId": "webvue_hr.HrLeaveController.list_balances.get",
@@ -63294,45 +63546,6 @@
       }
     },
     "/api/v1/hr/offboarding/runs": {
-      "get": {
-        "operationId": "webvue_hr.HrLifecycleRunController.list_offboarding_runs.get",
-        "responses": {
-          "200": {
-            "description": "Success (serializer-whitelisted shape)."
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "422": {
-            "$ref": "#/components/responses/Invalid"
-          }
-        },
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "summary": "list_offboarding_runs",
-        "tags": [
-          "webvue_hr"
-        ],
-        "x-webvue": {
-          "addon": "webvue_hr",
-          "api_handler": true,
-          "auth": "user",
-          "body": "application/json (JSON-RPC style params)",
-          "contract_namespace": "hr",
-          "controller": "HrLifecycleRunController",
-          "feature_keys": [
-            "hr.enabled",
-            "hr.offboarding"
-          ],
-          "feature_operation": "read",
-          "handler": "list_offboarding_runs",
-          "readonly": true,
-          "route_type": "json2"
-        }
-      },
       "post": {
         "operationId": "webvue_hr.HrLifecycleRunController.create_offboarding_run.post",
         "responses": {
@@ -63423,6 +63636,60 @@
           "feature_operation": "read",
           "handler": "get_offboarding_run",
           "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/hr/offboarding/runs/{run_id}/cancel": {
+      "post": {
+        "operationId": "webvue_hr.HrLifecycleRunController.cancel_offboarding_run.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "cancel_offboarding_run",
+        "tags": [
+          "webvue_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrLifecycleRunController",
+          "feature_keys": [
+            "hr.enabled",
+            "hr.offboarding"
+          ],
+          "feature_operation": "write",
+          "handler": "cancel_offboarding_run",
+          "readonly": false,
           "route_type": "json2"
         }
       }
@@ -63805,6 +64072,60 @@
           "feature_operation": "read",
           "handler": "get_onboarding_run",
           "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/hr/onboarding/runs/{run_id}/cancel": {
+      "post": {
+        "operationId": "webvue_hr.HrLifecycleRunController.cancel_onboarding_run.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "cancel_onboarding_run",
+        "tags": [
+          "webvue_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrLifecycleRunController",
+          "feature_keys": [
+            "hr.enabled",
+            "hr.onboarding"
+          ],
+          "feature_operation": "write",
+          "handler": "cancel_onboarding_run",
+          "readonly": false,
           "route_type": "json2"
         }
       }

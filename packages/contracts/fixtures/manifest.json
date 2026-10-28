@@ -849,14 +849,6 @@
       "schema": "HrActivityPlanSchema"
     },
     {
-      "name": "hr/offboarding-run-list",
-      "addon": "webvue_hr",
-      "method": "GET",
-      "route": "/api/v1/hr/offboarding/runs",
-      "status": 200,
-      "schema": "HrPlanRunListSchema"
-    },
-    {
       "name": "hr/offboarding-run-detail",
       "addon": "webvue_hr",
       "method": "GET",
