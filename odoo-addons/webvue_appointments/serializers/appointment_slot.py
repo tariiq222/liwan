@@ -13,7 +13,7 @@ def parse_slot_query(args, today, horizon_days):
 
     ``to`` may not pass ``today`` plus the company's booking horizon.
     """
-    first, last = (_parse_date(args.get(name), name) for name in ('from', 'to'))
+    first, last = (parse_iso_date(args.get(name), name) for name in ('from', 'to'))
     if last < first:
         raise ApiError(422, 'invalid', 'to must not be before from', field='to')
     if last > today + timedelta(days=horizon_days):
@@ -22,7 +22,8 @@ def parse_slot_query(args, today, horizon_days):
     return first, last, combination_id
 
 
-def _parse_date(value, field):
+def parse_iso_date(value, field):
+    """A YYYY-MM-DD string as a date; 422 naming ``field`` otherwise."""
     if not value or not ISO_DATE.fullmatch(value):
         raise ApiError(422, 'invalid', 'must be a date as YYYY-MM-DD', field=field)
     try:

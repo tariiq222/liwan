@@ -17,8 +17,8 @@ def require_fields(payload, required):
             raise ApiError(422, 'invalid', 'field is required', field=name)
 
 
-def parse_text(value, field, *, required=True):
-    """A trimmed string of at most MAX_TEXT_LENGTH characters; an optional field may be null or empty (stored as False)."""
+def parse_text(value, field, *, required=True, max_length=MAX_TEXT_LENGTH):
+    """A trimmed string of at most ``max_length`` characters; an optional field may be null or empty (stored as False)."""
     if value is None and not required:
         return False
     if not isinstance(value, str):
@@ -26,8 +26,8 @@ def parse_text(value, field, *, required=True):
     value = value.strip()
     if required and not value:
         raise ApiError(422, 'invalid', 'must not be empty', field=field)
-    if len(value) > MAX_TEXT_LENGTH:
-        raise ApiError(422, 'invalid', 'must be at most %d characters' % MAX_TEXT_LENGTH, field=field)
+    if len(value) > max_length:
+        raise ApiError(422, 'invalid', 'must be at most %d characters' % max_length, field=field)
     return value or False
 
 

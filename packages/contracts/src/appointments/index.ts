@@ -1,3 +1,4 @@
+export * from './bookings'
 export * from './combinations'
 export * from './resources'
 export * from './settings'

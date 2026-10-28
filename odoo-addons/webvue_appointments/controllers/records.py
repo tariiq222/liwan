@@ -17,6 +17,22 @@ def get_company_record(model, rec_id):
     return record
 
 
+def get_company_booking(booking_id):
+    """The booking (archived ones included) of the current company that the caller's record rules show.
+
+    A booking has no company field of its own: its type's company decides. Another company's booking,
+    one the caller may not see, and a missing id all answer not found, so the answer leaks no existence.
+    """
+    Booking = request.env['resource.booking']
+    found = Booking.with_context(active_test=False).search([
+        ('id', '=', booking_id), ('type_id.company_id', '=', request.env.company.id),
+    ])
+    if not found:
+        raise MissingError(request.env._('Record does not exist'))
+    # Browse in the plain environment: the engine's combination search must not see archived records.
+    return Booking.browse(found.ids)
+
+
 def company_records(model, ids, field):
     """The active records ``ids`` (in that order), all of the current company; 422 on ``field`` otherwise."""
     found = request.env[model].search([('id', 'in', ids), ('company_id', '=', request.env.company.id)])

@@ -1,4 +1,9 @@
 import {
+  AppointmentBookingCreateSchema,
+  AppointmentBookingListQuerySchema,
+  AppointmentBookingListSchema,
+  AppointmentBookingScheduleSchema,
+  AppointmentBookingSchema,
   AppointmentCombinationCreateSchema,
   AppointmentCombinationListSchema,
   AppointmentCombinationPatchSchema,
@@ -195,5 +200,69 @@ describe('AppointmentSettingsPatchSchema', () => {
     expect(() => AppointmentSettingsPatchSchema.parse({ revision: 0, horizon_days: 366 })).toThrow()
     expect(() => AppointmentSettingsPatchSchema.parse({ revision: 0, preset: 'bank' })).toThrow()
     expect(() => AppointmentSettingsPatchSchema.parse({ revision: 0, sector_preset: 'clinic' })).toThrow()
+  })
+})
+
+const BOOKING_ROW = {
+  id: 7,
+  state: 'scheduled',
+  type_id: 1,
+  type_name: 'Consultation',
+  combination_id: 4,
+  start: '2026-11-02T09:00:00Z',
+  stop: '2026-11-02T09:30:00Z',
+  duration_minutes: 30,
+  requester_name: 'Sara',
+}
+const BOOKING = {
+  ...BOOKING_ROW,
+  requester: { id: 9, name: 'Sara', phone: '+966500000000', email: null },
+  national_id: null,
+  notes: 'First visit',
+  is_modifiable: true,
+}
+
+describe('AppointmentBooking schemas', () => {
+  it('detail and list rows are strict and match the serializer shape', () => {
+    expect(AppointmentBookingSchema.parse(BOOKING)).toEqual(BOOKING)
+    expect(() => AppointmentBookingSchema.parse({ ...BOOKING, secret: 'x' })).toThrow()
+    expect(() => AppointmentBookingSchema.parse(BOOKING_ROW)).toThrow()
+    const list = { items: [BOOKING_ROW], total: 1 }
+    expect(AppointmentBookingListSchema.parse(list)).toEqual(list)
+    expect(() => AppointmentBookingListSchema.parse({ items: [BOOKING], total: 1 })).toThrow()
+  })
+
+  it('a pending booking has no start, stop or combination', () => {
+    const pending = { ...BOOKING_ROW, state: 'pending', combination_id: null, start: null, stop: null }
+    expect(AppointmentBookingListSchema.parse({ items: [pending], total: 1 }).items[0]).toEqual(pending)
+    expect(() => AppointmentBookingListSchema.parse({ items: [{ ...pending, state: 'done' }], total: 1 })).toThrow()
+  })
+
+  it('the list query accepts the filters and rejects unknown ones', () => {
+    const query = { state: 'pending', type_id: 1, resource_id: 2, from: '2026-11-01', to: '2026-11-30', mine: 'true', limit: 50, offset: 0 }
+    expect(AppointmentBookingListQuerySchema.parse(query)).toEqual(query)
+    expect(() => AppointmentBookingListQuerySchema.parse({ mine: 'yes' })).toThrow()
+    expect(() => AppointmentBookingListQuerySchema.parse({ from: '2026-11-1' })).toThrow()
+    expect(() => AppointmentBookingListQuerySchema.parse({ q: 'x' })).toThrow()
+  })
+
+  it('create needs a type and exactly one requester form', () => {
+    const body = { type_id: 1, requester: { name: 'Sara', phone: '+966500000000' }, notes: 'x', start: '2026-11-02T09:00:00Z' }
+    expect(AppointmentBookingCreateSchema.parse(body)).toEqual(body)
+    expect(AppointmentBookingCreateSchema.parse({ type_id: 1, requester_id: 3 })).toEqual({ type_id: 1, requester_id: 3 })
+    expect(() => AppointmentBookingCreateSchema.parse({ type_id: 1 })).toThrow()
+    expect(() => AppointmentBookingCreateSchema.parse({ type_id: 1, requester_id: 3, requester: { name: 'Sara' } })).toThrow()
+    expect(() => AppointmentBookingCreateSchema.parse({ requester_id: 3 })).toThrow()
+    expect(() => AppointmentBookingCreateSchema.parse({ type_id: 1, requester: { phone: '1' } })).toThrow()
+    expect(() => AppointmentBookingCreateSchema.parse({ type_id: 1, requester_id: 3, start: '2026-11-02' })).toThrow()
+    expect(() => AppointmentBookingCreateSchema.parse({ type_id: 1, requester_id: 3, company_id: 1 })).toThrow()
+  })
+
+  it('schedule needs a UTC start', () => {
+    expect(AppointmentBookingScheduleSchema.parse({ start: '2026-11-02T09:00:00Z', combination_id: 4 })).toEqual({
+      start: '2026-11-02T09:00:00Z', combination_id: 4,
+    })
+    expect(() => AppointmentBookingScheduleSchema.parse({})).toThrow()
+    expect(() => AppointmentBookingScheduleSchema.parse({ start: 'tomorrow' })).toThrow()
   })
 })

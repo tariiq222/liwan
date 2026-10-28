@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo import api, models
+from odoo import api, fields, models
 
 # A change to any of these can move a booking onto a resource, so it takes the resource guards first.
 GUARDED_FIELDS = frozenset({'start', 'combination_id', 'combination_auto_assign', 'type_id'})
@@ -7,6 +7,8 @@ GUARDED_FIELDS = frozenset({'start', 'combination_id', 'combination_auto_assign'
 
 class ResourceBooking(models.Model):
     _inherit = 'resource.booking'
+
+    webvue_requester_national_id = fields.Char(copy=False)
 
     @api.model_create_multi
     def create(self, vals_list):
