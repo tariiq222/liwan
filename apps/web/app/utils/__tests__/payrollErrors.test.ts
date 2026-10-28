@@ -201,6 +201,14 @@ describe('payrollWarningText', () => {
     expect(enPayroll.warnings.contract_missing).toContain('contract start date')
   })
 
+  it('tells where to set the nationality when GOSI cannot be computed', () => {
+    const error = new ApiError(422, 'nationality_missing', 'Payroll cannot compute GOSI: nationality_missing', 'employee_id')
+    const text = payrollErrorMessage(error, t, new Map())
+    expect(text).toBe(arPayroll.errors.nationality_missing)
+    expect(text).not.toContain('nationality_missing')
+    expect(text).toContain('تعديل الموظف')
+  })
+
   it('has the same warning keys in ar and en', () => {
     expect(Object.keys(arPayroll.warnings).sort()).toEqual(Object.keys(enPayroll.warnings).sort())
   })
