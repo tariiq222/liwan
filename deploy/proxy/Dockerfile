@@ -13,5 +13,7 @@ RUN go install github.com/caddyserver/xcaddy/cmd/xcaddy@v${XCADDY_VERSION} \
       --with "${RATELIMIT_MODULE}"
 
 FROM caddy:${CADDY_VERSION}
+# The Alpine base of the official image lags security releases: take the fixed Brotli library.
+RUN apk upgrade --no-cache brotli-libs
 COPY --from=build /usr/bin/caddy /usr/bin/caddy
 RUN caddy list-modules | grep -q 'http.handlers.rate_limit'
