@@ -281,6 +281,7 @@ def test_other_company_row_is_untouched(self): ...
 
 - [ ] **Step 1: Write the failing tests** with a frozen clock (`freezegun` is not available; pass `now`
   explicitly and set `create_date`/fields directly):
+  - `followup_attempts=0`: no answer → call logged, attempt count 0, no next call, still open, no recycle;
   - no answer ×1 → attempt 1, next call +24 h, same agent; ×2 → +24 h; ×3 with `after_attempts='lost'`
     → lost with `lost_reason_attempts_exhausted`, `webvue_recycle_at = now + 30 d`;
   - same with `after_attempts='manager'` → still assigned, `webvue_needs_manager=True`, no recycle,
