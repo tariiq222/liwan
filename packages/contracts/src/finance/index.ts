@@ -1,9 +1,9 @@
 import { z } from 'zod'
 import { FinanceAnalyticShareSchema } from './analytic'
-import { currency, day, FinanceRefSchema, id, list, money, PATCH_MESSAGE, requirePatchField, text } from './shared'
+import { currency, day, FinanceActionBlockReasonSchema, FinanceRefSchema, financeActions, id, list, money, PATCH_MESSAGE, requirePatchField, text } from './shared'
 import { FinanceZatcaSubmissionSchema } from './zatca'
 
-export { FinanceRefSchema }
+export { FinanceActionBlockReasonSchema, FinanceRefSchema }
 
 export const FinanceMoveTypeSchema = z.enum([
   'out_invoice', 'out_refund', 'in_invoice', 'in_refund', 'out_receipt', 'in_receipt',
@@ -12,6 +12,11 @@ export const FinanceMoveStateSchema = z.enum(['draft', 'posted', 'cancel'])
 export const FinancePaymentStateSchema = z.enum([
   'not_paid', 'in_payment', 'paid', 'partial', 'reversed', 'blocked', 'invoicing_legacy',
 ])
+
+export const FinanceInvoiceActionSchema = z.enum([
+  'edit', 'delete', 'post', 'reset_to_draft', 'cancel', 'debit_note', 'register_payment', 'pdf', 'zatca_submit', 'zatca_retry',
+])
+export const FinancePaymentActionSchema = z.enum(['cancel', 'reset_to_draft', 'post', 'edit', 'allocate', 'unallocate'])
 
 export const FinanceInvoiceSchema = z.object({
   id,
@@ -57,6 +62,7 @@ export const FinanceInvoiceDetailSchema = FinanceInvoiceSchema.extend({
   /** Null for every document that is not a Saudi sale document. */
   zatca: FinanceInvoiceZatcaSchema.nullable(),
   lines: z.array(FinanceInvoiceLineSchema),
+  ...financeActions(FinanceInvoiceActionSchema),
 }).strict()
 
 export const FinancePaymentSchema = z.object({
@@ -76,6 +82,7 @@ export const FinancePaymentSchema = z.object({
   unallocated: z.number(),
   /** The invoices it is set against now. */
   invoices: z.array(FinanceRefSchema),
+  ...financeActions(FinancePaymentActionSchema),
 }).strict()
 
 export const FinanceAccountTypeSchema = z.enum([
@@ -143,6 +150,9 @@ export const FinanceTaxListSchema = list(FinanceTaxSchema)
 export const FinancePaymentTermListSchema = list(FinancePaymentTermSchema)
 
 export type FinanceRef = z.infer<typeof FinanceRefSchema>
+export type FinanceActionBlockReason = z.infer<typeof FinanceActionBlockReasonSchema>
+export type FinanceInvoiceAction = z.infer<typeof FinanceInvoiceActionSchema>
+export type FinancePaymentAction = z.infer<typeof FinancePaymentActionSchema>
 export type FinanceInvoice = z.infer<typeof FinanceInvoiceSchema>
 export type FinanceInvoiceLine = z.infer<typeof FinanceInvoiceLineSchema>
 export type FinanceInvoiceZatca = z.infer<typeof FinanceInvoiceZatcaSchema>

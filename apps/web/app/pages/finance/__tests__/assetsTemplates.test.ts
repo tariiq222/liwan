@@ -39,8 +39,9 @@ describe('the finance assets pages stay on their templates', () => {
     ['pages/finance/assets/new.vue', ['<SharedCreatePanel', '<SharedForbiddenState', '<AssetList background']],
     ['components/finance/assets/AssetForm.vue', ['<SharedFormSection panel', '<SharedFormActions', '<SharedUnsavedChanges', '<SharedDateField', '<PartnerPicker', 'color="error" variant="subtle"', ':error=']],
     ['pages/finance/assets/[id].vue', ['<SharedRecordPage', '#aside', '#actions']],
-    ['components/finance/assets/useAssetRecord.ts', ["kind: 'category'", 'statusTag(', 'assetActions(']],
-    ['components/finance/assets/AssetRecordActions.vue', ['finance-asset-validate']],
+    ['components/finance/assets/useAssetRecord.ts', ["kind: 'category'", 'statusTag(', 'readFinanceActions(']],
+    ['components/finance/assets/AssetRecordActions.vue', ['finance-asset-validate', 'finance-asset-edit', '<SharedRowActions']],
+    ['components/finance/assets/AssetRecordBody.vue', ['<AssetForm', '<SharedInlineConfirm', '<FinanceBlockedNotice']],
     ['components/finance/assets/AssetRecordBody.vue', ['<SharedInlineConfirm', '<UAlert', 'variant="tinted"']],
     ['components/finance/assets/AssetRecordAside.vue', ['<SharedPropertiesPanel', '<SharedPropertyRow']],
     ['components/finance/assets/AssetBoardPanel.vue', ['<SharedDataTable', ' bare', '#mobile-row', '<SharedStatusBadge']],
@@ -66,7 +67,6 @@ describe('the finance assets pages stay on their templates', () => {
   it('gates every write control behind its capability', () => {
     expect(read('components/finance/assets/useAssetCreatePage.ts')).toContain("can('finance.assets.manage')")
     expect(read('components/finance/assets/useAssetCompute.ts')).toContain("can('finance.assets.manage')")
-    expect(read('components/finance/assets/assetActions.ts')).toContain("can('finance.assets.manage')")
     expect(read('components/finance/assets/AssetList.vue')).toContain("can('finance.assets.read')")
   })
 })

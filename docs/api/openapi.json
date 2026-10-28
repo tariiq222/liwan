@@ -8181,6 +8181,20 @@
         ],
         "type": "string"
       },
+      "FinanceActionBlockReasonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "tenant_read_only",
+          "tenant_suspended",
+          "feature_not_included",
+          "period_locked",
+          "has_payments",
+          "has_reconciliations",
+          "zatca_not_onboarded",
+          "zatca_mode_not_allowed"
+        ],
+        "type": "string"
+      },
       "FinanceAgedAccountSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -9392,6 +9406,16 @@
         ],
         "type": "object"
       },
+      "FinanceAssetActionSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "validate",
+          "edit",
+          "delete",
+          "dispose"
+        ],
+        "type": "string"
+      },
       "FinanceAssetComputeInputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -9503,6 +9527,53 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "allowed_actions": {
+            "items": {
+              "enum": [
+                "validate",
+                "edit",
+                "delete",
+                "dispose"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "blocked_actions": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "action": {
+                  "enum": [
+                    "validate",
+                    "edit",
+                    "delete",
+                    "dispose"
+                  ],
+                  "type": "string"
+                },
+                "reason": {
+                  "enum": [
+                    "tenant_read_only",
+                    "tenant_suspended",
+                    "feature_not_included",
+                    "period_locked",
+                    "has_payments",
+                    "has_reconciliations",
+                    "zatca_not_onboarded",
+                    "zatca_mode_not_allowed"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "action",
+                "reason"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
           "code": {
             "type": "string"
           },
@@ -9731,7 +9802,9 @@
           "method_number",
           "method_period",
           "prorata",
-          "lines"
+          "lines",
+          "allowed_actions",
+          "blocked_actions"
         ],
         "type": "object"
       },
@@ -10592,6 +10665,57 @@
         ],
         "type": "string"
       },
+      "FinanceAssetUpdateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "maxLength": 32,
+            "type": "string"
+          },
+          "date_start": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "partner_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "profile_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "purchase_value": {
+            "exclusiveMaximum": 1000000000000,
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          "salvage_value": {
+            "exclusiveMaximum": 1000000000000,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
       "FinanceAuditActionSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
@@ -10607,6 +10731,8 @@
           "asset_profile_changed",
           "asset_profile_archived",
           "asset_profile_unarchived",
+          "asset_changed",
+          "asset_deleted",
           "asset_disposed",
           "bank_statement_imported",
           "bank_statement_changed",
@@ -10659,6 +10785,8 @@
                     "asset_profile_changed",
                     "asset_profile_archived",
                     "asset_profile_unarchived",
+                    "asset_changed",
+                    "asset_deleted",
                     "asset_disposed",
                     "bank_statement_imported",
                     "bank_statement_changed",
@@ -10782,6 +10910,8 @@
               "asset_profile_changed",
               "asset_profile_archived",
               "asset_profile_unarchived",
+              "asset_changed",
+              "asset_deleted",
               "asset_disposed",
               "bank_statement_imported",
               "bank_statement_changed",
@@ -12033,6 +12163,16 @@
         ],
         "type": "object"
       },
+      "FinanceBudgetActionSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "confirm",
+          "reset_to_draft",
+          "cancel",
+          "edit_lines"
+        ],
+        "type": "string"
+      },
       "FinanceBudgetCreateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -12069,6 +12209,53 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "allowed_actions": {
+            "items": {
+              "enum": [
+                "confirm",
+                "reset_to_draft",
+                "cancel",
+                "edit_lines"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "blocked_actions": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "action": {
+                  "enum": [
+                    "confirm",
+                    "reset_to_draft",
+                    "cancel",
+                    "edit_lines"
+                  ],
+                  "type": "string"
+                },
+                "reason": {
+                  "enum": [
+                    "tenant_read_only",
+                    "tenant_suspended",
+                    "feature_not_included",
+                    "period_locked",
+                    "has_payments",
+                    "has_reconciliations",
+                    "zatca_not_onboarded",
+                    "zatca_mode_not_allowed"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "action",
+                "reason"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
           "cost_center_split": {
             "type": "boolean"
           },
@@ -12207,7 +12394,9 @@
           "currency",
           "line_count",
           "cost_center_split",
-          "lines"
+          "lines",
+          "allowed_actions",
+          "blocked_actions"
         ],
         "type": "object"
       },
@@ -14521,6 +14710,22 @@
         ],
         "type": "object"
       },
+      "FinanceInvoiceActionSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "edit",
+          "delete",
+          "post",
+          "reset_to_draft",
+          "cancel",
+          "debit_note",
+          "register_payment",
+          "pdf",
+          "zatca_submit",
+          "zatca_retry"
+        ],
+        "type": "string"
+      },
       "FinanceInvoiceCreateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -14645,6 +14850,24 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "allowed_actions": {
+            "items": {
+              "enum": [
+                "edit",
+                "delete",
+                "post",
+                "reset_to_draft",
+                "cancel",
+                "debit_note",
+                "register_payment",
+                "pdf",
+                "zatca_submit",
+                "zatca_retry"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
           "amount_residual": {
             "type": "number"
           },
@@ -14656,6 +14879,47 @@
           },
           "amount_untaxed": {
             "type": "number"
+          },
+          "blocked_actions": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "action": {
+                  "enum": [
+                    "edit",
+                    "delete",
+                    "post",
+                    "reset_to_draft",
+                    "cancel",
+                    "debit_note",
+                    "register_payment",
+                    "pdf",
+                    "zatca_submit",
+                    "zatca_retry"
+                  ],
+                  "type": "string"
+                },
+                "reason": {
+                  "enum": [
+                    "tenant_read_only",
+                    "tenant_suspended",
+                    "feature_not_included",
+                    "period_locked",
+                    "has_payments",
+                    "has_reconciliations",
+                    "zatca_not_onboarded",
+                    "zatca_mode_not_allowed"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "action",
+                "reason"
+              ],
+              "type": "object"
+            },
+            "type": "array"
           },
           "currency": {
             "minLength": 1,
@@ -15070,7 +15334,9 @@
           "ref",
           "debit_origin",
           "zatca",
-          "lines"
+          "lines",
+          "allowed_actions",
+          "blocked_actions"
         ],
         "type": "object"
       },
@@ -16801,6 +17067,18 @@
         ],
         "type": "object"
       },
+      "FinancePaymentActionSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "cancel",
+          "reset_to_draft",
+          "post",
+          "edit",
+          "allocate",
+          "unallocate"
+        ],
+        "type": "string"
+      },
       "FinancePaymentAllocateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -16834,8 +17112,59 @@
             "items": {
               "additionalProperties": false,
               "properties": {
+                "allowed_actions": {
+                  "items": {
+                    "enum": [
+                      "cancel",
+                      "reset_to_draft",
+                      "post",
+                      "edit",
+                      "allocate",
+                      "unallocate"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
                 "amount": {
                   "type": "number"
+                },
+                "blocked_actions": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "action": {
+                        "enum": [
+                          "cancel",
+                          "reset_to_draft",
+                          "post",
+                          "edit",
+                          "allocate",
+                          "unallocate"
+                        ],
+                        "type": "string"
+                      },
+                      "reason": {
+                        "enum": [
+                          "tenant_read_only",
+                          "tenant_suspended",
+                          "feature_not_included",
+                          "period_locked",
+                          "has_payments",
+                          "has_reconciliations",
+                          "zatca_not_onboarded",
+                          "zatca_mode_not_allowed"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "reason"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
                 },
                 "currency": {
                   "minLength": 1,
@@ -16964,7 +17293,9 @@
                 "currency",
                 "amount",
                 "unallocated",
-                "invoices"
+                "invoices",
+                "allowed_actions",
+                "blocked_actions"
               ],
               "type": "object"
             },
@@ -17061,8 +17392,59 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "allowed_actions": {
+            "items": {
+              "enum": [
+                "cancel",
+                "reset_to_draft",
+                "post",
+                "edit",
+                "allocate",
+                "unallocate"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
           "amount": {
             "type": "number"
+          },
+          "blocked_actions": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "action": {
+                  "enum": [
+                    "cancel",
+                    "reset_to_draft",
+                    "post",
+                    "edit",
+                    "allocate",
+                    "unallocate"
+                  ],
+                  "type": "string"
+                },
+                "reason": {
+                  "enum": [
+                    "tenant_read_only",
+                    "tenant_suspended",
+                    "feature_not_included",
+                    "period_locked",
+                    "has_payments",
+                    "has_reconciliations",
+                    "zatca_not_onboarded",
+                    "zatca_mode_not_allowed"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "action",
+                "reason"
+              ],
+              "type": "object"
+            },
+            "type": "array"
           },
           "currency": {
             "minLength": 1,
@@ -17191,7 +17573,9 @@
           "currency",
           "amount",
           "unallocated",
-          "invoices"
+          "invoices",
+          "allowed_actions",
+          "blocked_actions"
         ],
         "type": "object"
       },
@@ -26181,6 +26565,135 @@
         ],
         "type": "object"
       },
+      "HrLeaveAllocationListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "date_from": {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                "date_to": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "employee": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "leave_type": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "number_of_days": {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                "state": {
+                  "enum": [
+                    "confirm",
+                    "validate1",
+                    "validate",
+                    "refuse"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "employee",
+                "leave_type",
+                "number_of_days",
+                "date_from",
+                "date_to",
+                "state"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "HrLeaveAllocationPatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "date_from": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "date_to": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "number_of_days": {
+            "exclusiveMinimum": 0,
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
       "HrLeaveAllocationSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -31847,6 +32360,17 @@
         ],
         "type": "string"
       },
+      "JournalEntryActionSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "edit",
+          "delete",
+          "post",
+          "reset_to_draft",
+          "unreconcile"
+        ],
+        "type": "string"
+      },
       "JournalEntryCreateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -31934,8 +32458,57 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "allowed_actions": {
+            "items": {
+              "enum": [
+                "edit",
+                "delete",
+                "post",
+                "reset_to_draft",
+                "unreconcile"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
           "amount_total": {
             "type": "number"
+          },
+          "blocked_actions": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "action": {
+                  "enum": [
+                    "edit",
+                    "delete",
+                    "post",
+                    "reset_to_draft",
+                    "unreconcile"
+                  ],
+                  "type": "string"
+                },
+                "reason": {
+                  "enum": [
+                    "tenant_read_only",
+                    "tenant_suspended",
+                    "feature_not_included",
+                    "period_locked",
+                    "has_payments",
+                    "has_reconciliations",
+                    "zatca_not_onboarded",
+                    "zatca_mode_not_allowed"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "action",
+                "reason"
+              ],
+              "type": "object"
+            },
+            "type": "array"
           },
           "currency": {
             "minLength": 1,
@@ -32108,7 +32681,9 @@
           "journal",
           "currency",
           "amount_total",
-          "lines"
+          "lines",
+          "allowed_actions",
+          "blocked_actions"
         ],
         "type": "object"
       },
@@ -55101,6 +55676,57 @@
       }
     },
     "/api/v1/finance/assets/{asset_id}": {
+      "delete": {
+        "operationId": "webvue_finance.FinanceAssetController.delete_asset.delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Removes a draft asset; OCA refuses any other (422 ``invalid``).",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceAssetController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "delete_asset",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      },
       "get": {
         "operationId": "webvue_finance.FinanceAssetController.get_asset.get",
         "parameters": [
@@ -55149,6 +55775,57 @@
           "feature_operation": "read",
           "handler": "get_asset",
           "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "webvue_finance.FinanceAssetController.patch_asset.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Corrects a draft asset: the keys of a creation body, any of them. The profile (so the method) can change too.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceAssetController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "patch_asset",
+          "readonly": false,
           "route_type": "json2"
         }
       }
@@ -61359,6 +62036,44 @@
       }
     },
     "/api/v1/hr/leave/allocations": {
+      "get": {
+        "operationId": "webvue_hr.HrLeaveController.list_allocations.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_allocations",
+        "tags": [
+          "webvue_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrLeaveController",
+          "feature_keys": [
+            "hr.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_allocations",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
       "post": {
         "operationId": "webvue_hr.HrLeaveController.create_allocation.post",
         "responses": {
@@ -61393,6 +62108,110 @@
           ],
           "feature_operation": "write",
           "handler": "create_allocation",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/hr/leave/allocations/{allocation_id}": {
+      "get": {
+        "operationId": "webvue_hr.HrLeaveController.get_allocation.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "allocation_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_allocation",
+        "tags": [
+          "webvue_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrLeaveController",
+          "feature_keys": [
+            "hr.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_allocation",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "webvue_hr.HrLeaveController.update_allocation.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "allocation_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Correct a grant's days or validity, never one's own and never a refused one.",
+        "tags": [
+          "webvue_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrLeaveController",
+          "feature_keys": [
+            "hr.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "update_allocation",
           "readonly": false,
           "route_type": "json2"
         }
@@ -65834,6 +66653,58 @@
           "feature_operation": "write",
           "handler": "delete_assignment",
           "readonly": null,
+          "route_type": "json2"
+        }
+      },
+      "get": {
+        "operationId": "webvue_hr.HrShiftController.get_assignment.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "assignment_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_assignment",
+        "tags": [
+          "webvue_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrShiftController",
+          "feature_keys": [
+            "hr.enabled",
+            "hr.shifts"
+          ],
+          "feature_operation": "read",
+          "handler": "get_assignment",
+          "readonly": true,
           "route_type": "json2"
         }
       },

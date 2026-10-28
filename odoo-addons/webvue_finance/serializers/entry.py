@@ -42,7 +42,11 @@ def dump_entry_line(line, shares):
 
 def dump_entry_detail(move):
     shares = distribution_shares(move.line_ids)
-    return {**dump_entry(move), 'lines': [dump_entry_line(line, shares) for line in move.line_ids]}
+    return {
+        **dump_entry(move),
+        'lines': [dump_entry_line(line, shares) for line in move.line_ids],
+        **move.env['webvue.finance.actions']._webvue_entry_actions(move),
+    }
 
 
 def dump_entries(moves):

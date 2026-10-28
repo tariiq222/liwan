@@ -38,7 +38,7 @@ describe('the finance budgets pages stay on their templates', () => {
     ['pages/finance/budgets/new.vue', ['<SharedCreatePanel', '<SharedForbiddenState', '<BudgetList background']],
     ['components/finance/budgets/BudgetForm.vue', ['<SharedFormSection panel', '<SharedFormActions', '<SharedUnsavedChanges', '<SharedDateField', 'color="error" variant="subtle"', ':error=']],
     ['pages/finance/budgets/[id].vue', ['<SharedRecordPage', '#aside', '#actions']],
-    ['components/finance/budgets/useBudgetRecord.ts', ["kind: 'category'", "kind: 'schedule'", 'statusTag(', 'budgetActions(']],
+    ['components/finance/budgets/useBudgetRecord.ts', ["kind: 'category'", "kind: 'schedule'", 'statusTag(', 'readFinanceActions(']],
     ['components/finance/budgets/BudgetRecordActions.vue', ['<SharedRowActions']],
     ['components/finance/budgets/BudgetRecordBody.vue', ['<SharedInlineConfirm', '<UAlert', '<BudgetLinesPanel', '<BudgetVsActualPanel']],
     ['components/finance/budgets/BudgetRecordAside.vue', ['<SharedPropertiesPanel', '<SharedPropertyRow']],
@@ -67,7 +67,6 @@ describe('the finance budgets pages stay on their templates', () => {
 
   it('gates every write control behind its capability', () => {
     expect(read('components/finance/budgets/useBudgetCreatePage.ts')).toContain("can('finance.budgets.manage')")
-    expect(read('components/finance/budgets/budgetActions.ts')).toContain("can('finance.budgets.manage')")
   })
 })
 

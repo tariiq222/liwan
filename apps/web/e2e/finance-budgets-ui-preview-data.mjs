@@ -87,7 +87,15 @@ const sources = [
 ]
 
 const lineOf = ({ actual: _actual, ...rest }) => rest
-const detail = source => ({ ...summary(source), lines: source.lines.map(lineOf) })
+// The actions the server would allow an administrator who holds every capability, on a tenant that can write.
+const actionsOf = state => ({
+  allowed_actions: [
+    ...(state === 'draft' ? ['confirm', 'edit_lines'] : ['reset_to_draft']),
+    ...(state === 'cancelled' ? [] : ['cancel']),
+  ],
+  blocked_actions: [],
+})
+const detail = source => ({ ...summary(source), lines: source.lines.map(lineOf), ...actionsOf(source.state) })
 function summary({ lines, ...rest }) {
   return { ...rest, line_count: lines.length, cost_center_split: false }
 }

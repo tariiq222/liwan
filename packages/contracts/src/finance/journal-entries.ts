@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { FinanceAnalyticDistributionInputSchema, FinanceAnalyticShareSchema } from './analytic'
-import { currency, day, FinanceRefSchema, id, list, money, PATCH_MESSAGE, requirePatchField, text } from './shared'
+import { currency, day, FinanceRefSchema, financeActions, id, list, money, PATCH_MESSAGE, requirePatchField, text } from './shared'
+
+export const JournalEntryActionSchema = z.enum(['edit', 'delete', 'post', 'reset_to_draft', 'unreconcile'])
 
 export const JournalEntrySchema = z.object({
   id,
@@ -26,6 +28,7 @@ export const JournalEntryLineSchema = z.object({
 
 export const JournalEntryDetailSchema = JournalEntrySchema.extend({
   lines: z.array(JournalEntryLineSchema),
+  ...financeActions(JournalEntryActionSchema),
 }).strict()
 
 export const JournalEntryListSchema = list(JournalEntrySchema)
@@ -56,6 +59,7 @@ export const JournalEntryCreateSchema = z.object({
 export const JournalEntryPatchSchema = JournalEntryCreateSchema.partial().strict()
   .refine(requirePatchField, PATCH_MESSAGE)
 
+export type JournalEntryAction = z.infer<typeof JournalEntryActionSchema>
 export type JournalEntry = z.infer<typeof JournalEntrySchema>
 export type JournalEntryLine = z.infer<typeof JournalEntryLineSchema>
 export type JournalEntryDetail = z.infer<typeof JournalEntryDetailSchema>

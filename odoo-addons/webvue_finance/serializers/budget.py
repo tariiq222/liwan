@@ -56,7 +56,7 @@ def dump_budgets(budgets):
 
 def dump_budget_detail(budget, lines):
     """``lines`` are the ``dump_budget_line`` shapes."""
-    return {**dump_budget(budget), 'lines': lines}
+    return {**dump_budget(budget), 'lines': lines, **budget.env['webvue.finance.actions']._webvue_budget_actions(budget)}
 
 
 def variance_figures(currency, budget, actual):

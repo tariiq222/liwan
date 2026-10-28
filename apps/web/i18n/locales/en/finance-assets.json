@@ -84,7 +84,8 @@
       "salvageValue": "Salvage value",
       "salvageInvalid": "Enter zero or more",
       "requiredHint": "Marked fields are required.",
-      "create": "Create asset"
+      "create": "Create asset",
+      "save": "Save changes"
     },
     "record": {
       "note": "Note",
@@ -118,14 +119,18 @@
     },
     "actions": {
       "validate": "Run asset",
-      "dispose": "Sell or scrap"
+      "dispose": "Sell or scrap",
+      "delete": "Delete",
+      "menuFor": "Actions for {name}"
     },
     "confirm": {
       "validate": "Run “{name}”?",
-      "validateHint": "The asset starts running and its depreciation board is computed. It cannot go back to draft."
+      "validateHint": "The asset starts running and its depreciation board is computed. It cannot go back to draft.",
+      "delete": "Delete “{name}”?",
+      "deleteHint": "The draft asset is removed for good. This cannot be undone."
     },
     "errors": {
-      "notDraft": "Only a draft asset can be run.",
+      "notDraft": "Only a draft asset can be run, changed or deleted.",
       "periodLocked": "The accounting period is locked for this date.",
       "invalidState": "Only a running or fully depreciated asset can be sold or scrapped."
     },

@@ -48,7 +48,7 @@ def require_balanced(lines, company=None):
         )
 
 
-def _zatca_blocks_posting(move):
+def zatca_blocks_posting(move):
     """True when the sales journal of a Saudi sale document is not ZATCA-onboarded.
 
     Odoo lists every configuration problem in one refusal, so other errors may sit next to the
@@ -86,7 +86,7 @@ def refusal(error, *, day=None, journal=None, has_tax=False, move=None, company=
     detail = {'detail': str(error)}
     if is_period_locked(day, journal, has_tax, company=company):
         return period_locked(details=detail)
-    if move and _zatca_blocks_posting(move):
+    if move and zatca_blocks_posting(move):
         return ApiError(
             422, 'zatca_not_onboarded', 'the sales journal is not ZATCA-onboarded', details=detail,
         )

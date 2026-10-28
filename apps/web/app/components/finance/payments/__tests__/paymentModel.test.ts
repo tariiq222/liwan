@@ -5,7 +5,6 @@ import {
   PAYMENT_PAGE_SIZE,
   buildPaymentRegister,
   buildStandalonePayment,
-  paymentActions,
   validateStandaloneDraft,
   paymentActiveFilterCount,
   paymentBatchProblem,
@@ -82,22 +81,6 @@ describe('payment form', () => {
     const body = buildPaymentRegister([1, 2], draft)
     expect(FinancePaymentRegisterSchema.parse(body)).toEqual({ invoice_ids: [1, 2], amount: 100, payment_date: '2026-05-01', journal_id: 8, memo: 'cheque 12' })
     expect(buildPaymentRegister([1], { ...draft, memo: '  ' })).not.toHaveProperty('memo')
-  })
-
-  it('offers cancel for a live payment and reset for a final one, to payment managers only', () => {
-    const can = () => true
-    const none = { unallocated: 0, invoices: [] }
-    expect(paymentActions({ state: 'paid', ...none }, can)).toEqual({ cancel: true, resetToDraft: false, post: false, edit: false, allocate: false, unallocate: false })
-    expect(paymentActions({ state: 'canceled', ...none }, can)).toMatchObject({ cancel: false, resetToDraft: true })
-    expect(paymentActions({ state: 'rejected', ...none }, can)).toMatchObject({ cancel: false, resetToDraft: true })
-    expect(paymentActions({ state: 'paid', ...none }, () => false)).toEqual({ cancel: false, resetToDraft: false, post: false, edit: false, allocate: false, unallocate: false })
-  })
-
-  it('offers post on a draft, allocate on an advance and unallocate on a settled payment', () => {
-    const can = () => true
-    expect(paymentActions({ state: 'draft', unallocated: 0, invoices: [] }, can)).toMatchObject({ post: true, edit: true, allocate: false, unallocate: false })
-    expect(paymentActions({ state: 'paid', unallocated: 50, invoices: [] }, can)).toMatchObject({ allocate: true, unallocate: false })
-    expect(paymentActions({ state: 'paid', unallocated: 0, invoices: [{ id: 3, name: 'INV/1' }] }, can)).toMatchObject({ allocate: false, unallocate: true })
   })
 
   it('builds a standalone payment, naming the party type only when it differs from the direction', () => {

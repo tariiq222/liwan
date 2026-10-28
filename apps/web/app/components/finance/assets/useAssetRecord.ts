@@ -1,23 +1,24 @@
 import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 import { statusTag, type PageHeaderTag } from '@webvue/ui/app/utils/pageHeaderTag'
 import { ApiError } from '@/composables/useApi'
-import { useFinanceAsset, useValidateFinanceAsset } from '@/composables/finance/useFinanceAssets'
-import { assetActions } from './assetActions'
+import { useDeleteFinanceAsset, useFinanceAsset, useValidateFinanceAsset } from '@/composables/finance/useFinanceAssets'
 import { financeErrorMessage } from '../financeErrors'
+import { offeredMenuItems, readFinanceActions } from '../financeActions'
 import { assetErrorKey } from './assetErrors'
 import { ASSETS_PATH } from './assetPaths'
 import { ASSET_STATE_TONE } from './assetTones'
 
 /**
  * The state of one asset's record page: the loaded record, the heading props of SharedRecordPage (state and profile
- * tags, back link), the action its state and the caller's capabilities allow, and the confirmation of running it. The
- * page owns the SharedRecordPage shell; AssetRecordActions, AssetRecordBody and AssetRecordAside draw its slots from
- * this. The change waits for the server's answer; a refusal is shown inline in the caller's language.
+ * tags, back link), the actions the server allows, the edit mode and the one confirmation open at a time. The page owns
+ * the SharedRecordPage shell; AssetRecordActions, AssetRecordBody and AssetRecordAside draw its slots from this. Every
+ * change waits for the server's answer; a refusal is shown inline in the caller's language.
  */
+export type AssetConfirmation = 'validate' | 'delete'
+
 export function useAssetRecord() {
   const route = useRoute()
   const { t } = useI18n()
-  const { can } = useAccess()
   const hydrated = useHydrated()
 
   const id = computed(() => Number(route.params.id))
@@ -25,7 +26,7 @@ export function useAssetRecord() {
   const query = useFinanceAsset(computed(() => validId.value ? id.value : null))
   const asset = computed(() => query.data.value)
   const backTo = computed(() => safeReturnTo(route.query.returnTo, ASSETS_PATH, [ASSETS_PATH]))
-  const actions = computed(() => asset.value ? assetActions(asset.value, can) : null)
+  const actions = computed(() => asset.value ? readFinanceActions(asset.value) : null)
   const error = computed(() => query.error.value ?? (validId.value ? null : new ApiError(404, 'not_found', t('errors.generic'))))
 
   const tags = computed<PageHeaderTag[]>(() => {
@@ -37,22 +38,45 @@ export function useAssetRecord() {
     ]
   })
 
-  const confirming = ref(false)
+  const confirming = ref<AssetConfirmation | null>(null)
   const disposing = ref(false)
+  const editing = ref(false)
+  // A draft run elsewhere while it is open here leaves edit mode, so the running asset's actions come back.
+  watch(() => actions.value?.can('edit'), canEdit => { if (!canEdit) editing.value = false })
   const actionError = ref('')
   const validation = useValidateFinanceAsset()
-  const busy = computed(() => validation.isPending.value)
+  const removal = useDeleteFinanceAsset()
+  const busy = computed(() => validation.isPending.value || removal.isPending.value)
 
-  async function applyValidation() {
-    if (!hydrated.value || busy.value) return
+  async function attempt(work: () => Promise<unknown>) {
+    if (!hydrated.value || busy.value) return false
     actionError.value = ''
     try {
-      await validation.mutateAsync(id.value)
-      confirming.value = false
+      await work()
+      confirming.value = null
+      return true
     } catch (cause) {
       actionError.value = financeErrorMessage(cause, assetErrorKey, t)
+      return false
     }
   }
+  const applyValidation = () => attempt(() => validation.mutateAsync(id.value))
+  async function applyDelete() {
+    if (await attempt(() => removal.mutateAsync(id.value))) await navigateTo(backTo.value, { replace: true })
+  }
+
+  function edit() {
+    confirming.value = null
+    actionError.value = ''
+    editing.value = true
+  }
+  const menu = computed(() => {
+    const set = actions.value
+    if (!set) return []
+    return offeredMenuItems(set, [
+      ['delete', { label: t('financeAssets.actions.delete'), icon: 'i-lucide-trash-2', destructive: true, onSelect: () => { confirming.value = 'delete' } }],
+    ])
+  })
 
   return reactive({
     // SharedRecordPage heading props: `v-bind="record.header"`.
@@ -67,12 +91,17 @@ export function useAssetRecord() {
     retry: () => { void query.refetch() },
     asset,
     actions,
+    menu,
     busy,
     hydrated,
+    backTo,
     confirming,
     disposing,
+    editing,
+    edit,
     actionError,
     applyValidation,
+    applyDelete,
   })
 }
 

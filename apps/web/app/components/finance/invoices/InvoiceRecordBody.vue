@@ -2,6 +2,7 @@
 import type { FinanceMoveType } from './invoiceKinds'
 import { invoiceDraftFromRecord } from './invoiceLines'
 import InvoiceForm from './InvoiceForm.vue'
+import FinanceBlockedNotice from '../FinanceBlockedNotice.vue'
 import InvoiceLinesPanel from './InvoiceLinesPanel.vue'
 import type { InvoiceRecordState } from './useInvoiceRecord'
 
@@ -20,11 +21,13 @@ const { can } = useAccess()
   </UAlert>
 
   <template v-if="record.invoice && record.actions">
-    <UAlert v-if="record.actions.blockedByPayments" color="info" variant="subtle" icon="i-lucide-info" :title="t('financeDocuments.record.blockedByPayments')" :description="t('financeDocuments.record.blockedByPaymentsHint')" data-testid="finance-invoice-blocked">
+    <UAlert v-if="record.actions.reasons.includes('has_payments')" color="info" variant="subtle" icon="i-lucide-info" :title="t('financeDocuments.record.blockedByPayments')" :description="t('financeDocuments.record.blockedByPaymentsHint')" data-testid="finance-invoice-blocked">
       <template #actions>
         <UButton v-if="record.invoice.partner && can('finance.payments.read')" color="neutral" variant="outline" size="sm" :to="{ path: '/finance/payments', query: { partner_id: String(record.invoice.partner.id) } }" :label="t('financeDocuments.record.viewPayments')" />
       </template>
     </UAlert>
+
+    <FinanceBlockedNotice :reasons="record.actions.reasons.filter(reason => reason !== 'has_payments')" />
 
     <SharedInlineConfirm v-if="record.confirming === 'delete'" :title="t('financeDocuments.confirm.delete', { name: record.title })" :description="t('financeDocuments.confirm.deleteHint')" :confirm-label="t('financeDocuments.actions.delete')" :pending="record.removing" :disabled="!record.hydrated" color="error" @confirm="record.remove()" @cancel="record.confirming = null" />
     <SharedInlineConfirm v-if="record.confirming === 'cancel'" :title="t('financeDocuments.confirm.cancel', { name: record.title })" :description="t('financeDocuments.confirm.cancelHint')" :confirm-label="t('financeDocuments.actions.cancel')" :pending="record.posting" :disabled="!record.hydrated" color="error" @confirm="record.change('cancel')" @cancel="record.confirming = null" />
@@ -37,7 +40,7 @@ const { can } = useAccess()
     </SharedInlineConfirm>
 
     <InvoiceForm
-      v-if="record.editing && record.actions.edit"
+      v-if="record.editing && record.actions.can('edit')"
       :move-type="moveType"
       :record-id="record.invoice.id"
       :initial="invoiceDraftFromRecord(record.invoice)"

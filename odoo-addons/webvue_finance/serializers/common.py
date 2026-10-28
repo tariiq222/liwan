@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+UNSET = object()  # "not asked yet", for a value whose answer may itself be None
 
 
 def dump_ref(record):

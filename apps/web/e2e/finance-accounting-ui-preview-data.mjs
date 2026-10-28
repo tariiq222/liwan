@@ -108,6 +108,17 @@ function filterAccounts(url) {
 
 const summary = ({ lines: _lines, ...rest }) => rest
 
+// The actions the server would allow an administrator who holds every capability, on a tenant that can write.
+function withEntryActions(item) {
+  const draft = item.state === 'draft'
+  const posted = item.state === 'posted'
+  return {
+    ...item,
+    allowed_actions: [...(draft ? ['edit', 'delete', 'post'] : []), ...(posted ? ['reset_to_draft'] : [])],
+    blocked_actions: [],
+  }
+}
+
 const recordId = (route, base) => {
   const rest = route.slice(base.length + 1)
   return /^\d+$/.test(rest) ? Number(rest) : NaN
@@ -116,7 +127,10 @@ const recordId = (route, base) => {
 export function financeAccountingPreviewData(path, url) {
   const route = String(path || '/').replace(/\/+$/, '') || '/'
   if (route === '/api/v1/finance/entries') return page(filterEntries(url).map(summary), url)
-  if (route.startsWith('/api/v1/finance/entries/')) return financeEntries.find(item => item.id === recordId(route, '/api/v1/finance/entries'))
+  if (route.startsWith('/api/v1/finance/entries/')) {
+    const found = financeEntries.find(item => item.id === recordId(route, '/api/v1/finance/entries'))
+    return found && withEntryActions(found)
+  }
   if (route === '/api/v1/finance/accounts') return page(filterAccounts(url), url)
   return undefined
 }

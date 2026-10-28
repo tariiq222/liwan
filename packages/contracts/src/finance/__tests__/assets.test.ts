@@ -5,6 +5,7 @@ import {
   FinanceAssetDetailSchema,
   FinanceAssetListSchema,
   FinanceAssetProfileListSchema,
+  FinanceAssetUpdateSchema,
 } from '..'
 
 const REF = { id: 4, name: 'Furniture' }
@@ -40,11 +41,23 @@ describe('finance asset schemas', () => {
     const detail = {
       ...ASSET, note: '', date_remove: null, method: 'linear', method_time: 'year', method_number: 5, method_period: 'year', prorata: false,
       lines: [LINE, { ...LINE, id: 9, type: 'create', posted: false, entry: null }],
+      allowed_actions: ['dispose'], blocked_actions: [],
     }
     expect(FinanceAssetDetailSchema.parse(detail)).toEqual(detail)
     expect(() => FinanceAssetDetailSchema.parse({ ...detail, state: 'lost' })).toThrow()
+    expect(() => FinanceAssetDetailSchema.parse({ ...detail, allowed_actions: ['edit_lines'] })).toThrow()
     expect(() => FinanceAssetDetailSchema.parse({ ...detail, lines: [{ ...LINE, type: 'sell' }] })).toThrow()
     expect(() => FinanceAssetListSchema.parse({ items: [{ ...ASSET, secret: 1 }], total: 1 })).toThrow()
+  })
+
+  it('accept an edit body of any creation keys, a null partner, and reject an empty or unknown one', () => {
+    expect(FinanceAssetUpdateSchema.parse({ name: 'Table' })).toEqual({ name: 'Table' })
+    expect(FinanceAssetUpdateSchema.parse({ partner_id: null, salvage_value: 0, date_start: '2026-02-01', profile_id: 4 }))
+      .toEqual({ partner_id: null, salvage_value: 0, date_start: '2026-02-01', profile_id: 4 })
+    expect(() => FinanceAssetUpdateSchema.parse({})).toThrow()
+    expect(() => FinanceAssetUpdateSchema.parse({ state: 'open' })).toThrow()
+    expect(() => FinanceAssetUpdateSchema.parse({ purchase_value: 0 })).toThrow()
+    expect(() => FinanceAssetUpdateSchema.parse({ date_start: '01/02/2026' })).toThrow()
   })
 
   it('accept a create body and reject an unknown key, a zero value and a bad date', () => {

@@ -1,5 +1,16 @@
 {
   "finance": {
+    "actionBlocked": {
+      "title": "Some actions are unavailable right now",
+      "tenant_read_only": "The subscription is read-only, so nothing can be changed.",
+      "tenant_suspended": "The subscription is suspended.",
+      "feature_not_included": "Finance changes are not included in the current plan.",
+      "period_locked": "The accounting period of this document is locked.",
+      "has_payments": "It has registered payments: cancel them or reset them to draft first.",
+      "has_reconciliations": "Its lines are reconciled: remove the reconciliation first.",
+      "zatca_not_onboarded": "The sales journal is not onboarded to ZATCA.",
+      "zatca_mode_not_allowed": "Sending to ZATCA is limited to the sandbox mode."
+    },
     "nav": {
       "overview": "Overview",
       "sales": "Sales",

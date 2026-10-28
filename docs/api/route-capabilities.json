@@ -23,6 +23,20 @@
       "handler": "remove_member",
       "no_capability_reason": "Chat has no capability keys by design: webvue.chat.service requires an active internal WebVue user and limits every row to the caller's conversations."
     },
+    "DELETE /api/v1/finance/assets/{asset_id}": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.assets.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "delete_asset",
+      "no_capability_reason": null
+    },
     "DELETE /api/v1/finance/bank-statements/{statement_id}": {
       "addon": "webvue_finance",
       "auth": "user",
@@ -1632,6 +1646,34 @@
       "handler": "list_expiring",
       "no_capability_reason": null
     },
+    "GET /api/v1/hr/leave/allocations": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.leave.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "list_allocations",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/leave/allocations/{allocation_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.leave.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "get_allocation",
+      "no_capability_reason": null
+    },
     "GET /api/v1/hr/leave/balances": {
       "addon": "webvue_hr",
       "auth": "user",
@@ -2286,6 +2328,21 @@
         "hr.shifts"
       ],
       "handler": "list_assignments",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/shifts/assignments/{assignment_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.shifts.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.shifts"
+      ],
+      "handler": "get_assignment",
       "no_capability_reason": null
     },
     "GET /api/v1/hr/shifts/me": {
@@ -3427,6 +3484,20 @@
       "handler": "patch_asset_profile",
       "no_capability_reason": null
     },
+    "PATCH /api/v1/finance/assets/{asset_id}": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.assets.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "patch_asset",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/finance/bank-statements/{statement_id}": {
       "addon": "webvue_finance",
       "auth": "user",
@@ -3622,6 +3693,20 @@
         "hr.enabled"
       ],
       "handler": "patch_employee",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/hr/leave/allocations/{allocation_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.leave.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "update_allocation",
       "no_capability_reason": null
     },
     "PATCH /api/v1/hr/leave/settings": {

@@ -128,23 +128,6 @@ export function buildPaymentRegister(invoiceIds: readonly number[], draft: Payme
   }
 }
 
-type Can = (capability: string) => boolean
-
-/** Cancelled and rejected payments are final but can be reset; the others can only be cancelled. */
-export function paymentActions(payment: Pick<FinancePayment, 'state' | 'unallocated' | 'invoices'>, can: Can) {
-  const manage = can('finance.payments.manage')
-  const revivable = payment.state === 'canceled' || payment.state === 'rejected'
-  const posted = payment.state === 'in_process' || payment.state === 'paid'
-  return {
-    cancel: manage && !revivable,
-    resetToDraft: manage && revivable,
-    post: manage && payment.state === 'draft',
-    edit: manage && payment.state === 'draft',
-    allocate: manage && posted && payment.unallocated > 0,
-    unallocate: manage && posted && payment.invoices.length > 0,
-  }
-}
-
 export interface StandalonePaymentDraft extends PaymentDraft {
   paymentType: FinancePayment['payment_type']
   partnerType: FinancePayment['partner_type']

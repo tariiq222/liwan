@@ -23,7 +23,7 @@ const FIGURES = { budget: 10000, actual: 7500, variance: 2500, variance_percent:
 describe('finance budget schemas', () => {
   it('parse the list and the detail with its lines, and are strict', () => {
     expect(FinanceBudgetListSchema.parse({ items: [BUDGET], total: 1 })).toEqual({ items: [BUDGET], total: 1 })
-    const detail = { ...BUDGET, lines: [LINE] }
+    const detail = { ...BUDGET, lines: [LINE], allowed_actions: ['confirm', 'edit_lines'], blocked_actions: [{ action: 'cancel', reason: 'tenant_read_only' }] }
     expect(FinanceBudgetDetailSchema.parse(detail)).toEqual(detail)
     expect(() => FinanceBudgetDetailSchema.parse({ ...detail, state: 'closed' })).toThrow()
     expect(() => FinanceBudgetDetailSchema.parse({ ...detail, lines: [{ ...LINE, nature: 'both' }] })).toThrow()

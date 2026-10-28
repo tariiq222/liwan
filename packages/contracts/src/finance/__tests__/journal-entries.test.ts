@@ -19,6 +19,8 @@ const DETAIL = {
     { id: 1, account: { id: 4, name: '600 Rent' }, partner: null, name: 'Rent', debit: 500, credit: 0, analytic_distribution: [] },
     { id: 2, account: { id: 9, name: '200 Payable' }, partner: { id: 7, name: 'Al Noor' }, name: 'Rent', debit: 0, credit: 500, analytic_distribution: [] },
   ],
+  allowed_actions: ['reset_to_draft'],
+  blocked_actions: [{ action: 'unreconcile', reason: 'period_locked' }],
 }
 
 describe('finance journal entry schemas', () => {

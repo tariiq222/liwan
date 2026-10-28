@@ -2,6 +2,7 @@
 from . import (
     access_service,
     account_move,
+    action_service,
     analytic_report,
     audit_event,
     budget,

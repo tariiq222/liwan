@@ -37,7 +37,7 @@ statements with reconciliation and the Zakat base come from pinned, unmodified O
 | `POST /zakat/reviews` (201) | `finance.zakat.review` |
 | `GET /asset-profiles` (`archived`), `GET /asset-profiles/<id>`, `GET /assets`, `GET /assets/<id>` | `finance.assets.read` |
 | `POST /asset-profiles` (201), `PATCH /asset-profiles/<id>`, `POST /asset-profiles/<id>/archive`, `/unarchive` | `finance.assets.manage` |
-| `POST /assets` (201, a draft), `POST /assets/<id>/validate`, `POST /assets/<id>/dispose`, `POST /assets/compute-depreciation` | `finance.assets.manage` |
+| `POST /assets` (201, a draft), `PATCH /assets/<id>` and `DELETE /assets/<id>` (204), draft only, `POST /assets/<id>/validate`, `POST /assets/<id>/dispose`, `POST /assets/compute-depreciation` | `finance.assets.manage` |
 | `GET /bank-statements`, `GET /bank-statements/<id>`, `GET /bank-statement-lines/<id>/reconcile-proposals` | `finance.bank.read` |
 | `POST /bank-statements` (201), `POST /bank-statements/import/preview`, `POST /bank-statements/import` (201), `PATCH` and `DELETE` (204) `/bank-statements/<id>`, `POST /bank-statements/<id>/auto-reconcile`, `POST /bank-statement-lines/<id>/reconcile`, `/unreconcile` | `finance.bank.manage` |
 | `GET /budgets` (`state`, `q`), `GET /budgets/<id>`, `GET /reports/budget-vs-actual?budget_id[&date_to]` | `finance.budgets.read` |
@@ -69,6 +69,25 @@ Two more built-in roles (sets defined once in `models/access_service.py`):
   receivable, payable and liquidity). It does not post invoices or journal entries, close years, change setup or onboard ZATCA,
   and cannot manage budgets, assets or cost centers, or read the audit trail or zakat.
 - `finance_auditor` (مدقق): the nineteen `.read` capabilities, listed literally and nothing that changes data.
+
+## Record actions (`allowed_actions`, `blocked_actions`)
+
+Finance is not left to the client to decide what a record offers. The detail of an invoice, a journal entry, a budget and an
+asset, and every payment, carry two lists built by `webvue.finance.actions` (`models/action_service.py`), the one place that
+decides it from the record's state, the caller's capability in the record's company, the tenant's write entitlement and the
+facts that refuse the action:
+
+- `allowed_actions`: the actions that can run now (invoice `edit delete post reset_to_draft cancel debit_note register_payment
+  pdf zatca_submit zatca_retry`; entry `edit delete post reset_to_draft unreconcile`; payment `cancel reset_to_draft post edit
+  allocate unallocate`; budget `confirm reset_to_draft cancel edit_lines`; asset `validate edit delete dispose`);
+- `blocked_actions`: `[{action, reason}]` for an action the state and the caller's role offer but a fact refuses, so the page
+  shows the button disabled and says why. `reason` is the code of the refusal the route would answer with: `tenant_read_only`,
+  `tenant_suspended` or `feature_not_included` (every write while the tenant cannot write; a read such as `pdf` is not blocked
+  by it), `period_locked` (post, cancel or reset of a document in a closed period), `has_payments` (cancel or reset of an
+  invoice with a live payment), `has_reconciliations` (reset of an entry with reconciled lines), `zatca_not_onboarded` and
+  `zatca_mode_not_allowed` (a ZATCA submission).
+
+An action in neither list is not offered. The routes still enforce everything; the lists only say what they will answer.
 
 ## Repeated requests (`Idempotency-Key`)
 
@@ -235,6 +254,17 @@ expense account, the journal a general journal. `method` is `linear` or `degress
 and an archived one cannot be chosen for a new asset. Once an asset uses the profile its accounts, journal and method are
 fixed (422 `profile_in_use`), so the depreciation of a running asset is never re-based silently; the name and the gain and
 loss accounts stay editable. Changing a profile never touches the entries already posted.
+
+## Draft assets: edit and delete
+
+`PATCH /assets/<id>` takes any key of a creation body (`profile_id`, `name`, `code`, `purchase_value`, `salvage_value`,
+`date_start`, `partner_id` (`null` clears it), `note`), at least one, and returns the asset with its board. A new
+`profile_id` also changes the method. Only a draft is edited (422 `not_draft`); a `date_start` in a locked period is 422
+`period_locked`; a salvage value above the purchase value is 422 `invalid`. A plain `write` does not refresh the acquisition
+line of the board (OCA does that only in an onchange), so the route sets that line to the asset's depreciation base and start
+date itself, and the board computed when the asset is validated follows. `DELETE /assets/<id>` removes a draft through
+`unlink` (OCA's own refusals, such as posted depreciation lines, are 422 `invalid`). Both write one audit event
+(`asset_changed`, `asset_deleted`).
 
 ## Asset disposal
 
