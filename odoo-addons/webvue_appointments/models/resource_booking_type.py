@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo import api, fields, models
+from odoo import Command, api, fields, models
 
 
 class ResourceBookingType(models.Model):
@@ -21,3 +21,19 @@ class ResourceBookingType(models.Model):
     @api.constrains('company_id')
     def _check_combinations_company(self):
         self.combination_rel_ids._check_type_company()
+
+    def _webvue_combination_commands(self, combinations):
+        """The commands that make this type serve exactly ``combinations``, in that order.
+
+        A combination the type already serves keeps its relation row; the rest are created or deleted.
+        """
+        self.ensure_one()
+        by_combination = {rel.combination_id: rel for rel in self.combination_rel_ids}
+        commands = [Command.delete(rel.id) for combination, rel in by_combination.items() if combination not in combinations]
+        for sequence, combination in enumerate(combinations):
+            rel = by_combination.get(combination)
+            if rel:
+                commands.append(Command.update(rel.id, {'sequence': sequence}))
+            else:
+                commands.append(Command.create({'combination_id': combination.id, 'sequence': sequence}))
+        return commands

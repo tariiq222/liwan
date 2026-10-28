@@ -1,0 +1,66 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import UTC, datetime, time, timedelta
+
+import pytz
+
+from odoo import http
+from odoo.http import request
+
+from odoo.addons.webvue_api.controllers.common import (
+    ApiError,
+    api_handler,
+    requires_capability,
+    requires_feature,
+)
+from odoo.addons.webvue_appointments.controllers.records import (
+    READ_CAPABILITY,
+    get_company_record,
+)
+from odoo.addons.webvue_appointments.serializers.appointment_settings import (
+    dump_settings,
+)
+from odoo.addons.webvue_appointments.serializers.appointment_slot import (
+    dump_slot,
+    parse_slot_query,
+)
+
+
+class AppointmentSlotController(http.Controller):
+
+    @http.route('/api/v1/appointments/types/<int:type_id>/slots', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('appointments.enabled', operation='read')
+    @requires_capability(READ_CAPABILITY)
+    def list_slots(self, type_id, **_):
+        booking_type = get_company_record('resource.booking.type', type_id)
+        if not booking_type.active:
+            raise ApiError(422, 'invalid', 'an archived type has no slots', field='type_id')
+        settings = dump_settings(request.env['webvue.appointment.settings']._webvue_current())
+        tz = pytz.timezone(booking_type.resource_calendar_id.tz or 'UTC')
+        now = datetime.now(UTC)
+        first, last, combination_id = parse_slot_query(
+            request.httprequest.args, now.astimezone(tz).date(), settings['horizon_days'],
+        )
+        combination = self._combination(booking_type, combination_id)
+        # The engine's public slot search on an unsaved booking, anchored to the type's calendar days.
+        booking = request.env['resource.booking'].new({
+            'type_id': booking_type.id, 'combination_id': combination.id or False,
+        })
+        slots = booking._get_available_slots(
+            tz.localize(datetime.combine(first, time.min)),
+            tz.localize(datetime.combine(last + timedelta(days=1), time.min)),
+        )
+        earliest = now + timedelta(hours=settings['min_notice_hours'])
+        duration = timedelta(hours=booking.duration)
+        starts = sorted(start.astimezone(UTC) for day_slots in slots.values() for start in day_slots)
+        items = [dump_slot(start, start + duration) for start in starts if start >= earliest]
+        return {'items': items, 'total': len(items)}
+
+    @staticmethod
+    def _combination(booking_type, combination_id):
+        combinations = booking_type.combination_rel_ids.combination_id.filtered('active')
+        if combination_id is None:
+            return request.env['resource.booking.combination']
+        if combination_id not in combinations.ids:
+            raise ApiError(422, 'invalid', 'the type does not offer this combination', field='combination_id')
+        return request.env['resource.booking.combination'].browse(combination_id)
