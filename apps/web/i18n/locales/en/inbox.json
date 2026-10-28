@@ -1,0 +1,254 @@
+{
+  "inbox": {
+    "title": "Customer Inbox",
+    "railLabel": "Inbox",
+    "unassigned": "Unassigned",
+    "unavailable": "This conversation is not available to you.",
+    "select": "Select a conversation",
+    "selectDescription": "Pick a conversation from the list to read and reply.",
+    "nav": {
+      "conversations": "Conversations"
+    },
+    "states": {
+      "open": "Open",
+      "pending": "Pending",
+      "resolved": "Resolved",
+      "closed": "Closed"
+    },
+    "priorities": {
+      "low": "Low",
+      "normal": "Normal",
+      "high": "High",
+      "urgent": "Urgent"
+    },
+    "delivery": {
+      "received": "Received",
+      "queued": "Queued",
+      "sent": "Sent",
+      "delivered": "Delivered",
+      "read": "Read",
+      "failed": "Failed"
+    },
+    "channelStates": {
+      "draft": "Draft",
+      "connected": "Connected",
+      "error": "Error",
+      "disabled": "Disabled"
+    },
+    "list": {
+      "label": "Conversations",
+      "search": "Search conversations",
+      "scope": "Conversation owner",
+      "scopeAll": "All",
+      "scopeMine": "Mine",
+      "scopeUnassigned": "Unassigned",
+      "state": "Status",
+      "anyState": "Any status",
+      "department": "Department",
+      "anyDepartment": "Any department",
+      "empty": "No conversations yet",
+      "emptyDescription": "Customer messages appear here once a WhatsApp channel is connected and receiving.",
+      "emptyFiltered": "No matching conversations",
+      "noMessages": "No messages",
+      "unread": "Unread",
+      "export": "Export conversations (CSV)"
+    },
+    "thread": {
+      "label": "Conversation messages",
+      "empty": "There are no messages in this conversation",
+      "loadOlder": "Load older messages",
+      "note": "Internal note",
+      "template": "Template: {name}",
+      "failed": "The message could not be sent",
+      "retry": "Retry"
+    },
+    "composer": {
+      "mode": "Message type",
+      "reply": "Reply",
+      "note": "Internal note",
+      "placeholder": "Write a reply to the customer",
+      "notePlaceholder": "Write a note only your team can see",
+      "cannedHint": "Type / to pick a canned reply",
+      "noteHint": "A note is never sent to the customer",
+      "canned": "Canned replies",
+      "send": "Send",
+      "saveNote": "Save note",
+      "windowClosed": "The free-form reply window has closed",
+      "windowClosedDescription": "WhatsApp allows free-form replies for 24 hours after the customer's last message. After that only an approved template can be sent.",
+      "noWindow": "The customer has not sent a message yet, so only an approved template can be sent.",
+      "template": "Template",
+      "pickTemplate": "Pick an approved template",
+      "param": "Variable {n} value",
+      "preview": "Message preview",
+      "noTemplates": "This channel has no approved templates. Ask a manager to sync templates from the channel settings.",
+      "templatesFailed": "Templates could not be loaded",
+      "readOnly": "Read only",
+      "readOnlyDescription": "You do not have permission to reply to conversations."
+    },
+    "panel": {
+      "title": "Customer and conversation",
+      "contact": "Customer",
+      "conversation": "Conversation",
+      "name": "Name",
+      "phone": "Phone",
+      "email": "Email",
+      "channel": "Channel",
+      "saveContact": "Save customer details",
+      "assignee": "Assignee",
+      "assignToMe": "Assign to me",
+      "unassign": "Unassign",
+      "assignDenied": "Assigning needs the assign permission.",
+      "department": "Department",
+      "noDepartment": "No department",
+      "state": "Status",
+      "priority": "Priority",
+      "tags": "Tags",
+      "noTags": "No tags"
+    },
+    "settings": {
+      "name": "Name",
+      "saved": "Saved",
+      "requiredName": "This field is required",
+      "edit": "Edit {name}",
+      "remove": "Remove {name}",
+      "delete": "Delete",
+      "policy": {
+        "title": "General policy",
+        "hint": "Sets who sees conversations, when they close and when they are deleted.",
+        "visibilityLabel": "Who sees conversations",
+        "visibilityDescription": "Anyone with the assign permission always sees every conversation.",
+        "visibility": {
+          "assigned_only": "Assignee only",
+          "department": "Department members",
+          "all": "All staff"
+        },
+        "visibilityHint": {
+          "assigned_only": "A staff member sees only the conversations assigned to them.",
+          "department": "A staff member sees their own conversations, their department's, and unassigned ones that have no department.",
+          "all": "Everyone with the read permission sees every conversation."
+        },
+        "autoClose": "Close automatically after (hours)",
+        "autoCloseHint": "0 means never close automatically.",
+        "retention": "Retention (months)",
+        "retentionHint": "Conversations older than this are deleted with their attachments."
+      },
+      "presets": {
+        "title": "Sector presets",
+        "hint": "Set several options at once: departments, tags, canned replies and the visibility policy.",
+        "apply": "Apply",
+        "applied": "{name} preset applied",
+        "confirmTitle": "Apply the {name} preset?",
+        "confirmDescription": "Only missing items are added and nothing is deleted, but the visibility policy and retention change if the preset sets them.",
+        "clinic": {
+          "name": "Clinic",
+          "description": "Reception and appointments departments, tags such as booking and cancellation, and canned replies for appointments."
+        },
+        "store": {
+          "name": "Store",
+          "description": "Sales and support departments, tags such as order and complaint, and canned replies for orders."
+        },
+        "public_service": {
+          "name": "Public service",
+          "description": "Assignee-only visibility, longer retention, and canned replies for transactions."
+        }
+      },
+      "departments": {
+        "title": "Departments",
+        "hint": "Departments route conversations to the people who answer them.",
+        "add": "Add department",
+        "members": "Members",
+        "membersHint": "Staff who see this department's conversations and reply to them.",
+        "noMembers": "No members",
+        "empty": "No departments yet.",
+        "deleteTitle": "Delete the department \"{name}\"?",
+        "deleteDescription": "Its conversations stay but lose their department."
+      },
+      "tags": {
+        "title": "Tags",
+        "hint": "Staff classify conversations with these tags.",
+        "add": "Add tag",
+        "empty": "No tags yet.",
+        "deleteTitle": "Delete the tag \"{name}\"?",
+        "deleteDescription": "The tag is removed from every conversation."
+      },
+      "canned": {
+        "title": "Canned replies",
+        "hint": "Staff type / and the start of a shortcut in the reply box to get the canned reply suggested.",
+        "add": "Add canned reply",
+        "shortcut": "Shortcut",
+        "shortcutHint": "Without the / sign",
+        "body": "Reply text",
+        "requiredBody": "The reply text is required",
+        "empty": "No canned replies yet.",
+        "deleteTitle": "Delete the canned reply \"{name}\"?",
+        "deleteDescription": "Messages already sent are not affected."
+      },
+      "channels": {
+        "title": "Channels",
+        "hint": "The WhatsApp numbers connected to the inbox.",
+        "connect": "Connect a channel",
+        "connectHint": "Connect a WhatsApp Business number through the Cloud API.",
+        "empty": "No channel is connected yet.",
+        "whatsapp": "WhatsApp",
+        "create": "Connect channel",
+        "department": "Default department",
+        "departmentHint": "Conversations of this channel reach this department.",
+        "noDepartment": "No department",
+        "phoneNumberId": "Phone number ID",
+        "phoneNumberIdHint": "The Phone number ID from your Meta app dashboard.",
+        "businessAccountId": "Business account ID",
+        "businessAccountIdHint": "The WhatsApp Business Account ID.",
+        "accessToken": "Access token",
+        "appSecret": "App secret",
+        "appSecretHint": "Used to verify that incoming messages really come from Meta.",
+        "form": {
+          "account": "Channel details",
+          "accountHint": "Find them in your Meta developer app dashboard.",
+          "secrets": "Secrets",
+          "secretsHint": "They are stored encrypted and are never shown again."
+        },
+        "invalid": {
+          "name": "Enter the channel name",
+          "phone_number_id": "Digits only (5 to 32 digits)",
+          "business_account_id": "Digits only (5 to 32 digits)",
+          "access_token": "The token is too short",
+          "app_secret": "The secret is too short"
+        },
+        "status": "Status",
+        "kind": "Type",
+        "lastEvent": "Last event",
+        "noEvents": "No event received yet",
+        "lastError": "Last error",
+        "test": "Test connection",
+        "tested": "Connection test finished",
+        "syncTemplates": "Sync templates",
+        "synced": "Templates synced",
+        "webhook": {
+          "title": "Webhook setup",
+          "hint": "Paste the URL and the token into the webhook settings of your WhatsApp app in Meta, then subscribe to the messages event.",
+          "callbackUrl": "Callback URL",
+          "verifyToken": "Verify token",
+          "copy": "Copy",
+          "copied": "Copied"
+        },
+        "details": "Channel details",
+        "secrets": "Replace secrets",
+        "secretsHint": "Leave a field empty to keep the stored value.",
+        "stored": "Stored",
+        "notStored": "Not stored",
+        "replacePlaceholder": "New value",
+        "replaceSecrets": "Replace",
+        "secretsReplaced": "Secrets replaced",
+        "dangerTitle": "Disable and delete",
+        "disable": "Disable channel",
+        "disableHint": "The channel stops receiving and sending messages until it is enabled again.",
+        "enable": "Enable channel",
+        "enableHint": "The channel is disabled. Enable it to resume receiving and sending.",
+        "delete": "Delete channel",
+        "deleteHint": "Deletes the channel with all its conversations and messages.",
+        "deleteTitle": "Delete the channel \"{name}\"?",
+        "deleteDescription": "This cannot be undone. The conversations and messages of the channel are deleted."
+      }
+    }
+  }
+}
