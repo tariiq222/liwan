@@ -10,4 +10,7 @@ class WebVueCrmMailMessage(models.Model):
     webvue_notification_kind = fields.Selection(selection_add=[
         ('crm.assigned', 'Opportunity assigned'),
         ('crm.followup_due', 'Follow-up due'),
+        ('crm.needs_manager', 'Opportunity needs a manager decision'),
     ])
+    # How many opportunities one ``crm.assigned`` bell stands for (the body names the first); the UI words the title.
+    webvue_crm_count = fields.Integer(default=1)

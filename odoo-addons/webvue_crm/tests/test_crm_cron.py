@@ -180,6 +180,32 @@ class TestCrmCron(WebVueCrmCase):
         lead.write({'user_id': self.agent2.id})
         self.assertEqual(self.kinds(self.agent), [])
 
+    def test_a_bell_row_carries_the_company_term_of_its_opportunity(self):
+        self.set_settings(term_opportunity_singular_ar='حالة', term_opportunity_plural_ar='حالات', term_opportunity_gender='m')
+        lead = self.due_lead()
+        self.Followup._webvue_cron_tick(now=NOW)
+        item = self.as_user(self.agent).api('GET', NOTIFICATIONS).json()['items'][0]
+        self.assertEqual(item['term']['ar'], {'singular': 'حالة', 'plural': 'حالات'})
+        self.assertEqual((item['term']['en'], item['term']['gender']), ({'singular': 'opportunity', 'plural': 'opportunities'}, 'm'))
+        self.assertEqual(item['opportunity_id'], lead.id)
+
+    def test_a_batch_bell_carries_the_first_name_and_the_count_not_prose(self):
+        first, second = self.make_lead(self.agent, contact_name='Mona'), self.make_lead(self.agent, contact_name='Huda')
+        (first | second)._webvue_notify_assigned()
+        item = self.as_user(self.agent).api('GET', NOTIFICATIONS).json()['items'][0]
+        self.assertEqual((item['kind'], item['title'], item['count']), ('crm.assigned', 'Mona', 2))
+
+    def test_a_manager_decision_bell_is_its_own_kind_and_follows_read_access(self):
+        lead = self.make_lead(self.agent, contact_name='Mona')
+        lead._webvue_notify_managers()
+        self.assertEqual(self.kinds(self.manager), ['crm.needs_manager'])
+        item = self.as_user(self.manager).api('GET', NOTIFICATIONS).json()['items'][0]
+        self.assertEqual((item['opportunity_id'], item['title'], item['count']), (lead.id, 'Mona', 1))
+        self.env['webvue.access.service']._webvue_replace_assignments(self.manager, [{
+            'role_id': self.env.ref('webvue_core.role_employee').id, 'company_id': self.company.id,
+        }])
+        self.assertEqual(self.kinds(self.manager), [])
+
     def test_a_recipient_who_lost_read_sees_nothing(self):
         lead = self.due_lead()
         self.Followup._webvue_cron_tick(now=NOW)
@@ -196,6 +222,7 @@ class TestCrmCron(WebVueCrmCase):
         item = self.as_user(self.agent).api('GET', NOTIFICATIONS).json()['items'][0]
         self.assertEqual(item['opportunity_id'], lead.id)
         self.assertEqual(item['title'], 'Mona')
+        self.assertEqual(item['count'], 1)
         self.assertFalse(item['is_read'])
 
     def test_a_recipient_sees_the_bells_of_every_company_where_they_read(self):
@@ -209,6 +236,9 @@ class TestCrmCron(WebVueCrmCase):
         theirs = self.make_lead(user, company=self.other_company)
         (mine | theirs)._webvue_notify_assigned()
         self.assertEqual(self.kinds(user), ['crm.assigned', 'crm.assigned'])
+        self.set_settings(company=self.other_company, term_opportunity_singular_ar='ملف')
+        items = self.as_user(user).api('GET', NOTIFICATIONS).json()['items']
+        self.assertEqual({item['opportunity_id']: item['term']['ar']['singular'] for item in items}, {mine.id: 'فرصة', theirs.id: 'ملف'})
         other_assignment._webvue_access_unlink()
         self.assertEqual(self.kinds(user), ['crm.assigned'], 'no read in the other company: its bell is gone')
         self.env['webvue.access.service']._webvue_replace_assignments(user, [])

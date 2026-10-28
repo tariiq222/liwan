@@ -508,7 +508,8 @@ class TestCrmImport(WebVueCrmCase):
         first = min(leads, key=lambda lead: lead.id)
         bells = self.bell_rows(self.agent, first, 'crm.assigned')
         self.assertEqual(len(bells), 1, 'one bell for the whole batch')
-        self.assertEqual(html2plaintext(bells.body).strip(), f'{first.contact_name} +1')
+        self.assertEqual(html2plaintext(bells.body).strip(), first.contact_name)
+        self.assertEqual(bells.webvue_crm_count, 2)
         for other in leads - first:
             self.assertFalse(self.bell_rows(self.agent, other, 'crm.assigned'))
 
