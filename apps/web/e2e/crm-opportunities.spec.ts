@@ -155,4 +155,6 @@ test('the mock answers in the contract shapes and refuses like the server', asyn
   const sold = await api.post('/api/v1/crm/opportunities/3/calls', { data: { outcome_id: 3, package_id: 1, final_price: 108 } })
   expect(CrmCallResultSchema.parse(await sold.json()).opportunity).toMatchObject({ status: 'won', discount_percent: 10 })
   expect((await api.post('/api/v1/crm/opportunities/3/calls', { data: { outcome_id: 1 } })).status()).toBe(409)
+  const taken = await api.post('/api/v1/crm/opportunities', { data: { contact_name: 'x', phone: '0501234567' } })
+  expect(await taken.json()).toMatchObject({ field: 'phone', details: { reason: 'duplicate_phone' } })
 })

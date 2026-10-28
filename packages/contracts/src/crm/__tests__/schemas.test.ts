@@ -40,7 +40,7 @@ const term = (ar: [string, string], en: [string, string], gender: 'm' | 'f') => 
 
 const settings = {
   values: {
-    preset: 'general',
+    preset: 'phone_packages',
     followup_attempts: 2,
     followup_interval_hours: 24,
     after_attempts: 'lost',
@@ -91,9 +91,10 @@ describe('CrmSettingsSchema', () => {
     expect(() => CrmSettingsSchema.parse({ ...settings, values: { ...settings.values, visibility: 'everyone' } })).toThrow()
   })
 
-  it('drops keys the contract does not name', () => {
-    const parsed = CrmSettingsSchema.parse({ ...settings, values: { ...settings.values, unknown_internal_field: 3 } })
-    expect(parsed.values).not.toHaveProperty('unknown_internal_field')
+  it('rejects a settings value the contract does not name', () => {
+    expect(() => CrmSettingsSchema.parse({ ...settings, values: { ...settings.values, unknown_internal_field: 3 } })).toThrow()
+    expect(() => CrmSettingsSchema.parse({ ...settings, options: { ...settings.options, extra: [] } })).toThrow()
+    expect(() => CrmSettingsSchema.parse({ ...settings, values: { ...settings.values, terms: { ...settings.values.terms, extra: 1 } } })).toThrow()
   })
 })
 
@@ -131,5 +132,19 @@ describe('CRM configurable lists', () => {
     expect(() => CrmPackageCreateSchema.parse({ name: 'x', price: -1 })).toThrow()
     expect(() => CrmStagePatchSchema.parse({})).toThrow()
     expect(() => CrmStagePatchSchema.parse({ sequence: 3 })).toThrow()
+  })
+
+  it('caps a package price at the server maximum', () => {
+    expect(CrmPackageCreateSchema.parse({ name: 'x', price: 999_999_999 }).price).toBe(999_999_999)
+    expect(() => CrmPackageCreateSchema.parse({ name: 'x', price: 1_000_000_000 })).toThrow()
+    expect(() => CrmPackageSchema.parse({ id: 3, name: 'x', price: 1_000_000_000, description: '', active: true })).toThrow()
+  })
+
+  it('rejects an unknown key on every list row and envelope', () => {
+    expect(() => CrmStageSchema.parse({ id: 1, name: 'New', sequence: 10, is_won: false, active: true, extra: 1 })).toThrow()
+    expect(() => CrmOutcomeSchema.parse({ id: 2, name: 'x', effect: 'won', lost_reason_id: null, active: true, extra: 1 })).toThrow()
+    expect(() => CrmPackageSchema.parse({ id: 3, name: 'x', price: 1, description: '', active: true, extra: 1 })).toThrow()
+    expect(() => CrmLostReasonListSchema.parse({ items: [], total: 0, extra: 1 })).toThrow()
+    expect(() => CrmLostReasonListSchema.parse({ items: [{ id: 4, name: 'x', active: true, protected: true, extra: 1 }], total: 1 })).toThrow()
   })
 })

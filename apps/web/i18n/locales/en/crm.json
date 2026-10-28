@@ -263,6 +263,8 @@
       "errors": {
         "conflict": "This record changed or was closed. Reload the page and try again.",
         "duplicatePhone": "This phone is already on another record.",
+        "invalidPhone": "This phone number is not valid.",
+        "invalidEmail": "This email address is not valid.",
         "discount": "The discount is not allowed or does not match the prices.",
         "discountApproval": "This discount is above the allowed limit and needs someone who can approve discounts.",
         "forbidden": "You cannot do this on this record.",

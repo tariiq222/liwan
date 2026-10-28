@@ -2,6 +2,7 @@ import {
   CrmOpportunityCreateSchema,
   CrmOpportunityListSchema,
   CrmOpportunityPatchSchema,
+  CrmOpportunityWriteReasonSchema,
   CrmOpportunitySchema,
   CrmViewLogListSchema,
 } from '../index'
@@ -62,5 +63,12 @@ describe('CrmViewLogListSchema', () => {
   it('accepts a view log page', () => {
     const page = { items: [{ id: 1, user: { id: 3, name: 'Agent' }, opportunity_id: 7, viewed_at: '2026-10-28T09:00:00Z' }], total: 1 }
     expect(CrmViewLogListSchema.parse(page)).toEqual(page)
+  })
+})
+
+describe('CrmOpportunityWriteReasonSchema', () => {
+  it('lists the codes of a refused phone or email', () => {
+    expect(CrmOpportunityWriteReasonSchema.options).toEqual(['invalid_phone', 'duplicate_phone', 'invalid_email'])
+    expect(() => CrmOpportunityWriteReasonSchema.parse('duplicate phone')).toThrow()
   })
 })

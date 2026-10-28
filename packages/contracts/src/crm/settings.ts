@@ -1,17 +1,17 @@
 import { z } from 'zod'
 
-export const CrmTermLanguageSchema = z.object({
+export const CrmTermLanguageSchema = z.strictObject({
   singular: z.string().min(1).max(60),
   plural: z.string().min(1).max(60),
 })
 
-export const CrmTermSchema = z.object({
+export const CrmTermSchema = z.strictObject({
   ar: CrmTermLanguageSchema,
   en: CrmTermLanguageSchema,
   gender: z.enum(['m', 'f']),
 })
 
-export const CrmSettingsTermsSchema = z.object({
+export const CrmSettingsTermsSchema = z.strictObject({
   customer: CrmTermSchema,
   opportunity: CrmTermSchema,
   package: CrmTermSchema,
@@ -22,9 +22,9 @@ export const CrmAfterAttemptsSchema = z.enum(['lost', 'manager'])
 export const CrmDistributionModeSchema = z.enum(['round_robin', 'manual', 'on_import'])
 export const CrmVisibilitySchema = z.enum(['own', 'team', 'all'])
 
-const RangeSchema = z.object({ min: z.number().int(), max: z.number().int() })
+const RangeSchema = z.strictObject({ min: z.number().int(), max: z.number().int() })
 
-export const CrmSettingsValuesSchema = z.object({
+export const CrmSettingsValuesSchema = z.strictObject({
   preset: CrmPresetSchema,
   followup_attempts: z.number().int().min(0).max(10),
   followup_interval_hours: z.number().int().min(1).max(720),
@@ -41,7 +41,7 @@ export const CrmSettingsValuesSchema = z.object({
   terms: CrmSettingsTermsSchema,
 })
 
-export const CrmSettingsOptionsSchema = z.object({
+export const CrmSettingsOptionsSchema = z.strictObject({
   preset: z.array(CrmPresetSchema),
   after_attempts: z.array(CrmAfterAttemptsSchema),
   distribution_mode: z.array(CrmDistributionModeSchema),
@@ -54,9 +54,9 @@ export const CrmSettingsOptionsSchema = z.object({
   discount_max_percent: RangeSchema,
 })
 
-export const CrmDistributionUserSchema = z.object({ id: z.number().int(), name: z.string() })
+export const CrmDistributionUserSchema = z.strictObject({ id: z.number().int(), name: z.string() })
 
-export const CrmSettingsSchema = z.object({
+export const CrmSettingsSchema = z.strictObject({
   values: CrmSettingsValuesSchema,
   // The names of `values.distribution_user_ids`, resolved at read time; a patch still carries ids only.
   distribution_users: z.array(CrmDistributionUserSchema),
@@ -65,8 +65,8 @@ export const CrmSettingsSchema = z.object({
 })
 
 const CrmTermPatchSchema = z.strictObject({
-  ar: CrmTermLanguageSchema.partial().strict().optional(),
-  en: CrmTermLanguageSchema.partial().strict().optional(),
+  ar: CrmTermLanguageSchema.partial().optional(),
+  en: CrmTermLanguageSchema.partial().optional(),
   gender: z.enum(['m', 'f']).optional(),
 })
 
@@ -80,7 +80,6 @@ export const CrmSettingsValuesPatchSchema = CrmSettingsValuesSchema.omit({ prese
     }),
   })
   .partial()
-  .strict()
   .refine((values) => Object.keys(values).length > 0, 'values must not be empty')
 
 export const CrmSettingsPatchSchema = z.union([

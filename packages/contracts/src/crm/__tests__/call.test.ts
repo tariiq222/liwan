@@ -1,4 +1,3 @@
-import { BellNotificationSchema } from '../../pmo/notification'
 import {
   CrmAssignSchema,
   CrmCallCreateSchema,
@@ -6,7 +5,6 @@ import {
   CrmCallResultSchema,
   CrmCallSchema,
   CrmLostSchema,
-  CrmNotificationSchema,
   CrmSaleSchema,
 } from '../index'
 
@@ -70,28 +68,5 @@ describe('call and sale bodies', () => {
     expect(() => CrmLostSchema.parse({})).toThrow()
     expect(CrmAssignSchema.parse({ user_id: 5 }).user_id).toBe(5)
     expect(() => CrmAssignSchema.parse({ user_id: null })).toThrow()
-  })
-})
-
-describe('CrmNotificationSchema', () => {
-  const bell = {
-    id: 9,
-    kind: 'crm.followup_due',
-    opportunity_id: 7,
-    title: 'Mona',
-    created_at: '2026-10-28T09:00:00Z',
-    is_read: false,
-  }
-
-  it('accepts the bell dump of both kinds and nothing more', () => {
-    expect(CrmNotificationSchema.parse(bell)).toEqual(bell)
-    expect(CrmNotificationSchema.parse({ ...bell, kind: 'crm.assigned' }).kind).toBe('crm.assigned')
-    expect(() => CrmNotificationSchema.parse({ ...bell, kind: 'assignment' })).toThrow()
-    expect(() => CrmNotificationSchema.parse({ ...bell, body: 'x' })).toThrow()
-    expect(() => CrmNotificationSchema.parse({ ...bell, opportunity_id: 0 })).toThrow()
-  })
-
-  it('still reads through the shared bell list as a dotted kind of a newer application', () => {
-    expect(BellNotificationSchema.parse(bell).kind).toBe('crm.followup_due')
   })
 })

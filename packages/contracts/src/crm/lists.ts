@@ -1,12 +1,15 @@
 import { z } from 'zod'
 
 const NAME_MAX = 200
+// The server's PRICE_MAX (webvue_crm serializers/lists.py).
+const PRICE_MAX = 999_999_999
 
 const NameSchema = z.string().trim().min(1).max(NAME_MAX)
+const PriceSchema = z.number().min(0).max(PRICE_MAX)
 
 export const CrmOutcomeEffectSchema = z.enum(['follow_up', 'won', 'lost', 'none'])
 
-export const CrmStageSchema = z.object({
+export const CrmStageSchema = z.strictObject({
   id: z.number().int(),
   name: z.string(),
   sequence: z.number().int(),
@@ -14,7 +17,7 @@ export const CrmStageSchema = z.object({
   active: z.boolean(),
 })
 
-export const CrmOutcomeSchema = z.object({
+export const CrmOutcomeSchema = z.strictObject({
   id: z.number().int(),
   name: z.string(),
   effect: CrmOutcomeEffectSchema,
@@ -22,29 +25,29 @@ export const CrmOutcomeSchema = z.object({
   active: z.boolean(),
 })
 
-export const CrmLostReasonSchema = z.object({
+export const CrmLostReasonSchema = z.strictObject({
   id: z.number().int(),
   name: z.string(),
   active: z.boolean(),
   protected: z.boolean(),
 })
 
-export const CrmSourceSchema = z.object({
+export const CrmSourceSchema = z.strictObject({
   id: z.number().int(),
   name: z.string(),
   active: z.boolean(),
 })
 
-export const CrmPackageSchema = z.object({
+export const CrmPackageSchema = z.strictObject({
   id: z.number().int(),
   name: z.string(),
-  price: z.number().min(0),
+  price: PriceSchema,
   description: z.string(),
   active: z.boolean(),
 })
 
 const listOf = <T extends z.ZodTypeAny>(item: T) =>
-  z.object({ items: z.array(item), total: z.number().int().min(0) })
+  z.strictObject({ items: z.array(item), total: z.number().int().min(0) })
 
 export const CrmStageListSchema = listOf(CrmStageSchema)
 export const CrmOutcomeListSchema = listOf(CrmOutcomeSchema)
@@ -83,11 +86,11 @@ export const CrmNamedPatchSchema = z
 
 export const CrmPackageCreateSchema = z.strictObject({
   name: NameSchema,
-  price: z.number().min(0),
+  price: PriceSchema,
   description: z.string().max(2000).optional(),
 })
 export const CrmPackagePatchSchema = z
-  .strictObject({ name: NameSchema, price: z.number().min(0), description: z.string().max(2000), active: z.boolean() })
+  .strictObject({ name: NameSchema, price: PriceSchema, description: z.string().max(2000), active: z.boolean() })
   .partial()
   .refine((body) => Object.keys(body).length > 0, 'nothing to change')
 

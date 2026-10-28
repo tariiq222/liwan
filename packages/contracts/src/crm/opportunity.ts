@@ -8,6 +8,9 @@ const IsoDateTimeSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}
 const NameSchema = z.string().trim().min(1).max(NAME_MAX)
 const EmailSchema = z.union([z.literal(''), z.string().trim().email().max(EMAIL_MAX)])
 
+// The stable code of a refused write, in `details.reason` of the 422 on `phone` or `email`; the UI translates it.
+export const CrmOpportunityWriteReasonSchema = z.enum(['invalid_phone', 'duplicate_phone', 'invalid_email'])
+
 export const CrmOpportunityStatusSchema = z.enum(['pending', 'won', 'lost'])
 
 export const CrmOpportunitySchema = z.strictObject({
@@ -81,6 +84,7 @@ export const CrmViewLogListSchema = z.strictObject({
   total: z.number().int().min(0),
 })
 
+export type CrmOpportunityWriteReason = z.infer<typeof CrmOpportunityWriteReasonSchema>
 export type CrmOpportunity = z.infer<typeof CrmOpportunitySchema>
 export type CrmOpportunityList = z.infer<typeof CrmOpportunityListSchema>
 export type CrmOpportunityCreate = z.infer<typeof CrmOpportunityCreateSchema>

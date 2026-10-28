@@ -198,7 +198,7 @@ export function crmPreviewWrite(method, path, body) {
   return undefined
 }
 
-const invalid = (field, message) => ({ status: 422, body: { code: 'invalid', message, field } })
+const invalid = (field, message, reason) => ({ status: 422, body: { code: 'invalid', message, field, ...(reason && { details: { reason } }) } })
 const closed = { status: 409, body: { code: 'conflict', message: 'the opportunity is closed' } }
 const wonStage = () => lists.stages.find(stage => stage.is_won)
 const firstStage = () => [...lists.stages].filter(stage => stage.active && !stage.is_won).sort((a, b) => a.sequence - b.sequence)[0]
@@ -231,7 +231,7 @@ function followUp(lead) {
 // discount above the ceiling -> 403) and answer with the shapes of packages/contracts/src/crm.
 function crmOpportunityWrite(method, path, body) {
   if (method === 'POST' && path === '/api/v1/crm/opportunities') {
-    if (opportunities.some(item => item.phone === body.phone)) return invalid('phone', 'duplicate phone')
+    if (opportunities.some(item => item.phone === body.phone)) return invalid('phone', 'duplicate phone', 'duplicate_phone')
     const created = {
       id: Math.max(0, ...opportunities.map(item => item.id)) + 1, contact_name: body.contact_name, phone: body.phone, email: body.email ?? '',
       stage: ref(lists.stages, firstStage().id), user: mockUserRef('user_id' in body ? body.user_id : 2), source: ref(lists.sources, body.source_id),
@@ -248,7 +248,7 @@ function crmOpportunityWrite(method, path, body) {
   const action = route[2]
   if (method === 'PATCH' && !action) {
     if (lead.status !== 'pending') return closed
-    if (body.phone && opportunities.some(item => item.id !== lead.id && item.phone === body.phone)) return invalid('phone', 'duplicate phone')
+    if (body.phone && opportunities.some(item => item.id !== lead.id && item.phone === body.phone)) return invalid('phone', 'duplicate phone', 'duplicate_phone')
     const { stage_id: stageId, source_id: sourceId, ...plain } = body
     if (stageId && !lists.stages.some(stage => stage.id === stageId)) return invalid('stage_id', 'stage does not exist')
     if (stageId && lists.stages.find(stage => stage.id === stageId).is_won) return invalid('stage_id', 'an opportunity is won through the sale action')
