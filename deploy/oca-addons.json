@@ -46,6 +46,11 @@
       "commit": "58f8a39799383ef98d50097f81f4abcc6dd03782"
     },
     {
+      "repo": "OCA/crm",
+      "branch": "19.0",
+      "commit": "6051e0bfffd1c89b1a52585aaf322b6c2bcff6f2"
+    },
+    {
       "repo": "OCA/calendar",
       "branch": "19.0",
       "commit": "a0f55db96b9f5e1d7889b1b50dc0c3e5dd677baf"
