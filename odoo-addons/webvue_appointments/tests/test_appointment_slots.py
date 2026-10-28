@@ -69,6 +69,14 @@ class TestAppointmentSlots(WebVueAppointmentsCase):
         result = self._slots(0, 10)
         self.assertEqual((result.status_code, result.json()['code'], result.json()['field']), (422, 'invalid', 'to'))
 
+    def test_no_listed_slot_passes_the_exact_horizon(self):
+        self.env['webvue.appointment.settings'].create({'company_id': self.env.company.id, 'horizon_days': 5})
+        self.authenticate('appointments_booker', 'appointments_booker_pass_123')
+        latest = datetime.now(UTC).replace(tzinfo=None) + timedelta(days=5)
+        items = self._slots(0, 5).json()['items']
+        self.assertTrue(items)
+        self.assertTrue(all(datetime.strptime(item['start'], UTC_FORMAT) <= latest for item in items))
+
     def test_bad_dates_are_422(self):
         self.authenticate('appointments_booker', 'appointments_booker_pass_123')
         base = '/api/v1/appointments/types/%d/slots' % self.booking_type.id

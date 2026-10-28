@@ -53,8 +53,10 @@ class AppointmentSlotController(http.Controller):
             tz.localize(datetime.combine(first, time.min)),
             tz.localize(datetime.combine(last + timedelta(days=1), time.min)),
         )
+        # The same bounds parse_start applies on create and schedule, so every listed slot is bookable.
         earliest = now + timedelta(hours=settings['min_notice_hours'])
+        latest = now + timedelta(days=settings['horizon_days'])
         duration = timedelta(hours=booking.duration)
         starts = sorted(start.astimezone(UTC) for day_slots in slots.values() for start in day_slots)
-        items = [dump_slot(start, start + duration) for start in starts if start >= earliest]
+        items = [dump_slot(start, start + duration) for start in starts if earliest <= start <= latest]
         return {'items': items, 'total': len(items)}

@@ -46,6 +46,19 @@ class TestAppointmentCombinations(WebVueAppointmentsCase):
         self.assertIn(created.id, {row['id'] for row in self.api('GET', COMBINATIONS + '?active=false').json()['items']})
         self.assertTrue(self.api('POST', path + '/unarchive').json()['active'])
 
+    def test_a_combination_with_an_archived_resource_cannot_be_restored(self):
+        combination = self.env['resource.booking.combination'].create({
+            'company_id': self.env.company.id, 'resource_ids': [(6, 0, self.room.ids)], 'active': False,
+        })
+        self.room.active = False
+        self._manager()
+        path = '%s/%d/unarchive' % (COMBINATIONS, combination.id)
+        result = self.api('POST', path)
+        self.assertEqual((result.status_code, result.json()['field']), (422, 'combination_id'))
+        self.assertFalse(combination.active)
+        self.room.active = True
+        self.assertTrue(self.api('POST', path).json()['active'])
+
     def test_a_combination_a_type_still_offers_cannot_be_archived(self):
         combination = self.env['resource.booking.combination'].create({
             'company_id': self.env.company.id, 'resource_ids': [(6, 0, self.room.ids)],

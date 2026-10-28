@@ -89,6 +89,12 @@ class TestAppointmentBookings(WebVueAppointmentsCase):
         self.assertEqual((result.status_code, result.json()['state']), (200, 'confirmed'), result.text)
         self._error(self.api('POST', '%s/%d/confirm' % (BOOKINGS, body['id'])), 422, 'invalid')
 
+    def test_confirms_on_schedule_follows_the_company_setting_by_default(self):
+        # The extension point a bridge overrides; its default is the requester_confirmation setting.
+        self.assertTrue(self.booking._webvue_confirms_on_schedule())
+        self._settings(requester_confirmation=True)
+        self.assertFalse(self.booking._webvue_confirms_on_schedule())
+
     def test_create_with_an_existing_requester_and_a_chosen_combination(self):
         self._login()
         other = self._create_combination(self.env.company, 'Room B')

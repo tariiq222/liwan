@@ -96,7 +96,7 @@ class AppointmentBookingController(http.Controller):
             values['start'] = parsed['start']
             with self._conflicts():
                 booking = request.env[BOOKING].create(values)
-            self._confirm_unless_requester_does(booking, settings)
+            self._confirm_on_schedule(booking)
         else:
             booking = request.env[BOOKING].create(values)
         return self._detail(booking, settings)
@@ -115,7 +115,7 @@ class AppointmentBookingController(http.Controller):
         combination = offered_combination(booking.type_id, parsed['combination_id'])
         with self._conflicts():
             booking.write({'start': parsed['start'], **self._combination_values(combination)})
-        self._confirm_unless_requester_does(booking, settings)
+        self._confirm_on_schedule(booking)
         return self._detail(booking, settings)
 
     @http.route('/api/v1/appointments/bookings/<int:booking_id>/confirm', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -221,8 +221,8 @@ class AppointmentBookingController(http.Controller):
         )
 
     @staticmethod
-    def _confirm_unless_requester_does(booking, settings):
-        if not settings['requester_confirmation']:
+    def _confirm_on_schedule(booking):
+        if booking._webvue_confirms_on_schedule():
             booking.action_confirm()
 
     @staticmethod

@@ -88,6 +88,13 @@ class AppointmentCombinationController(http.Controller):
     @requires_capability(MANAGE_CAPABILITY)
     def unarchive_combination(self, combination_id, **_):
         combination = get_company_record(COMBINATION, combination_id)
+        # The engine's resource_ids hides archived resources, so a restored combination would count them as free.
+        archived = combination.with_context(active_test=False).resource_ids.filtered(lambda resource: not resource.active)
+        if archived:
+            raise ApiError(
+                422, 'invalid', 'restore its archived resource(s) first: %s' % ', '.join(archived.mapped('name')),
+                field='combination_id',
+            )
         combination.write({'active': True})
         return dump_combination(combination)
 
