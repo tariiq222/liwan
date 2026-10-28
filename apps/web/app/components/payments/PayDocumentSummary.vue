@@ -6,7 +6,10 @@ import { formatPayAmount, payDeadline, type PayableDocument } from '@/composable
 // (an invoice's due date, the moment an unpaid order expires). The contract carries no partner data, so there is none to show.
 const props = defineProps<{ kind: PayDocumentKind; payable: PayableDocument }>()
 const { t, locale } = useI18n()
-const deadline = computed(() => payDeadline(props.payable, locale.value))
+// An order's deadline is a moment, shown in the payer's own time zone: the server cannot know it, so the time is drawn
+// once the page is live in the browser (drawing it on the server too would differ and break hydration).
+const hydrated = useHydrated()
+const deadline = computed(() => (props.kind === 'order' && !hydrated.value ? null : payDeadline(props.payable, locale.value)))
 </script>
 
 <template>
