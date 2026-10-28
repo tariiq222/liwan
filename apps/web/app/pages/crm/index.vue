@@ -4,6 +4,6 @@ const { t } = useI18n()
 
 <template>
   <SharedPageContainer width="list">
-    <SharedPageHeader :title="t('crm.title')" />
+    <SharedPageHeader :title="t('nav.crm')" />
   </SharedPageContainer>
 </template>

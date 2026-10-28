@@ -27,12 +27,9 @@ SCALAR_FIELDS = (*RANGES, *ENUMS, *BOOLEANS)
 WRITABLE = (*SCALAR_FIELDS, 'terms', 'distribution_user_ids')
 
 
-def dump_settings(effective, revision):
-    """The settings wire shape: values (terms nested), the allowed options and the revision."""
-    values = {name: effective[name] for name in (
-        'preset', *SCALAR_FIELDS, 'distribution_user_ids',
-    )}
-    values['terms'] = {
+def dump_terms(effective):
+    """The renamable terms in their wire shape, per language and form, with the grammatical gender."""
+    return {
         term: {
             **{
                 language: {form: effective[term_field(term, language, form)] for form in TERM_FORMS}
@@ -42,6 +39,14 @@ def dump_settings(effective, revision):
         }
         for term in TERM_KEYS
     }
+
+
+def dump_settings(effective, revision):
+    """The settings wire shape: values (terms nested), the allowed options and the revision."""
+    values = {name: effective[name] for name in (
+        'preset', *SCALAR_FIELDS, 'distribution_user_ids',
+    )}
+    values['terms'] = dump_terms(effective)
     return {'values': values, 'options': dump_options(), 'revision': revision}
 
 

@@ -368,6 +368,17 @@ Meetings use SharedListPage/DataTable/RecordPage/TimelineFrame/StandalonePage. C
 | `apps/web/app/components/operations/RequestEdit.vue` | تعديل الطلب وإرجاعه إلى سجله مع حفظ مصدر القائمة؛ القصة `apps/web/stories/operations/RequestEdit.stories.ts` | SharedPageContainer, SharedPageHeader, SharedPageState, RequestForm |
 
 | `apps/web/app/components/hr/LeaveSettingsForm.vue` | Company cancellation policy with three choices, revision conflict recovery through awaited reload, preserved drafts; story `apps/web/stories/hr/LeaveSettingsForm.stories.ts` | SharedFormSection panel, SharedFormActions, SharedUnsavedChanges, UForm, UFormField, USelect, UAlert, UButton |
+| `apps/web/app/components/crm/settings/CrmSettingsCard.vue` | Frame of one CRM settings card: save, revision-conflict reload and failure text around the card fields; story `apps/web/stories/crm/settings/CrmSettingsCard.stories.ts` | SharedFormSection panel, SharedFormActions, SharedUnsavedChanges, UForm, UAlert, UButton |
+| `apps/web/app/components/crm/settings/CrmPresetCard.vue` | Applies a CRM preset after an inline confirmation, because it overwrites several values | CrmSettingsCard, SharedInlineConfirm, UFormField, USelect |
+| `apps/web/app/components/crm/settings/CrmTermsCard.vue` | Renames customer, opportunity and package (Arabic and English singular and plural, grammatical gender) with an agreement preview; story `apps/web/stories/crm/settings/CrmTermsCard.stories.ts` | CrmSettingsCard, UFormField, UInput, USelect |
+| `apps/web/app/components/crm/settings/CrmFollowupCard.vue` | Follow-up attempts, interval, what happens after the attempts and the recycle rules | CrmSettingsCard, UFormField, UInputNumber, USelect, USwitch |
+| `apps/web/app/components/crm/settings/CrmDistributionCard.vue` | Distribution mode and the agents in the rotation | CrmSettingsCard, UFormField, USelect, SharedPersonPicker |
+| `apps/web/app/components/crm/settings/CrmPrivacyCard.vue` | Visibility policy and the view log switch | CrmSettingsCard, UFormField, USelect, USwitch |
+| `apps/web/app/components/crm/settings/CrmPricingCard.vue` | Whether a discount is allowed and its ceiling | CrmSettingsCard, UFormField, UInputNumber, USwitch |
+| `apps/web/app/components/crm/settings/CrmNamedListCard.vue` | Add, rename, archive and restore rows of the lost reasons and the sources lists | SharedFormSection panel, SharedPageState, UInput, UButton, UBadge, UAlert |
+| `apps/web/app/components/crm/settings/CrmStageListCard.vue` | Pipeline stages: rename, reorder, mark the sold stage, archive and restore; story `apps/web/stories/crm/settings/CrmStageListCard.stories.ts` | SharedFormSection panel, SharedPageState, UInput, USwitch, UButton, UBadge, UAlert |
+| `apps/web/app/components/crm/settings/CrmOutcomeListCard.vue` | Call outcomes with their effect and the lost reason a losing outcome applies | SharedFormSection panel, SharedPageState, UInput, USelect, UButton, UBadge, UAlert |
+| `apps/web/app/components/crm/settings/CrmPackageListCard.vue` | Packages with price and description, archived rather than deleted | SharedFormSection panel, SharedPageState, UInput, UInputNumber, UButton, UBadge, UAlert |
 
 ## التنقل والانتباه والأعمال
 

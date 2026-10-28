@@ -85,5 +85,8 @@ export const CrmSettingsPatchSchema = z.union([
 ])
 
 export type CrmSettings = z.infer<typeof CrmSettingsSchema>
+export type CrmPreset = z.infer<typeof CrmPresetSchema>
+export type CrmSettingsTerms = z.infer<typeof CrmSettingsTermsSchema>
 export type CrmSettingsValues = z.infer<typeof CrmSettingsValuesSchema>
+export type CrmSettingsValuesPatch = z.infer<typeof CrmSettingsValuesPatchSchema>
 export type CrmSettingsPatch = z.infer<typeof CrmSettingsPatchSchema>

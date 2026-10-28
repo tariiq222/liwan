@@ -12,6 +12,7 @@ from odoo.addons.webvue_api.controllers.common import (
 )
 from odoo.addons.webvue_crm.serializers.settings import (
     dump_settings,
+    dump_terms,
     parse_settings_patch,
 )
 
@@ -28,6 +29,14 @@ class CrmSettingsController(http.Controller):
         model = request.env['webvue.crm.settings']
         row = model._webvue_current()
         return dump_settings(model._webvue_effective(), row.revision if row else 0)
+
+    @http.route('/api/v1/crm/terms', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('crm.enabled', operation='read')
+    @requires_capability('crm.leads.read')
+    def get_terms(self, **_):
+        # Display words only: every CRM user needs them to read the screens, unlike the policy values.
+        return dump_terms(request.env['webvue.crm.settings']._webvue_effective())
 
     @http.route('/api/v1/crm/settings', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler

@@ -7,6 +7,7 @@ from odoo.tools import mute_logger
 from .common import WebVueCrmCase
 
 URL = '/api/v1/crm/settings'
+TERMS_URL = '/api/v1/crm/terms'
 CUSTOMER_TERM = {
     'ar': {'singular': 'مستفيد', 'plural': 'مستفيدون'},
     'en': {'singular': 'client', 'plural': 'clients'},
@@ -67,6 +68,20 @@ class TestCrmSettings(WebVueCrmCase):
         response = self.api('PATCH', URL, {'revision': 0, 'values': {'visibility': 'all'}})
         self.assertEqual(response.status_code, 403)
         self.assertFalse(self._rows())
+
+    def test_terms_route_serves_agents_the_current_words_and_nothing_else(self):
+        self.as_agent()
+        body = self.api('GET', TERMS_URL).json()
+        self.assertEqual(set(body), {'customer', 'opportunity', 'package'})
+        self.assertEqual(body['customer']['ar'], {'singular': 'عميل', 'plural': 'عملاء'})
+        self.as_manager()
+        self.api('PATCH', URL, {'revision': 0, 'values': {'terms': {'customer': CUSTOMER_TERM}}})
+        self.as_agent()
+        self.assertEqual(self.api('GET', TERMS_URL).json()['customer'], CUSTOMER_TERM)
+
+    def test_terms_route_needs_read_access(self):
+        self.as_user(self.outsider)
+        self.assertEqual(self.api('GET', TERMS_URL).status_code, 403)
 
     def test_patch_creates_the_row_and_bumps_revision(self):
         response = self.as_manager().api('PATCH', URL, {
