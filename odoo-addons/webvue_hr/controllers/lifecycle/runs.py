@@ -134,13 +134,6 @@ class HrLifecycleRunController(http.Controller):
         _require('hr.onboarding.read')
         return _complete_step(ONBOARDING, run_id, activity_id, payload)
 
-    @http.route('/api/v1/hr/offboarding/runs', type='json2', auth='user', methods=['GET'], readonly=True)
-    @api_handler
-    @requires_feature('hr.enabled', 'hr.offboarding', operation='read')
-    def list_offboarding_runs(self, **_):
-        _require('hr.offboarding.read')
-        return _list_runs(OFFBOARDING)
-
     @http.route('/api/v1/hr/offboarding/runs', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('hr.enabled', 'hr.offboarding', operation='write')

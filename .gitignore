@@ -34,6 +34,7 @@ apps/web/127.0.0.1/
 !/.claude/skills/
 /.claude/skills/*
 !/.claude/skills/e2e/
+!/.claude/skills/user-test/
 !/.claude/scripts/
 /.claude/scripts/*
 !/.claude/scripts/guard-bash.sh
