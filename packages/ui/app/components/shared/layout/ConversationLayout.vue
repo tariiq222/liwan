@@ -26,7 +26,7 @@ const showThread = computed(() => (isDesktop.value || props.hasSelection) && (!s
 </script>
 
 <template>
-  <SharedPageContainer width="list" data-template="conversation-layout" class="h-[calc(100svh_-_var(--shell-header-height,0px))] min-h-0 grid-rows-[minmax(0,1fr)]">
+  <SharedPageContainer width="list" data-template="conversation-layout" class="h-[calc(100svh_-_var(--shell-top,0px))] min-h-0 grid-rows-[minmax(0,1fr)]">
     <div class="flex min-h-0 overflow-hidden bg-default">
       <div v-if="showList" data-template="conversation-list" class="flex min-h-0 min-w-0 flex-1 flex-col">
         <slot name="list" />
