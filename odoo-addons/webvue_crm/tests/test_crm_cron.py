@@ -6,10 +6,13 @@ from odoo import Command
 from odoo.tests import tagged
 
 from .common import WebVueCrmCase
+from odoo.addons.webvue_crm.models.crm_settings import TERM_MEMO
+from odoo.addons.webvue_crm.serializers.settings import dump_terms
 
 NOW = datetime(2026, 10, 28, 9, 0, 0)
 DAY = timedelta(days=1)
 NOTIFICATIONS = '/api/v1/notifications'
+TYPES = 'odoo.addons.webvue_crm.models.notification_types'
 FOLLOWUP_LOGGER = 'odoo.addons.webvue_crm.models.followup'
 
 
@@ -192,11 +195,11 @@ class TestCrmCron(WebVueCrmCase):
     def test_the_company_term_is_read_once_for_many_bell_rows(self):
         (self.due_lead() | self.due_lead())._webvue_notify_assigned()
         self.Followup._webvue_cron_tick(now=NOW)
-        Settings = type(self.env['webvue.crm.settings'])
-        with patch.object(Settings, '_webvue_effective', autospec=True, side_effect=Settings._webvue_effective) as effective:
+        self.env.cr.cache.pop(TERM_MEMO, None)
+        with patch(f'{TYPES}.dump_terms', side_effect=dump_terms) as dumped:
             items = self.as_user(self.agent).api('GET', NOTIFICATIONS).json()['items']
         self.assertGreaterEqual(len(items), 2)
-        self.assertEqual(effective.call_count, 1)
+        self.assertEqual(dumped.call_count, 1)
 
     def test_a_batch_bell_carries_the_first_name_and_the_count_not_prose(self):
         first, second = self.make_lead(self.agent, contact_name='Mona'), self.make_lead(self.agent, contact_name='Huda')
