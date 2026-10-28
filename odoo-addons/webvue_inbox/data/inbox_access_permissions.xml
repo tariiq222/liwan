@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="permission_inbox_conversations_read" model="webvue.access.permission">
+        <field name="key">inbox.conversations.read</field><field name="domain">inbox</field>
+        <field name="resource">conversations</field><field name="action">read</field>
+        <field name="name_ar">قراءة محادثات العملاء</field><field name="name_en">Read customer conversations</field>
+        <field name="description_ar">قراءة المحادثات المرئية وإضافة سياسة الظهور</field><field name="description_en">Read the conversations the visibility policy allows</field>
+        <field name="group_xmlid">webvue_inbox.group_cap_inbox_conversations_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
+    </record>
+    <record id="permission_inbox_conversations_reply" model="webvue.access.permission">
+        <field name="key">inbox.conversations.reply</field><field name="domain">inbox</field>
+        <field name="resource">conversations</field><field name="action">reply</field>
+        <field name="name_ar">الرد على العملاء</field><field name="name_en">Reply to customers</field>
+        <field name="description_ar">الرد على العملاء وإضافة ملاحظات داخلية وتغيير حالة المحادثة</field><field name="description_en">Reply to customers, add internal notes and change conversation state</field>
+        <field name="group_xmlid">webvue_inbox.group_cap_inbox_conversations_reply</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
+    </record>
+    <record id="permission_inbox_conversations_assign" model="webvue.access.permission">
+        <field name="key">inbox.conversations.assign</field><field name="domain">inbox</field>
+        <field name="resource">conversations</field><field name="action">assign</field>
+        <field name="name_ar">إسناد المحادثات</field><field name="name_en">Assign conversations</field>
+        <field name="description_ar">إسناد المحادثات إلى الموظفين والأقسام ورؤية كل محادثات الشركة</field><field name="description_en">Assign conversations to agents and departments and see every company conversation</field>
+        <field name="group_xmlid">webvue_inbox.group_cap_inbox_conversations_assign</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
+    </record>
+    <record id="permission_inbox_conversations_export" model="webvue.access.permission">
+        <field name="key">inbox.conversations.export</field><field name="domain">inbox</field>
+        <field name="resource">conversations</field><field name="action">export</field>
+        <field name="name_ar">تصدير المحادثات</field><field name="name_en">Export conversations</field>
+        <field name="description_ar">تصدير المحادثات المرئية إلى ملف CSV</field><field name="description_en">Export the visible conversations to CSV</field>
+        <field name="group_xmlid">webvue_inbox.group_cap_inbox_conversations_export</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_inbox_channels_manage" model="webvue.access.permission">
+        <field name="key">inbox.channels.manage</field><field name="domain">inbox</field>
+        <field name="resource">channels</field><field name="action">manage</field>
+        <field name="name_ar">إدارة قنوات العملاء</field><field name="name_en">Manage customer channels</field>
+        <field name="description_ar">ربط قنوات واتساب وإدارة أسرارها وقوالبها</field><field name="description_en">Connect WhatsApp channels and manage their secrets and templates</field>
+        <field name="group_xmlid">webvue_inbox.group_cap_inbox_channels_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_inbox_settings_manage" model="webvue.access.permission">
+        <field name="key">inbox.settings.manage</field><field name="domain">inbox</field>
+        <field name="resource">settings</field><field name="action">manage</field>
+        <field name="name_ar">إدارة إعدادات صندوق العملاء</field><field name="name_en">Manage inbox settings</field>
+        <field name="description_ar">إدارة سياسة الظهور والأقسام والوسوم والردود الجاهزة</field><field name="description_en">Manage the visibility policy, departments, tags and canned replies</field>
+        <field name="group_xmlid">webvue_inbox.group_cap_inbox_settings_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <data noupdate="1">
+        <record id="role_inbox_agent" model="webvue.access.role">
+            <field name="key">inbox_agent</field><field name="name_ar">موظف صندوق العملاء</field><field name="name_en">Customer Inbox agent</field>
+            <field name="description">Customer Inbox agent</field><field name="type">built_in</field><field name="protected" eval="True"/><field name="assignable" eval="True"/>
+            <field name="permission_ids" eval="[Command.set([ref('permission_inbox_conversations_read'),ref('permission_inbox_conversations_reply')])]"/>
+        </record>
+        <record id="role_inbox_supervisor" model="webvue.access.role">
+            <field name="key">inbox_supervisor</field><field name="name_ar">مشرف صندوق العملاء</field><field name="name_en">Customer Inbox supervisor</field>
+            <field name="description">Customer Inbox supervisor</field><field name="type">built_in</field><field name="protected" eval="True"/><field name="assignable" eval="True"/>
+            <field name="permission_ids" eval="[Command.set([ref('permission_inbox_conversations_read'),ref('permission_inbox_conversations_reply'),ref('permission_inbox_conversations_assign'),ref('permission_inbox_conversations_export')])]"/>
+        </record>
+        <record id="role_inbox_manager" model="webvue.access.role">
+            <field name="key">inbox_manager</field><field name="name_ar">مدير صندوق العملاء</field><field name="name_en">Customer Inbox manager</field>
+            <field name="description">Customer Inbox manager</field><field name="type">built_in</field><field name="protected" eval="True"/><field name="assignable" eval="True"/>
+            <field name="permission_ids" eval="[Command.set([ref('permission_inbox_conversations_read'),ref('permission_inbox_conversations_reply'),ref('permission_inbox_conversations_assign'),ref('permission_inbox_conversations_export'),ref('permission_inbox_channels_manage'),ref('permission_inbox_settings_manage')])]"/>
+        </record>
+    </data>
+    <!-- Built-in roles are noupdate records: these hooks link this addon's grants and
+         dependencies on install and on every upgrade. -->
+    <function model="webvue.access.service" name="_webvue_configure_permission_dependencies"/>
+    <function model="webvue.access.service" name="_webvue_repair_builtin_role_grants"/>
+</odoo>

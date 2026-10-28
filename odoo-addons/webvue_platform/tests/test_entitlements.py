@@ -40,6 +40,7 @@ class TestEntitlements(TransactionCase):
             'hr.enabled', 'hr.recruitment', 'hr.shifts', 'hr.onboarding', 'hr.offboarding', 'hr.assets', 'hr.payroll',
         },
         'webvue_chat': {'chat.enabled'},
+        'webvue_inbox': {'inbox.enabled', 'inbox.whatsapp'},
     }
 
     def _release_boolean_keys(self):
