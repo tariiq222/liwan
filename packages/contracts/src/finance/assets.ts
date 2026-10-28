@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { currency, day, FinanceRefSchema, id, list, money, text } from './shared'
+import { currency, day, FinanceRefSchema, financeActions, id, list, money, PATCH_MESSAGE, requirePatchField, text } from './shared'
 
 export const FinanceAssetStateSchema = z.enum(['draft', 'open', 'close', 'removed'])
 const MethodSchema = z.enum(['linear', 'linear-limit', 'degressive', 'degr-linear', 'degr-limit'])
@@ -22,6 +22,8 @@ export const FinanceAssetProfileSchema = z.object({
   min_value_account: FinanceRefSchema.nullable(),
   active: z.boolean(),
 }).strict()
+
+export const FinanceAssetActionSchema = z.enum(['validate', 'edit', 'delete', 'dispose'])
 
 export const FinanceAssetSchema = z.object({
   id,
@@ -62,6 +64,7 @@ export const FinanceAssetDetailSchema = FinanceAssetSchema.extend({
   method_period: MethodPeriodSchema,
   prorata: z.boolean(),
   lines: z.array(FinanceDepreciationLineSchema),
+  ...financeActions(FinanceAssetActionSchema),
 }).strict()
 
 export const FinanceAssetListSchema = list(FinanceAssetSchema)
@@ -101,6 +104,12 @@ export const FinanceAssetCreateSchema = z.object({
 }).strict()
 
 /**
+ * PATCH /assets/{id}: corrects a draft (422 `not_draft` once it runs). Any key of a creation body, at least one; a `null`
+ * partner clears it, and a new `profile_id` also changes the method. A `date_start` in a locked period is 422 `period_locked`.
+ */
+export const FinanceAssetUpdateSchema = FinanceAssetCreateSchema.partial().strict().refine(requirePatchField, PATCH_MESSAGE)
+
+/**
  * POST /assets/{id}/dispose: sells (`sale_value` above zero, with `sale_account_id` for the proceeds) or scrapes a running
  * asset. The gain and loss accounts default to the profile's.
  */
@@ -127,4 +136,6 @@ export type FinanceAssetDispose = z.infer<typeof FinanceAssetDisposeSchema>
 export type FinanceAssetProfileCreate = z.infer<typeof FinanceAssetProfileCreateSchema>
 export type FinanceAssetProfilePatch = z.infer<typeof FinanceAssetProfilePatchSchema>
 export type FinanceAssetCreate = z.infer<typeof FinanceAssetCreateSchema>
+export type FinanceAssetUpdate = z.infer<typeof FinanceAssetUpdateSchema>
+export type FinanceAssetAction = z.infer<typeof FinanceAssetActionSchema>
 export type FinanceAssetComputeResult = z.infer<typeof FinanceAssetComputeResultSchema>

@@ -8,6 +8,7 @@ import {
   FinanceAssetProfileListSchema,
   type FinanceAssetCreate,
   type FinanceAssetDispose,
+  type FinanceAssetUpdate,
 } from '@webvue/contracts'
 import { financeEntryKeys } from '@/composables/finance/useFinanceEntries'
 import type { AssetListParams } from '@/components/finance/assets/assetListParams'
@@ -61,6 +62,17 @@ function useAssetWrite<T, R>(request: (input: T) => Promise<R>) {
 export function useCreateFinanceAsset() {
   const { $api } = useApi()
   return useAssetWrite((body: FinanceAssetCreate) => $api('/api/v1/finance/assets', { method: 'POST', body, schema: FinanceAssetDetailSchema }))
+}
+
+export function useUpdateFinanceAsset() {
+  const { $api } = useApi()
+  return useAssetWrite(({ id, body }: { id: number; body: FinanceAssetUpdate }) =>
+    $api(`/api/v1/finance/assets/${id}`, { method: 'PATCH', body, schema: FinanceAssetDetailSchema }))
+}
+
+export function useDeleteFinanceAsset() {
+  const { $api } = useApi()
+  return useAssetWrite((id: number) => $api(`/api/v1/finance/assets/${id}`, { method: 'DELETE' }))
 }
 
 export function useValidateFinanceAsset() {

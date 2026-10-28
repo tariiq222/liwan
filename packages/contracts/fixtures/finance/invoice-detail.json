@@ -1,13 +1,20 @@
 {
+  "allowed_actions": [
+    "reset_to_draft",
+    "cancel",
+    "pdf",
+    "debit_note"
+  ],
   "amount_residual": 1150.0,
   "amount_tax": 150.0,
   "amount_total": 1150.0,
   "amount_untaxed": 1000.0,
+  "blocked_actions": [],
   "currency": "SAR",
   "debit_origin": null,
   "id": 1,
   "invoice_date": "2026-10-18",
-  "invoice_date_due": "2026-10-19",
+  "invoice_date_due": "2026-10-28",
   "journal": {
     "id": 3,
     "name": "Sales"

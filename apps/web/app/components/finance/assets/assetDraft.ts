@@ -1,4 +1,4 @@
-import type { FinanceAssetCreate } from '@webvue/contracts'
+import type { FinanceAssetCreate, FinanceAssetDetail, FinanceAssetUpdate } from '@webvue/contracts'
 
 const CODE_MAX = 32
 
@@ -54,6 +54,35 @@ export function buildAssetCreate(draft: AssetFormDraft): FinanceAssetCreate {
     date_start: draft.dateStart!,
     ...(draft.partnerId ? { partner_id: draft.partnerId } : {}),
     ...(note ? { note } : {}),
+  }
+}
+
+/** The edit form of a draft asset, filled with what it holds now; a salvage value of zero shows blank, like a new one. */
+export function assetDraftFromRecord(asset: FinanceAssetDetail): AssetFormDraft {
+  return {
+    profileId: asset.profile.id,
+    name: asset.name,
+    code: asset.code,
+    purchaseValue: String(asset.purchase_value),
+    salvageValue: asset.salvage_value ? String(asset.salvage_value) : '',
+    dateStart: asset.date_start,
+    partnerId: asset.partner?.id ?? null,
+    note: asset.note,
+  }
+}
+
+/** The edit body: only what differs from the asset as loaded, so an untouched field (and the method) stays as it is. An emptied code, note or partner clears it. */
+export function buildAssetUpdate(draft: AssetFormDraft, initial: AssetFormDraft): FinanceAssetUpdate {
+  const salvage = (value: string) => value.trim() === '' ? 0 : Number(value)
+  return {
+    ...(draft.profileId !== initial.profileId ? { profile_id: draft.profileId! } : {}),
+    ...(draft.name.trim() !== initial.name.trim() ? { name: draft.name.trim() } : {}),
+    ...(draft.code.trim() !== initial.code.trim() ? { code: draft.code.trim() } : {}),
+    ...(Number(draft.purchaseValue) !== Number(initial.purchaseValue) ? { purchase_value: Number(draft.purchaseValue) } : {}),
+    ...(salvage(draft.salvageValue) !== salvage(initial.salvageValue) ? { salvage_value: salvage(draft.salvageValue) } : {}),
+    ...(draft.dateStart !== initial.dateStart ? { date_start: draft.dateStart! } : {}),
+    ...(draft.partnerId !== initial.partnerId ? { partner_id: draft.partnerId } : {}),
+    ...(draft.note.trim() !== initial.note.trim() ? { note: draft.note.trim() } : {}),
   }
 }
 

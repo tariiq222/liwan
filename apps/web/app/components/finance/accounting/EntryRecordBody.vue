@@ -2,6 +2,7 @@
 import EntryForm from './EntryForm.vue'
 import EntryLinesPanel from './EntryLinesPanel.vue'
 import { entryDraftFromRecord } from './entryLines'
+import FinanceBlockedNotice from '../FinanceBlockedNotice.vue'
 import type { EntryRecordState } from './useEntryRecord'
 
 // The main column of an entry's record page: the inline message and confirmation of its actions, then the lines, or
@@ -12,6 +13,7 @@ defineProps<{ record: EntryRecordState }>()
 <template>
   <UAlert v-if="record.actionError" role="alert" color="error" variant="subtle" :title="record.actionError" data-testid="finance-entry-action-error" />
   <template v-if="record.entry">
+    <FinanceBlockedNotice v-if="record.actions" :reasons="record.actions.reasons" />
     <SharedInlineConfirm
       v-if="record.confirmation"
       :title="record.confirmation.title"
@@ -24,7 +26,7 @@ defineProps<{ record: EntryRecordState }>()
       @cancel="record.confirming = null"
     />
     <EntryForm
-      v-if="record.editing && record.actions?.edit"
+      v-if="record.editing && record.actions?.can('edit')"
       :record-id="record.entry.id"
       :initial="entryDraftFromRecord(record.entry)"
       :back-to="record.backTo"

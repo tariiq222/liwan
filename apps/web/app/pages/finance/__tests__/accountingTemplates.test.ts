@@ -40,7 +40,7 @@ describe('the finance accounting pages stay on their templates', () => {
     ['pages/finance/accounting/entries/new.vue', ['<SharedCreatePanel', '<SharedForbiddenState', '<EntryList background']],
     ['components/finance/accounting/EntryForm.vue', ['<SharedFormSection panel', '<SharedFormActions', '<SharedUnsavedChanges', 'color="error" variant="subtle"', ':error=']],
     ['pages/finance/accounting/entries/[id].vue', ['<SharedRecordPage', '#aside', '#actions']],
-    ['components/finance/accounting/useEntryRecord.ts', ["kind: 'category'", 'statusTag(', 'entryActions(']],
+    ['components/finance/accounting/useEntryRecord.ts', ["kind: 'category'", 'statusTag(', 'readFinanceActions(']],
     ['components/finance/accounting/EntryRecordActions.vue', ['<SharedRowActions']],
     ['components/finance/accounting/EntryRecordBody.vue', ['<SharedInlineConfirm', '<UAlert']],
     ['components/finance/accounting/EntryRecordAside.vue', ['<SharedPropertiesPanel', '<SharedPropertyRow']],
@@ -68,8 +68,6 @@ describe('the finance accounting pages stay on their templates', () => {
 
   it('gates every write control behind its capability', () => {
     expect(read('components/finance/accounting/useEntryCreatePage.ts')).toContain("can('finance.entries.manage')")
-    expect(read('components/finance/accounting/entryActions.ts')).toContain("can('finance.entries.post')")
-    expect(read('components/finance/accounting/entryActions.ts')).toContain("can('finance.entries.manage')")
     expect(read('components/finance/accounting/AccountList.vue')).toContain("can('finance.accounts.read')")
   })
 })

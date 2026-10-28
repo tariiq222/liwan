@@ -59,6 +59,8 @@ const PAYMENT = {
   amount: 1150,
   unallocated: 0,
   invoices: [],
+  allowed_actions: ['cancel'],
+  blocked_actions: [],
 }
 const ACCOUNT = {
   id: 40, code: '400000', name: 'Product Sales', account_type: 'income', reconcile: false, currency: null, active: true,
@@ -105,9 +107,41 @@ describe('finance schemas', () => {
   })
 })
 
+describe('the action contract of a finance record', () => {
+  const detail = { ...INVOICE, ref: '', debit_origin: null, zatca: null, lines: [LINE] }
+
+  it('carries what the server allows and why it blocks the rest', () => {
+    const body = {
+      ...detail,
+      allowed_actions: ['pdf'],
+      blocked_actions: [{ action: 'cancel', reason: 'has_payments' }, { action: 'reset_to_draft', reason: 'period_locked' }],
+    }
+    expect(FinanceInvoiceDetailSchema.parse(body)).toEqual(body)
+  })
+
+  it('requires both lists and is strict about an action, a reason and an extra key', () => {
+    const { allowed_actions: _allowed, ...withoutAllowed } = { ...detail, allowed_actions: [], blocked_actions: [] }
+    expect(() => FinanceInvoiceDetailSchema.parse(withoutAllowed)).toThrow()
+    expect(() => FinanceInvoiceDetailSchema.parse({ ...detail, allowed_actions: ['launch'], blocked_actions: [] })).toThrow()
+    expect(() => FinanceInvoiceDetailSchema.parse({ ...detail, allowed_actions: [], blocked_actions: [{ action: 'cancel', reason: 'because' }] })).toThrow()
+    expect(() => FinanceInvoiceDetailSchema.parse({
+      ...detail, allowed_actions: [], blocked_actions: [{ action: 'cancel', reason: 'has_payments', extra: 1 }],
+    })).toThrow()
+  })
+
+  it('names every reason a route refuses with, including the tenant ones', () => {
+    for (const reason of [
+      'tenant_read_only', 'tenant_suspended', 'feature_not_included', 'period_locked',
+      'has_payments', 'has_reconciliations', 'zatca_not_onboarded', 'zatca_mode_not_allowed',
+    ]) {
+      expect(FinanceInvoiceDetailSchema.parse({ ...detail, allowed_actions: [], blocked_actions: [{ action: 'post', reason }] }).blocked_actions[0]?.reason).toBe(reason)
+    }
+  })
+})
+
 describe('FinanceInvoiceDetailSchema', () => {
   it('adds the reference, the debit origin, the ZATCA block and the lines to the list shape', () => {
-    const detail = { ...INVOICE, ref: 'PO-1', debit_origin: null, zatca: null, lines: [LINE] }
+    const detail = { ...INVOICE, ref: 'PO-1', debit_origin: null, zatca: null, lines: [LINE], allowed_actions: ['pdf'], blocked_actions: [] }
     expect(FinanceInvoiceDetailSchema.parse(detail)).toEqual(detail)
     const note = { ...detail, debit_origin: { id: 3, name: 'INV/2026/0003' } }
     expect(FinanceInvoiceDetailSchema.parse(note)).toEqual(note)
@@ -117,7 +151,7 @@ describe('FinanceInvoiceDetailSchema', () => {
   })
 
   it('carries the ZATCA block of a Saudi sale document and is strict about it', () => {
-    const detail = { ...INVOICE, ref: '', debit_origin: null, lines: [LINE] }
+    const detail = { ...INVOICE, ref: '', debit_origin: null, lines: [LINE], allowed_actions: [], blocked_actions: [] }
     const submission = { state: 'accepted', mode: 'clearance', errors: [], warnings: [], qr_present: true }
     const zatca = { qr_code: 'AQ==', confirmation_datetime: '2026-10-18T09:30:00Z', submission }
     expect(FinanceInvoiceDetailSchema.parse({ ...detail, zatca })).toEqual({ ...detail, zatca })

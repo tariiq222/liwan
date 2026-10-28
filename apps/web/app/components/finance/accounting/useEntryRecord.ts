@@ -7,8 +7,8 @@ import {
   useFinanceEntryTransition,
   type FinanceEntryTransition,
 } from '@/composables/finance/useFinanceEntries'
-import { entryActions } from './entryActions'
 import { financeErrorMessage } from '../financeErrors'
+import { offeredMenuItems, readFinanceActions } from '../financeActions'
 import { entryErrorKey } from './entryErrors'
 import { ENTRIES_PATH, entryTitle } from './entryPaths'
 import { ENTRY_STATE_TONE } from './entryTones'
@@ -27,7 +27,6 @@ const CONFIRM_COLOR = { post: 'primary', reset: 'warning', unreconcile: 'warning
 export function useEntryRecord() {
   const route = useRoute()
   const { t } = useI18n()
-  const { can } = useAccess()
   const hydrated = useHydrated()
 
   const id = computed(() => Number(route.params.id))
@@ -35,7 +34,7 @@ export function useEntryRecord() {
   const query = useFinanceEntry(computed(() => validId.value ? id.value : null))
   const entry = computed(() => query.data.value)
   const backTo = computed(() => safeReturnTo(route.query.returnTo, ENTRIES_PATH, [ENTRIES_PATH]))
-  const actions = computed(() => entry.value ? entryActions(entry.value, can) : null)
+  const actions = computed(() => entry.value ? readFinanceActions(entry.value) : null)
   const title = computed(() => entry.value ? entryTitle(entry.value, t('financeAccounting.draftNumber')) : t('financeAccounting.entries.record'))
   const error = computed(() => query.error.value ?? (validId.value ? null : new ApiError(404, 'not_found', t('errors.generic'))))
 
@@ -51,7 +50,7 @@ export function useEntryRecord() {
   const confirming = ref<EntryConfirmation | null>(null)
   const editing = ref(false)
   // A draft posted elsewhere while it is open here leaves edit mode, so the posted entry's actions come back.
-  watch(() => actions.value?.edit, canEdit => { if (!canEdit) editing.value = false })
+  watch(() => actions.value?.can('edit'), canEdit => { if (!canEdit) editing.value = false })
   const actionError = ref('')
   const transition = useFinanceEntryTransition()
   const removal = useDeleteJournalEntry()
@@ -88,11 +87,11 @@ export function useEntryRecord() {
   const menu = computed(() => {
     const set = actions.value
     if (!set) return []
-    return [
-      ...(set.resetToDraft ? [{ label: t('financeAccounting.actions.resetToDraft'), icon: 'i-lucide-undo-2' as const, onSelect: () => ask('reset') }] : []),
-      ...(set.unreconcile ? [{ label: t('financeAccounting.actions.unreconcile'), icon: 'i-lucide-unlink' as const, onSelect: () => ask('unreconcile') }] : []),
-      ...(set.delete ? [{ label: t('financeAccounting.actions.delete'), icon: 'i-lucide-trash-2' as const, destructive: true, onSelect: () => ask('delete') }] : []),
-    ]
+    return offeredMenuItems(set, [
+      ['reset_to_draft', { label: t('financeAccounting.actions.resetToDraft'), icon: 'i-lucide-undo-2', onSelect: () => ask('reset') }],
+      ['unreconcile', { label: t('financeAccounting.actions.unreconcile'), icon: 'i-lucide-unlink', onSelect: () => ask('unreconcile') }],
+      ['delete', { label: t('financeAccounting.actions.delete'), icon: 'i-lucide-trash-2', destructive: true, onSelect: () => ask('delete') }],
+    ])
   })
 
   // The text and look of the open confirmation, so the page draws one SharedInlineConfirm for all four actions.

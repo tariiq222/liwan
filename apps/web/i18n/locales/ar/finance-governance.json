@@ -142,6 +142,8 @@
         "asset_profile_changed": "تعديل ملف إهلاك",
         "asset_profile_archived": "أرشفة ملف إهلاك",
         "asset_profile_unarchived": "إلغاء أرشفة ملف إهلاك",
+        "asset_changed": "تعديل أصل",
+        "asset_deleted": "حذف أصل",
         "asset_disposed": "استبعاد أصل",
         "bank_statement_imported": "استيراد كشف بنكي",
         "bank_statement_changed": "تعديل كشف بنكي",

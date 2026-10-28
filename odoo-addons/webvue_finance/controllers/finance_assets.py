@@ -5,7 +5,13 @@ from odoo.http import request
 
 from .common import list_page, parse_choice, require_capability
 from .finance_partners import company_partners_domain
-from .write_support import attempt, company_records, is_period_locked, period_locked
+from .write_support import (
+    attempt,
+    company_records,
+    is_period_locked,
+    period_locked,
+    require_state,
+)
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
@@ -17,7 +23,9 @@ from odoo.addons.webvue_finance.serializers.asset import (
     dump_assets,
     parse_asset_create,
     parse_asset_dispose,
+    parse_asset_update,
     parse_compute_depreciation,
+    require_salvage_within_purchase,
 )
 from odoo.addons.webvue_finance.serializers.common import dump_day, dump_ref
 
@@ -33,12 +41,25 @@ def _find_asset(asset_id):
 
 def _asset_values(parsed):
     values = {key: parsed[key] for key in ('name', 'code', 'purchase_value', 'salvage_value', 'date_start', 'note') if key in parsed}
-    values['profile_id'] = company_records(
-        'account.asset.profile', [parsed['profile_id']], 'profile_id', [('company_id', '=', request.env.company.id)],
-    ).id
+    if 'profile_id' in parsed:
+        values['profile_id'] = company_records(
+            'account.asset.profile', [parsed['profile_id']], 'profile_id', [('company_id', '=', request.env.company.id)],
+        ).id
     if 'partner_id' in parsed:
-        values['partner_id'] = company_records('res.partner', [parsed['partner_id']], 'partner_id', company_partners_domain(request.env.company)).id
+        values['partner_id'] = parsed['partner_id'] and company_records(
+            'res.partner', [parsed['partner_id']], 'partner_id', company_partners_domain(request.env.company),
+        ).id
     return values
+
+
+def _sync_acquisition_line(asset):
+    """Puts the acquisition line of the board on the asset's base and start date.
+
+    OCA refreshes that line only in an onchange, which a write does not run; the validated board is computed from it.
+    """
+    asset.depreciation_line_ids.filtered(lambda line: line.type == 'create').write({
+        'amount': asset.depreciation_base, 'line_date': asset.date_start,
+    })
 
 
 class FinanceAssetController(http.Controller):
@@ -79,6 +100,53 @@ class FinanceAssetController(http.Controller):
         values = _asset_values(parse_asset_create(payload))
         asset = attempt(lambda: request.env['account.asset'].create(values), day=values['date_start'])
         return request.make_json_response(dump_asset_detail(asset), status=201)
+
+    @http.route('/api/v1/finance/assets/<int:asset_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
+    @api_handler
+    @requires_feature('finance.enabled', operation='write')
+    def patch_asset(self, asset_id, **payload):
+        """Corrects a draft asset: the keys of a creation body, any of them. The profile (so the method) can change too.
+
+        The acquisition line of the board follows the new value, salvage and start date. A start date in a locked period
+        is 422 ``period_locked``.
+        """
+        require_capability('finance.assets.manage')
+        asset = _find_asset(asset_id)
+        require_state(asset, 'draft', 'not_draft')
+        parsed = parse_asset_update(payload)
+        if 'purchase_value' in parsed or 'salvage_value' in parsed:
+            require_salvage_within_purchase(
+                parsed.get('purchase_value', asset.purchase_value), parsed.get('salvage_value', asset.salvage_value),
+            )
+        values = _asset_values(parsed)
+        if 'date_start' in values:
+            journal = request.env['account.asset.profile'].browse(values.get('profile_id', asset.profile_id.id)).journal_id
+            if is_period_locked(values['date_start'], journal, company=asset.company_id):
+                raise period_locked(field='date_start')
+        written = tuple(values)
+
+        def change():
+            asset.write(values)
+            _sync_acquisition_line(asset)
+
+        attempt(change, day=values.get('date_start'), company=asset.company_id)
+        request.env['webvue.finance.audit.event']._webvue_log('asset_changed', asset, fields_written=written, outcome=asset.state)
+        return dump_asset_detail(asset)
+
+    @http.route('/api/v1/finance/assets/<int:asset_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
+    @api_handler
+    @requires_feature('finance.enabled', operation='write')
+    def delete_asset(self, asset_id, **_):
+        """Removes a draft asset; OCA refuses any other (422 ``invalid``)."""
+        require_capability('finance.assets.manage')
+        asset = _find_asset(asset_id)
+        require_state(asset, 'draft', 'not_draft')
+        company = asset.company_id
+        attempt(asset.unlink, company=company)
+        request.env['webvue.finance.audit.event']._webvue_log(
+            'asset_deleted', asset, fields_written=('unlink',), outcome='deleted', company=company,
+        )
+        return request.make_json_response('', status=204)
 
     @http.route('/api/v1/finance/assets/<int:asset_id>/validate', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

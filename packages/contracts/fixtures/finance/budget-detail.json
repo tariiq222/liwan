@@ -1,4 +1,10 @@
 {
+  "allowed_actions": [
+    "confirm",
+    "cancel",
+    "edit_lines"
+  ],
+  "blocked_actions": [],
   "cost_center_split": true,
   "currency": "SAR",
   "date_from": "2026-01-01",

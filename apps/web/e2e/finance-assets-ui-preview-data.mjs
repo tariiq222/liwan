@@ -129,6 +129,13 @@ function filterAssets(url) {
     && (matches(item.name, searchParams.get('q')) || matches(item.code, searchParams.get('q'))))
 }
 
+// The actions the server would allow an administrator who holds every capability, on a tenant that can write.
+const withActions = asset => ({
+  ...asset,
+  allowed_actions: asset.state === 'draft' ? ['validate', 'edit', 'delete'] : asset.state === 'open' || asset.state === 'close' ? ['dispose'] : [],
+  blocked_actions: [],
+})
+
 const summary = ({ lines: _lines, note: _note, date_remove: _removed, method: _method, method_time: _time, method_number: _number, method_period: _period, prorata: _prorata, ...rest }) => rest
 
 export function financeAssetsPreviewData(path, url) {
@@ -136,5 +143,6 @@ export function financeAssetsPreviewData(path, url) {
   if (route === '/api/v1/finance/asset-profiles') return page(financeAssetProfiles, url)
   if (route === '/api/v1/finance/assets') return page(filterAssets(url).map(summary), url)
   const record = /^\/api\/v1\/finance\/assets\/(\d+)$/.exec(route)
-  return record ? financeAssets.find(item => item.id === Number(record[1])) : undefined
+  const found = record ? financeAssets.find(item => item.id === Number(record[1])) : undefined
+  return found && withActions(found)
 }

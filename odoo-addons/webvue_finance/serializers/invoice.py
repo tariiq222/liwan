@@ -78,6 +78,7 @@ def dump_invoice_detail(move):
         'debit_origin': dump_ref(move.debit_origin_id),
         'zatca': dump_invoice_zatca(move),
         'lines': [dump_invoice_line(line, shares) for line in move.invoice_line_ids],
+        **move.env['webvue.finance.actions']._webvue_invoice_actions(move),
     }
 
 

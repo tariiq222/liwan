@@ -1,9 +1,11 @@
 import { z } from 'zod'
-import { currency, day, FinanceRefSchema, id, list, money, text } from './shared'
+import { currency, day, FinanceRefSchema, financeActions, id, list, money, text } from './shared'
 
 export const FinanceBudgetStateSchema = z.enum(['draft', 'confirmed', 'cancelled'])
 /** `debit` lines (expenses, assets) are read in the debit direction, `credit` lines (income, liabilities, equity) in the credit one. */
 export const FinanceBudgetNatureSchema = z.enum(['debit', 'credit'])
+
+export const FinanceBudgetActionSchema = z.enum(['confirm', 'reset_to_draft', 'cancel', 'edit_lines'])
 
 export const FinanceBudgetSchema = z.object({
   id,
@@ -32,6 +34,7 @@ export const FinanceBudgetLineSchema = z.object({
 
 export const FinanceBudgetDetailSchema = FinanceBudgetSchema.extend({
   lines: z.array(FinanceBudgetLineSchema),
+  ...financeActions(FinanceBudgetActionSchema),
 }).strict()
 
 export const FinanceBudgetListSchema = list(FinanceBudgetSchema)
@@ -116,6 +119,7 @@ export const FinanceBudgetDistributeSchema = z.object({
 /** PATCH /budgets/<id>/lines/<line_id>: a line of a draft budget. */
 export const FinanceBudgetLinePatchSchema = FinanceBudgetLineCreateSchema.partial().strict()
 
+export type FinanceBudgetAction = z.infer<typeof FinanceBudgetActionSchema>
 export type FinanceBudget = z.infer<typeof FinanceBudgetSchema>
 export type FinanceBudgetLine = z.infer<typeof FinanceBudgetLineSchema>
 export type FinanceBudgetDetail = z.infer<typeof FinanceBudgetDetailSchema>

@@ -5,7 +5,9 @@ import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
 import { useFinancePartner } from '@/composables/finance/useFinancePartners'
 import { useFinancePaymentPost, useFinancePaymentTransition, useFinancePaymentUnallocate, useFinancePayments } from '@/composables/finance/useFinancePayments'
 import { useRouteListFilters } from '@/composables/useRouteListFilters'
+import { offeredMenuItems, readFinanceActions } from '../financeActions'
 import { financeErrorMessage } from '../financeErrors'
+import FinanceBlockedNotice from '../FinanceBlockedNotice.vue'
 import { financeErrorKey } from '../invoices/invoiceErrors'
 import { listReturnTo } from '../invoices/listLocation'
 import Money from '../invoices/Money.vue'
@@ -18,7 +20,6 @@ import {
   PAYMENT_STATE_TONE,
   PAYMENT_STATES,
   PAYMENT_TYPES,
-  paymentActions,
   paymentActiveFilterCount,
   paymentFiltersFromQuery,
   paymentListParams,
@@ -93,16 +94,17 @@ const CONFIRM_KEYS = {
 const standaloneTo = computed(() => can('finance.payments.manage') && !props.background ? standalonePaymentLink(route.fullPath) : undefined)
 const label = (payment: FinancePayment) => payment.name || `${t('financeDocuments.payments.draftNumber')} #${payment.id}`
 function rowActions(payment: FinancePayment) {
-  const set = paymentActions(payment, can)
-  return [
-    ...(set.edit ? [{ label: t('financeDocuments.payments.edit.action'), icon: 'i-lucide-pencil' as const, onSelect: () => { editing.value = payment } }] : []),
-    ...(set.post ? [{ label: t('financeDocuments.payments.post'), icon: 'i-lucide-check' as const, onSelect: () => { void postPayment(payment) } }] : []),
-    ...(set.allocate ? [{ label: t('financeDocuments.payments.allocate.action'), icon: 'i-lucide-link' as const, onSelect: () => { allocating.value = payment } }] : []),
-    ...(set.unallocate ? [{ label: t('financeDocuments.payments.unallocate.action'), icon: 'i-lucide-unlink' as const, onSelect: () => { confirming.value = { payment, action: 'unallocate' } } }] : []),
-    ...(set.resetToDraft ? [{ label: t('financeDocuments.payments.resetToDraft'), icon: 'i-lucide-undo-2' as const, onSelect: () => { confirming.value = { payment, action: 'reset-to-draft' } } }] : []),
-    ...(set.cancel ? [{ label: t('financeDocuments.payments.cancel'), icon: 'i-lucide-ban' as const, destructive: true, onSelect: () => { confirming.value = { payment, action: 'cancel' } } }] : []),
-  ]
+  return offeredMenuItems(readFinanceActions(payment), [
+    ['edit', { label: t('financeDocuments.payments.edit.action'), icon: 'i-lucide-pencil', onSelect: () => { editing.value = payment } }],
+    ['post', { label: t('financeDocuments.payments.post'), icon: 'i-lucide-check', onSelect: () => { void postPayment(payment) } }],
+    ['allocate', { label: t('financeDocuments.payments.allocate.action'), icon: 'i-lucide-link', onSelect: () => { allocating.value = payment } }],
+    ['unallocate', { label: t('financeDocuments.payments.unallocate.action'), icon: 'i-lucide-unlink', onSelect: () => { confirming.value = { payment, action: 'unallocate' } } }],
+    ['reset_to_draft', { label: t('financeDocuments.payments.resetToDraft'), icon: 'i-lucide-undo-2', onSelect: () => { confirming.value = { payment, action: 'reset-to-draft' } } }],
+    ['cancel', { label: t('financeDocuments.payments.cancel'), icon: 'i-lucide-ban', destructive: true, onSelect: () => { confirming.value = { payment, action: 'cancel' } } }],
+  ])
 }
+// Why some row actions are disabled, once for the page: the distinct reasons the server gave on the rows shown.
+const blockedReasons = computed(() => [...new Set(items.value.flatMap(payment => payment.blocked_actions.map(item => item.reason)))])
 
 const columns = computed<TableColumn<FinancePayment>[]>(() => [
   { id: 'record_number', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
@@ -122,6 +124,7 @@ const dash = computed(() => t('app.notAvailable'))
   <SharedForbiddenState v-if="!allowed" :description="t('financeDocuments.forbidden')" />
   <div v-else class="webvue-page-stack">
     <UAlert v-if="actionError" role="alert" color="error" variant="subtle" :title="actionError" data-testid="finance-payment-action-error" />
+    <FinanceBlockedNotice :reasons="blockedReasons" />
     <SharedInlineConfirm
       v-if="confirming"
       :title="t(CONFIRM_KEYS[confirming.action].title, { name: label(confirming.payment) })"

@@ -1,26 +1,75 @@
 {
   "items": [
     {
-      "amount": 1000.0,
+      "allowed_actions": [
+        "unallocate"
+      ],
+      "amount": 1150.0,
+      "blocked_actions": [
+        {
+          "action": "cancel",
+          "reason": "period_locked"
+        }
+      ],
       "currency": "SAR",
       "date": "2026-10-19",
       "id": 1,
-      "invoices": [],
+      "invoices": [
+        {
+          "id": 4,
+          "name": "INV/2026/00004"
+        }
+      ],
       "journal": {
         "id": 3,
         "name": "Bank"
       },
-      "memo": "Refund of advance",
+      "memo": "INV/2026/00004",
       "name": "PBNK1/2026/00002",
       "partner": {
         "id": 2,
         "name": "Al Noor Trading"
       },
       "partner_type": "customer",
-      "payment_type": "outbound",
+      "payment_type": "inbound",
+      "state": "paid",
+      "unallocated": 0.0
+    },
+    {
+      "allowed_actions": [
+        "unallocate"
+      ],
+      "amount": 400.0,
+      "blocked_actions": [
+        {
+          "action": "cancel",
+          "reason": "period_locked"
+        }
+      ],
+      "currency": "SAR",
+      "date": "2026-10-19",
+      "id": 5,
+      "invoices": [
+        {
+          "id": 6,
+          "name": "INV/2026/00001"
+        }
+      ],
+      "journal": {
+        "id": 3,
+        "name": "Bank"
+      },
+      "memo": "INV/2026/00001",
+      "name": "PBNK1/2026/00001",
+      "partner": {
+        "id": 2,
+        "name": "Al Noor Trading"
+      },
+      "partner_type": "customer",
+      "payment_type": "inbound",
       "state": "in_process",
       "unallocated": 0.0
     }
   ],
-  "total": 1
+  "total": 2
 }

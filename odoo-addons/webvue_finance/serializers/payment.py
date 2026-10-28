@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from .common import dump_day, dump_number, dump_ref
+from .common import UNSET, dump_day, dump_number, dump_ref
 from .parsing import (
     parse_day,
     parse_id,
@@ -40,7 +40,10 @@ def unallocated_amount(payment):
     return abs(sum(counterpart_lines(payment).mapped('amount_residual_currency')))
 
 
-def dump_payment(payment):
+def dump_payment(payment, write_block=UNSET):
+    """``write_block`` is the tenant's write refusal when the caller already knows it (a list asks once)."""
+    unallocated = payment.currency_id.round(unallocated_amount(payment))
+    invoices = allocated_invoices(payment)
     return {
         'id': payment.id,
         'name': dump_number(payment.name),
@@ -53,13 +56,15 @@ def dump_payment(payment):
         'memo': payment.memo or '',
         'currency': payment.currency_id.name,
         'amount': payment.amount,
-        'unallocated': payment.currency_id.round(unallocated_amount(payment)),
-        'invoices': [dump_ref(invoice) for invoice in allocated_invoices(payment)],
+        'unallocated': unallocated,
+        'invoices': [dump_ref(invoice) for invoice in invoices],
+        **payment.env['webvue.finance.actions']._webvue_payment_actions(payment, unallocated, invoices, write_block),
     }
 
 
 def dump_payments(payments):
-    return [dump_payment(payment) for payment in payments]
+    write_block = payments.env['webvue.finance.actions']._webvue_write_block()
+    return [dump_payment(payment, write_block) for payment in payments]
 
 
 def parse_payment_register(payload):

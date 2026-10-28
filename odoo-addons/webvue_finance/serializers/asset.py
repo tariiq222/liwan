@@ -7,6 +7,7 @@ from .parsing import (
     parse_text,
     reject_unknown,
     require_keys,
+    require_nonempty,
 )
 from odoo.addons.webvue_api.controllers.common import ApiError
 
@@ -86,31 +87,59 @@ def dump_asset_detail(asset):
         'method_period': asset.method_period,
         'prorata': asset.prorata,
         'lines': [dump_depreciation_line(line) for line in asset.depreciation_line_ids.sorted(lambda line: (line.line_date, line.id))],
+        **asset.env['webvue.finance.actions']._webvue_asset_actions(asset),
     }
 
 
-def parse_asset_create(payload):
-    """Validate an asset creation body (shape only; the profile and partner are resolved by the route)."""
-    reject_unknown(payload, CREATE_FIELDS)
-    require_keys(payload, ('profile_id', 'name', 'purchase_value', 'date_start'))
-    parsed = {
-        'profile_id': parse_id(payload['profile_id'], 'profile_id'),
-        'name': parse_text(payload['name'], 'name', required=True),
-        'purchase_value': parse_number(payload['purchase_value'], 'purchase_value', minimum=0, exclusive_minimum=True),
-        'date_start': parse_day(payload['date_start'], 'date_start'),
-    }
+def _parse_asset_fields(payload):
+    """Validate the asset keys present in ``payload`` (shape only; the profile and partner are resolved by the route)."""
+    parsed = {}
+    if 'profile_id' in payload:
+        parsed['profile_id'] = parse_id(payload['profile_id'], 'profile_id')
+    if 'name' in payload:
+        parsed['name'] = parse_text(payload['name'], 'name', required=True)
+    if 'purchase_value' in payload:
+        parsed['purchase_value'] = parse_number(payload['purchase_value'], 'purchase_value', minimum=0, exclusive_minimum=True)
+    if 'date_start' in payload:
+        parsed['date_start'] = parse_day(payload['date_start'], 'date_start')
     if 'code' in payload:
         parsed['code'] = parse_text(payload['code'], 'code')
         if len(parsed['code']) > ASSET_CODE_SIZE:
             raise ApiError(422, 'invalid', f'code must be at most {ASSET_CODE_SIZE} characters', field='code')
     if 'salvage_value' in payload:
         parsed['salvage_value'] = parse_number(payload['salvage_value'], 'salvage_value', minimum=0)
-        if parsed['salvage_value'] > parsed['purchase_value']:
-            raise ApiError(422, 'invalid', 'salvage_value must not exceed purchase_value', field='salvage_value')
-    if payload.get('partner_id') is not None:
-        parsed['partner_id'] = parse_id(payload['partner_id'], 'partner_id')
     if 'note' in payload:
         parsed['note'] = parse_text(payload['note'], 'note')
+    return parsed
+
+
+def require_salvage_within_purchase(purchase_value, salvage_value):
+    if salvage_value > purchase_value:
+        raise ApiError(422, 'invalid', 'salvage_value must not exceed purchase_value', field='salvage_value')
+
+
+def parse_asset_create(payload):
+    """Validate an asset creation body (shape only; the profile and partner are resolved by the route)."""
+    reject_unknown(payload, CREATE_FIELDS)
+    require_keys(payload, ('profile_id', 'name', 'purchase_value', 'date_start'))
+    parsed = _parse_asset_fields(payload)
+    if 'salvage_value' in parsed:
+        require_salvage_within_purchase(parsed['purchase_value'], parsed['salvage_value'])
+    if payload.get('partner_id') is not None:
+        parsed['partner_id'] = parse_id(payload['partner_id'], 'partner_id')
+    return parsed
+
+
+def parse_asset_update(payload):
+    """Validate a draft asset's edit body: any creation key, none required; a ``null`` partner clears it.
+
+    The salvage value is compared with the purchase value by the route, which knows the asset's current one.
+    """
+    reject_unknown(payload, CREATE_FIELDS)
+    require_nonempty(payload)
+    parsed = _parse_asset_fields(payload)
+    if 'partner_id' in payload:
+        parsed['partner_id'] = None if payload['partner_id'] is None else parse_id(payload['partner_id'], 'partner_id')
     return parsed
 
 

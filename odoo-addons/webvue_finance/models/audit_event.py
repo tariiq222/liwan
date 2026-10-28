@@ -34,6 +34,8 @@ class WebVueFinanceAuditEvent(models.Model):
         ('asset_profile_changed', 'Asset profile changed'),
         ('asset_profile_archived', 'Asset profile archived'),
         ('asset_profile_unarchived', 'Asset profile unarchived'),
+        ('asset_changed', 'Asset changed'),
+        ('asset_deleted', 'Asset deleted'),
         ('asset_disposed', 'Asset disposed of'),
         ('bank_statement_imported', 'Bank statement imported'),
         ('invoice_created', 'Invoice created'),

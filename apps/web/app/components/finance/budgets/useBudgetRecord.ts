@@ -6,8 +6,8 @@ import {
   useFinanceBudgetTransition,
   type FinanceBudgetTransition,
 } from '@/composables/finance/useFinanceBudgets'
-import { budgetActions } from './budgetActions'
 import { financeErrorMessage } from '../financeErrors'
+import { offeredMenuItems, readFinanceActions } from '../financeActions'
 import { budgetErrorKey } from './budgetErrors'
 import { BUDGETS_PATH, budgetPeriod } from './budgetPaths'
 import { BUDGET_STATE_TONE } from './budgetTones'
@@ -27,7 +27,6 @@ const CONFIRM_COLOR = { confirm: 'primary', reset: 'warning', cancel: 'error' } 
 export function useBudgetRecord() {
   const route = useRoute()
   const { t } = useI18n()
-  const { can } = useAccess()
   const hydrated = useHydrated()
 
   const id = computed(() => Number(route.params.id))
@@ -35,7 +34,7 @@ export function useBudgetRecord() {
   const query = useFinanceBudget(computed(() => validId.value ? id.value : null))
   const budget = computed(() => query.data.value)
   const backTo = computed(() => safeReturnTo(route.query.returnTo, BUDGETS_PATH, [BUDGETS_PATH]))
-  const actions = computed(() => budget.value ? budgetActions(budget.value, can) : null)
+  const actions = computed(() => budget.value ? readFinanceActions(budget.value) : null)
   const title = computed(() => budget.value?.name ?? t('financeBudgets.budgets.record'))
   const error = computed(() => query.error.value ?? (validId.value ? null : new ApiError(404, 'not_found', t('errors.generic'))))
 
@@ -70,10 +69,10 @@ export function useBudgetRecord() {
   const menu = computed(() => {
     const set = actions.value
     if (!set) return []
-    return [
-      ...(set.resetToDraft ? [{ label: t('financeBudgets.actions.reset'), icon: 'i-lucide-undo-2' as const, onSelect: () => ask('reset') }] : []),
-      ...(set.cancel ? [{ label: t('financeBudgets.actions.cancel'), icon: 'i-lucide-circle-x' as const, destructive: true, onSelect: () => ask('cancel') }] : []),
-    ]
+    return offeredMenuItems(set, [
+      ['reset_to_draft', { label: t('financeBudgets.actions.reset'), icon: 'i-lucide-undo-2', onSelect: () => ask('reset') }],
+      ['cancel', { label: t('financeBudgets.actions.cancel'), icon: 'i-lucide-circle-x', destructive: true, onSelect: () => ask('cancel') }],
+    ])
   })
 
   // The text and look of the open confirmation, so the page draws one SharedInlineConfirm for all three actions.

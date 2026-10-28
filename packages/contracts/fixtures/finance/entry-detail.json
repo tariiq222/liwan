@@ -1,5 +1,16 @@
 {
-  "amount_total": 500.0,
+  "allowed_actions": [],
+  "amount_total": 100.0,
+  "blocked_actions": [
+    {
+      "action": "reset_to_draft",
+      "reason": "has_reconciliations"
+    },
+    {
+      "action": "unreconcile",
+      "reason": "period_locked"
+    }
+  ],
   "currency": "SAR",
   "date": "2026-10-18",
   "id": 1,
@@ -11,29 +22,32 @@
     {
       "account": {
         "id": 4,
-        "name": "400003 Basic Salary"
+        "name": "100103 VAT Receivable"
       },
       "analytic_distribution": [],
       "credit": 0.0,
-      "debit": 500.0,
+      "debit": 100.0,
       "id": 3,
-      "name": "Rent",
-      "partner": null
+      "name": "Due",
+      "partner": {
+        "id": 5,
+        "name": "Al Noor Trading"
+      }
     },
     {
       "account": {
-        "id": 6,
+        "id": 7,
         "name": "500001 Sales Account"
       },
       "analytic_distribution": [],
-      "credit": 500.0,
+      "credit": 100.0,
       "debit": 0.0,
-      "id": 5,
-      "name": "Rent",
+      "id": 6,
+      "name": "Due",
       "partner": null
     }
   ],
-  "name": null,
-  "ref": "ADJ-1",
-  "state": "draft"
+  "name": "TA/2026/10/0001",
+  "ref": "ADJ",
+  "state": "posted"
 }

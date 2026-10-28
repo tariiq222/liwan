@@ -2,7 +2,8 @@
 // refunds in every state, their payments and the payment journals (partners come from finance-ui-preview-data.mjs). Reads only:
 // the mock has no finance write routes. Lists honour the filters the Odoo controller supports (move_type, state,
 // partner_id, q, date_from, date_to, limit, offset), and `total` is the filtered count, so the KPI strip's
-// limit=1 requests report real totals.
+// limit=1 requests report real totals. A record carries the actions the server would allow its caller (an administrator
+// who holds every capability, on a tenant that can write), so the pages draw the same buttons.
 const CURRENCY = 'SAR'
 const ACME = { id: 1, name: 'شركة الأفق للتجارة' }
 const NOOR = { id: 2, name: 'مؤسسة نور للخدمات' }
@@ -81,7 +82,48 @@ financeDocuments.push(document(17, 'out_invoice', 'draft', 'not_paid', ACME, [li
 
 financeDocuments.push(document(18, 'in_invoice', 'cancel', 'not_paid', PRINT, [line(19, 'فاتورة موردة ملغاة', 1, 600)]))
 
-const summary = ({ lines: _lines, ref: _ref, debit_origin: _origin, zatca: _zatca, ...rest }) => rest
+const summary = ({ lines: _lines, ref: _ref, debit_origin: _origin, zatca: _zatca, allowed_actions: _allowed, blocked_actions: _blocked, ...rest }) => rest
+
+const PAID_STATES = ['in_payment', 'paid', 'partial']
+const RESEND_STATES = ['retry', 'rejected', 'blocked', 'unauthorized']
+const DEBITABLE_TYPES = ['out_invoice', 'in_invoice']
+
+// Cancelling or resetting a posted document is blocked while a payment is reconciled with it.
+function withDocumentActions(item) {
+  const draft = item.state === 'draft'
+  const posted = item.state === 'posted'
+  const zatca = posted ? item.zatca?.submission.state : null
+  const transitions = [...(draft ? [] : ['reset_to_draft']), ...(item.state === 'cancel' ? [] : ['cancel'])]
+  const blocked = posted && PAID_STATES.includes(item.payment_state) ? transitions : []
+  const offered = [
+    ...(draft ? ['edit', 'delete', 'post'] : []),
+    ...transitions,
+    ...(posted ? ['pdf'] : []),
+    ...(posted && DEBITABLE_TYPES.includes(item.move_type) && !item.debit_origin ? ['debit_note'] : []),
+    ...(posted && item.amount_residual > 0 && item.payment_state !== 'paid' ? ['register_payment'] : []),
+    ...(zatca === 'pending' ? ['zatca_submit'] : RESEND_STATES.includes(zatca) ? ['zatca_retry'] : []),
+  ]
+  return {
+    ...item,
+    allowed_actions: offered.filter(action => !blocked.includes(action)),
+    blocked_actions: blocked.map(action => ({ action, reason: 'has_payments' })),
+  }
+}
+
+function withPaymentActions(payment) {
+  const posted = payment.state === 'in_process' || payment.state === 'paid'
+  const revivable = payment.state === 'canceled' || payment.state === 'rejected'
+  return {
+    ...payment,
+    allowed_actions: [
+      ...(revivable ? ['reset_to_draft'] : ['cancel']),
+      ...(payment.state === 'draft' ? ['post', 'edit'] : []),
+      ...(posted && payment.unallocated > 0 ? ['allocate'] : []),
+      ...(posted && payment.invoices.length > 0 ? ['unallocate'] : []),
+    ],
+    blocked_actions: [],
+  }
+}
 
 export const financePayments = [
   { id: 1, name: 'BNK1/2026/0001', payment_type: 'inbound', partner_type: 'customer', state: 'paid', partner: NOOR, journal: BANK, date: '2026-08-10', memo: 'دفعة أولى', currency: CURRENCY, amount: 4600, unallocated: 0, invoices: [] },
@@ -138,8 +180,11 @@ const recordId = (route, base) => {
 export function financeDocumentsPreviewData(path, url) {
   const route = String(path || '/').replace(/\/+$/, '') || '/'
   if (route === '/api/v1/finance/invoices') return page(filterDocuments(url).map(summary), url)
-  if (route.startsWith('/api/v1/finance/invoices/')) return financeDocuments.find(item => item.id === recordId(route, '/api/v1/finance/invoices'))
-  if (route === '/api/v1/finance/payments') return page(filterPayments(url), url)
+  if (route.startsWith('/api/v1/finance/invoices/')) {
+    const found = financeDocuments.find(item => item.id === recordId(route, '/api/v1/finance/invoices'))
+    return found && withDocumentActions(found)
+  }
+  if (route === '/api/v1/finance/payments') return page(filterPayments(url).map(withPaymentActions), url)
   if (route === '/api/v1/finance/journals') return page(journals.filter(item => !url.searchParams.get('type') || item.type === url.searchParams.get('type')), url)
   return undefined
 }

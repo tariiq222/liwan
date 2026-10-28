@@ -114,6 +114,8 @@ const stored: JournalEntryDetail = {
   journal: { id: 5, name: 'Miscellaneous' },
   currency: 'SAR',
   amount_total: 250,
+  allowed_actions: ['edit', 'delete', 'post'],
+  blocked_actions: [],
   lines: [
     { id: 1, account: { id: 11, name: 'Rent' }, partner: null, name: 'Rent', debit: 250, credit: 0, analytic_distribution: [{ account: { id: 40, name: 'Riyadh', code: 'RUH' }, percent: 60 }, { account: { id: 41, name: 'Jeddah', code: 'JED' }, percent: 40 }] },
     { id: 2, account: { id: 12, name: 'Bank' }, partner: { id: 3, name: 'Landlord' }, name: 'Bank', debit: 0, credit: 250, analytic_distribution: [] },

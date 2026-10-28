@@ -9,8 +9,8 @@ import {
   useFinanceZatcaSubmit,
   type FinanceInvoiceTransition,
 } from '@/composables/finance/useFinanceInvoices'
+import { offeredMenuItems, readFinanceActions } from '../financeActions'
 import { registerPaymentLink } from '../payments/paymentModel'
-import { invoiceActions } from './invoiceActions'
 import { financeErrorMessage } from '../financeErrors'
 import { financeErrorKey, zatcaSubmissionFromDetails } from './invoiceErrors'
 import { INVOICE_KINDS, invoiceKindOf, invoiceRecordPath, invoiceTitle, type FinanceMoveType } from './invoiceKinds'
@@ -28,7 +28,6 @@ export function useInvoiceRecord(moveType: FinanceMoveType) {
   const route = useRoute()
   const router = useRouter()
   const { t } = useI18n()
-  const { can } = useAccess()
   const hydrated = useHydrated()
 
   const kind = INVOICE_KINDS[moveType]
@@ -37,7 +36,7 @@ export function useInvoiceRecord(moveType: FinanceMoveType) {
   const query = useFinanceInvoice(computed(() => validId.value ? id.value : null))
   const invoice = computed(() => query.data.value)
   const backTo = computed(() => safeReturnTo(route.query.returnTo, kind.listPath, [kind.listPath]))
-  const actions = computed(() => invoice.value ? invoiceActions(invoice.value, can) : null)
+  const actions = computed(() => invoice.value ? readFinanceActions(invoice.value) : null)
   const title = computed(() => invoice.value ? invoiceTitle(invoice.value, t('financeDocuments.draftNumber')) : t(`financeDocuments.kinds.${moveType}.record`))
   const error = computed(() => query.error.value ?? (validId.value ? null : new ApiError(404, 'not_found', t('errors.generic'))))
 
@@ -105,14 +104,14 @@ export function useInvoiceRecord(moveType: FinanceMoveType) {
   const menu = computed(() => {
     const set = actions.value
     if (!set) return []
-    return [
-      ...(set.debitNote ? [{ label: t('financeDocuments.actions.debitNote'), icon: 'i-lucide-file-plus-2' as const, onSelect: () => { confirming.value = 'debit' } }] : []),
-      ...(set.zatcaSubmit ? [{ label: t('financeDocuments.actions.zatcaSubmit'), icon: 'i-lucide-send' as const, onSelect: () => { void sendToZatca(false) } }] : []),
-      ...(set.zatcaRetry ? [{ label: t('financeDocuments.actions.zatcaRetry'), icon: 'i-lucide-refresh-cw' as const, onSelect: () => { void sendToZatca(true) } }] : []),
-      ...(set.resetToDraft ? [{ label: t('financeDocuments.actions.resetToDraft'), icon: 'i-lucide-undo-2' as const, destructive: true, onSelect: () => { confirming.value = 'reset' } }] : []),
-      ...(set.cancel ? [{ label: t('financeDocuments.actions.cancel'), icon: 'i-lucide-ban' as const, destructive: true, onSelect: () => { confirming.value = 'cancel' } }] : []),
-      ...(set.delete ? [{ label: t('financeDocuments.actions.delete'), icon: 'i-lucide-trash-2' as const, destructive: true, onSelect: () => { confirming.value = 'delete' } }] : []),
-    ]
+    return offeredMenuItems(set, [
+      ['debit_note', { label: t('financeDocuments.actions.debitNote'), icon: 'i-lucide-file-plus-2', onSelect: () => { confirming.value = 'debit' } }],
+      ['zatca_submit', { label: t('financeDocuments.actions.zatcaSubmit'), icon: 'i-lucide-send', onSelect: () => { void sendToZatca(false) } }],
+      ['zatca_retry', { label: t('financeDocuments.actions.zatcaRetry'), icon: 'i-lucide-refresh-cw', onSelect: () => { void sendToZatca(true) } }],
+      ['reset_to_draft', { label: t('financeDocuments.actions.resetToDraft'), icon: 'i-lucide-undo-2', destructive: true, onSelect: () => { confirming.value = 'reset' } }],
+      ['cancel', { label: t('financeDocuments.actions.cancel'), icon: 'i-lucide-ban', destructive: true, onSelect: () => { confirming.value = 'cancel' } }],
+      ['delete', { label: t('financeDocuments.actions.delete'), icon: 'i-lucide-trash-2', destructive: true, onSelect: () => { confirming.value = 'delete' } }],
+    ])
   })
 
   return reactive({
