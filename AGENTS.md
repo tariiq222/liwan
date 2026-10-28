@@ -155,6 +155,25 @@ Accumulation in code or in the database schema is a defect, not technical debt t
   fix, not customer options to preserve faulty behavior. Deployment secrets and
   infrastructure policies remain in their owning operator/vendor configuration.
 
+### Configurable, sector-flexible applications — owner constitution 2026-10-28
+
+Every application, existing and new, serves many sectors and lets each tenant shape
+it from that application's own settings section, so a tenant gets the options that
+fit it without code changes or a per-customer fork.
+
+- When designing or changing an application, identify the behavior that varies by
+  sector or tenant (stages, optional sub-features, extra fields, value lists such as
+  sources or reasons, visibility policies) and expose it as a setting with a sensible
+  default, under the rules above. Sector presets that set several options at once
+  are encouraged.
+- Settings are explicit and structured (enumerable options, typed values, stated
+  defaults) and readable through the API, because an assistant will recommend
+  settings to each tenant. Do not hide a tenant choice in code or free text.
+- Flexibility stays simple: good defaults, grouped settings, no option that serves
+  no real sector. It never overrides R6 (no customer-name or customer-type
+  condition), tenant isolation or server-enforced authorization; logic for one
+  customer only still belongs in a `customer_<name>_*` overlay.
+
 ## Architecture rules (R1–R10)
 
 Spec: [reference architecture and Git workflow](docs/superpowers/specs/2026-10-05-webvue-reference-architecture-and-git-workflow-design.md).
