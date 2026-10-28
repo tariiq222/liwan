@@ -22,6 +22,8 @@ SYSTEM_PERMISSIONS = {
 CAPABILITIES = frozenset(SYSTEM_PERMISSIONS)
 
 PERMISSION_DEPENDENCIES = {
+    # A user's page shows the names and permissions of the roles assigned to them.
+    'access.users.read': {'access.roles.read'},
     'access.users.grant': {'access.users.read', 'access.roles.read'},
     'access.users.assign_roles': {'access.users.read', 'access.roles.read'},
     'access.users.disable': {'access.users.read'},
