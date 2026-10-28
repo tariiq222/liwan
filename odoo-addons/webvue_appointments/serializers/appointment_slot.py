@@ -45,18 +45,19 @@ def parse_type_slot_query(booking_type, args, settings, now):
     return parse_slot_query(args, now.astimezone(tz).date(), settings['horizon_days'])
 
 
-def type_slot_items(booking_type, combination, first, last, settings, now):
+def type_slot_items(booking_type, combination, first, last, settings, now, origin=None):
     """The free slots of ``booking_type`` (on ``combination`` when given) from ``first`` to ``last`` inclusive.
 
     Only slots a booking route would accept are listed: the same notice and horizon bounds ``parse_start``
-    applies. The engine reads other bookings in the environment of ``booking_type``, so that environment
+    applies. ``origin`` is the booking being rescheduled: the engine then leaves its own meeting out
+    of the busy intervals. The engine reads other bookings in the environment of ``booking_type``, so that environment
     decides which of them count as taken.
     """
     tz = _type_timezone(booking_type)
     # The engine's public slot search on an unsaved booking, anchored to the type's calendar days.
     booking = booking_type.env['resource.booking'].new({
         'type_id': booking_type.id, 'combination_id': combination.id or False,
-    })
+    }, origin=origin)
     slots = booking._get_available_slots(
         tz.localize(datetime.combine(first, time.min)),
         tz.localize(datetime.combine(last + timedelta(days=1), time.min)),

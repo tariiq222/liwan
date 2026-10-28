@@ -10,6 +10,7 @@ from odoo.addons.webvue_api.controllers.common import (
     requires_feature,
 )
 from odoo.addons.webvue_appointments.controllers.records import (
+    confirm_attendance,
     confirm_on_schedule,
     require_combination_links,
     slot_conflicts,
@@ -39,9 +40,12 @@ def _guest_booking(booking_id, token):
 
 
 def _settings(booking):
-    """The settings of the booking's company, read in the booking's elevated environment."""
+    """The settings of the booking's company, read in the booking's elevated environment, with the notice raised to the type's deadline."""
     company = booking.type_id.company_id
-    return dump_settings(booking.env['webvue.appointment.settings'].search([('company_id', '=', company.id)], limit=1))
+    settings = dump_settings(booking.env['webvue.appointment.settings'].search([('company_id', '=', company.id)], limit=1))
+    # A start the requester picks must stay modifiable: not closer than the type's modification deadline.
+    notice = max(settings['min_notice_hours'], booking.type_id.modifications_deadline)
+    return {**settings, 'min_notice_hours': notice}
 
 
 def _require_modifiable(booking, now, field=None):
@@ -79,7 +83,7 @@ class AppointmentGuestController(http.Controller):
         now = datetime.now(UTC)
         first, last, _ = parse_type_slot_query(booking_type, args, settings, now)
         pinned = booking.env['resource.booking.combination'] if booking.combination_auto_assign else booking.combination_id
-        items = type_slot_items(booking_type, pinned, first, last, settings, now)
+        items = type_slot_items(booking_type, pinned, first, last, settings, now, origin=booking)
         return {'items': items, 'total': len(items)}
 
     @http.route(BOOKING_PATH + '/schedule', type='json2', auth='public', methods=['POST'], readonly=False, save_session=False)
@@ -109,7 +113,9 @@ class AppointmentGuestController(http.Controller):
         if booking.state != 'scheduled' or not settings['requester_confirmation']:
             raise ApiError(422, 'invalid', 'this booking does not wait for your confirmation')
         _require_modifiable(booking, fields.Datetime.now())
-        booking.action_confirm()
+        # No hook for a held booking: the payments bridge returns True for paying types and sale_resource_booking
+        # keeps an unpaid booking scheduled after action_confirm(), so the engine already holds it.
+        confirm_attendance(booking)
         return dump_guest_booking(booking, settings, fields.Datetime.now())
 
     @http.route(BOOKING_PATH + '/cancel', type='json2', auth='public', methods=['POST'], readonly=False, save_session=False)

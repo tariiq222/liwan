@@ -74,6 +74,12 @@ def require_combination_links(booking_type):
 
 def confirm_on_schedule(booking):
     if booking._webvue_confirms_on_schedule():
+        confirm_attendance(booking)
+
+
+def confirm_attendance(booking):
+    """Confirm the booking; a fit refusal of the engine is a 409 like a refused slot."""
+    with slot_conflicts():
         booking.action_confirm()
 
 

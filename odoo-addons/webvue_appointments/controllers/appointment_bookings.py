@@ -16,6 +16,7 @@ from odoo.addons.webvue_appointments.controllers.records import (
     READ_CAPABILITY,
     WRITE_CAPABILITY,
     company_records,
+    confirm_attendance,
     confirm_on_schedule,
     get_company_booking,
     offered_combination,
@@ -128,7 +129,7 @@ class AppointmentBookingController(http.Controller):
         booking = get_company_booking(booking_id)
         if booking.state != 'scheduled':
             raise ApiError(422, 'invalid', 'only a scheduled booking can be confirmed')
-        booking.action_confirm()
+        confirm_attendance(booking)
         return self._detail(booking, self._settings())
 
     @http.route('/api/v1/appointments/bookings/<int:booking_id>/cancel', type='json2', auth='user', methods=['POST'], readonly=False)

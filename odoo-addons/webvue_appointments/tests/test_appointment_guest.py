@@ -251,6 +251,38 @@ class TestAppointmentGuest(WebVueAppointmentsCase):
                 self._error(self._schedule(self.invited, bad), 422, 'invalid', 'start')
         self._error(self._call('POST', self.invited, '/schedule'), 422, 'invalid', 'start')
 
+    def test_the_requester_cannot_pick_a_start_that_locks_them_out(self):
+        self.booking_type.modifications_deadline = 48
+        self.env.flush_all()
+        soon = (datetime.now(UTC) + timedelta(hours=30)).strftime(UTC_FORMAT)
+        self._error(self._schedule(self.invited, soon), 422, 'invalid', 'start')
+        slot = self._slots(self.invited, **self._window(3, 9))[0]
+        self.assertEqual(self._schedule(self.invited, slot).status_code, 200)
+        # Scheduled as far ahead as the deadline asks: the requester can still cancel.
+        self.assertEqual(self._call('POST', self.invited, '/cancel').status_code, 200)
+
+    def test_the_requesters_own_slot_does_not_block_a_small_shift(self):
+        long_type = self.env['resource.booking.type'].create({'name': 'Long', 'duration': 1.0, 'slot_duration': 0.5})
+        long_type.combination_rel_ids = [(0, 0, {'combination_id': self.combination.id})]
+        pinned = {'combination_id': self.combination.id, 'combination_auto_assign': False}
+        booking, other = self._invited(long_type, **pinned), self._invited(long_type, **pinned)
+        starts = [item['start'] for item in self._call('GET', booking, '/slots', **self._window()).json()['items']]
+        step = timedelta(minutes=30)
+        first = next(
+            start for start in starts
+            if (datetime.strptime(start, UTC_FORMAT) + step).strftime(UTC_FORMAT) in starts
+        )
+        shifted = (datetime.strptime(first, UTC_FORMAT) + step).strftime(UTC_FORMAT)
+        self.assertEqual(self._schedule(booking, first).status_code, 200)
+        listed = [item['start'] for item in self._call('GET', booking, '/slots', **self._window()).json()['items']]
+        self.assertIn(shifted, listed)
+        # Another booking on the same resource still sees both overlapping starts as taken.
+        others = [item['start'] for item in self._call('GET', other, '/slots', **self._window()).json()['items']]
+        self.assertNotIn(first, others)
+        self.assertNotIn(shifted, others)
+        moved = self._schedule(booking, shifted)
+        self.assertEqual((moved.status_code, moved.json()['start']), (200, shifted), moved.text)
+
     def test_a_schedule_body_accepts_only_the_token_and_the_start(self):
         for field in ('combination_id', 'partner_ids', 'type_id', 'state', 'access_url'):
             with self.subTest(field=field):
