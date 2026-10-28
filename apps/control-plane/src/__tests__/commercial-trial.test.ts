@@ -1,10 +1,11 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
 import { daysBetween, riyadhDate, type Principal } from '@webvue/commercial-contracts'
 import { client, money, monthly, setup, url } from './commercial-helpers.js'
 import { convertTrial, extendTrial, startTrial } from '../commercial/trial.js'
 import { routesB } from '../commercial/routes-b.js'
+import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { getSubscription } from '../commercial/subscriptions.js'
 import { expireTrials } from '../commercial/trial-expiry.js'
 import { commercialValidUntil } from '../commercial/fulfillment.js'
@@ -63,9 +64,22 @@ suite('commercial trial', () => {
   })
   it('records the trial once per customer', async () => {
     const c = await newCustomer()
-    await startTrial(pool, { customer_id: c.id, request: request(), principal: c.principal, now })
-    await expect(startTrial(pool, { customer_id: c.id, request: request(), principal: c.principal, now }))
+    const first = await startTrial(pool, { customer_id: c.id, request: request(), principal: c.principal, now })
+    const resent = await startTrial(pool, { customer_id: c.id, request: request(), principal: c.principal, now })
+    expect(resent).toMatchObject({ replay: true, order: { id: first.order.id } })
+    await expect(startTrial(pool, { customer_id: c.id, request: { ...request(), requested_users: 4 }, principal: c.principal, now }))
       .rejects.toMatchObject({ code: 'trial_already_used' })
+  })
+  it('replays a resent customer start after the trial order was fulfilled', async () => {
+    const c = await newCustomer()
+    // The customer page sends the revision it saw (0); the start itself moves the subscription past it.
+    const body = { ...request(), expected_subscription_revision: 0 }
+    const first = await startTrial(pool, { customer_id: c.id, request: body, principal: c.principal, now })
+    await pool.query('UPDATE subscriptions SET applied_revision_id=target_revision_id,target_revision_id=NULL,revision=revision+1 WHERE customer_id=$1', [c.id])
+    await pool.query("UPDATE orders SET fulfillment_state='applied' WHERE customer_id=$1", [c.id])
+    const resent = await startTrial(pool, { customer_id: c.id, request: body, principal: c.principal, now })
+    expect(resent).toMatchObject({ replay: true, order: { id: first.order.id }, subscription: { state: 'trialing' } })
+    expect((await pool.query('SELECT 1 FROM orders WHERE customer_id=$1', [c.id])).rowCount).toBe(1)
   })
   async function onlyTrial(customerId: string) {
     await pool.query("UPDATE subscriptions SET state='past_due',revision=revision+1 WHERE state='trialing' AND customer_id<>$1", [customerId])
@@ -230,5 +244,96 @@ suite('commercial trial', () => {
     expect(sub.applied).toBeNull()
     const snapshot = (await pool.query('SELECT snapshot FROM subscription_revisions WHERE subscription_id=$1', [sub.id])).rows[0].snapshot
     expect(snapshot.entitlement.features['pmo.enabled']).toBe(false)
+  })
+  describe('vendor start, customer without a tenant', () => {
+    async function tenantless() {
+      const id = randomUUID()
+      await pool.query('INSERT INTO customers(id,name,admin_login) VALUES($1,$2,$3)', [id, 'Tenantless customer', `${id}@example.test`])
+      return id
+    }
+    const startAs = (id: string, capabilities: string[], body: Record<string, unknown> = request()) => routesB(pool,
+      { method: 'POST', pathname: `/v1/commercial/customers/${id}/trial`, raw: JSON.stringify(body), issuer: 'trial-test', actor: 1, capabilities: capabilities as any, stepUpFresh: true },
+      new URL(`http://localhost/v1/commercial/customers/${id}/trial`))
+    afterEach(() => { vi.unstubAllEnvs() })
+    it('starts a trial with a zero-due order queued for fulfilment', async () => {
+      const id = await tenantless()
+      const response = await startAs(id, ['vendor.subscriptions.manage', 'vendor.tenants.manage'])
+      expect(response!.status).toBe(201)
+      const sub = await getSubscription(pool, id)
+      expect(sub.state).toBe('trialing')
+      expect(sub.trial_ends_at).toBeTruthy()
+      const order = (await pool.query('SELECT payment_state,fulfillment_state,due_now_minor FROM orders WHERE customer_id=$1', [id])).rows[0]
+      expect(order).toMatchObject({ payment_state: 'not_required', fulfillment_state: 'queued' })
+      expect(Number(order.due_now_minor)).toBe(0)
+      expect((await pool.query("SELECT 1 FROM commercial_outbox WHERE kind='fulfillment.enqueue' AND aggregate_id=$1", [response!.data.order.id])).rowCount).toBe(1)
+      expect((await pool.query("SELECT actor FROM audit_events WHERE action='trial.started' AND subject=$1", [id])).rows).toEqual([{ actor: 'account:1' }])
+    })
+    it('replays a resent start and refuses a different second trial', async () => {
+      const id = await tenantless()
+      const caps = ['vendor.subscriptions.manage', 'vendor.tenants.manage']
+      const first = await startAs(id, caps)
+      const resent = await startAs(id, caps)
+      expect(resent!.status).toBe(200)
+      expect(resent!.data.order.id).toBe(first!.data.order.id)
+      expect(resent!.data.subscription.state).toBe('trialing')
+      expect((await pool.query('SELECT 1 FROM orders WHERE customer_id=$1', [id])).rowCount).toBe(1)
+      await expect(startAs(id, caps, { ...request(), requested_users: 4 })).rejects.toMatchObject({ code: 'trial_already_used' })
+    })
+    it('requires the subscription capability, and the tenant capability while the customer has no tenant', async () => {
+      const id = await tenantless()
+      await expect(startAs(id, ['vendor.read'])).rejects.toMatchObject({ status: 403 })
+      await expect(startAs(id, ['vendor.subscriptions.manage'])).rejects.toMatchObject({ status: 403 })
+      expect((await pool.query('SELECT 1 FROM orders WHERE customer_id=$1', [id])).rowCount).toBe(0)
+    })
+    it('answers 404 for an unknown customer', async () => {
+      await expect(startAs(randomUUID(), ['vendor.subscriptions.manage', 'vendor.tenants.manage'])).rejects.toMatchObject({ status: 404 })
+    })
+    async function paidFirstOrder(id: string, mode: string | undefined) {
+      const quote = await createQuoteForCustomer(pool, { customer_id: id, request: request() })
+      if (mode) vi.stubEnv('WEBVUE_TENANCY_MODE', mode)
+      return routesB(pool, { method: 'POST', pathname: '/v1/commercial/orders', raw: JSON.stringify({ quote_id: quote.id, expected_subscription_revision: 0, idempotency_key: randomUUID() }),
+        issuer: 'trial-test', actor: 1, capabilities: ['vendor.subscriptions.manage', 'vendor.tenants.manage'], stepUpFresh: true }, new URL('http://localhost/v1/commercial/orders'))
+    }
+    it('refuses a paid first order for a tenantless customer in shared mode', async () => {
+      const id = await tenantless()
+      await expect(paidFirstOrder(id, 'shared')).rejects.toMatchObject({ code: 'trial_required_first', status: 409 })
+      expect((await pool.query('SELECT 1 FROM orders WHERE customer_id=$1', [id])).rowCount).toBe(0)
+    })
+    it('allows the same paid first order in dedicated mode', async () => {
+      const response = await paidFirstOrder(await tenantless(), 'dedicated')
+      expect(response!.status).toBe(201)
+      expect(response!.data.order.due_now.minor).toBeGreaterThan(0)
+    })
+    it('allows a paid order in shared mode once the customer has an enabled tenant binding', async () => {
+      const c = await newCustomer()
+      const response = await paidFirstOrder(c.id, 'shared')
+      expect(response!.status).toBe(201)
+    })
+    it('does not treat a paid change of an applied subscription as a first order', async () => {
+      // An applied subscription whose tenant has no enabled binding (e.g. during a restore) is not a first order.
+      const c = await newCustomer(false)
+      await startTrial(pool, { customer_id: c.id, request: request(), principal: c.principal, now })
+      await pool.query('UPDATE subscriptions SET applied_revision_id=target_revision_id,target_revision_id=NULL,revision=revision+1 WHERE customer_id=$1', [c.id])
+      await pool.query("UPDATE orders SET fulfillment_state='applied' WHERE customer_id=$1", [c.id])
+      const draft = await api('POST', '/plans', { name: `Bigger ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
+        prices: [{ cadence: monthly, amount: money(90000) }], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: [],
+        included_extra_branches: 0, extra_branch_prices: [{ cadence: monthly, amount: money(0) }], extra_branches_limit: null,
+        included_users: 3, included_storage_mb: 5120, user_prices: [{ cadence: monthly, amount: money(0) }], storage_prices: [{ cadence: monthly, amount: money(0) }],
+        policy_revision_id: '6f1c3d8e-0000-4000-8000-000000000001', trial_days: 0, grace_days: 7, auto_suspend: true, auto_renew_allowed: true })
+      const validated = await api('POST', `/plans/${draft.body.id}/validate`, { edit_revision: 1, reason })
+      const bigger = (await api('POST', `/plans/${draft.body.id}/publish`, { edit_revision: validated.body.edit_revision, reason })).body
+      const sub = await getSubscription(pool, c.id)
+      const quote = await createQuoteForCustomer(pool, { customer_id: c.id, request: { ...request(), kind: 'change', plan_revision_id: bigger.id, subscription_id: sub.id } })
+      expect(quote.due_now.minor).toBeGreaterThan(0)
+      vi.stubEnv('WEBVUE_TENANCY_MODE', 'shared')
+      const attempt = routesB(pool, { method: 'POST', pathname: '/v1/commercial/orders', raw: JSON.stringify({ quote_id: quote.id, expected_subscription_revision: sub.revision, idempotency_key: randomUUID() }),
+        issuer: 'trial-test', actor: 1, capabilities: ['vendor.subscriptions.manage', 'vendor.tenants.manage'], stepUpFresh: true }, new URL('http://localhost/v1/commercial/orders'))
+      await expect(attempt.then(() => 'accepted', (e: { code?: string }) => e.code)).resolves.not.toBe('trial_required_first')
+    })
+    it('allows the zero-due trial order in shared mode', async () => {
+      vi.stubEnv('WEBVUE_TENANCY_MODE', 'shared')
+      const response = await startAs(await tenantless(), ['vendor.subscriptions.manage', 'vendor.tenants.manage'])
+      expect(response!.status).toBe(201)
+    })
   })
 })

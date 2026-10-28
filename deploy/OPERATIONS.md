@@ -116,8 +116,8 @@ python3 deploy/check_isolated.py odoo \
   --scratch-lifecycle CREATE_NEW_SCRATCH \
   --http-port 8169 \
   --with-oca \
-  --modules webvue_core,webvue_platform,webvue_api,webvue_directory,webvue_notify,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_access_hr,webvue_integrations_sa,webvue_finance,webvue_hr_finance,webvue_pmo_finance,webvue_chat,webvue_tasks,webvue_tasks_pmo,webvue_operations,webvue_operations_pmo,webvue_ai,webvue_pmo_ai,webvue_documents,webvue_documents_hr,webvue_crm \
-  --test-tags /webvue_core,/webvue_platform,/webvue_api,/webvue_directory,/webvue_notify,/webvue_pmo,/webvue_meetings,/webvue_meetings_pmo,/webvue_hr,/webvue_access_hr,/webvue_integrations_sa,/webvue_finance,/webvue_hr_finance,/webvue_pmo_finance,/webvue_chat,/webvue_tasks,/webvue_tasks_pmo,/webvue_operations,/webvue_operations_pmo,/webvue_ai,/webvue_pmo_ai,/webvue_documents,/webvue_documents_hr,/webvue_crm
+  --modules webvue_core,webvue_platform,webvue_api,webvue_directory,webvue_notify,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_access_hr,webvue_integrations_sa,webvue_finance,webvue_hr_finance,webvue_pmo_finance,webvue_payments,webvue_chat,webvue_tasks,webvue_tasks_pmo,webvue_operations,webvue_operations_pmo,webvue_ai,webvue_pmo_ai,webvue_documents,webvue_documents_hr,webvue_crm,webvue_appointments \
+  --test-tags /webvue_core,/webvue_platform,/webvue_api,/webvue_directory,/webvue_notify,/webvue_pmo,/webvue_meetings,/webvue_meetings_pmo,/webvue_hr,/webvue_access_hr,/webvue_integrations_sa,/webvue_finance,/webvue_hr_finance,/webvue_pmo_finance,/webvue_payments,/webvue_chat,/webvue_tasks,/webvue_tasks_pmo,/webvue_operations,/webvue_operations_pmo,/webvue_ai,/webvue_pmo_ai,/webvue_documents,/webvue_documents_hr,/webvue_crm,/webvue_appointments
 
 python3 deploy/check_isolated.py e2e \
   --worktree /absolute/worktree \
@@ -266,7 +266,7 @@ OCA_PATH=$(cd "$WORKTREE" && python3 -B tools/oca_addons.py path --check)
   --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
   -d webvue_drill_src_scratch --db-filter='^webvue_drill_src_scratch$' \
   --data-dir="$WORK/data" --without-demo=all \
-  -i webvue_core,webvue_platform,webvue_api,webvue_directory,webvue_notify,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_access_hr,webvue_integrations_sa,webvue_finance,webvue_hr_finance,webvue_pmo_finance,webvue_chat,webvue_tasks,webvue_tasks_pmo,webvue_operations,webvue_operations_pmo,webvue_ai,webvue_pmo_ai,webvue_documents,webvue_documents_hr,webvue_crm \
+  -i webvue_core,webvue_platform,webvue_api,webvue_directory,webvue_notify,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_access_hr,webvue_integrations_sa,webvue_finance,webvue_hr_finance,webvue_pmo_finance,webvue_payments,webvue_chat,webvue_tasks,webvue_tasks_pmo,webvue_operations,webvue_operations_pmo,webvue_ai,webvue_pmo_ai,webvue_documents,webvue_documents_hr,webvue_crm,webvue_appointments \
   --http-port=8169 --http-interface=127.0.0.1 --workers=0 --max-cron-threads=0 --stop-after-init
 python3 deploy/backup.py --opt-in MANUAL_BACKUP_OPT_IN --acknowledge-unverified CANDIDATE_BACKUP_UNVERIFIED \
   --db-name webvue_drill_src_scratch --filestore "$WORK/data/filestore/webvue_drill_src_scratch" \

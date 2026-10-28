@@ -21,6 +21,7 @@ const ALLOWED = [
   /^\/v1\/commercial\/(attention|catalog\/releases|clients|policies|customer-terms|customer-quotes|orders|analytics)$/,
   new RegExp(`^/v1/commercial/orders/${SEGMENT}/(cancel|payment-attempts)$`),
   new RegExp(`^/v1/commercial/invoice-adjustments/${SEGMENT}/refund$`),
+  new RegExp(`^/v1/commercial/customers/${SEGMENT}/trial$`),
   new RegExp(`^/v1/commercial/trials/${SEGMENT}/(extend|end)$`),
   new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}(/(branches|usage))?$`),
   /^\/v1\/admin\/(me|accounts)$/,

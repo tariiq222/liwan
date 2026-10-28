@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { Invoice } from '@webvue/commercial-contracts'
 import { formatDate } from '@webvue/ui/app/utils/formatDate'
-import { formatSubscriptionMoney, orderOutcome, refusalCode, refusalKey, sameQuoteEconomics, subscriptionInvoiceView, trialDaysRemaining } from '../subscription'
+import { csrfTokenFor, formatSubscriptionMoney, orderOutcome, refusalCode, refusalKey, sameQuoteEconomics, subscriptionInvoiceView, trialDaysRemaining } from '../subscription'
 
 const money = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })
 const t = (key: string) => `t:${key}`
@@ -102,5 +102,22 @@ describe('subscription dates', () => {
   it('renewal day and trial end use the app date format, not raw ISO', () => {
     expect(formatDate('2026-11-05')).toContain('05/11/2026')
     expect(formatDate('2026-10-30T22:30:00Z', 'Asia/Riyadh')).toContain('31/10/2026')
+  })
+})
+
+describe('csrfTokenFor', () => {
+  it('reuses the cookie the browser already holds', async () => {
+    const fetchCookie = vi.fn()
+    expect(await csrfTokenFor('abc', fetchCookie, () => 'other')).toBe('abc')
+    expect(fetchCookie).not.toHaveBeenCalled()
+  })
+  it('asks the browser for the cookie when the first read ran in SSR and the cookie never arrived', async () => {
+    let cookie: string | null = null
+    const fetchCookie = vi.fn(async () => { cookie = 'issued' })
+    expect(await csrfTokenFor(cookie, fetchCookie, () => cookie)).toBe('issued')
+    expect(fetchCookie).toHaveBeenCalledTimes(1)
+  })
+  it('sends no token when the cookie still cannot be set, so the server refuses the request', async () => {
+    expect(await csrfTokenFor(undefined, async () => {}, () => undefined)).toBeNull()
   })
 })

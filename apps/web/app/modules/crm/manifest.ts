@@ -4,9 +4,9 @@ const manifest: AppManifest = {
   id: 'crm',
   feature: 'crm.enabled',
   routePrefixes: ['/crm'],
-  rail: [{ id: 'crm', labelKey: 'nav.crm', icon: 'i-lucide-handshake', to: '/crm', order: 80 }],
+  rail: [{ id: 'crm', labelKey: 'nav.crm', icon: 'i-lucide-handshake', to: '/crm', order: 85 }],
   nav: [
-    { to: '/crm', labelKey: 'crm.nav.dashboard', icon: 'i-lucide-layout-dashboard', shortcut: 'd', capability: 'crm.leads.read' },
+    { to: '/crm', labelKey: 'crm.nav.dashboard', icon: 'i-lucide-layout-dashboard', shortcut: 'x', capability: 'crm.leads.read' },
     { to: '/crm/opportunities', labelKey: 'crm.nav.opportunities', icon: 'i-lucide-handshake', shortcut: '', capability: 'crm.leads.read' },
     { to: '/crm/imports', labelKey: 'crm.nav.imports', icon: 'i-lucide-file-up', shortcut: '', capability: 'crm.leads.import' },
   ],

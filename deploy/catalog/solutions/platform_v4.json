@@ -76,6 +76,17 @@
       ]
     },
     {
+      "id": "payments",
+      "name": "Online payments",
+      "description": "The tenant's own payment gateway account, connected from the payments settings page.",
+      "modules": [
+        "webvue_payments"
+      ],
+      "features": [
+        "boolean:payments.enabled"
+      ]
+    },
+    {
       "id": "messaging",
       "name": "Messaging",
       "description": "The member-private chat application.",
@@ -143,6 +154,17 @@
         "boolean:crm.enabled",
         "boolean:crm.import",
         "boolean:crm.export"
+      ]
+    },
+    {
+      "id": "appointments",
+      "name": "Appointments",
+      "description": "The Appointments application.",
+      "modules": [
+        "webvue_appointments"
+      ],
+      "features": [
+        "boolean:appointments.enabled"
       ]
     }
   ]

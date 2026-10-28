@@ -18,7 +18,7 @@ import { analyticsFromQuery } from './analytics.js'
 import { listBranches } from './branches.js'
 import { getUsage } from './usage.js'
 import { createBranchQuote, needPayment, type PaymentRuntime } from './customer-http.js'
-import { endTrial, extendTrial } from './trial.js'
+import { endTrial, extendTrial, startTrial } from './trial.js'
 import { createPaymentAttempt, handleProviderEvent, paymentAttemptView } from './payments.js'
 import { generateRenewals, applyDunning } from './renewals.js'
 import { SimulatorAdapter } from './payment-simulator.js'
@@ -69,6 +69,17 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     if(subscription[2]==='branches')return {status:200,data:await listBranches(pool,view.id)}
     if(subscription[2]==='usage')return {status:200,data:await getUsage(pool,{tenant_id:view.tenant_id!,limits:Object.fromEntries(Object.entries(view.applied?.entitlement.features??{}).filter(([,v])=>v===null||typeof v==='number')) as Record<string,number|null>})}
     return {status:200,data:view}
+  }
+  const startTrialPath=/^\/customers\/([^/]+)\/trial$/.exec(path)
+  if(m==='POST'&&startTrialPath){
+    need(input,'vendor.subscriptions.manage')
+    if(!z.uuid().safeParse(startTrialPath[1]).success)throw new CommercialHttpError('not_found',404)
+    const owner=(await pool.query('SELECT tenant_id FROM customers WHERE id=$1',[startTrialPath[1]])).rows[0]
+    if(!owner)throw new CommercialHttpError('not_found',404)
+    // The trial's order provisions the tenant of a customer that has none yet: that is tenant creation.
+    if(!owner.tenant_id)need(input,'vendor.tenants.manage')
+    const result=await startTrial(pool,{customer_id:startTrialPath[1],request:parseBody(input.raw,quoteRequestSchema.omit({subscription_id:true})),principal})
+    return {status:result.replay?200:201,data:result}
   }
   const trial=/^\/trials\/([^/]+)\/(extend|end)$/.exec(path)
   if(m==='POST'&&trial){

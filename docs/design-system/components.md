@@ -196,6 +196,7 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 | `apps/vendor-admin/app/components/vendor/SubscriptionSummary.vue` | ملخص اشتراك العميل والطلب المعلّق ومساحة لإجراءاته | `SharedPropertiesPanel`, `SharedPropertyRow`, `SharedStatusBadge`, `UAlert` |
 | `apps/vendor-admin/app/components/vendor/SubscriptionTimeline.vue` | خط زمني لمراحل الاشتراك: المطبّق والتغيير المطلوب والطلب المعلّق | `SharedStatusBadge`, `UIcon` |
 | `apps/vendor-admin/app/components/vendor/TrialPanel.vue` | لوحة التجربة في صفحة العميل: تاريخ الانتهاء والأيام المتبقية، وتمديد أو إنهاء بتأكيد مضمّن وسبب | `SharedInlineConfirm`, `SharedRecordSection`, `UAlert`, `UButton`, `UFormField`, `UInput`, `UTextarea` |
+| `apps/vendor-admin/app/components/vendor/TrialStartPanel.vue` | بدء تجربة لعميل بلا اشتراك من صفحته: اختيار باقة تقدّم تجربة ودورة الفوترة ثم بدء التجربة (تُنشئ مساحة العمل إن لم توجد) | `SharedRecordSection`, `UAlert`, `UButton`, `UFormField`, `USelect` |
 | `apps/vendor-admin/app/components/vendor/TenantOperationsPanel.vue` | تبويب عمليات مساحة العميل: إضافة عملية بتأكيد مضمّن وآخر العمليات ومنطقة حساسة لصلاحية العمليات | `SharedForbiddenState`, `SharedInlineConfirm`, `SharedPageState`, `SharedRecordSection`, `SharedStatusBadge`, `UAlert`, `UButton`, `UCheckbox`, `UFormField`, `UInput`, `USelect`, `UTextarea` |
 | `apps/vendor-admin/app/components/vendor/TenantProperties.vue` | خصائص مساحة العميل: الحالة والنمط والاستضافة والكتالوج وآخر فحص | `SharedPageState`, `SharedPropertiesPanel`, `SharedPropertyRow`, `SharedStatusBadge`, `UButton` |
 | `apps/vendor-admin/app/components/vendor/UsageMeters.vue` | مقاييس الاستهلاك مقابل الحدود | `SharedStatusBadge`, `UProgress` |
@@ -227,6 +228,14 @@ Meetings use SharedListPage/DataTable/RecordPage/TimelineFrame/StandalonePage. C
 | Documents | `apps/web/app/components/documents/DocumentEditor.vue` (Story: `apps/web/stories/documents/DocumentEditor.stories.ts`), `apps/web/app/components/documents/DocumentReader.vue` (Story: `apps/web/stories/documents/DocumentReader.stories.ts`), `apps/web/app/components/documents/DocumentList.vue` (Story: `apps/web/stories/documents/DocumentList.stories.ts`), `apps/web/app/components/documents/DocumentCreateForm.vue` (Story: `apps/web/stories/documents/DocumentCreateForm.stories.ts`), `apps/web/app/components/documents/DocumentFiles.vue` (Story: `apps/web/stories/documents/DocumentFiles.stories.ts`), `apps/web/app/components/documents/DocumentAccessForm.vue` (Story: `apps/web/stories/documents/DocumentAccessForm.stories.ts`), `apps/web/app/components/documents/DocumentContextField.vue` (Story: `apps/web/stories/documents/DocumentContextField.stories.ts`), `apps/web/app/components/documents/DocumentMetadataFields.vue` (Story: `apps/web/stories/documents/DocumentMetadataFields.stories.ts`) | Independent library, private files, document access and protected editing drafts. The record shows its title once with a compact number/visibility summary; optional details use the supporting properties panel. File upload sits in the section header, with a compact empty state |
 
 `SharedEmptyState` يدعم `compact` لفراغ داخل قسم قائم. `SharedFileField` يدعم `label` و`showFileName` لرفع فوري من ترويسة قسم؛ الافتراضي يبقى «اختر ملفًا» مع اسم الملف. القصتان المعتمدتان: `apps/web/stories/shared/EmptyState.stories.ts` و`apps/web/stories/shared/FileField.stories.ts`.
+
+## مكونات الدفع الإلكتروني
+
+صفحة إعدادات خدمة الدفع (`/settings/apps/payments`، قدرة `payments.providers.manage`) تعرض بطاقة لكل بوابة دفع يربطها المستأجر بحسابه التاجر. البطاقة لبنة خاصة بالصفحة تعيد استخدام لبنات Storybook المشتركة، والمفاتيح للكتابة فقط: لا قيمة منها تعود من الخادم، وتظهر حالة «محفوظ» لكل مفتاح.
+
+| المكوّن | الوظيفة | القصة | مكونات الأساس |
+| --- | --- | --- | --- |
+| `apps/web/app/components/payments/ProviderCard.vue` | بوابة دفع واحدة: وضع التشغيل (متوقف وتجريبي ومباشر) مع تأكيد مضمّن قبل المباشر، دولة حساب البوابة، مفاتيح بحقول كلمة مرور لا تُملأ أبدًا مع حفظ الحقول المكتوبة فقط، «اختبار الاتصال»، وطرق الدفع المفعّلة؛ أخطاء الخادم تُربط بالحقل الذي سمّاه | — | `SharedRecordSection`, `SharedSegmentedControl`, `SharedInlineConfirm`, `SharedStatusBadge`, `SharedUnsavedChanges`, `UFormField`, `UInput`, `USelect`, `UForm`, `UButton`, `UAlert` |
 
 ## مكونات المالية — المستندات والدفعات
 

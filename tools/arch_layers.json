@@ -15,6 +15,7 @@
     "webvue_operations": 4,
     "webvue_documents": 4,
     "webvue_crm": 4,
+    "webvue_appointments": 4,
     "webvue_meetings_pmo": 5,
     "webvue_tasks_pmo": 5,
     "webvue_pmo_ai": 5,
@@ -22,6 +23,7 @@
     "webvue_operations_pmo": 5,
     "webvue_registry_probe": 3,
     "webvue_integrations_sa": 3,
+    "webvue_payments": 3,
     "webvue_documents_hr": 5,
     "webvue_access_hr": 5,
     "webvue_pmo_finance": 5,
@@ -154,6 +156,14 @@
       ],
       "pages": [
         "crm"
+      ]
+    },
+    "appointments": {
+      "components": [
+        "appointments"
+      ],
+      "pages": [
+        "appointments"
       ]
     }
   },

@@ -11,11 +11,29 @@ import { enqueueReconfigureJob } from '../shared/job-store.js'
 import { commercialExpiryDate } from './fulfillment.js'
 import { paymentAttemptView } from './payments.js'
 import type { ReturnOrigin } from './return-origin.js'
+import { getSubscription } from './subscriptions.js'
+
+/** A customer has one trial, so its order key is fixed per customer (RFC 9562 version 8): a resent start replays it. */
+function trialOrderKey(customerId: string) {
+  const h = createHash('sha256').update(`trial:${customerId}`).digest('hex')
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-8${h.slice(13, 16)}-${((parseInt(h[16]!, 16) & 3) | 8).toString(16)}${h.slice(17, 20)}-${h.slice(20, 32)}`
+}
 
 /** A trial is an ordinary zero-due order: same snapshot, fulfillment and entitlement as a paid purchase. */
 export async function startTrial(pool: Pool, input: { customer_id: string; request: unknown; principal: Principal; now?: Date }) {
   const now = input.now ?? new Date()
   const request = quoteRequestSchema.omit({ subscription_id: true }).parse(input.request)
+  // The digest covers the start request, not a fresh quote id, so the same start resent replays its order. The
+  // lookup runs before a new quote is built: once the trial has started (or its tenant is provisioned) that quote
+  // would be refused, and a resent start must still answer with its order.
+  const key = trialOrderKey(input.customer_id)
+  const digest = digestOf(request)
+  const replay = async (client: Pick<Pool, 'query'>) => {
+    const started = (await client.query('SELECT * FROM orders WHERE customer_id=$1 AND idempotency_key=$2', [input.customer_id, key])).rows[0]
+    return started?.request_digest === digest ? { order: orderView(started), replay: true } : null
+  }
+  const earlier = await replay(pool)
+  if (earlier) return { ...earlier, subscription: await getSubscription(pool, input.customer_id) }
   const plan = (await pool.query('SELECT trial_days FROM plan_revisions WHERE id=$1', [request.plan_revision_id])).rows[0]
   if (!plan) throw new CommercialHttpError('plan_missing', 404)
   if (!plan.trial_days) throw new CommercialHttpError('trial_disabled', 422)
@@ -23,11 +41,13 @@ export async function startTrial(pool: Pool, input: { customer_id: string; reque
   const built = await buildQuote(pool, { customer_id: input.customer_id, request: { ...request, effective_date: today } }, now)
   const endsAt = trialEndsAt(plan.trial_days, now)
   const trialQuote = redigest({ ...built, due_now: { ...built.due_now, minor: 0 }, next_renewal_at: riyadhDate(new Date(endsAt)) })
-  const acceptInput = acceptQuoteRequestSchema.parse({ quote_id: trialQuote.id, expected_subscription_revision: 0, idempotency_key: randomUUID() })
-  const digest = digestOf(acceptInput)
+  const acceptInput = acceptQuoteRequestSchema.parse({ quote_id: trialQuote.id, expected_subscription_revision: 0, idempotency_key: key })
   const result = await transaction(pool, async client => {
     const customer = (await client.query('SELECT * FROM customers WHERE id=$1 FOR UPDATE', [input.customer_id])).rows[0]
     if (!customer) throw new CommercialHttpError('not_found', 404)
+    // A concurrent identical start that committed while this one waited on the customer lock.
+    const concurrent = await replay(client)
+    if (concurrent) return concurrent
     if (customer.trial_used_at) throw new CommercialHttpError('trial_already_used', 409)
     const existing = (await client.query('SELECT * FROM subscriptions WHERE customer_id=$1 FOR UPDATE', [input.customer_id])).rows[0]
     if (existing?.applied_revision_id) throw new CommercialHttpError('trial_not_available', 409)
@@ -35,12 +55,13 @@ export async function startTrial(pool: Pool, input: { customer_id: string; reque
     if (capability?.commercial_expiry_supported === false) throw new CommercialHttpError('tenant_upgrade_required', 409)
     await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)', [trialQuote.id, input.customer_id, JSON.stringify(quoteSchema.parse(trialQuote)), trialQuote.digest, trialQuote.expires_at])
     await client.query('UPDATE customers SET trial_used_at=now() WHERE id=$1', [input.customer_id])
+    await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
+      [randomUUID(), input.principal.actor_id, 'trial.started', input.customer_id, `Trial started by ${input.principal.kind}`, JSON.stringify({ plan_revision_id: request.plan_revision_id, trial_days: plan.trial_days })])
     const accepted = await acceptQuoteOn(client, acceptInput, digest, trialQuote, input.principal, now)
     await client.query("UPDATE subscriptions SET state='trialing',trial_ends_at=$2,revision=revision+1 WHERE customer_id=$1", [input.customer_id, endsAt])
     return accepted
   })
-  const subscription = await pool.query('SELECT * FROM subscriptions WHERE customer_id=$1', [input.customer_id])
-  return { order: result.order, subscription: subscription.rows[0], replay: result.replay }
+  return { order: result.order, subscription: await getSubscription(pool, input.customer_id), replay: result.replay }
 }
 
 /** Push the trial's Odoo hard expiry on every trial-date mutation, not only at fulfilment. */

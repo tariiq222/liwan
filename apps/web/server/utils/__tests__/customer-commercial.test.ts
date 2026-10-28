@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { verifyServiceRequest } from '@webvue/commercial-contracts/server'
-import { assertCustomerMutationOrigin, assertNoForgedFields, csrfMatches, customerCommercialEnabled, customerRoute, allowPaymentReturn, forwardCustomerRequest, PAYMENT_RETURN_LIMITS, paymentReturnStoreSize, rateLimitMutation, relayPaymentReturn, resetRateLimitForTests, signedBodyFor } from '../customer-commercial'
+import { assertCustomerMutationOrigin, assertNoForgedFields, csrfMatches, customerCommercialEnabled, customerRoute, allowPaymentReturn, forwardCustomerRequest, issueCsrfCookie, PAYMENT_RETURN_LIMITS, paymentReturnStoreSize, rateLimitMutation, relayPaymentReturn, resetRateLimitForTests, signedBodyFor } from '../customer-commercial'
 import { deriveCustomerCapabilities } from '../../../app/utils/customerCapabilities'
 
 vi.mock('../tenantRequest', async (orig) => {
@@ -251,5 +251,22 @@ describe('payment return relay', () => {
     expect(warn).toHaveBeenCalledWith('[payment-return] lookup failed: http 502')
     expect(JSON.stringify(warn.mock.calls)).not.toContain(ATTEMPT)
     warn.mockRestore()
+  })
+})
+
+describe('issueCsrfCookie', () => {
+  it('sets the double-submit cookie on a browser-side GET when none exists and answers 204', () => {
+    setup({ cookies: { webvue_csrf: '' } })
+    expect(issueCsrfCookie({} as never)).toBeNull()
+    expect(setCookie).toHaveBeenCalledWith(expect.anything(), 'webvue_csrf', expect.stringMatching(/^[0-9a-f]{48}$/), expect.objectContaining({ httpOnly: false, sameSite: 'strict' }))
+    expect(setResponseStatus).toHaveBeenCalledWith(expect.anything(), 204)
+    expect(setResponseHeader).toHaveBeenCalledWith(expect.anything(), 'Cache-Control', 'no-store')
+  })
+  it('keeps an existing cookie and answers 404 when subscriptions are off', () => {
+    setup()
+    issueCsrfCookie({} as never)
+    expect(setCookie).not.toHaveBeenCalled()
+    setup({ cfg: { customerCommercialEnabled: false } })
+    expect(() => issueCsrfCookie({} as never)).toThrow()
   })
 })

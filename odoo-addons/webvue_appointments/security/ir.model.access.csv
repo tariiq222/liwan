@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_resource_booking_type_employee,resource.booking.type.employee,resource_booking.model_resource_booking_type,webvue_core.group_employee,1,0,0,0
+access_resource_booking_type_types_read,resource.booking.type.types.read,resource_booking.model_resource_booking_type,group_cap_appointments_types_read,1,0,0,0
+access_resource_booking_type_types_manage,resource.booking.type.types.manage,resource_booking.model_resource_booking_type,group_cap_appointments_types_manage,1,1,1,1

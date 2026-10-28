@@ -9,12 +9,12 @@ describe('crm manifest', () => {
     expect(appManifests.map(item => item.id)).toContain('crm')
     expect(manifestForPath('/crm/opportunities/4')?.id).toBe('crm')
     expect(manifest.feature).toBe('crm.enabled')
-    expect(manifest.rail).toEqual([{ id: 'crm', labelKey: 'nav.crm', icon: 'i-lucide-handshake', to: '/crm', order: 80 }])
+    expect(manifest.rail).toEqual([{ id: 'crm', labelKey: 'nav.crm', icon: 'i-lucide-handshake', to: '/crm', order: 85 }])
   })
 
   it('takes a rail order and a shortcut no other manifest uses', () => {
     const others = appManifests.filter(item => item.id !== 'crm')
-    expect(others.flatMap(item => item.rail).map(entry => entry.order)).not.toContain(80)
+    expect(others.flatMap(item => item.rail).map(entry => entry.order)).not.toContain(85)
     const shortcuts = manifest.nav.map(item => item.shortcut).filter(Boolean)
     expect(others.flatMap(item => item.nav).map(item => item.shortcut)).not.toContain(shortcuts[0])
   })

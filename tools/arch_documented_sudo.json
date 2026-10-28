@@ -131,6 +131,10 @@
     "odoo-addons/webvue_crm/models/crm_lead.py": {
       "count": 1,
       "reason": "webvue_crm duplicate-phone existence check: `self.sudo().with_context(active_test=False).search_count([('company_id','=',company.id),('phone_sanitized','=',phone_e164)], limit=1)` in `_webvue_find_duplicate`; blocked by the WebVue visibility global record rule odoo-addons/webvue_crm/security/crm_rules.xml `rule_crm_lead_visibility_read`, which hides other agents' and unassigned opportunities from an agent, plus `active_test` hiding archived lost ones. The spec requires a duplicate to be detected across every opportunity of the company (open, won, lost, archived) without disclosing it, so the method returns only a boolean, never a record, id or agent, and the routes answer the fixed message 'duplicate phone'."
+    },
+    "odoo-addons/webvue_payments/models/payment_provider.py": {
+      "count": 1,
+      "reason": "webvue_payments switches one gateway's mode: `self.sudo().write({'state': ..., 'is_published': ...})` in `_webvue_payments_set_state`, after the `payments.providers.manage` capability and the current-company checks in the same method; stock `payment.provider.write` then archives `payment.token` rows, toggles `payment.method.active` and the payment post-processing `ir.cron`, each blocked by the system-only `payment_token_system`, `payment_method_system` and `ir.cron` ACL rows."
     }
   }
 }
