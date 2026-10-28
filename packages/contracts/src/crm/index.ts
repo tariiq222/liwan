@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 export * from './call'
+export * from './dashboard'
 export * from './imports'
 export * from './lists'
 export * from './notification'

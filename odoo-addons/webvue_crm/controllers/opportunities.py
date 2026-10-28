@@ -25,7 +25,7 @@ def _visibility():
     return request.env['webvue.crm.visibility']
 
 
-def _visible_domain():
+def visible_domain():
     return _visibility()._webvue_domain(request.env.user)
 
 
@@ -34,14 +34,14 @@ def find_opportunity(lead_id):
 
     404 for a hidden, foreign or missing one alike.
     """
-    lead = request.env['crm.lead'].with_context(active_test=False).search([('id', '=', lead_id), *_visible_domain()], limit=1)
+    lead = request.env['crm.lead'].with_context(active_test=False).search([('id', '=', lead_id), *visible_domain()], limit=1)
     if not lead:
         raise ApiError(404, 'not_found', 'Record does not exist')
     # Back to the normal archive filter: whatever the lead reads or searches next ignores archived records.
     return lead.with_context(active_test=True)
 
 
-def _filter_domain(filters):
+def filter_domain(filters):
     domain = [(name, '=', filters[name]) for name in ('stage_id', 'user_id', 'source_id') if name in filters]
     now = fields.Datetime.now()
     if 'due' in filters:
@@ -137,7 +137,7 @@ class CrmOpportunitiesController(http.Controller):
     @requires_capability('crm.leads.read')
     def list_opportunities(self, **_):
         args = request.httprequest.args
-        domain = [*_visible_domain(), *_filter_domain(parse_list_filters(args))]
+        domain = [*visible_domain(), *filter_domain(parse_list_filters(args))]
         limit, offset = parse_page(args)
         Lead = request.env['crm.lead']
         return {
