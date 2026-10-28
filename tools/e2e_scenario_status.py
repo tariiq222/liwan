@@ -23,9 +23,11 @@ def update_row(line, status, note):
     cells[-3] = f' {status} '
     note = note.replace('|', '\\|').strip()
     old = cells[-2].strip()
-    if old and note and note not in old:
-        note = f'{note}; {old}'
-    cells[-2] = f' {note or old} '
+    if not note or note in old:
+        notes = old
+    else:
+        notes = f'{note}; {old}' if old else note
+    cells[-2] = f' {notes} '
     return '|'.join(cells)
 
 

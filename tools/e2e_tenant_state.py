@@ -12,7 +12,8 @@ from the retained read features), ``limits`` (feature key -> value, e.g.
 ``{"projects.max_projects": 1}``), ``users_limit_delta`` (users.limit = current
 users + delta), ``status`` (``active`` or ``suspended``), ``expired`` (true gives
 a past ``valid_until``, the read-only state). Every state starts from the
-baseline, saved once to ``.e2e/tenant_baseline.json`` before the first change;
+baseline saved to ``.e2e/tenant_baseline.json`` before the first change on a
+database instance (keyed by ``database.uuid``, so a rebuilt database saves its own);
 ``E2E_TENANT_STATE='{}'`` restores it exactly.
 """
 import datetime
@@ -31,8 +32,13 @@ if env.cr.dbname != DB_GUARD:  # noqa: F821
 profile = env['webvue.tenant.profile'].search([])  # noqa: F821
 if len(profile) != 1:
     raise SystemExit('e2e_tenant_state expects exactly one tenant profile')
-if not BASELINE.exists():
+# The baseline belongs to one database instance: a rebuilt scratch database
+# (E2E_ODOO_RESET=1) gets a new uuid, so its fresh policy is saved again.
+database_uuid = env['ir.config_parameter'].get_param('database.uuid')  # noqa: F821
+saved = json.loads(BASELINE.read_text(encoding='utf-8')) if BASELINE.exists() else {}
+if saved.get('database_uuid') != database_uuid:
     BASELINE.write_text(json.dumps({
+        'database_uuid': database_uuid,
         'features': profile.features, 'retained_read_features': profile.retained_read_features,
         'status': profile.status,
     }, ensure_ascii=False, indent=1), encoding='utf-8')

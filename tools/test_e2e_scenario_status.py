@@ -13,6 +13,10 @@ class TestScenarioStatus(unittest.TestCase):
         self.assertEqual(update_row(ROW, 'manual 2026-10-28', 'done in UI'),
                          '| HR-12 | Withdraw | staff1 | Removed | `page /hr` | manual 2026-10-28 | done in UI; old note |')
 
+    def test_update_row_keeps_full_notes_when_the_note_is_already_there(self):
+        row = '| HR-12 | Withdraw | staff1 | Removed | `page /hr` | fail | #151; request remains pending |'
+        self.assertIn('| gap | #151; request remains pending |', update_row(row, 'gap', '#151'))
+
     def test_update_row_escapes_pipes_in_the_note(self):
         self.assertIn('page 1 \\| 2', update_row(ROW, 'fail', 'page 1 | 2'))
 
