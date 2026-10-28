@@ -346,7 +346,7 @@ def start(args):
         ["docker", "run", "--rm", "--entrypoint", "caddy", CADDY_IMAGE, "list-modules"],
     ).stdout.splitlines()
     if (
-        not state["caddy_version"].startswith("v2.11.4 ")
+        not state["caddy_version"].startswith("v2.11.7 ")
         or "http.handlers.rate_limit" not in modules
     ):
         msg = "pinned Caddy/module mismatch"
