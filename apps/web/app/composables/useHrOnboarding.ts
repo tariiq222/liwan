@@ -203,10 +203,6 @@ export function useHrOnboardingRun(id: MaybeRefOrGetter<number | null>) {
   return useHrPlanRun(HR_ONBOARDING, id)
 }
 
-export function useCreateHrOnboardingPlan() {
-  return useCreateHrActivityPlan(HR_ONBOARDING)
-}
-
 export function usePatchHrOnboardingPlan() {
   return usePatchHrActivityPlan(HR_ONBOARDING)
 }
