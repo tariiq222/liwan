@@ -26,6 +26,24 @@ jobs sign in and work, and requests move between people and applications.
 | [platform.md](platform.md) | Notifications (bell), people picker, assistant, feature switches |
 | [journeys.md](journeys.md) | Journeys that cross applications (requests, approvals, money, people) |
 
+## Completeness
+
+The register must name every customer surface the code exposes: every page of `apps/web`
+and `apps/vendor-admin`, every Odoo route under `odoo-addons/webvue_*/controllers` and every
+capability. Each row lists what it exercises in its Covers column as backticked tokens:
+
+| Token | Surface |
+| --- | --- |
+| `` `page /hr/leave/[id]` `` | A page of `apps/web` (file route, every parameter written `[id]`) |
+| `` `vendor /customers/new` `` | A page of `apps/vendor-admin` |
+| `` `POST /api/v1/hr/leaves/<id>/approve` `` | An Odoo route (every parameter written `<id>`) |
+| `` `cap hr.leave.approve` `` | A capability, allowed or refused |
+
+`python3 -B tools/e2e_scenario_coverage.py` reads the surfaces from the code and prints, per
+application, how many have a scenario and which do not (`--app hr` narrows the report,
+`--check` exits 1 on any gap or on a token that names no surface). A new page, route or
+capability gets its scenarios here in the same change, so the report stays complete.
+
 ## Scenario IDs
 
 Each scenario has a stable ID (`HR-12`, `J-05`). IDs are never reused or renumbered; a dropped
@@ -81,7 +99,8 @@ is reused between runs.
 
 ## Adding or changing a scenario
 
-1. Add or edit the row in the application's file (new ID at the end of its prefix).
+1. Add or edit the row in the application's file (new ID at the end of its prefix), with
+   its Covers tokens, then run the coverage report.
 2. When a test covers it, put the test file in the Test column and the ID in the test title,
    for example `test('[HR-12] employee withdraws a pending leave request', ...)`.
 3. A manual pass records the date and evidence (screenshot path or run id) in Notes.

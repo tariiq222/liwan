@@ -325,6 +325,8 @@ The runner is `e2e` (config: `e2e.config.ts`, models: `e2e/models.ts`, tests:
 The register of end-user scenarios, with the personas and the status of each scenario
 (planned, manual, automated, failing, gap), is [e2e/scenarios](../e2e/scenarios/README.md).
 A test that covers a scenario cites its ID in the title and updates its row in the same change.
+`python3 -B tools/e2e_scenario_coverage.py` lists every page, Odoo route and capability that has no
+scenario yet (`--check` exits 1 on a gap).
 
 - `npm run e2e` runs all tests, `npm run e2e:smoke` runs the smoke test, and
   `npm run e2e -- e2e/tests/<file>.e2e.ts` runs one file. All args are forwarded to
