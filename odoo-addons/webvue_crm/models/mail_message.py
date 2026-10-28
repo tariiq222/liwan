@@ -13,4 +13,4 @@ class WebVueCrmMailMessage(models.Model):
         ('crm.needs_manager', 'Opportunity needs a manager decision'),
     ])
     # How many opportunities one ``crm.assigned`` bell stands for (the body names the first); the UI words the title.
-    webvue_crm_count = fields.Integer(default=1)
+    webvue_crm_count = fields.Integer(default=1, copy=False)

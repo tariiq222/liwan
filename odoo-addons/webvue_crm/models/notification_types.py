@@ -10,6 +10,7 @@ from odoo import api, models
 from odoo.tools import html2plaintext
 
 from odoo.addons.webvue_api.serializers.common import iso
+from odoo.addons.webvue_crm.models.crm_settings import TERM_MEMO
 from odoo.addons.webvue_crm.serializers.settings import dump_terms
 
 KINDS = ('crm.assigned', 'crm.followup_due', 'crm.needs_manager')
@@ -76,7 +77,8 @@ class WebVueCrmNotificationTypes(models.AbstractModel):
         """The word for an opportunity as its own company calls it, in both languages, so the UI words the title.
 
         The caller reads the opportunity in one of their companies (the visibility branch), so the settings of that
-        company are read in the caller's environment, as the ``/crm/terms`` route does.
+        company are read in the caller's environment, as the ``/crm/terms`` route does. Computed once per company in a
+        transaction (the settings model drops the memo when it changes). With no readable company the current one answers.
         """
         company = self.env['res.company']
         for candidate in self.env.user.company_ids:
@@ -84,5 +86,9 @@ class WebVueCrmNotificationTypes(models.AbstractModel):
             if lead.has_access('read'):
                 company = lead.company_id
                 break
-        effective = self.env['webvue.crm.settings'].with_company(company)._webvue_effective()
-        return dump_terms(effective)['opportunity']
+        company = company or self.env.company
+        memo = self.env.cr.cache.setdefault(TERM_MEMO, {})
+        if company.id not in memo:
+            effective = self.env['webvue.crm.settings'].with_company(company)._webvue_effective()
+            memo[company.id] = dump_terms(effective)['opportunity']
+        return memo[company.id]

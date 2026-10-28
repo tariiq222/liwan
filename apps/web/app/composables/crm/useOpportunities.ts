@@ -66,6 +66,12 @@ export function nextCallOffset(pages: readonly CrmCallList[]): number | undefine
   return last.items.length > 0 && loaded < last.total ? loaded : undefined
 }
 
+/** The pages' calls in order, one row per call: a call recorded between two page loads shifts the offsets and repeats a row. */
+export function mergeCallPages(pages: readonly CrmCallList[]): CrmCall[] {
+  const seen = new Set<number>()
+  return pages.flatMap(page => page.items).filter(call => !seen.has(call.id) && !!seen.add(call.id))
+}
+
 /** The calls of one opportunity, newest first; `fetchNextPage` loads the next older page. */
 export function useCrmCalls(id: MaybeRefOrGetter<number>) {
   const { $api } = useApi()
@@ -77,7 +83,7 @@ export function useCrmCalls(id: MaybeRefOrGetter<number>) {
     queryFn: ({ pageParam }) => $api(`/api/v1/crm/opportunities/${toValue(id)}/calls`, { query: { limit: CRM_CALL_PAGE, offset: pageParam }, schema: CrmCallListSchema }),
     getNextPageParam: (_last, pages) => nextCallOffset(pages),
   })
-  const items = computed<CrmCall[]>(() => query.data.value?.pages.flatMap(page => page.items) ?? [])
+  const items = computed<CrmCall[]>(() => mergeCallPages(query.data.value?.pages ?? []))
   return { ...query, items }
 }
 

@@ -11,6 +11,7 @@ import {
   type BellNotification,
 } from '@/composables/useNotifications'
 import { bellKindFor } from '@/modules/surfaces'
+import { declaredBellTitle } from '@/utils/bellTitle'
 import { formatNotificationTimestamp, genericNotificationText, isUserWrittenNotificationKind, notificationBody } from '@/utils/notificationPresentation'
 
 const { t, locale } = useI18n()
@@ -78,11 +79,12 @@ function itemTitle(item: BellNotification) {
   if (isMeetingNotification(item)) return item.meeting_name
   if (isProjectNotification(item)) return item.project_name
   if (isKnownNotification(item)) return item.task_name
-  return genericNotificationText(item).title
+  // A kind an application registers words its own title; the sentence is not the plain name.
+  return declaredBellTitle(item, t) ?? genericNotificationText(item).title
 }
 
 function itemSecondary(item: BellNotification) {
-  if (isKnownNotification(item)) return ''
+  if (isKnownNotification(item) || bellKindFor(item.kind)?.title) return ''
   return genericNotificationText(item).secondary
 }
 

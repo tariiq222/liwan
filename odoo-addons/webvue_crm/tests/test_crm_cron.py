@@ -189,6 +189,15 @@ class TestCrmCron(WebVueCrmCase):
         self.assertEqual((item['term']['en'], item['term']['gender']), ({'singular': 'opportunity', 'plural': 'opportunities'}, 'm'))
         self.assertEqual(item['opportunity_id'], lead.id)
 
+    def test_the_company_term_is_read_once_for_many_bell_rows(self):
+        (self.due_lead() | self.due_lead())._webvue_notify_assigned()
+        self.Followup._webvue_cron_tick(now=NOW)
+        Settings = type(self.env['webvue.crm.settings'])
+        with patch.object(Settings, '_webvue_effective', autospec=True, side_effect=Settings._webvue_effective) as effective:
+            items = self.as_user(self.agent).api('GET', NOTIFICATIONS).json()['items']
+        self.assertGreaterEqual(len(items), 2)
+        self.assertEqual(effective.call_count, 1)
+
     def test_a_batch_bell_carries_the_first_name_and_the_count_not_prose(self):
         first, second = self.make_lead(self.agent, contact_name='Mona'), self.make_lead(self.agent, contact_name='Huda')
         (first | second)._webvue_notify_assigned()
