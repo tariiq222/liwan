@@ -198,6 +198,8 @@ export const MeetingSeriesListItemSchema = z.object({
   id: z.number().int(),
   name: z.string(),
   recurrence: z.enum(['none', 'weekly', 'biweekly', 'monthly']),
+  // False once the series is ended: it stays listed, takes no new meeting.
+  active: z.boolean(),
   until_date: z.string().nullable(),
   until_count: z.number().int().nullable(),
   organizer: MeetingPersonSchema.nullable(),
@@ -218,6 +220,8 @@ export const MeetingSeriesDetailSchema = MeetingSeriesListItemSchema.extend({
   attendees: z.array(MeetingPersonSchema),
   meetings: z.array(MeetingListItemSchema),
   can_edit: z.boolean().optional(),
+  // The server's answer to "may this caller end the series now": editor, active, and manager or nothing upcoming.
+  can_end: z.boolean().optional(),
 }).strip()
 
 export const MeetingSeriesCreateSchema = z.object({

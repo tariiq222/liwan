@@ -290,6 +290,7 @@ def dump_series(series, *, detail=False, counts=None):
         'id': series.id,
         'name': series.name,
         'recurrence': series.recurrence,
+        'active': series.active,
         'until_date': str(series.until_date) if series.until_date else None,
         'until_count': series.until_count or None,
         'organizer': dump_person(series.organizer_id),
@@ -305,5 +306,6 @@ def dump_series(series, *, detail=False, counts=None):
             'attendees': [dump_person(user) for user in series.attendee_ids],
             'meetings': [dump_meeting(meeting, counts=counts) for meeting in meetings.sorted(key=_meeting_order_key)],
             'can_edit': bool(series._webvue_is_editor()),
+            'can_end': series._webvue_can_end(),
         })
     return payload

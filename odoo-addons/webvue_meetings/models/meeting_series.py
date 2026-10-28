@@ -22,6 +22,8 @@ class WebVueMeetingSeries(models.Model):
     _check_company_auto = True
 
     name = fields.Char(required=True)
+    # False once the series is ended: its occurrences and minutes stay, no new one can be added.
+    active = fields.Boolean(default=True)
     company_id = fields.Many2one(
         'res.company', required=True, index=True,
         default=lambda self: self.env.company,
@@ -79,6 +81,12 @@ class WebVueMeetingSeries(models.Model):
     def _webvue_is_editor(self):
         self.ensure_one()
         return self._webvue_is_manager() or self.env.user in (self.organizer_id | self.secretary_id)
+
+    def _webvue_assert_open(self):
+        """An ended series takes no new meeting, however the link is made."""
+        self.ensure_one()
+        if not self.active:
+            raise UserError(self.env._("This series has ended; no meetings can be added to it."))
 
     def _webvue_participants(self):
         self.ensure_one()
@@ -140,6 +148,47 @@ class WebVueMeetingSeries(models.Model):
             vals['end_datetime'] = stop
             vals['meeting_date'] = self._webvue_local_start(start).date()
         return self.env['webvue.meeting.minute'].create(vals)
+
+    def _webvue_upcoming_open_meetings(self):
+        """Occurrences ending the series would cancel: not locked, and still ahead."""
+        self.ensure_one()
+        now = fields.Datetime.now()
+        today = fields.Date.context_today(self)
+
+        def upcoming(meeting):
+            if meeting.state in meeting._LOCKED_STATES:
+                return False
+            if meeting.start_datetime:
+                return meeting.start_datetime > now
+            return not meeting.meeting_date or meeting.meeting_date >= today
+
+        return self.meeting_ids.filtered(upcoming)
+
+    def _webvue_can_end(self):
+        """An editor may end an active series; cancelling meetings in it also takes manager rights."""
+        self.ensure_one()
+        return bool(
+            self.active and self._webvue_is_editor()
+            and (self._webvue_is_manager() or not self._webvue_upcoming_open_meetings()),
+        )
+
+    def action_cancel_series(self):
+        """End the series: cancel every upcoming open occurrence, then archive it.
+
+        Held, cancelled and past occurrences, their minutes and their versions are kept as they are.
+        """
+        self.ensure_one()
+        if self.company_id != self.env.company:
+            raise AccessError(self.env._("The meeting series is outside the current company."))
+        if not self._webvue_is_editor():
+            raise AccessError(self.env._("Only the organizer, secretary or a meetings manager may end this series."))
+        if not self.active:
+            return self
+        if not self._webvue_can_end():
+            raise AccessError(self.env._("Only a meetings manager may cancel the upcoming meetings of a series."))
+        self._webvue_upcoming_open_meetings().action_cancel()
+        self.active = False
+        return self
 
     def action_generate_occurrences(self, start, stop):
         self.ensure_one()

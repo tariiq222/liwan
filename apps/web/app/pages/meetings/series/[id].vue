@@ -6,7 +6,7 @@ import { SERIES_LIST_PATHS } from '@/modules/meetings/navigation'
 import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 import MeetingEventList from '@/components/meetings/MeetingEventList.vue'
 import MeetingTimeline from '@/components/meetings/MeetingTimeline.vue'
-import { useAddSeriesOccurrence, useMeetingSeries } from '@/composables/useMeetings'
+import { useAddSeriesOccurrence, useCancelMeetingSeries, useMeetingSeries } from '@/composables/useMeetings'
 import { useMeetingFormFeedback } from '@/composables/useMeetingFormFeedback'
 import { useMeetingSubmitError } from '@/composables/useMeetingSubmitError'
 import { buildOccurrencePayload, occurrenceFormErrors } from '@/utils/meetingOccurrence'
@@ -43,6 +43,7 @@ const headerTags = computed<PageHeaderTag[]>(() => {
   const series = query.data.value
   if (!series) return []
   return [
+    ...(series.active ? [] : [{ label: t('meetingsUx.seriesEnded'), tone: 'neutral' as const, testId: 'meeting-series-ended-badge' }]),
     { label: t(`meetingsUi.recurrence.${series.recurrence}`), icon: 'i-lucide-repeat', kind: 'schedule' },
     { label: series.organizer?.name || t('meetingTimeline.noOrganizer'), icon: 'i-lucide-user', kind: 'person' },
     ...(series.project ? [{ label: series.project.name, icon: 'i-lucide-folder-kanban', kind: 'project' as const }] : []),
@@ -185,8 +186,29 @@ function submitOccurrence() {
 const canAddOccurrence = computed(() => {
   const series = query.data.value
   const userId = me.value?.id
-  return can('meetings.create') && (can('meetings.manage') || (userId !== undefined && (series?.organizer?.id === userId || series?.secretary?.id === userId)))
+  return series?.active === true && can('meetings.create') && (can('meetings.manage') || (userId !== undefined && (series?.organizer?.id === userId || series?.secretary?.id === userId)))
 })
+
+// Ending a series cancels its upcoming meetings, so it asks inline first; the server decides who may.
+const cancelSeries = useCancelMeetingSeries()
+const confirmingEnd = ref(false)
+const endError = ref('')
+const canEndSeries = computed(() => query.data.value?.can_end === true)
+// An unsaved occurrence would be dropped when the ended series closes its form, so the editor saves or discards it first.
+function requestEndSeries() {
+  endError.value = occurrenceDirty.value ? t('meetingsUx.endSeriesUnsaved') : ''
+  confirmingEnd.value = !occurrenceDirty.value
+}
+async function endSeries() {
+  if (!hydrated.value || cancelSeries.isPending.value || id.value === null || occurrenceDirty.value) return
+  endError.value = ''
+  try {
+    await cancelSeries.mutateAsync(id.value)
+    confirmingEnd.value = false
+  } catch (error) {
+    endError.value = error instanceof ApiError ? error.message : t('errors.generic')
+  }
+}
 
 const followupSearch = computed({ get: () => routeValue('followup_q'), set: value => setQuery({ followup_q: value.trim() || undefined, followup_page: undefined }) })
 const followupState = computed({ get: () => routeValue('followup_state'), set: value => setQuery({ followup_state: value || undefined, followup_page: undefined }) })
@@ -252,12 +274,17 @@ function setHistoryPage(page: number) {
     <template #actions>
       <UButton v-if="query.data.value?.can_edit === true" color="neutral" variant="outline" :to="recordChildTo(`/meetings/series/${id}/edit`, route.query, sourcePaths, route.hash)" :label="t('meetingsUx.seriesSettingsLink')" />
       <UButton v-if="canAddOccurrence && !addingOccurrence" icon="i-lucide-plus" :disabled="!hydrated" :label="t('meetingsUi.addOccurrence')" data-testid="meeting-add-occurrence" @click="addingOccurrence = true" />
+      <UDropdownMenu v-if="canEndSeries" :items="[[{ label: t('meetingsUx.endSeriesAction'), icon: 'i-lucide-ban', color: 'error', disabled: cancelSeries.isPending.value, onSelect: requestEndSeries }]]" :content="{ align: 'end' }">
+        <UButton color="neutral" variant="outline" square icon="i-lucide-ellipsis" :aria-label="t('app.actions')" :disabled="!hydrated" data-testid="meeting-series-more-actions" />
+      </UDropdownMenu>
     </template>
     <template #tabs>
       <SharedRouteTabs data-testid="meeting-series-tabs" variant="pill" :items="tabLinks" :ariaLabel="t('meetingTimeline.sections')" />
     </template>
 
     <div v-if="query.data.value" class="grid min-w-0 gap-(--webvue-gap-card)">
+      <UAlert v-if="endError" role="alert" color="error" variant="subtle" :title="endError" />
+      <SharedInlineConfirm v-if="confirmingEnd && canEndSeries" color="error" :title="t('meetingsUx.confirmEndSeries')" :confirm-label="t('meetingsUx.endSeriesConfirmLabel')" :pending="cancelSeries.isPending.value" @cancel="confirmingEnd = false" @confirm="endSeries" />
       <form v-if="addingOccurrence && canAddOccurrence" ref="occurrenceForm" novalidate data-testid="meeting-occurrence-form" @submit.prevent="submitOccurrence">
         <SharedUnsavedChanges :dirty="occurrenceDirty" />
         <SharedFormSection panel :title="t('meetingsUx.occurrence.title')" :description="t('meetingsUx.occurrence.hint')">

@@ -150,7 +150,12 @@ function setPage(next: number) {
         <template #name-cell="{ row }">
           <NuxtLink :to="seriesTo(row.original)" class="block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" @click.capture="openRecord($event, row.original)">{{ row.original.name }}</NuxtLink>
         </template>
-        <template #recurrence-cell="{ row }"><SharedStatusBadge tone="neutral" icon="i-lucide-repeat" :label="t(`meetingsUi.recurrence.${row.original.recurrence}`)" /></template>
+        <template #recurrence-cell="{ row }">
+          <div class="flex flex-wrap items-center gap-2">
+            <SharedStatusBadge tone="neutral" icon="i-lucide-repeat" :label="t(`meetingsUi.recurrence.${row.original.recurrence}`)" />
+            <SharedStatusBadge v-if="!row.original.active" tone="neutral" icon="i-lucide-circle-slash" :label="t('meetingsUx.seriesEnded')" data-testid="meeting-series-ended-badge" />
+          </div>
+        </template>
         <template #organizer-cell="{ row }">
           <div v-if="row.original.organizer" class="flex min-w-0 items-center gap-2"><SharedPersonAvatar :people="[row.original.organizer]" /><span class="min-w-0 truncate text-muted">{{ row.original.organizer.name }}</span></div>
           <span v-else class="text-muted">—</span>
@@ -165,7 +170,7 @@ function setPage(next: number) {
         <template #mobile-row="{ row: series }">
           <NuxtLink :to="seriesTo(series)" @click.capture="openRecord($event, series)" class="flex min-w-0 flex-wrap items-start gap-x-4 gap-y-2 focus-visible:outline-none">
             <span class="min-w-0 flex-1 break-words font-semibold text-highlighted">{{ series.name }}</span>
-            <span class="ms-auto text-end text-sm text-muted">{{ t(`meetingsUi.recurrence.${series.recurrence}`) }}</span>
+            <span class="ms-auto text-end text-sm text-muted">{{ t(`meetingsUi.recurrence.${series.recurrence}`) }}<template v-if="!series.active"> · {{ t('meetingsUx.seriesEnded') }}</template></span>
             <span class="basis-full text-xs text-muted">
               <span v-if="series.organizer">{{ t('meetingsUi.organizer') }}: {{ series.organizer.name }}</span>
               <span v-if="series.organizer && series.project"> · </span>

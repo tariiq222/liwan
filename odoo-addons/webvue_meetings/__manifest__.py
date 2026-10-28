@@ -2,7 +2,7 @@
 {
     'name': 'webvue Meetings',
     'summary': 'webvue platform: meetings, series, minutes and recommendations — /api/v1/meetings, /api/v1/meeting-series',
-    'version': '19.0.1.2.2',
+    'version': '19.0.1.3.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi, Cyan',
     'license': 'LGPL-3',

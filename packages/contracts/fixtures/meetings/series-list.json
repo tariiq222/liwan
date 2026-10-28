@@ -1,6 +1,7 @@
 {
   "items": [
     {
+      "active": true,
       "id": 1,
       "name": "Mixed",
       "open_resolution_count": 0,

@@ -175,6 +175,11 @@
     "confirmResolutionAction": "Confirm this action for “{name}”?",
     "confirmMeetingAction": "Confirm this action for “{name}” ({scope})?",
     "seriesSettingsLink": "Series settings",
+    "seriesEnded": "Ended",
+    "endSeriesAction": "End series",
+    "endSeriesConfirmLabel": "End series",
+    "endSeriesUnsaved": "Save or discard the new meeting you are adding before ending the series.",
+    "confirmEndSeries": "End this series? Its upcoming meetings are cancelled and no new meeting can be added. Held meetings and their minutes are kept.",
     "occurrence": {
       "title": "New occurrence in this series",
       "hint": "The new occurrence inherits the location, attendees and secretary from the series. The name and time are optional; if you set a date, enter both a start and an end time.",

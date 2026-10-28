@@ -259,6 +259,18 @@ export function useCreateMeetingSeries() {
   })
 }
 
+export function useCancelMeetingSeries() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: (seriesId: number) => $api(`/api/v1/meeting-series/${seriesId}/cancel`, {
+      method: 'POST',
+      schema: MeetingSeriesDetailSchema,
+    }),
+    onSuccess: () => invalidateMeetingCaches(qc),
+  })
+}
+
 export function useAddSeriesOccurrence() {
   const qc = useQueryClient()
   const { $api } = useApi()
