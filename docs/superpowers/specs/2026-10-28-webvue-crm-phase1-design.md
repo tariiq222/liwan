@@ -1,6 +1,6 @@
 # WebVue CRM, phase 1
 
-Status: design for owner approval, 2026-10-28. Nothing here is implemented yet.
+Status: approved by the owner on 2026-10-28. Nothing here is implemented yet.
 
 ## Intent
 
@@ -70,8 +70,8 @@ type (R6).
   `6051e0bfffd1c89b1a52585aaf322b6c2bcff6f2`). `OCA/crm` is added to `deploy/oca-addons.json` pinned to
   that commit, and to the addons path and deploy images like the other OCA repositories; the owner's
   standing authorization covers this under `docs/UPDATE_POLICY.md`.
-- The constitution section is added to AGENTS.md by PR tariiq222/webvue#130 (branch
-  `codex/docs-configurable-apps`); this design already follows it.
+- The constitution is the AGENTS.md section "Configurable, sector-flexible applications — owner
+  constitution 2026-10-28" (merged by tariiq222/webvue#130).
 - No `sudo()` anywhere in `webvue_crm` (none is expected; document any case per R7 if one is truly
   needed).
 - Every route: `type='json2'`, `auth='user'`, `@api_handler`, `requires_feature('crm.enabled')`,
