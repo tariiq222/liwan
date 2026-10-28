@@ -42,9 +42,15 @@ export function useCrmSettingsCard<Draft>(options: CardOptions<Draft>) {
     baseline.value = settings
     draft.value = copy(options.read(settings.values))
   }
-  // Another card's save refreshes the settings: a card with no edits follows, a card with edits keeps its own revision.
+  const owned = (settings: CrmSettings) => JSON.stringify(options.read(settings.values))
+  // Another card's save, or a refetch, refreshes the settings. A card with no edits follows. A card with edits follows
+  // only the revision when the fields it owns are unchanged; when they changed it locks like a 409, so its stale
+  // draft cannot overwrite them.
   watch(options.settings, (settings) => {
-    if (!dirty.value && !reloading.value && !saving.value && !conflict.value) adopt(settings)
+    if (reloading.value || saving.value || conflict.value) return
+    if (!dirty.value) adopt(settings)
+    else if (owned(settings) === owned(baseline.value)) baseline.value = settings
+    else failure.value = new ApiError(409, 'conflict', 'CRM settings changed; reload before saving')
   })
   async function save() {
     if (saving.value || reloading.value || !dirty.value || conflict.value) return

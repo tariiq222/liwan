@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 import type { CrmSettings } from '@webvue/contracts'
 import { ApiError } from '../../useApi'
 
@@ -83,5 +83,31 @@ describe('useCrmSettingsCard', () => {
     await a.reload()
     expect(a.shell.value.conflict).toBe(false)
     expect(a.draft.value.visibility).toBe('all')
+  })
+
+  it('locks a dirty card when a newer revision changed the fields it owns', async () => {
+    const a = privacy()
+    a.draft.value.visibility = 'team'
+    serverRevision = 3
+    settings.value = { ...settings.value, revision: 3, values: { ...settings.value.values, visibility: 'all' } }
+    await nextTick()
+    expect(a.shell.value.conflict).toBe(true)
+    expect(a.shell.value.message).toBe('crm.settings.conflict')
+    expect(a.draft.value.visibility).toBe('team')
+    await a.save()
+    expect(save).not.toHaveBeenCalled()
+  })
+
+  it('lets a dirty card follow a newer revision that changed only other cards fields', async () => {
+    const a = privacy()
+    a.draft.value.visibility = 'team'
+    serverRevision = 3
+    settings.value = { ...settings.value, revision: 3, values: { ...settings.value.values, discount_allowed: true } }
+    await nextTick()
+    expect(a.shell.value.conflict).toBe(false)
+    expect(a.draft.value.visibility).toBe('team')
+    await a.save()
+    expect(save).toHaveBeenLastCalledWith({ revision: 3, values: { visibility: 'team', view_log_enabled: false } })
+    expect(a.shell.value.conflict).toBe(false)
   })
 })
