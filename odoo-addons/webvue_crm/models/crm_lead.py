@@ -30,6 +30,21 @@ class CrmLead(models.Model):
     webvue_recycle_at = fields.Datetime(string='Recycle on', index='btree_not_null', copy=False)
     webvue_needs_manager = fields.Boolean(string='Needs a manager decision', index=True, copy=False)
 
+    # One phone per company: the existence check answers early; this index decides under concurrency.
+    _webvue_phone_company_unique = models.UniqueIndex(
+        '(company_id, phone_sanitized) WHERE phone_sanitized IS NOT NULL',
+        'duplicate phone',
+    )
+    _webvue_discount_range = models.Constraint(
+        'CHECK(webvue_discount_percent BETWEEN 0 AND 100)', 'the discount is between 0 and 100 percent',
+    )
+    _webvue_list_price_positive = models.Constraint(
+        'CHECK(webvue_list_price >= 0)', 'the package price cannot be negative',
+    )
+    _webvue_final_price_positive = models.Constraint(
+        'CHECK(webvue_final_price >= 0)', 'the final price cannot be negative',
+    )
+
     @api.depends('webvue_final_price')
     def _compute_expected_revenue(self):
         for lead in self:
@@ -52,6 +67,11 @@ class CrmLead(models.Model):
             )
         except UserError:
             return False
+
+    @api.model
+    def _webvue_is_duplicate_phone(self, error):
+        """Whether a UniqueViolation ``error`` comes from the one-phone-per-company index."""
+        return error.diag.constraint_name == type(self)._webvue_phone_company_unique.full_name(self)
 
     @api.model
     def _webvue_find_duplicate(self, phone_e164, company):

@@ -21,7 +21,7 @@ class CrmVisibilityCase(WebVueCrmCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.agent3 = cls._user('crm_agent3', 'CRM Agent Three', 'webvue_crm.role_crm_agent')
-        cls.env['crm.team'].create({
+        cls.team_a = cls.env['crm.team'].create({
             'name': 'Team A', 'company_id': cls.company.id,
             'crm_team_member_ids': [Command.create({'user_id': cls.agent.id}), Command.create({'user_id': cls.agent2.id})],
         })
@@ -52,22 +52,26 @@ class CrmVisibilityCase(WebVueCrmCase):
         return self.as_user(user).api('PATCH', f'{URL}/{lead.id}', json={'contact_name': 'Renamed'}).status_code
 
     def attachment_leads(self, user):
-        rows = self.env['ir.attachment'].with_user(user).search([
+        rows = self.orm(user, 'ir.attachment').search([
             ('res_model', '=', 'crm.lead'), ('res_id', 'in', self.fixture.ids),
         ])
         return set(rows.mapped('res_id'))
 
     def message_leads(self, user):
-        rows = self.env['mail.message'].with_user(user).search([
+        rows = self.orm(user, 'mail.message').search([
             ('model', '=', 'crm.lead'), ('res_id', 'in', self.fixture.ids),
         ])
         return set(rows.mapped('res_id'))
 
+    def orm(self, user, model):
+        """``model`` as ``user`` with the main company as the only active one, as the API pins it."""
+        return self.env[model].with_user(user).with_context(allowed_company_ids=[self.company.id])
+
     def exported(self, user):
         """The export domain helper, evaluated without rules, must equal what the rules let through."""
-        domain = self.env['webvue.crm.visibility']._webvue_domain(user)
-        mirror = set(self.env['crm.lead'].search(domain).ids) & set(self.fixture.ids)
-        ruled = self.env['crm.lead'].with_user(user).search([
+        pinned = self.env['webvue.crm.visibility'].with_context(allowed_company_ids=[self.company.id])
+        mirror = set(self.env['crm.lead'].search(pinned._webvue_domain(user)).ids) & set(self.fixture.ids)
+        ruled = self.orm(user, 'crm.lead').search([
             ('company_id', '=', self.company.id), ('type', '=', 'opportunity'),
         ])
         self.assertEqual(mirror, set(ruled.ids) & set(self.fixture.ids), 'domain helper and record rules differ')
@@ -149,6 +153,21 @@ class TestCrmVisibilityTeam(CrmVisibilityCase):
         self.env['crm.team.member'].search([('user_id', '=', self.agent2.id)]).write({'active': False})
         self.assertReads(self.agent, self.own)
 
+    def test_archived_team_no_longer_shares(self):
+        self.team_a.active = False
+        self.assertReads(self.agent, self.own)
+
+    def test_team_of_another_company_does_not_share(self):
+        self.env['ir.config_parameter'].set_param('sales_team.membership_multi', True)
+        for user in (self.agent, self.agent3):
+            user.write({'company_ids': [Command.link(self.other_company.id)]})
+        self.env['crm.team'].create({
+            'name': 'Team B', 'company_id': self.other_company.id,
+            'crm_team_member_ids': [Command.create({'user_id': self.agent.id}), Command.create({'user_id': self.agent3.id})],
+        })
+        self.assertReads(self.agent, self.own | self.mate)
+        self.assertEqual(self.detail_status(self.agent, self.outside), 404)
+
     def test_manager_reads_all(self):
         self.check_managers_read_every_company_opportunity()
 
@@ -211,3 +230,81 @@ class TestCrmVisibilityChanges(CrmVisibilityCase):
             'company_id': self.company.id,
         }])
         self.assertEqual(self.listed(self.agent), {self.own.id, self.mate.id, self.outside.id, self.unassigned.id})
+
+
+@tagged('post_install', '-at_install', 'webvue')
+class TestCrmVisibilityCompanyMembership(WebVueCrmCase):
+    """A CRM role in company A grants nothing in company B, where the user is only a member.
+
+    Capability groups are the union over every company of the user, so the record rules must
+    scope each branch (own, all, team, assign) to the companies where the user holds
+    crm.leads.read. An own opportunity in such a company is hidden as well: no CRM capability
+    there means no CRM data there.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.env['ir.config_parameter'].set_param('sales_team.membership_multi', True)
+        cls.company_b = cls.other_company
+        # agent and agent2 hold the agent role in A only; agent3 holds it in A and B.
+        cls.agent3 = cls._user('crm_agent3', 'CRM Agent Three', 'webvue_crm.role_crm_agent')
+        for user in (cls.agent, cls.agent2, cls.agent3, cls.manager):
+            user.write({'company_ids': [Command.link(cls.company_b.id)]})
+        cls.env['webvue.access.assignment'].create({
+            'user_id': cls.agent3.id, 'role_id': cls.env.ref('webvue_crm.role_crm_agent').id,
+            'company_id': cls.company_b.id,
+        })
+        cls.env['crm.team'].create({
+            'name': 'Team B', 'company_id': cls.company_b.id,
+            'crm_team_member_ids': [Command.create({'user_id': user.id}) for user in (cls.agent, cls.agent2, cls.agent3)],
+        })
+        cls.own_b = cls.make_lead(cls.agent, company=cls.company_b, contact_name='Own in B')
+        cls.mate_b = cls.make_lead(cls.agent2, company=cls.company_b, contact_name='Teammate in B')
+        cls.pool_b = cls.make_lead(None, company=cls.company_b, contact_name='Pool in B')
+        cls.leads_b = cls.own_b | cls.mate_b | cls.pool_b
+        for lead in cls.leads_b:
+            cls.env['ir.attachment'].create({
+                'name': f'file-{lead.id}.txt', 'raw': b'x', 'res_model': 'crm.lead', 'res_id': lead.id,
+            })
+            lead.message_post(body='note', message_type='comment', subtype_xmlid='mail.mt_note')
+
+    def orm(self, user, model):
+        """``model`` as ``user`` with company B as the current company and A also active."""
+        return self.env[model].with_user(user).with_context(allowed_company_ids=[self.company_b.id, self.company.id])
+
+    def read_b(self, user):
+        """Opportunities of company B reachable through the ORM: records, attachments, messages."""
+        ids = self.leads_b.ids
+        leads = set(self.orm(user, 'crm.lead').search([('id', 'in', ids)]).ids)
+        attachments = set(self.orm(user, 'ir.attachment').search([
+            ('res_model', '=', 'crm.lead'), ('res_id', 'in', ids),
+        ]).mapped('res_id'))
+        messages = set(self.orm(user, 'mail.message').search([
+            ('model', '=', 'crm.lead'), ('res_id', 'in', ids),
+        ]).mapped('res_id'))
+        return leads, attachments, messages
+
+    def test_every_mode_hides_company_b_from_a_user_without_a_role_there(self):
+        for mode in ('own', 'team', 'all'):
+            with self.subTest(mode=mode):
+                self.set_visibility(mode, company=self.company_b)
+                for user in (self.agent, self.manager):
+                    self.assertEqual(self.read_b(user), (set(), set(), set()), user.login)
+                with self.assertRaises(AccessError):
+                    self.own_b.with_user(self.agent).with_context(
+                        allowed_company_ids=[self.company_b.id, self.company.id],
+                    ).write({'contact_name': 'Changed'})
+                domain = self.env['webvue.crm.visibility'].with_company(self.company_b)._webvue_domain(self.agent)
+                self.assertFalse(self.env['crm.lead'].search(domain))
+
+    def test_a_role_in_company_b_applies_the_mode_there(self):
+        # agent3 owns nothing in B; Team B holds agent, agent2 and agent3.
+        assigned = {self.own_b.id, self.mate_b.id}
+        expected = {'own': set(), 'team': assigned, 'all': assigned}
+        for mode, ids in expected.items():
+            with self.subTest(mode=mode):
+                self.set_visibility(mode, company=self.company_b)
+                self.assertEqual(self.read_b(self.agent3), (ids, ids, ids))
+                domain = self.env['webvue.crm.visibility'].with_company(self.company_b)._webvue_domain(self.agent3)
+                self.assertEqual(set(self.env['crm.lead'].search(domain).ids), ids)

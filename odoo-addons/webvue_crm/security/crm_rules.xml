@@ -2,14 +2,18 @@
 <odoo>
     <!-- The opportunity visibility policy (spec "Visibility, enforced on the server").
          Global rules (no group) are AND-ed with every other rule, so the stock "Personal Leads"
-         and all-leads group rules can never widen what WebVue allows. The modes are read from the
-         opportunity's company settings inside the query; a company without a settings row reads
-         as the default `own`. Unassigned opportunities pass only for crm.leads.assign holders.
-         models/visibility.py `_webvue_domain` is the Python mirror; keep both in step. -->
+         and all-leads group rules can never widen what WebVue allows. Capability groups are the
+         union over all the user's companies, so every branch is scoped to the companies where the
+         user holds crm.leads.read (no CRM capability in a company means no CRM data there, own
+         opportunities included). The mode is read from the opportunity's company settings inside
+         the query; a company without a settings row reads as the default `own`. Unassigned
+         opportunities pass only for crm.leads.assign holders. models/visibility.py
+         `_webvue_domain` and `_webvue_check_write` are the Python mirror; keep them in step. -->
     <record id="rule_crm_lead_visibility_read" model="ir.rule">
         <field name="name">webvue CRM opportunities: visibility policy (read)</field>
         <field name="model_id" ref="crm.model_crm_lead"/>
         <field name="domain_force">[
+            ('company_id', 'in', user.webvue_crm_read_company_ids.ids),
             '|', '|', '|',
             ('user_id', '=', user.id),
             ('company_id', 'in', user.webvue_crm_assign_company_ids.ids),
@@ -17,6 +21,8 @@
             '&amp;', ('company_id.webvue_crm_settings_ids.visibility', '=', 'team'),
             ('user_id.crm_team_member_ids', 'any', [
                 ('active', '=', True),
+                ('crm_team_id.active', '=', True),
+                ('crm_team_id.company_id', 'in', company_ids + [False]),
                 ('crm_team_id.crm_team_member_ids', 'any', [('active', '=', True), ('user_id', '=', user.id)]),
             ]),
         ]</field>
@@ -26,9 +32,12 @@
         <field name="perm_unlink" eval="False"/>
     </record>
     <record id="rule_crm_lead_visibility_write" model="ir.rule">
-        <field name="name">webvue CRM opportunities: own, or every one where the user may assign (write)</field>
+        <field name="name">webvue CRM opportunities: own where the user reads CRM, or any where they may assign (write)</field>
         <field name="model_id" ref="crm.model_crm_lead"/>
-        <field name="domain_force">['|', ('user_id', '=', user.id), ('company_id', 'in', user.webvue_crm_assign_company_ids.ids)]</field>
+        <field name="domain_force">[
+            ('company_id', 'in', user.webvue_crm_read_company_ids.ids),
+            '|', ('user_id', '=', user.id), ('company_id', 'in', user.webvue_crm_assign_company_ids.ids),
+        ]</field>
         <field name="perm_read" eval="False"/>
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="False"/>

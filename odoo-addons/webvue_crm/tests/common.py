@@ -44,9 +44,14 @@ class WebVueCrmCase(WebVueApiCase):
 
     @classmethod
     def make_lead(cls, user=None, company=None, **vals):
-        """An opportunity created as the superuser; ``user`` None leaves it unassigned."""
+        """An opportunity created as the superuser; ``user`` None leaves it unassigned.
+
+        Without the stock "you have been assigned" message: it is addressed to the agent, and
+        stock mail lets a recipient read a message addressed to them whatever the record rules.
+        """
         company = company or cls.company
-        return cls.env['crm.lead'].with_company(company).create({
+        Lead = cls.env['crm.lead'].with_company(company).with_context(mail_auto_subscribe_no_notify=True)
+        return Lead.create({
             'name': vals.get('contact_name', 'Customer'),
             'type': 'opportunity',
             'company_id': company.id,

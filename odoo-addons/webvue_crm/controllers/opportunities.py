@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from psycopg2.errors import UniqueViolation
+
 from odoo import fields, http
 from odoo.http import request
 
@@ -63,6 +65,19 @@ def _normalized_phone(raw, lead=None):
     if (not lead or lead.phone_sanitized != phone) and Lead._webvue_find_duplicate(phone, company):
         raise ApiError(422, 'invalid', DUPLICATE_PHONE, field='phone')
     return phone
+
+
+def _saved(operation):
+    """Run a create or write and flush it; a phone taken meanwhile answers the same 422."""
+    try:
+        with request.env.cr.savepoint():
+            result = operation()
+            request.env.flush_all()
+    except UniqueViolation as error:
+        if not request.env['crm.lead']._webvue_is_duplicate_phone(error):
+            raise
+        raise ApiError(422, 'invalid', DUPLICATE_PHONE, field='phone') from None
+    return result
 
 
 def _check_source(source_id):
@@ -134,14 +149,14 @@ class CrmOpportunitiesController(http.Controller):
         parsed = parse_opportunity_body(payload, creating=True)
         _check_source(parsed.get('source_id'))
         agent = _assignee(parsed)
-        lead = request.env['crm.lead'].create({
+        vals = {
             **_vals(parsed),
             'type': 'opportunity',
             'company_id': request.env.company.id,
             'phone': _normalized_phone(parsed['phone']),
             'user_id': agent.id,
-        })
-        return dump_opportunity(lead)
+        }
+        return dump_opportunity(_saved(lambda: request.env['crm.lead'].create(vals)))
 
     @http.route('/api/v1/crm/opportunities/<int:lead_id>', type='json2', auth='user', methods=['GET'],
                 readonly=False)
@@ -169,5 +184,5 @@ class CrmOpportunitiesController(http.Controller):
         vals = _vals(parsed)
         if 'phone' in parsed:
             vals['phone'] = _normalized_phone(parsed['phone'], lead)
-        lead.write(vals)
+        _saved(lambda: lead.write(vals))
         return dump_opportunity(lead)

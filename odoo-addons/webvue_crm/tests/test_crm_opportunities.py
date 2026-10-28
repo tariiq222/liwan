@@ -1,6 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from psycopg2 import IntegrityError
+
 from odoo import Command
 from odoo.tests import tagged
+from odoo.tools import mute_logger
 
 from .common import WebVueCrmCase
 from odoo.addons.webvue_api.tests.common import set_probe_feature
@@ -47,7 +50,11 @@ class TestCrmOpportunities(WebVueCrmCase):
         self.assertEqual(body['user']['id'], self.agent.id)
 
     def test_phone_is_normalised_from_arabic_digits_and_local_form(self):
-        cases = {'٠٥٠١٢٣٤٥٦٧': '+966501234567', '۰۵۰۷۶۵۴۳۲۱': '+966507654321', '+966 50 111 2222': '+966501112222'}
+        cases = {
+            '٠٥٠١٢٣٤٥٦٧': '+966501234567', '۰۵۰۷۶۵۴۳۲۱': '+966507654321', '+966 50 111 2222': '+966501112222',
+            '501234567': '+966501234567', '00966501234567': '+966501234567', '966501234567': '+966501234567',
+            '050-123-4567': '+966501234567', '\u200f\u202a0501234567\u202c': '+966501234567',
+        }
         for raw, e164 in cases.items():
             self.assertEqual(self.env['crm.lead']._webvue_normalize_phone(raw, self.company), e164, raw)
 
@@ -74,6 +81,32 @@ class TestCrmOpportunities(WebVueCrmCase):
             self.assertNotIn(leak, text)
         Lead = self.env['crm.lead'].with_context(active_test=False)
         self.assertEqual(Lead.search_count([('phone_sanitized', '=', '+966501234567')]), 1)
+
+    def test_duplicate_written_between_check_and_create_is_refused_by_the_index(self):
+        self.make_lead(self.agent2, phone='+966501234567')
+        self.patch(type(self.env['crm.lead']), '_webvue_find_duplicate', lambda *_: False)
+        with mute_logger('odoo.sql_db'):
+            response = self.create(self.agent)
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual((response.json()['message'], response.json()['field']), ('duplicate phone', 'phone'))
+        Lead = self.env['crm.lead'].with_context(active_test=False)
+        self.assertEqual(Lead.search_count([('phone_sanitized', '=', '+966501234567')]), 1)
+
+    def test_one_phone_per_company_is_a_database_invariant(self):
+        self.make_lead(self.agent, phone='+966501234567')
+        with mute_logger('odoo.sql_db'), self.assertRaises(IntegrityError), self.env.cr.savepoint():
+            self.make_lead(self.agent2, phone='+966501234567')
+            self.env.flush_all()
+        self.make_lead(None, company=self.other_company, phone='+966501234567')
+        self.env.flush_all()
+
+    def test_prices_and_discount_are_bounded(self):
+        for vals in ({'webvue_discount_percent': 101}, {'webvue_discount_percent': -1},
+                     {'webvue_list_price': -1}, {'webvue_final_price': -1}):
+            with self.subTest(vals=vals), mute_logger('odoo.sql_db'), self.assertRaises(IntegrityError), \
+                    self.env.cr.savepoint():
+                self.make_lead(self.agent, **vals)
+                self.env.flush_all()
 
     def test_duplicate_in_another_company_is_not_a_duplicate(self):
         self.make_lead(None, company=self.other_company, phone='+966501234567')
@@ -162,7 +195,8 @@ class TestCrmOpportunities(WebVueCrmCase):
     def test_closed_feature_refuses_every_route(self):
         lead = self.make_lead(self.agent)
         set_probe_feature(self, key='crm.enabled', enabled=False)
-        for method, path in (('GET', URL), ('POST', URL), ('GET', f'{URL}/{lead.id}'), ('PATCH', f'{URL}/{lead.id}')):
+        routes = (('GET', URL), ('POST', URL), ('GET', f'{URL}/{lead.id}'), ('PATCH', f'{URL}/{lead.id}'), ('GET', AUDIT_URL))
+        for method, path in routes:
             response = self.as_agent().api(method, path, json={} if method in ('POST', 'PATCH') else None)
             self.assertEqual(response.status_code, 403, f'{method} {path}')
 
