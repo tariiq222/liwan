@@ -72,6 +72,16 @@ export function sanitizeBody<T extends Record<string, unknown>>(body: T): T {
  * One idempotency key per user action, kept in sessionStorage so a retry or page refresh re-sends the same key
  * (the control plane then returns the original order instead of charging again). Call `forget` after the action settles.
  */
+/**
+ * The double-submit token for a mutation. When the page's first read ran during SSR its Set-Cookie never
+ * reached the browser, so a missing cookie is requested once over the browser before the request is sent.
+ */
+export async function csrfTokenFor(current: string | null | undefined, fetchCookie: () => Promise<void>, read: () => string | null | undefined): Promise<string | null> {
+  if (current) return current
+  await fetchCookie()
+  return read() ?? null
+}
+
 export type KeyStore = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 export function idempotencyKey(store: KeyStore | null, action: string, make: () => string = () => crypto.randomUUID()): string {
   const name = `webvue:idem:${action}`

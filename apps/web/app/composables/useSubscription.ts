@@ -1,6 +1,6 @@
 import type { Branch, Order, BranchSummary, Invoice, PaymentAttempt, Quote, SubscriptionView, UsageSnapshot } from '@webvue/commercial-contracts'
 import { deriveCustomerCapabilities } from '@/utils/customerCapabilities'
-import { forgetIdempotencyKey, idempotencyKey, safePaymentRedirect, sanitizeBody } from '@/utils/subscription'
+import { csrfTokenFor, forgetIdempotencyKey, idempotencyKey, safePaymentRedirect, sanitizeBody } from '@/utils/subscription'
 
 export type SubscriptionList<T> = { items: T[]; total: number }
 export type CustomerCatalog = { plans: Array<Record<string, any>>; bundles: Array<Record<string, any>>; release?: Record<string, any> | null }
@@ -12,13 +12,14 @@ const CSRF_COOKIE = 'webvue_csrf'
 export function useSubscriptionApi() {
   const headers = import.meta.server ? useRequestHeaders(['cookie', 'host', 'x-webvue-proxy-token', 'x-webvue-tenant-revision']) : undefined
   const csrf = useCookie(CSRF_COOKIE)
+  const csrfToken = () => csrfTokenFor(csrf.value, async () => { await $fetch('/api/commercial/csrf'); refreshCookie(CSRF_COOKIE) }, () => csrf.value)
   async function request<T>(path: string, options: { method?: string; body?: unknown; query?: Record<string, unknown> } = {}): Promise<T> {
-    const mutation = (options.method ?? 'GET') !== 'GET'
+    const token = (options.method ?? 'GET') !== 'GET' ? await csrfToken() : null
     return await $fetch<unknown>(`/api/commercial/v1/${path.replace(/^\/+/, '')}`, {
       method: (options.method ?? 'GET') as any,
       body: options.body ? sanitizeBody(options.body as Record<string, unknown>) as any : undefined,
       query: options.query,
-      headers: { ...(headers ?? {}), ...(mutation && csrf.value ? { 'x-webvue-csrf': csrf.value } : {}) },
+      headers: { ...(headers ?? {}), ...(token ? { 'x-webvue-csrf': token } : {}) },
     }) as T
   }
   const store = (): Storage | null => (import.meta.client ? window.sessionStorage : null)
