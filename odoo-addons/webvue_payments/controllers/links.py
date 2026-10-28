@@ -11,8 +11,19 @@ from odoo.addons.webvue_api.controllers.common import (
     requires_feature,
 )
 from odoo.addons.webvue_payments.models.access_service import LINKS_MANAGE
+from odoo.addons.webvue_payments.models.order_service import NoGateway, NotPayable
 
 FEATURE = 'payments.enabled'
+
+
+def payment_path(document):
+    """The pay-page path of an authorized document, with the service refusals as API errors."""
+    try:
+        return request.env['webvue.payments.service']._webvue_payment_path(document)
+    except NotPayable as error:
+        raise ApiError(409, 'not_payable', str(error)) from error
+    except NoGateway as error:
+        raise ApiError(422, 'no_gateway', str(error)) from error
 
 
 class PaymentLinkController(http.Controller):
@@ -22,11 +33,7 @@ class PaymentLinkController(http.Controller):
     @requires_feature(FEATURE, operation='write')
     @requires_capability(LINKS_MANAGE)
     def create_link(self, **payload):
-        """The pay-page path of a customer invoice the caller can read.
-
-        The answer is a path, not a URL: the browser that shows it knows the tenant's public
-        origin, which the server cannot always tell behind the edge.
-        """
+        """The pay-page path of a customer invoice the caller can read."""
         unknown = set(payload) - {'invoice_id'}
         if unknown:
             field = sorted(unknown)[0]
@@ -34,9 +41,4 @@ class PaymentLinkController(http.Controller):
         invoice = get_record('account.move', parse_positive_int(payload.get('invoice_id'), 'invoice_id'))
         if invoice.move_type != 'out_invoice':
             raise ApiError(422, 'invalid', "only a customer invoice can be paid by link", field='invoice_id')
-        if not invoice._has_to_be_paid():
-            raise ApiError(409, 'not_payable', "this invoice does not need a payment now")
-        if not request.env['webvue.payments.payer']._webvue_options(invoice):
-            raise ApiError(422, 'no_gateway', "switch a payment gateway to live first")
-        invoice._portal_ensure_token()
-        return {'path': invoice.get_portal_url()}
+        return {'path': payment_path(invoice)}

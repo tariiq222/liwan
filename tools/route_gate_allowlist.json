@@ -141,10 +141,12 @@
       ]
     },
     {
-      "reason": "Anonymous payer of one customer invoice under /api/v1/public/ (auth='public', no session): the invoice's access token, checked by the stock portal check, is the authorization; no capability applies.",
+      "reason": "Anonymous payer of one customer invoice or online order under /api/v1/public/ (auth='public', no session): the document's access token, checked by the stock portal check, is the authorization; no capability applies.",
       "routes": [
         "webvue_payments/controllers/payer.py:get_invoice",
-        "webvue_payments/controllers/payer.py:start_payment"
+        "webvue_payments/controllers/payer.py:get_order",
+        "webvue_payments/controllers/payer.py:start_invoice_payment",
+        "webvue_payments/controllers/payer.py:start_order_payment"
       ]
     },
     {

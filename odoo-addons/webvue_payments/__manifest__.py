@@ -2,7 +2,7 @@
 {
     'name': 'webvue Payments',
     'summary': 'webvue platform: online payments through the tenant\'s own gateway account — /api/v1/payments',
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.1.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -13,12 +13,17 @@
     # portal). account_payment: a transaction pays a posted invoice and stock post-processing
     # records and reconciles the payment. The tenant is its own merchant: its gateway keys live
     # in the stock provider fields of its own database and are never returned by the API.
-    'depends': ['webvue_api', 'payment_paymob', 'account_payment'],
+    # sale: an online order is a stock quotation that stock confirms once it is paid; selling
+    # applications create it through webvue.payments.service.
+    'depends': ['webvue_api', 'payment_paymob', 'account_payment', 'sale'],
     'data': [
         'security/payments_capability_groups.xml',
         'security/ir.model.access.csv',
+        'security/payments_rules.xml',
         'data/payments_access_permissions.xml',
+        'data/payments_cron.xml',
     ],
+    'post_init_hook': 'post_init_hook',
     'installable': True,
     'application': False,
 }

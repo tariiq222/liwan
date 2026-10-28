@@ -1,7 +1,7 @@
 # Pinned OCA addons
 
 WebVue's Odoo runs with a few OCA 19.0 repositories on its addons path (finance reporting,
-reconciliation, assets, MIS reports, document management, payroll, shifts and appointments). They are separate, pinned dependencies fetched at run or build
+reconciliation, assets, MIS reports, document management, payroll, shifts, appointments and paid bookings). They are separate, pinned dependencies fetched at run or build
 time. The fetched repositories stay outside this checkout. The separately maintained
 `odoo-addons/base_tier_validation` is the documented vendored OCA exception.
 
@@ -88,9 +88,14 @@ before they ship.
 |---|---|
 | `resource_booking` (calendar) | booking types of `webvue_appointments` today; slots, combinations and booking states once the booking routes exist |
 | `web_calendar_slot_duration` (web) | backend calendar-view dependency of `resource_booking`; no WebVue use |
+| `sale_resource_booking` (sale-workflow) | paid bookings in the bridge `webvue_appointments_payments`: links a product to a booking type and a booking to its sale order line, keeps a booking with an unpaid order out of `confirmed`, confirms it once the order is confirmed and cancels it with the order |
+| `web_ir_actions_act_multi` (web) | backend action dependency of `sale_resource_booking`; no WebVue use |
 
 `calendar_public_holiday` (calendar) and the other OCA/web modules are in the pinned repositories but unused;
-neither repository has an `auto_install` module.
+neither repository has an `auto_install` module. OCA/sale-workflow (added 2026-10-28 under the standing
+owner rule of 2026-10-27 for engine updates) is used only for `sale_resource_booking`; its `auto_install`
+modules each need a module WebVue does not install (`product_secondary_unit`, `sales_team_security`,
+`sale_stock`, `portal_account_personal_data_only`, `sale_automatic_workflow`), so none installs itself.
 
 ## Bump a pin
 

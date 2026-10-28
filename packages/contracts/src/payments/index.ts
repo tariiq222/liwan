@@ -68,25 +68,38 @@ export const PaymentOptionSchema = z.object({
   method_name: z.string().min(1),
 }).strict()
 
-export const PayableInvoiceStatusSchema = z.enum(['payable', 'processing', 'paid', 'not_payable'])
+/** The two documents a pay link names: a posted customer invoice, or an order the customer pays online. */
+export const PayDocumentKindSchema = z.enum(['invoice', 'order'])
+
+export const PayableStatusSchema = z.enum(['payable', 'processing', 'paid', 'not_payable'])
 
 /**
- * What the holder of an invoice's access token sees on the public pay page. No partner name or
- * address; `options` is empty unless the invoice is payable.
+ * What the holder of a document's access token sees on the public pay page. No partner name or
+ * address; `options` is empty unless the document is payable. `amount_due` is what is paid now.
  */
-export const PayableInvoiceSchema = z.object({
+const PayableDocumentShape = {
   id: z.number().int().positive(),
   merchant: z.string().min(1),
   number: z.string().min(1),
-  due_date: z.string().nullable(),
   currency: z.string().length(3),
   amount_total: z.number(),
   amount_due: z.number(),
-  status: PayableInvoiceStatusSchema,
+  status: PayableStatusSchema,
   options: z.array(PaymentOptionSchema),
+}
+
+export const PayableInvoiceSchema = z.object({
+  ...PayableDocumentShape,
+  due_date: z.string().nullable(),
 }).strict()
 
-/** POST body that starts a payment. The amount, currency and payer always come from the invoice. */
+/** An online order: all of it or a deposit is paid now; unpaid at `expires_at`, it is cancelled. */
+export const PayableOrderSchema = z.object({
+  ...PayableDocumentShape,
+  expires_at: z.string().datetime().nullable(),
+}).strict()
+
+/** POST body that starts a payment. The amount, currency and payer always come from the document. */
 export const PaymentStartSchema = z.object({
   access_token: z.string().min(1).max(128),
   provider_id: z.number().int().positive(),
@@ -108,33 +121,70 @@ export const PaymentLinkCreateSchema = z.object({
 
 /** A path, not a URL: the browser that shows it knows the tenant's public origin. */
 export const PaymentLinkSchema = z.object({
-  path: z.string().regex(/^\/pay\/invoice\/\d+\?access_token=[\w-]+$/),
+  path: z.string().regex(/^\/pay\/(invoice|order)\/\d+\?access_token=[\w-]+$/),
 }).strict()
 
 export type PaymentOption = z.infer<typeof PaymentOptionSchema>
-export type PayableInvoiceStatus = z.infer<typeof PayableInvoiceStatusSchema>
+export type PayDocumentKind = z.infer<typeof PayDocumentKindSchema>
+export type PayableStatus = z.infer<typeof PayableStatusSchema>
 export type PayableInvoice = z.infer<typeof PayableInvoiceSchema>
+export type PayableOrder = z.infer<typeof PayableOrderSchema>
 export type PaymentStart = z.infer<typeof PaymentStartSchema>
 export type PaymentRedirect = z.infer<typeof PaymentRedirectSchema>
 export type PaymentLinkCreate = z.infer<typeof PaymentLinkCreateSchema>
 export type PaymentLink = z.infer<typeof PaymentLinkSchema>
 
+/** Inclusive bounds of the unpaid-order expiry, in minutes. */
+export const PAYMENT_ORDER_EXPIRY_MINUTES = { min: 5, max: 1440 } as const
+
+const OrderExpiryMinutesSchema = z.number().int()
+  .min(PAYMENT_ORDER_EXPIRY_MINUTES.min).max(PAYMENT_ORDER_EXPIRY_MINUTES.max)
+
+/**
+ * The payments settings. `unpaid_order_expiry_minutes` belongs to the current company (default 60);
+ * `invoice_when_paid` is one choice for the whole tenant (default on): stock invoices and posts a
+ * paid online order at once. `revision` is the company's saved revision, 0 while it uses the defaults.
+ */
+export const PaymentSettingsSchema = z.object({
+  unpaid_order_expiry_minutes: OrderExpiryMinutesSchema,
+  invoice_when_paid: z.boolean(),
+  revision: z.number().int().nonnegative(),
+}).strict()
+
+/** PATCH body: the revision the change was made on, and the settings to change. */
+export const PaymentSettingsUpdateSchema = z.object({
+  revision: z.number().int().nonnegative(),
+  unpaid_order_expiry_minutes: OrderExpiryMinutesSchema.optional(),
+  invoice_when_paid: z.boolean().optional(),
+}).strict()
+
+export type PaymentSettings = z.infer<typeof PaymentSettingsSchema>
+export type PaymentSettingsUpdate = z.infer<typeof PaymentSettingsUpdateSchema>
+
 /**
  * The payer's way back from the gateway. Before leaving for the gateway page, the pay page stores
- * `<invoice id>.<access token>` in this cookie (path `/payment`, one hour); the gateway's return
- * lands on `/payment/<code>/return`, where the server reads it to send the payer to the status page.
+ * `<kind>.<document id>.<access token>` in this cookie (path `/payment`, one hour); the gateway's
+ * return lands on `/payment/<code>/return`, where the server reads it to send the payer to the
+ * status page of that document.
  */
 export const PAY_RETURN_COOKIE = 'webvue_pay_return'
 export const PAY_RETURN_COOKIE_PATH = '/payment'
 export const PAY_RETURN_MAX_AGE_SECONDS = 3600
-const PAY_RETURN_VALUE = /^(\d{1,12})\.([A-Za-z0-9_-]{1,128})$/
+const PAY_RETURN_VALUE = /^(invoice|order)\.(\d{1,12})\.([A-Za-z0-9_-]{1,128})$/
 
-export function encodePayReturn(invoiceId: number, accessToken: string): string {
-  return `${invoiceId}.${accessToken}`
+/** The document a pay page names: its kind, id and access token. */
+export interface PayReturn {
+  kind: PayDocumentKind
+  id: number
+  accessToken: string
 }
 
-/** The invoice id and token of a well-formed cookie value, or null. */
-export function decodePayReturn(value: string | undefined | null): { invoiceId: number; accessToken: string } | null {
+export function encodePayReturn(back: PayReturn): string {
+  return `${back.kind}.${back.id}.${back.accessToken}`
+}
+
+/** The document of a well-formed cookie value, or null. */
+export function decodePayReturn(value: string | undefined | null): PayReturn | null {
   const match = value ? PAY_RETURN_VALUE.exec(value) : null
-  return match ? { invoiceId: Number(match[1]), accessToken: match[2]! } : null
+  return match ? { kind: match[1] as PayDocumentKind, id: Number(match[2]), accessToken: match[3]! } : null
 }

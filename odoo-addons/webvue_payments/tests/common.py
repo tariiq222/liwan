@@ -73,3 +73,63 @@ class WebVuePayerCase(WebVuePaymentsCase):
 
     def start_url(self, invoice=None):
         return f'/api/v1/public/payments/invoices/{(invoice or self.invoice).id}/transactions'
+
+    @classmethod
+    def paymob_transaction(cls, amount, **link):
+        """A Paymob checkout of ``amount`` SAR for the document named by ``link`` (``invoice_ids`` or ``sale_order_ids``)."""
+        Transaction = cls.env['payment.transaction']
+        return Transaction.create({
+            'provider_id': cls.paymob.id,
+            'payment_method_id': cls.card.id,
+            'reference': Transaction._compute_reference('paymob', **link),
+            'amount': amount,
+            'currency_id': cls.env.ref('base.SAR').id,
+            'partner_id': cls.customer.id,
+            'operation': 'online_redirect',
+            'provider_reference': '987654',
+            **link,
+        })
+
+    @staticmethod
+    def paymob_notification(tx, amount_cents, success=True):
+        """A Paymob notification after the stock controller's normalization."""
+        return {
+            'merchant_order_id': tx.reference, 'order': '987654', 'amount_cents': str(amount_cents),
+            'currency': 'SAR', 'success': 'true' if success else 'false', 'pending': 'false',
+            'data.message': 'Approved' if success else 'Declined',
+        }
+
+
+class WebVueOrderCase(WebVuePayerCase):
+    """The payer fixture plus a service sold at 115 SAR to the customer through online orders."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.service = cls.env['product.product'].create({
+            'name': 'Consultation', 'type': 'service', 'list_price': 115.0, 'taxes_id': [Command.clear()],
+        })
+        cls.customer.property_product_pricelist = cls.env['product.pricelist'].create({
+            'name': 'SAR', 'currency_id': cls.env.ref('base.SAR').id,
+            'item_ids': [Command.create({
+                'applied_on': '0_product_variant', 'product_id': cls.service.id,
+                'compute_price': 'fixed', 'fixed_price': 115.0,
+            })],
+        })
+
+    @classmethod
+    def online_order(cls, prepayment_percent=1.0):
+        service = cls.env['webvue.payments.service']
+        order = service._webvue_new_order(cls.env.company, cls.customer, prepayment_percent)
+        service._webvue_add_line(order, cls.service)
+        return cls.env['sale.order'].browse(order.id)
+
+    def pay(self, order, amount):
+        """A Paymob payment of ``amount`` SAR for ``order``, notified and post-processed as the relay does."""
+        tx = self.paymob_transaction(amount, sale_order_ids=[Command.set(order.ids)])
+        tx._process('paymob', self.paymob_notification(tx, round(amount * 100)))
+        tx._post_process()
+        return tx
+
+    def order_url(self, order, suffix=''):
+        return f'/api/v1/public/payments/orders/{order.id}{suffix}'
