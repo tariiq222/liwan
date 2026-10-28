@@ -5,6 +5,7 @@ import { pmoPreviewData } from './pmo-ui-preview-data.mjs'
 import { moduleUiCapabilities, moduleUiPreviewData } from './module-ui-preview-data.mjs'
 import { hrPayrollPreviewWrite } from './hr-payroll-ui-preview-data.mjs'
 import { capabilitiesForRequest } from './mock-capabilities.mjs'
+import { crmPreviewWrite } from './crm-ui-preview-data.mjs'
 import { INBOX_CAPABILITIES, INBOX_FEATURES, inboxPreviewData, resetInboxPreview } from './inbox-ui-preview-data.mjs'
 import { handleCommercial } from './commercial-mock-routes.mjs'
 import { handlePayments, handlePublicPayments, PAYMENTS_LINKS_MANAGE, PAYMENTS_MANAGE } from './payments-mock-routes.mjs'
@@ -46,8 +47,8 @@ const ME = {
   },
   platform: {
     schema_version: 1, policy_revision: 1, state: 'active', valid_until: null, read_only: false,
-    readable_features: ['ai.enabled', 'chat.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.enabled'],
-    writable_features: ['ai.enabled', 'chat.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.enabled'],
+    readable_features: ['ai.enabled', 'chat.enabled', 'crm.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.enabled'],
+    writable_features: ['ai.enabled', 'chat.enabled', 'crm.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.enabled'],
   },
   terminology: { ar: {}, en: {} },
 }
@@ -465,6 +466,13 @@ async function handle(req, res) {
       res.writeHead(200, { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="${write.file.filename}"` })
       return res.end(write.file.body)
     }
+    if (write) return json(res, write.status, write.body)
+  }
+
+  if (process.env.MODULE_UI_PREVIEW === '1' && method !== 'GET' && /^\/api\/v1\/(crm\/|__mock\/reset-crm$)/.test(path)) {
+    let body = {}
+    try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
+    const write = crmPreviewWrite(method, path, body)
     if (write) return json(res, write.status, write.body)
   }
 
