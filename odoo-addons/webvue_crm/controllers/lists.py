@@ -29,6 +29,7 @@ from odoo.addons.webvue_crm.serializers.lists import (
 
 SEQUENCE_STEP = 10
 PROTECTED_REASON = 'webvue_crm.lost_reason_attempts_exhausted'
+SOURCE_EXISTS = 'a source with this name already exists'
 READ = ('crm.settings.read', 'crm.leads.read')
 
 
@@ -55,8 +56,15 @@ def _stage_one_won():
         raise ApiError(422, 'invalid', 'exactly one active stage must be the won stage', field='is_won')
 
 
+def _has_opportunities(stages):
+    return bool(request.env['crm.lead'].with_context(active_test=False).search_count([('stage_id', 'in', stages.ids)]))
+
+
 def _unflag_other_won(keep=None):
+    """Move the won flag off the other won stage; refused while it holds opportunities (their closed deals would reopen)."""
     others = request.env['crm.stage'].search([('is_won', '=', True), ('id', '!=', keep.id if keep else 0)])
+    if _has_opportunities(others):
+        raise ApiError(422, 'invalid', 'the current won stage still has opportunities', field='is_won')
     others.write({'is_won': False})
 
 
@@ -136,6 +144,8 @@ class CrmListsController(http.Controller):
 
     @staticmethod
     def _write_stage(stage, vals):
+        if vals.get('active') is False and stage.active and _has_opportunities(stage):
+            raise ApiError(422, 'invalid', 'the stage still has opportunities', field='id')
         if vals.get('is_won'):
             _unflag_other_won(keep=stage)
         stage.write(vals)
@@ -238,7 +248,12 @@ class CrmListsController(http.Controller):
     @requires_feature('crm.enabled', operation='write')
     @requires_capability('crm.settings.manage')
     def create_source(self, **payload):
-        return dump_source(request.env['utm.source'].create(parse_body(payload, NAME_FIELDS, creating=True)))
+        vals = parse_body(payload, NAME_FIELDS, creating=True)
+        sources = request.env['utm.source']
+        # Stock create renames a clash with an active source only; an archived one would hit the unique index.
+        if sources.with_context(active_test=False).search_count([('name', '=', vals['name'])]):
+            raise ApiError(409, 'conflict', SOURCE_EXISTS, field='name')
+        return dump_source(self._save_source(lambda: sources.create(vals)))
 
     @http.route('/api/v1/crm/sources/<int:source_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
@@ -256,12 +271,16 @@ class CrmListsController(http.Controller):
 
     @staticmethod
     def _write_source(source, vals):
+        CrmListsController._save_source(lambda: source.write(vals))
+        return dump_source(source)
+
+    @staticmethod
+    def _save_source(save):
         try:
             with request.env.cr.savepoint():
-                source.write(vals)
+                return save()
         except UniqueViolation as error:
-            raise ApiError(409, 'conflict', 'a source with this name already exists', field='name') from error
-        return dump_source(source)
+            raise ApiError(409, 'conflict', SOURCE_EXISTS, field='name') from error
 
     # Packages
 

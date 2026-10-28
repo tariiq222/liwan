@@ -95,13 +95,64 @@ class TestCrmLists(WebVueCrmCase):
         self.assertEqual(self.api('PATCH', f'{BASE}/stages/{won.id}', {'active': False}).status_code, 422)
         self.assertTrue(won.active and won.is_won)
 
-    def test_flagging_another_stage_won_moves_the_flag(self):
+    def test_flagging_another_stage_won_moves_the_flag_when_the_old_one_is_empty(self):
         self.as_manager()
         interested = self._ref('stage_interested')
         self.assertEqual(self.api('PATCH', f'{BASE}/stages/{interested.id}', {'is_won': True}).status_code, 200)
         self.assertEqual(self.env['crm.stage'].search([('is_won', '=', True)]), interested)
         created = self.api('POST', f'{BASE}/stages', {'name': 'Closed', 'is_won': True}).json()
         self.assertEqual(self.env['crm.stage'].search([('is_won', '=', True)]).ids, [created['id']])
+
+    def _lead(self, stage):
+        return self.env['crm.lead'].create({'name': 'Lead', 'type': 'opportunity', 'stage_id': stage.id})
+
+    def test_won_flag_moves_only_when_the_old_won_stage_holds_no_opportunities(self):
+        self.as_manager()
+        won, interested = self._ref('stage_won'), self._ref('stage_interested')
+        deal = self._lead(won)
+        self.assertEqual(self.api('PATCH', f'{BASE}/stages/{interested.id}', {'is_won': True}).status_code, 422)
+        self.assertEqual(self.api('POST', f'{BASE}/stages', {'name': 'Closed', 'is_won': True}).status_code, 422)
+        self.assertEqual(self.env['crm.stage'].search([('is_won', '=', True)]), won)
+        self.assertEqual(deal.stage_id, won)
+        deal.active = False  # archived opportunities count too
+        self.assertEqual(self.api('PATCH', f'{BASE}/stages/{interested.id}', {'is_won': True}).status_code, 422)
+        deal.unlink()
+        self.assertEqual(self.api('PATCH', f'{BASE}/stages/{interested.id}', {'is_won': True}).status_code, 200)
+        self.assertEqual(self.env['crm.stage'].search([('is_won', '=', True)]), interested)
+
+    def test_a_stage_with_opportunities_cannot_be_archived(self):
+        self.as_manager()
+        stage = self._ref('stage_contacted')
+        lead = self._lead(stage)
+        for method, body in (('DELETE', None), ('PATCH', {'active': False})):
+            response = self.api(method, f'{BASE}/stages/{stage.id}', body)
+            self.assertEqual(response.status_code, 422, method)
+            self.assertEqual(response.json()['field'], 'id')
+        self.assertTrue(stage.active)
+        lead.active = False
+        self.assertEqual(self.api('DELETE', f'{BASE}/stages/{stage.id}').status_code, 422)
+        lead.unlink()
+        self.assertEqual(self.api('DELETE', f'{BASE}/stages/{stage.id}').status_code, 200)
+
+    def test_retiring_stock_stages_moves_their_leads_and_skips_missing_stages(self):
+        stock = self.env.ref('crm.stage_lead1')
+        stock.active = True
+        lead = self._lead(stock)
+        self.env['crm.stage']._webvue_retire_stock_stages()
+        self.assertEqual(lead.stage_id, self._ref('stage_new'))
+        self.assertFalse(stock.active)
+        self.env.ref('crm.stage_lead3').unlink()
+        self.env['crm.stage']._webvue_retire_stock_stages()
+        self.assertFalse(self.env.ref('crm.stage_lead2').active)
+
+    def test_source_named_like_an_archived_source_is_409(self):
+        self.as_manager()
+        source = self.api('POST', f'{BASE}/sources', {'name': 'Expo'}).json()
+        self.api('DELETE', f'{BASE}/sources/{source["id"]}')
+        again = self.api('POST', f'{BASE}/sources', {'name': 'Expo'})
+        self.assertEqual(again.status_code, 409)
+        self.assertEqual(again.json()['code'], 'conflict')
+        self.assertEqual(self.env['utm.source'].with_context(active_test=False).search_count([('name', '=', 'Expo')]), 1)
 
     def test_stage_order_must_list_every_active_stage_once(self):
         self.as_manager()
@@ -203,4 +254,4 @@ class TestCrmLists(WebVueCrmCase):
         for hidden in (foreign, plain):
             self.assertEqual(self.api('PATCH', f'{BASE}/packages/{hidden.id}', {'price': 1}).status_code, 404)
             self.assertEqual(self.api('DELETE', f'{BASE}/packages/{hidden.id}').status_code, 404)
-        self.assertEqual(hidden.list_price, 40)
+        self.assertEqual((plain.list_price, foreign.list_price), (40, 30))
