@@ -131,6 +131,17 @@
       "features": [
         "boolean:documents.enabled"
       ]
+    },
+    {
+      "id": "appointments",
+      "name": "Appointments",
+      "description": "The Appointments application.",
+      "modules": [
+        "webvue_appointments"
+      ],
+      "features": [
+        "boolean:appointments.enabled"
+      ]
     }
   ]
 }

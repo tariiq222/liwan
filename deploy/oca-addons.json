@@ -44,6 +44,16 @@
       "repo": "OCA/payroll",
       "branch": "19.0",
       "commit": "58f8a39799383ef98d50097f81f4abcc6dd03782"
+    },
+    {
+      "repo": "OCA/calendar",
+      "branch": "19.0",
+      "commit": "a0f55db96b9f5e1d7889b1b50dc0c3e5dd677baf"
+    },
+    {
+      "repo": "OCA/web",
+      "branch": "19.0",
+      "commit": "5ee605962df607c20b0d8db9ea6e1236718620b7"
     }
   ],
   "python_requirements": [
@@ -60,6 +70,13 @@
       "packages": [
         "xlsxwriter",
         "xlrd"
+      ]
+    },
+    {
+      "module": "resource_booking",
+      "repo": "OCA/calendar",
+      "packages": [
+        "cssselect"
       ]
     }
   ]
