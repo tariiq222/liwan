@@ -136,11 +136,19 @@ class CrmLeadFlow(models.Model):
         self.write({'webvue_attempt_count': 0, **CLEARED_FOLLOW_UP})
 
     def _webvue_notify_assigned(self):
-        """Tell each agent about the opportunity given to them, unless they did it themselves."""
+        """Tell each agent about the opportunities given to them, unless they did it themselves.
+
+        One bell per agent and company, however many opportunities: it opens the first one (lowest id)
+        and, for several, its title reads ``<name> +<others>``.
+        """
         service = self.env['webvue.notify.service']
-        for lead in self.filtered('user_id'):
+        groups = {}
+        for lead in self.filtered('user_id').sorted('id'):
             if lead.user_id != self.env.user:
-                service._webvue_deliver('crm.lead', lead.id, 'crm.assigned', lead.user_id.partner_id, lead.name)
+                groups.setdefault((lead.user_id, lead.company_id), []).append(lead)
+        for (user, _company), leads in groups.items():
+            title = leads[0].name if len(leads) == 1 else f'{leads[0].name} +{len(leads) - 1}'
+            service._webvue_deliver('crm.lead', leads[0].id, 'crm.assigned', user.partner_id, title)
 
     def _webvue_notify_managers(self):
         """Tell the holders of ``crm.leads.assign`` that this opportunity waits for a decision."""

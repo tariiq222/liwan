@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import Command
 from odoo.tests import new_test_user, tagged
+from odoo.tools import html2plaintext
 
 from .common import WebVueCrmCase
 from odoo.addons.webvue_api.controllers.common import ApiError
@@ -45,6 +46,22 @@ class TestCrmDistribution(WebVueCrmCase):
         leads = self._leads(6)
         self._service().with_user(self.agent)._webvue_assign(leads)
         self.assertEqual(self._owners(leads), [*self.agents.ids, *self.agents.ids])
+
+    def test_each_agent_gets_one_bell_for_the_batch_and_a_lone_lead_keeps_its_own_name(self):
+        self._settings(**self._pool(self.agents))
+        leads = self._leads(6)
+        self._service().with_user(self.manager)._webvue_assign(leads)
+        for index, agent in enumerate(self.agents):
+            mine = leads.filtered(lambda lead, agent=agent: lead.user_id == agent)
+            rows = self.env['mail.message'].search([
+                ('model', '=', 'crm.lead'), ('res_id', 'in', mine.ids), ('webvue_notification_kind', '=', 'crm.assigned'),
+                ('partner_ids', 'in', agent.partner_id.id),
+            ])
+            self.assertEqual((len(rows), rows.res_id), (1, mine[0].id), index)
+            self.assertEqual(html2plaintext(rows.body).strip(), f'{mine[0].name} +1')
+        lone = self._leads(1)
+        self._service().with_user(self.manager)._webvue_assign(lone)
+        self.assertEqual(html2plaintext(self.bell_rows(lone.user_id, lone, 'crm.assigned').body).strip(), lone.name)
 
     def test_rotation_continues_across_calls(self):
         self._settings(**self._pool(self.agents))

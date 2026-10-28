@@ -11,16 +11,19 @@ from unittest.mock import patch
 import openpyxl
 
 from odoo.tests import tagged
+from odoo.tools import html2plaintext
 
 from .common import WebVueCrmCase
 from odoo.addons.webvue_api.controllers.common import ApiError
 from odoo.addons.webvue_api.tests.common import set_probe_feature
+from odoo.addons.webvue_crm.models import intake as intake_module
 from odoo.addons.webvue_crm.models.intake import (
     FILE_BAD_CSV,
     FILE_BAD_TYPE,
     FILE_BAD_XLSX,
     FILE_DUPLICATE_HEADER,
     FILE_EMPTY,
+    FILE_MESSAGES,
     FILE_NO_ROWS,
     FILE_NOT_UTF8,
     FILE_TOO_LARGE,
@@ -30,6 +33,7 @@ from odoo.addons.webvue_crm.models.intake import (
     MAX_BYTES,
     MAX_COLUMNS,
     MAX_UNCOMPRESSED_BYTES,
+    file_error,
 )
 
 PREVIEW_URL = '/api/v1/crm/imports/preview'
@@ -479,8 +483,13 @@ class TestCrmImport(WebVueCrmCase):
         self.assertEqual(leads.user_id, self.agent)
         self.assertEqual(response.json()['unassigned'], 0)
         for lead in leads:
-            self.assertEqual(len(self.bell_rows(self.agent, lead, 'crm.assigned')), 1)
             self.assertFalse(self.assignment_mails(lead))
+        first = min(leads, key=lambda lead: lead.id)
+        bells = self.bell_rows(self.agent, first, 'crm.assigned')
+        self.assertEqual(len(bells), 1, 'one bell for the whole batch')
+        self.assertEqual(html2plaintext(bells.body).strip(), f'{first.contact_name} +1')
+        for other in leads - first:
+            self.assertFalse(self.bell_rows(self.agent, other, 'crm.assigned'))
 
     def test_on_import_needs_an_eligible_agent(self):
         self.set_settings(distribution_mode='on_import')
@@ -523,6 +532,12 @@ class TestCrmImport(WebVueCrmCase):
         self.assertEqual(response.json()['created'], 3)
         self.assertEqual(self.lead_of('+966507654321').contact_name, 'Omar')
         self.assertEqual(self.lead_of('+966501234567').webvue_package_id, self.package)
+
+    def test_an_unknown_file_refusal_code_is_a_programming_error(self):
+        with self.assertRaisesRegex(ValueError, 'file_typo'):
+            file_error('file_typo')
+        codes = {value for name, value in vars(intake_module).items() if name.startswith('FILE_') and isinstance(value, str)}
+        self.assertEqual(codes, set(FILE_MESSAGES))
 
     # Batches
 

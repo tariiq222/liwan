@@ -56,6 +56,8 @@ FILE_MESSAGES = {
 
 
 def file_error(code, field='file'):
+    if code not in FILE_MESSAGES:
+        raise ValueError(f'unknown file refusal code: {code!r}')
     return ApiError(422, 'invalid', FILE_MESSAGES[code], field=field, details={'reason': code})
 
 
