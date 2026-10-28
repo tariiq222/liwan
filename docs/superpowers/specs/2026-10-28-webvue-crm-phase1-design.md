@@ -133,7 +133,7 @@ type (R6).
 - **Settings** = `webvue.crm.settings`, one row per company (unique `company_id`, `revision` for
   optimistic concurrency), following `webvue.hr.shift.settings`. A missing row reads defaults at
   revision 0 without writing.
-- **Import batch** = `webvue.crm.import.batch` (company, user, file name, source, counts, state) and
+- **Import batch** = `webvue.crm.import.batch` (company, user, file name, source, counts) and
   **mapping profile** = `webvue.crm.import.mapping` (company, name, column map). The file itself is not
   kept after processing.
 - **View log** = `webvue.crm.view.log` (company, user, opportunity, datetime); written only while the
@@ -147,7 +147,7 @@ its allowed options, so an assistant can read and propose settings.
 
 | Group | Field | Default |
 | --- | --- | --- |
-| Preset | `preset` (`general`, `phone_packages`) | `general` |
+| Preset | `preset` (`general`, `phone_packages`) | `phone_packages` |
 | Terms | `term_customer`, `term_opportunity`, `term_package`: each `{singular, plural, gender}` per language | عميل/عملاء/m, فرصة/فرص/f, باقة/باقات/f |
 | Follow-up | `followup_attempts` (0–10) | 2 |
 | | `followup_interval_hours` (1–720) | 24 |
@@ -173,7 +173,7 @@ preset never rewrites them. *(Claude's call.)* Phase 1 ships `general` (follow-u
 
 The terms setting feeds the locale layer: CRM strings that mention a term use an ICU message with the
 term's singular/plural and gender (Arabic agreement such as "حالة جديدة"), so a renamed term reads
-correctly. Terms change display only.
+correctly. Terms change display only. Agents without `crm.settings.read` read them through `GET /terms`.
 
 ### Capabilities and roles
 
@@ -232,7 +232,8 @@ Settings changes apply to future scheduling only; already scheduled times are no
 ### Sale flow
 
 "Sold" (or a `won` outcome) opens an inline form: package (required), final price prefilled from the
-package, optional discount. The server rejects a discount when `discount_allowed` is false, and a
+package, discount. The discount is derived from the package and final prices; a declared percentage
+that does not match them is rejected. The server rejects a discount when `discount_allowed` is false, and a
 discount above `discount_max_percent` unless the caller holds `crm.discount.approve`. On success the
 opportunity moves to the won stage, `expected_revenue` equals the final price, pending follow-ups are
 cleared.
@@ -258,8 +259,8 @@ cleared.
 
 ### Distribution
 
-- `round_robin`: the next agent among `distribution_user_ids` in a stable order. The pointer is a
-  column on the company settings row, advanced under a row lock (`SELECT ... FOR UPDATE` through the
+- `round_robin`: the next agent among `distribution_user_ids` in a stable order. The pointer is the last
+  assigned user id in `webvue.crm.rotation` (see "Implementation rulings"), advanced under a row lock (`SELECT ... FOR UPDATE` through the
   ORM's `_lock_for_update` or `flush` + `lock`) so concurrent imports stay fair. Users who no longer hold
   `crm.leads.work` or are archived are skipped; when nobody is eligible the opportunity goes to the
   unassigned pool and the import summary says so (not an error). *(Claude's call.)*
@@ -274,10 +275,10 @@ Follow-ups and recycled opportunities follow the rule in the follow-up engine.
   `POST /opportunities`, `GET/PATCH /opportunities/<id>`, `POST /opportunities/<id>/calls`,
   `POST /opportunities/<id>/won`, `POST /opportunities/<id>/lost`, `POST /opportunities/<id>/reopen`,
   `POST /opportunities/<id>/assign`.
-- `POST /imports/preview`, `POST /imports`, `GET /imports`, mapping profiles CRUD.
+- `POST /imports/columns`, `POST /imports/preview`, `POST /imports`, `GET /imports`, mapping profiles CRUD.
 - `GET /export` (CSV of the caller's visible list, `crm.leads.export`).
 - `GET /dashboard`.
-- `GET/PATCH /settings` (revision CAS, 409 on stale) and CRUD for stages, outcomes, lost reasons,
+- `GET/PATCH /settings` (revision CAS, 409 on stale), `GET /terms` (the company terms for agents) and CRUD for stages, outcomes, lost reasons,
   sources, packages.
 - `GET /audit/views` (`crm.audit.read`).
 - Zod contracts in `packages/contracts/src/crm/` mirror every serializer exactly.
@@ -319,3 +320,29 @@ Follow-ups and recycled opportunities follow the rule in the follow-up engine.
 - Dashboard query shapes and chart choices from the Storybook catalog.
 - Whether phase 1 also enables the stock lead stage as a later setting: not in phase 1; keep the data
   model compatible with adding it as a setting.
+
+## Implementation rulings
+
+Taken during implementation; where they differ from the text above, they win.
+
+- The round-robin pointer lives in `webvue.crm.rotation` (one row per company, holding the last assigned
+  user id), not on the settings row.
+- An import batch has no state field; it records its counts only.
+- `POST /imports/columns` answers `{columns, rows}`.
+- Agents read the company terms with `GET /crm/terms` (needs `crm.leads.read`).
+- A call accepts `lost_reason_id`; it overrides the reason an outcome carries.
+- The discount percentage is derived from the prices; a declared percentage that does not match answers
+  422 `invalid`.
+- Reopening and assigning need `crm.leads.assign`. `crm.settings.manage` and `crm.leads.import` depend on
+  `crm.leads.assign`.
+- Reassigning or editing (PATCH) a closed opportunity answers 409 `conflict`.
+- Unassigned opportunities are visible only to holders of `crm.leads.assign`.
+- One documented `sudo()` serves the boolean duplicate-phone check, together with a partial unique phone
+  index per company.
+- The `phonenumbers` dependency is pinned at 9.0.41.
+- The English default for the package term is "plan".
+- The won stage is moved only when the stage it replaces is empty.
+- A stage that holds opportunities cannot be archived.
+- File import refusals carry machine codes in `details.reason`: `file_bad_csv`, `file_bad_type`, `file_bad_xlsx`, `file_duplicate_header`, `file_empty`, `file_no_rows`,
+  `file_not_utf8`, `file_too_large`, `file_too_many_columns`, `file_too_many_rows`,
+  `file_unpacked_too_large` (source: `packages/contracts/src/crm/imports.ts`).

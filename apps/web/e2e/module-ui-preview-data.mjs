@@ -11,8 +11,18 @@ import { financeGovernancePreviewData } from './finance-governance-ui-preview-da
 import { financeReportsPreviewData } from './finance-reports-ui-preview-data.mjs'
 import { hrPayrollPreviewData } from './hr-payroll-ui-preview-data.mjs'
 import { hrPreviewData } from './hr-ui-preview-data.mjs'
+import { crmPreviewData } from './crm-ui-preview-data.mjs'
 
 export const moduleUiCapabilities = [
+  'crm.leads.read',
+  'crm.leads.work',
+  'crm.leads.assign',
+  'crm.leads.import',
+  'crm.leads.export',
+  'crm.discount.approve',
+  'crm.settings.read',
+  'crm.settings.manage',
+  'crm.audit.read',
   'access.users.read',
   'access.users.grant',
   'access.users.assign_roles',
@@ -447,6 +457,7 @@ export function moduleUiPreviewData(path, url) {
   if (normalizedPath === '/api/v1/meeting-series/1/events') return page(events, parsedUrl)
   if (normalizedPath === '/api/v1/meeting-series/1/resolutions') return page([{ ...resolution, meeting_id: 1, meeting_name: meeting.name }], parsedUrl)
 
+  if (normalizedPath.startsWith('/api/v1/crm/')) return crmPreviewData(normalizedPath, parsedUrl)
   if (normalizedPath.startsWith('/api/v1/documents')) return documentsPreviewData(normalizedPath, parsedUrl)
   if (normalizedPath.startsWith('/api/v1/hr/payroll/')) return hrPayrollPreviewData(normalizedPath, parsedUrl)
   if (normalizedPath.startsWith('/api/v1/hr/')) return hrPreviewData(normalizedPath, parsedUrl)

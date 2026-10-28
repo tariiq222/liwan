@@ -128,6 +128,14 @@
       "count": 1,
       "reason": "webvue_chat group member removal: `channel.sudo()._action_unfollow(partner=member.partner_id, post_leave_message=False)` in `_webvue_remove_member` (models/chat_service.py), after `_webvue_member_channel` proved the caller's membership and the method checked `channel.channel_type == 'group'` and `channel.create_uid == self.env.user`. Blocked by addons/mail/security/mail_security.xml `ir_rule_discuss_channel_member_is_self_all`, which lets a user write or unlink only their own `discuss.channel.member` row (`is_self`), and stock Odoo offers no route that removes another member. Scope is one member row (and its follower entry) of a group the caller created; the notice is posted unelevated by the caller."
     },
+    "odoo-addons/webvue_crm/models/crm_lead.py": {
+      "count": 1,
+      "reason": "webvue_crm duplicate-phone existence check: `self.sudo().with_context(active_test=False).search_count([('company_id','=',company.id),('phone_sanitized','=',phone_e164)], limit=1)` in `_webvue_find_duplicate`; blocked by the WebVue visibility global record rule odoo-addons/webvue_crm/security/crm_rules.xml `rule_crm_lead_visibility_read`, which hides other agents' and unassigned opportunities from an agent, plus `active_test` hiding archived lost ones. The spec requires a duplicate to be detected across every opportunity of the company (open, won, lost, archived) without disclosing it, so the method returns only a boolean, never a record, id or agent, and the routes answer the fixed message 'duplicate phone'."
+    },
+    "odoo-addons/webvue_crm/models/crm_stage.py": {
+      "count": 1,
+      "reason": "webvue_crm stage occupancy check: `self.env['crm.lead'].sudo().with_context(active_test=False).search_count([('stage_id','in',self.ids)], limit=1)` in `_webvue_has_opportunities`; blocked by the CRM global visibility rule odoo-addons/webvue_crm/security/crm_rules.xml `rule_crm_lead_visibility_read` and the company fences, which hide other companies' and other agents' deals while stages are shared tenant-wide, plus `active_test` hiding archived ones. It guards the won-flag move and the stage archive, so the method returns only a boolean, never a record, id or agent."
+    },
     "odoo-addons/webvue_payments/models/payment_provider.py": {
       "count": 1,
       "reason": "webvue_payments switches one gateway's mode: `self.sudo().write({'state': ..., 'is_published': ...})` in `_webvue_payments_set_state`, after the `payments.providers.manage` capability and the current-company checks in the same method; stock `payment.provider.write` then archives `payment.token` rows, toggles `payment.method.active` and the payment post-processing `ir.cron`, each blocked by the system-only `payment_token_system`, `payment_method_system` and `ir.cron` ACL rows."
