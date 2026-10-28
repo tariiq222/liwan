@@ -96,6 +96,33 @@ test('the board lists the four stages and the stage filter survives back navigat
   await expect(page.getByRole('link', { name: 'محمد الدوسري' })).toBeVisible()
 })
 
+test('board and mobile cards carry a call action beside the link, not inside it', async ({ page }) => {
+  await page.goto('/crm/opportunities?view=board')
+  const card = page.getByTestId('crm-board-card').filter({ hasText: 'أحمد العتيبي' })
+  const call = page.getByRole('link', { name: 'اتصل بـ أحمد العتيبي' })
+  await expect(call).toHaveAttribute('href', 'tel:0501234567')
+  await expect(card.locator('a[href^="tel:"]')).toHaveCount(0)
+  // Inline-end in a right-to-left page is the left edge of the card; the action never overlaps its text.
+  const [cardBox, callBox] = [await card.boundingBox(), await call.boundingBox()]
+  expect(callBox!.x + callBox!.width / 2).toBeLessThan(cardBox!.x + cardBox!.width / 2)
+  await card.focus()
+  await page.keyboard.press('Tab')
+  await expect(call).toBeFocused()
+  await call.evaluate(element => element.addEventListener('click', event => event.preventDefault()))
+  await call.click()
+  await expect(page).toHaveURL(/view=board/)
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/crm/opportunities')
+  const row = page.getByRole('listitem').filter({ hasText: 'سارة القحطاني' })
+  await expect(row.getByRole('link', { name: /سارة القحطاني/ }).locator('a[href^="tel:"]')).toHaveCount(0)
+  const mobileCall = row.getByRole('link', { name: 'اتصل بـ سارة القحطاني' })
+  await expect(mobileCall).toHaveAttribute('href', 'tel:0507654321')
+  await mobileCall.evaluate(element => element.addEventListener('click', event => event.preventDefault()))
+  await mobileCall.click()
+  await expect(page).toHaveURL(/\/crm\/opportunities$/)
+})
+
 test('lost closes inline after a confirmation and a manager reopens it', async ({ page }) => {
   await page.goto('/crm/opportunities/3')
   await page.getByTestId('crm-open-lost').click()

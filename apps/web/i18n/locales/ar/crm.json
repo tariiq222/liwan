@@ -138,6 +138,7 @@
       }
     },
     "opportunities": {
+      "callAction": "اتصل بـ {name}",
       "list": {
         "new": "إضافة {term}",
         "search": "ابحث بالاسم أو الهاتف أو البريد",

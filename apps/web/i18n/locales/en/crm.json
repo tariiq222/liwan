@@ -138,6 +138,7 @@
       }
     },
     "opportunities": {
+      "callAction": "Call {name}",
       "list": {
         "new": "Add {term}",
         "search": "Search by name, phone or email",

@@ -2,6 +2,7 @@
 import type { RouteLocationRaw } from 'vue-router'
 import type { CrmOpportunity, CrmStage } from '@webvue/contracts'
 import { formatDateTime } from '@webvue/ui/app/utils/formatDate'
+import CrmCallButton from './CrmCallButton.vue'
 import { isCallDue } from '@/utils/crmOpportunity'
 
 // The pipeline as columns, one per active stage in the settings order. A record whose stage is archived or unset
@@ -28,7 +29,8 @@ const columns = computed<Column[]>(() => {
         <UBadge color="neutral" variant="subtle" class="rounded-full">{{ column.items.length }}</UBadge>
       </header>
       <p v-if="!column.items.length" class="px-1 py-3 text-sm text-muted">{{ t('crm.opportunities.board.emptyColumn') }}</p>
-      <NuxtLink v-for="item in column.items" :key="item.id" :to="to(item)" class="block min-w-0 rounded-card bg-default p-3 ring ring-default hover:ring-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" data-testid="crm-board-card">
+      <div v-for="item in column.items" :key="item.id" class="relative min-w-0">
+        <NuxtLink :to="to(item)" class="block min-w-0 rounded-card bg-default p-3 pe-14 ring ring-default hover:ring-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" data-testid="crm-board-card">
         <span class="block truncate font-semibold text-highlighted">{{ item.contact_name }}</span>
         <span class="mt-1 block truncate text-sm text-muted"><bdi>{{ item.phone }}</bdi></span>
         <span class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
@@ -38,7 +40,9 @@ const columns = computed<Column[]>(() => {
           <UBadge v-else-if="isCallDue(item, clock)" color="warning" variant="subtle" class="rounded-full">{{ t('crm.opportunities.tag.due') }}</UBadge>
           <time v-else-if="item.next_call_at" :datetime="item.next_call_at">{{ formatDateTime(item.next_call_at) }}</time>
         </span>
-      </NuxtLink>
+        </NuxtLink>
+        <CrmCallButton :phone="item.phone" :name="item.contact_name" class="absolute end-2 top-2" />
+      </div>
     </section>
   </div>
 </template>
