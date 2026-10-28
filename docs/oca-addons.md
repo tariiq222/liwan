@@ -1,7 +1,7 @@
 # Pinned OCA addons
 
 WebVue's Odoo runs with a few OCA 19.0 repositories on its addons path (finance reporting,
-reconciliation, assets, MIS reports and document management). They are separate, pinned dependencies fetched at run or build
+reconciliation, assets, MIS reports, document management, payroll, shifts and appointments). They are separate, pinned dependencies fetched at run or build
 time. The fetched repositories stay outside this checkout. The separately maintained
 `odoo-addons/base_tier_validation` is the documented vendored OCA exception.
 
@@ -75,6 +75,20 @@ is the only module of OCA/hr that is installed.
 |---|---|
 | `payroll` (payroll) | payslip engine behind the payroll section of `webvue_hr`; its groups, menus and views are never used |
 
+`resource_booking` (OCA/calendar) is the booking engine of `webvue_appointments` (owner decision
+2026-10-28): booking types, availability calendars, resource combinations, computed states and the
+`calendar.event` of each booking. Its portal pages (`/my/bookings/...`) stay closed by the
+`webvue_platform` guard; WebVue serves its own routes. Its scheduling check is a Python constraint
+without a lock, so concurrent bookings of one slot must be serialized by `webvue_appointments`.
+
+| OCA module (repository) | Used for |
+|---|---|
+| `resource_booking` (calendar) | appointment types, slots, resource combinations and booking states of `webvue_appointments` |
+| `web_calendar_slot_duration` (web) | backend calendar-view dependency of `resource_booking`; no WebVue use |
+
+`calendar_public_holiday` (calendar) and the other OCA/web modules are in the pinned repositories but unused;
+neither repository has an `auto_install` module.
+
 ## Bump a pin
 
 1. `git ls-remote https://github.com/OCA/<repo>.git refs/heads/19.0`, take the sha.
@@ -88,7 +102,8 @@ Add a repository only when a module WebVue depends on needs it (check `depends` 
 ## Python requirements
 
 The runtime already provides them through `deploy/odoo/requirements-python312-linux.txt`:
-`python-dateutil` (`account_asset_management`), `xlsxwriter` and `xlrd` (`report_xlsx`). Changing the
+`python-dateutil` (`account_asset_management`), `xlsxwriter` and `xlrd` (`report_xlsx`), `cssselect`
+(`resource_booking`). Changing the
 pins must keep that file satisfying `python_requirements`.
 
 ## Licensing (owner decision 2026-10-18)

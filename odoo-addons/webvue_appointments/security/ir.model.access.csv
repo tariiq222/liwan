@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_webvue_appointments_record_employee,webvue.appointments.record.employee,model_webvue_appointments_record,webvue_core.group_employee,1,0,0,0
+access_webvue_appointments_record_reader,webvue.appointments.record.reader,model_webvue_appointments_record,group_cap_appointments_records_read,1,0,0,0
+access_webvue_appointments_record_manager,webvue.appointments.record.manager,model_webvue_appointments_record,group_cap_appointments_records_manage,1,1,1,1

@@ -1,0 +1,9 @@
+{
+  "appointments": {
+    "title": "Appointments",
+    "empty": "No records yet",
+    "nav": {
+      "records": "Records"
+    }
+  }
+}
