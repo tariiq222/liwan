@@ -123,7 +123,7 @@ def test_features_registered_with_owner(self):
 - Produces model `webvue.crm.settings` (`_webvue_scope='company'`, unique `company_id`, `revision`
   Integer, the fields of the spec settings table, `term_<customer|opportunity|package>_<singular|plural>_<ar|en>`
   Char + `term_<…>_gender` Selection `m|f`, `distribution_user_ids` Many2many `res.users`,
-  `round_robin_index` Integer).
+  the round-robin pointer lives in `webvue.crm.rotation`, not here).
 - `@api.model _webvue_current() -> record` (empty recordset when no row);
   `@api.model _webvue_effective() -> dict` (row values or exact defaults; never writes).
 - `PRESETS: dict[str, dict]` in `models/crm_settings.py`: `general` = defaults with `followup_attempts=0`,
@@ -201,7 +201,7 @@ def test_other_company_row_is_untouched(self): ...
 - `_webvue_assign(leads, mode=None, agent=None) -> None` — applies the company mode: `round_robin` takes
   locks the company settings row (our own table, so R9 allows it) with `row.flush_recordset()` then
   `self.env.cr.execute(SQL('SELECT 1 FROM %s WHERE id = %s FOR UPDATE', SQL.identifier(row._table), row.id))`,
-  and advances `round_robin_index`. `manual` leaves `user_id` empty; `on_import` sets `agent` (must be eligible,
+  and advances the `webvue.crm.rotation` pointer. `manual` leaves `user_id` empty; `on_import` sets `agent` (must be eligible,
   else 422). No eligible agent → unassigned and returns without error.
 - Creates the settings row on first assignment if missing (pointer needs a row).
 

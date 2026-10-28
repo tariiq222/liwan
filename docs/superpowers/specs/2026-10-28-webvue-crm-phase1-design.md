@@ -258,8 +258,8 @@ cleared.
 
 ### Distribution
 
-- `round_robin`: the next agent among `distribution_user_ids` in a stable order. The pointer is a
-  column on the company settings row, advanced under a row lock (`SELECT ... FOR UPDATE` through the
+- `round_robin`: the next agent among `distribution_user_ids` in a stable order. The pointer is the last
+  assigned user id in `webvue.crm.rotation` (see "Implementation rulings"), advanced under a row lock (`SELECT ... FOR UPDATE` through the
   ORM's `_lock_for_update` or `flush` + `lock`) so concurrent imports stay fair. Users who no longer hold
   `crm.leads.work` or are archived are skipped; when nobody is eligible the opportunity goes to the
   unassigned pool and the import summary says so (not an error). *(Claude's call.)*
@@ -319,3 +319,29 @@ Follow-ups and recycled opportunities follow the rule in the follow-up engine.
 - Dashboard query shapes and chart choices from the Storybook catalog.
 - Whether phase 1 also enables the stock lead stage as a later setting: not in phase 1; keep the data
   model compatible with adding it as a setting.
+
+## Implementation rulings
+
+Taken during implementation; where they differ from the text above, they win.
+
+- The round-robin pointer lives in `webvue.crm.rotation` (one row per company, holding the last assigned
+  user id), not on the settings row.
+- An import batch has no state field; it records its counts only.
+- `POST /imports/columns` answers `{columns, rows}`.
+- Agents read the company terms with `GET /crm/terms` (needs `crm.leads.read`).
+- A call accepts `lost_reason_id`; it overrides the reason an outcome carries.
+- The discount percentage is derived from the prices; a declared percentage that does not match answers
+  422 `invalid`.
+- Reopening and assigning need `crm.leads.assign`. `crm.settings.manage` and `crm.leads.import` depend on
+  `crm.leads.assign`.
+- Reassigning or editing (PATCH) a closed opportunity answers 409 `conflict`.
+- Unassigned opportunities are visible only to holders of `crm.leads.assign`.
+- One documented `sudo()` serves the boolean duplicate-phone check, together with a partial unique phone
+  index per company.
+- The `phonenumbers` dependency is pinned at 9.0.41.
+- The English default for the package term is "plan".
+- The won stage is moved only when the stage it replaces is empty.
+- A stage that holds opportunities cannot be archived.
+- File import refusals carry machine codes in `details.reason`: `file_bad_csv`, `file_bad_type`, `file_bad_xlsx`, `file_duplicate_header`, `file_empty`, `file_no_rows`,
+  `file_not_utf8`, `file_too_large`, `file_too_many_columns`, `file_too_many_rows`,
+  `file_unpacked_too_large` (source: `packages/contracts/src/crm/imports.ts`).
