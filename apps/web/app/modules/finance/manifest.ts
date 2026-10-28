@@ -81,6 +81,8 @@ const manifest: AppManifest = {
     { to: '/finance/budgets', labelKey: 'finance.nav.budgets', icon: 'i-lucide-target', shortcut: '', capability: 'finance.budgets.read' },
     { to: '/finance/assets', labelKey: 'finance.nav.assets', icon: 'i-lucide-package', shortcut: '', capability: 'finance.assets.read' },
     { to: '/finance/reports/trial-balance', labelKey: 'finance.nav.reports', icon: 'i-lucide-file-chart-column', shortcut: '', capability: 'finance.statements.read' },
+    // The tax reports have their own capability, so a role holding only it still finds Finance.
+    { to: '/finance/reports/vat', labelKey: 'finance.nav.vat', icon: 'i-lucide-percent', shortcut: '', capability: 'finance.reports.read' },
   ],
   // One page of cards; the audit card previews the log and its full list is a page of its own. The setup records (accounts, journals,
     // taxes, payment terms, asset profiles) are lists with their own filters in the URL, so each is a page of its own.
