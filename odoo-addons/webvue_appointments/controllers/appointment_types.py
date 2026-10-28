@@ -5,12 +5,10 @@ from odoo.http import request
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
-    parse_nonneg_int,
+    parse_page,
     requires_feature,
 )
 from odoo.addons.webvue_appointments.serializers.appointment_type import dump_types
-
-MAX_LIMIT = 200
 
 
 class AppointmentTypeController(http.Controller):
@@ -22,9 +20,7 @@ class AppointmentTypeController(http.Controller):
         service = request.env['webvue.access.service']
         if not service._webvue_has_capability(request.env.user, 'appointments.types.read'):
             raise ApiError(403, 'forbidden', 'appointments.types.read capability is required')
-        args = request.httprequest.args
-        limit = min(parse_nonneg_int(args.get('limit', 50), 'limit'), MAX_LIMIT)
-        offset = parse_nonneg_int(args.get('offset', 0), 'offset')
+        limit, offset = parse_page(request.httprequest.args)
         BookingType = request.env['resource.booking.type']
         domain = [('company_id', '=', request.env.company.id)]
         booking_types = BookingType.search(domain, limit=limit, offset=offset)

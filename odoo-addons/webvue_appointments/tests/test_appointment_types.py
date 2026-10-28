@@ -3,6 +3,7 @@ from odoo.exceptions import AccessError
 from odoo.tests import tagged
 
 from .common import WebVueAppointmentsCase
+from odoo.addons.webvue_api.controllers.common import DEFAULT_PAGE_LIMIT
 from odoo.addons.webvue_api.tests.common import set_probe_feature
 
 
@@ -29,6 +30,13 @@ class TestAppointmentTypes(WebVueAppointmentsCase):
         self.authenticate('api_emp', 'api_emp_pass_123')
         result = self.api('GET', '/api/v1/appointments/types?limit=-1')
         self.assertEqual((result.status_code, result.json()['code']), (422, 'invalid'))
+
+    def test_a_zero_limit_returns_the_default_page_not_everything(self):
+        self.env['resource.booking.type'].create([{'name': 'Bulk %d' % index} for index in range(DEFAULT_PAGE_LIMIT)])
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        body = self.api('GET', '/api/v1/appointments/types?limit=0').json()
+        self.assertEqual(len(body['items']), DEFAULT_PAGE_LIMIT)
+        self.assertGreater(body['total'], DEFAULT_PAGE_LIMIT)
 
     def test_a_user_without_the_read_capability_gets_403_forbidden(self):
         self.authenticate('appointments_outsider', 'appointments_outsider_pass_123')
