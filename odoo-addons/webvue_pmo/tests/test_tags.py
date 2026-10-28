@@ -40,7 +40,7 @@ class TestTags(WebVuePmoCase):
         self.env['project.tags'].create({'name': 'vocabulary'})
         self._managed_user('tags_projects_reader', ['pmo.projects.read'])
         self._managed_user('tags_tasks_reader', ['pmo.tasks.read'])
-        self._managed_user('tags_no_pmo', ['tasks.tasks.read'])
+        self._managed_user('tags_no_pmo', ['settings.company.read'])
         for login, status in (
             ('tags_projects_reader', 200), ('tags_tasks_reader', 200), ('tags_no_pmo', 403),
         ):

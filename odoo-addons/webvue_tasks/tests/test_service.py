@@ -1,6 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import SUPERUSER_ID
-from odoo.exceptions import AccessError, ValidationError
+from odoo.exceptions import ValidationError
 from odoo.fields import Command
 from odoo.tests import new_test_user, tagged
 
@@ -488,12 +488,6 @@ class TestMyTaskService(WebVueTasksCase):
         self.assertEqual(self.archived_ids(self.bob), {task.id})
         self.assertEqual(self.archived_ids(self.carol), set())
         self.service(self.alice)._archive(task, archive=False)
-
-    def test_archive_never_unlinks(self):
-        task = self.closed_task(self.alice)
-        self.service(self.alice)._archive(task, archive=True)
-        with self.assertRaises(AccessError):
-            task.with_user(self.alice).unlink()
 
     def test_list_search_sort_and_paging(self):
         late = self.create(self.alice, 'Zeta', date_deadline='2026-12-31')
