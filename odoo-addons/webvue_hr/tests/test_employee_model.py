@@ -57,6 +57,27 @@ class TestEmployeeModel(TransactionCase):
         with self.assertRaises(AccessError):
             employee.with_user(self.access_admin).write({'active': False})
 
+    def test_only_an_employee_resource_activity_is_reserved_to_the_hr_actions(self):
+        employee = self._employee()
+        with self.assertRaises(AccessError):
+            employee.resource_id.with_user(self.hr_manager).write({'active': False})
+        room = self.env['resource.resource'].create({'name': 'Model room', 'resource_type': 'material'})
+        room.with_user(self.hr_manager).write({'active': False})
+        self.assertFalse(room.active)
+
+    def test_an_hr_writer_keeps_write_on_resources_when_another_group_rule_narrows_them(self):
+        # Group rules join with OR only across groups that have one: a narrowing rule of another group the
+        # HR writer also holds must not take employee resources away from HR.
+        narrowed = self.env['res.groups'].create({'name': 'Material resources only'})
+        self.env['ir.rule'].create({
+            'name': 'material only', 'model_id': self.env.ref('resource.model_resource_resource').id,
+            'groups': [(4, narrowed.id)], 'domain_force': "[('resource_type', '=', 'material')]", 'perm_read': False,
+        })
+        self.hr_manager.group_ids |= narrowed
+        employee = self._employee()
+        employee.resource_id.with_user(self.hr_manager).write({'name': 'Renamed resource'})
+        self.assertEqual(employee.resource_id.name, 'Renamed resource')
+
     def test_current_company_capability_cannot_read_or_mutate_an_enabled_company(self):
         other_company = self.env['res.company'].create({'name': 'HR scope company B'})
         self.hr_manager.write({

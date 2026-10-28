@@ -1,8 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 {
     'name': 'webvue Appointments',
-    'summary': 'webvue platform: the Appointments application — /api/v1/appointments/types',
-    'version': '19.0.1.1.0',
+    'summary': 'webvue platform: the Appointments application — /api/v1/appointments',
+    'version': '19.0.1.2.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
