@@ -75,6 +75,16 @@ def period_locked(field=None, details=None):
     return ApiError(422, 'period_locked', 'the accounting period is locked for this date', field=field, details=details)
 
 
+def require_open_period(day, journal=None, *, has_tax=False, company=None, field='date'):
+    """422 ``period_locked`` on ``field`` when a lock date covers ``day``.
+
+    Odoo silently moves the accounting date of a document or statement line in a closed period to the first open
+    day instead of raising, so a write that must not land there is refused up front.
+    """
+    if is_period_locked(day, journal, has_tax, company=company):
+        raise period_locked(field=field)
+
+
 def refusal(error, *, day=None, journal=None, has_tax=False, move=None, company=None):
     """The ApiError for an Odoo UserError/ValidationError.
 

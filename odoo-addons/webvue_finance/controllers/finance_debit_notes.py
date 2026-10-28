@@ -4,7 +4,7 @@ from odoo.http import request
 
 from .common import require_capability
 from .finance_invoices import _find_invoice, _lock_context
-from .write_support import attempt
+from .write_support import attempt, require_open_period
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
@@ -48,7 +48,13 @@ class FinanceDebitNoteController(http.Controller):
             })
             return request.env['account.move'].browse(wizard.create_debit()['res_id'])
 
-        debit_note = attempt(create, **{**_lock_context(invoice), 'day': parsed.get('date') or invoice.date})
+        lock = {
+            **_lock_context(invoice), 'day': parsed.get('date') or invoice.date,
+            'has_tax': parsed['copy_lines'] and bool(invoice.invoice_line_ids.tax_ids),
+        }
+        if 'date' in parsed:
+            require_open_period(**lock, field='date')
+        debit_note = attempt(create, **lock)
         # The wizard always sets the type, origin, date and ref; it copies the lines only when asked.
         written = ('move_type', 'debit_origin_id', 'date', 'ref')
         if parsed['copy_lines']:
