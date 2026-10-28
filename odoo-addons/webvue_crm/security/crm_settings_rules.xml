@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="rule_webvue_crm_settings_company" model="ir.rule">
+        <field name="name">webvue CRM settings: current company</field>
+        <field name="model_id" ref="model_webvue_crm_settings"/>
+        <field name="domain_force">[('company_id', '=', company_id)]</field>
+    </record>
+</odoo>

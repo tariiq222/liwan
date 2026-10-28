@@ -14,6 +14,7 @@
     'data': [
         'security/crm_capability_groups.xml',
         'security/ir.model.access.csv',
+        'security/crm_settings_rules.xml',
         'data/crm_access_permissions.xml',
     ],
     'installable': True,

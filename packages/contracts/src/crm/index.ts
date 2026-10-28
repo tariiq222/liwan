@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+export * from './settings'
+
 export const CrmCapabilityKeySchema = z.enum([
   'crm.leads.read',
   'crm.leads.work',

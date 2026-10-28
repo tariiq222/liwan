@@ -31,3 +31,13 @@ class WebVueCrmCase(WebVueApiCase):
             'company_id': cls.company.id,
         }])
         return user
+
+    def as_user(self, user):
+        self.authenticate(user.login, f'{user.login}_pass_123')
+        return self
+
+    def as_manager(self):
+        return self.as_user(self.manager)
+
+    def as_agent(self):
+        return self.as_user(self.agent)
