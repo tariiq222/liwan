@@ -1,4 +1,6 @@
 import {
+  decodePayReturn,
+  encodePayReturn,
   PayableInvoiceSchema,
   PaymentLinkSchema,
   PaymentRedirectSchema,
@@ -51,5 +53,14 @@ describe('PaymentLinkSchema', () => {
     expect(PaymentLinkSchema.parse({ path: '/pay/invoice/11?access_token=ab-12' }).path).toBe('/pay/invoice/11?access_token=ab-12')
     expect(() => PaymentLinkSchema.parse({ path: 'https://evil.example/pay/invoice/11?access_token=x' })).toThrow()
     expect(() => PaymentLinkSchema.parse({ path: '/my/invoices/11?access_token=x' })).toThrow()
+  })
+})
+
+describe('pay return cookie', () => {
+  it('round-trips an invoice id and token and refuses anything else', () => {
+    expect(decodePayReturn(encodePayReturn(11, 'ab-12_C'))).toEqual({ invoiceId: 11, accessToken: 'ab-12_C' })
+    for (const value of [undefined, '', '11', '11.', 'x.tok', '11.tok;evil', '11.tok/../', `11.${'a'.repeat(129)}`]) {
+      expect(decodePayReturn(value)).toBeNull()
+    }
   })
 })

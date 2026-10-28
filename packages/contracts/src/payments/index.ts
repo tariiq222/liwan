@@ -118,3 +118,23 @@ export type PaymentStart = z.infer<typeof PaymentStartSchema>
 export type PaymentRedirect = z.infer<typeof PaymentRedirectSchema>
 export type PaymentLinkCreate = z.infer<typeof PaymentLinkCreateSchema>
 export type PaymentLink = z.infer<typeof PaymentLinkSchema>
+
+/**
+ * The payer's way back from the gateway. Before leaving for the gateway page, the pay page stores
+ * `<invoice id>.<access token>` in this cookie (path `/payment`, one hour); the gateway's return
+ * lands on `/payment/<code>/return`, where the server reads it to send the payer to the status page.
+ */
+export const PAY_RETURN_COOKIE = 'webvue_pay_return'
+export const PAY_RETURN_COOKIE_PATH = '/payment'
+export const PAY_RETURN_MAX_AGE_SECONDS = 3600
+const PAY_RETURN_VALUE = /^(\d{1,12})\.([A-Za-z0-9_-]{1,128})$/
+
+export function encodePayReturn(invoiceId: number, accessToken: string): string {
+  return `${invoiceId}.${accessToken}`
+}
+
+/** The invoice id and token of a well-formed cookie value, or null. */
+export function decodePayReturn(value: string | undefined | null): { invoiceId: number; accessToken: string } | null {
+  const match = value ? PAY_RETURN_VALUE.exec(value) : null
+  return match ? { invoiceId: Number(match[1]), accessToken: match[2]! } : null
+}

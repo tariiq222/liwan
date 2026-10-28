@@ -5,9 +5,11 @@ import { requireApiSession } from '../../../utils/apiSessionAdmission'
 import { canonicalApiPath } from '../../../utils/apiPath'
 import { heavyRouteKind } from '../../../utils/heavyRoutes'
 import { HEAVY_TIMEOUT } from '../../../utils/upstreamDeadlines'
+import { forwardPublicApi, isPublicApiPath, MAX_PUBLIC_API_BODY, PUBLIC_API_NAMESPACE_METHODS } from '../../../utils/publicApi'
 
-// The only /api/v1 routes Odoo serves with auth='public': login-page branding
-// and the MFA confirmation. Everything else requires a session cookie.
+// Two auth='public' routes outside the public namespace, both part of the login flow: login-page
+// branding and the MFA confirmation (which needs the pre-login session cookie). Everything under
+// the public namespace is public too, without cookies; everything else requires a session cookie.
 const PUBLIC_API_METHODS = new Map<string, readonly string[]>([
   ['/api/v1/branding', ['GET', 'HEAD']],
   ['/api/v1/auth/totp', ['POST']],
@@ -27,7 +29,8 @@ export default defineEventHandler(async (event) => {
   const path = canonicalApiPath(event.path)
   const apiPath = path.split('?')[0] ?? path
   if (SERVER_ONLY_API_PATHS.has(apiPath)) throw createError({ statusCode: 404, data: { code: 'not_found', message: 'Not found' } })
-  const publicMethods = PUBLIC_API_METHODS.get(apiPath)
+  const publicNamespace = isPublicApiPath(apiPath)
+  const publicMethods = PUBLIC_API_METHODS.get(apiPath) ?? (publicNamespace ? PUBLIC_API_NAMESPACE_METHODS : undefined)
   if (publicMethods && !publicMethods.includes(event.method)) {
     setResponseHeader(event, 'allow', publicMethods.join(', '))
     setResponseHeader(event, 'connection', 'close')
@@ -41,7 +44,8 @@ export default defineEventHandler(async (event) => {
   const heavy = heavyKind ? { timeoutMs: HEAVY_TIMEOUT, write: heavyKind === 'write' } : undefined
   const scope = publicMethods ? 'public' : heavy ? 'heavy' : 'session'
   return withTenantBody(event, scope, async () => {
-    const body = await boundedTenantBody(event, apiPath === '/api/v1/auth/totp' ? MAX_PUBLIC_MFA_BODY : undefined)
+    const body = await boundedTenantBody(event, apiPath === '/api/v1/auth/totp' ? MAX_PUBLIC_MFA_BODY : publicNamespace ? MAX_PUBLIC_API_BODY : undefined)
+    if (publicNamespace) return withTenantResponse(event, scope, async () => sendWebResponse(event, await forwardPublicApi(event, odooUrl, path, { method: event.method, body })))
     return withTenantResponse(event, scope, async () => Object.keys(headers).length
       ? sendWebResponse(event, await tenantTransport(event, odooUrl, path, { method: event.method, body, heavy }))
       : sendWebResponse(event, await legacyTenantResponse(event, odooUrl, path, { method: event.method, body, headers: getProxyRequestHeaders(event, { host: false }), heavy })))

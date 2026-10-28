@@ -99,3 +99,48 @@ describe('server-only API routes', () => {
     expect(proxy).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('public API namespace', () => {
+  function sharedEvent(path: string, method: string, cookie?: string) {
+    const registry = join(mkdtempSync(join(tmpdir(), 'webvue-proxy-public-')), 'registry.json')
+    writeFileSync(registry, JSON.stringify({ schemaVersion: 1, snapshotRevision: 9, targets: [{ tenantId: 'tenant_a', host: 'alpha.example.test', database: 'db_a', filestore: 'db_a', enabled: true, registryRevision: 3 }] }))
+    const token = 'synthetic-private-token-'.repeat(3)
+    vi.stubEnv('WEBVUE_TENANCY_MODE', 'shared')
+    vi.stubEnv('WEBVUE_SHARED_PROXY_TOKEN', token)
+    vi.stubEnv('WEBVUE_TENANT_REGISTRY_PATH', registry)
+    const headers: Record<string, string> = { host: 'alpha.example.test', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '3' }
+    if (cookie) headers.cookie = cookie
+    return { path, method, node: { req: { headers }, res: { setHeader: vi.fn(), getHeader: vi.fn() } } }
+  }
+
+  it('forwards without a session and without the browser cookie', async () => {
+    transport.mockClear()
+    const event = sharedEvent('/api/v1/public/payments/invoices/7?access_token=t', 'GET', 'session_id=staff')
+    const { handler } = await setup()
+    await handler(event as never)
+    expect(transport).toHaveBeenCalledExactlyOnceWith(event, 'http://guard:8080', '/api/v1/public/payments/invoices/7?access_token=t', { method: 'GET', body: undefined, headers: { cookie: '' } })
+  })
+
+  it('drops any cookie Odoo sets on a public answer', async () => {
+    transport.mockResolvedValueOnce(new Response('{}', { headers: { 'set-cookie': 'session_id=fresh; Path=/' } }))
+    const { sendWebResponse } = await import('h3')
+    const send = vi.mocked(sendWebResponse); send.mockClear()
+    const { handler } = await setup()
+    await handler(sharedEvent('/api/v1/public/payments/invoices/7?access_token=t', 'GET') as never)
+    expect(send.mock.calls[0]![1].headers.get('set-cookie')).toBeNull()
+  })
+
+  it('accepts only GET, HEAD and POST', async () => {
+    transport.mockClear()
+    const { handler } = await setup()
+    await expect(handler(sharedEvent('/api/v1/public/payments/invoices/7', 'PATCH') as never)).rejects.toMatchObject({ statusCode: 405 })
+    expect(transport).not.toHaveBeenCalled()
+  })
+
+  it('does not treat a lookalike prefix as public', async () => {
+    transport.mockClear()
+    const { handler } = await setup()
+    await expect(handler(sharedEvent('/api/v1/publicity', 'GET') as never)).rejects.toMatchObject({ statusCode: 403 })
+    expect(transport).not.toHaveBeenCalled()
+  })
+})
