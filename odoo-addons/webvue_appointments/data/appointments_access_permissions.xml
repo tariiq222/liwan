@@ -1,26 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="permission_appointments_types_read" model="webvue.access.permission">
-        <field name="key">appointments.types.read</field><field name="domain">appointments</field>
-        <field name="resource">types</field><field name="action">read</field>
-        <field name="name_ar">قراءة أنواع المواعيد</field><field name="name_en">Read Appointments booking types</field>
-        <field name="description_ar">قراءة أنواع المواعيد</field><field name="description_en">Read Appointments booking types</field>
-        <field name="group_xmlid">webvue_appointments.group_cap_appointments_types_read</field>
+    <record id="permission_appointments_view" model="webvue.access.permission">
+        <field name="key">appointments.view</field><field name="domain">appointments</field>
+        <field name="resource">appointments</field><field name="action">view</field>
+        <field name="name_ar">عرض المواعيد</field><field name="name_en">View Appointments</field>
+        <field name="description_ar">عرض مواعيدي والمواعيد المسندة إليّ وأنواع المواعيد</field><field name="description_en">View own and assigned bookings and the booking types</field>
+        <field name="group_xmlid">webvue_appointments.group_cap_appointments_view</field>
         <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
     </record>
-    <record id="permission_appointments_types_manage" model="webvue.access.permission">
-        <field name="key">appointments.types.manage</field><field name="domain">appointments</field>
-        <field name="resource">types</field><field name="action">manage</field>
-        <field name="name_ar">إدارة أنواع المواعيد</field><field name="name_en">Manage Appointments booking types</field>
-        <field name="description_ar">إدارة أنواع المواعيد</field><field name="description_en">Manage Appointments booking types</field>
-        <field name="group_xmlid">webvue_appointments.group_cap_appointments_types_manage</field>
+    <record id="permission_appointments_book" model="webvue.access.permission">
+        <field name="key">appointments.book</field><field name="domain">appointments</field>
+        <field name="resource">appointments</field><field name="action">book</field>
+        <field name="name_ar">حجز المواعيد</field><field name="name_en">Book Appointments</field>
+        <field name="description_ar">إنشاء المواعيد وجدولتها وتعديلها لأي شخص في الشركة</field><field name="description_en">Create, schedule and reschedule bookings for anyone in the company</field>
+        <field name="group_xmlid">webvue_appointments.group_cap_appointments_book</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
+    </record>
+    <record id="permission_appointments_manage" model="webvue.access.permission">
+        <field name="key">appointments.manage</field><field name="domain">appointments</field>
+        <field name="resource">appointments</field><field name="action">manage</field>
+        <field name="name_ar">إدارة المواعيد</field><field name="name_en">Manage Appointments</field>
+        <field name="description_ar">إدارة أنواع المواعيد والمجموعات وكل المواعيد وحذفها</field><field name="description_en">Manage booking types, combinations and every booking, including deletion</field>
+        <field name="group_xmlid">webvue_appointments.group_cap_appointments_manage</field>
         <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
     <data noupdate="1">
         <record id="role_appointments_manager" model="webvue.access.role">
             <field name="key">appointments_manager</field><field name="name_ar">مدير المواعيد</field><field name="name_en">Appointments manager</field>
             <field name="description">Appointments manager</field><field name="type">built_in</field><field name="protected" eval="True"/><field name="assignable" eval="True"/>
-            <field name="permission_ids" eval="[Command.set([ref('permission_appointments_types_read'),ref('permission_appointments_types_manage')])]"/>
+            <field name="permission_ids" eval="[Command.set([ref('permission_appointments_view'),ref('permission_appointments_book'),ref('permission_appointments_manage')])]"/>
         </record>
     </data>
     <!-- Built-in roles are noupdate records: these hooks link this addon's grants and

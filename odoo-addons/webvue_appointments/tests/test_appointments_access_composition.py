@@ -40,9 +40,19 @@ class TestAppointmentsAccessComposition(TransactionCase):
         self.assertTrue(self._keys('webvue_core.role_employee') >= EMPLOYEE_PERMISSIONS)
         self.assertTrue(self._keys('webvue_core.role_vendor_support') >= PERMISSIONS)
 
-    def test_manage_depends_on_read(self):
-        manage = self.Permission.search([('key', '=', 'appointments.types.manage')])
-        self.assertEqual(manage.dependency_ids.mapped('key'), ['appointments.types.read'])
+    def test_manage_depends_on_book_and_book_on_view(self):
+        manage = self.Permission.search([('key', '=', 'appointments.manage')])
+        book = self.Permission.search([('key', '=', 'appointments.book')])
+        self.assertEqual(manage.dependency_ids.mapped('key'), ['appointments.book'])
+        self.assertEqual(book.dependency_ids.mapped('key'), ['appointments.view'])
+
+    def test_the_employee_role_only_views(self):
+        self.assertEqual(self._keys('webvue_core.role_employee') & set(PERMISSIONS), {'appointments.view'})
+
+    def test_system_admin_does_not_imply_appointments_manage(self):
+        manager_group = self.env.ref('resource_booking.group_manager')
+        self.assertNotIn(self.env.ref('base.user_admin'), manager_group.user_ids)
+        self.assertIn(self.env.ref('base.user_root'), manager_group.with_context(active_test=False).user_ids)
 
     def test_legacy_groups_still_grant_capabilities(self):
         manager = new_test_user(self.env, login='appointments_comp_manager', groups='webvue_appointments.group_appointments_manager')

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Company scope: the engine's two global rules also show company-less rows; WebVue
+         records always have a company, so the rules drop the False alternative. -->
+    <record id="resource_booking.rule_resource_booking_type_company" model="ir.rule">
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="resource_booking.rule_resource_booking_company" model="ir.rule">
+        <field name="domain_force">[('type_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_resource_booking_combination_company" model="ir.rule">
+        <field name="name">Resource booking combination company rule</field>
+        <field name="model_id" ref="resource_booking.model_resource_booking_combination"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <!-- Record scope: view sees its own and assigned bookings (the engine's own rule domain);
+         book and manage see every booking of the company. -->
+    <record id="rule_resource_booking_view" model="ir.rule">
+        <field name="name">Appointments view: own and assigned bookings</field>
+        <field name="model_id" ref="resource_booking.model_resource_booking"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_appointments_view'))]"/>
+        <field name="domain_force">['|', '|', ('partner_ids', 'child_of', user.partner_id.ids), ('message_partner_ids', 'child_of', user.partner_id.ids), ('combination_id.resource_ids.user_id', 'in', user.ids)]</field>
+    </record>
+    <record id="rule_resource_booking_book" model="ir.rule">
+        <field name="name">Appointments book: every booking of the company</field>
+        <field name="model_id" ref="resource_booking.model_resource_booking"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_appointments_book'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <record id="rule_resource_booking_manage" model="ir.rule">
+        <field name="name">Appointments manage: every booking of the company</field>
+        <field name="model_id" ref="resource_booking.model_resource_booking"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_appointments_manage'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+</odoo>
