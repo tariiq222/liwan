@@ -120,7 +120,6 @@ class WebVueCrmSettings(models.Model):
     )
     # Empty means every eligible agent; the distribution service resolves eligibility.
     distribution_user_ids = fields.Many2many('res.users', 'webvue_crm_settings_user_rel', 'settings_id', 'user_id')
-    round_robin_index = fields.Integer(required=True, default=0)
 
     visibility = fields.Selection(_selection(VISIBILITIES), required=True, default=DEFAULTS['visibility'])
     view_log_enabled = fields.Boolean(default=DEFAULTS['view_log_enabled'])
@@ -130,9 +129,6 @@ class WebVueCrmSettings(models.Model):
 
     _company_unique = models.Constraint('UNIQUE(company_id)', 'a company has one CRM settings record')
     _revision_positive = models.Constraint('CHECK(revision > 0)', 'a saved revision must be positive')
-    _round_robin_index_nonnegative = models.Constraint(
-        'CHECK(round_robin_index >= 0)', 'the rotation cursor cannot be negative',
-    )
     _followup_attempts_range = models.Constraint(
         'CHECK(followup_attempts BETWEEN 0 AND 10)', 'follow-up attempts are between 0 and 10',
     )

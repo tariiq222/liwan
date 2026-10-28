@@ -84,9 +84,9 @@ describe('CrmSettingsSchema', () => {
     expect(() => CrmSettingsSchema.parse({ ...settings, values: { ...settings.values, visibility: 'everyone' } })).toThrow()
   })
 
-  it('does not carry the internal rotation cursor', () => {
-    const parsed = CrmSettingsSchema.parse({ ...settings, values: { ...settings.values, round_robin_index: 3 } })
-    expect(parsed.values).not.toHaveProperty('round_robin_index')
+  it('drops keys the contract does not name', () => {
+    const parsed = CrmSettingsSchema.parse({ ...settings, values: { ...settings.values, unknown_internal_field: 3 } })
+    expect(parsed.values).not.toHaveProperty('unknown_internal_field')
   })
 })
 

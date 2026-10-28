@@ -9,3 +9,4 @@ access_webvue_crm_stage_manager,crm.stage.crm_settings_manager,crm.model_crm_sta
 access_webvue_crm_lost_reason_manager,crm.lost.reason.crm_settings_manager,crm.model_crm_lost_reason,group_cap_crm_settings_manage,1,1,1,0
 access_webvue_crm_product_template_manager,product.template.crm_settings_manager,product.model_product_template,group_cap_crm_settings_manage,1,1,1,0
 access_webvue_crm_product_product_manager,product.product.crm_settings_manager,product.model_product_product,group_cap_crm_settings_manage,1,1,1,0
+access_webvue_crm_rotation_worker,webvue.crm.rotation.worker,model_webvue_crm_rotation,group_cap_crm_leads_work,1,1,1,0

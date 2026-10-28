@@ -5,4 +5,9 @@
         <field name="model_id" ref="model_webvue_crm_settings"/>
         <field name="domain_force">[('company_id', '=', company_id)]</field>
     </record>
+    <record id="rule_webvue_crm_rotation_company" model="ir.rule">
+        <field name="name">webvue CRM rotation: current company</field>
+        <field name="model_id" ref="model_webvue_crm_rotation"/>
+        <field name="domain_force">[('company_id', '=', company_id)]</field>
+    </record>
 </odoo>

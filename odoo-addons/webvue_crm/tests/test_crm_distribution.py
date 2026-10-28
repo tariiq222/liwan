@@ -1,10 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import Command
-from odoo.tests import tagged
+from odoo.tests import new_test_user, tagged
 
 from .common import WebVueCrmCase
 from odoo.addons.webvue_api.controllers.common import ApiError
-from odoo.addons.webvue_crm.models.crm_settings import DEFAULTS
 
 
 @tagged('post_install', '-at_install', 'webvue')
@@ -24,6 +23,9 @@ class TestCrmDistribution(WebVueCrmCase):
 
     def _settings(self, **values):
         return self.env['webvue.crm.settings'].create({'company_id': self.company.id, **values})
+
+    def _rotation(self, company=None):
+        return self.env['webvue.crm.rotation'].search([('company_id', '=', (company or self.company).id)])
 
     def _leads(self, count, company=None):
         company = company or self.company
@@ -45,14 +47,56 @@ class TestCrmDistribution(WebVueCrmCase):
         self.assertEqual(self._owners(leads), [*self.agents.ids, *self.agents.ids])
 
     def test_rotation_continues_across_calls(self):
-        row = self._settings(**self._pool(self.agents))
+        self._settings(**self._pool(self.agents))
         first, second = self._leads(2), self._leads(2)
         service = self._service()
         service._webvue_assign(first)
         service._webvue_assign(second)
         self.assertEqual(self._owners(first | second), [*self.agents.ids, self.agents[0].id])
-        row.invalidate_recordset()
-        self.assertEqual(row.round_robin_index, 1)
+        self.assertEqual(self._rotation().last_user_id, self.agents[0])
+
+    def test_next_agent_is_the_first_id_after_the_last_one_wrapping_to_the_lowest(self):
+        self._settings(**self._pool(self.agents))
+        a, b, c = self.agents
+        self.env['webvue.crm.rotation'].create({'company_id': self.company.id, 'last_user_id': b.id})
+        leads = self._leads(3)
+        self._service()._webvue_assign(leads)
+        self.assertEqual(self._owners(leads), [c.id, a.id, b.id])
+
+    def test_removing_an_agent_loses_nobody_a_turn_and_repeats_nobody(self):
+        settings = self._settings(**self._pool(self.agents))
+        a, b, c = self.agents
+        service = self._service()
+        service._webvue_assign(self._leads(1))
+        self.assertEqual(self._rotation().last_user_id, a)
+        settings.distribution_user_ids = [Command.set((b | c).ids)]
+        step = self._leads(2)
+        service._webvue_assign(step)
+        self.assertEqual(self._owners(step), [b.id, c.id])
+        settings.distribution_user_ids = [Command.set((a | b).ids)]
+        wrapped = self._leads(2)
+        service._webvue_assign(wrapped)
+        self.assertEqual(self._owners(wrapped), [a.id, b.id])
+
+    def test_adding_an_agent_gives_the_newcomer_their_turn_in_id_order(self):
+        settings = self._settings(**self._pool(self.agents[:2]))
+        a, b, c = self.agents
+        service = self._service()
+        service._webvue_assign(self._leads(1))
+        settings.distribution_user_ids = [Command.set(self.agents.ids)]
+        leads = self._leads(3)
+        service._webvue_assign(leads)
+        self.assertEqual(self._owners(leads), [b.id, c.id, a.id])
+
+    def test_a_removed_last_agent_does_not_break_the_rotation(self):
+        self._settings(**self._pool(self.agents))
+        a, b, c = self.agents
+        self.env['webvue.crm.rotation'].create({'company_id': self.company.id, 'last_user_id': b.id})
+        self.agent2.active = False
+        self.env['webvue.crm.rotation'].invalidate_model()
+        leads = self._leads(2)
+        self._service()._webvue_assign(leads)
+        self.assertEqual(self._owners(leads), [c.id, a.id])
 
     def test_empty_pool_means_every_agent_holding_the_capability(self):
         eligible = self._service()._webvue_eligible_agents(self.company)
@@ -110,29 +154,92 @@ class TestCrmDistribution(WebVueCrmCase):
         self._service()._webvue_assign(leads, mode='on_import', agent=self.agent2)
         self.assertEqual(leads.mapped('user_id'), self.agent2)
 
-    def test_on_import_with_an_ineligible_agent_is_422(self):
-        self._settings(**self._pool(self.agents))
+    def _assert_import_refused(self, agent):
         leads = self._leads(1)
-        for agent in (self.outsider, self.manager):
-            if agent == self.manager:
-                self.env['webvue.access.service']._webvue_replace_assignments(self.manager, [])
-            with self.assertRaises(ApiError) as caught:
-                self._service()._webvue_assign(leads, mode='on_import', agent=agent)
-            self.assertEqual(caught.exception.status, 422)
-            self.assertEqual(caught.exception.code, 'invalid')
-            self.assertEqual(caught.exception.field, 'user_id')
-            self.assertFalse(leads.user_id)
+        with self.assertRaises(ApiError) as caught:
+            self._service()._webvue_assign(leads, mode='on_import', agent=agent)
+        self.assertEqual(caught.exception.status, 422)
+        self.assertEqual(caught.exception.code, 'invalid')
+        self.assertEqual(caught.exception.field, 'user_id')
+        self.assertFalse(leads.user_id)
 
-    def test_first_assignment_creates_the_row_with_exact_defaults_as_an_agent(self):
-        self.assertFalse(self.env['webvue.crm.settings'].search([('company_id', '=', self.company.id)]))
+    def test_on_import_with_an_agent_without_the_capability_is_422(self):
+        self._settings(**self._pool(self.agents))
+        self._assert_import_refused(self.outsider)
+
+    def test_on_import_with_an_agent_who_lost_the_capability_is_422(self):
+        self._settings(**self._pool(self.agents))
+        self.env['webvue.access.service']._webvue_replace_assignments(self.manager, [])
+        self._assert_import_refused(self.manager)
+
+    def test_on_import_with_an_agent_outside_the_pool_is_422(self):
+        self._settings(**self._pool(self.agent | self.agent2))
+        self._assert_import_refused(self.agent3)
+
+    def test_on_import_without_an_agent_leaves_leads_unassigned(self):
+        self._settings(**self._pool(self.agents))
+        leads = self._leads(2)
+        self._service()._webvue_assign(leads, mode='on_import')
+        self.assertFalse(leads.user_id)
+
+    def test_leads_of_two_companies_use_their_own_pool_and_rotation(self):
+        self._settings(**self._pool(self.agents))
+        other_agent = new_test_user(
+            self.env, login='crm_other_agent', name='Other company agent', groups='webvue_core.group_employee',
+            company_id=self.other_company.id, company_ids=[Command.set(self.other_company.ids)],
+        )
+        self.env['webvue.access.service']._webvue_replace_assignments(other_agent, [{
+            'role_id': self.env.ref('webvue_crm.role_crm_agent').id, 'company_id': self.other_company.id,
+        }])
+        eligible = self._service()._webvue_eligible_agents(self.other_company)
+        self.assertEqual(eligible, other_agent)
+        mine, theirs = self._leads(2), self._leads(2, company=self.other_company)
+        self._service().with_user(1)._webvue_assign(mine | theirs)
+        self.assertEqual(self._owners(mine), [self.agents[0].id, self.agents[1].id])
+        self.assertEqual(self._owners(theirs), [other_agent.id, other_agent.id])
+        self.assertEqual(self._rotation(self.other_company).last_user_id, other_agent)
+        self.assertEqual(self._rotation().last_user_id, self.agents[1])
+
+    def test_a_lead_without_a_company_stays_unassigned(self):
+        self._settings(**self._pool(self.agents))
+        leads = self._leads(2)
+        orphan = self.env['crm.lead'].create({'name': 'No company', 'company_id': False, 'user_id': False})
+        for service in (self._service(), self._service().with_user(1)):
+            service._webvue_assign(orphan)
+            service._webvue_assign(orphan, mode='on_import', agent=self.agent)
+            self.assertFalse(orphan.user_id)
+        self._service()._webvue_assign(leads | orphan)
+        self.assertEqual(self._owners(leads), self.agents.ids[:2])
+        self.assertFalse(orphan.user_id)
+
+    def test_distribution_never_creates_the_settings_row_and_defaults_stay_current(self):
+        Settings = self.env['webvue.crm.settings']
+        before = Settings._webvue_effective()
         leads = self._leads(2)
         self._service(self.agent)._webvue_assign(leads)
-        row = self.env['webvue.crm.settings'].search([('company_id', '=', self.company.id)])
-        self.assertEqual(len(row), 1)
-        self.assertEqual(row.revision, 1)
-        self.assertEqual({name: row[name] for name in DEFAULTS}, dict(DEFAULTS))
-        self.assertEqual(row.round_robin_index, 2 % len(self._service()._webvue_eligible_agents(self.company)))
+        self.assertFalse(Settings.search([('company_id', '=', self.company.id)]))
+        self.assertEqual(Settings._webvue_effective(), before)
+        self.assertEqual(len(self._rotation()), 1)
         self.assertEqual(len(leads.user_id), 2)
+
+    def test_a_create_race_on_first_use_rereads_the_other_transactions_row(self):
+        self._settings(**self._pool(self.agents))
+        winner = self.env['webvue.crm.rotation'].create({'company_id': self.company.id})
+        model = type(self.env['webvue.crm.rotation'])
+        real_search = model.search
+        lookups = []
+
+        def blind_first_lookup(records, domain, *args, **kwargs):
+            lookups.append(domain)
+            return records.browse() if len(lookups) == 1 else real_search(records, domain, *args, **kwargs)
+
+        self.patch(model, 'search', blind_first_lookup)
+        leads = self._leads(1)
+        self._service(self.agent)._webvue_assign(leads)
+        self.assertGreaterEqual(len(lookups), 2)
+        self.assertEqual(self._rotation(), winner)
+        self.assertEqual(winner.last_user_id, self.agents[0])
+        self.assertEqual(self._owners(leads), [self.agents[0].id])
 
     def test_assignment_runs_as_the_superuser_without_a_user(self):
         self._settings(**self._pool(self.agents))
@@ -140,37 +247,36 @@ class TestCrmDistribution(WebVueCrmCase):
         self.env['webvue.crm.distribution'].with_user(1).with_company(self.company)._webvue_assign(leads)
         self.assertEqual(self._owners(leads), self.agents.ids)
 
-    def test_pointer_write_does_not_bump_the_settings_revision(self):
-        row = self._settings(**self._pool(self.agents))
-        self._service(self.agent)._webvue_assign(self._leads(2))
-        row.invalidate_recordset()
-        self.assertEqual((row.revision, row.round_robin_index), (1, 2))
-
-    def test_the_row_is_locked_before_the_pointer_is_read_and_moved(self):
-        row = self._settings(**self._pool(self.agents))
+    def test_the_rotation_row_is_locked_before_the_last_agent_is_read_and_moved(self):
+        self._settings(**self._pool(self.agents))
+        self.env['webvue.crm.rotation'].create({'company_id': self.company.id})
+        table = self.env['webvue.crm.rotation']._table
         statements = []
         original = type(self.env.cr).execute
 
         def spy(cursor, query, params=None, *args, **kwargs):
-            text = query.code if hasattr(query, 'code') else str(query)
-            statements.append(text)
+            statements.append(query.code if hasattr(query, 'code') else str(query))
             return original(cursor, query, params, *args, **kwargs)
 
         self.patch(type(self.env.cr), 'execute', spy)
         self._service()._webvue_assign(self._leads(1))
-        pointer = [i for i, text in enumerate(statements) if 'round_robin_index' in text]
-        locks = [i for i, text in enumerate(statements) if 'FOR UPDATE' in text and row._table in text]
+        self.env.flush_all()
+        locks = [i for i, text in enumerate(statements) if 'FOR UPDATE' in text and table in text]
+        moves = [i for i, text in enumerate(statements) if 'UPDATE' in text and table in text and 'FOR UPDATE' not in text]
         self.assertTrue(locks)
-        self.assertLess(locks[0], pointer[0])
+        self.assertTrue(moves)
+        self.assertLess(locks[0], moves[0])
 
-    def test_pointer_is_read_from_the_database_after_the_lock(self):
-        # Models what a concurrent transaction does: it advances the pointer after this
-        # transaction cached the row. The next pick must continue from the stored value.
-        row = self._settings(**self._pool(self.agents))
-        self.assertEqual(row.round_robin_index, 0)
-        self.env.cr.execute('UPDATE webvue_crm_settings SET round_robin_index = 1 WHERE id = %s', [row.id])
+    def test_last_agent_is_read_from_the_database_after_the_lock(self):
+        # What a concurrent transaction does: it moves the row after this one cached it.
+        self._settings(**self._pool(self.agents))
+        row = self.env['webvue.crm.rotation'].create({'company_id': self.company.id})
+        self.assertFalse(row.last_user_id)
+        self.env.cr.execute(
+            'UPDATE webvue_crm_rotation SET last_user_id = %s WHERE id = %s', [self.agents[1].id, row.id],
+        )
         leads = self._leads(1)
         self._service()._webvue_assign(leads)
-        self.assertEqual(leads.user_id, self.agents[1])
+        self.assertEqual(leads.user_id, self.agents[2])
         row.invalidate_recordset()
-        self.assertEqual(row.round_robin_index, 2)
+        self.assertEqual(row.last_user_id, self.agents[2])

@@ -7,5 +7,6 @@ from . import (
     distribution,
     feature_registry,
     product_template,
+    rotation,
     utm_source,
 )

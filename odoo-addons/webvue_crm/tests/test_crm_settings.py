@@ -46,7 +46,6 @@ class TestCrmSettings(WebVueCrmCase):
         self.assertEqual(values['terms']['opportunity']['gender'], 'f')
         self.assertEqual(values['terms']['package']['en'], {'singular': 'package', 'plural': 'packages'})
         self.assertEqual(values['terms']['package']['gender'], 'f')
-        self.assertNotIn('round_robin_index', values)
         self.assertFalse(self._rows())
 
     def test_options_describe_every_enum_and_range(self):
@@ -111,7 +110,7 @@ class TestCrmSettings(WebVueCrmCase):
         for field, value in (
             ('followup_attempts', '3'), ('followup_attempts', True), ('recycle_enabled', 1),
             ('visibility', 'everyone'), ('distribution_mode', 'random'), ('after_attempts', 'x'),
-            ('round_robin_index', 3), ('preset', 'general'), ('company_id', 1), ('revision', 1),
+            ('preset', 'general'), ('company_id', 1), ('revision', 1),
         ):
             response = self.api('PATCH', URL, {'revision': 0, 'values': {field: value}})
             self.assertEqual(response.status_code, 422, (field, value))
@@ -202,16 +201,17 @@ class TestCrmSettings(WebVueCrmCase):
         self.assertEqual(values['terms']['customer'], CUSTOMER_TERM)
         self.assertEqual(values['distribution_user_ids'], [self.agent.id])
 
-    def test_effective_never_writes_and_hides_the_rotation_cursor(self):
+    def test_effective_never_writes_and_the_row_holds_no_rotation_cursor(self):
         Settings = self.env['webvue.crm.settings']
         self.assertFalse(Settings._webvue_current())
         effective = Settings._webvue_effective()
         self.assertEqual(effective['followup_attempts'], 2)
         self.assertEqual(effective['distribution_user_ids'], [])
         self.assertFalse(self._rows())
-        row = Settings.create({'company_id': self.company.id, 'round_robin_index': 5, 'visibility': 'all'})
+        row = Settings.create({'company_id': self.company.id, 'visibility': 'all'})
         self.assertEqual(Settings._webvue_current(), row)
         self.assertEqual(Settings._webvue_effective()['visibility'], 'all')
+        self.assertNotIn('round_robin_index', Settings._fields)
         self.assertNotIn('round_robin_index', Settings._webvue_effective())
 
     def test_other_company_row_is_untouched(self):
