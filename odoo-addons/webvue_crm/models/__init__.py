@@ -4,6 +4,7 @@ from . import (
     call_outcome,
     crm_settings,
     crm_stage,
+    distribution,
     feature_registry,
     product_template,
     utm_source,
