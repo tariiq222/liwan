@@ -45,6 +45,12 @@ describe('shared tenant onboarding browser contract', () => {
     expect(form).toContain('subscriptions.createCustomer(planTenantCustomerBody(form, creationRequestId.value))')
     expect(form).toContain('subscriptions.changeQuote(planTenantQuoteBody(')
     expect(form).toContain('subscriptions.placeOrder(')
+    // A plan with a trial starts it instead of a paid first order the shared server refuses.
+    expect(form).toContain('if (selectedPlan.value.trial_days > 0) await subscriptions.startTrial(createdCustomer.value, planRequestBody(')
+    expect(form).toContain('data-testid="plan-trial"')
+    // Paid plans without a trial are not offered: they could never be a shared customer's first order.
+    expect(form).toContain('p.trial_days > 0 || p.prices.every(price => price.amount.minor === 0)')
+    expect(form).toContain('startablePlans.map(p => ({ label: p.name, value: p.id }))')
     expect(form).not.toContain("'packages'")
     expect(form).not.toContain('package_revision_id')
     expect(form).toContain("request<{ id: string }>('tenants'")

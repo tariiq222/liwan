@@ -3,7 +3,7 @@ import type { Cadence } from '@webvue/commercial-contracts'
 import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 import { cadenceKey, commercialErrorKey } from '@/utils/vendorCommercial'
 import { cadenceLabel, formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercial'
-import { planTenantCustomerBody, planTenantQuoteBody } from '@/utils/vendorTenantPlan'
+import { planRequestBody, planTenantCustomerBody, planTenantQuoteBody } from '@/utils/vendorTenantPlan'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 definePageMeta({ capability: 'vendor.tenants.manage' })
@@ -16,7 +16,9 @@ const { data: plans, error: plansError, refresh: refreshPlans } = await useAsync
 const published = computed(() => catalog.value?.items.filter(item => item.status === 'published') ?? [])
 const selectedCatalog = computed(() => published.value.find(item => item.version === form.catalog_version))
 const form = reactive({ name: '', commercial_mode: 'saas', hosting_model: 'managed', inventory_target: '', catalog_version: '', catalog_tier: '', reason: '', admin_name: '', admin_login: '', plan_revision_id: '', cadence: '' })
-const selectedPlan = computed(() => plans.value?.find(p => p.id === form.plan_revision_id))
+// A paid plan without a trial cannot be a shared customer's first order (the server answers trial_required_first).
+const startablePlans = computed(() => (plans.value ?? []).filter(p => p.trial_days > 0 || p.prices.every(price => price.amount.minor === 0)))
+const selectedPlan = computed(() => startablePlans.value.find(p => p.id === form.plan_revision_id))
 const cadenceItems = computed(() => (selectedPlan.value?.prices ?? []).map(p => ({ label: cadenceLabel(p.cadence, t), value: cadenceKey(p.cadence) })))
 const selectedCadence = computed<Cadence | undefined>(() => selectedPlan.value?.prices.find(p => cadenceKey(p.cadence) === form.cadence)?.cadence)
 const selectedPrice = computed(() => selectedPlan.value?.prices.find(p => cadenceKey(p.cadence) === form.cadence)?.amount)
@@ -44,8 +46,13 @@ async function submit() {
       // The server also deduplicates: one request id per submission returns the same customer on a lost response.
       creationRequestId.value ??= crypto.randomUUID()
       createdCustomer.value ??= (await subscriptions.createCustomer(planTenantCustomerBody(form, creationRequestId.value))).id
-      const quote = await subscriptions.changeQuote(planTenantQuoteBody(createdCustomer.value, selectedPlan.value, selectedCadence.value))
-      await subscriptions.placeOrder({ quote_id: quote.id, expected_subscription_revision: 0, idempotency_key: crypto.randomUUID() })
+      // A new shared customer starts on the plan's trial and pays later from its own workspace; only a free plan
+      // without a trial places its order directly.
+      if (selectedPlan.value.trial_days > 0) await subscriptions.startTrial(createdCustomer.value, planRequestBody(selectedPlan.value, selectedCadence.value))
+      else {
+        const quote = await subscriptions.changeQuote(planTenantQuoteBody(createdCustomer.value, selectedPlan.value, selectedCadence.value))
+        await subscriptions.placeOrder({ quote_id: quote.id, expected_subscription_revision: 0, idempotency_key: crypto.randomUUID() })
+      }
       submitted.value = true
       await navigateTo(`/customers/${encodeURIComponent(createdCustomer.value)}`)
       return
@@ -80,12 +87,13 @@ const backTo = computed(() => safeReturnTo(route.query.returnTo, '/customers', [
           <SharedFormSection panel :title="t('vendor.customers.newPage.planTitle')" :description="t('vendor.customers.newPage.planHint')">
             <div class="grid gap-4">
               <UAlert v-if="!canSubscribe" color="warning" variant="subtle" :title="t('vendor.tenants.plan.forbidden')" />
-              <UAlert v-else-if="!plans.length" color="neutral" variant="subtle" :title="t('vendor.tenants.plan.none')" />
+              <UAlert v-else-if="!startablePlans.length" color="neutral" variant="subtle" :title="t('vendor.tenants.plan.none')" />
               <div class="grid gap-4 sm:grid-cols-2">
-                <UFormField :label="t('vendor.tenants.plan.field')" required><USelect v-model="form.plan_revision_id" :items="plans.map(p => ({ label: p.name, value: p.id }))" :disabled="!hydrated || busy || !canSubscribe" class="w-full" /></UFormField>
+                <UFormField :label="t('vendor.tenants.plan.field')" required><USelect v-model="form.plan_revision_id" :items="startablePlans.map(p => ({ label: p.name, value: p.id }))" :disabled="!hydrated || busy || !canSubscribe" class="w-full" /></UFormField>
                 <UFormField :label="t('vendor.tenants.plan.cadence')" required><USelect v-model="form.cadence" :items="cadenceItems" :disabled="!hydrated || busy || !selectedPlan" class="w-full" /></UFormField>
               </div>
               <p v-if="selectedPrice" class="rounded-lg bg-elevated p-3 text-sm" data-testid="plan-price">{{ t('vendor.customers.newPage.price') }}: <bdi dir="ltr" class="font-semibold tabular-nums">{{ formatCommercialMoney(selectedPrice, locale) }}</bdi></p>
+              <p v-if="selectedPlan && selectedPlan.trial_days > 0" class="text-sm text-muted" data-testid="plan-trial">{{ t('vendor.customers.newPage.trial', { days: selectedPlan.trial_days }) }}</p>
             </div>
           </SharedFormSection>
         </template>
