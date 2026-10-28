@@ -98,22 +98,6 @@ export function useHrActivityPlan(area: HrLifecycleArea, id: MaybeRefOrGetter<nu
   })
 }
 
-export function useHrPlanRuns(
-  area: HrLifecycleArea,
-  params: MaybeRefOrGetter<HrRunListParams>,
-  enabled: MaybeRefOrGetter<boolean> = true,
-) {
-  const { $api } = useApi()
-  return useQuery({
-    queryKey: computed(() => hrLifecycleKeys.runs(area, toValue(params))),
-    enabled: computed(() => toValue(enabled)),
-    queryFn: () => $api(`/api/v1/hr/${area}/runs`, {
-      query: hrRunListQuery(toValue(params)),
-      schema: HrPlanRunListSchema,
-    }),
-  })
-}
-
 export function useHrPlanRun(area: HrLifecycleArea, id: MaybeRefOrGetter<number | null>) {
   const { $api } = useApi()
   return useQuery({
@@ -195,16 +179,21 @@ export function useHrOnboardingPlan(id: MaybeRefOrGetter<number | null>) {
   return useHrActivityPlan(HR_ONBOARDING, id)
 }
 
+/** Only onboarding has a runs list: the offboarding register is the departures list. */
 export function useHrOnboardingRuns(params: MaybeRefOrGetter<HrRunListParams>, enabled: MaybeRefOrGetter<boolean> = true) {
-  return useHrPlanRuns(HR_ONBOARDING, params, enabled)
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: computed(() => hrLifecycleKeys.runs(HR_ONBOARDING, toValue(params))),
+    enabled: computed(() => toValue(enabled)),
+    queryFn: () => $api(`/api/v1/hr/${HR_ONBOARDING}/runs`, {
+      query: hrRunListQuery(toValue(params)),
+      schema: HrPlanRunListSchema,
+    }),
+  })
 }
 
 export function useHrOnboardingRun(id: MaybeRefOrGetter<number | null>) {
   return useHrPlanRun(HR_ONBOARDING, id)
-}
-
-export function useCreateHrOnboardingPlan() {
-  return useCreateHrActivityPlan(HR_ONBOARDING)
 }
 
 export function usePatchHrOnboardingPlan() {
