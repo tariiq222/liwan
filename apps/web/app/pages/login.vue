@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { FormError } from '@nuxt/ui'
 import { postLoginPath } from '~/utils/accessPolicy'
-definePageMeta({ layout: false })
+definePageMeta({ layout: false, access: 'guest' })
 
 const { t } = useI18n()
 const { branding } = useBranding()

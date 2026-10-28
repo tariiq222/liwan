@@ -1,5 +1,7 @@
 import { canReachPath } from '@/utils/accessPolicy'
 export default defineNuxtRouteMiddleware(async (to) => {
+  // A public page needs no identity at all, so it must not depend on /api/v1/me answering.
+  if (to.meta?.access === 'public') return
   const nuxtApp = useNuxtApp()
   const { $i18n } = nuxtApp
   const { me, error, ready, refresh } = useMe()
@@ -15,8 +17,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     }
     throw createError({ statusCode: 502, statusMessage: $i18n.t('errors.serverUnreachable'), fatal: true })
   }
-  if (to.path === '/invite/accept') return
-  if (to.path === '/login') {
+  if (to.meta?.access === 'guest') {
     if (me.value) return navigateTo('/')
     return
   }
