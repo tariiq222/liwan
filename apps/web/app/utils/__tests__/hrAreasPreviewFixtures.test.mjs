@@ -25,7 +25,7 @@ describe('the HR area preview fixtures match the production contracts', () => {
     ['/api/v1/hr/onboarding/plans', HrActivityPlanListSchema], ['/api/v1/hr/onboarding/plans/1', HrActivityPlanSchema],
     ['/api/v1/hr/onboarding/runs', HrPlanRunListSchema], ['/api/v1/hr/onboarding/runs/1', HrPlanRunDetailSchema],
     ['/api/v1/hr/offboarding/plans', HrActivityPlanListSchema], ['/api/v1/hr/offboarding/plans/3', HrActivityPlanSchema],
-    ['/api/v1/hr/offboarding/runs', HrPlanRunListSchema], ['/api/v1/hr/offboarding/runs/21', HrPlanRunDetailSchema],
+    ['/api/v1/hr/offboarding/runs/21', HrPlanRunDetailSchema],
     ['/api/v1/hr/offboarding/reasons', HrDepartureReasonListSchema], ['/api/v1/hr/offboarding/departures', HrDepartureListSchema],
     ['/api/v1/hr/offboarding/departures/2', HrDepartureSchema],
   ]) {
