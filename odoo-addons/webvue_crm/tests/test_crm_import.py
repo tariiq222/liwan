@@ -498,6 +498,14 @@ class TestCrmImport(WebVueCrmCase):
         self.assertTrue(all(leads.mapped('user_id')))
         self.assertGreater(len(set(leads.mapped('user_id').ids)), 1)
 
+    def test_round_robin_import_works_for_an_importer_without_the_work_capability(self):
+        importer = self.custom_user('crm_importer', ['crm.leads.read', 'crm.leads.assign', 'crm.leads.import'])
+        self.set_settings(distribution_mode='round_robin')
+        response = self.commit(csv_bytes('Sara,0501234567', 'Omar,0507654321'), user=importer)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['unassigned'], 0)
+        self.assertTrue(self.env['webvue.crm.rotation'].search([('company_id', '=', self.company.id)]).last_user_id)
+
     def test_manual_mode_leaves_the_batch_in_the_pool(self):
         response = self.commit(csv_bytes('Sara,0501234567'))
         self.assertEqual(response.json()['unassigned'], 1)

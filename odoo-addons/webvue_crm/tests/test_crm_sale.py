@@ -141,6 +141,16 @@ class TestCrmSale(WebVueCrmCase):
         self.assertFalse(lead.active)
         self.assertEqual(self.post(self.manager, lead, 'reopen').status_code, 200)
 
+    def test_reopen_redistributes_for_an_assigner_without_the_work_capability(self):
+        assigner = self.custom_user('crm_assigner', ['crm.leads.read', 'crm.leads.assign'])
+        lead = self.make_lead(self.agent)
+        lead.action_set_lost(lost_reason_id=self.reason.id)
+        self.env['webvue.access.service']._webvue_replace_assignments(self.agent, [])
+        self.set_settings(distribution_mode='round_robin')
+        response = self.post(assigner, lead, 'reopen')
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(lead.user_id, self.agent2)
+
     def test_reopen_of_a_pending_opportunity_conflicts(self):
         lead = self.make_lead(self.agent)
         self.assertEqual(self.post(self.manager, lead, 'reopen').status_code, 409)

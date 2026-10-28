@@ -32,6 +32,21 @@ class WebVueCrmCase(WebVueApiCase):
         }])
         return user
 
+    @classmethod
+    def custom_user(cls, login, capability_keys):
+        """A user whose only role is a custom one holding exactly ``capability_keys``."""
+        user = new_test_user(
+            cls.env, login=login, password=f'{login}_pass_123', name=login, groups='webvue_core.group_employee',
+        )
+        role = cls.env['webvue.access.role'].create({
+            'key': login, 'name_ar': login, 'name_en': login, 'type': 'custom', 'assignable': True,
+            'permission_ids': [(6, 0, cls.env['webvue.access.permission'].search([('key', 'in', capability_keys)]).ids)],
+        })
+        cls.env['webvue.access.service']._webvue_replace_assignments(user, [{
+            'role_id': role.id, 'company_id': cls.company.id,
+        }])
+        return user
+
     def as_user(self, user):
         self.authenticate(user.login, f'{user.login}_pass_123')
         return self
