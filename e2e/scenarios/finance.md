@@ -52,7 +52,7 @@ Every finance route is gated by the `finance.enabled` feature (403 `feature_not_
 | FIN-18 | ZATCA sandbox: onboard a sales journal with OTP | cfo | Connection `connected` in `/settings/system` | `POST /api/v1/finance/zatca/journals/<id>/onboard` `cap finance.zatca.manage` | planned | |
 | FIN-19 | ZATCA submit and retry | accountant | Accepted; draft invoice `zatca_not_applicable`; journal not onboarded `zatca_not_onboarded`; already accepted `invalid_state` | `POST /api/v1/finance/invoices/<id>/zatca/submit` `POST /api/v1/finance/invoices/<id>/zatca/retry` `cap finance.zatca.submit` | planned | |
 | FIN-20 | Finance switched off | vendor | Finance pages, menus and project actuals disappear | `page /finance` | planned | See PLT-10 |
-| FIN-21 | Employee opens finance | staff1 | 403 page | `page /finance` | manual 2026-10-28 | Same evidence as ACC-02 |
+| FIN-21 | Employee opens finance | staff1 | 403 page | `page /finance` | automated | `e2e/tests/access-matrix.e2e.ts`; Same evidence as ACC-02 |
 
 ## Access, navigation and tenant state
 

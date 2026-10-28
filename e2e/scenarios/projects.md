@@ -21,7 +21,7 @@ cannot read, and 403 `forbidden` when the caller can read it but lacks the capab
 | --- | --- | --- | --- | --- | --- | --- |
 | PMO-01 | Create a project and a task, change the task state | admin | Saved, state changes | `page /projects/new` `POST /api/v1/projects` `page /projects/[id]/tasks/new` `POST /api/v1/tasks` `POST /api/v1/tasks/<id>/transition` | automated | `e2e/tests/pmo-journey.e2e.ts` |
 | PMO-02 | Create a project with `pm` as manager | ceo | Saved; manager and end date required | `page /projects/new` `POST /api/v1/projects` | planned | |
-| PMO-03 | Employee creates a project | staff1 | Refused unless `project_creators=employees` | `POST /api/v1/projects` `cap pmo.projects.create` | planned | |
+| PMO-03 | Employee creates a project | staff1 | Refused unless `project_creators=employees` | `POST /api/v1/projects` `cap pmo.projects.create` | automated | `e2e/tests/access-matrix.e2e.ts`: refusal with the default policy only |
 | PMO-04 | Setting `project_creators=employees` | ceo | staff1 can create | `PATCH /api/v1/settings/projects` `page /settings/apps/projects` | planned | |
 | PMO-05 | Edit, archive, unarchive, copy a project | pm (own) | Allowed on own project; refused on another | `PATCH /api/v1/projects/<id>` `POST /api/v1/projects/<id>/archive` `POST /api/v1/projects/<id>/unarchive` `POST /api/v1/projects/<id>/copy` | planned | |
 | PMO-06 | Set status on_track / at_risk / off_track / on_hold / done | pm | Saved; staff1 refused (`status_forbidden`) | `POST /api/v1/projects/<id>/status` | planned | |

@@ -26,7 +26,7 @@ read-only tenant answers 403 `tenant_read_only` on writes.
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | MTG-01 | Schedule a meeting with an attendee and add a recommendation; find it in the list and calendar | admin | Saved and listed | `page /meetings/new`, `page /meetings`, `page /meetings/calendar`, `POST /api/v1/meetings`, `POST /api/v1/meetings/<id>/resolutions`, `GET /api/v1/meetings`, `cap meetings.create` | automated | `e2e/tests/meetings-journey.e2e.ts` |
-| MTG-02 | Employee creates a meeting | staff1 | Refused (read-only by default) | `POST /api/v1/meetings`, `cap meetings.create` | planned | |
+| MTG-02 | Employee creates a meeting | staff1 | Refused (read-only by default) | `POST /api/v1/meetings`, `cap meetings.create` | automated | `e2e/tests/access-matrix.e2e.ts` |
 | MTG-03 | Confirm, complete, cancel, reopen | it_admin | Each transition; done/cancelled immutable | `POST /api/v1/meetings/<id>/confirm`, `POST /api/v1/meetings/<id>/complete`, `POST /api/v1/meetings/<id>/cancel`, `POST /api/v1/meetings/<id>/reopen`, `cap meetings.manage` | planned | |
 | MTG-04 | Attendee invitation, change and cancellation notices | it_admin → staff1 | Bell `meeting_invite`, `meeting_changed`, `meeting_cancelled` | `POST /api/v1/meetings`, `PATCH /api/v1/meetings/<id>`, `POST /api/v1/meetings/<id>/cancel`, `cap meetings.read` | planned | |
 | MTG-05 | Reminder 24 hours ahead | staff1 | Bell `meeting_reminder` | `cap meetings.read` | planned | |

@@ -19,8 +19,8 @@ lists it in Covers; the registered surfaces are checked by `python3 -B tools/e2e
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| ACC-01 | Each persona signs in and sees only the applications its roles open | every persona | Sidebar lists exactly the role's applications | `GET /api/v1/me` | manual 2026-10-28 | `staff1`: يومي, مهامي, المشاريع, الاجتماعات, المحادثات, الموظفين, العمليات, المستندات, المساعد; no finance, no settings |
-| ACC-02 | A page outside the persona's roles opened by URL | staff1 → `/finance` | 403 page «لا تملك صلاحية فتح هذه الصفحة» with a way back |  | manual 2026-10-28 |  |
+| ACC-01 | Each persona signs in and sees only the applications its roles open | every persona | Sidebar lists exactly the role's applications | `GET /api/v1/me` | automated | `e2e/tests/access-matrix.e2e.ts` (11 personas, 2026-10-28 pass); `staff1`: يومي, مهامي, المشاريع, الاجتماعات, المحادثات, الموظفين, العمليات, المستندات, المساعد; no finance, no settings |
+| ACC-02 | A page outside the persona's roles opened by URL | staff1 → `/finance` | 403 page «لا تملك صلاحية فتح هذه الصفحة» with a way back |  | automated | `e2e/tests/access-matrix.e2e.ts`: 19 pages per persona |
 | ACC-03 | Create a user with a password and roles | it_admin | User signs in with the given roles; access log `user.granted` | `page /settings/team/users/new` `POST /api/v1/admin/users` `cap access.users.grant` | planned |  |
 | ACC-04 | Change a user's roles | it_admin | New applications appear after the user's next request; log `user.roles_changed` | `page /settings/team/users/[id]/access` `PATCH /api/v1/admin/users/<id>/access` `cap access.users.assign_roles` | planned |  |
 | ACC-05 | Disable and reactivate a user | it_admin | Disabled user cannot sign in; reactivated user can; both logged | `page /settings/team/users/[id]/security` `POST /api/v1/admin/users/<id>/disable` `POST /api/v1/admin/users/<id>/reactivate` `cap access.users.disable` | planned |  |
@@ -32,7 +32,7 @@ lists it in Covers; the registered surfaces are checked by `python3 -B tools/e2e
 | ACC-11 | Change own access | it_admin | Refused `self_access_change` | `PATCH /api/v1/admin/users/<id>/access` | planned |  |
 | ACC-12 | Disable the last access administrator | it_admin | Refused `last_access_admin` | `POST /api/v1/admin/users/<id>/disable` | planned |  |
 | ACC-13 | Vendor support user is untouchable | it_admin | Refused `protected_user` | `POST /api/v1/admin/users/<id>/password` | planned |  |
-| ACC-14 | System admin manages access but cannot write HR or project records | it_admin | HR and project write actions absent or refused | `cap access.users.assign_roles` | planned |  |
+| ACC-14 | System admin manages access but cannot write HR or project records | it_admin | HR and project write actions absent or refused | `cap access.users.assign_roles` | automated | `e2e/tests/access-matrix.e2e.ts`: it_admin refused on /hr/employees/new and /projects/new |
 | ACC-15 | Access log lists every change and cannot be edited | it_admin | Events listed with actor and time; no edit path | `page /settings/team/access-log` `GET /api/v1/admin/access-log` `cap access.audit.read` | planned |  |
 | ACC-16 | Built-in role descriptions in Arabic | it_admin | Arabic text next to Arabic names | `page /settings/team/roles` `GET /api/v1/admin/roles` | fail | Known bug, `e2e/tests/bugs/roles-builtin-descriptions-english.e2e.ts` |
 | ACC-17 | Company profile and logo | it_admin | Name and logo shown in the shell and on the login page | `page /settings/company` `PATCH /api/v1/admin/company` `POST /api/v1/admin/company/logo` `GET /api/v1/branding` `cap settings.company.manage` | planned |  |
