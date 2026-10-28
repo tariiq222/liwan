@@ -6,7 +6,7 @@ import { moduleUiCapabilities, moduleUiPreviewData } from './module-ui-preview-d
 import { hrPayrollPreviewWrite } from './hr-payroll-ui-preview-data.mjs'
 import { capabilitiesForRequest } from './mock-capabilities.mjs'
 import { handleCommercial } from './commercial-mock-routes.mjs'
-import { handlePayments, PAYMENTS_MANAGE } from './payments-mock-routes.mjs'
+import { handlePayments, handlePublicPayments, PAYMENTS_LINKS_MANAGE, PAYMENTS_MANAGE } from './payments-mock-routes.mjs'
 import crypto from 'node:crypto'
 import { URL } from 'node:url'
 
@@ -23,7 +23,7 @@ const CAPABILITIES = [
   'hr.departments.read', 'hr.departments.manage', 'documents.items.read', 'documents.items.manage',
   'pmo.projects.read', 'pmo.projects.create', 'pmo.projects.manage', 'pmo.settings.manage',
   'pmo.tasks.read', 'pmo.tasks.create', 'pmo.tasks.write', 'pmo.tasks.approve',
-  'settings.branding.manage', 'settings.company.read', 'settings.company.manage', 'ai.use', PAYMENTS_MANAGE,
+  'settings.branding.manage', 'settings.company.read', 'settings.company.manage', 'ai.use', PAYMENTS_MANAGE, PAYMENTS_LINKS_MANAGE,
 ]
 
 // The HR area sub-features (`hr.<area>`) gate the recruitment, shifts, onboarding, offboarding and assets pages on top of their capabilities.
@@ -381,6 +381,9 @@ async function handle(req, res) {
 
   if (!path.startsWith('/api/v1/')) return fail(res, 404, 'not_found', `unknown path ${method} ${path}`)
 
+  // The payer's routes answer without a session: the access token in the request is the only credential.
+  if (await handlePublicPayments(req, res, path, url, { json, readBody })) return
+
   if (!hasSession(req)) return fail(res, 403, 'forbidden', 'not logged in')
 
   if (await handlePayments(req, res, path, { json, readBody })) return
@@ -453,7 +456,7 @@ async function handle(req, res) {
       const base = { ...ME }
       if (noPolicy) delete base.platform
       const platform = readOnlyPayroll ? { ...ME.platform, writable_features: ME.platform.writable_features.filter(key => key !== 'hr.payroll') } : ME.platform
-      return json(res, 200, { ...base, ...(noPolicy ? {} : { platform }), appearance, capabilities: [...capabilitiesForRequest(req.headers.cookie, [...moduleUiCapabilities, PAYMENTS_MANAGE]), AI_USE] })
+      return json(res, 200, { ...base, ...(noPolicy ? {} : { platform }), appearance, capabilities: [...capabilitiesForRequest(req.headers.cookie, [...moduleUiCapabilities, PAYMENTS_MANAGE, PAYMENTS_LINKS_MANAGE]), AI_USE] })
     }
     const preview = moduleUiPreviewData(path, url)
     if (preview?.refusal) return json(res, preview.refusal.status, preview.refusal.body)

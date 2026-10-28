@@ -233,9 +233,13 @@ Meetings use SharedListPage/DataTable/RecordPage/TimelineFrame/StandalonePage. C
 
 صفحة إعدادات خدمة الدفع (`/settings/apps/payments`، قدرة `payments.providers.manage`) تعرض بطاقة لكل بوابة دفع يربطها المستأجر بحسابه التاجر. البطاقة لبنة خاصة بالصفحة تعيد استخدام لبنات Storybook المشتركة، والمفاتيح للكتابة فقط: لا قيمة منها تعود من الخادم، وتظهر حالة «محفوظ» لكل مفتاح.
 
+صفحات الدفع العامة للعميل (`/pay/invoice/<id>?access_token=…` و`/pay/invoice/<id>/status` و`/pay/returned`) بلا حساب ولا جلسة (`access: 'public'` في page meta)، وكل منها `SharedStandalonePage` بطاقة مركزية برأس `PayHeader`. لا تُظهر بيانات الشريك: العقد لا يحملها. الصفحة تقرأ الفاتورة بالرمز، وتكتب كعكة العودة قبل أن تغادر إلى البوابة، وصفحة الحالة تعيد القراءة كل ثلاث ثوانٍ حتى دقيقة ما دام الدفع غير مؤكد. إجراء «رابط الدفع» في ترويسة فاتورة العميل (`InvoiceRecordActions`) من `usePaymentLinkAction` ويظهر لمن يملك `payments.links.manage` والميزة مفعّلة، وينسخ العنوان إلى الحافظة.
+
 | المكوّن | الوظيفة | القصة | مكونات الأساس |
 | --- | --- | --- | --- |
 | `apps/web/app/components/payments/ProviderCard.vue` | بوابة دفع واحدة: وضع التشغيل (متوقف وتجريبي ومباشر) مع تأكيد مضمّن قبل المباشر، دولة حساب البوابة، مفاتيح بحقول كلمة مرور لا تُملأ أبدًا مع حفظ الحقول المكتوبة فقط، «اختبار الاتصال»، وطرق الدفع المفعّلة؛ أخطاء الخادم تُربط بالحقل الذي سمّاه | — | `SharedRecordSection`, `SharedSegmentedControl`, `SharedInlineConfirm`, `SharedStatusBadge`, `SharedUnsavedChanges`, `UFormField`, `UInput`, `USelect`, `UForm`, `UButton`, `UAlert` |
+| `apps/web/app/components/payments/PayHeader.vue` | رأس بطاقة صفحة الدفع العامة: شعار المستأجر واسمه فوق عنوان الصفحة `<h1>`، بلا أي من إطار ويب فيو؛ يملأ فتحة `#header` في `SharedStandalonePage` | — | `SharedStandalonePage` (فتحة الرأس) |
+| `apps/web/app/components/payments/PayInvoiceSummary.vue` | ما يراه الدافع من الفاتورة: المبلغ المستحق بخط كبير في `SharedSubCard` ثم الجهة المصدرة ورقم الفاتورة وتاريخ الاستحقاق وإجمالي الفاتورة إن اختلف عن المستحق | — | `SharedSubCard`, `SharedPropertyRow` |
 
 ## مكونات المالية — المستندات والدفعات
 

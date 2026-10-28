@@ -15,7 +15,7 @@ describe('invite accept page', () => {
     expect(page).toContain('MIN_LENGTH = 12')
     expect(page.match(/<UFormField/g)?.length).toBe(2)
     expect(page).toContain('useHydrated')
-    expect(read('app/middleware/auth.global.ts')).toContain("'/invite/accept'")
+    expect(page).toContain("access: 'public'")
   })
   it('handles invalid, unavailable and success states with login link', () => {
     for (const s of ['invalid', 'success']) expect(page).toContain(`'${s}'`)
