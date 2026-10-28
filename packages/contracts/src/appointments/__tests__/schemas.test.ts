@@ -1,18 +1,57 @@
-import { AppointmentSettingsPatchSchema, AppointmentSettingsSchema, AppointmentTypeListSchema, AppointmentTypeSchema } from '../index'
+import {
+  AppointmentBookingCreateSchema,
+  AppointmentBookingListQuerySchema,
+  AppointmentBookingListSchema,
+  AppointmentBookingScheduleSchema,
+  AppointmentBookingSchema,
+  AppointmentCombinationCreateSchema,
+  AppointmentCombinationListSchema,
+  AppointmentCombinationPatchSchema,
+  AppointmentCombinationSchema,
+  AppointmentResourceCreateSchema,
+  AppointmentResourceListSchema,
+  AppointmentResourcePatchSchema,
+  AppointmentResourceSchema,
+  AppointmentSettingsPatchSchema,
+  AppointmentSettingsSchema,
+  AppointmentSlotListSchema,
+  AppointmentSlotQuerySchema,
+  AppointmentSlotSchema,
+  AppointmentTypeCreateSchema,
+  AppointmentTypeListSchema,
+  AppointmentTypePatchSchema,
+  AppointmentTypeSchema,
+} from '../index'
 
-const TYPE = { id: 1, name: 'Consultation', duration_minutes: 30 }
+const TYPE = {
+  id: 1,
+  name: 'Consultation',
+  duration_minutes: 30,
+  slot_minutes: 30,
+  modifications_deadline_hours: 24,
+  location: null,
+  videocall_location: 'https://meet.example.com/x',
+  resource_calendar_id: 3,
+  combination_ids: [4, 5],
+  active: true,
+}
 
 describe('AppointmentTypeSchema', () => {
-  it('is strict: it accepts exactly id, name and duration_minutes', () => {
+  it('is strict: it accepts exactly the serializer shape', () => {
     expect(AppointmentTypeSchema.parse(TYPE)).toEqual(TYPE)
-    expect(Object.keys(AppointmentTypeSchema.shape).sort()).toEqual(['duration_minutes', 'id', 'name'])
+    expect(Object.keys(AppointmentTypeSchema.shape).sort()).toEqual(Object.keys(TYPE).sort())
     expect(() => AppointmentTypeSchema.parse({ ...TYPE, secret: 'x' })).toThrow()
   })
 
-  it('rejects a missing name, a non-positive id and a non-positive duration', () => {
-    expect(() => AppointmentTypeSchema.parse({ id: 1, duration_minutes: 30 })).toThrow()
-    expect(() => AppointmentTypeSchema.parse({ ...TYPE, id: 0 })).toThrow()
-    expect(() => AppointmentTypeSchema.parse({ ...TYPE, duration_minutes: 0 })).toThrow()
+  it('rejects missing fields, non-positive ids and out-of-range minutes', () => {
+    const { name: _name, ...withoutName } = TYPE
+    expect(() => AppointmentTypeSchema.parse(withoutName)).toThrow()
+    for (const bad of [
+      { id: 0 }, { duration_minutes: 0 }, { slot_minutes: 4 }, { modifications_deadline_hours: 721 },
+      { resource_calendar_id: 0 }, { combination_ids: [0] }, { active: 'yes' },
+    ]) {
+      expect(() => AppointmentTypeSchema.parse({ ...TYPE, ...bad })).toThrow()
+    }
   })
 })
 
@@ -21,6 +60,95 @@ describe('AppointmentTypeListSchema', () => {
     expect(AppointmentTypeListSchema.parse({ items: [TYPE], total: 1 })).toEqual({ items: [TYPE], total: 1 })
     expect(() => AppointmentTypeListSchema.parse({ items: [TYPE], total: 1, next: 2 })).toThrow()
     expect(() => AppointmentTypeListSchema.parse({ items: [TYPE], total: -1 })).toThrow()
+  })
+})
+
+describe('AppointmentTypeCreateSchema and AppointmentTypePatchSchema', () => {
+  it('create requires a name and accepts the writable fields, never `active` or a company', () => {
+    expect(AppointmentTypeCreateSchema.parse({ name: 'Visit' })).toEqual({ name: 'Visit' })
+    expect(AppointmentTypeCreateSchema.parse({
+      name: 'Visit', duration_minutes: 45, slot_minutes: 15, modifications_deadline_hours: 6, location: null,
+      videocall_location: 'x', resource_calendar_id: 2, combination_ids: [1, 2],
+    }).combination_ids).toEqual([1, 2])
+    expect(() => AppointmentTypeCreateSchema.parse({})).toThrow()
+    expect(() => AppointmentTypeCreateSchema.parse({ name: '  ' })).toThrow()
+    expect(() => AppointmentTypeCreateSchema.parse({ name: 'Visit', active: false })).toThrow()
+    expect(() => AppointmentTypeCreateSchema.parse({ name: 'Visit', company_id: 1 })).toThrow()
+    expect(() => AppointmentTypeCreateSchema.parse({ name: 'Visit', duration_minutes: 1.5 })).toThrow()
+  })
+
+  it('patch accepts any subset, including none, and stays strict', () => {
+    expect(AppointmentTypePatchSchema.parse({})).toEqual({})
+    expect(AppointmentTypePatchSchema.parse({ location: null, slot_minutes: 10 })).toEqual({ location: null, slot_minutes: 10 })
+    expect(() => AppointmentTypePatchSchema.parse({ id: 1 })).toThrow()
+    expect(() => AppointmentTypePatchSchema.parse({ slot_minutes: 481 })).toThrow()
+  })
+})
+
+const RESOURCE = { id: 7, name: 'Meeting room', type: 'material', calendar_id: 3, active: true }
+
+describe('AppointmentResourceSchema', () => {
+  it('is strict and knows only the user and material kinds', () => {
+    expect(AppointmentResourceSchema.parse(RESOURCE)).toEqual(RESOURCE)
+    expect(AppointmentResourceSchema.parse({ ...RESOURCE, type: 'user', calendar_id: null }).calendar_id).toBeNull()
+    expect(Object.keys(AppointmentResourceSchema.shape).sort()).toEqual(Object.keys(RESOURCE).sort())
+    expect(() => AppointmentResourceSchema.parse({ ...RESOURCE, type: 'robot' })).toThrow()
+    expect(() => AppointmentResourceSchema.parse({ ...RESOURCE, user_id: 1 })).toThrow()
+  })
+
+  it('wraps resources in the list envelope', () => {
+    expect(AppointmentResourceListSchema.parse({ items: [RESOURCE], total: 1 }).total).toBe(1)
+    expect(() => AppointmentResourceListSchema.parse({ items: [RESOURCE] })).toThrow()
+  })
+
+  it('create requires a name and cannot choose the type; patch is any subset', () => {
+    expect(AppointmentResourceCreateSchema.parse({ name: 'Scanner', calendar_id: 2 })).toEqual({ name: 'Scanner', calendar_id: 2 })
+    expect(() => AppointmentResourceCreateSchema.parse({})).toThrow()
+    expect(() => AppointmentResourceCreateSchema.parse({ name: 'Scanner', type: 'user' })).toThrow()
+    expect(AppointmentResourcePatchSchema.parse({})).toEqual({})
+    expect(() => AppointmentResourcePatchSchema.parse({ type: 'material' })).toThrow()
+  })
+})
+
+const COMBINATION = { id: 9, name: 'Room A', resource_ids: [7], forced_calendar_id: null, active: true }
+
+describe('AppointmentCombinationSchema', () => {
+  it('is strict and needs at least one resource', () => {
+    expect(AppointmentCombinationSchema.parse(COMBINATION)).toEqual(COMBINATION)
+    expect(Object.keys(AppointmentCombinationSchema.shape).sort()).toEqual(Object.keys(COMBINATION).sort())
+    expect(() => AppointmentCombinationSchema.parse({ ...COMBINATION, resource_ids: [] })).toThrow()
+    expect(() => AppointmentCombinationSchema.parse({ ...COMBINATION, company_id: 1 })).toThrow()
+  })
+
+  it('wraps combinations in the list envelope', () => {
+    expect(AppointmentCombinationListSchema.parse({ items: [COMBINATION], total: 1 }).items).toHaveLength(1)
+    expect(() => AppointmentCombinationListSchema.parse({ items: [COMBINATION], total: -1 })).toThrow()
+  })
+
+  it('create requires resource_ids; patch may clear the forced calendar with null', () => {
+    expect(AppointmentCombinationCreateSchema.parse({ resource_ids: [1, 2], forced_calendar_id: 4 }).forced_calendar_id).toBe(4)
+    expect(() => AppointmentCombinationCreateSchema.parse({})).toThrow()
+    expect(() => AppointmentCombinationCreateSchema.parse({ resource_ids: [] })).toThrow()
+    expect(AppointmentCombinationPatchSchema.parse({ forced_calendar_id: null })).toEqual({ forced_calendar_id: null })
+    expect(() => AppointmentCombinationPatchSchema.parse({ active: false })).toThrow()
+  })
+})
+
+const SLOT = { start: '2026-10-30T08:00:00Z', stop: '2026-10-30T08:30:00Z' }
+
+describe('AppointmentSlotSchema', () => {
+  it('accepts UTC timestamps only and rejects extra keys', () => {
+    expect(AppointmentSlotSchema.parse(SLOT)).toEqual(SLOT)
+    expect(() => AppointmentSlotSchema.parse({ ...SLOT, start: '2026-10-30T08:00:00+03:00' })).toThrow()
+    expect(() => AppointmentSlotSchema.parse({ ...SLOT, resource: 1 })).toThrow()
+    expect(AppointmentSlotListSchema.parse({ items: [SLOT], total: 1 }).total).toBe(1)
+  })
+
+  it('the query needs from and to as dates and takes an optional combination', () => {
+    expect(AppointmentSlotQuerySchema.parse({ from: '2026-10-30', to: '2026-11-05' })).toEqual({ from: '2026-10-30', to: '2026-11-05' })
+    expect(AppointmentSlotQuerySchema.parse({ from: '2026-10-30', to: '2026-11-05', combination_id: 3 }).combination_id).toBe(3)
+    expect(() => AppointmentSlotQuerySchema.parse({ from: '2026-10-30' })).toThrow()
+    expect(() => AppointmentSlotQuerySchema.parse({ from: 'tomorrow', to: '2026-11-05' })).toThrow()
   })
 })
 
@@ -72,5 +200,80 @@ describe('AppointmentSettingsPatchSchema', () => {
     expect(() => AppointmentSettingsPatchSchema.parse({ revision: 0, horizon_days: 366 })).toThrow()
     expect(() => AppointmentSettingsPatchSchema.parse({ revision: 0, preset: 'bank' })).toThrow()
     expect(() => AppointmentSettingsPatchSchema.parse({ revision: 0, sector_preset: 'clinic' })).toThrow()
+  })
+})
+
+const BOOKING_ROW = {
+  id: 7,
+  state: 'scheduled',
+  type_id: 1,
+  type_name: 'Consultation',
+  combination_id: 4,
+  start: '2026-11-02T09:00:00Z',
+  stop: '2026-11-02T09:30:00Z',
+  duration_minutes: 30,
+  requester_name: 'Sara',
+}
+const BOOKING = {
+  ...BOOKING_ROW,
+  requester: { id: 9, name: 'Sara', phone: '+966500000000', email: null },
+  national_id: null,
+  notes: 'First visit',
+  is_modifiable: true,
+}
+
+describe('AppointmentBooking schemas', () => {
+  it('detail and list rows are strict and match the serializer shape', () => {
+    expect(AppointmentBookingSchema.parse(BOOKING)).toEqual(BOOKING)
+    expect(() => AppointmentBookingSchema.parse({ ...BOOKING, secret: 'x' })).toThrow()
+    expect(() => AppointmentBookingSchema.parse(BOOKING_ROW)).toThrow()
+    const list = { items: [BOOKING_ROW], total: 1 }
+    expect(AppointmentBookingListSchema.parse(list)).toEqual(list)
+    expect(() => AppointmentBookingListSchema.parse({ items: [BOOKING], total: 1 })).toThrow()
+  })
+
+  it('a pending booking has no start, stop or combination', () => {
+    const pending = { ...BOOKING_ROW, state: 'pending', combination_id: null, start: null, stop: null }
+    expect(AppointmentBookingListSchema.parse({ items: [pending], total: 1 }).items[0]).toEqual(pending)
+    expect(() => AppointmentBookingListSchema.parse({ items: [{ ...pending, state: 'done' }], total: 1 })).toThrow()
+  })
+
+  it('the list query accepts the filters and rejects unknown ones', () => {
+    const query = { state: 'pending', type_id: 1, resource_id: 2, from: '2026-11-01', to: '2026-11-30', mine: 'true', limit: 50, offset: 0 }
+    expect(AppointmentBookingListQuerySchema.parse(query)).toEqual(query)
+    expect(() => AppointmentBookingListQuerySchema.parse({ mine: 'yes' })).toThrow()
+    expect(() => AppointmentBookingListQuerySchema.parse({ from: '2026-11-1' })).toThrow()
+    expect(() => AppointmentBookingListQuerySchema.parse({ q: 'x' })).toThrow()
+  })
+
+  it('create needs a type and exactly one requester form', () => {
+    const body = { type_id: 1, requester: { name: 'Sara', phone: '+966500000000' }, notes: 'x', start: '2026-11-02T09:00:00Z' }
+    expect(AppointmentBookingCreateSchema.parse(body)).toEqual(body)
+    expect(AppointmentBookingCreateSchema.parse({ type_id: 1, requester_id: 3 })).toEqual({ type_id: 1, requester_id: 3 })
+    expect(() => AppointmentBookingCreateSchema.parse({ type_id: 1 })).toThrow()
+    expect(() => AppointmentBookingCreateSchema.parse({ type_id: 1, requester_id: 3, requester: { name: 'Sara' } })).toThrow()
+    expect(() => AppointmentBookingCreateSchema.parse({ requester_id: 3 })).toThrow()
+    expect(() => AppointmentBookingCreateSchema.parse({ type_id: 1, requester: { phone: '1' } })).toThrow()
+    expect(() => AppointmentBookingCreateSchema.parse({ type_id: 1, requester_id: 3, start: '2026-11-02' })).toThrow()
+    expect(() => AppointmentBookingCreateSchema.parse({ type_id: 1, requester_id: 3, company_id: 1 })).toThrow()
+  })
+
+  it('a requester phone is 5 to 32 phone characters, like the server', () => {
+    const create = (phone: string) => AppointmentBookingCreateSchema.parse({ type_id: 1, requester: { name: 'Sara', phone } })
+    expect(create('+' + '1'.repeat(31)).requester?.phone).toHaveLength(32)
+    for (const bad of ['+' + '1'.repeat(32), '1234', 'abc12345']) expect(() => create(bad)).toThrow()
+  })
+
+  it('read-only callers get null contact fields', () => {
+    const hidden = { ...BOOKING, requester: { id: 9, name: 'Sara', phone: null, email: null }, national_id: null }
+    expect(AppointmentBookingSchema.parse(hidden)).toEqual(hidden)
+  })
+
+  it('schedule needs a UTC start', () => {
+    expect(AppointmentBookingScheduleSchema.parse({ start: '2026-11-02T09:00:00Z', combination_id: 4 })).toEqual({
+      start: '2026-11-02T09:00:00Z', combination_id: 4,
+    })
+    expect(() => AppointmentBookingScheduleSchema.parse({})).toThrow()
+    expect(() => AppointmentBookingScheduleSchema.parse({ start: 'tomorrow' })).toThrow()
   })
 })

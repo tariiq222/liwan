@@ -4,6 +4,17 @@
          the stock employee activity plans (mirroring hr's mail_plan_rule_group_hr_manager),
          the company and purpose scoping of the WebVue plan run, and the asset read that
          lets the assets capability see equipment without following it. -->
+    <!-- HR writers keep their stock reach over every resource.resource. Group rules are joined
+         with OR, but only across the groups that have a rule: another application's rule that
+         narrows its own writers (the appointments material-only rule, for one) would otherwise
+         also narrow a user who holds HR write access through a group with no rule. -->
+    <record id="rule_hr_resource_resource_write" model="ir.rule">
+        <field name="name">webvue HR: HR writers write every resource</field>
+        <field name="model_id" ref="resource.model_resource_resource"/>
+        <field name="groups" eval="[Command.link(ref('hr.group_hr_user'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="perm_read" eval="False"/>
+    </record>
     <record id="rule_hr_plan_onboarding_manage" model="ir.rule">
         <field name="name">webvue onboarding: manage employee onboarding plans</field>
         <field name="model_id" ref="mail.model_mail_activity_plan"/>
