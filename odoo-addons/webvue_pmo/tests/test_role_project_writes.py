@@ -90,3 +90,12 @@ class TestRoleProjectWrites(TransactionCase):
         self.assertEqual(shared.name, 'Renamed for all')
         as_owner._webvue_delete_stage(shared)
         self.assertEqual((shared.exists(), shared.project_ids), (shared, other))
+
+    def test_a_stage_shared_with_another_company_is_not_changed(self):
+        branch = self.env['res.company'].create({'name': 'Stage branch', 'parent_id': self.env.company.id})
+        other = self.env['project.project'].create({'name': 'Branch project', 'company_id': branch.id})
+        shared = self.owned.type_ids[:1]
+        shared.write({'project_ids': [(4, other.id)]})
+        with self.assertRaises(AccessError):
+            self.owned.with_user(self.pmo_manager)._webvue_update_stage(shared, {'name': 'Renamed in the branch too'})
+        self.assertEqual(shared.name, 'Todo')

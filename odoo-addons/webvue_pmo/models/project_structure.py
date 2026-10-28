@@ -30,12 +30,17 @@ class ProjectProject(models.Model):
     def _webvue_writable_stages(self, stages):
         """The elevated stages, once the caller may change them for every project they belong to.
 
-        A stage linked to several projects changes in all of them, so only a manager of any
-        project (the group rule) may rename, fold or reorder it.
+        A stage linked to several projects changes in all of them, so it may be renamed, folded
+        or reordered only when every linked project is in this project's company and the caller
+        manages any project there (the group rule, checked in that company).
         """
         elevated = self._webvue_stages_sudo().browse(stages.ids)
-        if any(len(stage.project_ids) > 1 for stage in elevated) and not self._webvue_is_manager():
-            raise AccessError(self.env._("This stage is shared with other projects; only a PMO manager can change it."))
+        shared = elevated.filtered(lambda stage: len(stage.project_ids) > 1)
+        if shared and (
+            shared.project_ids.company_id != self.company_id
+            or not self.with_company(self.company_id)._webvue_is_manager()
+        ):
+            raise AccessError(self.env._("This stage is shared with other projects; only a PMO manager of every project using it can change it."))
         return elevated
 
     def _webvue_add_stage(self, name, fold=False):
