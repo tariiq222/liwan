@@ -5,6 +5,11 @@ import { jevJudge } from './e2e/jev-judge.ts';
 import { jevUltrafast } from './e2e/jev-ultrafast.ts';
 import { models } from './e2e/models.ts';
 
+const PERSONA_KEYS = [
+  'ceo', 'it_admin', 'hr_manager', 'payroll', 'cfo', 'accountant',
+  'auditor', 'pm', 'ops_manager', 'staff1', 'staff2',
+] as const;
+
 // Jev (TypeSafe System One) gives the assert/waitFor verdicts from the text
 // observation; extract and screenshot-only judgments fall back to
 // gemini-3.7-flash. Needs JEV_API_KEY or ~/.config/jev-review/api-key.
@@ -52,6 +57,13 @@ export default {
       username: 'e2e_employee',
       password: process.env.E2E_USER_EMPLOYEE_PASSWORD ?? 'webvue-e2e-employee-2026',
     },
+    // Demo-company personas (PERSONAS in tools/e2e_seed.py): login e2e_<key>.
+    ...Object.fromEntries(
+      PERSONA_KEYS.map((key) => [key, {
+        username: `e2e_${key}`,
+        password: process.env[`E2E_USER_${key.toUpperCase()}_PASSWORD`] ?? `webvue-e2e-${key}-2026`,
+      }]),
+    ),
   },
   // The default agent's model (kimi-k3-agent) is a slow reasoning model:
   // a trivial completion takes ~20s, so agent steps need a wider deadline.
