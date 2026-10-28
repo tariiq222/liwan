@@ -1,7 +1,7 @@
 # deploy/proxy/Dockerfile — build context: repository root
 # Official Caddy does not ship rate_limit. This image overlays one xcaddy
 # build, with github.com/mholt/caddy-ratelimit, onto the official runtime.
-ARG CADDY_VERSION=2.11.4
+ARG CADDY_VERSION=2.11.7
 ARG XCADDY_VERSION=0.4.7
 ARG RATELIMIT_MODULE=github.com/mholt/caddy-ratelimit@v0.1.0
 
