@@ -9,6 +9,8 @@ from . import (
     distribution,
     feature_registry,
     followup,
+    import_batch,
+    intake,
     mail_message,
     notification_types,
     phonecall,

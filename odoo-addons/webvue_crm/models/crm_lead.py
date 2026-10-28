@@ -29,6 +29,9 @@ class CrmLead(models.Model):
     webvue_cycle = fields.Integer(string='Recycle count', default=0, copy=False)
     webvue_recycle_at = fields.Datetime(string='Recycle on', index='btree_not_null', copy=False)
     webvue_needs_manager = fields.Boolean(string='Needs a manager decision', index=True, copy=False)
+    webvue_import_batch_id = fields.Many2one(
+        'webvue.crm.import.batch', string='Import batch', index='btree_not_null', ondelete='set null', copy=False,
+    )
 
     # One phone per company: the existence check answers early; this index decides under concurrency.
     _webvue_phone_company_unique = models.UniqueIndex(

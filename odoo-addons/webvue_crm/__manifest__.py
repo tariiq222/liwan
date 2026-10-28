@@ -12,7 +12,7 @@
     # it owns its capabilities, groups, roles and record rules (spec R2).
     'depends': ['webvue_api', 'webvue_notify', 'crm', 'product', 'crm_phonecall'],
     # Stock phone_validation normalises phones only with this library (pinned in deploy/odoo).
-    'external_dependencies': {'python': ['phonenumbers']},
+    'external_dependencies': {'python': ['openpyxl', 'phonenumbers']},
     'data': [
         'security/crm_capability_groups.xml',
         'security/ir.model.access.csv',

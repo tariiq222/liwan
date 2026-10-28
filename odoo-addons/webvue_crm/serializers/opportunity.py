@@ -14,7 +14,7 @@ BOOLEAN_FILTERS = ('due', 'unassigned', 'needs_manager')
 ID_FILTERS = ('stage_id', 'user_id', 'source_id')
 
 
-def _ref(record):
+def ref(record):
     return {'id': record.id, 'name': record.display_name} if record else None
 
 
@@ -24,11 +24,11 @@ def dump_opportunity(lead):
         'contact_name': lead.contact_name or '',
         'phone': lead.phone or '',
         'email': lead.email_from or '',
-        'stage': _ref(lead.stage_id),
-        'user': _ref(lead.user_id),
-        'source': _ref(lead.source_id),
-        'package': _ref(lead.webvue_package_id),
-        'lost_reason': _ref(lead.lost_reason_id),
+        'stage': ref(lead.stage_id),
+        'user': ref(lead.user_id),
+        'source': ref(lead.source_id),
+        'package': ref(lead.webvue_package_id),
+        'lost_reason': ref(lead.lost_reason_id),
         'status': lead.won_status,
         'list_price': lead.webvue_list_price,
         'discount_percent': lead.webvue_discount_percent,
@@ -47,7 +47,7 @@ def dump_opportunity(lead):
 def dump_view(row):
     return {
         'id': row.id,
-        'user': _ref(row.user_id),
+        'user': ref(row.user_id),
         'opportunity_id': row.lead_id.id,
         'viewed_at': iso(row.viewed_at),
     }

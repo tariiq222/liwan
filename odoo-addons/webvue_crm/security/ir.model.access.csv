@@ -12,3 +12,5 @@ access_webvue_crm_product_product_manager,product.product.crm_settings_manager,p
 access_webvue_crm_rotation_worker,webvue.crm.rotation.worker,model_webvue_crm_rotation,group_cap_crm_leads_work,1,1,1,0
 access_webvue_crm_view_log_auditor,webvue.crm.view.log.auditor,model_webvue_crm_view_log,group_cap_crm_audit_read,1,0,0,0
 access_webvue_crm_view_log_reader,webvue.crm.view.log.reader,model_webvue_crm_view_log,group_cap_crm_leads_read,0,0,1,0
+access_webvue_crm_import_batch_importer,webvue.crm.import.batch.importer,model_webvue_crm_import_batch,group_cap_crm_leads_import,1,1,1,0
+access_webvue_crm_import_mapping_importer,webvue.crm.import.mapping.importer,model_webvue_crm_import_mapping,group_cap_crm_leads_import,1,0,1,1
