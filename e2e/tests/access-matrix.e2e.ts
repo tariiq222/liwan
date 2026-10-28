@@ -35,7 +35,7 @@ const PAGES: Record<string, string[]> = {
   '/projects/new': ['ceo'],
   '/meetings/new': ['it_admin'],
   '/settings/apps/operations/processes': ['ops_manager'],
-  '/operations/pending': ['pm'],
+  '/operations/pending': ['ceo', 'hr_manager', 'pm'],
   '/operations/monitoring': ['ops_manager'],
   '/documents/new': ['hr_manager'],
 };

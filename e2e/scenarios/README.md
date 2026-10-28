@@ -71,9 +71,9 @@ database. Login is `e2e_<key>`; the credentials are declared in
 
 | Key | Persona | Department | Manager | Roles |
 | --- | --- | --- | --- | --- |
-| `ceo` | خالد العتيبي, المدير العام | الإدارة العامة | — | employee, pmo_manager |
+| `ceo` | خالد العتيبي, المدير العام | الإدارة العامة | — | employee, pmo_manager, operations_reviewer |
 | `it_admin` | فهد الشمري, مسؤول النظام | تقنية المعلومات | ceo | employee, system_admin |
-| `hr_manager` | نورة القحطاني, مديرة الموارد البشرية | الموارد البشرية | ceo | employee, hr_manager, documents_manager |
+| `hr_manager` | نورة القحطاني, مديرة الموارد البشرية | الموارد البشرية | ceo | employee, hr_manager, documents_manager, operations_reviewer |
 | `payroll` | ريم الدوسري, أخصائية الرواتب | الموارد البشرية | hr_manager | employee, payroll_manager |
 | `cfo` | عبدالله الحربي, المدير المالي | المالية | ceo | employee, finance_manager |
 | `accountant` | سلمان الزهراني, محاسب | المالية | cfo | employee, finance_accountant |
