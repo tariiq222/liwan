@@ -17,6 +17,7 @@ import {
   type InboxReplyCreate,
 } from '@webvue/contracts'
 import { inboxListQuery, type InboxListRoute } from './inboxListRoute'
+import { createTypingNotifier } from './inboxTyping'
 
 // Every key starts with 'inbox', so the bus handler's invalidation of ['inbox'] (type 'webvue/inbox') refreshes them all.
 export const inboxKeys = {
@@ -165,6 +166,22 @@ export function useSendInboxNote(id: MaybeRefOrGetter<number>) {
     mutationFn: (body: InboxNoteCreate) => $api(`/api/v1/inbox/conversations/${toValue(id)}/notes`, { method: 'POST', body, schema: InboxMessageSchema }),
     onSuccess: refresh,
   })
+}
+
+/** The agent's reaction on a message; an empty emoji removes it. */
+export function useReactToInboxMessage(conversationId: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  const refresh = useRefreshConversation(conversationId)
+  return useMutation({
+    mutationFn: (input: { messageId: number; emoji: string }) => $api(`/api/v1/inbox/messages/${input.messageId}/reaction`, { method: 'POST', body: { emoji: input.emoji }, schema: InboxMessageSchema }),
+    onSuccess: refresh,
+  })
+}
+
+/** Call the returned function on every keystroke: the typing indicator reaches the customer at most every 3 seconds. */
+export function useInboxTyping(conversationId: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  return createTypingNotifier(() => $api(`/api/v1/inbox/conversations/${toValue(conversationId)}/typing`, { method: 'POST' }))
 }
 
 export function useRetryInboxMessage(conversationId: MaybeRefOrGetter<number>) {

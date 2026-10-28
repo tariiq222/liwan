@@ -60,7 +60,21 @@
       "note": "ملاحظة داخلية",
       "template": "قالب: {name}",
       "failed": "تعذّر إرسال الرسالة",
-      "retry": "إعادة المحاولة"
+      "retry": "إعادة المحاولة",
+      "reply": "رد",
+      "react": "تفاعل",
+      "reactions": "التفاعلات",
+      "customerReaction": "تفاعل العميل: {emoji}",
+      "agentReaction": "تفاعلك: {emoji}",
+      "inReplyTo": "ردًا على",
+      "quotedMedia": "مرفق",
+      "openImage": "فتح الصورة {name}",
+      "sticker": "ملصق",
+      "location": "موقع",
+      "openMap": "فتح في الخريطة",
+      "buttons": "أزرار الرد",
+      "selected": "اختار: {title}",
+      "unsupported": "نوع الرسالة هذا غير مدعوم."
     },
     "composer": {
       "mode": "نوع الرسالة",
@@ -83,7 +97,60 @@
       "noTemplates": "لا توجد قوالب معتمدة لهذه القناة. اطلب من المدير مزامنة القوالب من إعدادات القناة.",
       "templatesFailed": "تعذّر تحميل القوالب",
       "readOnly": "للقراءة فقط",
-      "readOnlyDescription": "ليست لديك صلاحية الرد على المحادثات."
+      "readOnlyDescription": "ليست لديك صلاحية الرد على المحادثات.",
+      "attachments": "إرفاق إلى الرد",
+      "attach": "إرفاق ملف",
+      "captionPlaceholder": "أضف تعليقًا على الملف (اختياري)",
+      "removeFile": "إزالة الملف",
+      "uploading": "جارٍ رفع {name}",
+      "replyingTo": "ردًا على",
+      "quotedMedia": "مرفق",
+      "cancelReplyTo": "إلغاء الرد على الرسالة",
+      "upload": {
+        "empty": "الملف {name} فارغ.",
+        "unsupported": "نوع الملف {name} غير مدعوم في واتساب.",
+        "tooLarge": "الملف {name} أكبر من الحد المسموح ({limit} ميغابايت). اختر ملفًا أصغر.",
+        "tooLargeServer": "الملف أكبر من الحد المسموح. اختر ملفًا أصغر.",
+        "failed": "تعذّر رفع الملف. حاول مرة أخرى."
+      },
+      "location": {
+        "title": "موقع",
+        "latitude": "خط العرض",
+        "longitude": "خط الطول",
+        "name": "اسم المكان (اختياري)",
+        "address": "العنوان (اختياري)",
+        "invalid": "خط العرض بين -90 و90، وخط الطول بين -180 و180.",
+        "useMine": "استخدام موقعي الحالي",
+        "consent": "سيطلب المتصفح إذنك قبل قراءة موقعك، ولا يُرسل شيء قبل الضغط على إرسال.",
+        "unsupported": "متصفحك لا يدعم تحديد الموقع.",
+        "denied": "تعذّر تحديد موقعك. أدخل الإحداثيات يدويًا."
+      },
+      "interactive": {
+        "title": "رسالة تفاعلية",
+        "type": "نوع الرسالة التفاعلية",
+        "types": {
+          "buttons": "أزرار",
+          "list": "قائمة",
+          "cta_url": "رابط"
+        },
+        "header": "العنوان (اختياري)",
+        "body": "نص الرسالة",
+        "footer": "التذييل (اختياري)",
+        "button": "نص الزر {n}",
+        "addButton": "إضافة زر",
+        "remove": "حذف",
+        "listButton": "نص زر فتح القائمة",
+        "rows": "{n} من {max} صفوف",
+        "sectionTitle": "عنوان القسم",
+        "removeSection": "حذف القسم",
+        "rowTitle": "عنوان الصف",
+        "rowDescription": "الوصف (اختياري)",
+        "addRow": "إضافة صف",
+        "addSection": "إضافة قسم",
+        "displayText": "نص الزر",
+        "url": "الرابط",
+        "urlHelp": "رابط آمن يبدأ بـ https"
+      }
     },
     "panel": {
       "title": "بيانات العميل والمحادثة",
@@ -249,6 +316,19 @@
         "deleteDescription": "لا يمكن التراجع عن الحذف، وستُحذف المحادثات والرسائل المرتبطة بالقناة."
       },
       "delete": "حذف"
+    },
+    "kinds": {
+      "text": "رسالة",
+      "image": "صورة",
+      "video": "فيديو",
+      "audio": "رسالة صوتية",
+      "document": "ملف",
+      "sticker": "ملصق",
+      "location": "موقع",
+      "contacts": "جهة اتصال",
+      "interactive": "رسالة تفاعلية",
+      "template": "قالب",
+      "unsupported": "غير مدعوم"
     }
   }
 }

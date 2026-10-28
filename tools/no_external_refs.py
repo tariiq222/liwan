@@ -31,6 +31,7 @@ ALLOWED_HOSTS = frozenset({
     'webvue.local',
     'series.example',
     'unovis.dev',
+    'www.openstreetmap.org',
     'www.w3.org',
     'x.test',
 })

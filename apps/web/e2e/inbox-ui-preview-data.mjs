@@ -43,17 +43,54 @@ function seed() {
     conversation(4, contacts[3], { priority: 'urgent', tags: [tags[0]], reply_window_ends_at: iso(Date.now() + 6 * HOUR) }),
   ]
   const attachment = { id: 1, name: 'نتيجة-الفحص.pdf', mimetype: 'application/pdf', size: 20480 }
+  const media = {
+    image: { id: 2, name: 'مدخل-العيادة.jpg', mimetype: 'image/jpeg', size: 184320 },
+    audio: { id: 3, name: 'رسالة-صوتية.ogg', mimetype: 'audio/ogg', size: 48000 },
+    video: { id: 4, name: 'جولة-في-المكان.mp4', mimetype: 'video/mp4', size: 912000 },
+    sticker: { id: 5, name: 'sticker.webp', mimetype: 'image/webp', size: 9000 },
+    outgoingDocument: { id: 6, name: 'قائمة-الأسعار.pdf', mimetype: 'application/pdf', size: 335872 },
+  }
   let nextMessageId = 100
   const message = (direction, body, hoursAgo, extra = {}) => ({
-    id: nextMessageId++, direction, body, author: direction === 'in' ? null : AGENTS[0], template_name: null,
-    delivery_state: direction === 'in' ? 'received' : 'sent', error: null, attachments: [], created_at: ago(hoursAgo), ...extra,
+    id: nextMessageId++, direction, kind: 'text', body, author: direction === 'in' ? null : AGENTS[0], template_name: null,
+    delivery_state: direction === 'in' ? 'received' : 'sent', error: null, attachments: [], reply_to: null,
+    reactions: { customer: null, agent: null }, location: null, interactive: null, selected_option: null, created_at: ago(hoursAgo), ...extra,
   })
+  const quote = target => ({ id: target.id, preview: target.body.slice(0, 80) })
+  const first = message('in', 'السلام عليكم، أريد حجز موعد يوم الخميس.', 3)
+  const answer = message('out', 'وعليكم السلام ورحمة الله، يسعدنا خدمتك. هل الفترة الصباحية مناسبة؟', 2.8, { delivery_state: 'read', author: ME, reply_to: quote(first), reactions: { customer: '👍', agent: null } })
+  const confirmation = message('out', 'هل تؤكد حجز الخميس الساعة 10 صباحًا؟', 2.0, {
+    kind: 'interactive', delivery_state: 'read', author: ME,
+    interactive: { type: 'buttons', body: 'هل تؤكد حجز الخميس الساعة 10 صباحًا؟', header: 'تأكيد الموعد', footer: 'عيادة الأمل', buttons: [{ id: 'btn_1', title: 'نعم، أؤكد' }, { id: 'btn_2', title: 'تغيير الموعد' }] },
+  })
+  const chosen = message('in', 'نعم، أؤكد', 1.9, { kind: 'interactive', reply_to: quote(confirmation), selected_option: { id: 'btn_1', title: 'نعم، أؤكد' } })
   const messages = {
     1: [
-      message('in', 'السلام عليكم، أريد حجز موعد يوم الخميس.', 3),
-      message('out', 'وعليكم السلام ورحمة الله، يسعدنا خدمتك. هل الفترة الصباحية مناسبة؟', 2.8, { delivery_state: 'read', author: ME }),
+      first,
+      answer,
       message('note', 'العميلة لديها ملف قديم، راجعوا الموعد السابق.', 2.7, { author: ME }),
-      message('in', 'نعم الصباح مناسب جدًا، وهذا تقرير الفحص السابق.', 0.5, { attachments: [attachment] }),
+      message('in', 'هذه صورة مدخل المبنى', 2.6, { kind: 'image', attachments: [media.image] }),
+      message('in', '', 2.55, { kind: 'location', location: { latitude: 24.7136, longitude: 46.6753, name: 'موقع العميلة', address: 'الرياض، حي الملقا' } }),
+      message('in', 'محمد العتيبي: +966500000009', 2.5, { kind: 'contacts' }),
+      message('in', '', 2.4, { kind: 'audio', attachments: [media.audio] }),
+      message('in', 'فيديو قصير للمكان', 2.3, { kind: 'video', attachments: [media.video] }),
+      message('in', '', 2.2, { kind: 'sticker', attachments: [media.sticker] }),
+      confirmation,
+      chosen,
+      message('out', 'اختر الفرع الأنسب لك', 1.8, {
+        kind: 'interactive', author: ME, delivery_state: 'delivered',
+        interactive: {
+          type: 'list', body: 'اختر الفرع الأنسب لك', header: null, footer: null, button: 'الفروع',
+          sections: [{ title: 'الرياض', rows: [{ id: 'row_1', title: 'فرع الملقا', description: 'من 9 صباحًا حتى 5 مساءً' }, { id: 'row_2', title: 'فرع العليا', description: null }] }, { title: 'جدة', rows: [{ id: 'row_3', title: 'فرع الحمراء', description: null }] }],
+        },
+      }),
+      message('out', 'للاطلاع على التعليمات قبل الموعد', 1.7, {
+        kind: 'interactive', author: ME, delivery_state: 'sent',
+        interactive: { type: 'cta_url', body: 'للاطلاع على التعليمات قبل الموعد', header: null, footer: null, display_text: 'التعليمات', url: 'https://example.test/instructions' },
+      }),
+      message('out', '', 1.6, { kind: 'location', author: ME, delivery_state: 'delivered', location: { latitude: 24.69, longitude: 46.72, name: 'عيادة الأمل', address: 'الرياض، طريق الملك فهد' } }),
+      message('out', 'مرفق قائمة الأسعار', 1.4, { kind: 'document', author: ME, delivery_state: 'read', attachments: [media.outgoingDocument], reactions: { customer: '🙏', agent: '❤️' } }),
+      message('in', 'نعم الصباح مناسب جدًا، وهذا تقرير الفحص السابق.', 0.5, { attachments: [attachment], kind: 'document' }),
     ],
     2: [
       message('in', 'هل المنتج متوفر بلون آخر؟', 40),
@@ -79,8 +116,10 @@ function seed() {
   return {
     settings: { visibility_policy: 'department', auto_close_hours: 72, retention_months: 24 },
     departments, tags, channels, contacts, conversations, messages, templates, canned,
-    ids: { department: 3, tag: 4, canned: 3, channel: 2, message: () => nextMessageId++ },
+    ids: { department: 3, tag: 4, canned: 3, channel: 2, upload: 100, message: () => nextMessageId++ },
     statuses: new Map(),
+    // Files uploaded to a conversation and not yet sent: attachment id -> { conversationId, attachment }.
+    uploads: new Map(),
   }
 }
 
@@ -141,26 +180,81 @@ function patchConversation(conv, body) {
 }
 
 function appendMessage(conv, fields) {
-  const created = { id: state.ids.message(), direction: 'out', body: '', author: ME, template_name: null, delivery_state: 'queued', error: null, attachments: [], created_at: iso(Date.now()), ...fields }
+  const created = {
+    id: state.ids.message(), direction: 'out', kind: 'text', body: '', author: ME, template_name: null, delivery_state: 'queued', error: null, attachments: [],
+    reply_to: null, reactions: { customer: null, agent: null }, location: null, interactive: null, selected_option: null, created_at: iso(Date.now()), ...fields,
+  }
   state.messages[conv.id].push(created)
   if (created.direction === 'out') {
     conv.last_message_at = created.created_at
-    conv.last_message_preview = created.body.slice(0, 140)
+    conv.last_message_preview = (created.body || created.kind).slice(0, 140)
     state.statuses.set(created.id, Date.now())
   }
   return created
 }
 
+const MIB = 1024 * 1024
+const GENERIC_MEDIA = { image: ['image/jpeg', 'image/png'], video: ['video/mp4', 'video/3gpp'], audio: ['audio/aac', 'audio/amr', 'audio/mpeg', 'audio/mp4', 'audio/ogg'] }
+const kindOfMimetype = mimetype => {
+  const family = mimetype.split('/')[0]
+  return family in GENERIC_MEDIA && GENERIC_MEDIA[family].includes(mimetype) ? family : 'document'
+}
+
+// Same refusals as the upload route: unsupported media type 422, over the cap 413 (images 5 MB, others 15 MiB).
+function upload(conv, body) {
+  const file = body.__upload
+  if (!file) return fail(422, 'invalid', 'file is required', 'file')
+  const family = file.mimetype.split('/')[0]
+  if (family in GENERIC_MEDIA && !GENERIC_MEDIA[family].includes(file.mimetype)) return fail(422, 'invalid', 'نوع الملف غير مدعوم', 'file')
+  if (file.size > (family === 'image' ? 5 : 15) * MIB) return fail(413, 'payload_too_large', 'الملف أكبر من الحد المسموح')
+  const attachment = { id: state.ids.upload++, name: file.name, mimetype: file.mimetype, size: file.size }
+  state.uploads.set(attachment.id, { conversationId: conv.id, attachment })
+  return ok(attachment)
+}
+
+function interactiveProblem(interactive) {
+  const rows = interactive.type === 'list' ? interactive.sections.reduce((total, section) => total + section.rows.length, 0) : 0
+  if (interactive.type === 'buttons' && interactive.buttons.length > 3) return 'buttons'
+  if (rows > 10) return 'sections'
+  return null
+}
+
 function reply(conv, body) {
+  const free = ['body', 'attachment_id', 'location', 'interactive'].some(key => key in body)
+  if (free && !WINDOW_OPEN(conv)) return fail(422, 'invalid', 'انتهت نافذة الرد الحر، أرسل قالبًا معتمدًا')
+  let quoted = null
+  if (body.reply_to_id !== undefined) {
+    const target = state.messages[conv.id].find(item => item.id === body.reply_to_id)
+    if (!target) return fail(422, 'invalid', 'الرسالة المردود عليها ليست من هذه المحادثة', 'reply_to_id')
+    quoted = { id: target.id, preview: target.body.slice(0, 80) }
+  }
   if (typeof body.body === 'string') {
     if (!body.body.trim()) return fail(422, 'invalid', 'الرسالة فارغة', 'body')
-    if (!WINDOW_OPEN(conv)) return fail(422, 'invalid', 'انتهت نافذة الرد الحر، أرسل قالبًا معتمدًا', 'body')
-    return ok(appendMessage(conv, { body: body.body.trim() }))
+    return ok(appendMessage(conv, { body: body.body.trim(), reply_to: quoted }))
+  }
+  if ('attachment_id' in body) {
+    const held = state.uploads.get(body.attachment_id)
+    if (!held || held.conversationId !== conv.id) return fail(422, 'invalid', 'المرفق غير موجود في هذه المحادثة', 'attachment_id')
+    state.uploads.delete(body.attachment_id)
+    return ok(appendMessage(conv, { kind: kindOfMimetype(held.attachment.mimetype), body: body.caption ?? '', attachments: [held.attachment], reply_to: quoted }))
+  }
+  if (body.location) return ok(appendMessage(conv, { kind: 'location', location: body.location, reply_to: quoted }))
+  if (body.interactive) {
+    if (interactiveProblem(body.interactive)) return fail(422, 'invalid', 'حدود الرسالة التفاعلية', 'interactive')
+    return ok(appendMessage(conv, { kind: 'interactive', body: body.interactive.body, interactive: body.interactive, reply_to: quoted }))
   }
   const template = state.templates.find(item => item.id === body.template_id)
   if (!template) return fail(422, 'invalid', 'القالب غير موجود لهذه القناة', 'template_id')
   if ((body.params ?? []).length !== template.param_count) return fail(422, 'invalid', 'عدد المتغيرات غير صحيح', 'params')
-  return ok(appendMessage(conv, { body: renderTemplate(template.body, body.params), template_name: template.name }))
+  return ok(appendMessage(conv, { kind: 'template', body: renderTemplate(template.body, body.params), template_name: template.name }))
+}
+
+function react(item, body) {
+  const conv = state.conversations.find(candidate => state.messages[candidate.id].includes(item))
+  if (item.direction === 'note') return fail(422, 'invalid', 'لا يمكن التفاعل مع ملاحظة', 'emoji')
+  if (!WINDOW_OPEN(conv)) return fail(422, 'invalid', 'انتهت نافذة الرد الحر')
+  item.reactions = { ...item.reactions, agent: body.emoji || null }
+  return ok(item)
 }
 
 // A queued message becomes "sent" a moment after it is created, as the outbox cron would do.
@@ -222,6 +316,16 @@ function channelRoute(method, parts, body) {
   }))
 }
 
+const PICTURE = '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="320"><rect width="480" height="320" fill="#d7e6f5"/><circle cx="130" cy="110" r="38" fill="#f2c94c"/><path d="M0 320 150 170l90 90 80-70 160 130z" fill="#5b8db8"/></svg>'
+
+// The file of an attachment: a drawn picture for images, a tiny PDF otherwise.
+function downloadOf(messageId, attachmentId) {
+  const item = Object.values(state.messages).flat().find(candidate => candidate.id === messageId)
+  const attachment = item?.attachments.find(candidate => candidate.id === attachmentId)
+  if (attachment?.mimetype.startsWith('image/')) return { filename: 'file.svg', mime: 'image/svg+xml', body: PICTURE }
+  return { filename: 'file.pdf', mime: 'application/pdf', body: '%PDF-1.4\n%%EOF\n' }
+}
+
 /** Answers an inbox route, or returns undefined for a path this module does not own. `{ status, body }` or `{ file }`. */
 export function inboxPreviewData(method, path, url, body = {}) {
   const parts = segments(path)
@@ -251,6 +355,8 @@ export function inboxPreviewData(method, path, url, body = {}) {
       const limit = Math.max(1, Number(url.searchParams.get('limit') ?? 50) || 50)
       return ok({ items: all.slice(Math.max(0, all.length - offset - limit), all.length - offset), total: all.length })
     }
+    if (parts[5] === 'uploads' && method === 'POST') return upload(conv, body)
+    if (parts[5] === 'typing' && method === 'POST') return { status: 204, body: undefined }
     if (parts[5] === 'notes' && method === 'POST') {
       if (!String(body.body ?? '').trim()) return fail(422, 'invalid', 'الملاحظة فارغة', 'body')
       return ok(appendMessage(conv, { direction: 'note', body: body.body.trim(), delivery_state: 'sent' }))
@@ -270,7 +376,11 @@ export function inboxPreviewData(method, path, url, body = {}) {
       state.statuses.set(item.id, Date.now())
       return ok(item)
     }
-    if (parts[5] === 'attachments' && parts[7] === 'download') return { file: { filename: 'file.pdf', mime: 'application/pdf', body: '%PDF-1.4\n%%EOF\n' } }
+    if (parts[5] === 'attachments' && parts[7] === 'download') return { file: downloadOf(id, Number(parts[6])) }
+    if (parts[5] === 'reaction' && method === 'POST') {
+      const item = Object.values(state.messages).flat().find(candidate => candidate.id === id)
+      return item ? react(item, body) : fail(404, 'not_found', 'not found')
+    }
     return undefined
   }
   if (resource === 'contacts' && id !== undefined && method === 'PATCH') {

@@ -3,7 +3,10 @@ import { compileScript, parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createInboxDrafts } from '../../../composables/inbox/inboxDrafts'
+import { createInboxDrafts, emptyInboxDraft } from '../../../composables/inbox/inboxDrafts'
+import { INBOX_UPLOAD_ACCEPT, inboxFileSize, inboxUploadProblem } from '../../../composables/inbox/inboxAttachments'
+import { buildInteractive, emptyInteractiveDraft } from '../../../composables/inbox/inboxInteractive'
+import { buildLocation, emptyLocationDraft } from '../../../composables/inbox/inboxLocation'
 import { cannedSuggestions, renderTemplateBody, replyWindowOpen } from '../../../composables/inbox/inboxWindow'
 
 const filename = new URL('../InboxComposer.vue', import.meta.url).pathname
@@ -11,6 +14,10 @@ const NOW = Date.parse('2026-10-28T12:00:00Z')
 const TEMPLATE = { id: 7, name: 'reminder', language: 'ar', category: 'UTILITY', status: 'APPROVED', body: 'مرحبا {{1}}', param_count: 1 }
 
 // The component script is compiled and run against stubbed composables, as the other component tests do.
+class ApiError extends Error {
+  constructor(public status: number) { super('refused') }
+}
+
 function mountComposer(endsAt: string | null, store = new Map<string, string>()) {
   const script = compileScript(parse(readFileSync(filename, 'utf8'), { filename }).descriptor, { id: 'inbox-composer' }).content
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
@@ -20,10 +27,18 @@ function mountComposer(endsAt: string | null, store = new Map<string, string>())
   const mounted: Array<() => void> = []
   const unmounting: Array<() => void> = []
   const templatesEnabled = Vue.ref(false)
+  const notifyTyping = vi.fn()
+  const uploadInboxFile = vi.fn(async (_id: number, file: { name: string; size: number; type: string }, onProgress: (fraction: number) => void) => {
+    onProgress(0.5)
+    return { id: 41, name: file.name, mimetype: file.type, size: file.size }
+  })
+  const emitted: Array<[string, unknown]> = []
   const bindings = {
     _defineComponent: Vue.defineComponent, _unref: Vue.unref, ref: Vue.ref, reactive: Vue.reactive, computed: Vue.computed, watch: Vue.watch,
     onMounted: (fn: () => void) => mounted.push(fn), onBeforeUnmount: (fn: () => void) => unmounting.push(fn),
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useToast: () => ({ add: vi.fn() }), useMe: () => ({ me: Vue.ref({ id: 3 }) }),
+    ApiError, useInboxTyping: () => notifyTyping, uploadInboxFile, INBOX_UPLOAD_ACCEPT, inboxFileSize, inboxUploadProblem, emptyInboxDraft,
+    buildInteractive, emptyInteractiveDraft, buildLocation, emptyLocationDraft,
     inboxDrafts, cannedSuggestions, renderTemplateBody, replyWindowOpen,
     useSendInboxReply: () => ({ mutateAsync: sendReply, isPending: Vue.ref(false) }), useSendInboxNote: () => ({ mutateAsync: sendNote, isPending: Vue.ref(false) }),
     useInboxCannedReplies: () => ({ data: Vue.ref({ items: [], total: 0 }) }),
@@ -31,11 +46,11 @@ function mountComposer(endsAt: string | null, store = new Map<string, string>())
   }
   const code = ts.transpileModule(script, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText
   const component = new Function(...Object.keys(bindings), code)(...Object.values(bindings))
-  const props = Vue.reactive({ conversation: { id: 5, channel: { id: 1 }, reply_window_ends_at: endsAt } })
+  const props = Vue.reactive({ conversation: { id: 5, channel: { id: 1 }, reply_window_ends_at: endsAt }, replyTo: null as { id: number; preview: string } | null })
   const scope = Vue.effectScope()
-  const state = scope.run(() => component.setup(props, { expose: () => {}, emit: () => {} }))
+  const state = scope.run(() => component.setup(props, { expose: () => {}, emit: (name: string, value: unknown) => { emitted.push([name, value]); if (name === 'update:replyTo') props.replyTo = value as typeof props.replyTo } }))
   for (const fn of mounted) fn()
-  return { state, props, store, sendReply, sendNote, inboxDrafts, unmount: () => { for (const fn of unmounting) fn(); scope.stop() } }
+  return { state, props, store, sendReply, sendNote, inboxDrafts, notifyTyping, uploadInboxFile, emitted, unmount: () => { for (const fn of unmounting) fn(); scope.stop() } }
 }
 
 describe('InboxComposer', () => {
@@ -110,5 +125,116 @@ describe('InboxComposer', () => {
     expect(sendReply).toHaveBeenCalledWith({ template_id: 7, params: ['فهد'] })
     await Vue.nextTick()
     expect(inboxDrafts.get(3, 5)).toMatchObject({ templateId: null, params: [] })
+  })
+
+  const file = (name: string, type: string, size: number) => ({ target: { files: [{ name, type, size }] } }) as unknown as Event
+
+  it('refuses an image over 5 MB before any upload and says why', async () => {
+    const { state, uploadInboxFile } = mountComposer('2026-10-28T20:00:00Z')
+    await state.onFilePicked(file('كبيرة.png', 'image/png', 6 * 1048576))
+    expect(uploadInboxFile).not.toHaveBeenCalled()
+    expect(state.upload.value).toBeNull()
+    expect(state.uploadError.value).toBe('inbox.composer.upload.tooLarge')
+    await state.onFilePicked(file('ok.pdf', 'application/pdf', 15 * 1048576))
+    expect(state.uploadError.value).toBe('')
+  })
+
+  it('uploads a file and sends it with the draft as caption and the quoted message', async () => {
+    const { state, props, sendReply, uploadInboxFile } = mountComposer('2026-10-28T20:00:00Z')
+    props.replyTo = { id: 9, preview: 'السؤال' }
+    state.draft.value = 'تفضل'
+    expect(state.quoted.value).toEqual({ id: 9, preview: 'السؤال' })
+    await state.onFilePicked(file('خطة.pdf', 'application/pdf', 2048))
+    expect(uploadInboxFile).toHaveBeenCalledWith(5, expect.objectContaining({ name: 'خطة.pdf' }), expect.any(Function))
+    expect(state.canSend.value).toBe(true)
+    await state.submit()
+    expect(sendReply).toHaveBeenCalledWith({ attachment_id: 41, caption: 'تفضل', reply_to_id: 9 })
+    expect(state.upload.value).toBeNull()
+    expect(props.replyTo).toBeNull()
+  })
+
+  it('cannot send while a file is still uploading, and shows a 413 as the size message', async () => {
+    const { state, uploadInboxFile } = mountComposer('2026-10-28T20:00:00Z')
+    let finish: (value: unknown) => void = () => {}
+    uploadInboxFile.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }) as never)
+    const picking = state.onFilePicked(file('a.pdf', 'application/pdf', 10))
+    expect(state.uploading.value).toBe(true)
+    expect(state.canSend.value).toBe(false)
+    finish({ id: 2, name: 'a.pdf', mimetype: 'application/pdf', size: 10 })
+    await picking
+    expect(state.canSend.value).toBe(true)
+    uploadInboxFile.mockRejectedValueOnce(new ApiError(413))
+    await state.onFilePicked(file('b.pdf', 'application/pdf', 10))
+    expect(state.uploadError.value).toBe('inbox.composer.upload.tooLargeServer')
+    expect(state.upload.value).toBeNull()
+  })
+
+  it('sends a location only when the coordinates are valid and drops it when the panel closes', async () => {
+    const { state, sendReply } = mountComposer('2026-10-28T20:00:00Z')
+    state.togglePanel('location')
+    expect(state.canSend.value).toBe(false)
+    state.location.value = { ...emptyLocationDraft(), latitude: '24.7136', longitude: '46.6753', name: 'المكتب' }
+    expect(state.canSend.value).toBe(true)
+    await state.submit()
+    expect(sendReply).toHaveBeenCalledWith({ location: { latitude: 24.7136, longitude: 46.6753, name: 'المكتب', address: null } })
+    expect(state.panel.value).toBeNull()
+    state.togglePanel('location')
+    state.location.value = { ...emptyLocationDraft(), latitude: '1', longitude: '2' }
+    state.togglePanel('location')
+    state.togglePanel('location')
+    expect(state.location.value.latitude).toBe('')
+  })
+
+  it('sends an interactive message only when it respects the limits, and keeps it as a draft', async () => {
+    const { state, sendReply, inboxDrafts } = mountComposer('2026-10-28T20:00:00Z')
+    state.togglePanel('interactive')
+    state.interactive.value = { ...emptyInteractiveDraft(), body: 'هل تؤكد؟', buttons: ['نعم', 'لا'] }
+    await Vue.nextTick()
+    expect(inboxDrafts.get(3, 5).interactive).toMatchObject({ body: 'هل تؤكد؟', buttons: ['نعم', 'لا'] })
+    state.interactive.value.buttons[0] = 'x'.repeat(21)
+    expect(state.canSend.value).toBe(false)
+    state.interactive.value.buttons[0] = 'نعم'
+    await state.submit()
+    expect(sendReply).toHaveBeenCalledWith({ interactive: expect.objectContaining({ type: 'buttons', body: 'هل تؤكد؟' }) })
+    await Vue.nextTick()
+    expect(inboxDrafts.get(3, 5)).toEqual(emptyInboxDraft())
+  })
+
+  it('restores a stored quoted message and an open panel on the next mount', async () => {
+    const first = mountComposer('2026-10-28T20:00:00Z')
+    first.props.replyTo = { id: 4, preview: 'سؤال' }
+    first.state.togglePanel('location')
+    first.state.location.value = { ...emptyLocationDraft(), latitude: '10', longitude: '20' }
+    await Vue.nextTick()
+    const reopened = mountComposer('2026-10-28T20:00:00Z', first.store)
+    expect(reopened.emitted).toContainEqual(['update:replyTo', { id: 4, preview: 'سؤال' }])
+    expect(reopened.state.panel.value).toBe('location')
+    expect(reopened.state.location.value.latitude).toBe('10')
+  })
+
+  it('reports typing only while writing a reply inside the window', async () => {
+    const open = mountComposer('2026-10-28T20:00:00Z')
+    open.state.draft.value = 'م'
+    await Vue.nextTick()
+    expect(open.notifyTyping).toHaveBeenCalledTimes(1)
+    open.state.mode.value = 'note'
+    open.state.draft.value = 'ملاحظة'
+    await Vue.nextTick()
+    expect(open.notifyTyping).toHaveBeenCalledTimes(1)
+    const closed = mountComposer(null)
+    closed.state.texts.reply = 'م'
+    await Vue.nextTick()
+    expect(closed.notifyTyping).not.toHaveBeenCalled()
+  })
+
+  it('does not quote a message when a template is sent', async () => {
+    const { state, props, sendReply } = mountComposer(null)
+    props.replyTo = { id: 4, preview: 'سؤال' }
+    expect(state.quoted.value).toBeNull()
+    state.templateId.value = TEMPLATE.id
+    await Vue.nextTick()
+    state.params.value = ['فهد']
+    await state.submit()
+    expect(sendReply).toHaveBeenCalledWith({ template_id: 7, params: ['فهد'] })
   })
 })

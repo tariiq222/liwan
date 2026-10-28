@@ -322,11 +322,11 @@ function hasSession(req) {
   return cookie.split(';').some(part => part.trim() === `session_id=${SESSION}`)
 }
 
-function readBody(req) {
+function readBody(req, encoding = 'utf8') {
   return new Promise((resolve, reject) => {
     const chunks = []
     req.on('data', c => chunks.push(c))
-    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
+    req.on('end', () => resolve(Buffer.concat(chunks).toString(encoding)))
     req.on('error', reject)
   })
 }
@@ -400,7 +400,12 @@ async function handle(req, res) {
   if (/^\/api\/v1\/(inbox\/|settings\/inbox(\/|$))/.test(path)) {
     let body = {}
     if (method !== 'GET') {
-      try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
+      const multipart = /^multipart\/form-data/.test(req.headers['content-type'] ?? '')
+      const raw = await readBody(req, multipart ? 'latin1' : 'utf8') || '{}'
+      // An upload is multipart: the mock only needs the file's name, type and size.
+      const upload = multipart ? /filename="([^"]*)"\r\nContent-Type: ([^\r]*)\r\n\r\n([\s\S]*)\r\n--[^\r]*--\s*$/.exec(raw) : null
+      if (upload) body = { __upload: { name: Buffer.from(upload[1], 'latin1').toString('utf8'), mimetype: upload[2], size: upload[3].length } }
+      else try { body = JSON.parse(raw) } catch { body = {} }
     }
     const answer = inboxPreviewData(method, path, url, body)
     if (answer?.file) {
