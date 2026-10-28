@@ -14,6 +14,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+import test_slot
+
 REPO = Path(__file__).resolve().parents[1]
 PY = 'python3'
 FULL_TEST_FILES = ('package.json', 'package-lock.json', '.github/workflows/ci.yml')
@@ -109,7 +111,7 @@ def main(argv=None):
             sys.stdout.write('%s: %s\n' % (name, ' '.join(cmd)))
         return 0
     started = time.time()
-    with ThreadPoolExecutor(max_workers=min(len(steps), 6)) as pool:
+    with test_slot.hold('check_fast'), ThreadPoolExecutor(max_workers=min(len(steps), 6)) as pool:
         results = list(pool.map(run_step, steps))
     failed = 0
     for name, code, seconds, output in results:

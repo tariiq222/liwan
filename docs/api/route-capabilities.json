@@ -1847,21 +1847,6 @@
       "handler": "list_departure_reasons",
       "no_capability_reason": null
     },
-    "GET /api/v1/hr/offboarding/runs": {
-      "addon": "webvue_hr",
-      "auth": "user",
-      "capability_keys": [
-        "hr.offboarding.read"
-      ],
-      "capability_match": "all",
-      "capability_source": "body",
-      "feature_keys": [
-        "hr.enabled",
-        "hr.offboarding"
-      ],
-      "handler": "list_offboarding_runs",
-      "no_capability_reason": null
-    },
     "GET /api/v1/hr/offboarding/runs/{run_id}": {
       "addon": "webvue_hr",
       "auth": "user",
@@ -5520,6 +5505,20 @@
       "handler": "create_allocation",
       "no_capability_reason": null
     },
+    "POST /api/v1/hr/leave/allocations/{allocation_id}/revoke": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.leave.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "revoke_allocation",
+      "no_capability_reason": null
+    },
     "POST /api/v1/hr/leave/requests": {
       "addon": "webvue_hr",
       "auth": "user",
@@ -5650,6 +5649,21 @@
       "handler": "create_offboarding_run",
       "no_capability_reason": null
     },
+    "POST /api/v1/hr/offboarding/runs/{run_id}/cancel": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.offboarding.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.offboarding"
+      ],
+      "handler": "cancel_offboarding_run",
+      "no_capability_reason": null
+    },
     "POST /api/v1/hr/offboarding/runs/{run_id}/steps/{activity_id}/done": {
       "addon": "webvue_hr",
       "auth": "user",
@@ -5693,6 +5707,21 @@
         "hr.onboarding"
       ],
       "handler": "create_onboarding_run",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/onboarding/runs/{run_id}/cancel": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.onboarding.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.onboarding"
+      ],
+      "handler": "cancel_onboarding_run",
       "no_capability_reason": null
     },
     "POST /api/v1/hr/onboarding/runs/{run_id}/steps/{activity_id}/done": {
