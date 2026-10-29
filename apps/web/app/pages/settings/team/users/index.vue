@@ -5,6 +5,8 @@ import { useAdminUsers, type AdminUserListParams } from '@/composables/useAdminU
 import { useAdminRoles } from '@/composables/useAdminRoles'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 import { useEmployeeAccountBridge } from '@/composables/useEmployeeAccounts'
+import { watchDebounced } from '@vueuse/core'
+import { queryPositiveInt } from '@/utils/routeQuery'
 import { ADMIN_PAGE_SIZE, adminListQuery, adminQueryWithOffset, parseAdminOffset } from '@/composables/adminSettingsPaths'
 
 const route = useRoute()
@@ -16,8 +18,8 @@ const forbidden = computed(() => !can('access.users.read'))
 const filters = reactive<AdminUserListParams>({
   q: String(route.query.q ?? ''),
   status: route.query.status === 'stopped' ? 'stopped' : route.query.status === 'active' ? 'active' : undefined,
-  role_id: route.query.role_id ? Number(route.query.role_id) : undefined,
-  department_id: route.query.department_id ? Number(route.query.department_id) : undefined,
+  role_id: queryPositiveInt(route.query.role_id) ?? undefined,
+  department_id: queryPositiveInt(route.query.department_id) ?? undefined,
   limit: ADMIN_PAGE_SIZE,
   offset: parseAdminOffset(route.query.offset),
 })
@@ -59,10 +61,12 @@ function setPage(next: number) { if (hydrated.value && next >= 1 && next <= page
 watch(() => [route.query.q, route.query.status, route.query.role_id, route.query.department_id, route.query.offset], ([q, status, roleId, departmentId, offset]) => {
   filters.q = String(q ?? '')
   filters.status = status === 'stopped' ? 'stopped' : status === 'active' ? 'active' : undefined
-  filters.role_id = roleId ? Number(roleId) : undefined
-  filters.department_id = departmentId ? Number(departmentId) : undefined
+  filters.role_id = queryPositiveInt(roleId) ?? undefined
+  filters.department_id = queryPositiveInt(departmentId) ?? undefined
   filters.offset = parseAdminOffset(offset)
 })
+// The search box writes `q` to the URL while the list filters, not only on Enter, so a refresh keeps it.
+watchDebounced(() => filters.q, (q) => { if ((q ?? '') !== String(route.query.q ?? '')) updateFilters() }, { debounce: 300 })
 const listQuery = computed(() => adminListQuery(route.query, ['q', 'status', 'role_id', 'department_id', 'offset']))
 const userTo = (user: { id: number }) => ({ path: `/settings/team/users/${user.id}`, query: listQuery.value })
 const allValue = '__all__'
