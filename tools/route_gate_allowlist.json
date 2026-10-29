@@ -141,6 +141,16 @@
       ]
     },
     {
+      "reason": "Invited requester of one booking under /api/v1/public/ (auth='public', no session): the booking's access token, compared in constant time by webvue.appointment.guest, is the authorization; no capability applies.",
+      "routes": [
+        "webvue_appointments/controllers/appointment_guest.py:cancel_booking",
+        "webvue_appointments/controllers/appointment_guest.py:confirm_booking",
+        "webvue_appointments/controllers/appointment_guest.py:get_booking",
+        "webvue_appointments/controllers/appointment_guest.py:list_slots",
+        "webvue_appointments/controllers/appointment_guest.py:schedule_booking"
+      ]
+    },
+    {
       "reason": "Anonymous payer of one customer invoice under /api/v1/public/ (auth='public', no session): the invoice's access token, checked by the stock portal check, is the authorization; no capability applies.",
       "routes": [
         "webvue_payments/controllers/payer.py:get_invoice",
