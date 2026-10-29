@@ -100,6 +100,9 @@ const deliveryLabel = (item: InboxMessage) => t(`inbox.delivery.${item.delivery_
               <p v-if="row.item.direction === 'note'" class="mb-0.5 flex items-center gap-1 text-xs font-medium text-warning">
                 <UIcon name="i-lucide-lock" class="size-3.5" aria-hidden="true" />{{ t('inbox.thread.note') }}
               </p>
+              <p v-if="row.item.automated" class="mb-0.5 flex items-center gap-1 text-xs text-muted" data-testid="inbox-automated">
+                <UIcon name="i-lucide-bot" class="size-3.5" aria-hidden="true" />{{ t('inbox.thread.automated') }}
+              </p>
               <p v-if="row.item.template" class="mb-0.5 flex items-center gap-1 text-xs text-muted">
                 <UIcon name="i-lucide-file-text" class="size-3.5" aria-hidden="true" />{{ t('inbox.thread.template', { name: row.item.template.name }) }}
               </p>

@@ -81,3 +81,20 @@ export function normalizeInteractiveDraft(value: unknown): InteractiveDraft | nu
   if (sections.length && sections.every(section => section.rows.length)) draft.sections = sections
   return draft
 }
+
+/** The editable draft of a stored interactive message (an automatic message or a rule reply being edited). */
+export function interactiveToDraft(interactive: InboxInteractive): InteractiveDraft {
+  const draft: InteractiveDraft = { ...emptyInteractiveDraft(), type: interactive.type, body: interactive.body, header: interactive.header ?? '', footer: interactive.footer ?? '' }
+  if (interactive.type === 'buttons') draft.buttons = interactive.buttons.map(button => button.title)
+  else if (interactive.type === 'list') {
+    draft.listButton = interactive.button
+    draft.sections = interactive.sections.map(section => ({
+      title: section.title ?? '',
+      rows: section.rows.map(row => ({ title: row.title, description: row.description ?? '' })),
+    }))
+  } else {
+    draft.displayText = interactive.display_text
+    draft.url = interactive.url
+  }
+  return draft
+}
