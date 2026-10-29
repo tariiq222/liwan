@@ -92,10 +92,10 @@ async function submit() {
     <SharedFormSection panel :title="t('financeAssets.form.values')">
       <div class="grid gap-4 sm:grid-cols-2">
         <UFormField :label="t('financeAssets.form.purchaseValue')" name="finance-asset-purchase" required :error="shown.purchaseValue ? t('financeAssets.form.purchaseInvalid') : undefined">
-          <UInput id="finance-asset-purchase" v-model="draft.purchaseValue" type="number" min="0" step="any" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" />
+          <UInput id="finance-asset-purchase" v-model="draft.purchaseValue" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" />
         </UFormField>
         <UFormField :label="t('financeAssets.form.salvageValue')" name="finance-asset-salvage" :error="shown.salvageValue ? t('financeAssets.form.salvageInvalid') : undefined">
-          <UInput id="finance-asset-salvage" v-model="draft.salvageValue" type="number" min="0" step="any" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" />
+          <UInput id="finance-asset-salvage" v-model="draft.salvageValue" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" />
         </UFormField>
       </div>
     </SharedFormSection>

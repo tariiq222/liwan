@@ -67,13 +67,9 @@
       "invalid": "Invalid value. Check that you copied the whole key."
     },
     "pay": {
-      "title": "Pay invoice",
       "statusTitle": "Payment status",
       "amountDue": "Amount due",
       "merchant": "Issued by",
-      "number": "Invoice number",
-      "dueDate": "Due date",
-      "total": "Invoice total",
       "chooseMethod": "Choose how to pay",
       "submit": "Pay now",
       "redirecting": "Taking you to the payment page…",
@@ -81,37 +77,92 @@
       "retry": "Try again",
       "refresh": "Refresh status",
       "states": {
-        "paid": {
-          "title": "This invoice is paid",
-          "body": "Thank you. We received the payment and nothing more is needed."
-        },
         "processing": {
           "title": "Payment is being confirmed",
           "body": "We received the payment request and are waiting for the gateway to confirm it. This can take a few minutes, and you can close this page."
         },
-        "notPayable": {
-          "title": "This invoice cannot be paid now",
-          "body": "Contact the invoice issuer to find out why."
-        },
-        "noOptions": {
-          "title": "Online payment is not available for this invoice at the moment",
-          "body": "Contact the invoice issuer."
-        },
         "invalidLink": {
           "title": "The payment link is not valid",
-          "body": "The link is wrong or has expired. Ask the invoice issuer for a new link."
-        },
-        "unavailable": {
-          "title": "The invoice could not be loaded",
-          "body": "A temporary problem occurred. Try again in a moment."
+          "body": "The link is wrong or has expired. Ask the issuer for a new link."
         }
       },
       "errors": {
-        "notPayable": "This invoice cannot be paid now. Reload the page to see its status.",
         "unavailable": "The payment gateway is not available now. Try again in a moment.",
-        "failed": "The payment could not be started. Try again.",
-        "inProgress": "A payment of this invoice was started a moment ago on another page. Finish it there, or try again in a quarter of an hour."
+        "failed": "The payment could not be started. Try again."
+      },
+      "invoice": {
+        "title": "Pay invoice",
+        "number": "Invoice number",
+        "deadline": "Due date",
+        "total": "Invoice total",
+        "states": {
+          "paid": {
+            "title": "This invoice is paid",
+            "body": "Thank you. We received the payment and nothing more is needed."
+          },
+          "notPayable": {
+            "title": "This invoice cannot be paid now",
+            "body": "Contact the invoice issuer to find out why."
+          },
+          "noOptions": {
+            "title": "Online payment is not available for this invoice at the moment",
+            "body": "Contact the invoice issuer."
+          },
+          "unavailable": {
+            "title": "The invoice could not be loaded",
+            "body": "A temporary problem occurred. Try again in a moment."
+          }
+        },
+        "errors": {
+          "notPayable": "This invoice cannot be paid now. Reload the page to see its status.",
+          "inProgress": "A payment of this invoice was started a moment ago on another page. Finish it there, or try again in a quarter of an hour."
+        }
+      },
+      "order": {
+        "title": "Pay order",
+        "number": "Order number",
+        "deadline": "Pay by",
+        "total": "Order total",
+        "states": {
+          "paid": {
+            "title": "This order is paid",
+            "body": "Thank you. We received the payment and nothing more is needed."
+          },
+          "notPayable": {
+            "title": "This order cannot be paid now",
+            "body": "The order may be cancelled or its payment time may have run out. Contact the order issuer to find out why."
+          },
+          "noOptions": {
+            "title": "Online payment is not available for this order at the moment",
+            "body": "Contact the order issuer."
+          },
+          "unavailable": {
+            "title": "The order could not be loaded",
+            "body": "A temporary problem occurred. Try again in a moment."
+          }
+        },
+        "errors": {
+          "notPayable": "This order cannot be paid now. Reload the page to see its status.",
+          "inProgress": "A payment of this order was started a moment ago on another page. Finish it there, or try again in a quarter of an hour."
+        }
       }
+    },
+    "orders": {
+      "title": "Online orders",
+      "hint": "What applies to the orders your customers pay online.",
+      "expiry": {
+        "label": "Time to pay an unpaid order (minutes)",
+        "hint": "An order that is not paid within this time is cancelled automatically. Between {min} and {max} minutes; it applies to the current company.",
+        "invalid": "Enter a whole number between {min} and {max}."
+      },
+      "invoiceWhenPaid": {
+        "label": "Invoice when paid",
+        "hint": "The order's invoice is created and posted as soon as its payment is confirmed. This choice applies to the whole account, not only to the current company."
+      },
+      "saved": "The order settings were saved",
+      "saveFailed": "The order settings could not be saved",
+      "conflict": "The order settings changed since you opened the page, so we now show the saved values. Review them and repeat your change if needed.",
+      "reloadFailed": "The order settings could not be refreshed. Reload the page and try again."
     },
     "status": {
       "confirming": {
@@ -128,7 +179,7 @@
     "returned": {
       "title": "Payment result received",
       "alertTitle": "You can close this page",
-      "body": "To see the invoice status, open the payment link you received again."
+      "body": "To see the payment status, open the payment link you received again."
     },
     "link": {
       "action": "Payment link",

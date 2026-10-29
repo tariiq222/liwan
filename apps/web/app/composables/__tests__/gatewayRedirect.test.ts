@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { leaveForGateway } from '../gatewayRedirect'
 
-const LINK = { id: 42, token: 'tok-42' }
+const LINK = { kind: 'order', id: 42, token: 'tok-42' } as const
 
 interface FakeElement { tag: string; [key: string]: unknown }
 
@@ -32,7 +32,7 @@ describe('leaveForGateway', () => {
     const page = fakePage()
     leaveForGateway(LINK, { method: 'get', url: 'https://pay.example/checkout', fields: { payment_token: 'pt_1' } })
     expect(page.calls).toEqual([
-      'cookie webvue_pay_return=42.tok-42; Path=/payment; Max-Age=3600; SameSite=Lax; Secure',
+      'cookie webvue_pay_return=order.42.tok-42; Path=/payment; Max-Age=3600; SameSite=Lax; Secure',
       'assign https://pay.example/checkout?payment_token=pt_1',
     ])
   })

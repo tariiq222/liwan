@@ -329,6 +329,21 @@ class TestCrmImport(WebVueCrmCase):
         self.commit(content)
         self.assertEqual(len(self.lead_of('+966501234567')), 1)
 
+    def test_a_file_the_export_produced_imports_cleanly(self):
+        """The export prefixes an E.164 phone with a tab so spreadsheets keep the plus; it must not survive the import."""
+        self.make_lead(self.agent2, contact_name='Exported customer', phone='+966501119999')
+        exported = self.as_manager().api('GET', '/api/v1/crm/export')
+        self.assertEqual(exported.status_code, 200, exported.text)
+        self.assertIn('\t+966501119999', exported.content.decode('utf-8-sig'))
+        columns = {'name': 'name', 'phone': 'phone'}
+        body = self.preview(exported.content, mapping=columns).json()
+        self.assertEqual((body['new'], body['duplicate'], body['invalid']), (0, 1, 0))
+        fresh = exported.content.replace(b'+966501119999', b'+966501118888')
+        body = self.preview(fresh, mapping=columns).json()
+        self.assertEqual((body['new'], body['duplicate'], body['invalid']), (1, 0, 0))
+        self.commit(fresh, mapping=columns)
+        self.assertEqual(len(self.lead_of('+966501118888')), 1)
+
     def test_existing_lost_or_archived_opportunity_counts_as_duplicate(self):
         lost = self.make_lead(self.agent2, contact_name='Lost customer', phone='+966501112222')
         lost.write({'active': False})
@@ -493,7 +508,8 @@ class TestCrmImport(WebVueCrmCase):
         first = min(leads, key=lambda lead: lead.id)
         bells = self.bell_rows(self.agent, first, 'crm.assigned')
         self.assertEqual(len(bells), 1, 'one bell for the whole batch')
-        self.assertEqual(html2plaintext(bells.body).strip(), f'{first.contact_name} +1')
+        self.assertEqual(html2plaintext(bells.body).strip(), first.contact_name)
+        self.assertEqual(bells.webvue_crm_count, 2)
         for other in leads - first:
             self.assertFalse(self.bell_rows(self.agent, other, 'crm.assigned'))
 

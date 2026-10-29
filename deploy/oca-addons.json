@@ -59,6 +59,11 @@
       "repo": "OCA/web",
       "branch": "19.0",
       "commit": "5ee605962df607c20b0d8db9ea6e1236718620b7"
+    },
+    {
+      "repo": "OCA/sale-workflow",
+      "branch": "19.0",
+      "commit": "babd720bc1ff3ce91b83203718fbf9d3ddff3cce"
     }
   ],
   "python_requirements": [

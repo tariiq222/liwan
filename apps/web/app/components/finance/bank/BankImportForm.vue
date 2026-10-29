@@ -184,8 +184,8 @@ async function submit() {
     <SharedFormSection v-if="preview" panel :title="t('financeBank.form.balances')">
       <div class="grid gap-4 sm:grid-cols-2">
         <UFormField :label="t('financeBank.form.name')" name="finance-bank-import-name" class="sm:col-span-2"><UInput id="finance-bank-import-name" v-model="draft.name" class="w-full" maxlength="120" :disabled="!hydrated || pending" /></UFormField>
-        <UFormField :label="t('financeBank.form.balanceStart')" name="finance-bank-import-start" required><UInput id="finance-bank-import-start" v-model="draft.balanceStart" type="number" step="any" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" /></UFormField>
-        <UFormField :label="t('financeBank.form.balanceEndReal')" name="finance-bank-import-end" required><UInput id="finance-bank-import-end" v-model="draft.balanceEnd" type="number" step="any" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" /></UFormField>
+        <UFormField :label="t('financeBank.form.balanceStart')" name="finance-bank-import-start" required><UInput id="finance-bank-import-start" v-model="draft.balanceStart" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" /></UFormField>
+        <UFormField :label="t('financeBank.form.balanceEndReal')" name="finance-bank-import-end" required><UInput id="finance-bank-import-end" v-model="draft.balanceEnd" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" /></UFormField>
         <p v-if="expected !== null && draft.balanceEnd.trim() !== '' && !matches" class="text-sm text-warning sm:col-span-2" role="alert" data-testid="finance-bank-import-mismatch">
           {{ t('financeBank.import.mismatch', { expected: formatAmount(expected) }) }}
         </p>

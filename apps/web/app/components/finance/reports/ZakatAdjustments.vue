@@ -82,7 +82,7 @@ async function confirmRemove() {
       <div class="webvue-form-grid">
         <UFormField :label="t('financeReports.zakat.kind')" name="finance-zakat-kind"><USelect id="finance-zakat-kind" v-model="draft.kind" :items="kindItems" class="w-full" :disabled="!hydrated || add.isPending.value" /></UFormField>
         <UFormField :label="t('financeReports.zakat.amount')" name="finance-zakat-amount" required :error="attempted && !(amount > 0) ? t('financeReports.zakat.amountInvalid') : undefined">
-          <UInput id="finance-zakat-amount" v-model="draft.amount" type="number" min="0" step="any" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || add.isPending.value" />
+          <UInput id="finance-zakat-amount" v-model="draft.amount" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || add.isPending.value" />
         </UFormField>
         <UFormField :label="t('financeReports.zakat.label')" name="finance-zakat-label" required class="sm:col-span-2" :error="attempted && draft.label.trim() === '' ? t('financeReports.zakat.labelRequired') : undefined">
           <UInput id="finance-zakat-label" v-model="draft.label" class="w-full" maxlength="255" :disabled="!hydrated || add.isPending.value" />

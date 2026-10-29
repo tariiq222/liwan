@@ -58,10 +58,13 @@ class TestCrmDistribution(WebVueCrmCase):
                 ('partner_ids', 'in', agent.partner_id.id),
             ])
             self.assertEqual((len(rows), rows.res_id), (1, mine[0].id), index)
-            self.assertEqual(html2plaintext(rows.body).strip(), f'{mine[0].name} +1')
+            self.assertEqual(html2plaintext(rows.body).strip(), mine[0].name, 'the body is the name only, no prose')
+            self.assertEqual(rows.webvue_crm_count, len(mine))
         lone = self._leads(1)
         self._service().with_user(self.manager)._webvue_assign(lone)
-        self.assertEqual(html2plaintext(self.bell_rows(lone.user_id, lone, 'crm.assigned').body).strip(), lone.name)
+        lone_row = self.bell_rows(lone.user_id, lone, 'crm.assigned')
+        self.assertEqual(html2plaintext(lone_row.body).strip(), lone.name)
+        self.assertEqual(lone_row.webvue_crm_count, 1)
 
     def test_rotation_continues_across_calls(self):
         self._settings(**self._pool(self.agents))
