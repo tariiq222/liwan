@@ -124,6 +124,8 @@
       "descriptionLabel": "Role purpose",
       "permissions": "Permissions",
       "requires": "Requires",
+      "sensitive": "Sensitive",
+      "sensitiveNotice": "Permissions marked “Sensitive” grant access to sensitive data or actions such as payroll and administrative actions. Grant them only to those who need them.",
       "permissionChanges": "Permission changes",
       "added": "Added",
       "removed": "Removed",
@@ -132,7 +134,7 @@
       "companyScope": "Available for the company",
       "unknownPermission": "Unavailable permission",
       "domains": { "access": "Access administration", "hr": "People and HR", "pmo": "Projects", "meetings": "Meetings", "settings": "Settings" },
-      "descriptions": { "employee": "Basic access for signing in and using the platform.", "system_admin": "Manages login accounts, role assignments, the access audit and branding settings.", "vendor_support": "Vendor support access for operating the environment on request.", "pmo_manager": "Manages projects, tasks, approvals and project settings.", "hr_manager": "Manages the HR directory, departments and documents." },
+      "descriptions": { "employee": "Basic access for signing in and using the platform.", "system_admin": "Manages login accounts, role assignments, the access audit and branding settings.", "vendor_support": "Vendor support access for operating the environment on request.", "pmo_manager": "Manages projects, tasks, approvals and project settings.", "hr_manager": "Manages the HR directory, departments and documents.", "appointments_manager": "Manages appointment types, bookings and appointment settings.", "finance_manager": "Manages accounting, invoices, payments, banking and finance settings.", "finance_accountant": "Records entries, invoices and payments and performs daily accounting work.", "finance_auditor": "Read-only view of financial records and the audit log.", "documents_manager": "Manages documents, their folders and who can access them.", "operations_manager": "Manages operations, approvals and operations settings.", "operations_reviewer": "Reviews operations requests and approves or rejects them.", "inbox_agent": "Replies to the customer inbox conversations assigned to them.", "inbox_supervisor": "Monitors customer inbox conversations and distributes them to agents.", "inbox_manager": "Manages the customer inbox, its channels, templates and settings.", "crm_agent": "Follows up the leads assigned to them and logs their activity.", "crm_manager": "Manages leads: assignment, import, export and CRM settings.", "payroll_manager": "Manages payroll, salary structures and approves payroll runs." },
       "clone": "Clone",
       "rowActions": "Actions for role {name}",
       "confirm": {
