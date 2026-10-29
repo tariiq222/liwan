@@ -60,7 +60,21 @@
       "note": "Internal note",
       "template": "Template: {name}",
       "failed": "The message could not be sent",
-      "retry": "Retry"
+      "retry": "Retry",
+      "reply": "Reply",
+      "react": "React",
+      "reactions": "Reactions",
+      "customerReaction": "Customer reaction: {emoji}",
+      "agentReaction": "Your reaction: {emoji}",
+      "inReplyTo": "In reply to",
+      "quotedMedia": "Attachment",
+      "openImage": "Open image {name}",
+      "sticker": "Sticker",
+      "location": "Location",
+      "openMap": "Open in map",
+      "buttons": "Reply buttons",
+      "selected": "Chose: {title}",
+      "unsupported": "This message type is not supported."
     },
     "composer": {
       "mode": "Message type",
@@ -83,7 +97,62 @@
       "noTemplates": "This channel has no approved templates. Ask a manager to sync templates from the channel settings.",
       "templatesFailed": "Templates could not be loaded",
       "readOnly": "Read only",
-      "readOnlyDescription": "You do not have permission to reply to conversations."
+      "readOnlyDescription": "You do not have permission to reply to conversations.",
+      "attachments": "Add to the reply",
+      "attach": "Attach a file",
+      "captionPlaceholder": "Add a caption for the file (optional)",
+      "removeFile": "Remove the file",
+      "uploading": "Uploading…",
+      "replyingTo": "Replying to",
+      "quotedMedia": "Attachment",
+      "cancelReplyTo": "Cancel replying to the message",
+      "upload": {
+        "empty": "The file {name} is empty.",
+        "unsupported": "The file type of {name} is not supported by WhatsApp.",
+        "tooLarge": "The file {name} is larger than the {limit} MB limit. Choose a smaller file.",
+        "tooLargeServer": "The file is larger than the allowed limit. Choose a smaller file.",
+        "failed": "The file could not be uploaded. Try again."
+      },
+      "location": {
+        "title": "Location",
+        "latitude": "Latitude",
+        "longitude": "Longitude",
+        "name": "Place name (optional)",
+        "address": "Address (optional)",
+        "invalid": "Latitude is between -90 and 90, longitude between -180 and 180.",
+        "useMine": "Use my current location",
+        "consent": "Your browser asks for permission before reading your location, and nothing is sent until you press Send.",
+        "unsupported": "Your browser cannot determine your location.",
+        "denied": "Your location could not be determined. Enter the coordinates by hand."
+      },
+      "interactive": {
+        "title": "Interactive message",
+        "type": "Interactive message type",
+        "types": {
+          "buttons": "Buttons",
+          "list": "List",
+          "cta_url": "Link"
+        },
+        "header": "Header (optional)",
+        "body": "Message text",
+        "footer": "Footer (optional)",
+        "button": "Button {n} text",
+        "addButton": "Add a button",
+        "remove": "Remove",
+        "listButton": "Text of the button that opens the list",
+        "rows": "{n} of {max} rows",
+        "sectionTitle": "Section title",
+        "removeSection": "Remove the section",
+        "rowTitle": "Row title",
+        "rowDescription": "Description (optional)",
+        "addRow": "Add a row",
+        "addSection": "Add a section",
+        "displayText": "Button text",
+        "url": "Link",
+        "urlHelp": "A secure link starting with https"
+      },
+      "captionTooLong": "A file caption is at most {max} characters. Shorten it to send the file.",
+      "audioNoCaption": "WhatsApp does not allow a caption on an audio file."
     },
     "panel": {
       "title": "Customer and conversation",
@@ -249,6 +318,19 @@
         "deleteTitle": "Delete the channel \"{name}\"?",
         "deleteDescription": "This cannot be undone. The conversations and messages of the channel are deleted."
       }
+    },
+    "kinds": {
+      "text": "Message",
+      "image": "Image",
+      "video": "Video",
+      "audio": "Voice message",
+      "document": "File",
+      "sticker": "Sticker",
+      "location": "Location",
+      "contacts": "Contact",
+      "interactive": "Interactive message",
+      "template": "Template",
+      "unsupported": "Unsupported"
     }
   }
 }
