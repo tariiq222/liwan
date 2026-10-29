@@ -113,7 +113,7 @@ const STORED: InboxTemplate = {
   id: 3, name: 'reminder', language: 'ar', category: 'utility', status: 'approved', status_reason: null, quality: 'green',
   header: { type: 'text', text: 'Hello {{1}}', example: 'Sara' }, body: 'Hi {{1}}', body_examples: ['Sara'], footer: 'Clinic',
   buttons: [{ type: 'quick_reply', text: 'Confirm' }, { type: 'url', text: 'Open', url: 'https://example.test/{{1}}', example: 'https://example.test/1' }, { type: 'copy_code', example: 'SAVE10' }],
-  add_security_recommendation: false, code_expiration_minutes: null, param_count: 1, editable: true, otp_button_text: null,
+  add_security_recommendation: false, code_expiration_minutes: null, param_count: 1, editable: true, otp_button_text: null, supported: true,
 }
 
 describe('template draft and preview', () => {
@@ -159,6 +159,6 @@ describe('authentication template edit', () => {
     const draft = draftFromTemplate(stored, 'Default')
     expect(draft).toMatchObject({ category: 'authentication', otpButtonText: 'Copy it', codeExpirationMinutes: '10', addSecurityRecommendation: true })
     expect(templatePreview(stored, { params: ['1'], headerParam: '', headerMediaName: null }, 'Default').buttons).toEqual([{ type: 'copy_code', text: 'Copy it' }])
-    expect(draftFromTemplate({ ...stored, otp_button_text: null }, 'Default').otpButtonText).toBe('Default')
+    expect(draftFromTemplate({ ...stored, otp_button_text: null, supported: true }, 'Default').otpButtonText).toBe('Default')
   })
 })

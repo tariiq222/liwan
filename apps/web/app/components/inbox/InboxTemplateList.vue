@@ -78,6 +78,7 @@ function clear() {
             </span>
           </span>
           <span class="flex flex-wrap items-center gap-2">
+            <SharedStatusBadge v-if="!template.supported" size="sm" tone="neutral" :label="t('inbox.templates.unsupported')" data-testid="inbox-template-unsupported-badge" />
             <SharedStatusBadge size="sm" :tone="TEMPLATE_CATEGORY_TONE[template.category]" :label="t(`inbox.templates.category.${template.category}`)" data-testid="inbox-template-category-badge" />
             <SharedStatusBadge size="sm" :tone="TEMPLATE_STATUS_TONE[template.status]" :label="t(`inbox.templates.status.${template.status}`)" data-testid="inbox-template-status-badge" />
             <SharedStatusBadge v-if="template.quality !== 'unknown'" size="sm" :tone="TEMPLATE_QUALITY_TONE[template.quality]" :label="t(`inbox.templates.quality.${template.quality}`)" data-testid="inbox-template-quality-badge" />

@@ -498,7 +498,9 @@
         "hint": "This is how the customer sees it. The text direction follows the template language.",
         "emptyBody": "Message text",
         "emptyButton": "Button text"
-      }
+      },
+      "unsupported": "Not supported in WebVue",
+      "unsupportedDescription": "This template uses parts WebVue cannot fill (such as named variables or flow buttons), so it cannot be edited or sent from here. Manage it in Meta's dashboard."
     }
   }
 }

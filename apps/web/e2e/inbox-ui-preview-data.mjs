@@ -113,7 +113,7 @@ function seed() {
   const template = (id, name, rest) => ({
     id, name, language: 'ar', category: 'utility', status: 'approved', status_reason: null, quality: 'green', header: null,
     body: 'نشكرك على تواصلك.', body_examples: [], footer: null, buttons: [], add_security_recommendation: false, code_expiration_minutes: null,
-    param_count: 0, editable: true, otp_button_text: null, ...rest,
+    param_count: 0, editable: true, otp_button_text: null, supported: true, ...rest,
   })
   const templates = [
     template(1, 'appointment_reminder', {
@@ -133,6 +133,7 @@ function seed() {
       add_security_recommendation: true, code_expiration_minutes: 10, otp_button_text: 'نسخ الرمز',
     }),
     template(5, 'weekly_digest', { status: 'pending', quality: 'unknown', editable: false, body: 'ملخص أسبوعك: {{1}} طلبات جديدة.', body_examples: ['12'], param_count: 1 }),
+    template(6, 'named_greeting', { supported: false, body: 'مرحبًا {{customer_name}}، شكرًا لزيارتك.' }),
   ]
   const canned = [
     { id: 1, shortcut: 'hello', body: 'أهلًا بك، كيف يمكنني مساعدتك؟' },
@@ -141,7 +142,7 @@ function seed() {
   return {
     settings: { visibility_policy: 'department', auto_close_hours: 72, retention_months: 24 },
     departments, tags, channels, contacts, conversations, messages, templates, canned,
-    ids: { department: 3, tag: 4, canned: 3, channel: 2, template: 6, upload: 100, message: () => nextMessageId++ },
+    ids: { department: 3, tag: 4, canned: 3, channel: 2, template: 7, upload: 100, message: () => nextMessageId++ },
     statuses: new Map(),
     // Files uploaded to a conversation and not yet sent: attachment id -> { conversationId, attachment }.
     uploads: new Map(),
@@ -297,6 +298,7 @@ function sendTemplate(conv, body) {
   const template = state.templates.find(item => item.id === body.template_id)
   if (!template) return fail(422, 'invalid', 'القالب غير موجود لهذه القناة', 'template_id')
   if (template.status !== 'approved') return fail(422, 'invalid', 'القالب غير معتمد بعد', 'template_id')
+  if (!template.supported) return fail(422, 'invalid', 'القالب غير مدعوم في ويب فيو', 'template_id')
   if ((body.params ?? []).length !== template.param_count) return fail(422, 'invalid', 'عدد المتغيرات غير صحيح', 'params')
   const header = template.header
   let headerText = null
@@ -406,7 +408,7 @@ function templateFromWrite(channel, input, current) {
   const duplicate = state.templates.some(item => item.id !== current?.id && item.name === input.name && item.language === input.language)
   if (duplicate) return { refusal: fail(422, 'invalid', 'Meta: a template with this name and language already exists.', 'name') }
   if (current && (input.name !== current.name || input.language !== current.language)) return { refusal: fail(422, 'invalid', 'الاسم واللغة لا يتغيران', 'name') }
-  const base = { id: current?.id ?? state.ids.template++, name: input.name, language: input.language, category: input.category, status: 'pending', status_reason: null, quality: 'unknown', editable: false, otp_button_text: null }
+  const base = { id: current?.id ?? state.ids.template++, name: input.name, language: input.language, category: input.category, status: 'pending', status_reason: null, quality: 'unknown', editable: false, otp_button_text: null, supported: true }
   if (input.category === 'authentication') {
     return {
       template: {
@@ -459,6 +461,7 @@ function templateRoute(method, id, body) {
     return { status: 204, body: undefined }
   }
   if (method !== 'PATCH') return fail(404, 'not_found', 'not found')
+  if (!current.supported) return fail(422, 'invalid', 'القالب غير مدعوم في ويب فيو')
   if (!current.editable) return fail(422, 'invalid', 'Meta: this template cannot be edited in its current status.')
   const { template, refusal } = templateFromWrite(state.channels[0], body, current)
   if (refusal) return refusal

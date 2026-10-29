@@ -19,7 +19,7 @@ describe('inbox audit mock', () => {
     expect(InboxConversationDetailSchema.parse(call('GET', '/api/v1/inbox/conversations/1').body).can_reply).toBe(true)
     expect(InboxMessageListSchema.parse(call('GET', '/api/v1/inbox/conversations/1/messages').body).items.length).toBeGreaterThan(0)
     expect(InboxCannedReplyListSchema.parse(call('GET', '/api/v1/inbox/canned-replies').body).total).toBe(2)
-    expect(InboxTemplateListSchema.parse(call('GET', '/api/v1/inbox/channels/1/templates').body).total).toBe(5)
+    expect(InboxTemplateListSchema.parse(call('GET', '/api/v1/inbox/channels/1/templates').body).total).toBe(6)
     expect(InboxTagListSchema.parse(call('GET', '/api/v1/inbox/tags').body).total).toBe(3)
     expect(InboxDepartmentListSchema.parse(call('GET', '/api/v1/inbox/departments').body).total).toBe(2)
     expect(InboxSettingsSchema.parse(call('GET', '/api/v1/settings/inbox').body).visibility_policy).toBe('department')
@@ -127,8 +127,8 @@ describe('inbox audit mock', () => {
 
     it('serves every template in the contract shape and filters by status, category and name', () => {
       const ids = (query: string) => InboxTemplateListSchema.parse(call('GET', `/api/v1/inbox/channels/1/templates?${query}`).body).items.map(item => item.id)
-      expect(ids('')).toEqual([1, 2, 3, 4, 5])
-      expect(ids('status=approved')).toEqual([1, 2, 4])
+      expect(ids('')).toEqual([1, 2, 3, 4, 5, 6])
+      expect(ids('status=approved')).toEqual([1, 2, 4, 6])
       expect(ids('status=rejected')).toEqual([3])
       expect(ids('category=authentication')).toEqual([4])
       expect(ids('q=follow')).toEqual([2])
@@ -157,6 +157,13 @@ describe('inbox audit mock', () => {
       expect(call('POST', '/api/v1/inbox/channels/1/templates', write({ name: 'x2', header: { type: 'image', example_attachment_id: 999 } })).body).toMatchObject({ field: 'header' })
       call('PATCH', '/api/v1/inbox/channels/1', { app_id: null })
       expect(call('POST', '/api/v1/inbox/channels/1/templates', write({ name: 'x3', header })).body).toMatchObject({ field: 'app_id' })
+    })
+
+    it('flags a template WebVue cannot fill, and refuses to edit or send it', () => {
+      const items = InboxTemplateListSchema.parse(call('GET', '/api/v1/inbox/channels/1/templates').body).items
+      expect(items.filter(item => !item.supported).map(item => item.id)).toEqual([6])
+      expect(call('PATCH', '/api/v1/inbox/templates/6', write({ name: 'named_greeting' })).status).toBe(422)
+      expect(sendTo({ template_id: 6, params: [] }).status).toBe(422)
     })
 
     it('edits an editable template, refuses a rename and a locked template, and deletes', () => {

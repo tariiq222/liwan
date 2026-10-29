@@ -4,7 +4,7 @@ import { buildTemplateReply, dynamicButtons, headerInput, templateReplyReady, ty
 
 const BASE: InboxTemplate = {
   id: 7, name: 'reminder', language: 'ar', category: 'utility', status: 'approved', status_reason: null, quality: 'green', header: null,
-  body: 'Hi {{1}}', body_examples: ['Sara'], footer: null, buttons: [], add_security_recommendation: false, code_expiration_minutes: null, param_count: 1, editable: true, otp_button_text: null,
+  body: 'Hi {{1}}', body_examples: ['Sara'], footer: null, buttons: [], add_security_recommendation: false, code_expiration_minutes: null, param_count: 1, editable: true, otp_button_text: null, supported: true,
 }
 const INPUT: TemplateSendInput = { params: ['Sara'], headerParam: '', headerAttachmentId: null, headerLocation: null, buttonValues: [] }
 const LOCATION = { latitude: 24.7, longitude: 46.6, name: null, address: null }

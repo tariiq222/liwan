@@ -69,8 +69,8 @@ const { data: canned } = useInboxCannedReplies()
 const { data: templates, isLoading: templatesLoading, isError: templatesFailed, refetch: reloadTemplates } = useInboxTemplates(() => props.conversation.channel.id, templateMode)
 
 const suggestions = computed(() => mode.value === 'reply' && windowOpen.value && !suggestionsDismissed.value ? cannedSuggestions(draft.value, canned.value?.items ?? []) : [])
-const selectedTemplate = computed(() => templates.value?.items.find(item => item.id === templateId.value))
-const templateItems = computed(() => (templates.value?.items ?? []).map(item => ({ value: item.id, label: `${item.name} · ${item.language}`, category: item.category })))
+const selectedTemplate = computed(() => templates.value?.items.find(item => item.id === templateId.value && item.supported))
+const templateItems = computed(() => (templates.value?.items ?? []).filter(item => item.supported).map(item => ({ value: item.id, label: `${item.name} · ${item.language}`, category: item.category })))
 const modeItems = computed(() => [
   { value: 'reply', label: t('inbox.composer.reply'), icon: 'i-lucide-reply' },
   { value: 'note', label: t('inbox.composer.note'), icon: 'i-lucide-lock' },

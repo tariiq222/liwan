@@ -21,7 +21,7 @@ const query = useInboxTemplate(templateId)
 const template = query.data
 const { mutate: remove, isPending: removing } = useDeleteInboxTemplate(() => channelId.value ?? 0)
 const manage = computed(() => can('inbox.templates.manage'))
-const readonly = computed(() => !manage.value || !template.value?.editable)
+const readonly = computed(() => !manage.value || !template.value?.editable || !template.value?.supported)
 const confirmingDelete = ref(false)
 const tags = computed(() => template.value ? [
   statusTag({ tone: TEMPLATE_STATUS_TONE[template.value.status], label: t(`inbox.templates.status.${template.value.status}`) }),

@@ -15,7 +15,7 @@ const filename = new URL('../InboxComposer.vue', import.meta.url).pathname
 const NOW = Date.parse('2026-10-28T12:00:00Z')
 const TEMPLATE = {
   id: 7, name: 'reminder', language: 'ar', category: 'utility', status: 'approved', status_reason: null, quality: 'green', header: null,
-  body: 'مرحبا {{1}}', body_examples: ['فهد'], footer: null, buttons: [], add_security_recommendation: false, code_expiration_minutes: null, param_count: 1, editable: true, otp_button_text: null,
+  body: 'مرحبا {{1}}', body_examples: ['فهد'], footer: null, buttons: [], add_security_recommendation: false, code_expiration_minutes: null, param_count: 1, editable: true, otp_button_text: null, supported: true,
 }
 
 // The component script is compiled and run against stubbed composables, as the other component tests do.
@@ -385,6 +385,15 @@ describe('InboxComposer', () => {
       expect(state.previewParts.value.buttons).toEqual([{ type: 'copy_code', text: 'نسخ' }])
       await state.submit()
       expect(sendReply).toHaveBeenCalledWith({ template_id: 7, params: ['918273'] })
+    })
+
+    it('does not offer a template WebVue cannot fill', async () => {
+      const { state } = mountComposer(null, new Map(), { ...TEMPLATE, supported: false })
+      expect(state.templateItems.value).toEqual([])
+      state.templateId.value = 7
+      await Vue.nextTick()
+      expect(state.selectedTemplate.value).toBeUndefined()
+      expect(state.canSend.value).toBe(false)
     })
 
     it('starts every input empty when the template is deselected and chosen again', async () => {

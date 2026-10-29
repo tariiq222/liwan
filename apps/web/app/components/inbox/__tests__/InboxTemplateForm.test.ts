@@ -11,7 +11,7 @@ import { inboxUploadProblem } from '../../../composables/inbox/inboxAttachments'
 const filename = new URL('../InboxTemplateForm.vue', import.meta.url).pathname
 const STORED: InboxTemplate = {
   id: 3, name: 'reminder', language: 'ar', category: 'utility', status: 'rejected', status_reason: 'Meta says no', quality: 'unknown', header: null,
-  body: 'Hi {{1}}', body_examples: ['Sara'], footer: null, buttons: [], add_security_recommendation: false, code_expiration_minutes: null, param_count: 1, editable: true, otp_button_text: null,
+  body: 'Hi {{1}}', body_examples: ['Sara'], footer: null, buttons: [], add_security_recommendation: false, code_expiration_minutes: null, param_count: 1, editable: true, otp_button_text: null, supported: true,
 }
 
 // The component script is compiled and run against stubbed composables, as the other component tests do.
@@ -138,6 +138,13 @@ describe('InboxTemplateForm', () => {
     await locked.state.submit()
     expect(locked.save).not.toHaveBeenCalled()
     expect(locked.state.dirty).toBe(false)
+  })
+
+  it('is read-only for a template WebVue cannot fill, even when Meta would take an edit', async () => {
+    const { state, save } = mountForm({ template: { ...STORED, supported: false }, readonly: true })
+    expect(state.off).toBe(true)
+    await state.submit()
+    expect(save).not.toHaveBeenCalled()
   })
 
   it('previews an authentication draft instead of the standard fields', () => {

@@ -125,7 +125,7 @@ defineExpose({ draft })
     <SharedUnsavedChanges :dirty="dirty" />
     <div class="min-w-0 space-y-6" :class="{ 'order-2': !props.sideBySide }">
       <UAlert v-if="serverError" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('inbox.templates.serverError')" :description="serverError.message" data-testid="inbox-template-server-error" />
-      <UAlert v-if="props.readonly && props.template" color="info" variant="subtle" icon="i-lucide-lock" :title="t('inbox.templates.readonlyTitle')" :description="t('inbox.templates.readonlyDescription')" data-testid="inbox-template-readonly" />
+      <UAlert v-if="props.readonly && props.template" color="info" variant="subtle" icon="i-lucide-lock" :title="t('inbox.templates.readonlyTitle')" :description="props.template.supported ? t('inbox.templates.readonlyDescription') : t('inbox.templates.unsupportedDescription')" data-testid="inbox-template-readonly" />
 
       <SharedFormSection panel :title="t('inbox.templates.form.identity')" :description="t('inbox.templates.form.identityHint')">
         <div class="grid gap-4">
