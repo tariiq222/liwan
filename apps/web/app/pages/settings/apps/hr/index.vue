@@ -2,6 +2,7 @@
 import LeaveSettingsForm from '@/components/hr/LeaveSettingsForm.vue'
 import ShiftSettingsForm from '@/components/hr/shifts/ShiftSettingsForm.vue'
 import EosCaseMapTable from '@/components/hr/payroll/EosCaseMapTable.vue'
+import BranchStrictCard from '@/components/access/branches/BranchStrictCard.vue'
 import PayrollCostCenterTable from '@/components/hr/payroll/PayrollCostCenterTable.vue'
 import PayrollFinanceSettingsForm from '@/components/hr/payroll/PayrollFinanceSettingsForm.vue'
 import BankProfileForm from '@/components/hr/payroll/BankProfileForm.vue'
@@ -126,6 +127,7 @@ function retry() {
     <section v-if="shows('payroll')" id="payroll" class="webvue-settings-anchor grid gap-(--webvue-gap-card)">
     <SharedPageState :loading="settings.isLoading.value || rates.isLoading.value || bankProfiles.isLoading.value || eosCases.isLoading.value" :error="error" :empty="!settings.data.value" @retry="retry">
       <PayrollGeneralSettingsForm v-if="settings.data.value" :settings="settings.data.value" :leave-types="leaveTypeRefs" :can-edit="canConfig" :reload-settings="reloadPayrollSettings" />
+      <BranchStrictCard scope="payroll" path="/api/v1/hr/payroll/branch-strictness" :can-read="can('hr.payroll.read')" :can-edit="canConfig" />
       <GosiRateTable :rates="rates.data.value?.items ?? []" :can-edit="canConfig" :reload-rates="reloadRates" />
       <BankProfileForm :profiles="bankProfiles.data.value?.items ?? []" :can-edit="canConfig" :reload-profiles="reloadBankProfiles" />
       <SharedFormSection panel :title="t('hrPayroll.eosCases.title')" :description="t('hrPayroll.eosCases.hint')">
@@ -156,6 +158,9 @@ function retry() {
         />
       </SharedFormSection>
     </SharedPageState>
+    </section>
+    <section id="branch-access" class="webvue-settings-anchor">
+      <BranchStrictCard scope="hr" path="/api/v1/hr/branch-strictness" :can-read="can('hr.employees.manage')" :can-edit="can('hr.employees.manage')" />
     </section>
     <section v-if="shows('leave')" id="leave" class="webvue-settings-anchor">
       <SharedPageState :loading="leaveSettings.isLoading.value" :error="leaveSettings.error.value" :empty="!leaveSettings.data.value" :keep-content="!!leaveSettings.data.value" @retry="leaveSettings.refetch">

@@ -22,7 +22,7 @@ function setupPayroll(failing: Name, unloaded = false) {
   const bindings = {
     _defineComponent: Vue.defineComponent, ref: Vue.ref, computed: Vue.computed,
     LeaveSettingsForm: {}, ShiftSettingsForm: {}, EosCaseMapTable: {}, PayrollCostCenterTable: {}, PayrollFinanceSettingsForm: {},
-    BankProfileForm: {}, GosiRateTable: {}, PayrollGeneralSettingsForm: {},
+    BankProfileForm: {}, BranchStrictCard: {}, GosiRateTable: {}, PayrollGeneralSettingsForm: {},
     useI18n: () => ({ t: String }), useAccess: () => ({ can: () => true }),
     useSettingsPage: () => ({ parts: Vue.ref([{ id: 'payroll' }]), shows: (id: string) => id === 'payroll' }),
     useHrLeaveSettings: idle, useHrShiftSettings: idle,

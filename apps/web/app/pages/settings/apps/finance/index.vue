@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BranchStrictCard from '@/components/access/branches/BranchStrictCard.vue'
 import SettingsPreviewCard from '@/components/settings/SettingsPreviewCard.vue'
 import SetupChecklist from '@/components/finance/SetupChecklist.vue'
 import AnalyticAccountsSection from '@/components/finance/analytic/AnalyticAccountsSection.vue'
@@ -69,6 +70,8 @@ const ZATCA_TONE = { not_started: 'neutral', compliance_checked: 'info', onboard
             <SharedPropertyRow :label="t('finance.setup.company.currency')"><bdi dir="ltr">{{ data.company.currency }}</bdi></SharedPropertyRow>
           </SharedPropertiesPanel>
         </SharedRecordSection>
+
+        <BranchStrictCard scope="finance" path="/api/v1/finance/branch-strictness" :can-read="can('finance.setup.read')" :can-edit="canManage" />
 
         <FiscalSetupCard v-if="fiscalScope" :key="financeSetupScopeToken(fiscalScope)" :setup="data" :scope="fiscalScope" :can-edit="canManage" :context-changed="contextChanged" :reload-setup="reloadSetup" @context-changed="onContextChanged" @saved="contextChanged = false" />
 

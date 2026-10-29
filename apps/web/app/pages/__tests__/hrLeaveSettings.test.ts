@@ -26,7 +26,7 @@ describe('leave settings permission isolation',()=>{
     const idle=()=>({data:Vue.ref(undefined),error:Vue.ref(null),isLoading:Vue.ref(false),refetch:vi.fn()})
     let enabled:any
     const bindings={_defineComponent:Vue.defineComponent,ref:Vue.ref,computed:Vue.computed,
-      LeaveSettingsForm:{},ShiftSettingsForm:{},EosCaseMapTable:{},PayrollCostCenterTable:{},PayrollFinanceSettingsForm:{},BankProfileForm:{},GosiRateTable:{},PayrollGeneralSettingsForm:{},
+      LeaveSettingsForm:{},ShiftSettingsForm:{},EosCaseMapTable:{},PayrollCostCenterTable:{},PayrollFinanceSettingsForm:{},BankProfileForm:{},BranchStrictCard:{},GosiRateTable:{},PayrollGeneralSettingsForm:{},
       useI18n:()=>({t:String}),useAccess:()=>({can}),useSettingsPage:()=>({parts:Vue.ref([{id:'leave'}]),shows:(id:string)=>id==='leave'}),
       useHrLeaveSettings:(value:any)=>{enabled=value;return idle()},useHrShiftSettings:idle,
       useHrPayrollSettings,useHrGosiRates,useHrBankProfiles,useHrEosCases,useHrPayrollFinanceSettings,useHrLeaveTypes,
