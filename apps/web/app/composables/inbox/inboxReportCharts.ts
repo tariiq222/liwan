@@ -3,7 +3,7 @@ import type {
   InboxReportMetrics, InboxReportPoint, InboxTemplateAnalyticsPoint,
 } from '@webvue/contracts'
 import type { KpiTile, KpiTone } from '@webvue/ui/app/utils/kpiTile'
-import type { ChartDatum, DashboardBarChart, DashboardBarDatum, DashboardDonutChart } from '@/utils/projectChartData'
+import type { ReportBarChart as DashboardBarChart, ReportBarDatum as DashboardBarDatum, ReportDatum as ChartDatum, ReportDonutChart as DashboardDonutChart } from './inboxChartTypes'
 
 // Pure mappers from the report wire shapes to the existing DashboardChart kinds (donut and bar) and the KPI strip. They
 // stay direction-free: the chart itself mirrors itself for right-to-left. Nothing here reads the route or the clock.
