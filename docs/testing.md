@@ -153,8 +153,32 @@ always runs, and **a path with no rule runs all twelve stages** (that includes a
 listed in `STATIC_ONLY_TOOLS`). Preview a selection, with the rule behind each changed path:
 
 ```sh
-python3 -B tools/ci_scope.py --base main [--commit codex/<area>-<slug>]
+python3 -B tools/ci_scope.py --base main [--commit codex/<area>-<slug>] [--pull-request]
 ```
+
+A pull request is narrower still (`--pull-request`, passed by the `scope` job only for the `pull_request`
+event):
+
+- `upgrade`, `restore-drill` and `image` never run on a pull request. They run on the push to `main`, the
+  nightly run and a full dispatch.
+- A file under `odoo-addons/<addon>/` selects only `static` and the Odoo stages: `ai-service`, `control-plane`,
+  `vendor-admin`, `e2e-mock` and `rtl-stories` read no addon code, so they run for an addon change on `main`.
+- The `odoo` stages reach only the affected release modules: the addons changed under `odoo-addons/<addon>/`
+  plus every release addon that depends on them, directly or transitively (`depends` in each manifest). A
+  changed path outside `odoo-addons/` that feeds an Odoo stage (`.github/`, `deploy/`, `tools/catalog_check.py`,
+  `packages/contracts/`, `package.json`, an unmapped file) affects all modules. `ci_scope.py --pull-request
+  --modules` prints the list (empty means all).
+- `odoo` still installs the whole release but runs only the affected modules' tests, split by test weight over
+  as few shards as the weight needs: 1 shard up to a third of the release's total test weight, 2 up to two
+  thirds, otherwise 3 (`shard_count_for` in `tools/odoo_shards.py`). The scope job passes the list to the shards
+  as `ODOO_TEST_MODULES` (`ODOO_TEST_MODULES=a,b deploy/ci/odoo.sh --shard k/N`).
+- `odoo-app-standalone` and `odoo-bridge` run only the applications and bridges among the affected modules
+  (a bridge is affected through either side); with none, the stage is not selected, and `ci-result` does not
+  expect it.
+
+Push to `main`, the nightly schedule and `workflow_dispatch` with `full: true` run all twelve stages with all
+three shards and every isolation group, so a cross-module regression the narrowed pull request could not see is
+caught on `main`.
 
 A manual `workflow_dispatch` run with `full: true` runs all twelve stages whatever the change. A
 `release/19.0.X.Y.Z` tag is cut only from a `main` commit whose `ci` run was such a full run with all

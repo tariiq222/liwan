@@ -127,6 +127,7 @@ describe('localized server refusals', () => {
     'errors.api.notFound': 'العنصر غير موجود أو حُذف.',
     'errors.api.unavailable': 'الخدمة غير متاحة الآن.',
     'errors.codes.stale_write': 'تغيّرت البيانات.',
+    'errors.codes.tenant_read_only': 'الاشتراك في وضع القراءة فقط.',
     'errors.reasons.self_chat': 'لا يمكنك بدء محادثة مع نفسك.',
     'errors.generic': 'حدث خطأ غير متوقع',
   }
@@ -149,6 +150,7 @@ describe('localized server refusals', () => {
     [503, 'pdf_unavailable_x', 'errors.api.unavailable'],
     [422, 'some_business_rule', 'errors.api.invalid'],
     [409, 'stale_write', 'errors.codes.stale_write'],
+    [403, 'tenant_read_only', 'errors.codes.tenant_read_only'],
     [418, 'teapot', 'errors.generic'],
   ])('maps %s %s to %s', async (status, code, key) => {
     const error = await fail(status, { code, message: 'English text' })

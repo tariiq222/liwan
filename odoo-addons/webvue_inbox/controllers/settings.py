@@ -21,10 +21,13 @@ from odoo.addons.webvue_inbox.controllers.helpers import (
     unique_as_invalid,
 )
 from odoo.addons.webvue_inbox.models.access_service import (
+    CAMPAIGNS,
     MANAGE_AUTOMATION,
+    MANAGE_FLOWS,
     MANAGE_SETTINGS,
     READ,
 )
+from odoo.addons.webvue_inbox.models.constants import FLOWS_FEATURE
 from odoo.addons.webvue_inbox.models.presets import PRESETS
 from odoo.addons.webvue_inbox.models.settings import (
     ASSIGNMENT_POLICIES,
@@ -110,7 +113,8 @@ class SettingsController(http.Controller):
             raise ApiError(404, 'not_found', 'preset does not exist')
         settings = request.env['webvue.inbox.settings']._get_for_company()
         automation = holds(MANAGE_AUTOMATION, request.env.company)
-        return dump_settings(settings._webvue_apply_preset(key, automation=automation))
+        flows = holds(MANAGE_FLOWS, request.env.company) and request.env['webvue.entitlement.service']._webvue_feature_write(FLOWS_FEATURE)
+        return dump_settings(settings._webvue_apply_preset(key, automation=automation, flows=flows))
 
     # departments
 
@@ -155,7 +159,7 @@ class SettingsController(http.Controller):
     @http.route('/api/v1/inbox/tags', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('inbox.enabled', operation='read')
-    @requires_capability(READ, MANAGE_SETTINGS, MANAGE_AUTOMATION, match='any')
+    @requires_capability(READ, MANAGE_SETTINGS, MANAGE_AUTOMATION, CAMPAIGNS, match='any')
     def list_tags(self, **_):
         return list_page('webvue.inbox.tag', dump_tag)
 

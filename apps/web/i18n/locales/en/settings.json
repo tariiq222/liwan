@@ -85,6 +85,18 @@
         "label": "Sponsor approval of the charter",
         "hint": "When on, the project manager sends the charter to the sponsor and it is approved only with their consent."
       },
+      "closeWithOpenTasks": {
+        "label": "Closing a project with open tasks",
+        "hint": "Decides what happens when a project moves to the closed phase while it still has open tasks.",
+        "block": "Block closing",
+        "allowWithWarning": "Allow with a warning the manager confirms"
+      },
+      "registerTransitions": {
+        "label": "Risk and issue status changes",
+        "hint": "Decides whether a status moves one neighbouring step at a time or to any status.",
+        "sequence": "Step by step",
+        "free": "Any status"
+      },
       "extensions": {
         "title": "Connected applications",
         "hint": "Options that installed applications add to projects."

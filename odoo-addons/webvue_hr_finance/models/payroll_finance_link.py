@@ -16,6 +16,9 @@ class WebVueHrPayrollFinanceLink(models.AbstractModel):
     @api.model
     def _webvue_finance_actions(self, run):
         actions = super()._webvue_finance_actions(run)
+        # Every finance action writes accounting records: none is offered while the finance feature is off.
+        if not self.env['webvue.entitlement.service']._webvue_feature_write('finance.enabled'):
+            return actions
         if run.webvue_state == 'approved' and self._webvue_can('finance.entries.post'):
             actions.append('post')
         if run.webvue_state == 'posted' and self._webvue_can('finance.payments.manage'):

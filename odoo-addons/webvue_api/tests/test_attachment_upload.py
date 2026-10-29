@@ -5,6 +5,9 @@ import zipfile
 
 from odoo.tests import TransactionCase, tagged
 
+from odoo.addons.webvue_api.controllers.attachment_download import (
+    attachment_disposition,
+)
 from odoo.addons.webvue_api.controllers.common import ApiError
 from odoo.addons.webvue_api.serializers.attachment import (
     MAX_ENCODED_CHARS,
@@ -63,9 +66,21 @@ class TestAttachmentUpload(TransactionCase):
         self.assertInvalid(upload(PDF, mimetype=5), 'mimetype', 'mimetype must be a string')
         self.assertInvalid(upload(PDF, mimetype='text/html'), 'mimetype', 'mimetype is not allowed')
 
+    def test_name_length_and_extension_must_fit_the_file(self):
+        self.assertEqual(parse_attachment_upload(upload(PDF, name='a' * 251 + '.pdf'))['name'], 'a' * 251 + '.pdf')
+        self.assertInvalid(upload(PDF, name='a' * 252 + '.pdf'), 'name', 'name must be at most 255 characters')
+        # Text content named like a PDF is refused whatever the hint says; an unfixed extension is not checked.
+        self.assertInvalid(
+            upload(b'abc', name='x.pdf', mimetype='text/plain'), 'name', 'the file extension does not match the file content',
+        )
+        self.assertInvalid(upload(PNG, name='photo.JPG'), 'name', 'the file extension does not match the file content')
+        self.assertEqual(parse_attachment_upload(upload(b'a,b', name='table.csv'))['mimetype'], 'text/plain')
+        self.assertEqual(parse_attachment_upload(upload(PDF, name='NOTES'))['mimetype'], 'application/pdf')
+
     def test_data_is_bounded_decoded_and_sniffed(self):
         self.assertInvalid({'name': 'a.pdf'}, 'data', 'data is required')
-        self.assertInvalid({'name': 'a.pdf', 'data': '   '}, 'data', 'data is required')
+        self.assertInvalid({'name': 'a.pdf', 'data': ''}, 'data', 'the file is empty')
+        self.assertInvalid({'name': 'a.pdf', 'data': '   '}, 'data', 'the file is empty')
         self.assertInvalid({'name': 'a.pdf', 'data': 'abc$'}, 'data', 'data must be valid base64')
         self.assertInvalid(
             {'name': 'a.pdf', 'data': 'A' * (MAX_ENCODED_CHARS + 4)}, 'data',
@@ -82,3 +97,22 @@ class TestAttachmentUpload(TransactionCase):
             'mimetype': 'application/pdf',
             'url': f'/api/v1/tasks/3/attachments/{attachment.id}/download',
         })
+
+
+@tagged('post_install', '-at_install', 'webvue')
+class TestAttachmentDisposition(TransactionCase):
+    """The download header keeps a usable ASCII name next to the UTF-8 one."""
+
+    def test_arabic_name_gets_ascii_fallback_with_extension(self):
+        header = attachment_disposition('ملاحظات.txt')
+        self.assertIn('filename="attachment.txt"', header)
+        self.assertIn("filename*=UTF-8''%D9%85", header)
+        self.assertTrue(header.endswith('.txt'))
+
+    def test_ascii_name_is_kept(self):
+        self.assertTrue(attachment_disposition('report 2026.pdf').startswith('attachment; filename="report 2026.pdf"'))
+
+    def test_quotes_and_slashes_cannot_break_the_header(self):
+        header = attachment_disposition('a"b/c.txt')
+        self.assertIn('filename="abc.txt"', header)
+        self.assertNotIn('"b', header.split('filename*')[0].replace('filename="abc.txt"', ''))

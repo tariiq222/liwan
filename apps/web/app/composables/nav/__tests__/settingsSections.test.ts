@@ -8,8 +8,8 @@ const page = (id: string) => settingsPages().find(candidate => candidate.id === 
 
 describe('settings pages', () => {
   it('are the foundation pages around one page per application, in a fixed order', () => {
-    expect(settingsPages().map(candidate => candidate.id)).toEqual(['company', 'team', 'projects', 'meetings', 'hr', 'finance', 'operations', 'crm', 'inbox', 'payments', 'system', 'billing'])
-    expect(settingsPages().map(candidate => candidate.group)).toEqual([undefined, undefined, 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', undefined, undefined])
+    expect(settingsPages().map(candidate => candidate.id)).toEqual(['company', 'team', 'projects', 'meetings', 'hr', 'finance', 'operations', 'appointments', 'crm', 'inbox', 'payments', 'system', 'billing'])
+    expect(settingsPages().map(candidate => candidate.group)).toEqual([undefined, undefined, 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', undefined, undefined])
   })
   it('hold the cards of company and system as parts of one page', () => {
     expect(page('company').to).toBe('/settings/company')
@@ -25,7 +25,7 @@ describe('settings pages', () => {
   })
   it('build one page per application from the registered manifests', () => {
     const apps = () => appSettingsPages().map(candidate => candidate.to)
-    expect(apps()).toEqual(['/settings/apps/projects', '/settings/apps/meetings', '/settings/apps/hr', '/settings/apps/finance', '/settings/apps/operations/processes', '/settings/apps/crm', '/settings/apps/inbox', '/settings/apps/payments'])
+    expect(apps()).toEqual(['/settings/apps/projects', '/settings/apps/meetings', '/settings/apps/hr', '/settings/apps/finance', '/settings/apps/operations/processes', '/settings/apps/appointments', '/settings/apps/crm', '/settings/apps/inbox', '/settings/apps/payments'])
     expect(page('payments').parts.map(part => [part.id, part.capability])).toEqual([['providers', 'payments.providers.manage'], ['orders', 'payments.settings.manage']])
     expect(page('meetings').parts.map(part => [part.id, part.capability])).toEqual([['schedule', 'meetings.settings.manage']])
     expect(page('hr').parts.map(part => [part.id, part.capability])).toEqual([['leave', 'hr.leave.config'], ['payroll', 'hr.payroll.read'], ['shifts', 'hr.shifts.manage'], ['branch-access', 'hr.employees.manage']])

@@ -4,6 +4,7 @@
     "name": "Al Rajhi Test Bank"
   },
   "basic_wage": 10000.0,
+  "currency": "SAR",
   "employee": {
     "id": 1,
     "name": "Layla Target"

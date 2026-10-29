@@ -37,6 +37,8 @@ const params = computed<TaskListParams>(() => projectTaskParams(projectId.value!
 // The board has no columns to sort, so it queries without the URL's sort.
 const boardParams = computed<TaskListParams>(() => ({ ...params.value, sort: undefined }))
 const stageSource = computed(() => ({ kind: 'project' as const, stages: project.value?.stages ?? [] }))
+// Without the tasks capability every request below is refused: one clear notice replaces the toolbar, KPIs and table.
+const canRead = computed(() => can('pmo.tasks.read'))
 const canCreate = computed(() => can('pmo.tasks.create') && project.value?.active === true)
 
 // A link out of this list carries the list's own state through, `view`
@@ -102,7 +104,10 @@ function columnCreateTo(column: { state?: TaskState; stageId?: number }) {
 
 <template>
   <template v-if="isListRoute">
-    <SharedPageContainer v-if="notFound || error" width="list">
+    <SharedPageContainer v-if="!canRead" width="list">
+      <SharedForbiddenState />
+    </SharedPageContainer>
+    <SharedPageContainer v-else-if="notFound || error" width="list">
       <div v-if="notFound" class="flex flex-col items-start gap-3">
         <p class="text-muted">{{ t('projects.notFound') }}</p>
         <UButton type="button" color="neutral" variant="outline" size="sm" @click="router.push(projectReturnTo)">{{ t('projects.backToProjects') }}</UButton>

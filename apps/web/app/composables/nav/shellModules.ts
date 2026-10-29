@@ -161,7 +161,7 @@ export function hidePinnedNewProject(path: string): boolean {
 /** The settings pages with at least one part this identity may open (all of them without an identity: the breadcrumb). */
 export function visibleSettingsPages(identity?: AccessIdentity): { page: SettingsPage; parts: AppSettingsPart[] }[] {
   return settingsPages()
-    .map(page => ({ page, parts: page.parts.filter(part => identity === undefined || navAllowed(identity, part.capability, settingsPartPath(page, part))) }))
+    .map(page => ({ page, parts: page.parts.filter(part => identity === undefined || navAllowed(identity, part.capability, settingsPartPath(page, part)) || (part.anyCapabilities ?? []).some(key => navAllowed(identity, key, settingsPartPath(page, part)))) }))
     .filter(({ parts }) => parts.length > 0)
 }
 

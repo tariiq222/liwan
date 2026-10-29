@@ -5,6 +5,7 @@ from odoo.addons.webvue_api.controllers.common import ApiError, parse_positive_i
 from odoo.addons.webvue_hr.models.payroll_math import EOS_CASES
 from odoo.addons.webvue_hr.serializers.assets.common import ref, reject_unknown
 from odoo.addons.webvue_hr.serializers.dates import parse_optional_date
+from odoo.addons.webvue_hr.serializers.payroll.currency import currency_code
 from odoo.addons.webvue_hr.serializers.payroll.revision import stored_revision
 
 SETTLEMENT_FIELDS = ('case', 'open_deductions')
@@ -64,6 +65,7 @@ def dump_estimate(employee, estimate):
         'award': float(estimate['award']),
         'leave_days': float(estimate['leave_days']),
         'leave_amount': float(estimate['leave_amount']),
+        'currency': currency_code(employee.company_id),
     }
 
 
@@ -82,6 +84,7 @@ def dump_settlement(settlement):
         'leave_amount': settlement.leave_amount,
         'open_deductions': settlement.open_deductions,
         'total': settlement.total,
+        'currency': currency_code(settlement.employee_id.company_id),
     }
 
 

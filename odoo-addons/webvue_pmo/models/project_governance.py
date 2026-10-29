@@ -7,6 +7,7 @@ from psycopg2.errors import ForeignKeyViolation, UniqueViolation
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.fields import Domain
+from odoo.tools import SQL
 
 GOVERNANCE_ROLES = ('R', 'A', 'C', 'I')
 REGISTER_KINDS = ('risk', 'issue')
@@ -338,10 +339,39 @@ class ProjectRegister(models.Model):
         for record in self:
             record.score = record.probability * record.impact if record.kind == 'risk' else 0
 
+    def _order_field_to_sql(self, alias, field_name, direction, nulls, query):
+        """Order ``priority`` by severity (critical, high, normal, low) instead of by its text.
+
+        Odoo's ORM has no selection-order sorting, so this documented override of its ordering hook ranks the
+        stored values; every other field keeps the stock behaviour. ``priority asc`` lists the most severe first.
+        """
+        if field_name != 'priority':
+            return super()._order_field_to_sql(alias, field_name, direction, nulls, query)
+        sql_field = self._field_to_sql(alias, 'priority', query)
+        severity = SQL(
+            "CASE %s %s ELSE %s END", sql_field,
+            SQL(" ").join(SQL("WHEN %s THEN %s", value, rank) for rank, value in enumerate(reversed(REGISTER_PRIORITIES))),
+            len(REGISTER_PRIORITIES),
+        )
+        query._order_groupby.append(severity)
+        return SQL("%s %s %s", severity, direction, nulls)
+
     def _webvue_check_visible(self):
         for record in self:
             _check_project(record.project_id)
         return self
+
+    def _check_status_transition(self, status, current):
+        """In the company's `sequence` mode a new item starts open and a status moves to a neighbouring step only."""
+        if self.env['webvue.pmo.settings'].get()['register_status_transitions'] != 'sequence':
+            return
+        if current:
+            allowed = abs(REGISTER_STATUSES.index(status) - REGISTER_STATUSES.index(current.status)) <= 1
+        else:
+            allowed = status == REGISTER_STATUSES[0]
+        if not allowed:
+            msg = "Register status moves one step at a time: open, in progress, resolved, closed."
+            raise ValidationError(msg)
 
     def _validate_values(self, vals, current=None):
         project = _check_project(self.env['project.project'].browse(vals.get('project_id', current.project_id.id if current else None)), manage=True)
@@ -361,6 +391,7 @@ class ProjectRegister(models.Model):
         if priority not in REGISTER_PRIORITIES or status not in REGISTER_STATUSES:
             msg = "Register priority or status is invalid."
             raise ValidationError(msg)
+        self._check_status_transition(status, current)
         for field_name in ('probability', 'impact'):
             value = vals.get(field_name, getattr(current, field_name, None))
             if kind == 'risk' and (not isinstance(value, int) or isinstance(value, bool) or value < 1 or value > 5):

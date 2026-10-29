@@ -204,6 +204,17 @@ class TestHrLeave(WebVueHrCase):
         refused = self.api('POST', f'/api/v1/hr/leave/requests/{first}/refuse', json={})
         self.assertEqual(refused.json()['state'], 'refuse')
 
+    def test_a_decided_request_cannot_be_approved_again(self):
+        self._as_staff()
+        leave_id = self._request(days=1).json()['id']
+        self._as_manager()
+        self.api('POST', f'/api/v1/hr/leave/requests/{leave_id}/refuse', json={})
+        detail = self.api('GET', f'/api/v1/hr/leave/requests/{leave_id}').json()
+        self.assertFalse(detail['can_approve'])
+        res = self.api('POST', f'/api/v1/hr/leave/requests/{leave_id}/approve', json={})
+        self.assertEqual((res.status_code, res.json()['field']), (422, 'state'))
+        self.assertEqual(self.env['hr.leave'].browse(leave_id).state, 'refuse')
+
     def test_state_filter_takes_several_states(self):
         self._as_staff()
         pending = self._request(days=1).json()['id']

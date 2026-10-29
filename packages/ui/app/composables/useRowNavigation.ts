@@ -5,7 +5,7 @@ import { navigableRows, nextRowIndex, rowMove } from './shortcuts/rows'
 import { overlayOwnsEscape } from './useEscapeBack'
 
 /**
- * J / K move focus between the rows `container` marked with `data-shortcut-row` (each focusable)
+ * J / K (and ArrowDown / ArrowUp) move focus between the rows `container` marked with `data-shortcut-row` (each focusable)
  * that the user can see and reach, and Enter on a focused row opens its first link. A list opts in
  * by calling this with its container; SharedDataTable wires it, the shell does not. The shell
  * listener runs first (window, capture) and default-prevents a key it used, including the letter

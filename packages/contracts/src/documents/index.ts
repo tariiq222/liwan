@@ -48,7 +48,7 @@ export const DocumentAccessUpdateSchema = z.object({
   .refine(value => new Set(value.grants.map(grant => grant.user_id)).size === value.grants.length, 'Grant users must be unique')
 export const DocumentUploadSchema = z.object({
   expected_revision: revision, name: z.string().trim().min(1).refine(value => !/[\\/\0]/.test(value) && !['.', '..'].includes(value), 'A basename is required'),
-  data: z.string().min(1), mimetype: z.string().optional(),
+  data: z.string().min(1), mimetype: z.string().optional(), as_version: z.boolean().optional(),
 }).strict()
 
 export type DocumentSummary = z.infer<typeof DocumentSummarySchema>

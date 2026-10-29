@@ -17,9 +17,9 @@ from odoo.addons.webvue_api.tests.common import WebVueApiCase
 @tagged('post_install', '-at_install', 'webvue')
 class TestMeEndpoint(HttpCase):
 
-    def test_anonymous_is_403(self):
+    def test_anonymous_is_401(self):
         res = self.url_open('/api/v1/me')
-        self.assertEqual(res.status_code, 403)
+        self.assertEqual(res.status_code, 401)
 
     def test_employee(self):
         new_test_user(self.env, login='emp', password='emp_password_123',
@@ -183,7 +183,7 @@ class TestMeEndpoint(HttpCase):
 class TestMeCommercial(WebVueApiCase):
 
     def test_anonymous_metadata_is_not_public(self):
-        self.assertEqual(self.api('GET', '/api/v1/me').status_code, 403)
+        self.assertEqual(self.api('GET', '/api/v1/me').status_code, 401)
 
     def test_saas_metadata_is_local_disabled_and_whitelisted(self):
         before = dump_me(self.employee)
@@ -274,7 +274,7 @@ class TestChangePassword(HttpCase):
             'current': 'old_password_123',
             'new': 'new_password_123',
         })
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 401)
 
         self.authenticate('password_change_user', 'old_password_123')
         response = self.api('POST', '/api/v1/me/password', {'new': 'new_password_123'})
@@ -331,7 +331,7 @@ class TestChangePassword(HttpCase):
         self.assertEqual(self.api('GET', '/api/v1/me').status_code, 200)
 
         self.use_session(old_sid)
-        self.assertEqual(self.api('GET', '/api/v1/me').status_code, 403)
+        self.assertEqual(self.api('GET', '/api/v1/me').status_code, 401)
 
         self.use_session(caller_sid)
         self.assertEqual(self.api('GET', '/api/v1/me').status_code, 200)

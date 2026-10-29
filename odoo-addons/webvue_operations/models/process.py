@@ -13,6 +13,7 @@ from .common import (
     text,
     trusted,
 )
+from odoo.addons.webvue_core.models.access_service import WebVueAccessRule
 
 
 class OperationProcess(models.Model):
@@ -97,6 +98,10 @@ class OperationProcess(models.Model):
         process.write({'name': text(self.env, name, 'name', 200, True), 'description': text(self.env, description, 'description', 20000), 'execution_kind': execution_kind, 'purpose': purpose, 'stage_approval_mode': stage_approval_mode, 'step_ids': prepared, 'state': 'draft', 'revision': self.revision + 1})
         return self
 
+    def _ineligible_reviewers(self, users):
+        service = self.env['webvue.access.service']
+        return users.filtered(lambda user: not service._webvue_has_capability(user, 'operations.requests.review', company=self.company_id))
+
     def action_publish(self, revision):
         self.ensure_one()
         self._guard()
@@ -108,8 +113,9 @@ class OperationProcess(models.Model):
         definitions = []
         for step in self.step_ids.sorted('sequence'):
             users = reviewer_users(self.env, step.reviewer_ids.ids)
-            if any(not self.env['webvue.access.service']._webvue_has_capability(user, 'operations.requests.review', company=self.company_id) for user in users):
-                raise ValidationError(self.env._('Every reviewer needs the operations review capability.'))
+            if self._ineligible_reviewers(users):
+                code = 'reviewer_not_eligible'
+                raise WebVueAccessRule(code, self.env._('Every reviewer needs the operations review capability.'), field='steps')
             definitions.append({
                 'name': step.name, 'model_id': self.env['ir.model']._get('webvue.operation.request').id,
                 'company_id': self.company_id.id, 'sequence': 100 - step.sequence,

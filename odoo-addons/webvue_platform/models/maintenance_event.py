@@ -72,4 +72,11 @@ class WebVueMaintenanceEvent(models.Model):
             **{'old_' + key: value for key, value in (before or {}).items()},
             **{'new_' + key: value for key, value in maintenance_snapshot(record).items()},
         }
-        return self.with_context(_webvue_maintenance_audit=_AUDIT_SENTINEL).create(values)
+        event = self.with_context(_webvue_maintenance_audit=_AUDIT_SENTINEL).create(values)
+        if not operator:
+            # A tenant user's change is also an access-log event; the operator's scheduler is not.
+            after = {key: value.isoformat() if hasattr(value, 'isoformat') else value for key, value in maintenance_snapshot(record).items()}
+            self.env['webvue.access.audit']._webvue_log(
+                'company.maintenance_changed', company, reason=action, after={'revision': record.revision, **after},
+            )
+        return event

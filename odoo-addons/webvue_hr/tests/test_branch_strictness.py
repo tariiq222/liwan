@@ -90,3 +90,18 @@ class TestHrBranchStrictness(WebVueHrCase):
             self.assertEqual(self.api('PATCH', path, json={'enabled': True, 'scope': 'x'}).status_code, 422)
             self.assertEqual(self.api('PATCH', path, json={}).status_code, 422)
             self.assertEqual(self.api('PATCH', path, json={'enabled': False}).json(), {'scope': scope, 'enabled': False})
+
+    def test_an_application_manager_without_access_roles_switches_and_is_audited(self):
+        owner = new_test_user(
+            self.env, login='strict_hr_only', password='strict_hr_only_pw', groups='base.group_user',
+            company_id=self.parent.id, company_ids=[Command.set((self.parent | self.branch).ids)])
+        for role in (self.hr_role, self.payroll_role):
+            self.env['webvue.access.assignment'].create({
+                'user_id': owner.id, 'company_id': self.parent.id, 'role_id': role.id})
+        self.authenticate('strict_hr_only', 'strict_hr_only_pw')
+        for scope, path in (('hr', '/api/v1/hr/branch-strictness'), ('payroll', '/api/v1/hr/payroll/branch-strictness')):
+            res = self.api('PATCH', path, json={'enabled': True})
+            self.assertEqual((res.status_code, res.json()), (200, {'scope': scope, 'enabled': True}), res.text)
+        audit = self.env['webvue.access.audit'].sudo().search(
+            [('action', '=', 'branch.policy_changed'), ('actor_id', '=', owner.id)])
+        self.assertEqual(len(audit), 2)

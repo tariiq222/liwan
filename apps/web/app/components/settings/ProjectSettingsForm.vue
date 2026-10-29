@@ -41,8 +41,8 @@ function useCard<Draft extends Fields>(read: (settings: ProjectSettings) => Draf
 const creation = useCard(({ project_creators, require_manager_on_create, require_end_date_on_create }) => (
   { project_creators, require_manager_on_create, require_end_date_on_create }
 ))
-const approval = useCard(({ default_completion_approval, require_charter_approval }) => (
-  { default_completion_approval, require_charter_approval }
+const approval = useCard(({ default_completion_approval, require_charter_approval, close_with_open_tasks, register_status_transitions }) => (
+  { default_completion_approval, require_charter_approval, close_with_open_tasks, register_status_transitions }
 ))
 const daysError = ref('')
 const reminders = useCard(({ deadline_reminders_enabled, deadline_reminders_days_before, overdue_digest_enabled }) => (
@@ -158,6 +158,22 @@ function onDeleteStage(id: number | string) {
     </UFormField>
     <UFormField orientation="horizontal" :label="t('settings.projects.charterApproval.label')" :description="t('settings.projects.charterApproval.hint')">
       <USwitch id="settings-require-charter-approval" v-model="approval.draft.value.require_charter_approval" data-testid="settings-require-charter-approval" :aria-label="t('settings.projects.charterApproval.label')" :disabled="approvalLocked" />
+    </UFormField>
+    <UFormField id="project-close-open-tasks" orientation="horizontal" :label="t('settings.projects.closeWithOpenTasks.label')" :description="t('settings.projects.closeWithOpenTasks.hint')">
+      <URadioGroup
+        v-model="approval.draft.value.close_with_open_tasks"
+        data-testid="settings-close-with-open-tasks"
+        :items="[{ value: 'block', label: t('settings.projects.closeWithOpenTasks.block') }, { value: 'allow_with_warning', label: t('settings.projects.closeWithOpenTasks.allowWithWarning') }]"
+        :disabled="approvalLocked"
+      />
+    </UFormField>
+    <UFormField id="project-register-transitions" orientation="horizontal" :label="t('settings.projects.registerTransitions.label')" :description="t('settings.projects.registerTransitions.hint')">
+      <URadioGroup
+        v-model="approval.draft.value.register_status_transitions"
+        data-testid="settings-register-transitions"
+        :items="[{ value: 'sequence', label: t('settings.projects.registerTransitions.sequence') }, { value: 'free', label: t('settings.projects.registerTransitions.free') }]"
+        :disabled="approvalLocked"
+      />
     </UFormField>
   </SharedSettingsCard>
 

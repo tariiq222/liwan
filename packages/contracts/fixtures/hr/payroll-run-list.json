@@ -2,6 +2,7 @@
   "items": [
     {
       "approved_at": null,
+      "currency": "SAR",
       "employee_count": 2,
       "id": 1,
       "month": "2026-11",

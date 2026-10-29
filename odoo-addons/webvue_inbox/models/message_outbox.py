@@ -6,6 +6,7 @@ from dateutil.relativedelta import relativedelta
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
+from .abstract_interactive import COMMERCE_TYPES
 from .batch import process_each
 from .constants import BACKOFF_MINUTES, MAX_ATTEMPTS, OUTBOX_BATCH, TYPING_MAX_AGE
 from odoo.addons.webvue_inbox.adapters import whatsapp
@@ -19,11 +20,15 @@ class WebVueInboxMessageOutbox(models.Model):
 
     @api.model
     def _webvue_run_outbox(self):
-        due = self.search([
-            ('direction', '=', 'out'), ('delivery_state', '=', 'queued'),
-            ('next_attempt_at', '<=', fields.Datetime.now()),
-        ], order='next_attempt_at, id', limit=OUTBOX_BATCH)
-        process_each(due, lambda message: message._webvue_deliver(), self._webvue_unexpected_failure)
+        # Agent and automation messages always leave before campaign messages; a full batch asks for another run at once.
+        full = False
+        for campaign in (False, True):
+            due = self.search([
+                ('direction', '=', 'out'), ('delivery_state', '=', 'queued'), ('next_attempt_at', '<=', fields.Datetime.now()),
+                *([('campaign_recipient_ids.campaign_id.state', '=', 'running')] if campaign else [('campaign_recipient_ids', '=', False)]),
+            ], order='next_attempt_at, id', limit=OUTBOX_BATCH)
+            process_each(due, lambda message: message._webvue_deliver(), self._webvue_unexpected_failure)
+            full = full or len(due) == OUTBOX_BATCH
         now = fields.Datetime.now()
         reactions = self.search([
             ('agent_reaction_pending', '=', True), '|', ('reaction_next_attempt_at', '=', False), ('reaction_next_attempt_at', '<=', now),
@@ -40,6 +45,8 @@ class WebVueInboxMessageOutbox(models.Model):
             lambda message, _error: message._webvue_receipt_failed(retryable=True),
         )
         self._webvue_run_typing()
+        if full:
+            self._webvue_wake_outbox()
 
     @api.model
     def _webvue_run_typing(self):
@@ -68,9 +75,12 @@ class WebVueInboxMessageOutbox(models.Model):
     @api.model
     def _webvue_unexpected_failure(self, message, error):
         """An error outside the provider contract: counted as one retryable attempt."""
-        message._webvue_record_failure(f'unexpected error: {type(error).__name__}', retryable=True)
+        if message.exists():  # a message deleted while the batch ran (a paused campaign's) is simply gone
+            message._webvue_record_failure(f'unexpected error: {type(error).__name__}', retryable=True)
 
     def _webvue_deliver(self):
+        if not self.exists() or (self.campaign_recipient_ids and not self._webvue_claim_campaign_send()):
+            return
         self._webvue_send()
         self.conversation_id._webvue_notify_bus()
 
@@ -81,19 +91,19 @@ class WebVueInboxMessageOutbox(models.Model):
             self._webvue_record_failure(self.env._('The channel is disabled.'), retryable=False)
             return
         try:
-            provider_id = self._webvue_provider_send()
+            sent = self._webvue_provider_send()
         except whatsapp.ProviderError as error:
-            self._webvue_record_failure(str(error), error.retryable)
+            self._webvue_record_failure(str(error), error.retryable, error.code)
         except UserError as error:
             self._webvue_record_failure(str(error), retryable=False)
         else:
             self.write({
-                'delivery_state': 'sent', 'provider_message_id': provider_id,
-                'attempts': self.attempts + 1, 'error': False,
+                'delivery_state': 'sent', 'provider_message_id': sent.provider_id, 'held_for_quality': sent.held,
+                'attempts': self.attempts + 1, 'error': False, 'error_code': False,
             })
 
     def _webvue_provider_send(self):
-        """Send this message and return the provider message id."""
+        """Send this message and return the whatsapp.SendResult (provider message id, held for a quality check)."""
         conversation = self.conversation_id
         credentials = conversation.channel_id._webvue_credentials()
         to = conversation.identity_id.address
@@ -104,15 +114,23 @@ class WebVueInboxMessageOutbox(models.Model):
             return whatsapp.send_template(
                 credentials, to, self.template_name, self.template_language, self.template_params or [],
                 header=self._webvue_template_header(credentials), buttons=self._webvue_template_buttons(),
+                marketing_api=conversation.channel_id.marketing_api == 'marketing_messages' and self.template_id.category == 'marketing',
             )
         if self.kind == 'location':
             location = whatsapp.Location(self.latitude, self.longitude, self.location_name or None, self.location_address or None)
-            return whatsapp.send_location(credentials, to, location, context_id)
-        if self.kind == 'interactive':
-            return whatsapp.send_interactive(credentials, to, self._webvue_interactive(), context_id)
-        if self.kind in whatsapp.MEDIA_KINDS:
-            return self._webvue_send_media(credentials, to, context_id)
-        return whatsapp.send_text(credentials, to, self.body, context_id)
+            provider_id = whatsapp.send_location(credentials, to, location, context_id)
+        elif self.kind in COMMERCE_TYPES:
+            if not self.catalog_id:
+                raise UserError(self.env._('No catalog is connected to this channel.'))
+            provider_id = whatsapp.send_commerce(credentials, to, self._webvue_commerce(), self.catalog_id, context_id)
+        elif self.kind == 'interactive':
+            flow = {'flow_id': self.flow_id.provider_flow_id, 'token': self.flow_token} if self.interactive_type == 'flow' else None
+            provider_id = whatsapp.send_interactive(credentials, to, self._webvue_interactive(), context_id, flow=flow)
+        elif self.kind in whatsapp.MEDIA_KINDS:
+            provider_id = self._webvue_send_media(credentials, to, context_id)
+        else:
+            provider_id = whatsapp.send_text(credentials, to, self.body, context_id)
+        return whatsapp.SendResult(provider_id, held=False)
 
     def _webvue_send_media(self, credentials, to, context_id):
         media_id = self._webvue_media_id(credentials)
@@ -148,19 +166,22 @@ class WebVueInboxMessageOutbox(models.Model):
         return None
 
     def _webvue_template_buttons(self):
+        buttons = self.template_button_ids.sorted('position')
         return [
             {'index': button.position, 'sub_type': 'copy_code' if button.kind == 'copy_code' else 'url', 'value': button.value}
-            for button in self.template_button_ids.sorted('position') if button.value
-        ]
+            for button in buttons if button.value
+        ] + [{'index': button.position, 'sub_type': 'flow', 'value': self.flow_token} for button in buttons if button.kind == 'flow']
 
-    def _webvue_record_failure(self, error, retryable):
+    def _webvue_record_failure(self, error, retryable, code=None):
         attempts = self.attempts + 1
-        values = {'attempts': attempts, 'error': error}
+        values = {'attempts': attempts, 'error': error, 'error_code': code or False}
         if retryable and attempts < MAX_ATTEMPTS:
             values['next_attempt_at'] = fields.Datetime.now() + relativedelta(minutes=BACKOFF_MINUTES[attempts - 1])
         else:
             values['delivery_state'] = 'failed'
         self.write(values)
+        if values.get('delivery_state') == 'failed':
+            self.campaign_recipient_ids._webvue_on_failed()
 
     # reactions and read receipts: sent from the same cron, retried with the message backoff up to MAX_ATTEMPTS
 

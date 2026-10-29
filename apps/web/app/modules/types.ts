@@ -54,6 +54,8 @@ export interface AppContextLink {
  */
 export interface AppSettingsPart {
   id: string; labelKey: string; icon: AppIcon; capability: string
+  /** Further capabilities that also open the part, for a page that serves two rights (branch creation and branch access policy). */
+  anyCapabilities?: string[]
   to?: string
   within?: string
 }

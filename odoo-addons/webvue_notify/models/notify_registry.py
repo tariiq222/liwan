@@ -2,7 +2,7 @@
 from odoo import api, models
 from odoo.exceptions import ValidationError
 
-TYPE_FIELDS = ('owner', 'model', 'feature_key')
+TYPE_FIELDS = ('owner', 'model')
 
 
 class WebVueNotifyRegistry(models.AbstractModel):
@@ -19,6 +19,9 @@ class WebVueNotifyRegistry(models.AbstractModel):
     @api.model
     def _webvue_notification_types(self):
         """Pure descriptors ``{'kind', 'owner', 'model', 'feature_key'}``; never a process-global set.
+
+        ``feature_key`` is the application feature that must allow the row; a platform kind that
+        belongs to no application leaves it ``None`` and is never gated by a feature.
 
         ``'live': True`` marks a kind whose rows ``_webvue_notify_row_visible``
         re-checks one by one. The kind is a value its owner added to
@@ -43,6 +46,10 @@ class WebVueNotifyRegistry(models.AbstractModel):
                     raise ValidationError(self.env._(
                         'webvue_notify: notification kind %(kind)s is missing %(name)s', kind=kind, name=name,
                     ))
+            if item.get('feature_key') is not None and not (isinstance(item['feature_key'], str) and item['feature_key']):
+                raise ValidationError(self.env._(
+                    'webvue_notify: notification kind %(kind)s has an invalid feature_key', kind=kind,
+                ))
             if kind not in values:
                 raise ValidationError(self.env._(
                     'webvue_notify: notification kind %(kind)s is not a mail.message selection value', kind=kind,
@@ -55,9 +62,15 @@ class WebVueNotifyRegistry(models.AbstractModel):
         """Feature keys of the registered types, in registration order, each once."""
         keys = []
         for item in self._webvue_notification_type_map().values():
-            if item['feature_key'] not in keys:
-                keys.append(item['feature_key'])
+            key = item.get('feature_key')
+            if key and key not in keys:
+                keys.append(key)
         return tuple(keys)
+
+    @api.model
+    def _webvue_notify_has_platform_kind(self):
+        """True when a registered kind belongs to no application feature (the platform's own rows)."""
+        return any(not item.get('feature_key') for item in self._webvue_notification_type_map().values())
 
     @api.model
     def _webvue_notify_live_kinds(self):
@@ -99,4 +112,4 @@ class WebVueNotifyRegistry(models.AbstractModel):
         item = types.get(message.webvue_notification_kind) or next(
             (item for item in types.values() if item['model'] == message.model), None,
         )
-        return item['feature_key'] if item else None
+        return item.get('feature_key') if item else None

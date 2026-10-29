@@ -1,8 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Validation of the reply body (packages/contracts InboxReplyCreateSchema): every limit is checked here again."""
+import re
 from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
+from odoo.exceptions import ValidationError
 from odoo.http import request
 
 from odoo.addons.webvue_api.controllers.common import parse_positive_int
@@ -12,6 +14,8 @@ from odoo.addons.webvue_inbox.controllers.helpers import (
     find_one,
     reject,
 )
+from odoo.addons.webvue_inbox.models.abstract_interactive import NO_PRODUCT_BODY
+from odoo.addons.webvue_inbox.models.constants import FLOWS_FEATURE
 
 MAX_BODY = 4096
 MAX_CAPTION = 1024
@@ -38,8 +42,17 @@ MAX_SECTION_TITLE = 24
 MAX_ROW_TITLE = 24
 MAX_ROW_DESCRIPTION = 72
 MAX_CTA_URL = 2000
-CONTENT_KEYS = ('body', 'attachment_id', 'location', 'interactive', 'template_id')
-INTERACTIVE_TYPES = ('buttons', 'list', 'cta_url')
+CONTENT_KEYS = ('body', 'attachment_id', 'location', 'interactive', 'commerce', 'template_id')
+INTERACTIVE_TYPES = ('buttons', 'list', 'cta_url', 'flow')
+MAX_FLOW_CTA = 30
+MAX_RETAILER_ID = 100
+RETAILER_ID = re.compile(r'^[A-Za-z0-9._-]+$')
+MAX_COMMERCE_PRODUCTS = 30
+COMMERCE_KEYS = {
+    'product': ('body', 'footer', 'product_retailer_id'),
+    'product_list': ('header', 'body', 'footer', 'sections'),
+    'catalog_message': ('body', 'footer', 'thumbnail_product_retailer_id'),
+}
 SHARED_INTERACTIVE_KEYS = {'type', 'body', 'header', 'footer'}
 
 
@@ -167,13 +180,24 @@ def parse_cta_url(value):
     }
 
 
+def parse_flow(value, channel):
+    """A form message: a published form of `channel` (of any channel when none is given) and the text of its button."""
+    value = parse_object(value, 'interactive', SHARED_INTERACTIVE_KEYS | {'flow_id', 'cta'}, ('flow_id', 'cta'))
+    request.env['webvue.entitlement.service'].require(FLOWS_FEATURE)
+    flow = find_one('webvue.inbox.flow', value['flow_id'], 'flow_id')
+    if not flow.sendable or (channel and flow.channel_id != channel):
+        reject('flow_id is not a published form of this channel', 'flow_id')
+    return {'flow_id': flow.id, 'flow_cta': parse_string(value['cta'], 'cta', MAX_FLOW_CTA)}
+
+
 PARSE_INTERACTIVE = {'buttons': parse_buttons, 'list': parse_list_rows, 'cta_url': parse_cta_url}
 
 
-def parse_interactive(value):
+def parse_interactive(value, channel=None):
+    """Interactive content as model values; `channel` is where a form message will be sent (None: not known yet)."""
     if not isinstance(value, dict) or value.get('type') not in INTERACTIVE_TYPES:
         reject(f'interactive.type must be one of {INTERACTIVE_TYPES}', 'interactive')
-    specific = PARSE_INTERACTIVE[value['type']](value)
+    specific = parse_flow(value, channel) if value['type'] == 'flow' else PARSE_INTERACTIVE[value['type']](value)
     options = specific.pop('options', [])
     return {
         'kind': 'interactive', 'interactive_type': value['type'],
@@ -183,6 +207,64 @@ def parse_interactive(value):
         'option_ids': [(0, 0, row) for row in options],
         **specific,
     }
+
+
+def parse_retailer_id(value, key, nullable=False):
+    if value is None and nullable:
+        return None
+    retailer_id = parse_string(value, key, MAX_RETAILER_ID)
+    if not RETAILER_ID.match(retailer_id):
+        reject(f'{key} may contain only letters, digits, dot, underscore and dash', key)
+    return retailer_id
+
+
+def parse_product_sections(value):
+    """The rows of a product list: one row per product, titled by its section; a product appears once."""
+    options = []
+    for section in parse_list(value, 'sections', 1, MAX_SECTIONS):
+        section = parse_object(section, 'sections', {'title', 'product_retailer_ids'}, ('title', 'product_retailer_ids'))
+        title = parse_string(section['title'], 'sections', MAX_SECTION_TITLE)
+        for retailer_id in parse_list(section['product_retailer_ids'], 'product_retailer_ids', 1, MAX_COMMERCE_PRODUCTS):
+            parsed = parse_retailer_id(retailer_id, 'product_retailer_ids')
+            options.append(option(len(options), parsed, parsed, title))
+    ids = [row['option_id'] for row in options]
+    if len(ids) > MAX_COMMERCE_PRODUCTS or len(set(ids)) != len(ids):
+        reject(f'a product list holds at most {MAX_COMMERCE_PRODUCTS} different products', 'sections')
+    return options
+
+
+def parse_commerce(value):
+    """Commerce content (a product, a product list or the catalog) as message model values; the products are not checked here."""
+    if not isinstance(value, dict) or value.get('type') not in COMMERCE_KEYS:
+        reject(f'commerce.type must be one of {tuple(COMMERCE_KEYS)}', 'commerce')
+    kind = value['type']
+    value = parse_object(value, 'commerce', {'type', *COMMERCE_KEYS[kind]}, ('type', *COMMERCE_KEYS[kind]))
+    body = parse_string(value['body'], 'body', MAX_INTERACTIVE_BODY, nullable=kind == 'product')
+    values = {
+        'kind': kind, 'interactive_type': kind, 'body': body or NO_PRODUCT_BODY,
+        'interactive_footer': parse_string(value['footer'], 'footer', MAX_INTERACTIVE_AFFIX, nullable=True) or False,
+    }
+    if kind == 'product':
+        retailer_id = parse_retailer_id(value['product_retailer_id'], 'product_retailer_id')
+        options = [option(0, retailer_id, retailer_id)]
+    elif kind == 'catalog_message':
+        thumbnail = parse_retailer_id(value['thumbnail_product_retailer_id'], 'thumbnail_product_retailer_id', nullable=True)
+        options = [option(0, thumbnail, thumbnail)] if thumbnail else []
+    else:
+        values['interactive_header'] = parse_string(value['header'], 'header', MAX_INTERACTIVE_AFFIX)
+        options = parse_product_sections(value['sections'])
+    return {**values, 'option_ids': [(0, 0, row) for row in options]}
+
+
+def check_commerce(conversation, values):
+    """422 naming `commerce` unless the conversation's channel has a catalog that can send every product of `values`."""
+    channel = conversation.channel_id
+    if not channel._webvue_catalog_id():
+        reject('this channel has no product catalog', 'commerce')
+    try:
+        request.env['webvue.inbox.message']._webvue_check_commerce(channel, [command[2]['option_id'] for command in values['option_ids']])
+    except ValidationError as error:
+        reject(str(error), 'commerce')
 
 
 def find_upload(conversation, attachment_id):
@@ -278,7 +360,10 @@ def parse_reply(conversation, payload):
         reply = ParsedReply(values={'kind': 'text', 'body': parse_string(payload['body'], 'body', MAX_BODY)})
     elif content == 'location':
         reply = ParsedReply(values=parse_location(payload['location']))
+    elif content == 'commerce':
+        reply = ParsedReply(values=parse_commerce(payload['commerce']))
+        check_commerce(conversation, reply.values)
     else:
-        reply = ParsedReply(values=parse_interactive(payload['interactive']))
+        reply = ParsedReply(values=parse_interactive(payload['interactive'], conversation.channel_id))
     reply.reply_to = parse_reply_to(conversation, payload)
     return reply

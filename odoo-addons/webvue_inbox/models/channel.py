@@ -10,11 +10,12 @@ from .constants import WHATSAPP_FEATURE
 from odoo.addons.webvue_inbox.adapters.whatsapp import Credentials
 
 PROVIDER_ID = re.compile(r'^\d{5,32}$')
-# The ciphertext columns are readable by the webhook identity, the channel managers and the template managers
-# (who call Meta with the channel's token) only.
+# The ciphertext columns are readable by the webhook identity, the channel managers and the template, form and
+# campaign managers (who call Meta with the channel's token) only.
 SECRET_GROUPS = (
     'webvue_inbox.group_inbox_hook,webvue_inbox.group_cap_inbox_channels_manage,'
-    'webvue_inbox.group_cap_inbox_templates_manage'
+    'webvue_inbox.group_cap_inbox_templates_manage,webvue_inbox.group_cap_inbox_flows_manage,'
+    'webvue_inbox.group_cap_inbox_campaigns_manage'
 )
 
 
@@ -150,3 +151,8 @@ class WebVueInboxChannel(models.Model):
         for purpose, content in (('welcome', welcome), ('away', away)):
             if content and not self._webvue_auto_message(purpose):
                 self._webvue_set_auto_message(purpose, content)
+
+    def _webvue_catalog_id(self):
+        """The Meta catalog id this channel's WhatsApp account sells from; none without a product catalog (hook)."""
+        self.ensure_one()
+        return False

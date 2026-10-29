@@ -1,15 +1,23 @@
 <script setup lang="ts">
+import InboxFlowBubble from '@/components/inbox/InboxFlowBubble.vue'
+import { useInboxSendableFlows } from '@/composables/inbox/useInboxFlows'
 import { INTERACTIVE_LIMITS, INTERACTIVE_TYPES, interactiveRowCount, type InteractiveDraft } from '@/composables/inbox/inboxInteractive'
 
 // Builds the interactive message an agent sends: up to three reply buttons, a list of up to ten rows in sections, or
 // one call-to-action link. Every field shows its Meta limit as a live counter; the composer sends only a valid draft.
 const draft = defineModel<InteractiveDraft>({ required: true })
+// A form message opens a published form of one channel, so the type needs the channel the message is sent on.
+const props = defineProps<{ channelId?: number | null }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const limits = INTERACTIVE_LIMITS
 const typeItems = computed(() => INTERACTIVE_TYPES.map(value => ({ value, label: t(`inbox.composer.interactive.types.${value}`) })))
 const rows = computed(() => interactiveRowCount(draft.value))
 const counter = (value: string, max: number) => `${value.length}/${max}`
+const flows = useInboxSendableFlows(() => props.channelId, () => draft.value.type === 'flow')
+const chosenFlow = computed(() => flows.data.value?.items.find(flow => flow.id === draft.value.flowId))
+// A form belongs to one channel: changing the channel under a chosen form drops the choice.
+watch(() => props.channelId, (next, previous) => { if (next !== previous) draft.value.flowId = null })
 
 function addButton() {
   if (draft.value.buttons.length < limits.buttons) draft.value.buttons.push('')
@@ -77,6 +85,18 @@ function removeRow(section: number, row: number) {
         <UButton type="button" class="self-start" color="neutral" variant="outline" icon="i-lucide-plus" :label="t('inbox.composer.interactive.addRow')" :disabled="!hydrated || rows >= limits.rows" @click="addRow(sectionIndex)" />
       </SharedSubCard>
       <UButton type="button" class="self-start" color="neutral" variant="outline" icon="i-lucide-list-plus" :label="t('inbox.composer.interactive.addSection')" :disabled="!hydrated || draft.sections.length >= limits.sections || rows >= limits.rows" @click="addSection" />
+    </template>
+
+    <template v-else-if="draft.type === 'flow'">
+      <UFormField :label="t('inbox.composer.interactive.flow')" :description="t('inbox.composer.interactive.flowHint')" required>
+        <InboxFlowPicker v-model="draft.flowId" :channel-id="props.channelId ?? null" :disabled="!hydrated" />
+      </UFormField>
+      <UFormField :label="t('inbox.composer.interactive.flowCta')" :hint="counter(draft.flowCta, limits.flowCta)" :description="t('inbox.composer.interactive.flowCtaHint')" required>
+        <UInput v-model="draft.flowCta" class="w-full" :maxlength="limits.flowCta" :disabled="!hydrated" data-testid="inbox-interactive-flow-cta" />
+      </UFormField>
+      <div v-if="draft.body.trim() && draft.flowCta.trim()" class="rounded-control bg-default p-3 ring ring-default" data-testid="inbox-interactive-flow-preview">
+        <InboxFlowBubble :message="{ header: draft.header.trim() || null, body: draft.body.trim(), footer: draft.footer.trim() || null, cta: draft.flowCta.trim() }" :name="chosenFlow?.name" />
+      </div>
     </template>
 
     <template v-else>

@@ -3,6 +3,7 @@ import { hrAccessBadge } from '@/utils/hrAccessBadge'
 import type { TableColumn } from '@nuxt/ui'
 import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import { ApiError } from '@/composables/useApi'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 import { useArchiveHrEmployee, useHrEmployees, useUnarchiveHrEmployee, type HrEmployee } from '@/composables/useHrEmployees'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
@@ -34,13 +35,22 @@ const canSeeAccess = computed(() => can('hr.employees.access_status.read'))
 const pendingArchiveId = ref<number | null>(null)
 const { mutateAsync: archiveEmployee, isPending: archiving } = useArchiveHrEmployee()
 const { mutateAsync: unarchiveEmployee, isPending: unarchiving } = useUnarchiveHrEmployee()
+const EXIT_BLOCKERS = new Set(['departure_missing', 'custody_open', 'settlement_missing'])
+const exitBlocker = ref<string | null>(null)
 const archivePending = computed(() => archiving.value || unarchiving.value)
 const pendingEmployee = computed(() => items.value.find(item => item.id === pendingArchiveId.value) ?? null)
 async function confirmPendingArchive() {
   const employee = pendingEmployee.value
   if (!employee || !hydrated.value) return
-  if (employee.active) await archiveEmployee(employee.id)
-  else await unarchiveEmployee(employee.id)
+  exitBlocker.value = null
+  try {
+    if (employee.active) await archiveEmployee(employee.id)
+    else await unarchiveEmployee(employee.id)
+  } catch (error) {
+    // The server names the first exit blocker; show it inline like the record page, never as a generic toast.
+    if (!(error instanceof ApiError) || !EXIT_BLOCKERS.has(error.code)) throw error
+    exitBlocker.value = error.code
+  }
   pendingArchiveId.value = null
 }
 
@@ -102,7 +112,7 @@ function actionsFor(employee: HrEmployee): RowAction[] {
       label: employee.active ? t('hr.employee.archive') : t('hr.employee.unarchive'),
       icon: employee.active ? 'i-lucide-archive' : 'i-lucide-archive-restore',
       destructive: employee.active,
-      onSelect: () => { pendingArchiveId.value = employee.id },
+      onSelect: () => { exitBlocker.value = null; pendingArchiveId.value = employee.id },
     } satisfies RowAction] : []),
   ]
 }
@@ -189,6 +199,16 @@ function clearFilters() {
       </div>
     </template>
 
+    <UAlert
+      v-if="exitBlocker"
+      class="m-(--webvue-card-pad-dense)"
+      role="alert"
+      color="warning"
+      variant="subtle"
+      :title="t('hr.employee.exitBlocked.title')"
+      :description="t(`hr.employee.exitBlocked.${exitBlocker}`)"
+      data-testid="hr-directory-exit-blocker"
+    />
     <SharedInlineConfirm
       v-if="pendingEmployee"
       class="m-(--webvue-card-pad-dense)"

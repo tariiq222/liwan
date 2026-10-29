@@ -28,7 +28,7 @@ export function useUserBranchAccess(id: MaybeRefOrGetter<number>, enabled: Maybe
 
 // Both operations can revoke the current user's effective access. Refresh identity
 // before refetching data, so a cached branch list cannot outlive the new policy.
-function branchMutationRefresh() {
+export function branchMutationRefresh() {
   const nuxt = useNuxtApp()
   const queryClient = useQueryClient()
   return async () => {

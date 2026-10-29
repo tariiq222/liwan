@@ -15,5 +15,5 @@ def check_vat(country, vat, name):
         return
     try:
         partner._run_vat_checks(country, vat, name)
-    except ValidationError as error:
-        raise ApiError(422, 'invalid_vat', str(error), field='vat') from None
+    except ValidationError:
+        raise ApiError(422, 'invalid_vat', 'الرقم الضريبي غير صحيح لدولة الشركة.', field='vat') from None

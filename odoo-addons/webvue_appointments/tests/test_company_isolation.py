@@ -55,7 +55,7 @@ class AppointmentsIsolationFixture:
                     continue
                 for kind, template in templates.items():
                     with self.subTest(current=current, hidden=tag, route=template):
-                        self.assertHiddenEveryWay('GET', template.format(rec[kind].id), rec[kind].id)
+                        self.assertHiddenEveryWay('GET', template.format(rec[kind].id), self.by_tag[tag].id)
 
 
 @tagged('post_install', '-at_install', 'webvue')
@@ -82,7 +82,7 @@ class TestAppointmentsCompanyIsolation(AppointmentsIsolationFixture, CompanyIsol
             self.assertNotEqual(own.status_code, 404, own.text[:200])
             for tag, rec in self.recs.items():
                 if tag != current:
-                    self.assertHiddenEveryWay('GET', f'/api/v1/appointments/types/{rec["type"].id}/slots', rec['type'].id)
+                    self.assertHiddenEveryWay('GET', f'/api/v1/appointments/types/{rec["type"].id}/slots', self.by_tag[tag].id)
 
     def test_lists_never_show_another_company(self):
         for current, company in self.by_tag.items():

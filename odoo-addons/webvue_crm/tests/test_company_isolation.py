@@ -52,7 +52,7 @@ class TestCrmCompanyIsolation(CompanyIsolationCase):
             self.assertVisible(DETAIL.format(self.leads[current].id))
             for tag, lead in self.leads.items():
                 if tag != current:
-                    self.assertHiddenEveryWay('GET', DETAIL.format(lead.id), lead.id)
+                    self.assertHiddenEveryWay('GET', DETAIL.format(lead.id), self.by_tag[tag].id)
 
     def test_calls_route_matrix(self):
         """The call log of an opportunity follows the opportunity's company."""
@@ -61,7 +61,7 @@ class TestCrmCompanyIsolation(CompanyIsolationCase):
             self.assertVisible(f'/api/v1/crm/opportunities/{self.leads[current].id}/calls')
             for tag, lead in self.leads.items():
                 if tag != current:
-                    self.assertHiddenEveryWay('GET', f'/api/v1/crm/opportunities/{lead.id}/calls', lead.id)
+                    self.assertHiddenEveryWay('GET', f'/api/v1/crm/opportunities/{lead.id}/calls', self.by_tag[tag].id)
 
     def test_list_never_shows_another_company(self):
         for current, company in self.by_tag.items():

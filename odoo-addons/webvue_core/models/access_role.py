@@ -4,6 +4,8 @@ import uuid
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
 
+from .access_service import WebVueAccessRule
+
 
 class WebVueAccessRole(models.Model):
     _name = 'webvue.access.role'
@@ -93,6 +95,18 @@ class WebVueAccessRole(models.Model):
                         'missing_dependency: %s requires %s' % (permission.key, missing[0].key),
                     )
 
+    @api.constrains('name_ar', 'type', 'company_id')
+    def _check_name_unique(self):
+        """A custom role's Arabic name is unique among the roles its company sees (built-in roles included)."""
+        for role in self.filtered(lambda r: r.type == 'custom'):
+            clash = self.with_context(active_test=False).search([
+                ('id', '!=', role.id),
+                '|', ('company_id', '=', False), ('company_id', '=', role.company_id.id),
+            ]).filtered(lambda other: (other.name_ar or '').strip().casefold() == (role.name_ar or '').strip().casefold())
+            if clash:
+                msg = 'role_name_exists'
+                raise WebVueAccessRule(msg, field='name', status=409)
+
     @api.model_create_multi
     def create(self, vals_list):
         if self.env.user._webvue_is_customer_actor():
@@ -150,7 +164,9 @@ class WebVueAccessRole(models.Model):
         self.invalidate_recordset(['version'])
         self.modified(['version'])
         if 'permission_ids' in vals:
-            self.assignment_ids.mapped('user_id')._webvue_sync_capability_groups()
+            users = self.assignment_ids.mapped('user_id')
+            users._webvue_sync_capability_groups()
+            self.env['webvue.access.service']._webvue_access_changed(users)
         self.env['webvue.access.service']._webvue_bump_policy(
             self.assignment_ids.mapped('company_id') | self.mapped('company_id'),
         )
