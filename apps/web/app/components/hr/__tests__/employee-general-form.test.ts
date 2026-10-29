@@ -30,6 +30,7 @@ function loadComponent() {
     if (name === 'vue') return Vue
     if (name === '@/utils/formFeedback') return { saveErrorMessage }
     if (name === '@/composables/useApi') return { ApiError }
+    if (name === '@/composables/useHrCountries') return { useHrCountries: () => ({ data: Vue.ref({ items: [{ id: 192, name: 'Saudi Arabia', code: 'SA' }], total: 1 }), isFetching: Vue.ref(false) }) }
     if (name === '@vueuse/core') return { refDebounced: (value: Vue.Ref<string>) => value }
     if (name === '@/composables/useHrEmployees') return {
       useCreateHrEmployee: createMutation,
@@ -68,6 +69,7 @@ describe('EmployeeGeneralForm production setup', () => {
         job_title: '',
         department: null,
         manager: { id: 99, name: 'Current manager' },
+        nationality: { id: 66, name: 'Egypt' },
         access: null,
       },
       departments: [],
@@ -76,5 +78,21 @@ describe('EmployeeGeneralForm production setup', () => {
     const state = component.setup(props, { emit: () => {}, expose: () => {} })
     const options = (state.managerOptions as Vue.ComputedRef<Array<{ id: number; name: string }>>).value
     expect(options.map(option => option.id)).toContain(99)
+  })
+
+  it('offers the saved nationality beside the searched countries and loads it into the form state', () => {
+    const component = loadComponent()
+    const props = Vue.reactive({
+      employee: {
+        id: 7, name: 'Employee', work_email: '', work_phone: '', job_title: '', department: null,
+        manager: null, nationality: { id: 66, name: 'Egypt' }, access: null,
+      },
+      departments: [],
+      employees: [],
+    })
+    const state = component.setup(props, { emit: () => {}, expose: () => {} })
+    const items = (state.countryItems as Vue.ComputedRef<Array<{ value: number; label: string }>>).value
+    expect(items).toEqual([{ value: 66, label: 'Egypt' }, { value: 192, label: 'Saudi Arabia' }])
+    expect((state.nationalityId as Vue.Ref<number | null>).value).toBe(66)
   })
 })

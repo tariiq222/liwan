@@ -24,7 +24,7 @@ describe('HR personal contributions', () => {
   })
 })
 
-const employee = { id: 4, name: 'Sara', job_title: 'HR specialist', department: {id:2,name:'People'}, work_email:'sara@example.com', work_phone:'', user_id:2, manager:null, active:true, access:null, contract:null }
+const employee = { id: 4, name: 'Sara', job_title: 'HR specialist', department: {id:2,name:'People'}, work_email:'sara@example.com', work_phone:'', user_id:2, manager:null, active:true, access:null, nationality:null, contract:null }
 const translate = (key: string) => key
 
 describe('HR overview privacy and ownership', () => {
