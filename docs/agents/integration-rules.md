@@ -76,8 +76,10 @@ count stays at `0`.
 5. **Merge the authorized candidate.** Recheck the current base/head, current-head
    CI, resolved review findings and conversations, and the owner's authorization.
    Fix failures in the owned scope and repeat affected checks after a change.
-   When the head or base moves, update the candidate and its evidence before
-   merging. Use the normal protected PR merge; do not force-push, bypass
+   When the head moves, update its evidence before merging. A moved base alone
+   is not a reason to merge `main` into a branch: that cancels and restarts its
+   CI. Bring `main` in only when GitHub reports a conflict or the branch needs a
+   change that just merged. Use the normal protected PR merge; do not force-push, bypass
    protection, relax a test or assume a green check grants permission. Quota or
    service exhaustion is a blocker to report, never a reason for a paid fallback.
 6. **Verify and synchronize.** Confirm the PR is merged and record its actual
@@ -117,7 +119,9 @@ Publish through a PR with current-head `ci-result` from GitHub Actions,
 resolved conversations and normal merge commits. The branch need not be up to
 date with `main` (owner decision 2026-10-27: the strict policy restarted CI on
 every concurrent merge); `ci` on `main` after each merge catches a semantic
-conflict between two green PRs. No protection
+conflict between two green PRs. Do not merge `main` into a running or green PR
+only because `main` moved (step 5). Merge PRs that turn green together where
+possible. No protection
 bypass, force updates or branch deletion is permitted. A mandatory second-account
 or model-provider approval is not part of the owner's reset.
 
