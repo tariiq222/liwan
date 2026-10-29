@@ -129,8 +129,10 @@ class WebVueMeetingSeries(models.Model):
         for series in self:
             if series.recurrence == 'none':
                 continue
-            if bool(series.until_date) == bool(series.until_count):
+            if series.until_date and series.until_count:
                 raise ValidationError(self.env._("Set either an end date or a number of meetings, not both."))
+            if not (series.until_date or series.until_count):
+                raise ValidationError(self.env._("An end date or a number of meetings is required for a recurring series."))
             if series.until_count and (series.until_count < 1 or series.until_count > MAX_OCCURRENCES):
                 raise ValidationError(self.env._("Occurrence count must be between 1 and %s.", MAX_OCCURRENCES))
 

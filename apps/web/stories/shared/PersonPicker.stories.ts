@@ -19,6 +19,11 @@ type Story = StoryObj<typeof meta>
 
 export const Single: Story = { name: 'اختيار واحد' }
 export const Multiple: Story = { name: 'اختيار متعدد', parameters: storyContext('apps/web/app/components/pmo/tasks/AssigneePicker.vue:34'), args: { multiple: true, modelValue: [], valueKey: 'id', placeholder: 'المسؤولون' } }
+export const CustomEndpoint: Story = {
+  name: 'مصدر بحث مخصص',
+  parameters: storyContext('apps/web/app/pages/crm/opportunities/[id].vue:219', 'يمرّر `endpoint` مسارًا آخر يرجع قائمة الأشخاص نفسها، كمن يستطيعون استلام الفرص في CRM.'),
+  args: { endpoint: '/api/v1/crm/agents', valueKey: 'user_id', placeholder: 'المسؤول' },
+}
 export const FixedOptions: Story = {
   name: 'من قائمة ثابتة',
   parameters: storyContext('apps/web/app/pages/meetings/[id]/resolutions/new.vue:103'),
