@@ -7,6 +7,9 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
+  schedule:
+    # Nightly full run of all twelve stages on main (00:17 UTC = 03:17 Asia/Riyadh, off the top of the hour).
+    - cron: '17 0 * * *'
   workflow_dispatch:
     inputs:
       full:
@@ -54,7 +57,7 @@ jobs:
       - name: Select the stages
         id: select
         env:
-          FULL: ${{ inputs.full || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+          FULL: ${{ inputs.full || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
           PULL_REQUEST_BASE: ${{ github.event.pull_request.base.sha }}
           PUSH_BEFORE: ${{ github.event.before }}
         run: |
@@ -346,6 +349,19 @@ jobs:
         with:
           playwright: 'true'
       - run: deploy/ci/e2e-mock.sh
+      - name: Upload the e2e-mock diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-mock-diagnostics
+          path: |
+            apps/web/test-results/
+            apps/web/playwright-report/
+            apps/web/mock.log
+            apps/web/ai-mock.log
+            apps/web/nuxt.log
+          if-no-files-found: ignore
+          retention-days: 7
 
   rtl-stories:
     needs: scope
