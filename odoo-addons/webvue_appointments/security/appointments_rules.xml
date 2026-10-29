@@ -16,6 +16,12 @@
         <field name="global" eval="True"/>
         <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_webvue_appointment_reason_company" model="ir.rule">
+        <field name="name">Appointment reasons: current company</field>
+        <field name="model_id" ref="model_webvue_appointment_reason"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_webvue_appointment_settings_company" model="ir.rule">
         <field name="name">Appointment settings: current company</field>
         <field name="model_id" ref="model_webvue_appointment_settings"/>

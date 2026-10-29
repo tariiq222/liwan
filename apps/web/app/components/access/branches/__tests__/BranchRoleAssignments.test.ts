@@ -12,7 +12,7 @@ const branches = [{ id: 2, name: 'الرياض', inherit: false, role_ids: [7] }
 const roles = [{ id: 7, key: 'finance_reader', name: { ar: 'قارئ المالية', en: 'Finance reader' } }]
 async function render(inherited: boolean, disabled = false, roleOptions: Array<{ id: number; key: string; name: { ar: string; en: string | null }; company_id?: number | null }> = roles) {
   const app = createSSRApp({ render: () => h(BranchRoleAssignments, { modelValue: branches, roles: roleOptions, inherited, disabled }) })
-  app.component('SharedFormSection', defineComponent({ setup: (_, { slots }) => () => h('section', slots.default?.()) }))
+  app.component('SharedSubCard', defineComponent({ setup: (_, { slots }) => () => h('section', slots.default?.()) }))
   app.component('SharedEmptyState', defineComponent({ setup: () => () => h('p') }))
   app.component('UCheckbox', defineComponent({ props: ['modelValue', 'label', 'disabled'], setup: props => () => h('input', { type: 'checkbox', 'aria-label': props.label, checked: props.modelValue, disabled: props.disabled }) }))
   return renderToString(app)
@@ -25,7 +25,7 @@ describe('branch role assignments', () => {
       modelValue: model.value, roles: [{ ...roles[0]!, active: false }],
       'onUpdate:modelValue': (value: typeof model.value) => { model.value = value },
     }) })
-    app.component('SharedFormSection', defineComponent({ setup: (_, { slots }) => () => h('section', slots.default?.()) }))
+    app.component('SharedSubCard', defineComponent({ setup: (_, { slots }) => () => h('section', slots.default?.()) }))
     app.component('UCheckbox', defineComponent({ props: ['modelValue', 'label', 'disabled'], emits: ['update:modelValue'], setup: (props, { emit }) => () => h('input', {
       checked: props.modelValue, disabled: props.disabled, onChange: () => emit('update:modelValue', !props.modelValue),
     }) }))

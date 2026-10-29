@@ -219,6 +219,8 @@ class FinancePaymentController(http.Controller):
         payment = _find_payment(payment_id)
         if payment.state not in REVIVABLE_STATES:
             raise ApiError(422, 'invalid_state', 'only a cancelled or rejected payment can be reset to draft')
+        if is_period_locked(payment.date, payment.journal_id, company=payment.company_id):
+            raise period_locked(field='date')
         attempt(payment.action_draft, day=payment.date, journal=payment.journal_id, company=payment.company_id)
         return dump_payment(payment)
 

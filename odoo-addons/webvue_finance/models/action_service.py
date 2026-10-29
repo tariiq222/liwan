@@ -24,6 +24,7 @@ from odoo.addons.webvue_finance.serializers.zatca import (
 )
 
 DEBITABLE_MOVE_TYPES = ('out_invoice', 'in_invoice')
+CREDITABLE_MOVE_TYPES = ('out_invoice', 'in_invoice')
 LIVE_PAYMENT_EXCLUDED = ('canceled', 'rejected')
 FIRST_SEND_STATES = ('pending',)
 RESEND_STATES = ('retry', 'rejected', 'blocked', 'unauthorized')
@@ -99,6 +100,8 @@ class WebVueFinanceActions(models.AbstractModel):
         offers = [('pdf', 'finance.invoices.read', None)]
         if invoice.move_type in DEBITABLE_MOVE_TYPES and not invoice.debit_origin_id:
             offers.append(('debit_note', 'finance.invoices.manage', None))
+        if invoice.move_type in CREDITABLE_MOVE_TYPES:
+            offers.append(('credit_note', 'finance.invoices.manage', None))
         if invoice.amount_residual > 0 and invoice.payment_state != 'paid':
             offers.append(('register_payment', 'finance.payments.manage', None))
         if invoice.country_code == 'SA' and invoice.is_sale_document():

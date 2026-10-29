@@ -53,6 +53,7 @@ function document(id, moveType, state, paymentState, partner, lines, extra = {})
     amount_residual: posted ? total - paid : total,
     ref: '',
     debit_origin: null,
+    credit_origin: null,
     zatca: sale ? { qr_code: posted ? 'AQ==' : null, confirmation_datetime: posted ? '2026-09-15T07:00:00Z' : null, submission: submission(posted ? 'pending' : 'not_applicable') } : null,
     lines,
     ...extra,
@@ -82,7 +83,7 @@ financeDocuments.push(document(17, 'out_invoice', 'draft', 'not_paid', ACME, [li
 
 financeDocuments.push(document(18, 'in_invoice', 'cancel', 'not_paid', PRINT, [line(19, 'فاتورة موردة ملغاة', 1, 600)]))
 
-const summary = ({ lines: _lines, ref: _ref, debit_origin: _origin, zatca: _zatca, allowed_actions: _allowed, blocked_actions: _blocked, ...rest }) => rest
+const summary = ({ lines: _lines, ref: _ref, debit_origin: _origin, credit_origin: _creditOrigin, zatca: _zatca, allowed_actions: _allowed, blocked_actions: _blocked, ...rest }) => rest
 
 const PAID_STATES = ['in_payment', 'paid', 'partial']
 const RESEND_STATES = ['retry', 'rejected', 'blocked', 'unauthorized']
@@ -100,6 +101,7 @@ function withDocumentActions(item) {
     ...transitions,
     ...(posted ? ['pdf'] : []),
     ...(posted && DEBITABLE_TYPES.includes(item.move_type) && !item.debit_origin ? ['debit_note'] : []),
+    ...(posted && DEBITABLE_TYPES.includes(item.move_type) ? ['credit_note'] : []),
     ...(posted && item.amount_residual > 0 && item.payment_state !== 'paid' ? ['register_payment'] : []),
     ...(zatca === 'pending' ? ['zatca_submit'] : RESEND_STATES.includes(zatca) ? ['zatca_retry'] : []),
   ]

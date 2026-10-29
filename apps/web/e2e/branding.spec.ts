@@ -44,7 +44,7 @@ test('document colour draft cancels, resets, and saves explicitly without themin
   await page.goto('/settings/company#branding')
 
   const colour = page.getByTestId('branding-color')
-  const settingsBranding = page.locator('.webvue-settings-branding')
+  const settingsBranding = page.getByTestId('branding-form')
   await expect(colour).toBeVisible()
   await expect(settingsBranding).toHaveCount(1)
   await expect(settingsBranding).toBeVisible()
@@ -54,7 +54,7 @@ test('document colour draft cancels, resets, and saves explicitly without themin
   await expect(page.getByTestId('branding-logo')).toHaveCount(0)
   await expect(page.getByTestId('branding-secondary-color')).toHaveCount(0)
   await expect(page.getByTestId('branding-suggest-secondary')).toHaveCount(0)
-  await expect(page.getByTestId('branding-managed-identity')).toBeVisible()
+  await expect(settingsBranding.getByText('لا يغيّر هذا ألوان الواجهة')).toBeVisible()
 
   const savedBranding = await (await page.request.get('/api/v1/admin/branding')).json() as { name: string; logo_url: string | null }
   const savedName = savedBranding.name
@@ -79,16 +79,16 @@ test('document colour draft cancels, resets, and saves explicitly without themin
   }
   page.on('request', onInvalidRequest)
   await colour.fill('#fff')
-  await expect(page.getByTestId('branding-submit')).toBeDisabled()
-  await expect(page.getByTestId('branding-submit')).toHaveAttribute('aria-invalid', 'true')
   await expect(colour).toHaveAttribute('aria-invalid', 'true')
   await expect(page.getByTestId('branding-form').getByRole('alert')).toContainText('ست خانات')
+  await page.getByTestId('branding-form').getByRole('button', { name: 'حفظ التغييرات', exact: true }).click()
+  await expect(page.getByTestId('branding-form').getByRole('alert').filter({ hasText: 'تعذّر الحفظ' })).toBeVisible()
   page.off('request', onInvalidRequest)
   expect(invalidPatchCount).toBe(0)
   await colour.fill('#ffffff')
 
-  await page.getByTestId('branding-default').click()
-  await page.getByTestId('branding-cancel').click()
+  await page.getByTestId('branding-preset').first().click()
+  await page.getByTestId('branding-form').getByRole('button', { name: 'تراجع', exact: true }).click()
   await expect(colour).toHaveValue(savedColour)
 
   let resetPatchCount = 0
@@ -96,7 +96,7 @@ test('document colour draft cancels, resets, and saves explicitly without themin
     if (request.url().includes('/api/v1/admin/branding') && request.method() === 'PATCH') resetPatchCount += 1
   }
   page.on('request', onResetRequest)
-  await page.getByTestId('branding-default').click()
+  await page.getByTestId('branding-preset').first().click()
   await expect(colour).toHaveValue('#13234a')
   page.off('request', onResetRequest)
   expect(resetPatchCount).toBe(0)
@@ -105,7 +105,7 @@ test('document colour draft cancels, resets, and saves explicitly without themin
   const saved = page.waitForResponse((response) => (
     response.url().includes('/api/v1/admin/branding') && response.request().method() === 'PATCH'
   ))
-  await page.getByTestId('branding-submit').click()
+  await page.getByTestId('branding-form').getByRole('button', { name: 'حفظ التغييرات', exact: true }).click()
   const savedResponse = await saved
   expect(savedResponse.status()).toBe(200)
   expect(savedResponse.request().postDataJSON()).toEqual({ primary_color: '#123456' })
@@ -132,7 +132,7 @@ test('document colour draft cancels, resets, and saves explicitly without themin
   const restored = page.waitForResponse((response) => (
     response.url().includes('/api/v1/admin/branding') && response.request().method() === 'PATCH'
   ))
-  await page.getByTestId('branding-submit').click()
+  await page.getByTestId('branding-form').getByRole('button', { name: 'حفظ التغييرات', exact: true }).click()
   expect((await restored).status()).toBe(200)
   } finally {
     const restore = await page.request.patch('/api/v1/admin/branding', { data: { primary_color: savedColour } })
@@ -191,7 +191,7 @@ test('a failed branding save keeps the primary draft visible', async ({ page, ba
   const failed = page.waitForResponse((response) => (
     response.url().includes('/api/v1/admin/branding') && response.request().method() === 'PATCH'
   ))
-  await page.getByTestId('branding-submit').click()
+  await page.getByTestId('branding-form').getByRole('button', { name: 'حفظ التغييرات', exact: true }).click()
   expect((await failed).status()).toBe(503)
   await expect(page.getByTestId('branding-color')).toHaveValue('#123456')
 })
@@ -226,8 +226,8 @@ test('branding load errors are visible and retry is hydrated', async ({ page, ba
     if (!client) throw new Error('vue-query client missing')
     await client.resetQueries({ queryKey: ['branding-admin'] })
   })
-  await expect(page.getByTestId('branding-load-error')).toBeVisible()
-  const retry = page.getByTestId('branding-retry')
+  await expect(page.locator('[data-slot="error-state"]')).toBeVisible()
+  const retry = page.locator('[data-slot="error-state"]').getByRole('button', { name: 'إعادة المحاولة' })
   await expect(retry).toBeEnabled()
   available = true
   await retry.click()

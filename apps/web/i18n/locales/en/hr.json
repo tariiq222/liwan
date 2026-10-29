@@ -382,7 +382,9 @@
       "defaultHint": "Company timezone: {timezone}. Users without a timezone use the company timezone.",
       "conflict": "These settings changed while you were editing. Reload to review the latest value before saving.",
       "reload": "Discard draft and reload",
-      "saveError": "Could not save schedule settings"
+      "saveError": "Could not save schedule settings",
+      "defaultSchedule": "Company default work schedule",
+      "defaultScheduleHint": "The schedule new employees start on. Changing it applies to employees added from now on only; existing employees, including those on the old default, keep their current schedule and are not moved automatically."
     },
     "self": {
       "profile": "My employment profile",
