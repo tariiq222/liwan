@@ -1,5 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo.exceptions import AccessError
+from datetime import timedelta
+
+from odoo.exceptions import AccessError, ValidationError
 from odoo.http import root
 from odoo.tests import new_test_user, tagged
 from odoo.tests.common import HOST, Opener
@@ -74,6 +76,29 @@ class TestAccessAdminUsers(WebVueApiCase):
         filtered = self.api('GET', '/api/v1/admin/users?color=red')
         self.assertEqual((filtered.status_code, filtered.json()['code']), (400, 'unsupported_filter'))
         self.assertEqual(filtered.json()['field'], 'color')
+
+    def test_a_users_reader_role_opens_users_who_hold_roles(self):
+        # #173: access.users.read alone could not read the roles of the users it lists.
+        Role = self.env['webvue.access.role']
+        Permission = self.env['webvue.access.permission']
+        with self.assertRaisesRegex(ValidationError, 'missing_dependency: access.users.read requires access.roles.read'):
+            Role.create({'name_ar': 'قراءة المستخدمين فقط', 'type': 'custom', 'company_id': self.env.company.id,
+                         'permission_ids': [(6, 0, Permission.search([('key', '=', 'access.users.read')]).ids)]})
+        reader_role = Role.create({
+            'name_ar': 'قراءة المستخدمين', 'type': 'custom', 'company_id': self.env.company.id,
+            'permission_ids': [(6, 0, Permission.search([('key', 'in', ['access.users.read', 'access.roles.read'])]).ids)],
+        })
+        reader = new_test_user(self.env, login='access_users_reader', password='access_users_reader_123', groups='base.group_user')
+        service = self.env['webvue.access.service']
+        service._webvue_replace_assignments(reader, [{'role_id': reader_role.id, 'company_id': self.env.company.id}])
+        service._webvue_replace_assignments(self.employee, [{'role_id': self.role.id, 'company_id': self.env.company.id}])
+        self.authenticate('access_users_reader', 'access_users_reader_123')
+        listed = self.api('GET', '/api/v1/admin/users?limit=50')
+        self.assertEqual(listed.status_code, 200, listed.text)
+        detail = self.api('GET', f'/api/v1/admin/users/{self.employee.id}')
+        self.assertEqual(detail.status_code, 200, detail.text)
+        self.assertEqual([item['role']['id'] for item in detail.json()['assignments']], [self.role.id])
+        self.assertEqual(detail.json()['allowed_actions'], ['read'])
 
     def test_create_reset_disable_reactivate_and_old_session(self):
         self._admin()
@@ -312,7 +337,7 @@ class TestAccessAdminRoles(WebVueApiCase):
         response = self.api('POST', '/api/v1/admin/roles', {
             'name': {'ar': 'قارئ المستخدمين', 'en': 'User reader'},
             'description': 'Read-only access administration',
-            'permissions': ['access.users.read'],
+            'permissions': ['access.users.read', 'access.roles.read'],
         })
         self.assertEqual(response.status_code, 201, response.text)
         role = response.json()
@@ -428,3 +453,20 @@ class TestAccessAdminAudit(WebVueApiCase):
         unknown = self.api('GET', '/api/v1/admin/access-log?unknown=1')
         self.assertEqual((unknown.status_code, unknown.json()['code']), (400, 'unsupported_filter'))
         self.assertEqual(self.api('DELETE', f'/api/v1/admin/access-log/{self.event.id}').status_code, 405)
+
+    def test_audit_date_filters(self):
+        # #174: a bad date answered 500; a day names the whole day; an ISO datetime with Z is accepted.
+        self.authenticate('audit_api_admin', 'audit_api_admin_pass_123')
+        for query in ('from=garbage', 'to=2026-99-99', 'from=2026-10-28T25:00:00'):
+            with self.subTest(query=query):
+                response = self.api('GET', f'/api/v1/admin/access-log?{query}')
+                self.assertEqual((response.status_code, response.json()['code']), (422, 'invalid'), response.text)
+                self.assertEqual(response.json()['field'], query.split('=')[0])
+        self.admin.tz = 'UTC'
+        day = self.event.create_date.date().isoformat()
+
+        def ids(query):
+            return [item['id'] for item in self.api('GET', f'/api/v1/admin/access-log?{query}').json()['items']]
+        self.assertIn(self.event.id, ids(f'from={day}&to={day}'))
+        self.assertIn(self.event.id, ids(f'from={self.event.create_date.isoformat()}Z'))
+        self.assertNotIn(self.event.id, ids(f'to={self.event.create_date.date() - timedelta(days=1)}'))
