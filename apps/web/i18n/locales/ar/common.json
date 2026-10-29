@@ -9,6 +9,13 @@
     "saving": "جارٍ الحفظ…",
     "saved": "تم الحفظ",
     "saveChanges": "حفظ التغييرات",
+    "viewOnly": "عرض فقط",
+    "revert": "تراجع",
+    "saveFailed": "تعذّر الحفظ",
+    "reloadCurrent": "تحميل القيم الحالية",
+    "reloadFailed": "تعذّر تحميل القيم الحالية",
+    "settingsConflict": "غيّر شخص آخر هذه الإعدادات بعد فتحك الصفحة. حمّل القيم الحالية ثم أعد تعديلك.",
+    "list": { "name": "الاسم", "newName": "اسم جديد", "add": "إضافة", "archive": "أرشفة", "restore": "استعادة", "archived": "مؤرشف", "protected": "محمي", "empty": "لا توجد عناصر بعد" },
     "loadMore": "تحميل المزيد",
     "listSeparator": "، "
   },
