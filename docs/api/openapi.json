@@ -6226,6 +6226,41 @@
           }
         ]
       },
+      "BranchCreateInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "BranchCreatedSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
       "BranchPolicyInputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -15017,6 +15052,9 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "as_version": {
+            "type": "boolean"
+          },
           "data": {
             "minLength": 1,
             "type": "string"
@@ -34623,6 +34661,55 @@
           "taken",
           "pending",
           "remaining"
+        ],
+        "type": "object"
+      },
+      "HrLeaveBellKindSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "hr.leave_approved",
+          "hr.leave_refused"
+        ],
+        "type": "string"
+      },
+      "HrLeaveBellRowSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": {},
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "is_read": {
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "hr.leave_approved",
+              "hr.leave_refused"
+            ],
+            "type": "string"
+          },
+          "leave_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "leave_id",
+          "title",
+          "created_at",
+          "is_read"
         ],
         "type": "object"
       },
@@ -75253,6 +75340,59 @@
         ],
         "type": "object"
       },
+      "OperationBellKindSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "operations.review_requested",
+          "operations.approved",
+          "operations.rejected",
+          "operations.returned"
+        ],
+        "type": "string"
+      },
+      "OperationBellRowSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": {},
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "is_read": {
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "operations.review_requested",
+              "operations.approved",
+              "operations.rejected",
+              "operations.returned"
+            ],
+            "type": "string"
+          },
+          "request_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "request_id",
+          "title",
+          "created_at",
+          "is_read"
+        ],
+        "type": "object"
+      },
       "OperationExecutionKindsSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -75329,6 +75469,14 @@
                   "items": {
                     "additionalProperties": false,
                     "properties": {
+                      "ineligible_reviewer_ids": {
+                        "items": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "type": "array"
+                      },
                       "name": {
                         "type": "string"
                       },
@@ -75371,7 +75519,8 @@
                     "required": [
                       "name",
                       "reviewer_ids",
-                      "reviewers"
+                      "reviewers",
+                      "ineligible_reviewer_ids"
                     ],
                     "type": "object"
                   },
@@ -75455,6 +75604,14 @@
             "items": {
               "additionalProperties": false,
               "properties": {
+                "ineligible_reviewer_ids": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
                 "name": {
                   "type": "string"
                 },
@@ -75497,7 +75654,8 @@
               "required": [
                 "name",
                 "reviewer_ids",
-                "reviewers"
+                "reviewers",
+                "ineligible_reviewer_ids"
               ],
               "type": "object"
             },
@@ -87366,6 +87524,44 @@
           "feature_keys": [],
           "feature_operation": null,
           "handler": "apply_preset",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/admin/branches": {
+      "post": {
+        "operationId": "webvue_api.AccessBranchesController.create_branch.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_branch",
+        "tags": [
+          "webvue_api"
+        ],
+        "x-webvue": {
+          "addon": "webvue_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "AccessBranchesController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "create_branch",
           "readonly": false,
           "route_type": "json2"
         }

@@ -5995,6 +5995,18 @@
       "handler": "patch_task",
       "no_capability_reason": null
     },
+    "POST /api/v1/admin/branches": {
+      "addon": "webvue_api",
+      "auth": "user",
+      "capability_keys": [
+        "settings.company.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "create_branch",
+      "no_capability_reason": null
+    },
     "POST /api/v1/admin/company/logo": {
       "addon": "webvue_api",
       "auth": "user",
@@ -9189,14 +9201,16 @@
     "POST /api/v1/operations/processes": {
       "addon": "webvue_operations",
       "auth": "user",
-      "capability_keys": [],
-      "capability_match": null,
-      "capability_source": "none",
+      "capability_keys": [
+        "operations.processes.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
       "feature_keys": [
         "operations.enabled"
       ],
       "handler": "create_process",
-      "no_capability_reason": "The webvue.operation.request/process model checks its operations.* capability inside create(), a stock name the analysis never credits; the route only validates the body."
+      "no_capability_reason": null
     },
     "POST /api/v1/operations/processes/{process_id}/{action}": {
       "addon": "webvue_operations",
@@ -9216,14 +9230,16 @@
     "POST /api/v1/operations/requests": {
       "addon": "webvue_operations",
       "auth": "user",
-      "capability_keys": [],
-      "capability_match": null,
-      "capability_source": "none",
+      "capability_keys": [
+        "operations.requests.create"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
       "feature_keys": [
         "operations.enabled"
       ],
       "handler": "create_request",
-      "no_capability_reason": "The webvue.operation.request/process model checks its operations.* capability inside create(), a stock name the analysis never credits; the route only validates the body."
+      "no_capability_reason": null
     },
     "POST /api/v1/operations/requests/{request_id}/attachments": {
       "addon": "webvue_operations",

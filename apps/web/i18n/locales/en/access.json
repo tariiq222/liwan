@@ -1,6 +1,7 @@
 {
   "access": {
     "branches": {
+      "create": {"purchaseDescription": "Branches are added through your subscription. The paid order creates the branch.", "purchase": "Buy a branch", "title": "Add a branch", "description": "Creates a new branch under your company. The number of branches is limited by your plan.", "name": "Branch name", "action": "Add branch", "done": "The branch was added."},
       "title": "Branch access",
       "description": "Choose how parent-company permissions apply to branches. Membership alone never grants data access.",
       "configure": "Configure branch access",
