@@ -63,6 +63,15 @@ export function canReach(identity: AccessIdentity, capability: string, path?: st
 export function firstAllowedPath(identity: AccessIdentity): string {
   return destinations().find(([path, capability]) => canReach(identity, capability, path) && canReachPath(identity, path))?.[0] ?? '/account'
 }
+/**
+ * Where an application's rail root sends an identity that cannot open the root itself: the first landing of that
+ * application it can reach. Null for any other path, or when the application offers it nothing.
+ */
+export function appRootFallback(identity: AccessIdentity, path: string): string | null {
+  const manifest = activeManifests().find(item => item.rail.some(entry => entry.to === path))
+  if (!manifest || canReachPath(identity, path)) return null
+  return (manifest.landing ?? []).find(entry => canReach(identity, entry.capability, entry.path) && canReachPath(identity, entry.path))?.path ?? null
+}
 export function postLoginPath(identity: AccessIdentity, next: unknown): string {
   const fallback = Array.isArray(identity?.capabilities) ? '/' : firstAllowedPath(identity)
   const target = safeReturnTo(next, fallback, [...destinations().map(([path]) => path), ...FOUNDATION_RETURN_TO, ...activeManifests().flatMap(manifest => manifest.returnToPaths ?? [])])
