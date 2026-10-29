@@ -34,7 +34,8 @@ class TestCrmCron(WebVueCrmCase):
     def kinds(self, user):
         response = self.as_user(user).api('GET', NOTIFICATIONS)
         self.assertEqual(response.status_code, 200, response.text)
-        return sorted(item['kind'] for item in response.json()['items'])
+        # The platform's own access-change row is not a CRM bell.
+        return sorted(item['kind'] for item in response.json()['items'] if item['kind'] != 'access_changed')
 
     def make_viewer(self, user):
         """Keep ``user`` as a reader of opportunities who can no longer work them."""

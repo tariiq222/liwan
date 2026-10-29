@@ -86,13 +86,15 @@ class WebVueAccessAudit(models.Model):
         target_type = {'webvue.access.role': 'role', 'res.company': 'company'}.get(target._name, 'user')
         company = (target.company_id if 'company_id' in target._fields else False) or self.env.company
         actor = actor if actor is not None else self.env.user
+        # A role has no display name: its names are name_ar / name_en.
+        target_name = (target.name_ar or target.name_en) if target_type == 'role' else target.display_name
         vals = {
             'company_id': company.id,
             'actor_id': actor.id if actor and not actor._is_public() else False,
             'action': action,
             'target_type': target_type,
             'target_id': target.id,
-            'target_name': target.display_name,
+            'target_name': target_name,
             'before': before,
             'after': after,
             'reason': reason,

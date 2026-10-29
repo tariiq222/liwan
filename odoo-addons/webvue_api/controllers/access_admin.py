@@ -293,6 +293,9 @@ class AccessAdminRolesController(http.Controller):
         request.env['webvue.access.service']._webvue_check_role_version(role, payload['expected_version'])
         self._require_manage()
         active = request.httprequest.path.endswith('/enable')
+        if role.active == active:
+            msg = 'role_state_unchanged'
+            raise WebVueAccessRule(msg, status=409)
         role._webvue_access_write({'active': active})
         request.env['webvue.access.audit']._webvue_log('role.enabled' if active else 'role.disabled', role, before={'active': not active}, after={'active': active})
         return dump_role(role, detail=True)

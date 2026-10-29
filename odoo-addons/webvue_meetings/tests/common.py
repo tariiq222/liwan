@@ -24,7 +24,7 @@ class WebVueMeetingEngineCase(TransactionCase):
     def _grant(cls, user, company, keys):
         permissions = cls.env['webvue.access.permission'].search([('key', 'in', keys)])
         role = cls.env['webvue.access.role'].create({
-            'name_ar': 'دور اختبار الاجتماعات', 'company_id': company.id,
+            'name_ar': 'دور اختبار الاجتماعات %s' % user.login, 'company_id': company.id,
             'permission_ids': [(6, 0, permissions.ids)],
         })
         cls.env['webvue.access.assignment'].create({'user_id': user.id, 'role_id': role.id, 'company_id': company.id})
@@ -40,6 +40,10 @@ class WebVueMeetingEngineCase(TransactionCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        # The bell lists only rows of applications the tenant policy keeps readable.
+        cls.env.ref('webvue_platform.tenant_profile')._webvue_initialize_legacy_policy(
+            cls.env['webvue.feature.registry']._webvue_installed_module_ids(),
+        )
         cls.company = cls.env.company
         cls.company_other = cls.env['res.company'].create({'name': 'Engine Other Co'})
         participant = ['meetings.read', 'meetings.create']

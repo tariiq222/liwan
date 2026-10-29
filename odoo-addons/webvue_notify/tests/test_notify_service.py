@@ -46,7 +46,7 @@ class TestNotifyService(NotifyProbe, TransactionCase):
         registry = self.env['webvue.notify.registry']
         cases = (
             ((PROBE_TYPES[0], PROBE_TYPES[0]), 'duplicate notification kind probe_ping'),
-            (({**PROBE_TYPES[0], 'feature_key': ''},), 'probe_ping is missing feature_key'),
+            (({**PROBE_TYPES[0], 'feature_key': ''},), 'probe_ping has an invalid feature_key'),
             (({**PROBE_TYPES[0], 'kind': 'probe_unknown'},), 'probe_unknown is not a mail.message selection value'),
             (({**PROBE_TYPES[0], 'kind': None},), 'missing a kind'),
         )
@@ -236,6 +236,26 @@ class TestNotifyService(NotifyProbe, TransactionCase):
         self.assertEqual(service._webvue_mark_all_read(), 0)
         unread.invalidate_recordset(['is_read'])
         self.assertFalse(unread.is_read)
+
+    def test_rows_of_a_switched_off_feature_are_hidden_and_cannot_be_marked_read(self):
+        row = self._deliver(self.sources[0], self.reader.partner_id).notification_ids
+        service = self.service.with_user(self.reader)
+        self.assertEqual(service._webvue_list(50)['total'], 1)
+        set_probe_feature(self, enabled=False, retained=False)
+        self.assertEqual(service._webvue_list(50), {'items': [], 'total': 0, 'unread_count': 0})
+        with self.assertRaises(MissingError):
+            service._webvue_mark_read(row.id)
+        self.assertEqual(service._webvue_mark_all_read(), 0)
+
+    def test_a_kind_without_a_feature_is_never_gated(self):
+        self.patch(self.registry_model, '_webvue_notification_types', lambda model: (
+            {key: value for key, value in PROBE_TYPES[0].items() if key != 'feature_key'},
+        ))
+        row = self._deliver(self.sources[0], self.reader.partner_id).notification_ids
+        set_probe_feature(self, enabled=False, retained=False)
+        service = self.service.with_user(self.reader)
+        self.assertEqual(service._webvue_list(50)['total'], 1)
+        self.assertEqual(service._webvue_mark_read(row.id), 1)
 
     def test_an_empty_branch_is_refused_and_no_branch_shows_nothing(self):
         self._deliver(self.sources[0], self.reader.partner_id)

@@ -125,8 +125,18 @@ class WebVueNotifyService(models.AbstractModel):
         return Domain([
             ('res_partner_id', '=', self.env.user.partner_id.id),
             ('mail_message_id.webvue_notification', '=', True),
+            ('mail_message_id.webvue_notification_kind', 'in', self._webvue_readable_kinds()),
             ('notification_type', '=', 'inbox'),
         ]) & visible
+
+    @api.model
+    def _webvue_readable_kinds(self):
+        """Kinds whose application feature is still readable (on, or kept read-only); a switched-off application's rows are hidden."""
+        entitlement = self.env['webvue.entitlement.service']
+        return [
+            kind for kind, item in self.env['webvue.notify.registry']._webvue_notification_type_map().items()
+            if not item.get('feature_key') or entitlement._webvue_feature_read(item['feature_key'])
+        ]
 
     @api.model
     def _webvue_recipient_domain(self):
@@ -210,14 +220,19 @@ class WebVueNotifyService(models.AbstractModel):
         return rows, extra
 
     @api.model
+    def _webvue_require_row_feature(self, row):
+        """Writes need the owner's feature to allow them; a row of a featureless platform kind always passes."""
+        key = self.env['webvue.notify.registry']._webvue_notify_feature_key(row)
+        if key:
+            self.env['webvue.entitlement.service'].require(key)
+
+    @api.model
     def _webvue_mark_read(self, notification_id):
         """Mark one visible row read once its owner's feature allows writes; return 0 or 1."""
         row, _extra = self._webvue_find(notification_id)
         if row.is_read:
             return 0
-        self.env['webvue.entitlement.service'].require(
-            self.env['webvue.notify.registry']._webvue_notify_feature_key(row),
-        )
+        self._webvue_require_row_feature(row)
         # The caller's own ACL and the group_user "write its own entries" rule decide.
         row.with_user(self.env.user).write({'is_read': True})
         return 1
@@ -225,12 +240,10 @@ class WebVueNotifyService(models.AbstractModel):
     @api.model
     def _webvue_mark_all_read(self):
         """Mark every visible unread row read whose owner's feature allows writes; return the count."""
-        registry = self.env['webvue.notify.registry']
-        entitlement = self.env['webvue.entitlement.service']
         writable = []
         for row, _extra in self._webvue_visible_rows(self._webvue_domain() & Domain('is_read', '=', False)):
             try:
-                entitlement.require(registry._webvue_notify_feature_key(row))
+                self._webvue_require_row_feature(row)
             except WebVueAccessRule:
                 continue
             writable.append(row.id)
