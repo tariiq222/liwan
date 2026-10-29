@@ -29,6 +29,8 @@ export const inboxKeys = {
   messagesOf: (id: number) => ['inbox', 'messages', id] as const,
   canned: ['inbox', 'canned-replies'] as const,
   templates: (channelId: number) => ['inbox', 'templates', channelId] as const,
+  templateList: (channelId: number, filters: object) => ['inbox', 'templates', channelId, filters] as const,
+  template: (id: number) => ['inbox', 'template', id] as const,
   tags: ['inbox', 'tags'] as const,
   agents: ['inbox', 'agents'] as const,
 }
@@ -113,13 +115,16 @@ export function useInboxCannedReplies() {
   })
 }
 
+/** Templates a reply may use: the approved ones, as many as the server returns in one page. */
+export const APPROVED_TEMPLATES_QUERY = { status: 'approved', limit: 200 } as const
+
 /** The approved templates of one channel, for a reply after the customer-service window has closed. */
 export function useInboxTemplates(channelId: MaybeRefOrGetter<number | undefined>, enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   return useQuery({
-    queryKey: computed(() => inboxKeys.templates(toValue(channelId) ?? 0)),
+    queryKey: computed(() => inboxKeys.templateList(toValue(channelId) ?? 0, APPROVED_TEMPLATES_QUERY)),
     enabled: computed(() => !!toValue(channelId) && toValue(enabled)),
-    queryFn: () => $api(`/api/v1/inbox/channels/${toValue(channelId)}/templates`, { schema: InboxTemplateListSchema }),
+    queryFn: () => $api(`/api/v1/inbox/channels/${toValue(channelId)}/templates`, { query: APPROVED_TEMPLATES_QUERY, schema: InboxTemplateListSchema }),
   })
 }
 

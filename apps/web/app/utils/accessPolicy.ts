@@ -88,8 +88,9 @@ export function isNavPathActive(path: string, target: string): boolean {
   }
   return path === target || path.startsWith(`${target}/`)
 }
+/** The rule of the manifest that claims `path` by prefix, or whose settings page contains it (a settings sub-page with a capability of its own). */
 function ownedRouteRule(path: string) {
-  return manifestForPath(path)?.routeCapabilities?.find(rule => rule.pattern.test(path))
+  return (manifestForPath(path) ?? settingsPartForPath(path)?.manifest)?.routeCapabilities?.find(rule => rule.pattern.test(path))
 }
 /** The explicit sub-feature of the manifest rule that owns `path`, if it declares one. */
 export function requiredFeatureForPath(path: string): string | undefined {

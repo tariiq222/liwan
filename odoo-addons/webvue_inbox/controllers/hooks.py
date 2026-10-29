@@ -5,7 +5,8 @@ Its auth method `inbox_hook` (models/ir_http.py) runs the request as the inactiv
 whose only group may read channels and create raw events (security/ir.model.access.csv). No
 `sudo()`: that ACL is the whole authority. An unknown phone number id, a bad signature and a
 malformed body all answer the same 403, so the route reveals nothing about which tenants or
-numbers exist.
+numbers exist. A template change (the account-level webhook fields) carries the business account id
+instead of a phone number id, so it reaches the channels of that account.
 """
 import hmac
 import json
@@ -98,7 +99,8 @@ class WhatsAppHookController(http.Controller):
         env = request.env
         channels = env['webvue.inbox.channel'].search([
             ('kind', '=', 'whatsapp'), ('state', '!=', 'disabled'),
-            ('phone_number_id', 'in', sorted(whatsapp.phone_number_ids(payload))),
+            '|', ('phone_number_id', 'in', sorted(whatsapp.phone_number_ids(payload))),
+            ('business_account_id', 'in', sorted(whatsapp.template_business_account_ids(payload))),
         ])
         signature = request.httprequest.headers.get(SIGNATURE_HEADER, '')
         if not channels:

@@ -181,7 +181,6 @@
       "fiscal": {
         "title": "Fiscal year",
         "errorSummary": "Fix these fields before saving:",
-        "yearEnd": "Fiscal year end",
         "fiscalyear_lock_date": "Fiscal year lock",
         "tax_lock_date": "Tax lock",
         "sale_lock_date": "Sales lock",
@@ -193,10 +192,7 @@
         "yearEndHint": "The fiscal year end cannot change after entries are posted. The system checks this when saving.",
         "locksHint": "Locks can only be tightened; they cannot be removed or moved earlier here.",
         "hardLockHint": "The hard lock is read-only and cannot be changed here.",
-        "revert": "Revert changes",
-        "saveError": "The company settings could not be saved",
         "saved": "Fiscal year and lock settings saved.",
-        "saving": "Saving the company settings… wait for the request to finish.",
         "errors": {
           "invalidDay": "Enter a whole day from 1 to 31.",
           "invalidMonth": "Enter a whole month from 1 to 12.",

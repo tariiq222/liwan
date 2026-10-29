@@ -1,3 +1,4 @@
+import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   BrandingSchema,
@@ -9,10 +10,11 @@ const brandingAdminKeys = {
   all: ['branding-admin'] as const,
 }
 
-export function useBrandingAdmin() {
+export function useBrandingAdmin(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   return useQuery({
     queryKey: brandingAdminKeys.all,
+    enabled: computed(() => toValue(enabled)),
     queryFn: () => $api('/api/v1/admin/branding', { schema: BrandingSchema }),
     retry: false,
   })

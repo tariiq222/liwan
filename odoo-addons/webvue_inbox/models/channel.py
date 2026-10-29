@@ -10,8 +10,12 @@ from .constants import WHATSAPP_FEATURE
 from odoo.addons.webvue_inbox.adapters.whatsapp import Credentials
 
 PROVIDER_ID = re.compile(r'^\d{5,32}$')
-# The ciphertext columns are readable by the webhook identity and the channel managers only.
-SECRET_GROUPS = 'webvue_inbox.group_inbox_hook,webvue_inbox.group_cap_inbox_channels_manage'
+# The ciphertext columns are readable by the webhook identity, the channel managers and the template managers
+# (who call Meta with the channel's token) only.
+SECRET_GROUPS = (
+    'webvue_inbox.group_inbox_hook,webvue_inbox.group_cap_inbox_channels_manage,'
+    'webvue_inbox.group_cap_inbox_templates_manage'
+)
 
 
 def _new_verify_token():
@@ -41,6 +45,8 @@ class WebVueInboxChannel(models.Model):
     department_id = fields.Many2one('webvue.inbox.department', ondelete='set null')
     phone_number_id = fields.Char(required=True)
     business_account_id = fields.Char(required=True)
+    # The Meta app id: needed only to upload the sample file of a media-header template (not a secret).
+    app_id = fields.Char()
     access_token_enc = fields.Char(groups=SECRET_GROUPS, copy=False)
     app_secret_enc = fields.Char(groups=SECRET_GROUPS, copy=False)
     verify_token = fields.Char(required=True, copy=False, default=lambda self: _new_verify_token())
@@ -51,6 +57,12 @@ class WebVueInboxChannel(models.Model):
     _phone_number_unique = models.Constraint(
         'UNIQUE(phone_number_id)', 'This WhatsApp phone number id is already connected.',
     )
+
+    @api.constrains('app_id')
+    def _check_app_id(self):
+        for channel in self.filtered('app_id'):
+            if not PROVIDER_ID.match(channel.app_id):
+                raise ValidationError(self.env._('The Meta app id must be 5 to 32 digits.'))
 
     @api.constrains('phone_number_id', 'business_account_id')
     def _check_provider_ids(self):

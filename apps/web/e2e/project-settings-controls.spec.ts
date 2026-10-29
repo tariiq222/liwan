@@ -258,6 +258,7 @@ test('creation requirement toggles change create behavior and failed defaults bl
       response.url().includes('/api/v1/settings/projects') && response.request().method() === 'PATCH'
     ))
     await page.locator('label').filter({ hasText: 'يشترط تاريخ الانتهاء' }).click()
+    await page.locator('form', { has: page.locator('#project-creation') }).getByRole('button', { name: 'حفظ التغييرات', exact: true }).click()
     await patched
     await expect.poll(async () => (await json(page, 'get', '/api/v1/settings/projects')).require_end_date_on_create).toBe(false)
     const created = await page.request.post('/api/v1/projects', { data: { name: `PSC no-end ${Date.now()}` } })

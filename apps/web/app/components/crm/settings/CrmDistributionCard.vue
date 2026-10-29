@@ -5,13 +5,13 @@ import { useCrmSettingsCard } from '@/composables/crm/useCrmSettingsCard'
 const props = defineProps<{ settings: CrmSettings; canEdit: boolean; reloadSettings: () => Promise<CrmSettings> }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
-const { draft, shell, save, reload } = useCrmSettingsCard({
+const { draft, state, save, revert, reload } = useCrmSettingsCard({
   settings: () => props.settings,
   read: ({ distribution_mode, distribution_user_ids }) => ({ distribution_mode, distribution_user_ids }),
   toPatch: values => ({ values }),
   reload: () => props.reloadSettings(),
 })
-const locked = computed(() => !hydrated.value || !props.canEdit || shell.value.saving || shell.value.reloading)
+const locked = computed(() => !hydrated.value || !props.canEdit || state.value.saving || state.value.reloading)
 const modeItems = computed(() => [
   { value: 'round_robin', label: t('crm.settings.distribution.roundRobin') },
   { value: 'manual', label: t('crm.settings.distribution.manual') },
@@ -29,12 +29,12 @@ const members = computed({
 </script>
 
 <template>
-  <CrmSettingsCard v-bind="shell" :title="t('crm.settings.distribution.title')" :description="t('crm.settings.distribution.hint')" :can-edit="canEdit" @save="save" @reload="reload">
-    <UFormField :label="t('crm.settings.distribution.mode')" name="distribution-mode" :help="modeHint">
+  <SharedSettingsCard id="distribution" v-bind="state" :title="t('crm.settings.distribution.title')" :description="t('crm.settings.distribution.hint')" :can-edit="canEdit" @save="save" @revert="revert" @reload="reload">
+    <UFormField orientation="horizontal" :label="t('crm.settings.distribution.mode')" name="distribution-mode" :description="modeHint">
       <USelect id="distribution-mode" v-model="draft.distribution_mode" class="w-full" :items="modeItems" :disabled="locked" />
     </UFormField>
-    <UFormField :label="t('crm.settings.distribution.members')" name="distribution-members" :help="t('crm.settings.distribution.membersHint')">
+    <UFormField orientation="horizontal" :label="t('crm.settings.distribution.members')" name="distribution-members" :description="t('crm.settings.distribution.membersHint')">
       <SharedPersonPicker id="distribution-members" v-model="members" multiple value-key="user_id" :known="props.settings.distribution_users" :disabled="locked" />
     </UFormField>
-  </CrmSettingsCard>
+  </SharedSettingsCard>
 </template>
