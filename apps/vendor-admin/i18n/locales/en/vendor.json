@@ -538,6 +538,7 @@
       "retiredHint": "Plans are sold from the Plans page. Customers already on a legacy package keep it unchanged."
     },
     "bundles": {
+      "seed": {"action": "Create default bundles", "hint": "Publishes one bundle per application of the latest catalog release and adds them to the WebVue plan at placeholder prices you edit later.", "reason": "Create the default bundles for the WebVue plan", "done": "The default bundles were published.", "failed": "The bundles could not be created. Check the catalog and the approved policy."},
       "title": "Bundles",
       "create": "New bundle",
       "search": "Search bundles",
