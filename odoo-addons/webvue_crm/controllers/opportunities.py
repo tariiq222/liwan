@@ -23,6 +23,8 @@ from odoo.addons.webvue_crm.serializers.opportunity import (
 
 ORDER = 'create_date desc, id desc'
 
+MAX_AGENTS = 50
+
 
 def _visibility():
     return request.env['webvue.crm.visibility']
@@ -156,6 +158,19 @@ class CrmOpportunitiesController(http.Controller):
             'items': [dump_opportunity(lead) for lead in Lead.search(domain, limit=limit, offset=offset, order=ORDER)],
             'total': Lead.search_count(domain),
         }
+
+    @http.route('/api/v1/crm/agents', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('crm.enabled', operation='read')
+    @requires_capability('crm.leads.assign')
+    def list_agents(self, **_):
+        """The people an opportunity can be assigned to: the same set the assignment itself accepts, as a person picker reads it."""
+        term = (request.httprequest.args.get('q') or '').strip().casefold()
+        agents = request.env['webvue.crm.distribution']._webvue_eligible_agents(request.env.company)
+        return [
+            {'id': user.id, 'name': user.name, 'user_id': user.id}
+            for user in agents if term in user.name.casefold()
+        ][:MAX_AGENTS]
 
     @http.route('/api/v1/crm/opportunities', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

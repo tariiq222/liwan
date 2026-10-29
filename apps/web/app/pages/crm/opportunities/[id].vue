@@ -218,7 +218,7 @@ const stageItems = computed(() => movableStages(stages.data.value?.items ?? []).
       </SharedPropertiesPanel>
       <SharedRecordSection v-if="canAssign && pending" variant="panel" :title="t('crm.opportunities.record.assign')">
         <div class="grid gap-3">
-          <SharedPersonPicker v-model="assignee" value-key="user_id" :aria-label="t('crm.opportunities.record.assign')" :disabled="busy" />
+          <SharedPersonPicker v-model="assignee" value-key="user_id" endpoint="/api/v1/crm/agents" :aria-label="t('crm.opportunities.record.assign')" :disabled="busy" />
           <UButton :disabled="busy || !assignee" :loading="actions.assign.isPending.value" :label="t('crm.opportunities.record.assignAction')" data-testid="crm-assign" @click="assign" />
         </div>
       </SharedRecordSection>

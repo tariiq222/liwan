@@ -64,7 +64,7 @@ async function submit() {
       </UFormField>
       <template v-if="canAssign">
         <UFormField :label="t('crm.opportunities.form.agent')" name="contact-agent" :help="t('crm.opportunities.form.agentHint')">
-          <SharedPersonPicker id="contact-agent" v-model="agentId" value-key="user_id" :disabled="!hydrated || pending || pool" />
+          <SharedPersonPicker id="contact-agent" v-model="agentId" value-key="user_id" endpoint="/api/v1/crm/agents" :disabled="!hydrated || pending || pool" />
         </UFormField>
         <USwitch v-model="pool" :label="t('crm.opportunities.form.pool')" :disabled="!hydrated || pending" />
       </template>
