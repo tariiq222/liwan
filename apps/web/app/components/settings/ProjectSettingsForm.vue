@@ -60,6 +60,18 @@ function onApprovalDefault(v: unknown) {
   save({ default_completion_approval: value })
 }
 
+function onCloseWithOpenTasks(v: unknown) {
+  const value = v as ProjectSettings['close_with_open_tasks']
+  if (!value || value === settings.value?.close_with_open_tasks) return
+  save({ close_with_open_tasks: value })
+}
+
+function onRegisterTransitions(v: unknown) {
+  const value = v as ProjectSettings['register_status_transitions']
+  if (!value || value === settings.value?.register_status_transitions) return
+  save({ register_status_transitions: value })
+}
+
 function onDaysBefore(days: number) {
   if (!Number.isInteger(days) || days === settings.value?.deadline_reminders_days_before) return
   save({ deadline_reminders_days_before: days })
@@ -171,6 +183,24 @@ function onDeleteStage(id: number | string) {
               :aria-label="t('settings.projects.charterApproval.label')"
               :disabled="locked"
               @update:model-value="v => onBool('require_charter_approval', v)"
+            />
+          </UFormField>
+          <UFormField id="project-close-open-tasks" orientation="horizontal" :label="t('settings.projects.closeWithOpenTasks.label')" :description="t('settings.projects.closeWithOpenTasks.hint')">
+            <URadioGroup
+              data-testid="settings-close-with-open-tasks"
+              :model-value="settings.close_with_open_tasks"
+              :items="[{ value: 'block', label: t('settings.projects.closeWithOpenTasks.block') }, { value: 'allow_with_warning', label: t('settings.projects.closeWithOpenTasks.allowWithWarning') }]"
+              :disabled="locked"
+              @update:model-value="onCloseWithOpenTasks"
+            />
+          </UFormField>
+          <UFormField id="project-register-transitions" orientation="horizontal" :label="t('settings.projects.registerTransitions.label')" :description="t('settings.projects.registerTransitions.hint')">
+            <URadioGroup
+              data-testid="settings-register-transitions"
+              :model-value="settings.register_status_transitions"
+              :items="[{ value: 'sequence', label: t('settings.projects.registerTransitions.sequence') }, { value: 'free', label: t('settings.projects.registerTransitions.free') }]"
+              :disabled="locked"
+              @update:model-value="onRegisterTransitions"
             />
           </UFormField>
         </div>

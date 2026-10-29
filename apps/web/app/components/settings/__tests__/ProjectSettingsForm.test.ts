@@ -87,6 +87,8 @@ describe('ProjectSettingsForm production template', () => {
         deadline_reminders_days_before: 1,
         overdue_digest_enabled: true,
         require_charter_approval: false,
+        close_with_open_tasks: 'block',
+        register_status_transitions: 'sequence',
         extensions: [],
       },
       rows: [{ id: 's-0', name: 'A', fold: false }],
@@ -114,6 +116,7 @@ describe('ProjectSettingsForm production template', () => {
       project_creators: 'managers', default_stages: [{ name: 'A', fold: false }], require_manager_on_create: true,
       require_end_date_on_create: true, default_completion_approval: 'none', deadline_reminders_enabled: true,
       deadline_reminders_days_before: 1, overdue_digest_enabled: true, require_charter_approval: false,
+      close_with_open_tasks: 'block', register_status_transitions: 'sequence',
     }
     const state = (extensions: unknown[]) => () => ({
       t: (key: string) => key, isLoading: false, error: undefined, hydrated: true, isPending: false,
