@@ -14,7 +14,7 @@ async function overview(state: { data?: unknown[]; loading?: boolean; error?: Er
       '@/composables/projectPhase': { isGateAction: () => false },
       '@/composables/projectStatus': { projectStatusBadge: () => ({ tone: 'neutral' }) },
       '@webvue/ui/app/utils/statusBadge': { badgeLabel: () => '' },
-      './ProjectOverviewTasks.vue': { default: { render: () => h('section', { 'data-testid': 'attention' }) } },
+      './ProjectOverviewTasks.vue': { __esModule: true, default: { render: () => h('section', { 'data-testid': 'attention' }) } },
     },
     stubs: { SharedMetricTile: defineComponent({ props: ['label','value','hint'], setup: props => () => h('div', `${props.label} ${props.value ?? ''} ${props.hint ?? ''}`) }) },
   })

@@ -163,6 +163,7 @@ describe('RACI task prerequisite navigation', () => {
     const view = load('../../../../pages/projects/[id]/raci.vue', {
       useQueryClient: () => ({}), governanceMatrixFilters: () => ({ taskQ: 'missing', stakeholderQ: '', closed: false, taskPage: 0, stakeholderPage: 0 }),
       useGovernanceTaskPage: query, useProjectStakeholders: query, useProjectRaci: query,
+      useProjectMissing: () => Vue.ref(false), ProjectNotFoundState: {},
       useCreateProjectRaci: mutation, useUpdateProjectRaci: mutation, useDeleteProjectRaci: mutation,
     })
     const html = await renderView(view, {})

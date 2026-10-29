@@ -48,7 +48,7 @@ export function taskSearchText(query: Record<string, unknown>): string | undefin
 }
 
 /** Stored filters with the attribute filters re-validated, then the URL's own on top: the URL wins, an absent key falls back. The search text (`?q=`) follows the same rule. */
-export function withTaskAttributeFilters<T extends TaskAttributeFilters & { q?: string }>(stored: T, query: Record<string, unknown>): T {
+export function withTaskAttributeFilters<T extends TaskAttributeFilters>(stored: T, query: Record<string, unknown>): T {
   const { assignee: _a, deadline: _d, priority: _p, ...rest } = stored
   const q = taskSearchText(query)
   return { ...rest, ...taskAttributeFilters(stored), ...taskAttributeFilters(query), ...(q ? { q } : {}) } as T

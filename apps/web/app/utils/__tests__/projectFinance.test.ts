@@ -393,14 +393,14 @@ describe('conflict helpers', () => {
 describe('ledgerEmptiness', () => {
   const base = { ledgerEmpty: true, filtered: false, offset: 0 }
   it('invites a first entry only when nothing is recorded anywhere', () => {
-    expect(ledgerEmptiness({ ...base, summary: { actual_source: 'ledger', expense_count: 0 } })).toBe('bare')
+    expect(ledgerEmptiness({ ...base, summary: { actual_source: 'manual', expense_count: 0 } })).toBe('bare')
     expect(ledgerEmptiness({ ...base, summary: { actual_source: 'external', expense_count: 0 } })).toBe('bare')
   })
   it('does not say "no entries" when external actual lines exist', () => {
     expect(ledgerEmptiness({ ...base, summary: { actual_source: 'external', expense_count: 2 } })).toBe('actual-only')
   })
   it('leaves filtered, paged or non-empty ledgers to the list', () => {
-    const summary = { actual_source: 'ledger' as const, expense_count: 0 }
+    const summary = { actual_source: 'manual' as const, expense_count: 0 }
     expect(ledgerEmptiness({ ...base, filtered: true, summary })).toBe('none')
     expect(ledgerEmptiness({ ...base, offset: 50, summary })).toBe('none')
     expect(ledgerEmptiness({ ...base, ledgerEmpty: false, summary })).toBe('none')
