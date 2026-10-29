@@ -22,6 +22,8 @@ from . import (
     leave_cancellation,
     leave_settings,
     mail_activity_plan,
+    mail_message,
+    notification_types,
     payroll_calculator,
     payroll_export,
     payroll_file,
