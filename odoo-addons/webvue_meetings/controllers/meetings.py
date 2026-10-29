@@ -406,7 +406,8 @@ class MeetingController(http.Controller):
                 raise ApiError(422, 'invalid', 'priority must be one of 0, 1, 2, or 3', field='priority')
             vals['priority'] = priority
         resolution = request.env['webvue.meeting.resolution'].create(vals)
-        if resolution.responsible_id:
+        # Assigning a recommendation to oneself tells the actor nothing new, like an invitation.
+        if resolution.responsible_id and resolution.responsible_id != request.env.user:
             meeting._webvue_notify_partners(
                 resolution.responsible_id.partner_id,
                 'meeting_resolution',
