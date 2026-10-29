@@ -55,8 +55,8 @@ async function reloadPolicy() {
         <div><UButton type="submit" icon="i-lucide-plus" :loading="create.isPending.value" :disabled="!canSubmit">{{ t('access.branches.create.action') }}</UButton></div>
       </form>
     </SharedRecordSection>
-    <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
-    <SharedPageState v-else :loading="query.isLoading.value" :error="query.error.value" @retry="query.refetch">
+    <SharedForbiddenState v-if="forbidden && !canCreate" :description="t('access.forbidden')" />
+    <SharedPageState v-else-if="!forbidden" :loading="query.isLoading.value" :error="query.error.value" @retry="query.refetch">
       <!-- Keyed by the signed-in user and company, so a draft never outlives the identity it was made for. -->
       <BranchPolicyCard v-if="query.data.value" :key="identity ?? ''" :policy="query.data.value" :reload-policy="reloadPolicy" />
     </SharedPageState>

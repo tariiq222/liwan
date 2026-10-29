@@ -113,14 +113,19 @@ function settingsCardsOpeningPage(path: string): string[] | null {
   const page = settingsPageForPath(path)
   if (!page || normalizedPath(path) !== page.to) return null
   const cards = page.parts.filter(part => part.to === undefined)
-  return cards.length ? cards.map(({ capability }) => capability) : null
+  return cards.length ? cards.flatMap(({ capability, anyCapabilities }) => [capability, ...(anyCapabilities ?? [])]) : null
 }
 /**
  * Route-level gate. A path with a capability rule goes through `canReach`; a path an application
  * claims by prefix but no rule covers still needs that application's feature (never fail-open).
  */
 export function canReachPath(identity: AccessIdentity, path: string): boolean {
-  if (/^\/settings\/team\/(branches|users\/[^/]+\/branches)$/.test(normalizedPath(path)) && !hasCapability(identity, 'access.roles.read')) return false
+  const normalized = normalizedPath(path)
+  if (/^\/settings\/team\/users\/[^/]+\/branches$/.test(normalized) && !hasCapability(identity, 'access.roles.read')) return false
+  // The branches page serves two rights: editing the branch access policy, and adding a branch (company administration).
+  if (normalized === '/settings/team/branches') {
+    return (canReach(identity, 'access.users.assign_roles', path) && hasCapability(identity, 'access.roles.read')) || canReach(identity, 'settings.company.manage', path)
+  }
   const rule = ownedRouteRule(path)
   if (rule?.anyCapabilities && !rule.anyCapabilities.some(key => hasCapability(identity, key))) return false
   if (rule?.requiredCapabilities && !rule.requiredCapabilities.every(key => canReach(identity, key))) return false
