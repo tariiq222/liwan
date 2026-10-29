@@ -13,7 +13,6 @@ const manifest: AppManifest = {
   ],
   // The catalog and its orders are the `inbox.catalog` sub-feature: their capabilities need it besides `inbox.enabled`.
   subFeatures: { 'inbox.catalog.': 'inbox.catalog', 'inbox.orders.': 'inbox.catalog' },
-  isNavActive: (path, target) => (target === '/inbox' && /^\/inbox\/orders(?:\/|$)/.test(path) ? false : undefined),
   settings: {
     id: 'inbox', labelKey: 'inbox.title', icon: 'i-lucide-inbox', to: '/settings/apps/inbox',
     parts: [
@@ -35,14 +34,15 @@ const manifest: AppManifest = {
     { id: 'inbox-conversations', labelKey: 'inbox.nav.conversations', icon: 'i-lucide-inbox', to: '/inbox', capability: 'inbox.conversations.read' },
     { id: 'inbox-campaigns', labelKey: 'inbox.nav.campaigns', icon: 'i-lucide-megaphone', to: '/inbox/campaigns', capability: 'inbox.campaigns.manage', feature: 'inbox.campaigns' },
     { id: 'inbox-reports', labelKey: 'inbox.nav.reports', icon: 'i-lucide-chart-column', to: '/inbox/reports', capability: 'inbox.reports.read', feature: 'inbox.reports' },
+    { id: 'inbox-orders', labelKey: 'inbox.nav.orders', icon: 'i-lucide-shopping-cart', to: '/inbox/orders', capability: 'inbox.conversations.read', feature: 'inbox.catalog' },
   ],
   landing: [
     { path: '/inbox', capability: 'inbox.conversations.read' },
     { path: '/inbox/campaigns', capability: 'inbox.campaigns.manage' },
     { path: '/inbox/reports', capability: 'inbox.reports.read' },
   ],
-  // The conversations item is not lit on the campaigns or reports pages, which have their own items.
-  isNavActive: (path, target) => (target === '/inbox' && /^\/inbox\/(?:campaigns|reports)(?:\/|$)/.test(path) ? false : undefined),
+  // The conversations item is not lit on the campaigns, reports or orders pages, which have their own items.
+  isNavActive: (path, target) => (target === '/inbox' && /^\/inbox\/(?:campaigns|reports|orders)(?:\/|$)/.test(path) ? false : undefined),
   routeCapabilities: [
     // Campaigns have their own capability and sub-feature, matched before the generic inbox rule.
     { pattern: /^\/inbox\/campaigns(?:\/|$)/, capability: 'inbox.campaigns.manage', feature: 'inbox.campaigns' },

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { InboxTemplate } from '@webvue/contracts'
 import { INTERACTIVE_LIMITS, buildInteractive, emptyInteractiveDraft, interactiveToDraft, normalizeInteractiveDraft } from '../inboxInteractive'
-import { buildAutoContent, autoContentToDraft } from '../inboxAutomation'
+import { autoContentToDraft, buildAutoContent, emptyAutoContentDraft } from '../inboxAutomation'
 import { buttonProblems, canAddButton, draftFromTemplate, emptyButton, emptyTemplateDraft, templateWriteCandidate, validateTemplateDraft } from '../inboxTemplate'
 
 describe('a form message', () => {
@@ -28,7 +28,7 @@ describe('a form message', () => {
   })
 
   it('is automatic content too (welcome, away and rule replies share the builder)', () => {
-    const content = buildAutoContent({ mode: 'interactive', body: '', interactive: draft })
+    const content = buildAutoContent({ ...emptyAutoContentDraft(), mode: 'interactive', interactive: draft })
     expect(content).toEqual({ interactive: expect.objectContaining({ type: 'flow', flow_id: 7 }) })
     expect(autoContentToDraft(content)).toMatchObject({ mode: 'interactive', interactive: { type: 'flow', flowId: 7 } })
   })
