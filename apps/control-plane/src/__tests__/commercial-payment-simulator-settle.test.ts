@@ -97,3 +97,22 @@ suite('vendor simulator settlement on live PostgreSQL', () => {
     expect(await outboxCount(f.order_id)).toBe(0)
   })
 })
+
+describe('simulator settlement after an API restart', () => {
+  const attemptRow = { id: randomUUID(), order_id: randomUUID(), provider: 'simulator', mode: 'simulator', provider_ref: 'sim_inv_0a1b2c3d_1', amount_minor: 11500, currency: 'SAR', exponent: 2 }
+  it('re-adopts the attempt row instead of answering 404, then settles it', async () => {
+    vi.stubEnv('NODE_ENV', 'test')
+    const adapter = new SimulatorAdapter({ env: { NODE_ENV: 'test' } })
+    const pool = { query: async () => ({ rows: [attemptRow] }) } as unknown as Pool
+    expect(adapter.adopt(attemptRow)).toBe(true)
+    expect((await adapter.lookupByAttemptId(attemptRow.id))?.provider_ref).toBe(attemptRow.provider_ref)
+    const fresh = new SimulatorAdapter({ env: { NODE_ENV: 'test' } })
+    const runtime = { adapter: fresh, returnOrigin: fixedReturnOrigin('https://webvue.test') }
+    // The settle route re-adopts, then fails only later at the webhook handler (no database in this pool double).
+    await expect(settle(pool, runtime, attemptRow.id)).rejects.not.toMatchObject({ status: 404 })
+  })
+  it('refuses a ref the simulator never issued', () => {
+    const adapter = new SimulatorAdapter({ env: { NODE_ENV: 'test' } })
+    expect(adapter.adopt({ ...attemptRow, provider_ref: 'inv_live_123' })).toBe(false)
+  })
+})

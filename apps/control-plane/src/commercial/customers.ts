@@ -13,7 +13,7 @@ const statesSql = `WITH customer_states AS (
     WHEN o.payment_state IN ('refund_pending','refunded') THEN 'failed'
     WHEN o.id IS NOT NULL THEN 'activating'
     WHEN s.state IN ('suspended','cancelled') THEN 'inactive'
-    WHEN s.state='pending' AND s.applied_revision_id IS NULL THEN 'awaiting_payment'
+    WHEN s.state='pending' AND s.applied_revision_id IS NULL THEN 'inactive'
     WHEN s.state='pending' OR s.applied_revision_id IS NULL THEN 'activating'
     ELSE 'active' END AS display_state
   FROM customers c

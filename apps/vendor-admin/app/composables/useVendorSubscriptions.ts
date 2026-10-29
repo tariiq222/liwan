@@ -15,6 +15,7 @@ export function useVendorSubscriptions() {
       catch (cause) { if (commercialFailure(cause).status === 404) return null; throw cause }
     },
     cancelOrder: (id: string, reason: string) => request<Order>(`commercial/orders/${seg(id)}/cancel`, { method: 'POST', body: { reason: reason.trim() } }),
+    resendInvitation: (customerId: string) => request<{ id: string; expires_at: string; delivery_status: string }>(`commercial/customers/${seg(customerId)}/invitations`, { method: 'POST', body: {} }),
     paymentAttempts: (orderId: string) => request<{ items: PaymentAttempt[]; total: number }>(`commercial/orders/${seg(orderId)}/payment-attempts`),
     subscription: (id: string) => request<SubscriptionView>(`commercial/subscriptions/${seg(id)}`),
     branches: (subscriptionId: string) => request<BranchSummary>(`commercial/subscriptions/${seg(subscriptionId)}/branches`),

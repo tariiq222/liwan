@@ -89,7 +89,7 @@ suite('vendor customer listing and cancellation HTTP boundary', () => {
     const cases = [
       ['active', false, null, null, false, false, 'activating'],
       ['active', true, null, null, false, false, 'active'],
-      ['pending', false, null, null, false, false, 'awaiting_payment'],
+      ['pending', false, null, null, false, false, 'inactive'],
       ['pending', true, null, null, false, false, 'activating'],
       ['trialing', true, null, null, false, false, 'active'],
       ['suspended', true, null, null, false, false, 'inactive'],

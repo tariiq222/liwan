@@ -85,6 +85,16 @@ const cancelBusy = ref(false)
 const cancelFailure = ref<string | undefined>()
 const canCancel = computed(() => can('vendor.subscriptions.manage') && !error.value && !extra.value?.full.failed && !extra.value?.full.unavailable && view.value?.pending_order?.payment_state === 'awaiting_payment' && view.value.pending_order.fulfillment_state === 'not_started' && view.value.pending_order.kind !== 'renewal')
 const validCancelReason = computed(() => cancelReason.value.trim().length >= 3 && cancelReason.value.trim().length <= 1000)
+const canInvite = computed(() => can('vendor.subscriptions.manage') && Boolean(customer.value?.tenant_id) && Boolean(view.value?.applied))
+const inviteBusy = ref(false)
+const inviteState = ref<'queued' | 'failed' | undefined>()
+async function resendInvitation() {
+  if (!hydrated.value || inviteBusy.value || !canInvite.value) return
+  inviteBusy.value = true; inviteState.value = undefined
+  try { await api.resendInvitation(id.value); inviteState.value = 'queued' }
+  catch { inviteState.value = 'failed' }
+  finally { inviteBusy.value = false }
+}
 async function refreshCancellationState() {
   await refresh()
   await refreshExtra()
@@ -204,6 +214,12 @@ async function cancelPendingOrder() {
             <div v-if="tenant" class="space-y-6">
               <VendorTenantProperties :tenant="tenant" :progress="progress" hide-open />
               <VendorWorkspacePanel :tenant="tenant" :progress="progress" />
+              <SharedRecordSection v-if="canInvite" variant="panel" :title="t('vendor.customers.resendInvitation')" :description="t('vendor.customers.resendInvitationHint')">
+                <template #actions>
+                  <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-mail" data-testid="resend-invitation" :disabled="!hydrated || inviteBusy" :loading="inviteBusy" @click="resendInvitation">{{ t('vendor.customers.resendInvitation') }}</UButton>
+                </template>
+                <p v-if="inviteState" role="status" class="text-sm" :class="inviteState === 'failed' ? 'text-error' : 'text-muted'">{{ t(inviteState === 'queued' ? 'vendor.customers.invitationQueued' : 'vendor.customers.invitationFailed') }}</p>
+              </SharedRecordSection>
             </div>
           </SharedPageState>
           <VendorTenantOperationsPanel v-else v-model:dirty="operationsDirty" :tenant-id="customer.tenant_id" />

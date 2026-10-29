@@ -51,7 +51,8 @@ export function subscriptionDisplayState(view: DisplayInput): SubscriptionDispla
   }
   switch (view.state) {
     case 'suspended': case 'cancelled': return 'inactive'
-    case 'pending': return view.applied ? 'activating' : 'awaiting_payment'
+    // No unresolved order and nothing applied: the only order was cancelled, so nothing is waiting for payment.
+    case 'pending': return view.applied ? 'activating' : 'inactive'
     default: return view.applied ? 'active' : 'activating'
   }
 }
