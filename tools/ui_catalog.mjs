@@ -1,6 +1,8 @@
 // Machine-readable catalog of the Storybook components, for agents designing pages.
 // Generated from STORYBOOK_COMPONENTS (tools/ui_policy.py), the stories and the real
-// component types; never edited by hand. `--check` fails when the file is stale.
+// component types; never edited by hand. The file is not committed (every merge to main would make
+// it stale in every open pull request): run this script before reading it. `--check` builds the
+// catalog in memory and fails only when it cannot be built.
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -116,10 +118,7 @@ function build() {
 const expected = build()
 const target = path.join(root, OUTPUT)
 if (process.argv.includes('--check')) {
-  if (!existsSync(target) || readFileSync(target, 'utf8') !== expected) {
-    console.error(`${OUTPUT} is stale; run "node tools/ui_catalog.mjs"`)
-    process.exitCode = 1
-  } else console.log(`UI catalog: ${JSON.parse(expected).components.length} components, up to date`)
+  console.log(`UI catalog: ${JSON.parse(expected).components.length} components, builds`)
 } else {
   writeFileSync(target, expected)
   console.log(`Wrote ${OUTPUT}: ${JSON.parse(expected).components.length} components`)
