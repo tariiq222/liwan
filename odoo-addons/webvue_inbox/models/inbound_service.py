@@ -45,6 +45,7 @@ class WebVueInboxInbound(models.AbstractModel):
         })
         if item.media_id:
             self._webvue_attach_media(channel, message, item)
+        message._webvue_on_ingested()
         automation = self.env['webvue.inbox.automation']
         if automation._webvue_record_csat(conversation, message):
             return conversation  # a survey answer neither reopens the conversation nor triggers the rules
@@ -71,6 +72,16 @@ class WebVueInboxInbound(models.AbstractModel):
             })
         if item.option:
             values.update({'selected_option_id': item.option.id, 'selected_option_title': item.option.title})
+        if item.order:
+            values.update({'catalog_id': item.order.catalog_id, 'order_line_ids': [(0, 0, {
+                'sequence': index, 'retailer_id': line.retailer_id, 'quantity': line.quantity,
+                'item_price': line.item_price, 'currency': line.currency,
+            }) for index, line in enumerate(item.order.items)]})
+        if item.referred_product:
+            values.update({
+                'referred_catalog_id': item.referred_product.catalog_id,
+                'referred_retailer_id': item.referred_product.retailer_id,
+            })
         return values
 
     @api.model

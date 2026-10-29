@@ -24,6 +24,22 @@
       "count": 1,
       "reason": "webvue_core company-partner existence check: `self.sudo().with_context(active_test=False).search_count([('partner_id','in',partner_ids)], limit=1)` in `_webvue_has_company_partner`; blocked by Odoo base `res_company_rule_employee` (/Users/tariq/code/odoo/addons/base/security/base_security.xml:113-120, `[('id','in',company_ids)]`) — the ACL grants read but the record rule hides every other company, and `active_test=False` must additionally see archived companies; loosening the rule would break multi-company isolation, which is the larger exposure."
     },
+    "odoo-addons/webvue_inbox_payments/controllers/images.py": {
+      "count": 1,
+      "reason": "webvue_inbox_payments public product image route: `request.env['webvue.inbox.catalog.item'].sudo().search([('id', '=', item_id), ('listed', '=', True)], limit=1)` in `product_image`, whose item and `item.product_id.image_1024` are then read elevated; blocked by the missing ACL of the public user (auth='public', no session) on `webvue.inbox.catalog.item` (the ir.model.access.csv rows give read only to `group_cap_inbox_conversations_read`) and on the product the item names. The item is matched by its id and a constant-time compare of its own random image token, so Meta fetches only the image of a listed item whose address WebVue gave it; nothing but the image bytes leaves, and an unlisted item or a wrong token answers the same 404."
+    },
+    "odoo-addons/webvue_inbox_payments/models/contact.py": {
+      "count": 1,
+      "reason": "webvue_inbox_payments partner for an inbox contact: `self.env['res.partner'].sudo().with_company(self.company_id).create({'name': ..., 'phone': ..., 'company_id': ...})` in `_webvue_partner`, called by the order checkout after the `inbox.orders.manage` capability and the conversation visibility checks, with server values only (the contact's own name, phone and company); blocked by the stock `res.partner` ACL (base security csv) that gives `base.group_user` read-only access. The partner is made once, linked to the contact, and returned unelevated."
+    },
+    "odoo-addons/webvue_inbox_payments/models/order.py": {
+      "count": 1,
+      "reason": "webvue_inbox_payments order number: `sale_order.sudo().name` in `_webvue_place`, read once from the online order that `webvue.payments.service._webvue_new_order` just created for this cart and kept on the inbox order as its `reference`; blocked by the stock `sale.order` ACL (only `sales_team.group_sale_salesman` users read orders) while the agent who checks out holds no sales right. The order itself is made, filled and read through the payments service, which elevates inside and returns the record unelevated."
+    },
+    "odoo-addons/webvue_inbox_payments/models/sale_order.py": {
+      "count": 1,
+      "reason": "webvue_inbox_payments payment events: `self.env['webvue.inbox.order.line'].sudo().search([('sale_order_line_id', 'in', self.order_line.ids)])` in `_webvue_inbox_orders`, called by the `_action_confirm` and `_action_cancel` overrides of `sale.order`, which stock runs under payment post-processing, the expiry cron or the payments service's elevated cancel, for a caller (a payer's post-processing identity, the cron user) that holds no ACL right on inbox orders. It only finds the inbox orders of the sale order being confirmed or cancelled; they then post the conversation note and the paid notice through the inbox's own system-note and automated-reply methods, and nothing is returned to the caller."
+    },
     "odoo-addons/webvue_meetings/models/calendar_event.py": {
       "count": 1,
       "reason": "webvue_meetings calendar-link existence check: `self.env['webvue.meeting.minute'].sudo().search([('calendar_event_id','in',self.ids)])` in the event write-sync and the unlink invariant; blocked by the fresh visibility domain odoo-addons/webvue_meetings/models/ir_rule.py:10-41 `_webvue_fresh_company_domain` on `webvue.meeting.minute` plus security/meeting_access.xml:5-9 `rule_meeting_capability_scope`; the caller must learn whether *any* meeting links the event, including meetings they cannot read, otherwise an unelevated search would let them delete a linked event. Read only; access is rechecked by the caller."

@@ -6,6 +6,7 @@ from dateutil.relativedelta import relativedelta
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
+from .abstract_interactive import COMMERCE_TYPES
 from .batch import process_each
 from .constants import BACKOFF_MINUTES, MAX_ATTEMPTS, OUTBOX_BATCH, TYPING_MAX_AGE
 from odoo.addons.webvue_inbox.adapters import whatsapp
@@ -108,6 +109,10 @@ class WebVueInboxMessageOutbox(models.Model):
         if self.kind == 'location':
             location = whatsapp.Location(self.latitude, self.longitude, self.location_name or None, self.location_address or None)
             return whatsapp.send_location(credentials, to, location, context_id)
+        if self.kind in COMMERCE_TYPES:
+            if not self.catalog_id:
+                raise UserError(self.env._('No catalog is connected to this channel.'))
+            return whatsapp.send_commerce(credentials, to, self._webvue_commerce(), self.catalog_id, context_id)
         if self.kind == 'interactive':
             return whatsapp.send_interactive(credentials, to, self._webvue_interactive(), context_id)
         if self.kind in whatsapp.MEDIA_KINDS:

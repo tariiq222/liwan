@@ -172,13 +172,15 @@
       "name": "Customer Inbox",
       "description": "The Customer Inbox application.",
       "modules": [
-        "webvue_inbox"
+        "webvue_inbox",
+        "webvue_inbox_payments"
       ],
       "features": [
         "boolean:inbox.enabled",
         "boolean:inbox.whatsapp",
         "boolean:inbox.templates",
         "boolean:inbox.automation",
+        "boolean:inbox.catalog",
         "limit:inbox.channels",
         "limit:inbox.messages_out"
       ]

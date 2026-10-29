@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
+from .abstract_interactive import COMMERCE_TYPES
 from .constants import MESSAGES_OUT_LIMIT, OUTBOX_CRON, REPLY_PREVIEW_LENGTH
 from .template import APPROVED, HEADER_TYPES, MEDIA_HEADERS, PLACEHOLDER
 from odoo.addons.webvue_inbox.adapters import media_rules
@@ -15,7 +16,8 @@ ERROR_TEXT_LENGTH = 200
 KINDS = [
     ('text', 'Text'), ('image', 'Image'), ('video', 'Video'), ('audio', 'Audio'), ('document', 'Document'),
     ('sticker', 'Sticker'), ('location', 'Location'), ('contacts', 'Contacts'), ('interactive', 'Interactive'),
-    ('template', 'Template'), ('unsupported', 'Unsupported'),
+    ('template', 'Template'), ('product', 'Product'), ('product_list', 'Product list'), ('catalog_message', 'Catalog'),
+    ('order', 'Order'), ('unsupported', 'Unsupported'),
 ]
 
 
@@ -69,6 +71,12 @@ class WebVueInboxMessage(models.Model):
     # An outbound interactive message: its fields come from the shared interactive mixin; `body` is its body text
     # and `option_ids` its buttons or list rows.
     option_ids = fields.One2many('webvue.inbox.message.option', 'message_id')
+    # Commerce: the Meta catalog an outbound product message names or an inbound cart was made from, the product an
+    # inbound text was sent from, and the lines of an inbound cart (the bridge turns a cart into an order).
+    catalog_id = fields.Char()
+    referred_catalog_id = fields.Char()
+    referred_retailer_id = fields.Char()
+    order_line_ids = fields.One2many('webvue.inbox.message.order.line', 'message_id')
     # What the customer chose in answer to an interactive message or template.
     selected_option_id = fields.Char()
     selected_option_title = fields.Char()
@@ -174,6 +182,8 @@ class WebVueInboxMessage(models.Model):
         self._webvue_require_window(conversation)
         if reply_to:
             self._webvue_require_reply_target(conversation, reply_to)
+        if values.get('kind') in COMMERCE_TYPES:
+            values = self._webvue_prepare_commerce(conversation, values)
         values = {**values, 'reply_to_id': reply_to.id if reply_to else False}
         if attachment:
             values['kind'] = self._webvue_attachment_kind(attachment)
@@ -182,6 +192,45 @@ class WebVueInboxMessage(models.Model):
             attachment.write({'res_model': message._name, 'res_id': message.id})
         self._webvue_wake_outbox()
         return message
+
+    @api.model
+    def _webvue_prepare_commerce(self, conversation, values):
+        """`values` of a commerce message with the channel's catalog id and the product titles snapshotted."""
+        channel = conversation.channel_id
+        catalog_id = channel._webvue_catalog_id()
+        if not catalog_id:
+            raise ValidationError(self.env._('No catalog is connected to this channel.'))
+        rows = [command[2] for command in values['option_ids']]
+        retailer_ids = [row['option_id'] for row in rows]
+        self._webvue_check_commerce(channel, retailer_ids)
+        titles = self._webvue_commerce_titles(channel, retailer_ids)
+        return {
+            **values, 'catalog_id': catalog_id,
+            'option_ids': [(0, 0, {**row, 'title': titles.get(row['option_id'], row['option_id'])}) for row in rows],
+        }
+
+    # Commerce hooks: the neutral answers of an inbox without a product catalog; webvue_inbox_payments overrides them.
+
+    @api.model
+    def _webvue_check_commerce(self, channel, retailer_ids):
+        """Raise ValidationError unless every retailer id is a product the channel's catalog can send."""
+
+    @api.model
+    def _webvue_commerce_titles(self, channel, retailer_ids):
+        """{retailer id: the product name} to keep with a sent message."""
+        return {retailer_id: retailer_id for retailer_id in retailer_ids}
+
+    @api.model
+    def _webvue_commerce_products(self, channel, retailer_ids):
+        """{retailer id: the product as the thread shows it now} (the contract's product block); none without a catalog."""
+        return {}
+
+    def _webvue_commerce_order_summary(self):
+        """The order made from this cart message (the contract's order summary), or None."""
+        return
+
+    def _webvue_on_ingested(self):
+        """Called once for each inbound message right after it is stored."""
 
     @api.model
     def _webvue_wake_outbox(self):

@@ -23,6 +23,7 @@ from odoo.addons.webvue_inbox.controllers.helpers import (
 from odoo.addons.webvue_inbox.controllers.reply_parsing import (
     MAX_BODY,
     MAX_OPTION_ID,
+    parse_commerce,
     parse_interactive,
     parse_list,
     parse_object,
@@ -112,13 +113,13 @@ def parse_working_hours(value, key='working_hours'):
 
 
 def parse_content(value, key='content'):
-    """Automatic content as model values: `{body}` for text, or the interactive fields (buttons, a list or a link)."""
-    value = parse_object(value, key, {'body', 'interactive'})
+    """Automatic content as model values: `{body}` for text, or the interactive or commerce fields."""
+    value = parse_object(value, key, {'body', 'interactive', 'commerce'})
     if len(value) != 1:
-        reject(f'{key} carries exactly one of body, interactive', key)
+        reject(f'{key} carries exactly one of body, interactive, commerce', key)
     if 'body' in value:
         return {'body': parse_string(value['body'], 'body', MAX_BODY)}
-    parsed = parse_interactive(value['interactive'])
+    parsed = parse_interactive(value['interactive']) if 'interactive' in value else parse_commerce(value['commerce'])
     parsed.pop('kind')
     return parsed
 

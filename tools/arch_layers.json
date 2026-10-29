@@ -29,7 +29,8 @@
     "webvue_access_hr": 5,
     "webvue_pmo_finance": 5,
     "webvue_hr_finance": 5,
-    "webvue_appointments_payments": 5
+    "webvue_appointments_payments": 5,
+    "webvue_inbox_payments": 5
   },
   "exempt": [],
   "web_apps": {

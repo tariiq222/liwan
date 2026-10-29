@@ -150,3 +150,8 @@ class WebVueInboxChannel(models.Model):
         for purpose, content in (('welcome', welcome), ('away', away)):
             if content and not self._webvue_auto_message(purpose):
                 self._webvue_set_auto_message(purpose, content)
+
+    def _webvue_catalog_id(self):
+        """The Meta catalog id this channel's WhatsApp account sells from; none without a product catalog (hook)."""
+        self.ensure_one()
+        return False

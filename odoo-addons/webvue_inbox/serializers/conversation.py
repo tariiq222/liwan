@@ -3,6 +3,7 @@
 from collections import defaultdict
 
 from odoo.addons.webvue_api.serializers.common import iso
+from odoo.addons.webvue_inbox.models.abstract_interactive import COMMERCE_TYPES
 
 
 def dump_ref(record):
@@ -59,17 +60,69 @@ def dump_message_template(message):
     }
 
 
+def retailer_ids(message):
+    """The catalog product ids a commerce message names, in content order."""
+    if message.kind == 'order':
+        return message.order_line_ids.mapped('retailer_id')
+    if message.referred_retailer_id:
+        return [message.referred_retailer_id]
+    if message.kind in COMMERCE_TYPES:
+        return message.option_ids.sorted('sequence').mapped('option_id')
+    return []
+
+
+def dump_commerce(message, products):
+    """The `commerce` block of a message: what it sent from the catalog, the customer's cart or a product inquiry."""
+    def ref(retailer_id):
+        return {'product_retailer_id': retailer_id, 'product': products.get(retailer_id)}
+
+    if message.kind in COMMERCE_TYPES:
+        content = message._webvue_commerce()
+        return {
+            'type': 'sent', 'catalog_id': message.catalog_id, 'content': content,
+            'products': [ref(retailer_id) for retailer_id in retailer_ids(message)],
+        }
+    if message.kind == 'order':
+        return {
+            'type': 'order', 'catalog_id': message.catalog_id,
+            'text': None if message.body == '[order]' else message.body,
+            'lines': [
+                {**ref(line.retailer_id), 'quantity': line.quantity, 'item_price': line.item_price, 'currency': line.currency}
+                for line in message.order_line_ids
+            ],
+            'order': message._webvue_commerce_order_summary(),
+        }
+    if message.referred_retailer_id:
+        return {'type': 'inquiry', 'catalog_id': message.referred_catalog_id, **ref(message.referred_retailer_id)}
+    return None
+
+
+def commerce_products(messages):
+    """{message id: {retailer id: product block}}: one hook call per channel for the whole page."""
+    by_channel = defaultdict(lambda: defaultdict(set))
+    for message in messages:
+        ids = retailer_ids(message)
+        if ids:
+            by_channel[message.conversation_id.channel_id][message.id].update(ids)
+    products = {}
+    for channel, wanted in by_channel.items():
+        found = messages.env['webvue.inbox.message']._webvue_commerce_products(channel, sorted(set().union(*wanted.values())))
+        products.update({message_id: found for message_id in wanted})
+    return products
+
+
 def dump_messages(messages):
-    """Message shapes in input order; the attachments of the page are read with one search."""
+    """Message shapes in input order; the attachments and catalog products of the page are read once."""
     attachments = defaultdict(list)
     for attachment in messages.env['ir.attachment'].search([
         ('res_model', '=', 'webvue.inbox.message'), ('res_id', 'in', messages.ids),
     ], order='id'):
         attachments[attachment.res_id].append(dump_attachment(attachment))
-    return [dump_message(message, attachments[message.id]) for message in messages]
+    products = commerce_products(messages)
+    return [dump_message(message, attachments[message.id], products.get(message.id, {})) for message in messages]
 
 
-def dump_message(message, attachments):
+def dump_message(message, attachments, products):
     return {
         'id': message.id,
         'direction': message.direction,
@@ -85,7 +138,8 @@ def dump_message(message, attachments):
         if message.reply_to_id else None,
         'reactions': {'customer': message.customer_reaction or None, 'agent': message.agent_reaction or None},
         'location': message._webvue_location() if message.kind == 'location' or message.template_header == 'location' else None,
-        'interactive': message._webvue_interactive() if message.interactive_type else None,
+        'interactive': message._webvue_interactive() if message.interactive_type and message.kind == 'interactive' else None,
+        'commerce': dump_commerce(message, products),
         'selected_option': {'id': message.selected_option_id, 'title': message.selected_option_title or ''}
         if message.selected_option_id else None,
         'created_at': iso(message.date),

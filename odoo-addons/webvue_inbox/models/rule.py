@@ -6,7 +6,7 @@ from .normalization import normalize_text, word_tokens
 
 MATCH_KINDS = [
     ('any', 'Any message'), ('contains', 'Contains'), ('exact', 'Exact'), ('starts_with', 'Starts with'),
-    ('option', 'Chosen option'),
+    ('option', 'Chosen option'), ('order', 'Cart order'),
 ]
 HOURS_CONDITIONS = [('any', 'Any time'), ('inside', 'Inside working hours'), ('outside', 'Outside working hours')]
 PRIORITIES = [('low', 'Low'), ('normal', 'Normal'), ('high', 'High'), ('urgent', 'Urgent')]
@@ -52,13 +52,15 @@ class WebVueInboxRule(models.Model):
             self.reply_ids, {'purpose': 'rule', 'rule_id': self.id}, content,
         )
 
-    def _webvue_matches(self, text, option_id, inside):
-        """Whether the rule fires for an inbound message with this text (None for a file or location) and chosen option."""
+    def _webvue_matches(self, text, option_id, inside, is_order=False):
+        """Whether the rule fires for an inbound message with this text (None for a file or location), chosen option and cart."""
         self.ensure_one()
         if self.hours_condition != 'any' and (self.hours_condition == 'inside') != inside:
             return False
         if self.match_kind == 'any':
             return True
+        if self.match_kind == 'order':
+            return is_order
         if self.match_kind == 'option':
             return option_id is not None and option_id == self.option_id
         if text is None:
@@ -67,14 +69,14 @@ class WebVueInboxRule(models.Model):
         return any(matcher(keyword.normalized, normalized) for keyword in self.keyword_ids if word_tokens(keyword.value))
 
     @api.model
-    def _webvue_triggered(self, channel, text, option_id, inside):
+    def _webvue_triggered(self, channel, text, option_id, inside, is_order=False):
         """The rules (in order) that fire for a message on `channel`, up to and including the first one that stops."""
         triggered = self.browse()
         rules = self.search([
             ('company_id', '=', channel.owner_company_id.id), '|', ('channel_id', '=', False), ('channel_id', '=', channel.id),
         ])
         for rule in rules:
-            if rule._webvue_matches(text, option_id, inside):
+            if rule._webvue_matches(text, option_id, inside, is_order):
                 triggered |= rule
                 if rule.stop:
                     break

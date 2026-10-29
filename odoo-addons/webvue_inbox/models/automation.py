@@ -8,6 +8,7 @@ from dateutil.relativedelta import relativedelta
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
+from .abstract_interactive import COMMERCE_TYPES
 from .constants import (
     AGENT_ACTIVE_WINDOW,
     AUTOMATED_RATE_WINDOW,
@@ -29,6 +30,7 @@ NOTE_TAGS = 'القاعدة «%s» أضافت الوسوم: %s'
 NOTE_PRIORITY = 'القاعدة «%s» ضبطت الأولوية: %s'
 NOTE_RESOLVE = 'القاعدة «%s» حلّت المحادثة'
 NOTE_LIMIT = 'لم يُرسل الرد الآلي لأن حد الرسائل الصادرة للاشتراك قد بلغ'
+NOTE_NO_CATALOG = 'لم تُرسل رسالة المنتجات الآلية: لا كتالوج متصل بالقناة أو أحد المنتجات غير متاح'
 NOTE_ASSIGNED = 'سياسة الإسناد الآلي أسندت المحادثة إلى %s'
 
 
@@ -73,7 +75,7 @@ class WebVueInboxAutomation(models.AbstractModel):
         self._webvue_greet(conversation, message, inside)
         text = message.body if message.kind in TEXT_KINDS else None
         rules = self.env['webvue.inbox.rule']._webvue_triggered(
-            conversation.channel_id, text, message.selected_option_id or None, inside,
+            conversation.channel_id, text, message.selected_option_id or None, inside, message.kind == 'order',
         )
         agent_active = self._webvue_agent_active(conversation, message.date)
         for rule in rules:
@@ -147,7 +149,11 @@ class WebVueInboxAutomation(models.AbstractModel):
             Message._webvue_post_system_note(conversation, NOTE_LIMIT)
             return False
         except ValidationError:
-            return False  # the channel is disabled or the conversation closed: nothing to say
+            # The channel is disabled or the conversation closed: nothing to say. A products message that cannot
+            # be sent (no catalog, a product gone) is explained, and never reaches Meta.
+            if auto_message.interactive_type in COMMERCE_TYPES:
+                Message._webvue_post_system_note(conversation, NOTE_NO_CATALOG)
+            return False
         Message._webvue_post_system_note(conversation, note)
         return True
 
