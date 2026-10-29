@@ -212,8 +212,10 @@ class ChatController(http.Controller):
         if message_notice(message):
             raise ApiError(422, 'invalid', 'a conversation notice cannot be edited')
         body = payload['body']
+        # sudo: mail.message - the author check above is the access check; the stock edit route elevates the
+        # same way because emptying a message reads its link previews (base.group_erp_manager only).
         channel._message_update_content(
-            message, body=plaintext2html(body) if body.strip() else '',
+            message.sudo(), body=plaintext2html(body) if body.strip() else '',
         )
         service._webvue_notify_channel(channel, 'message_updated')
         return dump_message(message)

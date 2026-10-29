@@ -30,7 +30,7 @@ test('rate module is present in actual proxy build recipe and exactly the declar
   assert.match(recipe, /github.com\/mholt\/caddy-ratelimit@v0\.1\.0/)
   assert.match(recipe, /http.handlers.rate_limit/)
   const config = read('Caddyfile')
-  const zones = ['webvue_auth', 'webvue_api', 'webvue_odoo_image', 'webvue_odoo', 'webvue_web']
+  const zones = ['webvue_auth', 'webvue_api', 'webvue_public_appointments_ip', 'webvue_odoo_image', 'webvue_odoo', 'webvue_web']
   const declared = [...config.matchAll(/^\s*zone\s+(\S+)\s*\{/gm)].map(match => match[1])
   assert.equal(declared.length, zones.length)
   for (const name of zones) assert.equal(declared.filter(zone => zone === name).length, 1, name)
