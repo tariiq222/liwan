@@ -15,9 +15,10 @@ export type OperationKpiId<S extends OperationScope> = keyof typeof operationKpi
 const listPath = (scope: OperationScope) => scope === 'mine' ? '/operations' : `/operations/${scope}`
 
 /** A link to the scope's list filtered by a tile's state (and the page's search); the pending list is already one state, so it gets none. */
-export function operationKpiLink(scope: OperationScope, state: string | undefined, q?: string): string {
+export function operationKpiLink(scope: OperationScope, state: string | undefined, q?: string, purpose?: string): string {
   const query = new URLSearchParams()
   if (q) query.set('q', q)
+  if (purpose) query.set('purpose', purpose)
   if (state && scope !== 'pending') query.set('state', state)
   const text = query.toString()
   return text ? `${listPath(scope)}?${text}` : listPath(scope)
@@ -33,9 +34,9 @@ const TILE_LOOK = {
 } as const satisfies Record<string, Pick<KpiTile, 'icon' | 'tone'>>
 
 /** The tiles above an operations request list: one per entry of `operationKpiStates[scope]`; a count that has not arrived is `null` and shows "—". */
-export function operationKpiTiles(scope: OperationScope, counts: Record<string, number | undefined>, t: Translate, q?: string): KpiTile[] {
+export function operationKpiTiles(scope: OperationScope, counts: Record<string, number | undefined>, t: Translate, q?: string, purpose?: string): KpiTile[] {
   return Object.entries(operationKpiStates[scope]).map(([id, state]) => {
     const look = TILE_LOOK[id as keyof typeof TILE_LOOK]
-    return { id, label: t(`operations.kpi.${scope}.${id}`), icon: look.icon, tone: look.tone, value: counts[id] ?? null, to: operationKpiLink(scope, state, q) }
+    return { id, label: t(`operations.kpi.${scope}.${id}`), icon: look.icon, tone: look.tone, value: counts[id] ?? null, to: operationKpiLink(scope, state, q, purpose) }
   })
 }

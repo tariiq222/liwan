@@ -51,7 +51,7 @@ async function refresh() { if (disabled.value) return; selected.value = null; er
       <SharedInlineConfirm v-if="selected" :title="t(`operations.confirm.${selected}`)" :description="t(selected === 'archive' ? 'operations.archiveHelp' : 'operations.publishHelp')" :confirm-label="t(`operations.${selected}`)" :color="selected === 'archive' ? 'error' : 'primary'" :pending="pending" :disabled="disabled" @confirm="confirmDecision" @cancel="selected = null" />
       <SharedRecordSection variant="panel" :title="t('operations.description')"><p class="whitespace-pre-wrap text-sm leading-7">{{ process.description || t('operations.noDescription') }}</p></SharedRecordSection>
       <SharedRecordSection variant="panel" :title="t('operations.stages')">
-        <ol class="space-y-3"><OperationStepRow v-for="(step, index) in process.steps" :key="index" :number="index + 1" :name="step.name" :reviewers="step.reviewers" /></ol>
+        <ol class="space-y-3"><OperationStepRow v-for="(step, index) in process.steps" :key="index" :number="index + 1" :name="step.name" :reviewers="step.reviewers" :ineligible="step.reviewers.filter(person => step.ineligible_reviewer_ids.includes(person.user_id))" /></ol>
       </SharedRecordSection>
     </template>
     <template v-if="process" #aside>

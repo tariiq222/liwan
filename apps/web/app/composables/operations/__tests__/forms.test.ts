@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { operationListLocation, safeOperationReturnTo, requestFormErrors, processFormErrors, createOperationSubmitGuard, operationAttachmentBody } from '../forms'
+import { operationListLocation, safeOperationReturnTo, requestFormErrors, processFormErrors, createOperationSubmitGuard, operationAttachmentBody, operationErrorKey, operationPurposeChoices, operationPurposeFromSelection } from '../forms'
 
 describe('operation form and route behavior', () => {
   it('preserves list filters/hash without nesting return links', () => {
@@ -52,4 +52,18 @@ it('keeps the all-status control valid while omitting the API status filter', as
   expect(operationStateFromSelection(all.value)).toBeUndefined()
   expect(operationStateFromSelection('pending')).toBe('pending')
   expect(operationStateFromSelection('unknown')).toBeUndefined()
+})
+
+describe('operation error and type filter helpers', () => {
+  it('names the unavailable-reviewer error instead of the generic save failure', () => {
+    expect(operationErrorKey({ status: 422, code: 'reviewer_not_eligible' })).toBe('reviewerNotEligible')
+    expect(operationErrorKey({ status: 409, code: 'conflict' })).toBe('conflict')
+    expect(operationErrorKey({ status: 422, code: 'invalid' })).toBe('save')
+  })
+  it('keeps the type filter in the list location and accepts only known types', () => {
+    expect(operationListLocation('/operations/pending', { purpose: 'employee', page: '2' })).toBe('/operations/pending?purpose=employee&page=2')
+    expect(operationPurposeFromSelection('employee')).toBe('employee')
+    expect(operationPurposeFromSelection('all')).toBeUndefined()
+    expect(operationPurposeChoices(key => key).map(choice => choice.value)).toEqual(['all', 'work', 'employee'])
+  })
 })

@@ -19,6 +19,7 @@
     "description": "Description",
     "noDescription": "No description added",
     "state": "Status",
+    "allPurposes": "All types",
     "allStates": "All statuses",
     "search": "Search",
     "searchRequests": "Search requests",
@@ -116,7 +117,8 @@
       "forbidden": "You do not have permission for this action",
       "save": "Could not save changes. Try again.",
       "conflict": "This record has changed. Refresh and review it before trying again.",
-      "executionFailed": "The request could not be completed and the final approval was not saved. Review the record and explicitly try again."
+      "executionFailed": "The request could not be completed and the final approval was not saved. Review the record and explicitly try again.",
+      "reviewerNotEligible": "One of the chosen reviewers lacks the operations review capability. Grant it or pick someone else, then publish again."
     },
     "reloadDraft": "Refresh data and replace this draft?",
     "reloadDraftHelp": "Your unsaved changes will be replaced with the latest record.",
@@ -161,6 +163,7 @@
     },
     "attention": {
       "from": "From {name}"
-    }
+    },
+    "ineligibleReviewers": "Lacks the review capability: {names}"
   }
 }

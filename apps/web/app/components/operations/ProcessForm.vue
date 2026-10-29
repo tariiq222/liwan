@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { OperationProcess, OperationProcessBody } from '@webvue/contracts'
+import type { OperationProcess, OperationProcessBody, PersonRef } from '@webvue/contracts'
+import { joinList } from '@/utils/listFormat'
 import { createOperationSubmitGuard, operationErrorKey, processFormErrors } from '@/composables/operations/forms'
 import { useOperationExecutionKinds } from '@/composables/operations/useOperations'
 
@@ -14,6 +15,11 @@ const purposeItems = computed(() => ['work', 'employee'].map(value => ({ value, 
 const executionKind = ref(props.process?.execution_kind ?? 'approval')
 const acceptedRevision = ref(props.process?.revision)
 const steps = ref((props.process?.steps ?? [{ name: '', reviewer_ids: [], reviewers: [] }]).map(step => ({ name: step.name, reviewer_ids: [...step.reviewer_ids], reviewers: [...step.reviewers] })))
+const ineligibleIds = ref(new Set((props.process?.steps ?? []).flatMap(step => step.ineligible_reviewer_ids)))
+function ineligibleHint(step: { reviewer_ids: number[]; reviewers: PersonRef[] }) {
+  const people = step.reviewers.filter(person => step.reviewer_ids.includes(person.user_id) && ineligibleIds.value.has(person.user_id))
+  return people.length ? t('operations.ineligibleReviewers', { names: joinList(people.map(person => person.name), t) }) : undefined
+}
 const kinds = useOperationExecutionKinds()
 const attempted = ref(false)
 const error = ref<unknown>(null)
@@ -51,6 +57,7 @@ async function submit() {
       if (props.process) body.revision = acceptedRevision.value
       const process = await props.save(body)
       acceptedRevision.value = process.revision
+      ineligibleIds.value = new Set(process.steps.flatMap(step => step.ineligible_reviewer_ids))
       baseline.value = snapshot()
       await nextTick()
       emit('saved', process)
@@ -69,6 +76,7 @@ async function reload() {
       name.value = current.name; description.value = current.description; executionKind.value = current.execution_kind; purpose.value = current.purpose
       steps.value = current.steps.map(step => ({ name: step.name, reviewer_ids: [...step.reviewer_ids], reviewers: [...step.reviewers] }))
       acceptedRevision.value = current.revision
+      ineligibleIds.value = new Set(current.steps.flatMap(step => step.ineligible_reviewer_ids))
       baseline.value = snapshot(); error.value = null; attempted.value = false; reloadRequested.value = false
     } catch (e) { error.value = e }
   })
@@ -86,7 +94,7 @@ async function reload() {
       <ol class="space-y-3"><SharedSubCard v-for="(step, index) in steps" :key="index" as="li" class="space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2"><h3 class="text-sm font-semibold text-highlighted">{{ t('operations.stageNumber', { number: index + 1 }) }}</h3><div class="flex gap-1"><UButton type="button" color="neutral" variant="ghost" square icon="i-lucide-arrow-up" :aria-label="t('operations.moveUp')" :disabled="disabled || index === 0" @click="move(index, -1)" /><UButton type="button" color="neutral" variant="ghost" square icon="i-lucide-arrow-down" :aria-label="t('operations.moveDown')" :disabled="disabled || index === steps.length - 1" @click="move(index, 1)" /><UButton type="button" color="error" variant="ghost" square icon="i-lucide-trash-2" :aria-label="t('operations.removeStage')" :disabled="disabled" @click="steps.splice(index, 1)" /></div></div>
         <UFormField :name="`steps.${index}.name`" :label="t('operations.stageName')" required :error="fieldError(`steps.${index}.name`)"><UInput v-model="step.name" class="w-full" :disabled="disabled" /></UFormField>
-        <UFormField :name="`steps.${index}.reviewer_ids`" :label="t('operations.reviewers')" required :error="fieldError(`steps.${index}.reviewer_ids`)"><SharedPersonPicker :model-value="step.reviewer_ids" multiple value-key="user_id" :known="step.reviewers" :disabled="disabled" :aria-label="t('operations.reviewers')" @update:model-value="value => setReviewers(index, value)" /></UFormField>
+        <UFormField :name="`steps.${index}.reviewer_ids`" :label="t('operations.reviewers')" required :error="fieldError(`steps.${index}.reviewer_ids`)" :help="ineligibleHint(step)"><SharedPersonPicker :model-value="step.reviewer_ids" multiple value-key="user_id" :known="step.reviewers" :disabled="disabled" :aria-label="t('operations.reviewers')" @update:model-value="value => setReviewers(index, value)" /></UFormField>
       </SharedSubCard></ol>
       <p v-if="fieldError('steps')" role="alert" class="text-sm text-error">{{ fieldError('steps') }}</p>
       <UButton type="button" color="neutral" variant="outline" icon="i-lucide-plus" :disabled="disabled" :label="t('operations.addStage')" @click="steps.push({ name: '', reviewer_ids: [], reviewers: [] })" />

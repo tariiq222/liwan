@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { operationPurposeFromSelection } from '@/composables/operations/forms'
 import { useOperationKpis } from '@/composables/operations/useOperationKpis'
 import type { OperationScope } from '@/composables/operations/useOperations'
 
@@ -9,7 +10,8 @@ const { t } = useI18n()
 const { can } = useAccess()
 const allowed = computed(() => can(props.scope === 'pending' ? 'operations.requests.review' : props.scope === 'monitoring' ? 'operations.monitoring.read' : 'operations.requests.read'))
 const search = computed(() => typeof route.query.q === 'string' ? route.query.q : undefined)
-const { tiles, loading } = useOperationKpis(props.scope, search, allowed)
+const purpose = computed(() => operationPurposeFromSelection(route.query.purpose))
+const { tiles, loading } = useOperationKpis(props.scope, search, allowed, purpose)
 </script>
 
 <template>
