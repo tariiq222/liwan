@@ -270,7 +270,9 @@ test.describe('payments orders settings', () => {
     await expect(invoiceWhenPaid(page)).not.toBeChecked()
     await expect(save(page)).toBeDisabled()
     expect(bodies).toEqual([{ revision: 0, unpaid_order_expiry_minutes: 30 }])
-    expect(await readSettings(page)).toEqual({ unpaid_order_expiry_minutes: 120, invoice_when_paid: false, revision: 1 })
+    expect(await readSettings(page)).toEqual({
+      unpaid_order_expiry_minutes: 120, invoice_when_paid: false, refund_policy: 'full', refund_amounts: 'due', revision: 1,
+    })
     errors = withoutRefusals(errors)
 
     // Repeating the change now carries the revision the card was reloaded to, and the notice goes away.
@@ -280,7 +282,9 @@ test.describe('payments orders settings', () => {
     await expect(save(page)).toBeDisabled()
     await expect(page.getByTestId('payments-orders-conflict')).toHaveCount(0)
     expect(bodies.at(-1)).toEqual({ revision: 1, unpaid_order_expiry_minutes: 30 })
-    expect(await readSettings(page)).toEqual({ unpaid_order_expiry_minutes: 30, invoice_when_paid: false, revision: 2 })
+    expect(await readSettings(page)).toEqual({
+      unpaid_order_expiry_minutes: 30, invoice_when_paid: false, refund_policy: 'full', refund_amounts: 'due', revision: 2,
+    })
   })
 
   test('when the saved values cannot be read after a conflict it says so and keeps the draft', async ({ page }) => {
