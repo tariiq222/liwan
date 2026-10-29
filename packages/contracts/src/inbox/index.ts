@@ -149,6 +149,8 @@ export const InboxMessageSchema = z.object({
   selected_option: z.object({ id: z.string(), title: z.string() }).strict().nullable(),
   // Sent by the inbox automation (welcome, away, a rule or the survey), not by an agent.
   automated: z.boolean(),
+  // The campaign that sent this message, for the thread label.
+  campaign: InboxRefSchema.nullable(),
   created_at: UtcDateTime,
 }).strict()
 
