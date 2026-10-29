@@ -118,8 +118,8 @@ describe('attention providers', () => {
       const rows = await overdueFollowupAttention.load(fetcher, t)
       expect(api).toHaveBeenCalledWith('/api/v1/meetings/resolutions', expect.objectContaining({ query: { mine: true, state: 'overdue', limit: 20 } }))
       expect(rows).toEqual([
-        { id: 'resolution-1', label: 'توصية 1', to: '/meetings/41', caption: 'اجتماع 1', tone: 'urgent', suggestion: 'meetingsUi.attention.reviewOverdue' },
-        { id: 'resolution-2', label: 'توصية 2', to: '/meetings/42', caption: 'اجتماع 2', tone: 'urgent' },
+        { id: 'resolution-1', label: 'توصية 1', to: '/meetings/41?tab=resolutions', caption: 'اجتماع 1', tone: 'urgent', suggestion: 'meetingsUi.attention.reviewOverdue' },
+        { id: 'resolution-2', label: 'توصية 2', to: '/meetings/42?tab=resolutions', caption: 'اجتماع 2', tone: 'urgent' },
       ])
     })
     it('is empty without overdue resolutions', async () => {

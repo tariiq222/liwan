@@ -5736,6 +5736,23 @@
             ],
             "type": "string"
           },
+          "preset": {
+            "anyOf": [
+              {
+                "enum": [
+                  "single_company",
+                  "central_branches",
+                  "independent_branches",
+                  "group_of_companies"
+                ],
+                "type": "string"
+              },
+              {
+                "const": "custom",
+                "type": "string"
+              }
+            ]
+          },
           "roles": {
             "items": {
               "additionalProperties": false,
@@ -5803,10 +5820,45 @@
         "required": [
           "version",
           "mode",
+          "preset",
           "branches",
           "roles"
         ],
         "type": "object"
+      },
+      "BranchPresetInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "preset": {
+            "enum": [
+              "single_company",
+              "central_branches",
+              "independent_branches",
+              "group_of_companies"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_version",
+          "preset"
+        ],
+        "type": "object"
+      },
+      "BranchPresetSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "single_company",
+          "central_branches",
+          "independent_branches",
+          "group_of_companies"
+        ],
+        "type": "string"
       },
       "BrandingPatchSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -63934,6 +63986,44 @@
           "feature_keys": [],
           "feature_operation": null,
           "handler": "update_policy",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/admin/access/branches/preset": {
+      "patch": {
+        "operationId": "webvue_api.AccessBranchesController.apply_preset.patch",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "apply_preset",
+        "tags": [
+          "webvue_api"
+        ],
+        "x-webvue": {
+          "addon": "webvue_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "AccessBranchesController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "apply_preset",
           "readonly": false,
           "route_type": "json2"
         }

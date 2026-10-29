@@ -12,7 +12,7 @@ const SEGMENT = '[A-Za-z0-9_-]+'
 
 // The control-plane surface the vendor console uses (routes in apps/control-plane/src/http.ts and
 // commercial/http.ts, commercial/routes-b.ts). Plain segments only: dots, percent escapes and backslashes can never match.
-// Commercial routes are listed one by one: payment events, the payment simulator, invitations, renewals and
+// Commercial routes are listed one by one: payment events, the payment simulator, renewals and
 // the customer-facing /v1/customer/** surface are never reachable from the browser.
 const ALLOWED = [
   new RegExp(`^/v1/(audit|catalog|context|operations|overview|targets|tenants|shared/tenants)(/${SEGMENT})*$`),
@@ -22,7 +22,7 @@ const ALLOWED = [
   new RegExp(`^/v1/commercial/orders/${SEGMENT}/(cancel|payment-attempts)$`),
   new RegExp(`^/v1/commercial/catalog/releases/${SEGMENT}/default-bundles$`),
   new RegExp(`^/v1/commercial/invoice-adjustments/${SEGMENT}/refund$`),
-  new RegExp(`^/v1/commercial/customers/${SEGMENT}/trial$`),
+  new RegExp(`^/v1/commercial/customers/${SEGMENT}/(trial|invitations)$`),
   new RegExp(`^/v1/commercial/trials/${SEGMENT}/(extend|end)$`),
   new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}(/(branches|usage))?$`),
   /^\/v1\/admin\/(me|accounts)$/,

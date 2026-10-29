@@ -4055,6 +4055,19 @@
       "handler": "update_policy",
       "no_capability_reason": null
     },
+    "PATCH /api/v1/admin/access/branches/preset": {
+      "addon": "webvue_api",
+      "auth": "user",
+      "capability_keys": [
+        "access.users.assign_roles",
+        "access.roles.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "apply_preset",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/admin/branding": {
       "addon": "webvue_api",
       "auth": "user",
