@@ -1,6 +1,6 @@
 """Which modules an application or bridge isolation run installs, and which it must not.
 
-    python3 -B tools/app_isolation.py matrix apps|bridges     # JSON array, for the ci workflow matrix
+    python3 -B tools/app_isolation.py matrix apps|bridges     # JSON array of job groups, for the ci workflow matrix
     python3 -B tools/app_isolation.py install <module>        # the -i list of that run (a bridge: its two sides)
     python3 -B tools/app_isolation.py tags <module>           # the --test-tags of that run
     python3 -B tools/app_isolation.py foundation              # the foundation top module (webvue_api)
@@ -16,6 +16,10 @@ declared foundation, shared-service and engine dependencies); a bridge run insta
 sides and expects the bridge to auto-install. ``check`` fails when the installed set holds an
 application or bridge that the run did not ask for (for the foundation run: also a shared service), or
 misses the target itself.
+
+``matrix`` packs the runs into ``GROUP_COUNT`` jobs per stage (space-separated modules, split by test
+weight like ``tools/odoo_shards.py``): each job pays its runner, Postgres and Odoo setup once, and the CI
+account runs a limited number of jobs at a time, so one job per module mostly waited in the queue.
 """
 from __future__ import annotations
 
@@ -25,6 +29,8 @@ import json
 import sys
 from pathlib import Path
 
+import odoo_shards
+
 REPO = Path(__file__).resolve().parents[1]
 LAYERS = REPO / 'tools' / 'arch_layers.json'
 ADDONS = REPO / 'odoo-addons'
@@ -32,6 +38,7 @@ FOUNDATION_RANKS = (0, 1, 2)
 SERVICE_RANK = 3
 APP_RANK = 4
 BRIDGE_RANK = 5
+GROUP_COUNT = {'apps': 3, 'bridges': 2}
 
 
 class IsolationError(Exception):
@@ -54,6 +61,12 @@ def foundation(layers: Path = LAYERS) -> list[str]:
 
 def standalone_matrix(layers: Path = LAYERS) -> list[str]:
     return [foundation(layers)[-1], *modules_of_rank(APP_RANK, layers)]
+
+
+def matrix(kind: str, layers: Path = LAYERS, addons: Path = ADDONS) -> list[str]:
+    modules = standalone_matrix(layers) if kind == 'apps' else modules_of_rank(BRIDGE_RANK, layers)
+    groups = odoo_shards.split({module: odoo_shards.weight(module, addons) for module in modules}, GROUP_COUNT[kind])
+    return [' '.join(group) for group in groups if group]
 
 
 def depends(module: str, addons: Path = ADDONS) -> list[str]:
@@ -131,7 +144,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         if args.command == 'matrix':
-            print(json.dumps(standalone_matrix() if args.kind == 'apps' else modules_of_rank(BRIDGE_RANK)))
+            print(json.dumps(matrix(args.kind)))
         elif args.command == 'install':
             print(','.join(install_list(args.module)))
         elif args.command == 'tags':
