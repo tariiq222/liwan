@@ -15,6 +15,8 @@ const hydrated = useHydrated()
 const toast = useToast()
 const { can } = useAccess()
 const manage = computed(() => can('inbox.flows.manage'))
+// The answers are conversation data: the responses page and the count are for whoever may read conversations.
+const readAnswers = computed(() => can('inbox.conversations.read'))
 const { mutate: openPreview, isPending: previewing } = useInboxFlowPreviewLink()
 const { mutate: publish, isPending: publishing } = usePublishInboxFlow()
 const { mutate: deprecate, isPending: deprecating } = useDeprecateInboxFlow()
@@ -61,7 +63,7 @@ function confirmCopy() {
 function confirmDelete() {
   remove(props.flow.id, { onSuccess: () => emit('deleted'), onError: fail })
 }
-defineExpose({ step, ask, confirmPublish, confirmCopy, copyName, replace, canPublish })
+defineExpose({ readAnswers, step, ask, confirmPublish, confirmCopy, copyName, replace, canPublish })
 </script>
 
 <template>
@@ -69,7 +71,7 @@ defineExpose({ step, ask, confirmPublish, confirmCopy, copyName, replace, canPub
     <div class="flex flex-col gap-4">
       <div class="flex flex-wrap items-center gap-2">
         <UButton v-if="manage" type="button" color="neutral" variant="outline" icon="i-lucide-eye" :loading="previewing" :disabled="off || !props.flow.provider_flow_id" :label="t('inbox.flows.lifecycle.preview')" data-testid="inbox-flow-preview-link" @click="preview" />
-        <UButton :to="flowResponsesRoute(props.flow.id)" color="neutral" variant="outline" icon="i-lucide-table" :label="t('inbox.flows.responses.open', { n: props.flow.submission_count })" data-testid="inbox-flow-responses-link" />
+        <UButton v-if="readAnswers" :to="flowResponsesRoute(props.flow.id)" color="neutral" variant="outline" icon="i-lucide-table" :label="t('inbox.flows.responses.open', { n: props.flow.submission_count })" data-testid="inbox-flow-responses-link" />
         <UButton v-if="manage && isDraft && props.flow.editable" type="button" icon="i-lucide-rocket" :disabled="off || !canPublish || step !== null" :label="t('inbox.flows.lifecycle.publish')" data-testid="inbox-flow-publish" @click="ask('publish')" />
         <UButton v-if="manage && props.flow.supported" type="button" color="neutral" variant="outline" icon="i-lucide-copy" :disabled="off || step !== null" :label="t('inbox.flows.lifecycle.copy')" data-testid="inbox-flow-copy" @click="ask('copy')" />
         <UButton v-if="manage && isPublished" type="button" color="warning" variant="outline" icon="i-lucide-archive" :disabled="off || step !== null" :label="t('inbox.flows.lifecycle.deprecate')" data-testid="inbox-flow-deprecate" @click="ask('deprecate')" />

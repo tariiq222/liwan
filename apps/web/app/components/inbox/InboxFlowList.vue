@@ -70,7 +70,7 @@ function clear() {
             <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"><UIcon name="i-lucide-clipboard-list" class="size-5" aria-hidden="true" /></span>
             <span class="min-w-0">
               <bdi class="block truncate text-sm font-medium text-highlighted">{{ flow.name }}</bdi>
-              <span class="block truncate text-xs text-muted">{{ t(`inbox.flows.category.${flow.category}`) }} · <bdi dir="ltr">{{ flow.language }}</bdi> · {{ t('inbox.flows.submissionCount', { n: flow.submission_count }) }}</span>
+              <span class="block truncate text-xs text-muted">{{ t(`inbox.flows.category.${flow.category}`) }} · <bdi dir="ltr">{{ flow.language }}</bdi><template v-if="can('inbox.conversations.read')"> · {{ t('inbox.flows.submissionCount', { n: flow.submission_count }) }}</template></span>
             </span>
           </span>
           <span class="flex flex-wrap items-center gap-2">

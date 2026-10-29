@@ -144,7 +144,7 @@ describe('InboxFlowLifecycle', () => {
       useInboxFlowPreviewLink: () => ({ mutate: vi.fn(), isPending: Vue.ref(false) }), usePublishInboxFlow: () => publish, useDeprecateInboxFlow: () => ({ mutate: vi.fn(), isPending: Vue.ref(false) }),
       useCopyInboxFlow: () => copy, useDeleteInboxFlow: () => ({ mutate: vi.fn(), isPending: Vue.ref(false) }),
     }
-    const mounted = mountScript(url('InboxFlowLifecycle'), bindings, { flow: { ...FLOW, ...flow }, ...extra })
+    const mounted = mountScript(url('InboxFlowLifecycle'), { ...bindings, ...(extra.can ? { useAccess: () => ({ can: extra.can }) } : {}) }, { flow: { ...FLOW, ...flow }, dirty: extra.dirty })
     return { ...mounted, publish, copy }
   }
 
@@ -175,6 +175,12 @@ describe('InboxFlowLifecycle', () => {
     draft.state.ask('copy')
     draft.state.confirmCopy()
     expect(draft.copy.mutate).toHaveBeenCalledWith({ id: 5, body: expect.objectContaining({ replace: false }) }, expect.anything())
+  })
+
+  it('shows the answers link and count only to whoever may read conversations', () => {
+    expect(mountLifecycle().state.readAnswers).toBe(true)
+    const formsOnly = mountLifecycle({}, { can: (capability: string) => capability === 'inbox.flows.manage' })
+    expect(formsOnly.state.readAnswers).toBe(false)
   })
 
   it('does not copy with a blank name', () => {
