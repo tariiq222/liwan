@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { CrmSettings } from '@webvue/contracts'
 import { useCrmSettingsCard } from '@/composables/crm/useCrmSettingsCard'
-import { agreeKey } from '@/composables/crm/useCrmTerms'
+import { agreeKey } from '@/utils/crmTermForms'
 
 const props = defineProps<{ settings: CrmSettings; canEdit: boolean; reloadSettings: () => Promise<CrmSettings> }>()
 const { t, locale } = useI18n()

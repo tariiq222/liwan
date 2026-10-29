@@ -117,7 +117,7 @@ async function submit() {
       <div class="grid gap-4">
         <div class="grid gap-4 sm:grid-cols-2">
           <UFormField :label="t('financeDocuments.payments.amount')" name="finance-payment-amount" required :error="shown.amount === 'required' ? t('financeDocuments.payments.form.amountRequired') : shown.amount === 'exceeds' ? t('financeDocuments.errors.amountExceedsResidual') : undefined">
-            <UInput id="finance-payment-amount" type="number" min="0" step="any" inputmode="decimal" class="w-full tabular-nums" :model-value="draft.amount" :disabled="!hydrated || pending" @update:model-value="value => { draft.amount = String(value ?? ''); amountTouched = true }" />
+            <UInput id="finance-payment-amount" inputmode="decimal" class="w-full tabular-nums" :model-value="draft.amount" :disabled="!hydrated || pending" @update:model-value="value => { draft.amount = String(value ?? ''); amountTouched = true }" />
           </UFormField>
           <UFormField :label="t('financeDocuments.payments.form.date')" name="finance-payment-date" required :error="shown.paymentDate ? t('financeDocuments.payments.form.dateRequired') : undefined">
             <SharedDateField id="finance-payment-date" v-model="draft.paymentDate" :disabled="!hydrated || pending" />

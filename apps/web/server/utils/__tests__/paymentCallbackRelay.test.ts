@@ -33,16 +33,16 @@ describe('gateway callback relay', () => {
     expect(h3.sendRedirect).not.toHaveBeenCalled()
   })
 
-  it('sends a returning payer to the status page of the invoice they were paying', async () => {
+  it.each(['invoice', 'order'])('sends a returning payer to the status page of the %s they were paying', async (kind) => {
     forward.mockResolvedValue(new Response(null, { status: 204 }))
-    await relay('paymob', 'return', { method: 'GET', query: '?success=true', cookie: 'webvue_pay_return=7.tok_en-1' })
-    expect(h3.sendRedirect).toHaveBeenCalledWith(expect.anything(), '/pay/invoice/7/status?access_token=tok_en-1', 303)
+    await relay('paymob', 'return', { method: 'GET', query: '?success=true', cookie: `webvue_pay_return=${kind}.7.tok_en-1` })
+    expect(h3.sendRedirect).toHaveBeenCalledWith(expect.anything(), `/pay/${kind}/7/status?access_token=tok_en-1`, 303)
     expect(h3.deleteCookie).toHaveBeenCalledWith(expect.anything(), 'webvue_pay_return', { path: '/payment' })
   })
 
   it('sends a payer without a valid return cookie to the generic page', async () => {
     forward.mockResolvedValue(new Response(null, { status: 204 }))
-    for (const cookie of [undefined, 'webvue_pay_return=7', 'webvue_pay_return=7.tok%3Bevil']) {
+    for (const cookie of [undefined, 'webvue_pay_return=7', 'webvue_pay_return=7.tok_en', 'webvue_pay_return=refund.7.tok_en', 'webvue_pay_return=order.7.tok%3Bevil']) {
       h3.sendRedirect.mockClear()
       await relay('paymob', 'return', { method: 'GET', cookie })
       expect(h3.sendRedirect).toHaveBeenCalledWith(expect.anything(), '/pay/returned', 303)
@@ -51,7 +51,7 @@ describe('gateway callback relay', () => {
 
   it('still sends the payer to the status page when Odoo refuses the return', async () => {
     forward.mockResolvedValue(new Response('', { status: 403 }))
-    await relay('paymob', 'return', { method: 'GET', cookie: 'webvue_pay_return=7.tok' })
+    await relay('paymob', 'return', { method: 'GET', cookie: 'webvue_pay_return=invoice.7.tok' })
     expect(h3.sendWebResponse).not.toHaveBeenCalled()
     expect(h3.sendRedirect).toHaveBeenCalledWith(expect.anything(), '/pay/invoice/7/status?access_token=tok', 303)
   })

@@ -2,6 +2,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { CrmOpportunity } from '@webvue/contracts'
 import { formatDateTime } from '@webvue/ui/app/utils/formatDate'
+import CrmCallButton from './CrmCallButton.vue'
 import CrmOpportunityBoard from './CrmOpportunityBoard.vue'
 import { useCrmOpportunities } from '@/composables/crm/useOpportunities'
 import { useCrmSourceChoices, useCrmStageChoices } from '@/composables/crm/useCrmLists'
@@ -107,12 +108,15 @@ const statusTone = (item: CrmOpportunity) => (item.status === 'won' ? 'success' 
           <span v-else class="text-sm text-muted" aria-hidden="true">—</span>
         </template>
         <template #mobile-row="{ row }">
-          <NuxtLink :to="recordTo(row)" class="flex min-w-0 flex-col gap-1">
-            <span class="flex min-w-0 items-center gap-2"><span class="min-w-0 truncate font-semibold text-highlighted">{{ row.contact_name }}</span><SharedStatusBadge v-if="row.status !== 'pending'" :tone="statusTone(row)" :label="statusLabel(row)" size="sm" /></span>
-            <span class="truncate text-sm text-muted"><bdi>{{ row.phone }}</bdi></span>
-            <span class="truncate text-sm text-muted">{{ row.stage?.name }} · {{ row.user?.name ?? t('crm.opportunities.tag.pool') }}</span>
-            <time v-if="row.next_call_at" class="text-sm" :class="isCallDue(row, now) ? 'text-warning' : 'text-muted'" :datetime="row.next_call_at">{{ relativeTime(row.next_call_at, now, locale) }}</time>
-          </NuxtLink>
+          <div class="flex items-center gap-3">
+            <NuxtLink :to="recordTo(row)" class="flex min-w-0 flex-1 flex-col gap-1">
+              <span class="flex min-w-0 items-center gap-2"><span class="min-w-0 truncate font-semibold text-highlighted">{{ row.contact_name }}</span><SharedStatusBadge v-if="row.status !== 'pending'" :tone="statusTone(row)" :label="statusLabel(row)" size="sm" /></span>
+              <span class="truncate text-sm text-muted"><bdi>{{ row.phone }}</bdi></span>
+              <span class="truncate text-sm text-muted">{{ row.stage?.name }} · {{ row.user?.name ?? t('crm.opportunities.tag.pool') }}</span>
+              <time v-if="row.next_call_at" class="text-sm" :class="isCallDue(row, now) ? 'text-warning' : 'text-muted'" :datetime="row.next_call_at">{{ relativeTime(row.next_call_at, now, locale) }}</time>
+            </NuxtLink>
+            <CrmCallButton :phone="row.phone" :name="row.contact_name" />
+          </div>
         </template>
       </SharedDataTable>
     </div>

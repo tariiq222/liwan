@@ -84,6 +84,44 @@ class RealManifestClosureTest(unittest.TestCase):
             )
             self.assertEqual(module_closure.install_closure([root], ['webvue_b']), {'webvue_b', 'webvue_glue_base'})
 
+    def test_a_listed_auto_install_joins_on_its_triggers_and_brings_its_other_dependencies(self):
+        with tempfile.TemporaryDirectory() as root:
+            for name, manifest in {
+                'webvue_a': "{'depends': ['project']}",
+                'webvue_b': "{'depends': ['base']}",
+                'webvue_c': "{'depends': ['hr']}",
+                'webvue_glue': "{'depends': ['webvue_a', 'webvue_b', 'webvue_c', 'sale_x'], 'auto_install': ['webvue_a', 'webvue_b']}",
+                'webvue_after': "{'depends': ['webvue_c', 'sale_x'], 'auto_install': True}",
+            }.items():
+                (Path(root) / name).mkdir()
+                (Path(root) / name / '__manifest__.py').write_text(manifest)
+            self.assertEqual(
+                module_closure.install_closure([root], ['webvue_a', 'webvue_b']),
+                {'webvue_a', 'webvue_b', 'webvue_c', 'webvue_glue', 'webvue_after'},
+            )
+            self.assertEqual(module_closure.install_closure([root], ['webvue_a']), {'webvue_a'})
+            (Path(root) / 'webvue_always').mkdir()
+            (Path(root) / 'webvue_always' / '__manifest__.py').write_text("{'depends': ['webvue_b'], 'auto_install': []}")
+            (Path(root) / 'webvue_tuple').mkdir()
+            (Path(root) / 'webvue_tuple' / '__manifest__.py').write_text("{'depends': ['webvue_a', 'webvue_c'], 'auto_install': ('webvue_a',)}")
+            # An empty trigger list installs the module with any selection, as Odoo does (here it brings webvue_b,
+            # which completes the triggers of webvue_glue); a tuple is a trigger list.
+            self.assertEqual(
+                module_closure.install_closure([root], ['webvue_a']),
+                {'webvue_a', 'webvue_always', 'webvue_b', 'webvue_glue', 'webvue_tuple', 'webvue_c', 'webvue_after'},
+            )
+            (Path(root) / 'webvue_bad').mkdir()
+            (Path(root) / 'webvue_bad' / '__manifest__.py').write_text("{'depends': ['webvue_a'], 'auto_install': ['webvue_b']}")
+            with self.assertRaises(module_closure.ClosureError):
+                module_closure.install_closure([root], ['webvue_bad'])
+
+    def test_the_real_payments_bridge_joins_only_with_appointments_and_payments(self):
+        both = module_closure.install_closure([ADDONS], BASE + ['webvue_appointments', 'webvue_payments'])
+        self.assertIn('webvue_appointments_payments', both)
+        for alone in ('webvue_appointments', 'webvue_payments'):
+            with self.subTest(alone=alone):
+                self.assertNotIn('webvue_appointments_payments', module_closure.install_closure([ADDONS], BASE + [alone]))
+
     def test_the_real_meetings_bridge_joins_only_with_both_applications(self):
         shared = {'webvue_core', 'webvue_platform', 'webvue_api', 'webvue_notify', 'webvue_directory'}
         self.assertEqual(

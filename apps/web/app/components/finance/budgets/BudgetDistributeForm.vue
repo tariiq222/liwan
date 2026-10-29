@@ -54,7 +54,7 @@ async function submit() {
         <AccountPicker v-model="draft.accountId" :disabled="pending" :invalid="!!shown?.account" :aria-label="t('financeBudgets.lines.account')" />
       </UFormField>
       <UFormField :label="t('financeBudgets.distribute.amount')" name="finance-budget-distribute-amount" required :error="shown?.amount ? t('financeBudgets.lines.amountInvalid') : undefined">
-        <UInput id="finance-budget-distribute-amount" v-model="draft.amount" type="number" min="0" step="any" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" />
+        <UInput id="finance-budget-distribute-amount" v-model="draft.amount" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" />
       </UFormField>
       <UFormField :label="t('financeBudgets.form.dateFrom')" name="finance-budget-distribute-from">
         <SharedDateField id="finance-budget-distribute-from" v-model="draft.dateFrom" :min-value="budget.date_from" :max-value="draft.dateTo ?? budget.date_to" :disabled="!hydrated || pending" />
@@ -73,7 +73,7 @@ async function submit() {
           <USelect :model-value="share.analyticId ?? undefined" :items="centerItems" class="w-full" :placeholder="t('financeBudgets.distribute.pickCenter')" :disabled="!hydrated || pending" @update:model-value="value => { share.analyticId = Number(value) }" />
         </UFormField>
         <UFormField :label="t('financeBudgets.distribute.percent')" :name="`finance-budget-share-percent-${index}`" :help="shareAmount(draft.amount, share.percent) !== null ? undefined : ' '">
-          <UInput v-model="share.percent" type="number" min="0" max="100" step="any" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" />
+          <UInput v-model="share.percent" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" />
         </UFormField>
         <UButton type="button" color="neutral" variant="ghost" icon="i-lucide-x" :disabled="draft.shares.length <= 2 || pending" :aria-label="t('financeBudgets.distribute.removeShare', { number: index + 1 })" @click="removeShare(index)" />
         <p v-if="shareAmount(draft.amount, share.percent) !== null" class="col-span-3 -mt-1 text-xs text-muted"><Money :amount="shareAmount(draft.amount, share.percent)!" :currency="budget.currency" /></p>
