@@ -8,10 +8,11 @@ import { TENANT_SUSPENDED } from './tenantSuspension'
 // refuses writes with `tenant_read_only` / `feature_not_included` while the session stays valid.
 const AUTHORIZED_403_CODES = new Set(['transition_forbidden', 'status_forbidden', 'tenant_read_only', 'feature_not_included'])
 
-/** A 403 that may mean the session ended, so `me` is worth re-checking; a suspension has its own path. */
+/** A 401, or a 403 that may mean the session ended, so `me` is worth re-checking; a suspension has its own path. */
 export function isPossibleSessionExpiry(error: unknown): boolean {
-  return error instanceof ApiError && error.status === 403 && !AUTHORIZED_403_CODES.has(error.code)
-    && error.code !== TENANT_SUSPENDED
+  if (!(error instanceof ApiError)) return false
+  if (error.status === 401) return true
+  return error.status === 403 && !AUTHORIZED_403_CODES.has(error.code) && error.code !== TENANT_SUSPENDED
 }
 
 /** A signed-in user replaced by another one in the same tab: the first user's cached data must not be shown to the second. */

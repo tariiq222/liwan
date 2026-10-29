@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ApiError } from '@/composables/useApi'
-import { useProject } from '@/composables/useProjects'
+import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState.vue'
+import { useProject, useProjectMissing } from '@/composables/useProjects'
 import { useProjectSchedule } from '@/composables/useProjectSchedule'
 import ScheduleGantt from '@/components/pmo/projects/schedule/ScheduleGantt.vue'
-import { buildScheduleAxis, scheduleColumnSpan, type ScheduleScale } from '@/utils/projectSchedule'
+import { MONTH_DAYS, buildScheduleAxis, scheduleColumnSpan, type ScheduleScale } from '@/utils/projectSchedule'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
@@ -14,6 +14,7 @@ const hydrated = useHydrated()
 const projectId = computed(() => { const value = Number(route.params.id); return Number.isInteger(value) && value > 0 ? value : null })
 const isBaseRoute = computed(() => route.path.replace(/\/+$/, '') === `/projects/${route.params.id}/schedule`)
 const { data: projectData, error: projectError, refetch: refetchProject } = useProject(projectId)
+const notFound = useProjectMissing(projectId)
 const project = computed(() => hydrated.value ? projectData.value : undefined)
 const { data: schedule, isLoading, error, refetch } = useProjectSchedule(projectId)
 const scale = computed<ScheduleScale>({
@@ -30,9 +31,8 @@ const columnSpanLabel = computed(() => {
   const key = `projects.schedule.columnSpan.${span.unit}.${span.form}`
   const label = t(te(key) ? key : `projects.schedule.columnSpan.${span.unit}.other`, { n: span.count })
   // Columns are grouped once the axis unit exceeds one nominal week or month.
-  return axis.unitDays > (scale.value === 'month' ? 30 : 7) ? t('projects.schedule.columnSpanGrouped', { span: label }) : label
+  return axis.unitDays > (scale.value === 'month' ? MONTH_DAYS : 7) ? t('projects.schedule.columnSpanGrouped', { span: label }) : label
 })
-const notFound = computed(() => projectId.value === null || (projectError.value instanceof ApiError && [403, 404].includes(projectError.value.status)))
 function retry() { void Promise.all([refetchProject(), refetch()]) }
 
 const gantt = ref<InstanceType<typeof ScheduleGantt> | null>(null)
@@ -41,8 +41,9 @@ const createTo = computed(() => ({ path: `/projects/${projectId.value}/tasks/new
 </script>
 
 <template>
+  <ProjectNotFoundState v-if="isBaseRoute && notFound" />
   <SharedTimelineFrame
-    v-if="isBaseRoute"
+    v-else-if="isBaseRoute"
     hide-header
     :title="t('projects.schedule.title')"
     :range-label="columnSpanLabel"
@@ -59,8 +60,8 @@ const createTo = computed(() => ({ path: `/projects/${projectId.value}/tasks/new
     <SharedPageState
       :loading="isLoading && !schedule"
       :error="projectError || error"
-      :empty="projectId === null || notFound || (!isLoading && !schedule && !error)"
-      :empty-text="projectId === null || notFound ? t('projects.notFound') : t('projects.schedule.empty')"
+      :empty="!isLoading && !schedule && !error"
+      :empty-text="t('projects.schedule.empty')"
       @retry="retry"
     >
       <ScheduleGantt v-if="schedule" ref="gantt" :schedule="schedule" :scale="scale" :project-start="project?.date_start" :project-end="project?.date_end" />

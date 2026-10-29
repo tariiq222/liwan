@@ -1857,3 +1857,27 @@ msgstr "سياسات المشروع"
 #: model:ir.actions.server,name:webvue_pmo.ir_cron_webvue_deadline_notifications_ir_actions_server
 msgid "webvue: deadline notifications"
 msgstr "ويب فيو: إشعارات المواعيد النهائية"
+
+#. module: webvue_pmo
+#. odoo-python
+#: code:addons/webvue_pmo/models/task_schedule.py:0
+msgid "Schedule start must be on or after the project start date."
+msgstr "يجب أن يكون بدء الجدولة في تاريخ بدء المشروع أو بعده."
+
+#. module: webvue_pmo
+#. odoo-python
+#: code:addons/webvue_pmo/models/task_schedule.py:0
+msgid "Schedule end must be on or before the project end date."
+msgstr "يجب أن يكون انتهاء الجدولة في تاريخ انتهاء المشروع أو قبله."
+
+#. module: webvue_pmo
+#. odoo-python
+#: code:addons/webvue_pmo/models/project_phase.py:0
+msgid "The gate into this phase has warnings that need confirmation."
+msgstr "بوابة هذه المرحلة فيها تحذيرات تحتاج إلى تأكيد."
+
+#. module: webvue_pmo
+#. odoo-python
+#: code:addons/webvue_pmo/models/project_copy.py:0
+msgid "The copy's end date must be on or after its start date."
+msgstr "يجب أن يكون تاريخ انتهاء النسخة في تاريخ بدئها أو بعده."

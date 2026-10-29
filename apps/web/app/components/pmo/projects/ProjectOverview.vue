@@ -15,6 +15,10 @@ const props = defineProps<{ project: ProjectDetail }>()
 const { t, locale } = useI18n()
 const projectBadge = (status: ProjectStatus | null) => { const entry = projectStatusBadge(status); return { tone: entry.tone, label: badgeLabel(entry, status, t) } }
 const route = useRoute()
+const { can } = useAccess()
+// The tasks section is refused without `pmo.tasks.read` and does not exist on an archived project: skip its request and its links.
+const canReadTasks = computed(() => can('pmo.tasks.read'))
+const showTasks = computed(() => canReadTasks.value && props.project.active)
 const projectId = computed(() => props.project.id)
 const milestones = useMilestones(projectId)
 const updates = useProjectUpdates(projectId)
@@ -34,7 +38,7 @@ function dateLabel(value: string | null) {
 
 <template>
   <div data-testid="project-overview" class="@container flex min-w-0 flex-col gap-(--webvue-gap-card)">
-    <ProjectOverviewTasks :project-id="project.id" :return-to="route.fullPath" :gate-action="isGateAction(project.phase_state, project.can_manage)" />
+    <ProjectOverviewTasks v-if="showTasks" :project-id="project.id" :return-to="route.fullPath" :gate-action="isGateAction(project.phase_state, project.can_manage, project.active)" />
 
     <!-- One tile grid: two columns on phones, three from a roomy container; the headline figure spans two cells. -->
     <section class="grid grid-cols-2 gap-(--webvue-gap-card) @2xl:grid-cols-3">
@@ -48,17 +52,18 @@ function dateLabel(value: string | null) {
         :value="project.progress"
         unit="%"
         value-dir="ltr"
-        :hint="t('projects.overview.completedOf', { closed: project.closed_task_count, total: project.task_count })"
+        :hint="canReadTasks ? t('projects.overview.completedOf', { closed: project.closed_task_count, total: project.task_count }) : undefined"
       >
         <SharedProgress class="mt-1.5" size="md" :value="project.progress" :label="t('projects.overview.progress')" />
       </SharedMetricTile>
       <SharedMetricTile
+        v-if="canReadTasks"
         class="max-sm:col-span-2"
         density="compact"
         icon="i-lucide-list-checks"
         :label="t('projects.overview.openTasks')"
         :value="openTaskCount"
-        :to="`/projects/${project.id}/tasks`"
+        :to="project.active ? `/projects/${project.id}/tasks` : undefined"
       />
       <SharedRecordSection v-if="milestones.error.value" variant="panel" data-testid="project-overview-milestone-error" :title="t('projects.overview.nextMilestone')">
         <SharedPageState :error="milestones.error.value" @retry="milestones.refetch()" />

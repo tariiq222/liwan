@@ -29,6 +29,7 @@
     "back": "Back",
     "pageLabel": "Notification center",
     "loadError": "Notifications could not be loaded",
+    "loadError": "Could not load notifications.",
     "retry": "Retry",
     "more": "More",
     "latestFive": "Latest 5 notifications"

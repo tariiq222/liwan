@@ -85,7 +85,7 @@ describe('project finance estimate reference', () => {
     expect(html).not.toContain('projects.finance.planned')
   })
   it('does not turn expenses with unknown budget into a budget dashboard', async () => {
-    const html = await renderView(finance(), { projectId: 12, canManage: true, summary: { ...summary, planned: null, budget_count: 0 } })
+    const html = await renderView(finance(), { projectId: 12, summary: { ...summary, planned: null, budget_count: 0 } })
     expect(html).toContain('projects.finance.budgetUnknown')
     expect(html).toContain('20.00 SAR')
     expect(html).not.toContain('projects.finance.planned')
@@ -163,6 +163,7 @@ describe('RACI task prerequisite navigation', () => {
     const view = load('../../../../pages/projects/[id]/raci.vue', {
       useQueryClient: () => ({}), governanceMatrixFilters: () => ({ taskQ: 'missing', stakeholderQ: '', closed: false, taskPage: 0, stakeholderPage: 0 }),
       useGovernanceTaskPage: query, useProjectStakeholders: query, useProjectRaci: query,
+      useProjectMissing: () => Vue.ref(false), ProjectNotFoundState: {},
       useCreateProjectRaci: mutation, useUpdateProjectRaci: mutation, useDeleteProjectRaci: mutation,
     })
     const html = await renderView(view, {})
