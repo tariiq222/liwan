@@ -61,3 +61,4 @@ export const CrmLostSchema = z.strictObject({ lost_reason_id: z.number().int().p
 export const CrmAssignSchema = z.strictObject({ user_id: z.number().int().positive() })
 
 export type CrmCall = z.infer<typeof CrmCallSchema>
+export type CrmCallList = z.infer<typeof CrmCallListSchema>

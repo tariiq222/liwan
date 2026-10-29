@@ -3,8 +3,11 @@ import type { CrmCall } from '@webvue/contracts'
 import { formatDateTime } from '@webvue/ui/app/utils/formatDate'
 
 // The calls made on one opportunity, newest first: outcome, time, who called, how long and the note.
-defineProps<{ calls: CrmCall[] }>()
+// Older calls load a page at a time: `hasMore` shows the button and `more` asks the page for the next one.
+defineProps<{ calls: CrmCall[]; total: number; hasMore: boolean; loadingMore: boolean }>()
+defineEmits<{ more: [] }>()
 const { t } = useI18n()
+const hydrated = useHydrated()
 </script>
 
 <template>
@@ -21,5 +24,9 @@ const { t } = useI18n()
         <p v-if="call.note" class="whitespace-pre-line break-words text-sm">{{ call.note }}</p>
       </li>
     </ol>
+    <div v-if="calls.length" class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-default pt-3">
+      <p class="text-sm text-muted">{{ t('crm.opportunities.call.logCount', { shown: calls.length, total }) }}</p>
+      <UButton v-if="hasMore" type="button" color="neutral" variant="outline" size="sm" :loading="loadingMore" :disabled="!hydrated || loadingMore" :label="t('crm.opportunities.call.logMore')" data-testid="crm-call-log-more" @click="$emit('more')" />
+    </div>
   </SharedRecordSection>
 </template>
