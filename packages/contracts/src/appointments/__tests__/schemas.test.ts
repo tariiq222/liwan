@@ -8,6 +8,12 @@ import {
   AppointmentCombinationListSchema,
   AppointmentCombinationPatchSchema,
   AppointmentCombinationSchema,
+  AppointmentInvitationSchema,
+  AppointmentPublicBookingQuerySchema,
+  AppointmentPublicBookingSchema,
+  AppointmentPublicScheduleSchema,
+  AppointmentPublicSlotQuerySchema,
+  AppointmentPublicTokenSchema,
   AppointmentResourceCreateSchema,
   AppointmentResourceListSchema,
   AppointmentResourcePatchSchema,
@@ -275,5 +281,44 @@ describe('AppointmentBooking schemas', () => {
     })
     expect(() => AppointmentBookingScheduleSchema.parse({})).toThrow()
     expect(() => AppointmentBookingScheduleSchema.parse({ start: 'tomorrow' })).toThrow()
+  })
+})
+
+const PUBLIC_BOOKING = {
+  id: 7,
+  state: 'confirmed',
+  type_name: 'Consultation',
+  duration_minutes: 30,
+  location: null,
+  start: '2026-10-30T08:00:00Z',
+  stop: '2026-10-30T08:30:00Z',
+  is_modifiable: true,
+  company_name: 'Clinic',
+  requester: { name: 'Sara Ali', phone: '+966500000001', email: null },
+}
+
+describe('public appointment schemas', () => {
+  it('the requester view accepts exactly the whitelist', () => {
+    expect(AppointmentPublicBookingSchema.parse(PUBLIC_BOOKING)).toEqual(PUBLIC_BOOKING)
+    expect(() => AppointmentPublicBookingSchema.parse({ ...PUBLIC_BOOKING, national_id: '1' })).toThrow()
+    expect(() => AppointmentPublicBookingSchema.parse({ ...PUBLIC_BOOKING, requester: { ...PUBLIC_BOOKING.requester, id: 3 } })).toThrow()
+    expect(() => AppointmentPublicBookingSchema.parse({ ...PUBLIC_BOOKING, state: 'draft' })).toThrow()
+  })
+
+  it('every request carries a bounded access token and nothing else unknown', () => {
+    expect(AppointmentPublicBookingQuerySchema.parse({ access_token: 'abc' })).toEqual({ access_token: 'abc' })
+    expect(() => AppointmentPublicBookingQuerySchema.parse({})).toThrow()
+    expect(() => AppointmentPublicTokenSchema.parse({ access_token: 'x'.repeat(129) })).toThrow()
+    expect(() => AppointmentPublicTokenSchema.parse({ access_token: 'abc', combination_id: 1 })).toThrow()
+    expect(AppointmentPublicSlotQuerySchema.parse({ access_token: 'abc', from: '2026-10-30', to: '2026-11-05' }).to).toBe('2026-11-05')
+    expect(() => AppointmentPublicSlotQuerySchema.parse({ access_token: 'abc', from: '2026-10-30', to: '2026-11-05', combination_id: 3 })).toThrow()
+    expect(AppointmentPublicScheduleSchema.parse({ access_token: 'abc', start: '2026-10-30T08:00:00Z' }).start).toBe('2026-10-30T08:00:00Z')
+    expect(() => AppointmentPublicScheduleSchema.parse({ access_token: 'abc', start: '2026-10-30' })).toThrow()
+  })
+
+  it('the invitation is a path to the requester page, never a URL', () => {
+    expect(AppointmentInvitationSchema.parse({ path: '/book/7?access_token=abc-123' }).path).toBe('/book/7?access_token=abc-123')
+    expect(() => AppointmentInvitationSchema.parse({ path: 'https://x.test/book/7?access_token=abc' })).toThrow()
+    expect(() => AppointmentInvitationSchema.parse({ path: '/my/bookings/7?access_token=abc' })).toThrow()
   })
 })
