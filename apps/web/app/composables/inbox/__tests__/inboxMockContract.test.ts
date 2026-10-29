@@ -27,7 +27,7 @@ describe('inbox audit mock', () => {
     expect(InboxConversationDetailSchema.parse(call('GET', '/api/v1/inbox/conversations/1').body).can_reply).toBe(true)
     expect(InboxMessageListSchema.parse(call('GET', '/api/v1/inbox/conversations/1/messages').body).items.length).toBeGreaterThan(0)
     expect(InboxCannedReplyListSchema.parse(call('GET', '/api/v1/inbox/canned-replies').body).total).toBe(2)
-    expect(InboxTemplateListSchema.parse(call('GET', '/api/v1/inbox/channels/1/templates').body).total).toBe(7)
+    expect(InboxTemplateListSchema.parse(call('GET', '/api/v1/inbox/channels/1/templates').body).total).toBe(8)
     expect(InboxTagListSchema.parse(call('GET', '/api/v1/inbox/tags').body).total).toBe(3)
     expect(InboxDepartmentListSchema.parse(call('GET', '/api/v1/inbox/departments').body).total).toBe(2)
     expect(InboxSettingsSchema.parse(call('GET', '/api/v1/settings/inbox').body).visibility_policy).toBe('department')
@@ -139,8 +139,8 @@ describe('inbox audit mock', () => {
 
     it('serves every template in the contract shape and filters by status, category and name', () => {
       const ids = (query: string) => InboxTemplateListSchema.parse(call('GET', `/api/v1/inbox/channels/1/templates?${query}`).body).items.map(item => item.id)
-      expect(ids('')).toEqual([1, 2, 3, 4, 5, 6, 7])
-      expect(ids('status=approved')).toEqual([1, 2, 4, 6, 7])
+      expect(ids('')).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
+      expect(ids('status=approved')).toEqual([1, 2, 4, 6, 7, 8])
       expect(ids('status=rejected')).toEqual([3])
       expect(ids('category=authentication')).toEqual([4])
       expect(ids('q=follow')).toEqual([2])
