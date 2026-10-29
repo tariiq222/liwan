@@ -8,7 +8,6 @@ from odoo.http import request
 
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
-    _pin_current_company,
     api_handler,
     get_record,
     parse_nonneg_int,
@@ -24,6 +23,8 @@ from odoo.addons.webvue_meetings.serializers.meeting import (
 
 MAX_MEETINGS = 200
 MAX_MONTH = 2000
+# wkhtmltopdf states in which the PDF cannot be produced (the others are quality warnings).
+PDF_BROKEN_STATES = ('install', 'broken')
 STATES = {'draft', 'confirmed', 'done', 'cancelled'}
 
 
@@ -47,7 +48,8 @@ def _parse_dt_parts(value, field):
         parsed = datetime.fromisoformat(raw.replace('Z', '+00:00'))
     except ValueError:
         raise ApiError(422, 'invalid', '%s must be a valid ISO datetime' % field, field=field) from None
-    input_day = parsed.date().isoformat() if parsed.tzinfo else None
+    # A non-UTC offset names the caller's own calendar day; a UTC stamp ("Z") says nothing about it, so the user's tz decides.
+    input_day = parsed.date().isoformat() if parsed.tzinfo and parsed.utcoffset() else None
     if parsed.tzinfo:
         parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
     storage = parsed.strftime('%Y-%m-%d %H:%M:%S')
@@ -93,6 +95,21 @@ def _user_calendar_day(value):
     parsed = fields.Datetime.to_datetime(value)
     localized = fields.Datetime.context_timestamp(request.env.user, parsed)
     return localized.date().isoformat()
+
+
+def _render_minutes_pdf(meeting):
+    """The minutes PDF bytes; a missing or failing wkhtmltopdf is the 503 ``pdf_unavailable``."""
+    reports = request.env['ir.actions.report']
+    unavailable = ApiError(503, 'pdf_unavailable', 'the PDF engine is not available, try again later')
+    try:
+        return reports._render_qweb_pdf('webvue_meetings.action_report_meeting_minutes', meeting.ids)[0]
+    except OSError:
+        raise unavailable from None
+    except UserError:
+        # Odoo raises a plain UserError both for a missing and for a failing wkhtmltopdf, so ask its state.
+        if reports.get_wkhtmltopdf_state() in PDF_BROKEN_STATES:
+            raise unavailable from None
+        raise
 
 
 def _validate_schedule_range(start, end):
@@ -542,15 +559,13 @@ class MeetingController(http.Controller):
         return dump_resolution(resolution)
 
     @http.route('/api/v1/meetings/<int:meeting_id>/minutes.pdf', type='http', auth='user', methods=['GET'], csrf=False)
+    @api_handler
     @requires_feature('meetings.enabled', operation='read')
     def minutes_pdf(self, meeting_id, **_):
-        # type='http' without api_handler: the pin still runs before any read.
-        _pin_current_company()
+        # A file download is not JSON, so the route is type='http'; api_handler still answers refusals as JSON.
         require_capabilities('meetings.read')
         meeting = get_record('webvue.meeting.minute', meeting_id)
-        pdf, _type = request.env['ir.actions.report']._render_qweb_pdf(
-            'webvue_meetings.action_report_meeting_minutes', meeting.ids,
-        )
+        pdf = _render_minutes_pdf(meeting)
         filename = '%s.pdf' % (meeting.reference or 'minutes')
         return request.make_response(pdf, headers=[
             ('Content-Type', 'application/pdf'),
