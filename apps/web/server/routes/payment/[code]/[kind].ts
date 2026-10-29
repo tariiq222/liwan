@@ -34,12 +34,12 @@ export default defineEventHandler(async (event) => {
       if (kind === 'webhook') return sendWebResponse(event, response)
       await response.body?.cancel()
       // The payer is back from the gateway page, whatever Odoo made of the return (a refused return
-      // changes nothing): send them to the status page of the invoice they were paying, which reads
-      // the real state from the server. The pay page remembered the invoice before leaving.
+      // changes nothing): send them to the status page of the invoice or order they were paying, which
+      // reads the real state from the server. The pay page remembered the document before leaving.
       const back = decodePayReturn(getCookie(event, PAY_RETURN_COOKIE))
       deleteCookie(event, PAY_RETURN_COOKIE, { path: PAY_RETURN_COOKIE_PATH })
       const target = back
-        ? `/pay/invoice/${back.invoiceId}/status?access_token=${encodeURIComponent(back.accessToken)}`
+        ? `/pay/${back.kind}/${back.id}/status?access_token=${encodeURIComponent(back.accessToken)}`
         : '/pay/returned'
       return sendRedirect(event, target, 303)
     })

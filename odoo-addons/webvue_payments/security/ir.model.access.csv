@@ -1,2 +1,3 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_payment_provider_payments_manager,payment.provider.payments.manager,payment.model_payment_provider,group_cap_payments_providers_manage,1,1,0,0
+access_webvue_payments_settings_manager,webvue.payments.settings.manager,model_webvue_payments_settings,group_cap_payments_settings_manage,1,1,1,0

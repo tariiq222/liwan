@@ -2,7 +2,10 @@ import {
   decodePayReturn,
   encodePayReturn,
   PayableInvoiceSchema,
+  PayableOrderSchema,
   PaymentLinkSchema,
+  PaymentSettingsSchema,
+  PaymentSettingsUpdateSchema,
   PaymentRedirectSchema,
   PaymentStartSchema,
 } from '../index'
@@ -30,6 +33,17 @@ describe('PayableInvoiceSchema', () => {
   })
 })
 
+describe('PayableOrderSchema', () => {
+  it('names when an unpaid order expires instead of a due date', () => {
+    const { due_date: _due, ...rest } = INVOICE
+    const order = { ...rest, number: 'S00012', expires_at: '2026-10-28T11:00:00Z' }
+    expect(PayableOrderSchema.parse(order)).toEqual(order)
+    expect(PayableOrderSchema.parse({ ...order, expires_at: null }).expires_at).toBeNull()
+    expect(() => PayableOrderSchema.parse({ ...order, due_date: '2026-11-27' })).toThrow()
+    expect(() => PayableOrderSchema.parse({ ...order, expires_at: '2026-10-28' })).toThrow()
+  })
+})
+
 describe('PaymentStartSchema', () => {
   it('accepts only the token and the chosen option, never an amount', () => {
     const body = { access_token: 'tok', provider_id: 14, payment_method_id: 3 }
@@ -51,15 +65,30 @@ describe('PaymentRedirectSchema', () => {
 describe('PaymentLinkSchema', () => {
   it('is a pay-page path with its access token, never an absolute URL', () => {
     expect(PaymentLinkSchema.parse({ path: '/pay/invoice/11?access_token=ab-12' }).path).toBe('/pay/invoice/11?access_token=ab-12')
+    expect(PaymentLinkSchema.parse({ path: '/pay/order/12?access_token=cd' }).path).toBe('/pay/order/12?access_token=cd')
+    expect(() => PaymentLinkSchema.parse({ path: '/pay/refund/11?access_token=x' })).toThrow()
     expect(() => PaymentLinkSchema.parse({ path: 'https://evil.example/pay/invoice/11?access_token=x' })).toThrow()
     expect(() => PaymentLinkSchema.parse({ path: '/my/invoices/11?access_token=x' })).toThrow()
   })
 })
 
+describe('PaymentSettingsSchema', () => {
+  it('bounds the expiry and accepts partial changes on a revision', () => {
+    const settings = { unpaid_order_expiry_minutes: 60, invoice_when_paid: true, revision: 0 }
+    expect(PaymentSettingsSchema.parse(settings)).toEqual(settings)
+    expect(() => PaymentSettingsSchema.parse({ ...settings, unpaid_order_expiry_minutes: 4 })).toThrow()
+    expect(PaymentSettingsUpdateSchema.parse({ revision: 1, invoice_when_paid: false })).toEqual({ revision: 1, invoice_when_paid: false })
+    expect(() => PaymentSettingsUpdateSchema.parse({ invoice_when_paid: false })).toThrow()
+    expect(() => PaymentSettingsUpdateSchema.parse({ revision: 1, unpaid_order_expiry_minutes: 1441 })).toThrow()
+  })
+})
+
 describe('pay return cookie', () => {
-  it('round-trips an invoice id and token and refuses anything else', () => {
-    expect(decodePayReturn(encodePayReturn(11, 'ab-12_C'))).toEqual({ invoiceId: 11, accessToken: 'ab-12_C' })
-    for (const value of [undefined, '', '11', '11.', 'x.tok', '11.tok;evil', '11.tok/../', `11.${'a'.repeat(129)}`]) {
+  it('round-trips a document and token and refuses anything else', () => {
+    for (const back of [{ kind: 'invoice', id: 11, accessToken: 'ab-12_C' }, { kind: 'order', id: 12, accessToken: 'tok' }] as const) {
+      expect(decodePayReturn(encodePayReturn(back))).toEqual(back)
+    }
+    for (const value of [undefined, '', '11.tok', 'invoice.11', 'invoice.11.', 'refund.11.tok', 'invoice.x.tok', 'order.11.tok;evil', 'order.11.tok/../', `order.11.${'a'.repeat(129)}`]) {
       expect(decodePayReturn(value)).toBeNull()
     }
   })

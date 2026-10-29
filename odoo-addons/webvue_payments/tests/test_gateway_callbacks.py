@@ -18,18 +18,7 @@ class TestGatewayCallbacks(WebVuePayerCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        Transaction = cls.env['payment.transaction']
-        cls.tx = Transaction.create({
-            'provider_id': cls.paymob.id,
-            'payment_method_id': cls.card.id,
-            'reference': Transaction._compute_reference('paymob', invoice_ids=[Command.set(cls.invoice.ids)]),
-            'amount': 115.0,
-            'currency_id': cls.env.ref('base.SAR').id,
-            'partner_id': cls.customer.id,
-            'operation': 'online_redirect',
-            'invoice_ids': [Command.set(cls.invoice.ids)],
-            'provider_reference': '987654',
-        })
+        cls.tx = cls.paymob_transaction(115.0, invoice_ids=[Command.set(cls.invoice.ids)])
 
     def payload(self, amount_cents=11500):
         return {'type': 'TRANSACTION', 'obj': {

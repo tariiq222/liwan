@@ -3,7 +3,8 @@ from odoo import api, models
 
 PROVIDERS_MANAGE = 'payments.providers.manage'
 LINKS_MANAGE = 'payments.links.manage'
-PERMISSIONS = frozenset({PROVIDERS_MANAGE, LINKS_MANAGE})
+SETTINGS_MANAGE = 'payments.settings.manage'
+PERMISSIONS = frozenset({PROVIDERS_MANAGE, LINKS_MANAGE, SETTINGS_MANAGE})
 
 
 class WebVuePaymentsAccessService(models.AbstractModel):

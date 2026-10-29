@@ -2,11 +2,13 @@
 """Installation closure of a selected WebVue module set, read from real manifests.
 
 Odoo installs a module's dependencies and any ``auto_install`` module whose
-dependencies are all installed. The managed-tenant tooling therefore compares
-what is installed with this closure, not with the raw selection. Odoo addons
-(project, hr, mail ...) are not resolvable here: an ``auto_install`` WebVue
-module joins only when each of its Odoo dependencies is ``base`` or a direct
-dependency of some module already in the closure.
+dependencies are all installed; a module whose ``auto_install`` is a list of some
+of its dependencies is installed as soon as those are, with the rest of its
+dependencies. The managed-tenant tooling therefore compares what is installed
+with this closure, not with the raw selection. Odoo addons (project, hr, mail ...)
+are not resolvable here: an ``auto_install`` WebVue module joins only when each of
+its Odoo trigger dependencies is ``base`` or a direct dependency of some module
+already in the closure.
 """
 from __future__ import annotations
 
@@ -26,7 +28,12 @@ def _owned(name):
 
 
 def _read_manifest(addons_paths, module):
-    """``(webvue dependencies, other dependencies, auto_install)`` of ``module``."""
+    """``(webvue dependencies, other dependencies, auto_install)`` of ``module``.
+
+    ``auto_install`` is None (never) or the set of dependencies that trigger it: ``True`` means all of
+    them and an iterable names some of them, as Odoo reads a manifest (``odoo/modules/module.py``).
+    An empty set means always.
+    """
     for directory in addons_paths:
         manifest = Path(directory) / module / '__manifest__.py'
         if manifest.is_file():
@@ -38,9 +45,15 @@ def _read_manifest(addons_paths, module):
                 raise ClosureError(module) from None
             if not isinstance(depends, list) or any(type(dep) is not str for dep in depends):
                 raise ClosureError(module)
+            if isinstance(auto, (list, tuple, set, frozenset)):
+                triggers = set(auto)
+                if not triggers <= set(depends):
+                    raise ClosureError(module)
+            else:
+                triggers = set(depends) if auto else None
             owned = [dep for dep in depends if _owned(dep)]
             other = [dep for dep in depends if not _owned(dep)]
-            return owned, other, bool(auto)
+            return owned, other, triggers
     raise ClosureError(module)
 
 
@@ -48,18 +61,20 @@ def install_closure(addons_paths, selected):
     """Return the set of WebVue modules Odoo installs for ``selected``."""
     paths = [addons_paths] if isinstance(addons_paths, (str, Path)) else list(addons_paths)
     manifests = {}
-    pending = list(selected)
-    while pending:
-        name = pending.pop()
-        if name in manifests:
-            continue
-        manifests[name] = _read_manifest(paths, name)
-        pending.extend(manifests[name][0])
-    closure = set(manifests)
     # Odoo addons the closure requires directly; Odoo installs them with it.
     required = {'base'}
-    for _owned_deps, other_deps, _auto in manifests.values():
-        required.update(other_deps)
+
+    def resolve(names):
+        pending = list(names)
+        while pending:
+            name = pending.pop()
+            if name in manifests:
+                continue
+            manifests[name] = _read_manifest(paths, name)
+            pending.extend(manifests[name][0])
+            required.update(manifests[name][1])
+
+    resolve(selected)
     # Auto-install candidates: every owned module present in the addons paths.
     candidates = {}
     for directory in paths:
@@ -73,21 +88,16 @@ def install_closure(addons_paths, selected):
     while changed:
         changed = False
         for name in sorted(candidates):
-            if name in closure:
+            if name in manifests:
                 continue
             try:
-                owned_deps, other_deps, auto = _read_manifest(paths, name)
+                _owned_deps, _other_deps, auto = _read_manifest(paths, name)
             except ClosureError:
                 continue
-            if (
-                auto and (owned_deps or other_deps)
-                and all(dep in closure for dep in owned_deps)
-                and all(dep in required for dep in other_deps)
-            ):
-                closure.add(name)
-                required.update(other_deps)
+            if auto is not None and all(dep in manifests if _owned(dep) else dep in required for dep in auto):
+                resolve([name])
                 changed = True
-    return closure
+    return set(manifests)
 
 
 def install_order(addons_paths, selected):
