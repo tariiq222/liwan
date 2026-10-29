@@ -154,6 +154,8 @@ class HrAssetsEquipmentController(http.Controller):
         equipment = scoped_equipment(equipment_id, active_test=False)
         payload.pop('equipment_id', None)
         vals = parse_archive(payload)
+        if equipment.employee_id:
+            raise ApiError(422, 'invalid', 'this asset is still assigned; return it first', field='employee_id')
         equipment.check_access('write')
         equipment.write({'active': False, **vals})
         return dump_equipment(equipment)
