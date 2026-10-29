@@ -199,3 +199,25 @@ class TestWebVueAccessMigration(TransactionCase):
         self.assertEqual(
             params.get_param('webvue_core.legacy_access_admin_ids'), '[]',
         )
+
+    def test_existing_custom_roles_gain_new_dependencies(self):
+        # A custom role saved before access.users.read depended on access.roles.read (#173).
+        Permission = self.env['webvue.access.permission']
+        users_read = Permission.search([('key', '=', 'access.users.read')])
+        roles_read = Permission.search([('key', '=', 'access.roles.read')])
+        role = self.env['webvue.access.role'].create({
+            'name_ar': 'قارئ قديم', 'type': 'custom', 'company_id': self.env.company.id,
+            'permission_ids': [Command.set((users_read | roles_read).ids)],
+        })
+        # The saved state of an older release: the constraint now refuses it, so it is written directly.
+        self.env.cr.execute(
+            'DELETE FROM webvue_access_role_permission_rel WHERE role_id = %s AND permission_id = %s',
+            [role.id, roles_read.id],
+        )
+        role.invalidate_recordset(['permission_ids'])
+        self.assertNotIn(roles_read, role.permission_ids)
+        user = new_test_user(self.env, login='old_users_reader', groups='base.group_user')
+        self.env['webvue.access.assignment'].create({'user_id': user.id, 'role_id': role.id, 'company_id': self.env.company.id})
+        self.env['webvue.access.service']._webvue_configure_permission_dependencies()
+        self.assertIn(roles_read, role.permission_ids)
+        self.assertTrue(user.has_group(roles_read.group_xmlid))
