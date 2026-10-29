@@ -38,7 +38,7 @@ CREATE_FIELDS = ('type_id', 'combination_id', 'requester_id', 'requester', 'nati
 REQUESTER_FIELDS = ('name', 'phone', 'email')
 
 
-def _timestamp(value):
+def timestamp(value):
     return value.strftime(UTC_FORMAT) if value else None
 
 
@@ -50,8 +50,8 @@ def dump_booking_row(booking):
         'type_id': booking.type_id.id,
         'type_name': booking.type_id.name,
         'combination_id': booking.combination_id.id or None,
-        'start': _timestamp(booking.start),
-        'stop': _timestamp(booking.stop),
+        'start': timestamp(booking.start),
+        'stop': timestamp(booking.stop),
         'duration_minutes': round(booking.duration * MINUTES_PER_HOUR),
         'requester_name': booking.partner_ids[:1].name or '',
     }

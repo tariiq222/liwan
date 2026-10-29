@@ -1,7 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from datetime import UTC, datetime, time, timedelta
-
-import pytz
+from datetime import UTC, datetime
 
 from odoo import http
 from odoo.http import request
@@ -21,8 +19,8 @@ from odoo.addons.webvue_appointments.serializers.appointment_settings import (
     dump_settings,
 )
 from odoo.addons.webvue_appointments.serializers.appointment_slot import (
-    dump_slot,
-    parse_slot_query,
+    parse_type_slot_query,
+    type_slot_items,
 )
 
 
@@ -39,24 +37,8 @@ class AppointmentSlotController(http.Controller):
         if not booking_type.active:
             raise ApiError(422, 'invalid', 'an archived type has no slots', field='type_id')
         settings = dump_settings(request.env['webvue.appointment.settings']._webvue_current())
-        tz = pytz.timezone(booking_type.resource_calendar_id.tz or 'UTC')
         now = datetime.now(UTC)
-        first, last, combination_id = parse_slot_query(
-            request.httprequest.args, now.astimezone(tz).date(), settings['horizon_days'],
-        )
+        first, last, combination_id = parse_type_slot_query(booking_type, request.httprequest.args, settings, now)
         combination = offered_combination(booking_type, combination_id)
-        # The engine's public slot search on an unsaved booking, anchored to the type's calendar days.
-        booking = request.env['resource.booking'].new({
-            'type_id': booking_type.id, 'combination_id': combination.id or False,
-        })
-        slots = booking._get_available_slots(
-            tz.localize(datetime.combine(first, time.min)),
-            tz.localize(datetime.combine(last + timedelta(days=1), time.min)),
-        )
-        # The same bounds parse_start applies on create and schedule, so every listed slot is bookable.
-        earliest = now + timedelta(hours=settings['min_notice_hours'])
-        latest = now + timedelta(days=settings['horizon_days'])
-        duration = timedelta(hours=booking.duration)
-        starts = sorted(start.astimezone(UTC) for day_slots in slots.values() for start in day_slots)
-        items = [dump_slot(start, start + duration) for start in starts if earliest <= start <= latest]
+        items = type_slot_items(booking_type, combination, first, last, settings, now)
         return {'items': items, 'total': len(items)}
