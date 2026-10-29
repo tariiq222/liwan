@@ -5,6 +5,7 @@ import * as Vue from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createInboxDrafts, emptyInboxDraft } from '../../../composables/inbox/inboxDrafts'
 import { INBOX_CAPTION_MAX, INBOX_UPLOAD_ACCEPT, inboxAcceptsCaption, inboxFileSize, inboxUploadProblem } from '../../../composables/inbox/inboxAttachments'
+import { buildCommerceContent, emptyCommerceDraft } from '../../../composables/inbox/inboxCommerce'
 import { buildInteractive, emptyInteractiveDraft } from '../../../composables/inbox/inboxInteractive'
 import { buildLocation, emptyLocationDraft } from '../../../composables/inbox/inboxLocation'
 import { TEMPLATE_CATEGORY_TONE, templatePreview } from '../../../composables/inbox/inboxTemplate'
@@ -40,7 +41,7 @@ function mountComposer(endsAt: string | null, store = new Map<string, string>(),
     onMounted: (fn: () => void) => mounted.push(fn), onBeforeUnmount: (fn: () => void) => unmounting.push(fn),
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useToast: () => ({ add: vi.fn() }), useMe: () => ({ me: Vue.ref({ id: 3 }) }),
     ApiError, useInboxTyping: () => notifyTyping, useUploadInboxFile: () => ({ mutateAsync: uploadInboxFile }), INBOX_CAPTION_MAX, INBOX_UPLOAD_ACCEPT, inboxAcceptsCaption, inboxFileSize, inboxUploadProblem, emptyInboxDraft,
-    buildInteractive, emptyInteractiveDraft, buildLocation, emptyLocationDraft,
+    buildCommerceContent, emptyCommerceDraft, buildInteractive, emptyInteractiveDraft, buildLocation, emptyLocationDraft,
     inboxDrafts, cannedSuggestions, replyWindowOpen, templatePreview, TEMPLATE_CATEGORY_TONE, HEADER_MEDIA_ACCEPT, buildTemplateReply, dynamicButtons, headerInput, templateReplyReady,
     useSendInboxReply: () => ({ mutateAsync: sendReply, isPending: Vue.ref(false) }), useSendInboxNote: () => ({ mutateAsync: sendNote, isPending: Vue.ref(false) }),
     useInboxCannedReplies: () => ({ data: Vue.ref({ items: [], total: 0 }) }),
@@ -216,6 +217,19 @@ describe('InboxComposer', () => {
     expect(sendReply).toHaveBeenCalledWith({ interactive: expect.objectContaining({ type: 'buttons', body: 'هل تؤكد؟' }) })
     await Vue.nextTick()
     expect(inboxDrafts.get(3, 5)).toEqual(emptyInboxDraft())
+  })
+
+  it('sends a product list only when it is complete, and clears the panel afterwards', async () => {
+    const { state, sendReply } = mountComposer('2026-10-28T20:00:00Z')
+    state.togglePanel('products')
+    expect(state.canSend.value).toBe(false)
+    Object.assign(state.commerce.value, { header: 'عروضنا', body: 'اختر ما يناسبك' })
+    // The stubbed translator returns the key, which is longer than Meta's 24 characters, so the section is titled here.
+    state.commerce.value.sections[0] = { title: 'منتجات', ids: ['wv-1', 'wv-2'] }
+    expect(state.canSend.value).toBe(true)
+    await state.submit()
+    expect(sendReply).toHaveBeenCalledWith({ commerce: expect.objectContaining({ type: 'product_list', header: 'عروضنا', sections: [{ title: 'منتجات', product_retailer_ids: ['wv-1', 'wv-2'] }] }) })
+    expect(state.panel.value).toBeNull()
   })
 
   it('restores a stored quoted message and an open panel on the next mount', async () => {

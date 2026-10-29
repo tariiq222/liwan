@@ -6,6 +6,7 @@ Every call has a fixed timeout and never logs or returns the access token.
 import hashlib
 import hmac
 import json
+import math
 import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
@@ -89,6 +90,9 @@ PRICING_QUERY = (
     'pricing_analytics.start({start}).end({end}).granularity(DAILY).metric_types(["COST","VOLUME"])'
     '.dimensions(["PRICING_CATEGORY","PRICING_TYPE","COUNTRY"]).phone_numbers(["{number}"])'
 )
+CATALOG_ID = re.compile(r'^\d{5,32}$')
+MAX_RETAILER_ID = 100
+MAX_ORDER_TEXT = 4096
 
 
 @dataclass(frozen=True)
@@ -113,6 +117,29 @@ class Option:
 
 
 @dataclass(frozen=True)
+class OrderItem:
+    retailer_id: str
+    quantity: int
+    item_price: float
+    currency: str
+
+
+@dataclass(frozen=True)
+class InboundOrder:
+    """A customer's cart: the catalog it was made from, the customer's note and its lines."""
+    catalog_id: str
+    text: str | None
+    items: tuple
+
+
+@dataclass(frozen=True)
+class ReferredProduct:
+    """The catalog product a customer's text was sent from ("Message business" on a product)."""
+    catalog_id: str
+    retailer_id: str
+
+
+@dataclass(frozen=True)
 class InboundMessage:
     provider_id: str
     wa_id: str
@@ -125,6 +152,8 @@ class InboundMessage:
     context_id: str | None
     location: Location | None
     option: Option | None
+    order: InboundOrder | None = None
+    referred_product: ReferredProduct | None = None
     flow_response: 'FlowResponse | None' = None
 
 
@@ -299,9 +328,11 @@ class Media:
 class ProviderError(Exception):
     """The provider refused or could not be reached; `retryable` says whether a later attempt may succeed."""
 
-    def __init__(self, message, retryable):
+    def __init__(self, message, retryable, code=None):
         super().__init__(message)
         self.retryable = retryable
+        # Meta's numeric error code (for example 200: a missing permission), when the answer carried one.
+        self.code = code
 
 
 def verify_signature(app_secret, raw, header):
@@ -361,8 +392,47 @@ def _option(kind, block):
     return Option(str(reply.get('id') or ''), reply.get('title') or '') if reply else None
 
 
+def _catalog_id(value):
+    text = _text(value)
+    return text if text and CATALOG_ID.match(text) else None
+
+
+def _retailer_id(value):
+    return value if isinstance(value, str) and 0 < len(value) <= MAX_RETAILER_ID else None
+
+
+def _order_item(raw):
+    """One cart line, or None when a part is missing or out of range (the whole cart is then unsupported)."""
+    retailer_id, quantity, currency = _retailer_id(raw.get('product_retailer_id')), raw.get('quantity'), raw.get('currency')
+    price = _number(raw.get('item_price'))
+    quantity_ok = isinstance(quantity, int) and not isinstance(quantity, bool) and quantity >= 1
+    if not (retailer_id and quantity_ok and isinstance(currency, str) and CURRENCY.match(currency)):
+        return None
+    if price is None or not math.isfinite(price) or price < 0:
+        return None
+    return OrderItem(retailer_id, quantity, price, currency)
+
+
+def _order(block):
+    """The typed cart of an `order` message, or None when it is malformed."""
+    catalog_id, raw_items = _catalog_id(block.get('catalog_id')), block.get('product_items')
+    if not catalog_id or not isinstance(raw_items, list) or not raw_items or not all(isinstance(item, dict) for item in raw_items):
+        return None
+    items = tuple(_order_item(item) for item in raw_items)
+    if None in items:
+        return None
+    text = block.get('text')
+    return InboundOrder(catalog_id, text[:MAX_ORDER_TEXT] if isinstance(text, str) and text else None, items)
+
+
+def _referred_product(raw):
+    block = _dict(_dict(raw.get('context')).get('referred_product'))
+    catalog_id, retailer_id = _catalog_id(block.get('catalog_id')), _retailer_id(block.get('product_retailer_id'))
+    return ReferredProduct(catalog_id, retailer_id) if catalog_id and retailer_id else None
+
+
 def _kind(wire_kind):
-    if wire_kind in MEDIA_KINDS or wire_kind in TEXT_KINDS:
+    if wire_kind in MEDIA_KINDS or wire_kind in TEXT_KINDS or wire_kind == 'order':
         return wire_kind
     return 'interactive' if wire_kind in REPLY_TYPES else 'unsupported'
 
@@ -405,19 +475,24 @@ def _inbound(raw, names):
     option = _option(wire_kind, block) if kind == 'interactive' else None
     if kind == 'location' and not location:
         kind = 'unsupported'
+    order = _order(block) if kind == 'order' else None
+    if kind == 'order' and not order:
+        kind = 'unsupported'
     return InboundMessage(
         provider_id=raw['id'],
         wa_id=raw['from'],
         profile_name=names.get(raw['from']),
         sent_at=_timestamp(raw['timestamp']),
         kind=kind,
-        body=_body(kind, raw, block, location, option) or f'[{kind}]',
+        body=(order.text if order else _body(kind, raw, block, location, option)) or f'[{kind}]',
         media_id=block.get('id') if media else None,
         filename=block.get('filename') if media else None,
         context_id=_dict(raw.get('context')).get('id'),
         location=location,
         option=option,
         flow_response=flow_response,
+        order=order,
+        referred_product=_referred_product(raw) if kind == 'text' else None,
     )
 
 
@@ -629,6 +704,14 @@ def _error_text(response):
     return str(message)[:ERROR_TEXT_LENGTH]
 
 
+def _error_code(response):
+    try:
+        code = response.json()['error']['code']
+    except (ValueError, KeyError, TypeError):
+        return None
+    return code if isinstance(code, int) and not isinstance(code, bool) else None
+
+
 def _call(method, url, credentials, timeout=TIMEOUT_SECONDS, scheme='Bearer', headers=None, **kwargs):
     headers = {'Authorization': f'{scheme} {credentials.access_token}', **(headers or {})}
     try:
@@ -637,7 +720,7 @@ def _call(method, url, credentials, timeout=TIMEOUT_SECONDS, scheme='Bearer', he
         raise ProviderError(f'provider unreachable: {type(error).__name__}', retryable=True) from None
     if response.status_code >= 400:
         retryable = response.status_code >= 500 or response.status_code == 429
-        raise ProviderError(_error_text(response), retryable=retryable)
+        raise ProviderError(_error_text(response), retryable=retryable, code=_error_code(response))
     return response
 
 
@@ -655,6 +738,14 @@ def _json_dict(response):
 
 def _graph(path):
     return f'{GRAPH_BASE}/{GRAPH_API_VERSION}/{path}'
+
+
+def graph_request(method, path, credentials, timeout=TIMEOUT_SECONDS, **kwargs):
+    """A Graph API call to `path` (below the versioned root) answered as its JSON object.
+
+    The one entry point of other adapters over the same token-free logging and `ProviderError` mapping.
+    """
+    return _json_dict(_call(method, _graph(path), credentials, timeout=timeout, **kwargs))
 
 
 def _send(credentials, to, kind, content, context_id=None):
@@ -770,6 +861,30 @@ def send_interactive(credentials, to, interactive, context_id=None, flow=None):
     if interactive['footer']:
         content['footer'] = {'text': interactive['footer']}
     return _send(credentials, to, 'interactive', content, context_id)
+
+
+def _commerce_action(content, catalog_id):
+    if content['type'] == 'product':
+        return {'catalog_id': catalog_id, 'product_retailer_id': content['product_retailer_id']}
+    if content['type'] == 'product_list':
+        return {'catalog_id': catalog_id, 'sections': [
+            {'title': section['title'], 'product_items': [{'product_retailer_id': id_} for id_ in section['product_retailer_ids']]}
+            for section in content['sections']
+        ]}
+    thumbnail = content['thumbnail_product_retailer_id']
+    return {'name': 'catalog_message', **({'parameters': {'thumbnail_product_retailer_id': thumbnail}} if thumbnail else {})}
+
+
+def send_commerce(credentials, to, content, catalog_id, context_id=None):
+    """Send a product, product list or catalog message given as the commerce content of the inbox contract."""
+    interactive = {'type': content['type'], 'action': _commerce_action(content, catalog_id)}
+    if content['body']:
+        interactive['body'] = {'text': content['body']}
+    if content.get('header'):
+        interactive['header'] = {'type': 'text', 'text': content['header']}
+    if content['footer']:
+        interactive['footer'] = {'text': content['footer']}
+    return _send(credentials, to, 'interactive', interactive, context_id)
 
 
 def send_reaction(credentials, to, message_id, emoji):

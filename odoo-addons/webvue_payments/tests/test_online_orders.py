@@ -145,6 +145,10 @@ class TestOnlineOrders(WebVueOrderCase):
         self.assertEqual((summary['status'], summary['amount_to_refund'], summary['amount_due']), ('cancelled', 115.0, 0.0))
         self.assertEqual(service._webvue_summary(self.online_order())['amount_to_refund'], 0.0)
 
+    def test_the_summary_carries_the_order_number(self):
+        order = self.online_order()
+        self.assertEqual(self.env['webvue.payments.service']._webvue_summary(order)['reference'], order.name)
+
     def test_the_pay_link_of_an_order_is_its_pay_page_until_it_is_paid(self):
         order = self.online_order()
         service = self.env['webvue.payments.service']

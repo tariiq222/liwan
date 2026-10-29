@@ -8,7 +8,8 @@
     "selectDescription": "Pick a conversation from the list to read and reply.",
     "nav": {
       "conversations": "Conversations",
-      "reports": "Reports"
+      "reports": "Reports",
+      "orders": "Orders"
     },
     "states": {
       "open": "Open",
@@ -369,7 +370,11 @@
       "interactive": "Interactive message",
       "template": "Template",
       "unsupported": "Unsupported",
-      "flow_response": "Form answer"
+      "flow_response": "Form answer",
+      "product": "Product",
+      "product_list": "Product list",
+      "catalog_message": "Catalog",
+      "order": "Order cart"
     },
     "templates": {
       "title": "Message templates",
@@ -622,7 +627,8 @@
           "exact": "Matches exactly",
           "starts_with": "Starts with",
           "option": "Customer chose an option",
-          "flow": "Send a form"
+          "flow": "Send a form",
+          "order": "A cart from the customer"
         },
         "keywords": "Keywords",
         "keywordsHint": "Press Enter after each word or phrase. Case, diacritics and letter forms do not matter.",
@@ -1497,6 +1503,254 @@
         "business": "Business account",
         "about": "About",
         "noAbout": "No about text yet"
+      }
+    },
+    "catalog": {
+      "title": "Catalog",
+      "empty": "No catalog connected",
+      "emptyDescription": "Connect a WhatsApp catalog to show your products to customers and receive carts in the conversation.",
+      "neverSynced": "Not synced yet",
+      "syncStarted": "Sync with Meta started",
+      "wabaLine": "WhatsApp Business account {id}",
+      "states": {
+        "connected": "Connected",
+        "error": "Error"
+      },
+      "syncNow": "Sync now",
+      "open": "Open catalog",
+      "lastError": "Last error",
+      "counts": {
+        "items": "Products",
+        "synced": "Synced",
+        "pending": "Pending",
+        "error": "With errors",
+        "rejected": "Rejected"
+      },
+      "lastSync": "Last sync: {time}",
+      "numbers": "Account numbers",
+      "cartEnabled": "Let customers use the cart",
+      "catalogVisible": "Show the catalog on the business profile",
+      "brand": "Brand name",
+      "brandHint": "Shown with every product in WhatsApp.",
+      "defaultLink": "Default product link",
+      "defaultLinkHint": "An https link Meta requires for each product. Leave empty to use the click-to-chat link of the WhatsApp number.",
+      "pricesIncludeTax": "Prices include VAT",
+      "pricesIncludeTaxHint": "The catalog shows the price after VAT.",
+      "defaults": "Catalog defaults",
+      "defaultsHint": "They apply to every product, and a change sends the products to Meta again.",
+      "dangerTitle": "Danger zone",
+      "deleteHint": "Disconnecting the catalog from WebVue does not delete its products from Meta, and existing orders stay.",
+      "delete": "Disconnect catalog",
+      "deleteTitle": "Disconnect the catalog {name}?",
+      "deleteDescription": "The team cannot send its products until you connect it again.",
+      "availability": {
+        "in_stock": "In stock",
+        "out_of_stock": "Out of stock"
+      },
+      "sync": {
+        "pending": "Pending",
+        "syncing": "Sending",
+        "synced": "Synced",
+        "error": "Error",
+        "removing": "Removing"
+      },
+      "review": {
+        "pending": "In review",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "unknown": "Unknown"
+      },
+      "reviewReason": "Rejection reason",
+      "connect": {
+        "title": "Connect a catalog",
+        "hint": "Create the catalog in Commerce Manager, then paste its id here.",
+        "channel": "WhatsApp number",
+        "channelHint": "Every number of the same account shares one catalog.",
+        "pickChannel": "Pick a channel",
+        "catalogId": "Catalog id",
+        "catalogIdHint": "Find it in Commerce Manager. Digits only.",
+        "connectForMe": "Connect it to the account for me",
+        "connectForMeHint": "Turn it off if the catalog is already connected to the WhatsApp Business account.",
+        "permissionHelp": "Meta's system user needs the catalog_management permission and the catalog assigned to it as an asset.",
+        "submit": "Connect catalog",
+        "done": "Catalog connected",
+        "invalid": {
+          "channel": "Pick the channel",
+          "catalogId": "Enter the catalog id (5 to 32 digits)",
+          "brand": "The brand name is required",
+          "link": "The link must start with https"
+        }
+      },
+      "items": {
+        "title": "Products",
+        "hint": "The products listed in the catalog with their sync and Meta review status.",
+        "add": "Add a product",
+        "search": "Search products",
+        "syncFilter": "Sync status",
+        "anyState": "Any status",
+        "empty": "There are no products in the catalog yet",
+        "listed": "List {name} in the catalog",
+        "delete": "Delete product",
+        "deleteHint": "The product is deleted from Meta first, then from the catalog.",
+        "deleteTitle": "Delete {name} from the catalog?",
+        "deleteDescription": "Customers will no longer see it."
+      },
+      "itemForm": {
+        "source": "Product source",
+        "tabs": {
+          "existing": "Existing product",
+          "new": "New product"
+        },
+        "productId": "Product",
+        "productIdHint": "Pick a product that has an image and is not listed yet.",
+        "invalid": {
+          "productId": "Enter a valid product id",
+          "retailerId": "English letters, digits and . _ - only"
+        },
+        "name": "Product name",
+        "description": "Description",
+        "price": "Price",
+        "priceHint": "The sales price before taxes.",
+        "image": "Image",
+        "imageHint": "JPEG or PNG, at least {min}×{min} pixels, up to {mb} MB.",
+        "pickImage": "Choose an image",
+        "imageProblems": {
+          "type": "The image must be JPEG or PNG.",
+          "tooLarge": "The image is larger than {mb} MB.",
+          "tooSmall": "The image is smaller than {min}×{min} pixels."
+        },
+        "imageRequired": "A new product needs an image.",
+        "preview": "Preview in WhatsApp",
+        "retailerId": "Meta product id",
+        "retailerIdHint": "Leave empty to use the product's internal reference.",
+        "retailerIdLocked": "It cannot change after the first sync.",
+        "availability": "Availability",
+        "linkOverride": "Product-specific link",
+        "linkOverrideHint": "Optional; replaces the default link.",
+        "listed": "Listed in the catalog",
+        "add": "Add",
+        "createHint": "Pick an existing product or create a new one with its image.",
+        "syncError": "The product could not be sent to Meta",
+        "searchProducts": "Search products by name",
+        "noProducts": "No matching products",
+        "productList": "Company products",
+        "alreadyListed": "Already in the catalog",
+        "noImage": "No image: add an image to the product first"
+      },
+      "channelBlock": {
+        "title": "WhatsApp commerce",
+        "hint": "The catalog and the cart for this number.",
+        "catalog": "Catalog",
+        "none": "No catalog is connected to this channel's account.",
+        "paidNotice": "Notify the customer when paid",
+        "paidNoticeHint": "Sent inside the reply window only; otherwise only a note is added to the conversation.",
+        "paidNoticeText": "Notice text",
+        "paidNoticeTextHint": "Write {'{reference}'} to insert the order number."
+      },
+      "picker": {
+        "title": "Products",
+        "search": "Search products",
+        "count": "{n} of {max} picked",
+        "empty": "No products are available to send",
+        "listLabel": "Catalog products",
+        "type": "Message type",
+        "types": {
+          "product": "Product",
+          "product_list": "Product list",
+          "catalog_message": "Whole catalog"
+        },
+        "header": "Header",
+        "body": "Message text",
+        "footer": "Footer",
+        "sectionTitle": "Section title",
+        "fillSection": "Add to it",
+        "removeSection": "Delete section",
+        "sectionProducts": "Section products",
+        "removeProduct": "Remove {name}",
+        "addSection": "Add a section",
+        "thumbnailHint": "Pick a product to show its image in the message, or leave it to use the first product.",
+        "pickFor": "Pick products for the section \"{section}\"",
+        "pickOne": "Pick the product",
+        "pickThumbnail": "Image product (optional)",
+        "needsChannel": "Pick a specific channel to choose its products.",
+        "problems": {
+          "productRequired": "Pick a product",
+          "productsRequired": "Pick at least one product",
+          "tooManyProducts": "At most 30 products",
+          "headerRequired": "The header is required",
+          "bodyRequired": "The message text is required",
+          "sectionTitleRequired": "Every section with products needs a title"
+        },
+        "defaultSection": "Products",
+        "allChannelsWarning": "The rule is for all channels: products are sent only on a channel with a catalog, and skipped with a note elsewhere."
+      },
+      "thread": {
+        "inquiry": "Product inquiry:",
+        "view": "View",
+        "products": "{n} products",
+        "viewCatalog": "View catalog"
+      }
+    },
+    "orders": {
+      "title": "Orders",
+      "empty": "No orders yet",
+      "emptyDescription": "Carts customers send and orders the team builds appear here.",
+      "panelEmpty": "There are no orders in this conversation",
+      "create": "New order",
+      "cartTitle": "Order cart",
+      "lines": "Order lines",
+      "total": "Total",
+      "unknownProduct": "Not in the catalog",
+      "wasPrice": "Was {price}",
+      "unknownWarning": "The cart has a product that is not in the catalog. Remove it before creating the order.",
+      "state": {
+        "cart": "Cart",
+        "ordered": "Order",
+        "dismissed": "Dismissed"
+      },
+      "payment": {
+        "payable": "Awaiting payment",
+        "processing": "Paying",
+        "paid": "Paid",
+        "not_payable": "Not payable",
+        "cancelled": "Cancelled"
+      },
+      "priceChanged": "Prices changed since the cart was sent: it was {cart} and is now {now}.",
+      "refundDue": "Money was received that must be given back to the customer.",
+      "needsAttention": "The money was received but not recorded on the order. Check the payment.",
+      "expired": "The payment time has run out",
+      "expiresIn": "The order expires in {minutes} minutes",
+      "linkSentAt": "Pay link sent {time}",
+      "lineCount": "{n} lines",
+      "edit": "Edit",
+      "checkout": "Create the order and send the pay link",
+      "resendLink": "Send the link again",
+      "dismiss": "Dismiss",
+      "cancel": "Cancel order",
+      "dismissTitle": "Dismiss this cart?",
+      "dismissDescription": "The cart stays in the conversation but no order is created for it.",
+      "cancelTitle": "Cancel the order?",
+      "cancelDescription": "It cannot be paid after cancelling.",
+      "linkMessage": "Pay message text",
+      "linkMessageHint": "Optional; otherwise the order summary is sent.",
+      "templateNeeded": "The free-reply window has closed, so an approved template with a pay link is needed.",
+      "noPayTemplate": "There is no approved template with a link button that ends in a variable. Create one from the channel's templates.",
+      "payTemplate": "Pay link template",
+      "linkSent": "Pay link sent",
+      "quantityOf": "Quantity of {name}",
+      "removeLine": "Remove {name}",
+      "noLines": "No lines yet. Pick products from the catalog.",
+      "addProducts": "Add products",
+      "filter": {
+        "search": "Search by customer or order number",
+        "state": "State",
+        "payment": "Payment status",
+        "channel": "Channel",
+        "any": {
+          "state": "Any state",
+          "payment": "Any payment status",
+          "channel": "Any channel"
+        }
       }
     }
   }

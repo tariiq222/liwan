@@ -2,8 +2,12 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import {
   InboxAttachmentSchema, InboxCannedReplyListSchema, InboxChannelListSchema, InboxChannelSchema, InboxConversationDetailSchema, InboxConversationListSchema,
   InboxBusinessProfileSchema, InboxChannelAlertListSchema, InboxCostReportSchema, InboxReportBreakdownSchema, InboxReportOverviewSchema,
-  InboxTemplateAnalyticsDetailSchema, InboxTemplateAnalyticsListSchema,
-  InboxChannelAutomationSchema, InboxDepartmentListSchema, InboxFlowListSchema, InboxFlowPreviewSchema, InboxFlowSchema, InboxFlowSubmissionListSchema, InboxDepartmentWorkingHoursSchema, InboxMessageListSchema, InboxRefSchema, InboxRuleListSchema, InboxRuleSchema, InboxRuleTestResultSchema, InboxWorkingHoursSchema, InboxMessageSchema, InboxSettingsSchema, InboxTagListSchema, InboxTemplateListSchema, InboxTemplateSchema,
+  InboxTemplateAnalyticsDetailSchema, InboxTemplateAnalyticsListSchema, InboxChannelAutomationSchema, InboxDepartmentListSchema, InboxFlowListSchema,
+  InboxFlowPreviewSchema, InboxFlowSchema, InboxFlowSubmissionListSchema, InboxDepartmentWorkingHoursSchema, InboxMessageListSchema, InboxRefSchema,
+  InboxRuleListSchema, InboxRuleSchema, InboxRuleTestResultSchema, InboxWorkingHoursSchema, InboxMessageSchema, InboxSettingsSchema,
+  InboxTagListSchema, InboxTemplateListSchema, InboxTemplateSchema, InboxCatalogItemListSchema, InboxCatalogItemSchema, InboxCatalogListSchema,
+  InboxCatalogPickItemListSchema, InboxCatalogSchema, InboxChannelCommerceSchema, InboxCatalogProductOptionListSchema,
+  InboxOrderCheckoutResultSchema, InboxOrderListSchema, InboxOrderSchema,
 } from '@webvue/contracts'
 import { inboxPreviewData, resetInboxPreview } from '../../../../e2e/inbox-ui-preview-data.mjs'
 
@@ -469,5 +473,138 @@ describe('inbox audit mock', () => {
       expect(detail.buttons.map(button => button.type)).toEqual(['quick_reply', 'url'])
       expect(call('GET', `/api/v1/inbox/reports/templates/99?${range}`).status).toBe(404)
     })
+  })
+})
+
+describe('inbox audit mock: catalog and orders', () => {
+  beforeEach(() => resetInboxPreview())
+  const png = (width: number, height: number) => {
+    const bytes = Buffer.alloc(32)
+    Buffer.from([0x89, 0x50, 0x4e, 0x47]).copy(bytes)
+    bytes.writeUInt32BE(width, 16)
+    bytes.writeUInt32BE(height, 20)
+    return { name: 'a.png', mimetype: 'image/png', data: bytes.toString('base64') }
+  }
+
+  it('serves contract-valid catalogs, items, channel commerce and the picker', () => {
+    expect(InboxCatalogListSchema.parse(call('GET', '/api/v1/inbox/catalogs').body).items[0]!.counts.items).toBe(6)
+    expect(InboxCatalogSchema.parse(call('GET', '/api/v1/inbox/catalogs/1').body).channels).toHaveLength(1)
+    expect(InboxCatalogItemListSchema.parse(call('GET', '/api/v1/inbox/catalogs/1/items').body).total).toBe(6)
+    expect(InboxCatalogItemSchema.parse(call('GET', '/api/v1/inbox/catalog-items/1').body).price).toBe(51.75)
+    expect(InboxChannelCommerceSchema.parse(call('GET', '/api/v1/inbox/channels/1/commerce').body).catalog).toEqual({ id: 1, name: 'كتالوج المتجر' })
+    expect(InboxCatalogPickItemListSchema.parse(call('GET', '/api/v1/inbox/conversations/1/catalog-items').body).items.map(item => item.product_retailer_id)).toEqual(['wv-101', 'wv-102', 'wv-104'])
+  })
+
+  it('filters the items and refuses what Meta or the server refuses', () => {
+    const items = (query: string) => (call('GET', `/api/v1/inbox/catalogs/1/items?${query}`).body as { items: { id: number }[] }).items.map(item => item.id)
+    expect(items('sync_state=error')).toEqual([5])
+    expect(items('review_status=rejected')).toEqual([6])
+    expect(items('q=قهوة')).toEqual([1])
+    expect(call('POST', '/api/v1/inbox/catalogs', { channel_id: 1, meta_catalog_id: '1234567', connect: true, brand: 'x', default_link: null, prices_include_tax: true }).status).toBe(409)
+  })
+
+  it('connects a checked catalog and maps provider refusals', () => {
+    call('DELETE', '/api/v1/inbox/catalogs/1')
+    const body = { channel_id: 1, connect: true, brand: 'متجر', default_link: null, prices_include_tax: true }
+    expect(call('POST', '/api/v1/inbox/catalogs', { ...body, meta_catalog_id: '1234000' }).body).toMatchObject({ field: 'meta_catalog_id' })
+    expect(call('POST', '/api/v1/inbox/catalogs', { ...body, meta_catalog_id: '1234999' }).body).toMatchObject({ code: 'provider_permission' })
+    const created = call('POST', '/api/v1/inbox/catalogs', { ...body, meta_catalog_id: '1234567' })
+    expect(created.status).toBe(201)
+    expect(InboxCatalogSchema.parse(created.body).state).toBe('connected')
+    expect(call('GET', '/api/v1/inbox/conversations/1/catalog-items').status).toBe(200)
+  })
+
+  it('adds an existing product, and a new one only with a big enough picture', () => {
+    expect(call('POST', '/api/v1/inbox/catalogs/1/items', { product_id: 204 }).body).toMatchObject({ field: 'product_id' })
+    expect(InboxCatalogItemSchema.parse(call('POST', '/api/v1/inbox/catalogs/1/items', { product_id: 201 }).body).product_retailer_id).toBe('wv-201')
+    const made = { name: 'منتج', description: null, list_price: 10 }
+    expect(call('POST', '/api/v1/inbox/catalogs/1/items', { product: { ...made, image: png(499, 500) } }).body).toMatchObject({ field: 'product.image' })
+    expect(call('POST', '/api/v1/inbox/catalogs/1/items', { product: { ...made, image: { ...png(600, 600), mimetype: 'image/gif' } } }).status).toBe(422)
+    const created = call('POST', '/api/v1/inbox/catalogs/1/items', { product: { ...made, image: png(600, 600) } })
+    expect(created.status).toBe(201)
+    expect(InboxCatalogItemSchema.parse(created.body).sync_state).toBe('pending')
+  })
+
+  it('keeps the retailer id once synced and deletes an item', () => {
+    expect(call('PATCH', '/api/v1/inbox/catalog-items/1', { product_retailer_id: 'other' }).status).toBe(422)
+    expect(call('PATCH', '/api/v1/inbox/catalog-items/3', { product_retailer_id: 'other' }).status).toBe(200)
+    expect(call('DELETE', '/api/v1/inbox/catalog-items/3').status).toBe(204)
+    expect(call('GET', '/api/v1/inbox/catalog-items/3').status).toBe(404)
+  })
+
+  it('lists the company products that may be listed, with image and listed flags', () => {
+    const options = InboxCatalogProductOptionListSchema.parse(call('GET', '/api/v1/inbox/catalogs/1/products').body)
+    expect(options.items.map(item => [item.id, item.has_image, item.listed])).toEqual([[201, true, false], [202, true, false], [203, true, false], [204, false, false]])
+    expect(InboxCatalogProductOptionListSchema.parse(call('GET', '/api/v1/inbox/catalogs/1/products?q=عسل').body).items.map(item => item.id)).toEqual([202])
+    call('POST', '/api/v1/inbox/catalogs/1/items', { product_id: 201 })
+    expect(InboxCatalogProductOptionListSchema.parse(call('GET', '/api/v1/inbox/catalogs/1/products').body).items[0]).toMatchObject({ id: 201, listed: true })
+  })
+
+  it('keeps the paid notice on the channel and refuses an empty or too long text', () => {
+    expect(InboxChannelCommerceSchema.parse(call('GET', '/api/v1/inbox/channels/1/commerce').body)).toMatchObject({ paid_notice_enabled: true, paid_notice_text: expect.stringContaining('{reference}') })
+    expect(InboxChannelCommerceSchema.parse(call('PATCH', '/api/v1/inbox/channels/1/commerce', { paid_notice_enabled: false, paid_notice_text: 'شكرًا {reference}' }).body)).toMatchObject({ paid_notice_enabled: false, paid_notice_text: 'شكرًا {reference}' })
+    expect(call('PATCH', '/api/v1/inbox/channels/1/commerce', { paid_notice_text: ' ' }).body).toMatchObject({ field: 'paid_notice_text' })
+    expect(call('PATCH', '/api/v1/inbox/channels/1/commerce', { paid_notice_text: 'x'.repeat(1025) }).status).toBe(422)
+  })
+
+  it('toggles a number\'s switches', () => {
+    expect(InboxChannelCommerceSchema.parse(call('PATCH', '/api/v1/inbox/channels/1/commerce', { catalog_visible: true }).body).catalog_visible).toBe(true)
+  })
+
+  it('sends product messages inside the window, only with synced products', () => {
+    const list = { type: 'product_list', header: 'عروض', body: 'اختر', footer: null, sections: [{ title: 'المنتجات', product_retailer_ids: ['wv-101', 'wv-102'] }] }
+    const sent = InboxMessageSchema.parse(call('POST', '/api/v1/inbox/conversations/1/messages', { commerce: list }).body)
+    expect(sent).toMatchObject({ kind: 'product_list', commerce: { type: 'sent', products: [{ product_retailer_id: 'wv-101' }, { product_retailer_id: 'wv-102' }] } })
+    expect(call('POST', '/api/v1/inbox/conversations/1/messages', { commerce: { ...list, sections: [{ title: 'م', product_retailer_ids: ['wv-103'] }] } }).body).toMatchObject({ field: 'commerce' })
+    expect(call('POST', '/api/v1/inbox/conversations/2/messages', { commerce: list }).status).toBe(422)
+    expect(InboxMessageSchema.parse(call('POST', '/api/v1/inbox/conversations/1/messages', { commerce: { type: 'product', body: null, footer: null, product_retailer_id: 'wv-101' } }).body).kind).toBe('product')
+  })
+
+  it('shows the seeded cart and the commerce kinds in a thread', () => {
+    const items = InboxMessageListSchema.parse(call('GET', '/api/v1/inbox/conversations/4/messages?limit=100').body).items
+    expect(items.map(item => item.commerce?.type).filter(Boolean)).toEqual(['sent', 'inquiry', 'order'])
+    const cart = items.find(item => item.commerce?.type === 'order')!.commerce as { order: { id: number; state: string } | null; lines: { product: unknown }[] }
+    expect(cart.order).toMatchObject({ state: 'cart' })
+    expect(cart.lines.map(line => line.product === null)).toEqual([false, false, true])
+  })
+
+  it('lists orders and edits a cart, refusing a locked one', () => {
+    expect(InboxOrderListSchema.parse(call('GET', '/api/v1/inbox/orders').body).total).toBe(1)
+    expect(InboxOrderListSchema.parse(call('GET', '/api/v1/inbox/conversations/4/orders').body).total).toBe(1)
+    expect(InboxOrderListSchema.parse(call('GET', '/api/v1/inbox/orders?state=ordered').body).total).toBe(0)
+    const order = InboxOrderSchema.parse(call('GET', '/api/v1/inbox/orders/1').body)
+    expect(order).toMatchObject({ state: 'cart', price_changed: true })
+    const patched = InboxOrderSchema.parse(call('PATCH', '/api/v1/inbox/orders/1', { lines: [{ id: order.lines[0]!.id, quantity: 3 }, { catalog_item_id: 2, quantity: 1 }] }).body)
+    expect(patched.lines.map(line => line.quantity)).toEqual([3, 1])
+  })
+
+  it('builds an order for the customer, checks it out once, takes payment and cancels', () => {
+    const made = InboxOrderSchema.parse(call('POST', '/api/v1/inbox/conversations/1/orders', { lines: [{ catalog_item_id: 1, quantity: 2 }] }).body)
+    expect(made).toMatchObject({ state: 'cart', message_id: null, total: 103.5 })
+    const result = InboxOrderCheckoutResultSchema.parse(call('POST', `/api/v1/inbox/orders/${made.id}/checkout`, {}).body)
+    expect(result.order).toMatchObject({ state: 'ordered', payment: { status: 'payable' } })
+    expect(result.order.reference).toMatch(/^S\d{5}$/)
+    const again = InboxOrderCheckoutResultSchema.parse(call('POST', `/api/v1/inbox/orders/${made.id}/checkout`, {}).body)
+    expect(again.order.reference).toBe(result.order.reference)
+    expect(call('PATCH', `/api/v1/inbox/orders/${made.id}`, { lines: [{ id: made.lines[0]!.id, quantity: 1 }] }).status).toBe(409)
+    expect(InboxOrderSchema.parse(call('POST', `/api/v1/inbox/__mock/orders/${made.id}/paid`).body).payment?.status).toBe('paid')
+    expect(call('POST', `/api/v1/inbox/orders/${made.id}/checkout`, {}).status).toBe(409)
+    const notes = InboxMessageListSchema.parse(call('GET', '/api/v1/inbox/conversations/1/messages?limit=100').body).items.filter(item => item.direction === 'note')
+    expect(notes.at(-1)!.body).toContain(result.order.reference!)
+  })
+
+  it('refuses a checkout with an unknown line, and after the window asks for a pay-link template', () => {
+    expect(call('POST', '/api/v1/inbox/orders/1/checkout', {}).body).toMatchObject({ field: 'lines' })
+    const closed = InboxOrderSchema.parse(call('POST', '/api/v1/inbox/conversations/2/orders', { lines: [{ catalog_item_id: 1, quantity: 1 }] }).body)
+    expect(call('POST', `/api/v1/inbox/orders/${closed.id}/checkout`, {}).body).toMatchObject({ code: 'window_closed' })
+    expect(call('POST', `/api/v1/inbox/orders/${closed.id}/checkout`, { template_id: 1 }).body).toMatchObject({ field: 'template_id' })
+    expect(InboxOrderCheckoutResultSchema.parse(call('POST', `/api/v1/inbox/orders/${closed.id}/checkout`, { template_id: 8 }).body).order.state).toBe('ordered')
+  })
+
+  it('dismisses a cart, cancels an unpaid order, and receives a customer cart', () => {
+    expect(InboxOrderSchema.parse(call('POST', '/api/v1/inbox/orders/1/cancel').body).state).toBe('dismissed')
+    const cart = call('POST', '/api/v1/inbox/__mock/conversations/1/cart', { lines: [{ retailer_id: 'wv-101', quantity: 1 }], text: 'أريد' }).body as { order: { id: number } }
+    const messages = InboxMessageListSchema.parse(call('GET', '/api/v1/inbox/conversations/1/messages?limit=100').body).items
+    expect(messages.at(-1)).toMatchObject({ kind: 'order', direction: 'in', commerce: { type: 'order', order: { id: cart.order.id, state: 'cart' } } })
   })
 })

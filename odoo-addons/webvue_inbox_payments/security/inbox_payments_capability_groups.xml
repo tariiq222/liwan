@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="group_cap_inbox_catalog_manage" model="res.groups"><field name="name">Capability: manage Customer Inbox product catalog</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/></record>
+    <record id="group_cap_inbox_orders_manage" model="res.groups"><field name="name">Capability: manage Customer Inbox orders</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/></record>
+
+    <!-- The legacy Customer Inbox manager group carries both capabilities, like the application's own. -->
+    <record id="webvue_inbox.group_inbox_manager" model="res.groups">
+        <field name="implied_ids" eval="[Command.link(ref('group_cap_inbox_catalog_manage')), Command.link(ref('group_cap_inbox_orders_manage'))]"/>
+    </record>
+</odoo>

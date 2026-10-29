@@ -86,3 +86,22 @@ describe('inbox reports', () => {
     expect(kind?.title?.({ title: 'واتساب' }, (key: string) => key)).toBe('واتساب')
   })
 })
+
+describe('inbox catalog pages', () => {
+  const CATALOG = '/settings/apps/inbox/catalog'
+  const withFeatures = (capabilities: string[], features: string[]) => ({ capabilities, platform: { readable_features: features, writable_features: features } })
+  const on = ['inbox.enabled', 'inbox.catalog']
+
+  it('every catalog page needs the catalog capability, not channel or settings administration', () => {
+    for (const path of [CATALOG, `${CATALOG}/new`, `${CATALOG}/3`, `${CATALOG}/3/items/new`, `${CATALOG}/3/items/9`]) {
+      expect(canReachPath(withFeatures(['inbox.catalog.manage'], on), path)).toBe(true)
+      expect(canReachPath(withFeatures(['inbox.channels.manage', 'inbox.settings.manage', 'inbox.conversations.read'], on), path)).toBe(false)
+    }
+  })
+
+  it('the catalog pages and the orders page are closed when the tenant has no catalog feature', () => {
+    expect(canReachPath(withFeatures(['inbox.catalog.manage'], ['inbox.enabled']), CATALOG)).toBe(false)
+    expect(canReachPath(withFeatures(['inbox.conversations.read'], ['inbox.enabled']), '/inbox/orders')).toBe(false)
+    expect(canReachPath(withFeatures(['inbox.conversations.read'], on), '/inbox/orders')).toBe(true)
+  })
+})

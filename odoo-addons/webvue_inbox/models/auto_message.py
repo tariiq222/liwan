@@ -2,6 +2,8 @@
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
+from .abstract_interactive import COMMERCE_TYPES
+
 PURPOSES = [('welcome', 'Welcome'), ('away', 'Away'), ('rule', 'Rule reply')]
 # What clears the previous content of an automatic message before the new one is written.
 CLEARED = {
@@ -61,7 +63,8 @@ class WebVueInboxAutoMessage(models.Model):
         if not self.interactive_type:
             return {'kind': 'text', 'body': self.body}
         return {
-            'kind': 'interactive', 'body': self.body, 'interactive_type': self.interactive_type,
+            'kind': self.interactive_type if self.interactive_type in COMMERCE_TYPES else 'interactive',
+            'body': self.body, 'interactive_type': self.interactive_type,
             'interactive_header': self.interactive_header, 'interactive_footer': self.interactive_footer,
             'interactive_button': self.interactive_button, 'cta_display_text': self.cta_display_text,
             'cta_url': self.cta_url, 'flow_id': self.flow_id.id, 'flow_cta': self.flow_cta,
@@ -72,8 +75,10 @@ class WebVueInboxAutoMessage(models.Model):
         }
 
     def _webvue_dump_content(self):
-        """The contract's automatic content: `{body}` for text, `{interactive}` for buttons, a list or a link."""
+        """The contract's automatic content: `{body}` for text, `{interactive}` for buttons, a list or a link, `{commerce}` for products."""
         self.ensure_one()
+        if self.interactive_type in COMMERCE_TYPES:
+            return {'commerce': self._webvue_commerce()}
         return {'interactive': self._webvue_interactive()} if self.interactive_type else {'body': self.body}
 
 

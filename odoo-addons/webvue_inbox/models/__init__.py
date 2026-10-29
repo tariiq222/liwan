@@ -24,6 +24,7 @@ from . import (
     message,
     message_button,
     message_option,
+    message_order_line,
     message_outbox,
     meta_analytics,
     notification_types,

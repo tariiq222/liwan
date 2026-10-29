@@ -231,3 +231,54 @@ test('a manager reads the inbox reports, checks the number health and edits the 
   await browser.reload();
   await expect(screen.getByTestId('inbox-profile-preview-about')).toContainText(about, slow);
 });
+
+test('a manager adds a product, sends a product list, and a customer cart is paid through its link', { tags: ['journey', 'inbox'] }, async ({ app, screen, browser }) => {
+  test.skip(process.env.E2E_STACK === 'odoo', 'the catalog journey runs on the mock stack');
+  const post = (path: string, body: object) => browser.evaluate(async ([target, payload]) => (await fetch(target as string, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })).status, [path, body]);
+
+  await app.open('/login');
+  await screen.getByLabel('اسم المستخدم').fill('admin');
+  await screen.getByLabel('كلمة المرور').fill('admin');
+  await screen.getByRole('button', 'دخول').tap();
+  await expect(browser).toHaveURL(/^(?!.*\/login)/, slow);
+  expect(await post('/api/v1/__mock/reset-inbox', {})).toBe(200);
+
+  // The connected catalog and its items; add an existing product through the route-backed panel.
+  await app.open('/settings/apps/inbox/catalog');
+  await expect(screen.getByText('كتالوج المتجر').first()).toBeVisible(slow);
+  await screen.getByTestId('inbox-catalog-open').tap();
+  await expect(browser).toHaveURL(/\/catalog\/1$/, slow);
+  await expect(screen.getByText('قهوة مختصة 250 غ')).toBeVisible(slow);
+  await screen.getByTestId('inbox-catalog-item-add').tap();
+  await expect(browser).toHaveURL(/\/items\/new/, slow);
+  await screen.getByTestId('inbox-item-product-search').fill('شاي');
+  await screen.getByTestId('inbox-item-product-201').tap();
+  await screen.getByTestId('inbox-item-submit').tap();
+  await expect(browser).toHaveURL(/\/items\/\d+$/, slow);
+  await expect(screen.getByText('شاي أخضر').first()).toBeVisible(slow);
+
+  // An agent sends a product list from the composer's product picker.
+  await app.open('/inbox/1');
+  await screen.getByTestId('inbox-products-toggle').tap();
+  await screen.getByTestId('inbox-commerce-header').fill('عروض الأسبوع');
+  await screen.getByTestId('inbox-commerce-body').fill('اختر ما يناسبك');
+  await screen.getByTestId('inbox-product-1').tap();
+  await screen.getByRole('button', 'إرسال').tap();
+  await expect(screen.getByText('عروض الأسبوع').first()).toBeVisible(slow);
+
+  // The customer sends a cart (the mock's webhook): the cart card shows its lines and the agent checks it out.
+  expect(await post('/api/v1/inbox/__mock/conversations/1/cart', { lines: [{ retailer_id: 'wv-101', quantity: 2 }], text: 'أريد القهوة' })).toBe(200);
+  await browser.reload();
+  await expect(screen.getByTestId('inbox-cart-card').last()).toBeVisible(slow);
+  await screen.getByTestId('inbox-order-checkout').last().tap();
+  await screen.getByTestId('inbox-order-checkout-submit').tap();
+  await expect(screen.getByTestId('inbox-cart-badge').last()).toContainText('بانتظار الدفع', slow);
+  await expect(screen.getByText('ادفع الآن').first()).toBeVisible(slow);
+
+  // The gateway reports the payment: the thread gets the "paid" note and the badge changes.
+  const orderId = await browser.evaluate(async () => ((await (await fetch('/api/v1/inbox/conversations/1/orders')).json()) as { items: { id: number; state: string }[] }).items.find(order => order.state === 'ordered')!.id);
+  expect(await post(`/api/v1/inbox/__mock/orders/${orderId}/paid`, {})).toBe(200);
+  await browser.reload();
+  await expect(screen.getByText(/تم دفع الطلب S\d+/).first()).toBeVisible(slow);
+  await expect(screen.getByTestId('inbox-cart-badge').last()).toContainText('مدفوع', slow);
+});

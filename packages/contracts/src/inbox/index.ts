@@ -1,7 +1,9 @@
 import { z } from 'zod'
 import { InboxFlowInteractiveSchema, InboxFlowSubmissionSchema, InboxTemplateFlowButtonSchema, InboxTemplateFlowButtonWriteSchema } from './flows'
+import { InboxCommerceContentSchema, InboxMessageCommerceSchema } from './catalog'
 
 export * from './flows'
+export * from './catalog'
 
 // Wire shapes of /api/v1/inbox and /api/v1/settings/inbox. Every schema mirrors one
 // serializer in odoo-addons/webvue_inbox/serializers exactly (strict objects).
@@ -79,7 +81,7 @@ export const InboxAttachmentSchema = z.object({
 // What a message carries. Inbound media, location and contacts arrive from the customer; an agent may send
 // text, media, a location, an interactive message or a template.
 export const InboxMessageKindSchema = z.enum([
-  'text', 'image', 'video', 'audio', 'document', 'sticker', 'location', 'contacts', 'interactive', 'template', 'flow_response', 'unsupported',
+  'text', 'image', 'video', 'audio', 'document', 'sticker', 'location', 'contacts', 'interactive', 'template', 'flow_response', 'product', 'product_list', 'catalog_message', 'order', 'unsupported',
 ])
 
 export const InboxLocationSchema = z.object({
@@ -155,6 +157,8 @@ export const InboxMessageSchema = z.object({
   flow_response: InboxFlowSubmissionSchema.nullable(),
   // Sent by the inbox automation (welcome, away, a rule or the survey), not by an agent.
   automated: z.boolean(),
+  // Catalog content sent, a customer's cart or a product inquiry.
+  commerce: InboxMessageCommerceSchema.nullable(),
   created_at: UtcDateTime,
 }).strict()
 
@@ -178,6 +182,7 @@ export const InboxReplyCreateSchema = z.union([
   z.object({ attachment_id: Id, caption: z.string().min(1).max(1024).optional(), ...ReplyTo }).strict(),
   z.object({ location: InboxLocationSchema, ...ReplyTo }).strict(),
   z.object({ interactive: InboxInteractiveSchema, ...ReplyTo }).strict(),
+  z.object({ commerce: InboxCommerceContentSchema, ...ReplyTo }).strict(),
   z.object({
     template_id: Id,
     params: z.array(z.string().min(1).max(1024)).max(20),
@@ -550,6 +555,7 @@ export const InboxDepartmentWorkingHoursSchema = z.object({ working_hours: Inbox
 export const InboxAutoContentSchema = z.union([
   z.object({ body: z.string().min(1).max(4096) }).strict(),
   z.object({ interactive: InboxInteractiveSchema }).strict(),
+  z.object({ commerce: InboxCommerceContentSchema }).strict(),
 ])
 
 export const InboxChannelAutomationSchema = z.object({
@@ -577,7 +583,7 @@ export const InboxChannelAutomationSchema = z.object({
   'an enabled automatic message needs content',
 )
 
-export const InboxRuleMatchKindSchema = z.enum(['any', 'contains', 'exact', 'starts_with', 'option', 'flow'])
+export const InboxRuleMatchKindSchema = z.enum(['any', 'contains', 'exact', 'starts_with', 'option', 'flow', 'order'])
 export const InboxRuleHoursSchema = z.enum(['any', 'inside', 'outside'])
 
 const RuleFields = {

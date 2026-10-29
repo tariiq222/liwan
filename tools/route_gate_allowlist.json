@@ -171,6 +171,12 @@
         "webvue_inbox/controllers/hooks.py:receive",
         "webvue_inbox/controllers/hooks.py:verify"
       ]
+    },
+    {
+      "reason": "Public catalog product image under /api/v1/public/ (auth='public', no session): authorized by the item's own random image token, compared in constant time; no user and no capability exist for Meta's fetcher.",
+      "routes": [
+        "webvue_inbox_payments/controllers/images.py:product_image"
+      ]
     }
   ],
   "no_api_handler": [

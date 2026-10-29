@@ -234,11 +234,13 @@ class WebVuePaymentsService(models.AbstractModel):
         ``status`` is the payer's status, or ``cancelled``; ``expires_at`` is the payment deadline;
         ``amount_received`` is what it received less its refunds, ``amount_to_refund`` what it must give back.
         ``needs_attention``: money was received but has not been recorded on the order for an hour
-        (its post-processing keeps failing), so a person must look at it.
+        (its post-processing keeps failing), so a person must look at it. ``reference`` is the order
+        number, which staff without sales rights cannot read from the order itself.
         """
         order = order.sudo()
         cancelled = order.state == 'cancel'
         return {
+            'reference': order.name,
             'status': 'cancelled' if cancelled else self.env['webvue.payments.payer']._webvue_status(order),
             'needs_attention': payment_stuck(order.transaction_ids, fields.Datetime.now()),
             'currency': order.currency_id.name,

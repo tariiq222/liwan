@@ -3,6 +3,7 @@ import { useClipboard } from '@vueuse/core'
 import { InboxChannelPatchSchema } from '@webvue/contracts'
 import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
 import InboxChannelTabs from '@/components/inbox/InboxChannelTabs.vue'
+import { useInboxCatalogEnabled } from '@/composables/inbox/useInboxCatalog'
 import { CHANNEL_STATE_TONE } from '@/composables/inbox/inboxPresentation'
 import {
   useDeleteInboxChannel, useInboxChannel, useInboxDepartments, usePatchInboxChannel, useSyncInboxTemplates, useTestInboxChannel,
@@ -28,6 +29,7 @@ const { mutate: test, isPending: testing } = useTestInboxChannel(() => id.value 
 const { mutate: sync, isPending: syncing } = useSyncInboxTemplates(() => id.value ?? 0)
 const { mutate: remove, isPending: removing } = useDeleteInboxChannel()
 const manage = computed(() => can('inbox.channels.manage'))
+const catalogOn = useInboxCatalogEnabled()
 const manageTemplates = computed(() => can('inbox.templates.manage'))
 const busy = computed(() => !hydrated.value || patching.value || testing.value || syncing.value || removing.value)
 
@@ -164,6 +166,8 @@ async function copy(kind: 'callback' | 'token', value: string) {
           </div>
         </SharedRecordSection>
       </form>
+
+      <InboxChannelCommerceSection v-if="catalogOn && manage" :channel-id="channel.id" :manage="can('inbox.catalog.manage')" />
 
       <form v-if="manage" @submit.prevent="saveSecrets">
         <SharedRecordSection variant="panel" :title="t('inbox.settings.channels.secrets')" :description="t('inbox.settings.channels.secretsHint')">
