@@ -13,6 +13,7 @@ export function useVendorCommercial() {
   return {
     releases: () => request<VendorListEnvelope<CatalogReleaseView>>('commercial/catalog/releases').then(r => r.items),
     createRelease: (body: { catalog_version: string; reason: string }) => request<CatalogReleaseView>('commercial/catalog/releases', { method: 'POST', body }),
+    seedDefaultBundles: (releaseId: string, reason: string) => request<{ bundles: string[]; created: string[]; plan_revision_id: string; plan_created: boolean }>(`commercial/catalog/releases/${encodeURIComponent(releaseId)}/default-bundles`, { method: 'POST', body: { reason } }),
     policies: () => request<VendorListEnvelope<PricingPolicyView>>('commercial/policies').then(r => r.items[0]),
     listBundles: (p: ListParams = {}) => request<VendorListEnvelope<BundleView>>('commercial/bundles', { query: query(p) }),
     /** The server filters only by name substring and status, not bundle_id; renamed versions need the unfiltered list, so page through it. */

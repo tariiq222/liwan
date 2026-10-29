@@ -317,6 +317,8 @@ class WebVueMeetingMinute(models.Model):
         if not self:
             return
         if any(not meeting._webvue_is_editor() for meeting in self):
+            if vals.get('state') == 'confirmed':
+                raise AccessError(_('Only the organizer, secretary or a Meeting Manager may confirm this meeting.'))
             raise AccessError(_('Only the organizer, secretary or a Meeting Manager may edit this meeting.'))
         new_state = vals.get('state')
         content_keys = self._CONTENT_FIELDS.intersection(vals) | ({'active'} & set(vals))
@@ -351,8 +353,6 @@ class WebVueMeetingMinute(models.Model):
             raise UserError(_('This meeting state change is not allowed.'))
         if new_state in {'done', 'cancelled'} and not meeting._webvue_is_manager():
             raise UserError(_('Only a Meeting Manager may complete or cancel meetings.'))
-        if new_state == 'confirmed' and not meeting._webvue_is_editor():
-            raise AccessError(_('Only the organizer, secretary or a Meeting Manager may confirm this meeting.'))
 
     def copy(self, default=None):
         default = dict(default or {})
@@ -370,11 +370,16 @@ class WebVueMeetingMinute(models.Model):
         if version_count:
             raise AccessError(self.env._('Meetings with finalized minutes versions cannot be deleted.'))
         if not self.env.su:
-            if any(meeting.state in self._LOCKED_STATES for meeting in self):
-                raise UserError(_('Completed and cancelled meetings cannot be deleted.'))
+            if any(meeting.state != 'draft' for meeting in self):
+                raise UserError(_('Only a draft meeting can be deleted. Cancel a confirmed meeting instead.'))
             if any(not meeting._webvue_is_manager() for meeting in self):
                 raise AccessError(_('Only a Meeting Manager may delete meetings.'))
-        return super().unlink()
+            if self.env['webvue.meeting.links']._webvue_linked_resolution_ids(self.resolution_ids):
+                raise UserError(_('A meeting with recommendations followed on a task cannot be deleted.'))
+        events = self.calendar_event_id
+        result = super().unlink()
+        events.unlink()
+        return result
 
     # ----- constraints and computes -----
 

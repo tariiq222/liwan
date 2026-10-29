@@ -9,6 +9,8 @@ PRESET_KEYS = ('general', 'phone_packages')
 AFTER_ATTEMPTS = ('lost', 'manager')
 DISTRIBUTION_MODES = ('round_robin', 'manual', 'on_import')
 VISIBILITIES = ('own', 'team', 'all')
+# Who may sell a package above its list price: nobody, the holders of crm.discount.approve, or every agent.
+PRICE_ABOVE_LIST = ('forbid', 'managers', 'everyone')
 
 # (min, max) of every bounded integer; the serializer, the SQL checks and the options share it.
 RANGES = {
@@ -51,6 +53,7 @@ DEFAULTS = {
     'view_log_enabled': False,
     'discount_allowed': False,
     'discount_max_percent': 0,
+    'price_above_list': 'managers',
     **{
         term_field(term, language, form): TERM_DEFAULTS[term][language][index]
         for term in TERM_KEYS for language in TERM_LANGUAGES for index, form in enumerate(TERM_FORMS)
@@ -63,7 +66,7 @@ DEFAULTS = {
 _PRESET_FIELDS = (
     'followup_attempts', 'followup_interval_hours', 'after_attempts', 'recycle_enabled',
     'recycle_after_days', 'recycle_cycles', 'distribution_mode', 'visibility',
-    'view_log_enabled', 'discount_allowed', 'discount_max_percent',
+    'view_log_enabled', 'discount_allowed', 'discount_max_percent', 'price_above_list',
 )
 PRESETS = {
     'phone_packages': {name: DEFAULTS[name] for name in _PRESET_FIELDS},
@@ -130,6 +133,9 @@ class WebVueCrmSettings(models.Model):
 
     discount_allowed = fields.Boolean(default=DEFAULTS['discount_allowed'])
     discount_max_percent = fields.Integer(required=True, default=DEFAULTS['discount_max_percent'])
+    price_above_list = fields.Selection(
+        _selection(PRICE_ABOVE_LIST), required=True, default=DEFAULTS['price_above_list'],
+    )
 
     _company_unique = models.Constraint('UNIQUE(company_id)', 'a company has one CRM settings record')
     _revision_positive = models.Constraint('CHECK(revision > 0)', 'a saved revision must be positive')

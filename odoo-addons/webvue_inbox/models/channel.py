@@ -53,10 +53,35 @@ class WebVueInboxChannel(models.Model):
     last_error = fields.Char()
     last_event_at = fields.Datetime()
     conversation_ids = fields.One2many('webvue.inbox.conversation', 'channel_id')
+    # Automation: the welcome and away messages (auto_message_ids) and the satisfaction survey.
+    auto_message_ids = fields.One2many('webvue.inbox.auto.message', 'channel_id')
+    welcome_enabled = fields.Boolean(default=False)
+    welcome_idle_days = fields.Integer(default=0)
+    away_enabled = fields.Boolean(default=False)
+    away_repeat_hours = fields.Integer(default=12)
+    csat_enabled = fields.Boolean(default=False)
+    csat_question = fields.Char(required=True, default='كيف كانت تجربتك معنا؟')
+    csat_good = fields.Char(required=True, default='ممتاز')
+    csat_neutral = fields.Char(required=True, default='مقبول')
+    csat_bad = fields.Char(required=True, default='سيئ')
 
     _phone_number_unique = models.Constraint(
         'UNIQUE(phone_number_id)', 'This WhatsApp phone number id is already connected.',
     )
+
+    @api.constrains('welcome_idle_days', 'away_repeat_hours')
+    def _check_automation_ranges(self):
+        for channel in self:
+            if not 0 <= channel.welcome_idle_days <= 365 or not 1 <= channel.away_repeat_hours <= 168:
+                raise ValidationError(self.env._('welcome_idle_days must be 0 to 365 and away_repeat_hours 1 to 168.'))
+
+    @api.constrains('csat_question', 'csat_good', 'csat_neutral', 'csat_bad')
+    def _check_survey_texts(self):
+        for channel in self:
+            if len(channel.csat_question) > 1024 or any(
+                not 1 <= len(label) <= 20 for label in (channel.csat_good, channel.csat_neutral, channel.csat_bad)
+            ):
+                raise ValidationError(self.env._('The survey question is at most 1024 characters and each answer 1 to 20.'))
 
     @api.constrains('app_id')
     def _check_app_id(self):
@@ -106,3 +131,22 @@ class WebVueInboxChannel(models.Model):
     def _webvue_app_secret(self):
         self.ensure_one()
         return secret_box.decrypt(self.env, self.app_secret_enc) if self.app_secret_enc else None
+
+    def _webvue_auto_message(self, purpose):
+        """The welcome or away message of the channel (empty when none is set)."""
+        self.ensure_one()
+        return self.auto_message_ids.filtered(lambda message: message.purpose == purpose)
+
+    def _webvue_set_auto_message(self, purpose, content):
+        """Store the welcome or away content (model values; None removes it)."""
+        self.ensure_one()
+        self.env['webvue.inbox.auto.message']._webvue_upsert(
+            self._webvue_auto_message(purpose), {'purpose': purpose, 'channel_id': self.id}, content,
+        )
+
+    def _webvue_fill_automation(self, welcome, away):
+        """Set the welcome and away messages that the channel does not have yet (a sector preset); they stay as switched."""
+        self.ensure_one()
+        for purpose, content in (('welcome', welcome), ('away', away)):
+            if content and not self._webvue_auto_message(purpose):
+                self._webvue_set_auto_message(purpose, content)

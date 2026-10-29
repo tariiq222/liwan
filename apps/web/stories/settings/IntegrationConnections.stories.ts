@@ -16,7 +16,7 @@ const serve = (body: unknown, status = 200) => ({ msw: { handlers: { integration
 
 const meta = {
   title: 'Settings/IntegrationConnections', component: IntegrationConnections,
-  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/settings/system/index.vue:18', 'بطاقة الربط في صفحة النظام، للقراءة فقط: كل اتصال بحالته وآخر فحص.') },
+  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/settings/system/index.vue:23', 'بطاقة الربط في صفحة النظام، للقراءة فقط: كل اتصال بحالته وآخر فحص.') },
   render: () => ({ components: { IntegrationConnections }, template: '<div class="max-w-2xl"><IntegrationConnections /></div>' }),
 } satisfies Meta<typeof IntegrationConnections>
 export default meta

@@ -1,9 +1,13 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from . import (
+    abstract_interactive,
     access_service,
+    auto_message,
+    automation,
     channel,
     contact,
     conversation,
+    conversation_automation,
     entitlement_service,
     event,
     feature_registry,
@@ -16,6 +20,8 @@ from . import (
     message_option,
     message_outbox,
     notification_types,
+    rule,
     settings,
     template,
+    working_hours,
 )

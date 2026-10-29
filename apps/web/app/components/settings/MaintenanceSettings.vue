@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { ApiError } from '@/composables/useApi'
+import { useSettingsForm } from '@/composables/settings/useSettingsForm'
 import {
   MaintenanceBookingInputSchema, MaintenanceBookingPatchSchema, MaintenancePreferencePatchSchema,
   type MaintenanceBooking, type MaintenanceBookingInput, type MaintenanceBookingPatch,
@@ -9,20 +11,35 @@ import {
 const props = defineProps<{
   snapshot: MaintenanceSnapshot
   pending?: boolean
-  reload?: () => Promise<unknown>
+  reload: () => Promise<MaintenanceSnapshot>
   savePreference: (value: MaintenancePreferencePatch) => Promise<MaintenancePreference>
   book: (value: MaintenanceBookingInput) => Promise<unknown>
   updateBooking: (id: number, value: MaintenanceBookingPatch) => Promise<unknown>
 }>()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
-const timezone = ref('UTC')
-const weekday = ref(4)
-const startMinute = ref(120)
-const startTime = computed({ get: () => `${String(Math.floor(startMinute.value / 60)).padStart(2, '0')}:${String(startMinute.value % 60).padStart(2, '0')}`, set: (value: string) => { const [hour, minute] = value.split(':').map(Number); startMinute.value = hour! * 60 + minute! } })
-const duration = ref(60)
-const preferenceRevision = ref(0)
-const preferenceDirty = ref(false)
+interface PreferenceDraft { timezone: string; weekday: number; startMinute: number; durationMinutes: number; saved: boolean }
+const readPreference = (value: MaintenancePreference | null): PreferenceDraft => ({
+  timezone: value?.timezone ?? 'UTC', weekday: value?.weekday ?? 4, startMinute: value?.startMinute ?? 120, durationMinutes: value?.durationMinutes ?? 60, saved: value !== null,
+})
+const { draft, state, save: savePreferenceDraft, revert, reload: reloadPreference } = useSettingsForm<MaintenancePreference | null, PreferenceDraft>({
+  source: () => props.snapshot.preference,
+  read: readPreference,
+  save: (values, latest) => {
+    const parsed = MaintenancePreferencePatchSchema.safeParse({ timezone: values.timezone, weekday: Number(values.weekday), startMinute: Number(values.startMinute), durationMinutes: Number(values.durationMinutes), revision: latest?.revision ?? 0 })
+    if (!parsed.success) throw new ApiError(422, 'invalid', t('settings.maintenance.invalid'))
+    return props.savePreference(parsed.data)
+  },
+  reload: async () => (await props.reload()).preference,
+})
+// No window is saved yet: the defaults shown are a proposal, so the card starts dirty and «Save» can confirm them.
+if (!props.snapshot.preference) draft.value.saved = true
+const startTime = computed({
+  get: () => `${String(Math.floor(draft.value.startMinute / 60)).padStart(2, '0')}:${String(draft.value.startMinute % 60).padStart(2, '0')}`,
+  set: (value: string) => { const [hour, minute] = value.split(':').map(Number); draft.value.startMinute = hour! * 60 + minute! },
+})
+// The saved window's zone formats the release deadlines; the draft only counts once it is saved.
+const timezone = computed(() => props.snapshot.preference?.timezone ?? 'UTC')
 const releaseId = ref<number | undefined>()
 const localDateTime = ref('')
 const bookingTimezone = ref('UTC')
@@ -34,35 +51,20 @@ const cancelTarget = ref<MaintenanceBooking | null>(null)
 const error = ref('')
 const busy = ref(false)
 const disabled = computed(() => !hydrated.value || busy.value || props.pending)
-const dirty = computed(() => preferenceDirty.value || bookingDirty.value)
+const locked = computed(() => disabled.value || state.value.saving || state.value.reloading)
+const dirty = computed(() => bookingDirty.value)
 const release = computed(() => props.snapshot.releases.items.find(item => item.id === releaseId.value))
-const available = computed(() => props.snapshot.releases.items.filter(item => item.scope === 'tenant' && item.status === 'supported' && !props.snapshot.bookings.items.some(booking => booking.releaseId === item.id && booking.status !== 'cancelled')))
+const deadlinePassed = (item: { deadlineAt: string }) => new Date(item.deadlineAt).getTime() <= Date.now()
+const available = computed(() => props.snapshot.releases.items.filter(item => item.scope === 'tenant' && item.status === 'supported' && !deadlinePassed(item) && !props.snapshot.bookings.items.some(booking => booking.releaseId === item.id && booking.status !== 'cancelled')))
 const editingAllowed = computed(() => !editing.value || props.snapshot.bookings.items.find(item => item.id === editing.value?.id)?.status === 'scheduled')
 const weekdays = computed(() => Array.from({ length: 7 }, (_, value) => ({ value, label: t(`settings.maintenance.weekdays.${value}`) })))
 const releaseItems = computed(() => props.snapshot.releases.items.filter(item => available.value.includes(item) || item.id === editing.value?.releaseId).map(item => ({ value: item.id, label: item.releaseId })))
 
-function loadPreference(value: MaintenancePreference | null) {
-  timezone.value = value?.timezone ?? 'UTC'
-  weekday.value = value?.weekday ?? 4
-  startMinute.value = value?.startMinute ?? 120
-  duration.value = value?.durationMinutes ?? 60
-  preferenceRevision.value = value?.revision ?? 0
-  preferenceDirty.value = false
-}
 watch(() => props.snapshot.preference, value => {
-  if (!preferenceDirty.value) loadPreference(value)
   if (!bookingDirty.value) bookingTimezone.value = value?.timezone ?? 'UTC'
 }, { immediate: true })
 function message(cause: unknown) {
   return cause instanceof Error ? cause.message : t('errors.generic')
-}
-async function savePreference() {
-  if (disabled.value) return
-  error.value = ''
-  const parsed = MaintenancePreferencePatchSchema.safeParse({ timezone: timezone.value, weekday: Number(weekday.value), startMinute: Number(startMinute.value), durationMinutes: Number(duration.value), revision: preferenceRevision.value })
-  if (!parsed.success) { error.value = t('settings.maintenance.invalid'); return }
-  busy.value = true
-  try { loadPreference(await props.savePreference(parsed.data)) } catch (cause) { error.value = message(cause) } finally { busy.value = false }
 }
 async function saveBooking() {
   if (disabled.value) return
@@ -109,31 +111,23 @@ function resetBooking() {
 </script>
 
 <template>
-  <div class="space-y-8">
+  <div class="grid gap-(--webvue-gap-card)">
     <SharedUnsavedChanges :dirty="dirty" />
-    <UAlert v-if="error" data-testid="maintenance-error" color="error" :title="error" :description="t('settings.maintenance.keepDraft')">
-      <template v-if="reload" #actions><UButton type="button" color="neutral" variant="outline" :disabled="disabled" @click="reload()">{{ t('app.retry') }}</UButton></template>
-    </UAlert>
-    <form data-testid="maintenance-preference-form" class="webvue-form" @submit.prevent="savePreference">
-      <SharedFormSection panel :title="t('settings.maintenance.preference')" :description="t('settings.maintenance.preferenceHint')">
-        <UFormField :label="t('settings.maintenance.timezone')" name="timezone">
-          <UInput v-model="timezone" data-testid="maintenance-timezone" :disabled="disabled" dir="ltr" @update:model-value="preferenceDirty = true" />
-        </UFormField>
-        <UFormField :label="t('settings.maintenance.weekday')" name="weekday">
-          <USelect v-model="weekday" :items="weekdays" :disabled="disabled" @update:model-value="preferenceDirty = true" />
-        </UFormField>
-        <UFormField :label="t('settings.maintenance.startTime')" name="startTime">
-          <UInput v-model="startTime" type="time" dir="ltr" :disabled="disabled" @update:model-value="preferenceDirty = true" />
-        </UFormField>
-        <UFormField :label="t('settings.maintenance.duration')" name="duration">
-          <UInput v-model="duration" type="number" :min="1" :max="1440" :disabled="disabled" @update:model-value="preferenceDirty = true" />
-        </UFormField>
-      </SharedFormSection>
-      <SharedFormActions>
-        <UButton type="button" color="neutral" variant="outline" :disabled="disabled || !preferenceDirty" @click="loadPreference(snapshot.preference)">{{ t('settings.maintenance.discard') }}</UButton>
-        <UButton type="submit" data-testid="maintenance-preference-save" :disabled="disabled" :loading="busy">{{ t('app.save') }}</UButton>
-      </SharedFormActions>
-    </form>
+    <UAlert v-if="error" data-testid="maintenance-error" color="error" :title="error" :description="t('settings.maintenance.keepDraft')" />
+    <SharedSettingsCard id="maintenance" v-bind="state" data-testid="maintenance-preference-form" :title="t('settings.maintenance.preference')" :description="t('settings.maintenance.preferenceHint')" :can-edit="true" @save="savePreferenceDraft" @revert="revert" @reload="reloadPreference">
+      <UFormField orientation="horizontal" :label="t('settings.maintenance.timezone')" name="timezone">
+        <UInput v-model="draft.timezone" class="w-full" data-testid="maintenance-timezone" :disabled="locked" dir="ltr" />
+      </UFormField>
+      <UFormField orientation="horizontal" :label="t('settings.maintenance.weekday')" name="weekday">
+        <USelect v-model="draft.weekday" class="w-full" :items="weekdays" :disabled="locked" />
+      </UFormField>
+      <UFormField orientation="horizontal" :label="t('settings.maintenance.startTime')" name="startTime">
+        <UInput v-model="startTime" class="w-full" type="time" dir="ltr" :disabled="locked" />
+      </UFormField>
+      <UFormField orientation="horizontal" :label="t('settings.maintenance.duration')" name="duration">
+        <UInput v-model="draft.durationMinutes" class="w-full" data-testid="maintenance-duration" type="number" :min="1" :max="1440" :disabled="locked" />
+      </UFormField>
+    </SharedSettingsCard>
     <SharedRecordSection variant="list" :title="t('settings.maintenance.releases')">
       <p v-if="!snapshot.releases.items.length" class="p-(--webvue-card-pad) text-sm text-muted">{{ t('settings.maintenance.noReleases') }}</p>
       <article v-for="notice in snapshot.releases.items" :key="notice.id" class="space-y-2 p-(--webvue-card-pad)">
@@ -142,6 +136,7 @@ function resetBooking() {
           <SharedStatusBadge tone="neutral" :label="t(`settings.maintenance.scope.${notice.scope}`)" />
           <SharedStatusBadge tone="neutral" :label="t(`settings.maintenance.releaseStatus.${notice.status}`)" />
           <SharedStatusBadge v-if="notice.urgency === 'security'" tone="warning" :label="t('settings.maintenance.security')" />
+          <SharedStatusBadge v-if="deadlinePassed(notice)" tone="destructive" :label="t('settings.maintenance.deadlinePassed')" />
         </div>
         <p>{{ t('settings.maintenance.deadline', { date: formatDate(notice.deadlineAt), zone: timezone }) }}</p>
         <p>{{ t('settings.maintenance.estimate', { seconds: notice.estimatedSeconds }) }}</p>
@@ -154,7 +149,7 @@ function resetBooking() {
         <UFormField :label="t('settings.maintenance.release')" name="release">
           <USelect v-model="releaseId" data-testid="maintenance-release" :items="releaseItems" :disabled="disabled || !!editing" @update:model-value="bookingDirty = true" />
         </UFormField>
-        <UCheckbox v-if="!editing" v-model="usePreference" :label="t('settings.maintenance.usePreference')" :disabled="disabled || !snapshot.preference || preferenceDirty" @update:model-value="bookingDirty = true" />
+        <UCheckbox v-if="!editing" v-model="usePreference" :label="t('settings.maintenance.usePreference')" :disabled="disabled || !snapshot.preference || state.dirty" @update:model-value="bookingDirty = true" />
         <template v-if="!usePreference">
           <UFormField :label="t('settings.maintenance.localTime')" name="localDateTime" :help="t('settings.maintenance.dstHint')">
             <UInput v-model="localDateTime" data-testid="maintenance-booking-time" type="datetime-local" dir="ltr" :disabled="disabled" @update:model-value="bookingDirty = true" />
@@ -170,7 +165,7 @@ function resetBooking() {
       </SharedFormSection>
       <SharedFormActions>
         <UButton type="button" color="neutral" variant="outline" :disabled="disabled" @click="resetBooking">{{ t('settings.maintenance.discard') }}</UButton>
-        <UButton type="submit" :disabled="disabled || !releaseId || !editingAllowed || release?.status !== 'supported' || (usePreference && preferenceDirty)" :loading="busy">{{ t('settings.maintenance.confirmBooking') }}</UButton>
+        <UButton type="submit" :disabled="disabled || !releaseId || !editingAllowed || release?.status !== 'supported' || (usePreference && state.dirty)" :loading="busy">{{ t('settings.maintenance.confirmBooking') }}</UButton>
       </SharedFormActions>
     </form>
     <SharedRecordSection variant="list" :title="t('settings.maintenance.bookings')">

@@ -3,7 +3,7 @@ from pytz import UTC, timezone
 
 from odoo import fields
 
-from odoo.addons.webvue_api.controllers.common import ApiError
+from odoo.addons.webvue_api.controllers.common import ApiError, parse_positive_int
 
 
 def dump_settings(row, company, user):
@@ -16,12 +16,16 @@ def dump_settings(row, company, user):
         'company_timezone': company_timezone,
         'effective_timezone': effective_timezone,
         'today': today.isoformat(),
+        'default_schedule': (
+            {'id': company.resource_calendar_id.id, 'name': company.resource_calendar_id.name}
+            if company.resource_calendar_id else None
+        ),
         'revision': row.revision if row else 0,
     }
 
 
 def parse_settings(payload):
-    unknown = sorted(set(payload) - {'day_reference', 'revision'})
+    unknown = sorted(set(payload) - {'day_reference', 'revision', 'default_schedule_id'})
     if unknown:
         raise ApiError(422, 'invalid', 'field is not writable', field=unknown[0])
     if payload.get('day_reference') not in ('company', 'user'):
@@ -29,4 +33,7 @@ def parse_settings(payload):
     revision = payload.get('revision')
     if type(revision) is not int or revision < 0:
         raise ApiError(422, 'invalid', 'revision must be a nonnegative integer', field='revision')
-    return {'day_reference': payload['day_reference'], 'revision': revision}
+    vals = {'day_reference': payload['day_reference'], 'revision': revision}
+    if 'default_schedule_id' in payload:
+        vals['default_schedule_id'] = parse_positive_int(payload['default_schedule_id'], 'default_schedule_id')
+    return vals

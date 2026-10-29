@@ -388,7 +388,11 @@ cross-addon links.
   online orders a selling application creates, cancels and reads after authorizing its own record (its
   user holds no sales rights): order and line create with server values only (no price or amount
   parameter), stock `_action_cancel`, the payment summary and the pay link of an authorized document,
-  every returned record unelevated; and in `models/payments_settings.py`, for the one whitelisted
+  every returned record unelevated, and for the company's payments staff: the online orders list and
+  detail of the current company after `payments.orders.read`, and a recorded refund after `payments.refund`
+  (refund children of the paid transactions, the outbound payment and the credit notes, the amount bounded
+  by the amount due); in `models/refund_policy.py`, for the refund rules of a product a selling application
+  sells, after it authorized its own record; and in `models/payments_settings.py`, for the one whitelisted
   tenant-wide stock parameter `sale.automatic_invoice`: read by the server when it decides, and written
   only after the `payments.settings.manage` check in the tenant's root company.
   `webvue_appointments_payments` uses it only in `models/resource_booking_type.py`, for the product
