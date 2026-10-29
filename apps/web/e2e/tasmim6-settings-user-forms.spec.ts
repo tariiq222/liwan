@@ -24,7 +24,7 @@ test.describe('Plan 6d: the user access and security pages', () => {
   test('access: the roles form sits in the settings page with its save button', async ({ page }) => {
     await openClientSide(page, '/settings/team/users/11/access')
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('تعديل الوصول')
-    await expect(page.getByRole('button', { name: 'حفظ', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'حفظ التغييرات', exact: true })).toBeVisible()
     await expect(page.getByRole('dialog')).toHaveCount(0)
   })
 

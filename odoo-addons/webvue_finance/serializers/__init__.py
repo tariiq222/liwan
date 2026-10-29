@@ -6,6 +6,7 @@ from . import (
     audit,
     bank,
     common,
+    credit_note,
     debit_note,
     entry,
     invoice,

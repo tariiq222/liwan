@@ -8,27 +8,12 @@
       "list": "Results"
     },
     "branding": {
-      "name": "Company name",
       "color": "Document and report color",
-      "logo": "Logo",
-      "logoHint": "PNG or JPEG, up to 1 MiB",
-      "save": "Save color",
-      "saving": "Saving…",
       "saved": "Document color saved",
       "errors": {
-        "invalid": "Enter a valid name and six-digit color",
-        "logoFormat": "Use a PNG or JPEG image",
-        "logoSize": "The logo must not exceed 1 MiB",
-        "logoReading": "Wait for the logo to finish loading",
-        "logoRead": "The logo image could not be read",
-        "invalidColor": "Enter a six-digit colour",
-        "load": "Branding settings could not be loaded"
+        "invalidColor": "Enter a six-digit colour"
       },
       "colorPicker": "Choose document color",
-      "loading": "Loading branding settings",
-      "retry": "Try again",
-      "cancel": "Cancel changes",
-      "resetDefault": "Reset default color",
       "presets": {
         "label": "Colour presets",
         "default": "webvue default",
@@ -41,12 +26,8 @@
     },
     "company": {
       "completeness": "{done} of {total} company details completed",
-      "readonly": "You can view the company details only. Editing needs the manage company profile permission.",
       "identity": {
         "title": "Company identity"
-      },
-      "registration": {
-        "title": "Registrations and tax numbers"
       },
       "address": {
         "title": "National address",
@@ -75,13 +56,8 @@
       "email": "Email",
       "phone": "Phone",
       "website": "Website",
-      "save": "Save changes",
-      "cancel": "Discard changes",
       "saved": "Company details saved",
-      "retry": "Retry",
       "errors": {
-        "load": "Could not load the company details",
-        "generic": "Could not save the company details. Try again.",
         "nameRequired": "Enter the company name",
         "logoFormat": "Use a PNG or JPEG image",
         "logoSize": "The logo must not exceed 2 MB",
@@ -135,6 +111,7 @@
         "label": "Deadline reminders",
         "enabled": "Send inbox reminders before the deadline",
         "daysBefore": "Days before the deadline",
+        "daysInvalid": "Enter a whole number from 0 to 30",
         "digest": "Daily overdue digest for the project manager",
         "hint": "Reminders apply to eligible current tasks according to their dates and status; they do not create tasks or dates."
       },

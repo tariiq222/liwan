@@ -16,11 +16,6 @@ export function isValidExpiry(minutes: number | null | undefined): minutes is nu
     && minutes >= PAYMENT_ORDER_EXPIRY_MINUTES.min && minutes <= PAYMENT_ORDER_EXPIRY_MINUTES.max
 }
 
-/** Whether the draft differs from the saved settings. */
-export function isDraftChanged(saved: PaymentSettings, draft: OrderSettingsDraft): boolean {
-  return draft.unpaid_order_expiry_minutes !== saved.unpaid_order_expiry_minutes || draft.invoice_when_paid !== saved.invoice_when_paid
-}
-
 /**
  * The PATCH body of a save: the revision the draft was made from and only the settings that changed, so a save never
  * touches the tenant-wide switch unless it was flipped. Call it for a changed draft with a valid expiry.
