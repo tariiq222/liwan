@@ -469,6 +469,12 @@ class Document(models.Model):
             msg = 'invalid'
             raise WebVueAccessRule(msg, 'active must be boolean')
         with self._webvue_mutation(expected_revision, 'archive'):
+            if self.active == active:
+                msg = 'invalid'
+                raise WebVueAccessRule(
+                    msg,
+                    'document is already active' if active else 'document is already archived',
+                )
             self.write({'active': active})
         return self
 
