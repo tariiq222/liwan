@@ -16,7 +16,7 @@ from odoo.addons.webvue_api.tests.common import (
 from odoo.addons.webvue_inbox.models.secret_box import KEY_ENV
 from odoo.addons.webvue_inbox.tests.common import ACCESS_TOKEN, APP_SECRET
 
-EXPECTED_GET_RECORD_ROUTES = 9
+EXPECTED_GET_RECORD_ROUTES = 12
 PASSWORD = 'iso_inbox_nocap_pass_123'
 # Visible and hidden company tags per session company. iso_user holds the inbox manager role in the parent
 # and both branches, so a parent session reads its branches; a branch session never reads the parent or a
@@ -82,9 +82,11 @@ class TestInboxCompanyIsolation(CompanyIsolationCase):
             template = cls.env['webvue.inbox.template'].create({
                 'channel_id': channel.id, 'company_id': company.id, 'name': f'tpl_{tag}', 'language': 'ar', 'status': 'approved', 'body': 'x',
             })
+            department = cls.env['webvue.inbox.department'].create({'name': f'Desk {tag}', 'company_id': company.id})
+            rule = cls.env['webvue.inbox.rule'].create({'name': f'Rule {tag}', 'company_id': company.id, 'channel_id': channel.id})
             cls.recs[tag] = {
                 'template': template, 'channel': channel, 'contact': contact, 'conversation': conversation, 'message': message,
-                'attachment': attachment,
+                'attachment': attachment, 'department': department, 'rule': rule,
             }
 
     @staticmethod
@@ -98,12 +100,16 @@ class TestInboxCompanyIsolation(CompanyIsolationCase):
             'messages': f'/api/v1/inbox/conversations/{rec["conversation"].id}/messages',
             'contact': f'/api/v1/inbox/contacts/{rec["contact"].id}',
             'download': f'/api/v1/inbox/messages/{rec["message"].id}/attachments/{rec["attachment"].id}/download',
+            'automation': f'/api/v1/inbox/channels/{rec["channel"].id}/automation',
+            'working_hours': f'/api/v1/inbox/departments/{rec["department"].id}/working-hours',
+            'rule': f'/api/v1/inbox/rules/{rec["rule"].id}',
         }
 
     def hidden_ids(self, kind, rec):
         return {
             'channel': rec['channel'], 'ref': rec['channel'], 'templates': rec['channel'], 'template': rec['template'], 'conversation': rec['conversation'],
             'messages': rec['conversation'], 'contact': rec['contact'], 'download': rec['message'],
+            'automation': rec['channel'], 'working_hours': rec['department'], 'rule': rec['rule'],
         }[kind].id
 
     def test_record_matrix(self):
@@ -161,4 +167,7 @@ cover_isolation_routes((
     '/api/v1/inbox/contacts/<int:contact_id>',
     '/api/v1/inbox/messages/<int:message_id>/attachments/<int:attachment_id>/download',
     '/api/v1/inbox/conversations/export.csv',
+    '/api/v1/inbox/channels/<int:channel_id>/automation',
+    '/api/v1/inbox/departments/<int:department_id>/working-hours',
+    '/api/v1/inbox/rules/<int:rule_id>',
 ), source='webvue_inbox/tests/test_company_isolation.py')
