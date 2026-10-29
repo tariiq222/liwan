@@ -11,7 +11,10 @@ class TestPayrollFinanceRole(TransactionCase):
         self.assertEqual((role.key, role.type, role.protected), ('payroll_finance_manager', 'built_in', True))
         keys = set(role.permission_ids.mapped('key'))
         self.assertLessEqual(
-            {'hr.payroll.read', 'hr.payroll.finance.manage', 'finance.entries.post', 'finance.payments.manage'}, keys,
+            {
+                'hr.payroll.read', 'hr.payroll.finance.manage', 'finance.entries.post', 'finance.payments.manage',
+                'finance.journals.read',
+            }, keys,
         )
         self.assertFalse(keys & {
             'hr.payroll.manage', 'hr.payroll.approve', 'hr.payroll.config', 'hr.payroll.audit.read',

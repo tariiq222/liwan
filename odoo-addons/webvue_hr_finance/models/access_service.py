@@ -8,6 +8,7 @@ PAYROLL_FINANCE_PERMISSIONS = frozenset(
         'hr.employees.read',
         'hr.payroll.read',
         'hr.payroll.finance.manage',
+        'finance.journals.read',
         'finance.invoices.read',
         'finance.entries.read',
         'finance.entries.manage',

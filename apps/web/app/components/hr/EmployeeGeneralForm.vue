@@ -36,7 +36,7 @@ const managerOptions = computed(() => hrManagerOptions({
 const contractStart = ref<string | null>(null); const contractEnd = ref<string | null>(null); const probationEnd = ref<string | null>(null); const identityExpiry = ref<string | null>(null); const noticeDays = ref('')
 const hasContract = computed(() => !!props.employee?.contract)
 const contractOrderError = computed(() => contractStart.value && contractEnd.value && contractEnd.value < contractStart.value ? t('hr.employee.contract.endBeforeStart') : undefined)
-const noticeValid = computed(() => /^\d{1,4}$/.test(noticeDays.value.trim()))
+const noticeValid = computed(() => /^\d{1,4}$/.test(String(noticeDays.value).trim()))
 function contractPatch() {
   const current = props.employee?.contract
   if (!current) return undefined
