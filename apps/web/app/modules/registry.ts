@@ -122,7 +122,10 @@ export function capabilityAllowed(
 
 export function canUse(identity: TenantIdentity, capability: string, write = false): boolean {
   if (capability === NOTIFICATION_ACCESS) {
-    return activeManifests().some(manifest => manifest.bell && hasFeature(identity, manifest.feature))
+    // The bell opens through one application that both grants a bell capability and has its feature on.
+    return activeManifests().some(manifest => manifest.bell
+      && manifest.bell.capabilities.some(key => identity?.capabilities?.includes(key))
+      && hasFeature(identity, manifest.feature))
   }
   return capabilityAllowed(identity, capability, write || isWriteCapability(capability))
 }
