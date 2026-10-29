@@ -9,7 +9,7 @@ export const FinanceSetupCompanyFieldSchema = z.enum([
   'vat', 'company_registry', 'street', 'city', 'state', 'country',
 ])
 export const FinanceSetupBlockerSchema = z.enum([
-  'chart_not_loaded', 'vat_15_tax_missing', 'company_vat_missing', 'company_registry_missing',
+  'vat_15_tax_missing', 'company_vat_missing', 'company_registry_missing',
   'company_address_incomplete', 'zatca_not_onboarded',
 ])
 

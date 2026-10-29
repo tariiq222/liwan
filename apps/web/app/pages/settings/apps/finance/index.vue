@@ -7,7 +7,7 @@ import AuditPreview from '@/components/finance/governance/AuditPreview.vue'
 import ClosingView from '@/components/finance/governance/ClosingView.vue'
 import ZatcaView from '@/components/finance/governance/ZatcaView.vue'
 import { financeSetupProgress } from '@/composables/finance/financeSetupSteps'
-import { useFinanceSetup, useLoadFinanceChart, useSaveFinanceFiscal } from '@/composables/finance/useFinanceSetup'
+import { useFinanceSetup, useSaveFinanceFiscal } from '@/composables/finance/useFinanceSetup'
 import {
   FINANCE_FISCAL_LOCK_FIELDS,
   emptyFinanceFiscalDraft,
@@ -23,7 +23,6 @@ import {
   type FinanceFiscalField,
   type FinanceSetupScope,
 } from '@/composables/finance/financeFiscalSetup'
-import { saveErrorMessage } from '@/utils/formFeedback'
 import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
 import type { PageHeaderTag } from '@webvue/ui/app/utils/pageHeaderTag'
 
@@ -41,23 +40,6 @@ const headerTags = computed<PageHeaderTag[]>(() => data.value
   ? [{ label: t(data.value.ready ? 'finance.setup.ready' : 'finance.setup.notReady'), tone: data.value.ready ? 'success' : 'warning', testId: 'finance-setup-state' }]
   : [])
 const progress = computed(() => data.value ? financeSetupProgress(data.value) : null)
-
-// Loading the chart is a one-time write that creates the company's accounts, taxes and journals, so it asks for an inline confirmation first.
-const confirmChart = ref(false)
-const chartError = ref<unknown>(null)
-const { mutateAsync: loadChart, isPending: loadingChart } = useLoadFinanceChart()
-async function confirmLoadChart() {
-  const target = setup.scope.value
-  if (!hydrated.value || loadingChart.value || !canManage.value || !target) return
-  try {
-    await loadChart(target)
-    if (!sameFinanceSetupScope(target, setup.scope.value)) return
-    confirmChart.value = false
-    chartError.value = null
-  } catch (failure) {
-    if (sameFinanceSetupScope(target, setup.scope.value)) chartError.value = failure
-  }
-}
 
 // The fiscal editor: an immutable baseline of the values this identity was read for, and a draft of the
 // changes on top of it. The card stays inline in place; there is no second form and no optimistic save.
@@ -291,20 +273,6 @@ const ZATCA_TONE = { not_started: 'neutral', compliance_checked: 'info', onboard
         </SharedRecordSection>
 
         <SharedRecordSection variant="panel" :title="t('finance.setup.chart.title')" :description="t('finance.setup.chart.hint')" data-testid="finance-setup-chart">
-          <template v-if="!data.chart.loaded && canManage" #actions>
-            <UButton color="primary" icon="i-lucide-download" :disabled="!hydrated || confirmChart" :label="t('finance.setup.chart.load')" @click="confirmChart = true" />
-          </template>
-          <SharedInlineConfirm
-            v-if="confirmChart"
-            class="mb-3"
-            color="primary"
-            :title="t('finance.setup.chart.confirmTitle')"
-            :description="chartError ? saveErrorMessage(chartError, t('errors.generic'), t('errors.saveUncertain')) : t('finance.setup.chart.confirmDescription')"
-            :confirm-label="t('finance.setup.chart.load')"
-            :pending="loadingChart"
-            @confirm="confirmLoadChart"
-            @cancel="confirmChart = false; chartError = null"
-          />
           <SharedPropertiesPanel>
             <SharedPropertyRow :label="t('finance.setup.chart.status')">
               <SharedStatusBadge size="sm" :tone="data.chart.loaded ? 'success' : 'warning'" :label="t(data.chart.loaded ? 'finance.setup.chart.loaded' : 'finance.setup.chart.notLoaded')" />

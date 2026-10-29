@@ -34,10 +34,11 @@ class WebVueFinanceCase(WebVueApiCase):
 
     @classmethod
     def _fresh_company_manager(cls, name, login, password):
-        """A Saudi company with no chart and a finance manager who works in it only."""
+        """A Saudi company as provisioning leaves it (the ``sa`` chart, nothing else) and a finance manager who works in it only."""
         company = cls.env['res.company'].create({
             'name': name, 'country_id': cls.env.ref('base.sa').id, 'currency_id': cls.env.ref('base.SAR').id,
         })
+        cls.env['account.chart.template'].try_loading('sa', company)
         user = new_test_user(
             cls.env, login=login, password=password, name=login, groups='webvue_core.group_employee',
             company_id=company.id, company_ids=[Command.set(company.ids)],
