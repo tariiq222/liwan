@@ -26,4 +26,6 @@ access_users_access_disable,users access disable,base.model_res_users,webvue_cor
 access_users_access_password,users access password,base.model_res_users,webvue_core.group_cap_access_users_reset_password,1,1,0,0
 access_branch_rule_system,branch rule system,model_webvue_access_branch_rule,base.group_system,1,1,1,1
 access_branch_rule_admin,branch rule admin,model_webvue_access_branch_rule,group_cap_access_users_assign_roles,1,1,1,1
+access_branch_strict_system,branch strict system,model_webvue_access_branch_strict,base.group_system,1,1,1,1
+access_branch_strict_user,branch strict user,model_webvue_access_branch_strict,base.group_user,1,1,1,1
 access_company_branch_admin,company branch admin,base.model_res_company,group_cap_access_users_assign_roles,1,1,0,0

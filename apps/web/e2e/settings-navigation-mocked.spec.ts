@@ -63,7 +63,7 @@ const BRANCH_ROLES = [
   { id: 4, key: 'finance_manager', active: true, name: { ar: 'Finance manager', en: 'Finance manager' }, company_id: null },
 ]
 const BRANCH_POLICY = {
-  version: 'b1-v1', mode: 'delegated', preset: 'independent_branches',
+  version: 'b1-v1', mode: 'delegated', preset: 'independent_branches', strict_scopes: [] as string[],
   branches: [{ id: 2, name: 'Riyadh branch', inherit: false, role_ids: [] as number[] }, { id: 3, name: 'Jeddah branch', inherit: false, role_ids: [] as number[] }],
   roles: BRANCH_ROLES,
 }

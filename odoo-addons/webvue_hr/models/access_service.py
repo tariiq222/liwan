@@ -173,6 +173,12 @@ class WebVueHrAccessService(models.AbstractModel):
                        & OWNER_AUTHORIZATION_KEYS)
 
     @api.model
+    def _webvue_branch_strict_definitions(self):
+        # Payroll keys share the hr. prefix, so HR leaves them to the payroll scope.
+        return {**super()._webvue_branch_strict_definitions(),
+                'hr': ('hr.', ('hr.payroll.',)), 'payroll': ('hr.payroll.', ())}
+
+    @api.model
     def _webvue_capability_definitions(self):
         return super()._webvue_capability_definitions() + tuple(
             {'key': key, 'owner': 'webvue_hr'} for key in sorted(HR_PERMISSIONS | PAYROLL_PERMISSIONS)
