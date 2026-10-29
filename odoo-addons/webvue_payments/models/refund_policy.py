@@ -28,6 +28,9 @@ class WebVuePaymentsRefundTier(models.Model):
     _name = 'webvue.payments.refund.tier'
     _description = 'WebVue refund by cancellation notice'
     _order = 'notice_hours desc'
+    # A tier belongs to its product, which stock may share between the tenant's companies (no company of its
+    # own); only the payments service reads and writes it, elevated, for a product an application authorized.
+    _webvue_scope = 'tenant'
 
     product_tmpl_id = fields.Many2one('product.template', required=True, ondelete='cascade', index=True)
     notice_hours = fields.Integer(required=True)
