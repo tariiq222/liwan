@@ -16,7 +16,7 @@ from odoo.addons.webvue_api.tests.common import (
 from odoo.addons.webvue_inbox.models.secret_box import KEY_ENV
 from odoo.addons.webvue_inbox.tests.common import ACCESS_TOKEN, APP_SECRET
 
-EXPECTED_GET_RECORD_ROUTES = 7
+EXPECTED_GET_RECORD_ROUTES = 9
 PASSWORD = 'iso_inbox_nocap_pass_123'
 # Visible and hidden company tags per session company. iso_user holds the inbox manager role in the parent
 # and both branches, so a parent session reads its branches; a branch session never reads the parent or a
@@ -79,8 +79,11 @@ class TestInboxCompanyIsolation(CompanyIsolationCase):
                 'name': f'file-{tag}.txt', 'datas': base64.b64encode(b'x'), 'res_model': message._name,
                 'res_id': message.id,
             })
+            template = cls.env['webvue.inbox.template'].create({
+                'channel_id': channel.id, 'company_id': company.id, 'name': f'tpl_{tag}', 'language': 'ar', 'status': 'approved', 'body': 'x',
+            })
             cls.recs[tag] = {
-                'channel': channel, 'contact': contact, 'conversation': conversation, 'message': message,
+                'template': template, 'channel': channel, 'contact': contact, 'conversation': conversation, 'message': message,
                 'attachment': attachment,
             }
 
@@ -88,7 +91,9 @@ class TestInboxCompanyIsolation(CompanyIsolationCase):
     def paths(rec):
         return {
             'channel': f'/api/v1/inbox/channels/{rec["channel"].id}',
+            'ref': f'/api/v1/inbox/channels/{rec["channel"].id}/ref',
             'templates': f'/api/v1/inbox/channels/{rec["channel"].id}/templates',
+            'template': f'/api/v1/inbox/templates/{rec["template"].id}',
             'conversation': f'/api/v1/inbox/conversations/{rec["conversation"].id}',
             'messages': f'/api/v1/inbox/conversations/{rec["conversation"].id}/messages',
             'contact': f'/api/v1/inbox/contacts/{rec["contact"].id}',
@@ -97,7 +102,7 @@ class TestInboxCompanyIsolation(CompanyIsolationCase):
 
     def hidden_ids(self, kind, rec):
         return {
-            'channel': rec['channel'], 'templates': rec['channel'], 'conversation': rec['conversation'],
+            'channel': rec['channel'], 'ref': rec['channel'], 'templates': rec['channel'], 'template': rec['template'], 'conversation': rec['conversation'],
             'messages': rec['conversation'], 'contact': rec['contact'], 'download': rec['message'],
         }[kind].id
 
@@ -148,7 +153,9 @@ class TestInboxCompanyIsolation(CompanyIsolationCase):
 
 cover_isolation_routes((
     '/api/v1/inbox/channels/<int:channel_id>',
+    '/api/v1/inbox/channels/<int:channel_id>/ref',
     '/api/v1/inbox/channels/<int:channel_id>/templates',
+    '/api/v1/inbox/templates/<int:template_id>',
     '/api/v1/inbox/conversations/<int:conversation_id>',
     '/api/v1/inbox/conversations/<int:conversation_id>/messages',
     '/api/v1/inbox/contacts/<int:contact_id>',
