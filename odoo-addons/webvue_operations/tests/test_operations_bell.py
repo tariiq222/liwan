@@ -107,17 +107,30 @@ class TestOperationsBell(WebVueApiCase):
         self.assertEqual(len(self._bell(self.employee, 'operations.returned')), 1)
         self.assertEqual(len(self._bell(self.reviewers[0], 'operations.review_requested')), 1)
 
-    def test_the_actor_is_never_notified_of_their_own_action(self):
-        both = self.env['webvue.operation.process'].with_user(self.manager).create({'name': 'Same reviewer twice'})
-        both.with_user(self.manager).action_configure(0, 'Same reviewer twice', '', 'approval', [
+    def _same_reviewer_twice(self, mode):
+        both = self.env['webvue.operation.process'].with_user(self.manager).create({'name': f'Same reviewer twice {mode}'})
+        both.with_user(self.manager).action_configure(0, f'Same reviewer twice {mode}', '', 'approval', [
             {'name': 'First', 'reviewer_ids': [self.reviewers[0].id]},
             {'name': 'Second', 'reviewer_ids': [self.reviewers[0].id, self.reviewers[1].id]},
-        ])
+        ], stage_approval_mode=mode)
         both.with_user(self.manager).action_publish(1)
-        record = self.env['webvue.operation.request'].with_user(self.employee).create({'name': 'Twice', 'process_id': both.id})
+        record = self.env['webvue.operation.request'].with_user(self.employee).create({'name': f'Twice {mode}', 'process_id': both.id})
         record.action_submit(0)
         self.assertFalse(self._bell(self.employee))
         record.with_user(self.reviewers[0]).action_approve(record.revision)
+        return record
+
+    def test_the_actor_is_never_notified_of_their_own_action(self):
+        record = self._same_reviewer_twice('per_stage')
+        # Each stage needs its own decision: the request waits at the second stage, its other reviewer is asked,
+        # and the reviewer who just approved is not notified of their own action.
+        self.assertEqual(record.state, 'pending')
+        self.assertEqual(self._bell(self.reviewers[0]).mapped('webvue_notification_kind'), ['operations.review_requested'])
+        self.assertEqual(self._bell(self.reviewers[1]).mapped('webvue_notification_kind'), ['operations.review_requested'])
+        self.assertFalse(self._bell(self.employee))
+
+    def test_single_approval_mode_decides_without_asking_again(self):
+        record = self._same_reviewer_twice('single')
         # One reviewer's approval passes both stages, so the request is decided and nobody is asked again.
         self.assertEqual(record.state, 'done')
         self.assertEqual(self._bell(self.reviewers[0]).mapped('webvue_notification_kind'), ['operations.review_requested'])

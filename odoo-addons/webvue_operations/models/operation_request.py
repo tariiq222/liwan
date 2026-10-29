@@ -164,14 +164,15 @@ class OperationRequest(models.Model):
         """Bell row for the reviewers of the stage the request now waits at.
 
         The actor is never among them: the requester is excluded from every stage at submission, and a
-        reviewer's approval also passes any later stage that lists the same reviewer.
+        reviewer who approved one stage and also sits on the next (``per_stage`` mode) finds the request
+        in their own pending list instead of a notice of their own action.
         """
         self.ensure_one()
         open_reviews = self.review_ids.filtered(lambda r: r.status in ('pending', 'waiting')).sorted('sequence')
         if not open_reviews:
             return
         sequence = open_reviews[0].sequence
-        reviewers = self.env['res.users'].browse(self.stage_snapshot[sequence - 1]['reviewer_ids'])
+        reviewers = self.env['res.users'].browse(self.stage_snapshot[sequence - 1]['reviewer_ids']) - self.env.user
         service = self.env['webvue.notify.service']
         for reviewer in reviewers:
             service._webvue_deliver(
