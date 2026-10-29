@@ -35,6 +35,8 @@ const stages = useCrmStageChoices()
 const outcomes = useCrmOutcomeChoices()
 const packages = useCrmPackageChoices()
 const lostReasons = useCrmLostReasonChoices()
+// The reason the follow-up engine closes with is not a manual choice.
+const manualLostReasons = computed(() => (lostReasons.data.value?.items ?? []).filter(reason => !reason.protected))
 const actions = useCrmOpportunityActions()
 const record = query.data
 const now = ref(Date.now())
@@ -180,7 +182,7 @@ const stageItems = computed(() => movableStages(stages.data.value?.items ?? []).
       <SharedUnsavedChanges :dirty="unsent" guard-route-updates />
       <UAlert v-if="recorded" role="status" color="success" variant="subtle" :description="recorded" data-testid="crm-recorded" />
       <UAlert v-if="pageFailure" role="alert" color="error" variant="subtle" :description="failureText" data-testid="crm-failure" />
-      <CrmOpportunityLostForm v-if="panel === 'lost' && canWork" v-model:dirty="lostDirty" :reasons="lostReasons.data.value?.items ?? []" :pending="actions.lose.isPending.value" :error="textFor('lost')" @confirm="closeLost" @cancel="open('lost')" />
+      <CrmOpportunityLostForm v-if="panel === 'lost' && canWork" v-model:dirty="lostDirty" :reasons="manualLostReasons" :pending="actions.lose.isPending.value" :error="textFor('lost')" @confirm="closeLost" @cancel="open('lost')" />
       <SharedRecordSection v-if="panel === 'sale' && canWork" variant="panel" :title="t('crm.opportunities.sale.title', { term: term('package', 'one') })">
         <div class="grid gap-4">
           <CrmOpportunitySaleForm v-model="saleDraft" :packages="packages.data.value?.items ?? []" :disabled="busy" :show-errors="saleAttempted" />
@@ -191,7 +193,7 @@ const stageItems = computed(() => movableStages(stages.data.value?.items ?? []).
           </div>
         </div>
       </SharedRecordSection>
-      <CrmOpportunityCallForm v-if="canWork && panel === null" :key="callFormKey" v-model:dirty="callDirty" :outcomes="outcomes.data.value?.items ?? []" :packages="packages.data.value?.items ?? []" :lost-reasons="lostReasons.data.value?.items ?? []" :pending="actions.recordCall.isPending.value" :error="textFor('call')" @record="recordCall" />
+      <CrmOpportunityCallForm v-if="canWork && panel === null" :key="callFormKey" v-model:dirty="callDirty" :outcomes="outcomes.data.value?.items ?? []" :packages="packages.data.value?.items ?? []" :lost-reasons="manualLostReasons" :pending="actions.recordCall.isPending.value" :error="textFor('call')" @record="recordCall" />
       <CrmOpportunityCallLog :calls="calls.items.value" :total="calls.data.value?.pages.at(-1)?.total ?? 0" :has-more="!!calls.hasNextPage.value" :loading-more="calls.isFetchingNextPage.value" @more="calls.fetchNextPage()" />
     </template>
     <template v-if="record" #aside>

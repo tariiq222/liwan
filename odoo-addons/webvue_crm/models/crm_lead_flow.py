@@ -41,6 +41,8 @@ class CrmLeadFlow(models.Model):
         ) else 0
         if declared_percent is not None and round(declared_percent, 2) != discount:
             raise ApiError(422, 'invalid', 'the discount does not match the prices', field='discount_percent')
+        if final_price > package.list_price:
+            self._webvue_check_price_above_list(user)
         if not discount:
             return 0
         settings = self.env['webvue.crm.settings'].with_company(self.company_id)._webvue_effective()
@@ -51,6 +53,17 @@ class CrmLeadFlow(models.Model):
         ):
             raise ApiError(403, 'forbidden', f'{APPROVE_DISCOUNT} capability is required')
         return discount
+
+    def _webvue_check_price_above_list(self, user):
+        """A sale above the package price follows the company's policy: refused, a manager decision, or open."""
+        policy = self.env['webvue.crm.settings'].with_company(self.company_id)._webvue_effective()['price_above_list']
+        if policy == 'forbid' or (policy == 'managers' and not self.env['webvue.access.service']._webvue_has_capability(
+            user, APPROVE_DISCOUNT, company=self.company_id,
+        )):
+            raise ApiError(
+                422, 'invalid', 'the final price is above the package price', field='final_price',
+                details={'reason': f'crm_price_above_list_{policy}'},
+            )
 
     def _webvue_mark_won(self, package, final_price, discount_percent, user):
         """Sell ``package`` at ``final_price``: won stage, prices set, follow-up cleared."""

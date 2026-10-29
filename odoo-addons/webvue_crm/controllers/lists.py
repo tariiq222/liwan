@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from psycopg2.errors import UniqueViolation
 
-from odoo import http
+from odoo import Command, http
 from odoo.http import request
 
 from odoo.addons.webvue_api.controllers.common import (
@@ -91,8 +91,16 @@ def _get_package(package_id):
     return package
 
 
-def _is_protected(reason):
+def is_protected_reason(reason):
     return reason == request.env.ref(PROTECTED_REASON)
+
+
+def _reject_source_name_taken(name, keep=None):
+    """409 when another source, archived ones included, has this name in any letter case."""
+    domain = [('name', 'ilike', name)] + ([('id', '!=', keep.id)] if keep else [])
+    clashes = request.env['utm.source'].with_context(active_test=False).search(domain)
+    if any(source.name.casefold() == name.casefold() for source in clashes):
+        raise ApiError(409, 'conflict', SOURCE_EXISTS, field='name')
 
 
 class CrmListsController(http.Controller):
@@ -205,7 +213,7 @@ class CrmListsController(http.Controller):
     @requires_feature('crm.enabled', operation='read')
     @requires_capability(*READ, match='any')
     def list_lost_reasons(self, **_):
-        return _list(request.env['crm.lost.reason'], [], lambda reason: dump_lost_reason(reason, _is_protected(reason)))
+        return _list(request.env['crm.lost.reason'], [], lambda reason: dump_lost_reason(reason, is_protected_reason(reason)))
 
     @http.route('/api/v1/crm/lost-reasons', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -232,12 +240,12 @@ class CrmListsController(http.Controller):
     @staticmethod
     def _write_lost_reason(reason, vals):
         if vals.get('active') is False:
-            if _is_protected(reason):
+            if is_protected_reason(reason):
                 raise ApiError(422, 'invalid', 'this lost reason is used by the system and cannot be archived', field='active')
             if request.env['webvue.crm.call.outcome'].search_count([('lost_reason_id', '=', reason.id)]):
                 raise ApiError(422, 'invalid', 'an active call outcome uses this lost reason', field='active')
         reason.write(vals)
-        return dump_lost_reason(reason, _is_protected(reason))
+        return dump_lost_reason(reason, is_protected_reason(reason))
 
     # Sources
 
@@ -256,8 +264,7 @@ class CrmListsController(http.Controller):
         vals = parse_body(payload, NAME_FIELDS, creating=True)
         sources = request.env['utm.source']
         # Stock create renames a clash with an active source only; an archived one would hit the unique index.
-        if sources.with_context(active_test=False).search_count([('name', '=', vals['name'])]):
-            raise ApiError(409, 'conflict', SOURCE_EXISTS, field='name')
+        _reject_source_name_taken(vals['name'])
         return dump_source(self._save_source(lambda: sources.create(vals)))
 
     @http.route('/api/v1/crm/sources/<int:source_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
@@ -265,7 +272,11 @@ class CrmListsController(http.Controller):
     @requires_feature('crm.enabled', operation='write')
     @requires_capability('crm.settings.manage')
     def patch_source(self, source_id, **payload):
-        return self._write_source(get_record('utm.source', source_id), parse_body(payload, NAME_FIELDS, creating=False))
+        source = get_record('utm.source', source_id)
+        vals = parse_body(payload, NAME_FIELDS, creating=False)
+        if 'name' in vals:
+            _reject_source_name_taken(vals['name'], keep=source)
+        return self._write_source(source, vals)
 
     @http.route('/api/v1/crm/sources/<int:source_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
     @api_handler
@@ -304,6 +315,9 @@ class CrmListsController(http.Controller):
         vals = parse_body(payload, PACKAGE_FIELDS, creating=True)
         package = request.env['product.template'].create({
             **vals, 'webvue_crm_package': True, 'company_id': request.env.company.id, 'purchase_ok': False,
+            # A package is not taxed here; naming the taxes keeps stock from reading the company's default taxes,
+            # which a branch manager has no right to read.
+            'taxes_id': [Command.clear()], 'supplier_taxes_id': [Command.clear()],
         })
         return dump_package(package)
 

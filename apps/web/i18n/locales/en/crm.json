@@ -411,5 +411,13 @@
         "conversionHint": "Records created this month and how many of them were won."
       }
     }
+  },
+  "errors": {
+    "reasons": {
+      "crm_agent_not_eligible": "This person cannot take opportunities. They need to work on opportunities in this company.",
+      "crm_lost_reason_system": "This reason is used by the system and cannot be picked manually.",
+      "crm_price_above_list_forbid": "Selling a package above its price is not allowed in this company.",
+      "crm_price_above_list_managers": "Selling a package above its price is allowed for the CRM manager only."
+    }
   }
 }
