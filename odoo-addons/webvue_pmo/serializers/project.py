@@ -16,7 +16,7 @@ STATUS_TO_API = {'on_track': 'on_track', 'at_risk': 'at_risk', 'off_track': 'off
 # Odoo's 'portal' (its default) means "all internal users" for webvue: there are no portal users.
 VISIBILITY_TO_API = {'followers': 'followers', 'employees': 'employees', 'portal': 'employees', 'invited_users': 'followers'}
 PROJECT_FIELDS = {
-    'name', 'description', 'user_id', 'privacy_visibility', 'date_start', 'date', 'tag_ids',
+    'name', 'description', 'user_id', 'privacy_visibility', 'date_start', 'date', 'date_end', 'tag_ids',
     'allow_task_dependencies', 'webvue_completion_approval', 'webvue_completion_approver_id',
 }
 CREATE_FIELDS = {
@@ -92,6 +92,9 @@ def dump_project_detail(project):
 
 
 def parse_project_vals(payload, project=None):
+    """Writable project values; the end date is `date` or its reading name `date_end`, never both."""
+    if 'date' in payload and 'date_end' in payload:
+        raise ApiError(422, 'invalid', "date and date_end cannot both be provided", field='date_end')
     vals = {}
     for key, value in payload.items():
         if key not in PROJECT_FIELDS:
@@ -118,8 +121,8 @@ def parse_project_vals(payload, project=None):
             if value not in VISIBILITY_VALUES:
                 raise ApiError(422, 'invalid', "privacy_visibility must be 'employees' or 'followers'", field=key)
             vals[key] = value
-        elif key in ('date_start', 'date'):
-            vals[key] = parse_date(value, key)
+        elif key in ('date_start', 'date', 'date_end'):
+            vals['date' if key == 'date_end' else key] = parse_date(value, key)
         elif key == 'allow_task_dependencies':
             if not isinstance(value, bool):
                 raise ApiError(422, 'invalid', "allow_task_dependencies must be a boolean", field=key)
@@ -167,15 +170,7 @@ def parse_project_create(payload):
     if not isinstance(name, str) or not name.strip():
         raise ApiError(422, 'invalid', "name must not be empty", field='name')
     charter = payload.pop('charter', _ABSENT)
-    date_end = _ABSENT
-    if 'date_end' in payload:
-        if 'date' in payload:
-            raise ApiError(422, 'invalid', "date and date_end cannot both be provided", field='date_end')
-        date_end = payload.pop('date_end')
     vals = parse_project_vals(payload) if payload else {}
-    if date_end is not _ABSENT:
-        vals['date'] = parse_date(date_end, 'date_end')
-        _reject_inverted_dates(vals)
     if charter is not _ABSENT:
         vals.update(parse_charter_vals(charter))
     settings = request.env['webvue.pmo.settings'].get()
@@ -187,23 +182,31 @@ def parse_project_create(payload):
     return name.strip(), vals
 
 
+def _parse_iso_day(value, field):
+    if not isinstance(value, str):
+        raise ApiError(422, 'invalid', f"{field} must be a YYYY-MM-DD date", field=field)
+    try:
+        parsed = date.fromisoformat(value)
+    except ValueError as error:
+        raise ApiError(422, 'invalid', f"{field} must be a YYYY-MM-DD date", field=field) from error
+    if parsed.isoformat() != value:
+        raise ApiError(422, 'invalid', f"{field} must be a YYYY-MM-DD date", field=field)
+    return parsed
+
+
 def parse_project_copy(payload):
+    """``(name, start_date, end_date)``; ``end_date`` is None unless the caller names the copy's end."""
     if not isinstance(payload, dict):
         raise ApiError(422, 'invalid', "body must be an object")
-    unknown = set(payload) - {'name', 'start_date'}
+    unknown = set(payload) - {'name', 'start_date', 'end_date'}
     if unknown:
         field = sorted(unknown)[0]
         raise ApiError(422, 'unknown_field', f"field {field!r} is not writable", field=field)
     name = payload.get('name')
     if not isinstance(name, str) or not name.strip() or len(name.strip()) > 255:
         raise ApiError(422, 'invalid', "name must be a non-empty string of at most 255 characters", field='name')
-    start_date = payload.get('start_date')
-    if not isinstance(start_date, str):
-        raise ApiError(422, 'invalid', "start_date must be a YYYY-MM-DD date", field='start_date')
-    try:
-        parsed = date.fromisoformat(start_date)
-    except ValueError as error:
-        raise ApiError(422, 'invalid', "start_date must be a YYYY-MM-DD date", field='start_date') from error
-    if parsed.isoformat() != start_date:
-        raise ApiError(422, 'invalid', "start_date must be a YYYY-MM-DD date", field='start_date')
-    return name.strip(), parsed
+    start_date = _parse_iso_day(payload.get('start_date'), 'start_date')
+    end_date = _parse_iso_day(payload['end_date'], 'end_date') if payload.get('end_date') is not None else None
+    if end_date and end_date < start_date:
+        raise ApiError(422, 'invalid', "end_date must be on or after start_date", field='end_date')
+    return name.strip(), start_date, end_date

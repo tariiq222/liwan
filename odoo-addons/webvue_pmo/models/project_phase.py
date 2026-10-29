@@ -39,7 +39,17 @@ class ProjectPhase(models.Model):
         self.ensure_one()
         if target == 'planning':
             return [{'key': 'charter_approved', 'ok': self.webvue_charter_state == 'approved'}]
+        if target == 'closed':
+            return [self._webvue_open_tasks_check()]
         return []
+
+    def _webvue_open_tasks_check(self):
+        """Closing with open tasks: a blocking check, or a ``warning`` one when the company allows it with a warning."""
+        open_tasks = self.env['project.task'].search_count([('project_id', '=', self.id), ('is_closed', '=', False)])
+        check = {'key': 'no_open_tasks', 'ok': not open_tasks}
+        if self.env['webvue.pmo.settings'].get()['close_with_open_tasks'] == 'allow_with_warning':
+            check['warning'] = True
+        return check
 
     def _webvue_phase_state(self):
         """The phase card of the project detail: where it is, where it can go, what the gate asks."""
@@ -52,7 +62,7 @@ class ProjectPhase(models.Model):
             'next_checks': self._webvue_gate_checks(following) if following else [],
         }
 
-    def _webvue_move_phase(self, target):
+    def _webvue_move_phase(self, target, acknowledge_warnings=False):
         self.ensure_one()
         self._webvue_check_manage()
         previous, following = self._webvue_phase_neighbours()
@@ -60,8 +70,11 @@ class ProjectPhase(models.Model):
             raise WebVuePhaseStep(self.env._("A project moves one phase at a time."))
         if target == following:
             checks = self._webvue_gate_checks(target)
-            if not all(check['ok'] for check in checks):
+            unmet = [check for check in checks if not check['ok']]
+            if any(not check.get('warning') for check in unmet):
                 raise WebVuePhaseGate(self.env._("The gate into this phase has unmet checks."), checks)
+            if unmet and not acknowledge_warnings:
+                raise WebVuePhaseGate(self.env._("The gate into this phase has warnings that need confirmation."), checks)
         self._webvue_write_sudo({'webvue_phase': target}, allowed=PHASE_FIELDS)
         self._webvue_bump_revision()
         return self
