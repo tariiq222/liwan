@@ -6,7 +6,7 @@ import type { AutoContentDraft, AutoContentMode } from '@/composables/inbox/inbo
 // the composer uses (reply buttons, a list or a link). The button and row ids the builder generates are the option
 // ids a rule can match when the customer answers.
 const draft = defineModel<AutoContentDraft>({ required: true })
-const props = defineProps<{ label: string }>()
+const props = defineProps<{ label: string; channelId?: number | null }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const MAX_TEXT = 4096
@@ -19,6 +19,6 @@ const modeItems = computed(() => (['text', 'interactive'] as AutoContentMode[]).
     <UFormField v-if="draft.mode === 'text'" :label="t('inbox.automation.content.body')" :hint="`${draft.body.length}/${MAX_TEXT}`" required>
       <UTextarea v-model="draft.body" class="w-full" :rows="3" autoresize :maxrows="8" :maxlength="MAX_TEXT" :disabled="!hydrated" data-testid="inbox-auto-content-body" />
     </UFormField>
-    <InboxInteractiveBuilder v-else v-model="draft.interactive" />
+    <InboxInteractiveBuilder v-else v-model="draft.interactive" :channel-id="props.channelId" />
   </div>
 </template>

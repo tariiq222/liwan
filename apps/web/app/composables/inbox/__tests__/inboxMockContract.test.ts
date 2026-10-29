@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   InboxAttachmentSchema, InboxCannedReplyListSchema, InboxChannelListSchema, InboxChannelSchema, InboxConversationDetailSchema, InboxConversationListSchema,
-  InboxChannelAutomationSchema, InboxDepartmentListSchema, InboxDepartmentWorkingHoursSchema, InboxMessageListSchema, InboxRefSchema, InboxRuleListSchema, InboxRuleSchema, InboxRuleTestResultSchema, InboxWorkingHoursSchema, InboxMessageSchema, InboxSettingsSchema, InboxTagListSchema, InboxTemplateListSchema, InboxTemplateSchema,
+  InboxChannelAutomationSchema, InboxDepartmentListSchema, InboxFlowListSchema, InboxFlowPreviewSchema, InboxFlowSchema, InboxFlowSubmissionListSchema, InboxDepartmentWorkingHoursSchema, InboxMessageListSchema, InboxRefSchema, InboxRuleListSchema, InboxRuleSchema, InboxRuleTestResultSchema, InboxWorkingHoursSchema, InboxMessageSchema, InboxSettingsSchema, InboxTagListSchema, InboxTemplateListSchema, InboxTemplateSchema,
 } from '@webvue/contracts'
 import { inboxPreviewData, resetInboxPreview } from '../../../../e2e/inbox-ui-preview-data.mjs'
 
@@ -19,7 +19,7 @@ describe('inbox audit mock', () => {
     expect(InboxConversationDetailSchema.parse(call('GET', '/api/v1/inbox/conversations/1').body).can_reply).toBe(true)
     expect(InboxMessageListSchema.parse(call('GET', '/api/v1/inbox/conversations/1/messages').body).items.length).toBeGreaterThan(0)
     expect(InboxCannedReplyListSchema.parse(call('GET', '/api/v1/inbox/canned-replies').body).total).toBe(2)
-    expect(InboxTemplateListSchema.parse(call('GET', '/api/v1/inbox/channels/1/templates').body).total).toBe(6)
+    expect(InboxTemplateListSchema.parse(call('GET', '/api/v1/inbox/channels/1/templates').body).total).toBe(7)
     expect(InboxTagListSchema.parse(call('GET', '/api/v1/inbox/tags').body).total).toBe(3)
     expect(InboxDepartmentListSchema.parse(call('GET', '/api/v1/inbox/departments').body).total).toBe(2)
     expect(InboxSettingsSchema.parse(call('GET', '/api/v1/settings/inbox').body).visibility_policy).toBe('department')
@@ -58,8 +58,8 @@ describe('inbox audit mock', () => {
 
   it('shows one message of every kind with its reply, reaction, location and chosen option', () => {
     const items = InboxMessageListSchema.parse(call('GET', '/api/v1/inbox/conversations/1/messages?limit=100').body).items
-    expect(new Set(items.map(item => item.kind))).toEqual(new Set(['text', 'image', 'location', 'contacts', 'audio', 'video', 'sticker', 'interactive', 'document']))
-    expect(items.map(item => item.interactive?.type).filter(Boolean)).toEqual(['buttons', 'list', 'cta_url'])
+    expect(new Set(items.map(item => item.kind))).toEqual(new Set(['text', 'image', 'location', 'contacts', 'audio', 'video', 'sticker', 'interactive', 'document', 'flow_response']))
+    expect(items.map(item => item.interactive?.type).filter(Boolean)).toEqual(['buttons', 'flow', 'list', 'cta_url'])
     expect(items.some(item => item.reply_to && item.reactions.customer)).toBe(true)
     expect(items.some(item => item.selected_option?.id === 'btn_1')).toBe(true)
   })
@@ -131,8 +131,8 @@ describe('inbox audit mock', () => {
 
     it('serves every template in the contract shape and filters by status, category and name', () => {
       const ids = (query: string) => InboxTemplateListSchema.parse(call('GET', `/api/v1/inbox/channels/1/templates?${query}`).body).items.map(item => item.id)
-      expect(ids('')).toEqual([1, 2, 3, 4, 5, 6])
-      expect(ids('status=approved')).toEqual([1, 2, 4, 6])
+      expect(ids('')).toEqual([1, 2, 3, 4, 5, 6, 7])
+      expect(ids('status=approved')).toEqual([1, 2, 4, 6, 7])
       expect(ids('status=rejected')).toEqual([3])
       expect(ids('category=authentication')).toEqual([4])
       expect(ids('q=follow')).toEqual([2])
@@ -196,7 +196,7 @@ describe('inbox audit mock', () => {
       channel_id: null, name: 'استفسار الأسعار', active: true, match_kind: 'contains', keywords: ['سعر'], option_id: null, hours: 'any', stop: true,
       reply: { body: 'الأسعار في القائمة.' }, resolve: false, department_id: null, assignee_id: null, tag_ids: [], priority: null, ...extra,
     })
-    const test = (body: object) => InboxRuleTestResultSchema.parse(call('POST', '/api/v1/inbox/rules/test', { channel_id: 1, text: null, option_id: null, at: null, ...body }).body)
+    const test = (body: object) => InboxRuleTestResultSchema.parse(call('POST', '/api/v1/inbox/rules/test', { channel_id: 1, text: null, option_id: null, flow_id: null, at: null, ...body }).body)
 
     it('serves the settings, hours, automatic messages and rules in the contract shape', () => {
       expect(InboxSettingsSchema.parse(call('GET', '/api/v1/settings/inbox').body)).toMatchObject({ assignment_policy: 'manual', first_response_alert_minutes: 0 })
@@ -251,7 +251,7 @@ describe('inbox audit mock', () => {
       expect(test({ text: 'شكوى' }).rules.map(item => item.name)).toEqual(['شكوى عاجلة', 'كل شيء'])
       call('PATCH', '/api/v1/inbox/rules/1', { active: false })
       expect(test({ text: 'حجز' }).rules.map(item => item.name)).toEqual(['كل شيء'])
-      expect(call('POST', '/api/v1/inbox/rules/test', { channel_id: 9, text: 'x', option_id: null, at: null }).status).toBe(422)
+      expect(call('POST', '/api/v1/inbox/rules/test', { channel_id: 9, text: 'x', option_id: null, flow_id: null, at: null }).status).toBe(422)
     })
 
     it('answers the welcome inside hours and the away message outside them', () => {
@@ -261,6 +261,88 @@ describe('inbox audit mock', () => {
       call('PATCH', '/api/v1/inbox/channels/1/automation', { away: { enabled: true, repeat_hours: 12, content: { body: 'خارج الدوام' } } })
       expect(test({ at: monday22 })).toMatchObject({ inside_hours: false, auto_message: 'away' })
       expect(test({ at: '2026-09-23T07:00:00Z' }).inside_hours).toBe(false)
+    })
+  })
+  describe('forms', () => {
+    const screen = (fields: object[], extra: object = {}) => ({ title: 'بياناتك', footer_label: 'إرسال', fields, ...extra })
+    const nameField = { kind: 'text_input', key: 'full_name', label: 'الاسم', required: true, sensitive: false, input_type: 'text', helper_text: null, min_chars: null, max_chars: null }
+    const write = (extra: object = {}) => ({ name: 'نموذج جديد', category: 'lead_generation', language: 'ar', completion_message: null, screens: [screen([nameField])], ...extra })
+    const flowsOf = (query = '') => InboxFlowListSchema.parse(call('GET', `/api/v1/inbox/channels/1/flows${query}`).body)
+
+    it('serves a published, a draft and an external form in the contract shape, filtered like the server', () => {
+      expect(flowsOf().items.map(item => [item.id, item.status, item.supported])).toEqual([[1, 'published', true], [2, 'draft', true], [3, 'published', false]])
+      expect(flowsOf('?status=draft').items.map(item => item.id)).toEqual([2])
+      expect(flowsOf('?sendable=true').items.map(item => item.id)).toEqual([1, 3])
+      expect(flowsOf('?q=موعد').items.map(item => item.id)).toEqual([1])
+      expect(InboxFlowSchema.parse(call('GET', '/api/v1/inbox/flows/1').body)).toMatchObject({ submission_count: 1, screens: [{ key: 'SCREEN_A' }, { key: 'SCREEN_B' }] })
+      expect(call('GET', '/api/v1/inbox/flows/99').status).toBe(404)
+    })
+
+    it('creates a draft, refuses a duplicate name and an invalid form, and puts Meta\'s errors on the field', () => {
+      const created = call('POST', '/api/v1/inbox/channels/1/flows', write())
+      expect(created.status).toBe(201)
+      expect(InboxFlowSchema.parse(created.body)).toMatchObject({ status: 'draft', editable: true, validation_errors: [] })
+      expect(call('POST', '/api/v1/inbox/channels/1/flows', write()).body).toMatchObject({ field: 'name' })
+      expect(call('POST', '/api/v1/inbox/channels/1/flows', write({ name: 'x', screens: [screen([{ kind: 'heading', text: 'فقط' }])] })).status).toBe(422)
+      const rejected = InboxFlowSchema.parse(call('POST', '/api/v1/inbox/channels/1/flows', write({ name: 'y', screens: [screen([{ ...nameField, label: 'forbidden' }])] })).body)
+      expect(rejected.validation_errors).toEqual([expect.objectContaining({ path: '$.screens[0].layout.children[0]' })])
+      expect(call('POST', `/api/v1/inbox/flows/${rejected.id}/publish`).status).toBe(422)
+    })
+
+    it('replaces a draft, refuses to edit a published form, publishes, deprecates and deletes only what the status allows', () => {
+      expect(InboxFlowSchema.parse(call('PATCH', '/api/v1/inbox/flows/2', write({ name: 'استفسار عن طلب' })).body).screens).toHaveLength(1)
+      expect(call('PATCH', '/api/v1/inbox/flows/1', write({ name: 'طلب موعد' })).status).toBe(422)
+      expect(call('DELETE', '/api/v1/inbox/flows/1').status).toBe(422)
+      expect(InboxFlowSchema.parse(call('POST', '/api/v1/inbox/flows/2/publish').body)).toMatchObject({ status: 'published', sendable: true, editable: false })
+      expect(call('POST', '/api/v1/inbox/flows/2/publish').status).toBe(422)
+      expect(InboxFlowSchema.parse(call('POST', '/api/v1/inbox/flows/2/deprecate').body)).toMatchObject({ status: 'deprecated', sendable: false })
+      const draft = InboxFlowSchema.parse(call('POST', '/api/v1/inbox/channels/1/flows', write({ name: 'مؤقت' })).body)
+      expect(call('DELETE', `/api/v1/inbox/flows/${draft.id}`).status).toBe(204)
+    })
+
+    it('copies a form into a draft and, when published with replace, takes over its rules and deprecates it', () => {
+      call('POST', '/api/v1/inbox/rules', { channel_id: 1, name: 'عند الطلب', active: true, match_kind: 'flow', keywords: [], option_id: null, flow_id: 1, hours: 'any', stop: true, reply: { body: 'شكرًا' }, resolve: false, department_id: null, assignee_id: null, tag_ids: [], priority: null })
+      const copy = InboxFlowSchema.parse(call('POST', '/api/v1/inbox/flows/1/copy', { name: 'طلب موعد 2', replace: true }).body)
+      expect(copy).toMatchObject({ status: 'draft', replaces: { id: 1 }, screens: [{ key: 'SCREEN_A' }, { key: 'SCREEN_B' }] })
+      expect(call('POST', '/api/v1/inbox/flows/1/copy', { name: 'طلب موعد 2', replace: false }).body).toMatchObject({ field: 'name' })
+      expect(call('POST', '/api/v1/inbox/flows/3/copy', { name: 'x', replace: false }).status).toBe(422)
+      call('POST', `/api/v1/inbox/flows/${copy.id}/publish`)
+      expect(InboxFlowSchema.parse(call('GET', '/api/v1/inbox/flows/1').body).status).toBe('deprecated')
+      expect(InboxRuleListSchema.parse(call('GET', '/api/v1/inbox/rules').body).items.find(item => item.match_kind === 'flow')?.flow).toEqual({ id: copy.id, name: 'طلب موعد 2' })
+    })
+
+    it('answers the Meta preview link and the sync', () => {
+      expect(InboxFlowPreviewSchema.parse(call('GET', '/api/v1/inbox/flows/1/preview').body).url).toMatch(/^https:/)
+      expect(InboxFlowListSchema.parse(call('POST', '/api/v1/inbox/channels/1/flows/sync').body).total).toBe(3)
+    })
+
+    it('sends a sendable form of the conversation\'s channel only, and turns the customer\'s answer into a submission and a card', () => {
+      const send = (flow_id: number) => call('POST', '/api/v1/inbox/conversations/1/messages', { interactive: { type: 'flow', body: 'املأ النموذج', header: null, footer: null, flow_id, cta: 'افتح' } })
+      expect(send(2).status).toBe(422)
+      expect(send(99).status).toBe(422)
+      expect(InboxMessageSchema.parse(send(1).body).interactive).toMatchObject({ type: 'flow', flow_id: 1 })
+      const answered = InboxMessageSchema.parse(call('POST', '/api/v1/inbox/__mock/flow-answer', { conversation_id: 1, flow_id: 1 }).body)
+      expect(answered).toMatchObject({ kind: 'flow_response', direction: 'in', flow_response: { flow: { id: 1 }, conversation_id: 1 } })
+      const submissions = InboxFlowSubmissionListSchema.parse(call('GET', '/api/v1/inbox/flows/1/submissions').body)
+      expect(submissions.total).toBe(2)
+      expect(submissions.items[0]!.id).toBe(answered.flow_response!.id)
+      expect(InboxFlowSubmissionListSchema.parse(call('GET', '/api/v1/inbox/flows/1/submissions?date_from=2999-01-01').body).total).toBe(0)
+      expect(InboxFlowSubmissionListSchema.parse(call('GET', '/api/v1/inbox/conversations/1/flow-submissions').body).total).toBe(2)
+      expect(InboxFlowSubmissionListSchema.parse(call('GET', '/api/v1/inbox/conversations/2/flow-submissions').body).total).toBe(0)
+    })
+
+    it('reads a template flow button back with its form, and dry-runs a form rule', () => {
+      const template = InboxTemplateSchema.parse(call('GET', '/api/v1/inbox/templates/7').body)
+      expect(template.buttons).toEqual([{ type: 'flow', text: 'احجز موعدًا', flow: { id: 1, name: 'طلب موعد' }, provider_flow_id: '4401234567890' }])
+      const created = InboxTemplateSchema.parse(call('POST', '/api/v1/inbox/channels/1/templates', {
+        name: 'flow_template', language: 'ar', category: 'utility', allow_category_change: true, header: null, body: 'اضغط', body_examples: [], footer: null, buttons: [{ type: 'flow', text: 'افتح', flow_id: 1 }],
+      }).body)
+      expect(created.buttons[0]).toMatchObject({ type: 'flow', flow: { id: 1 } })
+      call('POST', '/api/v1/inbox/rules', { channel_id: 1, name: 'عند الطلب', active: true, match_kind: 'flow', keywords: [], option_id: null, flow_id: 1, hours: 'any', stop: true, reply: null, resolve: false, department_id: null, assignee_id: null, tag_ids: [], priority: 'high' })
+      const run = (flow_id: number | null) => InboxRuleTestResultSchema.parse(call('POST', '/api/v1/inbox/rules/test', { channel_id: 1, text: null, option_id: null, flow_id, at: null }).body)
+      expect(run(1).rules.map(item => item.name)).toEqual(['عند الطلب'])
+      expect(run(2).rules).toEqual([])
+      expect(call('POST', '/api/v1/inbox/rules', { channel_id: 1, name: 'بلا نموذج', active: true, match_kind: 'flow', keywords: [], option_id: null, flow_id: null, hours: 'any', stop: true, reply: null, resolve: false, department_id: null, assignee_id: null, tag_ids: [], priority: 'high' }).body).toMatchObject({ field: 'flow_id' })
     })
   })
 })

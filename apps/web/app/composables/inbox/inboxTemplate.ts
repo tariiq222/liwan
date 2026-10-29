@@ -16,7 +16,7 @@ import { renderTemplateBody } from './inboxWindow'
 // packages/contracts/src/inbox; the zod write schema stays the single validator, this file only explains and guides.
 
 export const TEMPLATE_LIMITS = {
-  headerText: 60, body: 1024, footer: 60, buttonText: 25, buttons: 10, urlButtons: 2, phoneButtons: 1, copyCodeButtons: 1,
+  headerText: 60, body: 1024, footer: 60, buttonText: 25, buttons: 10, urlButtons: 2, phoneButtons: 1, copyCodeButtons: 1, flowButtons: 1,
   url: 2000, example: 1024, couponExample: 15, expirationMinutes: 90,
 } as const
 
@@ -55,7 +55,7 @@ export const resizeExamples = (examples: readonly string[], count: number) => Ar
 
 // ---------------------------------------------------------------- draft
 
-export type ButtonKind = 'quick_reply' | 'url' | 'phone_number' | 'copy_code'
+export type ButtonKind = 'quick_reply' | 'url' | 'phone_number' | 'copy_code' | 'flow'
 export type HeaderKind = 'none' | 'text' | 'image' | 'video' | 'document' | 'location'
 export const HEADER_KINDS: readonly HeaderKind[] = ['none', 'text', 'image', 'video', 'document', 'location']
 export type SampleAttachment = { id: number; name: string; mimetype: string; size: number }
@@ -68,6 +68,8 @@ export interface ButtonDraft {
   phone_number: string
   /** The example url of a url with a variable, or the sample coupon code of a copy-code button. */
   example: string
+  /** The published form a flow button opens. */
+  flowId: number | null
 }
 
 export interface TemplateDraft {
@@ -89,7 +91,7 @@ export interface TemplateDraft {
 }
 
 let nextButtonKey = 1
-export const emptyButton = (type: ButtonKind): ButtonDraft => ({ key: nextButtonKey++, type, text: '', url: '', phone_number: '', example: '' })
+export const emptyButton = (type: ButtonKind): ButtonDraft => ({ key: nextButtonKey++, type, text: '', url: '', phone_number: '', example: '', flowId: null })
 
 export const emptyTemplateDraft = (otpButtonText = ''): TemplateDraft => ({
   name: '', language: 'ar', category: 'utility', allowCategoryChange: true,
@@ -121,6 +123,7 @@ export function draftFromTemplate(template: InboxTemplate, otpButtonText = ''): 
       url: button.type === 'url' ? button.url : '',
       phone_number: button.type === 'phone_number' ? button.phone_number : '',
       example: button.type === 'url' ? button.example ?? '' : button.type === 'copy_code' ? button.example : '',
+      flowId: button.type === 'flow' ? button.flow?.id ?? null : null,
     })),
     addSecurityRecommendation: template.add_security_recommendation,
     codeExpirationMinutes: template.code_expiration_minutes ? String(template.code_expiration_minutes) : '',
@@ -145,6 +148,7 @@ function writeButton(button: ButtonDraft) {
   if (button.type === 'quick_reply') return { type: button.type, text }
   if (button.type === 'phone_number') return { type: button.type, text, phone_number: button.phone_number.trim() }
   if (button.type === 'copy_code') return { type: button.type, example: button.example.trim() }
+  if (button.type === 'flow') return { type: button.type, text, flow_id: button.flowId }
   const url = button.url.trim()
   return { type: button.type, text, url, example: urlHasVariable(url) ? button.example.trim() : null }
 }
@@ -197,7 +201,7 @@ export function validateTemplateDraft(draft: TemplateDraft): TemplateValidation 
 
 // ---------------------------------------------------------------- buttons
 
-export type ButtonProblem = 'tooMany' | 'urls' | 'phone' | 'copyCode' | 'grouping'
+export type ButtonProblem = 'tooMany' | 'urls' | 'phone' | 'copyCode' | 'flow' | 'grouping'
 const count = (buttons: readonly { type: ButtonKind }[], type: ButtonKind) => buttons.filter(button => button.type === type).length
 
 /** Quick replies sit together, before or after the other buttons, never interleaved. */
@@ -212,6 +216,7 @@ export function buttonProblems(buttons: readonly { type: ButtonKind }[]): Button
   if (count(buttons, 'url') > TEMPLATE_LIMITS.urlButtons) problems.push('urls')
   if (count(buttons, 'phone_number') > TEMPLATE_LIMITS.phoneButtons) problems.push('phone')
   if (count(buttons, 'copy_code') > TEMPLATE_LIMITS.copyCodeButtons) problems.push('copyCode')
+  if (count(buttons, 'flow') > TEMPLATE_LIMITS.flowButtons) problems.push('flow')
   if (!quickRepliesGrouped(buttons)) problems.push('grouping')
   return problems
 }
@@ -219,7 +224,7 @@ export function buttonProblems(buttons: readonly { type: ButtonKind }[]): Button
 /** Whether one more button of this kind is still within Meta's limits. */
 export function canAddButton(buttons: readonly { type: ButtonKind }[], type: ButtonKind): boolean {
   if (buttons.length >= TEMPLATE_LIMITS.buttons) return false
-  const limit = { quick_reply: TEMPLATE_LIMITS.buttons, url: TEMPLATE_LIMITS.urlButtons, phone_number: TEMPLATE_LIMITS.phoneButtons, copy_code: TEMPLATE_LIMITS.copyCodeButtons }[type]
+  const limit = { quick_reply: TEMPLATE_LIMITS.buttons, url: TEMPLATE_LIMITS.urlButtons, phone_number: TEMPLATE_LIMITS.phoneButtons, copy_code: TEMPLATE_LIMITS.copyCodeButtons, flow: TEMPLATE_LIMITS.flowButtons }[type]
   return count(buttons, type) < limit
 }
 

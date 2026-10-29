@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { InboxRule } from '@webvue/contracts'
 import InboxAutoContentEditor from '@/components/inbox/InboxAutoContentEditor.vue'
+import InboxFlowPicker from '@/components/inbox/InboxFlowPicker.vue'
 import { RULE_HOURS, RULE_MATCH_KINDS, TEXT_MATCH_KINDS, emptyRuleDraft, ruleToDraft, ruleWrite, ruleWriteCandidate } from '@/composables/inbox/inboxAutomation'
 import { PRIORITIES } from '@/composables/inbox/inboxPresentation'
 import { useInboxAgents, useInboxTags } from '@/composables/inbox/useInbox'
@@ -45,6 +46,7 @@ const matchError = computed(() => {
   if (!attempted.value) return undefined
   if (isText.value && !draft.keywords.some(word => word.trim())) return t('inbox.automation.rules.keywordsRequired')
   if (draft.matchKind === 'option' && !draft.optionId.trim()) return t('inbox.automation.rules.optionRequired')
+  if (draft.matchKind === 'flow' && draft.flowId === null) return t(draft.channelId === null ? 'inbox.automation.rules.flowNeedsChannel' : 'inbox.automation.rules.flowRequired')
   return undefined
 })
 const replyError = computed(() => attempted.value && draft.replyEnabled && write.value === null && !!draft.name.trim() && !matchError.value ? t('inbox.automation.contentRequired') : undefined)
@@ -95,6 +97,9 @@ async function submit() {
       <UFormField v-else-if="draft.matchKind === 'option'" :label="t('inbox.automation.rules.optionId')" :description="t('inbox.automation.rules.optionIdHint')" required :error="matchError ?? fieldError('option_id')">
         <UInput v-model="draft.optionId" class="w-full" dir="ltr" maxlength="200" placeholder="btn_1" :disabled="off" data-testid="inbox-rule-option" />
       </UFormField>
+      <UFormField v-else-if="draft.matchKind === 'flow'" :label="t('inbox.automation.rules.flow')" :description="t('inbox.automation.rules.flowHint')" required :error="matchError ?? fieldError('flow_id')">
+        <InboxFlowPicker v-model="draft.flowId" :channel-id="draft.channelId" :known="props.rule?.flow" :disabled="off" :invalid="!!matchError" data-testid="inbox-rule-flow" />
+      </UFormField>
       <UFormField :label="t('inbox.automation.rules.hoursLabel')">
         <USelect v-model="draft.hours" :items="hoursItems" class="w-full" :disabled="off" />
       </UFormField>
@@ -107,7 +112,7 @@ async function submit() {
         <USwitch v-model="draft.replyEnabled" :disabled="off" data-testid="inbox-rule-reply-enabled" />{{ t('inbox.automation.rules.replyAction') }}
       </label>
       <template v-if="draft.replyEnabled">
-        <InboxAutoContentEditor v-model="draft.reply" :label="t('inbox.automation.rules.replyAction')" />
+        <InboxAutoContentEditor v-model="draft.reply" :label="t('inbox.automation.rules.replyAction')" :channel-id="draft.channelId" />
         <p v-if="replyError ?? fieldError('reply')" class="text-sm text-error" role="alert">{{ replyError ?? fieldError('reply') }}</p>
       </template>
       <UFormField :label="t('inbox.automation.rules.department')">

@@ -31,6 +31,9 @@ const manifest: AppManifest = {
     { pattern: /^\/inbox(?:\/|$)/, capability: 'inbox.conversations.read' },
     // A templates-only manager has no channel administration, so the template pages are not under the channels part's capability.
     { pattern: /^\/settings\/apps\/inbox\/channels\/[^/]+\/templates\/new$/, capability: 'inbox.templates.manage', feature: 'inbox.templates' },
+    // The same for forms: a forms-only manager has no channel administration.
+    { pattern: /^\/settings\/apps\/inbox\/channels\/[^/]+\/flows\/new$/, capability: 'inbox.flows.manage', feature: 'inbox.flows' },
+    { pattern: /^\/settings\/apps\/inbox\/channels\/[^/]+\/flows(?:\/|$)/, capability: 'webvue.internal', anyCapabilities: ['inbox.flows.manage', 'inbox.channels.manage'] },
     { pattern: /^\/settings\/apps\/inbox\/channels\/[^/]+\/templates(?:\/|$)/, capability: 'webvue.internal', anyCapabilities: ['inbox.templates.manage', 'inbox.channels.manage'] },
   ],
   bell: {

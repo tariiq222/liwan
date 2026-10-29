@@ -85,7 +85,7 @@ export function buildAutoContent(draft: AutoContentDraft): InboxAutoContent | nu
 // ---------------------------------------------------------------- rules
 
 type InboxRuleHours = InboxRule['hours']
-export const RULE_MATCH_KINDS: readonly InboxRuleMatchKind[] = ['any', 'contains', 'exact', 'starts_with', 'option']
+export const RULE_MATCH_KINDS: readonly InboxRuleMatchKind[] = ['any', 'contains', 'exact', 'starts_with', 'option', 'flow']
 export const RULE_HOURS: readonly InboxRuleHours[] = ['any', 'inside', 'outside']
 export const TEXT_MATCH_KINDS: readonly InboxRuleMatchKind[] = ['contains', 'exact', 'starts_with']
 
@@ -96,6 +96,8 @@ export interface RuleDraft {
   matchKind: InboxRuleMatchKind
   keywords: string[]
   optionId: string
+  /** The form whose submission triggers the rule, for the `flow` match. */
+  flowId: number | null
   hours: InboxRuleHours
   stop: boolean
   replyEnabled: boolean
@@ -108,14 +110,14 @@ export interface RuleDraft {
 }
 
 export const emptyRuleDraft = (): RuleDraft => ({
-  name: '', active: true, channelId: null, matchKind: 'contains', keywords: [], optionId: '', hours: 'any', stop: true,
+  name: '', active: true, channelId: null, matchKind: 'contains', keywords: [], optionId: '', flowId: null, hours: 'any', stop: true,
   replyEnabled: true, reply: emptyAutoContentDraft(), departmentId: null, assigneeId: null, tagIds: [], priority: null, resolve: false,
 })
 
 export function ruleToDraft(rule: InboxRule): RuleDraft {
   return {
     name: rule.name, active: rule.active, channelId: rule.channel?.id ?? null, matchKind: rule.match_kind, keywords: [...rule.keywords],
-    optionId: rule.option_id ?? '', hours: rule.hours, stop: rule.stop, replyEnabled: rule.reply !== null, reply: autoContentToDraft(rule.reply),
+    optionId: rule.option_id ?? '', flowId: rule.flow?.id ?? null, hours: rule.hours, stop: rule.stop, replyEnabled: rule.reply !== null, reply: autoContentToDraft(rule.reply),
     departmentId: rule.department?.id ?? null, assigneeId: rule.assignee?.id ?? null, tagIds: rule.tags.map(tag => tag.id), priority: rule.priority, resolve: rule.resolve,
   }
 }
@@ -127,6 +129,7 @@ export function ruleWriteCandidate(draft: RuleDraft): Record<keyof InboxRuleWrit
     name: draft.name.trim(), active: draft.active, channel_id: draft.channelId, match_kind: draft.matchKind,
     keywords: text ? draft.keywords.map(word => word.trim()).filter(Boolean) : [],
     option_id: draft.matchKind === 'option' ? draft.optionId.trim() || null : null,
+    flow_id: draft.matchKind === 'flow' ? draft.flowId : null,
     hours: draft.hours, stop: draft.stop,
     reply: draft.replyEnabled ? buildAutoContent(draft.reply) : null,
     resolve: draft.resolve, department_id: draft.departmentId, assignee_id: draft.assigneeId, tag_ids: draft.tagIds, priority: draft.priority,

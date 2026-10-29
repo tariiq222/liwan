@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { InboxConversationDetail, InboxConversationPatch } from '@webvue/contracts'
+import InboxFlowSubmissionsSection from '@/components/inbox/InboxFlowSubmissionsSection.vue'
 import { useInboxAgents, usePatchInboxContact, usePatchInboxConversation, useInboxTags } from '@/composables/inbox/useInbox'
 import { useInboxDepartments } from '@/composables/inbox/useInboxSettings'
 import { CONVERSATION_STATES, PRIORITIES } from '@/composables/inbox/inboxPresentation'
@@ -136,5 +137,7 @@ function saveContact() {
         </UFormField>
       </div>
     </SharedRecordSection>
+
+    <InboxFlowSubmissionsSection :conversation-id="props.conversation.id" />
   </div>
 </template>

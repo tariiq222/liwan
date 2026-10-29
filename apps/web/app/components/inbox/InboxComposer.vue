@@ -370,7 +370,7 @@ async function submit() {
         <UButton type="button" color="neutral" variant="ghost" size="sm" icon="i-lucide-x" :aria-label="t('inbox.composer.removeFile')" @click="discardUpload" />
       </div>
       <InboxLocationForm v-if="panel === 'location'" v-model="location" />
-      <InboxInteractiveBuilder v-else-if="panel === 'interactive'" v-model="interactive" />
+      <InboxInteractiveBuilder v-else-if="panel === 'interactive'" v-model="interactive" :channel-id="props.conversation.channel.id" />
       <p v-if="captionTooLong" class="text-xs text-error" role="alert" data-testid="inbox-caption-too-long">{{ t('inbox.composer.captionTooLong', { max: INBOX_CAPTION_MAX }) }}</p>
       <p v-else-if="!captionAllowed" class="text-xs text-muted" data-testid="inbox-audio-no-caption">{{ t('inbox.composer.audioNoCaption') }}</p>
       <ul v-if="suggestions.length" id="inbox-canned-list" role="listbox" :aria-label="t('inbox.composer.canned')" class="overflow-hidden rounded-control bg-default text-sm ring ring-default">

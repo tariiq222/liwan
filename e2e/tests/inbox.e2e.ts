@@ -132,3 +132,65 @@ test('a manager creates a keyword rule and tries it in the dry run', { tags: ['j
   await screen.getByTestId('inbox-rule-test-run').tap();
   await expect(screen.getByTestId('inbox-rule-test-rules')).toContainText(name, slow);
 });
+
+test('a manager builds and publishes a form, an agent sends it, and the answer shows in the thread and the responses page', { tags: ['journey', 'inbox'] }, async ({ app, screen, browser }) => {
+  test.skip(process.env.E2E_STACK === 'odoo', 'the forms journey runs on the mock stack');
+  const name = `نموذج الاختبار ${Date.now().toString(36)}`;
+
+  await app.open('/login');
+  await screen.getByLabel('اسم المستخدم').fill('admin');
+  await screen.getByLabel('كلمة المرور').fill('admin');
+  await screen.getByRole('button', 'دخول').tap();
+  await expect(browser).toHaveURL(/^(?!.*\/login)/, slow);
+
+  // The channel's forms: the seeded ones with the state each has.
+  await app.open('/settings/apps/inbox/channels/1/flows');
+  await expect(screen.getByText('طلب موعد').first()).toBeVisible(slow);
+  await expect(screen.getByText('استفسار عن طلب').first()).toBeVisible(slow);
+
+  // Create one from a blank form: the route-backed panel, then its builder with the live preview.
+  await screen.getByTestId('inbox-flow-create').tap();
+  await expect(browser).toHaveURL(/\/flows\/new/, slow);
+  await screen.getByTestId('inbox-flow-name').fill(name);
+  await screen.getByTestId('inbox-flow-submit').tap();
+  await expect(browser).toHaveURL(/\/flows\/\d+$/, slow);
+  await expect(screen.getByTestId('inbox-flow-builder')).toBeVisible(slow);
+
+  // Change the question's label: the preview follows it, and the draft is saved.
+  await screen.getByTestId('inbox-flow-field-0-label').fill('اسمك الكامل');
+  await expect(screen.getByTestId('inbox-flow-preview')).toContainText('اسمك الكامل', slow);
+  await screen.getByTestId('inbox-flow-save').tap();
+  await expect(screen.getByTestId('inbox-flow-publish')).toBeEnabled(slow);
+
+  // Publish asks first, says it cannot be undone, and then the form is read-only.
+  await screen.getByTestId('inbox-flow-publish').tap();
+  await expect(screen.getByText(/لا يمكن تعديل النموذج بعد النشر/).first()).toBeVisible(slow);
+  await screen.getByTestId('inline-confirm-action').tap();
+  await expect(screen.getByTestId('inbox-flow-readonly')).toBeVisible(slow);
+
+  // An agent sends it from the composer with the form picker.
+  await app.open('/inbox/1');
+  await screen.getByTestId('inbox-interactive-toggle').tap();
+  await screen.getByRole('button', 'نموذج', { exact: true }).tap();
+  await screen.getByTestId('inbox-flow-picker-select').tap();
+  await screen.getByRole('option', name).tap();
+  await screen.getByLabel('نص الرسالة', { exact: true }).fill('املأ النموذج من فضلك');
+  await screen.getByTestId('inbox-interactive-flow-cta').fill('افتح النموذج');
+  await screen.getByRole('button', 'إرسال').tap();
+  await expect(screen.getByText('املأ النموذج من فضلك').first()).toBeVisible(slow);
+
+  // The customer answers (the mock stands in for the signed webhook): a card appears in the thread.
+  const flowId = await browser.evaluate(async (title: string) => {
+    const list = await (await fetch(`/api/v1/inbox/channels/1/flows?q=${encodeURIComponent(title)}`)).json();
+    const id = list.items[0].id;
+    await fetch('/api/v1/inbox/__mock/flow-answer', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ conversation_id: 1, flow_id: id, values: { field_1: 'سارة الأحمد' } }) });
+    return id;
+  }, name);
+  await browser.reload();
+  await expect(screen.getByTestId('inbox-flow-response-card').last()).toContainText('سارة الأحمد', slow);
+
+  // Its responses page lists the contact and the answer.
+  await app.open(`/inbox/flows/${flowId}`);
+  await expect(screen.getByTestId('inbox-flow-responses')).toContainText('ليلى القحطاني', slow);
+  await expect(screen.getByTestId('inbox-flow-responses')).toContainText('سارة الأحمد', slow);
+});

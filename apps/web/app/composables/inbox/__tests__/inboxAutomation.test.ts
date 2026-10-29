@@ -91,13 +91,13 @@ describe('channel automation draft', () => {
 
 describe('rule draft', () => {
   const rule: InboxRule = {
-    id: 4, sequence: 10, channel: { id: 1, name: 'واتساب' }, name: 'حجز', active: true, match_kind: 'contains', keywords: ['حجز'], option_id: null, hours: 'any', stop: true,
+    id: 4, sequence: 10, channel: { id: 1, name: 'واتساب' }, flow: null, name: 'حجز', active: true, match_kind: 'contains', keywords: ['حجز'], option_id: null, hours: 'any', stop: true,
     reply: { body: 'تفضل' }, resolve: false, department: { id: 2, name: 'المبيعات' }, assignee: null, tags: [{ id: 1, name: 'حجز' }], priority: 'high',
   }
 
   it('turns a stored rule into the write body it came from', () => {
     expect(ruleWrite(ruleToDraft(rule))).toEqual({
-      channel_id: 1, name: 'حجز', active: true, match_kind: 'contains', keywords: ['حجز'], option_id: null, hours: 'any', stop: true,
+      channel_id: 1, flow_id: null, name: 'حجز', active: true, match_kind: 'contains', keywords: ['حجز'], option_id: null, hours: 'any', stop: true,
       reply: { body: 'تفضل' }, resolve: false, department_id: 2, assignee_id: null, tag_ids: [1], priority: 'high',
     })
   })
@@ -119,6 +119,14 @@ describe('rule draft', () => {
     const draft = { ...ruleToDraft(rule), matchKind: 'any' as const, optionId: 'btn_1' }
     expect(ruleWriteCandidate(draft)).toMatchObject({ keywords: [], option_id: null })
     expect(ruleWrite(draft)).not.toBeNull()
+  })
+
+  it('sends a form id only for a form match and reads it back from a stored rule', () => {
+    const draft = { ...ruleToDraft({ ...rule, match_kind: 'flow', keywords: [], flow: { id: 6, name: 'طلب موعد' } }) }
+    expect(draft.flowId).toBe(6)
+    expect(ruleWrite(draft)).toMatchObject({ match_kind: 'flow', flow_id: 6, keywords: [], option_id: null })
+    expect(ruleWrite({ ...draft, flowId: null })).toBeNull()
+    expect(ruleWriteCandidate({ ...draft, matchKind: 'any' })).toMatchObject({ flow_id: null })
   })
 
   it('lists the actions of a rule and moves one step inside the list only', () => {

@@ -1,14 +1,14 @@
 import { InboxInteractiveSchema, type InboxInteractive } from '@webvue/contracts'
 
-// The WhatsApp interactive message an agent builds in the composer: reply buttons, a list, or a call-to-action URL.
+// The WhatsApp interactive message an agent builds in the composer: reply buttons, a list, a call-to-action URL, or a form.
 // The limits are Meta's, mirrored by InboxInteractiveSchema; the builder shows them as live counters.
 
 export type InteractiveType = InboxInteractive['type']
-export const INTERACTIVE_TYPES: readonly InteractiveType[] = ['buttons', 'list', 'cta_url']
+export const INTERACTIVE_TYPES: readonly InteractiveType[] = ['buttons', 'list', 'cta_url', 'flow']
 
 export const INTERACTIVE_LIMITS = {
   body: 1024, header: 60, footer: 60, buttons: 3, buttonTitle: 20, listButton: 20, displayText: 20,
-  sections: 10, sectionTitle: 24, rows: 10, rowTitle: 24, rowDescription: 72,
+  sections: 10, sectionTitle: 24, rows: 10, rowTitle: 24, rowDescription: 72, flowCta: 30,
 } as const
 
 export interface InteractiveRowDraft { title: string; description: string }
@@ -23,10 +23,13 @@ export interface InteractiveDraft {
   sections: InteractiveSectionDraft[]
   displayText: string
   url: string
+  /** The published form a `flow` message opens, and the button text that opens it. */
+  flowId: number | null
+  flowCta: string
 }
 
 export const emptyInteractiveDraft = (): InteractiveDraft => ({
-  type: 'buttons', body: '', header: '', footer: '', buttons: [''], listButton: '', sections: [{ title: '', rows: [{ title: '', description: '' }] }], displayText: '', url: '',
+  type: 'buttons', body: '', header: '', footer: '', buttons: [''], listButton: '', sections: [{ title: '', rows: [{ title: '', description: '' }] }], displayText: '', url: '', flowId: null, flowCta: '',
 })
 
 export const interactiveRowCount = (draft: InteractiveDraft) => draft.sections.reduce((total, section) => total + section.rows.length, 0)
@@ -51,6 +54,8 @@ export function buildInteractive(draft: InteractiveDraft): InboxInteractive | nu
         rows: section.rows.map(item => ({ id: `row_${++row}`, title: item.title.trim(), description: orNull(item.description) })),
       })),
     }
+  } else if (draft.type === 'flow') {
+    candidate = { type: 'flow', ...common, flow_id: draft.flowId, cta: draft.flowCta.trim() }
   } else {
     candidate = { type: 'cta_url', ...common, display_text: draft.displayText.trim(), url: draft.url.trim() }
   }
@@ -76,6 +81,7 @@ export function normalizeInteractiveDraft(value: unknown): InteractiveDraft | nu
   const draft: InteractiveDraft = {
     ...base, type: source.type as InteractiveType, body: text(source.body), header: text(source.header), footer: text(source.footer),
     buttons: strings(source.buttons).slice(0, INTERACTIVE_LIMITS.buttons), listButton: text(source.listButton), displayText: text(source.displayText), url: text(source.url),
+    flowId: typeof source.flowId === 'number' && Number.isSafeInteger(source.flowId) && source.flowId > 0 ? source.flowId : null, flowCta: text(source.flowCta),
   }
   if (!draft.buttons.length) draft.buttons = base.buttons
   if (sections.length && sections.every(section => section.rows.length)) draft.sections = sections
@@ -92,6 +98,9 @@ export function interactiveToDraft(interactive: InboxInteractive): InteractiveDr
       title: section.title ?? '',
       rows: section.rows.map(row => ({ title: row.title, description: row.description ?? '' })),
     }))
+  } else if (interactive.type === 'flow') {
+    draft.flowId = interactive.flow_id
+    draft.flowCta = interactive.cta
   } else {
     draft.displayText = interactive.display_text
     draft.url = interactive.url
