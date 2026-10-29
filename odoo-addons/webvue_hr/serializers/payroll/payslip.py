@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.addons.webvue_hr.models.hr_payslip import GOSI_EMPLOYER_CODES, NET_CODE
 from odoo.addons.webvue_hr.serializers.assets.common import ref
+from odoo.addons.webvue_hr.serializers.payroll.currency import currency_code
 
 # Shown through their own fields: the net, and the employer share grouped under ``gosi_employer``.
 SEPARATE_CODES = (NET_CODE, *GOSI_EMPLOYER_CODES)
@@ -16,6 +17,7 @@ def dump_my_payslip_summary(slip):
         'number': slip.number or '',
         'month': slip.date_from.strftime('%Y-%m'),
         'net': slip._webvue_amounts()[slip.id]['net'],
+        'currency': currency_code(slip.company_id),
     }
 
 
@@ -36,4 +38,5 @@ def dump_payslip(slip):
         'lines': [dump_payslip_line(line) for line in lines.sorted('sequence')],
         **{key: amounts[key] for key in ('gross', 'deductions', 'net', 'gosi_employer')},
         'company': {'name': slip.company_id.name, 'vat': slip.company_id.vat or ''},
+        'currency': currency_code(slip.company_id),
     }

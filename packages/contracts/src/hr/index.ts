@@ -6,6 +6,7 @@ import { HrRefSchema } from './ref'
 // route contract), and this barrel re-exports them beside the directory, leave and
 // report shapes below.
 export * from './assets'
+export * from './bell'
 export * from './offboarding'
 export * from './onboarding'
 export * from './payroll'

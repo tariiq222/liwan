@@ -19,7 +19,7 @@ class WebVueInboxInbound(models.AbstractModel):
 
     @api.model
     def _webvue_ingest(self, channel, items):
-        """Apply `items` (parsed messages, reactions, statuses and template changes); returns the conversations that changed."""
+        """Apply `items` (parsed messages, reactions, statuses and template and form changes); returns the conversations that changed."""
         changed = self.env['webvue.inbox.conversation']
         for item in items:
             if isinstance(item, whatsapp.InboundMessage):
@@ -28,6 +28,12 @@ class WebVueInboxInbound(models.AbstractModel):
                 changed |= self._webvue_ingest_reaction(channel, item)
             elif isinstance(item, whatsapp.TEMPLATE_UPDATES):
                 self.env['webvue.inbox.template']._webvue_apply_update(channel, item)
+            elif isinstance(item, whatsapp.FLOW_UPDATES):
+                self.env['webvue.inbox.flow']._webvue_apply_update(channel, item)
+            elif isinstance(item, whatsapp.HEALTH_UPDATES):
+                channel._webvue_apply_health_update(item)
+            elif isinstance(item, whatsapp.UserPreferenceUpdate):
+                self.env['webvue.inbox.contact']._webvue_apply_preference(channel, item)
             else:
                 changed |= self.env['webvue.inbox.message']._webvue_apply_status(item).conversation_id
         return changed
@@ -45,14 +51,21 @@ class WebVueInboxInbound(models.AbstractModel):
         })
         if item.media_id:
             self._webvue_attach_media(channel, message, item)
+        message._webvue_on_ingested()
         automation = self.env['webvue.inbox.automation']
         if automation._webvue_record_csat(conversation, message):
             return conversation  # a survey answer neither reopens the conversation nor triggers the rules
+        self.env['webvue.inbox.conversation.cycle']._webvue_open_for(conversation, message.date)
         conversation.write({
             'unread': True,
             **({'state': 'open'} if conversation.state in REOPENED_STATES else {}),
         })
-        automation._webvue_run(conversation, message)
+        if item.flow_response:
+            self.env['webvue.inbox.flow.submission']._webvue_receive(channel, conversation, message, item.flow_response, item.context_id)
+        if self.env['webvue.inbox.campaign.inbound']._webvue_on_inbound(conversation, message):
+            message.automation_done = True  # a stop or start keyword is answered by the opt-out handling, not by the rules
+        else:
+            automation._webvue_run(conversation, message)
         return conversation
 
     @api.model
@@ -71,6 +84,16 @@ class WebVueInboxInbound(models.AbstractModel):
             })
         if item.option:
             values.update({'selected_option_id': item.option.id, 'selected_option_title': item.option.title})
+        if item.order:
+            values.update({'catalog_id': item.order.catalog_id, 'order_line_ids': [(0, 0, {
+                'sequence': index, 'retailer_id': line.retailer_id, 'quantity': line.quantity,
+                'item_price': line.item_price, 'currency': line.currency,
+            }) for index, line in enumerate(item.order.items)]})
+        if item.referred_product:
+            values.update({
+                'referred_catalog_id': item.referred_product.catalog_id,
+                'referred_retailer_id': item.referred_product.retailer_id,
+            })
         return values
 
     @api.model

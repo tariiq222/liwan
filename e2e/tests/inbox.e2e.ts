@@ -132,3 +132,208 @@ test('a manager creates a keyword rule and tries it in the dry run', { tags: ['j
   await screen.getByTestId('inbox-rule-test-run').tap();
   await expect(screen.getByTestId('inbox-rule-test-rules')).toContainText(name, slow);
 });
+
+test('a manager builds and publishes a form, an agent sends it, and the answer shows in the thread and the responses page', { tags: ['journey', 'inbox'] }, async ({ app, screen, browser }) => {
+  test.skip(process.env.E2E_STACK === 'odoo', 'the forms journey runs on the mock stack');
+  const name = `نموذج الاختبار ${Date.now().toString(36)}`;
+
+  await app.open('/login');
+  await screen.getByLabel('اسم المستخدم').fill('admin');
+  await screen.getByLabel('كلمة المرور').fill('admin');
+  await screen.getByRole('button', 'دخول').tap();
+  await expect(browser).toHaveURL(/^(?!.*\/login)/, slow);
+
+  // The channel's forms: the seeded ones with the state each has.
+  await app.open('/settings/apps/inbox/channels/1/flows');
+  await expect(screen.getByText('طلب موعد').first()).toBeVisible(slow);
+  await expect(screen.getByText('استفسار عن طلب').first()).toBeVisible(slow);
+
+  // Create one from a blank form: the route-backed panel, then its builder with the live preview.
+  await screen.getByTestId('inbox-flow-create').tap();
+  await expect(browser).toHaveURL(/\/flows\/new/, slow);
+  await screen.getByTestId('inbox-flow-name').fill(name);
+  await screen.getByTestId('inbox-flow-submit').tap();
+  await expect(browser).toHaveURL(/\/flows\/\d+$/, slow);
+  await expect(screen.getByTestId('inbox-flow-builder')).toBeVisible(slow);
+
+  // Change the question's label: the preview follows it, and the draft is saved.
+  await screen.getByTestId('inbox-flow-field-0-label').fill('اسمك الكامل');
+  await expect(screen.getByTestId('inbox-flow-preview')).toContainText('اسمك الكامل', slow);
+  await screen.getByTestId('inbox-flow-save').tap();
+  await expect(screen.getByTestId('inbox-flow-publish')).toBeEnabled(slow);
+
+  // Publish asks first, says it cannot be undone, and then the form is read-only.
+  await screen.getByTestId('inbox-flow-publish').tap();
+  await expect(screen.getByText(/لا يمكن تعديل النموذج بعد النشر/).first()).toBeVisible(slow);
+  await screen.getByTestId('inline-confirm-action').tap();
+  await expect(screen.getByTestId('inbox-flow-readonly')).toBeVisible(slow);
+
+  // An agent sends it from the composer with the form picker.
+  await app.open('/inbox/1');
+  await screen.getByTestId('inbox-interactive-toggle').tap();
+  await screen.getByRole('button', 'نموذج', { exact: true }).tap();
+  await screen.getByTestId('inbox-flow-picker-select').tap();
+  await screen.getByRole('option', name).tap();
+  await screen.getByLabel('نص الرسالة', { exact: true }).fill('املأ النموذج من فضلك');
+  await screen.getByTestId('inbox-interactive-flow-cta').fill('افتح النموذج');
+  await screen.getByRole('button', 'إرسال').tap();
+  await expect(screen.getByText('املأ النموذج من فضلك').first()).toBeVisible(slow);
+
+  // The customer answers (the mock stands in for the signed webhook): a card appears in the thread.
+  const flowId = await browser.evaluate(async (title: string) => {
+    const list = await (await fetch(`/api/v1/inbox/channels/1/flows?q=${encodeURIComponent(title)}`)).json();
+    const id = list.items[0].id;
+    await fetch('/api/v1/inbox/__mock/flow-answer', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ conversation_id: 1, flow_id: id, values: { field_1: 'سارة الأحمد' } }) });
+    return id;
+  }, name);
+  await browser.reload();
+  await expect(screen.getByTestId('inbox-flow-response-card').last()).toContainText('سارة الأحمد', slow);
+
+  // Its responses page lists the contact and the answer.
+  await app.open(`/inbox/flows/${flowId}`);
+  await expect(screen.getByTestId('inbox-flow-responses')).toContainText('ليلى القحطاني', slow);
+  await expect(screen.getByTestId('inbox-flow-responses')).toContainText('سارة الأحمد', slow);
+});
+
+test('a manager reads the inbox reports, checks the number health and edits the business profile', { tags: ['journey', 'inbox'] }, async ({ app, screen, browser }) => {
+  test.skip(process.env.E2E_STACK === 'odoo', 'the reports journey runs on the mock stack');
+  const about = `نبذة اختبار ${Date.now().toString(36)}`;
+
+  await app.open('/login');
+  await screen.getByLabel('اسم المستخدم').fill('admin');
+  await screen.getByLabel('كلمة المرور').fill('admin');
+  await screen.getByRole('button', 'دخول').tap();
+  await expect(browser).toHaveURL(/^(?!.*\/login)/, slow);
+
+  // The overview: the figures against the previous period, and the agent table.
+  await app.open('/inbox/reports');
+  await expect(screen.getByRole('heading', 'تقارير صندوق العملاء')).toBeVisible(slow);
+  await expect(screen.getByTestId('inbox-reports-kpis')).toBeVisible(slow);
+  await expect(screen.getByTestId('inbox-agent-table')).toBeVisible(slow);
+  await expect(screen.getByText('نورة الحربي').first()).toBeVisible(slow);
+
+  // Change the period: it is kept in the address.
+  await screen.getByRole('button', '7 أيام').tap();
+  await expect(browser).toHaveURL(/period=7/, slow);
+  await expect(screen.getByTestId('inbox-reports-kpis')).toBeVisible(slow);
+
+  // The number health: the metric tiles and the alert timeline of the channel.
+  await app.open('/settings/apps/inbox/channels/1/health');
+  await expect(screen.getByTestId('inbox-health-quality')).toBeVisible(slow);
+  await expect(screen.getByTestId('inbox-health-alerts')).toBeVisible(slow);
+
+  // The business profile: edit the about text, save it to Meta and see the preview follow.
+  await app.open('/settings/apps/inbox/channels/1/profile');
+  await screen.getByTestId('inbox-profile-about').fill(about);
+  await expect(screen.getByTestId('inbox-profile-preview-about')).toContainText(about);
+  await screen.getByTestId('inbox-profile-save').tap();
+  await expect(screen.getByText('تم حفظ الملف التجاري').first()).toBeVisible(slow);
+  await browser.reload();
+  await expect(screen.getByTestId('inbox-profile-preview-about')).toContainText(about, slow);
+});
+
+test('a manager adds a product, sends a product list, and a customer cart is paid through its link', { tags: ['journey', 'inbox'] }, async ({ app, screen, browser }) => {
+  test.skip(process.env.E2E_STACK === 'odoo', 'the catalog journey runs on the mock stack');
+  const post = (path: string, body: object) => browser.evaluate(async ([target, payload]) => (await fetch(target as string, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })).status, [path, body]);
+
+  await app.open('/login');
+  await screen.getByLabel('اسم المستخدم').fill('admin');
+  await screen.getByLabel('كلمة المرور').fill('admin');
+  await screen.getByRole('button', 'دخول').tap();
+  await expect(browser).toHaveURL(/^(?!.*\/login)/, slow);
+  expect(await post('/api/v1/__mock/reset-inbox', {})).toBe(200);
+
+  // The connected catalog and its items; add an existing product through the route-backed panel.
+  await app.open('/settings/apps/inbox/catalog');
+  await expect(screen.getByText('كتالوج المتجر').first()).toBeVisible(slow);
+  await screen.getByTestId('inbox-catalog-open').tap();
+  await expect(browser).toHaveURL(/\/catalog\/1$/, slow);
+  await expect(screen.getByText('قهوة مختصة 250 غ')).toBeVisible(slow);
+  await screen.getByTestId('inbox-catalog-item-add').tap();
+  await expect(browser).toHaveURL(/\/items\/new/, slow);
+  await screen.getByTestId('inbox-item-product-search').fill('شاي');
+  await screen.getByTestId('inbox-item-product-201').tap();
+  await screen.getByTestId('inbox-item-submit').tap();
+  await expect(browser).toHaveURL(/\/items\/\d+$/, slow);
+  await expect(screen.getByText('شاي أخضر').first()).toBeVisible(slow);
+
+  // An agent sends a product list from the composer's product picker.
+  await app.open('/inbox/1');
+  await screen.getByTestId('inbox-products-toggle').tap();
+  await screen.getByTestId('inbox-commerce-header').fill('عروض الأسبوع');
+  await screen.getByTestId('inbox-commerce-body').fill('اختر ما يناسبك');
+  await screen.getByTestId('inbox-product-1').tap();
+  await screen.getByRole('button', 'إرسال').tap();
+  await expect(screen.getByText('عروض الأسبوع').first()).toBeVisible(slow);
+
+  // The customer sends a cart (the mock's webhook): the cart card shows its lines and the agent checks it out.
+  expect(await post('/api/v1/inbox/__mock/conversations/1/cart', { lines: [{ retailer_id: 'wv-101', quantity: 2 }], text: 'أريد القهوة' })).toBe(200);
+  await browser.reload();
+  await expect(screen.getByTestId('inbox-cart-card').last()).toBeVisible(slow);
+  await screen.getByTestId('inbox-order-checkout').last().tap();
+  await screen.getByTestId('inbox-order-checkout-submit').tap();
+  await expect(screen.getByTestId('inbox-cart-badge').last()).toContainText('بانتظار الدفع', slow);
+  await expect(screen.getByText('ادفع الآن').first()).toBeVisible(slow);
+
+  // The gateway reports the payment: the thread gets the "paid" note and the badge changes.
+  const orderId = await browser.evaluate(async () => ((await (await fetch('/api/v1/inbox/conversations/1/orders')).json()) as { items: { id: number; state: string }[] }).items.find(order => order.state === 'ordered')!.id);
+  expect(await post(`/api/v1/inbox/__mock/orders/${orderId}/paid`, {})).toBe(200);
+  await browser.reload();
+  await expect(screen.getByText(/تم دفع الطلب S\d+/).first()).toBeVisible(slow);
+  await expect(screen.getByTestId('inbox-cart-badge').last()).toContainText('مدفوع', slow);
+});
+
+test('a manager builds an audience, creates a campaign, launches it and watches the numbers move', { tags: ['journey', 'inbox'] }, async ({ app, screen, browser }) => {
+  test.skip(process.env.E2E_STACK === 'odoo', 'the campaigns journey runs on the mock stack');
+  const audience = `جمهور الاختبار ${Date.now().toString(36)}`;
+  const campaign = `حملة الاختبار ${Date.now().toString(36)}`;
+
+  await app.open('/login');
+  await screen.getByLabel('اسم المستخدم').fill('admin');
+  await screen.getByLabel('كلمة المرور').fill('admin');
+  await screen.getByRole('button', 'دخول').tap();
+  await expect(browser).toHaveURL(/^(?!.*\/login)/, slow);
+
+  // The campaigns list: the seeded campaigns with their state.
+  await app.open('/inbox/campaigns');
+  await expect(screen.getByText('تذكير مواعيد الأسبوع')).toBeVisible(slow);
+  await expect(screen.getByText('عروض الشتاء').first()).toBeVisible(slow);
+
+  // An audience from the tag "حجز": its live counts show on its page, with the members and their consent.
+  await app.open('/inbox/campaigns/audiences');
+  await screen.getByTestId('inbox-audience-new').tap();
+  await expect(browser).toHaveURL(/\/audiences\/new/, slow);
+  await screen.getByTestId('inbox-audience-name').fill(audience);
+  await screen.getByTestId('inbox-audience-tags').tap();
+  await screen.getByRole('option', 'حجز').tap();
+  await screen.getByTestId('inbox-audience-submit').tap();
+  await expect(browser).toHaveURL(/\/audiences\/\d+$/, slow);
+  await expect(screen.getByTestId('inbox-audience-counts')).toBeVisible(slow);
+  await expect(screen.getByTestId('inbox-audience-members')).toContainText('ليلى القحطاني', slow);
+
+  // A campaign: channel, template, audience and the mapping of the template variables; the preview follows.
+  await app.open('/inbox/campaigns/new');
+  await screen.getByTestId('inbox-campaign-name').fill(campaign);
+  await screen.getByTestId('inbox-campaign-channel').tap();
+  await screen.getByRole('option', 'واتساب الاستقبال').tap();
+  await screen.getByTestId('inbox-campaign-template').tap();
+  await screen.getByRole('option', /appointment_reminder/).tap();
+  await screen.getByTestId('inbox-campaign-audience').tap();
+  await screen.getByRole('option', new RegExp(audience)).tap();
+  await expect(screen.getByTestId('inbox-campaign-params')).toBeVisible(slow);
+  await screen.getByTestId('inbox-campaign-param-body-2').getByRole('textbox').fill('الخميس');
+  await screen.getByTestId('inbox-campaign-param-button-1').getByRole('textbox').fill('4521');
+  await screen.getByTestId('inbox-campaign-submit').tap();
+  await expect(browser).toHaveURL(/\/inbox\/campaigns\/\d+$/, slow);
+
+  // Launch it (confirmed inline): it starts sending, and the figures move on their own.
+  await screen.getByTestId('inbox-campaign-launch').tap();
+  await screen.getByTestId('inbox-campaign-confirm').getByRole('button', 'إطلاق').tap();
+  await expect(screen.getByTestId('inbox-campaign-state')).toContainText('قيد الإرسال', slow);
+  await expect(screen.getByTestId('inbox-campaign-stats')).toBeVisible(slow);
+  await expect(screen.getByTestId('inbox-campaign-recipients')).toBeVisible(slow);
+
+  // Pause it by hand: the banner says why.
+  await screen.getByTestId('inbox-campaign-pause').tap();
+  await expect(screen.getByTestId('inbox-campaign-paused')).toBeVisible(slow);
+});

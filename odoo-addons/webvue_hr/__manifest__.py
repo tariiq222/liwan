@@ -2,7 +2,7 @@
 {
     'name': 'webvue HR',
     'summary': 'webvue platform: the HR pillar — /api/v1/hr departments, employees, leave, recruitment, shifts, onboarding, offboarding, assets',
-    'version': '19.0.1.15.0',
+    'version': '19.0.1.15.1',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -16,7 +16,7 @@
     # recruitment, shifts and assets capabilities: the customer never opens Odoo
     # and never sees them. payroll (OCA/payroll, pinned) is the payslip engine of
     # the payroll section: its models only, never its groups, menus or views.
-    'depends': ['webvue_api', 'hr', 'mail', 'hr_holidays', 'hr_work_entry_holidays', 'hr_recruitment', 'hr_employee_calendar_planning', 'maintenance', 'hr_maintenance', 'payroll'],
+    'depends': ['webvue_api', 'webvue_notify', 'hr', 'mail', 'hr_holidays', 'hr_work_entry_holidays', 'hr_recruitment', 'hr_employee_calendar_planning', 'maintenance', 'hr_maintenance', 'payroll'],
     'data': [
         'security/hr_leave_officer_group.xml',
         'security/hr_capability_groups.xml',

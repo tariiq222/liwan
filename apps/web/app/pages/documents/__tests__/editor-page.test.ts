@@ -69,3 +69,9 @@ it('focuses the required title after an empty create attempt without starting a 
   expect(view.state.titleError.value).toBe('documents.titleRequired')
   expect(view.mutation).not.toHaveBeenCalled();view.stop()
 })
+it('answers a non-numeric document id with the not-found state instead of an empty page', async () => {
+  const view = await load('app/pages/documents/[documentId]/edit.vue', {}, true, { path: '/documents/abc/edit' })
+  const state = (await view.rendered()).find(node => node.name === 'SharedPageState')
+  expect(state!.props.error).toMatchObject({ status: 404 })
+  view.stop()
+})

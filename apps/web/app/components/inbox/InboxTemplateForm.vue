@@ -201,7 +201,7 @@ defineExpose({ draft })
         </SharedFormSection>
 
         <SharedFormSection panel :title="t('inbox.templates.form.buttonsTitle')" :description="t('inbox.templates.form.buttonsHint')">
-          <InboxTemplateButtonsEditor v-model="draft.buttons" :disabled="off" />
+          <InboxTemplateButtonsEditor v-model="draft.buttons" :channel-id="props.channelId" :disabled="off" />
           <p v-if="fieldError('buttons')" class="mt-2 text-sm text-error" role="alert">{{ fieldError('buttons') }}</p>
         </SharedFormSection>
       </template>

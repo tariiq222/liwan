@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
 import type { DocumentDetail, DocumentFile } from '@webvue/contracts'
-const props = defineProps<{ document: DocumentDetail; files?: DocumentFile[]; pending?: boolean; loading?: boolean; error?: unknown; page?: number; pages?: number; readonly?: boolean }>()
-const emit = defineEmits<{ upload: [file: File]; action: [file: DocumentFile, action: 'archive' | 'restore' | 'lock' | 'unlock']; page: [value: number]; retry: [] }>()
+const props = defineProps<{ document: DocumentDetail; files?: DocumentFile[]; pending?: boolean; loading?: boolean; error?: unknown; page?: number; pages?: number; readonly?: boolean; duplicate?: File | null }>()
+const emit = defineEmits<{ upload: [file: File, options?: { name?: string; asVersion?: boolean }]; cancelDuplicate: []; action: [file: DocumentFile, action: 'archive' | 'restore' | 'lock' | 'unlock']; page: [value: number]; retry: [] }>()
 const { t } = useI18n(); const hydrated = useHydrated(); const uploadError = ref(''); const confirmArchive = ref<number | null>(null)
 const fileField = ref<{ reset: () => void } | null>(null)
+const renaming = ref(false); const newName = ref('')
+watch(() => props.duplicate, file => { renaming.value = false; newName.value = file?.name ?? '' })
+const newNameValid = computed(() => { const name = newName.value.trim(); return !!name && name !== props.duplicate?.name && !/[\\/\0]/.test(name) && name !== '.' && name !== '..' })
+function uploadRenamed() { if (props.duplicate && newNameValid.value && !props.pending) emit('upload', props.duplicate, { name: newName.value.trim() }) }
+function uploadAsVersion() { if (props.duplicate && !props.pending) emit('upload', props.duplicate, { asVersion: true }) }
 function upload(event: Event) {
   const input = event.target as HTMLInputElement; const file = input.files?.[0]
   uploadError.value = ''
@@ -31,6 +36,19 @@ function actions(file: DocumentFile): RowAction[] {
         <SharedFileField ref="fileField" id="document-upload" :label="t('documents.upload')" :aria-label="t('documents.upload')" aria-describedby="document-upload-help" :show-file-name="false" :disabled="!hydrated || pending" @change="upload" />
       </UFormField>
     </template>
+    <UAlert v-if="duplicate" class="mb-4" color="warning" variant="subtle" role="alert" :title="t('documents.duplicateName.title', { name: duplicate.name })" :description="t('documents.duplicateName.help')">
+      <template #actions>
+        <div class="flex flex-wrap items-center gap-2">
+          <template v-if="renaming">
+            <UInput v-model="newName" size="sm" :aria-label="t('documents.duplicateName.newName')" :disabled="pending" @keydown.enter.prevent="uploadRenamed" />
+            <UButton type="button" size="sm" :label="t('documents.duplicateName.uploadRenamed')" :disabled="!hydrated || pending || !newNameValid" @click="uploadRenamed" />
+          </template>
+          <UButton v-else type="button" size="sm" color="neutral" variant="outline" :label="t('documents.duplicateName.rename')" :disabled="!hydrated || pending" @click="renaming = true" />
+          <UButton type="button" size="sm" color="neutral" variant="outline" :label="t('documents.duplicateName.asVersion')" :disabled="!hydrated || pending" @click="uploadAsVersion" />
+          <UButton type="button" size="sm" color="neutral" variant="ghost" :label="t('documents.duplicateName.cancel')" :disabled="pending" @click="emit('cancelDuplicate')" />
+        </div>
+      </template>
+    </UAlert>
     <SharedPageState :loading="loading" :error="props.error" @retry="emit('retry')">
     <SharedEmptyState v-if="!files?.length" compact :title="t('documents.noFiles')" />
     <ul v-else class="grid gap-(--webvue-gap-card)">

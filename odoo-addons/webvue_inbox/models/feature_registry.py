@@ -33,6 +33,24 @@ class WebVueInboxFeatureRegistry(models.AbstractModel):
                 'module': 'webvue_inbox',
             },
             {
+                'key': 'inbox.flows',
+                'type': 'boolean',
+                'owner': 'webvue_inbox',
+                'module': 'webvue_inbox',
+            },
+            {
+                'key': 'inbox.reports',
+                'type': 'boolean',
+                'owner': 'webvue_inbox',
+                'module': 'webvue_inbox',
+            },
+            {
+                'key': 'inbox.campaigns',
+                'type': 'boolean',
+                'owner': 'webvue_inbox',
+                'module': 'webvue_inbox',
+            },
+            {
                 'key': 'inbox.channels',
                 'type': 'limit',
                 'owner': 'webvue_inbox',
@@ -40,6 +58,12 @@ class WebVueInboxFeatureRegistry(models.AbstractModel):
             },
             {
                 'key': 'inbox.messages_out',
+                'type': 'limit',
+                'owner': 'webvue_inbox',
+                'module': 'webvue_inbox',
+            },
+            {
+                'key': 'inbox.campaign_recipients',
                 'type': 'limit',
                 'owner': 'webvue_inbox',
                 'module': 'webvue_inbox',

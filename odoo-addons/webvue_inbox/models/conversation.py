@@ -187,22 +187,26 @@ class WebVueInboxConversation(models.Model):
                     ('company_id', '=', company.id), ('state', '!=', 'closed'),
                     ('last_message_at', '<', now - relativedelta(hours=settings.auto_close_hours)),
                 ])
+                self.env['webvue.inbox.conversation.cycle']._webvue_end_for(idle, 'auto_closed')
                 idle.write({'state': 'closed'})
             self._webvue_purge_expired(company, now - relativedelta(months=settings.retention_months))
+            self.env['webvue.inbox.report.build']._webvue_purge(company, now)
         self.env['webvue.inbox.event']._webvue_purge_processed(now)
         self._webvue_purge_stale_uploads(now)
+        self.env['webvue.inbox.channel']._webvue_purge_alerts(now)
 
     @api.model
     def _webvue_purge_stale_uploads(self, now):
-        """Delete files uploaded to a conversation (for a reply) or loose (a template header sample) that nothing ever used."""
+        """Delete files uploaded to a conversation (for a reply) or loose (a template or campaign header file) that nothing ever used."""
         self.env['ir.attachment'].search([
-            '|', ('res_model', '=', self._name), '&', ('res_model', '=', 'webvue.inbox.template'), ('res_id', '=', 0),
+            '|', ('res_model', '=', self._name),
+            '&', ('res_model', 'in', ('webvue.inbox.template', 'webvue.inbox.campaign')), ('res_id', '=', 0),
             ('create_date', '<', now - STALE_UPLOAD_AGE),
         ]).unlink()
 
     @api.model
     def _webvue_purge_expired(self, company, cutoff):
-        """Delete the company's conversations idle since `cutoff` with their attachments and bell rows, stale events and orphaned contacts."""
+        """Delete the company's conversations idle since `cutoff` with their attachments and bell rows, stale events, and the marketing data (campaign recipients, contacts) past the same window."""
         expired = self.search([('company_id', '=', company.id), ('last_message_at', '<', cutoff)])
         self.env['mail.message'].search([
             ('webvue_notification_kind', 'in', KINDS), ('webvue_inbox_conversation_id', 'in', expired.ids),
@@ -213,6 +217,4 @@ class WebVueInboxConversation(models.Model):
             '&', ('res_model', '=', self._name), ('res_id', 'in', expired.ids),
         ]).unlink()
         expired.unlink()
-        self.env['webvue.inbox.contact'].search([
-            ('company_id', '=', company.id), ('conversation_ids', '=', False),
-        ]).unlink()
+        self.env['webvue.inbox.campaign']._webvue_purge_marketing(company, cutoff)

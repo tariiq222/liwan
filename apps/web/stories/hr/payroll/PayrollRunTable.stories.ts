@@ -8,10 +8,10 @@ import { storyContext } from '../../support/context'
 // SharedListCard. Static fixtures, no requests.
 const totals = (net: number) => ({ gross: net + 1800, deductions: 1800, gosi_employee: 1800, gosi_employer: 2400, net })
 const runs = [
-  { id: 6, month: '2026-11', state: 'draft', employee_count: 12, totals: totals(0), approved_at: null },
-  { id: 5, month: '2026-10', state: 'computed', employee_count: 12, totals: totals(86400), approved_at: null },
-  { id: 4, month: '2026-09', state: 'approved', employee_count: 11, totals: totals(79200), approved_at: '2026-09-28T09:30:00Z' },
-  { id: 3, month: '2026-08', state: 'paid', employee_count: 11, totals: totals(78100), approved_at: '2026-08-27T09:30:00Z' },
+  { id: 6, month: '2026-11', state: 'draft', employee_count: 12, totals: totals(0), approved_at: null, currency: 'SAR' },
+  { id: 5, month: '2026-10', state: 'computed', employee_count: 12, totals: totals(86400), approved_at: null, currency: 'SAR' },
+  { id: 4, month: '2026-09', state: 'approved', employee_count: 11, totals: totals(79200), approved_at: '2026-09-28T09:30:00Z', currency: 'SAR' },
+  { id: 3, month: '2026-08', state: 'paid', employee_count: 11, totals: totals(78100), approved_at: '2026-08-27T09:30:00Z', currency: 'SAR' },
 ]
 
 const meta = {

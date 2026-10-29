@@ -21,7 +21,7 @@ function run(file: string, bindings: Record<string, unknown>, props: Record<stri
 }
 
 const rule = (id: number, extra: Partial<InboxRule> = {}): InboxRule => ({
-  id, sequence: id * 10, channel: null, name: `rule ${id}`, active: true, match_kind: 'any', keywords: [], option_id: null, hours: 'any', stop: true,
+  id, sequence: id * 10, channel: null, flow: null, name: `rule ${id}`, active: true, match_kind: 'any', keywords: [], option_id: null, hours: 'any', stop: true,
   reply: { body: 'x' }, resolve: false, department: null, assignee: null, tags: [], priority: null, ...extra,
 })
 

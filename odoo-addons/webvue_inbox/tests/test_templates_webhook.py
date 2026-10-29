@@ -86,8 +86,8 @@ class TestTemplateEvents(WebVueInboxCase):
         self.assertEqual(update, whatsapp.TemplateStatusUpdate(
             template.provider_template_id, template.name, 'ar', 'REJECTED', 'INCORRECT_CATEGORY'))
         self.assertEqual(whatsapp.parse_events(payload, self.channel.phone_number_id, '1'), [])
-        self.assertEqual(whatsapp.template_business_account_ids(payload), {BUSINESS_ACCOUNT_ID})
-        self.assertEqual(whatsapp.template_business_account_ids(wa.inbound_text()), set())
+        self.assertEqual(whatsapp.account_business_ids(payload), {BUSINESS_ACCOUNT_ID})
+        self.assertEqual(whatsapp.account_business_ids(wa.inbound_text()), set())
 
     def test_parsing_ignores_malformed_changes(self):
         for field, value in ((STATUS, {}), (STATUS, {'event': 5}), (CATEGORY, {'message_template_id': 1}), (QUALITY, 'x'),

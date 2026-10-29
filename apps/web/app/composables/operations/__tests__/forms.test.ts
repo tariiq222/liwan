@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { operationListLocation, safeOperationReturnTo, requestFormErrors, processFormErrors, createOperationSubmitGuard, operationAttachmentBody, operationPurposeChoices, operationPurposeFromSelection } from '../forms'
+import { operationListLocation, safeOperationReturnTo, requestFormErrors, processFormErrors, createOperationSubmitGuard, operationAttachmentBody, operationErrorKey, operationPurposeChoices, operationPurposeFromSelection } from '../forms'
 
 describe('operation form and route behavior', () => {
   it('preserves list filters/hash without nesting return links', () => {
@@ -58,4 +58,12 @@ it('keeps the all-status control valid while omitting the API status filter', as
   expect(operationStateFromSelection(all.value)).toBeUndefined()
   expect(operationStateFromSelection('pending')).toBe('pending')
   expect(operationStateFromSelection('unknown')).toBeUndefined()
+})
+
+describe('operation error helpers', () => {
+  it('names the unavailable-reviewer error instead of the generic save failure', () => {
+    expect(operationErrorKey({ status: 422, code: 'reviewer_not_eligible' })).toBe('reviewerNotEligible')
+    expect(operationErrorKey({ status: 409, code: 'conflict' })).toBe('conflict')
+    expect(operationErrorKey({ status: 422, code: 'invalid' })).toBe('save')
+  })
 })

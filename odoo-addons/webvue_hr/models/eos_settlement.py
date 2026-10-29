@@ -62,6 +62,18 @@ class WebVueHrPayrollEosSettlement(models.Model):
         return dated or rows.filtered(lambda row: row.state == 'draft')[:1]
 
     @api.model
+    def _webvue_shown(self, employee):
+        """The settlement a reader sees: the current one, else the latest of a departed employee.
+
+        A confirmed settlement whose departure date no longer matches stays visible, flagged by
+        ``_webvue_departure_mismatch``, so the date change is not mistaken for a missing settlement.
+        """
+        current = self._webvue_current(employee)
+        if current or not employee.departure_date:
+            return current
+        return self.search([('employee_id', '=', employee.id)], order='id desc', limit=1)
+
+    @api.model
     def _webvue_confirmed_employee_ids(self, employees):
         """Ids of the employees whose current departure has a confirmed settlement, without reading any figure.
 
