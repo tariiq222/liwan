@@ -23,7 +23,7 @@ HEADER_TYPES = [
 MEDIA_HEADERS = ('image', 'video', 'document')
 BUTTON_KINDS = [
     ('quick_reply', 'Quick reply'), ('url', 'Link'), ('phone_number', 'Phone number'), ('copy_code', 'Copy code'),
-    ('otp', 'One-time password'),
+    ('otp', 'One-time password'), ('flow', 'Form'),
 ]
 # Meta words for a template status; REINSTATED means approved again. DELETED removes the template (see _webvue_apply_update).
 META_STATUS = {
@@ -37,7 +37,7 @@ CATEGORY_NAMES = {key for key, _label in CATEGORIES}
 QUALITY_NAMES = {key for key, _label in QUALITIES}
 # The placeholder body of an authentication template until Meta's fixed text arrives with the next sync.
 OTP_BODY = '{{1}}'
-# Parts of Meta's listing WebVue can neither show nor send: named variables, carousels, offers, flow buttons, ...
+# Parts of Meta's listing WebVue can neither show nor send: named variables, carousels, offers, ...
 NAMED_VARIABLE = re.compile(r'\{\{\s*(?!\d+\s*\}\})[^}]*\}\}')
 SUPPORTED_COMPONENTS = frozenset({'HEADER', 'BODY', 'FOOTER', 'BUTTONS'})
 
@@ -361,6 +361,7 @@ class WebVueInboxTemplate(models.Model):
                 'url': raw.get('url') if isinstance(raw.get('url'), str) else False,
                 'phone_number': raw.get('phone_number') if isinstance(raw.get('phone_number'), str) else False,
                 'example': example if isinstance(example, str) else False,
+                'provider_flow_id': str(raw['flow_id']) if kind == 'flow' and isinstance(raw.get('flow_id'), (str, int)) else False,
             })
         return buttons, all_supported
 
@@ -410,6 +411,18 @@ class WebVueInboxTemplateButton(models.Model):
     url = fields.Char()
     phone_number = fields.Char()
     example = fields.Char()
+    # A form button: Meta's id of the form it opens (also for a form WebVue does not know) and, when WebVue knows it, the form.
+    provider_flow_id = fields.Char()
+    flow_id = fields.Many2one('webvue.inbox.flow', compute='_compute_flow')
+
+    @api.depends('provider_flow_id', 'template_id.channel_id')
+    def _compute_flow(self):
+        provider_ids = sorted({button.provider_flow_id for button in self if button.provider_flow_id})
+        flows = self.env['webvue.inbox.flow'].search([('provider_flow_id', 'in', provider_ids)])
+        for button in self:
+            button.flow_id = flows.filtered(
+                lambda flow: flow.provider_flow_id == button.provider_flow_id and flow.channel_id == button.template_id.channel_id,
+            )[:1] if button.provider_flow_id else False
 
     def _webvue_meta(self):
         """The button in Meta's create and edit shape."""
@@ -425,4 +438,6 @@ class WebVueInboxTemplateButton(models.Model):
             return {'type': 'COPY_CODE', 'example': self.example}
         if self.kind == 'otp':
             return {'type': 'OTP', 'otp_type': 'COPY_CODE', 'text': self.text}
+        if self.kind == 'flow':
+            return {'type': 'FLOW', 'text': self.text, 'flow_id': self.provider_flow_id, 'flow_action': 'navigate'}
         return {'type': 'QUICK_REPLY', 'text': self.text}

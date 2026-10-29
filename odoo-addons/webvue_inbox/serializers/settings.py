@@ -46,6 +46,8 @@ def dump_template_button(button):
         return {'type': 'phone_number', 'text': text, 'phone_number': button.phone_number or ''}
     if kind == 'copy_code':
         return {'type': 'copy_code', 'example': button.example or ''}
+    if kind == 'flow':
+        return {'type': 'flow', 'text': text, 'flow': dump_ref(button.flow_id), 'provider_flow_id': button.provider_flow_id or ''}
     return {'type': 'quick_reply', 'text': text}
 
 

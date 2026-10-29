@@ -9,8 +9,13 @@ MANAGE_CHANNELS = 'inbox.channels.manage'
 MANAGE_SETTINGS = 'inbox.settings.manage'
 MANAGE_TEMPLATES = 'inbox.templates.manage'
 MANAGE_AUTOMATION = 'inbox.automation.manage'
+# Its group also reads and writes rules and automatic messages (security/ir.model.access.csv): only so that publishing a
+# copy can move them to it (webvue.inbox.flow._webvue_take_over). No route gives it more than that.
+MANAGE_FLOWS = 'inbox.flows.manage'
 
-PERMISSIONS = frozenset({READ, REPLY, ASSIGN, EXPORT, MANAGE_CHANNELS, MANAGE_SETTINGS, MANAGE_TEMPLATES, MANAGE_AUTOMATION})
+PERMISSIONS = frozenset({
+    READ, REPLY, ASSIGN, EXPORT, MANAGE_CHANNELS, MANAGE_SETTINGS, MANAGE_TEMPLATES, MANAGE_AUTOMATION, MANAGE_FLOWS,
+})
 PERMISSION_DEPENDENCIES = {
     REPLY: {READ},
     ASSIGN: {READ},

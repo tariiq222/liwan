@@ -32,6 +32,7 @@ NOTE_PRIORITY = 'القاعدة «%s» ضبطت الأولوية: %s'
 NOTE_RESOLVE = 'القاعدة «%s» حلّت المحادثة'
 NOTE_LIMIT = 'لم يُرسل الرد الآلي لأن حد الرسائل الصادرة للاشتراك قد بلغ'
 NOTE_ASSIGNED = 'سياسة الإسناد الآلي أسندت المحادثة إلى %s'
+NOTE_FLOW_UNAVAILABLE = 'لم يُرسل النموذج «%s» لأنه غير متاح'
 
 
 class WebVueInboxAutomation(models.AbstractModel):
@@ -72,10 +73,12 @@ class WebVueInboxAutomation(models.AbstractModel):
             return  # an old message (a late delivery) is never answered
         settings = self.env['webvue.inbox.settings']._get_for_company(conversation.company_id)
         inside = settings._webvue_is_open(message.date, conversation.department_id)
-        self._webvue_greet(conversation, message, inside)
+        if message.kind != 'flow_response':
+            self._webvue_greet(conversation, message, inside)
         text = message.body if message.kind in TEXT_KINDS else None
         rules = self.env['webvue.inbox.rule']._webvue_triggered(
             conversation.channel_id, text, message.selected_option_id or None, inside,
+            flow_id=message.flow_submission_ids.flow_id.id or None,
         )
         agent_active = self._webvue_agent_active(conversation, message.date)
         for rule in rules:
@@ -83,12 +86,12 @@ class WebVueInboxAutomation(models.AbstractModel):
         self._webvue_auto_assign(conversation, settings)
 
     @api.model
-    def _webvue_dry_run(self, channel, text, option_id, at):
-        """(inside working hours, the greeting, the rules) for a customer message on `channel`; writes nothing."""
+    def _webvue_dry_run(self, channel, text, option_id, at, flow_id=None):
+        """(inside working hours, the greeting, the rules) for a customer message (or form answer) on `channel`; writes nothing."""
         settings = self.env['webvue.inbox.settings']._get_for_company(channel.owner_company_id)
         inside = settings._webvue_is_open(at or fields.Datetime.now(), channel.department_id)
         greeting = self._webvue_greeting(channel, inside, away_due=True, welcome_due=True)
-        return inside, greeting, self.env['webvue.inbox.rule']._webvue_triggered(channel, text, option_id, inside)
+        return inside, greeting, self.env['webvue.inbox.rule']._webvue_triggered(channel, text, option_id, inside, flow_id)
 
     # welcome and away
 
@@ -136,6 +139,11 @@ class WebVueInboxAutomation(models.AbstractModel):
     def _webvue_send(self, conversation, message, auto_message, note):
         """Queue `auto_message` as an automated reply to `message` and note why. False when a guard or the limit skipped it."""
         Message = self.env['webvue.inbox.message']
+        values = auto_message._webvue_message_values()
+        flow = self.env['webvue.inbox.flow'].browse(values.get('flow_id'))
+        if values.get('interactive_type') == 'flow' and not flow._webvue_sendable_in(conversation.channel_id):
+            Message._webvue_post_system_note(conversation, NOTE_FLOW_UNAVAILABLE % (flow.name or ''))
+            return False
         recent = Message.search_count([
             ('conversation_id', '=', conversation.id), ('direction', '=', 'out'), ('automated', '=', True),
             ('date', '>=', message.date - AUTOMATED_RATE_WINDOW),
@@ -144,7 +152,7 @@ class WebVueInboxAutomation(models.AbstractModel):
             return False
         try:
             with self.env.cr.savepoint():
-                Message._webvue_queue_automated(conversation, auto_message._webvue_message_values())
+                Message._webvue_queue_automated(conversation, values)
         except WebVueAccessRule:
             Message._webvue_post_system_note(conversation, NOTE_LIMIT)
             return False

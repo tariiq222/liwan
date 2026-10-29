@@ -4,6 +4,7 @@ from . import (
     channels,
     conversation_files,
     conversations,
+    flows,
     hooks,
     replies,
     settings,

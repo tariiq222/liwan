@@ -5,6 +5,7 @@ Every call has a fixed timeout and never logs or returns the access token.
 """
 import hashlib
 import hmac
+import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
@@ -29,6 +30,14 @@ STATUS_FIELD = 'message_template_status_update'
 CATEGORY_FIELD = 'template_category_update'
 QUALITY_FIELD = 'message_template_quality_update'
 TEMPLATE_FIELDS = frozenset({STATUS_FIELD, CATEGORY_FIELD, QUALITY_FIELD})
+FLOWS_FIELD = 'flows'
+# The webhook fields that name the business account (entry.id) instead of a phone number.
+ACCOUNT_FIELDS = TEMPLATE_FIELDS | {FLOWS_FIELD}
+FLOW_MESSAGE_VERSION = '3'
+# The answers of a completed form (`nfm_reply.response_json`) are read up to this size.
+MAX_RESPONSE_JSON_BYTES = 64 * 1024
+FLOW_ERROR_LENGTH = 500
+FLOW_PATH_LENGTH = 255
 NO_REASON = 'NONE'
 
 
@@ -66,6 +75,14 @@ class InboundMessage:
     context_id: str | None
     location: Location | None
     option: Option | None
+    flow_response: 'FlowResponse | None' = None
+
+
+@dataclass(frozen=True)
+class FlowResponse:
+    """The completed form of an `nfm_reply`: our `flow_token` and the answers. `values` is empty for a body we cannot read."""
+    flow_token: str | None
+    values: dict
 
 
 @dataclass(frozen=True)
@@ -111,6 +128,24 @@ class TemplateQualityUpdate:
 
 
 TEMPLATE_UPDATES = (TemplateStatusUpdate, TemplateCategoryUpdate, TemplateQualityUpdate)
+
+
+@dataclass(frozen=True)
+class FlowStatusUpdate:
+    """A lifecycle change of a form; the statuses are Meta's upper-case words (PUBLISHED, DEPRECATED, BLOCKED, ...)."""
+    flow_id: str
+    old_status: str | None
+    new_status: str
+
+
+@dataclass(frozen=True)
+class FlowVersionWarning:
+    """Meta's notice that the Flow JSON version of a form will freeze or expire."""
+    flow_id: str
+    warning: str
+
+
+FLOW_UPDATES = (FlowStatusUpdate, FlowVersionWarning)
 
 
 @dataclass(frozen=True)
@@ -202,10 +237,27 @@ def _body(kind, raw, block, location, option):
     return block.get('caption') or ''
 
 
+def _flow_response(block):
+    """The token and answers of an `nfm_reply`; a body that is too large or not a JSON object has no answers."""
+    raw = _dict(block.get('nfm_reply')).get('response_json')
+    values = {}
+    if isinstance(raw, str) and len(raw.encode()) <= MAX_RESPONSE_JSON_BYTES:
+        try:
+            parsed = json.loads(raw)
+        except (ValueError, RecursionError):
+            parsed = None
+        values = parsed if isinstance(parsed, dict) else {}
+    token = values.get('flow_token')
+    return FlowResponse(token if isinstance(token, str) and token else None, {k: v for k, v in values.items() if k != 'flow_token'})
+
+
 def _inbound(raw, names):
     wire_kind = raw.get('type') or 'unknown'
     block = _dict(raw.get(wire_kind))
     kind = _kind(wire_kind)
+    flow_response = None
+    if kind == 'interactive' and block.get('type') == 'nfm_reply':
+        kind, flow_response = 'flow_response', _flow_response(block)
     media = kind in MEDIA_KINDS
     location = _location(block) if kind == 'location' else None
     option = _option(wire_kind, block) if kind == 'interactive' else None
@@ -223,6 +275,7 @@ def _inbound(raw, names):
         context_id=_dict(raw.get('context')).get('id'),
         location=location,
         option=option,
+        flow_response=flow_response,
     )
 
 
@@ -275,14 +328,31 @@ def _template_event(field, value):
     return None
 
 
+def _flow_event(value):
+    """The typed form change of one `flows` webhook change, or None for the endpoint alerts and anything malformed."""
+    flow_id = _text(value.get('flow_id'))
+    if not flow_id:
+        return None
+    if value.get('event') == 'FLOW_STATUS_CHANGE' and isinstance(value.get('new_status'), str):
+        old = value.get('old_status')
+        return FlowStatusUpdate(flow_id, old if isinstance(old, str) else None, value['new_status'])
+    if value.get('event') == 'FLOW_VERSION_EXPIRY_WARNING' and isinstance(value.get('warning'), str):
+        return FlowVersionWarning(flow_id, value['warning'][:ERROR_TEXT_LENGTH])
+    return None
+
+
+def _account_event(field, value):
+    return _flow_event(value) if field == FLOWS_FIELD else _template_event(field, value)
+
+
 def parse_events(payload, phone_number_id, business_account_id):
-    """The messages, reactions and status updates addressed to `phone_number_id` and the template changes of `business_account_id`."""
+    """The messages, reactions and status updates addressed to `phone_number_id` and the template and form changes of `business_account_id`."""
     events = []
     for entry in _dicts(payload.get('entry')):
         for change in _dicts(entry.get('changes')):
             value = _dict(change.get('value'))
-            if change.get('field') in TEMPLATE_FIELDS:
-                event = _template_event(change['field'], value) if entry.get('id') == business_account_id else None
+            if change.get('field') in ACCOUNT_FIELDS:
+                event = _account_event(change['field'], value) if entry.get('id') == business_account_id else None
                 events += [event] if event else []
                 continue
             if _dict(value.get('metadata')).get('phone_number_id') != phone_number_id:
@@ -306,11 +376,11 @@ def phone_number_ids(payload):
     return {value for value in ids if isinstance(value, str)}
 
 
-def template_business_account_ids(payload):
-    """The id of every business account that a template change of the payload names (entry.id)."""
+def account_business_ids(payload):
+    """The id of every business account that a template or form change of the payload names (entry.id)."""
     ids = [
         entry.get('id') for entry in _dicts(payload.get('entry'))
-        if any(change.get('field') in TEMPLATE_FIELDS for change in _dicts(entry.get('changes')))
+        if any(change.get('field') in ACCOUNT_FIELDS for change in _dicts(entry.get('changes')))
     ]
     return {value for value in ids if isinstance(value, str)}
 
@@ -379,9 +449,12 @@ def _header_parameter(header):
 
 
 def _button_component(button):
-    """A url or copy-code button parameter given as {'index', 'sub_type': url|copy_code, 'value'}."""
-    parameter = ({'type': 'coupon_code', 'coupon_code': button['value']} if button['sub_type'] == 'copy_code'
-                 else {'type': 'text', 'text': button['value']})
+    """A url, copy-code or form button parameter given as {'index', 'sub_type': url|copy_code|flow, 'value'} (a form's value is its token)."""
+    if button['sub_type'] == 'flow':
+        parameter = {'type': 'action', 'action': {'flow_token': button['value']}}
+    else:
+        parameter = ({'type': 'coupon_code', 'coupon_code': button['value']} if button['sub_type'] == 'copy_code'
+                     else {'type': 'text', 'text': button['value']})
     return {'type': 'button', 'sub_type': button['sub_type'], 'index': str(button['index']), 'parameters': [parameter]}
 
 
@@ -427,7 +500,12 @@ def send_location(credentials, to, location, context_id=None):
     return _send(credentials, to, 'location', content, context_id)
 
 
-def _interactive_action(interactive):
+def _interactive_action(interactive, flow):
+    if interactive['type'] == 'flow':
+        return {'name': 'flow', 'parameters': {
+            'flow_message_version': FLOW_MESSAGE_VERSION, 'flow_token': flow['token'], 'flow_id': flow['flow_id'],
+            'flow_cta': interactive['cta'], 'flow_action': 'navigate', 'mode': 'published',
+        }}
     if interactive['type'] == 'buttons':
         return {'buttons': [{'type': 'reply', 'reply': button} for button in interactive['buttons']]}
     if interactive['type'] == 'list':
@@ -441,12 +519,15 @@ def _interactive_action(interactive):
     return {'name': 'cta_url', 'parameters': {'display_text': interactive['display_text'], 'url': interactive['url']}}
 
 
-def send_interactive(credentials, to, interactive, context_id=None):
-    """Send an interactive message given as the wire shape of the inbox contract (buttons, list or cta_url)."""
+def send_interactive(credentials, to, interactive, context_id=None, flow=None):
+    """Send an interactive message given as the wire shape of the inbox contract (buttons, list, cta_url or flow).
+
+    A flow message also takes `flow`: Meta's id of the form and our `token` ({'flow_id', 'token'}).
+    """
     content = {
         'type': 'button' if interactive['type'] == 'buttons' else interactive['type'],
         'body': {'text': interactive['body']},
-        'action': _interactive_action(interactive),
+        'action': _interactive_action(interactive, flow),
     }
     if interactive['header']:
         content['header'] = {'type': 'text', 'text': interactive['header']}
@@ -565,3 +646,120 @@ def upload_template_sample(credentials, app_id, filename, mimetype, data):
 def check_phone(credentials):
     """Raise ProviderError unless the phone number id is reachable with the token."""
     _call('GET', _graph(credentials.phone_number_id), credentials, params={'fields': 'id,display_phone_number'})
+
+
+# Flows: Meta lists a form's problems as `validation_errors`; all must be fixed before it is published.
+
+def _flow_errors(data):
+    errors = []
+    for item in _dicts(data.get('validation_errors')):
+        pointers = _dicts(item.get('pointers'))
+        path = pointers[0].get('path') if pointers else None
+        errors.append({
+            'message': str(item.get('message') or item.get('error') or 'invalid')[:FLOW_ERROR_LENGTH],
+            'path': path[:FLOW_PATH_LENGTH] if isinstance(path, str) and path else None,
+            'line': item.get('line_start') if isinstance(item.get('line_start'), int) else None,
+            'column': item.get('column_start') if isinstance(item.get('column_start'), int) else None,
+        })
+    return errors
+
+
+def _flow_id(data):
+    flow_id = data.get('id')
+    if not isinstance(flow_id, (str, int)) or isinstance(flow_id, bool):
+        message = 'malformed provider response'
+        raise ProviderError(message, retryable=False)
+    return str(flow_id)
+
+
+def _first_category(data):
+    categories = data.get('categories')
+    return str(categories[0]).lower() if isinstance(categories, list) and categories and isinstance(categories[0], str) else None
+
+
+def create_flow(credentials, name, category, flow_json):
+    """Create a draft form with its generated Flow JSON; returns {'id', 'validation_errors'}."""
+    data = _json_dict(_call(
+        'POST', _graph(f'{credentials.business_account_id}/flows'), credentials, timeout=UPLOAD_TIMEOUT_SECONDS,
+        json={'name': name, 'categories': [category.upper()], 'flow_json': flow_json},
+    ))
+    return {'id': _flow_id(data), 'validation_errors': _flow_errors(data)}
+
+
+def update_flow_metadata(credentials, flow_id, name, category):
+    _call('POST', _graph(flow_id), credentials, json={'name': name, 'categories': [category.upper()]})
+
+
+def upload_flow_json(credentials, flow_id, flow_json):
+    """Replace the Flow JSON of a draft; returns Meta's validation errors."""
+    data = _json_dict(_call(
+        'POST', _graph(f'{flow_id}/assets'), credentials, timeout=UPLOAD_TIMEOUT_SECONDS,
+        data={'name': 'flow.json', 'asset_type': 'FLOW_JSON'},
+        files={'file': ('flow.json', flow_json.encode(), 'application/json')},
+    ))
+    return _flow_errors(data)
+
+
+def publish_flow(credentials, flow_id):
+    _call('POST', _graph(f'{flow_id}/publish'), credentials)
+
+
+def deprecate_flow(credentials, flow_id):
+    _call('POST', _graph(f'{flow_id}/deprecate'), credentials)
+
+
+def delete_flow(credentials, flow_id):
+    _call('DELETE', _graph(flow_id), credentials)
+
+
+def flow_details(credentials, flow_id):
+    """The state of one form: status, Flow JSON version and whether this phone number can send it now."""
+    fields = f'name,status,categories,json_version,validation_errors,health_status.phone_number({credentials.phone_number_id})'
+    data = _json_dict(_call('GET', _graph(flow_id), credentials, params={'fields': fields}))
+    health = _dict(data.get('health_status')).get('can_send_message')
+    return {
+        'name': data.get('name') if isinstance(data.get('name'), str) else None,
+        'status': data.get('status') if isinstance(data.get('status'), str) else None,
+        'category': _first_category(data),
+        'json_version': data.get('json_version') if isinstance(data.get('json_version'), str) else None,
+        'health': health if isinstance(health, str) else None,
+        'validation_errors': _flow_errors(data),
+    }
+
+
+def list_flows(credentials):
+    """Every form of the business account as Meta lists it: id, name, status, category and validation errors."""
+    flows, after = [], None
+    for _page in range(MAX_TEMPLATE_PAGES):
+        params = {'fields': 'id,name,status,categories,validation_errors', 'limit': 100}
+        if after:
+            params['after'] = after
+        data = _json_dict(_call('GET', _graph(f'{credentials.business_account_id}/flows'), credentials, params=params))
+        for item in _dicts(data.get('data')):
+            if not isinstance(item.get('name'), str) or not isinstance(item.get('status'), str):
+                message = 'malformed provider response'
+                raise ProviderError(message, retryable=False)
+            flows.append({
+                'id': _flow_id(item), 'name': item['name'], 'status': item['status'],
+                'category': _first_category(item), 'validation_errors': _flow_errors(item),
+            })
+        paging = _dict(data.get('paging'))
+        after = _dict(paging.get('cursors')).get('after') if paging.get('next') else None
+        if not after:
+            break
+    return flows
+
+
+def flow_preview(credentials, flow_id):
+    """Meta's web preview of a form: {'url', 'expires_at'} (a UTC datetime); the link needs no login."""
+    data = _json_dict(_call('GET', _graph(flow_id), credentials, params={'fields': 'preview.invalidate(false)'}))
+    preview = _dict(data.get('preview'))
+    url, expires = preview.get('preview_url'), preview.get('expires_at')
+    try:
+        expires_at = datetime.strptime(expires, '%Y-%m-%dT%H:%M:%S%z').astimezone(timezone.utc).replace(tzinfo=None)
+    except (TypeError, ValueError):
+        expires_at = None
+    if not (isinstance(url, str) and url.startswith('https://') and expires_at):
+        message = 'malformed provider response'
+        raise ProviderError(message, retryable=False)
+    return {'url': url, 'expires_at': expires_at}

@@ -19,7 +19,7 @@ class WebVueInboxInbound(models.AbstractModel):
 
     @api.model
     def _webvue_ingest(self, channel, items):
-        """Apply `items` (parsed messages, reactions, statuses and template changes); returns the conversations that changed."""
+        """Apply `items` (parsed messages, reactions, statuses and template and form changes); returns the conversations that changed."""
         changed = self.env['webvue.inbox.conversation']
         for item in items:
             if isinstance(item, whatsapp.InboundMessage):
@@ -28,6 +28,8 @@ class WebVueInboxInbound(models.AbstractModel):
                 changed |= self._webvue_ingest_reaction(channel, item)
             elif isinstance(item, whatsapp.TEMPLATE_UPDATES):
                 self.env['webvue.inbox.template']._webvue_apply_update(channel, item)
+            elif isinstance(item, whatsapp.FLOW_UPDATES):
+                self.env['webvue.inbox.flow']._webvue_apply_update(channel, item)
             else:
                 changed |= self.env['webvue.inbox.message']._webvue_apply_status(item).conversation_id
         return changed
@@ -52,6 +54,8 @@ class WebVueInboxInbound(models.AbstractModel):
             'unread': True,
             **({'state': 'open'} if conversation.state in REOPENED_STATES else {}),
         })
+        if item.flow_response:
+            self.env['webvue.inbox.flow.submission']._webvue_receive(channel, conversation, message, item.flow_response, item.context_id)
         automation._webvue_run(conversation, message)
         return conversation
 

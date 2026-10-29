@@ -65,6 +65,17 @@ function showQuoted(id: number) {
   highlightedId.value = id
   setTimeout(() => { if (highlightedId.value === id) highlightedId.value = null }, 1600)
 }
+// A link such as /inbox/5?message=17 (from a form answer) scrolls to that message once it is loaded.
+const route = useRoute()
+const linkedMessage = computed(() => {
+  const value = Number(Array.isArray(route.query.message) ? route.query.message[0] : route.query.message)
+  return Number.isSafeInteger(value) && value > 0 ? value : null
+})
+watch([linkedMessage, loadedIds], async ([id, loaded]) => {
+  if (id === null || !loaded.has(id)) return
+  await nextTick()
+  showQuoted(id)
+}, { immediate: true, flush: 'post' })
 const deliveryLabel = (item: InboxMessage) => t(`inbox.delivery.${item.delivery_state}`)
 </script>
 

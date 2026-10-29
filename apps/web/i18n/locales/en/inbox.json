@@ -135,7 +135,8 @@
         "types": {
           "buttons": "Buttons",
           "list": "List",
-          "cta_url": "Link"
+          "cta_url": "Link",
+          "flow": "Form"
         },
         "header": "Header (optional)",
         "body": "Message text",
@@ -153,7 +154,11 @@
         "addSection": "Add a section",
         "displayText": "Button text",
         "url": "Link",
-        "urlHelp": "A secure link starting with https"
+        "urlHelp": "A secure link starting with https",
+        "flow": "Form",
+        "flowHint": "A form published on this channel that the customer fills inside WhatsApp; sent inside the reply window only.",
+        "flowCta": "Button text that opens the form",
+        "flowCtaHint": "Meta advises at most 30 characters and no emoji."
       },
       "captionTooLong": "A file caption is at most {max} characters. Shorten it to send the file.",
       "audioNoCaption": "WhatsApp does not allow a caption on an audio file.",
@@ -362,7 +367,8 @@
       "contacts": "Contact",
       "interactive": "Interactive message",
       "template": "Template",
-      "unsupported": "Unsupported"
+      "unsupported": "Unsupported",
+      "flow_response": "Form answer"
     },
     "templates": {
       "title": "Message templates",
@@ -473,16 +479,18 @@
           "quick_reply": "Quick reply",
           "url": "Link",
           "phone_number": "Call",
-          "copy_code": "Copy code"
+          "copy_code": "Copy code",
+          "flow": "Open form"
         },
         "count": "{n} of {max} buttons",
-        "limits": "Limits: 10 buttons, two links, one call button, one copy-code button. Quick replies sit together, before or after the other buttons.",
+        "limits": "Limits: 10 buttons, two links, one call button, one copy-code button, one form button. Quick replies sit together, before or after the other buttons.",
         "problem": {
           "tooMany": "More than 10 buttons",
           "urls": "More than two links",
           "phone": "More than one call button",
           "copyCode": "More than one copy-code button",
-          "grouping": "Quick replies must be next to each other"
+          "grouping": "Quick replies must be next to each other",
+          "flow": "More than one form button"
         },
         "moveUp": "Move up",
         "moveDown": "Move down",
@@ -496,7 +504,9 @@
         "urlExampleHint": "The link with the variable replaced by a real value.",
         "phone": "Phone number",
         "phoneHint": "International format starting with +",
-        "none": "No buttons."
+        "none": "No buttons.",
+        "flow": "Form",
+        "flowHint": "The button opens a published form of this channel. WebVue generates a token for each message."
       },
       "auth": {
         "title": "Authentication options",
@@ -610,7 +620,8 @@
           "contains": "Contains",
           "exact": "Matches exactly",
           "starts_with": "Starts with",
-          "option": "Customer chose an option"
+          "option": "Customer chose an option",
+          "flow": "Send a form"
         },
         "keywords": "Keywords",
         "keywordsHint": "Press Enter after each word or phrase. Case, diacritics and letter forms do not matter.",
@@ -650,7 +661,11 @@
         "moveUp": "Move {name} up",
         "moveDown": "Move {name} down",
         "deleteTitle": "Delete the rule \"{name}\"?",
-        "deleteDescription": "It stops applying to new messages; messages already sent are not affected."
+        "deleteDescription": "It stops applying to new messages; messages already sent are not affected.",
+        "flow": "Form",
+        "flowHint": "The rule runs when the customer submits this form.",
+        "flowRequired": "Choose a form.",
+        "flowNeedsChannel": "Choose a specific channel first to pick its form."
       },
       "test": {
         "title": "Try it",
@@ -670,7 +685,334 @@
         },
         "none": "None",
         "rules": "Matching rules, in order",
-        "noRules": "No rule matches."
+        "noRules": "No rule matches.",
+        "flow": "A form the customer submitted (optional)",
+        "flowHint": "To try the rules that run when a form is submitted."
+      }
+    },
+    "flows": {
+      "title": "Forms",
+      "pageTitle": "{name} forms",
+      "hint": "In-chat forms: the customer fills them without leaving WhatsApp and the answers reach the conversation.",
+      "create": "New form",
+      "createHint": "The form is saved as a draft in WebVue and Meta, and is published only when you decide.",
+      "sync": "Sync forms",
+      "synced": "Forms synced with Meta",
+      "empty": "This channel has no forms yet.",
+      "webhookGuidance": "So that form status changes reach WebVue, subscribe the Meta app to the flows field in its webhook settings. Sync imports forms made in WhatsApp Manager so they can be sent and their answers read, without editing their screens.",
+      "external": "From WhatsApp Manager",
+      "unknown": "Unknown form",
+      "submissionCount": "{n} answers",
+      "errorCount": "{n} problems from Meta",
+      "versionWarning": "The form version is nearing end of support",
+      "serverError": "The form could not be saved",
+      "metaUnreachableTitle": "Meta could not be reached",
+      "metaUnreachable": "Meta cannot be reached right now and nothing was saved. Try again shortly.",
+      "readonlyTitle": "This form is read-only",
+      "readonlyDescription": "A form cannot be edited once published. Copy it to get a new draft to edit and publish.",
+      "externalDescription": "This form was made in WhatsApp Manager: WebVue sends it and stores its answers, but cannot show or edit its screens.",
+      "status": {
+        "draft": "Draft",
+        "published": "Published",
+        "deprecated": "Deprecated",
+        "blocked": "Blocked",
+        "throttled": "Throttled"
+      },
+      "health": {
+        "available": "Available",
+        "limited": "Limited sending",
+        "blocked": "Sending blocked",
+        "unknown": "Unknown"
+      },
+      "category": {
+        "sign_up": "Sign up",
+        "sign_in": "Sign in",
+        "appointment_booking": "Appointment booking",
+        "lead_generation": "Lead generation",
+        "contact_us": "Contact us",
+        "customer_support": "Customer support",
+        "survey": "Survey",
+        "other": "Other"
+      },
+      "filter": {
+        "search": "Search by form name",
+        "status": "Status",
+        "allStatuses": "All statuses"
+      },
+      "kind": {
+        "heading": "Heading",
+        "subheading": "Subheading",
+        "text": "Text",
+        "caption": "Caption",
+        "text_input": "Text field",
+        "text_area": "Long text",
+        "dropdown": "Dropdown",
+        "radio": "Single choice",
+        "checkbox": "Multiple choice",
+        "date": "Date",
+        "opt_in": "Consent"
+      },
+      "inputType": {
+        "text": "Text",
+        "number": "Number",
+        "email": "Email",
+        "phone": "Phone"
+      },
+      "prop": {
+        "name": "Name",
+        "language": "Language",
+        "completion_message": "Completion message",
+        "title": "Screen title",
+        "footer_label": "Button text",
+        "text": "Text",
+        "label": "Label",
+        "helper_text": "Helper text",
+        "key": "Key",
+        "options": "Choices",
+        "fields": "Components"
+      },
+      "problem": {
+        "invalid": "Check this part: it is empty or out of bounds.",
+        "invalidProp": "Check “{prop}”: empty or over the limit.",
+        "key": "The key is invalid or repeated: lowercase Latin letters, digits and _ only, starting with a letter.",
+        "noInput": "The form needs at least one field that collects an answer.",
+        "duplicateKeys": "An answer key is repeated in the form.",
+        "optInCap": "A screen holds more than five consent boxes.",
+        "optionCap": "The form exceeds 1000 choices.",
+        "minChars": "The minimum length is larger than the maximum.",
+        "selection": "The selection limits do not fit the number of choices.",
+        "dates": "The earliest date is after the latest.",
+        "duplicateOptions": "Choice titles are repeated.",
+        "noFields": "Add at least one component to the screen."
+      },
+      "defaults": {
+        "screenTitle": "Your details",
+        "fieldLabel": "Name",
+        "next": "Next",
+        "submit": "Submit"
+      },
+      "form": {
+        "name": "Form name",
+        "nameHint": "For the team only; the customer does not see it. It must be unique in the channel.",
+        "category": "Category",
+        "categoryHint": "Meta's category for the form.",
+        "language": "Language",
+        "languageHint": "The language of the form's texts; it sets the preview direction.",
+        "completion": "Message after submitting",
+        "completionHint": "Sent to the customer automatically after each answer. Leave empty to send nothing.",
+        "startFrom": "Start from",
+        "startFromHint": "A blank form, or a ready-made one for your sector that you can change freely.",
+        "blank": "Blank form",
+        "create": "Create draft"
+      },
+      "builder": {
+        "settings": "Form settings",
+        "settingsHint": "Name, category, language and completion message.",
+        "screens": "Screens",
+        "screensHint": "The customer moves through the screens in order, up to {max} screens. The last screen's button submits the form.",
+        "screenN": "Screen {n}",
+        "screenTitle": "Screen title",
+        "addScreen": "Add screen",
+        "removeScreen": "Remove screen",
+        "addField": "Add component",
+        "removeField": "Remove component",
+        "noFields": "This screen has no components.",
+        "moveUp": "Move up",
+        "moveDown": "Move down",
+        "drag": "Drag to reorder",
+        "footerNext": "“Next” button text",
+        "footerNextHint": "Takes the customer to the next screen.",
+        "footerSubmit": "Submit button text",
+        "footerSubmitHint": "The last screen's button; it sends the customer's answers.",
+        "save": "Save draft"
+      },
+      "field": {
+        "text": "Text",
+        "label": "Label",
+        "inputType": "Input type",
+        "helper": "Helper text (optional)",
+        "minChars": "Minimum characters",
+        "maxChars": "Maximum characters",
+        "maxCharsHint": "Empty means Meta's limit (80).",
+        "maxLength": "Maximum characters",
+        "maxLengthHint": "Empty means {max}.",
+        "minDate": "Earliest date",
+        "maxDate": "Latest date",
+        "options": "Choices",
+        "optionCount": "{n} of {max}",
+        "optionTitle": "Choice {n}",
+        "optionDescription": "Description (optional)",
+        "addOption": "Add choice",
+        "removeOption": "Remove choice",
+        "minSelected": "Minimum selections",
+        "maxSelected": "Maximum selections",
+        "required": "Required",
+        "sensitive": "Sensitive",
+        "sensitiveHint": "A sensitive field's value is masked in the customer's WhatsApp chat summary; authorized staff see it in WebVue.",
+        "advanced": "Advanced",
+        "key": "Answer key",
+        "keyHint": "The field's name in the stored answer; lowercase Latin letters, digits and _ only."
+      },
+      "meta": {
+        "title": "Meta found {n} problems in the form",
+        "hint": "The form cannot be published until they are fixed.",
+        "says": "Meta:"
+      },
+      "preview": {
+        "title": "Preview",
+        "hint": "An approximation of what the customer sees; use Meta's preview for the exact look.",
+        "emptyLabel": "…",
+        "previous": "Previous screen",
+        "next": "Next screen",
+        "step": "Screen {n} of {total}",
+        "choose": "Choose",
+        "datePlaceholder": "Pick a date"
+      },
+      "lifecycle": {
+        "title": "Form actions",
+        "hint": "Preview, publish, copy and deprecate.",
+        "preview": "Preview in Meta",
+        "publish": "Publish",
+        "copy": "Copy",
+        "deprecate": "Deprecate",
+        "delete": "Delete draft",
+        "blocker": {
+          "dirty": "Save your changes before publishing.",
+          "errors": "Fix the problems Meta found before publishing."
+        },
+        "publishTitle": "Publish “{name}”?",
+        "publishDescription": "A form cannot be edited after it is published, only copied. Once published it can be sent to customers.",
+        "deprecateTitle": "Deprecate “{name}”?",
+        "deprecateDescription": "A deprecated form cannot be sent or restored. Rules and automatic messages that point to it stay, and the system skips them with a note.",
+        "deleteTitle": "Delete the draft “{name}”?",
+        "deleteDescription": "The draft is deleted from WebVue and Meta and cannot be recovered.",
+        "copyTitle": "Copy “{name}”",
+        "copyDescription": "A new draft with the same content is created for you to edit.",
+        "copyName": "{name} (copy)",
+        "replace": "Replace the original when published",
+        "replaceHint": "WebVue's rules and automatic messages move to the copy and the original is deprecated. Templates stay bound to the old form.",
+        "published": "Form published",
+        "deprecated": "Form deprecated",
+        "copied": "Copy created"
+      },
+      "responses": {
+        "title": "Form answers",
+        "pageTitle": "Answers to “{name}”",
+        "open": "Answers ({n})",
+        "backToForm": "Form",
+        "date": "Date",
+        "contact": "Customer",
+        "from": "From",
+        "to": "To",
+        "empty": "No answers yet."
+      },
+      "answer": {
+        "yes": "Yes",
+        "no": "No",
+        "empty": "No answer",
+        "none": "No stored answers.",
+        "openMessage": "Open message"
+      },
+      "panel": {
+        "title": "Forms",
+        "openMessage": "Open the message in the conversation"
+      },
+      "picker": {
+        "label": "Form",
+        "placeholder": "Choose a published form",
+        "needChannel": "Choose a channel first",
+        "empty": "This channel has no published forms.",
+        "manage": "Manage forms",
+        "failed": "Forms could not be loaded."
+      },
+      "starters": {
+        "clinic": {
+          "name": "Appointment request",
+          "completion": "We received your request and will confirm the appointment shortly.",
+          "s1": {
+            "title": "Your details",
+            "f1": {
+              "label": "Full name"
+            },
+            "f2": {
+              "label": "Mobile number"
+            }
+          },
+          "s2": {
+            "title": "Appointment details",
+            "f1": {
+              "label": "Service type",
+              "o1": "Check-up",
+              "o2": "Follow-up",
+              "o3": "Consultation"
+            },
+            "f2": {
+              "label": "Preferred date"
+            },
+            "f3": {
+              "label": "Period",
+              "o1": "Morning",
+              "o2": "Evening"
+            },
+            "f4": {
+              "label": "Notes"
+            }
+          }
+        },
+        "store": {
+          "name": "Order inquiry",
+          "completion": "Thank you, our team will reply shortly.",
+          "s1": {
+            "title": "Your inquiry",
+            "f1": {
+              "label": "Order number"
+            },
+            "f2": {
+              "label": "Inquiry topic",
+              "o1": "Order status",
+              "o2": "Return",
+              "o3": "Complaint",
+              "o4": "Other"
+            },
+            "f3": {
+              "label": "Details"
+            },
+            "f4": {
+              "label": "I agree to be contacted"
+            }
+          }
+        },
+        "public_service": {
+          "name": "Service request",
+          "completion": "Your request was received and we will keep you updated.",
+          "s1": {
+            "title": "Applicant",
+            "f1": {
+              "label": "Full name"
+            },
+            "f2": {
+              "label": "National ID"
+            },
+            "f3": {
+              "label": "Mobile number"
+            }
+          },
+          "s2": {
+            "title": "The request",
+            "f1": {
+              "label": "Request type",
+              "o1": "New service",
+              "o2": "Follow-up",
+              "o3": "Complaint"
+            },
+            "f2": {
+              "label": "Details"
+            },
+            "f3": {
+              "label": "I confirm the data is correct"
+            }
+          }
+        }
       }
     }
   }

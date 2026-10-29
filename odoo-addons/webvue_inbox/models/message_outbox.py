@@ -109,7 +109,8 @@ class WebVueInboxMessageOutbox(models.Model):
             location = whatsapp.Location(self.latitude, self.longitude, self.location_name or None, self.location_address or None)
             return whatsapp.send_location(credentials, to, location, context_id)
         if self.kind == 'interactive':
-            return whatsapp.send_interactive(credentials, to, self._webvue_interactive(), context_id)
+            flow = {'flow_id': self.flow_id.provider_flow_id, 'token': self.flow_token} if self.interactive_type == 'flow' else None
+            return whatsapp.send_interactive(credentials, to, self._webvue_interactive(), context_id, flow=flow)
         if self.kind in whatsapp.MEDIA_KINDS:
             return self._webvue_send_media(credentials, to, context_id)
         return whatsapp.send_text(credentials, to, self.body, context_id)
@@ -148,10 +149,11 @@ class WebVueInboxMessageOutbox(models.Model):
         return None
 
     def _webvue_template_buttons(self):
+        buttons = self.template_button_ids.sorted('position')
         return [
             {'index': button.position, 'sub_type': 'copy_code' if button.kind == 'copy_code' else 'url', 'value': button.value}
-            for button in self.template_button_ids.sorted('position') if button.value
-        ]
+            for button in buttons if button.value
+        ] + [{'index': button.position, 'sub_type': 'flow', 'value': self.flow_token} for button in buttons if button.kind == 'flow']
 
     def _webvue_record_failure(self, error, retryable):
         attempts = self.attempts + 1

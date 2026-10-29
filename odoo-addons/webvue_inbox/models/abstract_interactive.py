@@ -11,12 +11,15 @@ class WebVueInboxInteractive(models.AbstractModel):
     _description = 'Customer Inbox interactive content'
     _webvue_scope = 'global'
 
-    interactive_type = fields.Selection([('buttons', 'Reply buttons'), ('list', 'List'), ('cta_url', 'Link button')])
+    interactive_type = fields.Selection([('buttons', 'Reply buttons'), ('list', 'List'), ('cta_url', 'Link button'), ('flow', 'Form')])
     interactive_header = fields.Char()
     interactive_footer = fields.Char()
     interactive_button = fields.Char()
     cta_display_text = fields.Char()
     cta_url = fields.Char()
+    # A form message: the form (set null if it is ever deleted: only unused drafts are) and the text of its opening button.
+    flow_id = fields.Many2one('webvue.inbox.flow', index=True, ondelete='set null')
+    flow_cta = fields.Char()
 
     def _webvue_interactive(self):
         """The interactive content in the wire shape of the contract (also what the outbox sends)."""
@@ -25,6 +28,8 @@ class WebVueInboxInteractive(models.AbstractModel):
             'type': self.interactive_type, 'body': self.body,
             'header': self.interactive_header or None, 'footer': self.interactive_footer or None,
         }
+        if self.interactive_type == 'flow':
+            return {**shared, 'flow_id': self.flow_id.id, 'cta': self.flow_cta}
         if self.interactive_type == 'cta_url':
             return {**shared, 'display_text': self.cta_display_text, 'url': self.cta_url}
         options = self.option_ids.sorted('sequence')

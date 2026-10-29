@@ -55,7 +55,7 @@ function submit() {
           <UFormField :label="t('inbox.automation.welcome.idleDays')" :description="t('inbox.automation.welcome.idleDaysHint')">
             <UInputNumber v-model="draft.welcome.idleDays" class="w-40" :min="0" :max="365" :disabled="off" />
           </UFormField>
-          <InboxAutoContentEditor v-model="draft.welcome.content" :label="t('inbox.automation.welcome.title')" />
+          <InboxAutoContentEditor v-model="draft.welcome.content" :label="t('inbox.automation.welcome.title')" :channel-id="props.channelId" />
           <p v-if="missing('welcome')" class="text-sm text-error" role="alert">{{ t('inbox.automation.contentRequired') }}</p>
         </template>
       </div>
@@ -70,7 +70,7 @@ function submit() {
           <UFormField :label="t('inbox.automation.away.repeatHours')" :description="t('inbox.automation.away.repeatHoursHint')">
             <UInputNumber v-model="draft.away.repeatHours" class="w-40" :min="1" :max="168" :disabled="off" />
           </UFormField>
-          <InboxAutoContentEditor v-model="draft.away.content" :label="t('inbox.automation.away.title')" />
+          <InboxAutoContentEditor v-model="draft.away.content" :label="t('inbox.automation.away.title')" :channel-id="props.channelId" />
           <p v-if="missing('away')" class="text-sm text-error" role="alert">{{ t('inbox.automation.contentRequired') }}</p>
         </template>
       </div>

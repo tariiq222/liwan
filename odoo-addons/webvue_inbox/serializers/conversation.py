@@ -3,10 +3,8 @@
 from collections import defaultdict
 
 from odoo.addons.webvue_api.serializers.common import iso
-
-
-def dump_ref(record):
-    return {'id': record.id, 'name': record.name} if record else None
+from odoo.addons.webvue_inbox.serializers.flows import dump_submission
+from odoo.addons.webvue_inbox.serializers.refs import dump_ref
 
 
 def dump_contact(contact):
@@ -88,5 +86,6 @@ def dump_message(message, attachments):
         'interactive': message._webvue_interactive() if message.interactive_type else None,
         'selected_option': {'id': message.selected_option_id, 'title': message.selected_option_title or ''}
         if message.selected_option_id else None,
+        'flow_response': dump_submission(message.flow_submission_ids[0]) if message.flow_submission_ids else None,
         'created_at': iso(message.date),
     }

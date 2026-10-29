@@ -1,4 +1,7 @@
 import { z } from 'zod'
+import { InboxFlowInteractiveSchema, InboxFlowSubmissionSchema, InboxTemplateFlowButtonSchema, InboxTemplateFlowButtonWriteSchema } from './flows'
+
+export * from './flows'
 
 // Wire shapes of /api/v1/inbox and /api/v1/settings/inbox. Every schema mirrors one
 // serializer in odoo-addons/webvue_inbox/serializers exactly (strict objects).
@@ -76,7 +79,7 @@ export const InboxAttachmentSchema = z.object({
 // What a message carries. Inbound media, location and contacts arrive from the customer; an agent may send
 // text, media, a location, an interactive message or a template.
 export const InboxMessageKindSchema = z.enum([
-  'text', 'image', 'video', 'audio', 'document', 'sticker', 'location', 'contacts', 'interactive', 'template', 'unsupported',
+  'text', 'image', 'video', 'audio', 'document', 'sticker', 'location', 'contacts', 'interactive', 'template', 'flow_response', 'unsupported',
 ])
 
 export const InboxLocationSchema = z.object({
@@ -121,6 +124,7 @@ export const InboxInteractiveSchema = z.discriminatedUnion('type', [
     display_text: z.string().min(1).max(20),
     url: z.url({ protocol: /^https$/ }),
   }).strict(),
+  InboxFlowInteractiveSchema,
 ])
 
 export const InboxMessageSchema = z.object({
@@ -147,6 +151,8 @@ export const InboxMessageSchema = z.object({
   // An outbound interactive message as sent; an inbound reply to one carries the chosen option.
   interactive: InboxInteractiveSchema.nullable(),
   selected_option: z.object({ id: z.string(), title: z.string() }).strict().nullable(),
+  // The customer's completed form, on an inbound flow_response message.
+  flow_response: InboxFlowSubmissionSchema.nullable(),
   // Sent by the inbox automation (welcome, away, a rule or the survey), not by an agent.
   automated: z.boolean(),
   created_at: UtcDateTime,
@@ -257,6 +263,7 @@ export const InboxTemplateButtonSchema = z.union([
   z.object({ type: z.literal('url'), text: z.string(), url: z.string(), example: z.string().nullable() }).strict(),
   z.object({ type: z.literal('phone_number'), text: z.string(), phone_number: z.string() }).strict(),
   z.object({ type: z.literal('copy_code'), example: z.string() }).strict(),
+  InboxTemplateFlowButtonSchema,
 ])
 
 export const InboxTemplateButtonWriteSchema = z.union([
@@ -273,6 +280,7 @@ export const InboxTemplateButtonWriteSchema = z.union([
   z.object({ type: z.literal('phone_number'), text: ButtonText, phone_number: z.string().regex(/^\+[1-9]\d{6,14}$/) }).strict(),
   // Copies a coupon code given per message; the example is a sample code.
   z.object({ type: z.literal('copy_code'), example: z.string().min(1).max(15) }).strict(),
+  InboxTemplateFlowButtonWriteSchema,
 ])
 
 const byType = (buttons: { type: string }[], type: string) => buttons.filter(button => button.type === type).length
@@ -285,6 +293,7 @@ const TemplateButtons = z.array(InboxTemplateButtonWriteSchema).max(10)
   .refine(buttons => byType(buttons, 'url') <= 2, 'at most two url buttons')
   .refine(buttons => byType(buttons, 'phone_number') <= 1, 'at most one phone button')
   .refine(buttons => byType(buttons, 'copy_code') <= 1, 'at most one copy-code button')
+  .refine(buttons => byType(buttons, 'flow') <= 1, 'at most one flow button')
   .refine(quickRepliesGrouped, 'quick replies must be grouped together')
 
 const TemplateName = z.string().regex(/^[a-z0-9_]{1,512}$/)
@@ -316,7 +325,7 @@ export const InboxTemplateSchema = z.object({
   param_count: z.number().int().nonnegative(),
   // Meta accepts edits of approved, rejected and paused templates only.
   editable: z.boolean(),
-  // False when the template uses a part WebVue cannot fill (named variables, flow or catalog buttons, ...):
+  // False when the template uses a part WebVue cannot fill (named variables, catalog buttons, ...):
   // it is then neither sent nor edited from WebVue.
   supported: z.boolean(),
 }).strict()
@@ -470,7 +479,7 @@ export const InboxChannelAutomationSchema = z.object({
   'an enabled automatic message needs content',
 )
 
-export const InboxRuleMatchKindSchema = z.enum(['any', 'contains', 'exact', 'starts_with', 'option'])
+export const InboxRuleMatchKindSchema = z.enum(['any', 'contains', 'exact', 'starts_with', 'option', 'flow'])
 export const InboxRuleHoursSchema = z.enum(['any', 'inside', 'outside'])
 
 const RuleFields = {
@@ -488,16 +497,24 @@ const RuleFields = {
   resolve: z.boolean(),
 }
 
-const ruleShape = (rule: { match_kind: string, keywords: string[], option_id: string | null }) =>
-  rule.match_kind === 'option' ? rule.option_id !== null && rule.keywords.length === 0
-    : ['contains', 'exact', 'starts_with'].includes(rule.match_kind) ? rule.keywords.length > 0 && rule.option_id === null
-      : rule.keywords.length === 0 && rule.option_id === null
+// Keywords go with the text kinds, an option id with option and a form with flow; `any` takes none of them.
+const ruleShape = (rule: { match_kind: string, keywords: string[], option_id: string | null, flow_id: number | null }) => {
+  const keywords = rule.keywords.length > 0
+  const option = rule.option_id !== null
+  const flow = rule.flow_id !== null
+  if (rule.match_kind === 'option') return option && !keywords && !flow
+  if (rule.match_kind === 'flow') return flow && !keywords && !option
+  if (['contains', 'exact', 'starts_with'].includes(rule.match_kind)) return keywords && !option && !flow
+  return !keywords && !option && !flow
+}
 
 export const InboxRuleSchema = z.object({
   id: Id,
   sequence: z.number().int(),
   channel: InboxRefSchema.nullable(),
   ...RuleFields,
+  // The form whose submission triggers the rule, for match_kind flow.
+  flow: InboxRefSchema.nullable(),
   department: InboxRefSchema.nullable(),
   assignee: InboxRefSchema.nullable(),
   tags: z.array(InboxRefSchema),
@@ -508,12 +525,13 @@ export const InboxRuleListSchema = list(InboxRuleSchema)
 export const InboxRuleWriteSchema = z.object({
   channel_id: Id.nullable(),
   ...RuleFields,
+  flow_id: Id.nullable(),
   department_id: Id.nullable(),
   assignee_id: Id.nullable(),
   tag_ids: z.array(Id).max(20),
   priority: InboxPrioritySchema.nullable(),
 }).strict()
-  .refine(ruleShape, 'keywords go with contains, exact and starts_with; an option id goes with option')
+  .refine(ruleShape, 'keywords go with contains, exact and starts_with; an option id with option; a form with flow')
   .refine(rule => rule.reply !== null || rule.department_id !== null || rule.assignee_id !== null || rule.tag_ids.length > 0
     || rule.priority !== null || rule.resolve, 'a rule needs at least one action')
 
@@ -524,6 +542,7 @@ export const InboxRuleTestSchema = z.object({
   channel_id: Id,
   text: z.string().max(4096).nullable(),
   option_id: z.string().min(1).max(200).nullable(),
+  flow_id: Id.nullable(),
   at: UtcDateTime.nullable(),
 }).strict()
 export const InboxRuleTestResultSchema = z.object({

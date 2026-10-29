@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import secrets
 from datetime import datetime, timezone
 
 from odoo import api, fields, models
@@ -15,7 +16,7 @@ ERROR_TEXT_LENGTH = 200
 KINDS = [
     ('text', 'Text'), ('image', 'Image'), ('video', 'Video'), ('audio', 'Audio'), ('document', 'Document'),
     ('sticker', 'Sticker'), ('location', 'Location'), ('contacts', 'Contacts'), ('interactive', 'Interactive'),
-    ('template', 'Template'), ('unsupported', 'Unsupported'),
+    ('template', 'Template'), ('flow_response', 'Form answer'), ('unsupported', 'Unsupported'),
 ]
 
 
@@ -54,6 +55,10 @@ class WebVueInboxMessage(models.Model):
     template_footer = fields.Char()
     template_button_ids = fields.One2many('webvue.inbox.message.button', 'message_id')
     provider_message_id = fields.Char(copy=False)
+    # Identifies one outbound form message (an interactive form or a template with a form button): the form's answer
+    # carries it back. `flow_id` (from the interactive mixin) names the form.
+    flow_token = fields.Char(copy=False)
+    flow_submission_ids = fields.One2many('webvue.inbox.flow.submission', 'message_id')
     # The message this one answers (WhatsApp context); always a message of the same conversation.
     reply_to_id = fields.Many2one('webvue.inbox.message', index=True, ondelete='set null')
     # One emoji per side. A reaction the agent set is sent by the outbox while `agent_reaction_pending`.
@@ -91,6 +96,7 @@ class WebVueInboxMessage(models.Model):
         '(provider_message_id) WHERE provider_message_id IS NOT NULL',
         'A provider message id is stored once.',
     )
+    _flow_token_unique = models.UniqueIndex('(flow_token) WHERE flow_token IS NOT NULL', 'A form token is used by one message.')
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -175,6 +181,9 @@ class WebVueInboxMessage(models.Model):
         if reply_to:
             self._webvue_require_reply_target(conversation, reply_to)
         values = {**values, 'reply_to_id': reply_to.id if reply_to else False}
+        if values.get('interactive_type') == 'flow':
+            self._webvue_require_flow(conversation, self.env['webvue.inbox.flow'].browse(values.get('flow_id')))
+            values['flow_token'] = secrets.token_urlsafe(24)
         if attachment:
             values['kind'] = self._webvue_attachment_kind(attachment)
         message = self.create(self._webvue_outbound_values(conversation, values))
@@ -182,6 +191,12 @@ class WebVueInboxMessage(models.Model):
             attachment.write({'res_model': message._name, 'res_id': message.id})
         self._webvue_wake_outbox()
         return message
+
+    @api.model
+    def _webvue_require_flow(self, conversation, flow):
+        """The form of a message must be a published, unblocked form of the conversation's channel."""
+        if not flow._webvue_sendable_in(conversation.channel_id):
+            raise ValidationError(self.env._('The form is not a published form of this conversation channel.'))
 
     @api.model
     def _webvue_wake_outbox(self):
@@ -232,6 +247,7 @@ class WebVueInboxMessage(models.Model):
         if len(params) != template.param_count:
             raise ValidationError(self.env._('The template needs %(count)s parameter(s).', count=template.param_count))
         return {
+            **self._webvue_template_flow_values(conversation, template),
             'kind': 'template', 'template_id': template.id, 'template_name': template.name,
             'template_language': template.language, 'template_params': list(params),
             'body': template._webvue_render(params),
@@ -240,6 +256,16 @@ class WebVueInboxMessage(models.Model):
             'template_footer': template.footer or False,
             'template_button_ids': self._webvue_template_button_commands(template, params, button_params),
         }
+
+    @api.model
+    def _webvue_template_flow_values(self, conversation, template):
+        """The form and fresh token of a template with a form button; a form WebVue does not know (made in WhatsApp Manager) is sent as it is."""
+        button = template.button_ids.filtered(lambda button: button.kind == 'flow')
+        if not button:
+            return {}
+        if button.flow_id:
+            self._webvue_require_flow(conversation, button.flow_id)
+        return {'flow_id': button.flow_id.id, 'flow_token': secrets.token_urlsafe(24)}
 
     @api.model
     def _webvue_template_header_values(self, template, header):

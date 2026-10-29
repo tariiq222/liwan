@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import InboxFlowPicker from '@/components/inbox/InboxFlowPicker.vue'
 import {
   TEMPLATE_LIMITS, buttonProblems, canAddButton, emptyButton, moveItem,
   type ButtonDraft, type ButtonKind,
@@ -8,10 +9,10 @@ import {
 // number, one copy-code, and quick replies grouped together. A url may end with one variable ({{1}}) that is filled
 // per message; it then needs a full example url for review.
 const buttons = defineModel<ButtonDraft[]>({ required: true })
-const props = defineProps<{ disabled?: boolean }>()
+const props = defineProps<{ disabled?: boolean; channelId?: number | null }>()
 const { t } = useI18n()
-const KINDS: readonly ButtonKind[] = ['quick_reply', 'url', 'phone_number', 'copy_code']
-const ICON: Record<ButtonKind, string> = { quick_reply: 'i-lucide-reply', url: 'i-lucide-external-link', phone_number: 'i-lucide-phone', copy_code: 'i-lucide-copy' }
+const KINDS: readonly ButtonKind[] = ['quick_reply', 'url', 'phone_number', 'copy_code', 'flow']
+const ICON: Record<ButtonKind, string> = { quick_reply: 'i-lucide-reply', url: 'i-lucide-external-link', phone_number: 'i-lucide-phone', copy_code: 'i-lucide-copy', flow: 'i-lucide-file-pen-line' }
 const problems = computed(() => buttonProblems(buttons.value))
 const hasVariable = (button: ButtonDraft) => button.url.trim().endsWith('{{1}}')
 
@@ -63,7 +64,17 @@ function addUrlVariable(button: ButtonDraft) {
           <UButton type="button" color="error" variant="ghost" size="sm" icon="i-lucide-trash-2" :aria-label="t('inbox.templates.button.remove')" :disabled="props.disabled" @click="remove(index)" />
         </div>
 
-        <template v-if="button.type === 'copy_code'">
+        <template v-if="button.type === 'flow'">
+          <p class="text-xs text-muted">{{ t('inbox.templates.button.flowHint') }}</p>
+          <UFormField :label="t('inbox.templates.button.text')" required>
+            <UInput v-model="button.text" class="w-full" :maxlength="TEMPLATE_LIMITS.buttonText" :disabled="props.disabled" :data-testid="`inbox-template-button-${index}-text`" />
+            <template #hint><span class="text-xs text-muted">{{ button.text.length }}/{{ TEMPLATE_LIMITS.buttonText }}</span></template>
+          </UFormField>
+          <UFormField :label="t('inbox.templates.button.flow')" required>
+            <InboxFlowPicker v-model="button.flowId" :channel-id="props.channelId ?? null" :disabled="props.disabled" :data-testid="`inbox-template-button-${index}-flow`" />
+          </UFormField>
+        </template>
+        <template v-else-if="button.type === 'copy_code'">
           <p class="text-xs text-muted">{{ t('inbox.templates.button.copyCodeHint') }}</p>
           <UFormField :label="t('inbox.templates.button.couponExample')" required>
             <UInput v-model="button.example" class="w-full" dir="ltr" :maxlength="TEMPLATE_LIMITS.couponExample" :disabled="props.disabled" />

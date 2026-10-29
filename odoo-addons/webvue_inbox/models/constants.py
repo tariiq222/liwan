@@ -5,6 +5,7 @@ CHANNELS_LIMIT = 'inbox.channels'
 MESSAGES_OUT_LIMIT = 'inbox.messages_out'
 WHATSAPP_FEATURE = 'inbox.whatsapp'
 AUTOMATION_FEATURE = 'inbox.automation'
+FLOWS_FEATURE = 'inbox.flows'
 DEFAULT_TIMEZONE = 'Asia/Riyadh'
 
 # WhatsApp customer-service window: free-form replies are accepted this long after the last inbound message.
@@ -33,3 +34,8 @@ FIRST_RESPONSE_CRON_BATCH = 200
 # The survey's answers: (option id of the reply button, channel field holding its label, score stored on the conversation).
 CSAT_OPTIONS = (('csat_good', 'csat_good', 'good'), ('csat_neutral', 'csat_neutral', 'neutral'), ('csat_bad', 'csat_bad', 'bad'))
 CSAT_SCORES = {option_id: score for option_id, _label_field, score in CSAT_OPTIONS}
+
+# WhatsApp Flows: the Flow JSON version the generator writes (Meta's recommended one) and the largest form WebVue builds.
+FLOW_JSON_VERSION = '7.3'
+MAX_FLOW_SCREENS = 10
+MAX_FLOW_OPTIONS = 1000
