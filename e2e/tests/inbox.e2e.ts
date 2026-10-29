@@ -101,3 +101,34 @@ test('a manager creates a WhatsApp template and sees it waiting for Meta review'
   await app.open('/settings/apps/inbox/channels/1/templates?status=pending');
   await expect(screen.getByText(name)).toBeVisible(slow);
 });
+
+test('a manager creates a keyword rule and tries it in the dry run', { tags: ['journey', 'inbox'] }, async ({ app, screen, browser }) => {
+  test.skip(process.env.E2E_STACK === 'odoo', 'the automation journey runs on the mock stack');
+  const name = `قاعدة الأسعار ${Date.now().toString(36)}`;
+
+  await app.open('/login');
+  await screen.getByLabel('اسم المستخدم').fill('admin');
+  await screen.getByLabel('كلمة المرور').fill('admin');
+  await screen.getByRole('button', 'دخول').tap();
+  await expect(browser).toHaveURL(/^(?!.*\/login)/, slow);
+
+  // The rules list: the seeded rules in the order they are tried.
+  await app.open('/settings/apps/inbox/rules');
+  await expect(screen.getByText('حجز موعد')).toBeVisible(slow);
+
+  // Create one: the route-backed panel, a keyword and a text reply.
+  await screen.getByTestId('inbox-rule-add').tap();
+  await expect(browser).toHaveURL(/\/rules\/new/, slow);
+  await screen.getByTestId('inbox-rule-name').fill(name);
+  await screen.getByLabel('الكلمات').fill('أسعار');
+  await screen.getByLabel('الكلمات').press('Enter');
+  await screen.getByTestId('inbox-auto-content-body').fill('الأسعار في القائمة المرفقة.');
+  await screen.getByTestId('inbox-rule-submit').tap();
+  await expect(browser).toHaveURL(/\/settings\/apps\/inbox\/rules$/, slow);
+  await expect(screen.getByText(name)).toBeVisible(slow);
+
+  // Try it: a message with the keyword matches the new rule.
+  await screen.getByTestId('inbox-rule-test-text').fill('ما هي الأسعار لديكم؟');
+  await screen.getByTestId('inbox-rule-test-run').tap();
+  await expect(screen.getByTestId('inbox-rule-test-rules')).toContainText(name, slow);
+});

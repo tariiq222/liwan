@@ -41,6 +41,7 @@ async function page(name: string, options: { path?: string; tab?: string; tenant
     refundCreditNote: vi.fn(async () => ({ ...creditNote, status: 'refunded' })),
     paymentAttempts: vi.fn(async () => { if (options.attemptsError) throw options.attemptsError; return { items: options.attempts ?? [attempt], total: (options.attempts ?? [attempt]).length } }),
     changeQuote: vi.fn(async () => ({ id: 'new-quote' })), placeOrder: vi.fn(async () => order),
+    createPaymentAttempt: vi.fn(async () => { calls.push('pay-link'); return { ...attempt, redirect_url: 'https://pay.example.test/i/1' } }),
     cancelOrder: vi.fn(async () => { calls.push('cancel'); current = { ...current, pending_order: null }; return order }),
   }
   const hydrated = Vue.ref(options.hydrated ?? true)
@@ -54,7 +55,7 @@ async function page(name: string, options: { path?: string; tab?: string; tenant
     useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('en') }),
     useRoute: () => ({ params: { id: options.tenantId && name.startsWith('tenants/') ? options.tenantId : 'customer1' }, path: options.path ?? '/customers/customer1', query: { returnTo: '/customers?state=active', ...(options.tab ? { tab: options.tab } : {}), ...options.query }, fullPath: '/customers/customer1?returnTo=%2Fcustomers' }),
     useVendorContext: () => ({ sharedOnboardingEnabled: Vue.ref(false), can: (grant: string) => (options.grants ?? ['vendor.read', 'vendor.billing.manage', 'vendor.subscriptions.manage']).includes(grant) }),
-    useVendorSubscriptions: () => api,
+    useVendorSubscriptions: () => api, useCopyLink: () => ({ copy: vi.fn(), outcomeFor: () => null }),
     useVendorCommercial: () => ({ listPlans: async () => ({ items: [plan] }), releases: async () => [] }),
     useVendorApi: () => ({ request: async (path: string) => path === 'catalog' ? { items: [] } : { tenants: 1, available_operations: [] } }),
     useTenantRecentOperations: async () => ({ data: Vue.ref([]), error: Vue.ref(null), pending: Vue.ref(false), refresh: vi.fn() }),
@@ -130,6 +131,18 @@ describe('customer detail repairs', () => {
   it.each([['paid', 'not_started'], ['failed', 'not_started'], ['awaiting_payment', 'queued']])('never offers cancellation for %s/%s', async (payment_state, fulfillment_state) => {
     const p = await page('customers/[id].vue', { tab: 'subscription', subscription: { ...subscription, pending_order: { ...order, payment_state, fulfillment_state } } })
     expect((await p.rendered()).html).not.toContain('vendor.customers.cancelOrder.action')
+  })
+  it('offers a payment link only with billing rights for an order awaiting payment, and shows the created link', async () => {
+    const awaiting = { ...subscription, pending_order: { ...order, payment_state: 'awaiting_payment', fulfillment_state: 'not_started' } }
+    const denied = await page('customers/[id].vue', { tab: 'subscription', subscription: awaiting, grants: ['vendor.read', 'vendor.subscriptions.manage'] })
+    expect((await denied.rendered()).html).not.toContain('vendor.customers.payLink.create')
+    const paid = await page('customers/[id].vue', { tab: 'subscription', subscription: { ...subscription, pending_order: { ...order, payment_state: 'paid', fulfillment_state: 'queued' } } })
+    expect((await paid.rendered()).html).not.toContain('vendor.customers.payLink.create')
+    const p = await page('customers/[id].vue', { tab: 'subscription', subscription: awaiting })
+    expect((await p.rendered()).html).toContain('vendor.customers.payLink.create')
+    await p.state.createPayLink()
+    expect(p.api.createPaymentAttempt).toHaveBeenCalledWith(order.id)
+    expect(p.state.payLink.value).toBe('https://pay.example.test/i/1')
   })
   it('hides and rejects cancellation of an unpaid renewal order', async () => {
     const p = await page('customers/[id].vue', { tab: 'subscription', subscription: { ...subscription, pending_order: { ...order, kind: 'renewal' } } })

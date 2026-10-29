@@ -65,6 +65,7 @@ const ROUTES: Route[] = [
   { method: 'POST', pattern: /^orders$/ },
   { method: 'GET', pattern: /^orders\/[A-Za-z0-9_-]{1,128}$/ },
   { method: 'POST', pattern: /^orders\/[A-Za-z0-9_-]{1,128}\/payment-attempts$/ },
+  { method: 'POST', pattern: /^orders\/[A-Za-z0-9_-]{1,128}\/cancel$/ },
   { method: 'GET', pattern: /^invoices$/ },
   { method: 'GET', pattern: /^invoices\/[A-Za-z0-9_-]{1,128}$/ },
   { method: 'GET', pattern: /^branches$/ },

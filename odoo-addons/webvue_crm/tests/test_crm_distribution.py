@@ -181,6 +181,7 @@ class TestCrmDistribution(WebVueCrmCase):
         self.assertEqual(caught.exception.status, 422)
         self.assertEqual(caught.exception.code, 'invalid')
         self.assertEqual(caught.exception.field, 'user_id')
+        self.assertEqual(caught.exception.details, {'reason': 'crm_agent_not_eligible'})
         self.assertFalse(leads.user_id)
 
     def test_on_import_with_an_agent_without_the_capability_is_422(self):

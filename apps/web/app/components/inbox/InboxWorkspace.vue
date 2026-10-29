@@ -7,7 +7,7 @@ import InboxConversationList from '@/components/inbox/InboxConversationList.vue'
 import InboxThread from '@/components/inbox/InboxThread.vue'
 import { ApiError } from '@/composables/useApi'
 import { parseInboxListRoute, serializeInboxListRoute, type InboxListRoute } from '@/composables/inbox/inboxListRoute'
-import { CONVERSATION_STATE_TONE } from '@/composables/inbox/inboxPresentation'
+import { CONVERSATION_STATE_TONE, CSAT_TONE } from '@/composables/inbox/inboxPresentation'
 import { replyWindowOpen } from '@/composables/inbox/inboxWindow'
 import { useInboxConversation, useInboxConversations, useMarkInboxConversationRead } from '@/composables/inbox/useInbox'
 
@@ -24,7 +24,7 @@ const { data, error, refetch } = useInboxConversation(() => props.conversationId
 const { data: conversations } = useInboxConversations(() => routeState.value)
 const { mutate: markRead } = useMarkInboxConversationRead()
 watch(() => data.value, conversation => { if (conversation?.unread) markRead(conversation.id) }, { immediate: true })
-const hasConversations = computed(() => (conversations.value?.total ?? 0) > 0 || !!routeState.value.q || routeState.value.assignee !== 'all' || !!routeState.value.state || !!routeState.value.departmentId)
+const hasConversations = computed(() => (conversations.value?.total ?? 0) > 0 || !!routeState.value.q || routeState.value.assignee !== 'all' || !!routeState.value.state || !!routeState.value.departmentId || !!routeState.value.csat)
 const hasSelection = computed(() => !!props.conversationId)
 const infoOpen = computed(() => !!props.infoOpen && hasSelection.value)
 const threadTo = computed(() => ({ path: `/inbox/${props.conversationId}`, query: listQuery.value }))
@@ -59,6 +59,7 @@ function updateRoute(next: InboxListRoute) {
           <h1 class="truncate text-lg font-semibold text-highlighted">{{ data?.contact.name || t('inbox.title') }}</h1>
           <p class="truncate text-xs text-muted"><bdi dir="ltr">{{ data?.contact.phone ?? '' }}</bdi></p>
         </div>
+        <SharedStatusBadge v-if="data?.csat" :tone="CSAT_TONE[data.csat.score]" icon="i-lucide-star" :label="t('inbox.csat.badge', { score: t(`inbox.csat.${data.csat.score}`) })" data-testid="inbox-csat-badge" />
         <SharedStatusBadge v-if="data" :tone="CONVERSATION_STATE_TONE[data.state]" :label="t(`inbox.states.${data.state}`)" />
         <UTooltip :text="t('inbox.panel.title')">
           <UButton
