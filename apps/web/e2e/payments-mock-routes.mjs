@@ -221,8 +221,9 @@ export async function handlePublicPayments(req, res, path, url, { json, readBody
 }
 
 const EXPIRY_MINUTES = { min: 5, max: 1440 }
-const SETTINGS_FIELDS = ['revision', 'unpaid_order_expiry_minutes', 'invoice_when_paid']
-const freshSettings = () => ({ unpaid_order_expiry_minutes: 60, invoice_when_paid: true, revision: 0 })
+const SETTINGS_FIELDS = ['revision', 'unpaid_order_expiry_minutes', 'invoice_when_paid', 'refund_policy', 'refund_amounts']
+const SETTINGS_CHOICES = { refund_policy: ['full', 'none'], refund_amounts: ['due', 'any'] }
+const freshSettings = () => ({ unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', revision: 0 })
 let settings = freshSettings()
 
 /** A PATCH of the orders settings: validated first, then refused as stale when its revision is not the saved one. */
@@ -235,6 +236,8 @@ function updateSettings(body) {
     return refusal('invalid', `unpaid_order_expiry_minutes must be whole minutes from ${EXPIRY_MINUTES.min} to ${EXPIRY_MINUTES.max}`, 'unpaid_order_expiry_minutes')
   }
   if ('invoice_when_paid' in body && typeof body.invoice_when_paid !== 'boolean') return refusal('invalid', 'invoice_when_paid must be true or false', 'invoice_when_paid')
+  const badChoice = Object.keys(SETTINGS_CHOICES).find(field => field in body && !SETTINGS_CHOICES[field].includes(body[field]))
+  if (badChoice) return refusal('invalid', `${badChoice} must be one of ${SETTINGS_CHOICES[badChoice].join(', ')}`, badChoice)
   if (body.revision !== settings.revision) return { status: 409, body: { code: 'conflict', message: 'the settings changed; reload and try again' } }
   const changes = { ...body }
   delete changes.revision

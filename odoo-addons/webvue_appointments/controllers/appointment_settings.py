@@ -47,4 +47,6 @@ class AppointmentSettingsController(http.Controller):
                     row = model.create({**parsed['values'], 'company_id': request.env.company.id})
         except UniqueViolation as error:
             raise ApiError(409, 'conflict', STALE_MESSAGE) from error
+        if 'sector_preset' in parsed['values']:
+            request.env['webvue.appointment.reason']._webvue_seed_preset(parsed['values']['sector_preset'], request.env.company)
         return dump_settings(row)

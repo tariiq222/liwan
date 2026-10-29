@@ -2,7 +2,7 @@
 {
     'name': 'webvue Appointments',
     'summary': 'webvue platform: the Appointments application — /api/v1/appointments',
-    'version': '19.0.1.2.0',
+    'version': '19.0.1.3.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -18,6 +18,8 @@
         'security/ir.model.access.csv',
         'security/appointments_rules.xml',
         'data/appointments_access_permissions.xml',
+        'data/appointments_reference_sequences.xml',
+        'data/appointments_cron.xml',
     ],
     'installable': True,
     'application': False,

@@ -73,7 +73,7 @@ describe('personal schedule policy day', () => {
     const api = (async (path: string, options: any) => {
       calls.push(path)
       const data = path === '/api/v1/hr/me' ? employee : path.endsWith('/settings')
-        ? { day_reference: 'company', company_timezone: 'Pacific/Honolulu', effective_timezone: 'Pacific/Honolulu', today, revision: 0 }
+        ? { day_reference: 'company', company_timezone: 'Pacific/Honolulu', effective_timezone: 'Pacific/Honolulu', today, default_schedule: { id: 7, name: 'دوام الأحد إلى الخميس' }, revision: 0 }
         : { items: assignments, total: assignments.length }
       return options.schema.parse(data)
     }) as import('../../types').AppSearchApi

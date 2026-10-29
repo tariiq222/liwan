@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { PaymentSettingsUpdateSchema, type PaymentSettings } from '@webvue/contracts'
 import { draftOfSettings, isValidExpiry, refusesExpiry, settingsUpdate } from '../paymentSettings'
 
-const SAVED: PaymentSettings = { unpaid_order_expiry_minutes: 60, invoice_when_paid: true, revision: 3 }
+const SAVED: PaymentSettings = { unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', revision: 3 }
 
 describe('the orders draft', () => {
   it('starts from the saved settings', () => {

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createServer } from 'node:net'
-import { PREFERRED, SCRATCH_DB, assertScratchDb, e2eCommand, forwardArgs, freePort, odooArgs, odooConf, parsePort, pgSettings, pickPorts, refusalReason, stackName } from './e2e_isolated.mjs'
+import { PREFERRED, SCRATCH_DB, assertScratchDb, e2eCommand, forwardArgs, freePort, odooArgs, odooConf, parsePort, pgSettings, pickPorts, refusalReason, reportVerdict, stackName } from './e2e_isolated.mjs'
 
 test('refuses the daily dev origins', () => {
   assert.match(refusalReason('http://localhost:3000'), /refusing/)
@@ -94,4 +94,22 @@ test('stackName defaults to mock and rejects unknown stacks', () => {
   assert.equal(stackName({}), 'mock')
   assert.equal(stackName({ E2E_STACK: 'odoo' }), 'odoo')
   assert.throws(() => stackName({ E2E_STACK: 'prod' }))
+})
+
+test('reportVerdict accepts only a fresh passed report', async () => {
+  const { mkdtempSync, writeFileSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const { join } = await import('node:path')
+  const dir = mkdtempSync(join(tmpdir(), 'e2e-report-'))
+  const file = join(dir, 'report.json')
+  const write = (run) => writeFileSync(file, JSON.stringify({ run }))
+  const passed = { status: 'passed', exitCode: 0, summary: { failed: 0, interrupted: 0 } }
+  write(passed)
+  assert.equal(reportVerdict(file, 0), null)
+  assert.match(reportVerdict(file, Date.now() + 60_000), /no fresh report/)
+  write({ ...passed, summary: { failed: 1, interrupted: 0 } })
+  assert.match(reportVerdict(file, 0), /failed=1/)
+  write({ ...passed, status: 'failed', exitCode: 1 })
+  assert.match(reportVerdict(file, 0), /status=failed/)
+  assert.match(reportVerdict(join(dir, 'missing.json'), 0), /unreadable/)
 })

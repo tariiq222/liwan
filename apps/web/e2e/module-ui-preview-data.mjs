@@ -443,7 +443,7 @@ export function moduleUiPreviewData(path, url) {
   const normalizedPath = String(path || '/').replace(/\/+$/, '') || '/'
   const parsedUrl = url instanceof URL ? url : new URL(String(url || 'http://preview.local'), 'http://preview.local')
 
-  if (normalizedPath === '/api/v1/people') return PEOPLE
+  if (normalizedPath === '/api/v1/people' || normalizedPath === '/api/v1/crm/agents') return PEOPLE
   if (normalizedPath === '/api/v1/meetings') return page(filterMeetings(parsedUrl), parsedUrl)
   if (normalizedPath === '/api/v1/meetings/resolutions') return page(filterResolutions(parsedUrl), parsedUrl)
   if (isId(normalizedPath, '/api/v1/meetings')) return meetingDetail

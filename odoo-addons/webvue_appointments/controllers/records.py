@@ -44,6 +44,16 @@ def company_records(model, ids, field):
     return request.env[model].browse(ids)
 
 
+def company_reason(reason_id, kind, field):
+    """The active ``kind`` reason of the current company; 422 on ``field`` for an archived, other-kind or foreign one."""
+    reason = request.env['webvue.appointment.reason'].search([
+        ('id', '=', reason_id), ('kind', '=', kind), ('company_id', '=', request.env.company.id),
+    ])
+    if not reason:
+        raise ApiError(422, 'invalid', 'unknown %s reason for the current company' % kind, field=field)
+    return reason
+
+
 def company_domain(args):
     """The list domain of the current company, narrowed by ``?active=true|false`` (default true)."""
     flag = args.get('active', 'true')

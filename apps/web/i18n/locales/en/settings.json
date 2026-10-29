@@ -188,6 +188,7 @@
       "estimate": "Measured maintenance estimate: {seconds} seconds",
       "sharedScope": "This maintenance affects a shared service. Its operator coordinates the window for all affected customers.",
       "security": "Security update",
+      "deadlinePassed": "Deadline passed",
       "newBooking": "Book maintenance",
       "editBooking": "Change maintenance window",
       "release": "Published release",

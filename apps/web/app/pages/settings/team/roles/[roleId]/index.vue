@@ -7,13 +7,14 @@ import { accessErrorMessage } from '@/utils/accessErrors'
 import { useAdminUsers } from '@/composables/useAdminUsers'
 import { useAdminPermissionCatalog, useAdminRole, useDeleteAdminRole, useDisableAdminRole, useEnableAdminRole } from '@/composables/useAdminRoles'
 import { ADMIN_PAGE_SIZE, adminListQuery } from '@/composables/adminSettingsPaths'
+import { builtinRoleDescription } from '@/utils/labelFallback'
 import { accessBadge } from '@/components/access/accessBadge'
 import { statusTag, type PageHeaderTag } from '@webvue/ui/app/utils/pageHeaderTag'
 import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
 
 const route = useRoute()
 const router = useRouter()
-const { t, locale } = useI18n()
+const { t, te, locale } = useI18n()
 const { can } = useAccess()
 const hydrated = useHydrated()
 const id = computed(() => Number(route.params.roleId))
@@ -69,7 +70,7 @@ const headerTags = computed<PageHeaderTag[]>(() => role.data.value
 const primaryAction = computed(() => {
   const allowed = role.data.value?.allowed_actions ?? []
   if (allowed.includes('edit')) return { icon: 'i-lucide-pencil', to: editTo.value, label: t('access.roles.editTitle') }
-  if (allowed.includes('clone')) return { icon: 'i-lucide-copy', to: cloneTo.value, label: t('access.roles.clone') }
+  if (can('access.roles.manage')) return { icon: 'i-lucide-copy', to: cloneTo.value, label: t('access.roles.clone') }
   return null
 })
 const menuActions = computed<RowAction[]>(() => {
@@ -135,7 +136,7 @@ const typeLabel = computed(() => role.data.value?.type === 'built_in' ? t('acces
     <template v-if="role.data.value && !forbidden" #aside>
       <SharedPropertiesPanel :title="t('access.roles.details')">
         <SharedPropertyRow :label="t('access.roles.columns.users')" :value="role.data.value.user_count" />
-        <SharedPropertyRow :label="t('access.roles.columns.description')" :value="role.data.value.description" />
+        <SharedPropertyRow :label="t('access.roles.columns.description')" :value="builtinRoleDescription(role.data.value, t, te)" />
       </SharedPropertiesPanel>
     </template>
   </SharedRecordPage>

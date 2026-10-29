@@ -30,4 +30,14 @@
         <field name="interval_type">days</field>
         <field name="active" eval="True"/>
     </record>
+    <record id="ir_cron_inbox_first_response_alerts" model="ir.cron">
+        <field name="name">webvue inbox: alert on customers waiting for a first reply</field>
+        <field name="model_id" ref="model_webvue_inbox_conversation"/>
+        <field name="state">code</field>
+        <field name="code">model._webvue_run_first_response_alerts()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">5</field>
+        <field name="interval_type">minutes</field>
+        <field name="active" eval="True"/>
+    </record>
 </odoo>

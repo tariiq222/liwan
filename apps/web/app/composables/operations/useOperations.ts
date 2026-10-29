@@ -1,12 +1,15 @@
 import { computed, onServerPrefetch, toValue, type MaybeRefOrGetter } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { OperationExecutionKindsSchema, OperationTargetsSchema, OperationProcessListSchema, OperationProcessSchema, OperationRequestListSchema, OperationRequestSchema } from '@webvue/contracts'
+import { OperationExecutionKindsSchema, OperationTargetsSchema, OperationProcessListSchema, OperationProcessSchema, OperationRequestListSchema, OperationRequestSchema, type OperationPurpose } from '@webvue/contracts'
 import { useApi } from '../useApi'
 import { operationProcessMutationOptions, operationRequestMutationOptions, type OperationApi } from './mutations'
 
 export type OperationScope = 'mine' | 'pending' | 'monitoring'
-export function operationRequestListParams(scope: OperationScope, personal = false): { scope: OperationScope; purpose?: 'work' | 'employee' } {
-  return personal ? { scope: 'mine', purpose: 'employee' } : scope === 'mine' ? { scope, purpose: 'work' } : { scope }
+// The personal surface and «طلباتي» have a fixed purpose; the shared review and monitoring lists filter by the type the user picks.
+export function operationRequestListParams(scope: OperationScope, personal = false, purpose?: OperationPurpose): { scope: OperationScope; purpose?: OperationPurpose } {
+  if (personal) return { scope: 'mine', purpose: 'employee' }
+  if (scope === 'mine') return { scope, purpose: 'work' }
+  return purpose ? { scope, purpose } : { scope }
 }
 function prefetch(query: { suspense: () => Promise<unknown> }, enabled: MaybeRefOrGetter<boolean>) {
   onServerPrefetch(async () => { if (toValue(enabled)) { try { await query.suspense() } catch { /* Query renders structured read errors. */ } } })

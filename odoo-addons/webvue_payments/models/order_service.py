@@ -1,10 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo import Command, api, fields, models
+from odoo.exceptions import AccessError, LockError, UserError
 
-from .payer_service import payment_stuck
+from .access_service import ORDERS_READ, REFUND
+from .payer_service import STUCK_AFTER, payment_stuck
 
 OPEN_STATES = ('draft', 'sent')
+ONLINE_ORDER = ('webvue_payment_deadline', '!=', False)
 
 
 class NotPayable(UserError):
@@ -17,6 +19,14 @@ class NoGateway(UserError):
 
 class NotInvoiceable(UserError):
     """A payment of the document could not be recorded: it is not invoiceable as the tenant set it up."""
+
+
+class RefundRefused(UserError):
+    """The refund does not fit what the order must give back, or its refund rules."""
+
+
+class RefundConflict(UserError):
+    """The refund cannot be recorded now (another refund or a payment of the order is being recorded) or was already."""
 
 
 class WebVuePaymentsService(models.AbstractModel):
@@ -70,18 +80,159 @@ class WebVuePaymentsService(models.AbstractModel):
         return self.env['sale.order'].browse(lines.sudo().order_id.ids)
 
     @api.model
-    def _webvue_request_cancel(self, orders):
+    def _webvue_request_cancel(self, orders, requested_by_customer=False, service_start=False):
         """Cancel ``orders`` not cancelled yet, through stock ``_action_cancel``.
 
-        Money already received stays recorded and makes the refund due (spec 5.4 rule 3).
+        Money already received stays recorded and is due back (spec 5.4 rule 3): all of it, unless the
+        customer asked for the cancellation, when the refund rules of the products keep their share
+        (``service_start`` is when the sold service begins, for the notice tiers).
         """
-        orders.sudo().filtered(lambda order: order.state != 'cancel')._action_cancel()
+        orders = orders.sudo().filtered(lambda order: order.state != 'cancel')
+        if requested_by_customer:
+            now = fields.Datetime.now()
+            for order in orders:
+                order._webvue_retain_for_customer_cancellation(service_start, now)
+        orders._action_cancel()
+
+    @api.model
+    def _webvue_record_refund(self, order, amount, reference):
+        """Record ``amount`` the tenant refunded in the gateway dashboard under the gateway's ``reference``.
+
+        Stock Paymob has no refund API (spec F14), so the money moves on the gateway first. Each part is
+        a refund child of a received payment, newest first, done with ``reference``; stock post-processing
+        then records the outbound payment and reconciles it with the credit notes of a cancelled order.
+        The order is locked, so two refunds never both take the same amount due.
+
+        :return: the refund transactions, unelevated.
+        :raise AccessError: when the caller lacks ``payments.refund`` in the order's company.
+        :raise RefundRefused: when ``amount`` exceeds what is due, or is not all of it where the rules
+            ask for the whole amount.
+        :raise RefundConflict: when another refund of the order is being recorded, a payment of it is not
+            recorded yet, or a refund with ``reference`` is recorded already.
+        """
+        order = order.sudo()
+        self._webvue_require_capability_in(REFUND, order.company_id)
+        try:
+            order.lock_for_update(allow_referencing=True)
+        except LockError as error:
+            raise RefundConflict(self.env._("Another refund of this order is being recorded.")) from error
+        order.invalidate_recordset()
+        payments = order.transaction_ids.filtered(lambda tx: tx.state == 'done' and tx.operation != 'refund')
+        if any(not tx.is_post_processed for tx in payments):
+            # Stock records no payment entry for a transaction that already has a done child.
+            raise RefundConflict(self.env._("A payment of this order is still being recorded; try again later."))
+        if payments.child_transaction_ids.filtered(lambda tx: tx.state == 'done' and tx.provider_reference == reference):
+            raise RefundConflict(self.env._("A refund with this gateway reference is already recorded on this order."))
+        currency = order.currency_id
+        due = order.webvue_refund_due_amount
+        if currency.compare_amounts(amount, 0.0) <= 0 or currency.compare_amounts(amount, due) > 0:
+            raise RefundRefused(self.env._("A refund is more than zero and at most the amount due."))
+        if not order._webvue_allows_partial_refunds() and currency.compare_amounts(amount, due) != 0:
+            raise RefundRefused(self.env._("The refund rules of this order ask for the whole amount due at once."))
+        credit_notes = self.env['account.move']
+        if order.state == 'cancel':
+            # What the merchant keeps stays invoiced: only the rest of the invoiced amount is credited.
+            to_credit = min(amount, max(order._webvue_open_invoiced() - order.webvue_retained_amount, 0.0))
+            credit_notes = order._webvue_credit_notes(to_credit)
+        refunds = self._webvue_refund_payments(order, amount, reference, credit_notes)
+        refunds._set_done()
+        refunds._post_process()
+        # Who recorded which gateway refund: the order is elevated, so its author is the caller, named here.
+        order.message_post(author_id=self.env.user.partner_id.id, body=self.env._(
+            "Refund of %(amount)s recorded under the gateway reference %(reference)s.", amount=amount, reference=reference,
+        ))
+        credited = sum(credit_notes.mapped('amount_total'))
+        if credit_notes and currency.compare_amounts(credited, to_credit) != 0:
+            order.message_post(body=self.env._(
+                "The credit notes of this refund total %(credited)s, not %(amount)s: review them with an accountant.",
+                credited=credited, amount=to_credit,
+            ))
+        return self.env['payment.transaction'].browse(refunds.ids)
+
+    @api.model
+    def _webvue_refund_payments(self, order, amount, reference, credit_notes):
+        """The refund children taking ``amount`` from the order's received payments, newest first."""
+        currency = order.currency_id
+        payments = order.transaction_ids.filtered(lambda tx: tx.state == 'done' and tx.operation != 'refund')
+        refunds = order.env['payment.transaction']
+        left = amount
+        for payment in payments.sorted('id', reverse=True):
+            refunded = payment.child_transaction_ids.filtered(lambda tx: tx.state == 'done' and tx.operation == 'refund')
+            part = min(left, payment.amount + sum(refunded.mapped('amount')))
+            if currency.compare_amounts(part, 0.0) <= 0:
+                continue
+            refunds |= payment._create_child_transaction(
+                part, is_refund=True, provider_reference=reference, invoice_ids=[Command.set(credit_notes.ids)],
+            )
+            left -= part
+            if currency.compare_amounts(left, 0.0) <= 0:
+                break
+        return refunds
+
+    @api.model
+    def _webvue_company_orders(self, company, refund_due=None, needs_attention=None, states=None, limit=None, offset=0):
+        """The online orders of ``company`` for its payments staff, newest first, and how many match, unelevated.
+
+        Staff hold no sales rights: the orders are read elevated once ``payments.orders.read`` is checked in
+        ``company`` itself (a capability held only in a branch does not open the parent's orders).
+        """
+        self._webvue_require_capability_in(ORDERS_READ, company)
+        domain = [ONLINE_ORDER, ('company_id', '=', company.id)]
+        if refund_due is not None:
+            domain.append(('webvue_refund_due_amount', '>' if refund_due else '=', 0))
+        if needs_attention is not None:
+            stuck = ('transaction_ids', 'any', [
+                ('state', '=', 'done'), ('is_post_processed', '=', False),
+                ('last_state_change', '<', fields.Datetime.now() - STUCK_AFTER),
+            ])
+            domain.append(stuck if needs_attention else ('transaction_ids', 'not any', stuck[2]))
+        if states:
+            domain.append(('state', 'in', states))
+        Order = self.env['sale.order'].sudo()
+        orders = Order.search(domain, order='date_order desc, id desc', limit=limit, offset=offset)
+        return self.env['sale.order'].browse(orders.ids), Order.search_count(domain)
+
+    @api.model
+    def _webvue_company_order(self, company, order_id):
+        """The online order ``order_id`` of ``company``, unelevated, or an empty recordset."""
+        self._webvue_require_capability_in(ORDERS_READ, company)
+        order = self.env['sale.order'].sudo().search([('id', '=', order_id), ('company_id', '=', company.id), ONLINE_ORDER])
+        return self.env['sale.order'].browse(order.ids)
+
+    @api.model
+    def _webvue_order_row(self, order):
+        """The order's number, customer and date with its payment summary, for payments staff."""
+        elevated = order.sudo()
+        return {
+            'number': elevated.name,
+            'customer': elevated.partner_id.name or '',
+            'date': elevated.date_order,
+            **self._webvue_summary(order),
+        }
+
+    @api.model
+    def _webvue_order_details(self, order):
+        """What payments staff see of one online order beyond its summary: customer, lines, money moves, rules."""
+        order = order.sudo()
+        moves = order.transaction_ids.filtered(lambda tx: tx.operation != 'refund')
+        moves |= moves.child_transaction_ids.filtered(lambda tx: tx.operation == 'refund')
+        return {
+            'lines': order._webvue_sold_lines(),
+            'transactions': moves.sorted(lambda tx: (tx.create_date, tx.id)),
+            'partial_refunds': order._webvue_allows_partial_refunds(),
+        }
+
+    @api.model
+    def _webvue_require_capability_in(self, key, company):
+        if not self.env['webvue.access.service']._webvue_has_capability(self.env.user, key, company=company):
+            raise AccessError(self.env._('forbidden'))
 
     @api.model
     def _webvue_summary(self, order):
         """The payment facts of one online order, for the staff of the application selling through it.
 
-        ``status`` is the payer's status, or ``cancelled``; ``expires_at`` is the payment deadline.
+        ``status`` is the payer's status, or ``cancelled``; ``expires_at`` is the payment deadline;
+        ``amount_received`` is what it received less its refunds, ``amount_to_refund`` what it must give back.
         ``needs_attention``: money was received but has not been recorded on the order for an hour
         (its post-processing keeps failing), so a person must look at it.
         """
@@ -89,11 +240,12 @@ class WebVuePaymentsService(models.AbstractModel):
         cancelled = order.state == 'cancel'
         return {
             'status': 'cancelled' if cancelled else self.env['webvue.payments.payer']._webvue_status(order),
-            'refund_due': order._webvue_refund_due(),
             'needs_attention': payment_stuck(order.transaction_ids, fields.Datetime.now()),
             'currency': order.currency_id.name,
             'amount_total': order.amount_total,
             'amount_due': 0.0 if cancelled else order._webvue_pay_amount(),
+            'amount_received': order._webvue_net_received(),
+            'amount_to_refund': order.webvue_refund_due_amount,
             'expires_at': order.webvue_payment_deadline,
         }
 

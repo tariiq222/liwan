@@ -54,7 +54,8 @@ const disabled = computed(() => !hydrated.value || busy.value || props.pending)
 const locked = computed(() => disabled.value || state.value.saving || state.value.reloading)
 const dirty = computed(() => bookingDirty.value)
 const release = computed(() => props.snapshot.releases.items.find(item => item.id === releaseId.value))
-const available = computed(() => props.snapshot.releases.items.filter(item => item.scope === 'tenant' && item.status === 'supported' && !props.snapshot.bookings.items.some(booking => booking.releaseId === item.id && booking.status !== 'cancelled')))
+const deadlinePassed = (item: { deadlineAt: string }) => new Date(item.deadlineAt).getTime() <= Date.now()
+const available = computed(() => props.snapshot.releases.items.filter(item => item.scope === 'tenant' && item.status === 'supported' && !deadlinePassed(item) && !props.snapshot.bookings.items.some(booking => booking.releaseId === item.id && booking.status !== 'cancelled')))
 const editingAllowed = computed(() => !editing.value || props.snapshot.bookings.items.find(item => item.id === editing.value?.id)?.status === 'scheduled')
 const weekdays = computed(() => Array.from({ length: 7 }, (_, value) => ({ value, label: t(`settings.maintenance.weekdays.${value}`) })))
 const releaseItems = computed(() => props.snapshot.releases.items.filter(item => available.value.includes(item) || item.id === editing.value?.releaseId).map(item => ({ value: item.id, label: item.releaseId })))
@@ -135,6 +136,7 @@ function resetBooking() {
           <SharedStatusBadge tone="neutral" :label="t(`settings.maintenance.scope.${notice.scope}`)" />
           <SharedStatusBadge tone="neutral" :label="t(`settings.maintenance.releaseStatus.${notice.status}`)" />
           <SharedStatusBadge v-if="notice.urgency === 'security'" tone="warning" :label="t('settings.maintenance.security')" />
+          <SharedStatusBadge v-if="deadlinePassed(notice)" tone="destructive" :label="t('settings.maintenance.deadlinePassed')" />
         </div>
         <p>{{ t('settings.maintenance.deadline', { date: formatDate(notice.deadlineAt), zone: timezone }) }}</p>
         <p>{{ t('settings.maintenance.estimate', { seconds: notice.estimatedSeconds }) }}</p>

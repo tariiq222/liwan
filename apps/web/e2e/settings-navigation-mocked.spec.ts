@@ -63,7 +63,7 @@ const BRANCH_ROLES = [
   { id: 4, key: 'finance_manager', active: true, name: { ar: 'Finance manager', en: 'Finance manager' }, company_id: null },
 ]
 const BRANCH_POLICY = {
-  version: 'b1-v1', mode: 'delegated',
+  version: 'b1-v1', mode: 'delegated', preset: 'independent_branches',
   branches: [{ id: 2, name: 'Riyadh branch', inherit: false, role_ids: [] as number[] }, { id: 3, name: 'Jeddah branch', inherit: false, role_ids: [] as number[] }],
   roles: BRANCH_ROLES,
 }
@@ -77,7 +77,7 @@ const BRANCH_DELEGATION = {
 }
 
 function jsonFor(pathname: string): unknown {
-  if (pathname === '/api/v1/hr/shifts/settings') return { day_reference: 'company', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', today: '2026-10-23', revision: 0 }
+  if (pathname === '/api/v1/hr/shifts/settings') return { day_reference: 'company', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', today: '2026-10-23', default_schedule: { id: 7, name: 'دوام الأحد إلى الخميس' }, revision: 0 }
   if (pathname === '/api/v1/admin/access/branches') return BRANCH_POLICY
   if (pathname === '/api/v1/admin/users/18/branches') return BRANCH_DELEGATION
   if (pathname === '/api/v1/me') return ME
@@ -323,7 +323,7 @@ test('branch policy selects controlled inheritance and saves exact per-branch gr
     if (route.request().method() === 'PATCH') {
       submitted = route.request().postDataJSON()
       const body = submitted as unknown as { mode: string; branches: Array<{ id: number; inherit: boolean; role_ids: number[] }> }
-      policy = { ...policy, mode: body.mode, version: 'b1-v2', branches: policy.branches.map(branch => ({ ...branch, ...body.branches.find(row => row.id === branch.id) })) }
+      policy = { ...policy, mode: body.mode, preset: 'custom', version: 'b1-v2', branches: policy.branches.map(branch => ({ ...branch, ...body.branches.find(row => row.id === branch.id) })) }
     }
     await route.fulfill({ json: policy })
   })
@@ -370,7 +370,7 @@ test('shift settings default to company timezone and save the user reference wit
   await page.route('**/api/v1/hr/shifts/settings', async route => {
     if (route.request().method() === 'PATCH') {
       submitted = route.request().postDataJSON()
-      await route.fulfill({ json: { day_reference: 'user', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', today: '2026-10-23', revision: 1 } })
+      await route.fulfill({ json: { day_reference: 'user', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', today: '2026-10-23', default_schedule: { id: 7, name: 'دوام الأحد إلى الخميس' }, revision: 1 } })
       return
     }
     if (submitted) { await route.abort('failed'); return }
