@@ -1,6 +1,6 @@
 """Which modules an application or bridge isolation run installs, and which it must not.
 
-    python3 -B tools/app_isolation.py matrix apps|bridges     # JSON array of job groups, for the ci workflow matrix
+    python3 -B tools/app_isolation.py matrix apps|bridges [--modules a,b]   # JSON array of job groups, for the ci workflow matrix
     python3 -B tools/app_isolation.py install <module>        # the -i list of that run (a bridge: its two sides)
     python3 -B tools/app_isolation.py tags <module>           # the --test-tags of that run
     python3 -B tools/app_isolation.py foundation              # the foundation top module (webvue_api)
@@ -20,6 +20,10 @@ misses the target itself.
 ``matrix`` packs the runs into ``GROUP_COUNT`` jobs per stage (space-separated modules, split by test
 weight like ``tools/odoo_shards.py``): each job pays its runner, Postgres and Odoo setup once, and the CI
 account runs a limited number of jobs at a time, so one job per module mostly waited in the queue.
+
+On a pull request ``--modules`` narrows ``matrix`` to the applications and bridges among the affected
+modules (``affected()``, from ``tools/ci_scope.py``); fewer modules give fewer groups, never an empty one.
+A bridge is affected when either side is, because it depends on both.
 """
 from __future__ import annotations
 
@@ -63,8 +67,11 @@ def standalone_matrix(layers: Path = LAYERS) -> list[str]:
     return [foundation(layers)[-1], *modules_of_rank(APP_RANK, layers)]
 
 
-def matrix(kind: str, layers: Path = LAYERS, addons: Path = ADDONS) -> list[str]:
+def matrix(kind: str, layers: Path = LAYERS, addons: Path = ADDONS, only: list[str] | None = None) -> list[str]:
+    """The job groups of a stage; ``only`` keeps just those modules (None keeps all)."""
     modules = standalone_matrix(layers) if kind == 'apps' else modules_of_rank(BRIDGE_RANK, layers)
+    if only is not None:
+        modules = [module for module in modules if module in only]
     groups = odoo_shards.split({module: odoo_shards.weight(module, addons) for module in modules}, GROUP_COUNT[kind])
     return [' '.join(group) for group in groups if group]
 
@@ -74,6 +81,20 @@ def depends(module: str, addons: Path = ADDONS) -> list[str]:
     if not manifest.is_file():
         raise IsolationError(f'{module} has no manifest at {manifest}')
     return list(ast.literal_eval(manifest.read_text(encoding='utf-8')).get('depends', []))
+
+
+def affected(changed: set[str], modules: list[str], addons: Path = ADDONS) -> list[str]:
+    """The modules among ``modules`` that are changed or depend on a changed one, directly or transitively."""
+    graph = {module: set(depends(module, addons)) for module in modules}
+    reached = set(changed)
+    grown = True
+    while grown:
+        grown = False
+        for module, needs in graph.items():
+            if module not in reached and needs & reached:
+                reached.add(module)
+                grown = True
+    return sorted(reached & set(modules))
 
 
 def sides(bridge: str, layers: Path = LAYERS, addons: Path = ADDONS) -> list[str]:
@@ -133,7 +154,9 @@ def check(module: str, installed: set[str], layers: Path = LAYERS, addons: Path 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     sub = parser.add_subparsers(dest='command', required=True)
-    sub.add_parser('matrix').add_argument('kind', choices=('apps', 'bridges'))
+    matrix_parser = sub.add_parser('matrix')
+    matrix_parser.add_argument('kind', choices=('apps', 'bridges'))
+    matrix_parser.add_argument('--modules', help='comma-separated affected modules; only these are packed')
     sub.add_parser('install').add_argument('module')
     sub.add_parser('tags').add_argument('module')
     sub.add_parser('foundation')
@@ -144,7 +167,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         if args.command == 'matrix':
-            print(json.dumps(matrix(args.kind)))
+            print(json.dumps(matrix(args.kind, only=None if args.modules is None else odoo_shards.parse_modules(args.modules))))
         elif args.command == 'install':
             print(','.join(install_list(args.module)))
         elif args.command == 'tags':
@@ -158,7 +181,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             check(args.module, set(filter(None, args.installed.split(','))))
             print(f'{args.module}: isolated')
-    except IsolationError as error:
+    except (IsolationError, odoo_shards.ShardError) as error:
         print(f'app_isolation: {error}', file=sys.stderr)
         return 1
     return 0
