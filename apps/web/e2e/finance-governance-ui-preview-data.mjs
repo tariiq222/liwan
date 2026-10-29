@@ -58,7 +58,6 @@ const zatcaStatus = {
 
 const ACTORS = [{ id: 2, name: 'سارة القحطاني' }, { id: 3, name: 'خالد العتيبي' }, { id: 4, name: 'نورة الشمري' }]
 const AUDIT_KINDS = [
-  ['chart_loaded', 'account.chart.template', 1, ['chart_template'], 'ksa'],
   ['company_written', 'res.company', 1, ['vat', 'company_registry', 'street'], null],
   ['fiscal_year_closed', 'account.move', 1, [], '2024:closed'],
   ['zatca_onboarded', 'account.journal', 21, [], null],
