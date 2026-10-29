@@ -161,13 +161,16 @@ def _filtered_task_domain(args):
 
 
 def _task_order(sort):
-    """The ORM order for a `sort` query value: known keys only, a task without a deadline always last,
-    and `id asc` as the final tiebreaker so paging stays stable."""
+    """The ORM order for a `sort` query value: known keys and `asc`/`desc` only (anything else is a 422),
+    a task without a deadline always last, and `id asc` as the final tiebreaker so paging stays stable."""
     parts = {}
     for part in str(sort).split(','):
         field, _, direction = part.strip().partition(' ')
-        if field in SORTABLE and field not in parts:
-            parts[field] = f"{field} {'desc' if direction.strip() == 'desc' else 'asc'}"
+        direction = direction.strip() or 'asc'
+        if field not in SORTABLE or direction not in ('asc', 'desc'):
+            raise ApiError(422, 'invalid', f"sort must list {', '.join(sorted(SORTABLE))} with asc or desc", field='sort')
+        if field not in parts:
+            parts[field] = f"{field} {direction}"
             if field == 'date_deadline':
                 parts[field] += ' nulls last'
     parts.setdefault('id', 'id asc')
@@ -240,8 +243,12 @@ class TaskController(http.Controller):
     def create_task(
         self, name=None, project_id=None, parent_id=None, milestone_id=None,
         planned_start=None, date_deadline=None, description=_MISSING,
-        deliverables=_MISSING, **_,
+        deliverables=_MISSING, **extra,
     ):
+        extra.pop('context', None)  # inert request context key; the company scope comes from the session
+        if extra:
+            field = sorted(extra)[0]
+            raise ApiError(422, 'unknown_field', f"field {field!r} is not writable", field=field)
         if not isinstance(name, str) or not name.strip():
             raise ApiError(422, 'invalid', "name must not be empty", field='name')
         if project_id is None:
