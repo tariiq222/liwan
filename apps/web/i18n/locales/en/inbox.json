@@ -8,7 +8,8 @@
     "selectDescription": "Pick a conversation from the list to read and reply.",
     "nav": {
       "conversations": "Conversations",
-      "reports": "Reports"
+      "reports": "Reports",
+      "campaigns": "Campaigns"
     },
     "states": {
       "open": "Open",
@@ -79,7 +80,8 @@
       "selected": "Chose: {title}",
       "unsupported": "This message type is not supported.",
       "automated": "Automatic reply",
-      "system": "System"
+      "system": "System",
+      "campaign": "Campaign: {name}"
     },
     "composer": {
       "mode": "Message type",
@@ -1156,6 +1158,356 @@
         "about": "About",
         "noAbout": "No about text yet"
       }
+    },
+    "campaigns": {
+      "title": "Campaigns",
+      "new": "New campaign",
+      "newHint": "Pick the template and audience and choose what fills each message variable.",
+      "create": "Create campaign",
+      "empty": "No campaigns yet",
+      "emptyHint": "Create a campaign to send an approved template to an audience of your customers.",
+      "emptyFiltered": "No campaigns match the filters",
+      "noTemplate": "Template deleted",
+      "footer": "{shown} of {total}",
+      "edit": "Edit campaign",
+      "editHint": "A campaign can be edited before it starts. While paused, only its name, daily cap and working-hours rule change.",
+      "states": {
+        "draft": "Draft",
+        "scheduled": "Scheduled",
+        "running": "Sending",
+        "paused": "Paused",
+        "done": "Done",
+        "cancelled": "Cancelled"
+      },
+      "columns": {
+        "state": "Status",
+        "channel": "Channel",
+        "template": "Template",
+        "audience": "Audience",
+        "progress": "Delivery",
+        "when": "When"
+      },
+      "filters": {
+        "search": "Search by campaign name",
+        "allStates": "All statuses",
+        "allChannels": "All channels"
+      },
+      "actions": {
+        "launch": "Launch",
+        "pause": "Pause",
+        "resume": "Resume",
+        "cancel": "Cancel campaign",
+        "retry": "Retry capped recipients",
+        "launchDone": "The campaign has started",
+        "pauseDone": "The campaign is paused",
+        "resumeDone": "The campaign resumed",
+        "cancelDone": "The campaign was cancelled",
+        "retryDone": "Recipients were queued again"
+      },
+      "confirm": {
+        "launchTitle": "Launch “{name}”?",
+        "launchDescription": "Real messages go to the eligible recipients and cannot be recalled once sent.",
+        "cancelTitle": "Cancel “{name}”?",
+        "cancelDescription": "Recipients not yet sent are cancelled. Messages already sent stay sent.",
+        "deleteTitle": "Delete “{name}”?",
+        "deleteDescription": "The campaign is deleted for good. It cannot be deleted once sending has started."
+      },
+      "pause": {
+        "manual": "Paused by you",
+        "template_unavailable": "Template unavailable",
+        "account_restricted": "Account restricted by Meta",
+        "payment": "Payment method problem",
+        "token": "Access token expired",
+        "channel_disabled": "Channel not connected",
+        "messages_limit": "Monthly message limit reached",
+        "recipients_limit": "Monthly recipient limit reached"
+      },
+      "pauseHint": {
+        "manual": "Resume the campaign when you are ready.",
+        "template_unavailable": "The campaign template is paused, disabled or not approved. Check its status, then resume.",
+        "account_restricted": "Meta restricted the account over sending quality. See the number health page.",
+        "payment": "Fix the payment method in your Meta account, then resume.",
+        "token": "Renew the access token in the channel settings, then resume.",
+        "channel_disabled": "Reconnect the channel, then resume.",
+        "messages_limit": "The limit renews next month or with a plan upgrade.",
+        "recipients_limit": "The limit renews next month or with a plan upgrade."
+      },
+      "waiting": {
+        "schedule": "Waiting for the scheduled start",
+        "working_hours": "Waiting for working hours",
+        "daily_cap": "Daily cap reached; sending resumes on its own",
+        "messaging_limit": "Meta's 24-hour customer limit reached; sending resumes on its own"
+      },
+      "stats": {
+        "label": "Campaign figures",
+        "total": "Recipients",
+        "skipped": "Skipped",
+        "delivered": "Delivered",
+        "read": "Read",
+        "replied": "Replied",
+        "failed": "Failed",
+        "unsubscribed": "Unsubscribed",
+        "held": "Held by Meta",
+        "heldHint": "Meta holds them for a template quality check",
+        "progress": "Sending progress"
+      },
+      "test": {
+        "title": "Test send",
+        "hint": "One real message to a customer you choose before launch. They are not a recipient of the campaign and the consent policy applies.",
+        "contact": "Customer",
+        "placeholder": "Search by name or number",
+        "send": "Send test",
+        "sent": "The test message was sent",
+        "open": "Open conversation"
+      },
+      "recipients": {
+        "title": "Recipients",
+        "contact": "Customer",
+        "detail": "Details",
+        "sentAt": "Sent at",
+        "response": "Response",
+        "search": "Search by name or number",
+        "failureLabel": "Failure reason",
+        "allFailures": "All reasons",
+        "empty": "No matching recipients",
+        "footer": "{shown} of {total}",
+        "open": "Conversation",
+        "replied": "Replied",
+        "unsubscribed": "Unsubscribed",
+        "states": {
+          "pending": "Pending",
+          "skipped": "Skipped",
+          "queued": "Queued",
+          "sent": "Sent",
+          "delivered": "Delivered",
+          "read": "Read",
+          "failed": "Failed"
+        },
+        "skip": {
+          "opted_out": "Opted out",
+          "no_consent": "No consent",
+          "duplicate_number": "Duplicate number",
+          "invalid_number": "Invalid number",
+          "missing_param": "Missing variable value",
+          "cancelled": "Campaign cancelled"
+        },
+        "failure": {
+          "frequency_capped": "Reached Meta's marketing limit",
+          "marketing_opt_out": "Stopped marketing messages",
+          "not_on_whatsapp": "Not on WhatsApp",
+          "template_unavailable": "Template unavailable",
+          "invalid_params": "Invalid variables",
+          "experiment": "Part of a Meta experiment",
+          "account_restricted": "Account restricted",
+          "other": "Other reason"
+        }
+      },
+      "params": {
+        "title": "Message variables",
+        "hint": "Choose what fills each template variable: a fixed text or a field of each customer. A customer missing the field with no fallback is skipped.",
+        "none": "This template has no variables.",
+        "header": "Header variable",
+        "body": "Body variable {n}",
+        "button": "Button “{name}”",
+        "copyCode": "Copy code",
+        "sourceLabel": "Source",
+        "staticValue": "Fixed text",
+        "fallback": "Fallback value",
+        "fallbackHint": "Used when the customer has no value. Leave empty to skip such customers.",
+        "valueRequired": "Enter the text",
+        "source": {
+          "static": "Fixed text",
+          "contact_name": "Customer name",
+          "contact_first_name": "First name",
+          "contact_phone": "Phone number",
+          "contact_email": "Email"
+        }
+      },
+      "form": {
+        "messageTitle": "Message and audience",
+        "channel": "Channel",
+        "channelPlaceholder": "Choose a channel",
+        "channelRequired": "Choose a channel",
+        "template": "Template",
+        "templateHint": "Approved marketing and utility templates only.",
+        "templatePlaceholder": "Choose a template",
+        "templateRequired": "Choose a template",
+        "noTemplates": "This channel has no approved template usable in campaigns.",
+        "audience": "Audience",
+        "audiencePlaceholder": "Choose an audience",
+        "audienceRequired": "Choose an audience",
+        "reach": "Reaches {reachable} of {total} customers under the consent policy.",
+        "headerTitle": "Header file ({kind})",
+        "headerHint": "The file is uploaded once and sent with every message.",
+        "headerUpload": "Upload file",
+        "headerRequired": "Upload the header file",
+        "sendTitle": "Schedule and speed",
+        "scheduleLabel": "Start",
+        "schedule": {
+          "now": "On launch",
+          "at": "At a set time"
+        },
+        "scheduledAt": "Start time",
+        "scheduledAtHint": "In your device time ({zone}).",
+        "scheduleRequired": "Set the start time",
+        "withinHours": "Send only within working hours",
+        "withinHoursHint": "Sending stops outside working hours and continues when they open.",
+        "dailyCap": "Daily cap",
+        "dailyCapHint": "Most recipients per 24 hours. Zero means only Meta's limit.",
+        "previewTitle": "Message preview",
+        "sample": "Preview customer",
+        "sampleHint": "Pick a customer of the audience to see how the message looks for them.",
+        "samplePlaceholder": "Search by name or number",
+        "previewMissing": "{count} variable has no value for this customer. | {count} variables have no value for this customer.",
+        "limited": "The campaign is paused: only its name, daily cap and working-hours rule can change."
+      },
+      "hints": {
+        "charged": "Meta charges marketing messages per delivered message.",
+        "us": "Marketing messages may not reach US (+1) numbers, which Meta has paused.",
+        "remaining": "Left for this channel today: {remaining} customers (Meta limit: {limit}).",
+        "unlimited": "Meta's limit is unlimited for this account."
+      },
+      "sending": {
+        "title": "Marketing sending",
+        "description": "Meta's limit on customers you start a conversation with in 24 hours is shared by the numbers of the business account.",
+        "used": "Used in 24 hours",
+        "usedHint": "Customers messaged outside a service window",
+        "remaining": "Left in 24 hours",
+        "unlimited": "Unlimited",
+        "onboarding": "Marketing Messages API",
+        "mmApi": "Use the Marketing Messages API",
+        "mmApiHint": "Marketing templates go through it, falling back to the Cloud API when it cannot send.",
+        "mmNotOnboarded": "The account has not enabled this API in Meta yet, so sending falls back to the Cloud API.",
+        "api": "Sending API: {api}",
+        "apiName": {
+          "cloud_api": "Cloud API",
+          "marketing_messages": "Marketing Messages API"
+        },
+        "onboardingState": {
+          "not_started": "Not enabled",
+          "eligible": "Eligible",
+          "onboarded": "Enabled",
+          "unknown": "Unknown"
+        }
+      },
+      "audiences": {
+        "title": "Audiences",
+        "new": "New audience",
+        "newHint": "A saved audience computed from customer tags and activity.",
+        "create": "Create audience",
+        "empty": "No audiences yet",
+        "emptyHint": "Create an audience from customer tags, or import your customers from a CSV file below.",
+        "search": "Search by audience name",
+        "footer": "{shown} of {total}",
+        "contacts": "Matching",
+        "reachable": "Reachable",
+        "reachableHint": "Under the consent policy and with a WhatsApp address",
+        "reachableOf": "{reachable} of {total}",
+        "everyone": "All customers",
+        "tags": "Customer tags",
+        "tagsHint": "Customers carrying these tags. With none, every customer.",
+        "matchLabel": "Match",
+        "match": {
+          "any": "Any tag",
+          "all": "All tags"
+        },
+        "exclude": "Excluded tags",
+        "excludeHint": "Customers with any of these stay out.",
+        "noExclude": "None excluded",
+        "activeWithin": "Active within (days)",
+        "activeWithinHint": "Customers who wrote to us in this period. Zero for any customer.",
+        "definition": "Audience definition",
+        "members": "Members",
+        "searchMembers": "Search by name or number",
+        "noMembers": "No matching customers",
+        "membersFooter": "{shown} of {total}",
+        "deleteTitle": "Delete “{name}”?",
+        "deleteDescription": "It cannot be deleted while a campaign uses this audience."
+      },
+      "consent": {
+        "label": "Consent",
+        "all": "All states",
+        "unknown": "Unknown",
+        "opted_in": "Opted in",
+        "opted_out": "Opted out"
+      },
+      "import": {
+        "title": "Import customers",
+        "description": "Add your customers from a CSV file. An import never overrides an opt-out a customer made.",
+        "file": "CSV file",
+        "fileHint": "UTF-8 with a required phone column, and optional name and tags (existing tag names separated by ;). Up to 10,000 rows and 2 MB.",
+        "choose": "Choose file",
+        "tags": "Tags added to every row",
+        "tagsHint": "Added to every customer in the file.",
+        "noTags": "No extra tags",
+        "consentLabel": "Marketing consent",
+        "consent": {
+          "unknown": "Unknown",
+          "opted_in": "Opted in"
+        },
+        "consentHint": {
+          "unknown": "Campaigns reach them only if the policy allows customers who have not opted out.",
+          "opted_in": "I confirm I have these customers' consent to receive marketing messages."
+        },
+        "note": "Proof of consent",
+        "noteHint": "Where and when they agreed, for example: website form.",
+        "noteRequired": "Write the proof of consent",
+        "submit": "Import",
+        "done": "{created} added and {updated} updated",
+        "created": "Added",
+        "updated": "Updated",
+        "skipped": "Skipped",
+        "errors": "Row errors",
+        "line": "Line {line}",
+        "tooLarge": "The file is larger than 2 MB."
+      },
+      "settings": {
+        "title": "Campaigns",
+        "hint": "The consent policy, stop words and daily cap of WhatsApp campaigns. They apply to future snapshots only.",
+        "policyLabel": "Who campaigns message",
+        "policyDescription": "Meta requires customer consent for marketing messages; choose what fits your business.",
+        "policy": {
+          "opted_in_only": "Opted-in customers only",
+          "not_opted_out": "Everyone who has not opted out"
+        },
+        "policyHint": {
+          "opted_in_only": "Only customers with a recorded opt-in. The safest choice (default).",
+          "not_opted_out": "Customers who have not opted out, such as ones who wrote to you first."
+        },
+        "countryCode": "Default country code",
+        "countryCodeHint": "Turns local numbers in an import (starting with zero) into international ones. Example: 966. Empty accepts international numbers only.",
+        "keywordOptOut": "Opt out by keyword",
+        "keywordOptOutHint": "A customer message that exactly matches a keyword records the opt-out or the opt-in again.",
+        "stopKeywords": "Stop keywords",
+        "stopKeywordsHint": "Exact match after letter normalization.",
+        "startKeywords": "Resume keywords",
+        "startKeywordsHint": "Bring back someone who stopped.",
+        "stopReply": "Confirmation reply to a stop",
+        "startReply": "Confirmation reply to a resume",
+        "dailyCap": "Daily cap of a new campaign",
+        "dailyCapHint": "The value every new campaign starts with. Zero means only Meta's limit."
+      },
+      "marketing": {
+        "title": "Marketing",
+        "since": "{source} · {time}",
+        "source": {
+          "agent": "Agent",
+          "import": "Import",
+          "keyword": "Stop keyword",
+          "whatsapp": "WhatsApp preferences",
+          "delivery_error": "Delivery error"
+        },
+        "recordOptIn": "Record opt-in",
+        "recordOptOut": "Record opt-out",
+        "proof": "Proof of consent",
+        "proofHint": "Where and when the customer agreed, for example: asked at the clinic.",
+        "optOutTitle": "Record this customer's opt-out?",
+        "optOutDescription": "Campaigns stop reaching them until they agree again.",
+        "tags": "Customer segments",
+        "tagsHint": "Tags that audiences select on.",
+        "history": "Consent history"
+      },
+      "navLabel": "Campaign sections"
     }
   }
 }

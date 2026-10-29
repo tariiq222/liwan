@@ -66,3 +66,45 @@ describe('inbox reports', () => {
     expect(kind?.title?.({ title: 'واتساب' }, (key: string) => key)).toBe('واتساب')
   })
 })
+
+describe('inbox campaigns', () => {
+  const CAMPAIGNS = '/inbox/campaigns'
+  const PAGES = [CAMPAIGNS, `${CAMPAIGNS}/new`, `${CAMPAIGNS}/7`, `${CAMPAIGNS}/audiences`, `${CAMPAIGNS}/audiences/new`, `${CAMPAIGNS}/audiences/3`]
+
+  it('a campaigns-only role reaches the campaign pages but not the conversations', () => {
+    for (const path of PAGES) {
+      expect(reach(path, 'inbox.campaigns.manage')).toBe(true)
+      expect(reach(path, 'inbox.conversations.read')).toBe(false)
+    }
+    expect(reach('/inbox', 'inbox.campaigns.manage')).toBe(false)
+    expect(reach('/inbox/12', 'inbox.campaigns.manage')).toBe(false)
+  })
+
+  it('an agent without the campaigns capability keeps the conversations and never sees the campaigns', () => {
+    expect(reach('/inbox', 'inbox.conversations.read')).toBe(true)
+    expect(reach(CAMPAIGNS, 'inbox.conversations.read', 'inbox.reports.read')).toBe(false)
+  })
+
+  it('matches the campaigns rule before the generic inbox rule', () => {
+    const rules = manifest.routeCapabilities ?? []
+    const campaigns = rules.findIndex(rule => rule.capability === 'inbox.campaigns.manage')
+    const generic = rules.findIndex(rule => rule.capability === 'inbox.conversations.read')
+    expect(campaigns).toBeGreaterThanOrEqual(0)
+    expect(campaigns).toBeLessThan(generic)
+    expect(rules[campaigns]?.feature).toBe('inbox.campaigns')
+  })
+
+  it('opens the campaigns landing for a campaigns-only role when the inbox root is closed to it', () => {
+    expect(appRootFallback({ capabilities: ['inbox.campaigns.manage'] }, '/inbox')).toBe(CAMPAIGNS)
+  })
+
+  it('does not light the conversations item on a campaign page', () => {
+    expect(manifest.isNavActive?.(`${CAMPAIGNS}/7`, '/inbox')).toBe(false)
+    expect(manifest.isNavActive?.(`${CAMPAIGNS}/7`, CAMPAIGNS)).toBeUndefined()
+  })
+
+  it('offers the campaigns navigation entry and the settings part under the campaigns capability', () => {
+    expect(manifest.nav.find(item => item.to === CAMPAIGNS)).toMatchObject({ capability: 'inbox.campaigns.manage', feature: 'inbox.campaigns' })
+    expect(manifest.settings?.parts.find(part => part.id === 'campaigns')?.capability).toBe('inbox.campaigns.manage')
+  })
+})

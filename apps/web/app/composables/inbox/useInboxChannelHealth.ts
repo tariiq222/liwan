@@ -26,6 +26,7 @@ export const WEBHOOK_FIELDS = [
   'account_update',
   'business_capability_update',
   'account_alerts',
+  'user_preferences',
 ] as const
 
 // The alerts share the 'inbox' root of the staff keys, so the bus invalidation refreshes the timeline. The profile is read

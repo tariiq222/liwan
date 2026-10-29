@@ -4,9 +4,11 @@ import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
 import InboxChannelActions from '@/components/inbox/InboxChannelActions.vue'
 import InboxChannelAlerts from '@/components/inbox/InboxChannelAlerts.vue'
 import InboxChannelHealthCard from '@/components/inbox/InboxChannelHealthCard.vue'
+import InboxChannelSending from '@/components/inbox/campaigns/InboxChannelSending.vue'
 import InboxChannelTabs from '@/components/inbox/InboxChannelTabs.vue'
 import InboxWebhookFields from '@/components/inbox/InboxWebhookFields.vue'
 import { CHANNEL_STATE_TONE } from '@/composables/inbox/inboxPresentation'
+import { useInboxCampaignsEnabled } from '@/composables/inbox/useInboxCampaigns'
 import { useInboxChannel, useTestInboxChannel } from '@/composables/inbox/useInboxSettings'
 
 // The health of one WhatsApp number as Meta last reported it: metrics, account state, the alert timeline, the webhook
@@ -19,6 +21,7 @@ const id = computed(() => {
   const value = Number(route.params.id)
   return Number.isSafeInteger(value) && value > 0 ? value : null
 })
+const campaignsOn = useInboxCampaignsEnabled()
 const query = useInboxChannel(id)
 const channel = query.data
 const { mutate: refresh, isPending: refreshing } = useTestInboxChannel(() => id.value ?? 0)
@@ -63,6 +66,7 @@ function runRefresh() {
       <p class="text-sm text-muted" data-testid="inbox-health-checked">{{ checked }}</p>
       <UAlert v-if="channel.last_error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('inbox.settings.channels.lastError')" :description="channel.last_error" data-testid="inbox-channel-error" />
       <InboxChannelHealthCard :health="channel.health" />
+      <InboxChannelSending v-if="campaignsOn" :channel-id="id" can-edit />
       <InboxChannelAlerts :channel-id="id" />
       <InboxWebhookFields />
       <InboxChannelActions :channel="channel" />

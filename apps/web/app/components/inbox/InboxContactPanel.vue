@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { InboxConversationDetail, InboxConversationPatch } from '@webvue/contracts'
+import InboxContactMarketing from '@/components/inbox/campaigns/InboxContactMarketing.vue'
+import { useInboxCampaignsEnabled } from '@/composables/inbox/useInboxCampaigns'
 import { useInboxAgents, usePatchInboxContact, usePatchInboxConversation, useInboxTags } from '@/composables/inbox/useInbox'
 import { useInboxDepartments } from '@/composables/inbox/useInboxSettings'
 import { CONVERSATION_STATES, PRIORITIES } from '@/composables/inbox/inboxPresentation'
@@ -12,6 +14,7 @@ const hydrated = useHydrated()
 const toast = useToast()
 const { me } = useMe()
 const id = computed(() => props.conversation.id)
+const campaignsOn = useInboxCampaignsEnabled()
 const { mutate: patch, isPending: patching } = usePatchInboxConversation(id)
 const { mutate: patchContact, isPending: savingContact } = usePatchInboxContact(() => props.conversation.contact.id)
 const departments = useInboxDepartments()
@@ -77,6 +80,8 @@ function saveContact() {
         <UButton v-if="props.conversation.can_reply" type="submit" color="neutral" variant="outline" class="self-start" :disabled="!hydrated || !contactDirty || !name.trim()" :loading="savingContact" :label="t('inbox.panel.saveContact')" />
       </form>
     </SharedRecordSection>
+
+    <InboxContactMarketing v-if="campaignsOn" :contact-id="props.conversation.contact.id" :can-write="props.conversation.can_reply" />
 
     <SharedRecordSection variant="panel" :title="t('inbox.panel.conversation')">
       <div class="flex flex-col gap-3">
