@@ -90,7 +90,7 @@ async function submit() {
       <div class="grid gap-4">
         <div class="grid gap-4 sm:grid-cols-2">
           <UFormField :label="t('financeDocuments.payments.amount')" name="finance-standalone-amount" required :error="shown.amount ? t('financeDocuments.payments.form.amountRequired') : undefined">
-            <UInput id="finance-standalone-amount" type="number" min="0" step="any" inputmode="decimal" class="w-full tabular-nums" v-model="draft.amount" :disabled="!hydrated || pending" />
+            <UInput id="finance-standalone-amount" inputmode="decimal" class="w-full tabular-nums" v-model="draft.amount" :disabled="!hydrated || pending" />
           </UFormField>
           <UFormField :label="t('financeDocuments.payments.form.date')" name="finance-standalone-date" required :error="shown.paymentDate ? t('financeDocuments.payments.form.dateRequired') : undefined">
             <SharedDateField id="finance-standalone-date" v-model="draft.paymentDate" :disabled="!hydrated || pending" />

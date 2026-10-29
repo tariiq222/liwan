@@ -96,6 +96,33 @@ test('the board lists the four stages and the stage filter survives back navigat
   await expect(page.getByRole('link', { name: 'محمد الدوسري' })).toBeVisible()
 })
 
+test('board and mobile cards carry a call action beside the link, not inside it', async ({ page }) => {
+  await page.goto('/crm/opportunities?view=board')
+  const card = page.getByTestId('crm-board-card').filter({ hasText: 'أحمد العتيبي' })
+  const call = page.getByRole('link', { name: 'اتصل بـ أحمد العتيبي' })
+  await expect(call).toHaveAttribute('href', 'tel:0501234567')
+  await expect(card.locator('a[href^="tel:"]')).toHaveCount(0)
+  // Inline-end in a right-to-left page is the left edge of the card; the action never overlaps its text.
+  const [cardBox, callBox] = [await card.boundingBox(), await call.boundingBox()]
+  expect(callBox!.x + callBox!.width / 2).toBeLessThan(cardBox!.x + cardBox!.width / 2)
+  await card.focus()
+  await page.keyboard.press('Tab')
+  await expect(call).toBeFocused()
+  await call.evaluate(element => element.addEventListener('click', event => event.preventDefault()))
+  await call.click()
+  await expect(page).toHaveURL(/view=board/)
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/crm/opportunities')
+  const row = page.getByRole('listitem').filter({ hasText: 'سارة القحطاني' })
+  await expect(row.getByRole('link', { name: /سارة القحطاني/ }).locator('a[href^="tel:"]')).toHaveCount(0)
+  const mobileCall = row.getByRole('link', { name: 'اتصل بـ سارة القحطاني' })
+  await expect(mobileCall).toHaveAttribute('href', 'tel:0507654321')
+  await mobileCall.evaluate(element => element.addEventListener('click', event => event.preventDefault()))
+  await mobileCall.click()
+  await expect(page).toHaveURL(/\/crm\/opportunities$/)
+})
+
 test('lost closes inline after a confirmation and a manager reopens it', async ({ page }) => {
   await page.goto('/crm/opportunities/3')
   await page.getByTestId('crm-open-lost').click()
@@ -154,6 +181,22 @@ test('a losing outcome without a reason sends the reason with the call, which is
   await page.getByTestId('crm-call-submit').click()
   await expect(page.getByTestId('crm-reopen')).toBeVisible()
   await expect(page.getByTestId('crm-call-log')).toContainText('رقم خاطئ')
+})
+
+test('the call log pages: older calls load on request until the history is complete', async ({ page }) => {
+  await page.goto('/crm/opportunities/8')
+  const log = page.getByTestId('crm-call-log')
+  await expect(log.getByRole('listitem')).toHaveCount(20)
+  await expect(page.getByText('عرض 20 من 45')).toBeVisible()
+  await expect(log).toContainText('محاولة رقم 45')
+  const more = page.getByTestId('crm-call-log-more')
+  await more.click()
+  await expect(log.getByRole('listitem')).toHaveCount(40)
+  await more.click()
+  await expect(log.getByRole('listitem')).toHaveCount(45)
+  await expect(log).toContainText('محاولة رقم 1')
+  await expect(page.getByText('عرض 45 من 45')).toBeVisible()
+  await expect(more).toHaveCount(0)
 })
 
 test('an unknown or malformed record id shows the not-found state, not a skeleton', async ({ page }) => {

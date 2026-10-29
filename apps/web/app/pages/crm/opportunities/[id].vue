@@ -192,7 +192,7 @@ const stageItems = computed(() => movableStages(stages.data.value?.items ?? []).
         </div>
       </SharedRecordSection>
       <CrmOpportunityCallForm v-if="canWork && panel === null" :key="callFormKey" v-model:dirty="callDirty" :outcomes="outcomes.data.value?.items ?? []" :packages="packages.data.value?.items ?? []" :lost-reasons="lostReasons.data.value?.items ?? []" :pending="actions.recordCall.isPending.value" :error="textFor('call')" @record="recordCall" />
-      <CrmOpportunityCallLog :calls="calls.data.value?.items ?? []" />
+      <CrmOpportunityCallLog :calls="calls.items.value" :total="calls.data.value?.pages.at(-1)?.total ?? 0" :has-more="!!calls.hasNextPage.value" :loading-more="calls.isFetchingNextPage.value" @more="calls.fetchNextPage()" />
     </template>
     <template v-if="record" #aside>
       <SharedPropertiesPanel :title="t('crm.opportunities.record.details')">

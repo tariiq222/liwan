@@ -83,10 +83,10 @@ async function submit() {
         </UFormField>
         <div class="grid gap-4 sm:grid-cols-2">
           <UFormField :label="t('financeBank.form.balanceStart')" name="finance-bank-balance-start" :error="shown.balance_start ? t('financeBank.form.numberInvalid') : undefined">
-            <UInput id="finance-bank-balance-start" v-model="draft.balanceStart" type="number" step="any" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" />
+            <UInput id="finance-bank-balance-start" v-model="draft.balanceStart" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" />
           </UFormField>
           <UFormField :label="t('financeBank.form.balanceEndReal')" name="finance-bank-balance-end" :error="shown.balance_end_real ? t('financeBank.form.numberInvalid') : undefined">
-            <UInput id="finance-bank-balance-end" v-model="draft.balanceEndReal" type="number" step="any" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" />
+            <UInput id="finance-bank-balance-end" v-model="draft.balanceEndReal" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" />
           </UFormField>
         </div>
       </div>
@@ -102,7 +102,7 @@ async function submit() {
             <UInput v-model="line.paymentRef" class="w-full" maxlength="255" :disabled="!hydrated || pending" :aria-label="ariaLine(index, t('financeBank.form.lineLabel'))" />
           </UFormField>
           <UFormField :label="t('financeBank.form.lineAmount')" :name="`finance-bank-line-amount-${index}`" required :error="shown[`lines.${index}.amount`] ? t('financeBank.form.lineAmountInvalid') : undefined">
-            <UInput v-model="line.amount" type="number" step="any" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" :aria-label="ariaLine(index, t('financeBank.form.lineAmount'))" />
+            <UInput v-model="line.amount" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" :aria-label="ariaLine(index, t('financeBank.form.lineAmount'))" />
           </UFormField>
           <div class="flex flex-wrap items-end justify-between gap-3 md:col-span-3">
             <UFormField :label="t('financeBank.form.linePartner')" :name="`finance-bank-line-partner-${index}`" class="min-w-0 grow md:max-w-sm">

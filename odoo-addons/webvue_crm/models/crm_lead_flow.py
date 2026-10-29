@@ -141,7 +141,7 @@ class CrmLeadFlow(models.Model):
         """Tell each agent about the opportunities given to them, unless they did it themselves.
 
         One bell per agent and company, however many opportunities: it opens the first one (lowest id)
-        and, for several, its title reads ``<name> +<others>``.
+        and carries the number of opportunities, which the UI words.
         """
         service = self.env['webvue.notify.service']
         groups = {}
@@ -149,8 +149,10 @@ class CrmLeadFlow(models.Model):
             if lead.user_id != self.env.user:
                 groups.setdefault((lead.user_id, lead.company_id), []).append(lead)
         for (user, _company), leads in groups.items():
-            title = leads[0].name if len(leads) == 1 else f'{leads[0].name} +{len(leads) - 1}'
-            service._webvue_deliver('crm.lead', leads[0].id, 'crm.assigned', user.partner_id, title)
+            service._webvue_deliver(
+                'crm.lead', leads[0].id, 'crm.assigned', user.partner_id, leads[0].name,
+                values={'webvue_crm_count': len(leads)},
+            )
 
     def _webvue_notify_managers(self):
         """Tell the holders of ``crm.leads.assign`` that this opportunity waits for a decision."""
@@ -161,4 +163,4 @@ class CrmLeadFlow(models.Model):
             managers = (candidates - self.env.user).filtered(
                 lambda user, company=lead.company_id: visibility._webvue_can_assign(user, company),
             )
-            service._webvue_deliver('crm.lead', lead.id, 'crm.assigned', managers.partner_id, lead.name)
+            service._webvue_deliver('crm.lead', lead.id, 'crm.needs_manager', managers.partner_id, lead.name)

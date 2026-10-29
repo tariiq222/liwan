@@ -1,5 +1,14 @@
 {
   "crm": {
+    "bell": {
+      "assigned": "تم إسناد {term} لك: {name}",
+      "assignedMany": {
+        "m": "تم إسناد {count} {term} إليك. الأول: {name}",
+        "f": "تم إسناد {count} {term} إليك. الأولى: {name}"
+      },
+      "followupDue": "اتصال متابعة مستحق: {name}",
+      "needsManager": "يحتاج قرار المدير: {name}"
+    },
     "nav": {
       "dashboard": "لوحة المتابعة",
       "opportunities": "الفرص",
@@ -138,6 +147,7 @@
       }
     },
     "opportunities": {
+      "callAction": "اتصل بـ {name}",
       "list": {
         "new": "إضافة {term}",
         "search": "ابحث بالاسم أو الهاتف أو البريد",
@@ -221,6 +231,8 @@
         "lostSubmit": "إغلاق بالخسارة",
         "outcomeRequired": "اختر نتيجة الاتصال",
         "log": "سجل الاتصالات",
+        "logMore": "عرض اتصالات أقدم",
+        "logCount": "عرض {shown} من {total}",
         "logEmpty": "لا اتصالات مسجلة بعد",
         "logBy": "بواسطة {name}",
         "logNoOutcome": "بلا نتيجة",

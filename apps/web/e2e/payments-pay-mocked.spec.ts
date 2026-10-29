@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test'
-import { PayableInvoiceSchema } from '@webvue/contracts'
+import { PayableInvoiceSchema, PayableOrderSchema, type PayDocumentKind } from '@webvue/contracts'
 import { collectBrowserErrors, heading, MOCK_STACK_ONLY, openPage as open, trackRefusedRequests } from './support/mock-pages'
 import { login } from './support/tasmim6'
 
@@ -7,10 +7,11 @@ test.skip(process.env.E2E_PROJECT_POPUPS !== '1', MOCK_STACK_ONLY)
 
 // The customer's pay-by-link pages and the staff "payment link" action against payments-mock-routes.mjs. The pay pages are
 // public: those tests never sign in. The mock serves invoices 2 (payable), 3 (payable in part, its start is refused),
-// 4 (paid), 6 (processing), 8 (not payable) and 9 (payable with no payment method), all with the access token `tok-<id>`;
-// invoice 10 answers 429 (the service is busy).
-const PAY = (id: number, token = `tok-${id}`) => `/pay/invoice/${id}?access_token=${token}`
-const STATUS = (id: number, token = `tok-${id}`) => `/pay/invoice/${id}/status?access_token=${token}`
+// 4 (paid), 6 (processing), 8 (not payable) and 9 (payable with no payment method), and online orders 21 (payable),
+// 22 (payable with a deposit), 23 (paid), 24 (processing), 25 (not payable) and 26 (payable with no payment method), all
+// with the access token `tok-<id>`; invoice 10 answers 429 (the service is busy).
+const PAY = (id: number, token = `tok-${id}`, kind: PayDocumentKind = 'invoice') => `/pay/${kind}/${id}?access_token=${token}`
+const STATUS = (id: number, token = `tok-${id}`, kind: PayDocumentKind = 'invoice') => `/pay/${kind}/${id}/status?access_token=${token}`
 const GATEWAY = 'https://gateway.example/**'
 const CREDENTIALS = { paymob_public_key: 'pk', paymob_secret_key: 'sk', paymob_hmac_key: 'hm', paymob_api_key: 'ak' }
 
@@ -83,7 +84,7 @@ test.describe('the pay page', () => {
       url: 'https://gateway.example/checkout?payment_token=pt_2_card&reference=INV%2F2026%2F0002',
       method: 'GET',
       body: null,
-      cookie: '2.tok-2 /payment',
+      cookie: 'invoice.2.tok-2 /payment',
     })
   })
 
@@ -94,7 +95,7 @@ test.describe('the pay page', () => {
     await expect(option(page, /مدى/)).toBeChecked()
     await payButton(page).click()
     await expect.poll(() => seen.length).toBe(1)
-    expect(seen[0]).toMatchObject({ url: 'https://gateway.example/checkout', method: 'POST', cookie: '2.tok-2 /payment' })
+    expect(seen[0]).toMatchObject({ url: 'https://gateway.example/checkout', method: 'POST', cookie: 'invoice.2.tok-2 /payment' })
     expect(new URLSearchParams(seen[0]!.body ?? '').get('payment_token')).toBe('pt_2_mada')
     expect(new URLSearchParams(seen[0]!.body ?? '').get('reference')).toBe('INV/2026/0002')
   })
@@ -194,7 +195,7 @@ test.describe('the pay page', () => {
       const withoutRefusals = trackRefusedRequests(page, '/api/v1/public/payments')
       await page.goto(path)
       await expect(page.getByTestId('pay-invalid')).toContainText('رابط الدفع غير صالح')
-      await expect(page.getByTestId('pay-invalid')).toContainText('الجهة المصدرة للفاتورة')
+      await expect(page.getByTestId('pay-invalid')).toContainText('اطلب رابطًا جديدًا من الجهة المصدرة')
       await expect(page).not.toHaveURL(/\/login/)
       await expect(page.getByTestId('pay-amount-due')).toHaveCount(0)
       await expect(payButton(page)).toHaveCount(0)
@@ -275,6 +276,145 @@ test.describe('the status page', () => {
     await expect(page.getByTestId('pay-status-not-paid')).toContainText('لم يتم الدفع')
     await page.getByTestId('pay-try-again').click()
     await expect(page).toHaveURL(/\/pay\/invoice\/2\?access_token=tok-2$/)
+    await expect(payButton(page)).toBeEnabled()
+  })
+})
+
+test.describe('the pay page of an online order', () => {
+  // The expiry moment is shown in the reader's own time zone: pin it so the time can be asserted.
+  test.use({ timezoneId: 'Asia/Riyadh' })
+
+  test('opens with no session and lists the order, when it expires and its payment options', async ({ page }) => {
+    await page.goto(PAY(21, undefined, 'order'))
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
+    await expect(heading(page, 'دفع الطلب')).toBeVisible()
+    await expect(page.getByTestId('pay-brand')).toHaveText('ويب فيو')
+    await expect(page.getByTestId('pay-amount-due')).toHaveText('16,905.00 SAR')
+    await expect(page.getByTestId('pay-number')).toContainText('رقم الطلب')
+    await expect(page.getByTestId('pay-number')).toContainText('S00021')
+    await expect(page.getByTestId('pay-merchant')).toContainText('ويب فيو')
+    await expect(page.getByTestId('pay-expires-at')).toContainText('آخر موعد للدفع')
+    await expect(page.getByTestId('pay-expires-at')).toHaveText(/31 أكتوبر 2026.*3:30/)
+    await expect(page.getByTestId('pay-due-date')).toHaveCount(0)
+    await expect(page.getByTestId('pay-total')).toHaveCount(0)
+    await expect(option(page, /بطاقة بنكية/)).toBeChecked()
+    await expect(payButton(page)).toBeEnabled()
+    await expect(page).toHaveURL(/\/pay\/order\/21\?access_token=tok-21$/)
+    // The mock's answer is the contract the page reads.
+    const answer = PayableOrderSchema.parse(await (await page.request.get('/api/v1/public/payments/orders/21?access_token=tok-21')).json())
+    expect(answer.status).toBe('payable')
+  })
+
+  test('shows the order total beside the deposit that is paid now', async ({ page }) => {
+    await openPayable(page, PAY(22, undefined, 'order'))
+    await expect(page.getByTestId('pay-amount-due')).toHaveText('5,000.00 SAR')
+    await expect(page.getByTestId('pay-total')).toContainText('إجمالي الطلب')
+    await expect(page.getByTestId('pay-total')).toContainText('16,905.00 SAR')
+  })
+
+  test('starts the payment on the order\'s own route, stores the order in the return cookie, then opens the gateway', async ({ page }) => {
+    const seen = await captureGateway(page)
+    const bodies: { url: string; body: unknown }[] = []
+    page.on('request', request => { if (request.method() === 'POST' && request.url().includes('/transactions')) bodies.push({ url: new URL(request.url()).pathname, body: request.postDataJSON() }) })
+    await openPayable(page, PAY(21, undefined, 'order'))
+    await payButton(page).click()
+    await expect.poll(() => seen.length).toBe(1)
+    expect(bodies).toEqual([{ url: '/api/v1/public/payments/orders/21/transactions', body: { access_token: 'tok-21', provider_id: 7, payment_method_id: 11 } }])
+    expect(seen[0]).toEqual({
+      url: 'https://gateway.example/checkout?payment_token=pt_21_card&reference=S00021',
+      method: 'GET',
+      body: null,
+      cookie: 'order.21.tok-21 /payment',
+    })
+  })
+
+  test('the gateway\'s return finds the cookie and lands on the order\'s status page', async ({ page }) => {
+    await captureGateway(page)
+    await openPayable(page, PAY(21, undefined, 'order'))
+    await payButton(page).click()
+    await expect.poll(async () => (await page.context().cookies()).some(item => item.name === 'webvue_pay_return')).toBe(true)
+    await page.goto('/payment/paymob/return?success=true')
+    await expect(page).toHaveURL(/\/pay\/order\/21\/status\?access_token=tok-21$/)
+    await expect(heading(page, 'حالة الدفع')).toBeVisible()
+    await expect(page.getByTestId('pay-number')).toContainText('S00021')
+    await expect(page.getByTestId('pay-status-confirming')).toBeVisible()
+    expect((await page.context().cookies()).some(item => item.name === 'webvue_pay_return')).toBe(false)
+  })
+
+  test('a start refused because a payment is already in progress says so in the order\'s words', async ({ page }) => {
+    const withoutRefusals = trackRefusedRequests(page, '/api/v1/public/payments')
+    await openPayable(page, PAY(21, undefined, 'order'))
+    await page.route('**/api/v1/public/payments/orders/21/transactions', route => route.fulfill({
+      status: 409,
+      contentType: 'application/json',
+      body: JSON.stringify({ code: 'payment_in_progress', message: 'in progress' }),
+    }))
+    await payButton(page).click()
+    await expect(page.getByTestId('pay-start-error')).toContainText('بدأ دفع هذا الطلب قبل قليل في صفحة أخرى')
+    await expect(payButton(page)).toBeEnabled()
+    errors = withoutRefusals(errors)
+  })
+
+  test('says the order is paid, with no way to pay again', async ({ page }) => {
+    await page.goto(PAY(23, undefined, 'order'))
+    await expect(page.getByTestId('pay-paid')).toContainText('تم دفع هذا الطلب')
+    await expect(page.getByTestId('pay-amount-due')).toHaveText('0.00 SAR')
+    await expect(payButton(page)).toHaveCount(0)
+  })
+
+  test('says the payment is being confirmed', async ({ page }) => {
+    await page.goto(PAY(24, undefined, 'order'))
+    await expect(page.getByTestId('pay-processing')).toContainText('الدفع قيد التأكيد')
+    await expect(payButton(page)).toHaveCount(0)
+  })
+
+  test('says an order that is cancelled or expired cannot be paid', async ({ page }) => {
+    await page.goto(PAY(25, undefined, 'order'))
+    await expect(page.getByTestId('pay-not-payable')).toContainText('لا يمكن دفع هذا الطلب الآن')
+    await expect(page.getByTestId('pay-not-payable')).toContainText('انتهت مهلة دفعه')
+    await expect(payButton(page)).toHaveCount(0)
+  })
+
+  test('with no live gateway the order is payable but offers no method', async ({ page }) => {
+    await page.goto(PAY(26, undefined, 'order'))
+    await expect(page.getByTestId('pay-no-options')).toContainText('الدفع الإلكتروني غير متاح حاليًا لهذا الطلب')
+    await expect(payButton(page)).toHaveCount(0)
+  })
+
+  for (const [name, path] of [
+    ['a wrong token', PAY(21, 'wrong', 'order')],
+    ['an order that does not exist', PAY(99, undefined, 'order')],
+    ['an invoice id opened as an order', PAY(2, undefined, 'order')],
+    ['a kind the service does not know', '/pay/refund/21?access_token=tok-21'],
+  ] as const) {
+    test(`${name}: the link is invalid and shows no document`, async ({ page }) => {
+      const withoutRefusals = trackRefusedRequests(page, '/api/v1/public/payments')
+      await page.goto(path)
+      await expect(page.getByTestId('pay-invalid')).toContainText('رابط الدفع غير صالح')
+      await expect(page).not.toHaveURL(/\/login/)
+      await expect(page.getByTestId('pay-amount-due')).toHaveCount(0)
+      await expect(payButton(page)).toHaveCount(0)
+      errors = withoutRefusals(errors)
+    })
+  }
+
+  test('the status page says paid for a paid order, and not payable for a cancelled one', async ({ page }) => {
+    await page.goto(STATUS(23, undefined, 'order'))
+    await expect(page.getByTestId('pay-status-paid')).toContainText('تم دفع هذا الطلب')
+    await page.goto(STATUS(25, undefined, 'order'))
+    await expect(page.getByTestId('pay-status-not-payable')).toContainText('لا يمكن دفع هذا الطلب الآن')
+  })
+
+  test('after a minute without a confirmation an unpaid order is not paid, with the way back to its pay page', async ({ page }) => {
+    await page.clock.install()
+    await page.goto(STATUS(21, undefined, 'order'))
+    await expect(page.getByTestId('pay-status-confirming')).toBeVisible()
+    await expect(async () => {
+      await page.clock.fastForward(61_000)
+      await expect(page.getByTestId('pay-status-not-paid')).toBeVisible({ timeout: 1000 })
+    }).toPass()
+    await page.getByTestId('pay-try-again').click()
+    await expect(page).toHaveURL(/\/pay\/order\/21\?access_token=tok-21$/)
     await expect(payButton(page)).toBeEnabled()
   })
 })

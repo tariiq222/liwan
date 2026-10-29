@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { PaymentProviderListSchema } from '@webvue/contracts'
+import { PaymentProviderListSchema, PaymentSettingsSchema } from '@webvue/contracts'
 import { collectBrowserErrors, MOCK_STACK_ONLY, openPage as open, trackRefusedRequests } from './support/mock-pages'
 import { login } from './support/tasmim6'
 
@@ -7,7 +7,8 @@ test.skip(process.env.E2E_PROJECT_POPUPS !== '1', MOCK_STACK_ONLY)
 
 // The payments settings page against the stateful gateway of payments-mock-routes.mjs: the tenant connects its own
 // Paymob account. A secret key containing "reject" is refused by the gateway, one containing "nomethods" leaves the
-// gateway account without a payment method WebVue needs.
+// gateway account without a payment method WebVue needs. The orders card reads and saves `/api/v1/payments/settings`
+// with the revision it was made from; a save made on a stale revision answers 409.
 const PATH = '/settings/apps/payments'
 const FIELDS = ['paymob_public_key', 'paymob_secret_key', 'paymob_hmac_key', 'paymob_api_key'] as const
 let errors: string[]
@@ -162,7 +163,140 @@ test.describe('payments settings', () => {
     await page.goto(PATH)
     await expect(page.getByText('لا تملك صلاحية فتح هذه الصفحة')).toBeVisible()
     await expect(page.getByTestId('payments-provider-paymob')).toHaveCount(0)
+    await expect(page.getByTestId('payments-orders')).toHaveCount(0)
     expect((await page.request.get('/api/v1/payments/providers')).status()).toBe(403)
+    expect((await page.request.get('/api/v1/payments/settings')).status()).toBe(403)
+    errors = withoutRefusals(errors)
+  })
+})
+
+test.describe('payments orders settings', () => {
+  const expiry = (page: Page) => page.locator('#payments-order-expiry')
+  const invoiceWhenPaid = (page: Page) => page.locator('#payments-order-invoice-when-paid')
+  const save = (page: Page) => page.getByTestId('payments-orders-save')
+  const patchBodies = (page: Page) => {
+    const bodies: unknown[] = []
+    page.on('request', request => { if (request.method() === 'PATCH' && request.url().endsWith('/api/v1/payments/settings')) bodies.push(request.postDataJSON()) })
+    return bodies
+  }
+  const readSettings = async (page: Page) => PaymentSettingsSchema.parse(await (await page.request.get('/api/v1/payments/settings')).json())
+
+  test('shows the saved expiry and the invoice-when-paid choice with their scope, and saves nothing until something changes', async ({ page }) => {
+    await open(page, PATH, 'الدفع الإلكتروني')
+    await expect(page.getByTestId('payments-orders')).toBeVisible()
+    await expect(expiry(page)).toHaveValue('60')
+    await expect(invoiceWhenPaid(page)).toBeChecked()
+    await expect(page.getByTestId('payments-orders')).toContainText('تسري على الشركة الحالية')
+    await expect(page.getByTestId('payments-orders')).toContainText('يسري هذا الخيار على الحساب كله')
+    await expect(save(page)).toBeDisabled()
+    expect(await readSettings(page)).toEqual({ unpaid_order_expiry_minutes: 60, invoice_when_paid: true, revision: 0 })
+  })
+
+  test('is a part of the page\'s sidebar list, next to the gateways', async ({ page }) => {
+    await open(page, PATH, 'الدفع الإلكتروني')
+    await expect(page.locator('#orders')).toBeVisible()
+    await expect(page.locator('#providers')).toBeVisible()
+  })
+
+  test('saves only the expiry that changed, with the revision, and shows the answer after a reload', async ({ page }) => {
+    await open(page, PATH, 'الدفع الإلكتروني')
+    const bodies = patchBodies(page)
+    await expiry(page).fill('90')
+    await expiry(page).blur()
+    await expect(save(page)).toBeEnabled()
+    await save(page).click()
+    await expect(save(page)).toBeDisabled()
+    expect(bodies).toEqual([{ revision: 0, unpaid_order_expiry_minutes: 90 }])
+    await page.reload()
+    await expect(expiry(page)).toHaveValue('90')
+    await expect(invoiceWhenPaid(page)).toBeChecked()
+    expect((await readSettings(page)).revision).toBe(1)
+  })
+
+  test('saves the tenant-wide invoice-when-paid choice alone', async ({ page }) => {
+    await open(page, PATH, 'الدفع الإلكتروني')
+    const bodies = patchBodies(page)
+    await invoiceWhenPaid(page).click()
+    await expect(invoiceWhenPaid(page)).not.toBeChecked()
+    await save(page).click()
+    await expect(save(page)).toBeDisabled()
+    expect(bodies).toEqual([{ revision: 0, invoice_when_paid: false }])
+    await page.reload()
+    await expect(invoiceWhenPaid(page)).not.toBeChecked()
+    await expect(expiry(page)).toHaveValue('60')
+  })
+
+  test('an empty expiry is told at the input and cannot be saved', async ({ page }) => {
+    await open(page, PATH, 'الدفع الإلكتروني')
+    await expiry(page).fill('')
+    await expiry(page).blur()
+    await expect(page.getByTestId('payments-orders')).toContainText('أدخل عددًا صحيحًا بين 5 و1440')
+    await expect(save(page)).toBeDisabled()
+    await expiry(page).fill('30')
+    await expiry(page).blur()
+    await expect(page.getByTestId('payments-orders')).not.toContainText('أدخل عددًا صحيحًا بين 5 و1440')
+    await expect(save(page)).toBeEnabled()
+  })
+
+  test('a value the server refuses is shown under the expiry and keeps what was typed', async ({ page }) => {
+    await open(page, PATH, 'الدفع الإلكتروني')
+    await page.route('**/api/v1/payments/settings', route => route.request().method() === 'PATCH'
+      ? route.fulfill({ status: 422, contentType: 'application/json', body: JSON.stringify({ code: 'invalid', message: 'المهلة خارج الحدود المسموحة', field: 'unpaid_order_expiry_minutes' }) })
+      : route.fallback())
+    const withoutRefusals = trackRefusedRequests(page, '/api/v1/payments/settings')
+    await expiry(page).fill('45')
+    await expiry(page).blur()
+    await save(page).click()
+    await expect(page.getByText('المهلة خارج الحدود المسموحة')).toHaveCount(1)
+    await expect(expiry(page)).toHaveAttribute('aria-invalid', 'true')
+    await expect(page.getByTestId('payments-orders-error')).toHaveCount(0)
+    await expect(expiry(page)).toHaveValue('45')
+    errors = withoutRefusals(errors)
+  })
+
+  test('a save made on a stale revision shows the saved values, tells the manager, and saves nothing', async ({ page }) => {
+    await open(page, PATH, 'الدفع الإلكتروني')
+    // Another session saves first: the card was made from revision 0, the server is now on 1.
+    expect((await page.request.patch('/api/v1/payments/settings', { data: { revision: 0, unpaid_order_expiry_minutes: 120, invoice_when_paid: false } })).status()).toBe(200)
+    const withoutRefusals = trackRefusedRequests(page, '/api/v1/payments/settings')
+    const bodies = patchBodies(page)
+    await expiry(page).fill('30')
+    await expiry(page).blur()
+    await save(page).click()
+    await expect(page.getByTestId('payments-orders-conflict')).toContainText('تغيّرت إعدادات الطلبات منذ فتحت الصفحة')
+    await expect(expiry(page)).toHaveValue('120')
+    await expect(invoiceWhenPaid(page)).not.toBeChecked()
+    await expect(save(page)).toBeDisabled()
+    expect(bodies).toEqual([{ revision: 0, unpaid_order_expiry_minutes: 30 }])
+    expect(await readSettings(page)).toEqual({ unpaid_order_expiry_minutes: 120, invoice_when_paid: false, revision: 1 })
+    errors = withoutRefusals(errors)
+
+    // Repeating the change now carries the revision the card was reloaded to, and the notice goes away.
+    await expiry(page).fill('30')
+    await expiry(page).blur()
+    await save(page).click()
+    await expect(save(page)).toBeDisabled()
+    await expect(page.getByTestId('payments-orders-conflict')).toHaveCount(0)
+    expect(bodies.at(-1)).toEqual({ revision: 1, unpaid_order_expiry_minutes: 30 })
+    expect(await readSettings(page)).toEqual({ unpaid_order_expiry_minutes: 30, invoice_when_paid: false, revision: 2 })
+  })
+
+  test('when the saved values cannot be read after a conflict it says so and keeps the draft', async ({ page }) => {
+    await open(page, PATH, 'الدفع الإلكتروني')
+    expect((await page.request.patch('/api/v1/payments/settings', { data: { revision: 0, unpaid_order_expiry_minutes: 120 } })).status()).toBe(200)
+    let reads = 0
+    await page.route('**/api/v1/payments/settings', (route) => {
+      if (route.request().method() !== 'GET') return route.fallback()
+      reads++
+      return route.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify({ code: 'rate_limited', message: 'too many requests' }) })
+    })
+    const withoutRefusals = trackRefusedRequests(page, '/api/v1/payments/settings')
+    await expiry(page).fill('30')
+    await expiry(page).blur()
+    await save(page).click()
+    await expect(page.getByTestId('payments-orders-reload-error')).toContainText('تعذّر تحديث إعدادات الطلبات')
+    await expect(expiry(page)).toHaveValue('30')
+    expect(reads).toBeGreaterThan(0)
     errors = withoutRefusals(errors)
   })
 })

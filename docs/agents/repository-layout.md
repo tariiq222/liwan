@@ -106,6 +106,11 @@ limits describe implementation stages, not permanent product exclusions.
   (`.../payment`) and the monthly end-of-service provision (`/api/v1/hr/payroll/eos-provisions`). It answers the neutral
   `webvue.hr.payroll.finance.link` hooks of `webvue_hr` and runs in the caller's own environment through
   its own ACLs and record rules, with no `sudo()`.
+- `odoo-addons/webvue_appointments_payments` (bridge, rank 5, `auto_install` on `webvue_appointments` and the
+  shared service `webvue_payments`) brings OCA `sale_resource_booking` with it. It owns whether a booking
+  type takes online payment (in full or a deposit) and the product that sells it; a booking of a paying
+  type is held by an online order of `webvue.payments.service`, which the engine keeps `scheduled` until the
+  order is paid, then `confirmed`; an unpaid order that expires cancels the booking and frees its slot.
 - `packages/contracts/src/common`, `src/access`, `src/pmo`, `src/hr`, `src/meetings`, `src/chat`,
   `src/tasks` and `src/operations` hold the Zod wire
   contracts; each namespace has a barrel re-exported from `src/index.ts`.
