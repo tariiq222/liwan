@@ -62,6 +62,18 @@ class TestAppointmentSlots(WebVueAppointmentsCase):
         for item in items:
             self.assertGreaterEqual(datetime.strptime(item['start'], UTC_FORMAT), cutoff)
 
+    def test_staff_slots_ignore_the_modification_deadline_and_follow_the_min_notice(self):
+        self.env['webvue.appointment.settings'].create({'company_id': self.env.company.id, 'min_notice_hours': 2})
+        self.booking_type.modifications_deadline = 24
+        self.authenticate('appointments_booker', 'appointments_booker_pass_123')
+        earliest = datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=2)
+        items = self._slots(0, 3).json()['items']
+        self.assertTrue(items)
+        starts = [datetime.strptime(item['start'], UTC_FORMAT) for item in items]
+        self.assertTrue(all(start >= earliest for start in starts))
+        self.assertLess(min(starts), datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=24))
+        self.assertEqual(self.booking_type.modifications_deadline, 24)
+
     def test_the_range_may_not_pass_the_horizon(self):
         self.env['webvue.appointment.settings'].create({'company_id': self.env.company.id, 'horizon_days': 5})
         self.authenticate('appointments_booker', 'appointments_booker_pass_123')
