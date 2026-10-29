@@ -84,7 +84,7 @@ def dump_message(message, attachments):
         'reply_to': {'id': message.reply_to_id.id, 'preview': message.reply_to_id._webvue_reply_preview()}
         if message.reply_to_id else None,
         'reactions': {'customer': message.customer_reaction or None, 'agent': message.agent_reaction or None},
-        'location': message._webvue_location() if message.kind == 'location' else None,
+        'location': message._webvue_location() if message.kind == 'location' or message.template_header == 'location' else None,
         'interactive': message._webvue_interactive() if message.interactive_type else None,
         'selected_option': {'id': message.selected_option_id, 'title': message.selected_option_title or ''}
         if message.selected_option_id else None,

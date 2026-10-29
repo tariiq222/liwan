@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useSyncInboxTemplates, useInboxChannel } from '@/composables/inbox/useInboxSettings'
+import { useSyncInboxTemplates, useInboxChannelRef } from '@/composables/inbox/useInboxSettings'
 
 // The templates of one channel: the list with the review state Meta gave each, the sync with Meta, and a link to create one.
 const route = useRoute()
@@ -11,9 +11,10 @@ const id = computed(() => {
   const value = Number(route.params.id)
   return Number.isSafeInteger(value) && value > 0 ? value : null
 })
-const channel = useInboxChannel(id)
+const channel = useInboxChannelRef(id)
 const { mutate: sync, isPending: syncing } = useSyncInboxTemplates(() => id.value ?? 0)
-const backTo = computed(() => `/settings/apps/inbox/channels/${id.value}`)
+// The channel page is channel administration: only whoever holds that capability gets a way back to it.
+const backTo = computed(() => can('inbox.channels.manage') ? `/settings/apps/inbox/channels/${id.value}` : undefined)
 const readable = computed(() => can('inbox.channels.manage') || can('inbox.templates.manage'))
 const manage = computed(() => can('inbox.templates.manage'))
 function runSync() {
@@ -28,7 +29,7 @@ function runSync() {
   <SharedRecordPage
     :title="t('inbox.templates.pageTitle', { name: channel.data.value?.name ?? '' })"
     :back-to="backTo"
-    :back-label="channel.data.value?.name ?? t('inbox.settings.channels.title')"
+    :back-label="backTo ? channel.data.value?.name ?? t('inbox.settings.channels.title') : undefined"
     :loading="id !== null && channel.isPending.value"
     :error="id === null ? { status: 404 } : channel.error.value"
     @retry="hydrated && channel.refetch()"

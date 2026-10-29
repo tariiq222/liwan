@@ -4,6 +4,8 @@ import re
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
+from .access_service import MANAGE_CHANNELS, MANAGE_TEMPLATES, READ
+from .conversation import BUS_CHANNEL
 from odoo.addons.webvue_inbox.adapters import whatsapp
 
 PLACEHOLDER = re.compile(r'\{\{([1-9]\d*)\}\}')
@@ -250,6 +252,7 @@ class WebVueInboxTemplate(models.Model):
         ], limit=1)
         if not template:
             return
+        template_id, company = template.id, template.company_id
         if isinstance(update, whatsapp.TemplateStatusUpdate):
             if update.event == DELETED:
                 template._webvue_remove()
@@ -260,6 +263,17 @@ class WebVueInboxTemplate(models.Model):
                 template.category = update.category.lower()
         else:
             template.quality = self._webvue_quality(update.score)
+        self._webvue_notify_bus(template_id, company)
+
+    @api.model
+    def _webvue_notify_bus(self, template_id, company):
+        """Tell every user who reads or manages the company's templates that one changed (id only, no content)."""
+        service = self.with_company(company).env['webvue.access.service']
+        groups = self.env.ref('webvue_inbox.group_cap_inbox_conversations_read') | self.env.ref(
+            'webvue_inbox.group_cap_inbox_templates_manage') | self.env.ref('webvue_inbox.group_cap_inbox_channels_manage')
+        for user in groups.all_user_ids.filtered('active'):
+            if any(service._webvue_has_capability(user, key, company=company) for key in (READ, MANAGE_TEMPLATES, MANAGE_CHANNELS)):
+                self.env['bus.bus']._sendone(user.partner_id, BUS_CHANNEL, {'event': 'template', 'id': template_id})
 
     @api.model
     def _webvue_quality(self, score):

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
-import { TEMPLATE_CATEGORY_TONE, TEMPLATE_STATUS_TONE } from '@/composables/inbox/inboxTemplate'
+import { TEMPLATE_CATEGORY_TONE, TEMPLATE_STATUS_TONE, templatesRoute } from '@/composables/inbox/inboxTemplate'
 import { useDeleteInboxTemplate, useInboxTemplate } from '@/composables/inbox/useInboxSettings'
 
 // One template: its builder with the live preview (read-only when Meta takes no edit in its status), the review status
@@ -16,7 +16,7 @@ const positive = (value: unknown) => {
 }
 const channelId = computed(() => positive(route.params.id))
 const templateId = computed(() => positive(route.params.templateId))
-const backTo = computed(() => ({ path: `/settings/apps/inbox/channels/${channelId.value}/templates`, query: route.query }))
+const backTo = computed(() => templatesRoute(channelId.value ?? 0, route.query))
 const query = useInboxTemplate(templateId)
 const template = query.data
 const { mutate: remove, isPending: removing } = useDeleteInboxTemplate(() => channelId.value ?? 0)
@@ -52,7 +52,7 @@ function onSaved() {
   >
     <template v-if="template && channelId">
       <UAlert v-if="template.status_reason" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('inbox.templates.reason')" :description="template.status_reason" data-testid="inbox-template-reason" />
-      <InboxTemplateForm :key="`${template.id}-${template.status}-${template.editable}`" :channel-id="channelId" :template="template" :readonly="readonly" side-by-side :back-to="`/settings/apps/inbox/channels/${channelId}/templates`" @saved="onSaved" />
+      <InboxTemplateForm :key="`${template.id}-${template.status}-${template.editable}`" :channel-id="channelId" :template="template" :readonly="readonly" side-by-side :back-to="backTo" @saved="onSaved" />
       <SharedRecordSection v-if="manage" variant="panel" :title="t('inbox.templates.dangerTitle')">
         <div class="flex flex-col gap-3">
           <div class="flex flex-wrap items-center justify-between gap-3">

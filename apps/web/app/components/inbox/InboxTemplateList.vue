@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { TEMPLATE_CATEGORIES, TEMPLATE_CATEGORY_TONE, TEMPLATE_QUALITY_TONE, TEMPLATE_STATUSES, TEMPLATE_STATUS_TONE } from '@/composables/inbox/inboxTemplate'
+import { TEMPLATE_CATEGORIES, TEMPLATE_CATEGORY_TONE, TEMPLATE_QUALITY_TONE, TEMPLATE_STATUSES, TEMPLATE_STATUS_TONE, templatesRoute } from '@/composables/inbox/inboxTemplate'
 import { useInboxChannelTemplates } from '@/composables/inbox/useInboxSettings'
 
 // The templates of one channel with their review status, category and quality, filtered by status, category and a name
@@ -45,7 +45,7 @@ function clear() {
 <template>
   <SharedRecordSection id="templates" variant="list" :title="t('inbox.templates.title')" :description="t('inbox.templates.hint')">
     <template #actions>
-      <UButton v-if="can('inbox.templates.manage')" :to="{ path: `/settings/apps/inbox/channels/${props.channelId}/templates/new` }" icon="i-lucide-plus" :disabled="!hydrated" :label="t('inbox.templates.create')" data-testid="inbox-template-create" />
+      <UButton v-if="can('inbox.templates.manage')" :to="templatesRoute(props.channelId, route.query, '/new')" icon="i-lucide-plus" :disabled="!hydrated" :label="t('inbox.templates.create')" data-testid="inbox-template-create" />
     </template>
     <div class="px-(--webvue-card-pad) py-3">
       <SharedFilterBar embedded class="w-full" :active-count="Number(!!status) + Number(!!category) + Number(!!committedSearch.trim())" :disabled="!hydrated" @clear="clear">
@@ -65,7 +65,7 @@ function clear() {
       <NuxtLink
         v-for="template in items"
         :key="template.id"
-        :to="{ path: `/settings/apps/inbox/channels/${props.channelId}/templates/${template.id}`, query: route.query }"
+        :to="templatesRoute(props.channelId, route.query, `/${template.id}`)"
         class="flex flex-col gap-1.5 px-(--webvue-card-pad) py-3 text-start transition-colors duration-150 hover:bg-(--webvue-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
         :data-testid="`inbox-template-${template.id}`"
       >

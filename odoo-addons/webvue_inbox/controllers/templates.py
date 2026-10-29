@@ -24,7 +24,7 @@ from odoo.addons.webvue_inbox.models.access_service import (
     READ,
 )
 from odoo.addons.webvue_inbox.models.template import CATEGORIES, STATUSES
-from odoo.addons.webvue_inbox.serializers.conversation import dump_attachment
+from odoo.addons.webvue_inbox.serializers.conversation import dump_attachment, dump_ref
 from odoo.addons.webvue_inbox.serializers.settings import dump_template
 
 TEMPLATES_FEATURE = 'inbox.templates'
@@ -74,6 +74,14 @@ def parse_sample_upload(payload):
 
 
 class TemplateController(http.Controller):
+
+    @http.route('/api/v1/inbox/channels/<int:channel_id>/ref', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('inbox.enabled', operation='read')
+    @requires_capability(MANAGE_TEMPLATES, MANAGE_CHANNELS, match='any')
+    def read_channel_ref(self, channel_id, **_):
+        """The id and name of a channel, for the pages of a user who manages its templates but not the channel itself."""
+        return dump_ref(get_channel(channel_id, MANAGE_TEMPLATES, MANAGE_CHANNELS))
 
     @http.route('/api/v1/inbox/channels/<int:channel_id>/templates', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

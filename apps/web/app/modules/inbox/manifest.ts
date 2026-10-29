@@ -27,7 +27,12 @@ const manifest: AppManifest = {
     { id: 'inbox-conversations', labelKey: 'inbox.nav.conversations', icon: 'i-lucide-inbox', to: '/inbox', capability: 'inbox.conversations.read' },
   ],
   landing: [{ path: '/inbox', capability: 'inbox.conversations.read' }],
-  routeCapabilities: [{ pattern: /^\/inbox(?:\/|$)/, capability: 'inbox.conversations.read' }],
+  routeCapabilities: [
+    { pattern: /^\/inbox(?:\/|$)/, capability: 'inbox.conversations.read' },
+    // A templates-only manager has no channel administration, so the template pages are not under the channels part's capability.
+    { pattern: /^\/settings\/apps\/inbox\/channels\/[^/]+\/templates\/new$/, capability: 'inbox.templates.manage', feature: 'inbox.templates' },
+    { pattern: /^\/settings\/apps\/inbox\/channels\/[^/]+\/templates(?:\/|$)/, capability: 'webvue.internal', anyCapabilities: ['inbox.templates.manage', 'inbox.channels.manage'] },
+  ],
   bell: {
     capabilities: ['inbox.conversations.read'],
     kinds: [{ kind: 'inbox.assigned', href: row => `/inbox/${row.conversation_id}` }],

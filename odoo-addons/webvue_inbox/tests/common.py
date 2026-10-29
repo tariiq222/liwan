@@ -46,16 +46,8 @@ class WebVueInboxCase(WebVueApiCase):
         cls.agent2 = cls._user('inbox_agent2', 'inbox_agent')
         cls.supervisor = cls._user('inbox_supervisor', 'inbox_supervisor')
         cls.manager = cls._user('inbox_manager', 'inbox_manager')
-        cls.reader_only = new_test_user(
-            cls.env, login='inbox_reader_only', password=PASSWORD, name='inbox_reader_only', groups='webvue_core.group_employee',
-        )
-        read_only_role = cls.env['webvue.access.role'].create({
-            'key': 'inbox_read_only', 'name_ar': 'قراءة فقط', 'name_en': 'Read only', 'type': 'custom',
-            'permission_ids': [Command.set(cls.env['webvue.access.permission'].search([('key', '=', 'inbox.conversations.read')]).ids)],
-        })
-        cls.env['webvue.access.service']._webvue_replace_assignments(
-            cls.reader_only, [{'role_id': read_only_role.id, 'company_id': cls.env.company.id}],
-        )
+        cls.reader_only = cls._capability_user('inbox_reader_only', 'inbox.conversations.read')
+        cls.templates_only = cls._capability_user('inbox_templates_only', 'inbox.templates.manage')
         cls.outsider = new_test_user(
             cls.env, login='inbox_outsider', password=PASSWORD, name='No inbox access', groups='base.group_user',
         )
@@ -79,6 +71,17 @@ class WebVueInboxCase(WebVueApiCase):
         cls.env['webvue.access.service']._webvue_replace_assignments(user, [{
             'role_id': cls.env.ref(f'webvue_inbox.role_{role}').id, 'company_id': cls.env.company.id,
         }])
+        return user
+
+    @classmethod
+    def _capability_user(cls, login, key):
+        """An employee whose only inbox grant is the capability `key`, through a custom role."""
+        user = new_test_user(cls.env, login=login, password=PASSWORD, name=login, groups='webvue_core.group_employee')
+        role = cls.env['webvue.access.role'].create({
+            'key': login, 'name_ar': login, 'name_en': login, 'type': 'custom',
+            'permission_ids': [Command.set(cls.env['webvue.access.permission'].search([('key', '=', key)]).ids)],
+        })
+        cls.env['webvue.access.service']._webvue_replace_assignments(user, [{'role_id': role.id, 'company_id': cls.env.company.id}])
         return user
 
     @classmethod
