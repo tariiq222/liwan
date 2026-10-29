@@ -63,7 +63,7 @@
       "printPayslip": "Print payslip",
       "post": "Post to accounting",
       "postTitle": "Post this run?",
-      "postHint": "The payroll entry is created in accounting and the run can no longer be changed. Review the proposed entry below.",
+      "postHint": "The payroll entry is created in accounting and the run can no longer be changed. Review the proposed entry above.",
       "recordPayment": "Record salary payment",
       "paymentTitle": "Record the salary payment?",
       "paymentHint": "The net pay is recorded as paid from the chosen journal on the given date.",

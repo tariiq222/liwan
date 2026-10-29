@@ -36,8 +36,9 @@ const attempted = ref(false)
 
 const figures = computed(() => props.settlement ?? props.estimate)
 const confirmed = computed(() => props.settlement?.state === 'confirmed')
-const editable = computed(() => props.canManage && !confirmed.value)
 const mismatch = computed(() => props.settlement?.departure_mismatch === true)
+// A confirmed settlement is locked, unless the departure date moved: then a new draft for the new date is saved.
+const editable = computed(() => props.canManage && (!confirmed.value || mismatch.value))
 const busy = computed(() => !hydrated.value || props.saving || props.confirming)
 const caseItems = computed(() => HR_EOS_CASES.map(value => ({ value, label: t(`hrPayroll.eos.cases.${value}`) })))
 const money = (value: number) => `${formatPayrollAmount(value, locale.value)} ${t('hrPayroll.currency')}`

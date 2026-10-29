@@ -32,6 +32,22 @@ const managerOptions = computed(() => hrManagerOptions({
   search: debouncedManagerSearch.value,
   excludeId: props.employee?.id,
 }))
+// The contract block exists on the detail shape of a managed employee; the form edits its dates and notice period.
+const contractStart = ref<string | null>(null); const contractEnd = ref<string | null>(null); const probationEnd = ref<string | null>(null); const identityExpiry = ref<string | null>(null); const noticeDays = ref('')
+const hasContract = computed(() => !!props.employee?.contract)
+const contractOrderError = computed(() => contractStart.value && contractEnd.value && contractEnd.value < contractStart.value ? t('hr.employee.contract.endBeforeStart') : undefined)
+const noticeValid = computed(() => /^\d{1,4}$/.test(noticeDays.value.trim()))
+function contractPatch() {
+  const current = props.employee?.contract
+  if (!current) return undefined
+  const patch: Record<string, string | number | null> = {}
+  if (contractStart.value !== current.start_date) patch.start_date = contractStart.value
+  if (contractEnd.value !== current.end_date) patch.end_date = contractEnd.value
+  if (probationEnd.value !== current.probation_end_date) patch.probation_end_date = probationEnd.value
+  if (identityExpiry.value !== current.identity_expiry_date) patch.identity_expiry_date = identityExpiry.value
+  if (Number(noticeDays.value) !== current.notice_period_days) patch.notice_period_days = Number(noticeDays.value)
+  return Object.keys(patch).length ? patch : undefined
+}
 const countrySearch = ref('')
 const countriesQuery = useHrCountries(refDebounced(countrySearch, 250), canManage)
 const countryItems = computed(() => {
@@ -49,7 +65,7 @@ const { mutateAsync: create, isPending: creating } = useCreateHrEmployee()
 const { mutateAsync: update, isPending: updating } = useUpdateHrEmployee()
 const isPending = computed(() => creating.value || updating.value)
 const emailChanged = computed(() => !!props.employee && email.value !== originalEmail.value)
-function state() { return JSON.stringify([name.value, email.value, phone.value, jobTitle.value, departmentId.value, managerId.value, nationalityId.value]) }
+function state() { return JSON.stringify([name.value, email.value, phone.value, jobTitle.value, departmentId.value, managerId.value, nationalityId.value, contractStart.value, contractEnd.value, probationEnd.value, identityExpiry.value, noticeDays.value]) }
 const dirty = computed(() => savedState.value !== state())
 function retryManagerQueries() {
   if (!canManage.value || !hydrated.value || isPending.value) return
@@ -64,6 +80,11 @@ watch(() => props.employee, (employee) => {
   departmentId.value = employee?.department?.id ?? null
   managerId.value = employee?.manager?.id ?? null
   nationalityId.value = employee?.nationality?.id ?? null
+  contractStart.value = employee?.contract?.start_date ?? null
+  contractEnd.value = employee?.contract?.end_date ?? null
+  probationEnd.value = employee?.contract?.probation_end_date ?? null
+  identityExpiry.value = employee?.contract?.identity_expiry_date ?? null
+  noticeDays.value = employee?.contract ? String(employee.contract.notice_period_days) : ''
   savedState.value = state()
 }, { immediate: true })
 function idOrNull(value: unknown) { return !value || value === 'none' ? null : Number(value) }
@@ -84,10 +105,14 @@ async function submit() {
     emailInput.focus()
     return
   }
+  if (hasContract.value && (contractOrderError.value || !noticeValid.value)) {
+    formError.value = new ApiError(422, 'invalid', contractOrderError.value ?? t('hr.employee.contract.noticeInvalid'), contractOrderError.value ? 'contract.end_date' : 'contract.notice_period_days')
+    return
+  }
   submitting = true
   try {
     const employee = props.employee
-      ? await update({ id: props.employee.id, patch: { name: name.value.trim(), work_email: email.value.trim(), work_phone: phone.value, job_title: jobTitle.value, department_id: departmentId.value, parent_id: managerId.value, nationality_id: nationalityId.value } })
+      ? await update({ id: props.employee.id, patch: { name: name.value.trim(), work_email: email.value.trim(), work_phone: phone.value, job_title: jobTitle.value, department_id: departmentId.value, parent_id: managerId.value, nationality_id: nationalityId.value, contract: contractPatch() } })
       : await create({ name: name.value.trim(), work_email: email.value.trim(), work_phone: phone.value, job_title: jobTitle.value, department_id: departmentId.value, parent_id: managerId.value, nationality_id: nationalityId.value })
     savedState.value = state()
     formError.value = null
@@ -99,7 +124,7 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <UForm :state="{ name, email, phone, jobTitle, departmentId, managerId, nationalityId }" class="webvue-form" method="post" :loading-auto="false" novalidate @submit="submit">
+  <UForm :state="{ name, email, phone, jobTitle, departmentId, managerId, nationalityId, contractStart, contractEnd, probationEnd, identityExpiry, noticeDays }" class="webvue-form" method="post" :loading-auto="false" novalidate @submit="submit">
     <UAlert v-if="formError" role="alert" color="error" variant="subtle" :title="t('hr.form.saveError')" :description="errorMessage" />
     <SharedFormSection panel :title="t('hr.employee.general')" :description="t('hr.employee.generalHint')">
       <div class="webvue-form-grid">
@@ -139,6 +164,25 @@ async function submit() {
             <p v-else-if="(managerQuery.data.value?.total ?? 0) > managerOptions.length" class="text-sm text-muted">{{ t('hr.depts.managerLimitNotice') }}</p>
             <USelect id="hr-employee-manager" class="w-full" :model-value="managerId ? String(managerId) : 'none'" :items="managerSelectOptions" :disabled="!canManage || !hydrated || isPending" @update:model-value="managerId = idOrNull($event)" />
           </div>
+        </UFormField>
+      </div>
+    </SharedFormSection>
+    <SharedFormSection v-if="hasContract" panel :title="t('hr.employee.contract.title')" :description="t('hr.employee.contract.hint')">
+      <div class="webvue-form-grid" data-testid="hr-employee-contract">
+        <UFormField :label="t('hr.employee.contract.start')" name="hr-contract-start" :error="fieldError('contract.start_date')">
+          <SharedDateField id="hr-contract-start" v-model="contractStart" :disabled="!canManage || !hydrated || isPending" />
+        </UFormField>
+        <UFormField :label="t('hr.employee.contract.end')" name="hr-contract-end" :error="contractOrderError ?? fieldError('contract.end_date')">
+          <SharedDateField id="hr-contract-end" v-model="contractEnd" :min-value="contractStart" :disabled="!canManage || !hydrated || isPending" />
+        </UFormField>
+        <UFormField :label="t('hr.employee.contract.probationEnd')" name="hr-contract-probation" :error="fieldError('contract.probation_end_date')">
+          <SharedDateField id="hr-contract-probation" v-model="probationEnd" :disabled="!canManage || !hydrated || isPending" />
+        </UFormField>
+        <UFormField :label="t('hr.employee.contract.identityExpiry')" name="hr-contract-identity" :error="fieldError('contract.identity_expiry_date')">
+          <SharedDateField id="hr-contract-identity" v-model="identityExpiry" :disabled="!canManage || !hydrated || isPending" />
+        </UFormField>
+        <UFormField :label="t('hr.employee.contract.noticeDays')" name="hr-contract-notice" :error="fieldError('contract.notice_period_days')">
+          <UInput id="hr-contract-notice" v-model="noticeDays" type="number" min="0" inputmode="numeric" class="w-full" :disabled="!canManage || !hydrated || isPending" />
         </UFormField>
       </div>
     </SharedFormSection>
