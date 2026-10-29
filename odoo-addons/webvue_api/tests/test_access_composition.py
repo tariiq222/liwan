@@ -30,7 +30,7 @@ PMO = frozenset({
     'pmo.settings.manage', 'pmo.tasks.read', 'pmo.tasks.create',
     'pmo.tasks.write', 'pmo.tasks.approve',
 })
-MEETINGS = frozenset({'meetings.read', 'meetings.create', 'meetings.manage'})
+MEETINGS = frozenset({'meetings.read', 'meetings.create', 'meetings.manage', 'meetings.settings.manage'})
 EMPLOYEE = frozenset({
     'hr.employees.read', 'hr.departments.read',
     'hr.leave.read', 'hr.leave.request',
@@ -82,6 +82,7 @@ DEPENDENCIES = {
     'pmo.tasks.approve': {'pmo.tasks.read'},
     'meetings.create': {'meetings.read'},
     'meetings.manage': {'meetings.read'},
+    'meetings.settings.manage': {'meetings.read'},
 }
 
 
@@ -116,10 +117,10 @@ class TestAccessComposition(TransactionCase):
     def _group(self, key):
         return self.env.ref(self.Permission.search([('key', '=', key)]).group_xmlid)
 
-    def test_catalog_has_the_approved_49_keys_each_owned_by_one_addon(self):
+    def test_catalog_has_the_approved_50_keys_each_owned_by_one_addon(self):
         catalog = self.service._webvue_capability_map()
         self.assertEqual(self._release(catalog), CATALOG)
-        self.assertEqual(len(self._release(catalog)), 49)
+        self.assertEqual(len(self._release(catalog)), 50)
         permissions = self.Permission.search([])
         self.assertEqual(sorted(permissions.mapped('key')), sorted(catalog))
         installed = set(self.env['ir.module.module'].search([('state', '=', 'installed')]).mapped('name'))
