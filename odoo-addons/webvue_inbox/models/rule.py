@@ -6,7 +6,7 @@ from .normalization import normalize_text
 
 MATCH_KINDS = [
     ('any', 'Any message'), ('contains', 'Contains'), ('exact', 'Exact'), ('starts_with', 'Starts with'),
-    ('option', 'Chosen option'),
+    ('option', 'Chosen option'), ('flow', 'Submitted form'),
 ]
 HOURS_CONDITIONS = [('any', 'Any time'), ('inside', 'Inside working hours'), ('outside', 'Outside working hours')]
 PRIORITIES = [('low', 'Low'), ('normal', 'Normal'), ('high', 'High'), ('urgent', 'Urgent')]
@@ -35,6 +35,8 @@ class WebVueInboxRule(models.Model):
     match_kind = fields.Selection(MATCH_KINDS, required=True, default='contains')
     keyword_ids = fields.One2many('webvue.inbox.rule.keyword', 'rule_id')
     option_id = fields.Char()
+    # The form whose submission triggers the rule (match_kind flow).
+    flow_id = fields.Many2one('webvue.inbox.flow', index=True, ondelete='cascade')
     hours_condition = fields.Selection(HOURS_CONDITIONS, required=True, default='any')
     stop = fields.Boolean(default=True)
     reply_ids = fields.One2many('webvue.inbox.auto.message', 'rule_id')
@@ -51,8 +53,14 @@ class WebVueInboxRule(models.Model):
             self.reply_ids, {'purpose': 'rule', 'rule_id': self.id}, content,
         )
 
-    def _webvue_matches(self, text, option_id, inside):
-        """Whether the rule fires for an inbound message with this text (None for a file or location) and chosen option."""
+    @api.constrains('match_kind', 'flow_id')
+    def _check_flow(self):
+        for rule in self:
+            if (rule.match_kind == 'flow') != bool(rule.flow_id):
+                raise ValidationError(self.env._('A form rule names its form, and only a form rule does.'))
+
+    def _webvue_matches(self, text, option_id, inside, flow_id=None):
+        """Whether the rule fires for an inbound message with this text (None for a file or location), chosen option and submitted form."""
         self.ensure_one()
         if self.hours_condition != 'any' and (self.hours_condition == 'inside') != inside:
             return False
@@ -60,20 +68,22 @@ class WebVueInboxRule(models.Model):
             return True
         if self.match_kind == 'option':
             return option_id is not None and option_id == self.option_id
+        if self.match_kind == 'flow':
+            return flow_id is not None and flow_id == self.flow_id.id
         if text is None:
             return False
         matcher, normalized = TEXT_MATCHERS[self.match_kind], normalize_text(text)
         return any(matcher(keyword.normalized, normalized) for keyword in self.keyword_ids)
 
     @api.model
-    def _webvue_triggered(self, channel, text, option_id, inside):
+    def _webvue_triggered(self, channel, text, option_id, inside, flow_id=None):
         """The rules (in order) that fire for a message on `channel`, up to and including the first one that stops."""
         triggered = self.browse()
         rules = self.search([
             ('company_id', '=', channel.owner_company_id.id), '|', ('channel_id', '=', False), ('channel_id', '=', channel.id),
         ])
         for rule in rules:
-            if rule._webvue_matches(text, option_id, inside):
+            if rule._webvue_matches(text, option_id, inside, flow_id):
                 triggered |= rule
                 if rule.stop:
                     break

@@ -12,6 +12,7 @@ from odoo.addons.webvue_inbox.controllers.helpers import (
     find_one,
     reject,
 )
+from odoo.addons.webvue_inbox.models.constants import FLOWS_FEATURE
 
 MAX_BODY = 4096
 MAX_CAPTION = 1024
@@ -39,7 +40,8 @@ MAX_ROW_TITLE = 24
 MAX_ROW_DESCRIPTION = 72
 MAX_CTA_URL = 2000
 CONTENT_KEYS = ('body', 'attachment_id', 'location', 'interactive', 'template_id')
-INTERACTIVE_TYPES = ('buttons', 'list', 'cta_url')
+INTERACTIVE_TYPES = ('buttons', 'list', 'cta_url', 'flow')
+MAX_FLOW_CTA = 30
 SHARED_INTERACTIVE_KEYS = {'type', 'body', 'header', 'footer'}
 
 
@@ -167,13 +169,24 @@ def parse_cta_url(value):
     }
 
 
+def parse_flow(value, channel):
+    """A form message: a published form of `channel` (of any channel when none is given) and the text of its button."""
+    value = parse_object(value, 'interactive', SHARED_INTERACTIVE_KEYS | {'flow_id', 'cta'}, ('flow_id', 'cta'))
+    request.env['webvue.entitlement.service'].require(FLOWS_FEATURE)
+    flow = find_one('webvue.inbox.flow', value['flow_id'], 'flow_id')
+    if not flow.sendable or (channel and flow.channel_id != channel):
+        reject('flow_id is not a published form of this channel', 'flow_id')
+    return {'flow_id': flow.id, 'flow_cta': parse_string(value['cta'], 'cta', MAX_FLOW_CTA)}
+
+
 PARSE_INTERACTIVE = {'buttons': parse_buttons, 'list': parse_list_rows, 'cta_url': parse_cta_url}
 
 
-def parse_interactive(value):
+def parse_interactive(value, channel=None):
+    """Interactive content as model values; `channel` is where a form message will be sent (None: not known yet)."""
     if not isinstance(value, dict) or value.get('type') not in INTERACTIVE_TYPES:
         reject(f'interactive.type must be one of {INTERACTIVE_TYPES}', 'interactive')
-    specific = PARSE_INTERACTIVE[value['type']](value)
+    specific = parse_flow(value, channel) if value['type'] == 'flow' else PARSE_INTERACTIVE[value['type']](value)
     options = specific.pop('options', [])
     return {
         'kind': 'interactive', 'interactive_type': value['type'],
@@ -279,6 +292,6 @@ def parse_reply(conversation, payload):
     elif content == 'location':
         reply = ParsedReply(values=parse_location(payload['location']))
     else:
-        reply = ParsedReply(values=parse_interactive(payload['interactive']))
+        reply = ParsedReply(values=parse_interactive(payload['interactive'], conversation.channel_id))
     reply.reply_to = parse_reply_to(conversation, payload)
     return reply

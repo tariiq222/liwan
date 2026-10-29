@@ -62,10 +62,11 @@ class WebVueInboxSettings(models.Model):
         self.ensure_one()
         return self.env['webvue.inbox.working.hours']._webvue_is_open((department and department.calendar_id) or self.calendar_id, at)
 
-    def _webvue_apply_preset(self, key, automation=True):
+    def _webvue_apply_preset(self, key, automation=True, flows=False):
         """Create the missing departments, tags and canned replies of a sector preset and set its policy; idempotent.
 
-        `automation` also fills the channels' welcome and away messages and adds the menu rules.
+        `automation` also fills the channels' welcome and away messages and adds the menu rules; `flows` adds the
+        sector's starter forms to the channels as drafts.
         """
         self.ensure_one()
         preset = PRESETS[key]
@@ -86,6 +87,8 @@ class WebVueInboxSettings(models.Model):
         self.write(preset.get('settings', {}))
         if automation:
             self._webvue_seed_automation(preset.get('automation', {}))
+        if flows:
+            self.env['webvue.inbox.flow']._webvue_seed_starters(self.company_id, key)
         return self
 
     def _webvue_seed_automation(self, automation):

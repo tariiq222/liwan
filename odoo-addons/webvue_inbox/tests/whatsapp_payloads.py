@@ -56,3 +56,18 @@ def body_of(data):
 
 def sign(raw, secret=APP_SECRET):
     return 'sha256=' + hmac.new(secret.encode(), raw, hashlib.sha256).hexdigest()
+
+
+def flow_reply(response, provider_id='wamid.FLOWREPLY1', wa_id='966501112222', context_id=None):
+    """A customer's completed form (`nfm_reply`); `response` is the answers dict, or the raw `response_json` string."""
+    body = response if isinstance(response, str) else json.dumps(response)
+    extra = {'context': {'from': '966', 'id': context_id}} if context_id else {}
+    return inbound_message(
+        'interactive', {'type': 'nfm_reply', 'nfm_reply': {'name': 'flow', 'body': 'Sent', 'response_json': body}},
+        provider_id=provider_id, wa_id=wa_id, **extra,
+    )
+
+
+def flows_event(value, account_id=BUSINESS_ACCOUNT_ID):
+    """An account-level `flows` webhook (status change, version warning, endpoint alert)."""
+    return template_event('flows', value, account_id)

@@ -209,6 +209,6 @@ class AutomationController(http.Controller):
     @requires_capability(MANAGE_AUTOMATION)
     def test_rules(self, **payload):
         """Dry run: the rules and the automatic message a customer message would trigger. Nothing is written or sent."""
-        channel, text, option_id, at = parse_test(payload)
-        inside, greeting, rules = request.env['webvue.inbox.automation']._webvue_dry_run(channel, text, option_id, at)
+        channel, text, option_id, flow_id, at = parse_test(payload)
+        inside, greeting, rules = request.env['webvue.inbox.automation']._webvue_dry_run(channel, text, option_id, at, flow_id)
         return {'inside_hours': inside, 'auto_message': greeting, 'rules': [dump_ref(rule) for rule in rules]}

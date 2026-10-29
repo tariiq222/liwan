@@ -108,3 +108,40 @@ class TestVisibilityPolicy(WebVueInboxCase):
         self.set_policy('all')
         self.login(self.supervisor)
         self.assertIn("'=HYPERLINK", self.get('/api/v1/inbox/conversations/export.csv').text)
+
+    def test_form_answers_follow_the_conversation_visibility(self):
+        flow = self.env['webvue.inbox.flow'].create({
+            'channel_id': self.channel.id, 'name': 'Visible form', 'category': 'other', 'status': 'published',
+            'provider_flow_id': '811000001',
+        })
+        by_conversation = {}
+        for conversation in self.everything:
+            message = self.env['webvue.inbox.message'].create({
+                'conversation_id': conversation.id, 'company_id': conversation.company_id.id, 'direction': 'in',
+                'kind': 'flow_response', 'body': 'Visible form', 'delivery_state': 'received',
+            })
+            by_conversation[conversation.id] = self.env['webvue.inbox.flow.submission'].create({
+                'conversation_id': conversation.id, 'flow_id': flow.id, 'message_id': message.id, 'submitted_at': message.date,
+            })
+        listed = lambda: {  # noqa: E731
+            row['conversation_id'] for row in self.get(f'/api/v1/inbox/flows/{flow.id}/submissions?limit=200').json()['items']
+        }
+        expectations = {
+            'assigned_only': (self.agent, [self.mine]),
+            'department': (self.agent, [self.mine, self.in_department, self.unassigned]),
+            'all': (self.agent, list(self.everything)),
+        }
+        for policy, (user, visible) in expectations.items():
+            self.set_policy(policy)
+            self.login(user)
+            self.assertEqual(listed(), {c.id for c in visible}, policy)
+            for conversation in self.everything:
+                response = self.get(f'/api/v1/inbox/conversations/{conversation.id}/flow-submissions')
+                if conversation in visible:
+                    self.assertEqual(response.json()['items'][0]['id'], by_conversation[conversation.id].id, policy)
+                else:
+                    self.assertError(response, 404, 'not_found')
+        self.login(self.supervisor)
+        for policy in ('assigned_only', 'department', 'all'):
+            self.set_policy(policy)
+            self.assertEqual(listed(), set(self.everything.ids), policy)

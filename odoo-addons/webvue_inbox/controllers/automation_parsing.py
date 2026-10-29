@@ -7,6 +7,7 @@ from datetime import date, datetime
 import pytz
 
 from odoo.exceptions import MissingError
+from odoo.http import request
 
 from odoo.addons.webvue_api.controllers.common import parse_positive_int
 from odoo.addons.webvue_inbox.controllers.helpers import (
@@ -41,7 +42,7 @@ MAX_KEYWORDS = 50
 MAX_KEYWORD = 128
 MAX_RULE_TAGS = 20
 RULE_FIELDS = {
-    'channel_id', 'name', 'active', 'match_kind', 'keywords', 'option_id', 'hours', 'stop', 'reply', 'resolve',
+    'channel_id', 'name', 'active', 'match_kind', 'keywords', 'option_id', 'flow_id', 'hours', 'stop', 'reply', 'resolve',
     'department_id', 'assignee_id', 'tag_ids', 'priority',
 }
 TEXT_MATCH_KINDS = ('contains', 'exact', 'starts_with')
@@ -95,14 +96,14 @@ def parse_working_hours(value, key='working_hours'):
     return {'timezone': zone, 'days': days, 'holidays': holidays}
 
 
-def parse_content(value, key='content'):
-    """Automatic content as model values: `{body}` for text, or the interactive fields (buttons, a list or a link)."""
+def parse_content(value, key='content', channel=None):
+    """Automatic content as model values: `{body}` for text, or the interactive fields (buttons, a list, a link or a form)."""
     value = parse_object(value, key, {'body', 'interactive'})
     if len(value) != 1:
         reject(f'{key} carries exactly one of body, interactive', key)
     if 'body' in value:
         return {'body': parse_string(value['body'], 'body', MAX_BODY)}
-    parsed = parse_interactive(value['interactive'])
+    parsed = parse_interactive(value['interactive'], channel)
     parsed.pop('kind')
     return parsed
 
@@ -123,7 +124,7 @@ def parse_message_block(channel, payload, purpose, setting, low, high):
     if setting in block:
         values[f'{purpose}_{setting}'] = parse_int(block[setting], setting, low, high)
     if 'content' in block:
-        contents[purpose] = parse_content(block['content']) if block['content'] is not None else None
+        contents[purpose] = parse_content(block['content'], channel=channel) if block['content'] is not None else None
     enabled = values.get(f'{purpose}_enabled', channel[f'{purpose}_enabled'])
     has_content = contents[purpose] is not None if purpose in contents else bool(channel._webvue_auto_message(purpose))
     if enabled and not has_content:
@@ -175,28 +176,30 @@ def automation_channel(value):
 def rule_state(rule):
     """The facts of a stored rule that the shape and action checks need (a new rule has none)."""
     if not rule:
-        return {'match_kind': None, 'keywords': [], 'option_id': None, 'actions': set()}
+        return {'match_kind': None, 'keywords': [], 'option_id': None, 'flow_id': None, 'actions': set()}
     actions = {name for name, present in (
         ('reply', rule.reply_ids), ('department', rule.department_id), ('assignee', rule.assignee_id),
         ('tags', rule.tag_ids), ('priority', rule.priority), ('resolve', rule.resolve),
     ) if present}
     return {
         'match_kind': rule.match_kind, 'keywords': rule.keyword_ids.mapped('value'),
-        'option_id': rule.option_id or None, 'actions': actions,
+        'option_id': rule.option_id or None, 'flow_id': rule.flow_id.id or None, 'actions': actions,
     }
 
 
 def check_rule_state(state):
-    """A text match needs keywords and no option, an option match needs an option id and no keywords, and a rule does something."""
-    kind, keywords, option_id = state['match_kind'], state['keywords'], state['option_id']
+    """A text match needs keywords only, an option match an option id only, a form match a form only, and a rule does something."""
+    kind, keywords, option_id, flow_id = state['match_kind'], state['keywords'], state['option_id'], state['flow_id']
     if kind == 'option':
-        valid = option_id is not None and not keywords
+        valid = option_id is not None and not keywords and flow_id is None
+    elif kind == 'flow':
+        valid = flow_id is not None and not keywords and option_id is None
     elif kind in TEXT_MATCH_KINDS:
-        valid = bool(keywords) and option_id is None
+        valid = bool(keywords) and option_id is None and flow_id is None
     else:
-        valid = not keywords and option_id is None
+        valid = not keywords and option_id is None and flow_id is None
     if not valid:
-        reject('keywords go with contains, exact and starts_with; an option id goes with option', 'match_kind')
+        reject('keywords go with contains, exact and starts_with; an option id goes with option; a form goes with flow', 'match_kind')
     if not state['actions']:
         reject('a rule needs at least one action')
 
@@ -226,6 +229,12 @@ def parse_rule_references(payload, state):
     return values
 
 
+def check_rule_flow(flow, channel_id, company):
+    """The form of a rule belongs to the rule's company and, when the rule names a channel, to that channel."""
+    if flow.company_id != company or (channel_id and flow.channel_id.id != channel_id):
+        reject('flow_id names a form of another channel or company', 'flow_id')
+
+
 def parse_rule(payload, rule=None):
     """The validated ParsedRule of a create (every field) or patch (any) body; `rule` is the stored rule of a patch."""
     check_fields(payload, RULE_FIELDS, required=RULE_FIELDS if rule is None else ())
@@ -250,6 +259,15 @@ def parse_rule(payload, rule=None):
     if 'option_id' in payload:
         state['option_id'] = parse_string(payload['option_id'], 'option_id', MAX_OPTION_ID, nullable=True)
         values['option_id'] = state['option_id'] or False
+    channel_id = values.get('channel_id', rule.channel_id.id if rule else False)
+    channel = request.env['webvue.inbox.channel'].browse(channel_id)
+    if 'flow_id' in payload:
+        flow = find_one('webvue.inbox.flow', payload['flow_id'], 'flow_id') if payload['flow_id'] is not None else None
+        state['flow_id'] = flow.id if flow else None
+        values['flow_id'] = flow.id if flow else False
+    if state['flow_id']:
+        company = rule.company_id if rule else channel.owner_company_id or request.env.company
+        check_rule_flow(request.env['webvue.inbox.flow'].browse(state['flow_id']), channel_id, company)
     if 'priority' in payload:
         values['priority'] = parse_choice(payload['priority'], 'priority', PRIORITIES) if payload['priority'] is not None else False
         state['actions'].discard('priority')
@@ -261,7 +279,7 @@ def parse_rule(payload, rule=None):
             state['actions'].add('resolve')
     if 'reply' in payload:
         parsed.set_reply = True
-        parsed.reply = parse_content(payload['reply'], 'reply') if payload['reply'] is not None else None
+        parsed.reply = parse_content(payload['reply'], 'reply', channel or None) if payload['reply'] is not None else None
         state['actions'].discard('reply')
         if parsed.reply:
             state['actions'].add('reply')
@@ -271,11 +289,12 @@ def parse_rule(payload, rule=None):
 
 def parse_test(payload):
     """The dry-run body: a channel, the text and/or chosen option, and the moment (UTC, default now)."""
-    check_fields(payload, {'channel_id', 'text', 'option_id', 'at'}, required=('channel_id', 'text', 'option_id', 'at'))
+    check_fields(payload, {'channel_id', 'text', 'option_id', 'flow_id', 'at'}, required=('channel_id', 'text', 'option_id', 'flow_id', 'at'))
     channel = automation_channel(payload['channel_id'])
+    flow_id = find_one('webvue.inbox.flow', payload['flow_id'], 'flow_id').id if payload['flow_id'] is not None else None
     text = parse_string(payload['text'], 'text', MAX_BODY, minimum=0, nullable=True)
     option_id = parse_string(payload['option_id'], 'option_id', MAX_OPTION_ID, nullable=True)
     at = payload['at']
     if at is not None and not (isinstance(at, str) and UTC_DATETIME.match(at)):
         reject('at must be a UTC time as YYYY-MM-DDTHH:MM:SSZ', 'at')
-    return channel, text, option_id, datetime.strptime(at, '%Y-%m-%dT%H:%M:%SZ') if at else None
+    return channel, text, option_id, flow_id, datetime.strptime(at, '%Y-%m-%dT%H:%M:%SZ') if at else None
