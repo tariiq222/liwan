@@ -96,7 +96,12 @@
         "discountAllowed": "السماح بالخصم",
         "discountAllowedHint": "عند الإيقاف يُباع بسعر الباقة كما هو.",
         "discountMax": "أعلى نسبة خصم (%)",
-        "discountMaxHint": "ما فوقها يحتاج من يملك صلاحية اعتماد الخصم."
+        "discountMaxHint": "ما فوقها يحتاج من يملك صلاحية اعتماد الخصم.",
+        "aboveList": "البيع بسعر أعلى من الباقة",
+        "aboveListHint": "يُفرض على الخادم عند تسجيل البيع.",
+        "aboveForbid": "ممنوع",
+        "aboveManagers": "لمدير العملاء فقط",
+        "aboveEveryone": "مسموح للجميع"
       },
       "packages": {
         "title": "الباقات",

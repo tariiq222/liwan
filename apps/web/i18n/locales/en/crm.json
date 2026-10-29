@@ -96,7 +96,12 @@
         "discountAllowed": "Allow a discount",
         "discountAllowedHint": "When off, a sale uses the plan price as it is.",
         "discountMax": "Highest discount (%)",
-        "discountMaxHint": "Above it, only someone with the discount approval capability can save."
+        "discountMaxHint": "Above it, only someone with the discount approval capability can save.",
+        "aboveList": "Selling above the package price",
+        "aboveListHint": "Enforced by the server when a sale is recorded.",
+        "aboveForbid": "Not allowed",
+        "aboveManagers": "CRM manager only",
+        "aboveEveryone": "Allowed for everyone"
       },
       "packages": {
         "title": "Plans",
