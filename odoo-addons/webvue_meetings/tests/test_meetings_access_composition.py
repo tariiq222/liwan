@@ -31,7 +31,7 @@ ACL = {
 
 @tagged('post_install', '-at_install', 'webvue', 'webvue_access')
 class TestMeetingsAccessComposition(TransactionCase):
-    """webvue_meetings owns the three meetings.* capabilities, their groups and
+    """webvue_meetings owns the four meetings.* capabilities, their groups and
     record rules (spec R2); it runs at install, so it also proves the hooks
     work without webvue_pmo or webvue_hr."""
 
@@ -45,11 +45,11 @@ class TestMeetingsAccessComposition(TransactionCase):
     def _keys(self, role_xmlid):
         return set(self.env.ref(role_xmlid).permission_ids.mapped('key'))
 
-    def test_meetings_own_three_capabilities_and_their_groups(self):
+    def test_meetings_own_four_capabilities_and_their_groups(self):
         catalog = self.service._webvue_capability_map()
         self.assertEqual({key for key, item in catalog.items() if item['owner'] == 'webvue_meetings'}, set(MEETINGS_PERMISSIONS))
         permissions = self.Permission.search([('key', 'in', sorted(MEETINGS_PERMISSIONS))])
-        self.assertEqual(len(permissions), 3)
+        self.assertEqual(len(permissions), 4)
         xmlids = permissions.get_external_id()
         for permission in permissions:
             self.assertTrue(xmlids[permission.id].startswith('webvue_meetings.permission_'), permission.key)
@@ -57,7 +57,7 @@ class TestMeetingsAccessComposition(TransactionCase):
             self.assertTrue(self.env.ref(permission.group_xmlid, raise_if_not_found=False), permission.key)
         self.assertEqual(
             {permission.key: set(permission.dependency_ids.mapped('key')) for permission in permissions if permission.dependency_ids},
-            {'meetings.create': {'meetings.read'}, 'meetings.manage': {'meetings.read'}},
+            {'meetings.create': {'meetings.read'}, 'meetings.manage': {'meetings.read'}, 'meetings.settings.manage': {'meetings.read'}},
         )
 
     def test_core_roles_get_their_meeting_grants(self):

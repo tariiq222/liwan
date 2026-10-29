@@ -418,5 +418,20 @@
     "followupActive": "Active resolutions",
     "followupOverdue": "Overdue resolutions",
     "followupDone": "Completed resolutions"
+  },
+  "meetingsSettings": {
+    "saved": "Meetings settings saved.",
+    "saveFailed": "The settings could not be saved.",
+    "conflict": "The settings changed in another session. The saved values are shown; review them and save again.",
+    "reloadFailed": "The settings could not be refreshed. Reload the page.",
+    "schedule": {
+      "title": "Who schedules meetings",
+      "hint": "The company chooses who may schedule a meeting or a series. The choice applies to the current company only.",
+      "label": "Who schedules",
+      "all_employees": "Every employee",
+      "all_employeesHint": "Any employee who can see meetings may schedule one.",
+      "organizers_only": "Only holders of the meeting organizer role",
+      "organizers_onlyHint": "Only holders of the “Meeting organizer” role and system administrators schedule. Assign the role under Team, then Roles."
+    }
   }
 }
