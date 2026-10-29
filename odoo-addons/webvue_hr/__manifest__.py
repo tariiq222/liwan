@@ -2,7 +2,7 @@
 {
     'name': 'webvue HR',
     'summary': 'webvue platform: the HR pillar — /api/v1/hr departments, employees, leave, recruitment, shifts, onboarding, offboarding, assets',
-    'version': '19.0.1.14.1',
+    'version': '19.0.1.15.1',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -33,6 +33,7 @@
         'data/hr_leave_type_data.xml',
         'data/hr_plan_purpose_data.xml',
     ],
+    'post_init_hook': 'post_init_hook',
     'installable': True,
     'application': False,
 }

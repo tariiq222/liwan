@@ -15,10 +15,6 @@
       "imports": "Imports"
     },
     "settings": {
-      "conflict": "The CRM settings changed since you opened the page. Reload, then repeat your change.",
-      "saveError": "The settings could not be saved",
-      "reload": "Reload",
-      "reloadError": "The current settings could not be loaded",
       "preset": {
         "title": "Preset",
         "hint": "A starting point that sets several options together. You can change any value afterwards.",
@@ -134,16 +130,6 @@
       "sources": {
         "title": "Sources",
         "hint": "Where an opportunity came from, used in reports."
-      },
-      "list": {
-        "saveError": "The change could not be saved",
-        "name": "Name",
-        "newName": "New name",
-        "add": "Add",
-        "archive": "Archive",
-        "restore": "Restore",
-        "archived": "Archived",
-        "protected": "Protected"
       }
     },
     "opportunities": {

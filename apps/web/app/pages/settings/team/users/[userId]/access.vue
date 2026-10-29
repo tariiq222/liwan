@@ -13,6 +13,12 @@ const forbidden = computed(() => !can('access.users.assign_roles'))
 const user = useAdminUser(id, computed(() => !forbidden.value && can('access.users.read')))
 const roles = useAdminRoles({}, computed(() => !forbidden.value && can('access.roles.read')))
 const catalog = useAdminPermissionCatalog(computed(() => !forbidden.value && can('access.roles.read')))
+async function reloadUser() {
+  const result = await user.refetch()
+  if (result.isError) throw result.error
+  if (!result.data) throw new Error(t('errors.generic'))
+  return result.data
+}
 function retryAccessData() {
   void Promise.all([user.refetch(), roles.refetch(), catalog.refetch()])
 }
@@ -24,7 +30,7 @@ function retryAccessData() {
     <UButton v-if="!forbidden && can('access.roles.read')" :to="`/settings/team/users/${id}/branches`" color="neutral" variant="outline" :label="t('access.branches.delegation')" />
     <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
     <SharedPageState v-else :loading="user.isLoading.value || roles.isLoading.value || catalog.isLoading.value" :error="user.error.value || roles.error.value || catalog.error.value" :empty="!user.data.value" :empty-text="t('access.notFound')" @retry="retryAccessData">
-      <UserAccessForm v-if="user.data.value" :user="user.data.value" :roles="roles.data.value?.items ?? []" :permissions="catalog.data.value?.items ?? []" :permissions-loading="catalog.isLoading.value" :permissions-error="catalog.error.value" :cancel-to="backTo" @saved="navigateTo(backTo)" @retry="retryAccessData" />
+      <UserAccessForm v-if="user.data.value" :user="user.data.value" :roles="roles.data.value?.items ?? []" :permissions="catalog.data.value?.items ?? []" :permissions-loading="catalog.isLoading.value" :permissions-error="catalog.error.value" :reload-user="reloadUser" @saved="navigateTo(backTo)" @retry="retryAccessData" />
     </SharedPageState>
   </SharedSettingsPage>
 </template>

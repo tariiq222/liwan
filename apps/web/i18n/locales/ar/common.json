@@ -6,9 +6,8 @@
     "productName": "ويب فيو",
     "search": "بحث",
     "save": "حفظ",
-    "saving": "جارٍ الحفظ…",
-    "saved": "تم الحفظ",
-    "saveChanges": "حفظ التغييرات",
+    "settingsConflict": "غيّر شخص آخر هذه الإعدادات بعد فتحك الصفحة. حمّل القيم الحالية ثم أعد تعديلك.",
+    "list": { "newName": "اسم جديد" },
     "loadMore": "تحميل المزيد",
     "listSeparator": "، "
   },

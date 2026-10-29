@@ -24,8 +24,7 @@
     "country": {
       "label": "Gateway account country",
       "hint": "It sets the payment currency of your gateway account.",
-      "changed": "The account country was changed",
-      "failed": "The account country could not be changed"
+      "changed": "The account country was changed"
     },
     "credentials": {
       "title": "Account keys",
@@ -33,9 +32,7 @@
       "present": "Saved",
       "absent": "Not entered",
       "keep": "Leave empty to keep the saved key",
-      "save": "Save keys",
       "saved": "The keys were saved",
-      "failed": "The keys could not be saved",
       "paymob_public_key": "Public key",
       "paymob_secret_key": "Secret key",
       "paymob_hmac_key": "HMAC secret",
@@ -159,10 +156,7 @@
         "label": "Invoice when paid",
         "hint": "The order's invoice is created and posted as soon as its payment is confirmed. This choice applies to the whole account, not only to the current company."
       },
-      "saved": "The order settings were saved",
-      "saveFailed": "The order settings could not be saved",
-      "conflict": "The order settings changed since you opened the page, so we now show the saved values. Review them and repeat your change if needed.",
-      "reloadFailed": "The order settings could not be refreshed. Reload the page and try again."
+      "saved": "The order settings were saved"
     },
     "status": {
       "confirming": {

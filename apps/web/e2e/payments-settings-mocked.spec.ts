@@ -24,11 +24,13 @@ test.afterEach(() => {
 })
 
 const credential = (page: Page, field: (typeof FIELDS)[number]) => page.getByTestId(`payments-credential-${field}`)
+const providerCard = (page: Page) => page.getByTestId('payments-provider-paymob')
+const saveKeys = (page: Page) => providerCard(page).getByRole('button', { name: 'حفظ التغييرات' })
 const present = (page: Page) => Promise.all(FIELDS.map(field => page.getByTestId(`payments-present-${field}`).innerText()))
 
 async function saveAllKeys(page: Page, secret = 'sk_test_1') {
   for (const field of FIELDS) await credential(page, field).fill(field === 'paymob_secret_key' ? secret : `${field}_value`)
-  await page.getByTestId('payments-save').click()
+  await saveKeys(page).click()
   await expect(page.getByTestId('payments-present-paymob_api_key')).toHaveText('محفوظ')
 }
 
@@ -53,7 +55,7 @@ test.describe('payments settings', () => {
     page.on('request', request => { if (request.method() === 'PATCH') bodies.push(request.postDataJSON()) })
     await credential(page, 'paymob_public_key').fill('  pk_1  ')
     await credential(page, 'paymob_secret_key').fill('sk_1')
-    await page.getByTestId('payments-save').click()
+    await saveKeys(page).click()
     await expect(page.getByTestId('payments-present-paymob_secret_key')).toHaveText('محفوظ')
     expect(bodies).toEqual([{ credentials: { paymob_public_key: 'pk_1', paymob_secret_key: 'sk_1' } }])
     expect(await present(page)).toEqual(['محفوظ', 'محفوظ', 'غير مُدخل', 'غير مُدخل'])
@@ -83,11 +85,13 @@ test.describe('payments settings', () => {
     await expect(page.getByTestId('payments-state')).toHaveText('مباشر')
   })
 
-  test('the account country is a select of the offered countries and saves at once', async ({ page }) => {
+  test('the account country is a select of the offered countries and saves with the card', async ({ page }) => {
     await open(page, PATH, 'الدفع الإلكتروني')
     await page.getByTestId('payments-country').click()
     await page.getByRole('option', { name: 'مصر' }).click()
     await expect(page.getByTestId('payments-country')).toContainText('مصر')
+    await saveKeys(page).click()
+    await expect(saveKeys(page)).toBeDisabled()
     await page.reload()
     await expect(page.getByTestId('payments-country')).toContainText('مصر')
   })
@@ -119,8 +123,8 @@ test.describe('payments settings', () => {
     const withoutRefusals = trackRefusedRequests(page, '/api/v1/payments/providers')
     await credential(page, 'paymob_secret_key').fill('sk_nomethods')
     await expect(page.getByTestId('payments-sync')).toBeDisabled()
-    await page.getByTestId('payments-save').click()
-    await expect(page.getByTestId('payments-credentials-error')).toContainText('حسابك لدى البوابة لا يفعّل طريقة دفع يحتاجها ويب فيو')
+    await saveKeys(page).click()
+    await expect(providerCard(page).getByRole('alert')).toContainText('حسابك لدى البوابة لا يفعّل طريقة دفع يحتاجها ويب فيو')
     await expect(credential(page, 'paymob_secret_key')).toHaveValue('sk_nomethods')
     errors = withoutRefusals(errors)
   })
@@ -132,8 +136,8 @@ test.describe('payments settings', () => {
     await expect(page.getByTestId('payments-state')).toHaveText('تجريبي')
     const withoutRefusals = trackRefusedRequests(page, '/api/v1/payments/providers')
     await credential(page, 'paymob_secret_key').fill('sk_reject')
-    await page.getByTestId('payments-save').click()
-    await expect(page.getByTestId('payments-credentials-error')).toContainText('تعذّر الاتصال بالبوابة أو رفضت المفاتيح')
+    await saveKeys(page).click()
+    await expect(providerCard(page).getByRole('alert')).toContainText('تعذّر الاتصال بالبوابة أو رفضت المفاتيح')
     await expect(credential(page, 'paymob_secret_key')).toHaveValue('sk_reject')
     await expect(page.getByTestId('payments-state')).toHaveText('تجريبي')
     errors = withoutRefusals(errors)
@@ -146,11 +150,11 @@ test.describe('payments settings', () => {
       : route.fallback())
     const withoutRefusals = trackRefusedRequests(page, '/api/v1/payments/providers')
     await credential(page, 'paymob_hmac_key').fill('hmac')
-    await page.getByTestId('payments-save').click()
+    await saveKeys(page).click()
     await expect(credential(page, 'paymob_hmac_key')).toHaveAttribute('aria-invalid', 'true')
     await expect(credential(page, 'paymob_api_key')).not.toHaveAttribute('aria-invalid', 'true')
     await expect(page.getByText('قيمة غير صالحة. تأكد من نسخ المفتاح كاملًا.')).toHaveCount(1)
-    await expect(page.getByTestId('payments-credentials-error')).toHaveText('تعذّر حفظ المفاتيح')
+    await expect(providerCard(page).getByRole('alert')).toContainText('تعذّر الحفظ')
     await expect(credential(page, 'paymob_hmac_key')).toHaveValue('hmac')
     errors = withoutRefusals(errors)
   })
@@ -173,7 +177,8 @@ test.describe('payments settings', () => {
 test.describe('payments orders settings', () => {
   const expiry = (page: Page) => page.locator('#payments-order-expiry')
   const invoiceWhenPaid = (page: Page) => page.locator('#payments-order-invoice-when-paid')
-  const save = (page: Page) => page.getByTestId('payments-orders-save')
+  const orders = (page: Page) => page.getByTestId('payments-orders')
+  const save = (page: Page) => orders(page).getByRole('button', { name: 'حفظ التغييرات' })
   const patchBodies = (page: Page) => {
     const bodies: unknown[] = []
     page.on('request', request => { if (request.method() === 'PATCH' && request.url().endsWith('/api/v1/payments/settings')) bodies.push(request.postDataJSON()) })
@@ -226,19 +231,21 @@ test.describe('payments orders settings', () => {
     await expect(expiry(page)).toHaveValue('60')
   })
 
-  test('an empty expiry is told at the input and cannot be saved', async ({ page }) => {
+  test('an empty expiry is told at the input and is not sent', async ({ page }) => {
     await open(page, PATH, 'الدفع الإلكتروني')
     await expiry(page).fill('')
     await expiry(page).blur()
     await expect(page.getByTestId('payments-orders')).toContainText('أدخل عددًا صحيحًا بين 5 و1440')
-    await expect(save(page)).toBeDisabled()
+    const bodies = patchBodies(page)
+    await save(page).click()
+    expect(bodies).toEqual([])
     await expiry(page).fill('30')
     await expiry(page).blur()
     await expect(page.getByTestId('payments-orders')).not.toContainText('أدخل عددًا صحيحًا بين 5 و1440')
     await expect(save(page)).toBeEnabled()
   })
 
-  test('a value the server refuses is shown under the expiry and keeps what was typed', async ({ page }) => {
+  test('a value the server refuses is shown inside the card and keeps what was typed', async ({ page }) => {
     await open(page, PATH, 'الدفع الإلكتروني')
     await page.route('**/api/v1/payments/settings', route => route.request().method() === 'PATCH'
       ? route.fulfill({ status: 422, contentType: 'application/json', body: JSON.stringify({ code: 'invalid', message: 'المهلة خارج الحدود المسموحة', field: 'unpaid_order_expiry_minutes' }) })
@@ -249,12 +256,12 @@ test.describe('payments orders settings', () => {
     await save(page).click()
     await expect(page.getByText('المهلة خارج الحدود المسموحة')).toHaveCount(1)
     await expect(expiry(page)).toHaveAttribute('aria-invalid', 'true')
-    await expect(page.getByTestId('payments-orders-error')).toHaveCount(0)
+    await expect(orders(page).getByRole('alert')).toContainText('تعذّر الحفظ')
     await expect(expiry(page)).toHaveValue('45')
     errors = withoutRefusals(errors)
   })
 
-  test('a save made on a stale revision shows the saved values, tells the manager, and saves nothing', async ({ page }) => {
+  test('a save made on a stale revision locks the card until the saved values are loaded, and saves nothing', async ({ page }) => {
     await open(page, PATH, 'الدفع الإلكتروني')
     // Another session saves first: the card was made from revision 0, the server is now on 1.
     expect((await page.request.patch('/api/v1/payments/settings', { data: { revision: 0, unpaid_order_expiry_minutes: 120, invoice_when_paid: false } })).status()).toBe(200)
@@ -263,7 +270,9 @@ test.describe('payments orders settings', () => {
     await expiry(page).fill('30')
     await expiry(page).blur()
     await save(page).click()
-    await expect(page.getByTestId('payments-orders-conflict')).toContainText('تغيّرت إعدادات الطلبات منذ فتحت الصفحة')
+    await expect(orders(page).getByRole('alert')).toContainText('غيّر شخص آخر هذه الإعدادات')
+    await expect(save(page)).toBeDisabled()
+    await orders(page).getByRole('button', { name: 'تحميل القيم الحالية' }).click()
     await expect(expiry(page)).toHaveValue('120')
     await expect(invoiceWhenPaid(page)).not.toBeChecked()
     await expect(save(page)).toBeDisabled()
@@ -271,12 +280,12 @@ test.describe('payments orders settings', () => {
     expect(await readSettings(page)).toEqual({ unpaid_order_expiry_minutes: 120, invoice_when_paid: false, revision: 1 })
     errors = withoutRefusals(errors)
 
-    // Repeating the change now carries the revision the card was reloaded to, and the notice goes away.
+    // Repeating the change now carries the revision the card was reloaded to, and the conflict goes away.
     await expiry(page).fill('30')
     await expiry(page).blur()
     await save(page).click()
     await expect(save(page)).toBeDisabled()
-    await expect(page.getByTestId('payments-orders-conflict')).toHaveCount(0)
+    await expect(orders(page).getByRole('alert')).toHaveCount(0)
     expect(bodies.at(-1)).toEqual({ revision: 1, unpaid_order_expiry_minutes: 30 })
     expect(await readSettings(page)).toEqual({ unpaid_order_expiry_minutes: 30, invoice_when_paid: false, revision: 2 })
   })
@@ -294,7 +303,8 @@ test.describe('payments orders settings', () => {
     await expiry(page).fill('30')
     await expiry(page).blur()
     await save(page).click()
-    await expect(page.getByTestId('payments-orders-reload-error')).toContainText('تعذّر تحديث إعدادات الطلبات')
+    await orders(page).getByRole('button', { name: 'تحميل القيم الحالية' }).click()
+    await expect(orders(page).getByRole('alert').filter({ hasText: 'تعذّر تحميل القيم الحالية' })).toBeVisible()
     await expect(expiry(page)).toHaveValue('30')
     expect(reads).toBeGreaterThan(0)
     errors = withoutRefusals(errors)

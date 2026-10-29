@@ -17,7 +17,7 @@ const meta = {
   title: 'CRM/CrmStageListCard',
   component: CrmStageListCard,
   parameters: {
-    ...storyContext('apps/web/app/pages/settings/apps/crm/index.vue:58', 'مراحل مسار الفرصة: إعادة تسمية وترتيب وأرشفة، ومرحلة واحدة للبيع.'),
+    ...storyContext('apps/web/app/pages/settings/apps/crm/index.vue:46', 'مراحل مسار الفرصة: إعادة تسمية وترتيب وأرشفة، ومرحلة واحدة للبيع.'),
     msw: { handlers: { api: [manage, list(stages)] } },
   },
   args: { canEdit: true },

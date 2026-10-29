@@ -17,11 +17,12 @@ on:
 permissions:
   contents: read
 
-# A newer push to the same PR or to main supersedes the older run: the newest main commit contains every
-# earlier merge, so its run checks them all. A manual (release) run is never cancelled by a push.
+# A newer push to a PR cancels its older run. On main a running run always finishes (cancelling it left
+# main with no completed run while merges kept coming); GitHub keeps only the newest pending main run, and
+# that commit contains every earlier merge. A manual (release) run has its own group.
 concurrency:
   group: ci-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # The Postgres service container is ephemeral and reachable only from its own job, so these are throwaway values.
 env:
