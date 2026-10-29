@@ -12,7 +12,8 @@ report tests); a red local run under load is not proof of a defect, so re-run th
 
 Every shard still installs the whole release module list; a shard only differs in the modules whose
 tests it runs. Weights are the ``def test_`` counts under ``odoo-addons/<module>/tests``, so no
-history file exists to go stale; modules are assigned heaviest first to the lightest shard.
+history file exists to go stale, times ``COST_FACTOR`` for a module whose tests are measurably slower
+per test; modules are assigned heaviest first to the lightest shard.
 """
 from __future__ import annotations
 
@@ -28,6 +29,9 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 SHARD_COUNT = 3
+# Per-test cost above the average module, measured on CI: webvue_finance's tests build accounting data
+# (journals, moves, reports), so its 653 tests took 837 s standalone against 279 s for webvue_hr's 626.
+COST_FACTOR = {'webvue_finance': 3}
 TEST_DEF = re.compile(r'^\s*def test_', re.MULTILINE)
 
 
@@ -44,10 +48,10 @@ def release_modules() -> list[str]:
 
 
 def weight(module: str, addons: Path = REPO / 'odoo-addons') -> int:
-    """Test count of a module (not its runtime); a module without tests weighs 1 so it still lands in a shard."""
+    """Test count of a module times its COST_FACTOR; a module without tests weighs 1 so it still lands in a shard."""
     tests = addons / module / 'tests'
     count = sum(len(TEST_DEF.findall(f.read_text(encoding='utf-8'))) for f in sorted(tests.glob('test_*.py')))
-    return max(count, 1)
+    return max(count, 1) * COST_FACTOR.get(module, 1)
 
 
 def split(weights: dict[str, int], count: int) -> list[list[str]]:

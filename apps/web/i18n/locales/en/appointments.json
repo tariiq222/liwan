@@ -5,6 +5,64 @@
     "duration": "{count} min",
     "nav": {
       "types": "Appointment types"
+    },
+    "book": {
+      "title": "Your appointment",
+      "schedule": "Book this time",
+      "reschedule": "Move the appointment to this time",
+      "confirm": "Confirm the appointment",
+      "cancel": "Cancel the appointment",
+      "cancelTitle": "Cancel this appointment?",
+      "cancelBody": "The appointment will be canceled and this link will stop working.",
+      "cancelConfirm": "Yes, cancel the appointment",
+      "keep": "Keep the appointment",
+      "retry": "Try again",
+      "state": {
+        "pending": "Waiting for a time",
+        "scheduled": "Booked",
+        "confirmed": "Confirmed",
+        "canceled": "Canceled"
+      },
+      "picker": {
+        "title": "Pick a time that suits you",
+        "previous": "Previous week",
+        "next": "Next week",
+        "day": "Day",
+        "time": "Time",
+        "empty": "No times are available in this period. Try the next week.",
+        "failed": "The available times could not be loaded"
+      },
+      "errors": {
+        "taken": "This time was just taken. Pick another time.",
+        "notAllowed": "This can't be done now. The appointment has been refreshed.",
+        "failed": "The request failed. Try again."
+      },
+      "states": {
+        "invalidLink": {
+          "title": "This appointment link is not valid",
+          "body": "The link is wrong or has expired. Ask the sender for a new link."
+        },
+        "canceled": {
+          "title": "The appointment was canceled",
+          "body": "This link no longer works. Ask for a new appointment if you need one."
+        },
+        "locked": {
+          "title": "The appointment can't be changed now",
+          "body": "The time allowed for changes or cancellation has passed. Contact the organizer for help."
+        },
+        "awaitsConfirmation": {
+          "title": "Your appointment awaits your confirmation",
+          "body": "Confirm the booked time, or pick another time below."
+        },
+        "busy": {
+          "title": "The service is busy",
+          "body": "There are many requests. Wait a moment and try again."
+        },
+        "unavailable": {
+          "title": "The appointment could not be loaded",
+          "body": "A temporary problem occurred. Try again shortly."
+        }
+      }
     }
   }
 }

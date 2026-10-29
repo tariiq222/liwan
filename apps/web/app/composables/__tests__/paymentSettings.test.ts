@@ -1,17 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { PaymentSettingsUpdateSchema, type PaymentSettings } from '@webvue/contracts'
-import { draftOfSettings, isDraftChanged, isValidExpiry, refusesExpiry, settingsUpdate } from '../paymentSettings'
+import { draftOfSettings, isValidExpiry, refusesExpiry, settingsUpdate } from '../paymentSettings'
 
 const SAVED: PaymentSettings = { unpaid_order_expiry_minutes: 60, invoice_when_paid: true, revision: 3 }
 
 describe('the orders draft', () => {
-  it('starts from the saved settings and is unchanged until a value differs', () => {
-    const draft = draftOfSettings(SAVED)
-    expect(draft).toEqual({ unpaid_order_expiry_minutes: 60, invoice_when_paid: true })
-    expect(isDraftChanged(SAVED, draft)).toBe(false)
-    expect(isDraftChanged(SAVED, { ...draft, unpaid_order_expiry_minutes: 90 })).toBe(true)
-    expect(isDraftChanged(SAVED, { ...draft, invoice_when_paid: false })).toBe(true)
-    expect(isDraftChanged(SAVED, { ...draft, unpaid_order_expiry_minutes: null })).toBe(true)
+  it('starts from the saved settings', () => {
+    expect(draftOfSettings(SAVED)).toEqual({ unpaid_order_expiry_minutes: 60, invoice_when_paid: true })
   })
 })
 

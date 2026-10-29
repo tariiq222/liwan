@@ -50,11 +50,11 @@ test.describe('Plan 6d: the roles list and forms', () => {
       await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
     })
 
-    test('the edit page keeps its heading and uses a panel section', async ({ page }) => {
+    test('the edit page keeps its heading and uses one settings card', async ({ page }) => {
       await openClientSide(page, '/settings/team/roles/3/edit')
       await expect(page.getByRole('heading', { level: 1 })).toHaveText('تعديل الدور')
-      await expect(page.locator('main').getByRole('heading', { level: 2 })).toHaveCount(2)
-      await expect(page.getByRole('button', { name: 'حفظ', exact: true })).toBeVisible()
+      await expect(page.locator('main').getByRole('heading', { level: 2 })).toHaveCount(1)
+      await expect(page.getByRole('button', { name: 'حفظ التغييرات', exact: true })).toBeVisible()
     })
   })
 

@@ -42,10 +42,10 @@ describe('the settings pages use the shared cards and states', () => {
     expect(page).not.toContain('<UTabs')
   })
 
-  it('the settings sections are panels with no spacing override', () => {
+  it('the settings sections are settings cards with no spacing override', () => {
     const form = read('components/settings/ProjectSettingsForm.vue')
-    expect(form.match(/<SharedFormSection id="project-[a-z]+" panel/g)).toHaveLength(3)
-    expect(form).not.toMatch(/SharedFormSection[^>]*space-y-/)
+    expect(form.match(/<SharedSettingsCard (v-if="[^"]+" )?id="project-[a-z]+"/g)).toHaveLength(4)
+    expect(form).not.toMatch(/SharedSettingsCard[^>]*space-y-/)
     expect(read('pages/settings/apps/projects.vue')).not.toContain('space-y-')
   })
 

@@ -26,6 +26,7 @@ jobs sign in and work, and requests move between people and applications.
 | [platform.md](platform.md) | Notifications (bell), people picker, assistant, feature switches |
 | [inbox.md](inbox.md) | Customer inbox: conversations, channels (WhatsApp), departments, tags, canned replies, contacts, export |
 | [appointments.md](appointments.md) | Appointments: bookings, types, settings |
+| [crm.md](crm.md) | CRM: pipeline board, opportunities, contacts and follow-ups, won/lost, assignment, import/export, settings |
 | [payments.md](payments.md) | Payment providers, payment links, the public invoice payer pages and gateway callbacks |
 | [journeys.md](journeys.md) | Journeys that cross applications (requests, approvals, money, people) |
 
@@ -85,6 +86,9 @@ database. Login is `e2e_<key>`; the credentials are declared in
 | `ops_manager` | لمى السبيعي, مديرة العمليات | العمليات | ceo | employee, operations_manager |
 | `staff1` | يوسف المالكي, مطور برمجيات | تقنية المعلومات | pm | employee |
 | `staff2` | سارة العمري, منسقة عمليات | العمليات | ops_manager | employee |
+| `crm_manager` | أحمد السهلي, مدير المبيعات | المبيعات | ceo | employee, crm_manager |
+| `crm_agent` | مها الثبيتي, موظفة مبيعات | المبيعات | crm_manager | employee, crm_agent |
+| `crm_agent2` | نايف العسيري, موظف مبيعات | المبيعات | crm_manager | employee, crm_agent |
 | `users_reader` | رامي القرني | تقنية المعلومات | it_admin | employee + custom «قراءة المستخدمين فقط» (`access.users.read`) |
 | `ops_monitor` | دانة الزهراني | العمليات | ops_manager | employee + custom «متابعة العمليات فقط» (`operations.monitoring.read`) |
 | `docs_editor` | تركي البقمي | الموارد البشرية | hr_manager | employee + custom «تحرير المستندات بلا إدارة الوصول» (`documents.items.manage`) |
