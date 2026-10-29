@@ -268,7 +268,9 @@ class TestCrmLists(WebVueCrmCase):
         template = self.env['product.template'].browse(package['id'])
         self.assertTrue(template.webvue_crm_package)
         self.assertEqual(template.company_id, self.company)
-        self.assertFalse(template.taxes_id | template.supplier_taxes_id)
+        for name in ('taxes_id', 'supplier_taxes_id'):
+            if name in template._fields:
+                self.assertFalse(template[name])
         patched = self.api('PATCH', f'{BASE}/packages/{package["id"]}', {'price': 0, 'description': ''}).json()
         self.assertEqual((patched['price'], patched['description']), (0, ''))
         for body in (

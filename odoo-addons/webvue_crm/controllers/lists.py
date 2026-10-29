@@ -313,11 +313,12 @@ class CrmListsController(http.Controller):
     @requires_capability('crm.settings.manage')
     def create_package(self, **payload):
         vals = parse_body(payload, PACKAGE_FIELDS, creating=True)
-        package = request.env['product.template'].create({
-            **vals, 'webvue_crm_package': True, 'company_id': request.env.company.id, 'purchase_ok': False,
-            # A package is not taxed here; naming the taxes keeps stock from reading the company's default taxes,
-            # which a branch manager has no right to read.
-            'taxes_id': [Command.clear()], 'supplier_taxes_id': [Command.clear()],
+        Template = request.env['product.template']
+        # A package is not taxed here; naming the taxes keeps accounting (when installed) from reading the company's
+        # default taxes, which a branch manager has no right to read.
+        untaxed = {name: [Command.clear()] for name in ('taxes_id', 'supplier_taxes_id') if name in Template._fields}
+        package = Template.create({
+            **vals, 'webvue_crm_package': True, 'company_id': request.env.company.id, 'purchase_ok': False, **untaxed,
         })
         return dump_package(package)
 
