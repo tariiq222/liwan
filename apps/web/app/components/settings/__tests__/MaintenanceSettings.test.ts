@@ -79,6 +79,12 @@ describe('maintenance settings', () => {
     expect(h.props.updateBooking).toHaveBeenCalledWith(3, { status: 'cancelled', revision: 4 })
     h.app.unmount()
   })
+  it('does not offer a release whose deadline has passed for booking', async () => {
+    const h = harness(); h.hydrated.value = true
+    h.props.snapshot.releases.items[0]!.deadlineAt = '2020-01-01T00:00:00Z'; await Vue.nextTick()
+    expect(h.find('maintenance-booking-form')).toBeUndefined()
+    h.app.unmount()
+  })
   it('hides reschedule and cancellation controls after maintenance starts', async () => {
     const h = harness(); h.props.snapshot.bookings.items[0]!.status = 'running'; await Vue.nextTick()
     expect(h.find('maintenance-cancel-3')).toBeUndefined()

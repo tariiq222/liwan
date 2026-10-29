@@ -142,8 +142,8 @@ class TestOnlineOrders(WebVueOrderCase):
         self.assertEqual((tx.state, order.state), ('done', 'cancel'))
         self.assertTrue(tx.payment_id)
         summary = service._webvue_summary(order)
-        self.assertEqual((summary['status'], summary['refund_due'], summary['amount_due']), ('cancelled', True, 0.0))
-        self.assertFalse(service._webvue_summary(self.online_order())['refund_due'])
+        self.assertEqual((summary['status'], summary['amount_to_refund'], summary['amount_due']), ('cancelled', 115.0, 0.0))
+        self.assertEqual(service._webvue_summary(self.online_order())['amount_to_refund'], 0.0)
 
     def test_the_pay_link_of_an_order_is_its_pay_page_until_it_is_paid(self):
         order = self.online_order()
@@ -186,7 +186,7 @@ class TestOnlineOrderMoney(WebVueOrderCase):
         self.age(tx, days=4)
         self.expire()
         summary = service._webvue_summary(order)
-        self.assertEqual((order.state, summary['status'], summary['refund_due']), ('cancel', 'cancelled', True))
+        self.assertEqual((order.state, summary['status'], summary['amount_to_refund']), ('cancel', 'cancelled', 115.0))
 
     def test_a_payment_left_pending_releases_the_order_after_a_day(self):
         order = self.past_deadline(self.online_order())
@@ -228,14 +228,14 @@ class TestOnlineOrderMoney(WebVueOrderCase):
         cancelled = self.online_order()
         service._webvue_request_cancel(cancelled)
         tx = self.pay(cancelled, 115.0)
-        self.assertTrue(service._webvue_summary(cancelled)['refund_due'])
+        self.assertEqual(service._webvue_summary(cancelled)['amount_to_refund'], 115.0)
         tx._create_child_transaction(115.0, is_refund=True)._set_done()
-        self.assertFalse(service._webvue_summary(cancelled)['refund_due'])
+        self.assertEqual(service._webvue_summary(cancelled)['amount_to_refund'], 0.0)
         paid_twice = self.online_order()
         self.pay(paid_twice, 115.0)
-        self.assertFalse(service._webvue_summary(paid_twice)['refund_due'])
+        self.assertEqual(service._webvue_summary(paid_twice)['amount_to_refund'], 0.0)
         self.pay(paid_twice, 115.0)
-        self.assertTrue(service._webvue_summary(paid_twice)['refund_due'])
+        self.assertEqual(service._webvue_summary(paid_twice)['amount_to_refund'], 115.0)
 
     def test_without_a_sales_journal_no_pay_link_is_offered(self):
         self.env['account.journal'].search([('company_id', '=', self.env.company.id), ('type', '=', 'sale')]).active = False

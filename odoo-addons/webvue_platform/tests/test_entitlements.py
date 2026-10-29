@@ -251,12 +251,12 @@ class TestEntitlements(TransactionCase):
                 self.assertIn(value['owner'], installed_owners, key)
         self.assertEqual(capability_map['settings.maintenance.manage']['owner'], 'webvue_platform')
         # 11 core capabilities, plus 27 for HR (21, and 6 payroll: its four keys, the audit reader
-        # of owner decision D-7 and the finance mapping), 8 for PMO and 3 for meetings (49).
-        # Document permissions now belong to the independent documents application.
-        expected = 11 + 27 * ('webvue_hr' in apps) + 8 * ('webvue_pmo' in apps) + 3 * ('webvue_meetings' in apps)
+        # of owner decision D-7 and the finance mapping), 8 for PMO and 4 for meetings (50), the
+        # fourth being meetings.settings.manage (#162). Document permissions belong to the documents app.
+        expected = 11 + 27 * ('webvue_hr' in apps) + 8 * ('webvue_pmo' in apps) + 4 * ('webvue_meetings' in apps)
         self.assertEqual(len(release_map), expected)
         if apps == set(self.APP_BOOLEANS):
-            self.assertEqual(len(release_map), 49)
+            self.assertEqual(len(release_map), 50)
         self.assertNotIn('probe.inspect', capability_map)
         self.assertNotIn('probe.enabled', self.features._webvue_feature_map())
 

@@ -21,5 +21,6 @@ from . import (
     meeting_notification_types,
     meeting_resolution,
     meeting_series,
+    meeting_settings,
     meeting_workspace,
 )

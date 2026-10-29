@@ -2,6 +2,7 @@
 from . import (
     appointment_booking,
     appointment_combination,
+    appointment_reason,
     appointment_resource,
     appointment_settings,
     appointment_slot,

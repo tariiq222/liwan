@@ -193,6 +193,19 @@ export function useMeetingAction() {
   })
 }
 
+/** Delete a draft meeting; the server refuses every other state with a 409 (a confirmed meeting is cancelled). */
+export function useDeleteMeeting() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: (id: number) => $api(`/api/v1/meetings/${id}`, { method: 'DELETE' }),
+    onSuccess: (_row, id) => {
+      qc.removeQueries({ queryKey: meetingKeys.detail(id) })
+      return invalidateMeetingCaches(qc)
+    },
+  })
+}
+
 export function usePatchResolution() {
   const qc = useQueryClient()
   const { $api } = useApi()

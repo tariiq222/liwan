@@ -78,6 +78,46 @@ class TestAppointmentSettings(WebVueAppointmentsCase):
         applied = self.api('PATCH', URL, {'preset': 'clinic', 'revision': 1})
         self.assertEqual(applied.json()['sector_preset'], 'clinic')
 
+    def test_attendance_settings_default_save_and_read_back(self):
+        self._as_manager()
+        got = self.api('GET', URL).json()
+        self.assertEqual(
+            {name: got[name] for name in (
+                'attendance_tracking', 'auto_no_show', 'no_show_grace_minutes', 'walk_in_allowed',
+                'visit_reason_field', 'cancel_reason_required', 'reference_prefix',
+            )},
+            {
+                'attendance_tracking': True, 'auto_no_show': True, 'no_show_grace_minutes': 30, 'walk_in_allowed': False,
+                'visit_reason_field': 'optional', 'cancel_reason_required': False, 'reference_prefix': 'APT',
+            },
+        )
+        body = {
+            'attendance_tracking': False, 'auto_no_show': False, 'no_show_grace_minutes': 0, 'walk_in_allowed': True,
+            'visit_reason_field': 'required', 'cancel_reason_required': True, 'reference_prefix': 'CLN-01',
+        }
+        saved = self.api('PATCH', URL, {**body, 'revision': 0})
+        self.assertEqual(saved.status_code, 200, saved.text)
+        self.assertEqual({name: saved.json()[name] for name in body}, body)
+        edge = self.api('PATCH', URL, {'no_show_grace_minutes': 1440, 'reference_prefix': 'A' * 10, 'revision': 1})
+        self.assertEqual((edge.status_code, edge.json()['no_show_grace_minutes'], edge.json()['reference_prefix']), (200, 1440, 'A' * 10))
+
+    def test_every_preset_sets_the_attendance_settings_but_not_the_prefix(self):
+        self._as_manager()
+        revision = 0
+        for preset, walk_in in (('clinic', True), ('services', False), ('general', False)):
+            saved = self.api('PATCH', URL, {'reference_prefix': 'KEEP', 'revision': revision})
+            applied = self.api('PATCH', URL, {'preset': preset, 'revision': saved.json()['revision']})
+            self.assertEqual(applied.status_code, 200, applied.text)
+            body = applied.json()
+            revision = body['revision']
+            self.assertEqual(
+                (body['walk_in_allowed'], body['attendance_tracking'], body['auto_no_show'], body['no_show_grace_minutes']),
+                (walk_in, True, True, 30),
+            )
+            self.assertEqual((body['visit_reason_field'], body['cancel_reason_required'], body['reference_prefix']), ('optional', False, 'KEEP'))
+        for preset, values in PRESETS.items():
+            self.assertNotIn('reference_prefix', values, preset)
+
     def test_a_new_type_defaults_from_the_company_settings(self):
         types = self.env['resource.booking.type']
         without = types.create({'name': 'Before settings'})
@@ -118,6 +158,20 @@ class TestAppointmentSettings(WebVueAppointmentsCase):
             ({'horizon_days': 366, 'revision': 0}, 'horizon_days'),
             ({'horizon_days': True, 'revision': 0}, 'horizon_days'),
             ({'modification_deadline_hours': 721, 'revision': 0}, 'modification_deadline_hours'),
+            ({'no_show_grace_minutes': -1, 'revision': 0}, 'no_show_grace_minutes'),
+            ({'no_show_grace_minutes': 1441, 'revision': 0}, 'no_show_grace_minutes'),
+            ({'no_show_grace_minutes': '30', 'revision': 0}, 'no_show_grace_minutes'),
+            ({'visit_reason_field': 'maybe', 'revision': 0}, 'visit_reason_field'),
+            ({'attendance_tracking': 1, 'revision': 0}, 'attendance_tracking'),
+            ({'auto_no_show': 'yes', 'revision': 0}, 'auto_no_show'),
+            ({'walk_in_allowed': None, 'revision': 0}, 'walk_in_allowed'),
+            ({'cancel_reason_required': 'no', 'revision': 0}, 'cancel_reason_required'),
+            ({'reference_prefix': '', 'revision': 0}, 'reference_prefix'),
+            ({'reference_prefix': 'apt', 'revision': 0}, 'reference_prefix'),
+            ({'reference_prefix': 'ABCDEFGHIJK', 'revision': 0}, 'reference_prefix'),
+            ({'reference_prefix': 'A/B', 'revision': 0}, 'reference_prefix'),
+            ({'reference_prefix': 'APT\n', 'revision': 0}, 'reference_prefix'),
+            ({'reference_prefix': 5, 'revision': 0}, 'reference_prefix'),
             ({'requester_confirmation': 'yes', 'revision': 0}, 'requester_confirmation'),
             ({'phone_field': 'maybe', 'revision': 0}, 'phone_field'),
             ({'self_booking_policy': 'anyone', 'revision': 0}, 'self_booking_policy'),
@@ -138,7 +192,11 @@ class TestAppointmentSettings(WebVueAppointmentsCase):
         self.assertFalse(self.env['webvue.appointment.settings'].search([]))
 
     def test_database_checks_refuse_out_of_range_values(self):
-        for name, value in (('default_slot_minutes', 4), ('min_notice_hours', 721), ('horizon_days', 0), ('modification_deadline_hours', -1)):
+        for name, value in (
+            ('default_slot_minutes', 4), ('min_notice_hours', 721), ('horizon_days', 0), ('modification_deadline_hours', -1),
+            ('no_show_grace_minutes', -1), ('no_show_grace_minutes', 1441),
+            ('reference_prefix', ''), ('reference_prefix', 'lower'), ('reference_prefix', 'ABCDEFGHIJK'), ('reference_prefix', 'A B'),
+        ):
             with self.assertRaises(Exception), self.cr.savepoint():  # noqa: B017 - psycopg2 CheckViolation
                 self.env['webvue.appointment.settings'].create({'company_id': self.env.company.id, name: value})
 

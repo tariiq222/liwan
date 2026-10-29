@@ -307,7 +307,7 @@ class TestAccessAdminRoles(WebVueApiCase):
         # reader of owner decision D-7 and the finance mapping).
         total = (
             11 + 27 * ('webvue_hr' in installed) + 5 * ('webvue_documents' in installed)
-            + 8 * ('webvue_pmo' in installed) + 3 * ('webvue_meetings' in installed)
+            + 8 * ('webvue_pmo' in installed) + 4 * ('webvue_meetings' in installed)
         )
         # An application added later adds capabilities; today's are exact.
         owners = self.env['webvue.access.service']._webvue_capability_map()
@@ -320,7 +320,7 @@ class TestAccessAdminRoles(WebVueApiCase):
         ))
         self.assertEqual(
             {item['key'] for item in body['items'] if item['key'].startswith('meetings.')},
-            {'meetings.read', 'meetings.create', 'meetings.manage'} if 'webvue_meetings' in installed else set(),
+            {'meetings.read', 'meetings.create', 'meetings.manage', 'meetings.settings.manage'} if 'webvue_meetings' in installed else set(),
         )
         self.assertEqual(
             {item['key'] for item in body['items'] if item['key'].startswith('documents.')},
