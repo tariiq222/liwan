@@ -12,8 +12,10 @@ provider controller. Refunds come in a later step.
 
 An online order is a stock quotation that a selling application opens for its customer through
 `webvue.payments.service` (no HTTP): `_webvue_new_order(company, partner, prepayment_percent)`,
-`_webvue_add_line(order, product, quantity)`, `_webvue_orders_of(lines)`, `_webvue_request_cancel(orders)`,
-`_webvue_summary(order)` and `_webvue_payment_path(document)`. No method takes a price or an amount:
+`_webvue_add_line(order, product, quantity)`, `_webvue_orders_of(lines)`,
+`_webvue_request_cancel(orders, requested_by_customer, service_start)`, `_webvue_summary(order)`,
+`_webvue_payment_path(document)`, and the refund rules of a product it sells: `_webvue_refund_rules(product)`
+and `_webvue_set_refund_rules(product, refund_policy, refund_amounts, refund_tiers)`. No method takes a price or an amount:
 the product's price and the stock order computation decide them. The order asks to be paid online
 (all of it, or a deposit), asks for no signature, and stock confirms it once paid (and invoices it
 when the tenant keeps "invoice when paid" on). The application keeps a link to the order line it
@@ -30,6 +32,27 @@ retries (four days) and is shown as needing attention after an hour; after that 
 released and the money is due back. No pay link is offered for an order that could not be invoiced
 once paid (invoice when paid on, and no sales journal in the company).
 
+## Refunds
+
+What a cancelled order gives back follows the refund rules of its products (a company default, which a
+product may override): all of it (`full`, the default), a percent by how long before the service the
+customer cancels (`notice`, at most five tiers per product), or nothing (`none`). The rules apply only
+to a cancellation the customer asks for (`requested_by_customer`): what the merchant keeps is set once,
+at cancellation, in `webvue_retained_amount`. A staff cancellation or an expiry gives everything back,
+and money that arrives by mistake (a late or second payment) is always due back in full. The amount due
+is the stored `webvue_refund_due_amount`.
+
+Stock Paymob has no refund API, so the tenant refunds in its gateway dashboard and staff with
+`payments.refund` record it with the gateway's reference: the whole amount due at once, or any part of
+it where every product allows partial amounts (`refund_amounts`). The refund is a refund child of each
+paid transaction it takes from; stock post-processing records the outbound payment and reconciles it
+with the credit notes this addon builds for a cancelled order's posted invoices (a full reversal, or
+proportional lines for a partial refund); what the merchant keeps stays invoiced. Stock posts the credit
+notes during post-processing and, with invoice when paid on, emails them to the customer; under the Saudi
+localization each carries the ZATCA reason "cancellation". A partial credit note that misses the amount by a
+rounding cent says so in the order's chatter. Release gate: an accountant reviews partial credit notes before
+the first release (spec 6.4).
+
 ## Install footprint
 
 `sale` brings the stock modules that auto-install with it and the applications already present:
@@ -44,9 +67,20 @@ explicitly (`-i webvue_appointments_payments`).
 Settings, behind `payments.enabled` and `payments.settings.manage` (granted to `system_admin`):
 
 - `GET /api/v1/payments/settings`, `PATCH /api/v1/payments/settings` — `{unpaid_order_expiry_minutes,
-  invoice_when_paid, revision}`. The expiry (5–1440 minutes) belongs to the current company; invoice when
-  paid is the one tenant-wide stock parameter `sale.automatic_invoice` (on by default). A stale revision
-  answers 409 `conflict`.
+  invoice_when_paid, refund_policy, refund_amounts, revision}`. The expiry (5–1440 minutes) and the
+  refund defaults (`full`/`none`, `due`/`any`) belong to the current company; invoice when paid is the one
+  tenant-wide stock parameter `sale.automatic_invoice` (on by default). A stale revision answers 409 `conflict`.
+
+Online orders of the current company, behind `payments.enabled`:
+
+- `GET /api/v1/payments/orders` (`payments.orders.read`, granted to `system_admin`) — `{items, total}`,
+  newest first; filters `refund_due` and `needs_attention` (`true`/`false`), `state` (`open`, `confirmed`,
+  `cancelled`), `limit`, `offset`.
+- `GET /api/v1/payments/orders/<id>` — the order with its lines, every payment and refund, and whether
+  partial refunds are allowed. Another company's order and an order that is not online answer 404.
+- `POST /api/v1/payments/orders/<id>/refunds` (`payments.refund`, granted to no built-in role) —
+  `{amount, reference}`; 422 on `amount` beyond the rules, 409 `conflict` while another refund of the
+  order is being recorded. The answer is the order.
 
 Payer routes, under the public namespace (`auth='public'`, no session, the document's access token):
 

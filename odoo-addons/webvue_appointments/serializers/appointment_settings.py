@@ -1,10 +1,14 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import re
+
 from odoo.addons.webvue_api.controllers.common import ApiError
 from odoo.addons.webvue_appointments.models.appointment_settings import (
+    BOOLEAN_SETTINGS,
     DEFAULTS,
     FIELD_REQUIREMENTS,
     INTEGER_RANGES,
     PRESETS,
+    REFERENCE_PREFIX_PATTERN,
     REQUESTER_FIELDS,
     SECTOR_PRESETS,
     SELF_BOOKING_POLICIES,
@@ -13,7 +17,7 @@ from odoo.addons.webvue_appointments.models.appointment_settings import (
 WRITABLE_FIELDS = tuple(DEFAULTS)
 SETTING_FIELDS = (*WRITABLE_FIELDS, 'sector_preset')
 SELECTION_OPTIONS = {
-    **{name: tuple(value for value, _label in FIELD_REQUIREMENTS) for name in REQUESTER_FIELDS},
+    **{name: tuple(value for value, _label in FIELD_REQUIREMENTS) for name in (*REQUESTER_FIELDS, 'visit_reason_field')},
     'self_booking_policy': tuple(value for value, _label in SELF_BOOKING_POLICIES),
 }
 PRESET_KEYS = [value for value, _label in SECTOR_PRESETS]
@@ -49,9 +53,12 @@ def _parse_value(name, value):
         low, high = INTEGER_RANGES[name]
         if type(value) is not int or not low <= value <= high:
             raise ApiError(422, 'invalid', 'must be a whole number from %d to %d' % (low, high), field=name)
-    elif name == 'requester_confirmation':
+    elif name in BOOLEAN_SETTINGS:
         if type(value) is not bool:
             raise ApiError(422, 'invalid', 'must be true or false', field=name)
+    elif name == 'reference_prefix':
+        if not isinstance(value, str) or not re.fullmatch(REFERENCE_PREFIX_PATTERN, value):
+            raise ApiError(422, 'invalid', 'must be 1 to 10 of A-Z, 0-9 and -', field=name)
     elif value not in SELECTION_OPTIONS[name]:
         raise ApiError(422, 'invalid', 'choose one of: %s' % ', '.join(SELECTION_OPTIONS[name]), field=name)
     return value

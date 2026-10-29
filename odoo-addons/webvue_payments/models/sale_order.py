@@ -17,6 +17,12 @@ class SaleOrder(models.Model):
     # Set by webvue.payments.service on the online orders it creates. An order still unpaid after it is
     # cancelled by the expiry cron, which releases what the order holds.
     webvue_payment_deadline = fields.Datetime(copy=False, readonly=True, index='btree_not_null')
+    # What the merchant keeps of a cancelled order under the refund rules of its products, set once when the
+    # customer asks for the cancellation; zero for every other cancellation (spec 6.4, ticket 07).
+    webvue_retained_amount = fields.Monetary(copy=False, readonly=True)
+    # The money this order holds that it must give back: what it received less its refunds, beyond what it
+    # keeps (its total while it stands, the retained amount once cancelled). Stored so staff filter on it.
+    webvue_refund_due_amount = fields.Monetary(compute='_compute_webvue_refund_due_amount', store=True)
 
     def _compute_access_url(self):
         # The customer pays an online order on the WebVue pay page; the stock /my/orders page is closed by the guard.
@@ -60,14 +66,75 @@ class SaleOrder(models.Model):
         refunds = payments.child_transaction_ids.filtered(lambda tx: tx.state == 'done' and tx.operation == 'refund')
         return sum(payments.mapped('amount')) + sum(refunds.mapped('amount'))
 
-    def _webvue_refund_due(self):
-        """Whether the order holds money it must give back: any kept while cancelled, or more than its total.
+    @api.depends(
+        'state', 'amount_total', 'webvue_retained_amount', 'transaction_ids.state', 'transaction_ids.amount',
+        'transaction_ids.child_transaction_ids.state', 'transaction_ids.child_transaction_ids.amount',
+    )
+    def _compute_webvue_refund_due_amount(self):
+        """A late payment is never refused or refunded automatically (spec 5.4 rule 3): staff refund it."""
+        for order in self:
+            kept = order.webvue_retained_amount if order.state == 'cancel' else order.amount_total
+            order.webvue_refund_due_amount = max(order.currency_id.round(order._webvue_net_received() - kept), 0.0)
 
-        A late payment is never refused or refunded automatically (spec 5.4 rule 3): staff refund it.
+    def _webvue_retain_for_customer_cancellation(self, service_start, now):
+        """Set what the merchant keeps when the customer cancels this order ``service_start`` from ``now``.
+
+        Each line keeps its product's share of what was received (refund_policy.py), weighted by the
+        line total; nothing beyond the order total is ever kept.
         """
         self.ensure_one()
-        kept = 0.0 if self.state == 'cancel' else self.amount_total
-        return self.currency_id.compare_amounts(self._webvue_net_received(), kept) > 0
+        notice = self.env['product.template']._webvue_notice_hours(service_start, now)
+        received = min(self._webvue_net_received(), self.amount_total)
+        if not self.amount_total or self.currency_id.compare_amounts(received, 0.0) <= 0:
+            return
+        kept_total = sum(
+            line.price_total * (1 - line.product_id.product_tmpl_id._webvue_refund_share(self.company_id, notice))
+            for line in self._webvue_sold_lines()
+        )
+        self.webvue_retained_amount = self.currency_id.round(received * kept_total / self.amount_total)
+
+    def _webvue_allows_partial_refunds(self):
+        """Whether one refund may be less than the amount due: only when every line's product allows it."""
+        self.ensure_one()
+        return all(
+            line.product_id.product_tmpl_id._webvue_allows_partial_refunds(self.company_id) for line in self._webvue_sold_lines()
+        )
+
+    def _webvue_sold_lines(self):
+        """The lines that sell a product: no section or note, and no down-payment line stock adds when it invoices a deposit."""
+        return self.order_line.filtered(lambda line: not line.display_type and not line.is_downpayment and line.product_id)
+
+    def _webvue_invoices_and_credit_notes(self):
+        """The posted customer invoices of this order and the posted credit notes reversing them, found by the invoice they reverse."""
+        self.ensure_one()
+        invoices = self.invoice_ids.filtered(lambda move: move.state == 'posted' and move.move_type == 'out_invoice')
+        credit_notes = self.env['account.move'].search([('reversed_entry_id', 'in', invoices.ids), ('state', '=', 'posted')])
+        return invoices, credit_notes
+
+    def _webvue_open_invoiced(self):
+        """What this order invoiced and has not credited yet."""
+        invoices, credit_notes = self._webvue_invoices_and_credit_notes()
+        return sum(invoices.mapped('amount_total')) - sum(credit_notes.mapped('amount_total'))
+
+    def _webvue_credit_notes(self, amount):
+        """Draft credit notes for ``amount`` of what this cancelled order invoiced, newest invoice first.
+
+        An invoice is reversed in full when the refund covers all of it, else by proportional lines.
+        """
+        self.ensure_one()
+        drafts = self.env['account.move']
+        invoices, credit_notes = self._webvue_invoices_and_credit_notes()
+        left = amount
+        for invoice in invoices.sorted('id', reverse=True):
+            credited = credit_notes.filtered(lambda move, invoice=invoice: move.reversed_entry_id == invoice)
+            part = min(left, invoice.amount_total - sum(credited.mapped('amount_total')))
+            if self.currency_id.compare_amounts(part, 0.0) <= 0:
+                continue
+            drafts |= invoice._webvue_reversal(part, credited)
+            left -= part
+            if self.currency_id.compare_amounts(left, 0.0) <= 0:
+                break
+        return drafts
 
     def _webvue_payment_recordable(self):
         """Whether stock can record a payment of this order: it cannot invoice it when invoicing on payment is on

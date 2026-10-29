@@ -24,6 +24,7 @@ from odoo.addons.webvue_appointments_payments.serializers.booking_payment import
     parse_type_payment,
 )
 from odoo.addons.webvue_payments.controllers.links import payment_path
+from odoo.addons.webvue_payments.models.refund_policy import RefundRulesInvalid
 
 TYPE = 'resource.booking.type'
 
@@ -49,6 +50,8 @@ class BookingPaymentController(http.Controller):
             booking_type._webvue_set_payment(**values)
         except PriceRequired as error:
             raise ApiError(422, 'invalid', str(error), field='price') from error
+        except RefundRulesInvalid as error:
+            raise ApiError(422, 'invalid', str(error), field='refund_tiers') from error
         return dump_type_payment(booking_type)
 
     @http.route('/api/v1/appointments/bookings/<int:booking_id>/payment', type='json2', auth='user', methods=['GET'], readonly=True)

@@ -31,3 +31,13 @@ describe.each(['ar', 'en'] as const)('suggestion keys in %s', (code) => {
     for (const page of [null, 'project', 'projects', 'task', 'tasks', 'finance']) for (const key of followUpKeys(page)) expect(ai.followUps[key], key).toEqual(expect.any(String))
   })
 })
+
+describe('starter questions', () => {
+  it('offers only questions the registered tools can answer, each translated in both locales', () => {
+    expect(AI_STARTER_KEYS).not.toContain('meetings')
+    for (const code of ['ar', 'en'] as const) {
+      for (const key of AI_STARTER_KEYS) expect(locale(code).starters[key]).toEqual(expect.any(String))
+      expect(Object.keys(locale(code).starters).filter(key => key !== 'label').sort()).toEqual([...AI_STARTER_KEYS].sort())
+    }
+  })
+})

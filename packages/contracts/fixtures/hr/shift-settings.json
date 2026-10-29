@@ -1,6 +1,10 @@
 {
   "company_timezone": "Pacific/Kiritimati",
   "day_reference": "company",
+  "default_schedule": {
+    "id": 7,
+    "name": "دوام الأحد إلى الخميس"
+  },
   "effective_timezone": "Pacific/Kiritimati",
   "revision": 1,
   "today": "2026-10-24"

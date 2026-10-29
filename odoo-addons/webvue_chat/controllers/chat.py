@@ -56,7 +56,7 @@ class ChatController(http.Controller):
         return request.env['webvue.chat.service']
 
     def _page(self, args):
-        limit = min(parse_nonneg_int(args.get('limit', 50), 'limit'), MAX_LIMIT)
+        limit = min(parse_nonneg_int(args.get('limit', 50), 'limit') or 50, MAX_LIMIT)
         offset = parse_nonneg_int(args.get('offset', 0), 'offset')
         return limit, offset
 

@@ -105,17 +105,26 @@ class TestMeetingSecurity(WebVueMeetingEngineCase):
         self.assertNotEqual(copy.calendar_event_id, meeting.calendar_event_id)
         self.assertNotEqual(copy.reference, meeting.reference)
 
-    def test_nobody_but_the_system_can_unlink_a_meeting(self):
-        """The manage ACL has no unlink: cancel is the remove action, the unlink override is only ORM defence."""
+    def test_only_a_manager_can_unlink_a_draft_meeting(self):
+        """Delete is a manager's act on a draft; every other holder, even the organizer, is refused."""
         first = self._create_meeting()
         second = self._create_meeting(name="Second")
         with self.assertRaises(AccessError):
             (first | second).with_user(self.organizer).unlink()
-        with self.assertRaises(AccessError):
-            (first | second).with_user(self.manager).unlink()
         self.assertTrue((first | second).exists())
-        (first | second).sudo().unlink()
-        self.assertFalse(first.exists())
+        event = first.calendar_event_id
+        (first | second).with_user(self.manager).unlink()
+        self.assertFalse((first | second).exists())
+        self.assertFalse(event.exists())
+
+    def test_a_confirmed_meeting_cannot_be_unlinked_by_anyone_but_the_system(self):
+        meeting = self._create_meeting()
+        meeting.with_user(self.organizer).action_confirm()
+        with self.assertRaises(UserError):
+            meeting.with_user(self.manager).unlink()
+        self.assertTrue(meeting.exists())
+        meeting.sudo().unlink()
+        self.assertFalse(meeting.exists())
 
     def test_command_create_resolution_denied_for_attendee(self):
         meeting = self._create_meeting()

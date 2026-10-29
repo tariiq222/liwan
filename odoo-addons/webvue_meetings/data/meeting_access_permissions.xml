@@ -24,6 +24,21 @@
         <field name="group_xmlid">webvue_meetings.group_cap_meetings_manage</field>
         <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
+    <record id="permission_meetings_settings_manage" model="webvue.access.permission">
+        <field name="key">meetings.settings.manage</field><field name="domain">meetings</field>
+        <field name="resource">settings</field><field name="action">manage</field>
+        <field name="name_ar">إدارة إعدادات الاجتماعات</field><field name="name_en">Manage meetings settings</field>
+        <field name="description_ar">قراءة إعدادات الاجتماعات للشركة الحالية وتغييرها، ومنها من يجدول الاجتماعات</field><field name="description_en">Read and change the meetings settings of the current company, including who may schedule meetings</field>
+        <field name="group_xmlid">webvue_meetings.group_cap_meetings_settings_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <data noupdate="1">
+        <record id="role_meetings_organizer" model="webvue.access.role">
+            <field name="key">meetings_organizer</field><field name="name_ar">منظّم الاجتماعات</field><field name="name_en">Meeting organizer</field>
+            <field name="description">Meeting organizer</field><field name="type">built_in</field><field name="protected" eval="True"/><field name="assignable" eval="True"/>
+            <field name="permission_ids" eval="[Command.set([ref('permission_meetings_read'),ref('permission_meetings_create')])]"/>
+        </record>
+    </data>
     <!-- Built-in roles are noupdate records: these hooks link this addon's grants and
          dependencies on install and on every upgrade. -->
     <function model="webvue.access.service" name="_webvue_configure_permission_dependencies"/>

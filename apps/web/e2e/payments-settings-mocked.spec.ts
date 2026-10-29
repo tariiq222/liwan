@@ -194,7 +194,9 @@ test.describe('payments orders settings', () => {
     await expect(page.getByTestId('payments-orders')).toContainText('تسري على الشركة الحالية')
     await expect(page.getByTestId('payments-orders')).toContainText('يسري هذا الخيار على الحساب كله')
     await expect(save(page)).toBeDisabled()
-    expect(await readSettings(page)).toEqual({ unpaid_order_expiry_minutes: 60, invoice_when_paid: true, revision: 0 })
+    expect(await readSettings(page)).toEqual({
+      unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', revision: 0,
+    })
   })
 
   test('is a part of the page\'s sidebar list, next to the gateways', async ({ page }) => {
@@ -277,7 +279,9 @@ test.describe('payments orders settings', () => {
     await expect(invoiceWhenPaid(page)).not.toBeChecked()
     await expect(save(page)).toBeDisabled()
     expect(bodies).toEqual([{ revision: 0, unpaid_order_expiry_minutes: 30 }])
-    expect(await readSettings(page)).toEqual({ unpaid_order_expiry_minutes: 120, invoice_when_paid: false, revision: 1 })
+    expect(await readSettings(page)).toEqual({
+      unpaid_order_expiry_minutes: 120, invoice_when_paid: false, refund_policy: 'full', refund_amounts: 'due', revision: 1,
+    })
     errors = withoutRefusals(errors)
 
     // Repeating the change now carries the revision the card was reloaded to, and the conflict goes away.
@@ -287,7 +291,9 @@ test.describe('payments orders settings', () => {
     await expect(save(page)).toBeDisabled()
     await expect(orders(page).getByRole('alert')).toHaveCount(0)
     expect(bodies.at(-1)).toEqual({ revision: 1, unpaid_order_expiry_minutes: 30 })
-    expect(await readSettings(page)).toEqual({ unpaid_order_expiry_minutes: 30, invoice_when_paid: false, revision: 2 })
+    expect(await readSettings(page)).toEqual({
+      unpaid_order_expiry_minutes: 30, invoice_when_paid: false, refund_policy: 'full', refund_amounts: 'due', revision: 2,
+    })
   })
 
   test('when the saved values cannot be read after a conflict it says so and keeps the draft', async ({ page }) => {

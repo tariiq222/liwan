@@ -5,7 +5,7 @@ import { nextListOffset } from '../../../utils/chatState'
 
 const query = (data: unknown, extra: Record<string, unknown> = {}) => ({ data: Vue.ref(data), isLoading: Vue.ref(false), error: Vue.ref(null), refetch: vi.fn(), ...extra })
 
-async function open(options: { recipients?: unknown; members?: ReturnType<typeof query>; attachments?: ReturnType<typeof query>; q?: string; canRemove?: boolean; writable?: boolean } = {}) {
+async function open(options: { recipients?: unknown; members?: ReturnType<typeof query>; attachments?: ReturnType<typeof query>; q?: string; canRemove?: boolean; writable?: boolean; memberCount?: number } = {}) {
   const removeMember = vi.fn().mockResolvedValue({})
   const members = options.members ?? query({ items: [{ id: 7, name: 'Sara', im_status: null }], total: 1 })
   const attachments = options.attachments ?? query({ items: [], total: 0 })
@@ -13,7 +13,7 @@ async function open(options: { recipients?: unknown; members?: ReturnType<typeof
   const bindings = {
     useRoute: () => ({ query: {} }), useSsrQuerySeed: () => {}, avatarProps: () => ({}), ChatAttachment: {},
     CHAT_PAGE_SIZE: 50, nextListOffset, parseChatListRoute: () => ({ q: '', filter: 'all', offset: 0 }), serializeChatListRoute: () => ({}),
-    useChatConversation: () => query({ id: 3, type: 'group', name: 'G', can_manage: true, can_remove_members: options.canRemove ?? false }),
+    useChatConversation: () => query({ id: 3, type: 'group', name: 'G', can_manage: true, can_remove_members: options.canRemove ?? false, member_count: options.memberCount ?? 3 }),
     useMe: () => ({ me: Vue.ref({ id: 1 }) }), useRemoveChatMember: () => ({ mutateAsync: removeMember }),
     useChatWritable: () => Vue.computed(() => options.writable ?? true),
     useChatMembers: () => members, useChatAttachments: () => attachments,
@@ -49,6 +49,15 @@ describe('ChatInfoPanel', () => {
     states[1]?.props.onRetry()
     expect(attachments.refetch).toHaveBeenCalled()
     view.stop()
+  })
+
+  it('hides the leave button in a two-member group but keeps it for larger groups', async () => {
+    const small = await open({ memberCount: 2 })
+    expect(small.view.state.canLeave.value).toBe(false)
+    small.view.stop()
+    const large = await open({ memberCount: 3 })
+    expect(large.view.state.canLeave.value).toBe(true)
+    large.view.stop()
   })
 
   it('lets only the group creator remove other members, after an inline confirm', async () => {

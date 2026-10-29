@@ -45,6 +45,7 @@ function shiftsData(route, url) {
   if (route === '/api/v1/hr/shifts/settings') return {
     day_reference: 'company', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh',
     today: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()),
+    default_schedule: { id: 7, name: 'دوام الأحد إلى الخميس' },
     revision: 0,
   }
   if (route === '/api/v1/hr/shifts/schedules') {
