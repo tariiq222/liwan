@@ -22,6 +22,7 @@ KINDS = [
 class WebVueInboxMessage(models.Model):
     """A message of a conversation. Outbound rows in `queued` state are the outbox."""
     _name = 'webvue.inbox.message'
+    _inherit = 'webvue.inbox.interactive'
     _description = 'Customer Inbox message'
     _order = 'date, id'
     _webvue_scope = 'company'
@@ -35,6 +36,10 @@ class WebVueInboxMessage(models.Model):
     body = fields.Text(required=True)
     date = fields.Datetime(required=True, default=fields.Datetime.now, index=True)
     author_id = fields.Many2one('res.users', ondelete='set null')
+    # Sent by the inbox automation (welcome, away, a rule or the survey): such a message has no author.
+    automated = fields.Boolean(default=False)
+    # An inbound message the automation engine has already evaluated: it is evaluated once.
+    automation_done = fields.Boolean(default=False)
     # A template reply keeps the name, language and positional parameters it is sent with (`body` keeps the
     # rendered text), so it never depends on the synchronised template row still existing and is never sent as text.
     template_name = fields.Char()
@@ -61,13 +66,8 @@ class WebVueInboxMessage(models.Model):
     longitude = fields.Float(digits=(9, 6))
     location_name = fields.Char()
     location_address = fields.Char()
-    # An outbound interactive message; `body` is its body text and `option_ids` its buttons or list rows.
-    interactive_type = fields.Selection([('buttons', 'Reply buttons'), ('list', 'List'), ('cta_url', 'Link button')])
-    interactive_header = fields.Char()
-    interactive_footer = fields.Char()
-    interactive_button = fields.Char()
-    cta_display_text = fields.Char()
-    cta_url = fields.Char()
+    # An outbound interactive message: its fields come from the shared interactive mixin; `body` is its body text
+    # and `option_ids` its buttons or list rows.
     option_ids = fields.One2many('webvue.inbox.message.option', 'message_id')
     # What the customer chose in answer to an interactive message or template.
     selected_option_id = fields.Char()
@@ -128,6 +128,19 @@ class WebVueInboxMessage(models.Model):
         return self.create({
             'conversation_id': conversation.id, 'company_id': conversation.company_id.id,
             'direction': 'note', 'body': body, 'author_id': self.env.user.id, 'delivery_state': 'sent',
+        })
+
+    @api.model
+    def _webvue_queue_automated(self, conversation, values):
+        """Queue a free-form reply sent by the automation: marked automated, with no author."""
+        return self._webvue_queue_free_form(conversation, {**values, 'automated': True, 'author_id': False})
+
+    @api.model
+    def _webvue_post_system_note(self, conversation, body):
+        """An internal note written by the automation (no author), explaining what it did."""
+        return self.create({
+            'conversation_id': conversation.id, 'company_id': conversation.company_id.id,
+            'direction': 'note', 'body': body, 'delivery_state': 'sent',
         })
 
     @api.model
@@ -305,20 +318,6 @@ class WebVueInboxMessage(models.Model):
             'latitude': self.latitude, 'longitude': self.longitude,
             'name': self.location_name or None, 'address': self.location_address or None,
         }
-
-    def _webvue_interactive(self):
-        """The interactive content in the wire shape of the contract (also what the outbox sends)."""
-        self.ensure_one()
-        shared = {
-            'type': self.interactive_type, 'body': self.body,
-            'header': self.interactive_header or None, 'footer': self.interactive_footer or None,
-        }
-        if self.interactive_type == 'cta_url':
-            return {**shared, 'display_text': self.cta_display_text, 'url': self.cta_url}
-        options = self.option_ids.sorted('sequence')
-        if self.interactive_type == 'buttons':
-            return {**shared, 'buttons': [{'id': option.option_id, 'title': option.title} for option in options]}
-        return {**shared, 'button': self.interactive_button, 'sections': options._webvue_sections()}
 
     @api.model
     def _webvue_apply_status(self, update):

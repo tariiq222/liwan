@@ -7,6 +7,7 @@ from odoo.fields import Domain
 
 from .access_service import ASSIGN, READ
 from .constants import PREVIEW_LENGTH, REPLY_WINDOW, STALE_UPLOAD_AGE, TYPING_THROTTLE
+from .notification_types import KINDS
 
 BUS_CHANNEL = 'webvue/inbox'
 
@@ -43,6 +44,12 @@ class WebVueInboxConversation(models.Model):
     # The last typing request (the throttle marker) and whether the outbox still has to send it.
     typing_requested_at = fields.Datetime(copy=False)
     typing_pending = fields.Boolean(default=False, index=True, copy=False)
+    # Automation: when the away message was last sent, when the first-response alert was last raised, and the
+    # customer's answer to the satisfaction survey.
+    away_sent_at = fields.Datetime(copy=False)
+    first_response_alert_at = fields.Datetime(copy=False)
+    csat_score = fields.Selection([('good', 'Good'), ('neutral', 'Neutral'), ('bad', 'Bad')], copy=False, index=True)
+    csat_at = fields.Datetime(copy=False)
 
     _one_open_per_identity = models.UniqueIndex(
         "(channel_id, identity_id) WHERE state != 'closed'",
@@ -179,7 +186,7 @@ class WebVueInboxConversation(models.Model):
         """Delete the company's conversations idle since `cutoff` with their attachments and bell rows, stale events and orphaned contacts."""
         expired = self.search([('company_id', '=', company.id), ('last_message_at', '<', cutoff)])
         self.env['mail.message'].search([
-            ('webvue_notification_kind', '=', 'inbox.assigned'), ('webvue_inbox_conversation_id', 'in', expired.ids),
+            ('webvue_notification_kind', 'in', KINDS), ('webvue_inbox_conversation_id', 'in', expired.ids),
         ]).unlink()
         self.env['webvue.inbox.event']._webvue_purge_unprocessed(company, cutoff)
         self.env['ir.attachment'].search([

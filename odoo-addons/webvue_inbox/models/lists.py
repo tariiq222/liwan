@@ -13,6 +13,9 @@ class WebVueInboxDepartment(models.Model):
                                  default=lambda self: self.env.company)
     name = fields.Char(required=True)
     member_ids = fields.Many2many('res.users', 'webvue_inbox_department_user_rel', 'department_id', 'user_id')
+    # Working hours of its own (replacing the company's) and the round robin pointer among its members.
+    calendar_id = fields.Many2one('resource.calendar', ondelete='set null')
+    round_robin_user_id = fields.Many2one('res.users', ondelete='set null')
 
     _name_unique = models.Constraint('UNIQUE(company_id, name)', 'A department name is unique per company.')
 

@@ -32,6 +32,7 @@ def dump_conversation(conversation):
         'last_message_preview': conversation.last_message_preview or None,
         'unread': conversation.unread,
         'reply_window_ends_at': iso(conversation.reply_window_ends_at),
+        'csat': {'score': conversation.csat_score, 'at': iso(conversation.csat_at)} if conversation.csat_score else None,
     }
 
 
@@ -75,6 +76,7 @@ def dump_message(message, attachments):
         'kind': message.kind,
         'body': message.body,
         'author': dump_ref(message.author_id),
+        'automated': message.automated,
         'template': dump_message_template(message) if message.template_name else None,
         'delivery_state': message.delivery_state,
         'error': message.error or None,

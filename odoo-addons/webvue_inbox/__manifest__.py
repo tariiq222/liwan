@@ -2,7 +2,7 @@
 {
     'name': 'webvue Customer Inbox',
     'summary': 'webvue platform: the Customer Inbox application — WhatsApp conversations, /api/v1/inbox',
-    'version': '19.0.1.2.0',
+    'version': '19.0.1.3.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -10,8 +10,8 @@
     # on webvue_api and no other application (spec R3); it owns its capabilities,
     # groups, roles and record rules (spec R2).
     # webvue_notify: the bell kind of a new assignment. mail: the bell row is a mail.message.
-    # bus: the realtime nudge of the conversation workspace.
-    'depends': ['webvue_core', 'webvue_api', 'webvue_platform', 'webvue_notify', 'mail', 'bus'],
+    # bus: the realtime nudge of the conversation workspace. resource: working hours and holidays are resource calendars.
+    'depends': ['webvue_core', 'webvue_api', 'webvue_platform', 'webvue_notify', 'mail', 'bus', 'resource'],
     'data': [
         'security/inbox_capability_groups.xml',
         'security/inbox_rules.xml',

@@ -1,0 +1,111 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+"""The conversation side of the automation: who can take it, the first-response alert and the satisfaction survey."""
+import logging
+
+from dateutil.relativedelta import relativedelta
+
+from odoo import api, fields, models
+from odoo.exceptions import ValidationError
+
+from .access_service import REPLY
+from .batch import process_each
+from .constants import AUTOMATION_FEATURE, CSAT_OPTIONS, FIRST_RESPONSE_CRON_BATCH
+from .notification_types import FIRST_RESPONSE_KIND, KIND
+
+_logger = logging.getLogger(__name__)
+
+
+class WebVueInboxConversationAutomation(models.Model):
+    _inherit = 'webvue.inbox.conversation'
+
+    def _webvue_agents(self):
+        """Active users who can reply in the conversation's company: its department's members, else every agent."""
+        self.ensure_one()
+        service = self.env['webvue.access.service']
+        users = self.department_id.member_ids or self.env.ref('webvue_inbox.group_cap_inbox_conversations_reply').all_user_ids
+        return users.filtered(lambda user: user.active and service._webvue_has_capability(user, REPLY, company=self.company_id))
+
+    def _webvue_notify_assigned(self, actor=None):
+        """Bell row for the assignee: the actor's assignment, or (without an actor) an automatic one."""
+        assignee = self.assignee_id
+        if not assignee or assignee == actor:
+            return
+        env = self.env
+        body = (
+            env._('%(actor)s assigned you a conversation with %(customer)s', actor=actor.name, customer=self.contact_id.name)
+            if actor else env._('A conversation with %(customer)s was assigned to you automatically', customer=self.contact_id.name)
+        )
+        env['webvue.notify.service']._webvue_deliver(
+            self._name, self.id, KIND, assignee.partner_id, body,
+            key=f'{KIND}:{self.id}:{assignee.partner_id.id}',
+            values={'webvue_inbox_conversation_id': self.id, 'webvue_inbox_contact_name': self.contact_id.name},
+            replace=True,
+        )
+
+    # first-response alert (cron)
+
+    def _webvue_waiting_since(self):
+        """When the customer's current wait for an agent began: the first inbound message after the last agent reply."""
+        self.ensure_one()
+        messages = self.message_ids.filtered(lambda message: message.direction != 'note').sorted(lambda m: (m.date, m.id))
+        last_reply = max((m.date for m in messages if m.direction == 'out' and m.author_id), default=False)
+        waiting = [m.date for m in messages if m.direction == 'in' and (not last_reply or m.date > last_reply)]
+        return waiting[0] if waiting else False
+
+    @api.model
+    def _webvue_run_first_response_alerts(self):
+        """Bell the agents of every conversation whose customer has waited too long for a first reply, once per wait."""
+        if not self.env['webvue.entitlement.service']._webvue_feature_write(AUTOMATION_FEATURE):
+            return
+        now = fields.Datetime.now()
+        for company in self.env['res.company'].search([]):
+            minutes = self.env['webvue.inbox.settings']._get_for_company(company).first_response_alert_minutes
+            if not minutes:
+                continue
+            waiting = self.search([
+                ('company_id', '=', company.id), ('state', 'in', ('open', 'pending')),
+                ('last_inbound_at', '<=', now - relativedelta(minutes=minutes)),
+            ], limit=FIRST_RESPONSE_CRON_BATCH)
+            process_each(waiting, lambda conversation: conversation._webvue_alert_if_overdue(now, minutes), self._webvue_alert_failed)
+
+    @api.model
+    def _webvue_alert_failed(self, conversation, error):
+        _logger.warning('first response alert of conversation %s failed: %s', conversation.id, type(error).__name__)
+
+    def _webvue_alert_if_overdue(self, now, minutes):
+        self.ensure_one()
+        since = self._webvue_waiting_since()
+        if not since or since > now - relativedelta(minutes=minutes) or (self.first_response_alert_at and self.first_response_alert_at >= since):
+            return
+        recipients = self.assignee_id or self._webvue_agents()
+        for user in recipients:
+            self.env['webvue.notify.service']._webvue_deliver(
+                self._name, self.id, FIRST_RESPONSE_KIND, user.partner_id,
+                self.env._('%(customer)s has waited %(minutes)s minutes for a reply', customer=self.contact_id.name, minutes=minutes),
+                key=f'{FIRST_RESPONSE_KIND}:{self.id}:{user.partner_id.id}',
+                values={'webvue_inbox_conversation_id': self.id, 'webvue_inbox_contact_name': self.contact_id.name},
+                replace=True,
+            )
+        self.first_response_alert_at = now
+
+    # satisfaction survey
+
+    def _webvue_send_csat_survey(self):
+        """Ask the customer to rate the service (three reply buttons) after an agent resolved the conversation."""
+        self.ensure_one()
+        channel = self.channel_id
+        if not channel.csat_enabled or not self.env['webvue.entitlement.service']._webvue_feature_write(AUTOMATION_FEATURE):
+            return
+        values = {
+            'kind': 'interactive', 'interactive_type': 'buttons', 'body': channel.csat_question,
+            'option_ids': [
+                (0, 0, {'sequence': index, 'option_id': option_id, 'title': channel[label_field]})
+                for index, (option_id, label_field, _score) in enumerate(CSAT_OPTIONS)
+            ],
+        }
+        try:
+            with self.env.cr.savepoint():
+                self.env['webvue.inbox.message']._webvue_queue_automated(self, values)
+        except ValidationError:
+            return  # the window closed, the channel is disabled or the monthly message limit is reached: no survey
+        self.write({'csat_score': False, 'csat_at': False})
