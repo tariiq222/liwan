@@ -68,7 +68,7 @@ def dump_leave(leave, cancellation=None):
         'number_of_days': leave.number_of_days,
         'state': leave.state,
         'notes': leave.notes or '',
-        'can_approve': bool(leave.can_approve or leave.can_validate) and not own,
+        'can_approve': leave.state in ('confirm', 'validate1') and bool(leave.can_approve or leave.can_validate) and not own,
         'can_refuse': bool(leave.can_refuse) and not own,
         'can_cancel': owner_matches and not pending_owner_request and ((eligible and ((can_request and policy == 'direct_employee') or can_manage)) or (can_request and leave.state != 'validate' and bool(leave.can_cancel))),
         'cancellation_policy': policy,

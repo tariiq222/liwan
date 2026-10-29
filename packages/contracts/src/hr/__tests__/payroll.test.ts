@@ -53,6 +53,7 @@ const COMPENSATION = {
   gosi_registration_date: '2024-01-01',
   nationality: { id: 186, name: 'السعودية', code: 'SA' },
   relationship_type: 'employee',
+  currency: 'SAR',
 }
 
 const WRITE = {
@@ -109,7 +110,7 @@ describe('HrCompensationWriteSchema', () => {
 })
 
 const TOTALS = { gross: 20000, deductions: 1800, gosi_employee: 1800, gosi_employer: 2400, net: 18200 }
-const SUMMARY = { id: 4, month: '2026-10', state: 'computed', employee_count: 2, totals: TOTALS, approved_at: null }
+const SUMMARY = { id: 4, month: '2026-10', state: 'computed', employee_count: 2, totals: TOTALS, approved_at: null, currency: 'SAR' }
 const RUN = {
   ...SUMMARY,
   warnings: [{ code: 'missing_iban', employee: { id: 3, name: 'ليلى' } }],
@@ -125,7 +126,7 @@ const ROW = {
 const PAYSLIP = {
   id: 9, number: 'SLIP/001', month: '2026-10', state: 'done', employee: { id: 3, name: 'ليلى' }, department: { id: 1, name: 'المالية' },
   paid_days: 30, lines: [{ code: 'BASIC', name: 'الأساسي', category: 'BASIC', amount: 8000 }],
-  gross: 10000, deductions: 900, net: 9100, gosi_employer: 1200, company: { name: 'شركة', vat: '' },
+  gross: 10000, deductions: 900, net: 9100, gosi_employer: 1200, company: { name: 'شركة', vat: '' }, currency: 'SAR',
 }
 const { id: _id, shared: _shared, ...RATE_WRITE } = { id: 2, shared: true, branch: 'annuities', nationality_class: 'saudi_from_2024', date_from: '2024-07-03', employee_rate: 9.5, employer_rate: 11.5, wage_min: 400, wage_max: 45000 }
 const RATE = {
@@ -162,7 +163,7 @@ describe('payslip schemas', () => {
     expect(HrPayslipRowSchema.parse({ ...ROW, department: { id: 1, name: 'المالية' }, iban_missing: false })).toBeTruthy()
     expect(HrPayslipInputsPatchSchema.parse({ bonus_amount: 100 })).toEqual({ bonus_amount: 100 })
     expect(HrPayslipSchema.parse(PAYSLIP)).toEqual(PAYSLIP)
-    expect(HrMyPayslipListSchema.parse({ items: [{ id: 9, number: 'SLIP/001', month: '2026-10', net: 9100 }], total: 1 }).total).toBe(1)
+    expect(HrMyPayslipListSchema.parse({ items: [{ id: 9, number: 'SLIP/001', month: '2026-10', net: 9100, currency: 'SAR' }], total: 1 }).total).toBe(1)
   })
 
   it('rejects an empty, negative or unknown input patch and unknown row keys', () => {
@@ -314,6 +315,7 @@ describe('end of service contracts', () => {
     award: 5250,
     leave_days: 12.5,
     leave_amount: 4375,
+    currency: 'SAR',
   }
   const SETTLEMENT = {
     id: 7,
@@ -328,6 +330,7 @@ describe('end of service contracts', () => {
     leave_amount: 4375,
     open_deductions: 300,
     total: 9325,
+    currency: 'SAR',
     state: 'draft',
   }
 

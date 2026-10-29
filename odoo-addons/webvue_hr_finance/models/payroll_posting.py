@@ -26,6 +26,7 @@ RULE_ACCOUNT_ROLES = {
     'NET': 'salaries_payable',
 }
 # The employer share is an expense and a liability at once.
+PAYROLL_CURRENCY = 'SAR'
 EMPLOYER_GOSI_CODES = ('GOSI_ER_ANN', 'GOSI_ER_SANED', 'GOSI_ER_OH')
 CREDIT_CODES = ('NET',)
 # The advance is a receivable from one employee, so it always names the employee.
@@ -141,6 +142,9 @@ class WebVueHrPayrollPosting(models.AbstractModel):
     def _webvue_journal(self, settings):
         """The settings journal when it can book the entry, else the refusal the post route answers."""
         journal = settings.journal_id
+        # Payroll figures are riyals (owner decision 2026-10-29): another company currency never reaches the books.
+        if settings.company_id.currency_id.name != PAYROLL_CURRENCY:
+            raise ApiError(422, 'currency_unsupported', 'payroll can be posted only for a company in Saudi riyals', field='journal_id')
         if not journal:
             raise ApiError(422, 'settings_incomplete', 'the payroll journal is not set', field='journal_id')
         if journal.currency_id and journal.currency_id != journal.company_id.currency_id:

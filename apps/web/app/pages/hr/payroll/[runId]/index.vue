@@ -272,7 +272,7 @@ const partial = computed(() => !!run.value && !payslips.isLoading.value && rows.
         @download="downloadFile"
       />
 
-      <PayrollRunTotals :totals="run.totals" :employee-count="run.employee_count" />
+      <PayrollRunTotals :totals="run.totals" :employee-count="run.employee_count" :currency="run.currency" />
       <p v-if="approval" class="text-sm text-muted" data-testid="hr-payroll-approval">{{ approval }}</p>
       <p v-if="run.finance?.entry_name" class="text-sm text-muted" data-testid="hr-payroll-entry">{{ t('hrPayroll.finance.entryName', { name: run.finance.entry_name }) }}</p>
       <p v-if="provisionEntry" class="text-sm text-muted" data-testid="hr-payroll-eos-provision-entry">{{ t('hrPayroll.eosProvisions.posted', { name: provisionEntry }) }}</p>

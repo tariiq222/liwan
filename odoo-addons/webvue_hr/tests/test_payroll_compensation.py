@@ -9,6 +9,7 @@ from odoo.addons.webvue_hr.serializers.payroll.compensation import parse_compens
 COMPENSATION_KEYS = {
     'employee', 'basic_wage', 'housing_allowance', 'transport_allowance', 'other_allowance',
     'fixed_wage', 'iban', 'bank', 'gosi_number', 'gosi_registration_date', 'nationality', 'relationship_type',
+    'currency',
 }
 SALARY_KEYS = {'basic_wage', 'housing_allowance', 'iban', 'gosi_number', 'compensation', 'wage'}
 VALID_IBAN = 'SA0380000000608010167519'

@@ -291,6 +291,13 @@ class TestHrAssets(WebVueHrCase):
         listed = self.api('GET', '/api/v1/hr/assets/equipment').json()
         self.assertNotIn(self.equipment.id, {item['id'] for item in listed['items']})
 
+    def test_an_asset_held_by_an_employee_cannot_be_archived(self):
+        self._as_manager()
+        self.equipment.write({'employee_id': self.staff.id})
+        res = self.api('POST', f'/api/v1/hr/assets/equipment/{self.equipment.id}/archive', json={})
+        self.assertEqual((res.status_code, res.json()['field']), (422, 'employee_id'))
+        self.assertTrue(self.equipment.active)
+
     # --- self service and gates ------------------------------------------------------------------
 
     def test_employee_reads_only_their_own_custody(self):

@@ -13,6 +13,7 @@ const run = {
   employee_count: 12,
   totals: { gross: 98400, deductions: 12000, gosi_employee: 5400, gosi_employer: 6900, net: 86400 },
   approved_at: null,
+  currency: 'SAR',
   warnings: [],
   allowed_actions: ['compute', 'approve', 'cancel', 'edit_inputs'],
   approved_by: null,
