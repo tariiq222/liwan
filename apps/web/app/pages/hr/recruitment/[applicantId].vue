@@ -59,6 +59,7 @@ const priorityOptions = computed(() => HR_APPLICANT_PRIORITIES.map(priority => (
 // The record page only offers the actions the engine still accepts: a hired applicant has
 // nothing left to hire, and a refused or archived one is not in the pipeline.
 const openToPipeline = computed(() => !!applicant.value?.active && !applicant.value?.refuse_reason)
+const refused = computed(() => !!applicant.value?.refuse_reason)
 
 async function run(action: () => Promise<unknown>) {
   if (!hydrated.value || writing.value) return
@@ -120,7 +121,7 @@ async function confirmHire() {
         @click="hiring = true"
       />
       <UButton
-        v-if="openToPipeline"
+        v-if="openToPipeline || refused"
         color="neutral"
         variant="outline"
         :disabled="!hydrated || writing"
@@ -129,7 +130,7 @@ async function confirmHire() {
         @click="resetting = true"
       />
       <UButton
-        v-if="openToPipeline"
+        v-if="openToPipeline && !applicant.employee"
         color="error"
         variant="outline"
         :disabled="!hydrated || writing"

@@ -118,7 +118,7 @@ const provisionActions = run => state.finance && ['approved', 'posted', 'paid'].
 const actionsOf = run => [...(state.finance ? FINANCE_ACTIONS[run.state] ?? BASE_ACTIONS[run.state] : BASE_ACTIONS[run.state]), ...provisionActions(run)]
 
 function summary(run) {
-  return { id: run.id, month: run.month, state: run.state, employee_count: run.slips.length, totals: totals(run), approved_at: run.approvedAt }
+  return { id: run.id, month: run.month, state: run.state, employee_count: run.slips.length, totals: totals(run), approved_at: run.approvedAt, currency: 'SAR' }
 }
 function detail(run) {
   return {
@@ -145,7 +145,7 @@ function payslip(run, slip) {
     id: slip.id, number: `SLIP/${run.month.replace('-', '/')}/${slip.id}`, month: run.month, state: 'done',
     employee: slip.person.employee, department: slip.person.department, paid_days: 30, lines,
     gross: f.gross, deductions: f.deductions, net: f.net, gosi_employer: f.employer,
-    company: { name: 'شركة النماء للتقنية', vat: '300012345600003' },
+    company: { name: 'شركة النماء للتقنية', vat: '300012345600003' }, currency: 'SAR',
   }
 }
 
@@ -193,7 +193,7 @@ function caseOf(leaver, asked) {
 function eosFigures(leaver, awardCase, openDeductions = 0) {
   const award = awardCase === 'no_award' ? 0 : money(EOS_WAGE * 0.5 * EOS_YEARS * (awardCase === 'resignation' ? 1 / 3 : 1))
   const leaveAmount = money(EOS_WAGE / state.settings.day_divisor * EOS_LEAVE_DAYS)
-  return { service_years: EOS_YEARS, eos_wage: EOS_WAGE, case: awardCase, award, leave_days: EOS_LEAVE_DAYS, leave_amount: leaveAmount, open_deductions: openDeductions, total: money(award + leaveAmount - openDeductions) }
+  return { service_years: EOS_YEARS, eos_wage: EOS_WAGE, case: awardCase, award, leave_days: EOS_LEAVE_DAYS, leave_amount: leaveAmount, open_deductions: openDeductions, total: money(award + leaveAmount - openDeductions), currency: 'SAR' }
 }
 
 function eosEstimate(leaver, url) {
@@ -228,7 +228,7 @@ export function hrPayrollPreviewData(route, url) {
   const own = mineRoute.exec(route)
   if (own) {
     const entries = ownSlips().sort((a, b) => b.run.month.localeCompare(a.run.month))
-    if (!own[1]) return { items: entries.map(({ run, slip }) => ({ id: slip.id, number: payslip(run, slip).number, month: run.month, net: figures(slip).net })), total: entries.length }
+    if (!own[1]) return { items: entries.map(({ run, slip }) => ({ id: slip.id, number: payslip(run, slip).number, month: run.month, net: figures(slip).net, currency: 'SAR' })), total: entries.length }
     const entry = entries.find(({ slip }) => slip.id === Number(own[1]))
     return entry ? payslip(entry.run, entry.slip) : undefined
   }

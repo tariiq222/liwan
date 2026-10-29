@@ -6,7 +6,7 @@ import type { TemplatePreviewParts } from '@/composables/inbox/inboxTemplate'
 const props = defineProps<{ parts: TemplatePreviewParts }>()
 const { t } = useI18n()
 const MEDIA_ICON = { image: 'i-lucide-image', video: 'i-lucide-video', document: 'i-lucide-file-text' } as const
-const BUTTON_ICON = { quick_reply: 'i-lucide-reply', url: 'i-lucide-external-link', phone_number: 'i-lucide-phone', copy_code: 'i-lucide-copy' } as const
+const BUTTON_ICON = { quick_reply: 'i-lucide-reply', url: 'i-lucide-external-link', phone_number: 'i-lucide-phone', copy_code: 'i-lucide-copy', flow: 'i-lucide-file-pen-line' } as const
 </script>
 
 <template>

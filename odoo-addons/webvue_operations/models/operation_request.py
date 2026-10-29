@@ -2,7 +2,16 @@
 from odoo import Command, api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
-from .common import STAGE_APPROVAL_MODES, TOKEN, check_revision, require, text, trusted
+from .common import (
+    STAGE_APPROVAL_MODES,
+    TOKEN,
+    check_revision,
+    lock_or_conflict,
+    require,
+    text,
+    trusted,
+)
+from .notification_types import DECISION_KINDS, REVIEW_REQUESTED
 from odoo.addons.base_tier_validation.models.workflow_security import (
     _DOCUMENT_WRITE_TOKEN,
 )
@@ -128,7 +137,7 @@ class OperationRequest(models.Model):
     def action_submit(self, revision):
         self._editable()
         with self.env.cr.savepoint():
-            self._tier_lock('write')
+            lock_or_conflict(self, 'write')
             check_revision(self, revision)
             process = self.process_id
             process.lock_for_update()
@@ -156,11 +165,47 @@ class OperationRequest(models.Model):
                 raise ValidationError(self.env._('The configured approval stages could not be created.'))
             self._ops_write({'state': 'pending', 'revision': self.revision + 1})
             self._event('submitted')
+        self._notify_current_reviewers()
         return self
+
+    def _notify_current_reviewers(self):
+        """Bell row for the reviewers of the stage the request now waits at.
+
+        The actor is never among them: the requester is excluded from every stage at submission, and a
+        reviewer who approved one stage and also sits on the next (``per_stage`` mode) finds the request
+        in their own pending list instead of a notice of their own action.
+        """
+        self.ensure_one()
+        open_reviews = self.review_ids.filtered(lambda r: r.status in ('pending', 'waiting')).sorted('sequence')
+        if not open_reviews:
+            return
+        sequence = open_reviews[0].sequence
+        reviewers = self.env['res.users'].browse(self.stage_snapshot[sequence - 1]['reviewer_ids']) - self.env.user
+        service = self.env['webvue.notify.service']
+        for reviewer in reviewers:
+            service._webvue_deliver(
+                self._name, self.id, REVIEW_REQUESTED, reviewer.partner_id,
+                self.env._('%(actor)s asked for your review of %(name)s', actor=self.env.user.name, name=self.name),
+                key=f'{REVIEW_REQUESTED}:{self.id}:{self.cycle}:{sequence}:{reviewer.partner_id.id}',
+                values={'subject': self.name},
+            )
+
+    def _notify_requester(self):
+        """Bell row for the requester once the request is approved, rejected or returned."""
+        self.ensure_one()
+        kind = DECISION_KINDS[self.state]
+        if self.requester_id == self.env.user:
+            return
+        self.env['webvue.notify.service']._webvue_deliver(
+            self._name, self.id, kind, self.requester_id.partner_id,
+            self.env._('%(actor)s decided your request %(name)s', actor=self.env.user.name, name=self.name),
+            key=f'{kind}:{self.id}:{self.cycle}:{self.requester_id.partner_id.id}',
+            values={'subject': self.name},
+        )
 
     def _decision_guard(self, revision):
         self._guard('operations.requests.review')
-        self._tier_lock()
+        lock_or_conflict(self)
         check_revision(self, revision)
         if self.state != 'pending' or self.requester_id == self.env.user:
             raise AccessError(self.env._('This request is not available for your decision.'))
@@ -202,6 +247,10 @@ class OperationRequest(models.Model):
             self.invalidate_recordset()
             self._event('execution_failed', self.env._('Execution failed; the last approval was rolled back.'))
             raise
+        if self.state == 'pending':
+            self._notify_current_reviewers()
+        else:
+            self._notify_requester()
         return self
 
     def _negative_decision(self, revision, comment, state):
@@ -211,6 +260,7 @@ class OperationRequest(models.Model):
             super()._rejected_tier(reviews)
             self._ops_write({'state': state, 'revision': self.revision + 1})
             self._event(state, note)
+        self._notify_requester()
         return self
 
     def action_reject(self, revision, comment):
@@ -222,7 +272,7 @@ class OperationRequest(models.Model):
     def action_withdraw(self, revision, comment=''):
         self._guard('operations.requests.create')
         with self.env.cr.savepoint():
-            self._tier_lock('write')
+            lock_or_conflict(self, 'write')
             check_revision(self, revision)
             if self.requester_id != self.env.user or self.state not in ('draft', 'pending', 'returned'):
                 raise AccessError(self.env._('Only the requester can withdraw an open request.'))

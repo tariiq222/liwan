@@ -1,7 +1,15 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
+  InboxAudienceListSchema, InboxAudienceMemberListSchema, InboxAudienceSchema, InboxCampaignListSchema, InboxCampaignPreviewSchema, InboxCampaignRecipientListSchema,
+  InboxCampaignSchema, InboxCampaignSettingsSchema, InboxCampaignTestResultSchema, InboxChannelSendingSchema, InboxContactImportResultSchema, InboxContactMarketingSchema,
   InboxAttachmentSchema, InboxCannedReplyListSchema, InboxChannelListSchema, InboxChannelSchema, InboxConversationDetailSchema, InboxConversationListSchema,
-  InboxChannelAutomationSchema, InboxDepartmentListSchema, InboxDepartmentWorkingHoursSchema, InboxMessageListSchema, InboxRefSchema, InboxRuleListSchema, InboxRuleSchema, InboxRuleTestResultSchema, InboxWorkingHoursSchema, InboxMessageSchema, InboxSettingsSchema, InboxTagListSchema, InboxTemplateListSchema, InboxTemplateSchema,
+  InboxBusinessProfileSchema, InboxChannelAlertListSchema, InboxCostReportSchema, InboxReportBreakdownSchema, InboxReportOverviewSchema,
+  InboxTemplateAnalyticsDetailSchema, InboxTemplateAnalyticsListSchema, InboxChannelAutomationSchema, InboxDepartmentListSchema, InboxFlowListSchema,
+  InboxFlowPreviewSchema, InboxFlowSchema, InboxFlowSubmissionListSchema, InboxDepartmentWorkingHoursSchema, InboxMessageListSchema, InboxRefSchema,
+  InboxRuleListSchema, InboxRuleSchema, InboxRuleTestResultSchema, InboxWorkingHoursSchema, InboxMessageSchema, InboxSettingsSchema,
+  InboxTagListSchema, InboxTemplateListSchema, InboxTemplateSchema, InboxCatalogItemListSchema, InboxCatalogItemSchema, InboxCatalogListSchema,
+  InboxCatalogPickItemListSchema, InboxCatalogSchema, InboxChannelCommerceSchema, InboxCatalogProductOptionListSchema,
+  InboxOrderCheckoutResultSchema, InboxOrderListSchema, InboxOrderSchema,
 } from '@webvue/contracts'
 import { inboxPreviewData, resetInboxPreview } from '../../../../e2e/inbox-ui-preview-data.mjs'
 
@@ -19,7 +27,7 @@ describe('inbox audit mock', () => {
     expect(InboxConversationDetailSchema.parse(call('GET', '/api/v1/inbox/conversations/1').body).can_reply).toBe(true)
     expect(InboxMessageListSchema.parse(call('GET', '/api/v1/inbox/conversations/1/messages').body).items.length).toBeGreaterThan(0)
     expect(InboxCannedReplyListSchema.parse(call('GET', '/api/v1/inbox/canned-replies').body).total).toBe(2)
-    expect(InboxTemplateListSchema.parse(call('GET', '/api/v1/inbox/channels/1/templates').body).total).toBe(6)
+    expect(InboxTemplateListSchema.parse(call('GET', '/api/v1/inbox/channels/1/templates').body).total).toBe(8)
     expect(InboxTagListSchema.parse(call('GET', '/api/v1/inbox/tags').body).total).toBe(3)
     expect(InboxDepartmentListSchema.parse(call('GET', '/api/v1/inbox/departments').body).total).toBe(2)
     expect(InboxSettingsSchema.parse(call('GET', '/api/v1/settings/inbox').body).visibility_policy).toBe('department')
@@ -58,8 +66,8 @@ describe('inbox audit mock', () => {
 
   it('shows one message of every kind with its reply, reaction, location and chosen option', () => {
     const items = InboxMessageListSchema.parse(call('GET', '/api/v1/inbox/conversations/1/messages?limit=100').body).items
-    expect(new Set(items.map(item => item.kind))).toEqual(new Set(['text', 'image', 'location', 'contacts', 'audio', 'video', 'sticker', 'interactive', 'document']))
-    expect(items.map(item => item.interactive?.type).filter(Boolean)).toEqual(['buttons', 'list', 'cta_url'])
+    expect(new Set(items.map(item => item.kind))).toEqual(new Set(['text', 'image', 'location', 'contacts', 'audio', 'video', 'sticker', 'interactive', 'document', 'flow_response']))
+    expect(items.map(item => item.interactive?.type).filter(Boolean)).toEqual(['buttons', 'flow', 'list', 'cta_url'])
     expect(items.some(item => item.reply_to && item.reactions.customer)).toBe(true)
     expect(items.some(item => item.selected_option?.id === 'btn_1')).toBe(true)
   })
@@ -131,8 +139,8 @@ describe('inbox audit mock', () => {
 
     it('serves every template in the contract shape and filters by status, category and name', () => {
       const ids = (query: string) => InboxTemplateListSchema.parse(call('GET', `/api/v1/inbox/channels/1/templates?${query}`).body).items.map(item => item.id)
-      expect(ids('')).toEqual([1, 2, 3, 4, 5, 6])
-      expect(ids('status=approved')).toEqual([1, 2, 4, 6])
+      expect(ids('')).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
+      expect(ids('status=approved')).toEqual([1, 2, 4, 6, 7, 8])
       expect(ids('status=rejected')).toEqual([3])
       expect(ids('category=authentication')).toEqual([4])
       expect(ids('q=follow')).toEqual([2])
@@ -196,7 +204,7 @@ describe('inbox audit mock', () => {
       channel_id: null, name: 'استفسار الأسعار', active: true, match_kind: 'contains', keywords: ['سعر'], option_id: null, hours: 'any', stop: true,
       reply: { body: 'الأسعار في القائمة.' }, resolve: false, department_id: null, assignee_id: null, tag_ids: [], priority: null, ...extra,
     })
-    const test = (body: object) => InboxRuleTestResultSchema.parse(call('POST', '/api/v1/inbox/rules/test', { channel_id: 1, text: null, option_id: null, at: null, ...body }).body)
+    const test = (body: object) => InboxRuleTestResultSchema.parse(call('POST', '/api/v1/inbox/rules/test', { channel_id: 1, text: null, option_id: null, flow_id: null, at: null, ...body }).body)
 
     it('serves the settings, hours, automatic messages and rules in the contract shape', () => {
       expect(InboxSettingsSchema.parse(call('GET', '/api/v1/settings/inbox').body)).toMatchObject({ assignment_policy: 'manual', first_response_alert_minutes: 0 })
@@ -251,7 +259,7 @@ describe('inbox audit mock', () => {
       expect(test({ text: 'شكوى' }).rules.map(item => item.name)).toEqual(['شكوى عاجلة', 'كل شيء'])
       call('PATCH', '/api/v1/inbox/rules/1', { active: false })
       expect(test({ text: 'حجز' }).rules.map(item => item.name)).toEqual(['كل شيء'])
-      expect(call('POST', '/api/v1/inbox/rules/test', { channel_id: 9, text: 'x', option_id: null, at: null }).status).toBe(422)
+      expect(call('POST', '/api/v1/inbox/rules/test', { channel_id: 9, text: 'x', option_id: null, flow_id: null, at: null }).status).toBe(422)
     })
 
     it('answers the welcome inside hours and the away message outside them', () => {
@@ -262,5 +270,456 @@ describe('inbox audit mock', () => {
       expect(test({ at: monday22 })).toMatchObject({ inside_hours: false, auto_message: 'away' })
       expect(test({ at: '2026-09-23T07:00:00Z' }).inside_hours).toBe(false)
     })
+  })
+  describe('forms', () => {
+    const screen = (fields: object[], extra: object = {}) => ({ title: 'بياناتك', footer_label: 'إرسال', fields, ...extra })
+    const nameField = { kind: 'text_input', key: 'full_name', label: 'الاسم', required: true, sensitive: false, input_type: 'text', helper_text: null, min_chars: null, max_chars: null }
+    const write = (extra: object = {}) => ({ name: 'نموذج جديد', category: 'lead_generation', language: 'ar', completion_message: null, screens: [screen([nameField])], ...extra })
+    const flowsOf = (query = '') => InboxFlowListSchema.parse(call('GET', `/api/v1/inbox/channels/1/flows${query}`).body)
+
+    it('serves a published, a draft and an external form in the contract shape, filtered like the server', () => {
+      expect(flowsOf().items.map(item => [item.id, item.status, item.supported])).toEqual([[1, 'published', true], [2, 'draft', true], [3, 'published', false]])
+      expect(flowsOf('?status=draft').items.map(item => item.id)).toEqual([2])
+      expect(flowsOf('?sendable=true').items.map(item => item.id)).toEqual([1, 3])
+      expect(flowsOf('?q=موعد').items.map(item => item.id)).toEqual([1])
+      expect(InboxFlowSchema.parse(call('GET', '/api/v1/inbox/flows/1').body)).toMatchObject({ submission_count: 1, screens: [{ key: 'SCREEN_A' }, { key: 'SCREEN_B' }] })
+      expect(call('GET', '/api/v1/inbox/flows/99').status).toBe(404)
+    })
+
+    it('creates a draft, refuses a duplicate name and an invalid form, and puts Meta\'s errors on the field', () => {
+      const created = call('POST', '/api/v1/inbox/channels/1/flows', write())
+      expect(created.status).toBe(201)
+      expect(InboxFlowSchema.parse(created.body)).toMatchObject({ status: 'draft', editable: true, validation_errors: [] })
+      expect(call('POST', '/api/v1/inbox/channels/1/flows', write()).body).toMatchObject({ field: 'name' })
+      expect(call('POST', '/api/v1/inbox/channels/1/flows', write({ name: 'x', screens: [screen([{ kind: 'heading', text: 'فقط' }])] })).status).toBe(422)
+      const rejected = InboxFlowSchema.parse(call('POST', '/api/v1/inbox/channels/1/flows', write({ name: 'y', screens: [screen([{ ...nameField, label: 'forbidden' }])] })).body)
+      expect(rejected.validation_errors).toEqual([expect.objectContaining({ path: '$.screens[0].layout.children[0]' })])
+      expect(call('POST', `/api/v1/inbox/flows/${rejected.id}/publish`).status).toBe(422)
+    })
+
+    it('replaces a draft, refuses to edit a published form, publishes, deprecates and deletes only what the status allows', () => {
+      expect(InboxFlowSchema.parse(call('PATCH', '/api/v1/inbox/flows/2', write({ name: 'استفسار عن طلب' })).body).screens).toHaveLength(1)
+      expect(call('PATCH', '/api/v1/inbox/flows/1', write({ name: 'طلب موعد' })).status).toBe(422)
+      expect(call('DELETE', '/api/v1/inbox/flows/1').status).toBe(422)
+      expect(InboxFlowSchema.parse(call('POST', '/api/v1/inbox/flows/2/publish').body)).toMatchObject({ status: 'published', sendable: true, editable: false })
+      expect(call('POST', '/api/v1/inbox/flows/2/publish').status).toBe(422)
+      expect(InboxFlowSchema.parse(call('POST', '/api/v1/inbox/flows/2/deprecate').body)).toMatchObject({ status: 'deprecated', sendable: false })
+      const draft = InboxFlowSchema.parse(call('POST', '/api/v1/inbox/channels/1/flows', write({ name: 'مؤقت' })).body)
+      expect(call('DELETE', `/api/v1/inbox/flows/${draft.id}`).status).toBe(204)
+    })
+
+    it('copies a form into a draft and, when published with replace, takes over its rules and deprecates it', () => {
+      call('POST', '/api/v1/inbox/rules', { channel_id: 1, name: 'عند الطلب', active: true, match_kind: 'flow', keywords: [], option_id: null, flow_id: 1, hours: 'any', stop: true, reply: { body: 'شكرًا' }, resolve: false, department_id: null, assignee_id: null, tag_ids: [], priority: null })
+      const copy = InboxFlowSchema.parse(call('POST', '/api/v1/inbox/flows/1/copy', { name: 'طلب موعد 2', replace: true }).body)
+      expect(copy).toMatchObject({ status: 'draft', replaces: { id: 1 }, screens: [{ key: 'SCREEN_A' }, { key: 'SCREEN_B' }] })
+      expect(call('POST', '/api/v1/inbox/flows/1/copy', { name: 'طلب موعد 2', replace: false }).body).toMatchObject({ field: 'name' })
+      expect(call('POST', '/api/v1/inbox/flows/3/copy', { name: 'x', replace: false }).status).toBe(422)
+      call('POST', `/api/v1/inbox/flows/${copy.id}/publish`)
+      expect(InboxFlowSchema.parse(call('GET', '/api/v1/inbox/flows/1').body).status).toBe('deprecated')
+      expect(InboxRuleListSchema.parse(call('GET', '/api/v1/inbox/rules').body).items.find(item => item.match_kind === 'flow')?.flow).toEqual({ id: copy.id, name: 'طلب موعد 2' })
+    })
+
+    it('answers the Meta preview link and the sync', () => {
+      expect(InboxFlowPreviewSchema.parse(call('GET', '/api/v1/inbox/flows/1/preview').body).url).toMatch(/^https:/)
+      expect(InboxFlowListSchema.parse(call('POST', '/api/v1/inbox/channels/1/flows/sync').body).total).toBe(3)
+    })
+
+    it('sends a sendable form of the conversation\'s channel only, and turns the customer\'s answer into a submission and a card', () => {
+      const send = (flow_id: number) => call('POST', '/api/v1/inbox/conversations/1/messages', { interactive: { type: 'flow', body: 'املأ النموذج', header: null, footer: null, flow_id, cta: 'افتح' } })
+      expect(send(2).status).toBe(422)
+      expect(send(99).status).toBe(422)
+      expect(InboxMessageSchema.parse(send(1).body).interactive).toMatchObject({ type: 'flow', flow_id: 1 })
+      const answered = InboxMessageSchema.parse(call('POST', '/api/v1/inbox/__mock/flow-answer', { conversation_id: 1, flow_id: 1 }).body)
+      expect(answered).toMatchObject({ kind: 'flow_response', direction: 'in', flow_response: { flow: { id: 1 }, conversation_id: 1 } })
+      const submissions = InboxFlowSubmissionListSchema.parse(call('GET', '/api/v1/inbox/flows/1/submissions').body)
+      expect(submissions.total).toBe(2)
+      expect(submissions.items[0]!.id).toBe(answered.flow_response!.id)
+      expect(InboxFlowSubmissionListSchema.parse(call('GET', '/api/v1/inbox/flows/1/submissions?date_from=2999-01-01').body).total).toBe(0)
+      expect(InboxFlowSubmissionListSchema.parse(call('GET', '/api/v1/inbox/conversations/1/flow-submissions').body).total).toBe(2)
+      expect(InboxFlowSubmissionListSchema.parse(call('GET', '/api/v1/inbox/conversations/2/flow-submissions').body).total).toBe(0)
+    })
+
+    it('reads a template flow button back with its form, and dry-runs a form rule', () => {
+      const template = InboxTemplateSchema.parse(call('GET', '/api/v1/inbox/templates/7').body)
+      expect(template.buttons).toEqual([{ type: 'flow', text: 'احجز موعدًا', flow: { id: 1, name: 'طلب موعد' }, provider_flow_id: '4401234567890' }])
+      const created = InboxTemplateSchema.parse(call('POST', '/api/v1/inbox/channels/1/templates', {
+        name: 'flow_template', language: 'ar', category: 'utility', allow_category_change: true, header: null, body: 'اضغط', body_examples: [], footer: null, buttons: [{ type: 'flow', text: 'افتح', flow_id: 1 }],
+      }).body)
+      expect(created.buttons[0]).toMatchObject({ type: 'flow', flow: { id: 1 } })
+      call('POST', '/api/v1/inbox/rules', { channel_id: 1, name: 'عند الطلب', active: true, match_kind: 'flow', keywords: [], option_id: null, flow_id: 1, hours: 'any', stop: true, reply: null, resolve: false, department_id: null, assignee_id: null, tag_ids: [], priority: 'high' })
+      const run = (flow_id: number | null) => InboxRuleTestResultSchema.parse(call('POST', '/api/v1/inbox/rules/test', { channel_id: 1, text: null, option_id: null, flow_id, at: null }).body)
+      expect(run(1).rules.map(item => item.name)).toEqual(['عند الطلب'])
+      expect(run(2).rules).toEqual([])
+      expect(call('POST', '/api/v1/inbox/rules', { channel_id: 1, name: 'بلا نموذج', active: true, match_kind: 'flow', keywords: [], option_id: null, flow_id: null, hours: 'any', stop: true, reply: null, resolve: false, department_id: null, assignee_id: null, tag_ids: [], priority: 'high' }).body).toMatchObject({ field: 'flow_id' })
+    })
+  })
+
+  describe('number health and business profile', () => {
+    const channel = () => InboxChannelSchema.parse(call('GET', '/api/v1/inbox/channels/1').body)
+
+    it('gives every channel a health block, a new one an empty block, and the test fills and stamps it', () => {
+      expect(channel().health).toMatchObject({ quality_rating: 'green', messaging_limit: 'tier_2k', account_state: 'active', template_insights_enabled: false })
+      const created = InboxChannelSchema.parse(call('POST', '/api/v1/inbox/channels', { name: 'جديدة', kind: 'whatsapp', phone_number_id: '12345678', business_account_id: '87654321', access_token: 'x'.repeat(20), app_secret: 'y'.repeat(20) }).body)
+      expect(created.health).toMatchObject({ quality_rating: 'unknown', checked_at: null, display_phone_number: null })
+      const tested = InboxChannelSchema.parse(call('POST', `/api/v1/inbox/channels/${created.id}/test`).body)
+      expect(tested.health.checked_at).not.toBeNull()
+    })
+
+    it('lists the alert timeline newest first and pages it', () => {
+      const alerts = InboxChannelAlertListSchema.parse(call('GET', '/api/v1/inbox/channels/1/alerts').body)
+      expect(alerts.total).toBe(3)
+      expect(alerts.items.map(item => item.kind)).toEqual(['name_rejected', 'quality_changed', 'messaging_limit_changed'])
+      expect(InboxChannelAlertListSchema.parse(call('GET', '/api/v1/inbox/channels/1/alerts?limit=1&offset=1').body).items.map(item => item.id)).toEqual([2])
+    })
+
+    it('requests a display name, which waits for review and writes a timeline row', () => {
+      expect(call('POST', '/api/v1/inbox/channels/1/display-name', { name: 'ab' }).status).toBe(422)
+      expect(InboxChannelSchema.parse(call('POST', '/api/v1/inbox/channels/1/display-name', { name: 'عيادة الأمل الجديدة' }).body).health).toMatchObject({ name_status: 'pending_review', requested_name: 'عيادة الأمل الجديدة' })
+      expect(InboxChannelAlertListSchema.parse(call('GET', '/api/v1/inbox/channels/1/alerts').body).items[0]).toMatchObject({ kind: 'name_pending', severity: 'info' })
+    })
+
+    it('takes a six-digit PIN once and answers without a body; the PIN is never echoed', () => {
+      expect(call('POST', '/api/v1/inbox/channels/1/two-step-pin', { pin: '12345' }).status).toBe(422)
+      const done = call('POST', '/api/v1/inbox/channels/1/two-step-pin', { pin: '482910' })
+      expect(done.status).toBe(204)
+      expect(JSON.stringify(done)).not.toContain('482910')
+      expect(call('POST', '/api/v1/inbox/channels/1/register', { pin: 'abcdef' }).status).toBe(422)
+      expect(JSON.stringify(call('POST', '/api/v1/inbox/channels/1/register', { pin: '482910' }).body)).not.toContain('482910')
+    })
+
+    it('enables template insights once and syncs analytics', () => {
+      expect(InboxChannelSchema.parse(call('POST', '/api/v1/inbox/channels/1/template-insights', {}).body).health.template_insights_enabled).toBe(true)
+      expect(InboxChannelSchema.parse(call('POST', '/api/v1/inbox/channels/1/analytics/sync', {}).body).health.analytics_error).toBeNull()
+    })
+
+    it('reads and patches the profile with Meta\'s limits, and needs the app id for a picture', () => {
+      expect(InboxBusinessProfileSchema.parse(call('GET', '/api/v1/inbox/channels/1/profile').body).websites).toHaveLength(1)
+      expect(call('PATCH', '/api/v1/inbox/channels/1/profile', { about: '' }).body).toMatchObject({ field: 'about' })
+      expect(call('PATCH', '/api/v1/inbox/channels/1/profile', { about: 'x'.repeat(140) }).status).toBe(422)
+      expect(call('PATCH', '/api/v1/inbox/channels/1/profile', { websites: ['ftp://x.test'] }).body).toMatchObject({ field: 'websites' })
+      const patched = InboxBusinessProfileSchema.parse(call('PATCH', '/api/v1/inbox/channels/1/profile', { about: 'نبذة جديدة', address: '', vertical: 'retail' }).body)
+      expect(patched).toMatchObject({ about: 'نبذة جديدة', address: null, vertical: 'retail' })
+      const picture = { name: 'a.png', mimetype: 'image/png', data: 'aGVsbG8=' }
+      expect(InboxBusinessProfileSchema.parse(call('PUT', '/api/v1/inbox/channels/1/profile/picture', picture).body).picture_url).not.toBeNull()
+      expect(call('PUT', '/api/v1/inbox/channels/1/profile/picture', { ...picture, mimetype: 'image/gif' }).status).toBe(422)
+      call('PATCH', '/api/v1/inbox/channels/1', { app_id: null })
+      expect(call('PUT', '/api/v1/inbox/channels/1/profile/picture', picture).body).toMatchObject({ field: 'app_id' })
+    })
+  })
+
+  describe('reports', () => {
+    const RANGE = 'from=2026-10-01&to=2026-10-30'
+
+    it('serves an overview that is contract-valid, with the previous period, a daily series and consistent buckets', () => {
+      const overview = InboxReportOverviewSchema.parse(call('GET', `/api/v1/inbox/reports/overview?${RANGE}`).body)
+      expect(overview).toMatchObject({ granularity: 'day', timezone: 'Asia/Riyadh' })
+      expect(overview.series).toHaveLength(30)
+      const buckets = overview.totals.first_response.buckets
+      expect(Object.values(buckets).reduce((a, b) => a + b, 0)).toBe(overview.totals.first_response.count)
+      expect(overview.series.reduce((sum, point) => sum + point.messages_in, 0)).toBe(overview.totals.messages_in)
+      expect(overview.previous.messages_in).toBeGreaterThan(0)
+    })
+
+    it('switches the granularity at 62 and 190 days and refuses a range the server refuses', () => {
+      const granularity = (from: string) => InboxReportOverviewSchema.parse(call('GET', `/api/v1/inbox/reports/overview?from=${from}&to=2026-10-30`).body).granularity
+      expect(granularity('2026-08-30')).toBe('day')
+      expect(granularity('2026-08-29')).toBe('week')
+      expect(granularity('2026-04-24')).toBe('week')
+      expect(granularity('2026-04-23')).toBe('month')
+      expect(call('GET', '/api/v1/inbox/reports/overview?from=2025-10-29&to=2026-10-30').status).toBe(422)
+      expect(call('GET', '/api/v1/inbox/reports/overview?from=2026-10-30&to=2026-10-01').status).toBe(422)
+      expect(call('GET', '/api/v1/inbox/reports/overview').status).toBe(422)
+      expect(call('GET', `/api/v1/inbox/reports/overview?${RANGE}&channel_id=99`).status).toBe(404)
+    })
+
+    it('narrows the totals when an agent or a department is chosen', () => {
+      const total = (extra: string) => InboxReportOverviewSchema.parse(call('GET', `/api/v1/inbox/reports/overview?${RANGE}${extra}`).body).totals.messages_in
+      expect(total('&agent_id=5')).toBeLessThan(total(''))
+      expect(total('&department_id=1')).toBeLessThan(total(''))
+    })
+
+    it('breaks down by agent, department and channel, with the unattributed row, and refuses the agent filter with by=agent', () => {
+      const rows = (by: string) => InboxReportBreakdownSchema.parse(call('GET', `/api/v1/inbox/reports/breakdown?by=${by}&${RANGE}`).body).items
+      expect(rows('agent').some(row => row.subject === null)).toBe(true)
+      expect(rows('agent').map(row => row.metrics.conversations_resolved)).toEqual([...rows('agent').map(row => row.metrics.conversations_resolved)].sort((a, b) => b - a))
+      expect(rows('department').map(row => row.subject?.name)).toEqual(expect.arrayContaining(['الاستقبال', 'المبيعات']))
+      expect(rows('channel')).toHaveLength(1)
+      expect(call('GET', `/api/v1/inbox/reports/breakdown?by=agent&agent_id=5&${RANGE}`).status).toBe(422)
+      expect(call('GET', `/api/v1/inbox/reports/breakdown?by=color&${RANGE}`).status).toBe(422)
+    })
+
+    it('exports the breakdown as a UTF-8 CSV with a byte order mark', () => {
+      const answer = call('GET', `/api/v1/inbox/reports/export?by=agent&${RANGE}`) as unknown as { file: { filename: string; body: string } }
+      expect(answer.file.filename).toBe('inbox-agent.csv')
+      expect(answer.file.body.charCodeAt(0)).toBe(0xFEFF)
+      expect(answer.file.body.split('\n')[0]).toContain('resolved')
+    })
+
+    it('serves costs with the billing currency, the free and paid split and the channel sync state', () => {
+      const report = InboxCostReportSchema.parse(call('GET', `/api/v1/inbox/reports/costs?${RANGE}`).body)
+      expect(report.currency).toBe('USD')
+      expect(report.totals.volume).toBe(report.totals.paid_volume + report.totals.free_volume)
+      expect(report.series).toHaveLength(30)
+      expect(report.channels).toHaveLength(1)
+      expect(call('GET', '/api/v1/inbox/reports/costs?from=2026-10-01&to=2026-10-01&channel_id=99').status).toBe(404)
+    })
+
+    it('serves template analytics for a channel within 90 days and one template\'s detail with button clicks', () => {
+      const range = 'from=2026-09-01&to=2026-10-30'
+      expect(call('GET', `/api/v1/inbox/reports/templates?${range}`).status).toBe(422)
+      const list = InboxTemplateAnalyticsListSchema.parse(call('GET', `/api/v1/inbox/reports/templates?channel_id=1&${range}`).body)
+      expect(list.items.map(item => item.template.name)).toContain('appointment_reminder')
+      expect(call('GET', '/api/v1/inbox/reports/templates?channel_id=1&from=2026-07-01&to=2026-10-30').status).toBe(422)
+      const detail = InboxTemplateAnalyticsDetailSchema.parse(call('GET', `/api/v1/inbox/reports/templates/1?${range}`).body)
+      expect(detail.series).toHaveLength(60)
+      expect(detail.buttons.map(button => button.type)).toEqual(['quick_reply', 'url'])
+      expect(call('GET', `/api/v1/inbox/reports/templates/99?${range}`).status).toBe(404)
+    })
+  })
+})
+
+describe('inbox audit mock: catalog and orders', () => {
+  beforeEach(() => resetInboxPreview())
+  const png = (width: number, height: number) => {
+    const bytes = Buffer.alloc(32)
+    Buffer.from([0x89, 0x50, 0x4e, 0x47]).copy(bytes)
+    bytes.writeUInt32BE(width, 16)
+    bytes.writeUInt32BE(height, 20)
+    return { name: 'a.png', mimetype: 'image/png', data: bytes.toString('base64') }
+  }
+
+  it('serves contract-valid catalogs, items, channel commerce and the picker', () => {
+    expect(InboxCatalogListSchema.parse(call('GET', '/api/v1/inbox/catalogs').body).items[0]!.counts.items).toBe(6)
+    expect(InboxCatalogSchema.parse(call('GET', '/api/v1/inbox/catalogs/1').body).channels).toHaveLength(1)
+    expect(InboxCatalogItemListSchema.parse(call('GET', '/api/v1/inbox/catalogs/1/items').body).total).toBe(6)
+    expect(InboxCatalogItemSchema.parse(call('GET', '/api/v1/inbox/catalog-items/1').body).price).toBe(51.75)
+    expect(InboxChannelCommerceSchema.parse(call('GET', '/api/v1/inbox/channels/1/commerce').body).catalog).toEqual({ id: 1, name: 'كتالوج المتجر' })
+    expect(InboxCatalogPickItemListSchema.parse(call('GET', '/api/v1/inbox/conversations/1/catalog-items').body).items.map(item => item.product_retailer_id)).toEqual(['wv-101', 'wv-102', 'wv-104'])
+  })
+
+  it('filters the items and refuses what Meta or the server refuses', () => {
+    const items = (query: string) => (call('GET', `/api/v1/inbox/catalogs/1/items?${query}`).body as { items: { id: number }[] }).items.map(item => item.id)
+    expect(items('sync_state=error')).toEqual([5])
+    expect(items('review_status=rejected')).toEqual([6])
+    expect(items('q=قهوة')).toEqual([1])
+    expect(call('POST', '/api/v1/inbox/catalogs', { channel_id: 1, meta_catalog_id: '1234567', connect: true, brand: 'x', default_link: null, prices_include_tax: true }).status).toBe(409)
+  })
+
+  it('connects a checked catalog and maps provider refusals', () => {
+    call('DELETE', '/api/v1/inbox/catalogs/1')
+    const body = { channel_id: 1, connect: true, brand: 'متجر', default_link: null, prices_include_tax: true }
+    expect(call('POST', '/api/v1/inbox/catalogs', { ...body, meta_catalog_id: '1234000' }).body).toMatchObject({ field: 'meta_catalog_id' })
+    expect(call('POST', '/api/v1/inbox/catalogs', { ...body, meta_catalog_id: '1234999' }).body).toMatchObject({ code: 'provider_permission' })
+    const created = call('POST', '/api/v1/inbox/catalogs', { ...body, meta_catalog_id: '1234567' })
+    expect(created.status).toBe(201)
+    expect(InboxCatalogSchema.parse(created.body).state).toBe('connected')
+    expect(call('GET', '/api/v1/inbox/conversations/1/catalog-items').status).toBe(200)
+  })
+
+  it('adds an existing product, and a new one only with a big enough picture', () => {
+    expect(call('POST', '/api/v1/inbox/catalogs/1/items', { product_id: 204 }).body).toMatchObject({ field: 'product_id' })
+    expect(InboxCatalogItemSchema.parse(call('POST', '/api/v1/inbox/catalogs/1/items', { product_id: 201 }).body).product_retailer_id).toBe('wv-201')
+    const made = { name: 'منتج', description: null, list_price: 10 }
+    expect(call('POST', '/api/v1/inbox/catalogs/1/items', { product: { ...made, image: png(499, 500) } }).body).toMatchObject({ field: 'product.image' })
+    expect(call('POST', '/api/v1/inbox/catalogs/1/items', { product: { ...made, image: { ...png(600, 600), mimetype: 'image/gif' } } }).status).toBe(422)
+    const created = call('POST', '/api/v1/inbox/catalogs/1/items', { product: { ...made, image: png(600, 600) } })
+    expect(created.status).toBe(201)
+    expect(InboxCatalogItemSchema.parse(created.body).sync_state).toBe('pending')
+  })
+
+  it('keeps the retailer id once synced and deletes an item', () => {
+    expect(call('PATCH', '/api/v1/inbox/catalog-items/1', { product_retailer_id: 'other' }).status).toBe(422)
+    expect(call('PATCH', '/api/v1/inbox/catalog-items/3', { product_retailer_id: 'other' }).status).toBe(200)
+    expect(call('DELETE', '/api/v1/inbox/catalog-items/3').status).toBe(204)
+    expect(call('GET', '/api/v1/inbox/catalog-items/3').status).toBe(404)
+  })
+
+  it('lists the company products that may be listed, with image and listed flags', () => {
+    const options = InboxCatalogProductOptionListSchema.parse(call('GET', '/api/v1/inbox/catalogs/1/products').body)
+    expect(options.items.map(item => [item.id, item.has_image, item.listed])).toEqual([[201, true, false], [202, true, false], [203, true, false], [204, false, false]])
+    expect(InboxCatalogProductOptionListSchema.parse(call('GET', '/api/v1/inbox/catalogs/1/products?q=عسل').body).items.map(item => item.id)).toEqual([202])
+    call('POST', '/api/v1/inbox/catalogs/1/items', { product_id: 201 })
+    expect(InboxCatalogProductOptionListSchema.parse(call('GET', '/api/v1/inbox/catalogs/1/products').body).items[0]).toMatchObject({ id: 201, listed: true })
+  })
+
+  it('keeps the paid notice on the channel and refuses an empty or too long text', () => {
+    expect(InboxChannelCommerceSchema.parse(call('GET', '/api/v1/inbox/channels/1/commerce').body)).toMatchObject({ paid_notice_enabled: true, paid_notice_text: expect.stringContaining('{reference}') })
+    expect(InboxChannelCommerceSchema.parse(call('PATCH', '/api/v1/inbox/channels/1/commerce', { paid_notice_enabled: false, paid_notice_text: 'شكرًا {reference}' }).body)).toMatchObject({ paid_notice_enabled: false, paid_notice_text: 'شكرًا {reference}' })
+    expect(call('PATCH', '/api/v1/inbox/channels/1/commerce', { paid_notice_text: ' ' }).body).toMatchObject({ field: 'paid_notice_text' })
+    expect(call('PATCH', '/api/v1/inbox/channels/1/commerce', { paid_notice_text: 'x'.repeat(1025) }).status).toBe(422)
+  })
+
+  it('toggles a number\'s switches', () => {
+    expect(InboxChannelCommerceSchema.parse(call('PATCH', '/api/v1/inbox/channels/1/commerce', { catalog_visible: true }).body).catalog_visible).toBe(true)
+  })
+
+  it('sends product messages inside the window, only with synced products', () => {
+    const list = { type: 'product_list', header: 'عروض', body: 'اختر', footer: null, sections: [{ title: 'المنتجات', product_retailer_ids: ['wv-101', 'wv-102'] }] }
+    const sent = InboxMessageSchema.parse(call('POST', '/api/v1/inbox/conversations/1/messages', { commerce: list }).body)
+    expect(sent).toMatchObject({ kind: 'product_list', commerce: { type: 'sent', products: [{ product_retailer_id: 'wv-101' }, { product_retailer_id: 'wv-102' }] } })
+    expect(call('POST', '/api/v1/inbox/conversations/1/messages', { commerce: { ...list, sections: [{ title: 'م', product_retailer_ids: ['wv-103'] }] } }).body).toMatchObject({ field: 'commerce' })
+    expect(call('POST', '/api/v1/inbox/conversations/2/messages', { commerce: list }).status).toBe(422)
+    expect(InboxMessageSchema.parse(call('POST', '/api/v1/inbox/conversations/1/messages', { commerce: { type: 'product', body: null, footer: null, product_retailer_id: 'wv-101' } }).body).kind).toBe('product')
+  })
+
+  it('shows the seeded cart and the commerce kinds in a thread', () => {
+    const items = InboxMessageListSchema.parse(call('GET', '/api/v1/inbox/conversations/4/messages?limit=100').body).items
+    expect(items.map(item => item.commerce?.type).filter(Boolean)).toEqual(['sent', 'inquiry', 'order'])
+    const cart = items.find(item => item.commerce?.type === 'order')!.commerce as { order: { id: number; state: string } | null; lines: { product: unknown }[] }
+    expect(cart.order).toMatchObject({ state: 'cart' })
+    expect(cart.lines.map(line => line.product === null)).toEqual([false, false, true])
+  })
+
+  it('lists orders and edits a cart, refusing a locked one', () => {
+    expect(InboxOrderListSchema.parse(call('GET', '/api/v1/inbox/orders').body).total).toBe(1)
+    expect(InboxOrderListSchema.parse(call('GET', '/api/v1/inbox/conversations/4/orders').body).total).toBe(1)
+    expect(InboxOrderListSchema.parse(call('GET', '/api/v1/inbox/orders?state=ordered').body).total).toBe(0)
+    const order = InboxOrderSchema.parse(call('GET', '/api/v1/inbox/orders/1').body)
+    expect(order).toMatchObject({ state: 'cart', price_changed: true })
+    const patched = InboxOrderSchema.parse(call('PATCH', '/api/v1/inbox/orders/1', { lines: [{ id: order.lines[0]!.id, quantity: 3 }, { catalog_item_id: 2, quantity: 1 }] }).body)
+    expect(patched.lines.map(line => line.quantity)).toEqual([3, 1])
+  })
+
+  it('builds an order for the customer, checks it out once, takes payment and cancels', () => {
+    const made = InboxOrderSchema.parse(call('POST', '/api/v1/inbox/conversations/1/orders', { lines: [{ catalog_item_id: 1, quantity: 2 }] }).body)
+    expect(made).toMatchObject({ state: 'cart', message_id: null, total: 103.5 })
+    const result = InboxOrderCheckoutResultSchema.parse(call('POST', `/api/v1/inbox/orders/${made.id}/checkout`, {}).body)
+    expect(result.order).toMatchObject({ state: 'ordered', payment: { status: 'payable' } })
+    expect(result.order.reference).toMatch(/^S\d{5}$/)
+    const again = InboxOrderCheckoutResultSchema.parse(call('POST', `/api/v1/inbox/orders/${made.id}/checkout`, {}).body)
+    expect(again.order.reference).toBe(result.order.reference)
+    expect(call('PATCH', `/api/v1/inbox/orders/${made.id}`, { lines: [{ id: made.lines[0]!.id, quantity: 1 }] }).status).toBe(409)
+    expect(InboxOrderSchema.parse(call('POST', `/api/v1/inbox/__mock/orders/${made.id}/paid`).body).payment?.status).toBe('paid')
+    expect(call('POST', `/api/v1/inbox/orders/${made.id}/checkout`, {}).status).toBe(409)
+    const notes = InboxMessageListSchema.parse(call('GET', '/api/v1/inbox/conversations/1/messages?limit=100').body).items.filter(item => item.direction === 'note')
+    expect(notes.at(-1)!.body).toContain(result.order.reference!)
+  })
+
+  it('refuses a checkout with an unknown line, and after the window asks for a pay-link template', () => {
+    expect(call('POST', '/api/v1/inbox/orders/1/checkout', {}).body).toMatchObject({ field: 'lines' })
+    const closed = InboxOrderSchema.parse(call('POST', '/api/v1/inbox/conversations/2/orders', { lines: [{ catalog_item_id: 1, quantity: 1 }] }).body)
+    expect(call('POST', `/api/v1/inbox/orders/${closed.id}/checkout`, {}).body).toMatchObject({ code: 'window_closed' })
+    expect(call('POST', `/api/v1/inbox/orders/${closed.id}/checkout`, { template_id: 1 }).body).toMatchObject({ field: 'template_id' })
+    expect(InboxOrderCheckoutResultSchema.parse(call('POST', `/api/v1/inbox/orders/${closed.id}/checkout`, { template_id: 8 }).body).order.state).toBe('ordered')
+  })
+
+  it('dismisses a cart, cancels an unpaid order, and receives a customer cart', () => {
+    expect(InboxOrderSchema.parse(call('POST', '/api/v1/inbox/orders/1/cancel').body).state).toBe('dismissed')
+    const cart = call('POST', '/api/v1/inbox/__mock/conversations/1/cart', { lines: [{ retailer_id: 'wv-101', quantity: 1 }], text: 'أريد' }).body as { order: { id: number } }
+    const messages = InboxMessageListSchema.parse(call('GET', '/api/v1/inbox/conversations/1/messages?limit=100').body).items
+    expect(messages.at(-1)).toMatchObject({ kind: 'order', direction: 'in', commerce: { type: 'order', order: { id: cart.order.id, state: 'cart' } } })
+  })
+})
+
+describe('inbox campaigns mock', () => {
+  beforeEach(() => resetInboxPreview())
+  const csv = (text: string) => Buffer.from(text, 'utf8').toString('base64')
+  const body = (path: string) => call('GET', path).body
+  const params = [
+    { location: 'body', position: 1, source: 'contact_first_name', value: 'عميلنا' },
+    { location: 'body', position: 2, source: 'static', value: 'الخميس' },
+    { location: 'button', position: 1, source: 'static', value: '4521' },
+  ]
+  const write = { name: 'جديدة', channel_id: 1, template_id: 1, audience_id: 1, params, header_attachment_id: null, scheduled_at: null, send_within_hours: false, daily_cap: 0 }
+
+  it('serves contract-valid campaign lists, details, recipients and settings', () => {
+    const list = InboxCampaignListSchema.parse(body('/api/v1/inbox/campaigns'))
+    expect(list.items.map(item => item.state)).toEqual(['draft', 'running', 'done'])
+    expect(InboxCampaignListSchema.parse(body('/api/v1/inbox/campaigns?state=done')).total).toBe(1)
+    const done = InboxCampaignSchema.parse(body('/api/v1/inbox/campaigns/1'))
+    expect(done.stats).toMatchObject({ total: 6, skipped: 1, failed: 2, unsubscribed: 1, replied: 1 })
+    const recipients = InboxCampaignRecipientListSchema.parse(body('/api/v1/inbox/campaigns/1/recipients?failure=frequency_capped'))
+    expect(recipients.items.map(item => item.can_retry)).toEqual([true])
+    expect(InboxCampaignSettingsSchema.parse(body('/api/v1/settings/inbox/campaigns')).consent_policy).toBe('opted_in_only')
+  })
+
+  it('moves a running campaign on every read until it is done', () => {
+    const before = InboxCampaignSchema.parse(body('/api/v1/inbox/campaigns/2')).stats
+    for (let step = 0; step < 6; step += 1) body('/api/v1/inbox/campaigns/2')
+    const after = InboxCampaignSchema.parse(body('/api/v1/inbox/campaigns/2'))
+    expect(after.stats.pending).toBeLessThan(before.pending)
+    expect(after.stats.delivered + after.stats.read).toBeGreaterThan(before.delivered + before.read)
+    for (let step = 0; step < 12; step += 1) body('/api/v1/inbox/campaigns/2')
+    expect(InboxCampaignSchema.parse(body('/api/v1/inbox/campaigns/2')).state).toBe('done')
+  })
+
+  it('creates, launches and pauses a campaign, refusing what the server refuses', () => {
+    expect(call('POST', '/api/v1/inbox/campaigns', { ...write, params: params.slice(0, 2) }).status).toBe(422)
+    expect(call('POST', '/api/v1/inbox/campaigns', { ...write, template_id: 4 }).status).toBe(422)
+    expect(call('POST', '/api/v1/inbox/campaigns', { ...write, scheduled_at: '2020-01-01T00:00:00Z' }).status).toBe(422)
+    const created = call('POST', '/api/v1/inbox/campaigns', write)
+    expect(created.status).toBe(201)
+    const id = InboxCampaignSchema.parse(created.body).id
+    expect(call('PATCH', `/api/v1/inbox/campaigns/${id}`, { daily_cap: 5 }).status).toBe(200)
+    const launched = InboxCampaignSchema.parse(call('POST', `/api/v1/inbox/campaigns/${id}/launch`).body)
+    expect(launched.state).toBe('running')
+    expect(launched.stats.total).toBeGreaterThan(0)
+    expect(call('DELETE', `/api/v1/inbox/campaigns/${id}`).status).toBe(422)
+    expect(call('PATCH', `/api/v1/inbox/campaigns/${id}`, { template_id: 2 }).status).toBe(422)
+    expect(InboxCampaignSchema.parse(call('POST', `/api/v1/inbox/campaigns/${id}/pause`).body)).toMatchObject({ state: 'paused', pause_reason: 'manual' })
+    expect(call('PATCH', `/api/v1/inbox/campaigns/${id}`, { template_id: 2 }).status).toBe(422)
+    expect(call('PATCH', `/api/v1/inbox/campaigns/${id}`, { name: 'اسم آخر' }).status).toBe(200)
+    expect(InboxCampaignSchema.parse(call('POST', `/api/v1/inbox/campaigns/${id}/cancel`).body).state).toBe('cancelled')
+  })
+
+  it('retries only the frequency-capped recipients old enough', () => {
+    expect(InboxCampaignSchema.parse(call('POST', '/api/v1/inbox/campaigns/1/retry').body).state).toBe('running')
+    expect(call('POST', '/api/v1/inbox/campaigns/3/retry').status).toBe(422)
+  })
+
+  it('renders a preview for a sample contact and lists the placeholders without a value', () => {
+    const request = { template_id: 1, params: [{ location: 'body', position: 1, source: 'contact_first_name', value: null }], contact_id: 3 }
+    const preview = InboxCampaignPreviewSchema.parse(call('POST', '/api/v1/inbox/campaigns/preview', request).body)
+    expect(preview.body).toContain('منى')
+    expect(preview.missing.map(item => item.position)).toContain(2)
+    expect(call('POST', '/api/v1/inbox/campaigns/preview', { template_id: 99, params: [] }).status).toBe(404)
+  })
+
+  it('sends a test only to a contact the consent policy allows', () => {
+    expect(InboxCampaignTestResultSchema.parse(call('POST', '/api/v1/inbox/campaigns/3/test', { contact_id: 1 }).body).conversation_id).toBe(1)
+    expect(call('POST', '/api/v1/inbox/campaigns/3/test', { contact_id: 4 }).status).toBe(422)
+  })
+
+  it('serves audiences with live counts and members, and refuses to delete one a campaign uses', () => {
+    const list = InboxAudienceListSchema.parse(body('/api/v1/inbox/audiences'))
+    expect(list.items[0]).toMatchObject({ name: 'عملاء الحجز', contact_count: 6 })
+    expect(list.items[0]!.reachable_count).toBeLessThan(list.items[0]!.contact_count)
+    const members = InboxAudienceMemberListSchema.parse(body('/api/v1/inbox/audiences/1/members?consent=opted_in'))
+    expect(members.items.every(item => item.consent === 'opted_in')).toBe(true)
+    const created = call('POST', '/api/v1/inbox/audiences', { name: 'جديد', tag_ids: [1], tag_match: 'any', exclude_tag_ids: [], active_within_days: 0 })
+    expect(created.status).toBe(201)
+    expect(call('POST', '/api/v1/inbox/audiences', { name: 'جديد', tag_ids: [], tag_match: 'any', exclude_tag_ids: [], active_within_days: 0 }).status).toBe(422)
+    expect(call('DELETE', '/api/v1/inbox/audiences/1').status).toBe(422)
+    expect(call('DELETE', `/api/v1/inbox/audiences/${InboxAudienceSchema.parse(created.body).id}`).status).toBe(204)
+  })
+
+  it('records consent with its proof and keeps an opt-out through an import', () => {
+    expect(call('PATCH', '/api/v1/inbox/contacts/4/marketing', { consent: { state: 'opted_in', note: ' ' } }).status).toBe(422)
+    const optedIn = InboxContactMarketingSchema.parse(call('PATCH', '/api/v1/inbox/contacts/4/marketing', { consent: { state: 'opted_in', note: 'طلب في العيادة' }, tag_ids: [2] }).body)
+    expect(optedIn).toMatchObject({ consent: 'opted_in', consent_source: 'agent' })
+    expect(optedIn.tags.map(tag => tag.id)).toEqual([2])
+    expect(InboxContactMarketingSchema.parse(body('/api/v1/inbox/contacts/2/marketing')).history.map(event => event.state)).toEqual(['opted_out', 'opted_in'])
+    const imported = InboxContactImportResultSchema.parse(call('POST', '/api/v1/inbox/contacts/import', {
+      name: 'c.csv', data: csv('\uFEFFphone,name\n0500000002,فهد\n0512345678,جديد\nabc,خطأ'), tag_ids: [2], consent: 'opted_in', consent_note: 'قائمة',
+    }).body)
+    expect(imported).toMatchObject({ created: 1, updated: 1, skipped: 1 })
+    expect(imported.errors).toEqual([{ line: 4, message: expect.any(String) }])
+    expect(InboxContactMarketingSchema.parse(body('/api/v1/inbox/contacts/2/marketing')).consent).toBe('opted_out')
+    expect(call('POST', '/api/v1/inbox/contacts/import', { name: 'c.csv', data: csv('phone\n1'), tag_ids: [], consent: 'opted_in' }).status).toBe(422)
+  })
+
+  it('serves channel sending health, switches the API and refreshes from Meta', () => {
+    expect(InboxChannelSendingSchema.parse(body('/api/v1/inbox/channels/1/sending'))).toMatchObject({ messaging_limit: 'tier_2k', marketing_api: 'cloud_api' })
+    expect(InboxChannelSendingSchema.parse(call('PATCH', '/api/v1/inbox/channels/1/sending', { marketing_api: 'marketing_messages' }).body).marketing_api).toBe('marketing_messages')
+    expect(call('PATCH', '/api/v1/inbox/channels/1/sending', { marketing_api: 'x' }).status).toBe(422)
+    expect(InboxChannelSendingSchema.parse(call('POST', '/api/v1/inbox/channels/1/sending/refresh').body).checked_at).not.toBeNull()
+    expect(call('GET', '/api/v1/inbox/channels/9/sending').status).toBe(404)
+  })
+
+  it('uploads a header file and keeps settings edits', () => {
+    const upload = call('POST', '/api/v1/inbox/campaigns/uploads', { name: 'a.jpg', mimetype: 'image/jpeg', data: 'QUJD' })
+    expect(InboxAttachmentSchema.parse(upload.body).name).toBe('a.jpg')
+    expect(InboxCampaignSettingsSchema.parse(call('PATCH', '/api/v1/settings/inbox/campaigns', { consent_policy: 'not_opted_out' }).body).consent_policy).toBe('not_opted_out')
+    expect(call('PATCH', '/api/v1/settings/inbox/campaigns', { default_country_code: '0' }).status).toBe(422)
   })
 })

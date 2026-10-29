@@ -7,7 +7,7 @@ from odoo.http import request
 
 from odoo.addons.webvue_api.controllers.common import parse_positive_int
 from odoo.addons.webvue_inbox.adapters import media_rules
-from odoo.addons.webvue_inbox.controllers.helpers import reject
+from odoo.addons.webvue_inbox.controllers.helpers import find_one, reject
 from odoo.addons.webvue_inbox.controllers.reply_parsing import (
     MAX_COUPON,
     parse_https_url,
@@ -15,6 +15,7 @@ from odoo.addons.webvue_inbox.controllers.reply_parsing import (
     parse_object,
     parse_string,
 )
+from odoo.addons.webvue_inbox.models.constants import FLOWS_FEATURE
 from odoo.addons.webvue_inbox.models.template import (
     MEDIA_HEADERS,
     OTP_BODY,
@@ -46,6 +47,7 @@ BUTTON_KEYS = {
     'url': ({'type', 'text', 'url', 'example'}, 'text', 'url', 'example'),
     'phone_number': ({'type', 'text', 'phone_number'}, 'text', 'phone_number'),
     'copy_code': ({'type', 'example'}, 'example'),
+    'flow': ({'type', 'text', 'flow_id'}, 'text', 'flow_id'),
 }
 
 
@@ -127,7 +129,16 @@ def parse_url_button(button):
     }
 
 
-def parse_button(button, position):
+def parse_flow_button(channel, button):
+    """A button that opens a published form of the template's channel."""
+    request.env['webvue.entitlement.service'].require(FLOWS_FEATURE)
+    flow = find_one('webvue.inbox.flow', button['flow_id'], 'buttons')
+    if flow.channel_id != channel or flow.status != 'published':
+        reject('flow_id must be a published form of the template channel', 'buttons')
+    return {'provider_flow_id': flow.provider_flow_id}
+
+
+def parse_button(channel, button, position):
     kind = button.get('type') if isinstance(button, dict) else None
     if kind not in BUTTON_KEYS:
         reject('button type must be quick_reply, url, phone_number or copy_code', 'buttons')
@@ -144,6 +155,8 @@ def parse_button(button, position):
         row['phone_number'] = button['phone_number']
     elif kind == 'copy_code':
         row['example'] = parse_string(button['example'], 'buttons', MAX_COUPON)
+    elif kind == 'flow':
+        row.update(parse_flow_button(channel, button))
     return row
 
 
@@ -157,10 +170,11 @@ def quick_replies_grouped(rows):
     return sum(1 for index, quick in enumerate(runs) if index == 0 or quick != runs[index - 1]) <= 2
 
 
-def parse_buttons(value):
-    rows = [parse_button(button, position) for position, button in enumerate(parse_list(value, 'buttons', 0, MAX_BUTTONS))]
-    if count_of(rows, 'url') > MAX_URL_BUTTONS or count_of(rows, 'phone_number') > 1 or count_of(rows, 'copy_code') > 1:
-        reject('at most two url buttons, one phone button and one copy-code button', 'buttons')
+def parse_buttons(channel, value):
+    rows = [parse_button(channel, button, position) for position, button in enumerate(parse_list(value, 'buttons', 0, MAX_BUTTONS))]
+    if (count_of(rows, 'url') > MAX_URL_BUTTONS or count_of(rows, 'phone_number') > 1 or count_of(rows, 'copy_code') > 1
+            or count_of(rows, 'flow') > 1):
+        reject('at most two url buttons, one phone button, one copy-code button and one form button', 'buttons')
     if not quick_replies_grouped(rows):
         reject('quick replies must be grouped together', 'buttons')
     return rows
@@ -205,7 +219,7 @@ def parse_standard(channel, payload, template):
         'body': body,
         'example_ids': [(5, 0, 0), *((0, 0, {'position': position, 'example': example}) for position, example in enumerate(examples, start=1))],
         'footer': parse_string(payload['footer'], 'footer', MAX_FOOTER, nullable=True) or False,
-        'button_ids': [(5, 0, 0), *((0, 0, row) for row in parse_buttons(payload['buttons']))],
+        'button_ids': [(5, 0, 0), *((0, 0, row) for row in parse_buttons(channel, payload['buttons']))],
         'add_security_recommendation': False,
         'code_expiration_minutes': 0,
     }

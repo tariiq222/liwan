@@ -1,6 +1,7 @@
 {
   "items": [
     {
+      "currency": "SAR",
       "id": 1,
       "month": "2026-11",
       "net": 12281.25,

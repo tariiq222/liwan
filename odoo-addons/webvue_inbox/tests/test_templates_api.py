@@ -431,7 +431,7 @@ class TestTemplatesApi(WebVueInboxCase):
         self.assertEqual((rich['category'], rich['status'], rich['status_reason'], rich['quality'], rich['param_count']),
                          ('marketing', 'rejected', 'INCORRECT_CATEGORY', 'yellow', 2))
         self.assertEqual((rich['header'], rich['body_examples'], rich['footer']), ({'type': 'text', 'text': 'Order {{1}}', 'example': '42'}, ['Sara', 'Ali'], 'Thanks'))
-        self.assertEqual([button['type'] for button in rich['buttons']], ['quick_reply', 'url', 'phone_number', 'copy_code'])
+        self.assertEqual([button['type'] for button in rich['buttons']], ['quick_reply', 'url', 'phone_number', 'copy_code', 'flow'])
         self.assertEqual(rich['buttons'][1]['example'], 'https://example.com/9')
         self.assertEqual(items['photo']['header'], {'type': 'image', 'example_attachment': None})
         self.assertEqual((items['otp']['add_security_recommendation'], items['otp']['code_expiration_minutes']), (True, 5))
@@ -442,7 +442,7 @@ class TestTemplatesApi(WebVueInboxCase):
         # A second sync replaces the structure instead of piling rows up.
         with patch.object(whatsapp, 'list_templates', return_value=remote):
             self.api('POST', f'{self.templates}/sync')
-        self.assertEqual(len(stored.button_ids), 4)
+        self.assertEqual(len(stored.button_ids), 5)
         self.assertEqual(len(stored.example_ids), 2)
 
     def test_the_listing_asks_meta_for_the_ids_and_the_quality(self):
@@ -462,7 +462,7 @@ class TestTemplatesApi(WebVueInboxCase):
         url = {'type': 'URL', 'text': 'Track', 'url': 'https://example.com/{{1}}', 'example': ['https://example.com/1']}
         remote = [
             item('plain', [body]),
-            item('flow_button', [body, {'type': 'BUTTONS', 'buttons': [quick, {'type': 'FLOW', 'text': 'Open', 'flow_id': '1'}, url]}]),
+            item('gap_button', [body, {'type': 'BUTTONS', 'buttons': [quick, {'type': 'CATALOG', 'text': 'Open'}, url]}]),
             item('catalog_button', [body, {'type': 'BUTTONS', 'buttons': [{'type': 'CATALOG', 'text': 'Shop'}]}]),
             item('voice_button', [body, {'type': 'BUTTONS', 'buttons': [{'type': 'VOICE_CALL', 'text': 'Call'}]}]),
             item('named_body', [{'type': 'BODY', 'text': 'Hi {{first_name}}'}]),
@@ -477,8 +477,8 @@ class TestTemplatesApi(WebVueInboxCase):
         items = {t['name']: t for t in result.json()['items']}
         self.assertEqual({name: (t['supported'], t['editable']) for name, t in items.items()},
                          {'plain': (True, True), **{name: (False, False) for name in items if name != 'plain'}})
-        stored = self.env['webvue.inbox.template'].search([('channel_id', '=', self.channel.id), ('name', '=', 'flow_button')])
-        # Meta's own indexes survive: the skipped flow button leaves a gap at 1.
+        stored = self.env['webvue.inbox.template'].search([('channel_id', '=', self.channel.id), ('name', '=', 'gap_button')])
+        # Meta's own indexes survive: the skipped catalog button leaves a gap at 1.
         self.assertEqual(stored.button_ids.sorted('sequence').mapped('sequence'), [0, 2])
         self.assertEqual(stored.supported, False)
         self.assertError(self.api('PATCH', f'{BASE}/templates/{stored.id}', STANDARD), 422, 'invalid')

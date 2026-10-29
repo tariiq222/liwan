@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import Link from '@tiptap/extension-link'
-import StarterKit from '@tiptap/starter-kit'
 import { EditorContent, useEditor } from '@tiptap/vue-3'
 import { createDebouncedFlush } from '@/lib/debouncedFlush'
+import { documentEditorBody, documentEditorExtensions } from '@/lib/documentEditorConfig'
 import { shouldApplyDocumentBodyModel } from '@/lib/documentEditorDraft'
 
 const props = withDefaults(defineProps<{ modelValue: string; documentId: number; debounce?: boolean; disabled?: boolean }>(), { debounce: true, disabled: false })
@@ -18,7 +17,7 @@ const buffer = createDebouncedFlush<{ documentId: number; html: string }>(800, (
 const editor = useEditor({
   content: props.modelValue,
   editable: !props.disabled,
-  extensions: [StarterKit, Link.configure({ openOnClick: false })],
+  extensions: documentEditorExtensions(),
   editorProps: {
     attributes: {
       role: 'textbox',
@@ -28,13 +27,13 @@ const editor = useEditor({
     },
   },
   onUpdate: ({ editor: ed }) => {
-    const html = ed.getHTML()
+    const html = documentEditorBody(ed)
     pendingBodyDraft.value = html
     if (props.debounce) buffer.schedule({ documentId: props.documentId, html })
     else emit('update:modelValue', html, props.documentId)
   },
 })
-watch(() => props.disabled, (disabled) => editor.value?.setEditable(!disabled))
+watch(() => props.disabled, (disabled) => editor.value?.setEditable(!disabled, false))
 
 watch(
   () => props.modelValue,
@@ -110,7 +109,7 @@ function applyLink() {
         <UButton :color="editor?.isActive('link') ? 'primary' : 'secondary'" variant="ghost" square type="button" :disabled="disabled" :aria-pressed="!!editor?.isActive('link')" :aria-label="t('documents.format.linkPrompt')" icon="i-lucide-link" @click="toggleLink" />
       </div>
       <div v-if="linkEditing" class="flex gap-2 border-b border-default p-2">
-        <UInput v-model="linkUrl" class="flex-1" :disabled="disabled" :aria-label="t('documents.linkPrompt')" :placeholder="t('documents.linkPrompt')" />
+        <UInput v-model="linkUrl" class="flex-1" :disabled="disabled" :aria-label="t('documents.linkPrompt')" :placeholder="t('documents.linkPrompt')" @keydown.enter.prevent="applyLink" />
         <UButton type="button" color="primary" size="sm" :disabled="disabled" :label="t('app.save')" @click="applyLink" />
         <UButton type="button" color="neutral" variant="outline" size="sm" :label="t('app.cancel')" @click="linkEditing = false" />
       </div>

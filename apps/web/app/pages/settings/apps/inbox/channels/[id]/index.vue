@@ -2,6 +2,8 @@
 import { useClipboard } from '@vueuse/core'
 import { InboxChannelPatchSchema } from '@webvue/contracts'
 import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
+import InboxChannelTabs from '@/components/inbox/InboxChannelTabs.vue'
+import { useInboxCatalogEnabled } from '@/composables/inbox/useInboxCatalog'
 import { CHANNEL_STATE_TONE } from '@/composables/inbox/inboxPresentation'
 import {
   useDeleteInboxChannel, useInboxChannel, useInboxDepartments, usePatchInboxChannel, useSyncInboxTemplates, useTestInboxChannel,
@@ -27,6 +29,7 @@ const { mutate: test, isPending: testing } = useTestInboxChannel(() => id.value 
 const { mutate: sync, isPending: syncing } = useSyncInboxTemplates(() => id.value ?? 0)
 const { mutate: remove, isPending: removing } = useDeleteInboxChannel()
 const manage = computed(() => can('inbox.channels.manage'))
+const catalogOn = useInboxCatalogEnabled()
 const manageTemplates = computed(() => can('inbox.templates.manage'))
 const busy = computed(() => !hydrated.value || patching.value || testing.value || syncing.value || removing.value)
 
@@ -119,11 +122,13 @@ async function copy(kind: 'callback' | 'token', value: string) {
     <template v-if="channel && manage" #actions>
       <UButton color="neutral" variant="outline" icon="i-lucide-plug-zap" :loading="testing" :disabled="busy" :label="t('inbox.settings.channels.test')" data-testid="inbox-channel-test" @click="runTest" />
       <UButton color="neutral" variant="outline" icon="i-lucide-file-text" :to="`/settings/apps/inbox/channels/${channel?.id}/templates`" :disabled="busy" :label="t('inbox.templates.title')" data-testid="inbox-channel-templates" />
+      <UButton color="neutral" variant="outline" icon="i-lucide-clipboard-list" :to="`/settings/apps/inbox/channels/${channel?.id}/flows`" :disabled="busy" :label="t('inbox.flows.title')" data-testid="inbox-channel-flows" />
       <UButton v-if="can('inbox.automation.manage')" color="neutral" variant="outline" icon="i-lucide-bot-message-square" :to="`/settings/apps/inbox/auto-messages/${channel?.id}`" :disabled="busy" :label="t('inbox.automation.messages.title')" data-testid="inbox-channel-automation" />
       <UButton v-if="manageTemplates" color="neutral" variant="outline" icon="i-lucide-refresh-cw" :loading="syncing" :disabled="busy" :label="t('inbox.settings.channels.syncTemplates')" data-testid="inbox-channel-sync" @click="runSync" />
     </template>
 
     <template v-if="channel">
+      <InboxChannelTabs v-if="manage" :channel-id="channel.id" />
       <UAlert v-if="channel.last_error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('inbox.settings.channels.lastError')" :description="channel.last_error" data-testid="inbox-channel-error" />
 
       <SharedRecordSection id="webhook" variant="panel" :title="t('inbox.settings.channels.webhook.title')" :description="t('inbox.settings.channels.webhook.hint')">
@@ -161,6 +166,8 @@ async function copy(kind: 'callback' | 'token', value: string) {
           </div>
         </SharedRecordSection>
       </form>
+
+      <InboxChannelCommerceSection v-if="catalogOn && manage" :channel-id="channel.id" :manage="can('inbox.catalog.manage')" />
 
       <form v-if="manage" @submit.prevent="saveSecrets">
         <SharedRecordSection variant="panel" :title="t('inbox.settings.channels.secrets')" :description="t('inbox.settings.channels.secretsHint')">

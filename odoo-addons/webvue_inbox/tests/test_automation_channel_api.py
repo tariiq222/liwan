@@ -118,6 +118,7 @@ class TestChannelAutomationAccess(AutomationCase):
     def test_the_feature_closes_the_routes(self):
         self.login(self.manager)
         set_probe_feature(self, key='inbox.automation', enabled=False)
+        set_probe_feature(self, key='inbox.campaigns', enabled=False)  # the channel references serve both applications
         for method, path, body in self.routes():
             self.assertError(self.api(method, path, body), 403, 'feature_not_included')
 

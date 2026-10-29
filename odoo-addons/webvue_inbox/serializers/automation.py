@@ -35,6 +35,7 @@ def dump_rule(rule):
         'match_kind': rule.match_kind,
         'keywords': rule.keyword_ids.mapped('value'),
         'option_id': rule.option_id or None,
+        'flow': dump_ref(rule.flow_id),
         'hours': rule.hours_condition,
         'stop': rule.stop,
         'reply': dump_content(rule.reply_ids),

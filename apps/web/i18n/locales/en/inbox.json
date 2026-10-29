@@ -7,7 +7,10 @@
     "select": "Select a conversation",
     "selectDescription": "Pick a conversation from the list to read and reply.",
     "nav": {
-      "conversations": "Conversations"
+      "conversations": "Conversations",
+      "reports": "Reports",
+      "orders": "Orders",
+      "campaigns": "Campaigns"
     },
     "states": {
       "open": "Open",
@@ -78,7 +81,8 @@
       "selected": "Chose: {title}",
       "unsupported": "This message type is not supported.",
       "automated": "Automatic reply",
-      "system": "System"
+      "system": "System",
+      "campaign": "Campaign: {name}"
     },
     "composer": {
       "mode": "Message type",
@@ -135,7 +139,8 @@
         "types": {
           "buttons": "Buttons",
           "list": "List",
-          "cta_url": "Link"
+          "cta_url": "Link",
+          "flow": "Form"
         },
         "header": "Header (optional)",
         "body": "Message text",
@@ -153,7 +158,11 @@
         "addSection": "Add a section",
         "displayText": "Button text",
         "url": "Link",
-        "urlHelp": "A secure link starting with https"
+        "urlHelp": "A secure link starting with https",
+        "flow": "Form",
+        "flowHint": "A form published on this channel that the customer fills inside WhatsApp; sent inside the reply window only.",
+        "flowCta": "Button text that opens the form",
+        "flowCtaHint": "Meta advises at most 30 characters and no emoji."
       },
       "captionTooLong": "A file caption is at most {max} characters. Shorten it to send the file.",
       "audioNoCaption": "WhatsApp does not allow a caption on an audio file.",
@@ -362,7 +371,12 @@
       "contacts": "Contact",
       "interactive": "Interactive message",
       "template": "Template",
-      "unsupported": "Unsupported"
+      "unsupported": "Unsupported",
+      "flow_response": "Form answer",
+      "product": "Product",
+      "product_list": "Product list",
+      "catalog_message": "Catalog",
+      "order": "Order cart"
     },
     "templates": {
       "title": "Message templates",
@@ -473,16 +487,18 @@
           "quick_reply": "Quick reply",
           "url": "Link",
           "phone_number": "Call",
-          "copy_code": "Copy code"
+          "copy_code": "Copy code",
+          "flow": "Open form"
         },
         "count": "{n} of {max} buttons",
-        "limits": "Limits: 10 buttons, two links, one call button, one copy-code button. Quick replies sit together, before or after the other buttons.",
+        "limits": "Limits: 10 buttons, two links, one call button, one copy-code button, one form button. Quick replies sit together, before or after the other buttons.",
         "problem": {
           "tooMany": "More than 10 buttons",
           "urls": "More than two links",
           "phone": "More than one call button",
           "copyCode": "More than one copy-code button",
-          "grouping": "Quick replies must be next to each other"
+          "grouping": "Quick replies must be next to each other",
+          "flow": "More than one form button"
         },
         "moveUp": "Move up",
         "moveDown": "Move down",
@@ -496,7 +512,9 @@
         "urlExampleHint": "The link with the variable replaced by a real value.",
         "phone": "Phone number",
         "phoneHint": "International format starting with +",
-        "none": "No buttons."
+        "none": "No buttons.",
+        "flow": "Form",
+        "flowHint": "The button opens a published form of this channel. WebVue generates a token for each message."
       },
       "auth": {
         "title": "Authentication options",
@@ -610,7 +628,9 @@
           "contains": "Contains",
           "exact": "Matches exactly",
           "starts_with": "Starts with",
-          "option": "Customer chose an option"
+          "option": "Customer chose an option",
+          "flow": "Send a form",
+          "order": "A cart from the customer"
         },
         "keywords": "Keywords",
         "keywordsHint": "Press Enter after each word or phrase. Case, diacritics and letter forms do not matter.",
@@ -650,7 +670,11 @@
         "moveUp": "Move {name} up",
         "moveDown": "Move {name} down",
         "deleteTitle": "Delete the rule \"{name}\"?",
-        "deleteDescription": "It stops applying to new messages; messages already sent are not affected."
+        "deleteDescription": "It stops applying to new messages; messages already sent are not affected.",
+        "flow": "Form",
+        "flowHint": "The rule runs when the customer submits this form.",
+        "flowRequired": "Choose a form.",
+        "flowNeedsChannel": "Choose a specific channel first to pick its form."
       },
       "test": {
         "title": "Try it",
@@ -670,8 +694,1415 @@
         },
         "none": "None",
         "rules": "Matching rules, in order",
-        "noRules": "No rule matches."
+        "noRules": "No rule matches.",
+        "flow": "A form the customer submitted (optional)",
+        "flowHint": "To try the rules that run when a form is submitted."
       }
+    },
+    "flows": {
+      "title": "Forms",
+      "pageTitle": "{name} forms",
+      "hint": "In-chat forms: the customer fills them without leaving WhatsApp and the answers reach the conversation.",
+      "create": "New form",
+      "createHint": "The form is saved as a draft in WebVue and Meta, and is published only when you decide.",
+      "sync": "Sync forms",
+      "synced": "Forms synced with Meta",
+      "empty": "This channel has no forms yet.",
+      "webhookGuidance": "So that form status changes reach WebVue, subscribe the Meta app to the flows field in its webhook settings. Sync imports forms made in WhatsApp Manager so they can be sent and their answers read, without editing their screens.",
+      "external": "From WhatsApp Manager",
+      "unknown": "Unknown form",
+      "submissionCount": "{n} answers",
+      "errorCount": "{n} problems from Meta",
+      "versionWarning": "The form version is nearing end of support",
+      "serverError": "The form could not be saved",
+      "metaUnreachableTitle": "Meta could not be reached",
+      "metaUnreachable": "Meta cannot be reached right now and nothing was saved. Try again shortly.",
+      "readonlyTitle": "This form is read-only",
+      "readonlyDescription": "A form cannot be edited once published. Copy it to get a new draft to edit and publish.",
+      "externalDescription": "This form was made in WhatsApp Manager: WebVue sends it and stores its answers, but cannot show or edit its screens.",
+      "status": {
+        "draft": "Draft",
+        "published": "Published",
+        "deprecated": "Deprecated",
+        "blocked": "Blocked",
+        "throttled": "Throttled"
+      },
+      "health": {
+        "available": "Available",
+        "limited": "Limited sending",
+        "blocked": "Sending blocked",
+        "unknown": "Unknown"
+      },
+      "category": {
+        "sign_up": "Sign up",
+        "sign_in": "Sign in",
+        "appointment_booking": "Appointment booking",
+        "lead_generation": "Lead generation",
+        "contact_us": "Contact us",
+        "customer_support": "Customer support",
+        "survey": "Survey",
+        "other": "Other"
+      },
+      "filter": {
+        "search": "Search by form name",
+        "status": "Status",
+        "allStatuses": "All statuses"
+      },
+      "kind": {
+        "heading": "Heading",
+        "subheading": "Subheading",
+        "text": "Text",
+        "caption": "Caption",
+        "text_input": "Text field",
+        "text_area": "Long text",
+        "dropdown": "Dropdown",
+        "radio": "Single choice",
+        "checkbox": "Multiple choice",
+        "date": "Date",
+        "opt_in": "Consent"
+      },
+      "inputType": {
+        "text": "Text",
+        "number": "Number",
+        "email": "Email",
+        "phone": "Phone"
+      },
+      "prop": {
+        "name": "Name",
+        "language": "Language",
+        "completion_message": "Completion message",
+        "title": "Screen title",
+        "footer_label": "Button text",
+        "text": "Text",
+        "label": "Label",
+        "helper_text": "Helper text",
+        "key": "Key",
+        "options": "Choices",
+        "fields": "Components"
+      },
+      "problem": {
+        "invalid": "Check this part: it is empty or out of bounds.",
+        "invalidProp": "Check “{prop}”: empty or over the limit.",
+        "key": "The key is invalid or repeated: lowercase Latin letters, digits and _ only, starting with a letter.",
+        "noInput": "The form needs at least one field that collects an answer.",
+        "duplicateKeys": "An answer key is repeated in the form.",
+        "optInCap": "A screen holds more than five consent boxes.",
+        "optionCap": "The form exceeds 1000 choices.",
+        "minChars": "The minimum length is larger than the maximum.",
+        "selection": "The selection limits do not fit the number of choices.",
+        "dates": "The earliest date is after the latest.",
+        "duplicateOptions": "Choice titles are repeated.",
+        "noFields": "Add at least one component to the screen."
+      },
+      "defaults": {
+        "screenTitle": "Your details",
+        "fieldLabel": "Name",
+        "next": "Next",
+        "submit": "Submit"
+      },
+      "form": {
+        "name": "Form name",
+        "nameHint": "For the team only; the customer does not see it. It must be unique in the channel.",
+        "category": "Category",
+        "categoryHint": "Meta's category for the form.",
+        "language": "Language",
+        "languageHint": "The language of the form's texts; it sets the preview direction.",
+        "completion": "Message after submitting",
+        "completionHint": "Sent to the customer automatically after each answer. Leave empty to send nothing.",
+        "startFrom": "Start from",
+        "startFromHint": "A blank form, or a ready-made one for your sector that you can change freely.",
+        "blank": "Blank form",
+        "create": "Create draft"
+      },
+      "builder": {
+        "settings": "Form settings",
+        "settingsHint": "Name, category, language and completion message.",
+        "screens": "Screens",
+        "screensHint": "The customer moves through the screens in order, up to {max} screens. The last screen's button submits the form.",
+        "screenN": "Screen {n}",
+        "screenTitle": "Screen title",
+        "addScreen": "Add screen",
+        "removeScreen": "Remove screen",
+        "addField": "Add component",
+        "removeField": "Remove component",
+        "noFields": "This screen has no components.",
+        "moveUp": "Move up",
+        "moveDown": "Move down",
+        "drag": "Drag to reorder",
+        "footerNext": "“Next” button text",
+        "footerNextHint": "Takes the customer to the next screen.",
+        "footerSubmit": "Submit button text",
+        "footerSubmitHint": "The last screen's button; it sends the customer's answers.",
+        "save": "Save draft"
+      },
+      "field": {
+        "text": "Text",
+        "label": "Label",
+        "inputType": "Input type",
+        "helper": "Helper text (optional)",
+        "minChars": "Minimum characters",
+        "maxChars": "Maximum characters",
+        "maxCharsHint": "Empty means Meta's limit (80).",
+        "maxLength": "Maximum characters",
+        "maxLengthHint": "Empty means {max}.",
+        "minDate": "Earliest date",
+        "maxDate": "Latest date",
+        "options": "Choices",
+        "optionCount": "{n} of {max}",
+        "optionTitle": "Choice {n}",
+        "optionDescription": "Description (optional)",
+        "addOption": "Add choice",
+        "removeOption": "Remove choice",
+        "minSelected": "Minimum selections",
+        "maxSelected": "Maximum selections",
+        "required": "Required",
+        "sensitive": "Sensitive",
+        "sensitiveHint": "A sensitive field's value is masked in the customer's WhatsApp chat summary; authorized staff see it in WebVue.",
+        "advanced": "Advanced",
+        "key": "Answer key",
+        "keyHint": "The field's name in the stored answer; lowercase Latin letters, digits and _ only."
+      },
+      "meta": {
+        "title": "Meta found {n} problems in the form",
+        "hint": "The form cannot be published until they are fixed.",
+        "says": "Meta:"
+      },
+      "preview": {
+        "title": "Preview",
+        "hint": "An approximation of what the customer sees; use Meta's preview for the exact look.",
+        "emptyLabel": "…",
+        "previous": "Previous screen",
+        "next": "Next screen",
+        "step": "Screen {n} of {total}",
+        "choose": "Choose",
+        "datePlaceholder": "Pick a date"
+      },
+      "lifecycle": {
+        "title": "Form actions",
+        "hint": "Preview, publish, copy and deprecate.",
+        "preview": "Preview in Meta",
+        "publish": "Publish",
+        "copy": "Copy",
+        "deprecate": "Deprecate",
+        "delete": "Delete draft",
+        "blocker": {
+          "dirty": "Save your changes before publishing.",
+          "errors": "Fix the problems Meta found before publishing."
+        },
+        "publishTitle": "Publish “{name}”?",
+        "publishDescription": "A form cannot be edited after it is published, only copied. Once published it can be sent to customers.",
+        "deprecateTitle": "Deprecate “{name}”?",
+        "deprecateDescription": "A deprecated form cannot be sent or restored. Rules and automatic messages that point to it stay, and the system skips them with a note.",
+        "deleteTitle": "Delete the draft “{name}”?",
+        "deleteDescription": "The draft is deleted from WebVue and Meta and cannot be recovered.",
+        "copyTitle": "Copy “{name}”",
+        "copyDescription": "A new draft with the same content is created for you to edit.",
+        "copyName": "{name} (copy)",
+        "replace": "Replace the original when published",
+        "replaceHint": "WebVue's rules and automatic messages move to the copy and the original is deprecated. Templates stay bound to the old form.",
+        "published": "Form published",
+        "deprecated": "Form deprecated",
+        "copied": "Copy created"
+      },
+      "responses": {
+        "title": "Form answers",
+        "pageTitle": "Answers to “{name}”",
+        "open": "Answers ({n})",
+        "backToForm": "Form",
+        "date": "Date",
+        "contact": "Customer",
+        "from": "From",
+        "to": "To",
+        "empty": "No answers yet."
+      },
+      "answer": {
+        "yes": "Yes",
+        "no": "No",
+        "empty": "No answer",
+        "none": "No stored answers.",
+        "openMessage": "Open message"
+      },
+      "panel": {
+        "title": "Forms",
+        "openMessage": "Open the message in the conversation"
+      },
+      "picker": {
+        "label": "Form",
+        "placeholder": "Choose a published form",
+        "needChannel": "Choose a channel first",
+        "empty": "This channel has no published forms.",
+        "manage": "Manage forms",
+        "failed": "Forms could not be loaded."
+      },
+      "starters": {
+        "clinic": {
+          "name": "Appointment request",
+          "completion": "We received your request and will confirm the appointment shortly.",
+          "s1": {
+            "title": "Your details",
+            "f1": {
+              "label": "Full name"
+            },
+            "f2": {
+              "label": "Mobile number"
+            }
+          },
+          "s2": {
+            "title": "Appointment details",
+            "f1": {
+              "label": "Service type",
+              "o1": "Check-up",
+              "o2": "Follow-up",
+              "o3": "Consultation"
+            },
+            "f2": {
+              "label": "Preferred date"
+            },
+            "f3": {
+              "label": "Period",
+              "o1": "Morning",
+              "o2": "Evening"
+            },
+            "f4": {
+              "label": "Notes"
+            }
+          }
+        },
+        "store": {
+          "name": "Order inquiry",
+          "completion": "Thank you, our team will reply shortly.",
+          "s1": {
+            "title": "Your inquiry",
+            "f1": {
+              "label": "Order number"
+            },
+            "f2": {
+              "label": "Inquiry topic",
+              "o1": "Order status",
+              "o2": "Return",
+              "o3": "Complaint",
+              "o4": "Other"
+            },
+            "f3": {
+              "label": "Details"
+            },
+            "f4": {
+              "label": "I agree to be contacted"
+            }
+          }
+        },
+        "public_service": {
+          "name": "Service request",
+          "completion": "Your request was received and we will keep you updated.",
+          "s1": {
+            "title": "Applicant",
+            "f1": {
+              "label": "Full name"
+            },
+            "f2": {
+              "label": "National ID"
+            },
+            "f3": {
+              "label": "Mobile number"
+            }
+          },
+          "s2": {
+            "title": "The request",
+            "f1": {
+              "label": "Request type",
+              "o1": "New service",
+              "o2": "Follow-up",
+              "o3": "Complaint"
+            },
+            "f2": {
+              "label": "Details"
+            },
+            "f3": {
+              "label": "I confirm the data is correct"
+            }
+          }
+        }
+      }
+    },
+    "bell": {
+      "channelHealth": "WhatsApp number health"
+    },
+    "reports": {
+      "title": "Inbox reports",
+      "navLabel": "Report sections",
+      "backToInbox": "Conversations",
+      "tabs": {
+        "overview": "Overview",
+        "costs": "Costs",
+        "templates": "Templates"
+      },
+      "period": {
+        "label": "Period",
+        "d7": "7 days",
+        "d30": "30 days",
+        "d90": "90 days",
+        "custom": "Custom",
+        "from": "From date",
+        "to": "To date",
+        "invalid": "Choose a valid range of at most {max} days"
+      },
+      "filters": {
+        "title": "Filters",
+        "channel": "Channel",
+        "department": "Department",
+        "agent": "Agent",
+        "allChannels": "All channels",
+        "allDepartments": "All departments",
+        "allAgents": "All agents",
+        "clear": "Clear filters"
+      },
+      "tags": {
+        "range": "{from} to {to}",
+        "timezone": "Time zone: {zone}",
+        "computedAt": "Figures updated: {time}",
+        "utcDays": "Days are in UTC"
+      },
+      "units": {
+        "day": "d",
+        "hour": "h",
+        "minute": "m",
+        "second": "s"
+      },
+      "change": {
+        "up": "{value} higher than the previous period",
+        "down": "{value} lower than the previous period",
+        "flat": "No change vs previous period",
+        "new": "New vs previous period",
+        "none": "No earlier data to compare"
+      },
+      "kpiLabel": "Period figures",
+      "kpi": {
+        "opened": "New conversations",
+        "resolved": "Resolved conversations",
+        "firstResponse": "Average first response",
+        "resolution": "Average resolution time",
+        "csat": "Customer satisfaction",
+        "automated": "Automated reply share",
+        "messages": "Messages in / out",
+        "templateFailures": "Template failures"
+      },
+      "charts": {
+        "volume": {
+          "title": "Message volume",
+          "description": "Inbound, outbound and automated messages over the period",
+          "empty": "No messages in this period",
+          "in": "Inbound from customers",
+          "out": "Outbound by agents",
+          "automated": "Automated replies"
+        },
+        "firstResponse": {
+          "title": "First response time",
+          "description": "How long customers waited for the first agent reply",
+          "empty": "No first responses in this period",
+          "series": "Conversations",
+          "buckets": {
+            "under_5m": "Under 5 min",
+            "under_15m": "5 to 15 min",
+            "under_1h": "15 min to 1 h",
+            "under_4h": "1 to 4 h",
+            "under_24h": "4 to 24 h",
+            "over_24h": "Over 24 h"
+          }
+        },
+        "csat": {
+          "title": "Customer satisfaction",
+          "description": "Answers to the satisfaction survey after a conversation is resolved",
+          "empty": "No satisfaction answers in this period",
+          "good": "Satisfied",
+          "neutral": "Neutral",
+          "bad": "Unsatisfied",
+          "centerSub": "Satisfaction"
+        },
+        "answered": {
+          "title": "Who answered?",
+          "description": "Agents versus automated replies",
+          "empty": "No outbound replies in this period",
+          "agents": "Agents",
+          "automated": "Automated",
+          "centerSub": "outbound"
+        },
+        "resolvedBy": {
+          "title": "Resolved by department",
+          "description": "Conversations resolved in each department",
+          "empty": "No resolved conversations in this period",
+          "series": "Resolved"
+        }
+      },
+      "agents": {
+        "title": "Agent performance",
+        "description": "Resolved conversations and response times per agent",
+        "caption": "Agent performance table",
+        "cols": {
+          "index": "#",
+          "agent": "Agent",
+          "resolved": "Resolved",
+          "responses": "First responses",
+          "firstResponse": "Avg first response",
+          "resolution": "Avg resolution",
+          "csat": "Satisfaction",
+          "out": "Messages out"
+        },
+        "unassigned": "No agent (automated)",
+        "export": "Export CSV",
+        "exported": "File downloaded",
+        "exportFailed": "The report could not be exported",
+        "empty": "No data in this period",
+        "emptyHint": "Try a longer period or remove a filter."
+      },
+      "error": "The report could not be loaded",
+      "costs": {
+        "hint": "Figures come from Meta, are approximate and may differ from the invoice. Days are in UTC.",
+        "kpiLabel": "Cost figures",
+        "kpi": {
+          "total": "Total cost",
+          "totalHint": "Approximate (Meta)",
+          "paid": "Paid messages",
+          "free": "Free messages",
+          "freeHint": "Service window and free entry points",
+          "marketing": "Marketing share",
+          "marketingHint": "Of the total cost"
+        },
+        "noCost": "Meta returns no cost for this account (a partner credit line), so only volumes are shown.",
+        "charts": {
+          "daily": {
+            "title": "Daily cost",
+            "description": "Each day's cost in UTC",
+            "empty": "No cost in this period",
+            "series": "Cost"
+          },
+          "category": {
+            "title": "Cost by category",
+            "description": "How the cost splits across pricing categories",
+            "empty": "No cost by category",
+            "centerSub": "Total"
+          },
+          "type": {
+            "title": "Volume by pricing type",
+            "description": "Messages per pricing type",
+            "empty": "No messages in this period",
+            "series": "Messages"
+          }
+        },
+        "category": {
+          "authentication": "Authentication",
+          "authentication_international": "International authentication",
+          "marketing": "Marketing",
+          "marketing_lite": "Marketing lite",
+          "service": "Service",
+          "utility": "Utility",
+          "referral_conversion": "Referral conversion",
+          "unknown": "Unknown"
+        },
+        "type": {
+          "regular": "Regular",
+          "free_customer_service": "Free customer service",
+          "free_entry_point": "Free entry point",
+          "unknown": "Unknown"
+        },
+        "countries": {
+          "title": "By country",
+          "description": "The countries with the most volume",
+          "caption": "Cost by country table",
+          "country": "Country",
+          "volume": "Messages",
+          "cost": "Cost",
+          "empty": "No country data in this period"
+        },
+        "sync": {
+          "title": "Channel sync",
+          "description": "When we last pulled the figures from Meta",
+          "never": "Not synced yet",
+          "at": "Last sync {time}",
+          "error": "Sync error"
+        }
+      },
+      "templates": {
+        "title": "Template analytics",
+        "hint": "Meta's figures per template (up to 90 days) beside our own sends and failures.",
+        "noChannels": "There is no WhatsApp channel to show template analytics for.",
+        "caption": "Template analytics table",
+        "cols": {
+          "template": "Template",
+          "sent": "Sent",
+          "delivered": "Delivered",
+          "read": "Read",
+          "clicked": "Clicks",
+          "spent": "Spent",
+          "webvueSent": "We sent",
+          "webvueFailed": "Failed"
+        },
+        "empty": "No templates to show",
+        "emptyHint": "No approved template was sent from this channel in the period.",
+        "insightsOff": "Template analytics is not enabled",
+        "insightsOffHint": "Meta needs a one-time opt-in on the business account before it gives us delivery, read and click figures.",
+        "enableLink": "Enable template analytics",
+        "detail": {
+          "back": "Template analytics",
+          "funnel": "Message funnel",
+          "funnelLabel": "Stages the template reached",
+          "sent": "Sent",
+          "delivered": "Delivered",
+          "read": "Read",
+          "clicked": "Clicks",
+          "ofSent": "of sent",
+          "daily": {
+            "title": "Day by day",
+            "description": "Sent, delivered, read and clicks for each day",
+            "empty": "No data for this template in the period"
+          },
+          "buttons": {
+            "title": "Button clicks",
+            "caption": "Template button clicks table",
+            "type": "Type",
+            "text": "Button text",
+            "clicked": "Clicks",
+            "empty": "No clicks on this template's buttons",
+            "quick_reply": "Quick reply",
+            "url": "Link",
+            "unknown": "Unknown"
+          },
+          "totals": {
+            "spent": "Spent",
+            "webvueSent": "Sent from WebVue",
+            "webvueFailed": "Failed in WebVue"
+          }
+        }
+      }
+    },
+    "health": {
+      "tabs": {
+        "label": "Channel sections",
+        "details": "Details",
+        "health": "Health",
+        "profile": "Business profile",
+        "templates": "Templates"
+      },
+      "title": "Number health",
+      "refresh": "Refresh now",
+      "refreshed": "The number data was refreshed",
+      "checkedAt": "Last checked: {time}",
+      "neverChecked": "The number has not been checked yet. Press \"Refresh now\".",
+      "tilesLabel": "Number metrics",
+      "tiles": {
+        "quality": "Quality rating",
+        "limit": "Messaging limit",
+        "limitHint": "Per 24 hours, shared by all numbers of the business portfolio",
+        "throughput": "Throughput",
+        "name": "Verified name",
+        "code": "Number verification",
+        "number": "Display number",
+        "noName": "No verified name yet",
+        "requested": "Requested name: {name}",
+        "verified": "Verified",
+        "unverified": "Not verified"
+      },
+      "quality": {
+        "green": "High",
+        "yellow": "Medium",
+        "red": "Low",
+        "unknown": "Unknown"
+      },
+      "limit": {
+        "tier_50": "50",
+        "tier_250": "250",
+        "tier_2k": "2,000",
+        "tier_10k": "10,000",
+        "tier_100k": "100,000",
+        "unlimited": "Unlimited",
+        "not_set": "Not set",
+        "unknown": "Unknown"
+      },
+      "throughput": {
+        "standard": "Standard",
+        "high": "High",
+        "not_applicable": "Not applicable",
+        "unknown": "Unknown"
+      },
+      "nameStatus": {
+        "approved": "Approved",
+        "available_without_review": "Available without review",
+        "pending_review": "Pending review",
+        "declined": "Declined",
+        "expired": "Expired",
+        "none": "None",
+        "unknown": "Unknown"
+      },
+      "nameReasons": {
+        "NAME_EMPLOYEE_ISSUE": "The name belongs to an employee",
+        "NAME_ENDCLIENT_NOTRELATED": "The name is unrelated to your business",
+        "NAME_FORMAT_UNACCEPTABLE": "The name format is not acceptable",
+        "NAME_INDIVIDUAL_ISSUE": "The name belongs to an individual",
+        "NAME_NOT_CONSISTENT": "The name does not match your business",
+        "UNKNOWN": "Unknown reason"
+      },
+      "account": {
+        "restricted": "The account is restricted",
+        "restrictedUntil": "Meta restricted some account capabilities until {time}.",
+        "restrictedNoDate": "Meta restricted some account capabilities.",
+        "scheduled_for_disable": "The account is scheduled to be disabled",
+        "scheduledHint": "The business account will be disabled unless you resolve the cause in WhatsApp Manager.",
+        "disabled": "The account is disabled",
+        "disabledHint": "Meta disabled the business account: nothing can be sent until it is reinstated in WhatsApp Manager.",
+        "ok": "The account works normally"
+      },
+      "alerts": {
+        "title": "Alert timeline",
+        "description": "Quality, limit, name and account changes as Meta reported them",
+        "empty": "No alerts yet",
+        "caption": "Number alert timeline",
+        "severity": {
+          "info": "Info",
+          "warning": "Warning",
+          "danger": "Danger"
+        },
+        "reason": "Reason",
+        "expires": "Expires {time}",
+        "range": "{from}–{to} of {total}",
+        "kind": {
+          "quality_changed": "Quality rating changed to {quality}",
+          "messaging_limit_changed": "Messaging limit changed to {limit}",
+          "messaging_limit_changed_from": "Messaging limit changed from {previous} to {limit}",
+          "throughput_upgraded": "Throughput was upgraded",
+          "name_approved": "The display name was approved",
+          "name_rejected": "The requested name \"{name}\" was rejected",
+          "name_pending": "The requested name \"{name}\" is under Meta review",
+          "account_restricted": "The account was restricted",
+          "account_disabled": "The account was disabled",
+          "account_reinstated": "The account was reinstated",
+          "account_violation": "A violation was recorded on the account",
+          "scaling_denied": "Meta declined to raise the limit",
+          "connection_failed": "The connection to Meta failed"
+        }
+      },
+      "webhook": {
+        "title": "Webhook subscriptions",
+        "description": "Subscribe to these fields in the Meta app so every change to the number, account and templates reaches us.",
+        "copy": "Copy",
+        "copied": "Copied",
+        "copyAria": "Copy the field name {field}"
+      },
+      "actions": {
+        "displayName": {
+          "title": "Request a display name change",
+          "hint": "Meta reviews it and may reject it. The current name stays until it is approved.",
+          "label": "New name",
+          "submit": "Send request",
+          "done": "The name change was sent for review",
+          "invalid": "3 to 128 characters"
+        },
+        "pin": {
+          "title": "Two-step verification PIN",
+          "hint": "Six digits. The PIN is not stored and not shown after sending.",
+          "label": "PIN (6 digits)",
+          "submit": "Set PIN",
+          "done": "The two-step verification PIN was set",
+          "invalid": "The PIN is exactly six digits"
+        },
+        "register": {
+          "title": "Register the number",
+          "hint": "Register again after changing the PIN or migrating the number. It needs the two-step PIN (6 digits).",
+          "pinLabel": "PIN (6 digits)",
+          "button": "Register number",
+          "confirmTitle": "Register the number with Meta?",
+          "confirmDescription": "Meta allows only ten registration attempts per number in 72 hours, then blocks the number for 72 hours. Check the PIN before you continue.",
+          "confirm": "Confirm registration",
+          "done": "The number was registered"
+        },
+        "insights": {
+          "title": "Template analytics",
+          "hint": "A one-time opt-in on the business account gives us delivery, read and click figures.",
+          "enabled": "Enabled",
+          "enable": "Enable analytics",
+          "confirmTitle": "Enable template analytics?",
+          "confirmDescription": "This cannot be undone: Meta does not allow turning analytics off once it is on. It is unavailable for EU, UK and Japan accounts.",
+          "confirm": "Yes, enable",
+          "done": "Template analytics was enabled"
+        },
+        "sync": {
+          "title": "Sync analytics",
+          "hint": "Pull cost and template analytics from Meta now. Once every 10 minutes per channel.",
+          "button": "Sync now",
+          "done": "Analytics was synced",
+          "last": "Last sync: {time}",
+          "never": "Not synced yet",
+          "error": "Sync error"
+        },
+        "currency": "Billing currency: {currency}"
+      }
+    },
+    "profile": {
+      "title": "WhatsApp business profile",
+      "description": "What customers see when they open your business info. It is read from Meta live and no copy is kept.",
+      "loadError": "The profile could not be read from Meta",
+      "fields": {
+        "about": "About",
+        "address": "Address",
+        "description": "Description",
+        "email": "Email",
+        "website1": "First website",
+        "website2": "Second website",
+        "vertical": "Business category"
+      },
+      "hints": {
+        "about": "1 to 139 characters, plain text.",
+        "websites": "A link starting with http:// or https://",
+        "noVertical": "Not set"
+      },
+      "counter": "{used} / {max}",
+      "invalid": {
+        "about": "About is required (up to 139 characters)",
+        "address": "Address is up to 256 characters",
+        "description": "Description is up to 512 characters",
+        "email": "Not a valid email (up to 128 characters)",
+        "website": "A link starting with http:// or https:// (up to 256 characters)"
+      },
+      "vertical": {
+        "alcohol": "Alcohol",
+        "apparel": "Apparel and fashion",
+        "auto": "Automotive",
+        "beauty": "Beauty and personal care",
+        "edu": "Education",
+        "entertain": "Entertainment",
+        "event_plan": "Event planning",
+        "finance": "Finance and banking",
+        "govt": "Government",
+        "grocery": "Grocery",
+        "health": "Health",
+        "hotel": "Hotels and hospitality",
+        "nonprofit": "Non-profit",
+        "online_gambling": "Online gambling",
+        "otc_drugs": "Over-the-counter drugs",
+        "other": "Other",
+        "physical_gambling": "Physical gambling",
+        "prof_services": "Professional services",
+        "restaurant": "Restaurants and cafes",
+        "retail": "Retail",
+        "travel": "Travel and tourism"
+      },
+      "picture": {
+        "title": "Profile picture",
+        "hint": "JPEG or PNG up to 5 MB, square and at least 192 px wide.",
+        "choose": "Choose a picture",
+        "uploading": "Uploading to Meta…",
+        "uploaded": "The picture was updated",
+        "type": "The picture must be JPEG or PNG",
+        "size": "The picture is larger than 5 MB",
+        "needsAppId": "To upload a picture, add the Meta App ID in the channel details.",
+        "appIdLink": "Open channel details",
+        "aria": "Business profile picture"
+      },
+      "save": "Save to Meta",
+      "saved": "The business profile was saved",
+      "reset": "Discard changes",
+      "preview": {
+        "title": "Preview",
+        "hint": "An approximation of what customers see.",
+        "business": "Business account",
+        "about": "About",
+        "noAbout": "No about text yet"
+      }
+    },
+    "catalog": {
+      "title": "Catalog",
+      "empty": "No catalog connected",
+      "emptyDescription": "Connect a WhatsApp catalog to show your products to customers and receive carts in the conversation.",
+      "neverSynced": "Not synced yet",
+      "syncStarted": "Sync with Meta started",
+      "wabaLine": "WhatsApp Business account {id}",
+      "states": {
+        "connected": "Connected",
+        "error": "Error"
+      },
+      "syncNow": "Sync now",
+      "open": "Open catalog",
+      "lastError": "Last error",
+      "counts": {
+        "items": "Products",
+        "synced": "Synced",
+        "pending": "Pending",
+        "error": "With errors",
+        "rejected": "Rejected"
+      },
+      "lastSync": "Last sync: {time}",
+      "numbers": "Account numbers",
+      "cartEnabled": "Let customers use the cart",
+      "catalogVisible": "Show the catalog on the business profile",
+      "brand": "Brand name",
+      "brandHint": "Shown with every product in WhatsApp.",
+      "defaultLink": "Default product link",
+      "defaultLinkHint": "An https link Meta requires for each product. Leave empty to use the click-to-chat link of the WhatsApp number.",
+      "pricesIncludeTax": "Prices include VAT",
+      "pricesIncludeTaxHint": "The catalog shows the price after VAT.",
+      "defaults": "Catalog defaults",
+      "defaultsHint": "They apply to every product, and a change sends the products to Meta again.",
+      "dangerTitle": "Danger zone",
+      "deleteHint": "Disconnecting the catalog from WebVue does not delete its products from Meta, and existing orders stay.",
+      "delete": "Disconnect catalog",
+      "deleteTitle": "Disconnect the catalog {name}?",
+      "deleteDescription": "The team cannot send its products until you connect it again.",
+      "availability": {
+        "in_stock": "In stock",
+        "out_of_stock": "Out of stock"
+      },
+      "sync": {
+        "pending": "Pending",
+        "syncing": "Sending",
+        "synced": "Synced",
+        "error": "Error",
+        "removing": "Removing"
+      },
+      "review": {
+        "pending": "In review",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "unknown": "Unknown"
+      },
+      "reviewReason": "Rejection reason",
+      "connect": {
+        "title": "Connect a catalog",
+        "hint": "Create the catalog in Commerce Manager, then paste its id here.",
+        "channel": "WhatsApp number",
+        "channelHint": "Every number of the same account shares one catalog.",
+        "pickChannel": "Pick a channel",
+        "catalogId": "Catalog id",
+        "catalogIdHint": "Find it in Commerce Manager. Digits only.",
+        "connectForMe": "Connect it to the account for me",
+        "connectForMeHint": "Turn it off if the catalog is already connected to the WhatsApp Business account.",
+        "permissionHelp": "Meta's system user needs the catalog_management permission and the catalog assigned to it as an asset.",
+        "submit": "Connect catalog",
+        "done": "Catalog connected",
+        "invalid": {
+          "channel": "Pick the channel",
+          "catalogId": "Enter the catalog id (5 to 32 digits)",
+          "brand": "The brand name is required",
+          "link": "The link must start with https"
+        }
+      },
+      "items": {
+        "title": "Products",
+        "hint": "The products listed in the catalog with their sync and Meta review status.",
+        "add": "Add a product",
+        "search": "Search products",
+        "syncFilter": "Sync status",
+        "anyState": "Any status",
+        "empty": "There are no products in the catalog yet",
+        "listed": "List {name} in the catalog",
+        "delete": "Delete product",
+        "deleteHint": "The product is deleted from Meta first, then from the catalog.",
+        "deleteTitle": "Delete {name} from the catalog?",
+        "deleteDescription": "Customers will no longer see it."
+      },
+      "itemForm": {
+        "source": "Product source",
+        "tabs": {
+          "existing": "Existing product",
+          "new": "New product"
+        },
+        "productId": "Product",
+        "productIdHint": "Pick a product that has an image and is not listed yet.",
+        "invalid": {
+          "productId": "Enter a valid product id",
+          "retailerId": "English letters, digits and . _ - only"
+        },
+        "name": "Product name",
+        "description": "Description",
+        "price": "Price",
+        "priceHint": "The sales price before taxes.",
+        "image": "Image",
+        "imageHint": "JPEG or PNG, at least {min}×{min} pixels, up to {mb} MB.",
+        "pickImage": "Choose an image",
+        "imageProblems": {
+          "type": "The image must be JPEG or PNG.",
+          "tooLarge": "The image is larger than {mb} MB.",
+          "tooSmall": "The image is smaller than {min}×{min} pixels."
+        },
+        "imageRequired": "A new product needs an image.",
+        "preview": "Preview in WhatsApp",
+        "retailerId": "Meta product id",
+        "retailerIdHint": "Leave empty to use the product's internal reference.",
+        "retailerIdLocked": "It cannot change after the first sync.",
+        "availability": "Availability",
+        "linkOverride": "Product-specific link",
+        "linkOverrideHint": "Optional; replaces the default link.",
+        "listed": "Listed in the catalog",
+        "add": "Add",
+        "createHint": "Pick an existing product or create a new one with its image.",
+        "syncError": "The product could not be sent to Meta",
+        "searchProducts": "Search products by name",
+        "noProducts": "No matching products",
+        "productList": "Company products",
+        "alreadyListed": "Already in the catalog",
+        "noImage": "No image: add an image to the product first"
+      },
+      "channelBlock": {
+        "title": "WhatsApp commerce",
+        "hint": "The catalog and the cart for this number.",
+        "catalog": "Catalog",
+        "none": "No catalog is connected to this channel's account.",
+        "paidNotice": "Notify the customer when paid",
+        "paidNoticeHint": "Sent inside the reply window only; otherwise only a note is added to the conversation.",
+        "paidNoticeText": "Notice text",
+        "paidNoticeTextHint": "Write {'{reference}'} to insert the order number."
+      },
+      "picker": {
+        "title": "Products",
+        "search": "Search products",
+        "count": "{n} of {max} picked",
+        "empty": "No products are available to send",
+        "listLabel": "Catalog products",
+        "type": "Message type",
+        "types": {
+          "product": "Product",
+          "product_list": "Product list",
+          "catalog_message": "Whole catalog"
+        },
+        "header": "Header",
+        "body": "Message text",
+        "footer": "Footer",
+        "sectionTitle": "Section title",
+        "fillSection": "Add to it",
+        "removeSection": "Delete section",
+        "sectionProducts": "Section products",
+        "removeProduct": "Remove {name}",
+        "addSection": "Add a section",
+        "thumbnailHint": "Pick a product to show its image in the message, or leave it to use the first product.",
+        "pickFor": "Pick products for the section \"{section}\"",
+        "pickOne": "Pick the product",
+        "pickThumbnail": "Image product (optional)",
+        "needsChannel": "Pick a specific channel to choose its products.",
+        "problems": {
+          "productRequired": "Pick a product",
+          "productsRequired": "Pick at least one product",
+          "tooManyProducts": "At most 30 products",
+          "headerRequired": "The header is required",
+          "bodyRequired": "The message text is required",
+          "sectionTitleRequired": "Every section with products needs a title"
+        },
+        "defaultSection": "Products",
+        "allChannelsWarning": "The rule is for all channels: products are sent only on a channel with a catalog, and skipped with a note elsewhere."
+      },
+      "thread": {
+        "inquiry": "Product inquiry:",
+        "view": "View",
+        "products": "{n} products",
+        "viewCatalog": "View catalog"
+      }
+    },
+    "orders": {
+      "title": "Orders",
+      "empty": "No orders yet",
+      "emptyDescription": "Carts customers send and orders the team builds appear here.",
+      "panelEmpty": "There are no orders in this conversation",
+      "create": "New order",
+      "cartTitle": "Order cart",
+      "lines": "Order lines",
+      "total": "Total",
+      "unknownProduct": "Not in the catalog",
+      "wasPrice": "Was {price}",
+      "unknownWarning": "The cart has a product that is not in the catalog. Remove it before creating the order.",
+      "state": {
+        "cart": "Cart",
+        "ordered": "Order",
+        "dismissed": "Dismissed"
+      },
+      "payment": {
+        "payable": "Awaiting payment",
+        "processing": "Paying",
+        "paid": "Paid",
+        "not_payable": "Not payable",
+        "cancelled": "Cancelled"
+      },
+      "priceChanged": "Prices changed since the cart was sent: it was {cart} and is now {now}.",
+      "refundDue": "Money was received that must be given back to the customer.",
+      "needsAttention": "The money was received but not recorded on the order. Check the payment.",
+      "expired": "The payment time has run out",
+      "expiresIn": "The order expires in {minutes} minutes",
+      "linkSentAt": "Pay link sent {time}",
+      "lineCount": "{n} lines",
+      "edit": "Edit",
+      "checkout": "Create the order and send the pay link",
+      "resendLink": "Send the link again",
+      "dismiss": "Dismiss",
+      "cancel": "Cancel order",
+      "dismissTitle": "Dismiss this cart?",
+      "dismissDescription": "The cart stays in the conversation but no order is created for it.",
+      "cancelTitle": "Cancel the order?",
+      "cancelDescription": "It cannot be paid after cancelling.",
+      "linkMessage": "Pay message text",
+      "linkMessageHint": "Optional; otherwise the order summary is sent.",
+      "templateNeeded": "The free-reply window has closed, so an approved template with a pay link is needed.",
+      "noPayTemplate": "There is no approved template with a link button that ends in a variable. Create one from the channel's templates.",
+      "payTemplate": "Pay link template",
+      "linkSent": "Pay link sent",
+      "quantityOf": "Quantity of {name}",
+      "removeLine": "Remove {name}",
+      "noLines": "No lines yet. Pick products from the catalog.",
+      "addProducts": "Add products",
+      "filter": {
+        "search": "Search by customer or order number",
+        "state": "State",
+        "payment": "Payment status",
+        "channel": "Channel",
+        "any": {
+          "state": "Any state",
+          "payment": "Any payment status",
+          "channel": "Any channel"
+        }
+      }
+    },
+    "campaigns": {
+      "title": "Campaigns",
+      "new": "New campaign",
+      "newHint": "Pick the template and audience and choose what fills each message variable.",
+      "create": "Create campaign",
+      "empty": "No campaigns yet",
+      "emptyHint": "Create a campaign to send an approved template to an audience of your customers.",
+      "emptyFiltered": "No campaigns match the filters",
+      "noTemplate": "Template deleted",
+      "footer": "{shown} of {total}",
+      "edit": "Edit campaign",
+      "editHint": "A campaign can be edited before it starts. While paused, only its name, daily cap and working-hours rule change.",
+      "states": {
+        "draft": "Draft",
+        "scheduled": "Scheduled",
+        "running": "Sending",
+        "paused": "Paused",
+        "done": "Done",
+        "cancelled": "Cancelled"
+      },
+      "columns": {
+        "state": "Status",
+        "channel": "Channel",
+        "template": "Template",
+        "audience": "Audience",
+        "progress": "Delivery",
+        "when": "When"
+      },
+      "filters": {
+        "search": "Search by campaign name",
+        "allStates": "All statuses",
+        "allChannels": "All channels"
+      },
+      "actions": {
+        "launch": "Launch",
+        "pause": "Pause",
+        "resume": "Resume",
+        "cancel": "Cancel campaign",
+        "retry": "Retry capped recipients",
+        "launchDone": "The campaign has started",
+        "pauseDone": "The campaign is paused",
+        "resumeDone": "The campaign resumed",
+        "cancelDone": "The campaign was cancelled",
+        "retryDone": "Recipients were queued again"
+      },
+      "confirm": {
+        "launchTitle": "Launch “{name}”?",
+        "launchDescription": "Real messages go to the eligible recipients and cannot be recalled once sent.",
+        "cancelTitle": "Cancel “{name}”?",
+        "cancelDescription": "Recipients not yet sent are cancelled. Messages already sent stay sent.",
+        "deleteTitle": "Delete “{name}”?",
+        "deleteDescription": "The campaign is deleted for good. It cannot be deleted once sending has started."
+      },
+      "pause": {
+        "manual": "Paused by you",
+        "template_unavailable": "Template unavailable",
+        "account_restricted": "Account restricted by Meta",
+        "payment": "Payment method problem",
+        "token": "Access token expired",
+        "channel_disabled": "Channel not connected",
+        "messages_limit": "Monthly message limit reached",
+        "recipients_limit": "Monthly recipient limit reached"
+      },
+      "pauseHint": {
+        "manual": "Resume the campaign when you are ready.",
+        "template_unavailable": "The campaign template is paused, disabled or not approved. Check its status, then resume.",
+        "account_restricted": "Meta restricted the account over sending quality. See the number health page.",
+        "payment": "Fix the payment method in your Meta account, then resume.",
+        "token": "Renew the access token in the channel settings, then resume.",
+        "channel_disabled": "Reconnect the channel, then resume.",
+        "messages_limit": "The limit renews next month or with a plan upgrade.",
+        "recipients_limit": "The limit renews next month or with a plan upgrade."
+      },
+      "waiting": {
+        "schedule": "Waiting for the scheduled start",
+        "working_hours": "Waiting for working hours",
+        "daily_cap": "Daily cap reached; sending resumes on its own",
+        "messaging_limit": "Meta's 24-hour customer limit reached; sending resumes on its own"
+      },
+      "stats": {
+        "label": "Campaign figures",
+        "total": "Recipients",
+        "skipped": "Skipped",
+        "delivered": "Delivered",
+        "read": "Read",
+        "replied": "Replied",
+        "failed": "Failed",
+        "unsubscribed": "Unsubscribed",
+        "held": "Held by Meta",
+        "heldHint": "Meta holds them for a template quality check",
+        "progress": "Sending progress"
+      },
+      "test": {
+        "title": "Test send",
+        "hint": "One real message to a customer you choose before launch. They are not a recipient of the campaign and the consent policy applies.",
+        "contact": "Customer",
+        "placeholder": "Search by name or number",
+        "send": "Send test",
+        "sent": "The test message was sent",
+        "open": "Open conversation"
+      },
+      "recipients": {
+        "title": "Recipients",
+        "contact": "Customer",
+        "detail": "Details",
+        "sentAt": "Sent at",
+        "response": "Response",
+        "search": "Search by name or number",
+        "failureLabel": "Failure reason",
+        "allFailures": "All reasons",
+        "empty": "No matching recipients",
+        "footer": "{shown} of {total}",
+        "open": "Conversation",
+        "replied": "Replied",
+        "unsubscribed": "Unsubscribed",
+        "states": {
+          "pending": "Pending",
+          "skipped": "Skipped",
+          "queued": "Queued",
+          "sent": "Sent",
+          "delivered": "Delivered",
+          "read": "Read",
+          "failed": "Failed"
+        },
+        "skip": {
+          "opted_out": "Opted out",
+          "no_consent": "No consent",
+          "invalid_number": "Invalid number",
+          "missing_param": "Missing variable value",
+          "cancelled": "Campaign cancelled"
+        },
+        "failure": {
+          "frequency_capped": "Reached Meta's marketing limit",
+          "marketing_opt_out": "Stopped marketing messages",
+          "not_on_whatsapp": "Not on WhatsApp",
+          "template_unavailable": "Template unavailable",
+          "invalid_params": "Invalid variables",
+          "experiment": "Part of a Meta experiment",
+          "account_restricted": "Account restricted",
+          "other": "Other reason"
+        }
+      },
+      "params": {
+        "title": "Message variables",
+        "hint": "Choose what fills each template variable: a fixed text or a field of each customer. A customer missing the field with no fallback is skipped.",
+        "none": "This template has no variables.",
+        "header": "Header variable",
+        "body": "Body variable {n}",
+        "button": "Button “{name}”",
+        "copyCode": "Copy code",
+        "sourceLabel": "Source",
+        "staticValue": "Fixed text",
+        "fallback": "Fallback value",
+        "fallbackHint": "Used when the customer has no value. Leave empty to skip such customers.",
+        "valueRequired": "Enter the text",
+        "source": {
+          "static": "Fixed text",
+          "contact_name": "Customer name",
+          "contact_first_name": "First name",
+          "contact_phone": "Phone number",
+          "contact_email": "Email"
+        }
+      },
+      "form": {
+        "messageTitle": "Message and audience",
+        "channel": "Channel",
+        "channelPlaceholder": "Choose a channel",
+        "channelRequired": "Choose a channel",
+        "template": "Template",
+        "templateHint": "Approved marketing and utility templates only.",
+        "templatePlaceholder": "Choose a template",
+        "templateRequired": "Choose a template",
+        "noTemplates": "This channel has no approved template usable in campaigns.",
+        "audience": "Audience",
+        "audiencePlaceholder": "Choose an audience",
+        "audienceRequired": "Choose an audience",
+        "reach": "Reaches {reachable} of {total} customers under the consent policy.",
+        "headerTitle": "Header file ({kind})",
+        "headerHint": "The file is uploaded once and sent with every message.",
+        "headerUpload": "Upload file",
+        "headerRequired": "Upload the header file",
+        "sendTitle": "Schedule and speed",
+        "scheduleLabel": "Start",
+        "schedule": {
+          "now": "On launch",
+          "at": "At a set time"
+        },
+        "scheduledAt": "Start time",
+        "scheduledAtHint": "In your device time ({zone}).",
+        "scheduleRequired": "Set the start time",
+        "withinHours": "Send only within working hours",
+        "withinHoursHint": "Sending stops outside working hours and continues when they open.",
+        "dailyCap": "Daily cap",
+        "dailyCapHint": "Most recipients per 24 hours. Zero means only Meta's limit.",
+        "previewTitle": "Message preview",
+        "sample": "Preview customer",
+        "sampleHint": "Pick a customer of the audience to see how the message looks for them.",
+        "samplePlaceholder": "Search by name or number",
+        "previewMissing": "{count} variable has no value for this customer. | {count} variables have no value for this customer.",
+        "limited": "The campaign is paused: only its name, daily cap and working-hours rule can change."
+      },
+      "hints": {
+        "charged": "Meta charges marketing messages per delivered message.",
+        "us": "Marketing messages may not reach US (+1) numbers, which Meta has paused.",
+        "remaining": "Left for this channel today: {remaining} customers (Meta limit: {limit}).",
+        "unlimited": "Meta's limit is unlimited for this account."
+      },
+      "sending": {
+        "title": "Marketing sending",
+        "description": "Meta's limit on customers you start a conversation with in 24 hours is shared by the numbers of the business account.",
+        "used": "Used in 24 hours",
+        "usedHint": "Customers messaged outside a service window",
+        "remaining": "Left in 24 hours",
+        "unlimited": "Unlimited",
+        "onboarding": "Marketing Messages API",
+        "mmApi": "Use the Marketing Messages API",
+        "mmApiHint": "Marketing templates go through it, falling back to the Cloud API when it cannot send.",
+        "mmNotOnboarded": "The account has not enabled this API in Meta yet, so sending falls back to the Cloud API.",
+        "api": "Sending API: {api}",
+        "apiName": {
+          "cloud_api": "Cloud API",
+          "marketing_messages": "Marketing Messages API"
+        },
+        "onboardingState": {
+          "not_started": "Not enabled",
+          "eligible": "Eligible",
+          "onboarded": "Enabled",
+          "unknown": "Unknown"
+        }
+      },
+      "audiences": {
+        "title": "Audiences",
+        "new": "New audience",
+        "newHint": "A saved audience computed from customer tags and activity.",
+        "create": "Create audience",
+        "empty": "No audiences yet",
+        "emptyHint": "Create an audience from customer tags, or import your customers from a CSV file below.",
+        "search": "Search by audience name",
+        "footer": "{shown} of {total}",
+        "contacts": "Matching",
+        "reachable": "Reachable",
+        "reachableHint": "Under the consent policy and with a WhatsApp address",
+        "reachableOf": "{reachable} of {total}",
+        "everyone": "All customers",
+        "tags": "Customer tags",
+        "tagsHint": "Customers carrying these tags. With none, every customer.",
+        "matchLabel": "Match",
+        "match": {
+          "any": "Any tag",
+          "all": "All tags"
+        },
+        "exclude": "Excluded tags",
+        "excludeHint": "Customers with any of these stay out.",
+        "noExclude": "None excluded",
+        "activeWithin": "Active within (days)",
+        "activeWithinHint": "Customers who wrote to us in this period. Zero for any customer.",
+        "definition": "Audience definition",
+        "members": "Members",
+        "searchMembers": "Search by name or number",
+        "noMembers": "No matching customers",
+        "membersFooter": "{shown} of {total}",
+        "deleteTitle": "Delete “{name}”?",
+        "deleteDescription": "It cannot be deleted while a campaign uses this audience."
+      },
+      "consent": {
+        "label": "Consent",
+        "all": "All states",
+        "unknown": "Unknown",
+        "opted_in": "Opted in",
+        "opted_out": "Opted out"
+      },
+      "import": {
+        "title": "Import customers",
+        "description": "Add your customers from a CSV file. An import never overrides an opt-out a customer made.",
+        "file": "CSV file",
+        "fileHint": "UTF-8 with a required phone column, and optional name and tags (existing tag names separated by ;). Up to 10,000 rows and 2 MB.",
+        "choose": "Choose file",
+        "tags": "Tags added to every row",
+        "tagsHint": "Added to every customer in the file.",
+        "noTags": "No extra tags",
+        "consentLabel": "Marketing consent",
+        "consent": {
+          "unknown": "Unknown",
+          "opted_in": "Opted in"
+        },
+        "consentHint": {
+          "unknown": "Campaigns reach them only if the policy allows customers who have not opted out.",
+          "opted_in": "I confirm I have these customers' consent to receive marketing messages."
+        },
+        "note": "Proof of consent",
+        "noteHint": "Where and when they agreed, for example: website form.",
+        "noteRequired": "Write the proof of consent",
+        "submit": "Import",
+        "done": "{created} added and {updated} updated",
+        "created": "Added",
+        "updated": "Updated",
+        "skipped": "Skipped",
+        "errors": "Row errors",
+        "line": "Line {line}",
+        "tooLarge": "The file is larger than 2 MB."
+      },
+      "settings": {
+        "title": "Campaigns",
+        "hint": "The consent policy, stop words and daily cap of WhatsApp campaigns. They apply to future snapshots only.",
+        "policyLabel": "Who campaigns message",
+        "policyDescription": "Meta requires customer consent for marketing messages; choose what fits your business.",
+        "policy": {
+          "opted_in_only": "Opted-in customers only",
+          "not_opted_out": "Everyone who has not opted out"
+        },
+        "policyHint": {
+          "opted_in_only": "Only customers with a recorded opt-in. The safest choice (default).",
+          "not_opted_out": "Customers who have not opted out, such as ones who wrote to you first."
+        },
+        "countryCode": "Default country code",
+        "countryCodeHint": "Turns local numbers in an import (starting with zero) into international ones. Example: 966. Empty accepts international numbers only.",
+        "keywordOptOut": "Opt out by keyword",
+        "keywordOptOutHint": "A customer message that exactly matches a keyword records the opt-out or the opt-in again.",
+        "stopKeywords": "Stop keywords",
+        "stopKeywordsHint": "Exact match after letter normalization.",
+        "startKeywords": "Resume keywords",
+        "startKeywordsHint": "Bring back someone who stopped.",
+        "stopReply": "Confirmation reply to a stop",
+        "startReply": "Confirmation reply to a resume",
+        "dailyCap": "Daily cap of a new campaign",
+        "dailyCapHint": "The value every new campaign starts with. Zero means only Meta's limit."
+      },
+      "marketing": {
+        "title": "Marketing",
+        "since": "{source} · {time}",
+        "source": {
+          "agent": "Agent",
+          "import": "Import",
+          "keyword": "Stop keyword",
+          "whatsapp": "WhatsApp preferences",
+          "delivery_error": "Delivery error"
+        },
+        "recordOptIn": "Record opt-in",
+        "recordOptOut": "Record opt-out",
+        "proof": "Proof of consent",
+        "proofHint": "Where and when the customer agreed, for example: asked at the clinic.",
+        "optOutTitle": "Record this customer's opt-out?",
+        "optOutDescription": "Campaigns stop reaching them until they agree again.",
+        "tags": "Customer segments",
+        "tagsHint": "Tags that audiences select on.",
+        "history": "Consent history"
+      },
+      "navLabel": "Campaign sections"
     }
   }
 }

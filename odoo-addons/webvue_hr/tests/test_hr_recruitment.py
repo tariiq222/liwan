@@ -283,14 +283,21 @@ class TestHrRecruitment(WebVueHrCase):
         first_stage = self._first_stage_of(self.job)
         self.assertEqual(body['stage'], {'id': first_stage.id, 'name': first_stage.name})
         self.assertIsNone(body['refuse_reason'])
-        # The stock method only re-stages and clears the reason: it does not unarchive,
-        # so the applicant is now archived rather than ongoing (stock's Restore is
-        # `action_unarchive` and is not part of this contract).
-        self.assertFalse(body['active'])
-        self.assertEqual(body['status'], 'archived')
+        # Restoring a refused applicant unarchives it into the first stage (issue 154).
+        self.assertTrue(body['active'])
+        self.assertEqual(body['status'], 'ongoing')
         applicant.invalidate_recordset(['stage_id', 'refuse_reason_id'])
         self.assertEqual(applicant.stage_id, first_stage)
         self.assertFalse(applicant.refuse_reason_id)
+
+    def test_a_hired_applicant_cannot_be_refused(self):
+        applicant = self._applicant('Noor')
+        self._as_recruiter()
+        self.assertEqual(self.api('POST', f'/api/v1/hr/recruitment/applicants/{applicant.id}/hire', json={}).status_code, 200)
+        res = self.api('POST', f'/api/v1/hr/recruitment/applicants/{applicant.id}/refuse', json={
+            'refuse_reason_id': self.refuse_reason.id,
+        })
+        self.assertEqual((res.status_code, res.json()['field']), (422, 'employee_id'))
 
     def test_hire_creates_an_employee_through_the_stock_conversion(self):
         applicant = self._applicant('Hana')

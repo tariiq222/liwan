@@ -33,10 +33,31 @@ class DocumentFiles(models.AbstractModel):
         return file
 
     @api.model
-    def _webvue_upload(self, document, upload, expected_revision):
+    def _webvue_same_name(self, document, name):
+        return self.env['dms.file'].search(
+            [('directory_id', '=', document.directory_id.id), ('name', '=', name)],
+        )
+
+    @api.model
+    def _webvue_upload(self, document, upload, expected_revision, *, as_version=False):
         document = document.with_env(self.env)
         parsed = parse_attachment_upload(upload)
+        if as_version:
+            # The previous file stays in the document as an archived earlier version.
+            for previous in self._webvue_same_name(document, parsed['name']):
+                self._webvue_set_file_active(document, previous.id, False, expected_revision)
+                expected_revision += 1
         with document._webvue_mutation(expected_revision, 'write', storage=True):
+            duplicate = self._webvue_same_name(document, parsed['name'])
+            if duplicate:
+                msg = 'duplicate_name'
+                raise WebVueAccessRule(
+                    msg,
+                    'a file with this name already exists in the document',
+                    field='name',
+                    status=409,
+                    details={'file_id': duplicate[:1].id},
+                )
             file = (
                 self.env['dms.file']
                 .with_context(
@@ -68,7 +89,14 @@ class DocumentFiles(models.AbstractModel):
             if file.locked_by and file.locked_by != self.env.user:
                 msg = 'file is locked by another editor'
                 raise AccessError(msg)
-            file.write({'active': active})
+            if file.active == active:
+                msg = 'invalid'
+                raise WebVueAccessRule(
+                    msg,
+                    'file is already archived' if not active else 'file is already active',
+                )
+            # An archived file keeps no editing lock.
+            file.write({'active': active} if active else {'active': False, 'locked_by': False})
         return file
 
     @api.model
@@ -79,8 +107,11 @@ class DocumentFiles(models.AbstractModel):
             raise WebVueAccessRule(msg, 'locked must be boolean')
         with document._webvue_mutation(expected_revision, 'write'):
             file = self._webvue_file(document, file_id)
-            if not file.active or (file.locked_by and file.locked_by != self.env.user):
-                msg = 'file is archived or locked by another editor'
+            if not file.active:
+                msg = 'file is archived'
+                raise AccessError(msg)
+            if file.locked_by and file.locked_by != self.env.user:
+                msg = 'file is locked by another editor'
                 raise AccessError(msg)
             file.write({'locked_by': self.env.uid if locked else False})
         return file

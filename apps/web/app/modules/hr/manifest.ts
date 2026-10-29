@@ -1,4 +1,6 @@
+import { HrLeaveBellKindSchema } from '@webvue/contracts'
 import type { AppContextLink, AppManifest } from '../types'
+import { hrBellHref, hrBellTitleInApp } from './bell'
 import { hrPersonalEntries } from './personal'
 import { leaveApprovalAttention, leaveCancellationAttention } from './attention'
 import { hrSectionActive, hrSectionOf, hrSectionTarget, type HrSection } from './routes'
@@ -100,6 +102,10 @@ const manifest: AppManifest = {
     { path: '/hr/payroll', capability: 'hr.payroll.read' },
   ],
   attention: [leaveApprovalAttention, leaveCancellationAttention],
+  bell: {
+    capabilities: ['hr.leave.read'],
+    kinds: HrLeaveBellKindSchema.options.map(kind => ({ kind, href: hrBellHref, title: hrBellTitleInApp })),
+  },
   personal: hrPersonalEntries,
   commands: [
     { id: 'hr.new-employee', labelKey: 'hr.directory.newEmployee', icon: 'i-lucide-users', to: '/hr/employees/new', capability: 'hr.employees.manage' },

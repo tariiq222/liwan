@@ -1,9 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import secrets
 from datetime import datetime, timezone
 
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
+from .abstract_interactive import COMMERCE_TYPES
 from .constants import MESSAGES_OUT_LIMIT, OUTBOX_CRON, REPLY_PREVIEW_LENGTH
 from .template import APPROVED, HEADER_TYPES, MEDIA_HEADERS, PLACEHOLDER
 from odoo.addons.webvue_inbox.adapters import media_rules
@@ -15,7 +17,8 @@ ERROR_TEXT_LENGTH = 200
 KINDS = [
     ('text', 'Text'), ('image', 'Image'), ('video', 'Video'), ('audio', 'Audio'), ('document', 'Document'),
     ('sticker', 'Sticker'), ('location', 'Location'), ('contacts', 'Contacts'), ('interactive', 'Interactive'),
-    ('template', 'Template'), ('unsupported', 'Unsupported'),
+    ('template', 'Template'), ('flow_response', 'Form answer'), ('product', 'Product'), ('product_list', 'Product list'),
+    ('catalog_message', 'Catalog'), ('order', 'Order'), ('unsupported', 'Unsupported'),
 ]
 
 
@@ -54,6 +57,10 @@ class WebVueInboxMessage(models.Model):
     template_footer = fields.Char()
     template_button_ids = fields.One2many('webvue.inbox.message.button', 'message_id')
     provider_message_id = fields.Char(copy=False)
+    # Identifies one outbound form message (an interactive form or a template with a form button): the form's answer
+    # carries it back. `flow_id` (from the interactive mixin) names the form.
+    flow_token = fields.Char(copy=False)
+    flow_submission_ids = fields.One2many('webvue.inbox.flow.submission', 'message_id')
     # The message this one answers (WhatsApp context); always a message of the same conversation.
     reply_to_id = fields.Many2one('webvue.inbox.message', index=True, ondelete='set null')
     # One emoji per side. A reaction the agent set is sent by the outbox while `agent_reaction_pending`.
@@ -69,6 +76,12 @@ class WebVueInboxMessage(models.Model):
     # An outbound interactive message: its fields come from the shared interactive mixin; `body` is its body text
     # and `option_ids` its buttons or list rows.
     option_ids = fields.One2many('webvue.inbox.message.option', 'message_id')
+    # Commerce: the Meta catalog an outbound product message names or an inbound cart was made from, the product an
+    # inbound text was sent from, and the lines of an inbound cart (the bridge turns a cart into an order).
+    catalog_id = fields.Char()
+    referred_catalog_id = fields.Char()
+    referred_retailer_id = fields.Char()
+    order_line_ids = fields.One2many('webvue.inbox.message.order.line', 'message_id')
     # What the customer chose in answer to an interactive message or template.
     selected_option_id = fields.Char()
     selected_option_title = fields.Char()
@@ -91,6 +104,7 @@ class WebVueInboxMessage(models.Model):
         '(provider_message_id) WHERE provider_message_id IS NOT NULL',
         'A provider message id is stored once.',
     )
+    _flow_token_unique = models.UniqueIndex('(flow_token) WHERE flow_token IS NOT NULL', 'A form token is used by one message.')
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -148,19 +162,23 @@ class WebVueInboxMessage(models.Model):
         })
 
     @api.model
-    def _webvue_queue_template(self, conversation, template, params=(), header=None, button_params=()):
+    def _webvue_queue_template(self, conversation, template, params=(), header=None, button_params=(), extra=None, wake=True):
         """Queue an approved template reply (allowed at any time, also after the window closed).
 
         `header` holds the validated header input: `text`, `attachment` (an upload of the conversation) or
         `location` (location message values); `button_params` is a list of (button position, value).
+        `extra` are message values that replace the defaults (a campaign sends automated, with its header file already
+        uploaded as `media_id`, so the file stays the campaign's); `wake=False` leaves waking the outbox to the caller.
         """
         self._webvue_require_sendable(conversation)
-        header = header or {}
+        header, extra = header or {}, extra or {}
         values = self._webvue_template_values(conversation, template, params, header, button_params)
-        message = self.create(self._webvue_outbound_values(conversation, values))
-        if header.get('attachment'):
+        values['business_initiated'] = not self._webvue_window_open(conversation)
+        message = self.create(self._webvue_outbound_values(conversation, {**values, **extra}))
+        if header.get('attachment') and not extra.get('media_id'):
             header['attachment'].write({'res_model': message._name, 'res_id': message.id})
-        self._webvue_wake_outbox()
+        if wake:
+            self._webvue_wake_outbox()
         return message
 
     @api.model
@@ -174,7 +192,12 @@ class WebVueInboxMessage(models.Model):
         self._webvue_require_window(conversation)
         if reply_to:
             self._webvue_require_reply_target(conversation, reply_to)
+        if values.get('kind') in COMMERCE_TYPES:
+            values = self._webvue_prepare_commerce(conversation, values)
         values = {**values, 'reply_to_id': reply_to.id if reply_to else False}
+        if values.get('interactive_type') == 'flow':
+            self._webvue_require_flow(conversation, self.env['webvue.inbox.flow'].browse(values.get('flow_id')))
+            values['flow_token'] = secrets.token_urlsafe(24)
         if attachment:
             values['kind'] = self._webvue_attachment_kind(attachment)
         message = self.create(self._webvue_outbound_values(conversation, values))
@@ -182,6 +205,50 @@ class WebVueInboxMessage(models.Model):
             attachment.write({'res_model': message._name, 'res_id': message.id})
         self._webvue_wake_outbox()
         return message
+
+    @api.model
+    def _webvue_require_flow(self, conversation, flow):
+        """The form of a message must be a published, unblocked form of the conversation's channel."""
+        if not flow._webvue_sendable_in(conversation.channel_id):
+            raise ValidationError(self.env._('The form is not a published form of this conversation channel.'))
+
+    def _webvue_prepare_commerce(self, conversation, values):
+        """`values` of a commerce message with the channel's catalog id and the product titles snapshotted."""
+        channel = conversation.channel_id
+        catalog_id = channel._webvue_catalog_id()
+        if not catalog_id:
+            raise ValidationError(self.env._('No catalog is connected to this channel.'))
+        rows = [command[2] for command in values['option_ids']]
+        retailer_ids = [row['option_id'] for row in rows]
+        self._webvue_check_commerce(channel, retailer_ids)
+        titles = self._webvue_commerce_titles(channel, retailer_ids)
+        return {
+            **values, 'catalog_id': catalog_id,
+            'option_ids': [(0, 0, {**row, 'title': titles.get(row['option_id'], row['option_id'])}) for row in rows],
+        }
+
+    # Commerce hooks: the neutral answers of an inbox without a product catalog; webvue_inbox_payments overrides them.
+
+    @api.model
+    def _webvue_check_commerce(self, channel, retailer_ids):
+        """Raise ValidationError unless every retailer id is a product the channel's catalog can send."""
+
+    @api.model
+    def _webvue_commerce_titles(self, channel, retailer_ids):
+        """{retailer id: the product name} to keep with a sent message."""
+        return {retailer_id: retailer_id for retailer_id in retailer_ids}
+
+    @api.model
+    def _webvue_commerce_products(self, channel, retailer_ids):
+        """{retailer id: the product as the thread shows it now} (the contract's product block); none without a catalog."""
+        return {}
+
+    def _webvue_commerce_order_summary(self):
+        """The order made from this cart message (the contract's order summary), or None."""
+        return
+
+    def _webvue_on_ingested(self):
+        """Called once for each inbound message right after it is stored."""
 
     @api.model
     def _webvue_wake_outbox(self):
@@ -220,9 +287,13 @@ class WebVueInboxMessage(models.Model):
             raise ValidationError(self.env._('The channel is disabled.'))
 
     @api.model
-    def _webvue_require_window(self, conversation):
+    def _webvue_window_open(self, conversation):
         ends = conversation.reply_window_ends_at
-        if not ends or fields.Datetime.now() > ends:
+        return bool(ends) and fields.Datetime.now() <= ends
+
+    @api.model
+    def _webvue_require_window(self, conversation):
+        if not self._webvue_window_open(conversation):
             raise ValidationError(self.env._('The 24-hour reply window is closed; send an approved template.'))
 
     @api.model
@@ -232,6 +303,7 @@ class WebVueInboxMessage(models.Model):
         if len(params) != template.param_count:
             raise ValidationError(self.env._('The template needs %(count)s parameter(s).', count=template.param_count))
         return {
+            **self._webvue_template_flow_values(conversation, template),
             'kind': 'template', 'template_id': template.id, 'template_name': template.name,
             'template_language': template.language, 'template_params': list(params),
             'body': template._webvue_render(params),
@@ -240,6 +312,16 @@ class WebVueInboxMessage(models.Model):
             'template_footer': template.footer or False,
             'template_button_ids': self._webvue_template_button_commands(template, params, button_params),
         }
+
+    @api.model
+    def _webvue_template_flow_values(self, conversation, template):
+        """The form and fresh token of a template with a form button; a form WebVue does not know (made in WhatsApp Manager) is sent as it is."""
+        button = template.button_ids.filtered(lambda button: button.kind == 'flow')
+        if not button:
+            return {}
+        if button.flow_id:
+            self._webvue_require_flow(conversation, button.flow_id)
+        return {'flow_id': button.flow_id.id, 'flow_token': secrets.token_urlsafe(24)}
 
     @api.model
     def _webvue_template_header_values(self, template, header):
@@ -284,8 +366,8 @@ class WebVueInboxMessage(models.Model):
         if not self.template_name:
             self._webvue_require_window(self.conversation_id)
         self.write({
-            'delivery_state': 'queued', 'attempts': 0, 'error': False, 'next_attempt_at': fields.Datetime.now(),
-            'media_id': False,
+            'delivery_state': 'queued', 'attempts': 0, 'error': False, 'error_code': False, 'held_for_quality': False,
+            'next_attempt_at': fields.Datetime.now(), 'media_id': False,
         })
         self._webvue_wake_outbox()
 
@@ -330,7 +412,12 @@ class WebVueInboxMessage(models.Model):
         if not message or message.delivery_state == 'failed':
             return message
         if update.status == 'failed':
-            message.write({'delivery_state': 'failed', 'error': (update.error or '')[:ERROR_TEXT_LENGTH] or False})
+            message.write({
+                'delivery_state': 'failed', 'error': (update.error or '')[:ERROR_TEXT_LENGTH] or False,
+                'error_code': update.error_code or False,
+            })
+            message.campaign_recipient_ids._webvue_on_failed()
         elif STATE_RANK.get(update.status, -1) > STATE_RANK.get(message.delivery_state, -1):
-            message.write({'delivery_state': update.status})
+            # Meta has let a held message through once it is sent or delivered.
+            message.write({'delivery_state': update.status, **({'held_for_quality': False} if update.status != 'queued' else {})})
         return message

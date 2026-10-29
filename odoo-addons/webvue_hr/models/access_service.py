@@ -41,6 +41,17 @@ PAYROLL_PERMISSIONS = frozenset(
         'hr.payroll.finance.manage',
     },
 )
+# The officer who settles a leaver's end of service: reads the offboarding page and works the payroll
+# settlement (owner decision 2026-10-29). No configuration, audit or accounting right comes with it.
+PAYROLL_OFFBOARDING_PERMISSIONS = frozenset(
+    {
+        'hr.employees.read',
+        'hr.offboarding.read',
+        'hr.payroll.read',
+        'hr.payroll.manage',
+        'hr.payroll.approve',
+    },
+)
 EMPLOYEE_HR_PERMISSIONS = frozenset(
     {
         'hr.employees.read',
@@ -207,6 +218,7 @@ class WebVueHrAccessService(models.AbstractModel):
             ('webvue_core.role_employee', EMPLOYEE_HR_PERMISSIONS),
             ('webvue_core.role_vendor_support', HR_PERMISSIONS),
             ('webvue_hr.role_payroll_manager', PAYROLL_PERMISSIONS),
+            ('webvue_hr.role_payroll_offboarding_officer', PAYROLL_OFFBOARDING_PERMISSIONS),
         ):
             grants[role_xmlid] = grants.get(role_xmlid, set()) | keys
         return grants

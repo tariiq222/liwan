@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import type { InboxConversationDetail, InboxConversationPatch } from '@webvue/contracts'
+import InboxFlowSubmissionsSection from '@/components/inbox/InboxFlowSubmissionsSection.vue'
+import InboxContactMarketing from '@/components/inbox/campaigns/InboxContactMarketing.vue'
+import { useInboxCampaignsEnabled } from '@/composables/inbox/useInboxCampaigns'
 import { useInboxAgents, usePatchInboxContact, usePatchInboxConversation, useInboxTags } from '@/composables/inbox/useInbox'
 import { useInboxDepartments } from '@/composables/inbox/useInboxSettings'
 import { CONVERSATION_STATES, PRIORITIES } from '@/composables/inbox/inboxPresentation'
@@ -12,6 +15,7 @@ const hydrated = useHydrated()
 const toast = useToast()
 const { me } = useMe()
 const id = computed(() => props.conversation.id)
+const campaignsOn = useInboxCampaignsEnabled()
 const { mutate: patch, isPending: patching } = usePatchInboxConversation(id)
 const { mutate: patchContact, isPending: savingContact } = usePatchInboxContact(() => props.conversation.contact.id)
 const departments = useInboxDepartments()
@@ -78,6 +82,8 @@ function saveContact() {
       </form>
     </SharedRecordSection>
 
+    <InboxContactMarketing v-if="campaignsOn" :contact-id="props.conversation.contact.id" :can-write="props.conversation.can_reply" />
+
     <SharedRecordSection variant="panel" :title="t('inbox.panel.conversation')">
       <div class="flex flex-col gap-3">
         <UFormField :label="t('inbox.panel.assignee')" :description="props.conversation.can_assign ? undefined : t('inbox.panel.assignDenied')">
@@ -136,5 +142,7 @@ function saveContact() {
         </UFormField>
       </div>
     </SharedRecordSection>
+
+    <InboxFlowSubmissionsSection :conversation-id="props.conversation.id" />
   </div>
 </template>

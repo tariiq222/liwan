@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, models
 
-from .constants import CHANNELS_LIMIT
+from .constants import CAMPAIGN_RECIPIENTS_LIMIT, CHANNELS_LIMIT
 
 
 class WebVueInboxEntitlementService(models.AbstractModel):
@@ -11,6 +11,8 @@ class WebVueInboxEntitlementService(models.AbstractModel):
     def _webvue_count_usage(self, limit_key):
         if limit_key == CHANNELS_LIMIT:
             return self._webvue_count_channels()
+        if limit_key == CAMPAIGN_RECIPIENTS_LIMIT:
+            return self.env['webvue.inbox.campaign.recipient']._webvue_count_dispatched_this_month()
         return super()._webvue_count_usage(limit_key)
 
     @api.model

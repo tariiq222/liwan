@@ -100,6 +100,14 @@ class TestHrOnboarding(WebVueHrCase):
         self.assertEqual(response.status_code, 201, response.text)
         self.assertEqual(response.json()['plan_date'], fields.Date.to_string(fields.Date.context_today(self.manager)))
 
+    def test_an_inactive_plan_cannot_be_launched(self):
+        self._as_manager()
+        self.plan.sudo().active = False
+        response = self.api('POST', '/api/v1/hr/onboarding/runs', json={
+            'employee_id': self.employee_record.id, 'plan_id': self.plan.id,
+        })
+        self.assertEqual((response.status_code, response.json()['field']), (422, 'plan_id'))
+
     def test_plan_create_list_get_patch(self):
         self._as_manager()
         response = self.api('POST', '/api/v1/hr/onboarding/plans', json={

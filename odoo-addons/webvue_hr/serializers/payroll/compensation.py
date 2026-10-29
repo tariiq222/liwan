@@ -8,6 +8,7 @@ from odoo.addons.webvue_hr.models.hr_compensation import (
 )
 from odoo.addons.webvue_hr.serializers.assets.common import ref, reject_unknown
 from odoo.addons.webvue_hr.serializers.dates import parse_optional_date
+from odoo.addons.webvue_hr.serializers.payroll.currency import currency_code
 
 AMOUNT_FIELDS = ('basic_wage', 'housing_allowance', 'transport_allowance', 'other_allowance')
 COMPENSATION_FIELDS = (*AMOUNT_FIELDS, 'iban', 'bank_id', 'gosi_number', 'gosi_registration_date', 'relationship_type')
@@ -27,6 +28,7 @@ def dump_compensation(record):
         'gosi_registration_date': record.gosi_registration_date.isoformat() if record.gosi_registration_date else None,
         'nationality': {'id': country.id, 'name': country.name, 'code': country.code} if country else None,
         'relationship_type': record.relationship_type,
+        'currency': currency_code(employee.company_id),
     }
 
 
