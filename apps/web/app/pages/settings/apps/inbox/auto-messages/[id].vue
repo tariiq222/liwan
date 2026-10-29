@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import InboxChannelAutomationForm from '@/components/inbox/InboxChannelAutomationForm.vue'
-import { useInboxChannelAutomation } from '@/composables/inbox/useInboxAutomation'
-import { useInboxChannel } from '@/composables/inbox/useInboxSettings'
+import { useInboxAutomationChannels, useInboxChannelAutomation } from '@/composables/inbox/useInboxAutomation'
 
 // The automatic messages of one channel: welcome, away and the satisfaction survey.
 const route = useRoute()
@@ -12,18 +11,19 @@ const id = computed(() => {
   const value = Number(route.params.id)
   return Number.isSafeInteger(value) && value > 0 ? value : null
 })
-const channel = useInboxChannel(id)
+const channels = useInboxAutomationChannels()
+const channelName = computed(() => channels.data.value?.items.find(item => item.id === id.value)?.name ?? '')
 const automation = useInboxChannelAutomation(id)
 </script>
 
 <template>
   <SharedRecordPage
-    :title="t('inbox.automation.channelTitle', { name: channel.data.value?.name ?? '' })"
+    :title="t('inbox.automation.channelTitle', { name: channelName })"
     :back-to="'/settings/apps/inbox#auto-messages'"
     :back-label="t('inbox.title')"
-    :loading="id !== null && (channel.isPending.value || automation.isPending.value)"
-    :error="id === null ? { status: 404 } : channel.error.value ?? automation.error.value"
-    @retry="hydrated && (channel.refetch(), automation.refetch())"
+    :loading="id !== null && (channels.isPending.value || automation.isPending.value)"
+    :error="id === null ? { status: 404 } : channels.error.value ?? automation.error.value"
+    @retry="hydrated && (channels.refetch(), automation.refetch())"
   >
     <SharedForbiddenState v-if="id && !can('inbox.automation.manage')" />
     <InboxChannelAutomationForm v-else-if="id && automation.data.value" :channel-id="id" :automation="automation.data.value" />

@@ -93,11 +93,15 @@ const deliveryLabel = (item: InboxMessage) => t(`inbox.delivery.${item.delivery_
               :class="{
                 'bg-default rounded-es-sm': row.item.direction === 'in',
                 'bg-(--brand-soft) text-highlighted rounded-ee-sm': row.item.direction === 'out',
-                'bg-warning/10 ring-warning/30': row.item.direction === 'note',
+                'bg-warning/10 ring-warning/30': row.item.direction === 'note' && row.item.author,
+                'bg-elevated ring-default': row.item.direction === 'note' && !row.item.author,
                 'ring-2 ring-primary': highlightedId === row.item.id,
               }"
             >
-              <p v-if="row.item.direction === 'note'" class="mb-0.5 flex items-center gap-1 text-xs font-medium text-warning">
+              <p v-if="row.item.direction === 'note' && !row.item.author" class="mb-0.5 flex items-center gap-1 text-xs font-medium text-muted" data-testid="inbox-system-note">
+                <UIcon name="i-lucide-bot" class="size-3.5" aria-hidden="true" />{{ t('inbox.thread.system') }}
+              </p>
+              <p v-else-if="row.item.direction === 'note'" class="mb-0.5 flex items-center gap-1 text-xs font-medium text-warning">
                 <UIcon name="i-lucide-lock" class="size-3.5" aria-hidden="true" />{{ t('inbox.thread.note') }}
               </p>
               <p v-if="row.item.automated" class="mb-0.5 flex items-center gap-1 text-xs text-muted" data-testid="inbox-automated">

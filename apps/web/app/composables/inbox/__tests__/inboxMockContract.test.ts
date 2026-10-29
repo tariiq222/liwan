@@ -203,9 +203,12 @@ describe('inbox audit mock', () => {
       expect(InboxWorkingHoursSchema.parse(call('GET', '/api/v1/inbox/working-hours').body).days.length).toBeGreaterThan(0)
       expect(InboxDepartmentWorkingHoursSchema.parse(call('GET', '/api/v1/inbox/departments/1/working-hours').body).working_hours).toBeNull()
       expect(InboxChannelAutomationSchema.parse(call('GET', '/api/v1/inbox/channels/1/automation').body).welcome.enabled).toBe(true)
+      expect(call('GET', '/api/v1/inbox/automation/channels').body).toEqual({ items: [{ id: 1, name: 'واتساب الاستقبال' }], total: 1 })
+      expect(call('POST', '/api/v1/inbox/rules/test', { channel_id: 1, text: 'x' }).status).toBe(422)
       expect(InboxRuleListSchema.parse(call('GET', '/api/v1/inbox/rules').body).total).toBe(2)
       const messages = InboxMessageListSchema.parse(call('GET', '/api/v1/inbox/conversations/1/messages?limit=100').body).items
       expect(messages.some(item => item.automated)).toBe(true)
+      expect(messages.some(item => item.direction === 'note' && item.author === null && !item.automated)).toBe(true)
       expect(InboxConversationDetailSchema.parse(call('GET', '/api/v1/inbox/conversations/3').body).csat).toMatchObject({ score: 'good' })
     })
 
@@ -233,7 +236,7 @@ describe('inbox audit mock', () => {
       expect(call('POST', '/api/v1/inbox/rules', rule({ keywords: [] }))).toMatchObject({ status: 422, body: { field: 'keywords' } })
       expect(call('POST', '/api/v1/inbox/rules', rule({ reply: null }))).toMatchObject({ status: 422, body: { field: 'reply' } })
       expect(InboxRuleSchema.parse(call('PATCH', `/api/v1/inbox/rules/${id}`, { active: false }).body)).toMatchObject({ active: false, name: 'استفسار الأسعار' })
-      expect(call('POST', '/api/v1/inbox/rules/reorder', { ids: [id, 1, 2] }).status).toBe(204)
+      expect(InboxRuleListSchema.parse(call('POST', '/api/v1/inbox/rules/reorder', { ids: [id, 1, 2] }).body).items.map(item => item.id)).toEqual([id, 1, 2])
       expect(InboxRuleListSchema.parse(call('GET', '/api/v1/inbox/rules').body).items.map(item => item.id)).toEqual([id, 1, 2])
       expect(call('POST', '/api/v1/inbox/rules/reorder', { ids: [1] }).status).toBe(422)
       expect(call('DELETE', `/api/v1/inbox/rules/${id}`).status).toBe(204)

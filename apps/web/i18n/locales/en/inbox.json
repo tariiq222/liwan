@@ -77,7 +77,8 @@
       "buttons": "Reply buttons",
       "selected": "Chose: {title}",
       "unsupported": "This message type is not supported.",
-      "automated": "Automatic reply"
+      "automated": "Automatic reply",
+      "system": "System"
     },
     "composer": {
       "mode": "Message type",

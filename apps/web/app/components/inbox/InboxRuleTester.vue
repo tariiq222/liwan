@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { InboxRuleTestResult } from '@webvue/contracts'
-import { useTestInboxRules } from '@/composables/inbox/useInboxAutomation'
-import { useInboxChannels } from '@/composables/inbox/useInboxSettings'
+import { useInboxAutomationChannels, useTestInboxRules } from '@/composables/inbox/useInboxAutomation'
 
 // "Try it": a sample customer message (its words, or the option chosen) on a channel, answered with what the
 // automation would do: inside or outside hours, the welcome or away message, and the rules that match in order.
@@ -9,7 +8,7 @@ import { useInboxChannels } from '@/composables/inbox/useInboxSettings'
 const { t } = useI18n()
 const hydrated = useHydrated()
 const toast = useToast()
-const channels = useInboxChannels()
+const channels = useInboxAutomationChannels()
 const { mutate: run, isPending } = useTestInboxRules()
 const channelId = ref<number | null>(null)
 const text = ref('')

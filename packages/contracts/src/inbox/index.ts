@@ -11,6 +11,8 @@ const list = <T extends z.ZodType>(item: T) => z.object({
 }).strict()
 
 export const InboxRefSchema = z.object({ id: Id, name: z.string() }).strict()
+// A plain list of references: channels an automation manager may target, assignee pickers.
+export const InboxRefListSchema = list(InboxRefSchema)
 
 export const InboxChannelKindSchema = z.enum(['whatsapp'])
 export const InboxChannelStateSchema = z.enum(['draft', 'connected', 'error', 'disabled'])
@@ -193,7 +195,7 @@ export const InboxContactPatchSchema = z.object({
 }).strict()
 
 // Users of the current company who may reply: the assignee picker.
-export const InboxAgentListSchema = list(InboxRefSchema)
+export const InboxAgentListSchema = InboxRefListSchema
 
 export const InboxCannedReplySchema = z.object({
   id: Id,

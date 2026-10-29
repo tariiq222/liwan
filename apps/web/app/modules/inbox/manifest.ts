@@ -35,7 +35,10 @@ const manifest: AppManifest = {
   ],
   bell: {
     capabilities: ['inbox.conversations.read'],
-    kinds: [{ kind: 'inbox.assigned', href: row => `/inbox/${row.conversation_id}` }],
+    kinds: [
+      { kind: 'inbox.assigned', href: row => `/inbox/${row.conversation_id}` },
+      { kind: 'inbox.first_response', href: row => `/inbox/${row.conversation_id}` },
+    ],
   },
 }
 export default manifest

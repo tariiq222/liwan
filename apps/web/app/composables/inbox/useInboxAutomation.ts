@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   InboxChannelAutomationSchema,
   InboxDepartmentWorkingHoursSchema,
+  InboxRefListSchema,
   InboxRuleListSchema,
   InboxRuleSchema,
   InboxRuleTestResultSchema,
@@ -14,12 +15,24 @@ import {
 } from '@webvue/contracts'
 
 // Same 'inbox' root as the staff keys, so the bus invalidation of ['inbox'] refreshes the automation screens too.
+
 export const inboxAutomationKeys = {
+  channels: ['inbox', 'automation-channels'] as const,
   hours: ['inbox', 'working-hours'] as const,
   departmentHours: (id: number) => ['inbox', 'working-hours', 'department', id] as const,
   automation: (channelId: number) => ['inbox', 'automation', channelId] as const,
   rules: ['inbox', 'rules'] as const,
   rule: (id: number) => ['inbox', 'rules', id] as const,
+}
+
+/** The channels an automation manager may pick (id and name only): the channel list itself needs the channel-admin capability. */
+export function useInboxAutomationChannels() {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: inboxAutomationKeys.channels,
+    retry: false,
+    queryFn: () => $api('/api/v1/inbox/automation/channels', { schema: InboxRefListSchema }),
+  })
 }
 
 export function useInboxWorkingHours() {
@@ -128,7 +141,8 @@ export function useReorderInboxRules() {
   const { $api } = useApi()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (ids: number[]) => $api('/api/v1/inbox/rules/reorder', { method: 'POST', body: { ids } }),
+    mutationFn: (ids: number[]) => $api('/api/v1/inbox/rules/reorder', { method: 'POST', body: { ids }, schema: InboxRuleListSchema }),
+    onSuccess: list => qc.setQueryData(inboxAutomationKeys.rules, list),
     onSettled: () => qc.invalidateQueries({ queryKey: inboxAutomationKeys.rules }),
   })
 }

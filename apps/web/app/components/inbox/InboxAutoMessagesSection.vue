@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { useInboxChannels } from '@/composables/inbox/useInboxSettings'
+import { useInboxAutomationChannels } from '@/composables/inbox/useInboxAutomation'
 
 // The entry to each channel's automatic messages (welcome, away, satisfaction survey): a channel opens its own page.
 const { t } = useI18n()
-const { data, isLoading, error, refetch } = useInboxChannels()
+const { data, isLoading, error, refetch } = useInboxAutomationChannels()
 const items = computed(() => data.value?.items ?? [])
 </script>
 

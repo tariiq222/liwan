@@ -77,7 +77,8 @@
       "buttons": "أزرار الرد",
       "selected": "اختار: {title}",
       "unsupported": "نوع الرسالة هذا غير مدعوم.",
-      "automated": "رد آلي"
+      "automated": "رد آلي",
+      "system": "النظام"
     },
     "composer": {
       "mode": "نوع الرسالة",

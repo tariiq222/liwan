@@ -4,8 +4,8 @@ import InboxAutoContentEditor from '@/components/inbox/InboxAutoContentEditor.vu
 import { RULE_HOURS, RULE_MATCH_KINDS, TEXT_MATCH_KINDS, emptyRuleDraft, ruleToDraft, ruleWrite, ruleWriteCandidate } from '@/composables/inbox/inboxAutomation'
 import { PRIORITIES } from '@/composables/inbox/inboxPresentation'
 import { useInboxAgents, useInboxTags } from '@/composables/inbox/useInbox'
-import { useSaveInboxRule } from '@/composables/inbox/useInboxAutomation'
-import { useInboxChannels, useInboxDepartments } from '@/composables/inbox/useInboxSettings'
+import { useInboxAutomationChannels, useSaveInboxRule } from '@/composables/inbox/useInboxAutomation'
+import { useInboxDepartments } from '@/composables/inbox/useInboxSettings'
 
 // A rule: when a customer message matches (its words, or the option they chose from an interactive message, optionally
 // only inside or outside working hours) the rule can reply, route the conversation, tag it, set its priority or
@@ -16,7 +16,7 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 const toast = useToast()
 const { mutateAsync: save, isPending } = useSaveInboxRule()
-const channels = useInboxChannels()
+const channels = useInboxAutomationChannels()
 const departments = useInboxDepartments()
 const tags = useInboxTags()
 const agents = useInboxAgents()

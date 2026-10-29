@@ -53,6 +53,12 @@ describe('working hours hooks', () => {
 })
 
 describe('channel automation hooks', () => {
+  it('lists the channels an automation manager may pick from the automation route, not the channel-admin one', async () => {
+    hooks.useInboxAutomationChannels()
+    await last().queryFn!()
+    expect($api).toHaveBeenLastCalledWith('/api/v1/inbox/automation/channels', expect.objectContaining({ schema: expect.anything() }))
+  })
+
   it('reads and patches one channel\'s automatic messages', async () => {
     hooks.useInboxChannelAutomation(5)
     expect(Vue.toValue(last().queryKey as never)).toEqual(['inbox', 'automation', 5])
@@ -87,7 +93,10 @@ describe('rule hooks', () => {
   it('posts the new order, reloads whatever the answer, and runs the dry run without a cache write', async () => {
     hooks.useReorderInboxRules()
     await last().mutationFn!([2, 1] as never)
-    expect($api).toHaveBeenLastCalledWith('/api/v1/inbox/rules/reorder', { method: 'POST', body: { ids: [2, 1] } })
+    expect($api).toHaveBeenLastCalledWith('/api/v1/inbox/rules/reorder', expect.objectContaining({ method: 'POST', body: { ids: [2, 1] } }))
+    last().onSuccess!({ items: [], total: 0 }, [2, 1])
+    expect(queryClient.setQueryData).toHaveBeenCalledWith(hooks.inboxAutomationKeys.rules, { items: [], total: 0 })
+    queryClient.setQueryData.mockClear()
     await last().onSettled!()
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: hooks.inboxAutomationKeys.rules })
     hooks.useTestInboxRules()

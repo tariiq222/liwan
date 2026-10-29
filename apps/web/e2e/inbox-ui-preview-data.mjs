@@ -67,6 +67,7 @@ function seed() {
   const messages = {
     1: [
       first,
+      message('note', 'رد آلي: القاعدة «حجز موعد»', 2.94, { author: null, delivery_state: 'sent' }),
       message('out', 'أهلًا بك في عيادة الأمل! سيرد عليك أحد موظفينا قريبًا.', 2.95, { author: null, delivery_state: 'delivered', automated: true }),
       answer,
       message('note', 'العميلة لديها ملف قديم، راجعوا الموعد السابق.', 2.7, { author: ME }),
@@ -149,7 +150,7 @@ function seed() {
     automation: new Map([[1, {
       welcome: { enabled: true, idle_days: 0, content: { body: 'أهلًا بك في عيادة الأمل! سيرد عليك أحد موظفينا قريبًا.' } },
       away: { enabled: false, repeat_hours: 12, content: null },
-      csat: { enabled: false, question: 'كيف تقيّم خدمتنا؟', good: 'راضٍ', neutral: 'محايد', bad: 'غير راضٍ' },
+      csat: { enabled: false, question: 'كيف كانت تجربتك معنا؟', good: 'ممتاز', neutral: 'مقبول', bad: 'سيئ' },
     }]]),
     rules: [
       { id: 1, sequence: 10, channel: null, name: 'حجز موعد', active: true, match_kind: 'contains', keywords: ['حجز', 'موعد'], option_id: null, hours: 'any', stop: true,
@@ -490,7 +491,7 @@ function automationRoute(method, channel, body) {
   const current = state.automation.get(channel.id) ?? {
     welcome: { enabled: false, idle_days: 0, content: null },
     away: { enabled: false, repeat_hours: 12, content: null },
-    csat: { enabled: false, question: 'كيف تقيّم خدمتنا؟', good: 'راضٍ', neutral: 'محايد', bad: 'غير راضٍ' },
+    csat: { enabled: false, question: 'كيف كانت تجربتك معنا؟', good: 'ممتاز', neutral: 'مقبول', bad: 'سيئ' },
   }
   if (method === 'PATCH') {
     const next = { ...current, ...body }
@@ -571,9 +572,12 @@ function ruleRoute(method, parts, body) {
     const ids = body.ids ?? []
     if (ids.length !== state.rules.length || !state.rules.every(rule => ids.includes(rule.id))) return fail(422, 'invalid', 'ترتيب غير مكتمل', 'ids')
     ids.forEach((ruleId, index) => { state.rules.find(rule => rule.id === ruleId).sequence = (index + 1) * 10 })
-    return { status: 204, body: undefined }
+    return ok(list([...state.rules].sort((a, b) => a.sequence - b.sequence)))
   }
-  if (parts[4] === 'test' && method === 'POST') return ruleTest(body)
+  if (parts[4] === 'test' && method === 'POST') {
+    if (!['channel_id', 'text', 'option_id', 'at'].every(key => key in body)) return fail(422, 'invalid', 'كل المفاتيح الأربعة مطلوبة')
+    return ruleTest(body)
+  }
   if (id === undefined) {
     if (method === 'GET') return ok(list([...state.rules].sort((a, b) => a.sequence - b.sequence)))
     if (method !== 'POST') return undefined
@@ -761,6 +765,7 @@ export function inboxPreviewData(method, path, url, body = {}) {
     }
     return ok(state.hours)
   }
+  if (resource === 'automation' && parts[4] === 'channels' && method === 'GET') return ok(list(state.channels.map(({ id, name }) => ({ id, name }))))
   if (resource === 'rules') return ruleRoute(method, parts, body)
   if (resource === 'departments' && id !== undefined && parts[5] === 'working-hours' && (method === 'GET' || method === 'PUT')) return departmentHoursRoute(method, id, body)
   if (resource === 'departments') {
