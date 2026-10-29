@@ -154,3 +154,31 @@ class TestTemplateEvents(WebVueInboxCase):
         self.assertEqual((mine.status, theirs.status), ('approved', 'pending'))
         self.process(STATUS, {**status_value(mine, 'REJECTED'), 'message_template_id': 1, 'message_template_name': 'nothing'})
         self.assertEqual(mine.status, 'approved')
+
+    def bus_notices(self):
+        """(partner id, bus type, payload) of every bus notification stored so far in this transaction (the event run flushes them)."""
+        notices = []
+        for row in self.env['bus.bus'].sudo().search([], order='id'):
+            channel, message = json.loads(row.channel), json.loads(row.message)
+            if message['type'] == 'webvue/inbox':
+                notices.append((channel[2], message['type'], message['payload']))
+        return notices
+
+    def test_a_change_reaches_the_users_who_read_or_manage_templates_over_the_bus(self):
+        template = self.make_template(status='pending')
+        before = len(self.bus_notices())
+        self.process(STATUS, status_value(template, 'APPROVED'))
+        self.process(STATUS, status_value(template, 'DELETED'))
+        notices = self.bus_notices()[before:]
+        audience = {partner for partner, _type, _payload in notices}
+        self.assertTrue({self.agent.partner_id.id, self.templates_only.partner_id.id, self.manager.partner_id.id} <= audience)
+        self.assertFalse({self.outsider.partner_id.id} & audience)
+        self.assertEqual({(kind, payload['event'], payload['id']) for _partner, kind, payload in notices},
+                         {('webvue/inbox', 'template', template.id)})
+        self.assertEqual(len(notices), 2 * len(audience))
+
+    def test_an_unknown_template_sends_nothing(self):
+        template = self.make_template()
+        before = len(self.bus_notices())
+        self.process(STATUS, {**status_value(template, 'APPROVED'), 'message_template_id': 1, 'message_template_name': 'nothing'})
+        self.assertEqual(self.bus_notices()[before:], [])

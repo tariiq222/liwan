@@ -561,15 +561,26 @@ class TestTemplatesApi(WebVueInboxCase):
         self.assertError(self.get(f'{BASE}/templates/{template.id}'), 403, 'forbidden')
 
     def test_a_channels_only_custom_role_reads_but_cannot_write(self):
-        user = new_test_user(self.env, login='inbox_channels_only', password=PASSWORD, name='Channels only', groups='webvue_core.group_employee')
-        role = self.env['webvue.access.role'].create({
-            'key': 'inbox_channels_only', 'name_ar': 'قنوات', 'name_en': 'Channels', 'type': 'custom',
-            'permission_ids': [Command.set(self.env['webvue.access.permission'].search([('key', '=', 'inbox.channels.manage')]).ids)],
-        })
-        self.env['webvue.access.service']._webvue_replace_assignments(user, [{'role_id': role.id, 'company_id': self.env.company.id}])
-        self.login(user)
+        self.login(self._capability_user('inbox_channels_only', 'inbox.channels.manage'))
         self.assertEqual(self.get(self.templates).status_code, 200)
         self.assertError(self.api('POST', self.templates, STANDARD), 403, 'forbidden')
+
+    def test_a_templates_only_manager_works_without_channel_administration(self):
+        template = self.make_template()
+        self.login(self.templates_only)
+        self.assertError(self.get(f'{BASE}/channels/{self.channel.id}'), 403, 'forbidden')
+        self.assertEqual(self.get(f'{BASE}/channels/{self.channel.id}/ref').json(), {'id': self.channel.id, 'name': self.channel.name})
+        self.assertEqual(self.get(f'{BASE}/channels/999999999/ref').status_code, 404)
+        listed = self.get(self.templates).json()
+        self.assertIn(template.id, [row['id'] for row in listed['items']])
+        self.assertEqual(self.get(f'{BASE}/templates/{template.id}').status_code, 200)
+
+    def test_the_channel_ref_is_closed_to_users_without_a_template_or_channel_capability(self):
+        for user in (self.agent, self.reader_only, self.outsider):
+            self.login(user)
+            self.assertError(self.get(f'{BASE}/channels/{self.channel.id}/ref'), 403, 'forbidden')
+        self.login(self.manager)
+        self.assertEqual(self.get(f'{BASE}/channels/{self.channel.id}/ref').status_code, 200)
 
     def test_the_templates_sub_feature_closes_the_writes_only(self):
         template = self.make_template()
@@ -638,18 +649,7 @@ class TestTemplatesOnlyRole(WebVueInboxCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.channel.app_id = '123456789'
-        cls.templates_only = cls.custom_user('templates_only', 'inbox.templates.manage')
-        cls.read_only = cls.custom_user('conversations_read_only', 'inbox.conversations.read')
-
-    @classmethod
-    def custom_user(cls, login, permission):
-        user = new_test_user(cls.env, login=f'inbox_{login}', password=PASSWORD, name=login, groups='webvue_core.group_employee')
-        role = cls.env['webvue.access.role'].create({
-            'key': f'inbox_{login}', 'name_ar': login, 'name_en': login, 'type': 'custom',
-            'permission_ids': [Command.set(cls.env['webvue.access.permission'].search([('key', '=', permission)]).ids)],
-        })
-        cls.env['webvue.access.service']._webvue_replace_assignments(user, [{'role_id': role.id, 'company_id': cls.env.company.id}])
-        return user
+        cls.read_only = cls._capability_user('inbox_conversations_read_only', 'inbox.conversations.read')
 
     def test_the_whole_life_cycle_works(self):
         stale = self.make_template(name='stale')

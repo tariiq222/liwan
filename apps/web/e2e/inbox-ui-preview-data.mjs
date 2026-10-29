@@ -381,6 +381,7 @@ function channelRoute(method, parts, body, url) {
   const action = parts[5] === 'templates' && parts[6] ? parts[6] : parts[5]
   const channel = state.channels.find(item => item.id === id)
   if (id !== undefined && !channel) return fail(404, 'not_found', 'not found')
+  if (method === 'GET' && action === 'ref') return ok({ id: channel.id, name: channel.name })
   if (action === 'templates') return method === 'GET' ? templateList(url) : createTemplate(channel, body)
   if (method === 'POST' && action === 'uploads') return templateSample(body)
   if (method === 'POST' && action === 'test') { channel.state = 'connected'; channel.last_error = null; return ok(channel) }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { InboxTemplate } from '@webvue/contracts'
+import type { RouteLocationRaw } from 'vue-router'
 import {
   HEADER_KINDS,
   TEMPLATE_CATEGORIES, TEMPLATE_LANGUAGES, TEMPLATE_LIMITS,
@@ -15,7 +16,7 @@ import { useSaveInboxTemplate, useUploadInboxTemplateSample } from '@/composable
 // template after it is saved, so an invalid draft never leaves the browser (the contract's write schema decides) and a
 // refusal from Meta is shown here with its own words.
 // `sideBySide` puts the preview beside the fields (a full page); in a narrow panel it comes first, above them.
-const props = defineProps<{ channelId: number; template?: InboxTemplate; readonly?: boolean; backTo: string; sideBySide?: boolean }>()
+const props = defineProps<{ channelId: number; template?: InboxTemplate; readonly?: boolean; backTo: RouteLocationRaw; sideBySide?: boolean }>()
 const emit = defineEmits<{ saved: [template: InboxTemplate] }>()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()

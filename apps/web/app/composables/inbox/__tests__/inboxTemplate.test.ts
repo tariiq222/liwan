@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { InboxTemplate } from '@webvue/contracts'
 import {
   addTemplateVariable, buttonProblems, canAddButton, draftFromTemplate, draftPreview, emptyButton, emptyTemplateDraft, finalTemplateName, moveItem,
-  quickRepliesGrouped, resizeExamples, slugifyTemplateName, templateDirection, templatePreview, templateWriteCandidate, validateTemplateDraft,
+  quickRepliesGrouped, resizeExamples, slugifyTemplateName, templatesRoute, templateDirection, templatePreview, templateWriteCandidate, validateTemplateDraft,
   type TemplateDraft,
 } from '../inboxTemplate'
 
@@ -160,5 +160,15 @@ describe('authentication template edit', () => {
     expect(draft).toMatchObject({ category: 'authentication', otpButtonText: 'Copy it', codeExpirationMinutes: '10', addSecurityRecommendation: true })
     expect(templatePreview(stored, { params: ['1'], headerParam: '', headerMediaName: null }, 'Default').buttons).toEqual([{ type: 'copy_code', text: 'Copy it' }])
     expect(draftFromTemplate({ ...stored, otp_button_text: null, supported: true }, 'Default').otpButtonText).toBe('Default')
+  })
+})
+
+describe('template routes', () => {
+  const query = { status: 'rejected', category: 'utility', q: 'order' }
+
+  it('carry the list filters to the create, detail and list pages', () => {
+    expect(templatesRoute(4, query)).toEqual({ path: '/settings/apps/inbox/channels/4/templates', query })
+    expect(templatesRoute(4, query, '/new')).toEqual({ path: '/settings/apps/inbox/channels/4/templates/new', query })
+    expect(templatesRoute(4, query, '/9')).toEqual({ path: '/settings/apps/inbox/channels/4/templates/9', query })
   })
 })

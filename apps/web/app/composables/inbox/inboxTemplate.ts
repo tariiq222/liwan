@@ -8,6 +8,7 @@ import {
   type InboxTemplateWrite,
 } from '@webvue/contracts'
 import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
+import type { LocationQuery } from 'vue-router'
 import { renderTemplateBody } from './inboxWindow'
 
 // The template builder's pure logic: the draft the form edits, its conversion to and from the wire shape, Meta's
@@ -18,6 +19,11 @@ export const TEMPLATE_LIMITS = {
   headerText: 60, body: 1024, footer: 60, buttonText: 25, buttons: 10, urlButtons: 2, phoneButtons: 1, copyCodeButtons: 1,
   url: 2000, example: 1024, couponExample: 15, expirationMinutes: 90,
 } as const
+
+/** A page of a channel's templates (`tail` is '', '/new' or '/<id>'); the list filters in `query` (`?status=&category=&q=`) travel with it. */
+export function templatesRoute(channelId: number, query: LocationQuery, tail = '') {
+  return { path: `/settings/apps/inbox/channels/${channelId}/templates${tail}`, query }
+}
 
 export const TEMPLATE_CATEGORIES: readonly InboxTemplateCategory[] = ['marketing', 'utility', 'authentication']
 export const TEMPLATE_STATUSES: readonly InboxTemplateStatus[] = ['pending', 'approved', 'rejected', 'paused', 'disabled', 'in_appeal', 'flagged', 'pending_deletion']

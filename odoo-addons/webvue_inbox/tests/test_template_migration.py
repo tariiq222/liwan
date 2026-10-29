@@ -68,3 +68,44 @@ class TestTemplateSelectionsMigration(WebVueInboxCase):
         module.migrate(self.env.cr, '19.0.1.1.0')
         template.invalidate_recordset()
         self.assertEqual((template.supported, template.editable), (False, False))
+
+
+@tagged('post_install', '-at_install', 'webvue')
+class TestTemplateLinkMigration(WebVueInboxCase):
+
+    def sent(self, template, **values):
+        conversation = self.make_conversation()
+        return self.env['webvue.inbox.message'].create({
+            'conversation_id': conversation.id, 'company_id': conversation.company_id.id, 'direction': 'out',
+            'kind': 'template', 'body': 'Hi', 'template_name': template.name, 'template_language': template.language, **values,
+        })
+
+    def migrate(self, version):
+        spec = importlib.util.spec_from_file_location('inbox_template_link', MIGRATION.with_name('post-template-link.py'))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        module.migrate(self.env.cr, version)
+        self.env['webvue.inbox.message'].invalidate_model()
+
+    def test_old_template_messages_are_linked_by_channel_name_and_language(self):
+        template = self.make_template(name='order_ready', language='ar')
+        same_language = self.make_template(name='order_ready', language='en')
+        old = self.sent(template)
+        other_language = self.sent(same_language)
+        removed = self.sent(template, template_name='gone')
+        self.assertFalse(old.template_id)
+        self.migrate('19.0.1.1.0')
+        self.assertEqual(old.template_id, template)
+        self.assertEqual(other_language.template_id, same_language)
+        self.assertFalse(removed.template_id)
+
+    def test_a_linked_message_and_a_fresh_install_are_left_alone(self):
+        template = self.make_template(name='order_ready')
+        other = self.make_template(name='other')
+        linked = self.sent(template, template_id=other.id)
+        fresh = self.sent(template)
+        self.migrate(False)
+        self.assertFalse(fresh.template_id)
+        self.migrate('19.0.1.1.0')
+        self.assertEqual(linked.template_id, other)
+        self.assertEqual(fresh.template_id, template)

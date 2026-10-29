@@ -8,6 +8,7 @@ import {
   InboxDepartmentListSchema,
   InboxDepartmentSchema,
   InboxAttachmentSchema,
+  InboxRefSchema,
   InboxSettingsSchema,
   InboxTagListSchema,
   InboxTagSchema,
@@ -31,6 +32,7 @@ export const inboxSettingsKeys = {
   departments: ['inbox', 'departments'] as const,
   channels: ['inbox', 'channels'] as const,
   channel: (id: number) => ['inbox', 'channel', id] as const,
+  channelRef: (id: number) => ['inbox', 'channel-ref', id] as const,
 }
 
 export function useInboxSettings() {
@@ -192,6 +194,16 @@ export const useTestInboxChannel = (id: MaybeRefOrGetter<number>) => useChannelA
 export const useSyncInboxTemplates = (id: MaybeRefOrGetter<number>) => useChannelAction(id, 'templates/sync')
 
 // ---------------------------------------------------------------- templates (settings)
+/** A channel's id and name, readable by whoever manages its templates without administering the channel. */
+export function useInboxChannelRef(id: MaybeRefOrGetter<number | null>) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: computed(() => inboxSettingsKeys.channelRef(toValue(id) ?? 0)),
+    enabled: computed(() => !!toValue(id)),
+    retry: false,
+    queryFn: () => $api(`/api/v1/inbox/channels/${toValue(id)}/ref`, { schema: InboxRefSchema }),
+  })
+}
 
 export interface InboxTemplateFilters {
   status?: string

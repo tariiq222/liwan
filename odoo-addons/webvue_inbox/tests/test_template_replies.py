@@ -118,6 +118,17 @@ class TestTemplateReplies(WebVueInboxCase):
         self.assertEqual(self.sent_template()['components'], [{'type': 'header', 'parameters': [{'type': 'location', 'location': {
             'latitude': 24.7136, 'longitude': 46.6753, 'name': 'HQ', 'address': 'Riyadh'}}]}])
 
+    def test_the_thread_shows_the_location_of_a_template_header(self):
+        template = self.make_template(header_type='location')
+        location = {'latitude': 24.7136, 'longitude': 46.6753, 'name': 'HQ', 'address': 'Riyadh'}
+        sent = self.reply(template, header_location=location).json()
+        self.assertEqual(sent['kind'], 'template')
+        self.assertEqual(sent['location'], location)
+        listed = next(m for m in self.get(self.path('/messages')).json()['items'] if m['id'] == sent['id'])
+        self.assertEqual(listed['location'], location)
+        plain = self.reply(self.make_template(), []).json()
+        self.assertIsNone(plain['location'])
+
     # body and buttons
 
     def test_body_parameters_must_match_the_template(self):

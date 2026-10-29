@@ -19,7 +19,7 @@ vi.stubGlobal('useApi', () => ({ $api }))
 vi.stubGlobal('computed', Vue.computed)
 vi.stubGlobal('toValue', Vue.toValue)
 
-const { useDeleteInboxTemplate, useInboxChannelTemplates, useInboxTemplate, useSaveInboxTemplate, useUploadInboxTemplateSample } = await import('../useInboxSettings')
+const { useDeleteInboxTemplate, useInboxChannelRef, useInboxChannelTemplates, useInboxTemplate, useSaveInboxTemplate, useUploadInboxTemplateSample } = await import('../useInboxSettings')
 const { APPROVED_TEMPLATES_QUERY, inboxKeys, useInboxTemplates } = await import('../useInbox')
 const last = () => seen.at(-1)!
 
@@ -38,10 +38,21 @@ describe('template queries', () => {
     expect($api).toHaveBeenCalledWith('/api/v1/inbox/channels/4/templates', expect.objectContaining({ query: { status: 'approved', limit: 200 } }))
   })
 
+  it('reads a channel\'s name through the template-manager route, under the inbox root the bus refreshes', async () => {
+    useInboxChannelRef(4)
+    expect(Vue.toValue(last().queryKey as never)).toEqual(['inbox', 'channel-ref', 4])
+    await last().queryFn!()
+    expect($api).toHaveBeenCalledWith('/api/v1/inbox/channels/4/ref', expect.anything())
+    expect(inboxKeys.templates(4)[0]).toBe('inbox')
+    expect(inboxKeys.template(12)[0]).toBe('inbox')
+  })
+
   it('does not ask for a channel that is not valid', () => {
     useInboxChannelTemplates(null, () => ({}))
     expect(Vue.toValue(last().enabled as never)).toBe(false)
     useInboxTemplate(null)
+    expect(Vue.toValue(last().enabled as never)).toBe(false)
+    useInboxChannelRef(null)
     expect(Vue.toValue(last().enabled as never)).toBe(false)
   })
 

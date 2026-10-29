@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   InboxAttachmentSchema, InboxCannedReplyListSchema, InboxChannelListSchema, InboxChannelSchema, InboxConversationDetailSchema, InboxConversationListSchema,
-  InboxDepartmentListSchema, InboxMessageListSchema, InboxMessageSchema, InboxSettingsSchema, InboxTagListSchema, InboxTemplateListSchema, InboxTemplateSchema,
+  InboxDepartmentListSchema, InboxMessageListSchema, InboxMessageSchema, InboxRefSchema, InboxSettingsSchema, InboxTagListSchema, InboxTemplateListSchema, InboxTemplateSchema,
 } from '@webvue/contracts'
 import { inboxPreviewData, resetInboxPreview } from '../../../../e2e/inbox-ui-preview-data.mjs'
 
@@ -24,6 +24,7 @@ describe('inbox audit mock', () => {
     expect(InboxDepartmentListSchema.parse(call('GET', '/api/v1/inbox/departments').body).total).toBe(2)
     expect(InboxSettingsSchema.parse(call('GET', '/api/v1/settings/inbox').body).visibility_policy).toBe('department')
     expect(InboxChannelListSchema.parse(call('GET', '/api/v1/inbox/channels').body).total).toBe(1)
+    expect(InboxRefSchema.parse(call('GET', '/api/v1/inbox/channels/1/ref').body).id).toBe(1)
   })
 
   it('filters the list like the server', () => {
