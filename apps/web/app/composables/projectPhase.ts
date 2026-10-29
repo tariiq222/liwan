@@ -40,13 +40,13 @@ export function gateCheckRows(projectId: number, checks: readonly ProjectPhaseGa
 export const canMoveForward = (state: ProjectPhaseState, canManage: boolean): boolean =>
   canManage && state.next !== null && state.next_checks.every(check => check.ok)
 
-/** The gate card shows for a manager, a closed project or any check; a reader would otherwise see a bare heading. */
-export const isGateCardVisible = (state: ProjectPhaseState, canManage: boolean): boolean =>
-  canManage || state.current === 'closed' || state.next_checks.length > 0
+/** The gate card shows for a manager, a closed project or any check; a reader would otherwise see a bare heading. An archived project is read-only, so it has no gate at all. */
+export const isGateCardVisible = (state: ProjectPhaseState, canManage: boolean, active = true): boolean =>
+  active && (canManage || state.current === 'closed' || state.next_checks.length > 0)
 
 /** The gate card is the page's one call to action while it is shown on an open project; a closed project's gate is a quiet note. */
-export const isGateAction = (state: ProjectPhaseState, canManage: boolean): boolean =>
-  state.current !== 'closed' && isGateCardVisible(state, canManage)
+export const isGateAction = (state: ProjectPhaseState, canManage: boolean, active = true): boolean =>
+  state.current !== 'closed' && isGateCardVisible(state, canManage, active)
 
 /** What a failed phase move tells the user: a locale key and toast colour; server text is never shown. */
 export function phaseFailure(error: unknown): { key: string; color: 'warning' | 'error' } {

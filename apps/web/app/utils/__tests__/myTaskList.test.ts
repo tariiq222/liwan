@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   deadlineDay,
   isOverdue,
+  lastPageOffset,
   listPatch,
   parseListState,
   toListParams,
@@ -62,5 +63,15 @@ describe('closed scope and URL pagination', () => {
   })
   it('requests the server closed scope without client-filtering done versus cancelled', () => {
     expect(toListParams(parseListState({ tab: 'closed', offset: '50' }))).toMatchObject({ closed: true, offset: 50 })
+  })
+})
+
+describe('lastPageOffset', () => {
+  it('lands a past-the-end offset on the last page that has rows', () => {
+    expect(lastPageOffset(0)).toBe(0)
+    expect(lastPageOffset(50)).toBe(0)
+    expect(lastPageOffset(51)).toBe(50)
+    expect(lastPageOffset(100)).toBe(50)
+    expect(lastPageOffset(101)).toBe(100)
   })
 })

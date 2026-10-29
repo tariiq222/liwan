@@ -6,11 +6,13 @@ import { governanceMatrixFilters } from '@/composables/projectGovernanceKeys'
 import { useGovernanceTaskPage, useProjectRaci, useProjectStakeholders, useCreateProjectRaci, useUpdateProjectRaci, useDeleteProjectRaci } from '@/composables/useProjectGovernance'
 import type { ProjectRaci, ProjectRaciRole } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
+import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState.vue'
+import { useProjectMissing } from '@/composables/useProjects'
 import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 import { RACI_ROLE_TONE } from '@/components/pmo/projects/governance/state'
 import { projectSectionLocation } from '@/utils/projectWorkspaceMemory'
 const route = useRoute(); const router = useRouter(); const { t } = useI18n(); const hydrated = useHydrated()
-const id = computed(() => Number(route.params.id)); const viewport = computed(() => governanceMatrixFilters(route.query))
+const id = computed(() => Number(route.params.id)); const notFound = useProjectMissing(id); const viewport = computed(() => governanceMatrixFilters(route.query))
 const tasksTo = computed(() => projectSectionLocation(`/projects/${id.value}/tasks`, route.path, route.query))
 function replaceFilter(key: string, value: string | undefined, pageKey: string) { router.replace({ query: { ...route.query, [key]: value, [pageKey]: undefined } }) }
 const taskSearch = computed({ get: () => viewport.value.taskQ, set: value => replaceFilter('task_q', value || undefined, 'task_page') })
@@ -75,7 +77,8 @@ const noMatrix = computed(() => !visibleTasks.value.length || !visibleStakeholde
 const settled = computed(() => !tasks.isLoading.value && !stakeholders.isLoading.value && !rows.isLoading.value && !tasks.error.value && !stakeholders.error.value && !rows.error.value)
 </script>
 <template>
-  <SharedListPage hide-header :title="t('projects.governance.raci.title')">
+  <ProjectNotFoundState v-if="notFound" />
+  <SharedListPage v-else hide-header :title="t('projects.governance.raci.title')">
     <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
     <!-- role="group" keeps the confirmation addressable by its question while the matrix stays locked. -->
     <SharedInlineConfirm

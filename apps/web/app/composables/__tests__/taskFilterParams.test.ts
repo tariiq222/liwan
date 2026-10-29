@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { projectTaskParams, projectTaskQuery } from '../projectTaskParams'
-import { parseAssignee, parsePriorities, taskAttributeFilterCount, taskAttributeFilters, taskAttributeQuery, withTaskAttributeFilters } from '../taskFilterParams'
+import { taskSearchText, parseAssignee, parsePriorities, taskAttributeFilterCount, taskAttributeFilters, taskAttributeQuery, withTaskAttributeFilters } from '../taskFilterParams'
 import { summaryQuery, taskKeys } from '../useTasks'
 
 describe('task attribute filters', () => {
@@ -24,6 +24,13 @@ describe('task attribute filters', () => {
     expect(withTaskAttributeFilters(stored, { assignee: 'me' })).toEqual({ closed: false, assignee: 'me', priority: ['3'] })
     expect(withTaskAttributeFilters(stored, { assignee: 'bogus' })).toEqual(stored)
     expect(withTaskAttributeFilters({ closed: true, deadline: 'later' } as never, {})).toEqual({ closed: true })
+  })
+
+  it('lets the URL search text win over the stored one and falls back when it is absent', () => {
+    expect(withTaskAttributeFilters({ closed: false, q: 'old' }, { q: ' لوحة ' })).toEqual({ closed: false, q: 'لوحة' })
+    expect(withTaskAttributeFilters({ closed: false, q: 'old' }, {})).toEqual({ closed: false, q: 'old' })
+    expect(withTaskAttributeFilters({ closed: false }, { q: '   ', view: 'board' })).toEqual({ closed: false })
+    expect(taskSearchText({ q: ['a', 'b'] })).toBeUndefined()
   })
 
   it('round-trips through the URL query and counts what is set', () => {

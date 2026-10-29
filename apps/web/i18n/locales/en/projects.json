@@ -91,6 +91,7 @@
     "new": "New project",
     "newName": "Project name",
     "created": "Project created",
+    "tasksEmpty": "This project has no tasks yet",
     "createForbidden": "You may not create projects",
     "create": {
       "defaultsHint": "A manager defaults to you. Choose an end date when it is required. Required fields apply only at creation.",
@@ -570,6 +571,7 @@
         "stakeholdersError": "Stakeholders could not be loaded.",
         "noStakeholders": "Add a stakeholder before creating an assignment.",
         "matrixHelp": "Choose a role to add or edit an assignment; choose — to remove it after confirmation. Search and page through all tasks and stakeholders.",
+        "matrixHelpReadonly": "Search and page through all tasks and stakeholders.",
         "searchTasks": "Search tasks",
         "searchStakeholders": "Search stakeholders"
       },

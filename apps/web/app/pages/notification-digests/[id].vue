@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ApiError } from '@/composables/useApi'
 import { useNotificationDigest } from '@/composables/useNotifications'
+import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
 
 const route = useRoute()
 const router = useRouter()
@@ -32,6 +33,9 @@ const backTo = computed(() => {
   return { path: '/notifications', query: listQuery }
 })
 const items = computed(() => (data.value?.pages ?? []).flatMap(page => page.items))
+// Every page of one digest carries the same local date.
+const digestIso = computed(() => data.value?.pages[0]?.local_date ?? null)
+const digestDate = computed(() => formatCalendarDate(digestIso.value))
 const queryErrorMessage = computed(() => (
   error.value instanceof ApiError ? error.value.message : t('notifications.loadError')
 ))
@@ -70,6 +74,9 @@ async function retryNextPage() {
     <SharedErrorState v-else-if="isError && !items.length" :title="queryErrorMessage" data-testid="digest-error" @retry="retryDigest" />
     <SharedEmptyState v-else-if="!items.length" bordered :title="t('tasks.digest.empty')" data-testid="digest-empty" />
     <SharedListCard v-else>
+      <p v-if="digestDate" class="border-b border-default px-(--webvue-card-pad-dense) py-2 text-sm text-muted tabular-nums" data-testid="digest-date">
+        <time :datetime="digestIso ?? undefined">{{ digestDate }}</time>
+      </p>
       <ul class="divide-y divide-default">
         <li v-for="task in items" :key="task.id">
           <UButton

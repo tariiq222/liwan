@@ -151,6 +151,13 @@ export function useProjectSummary(filters: MaybeRefOrGetter<ProjectSummaryFilter
   })
 }
 
+/** True once the project cannot be shown to this user: an unusable id, or a read answered 404 (missing) or 403 (hidden). Shares the cached read of `useProject`. */
+export function useProjectMissing(id: Ref<number | null>) {
+  const { error } = useProject(id)
+  return computed(() => id.value === null || !Number.isInteger(id.value) || id.value <= 0
+    || (error.value instanceof ApiError && (error.value.status === 404 || error.value.status === 403)))
+}
+
 export function useProject(id: Ref<number | null>) {
   const { $api } = useApi()
   return useQuery({
