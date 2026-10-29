@@ -52,6 +52,23 @@ class TestBranchAccessApi(WebVueApiCase):
         self.assertEqual(foreign.status_code, 422, foreign.text)
         self.assertTrue(self.env['webvue.access.audit'].search([('action', '=', 'branch.policy_changed')]))
 
+    def test_preset_is_read_and_applied_through_the_protected_operation(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        self.assertEqual(self.api('PATCH', '/api/v1/admin/access/branches/preset',
+                                  json={'expected_version': 'x', 'preset': 'central_branches'}).status_code, 403)
+        self.authenticate('branch_api_admin', 'branch_api_password')
+        path = '/api/v1/admin/access/branches/preset'
+        policy = self.api('GET', '/api/v1/admin/access/branches').json()
+        self.assertEqual(policy['preset'], 'independent_branches')
+        applied = self.api('PATCH', path, json={'expected_version': policy['version'], 'preset': 'central_branches'})
+        self.assertEqual(applied.status_code, 200, applied.text)
+        self.assertEqual((applied.json()['mode'], applied.json()['preset']), ('inherited', 'central_branches'))
+        self.assertEqual(self.api('PATCH', path, json={'expected_version': policy['version'],
+                                                      'preset': 'group_of_companies'}).status_code, 409)
+        version = applied.json()['version']
+        for bad in ({'preset': 'custom'}, {'preset': 'single_company'}, {'preset': 'central_branches', 'mode': 'isolated'}):
+            self.assertEqual(self.api('PATCH', path, json={'expected_version': version, **bad}).status_code, 422)
+
     def test_user_delegation_roundtrip_and_membership_fence(self):
         self.authenticate('branch_api_admin', 'branch_api_password')
         path = f'/api/v1/admin/users/{self.employee.id}/branches'

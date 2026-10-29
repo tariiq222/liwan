@@ -9,6 +9,16 @@ from .protected_write import marked
 BRANCH_POLICY_MARKER = 'webvue_core.branch_policy'
 BRANCH_METADATA_MARKER = 'webvue_core.branch_metadata_company'
 BRANCH_MODES = ('isolated', 'delegated', 'inherited')
+# Layer 1 of the branch policy: one sentence a tenant picks, mapped onto the mode and the
+# per-branch inheritance rules. The stored policy stays the only source of truth; the preset
+# is derived from it and reads 'custom' as soon as the details no longer match any of them.
+BRANCH_PRESET_MODES = {
+    'single_company': 'delegated',
+    'central_branches': 'inherited',
+    'independent_branches': 'delegated',
+    'group_of_companies': 'isolated',
+}
+UNPRESET_ROLE_KEYS = ('employee',)
 
 
 class WebVueAccessBranchRule(models.Model):
@@ -285,12 +295,50 @@ class WebVueBranchAccessService(models.AbstractModel):
         by_branch = {rule.branch_id.id: rule for rule in rules}
         branches = self._webvue_descendant_memberships()
         selected = self._webvue_selected_branch_role_ids(branches)
-        return {'version': self._webvue_branch_policy_version(), 'mode': self.env.company.webvue_branch_access_mode,
-                'branches': [{'id': branch.id, 'name': branch.name,
-                              'inherit': bool(by_branch.get(branch.id) and by_branch[branch.id].inherit),
-                              'role_ids': selected[branch.id]}
-                             for branch in branches],
+        items = [{'id': branch.id, 'name': branch.name,
+                  'inherit': bool(by_branch.get(branch.id) and by_branch[branch.id].inherit),
+                  'role_ids': selected[branch.id]}
+                 for branch in branches]
+        mode = self.env.company.webvue_branch_access_mode
+        return {'version': self._webvue_branch_policy_version(), 'mode': mode,
+                'preset': self._webvue_derive_branch_preset(mode, items), 'branches': items,
                 'roles': self._webvue_branch_role_catalog(selected=selected)}
+
+    @api.model
+    def _webvue_preset_role_ids(self):
+        """The parent's management roles: every assignable built-in role except the plain employee."""
+        return self.env['webvue.access.role'].search([
+            ('type', '=', 'built_in'), ('company_id', '=', False), ('assignable', '=', True),
+            ('key', 'not in', UNPRESET_ROLE_KEYS),
+        ]).ids
+
+    @api.model
+    def _webvue_derive_branch_preset(self, mode, branches):
+        if mode == 'inherited':
+            managed = set(self._webvue_preset_role_ids())
+            matches = all(branch['inherit'] and set(branch['role_ids']) == managed for branch in branches)
+            return 'central_branches' if matches else 'custom'
+        if any(branch['inherit'] or branch['role_ids'] for branch in branches):
+            return 'custom'
+        if mode == 'isolated':
+            return 'group_of_companies'
+        return 'independent_branches' if branches else 'single_company'
+
+    @api.model
+    def _webvue_apply_branch_preset(self, expected, preset):
+        """Write a preset through the one protected policy operation; it never bypasses it."""
+        self._webvue_require_branch_admin()
+        if preset not in BRANCH_PRESET_MODES:
+            msg = 'invalid'
+            raise WebVueAccessRule(msg, field='preset')
+        branches = self._webvue_descendant_memberships()
+        if preset == 'single_company' and branches:
+            msg = 'invalid'
+            raise WebVueAccessRule(msg, 'a company with branches cannot use the single company preset', field='preset')
+        central = preset == 'central_branches'
+        role_ids = self._webvue_preset_role_ids() if central else []
+        changes = [{'id': branch.id, 'inherit': central, 'role_ids': role_ids} for branch in branches]
+        return self._webvue_update_branch_policy(expected, BRANCH_PRESET_MODES[preset], changes)
 
     @api.model
     def _webvue_check_branch_version(self, expected, user=None):
