@@ -6,6 +6,7 @@ import MeetingPeopleFields from '@/components/meetings/MeetingPeopleFields.vue'
 import { useCreateMeeting } from '@/composables/useMeetings'
 import { useMeetingSeries } from '@/composables/useMeetings'
 import { buildMeetingSchedulePayload } from '@/utils/meetingDateTime'
+import { localIsoDay } from '@webvue/ui/app/utils/formatDate'
 import { isCalendarDate } from '@webvue/ui/app/composables/calendarDate'
 import { firstQuery } from '@/utils/routeQuery'
 import { getMeetingFormErrors } from '@/utils/meetingForm'
@@ -40,6 +41,7 @@ const projectId = computed(() => {
   const value = Number(route.query.project_id)
   return Number.isInteger(value) && value > 0 ? value : undefined
 })
+const browserTimeZone = computed(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC')
 const seriesQuery = useMeetingSeries(seriesId)
 const seriesDefaultsApplied = ref(false)
 const applyingSeriesDefaults = ref(false)
@@ -108,7 +110,8 @@ const context = computed(() => ({
   series: seriesId.value ? String(route.query.series_name || seriesId.value) : '',
   project: projectId.value ? String(route.query.project_name || projectId.value) : '',
 }))
-const scheduleDate = computed(() => meetingDate.value || (/^\d{4}-\d{2}-\d{2}T/.test(start.value) ? start.value.slice(0, 10) : /^\d{4}-\d{2}-\d{2}T/.test(end.value) ? end.value.slice(0, 10) : ''))
+// The date is optional: left empty the meeting is for today, as the API defaults it.
+const scheduleDate = computed(() => meetingDate.value || (/^\d{4}-\d{2}-\d{2}T/.test(start.value) ? start.value.slice(0, 10) : /^\d{4}-\d{2}-\d{2}T/.test(end.value) ? end.value.slice(0, 10) : localIsoDay(new Date())))
 const scheduleEndDate = computed(() => endDate.value || (/^\d{4}-\d{2}-\d{2}T/.test(end.value) ? end.value.slice(0, 10) : ''))
 // Validation starts after the first save attempt: an untouched form must not
 // open covered in "required" errors.
@@ -155,13 +158,13 @@ async function save() {
       <SharedUnsavedChanges :dirty="dirty" />
       <UAlert v-if="attemptedSubmit && Object.values(formErrors).filter(Boolean).length > 1" color="error" variant="subtle" role="alert" :title="t('meetingsUx.validationSummary', { count: Object.values(formErrors).filter(Boolean).length })" />
       <UAlert v-if="context.series || context.project" color="neutral" variant="subtle" icon="i-lucide-info" :title="[context.series && t('meetingsUx.context.series', { name: context.series }), context.project && t('meetingsUx.context.project', { name: context.project })].filter(Boolean).join(' · ')" />
-      <SharedFormSection panel :title="t('meetingsUi.sectionSchedule')">
+      <SharedFormSection panel :title="t('meetingsUi.sectionSchedule')" :description="t('meetingsUx.browserTimeZone', { zone: browserTimeZone })">
         <div class="webvue-form-grid">
           <UFormField class="sm:col-span-2" :label="t('meetingsUi.title')" name="name" required :error="serverErrors.name || (visibleErrors.name ? t(`meetingsUx.errors.${visibleErrors.name}`) : undefined)">
             <UInput id="meeting-name" v-model="name" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!visibleErrors.name" required />
           </UFormField>
-          <UFormField :label="t('meetingsUi.date')" name="date" required :error="serverErrors.date || (visibleErrors.date ? t(`meetingsUx.errors.${visibleErrors.date}`) : undefined)">
-            <SharedDateField id="meeting-date" v-model="meetingDateField" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!visibleErrors.date" aria-required="true" />
+          <UFormField :label="t('meetingsUi.date')" name="date" :error="serverErrors.date || (visibleErrors.date ? t(`meetingsUx.errors.${visibleErrors.date}`) : undefined)">
+            <SharedDateField id="meeting-date" v-model="meetingDateField" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!visibleErrors.date" />
           </UFormField>
           <UFormField :label="t('meetingsUi.start')" name="start" :error="serverErrors.start || (visibleErrors.start ? t(`meetingsUx.errors.${visibleErrors.start}`) : undefined)">
             <UInput id="meeting-start" v-model="start" type="time" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!visibleErrors.start" />

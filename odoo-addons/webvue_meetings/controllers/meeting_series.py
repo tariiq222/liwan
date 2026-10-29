@@ -14,6 +14,7 @@ from odoo.addons.webvue_api.controllers.common import (
     require_capabilities,
     requires_feature,
 )
+from odoo.addons.webvue_meetings.models.meeting_series import MAX_OCCURRENCES
 from odoo.addons.webvue_meetings.serializers.meeting import (
     dump_meeting,
     dump_series,
@@ -46,6 +47,21 @@ def _parse_series_date(value, field):
         raise ApiError(422, 'invalid', '%s must be a valid ISO date' % field, field=field) from None
 
 
+def _parse_until_count(value):
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= MAX_OCCURRENCES:
+        raise ApiError(
+            422, 'invalid', 'Occurrence count must be between 1 and %s' % MAX_OCCURRENCES, field='until_count',
+        )
+    return value
+
+
+def _parse_limit(value):
+    limit = parse_positive_int(value, 'limit')
+    if limit > MAX_SERIES:
+        raise ApiError(422, 'invalid', 'limit must be between 1 and %s' % MAX_SERIES, field='limit')
+    return limit
+
+
 class MeetingSeriesController(http.Controller):
 
     @http.route('/api/v1/meeting-series', type='json2', auth='user', methods=['GET'], readonly=True)
@@ -54,7 +70,7 @@ class MeetingSeriesController(http.Controller):
     def list_series(self, **_):
         require_capabilities('meetings.read')
         args = request.httprequest.args
-        limit = min(parse_nonneg_int(args.get('limit', 50), 'limit') or 50, MAX_SERIES)
+        limit = _parse_limit(args.get('limit', 50))
         offset = parse_nonneg_int(args.get('offset', 0), 'offset')
         domain = []
         q = (args.get('q') or '').strip()
@@ -141,8 +157,8 @@ class MeetingSeriesController(http.Controller):
             vals['attendee_ids'] = [(6, 0, _validate_internal_users(attendee_ids, 'attendee_ids'))]
         if isinstance(until_date, str) and until_date.strip():
             vals['until_date'] = _parse_series_date(until_date, 'until_date')
-        if until_count:
-            vals['until_count'] = parse_positive_int(until_count, 'until_count')
+        if until_count is not None:
+            vals['until_count'] = _parse_until_count(until_count)
         if isinstance(location, str) and location.strip():
             vals['location'] = location.strip()
         if meeting_url is not None:
