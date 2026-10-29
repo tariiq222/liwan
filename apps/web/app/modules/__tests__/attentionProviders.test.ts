@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { leaveApprovalAttention, leaveCancellationAttention } from '../hr/attention'
 import { overdueFollowupAttention, todayMeetingsAttention } from '../meetings/attention'
 import { pendingReviewAttention } from '../operations/attention'
-import { overdueTasksAttention, projectsAtRiskAttention } from '../pmo/attention'
+import { openTasksAttention, overdueTasksAttention, projectsAtRiskAttention } from '../pmo/attention'
 import { myTasksAttention } from '../tasks/attention'
 import { attentionProviders } from '../surfaces'
 import type { AppAttentionProvider, AppSearchApi } from '../types'
@@ -27,11 +27,11 @@ describe('attention providers', () => {
   it('registers every provider once, each under a rail module of its own application', () => {
     const providers = attentionProviders()
     expect(providers.map(provider => provider.id).sort()).toEqual([
-      'hr-leave-approvals', 'hr-leave-cancellations', 'meetings-followup-overdue', 'meetings-today', 'operations-pending', 'pmo-projects-at-risk', 'pmo-tasks-overdue', 'tasks-due',
+      'hr-leave-approvals', 'hr-leave-cancellations', 'meetings-followup-overdue', 'meetings-today', 'operations-pending', 'pmo-projects-at-risk', 'pmo-tasks-open', 'pmo-tasks-overdue', 'tasks-due',
     ])
     expect(new Set(providers.map(provider => provider.id)).size).toBe(providers.length)
     expect(new Set(providers.map(provider => JSON.stringify(provider.queryKey))).size).toBe(providers.length)
-    expect(providers.map(provider => provider.module).sort()).toEqual(['hr', 'hr', 'meetings', 'meetings', 'operations', 'projects', 'projects', 'tasks'])
+    expect(providers.map(provider => provider.module).sort()).toEqual(['hr', 'hr', 'meetings', 'meetings', 'operations', 'projects', 'projects', 'projects', 'tasks'])
   })
 
   describe('tasks', () => {
@@ -144,6 +144,15 @@ describe('attention providers', () => {
         { id: 'task-2', recordKey: 'task:2', label: 'مهمة 2', to: '/tasks/2', caption: 'مشروع الرياض', tone: 'urgent' },
       ])
     })
+    it('lists my open project tasks as normal rows that share the overdue provider\'s record keys', async () => {
+      const { api, fetcher } = fakeApi({ items: [task(1), task(3)], total: 2 })
+      const rows = await openTasksAttention.load(fetcher, t)
+      expect(api).toHaveBeenCalledWith('/api/v1/tasks', expect.objectContaining({ query: { filter: 'mine', sort: 'date_deadline', limit: 20 } }))
+      expect(rows).toEqual([
+        { id: 'task-1', recordKey: 'task:1', label: 'مهمة 1', to: '/tasks/1', caption: 'مشروع الرياض', tone: 'normal' },
+        { id: 'task-3', recordKey: 'task:3', label: 'مهمة 3', to: '/tasks/3', caption: 'مشروع الرياض', tone: 'normal' },
+      ])
+    })
     it('is empty without overdue tasks and passes a failure on', async () => {
       expect(await overdueTasksAttention.load(fakeApi({ items: [], total: 0 }).fetcher, t)).toEqual([])
       await expect(overdueTasksAttention.load((async () => { throw new Error('boom') }) as unknown as AppSearchApi, t)).rejects.toThrow('boom')
@@ -220,6 +229,7 @@ describe('attention providers', () => {
     expect(kinds).toEqual({
       'tasks-due': 'execute',
       'pmo-tasks-overdue': 'execute',
+      'pmo-tasks-open': 'execute',
       'meetings-followup-overdue': 'execute',
       'operations-pending': 'decide',
       'hr-leave-approvals': 'decide',

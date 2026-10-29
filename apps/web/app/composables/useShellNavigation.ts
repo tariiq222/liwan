@@ -12,7 +12,7 @@ import { activeShellModule, contextModuleFor } from './nav/activeRoute'
 import { CONTEXT_SIDEBAR_COOKIE, contextSidebarState, type ContextSidebarCookie } from './nav/contextSidebarState'
 import { useAssistantSheet } from './useAssistantSheet'
 import { effectiveActivePart, anchorOf } from './nav/settingsScroll'
-import { isNavPathActive, type AccessIdentity } from '../utils/accessPolicy'
+import { canReachPath, isNavPathActive, type AccessIdentity } from '../utils/accessPolicy'
 import { personalContextLinks } from './nav/personalModel'
 
 export function useContextSidebar() {
@@ -36,7 +36,11 @@ export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {
   // The server never sees the URL hash, so the first client render must not either: a hydration pass that disagrees
   // with the server's markup leaves the stale attribute in the DOM.
   const hydrated = useHydrated()
-  const activeModule = computed<ShellModule | null>(() => activeShellModule(route.path))
+  // A page the identity may not open (the 403 page) belongs to no application: no application title, links or side panel.
+  const activeModule = computed<ShellModule | null>(() => {
+    const owner = activeShellModule(route.path)
+    return owner && identityValue.value && !canReachPath(identityValue.value, route.path) ? null : owner
+  })
   // Inside a project the sidebar keeps the projects module links (2026-09-11);
   // the project's own sections are tabs inside the page.
   const contextLinks = computed<ShellContextLink[]>(() => {
