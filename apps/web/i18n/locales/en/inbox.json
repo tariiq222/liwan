@@ -51,7 +51,9 @@
       "emptyFiltered": "No matching conversations",
       "noMessages": "No messages",
       "unread": "Unread",
-      "export": "Export conversations (CSV)"
+      "export": "Export conversations (CSV)",
+      "csat": "Customer satisfaction",
+      "anyCsat": "Any rating"
     },
     "thread": {
       "label": "Conversation messages",
@@ -74,7 +76,9 @@
       "openMap": "Open in map",
       "buttons": "Reply buttons",
       "selected": "Chose: {title}",
-      "unsupported": "This message type is not supported."
+      "unsupported": "This message type is not supported.",
+      "automated": "Automatic reply",
+      "system": "System"
     },
     "composer": {
       "mode": "Message type",
@@ -210,7 +214,21 @@
         "autoClose": "Close automatically after (hours)",
         "autoCloseHint": "0 means never close automatically.",
         "retention": "Retention (months)",
-        "retentionHint": "Conversations older than this are deleted with their attachments."
+        "retentionHint": "Conversations older than this are deleted with their attachments.",
+        "assignmentLabel": "New conversation assignment",
+        "assignmentDescription": "Applied after the rules to a conversation that has no assignee, among its department members or all agents when it has no department.",
+        "assignment": {
+          "manual": "Manual",
+          "round_robin": "Round robin",
+          "least_open": "Least busy"
+        },
+        "assignmentHint": {
+          "manual": "Nothing is assigned automatically; staff pick what they handle.",
+          "round_robin": "New conversations go to the members in turn.",
+          "least_open": "New conversations go to the member with the fewest open conversations."
+        },
+        "firstResponse": "First-response alert (minutes)",
+        "firstResponseHint": "The assignee is notified when a customer has waited this long without a reply. 0 turns the alert off."
       },
       "presets": {
         "title": "Sector presets",
@@ -501,6 +519,159 @@
       },
       "unsupported": "Not supported in WebVue",
       "unsupportedDescription": "This template uses parts WebVue cannot fill (such as named variables or flow buttons), so it cannot be edited or sent from here. Manage it in Meta's dashboard."
+    },
+    "csat": {
+      "good": "Satisfied",
+      "neutral": "Neutral",
+      "bad": "Dissatisfied",
+      "badge": "Customer satisfaction: {score}"
+    },
+    "automation": {
+      "enable": "Enabled",
+      "contentRequired": "Write the message text or complete the interactive message.",
+      "invalid": "Check the fields: an enabled message needs valid content and every option label is required.",
+      "channelTitle": "Automatic messages: {name}",
+      "content": {
+        "text": "Text",
+        "interactive": "Interactive",
+        "body": "Message text"
+      },
+      "hours": {
+        "title": "Working hours",
+        "hint": "Decide when the away message is sent and when a rule's hours condition applies. With no range at all the inbox is always open.",
+        "timezone": "Timezone",
+        "week": "Week",
+        "alwaysOpen": "No range is set, so the inbox is always open.",
+        "closed": "Closed",
+        "from": "{day} opening time",
+        "to": "{day} closing time",
+        "removeRange": "Remove {day} range",
+        "addRange": "Add a range",
+        "overlap": "The ranges overlap on this day.",
+        "holidays": "Holidays",
+        "holidaysHint": "On a holiday the inbox counts as outside working hours.",
+        "holidayName": "Holiday name",
+        "holidayFrom": "From",
+        "holidayTo": "To",
+        "addHoliday": "Add a holiday",
+        "removeHoliday": "Remove holiday",
+        "weekdays": {
+          "0": "Monday",
+          "1": "Tuesday",
+          "2": "Wednesday",
+          "3": "Thursday",
+          "4": "Friday",
+          "5": "Saturday",
+          "6": "Sunday"
+        },
+        "ownHours": "Hours for this department only",
+        "ownHoursOn": "The department follows the hours below instead of the company's.",
+        "ownHoursOff": "The department follows the company working hours.",
+        "saveDepartment": "Save department hours"
+      },
+      "welcome": {
+        "title": "Welcome message",
+        "hint": "Sent on a customer's first message of a new conversation. Outside working hours the away message is sent instead.",
+        "idleDays": "Greet a returning customer after (days)",
+        "idleDaysHint": "0 greets new conversations only."
+      },
+      "away": {
+        "title": "Away message",
+        "hint": "Sent when a customer writes outside working hours or on a holiday.",
+        "repeatHours": "Do not repeat before (hours)",
+        "repeatHoursHint": "At most one message per conversation in this period."
+      },
+      "csat": {
+        "title": "Satisfaction survey",
+        "hint": "After an agent resolves the conversation the customer gets a question with three buttons, and the choice is saved on the conversation.",
+        "question": "Question text",
+        "options": {
+          "good": "Satisfied button",
+          "neutral": "Neutral button",
+          "bad": "Dissatisfied button"
+        }
+      },
+      "messages": {
+        "title": "Automatic messages",
+        "hint": "The welcome, away message and satisfaction survey of each channel."
+      },
+      "rules": {
+        "title": "Auto-reply rules",
+        "hint": "Rules are tried in order and the search ends at the first matching rule with \"stop\".",
+        "add": "Add a rule",
+        "create": "New rule",
+        "createHint": "When the rule applies and what it does.",
+        "empty": "No rules yet.",
+        "anyChannel": "All channels",
+        "channel": "Channel",
+        "matchLabel": "Match type",
+        "match": {
+          "any": "Any message",
+          "contains": "Contains",
+          "exact": "Matches exactly",
+          "starts_with": "Starts with",
+          "option": "Customer chose an option"
+        },
+        "keywords": "Keywords",
+        "keywordsHint": "Press Enter after each word or phrase. Case, diacritics and letter forms do not matter.",
+        "keywordsRequired": "Add at least one keyword.",
+        "optionId": "Option id",
+        "optionIdHint": "The id of the button or row the customer chose, such as btn_1 or row_2.",
+        "optionRequired": "Enter the option id.",
+        "hoursLabel": "When the message arrives",
+        "hours": {
+          "any": "At any time",
+          "inside": "Inside working hours only",
+          "outside": "Outside working hours only"
+        },
+        "when": "When",
+        "then": "Do",
+        "active": "Rule is active",
+        "replyAction": "Send a reply",
+        "department": "Move to a department",
+        "assignee": "Assign to an agent",
+        "tags": "Add tags",
+        "priority": "Set the priority",
+        "noChange": "No change",
+        "resolveAction": "Resolve the conversation",
+        "stop": "Stop after this rule",
+        "stopHint": "Later rules are not tried when this one matches.",
+        "actionRequired": "Choose at least one action.",
+        "actions": {
+          "reply": "Reply",
+          "department": "Department",
+          "assignee": "Assign",
+          "tags": "Tags",
+          "priority": "Priority",
+          "resolve": "Resolve"
+        },
+        "continues": "Continues",
+        "toggle": "Enable rule {name}",
+        "moveUp": "Move {name} up",
+        "moveDown": "Move {name} down",
+        "deleteTitle": "Delete the rule \"{name}\"?",
+        "deleteDescription": "It stops applying to new messages; messages already sent are not affected."
+      },
+      "test": {
+        "title": "Try it",
+        "hint": "Type a sample customer message to see what the automation would do. Nothing is sent.",
+        "channel": "Channel",
+        "option": "Chosen option (optional)",
+        "optionHint": "For example btn_1",
+        "message": "Customer message",
+        "run": "Try",
+        "hours": "Right now",
+        "inside": "Inside working hours",
+        "outside": "Outside working hours",
+        "autoMessage": "Automatic message",
+        "auto": {
+          "welcome": "Welcome message",
+          "away": "Away message"
+        },
+        "none": "None",
+        "rules": "Matching rules, in order",
+        "noRules": "No rule matches."
+      }
     }
   }
 }

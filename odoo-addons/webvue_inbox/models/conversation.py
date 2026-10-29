@@ -6,7 +6,14 @@ from odoo.exceptions import ValidationError
 from odoo.fields import Domain
 
 from .access_service import ASSIGN, READ
-from .constants import PREVIEW_LENGTH, REPLY_WINDOW, STALE_UPLOAD_AGE, TYPING_THROTTLE
+from .constants import (
+    CSAT_SCORES,
+    PREVIEW_LENGTH,
+    REPLY_WINDOW,
+    STALE_UPLOAD_AGE,
+    TYPING_THROTTLE,
+)
+from .notification_types import KINDS
 
 BUS_CHANNEL = 'webvue/inbox'
 
@@ -43,6 +50,14 @@ class WebVueInboxConversation(models.Model):
     # The last typing request (the throttle marker) and whether the outbox still has to send it.
     typing_requested_at = fields.Datetime(copy=False)
     typing_pending = fields.Boolean(default=False, index=True, copy=False)
+    # Automation: when the away message was last sent, since when the customer waits for an agent (null once an
+    # agent replied), whether that wait was already alerted (reset by the next agent reply), and the customer's
+    # answer to the satisfaction survey.
+    away_sent_at = fields.Datetime(copy=False)
+    waiting_since = fields.Datetime(compute='_compute_waiting_since', store=True, index=True)
+    first_response_alerted = fields.Boolean(default=False, copy=False)
+    csat_score = fields.Selection([('good', 'Good'), ('neutral', 'Neutral'), ('bad', 'Bad')], copy=False, index=True)
+    csat_at = fields.Datetime(copy=False)
 
     _one_open_per_identity = models.UniqueIndex(
         "(channel_id, identity_id) WHERE state != 'closed'",
@@ -64,6 +79,17 @@ class WebVueInboxConversation(models.Model):
             last = max(inbound.mapped('date'), default=False)
             conversation.last_inbound_at = last
             conversation.reply_window_ends_at = last + REPLY_WINDOW if last else False
+
+    @api.depends('message_ids.direction', 'message_ids.date', 'message_ids.author_id', 'message_ids.selected_option_id')
+    def _compute_waiting_since(self):
+        for conversation in self:
+            messages = conversation.message_ids
+            last_reply = max(messages.filtered(lambda m: m.direction == 'out' and m.author_id).mapped('date'), default=False)
+            # A survey answer (tapping a csat_* button) asks for nothing: it never starts or backdates a wait.
+            waiting = messages.filtered(
+                lambda m: m.direction == 'in' and m.selected_option_id not in CSAT_SCORES and (not last_reply or m.date > last_reply),
+            )
+            conversation.waiting_since = min(waiting.mapped('date'), default=False)
 
     def _webvue_latest_inbound(self):
         """The newest inbound message the provider knows (a read receipt or typing call names it)."""
@@ -179,7 +205,7 @@ class WebVueInboxConversation(models.Model):
         """Delete the company's conversations idle since `cutoff` with their attachments and bell rows, stale events and orphaned contacts."""
         expired = self.search([('company_id', '=', company.id), ('last_message_at', '<', cutoff)])
         self.env['mail.message'].search([
-            ('webvue_notification_kind', '=', 'inbox.assigned'), ('webvue_inbox_conversation_id', 'in', expired.ids),
+            ('webvue_notification_kind', 'in', KINDS), ('webvue_inbox_conversation_id', 'in', expired.ids),
         ]).unlink()
         self.env['webvue.inbox.event']._webvue_purge_unprocessed(company, cutoff)
         self.env['ir.attachment'].search([

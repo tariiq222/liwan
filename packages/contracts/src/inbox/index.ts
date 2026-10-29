@@ -11,6 +11,8 @@ const list = <T extends z.ZodType>(item: T) => z.object({
 }).strict()
 
 export const InboxRefSchema = z.object({ id: Id, name: z.string() }).strict()
+// A plain list of references: channels an automation manager may target, assignee pickers.
+export const InboxRefListSchema = list(InboxRefSchema)
 
 export const InboxChannelKindSchema = z.enum(['whatsapp'])
 export const InboxChannelStateSchema = z.enum(['draft', 'connected', 'error', 'disabled'])
@@ -45,6 +47,8 @@ export const InboxConversationSchema = z.object({
   // WhatsApp customer-service window: a free-form reply is accepted until this time;
   // after it only an approved template may be sent. Null when no inbound message exists.
   reply_window_ends_at: UtcDateTime.nullable(),
+  // The customer's answer to the satisfaction survey, null until answered.
+  csat: z.object({ score: z.enum(['good', 'neutral', 'bad']), at: UtcDateTime }).strict().nullable(),
 }).strict()
 
 export const InboxConversationListSchema = list(InboxConversationSchema)
@@ -143,6 +147,8 @@ export const InboxMessageSchema = z.object({
   // An outbound interactive message as sent; an inbound reply to one carries the chosen option.
   interactive: InboxInteractiveSchema.nullable(),
   selected_option: z.object({ id: z.string(), title: z.string() }).strict().nullable(),
+  // Sent by the inbox automation (welcome, away, a rule or the survey), not by an agent.
+  automated: z.boolean(),
   created_at: UtcDateTime,
 }).strict()
 
@@ -189,7 +195,7 @@ export const InboxContactPatchSchema = z.object({
 }).strict()
 
 // Users of the current company who may reply: the assignee picker.
-export const InboxAgentListSchema = list(InboxRefSchema)
+export const InboxAgentListSchema = InboxRefListSchema
 
 export const InboxCannedReplySchema = z.object({
   id: Id,
@@ -360,10 +366,16 @@ export const InboxTagSchema = InboxRefSchema
 export const InboxTagListSchema = list(InboxTagSchema)
 export const InboxTagWriteSchema = z.object({ name: z.string().min(1).max(64) }).strict()
 
+export const InboxAssignmentPolicySchema = z.enum(['manual', 'round_robin', 'least_open'])
+
 export const InboxSettingsSchema = z.object({
   visibility_policy: InboxVisibilityPolicySchema,
   auto_close_hours: z.number().int().min(0).max(720),
   retention_months: z.number().int().min(1).max(120),
+  // Who gets a new unassigned conversation, among its department's members (or all agents without one).
+  assignment_policy: InboxAssignmentPolicySchema,
+  // Alert agents when a customer has waited this long for a first reply; 0 turns the alert off.
+  first_response_alert_minutes: z.number().int().min(0).max(1440),
 }).strict()
 export const InboxSettingsPatchSchema = InboxSettingsSchema.partial().strict()
 
@@ -410,6 +422,117 @@ export const InboxChannelPatchSchema = z.object({
   app_id: AppId.nullable().optional(),
 }).strict()
 
+// ---------------------------------------------------------------- automation
+
+const Clock = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$|^24:00$/)
+const IsoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+
+// Weekly working hours and holidays (a resource calendar on the server). No days means always open.
+export const InboxWorkingHoursSchema = z.object({
+  timezone: z.string().min(1).max(64),
+  // 0 = Monday ... 6 = Sunday, as Odoo counts; several ranges per day are allowed.
+  days: z.array(z.object({ weekday: z.number().int().min(0).max(6), from: Clock, to: Clock }).strict()
+    .refine(range => range.from < range.to, 'a range ends after it starts')).max(42),
+  holidays: z.array(z.object({ name: z.string().min(1).max(128), date_from: IsoDate, date_to: IsoDate }).strict()
+    .refine(holiday => holiday.date_from <= holiday.date_to, 'a holiday ends on or after its start')).max(100),
+}).strict()
+// A department's own hours, or null to follow the company's.
+export const InboxDepartmentWorkingHoursSchema = z.object({ working_hours: InboxWorkingHoursSchema.nullable() }).strict()
+
+// What an automatic message says: plain text or an interactive message (buttons or list; a CTA url is allowed too).
+export const InboxAutoContentSchema = z.union([
+  z.object({ body: z.string().min(1).max(4096) }).strict(),
+  z.object({ interactive: InboxInteractiveSchema }).strict(),
+])
+
+export const InboxChannelAutomationSchema = z.object({
+  welcome: z.object({
+    enabled: z.boolean(),
+    // Also greet a returning customer whose last message is at least this many days old; 0 greets new conversations only.
+    idle_days: z.number().int().min(0).max(365),
+    content: InboxAutoContentSchema.nullable(),
+  }).strict(),
+  away: z.object({
+    enabled: z.boolean(),
+    // At most one away message per conversation in this many hours.
+    repeat_hours: z.number().int().min(1).max(168),
+    content: InboxAutoContentSchema.nullable(),
+  }).strict(),
+  csat: z.object({
+    enabled: z.boolean(),
+    question: z.string().min(1).max(1024),
+    good: z.string().min(1).max(20),
+    neutral: z.string().min(1).max(20),
+    bad: z.string().min(1).max(20),
+  }).strict(),
+}).strict().refine(
+  automation => (!automation.welcome.enabled || automation.welcome.content) && (!automation.away.enabled || automation.away.content),
+  'an enabled automatic message needs content',
+)
+
+export const InboxRuleMatchKindSchema = z.enum(['any', 'contains', 'exact', 'starts_with', 'option'])
+export const InboxRuleHoursSchema = z.enum(['any', 'inside', 'outside'])
+
+const RuleFields = {
+  name: z.string().min(1).max(128),
+  active: z.boolean(),
+  match_kind: InboxRuleMatchKindSchema,
+  // Words or phrases for contains / exact / starts_with; matched without case, diacritics or letter-form differences.
+  keywords: z.array(z.string().min(1).max(128)).max(50),
+  // The interactive option id chosen by the customer, for match_kind option.
+  option_id: z.string().min(1).max(200).nullable(),
+  hours: InboxRuleHoursSchema,
+  // Stop evaluating later rules when this one matches.
+  stop: z.boolean(),
+  reply: InboxAutoContentSchema.nullable(),
+  resolve: z.boolean(),
+}
+
+const ruleShape = (rule: { match_kind: string, keywords: string[], option_id: string | null }) =>
+  rule.match_kind === 'option' ? rule.option_id !== null && rule.keywords.length === 0
+    : ['contains', 'exact', 'starts_with'].includes(rule.match_kind) ? rule.keywords.length > 0 && rule.option_id === null
+      : rule.keywords.length === 0 && rule.option_id === null
+
+export const InboxRuleSchema = z.object({
+  id: Id,
+  sequence: z.number().int(),
+  channel: InboxRefSchema.nullable(),
+  ...RuleFields,
+  department: InboxRefSchema.nullable(),
+  assignee: InboxRefSchema.nullable(),
+  tags: z.array(InboxRefSchema),
+  priority: InboxPrioritySchema.nullable(),
+}).strict()
+export const InboxRuleListSchema = list(InboxRuleSchema)
+
+export const InboxRuleWriteSchema = z.object({
+  channel_id: Id.nullable(),
+  ...RuleFields,
+  department_id: Id.nullable(),
+  assignee_id: Id.nullable(),
+  tag_ids: z.array(Id).max(20),
+  priority: InboxPrioritySchema.nullable(),
+}).strict()
+  .refine(ruleShape, 'keywords go with contains, exact and starts_with; an option id goes with option')
+  .refine(rule => rule.reply !== null || rule.department_id !== null || rule.assignee_id !== null || rule.tag_ids.length > 0
+    || rule.priority !== null || rule.resolve, 'a rule needs at least one action')
+
+export const InboxRuleReorderSchema = z.object({ ids: z.array(Id).min(1).max(500) }).strict()
+
+// Dry run: which rule (if any) a message would trigger, and the automatic message it would get. Nothing is sent.
+export const InboxRuleTestSchema = z.object({
+  channel_id: Id,
+  text: z.string().max(4096).nullable(),
+  option_id: z.string().min(1).max(200).nullable(),
+  at: UtcDateTime.nullable(),
+}).strict()
+export const InboxRuleTestResultSchema = z.object({
+  inside_hours: z.boolean(),
+  // Welcome or away, when the channel would send one before the rules.
+  auto_message: z.enum(['welcome', 'away']).nullable(),
+  rules: z.array(InboxRefSchema),
+}).strict()
+
 export type InboxRef = z.infer<typeof InboxRefSchema>
 export type InboxChannelKind = z.infer<typeof InboxChannelKindSchema>
 export type InboxChannelState = z.infer<typeof InboxChannelStateSchema>
@@ -450,6 +573,15 @@ export type InboxDepartmentWrite = z.infer<typeof InboxDepartmentWriteSchema>
 export type InboxTag = z.infer<typeof InboxTagSchema>
 export type InboxTagWrite = z.infer<typeof InboxTagWriteSchema>
 export type InboxSettings = z.infer<typeof InboxSettingsSchema>
+export type InboxAssignmentPolicy = z.infer<typeof InboxAssignmentPolicySchema>
+export type InboxWorkingHours = z.infer<typeof InboxWorkingHoursSchema>
+export type InboxAutoContent = z.infer<typeof InboxAutoContentSchema>
+export type InboxChannelAutomation = z.infer<typeof InboxChannelAutomationSchema>
+export type InboxRuleMatchKind = z.infer<typeof InboxRuleMatchKindSchema>
+export type InboxRule = z.infer<typeof InboxRuleSchema>
+export type InboxRuleWrite = z.infer<typeof InboxRuleWriteSchema>
+export type InboxRuleTest = z.infer<typeof InboxRuleTestSchema>
+export type InboxRuleTestResult = z.infer<typeof InboxRuleTestResultSchema>
 export type InboxSettingsPatch = z.infer<typeof InboxSettingsPatchSchema>
 export type InboxChannel = z.infer<typeof InboxChannelSchema>
 export type InboxChannelCreate = z.infer<typeof InboxChannelCreateSchema>
