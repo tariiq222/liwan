@@ -84,8 +84,15 @@ def parse_catalog_patch(payload):
 
 
 def parse_commerce_patch(payload):
-    check_fields(payload, {'cart_enabled', 'catalog_visible'})
-    return {key: parse_bool(value, key) for key, value in payload.items()}
+    """(the flags for Meta, the paid notice values) of a channel commerce body."""
+    check_fields(payload, {'cart_enabled', 'catalog_visible', 'paid_notice_enabled', 'paid_notice_text'})
+    flags = {key: parse_bool(payload[key], key) for key in ('cart_enabled', 'catalog_visible') if key in payload}
+    notice = {}
+    if 'paid_notice_enabled' in payload:
+        notice['paid_notice_enabled'] = parse_bool(payload['paid_notice_enabled'], 'paid_notice_enabled')
+    if 'paid_notice_text' in payload:
+        notice['paid_notice_text'] = parse_string(payload['paid_notice_text'], 'paid_notice_text', 1024)
+    return flags, notice
 
 
 def parse_retailer_id(value, key='product_retailer_id'):

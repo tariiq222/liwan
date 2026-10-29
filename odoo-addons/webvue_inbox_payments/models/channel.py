@@ -32,6 +32,8 @@ class WebVueInboxChannel(models.Model):
 
     def _webvue_catalog_id(self):
         self.ensure_one()
+        if not self.env['webvue.inbox.catalog']._webvue_enabled():
+            return False
         return self._webvue_catalog().meta_catalog_id or False
 
     def _webvue_read_commerce(self, force=False):

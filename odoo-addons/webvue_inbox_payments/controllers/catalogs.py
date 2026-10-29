@@ -112,7 +112,12 @@ class CatalogController(http.Controller):
     @requires_feature('inbox.enabled', CATALOG_FEATURE, operation='write')
     @requires_capability(CATALOG_MANAGE)
     def delete_catalog(self, catalog_id, **_):
-        get_catalog(catalog_id).unlink()
+        catalog = get_catalog(catalog_id)
+        if catalog.with_context(active_test=False).item_ids.filtered(
+            lambda item: item.synced_hash or item.sync_state in ('syncing', 'removing'),
+        ):
+            reject('the catalog still has products at Meta; unlist or delete them and let the sync finish first')
+        catalog.unlink()
         return no_content()
 
     @http.route('/api/v1/inbox/catalogs/<int:catalog_id>/sync', type='json2', auth='user', methods=['POST'], readonly=False)

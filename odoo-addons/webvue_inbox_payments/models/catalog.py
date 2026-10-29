@@ -4,7 +4,7 @@ from urllib.parse import urlsplit
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
-from .constants import MAX_BRAND, META_ID, SYNC_CRON
+from .constants import CATALOG_FEATURE, MAX_BRAND, META_ID, SYNC_CRON
 
 
 def is_https_url(value):
@@ -71,6 +71,11 @@ class WebVueInboxCatalog(models.Model):
         if {'brand', 'default_link', 'prices_include_tax'} & set(vals):
             self._webvue_mark_all_pending()
         return result
+
+    @api.model
+    def _webvue_enabled(self):
+        """Whether the tenant's plan includes the catalog: without it nothing is sent, ingested or synced (carts stay messages)."""
+        return self.env['webvue.entitlement.service']._webvue_feature_write(CATALOG_FEATURE)
 
     def _webvue_channels(self):
         """The channels (phone numbers) of this catalog's WhatsApp account that the caller reaches."""

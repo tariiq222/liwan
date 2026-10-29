@@ -74,4 +74,6 @@ def dump_channel_commerce(channel):
         'catalog': dump_ref(catalog) if catalog else None,
         'cart_enabled': channel.commerce_cart_enabled if catalog and read else None,
         'catalog_visible': channel.commerce_catalog_visible if catalog and read else None,
+        'paid_notice_enabled': channel.paid_notice_enabled,
+        'paid_notice_text': channel.paid_notice_text or '',
     }

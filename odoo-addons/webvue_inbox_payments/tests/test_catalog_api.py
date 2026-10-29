@@ -74,6 +74,8 @@ class TestCatalogApi(WebVueCatalogCase):
         self.assertEqual(item.sync_state, 'pending')
         self.assertError(self.api('PATCH', f'/api/v1/inbox/catalogs/{catalog.id}', {}), 422, 'invalid')
         self.assertEqual(self.api('POST', f'/api/v1/inbox/catalogs/{catalog.id}/sync').status_code, 202)
+        self.assertError(self.api('DELETE', f'/api/v1/inbox/catalogs/{catalog.id}'), 422, 'invalid')
+        item.write({'listed': False, 'sync_state': 'synced', 'synced_hash': False})
         self.assertEqual(self.api('DELETE', f'/api/v1/inbox/catalogs/{catalog.id}').status_code, 204)
         self.assertFalse(catalog.exists())
 
@@ -103,5 +105,22 @@ class TestCatalogApi(WebVueCatalogCase):
     def test_channel_commerce_without_a_catalog_is_empty_and_not_writable(self):
         self.login_user(self.manager)
         data = self.get(f'/api/v1/inbox/channels/{self.channel.id}/commerce').json()
-        self.assertEqual(data, {'channel_id': self.channel.id, 'catalog': None, 'cart_enabled': None, 'catalog_visible': None})
+        self.assertEqual(data, {
+            'channel_id': self.channel.id, 'catalog': None, 'cart_enabled': None, 'catalog_visible': None,
+            'paid_notice_enabled': True, 'paid_notice_text': data['paid_notice_text'],
+        })
         self.assertError(self.api('PATCH', f'/api/v1/inbox/channels/{self.channel.id}/commerce', {'cart_enabled': True}), 409, 'no_catalog')
+
+    def test_the_paid_notice_is_read_and_changed_without_calling_meta(self):
+        self.login_user(self.manager)
+        path = f'/api/v1/inbox/channels/{self.channel.id}/commerce'
+        data = self.get(path).json()
+        self.assertEqual((data['paid_notice_enabled'], '{reference}' in data['paid_notice_text']), (True, True))
+        meta = FakeMeta()
+        with meta.patch():
+            data = self.api('PATCH', path, {'paid_notice_enabled': False, 'paid_notice_text': 'Thanks {reference}'}).json()
+        self.assertEqual((data['paid_notice_enabled'], data['paid_notice_text']), (False, 'Thanks {reference}'))
+        self.assertEqual(meta.calls, [])
+        self.assertError(self.api('PATCH', path, {'paid_notice_text': ''}), 422, 'invalid')
+        self.login_user(self.agent)
+        self.assertError(self.api('PATCH', path, {'paid_notice_enabled': True}), 403, 'forbidden')

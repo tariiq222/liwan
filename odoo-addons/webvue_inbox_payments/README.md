@@ -17,3 +17,9 @@ catalog button) and `inbox.orders.manage` (edit a cart, create the order, send t
   because agents hold no right on sale orders. Payment and cancellation reach the conversation through the
   `_action_confirm` and `_action_cancel` overrides of `sale.order`.
 - The paid notice (`paid_notice_enabled`, `paid_notice_text` on the channel) is sent only inside the window.
+- Deleting a catalog is refused while any of its items is at Meta (or being sent or removed): unlist or delete the items
+  and let the sync remove them first, so no item is left behind at Meta.
+- An item changed while its batch is open keeps its state; once the batch settles it is resent if its data differs
+  from what was pushed, and a removal (unlist or delete) is sent after the batch. A catalog manager changes only
+  products made by the catalog editor (record rules on `product.template` and `product.product`).
+- Without the `inbox.catalog` feature nothing is sent, synced or ingested as an order; carts stay stored messages.

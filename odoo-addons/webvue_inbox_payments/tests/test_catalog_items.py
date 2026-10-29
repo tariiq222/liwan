@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo import Command
+from odoo.exceptions import AccessError
 from odoo.tests import tagged
 
 from .common import WebVueCatalogCase, upload
@@ -97,3 +99,52 @@ class TestCatalogItems(WebVueCatalogCase):
     def test_a_reply_only_agent_cannot_manage_items(self):
         self.login_user(self.agent)
         self.assertError(self.api('POST', self.items, {'product_id': self.product.id}), 403, 'forbidden')
+
+    def test_the_retailer_id_is_fixed_once_anything_was_pushed(self):
+        for index, values in enumerate(({'pushed_hash': 'h'}, {'synced_hash': 'h'}, {'sync_state': 'syncing'})):
+            with self.subTest(values=values):
+                item = self.make_item(self.catalog, self.image_product(f'Pushed {index}', 1.0))
+                item.write(values)
+                path = f'/api/v1/inbox/catalog-items/{item.id}'
+                self.assertError(self.api('PATCH', path, {'product_retailer_id': 'CHANGED-1'}), 422, 'invalid')
+
+    def test_a_new_product_belongs_to_the_catalog_company_and_other_companies_do_not_see_it(self):
+        made = self.api('POST', self.items, {'product': self.new_product()}).json()
+        product = self.env['product.product'].browse(made['product']['id'])
+        self.assertEqual(product.company_id, self.catalog.company_id)
+        other = self.env['res.company'].create({'name': 'Other'})
+        self.manager.company_ids = [Command.link(other.id)]
+        elsewhere = self.env['product.product'].with_user(self.manager).with_context(allowed_company_ids=[other.id])
+        self.assertFalse(elsewhere.search([('id', '=', product.id)]))
+
+    def test_the_products_route_lists_saleable_products_of_the_company(self):
+        self.make_item(self.catalog)
+        other = self.env['res.company'].create({'name': 'Other'})
+        foreign = self.env['product.product'].create({'name': 'Foreign hat', 'type': 'consu', 'company_id': other.id})
+        self.env['product.product'].create({'name': 'Bare hat', 'type': 'consu'})
+        unsaleable = self.env['product.product'].create({'name': 'Internal hat', 'type': 'consu', 'sale_ok': False})
+        data = self.get(f'/api/v1/inbox/catalogs/{self.catalog.id}/products?q=hat').json()
+        by_name = {row['name']: row for row in data['items']}
+        self.assertIn('Hat', by_name)
+        self.assertEqual((by_name['Bare hat']['has_image'], by_name['Bare hat']['listed']), (False, False))
+        self.assertNotIn(foreign.name, by_name)
+        self.assertNotIn(unsaleable.name, by_name)
+        listed = {row['name']: row for row in self.get(f'/api/v1/inbox/catalogs/{self.catalog.id}/products?q=shirt').json()['items']}
+        self.assertEqual((listed['Shirt']['listed'], listed['Shirt']['has_image'], listed['Shirt']['list_price']), (True, True, 100.0))
+        self.assertEqual(set(listed['Shirt']), {'id', 'name', 'list_price', 'currency', 'has_image', 'listed'})
+        self.login_user(self.agent)
+        self.assertError(self.get(f'/api/v1/inbox/catalogs/{self.catalog.id}/products'), 403, 'forbidden')
+
+    def test_a_catalog_manager_changes_only_catalog_products_through_the_orm(self):
+        made = self.api('POST', self.items, {'product': self.new_product()}).json()
+        catalog_product = self.env['product.product'].browse(made['product']['id'])
+        catalog_product.with_user(self.manager).write({'description_sale': 'ok'})
+        with self.assertRaises(AccessError):
+            self.product.with_user(self.manager).write({'name': 'Hacked'})
+        with self.assertRaises(AccessError):
+            self.product.product_tmpl_id.with_user(self.manager).write({'list_price': 1})
+        self.assertEqual(self.product.with_user(self.manager).name, 'Shirt')  # reading stays open
+
+    def test_the_catalog_feature_is_enforced_on_the_routes(self):
+        with self.without_catalog():
+            self.assertError(self.api('POST', self.items, {'product_id': self.product.id}), 403, 'feature_not_included')

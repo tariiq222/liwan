@@ -40,6 +40,8 @@ from odoo.addons.webvue_payments.models.order_service import (
 )
 from odoo.addons.webvue_payments.models.payer_service import CheckoutOpen
 
+# The most recent ordered orders a payment status filter looks through.
+STATUS_SCAN = 500
 PAYMENT_STATUSES = ('payable', 'processing', 'paid', 'not_payable', 'cancelled')
 
 
@@ -105,9 +107,14 @@ class OrderController(http.Controller):
         ):
             return {'items': [], 'total': 0}
         if status:
-            # The payment status is the payments service's fact, not a column: filter the ordered orders after reading it.
-            orders = Order.search([*domain, ('state', '=', 'ordered')]).filtered(lambda order: order._webvue_payment_status() == status)
-            return {'items': [dump_order(order) for order in orders[offset:offset + limit]], 'total': len(orders)}
+            # The payment status is the payments service's fact, not a column: read it once for each of the newest
+            # ordered orders (bounded), filter on it, and dump the page with the facts already read.
+            payments = {order: order._webvue_payment() for order in Order.search([*domain, ('state', '=', 'ordered')], limit=STATUS_SCAN)}
+            matching = [(order, payment) for order, payment in payments.items() if payment and payment['status'] == status]
+            return {
+                'items': [dump_order(order, payment) for order, payment in matching[offset:offset + limit]],
+                'total': len(matching),
+            }
         return {
             'items': [dump_order(order) for order in Order.search(domain, limit=limit, offset=offset)],
             'total': Order.search_count(domain),

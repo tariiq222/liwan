@@ -116,5 +116,15 @@ class WebVueCatalogCase(WebVueOrderCase, WebVueInboxCase):
         })
         return item
 
+    def without_catalog(self):
+        """The tenant's plan loses the `inbox.catalog` feature (every other feature stays as it is)."""
+        service = type(self.env['webvue.entitlement.service'])
+        original = service._webvue_feature_write
+
+        def feature_write(this, key):
+            return False if key == 'inbox.catalog' else original(this, key)
+
+        return patch.object(service, '_webvue_feature_write', feature_write)
+
     def login_user(self, user):
         self.authenticate(user.login, PASSWORD)

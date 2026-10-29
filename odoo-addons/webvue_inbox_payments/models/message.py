@@ -17,6 +17,8 @@ class WebVueInboxMessage(models.Model):
 
     @api.model
     def _webvue_check_commerce(self, channel, retailer_ids):
+        if not self.env['webvue.inbox.catalog']._webvue_enabled():
+            raise ValidationError(self.env._('The product catalog is not included in the plan.'))
         unknown = sorted(set(retailer_ids) - set(self._webvue_sendable_items(channel, retailer_ids).mapped('retailer_id')))
         if unknown:
             raise ValidationError(self.env._('These products cannot be sent from the catalog: %(ids)s', ids=', '.join(unknown)))
@@ -51,5 +53,5 @@ class WebVueInboxMessage(models.Model):
 
     def _webvue_on_ingested(self):
         super()._webvue_on_ingested()
-        if self.kind == 'order':
+        if self.kind == 'order' and self.env['webvue.inbox.catalog']._webvue_enabled():
             self.env['webvue.inbox.order']._webvue_from_cart(self)

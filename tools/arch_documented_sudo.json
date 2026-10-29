@@ -34,11 +34,11 @@
     },
     "odoo-addons/webvue_inbox_payments/models/order.py": {
       "count": 1,
-      "reason": "webvue_inbox_payments order number: `sale_order.sudo().name` in `_webvue_place`, read once from the online order that `webvue.payments.service._webvue_new_order` just created for this cart and kept on the inbox order as its `reference`; blocked by the stock `sale.order` ACL (only `sales_team.group_sale_salesman` users read orders) while the agent who checks out holds no sales right. The order itself is made, filled and read through the payments service, which elevates inside and returns the record unelevated."
+      "reason": "webvue_inbox_payments payment events: `self.sudo()` in `_webvue_elevated`, used only by `_webvue_on_paid` and `_webvue_on_cancelled` for the conversation system note and the automated paid-notice reply they write. Stock runs these events under payment post-processing or the expiry cron, whoever pays or waits, and that caller holds no ACL write right on `webvue.inbox.message` (only `group_cap_inbox_conversations_reply` does); the order is first found by the sale order being confirmed or cancelled, the texts are server constants and the channel's own notice, and nothing is returned to the caller."
     },
     "odoo-addons/webvue_inbox_payments/models/sale_order.py": {
       "count": 1,
-      "reason": "webvue_inbox_payments payment events: `self.env['webvue.inbox.order.line'].sudo().search([('sale_order_line_id', 'in', self.order_line.ids)])` in `_webvue_inbox_orders`, called by the `_action_confirm` and `_action_cancel` overrides of `sale.order`, which stock runs under payment post-processing, the expiry cron or the payments service's elevated cancel, for a caller (a payer's post-processing identity, the cron user) that holds no ACL right on inbox orders. It only finds the inbox orders of the sale order being confirmed or cancelled; they then post the conversation note and the paid notice through the inbox's own system-note and automated-reply methods, and nothing is returned to the caller."
+      "reason": "webvue_inbox_payments payment events: `self.env['webvue.inbox.order.line'].sudo().search([('sale_order_line_id', 'in', self.order_line.ids)])` in `_webvue_inbox_orders`, called by the `_action_confirm` and `_action_cancel` overrides of `sale.order`, which stock runs under payment post-processing or the expiry cron for a caller that holds no ACL read right on inbox order lines. Only the lookup of ids is elevated: the inbox orders are browsed back in the caller's environment, and their note and reply writes elevate themselves in `models/order.py`."
     },
     "odoo-addons/webvue_meetings/models/calendar_event.py": {
       "count": 1,

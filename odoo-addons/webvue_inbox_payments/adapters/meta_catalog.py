@@ -7,7 +7,7 @@ from odoo.addons.webvue_inbox.adapters.whatsapp import ProviderError, graph_requ
 # Meta's error codes of a token that lacks a permission or an asset (permission, no access, invalid token).
 PERMISSION_CODES = frozenset({10, 190, 200})
 MAX_BATCH = 1000
-REVIEW_PAGE = 1000
+REVIEW_PAGE = 100
 ERROR_TEXT_LENGTH = 200
 FINISHED = 'finished'
 FAILED = 'failed'

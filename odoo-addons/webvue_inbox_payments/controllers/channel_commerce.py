@@ -48,18 +48,20 @@ class ChannelCommerceController(http.Controller):
     def patch_commerce(self, channel_id, **payload):
         """Switch the cart and the catalog button at Meta first; nothing is kept when Meta refuses."""
         channel = get_channel(channel_id, CATALOG_MANAGE)
-        flags = parse_commerce_patch(payload)
-        if not channel._webvue_catalog():
-            raise ApiError(409, 'no_catalog', 'connect a catalog to this WhatsApp account first')
-        try:
-            meta_catalog.set_commerce_settings(channel._webvue_credentials(), **flags)
-            if not channel.commerce_settings_read_at:
-                # A flag the body does not name must not be shown as off just because it was never read.
-                channel._webvue_read_commerce(force=True)
-        except whatsapp.ProviderError as error:
-            provider_failure(error)
-        channel.write({
-            'commerce_settings_read_at': fields.Datetime.now(),
-            **{f'commerce_{key}': value for key, value in flags.items()},
-        })
+        flags, notice = parse_commerce_patch(payload)
+        if flags:
+            if not channel._webvue_catalog():
+                raise ApiError(409, 'no_catalog', 'connect a catalog to this WhatsApp account first')
+            try:
+                meta_catalog.set_commerce_settings(channel._webvue_credentials(), **flags)
+                if not channel.commerce_settings_read_at:
+                    # A flag the body does not name must not be shown as off just because it was never read.
+                    channel._webvue_read_commerce(force=True)
+            except whatsapp.ProviderError as error:
+                provider_failure(error)
+            notice.update({
+                'commerce_settings_read_at': fields.Datetime.now(),
+                **{f'commerce_{key}': value for key, value in flags.items()},
+            })
+        channel.write(notice)
         return dump_channel_commerce(channel)

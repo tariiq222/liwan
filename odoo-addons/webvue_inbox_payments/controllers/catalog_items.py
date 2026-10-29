@@ -64,10 +64,11 @@ def item_filters(args, catalog):
     return domain
 
 
-def new_product(values):
-    """A product made for the catalog: only the catalog editor edits it afterwards."""
+def new_product(catalog, values):
+    """A product made for the catalog, in the catalog's company: only the catalog editor edits it afterwards."""
     template = request.env['product.template'].create({
-        'type': 'consu', 'sale_ok': True, 'purchase_ok': False, 'webvue_inbox_catalog': True, **values,
+        'type': 'consu', 'sale_ok': True, 'purchase_ok': False, 'webvue_inbox_catalog': True,
+        'company_id': catalog.company_id.id, **values,
     })
     return template.product_variant_id
 
@@ -101,11 +102,13 @@ class CatalogItemController(http.Controller):
         values = parse_item_fields(payload)
         if 'product_id' in payload:
             product = find_one('product.product', payload['product_id'], 'product_id')
+            if product.company_id and product.company_id != catalog.company_id:
+                reject('this product belongs to another company', 'product_id')
             problem = Item._webvue_check_product_image(product)
             if problem:
                 reject(problem, 'product_id')
         else:
-            product = new_product(parse_product(payload['product'], creating=True))
+            product = new_product(catalog, parse_product(payload['product'], creating=True))
         taken = Item.with_context(active_test=False)
         if taken.search_count([('catalog_id', '=', catalog.id), ('product_id', '=', product.id)]):
             reject('this product is already in the catalog', 'product_id')
@@ -114,6 +117,30 @@ class CatalogItemController(http.Controller):
             reject('this product id is already used in the catalog', 'product_retailer_id')
         item = Item.create({'catalog_id': catalog.id, 'product_id': product.id, 'retailer_id': retailer_id, **values})
         return request.make_json_response(dump_item(item), status=201)
+
+    @http.route('/api/v1/inbox/catalogs/<int:catalog_id>/products', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('inbox.enabled', CATALOG_FEATURE, operation='read')
+    @requires_capability(CATALOG_MANAGE)
+    def list_products(self, catalog_id, **_):
+        """The saleable products of the catalog's company that can be listed, with whether each has an image and is listed."""
+        catalog = get_catalog(catalog_id)
+        limit, offset = parse_page(request.httprequest.args)
+        Product = request.env['product.product']
+        domain = [('sale_ok', '=', True), ('company_id', 'in', [False, catalog.company_id.id])]
+        if request.httprequest.args.get('q'):
+            query = request.httprequest.args['q']
+            domain += ['|', ('name', 'ilike', query), ('default_code', 'ilike', query)]
+        listed = set(catalog.with_context(active_test=False).item_ids.product_id.ids)
+        currency = catalog.company_id.currency_id.name
+        return {
+            'items': [{
+                'id': product.id, 'name': product.with_context(display_default_code=False).display_name,
+                'list_price': product.lst_price, 'currency': currency, 'has_image': bool(product.image_1024),
+                'listed': product.id in listed,
+            } for product in Product.search(domain, order='name, id', limit=limit, offset=offset)],
+            'total': Product.search_count(domain),
+        }
 
     @http.route('/api/v1/inbox/catalog-items/<int:item_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
@@ -130,7 +157,7 @@ class CatalogItemController(http.Controller):
         item = get_item(item_id)
         check_fields(payload, PATCH_FIELDS)
         values = parse_item_fields(payload)
-        if 'retailer_id' in values and item.last_synced_at and values['retailer_id'] != item.retailer_id:
+        if 'retailer_id' in values and values['retailer_id'] != item.retailer_id and item._webvue_retailer_locked():
             reject('the product id cannot change once the product was sent to Meta', 'product_retailer_id')
         if values.get('retailer_id') and values['retailer_id'] != item.retailer_id and request.env['webvue.inbox.catalog.item'].with_context(
             active_test=False,

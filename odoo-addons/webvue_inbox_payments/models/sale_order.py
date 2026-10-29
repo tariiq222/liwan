@@ -25,8 +25,9 @@ class SaleOrder(models.Model):
     def _webvue_inbox_orders(self):
         """The inbox orders made from these sale orders.
 
-        Runs under stock payment post-processing or the expiry cron, whoever confirms or cancels the sale order,
-        and the lines it reads are the inbox's own, which that caller may hold no right on.
+        Runs under stock payment post-processing or the expiry cron, whoever confirms or cancels the sale order.
+        Only the lookup of ids is elevated, because the caller may hold no right on inbox order lines; the orders
+        are browsed back in the caller's environment, and their conversation writes elevate themselves.
         """
         lines = self.env['webvue.inbox.order.line'].sudo().search([('sale_order_line_id', 'in', self.order_line.ids)])
-        return lines.order_id
+        return self.env['webvue.inbox.order'].browse(lines.order_id.ids)

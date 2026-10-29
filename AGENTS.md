@@ -397,9 +397,10 @@ cross-addon links.
   caller's own rename of the type; appointments managers hold no product rights.
   `webvue_inbox_payments` uses it only for four bounded reads and writes of the WhatsApp catalog bridge, each after
   its own check: in `models/contact.py`, creating the `res.partner` of an inbox contact with server values only, after
-  the `inbox.orders.manage` check (stock gives employees read-only partners); in `models/order.py`, reading the order
-  number of the online order the caller just created (agents hold no `sale.order` read); in `models/sale_order.py`,
-  finding the inbox orders of a sale order that stock payment post-processing confirms or cancels; and in
+  the `inbox.orders.manage` check (stock gives employees read-only partners); in `models/sale_order.py`, looking up the
+  ids of the inbox order lines of a sale order that stock payment post-processing or the expiry cron confirms or
+  cancels (the order is browsed back unelevated); in `models/order.py`, writing the conversation note and the
+  automated paid-notice reply of that payment event, which the cron or payer identity cannot write; and in
   `controllers/images.py`, reading the image of one listed catalog item for the public product image route, after a
   constant-time token match (the public user holds no product read).
   `webvue_api` uses it in `controllers/common.py` only for the single company-ownership

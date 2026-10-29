@@ -137,3 +137,68 @@ class TestCatalogSync(WebVueCatalogCase):
         self.run_sync()
         self.assertEqual((self.catalog.state, self.catalog.last_error), ('connected', False))
         self.assertEqual(item.sync_state, 'synced')
+
+    def test_unlisting_while_the_batch_is_open_deletes_after_it_settles(self):
+        item = self.make_item(self.catalog)
+
+        def waiting():
+            return FakeMeta({f'GET {CATALOG_ID}/check_batch_request_status': {'data': [{'status': 'in_progress'}]}})
+
+        self.run_sync(waiting())
+        self.assertEqual(item.sync_state, 'syncing')
+        item.listed = False
+        self.assertEqual(item.sync_state, 'removing')
+        self.assertEqual(self.run_sync(waiting()).bodies('items_batch'), [])  # still open: nothing is sent over it
+        self.run_sync()  # the batch finishes; the DELETE follows in the next run
+        self.assertEqual(item.sync_state, 'removing')
+        self.assertTrue(item.synced_hash)
+        meta = self.run_sync()
+        self.assertEqual(meta.bodies('items_batch')[0]['requests'], [{'method': 'DELETE', 'data': {'id': 'SHIRT-1'}}])
+        self.assertEqual((item.sync_state, item.synced_hash), ('synced', False))
+
+    def test_deleting_while_the_batch_is_open_removes_the_item_at_meta_before_dropping_it(self):
+        item = self.make_item(self.catalog)
+        self.run_sync(FakeMeta({f'GET {CATALOG_ID}/check_batch_request_status': {'data': [{'status': 'in_progress'}]}}))
+        item._webvue_delete()
+        self.assertTrue(item.exists())
+        self.run_sync()
+        meta = self.run_sync()
+        self.assertEqual(meta.bodies('items_batch')[0]['requests'][0]['method'], 'DELETE')
+        self.assertFalse(item.exists())
+
+    def test_a_failed_create_then_unlisted_needs_no_delete(self):
+        item = self.make_item(self.catalog)
+        self.run_sync(FakeMeta({f'GET {CATALOG_ID}/check_batch_request_status': {'data': [{'status': 'in_progress'}]}}))
+        item.listed = False
+        self.run_sync(FakeMeta({f'GET {CATALOG_ID}/check_batch_request_status': {'data': [{
+            'status': 'finished', 'errors': [{'id': 'SHIRT-1', 'message': 'Bad'}],
+        }]}}))
+        meta = self.run_sync()
+        self.assertEqual(meta.bodies('items_batch'), [])
+        self.assertEqual(item.sync_state, 'synced')
+
+    def test_a_change_while_the_batch_is_open_is_sent_after_it_settles(self):
+        item = self.make_item(self.catalog)
+        self.run_sync(FakeMeta({f'GET {CATALOG_ID}/check_batch_request_status': {'data': [{'status': 'in_progress'}]}}))
+        item.availability = 'out_of_stock'
+        self.assertEqual(item.sync_state, 'syncing')
+        self.run_sync()
+        self.assertEqual(item.sync_state, 'pending')
+        self.assertTrue(item.synced_hash)
+        meta = self.run_sync()
+        self.assertEqual(meta.bodies('items_batch')[0]['requests'][0]['method'], 'UPDATE')
+        self.assertEqual(item.sync_state, 'synced')
+
+    def test_a_product_change_while_the_batch_is_open_is_sent_after_it_settles(self):
+        item = self.make_item(self.catalog)
+        self.run_sync(FakeMeta({f'GET {CATALOG_ID}/check_batch_request_status': {'data': [{'status': 'in_progress'}]}}))
+        self.product.product_tmpl_id.list_price = 150
+        item.invalidate_recordset()
+        self.run_sync()
+        self.assertEqual(item.sync_state, 'pending')
+
+    def test_nothing_is_synced_when_the_plan_lost_the_catalog(self):
+        self.make_item(self.catalog)
+        with self.without_catalog():
+            meta = self.run_sync()
+        self.assertEqual(meta.calls, [])

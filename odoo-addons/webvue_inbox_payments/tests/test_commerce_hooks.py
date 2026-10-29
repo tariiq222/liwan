@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo.exceptions import ValidationError
 from odoo.tests import tagged
 
 from .common import CATALOG_ID, WebVueCatalogCase
@@ -76,3 +77,9 @@ class TestCommerceHooks(WebVueCatalogCase):
     def test_channel_commerce_is_readable_by_a_reply_agent_from_the_mirror(self):
         data = self.get(f'/api/v1/inbox/channels/{self.channel.id}/commerce').json()
         self.assertEqual((data['catalog']['id'], data['cart_enabled']), (self.catalog.id, None))
+
+    def test_without_the_catalog_feature_nothing_is_sent_or_checked(self):
+        with self.without_catalog():
+            self.assertFalse(self.channel._webvue_catalog_id())
+            with self.assertRaises(ValidationError):
+                self.env['webvue.inbox.message']._webvue_check_commerce(self.channel, ['SHIRT-1'])

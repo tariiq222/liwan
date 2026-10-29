@@ -17,6 +17,8 @@ class WebVueInboxCatalogSync(models.Model):
     @api.model
     def _webvue_run_sync(self):
         """Sync every catalog: a provider failure is recorded on the catalog and retried by the next run."""
+        if not self._webvue_enabled():
+            return
         process_each(self.search([]), lambda catalog: catalog._webvue_sync(), self._webvue_unexpected_failure)
 
     @api.model
@@ -35,6 +37,7 @@ class WebVueInboxCatalogSync(models.Model):
         try:
             more = self._webvue_push(credentials)
             self._webvue_poll(credentials)
+            more = more or bool(self._webvue_items(('sync_state', 'in', ('pending', 'removing')), ('batch_handle', '=', False)))
             self._webvue_review(credentials)
         except ProviderError as error:
             self._webvue_fail(str(error))
@@ -50,7 +53,7 @@ class WebVueInboxCatalogSync(models.Model):
 
     def _webvue_push(self, credentials):
         """Send the pending and removing items in one batch; True when more are waiting for the next one."""
-        waiting = self._webvue_items(('sync_state', 'in', ('pending', 'removing')))
+        waiting = self._webvue_items(('sync_state', 'in', ('pending', 'removing')), ('batch_handle', '=', False))
         channel = self._webvue_usable_channel()
         if waiting and not self.default_link and not channel.commerce_phone:
             # The click-to-chat link of an item with no page of its own names the number as customers see it.
@@ -73,31 +76,25 @@ class WebVueInboxCatalogSync(models.Model):
         return len(waiting) > meta_catalog.MAX_BATCH
 
     def _webvue_poll(self, credentials):
-        """Settle the items of every open batch: synced, or failed with the reason Meta gave for that item."""
-        syncing = self._webvue_items(('sync_state', '=', 'syncing'))
+        """Settle the items of every open batch: confirmed, or failed with the reason Meta gave for that item.
+
+        An item changed while its batch was open keeps its new state (a removal, a relisting); a confirmed item whose
+        data differs from what was pushed goes back to `pending`. A confirmed DELETE leaves the item off Meta.
+        """
+        in_flight = self._webvue_items(('batch_handle', '!=', False))
         now = fields.Datetime.now()
-        for handle in sorted(set(syncing.mapped('batch_handle'))):
-            batch = syncing.filtered(lambda item: item.batch_handle == handle)
+        for handle in sorted(set(in_flight.mapped('batch_handle'))):
+            batch = in_flight.filtered(lambda item: item.batch_handle == handle)
             status, errors = meta_catalog.batch_status(credentials, self.meta_catalog_id, handle)
             if status not in (meta_catalog.FINISHED, meta_catalog.FAILED):
-                batch.filtered(lambda item: now - item.write_date > SYNC_TIMEOUT).write({
-                    'sync_state': 'error', 'sync_error': self.env._('Meta did not answer in time.'),
-                })
+                for item in batch.filtered(lambda item: now - item.write_date > SYNC_TIMEOUT):
+                    item._webvue_batch_failed(self.env._('Meta did not answer in time.'))
                 continue
             for item in batch:
                 if item.retailer_id in errors or status == meta_catalog.FAILED:
-                    item.write({
-                        'sync_state': 'error', 'batch_handle': False,
-                        'sync_error': errors.get(item.retailer_id) or self.env._('The batch failed.'),
-                    })
-                elif item.listed and item.active:
-                    item.write({
-                        'sync_state': 'synced', 'synced_hash': item.pushed_hash, 'last_synced_at': now,
-                        'batch_handle': False, 'sync_error': False, 'review_status': 'pending', 'review_reason': False,
-                        'reviewed_at': False,
-                    })
+                    item._webvue_batch_failed(errors.get(item.retailer_id) or self.env._('The batch failed.'))
                 else:
-                    item._webvue_removed()
+                    item._webvue_batch_confirmed(now)
 
     def _webvue_review(self, credentials):
         """Read Meta's review of the synced items still open and of the others once a day."""

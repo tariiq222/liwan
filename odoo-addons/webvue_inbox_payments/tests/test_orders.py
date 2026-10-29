@@ -71,6 +71,33 @@ class TestOrderIngest(OrderCase):
         self.assertEqual((resolved.catalog_item_id, resolved.product_id, resolved.quantity), (self.item, self.product, 2))
         self.assertEqual((unknown.catalog_item_id.id, unknown.product_id.id), (False, False))
 
+    def test_an_unlisted_or_rejected_item_is_flagged_not_matched(self):
+        self.item2.review_status = 'rejected'
+        self.item.listed = False
+        order = self.deliver_cart([cart_line('SHIRT-1'), cart_line(self.item2.retailer_id)])
+        self.assertEqual(order.line_ids.mapped('catalog_item_id').ids, [])
+        self.item.listed = True
+        self.item2.review_status = 'approved'
+        path = f'/api/v1/inbox/conversations/{self.conversation.id}/orders'
+        built = self.api('POST', path, {'lines': [{'catalog_item_id': self.item.id, 'quantity': 1}]})
+        self.assertEqual(built.status_code, 201)
+        self.item.listed = False
+        self.assertError(self.api('POST', path, {'lines': [{'catalog_item_id': self.item.id, 'quantity': 1}]}), 422, 'invalid')
+        self.assertError(self.checkout(self.env['webvue.inbox.order'].browse(built.json()['id'])), 422, 'invalid')
+
+    def test_without_the_catalog_feature_a_cart_stays_a_message_with_no_order(self):
+        data = wa.inbound_message('order', {
+            'catalog_id': CATALOG_ID, 'text': 'x', 'product_items': [cart_line('SHIRT-1')],
+        }, provider_id='wamid.NOFEATURE', wa_id=self.conversation.identity_id.address)
+        self.env['webvue.inbox.event'].create({
+            'channel_id': self.channel.id, 'owner_company_id': self.channel.owner_company_id.id, 'payload': json.dumps(data),
+        })
+        with self.without_catalog():
+            self.env['webvue.inbox.event']._webvue_run_events()
+        message = self.env['webvue.inbox.message'].search([('provider_message_id', '=', 'wamid.NOFEATURE')])
+        self.assertEqual((message.kind, len(message.order_line_ids)), ('order', 1))
+        self.assertFalse(self.env['webvue.inbox.order'].search([('message_id', '=', message.id)]))
+
     def test_a_cart_of_another_catalog_resolves_nothing(self):
         order = self.deliver_cart([cart_line('SHIRT-1')], catalog_id='399999999999')
         self.assertFalse(order.catalog_id)

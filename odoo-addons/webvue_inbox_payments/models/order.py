@@ -8,6 +8,7 @@ from .constants import MAX_CART_QUANTITY, PAY_BUTTON_TEXT
 PAY_PATH_PREFIX = '/pay/order/'
 ORDER_STATES = [('cart', 'Cart'), ('ordered', 'Ordered'), ('dismissed', 'Dismissed')]
 PRICE_TOLERANCE = 0.005
+UNREAD = object()
 NOTE_PAID = 'تم دفع الطلب %s'
 NOTE_CANCELLED = 'أُلغي الطلب %s'
 NOTE_EXPIRED = 'أُلغي الطلب %s: انتهت مهلة الدفع'
@@ -71,10 +72,13 @@ class WebVueInboxOrder(models.Model):
         payment = self._webvue_payment()
         return payment['status'] if payment else None
 
-    def _webvue_total(self):
-        """The total at today's prices (the online order's own total once there is one); unknown lines count nothing."""
+    def _webvue_total(self, payment=UNREAD):
+        """The total at today's prices (the online order's own total once there is one); unknown lines count nothing.
+
+        `payment` is the already read payment facts of this order, so a caller that needs several values reads them once.
+        """
         self.ensure_one()
-        payment = self._webvue_payment()
+        payment = self._webvue_payment() if payment is UNREAD else payment
         if payment:
             return payment['amount_total']
         return sum(line.quantity * (line._webvue_unit_price() or 0.0) for line in self.line_ids)
@@ -83,9 +87,9 @@ class WebVueInboxOrder(models.Model):
         self.ensure_one()
         return self.catalog_id.company_id.currency_id.name or self.company_id.currency_id.name
 
-    def _webvue_price_changed(self):
+    def _webvue_price_changed(self, payment=UNREAD):
         self.ensure_one()
-        return bool(self.message_id) and abs(self._webvue_total() - self.cart_total) > PRICE_TOLERANCE
+        return bool(self.message_id) and abs(self._webvue_total(payment) - self.cart_total) > PRICE_TOLERANCE
 
     # making a cart
 
@@ -94,7 +98,7 @@ class WebVueInboxOrder(models.Model):
         """The cart in `message` as an order of its conversation; lines are matched to the channel catalog's items."""
         conversation = message.conversation_id
         catalog = conversation.channel_id._webvue_catalog().filtered(lambda found: found.meta_catalog_id == message.catalog_id)
-        items = {item.retailer_id: item for item in catalog.item_ids}
+        items = {item.retailer_id: item for item in catalog.item_ids if item._webvue_orderable()}
         cart_lines = message.order_line_ids
         return self.create({
             'company_id': conversation.company_id.id, 'conversation_id': conversation.id, 'message_id': message.id,
@@ -113,8 +117,11 @@ class WebVueInboxOrder(models.Model):
         """Line commands for `entries` ([(catalog item id, quantity)]); every item must be of the conversation's catalog."""
         catalog = conversation.channel_id._webvue_catalog()
         items = self.env['webvue.inbox.catalog.item'].search([('id', 'in', [item_id for item_id, _quantity in entries])])
-        if not catalog or items.catalog_id != catalog or len(items) != len({item_id for item_id, _quantity in entries}):
-            raise OrderLinesInvalid(self.env._('Every item must belong to this conversation\'s catalog.'))
+        if (
+            not catalog or items.catalog_id != catalog or len(items) != len({item_id for item_id, _quantity in entries})
+            or not all(item._webvue_orderable() for item in items)
+        ):
+            raise OrderLinesInvalid(self.env._('Every item must be a listed, not rejected item of this conversation\'s catalog.'))
         by_id = {item.id: item for item in items}
         return [(0, 0, {
             'retailer_id': by_id[item_id].retailer_id, 'catalog_item_id': item_id, 'product_id': by_id[item_id].product_id.id,
@@ -169,7 +176,7 @@ class WebVueInboxOrder(models.Model):
         """Make the online order of a cart: every line needs a catalog product; prices come from Odoo, not from the cart."""
         self.ensure_one()
         self._webvue_require_cart()
-        unknown = self.line_ids.filtered(lambda line: not line.product_id)
+        unknown = self.line_ids.filtered(lambda line: not line.product_id or not line.catalog_item_id._webvue_orderable())
         if unknown:
             raise OrderLinesInvalid(self.env._('Remove the products that are not in the catalog: %(ids)s', ids=', '.join(unknown.mapped('retailer_id'))))
         service = self.env['webvue.payments.service']
@@ -177,8 +184,8 @@ class WebVueInboxOrder(models.Model):
         sale_order = service._webvue_new_order(self.company_id, partner)
         for line in self.line_ids:
             line.sale_order_line_id = service._webvue_add_line(sale_order, line.product_id, line.quantity).id
-        # The number is the stock name of the order just made; agents hold no right on sale orders.
-        self.write({'state': 'ordered', 'reference': sale_order.sudo().name})
+        # Agents hold no right on sale orders: the number comes with the payment facts.
+        self.write({'state': 'ordered', 'reference': service._webvue_summary(sale_order)['reference']})
 
     def _webvue_summary_text(self):
         return f'طلبك جاهز للدفع: {len(self.line_ids)} منتج، الإجمالي {self._webvue_total():.2f} {self._webvue_currency()}'
@@ -239,18 +246,27 @@ class WebVueInboxOrder(models.Model):
 
     # payment events (called by the sale order overrides)
 
+    def _webvue_elevated(self):
+        """This order in an elevated environment, for the conversation writes of a payment event.
+
+        Stock runs the events under payment post-processing or the expiry cron, whoever pays or waits, and that
+        caller holds no right on inbox messages. Only the note and the automated reply are written through it.
+        """
+        return self.sudo()
+
     def _webvue_on_paid(self):
         """The online order was paid: tell the agents, and the customer when the window is open."""
         self.ensure_one()
-        conversation, channel = self.conversation_id, self.conversation_id.channel_id
-        Message = self.env['webvue.inbox.message']
-        Message._webvue_post_system_note(conversation, NOTE_PAID % self.reference)
+        order = self._webvue_elevated()
+        conversation, channel = order.conversation_id, order.conversation_id.channel_id
+        Message = order.env['webvue.inbox.message']
+        Message._webvue_post_system_note(conversation, NOTE_PAID % order.reference)
         window_open = conversation.reply_window_ends_at and fields.Datetime.now() <= conversation.reply_window_ends_at
         if channel.paid_notice_enabled and channel.paid_notice_text and window_open:
             try:
-                with self.env.cr.savepoint():
+                with order.env.cr.savepoint():
                     Message._webvue_queue_automated(conversation, {
-                        'kind': 'text', 'body': channel.paid_notice_text.replace('{reference}', self.reference or ''),
+                        'kind': 'text', 'body': channel.paid_notice_text.replace('{reference}', order.reference or ''),
                     })
             except UserError:
                 pass  # the channel is disabled, the conversation closed or the monthly limit reached: the note stands
@@ -258,6 +274,7 @@ class WebVueInboxOrder(models.Model):
 
     def _webvue_on_cancelled(self, expired):
         self.ensure_one()
+        order = self._webvue_elevated()
         note = NOTE_EXPIRED if expired else NOTE_CANCELLED
-        self.env['webvue.inbox.message']._webvue_post_system_note(self.conversation_id, note % self.reference)
-        self.conversation_id._webvue_notify_bus()
+        order.env['webvue.inbox.message']._webvue_post_system_note(order.conversation_id, note % order.reference)
+        order.conversation_id._webvue_notify_bus()

@@ -87,20 +87,35 @@ class WebVueInboxCatalogItem(models.Model):
         return items
 
     def write(self, vals):
-        if 'retailer_id' in vals and any(item.last_synced_at and item.retailer_id != vals['retailer_id'] for item in self):
+        if 'retailer_id' in vals and any(item.retailer_id != vals['retailer_id'] and item._webvue_retailer_locked() for item in self):
             raise ValidationError(self.env._('The product id cannot change once the product was sent to Meta.'))
         result = super().write(vals)
         if {'listed', 'availability', 'link_override', 'product_id', 'active'} & set(vals):
             self._webvue_reset_sync()
         return result
 
+    def _webvue_retailer_locked(self):
+        """Whether the product id was, or is being, sent to Meta: it can no longer change."""
+        self.ensure_one()
+        return bool(self.last_synced_at or self.synced_hash or self.pushed_hash or self.sync_state == 'syncing')
+
+    def _webvue_orderable(self):
+        """Whether a cart or an agent may put this item in an order: listed in the catalog and not rejected by Meta."""
+        self.ensure_one()
+        return bool(self) and self.active and self.listed and self.review_status != 'rejected'
+
     def _webvue_reset_sync(self):
-        """After a change that reaches Meta: unlisted and deleted items are removed there, the others resent."""
+        """After a change that reaches Meta: unlisted and deleted items are removed there, the others resent.
+
+        An item whose batch is still open keeps its state: a change is compared with what was pushed once the batch
+        settles, and a removal waits for it, because the batch may still create the item at Meta.
+        """
         for item in self:
+            in_flight = item.sync_state == 'syncing'
             if not item.listed or not item.active:
-                state = 'removing' if item.synced_hash else 'synced'
+                state = 'removing' if item.synced_hash or in_flight else 'synced'
             else:
-                state = 'pending'
+                state = 'syncing' if in_flight else 'pending'
             if item.sync_state != state:
                 item.sync_state = state
         self.catalog_id._webvue_request_sync()
@@ -207,6 +222,32 @@ class WebVueInboxCatalogItem(models.Model):
             return self.env._('The product image must be at least %(side)s x %(side)s pixels.', side=MIN_IMAGE_SIDE)
         return None
 
+    def _webvue_batch_failed(self, reason):
+        """The batch of this item failed: an item that waited for it is shown as failed, one changed meanwhile keeps its state."""
+        self.ensure_one()
+        values = {'batch_handle': False}
+        if self.sync_state == 'syncing':
+            values.update({'sync_state': 'error', 'sync_error': reason})
+        self.write(values)
+
+    def _webvue_batch_confirmed(self, now):
+        """Meta confirmed the batch of this item: record what Meta now holds and settle the state."""
+        self.ensure_one()
+        deleted = not self.pushed_hash
+        values = {'batch_handle': False, 'sync_error': False}
+        if deleted:
+            values['synced_hash'] = False
+        else:
+            values.update({'synced_hash': self.pushed_hash, 'last_synced_at': now, 'review_status': 'pending',
+                           'review_reason': False, 'reviewed_at': False})
+        self.write(values)
+        if self.sync_state != 'syncing':
+            return  # changed while the batch was open (removed, relisted): its own state decides what is sent next
+        if deleted:
+            self._webvue_removed()
+        else:
+            self.sync_state = 'synced' if self._webvue_payload_hash() == self.pushed_hash else 'pending'
+
     def _webvue_removed(self):
         """Meta no longer holds this item: a deleted one is dropped here too, an unlisted one stays, off Meta."""
         for item in self:
@@ -222,8 +263,11 @@ class WebVueInboxCatalogItem(models.Model):
         and a save that changed nothing Meta shows (the hash of the data is unchanged).
         """
         self.ensure_one()
+        if self.batch_handle:
+            return None  # a batch is still open for this item: the next run settles it first
         if self.sync_state == 'removing':
             if self.synced_hash:
+                self.pushed_hash = False
                 return {'method': 'DELETE', 'data': {'id': self.retailer_id}}
             self._webvue_removed()
             return None
@@ -238,9 +282,9 @@ class WebVueInboxCatalogItem(models.Model):
         return {'method': 'UPDATE' if self.synced_hash else 'CREATE', 'data': self._webvue_payload()}
 
     def _webvue_delete(self):
-        """Delete the item: at once when Meta never had it, else once Meta's DELETE went through."""
+        """Delete the item: at once when Meta never had it, else once Meta's DELETE went through (after an open batch settled)."""
         for item in self:
-            if item.synced_hash:
+            if item.synced_hash or item.sync_state == 'syncing':
                 item.active = False
             else:
                 item.unlink()

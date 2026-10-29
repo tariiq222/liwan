@@ -2,6 +2,7 @@
 """Wire shapes of orders (packages/contracts/src/inbox/catalog.ts)."""
 from odoo.addons.webvue_api.serializers.common import iso
 from odoo.addons.webvue_inbox.serializers.conversation import dump_ref
+from odoo.addons.webvue_inbox_payments.models.order import UNREAD
 
 
 def dump_payment(payment):
@@ -33,8 +34,10 @@ def dump_order_line(line, agent_built):
     }
 
 
-def dump_order(order):
+def dump_order(order, payment=UNREAD):
+    """The order's wire shape; `payment` is its already read payment facts (read once here when not given)."""
     conversation = order.conversation_id
+    payment = order._webvue_payment() if payment is UNREAD else payment
     agent_built = not order.message_id
     return {
         'id': order.id,
@@ -47,10 +50,10 @@ def dump_order(order):
         'lines': [dump_order_line(line, agent_built) for line in order.line_ids],
         'cart_total': None if agent_built else order.cart_total,
         'cart_currency': None if agent_built else order.cart_currency,
-        'total': order._webvue_total(),
+        'total': order._webvue_total(payment),
         'currency': order._webvue_currency(),
-        'price_changed': order._webvue_price_changed(),
-        'payment': dump_payment(order._webvue_payment()),
+        'price_changed': order._webvue_price_changed(payment),
+        'payment': dump_payment(payment),
         'pay_link_sent_at': iso(order.pay_link_sent_at),
         'created_by': dump_ref(order.created_by_id),
         'created_at': iso(order.create_date),
