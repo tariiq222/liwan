@@ -87,14 +87,14 @@ def visible_conversation(conversation_id):
     return conversation
 
 
-def get_channel(channel_id, capability):
-    """A channel of a company where the caller holds `capability`; any other channel is a plain 404.
+def get_channel(channel_id, *capabilities):
+    """A channel of a company where the caller holds one of `capabilities`; any other channel is a plain 404.
 
     Channels bypass webvue_core's company fence (they carry `owner_company_id`), so the capability is
     checked here against the channel's own company, not the pinned request company set.
     """
     channel = request.env['webvue.inbox.channel'].search([('id', '=', channel_id)], limit=1)
-    if not channel or not holds(capability, channel.owner_company_id):
+    if not channel or not any(holds(capability, channel.owner_company_id) for capability in capabilities):
         raise not_found()
     return channel
 

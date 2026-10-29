@@ -30,7 +30,7 @@ ACCOUNTS = (
 # department -> persona key of its head
 DEPARTMENT_HEADS = {
     'الإدارة العامة': 'ceo', 'الموارد البشرية': 'hr_manager', 'المالية': 'cfo',
-    'تقنية المعلومات': 'it_admin', 'المشاريع': 'pm', 'العمليات': 'ops_manager',
+    'تقنية المعلومات': 'it_admin', 'المشاريع': 'pm', 'العمليات': 'ops_manager', 'المبيعات': 'crm_manager',
 }
 PERSONAS = (
     # key, display name, job title, department, manager key, role keys
@@ -46,6 +46,9 @@ PERSONAS = (
     ('ops_manager', 'لمى السبيعي', 'مديرة العمليات', 'العمليات', 'ceo', ('employee', 'operations_manager')),
     ('staff1', 'يوسف المالكي', 'مطور برمجيات', 'تقنية المعلومات', 'pm', ('employee',)),
     ('staff2', 'سارة العمري', 'منسقة عمليات', 'العمليات', 'ops_manager', ('employee',)),
+    ('crm_manager', 'أحمد السهلي', 'مدير المبيعات', 'المبيعات', 'ceo', ('employee', 'crm_manager')),
+    ('crm_agent', 'مها الثبيتي', 'موظفة مبيعات', 'المبيعات', 'crm_manager', ('employee', 'crm_agent')),
+    ('crm_agent2', 'نايف العسيري', 'موظف مبيعات', 'المبيعات', 'crm_manager', ('employee', 'crm_agent')),
 )
 # Personas whose only purpose is a custom role or a role combination no business persona holds.
 ROLE_PERSONAS = (

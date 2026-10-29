@@ -120,9 +120,9 @@ class WebVueProjectCharterCatalogMixin(models.AbstractModel):
     ):
         if not bypass_access and not self._webvue_is_privileged():
             self._webvue_require_read()
+            # Inactive values stay readable: a charter keeps showing the type it uses. Only
+            # the catalog route decides who may list them (settings managers).
             domain = Domain(domain) & Domain('company_id', 'in', self.env.companies.ids)
-            if not self._webvue_can_manage_catalog():
-                domain = Domain(domain) & Domain('active', '=', True)
         return super()._search(
             domain, offset=offset, limit=limit, order=order,
             active_test=active_test, bypass_access=bypass_access,

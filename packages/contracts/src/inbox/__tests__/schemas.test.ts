@@ -5,6 +5,9 @@ import {
   InboxInteractiveSchema,
   InboxReplyCreateSchema,
   InboxSettingsPatchSchema,
+  InboxTemplateSchema,
+  InboxTemplateWriteSchema,
+  templatePlaceholderCount,
 } from '../index'
 
 const CONVERSATION = {
@@ -93,5 +96,82 @@ describe('InboxReplyCreateSchema free-form kinds', () => {
     expect(InboxReplyCreateSchema.parse({ location: { latitude: 24.7, longitude: 46.7, name: null, address: null } })).toBeTruthy()
     expect(() => InboxReplyCreateSchema.parse({ attachment_id: 3, template_id: 1, params: [] })).toThrow()
     expect(() => InboxReplyCreateSchema.parse({ location: { latitude: 91, longitude: 0, name: null, address: null } })).toThrow()
+  })
+})
+
+const STANDARD = {
+  name: 'appointment_reminder',
+  language: 'ar',
+  category: 'utility',
+  allow_category_change: false,
+  header: { type: 'text', text: 'موعدك {{1}}', example: 'غدًا' },
+  body: 'مرحبًا {{1}}، موعدك يوم {{2}}.',
+  body_examples: ['سارة', 'الأحد'],
+  footer: 'عيادة النخبة',
+  buttons: [
+    { type: 'quick_reply', text: 'تأكيد' },
+    { type: 'quick_reply', text: 'إلغاء' },
+    { type: 'url', text: 'التفاصيل', url: 'https://example.com/b/{{1}}', example: 'https://example.com/b/42' },
+  ],
+}
+
+describe('InboxTemplateWriteSchema', () => {
+  it('accepts a full utility template and an authentication template', () => {
+    expect(InboxTemplateWriteSchema.parse(STANDARD)).toEqual(STANDARD)
+    const otp = { name: 'login_code', language: 'en', category: 'authentication', add_security_recommendation: true, code_expiration_minutes: 10, otp_button_text: 'Copy code' }
+    expect(InboxTemplateWriteSchema.parse(otp)).toEqual(otp)
+  })
+
+  it('needs one example per body variable and consecutive variables', () => {
+    expect(() => InboxTemplateWriteSchema.parse({ ...STANDARD, body_examples: ['سارة'] })).toThrow()
+    expect(() => InboxTemplateWriteSchema.parse({ ...STANDARD, body: 'مرحبًا {{1}} {{3}}' })).toThrow()
+  })
+
+  it('applies Meta button limits and grouping', () => {
+    const url = { type: 'url', text: 'x', url: 'https://example.com', example: null }
+    expect(() => InboxTemplateWriteSchema.parse({ ...STANDARD, buttons: [url, url, url] })).toThrow()
+    expect(() => InboxTemplateWriteSchema.parse({ ...STANDARD, buttons: [{ type: 'quick_reply', text: 'a' }, url, { type: 'quick_reply', text: 'b' }] })).toThrow()
+    expect(() => InboxTemplateWriteSchema.parse({ ...STANDARD, buttons: [{ ...url, url: 'https://example.com/{{1}}' }] })).toThrow()
+    expect(() => InboxTemplateWriteSchema.parse({ ...STANDARD, buttons: [{ ...url, url: 'http://example.com' }] })).toThrow()
+  })
+
+  it('rejects a header variable without an example and bad names', () => {
+    expect(() => InboxTemplateWriteSchema.parse({ ...STANDARD, header: { type: 'text', text: 'x {{1}}', example: null } })).toThrow()
+    expect(() => InboxTemplateWriteSchema.parse({ ...STANDARD, name: 'Bad Name' })).toThrow()
+  })
+
+  it('counts placeholders', () => {
+    expect(templatePlaceholderCount('a {{2}} b {{1}}')).toBe(2)
+    expect(templatePlaceholderCount('none')).toBe(0)
+  })
+})
+
+describe('InboxTemplateSchema', () => {
+  it('parses a synced template with a media header', () => {
+    const template = {
+      id: 1, name: 'offer', language: 'ar', category: 'marketing', status: 'rejected', status_reason: 'INVALID_FORMAT',
+      quality: 'unknown', header: { type: 'image', example_attachment: null }, body: 'خصم {{1}}', body_examples: ['20%'],
+      footer: null, buttons: [{ type: 'copy_code', example: 'SALE20' }], add_security_recommendation: false,
+      code_expiration_minutes: null, otp_button_text: null, param_count: 1, editable: true, supported: true,
+    }
+    expect(InboxTemplateSchema.parse(template)).toEqual(template)
+  })
+
+  it('reads a WhatsApp Manager template whose values break the write rules', () => {
+    const buttons = [{ type: 'url', text: 'Site', url: 'http://example.com/{{1}}', example: null }, { type: 'copy_code', example: '' }]
+    const template = {
+      id: 2, name: 'legacy', language: 'en', category: 'utility', status: 'approved', status_reason: null, quality: 'green',
+      header: null, body: 'Hi', body_examples: [], footer: null, buttons, add_security_recommendation: false,
+      code_expiration_minutes: null, otp_button_text: null, param_count: 0, editable: true, supported: true,
+    }
+    expect(InboxTemplateSchema.parse(template)).toEqual(template)
+  })
+})
+
+describe('InboxReplyCreateSchema template member', () => {
+  it('carries header and button parameters', () => {
+    const reply = { template_id: 3, params: ['سارة'], header_attachment_id: 9, button_params: [{ index: 2, value: '42' }] }
+    expect(InboxReplyCreateSchema.parse(reply)).toEqual(reply)
+    expect(() => InboxReplyCreateSchema.parse({ ...reply, reply_to_id: 4 })).toThrow()
   })
 })

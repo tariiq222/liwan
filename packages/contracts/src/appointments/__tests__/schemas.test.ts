@@ -293,6 +293,9 @@ const PUBLIC_BOOKING = {
   start: '2026-10-30T08:00:00Z',
   stop: '2026-10-30T08:30:00Z',
   is_modifiable: true,
+  first_bookable_date: '2026-10-30',
+  last_bookable_date: '2026-12-29',
+  awaits_confirmation: false,
   company_name: 'Clinic',
   requester: { name: 'Sara Ali', phone: '+966500000001', email: null },
 }

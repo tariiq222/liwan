@@ -32,7 +32,9 @@ class ReplyController(http.Controller):
         parsed = parse_reply(conversation, payload)
         Message = request.env['webvue.inbox.message']
         if parsed.template:
-            message = Message._webvue_queue_template(conversation, parsed.template, parsed.params)
+            message = Message._webvue_queue_template(
+                conversation, parsed.template, parsed.params, parsed.header, parsed.button_params,
+            )
         else:
             message = Message._webvue_queue_free_form(conversation, parsed.values, parsed.reply_to, parsed.attachment)
         conversation._webvue_notify_bus()
