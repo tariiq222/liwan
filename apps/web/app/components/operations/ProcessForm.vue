@@ -12,6 +12,8 @@ const name = ref(props.process?.name ?? '')
 const description = ref(props.process?.description ?? '')
 const purpose = ref(props.process?.purpose ?? 'work')
 const purposeItems = computed(() => ['work', 'employee'].map(value => ({ value, label: t(`operations.purposes.${value}`) })))
+const approvalMode = ref(props.process?.approval_mode ?? 'per_stage')
+const approvalModeItems = computed(() => ['per_stage', 'single'].map(value => ({ value, label: t(`operations.approvalModes.${value}`) })))
 const executionKind = ref(props.process?.execution_kind ?? 'approval')
 const acceptedRevision = ref(props.process?.revision)
 const steps = ref((props.process?.steps ?? [{ name: '', reviewer_ids: [], reviewers: [] }]).map(step => ({ name: step.name, reviewer_ids: [...step.reviewer_ids], reviewers: [...step.reviewers] })))
@@ -26,7 +28,7 @@ const error = ref<unknown>(null)
 const reloadRequested = ref(false)
 const gate = createOperationSubmitGuard()
 const pending = gate.pending
-function snapshot() { return JSON.stringify([name.value, description.value, purpose.value, executionKind.value, steps.value.map(step => [step.name, step.reviewer_ids])]) }
+function snapshot() { return JSON.stringify([name.value, description.value, purpose.value, approvalMode.value, executionKind.value, steps.value.map(step => [step.name, step.reviewer_ids])]) }
 const baseline = ref(snapshot())
 const dirty = computed(() => snapshot() !== baseline.value)
 const errors = computed(() => processFormErrors({ name: name.value, steps: steps.value }))
@@ -53,7 +55,7 @@ async function submit() {
   await gate.run(async () => {
     error.value = null
     try {
-      const body: OperationProcessBody = { name: name.value.trim(), description: description.value, purpose: purpose.value, execution_kind: executionKind.value, steps: steps.value.map(step => ({ name: step.name.trim(), reviewer_ids: [...new Set(step.reviewer_ids)] })) }
+      const body: OperationProcessBody = { name: name.value.trim(), description: description.value, purpose: purpose.value, approval_mode: approvalMode.value, execution_kind: executionKind.value, steps: steps.value.map(step => ({ name: step.name.trim(), reviewer_ids: [...new Set(step.reviewer_ids)] })) }
       if (props.process) body.revision = acceptedRevision.value
       const process = await props.save(body)
       acceptedRevision.value = process.revision
@@ -73,7 +75,7 @@ async function reload() {
   await gate.run(async () => {
     try {
       const current = await props.refresh!()
-      name.value = current.name; description.value = current.description; executionKind.value = current.execution_kind; purpose.value = current.purpose
+      name.value = current.name; description.value = current.description; executionKind.value = current.execution_kind; purpose.value = current.purpose; approvalMode.value = current.approval_mode
       steps.value = current.steps.map(step => ({ name: step.name, reviewer_ids: [...step.reviewer_ids], reviewers: [...step.reviewers] }))
       acceptedRevision.value = current.revision
       ineligibleIds.value = new Set(current.steps.flatMap(step => step.ineligible_reviewer_ids))
@@ -87,7 +89,7 @@ async function reload() {
     <SharedUnsavedChanges :dirty="dirty" />
     <UAlert v-if="process?.state === 'published'" color="warning" :title="t('operations.editPublishedNotice')" />
     <SharedFormSection panel :title="t('operations.processInformation')">
-      <div class="grid gap-4"><UFormField name="name" :label="t('operations.name')" required :error="fieldError('name')"><UInput v-model="name" class="w-full" :disabled="disabled" required /></UFormField><UFormField name="description" :label="t('operations.description')" :error="fieldError('description')"><UTextarea v-model="description" class="w-full" :rows="4" :disabled="disabled" /></UFormField><UFormField name="purpose" :label="t('operations.purpose')" :description="t('operations.purposeHint')" :error="fieldError('purpose')"><USelect v-model="purpose" :items="purposeItems" class="w-full" :disabled="disabled" /></UFormField><UFormField name="execution_kind" :label="t('operations.result')" :error="fieldError('execution_kind')"><USelect v-model="executionKind" :items="kindItems" class="w-full" :disabled="disabled || kinds.isPending.value || !!kinds.error.value" /></UFormField></div>
+      <div class="grid gap-4"><UFormField name="name" :label="t('operations.name')" required :error="fieldError('name')"><UInput v-model="name" class="w-full" :disabled="disabled" required /></UFormField><UFormField name="description" :label="t('operations.description')" :error="fieldError('description')"><UTextarea v-model="description" class="w-full" :rows="4" :disabled="disabled" /></UFormField><UFormField name="purpose" :label="t('operations.purpose')" :description="t('operations.purposeHint')" :error="fieldError('purpose')"><USelect v-model="purpose" :items="purposeItems" class="w-full" :disabled="disabled" /></UFormField><UFormField name="approval_mode" :label="t('operations.approvalMode')" :description="t('operations.approvalModeHint')" :error="fieldError('approval_mode')"><USelect v-model="approvalMode" :items="approvalModeItems" class="w-full" :disabled="disabled" /></UFormField><UFormField name="execution_kind" :label="t('operations.result')" :error="fieldError('execution_kind')"><USelect v-model="executionKind" :items="kindItems" class="w-full" :disabled="disabled || kinds.isPending.value || !!kinds.error.value" /></UFormField></div>
     </SharedFormSection>
     <SharedFormSection panel :title="t('operations.stages')" :description="t('operations.stageOrderHelp')">
       <div class="space-y-3">

@@ -23,7 +23,8 @@
           ],
           "ineligible_reviewer_ids": []
         }
-      ]
+      ],
+      "approval_mode": "per_stage"
     },
     {
       "description": "Process private description",
@@ -48,7 +49,8 @@
           ],
           "ineligible_reviewer_ids": []
         }
-      ]
+      ],
+      "approval_mode": "per_stage"
     },
     {
       "description": "Unpublished description",
@@ -73,7 +75,8 @@
           ],
           "ineligible_reviewer_ids": []
         }
-      ]
+      ],
+      "approval_mode": "per_stage"
     }
   ],
   "total": 3

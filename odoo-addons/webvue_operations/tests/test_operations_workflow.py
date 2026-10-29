@@ -489,3 +489,37 @@ class TestOperationsWorkflow(WebVueApiCase):
         for path in ('requests', 'processes'):
             response = self.api('POST', f'/api/v1/operations/{path}', {'title': 'wrong field'})
             self.assertEqual((response.status_code, response.json()['code']), (403, 'forbidden'), path)
+
+    def _shared_reviewer_process(self, mode=None):
+        steps = [{'name': 'First', 'reviewer_ids': [self.reviewers[0].id]}, {'name': 'Second', 'reviewer_ids': [self.reviewers[0].id]}]
+        process = self.env['webvue.operation.process'].with_user(self.manager).create({'name': f'Shared reviewer {mode}'})
+        process.with_user(self.manager).action_configure(0, process.name, '', 'approval', steps, **({'approval_mode': mode} if mode else {}))
+        process.with_user(self.manager).action_publish(1)
+        return process
+
+    def test_approval_mode_defaults_to_one_approval_per_stage_for_a_shared_reviewer(self):
+        process = self._shared_reviewer_process()
+        self.assertEqual((process.approval_mode, dump_process(process)['approval_mode']), ('per_stage', 'per_stage'))
+        record = self.env['webvue.operation.request'].with_user(self.employee).create({'name': 'Two stages', 'process_id': process.id})
+        record.action_submit(0)
+        record.with_user(self.reviewers[0]).action_approve(1)
+        self.assertEqual((record.state, [s['status'] for s in dump_request(record)['steps']]), ('pending', ['approved', 'pending']))
+        record.with_user(self.reviewers[0]).action_approve(2)
+        self.assertEqual(record.state, 'done')
+
+    def test_single_approval_mode_completes_every_stage_of_the_same_reviewer(self):
+        process = self._shared_reviewer_process('single')
+        self.assertEqual(dump_process(process)['approval_mode'], 'single')
+        record = self.env['webvue.operation.request'].with_user(self.employee).create({'name': 'Two stages', 'process_id': process.id})
+        record.action_submit(0)
+        record.with_user(self.reviewers[0]).action_approve(1)
+        self.assertEqual(record.state, 'done')
+
+    def test_approval_mode_is_validated_and_configured_through_the_api(self):
+        self.authenticate('ops_manager', 'ops_manager_test_123')
+        payload = {'name': 'Mode process', 'steps': [{'name': 'Review', 'reviewer_ids': [self.reviewers[0].id]}]}
+        self.assertEqual(self.api('POST', '/api/v1/operations/processes', {**payload, 'approval_mode': 'sometimes'}).status_code, 422)
+        created = self.api('POST', '/api/v1/operations/processes', {**payload, 'approval_mode': 'single'})
+        self.assertEqual((created.status_code, created.json()['approval_mode']), (200, 'single'))
+        updated = self.api('PATCH', f"/api/v1/operations/processes/{created.json()['id']}", {**payload, 'revision': created.json()['revision']})
+        self.assertEqual(updated.json()['approval_mode'], 'single')

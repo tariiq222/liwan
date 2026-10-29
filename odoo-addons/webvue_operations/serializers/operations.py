@@ -8,7 +8,7 @@ def person(user):
 
 
 def dump_process(process):
-    return {'id': process.id, 'name': process.name, 'description': process.description or '', 'purpose': process.purpose, 'state': process.state, 'revision': process.revision, 'execution_kind': process.execution_kind, 'steps': [{'name': step.name, 'reviewer_ids': step.reviewer_ids.ids, 'reviewers': [person(user) for user in step.reviewer_ids], 'ineligible_reviewer_ids': process._ineligible_reviewers(step.reviewer_ids).ids} for step in process.step_ids.sorted('sequence')]}
+    return {'id': process.id, 'name': process.name, 'description': process.description or '', 'purpose': process.purpose, 'approval_mode': process.approval_mode, 'state': process.state, 'revision': process.revision, 'execution_kind': process.execution_kind, 'steps': [{'name': step.name, 'reviewer_ids': step.reviewer_ids.ids, 'reviewers': [person(user) for user in step.reviewer_ids], 'ineligible_reviewer_ids': process._ineligible_reviewers(step.reviewer_ids).ids} for step in process.step_ids.sorted('sequence')]}
 
 
 def dump_summary(record):

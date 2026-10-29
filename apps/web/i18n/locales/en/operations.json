@@ -164,6 +164,12 @@
     "attention": {
       "from": "From {name}"
     },
-    "ineligibleReviewers": "Lacks the review capability: {names}"
+    "ineligibleReviewers": "Lacks the review capability: {names}",
+    "approvalMode": "Reviewer on several stages",
+    "approvalModeHint": "When the same reviewer sits on more than one stage: approve each stage, or one approval completes them all.",
+    "approvalModes": {
+      "per_stage": "Approval per stage",
+      "single": "One approval is enough"
+    }
   }
 }

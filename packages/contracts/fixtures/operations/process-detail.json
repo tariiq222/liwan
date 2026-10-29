@@ -21,5 +21,6 @@
       ],
       "ineligible_reviewer_ids": []
     }
-  ]
+  ],
+  "approval_mode": "per_stage"
 }

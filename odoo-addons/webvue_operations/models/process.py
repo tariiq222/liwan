@@ -25,6 +25,11 @@ class OperationProcess(models.Model):
         [('work', 'Work'), ('employee', 'Employee affairs')],
         default='work', required=True, index=True,
     )
+    # A reviewer who sits on several stages either approves each stage or, with 'single', completes all of them at once.
+    approval_mode = fields.Selection(
+        [('per_stage', 'Approval per stage'), ('single', 'One approval is enough')],
+        default='per_stage', required=True,
+    )
     step_ids = fields.One2many('webvue.operation.process.step', 'process_id')
 
     @api.model
@@ -44,7 +49,7 @@ class OperationProcess(models.Model):
     def create(self, vals_list):
         require(self.env, 'operations.processes.manage')
         for vals in vals_list:
-            if not trusted(self.env) and set(vals) - {'name', 'description', 'execution_kind', 'purpose', 'company_id'}:
+            if not trusted(self.env) and set(vals) - {'name', 'description', 'execution_kind', 'purpose', 'approval_mode', 'company_id'}:
                 raise AccessError(self.env._('Process control fields cannot be supplied.'))
             if vals.get('company_id', self.env.company.id) != self.env.company.id:
                 raise AccessError(self.env._('Use the current company.'))
@@ -60,7 +65,7 @@ class OperationProcess(models.Model):
     def unlink(self):
         raise AccessError(self.env._('Archive processes to preserve their history.'))
 
-    def action_configure(self, revision, name, description, execution_kind, steps, *, purpose=None):
+    def action_configure(self, revision, name, description, execution_kind, steps, *, purpose=None, approval_mode=None):
         self.ensure_one()
         self._guard()
         self.lock_for_update()
@@ -69,6 +74,9 @@ class OperationProcess(models.Model):
         purpose = self.purpose if purpose is None else purpose
         if purpose not in ('work', 'employee'):
             raise ValidationError(self.env._('Choose a valid process purpose.'))
+        approval_mode = self.approval_mode if approval_mode is None else approval_mode
+        if approval_mode not in ('per_stage', 'single'):
+            raise ValidationError(self.env._('Choose a valid approval mode.'))
         if execution_kind not in self._operations_execution_kinds():
             raise ValidationError(self.env._('This execution action is not available.'))
         if not isinstance(steps, list) or not 1 <= len(steps) <= 20:
@@ -83,7 +91,7 @@ class OperationProcess(models.Model):
         process.step_ids.unlink()
         # An archived process stays archived when its configuration is saved.
         state = 'archived' if self.state == 'archived' else 'draft'
-        process.write({'name': text(self.env, name, 'name', 200, True), 'description': text(self.env, description, 'description', 20000), 'execution_kind': execution_kind, 'purpose': purpose, 'step_ids': prepared, 'state': state, 'revision': self.revision + 1})
+        process.write({'name': text(self.env, name, 'name', 200, True), 'description': text(self.env, description, 'description', 20000), 'execution_kind': execution_kind, 'purpose': purpose, 'approval_mode': approval_mode, 'step_ids': prepared, 'state': state, 'revision': self.revision + 1})
         return self
 
     def _ineligible_reviewers(self, users):

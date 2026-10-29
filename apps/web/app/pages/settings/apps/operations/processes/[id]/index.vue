@@ -57,6 +57,7 @@ async function refresh() { if (disabled.value) return; selected.value = null; er
     <template v-if="process" #aside>
       <SharedPropertiesPanel>
         <SharedPropertyRow :label="t('operations.result')" :value="t(`operations.executionKinds.${process.execution_kind === 'approval' || process.execution_kind === 'pmo_completion' ? process.execution_kind : 'other'}`)" />
+        <SharedPropertyRow :label="t('operations.approvalMode')" :value="t(`operations.approvalModes.${process.approval_mode}`)" />
         <SharedPropertyRow :label="t('operations.stages')" :value="t('operations.stageCount', { count: process.steps.length }, process.steps.length)" />
       </SharedPropertiesPanel>
     </template>

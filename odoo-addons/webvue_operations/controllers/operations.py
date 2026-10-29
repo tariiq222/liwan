@@ -48,6 +48,12 @@ def purpose_value(value):
     return value
 
 
+def approval_mode_value(value):
+    if value not in ('per_stage', 'single'):
+        raise ApiError(422, 'invalid', 'Invalid approval mode.', field='approval_mode')
+    return value
+
+
 class OperationsController(http.Controller):
     @http.route('/api/v1/operations/execution-kinds', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
@@ -93,10 +99,11 @@ class OperationsController(http.Controller):
     @requires_feature('operations.enabled')
     def create_process(self, **_):
         require_capabilities('operations.processes.manage')
-        payload = body({'name', 'description', 'execution_kind', 'purpose', 'steps'})
+        payload = body({'name', 'description', 'execution_kind', 'purpose', 'approval_mode', 'steps'})
         purpose = purpose_value(payload.get('purpose', 'work'))
+        mode = approval_mode_value(payload.get('approval_mode', 'per_stage'))
         record = request.env['webvue.operation.process'].create({'name': payload.get('name'), 'description': payload.get('description', ''), 'execution_kind': payload.get('execution_kind', 'approval'), 'purpose': purpose})
-        record.action_configure(0, payload.get('name'), payload.get('description', ''), payload.get('execution_kind', 'approval'), payload.get('steps'), purpose=purpose)
+        record.action_configure(0, payload.get('name'), payload.get('description', ''), payload.get('execution_kind', 'approval'), payload.get('steps'), purpose=purpose, approval_mode=mode)
         return dump_process(record)
 
     @http.route('/api/v1/operations/processes/<int:process_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
@@ -104,8 +111,8 @@ class OperationsController(http.Controller):
     @requires_feature('operations.enabled')
     def update_process(self, process_id, **_):
         record = find('webvue.operation.process', process_id, 'operations.processes.manage')
-        payload = body({'name', 'description', 'execution_kind', 'purpose', 'steps', 'revision'})
-        record.action_configure(payload.get('revision'), payload.get('name'), payload.get('description', ''), payload.get('execution_kind', 'approval'), payload.get('steps'), purpose=purpose_value(payload.get('purpose', record.purpose)))
+        payload = body({'name', 'description', 'execution_kind', 'purpose', 'approval_mode', 'steps', 'revision'})
+        record.action_configure(payload.get('revision'), payload.get('name'), payload.get('description', ''), payload.get('execution_kind', 'approval'), payload.get('steps'), purpose=purpose_value(payload.get('purpose', record.purpose)), approval_mode=approval_mode_value(payload.get('approval_mode', record.approval_mode)))
         return dump_process(record)
 
     @http.route('/api/v1/operations/processes/<int:process_id>/<string:action>', type='json2', auth='user', methods=['POST'], readonly=False)

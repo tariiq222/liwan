@@ -164,6 +164,12 @@
     "attention": {
       "from": "من {name}"
     },
-    "ineligibleReviewers": "لا يملك صلاحية المراجعة: {names}"
+    "ineligibleReviewers": "لا يملك صلاحية المراجعة: {names}",
+    "approvalMode": "اعتماد المراجع على عدة مراحل",
+    "approvalModeHint": "عندما يكون المراجع نفسه على أكثر من مرحلة: اعتماد لكل مرحلة، أو اعتماد واحد يكفي لإكمالها كلها.",
+    "approvalModes": {
+      "per_stage": "اعتماد لكل مرحلة",
+      "single": "اعتماد واحد يكفي"
+    }
   }
 }

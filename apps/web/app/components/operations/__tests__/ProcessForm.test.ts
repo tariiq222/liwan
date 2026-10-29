@@ -12,7 +12,7 @@ const filename = resolve(import.meta.dirname, '../ProcessForm.vue')
 const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
 const script = compileScript(descriptor, { id: 'operation-process-form' }).content.replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
 const js = ts.transpileModule(script, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText
-const original = OperationProcessSchema.parse({ id: 3, purpose: 'work', name: 'Original', description: '', execution_kind: 'approval', state: 'draft', revision: 4, steps: [{ name: 'Manager review', reviewer_ids: [7], reviewers: [{ id: 7, user_id: 7, name: 'Manager' }], ineligible_reviewer_ids: [] }] })
+const original = OperationProcessSchema.parse({ id: 3, purpose: 'work', approval_mode: 'per_stage', name: 'Original', description: '', execution_kind: 'approval', state: 'draft', revision: 4, steps: [{ name: 'Manager review', reviewer_ids: [7], reviewers: [{ id: 7, user_id: 7, name: 'Manager' }], ineligible_reviewer_ids: [] }] })
 const latest = OperationProcessSchema.parse({ ...original, purpose: 'employee', name: 'Server changed', description: 'Latest description', revision: 9, steps: [{ name: 'New review', reviewer_ids: [8], reviewers: [{ id: 8, user_id: 8, name: 'Reviewer' }], ineligible_reviewer_ids: [] }] })
 
 function form(conflict = true) {
@@ -34,7 +34,7 @@ describe('operation process form baseline', () => {
     expect(f.state.name.value).toBe('Local draft')
     expect(f.state.steps.value[0].reviewer_ids).toEqual([7])
     await f.state.submit()
-    expect(f.bodies[0]).toEqual({ name: 'Local draft', description: '', purpose: 'work', execution_kind: 'approval', steps: [{ name: 'Manager review', reviewer_ids: [7] }], revision: 4 })
+    expect(f.bodies[0]).toEqual({ name: 'Local draft', description: '', purpose: 'work', approval_mode: 'per_stage', execution_kind: 'approval', steps: [{ name: 'Manager review', reviewer_ids: [7] }], revision: 4 })
     expect(f.state.dirty.value).toBe(true)
     await f.state.requestReload()
     expect(f.state.reloadRequested.value).toBe(true)
@@ -46,7 +46,7 @@ describe('operation process form baseline', () => {
     expect(f.state.purpose.value).toBe('employee')
     expect(f.state.dirty.value).toBe(false)
     await f.state.submit()
-    expect(f.bodies[1]).toEqual({ name: 'Server changed', description: 'Latest description', purpose: 'employee', execution_kind: 'approval', steps: [{ name: 'New review', reviewer_ids: [8] }], revision: 9 })
+    expect(f.bodies[1]).toEqual({ name: 'Server changed', description: 'Latest description', purpose: 'employee', approval_mode: 'per_stage', execution_kind: 'approval', steps: [{ name: 'New review', reviewer_ids: [8] }], revision: 9 })
     f.stop()
   })
   it('accepts the new revision after a successful save', async () => {
