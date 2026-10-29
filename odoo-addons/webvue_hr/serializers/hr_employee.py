@@ -5,7 +5,7 @@ from odoo.tools import email_normalize
 from odoo.addons.webvue_api.controllers.common import ApiError
 from odoo.addons.webvue_hr.serializers.dates import parse_optional_date
 
-EMPLOYEE_FIELDS = {'name', 'work_email', 'work_phone', 'job_title', 'department_id', 'parent_id'}
+EMPLOYEE_FIELDS = {'name', 'work_email', 'work_phone', 'job_title', 'department_id', 'parent_id', 'nationality_id'}
 # Writable keys of the PATCH ``contract`` object -> hr.employee field.
 CONTRACT_PATCH_FIELDS = {
     'start_date': 'contract_date_start',
@@ -69,6 +69,9 @@ def _parse_employee_vals(payload, *, create):
     for field in ('department_id', 'parent_id'):
         if field in payload:
             vals[field] = _optional_id(payload[field], field)
+    if 'nationality_id' in payload:
+        # The stock nationality (``country_id``) that payroll reads for the GOSI class.
+        vals['country_id'] = _optional_id(payload['nationality_id'], 'nationality_id')
     return vals
 
 
@@ -128,8 +131,17 @@ def dump_contract(employee):
     }
 
 
+def _nationality(employee):
+    country = employee.country_id
+    return {'id': country.id, 'name': country.name} if country else None
+
+
 def dump_employee(employee, *, include_access=True, include_contract=False):
-    """Serialize an hr.employee or hr.employee.public record. ``id`` is the employee id."""
+    """Serialize an hr.employee or hr.employee.public record. ``id`` is the employee id.
+
+    ``include_contract`` is the management view: it adds the contract block and the nationality,
+    both private to the callers who manage employees (``None`` otherwise).
+    """
     refs = employee._webvue_relation_refs()
     user = employee.user_id
     role = None
@@ -159,5 +171,6 @@ def dump_employee(employee, *, include_access=True, include_contract=False):
             'role': role,
             'active': bool(user.active),
         } if user and include_access else None,
+        'nationality': _nationality(employee) if include_contract else None,
         'contract': dump_contract(employee) if include_contract else None,
     }

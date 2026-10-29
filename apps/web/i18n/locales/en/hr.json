@@ -70,7 +70,8 @@
       "email": "Email",
       "phone": "Phone",
       "manager": "Manager",
-      "account": "Account"
+      "account": "Account",
+      "nationality": "Nationality"
     },
     "depts": {
       "nameRequired": "Enter the department name.",
@@ -187,7 +188,11 @@
       "archiveVendorReadOnly": "Vendor linked employees cannot be archived here.",
       "edit": "Edit employee",
       "accessManagedInSettings": "Sign-in access is managed in System administration.",
-      "manageAccount": "Manage account"
+      "manageAccount": "Manage account",
+      "nationality": "Nationality",
+      "nationalityHint": "Payroll reads the social insurance class from it.",
+      "nationalityPlaceholder": "Choose a nationality",
+      "nationalitySearch": "Search for a country"
     },
     "reports": {
       "title": "Reports",
