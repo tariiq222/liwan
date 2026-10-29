@@ -12,6 +12,8 @@ from . import (
     lists,
     mail_message,
     message,
+    message_option,
+    message_outbox,
     notification_types,
     settings,
     template,

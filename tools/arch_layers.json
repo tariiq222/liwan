@@ -14,6 +14,7 @@
     "webvue_tasks": 4,
     "webvue_operations": 4,
     "webvue_documents": 4,
+    "webvue_crm": 4,
     "webvue_appointments": 4,
     "webvue_inbox": 4,
     "webvue_meetings_pmo": 5,
@@ -27,7 +28,8 @@
     "webvue_documents_hr": 5,
     "webvue_access_hr": 5,
     "webvue_pmo_finance": 5,
-    "webvue_hr_finance": 5
+    "webvue_hr_finance": 5,
+    "webvue_appointments_payments": 5
   },
   "exempt": [],
   "web_apps": {
@@ -148,6 +150,14 @@
       ],
       "composables": [
         "composables/useDocuments"
+      ]
+    },
+    "crm": {
+      "components": [
+        "crm"
+      ],
+      "pages": [
+        "crm"
       ]
     },
     "appointments": {

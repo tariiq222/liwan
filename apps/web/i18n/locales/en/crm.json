@@ -1,0 +1,429 @@
+{
+  "crm": {
+    "bell": {
+      "assigned": "New {term} assigned to you: {name}",
+      "assignedMany": {
+        "m": "{count} {term} assigned to you, first: {name}",
+        "f": "{count} {term} assigned to you, first: {name}"
+      },
+      "followupDue": "Follow-up call due: {name}",
+      "needsManager": "Needs a manager decision: {name}"
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "opportunities": "Opportunities",
+      "imports": "Imports"
+    },
+    "settings": {
+      "conflict": "The CRM settings changed since you opened the page. Reload, then repeat your change.",
+      "saveError": "The settings could not be saved",
+      "reload": "Reload",
+      "reloadError": "The current settings could not be loaded",
+      "preset": {
+        "title": "Preset",
+        "hint": "A starting point that sets several options together. You can change any value afterwards.",
+        "choose": "Preset",
+        "general": "General",
+        "generalHint": "No automatic follow-up, and manual distribution.",
+        "phonePackages": "Calls and plans",
+        "phonePackagesHint": "Automatic follow-up after unanswered calls, round-robin distribution and a capped discount.",
+        "apply": "Apply preset",
+        "confirmTitle": "Apply the \"{name}\" preset?",
+        "confirmBody": "This replaces the current follow-up, distribution, privacy and discount values. It does not change the terms or the lists."
+      },
+      "terms": {
+        "title": "Terms",
+        "hint": "Name the customer, the opportunity and the plan with the words your company uses. Only the display changes; the data stays the same.",
+        "customer": "Customer",
+        "opportunity": "Opportunity",
+        "package": "Plan",
+        "arSingular": "Arabic, singular",
+        "arPlural": "Arabic, plural",
+        "enSingular": "English, singular",
+        "enPlural": "English, plural",
+        "gender": "Arabic grammatical gender",
+        "genderHint": "Sets the form of adjectives such as «جديد» and «جديدة».",
+        "masculine": "Masculine",
+        "feminine": "Feminine",
+        "previewLabel": "Example",
+        "preview": {
+          "m": "New {term}",
+          "f": "New {term}"
+        }
+      },
+      "followup": {
+        "title": "Follow-up",
+        "hint": "What happens after a call that has no final result.",
+        "attempts": "Extra attempts",
+        "attemptsHint": "Calls after the first one. Zero turns automatic follow-up off.",
+        "interval": "Interval between attempts (hours)",
+        "intervalHint": "The time from one call to the next.",
+        "afterAttempts": "When attempts run out",
+        "afterAttemptsHint": "What happens to an opportunity whose contact never answers.",
+        "afterLost": "Close it as lost",
+        "afterManager": "Hand it to the manager",
+        "recycle": "Try again later",
+        "recycleHint": "A lost opportunity returns to the call list after a while.",
+        "recycleAfterDays": "Time before trying again (days)",
+        "recycleCycles": "Number of repeats",
+        "recycleCyclesHint": "After the last repeat the opportunity stays lost."
+      },
+      "distribution": {
+        "title": "Distribution",
+        "hint": "How new opportunities are assigned to agents.",
+        "mode": "Distribution mode",
+        "roundRobin": "Round robin",
+        "roundRobinHint": "Each new opportunity goes to the next agent in turn.",
+        "manual": "Manual",
+        "manualHint": "Opportunities stay unassigned until a manager assigns them.",
+        "onImport": "Chosen at import",
+        "onImportHint": "The person importing picks the assignment for each file.",
+        "members": "Agents in the rotation",
+        "membersHint": "The CRM agents who receive opportunities."
+      },
+      "privacy": {
+        "title": "Privacy",
+        "hint": "Who sees what, and what is logged about viewing.",
+        "visibility": "Who sees opportunities",
+        "own": "Own only",
+        "ownHint": "An agent sees only their own opportunities; managers see all.",
+        "team": "Their team",
+        "teamHint": "An agent sees the opportunities of the sales team they belong to.",
+        "all": "Everyone",
+        "allHint": "Every CRM agent sees all opportunities; editing stays with the owner.",
+        "viewLog": "View log",
+        "viewLogHint": "Every opening of a customer record is logged and managers can read it."
+      },
+      "pricing": {
+        "title": "Pricing",
+        "hint": "The discount on a plan price at sale.",
+        "discountAllowed": "Allow a discount",
+        "discountAllowedHint": "When off, a sale uses the plan price as it is.",
+        "discountMax": "Highest discount (%)",
+        "discountMaxHint": "Above it, only someone with the discount approval capability can save."
+      },
+      "packages": {
+        "title": "Plans",
+        "hint": "What can be sold. The opportunity's value comes from the chosen plan.",
+        "count": "{count} {term}",
+        "price": "Price",
+        "description": "Short description"
+      },
+      "stages": {
+        "title": "Stages",
+        "hint": "The steps of the opportunity pipeline. Exactly one stage means \"sold\".",
+        "won": "Sold",
+        "moveUp": "Move {name} up",
+        "moveDown": "Move {name} down"
+      },
+      "outcomes": {
+        "title": "Call outcomes",
+        "hint": "What a call can end in, and what that does to the opportunity.",
+        "effect": "Effect",
+        "followUp": "Follow up",
+        "won": "Sale",
+        "lost": "Loss",
+        "none": "No effect",
+        "reason": "Lost reason",
+        "noReason": "No reason"
+      },
+      "lostReasons": {
+        "title": "Lost reasons",
+        "hint": "The reasons offered when an opportunity is closed as lost."
+      },
+      "sources": {
+        "title": "Sources",
+        "hint": "Where an opportunity came from, used in reports."
+      },
+      "list": {
+        "saveError": "The change could not be saved",
+        "name": "Name",
+        "newName": "New name",
+        "add": "Add",
+        "archive": "Archive",
+        "restore": "Restore",
+        "archived": "Archived",
+        "protected": "Protected"
+      }
+    },
+    "opportunities": {
+      "callAction": "Call {name}",
+      "list": {
+        "new": "Add {term}",
+        "search": "Search by name, phone or email",
+        "stage": "Stage",
+        "allStages": "All stages",
+        "source": "Source",
+        "allSources": "All sources",
+        "agent": "Agent",
+        "agentPicker": "Choose an agent",
+        "statusFilter": "Status",
+        "status": { "open": "Open", "won": "Won", "lost": "Lost", "all": "All" },
+        "due": "Follow-up due",
+        "unassigned": "No agent",
+        "needsManager": "Needs a manager",
+        "viewList": "List",
+        "viewBoard": "Stage board",
+        "empty": "Nothing here yet. Add the first record.",
+        "results": "{shown} of {total}"
+      },
+      "cols": {
+        "phone": "Phone",
+        "stage": "Stage",
+        "agent": "Agent",
+        "nextCall": "Next call"
+      },
+      "board": {
+        "noStage": "No stage",
+        "emptyColumn": "Empty",
+        "capped": "Showing the first {count} results. Narrow the search to see the rest."
+      },
+      "status": {
+        "pending": "In progress",
+        "won": "Sold",
+        "lost": "Lost"
+      },
+      "tag": {
+        "due": "Follow-up due",
+        "needsManager": "Waiting for a manager",
+        "pool": "No agent"
+      },
+      "record": {
+        "back": "Back to the list",
+        "phone": "Phone",
+        "email": "Email",
+        "stage": "Stage",
+        "agent": "Agent",
+        "source": "Source",
+        "listPrice": "{term} price",
+        "discount": "Discount",
+        "finalPrice": "Final price",
+        "attempts": "Call attempts",
+        "cycle": "Times reopened",
+        "lostReason": "Lost reason",
+        "details": "Details",
+        "created": "Created",
+        "nextCall": "Next call",
+        "nextCallNone": "No call scheduled",
+        "nextCallDue": "Due now",
+        "recycleAt": "Returns to follow-up",
+        "stageChange": "Change stage",
+        "stageSaved": "Stage changed",
+        "assign": "Assign to",
+        "assignAction": "Assign",
+        "assigned": "Assigned",
+        "reopen": "Reopen",
+        "reopened": "Reopened",
+        "managerBanner": "The call attempts are used up and a manager has to decide: assign again or reopen.",
+        "closedWon": "Closed as sold.",
+        "closedLost": "Closed as lost."
+      },
+      "call": {
+        "title": "Record a call",
+        "outcome": "Call outcome",
+        "outcomePlaceholder": "Choose the outcome",
+        "note": "Note",
+        "duration": "Duration (minutes)",
+        "submit": "Record the call",
+        "recorded": "Call recorded",
+        "nextCall": "Next call {relative} ({absolute})",
+        "lostNeedsReason": "This outcome closes the record as lost and has no reason. Choose the reason to close it.",
+        "lostSubmit": "Close as lost",
+        "outcomeRequired": "Choose the call outcome",
+        "log": "Call log",
+        "logMore": "Show older calls",
+        "logCount": "Showing {shown} of {total}",
+        "logEmpty": "No calls recorded yet",
+        "logBy": "by {name}",
+        "logNoOutcome": "No outcome",
+        "logMinutes": "{minutes} min",
+        "noOutcomes": "There are no call outcomes yet. A manager adds them in this application's settings (Call outcomes)."
+      },
+      "sale": {
+        "title": "Sell a {term}",
+        "packagePlaceholder": "Choose",
+        "listPrice": "{term} price",
+        "finalPrice": "Final price",
+        "discount": "Discount",
+        "discountHint": "Worked out from the difference between the price and the final price.",
+        "submit": "Confirm the sale",
+        "sold": "Sold",
+        "packageRequired": "Choose the {term}",
+        "priceRequired": "Enter the final price"
+      },
+      "lost": {
+        "action": "Close as lost",
+        "reason": "Lost reason",
+        "reasonPlaceholder": "Choose the reason",
+        "reasonRequired": "Choose the lost reason",
+        "confirmTitle": "Close this record as lost?",
+        "confirmBody": "It leaves the follow-up. Someone with the assign capability can reopen it.",
+        "confirm": "Close as lost",
+        "done": "Closed as lost"
+      },
+      "form": {
+        "contact": "Name",
+        "phone": "Phone",
+        "email": "Email",
+        "source": "Source",
+        "sourceNone": "No source",
+        "agent": "Agent",
+        "agentHint": "Leave empty to take it yourself. Another agent, or the shared pool, needs the assign capability.",
+        "pool": "Put in the shared pool",
+        "contactRequired": "The name is required",
+        "phoneRequired": "The phone is required",
+        "submit": "Save"
+      },
+      "errors": {
+        "conflict": "This record changed or was closed. Reload the page and try again.",
+        "duplicatePhone": "This phone is already on another record.",
+        "invalidPhone": "This phone number is not valid.",
+        "invalidEmail": "This email address is not valid.",
+        "discount": "The discount is not allowed or does not match the prices.",
+        "discountApproval": "This discount is above the allowed limit and needs someone who can approve discounts.",
+        "forbidden": "You cannot do this on this record.",
+        "stage": "A record is not moved to the sold stage here. Use the sale action."
+      }
+    },
+    "imports": {
+      "title": "Imports",
+      "new": "Import a file",
+      "empty": "No file has been imported yet.",
+      "results": "{shown} of {total}",
+      "cols": {
+        "file": "File",
+        "date": "Date",
+        "by": "By",
+        "source": "Source",
+        "created": "New",
+        "duplicate": "Duplicate",
+        "invalid": "Invalid",
+        "unassigned": "No agent"
+      },
+      "flow": {
+        "title": "Import a file",
+        "step": "Step {current} of {total}: {name}",
+        "steps": {
+          "upload": "Upload the file",
+          "mapping": "Map the columns",
+          "preview": "Preview"
+        },
+        "upload": {
+          "hint": "A CSV or XLSX file up to 5 MB and 5,000 rows. The first row holds the column headers.",
+          "choose": "Choose a file",
+          "reading": "Reading the file…",
+          "info": "{name}: {columns} columns and {rows} rows"
+        },
+        "mapping": {
+          "hint": "Pick the column that holds each detail. Name and phone are required.",
+          "profile": "Saved mapping",
+          "profileNone": "None (map by hand)",
+          "profilePlaceholder": "Choose a saved mapping",
+          "profileDelete": "Delete the saved mapping",
+          "profileDeleteTitle": "Delete the saved mapping?",
+          "profileDeleteBody": "Earlier imports are not affected.",
+          "profileDeleteConfirm": "Delete",
+          "fields": {
+            "name": "Name",
+            "phone": "Phone",
+            "email": "Email",
+            "notes": "Notes",
+            "package": "{term}"
+          },
+          "column": "Choose a column",
+          "noColumn": "None",
+          "save": "Save this mapping",
+          "saveName": "Saved mapping name",
+          "saveHint": "Reuse it with files that have the same headers.",
+          "source": "Source",
+          "sourcePlaceholder": "Choose a source",
+          "agent": "Agent for the batch",
+          "agentHint": "Takes every imported record.",
+          "agentOptionalHint": "Needed only when distribution is on import.",
+          "agentPlaceholder": "Choose an agent",
+          "required": "Complete the required fields: name, phone and source.",
+          "agentRequired": "Choose the agent for the batch."
+        },
+        "preview": {
+          "new": "New",
+          "duplicate": "Duplicate",
+          "invalid": "Invalid",
+          "invalidTitle": "Invalid rows",
+          "invalidRow": "Row {row}: {reason}",
+          "duplicateTitle": "Duplicate rows (skipped)",
+          "duplicateRows": "Rows: {rows}",
+          "capped": "Only the first {count} are shown.",
+          "nothingNew": "Nothing new to import.",
+          "confirm": "Import {count}",
+          "done": "Imported {count} from {name}."
+        },
+        "next": "Next",
+        "back": "Back"
+      },
+      "reasons": {
+        "missing_name": "The name is empty",
+        "name_too_long": "The name is too long",
+        "missing_phone": "The phone is empty",
+        "invalid_phone": "The phone number is not valid",
+        "invalid_email": "The email is not valid",
+        "unknown_package": "The plan is not known"
+      },
+      "errors": {
+        "forbidden": "You do not have permission to import.",
+        "profileExists": "A saved mapping with this name already exists.",
+        "profileGone": "The saved mapping no longer exists.",
+        "file": {
+          "file_bad_csv": "The file is not a valid CSV file.",
+          "file_bad_type": "The file must be a CSV or XLSX file.",
+          "file_bad_xlsx": "The file is not a valid XLSX workbook.",
+          "file_duplicate_header": "Two headers in the first row have the same name. Rename one.",
+          "file_empty": "The file is empty.",
+          "file_no_rows": "The file has no data rows.",
+          "file_not_utf8": "Save the file as UTF-8 and upload it again.",
+          "file_too_large": "The file is larger than 5 MB.",
+          "file_too_many_columns": "The file has more than 50 columns.",
+          "file_too_many_rows": "The file has more than 5,000 rows.",
+          "file_unpacked_too_large": "The workbook is larger than allowed once unpacked."
+        },
+        "mapping": "One of the chosen columns is not in the file.",
+        "source": "Choose a valid source.",
+        "agentRequired": "Choose the agent for the batch.",
+        "agentRefused": "This agent cannot take this batch. An agent is chosen at import only when distribution is set to on import, and the agent must be eligible."
+      }
+    },
+    "dashboard": {
+      "agent": {
+        "title": "Mine",
+        "dueNow": "Calls due now",
+        "newToday": "New today",
+        "wonCount": "My sales this month",
+        "wonValue": "My sales value",
+        "dueTitle": "Call now",
+        "dueEmpty": "No calls due now.",
+        "dueAll": "See everything due",
+        "call": "Call {name}"
+      },
+      "manager": {
+        "title": "Team",
+        "unassigned": "No agent",
+        "needsManager": "Need a manager's decision",
+        "dueFollowUps": "Follow-ups due",
+        "won": "Sales this month",
+        "wonHint": "Worth {value}",
+        "conversionTitle": "Conversion by source this month",
+        "conversionRow": "{won} of {total}",
+        "noSource": "No source",
+        "conversionEmpty": "No records yet.",
+        "agentsTitle": "Agents",
+        "agentCols": {
+          "agent": "Agent",
+          "open": "Open",
+          "due": "Due",
+          "won": "Won"
+        },
+        "agentsEmpty": "No agent has records.",
+        "conversionHint": "Records created this month and how many of them were won."
+      }
+    }
+  }
+}

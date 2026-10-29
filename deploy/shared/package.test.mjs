@@ -8,7 +8,7 @@ const read = path => readFileSync(new URL(path, import.meta.url), 'utf8')
 test('guard image includes all runtime import paths and unprivileged native Node24 entrypoint', () => {
   assert.equal(typeof createGuard, 'function')
   const docker = read('Dockerfile')
-  assert.match(docker, /FROM node:24\.21\.0-alpine/)
+  assert.match(docker, /FROM node:24\.22\.1-alpine@sha256:[0-9a-f]{64}/)
   assert.match(docker, /USER node/)
   for (const file of ['guard.mjs', 'start.mjs', 'healthcheck.mjs']) assert.ok(docker.includes(`deploy/shared/${file}`))
   for (const file of ['tenantRegistry.ts', 'tenantHostResolver.ts']) {
@@ -30,7 +30,7 @@ test('rate module is present in actual proxy build recipe and exactly the declar
   assert.match(recipe, /github.com\/mholt\/caddy-ratelimit@v0\.1\.0/)
   assert.match(recipe, /http.handlers.rate_limit/)
   const config = read('Caddyfile')
-  const zones = ['webvue_auth', 'webvue_api', 'webvue_odoo_image', 'webvue_odoo', 'webvue_web']
+  const zones = ['webvue_auth', 'webvue_api', 'webvue_public_appointments_ip', 'webvue_odoo_image', 'webvue_odoo', 'webvue_web']
   const declared = [...config.matchAll(/^\s*zone\s+(\S+)\s*\{/gm)].map(match => match[1])
   assert.equal(declared.length, zones.length)
   for (const name of zones) assert.equal(declared.filter(zone => zone === name).length, 1, name)

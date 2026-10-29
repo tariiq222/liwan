@@ -8,8 +8,8 @@ const page = (id: string) => settingsPages().find(candidate => candidate.id === 
 
 describe('settings pages', () => {
   it('are the foundation pages around one page per application, in a fixed order', () => {
-    expect(settingsPages().map(candidate => candidate.id)).toEqual(['company', 'team', 'projects', 'hr', 'finance', 'operations', 'inbox', 'payments', 'system', 'billing'])
-    expect(settingsPages().map(candidate => candidate.group)).toEqual([undefined, undefined, 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', undefined, undefined])
+    expect(settingsPages().map(candidate => candidate.id)).toEqual(['company', 'team', 'projects', 'hr', 'finance', 'operations', 'crm', 'inbox', 'payments', 'system', 'billing'])
+    expect(settingsPages().map(candidate => candidate.group)).toEqual([undefined, undefined, 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', undefined, undefined])
   })
   it('hold the cards of company and system as parts of one page', () => {
     expect(page('company').to).toBe('/settings/company')
@@ -25,16 +25,16 @@ describe('settings pages', () => {
   })
   it('build one page per application from the registered manifests', () => {
     const apps = () => appSettingsPages().map(candidate => candidate.to)
-    expect(apps()).toEqual(['/settings/apps/projects', '/settings/apps/hr', '/settings/apps/finance', '/settings/apps/operations/processes', '/settings/apps/inbox', '/settings/apps/payments'])
-    expect(page('payments').parts.map(part => [part.id, part.capability])).toEqual([['providers', 'payments.providers.manage']])
+    expect(apps()).toEqual(['/settings/apps/projects', '/settings/apps/hr', '/settings/apps/finance', '/settings/apps/operations/processes', '/settings/apps/crm', '/settings/apps/inbox', '/settings/apps/payments'])
+    expect(page('payments').parts.map(part => [part.id, part.capability])).toEqual([['providers', 'payments.providers.manage'], ['orders', 'payments.settings.manage']])
     expect(page('hr').parts.map(part => [part.id, part.capability])).toEqual([['leave', 'hr.leave.config'], ['payroll', 'hr.payroll.read'], ['shifts', 'hr.shifts.manage']])
     expect(page('projects').parts.map(part => part.id)).toEqual(['project-creation', 'project-defaults', 'project-reminders', 'catalogs'])
     expect(page('finance').parts.map(part => [part.id, part.to, part.within])).toEqual([['setup', undefined, undefined], ['accounts', '/settings/apps/finance/accounts', undefined], ['journals', '/settings/apps/finance/journals', undefined], ['taxes', '/settings/apps/finance/taxes', undefined], ['payment-terms', '/settings/apps/finance/payment-terms', undefined], ['asset-profiles', '/settings/apps/finance/asset-profiles', undefined], ['analytic', undefined, undefined], ['closing', undefined, undefined], ['zatca', undefined, undefined], ['audit', undefined, '/settings/apps/finance/audit']])
-    const crm: AppManifest = {
-      id: 'crm', feature: 'crm.enabled', routePrefixes: ['/crm'], rail: [{ id: 'crm', labelKey: 'nav.crm', icon: 'i-lucide-handshake', to: '/crm', order: 90 }], nav: [],
-      settings: { id: 'crm', labelKey: 'nav.crm', icon: 'i-lucide-handshake', to: '/settings/apps/crm', parts: [{ id: 'pipeline', labelKey: 'crm.settings', icon: 'i-lucide-handshake', capability: 'crm.settings.manage' }] },
+    const pilot: AppManifest = {
+      id: 'pilot', feature: 'pilot.enabled', routePrefixes: ['/pilot'], rail: [{ id: 'pilot', labelKey: 'nav.pilot', icon: 'i-lucide-handshake', to: '/pilot', order: 90 }], nav: [],
+      settings: { id: 'pilot', labelKey: 'nav.pilot', icon: 'i-lucide-handshake', to: '/settings/apps/pilot', parts: [{ id: 'pipeline', labelKey: 'pilot.settings', icon: 'i-lucide-handshake', capability: 'pilot.settings.manage' }] },
     }
-    withManifests([...appManifests, crm], () => expect(apps()).toContain('/settings/apps/crm'))
+    withManifests([...appManifests, pilot], () => expect(apps()).toContain('/settings/apps/pilot'))
   })
   it('own the paths beneath them, the subscription pages included', () => {
     expect(settingsPageForPath('/settings')).toBeNull()

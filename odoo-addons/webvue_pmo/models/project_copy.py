@@ -16,10 +16,11 @@ class ProjectProject(models.Model):
     def _webvue_create_from_policy(self, name, extra=None, user_id=None, date_end=None):
         """Create a project the webvue way: policy check, defaults, default stages.
 
-        When the company policy lets every employee create projects, the create
-        itself runs in sudo (Odoo's ACL reserves project creation to managers);
-        the policy is the explicit, admin-set widening of that ACL, and
-        ``create_uid``/``user_id`` still record the employee. Second documented
+        The create itself runs in sudo once ``_webvue_can_create`` passed: Odoo's
+        ACL reserves project creation to ``project.group_project_manager``, which
+        neither a WebVue role holding ``pmo.projects.create`` nor the company
+        policy that lets every employee create projects grants.
+        ``create_uid``/``user_id`` still record the caller. Second documented
         ``sudo()`` in webvue_pmo.
 
         Required-on-create company settings are enforced here for every
@@ -33,7 +34,7 @@ class ProjectProject(models.Model):
         vals = self._webvue_create_vals(name, user_id=user_id, date_end=date_end)
         if extra:
             vals.update(extra)
-        env = self.env if self._webvue_is_manager() else self.sudo().env
+        env = self.sudo().env
         marker = self.env.cr.precommit.data
         previous = marker.get(POLICY_CREATE_MARKER)
         marker[POLICY_CREATE_MARKER] = True

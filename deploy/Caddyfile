@@ -20,10 +20,20 @@
 			zone webvue_api {
 				match {
 					path /api/v1/*
-					not path /api/v1/auth/*
+					not path /api/v1/auth/* /api/v1/public/appointments/*
 				}
 				key {remote_host}
 				events 300
+				window 1m
+				ipv6_prefix 64
+			}
+			# An invited requester's token routes have no session to throttle: their own budget.
+			zone webvue_public_appointments_ip {
+				match {
+					path /api/v1/public/appointments/*
+				}
+				key {remote_host}
+				events 60
 				window 1m
 				ipv6_prefix 64
 			}

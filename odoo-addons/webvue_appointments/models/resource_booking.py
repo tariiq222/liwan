@@ -1,5 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo import api, models
+from odoo import api, fields, models
+
+from .appointment_settings import DEFAULTS
+
+BOOK_PATH = '/book/%s'
 
 # A change to any of these can move a booking onto a resource, so it takes the resource guards first.
 GUARDED_FIELDS = frozenset({'start', 'combination_id', 'combination_auto_assign', 'type_id'})
@@ -7,6 +11,23 @@ GUARDED_FIELDS = frozenset({'start', 'combination_id', 'combination_auto_assign'
 
 class ResourceBooking(models.Model):
     _inherit = 'resource.booking'
+
+    webvue_requester_national_id = fields.Char(copy=False)
+
+    def _compute_access_url(self):
+        # Customers never open Odoo: the engine's /my/bookings page is closed by the WebVue guard, so every
+        # portal link of a booking (invitation emails, share links) opens the requester's WebVue page.
+        super()._compute_access_url()
+        for booking in self:
+            booking.access_url = BOOK_PATH % booking.id
+
+    def _webvue_confirms_on_schedule(self):
+        """Whether staff scheduling confirms this booking at once: true unless the type's company asks the
+        requester to confirm. An extension point a bridge may override: the payments bridge returns True for
+        paying types, and the engine then keeps the booking scheduled until its order is paid."""
+        self.ensure_one()
+        settings = self.env['webvue.appointment.settings'].search([('company_id', '=', self.type_id.company_id.id)], limit=1)
+        return not (settings.requester_confirmation if settings else DEFAULTS['requester_confirmation'])
 
     @api.model_create_multi
     def create(self, vals_list):

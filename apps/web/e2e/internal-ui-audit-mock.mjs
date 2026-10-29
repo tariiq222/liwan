@@ -5,9 +5,10 @@ import { pmoPreviewData } from './pmo-ui-preview-data.mjs'
 import { moduleUiCapabilities, moduleUiPreviewData } from './module-ui-preview-data.mjs'
 import { hrPayrollPreviewWrite } from './hr-payroll-ui-preview-data.mjs'
 import { capabilitiesForRequest } from './mock-capabilities.mjs'
+import { crmPreviewWrite } from './crm-ui-preview-data.mjs'
 import { INBOX_CAPABILITIES, INBOX_FEATURES, inboxPreviewData, resetInboxPreview } from './inbox-ui-preview-data.mjs'
 import { handleCommercial } from './commercial-mock-routes.mjs'
-import { handlePayments, handlePublicPayments, PAYMENTS_LINKS_MANAGE, PAYMENTS_MANAGE } from './payments-mock-routes.mjs'
+import { handlePayments, handlePublicPayments, PAYMENTS_LINKS_MANAGE, PAYMENTS_MANAGE, PAYMENTS_SETTINGS_MANAGE } from './payments-mock-routes.mjs'
 import crypto from 'node:crypto'
 import { URL } from 'node:url'
 
@@ -24,7 +25,7 @@ const CAPABILITIES = [
   'hr.departments.read', 'hr.departments.manage', 'documents.items.read', 'documents.items.manage',
   'pmo.projects.read', 'pmo.projects.create', 'pmo.projects.manage', 'pmo.settings.manage',
   'pmo.tasks.read', 'pmo.tasks.create', 'pmo.tasks.write', 'pmo.tasks.approve',
-  'settings.branding.manage', 'settings.company.read', 'settings.company.manage', 'ai.use', PAYMENTS_MANAGE, PAYMENTS_LINKS_MANAGE,
+  'settings.branding.manage', 'settings.company.read', 'settings.company.manage', 'ai.use', PAYMENTS_MANAGE, PAYMENTS_LINKS_MANAGE, PAYMENTS_SETTINGS_MANAGE,
   ...INBOX_CAPABILITIES,
 ]
 
@@ -46,8 +47,8 @@ const ME = {
   },
   platform: {
     schema_version: 1, policy_revision: 1, state: 'active', valid_until: null, read_only: false,
-    readable_features: ['ai.enabled', 'chat.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.enabled'],
-    writable_features: ['ai.enabled', 'chat.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.enabled'],
+    readable_features: ['ai.enabled', 'chat.enabled', 'crm.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.enabled'],
+    writable_features: ['ai.enabled', 'chat.enabled', 'crm.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.enabled'],
   },
   terminology: { ar: {}, en: {} },
 }
@@ -468,6 +469,13 @@ async function handle(req, res) {
     if (write) return json(res, write.status, write.body)
   }
 
+  if (process.env.MODULE_UI_PREVIEW === '1' && method !== 'GET' && /^\/api\/v1\/(crm\/|__mock\/reset-crm$)/.test(path)) {
+    let body = {}
+    try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
+    const write = crmPreviewWrite(method, path, body)
+    if (write) return json(res, write.status, write.body)
+  }
+
   if (process.env.MODULE_UI_PREVIEW === '1' && method === 'GET') {
     if (path === '/api/v1/me') {
       // mock_readonly=payroll leaves hr.payroll readable but not writable, like an expired tenant;
@@ -478,7 +486,7 @@ async function handle(req, res) {
       const base = { ...ME }
       if (noPolicy) delete base.platform
       const platform = readOnlyPayroll ? { ...ME.platform, writable_features: ME.platform.writable_features.filter(key => key !== 'hr.payroll') } : ME.platform
-      return json(res, 200, { ...base, ...(noPolicy ? {} : { platform }), appearance, capabilities: [...capabilitiesForRequest(req.headers.cookie, [...moduleUiCapabilities, PAYMENTS_MANAGE, PAYMENTS_LINKS_MANAGE, ...INBOX_CAPABILITIES]), AI_USE] })
+      return json(res, 200, { ...base, ...(noPolicy ? {} : { platform }), appearance, capabilities: [...capabilitiesForRequest(req.headers.cookie, [...moduleUiCapabilities, PAYMENTS_MANAGE, PAYMENTS_LINKS_MANAGE, PAYMENTS_SETTINGS_MANAGE, ...INBOX_CAPABILITIES]), AI_USE] })
     }
     const preview = moduleUiPreviewData(path, url)
     if (preview?.refusal) return json(res, preview.refusal.status, preview.refusal.body)

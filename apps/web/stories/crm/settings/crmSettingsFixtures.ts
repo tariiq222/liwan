@@ -1,0 +1,38 @@
+import type { CrmSettings } from '@webvue/contracts'
+
+export const crmSettings: CrmSettings = {
+  revision: 3,
+  values: {
+    preset: 'phone_packages',
+    followup_attempts: 2,
+    followup_interval_hours: 24,
+    after_attempts: 'lost',
+    recycle_enabled: true,
+    recycle_after_days: 30,
+    recycle_cycles: 1,
+    distribution_mode: 'round_robin',
+    distribution_user_ids: [3, 4],
+    visibility: 'own',
+    view_log_enabled: false,
+    discount_allowed: true,
+    discount_max_percent: 10,
+    terms: {
+      customer: { ar: { singular: 'عميل', plural: 'عملاء' }, en: { singular: 'customer', plural: 'customers' }, gender: 'm' },
+      opportunity: { ar: { singular: 'فرصة', plural: 'فرص' }, en: { singular: 'opportunity', plural: 'opportunities' }, gender: 'f' },
+      package: { ar: { singular: 'باقة', plural: 'باقات' }, en: { singular: 'plan', plural: 'plans' }, gender: 'f' },
+    },
+  },
+  distribution_users: [{ id: 3, name: 'ليلى الحربي' }, { id: 4, name: 'خالد الشمري' }],
+  options: {
+    preset: ['general', 'phone_packages'],
+    after_attempts: ['lost', 'manager'],
+    distribution_mode: ['round_robin', 'manual', 'on_import'],
+    visibility: ['own', 'team', 'all'],
+    term_gender: ['m', 'f'],
+    followup_attempts: { min: 0, max: 10 },
+    followup_interval_hours: { min: 1, max: 720 },
+    recycle_after_days: { min: 1, max: 365 },
+    recycle_cycles: { min: 0, max: 5 },
+    discount_max_percent: { min: 0, max: 100 },
+  },
+}
