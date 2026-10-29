@@ -48,6 +48,7 @@ jobs:
     outputs:
       stages: ${{ steps.select.outputs.stages }}
       base: ${{ steps.select.outputs.base }}
+      odoo-modules: ${{ steps.select.outputs.odoo-modules }}
       odoo-shards: ${{ steps.select.outputs.odoo-shards }}
       apps: ${{ steps.select.outputs.apps }}
       bridges: ${{ steps.select.outputs.bridges }}
@@ -59,6 +60,7 @@ jobs:
         id: select
         env:
           FULL: ${{ inputs.full || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+          EVENT_NAME: ${{ github.event_name }}
           PULL_REQUEST_BASE: ${{ github.event.pull_request.base.sha }}
           PUSH_BEFORE: ${{ github.event.before }}
         run: |
@@ -67,16 +69,23 @@ jobs:
           if [ -z "$base" ] || [ -z "${base//0/}" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
             base=origin/main
           fi
+          # A pull request skips the slow stages and tests only the Odoo modules the change affects;
+          # every other event (push to main, nightly, dispatch) keeps the whole matrix. Empty modules = all.
+          modules=""
           if [ "$FULL" = true ]; then
             stages="$(python3 -B tools/ci_scope.py --full --stages)"
+          elif [ "$EVENT_NAME" = pull_request ]; then
+            stages="$(python3 -B tools/ci_scope.py --base "$base" --pull-request --stages)"
+            modules="$(python3 -B tools/ci_scope.py --base "$base" --pull-request --modules)"
           else
             stages="$(python3 -B tools/ci_scope.py --base "$base" --stages)"
           fi
           echo "base=$base" >> "$GITHUB_OUTPUT"
           echo "stages=$stages" >> "$GITHUB_OUTPUT"
-          echo "odoo-shards=$(python3 -B tools/odoo_shards.py matrix)" >> "$GITHUB_OUTPUT"
-          echo "apps=$(python3 -B tools/app_isolation.py matrix apps)" >> "$GITHUB_OUTPUT"
-          echo "bridges=$(python3 -B tools/app_isolation.py matrix bridges)" >> "$GITHUB_OUTPUT"
+          echo "odoo-modules=$modules" >> "$GITHUB_OUTPUT"
+          echo "odoo-shards=$(python3 -B tools/odoo_shards.py matrix ${modules:+--modules "$modules"})" >> "$GITHUB_OUTPUT"
+          echo "apps=$(python3 -B tools/app_isolation.py matrix apps ${modules:+--modules "$modules"})" >> "$GITHUB_OUTPUT"
+          echo "bridges=$(python3 -B tools/app_isolation.py matrix bridges ${modules:+--modules "$modules"})" >> "$GITHUB_OUTPUT"
           echo "Base $base, stages $stages"
 
   static:
@@ -193,6 +202,8 @@ jobs:
           node: 'false'
           odoo: 'true'
       - run: deploy/ci/odoo.sh --shard ${{ matrix.shard }}/${{ strategy.job-total }}
+        env:
+          ODOO_TEST_MODULES: ${{ needs.scope.outputs.odoo-modules }}
 
   # The rank-4 applications and rank-5 bridges of tools/arch_layers.json, packed into a few jobs by
   # tools/app_isolation.py matrix: each run installs only its part of the product on a fresh scratch database.
