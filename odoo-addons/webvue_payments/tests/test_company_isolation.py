@@ -1,19 +1,23 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Per-request company isolation for the Payments routes.
 
-Every GET record route of this addon is public and token- or signature-authorized, so none has a
-session company to isolate; the session-backed surface is the provider list and its writes.
+The online order detail is the one session-backed GET record route; the others are public and token-
+or signature-authorized, so they have no session company to isolate. The provider list and its writes
+are the rest of the session-backed surface.
 """
+from odoo import fields
 from odoo.tests import new_test_user, tagged
 
 from odoo.addons.webvue_api.tests.common import (
     CompanyIsolationCase,
     assert_isolation_discovery,
+    cover_isolation_routes,
     exempt_isolation_route,
 )
 
-EXPECTED_GET_RECORD_ROUTES = 3
+EXPECTED_GET_RECORD_ROUTES = 4
 LIST = '/api/v1/payments/providers'
+ORDER = '/api/v1/payments/orders/{}'
 NOCAP_PASSWORD = 'iso_pay_nocap_pass_123'
 
 
@@ -39,6 +43,14 @@ class TestPaymentsCompanyIsolation(CompanyIsolationCase):
         })
         template = cls.env['payment.provider'].search([('code', '=', 'paymob')], limit=1)
         cls.providers = {tag: template.copy({'company_id': company.id}) for tag, company in cls.by_tag.items()}
+        customer = cls.env['res.partner'].create({'name': 'Online customer'})
+        cls.orders = {
+            tag: cls.env['sale.order'].sudo().with_company(company).create({
+                'company_id': company.id, 'partner_id': customer.id,
+                'webvue_payment_deadline': fields.Datetime.now(),
+            })
+            for tag, company in cls.by_tag.items()
+        }
 
     def test_provider_list_never_shows_another_company(self):
         for current, company in self.by_tag.items():
@@ -61,6 +73,15 @@ class TestPaymentsCompanyIsolation(CompanyIsolationCase):
                 self.assertEqual(response.status_code, 404, f'{tag} from {current}: {response.text[:200]}')
                 self.assertEqual(response.content, missing.content)
 
+    def test_order_detail_matrix(self):
+        """The owning company reads its online order; every other company answers the not-found."""
+        for current, company in self.by_tag.items():
+            self.env_in(company)
+            self.assertVisible(ORDER.format(self.orders[current].id))
+            for tag, order in self.orders.items():
+                if tag != current:
+                    self.assertHiddenEveryWay('GET', ORDER.format(order.id), self.by_tag[tag].id)
+
     def test_missing_capability_in_the_same_company_stays_forbidden(self):
         self.authenticate('iso_pay_nocap', NOCAP_PASSWORD)
         self.assertEqual(self.api('GET', LIST).status_code, 403)
@@ -70,6 +91,10 @@ class TestPaymentsCompanyIsolation(CompanyIsolationCase):
         assert_isolation_discovery(self, 'webvue_payments', EXPECTED_GET_RECORD_ROUTES)
 
 
+cover_isolation_routes(
+    ('/api/v1/payments/orders/<int:order_id>',),
+    source='webvue_payments/tests/test_company_isolation.py',
+)
 for _pattern in (
     '/api/v1/public/payments/invoices/<int:document_id>',
     '/api/v1/public/payments/orders/<int:document_id>',
