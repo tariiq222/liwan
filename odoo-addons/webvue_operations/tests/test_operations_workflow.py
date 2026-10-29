@@ -419,3 +419,122 @@ class TestOperationsWorkflow(WebVueApiCase):
         foreign.invalidate_recordset()
         self.authenticate('api_emp', 'api_emp_pass_123')
         self.assertEqual(self.api('GET', self._path(foreign, foreign_file)).status_code, 404)
+
+    # Owner decisions 2026-10-29 (#163): stage approval mode, purpose filter on shared lists, archived processes.
+    def _repeated_reviewer_process(self, mode=None):
+        process = self.env['webvue.operation.process'].with_user(self.manager).create({'name': 'Repeated reviewer'})
+        kwargs = {} if mode is None else {'stage_approval_mode': mode}
+        process.action_configure(0, 'Repeated reviewer', '', 'approval', [
+            {'name': 'First', 'reviewer_ids': [self.reviewers[0].id]},
+            {'name': 'Second', 'reviewer_ids': [self.reviewers[0].id]},
+            {'name': 'Final', 'reviewer_ids': [self.reviewers[1].id]},
+        ], **kwargs)
+        process.action_publish(1)
+        record = self.env['webvue.operation.request'].with_user(self.employee).create({'name': 'Repeated', 'process_id': process.id})
+        record.action_submit(0)
+        return process, record
+
+    def test_per_stage_mode_is_the_default_and_needs_one_decision_per_stage(self):
+        process, record = self._repeated_reviewer_process()
+        self.assertEqual((process.stage_approval_mode, record.stage_approval_mode), ('per_stage', 'per_stage'))
+        record.with_user(self.reviewers[0]).action_approve(1)
+        self.assertEqual(record.review_ids.sorted('sequence').mapped('status'), ['approved', 'pending', 'waiting'])
+        self.assertEqual(record.state, 'pending')
+        record.with_user(self.reviewers[0]).action_approve(2)
+        self.assertEqual(record.review_ids.sorted('sequence').mapped('status'), ['approved', 'approved', 'pending'])
+        with self.assertRaises(AccessError), self.env.cr.savepoint():
+            record.with_user(self.reviewers[0]).action_approve(3)
+        record.with_user(self.reviewers[1]).action_approve(3)
+        self.assertEqual((record.state, record.execution_count), ('done', 1))
+        self.assertEqual(record.event_ids.mapped('kind'), ['submitted', 'approved', 'approved', 'approved', 'executed'])
+
+    def test_single_mode_covers_the_reviewers_consecutive_stages(self):
+        process, record = self._repeated_reviewer_process('single')
+        self.assertEqual((process.stage_approval_mode, record.stage_approval_mode), ('single', 'single'))
+        record.with_user(self.reviewers[0]).action_approve(1)
+        self.assertEqual(record.review_ids.sorted('sequence').mapped('status'), ['approved', 'approved', 'pending'])
+        record.with_user(self.reviewers[1]).action_approve(2)
+        self.assertEqual((record.state, record.execution_count), ('done', 1))
+
+    def test_pending_request_keeps_the_mode_it_was_submitted_under(self):
+        process, record = self._repeated_reviewer_process('single')
+        process.with_user(self.manager).action_configure(1, process.name, '', 'approval', [
+            {'name': 'First', 'reviewer_ids': [self.reviewers[0].id]},
+            {'name': 'Second', 'reviewer_ids': [self.reviewers[0].id]},
+        ], stage_approval_mode='per_stage')
+        process.with_user(self.manager).action_publish(2)
+        self.assertEqual((process.stage_approval_mode, record.stage_approval_mode), ('per_stage', 'single'))
+        record.with_user(self.reviewers[0]).action_approve(1)
+        self.assertEqual(record.review_ids.sorted('sequence').mapped('status'), ['approved', 'approved', 'pending'])
+        record.with_user(self.reviewers[1]).action_return(2, 'Resubmit under the new mode')
+        record.with_user(self.employee).action_submit(3)
+        self.assertEqual(record.stage_approval_mode, 'per_stage')
+        record.with_user(self.reviewers[0]).action_approve(4)
+        self.assertEqual(record.review_ids.sorted('sequence').mapped('status'), ['approved', 'pending'])
+
+    def test_stage_approval_mode_is_configured_and_validated_through_the_api(self):
+        self.authenticate('ops_manager', 'ops_manager_test_123')
+        steps = [{'name': 'Review', 'reviewer_ids': [self.reviewers[0].id]}]
+        created = self.api('POST', '/api/v1/operations/processes', {'name': 'Default mode', 'steps': steps})
+        self.assertEqual(created.status_code, 200, created.text)
+        self.assertEqual(created.json()['stage_approval_mode'], 'per_stage')
+        process_id = created.json()['id']
+        updated = self.api('PATCH', f'/api/v1/operations/processes/{process_id}', {'name': 'Single mode', 'steps': steps, 'stage_approval_mode': 'single', 'revision': 1})
+        self.assertEqual(updated.status_code, 200, updated.text)
+        self.assertEqual(updated.json()['stage_approval_mode'], 'single')
+        kept = self.api('PATCH', f'/api/v1/operations/processes/{process_id}', {'name': 'Mode kept', 'steps': steps, 'revision': 2})
+        self.assertEqual(kept.json()['stage_approval_mode'], 'single')
+        for path, method, payload in [
+            ('/api/v1/operations/processes', 'POST', {'name': 'Bad', 'steps': steps, 'stage_approval_mode': 'any'}),
+            (f'/api/v1/operations/processes/{process_id}', 'PATCH', {'name': 'Bad', 'steps': steps, 'stage_approval_mode': 'any', 'revision': 3}),
+        ]:
+            response = self.api(method, path, payload)
+            self.assertEqual((response.status_code, response.json()['code'], response.json().get('field')), (422, 'invalid', 'stage_approval_mode'))
+        with self.assertRaises(AccessError):
+            self.env['webvue.operation.process'].with_user(self.manager).create({'name': 'Forged', 'stage_approval_mode': 'single'})
+        forged = self.env['webvue.operation.request'].with_user(self.employee).with_context(default_stage_approval_mode='single').create({'name': 'Forged mode', 'process_id': self.process.id})
+        self.assertEqual(forged.stage_approval_mode, 'per_stage')
+
+    def test_shared_lists_filter_by_purpose(self):
+        work = self._pending()
+        self.process.with_user(self.manager).action_configure(1, 'Personal service', '', 'approval', [
+            {'name': 'Review', 'reviewer_ids': [self.reviewers[0].id]},
+        ], purpose='employee')
+        self.process.with_user(self.manager).action_publish(2)
+        personal = self._pending()
+        for login, scope in [('ops_reviewer_1', 'pending'), ('ops_manager', 'monitoring')]:
+            self.authenticate(login, f'{login}_test_123')
+            listed = {}
+            for purpose in ('work', 'employee'):
+                response = self.api('GET', f'/api/v1/operations/requests?scope={scope}&purpose={purpose}')
+                self.assertEqual(response.status_code, 200, response.text)
+                listed[purpose] = [item['id'] for item in response.json()['items']]
+                self.assertEqual(response.json()['total'], len(listed[purpose]))
+            self.assertEqual(listed, {'work': [work.id], 'employee': [personal.id]})
+            everything = self.api('GET', f'/api/v1/operations/requests?scope={scope}').json()
+            self.assertEqual({item['id'] for item in everything['items']}, {work.id, personal.id})
+            invalid = self.api('GET', f'/api/v1/operations/requests?scope={scope}&purpose=personal')
+            self.assertEqual((invalid.status_code, invalid.json()['field']), (422, 'purpose'))
+
+    def test_archived_process_cannot_be_reconfigured(self):
+        process = self.process.with_user(self.manager)
+        process.action_archive(1)
+        self.assertEqual((process.state, process.revision), ('archived', 2))
+        with self.assertRaises(ValidationError):
+            process.action_configure(2, 'Revived', '', 'approval', [{'name': 'Review', 'reviewer_ids': [self.reviewers[0].id]}])
+        self.assertEqual((process.state, process.revision, process.name), ('archived', 2, 'Expense approval'))
+        self.authenticate('ops_manager', 'ops_manager_test_123')
+        response = self.api('PATCH', f'/api/v1/operations/processes/{process.id}', {'name': 'Revived', 'steps': [{'name': 'Review', 'reviewer_ids': [self.reviewers[0].id]}], 'revision': 2})
+        self.assertEqual((response.status_code, response.json()['code']), (422, 'invalid'))
+        self.assertEqual(self.api('GET', f'/api/v1/operations/processes/{process.id}').json()['state'], 'archived')
+
+    def test_archiving_an_archived_process_is_refused_without_a_revision_bump(self):
+        process = self.process.with_user(self.manager)
+        process.action_archive(1)
+        with self.assertRaises(ValidationError):
+            process.action_archive(2)
+        self.assertEqual((process.state, process.revision), ('archived', 2))
+        self.authenticate('ops_manager', 'ops_manager_test_123')
+        response = self.api('POST', f'/api/v1/operations/processes/{process.id}/archive', {'revision': 2})
+        self.assertEqual((response.status_code, response.json()['code']), (422, 'invalid'))
+        self.assertEqual(self.api('GET', f'/api/v1/operations/processes/{process.id}').json()['revision'], 2)
