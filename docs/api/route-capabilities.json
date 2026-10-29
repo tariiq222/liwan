@@ -297,6 +297,18 @@
       "handler": "delete_department",
       "no_capability_reason": null
     },
+    "DELETE /api/v1/inbox/rules/{rule_id}": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "delete_rule",
+      "no_capability_reason": null
+    },
     "DELETE /api/v1/inbox/tags/{tag_id}": {
       "addon": "webvue_inbox",
       "auth": "user",
@@ -319,6 +331,20 @@
         "inbox.enabled"
       ],
       "handler": "delete_template",
+      "no_capability_reason": null
+    },
+    "DELETE /api/v1/meetings/{meeting_id}": {
+      "addon": "webvue_meetings",
+      "auth": "user",
+      "capability_keys": [
+        "meetings.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "meetings.enabled"
+      ],
+      "handler": "delete_meeting",
       "no_capability_reason": null
     },
     "DELETE /api/v1/meetings/{meeting_id}/attachments/{attachment_id}": {
@@ -712,6 +738,18 @@
       "handler": "get_combination",
       "no_capability_reason": null
     },
+    "GET /api/v1/appointments/reasons": {
+      "addon": "webvue_appointments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "appointments.enabled"
+      ],
+      "handler": "list_reasons",
+      "no_capability_reason": null
+    },
     "GET /api/v1/appointments/resources": {
       "addon": "webvue_appointments",
       "auth": "user",
@@ -881,6 +919,20 @@
       ],
       "handler": "list_recipients",
       "no_capability_reason": "Chat has no capability keys by design: webvue.chat.service requires an active internal WebVue user and limits every row to the caller's conversations."
+    },
+    "GET /api/v1/crm/agents": {
+      "addon": "webvue_crm",
+      "auth": "user",
+      "capability_keys": [
+        "crm.leads.assign"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "crm.enabled"
+      ],
+      "handler": "list_agents",
+      "no_capability_reason": null
     },
     "GET /api/v1/crm/audit/views": {
       "addon": "webvue_crm",
@@ -2918,12 +2970,24 @@
       "addon": "webvue_inbox",
       "auth": "user",
       "capability_keys": [],
-      "capability_match": "all",
+      "capability_match": "any",
       "capability_source": "decorator",
       "feature_keys": [
         "inbox.enabled"
       ],
       "handler": "list_agents",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/automation/channels": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "list_automation_channels",
       "no_capability_reason": null
     },
     "GET /api/v1/inbox/canned-replies": {
@@ -2960,6 +3024,18 @@
         "inbox.enabled"
       ],
       "handler": "read_channel",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/channels/{channel_id}/automation": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "get_channel_automation",
       "no_capability_reason": null
     },
     "GET /api/v1/inbox/channels/{channel_id}/ref": {
@@ -3058,6 +3134,18 @@
       "handler": "list_departments",
       "no_capability_reason": null
     },
+    "GET /api/v1/inbox/departments/{department_id}/working-hours": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "get_department_hours",
+      "no_capability_reason": null
+    },
     "GET /api/v1/inbox/hooks/whatsapp": {
       "addon": "webvue_inbox",
       "auth": "inbox_hook",
@@ -3078,6 +3166,30 @@
         "inbox.enabled"
       ],
       "handler": "download_attachment",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/rules": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "list_rules",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/rules/{rule_id}": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "get_rule",
       "no_capability_reason": null
     },
     "GET /api/v1/inbox/tags": {
@@ -3102,6 +3214,18 @@
         "inbox.enabled"
       ],
       "handler": "read_template",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/working-hours": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "get_working_hours",
       "no_capability_reason": null
     },
     "GET /api/v1/integrations/connections": {
@@ -3216,6 +3340,20 @@
         "meetings.enabled"
       ],
       "handler": "meeting_followup",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/meetings/settings": {
+      "addon": "webvue_meetings",
+      "auth": "user",
+      "capability_keys": [
+        "meetings.settings.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "meetings.enabled"
+      ],
+      "handler": "get_settings",
       "no_capability_reason": null
     },
     "GET /api/v1/meetings/{meeting_id}": {
@@ -3548,6 +3686,26 @@
         "operations.enabled"
       ],
       "handler": "download_attachment",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/payments/orders": {
+      "addon": "webvue_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "list_orders",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/payments/orders/{order_id}": {
+      "addon": "webvue_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "get_order",
       "no_capability_reason": null
     },
     "GET /api/v1/payments/providers": {
@@ -4186,6 +4344,18 @@
       "handler": "update_user_branches",
       "no_capability_reason": null
     },
+    "PATCH /api/v1/appointments/bookings/{booking_id}": {
+      "addon": "webvue_appointments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "appointments.enabled"
+      ],
+      "handler": "patch_booking",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/appointments/combinations/{combination_id}": {
       "addon": "webvue_appointments",
       "auth": "user",
@@ -4196,6 +4366,18 @@
         "appointments.enabled"
       ],
       "handler": "patch_combination",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/appointments/reasons/{reason_id}": {
+      "addon": "webvue_appointments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "appointments.enabled"
+      ],
+      "handler": "patch_reason",
       "no_capability_reason": null
     },
     "PATCH /api/v1/appointments/resources/{resource_id}": {
@@ -4940,6 +5122,18 @@
       "handler": "patch_channel",
       "no_capability_reason": null
     },
+    "PATCH /api/v1/inbox/channels/{channel_id}/automation": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "patch_channel_automation",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/inbox/contacts/{contact_id}": {
       "addon": "webvue_inbox",
       "auth": "user",
@@ -4974,6 +5168,18 @@
         "inbox.enabled"
       ],
       "handler": "patch_department",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/inbox/rules/{rule_id}": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "patch_rule",
       "no_capability_reason": null
     },
     "PATCH /api/v1/inbox/tags/{tag_id}": {
@@ -5022,6 +5228,20 @@
         "meetings.enabled"
       ],
       "handler": "patch_series",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/meetings/settings": {
+      "addon": "webvue_meetings",
+      "auth": "user",
+      "capability_keys": [
+        "meetings.settings.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "meetings.enabled"
+      ],
+      "handler": "patch_settings",
       "no_capability_reason": null
     },
     "PATCH /api/v1/meetings/{meeting_id}": {
@@ -5430,6 +5650,18 @@
       "handler": "create_booking",
       "no_capability_reason": null
     },
+    "POST /api/v1/appointments/bookings/{booking_id}/attendance": {
+      "addon": "webvue_appointments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "appointments.enabled"
+      ],
+      "handler": "record_attendance",
+      "no_capability_reason": null
+    },
     "POST /api/v1/appointments/bookings/{booking_id}/cancel": {
       "addon": "webvue_appointments",
       "auth": "user",
@@ -5525,6 +5757,42 @@
         "appointments.enabled"
       ],
       "handler": "unarchive_combination",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/appointments/reasons": {
+      "addon": "webvue_appointments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "appointments.enabled"
+      ],
+      "handler": "create_reason",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/appointments/reasons/{reason_id}/archive": {
+      "addon": "webvue_appointments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "appointments.enabled"
+      ],
+      "handler": "archive_reason",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/appointments/reasons/{reason_id}/unarchive": {
+      "addon": "webvue_appointments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "appointments.enabled"
+      ],
+      "handler": "unarchive_reason",
       "no_capability_reason": null
     },
     "POST /api/v1/appointments/resources": {
@@ -6484,6 +6752,20 @@
         "finance.enabled"
       ],
       "handler": "cancel_invoice",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/invoices/{invoice_id}/credit-note": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.invoices.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "create_credit_note",
       "no_capability_reason": null
     },
     "POST /api/v1/finance/invoices/{invoice_id}/debit-note": {
@@ -7695,6 +7977,42 @@
       "handler": "retry_message",
       "no_capability_reason": null
     },
+    "POST /api/v1/inbox/rules": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "create_rule",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/rules/reorder": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "reorder_rules",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/rules/test": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "test_rules",
+      "no_capability_reason": null
+    },
     "POST /api/v1/inbox/tags": {
       "addon": "webvue_inbox",
       "auth": "user",
@@ -8104,6 +8422,16 @@
       "capability_source": "decorator",
       "feature_keys": [],
       "handler": "create_link",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/payments/orders/{order_id}/refunds": {
+      "addon": "webvue_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "record_refund",
       "no_capability_reason": null
     },
     "POST /api/v1/payments/providers/{provider_id}/sync": {
@@ -8619,6 +8947,30 @@
         "hr.payroll"
       ],
       "handler": "put_settlement",
+      "no_capability_reason": null
+    },
+    "PUT /api/v1/inbox/departments/{department_id}/working-hours": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "put_department_hours",
+      "no_capability_reason": null
+    },
+    "PUT /api/v1/inbox/working-hours": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "put_working_hours",
       "no_capability_reason": null
     },
     "PUT /api/v1/projects/{project_id}/stages/order": {
