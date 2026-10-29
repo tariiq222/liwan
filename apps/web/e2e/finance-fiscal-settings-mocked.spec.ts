@@ -229,12 +229,14 @@ test('the server-rendered card hydrates in place without waiting for a browser r
   }
 })
 
-test('a reader sees the values and no editor at all', async ({ page }) => {
+test('a reader sees the same fields disabled, a view-only badge and no footer', async ({ page }) => {
   mode = 'reader'
   await openFiscal(page)
-  await expect(fiscalCard(page).getByText('31 ديسمبر', { exact: false })).toBeVisible()
+  await expect(fiscalCard(page).getByText('عرض فقط', { exact: true })).toBeVisible()
+  await expect(page.locator('#finance-fiscal-fiscalyear_last_day')).toHaveValue('31')
+  await expect(page.locator('#finance-fiscal-fiscalyear_last_day')).toBeDisabled()
+  await expect(page.locator('#finance-fiscal-fiscalyear_lock_date')).toBeDisabled()
   await expect(fiscalCard(page).getByRole('button', { name: 'حفظ التغييرات', exact: true })).toHaveCount(0)
-  await expect(page.locator('#finance-fiscal-fiscalyear_last_day')).toHaveCount(0)
   expect(fiscalPatches).toHaveLength(0)
 })
 
@@ -280,7 +282,7 @@ test('a posted-entries refusal keeps the draft and reports it without claiming s
   await expect(page.locator('#finance-fiscal-fiscalyear_last_day')).toHaveValue('30')
 })
 
-test('a changed company refuses the write and hides the draft it no longer speaks for', async ({ page }) => {
+test('a changed company refuses the write, drops the draft and says why', async ({ page }) => {
   await openFiscal(page)
   await page.locator('#finance-fiscal-fiscalyear_last_day').fill('30')
   rejectNextPatch = { status: 409, code: 'request_context_changed', message: 'server text' }
@@ -288,8 +290,8 @@ test('a changed company refuses the write and hides the draft it no longer speak
   await expect(fiscalCard(page).getByText(/تغيّرت الشركة أو هوية الدخول/)).toBeVisible()
   await expect(page.getByText('تم حفظ إعدادات السنة والأقفال.', { exact: true })).toHaveCount(0)
   expect(fiscalPatches).toHaveLength(1)
-  // The draft is discarded, not reverted: nothing of it stays in the field and nothing can be saved.
-  await expect(page.locator('#finance-fiscal-fiscalyear_last_day')).toHaveValue('')
+  // The draft is dropped, not saved: the field shows the values read again and nothing can be saved.
+  await expect(page.locator('#finance-fiscal-fiscalyear_last_day')).toHaveValue('31')
   await expect(saveButton(page)).toBeDisabled()
 })
 
@@ -297,7 +299,7 @@ test('reverting sends nothing, and a hash change keeps the draft', async ({ page
   await openFiscal(page)
   const day = page.locator('#finance-fiscal-fiscalyear_last_day')
   await day.fill('30')
-  await fiscalCard(page).getByRole('button', { name: 'تراجع عن التعديلات', exact: true }).click()
+  await fiscalCard(page).getByRole('button', { name: 'تراجع', exact: true }).click()
   await expect(day).toHaveValue('31')
   await expect(saveButton(page)).toBeDisabled()
   await day.fill('30')
@@ -323,7 +325,7 @@ for (const { locale, dir, i18n } of [{ locale: 'ar', dir: 'rtl', i18n: 'ar' }, {
         await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
         await page.screenshot({ path: testInfo.outputPath(`fiscal.reader.${locale}.${appearance}.${width}.png`), fullPage: true })
         const day = page.locator('#finance-fiscal-fiscalyear_last_day')
-        if (await day.count() === 0) continue
+        if (await day.isDisabled()) continue
         await day.fill('30')
         await page.screenshot({ path: testInfo.outputPath(`fiscal.editing.${locale}.${appearance}.${width}.png`), fullPage: true })
         rejectNextPatch = { status: 422, code: 'fiscal_year_has_posted_entries', message: 'server text' }

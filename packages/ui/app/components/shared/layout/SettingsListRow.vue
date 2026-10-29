@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { committedName } from '../../../utils/settingsListName'
+
 /*
  * One row of a SharedSettingsList: the name, renamed in place and saved when the input commits; the row's own
  * controls in the default slot; its state (archived, protected) as pill badges; and «Archive»/«Restore». An emptied
@@ -22,10 +24,8 @@ const hydrated = useHydrated()
 const disabled = computed(() => !hydrated.value || !props.canEdit || props.busy)
 
 function commit(event: Event) {
-  const input = event.target as HTMLInputElement
-  const name = input.value.trim()
-  if (!name) input.value = props.name
-  else if (name !== props.name) emit('rename', name)
+  const name = committedName(event.target as HTMLInputElement, props.name)
+  if (name) emit('rename', name)
 }
 </script>
 

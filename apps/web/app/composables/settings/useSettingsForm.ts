@@ -30,7 +30,9 @@ export function useSettingsForm<Source, Draft>(options: SettingsFormOptions<Sour
   const reloading = ref(false)
   const reloadFailed = ref(false)
   const dirty = computed(() => !same(draft.value, options.read(baseline.value)))
-  const conflict = computed(() => failure.value instanceof ApiError && failure.value.status === 409)
+  // Only a stale revision (409 `conflict`) locks the card; another 409 (the last access admin, a moved company) is a
+  // refusal the manager reads and answers in the draft.
+  const conflict = computed(() => failure.value instanceof ApiError && failure.value.status === 409 && failure.value.code === 'conflict')
   const message = computed(() => {
     if (!failure.value) return ''
     return conflict.value ? t('app.settingsConflict') : saveErrorMessage(failure.value, t('errors.generic'), t('errors.saveUncertain'))

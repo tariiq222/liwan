@@ -84,7 +84,7 @@ for (const status of [403, 409, 500]) {
   })
 }
 
-test('automatic settings save announces pending then confirmed success in place', async ({ page }) => {
+test('a settings card saves its draft with one button and keeps the draft locked while the save is pending', async ({ page }) => {
   let release!: () => void
   const gate = new Promise<void>(resolve => { release = resolve })
   await page.route('**/api/v1/settings/projects', async route => {
@@ -93,18 +93,22 @@ test('automatic settings save announces pending then confirmed success in place'
     await route.continue()
   })
   await enterFoundation(page, '/settings/apps/projects')
-  const control = page.getByRole('switch', { name: 'يشترط مدير المشروع', exact: true })
+  const card = page.locator('#project-creation')
+  const control = card.getByRole('switch', { name: 'يشترط مدير المشروع', exact: true })
+  const save = card.getByRole('button', { name: 'حفظ التغييرات', exact: true })
   await expect(control).toBeEnabled()
+  await expect(save).toBeDisabled()
   await control.click()
-  const feedback = page.getByTestId('settings-save-feedback')
+  await expect(save).toBeEnabled()
+  await save.click()
   try {
-    await expect(feedback).toContainText('جارٍ الحفظ')
     await expect(control).toBeDisabled()
   } finally { release() }
-  await expect(feedback).toHaveText('تم الحفظ')
+  await expect(control).toBeEnabled()
+  await expect(save).toBeDisabled()
 })
 
-test('an automatic save failure retains its stage draft and retries only on request', async ({ page }) => {
+test('a stage save failure retains its stage draft and retries only on request', async ({ page }) => {
   const patches: unknown[] = []
   await page.route('**/api/v1/settings/projects', async route => {
     if (route.request().method() !== 'PATCH') return route.continue()
@@ -116,12 +120,12 @@ test('an automatic save failure retains its stage draft and retries only on requ
   const name = 'مرحلة محفوظة بعد إعادة المحاولة'
   await page.getByTestId('stage-add-input').fill(name)
   await page.getByTestId('stage-add-input').press('Enter')
-  const feedback = page.getByTestId('settings-save-feedback')
+  const feedback = page.getByTestId('stage-save-feedback')
   await expect(feedback).toContainText('تعذر حفظ الإعدادات')
   await expect(page.getByTestId('stage-row').filter({ hasText: name })).toBeVisible()
   expect(patches).toHaveLength(1)
   await feedback.getByRole('button', { name: 'إعادة المحاولة', exact: true }).click()
-  await expect(feedback).toHaveText('تم الحفظ')
+  await expect(feedback).toHaveCount(0)
   expect(patches).toHaveLength(2)
   expect(patches[1]).toEqual(patches[0])
   await expect(page.getByTestId('stage-row').filter({ hasText: name })).toBeVisible()

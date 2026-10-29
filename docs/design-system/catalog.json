@@ -42,22 +42,22 @@
         {
           "id": "Inherited",
           "name": "Inherited",
-          "context": "apps/web/app/pages/settings/team/branches.vue:80"
+          "context": "apps/web/app/components/access/branches/BranchPolicyCard.vue:32"
         },
         {
           "id": "Delegated",
           "name": "Delegated",
-          "context": "apps/web/app/pages/settings/team/branches.vue:80"
+          "context": "apps/web/app/components/access/branches/BranchPolicyCard.vue:32"
         },
         {
           "id": "ReadOnly",
           "name": "ReadOnly",
-          "context": "apps/web/app/pages/settings/team/branches.vue:80"
+          "context": "apps/web/app/components/access/branches/BranchPolicyCard.vue:32"
         },
         {
           "id": "Empty",
           "name": "Empty",
-          "context": "apps/web/app/pages/settings/team/branches.vue:80"
+          "context": "apps/web/app/components/access/branches/BranchPolicyCard.vue:32"
         }
       ]
     },
@@ -703,12 +703,12 @@
         {
           "id": "Latest",
           "name": "آخر الأحداث",
-          "context": "apps/web/app/pages/settings/apps/finance/index.vue:316"
+          "context": "apps/web/app/pages/settings/apps/finance/index.vue:116"
         },
         {
           "id": "Empty",
           "name": "فارغة",
-          "context": "apps/web/app/pages/settings/apps/finance/index.vue:316"
+          "context": "apps/web/app/pages/settings/apps/finance/index.vue:116"
         }
       ]
     },
@@ -2592,17 +2592,17 @@
         {
           "id": "Connections",
           "name": "اتصالات",
-          "context": "apps/web/app/pages/settings/system/index.vue:18"
+          "context": "apps/web/app/pages/settings/system/index.vue:23"
         },
         {
           "id": "Empty",
           "name": "فارغة",
-          "context": "apps/web/app/pages/settings/system/index.vue:18"
+          "context": "apps/web/app/pages/settings/system/index.vue:23"
         },
         {
           "id": "Failed",
           "name": "تعذر التحميل",
-          "context": "apps/web/app/pages/settings/system/index.vue:18"
+          "context": "apps/web/app/pages/settings/system/index.vue:23"
         }
       ]
     },
@@ -6820,7 +6820,7 @@
         {
           "id": "FormPage",
           "name": "صفحة إعداد بنموذج",
-          "context": "apps/web/app/pages/settings/apps/projects.vue:19"
+          "context": "apps/web/app/pages/settings/apps/projects.vue:22"
         },
         {
           "id": "ListPage",
@@ -6830,7 +6830,7 @@
         {
           "id": "DetailPage",
           "name": "صفحة إعداد بتفاصيل",
-          "context": "apps/web/app/pages/subscription/index.vue:32"
+          "context": "apps/web/app/pages/subscription/index.vue:52"
         }
       ]
     },

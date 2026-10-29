@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 import { ApiError } from '../../useApi'
 
 const { useSettingsForm } = await import('../useSettingsForm')
@@ -51,5 +51,41 @@ describe('useSettingsForm', () => {
     await card.reload()
     expect(card.state.value.conflict).toBe(false)
     expect(card.draft.value.name).toBe('Z')
+  })
+
+  it('shows another 409 as a save error without locking the card', async () => {
+    const card = form(vi.fn(async () => { throw new ApiError(409, 'last_access_admin', 'at least one access administrator is required') }))
+    card.draft.value.name = 'B'
+    await card.save()
+    expect(card.state.value.conflict).toBe(false)
+    expect(card.state.value.message).toBe('at least one access administrator is required')
+  })
+
+  it('follows a refetch that leaves its own fields alone, and keeps the draft', async () => {
+    const card = form()
+    card.draft.value.name = 'B'
+    source.value = { revision: 2, name: 'A', days: 9 }
+    await nextTick()
+    expect(card.state.value.conflict).toBe(false)
+    expect(card.draft.value.name).toBe('B')
+    card.revert()
+    expect(card.draft.value.name).toBe('A')
+  })
+
+  it('locks a dirty card when a refetch changed the fields it owns', async () => {
+    const card = form()
+    card.draft.value.name = 'B'
+    source.value = { revision: 2, name: 'C', days: 3 }
+    await nextTick()
+    expect(card.state.value.conflict).toBe(true)
+    expect(card.draft.value.name).toBe('B')
+  })
+
+  it('a clean card adopts the refetched values', async () => {
+    const card = form()
+    source.value = { revision: 2, name: 'C', days: 3 }
+    await nextTick()
+    expect(card.draft.value.name).toBe('C')
+    expect(card.state.value.dirty).toBe(false)
   })
 })

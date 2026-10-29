@@ -69,13 +69,6 @@ export function financeFiscalDraftFromValues(values: FinanceFiscalValues): Finan
   return draft
 }
 
-/** The draft before any setup was read: empty, never a fabricated 31 December the server did not send. */
-export function emptyFinanceFiscalDraft(): FinanceFiscalDraft {
-  const draft = { fiscalyear_last_day: '', fiscalyear_last_month: '' } as FinanceFiscalDraft
-  for (const field of FINANCE_FISCAL_LOCK_FIELDS) draft[field] = null
-  return draft
-}
-
 function readNumber(value: string): number | null {
   if (!POSITIVE_INTEGER.test(value)) return null
   return Number(value)
@@ -100,13 +93,6 @@ export function financeFiscalIssues(draft: FinanceFiscalDraft, baseline: Finance
     if (current && value !== null && value < current) issues.push({ field, code: 'lockCannotMoveEarlier' })
   }
   return issues
-}
-
-/** Whether the draft differs from the saved values at all; an unchanged card sends nothing. */
-export function financeFiscalDirty(draft: FinanceFiscalDraft, baseline: FinanceFiscalDraft): boolean {
-  return draft.fiscalyear_last_day !== baseline.fiscalyear_last_day
-    || draft.fiscalyear_last_month !== baseline.fiscalyear_last_month
-    || FINANCE_FISCAL_LOCK_FIELDS.some(field => draft[field] !== baseline[field])
 }
 
 /** The changed fields only, or null when there is nothing to send: either no change or a draft the

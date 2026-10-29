@@ -4,7 +4,8 @@
  * (`.webvue-setting-rows`), and one footer with «Revert» and «Save changes». A viewer who may not edit sees the same
  * fields disabled, a «View only» badge and no footer. A failed save shows inside the card; a 409 locks the card until
  * the manager reloads the current values, so a stale draft never overwrites a change made elsewhere.
- * The state comes from the page's form composable; the card only draws it.
+ * The state comes from the page's form composable; the card only draws it. UForm's own submit loading is off: it would
+ * disable every field for a tick, so a card could not move focus to its first invalid field.
  */
 const props = withDefaults(defineProps<{
   id: string
@@ -27,7 +28,7 @@ const busy = computed(() => !hydrated.value || props.saving || props.reloading)
 </script>
 
 <template>
-  <UForm novalidate :state="{}" class="webvue-form" method="post" data-slot="settings-card" @submit="$emit('save')">
+  <UForm novalidate :state="{}" :loading-auto="false" class="webvue-form" method="post" data-slot="settings-card" @submit="$emit('save')">
     <SharedUnsavedChanges :dirty="canEdit && (dirty || saving)" />
     <SharedRecordSection :id="id" variant="panel" class="webvue-settings-anchor" :title="title" :description="description">
       <template v-if="!canEdit || $slots.actions" #actions>
