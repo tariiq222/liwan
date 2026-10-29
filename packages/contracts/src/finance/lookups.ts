@@ -9,3 +9,11 @@ export const FinanceDebitNoteCreateSchema = z.object({
 }).strict()
 
 export type FinanceDebitNoteCreate = z.infer<typeof FinanceDebitNoteCreateSchema>
+
+// The reversal always copies the lines; both keys are optional and the date defaults to today in Odoo.
+export const FinanceCreditNoteCreateSchema = z.object({
+  reason: text.optional(),
+  date: day.optional(),
+}).strict()
+
+export type FinanceCreditNoteCreate = z.infer<typeof FinanceCreditNoteCreateSchema>

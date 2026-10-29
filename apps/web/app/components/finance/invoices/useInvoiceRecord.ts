@@ -2,6 +2,7 @@ import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 import { statusTag, type PageHeaderTag } from '@webvue/ui/app/utils/pageHeaderTag'
 import { ApiError } from '@/composables/useApi'
 import {
+  useCreateFinanceCreditNote,
   useCreateFinanceDebitNote,
   useDeleteFinanceInvoice,
   useFinanceInvoice,
@@ -16,7 +17,7 @@ import { financeErrorKey, zatcaSubmissionFromDetails } from './invoiceErrors'
 import { INVOICE_KINDS, invoiceKindOf, invoiceRecordPath, invoiceTitle, type FinanceMoveType } from './invoiceKinds'
 import { INVOICE_STATE_TONE, PAYMENT_STATE_TONE, ZATCA_STATE_TONE } from './invoiceTones'
 
-export type Confirmation = 'delete' | 'cancel' | 'reset' | 'debit' | null
+export type Confirmation = 'delete' | 'cancel' | 'reset' | 'debit' | 'credit' | null
 
 /**
  * The state of one document's record page: the loaded record, the heading props of SharedRecordPage (state tags, back
@@ -61,14 +62,16 @@ export function useInvoiceRecord(moveType: FinanceMoveType) {
   const confirming = ref<Confirmation>(null)
   const debitReason = ref('')
   const debitCopyLines = ref(true)
+  const creditReason = ref('')
   const actionError = ref('')
   const zatcaMessages = ref<ReturnType<typeof zatcaSubmissionFromDetails>>(null)
 
   const transition = useFinanceInvoiceTransition()
   const removal = useDeleteFinanceInvoice()
   const debitNote = useCreateFinanceDebitNote()
+  const creditNote = useCreateFinanceCreditNote()
   const zatcaSubmit = useFinanceZatcaSubmit()
-  const busy = computed(() => transition.isPending.value || removal.isPending.value || debitNote.isPending.value || zatcaSubmit.isPending.value)
+  const busy = computed(() => transition.isPending.value || removal.isPending.value || debitNote.isPending.value || creditNote.isPending.value || zatcaSubmit.isPending.value)
 
   const failure = (cause: unknown) => financeErrorMessage(cause, financeErrorKey, t)
   async function attempt(work: () => Promise<unknown>) {
@@ -99,6 +102,16 @@ export function useInvoiceRecord(moveType: FinanceMoveType) {
     })
     if (done && created) await navigateTo({ path: invoiceRecordPath(created.move_type, created.id), query: { returnTo: backTo.value } })
   }
+  async function createCreditNote() {
+    const record = invoice.value
+    if (!record) return
+    let created: { id: number; move_type: typeof record.move_type } | undefined
+    const reason = creditReason.value.trim()
+    const done = await attempt(async () => {
+      created = await creditNote.mutateAsync({ id: record.id, body: reason ? { reason } : {} })
+    })
+    if (done && created) await navigateTo({ path: invoiceRecordPath(created.move_type, created.id), query: { returnTo: backTo.value } })
+  }
   const sendToZatca = (retry: boolean) => attempt(() => zatcaSubmit.mutateAsync({ id: id.value, retry }))
 
   const menu = computed(() => {
@@ -106,6 +119,7 @@ export function useInvoiceRecord(moveType: FinanceMoveType) {
     if (!set) return []
     return offeredMenuItems(set, [
       ['debit_note', { label: t('financeDocuments.actions.debitNote'), icon: 'i-lucide-file-plus-2', onSelect: () => { confirming.value = 'debit' } }],
+      ['credit_note', { label: t('financeDocuments.actions.creditNote'), icon: 'i-lucide-file-minus-2', onSelect: () => { confirming.value = 'credit' } }],
       ['zatca_submit', { label: t('financeDocuments.actions.zatcaSubmit'), icon: 'i-lucide-send', onSelect: () => { void sendToZatca(false) } }],
       ['zatca_retry', { label: t('financeDocuments.actions.zatcaRetry'), icon: 'i-lucide-refresh-cw', onSelect: () => { void sendToZatca(true) } }],
       ['reset_to_draft', { label: t('financeDocuments.actions.resetToDraft'), icon: 'i-lucide-undo-2', destructive: true, onSelect: () => { confirming.value = 'reset' } }],
@@ -136,17 +150,21 @@ export function useInvoiceRecord(moveType: FinanceMoveType) {
     confirming,
     debitReason,
     debitCopyLines,
+    creditReason,
     actionError,
     zatcaMessages,
     paymentTo: computed(() => registerPaymentLink([id.value], route.fullPath)),
     pdfHref: computed(() => `/api/v1/finance/invoices/${id.value}/pdf`),
+    creditOriginTo: computed(() => invoice.value?.credit_origin ? { path: invoiceRecordPath(invoice.value.move_type, invoice.value.credit_origin.id), query: { returnTo: backTo.value } } : null),
     debitOriginTo: computed(() => invoice.value?.debit_origin ? { path: invoiceRecordPath(invoice.value.move_type, invoice.value.debit_origin.id), query: { returnTo: backTo.value } } : null),
     posting: transition.isPending,
     removing: removal.isPending,
     creatingDebitNote: debitNote.isPending,
+    creatingCreditNote: creditNote.isPending,
     change,
     remove,
     createDebitNote,
+    createCreditNote,
   })
 }
 

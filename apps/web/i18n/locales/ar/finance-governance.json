@@ -150,6 +150,7 @@
         "invoice_changed": "تعديل فاتورة",
         "invoice_deleted": "حذف فاتورة",
         "invoice_debit_note_created": "إنشاء إشعار مدين لفاتورة",
+        "invoice_credit_note_created": "إنشاء إشعار دائن لفاتورة",
         "invoice_posted": "ترحيل فاتورة",
         "invoice_cancelled": "إلغاء فاتورة",
         "invoice_reset_to_draft": "إعادة فاتورة إلى مسودة",

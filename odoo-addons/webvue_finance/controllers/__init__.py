@@ -11,6 +11,7 @@ from . import (
     finance_budgets,
     finance_cash_flow,
     finance_closing,
+    finance_credit_notes,
     finance_debit_notes,
     finance_documents,
     finance_entries,

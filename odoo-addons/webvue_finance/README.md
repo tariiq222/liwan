@@ -29,7 +29,7 @@ statements with reconciliation and the Zakat base come from pinned, unmodified O
 | `GET /entries` (`state`, `journal_id`, `date_from`, `date_to`, `q`), `GET /entries/<id>` | `finance.entries.read` |
 | `POST /entries` (201, a draft), `PATCH /entries/<id>`, `DELETE /entries/<id>` (204) | `finance.entries.manage` |
 | `POST /entries/<id>/post`, `/reset-to-draft`, `/unreconcile` | `finance.entries.post` |
-| `POST /invoices/<id>/debit-note` (201, a draft) | `finance.invoices.manage` |
+| `POST /invoices/<id>/debit-note`, `POST /invoices/<id>/credit-note` (201, a draft) | `finance.invoices.manage` |
 | `GET /countries` (`q`), `GET /countries/<id>/states` (`q`) | `finance.partners.read` or `finance.setup.read` |
 | `GET /reports/trial-balance`, `/reports/general-ledger`, `/reports/cash-flow`, `/reports/aged-partner-balance`, `/reports/partner-statement`, `/reports/profit-loss`, `/reports/balance-sheet` | `finance.statements.read` |
 | `GET /reports/zakat-base`, `GET /zakat/adjustments?date_to`, `GET /zakat/reviews?date_to` | `finance.zakat.read` |
@@ -77,7 +77,7 @@ asset, and every payment, carry two lists built by `webvue.finance.actions` (`mo
 decides it from the record's state, the caller's capability in the record's company, the tenant's write entitlement and the
 facts that refuse the action:
 
-- `allowed_actions`: the actions that can run now (invoice `edit delete post reset_to_draft cancel debit_note register_payment
+- `allowed_actions`: the actions that can run now (invoice `edit delete post reset_to_draft cancel debit_note credit_note register_payment
   pdf zatca_submit zatca_retry`; entry `edit delete post reset_to_draft unreconcile`; payment `cancel reset_to_draft post edit
   allocate unallocate`; budget `confirm reset_to_draft cancel edit_lines`; asset `validate edit delete dispose`);
 - `blocked_actions`: `[{action, reason}]` for an action the state and the caller's role offer but a fact refuses, so the page
@@ -400,6 +400,15 @@ lines are not copied by default) and runs the public `account.debit.note` wizard
 customer invoice or vendor bill that is not itself a debit note can be debited: a draft is 422 `not_posted`, a credit
 note or a debit note 422 `invalid_state`. It answers 201 with the new draft invoice (`debit_origin_id` links it to the
 original), which is then posted through the normal `/invoices/<id>/post` route.
+
+## Credit notes
+
+`POST /invoices/<id>/credit-note` takes the optional `{reason, date}` (date defaults to today in Odoo) and runs the public
+`account.move.reversal` wizard of `account`, which always reverses every line (no partial amount: edit the draft's lines
+before posting for a partial credit). Only a posted customer invoice or vendor bill can be credited: a draft or cancelled
+invoice is 422 `not_posted`, a credit note 422 `invalid_state`, a date in a locked period 422 `period_locked`. It answers 201
+with the new draft credit note (`out_refund` / `in_refund`; `credit_origin` links it to the invoice, the serializer's name for
+`reversed_entry_id`). Posting it through `/invoices/<id>/post` reconciles it with the invoice and lowers its residual.
 
 ## Lookups
 
