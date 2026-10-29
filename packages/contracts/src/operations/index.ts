@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { PersonRefSchema } from '../common/person'
 
+export * from './bell'
+
 const Id = z.number().int().positive()
 const Revision = z.number().int().nonnegative()
 const Ref = z.object({ id: Id, name: z.string() }).strict()

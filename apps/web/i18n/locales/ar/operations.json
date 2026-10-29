@@ -161,6 +161,12 @@
     },
     "attention": {
       "from": "من {name}"
+    },
+    "bell": {
+      "reviewRequested": "طلب بانتظار مراجعتك: {name}",
+      "approved": "تم اعتماد طلبك: {name}",
+      "rejected": "تم رفض طلبك: {name}",
+      "returned": "أُعيد طلبك للتعديل: {name}"
     }
   }
 }

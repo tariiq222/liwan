@@ -1,4 +1,6 @@
+import { OperationBellKindSchema } from '@webvue/contracts'
 import type { AppManifest } from '../types'
+import { operationBellHref, operationBellTitleInApp } from './bell'
 import { operationPersonalEntry } from './personal'
 import { pendingReviewAttention } from './attention'
 const manifest: AppManifest = {
@@ -35,6 +37,10 @@ const manifest: AppManifest = {
     { pattern: /^\/operations(?:\/|$)/, capability: 'operations.requests.read' },
   ],
   attention: [pendingReviewAttention],
+  bell: {
+    capabilities: ['operations.requests.read'],
+    kinds: OperationBellKindSchema.options.map(kind => ({ kind, href: operationBellHref, title: operationBellTitleInApp })),
+  },
   personal: [operationPersonalEntry],
   isNavActive(path, target) {
     if (target === '/operations') return path === '/operations' || /^\/operations\/\d+(?:\/|$)/.test(path)

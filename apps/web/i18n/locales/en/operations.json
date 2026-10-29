@@ -161,6 +161,12 @@
     },
     "attention": {
       "from": "From {name}"
+    },
+    "bell": {
+      "reviewRequested": "A request is waiting for your review: {name}",
+      "approved": "Your request was approved: {name}",
+      "rejected": "Your request was refused: {name}",
+      "returned": "Your request was returned for changes: {name}"
     }
   }
 }
