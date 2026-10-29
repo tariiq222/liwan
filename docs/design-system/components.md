@@ -244,6 +244,15 @@ Meetings use SharedListPage/DataTable/RecordPage/TimelineFrame/StandalonePage. C
 | `apps/web/app/components/payments/PayDocumentSummary.vue` | ما يراه الدافع من الفاتورة أو الطلب: المبلغ المستحق بخط كبير في `SharedSubCard` ثم الجهة المصدرة والرقم وآخر موعد (تاريخ استحقاق الفاتورة، أو تاريخ ووقت انتهاء مهلة الطلب بأرقام لاتينية) وإجمالي المستند إن اختلف عن المستحق (عربون الطلب)؛ قصة: `apps/web/stories/payments/PayDocumentSummary.stories.ts` | — | `SharedSubCard`, `SharedPropertyRow` |
 | `apps/web/app/components/payments/OrderSettingsCard.vue` | إعدادات الطلبات الإلكترونية: مهلة دفع الطلب غير المدفوع بالدقائق (للشركة الحالية) ومفتاح «إصدار الفاتورة عند الدفع» (للحساب كله)؛ يرسل المتغير فقط مع رقم المراجعة، وعند التعارض (409) يقرأ المحفوظ ويعرضه ويخبر المدير؛ قصة: `apps/web/stories/payments/OrderSettingsCard.stories.ts` | — | `SharedFormSection`, `SharedFormActions`, `SharedUnsavedChanges`, `UForm`, `UFormField`, `UInputNumber`, `USwitch`, `UAlert`, `UButton` |
 
+## مكونات المواعيد
+
+صفحة الحجز العامة للمدعو (`/book/<id>?access_token=…`) بلا حساب ولا جلسة (`access: 'public'` في page meta)، وهي `SharedStandalonePage` بطاقة مركزية برأس `BookHeader`. تعرض الحجز (النوع والمدة والحالة والوقت) وتتيح اختيار وقت وجدولته أو نقله، وتأكيد الموعد حين تطلب الشركة ذلك، وإلغاءه بتأكيد مضمّن (`SharedInlineConfirm`). الأيام والأوقات بتوقيت متصفح المدعو وتُرسم في المتصفح فقط. بعد الإلغاء يزول الرمز، فتبقى الصفحة على جواب الإلغاء ولا تعيد القراءة.
+
+| المكوّن | الوظيفة | القصة | مكونات الأساس |
+| --- | --- | --- | --- |
+| `apps/web/app/components/appointments/BookHeader.vue` | رأس بطاقة صفحة الحجز العامة: شعار المستأجر واسمه فوق عنوان الصفحة `<h1>`، بلا أي من إطار ويب فيو؛ يملأ فتحة `#header` في `SharedStandalonePage` | — | `SharedStandalonePage` (فتحة الرأس) |
+| `apps/web/app/components/appointments/BookSlotPicker.vue` | اختيار الوقت: أسبوع من الأيام في كل مرة (من اليوم إلى آخر يوم تقبل فيه الشركة حجزًا) مع سابق وتالٍ، وأوقات اليوم المختار خيارات راديو بنطاق الوقت، وزر الجدولة أو النقل | — | `URadioGroup`, `UButton`, `UAlert`, `SharedLoadingSkeleton` |
+
 ## مكونات المالية — المستندات والدفعات
 
 مكونات مستندات المالية (فواتير العملاء والإشعارات الدائنة وفواتير الموردين ومرتجعاتهم) والدفعات؛ محلية لتطبيق المالية وتعيد استخدام لبنات Storybook المشتركة. الصفحات تملك قوالبها (`SharedListPage` و`SharedRecordPage` و`SharedCreatePanel`) وترويساتها من composables بجوار المكونات (`useInvoiceListPage` و`useInvoiceCreatePage` و`useInvoiceRecord` و`usePaymentListPage` و`usePaymentCreatePage`)؛ نوع المستند معامل واحد (`move_type`) لقائمة واحدة ونموذج واحد وسجل واحد، والصلاحيات والحالات من الخادم.
