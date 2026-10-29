@@ -159,7 +159,7 @@ function retry() {
       </SharedFormSection>
     </SharedPageState>
     </section>
-    <section id="branch-access" class="webvue-settings-anchor">
+    <section v-if="shows('branch-access')" id="branch-access" class="webvue-settings-anchor">
       <BranchStrictCard scope="hr" path="/api/v1/hr/branch-strictness" :can-read="can('hr.employees.manage')" :can-edit="can('hr.employees.manage')" />
     </section>
     <section v-if="shows('leave')" id="leave" class="webvue-settings-anchor">

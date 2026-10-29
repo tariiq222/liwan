@@ -82,22 +82,25 @@ describe('branch preset card', () => {
 })
 
 function mountStrict(initial: { scope: string; enabled: boolean } | undefined, canEdit = true) {
+  const me = Vue.ref<{ id: number; company: { id: number } } | null>({ id: 1, company: { id: 10 } })
   const mutateAsync = vi.fn(async (body: { enabled: boolean }) => ({ scope: 'payroll', enabled: body.enabled }))
   const data = Vue.ref(initial)
-  const component = loadShared(resolve(import.meta.dirname, '../BranchStrictCard.vue'), {
-    globals: common,
-    modules: {
-      '@/composables/settings/useSettingsForm': { useSettingsForm },
-      '@/composables/useBranchStrictness': {
-        useBranchStrictness: () => ({ data, refetch: async () => ({ data: data.value, isError: false }) }),
-        useUpdateBranchStrictness: () => ({ mutateAsync }),
-      },
+  const strictModules = {
+    '@/composables/settings/useSettingsForm': { useSettingsForm },
+    '@/composables/useBranchStrictness': {
+      useBranchStrictness: () => ({ data, refetch: async () => ({ data: data.value, isError: false }) }),
+      useUpdateBranchStrictness: () => ({ mutateAsync }),
     },
+  }
+  const form = loadShared(resolve(import.meta.dirname, '../BranchStrictForm.vue'), { globals: common, modules: strictModules })
+  const component = loadShared(resolve(import.meta.dirname, '../BranchStrictCard.vue'), {
+    globals: { ...common, useMe: () => ({ me }) },
+    modules: { ...strictModules, '@/components/access/branches/BranchStrictForm.vue': { __esModule: true, default: form } },
   })
   const app = hostRenderer.createApp({ render: () => Vue.h(component, { scope: 'payroll', path: '/api/v1/hr/payroll/branch-strictness', canRead: true, canEdit }) })
   for (const [name, stub] of Object.entries(stubs)) app.component(name, stub)
   const root = createHostNode(); app.mount(root)
-  return { app, root, mutateAsync, switchNode: () => findNode(root, n => n.props['data-switch'] !== undefined)! }
+  return { app, root, mutateAsync, me, data, switchNode: () => findNode(root, n => n.props['data-switch'] !== undefined)! }
 }
 
 describe('branch strict card', () => {
@@ -115,6 +118,14 @@ describe('branch strict card', () => {
     expect(view.switchNode().props['data-switch']).toBe(true)
     ;(view.switchNode().props.onClick as () => void)(); await settle()
     expect(textOf(view.root)).toContain('access.branches.strict.widens')
+    view.app.unmount()
+  })
+  it('drops an unsaved edit when the company changes, so it never saves into another company', async () => {
+    const view = mountStrict({ scope: 'payroll', enabled: false })
+    ;(view.switchNode().props.onClick as () => void)(); await settle()
+    expect(view.switchNode().props['data-switch']).toBe(true)
+    view.me.value = { id: 1, company: { id: 11 } }; await settle()
+    expect(view.switchNode().props['data-switch']).toBe(false)
     view.app.unmount()
   })
   it('passes the edit right to the card', () => {
