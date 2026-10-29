@@ -34,13 +34,17 @@ CAPABILITY_KEY = re.compile(r'<field name="key">([a-z_]+(?:\.[a-z_]+)+)</field>'
 METHODS = ('GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE')
 
 
+def _generic_params(path):
+    """`/pay/[kind]/[id]` -> `/pay/[id]/[id]`: a page parameter's name does not identify the page."""
+    return re.sub(r'\[\[[^\]]+\]\]', '[[id]]', re.sub(r'(?<!\[)\[[^\[\]]+\](?!\])', '[id]', path))
+
+
 def page_route(relative):
     """`hr/leave/[leaveId].vue` -> `/hr/leave/[id]`; index files map to their folder."""
     parts = [part for part in Path(relative).with_suffix('').parts if not part.startswith('(')]
     if parts and parts[-1] == 'index':
         parts = parts[:-1]
-    parts = [re.sub(r'\[\[[^\]]+\]\]', '[[id]]', re.sub(r'(?<!\[)\[[^\[\]]+\](?!\])', '[id]', part)) for part in parts]
-    return '/' + '/'.join(parts)
+    return _generic_params('/' + '/'.join(parts))
 
 
 def pages(folder, kind):
@@ -52,9 +56,12 @@ def odoo_route(path, method):
 
 
 def _value(node, constants):
-    """A literal, a module-level string constant or an f-string built from them; None otherwise."""
+    """A literal, a module-level string constant, or an f-string or `+` join built from them; None otherwise."""
     if isinstance(node, ast.Name):
         return constants.get(node.id)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        left, right = _value(node.left, constants), _value(node.right, constants)
+        return left + right if isinstance(left, str) and isinstance(right, str) else None
     if isinstance(node, ast.JoinedStr):
         parts = [
             part.value if isinstance(part, ast.Constant) else _value(part.value, constants)
@@ -131,7 +138,8 @@ def surfaces():
 def referenced_tokens(folder=SCENARIOS):
     # README.md explains the token syntax with examples; only the register files count.
     files = [path for path in folder.glob('*.md') if path.name != 'README.md']
-    return {match for path in files for match in TOKEN.findall(path.read_text(encoding='utf-8'))}
+    matches = {match for path in files for match in TOKEN.findall(path.read_text(encoding='utf-8'))}
+    return {_generic_params(match) if match.startswith(('page ', 'vendor ')) else match for match in matches}
 
 
 def report(groups, referenced, only=None):

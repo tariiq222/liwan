@@ -87,12 +87,31 @@ def _register_departure(payload):
     )
 
 
+def _move_contract_end(employee, vals):
+    """Carry the contract end the departure set along with a corrected departure date.
+
+    The register step ends the current contract on the departure date; a contract end that still
+    equals the old departure date was set by it, so it follows the new date (a later or earlier end
+    the user chose by hand stays as it is).
+    """
+    version = employee.version_id
+    if not version.contract_date_start or version.contract_date_end != employee.departure_date:
+        return
+    if vals['departure_date'] < version.contract_date_start:
+        raise ApiError(
+            422, 'invalid', "departure_date can't be earlier than the contract start", field='departure_date',
+        )
+    vals['contract_date_end'] = vals['departure_date']
+
+
 def _patch_departure(employee_id, payload):
     vals = parse_departure_patch(payload)
     employee = _departed_employee(employee_id)
     _reject_self_decision(employee)
     if 'departure_reason_id' in vals:
         vals['departure_reason_id'] = _departure_reason(vals['departure_reason_id']).id
+    if 'departure_date' in vals:
+        _move_contract_end(employee, vals)
     employee._webvue_write(vals)
     return dump_departure(employee, _clearance_run(employee))
 

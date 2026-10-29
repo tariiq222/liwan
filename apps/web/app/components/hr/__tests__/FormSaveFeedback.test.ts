@@ -20,7 +20,7 @@ async function load(file: string) {
   const transpile = (s: string) => ts.transpileModule(s, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText
   const messages = JSON.parse(readFileSync(resolve(root, '../i18n/locales/ar/hr.json'), 'utf8'))
   const t = (key: string) => key.split('.').reduce((value: any, key) => value?.[key], messages) ?? key
-  const employee = { id: 9, name: 'مسودة', job_title: '', department: null, work_email: 'draft@example.test', work_phone: '', user_id: null, manager: null, active: true, access: null }
+  const employee = { id: 9, name: 'مسودة', job_title: '', department: null, work_email: 'draft@example.test', work_phone: '', user_id: null, manager: null, active: true, access: null, nationality: null }
   const department = { id: 9, name: 'مسودة', parent_id: null, manager: null, child_ids: [], employee_count: 0 }
   const result = file.startsWith('Employee') ? employee : department
   const mutation = vi.fn(async (_data: unknown) => result)
@@ -33,6 +33,7 @@ async function load(file: string) {
     _defineComponent: Vue.defineComponent, computed: Vue.computed, ref: Vue.ref, watch: Vue.watch,
     useI18n: () => ({ t }), useHydrated: () => Vue.ref(true), useAccess: () => ({ can: () => true }), useToast: () => ({ add: toast }),
     refDebounced: (value: unknown) => value,
+    useHrCountries: () => ({ data: Vue.ref({ items: [], total: 0 }), isFetching: Vue.ref(false) }),
     useCreateHrEmployee: mutationHook, useUpdateHrEmployee: mutationHook, useCreateDepartment: mutationHook, useUpdateDepartment: mutationHook,
     useHrEmployees: list, useHrEmployee: () => ({ data: Vue.ref(null), error: Vue.ref(null), refetch: vi.fn() }),
     saveErrorMessage, nextTick: Vue.nextTick, hrManagerOptions, retryHrManagerQueries: vi.fn(), getAllowedParentIds, ApiError,
