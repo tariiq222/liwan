@@ -11,10 +11,10 @@ const KHALID = { id: 2, name: 'خالد الشمري' }
 const AHMAD = { id: 1, name: 'أحمد العتيبي' }
 
 const employees = [
-  { id: 1, name: SARA.name, job_title: 'مديرة العمليات', department: OPS, work_email: 'sara@example.test', work_phone: '+966500000001', user_id: 1, manager: AHMAD, active: true, access: { user_id: 1, login: 'sara', role: 'admin', active: true }, contract: null },
-  { id: 2, name: KHALID.name, job_title: 'محلل موارد بشرية', department: PEOPLE, work_email: 'khalid@example.test', work_phone: '+966500000002', user_id: null, manager: SARA, active: true, access: null, contract: null },
-  { id: 3, name: 'منى القحطاني', job_title: '', department: null, work_email: '', work_phone: '', user_id: null, manager: null, active: true, access: null, contract: null },
-  { id: 4, name: 'ليلى الدوسري', job_title: 'منسقة', department: OPS, work_email: 'laila@example.test', work_phone: '', user_id: 4, manager: SARA, active: false, access: { user_id: 4, login: 'laila', role: 'employee', active: false }, contract: null },
+  { id: 1, name: SARA.name, job_title: 'مديرة العمليات', department: OPS, work_email: 'sara@example.test', work_phone: '+966500000001', user_id: 1, manager: AHMAD, active: true, access: { user_id: 1, login: 'sara', role: 'admin', active: true }, nationality: null, contract: null },
+  { id: 2, name: KHALID.name, job_title: 'محلل موارد بشرية', department: PEOPLE, work_email: 'khalid@example.test', work_phone: '+966500000002', user_id: null, manager: SARA, active: true, access: null, nationality: null, contract: null },
+  { id: 3, name: 'منى القحطاني', job_title: '', department: null, work_email: '', work_phone: '', user_id: null, manager: null, active: true, access: null, nationality: null, contract: null },
+  { id: 4, name: 'ليلى الدوسري', job_title: 'منسقة', department: OPS, work_email: 'laila@example.test', work_phone: '', user_id: 4, manager: SARA, active: false, access: { user_id: 4, login: 'laila', role: 'employee', active: false }, nationality: null, contract: null },
 ]
 const departments = [
   { id: 1, name: OPS.name, parent_id: null, manager: SARA, child_ids: [3], employee_count: 4 },
@@ -67,7 +67,7 @@ export function hrPreviewData(path, url) {
   const route = String(path || '/').replace(/\/+$/, '') || '/'
   const q = url.searchParams.get('q') ?? ''
   const department = Number(url.searchParams.get('department_id') ?? 0)
-  if (route === '/api/v1/hr/me') return { ...employees[0], access: null, contract: null }
+  if (route === '/api/v1/hr/me') return { ...employees[0], access: null, nationality: null, contract: null }
   if (route.startsWith('/api/v1/hr/leave/me/')) {
     const leave = byId(leaves, route, '/api/v1/hr/leave/me')
     return leave?.employee.id === SARA.id ? leave : undefined

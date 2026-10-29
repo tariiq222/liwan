@@ -5,7 +5,7 @@ import { me } from '../fixtures/pmo'
 export const employee: HrEmployee = {
   id: 4, name: 'سارة القحطاني', job_title: 'أخصائية موارد بشرية', department: { id: 2, name: 'الموارد البشرية' },
   work_email: 'sara@example.com', work_phone: '+966500000000', user_id: 2, manager: { id: 3, name: 'نورة العتيبي' },
-  active: true, access: null, contract: null,
+  active: true, access: null, nationality: null, contract: null,
 }
 export const leave: HrLeave = {
   id: 12, employee: { id: 4, name: employee.name }, leave_type: { id: 2, name: 'إجازة سنوية' },

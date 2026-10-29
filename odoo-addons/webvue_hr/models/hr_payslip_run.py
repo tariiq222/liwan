@@ -111,6 +111,28 @@ class HrPayslipRun(models.Model):
         compensated = self.env['webvue.hr.compensation'].search([('employee_id', 'in', employees.ids)]).employee_id
         return employees & compensated
 
+    def _webvue_uncontracted_employees(self):
+        """Employees with a compensation record that the run leaves out because no contract runs in the month.
+
+        Typical cause: a contract without a start date. Leavers before the month and employees whose
+        first contract starts after it are not owed this month, so they are not listed.
+        """
+        self.ensure_one()
+        compensated = self.env['webvue.hr.compensation'].search([
+            ('employee_id.company_id', '=', self.company_id.id),
+        ]).employee_id.filtered('active')
+        unpaid = compensated - self._webvue_period_employees()
+        versions = self.env['hr.version'].search([('employee_id', 'in', unpaid.ids)])
+
+        def starts_later(employee):
+            own = versions.filtered(lambda version: version.employee_id == employee)
+            return bool(own) and all(version.contract_date_start and version.contract_date_start > self.date_end for version in own)
+
+        return unpaid.filtered(
+            lambda employee: not (employee.departure_date and employee.departure_date < self.date_start)
+            and not starts_later(employee),
+        ).sorted('name')
+
     def _webvue_sync_payslips(self):
         """Make the payslips match who is eligible: add the missing ones, drop the ones no longer due."""
         for run in self:
@@ -318,13 +340,18 @@ class HrPayslipRun(models.Model):
         }
 
     def _webvue_warnings(self):
-        """``[{code, employee}]``: employees under contract without compensation, payslips without an IBAN."""
+        """``[{code, employee}]``: employees under contract without compensation, compensated employees
+        without a running contract, payslips without an IBAN."""
         self.ensure_one()
         employees = self._webvue_period_employees()
         warnings = [
             {'code': 'compensation_missing', 'employee': employee}
             for employee in employees - self._webvue_compensated_employees()
         ]
+        warnings.extend(
+            {'code': 'contract_missing', 'employee': employee}
+            for employee in self._webvue_uncontracted_employees()
+        )
         missing = self.slip_ids._webvue_iban_missing()
         warnings.extend(
             {'code': 'missing_iban', 'employee': slip.employee_id}

@@ -116,6 +116,37 @@ class TestHrContracts(WebVueHrCase):
             self.env['hr.version'].with_user(user).search([('id', '=', foreign.version_id.id)]),
         )
 
+    def test_nationality_is_set_through_the_product_and_feeds_the_gosi_class(self):
+        saudi = self.env.ref('base.sa')
+        self.authenticate('hr_contract_admin', 'hr_contract_admin_pass_123')
+        self.assertIsNone(self.api('GET', f'/api/v1/hr/employees/{self.hr_emp.id}').json()['nationality'])
+        res = self.api('PATCH', f'/api/v1/hr/employees/{self.hr_emp.id}', {'nationality_id': saudi.id})
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertEqual(res.json()['nationality'], {'id': saudi.id, 'name': saudi.name})
+        self.assertEqual(self.hr_emp.current_version_id.country_id, saudi)
+        # The GOSI class payroll computes is read from that same nationality.
+        compensation = self.env['webvue.hr.compensation'].new({'gosi_registration_date': '2020-01-01'})
+        self.assertEqual(
+            self.env['webvue.hr.payroll.calculator']._webvue_gosi_class(self.hr_emp, compensation),
+            'saudi_before_2024',
+        )
+        created = self.api('POST', '/api/v1/hr/employees', {'name': 'With Nationality', 'nationality_id': saudi.id})
+        self.assertEqual(created.status_code, 201, created.text)
+        self.assertEqual(created.json()['nationality']['id'], saudi.id)
+        cleared = self.api('PATCH', f'/api/v1/hr/employees/{self.hr_emp.id}', {'nationality_id': None})
+        self.assertIsNone(cleared.json()['nationality'])
+
+    def test_nationality_rejects_an_unknown_country_and_stays_private(self):
+        self.authenticate('hr_contract_admin', 'hr_contract_admin_pass_123')
+        res = self.api('PATCH', f'/api/v1/hr/employees/{self.hr_emp.id}', {'nationality_id': 999999999})
+        self.assertEqual((res.status_code, res.json()['field']), (422, 'nationality_id'))
+        countries = self.api('GET', '/api/v1/hr/countries?q=saudi')
+        self.assertEqual(countries.status_code, 200, countries.text)
+        self.assertIn('SA', {item['code'] for item in countries.json()['items']})
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        self.assertIsNone(self.api('GET', f'/api/v1/hr/employees/{self.hr_emp.id}').json()['nationality'])
+        self.assertEqual(self.api('GET', '/api/v1/hr/countries').status_code, 403)
+
     def test_negative_notice_period_is_rejected(self):
         with self.assertRaises(IntegrityError), mute_logger('odoo.sql_db'), self.cr.savepoint():
             self.hr_emp.write({'notice_period_days': -1})

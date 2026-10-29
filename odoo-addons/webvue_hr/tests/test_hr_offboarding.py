@@ -159,6 +159,23 @@ class TestHrOffboarding(WebVueHrCase):
         empty = self.api('PATCH', f'/api/v1/hr/offboarding/departures/{self.employee_record.id}', json={})
         self.assertEqual((empty.status_code, empty.json()['code']), (422, 'invalid'))
 
+    def test_departure_patch_moves_the_contract_end_the_departure_set(self):
+        self._as_manager()
+        self._register()
+        url = f'/api/v1/hr/offboarding/departures/{self.employee_record.id}'
+        response = self.api('PATCH', url, json={'departure_date': '2026-12-15'})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(str(self.employee_record.contract_date_end), '2026-12-15')
+        # An end the user chose by hand (not the departure date) stays put.
+        self.employee_record.contract_date_end = '2027-03-31'
+        response = self.api('PATCH', url, json={'departure_date': '2026-12-20'})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(str(self.employee_record.contract_date_end), '2027-03-31')
+        # A date before the contract start is refused, not an ORM error.
+        self.employee_record.contract_date_end = '2026-12-20'
+        response = self.api('PATCH', url, json={'departure_date': '2019-01-01'})
+        self.assertEqual((response.status_code, response.json()['field']), (422, 'departure_date'))
+
     def test_departures_list_and_unknown_departures(self):
         self._as_manager()
         self._register().json()

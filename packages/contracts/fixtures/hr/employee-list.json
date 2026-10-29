@@ -9,6 +9,7 @@
       "job_title": "Staff",
       "manager": null,
       "name": "Isolation Employee P",
+      "nationality": null,
       "user_id": null,
       "work_email": "",
       "work_phone": ""
@@ -27,6 +28,7 @@
       "job_title": "Staff",
       "manager": null,
       "name": "Isolation Employee P1",
+      "nationality": null,
       "user_id": 21,
       "work_email": "b.b@example.com",
       "work_phone": ""
@@ -40,6 +42,7 @@
       "job_title": "Staff",
       "manager": null,
       "name": "Isolation Employee P2",
+      "nationality": null,
       "user_id": null,
       "work_email": "",
       "work_phone": ""

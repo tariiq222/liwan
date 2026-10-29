@@ -16,5 +16,6 @@ const { t } = useI18n()
     <SharedPropertyRow v-if="employee.work_phone" :label="t('hr.card.phone')"><bdi dir="ltr">{{ employee.work_phone }}</bdi></SharedPropertyRow>
     <SharedPropertyRow v-else :label="t('hr.card.phone')" />
     <SharedPropertyRow :label="t('hr.card.manager')" :value="employee.manager?.name" />
+    <SharedPropertyRow v-if="employee.contract" :label="t('hr.card.nationality')" :value="employee.nationality?.name" />
   </SharedPropertiesPanel>
 </template>

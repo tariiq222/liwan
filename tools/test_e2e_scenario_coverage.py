@@ -1,7 +1,15 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import tempfile
 import unittest
+from pathlib import Path
 
-from e2e_scenario_coverage import TOKEN, page_route, report, routes_in_source
+from e2e_scenario_coverage import (
+    TOKEN,
+    page_route,
+    referenced_tokens,
+    report,
+    routes_in_source,
+)
 
 
 class TestScenarioCoverage(unittest.TestCase):
@@ -36,8 +44,14 @@ class TestScenarioCoverage(unittest.TestCase):
             "    @http.route(RUN, methods=['GET'])\n"
             "    def get(self, run_id):\n"
             "        pass\n"
+            "    @http.route(RUN + '/slots', methods=['GET'])\n"
+            "    def slots(self, run_id):\n"
+            "        pass\n"
         )
-        self.assertEqual(routes_in_source(source), {'POST /api/v1/runs/<id>/file', 'GET /api/v1/runs/<id>'})
+        self.assertEqual(
+            routes_in_source(source),
+            {'POST /api/v1/runs/<id>/file', 'GET /api/v1/runs/<id>', 'GET /api/v1/runs/<id>/slots'},
+        )
 
     def test_routes_in_source_refuses_an_unreadable_path(self):
         source = "class C:\n    @http.route(make_path(), methods=['GET'])\n    def get(self):\n        pass\n"
@@ -47,6 +61,11 @@ class TestScenarioCoverage(unittest.TestCase):
     def test_token_pattern_finds_every_kind(self):
         text = '| x | `page /hr` `vendor /plans` `GET /api/v1/hr/me` `cap hr.leave.read` `other` |'
         self.assertEqual(TOKEN.findall(text), ['page /hr', 'vendor /plans', 'GET /api/v1/hr/me', 'cap hr.leave.read'])
+
+    def test_referenced_page_tokens_ignore_parameter_names(self):
+        with tempfile.TemporaryDirectory() as folder:
+            Path(folder, 'pay.md').write_text('| `page /pay/[kind]/[id]` `GET /api/v1/x/<int:id>` |', encoding='utf-8')
+            self.assertEqual(referenced_tokens(Path(folder)), {'page /pay/[id]/[id]', 'GET /api/v1/x/<int:id>'})
 
     def test_report_lists_missing_and_unknown(self):
         groups = {'webvue_hr': {'GET /api/v1/hr/me', 'POST /api/v1/hr/x'}}

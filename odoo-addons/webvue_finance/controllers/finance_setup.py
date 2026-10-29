@@ -17,7 +17,7 @@ LOCK_DATE_FIELDS = ('fiscalyear_lock_date', 'tax_lock_date', 'sale_lock_date', '
 FISCAL_DAYS = range(1, 32)
 FISCAL_MONTHS = range(1, 13)
 
-# The two fiscal writes carry the identity the screen was read for, so a screen that moved to another
+# The fiscal write carries the identity the screen was read for, so a screen that moved to another
 # user or company before it saved is refused before the payload is parsed and before anything is written.
 # The header is a comparison value only: it never selects the target and never grants a capability.
 EXPECTED_USER_HEADER = 'X-WebVue-Expected-User-Id'
@@ -126,17 +126,6 @@ class FinanceSetupController(http.Controller):
     def get_setup(self, **_):
         require_capability('finance.setup.read')
         return dump_setup(request.env.company)
-
-    @http.route('/api/v1/finance/setup/chart', type='json2', auth='user', methods=['POST'], readonly=False)
-    @api_handler
-    @requires_feature('finance.enabled', operation='write')
-    def load_chart(self, **_):
-        require_capability('finance.setup.manage')
-        # Read the identity once: the precondition, the write and the response all use this same record.
-        user, company = request.env.user, request.env.company
-        require_expected_context(user, company)
-        request.env['webvue.finance.setup']._webvue_load_chart(company)
-        return dump_setup(company)
 
     @http.route('/api/v1/finance/setup/fiscal', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler

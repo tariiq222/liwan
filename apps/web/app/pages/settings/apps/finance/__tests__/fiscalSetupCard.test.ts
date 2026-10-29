@@ -51,7 +51,6 @@ describe('the fiscal card is an inline editor in the existing page', () => {
     expect(source).not.toContain('company_id')
     const composable = read(COMPOSABLE)
     expect(composable).toContain('financeExpectedContextHeaders(request.scope)')
-    expect(composable).toContain('financeExpectedContextHeaders(target)')
     expect(composable).not.toContain('company_id')
     expect(composable).not.toMatch(/tenant|authority/i)
   })
@@ -65,7 +64,6 @@ describe('the fiscal card is an inline editor in the existing page', () => {
     expect(source).toContain('discardFiscal()')
     const composable = read(COMPOSABLE)
     expect(composable).toContain('sameFinanceSetupScope(request.scope, scope.value)')
-    expect(composable).toContain('sameFinanceSetupScope(target, scope.value)')
   })
 
   it('keeps a save in flight on the screen, whatever the shared draft guard offers', () => {
