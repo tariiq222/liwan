@@ -9,10 +9,11 @@ export const OperationTargetsSchema = z.object({ items: z.array(OperationTargetS
 export const OperationExecutionKindsSchema = z.object({ items: z.array(z.string()), total: Revision }).strict()
 export const OperationStateSchema = z.enum(['draft', 'pending', 'returned', 'rejected', 'withdrawn', 'done'])
 export const OperationPurposeSchema = z.enum(['work', 'employee'])
-export const OperationApprovalModeSchema = z.enum(['per_stage', 'single'])
+export const OperationStageApprovalModeSchema = z.enum(['per_stage', 'single'])
 export const OperationProcessSchema = z.object({
   id: Id, name: z.string(), description: z.string(),
-  purpose: OperationPurposeSchema, approval_mode: OperationApprovalModeSchema,
+  purpose: OperationPurposeSchema,
+  stage_approval_mode: OperationStageApprovalModeSchema,
   state: z.enum(['draft', 'published', 'archived']), revision: Revision,
   execution_kind: z.string().min(1),
   steps: z.array(z.object({
@@ -43,8 +44,8 @@ export const OperationProcessListSchema = z.object({ items: z.array(OperationPro
 export type OperationRequest = z.infer<typeof OperationRequestSchema>
 export type OperationRequestSummary = z.infer<typeof OperationRequestSummarySchema>
 export type OperationProcess = z.infer<typeof OperationProcessSchema>
-export type OperationApprovalMode = z.infer<typeof OperationApprovalModeSchema>
 export type OperationPurpose = z.infer<typeof OperationPurposeSchema>
+export type OperationStageApprovalMode = z.infer<typeof OperationStageApprovalModeSchema>
 export type OperationAction = Exclude<keyof z.infer<typeof OperationActionsSchema>, 'edit'>
 export interface OperationRequestBody { name: string; description: string; process_id: number; target_id?: number; revision?: number }
-export interface OperationProcessBody { name: string; description: string; purpose: OperationPurpose; approval_mode?: OperationApprovalMode; execution_kind: string; steps: { name: string; reviewer_ids: number[] }[]; revision?: number }
+export interface OperationProcessBody { name: string; description: string; purpose: OperationPurpose; stage_approval_mode: OperationStageApprovalMode; execution_kind: string; steps: { name: string; reviewer_ids: number[] }[]; revision?: number }

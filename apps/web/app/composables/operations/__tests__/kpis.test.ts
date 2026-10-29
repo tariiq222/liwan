@@ -5,7 +5,6 @@ const t = (key: string) => `t:${key}`
 
 describe('operation KPI links', () => {
   it('filter the scope list by the tile state and keep the search', () => {
-    expect(operationKpiLink('pending', undefined, undefined, 'employee')).toBe('/operations/pending?purpose=employee')
     expect(operationKpiLink('mine', undefined)).toBe('/operations')
     expect(operationKpiLink('mine', 'returned')).toBe('/operations?state=returned')
     expect(operationKpiLink('monitoring', 'done', 'عقد')).toBe('/operations/monitoring?q=%D8%B9%D9%82%D8%AF&state=done')
@@ -13,6 +12,8 @@ describe('operation KPI links', () => {
   it('give the pending list no state, as it is already one', () => {
     expect(operationKpiLink('pending', undefined, 'x')).toBe('/operations/pending?q=x')
     expect(operationKpiLink('pending', 'pending')).toBe('/operations/pending')
+    expect(operationKpiLink('monitoring', 'done', undefined, 'employee')).toBe('/operations/monitoring?purpose=employee&state=done')
+    expect(operationKpiTiles('pending', { awaiting: 1 }, key => key, undefined, 'work')[0]?.to).toBe('/operations/pending?purpose=work')
   })
 })
 

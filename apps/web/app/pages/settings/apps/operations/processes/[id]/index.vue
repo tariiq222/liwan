@@ -42,7 +42,7 @@ async function refresh() { if (disabled.value) return; selected.value = null; er
     @retry="hydrated && query.refetch()"
   >
     <template v-if="process && can('operations.processes.manage')" #actions>
-      <UButton color="neutral" variant="outline" :disabled="disabled" :to="recordChildTo(`/settings/apps/operations/processes/${process.id}/edit`, route.query, sourcePaths, route.hash)" :label="t('operations.edit')" />
+      <UButton v-if="process.state !== 'archived'" color="neutral" variant="outline" :disabled="disabled" :to="recordChildTo(`/settings/apps/operations/processes/${process.id}/edit`, route.query, sourcePaths, route.hash)" :label="t('operations.edit')" />
       <UButton v-if="process.state === 'draft'" :disabled="disabled" :label="t('operations.publish')" @click="choose('publish')" />
       <UButton v-if="process.state !== 'archived'" color="error" variant="outline" :disabled="disabled" :label="t('operations.archive')" @click="choose('archive')" />
     </template>
@@ -57,8 +57,8 @@ async function refresh() { if (disabled.value) return; selected.value = null; er
     <template v-if="process" #aside>
       <SharedPropertiesPanel>
         <SharedPropertyRow :label="t('operations.result')" :value="t(`operations.executionKinds.${process.execution_kind === 'approval' || process.execution_kind === 'pmo_completion' ? process.execution_kind : 'other'}`)" />
-        <SharedPropertyRow :label="t('operations.approvalMode')" :value="t(`operations.approvalModes.${process.approval_mode}`)" />
         <SharedPropertyRow :label="t('operations.stages')" :value="t('operations.stageCount', { count: process.steps.length }, process.steps.length)" />
+        <SharedPropertyRow :label="t('operations.stageApprovalMode')" :value="t(`operations.stageApprovalModes.${process.stage_approval_mode}`)" />
       </SharedPropertiesPanel>
     </template>
   </SharedRecordPage>

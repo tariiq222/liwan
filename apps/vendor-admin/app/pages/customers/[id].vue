@@ -5,6 +5,7 @@ import { formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercia
 import { cancellationErrorKey, branchSummaryText, customersReturnTo, isNotAvailable, subscriptionDisplayState } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
+import { useCopyLink } from '@/composables/useCopyLink'
 import { entitledSelections } from '@/utils/vendorEntitlement'
 import { customerDisplayBadge, operationStatusBadge } from '@/utils/vendorBadges'
 import type { StatusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
@@ -85,6 +86,22 @@ const cancelBusy = ref(false)
 const cancelFailure = ref<string | undefined>()
 const canCancel = computed(() => can('vendor.subscriptions.manage') && !error.value && !extra.value?.full.failed && !extra.value?.full.unavailable && view.value?.pending_order?.payment_state === 'awaiting_payment' && view.value.pending_order.fulfillment_state === 'not_started' && view.value.pending_order.kind !== 'renewal')
 const validCancelReason = computed(() => cancelReason.value.trim().length >= 3 && cancelReason.value.trim().length <= 1000)
+// A hosted-payment link the vendor sends to the customer: reuses the order's live payment attempt (owner decision 2026-10-29).
+const canPayLink = computed(() => can('vendor.billing.manage') && view.value?.pending_order?.payment_state === 'awaiting_payment')
+const payLinkBusy = ref(false)
+const payLink = ref<string | null>(null)
+const payLinkFailed = ref(false)
+const copier = useCopyLink()
+async function createPayLink() {
+  const order = view.value?.pending_order
+  if (!hydrated.value || payLinkBusy.value || !canPayLink.value || !order) return
+  payLinkBusy.value = true; payLinkFailed.value = false
+  try {
+    const attempt = await api.createPaymentAttempt(order.id)
+    payLink.value = attempt.redirect_url
+    payLinkFailed.value = !attempt.redirect_url
+  } catch { payLink.value = null; payLinkFailed.value = true } finally { payLinkBusy.value = false }
+}
 async function refreshCancellationState() {
   await refresh()
   await refreshExtra()
@@ -142,6 +159,15 @@ async function cancelPendingOrder() {
             <p v-if="!view" class="text-sm text-muted">{{ t('vendor.customers.noSubscription') }}</p>
             <VendorSubscriptionSummary v-else :subscription="view" :plan-name="planName">
               <template #order-actions>
+                <div v-if="canPayLink" class="mb-3 space-y-2" data-testid="pay-link">
+                  <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-link" :disabled="!hydrated || payLinkBusy" :loading="payLinkBusy" @click="createPayLink">{{ t('vendor.customers.payLink.create') }}</UButton>
+                  <div v-if="payLink" class="flex flex-wrap items-center gap-2">
+                    <UInput :model-value="payLink" readonly dir="ltr" class="min-w-0 flex-1" :aria-label="t('vendor.customers.payLink.label')" />
+                    <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-copy" @click="copier.copy(payLink)">{{ t('vendor.customers.payLink.copy') }}</UButton>
+                    <span v-if="copier.outcomeFor(payLink)" role="status" class="text-sm text-muted">{{ t(copier.outcomeFor(payLink) === 'copied' ? 'vendor.customers.payLink.copied' : 'vendor.customers.payLink.copyFailed') }}</span>
+                  </div>
+                  <p v-if="payLinkFailed" role="alert" class="text-sm text-error">{{ t('vendor.customers.payLink.failed') }}</p>
+                </div>
                 <template v-if="canCancel">
                   <SharedInlineConfirm v-if="cancelOpen" :title="t('vendor.customers.cancelOrder.title')" :description="t('vendor.customers.cancelOrder.description')" :confirm-label="t('vendor.customers.cancelOrder.action')" :pending="cancelBusy" :disabled="!hydrated || cancelBusy || !validCancelReason" @confirm="cancelPendingOrder" @cancel="cancelOpen = false; cancelReason = ''; cancelFailure = undefined">
                     <UFormField :label="t('vendor.customers.cancelOrder.reason')" required class="mt-3"><UTextarea v-model="cancelReason" :maxlength="1000" :disabled="!hydrated || cancelBusy" class="w-full" /></UFormField>

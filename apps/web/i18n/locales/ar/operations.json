@@ -19,7 +19,6 @@
     "description": "الوصف",
     "noDescription": "لم يُضف وصف",
     "state": "الحالة",
-    "allPurposes": "كل الأنواع",
     "allStates": "كل الحالات",
     "search": "بحث",
     "searchRequests": "البحث في الطلبات",
@@ -164,12 +163,14 @@
     "attention": {
       "from": "من {name}"
     },
-    "ineligibleReviewers": "لا يملك صلاحية المراجعة: {names}",
-    "approvalMode": "اعتماد المراجع على عدة مراحل",
-    "approvalModeHint": "عندما يكون المراجع نفسه على أكثر من مرحلة: اعتماد لكل مرحلة، أو اعتماد واحد يكفي لإكمالها كلها.",
-    "approvalModes": {
+    "allPurposes": "كل الأنواع",
+    "stageApprovalMode": "المراجع المتكرر في أكثر من مرحلة",
+    "stageApprovalModeHint": "عند وجود المراجع نفسه في مراحل متتالية: «اعتماد لكل مرحلة» يطلب قرارًا مستقلًا لكل مرحلة، و«اعتماد واحد يكفي» يعتمد مراحله المتتالية بقرار واحد. تحتفظ الطلبات المرسلة بالطريقة التي أُرسلت بها.",
+    "stageApprovalModes": {
       "per_stage": "اعتماد لكل مرحلة",
       "single": "اعتماد واحد يكفي"
-    }
+    },
+    "archivedNotEditable": "لا يمكن تعديل إجراء مؤرشف.",
+    "ineligibleReviewers": "لا يملك صلاحية المراجعة: {names}"
   }
 }

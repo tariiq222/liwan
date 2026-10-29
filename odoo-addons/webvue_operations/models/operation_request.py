@@ -2,7 +2,15 @@
 from odoo import Command, api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
-from .common import TOKEN, check_revision, lock_or_conflict, require, text, trusted
+from .common import (
+    STAGE_APPROVAL_MODES,
+    TOKEN,
+    check_revision,
+    lock_or_conflict,
+    require,
+    text,
+    trusted,
+)
 from odoo.addons.base_tier_validation.models.workflow_security import (
     _DOCUMENT_WRITE_TOKEN,
 )
@@ -39,11 +47,9 @@ class OperationRequest(models.Model):
     cycle = fields.Integer(default=0, readonly=True)
     requester_id = fields.Many2one('res.users', required=True, default=lambda self: self.env.user, readonly=True)
     participant_ids = fields.Many2many('res.users', readonly=True)
-    approval_mode = fields.Selection(
-        [('per_stage', 'Approval per stage'), ('single', 'One approval is enough')],
-        default='per_stage', required=True, readonly=True,
-    )
     stage_snapshot = fields.Json(default=list, readonly=True)
+    # Snapshotted with the stages at each submission, so a pending request keeps the mode it was submitted under.
+    stage_approval_mode = fields.Selection(STAGE_APPROVAL_MODES, default='per_stage', required=True, readonly=True)
     execution_kind = fields.Char(default='approval', readonly=True)
     execution_count = fields.Integer(default=0, readonly=True)
     event_ids = fields.One2many('webvue.operation.event', 'request_id', readonly=True)
@@ -76,7 +82,7 @@ class OperationRequest(models.Model):
             target = self._operations_target_values(process, vals.pop('target_id', None))
             if vals.get('company_id', self.env.company.id) != self.env.company.id:
                 raise AccessError(self.env._('Use the current company.'))
-            vals.update(name=text(self.env, vals.get('name'), 'name', 200, True), description=text(self.env, vals.get('description', ''), 'description', 20000), company_id=self.env.company.id, state='draft', requester_id=self.env.uid, revision=0, cycle=0, process_revision=0, participant_ids=[], stage_snapshot=[], execution_count=0, execution_kind='approval', process_name=process.name, event_ids=[])
+            vals.update(name=text(self.env, vals.get('name'), 'name', 200, True), description=text(self.env, vals.get('description', ''), 'description', 20000), company_id=self.env.company.id, state='draft', requester_id=self.env.uid, revision=0, cycle=0, process_revision=0, participant_ids=[], stage_snapshot=[], stage_approval_mode='per_stage', execution_count=0, execution_kind='approval', process_name=process.name, event_ids=[])
             # Classification belongs to this request, including returned/resubmitted
             # cycles; later process edits must never move its historical purpose.
             vals.update(target, purpose=process.purpose)
@@ -152,7 +158,7 @@ class OperationRequest(models.Model):
                 snapshot.append({'sequence': sequence, 'name': definition.name, 'reviewer_ids': users.ids})
             if self.review_ids:
                 super().restart_validation()
-            self._ops_write({'process_revision': process.revision, 'process_name': process.name, 'execution_kind': process.execution_kind, 'approval_mode': process.approval_mode, 'participant_ids': [Command.set(participants.ids)], 'stage_snapshot': snapshot, 'cycle': self.cycle + 1})
+            self._ops_write({'process_revision': process.revision, 'process_name': process.name, 'execution_kind': process.execution_kind, 'participant_ids': [Command.set(participants.ids)], 'stage_snapshot': snapshot, 'stage_approval_mode': process.stage_approval_mode, 'cycle': self.cycle + 1})
             super().request_validation()
             if len(self.review_ids) != len(snapshot):
                 raise ValidationError(self.env._('The configured approval stages could not be created.'))
@@ -184,8 +190,8 @@ class OperationRequest(models.Model):
         try:
             with self.env.cr.savepoint():
                 reviews = self._decision_guard(revision)
-                if self.approval_mode == 'per_stage':
-                    # One approval settles only the current stage, even for a reviewer on the next stages too.
+                if self.stage_approval_mode == 'per_stage':
+                    # Only the current stage; a reviewer of the next stage decides it separately.
                     reviews = reviews.sorted('sequence')[:1]
                 super()._validate_tier(reviews)
                 self.review_ids._update_review_status()

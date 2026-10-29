@@ -4,7 +4,15 @@ import json
 from odoo import Command, api, fields, models
 from odoo.exceptions import AccessError, ValidationError
 
-from .common import TOKEN, check_revision, require, reviewer_users, text, trusted
+from .common import (
+    STAGE_APPROVAL_MODES,
+    TOKEN,
+    check_revision,
+    require,
+    reviewer_users,
+    text,
+    trusted,
+)
 from odoo.addons.webvue_core.models.access_service import WebVueAccessRule
 
 
@@ -25,11 +33,7 @@ class OperationProcess(models.Model):
         [('work', 'Work'), ('employee', 'Employee affairs')],
         default='work', required=True, index=True,
     )
-    # A reviewer who sits on several stages either approves each stage or, with 'single', completes all of them at once.
-    approval_mode = fields.Selection(
-        [('per_stage', 'Approval per stage'), ('single', 'One approval is enough')],
-        default='per_stage', required=True,
-    )
+    stage_approval_mode = fields.Selection(STAGE_APPROVAL_MODES, default='per_stage', required=True)
     step_ids = fields.One2many('webvue.operation.process.step', 'process_id')
 
     @api.model
@@ -49,7 +53,7 @@ class OperationProcess(models.Model):
     def create(self, vals_list):
         require(self.env, 'operations.processes.manage')
         for vals in vals_list:
-            if not trusted(self.env) and set(vals) - {'name', 'description', 'execution_kind', 'purpose', 'approval_mode', 'company_id'}:
+            if not trusted(self.env) and set(vals) - {'name', 'description', 'execution_kind', 'purpose', 'company_id'}:
                 raise AccessError(self.env._('Process control fields cannot be supplied.'))
             if vals.get('company_id', self.env.company.id) != self.env.company.id:
                 raise AccessError(self.env._('Use the current company.'))
@@ -65,18 +69,20 @@ class OperationProcess(models.Model):
     def unlink(self):
         raise AccessError(self.env._('Archive processes to preserve their history.'))
 
-    def action_configure(self, revision, name, description, execution_kind, steps, *, purpose=None, approval_mode=None):
+    def action_configure(self, revision, name, description, execution_kind, steps, *, purpose=None, stage_approval_mode=None):
         self.ensure_one()
         self._guard()
         self.lock_for_update()
         self.invalidate_recordset()
         check_revision(self, revision)
+        if self.state == 'archived':
+            raise ValidationError(self.env._('An archived process cannot be changed.'))
         purpose = self.purpose if purpose is None else purpose
         if purpose not in ('work', 'employee'):
             raise ValidationError(self.env._('Choose a valid process purpose.'))
-        approval_mode = self.approval_mode if approval_mode is None else approval_mode
-        if approval_mode not in ('per_stage', 'single'):
-            raise ValidationError(self.env._('Choose a valid approval mode.'))
+        stage_approval_mode = self.stage_approval_mode if stage_approval_mode is None else stage_approval_mode
+        if stage_approval_mode not in dict(STAGE_APPROVAL_MODES):
+            raise ValidationError(self.env._('Choose a valid stage approval mode.'))
         if execution_kind not in self._operations_execution_kinds():
             raise ValidationError(self.env._('This execution action is not available.'))
         if not isinstance(steps, list) or not 1 <= len(steps) <= 20:
@@ -89,9 +95,7 @@ class OperationProcess(models.Model):
             prepared.append(Command.create({'name': text(self.env, item['name'], 'stage', 200, True), 'sequence': sequence, 'reviewer_ids': [Command.set(users.ids)], 'company_id': self.company_id.id}))
         process = self.with_context(_operations_write=TOKEN)
         process.step_ids.unlink()
-        # An archived process stays archived when its configuration is saved.
-        state = 'archived' if self.state == 'archived' else 'draft'
-        process.write({'name': text(self.env, name, 'name', 200, True), 'description': text(self.env, description, 'description', 20000), 'execution_kind': execution_kind, 'purpose': purpose, 'approval_mode': approval_mode, 'step_ids': prepared, 'state': state, 'revision': self.revision + 1})
+        process.write({'name': text(self.env, name, 'name', 200, True), 'description': text(self.env, description, 'description', 20000), 'execution_kind': execution_kind, 'purpose': purpose, 'stage_approval_mode': stage_approval_mode, 'step_ids': prepared, 'state': 'draft', 'revision': self.revision + 1})
         return self
 
     def _ineligible_reviewers(self, users):
@@ -133,7 +137,7 @@ class OperationProcess(models.Model):
         self.invalidate_recordset()
         check_revision(self, revision)
         if self.state == 'archived':
-            raise ValidationError(self.env._('The process is already archived.'))
+            raise ValidationError(self.env._('This process is already archived.'))
         self.with_context(_operations_write=TOKEN).write({'state': 'archived', 'revision': self.revision + 1})
         return self
 

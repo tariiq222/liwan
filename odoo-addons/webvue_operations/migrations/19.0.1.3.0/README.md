@@ -1,1 +1,1 @@
-Add the stored approval_mode column (default per_stage) to processes and the request snapshot; Odoo fills the default for existing rows, so no data rewrite is needed.
+Adds the required `stage_approval_mode` selection to processes and requests (owner decision 2026-10-29, #163). Odoo fills the new columns with the `per_stage` default, so existing processes and pending requests require one decision per stage from this version on; a request takes its process mode again at its next submission. No data transformation is needed.

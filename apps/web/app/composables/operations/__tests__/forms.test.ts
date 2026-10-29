@@ -5,6 +5,12 @@ describe('operation form and route behavior', () => {
   it('preserves list filters/hash without nesting return links', () => {
     expect(operationListLocation('/operations/pending', { q: 'عقد', state: 'pending', page: '2', returnTo: '//evil' }, '#queue')).toBe('/operations/pending?q=%D8%B9%D9%82%D8%AF&state=pending&page=2#queue')
   })
+  it('keeps the request type filter in the list location and accepts only known types', () => {
+    expect(operationListLocation('/operations/monitoring', { purpose: 'employee', state: 'pending' })).toBe('/operations/monitoring?state=pending&purpose=employee')
+    expect(operationPurposeFromSelection('work')).toBe('work')
+    for (const value of ['all', 'personal', undefined, ['work']]) expect(operationPurposeFromSelection(value)).toBeUndefined()
+    expect(operationPurposeChoices(key => key).map(item => item.value)).toEqual(['all', 'work', 'employee'])
+  })
   it('accepts only operation list return destinations', () => {
     expect(safeOperationReturnTo('/account/requests?q=letter#row', '/account/requests')).toBe('/account/requests?q=letter#row')
     expect(safeOperationReturnTo('/operations/monitoring?q=budget#row', '/operations')).toBe('/operations/monitoring?q=budget#row')
@@ -54,16 +60,10 @@ it('keeps the all-status control valid while omitting the API status filter', as
   expect(operationStateFromSelection('unknown')).toBeUndefined()
 })
 
-describe('operation error and type filter helpers', () => {
+describe('operation error helpers', () => {
   it('names the unavailable-reviewer error instead of the generic save failure', () => {
     expect(operationErrorKey({ status: 422, code: 'reviewer_not_eligible' })).toBe('reviewerNotEligible')
     expect(operationErrorKey({ status: 409, code: 'conflict' })).toBe('conflict')
     expect(operationErrorKey({ status: 422, code: 'invalid' })).toBe('save')
-  })
-  it('keeps the type filter in the list location and accepts only known types', () => {
-    expect(operationListLocation('/operations/pending', { purpose: 'employee', page: '2' })).toBe('/operations/pending?purpose=employee&page=2')
-    expect(operationPurposeFromSelection('employee')).toBe('employee')
-    expect(operationPurposeFromSelection('all')).toBeUndefined()
-    expect(operationPurposeChoices(key => key).map(choice => choice.value)).toEqual(['all', 'work', 'employee'])
   })
 })

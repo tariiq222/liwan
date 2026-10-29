@@ -1634,7 +1634,7 @@
       "props": [
         {
           "name": "process",
-          "type": "{ id: number; name: string; description: string; purpose: \"employee\" | \"work\"; approval_mode: \"per_stage\" | \"single\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; ineligible_reviewer_ids: number[]; }[]; }",
+          "type": "{ id: number; name: string; description: string; purpose: \"employee\" | \"work\"; stage_approval_mode: \"per_stage\" | \"single\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; ineligible_reviewer_ids: number[]; }[]; }",
           "required": false
         },
         {
@@ -1649,19 +1649,19 @@
         },
         {
           "name": "refresh",
-          "type": "(() => Promise<{ id: number; name: string; description: string; purpose: \"employee\" | \"work\"; approval_mode: \"per_stage\" | \"single\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; ineligible_reviewer_ids: number[]; }[]; }>)",
+          "type": "(() => Promise<{ id: number; name: string; description: string; purpose: \"employee\" | \"work\"; stage_approval_mode: \"per_stage\" | \"single\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; ineligible_reviewer_ids: number[]; }[]; }>)",
           "required": false
         },
         {
           "name": "save",
-          "type": "(body: OperationProcessBody) => Promise<{ id: number; name: string; description: string; purpose: \"employee\" | \"work\"; approval_mode: \"per_stage\" | \"single\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; ineligible_reviewer_ids: number[]; }[]; }>",
+          "type": "(body: OperationProcessBody) => Promise<{ id: number; name: string; description: string; purpose: \"employee\" | \"work\"; stage_approval_mode: \"per_stage\" | \"single\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; ineligible_reviewer_ids: number[]; }[]; }>",
           "required": true
         }
       ],
       "events": [
         {
           "name": "saved",
-          "payload": "[process: { id: number; name: string; description: string; purpose: \"employee\" | \"work\"; approval_mode: \"per_stage\" | \"single\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; ineligible_reviewer_ids: number[]; }[]; }]"
+          "payload": "[process: { id: number; name: string; description: string; purpose: \"employee\" | \"work\"; stage_approval_mode: \"per_stage\" | \"single\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; ineligible_reviewer_ids: number[]; }[]; }]"
         }
       ],
       "slots": [],
@@ -1787,7 +1787,7 @@
         },
         {
           "name": "processes",
-          "type": "{ id: number; name: string; description: string; purpose: \"employee\" | \"work\"; approval_mode: \"per_stage\" | \"single\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; ineligible_reviewer_ids: number[]; }[]; }[]",
+          "type": "{ id: number; name: string; description: string; purpose: \"employee\" | \"work\"; stage_approval_mode: \"per_stage\" | \"single\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; ineligible_reviewer_ids: number[]; }[]; }[]",
           "required": false,
           "default": "[]"
         },
@@ -4886,22 +4886,22 @@
         {
           "id": "Pending",
           "name": "Pending",
-          "context": "apps/web/app/components/operations/RequestList.vue:81"
+          "context": "apps/web/app/components/operations/RequestList.vue:85"
         },
         {
           "id": "Completed",
           "name": "Completed",
-          "context": "apps/web/app/components/operations/RequestList.vue:81"
+          "context": "apps/web/app/components/operations/RequestList.vue:85"
         },
         {
           "id": "Returned",
           "name": "Returned",
-          "context": "apps/web/app/components/operations/RequestList.vue:81"
+          "context": "apps/web/app/components/operations/RequestList.vue:85"
         },
         {
           "id": "Rejected",
           "name": "Rejected",
-          "context": "apps/web/app/components/operations/RequestList.vue:81"
+          "context": "apps/web/app/components/operations/RequestList.vue:85"
         }
       ]
     },
