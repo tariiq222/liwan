@@ -49,6 +49,7 @@ const EMPLOYEE = {
   manager: { id: 11, name: 'Huda' },
   active: true,
   access: { user_id: 7, login: 'sara', role: 'employee', active: true },
+  nationality: null,
   contract: null,
 }
 
@@ -237,6 +238,13 @@ describe('Phase 3b HR input and compatibility schemas', () => {
     expect(HrDepartmentListSchema.parse({ items: [DEPARTMENT], total: 1 }).total).toBe(1)
     expect(() => HrEmployeeListSchema.parse({ items: [], total: -1 })).toThrow()
     expect(() => HrDepartmentListSchema.parse({ items: [], total: -1 })).toThrow()
+  })
+
+  it('carries the nationality as a reference and writes it as a nullable id', () => {
+    expect(HrEmployeeSchema.parse({ ...EMPLOYEE, nationality: { id: 192, name: 'Saudi Arabia' } }).nationality?.id).toBe(192)
+    expect(() => HrEmployeeSchema.parse({ ...EMPLOYEE, nationality: undefined })).toThrow()
+    expect(HrEmployeeCreateSchema.parse({ name: 'Sara', nationality_id: 192 }).nationality_id).toBe(192)
+    expect(HrEmployeePatchSchema.parse({ nationality_id: null })).toEqual({ nationality_id: null })
   })
 
   it('accepts strict employee and department writes with nullable relations', () => {

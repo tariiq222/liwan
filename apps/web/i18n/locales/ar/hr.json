@@ -70,7 +70,8 @@
       "email": "البريد",
       "phone": "الهاتف",
       "manager": "المدير",
-      "account": "الحساب"
+      "account": "الحساب",
+      "nationality": "الجنسية"
     },
     "depts": {
       "nameRequired": "أدخل اسم القسم.",
@@ -187,7 +188,11 @@
       "archiveVendorReadOnly": "لا يمكن أرشفة الموظف المرتبط بمورّد من هنا.",
       "edit": "تعديل الموظف",
       "accessManagedInSettings": "تُدار صلاحيات الدخول من إدارة النظام.",
-      "manageAccount": "إدارة الحساب"
+      "manageAccount": "إدارة الحساب",
+      "nationality": "الجنسية",
+      "nationalityHint": "تُقرأ منها فئة التأمينات الاجتماعية عند احتساب الرواتب.",
+      "nationalityPlaceholder": "اختر الجنسية",
+      "nationalitySearch": "ابحث عن دولة"
     },
     "reports": {
       "title": "التقارير",

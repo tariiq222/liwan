@@ -60,6 +60,8 @@ export const HrEmployeeSchema = z.object({
   manager: HrRefSchema.nullable(),
   active: z.boolean(),
   access: HrEmployeeAccessSchema.nullable(),
+  // The stock nationality payroll reads for the GOSI class; present with the contract block, null otherwise.
+  nationality: HrRefSchema.nullable(),
   // Present on the detail shape for callers who manage employees; null on lists.
   contract: HrEmployeeContractSchema.nullable(),
 }).strict()
@@ -71,6 +73,7 @@ export const HrEmployeeCreateSchema = z.object({
   job_title: z.string().optional(),
   department_id: relationId,
   parent_id: relationId,
+  nationality_id: relationId,
 }).strict()
 
 // Dates and the type may be cleared with null; no salary or bank fields exist here.
@@ -90,6 +93,7 @@ export const HrEmployeePatchSchema = z.object({
   job_title: z.string().optional(),
   department_id: relationId,
   parent_id: relationId,
+  nationality_id: relationId,
   contract: HrEmployeeContractPatchSchema.optional(),
 }).strict().refine(requirePatchField, { message: 'At least one field is required' })
 

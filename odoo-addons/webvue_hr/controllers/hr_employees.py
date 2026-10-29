@@ -11,6 +11,9 @@ from odoo.addons.webvue_api.controllers.common import (
     require_capabilities,
     requires_feature,
 )
+from odoo.addons.webvue_api.controllers.lookups import (
+    list_countries as lookup_countries,
+)
 from odoo.addons.webvue_hr.serializers.hr_employee import (
     dump_employee,
     parse_employee_create,
@@ -83,6 +86,8 @@ def _validate_employee_relations(vals, employee=None):
         if employee and vals['parent_id'] == employee.id:
             raise ApiError(422, 'invalid', 'an employee cannot manage themselves', field='parent_id')
         _relation('hr.employee', vals['parent_id'], 'parent_id')
+    if vals.get('country_id') and not request.env['res.country'].browse(vals['country_id']).exists():
+        raise ApiError(422, 'invalid', 'nationality_id does not reference an existing country', field='nationality_id')
 
 
 def _validate_contract_vals(vals, employee):
@@ -108,6 +113,14 @@ class HrEmployeeController(http.Controller):
         _require('hr.employees.read')
         employee = own_public_employee()
         return dump_employee(employee, include_access=False, include_contract=False) if employee else None
+
+    @http.route('/api/v1/hr/countries', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('hr.enabled', operation='read')
+    def list_countries(self, **_):
+        # The nationality picker of the employee form.
+        _require('hr.employees.manage')
+        return lookup_countries()
 
     @http.route('/api/v1/hr/employees', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
