@@ -1,6 +1,6 @@
 import type { ProjectPhaseState } from '@webvue/contracts'
 import { describe, expect, it } from 'vitest'
-import { canMoveForward, gateCheckRows, isGateAction, isGateCardVisible, phaseFailure, phaseNumber, phaseSteps, UNKNOWN_CHECK_KEY } from '../projectPhase'
+import { canMoveForward, gateCheckRows, isGateAction, isGateCardVisible, isWarningGate, unmetWarnings, phaseFailure, phaseNumber, phaseSteps, UNKNOWN_CHECK_KEY } from '../projectPhase'
 
 describe('phaseSteps', () => {
   it('marks earlier steps done, the current one, and later steps upcoming', () => {
@@ -72,5 +72,25 @@ describe('an archived project has no phase gate', () => {
   it('keeps the card for an active project', () => {
     expect(isGateCardVisible(planning, true, true)).toBe(true)
     expect(isGateAction(planning, false)).toBe(true)
+  })
+})
+
+describe('warning gate checks', () => {
+  const closing: ProjectPhaseState = { current: 'closing', next: 'closed', previous: 'executing', next_checks: [{ key: 'no_open_tasks', ok: false, warning: true }] }
+  it('lets a manager move on an unmet warning, but not on an unmet blocking check', () => {
+    expect(canMoveForward(closing, true)).toBe(true)
+    expect(canMoveForward({ ...closing, next_checks: [{ key: 'no_open_tasks', ok: false }] }, true)).toBe(false)
+    expect(unmetWarnings(closing.next_checks)).toEqual([{ key: 'no_open_tasks', ok: false, warning: true }])
+  })
+  it('recognises a refused move that only needs confirmation', () => {
+    const refusal = (checks: unknown[]) => ({ status: 409, code: 'phase_gate', details: { checks } })
+    expect(isWarningGate(refusal([{ key: 'no_open_tasks', ok: false, warning: true }]))).toBe(true)
+    expect(isWarningGate(refusal([{ key: 'charter_approved', ok: false }, { key: 'no_open_tasks', ok: false, warning: true }]))).toBe(false)
+    expect(isWarningGate(refusal([{ key: 'no_open_tasks', ok: true, warning: true }]))).toBe(false)
+    expect(isWarningGate({ status: 409, code: 'stale_write' })).toBe(false)
+    expect(isWarningGate(null)).toBe(false)
+  })
+  it('links the open-tasks check to the project tasks', () => {
+    expect(gateCheckRows(7, closing.next_checks)[0]).toMatchObject({ labelKey: 'projects.phase.checks.no_open_tasks', fixTo: '/projects/7/tasks' })
   })
 })

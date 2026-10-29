@@ -281,8 +281,8 @@ export function useMoveProjectPhase() {
   const qc = useQueryClient()
   const { $api } = useApi()
   return useMutation({
-    mutationFn: ({ id, phase, expected }: { id: number; phase: ProjectPhase; expected: string }) =>
-      $api(`/api/v1/projects/${id}/phase`, { method: 'POST', body: { phase, expected_updated_at: expected }, schema: ProjectDetailSchema }),
+    mutationFn: ({ id, phase, expected, acknowledgeWarnings }: { id: number; phase: ProjectPhase; expected: string; acknowledgeWarnings?: boolean }) =>
+      $api(`/api/v1/projects/${id}/phase`, { method: 'POST', body: { phase, expected_updated_at: expected, ...(acknowledgeWarnings ? { acknowledge_warnings: true } : {}) }, schema: ProjectDetailSchema }),
     onSuccess: (detail: ProjectDetail, { id }) => {
       qc.setQueryData(projectKeys.detail(id), detail)
       invalidateProjectCaches(qc)

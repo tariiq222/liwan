@@ -240,6 +240,8 @@
       "tasksOf": "{done} of {total}",
       "notFound": "This milestone does not exist or you cannot view it",
       "startDate": "Start date",
+      "endDate": "End date",
+      "endDateRequired": "The source project has no end date and the company requires one. Enter the copy's end date.",
       "scheduleRequired": "Set project dates and both milestone dates before creating a milestone.",
       "startAfterDeadline": "The milestone start must be on or before its deadline.",
       "startOutsideProject": "The milestone start must be within the project dates.",
@@ -287,9 +289,13 @@
       },
       "gateTitle": "Move to {phase}",
       "checks": {
+        "no_open_tasks": "No open tasks",
         "charter_approved": "Charter approved",
         "unknown": "Unknown requirement"
       },
+      "warningConfirm": "Move the project to {phase} despite the warning?",
+      "moveAnyway": "Move to {phase} anyway",
+      "warningFallback": "Some checks are unmet; they are warnings and do not block the move.",
       "met": "Met",
       "unmet": "Not met",
       "fix": "Complete",
@@ -978,7 +984,8 @@
       "defaultName": "{name} (copy)",
       "validation": {
         "name": "Enter a name for the new project (up to 255 characters).",
-        "startDate": "Choose a valid start date."
+        "startDate": "Choose a valid start date.",
+        "endDate": "Choose a valid end date."
       },
       "forbidden": "You do not have permission to copy this project.",
       "invalid": "The copy could not be made: the details are not valid.",

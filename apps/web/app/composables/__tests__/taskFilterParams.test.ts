@@ -27,9 +27,9 @@ describe('task attribute filters', () => {
   })
 
   it('lets the URL search text win over the stored one and falls back when it is absent', () => {
-    expect(withTaskAttributeFilters({ closed: false, q: 'old' }, { q: ' لوحة ' })).toEqual({ closed: false, q: 'لوحة' })
-    expect(withTaskAttributeFilters({ closed: false, q: 'old' }, {})).toEqual({ closed: false, q: 'old' })
-    expect(withTaskAttributeFilters({ closed: false }, { q: '   ', view: 'board' })).toEqual({ closed: false })
+    expect(withTaskAttributeFilters({ closed: false, q: 'old' } as never, { q: ' لوحة ' })).toEqual({ closed: false, q: 'لوحة' })
+    expect(withTaskAttributeFilters({ closed: false, q: 'old' } as never, {})).toEqual({ closed: false, q: 'old' })
+    expect(withTaskAttributeFilters({ closed: false } as never, { q: '   ', view: 'board' })).toEqual({ closed: false })
     expect(taskSearchText({ q: ['a', 'b'] })).toBeUndefined()
   })
 
