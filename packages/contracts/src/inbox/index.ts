@@ -234,7 +234,7 @@ const HeaderLocation = z.object({ type: z.literal('location') }).strict()
 
 // The header Meta shows above the body. A media header carries a sample file for review (uploaded first).
 export const InboxTemplateHeaderSchema = z.union([
-  HeaderText,
+  z.object({ type: z.literal('text'), text: z.string(), example: z.string().nullable() }).strict(),
   z.object({ type: TemplateHeaderMediaKind, example_attachment: InboxAttachmentSchema.nullable() }).strict(),
   HeaderLocation,
 ])
@@ -245,7 +245,15 @@ export const InboxTemplateHeaderWriteSchema = z.union([
 ])
 
 const ButtonText = z.string().min(1).max(25)
+// A button as stored, including templates made in WhatsApp Manager, so values are not re-checked against write rules.
 export const InboxTemplateButtonSchema = z.union([
+  z.object({ type: z.literal('quick_reply'), text: z.string() }).strict(),
+  z.object({ type: z.literal('url'), text: z.string(), url: z.string(), example: z.string().nullable() }).strict(),
+  z.object({ type: z.literal('phone_number'), text: z.string(), phone_number: z.string() }).strict(),
+  z.object({ type: z.literal('copy_code'), example: z.string() }).strict(),
+])
+
+export const InboxTemplateButtonWriteSchema = z.union([
   z.object({ type: z.literal('quick_reply'), text: ButtonText }).strict(),
   // A url may end with one variable, {{1}}, filled per message; its example is then the full example url.
   z.object({
@@ -267,7 +275,7 @@ const quickRepliesGrouped = (buttons: { type: string }[]) => {
   const runs = buttons.map(button => button.type === 'quick_reply').filter((quick, index, all) => index === 0 || quick !== all[index - 1])
   return runs.length <= 2
 }
-const TemplateButtons = z.array(InboxTemplateButtonSchema).max(10)
+const TemplateButtons = z.array(InboxTemplateButtonWriteSchema).max(10)
   .refine(buttons => byType(buttons, 'url') <= 2, 'at most two url buttons')
   .refine(buttons => byType(buttons, 'phone_number') <= 1, 'at most one phone button')
   .refine(buttons => byType(buttons, 'copy_code') <= 1, 'at most one copy-code button')
@@ -302,6 +310,9 @@ export const InboxTemplateSchema = z.object({
   param_count: z.number().int().nonnegative(),
   // Meta accepts edits of approved, rejected and paused templates only.
   editable: z.boolean(),
+  // False when the template uses a part WebVue cannot fill (named variables, flow or catalog buttons, ...):
+  // it is then neither sent nor edited from WebVue.
+  supported: z.boolean(),
 }).strict()
 export const InboxTemplateListSchema = list(InboxTemplateSchema)
 
@@ -432,6 +443,7 @@ export type InboxTemplateStatus = z.infer<typeof InboxTemplateStatusSchema>
 export type InboxTemplateQuality = z.infer<typeof InboxTemplateQualitySchema>
 export type InboxTemplateHeader = z.infer<typeof InboxTemplateHeaderSchema>
 export type InboxTemplateButton = z.infer<typeof InboxTemplateButtonSchema>
+export type InboxTemplateButtonWrite = z.infer<typeof InboxTemplateButtonWriteSchema>
 export type InboxTemplateWrite = z.infer<typeof InboxTemplateWriteSchema>
 export type InboxDepartment = z.infer<typeof InboxDepartmentSchema>
 export type InboxDepartmentWrite = z.infer<typeof InboxDepartmentWriteSchema>

@@ -152,7 +152,17 @@ describe('InboxTemplateSchema', () => {
       id: 1, name: 'offer', language: 'ar', category: 'marketing', status: 'rejected', status_reason: 'INVALID_FORMAT',
       quality: 'unknown', header: { type: 'image', example_attachment: null }, body: 'خصم {{1}}', body_examples: ['20%'],
       footer: null, buttons: [{ type: 'copy_code', example: 'SALE20' }], add_security_recommendation: false,
-      code_expiration_minutes: null, otp_button_text: null, param_count: 1, editable: true,
+      code_expiration_minutes: null, otp_button_text: null, param_count: 1, editable: true, supported: true,
+    }
+    expect(InboxTemplateSchema.parse(template)).toEqual(template)
+  })
+
+  it('reads a WhatsApp Manager template whose values break the write rules', () => {
+    const buttons = [{ type: 'url', text: 'Site', url: 'http://example.com/{{1}}', example: null }, { type: 'copy_code', example: '' }]
+    const template = {
+      id: 2, name: 'legacy', language: 'en', category: 'utility', status: 'approved', status_reason: null, quality: 'green',
+      header: null, body: 'Hi', body_examples: [], footer: null, buttons, add_security_recommendation: false,
+      code_expiration_minutes: null, otp_button_text: null, param_count: 0, editable: true, supported: true,
     }
     expect(InboxTemplateSchema.parse(template)).toEqual(template)
   })
