@@ -369,11 +369,6 @@ msgid "Capability: submit finance invoices to ZATCA"
 msgstr "صلاحية: إرسال الفواتير إلى زاتكا"
 
 #. module: webvue_finance
-#: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__chart_loaded
-msgid "Chart of accounts loaded"
-msgstr "حُمّلت شجرة الحسابات"
-
-#. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_res_company
 msgid "Companies"
 msgstr "الشركات"

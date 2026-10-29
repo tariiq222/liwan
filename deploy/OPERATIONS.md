@@ -60,6 +60,8 @@ Not started by these tools. Named volumes, not bind mounts:
 
 `deploy/odoo.conf` uses `data_dir = /var/lib/odoo`, `db_host = db`, `dbfilter = ^${DB_NAME}$`. Provisioning (`deploy/provision.sh`) validates all three secrets, selects the pinned baked image, then installs and seeds through its guarded entrypoint. The manual backup wrappers do not invoke provisioning.
 
+The install makes the root company Saudi (country SA, currency SAR) before `account`, so stock loads the `sa` chart and VAT 15 % and creates any later pricelist in SAR; there is no chart step afterwards. Provisioning then pins the public origin: `web.base.url` = `https://$DOMAIN` with `web.base.url.freeze` (`deploy/seed_public_origin.py`), because stock builds payment return/webhook URLs and mail links from it and would otherwise rewrite it at an administrator's sign-in. After a domain change, set `DOMAIN` in `deploy/.env`, recreate the proxy (`docker compose up -d proxy`) and pin the origin again with the running image tag (the running Odoo is signalled and rereads it): `WEBVUE_IMAGE_TAG=<tag> deploy/provision.sh --public-origin <domain> <db name>`.
+
 To back up a Compose customer, the operator must supply **host paths** for
 `pg_dump` output and for `<data_dir>/filestore/<db_name>` after copying or
 mounting the volume themselves. This tool does not `docker exec`, `docker cp`,
