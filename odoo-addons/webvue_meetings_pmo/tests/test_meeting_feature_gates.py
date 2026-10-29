@@ -31,6 +31,9 @@ class TestMeetingFeatureGates(WebVuePmoCase):
         for path in owners:
             self.assertEqual(self.api('GET', path).status_code, 200, path)
         # Closing the owners one at a time leaves each route open until its last owner is off.
+        # The bell also carries platform-owned kinds (an access change) that no application feature
+        # gates, so it stays open once every application feature is off; each row is still filtered.
+        always_open = {'/api/v1/notifications'} if self.env['webvue.notify.registry']._webvue_notify_has_platform_kind() else set()
         closed = {}
         remaining = {path: {key for key in keys if profile.features.get(key)} for path, keys in owners.items()}
         for key in sorted(gated):
@@ -39,7 +42,7 @@ class TestMeetingFeatureGates(WebVuePmoCase):
             for path, keys in owners.items():
                 remaining[path].discard(key)
                 response = self.api('GET', path)
-                if remaining[path]:
+                if remaining[path] or path in always_open:
                     self.assertEqual(response.status_code, 200, (path, key))
                     continue
                 self.assertEqual(response.status_code, 403, (path, key))
