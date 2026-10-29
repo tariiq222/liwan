@@ -31,7 +31,9 @@ class TestActualAccount(PmoFinanceCase):
             self.login_as(user)
             self.assertRefusedWith(self._patch(self.riyadh.id), 403, 'forbidden')
         self.login_as(self.project_manager)
-        self.assertRefusedWith(self._patch(self.riyadh.id), 403, 'forbidden')
+        refused = self._patch(self.riyadh.id)
+        self.assertRefusedWith(refused, 403, 'forbidden')
+        self.assertIn('finance.analytic.manage', refused.json()['message'])
         self.assertEqual(self.alpha.webvue_project_id, self.project)
 
     def test_the_account_must_be_a_cost_center_of_the_current_company(self):
