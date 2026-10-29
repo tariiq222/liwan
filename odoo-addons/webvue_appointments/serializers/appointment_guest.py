@@ -5,12 +5,17 @@ The requester sees only their own booking: the requester's own name, phone and e
 field policies decide which are shown), the type, the time and the company's display name. Never other
 bookings, resource users, notes, the national id or any partner id.
 """
+from datetime import UTC
+
 from odoo.addons.webvue_api.controllers.common import ApiError
 from odoo.addons.webvue_appointments.serializers.appointment_booking import (
     MINUTES_PER_HOUR,
     parse_start,
     timestamp,
     within_deadline,
+)
+from odoo.addons.webvue_appointments.serializers.appointment_slot import (
+    last_bookable_date,
 )
 
 
@@ -34,7 +39,11 @@ def is_modifiable(booking, now):
 
 
 def dump_guest_booking(booking, settings, now):
-    """The requester's view of the booking; ``booking`` is elevated, so everything shown is listed here."""
+    """The requester's view of the booking; ``booking`` is elevated, so everything shown is listed here.
+
+    ``now`` is a naive UTC datetime. ``last_bookable_date`` tells the page how far it may ask for slots and
+    ``awaits_confirmation`` whether it should offer the confirm action.
+    """
     requester = booking.partner_ids[:1]
     return {
         'id': booking.id,
@@ -45,6 +54,8 @@ def dump_guest_booking(booking, settings, now):
         'start': timestamp(booking.start),
         'stop': timestamp(booking.stop),
         'is_modifiable': is_modifiable(booking, now),
+        'last_bookable_date': last_bookable_date(booking.type_id, settings, now.replace(tzinfo=UTC)).isoformat(),
+        'awaits_confirmation': booking.state == 'scheduled' and bool(settings['requester_confirmation']),
         'company_name': booking.type_id.company_id.name,
         'requester': {
             'name': requester.name or '',

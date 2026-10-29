@@ -1,6 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import re
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from odoo.tests import tagged
 
@@ -10,8 +10,8 @@ from odoo.addons.webvue_api.tests.common import set_probe_feature
 PUBLIC = '/api/v1/public/appointments/bookings'
 UTC_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 GUEST_KEYS = {
-    'id', 'state', 'type_name', 'duration_minutes', 'location', 'start', 'stop', 'is_modifiable', 'company_name',
-    'requester',
+    'id', 'state', 'type_name', 'duration_minutes', 'location', 'start', 'stop', 'is_modifiable', 'last_bookable_date',
+    'awaits_confirmation', 'company_name', 'requester',
 }
 REQUESTER_KEYS = {'name', 'phone', 'email'}
 NATIONAL_ID = '1098765432'
@@ -95,6 +95,7 @@ class TestAppointmentGuest(WebVueAppointmentsCase):
             'name': 'Sara Guest', 'phone': '+966500000009', 'email': 'sara.guest@example.com',
         })
         self.assertTrue(body['is_modifiable'])
+        self.assertFalse(body['awaits_confirmation'])
         for secret in (NATIONAL_ID, INTERNAL_NOTE, self.invited.access_token, self.combination.display_name):
             self.assertNotIn(secret, response.text)
 
@@ -164,6 +165,11 @@ class TestAppointmentGuest(WebVueAppointmentsCase):
             self.assertLessEqual(start, now + timedelta(days=6))
         beyond = {'from': today, 'to': today + timedelta(days=7)}
         self._error(self._call('GET', self.invited, '/slots', **beyond), 422, 'invalid', 'to')
+        # The booking tells the page the last day it may ask for: the request for exactly that day is accepted.
+        last = self._call('GET', self.invited).json()['last_bookable_date']
+        self.assertIn(last, (str(today + timedelta(days=6)), str(today + timedelta(days=7))))
+        self.assertEqual(self._call('GET', self.invited, '/slots', **{'from': today, 'to': last}).status_code, 200)
+        self._error(self._call('GET', self.invited, '/slots', **{'from': today, 'to': date.fromisoformat(last) + timedelta(days=1)}), 422, 'invalid', 'to')
         self._error(self._call('GET', self.invited, '/slots', **{'from': 'x', 'to': 'y'}), 422, 'invalid', 'from')
 
     def test_slots_accept_no_choice_of_resources(self):
@@ -217,8 +223,10 @@ class TestAppointmentGuest(WebVueAppointmentsCase):
         self._settings(requester_confirmation=True)
         body = self._schedule(self.invited).json()
         self.assertEqual(body['state'], 'scheduled')
+        self.assertTrue(body['awaits_confirmation'])
         confirmed = self._call('POST', self.invited, '/confirm')
         self.assertEqual((confirmed.status_code, confirmed.json()['state']), (200, 'confirmed'), confirmed.text)
+        self.assertFalse(confirmed.json()['awaits_confirmation'])
         self._error(self._call('POST', self.invited, '/confirm'), 422, 'invalid')
 
     def test_a_confirmation_nobody_asked_for_is_refused(self):
