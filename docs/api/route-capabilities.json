@@ -8275,7 +8275,9 @@
     "POST /api/v1/my-tasks/{task_id}/convert": {
       "addon": "webvue_tasks_pmo",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "pmo.projects.read"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [

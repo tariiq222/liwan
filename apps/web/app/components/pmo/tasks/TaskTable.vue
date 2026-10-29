@@ -42,7 +42,9 @@ const hasActiveFilters = computed(
 )
 const emptyTitleKey = computed(() => {
   if (hasActiveFilters.value) return 'app.noResults'
-  return props.params.closed ? 'tasks.empty.closedTitle' : 'tasks.empty.title'
+  if (props.params.closed) return 'tasks.empty.closedTitle'
+  // A project's list is not scoped to the viewer: "no tasks assigned to you" would be wrong there.
+  return props.variant === 'project' ? 'projects.tasksEmpty' : 'tasks.empty.title'
 })
 const showCreateAction = computed(() => can('pmo.tasks.create') && !hasActiveFilters.value && !props.params.closed)
 

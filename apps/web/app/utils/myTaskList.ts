@@ -50,6 +50,11 @@ export function toListParams(state: MyTaskListState): MyTaskListParams {
   }
 }
 
+/** The offset of the last page that still has rows (0 for an empty list): where a past-the-end offset lands. */
+export function lastPageOffset(total: number): number {
+  return Math.max(0, Math.ceil(total / MY_TASK_PAGE_SIZE) - 1) * MY_TASK_PAGE_SIZE
+}
+
 /** The next URL query: keeps unrelated keys and omits every value equal to its default. */
 export function listPatch(query: LocationQueryRaw, patch: Partial<MyTaskListState>): LocationQueryRaw {
   const next: LocationQueryRaw = { ...query }

@@ -43,6 +43,22 @@ class TestCostCenterSettings(PmoFinanceCase):
         refused = self.api('PATCH', URL, {MODE: 'auto'})
         self.assertEqual((refused.status_code, refused.json()['code']), (422, 'unknown_field'))
 
+    def test_the_mode_cannot_be_written_while_finance_is_only_retained_for_reading(self):
+        self.switch_finance(False, retained=True)
+        self.assertEqual(len(self.get_ok(URL)['extensions']), 1)
+        refused = self.api('PATCH', URL, {MODE: 'auto'})
+        self.assertEqual((refused.status_code, refused.json()['code']), (403, 'feature_not_included'))
+        self.assertEqual(self.company.webvue_pmo_finance_cost_center_mode, 'manual')
+
+    def test_the_labels_come_in_arabic_for_an_arabic_user(self):
+        self.env['res.lang']._activate_lang('ar_001')
+        self.env['ir.module.module']._load_module_terms(['webvue_pmo_finance'], ['ar_001'])
+        self.settings_admin.lang = 'ar_001'
+        self.login_as(self.settings_admin)  # the session keeps the language it was opened with
+        extension = self.get_ok(URL)['extensions'][0]
+        self.assertEqual(extension['label'], 'مراكز تكلفة المشاريع')
+        self.assertEqual([option['label'] for option in extension['options']], ['تلقائي', 'يدوي'])
+
     def test_the_company_field_is_not_writable_outside_the_settings_operation(self):
         with self.assertRaises(AccessError):
             self.company.write({MODE: 'auto'})

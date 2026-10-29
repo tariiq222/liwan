@@ -15,6 +15,7 @@ from odoo.addons.webvue_api.controllers.common import (
     require_capabilities,
     requires_feature,
 )
+from odoo.addons.webvue_meetings.models.local_day import local_datetime
 from odoo.addons.webvue_meetings.serializers.meeting import (
     dump_meeting,
     dump_meetings,
@@ -92,9 +93,7 @@ def _validate_internal_users(user_ids, field):
 
 
 def _user_calendar_day(value):
-    parsed = fields.Datetime.to_datetime(value)
-    localized = fields.Datetime.context_timestamp(request.env.user, parsed)
-    return localized.date().isoformat()
+    return local_datetime(request.env.user, request.env.company, value).date().isoformat()
 
 
 def _render_minutes_pdf(meeting):

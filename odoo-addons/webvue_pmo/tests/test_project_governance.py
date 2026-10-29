@@ -23,6 +23,8 @@ class TestProjectGovernance(WebVuePmoCase):
         self.project = self.env['project.project'].create({'name': 'Governance', 'company_id': self.env.company.id})
         self.task_overdue = self.env['project.task'].create({'name': 'Governance task', 'project_id': self.project.id, 'user_ids': [(4, self.employee.id)]})
         self.governance_url = f'/api/v1/projects/{self.project.id}'
+        # These tests exercise the register's data rules, not its status policy (see test_policy_settings).
+        self.env['ir.config_parameter'].sudo().set_param(f'webvue_pmo.register_status_transitions.{self.env.company.id}', 'free')
 
     def test_manager_crud_raci_and_register_roundtrip(self):
         self.authenticate('api_mgr', 'api_mgr_pass_123')

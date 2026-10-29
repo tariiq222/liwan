@@ -73,7 +73,8 @@ export function appRootFallback(identity: AccessIdentity, path: string): string 
   return (manifest.landing ?? []).find(entry => canReach(identity, entry.capability, entry.path) && canReachPath(identity, entry.path))?.path ?? null
 }
 export function postLoginPath(identity: AccessIdentity, next: unknown): string {
-  const fallback = Array.isArray(identity?.capabilities) ? '/' : firstAllowedPath(identity)
+  // An identity that is not loaded yet (right after sign-in) lands on `/`, which the route guard resolves with the real identity.
+  const fallback = !identity || Array.isArray(identity.capabilities) ? '/' : firstAllowedPath(identity)
   const target = safeReturnTo(next, fallback, [...destinations().map(([path]) => path), ...FOUNDATION_RETURN_TO, ...activeManifests().flatMap(manifest => manifest.returnToPaths ?? [])])
   const pathname = new URL(target, 'http://webvue.local').pathname
   return canReachPath(identity, pathname) ? target : fallback
