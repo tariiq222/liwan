@@ -188,9 +188,10 @@ class WebVueInboxConversation(models.Model):
 
     @api.model
     def _webvue_purge_stale_uploads(self, now):
-        """Delete files uploaded to a conversation (for a reply) or loose (a template header sample) that nothing ever used."""
+        """Delete files uploaded to a conversation (for a reply) or loose (a template or campaign header file) that nothing ever used."""
         self.env['ir.attachment'].search([
-            '|', ('res_model', '=', self._name), '&', ('res_model', '=', 'webvue.inbox.template'), ('res_id', '=', 0),
+            '|', ('res_model', '=', self._name),
+            '&', ('res_model', 'in', ('webvue.inbox.template', 'webvue.inbox.campaign')), ('res_id', '=', 0),
             ('create_date', '<', now - STALE_UPLOAD_AGE),
         ]).unlink()
 
@@ -207,6 +208,7 @@ class WebVueInboxConversation(models.Model):
             '&', ('res_model', '=', self._name), ('res_id', 'in', expired.ids),
         ]).unlink()
         expired.unlink()
+        # Contacts a company imported or a campaign messaged stay: they are the audience, not leftovers of a conversation.
         self.env['webvue.inbox.contact'].search([
-            ('company_id', '=', company.id), ('conversation_ids', '=', False),
+            ('company_id', '=', company.id), ('conversation_ids', '=', False), ('imported', '=', False), ('recipient_ids', '=', False),
         ]).unlink()

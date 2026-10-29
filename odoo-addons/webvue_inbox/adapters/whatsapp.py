@@ -38,6 +38,15 @@ ACCOUNT_ALERTS_FIELD = 'account_alerts'
 HEALTH_FIELDS = frozenset({PHONE_QUALITY_FIELD, PHONE_NAME_FIELD, ACCOUNT_UPDATE_FIELD, CAPABILITY_FIELD, ACCOUNT_ALERTS_FIELD})
 # The webhook fields that name a business account (entry.id) and no phone number id.
 ACCOUNT_FIELDS = TEMPLATE_FIELDS | HEALTH_FIELDS
+USER_PREFERENCES_FIELD = 'user_preferences'
+MARKETING_CATEGORY = 'marketing_messages'
+MARKETING_PATH = 'marketing_messages'
+CLOUD_PATH = 'messages'
+PRODUCT_POLICY = 'CLOUD_API_FALLBACK'
+HELD_STATUS = 'held_for_quality_assessment'
+# Meta error codes that a later attempt may cure: throughput, WABA and app rate limits, pair rate, maintenance, unknown.
+RETRYABLE_CODES = frozenset({130429, 80007, 4, 131056, 131057, 131000, 131016})
+MARKETING_ONBOARDING = {'ELIGIBLE': 'eligible', 'ONBOARDED': 'onboarded'}
 NO_REASON = 'NONE'
 NON_DIGITS = re.compile(r'\D')
 # Meta's messaging limit words and the integers of the capability webhook, as the channel's `messaging_limit` keys.
@@ -133,6 +142,22 @@ class StatusUpdate:
     status: str
     sent_at: datetime
     error: str | None
+    error_code: int | None = None
+
+
+@dataclass(frozen=True)
+class UserPreferenceUpdate:
+    """The customer stopped (`stop`) or resumed (`resume`) marketing messages from inside WhatsApp."""
+    wa_id: str
+    value: str
+    at: datetime | None
+
+
+@dataclass(frozen=True)
+class SendResult:
+    """A sent message: its provider id, and whether Meta holds it for a template quality check."""
+    provider_id: str
+    held: bool
 
 
 @dataclass(frozen=True)
@@ -265,9 +290,10 @@ class Media:
 class ProviderError(Exception):
     """The provider refused or could not be reached; `retryable` says whether a later attempt may succeed."""
 
-    def __init__(self, message, retryable):
+    def __init__(self, message, retryable, code=None):
         super().__init__(message)
         self.retryable = retryable
+        self.code = code
 
 
 def verify_signature(app_secret, raw, header):
@@ -379,6 +405,10 @@ def _message_event(raw, names):
     return _reaction(raw) if raw.get('type') == 'reaction' else _inbound(raw, names)
 
 
+def _int_or_none(value):
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
 def _status(raw):
     errors = _dicts(raw.get('errors'))
     return StatusUpdate(
@@ -386,7 +416,17 @@ def _status(raw):
         status=raw['status'],
         sent_at=_timestamp(raw['timestamp']),
         error=(errors[0].get('title') or errors[0].get('message')) if errors else None,
+        error_code=_int_or_none(errors[0].get('code')) if errors else None,
     )
+
+
+def _preference(raw):
+    """The marketing preference change of one `user_preferences` item, or None for another category or an unknown value."""
+    wa_id, value = raw.get('wa_id'), raw.get('value')
+    if raw.get('category') != MARKETING_CATEGORY or value not in ('stop', 'resume') or not isinstance(wa_id, str):
+        return None
+    stamp = str(raw.get('timestamp') or '')
+    return UserPreferenceUpdate(wa_id, value, _timestamp(stamp) if stamp.isdigit() else None)
 
 
 def _text(value):
@@ -532,6 +572,7 @@ def parse_events(payload, phone_number_id, business_account_id, display_phone_nu
             }
             events += [event for event in (_message_event(raw, names) for raw in _dicts(value.get('messages'))) if event]
             events += [_status(raw) for raw in _dicts(value.get('statuses'))]
+            events += [event for event in map(_preference, _dicts(value.get('user_preferences'))) if event]
     return events
 
 
@@ -554,6 +595,13 @@ def template_business_account_ids(payload):
     return {value for value in ids if isinstance(value, str)}
 
 
+def _error_code(response):
+    try:
+        return _int_or_none(response.json()['error']['code'])
+    except (ValueError, KeyError, TypeError):
+        return None
+
+
 def _error_text(response):
     try:
         message = response.json()['error']['message']
@@ -569,8 +617,9 @@ def _call(method, url, credentials, timeout=TIMEOUT_SECONDS, scheme='Bearer', he
     except requests.RequestException as error:
         raise ProviderError(f'provider unreachable: {type(error).__name__}', retryable=True) from None
     if response.status_code >= 400:
-        retryable = response.status_code >= 500 or response.status_code == 429
-        raise ProviderError(_error_text(response), retryable=retryable)
+        code = _error_code(response)
+        retryable = response.status_code >= 500 or response.status_code == 429 or code in RETRYABLE_CODES
+        raise ProviderError(_error_text(response), retryable=retryable, code=code)
     return response
 
 
@@ -590,17 +639,21 @@ def _graph(path):
     return f'{GRAPH_BASE}/{GRAPH_API_VERSION}/{path}'
 
 
-def _send(credentials, to, kind, content, context_id=None):
-    payload = {'messaging_product': 'whatsapp', 'to': to, 'type': kind, kind: content}
+def _deliver(credentials, to, kind, content, context_id=None, path=CLOUD_PATH, extra=None):
+    payload = {'messaging_product': 'whatsapp', 'to': to, 'type': kind, kind: content, **(extra or {})}
     if context_id:
         payload['context'] = {'message_id': context_id}
-    response = _call('POST', _graph(f'{credentials.phone_number_id}/messages'), credentials, json=payload)
+    response = _call('POST', _graph(f'{credentials.phone_number_id}/{path}'), credentials, json=payload)
     messages = _json_dict(response).get('messages')
-    provider_id = messages[0].get('id') if isinstance(messages, list) and messages and isinstance(messages[0], dict) else None
-    if not isinstance(provider_id, str):
+    first = messages[0] if isinstance(messages, list) and messages and isinstance(messages[0], dict) else {}
+    if not isinstance(first.get('id'), str):
         message = 'malformed provider response'
         raise ProviderError(message, retryable=False)
-    return provider_id
+    return SendResult(first['id'], first.get('message_status') == HELD_STATUS)
+
+
+def _send(credentials, to, kind, content, context_id=None):
+    return _deliver(credentials, to, kind, content, context_id).provider_id
 
 
 def send_text(credentials, to, body, context_id=None):
@@ -624,7 +677,8 @@ def _button_component(button):
     return {'type': 'button', 'sub_type': button['sub_type'], 'index': str(button['index']), 'parameters': [parameter]}
 
 
-def send_template(credentials, to, name, language, params, header=None, buttons=()):
+def send_template(credentials, to, name, language, params, header=None, buttons=(), marketing_api=False):
+    """Send an approved template; `marketing_api` posts it to the Marketing Messages API (Cloud API as the fallback)."""
     content = {'name': name, 'language': {'code': language}}
     components = []
     if header:
@@ -634,7 +688,9 @@ def send_template(credentials, to, name, language, params, header=None, buttons=
     components += [_button_component(button) for button in buttons]
     if components:
         content['components'] = components
-    return _send(credentials, to, 'template', content)
+    if marketing_api:
+        return _deliver(credentials, to, 'template', content, path=MARKETING_PATH, extra={'product_policy': PRODUCT_POLICY})
+    return _deliver(credentials, to, 'template', content)
 
 
 def upload_media(credentials, filename, mimetype, data):
@@ -836,6 +892,17 @@ def fetch_phone_health(credentials):
         throughput_level=_enum(_dict(data.get('throughput')).get('level'), THROUGHPUT_LEVELS),
         code_verified=data.get('code_verification_status') == 'VERIFIED',
     )
+
+
+def fetch_marketing_onboarding(credentials):
+    """The business account's Marketing Messages API onboarding: not_started (no status), eligible, onboarded or unknown."""
+    data = _json_dict(_call(
+        'GET', _graph(credentials.business_account_id), credentials, params={'fields': 'marketing_messages_onboarding_status'},
+    ))
+    status = data.get('marketing_messages_onboarding_status')
+    if status is None:
+        return 'not_started'
+    return MARKETING_ONBOARDING.get(status.upper(), UNKNOWN) if isinstance(status, str) else UNKNOWN
 
 
 def get_business_profile(credentials):

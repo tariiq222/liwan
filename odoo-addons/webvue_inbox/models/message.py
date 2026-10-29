@@ -148,19 +148,23 @@ class WebVueInboxMessage(models.Model):
         })
 
     @api.model
-    def _webvue_queue_template(self, conversation, template, params=(), header=None, button_params=()):
+    def _webvue_queue_template(self, conversation, template, params=(), header=None, button_params=(), extra=None, wake=True):
         """Queue an approved template reply (allowed at any time, also after the window closed).
 
         `header` holds the validated header input: `text`, `attachment` (an upload of the conversation) or
         `location` (location message values); `button_params` is a list of (button position, value).
+        `extra` are message values that replace the defaults (a campaign sends automated, with its header file already
+        uploaded as `media_id`, so the file stays the campaign's); `wake=False` leaves waking the outbox to the caller.
         """
         self._webvue_require_sendable(conversation)
-        header = header or {}
+        header, extra = header or {}, extra or {}
         values = self._webvue_template_values(conversation, template, params, header, button_params)
-        message = self.create(self._webvue_outbound_values(conversation, values))
-        if header.get('attachment'):
+        values['business_initiated'] = not self._webvue_window_open(conversation)
+        message = self.create(self._webvue_outbound_values(conversation, {**values, **extra}))
+        if header.get('attachment') and not extra.get('media_id'):
             header['attachment'].write({'res_model': message._name, 'res_id': message.id})
-        self._webvue_wake_outbox()
+        if wake:
+            self._webvue_wake_outbox()
         return message
 
     @api.model
@@ -220,9 +224,13 @@ class WebVueInboxMessage(models.Model):
             raise ValidationError(self.env._('The channel is disabled.'))
 
     @api.model
-    def _webvue_require_window(self, conversation):
+    def _webvue_window_open(self, conversation):
         ends = conversation.reply_window_ends_at
-        if not ends or fields.Datetime.now() > ends:
+        return bool(ends) and fields.Datetime.now() <= ends
+
+    @api.model
+    def _webvue_require_window(self, conversation):
+        if not self._webvue_window_open(conversation):
             raise ValidationError(self.env._('The 24-hour reply window is closed; send an approved template.'))
 
     @api.model
@@ -284,8 +292,8 @@ class WebVueInboxMessage(models.Model):
         if not self.template_name:
             self._webvue_require_window(self.conversation_id)
         self.write({
-            'delivery_state': 'queued', 'attempts': 0, 'error': False, 'next_attempt_at': fields.Datetime.now(),
-            'media_id': False,
+            'delivery_state': 'queued', 'attempts': 0, 'error': False, 'error_code': False, 'held_for_quality': False,
+            'next_attempt_at': fields.Datetime.now(), 'media_id': False,
         })
         self._webvue_wake_outbox()
 
@@ -330,7 +338,12 @@ class WebVueInboxMessage(models.Model):
         if not message or message.delivery_state == 'failed':
             return message
         if update.status == 'failed':
-            message.write({'delivery_state': 'failed', 'error': (update.error or '')[:ERROR_TEXT_LENGTH] or False})
+            message.write({
+                'delivery_state': 'failed', 'error': (update.error or '')[:ERROR_TEXT_LENGTH] or False,
+                'error_code': update.error_code or False,
+            })
+            message.campaign_recipient_ids._webvue_on_failed()
         elif STATE_RANK.get(update.status, -1) > STATE_RANK.get(message.delivery_state, -1):
-            message.write({'delivery_state': update.status})
+            # Meta has let a held message through once it is sent or delivered.
+            message.write({'delivery_state': update.status, **({'held_for_quality': False} if update.status != 'queued' else {})})
         return message

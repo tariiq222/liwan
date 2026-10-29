@@ -33,3 +33,16 @@ FIRST_RESPONSE_CRON_BATCH = 200
 # The survey's answers: (option id of the reply button, channel field holding its label, score stored on the conversation).
 CSAT_OPTIONS = (('csat_good', 'csat_good', 'good'), ('csat_neutral', 'csat_neutral', 'neutral'), ('csat_bad', 'csat_bad', 'bad'))
 CSAT_SCORES = {option_id: score for option_id, _label_field, score in CSAT_OPTIONS}
+
+# Campaigns (phase 4): the sub-feature, the monthly recipients limit and the dispatcher cron.
+CAMPAIGNS_FEATURE = 'inbox.campaigns'
+CAMPAIGN_RECIPIENTS_LIMIT = 'inbox.campaign_recipients'
+CAMPAIGN_CRON = 'webvue_inbox.ir_cron_inbox_campaigns'
+# Queued campaign messages the outbox may hold per campaign, and the contacts one snapshot step freezes.
+CAMPAIGN_IN_FLIGHT = 200
+SNAPSHOT_CHUNK = 1000
+# Meta counts unique customers messaged outside a service window over a rolling day.
+ROLLING_DAY = timedelta(hours=24)
+REPLY_ATTRIBUTION = timedelta(hours=72)
+UNSUBSCRIBE_ATTRIBUTION = timedelta(days=7)
+FREQUENCY_RETRY_AFTER = timedelta(hours=24)

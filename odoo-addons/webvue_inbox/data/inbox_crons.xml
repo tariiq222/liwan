@@ -82,4 +82,14 @@
         <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).replace(hour=3, minute=0, second=0)"/>
         <field name="active" eval="True"/>
     </record>
+    <record id="ir_cron_inbox_campaigns" model="ir.cron">
+        <field name="name">webvue inbox: dispatch WhatsApp campaigns</field>
+        <field name="model_id" ref="model_webvue_inbox_campaign"/>
+        <field name="state">code</field>
+        <field name="code">model._webvue_run_campaigns()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">minutes</field>
+        <field name="active" eval="True"/>
+    </record>
 </odoo>

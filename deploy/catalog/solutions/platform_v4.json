@@ -180,8 +180,10 @@
         "boolean:inbox.templates",
         "boolean:inbox.automation",
         "boolean:inbox.reports",
+        "boolean:inbox.campaigns",
         "limit:inbox.channels",
-        "limit:inbox.messages_out"
+        "limit:inbox.messages_out",
+        "limit:inbox.campaign_recipients"
       ]
     }
   ]

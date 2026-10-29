@@ -30,6 +30,8 @@ class WebVueInboxInbound(models.AbstractModel):
                 self.env['webvue.inbox.template']._webvue_apply_update(channel, item)
             elif isinstance(item, whatsapp.HEALTH_UPDATES):
                 channel._webvue_apply_health_update(item)
+            elif isinstance(item, whatsapp.UserPreferenceUpdate):
+                self.env['webvue.inbox.contact']._webvue_apply_preference(channel, item)
             else:
                 changed |= self.env['webvue.inbox.message']._webvue_apply_status(item).conversation_id
         return changed
@@ -55,7 +57,10 @@ class WebVueInboxInbound(models.AbstractModel):
             'unread': True,
             **({'state': 'open'} if conversation.state in REOPENED_STATES else {}),
         })
-        automation._webvue_run(conversation, message)
+        if self.env['webvue.inbox.campaign.inbound']._webvue_on_inbound(conversation, message):
+            message.automation_done = True  # a stop or start keyword is answered by the opt-out handling, not by the rules
+        else:
+            automation._webvue_run(conversation, message)
         return conversation
 
     @api.model

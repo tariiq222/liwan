@@ -24,8 +24,11 @@ from odoo.addons.webvue_inbox.controllers.helpers import (
     reject,
 )
 from odoo.addons.webvue_inbox.controllers.reply_parsing import parse_object
-from odoo.addons.webvue_inbox.models.access_service import MANAGE_AUTOMATION
-from odoo.addons.webvue_inbox.models.constants import AUTOMATION_FEATURE
+from odoo.addons.webvue_inbox.models.access_service import CAMPAIGNS, MANAGE_AUTOMATION
+from odoo.addons.webvue_inbox.models.constants import (
+    AUTOMATION_FEATURE,
+    CAMPAIGNS_FEATURE,
+)
 from odoo.addons.webvue_inbox.serializers.automation import (
     dump_channel_automation,
     dump_rule,
@@ -96,12 +99,13 @@ class AutomationController(http.Controller):
 
     @http.route('/api/v1/inbox/automation/channels', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_feature('inbox.enabled', AUTOMATION_FEATURE, operation='read')
-    @requires_capability(MANAGE_AUTOMATION)
+    @requires_feature('inbox.enabled', operation='read')
+    @requires_feature(AUTOMATION_FEATURE, CAMPAIGNS_FEATURE, operation='read', match='any')
+    @requires_capability(MANAGE_AUTOMATION, CAMPAIGNS, match='any')
     def list_automation_channels(self, **_):
-        """The channels the caller automates, as plain references (the channel list itself needs the channels capability)."""
+        """The channels the caller automates or sends campaigns on, as plain references (the channel list itself needs the channels capability)."""
         limit, offset = parse_page(request.httprequest.args)
-        companies = request.env['webvue.access.service']._webvue_capability_company_ids((MANAGE_AUTOMATION,))
+        companies = request.env['webvue.access.service']._webvue_capability_company_ids((MANAGE_AUTOMATION, CAMPAIGNS), match='any')
         domain = [('owner_company_id', 'in', companies)]
         Channel = request.env['webvue.inbox.channel']
         return {

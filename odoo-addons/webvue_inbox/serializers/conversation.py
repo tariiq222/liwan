@@ -77,6 +77,7 @@ def dump_message(message, attachments):
         'body': message.body,
         'author': dump_ref(message.author_id),
         'automated': message.automated,
+        'campaign': dump_ref(message.campaign_recipient_ids[:1].campaign_id),
         'template': dump_message_template(message) if message.template_name else None,
         'delivery_state': message.delivery_state,
         'error': message.error or None,

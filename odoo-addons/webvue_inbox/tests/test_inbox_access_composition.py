@@ -3,6 +3,7 @@ from odoo.tests import TransactionCase, tagged
 
 from odoo.addons.webvue_inbox.models.access_service import (
     ASSIGN,
+    CAMPAIGNS,
     EXPORT,
     MANAGE_CHANNELS,
     MANAGE_SETTINGS,
@@ -37,7 +38,7 @@ class TestInboxAccessComposition(TransactionCase):
 
     def test_sensitive_capabilities(self):
         sensitive = set(self.Permission.search([('key', 'in', sorted(PERMISSIONS)), ('sensitive', '=', True)]).mapped('key'))
-        self.assertEqual(sensitive, {EXPORT, MANAGE_CHANNELS, MANAGE_SETTINGS, REPORTS_READ})
+        self.assertEqual(sensitive, {EXPORT, MANAGE_CHANNELS, MANAGE_SETTINGS, REPORTS_READ, CAMPAIGNS})
 
     def test_roles_hold_the_designed_grants(self):
         self.assertEqual(self._keys('webvue_inbox.role_inbox_agent'), {READ, REPLY})
