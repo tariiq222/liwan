@@ -28,7 +28,13 @@ const projectId = computed(() => {
   const value = Number(route.query.project_id)
   return Number.isInteger(value) && value > 0 ? value : undefined
 })
-const context = computed(() => projectId.value ? String(route.query.project_name || projectId.value) : '')
+// The link may carry no name (a direct URL): look it up in the project picker, never print the bare id.
+const { query: projectQuery } = useRecordPicker('project')
+const context = computed(() => {
+  if (!projectId.value) return ''
+  const picked = (projectQuery.data.value ?? []).find(project => project.id === projectId.value)
+  return String(route.query.project_name || picked?.name || t('meetingsFilters.selectedProject'))
+})
 watch(untilMode, (mode) => {
   if (mode === 'count') untilDate.value = ''
   else untilCount.value = ''
