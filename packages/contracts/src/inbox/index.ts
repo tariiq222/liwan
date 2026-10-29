@@ -296,6 +296,8 @@ export const InboxTemplateSchema = z.object({
   // Authentication templates only (false and null otherwise).
   add_security_recommendation: z.boolean(),
   code_expiration_minutes: z.number().int().min(1).max(90).nullable(),
+  // The label of the button that copies the code (authentication only).
+  otp_button_text: z.string().nullable(),
   // Body variables an agent fills when sending.
   param_count: z.number().int().nonnegative(),
   // Meta accepts edits of approved, rejected and paused templates only.

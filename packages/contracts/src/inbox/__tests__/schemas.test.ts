@@ -152,7 +152,7 @@ describe('InboxTemplateSchema', () => {
       id: 1, name: 'offer', language: 'ar', category: 'marketing', status: 'rejected', status_reason: 'INVALID_FORMAT',
       quality: 'unknown', header: { type: 'image', example_attachment: null }, body: 'خصم {{1}}', body_examples: ['20%'],
       footer: null, buttons: [{ type: 'copy_code', example: 'SALE20' }], add_security_recommendation: false,
-      code_expiration_minutes: null, param_count: 1, editable: true,
+      code_expiration_minutes: null, otp_button_text: null, param_count: 1, editable: true,
     }
     expect(InboxTemplateSchema.parse(template)).toEqual(template)
   })
