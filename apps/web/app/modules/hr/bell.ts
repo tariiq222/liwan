@@ -17,9 +17,9 @@ export function hrBellTitle(row: Record<string, unknown>, t: Translate): string 
   return t(TITLE_KEYS[parsed.data.kind], { dates: parsed.data.title })
 }
 
-/** The leave page of a decision row, or null for a row without one. */
+/** The employee's own leave page of a decision row (the row goes to the requester), or null for a row without one. */
 export function hrBellHref(row: Record<string, unknown>): string | null {
-  return typeof row.leave_id === 'number' ? `/hr/leave/${row.leave_id}` : null
+  return typeof row.leave_id === 'number' ? `/account/leave/${row.leave_id}` : null
 }
 
 /** The bell's title callback: it runs while the bell renders, so the app's own translator is at hand. */

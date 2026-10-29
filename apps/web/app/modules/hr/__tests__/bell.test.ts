@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { canReachPath } from '../../../utils/accessPolicy'
 import arHr from '../../../../i18n/locales/ar/hr.json'
 import enHr from '../../../../i18n/locales/en/hr.json'
 import manifest from '../manifest'
@@ -26,7 +27,10 @@ describe('hr leave bell rows', () => {
   })
 
   it('opens the leave request page and is declared by the manifest', () => {
-    expect(hrBellHref(row('hr.leave_approved'))).toBe('/hr/leave/7')
+    expect(hrBellHref(row('hr.leave_approved'))).toBe('/account/leave/7')
+    // The row goes to the requester, who may hold only the self-service leave capabilities.
+    expect(canReachPath({ capabilities: ['hr.employees.read', 'hr.leave.read', 'hr.leave.request'] }, '/account/leave/7')).toBe(true)
+    expect(canReachPath({ capabilities: ['hr.employees.read', 'hr.leave.read', 'hr.leave.request'] }, '/hr/leave/7')).toBe(false)
     expect(hrBellHref({ kind: 'hr.leave_approved' })).toBeNull()
     expect(manifest.bell?.kinds?.map(kind => kind.kind)).toEqual(['hr.leave_approved', 'hr.leave_refused'])
   })
