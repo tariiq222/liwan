@@ -13,9 +13,10 @@ MANAGE_AUTOMATION = 'inbox.automation.manage'
 # copy can move them to it (webvue.inbox.flow._webvue_take_over). No route gives it more than that.
 MANAGE_FLOWS = 'inbox.flows.manage'
 REPORTS_READ = 'inbox.reports.read'
+CAMPAIGNS = 'inbox.campaigns.manage'
 
 PERMISSIONS = frozenset({
-    READ, REPLY, ASSIGN, EXPORT, MANAGE_CHANNELS, MANAGE_SETTINGS, MANAGE_TEMPLATES, MANAGE_AUTOMATION, MANAGE_FLOWS, REPORTS_READ,
+    READ, REPLY, ASSIGN, EXPORT, MANAGE_CHANNELS, MANAGE_SETTINGS, MANAGE_TEMPLATES, MANAGE_AUTOMATION, MANAGE_FLOWS, REPORTS_READ, CAMPAIGNS,
 })
 PERMISSION_DEPENDENCIES = {
     REPLY: {READ},

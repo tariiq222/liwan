@@ -2,15 +2,16 @@
 // Every response is shaped like packages/contracts/src/inbox; app/composables/inbox/__tests__/inboxMockContract.test.ts
 // parses them with the contract schemas, so the mock cannot drift from the wire shape.
 
+import { campaignsRoute, seedCampaignRecords, seedCampaigns } from './inbox-campaigns-preview-data.mjs'
 import { channelHealthRoute, emptyHealth, reportsRoute, seedChannelExtras, seedHealth } from './inbox-reports-preview-data.mjs'
 import { catalogPreviewRoute, commerceReply, decorateCarts, seedCatalog, seedCommerceThread } from './inbox-catalog-preview-data.mjs'
 
 export const INBOX_CAPABILITIES = [
   'inbox.conversations.read', 'inbox.conversations.reply', 'inbox.conversations.assign', 'inbox.conversations.export',
   'inbox.channels.manage', 'inbox.settings.manage', 'inbox.templates.manage', 'inbox.automation.manage', 'inbox.flows.manage', 'inbox.reports.read',
-  'inbox.catalog.manage', 'inbox.orders.manage',
+  'inbox.catalog.manage', 'inbox.orders.manage', 'inbox.campaigns.manage',
 ]
-export const INBOX_FEATURES = ['inbox.enabled', 'inbox.whatsapp', 'inbox.templates', 'inbox.automation', 'inbox.flows', 'inbox.reports', 'inbox.catalog']
+export const INBOX_FEATURES = ['inbox.enabled', 'inbox.whatsapp', 'inbox.templates', 'inbox.automation', 'inbox.flows', 'inbox.reports', 'inbox.catalog', 'inbox.campaigns']
 
 const ME = { id: 2, name: 'Admin' }
 const AGENTS = [{ id: 5, name: 'نورة الحربي' }, { id: 6, name: 'سارة محمد' }]
@@ -56,7 +57,7 @@ function seed() {
   }
   let nextMessageId = 100
   const message = (direction, body, hoursAgo, extra = {}) => ({
-    id: nextMessageId++, direction, kind: 'text', body, author: direction === 'in' ? null : AGENTS[0], template: null,
+    id: nextMessageId++, direction, kind: 'text', body, author: direction === 'in' ? null : AGENTS[0], template: null, campaign: null,
     delivery_state: direction === 'in' ? 'received' : 'sent', error: null, attachments: [], reply_to: null,
     reactions: { customer: null, agent: null }, location: null, interactive: null, selected_option: null, flow_response: null, automated: false, commerce: null, created_at: ago(hoursAgo), ...extra,
   })
@@ -240,7 +241,14 @@ function seed() {
   }
 }
 
-let state = seed()
+function freshState() {
+  const fresh = seed()
+  fresh.campaignData = seedCampaigns(ago)
+  seedCampaignRecords({ state: fresh }, ago)
+  return fresh
+}
+
+let state = freshState()
 
 const PRESETS = {
   clinic: { departments: ['الاستقبال', 'المواعيد'], tags: ['حجز', 'إلغاء', 'استفسار'], canned: [['appointment', 'يسعدنا حجز موعدك، ما اليوم الأنسب لك؟']], policy: 'department' },
@@ -300,7 +308,7 @@ function patchConversation(conv, body) {
 
 function appendMessage(conv, fields) {
   const created = {
-    id: state.ids.message(), direction: 'out', kind: 'text', body: '', author: ME, template: null, delivery_state: 'queued', error: null, attachments: [],
+    id: state.ids.message(), direction: 'out', kind: 'text', body: '', author: ME, template: null, campaign: null, delivery_state: 'queued', error: null, attachments: [],
     reply_to: null, reactions: { customer: null, agent: null }, location: null, interactive: null, selected_option: null, flow_response: null, automated: false, commerce: null, created_at: iso(Date.now()), ...fields,
   }
   state.messages[conv.id].push(created)
@@ -491,6 +499,7 @@ function channelRoute(method, parts, body, url) {
   const action = parts[5] === 'templates' && parts[6] ? parts[6] : parts[5]
   const channel = state.channels.find(item => item.id === id)
   if (id !== undefined && !channel) return fail(404, 'not_found', 'not found')
+  if (action === 'sending') return campaignsRoute(mockContext(), method, parts, url, body)
   if (method === 'GET' && action === 'ref') return ok({ id: channel.id, name: channel.name })
   if (action === 'flows' || (parts[5] === 'flows' && parts[6] === 'sync')) return channelFlows(channel, method, parts[6], body, url)
   if (action === 'templates') return method === 'GET' ? templateList(url) : createTemplate(channel, body)
@@ -965,6 +974,7 @@ function downloadOf(messageId, attachmentId) {
 export function inboxPreviewData(method, path, url, body = {}) {
   const parts = segments(path)
   if (parts[2] === 'settings' && parts[3] === 'inbox') {
+    if (parts[4] === 'campaigns') return campaignsRoute(mockContext(), method, parts, url, body)
     if (parts[4] === 'presets' && method === 'POST') {
       if (!PRESETS[parts[5]]) return fail(404, 'not_found', 'unknown preset')
       applyPreset(parts[5])
@@ -980,6 +990,7 @@ export function inboxPreviewData(method, path, url, body = {}) {
   const resource = parts[3]
   const id = parts[4] && /^\d+$/.test(parts[4]) ? Number(parts[4]) : undefined
 
+  if (resource === 'audiences' || resource === 'campaigns' || (resource === 'contacts' && (parts[4] === 'import' || parts[5] === 'marketing'))) return campaignsRoute(mockContext(), method, parts, url, body)
   // Catalog, product-message and order routes first: the conversation and channel branches below answer any sub-path.
   const catalogAnswer = catalogPreviewRoute(state, method, parts, url, body, { me: ME, appendMessage, appendInbound })
   if (catalogAnswer) return catalogAnswer
@@ -1071,5 +1082,5 @@ function mockContext() {
 
 /** Test hook: back to the seed data, so specs start from a known inbox. */
 export function resetInboxPreview() {
-  state = seed()
+  state = freshState()
 }

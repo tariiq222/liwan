@@ -7,7 +7,7 @@ import { parseInboxListRoute, serializeInboxListRoute, type InboxListRoute } fro
 
 // The inbox manifest's context-sidebar panel (AppManifest.sidebarPanel): the conversation list beside the open thread.
 // The shell renders it without naming the inbox (R3); the list filters stay in the URL query. On the reports pages the
-// conversation list has no meaning, so the panel shows the report sections instead.
+// conversation list has no meaning, so the panel shows the report sections instead (and the campaign sections on the campaign pages).
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
@@ -32,6 +32,19 @@ const sections = computed<ShellSubListSection[]>(() => [{
   ],
 }])
 
+// On the campaign pages the panel offers the campaigns and the audiences, with a way back to the conversations.
+const campaigns = computed(() => /^\/inbox\/campaigns(?:\/|$)/.test(route.path))
+const audiences = computed(() => /^\/inbox\/campaigns\/audiences(?:\/|$)/.test(route.path))
+const campaignSections = computed<ShellSubListSection[]>(() => [{
+  id: 'campaigns',
+  title: t('inbox.campaigns.title'),
+  items: [
+    ...(can('inbox.conversations.read') ? [{ id: 'conversations', label: t('inbox.reports.backToInbox'), icon: 'i-lucide-inbox', to: '/inbox', active: false, testId: 'inbox-campaigns-nav-conversations' }] : []),
+    { id: 'list', label: t('inbox.campaigns.title'), icon: 'i-lucide-megaphone', to: '/inbox/campaigns', active: !audiences.value, testId: 'inbox-campaigns-nav-list' },
+    { id: 'audiences', label: t('inbox.campaigns.audiences.title'), icon: 'i-lucide-users-round', to: '/inbox/campaigns/audiences', active: audiences.value, testId: 'inbox-campaigns-nav-audiences' },
+  ],
+}])
+
 function updateRoute(next: InboxListRoute) {
   void router.replace({ path: route.path, query: serializeInboxListRoute(next) })
 }
@@ -39,5 +52,6 @@ function updateRoute(next: InboxListRoute) {
 
 <template>
   <ShellContextSubList v-if="reports" :label="t('inbox.reports.navLabel')" :sections="sections" :collapsed="false" :hydrated="hydrated" />
+  <ShellContextSubList v-else-if="campaigns" :label="t('inbox.campaigns.navLabel')" :sections="campaignSections" :collapsed="false" :hydrated="hydrated" />
   <InboxConversationList v-else class="min-h-0 flex-1" :route-state="routeState" :selected-id="selectedId" @update:route-state="updateRoute" />
 </template>

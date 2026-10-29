@@ -39,3 +39,15 @@ CSAT_SCORES = {option_id: score for option_id, _label_field, score in CSAT_OPTIO
 FLOW_JSON_VERSION = '7.3'
 MAX_FLOW_SCREENS = 10
 MAX_FLOW_OPTIONS = 1000
+# Campaigns (phase 4): the sub-feature, the monthly recipients limit and the dispatcher cron.
+CAMPAIGNS_FEATURE = 'inbox.campaigns'
+CAMPAIGN_RECIPIENTS_LIMIT = 'inbox.campaign_recipients'
+CAMPAIGN_CRON = 'webvue_inbox.ir_cron_inbox_campaigns'
+# Queued campaign messages the outbox may hold per campaign, and the contacts one snapshot step freezes.
+CAMPAIGN_IN_FLIGHT = 200
+SNAPSHOT_CHUNK = 1000
+# Meta counts unique customers messaged outside a service window over a rolling day.
+ROLLING_DAY = timedelta(hours=24)
+REPLY_ATTRIBUTION = timedelta(hours=72)
+UNSUBSCRIBE_ATTRIBUTION = timedelta(days=7)
+FREQUENCY_RETRY_AFTER = timedelta(hours=24)

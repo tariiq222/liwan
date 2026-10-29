@@ -21,6 +21,7 @@ from odoo.addons.webvue_inbox.controllers.helpers import (
     unique_as_invalid,
 )
 from odoo.addons.webvue_inbox.models.access_service import (
+    CAMPAIGNS,
     MANAGE_AUTOMATION,
     MANAGE_FLOWS,
     MANAGE_SETTINGS,
@@ -158,7 +159,7 @@ class SettingsController(http.Controller):
     @http.route('/api/v1/inbox/tags', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('inbox.enabled', operation='read')
-    @requires_capability(READ, MANAGE_SETTINGS, MANAGE_AUTOMATION, match='any')
+    @requires_capability(READ, MANAGE_SETTINGS, MANAGE_AUTOMATION, CAMPAIGNS, match='any')
     def list_tags(self, **_):
         return list_page('webvue.inbox.tag', dump_tag)
 

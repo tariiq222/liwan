@@ -10,11 +10,12 @@ from .constants import WHATSAPP_FEATURE
 from odoo.addons.webvue_inbox.adapters.whatsapp import Credentials
 
 PROVIDER_ID = re.compile(r'^\d{5,32}$')
-# The ciphertext columns are readable by the webhook identity, the channel managers and the template and form
-# managers (who call Meta with the channel's token) only.
+# The ciphertext columns are readable by the webhook identity, the channel managers and the template, form and
+# campaign managers (who call Meta with the channel's token) only.
 SECRET_GROUPS = (
     'webvue_inbox.group_inbox_hook,webvue_inbox.group_cap_inbox_channels_manage,'
-    'webvue_inbox.group_cap_inbox_templates_manage,webvue_inbox.group_cap_inbox_flows_manage'
+    'webvue_inbox.group_cap_inbox_templates_manage,webvue_inbox.group_cap_inbox_flows_manage,'
+    'webvue_inbox.group_cap_inbox_campaigns_manage'
 )
 
 

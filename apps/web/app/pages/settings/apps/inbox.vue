@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import InboxCampaignSettingsForm from '@/components/inbox/campaigns/InboxCampaignSettingsForm.vue'
 import InboxAutoMessagesSection from '@/components/inbox/InboxAutoMessagesSection.vue'
 import InboxCannedRepliesSection from '@/components/inbox/InboxCannedRepliesSection.vue'
 import InboxChannelsSection from '@/components/inbox/InboxChannelsSection.vue'
 import InboxDepartmentsSection from '@/components/inbox/InboxDepartmentsSection.vue'
+import { useInboxCampaignsEnabled } from '@/composables/inbox/useInboxCampaigns'
 import InboxPolicyForm from '@/components/inbox/InboxPolicyForm.vue'
 import InboxPresets from '@/components/inbox/InboxPresets.vue'
 import InboxTagsSection from '@/components/inbox/InboxTagsSection.vue'
@@ -15,6 +17,7 @@ import InboxTagsSection from '@/components/inbox/InboxTagsSection.vue'
 const route = useRoute()
 const { t } = useI18n()
 const { shows } = useSettingsPage('inbox')
+const campaignsOn = useInboxCampaignsEnabled()
 const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
 const isSubPage = computed(() => /^\/settings\/apps\/inbox\/(?:channels\/(?!new$)[^/]+|auto-messages|rules|working-hours|catalog)(?:\/|$)/.test(normalizedPath.value))
 </script>
@@ -31,6 +34,7 @@ const isSubPage = computed(() => /^\/settings\/apps\/inbox\/(?:channels\/(?!new$
         <InboxTagsSection v-if="shows('tags')" />
         <InboxCannedRepliesSection v-if="shows('canned-replies')" />
         <InboxAutoMessagesSection v-if="shows('auto-messages')" />
+        <InboxCampaignSettingsForm v-if="shows('campaigns') && campaignsOn" />
         <InboxChannelsSection v-if="shows('channels')" />
       </div>
     </SharedSettingsPage>

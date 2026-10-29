@@ -282,3 +282,58 @@ test('a manager adds a product, sends a product list, and a customer cart is pai
   await expect(screen.getByText(/تم دفع الطلب S\d+/).first()).toBeVisible(slow);
   await expect(screen.getByTestId('inbox-cart-badge').last()).toContainText('مدفوع', slow);
 });
+
+test('a manager builds an audience, creates a campaign, launches it and watches the numbers move', { tags: ['journey', 'inbox'] }, async ({ app, screen, browser }) => {
+  test.skip(process.env.E2E_STACK === 'odoo', 'the campaigns journey runs on the mock stack');
+  const audience = `جمهور الاختبار ${Date.now().toString(36)}`;
+  const campaign = `حملة الاختبار ${Date.now().toString(36)}`;
+
+  await app.open('/login');
+  await screen.getByLabel('اسم المستخدم').fill('admin');
+  await screen.getByLabel('كلمة المرور').fill('admin');
+  await screen.getByRole('button', 'دخول').tap();
+  await expect(browser).toHaveURL(/^(?!.*\/login)/, slow);
+
+  // The campaigns list: the seeded campaigns with their state.
+  await app.open('/inbox/campaigns');
+  await expect(screen.getByText('تذكير مواعيد الأسبوع')).toBeVisible(slow);
+  await expect(screen.getByText('عروض الشتاء').first()).toBeVisible(slow);
+
+  // An audience from the tag "حجز": its live counts show on its page, with the members and their consent.
+  await app.open('/inbox/campaigns/audiences');
+  await screen.getByTestId('inbox-audience-new').tap();
+  await expect(browser).toHaveURL(/\/audiences\/new/, slow);
+  await screen.getByTestId('inbox-audience-name').fill(audience);
+  await screen.getByTestId('inbox-audience-tags').tap();
+  await screen.getByRole('option', 'حجز').tap();
+  await screen.getByTestId('inbox-audience-submit').tap();
+  await expect(browser).toHaveURL(/\/audiences\/\d+$/, slow);
+  await expect(screen.getByTestId('inbox-audience-counts')).toBeVisible(slow);
+  await expect(screen.getByTestId('inbox-audience-members')).toContainText('ليلى القحطاني', slow);
+
+  // A campaign: channel, template, audience and the mapping of the template variables; the preview follows.
+  await app.open('/inbox/campaigns/new');
+  await screen.getByTestId('inbox-campaign-name').fill(campaign);
+  await screen.getByTestId('inbox-campaign-channel').tap();
+  await screen.getByRole('option', 'واتساب الاستقبال').tap();
+  await screen.getByTestId('inbox-campaign-template').tap();
+  await screen.getByRole('option', /appointment_reminder/).tap();
+  await screen.getByTestId('inbox-campaign-audience').tap();
+  await screen.getByRole('option', new RegExp(audience)).tap();
+  await expect(screen.getByTestId('inbox-campaign-params')).toBeVisible(slow);
+  await screen.getByTestId('inbox-campaign-param-body-2').getByRole('textbox').fill('الخميس');
+  await screen.getByTestId('inbox-campaign-param-button-1').getByRole('textbox').fill('4521');
+  await screen.getByTestId('inbox-campaign-submit').tap();
+  await expect(browser).toHaveURL(/\/inbox\/campaigns\/\d+$/, slow);
+
+  // Launch it (confirmed inline): it starts sending, and the figures move on their own.
+  await screen.getByTestId('inbox-campaign-launch').tap();
+  await screen.getByTestId('inbox-campaign-confirm').getByRole('button', 'إطلاق').tap();
+  await expect(screen.getByTestId('inbox-campaign-state')).toContainText('قيد الإرسال', slow);
+  await expect(screen.getByTestId('inbox-campaign-stats')).toBeVisible(slow);
+  await expect(screen.getByTestId('inbox-campaign-recipients')).toBeVisible(slow);
+
+  // Pause it by hand: the banner says why.
+  await screen.getByTestId('inbox-campaign-pause').tap();
+  await expect(screen.getByTestId('inbox-campaign-paused')).toBeVisible(slow);
+});

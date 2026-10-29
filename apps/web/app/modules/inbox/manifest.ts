@@ -7,6 +7,7 @@ const manifest: AppManifest = {
   rail: [{ id: 'inbox', labelKey: 'inbox.title', shortLabelKey: 'inbox.railLabel', icon: 'i-lucide-inbox', to: '/inbox', order: 90 }],
   nav: [
     { to: '/inbox', labelKey: 'inbox.nav.conversations', icon: 'i-lucide-inbox', shortcut: 't', capability: 'inbox.conversations.read' },
+    { to: '/inbox/campaigns', labelKey: 'inbox.nav.campaigns', icon: 'i-lucide-megaphone', shortcut: '', capability: 'inbox.campaigns.manage', feature: 'inbox.campaigns' },
     { to: '/inbox/reports', labelKey: 'inbox.nav.reports', icon: 'i-lucide-chart-column', shortcut: '', capability: 'inbox.reports.read', feature: 'inbox.reports' },
     { to: '/inbox/orders', labelKey: 'inbox.nav.orders', icon: 'i-lucide-shopping-cart', shortcut: '', capability: 'inbox.conversations.read', feature: 'inbox.catalog' },
   ],
@@ -25,21 +26,26 @@ const manifest: AppManifest = {
       { id: 'rules', labelKey: 'inbox.automation.rules.title', icon: 'i-lucide-list-checks', capability: 'inbox.automation.manage', to: '/settings/apps/inbox/rules', within: '/settings/apps/inbox/rules' },
       { id: 'auto-messages', labelKey: 'inbox.automation.messages.title', icon: 'i-lucide-bot-message-square', capability: 'inbox.automation.manage', within: '/settings/apps/inbox/auto-messages' },
       { id: 'catalog', labelKey: 'inbox.catalog.title', icon: 'i-lucide-store', capability: 'inbox.catalog.manage', to: '/settings/apps/inbox/catalog', within: '/settings/apps/inbox/catalog' },
+      { id: 'campaigns', labelKey: 'inbox.campaigns.settings.title', icon: 'i-lucide-megaphone', capability: 'inbox.campaigns.manage' },
       { id: 'channels', labelKey: 'inbox.settings.channels.title', icon: 'i-lucide-plug-zap', capability: 'inbox.channels.manage', within: '/settings/apps/inbox/channels' },
     ],
   },
   sidebarPanel: { module: 'inbox', width: 'wide', load: () => import('../../components/inbox/InboxSidebarPanel.vue') },
   contextLinks: () => [
     { id: 'inbox-conversations', labelKey: 'inbox.nav.conversations', icon: 'i-lucide-inbox', to: '/inbox', capability: 'inbox.conversations.read' },
+    { id: 'inbox-campaigns', labelKey: 'inbox.nav.campaigns', icon: 'i-lucide-megaphone', to: '/inbox/campaigns', capability: 'inbox.campaigns.manage', feature: 'inbox.campaigns' },
     { id: 'inbox-reports', labelKey: 'inbox.nav.reports', icon: 'i-lucide-chart-column', to: '/inbox/reports', capability: 'inbox.reports.read', feature: 'inbox.reports' },
   ],
   landing: [
     { path: '/inbox', capability: 'inbox.conversations.read' },
+    { path: '/inbox/campaigns', capability: 'inbox.campaigns.manage' },
     { path: '/inbox/reports', capability: 'inbox.reports.read' },
   ],
-  // The conversations item is not lit on the reports pages, which have their own item.
-  isNavActive: (path, target) => (target === '/inbox' && /^\/inbox\/reports(?:\/|$)/.test(path) ? false : undefined),
+  // The conversations item is not lit on the campaigns or reports pages, which have their own items.
+  isNavActive: (path, target) => (target === '/inbox' && /^\/inbox\/(?:campaigns|reports)(?:\/|$)/.test(path) ? false : undefined),
   routeCapabilities: [
+    // Campaigns have their own capability and sub-feature, matched before the generic inbox rule.
+    { pattern: /^\/inbox\/campaigns(?:\/|$)/, capability: 'inbox.campaigns.manage', feature: 'inbox.campaigns' },
     // Reports are agent-performance data: their own capability and sub-feature, matched before the generic inbox rule.
     { pattern: /^\/inbox\/reports(?:\/|$)/, capability: 'inbox.reports.read', feature: 'inbox.reports' },
     // First match wins: the orders page needs the catalog feature besides reading conversations.

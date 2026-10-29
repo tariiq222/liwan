@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
+  InboxAudienceListSchema, InboxAudienceMemberListSchema, InboxAudienceSchema, InboxCampaignListSchema, InboxCampaignPreviewSchema, InboxCampaignRecipientListSchema,
+  InboxCampaignSchema, InboxCampaignSettingsSchema, InboxCampaignTestResultSchema, InboxChannelSendingSchema, InboxContactImportResultSchema, InboxContactMarketingSchema,
   InboxAttachmentSchema, InboxCannedReplyListSchema, InboxChannelListSchema, InboxChannelSchema, InboxConversationDetailSchema, InboxConversationListSchema,
   InboxBusinessProfileSchema, InboxChannelAlertListSchema, InboxCostReportSchema, InboxReportBreakdownSchema, InboxReportOverviewSchema,
   InboxTemplateAnalyticsDetailSchema, InboxTemplateAnalyticsListSchema, InboxChannelAutomationSchema, InboxDepartmentListSchema, InboxFlowListSchema,
@@ -606,5 +608,118 @@ describe('inbox audit mock: catalog and orders', () => {
     const cart = call('POST', '/api/v1/inbox/__mock/conversations/1/cart', { lines: [{ retailer_id: 'wv-101', quantity: 1 }], text: 'أريد' }).body as { order: { id: number } }
     const messages = InboxMessageListSchema.parse(call('GET', '/api/v1/inbox/conversations/1/messages?limit=100').body).items
     expect(messages.at(-1)).toMatchObject({ kind: 'order', direction: 'in', commerce: { type: 'order', order: { id: cart.order.id, state: 'cart' } } })
+  })
+})
+
+describe('inbox campaigns mock', () => {
+  beforeEach(() => resetInboxPreview())
+  const csv = (text: string) => Buffer.from(text, 'utf8').toString('base64')
+  const body = (path: string) => call('GET', path).body
+  const params = [
+    { location: 'body', position: 1, source: 'contact_first_name', value: 'عميلنا' },
+    { location: 'body', position: 2, source: 'static', value: 'الخميس' },
+    { location: 'button', position: 1, source: 'static', value: '4521' },
+  ]
+  const write = { name: 'جديدة', channel_id: 1, template_id: 1, audience_id: 1, params, header_attachment_id: null, scheduled_at: null, send_within_hours: false, daily_cap: 0 }
+
+  it('serves contract-valid campaign lists, details, recipients and settings', () => {
+    const list = InboxCampaignListSchema.parse(body('/api/v1/inbox/campaigns'))
+    expect(list.items.map(item => item.state)).toEqual(['draft', 'running', 'done'])
+    expect(InboxCampaignListSchema.parse(body('/api/v1/inbox/campaigns?state=done')).total).toBe(1)
+    const done = InboxCampaignSchema.parse(body('/api/v1/inbox/campaigns/1'))
+    expect(done.stats).toMatchObject({ total: 6, skipped: 1, failed: 2, unsubscribed: 1, replied: 1 })
+    const recipients = InboxCampaignRecipientListSchema.parse(body('/api/v1/inbox/campaigns/1/recipients?failure=frequency_capped'))
+    expect(recipients.items.map(item => item.can_retry)).toEqual([true])
+    expect(InboxCampaignSettingsSchema.parse(body('/api/v1/settings/inbox/campaigns')).consent_policy).toBe('opted_in_only')
+  })
+
+  it('moves a running campaign on every read until it is done', () => {
+    const before = InboxCampaignSchema.parse(body('/api/v1/inbox/campaigns/2')).stats
+    for (let step = 0; step < 6; step += 1) body('/api/v1/inbox/campaigns/2')
+    const after = InboxCampaignSchema.parse(body('/api/v1/inbox/campaigns/2'))
+    expect(after.stats.pending).toBeLessThan(before.pending)
+    expect(after.stats.delivered + after.stats.read).toBeGreaterThan(before.delivered + before.read)
+    for (let step = 0; step < 12; step += 1) body('/api/v1/inbox/campaigns/2')
+    expect(InboxCampaignSchema.parse(body('/api/v1/inbox/campaigns/2')).state).toBe('done')
+  })
+
+  it('creates, launches and pauses a campaign, refusing what the server refuses', () => {
+    expect(call('POST', '/api/v1/inbox/campaigns', { ...write, params: params.slice(0, 2) }).status).toBe(422)
+    expect(call('POST', '/api/v1/inbox/campaigns', { ...write, template_id: 4 }).status).toBe(422)
+    expect(call('POST', '/api/v1/inbox/campaigns', { ...write, scheduled_at: '2020-01-01T00:00:00Z' }).status).toBe(422)
+    const created = call('POST', '/api/v1/inbox/campaigns', write)
+    expect(created.status).toBe(201)
+    const id = InboxCampaignSchema.parse(created.body).id
+    expect(call('PATCH', `/api/v1/inbox/campaigns/${id}`, { daily_cap: 5 }).status).toBe(200)
+    const launched = InboxCampaignSchema.parse(call('POST', `/api/v1/inbox/campaigns/${id}/launch`).body)
+    expect(launched.state).toBe('running')
+    expect(launched.stats.total).toBeGreaterThan(0)
+    expect(call('DELETE', `/api/v1/inbox/campaigns/${id}`).status).toBe(422)
+    expect(call('PATCH', `/api/v1/inbox/campaigns/${id}`, { template_id: 2 }).status).toBe(422)
+    expect(InboxCampaignSchema.parse(call('POST', `/api/v1/inbox/campaigns/${id}/pause`).body)).toMatchObject({ state: 'paused', pause_reason: 'manual' })
+    expect(call('PATCH', `/api/v1/inbox/campaigns/${id}`, { template_id: 2 }).status).toBe(422)
+    expect(call('PATCH', `/api/v1/inbox/campaigns/${id}`, { name: 'اسم آخر' }).status).toBe(200)
+    expect(InboxCampaignSchema.parse(call('POST', `/api/v1/inbox/campaigns/${id}/cancel`).body).state).toBe('cancelled')
+  })
+
+  it('retries only the frequency-capped recipients old enough', () => {
+    expect(InboxCampaignSchema.parse(call('POST', '/api/v1/inbox/campaigns/1/retry').body).state).toBe('running')
+    expect(call('POST', '/api/v1/inbox/campaigns/3/retry').status).toBe(422)
+  })
+
+  it('renders a preview for a sample contact and lists the placeholders without a value', () => {
+    const request = { template_id: 1, params: [{ location: 'body', position: 1, source: 'contact_first_name', value: null }], contact_id: 3 }
+    const preview = InboxCampaignPreviewSchema.parse(call('POST', '/api/v1/inbox/campaigns/preview', request).body)
+    expect(preview.body).toContain('منى')
+    expect(preview.missing.map(item => item.position)).toContain(2)
+    expect(call('POST', '/api/v1/inbox/campaigns/preview', { template_id: 99, params: [] }).status).toBe(404)
+  })
+
+  it('sends a test only to a contact the consent policy allows', () => {
+    expect(InboxCampaignTestResultSchema.parse(call('POST', '/api/v1/inbox/campaigns/3/test', { contact_id: 1 }).body).conversation_id).toBe(1)
+    expect(call('POST', '/api/v1/inbox/campaigns/3/test', { contact_id: 4 }).status).toBe(422)
+  })
+
+  it('serves audiences with live counts and members, and refuses to delete one a campaign uses', () => {
+    const list = InboxAudienceListSchema.parse(body('/api/v1/inbox/audiences'))
+    expect(list.items[0]).toMatchObject({ name: 'عملاء الحجز', contact_count: 6 })
+    expect(list.items[0]!.reachable_count).toBeLessThan(list.items[0]!.contact_count)
+    const members = InboxAudienceMemberListSchema.parse(body('/api/v1/inbox/audiences/1/members?consent=opted_in'))
+    expect(members.items.every(item => item.consent === 'opted_in')).toBe(true)
+    const created = call('POST', '/api/v1/inbox/audiences', { name: 'جديد', tag_ids: [1], tag_match: 'any', exclude_tag_ids: [], active_within_days: 0 })
+    expect(created.status).toBe(201)
+    expect(call('POST', '/api/v1/inbox/audiences', { name: 'جديد', tag_ids: [], tag_match: 'any', exclude_tag_ids: [], active_within_days: 0 }).status).toBe(422)
+    expect(call('DELETE', '/api/v1/inbox/audiences/1').status).toBe(422)
+    expect(call('DELETE', `/api/v1/inbox/audiences/${InboxAudienceSchema.parse(created.body).id}`).status).toBe(204)
+  })
+
+  it('records consent with its proof and keeps an opt-out through an import', () => {
+    expect(call('PATCH', '/api/v1/inbox/contacts/4/marketing', { consent: { state: 'opted_in', note: ' ' } }).status).toBe(422)
+    const optedIn = InboxContactMarketingSchema.parse(call('PATCH', '/api/v1/inbox/contacts/4/marketing', { consent: { state: 'opted_in', note: 'طلب في العيادة' }, tag_ids: [2] }).body)
+    expect(optedIn).toMatchObject({ consent: 'opted_in', consent_source: 'agent' })
+    expect(optedIn.tags.map(tag => tag.id)).toEqual([2])
+    expect(InboxContactMarketingSchema.parse(body('/api/v1/inbox/contacts/2/marketing')).history.map(event => event.state)).toEqual(['opted_out', 'opted_in'])
+    const imported = InboxContactImportResultSchema.parse(call('POST', '/api/v1/inbox/contacts/import', {
+      name: 'c.csv', data: csv('\uFEFFphone,name\n0500000002,فهد\n0512345678,جديد\nabc,خطأ'), tag_ids: [2], consent: 'opted_in', consent_note: 'قائمة',
+    }).body)
+    expect(imported).toMatchObject({ created: 1, updated: 1, skipped: 1 })
+    expect(imported.errors).toEqual([{ line: 4, message: expect.any(String) }])
+    expect(InboxContactMarketingSchema.parse(body('/api/v1/inbox/contacts/2/marketing')).consent).toBe('opted_out')
+    expect(call('POST', '/api/v1/inbox/contacts/import', { name: 'c.csv', data: csv('phone\n1'), tag_ids: [], consent: 'opted_in' }).status).toBe(422)
+  })
+
+  it('serves channel sending health, switches the API and refreshes from Meta', () => {
+    expect(InboxChannelSendingSchema.parse(body('/api/v1/inbox/channels/1/sending'))).toMatchObject({ messaging_limit: 'tier_2k', marketing_api: 'cloud_api' })
+    expect(InboxChannelSendingSchema.parse(call('PATCH', '/api/v1/inbox/channels/1/sending', { marketing_api: 'marketing_messages' }).body).marketing_api).toBe('marketing_messages')
+    expect(call('PATCH', '/api/v1/inbox/channels/1/sending', { marketing_api: 'x' }).status).toBe(422)
+    expect(InboxChannelSendingSchema.parse(call('POST', '/api/v1/inbox/channels/1/sending/refresh').body).checked_at).not.toBeNull()
+    expect(call('GET', '/api/v1/inbox/channels/9/sending').status).toBe(404)
+  })
+
+  it('uploads a header file and keeps settings edits', () => {
+    const upload = call('POST', '/api/v1/inbox/campaigns/uploads', { name: 'a.jpg', mimetype: 'image/jpeg', data: 'QUJD' })
+    expect(InboxAttachmentSchema.parse(upload.body).name).toBe('a.jpg')
+    expect(InboxCampaignSettingsSchema.parse(call('PATCH', '/api/v1/settings/inbox/campaigns', { consent_policy: 'not_opted_out' }).body).consent_policy).toBe('not_opted_out')
+    expect(call('PATCH', '/api/v1/settings/inbox/campaigns', { default_country_code: '0' }).status).toBe(422)
   })
 })

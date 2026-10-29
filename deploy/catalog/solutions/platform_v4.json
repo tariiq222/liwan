@@ -183,8 +183,10 @@
         "boolean:inbox.flows",
         "boolean:inbox.reports",
         "boolean:inbox.catalog",
+        "boolean:inbox.campaigns",
         "limit:inbox.channels",
-        "limit:inbox.messages_out"
+        "limit:inbox.messages_out",
+        "limit:inbox.campaign_recipients"
       ]
     }
   ]

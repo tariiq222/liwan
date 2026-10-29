@@ -80,7 +80,8 @@ class WebVueInboxSettings(models.Model):
         return self.env['webvue.inbox.working.hours']._webvue_is_open(owner, at)
 
     def _webvue_apply_preset(self, key, automation=True, flows=False):
-        """Create the missing departments, tags and canned replies of a sector preset and set its policy; idempotent.
+        """Create the missing departments, tags and canned replies of a sector preset, set its policy and fill its opt-out keywords and
+        empty confirmation replies; idempotent.
 
         `automation` also fills the channels' welcome and away messages and adds the menu rules; `flows` adds the
         sector's starter forms to the channels as drafts.
@@ -102,6 +103,7 @@ class WebVueInboxSettings(models.Model):
             for shortcut, body in preset['canned_replies'] if shortcut not in existing
         ])
         self.write(preset.get('settings', {}))
+        self._webvue_fill_campaigns(preset.get('campaigns', {}))
         if automation:
             self._webvue_seed_automation(preset.get('automation', {}))
         if flows:

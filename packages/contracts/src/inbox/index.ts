@@ -159,6 +159,8 @@ export const InboxMessageSchema = z.object({
   automated: z.boolean(),
   // Catalog content sent, a customer's cart or a product inquiry.
   commerce: InboxMessageCommerceSchema.nullable(),
+  // The campaign that sent this message, for the thread label.
+  campaign: InboxRefSchema.nullable(),
   created_at: UtcDateTime,
 }).strict()
 
