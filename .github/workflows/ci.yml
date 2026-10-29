@@ -3,6 +3,8 @@ name: ci
 on:
   pull_request:
     branches: [main]
+    # ready_for_review starts the first run of a PR that was opened as a draft (drafts run nothing).
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
   workflow_dispatch:
@@ -15,9 +17,11 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same PR or to main supersedes the older run: the newest main commit contains every
+# earlier merge, so its run checks them all. A manual (release) run is never cancelled by a push.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 # The Postgres service container is ephemeral and reachable only from its own job, so these are throwaway values.
 env:
@@ -33,6 +37,8 @@ env:
 
 jobs:
   scope:
+    # A draft is still being shaped: its pushes run no stage until it is marked ready.
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -184,11 +190,12 @@ jobs:
           odoo: 'true'
       - run: deploy/ci/odoo.sh --shard ${{ matrix.shard }}/${{ strategy.job-total }}
 
-  # One job per rank-4 application and one per rank-5 bridge of tools/arch_layers.json (tools/app_isolation.py):
-  # each installs only its part of the product on its own Postgres service. fail-fast is off so a red run
-  # reports every application or bridge that does not stand on its own.
+  # The rank-4 applications and rank-5 bridges of tools/arch_layers.json, packed into a few jobs by
+  # tools/app_isolation.py matrix: each run installs only its part of the product on a fresh scratch database.
+  # A job runs every module of its group and fails at the end, so a red run reports every module that does
+  # not stand on its own; fail-fast is off for the same reason.
   odoo-app-standalone:
-    name: odoo-app-standalone (${{ matrix.app }})
+    name: odoo-app-standalone (${{ matrix.group }})
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'odoo-app-standalone')
     runs-on: ubuntu-24.04
@@ -196,7 +203,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: ${{ fromJSON(needs.scope.outputs.apps) }}
+        group: ${{ fromJSON(needs.scope.outputs.apps) }}
     services:
       postgres:
         image: postgres:16
@@ -216,10 +223,10 @@ jobs:
         with:
           node: 'false'
           odoo: 'true'
-      - run: deploy/ci/odoo-app-standalone.sh ${{ matrix.app }}
+      - run: deploy/ci/lib/isolation-group.sh deploy/ci/odoo-app-standalone.sh ${{ matrix.group }}
 
   odoo-bridge:
-    name: odoo-bridge (${{ matrix.bridge }})
+    name: odoo-bridge (${{ matrix.group }})
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'odoo-bridge')
     runs-on: ubuntu-24.04
@@ -227,7 +234,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        bridge: ${{ fromJSON(needs.scope.outputs.bridges) }}
+        group: ${{ fromJSON(needs.scope.outputs.bridges) }}
     services:
       postgres:
         image: postgres:16
@@ -247,7 +254,7 @@ jobs:
         with:
           node: 'false'
           odoo: 'true'
-      - run: deploy/ci/odoo-bridge.sh ${{ matrix.bridge }}
+      - run: deploy/ci/lib/isolation-group.sh deploy/ci/odoo-bridge.sh ${{ matrix.group }}
 
   upgrade:
     needs: scope
@@ -353,6 +360,7 @@ jobs:
       - run: deploy/ci/rtl-stories.sh
 
   ci-result:
+    # Runs for a draft too and fails there (scope did not run), so a skipped check never reads as a pass.
     if: always()
     needs: [scope, static, ai-service, control-plane, vendor-admin, odoo, odoo-app-standalone, odoo-bridge, upgrade, restore-drill, image, e2e-mock, rtl-stories]
     runs-on: ubuntu-24.04

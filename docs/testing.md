@@ -121,11 +121,15 @@ isolated resources. `ci-result` aggregates selected stages; its success is neede
 before merge, but does not prove a full run or owner authorization.
 
 `ci` remains read-only and deterministic. Keep a PR draft during local
-preparation; ready requests CI and review of the actual candidate. The required
+preparation; a draft runs no stage (its `ci-result` fails because `scope` did not run), and marking it
+ready starts the run on the actual candidate and requests review. A newer push to the same PR, or to
+`main`, cancels the older run: the newest `main` commit contains every earlier merge, so its run checks
+them all. A manual `workflow_dispatch` run is never cancelled by a push. The required
 status-check policy is current-head `ci-result` only. It fails if a selected stage
 was skipped or missing, or any stage failed/cancelled. Only unselected stages may
-be skipped. Use an up-to-date branch and resolve review findings/conversations
-before an explicitly authorized protected merge. Recheck live GitHub rules;
+be skipped. The branch need not be up to date with `main` (merge `main` in only on a
+conflict or a needed change, see `docs/agents/integration-rules.md`); resolve review
+findings/conversations before an explicitly authorized protected merge. Recheck live GitHub rules;
 source policy alone does not establish remote protection settings. CI does not
 repair code, merge PRs, create tags or deploy.
 
@@ -169,7 +173,7 @@ The `odoo` stage covers the release modules and is a matrix of three shards (a j
 `ci-result`, so it stays one of the twelve stages). Every shard installs the whole release module list on
 its own Postgres service and runs only its share of the module tests (`--test-tags`), so cross-module
 behaviour is exercised in each. `tools/odoo_shards.py` splits the release modules by their `def test_`
-counts (greedy, heaviest first; weights are test counts, not runtime, so revisit the split after the first real CI runs); `python3 -B tools/odoo_shards.py plan` shows the split. Run one shard
+counts times `COST_FACTOR` for a module measured slower per test (`webvue_finance`: 3) (greedy, heaviest first; revisit the factors when the shard times drift apart); `python3 -B tools/odoo_shards.py plan` shows the split. Run one shard
 with `deploy/ci/odoo.sh --shard k/N`, all shards in parallel locally with `python3 -B tools/odoo_shards.py run`
 (same environment as `odoo.sh`; shard k uses `ODOO_PORT + k - 1` and its own scratch database), and the
 unsharded full run with plain `deploy/ci/odoo.sh`. A template database does not help the shards: Odoo
@@ -180,9 +184,11 @@ shard count is `SHARD_COUNT` in `tools/odoo_shards.py`; a changed count changes 
 `odoo-app-standalone` and `odoo-bridge` prove that each application works alone and each bridge works with
 its two sides (owner decision 2026-10-20: a customer subscribing to one application is not affected by
 another). Both are matrices built by `tools/app_isolation.py` from the ranks in `tools/arch_layers.json`:
-one job for the foundation, one per rank-4 application and one per rank-5 bridge, so a newly registered
-application or bridge joins them without a workflow edit. Each job installs only its part on a disposable
-PostgreSQL database:
+the foundation, every rank-4 application and every rank-5 bridge, so a newly registered application or
+bridge joins them without a workflow edit. `matrix` packs them into `GROUP_COUNT` jobs per stage (3 for
+applications, 2 for bridges, split by test weight like the `odoo` shards); `deploy/ci/lib/isolation-group.sh`
+runs each module of its job in turn and fails at the end naming every module that did not pass. Each run
+installs only its part on a disposable PostgreSQL database:
 
 - `deploy/ci/odoo-app-standalone.sh webvue_api` installs the foundation alone (ranks 0-2, no shared service,
   application or bridge), runs the tests of every foundation module, and with the route probe also creates,
