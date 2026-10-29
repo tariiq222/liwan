@@ -351,6 +351,11 @@ class TestAppointmentGuest(WebVueAppointmentsCase):
         self.logout()
         self.assertEqual(self._call('GET', fresh, token=path.split('=')[1]).status_code, 200)
 
+    def test_the_invitation_refuses_any_body_key(self):
+        self.authenticate('appointments_booker', 'appointments_booker_pass_123')
+        response = self.api('POST', '/api/v1/appointments/bookings/%d/invitation' % self.invited.id, {'x': 1})
+        self.assertEqual((response.status_code, response.json()['code'], response.json()['field']), (422, 'invalid', 'x'))
+
     def test_the_engine_portal_link_points_to_the_webvue_page(self):
         self.assertEqual(self.invited.access_url, '/book/%d' % self.invited.id)
         self.assertTrue(self.invited.get_portal_url().startswith('/book/%d?access_token=' % self.invited.id))

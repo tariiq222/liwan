@@ -22,6 +22,11 @@ describe('ModuleRail', () => {
     expect((await render()).match(/aria-current="page"/g)).toHaveLength(1)
     expect(await render({ rail: { ...rail, applications: [] } })).toMatch(/aria-hidden="true"[^>]*data-group="applications"/)
   })
+  it('names each link by its visible text so voice control and screen readers agree', async () => {
+    const html = await render({ rail: { ...rail, applications: [{ ...item('hr'), shortLabelKey: 'nav.railHr' }] } })
+    expect(html).toContain('nav.railHr')
+    expect(html).not.toMatch(/<a[^>]*class="webvue-module-rail-link"[^>]*aria-label=/)
+  })
   it('does not claim overflow before layout has measured it', async () => {
     const html = await render()
     expect(html).not.toContain('data-testid="rail-fade-top"')

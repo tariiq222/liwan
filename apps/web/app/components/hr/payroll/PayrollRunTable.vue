@@ -5,7 +5,7 @@ import type { HrPayrollRunSummary } from '@webvue/contracts'
 import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
 import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
 import { formatDate } from '@webvue/ui/app/utils/formatDate'
-import { formatPayrollAmount, formatPayrollMonth, payrollRunStateTone } from '@/utils/payrollFormat'
+import { formatPayrollAmount, formatPayrollMonth, payrollRunStateTone, payrollCurrencyLabel } from '@/utils/payrollFormat'
 
 // The runs table of /hr/payroll: one row per payroll month with its state pill and totals. It is a bare
 // SharedDataTable inside the page's SharedListCard.
@@ -52,7 +52,7 @@ const amount = (value: number) => formatPayrollAmount(value, locale.value)
     <template #employee_count-cell="{ row }"><span class="tabular-nums">{{ row.original.employee_count }}</span></template>
     <template #gross-cell="{ row }"><span class="tabular-nums">{{ amount(row.original.totals.gross) }}</span></template>
     <template #deductions-cell="{ row }"><span class="tabular-nums">{{ amount(row.original.totals.deductions) }}</span></template>
-    <template #net-cell="{ row }"><span class="font-semibold tabular-nums text-highlighted">{{ amount(row.original.totals.net) }}</span></template>
+    <template #net-cell="{ row }"><span class="font-semibold tabular-nums text-highlighted">{{ amount(row.original.totals.net) }} {{ payrollCurrencyLabel(row.original.currency, t('hrPayroll.currency')) }}</span></template>
     <template #approved_at-cell="{ row }">
       <span v-if="row.original.approved_at" class="tabular-nums">{{ formatDate(row.original.approved_at) }}</span>
       <span v-else class="text-muted">—</span>
@@ -62,7 +62,7 @@ const amount = (value: number) => formatPayrollAmount(value, locale.value)
         <span class="font-semibold text-highlighted">{{ formatPayrollMonth(row.month, locale) }}</span>
         <SharedStatusBadge size="sm" :tone="payrollRunStateTone(row.state)" :label="t(`hrPayroll.runs.state.${row.state}`)" />
       </div>
-      <p class="mt-1 text-sm">{{ t('hrPayroll.runs.employeeCount', { count: row.employee_count }, row.employee_count) }} · {{ amount(row.totals.net) }} {{ t('hrPayroll.currency') }}</p>
+      <p class="mt-1 text-sm">{{ t('hrPayroll.runs.employeeCount', { count: row.employee_count }, row.employee_count) }} · {{ amount(row.totals.net) }} {{ payrollCurrencyLabel(row.currency, t('hrPayroll.currency')) }}</p>
     </template>
   </SharedDataTable>
 </template>

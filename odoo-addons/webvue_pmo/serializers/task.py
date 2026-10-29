@@ -172,6 +172,11 @@ def task_attachments_route(task_id):
     return f'/api/v1/tasks/{task_id}/attachments'
 
 
+def dump_task_attachment(attachment, task_id):
+    """The shared attachment shape plus ``size``, the decoded byte count."""
+    return {**dump_attachment(attachment, task_attachments_route(task_id)), 'size': attachment.file_size}
+
+
 def dump_task_detail(task, today=None):
     today = _today(task, today)
     counts = task_counts(task | task.child_ids)
@@ -193,7 +198,7 @@ def dump_task_detail(task, today=None):
         'cycle_days': cycle,
         'subtasks': [dump_task(t, today, counts) for t in task.child_ids],
         'depends_on': [{'id': t.id, 'name': t.name, 'state': STATE_TO_API[t.state]} for t in dependencies],
-        'attachments': [dump_attachment(a, task_attachments_route(task.id)) for a in task._webvue_task_attachments()],
+        'attachments': [dump_task_attachment(a, task.id) for a in task._webvue_task_attachments()],
         'allowed_actions': [
             'read',
             *(['write'] if task._webvue_can_write() else []),

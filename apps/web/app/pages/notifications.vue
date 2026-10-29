@@ -5,6 +5,7 @@ import {
   isKnownNotification,
   isMeetingNotification,
   isProjectNotification,
+  NOTIFICATION_PAGE_SIZE,
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
   useNotificationsPage,
@@ -26,7 +27,6 @@ const {
   hasNextPage,
   isError: hasQueryError,
   isFetchNextPageError,
-  error: queryError,
   fetchNextPage,
   refetch,
 } = useNotificationsPage()
@@ -50,6 +50,10 @@ const items = computed(() => allItems.value.filter((item) => {
   if (filter.value === 'mentions') return item.kind === 'mention'
   return true
 }))
+// The server list has no mentions/unread parameter, so a narrowed view keeps loading pages until it fills one page or runs out.
+watch([filter, hasNextPage, isFetchingNextPage, isFetchNextPageError, () => items.value.length], () => {
+  if (filter.value !== 'all' && hasNextPage.value && !isFetchingNextPage.value && !isFetchNextPageError.value && items.value.length < NOTIFICATION_PAGE_SIZE) void fetchNextPage()
+})
 const emptyText = computed(() => (filter.value !== 'all' && allItems.value.length ? t('notifications.emptyFiltered') : t('notifications.empty')))
 const listEl = ref<HTMLElement | null>(null)
 useRowNavigation(listEl)
@@ -60,9 +64,6 @@ const notificationTimestamps = computed(() => new Map(
 ))
 const pendingReadId = ref<number | null>(null)
 const actionPending = computed(() => pendingReadId.value !== null || markingAll.value)
-const queryErrorMessage = computed(() => (
-  queryError.value instanceof ApiError ? queryError.value.message : t('notifications.loadError')
-))
 
 function kindLabel(item: BellNotification) {
   if (!isKnownNotification(item)) return t('notifications.preview.other')
@@ -148,11 +149,11 @@ async function retryNextPage() {
       />
     </template>
 
-    <SharedPageState
-      :loading="isLoading && !allItems.length"
-      :error="hasQueryError && !allItems.length ? queryError : null"
-      @retry="retryNotifications"
-    >
+    <div v-if="hasQueryError && !allItems.length" class="grid gap-2 py-8 text-center" role="alert" data-testid="notifications-load-error">
+      <p class="text-sm text-error">{{ t('notifications.loadError') }}</p>
+      <UButton type="button" color="neutral" variant="outline" class="mx-auto" :disabled="!hydrated || isFetching" :label="t('notifications.retry')" @click="retryNotifications" />
+    </div>
+    <SharedPageState v-else :loading="isLoading && !allItems.length">
       <SharedListCard>
         <template #filters>
           <SharedSegmentedControl
@@ -192,11 +193,11 @@ async function retryNextPage() {
         </ul>
         <div v-else class="p-4"><SharedEmptyState :title="emptyText" /></div>
         <div v-if="hasQueryError && items.length && !isFetchNextPageError" class="grid gap-2 border-t border-default py-4 text-center" role="alert">
-          <p class="text-sm text-error">{{ queryErrorMessage }}</p>
+          <p class="text-sm text-error">{{ t('notifications.loadError') }}</p>
           <UButton type="button" color="neutral" variant="outline" class="mx-auto" :disabled="!hydrated || isFetching" :label="t('notifications.retry')" @click="retryNotifications" />
         </div>
         <div v-if="isFetchNextPageError" class="grid gap-2 border-t border-default p-4 text-center" role="alert">
-          <p class="text-sm text-error">{{ queryErrorMessage }}</p>
+          <p class="text-sm text-error">{{ t('notifications.loadError') }}</p>
           <UButton type="button" color="neutral" variant="outline" class="mx-auto" :disabled="!hydrated || actionPending || isFetchingNextPage" :label="t('notifications.retry')" @click="retryNextPage" />
         </div>
         <template v-if="items.length" #footer>

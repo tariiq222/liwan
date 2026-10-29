@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ProjectSchedule } from '@webvue/contracts'
 import { STATE_TONE, type StateTone } from '@/composables/taskState'
-import { addCalendarDays, buildScheduleAxis, formatScheduleDate, scheduleBarStyle, scheduleDatePosition, scheduleFocusDate, type ScheduleScale } from '@/utils/projectSchedule'
+import { MONTH_DAYS, buildScheduleAxis, formatScheduleDate, scheduleBarStyle, scheduleColumnLastDay, scheduleDatePosition, scheduleFocusDate, type ScheduleScale } from '@/utils/projectSchedule'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 
 const BAR_TONE: Record<StateTone | 'primary', string> = {
@@ -32,8 +32,8 @@ const today = computed(() => hydrated.value ? new Date().toISOString().slice(0, 
 const showToday = computed(() => !!today.value && today.value >= axis.value.start && today.value < axis.value.end)
 // A long project makes the axis group several weeks or months into one column; say so, because
 // the toggle still reads "weekly" or "monthly".
-const groupedColumns = computed(() => axis.value.unitDays > (props.scale === 'month' ? 30 : 7))
-const columnRange = (date: string) => `${formatScheduleDate(date, locale.value)} – ${formatScheduleDate(addCalendarDays(date, axis.value.unitDays - 1), locale.value)}`
+const groupedColumns = computed(() => axis.value.unitDays > (props.scale === 'month' ? MONTH_DAYS : 7))
+const columnRange = (date: string, index: number) => `${formatScheduleDate(date, locale.value)} – ${formatScheduleDate(scheduleColumnLastDay(axis.value, index), locale.value)}`
 // The time axis follows the page direction: the first column sits at the inline start, in RTL at the right
 // beside the name column. The stylesheet pins tracks to `direction: ltr`, so they are released inline.
 const followPageDirection = { direction: 'inherit' } as const
@@ -90,9 +90,9 @@ defineExpose({ scrollPage, scrollToToday: scrollToFocus })
           <div class="schedule-gantt-head" :style="followPageDirection" role="row">
             <span ref="focusAnchor" class="schedule-gantt-focus" :style="datePosition(focusDate)" aria-hidden="true" />
             <span
-              v-for="date in axis.dates"
+              v-for="(date, index) in axis.dates"
               :key="date"
-              :title="columnRange(date)"
+              :title="columnRange(date, index)"
             >{{ formatScheduleDate(date, locale) }}</span>
             <span
               v-if="showToday"

@@ -102,9 +102,9 @@ export async function requireApiSession(event: H3Event, upstream: string, bindin
       if (!['http:', 'https:'].includes(target.protocol) || target.username || target.password) throw required()
       // A coalesced probe has its own short deadline, independent of whichever
       // browser request arrived first. Canceling one consumer must not fail others.
-      const valid = await new Promise<boolean | 'unavailable' | 'suspended'>((resolve) => {
+      const probe = () => new Promise<boolean | 'unavailable' | 'timeout' | 'suspended'>((resolve) => {
         let settled = false
-        const finish = (value: boolean | 'unavailable' | 'suspended') => {
+        const finish = (value: boolean | 'unavailable' | 'timeout' | 'suspended') => {
           if (settled) return
           settled = true
           clearTimeout(timer)
@@ -130,12 +130,16 @@ export async function requireApiSession(event: H3Event, upstream: string, bindin
             } catch { finish('unavailable') }
           })
         })
-        const cancel = () => { request.destroy(); finish('unavailable') }
+        const cancel = () => { request.destroy(); finish('timeout') }
         const timer = setTimeout(cancel, 2000)
         request.on('error', () => finish('unavailable'))
         request.end()
       })
-      if (valid === 'unavailable') throw unavailable()
+      // One quick upstream failure (a 5xx, a reset) must not fail a valid session: the probe is repeated once. A timeout is not
+      // repeated, because the lane is held for the whole wait and queued probes would expire behind it.
+      let valid = await probe()
+      if (valid === 'unavailable') valid = await probe()
+      if (valid === 'unavailable' || valid === 'timeout') throw unavailable()
       if (valid !== true) {
         remember(rejected, MAX_REJECTED, key, { until: Date.now() + REJECTED_TTL_MS, suspended: valid === 'suspended' })
         throw valid === 'suspended' ? suspended() : required()

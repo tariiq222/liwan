@@ -7,9 +7,9 @@ from .payroll_common import PayrollCase
 
 RUN_KEYS = {
     'id', 'month', 'state', 'employee_count', 'totals', 'warnings', 'allowed_actions',
-    'approved_by', 'approved_at', 'finance',
+    'approved_by', 'approved_at', 'finance', 'currency',
 }
-SUMMARY_KEYS = {'id', 'month', 'state', 'employee_count', 'totals', 'approved_at'}
+SUMMARY_KEYS = {'id', 'month', 'state', 'employee_count', 'totals', 'approved_at', 'currency'}
 TOTALS_KEYS = {'gross', 'deductions', 'gosi_employee', 'gosi_employer', 'net'}
 ROW_KEYS = {
     'id', 'employee', 'department', 'state', 'paid_days', 'inputs', 'gross', 'deductions', 'net',
@@ -208,6 +208,9 @@ class TestPayrollRuns(PayrollCase):
         self.assertEqual(self.api('GET', f'{RUNS}?year=2025').json()['total'], 0)
         self.assertEqual(self.api('GET', f'{RUNS}?state=approved').json()['total'], 0)
         self.assertEqual(self.api('GET', f'{RUNS}?state=bogus').status_code, 422)
+        bad_year = self.api('GET', f'{RUNS}?year=abc')
+        self.assertEqual((bad_year.status_code, bad_year.json()['field']), (422, 'year'))
+        self.assertIn('year', bad_year.json()['message'])
 
         detail = self.api('GET', f"{RUNS}/{run['id']}").json()
         self.assertEqual(set(detail), RUN_KEYS)

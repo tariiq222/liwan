@@ -49,13 +49,20 @@ class Files(http.Controller):
     @requires_feature('documents.enabled', operation='write')
     def upload_file(self, document_id, **payload):
         require('documents.items.manage')
-        strict(payload, {'expected_revision', 'name', 'data', 'mimetype'})
+        strict(payload, {'expected_revision', 'name', 'data', 'mimetype', 'as_version'})
         revision = parse_revision(payload)
+        as_version = payload.get('as_version', False)
+        if not isinstance(as_version, bool):
+            raise ApiError(422, 'invalid', 'as_version must be boolean', field='as_version')
         upload = {
-            key: value for key, value in payload.items() if key != 'expected_revision'
+            key: value
+            for key, value in payload.items()
+            if key not in ('expected_revision', 'as_version')
         }
         document = current_document(document_id)
-        request.env['webvue.document.files']._webvue_upload(document, upload, revision)
+        request.env['webvue.document.files']._webvue_upload(
+            document, upload, revision, as_version=as_version,
+        )
         return dump_detail(document)
 
     @http.route(

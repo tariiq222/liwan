@@ -108,7 +108,7 @@ class DmsFile(models.Model):
             for file in self:
                 if managed_directory(file.directory_id):
                     document = file_document(file)
-                    if set(values) <= {'active'}:
+                    if 'active' in values and set(values) <= {'active', 'locked_by'}:
                         require_resource_mutation(self.env, document.id, {'archive'})
                     elif set(values) <= {'locked_by'}:
                         require_resource_mutation(self.env, document.id, {'write'})

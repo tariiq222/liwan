@@ -21,3 +21,9 @@ class WebVuePmoSettings(models.AbstractModel):
                 "actual cost. Manual leaves each project to choose its own.",
             ),
         }]
+
+    def set_values(self, vals):
+        # The mode is read while finance is only retained for reading; writing it needs the feature itself.
+        if 'webvue_pmo_finance_cost_center_mode' in vals:
+            self.env['webvue.entitlement.service'].require(FINANCE_FEATURE)
+        return super().set_values(vals)

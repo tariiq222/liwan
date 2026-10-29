@@ -8,6 +8,7 @@ from odoo.exceptions import AccessError, ValidationError
 from . import project_project
 from .project_constants import POLICY_CREATE_MARKER
 from .project_task import PROJECT_COPY_MARKER
+from odoo.addons.webvue_api.controllers.common import ApiError
 
 
 class ProjectProject(models.Model):
@@ -67,13 +68,15 @@ class ProjectProject(models.Model):
             vals['date'] = date_end
         return vals
 
-    def _webvue_copy_structure(self, name, start_date, *, serialize=None):
+    def _webvue_copy_structure(self, name, start_date, *, end_date=None, serialize=None):
         """Create a new project holding this project's structure; return it.
 
         Copies stages, milestones, active top-level tasks (stage, milestone,
         planned dates, dependencies, tags) and the type / owning unit /
         dependency setting. Dates move by ``start_date`` minus the source
-        start. Assignees, followers, chatter, state, governance and finance
+        start; ``end_date`` sets the copy's end instead of the shifted one, and is
+        required (422 on ``end_date``) when the company requires an end date and the
+        source has none to shift. Assignees, followers, chatter, state, governance and finance
         are not copied. The source is read with the caller's own access.
 
         serialize is supplied only by the private Python caller, never accepted
@@ -87,13 +90,21 @@ class ProjectProject(models.Model):
         start = self._webvue_copy_start_date(start_date)
         tasks, milestones, stages = self._webvue_copy_components(source)
         delta = self._webvue_copy_delta(source, tasks, milestones, start)
-        end = self._webvue_copy_shift(source.date, delta, source.env)
+        end = self._webvue_copy_end(source, start, end_date, delta)
         extra = self._webvue_copy_extra(source, start, end, stages)
         with source.env.cr.savepoint():
             project = source.env['project.project']._webvue_create_from_policy(
                 project_name, extra=extra, user_id=source.env.uid, date_end=end or None,
             )
             return self._webvue_copy_populate(source, project, tasks, milestones, stages, delta, serialize)
+
+    def _webvue_copy_end(self, source, start, end_date, delta):
+        end = end_date or self._webvue_copy_shift(source.date, delta, source.env)
+        if end and end < start:
+            raise ValidationError(source.env._("The copy's end date must be on or after its start date."))
+        if not end and source.env['webvue.pmo.settings']._core_values()['require_end_date_on_create']:
+            raise ApiError(422, 'invalid', "end_date is required to copy a project that has no end date", field='end_date')
+        return end
 
     def _webvue_copy_source(self):
         """Read the source project under a copy-only context.

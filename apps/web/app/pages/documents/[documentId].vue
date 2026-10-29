@@ -34,11 +34,11 @@ const hasProperties = computed(() => !!(document.value?.expiry_date || document.
 const childTo = (suffix: string) => documentChildTo(`/documents/${documentId.value}/${suffix}`, route.query, route.hash)
 const transition = useDocumentTransition(); const uploadMutation = useUploadDocumentFile(); const fileMutation = useDocumentFileAction()
 const readingFile = ref(false); const pending = computed(() => readingFile.value || transition.isPending.value || uploadMutation.isPending.value || fileMutation.isPending.value)
-const error = ref(''); const confirmArchive = ref(false)
-async function perform(operation: () => Promise<unknown>) {
+const error = ref(''); const confirmArchive = ref(false); const duplicateUpload = ref<File | null>(null)
+async function perform(operation: () => Promise<unknown>, onConflict?: (cause: ApiError) => boolean) {
   error.value = ''
   try { await operation(); toast.add({ title: t('documents.saved'), color: 'success' }) }
-  catch (cause) { error.value = cause instanceof ApiError && cause.status === 409 ? t('documents.fileConflict') : cause instanceof ApiError ? cause.message : t('errors.generic'); if (cause instanceof ApiError && cause.status === 409) await Promise.all([query.refetch(), fileQuery.refetch()]) }
+  catch (cause) { if (cause instanceof ApiError && onConflict?.(cause)) return; error.value = cause instanceof ApiError && cause.status === 409 ? t('documents.fileConflict') : cause instanceof ApiError ? cause.message : t('errors.generic'); if (cause instanceof ApiError && cause.status === 409) await Promise.all([query.refetch(), fileQuery.refetch()]) }
 }
 async function changeState(action: 'archive' | 'restore') {
   if (!document.value || !hydrated.value || pending.value) return
@@ -50,13 +50,13 @@ async function fileAction(file: DocumentFile, action: 'archive' | 'restore' | 'l
   const revision = document.value.revision
   await perform(() => fileMutation.mutateAsync({ id: documentId.value, fileId: file.id, action, expected_revision: revision }))
 }
-async function upload(file: File) {
+async function upload(file: File, options: { name?: string; asVersion?: boolean } = {}) {
   if (!document.value?.allowed_actions.upload_file || !hydrated.value || pending.value) return
-  const revision = document.value.revision; readingFile.value = true
+  const revision = document.value.revision; readingFile.value = true; duplicateUpload.value = null
   await perform(async () => {
     const data = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result).split(',')[1] ?? ''); reader.onerror = () => reject(reader.error); reader.readAsDataURL(file) })
-    await uploadMutation.mutateAsync({ id: documentId.value, body: { name: file.name, data, expected_revision: revision, ...(file.type ? { mimetype: file.type } : {}) } })
-  })
+    await uploadMutation.mutateAsync({ id: documentId.value, body: { name: options.name ?? file.name, data, expected_revision: revision, ...(options.asVersion ? { as_version: true } : {}), ...(file.type ? { mimetype: file.type } : {}) } })
+  }, cause => { if (cause.code !== 'duplicate_name') return false; duplicateUpload.value = file; return true })
   readingFile.value = false
 }
 const secondaryActions = computed<RowAction[]>(() => {
@@ -85,7 +85,7 @@ const secondaryActions = computed<RowAction[]>(() => {
       <SharedInlineConfirm v-if="confirmArchive" :title="t('documents.archiveConfirm')" :confirm-label="t('documents.confirmArchive')" :pending="pending" @confirm="changeState('archive')" @cancel="confirmArchive = false" />
       <UAlert v-if="!document.active" color="neutral" :title="t('documents.archived')" />
       <SharedRecordSection variant="panel" :title="t('documents.body')"><DocumentReader :document="document" /></SharedRecordSection>
-      <DocumentFiles :document="document" :files="fileQuery.data.value?.items" :loading="fileQuery.isFetching.value || fileQuery.isRecovering.value" :error="fileQuery.error.value" :page="Math.floor(fileOffset / fileLimit) + 1" :pages="filePages" :pending="pending" @page="fileOffset = ($event - 1) * fileLimit" @retry="fileQuery.refetch()" @upload="upload" @action="fileAction" />
+      <DocumentFiles :document="document" :files="fileQuery.data.value?.items" :loading="fileQuery.isFetching.value || fileQuery.isRecovering.value" :error="fileQuery.error.value" :page="Math.floor(fileOffset / fileLimit) + 1" :pages="filePages" :pending="pending" :duplicate="duplicateUpload" @page="fileOffset = ($event - 1) * fileLimit" @retry="fileQuery.refetch()" @upload="upload" @cancel-duplicate="duplicateUpload = null" @action="fileAction" />
     </template>
     <template v-if="document && hasProperties" #aside><SharedPropertiesPanel :title="t('documents.details')">
       <SharedPropertyRow v-if="document.expiry_date" :label="t('documents.expiry')" :value="document.expiry_date || '—'" />

@@ -70,6 +70,10 @@ class TestProjectFinance(WebVuePmoCase):
         updated = res.json()
         self.assertEqual((updated['amount'], updated['updated_at']), (300, 'v2'))
 
+        for key in ('project_id', 'kind'):
+            res = self.api('PATCH', self._url(f"/{expense['id']}"), {key: 2, 'expected_updated_at': updated['updated_at']})
+            self.assertEqual((res.status_code, res.json()['code'], res.json()['field']), (422, 'unknown_field', key))
+
         res = self.api('DELETE', self._url(f"/{expense['id']}"), {'expected_updated_at': updated['updated_at']})
         self.assertEqual((res.status_code, res.json()), (200, {'deleted': True}))
         self.assertEqual(self.api('GET', self._url()).json()['total'], 1)

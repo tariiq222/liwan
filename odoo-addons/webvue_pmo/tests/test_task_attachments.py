@@ -37,7 +37,8 @@ class TestTaskAttachments(WebVuePmoCase):
         response = self._upload()
         self.assertEqual(response.status_code, 201)
         item = response.json()
-        self.assertEqual(set(item), {'id', 'name', 'mimetype', 'url'})
+        self.assertEqual(set(item), {'id', 'name', 'mimetype', 'url', 'size'})
+        self.assertEqual(item['size'], len(b'hello attachment'))
         self.assertEqual(item['mimetype'], 'text/plain')
         self.assertEqual(item['url'], f"/api/v1/tasks/{self.task_overdue.id}/attachments/{item['id']}/download")
         listing = self.api('GET', f'/api/v1/tasks/{self.task_overdue.id}/attachments')
@@ -53,7 +54,7 @@ class TestTaskAttachments(WebVuePmoCase):
     def test_real_allowed_bytes_are_detected_instead_of_trusting_filename_or_hint(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
         cases = [
-            ('document.txt', PDF, 'application/octet-stream', 'application/pdf'),
+            ('document.pdf', PDF, 'application/octet-stream', 'application/pdf'),
             ('image.png', PNG, 'text/plain', 'image/png'),
             ('photo.jpg', JPEG, 'application/pdf', 'image/jpeg'),
             ('word.docx', ooxml_bytes('word'), 'application/octet-stream', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
@@ -63,6 +64,12 @@ class TestTaskAttachments(WebVuePmoCase):
             response = self._upload(name, content, hint)
             self.assertEqual(response.status_code, 201, response.text)
             self.assertEqual(response.json()['mimetype'], expected)
+
+    def test_an_extension_that_contradicts_the_content_is_refused(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        for name, content in (('document.txt', PDF), ('image.png', b'not a png'), ('photo.jpg', PNG)):
+            response = self._upload(name, content, 'application/octet-stream')
+            self.assertEqual((response.status_code, response.json()['field']), (422, 'name'), name)
 
     def test_plain_text_can_omit_mimetype_and_filename_must_be_a_basename(self):
         self.authenticate('api_emp', 'api_emp_pass_123')

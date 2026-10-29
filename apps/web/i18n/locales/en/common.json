@@ -164,6 +164,9 @@
       "invalid_state": "This action cannot be done right now.",
       "pdf_unavailable": "Could not generate the PDF right now. Try again shortly.",
       "commercial_unavailable": "This service is not available in this edition.",
+      "tenant_read_only": "The subscription is read-only, so nothing can be changed.",
+      "employee_contact_required": "The employee has no contact record. Add their details first.",
+      "missing_dependency": "Add the required dependent permissions first.",
       "feature_not_included": "This feature is not included in your plan.",
       "tenant_suspended": "Your company’s subscription is suspended, so this session has ended. Contact your company administrator."
     }

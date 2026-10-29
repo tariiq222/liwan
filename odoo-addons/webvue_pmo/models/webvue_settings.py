@@ -13,7 +13,16 @@ PARAM_REMINDERS_ENABLED = 'webvue_pmo.deadline_reminders_enabled'
 PARAM_REMINDERS_DAYS = 'webvue_pmo.deadline_reminders_days_before'
 PARAM_DIGEST_ENABLED = 'webvue_pmo.overdue_digest_enabled'
 PARAM_REQUIRE_CHARTER_APPROVAL = 'webvue_pmo.require_charter_approval'
+PARAM_CLOSE_WITH_OPEN_TASKS = 'webvue_pmo.close_with_open_tasks'
+PARAM_REGISTER_TRANSITIONS = 'webvue_pmo.register_status_transitions'
 CREATORS = ('managers', 'employees')
+CLOSE_WITH_OPEN_TASKS = ('block', 'allow_with_warning')
+REGISTER_TRANSITIONS = ('sequence', 'free')
+# Choice settings kept as company-suffixed parameters: API key -> (parameter, allowed values, default).
+PSC_CHOICES = {
+    'close_with_open_tasks': (PARAM_CLOSE_WITH_OPEN_TASKS, CLOSE_WITH_OPEN_TASKS, 'block'),
+    'register_status_transitions': (PARAM_REGISTER_TRANSITIONS, REGISTER_TRANSITIONS, 'sequence'),
+}
 APPROVAL_DEFAULTS = ('none', 'project_manager')
 MAX_STAGES = 20
 MAX_REMINDER_DAYS = 30
@@ -39,6 +48,8 @@ PSC_DEFAULTS = {
     'deadline_reminders_days_before': 1,
     'overdue_digest_enabled': True,
     'require_charter_approval': False,
+    'close_with_open_tasks': 'block',
+    'register_status_transitions': 'sequence',
 }
 
 
@@ -136,6 +147,10 @@ class WebVuePmoSettings(models.AbstractModel):
             return default
         return str(raw).strip().lower() in ('1', 'true', 'yes')
 
+    def _get_choice(self, base, allowed, default):
+        raw = self._params().get_param(self._company_key(base))
+        return raw if raw in allowed else default
+
     def _get_int(self, base, default, minimum, maximum):
         raw = self._params().get_param(self._company_key(base))
         if raw in (None, False, ''):
@@ -162,6 +177,7 @@ class WebVuePmoSettings(models.AbstractModel):
             ),
             'overdue_digest_enabled': self._get_bool(PARAM_DIGEST_ENABLED, True),
             'require_charter_approval': self._get_bool(PARAM_REQUIRE_CHARTER_APPROVAL, False),
+            **{key: self._get_choice(*spec) for key, spec in PSC_CHOICES.items()},
         }
 
     @api.model
@@ -325,6 +341,11 @@ class WebVuePmoSettings(models.AbstractModel):
                 self._company_key(PARAM_REQUIRE_CHARTER_APPROVAL),
                 'true' if vals['require_charter_approval'] else 'false',
             ))
+        for key, (base, allowed, _default) in PSC_CHOICES.items():
+            if key in vals:
+                if vals[key] not in allowed:
+                    raise _invalid(key, f"{key} must be one of {', '.join(allowed)}")
+                writes.append((self._company_key(base), vals[key]))
         return writes
 
     def set_values(self, vals):

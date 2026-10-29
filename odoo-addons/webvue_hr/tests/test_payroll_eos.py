@@ -16,10 +16,11 @@ from odoo.addons.webvue_hr.models.payroll_math import (
 
 ESTIMATE_KEYS = {
     'employee', 'start_date', 'end_date', 'service_years', 'eos_wage', 'case', 'award', 'leave_days', 'leave_amount',
+    'currency',
 }
 SETTLEMENT_KEYS = {
     'id', 'employee', 'state', 'departure_date', 'departure_mismatch', 'case', 'service_years', 'eos_wage', 'award',
-    'leave_days', 'leave_amount', 'open_deductions', 'total',
+    'leave_days', 'leave_amount', 'open_deductions', 'total', 'currency',
 }
 CASE_KEYS = {'departure_reason', 'case', 'revision'}
 EOS = '/api/v1/hr/payroll/eos'
@@ -138,6 +139,15 @@ class TestPayrollEos(PayrollCase):
         self.assertEqual(confirmed['total'], 9325)
         res = self._put_settlement(self.officer, self.leaver, {'case': 'termination', 'open_deductions': 0})
         self.assertEqual((res.status_code, res.json()['code']), (403, 'transition_forbidden'))
+
+    def test_confirmed_settlement_stays_visible_after_the_departure_date_changes(self):
+        self._confirmed_settlement()
+        self.leaver.departure_date = date(2026, 12, 10)
+        self._login(self.officer)
+        res = self.api('GET', f'{EOS}/{self.leaver.id}/settlement')
+        self.assertEqual(res.status_code, 200, res.text)
+        shown = res.json()
+        self.assertEqual((shown['state'], shown['departure_mismatch']), ('confirmed', True))
 
     def test_confirm_needs_approve_and_refuses_own_employee(self):
         self.assertEqual(self._put_settlement(self.officer, self.leaver, {'case': 'resignation'}).status_code, 200)
@@ -273,7 +283,9 @@ class TestPayrollEos(PayrollCase):
         first = self._confirmed_settlement()
         old = self.env['webvue.hr.payroll.eos.settlement'].browse(first['id'])
         self.leaver.write({'departure_date': date(2027, 6, 30), 'departure_reason_id': self.resigned.id})
-        self.assertEqual(self.api('GET', f'{EOS}/{self.leaver.id}/settlement').status_code, 404)
+        # The old settlement stays visible, flagged as no longer matching the new departure.
+        shown = self.api('GET', f'{EOS}/{self.leaver.id}/settlement').json()
+        self.assertEqual((shown['id'], shown['departure_mismatch']), (first['id'], True))
         res = self._put_settlement(self.officer, self.leaver, {'case': 'resignation', 'open_deductions': 0})
         self.assertEqual(res.status_code, 200, res.text)
         new = res.json()

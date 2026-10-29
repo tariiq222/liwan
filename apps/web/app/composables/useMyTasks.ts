@@ -1,6 +1,6 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
 import {
   ConvertResultSchema,
   ConvertTargetSchema,
@@ -211,6 +211,8 @@ export function useConvertTargets(q: MaybeRefOrGetter<string>, options: { enable
     queryKey: computed(() => myTaskKeys.convertTargets(toValue(q))),
     enabled: computed(() => toValue(options.enabled) ?? true),
     queryFn: () => fetchConvertTargets($api, toValue(q)),
+    // Searching must not swap the open picker for a loading state: that unmounts the menu and closes it on the results.
+    placeholderData: keepPreviousData,
   })
 }
 

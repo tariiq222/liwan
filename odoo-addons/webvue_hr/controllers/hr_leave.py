@@ -254,6 +254,14 @@ class HrLeaveController(http.Controller):
         vals = parse_leave_request(payload)
         employee = _target_employee(vals['employee_id'])
         leave_type = _leave_type(vals['leave_type_id'], employee.company_id)
+        # Stock refuses an overlap with an English sentence in a US date format: name it by code so the page can say it.
+        if request.env['hr.leave'].search_count([
+            ('employee_id', '=', employee.id),
+            ('state', 'not in', ('cancel', 'refuse')),
+            ('request_date_from', '<=', vals['date_to']),
+            ('request_date_to', '>=', vals['date_from']),
+        ]):
+            raise ApiError(422, 'leave_overlap', 'the employee already has leave that overlaps this period', field='date_from')
         leave = request.env['hr.leave'].create({
             'employee_id': employee.id,
             'holiday_status_id': leave_type.id,
@@ -271,6 +279,8 @@ class HrLeaveController(http.Controller):
         _require_no_fields(payload)
         leave = _current_leave(leave_id)
         _reject_self_decision(leave)
+        if leave.state not in ('confirm', 'validate1'):
+            raise ApiError(422, 'invalid', 'only a request waiting for a decision can be approved', field='state')
         leave.action_approve()
         leave._webvue_notify_decision()
         return dump_leave(leave)

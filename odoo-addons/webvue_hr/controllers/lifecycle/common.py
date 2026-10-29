@@ -101,7 +101,10 @@ def _launch_run(area, employee, plan, plan_date=None):
     """Launch a stock employee plan and record the run with the activities it added.
 
     A run without a date starts today: the stock wizard would anchor it 30 days after today.
+    A deactivated plan is not offered when launching, so it is refused here too.
     """
+    if not plan.active:
+        raise ApiError(422, 'invalid', 'the plan is inactive and cannot be launched', field='plan_id')
     plan_date = plan_date or fields.Date.context_today(employee)
     Activity = request.env['mail.activity'].with_context(active_test=False)
     domain = [('res_model', '=', EMPLOYEE_MODEL), ('res_id', '=', employee.id)]

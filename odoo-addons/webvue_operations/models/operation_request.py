@@ -2,7 +2,15 @@
 from odoo import Command, api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
-from .common import STAGE_APPROVAL_MODES, TOKEN, check_revision, require, text, trusted
+from .common import (
+    STAGE_APPROVAL_MODES,
+    TOKEN,
+    check_revision,
+    lock_or_conflict,
+    require,
+    text,
+    trusted,
+)
 from .notification_types import DECISION_KINDS, REVIEW_REQUESTED
 from odoo.addons.base_tier_validation.models.workflow_security import (
     _DOCUMENT_WRITE_TOKEN,
@@ -129,7 +137,7 @@ class OperationRequest(models.Model):
     def action_submit(self, revision):
         self._editable()
         with self.env.cr.savepoint():
-            self._tier_lock('write')
+            lock_or_conflict(self, 'write')
             check_revision(self, revision)
             process = self.process_id
             process.lock_for_update()
@@ -197,7 +205,7 @@ class OperationRequest(models.Model):
 
     def _decision_guard(self, revision):
         self._guard('operations.requests.review')
-        self._tier_lock()
+        lock_or_conflict(self)
         check_revision(self, revision)
         if self.state != 'pending' or self.requester_id == self.env.user:
             raise AccessError(self.env._('This request is not available for your decision.'))
@@ -264,7 +272,7 @@ class OperationRequest(models.Model):
     def action_withdraw(self, revision, comment=''):
         self._guard('operations.requests.create')
         with self.env.cr.savepoint():
-            self._tier_lock('write')
+            lock_or_conflict(self, 'write')
             check_revision(self, revision)
             if self.requester_id != self.env.user or self.state not in ('draft', 'pending', 'returned'):
                 raise AccessError(self.env._('Only the requester can withdraw an open request.'))

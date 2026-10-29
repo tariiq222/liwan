@@ -17,6 +17,7 @@ const estimate = {
   award: 5232.5,
   leave_days: 12.5,
   leave_amount: 4375,
+  currency: 'SAR',
 } as const
 const draft = {
   id: 7,
@@ -32,6 +33,7 @@ const draft = {
   open_deductions: 300,
   total: 9307.5,
   state: 'draft',
+  currency: 'SAR',
 } as const
 
 const meta = {

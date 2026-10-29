@@ -2,6 +2,7 @@
   "allowed_actions": [],
   "approved_at": null,
   "approved_by": null,
+  "currency": "SAR",
   "employee_count": 2,
   "finance": null,
   "id": 1,

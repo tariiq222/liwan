@@ -43,6 +43,7 @@ function load(can: (capability: string) => boolean): Vue.Component {
   const mutation = () => ({ mutateAsync: async () => undefined, isPending: Vue.ref(false) })
   const modules: Record<string, unknown> = {
     'vue': Vue,
+    '@/composables/useApi': { ApiError: class extends Error {} },
     '@/utils/hrAccessBadge': { hrAccessBadge },
     '@webvue/ui/app/components/shared/data/FilterBar.vue': { __esModule: true, default: Stub('FilterBar') },
     '@/composables/useHrDepartments': { useHrDepartments: () => query({ items: [], total: 0 }) },

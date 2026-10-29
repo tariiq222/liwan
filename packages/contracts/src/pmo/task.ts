@@ -27,7 +27,7 @@ export const TaskDetailSchema = TaskSchema.extend({
   description_html: z.string(), allocated_hours: z.number(), age_days: z.number().int(), cycle_days: z.number().int().nullable(),
   subtasks: z.array(TaskSchema),
   depends_on: z.array(z.object({ id: z.number().int().positive(), name: z.string(), state: TaskStateSchema }).strict()),
-  attachments: z.array(z.object({ id: z.number().int().positive(), name: z.string(), mimetype: z.string(), url: z.string() }).strict()),
+  attachments: z.array(z.object({ id: z.number().int().positive(), name: z.string(), mimetype: z.string(), url: z.string(), size: z.number().int().nonnegative() }).strict()),
   can_manage_dependencies: z.boolean().default(false), milestone: RefSchema.nullable(), created_at: z.string(), updated_at: z.string(),
   planned_start: CalendarDateSchema.nullable().default(null), deliverables: z.array(TaskDeliverableSchema).default([]),
   allowed_actions: z.array(z.enum([

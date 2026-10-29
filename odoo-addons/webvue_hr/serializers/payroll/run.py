@@ -7,6 +7,7 @@ from odoo.addons.webvue_api.controllers.common import ApiError
 from odoo.addons.webvue_api.serializers.common import iso
 from odoo.addons.webvue_hr.models.hr_payslip import INPUT_CODES
 from odoo.addons.webvue_hr.serializers.assets.common import ref
+from odoo.addons.webvue_hr.serializers.payroll.currency import currency_code
 
 MONTH = re.compile(r'(\d{4})-(0[1-9]|1[0-2])')
 
@@ -47,6 +48,7 @@ def dump_run_summary(run):
         'employee_count': len(run.slip_ids),
         'totals': run._webvue_totals(),
         'approved_at': iso(run.webvue_approved_at),
+        'currency': currency_code(run.company_id),
     }
 
 
