@@ -25,6 +25,11 @@ REPLY_TYPES = frozenset({'interactive', 'button'})
 SIGNATURE_PREFIX = 'sha256='
 ERROR_TEXT_LENGTH = 200
 LOCATION_TEXT_LENGTH = 1000
+STATUS_FIELD = 'message_template_status_update'
+CATEGORY_FIELD = 'template_category_update'
+QUALITY_FIELD = 'message_template_quality_update'
+TEMPLATE_FIELDS = frozenset({STATUS_FIELD, CATEGORY_FIELD, QUALITY_FIELD})
+NO_REASON = 'NONE'
 
 
 @dataclass(frozen=True)
@@ -77,6 +82,35 @@ class StatusUpdate:
     status: str
     sent_at: datetime
     error: str | None
+
+
+@dataclass(frozen=True)
+class TemplateStatusUpdate:
+    """A review or lifecycle change of a template; `event` is Meta's upper-case word (APPROVED, REJECTED, ...)."""
+    template_id: str
+    name: str
+    language: str
+    event: str
+    reason: str | None
+
+
+@dataclass(frozen=True)
+class TemplateCategoryUpdate:
+    template_id: str
+    name: str
+    language: str
+    category: str
+
+
+@dataclass(frozen=True)
+class TemplateQualityUpdate:
+    template_id: str
+    name: str
+    language: str
+    score: str
+
+
+TEMPLATE_UPDATES = (TemplateStatusUpdate, TemplateCategoryUpdate, TemplateQualityUpdate)
 
 
 @dataclass(frozen=True)
@@ -212,12 +246,45 @@ def _status(raw):
     )
 
 
-def parse_events(payload, phone_number_id):
-    """The inbound messages, reactions and status updates of `payload` addressed to `phone_number_id`."""
+def _text(value):
+    return str(value) if isinstance(value, (str, int)) and not isinstance(value, bool) and str(value) else None
+
+
+def _template_reason(value):
+    """Meta's reason of a status change: the `reason` word unless it is NONE, else the title of `other_info`."""
+    reason = value.get('reason')
+    if isinstance(reason, str) and reason and reason != NO_REASON:
+        return reason[:ERROR_TEXT_LENGTH]
+    info = _dict(value.get('other_info'))
+    text = info.get('description') or info.get('title')
+    return str(text)[:ERROR_TEXT_LENGTH] if text else None
+
+
+def _template_event(field, value):
+    """The typed template change of one webhook `change`, or None when it lacks the fields we need."""
+    template_id = _text(value.get('message_template_id'))
+    name, language = value.get('message_template_name'), value.get('message_template_language')
+    if not (template_id and isinstance(name, str) and isinstance(language, str)):
+        return None
+    if field == STATUS_FIELD and isinstance(value.get('event'), str):
+        return TemplateStatusUpdate(template_id, name, language, value['event'], _template_reason(value))
+    if field == CATEGORY_FIELD and isinstance(value.get('new_category'), str):
+        return TemplateCategoryUpdate(template_id, name, language, value['new_category'])
+    if field == QUALITY_FIELD and isinstance(value.get('new_quality_score'), str):
+        return TemplateQualityUpdate(template_id, name, language, value['new_quality_score'])
+    return None
+
+
+def parse_events(payload, phone_number_id, business_account_id):
+    """The messages, reactions and status updates addressed to `phone_number_id` and the template changes of `business_account_id`."""
     events = []
     for entry in _dicts(payload.get('entry')):
         for change in _dicts(entry.get('changes')):
             value = _dict(change.get('value'))
+            if change.get('field') in TEMPLATE_FIELDS:
+                event = _template_event(change['field'], value) if entry.get('id') == business_account_id else None
+                events += [event] if event else []
+                continue
             if _dict(value.get('metadata')).get('phone_number_id') != phone_number_id:
                 continue
             names = {
@@ -239,6 +306,15 @@ def phone_number_ids(payload):
     return {value for value in ids if isinstance(value, str)}
 
 
+def template_business_account_ids(payload):
+    """The id of every business account that a template change of the payload names (entry.id)."""
+    ids = [
+        entry.get('id') for entry in _dicts(payload.get('entry'))
+        if any(change.get('field') in TEMPLATE_FIELDS for change in _dicts(entry.get('changes')))
+    ]
+    return {value for value in ids if isinstance(value, str)}
+
+
 def _error_text(response):
     try:
         message = response.json()['error']['message']
@@ -247,8 +323,8 @@ def _error_text(response):
     return str(message)[:ERROR_TEXT_LENGTH]
 
 
-def _call(method, url, credentials, timeout=TIMEOUT_SECONDS, **kwargs):
-    headers = {'Authorization': f'Bearer {credentials.access_token}'}
+def _call(method, url, credentials, timeout=TIMEOUT_SECONDS, scheme='Bearer', headers=None, **kwargs):
+    headers = {'Authorization': f'{scheme} {credentials.access_token}', **(headers or {})}
     try:
         response = requests.request(method, url, headers=headers, timeout=timeout, **kwargs)
     except requests.RequestException as error:
@@ -292,10 +368,33 @@ def send_text(credentials, to, body, context_id=None):
     return _send(credentials, to, 'text', {'body': body}, context_id)
 
 
-def send_template(credentials, to, name, language, params):
+def _header_parameter(header):
+    """The send parameter of a template header given as {'type': text|image|video|document|location, ...}."""
+    kind = header['type']
+    if kind == 'text':
+        return {'type': 'text', 'text': header['text']}
+    if kind == 'location':
+        return {'type': 'location', 'location': header['location']}
+    return {'type': kind, kind: {'id': header['media_id']}}
+
+
+def _button_component(button):
+    """A url or copy-code button parameter given as {'index', 'sub_type': url|copy_code, 'value'}."""
+    parameter = ({'type': 'coupon_code', 'coupon_code': button['value']} if button['sub_type'] == 'copy_code'
+                 else {'type': 'text', 'text': button['value']})
+    return {'type': 'button', 'sub_type': button['sub_type'], 'index': str(button['index']), 'parameters': [parameter]}
+
+
+def send_template(credentials, to, name, language, params, header=None, buttons=()):
     content = {'name': name, 'language': {'code': language}}
+    components = []
+    if header:
+        components.append({'type': 'header', 'parameters': [_header_parameter(header)]})
     if params:
-        content['components'] = [{'type': 'body', 'parameters': [{'type': 'text', 'text': p} for p in params]}]
+        components.append({'type': 'body', 'parameters': [{'type': 'text', 'text': p} for p in params]})
+    components += [_button_component(button) for button in buttons]
+    if components:
+        content['components'] = components
     return _send(credentials, to, 'template', content)
 
 
@@ -400,10 +499,10 @@ def _template(item):
 
 
 def list_templates(credentials):
-    """Every message template of the business account as dicts with name, language, category, status, components."""
+    """Every message template of the business account as Meta lists it (id, name, language, category, status, components, quality)."""
     templates, after = [], None
     for _page in range(MAX_TEMPLATE_PAGES):
-        params = {'fields': 'name,language,category,status,components', 'limit': 100}
+        params = {'fields': 'id,name,language,category,status,components,quality_score,rejected_reason', 'limit': 100}
         if after:
             params['after'] = after
         data = _json_dict(_call(
@@ -415,6 +514,52 @@ def list_templates(credentials):
         if not after:
             break
     return templates
+
+
+def create_template(credentials, payload):
+    """Submit a new template for review; `payload` is Meta's body (name, language, category, components). Returns Meta's {id, status, category}."""
+    data = _json_dict(_call(
+        'POST', _graph(f'{credentials.business_account_id}/message_templates'), credentials, json=payload,
+    ))
+    if not isinstance(data.get('id'), (str, int)):
+        message = 'malformed provider response'
+        raise ProviderError(message, retryable=False)
+    return {'id': str(data['id']), 'status': data.get('status'), 'category': data.get('category')}
+
+
+def edit_template(credentials, template_id, components, category=None):
+    """Replace the components (and, while not approved, the category) of a template; Meta reviews it again."""
+    payload = {'components': components, **({'category': category} if category else {})}
+    _call('POST', _graph(template_id), credentials, json=payload)
+
+
+def delete_template(credentials, template_id, name):
+    """Delete one language of a template by its id and name."""
+    _call(
+        'DELETE', _graph(f'{credentials.business_account_id}/message_templates'), credentials,
+        params={'hsm_id': template_id, 'name': name},
+    )
+
+
+def upload_template_sample(credentials, app_id, filename, mimetype, data):
+    """Upload the sample file of a media header with the resumable upload API and return its handle."""
+    session = _json_dict(_call(
+        'POST', _graph(f'{app_id}/uploads'), credentials,
+        params={'file_name': filename, 'file_length': len(data), 'file_type': mimetype},
+    ))
+    upload_id = session.get('id')
+    if not isinstance(upload_id, str):
+        message = 'malformed provider response'
+        raise ProviderError(message, retryable=False)
+    uploaded = _json_dict(_call(
+        'POST', _graph(upload_id), credentials, timeout=UPLOAD_TIMEOUT_SECONDS, scheme='OAuth',
+        headers={'file_offset': '0'}, data=data,
+    ))
+    handle = uploaded.get('h')
+    if not isinstance(handle, str):
+        message = 'malformed provider response'
+        raise ProviderError(message, retryable=False)
+    return handle
 
 
 def check_phone(credentials):

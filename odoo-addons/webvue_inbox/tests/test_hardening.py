@@ -83,7 +83,7 @@ class TestWebhookMalformedShapes(WebVueInboxCase):
         payload = {'entry': [{'changes': [{'value': {
             'metadata': {'phone_number_id': 'p'}, 'contacts': 'x', 'messages': {'a': 1}, 'statuses': [1, None],
         }}]}]}
-        self.assertEqual(whatsapp.parse_events(payload, 'p'), [])
+        self.assertEqual(whatsapp.parse_events(payload, 'p', 'w'), [])
         self.assertEqual(whatsapp.phone_number_ids(payload), {'p'})
 
 
@@ -129,11 +129,11 @@ class TestCronResilience(WebVueInboxCase):
         real = whatsapp.parse_events
         calls = []
 
-        def parse(payload, phone_id):
+        def parse(payload, phone_id, account_id):
             calls.append(payload)
             if len(calls) == 1:
                 raise RuntimeError
-            return real(payload, phone_id)
+            return real(payload, phone_id, account_id)
 
         with patch.object(whatsapp, 'parse_events', side_effect=parse):
             self.env['webvue.inbox.event']._webvue_run_events()
@@ -226,7 +226,7 @@ class TestSendRules(WebVueInboxCase):
         late = self.make_conversation(minutes_ago=30 * 60)
         free_text = self.failed_message(late)
         template = self.env['webvue.inbox.template'].create({
-            'channel_id': self.channel.id, 'name': 't', 'language': 'ar', 'status': 'APPROVED', 'body': 'x', 'param_count': 0,
+            'channel_id': self.channel.id, 'name': 't', 'language': 'ar', 'status': 'approved', 'body': 'x',
         })
         templated = self.failed_message(late, template_name=template.name, template_language='ar', template_params=[])
         self.login(self.agent)
@@ -364,7 +364,7 @@ class TestTemplateRemovalAndMediaStreams(WebVueInboxCase):
 
     def test_sync_fails_queued_replies_of_a_removed_template_instead_of_degrading_them(self):
         template = self.env['webvue.inbox.template'].create({
-            'channel_id': self.channel.id, 'name': 'gone', 'language': 'ar', 'status': 'APPROVED', 'body': 'Hi', 'param_count': 0,
+            'channel_id': self.channel.id, 'name': 'gone', 'language': 'ar', 'status': 'approved', 'body': 'Hi',
         })
         queued = self.queued_template_reply(template)
         sent = self.queued_template_reply(template)

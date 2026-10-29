@@ -168,9 +168,9 @@ class WebVueInboxConversation(models.Model):
 
     @api.model
     def _webvue_purge_stale_uploads(self, now):
-        """Delete files uploaded to a conversation that no reply ever used."""
+        """Delete files uploaded to a conversation (for a reply) or a channel (for a template header) that nothing ever used."""
         self.env['ir.attachment'].search([
-            ('res_model', '=', self._name), ('create_date', '<', now - STALE_UPLOAD_AGE),
+            ('res_model', 'in', (self._name, 'webvue.inbox.channel')), ('create_date', '<', now - STALE_UPLOAD_AGE),
         ]).unlink()
 
     @api.model

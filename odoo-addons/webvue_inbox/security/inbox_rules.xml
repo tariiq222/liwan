@@ -45,6 +45,21 @@
         <field name="model_id" ref="model_webvue_inbox_message_option"/>
         <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="webvue_inbox_message_button_param_company_rule" model="ir.rule">
+        <field name="name">webvue.inbox.message.button.param: multi-company</field>
+        <field name="model_id" ref="model_webvue_inbox_message_button_param"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="webvue_inbox_template_example_company_rule" model="ir.rule">
+        <field name="name">webvue.inbox.template.example: multi-company</field>
+        <field name="model_id" ref="model_webvue_inbox_template_example"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="webvue_inbox_template_button_company_rule" model="ir.rule">
+        <field name="name">webvue.inbox.template.button: multi-company</field>
+        <field name="model_id" ref="model_webvue_inbox_template_button"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="webvue_inbox_template_company_rule" model="ir.rule">
         <field name="name">webvue.inbox.template: multi-company</field>
         <field name="model_id" ref="model_webvue_inbox_template"/>

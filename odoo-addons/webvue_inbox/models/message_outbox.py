@@ -100,7 +100,9 @@ class WebVueInboxMessageOutbox(models.Model):
         context_id = self.reply_to_id.provider_message_id or None
         if self.template_name:
             return whatsapp.send_template(
-                credentials, to, self.template_name, self.template_language, self.template_params or [])
+                credentials, to, self.template_name, self.template_language, self.template_params or [],
+                header=self._webvue_template_header(credentials), buttons=self._webvue_template_buttons(),
+            )
         if self.kind == 'location':
             location = whatsapp.Location(self.latitude, self.longitude, self.location_name or None, self.location_address or None)
             return whatsapp.send_location(credentials, to, location, context_id)
@@ -111,14 +113,43 @@ class WebVueInboxMessageOutbox(models.Model):
         return whatsapp.send_text(credentials, to, self.body, context_id)
 
     def _webvue_send_media(self, credentials, to, context_id):
+        media_id = self._webvue_media_id(credentials)
+        attachment = self._webvue_file()
+        return whatsapp.send_media(
+            credentials, to, self.kind, media_id, self._webvue_caption(), attachment.name, context_id,
+        )
+
+    def _webvue_file(self):
         attachment = self.env['ir.attachment'].search([('res_model', '=', self._name), ('res_id', '=', self.id)], limit=1)
         if not attachment:
             raise UserError(self.env._('The file of this message is missing.'))
+        return attachment
+
+    def _webvue_media_id(self, credentials):
+        """The WhatsApp media id of this message's file; it is uploaded once and kept for retries."""
         if not self.media_id:
+            attachment = self._webvue_file()
             self.media_id = whatsapp.upload_media(credentials, attachment.name, attachment.mimetype, attachment.raw)
-        return whatsapp.send_media(
-            credentials, to, self.kind, self.media_id, self._webvue_caption(), attachment.name, context_id,
-        )
+        return self.media_id
+
+    def _webvue_template_header(self, credentials):
+        """The header parameter of a template reply as the adapter takes it, or None for a template without header values."""
+        if self.template_header == 'text':
+            return {'type': 'text', 'text': self.template_header_param}
+        if self.template_header == 'location':
+            return {'type': 'location', 'location': {
+                'latitude': self.latitude, 'longitude': self.longitude,
+                'name': self.location_name or '', 'address': self.location_address or '',
+            }}
+        if self.template_header != 'none':
+            return {'type': self.template_header, 'media_id': self._webvue_media_id(credentials)}
+        return None
+
+    def _webvue_template_buttons(self):
+        return [
+            {'index': param.position, 'sub_type': param.sub_type, 'value': param.value}
+            for param in self.template_button_param_ids.sorted('position')
+        ]
 
     def _webvue_record_failure(self, error, retryable):
         attempts = self.attempts + 1

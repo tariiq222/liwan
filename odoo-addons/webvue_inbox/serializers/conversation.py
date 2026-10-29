@@ -43,6 +43,23 @@ def dump_attachment(attachment):
     return {'id': attachment.id, 'name': attachment.name, 'mimetype': attachment.mimetype, 'size': attachment.file_size}
 
 
+def dump_message_template(message):
+    """A sent template as the thread shows it: the name and the parts around the rendered body."""
+    template = message.template_id
+    values = {param.position: param.value for param in message.template_button_param_ids}
+    buttons = [
+        {'type': 'copy_code' if button.kind == 'otp' else button.kind,
+         'text': (values.get(position, '') if button.kind == 'copy_code' else button.text) or ''}
+        for position, button in enumerate(template.button_ids.sorted('sequence'))
+    ]
+    return {
+        'name': message.template_name,
+        'header_text': template._webvue_render_header(message.template_header_param) if template else None,
+        'footer': template.footer or None,
+        'buttons': buttons,
+    }
+
+
 def dump_messages(messages):
     """Message shapes in input order; the attachments of the page are read with one search."""
     attachments = defaultdict(list)
@@ -60,7 +77,7 @@ def dump_message(message, attachments):
         'kind': message.kind,
         'body': message.body,
         'author': dump_ref(message.author_id),
-        'template_name': message.template_name or None,
+        'template': dump_message_template(message) if message.template_name else None,
         'delivery_state': message.delivery_state,
         'error': message.error or None,
         'attachments': attachments,

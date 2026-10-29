@@ -21,14 +21,14 @@ from odoo.addons.webvue_inbox.controllers.helpers import (
     reject,
     unique_as_invalid,
 )
-from odoo.addons.webvue_inbox.models.access_service import MANAGE_CHANNELS, READ
-from odoo.addons.webvue_inbox.serializers.settings import dump_channel, dump_template
+from odoo.addons.webvue_inbox.models.access_service import MANAGE_CHANNELS
+from odoo.addons.webvue_inbox.serializers.settings import dump_channel
 
 HOOK_PATH = '/api/v1/inbox/hooks/whatsapp'
 CREATE_FIELDS = {
-    'name', 'kind', 'department_id', 'phone_number_id', 'business_account_id', 'access_token', 'app_secret',
+    'name', 'kind', 'department_id', 'phone_number_id', 'business_account_id', 'access_token', 'app_secret', 'app_id',
 }
-PATCH_FIELDS = {'name', 'department_id', 'state', 'access_token', 'app_secret'}
+PATCH_FIELDS = {'name', 'department_id', 'state', 'access_token', 'app_secret', 'app_id'}
 SECRET_LIMITS = {'access_token': (16, 1024), 'app_secret': (16, 256)}
 
 
@@ -58,6 +58,8 @@ def parse_channel(payload, creating):
     for key in ('phone_number_id', 'business_account_id'):
         if key in payload:
             values[key] = parse_provider_id(payload, key)
+    if 'app_id' in payload:
+        values['app_id'] = parse_provider_id(payload, 'app_id') if payload['app_id'] is not None else False
     secrets = {
         key: parse_text(payload, key, maximum=high, minimum=low)
         for key, (low, high) in SECRET_LIMITS.items() if key in payload
@@ -132,29 +134,3 @@ class ChannelController(http.Controller):
         else:
             channel.write({'state': 'connected', 'last_error': False})
         return dump(channel)
-
-    @http.route('/api/v1/inbox/channels/<int:channel_id>/templates/sync', type='json2', auth='user', methods=['POST'], readonly=False)
-    @api_handler
-    @requires_feature('inbox.enabled', operation='write')
-    @requires_capability(MANAGE_CHANNELS)
-    def sync_templates(self, channel_id, **_):
-        channel = get_channel(channel_id, MANAGE_CHANNELS)
-        try:
-            templates = request.env['webvue.inbox.template']._webvue_sync(channel)
-        except whatsapp.ProviderError as error:
-            reject(str(error))
-        return {'items': [dump_template(t) for t in templates], 'total': len(templates)}
-
-    @http.route('/api/v1/inbox/channels/<int:channel_id>/templates', type='json2', auth='user', methods=['GET'], readonly=True)
-    @api_handler
-    @requires_feature('inbox.enabled', operation='read')
-    @requires_capability(READ)
-    def list_templates(self, channel_id, **_):
-        channel = get_channel(channel_id, READ)
-        domain = [('channel_id', '=', channel.id), ('status', '=', 'APPROVED')]
-        limit, offset = parse_page(request.httprequest.args)
-        Template = request.env['webvue.inbox.template']
-        return {
-            'items': [dump_template(t) for t in Template.search(domain, limit=limit, offset=offset)],
-            'total': Template.search_count(domain),
-        }
