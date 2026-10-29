@@ -40,6 +40,15 @@
     "uploadHelp": "Maximum file size: 10 MiB.",
     "tooLarge": "The file exceeds 10 MiB.",
     "emptyFile": "Choose a nonempty file.",
+    "duplicateName": {
+      "title": "This document already has a file named “{name}”",
+      "help": "Choose what to do. Nothing is uploaded until you choose.",
+      "rename": "Change the name",
+      "asVersion": "Upload as a new version",
+      "newName": "New file name",
+      "uploadRenamed": "Upload with the new name",
+      "cancel": "Cancel the upload"
+    },
     "downloadFile": "Download {name}",
     "editFilesHelp": "Upload and manage files from the document page. Cancelling this form only discards content edits.",
     "archive": "Archive",

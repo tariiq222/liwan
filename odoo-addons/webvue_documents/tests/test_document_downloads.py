@@ -112,6 +112,19 @@ class TestDocumentDownloads(DocumentHttpCase):
         self.assertEqual(response.headers.get('X-Content-Type-Options'), 'nosniff')
         self.assertIn('attachment;', response.headers.get('Content-Disposition', ''))
 
+    def test_arabic_file_name_keeps_a_readable_ascii_fallback(self):
+        self.authenticate('docs_manager', 'docs_manager')
+        arabic = self.env['dms.file'].create({
+            'name': 'ملاحظات.txt',
+            'directory_id': self.document.directory_id.id,
+            'content': base64.b64encode(b'arabic name bytes'),
+        })
+        response = self.url_open(f'/api/v1/documents/{self.document.id}/files/{arabic.id}/download')
+        self.assertEqual(response.status_code, 200)
+        disposition = response.headers['Content-Disposition']
+        self.assertIn('filename="download.txt"', disposition)
+        self.assertIn("filename*=UTF-8''%D9%85", disposition)
+
     def test_retained_and_expired_readers_keep_private_file_bytes(self):
         self.authenticate('docs_manager', 'docs_manager')
         profile = self.env.ref('webvue_platform.tenant_profile')
