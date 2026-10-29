@@ -348,6 +348,21 @@ export function nextOffsetAfterListResult(params: {
   return next === params.requestedOffset ? null : next
 }
 
+/**
+ * What an unfiltered first page with no ledger rows means. `bare`: nothing is recorded at all, so the page invites a
+ * first entry. `actual-only`: an external cost center already carries actual lines, so the ledger is simply empty and
+ * must neither say "no entries" nor show an empty table.
+ */
+export function ledgerEmptiness(params: {
+  ledgerEmpty: boolean
+  filtered: boolean
+  offset: number
+  summary: { actual_source: ActualSource; expense_count: number }
+}): 'none' | 'bare' | 'actual-only' {
+  if (!params.ledgerEmpty || params.filtered || params.offset !== 0) return 'none'
+  return isExternalActual(params.summary) && params.summary.expense_count > 0 ? 'actual-only' : 'bare'
+}
+
 export function financeSubmitToken(params: {
   stale: boolean
   overwrite: boolean

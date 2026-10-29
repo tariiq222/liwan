@@ -154,9 +154,10 @@ class HrAssetsEquipmentController(http.Controller):
         equipment = scoped_equipment(equipment_id, active_test=False)
         payload.pop('equipment_id', None)
         vals = parse_archive(payload)
-        if equipment.employee_id:
-            raise ApiError(422, 'invalid', 'this asset is still assigned; return it first', field='employee_id')
         equipment.check_access('write')
+        # An archived asset leaves the custody check of the exit, so a held one must be returned first.
+        if equipment.employee_id:
+            raise ApiError(422, 'invalid', 'return the asset to the company before archiving it', field='employee_id')
         equipment.write({'active': False, **vals})
         return dump_equipment(equipment)
 

@@ -221,7 +221,7 @@ class TestMyTaskAttachments(TasksFilesCase):
         for body, field in (
             (upload('run.exe', b'MZ\x90\x00\x03\x00\x00\x00' + b'\x00' * 64), 'data'),
             (upload('page.html', b'<html><body>x</body></html>', mimetype='text/html'), 'mimetype'),
-            (upload('pic.png', b'not really a png', mimetype='image/png'), None),
+            (upload('pic.png', b'not really a png', mimetype='image/png'), 'name'),
             (too_big, 'data'),
             ({'name': 'x.txt', 'data': '!!!'}, 'data'),
             ({'name': '../x.txt', 'data': upload()['data']}, 'name'),
@@ -231,11 +231,7 @@ class TestMyTaskAttachments(TasksFilesCase):
         ):
             with self.subTest(name=body.get('name'), field=field):
                 status, payload = self.call('tasks_alice', 'POST', path, body)
-                if field is None:
-                    # sniffed as plain text: accepted, and the sniffed type wins over the hint
-                    self.assertEqual((status, payload['mimetype']), (200, 'text/plain'))
-                else:
-                    self.assertError((status, payload), 422, 'invalid', field)
+                self.assertError((status, payload), 422, 'invalid', field)
         exact = self.call('tasks_alice', 'POST', path, upload('exact.txt', b'a' * MAX_BYTES))
         self.assertEqual(exact[0], 200, exact[1])
 

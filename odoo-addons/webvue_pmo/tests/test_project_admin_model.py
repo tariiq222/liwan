@@ -97,6 +97,8 @@ class TestProjectAdminModel(TransactionCase):
                 'deadline_reminders_days_before': 1,
                 'overdue_digest_enabled': True,
                 'require_charter_approval': False,
+                'close_with_open_tasks': 'block',
+                'register_status_transitions': 'sequence',
                 'extensions': [],
             },
         )

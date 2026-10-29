@@ -12,6 +12,7 @@ import {
   FINANCE_PAGE,
   financeKindFilters,
   isExternalActual,
+  ledgerEmptiness,
   parseFinanceKind,
   parseFinanceListRoute,
   patchFinanceListRoute,
@@ -213,7 +214,9 @@ const entryTo = (item: { id: number }) => ({ path: `/projects/${projectId.value}
 const newTo = (kind: 'budget' | 'expense') => ({ path: `/projects/${projectId.value}/finance/new`, query: { kind, ...returnToQuery(liveListPath.value) } })
 const showEmpty = computed(() => !list.isLoading.value && items.value.length === 0)
 // A ledger with nothing in it and nothing filtered is an empty page, not an empty list: no filter row to show.
-const bareEmpty = computed(() => Boolean(summary.value) && showEmpty.value && !filtered.value && filters.offset === 0)
+const emptiness = computed(() => summary.value
+  ? ledgerEmptiness({ ledgerEmpty: showEmpty.value, filtered: filtered.value, offset: filters.offset, summary: summary.value })
+  : 'none')
 </script>
 
 <template>
@@ -234,9 +237,9 @@ const bareEmpty = computed(() => Boolean(summary.value) && showEmpty.value && !f
       </template>
       <p v-if="notFound && !list.isLoading.value" class="text-muted">{{ t('projects.notFound') }}</p>
       <template v-else>
-        <FinanceSummaryCards v-if="summary && projectId" :project-id="projectId" :summary="summary" :can-manage="canManage" />
-        <SharedEmptyState v-if="bareEmpty" bordered :title="t('projects.finance.empty')" :description="t('projects.finance.emptyHint')" />
-        <SharedListCard v-else>
+        <FinanceSummaryCards v-if="summary && projectId" :project-id="projectId" :summary="summary" />
+        <SharedEmptyState v-if="emptiness === 'bare'" bordered :title="t('projects.finance.empty')" :description="canManage ? t('projects.finance.emptyHint') : undefined" />
+        <SharedListCard v-else-if="emptiness === 'none'">
           <template #filters>
             <FilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
               <template #search>

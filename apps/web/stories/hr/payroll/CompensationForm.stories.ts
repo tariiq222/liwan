@@ -27,6 +27,7 @@ const meta = {
       gosi_registration_date: '2024-01-01',
       nationality: { id: 186, name: 'السعودية', code: 'SA' },
       relationship_type: 'employee',
+      currency: 'SAR',
     },
     backTo: '/hr/employees/3',
   },

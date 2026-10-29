@@ -129,6 +129,21 @@ class TestMeetingsApi(WebVueMeetingsCase):
         self.assertEqual(conflicting.status_code, 422, conflicting.text)
         self.assertEqual(conflicting.json()['field'], 'meeting_date')
 
+    def test_create_empty_user_tz_falls_back_to_company_then_riyadh_day(self):
+        self._grant_meeting_create()
+        self.employee.tz = False
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        payload = {'name': 'Empty tz', 'start_datetime': '2026-09-08T21:55:00Z', 'end_datetime': '2026-09-08T22:30:00Z'}
+        riyadh = self.api('POST', '/api/v1/meetings', payload)
+        self.assertEqual(riyadh.status_code, 201, riyadh.text)
+        self.assertEqual(riyadh.json()['meeting_date'], '2026-09-09')
+        self.env.company.sudo().partner_id.write({'tz': 'America/New_York'})
+        self.env.flush_all()
+        company = self.api('POST', '/api/v1/meetings', {'name': 'Company tz', 'start_datetime': '2026-09-08T22:45:00Z', 'end_datetime': '2026-09-08T23:15:00Z'})
+        self.assertEqual(company.status_code, 201, company.text)
+        # 22:45 UTC is 18:45 in New York but already 01:45 next day in Riyadh: the company zone, not Riyadh, decides.
+        self.assertEqual(company.json()['meeting_date'], '2026-09-08')
+
     def test_create_rejects_invalid_range_and_patch_rejects_invalid_url(self):
         self._grant_meeting_create()
         self.authenticate('api_emp', 'api_emp_pass_123')

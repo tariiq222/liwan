@@ -529,3 +529,14 @@ export function submitFailureReason(e: unknown, t: (key: string) => string): str
 export function sponsorMissingForSubmit(approvalRequired: boolean, wasApproved: boolean, sponsorId: number | null | undefined): boolean {
   return approvalRequired && !wasApproved && !sponsorId
 }
+
+const CHARTER_AMOUNT = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+/** A charter budget estimate for reading: thousands separators, two decimals, a space before the currency. A value that is not a number is shown as typed. */
+export function formatCharterAmount(input: string, currencyLabel?: string | null): string {
+  const text = input.trim()
+  if (!text) return ''
+  const parsed = parseAmountInput(text)
+  const amount = parsed.ok && parsed.value !== null ? CHARTER_AMOUNT.format(parsed.value) : text
+  return currencyLabel ? `${amount} ${currencyLabel}` : amount
+}

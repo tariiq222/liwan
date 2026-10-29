@@ -24,6 +24,7 @@ const payslip = {
   net: 9510,
   gosi_employer: 1260,
   company: { name: 'شركة النماء للتقنية', vat: '300012345600003' },
+  currency: 'SAR',
 }
 
 const meta = {

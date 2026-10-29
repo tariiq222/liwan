@@ -5,6 +5,7 @@ export const TaskAttachmentSchema = z.object({
   name: z.string().min(1),
   mimetype: z.string().min(1),
   url: z.string().min(1),
+  size: z.number().int().nonnegative(),
 }).strict()
 
 export const TaskAttachmentListSchema = z.object({

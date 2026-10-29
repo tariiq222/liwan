@@ -15,6 +15,7 @@ const meta = {
   args: {
     totals: { gross: 98400, deductions: 12000, gosi_employee: 5400, gosi_employer: 6900, net: 86400 },
     employeeCount: 12,
+    currency: 'SAR',
   },
   render: args => ({
     components: { PayrollRunTotals, PageContainer },

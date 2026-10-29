@@ -124,3 +124,9 @@ msgstr "مصدر التكلفة الفعلية للمشروع"
 #: model:ir.model,name:webvue_pmo_finance.model_webvue_pmo_settings
 msgid "webvue project policies"
 msgstr "سياسات المشاريع"
+
+#. module: webvue_pmo_finance
+#. odoo-python
+#: code:addons/webvue_pmo_finance/models/project_actual_source.py:0
+msgid "Choosing the cost center of a project needs the finance.analytic.manage permission."
+msgstr "اختيار مركز تكلفة المشروع يحتاج إلى صلاحية finance.analytic.manage."

@@ -3,8 +3,10 @@
 # See PROVENANCE.md.
 # SPDX-License-Identifier: LGPL-3
 
-from odoo import _, fields, models
+from odoo import _, models
 from odoo.exceptions import UserError
+
+from .local_day import local_datetime
 
 
 class CalendarEvent(models.Model):
@@ -28,9 +30,7 @@ class CalendarEvent(models.Model):
             organizer = fallback_organizer or self.env.user
         if company not in organizer.company_ids:
             raise UserError(_("The Calendar organizer must have access to the Meeting Minutes company."))
-        start_in_organizer_tz = fields.Datetime.context_timestamp(
-            self.with_context(tz=organizer.tz), self.start,
-        )
+        start_in_organizer_tz = local_datetime(organizer, company, self.start)
         return {
             "name": self.name,
             "company_id": company.id,

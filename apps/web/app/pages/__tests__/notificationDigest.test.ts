@@ -105,6 +105,18 @@ describe('notification digest page production template', () => {
     expect(html).toContain('disabled')
   })
 
+  it('shows the digest date above the overdue tasks', async () => {
+    const html = await renderPage(() => ({
+      t, backTo: { path: '/notifications', query: {} }, hydrated: true, idInvalid: false, isError: false, isLoading: false,
+      items: [{ id: 9, name: 'Overdue A', project: { name: 'P' } }], digestIso: '2026-10-28', digestDate: '28/10/2026',
+      overdueCount: 1, queryErrorMessage: '', isFetchNextPageError: false,
+      hasNextPage: false, isFetching: false, isFetchingNextPage: false,
+      retryDigest: () => {}, retryNextPage: () => {}, openTask: () => {},
+    }))
+    expect(html).toContain('data-testid="digest-date"')
+    expect(html).toContain('<time datetime="2026-10-28">28/10/2026</time>')
+  })
+
   it('shows the template skeleton, not a text line, while the first page loads', async () => {
     const html = await renderPage(() => ({
       t, backTo: { path: '/notifications', query: {} }, hydrated: true, idInvalid: false, isError: false, isLoading: true,

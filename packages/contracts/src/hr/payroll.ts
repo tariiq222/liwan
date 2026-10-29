@@ -28,6 +28,7 @@ export const HrCompensationSchema = z.object({
   gosi_registration_date: isoDate.nullable(),
   nationality: HrCompensationNationalitySchema.nullable(),
   relationship_type: HrPayrollRelationshipSchema,
+  currency: z.string().length(3),
 }).strict()
 
 // A write sends every field; the fixed wage and the nationality are derived by the server.
@@ -67,6 +68,7 @@ export const HrPayrollRunSummarySchema = z.object({
   state: HrPayrollRunStateSchema,
   employee_count: z.number().int().nonnegative(),
   totals: HrPayrollTotalsSchema,
+  currency: z.string().length(3),
   approved_at: z.string().nullable(),
 }).strict()
 
@@ -144,6 +146,7 @@ export const HrPayslipSchema = z.object({
   deductions: z.number(),
   net: z.number(),
   gosi_employer: z.number(),
+  currency: z.string().length(3),
   company: z.object({ name: z.string(), vat: z.string() }).strict(),
 }).strict()
 
@@ -151,6 +154,7 @@ export const HrMyPayslipSummarySchema = z.object({
   id: z.number().int().positive(),
   number: z.string(),
   month: payrollMonth,
+  currency: z.string().length(3),
   net: z.number(),
 }).strict()
 
@@ -418,6 +422,7 @@ export const HrEosEstimateSchema = z.object({
   case: HrEosCaseSchema,
   award: amount,
   leave_days: z.number(),
+  currency: z.string().length(3),
   leave_amount: amount,
 }).strict()
 
@@ -435,6 +440,7 @@ export const HrSettlementSchema = z.object({
   leave_amount: amount,
   open_deductions: amount,
   total: z.number(),
+  currency: z.string().length(3),
   state: z.enum(['draft', 'confirmed']),
 }).strict()
 

@@ -6,6 +6,7 @@ import { owningListBack, recordEntryOrigin } from '@/utils/recordListOrigin'
 import { useProjectList } from '@/composables/useProjects'
 import { createdProjectLocation, draftedProjectLocation } from '@/utils/projectCharter'
 import { parsePositiveId } from '@/utils/routeParams'
+import { errorStateKind } from '@webvue/ui/app/utils/errorState'
 import type { CharterWizardStep } from '@/utils/charterSteps'
 
 const route = useRoute()
@@ -24,6 +25,8 @@ const returnTo = computed(() => {
 })
 const { data: projects, isLoading, error: listError } = useProjectList(ref(false))
 const canCreate = computed(() => projects.value?.can_create ?? false)
+// A refused list read means the same as a refused create policy: an in-page notice with the way back, not a bare 403.
+const forbidden = computed(() => errorStateKind(listError.value) === 'forbidden' || (!isLoading.value && !listError.value && !canCreate.value))
 
 async function onCreated(id: number) {
   toast.add({ title: t('projects.created'), color: 'success' })
@@ -71,10 +74,13 @@ function onDrafted(id: number, step: CharterWizardStep, reason?: string) {
   <SharedCreatePanel :title="t('projects.new')" :back-to="returnTo">
     <SharedPageState
       :loading="isLoading"
-      :error="listError"
-      :empty="!isLoading && !listError && !canCreate"
+      :error="forbidden ? undefined : listError"
+      :empty="forbidden"
       :empty-text="t('projects.createForbidden')"
     >
+      <template #emptyAction>
+        <UButton to="/projects" color="neutral" variant="outline">{{ t('projects.backToProjects') }}</UButton>
+      </template>
       <ProjectCreateForm @created="onCreated" @copied="onCopied" @drafted="onDrafted" @cancel="onCancel" />
     </SharedPageState>
     <p v-if="!hydrated" class="sr-only">{{ t('app.loading') }}</p>

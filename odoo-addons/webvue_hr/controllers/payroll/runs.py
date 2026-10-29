@@ -6,7 +6,6 @@ from odoo.http import request
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
-    parse_nonneg_int,
     parse_page,
     requires_capability,
     requires_feature,
@@ -36,7 +35,9 @@ def _run_domain(args):
     domain = [('company_id', 'in', request.env.companies.ids)]
     year = args.get('year')
     if year not in (None, ''):
-        year = parse_nonneg_int(year, 'year')
+        if not (year.isdigit() and len(year) == 4):
+            raise ApiError(422, 'invalid', 'year must be a four-digit year', field='year')
+        year = int(year)
         domain += [('date_start', '>=', f'{year:04d}-01-01'), ('date_start', '<=', f'{year:04d}-12-31')]
     state = args.get('state')
     if state not in (None, ''):

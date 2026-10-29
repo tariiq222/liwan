@@ -3,6 +3,7 @@
     "name": "My Company",
     "vat": ""
   },
+  "currency": "SAR",
   "deductions": 1218.75,
   "department": null,
   "employee": {
