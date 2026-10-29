@@ -11,6 +11,7 @@ vi.mock('vue', async () => ({
 }))
 
 const invalidateQueries = vi.fn(async () => undefined)
+const removeQueries = vi.fn()
 
 vi.mock('@tanstack/vue-query', () => ({
   useMutation: (options: Record<string, unknown>) => options,
@@ -19,16 +20,29 @@ vi.mock('@tanstack/vue-query', () => ({
     queryState.queries.push(query)
     return query
   },
-  useQueryClient: () => ({ invalidateQueries }),
+  useQueryClient: () => ({ invalidateQueries, removeQueries }),
 }))
 
 describe('meeting mutation cache invalidation', () => {
   beforeEach(() => {
     invalidateQueries.mockClear()
+    removeQueries.mockClear()
     vueHooks.onServerPrefetch.mockClear()
     queryState.queries.length = 0
     ;(globalThis as typeof globalThis & { useApi: () => unknown }).useApi = () => ({ $api: vi.fn() })
   })
+
+  it('deletes a draft with DELETE and drops its detail before refreshing the lists', async () => {
+    const api = vi.fn(async () => undefined)
+    ;(globalThis as typeof globalThis & { useApi: () => unknown }).useApi = () => ({ $api: api })
+    const { useDeleteMeeting } = await import('../useMeetings')
+    const mutation = useDeleteMeeting() as unknown as { mutationFn: (id: number) => Promise<unknown>; onSuccess: (row: unknown, id: number) => Promise<unknown> }
+    await mutation.mutationFn(7)
+    expect(api).toHaveBeenCalledWith('/api/v1/meetings/7', { method: 'DELETE' })
+    await mutation.onSuccess(undefined, 7)
+    expect(removeQueries).toHaveBeenCalledWith({ queryKey: ['meetings', 7] })
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['meetings'] })
+  }, 30_000)
 
   it('invalidates meeting and series data after a meeting mutation', async () => {
     const { usePatchMeeting } = await import('../useMeetings')

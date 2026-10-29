@@ -4,16 +4,18 @@ import type { MeetingDetail } from '@webvue/contracts'
 import { ApiError } from '../useApi'
 
 const meetingAction = vi.hoisted(() => ({ mutateAsync: vi.fn(), isPending: { value: false } }))
-vi.mock('../useMeetings', () => ({ useMeetingAction: () => meetingAction }))
+const deleteMeeting = vi.hoisted(() => ({ mutateAsync: vi.fn(), isPending: { value: false } }))
+vi.mock('../useMeetings', () => ({ useMeetingAction: () => meetingAction, useDeleteMeeting: () => deleteMeeting }))
 
 const toastAdd = vi.fn()
 const globals = globalThis as typeof globalThis & { useI18n: () => unknown; useToast: () => unknown }
 
-function setup(overrides: Partial<MeetingDetail> = {}, hydrated = true) {
+function setup(overrides: Partial<MeetingDetail> = {}, hydrated = true, onDeleted?: () => unknown) {
   return import('../useMeetingTransitions').then(({ useMeetingTransitions }) => useMeetingTransitions({
     meetingId: ref(7),
     meeting: ref({ id: 7, name: 'Review', series_id: null, ...overrides } as MeetingDetail),
     hydrated: ref(hydrated),
+    onDeleted,
   }))
 }
 
@@ -21,6 +23,8 @@ describe('useMeetingTransitions', () => {
   beforeEach(() => {
     meetingAction.mutateAsync.mockReset().mockResolvedValue({})
     meetingAction.isPending.value = false
+    deleteMeeting.mutateAsync.mockReset().mockResolvedValue(undefined)
+    deleteMeeting.isPending.value = false
     toastAdd.mockReset()
     globals.useI18n = () => ({ t: (key: string) => key })
     globals.useToast = () => ({ add: toastAdd })
@@ -63,6 +67,31 @@ describe('useMeetingTransitions', () => {
     expect(transitions.pendingMeetingAction.value).toEqual({ action: 'cancel' })
     await transitions.confirmMeetingAction()
     expect(meetingAction.mutateAsync).toHaveBeenCalledWith({ id: 7, action: 'cancel', body: undefined })
+  })
+
+  it('deleting a draft asks inline with an error confirm, deletes on confirmation and then leaves the page', async () => {
+    const onDeleted = vi.fn()
+    const transitions = await setup({ state: 'draft' }, true, onDeleted)
+    transitions.requestMeetingAction('delete')
+    expect(deleteMeeting.mutateAsync).not.toHaveBeenCalled()
+    expect(transitions.pendingMeetingAction.value).toEqual({ action: 'delete' })
+    expect(transitions.meetingActionConfirm.value).toEqual({ color: 'error', title: 'meetingsUx.confirmDeleteMeeting', label: 'meetingsUx.deleteMeetingConfirmLabel' })
+    await transitions.confirmMeetingAction()
+    expect(deleteMeeting.mutateAsync).toHaveBeenCalledWith(7)
+    expect(meetingAction.mutateAsync).not.toHaveBeenCalled()
+    expect(onDeleted).toHaveBeenCalledOnce()
+    expect(transitions.pendingMeetingAction.value).toBeNull()
+  })
+
+  it('keeps a refused delete (409, not a draft) on the page with the server message', async () => {
+    deleteMeeting.mutateAsync.mockRejectedValue(new ApiError(409, 'conflict', 'only a draft meeting can be deleted'))
+    const onDeleted = vi.fn()
+    const transitions = await setup({ state: 'confirmed' }, true, onDeleted)
+    transitions.requestMeetingAction('delete')
+    await transitions.confirmMeetingAction()
+    expect(transitions.actionError.value).toBe('only a draft meeting can be deleted')
+    expect(onDeleted).not.toHaveBeenCalled()
+    expect(transitions.pendingMeetingAction.value).toEqual({ action: 'delete' })
   })
 
   it('does nothing before hydration or while a transition is pending', async () => {

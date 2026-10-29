@@ -178,6 +178,7 @@
         "boolean:inbox.enabled",
         "boolean:inbox.whatsapp",
         "boolean:inbox.templates",
+        "boolean:inbox.automation",
         "limit:inbox.channels",
         "limit:inbox.messages_out"
       ]

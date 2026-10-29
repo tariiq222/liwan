@@ -15,8 +15,7 @@
       "label": "Questions to start with",
       "overdue": "Which of my tasks are overdue?",
       "projects": "How are my active projects doing?",
-      "week": "What do I have this week?",
-      "meetings": "What are my upcoming meetings?"
+      "week": "What do I have this week?"
     },
     "followUps": {
       "label": "Follow-up questions",
