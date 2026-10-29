@@ -38,6 +38,7 @@ const icons = computed(() => (rtl.value
       <template #prev><UButton color="neutral" variant="ghost" :icon="icons.prev" :aria-label="t('app.pagePrevious')" /></template>
       <template #item="{ item, page }">
         <UButton
+          v-if="item.type === 'page'"
           :color="page === item.value ? 'primary' : 'neutral'"
           :variant="page === item.value ? 'subtle' : 'ghost'"
           :label="String(item.value)"
