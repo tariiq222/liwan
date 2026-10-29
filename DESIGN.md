@@ -12,7 +12,7 @@
 |---|---|
 | قرار في شكل الواجهة أو سلوك عرضها | هذا الملف؛ تعليمات المستخدم المعتمدة تتقدم عليه |
 | العثور على مكوّن موجود ومسؤوليته | [فهرس المكونات](docs/design-system/components.md) |
-| معرفة خصائص مكوّن قبل التصميم | [الكتالوج الآلي](docs/design-system/catalog.json): `props` و`events` و`slots` والقصص وسياقها الحقيقي؛ يُولَّد بـ `node tools/ui_catalog.mjs` بعد تغيير مكوّن أو قصة |
+| معرفة خصائص مكوّن قبل التصميم | الكتالوج الآلي `docs/design-system/catalog.json`: `props` و`events` و`slots` والقصص وسياقها الحقيقي؛ ملف مولّد غير محفوظ في المستودع، ولّده بـ `node tools/ui_catalog.mjs` قبل قراءته |
 | أخذ مكوّن للواجهة | **Storybook هو فهرس المكونات الملزم لكل وكيل**: `npm -w apps/web run storybook` (أو `apps/web/stories/**`). اللبنة تؤخذ من Storybook، والقرار الشكلي لهذا الملف. مكوّن مشترك بلا قصة ليس لبنة معتمدة. اللبنات العرضية (presentational) تسكن في `packages/ui` (طبقة Nuxt يشاركها `apps/web` و`apps/vendor-admin` لاحقًا)، وتبقى المكونات المرتبطة بتطبيق في `apps/web/app` |
 | معرفة المكتبة ومصدر التصميم وملفات التنفيذ | [المرجع التقني](docs/design-system/nuxt-ui-reference.md) |
 | المعمارية والبيانات والصلاحيات | [AGENTS.md](AGENTS.md) |

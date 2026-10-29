@@ -38,6 +38,26 @@ class TestMeetingSeries(WebVueMeetingsCase):
         self.assertIsNone(row['series_id'])
         self.assertEqual(row['open_resolution_count'], 0)
 
+    def test_recurrence_end_and_limit_errors_are_specific(self):
+        self._grant_meeting_create()
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        base = {
+            'name': 'End errors', 'recurrence': 'weekly',
+            'start_datetime': '2026-09-08T09:00:00Z', 'end_datetime': '2026-09-08T10:00:00Z',
+        }
+        zero = self.api('POST', '/api/v1/meeting-series', {**base, 'until_count': 0})
+        self.assertEqual(zero.status_code, 422, zero.text)
+        self.assertIn('between 1 and 60', zero.json()['message'])
+        neither = self.api('POST', '/api/v1/meeting-series', base)
+        self.assertEqual(neither.status_code, 422, neither.text)
+        self.assertIn('required', neither.json()['message'])
+        both = self.api('POST', '/api/v1/meeting-series', {**base, 'until_count': 2, 'until_date': '2026-12-31'})
+        self.assertIn('not both', both.json()['message'])
+        for limit in ('0', '201'):
+            response = self.api('GET', f'/api/v1/meeting-series?limit={limit}')
+            self.assertEqual(response.status_code, 422, (limit, response.text))
+        self.assertEqual(self.api('GET', '/api/v1/meeting-series?limit=200').status_code, 200)
+
     def test_ondemand_series_adds_independent_minutes(self):
         series = self.env['webvue.meeting.series'].create({
             'name': 'لجنة التشغيل', 'recurrence': 'none', 'organizer_id': self.employee.id,

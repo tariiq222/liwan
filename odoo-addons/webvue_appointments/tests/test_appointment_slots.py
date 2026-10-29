@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import UTC, datetime, timedelta
+from unittest.mock import patch
 
 from odoo.tests import tagged
 
@@ -61,6 +62,25 @@ class TestAppointmentSlots(WebVueAppointmentsCase):
         self.assertTrue(items)
         for item in items:
             self.assertGreaterEqual(datetime.strptime(item['start'], UTC_FORMAT), cutoff)
+
+    def test_staff_slots_ignore_the_modification_deadline_and_follow_the_min_notice(self):
+        """The engine is replaced by a fixed answer, so the test does not depend on working days or the clock."""
+        self.env['webvue.appointment.settings'].create({'company_id': self.env.company.id, 'min_notice_hours': 2})
+        self.booking_type.modifications_deadline = 24
+        now = datetime.now(UTC)
+        soon, later = now + timedelta(hours=1), now + timedelta(hours=3)
+        seen = []
+
+        def engine(booking, start_dt, end_dt):
+            seen.append(booking.type_id.modifications_deadline)
+            return {later.date(): [soon, later]}
+
+        self.authenticate('appointments_booker', 'appointments_booker_pass_123')
+        with patch.object(self.env.registry['resource.booking'], '_get_available_slots', engine):
+            items = self._slots(0, 3).json()['items']
+        self.assertEqual(seen, [0], 'the engine searched with no deadline')
+        self.assertEqual([item['start'] for item in items], [later.strftime(UTC_FORMAT)], 'only the minimum notice applies')
+        self.assertEqual(self.booking_type.modifications_deadline, 24)
 
     def test_the_range_may_not_pass_the_horizon(self):
         self.env['webvue.appointment.settings'].create({'company_id': self.env.company.id, 'horizon_days': 5})
