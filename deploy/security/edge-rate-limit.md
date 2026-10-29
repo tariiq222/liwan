@@ -17,7 +17,8 @@ addresses. A request matches exactly one zone.
 | Zone | Paths | Events / minute | Why |
 | --- | --- | --- | --- |
 | `webvue_auth` | `/api/auth/*`, `/api/v1/auth/*`, `/web/session/*` except `get_session_info`, `/web/login` and `/web/login/*` | 20 total | credential attempts across Nuxt and Odoo |
-| `webvue_api` | other `/api/v1/*` | 300 | authenticated product API |
+| `webvue_api` | other `/api/v1/*` except `/api/v1/public/appointments/*` | 300 | authenticated product API |
+| `webvue_public_appointments_ip` | `/api/v1/public/appointments/*` | 60 | an invited requester's token routes (no session) |
 | `webvue_odoo` | other Odoo paths except `/web/health`, including `/web/session/get_session_info` | 600 | Odoo web client, assets, reports |
 | `webvue_web` | Nuxt responses | 600 | customer UI |
 

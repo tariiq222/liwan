@@ -181,7 +181,9 @@ class WebVueChatService(models.AbstractModel):
         if channel_type == 'channel':
             if not isinstance(name, str) or not name.strip():
                 raise ApiError(422, 'invalid', 'name must not be empty', field='name')
-            group = self.env.ref('webvue_core.group_employee')
+            # Managed accounts hold base.group_user, not the legacy employee group, so the
+            # channel's own read rule (group_public_id) must name the group every account holds.
+            group = self.env.ref('base.group_user')
             return self.env['discuss.channel']._create_channel(name.strip(), group.id)
         partners = self._webvue_resolve_recipient_partners(user_ids)
         if name is not None and not isinstance(name, str):
