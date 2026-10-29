@@ -80,7 +80,7 @@ class TestPaymentsCompanyIsolation(CompanyIsolationCase):
             self.assertVisible(ORDER.format(self.orders[current].id))
             for tag, order in self.orders.items():
                 if tag != current:
-                    self.assertHiddenEveryWay('GET', ORDER.format(order.id), order.id)
+                    self.assertHiddenEveryWay('GET', ORDER.format(order.id), self.by_tag[tag].id)
 
     def test_missing_capability_in_the_same_company_stays_forbidden(self):
         self.authenticate('iso_pay_nocap', NOCAP_PASSWORD)
