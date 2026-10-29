@@ -1,9 +1,9 @@
-import { OperationStateSchema } from '@webvue/contracts'
+import { OperationPurposeSchema, OperationStateSchema } from '@webvue/contracts'
 import { ref } from 'vue'
 
 export function operationListLocation(path: string, query: Record<string, unknown>, hash = '') {
   const search = new URLSearchParams()
-  for (const key of ['q', 'state', 'page']) {
+  for (const key of ['q', 'state', 'purpose', 'page']) {
     const value = query[key]
     if (typeof value === 'string' && value) search.set(key, value)
   }
@@ -55,3 +55,5 @@ export async function operationAttachmentBody(file: File) {
 
 export function operationStateChoices(t: (key: string) => string) { return [{ label: t('operations.allStates'), value: 'all' }, ...OperationStateSchema.options.map(value => ({ label: t(`operations.states.${value}`), value }))] }
 export function operationStateFromSelection(value: unknown) { const parsed = OperationStateSchema.safeParse(value); return parsed.success ? parsed.data : undefined }
+export function operationPurposeChoices(t: (key: string) => string) { return [{ label: t('operations.allPurposes'), value: 'all' }, ...OperationPurposeSchema.options.map(value => ({ label: t(`operations.purposes.${value}`), value }))] }
+export function operationPurposeFromSelection(value: unknown) { const parsed = OperationPurposeSchema.safeParse(value); return parsed.success ? parsed.data : undefined }

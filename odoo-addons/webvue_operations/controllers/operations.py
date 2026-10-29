@@ -15,6 +15,7 @@ from odoo.addons.webvue_api.controllers.common import (
     requires_feature,
 )
 from odoo.addons.webvue_api.serializers.attachment import parse_attachment_upload
+from odoo.addons.webvue_operations.models.common import STAGE_APPROVAL_MODES
 from odoo.addons.webvue_operations.models.operation_request import (
     OperationExecutionError,
 )
@@ -45,6 +46,12 @@ def find(model, record_id, capability, *, domain=()):
 def purpose_value(value):
     if value not in ('work', 'employee'):
         raise ApiError(422, 'invalid', 'Invalid process purpose.', field='purpose')
+    return value
+
+
+def stage_approval_mode_value(value):
+    if not isinstance(value, str) or value not in dict(STAGE_APPROVAL_MODES):
+        raise ApiError(422, 'invalid', 'Invalid stage approval mode.', field='stage_approval_mode')
     return value
 
 
@@ -92,10 +99,11 @@ class OperationsController(http.Controller):
     @api_handler
     @requires_feature('operations.enabled')
     def create_process(self, **_):
-        payload = body({'name', 'description', 'execution_kind', 'purpose', 'steps'})
+        payload = body({'name', 'description', 'execution_kind', 'purpose', 'stage_approval_mode', 'steps'})
         purpose = purpose_value(payload.get('purpose', 'work'))
+        mode = stage_approval_mode_value(payload.get('stage_approval_mode', 'per_stage'))
         record = request.env['webvue.operation.process'].create({'name': payload.get('name'), 'description': payload.get('description', ''), 'execution_kind': payload.get('execution_kind', 'approval'), 'purpose': purpose})
-        record.action_configure(0, payload.get('name'), payload.get('description', ''), payload.get('execution_kind', 'approval'), payload.get('steps'), purpose=purpose)
+        record.action_configure(0, payload.get('name'), payload.get('description', ''), payload.get('execution_kind', 'approval'), payload.get('steps'), purpose=purpose, stage_approval_mode=mode)
         return dump_process(record)
 
     @http.route('/api/v1/operations/processes/<int:process_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
@@ -103,8 +111,12 @@ class OperationsController(http.Controller):
     @requires_feature('operations.enabled')
     def update_process(self, process_id, **_):
         record = find('webvue.operation.process', process_id, 'operations.processes.manage')
-        payload = body({'name', 'description', 'execution_kind', 'purpose', 'steps', 'revision'})
-        record.action_configure(payload.get('revision'), payload.get('name'), payload.get('description', ''), payload.get('execution_kind', 'approval'), payload.get('steps'), purpose=purpose_value(payload.get('purpose', record.purpose)))
+        payload = body({'name', 'description', 'execution_kind', 'purpose', 'stage_approval_mode', 'steps', 'revision'})
+        record.action_configure(
+            payload.get('revision'), payload.get('name'), payload.get('description', ''), payload.get('execution_kind', 'approval'), payload.get('steps'),
+            purpose=purpose_value(payload.get('purpose', record.purpose)),
+            stage_approval_mode=stage_approval_mode_value(payload.get('stage_approval_mode', record.stage_approval_mode)),
+        )
         return dump_process(record)
 
     @http.route('/api/v1/operations/processes/<int:process_id>/<string:action>', type='json2', auth='user', methods=['POST'], readonly=False)

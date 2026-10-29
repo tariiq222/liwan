@@ -12,6 +12,7 @@ from odoo.addons.webvue_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
+from odoo.addons.webvue_crm.models.distribution import agent_not_eligible
 from odoo.addons.webvue_crm.serializers.imports import (
     columns_of,
     dump_batch,
@@ -68,7 +69,7 @@ def _agent(user_id):
         lambda user: user.id == user_id,
     )
     if not agent:
-        raise ApiError(422, 'invalid', 'the chosen agent cannot take opportunities', field='user_id')
+        raise agent_not_eligible()
     return agent
 
 

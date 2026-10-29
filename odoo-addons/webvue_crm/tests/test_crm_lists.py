@@ -156,6 +156,14 @@ class TestCrmLists(WebVueCrmCase):
         self.env['crm.stage']._webvue_retire_stock_stages()
         self.assertFalse(self.env.ref('crm.stage_lead2').active)
 
+    def test_source_names_clash_in_any_letter_case(self):
+        self.as_manager()
+        first = self.api('POST', f'{BASE}/sources', {'name': 'crm source x'}).json()
+        self.assertEqual(self.api('POST', f'{BASE}/sources', {'name': 'CRM SOURCE X'}).status_code, 409)
+        other = self.api('POST', f'{BASE}/sources', {'name': 'Other'}).json()
+        self.assertEqual(self.api('PATCH', f'{BASE}/sources/{other["id"]}', {'name': 'CRM Source X'}).status_code, 409)
+        self.assertEqual(self.api('PATCH', f'{BASE}/sources/{first["id"]}', {'name': 'Crm Source X'}).status_code, 200)
+
     def test_source_named_like_an_archived_source_is_409(self):
         self.as_manager()
         source = self.api('POST', f'{BASE}/sources', {'name': 'Expo'}).json()
@@ -260,6 +268,9 @@ class TestCrmLists(WebVueCrmCase):
         template = self.env['product.template'].browse(package['id'])
         self.assertTrue(template.webvue_crm_package)
         self.assertEqual(template.company_id, self.company)
+        for name in ('taxes_id', 'supplier_taxes_id'):
+            if name in template._fields:
+                self.assertFalse(template[name])
         patched = self.api('PATCH', f'{BASE}/packages/{package["id"]}', {'price': 0, 'description': ''}).json()
         self.assertEqual((patched['price'], patched['description']), (0, ''))
         for body in (

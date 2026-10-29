@@ -9,7 +9,7 @@ from odoo.addons.webvue_api.tests.common import set_probe_feature
 
 CONVERSATION_KEYS = {
     'id', 'contact', 'channel', 'department', 'assignee', 'state', 'priority', 'tags', 'last_message_at',
-    'last_message_preview', 'unread', 'reply_window_ends_at',
+    'last_message_preview', 'unread', 'reply_window_ends_at', 'csat',
 }
 
 

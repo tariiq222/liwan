@@ -12,6 +12,8 @@ describe('operation KPI links', () => {
   it('give the pending list no state, as it is already one', () => {
     expect(operationKpiLink('pending', undefined, 'x')).toBe('/operations/pending?q=x')
     expect(operationKpiLink('pending', 'pending')).toBe('/operations/pending')
+    expect(operationKpiLink('monitoring', 'done', undefined, 'employee')).toBe('/operations/monitoring?purpose=employee&state=done')
+    expect(operationKpiTiles('pending', { awaiting: 1 }, key => key, undefined, 'work')[0]?.to).toBe('/operations/pending?purpose=work')
   })
 })
 

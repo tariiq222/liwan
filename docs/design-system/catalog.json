@@ -1622,7 +1622,7 @@
       "props": [
         {
           "name": "process",
-          "type": "{ id: number; name: string; description: string; purpose: \"employee\" | \"work\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; }[]; }",
+          "type": "{ id: number; name: string; description: string; purpose: \"employee\" | \"work\"; stage_approval_mode: \"per_stage\" | \"single\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; }[]; }",
           "required": false
         },
         {
@@ -1637,19 +1637,19 @@
         },
         {
           "name": "refresh",
-          "type": "(() => Promise<{ id: number; name: string; description: string; purpose: \"employee\" | \"work\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; }[]; }>)",
+          "type": "(() => Promise<{ id: number; name: string; description: string; purpose: \"employee\" | \"work\"; stage_approval_mode: \"per_stage\" | \"single\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; }[]; }>)",
           "required": false
         },
         {
           "name": "save",
-          "type": "(body: OperationProcessBody) => Promise<{ id: number; name: string; description: string; purpose: \"employee\" | \"work\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; }[]; }>",
+          "type": "(body: OperationProcessBody) => Promise<{ id: number; name: string; description: string; purpose: \"employee\" | \"work\"; stage_approval_mode: \"per_stage\" | \"single\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; }[]; }>",
           "required": true
         }
       ],
       "events": [
         {
           "name": "saved",
-          "payload": "[process: { id: number; name: string; description: string; purpose: \"employee\" | \"work\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; }[]; }]"
+          "payload": "[process: { id: number; name: string; description: string; purpose: \"employee\" | \"work\"; stage_approval_mode: \"per_stage\" | \"single\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; }[]; }]"
         }
       ],
       "slots": [],
@@ -1775,7 +1775,7 @@
         },
         {
           "name": "processes",
-          "type": "{ id: number; name: string; description: string; purpose: \"employee\" | \"work\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; }[]; }[]",
+          "type": "{ id: number; name: string; description: string; purpose: \"employee\" | \"work\"; stage_approval_mode: \"per_stage\" | \"single\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; }[]; }[]",
           "required": false,
           "default": "[]"
         },
@@ -3295,6 +3295,12 @@
           "required": false
         },
         {
+          "name": "endpoint",
+          "type": "string",
+          "required": false,
+          "default": "PEOPLE_ENDPOINT"
+        },
+        {
           "name": "id",
           "type": "string",
           "required": false
@@ -3334,6 +3340,11 @@
           "id": "Multiple",
           "name": "اختيار متعدد",
           "context": "apps/web/app/components/pmo/tasks/AssigneePicker.vue:34"
+        },
+        {
+          "id": "CustomEndpoint",
+          "name": "مصدر بحث مخصص",
+          "context": "apps/web/app/pages/crm/opportunities/[id].vue:219"
         },
         {
           "id": "FixedOptions",
@@ -4874,22 +4885,22 @@
         {
           "id": "Pending",
           "name": "Pending",
-          "context": "apps/web/app/components/operations/RequestList.vue:81"
+          "context": "apps/web/app/components/operations/RequestList.vue:85"
         },
         {
           "id": "Completed",
           "name": "Completed",
-          "context": "apps/web/app/components/operations/RequestList.vue:81"
+          "context": "apps/web/app/components/operations/RequestList.vue:85"
         },
         {
           "id": "Returned",
           "name": "Returned",
-          "context": "apps/web/app/components/operations/RequestList.vue:81"
+          "context": "apps/web/app/components/operations/RequestList.vue:85"
         },
         {
           "id": "Rejected",
           "name": "Rejected",
-          "context": "apps/web/app/components/operations/RequestList.vue:81"
+          "context": "apps/web/app/components/operations/RequestList.vue:85"
         }
       ]
     },

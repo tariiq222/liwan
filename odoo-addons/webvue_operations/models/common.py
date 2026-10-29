@@ -4,6 +4,8 @@ from odoo.exceptions import AccessError, ValidationError
 from odoo.addons.webvue_core.models.access_service import WebVueAccessRule
 
 TOKEN = object()
+# How a reviewer who sits on several consecutive stages decides them (owner decision 2026-10-29, #163).
+STAGE_APPROVAL_MODES = [('per_stage', 'Each stage needs its own approval'), ('single', 'One approval covers the reviewer\'s consecutive stages')]
 
 
 def trusted(env):

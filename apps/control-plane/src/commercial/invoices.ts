@@ -32,6 +32,16 @@ export function invoiceView(row: any, lines: any[]): InvoiceView {
   })
 }
 
+const DEFAULT_DUE_DAYS = 7
+/** Days between issuing an invoice and its due date: WEBVUE_INVOICE_DUE_DAYS (0-90), default 7 (owner decision 2026-10-29). */
+export function invoiceDueDays(env: Record<string, string | undefined> = process.env): number {
+  const raw = env.WEBVUE_INVOICE_DUE_DAYS
+  if (raw === undefined || raw === '') return DEFAULT_DUE_DAYS
+  const days = Number(raw)
+  if (!Number.isInteger(days) || days < 0 || days > 90) throw new Error('invalid WEBVUE_INVOICE_DUE_DAYS')
+  return days
+}
+
 export async function issueInvoiceFromQuote(
   client: PoolClient,
   { order, quote }: { order: { id: string; customer_id: string; subscription_id: string; kind: string }; quote: Quote },
@@ -50,8 +60,8 @@ export async function issueInvoiceFromQuote(
   const ins = await client.query(
     `INSERT INTO invoices(id, customer_id, subscription_id, order_id, kind, status, currency, exponent,
        subtotal_minor, tax_minor, total_minor, period_start, period_end, due_at)
-     VALUES($1,$2,$3,$4,$5,'issued',$6,$7,$8,$9,$10,$11,$12, now()) RETURNING *`,
-    [id, order.customer_id, order.subscription_id, order.id, kind, currency, exponent, subtotal, tax, total, periodStart, periodEnd],
+     VALUES($1,$2,$3,$4,$5,'issued',$6,$7,$8,$9,$10,$11,$12, now() + make_interval(days => $13)) RETURNING *`,
+    [id, order.customer_id, order.subscription_id, order.id, kind, currency, exponent, subtotal, tax, total, periodStart, periodEnd, invoiceDueDays()],
   )
   const lines: any[] = []
   for (let i = 0; i < now.length; i++) {
