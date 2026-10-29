@@ -142,6 +142,7 @@
     "serverUnreachable": "Unable to reach the server",
     "badPayload": "Invalid response from the server",
     "packageQuota": {
+      "branches": "You have reached the branch limit for your plan. Add branches from the subscription page.",
       "users": "You have reached the user limit for your plan.",
       "projects": "You have reached the project limit for your plan.",
       "storage": "You have reached the attachment storage limit for your plan.",

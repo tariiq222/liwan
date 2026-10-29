@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import uuid
 from datetime import datetime, timezone
 
 from odoo import api, models
@@ -288,6 +289,35 @@ class WebVueEntitlementService(models.AbstractModel):
             )
             ids.extend(row[0] for row in self.env.cr.fetchall())
         return tuple(set(ids))
+
+    @api.model
+    def _webvue_create_branch(self, name):
+        """Create one branch company for the tenant administrator, within `branches.extra_limit`.
+
+        The route has already checked `settings.company.manage`. Plain ORM creation of a
+        child company is refused (`branch_requires_subscription`), and a WebVue system
+        administrator holds no Odoo ACL on `res.company`, so the two writes are elevated.
+        The profile row lock serializes concurrent creations against the limit.
+        """
+        name = name.strip() if isinstance(name, str) else ''
+        if not 1 <= len(name) <= 200:
+            msg = 'branch_name_invalid'
+            raise ValidationError(msg)
+        profile = self._webvue_profile()._webvue_lock()
+        Branch = self.env['webvue.tenant.branch'].sudo()
+        self.require_within_limit(
+            'branches.extra_limit', Branch.search_count([('state', '=', 'active')]) + 1,
+        )
+        company = self.env['res.company'].sudo().create({
+            'name': name, 'parent_id': profile.root_company_id.id,
+        })
+        Branch.create({
+            'branch_uid': f'admin-{uuid.uuid4()}',
+            'company_id': company.id,
+            'operation_id': 'admin-create',
+            'state': 'active',
+        })
+        return company
 
     @api.model
     def _webvue_count_users(self):

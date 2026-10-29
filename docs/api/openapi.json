@@ -4034,6 +4034,9 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "awaits_confirmation": {
+            "type": "boolean"
+          },
           "company_name": {
             "type": "string"
           },
@@ -4042,6 +4045,10 @@
             "minimum": 0,
             "type": "integer"
           },
+          "first_bookable_date": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
           "id": {
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991,
@@ -4049,6 +4056,10 @@
           },
           "is_modifiable": {
             "type": "boolean"
+          },
+          "last_bookable_date": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
           },
           "location": {
             "type": [
@@ -4126,6 +4137,9 @@
           "start",
           "stop",
           "is_modifiable",
+          "first_bookable_date",
+          "last_bookable_date",
+          "awaits_confirmation",
           "company_name",
           "requester"
         ],
@@ -5621,6 +5635,41 @@
             "type": "object"
           }
         ]
+      },
+      "BranchCreateInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "BranchCreatedSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
       },
       "BranchPolicyInputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -17580,6 +17629,7 @@
           "invoice_changed",
           "invoice_deleted",
           "invoice_debit_note_created",
+          "invoice_credit_note_created",
           "invoice_posted",
           "invoice_cancelled",
           "invoice_reset_to_draft",
@@ -17646,6 +17696,7 @@
                     "invoice_changed",
                     "invoice_deleted",
                     "invoice_debit_note_created",
+                    "invoice_credit_note_created",
                     "invoice_posted",
                     "invoice_cancelled",
                     "invoice_reset_to_draft",
@@ -17783,6 +17834,7 @@
               "invoice_changed",
               "invoice_deleted",
               "invoice_debit_note_created",
+              "invoice_credit_note_created",
               "invoice_posted",
               "invoice_cancelled",
               "invoice_reset_to_draft",
@@ -20648,6 +20700,21 @@
         ],
         "type": "object"
       },
+      "FinanceCreditNoteCreateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "date": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 255,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "FinanceDebitNoteCreateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -21588,6 +21655,7 @@
           "reset_to_draft",
           "cancel",
           "debit_note",
+          "credit_note",
           "register_payment",
           "pdf",
           "zatca_submit",
@@ -21728,6 +21796,7 @@
                 "reset_to_draft",
                 "cancel",
                 "debit_note",
+                "credit_note",
                 "register_payment",
                 "pdf",
                 "zatca_submit",
@@ -21761,6 +21830,7 @@
                     "reset_to_draft",
                     "cancel",
                     "debit_note",
+                    "credit_note",
                     "register_payment",
                     "pdf",
                     "zatca_submit",
@@ -21789,6 +21859,31 @@
               "type": "object"
             },
             "type": "array"
+          },
+          "credit_origin": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "currency": {
             "minLength": 1,
@@ -22202,6 +22297,7 @@
           "amount_residual",
           "ref",
           "debit_origin",
+          "credit_origin",
           "zatca",
           "lines",
           "allowed_actions",
@@ -39528,6 +39624,17 @@
             "minLength": 16,
             "type": "string"
           },
+          "app_id": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{5,32}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "app_secret": {
             "maxLength": 256,
             "minLength": 16,
@@ -39590,6 +39697,12 @@
             "items": {
               "additionalProperties": false,
               "properties": {
+                "app_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
                 "business_account_id": {
                   "type": "string"
                 },
@@ -39684,6 +39797,7 @@
                 "business_account_id",
                 "has_access_token",
                 "has_app_secret",
+                "app_id",
                 "verify_token",
                 "callback_url",
                 "last_error",
@@ -39713,6 +39827,17 @@
             "maxLength": 1024,
             "minLength": 16,
             "type": "string"
+          },
+          "app_id": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{5,32}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "app_secret": {
             "maxLength": 256,
@@ -39750,6 +39875,12 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "app_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "business_account_id": {
             "type": "string"
           },
@@ -39844,6 +39975,7 @@
           "business_account_id",
           "has_access_token",
           "has_app_secret",
+          "app_id",
           "verify_token",
           "callback_url",
           "last_error",
@@ -41569,10 +41701,57 @@
                     }
                   ]
                 },
-                "template_name": {
-                  "type": [
-                    "string",
-                    "null"
+                "template": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "buttons": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "text": {
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "text"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "footer": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "header_text": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "header_text",
+                        "footer",
+                        "buttons"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
                   ]
                 }
               },
@@ -41582,7 +41761,7 @@
                 "kind",
                 "body",
                 "author",
-                "template_name",
+                "template",
                 "delivery_state",
                 "error",
                 "attachments",
@@ -42098,10 +42277,57 @@
               }
             ]
           },
-          "template_name": {
-            "type": [
-              "string",
-              "null"
+          "template": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "buttons": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "text": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "text"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "footer": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "header_text": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "header_text",
+                  "footer",
+                  "buttons"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
             ]
           }
         },
@@ -42111,7 +42337,7 @@
           "kind",
           "body",
           "author",
-          "template_name",
+          "template",
           "delivery_state",
           "error",
           "attachments",
@@ -42560,9 +42786,88 @@
           {
             "additionalProperties": false,
             "properties": {
+              "button_params": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "index": {
+                      "maximum": 9,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "value": {
+                      "maxLength": 2000,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "index",
+                    "value"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 3,
+                "type": "array"
+              },
+              "header_attachment_id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "header_location": {
+                "additionalProperties": false,
+                "properties": {
+                  "address": {
+                    "anyOf": [
+                      {
+                        "maxLength": 1000,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "latitude": {
+                    "maximum": 90,
+                    "minimum": -90,
+                    "type": "number"
+                  },
+                  "longitude": {
+                    "maximum": 180,
+                    "minimum": -180,
+                    "type": "number"
+                  },
+                  "name": {
+                    "anyOf": [
+                      {
+                        "maxLength": 1000,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "latitude",
+                  "longitude",
+                  "name",
+                  "address"
+                ],
+                "type": "object"
+              },
+              "header_param": {
+                "maxLength": 60,
+                "minLength": 1,
+                "type": "string"
+              },
               "params": {
                 "items": {
                   "maxLength": 1024,
+                  "minLength": 1,
                   "type": "string"
                 },
                 "maxItems": 20,
@@ -42708,6 +43013,376 @@
         ],
         "type": "object"
       },
+      "InboxTemplateButtonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "anyOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "type": {
+                "const": "quick_reply",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "text"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "example": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "text": {
+                "type": "string"
+              },
+              "type": {
+                "const": "url",
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "text",
+              "url",
+              "example"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "phone_number": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "type": {
+                "const": "phone_number",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "text",
+              "phone_number"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "example": {
+                "type": "string"
+              },
+              "type": {
+                "const": "copy_code",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "example"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "InboxTemplateButtonWriteSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "anyOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "text": {
+                "maxLength": 25,
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": {
+                "const": "quick_reply",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "text"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "example": {
+                "anyOf": [
+                  {
+                    "format": "uri",
+                    "maxLength": 2000,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "text": {
+                "maxLength": 25,
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": {
+                "const": "url",
+                "type": "string"
+              },
+              "url": {
+                "format": "uri",
+                "maxLength": 2000,
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "text",
+              "url",
+              "example"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "phone_number": {
+                "pattern": "^\\+[1-9]\\d{6,14}$",
+                "type": "string"
+              },
+              "text": {
+                "maxLength": 25,
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": {
+                "const": "phone_number",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "text",
+              "phone_number"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "example": {
+                "maxLength": 15,
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": {
+                "const": "copy_code",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "example"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "InboxTemplateCategorySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "marketing",
+          "utility",
+          "authentication"
+        ],
+        "type": "string"
+      },
+      "InboxTemplateHeaderSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "anyOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "example": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "text": {
+                "type": "string"
+              },
+              "type": {
+                "const": "text",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "text",
+              "example"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "example_attachment": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer"
+                      },
+                      "mimetype": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "size": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "mimetype",
+                      "size"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": {
+                "enum": [
+                  "image",
+                  "video",
+                  "document"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "example_attachment"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "const": "location",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "InboxTemplateHeaderWriteSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "anyOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "example": {
+                "anyOf": [
+                  {
+                    "maxLength": 1024,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "text": {
+                "maxLength": 60,
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": {
+                "const": "text",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "text",
+              "example"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "example_attachment_id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "type": {
+                "enum": [
+                  "image",
+                  "video",
+                  "document"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "example_attachment_id"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "const": "location",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "InboxTemplateListSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -42716,11 +43391,237 @@
             "items": {
               "additionalProperties": false,
               "properties": {
+                "add_security_recommendation": {
+                  "type": "boolean"
+                },
                 "body": {
                   "type": "string"
                 },
+                "body_examples": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "buttons": {
+                  "items": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "text": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "const": "quick_reply",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "text"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "example": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "text": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "const": "url",
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "text",
+                          "url",
+                          "example"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "phone_number": {
+                            "type": "string"
+                          },
+                          "text": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "const": "phone_number",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "text",
+                          "phone_number"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "example": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "const": "copy_code",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "example"
+                        ],
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                },
                 "category": {
+                  "enum": [
+                    "marketing",
+                    "utility",
+                    "authentication"
+                  ],
                   "type": "string"
+                },
+                "code_expiration_minutes": {
+                  "anyOf": [
+                    {
+                      "maximum": 90,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "editable": {
+                  "type": "boolean"
+                },
+                "footer": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "header": {
+                  "anyOf": [
+                    {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "example": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "text": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "const": "text",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "type",
+                            "text",
+                            "example"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "example_attachment": {
+                              "anyOf": [
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "id": {
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991,
+                                      "type": "integer"
+                                    },
+                                    "mimetype": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "size": {
+                                      "maximum": 9007199254740991,
+                                      "minimum": 0,
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "name",
+                                    "mimetype",
+                                    "size"
+                                  ],
+                                  "type": "object"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "type": {
+                              "enum": [
+                                "image",
+                                "video",
+                                "document"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "type",
+                            "example_attachment"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "type": {
+                              "const": "location",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "type"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "id": {
                   "exclusiveMinimum": 0,
@@ -42733,13 +43634,47 @@
                 "name": {
                   "type": "string"
                 },
+                "otp_button_text": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
                 "param_count": {
                   "maximum": 9007199254740991,
                   "minimum": 0,
                   "type": "integer"
                 },
-                "status": {
+                "quality": {
+                  "enum": [
+                    "green",
+                    "yellow",
+                    "red",
+                    "unknown"
+                  ],
                   "type": "string"
+                },
+                "status": {
+                  "enum": [
+                    "pending",
+                    "approved",
+                    "rejected",
+                    "paused",
+                    "disabled",
+                    "in_appeal",
+                    "flagged",
+                    "pending_deletion"
+                  ],
+                  "type": "string"
+                },
+                "status_reason": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "supported": {
+                  "type": "boolean"
                 }
               },
               "required": [
@@ -42748,8 +43683,19 @@
                 "language",
                 "category",
                 "status",
+                "status_reason",
+                "quality",
+                "header",
                 "body",
-                "param_count"
+                "body_examples",
+                "footer",
+                "buttons",
+                "add_security_recommendation",
+                "code_expiration_minutes",
+                "otp_button_text",
+                "param_count",
+                "editable",
+                "supported"
               ],
               "type": "object"
             },
@@ -42767,15 +43713,251 @@
         ],
         "type": "object"
       },
+      "InboxTemplateQualitySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "green",
+          "yellow",
+          "red",
+          "unknown"
+        ],
+        "type": "string"
+      },
       "InboxTemplateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "add_security_recommendation": {
+            "type": "boolean"
+          },
           "body": {
             "type": "string"
           },
+          "body_examples": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "buttons": {
+            "items": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "text": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "const": "quick_reply",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "text"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "example": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "const": "url",
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "text",
+                    "url",
+                    "example"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "phone_number": {
+                      "type": "string"
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "const": "phone_number",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "text",
+                    "phone_number"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "example": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "const": "copy_code",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "example"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "type": "array"
+          },
           "category": {
+            "enum": [
+              "marketing",
+              "utility",
+              "authentication"
+            ],
             "type": "string"
+          },
+          "code_expiration_minutes": {
+            "anyOf": [
+              {
+                "maximum": 90,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "editable": {
+            "type": "boolean"
+          },
+          "footer": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "header": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "example": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "const": "text",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "text",
+                      "example"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "example_attachment": {
+                        "anyOf": [
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "id": {
+                                "exclusiveMinimum": 0,
+                                "maximum": 9007199254740991,
+                                "type": "integer"
+                              },
+                              "mimetype": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "size": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "mimetype",
+                              "size"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "type": {
+                        "enum": [
+                          "image",
+                          "video",
+                          "document"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "example_attachment"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": {
+                        "const": "location",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "type"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "id": {
             "exclusiveMinimum": 0,
@@ -42788,13 +43970,47 @@
           "name": {
             "type": "string"
           },
+          "otp_button_text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "param_count": {
             "maximum": 9007199254740991,
             "minimum": 0,
             "type": "integer"
           },
-          "status": {
+          "quality": {
+            "enum": [
+              "green",
+              "yellow",
+              "red",
+              "unknown"
+            ],
             "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "paused",
+              "disabled",
+              "in_appeal",
+              "flagged",
+              "pending_deletion"
+            ],
+            "type": "string"
+          },
+          "status_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "supported": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -42803,10 +44019,334 @@
           "language",
           "category",
           "status",
+          "status_reason",
+          "quality",
+          "header",
           "body",
-          "param_count"
+          "body_examples",
+          "footer",
+          "buttons",
+          "add_security_recommendation",
+          "code_expiration_minutes",
+          "otp_button_text",
+          "param_count",
+          "editable",
+          "supported"
         ],
         "type": "object"
+      },
+      "InboxTemplateStatusSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "pending",
+          "approved",
+          "rejected",
+          "paused",
+          "disabled",
+          "in_appeal",
+          "flagged",
+          "pending_deletion"
+        ],
+        "type": "string"
+      },
+      "InboxTemplateWriteSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "anyOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "allow_category_change": {
+                "type": "boolean"
+              },
+              "body": {
+                "maxLength": 1024,
+                "minLength": 1,
+                "type": "string"
+              },
+              "body_examples": {
+                "items": {
+                  "maxLength": 1024,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 20,
+                "type": "array"
+              },
+              "buttons": {
+                "items": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "text": {
+                          "maxLength": 25,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "type": {
+                          "const": "quick_reply",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "text"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "example": {
+                          "anyOf": [
+                            {
+                              "format": "uri",
+                              "maxLength": 2000,
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "text": {
+                          "maxLength": 25,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "type": {
+                          "const": "url",
+                          "type": "string"
+                        },
+                        "url": {
+                          "format": "uri",
+                          "maxLength": 2000,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "text",
+                        "url",
+                        "example"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "phone_number": {
+                          "pattern": "^\\+[1-9]\\d{6,14}$",
+                          "type": "string"
+                        },
+                        "text": {
+                          "maxLength": 25,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "type": {
+                          "const": "phone_number",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "text",
+                        "phone_number"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "example": {
+                          "maxLength": 15,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "type": {
+                          "const": "copy_code",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "example"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                },
+                "maxItems": 10,
+                "type": "array"
+              },
+              "category": {
+                "enum": [
+                  "marketing",
+                  "utility"
+                ],
+                "type": "string"
+              },
+              "footer": {
+                "anyOf": [
+                  {
+                    "maxLength": 60,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "header": {
+                "anyOf": [
+                  {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "example": {
+                            "anyOf": [
+                              {
+                                "maxLength": 1024,
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "text": {
+                            "maxLength": 60,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "type": {
+                            "const": "text",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "text",
+                          "example"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "example_attachment_id": {
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991,
+                            "type": "integer"
+                          },
+                          "type": {
+                            "enum": [
+                              "image",
+                              "video",
+                              "document"
+                            ],
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "example_attachment_id"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "type": {
+                            "const": "location",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "type"
+                        ],
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "language": {
+                "pattern": "^[a-z]{2,3}(_[A-Z]{2})?$",
+                "type": "string"
+              },
+              "name": {
+                "pattern": "^[a-z0-9_]{1,512}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "language",
+              "category",
+              "allow_category_change",
+              "header",
+              "body",
+              "body_examples",
+              "footer",
+              "buttons"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "add_security_recommendation": {
+                "type": "boolean"
+              },
+              "category": {
+                "const": "authentication",
+                "type": "string"
+              },
+              "code_expiration_minutes": {
+                "anyOf": [
+                  {
+                    "maximum": 90,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "language": {
+                "pattern": "^[a-z]{2,3}(_[A-Z]{2})?$",
+                "type": "string"
+              },
+              "name": {
+                "pattern": "^[a-z0-9_]{1,512}$",
+                "type": "string"
+              },
+              "otp_button_text": {
+                "maxLength": 25,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "language",
+              "category",
+              "add_security_recommendation",
+              "code_expiration_minutes",
+              "otp_button_text"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "InboxUploadCreateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -62395,6 +63935,44 @@
         }
       }
     },
+    "/api/v1/admin/branches": {
+      "post": {
+        "operationId": "webvue_api.AccessBranchesController.create_branch.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_branch",
+        "tags": [
+          "webvue_api"
+        ],
+        "x-webvue": {
+          "addon": "webvue_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "AccessBranchesController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "create_branch",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/admin/branding": {
       "get": {
         "operationId": "webvue_api.BrandingController.admin_branding.get",
@@ -72853,6 +74431,59 @@
         }
       }
     },
+    "/api/v1/finance/invoices/{invoice_id}/credit-note": {
+      "post": {
+        "operationId": "webvue_finance.FinanceCreditNoteController.create_credit_note.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoice_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The draft credit note reversing a posted invoice, made by Odoo's public ``account.move.reversal`` wizard.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceCreditNoteController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "create_credit_note",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/finance/invoices/{invoice_id}/debit-note": {
       "post": {
         "operationId": "webvue_finance.FinanceDebitNoteController.create_debit_note.post",
@@ -82567,9 +84198,62 @@
         }
       }
     },
+    "/api/v1/inbox/channels/{channel_id}/ref": {
+      "get": {
+        "operationId": "webvue_inbox.TemplateController.read_channel_ref.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channel_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The id and name of a channel, for the pages of a user who manages its templates but not the channel itself.",
+        "tags": [
+          "webvue_inbox"
+        ],
+        "x-webvue": {
+          "addon": "webvue_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "TemplateController",
+          "feature_keys": [
+            "inbox.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "read_channel_ref",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/inbox/channels/{channel_id}/templates": {
       "get": {
-        "operationId": "webvue_inbox.ChannelController.list_templates.get",
+        "operationId": "webvue_inbox.TemplateController.list_templates.get",
         "parameters": [
           {
             "in": "path",
@@ -82609,7 +84293,7 @@
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "inbox",
-          "controller": "ChannelController",
+          "controller": "TemplateController",
           "feature_keys": [
             "inbox.enabled"
           ],
@@ -82618,11 +84302,62 @@
           "readonly": true,
           "route_type": "json2"
         }
+      },
+      "post": {
+        "operationId": "webvue_inbox.TemplateController.create_template.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channel_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_template",
+        "tags": [
+          "webvue_inbox"
+        ],
+        "x-webvue": {
+          "addon": "webvue_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "TemplateController",
+          "feature_keys": [
+            "inbox.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "create_template",
+          "readonly": false,
+          "route_type": "json2"
+        }
       }
     },
     "/api/v1/inbox/channels/{channel_id}/templates/sync": {
       "post": {
-        "operationId": "webvue_inbox.ChannelController.sync_templates.post",
+        "operationId": "webvue_inbox.TemplateController.sync_templates.post",
         "parameters": [
           {
             "in": "path",
@@ -82662,12 +84397,65 @@
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "inbox",
-          "controller": "ChannelController",
+          "controller": "TemplateController",
           "feature_keys": [
             "inbox.enabled"
           ],
           "feature_operation": "write",
           "handler": "sync_templates",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/inbox/channels/{channel_id}/templates/uploads": {
+      "post": {
+        "operationId": "webvue_inbox.TemplateController.upload_sample.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channel_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Store the sample file of a media header; it is the uploader's own until a template uses it or a day passes.",
+        "tags": [
+          "webvue_inbox"
+        ],
+        "x-webvue": {
+          "addon": "webvue_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "TemplateController",
+          "feature_keys": [
+            "inbox.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "upload_sample",
           "readonly": false,
           "route_type": "json2"
         }
@@ -83926,6 +85714,161 @@
           ],
           "feature_operation": "write",
           "handler": "patch_tag",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/inbox/templates/{template_id}": {
+      "delete": {
+        "operationId": "webvue_inbox.TemplateController.delete_template.delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "delete_template",
+        "tags": [
+          "webvue_inbox"
+        ],
+        "x-webvue": {
+          "addon": "webvue_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "TemplateController",
+          "feature_keys": [
+            "inbox.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "delete_template",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      },
+      "get": {
+        "operationId": "webvue_inbox.TemplateController.read_template.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "read_template",
+        "tags": [
+          "webvue_inbox"
+        ],
+        "x-webvue": {
+          "addon": "webvue_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "TemplateController",
+          "feature_keys": [
+            "inbox.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "read_template",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "webvue_inbox.TemplateController.edit_template.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "edit_template",
+        "tags": [
+          "webvue_inbox"
+        ],
+        "x-webvue": {
+          "addon": "webvue_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "TemplateController",
+          "feature_keys": [
+            "inbox.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "edit_template",
           "readonly": false,
           "route_type": "json2"
         }

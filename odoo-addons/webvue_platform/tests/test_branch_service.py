@@ -154,3 +154,14 @@ class TestBranchService(TransactionCase):
         hq_operator = self._op().with_context(allowed_company_ids=self.profile.root_company_id.ids)
         hq_operator._webvue_archive_branch('archive-b', 'b')
         self.assertEqual(b.state, 'archived')
+
+    def test_admin_creation_counts_against_the_limit(self):
+        self._set_limit(1)
+        service = self.env['webvue.entitlement.service']
+        company = service._webvue_create_branch(' Jeddah ')
+        self.assertEqual(company.name, 'Jeddah')
+        self.assertEqual(company.parent_id, self.profile.root_company_id)
+        with self.assertRaises(WebVueAccessRule):
+            service._webvue_create_branch('Dammam')
+        with self.assertRaisesRegex(ValidationError, 'branch_name_invalid'):
+            service._webvue_create_branch('   ')
