@@ -8,7 +8,10 @@ from odoo.tests import get_db_name, tagged
 
 from .common import WebVueApiCase
 from odoo.addons.auth_totp.models.totp import TOTP as auth_TOTP
-from odoo.addons.webvue_platform.models.entitlement_service import WebVueTenantSuspended
+from odoo.addons.webvue_platform.models.entitlement_service import (
+    OPERATOR_CONTEXT,
+    WebVueTenantSuspended,
+)
 
 
 @tagged('post_install', '-at_install', 'webvue')
@@ -85,8 +88,10 @@ class TestTotp(WebVueApiCase):
             'INSERT INTO res_groups_users_rel (gid, uid) VALUES (%s, %s)',
             [self.env.ref('webvue_core.group_vendor_support').id, self.employee.id],
         )
-        self.env['webvue.entitlement.service']._webvue_profile().support_access_enabled = False
         self._authenticate()
+        self.env['webvue.entitlement.service']._webvue_profile().with_context(**{OPERATOR_CONTEXT: True}).write(
+            {'support_access_enabled': False},
+        )
         res = self.api('POST', '/api/v1/auth/totp', {'code': '123456'})
         self.assertEqual(res.status_code, 403)
         self.assertEqual(res.json()['code'], 'login_refused')

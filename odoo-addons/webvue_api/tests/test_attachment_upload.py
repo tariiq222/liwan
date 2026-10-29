@@ -5,6 +5,9 @@ import zipfile
 
 from odoo.tests import TransactionCase, tagged
 
+from odoo.addons.webvue_api.controllers.attachment_download import (
+    attachment_disposition,
+)
 from odoo.addons.webvue_api.controllers.common import ApiError
 from odoo.addons.webvue_api.serializers.attachment import (
     MAX_ENCODED_CHARS,
@@ -82,3 +85,22 @@ class TestAttachmentUpload(TransactionCase):
             'mimetype': 'application/pdf',
             'url': f'/api/v1/tasks/3/attachments/{attachment.id}/download',
         })
+
+
+@tagged('post_install', '-at_install', 'webvue')
+class TestAttachmentDisposition(TransactionCase):
+    """The download header keeps a usable ASCII name next to the UTF-8 one."""
+
+    def test_arabic_name_gets_ascii_fallback_with_extension(self):
+        header = attachment_disposition('ملاحظات.txt')
+        self.assertIn('filename="attachment.txt"', header)
+        self.assertIn("filename*=UTF-8''%D9%85", header)
+        self.assertTrue(header.endswith('.txt'))
+
+    def test_ascii_name_is_kept(self):
+        self.assertTrue(attachment_disposition('report 2026.pdf').startswith('attachment; filename="report 2026.pdf"'))
+
+    def test_quotes_and_slashes_cannot_break_the_header(self):
+        header = attachment_disposition('a"b/c.txt')
+        self.assertIn('filename="abc.txt"', header)
+        self.assertNotIn('"b', header.split('filename*')[0].replace('filename="abc.txt"', ''))
