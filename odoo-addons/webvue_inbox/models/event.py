@@ -49,7 +49,7 @@ class WebVueInboxEvent(models.Model):
     def _webvue_process(self):
         self.ensure_one()
         channel = self.channel_id
-        items = whatsapp.parse_events(json.loads(self.payload), channel.phone_number_id, channel.business_account_id)
+        items = whatsapp.parse_events(json.loads(self.payload), channel.phone_number_id, channel.business_account_id, channel.display_phone_number)
         changed = self.env['webvue.inbox.inbound']._webvue_ingest(channel, items)
         channel.last_event_at = self.create_date
         self.write({'state': 'done', 'processed_at': fields.Datetime.now(), 'error': False})

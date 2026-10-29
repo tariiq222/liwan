@@ -178,10 +178,13 @@ class WebVueInboxConversation(models.Model):
                     ('company_id', '=', company.id), ('state', '!=', 'closed'),
                     ('last_message_at', '<', now - relativedelta(hours=settings.auto_close_hours)),
                 ])
+                self.env['webvue.inbox.conversation.cycle']._webvue_end_for(idle, 'auto_closed')
                 idle.write({'state': 'closed'})
             self._webvue_purge_expired(company, now - relativedelta(months=settings.retention_months))
+            self.env['webvue.inbox.report.build']._webvue_purge(company, now)
         self.env['webvue.inbox.event']._webvue_purge_processed(now)
         self._webvue_purge_stale_uploads(now)
+        self.env['webvue.inbox.channel']._webvue_purge_alerts(now)
 
     @api.model
     def _webvue_purge_stale_uploads(self, now):

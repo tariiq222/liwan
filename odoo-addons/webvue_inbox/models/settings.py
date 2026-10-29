@@ -18,6 +18,7 @@ ASSIGNMENT_POLICIES = [
 MAX_AUTO_CLOSE_HOURS = 720
 MAX_ALERT_MINUTES = 1440
 MAX_RETENTION_MONTHS = 120
+MIN_REPORT_RETENTION_MONTHS = 12
 
 
 class WebVueInboxSettings(models.Model):
@@ -38,6 +39,9 @@ class WebVueInboxSettings(models.Model):
     assignment_policy = fields.Selection(ASSIGNMENT_POLICIES, required=True, default='manual')
     # The agent who got the last conversation of a company without departments (the round robin pointer).
     round_robin_user_id = fields.Many2one('res.users', ondelete='set null')
+    # How long the daily report rows are kept, and the timezone they were built in (a change rebuilds them).
+    report_retention_months = fields.Integer(default=36)
+    reports_built_timezone = fields.Char()
     first_response_alert_minutes = fields.Integer(default=0, help='Minutes a customer may wait for a first reply; 0 turns the alert off.')
 
     _company_unique = models.Constraint('UNIQUE(company_id)', 'A company has one inbox settings row.')
@@ -53,6 +57,15 @@ class WebVueInboxSettings(models.Model):
                 raise ValidationError(self.env._('auto_close_hours must be between 0 and %(max)s', max=MAX_AUTO_CLOSE_HOURS))
             if not 1 <= settings.retention_months <= MAX_RETENTION_MONTHS:
                 raise ValidationError(self.env._('retention_months must be between 1 and %(max)s', max=MAX_RETENTION_MONTHS))
+
+    @api.constrains('report_retention_months')
+    def _check_report_retention(self):
+        for settings in self:
+            if not MIN_REPORT_RETENTION_MONTHS <= settings.report_retention_months <= MAX_RETENTION_MONTHS:
+                raise ValidationError(self.env._(
+                    'report_retention_months must be between %(min)s and %(max)s',
+                    min=MIN_REPORT_RETENTION_MONTHS, max=MAX_RETENTION_MONTHS,
+                ))
 
     @api.model
     def _get_for_company(self, company=None):

@@ -5,13 +5,14 @@ Every call has a fixed timeout and never logs or returns the access token.
 """
 import hashlib
 import hmac
+import re
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import requests
 import urllib3
 
-GRAPH_API_VERSION = 'v23.0'
+GRAPH_API_VERSION = 'v26.0'
 GRAPH_BASE = 'https://graph.facebook.com'
 TIMEOUT_SECONDS = 10
 UPLOAD_TIMEOUT_SECONDS = 60
@@ -29,7 +30,57 @@ STATUS_FIELD = 'message_template_status_update'
 CATEGORY_FIELD = 'template_category_update'
 QUALITY_FIELD = 'message_template_quality_update'
 TEMPLATE_FIELDS = frozenset({STATUS_FIELD, CATEGORY_FIELD, QUALITY_FIELD})
+PHONE_QUALITY_FIELD = 'phone_number_quality_update'
+PHONE_NAME_FIELD = 'phone_number_name_update'
+ACCOUNT_UPDATE_FIELD = 'account_update'
+CAPABILITY_FIELD = 'business_capability_update'
+ACCOUNT_ALERTS_FIELD = 'account_alerts'
+HEALTH_FIELDS = frozenset({PHONE_QUALITY_FIELD, PHONE_NAME_FIELD, ACCOUNT_UPDATE_FIELD, CAPABILITY_FIELD, ACCOUNT_ALERTS_FIELD})
+# The webhook fields that name a business account (entry.id) and no phone number id.
+ACCOUNT_FIELDS = TEMPLATE_FIELDS | HEALTH_FIELDS
 NO_REASON = 'NONE'
+NON_DIGITS = re.compile(r'\D')
+# Meta's messaging limit words and the integers of the capability webhook, as the channel's `messaging_limit` keys.
+MESSAGING_LIMITS = {
+    'TIER_50': 'tier_50', 'TIER_250': 'tier_250', 'TIER_2K': 'tier_2k', 'TIER_10K': 'tier_10k', 'TIER_100K': 'tier_100k',
+    'TIER_UNLIMITED': 'unlimited', 'TIER_NOT_SET': 'not_set',
+    50: 'tier_50', 250: 'tier_250', 2000: 'tier_2k', 10000: 'tier_10k', 100000: 'tier_100k', -1: 'unlimited',
+}
+NAME_STATUSES = {
+    'APPROVED': 'approved', 'AVAILABLE_WITHOUT_REVIEW': 'available_without_review', 'DECLINED': 'declined',
+    'EXPIRED': 'expired', 'PENDING_REVIEW': 'pending_review', 'NONE': 'none',
+}
+QUALITY_RATINGS = {'GREEN': 'green', 'YELLOW': 'yellow', 'RED': 'red'}
+THROUGHPUT_LEVELS = {'STANDARD': 'standard', 'HIGH': 'high', 'NOT_APPLICABLE': 'not_applicable'}
+PRICING_CATEGORIES = frozenset({
+    'authentication', 'authentication_international', 'marketing', 'marketing_lite', 'service', 'utility', 'referral_conversion',
+})
+PRICING_TYPES = frozenset({'regular', 'free_customer_service', 'free_entry_point'})
+UNKNOWN = 'unknown'
+UNKNOWN_COUNTRY = 'ZZ'
+# Account alerts that tell the business its messaging limit will not grow.
+SCALING_DENIED_ALERTS = frozenset({
+    'INCREASED_CAPABILITIES_ELIGIBILITY_DEFERRED', 'INCREASED_CAPABILITIES_ELIGIBILITY_FAILED',
+    'INCREASED_CAPABILITIES_ELIGIBILITY_NEED_MORE_INFO',
+})
+PHONE_HEALTH_FIELDS = (
+    'display_phone_number,verified_name,quality_rating,code_verification_status,name_status,new_name_status,'
+    'throughput,whatsapp_business_manager_messaging_limit'
+)
+BUSINESS_VERTICALS = frozenset({
+    'alcohol', 'apparel', 'auto', 'beauty', 'edu', 'entertain', 'event_plan', 'finance', 'govt', 'grocery', 'health',
+    'hotel', 'nonprofit', 'online_gambling', 'otc_drugs', 'other', 'physical_gambling', 'prof_services', 'restaurant',
+    'retail', 'travel',
+})
+CURRENCY = re.compile(r'^[A-Z]{3}$')
+CLICK_TEXT_LENGTH = 64
+PROFILE_FIELDS = 'about,address,description,email,profile_picture_url,websites,vertical'
+TEMPLATE_IDS_PER_REQUEST = 10
+TEMPLATE_METRICS = '["SENT","DELIVERED","READ","CLICKED","COST"]'
+PRICING_QUERY = (
+    'pricing_analytics.start({start}).end({end}).granularity(DAILY).metric_types(["COST","VOLUME"])'
+    '.dimensions(["PRICING_CATEGORY","PRICING_TYPE","COUNTRY"]).phone_numbers(["{number}"])'
+)
 
 
 @dataclass(frozen=True)
@@ -111,6 +162,98 @@ class TemplateQualityUpdate:
 
 
 TEMPLATE_UPDATES = (TemplateStatusUpdate, TemplateCategoryUpdate, TemplateQualityUpdate)
+
+
+@dataclass(frozen=True)
+class QualityUpdate:
+    """A change of the number's messaging limit or throughput; `event` is Meta's word (THROUGHPUT_UPGRADE, FLAGGED, ...)."""
+    event: str
+    current_limit: str | None
+    old_limit: str | None
+    occurred_at: datetime | None
+
+
+@dataclass(frozen=True)
+class NameUpdate:
+    """The review decision (APPROVED, DEFERRED, PENDING, REJECTED) of a display-name change."""
+    decision: str
+    requested_name: str | None
+    rejection_reason: str | None
+    occurred_at: datetime | None
+
+
+@dataclass(frozen=True)
+class Restriction:
+    kind: str
+    expires_at: datetime | None
+
+
+@dataclass(frozen=True)
+class AccountUpdate:
+    """A restriction, violation, disabling or reconnection of the business account (or of one number, `phone_scoped`)."""
+    event: str
+    ban_state: str | None
+    ban_date: datetime | None
+    violation_type: str | None
+    restrictions: tuple[Restriction, ...]
+    occurred_at: datetime | None
+
+
+@dataclass(frozen=True)
+class CapabilityUpdate:
+    """The business portfolio's messaging limit changed (a `messaging_limit` key)."""
+    limit: str
+    occurred_at: datetime | None
+
+
+@dataclass(frozen=True)
+class AccountAlert:
+    alert_type: str
+    occurred_at: datetime | None
+
+
+HEALTH_UPDATES = (QualityUpdate, NameUpdate, AccountUpdate, CapabilityUpdate, AccountAlert)
+
+
+@dataclass(frozen=True)
+class PhoneHealth:
+    """Meta's current view of the number; a field Meta did not report is `unknown` (or None for the texts)."""
+    display_phone_number: str | None
+    verified_name: str | None
+    name_status: str
+    new_name_status: str
+    quality_rating: str
+    messaging_limit: str
+    throughput_level: str
+    code_verified: bool
+
+
+@dataclass(frozen=True)
+class PricingPoint:
+    day: date
+    category: str
+    pricing_type: str
+    country: str
+    volume: int
+    cost: float | None
+
+
+@dataclass(frozen=True)
+class TemplateClick:
+    kind: str
+    text: str
+    count: int
+
+
+@dataclass(frozen=True)
+class TemplateDayPoint:
+    template_id: str
+    day: date
+    sent: int
+    delivered: int
+    read: int
+    clicks: tuple[TemplateClick, ...]
+    amount_spent: float | None
 
 
 @dataclass(frozen=True)
@@ -275,14 +418,110 @@ def _template_event(field, value):
     return None
 
 
-def parse_events(payload, phone_number_id, business_account_id):
-    """The messages, reactions and status updates addressed to `phone_number_id` and the template changes of `business_account_id`."""
+def _digits(value):
+    return NON_DIGITS.sub('', str(value)) if isinstance(value, (str, int)) and not isinstance(value, bool) else ''
+
+
+def parse_limit(value):
+    """The `messaging_limit` key of a Meta limit (a TIER_* word or an integer); None when absent, `unknown` when not one we know."""
+    if value is None or isinstance(value, bool) or not isinstance(value, (str, int)):
+        return None
+    if isinstance(value, str):
+        value = int(value) if value.lstrip('-').isdigit() else value.upper()
+    return MESSAGING_LIMITS.get(value, UNKNOWN)
+
+
+def _known_limit(value):
+    """`parse_limit` of a limit that names a tier we know, else None."""
+    limit = parse_limit(value)
+    return None if limit == UNKNOWN else limit
+
+
+def _occurred_at(entry):
+    time = entry.get('time')
+    return _timestamp(time) if isinstance(time, int) and not isinstance(time, bool) else None
+
+
+def _scoped_to(number, display_number):
+    """True when `number` (a display phone number as Meta writes it) is the channel's own number."""
+    return bool(display_number) and _digits(number) == display_number
+
+
+def _text_or_none(value):
+    return value if isinstance(value, str) and value and value != NO_REASON else None
+
+
+def _date_or_none(value):
+    try:
+        return datetime.fromisoformat(value).replace(tzinfo=None) if isinstance(value, str) else None
+    except ValueError:
+        return None
+
+
+def _restriction(item):
+    expiration = item.get('expiration')
+    expires_at = _timestamp(expiration) if isinstance(expiration, int) and not isinstance(expiration, bool) else None
+    return Restriction(item['restriction_type'], expires_at) if isinstance(item.get('restriction_type'), str) else None
+
+
+ACCOUNT_ACTIONS = frozenset({
+    'ACCOUNT_RESTRICTION', 'ACCOUNT_VIOLATION', 'DISABLED_UPDATE', 'ACCOUNT_OFFBOARDED', 'ACCOUNT_RECONNECTED',
+})
+
+
+def _account_update(value, occurred_at, display_number):
+    event = value.get('event')
+    if event not in ACCOUNT_ACTIONS:
+        return None
+    if value.get('phone_number') and not _scoped_to(value['phone_number'], display_number):
+        return None  # a single-number event of another number of the account
+    ban = _dict(value.get('ban_info'))
+    restrictions = tuple(item for item in map(_restriction, _dicts(value.get('restriction_info'))) if item)
+    return AccountUpdate(
+        event, _text_or_none(ban.get('waba_ban_state')), _date_or_none(ban.get('waba_ban_date')),
+        _text_or_none(_dict(value.get('violation_info')).get('violation_type')), restrictions, occurred_at,
+    )
+
+
+def _health_event(field, value, entry, display_number):
+    """The typed health change of one webhook `change` for the channel whose number is `display_number`, or None."""
+    occurred_at = _occurred_at(entry)
+    if field == ACCOUNT_UPDATE_FIELD:
+        return _account_update(value, occurred_at, display_number)
+    if field == CAPABILITY_FIELD:
+        limit = _known_limit(value.get('max_daily_conversations_per_business'))
+        limit = limit or _known_limit(value.get('max_daily_conversation_per_phone'))
+        return CapabilityUpdate(limit, occurred_at) if limit else None
+    if field == ACCOUNT_ALERTS_FIELD:
+        return AccountAlert(value['alert_type'], occurred_at) if value.get('alert_type') in SCALING_DENIED_ALERTS else None
+    if not _scoped_to(value.get('display_phone_number'), display_number):
+        return None
+    if field == PHONE_NAME_FIELD and isinstance(value.get('decision'), str):
+        return NameUpdate(
+            value['decision'], _text_or_none(value.get('requested_verified_name')),
+            _text_or_none(value.get('rejection_reason')), occurred_at,
+        )
+    if field == PHONE_QUALITY_FIELD and isinstance(value.get('event'), str):
+        current = _known_limit(value.get('current_limit') or value.get('max_daily_conversations_per_business'))
+        return QualityUpdate(value['event'], current, _known_limit(value.get('old_limit')), occurred_at)
+    return None
+
+
+def _account_event(field, value, entry, display_number):
+    return _template_event(field, value) if field in TEMPLATE_FIELDS else _health_event(field, value, entry, display_number)
+
+
+def parse_events(payload, phone_number_id, business_account_id, display_phone_number=None):
+    """The messages, reactions and status updates addressed to `phone_number_id` and the account changes of `business_account_id`.
+
+    `display_phone_number` (digits) scopes the single-number health changes: a channel without one ignores them.
+    """
     events = []
     for entry in _dicts(payload.get('entry')):
         for change in _dicts(entry.get('changes')):
             value = _dict(change.get('value'))
-            if change.get('field') in TEMPLATE_FIELDS:
-                event = _template_event(change['field'], value) if entry.get('id') == business_account_id else None
+            if change.get('field') in ACCOUNT_FIELDS:
+                event = _account_event(change['field'], value, entry, display_phone_number) if entry.get('id') == business_account_id else None
                 events += [event] if event else []
                 continue
             if _dict(value.get('metadata')).get('phone_number_id') != phone_number_id:
@@ -307,10 +546,10 @@ def phone_number_ids(payload):
 
 
 def template_business_account_ids(payload):
-    """The id of every business account that a template change of the payload names (entry.id)."""
+    """The id of every business account that a template or account-health change of the payload names (entry.id)."""
     ids = [
         entry.get('id') for entry in _dicts(payload.get('entry'))
-        if any(change.get('field') in TEMPLATE_FIELDS for change in _dicts(entry.get('changes')))
+        if any(change.get('field') in ACCOUNT_FIELDS for change in _dicts(entry.get('changes')))
     ]
     return {value for value in ids if isinstance(value, str)}
 
@@ -541,8 +780,8 @@ def delete_template(credentials, template_id, name):
     )
 
 
-def upload_template_sample(credentials, app_id, filename, mimetype, data):
-    """Upload the sample file of a media header with the resumable upload API and return its handle."""
+def upload_resumable(credentials, app_id, filename, mimetype, data):
+    """Upload a file (a template header sample or the profile picture) with the resumable upload API and return its handle."""
     session = _json_dict(_call(
         'POST', _graph(f'{app_id}/uploads'), credentials,
         params={'file_name': filename, 'file_length': len(data), 'file_type': mimetype},
@@ -562,6 +801,168 @@ def upload_template_sample(credentials, app_id, filename, mimetype, data):
     return handle
 
 
-def check_phone(credentials):
-    """Raise ProviderError unless the phone number id is reachable with the token."""
-    _call('GET', _graph(credentials.phone_number_id), credentials, params={'fields': 'id,display_phone_number'})
+def _enum(value, known):
+    """The lower-case key of Meta's upper-case word when it is one of `known`, else `unknown`."""
+    return known.get(value.upper(), UNKNOWN) if isinstance(value, str) else UNKNOWN
+
+
+def _require_success(response):
+    if _json_dict(response).get('success') is not True:
+        message = 'the provider did not accept the request'
+        raise ProviderError(message, retryable=False)
+
+
+def _count(value):
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else 0
+
+
+def _amount(value):
+    return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0 else None
+
+
+def fetch_phone_health(credentials):
+    """Meta's current view of the phone number; raises ProviderError unless it is reachable with the token."""
+    data = _json_dict(_call(
+        'GET', _graph(credentials.phone_number_id), credentials, params={'fields': PHONE_HEALTH_FIELDS},
+    ))
+    name = data.get('verified_name')
+    return PhoneHealth(
+        display_phone_number=_digits(data.get('display_phone_number')) or None,
+        verified_name=name if isinstance(name, str) and name else None,
+        name_status=_enum(data.get('name_status'), NAME_STATUSES),
+        new_name_status=_enum(data.get('new_name_status'), NAME_STATUSES),
+        quality_rating=_enum(data.get('quality_rating'), QUALITY_RATINGS),
+        messaging_limit=parse_limit(data.get('whatsapp_business_manager_messaging_limit')) or UNKNOWN,
+        throughput_level=_enum(_dict(data.get('throughput')).get('level'), THROUGHPUT_LEVELS),
+        code_verified=data.get('code_verification_status') == 'VERIFIED',
+    )
+
+
+def get_business_profile(credentials):
+    """The live business profile as the inbox contract shapes it (texts and vertical None when empty)."""
+    data = _json_dict(_call(
+        'GET', _graph(f'{credentials.phone_number_id}/whatsapp_business_profile'), credentials,
+        params={'fields': PROFILE_FIELDS},
+    ))
+    profile = next(iter(_dicts(data.get('data'))), {})
+    vertical = profile.get('vertical').lower() if isinstance(profile.get('vertical'), str) else None
+    return {
+        **{key: profile[key] if isinstance(profile.get(key), str) and profile[key] else None
+           for key in ('about', 'address', 'description', 'email')},
+        'websites': [site for site in profile.get('websites') or [] if isinstance(site, str)][:2],
+        'vertical': vertical if vertical in BUSINESS_VERTICALS else None,
+        'picture_url': profile['profile_picture_url'] if isinstance(profile.get('profile_picture_url'), str) else None,
+    }
+
+
+def update_business_profile(credentials, values, picture_handle=None):
+    """Write the given profile fields (an omitted field stays, '' or an empty list clears it) and/or a picture handle."""
+    payload = {'messaging_product': 'whatsapp', **values}
+    if 'vertical' in values:
+        payload['vertical'] = (values['vertical'] or '').upper()
+    if picture_handle:
+        payload['profile_picture_handle'] = picture_handle
+    _require_success(_call(
+        'POST', _graph(f'{credentials.phone_number_id}/whatsapp_business_profile'), credentials, json=payload,
+    ))
+
+
+def request_display_name(credentials, name):
+    """Ask Meta to review a new display name (the decision arrives as a `phone_number_name_update`)."""
+    _require_success(_call('POST', _graph(credentials.phone_number_id), credentials, json={'new_display_name': name}))
+
+
+def set_two_step_pin(credentials, pin):
+    """Set or change the six-digit two-step verification PIN. The PIN is only ever sent, never kept or reported."""
+    _require_success(_call('POST', _graph(credentials.phone_number_id), credentials, json={'pin': pin}))
+
+
+def register(credentials, pin):
+    """Register the number on the Cloud API; `pin` must match its two-step PIN, or becomes it when none is set."""
+    _require_success(_call(
+        'POST', _graph(f'{credentials.phone_number_id}/register'), credentials,
+        json={'messaging_product': 'whatsapp', 'pin': pin},
+    ))
+
+
+def _unix(day):
+    return int(datetime(day.year, day.month, day.day, tzinfo=timezone.utc).timestamp())
+
+
+def _pricing_point(item):
+    start = item.get('start')
+    if not isinstance(start, int) or isinstance(start, bool):
+        return None
+    category, pricing_type = str(item.get('pricing_category') or '').lower(), str(item.get('pricing_type') or '').lower()
+    country = item.get('country')
+    return PricingPoint(
+        day=_timestamp(start).date(),
+        category=category if category in PRICING_CATEGORIES else UNKNOWN,
+        pricing_type=pricing_type if pricing_type in PRICING_TYPES else UNKNOWN,
+        country=country.upper() if isinstance(country, str) and len(country) == 2 and country.isalpha() else UNKNOWN_COUNTRY,
+        volume=_count(item.get('volume')),
+        cost=_amount(item.get('cost')),
+    )
+
+
+def fetch_pricing(credentials, display_number, start, end):
+    """Meta's daily volume and cost of one number between the UTC days `start` and `end` (both included)."""
+    fields = PRICING_QUERY.format(start=_unix(start), end=_unix(end + timedelta(days=1)), number=display_number)
+    data = _json_dict(_call('GET', _graph(credentials.business_account_id), credentials, params={'fields': fields}))
+    groups = _dicts(_dict(data.get('pricing_analytics')).get('data'))
+    points = (_pricing_point(item) for group in groups for item in _dicts(group.get('data_points')))
+    return [point for point in points if point]
+
+
+def fetch_currency(credentials):
+    """The billing currency of the business account, or None when Meta does not report one."""
+    data = _json_dict(_call('GET', _graph(credentials.business_account_id), credentials, params={'fields': 'currency'}))
+    currency = data.get('currency')
+    return currency if isinstance(currency, str) and CURRENCY.match(currency) else None
+
+
+def enable_template_insights(credentials):
+    """Turn on template analytics for the business account. Meta does not allow turning it off again."""
+    _require_success(_call(
+        'POST', _graph(credentials.business_account_id), credentials, params={'is_enabled_for_insights': 'true'},
+    ))
+
+
+def _click(item):
+    kind = str(item.get('type') or '')
+    return TemplateClick(
+        'quick_reply' if 'quick_reply' in kind else 'url' if 'url' in kind else UNKNOWN,
+        str(item.get('button_content') or '')[:CLICK_TEXT_LENGTH], _count(item.get('count')),
+    )
+
+
+def _template_day(item):
+    start, template_id = item.get('start'), _text(item.get('template_id'))
+    if not template_id or not isinstance(start, int) or isinstance(start, bool):
+        return None
+    cost = {entry.get('type'): entry.get('value') for entry in _dicts(item.get('cost'))}
+    return TemplateDayPoint(
+        template_id, _timestamp(start).date(), _count(item.get('sent')), _count(item.get('delivered')),
+        _count(item.get('read')), tuple(_click(click) for click in _dicts(item.get('clicked'))),
+        _amount(cost.get('amount_spent')),
+    )
+
+
+def fetch_template_analytics(credentials, template_ids, start, end):
+    """Meta's daily sent, delivered, read, clicked and spent figures of up to ten templates between two UTC days."""
+    params = {
+        'start': _unix(start), 'end': _unix(end + timedelta(days=1)), 'granularity': 'DAILY',
+        'template_ids': '[' + ','.join(template_ids) + ']', 'metric_types': TEMPLATE_METRICS,
+    }
+    points, after = [], None
+    for _page in range(MAX_TEMPLATE_PAGES):
+        data = _json_dict(_call(
+            'GET', _graph(f'{credentials.business_account_id}/template_analytics'), credentials,
+            params={**params, **({'after': after} if after else {})},
+        ))
+        points += [point for group in _dicts(data.get('data')) for point in map(_template_day, _dicts(group.get('data_points'))) if point]
+        paging = _dict(data.get('paging'))
+        after = _dict(paging.get('cursors')).get('after') if paging.get('next') else None
+        if not after:
+            break
+    return points

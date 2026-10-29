@@ -64,6 +64,14 @@
         <field name="group_xmlid">webvue_inbox.group_cap_inbox_automation_manage</field>
         <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
     </record>
+    <record id="permission_inbox_reports_read" model="webvue.access.permission">
+        <field name="key">inbox.reports.read</field><field name="domain">inbox</field>
+        <field name="resource">reports</field><field name="action">read</field>
+        <field name="name_ar">قراءة تقارير صندوق العملاء</field><field name="name_en">Read inbox reports</field>
+        <field name="description_ar">قراءة تقارير الأداء والتكلفة وتحليلات القوالب لكل الشركة بما فيها أداء الموظفين</field><field name="description_en">Read the company-wide performance, cost and template reports, including per-agent figures</field>
+        <field name="group_xmlid">webvue_inbox.group_cap_inbox_reports_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
     <data noupdate="1">
         <record id="role_inbox_agent" model="webvue.access.role">
             <field name="key">inbox_agent</field><field name="name_ar">موظف صندوق العملاء</field><field name="name_en">Customer Inbox agent</field>
@@ -73,12 +81,12 @@
         <record id="role_inbox_supervisor" model="webvue.access.role">
             <field name="key">inbox_supervisor</field><field name="name_ar">مشرف صندوق العملاء</field><field name="name_en">Customer Inbox supervisor</field>
             <field name="description">Customer Inbox supervisor</field><field name="type">built_in</field><field name="protected" eval="True"/><field name="assignable" eval="True"/>
-            <field name="permission_ids" eval="[Command.set([ref('permission_inbox_conversations_read'),ref('permission_inbox_conversations_reply'),ref('permission_inbox_conversations_assign'),ref('permission_inbox_conversations_export')])]"/>
+            <field name="permission_ids" eval="[Command.set([ref('permission_inbox_conversations_read'),ref('permission_inbox_conversations_reply'),ref('permission_inbox_conversations_assign'),ref('permission_inbox_conversations_export'),ref('permission_inbox_reports_read')])]"/>
         </record>
         <record id="role_inbox_manager" model="webvue.access.role">
             <field name="key">inbox_manager</field><field name="name_ar">مدير صندوق العملاء</field><field name="name_en">Customer Inbox manager</field>
             <field name="description">Customer Inbox manager</field><field name="type">built_in</field><field name="protected" eval="True"/><field name="assignable" eval="True"/>
-            <field name="permission_ids" eval="[Command.set([ref('permission_inbox_conversations_read'),ref('permission_inbox_conversations_reply'),ref('permission_inbox_conversations_assign'),ref('permission_inbox_conversations_export'),ref('permission_inbox_channels_manage'),ref('permission_inbox_templates_manage'),ref('permission_inbox_settings_manage'),ref('permission_inbox_automation_manage')])]"/>
+            <field name="permission_ids" eval="[Command.set([ref('permission_inbox_conversations_read'),ref('permission_inbox_conversations_reply'),ref('permission_inbox_conversations_assign'),ref('permission_inbox_conversations_export'),ref('permission_inbox_channels_manage'),ref('permission_inbox_templates_manage'),ref('permission_inbox_settings_manage'),ref('permission_inbox_automation_manage'),ref('permission_inbox_reports_read')])]"/>
         </record>
     </data>
     <!-- Built-in roles are noupdate records: these hooks link this addon's grants and

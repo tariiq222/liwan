@@ -169,7 +169,7 @@ class WebVueInboxTemplate(models.Model):
         attachment, app_id = self.header_example_attachment_id, self.channel_id.app_id
         if not (attachment and app_id):
             raise UserError(self.env._('A media header needs a sample file and the Meta app id of the channel.'))
-        return whatsapp.upload_template_sample(credentials, app_id, attachment.name, attachment.mimetype, attachment.raw)
+        return whatsapp.upload_resumable(credentials, app_id, attachment.name, attachment.mimetype, attachment.raw)
 
     def _webvue_apply_answer(self, answer):
         """Store Meta's answer to a create call: the template id, its first status and the category Meta decided."""

@@ -129,11 +129,11 @@ class TestCronResilience(WebVueInboxCase):
         real = whatsapp.parse_events
         calls = []
 
-        def parse(payload, phone_id, account_id):
+        def parse(payload, *scope):
             calls.append(payload)
             if len(calls) == 1:
                 raise RuntimeError
-            return real(payload, phone_id, account_id)
+            return real(payload, *scope)
 
         with patch.object(whatsapp, 'parse_events', side_effect=parse):
             self.env['webvue.inbox.event']._webvue_run_events()
