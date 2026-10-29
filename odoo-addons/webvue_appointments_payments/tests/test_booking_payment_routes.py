@@ -11,8 +11,12 @@ from odoo.addons.webvue_appointments_payments.serializers.booking_payment import
     parse_type_payment,
 )
 
-TYPE_PAYMENT_KEYS = {'online_payment', 'deposit_percent', 'price', 'currency'}
-BOOKING_PAYMENT_KEYS = {'status', 'refund_due', 'needs_attention', 'currency', 'amount_total', 'amount_due', 'expires_at'}
+TYPE_PAYMENT_KEYS = {
+    'online_payment', 'deposit_percent', 'price', 'currency', 'refund_policy', 'refund_amounts', 'refund_tiers',
+}
+BOOKING_PAYMENT_KEYS = {
+    'status', 'needs_attention', 'currency', 'amount_total', 'amount_due', 'amount_received', 'amount_to_refund', 'expires_at',
+}
 BOOKINGS = '/api/v1/appointments/bookings'
 PUBLIC_BOOKINGS = '/api/v1/public/appointments/bookings'
 
@@ -128,7 +132,7 @@ class TestBookingPaymentRoutes(WebVuePaidBookingCase):
         cancelled = self.api('POST', f'{BOOKINGS}/{booking.id}/cancel', json={})
         self.assertEqual(cancelled.status_code, 200, cancelled.text)
         payment = self.api('GET', self.booking_url(booking)).json()
-        self.assertEqual((order.state, payment['status'], payment['refund_due']), ('cancel', 'cancelled', True))
+        self.assertEqual((order.state, payment['status'], payment['amount_to_refund']), ('cancel', 'cancelled', order.amount_total))
 
     def test_scheduling_an_invitation_through_the_route_opens_its_order(self):
         self.authenticate('appointments_booker', 'appointments_booker_pass_123')
@@ -155,4 +159,51 @@ class TestBookingPaymentRoutes(WebVuePaidBookingCase):
         self.assertEqual(self.api('GET', f'{path}?access_token={token}').json()['state'], 'confirmed')
         cancelled = self.api('POST', f'{path}/cancel', json={'access_token': token})
         self.assertEqual(cancelled.status_code, 200, cancelled.text)
-        self.assertEqual((order.state, order.sudo()._webvue_refund_due()), ('cancel', True))
+        self.assertEqual((order.state, order.sudo().webvue_refund_due_amount), ('cancel', order.amount_total))
+
+    def test_a_manager_sets_the_refund_rules_of_a_type(self):
+        self.authenticate('appointments_manager', 'appointments_manager_pass_123')
+        body = self.api('GET', self.type_url()).json()
+        self.assertEqual(
+            (body['refund_policy'], body['refund_amounts'], body['refund_tiers']), ('company', 'company', []),
+        )
+        tiers = [{'notice_hours': 48, 'percent': 100}, {'notice_hours': 24, 'percent': 50}]
+        changed = self.api('PATCH', self.type_url(), json={'refund_policy': 'notice', 'refund_amounts': 'any', 'refund_tiers': tiers})
+        self.assertEqual(changed.status_code, 200, changed.text)
+        self.assertEqual((changed.json()['refund_policy'], changed.json()['refund_tiers']), ('notice', tiers))
+        for payload, field in (
+            ({'refund_policy': 'later'}, 'refund_policy'),
+            ({'refund_amounts': 'half'}, 'refund_amounts'),
+            ({'refund_tiers': [{'notice_hours': 24, 'percent': 101}]}, 'refund_tiers'),
+            ({'refund_tiers': [{'notice_hours': 24, 'percent': 50}, {'notice_hours': 24, 'percent': 10}]}, 'refund_tiers'),
+            ({'refund_tiers': [{'notice_hours': 1, 'percent': 10}] * 6}, 'refund_tiers'),
+            ({'refund_tiers': []}, 'refund_tiers'),
+        ):
+            with self.subTest(payload=payload):
+                response = self.api('PATCH', self.type_url(), json=payload)
+                self.assertEqual((response.status_code, response.json()['field']), (422, field))
+        unpriced = self.api('PATCH', self.type_url(self.booking_type), json={'refund_policy': 'none'})
+        self.assertEqual((unpriced.status_code, unpriced.json()['field']), (422, 'price'))
+
+    def test_the_customer_who_cancels_late_gets_back_what_the_type_allows(self):
+        self.paid_type.with_user(self.manager)._webvue_set_payment(refund_rules={
+            'refund_policy': 'notice', 'refund_tiers': [{'notice_hours': 1000, 'percent': 100}, {'notice_hours': 0, 'percent': 40}],
+        })
+        invitation = self.book(scheduled=False)
+        invitation._portal_ensure_token()
+        token, path, today = invitation.access_token, f'{PUBLIC_BOOKINGS}/{invitation.id}', fields.Date.today()
+        slots = self.api('GET', f'{path}/slots?access_token={token}&from={today + timedelta(days=2)}&to={today + timedelta(days=9)}')
+        self.api('POST', f'{path}/schedule', json={'access_token': token, 'start': slots.json()['items'][0]['start']})
+        order = self.order_of(invitation)
+        self.pay(order, order.amount_total)
+        cancelled = self.api('POST', f'{path}/cancel', json={'access_token': token})
+        self.assertEqual(cancelled.status_code, 200, cancelled.text)
+        # Cancelled two to nine days ahead, under 1000 hours: the 0-hour tier gives 40% of what was paid back.
+        refund = order.currency_id.round(order.amount_total * 0.4)
+        self.assertEqual((order.state, order.sudo().webvue_refund_due_amount), ('cancel', refund))
+        staff = self.book()
+        staff_order = self.order_of(staff)
+        self.pay(staff_order, staff_order.amount_total)
+        self.authenticate('appointments_booker', 'appointments_booker_pass_123')
+        self.assertEqual(self.api('POST', f'{BOOKINGS}/{staff.id}/cancel', json={}).status_code, 200)
+        self.assertEqual(staff_order.sudo().webvue_refund_due_amount, staff_order.amount_total)

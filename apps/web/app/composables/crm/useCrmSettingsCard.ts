@@ -1,7 +1,5 @@
-import { computed, ref, watch, type Ref } from 'vue'
 import type { CrmPreset, CrmSettings, CrmSettingsValues, CrmSettingsValuesPatch } from '@webvue/contracts'
-import { ApiError } from '../useApi'
-import { saveErrorMessage } from '../../utils/formFeedback'
+import { useSettingsForm } from '../settings/useSettingsForm'
 import { useSaveCrmSettings } from './useCrmSettings'
 
 /** What a card saves: some of the values, or a preset (which sets several values at once). */
@@ -17,70 +15,13 @@ interface CardOptions<Draft> {
   reload: () => Promise<CrmSettings>
 }
 
-const copy = <T>(value: T): T => JSON.parse(JSON.stringify(value))
-
-/**
- * The draft of one settings card: it saves only its own fields with the latest shared revision, and on a 409
- * (a change made elsewhere) locks until the manager reloads, so a stale draft never overwrites newer settings.
- */
+/** One CRM settings card: the shared settings form, saving its patch with the latest shared revision. */
 export function useCrmSettingsCard<Draft>(options: CardOptions<Draft>) {
-  const { t } = useI18n()
   const { mutateAsync: saveSettings } = useSaveCrmSettings()
-  const baseline = ref(options.settings())
-  const draft = ref(copy(options.read(baseline.value.values))) as Ref<Draft>
-  const failure = ref<unknown>(null)
-  const saving = ref(false)
-  const reloading = ref(false)
-  const reloadFailed = ref(false)
-  const dirty = computed(() => JSON.stringify(draft.value) !== JSON.stringify(options.read(baseline.value.values)))
-  const conflict = computed(() => failure.value instanceof ApiError && failure.value.status === 409)
-  const message = computed(() => {
-    if (!failure.value) return ''
-    return conflict.value ? t('crm.settings.conflict') : saveErrorMessage(failure.value, t('errors.generic'), t('errors.saveUncertain'))
+  return useSettingsForm<CrmSettings, Draft>({
+    source: options.settings,
+    read: settings => options.read(settings.values),
+    save: (draft, latest) => saveSettings({ revision: latest.revision, ...options.toPatch(draft) }),
+    reload: options.reload,
   })
-  const adopt = (settings: CrmSettings) => {
-    baseline.value = settings
-    draft.value = copy(options.read(settings.values))
-  }
-  const owned = (settings: CrmSettings) => JSON.stringify(options.read(settings.values))
-  // Another card's save, or a refetch, refreshes the settings. A card with no edits follows. A card with edits follows
-  // only the revision when the fields it owns are unchanged; when they changed it locks like a 409, so its stale
-  // draft cannot overwrite them.
-  watch(options.settings, (settings) => {
-    if (reloading.value || saving.value || conflict.value) return
-    if (!dirty.value) adopt(settings)
-    else if (owned(settings) === owned(baseline.value)) baseline.value = settings
-    else failure.value = new ApiError(409, 'conflict', 'CRM settings changed; reload before saving')
-  })
-  async function save() {
-    if (saving.value || reloading.value || !dirty.value || conflict.value) return
-    failure.value = null
-    saving.value = true
-    try {
-      adopt(// The latest revision the page knows, not the one this draft started from: another card's save in this tab
-      // must not make this card conflict. A change made elsewhere is not in the shared query, so it still answers 409.
-      await saveSettings({ revision: options.settings().revision, ...options.toPatch(draft.value) }))
-    } catch (error) {
-      failure.value = error
-    } finally {
-      saving.value = false
-    }
-  }
-  async function reload() {
-    if (reloading.value || saving.value) return
-    reloading.value = true
-    reloadFailed.value = false
-    try {
-      adopt(await options.reload())
-      failure.value = null
-    } catch {
-      reloadFailed.value = true
-    } finally {
-      reloading.value = false
-    }
-  }
-  const shell = computed(() => ({
-    dirty: dirty.value, saving: saving.value, reloading: reloading.value, conflict: conflict.value, message: message.value, reloadFailed: reloadFailed.value,
-  }))
-  return { draft, shell, save, reload }
 }

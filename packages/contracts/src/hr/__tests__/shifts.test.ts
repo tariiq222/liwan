@@ -107,10 +107,12 @@ describe('HrShiftAssignmentSchema', () => {
 
 describe('shift day policy contracts', () => {
   it('requires a server day and typed reference/revision', () => {
-    const settings = { day_reference: 'company', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', today: '2026-10-23', revision: 0 }
+    const settings = { day_reference: 'company', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', today: '2026-10-23', default_schedule: { id: 7, name: 'دوام الأحد إلى الخميس' }, revision: 0 }
     expect(HrShiftSettingsSchema.parse(settings)).toEqual(settings)
-    for (const invalid of [{ ...settings, today: '2026-02-30' }, { ...settings, day_reference: 'browser' }, { ...settings, revision: -1 }]) expect(HrShiftSettingsSchema.safeParse(invalid).success).toBe(false)
+    expect(HrShiftSettingsSchema.parse({ ...settings, default_schedule: null }).default_schedule).toBeNull()
+    for (const invalid of [{ ...settings, today: '2026-02-30' }, { ...settings, day_reference: 'browser' }, { ...settings, revision: -1 }, { ...settings, default_schedule: { id: 0, name: 'x' } }, { ...settings, default_schedule: { id: 7 } }]) expect(HrShiftSettingsSchema.safeParse(invalid).success).toBe(false)
     expect(HrShiftSettingsPatchSchema.parse({ day_reference: 'user', revision: 0 })).toEqual({ day_reference: 'user', revision: 0 })
-    for (const invalid of [{ day_reference: 'user' }, { day_reference: 'company', revision: true }, { day_reference: 'user', revision: 1, company_id: 2 }]) expect(HrShiftSettingsPatchSchema.safeParse(invalid).success).toBe(false)
+    expect(HrShiftSettingsPatchSchema.parse({ day_reference: 'user', default_schedule_id: 7, revision: 0 })).toEqual({ day_reference: 'user', default_schedule_id: 7, revision: 0 })
+    for (const invalid of [{ day_reference: 'user', default_schedule_id: 0, revision: 0 }, { day_reference: 'user' }, { day_reference: 'company', revision: true }, { day_reference: 'user', revision: 1, company_id: 2 }]) expect(HrShiftSettingsPatchSchema.safeParse(invalid).success).toBe(false)
   })
 })

@@ -22,7 +22,7 @@ test('branding saves the primary color and retains the draft when navigation is 
     const save = page.waitForResponse(response => (
       response.url().includes('/api/v1/admin/branding') && response.request().method() === 'PATCH'
     ))
-    await page.getByTestId('branding-submit').click()
+    await page.getByTestId('branding-form').getByRole('button', { name: 'حفظ التغييرات', exact: true }).click()
     const saveResponse = await save
     expect(saveResponse.status()).toBe(200)
     expect(saveResponse.request().postDataJSON()).toEqual({ primary_color: '#123456' })

@@ -20,6 +20,11 @@ export const INVOICE_KINDS: Record<FinanceMoveType, InvoiceKind> = {
   in_refund: { moveType: 'in_refund', listPath: '/finance/purchases/refunds', partnerKind: 'vendor', direction: 'inbound' },
 }
 
+/** The type of the document a credit note or refund reverses: a credit note's origin is a customer invoice, a refund's a bill. */
+export function reversedMoveType(moveType: FinanceInvoice['move_type']): FinanceInvoice['move_type'] {
+  return moveType === 'out_refund' ? 'out_invoice' : moveType === 'in_refund' ? 'in_invoice' : moveType
+}
+
 export function invoiceKindOf(moveType: FinanceInvoice['move_type']): InvoiceKind | null {
   return moveType in INVOICE_KINDS ? INVOICE_KINDS[moveType as FinanceMoveType] : null
 }

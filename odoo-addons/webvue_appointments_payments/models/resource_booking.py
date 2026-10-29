@@ -34,12 +34,21 @@ class ResourceBooking(models.Model):
         )._webvue_open_orders()
 
     def action_cancel(self):
-        """Cancel the online order of each booking too: its pay link stops, and money already paid is due back."""
+        """Cancel the online order of each booking too: its pay link stops, and money already paid is due back.
+
+        A cancellation from the requester's own page (the public user behind a booking token) is the
+        customer's: the refund rules of the type's product keep their share, by the notice before the start.
+        Staff cancellations give everything back.
+        """
+        starts = {booking: booking.start for booking in self}
         result = super().action_cancel()
-        lines = self.sale_order_line_id
-        if lines:
-            service = self.env['webvue.payments.service']
-            service._webvue_request_cancel(service._webvue_orders_of(lines))
+        service = self.env['webvue.payments.service']
+        by_customer = self.env.user._is_public()
+        for booking in self.filtered('sale_order_line_id'):
+            service._webvue_request_cancel(
+                service._webvue_orders_of(booking.sale_order_line_id),
+                requested_by_customer=by_customer, service_start=starts[booking],
+            )
         return result
 
     def _webvue_confirms_on_schedule(self):

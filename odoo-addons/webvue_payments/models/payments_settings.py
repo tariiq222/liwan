@@ -6,6 +6,12 @@ from odoo.exceptions import AccessError
 from odoo.tools import str2bool
 
 from .access_service import SETTINGS_MANAGE
+from .refund_policy import (
+    COMPANY_POLICIES,
+    DEFAULT_AMOUNTS,
+    DEFAULT_POLICY,
+    REFUND_AMOUNTS,
+)
 
 # Inclusive (min, max) minutes an unpaid online order may hold what it sells; the CHECK and the API parser read it.
 EXPIRY_RANGE = (5, 1440)
@@ -36,6 +42,9 @@ class WebVuePaymentsSettings(models.Model):
 
     company_id = fields.Many2one('res.company', required=True, ondelete='cascade', index=True)
     unpaid_order_expiry_minutes = fields.Integer(required=True, default=DEFAULT_EXPIRY_MINUTES)
+    # The refund rules of the company's products that keep the company default (refund_policy.py).
+    refund_policy = fields.Selection(COMPANY_POLICIES, required=True, default=DEFAULT_POLICY)
+    refund_amounts = fields.Selection(REFUND_AMOUNTS, required=True, default=DEFAULT_AMOUNTS)
     revision = fields.Integer(required=True, default=1)
 
     _company_unique = models.Constraint('UNIQUE(company_id)', 'a company has one payments settings record')
@@ -54,6 +63,15 @@ class WebVuePaymentsSettings(models.Model):
         """How long an unpaid online order of ``company`` holds what it sells."""
         row = self._webvue_for(company)
         return timedelta(minutes=row.unpaid_order_expiry_minutes if row else DEFAULT_EXPIRY_MINUTES)
+
+    @api.model
+    def _webvue_refund_defaults(self, company):
+        """The refund rules of ``company``'s products that keep the company default."""
+        row = self._webvue_for(company)
+        return {
+            'refund_policy': row.refund_policy if row else DEFAULT_POLICY,
+            'refund_amounts': row.refund_amounts if row else DEFAULT_AMOUNTS,
+        }
 
     @api.model
     def _webvue_require_tenant_manager(self):
