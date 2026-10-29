@@ -15,6 +15,7 @@ from .health_common import (
     account_event,
     health_bell_partners,
     meta,
+    meta_error,
     process,
 )
 from odoo.addons.webvue_inbox.adapters import whatsapp
@@ -147,6 +148,14 @@ class TestHealthWebhook(WebVueInboxCase):
                 'display_phone_number': '966501112222', 'event': 'FLAGGED',
             }, time=EVENT_TIME + 5))
         self.assertEqual(self.channel.quality_rating, 'yellow')
+
+    def test_a_failed_health_read_after_a_quality_event_keeps_the_events_other_changes(self):
+        with patch.object(requests, 'request', MagicMock(return_value=meta_error('Invalid OAuth access token', 401))):
+            event = process(self, self.channel, account_event('phone_number_quality_update', {
+                'display_phone_number': '966501112222', 'event': 'DOWNGRADE', 'current_limit': 'TIER_250', 'old_limit': 'TIER_2K',
+            }))
+        self.assertEqual((event.state, self.channel.messaging_limit, self.channel.quality_rating), ('done', 'tier_250', 'unknown'))
+        self.assertEqual(self.alerts().kind, 'messaging_limit_changed')
 
     def test_parsing_ignores_malformed_changes(self):
         for field, value in (('account_update', {}), ('business_capability_update', {'max_daily_conversations_per_business': 'x'}),

@@ -36,6 +36,9 @@ ALERT_REASON_LENGTH = 200
 # One bell per channel and alert; the next alert of the channel replaces the unread one.
 HEALTH_KIND = 'inbox.channel_health'
 ANALYTICS_COOLDOWN = timedelta(minutes=10)
+# The least time between two registrations, or two PIN changes, of one number.
+ACTION_COOLDOWN = timedelta(minutes=1)
+ANALYTICS_REQUEST_CRON = 'webvue_inbox.ir_cron_inbox_analytics_requested'
 PRICING_BACKFILL_DAYS = 90
 PRICING_REFRESH_DAYS = 3
 TEMPLATE_REFRESH_DAYS = 8

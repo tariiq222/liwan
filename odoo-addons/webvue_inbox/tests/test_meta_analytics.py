@@ -153,11 +153,33 @@ class TestMetaAnalytics(WebVueInboxCase):
     def test_the_sync_route_is_rate_limited_per_channel(self):
         self.login(self.manager)
         path = f'/api/v1/inbox/channels/{self.channel.id}/analytics/sync'
-        with patch.object(requests, 'request', MagicMock(side_effect=Meta(pricing_analytics=meta(pricing())))):
-            self.assertEqual(self.api('POST', path, {}).status_code, 200)
-            self.assertError(self.api('POST', path, {}), 429, 'rate_limited')
-            self.channel.analytics_attempted_at = fields.Datetime.now() - timedelta(minutes=11)
-            self.assertEqual(self.api('POST', path, {}).status_code, 200)
+        self.assertEqual(self.api('POST', path, {}).status_code, 200)
+        self.assertError(self.api('POST', path, {}), 429, 'rate_limited')
+        self.channel.analytics_attempted_at = fields.Datetime.now() - timedelta(minutes=11)
+        self.assertEqual(self.api('POST', path, {}).status_code, 200)
+
+    def test_a_channels_manager_only_role_requests_a_sync_the_cron_pulls_with_its_own_rights(self):
+        template = self.make_template()
+        self.channel.template_insights_enabled = True
+        user = self._capability_user('inbox_channels_only', 'inbox.channels.manage')
+        yesterday = TODAY - timedelta(days=1)
+        fake = Meta(
+            pricing_analytics=meta(pricing(point(yesterday, volume=3, cost=1.5))),
+            template_analytics=self.template_answer(template, yesterday),
+        )
+        self.login(user)
+        path = f'/api/v1/inbox/channels/{self.channel.id}/analytics/sync'
+        with patch.object(requests, 'request', MagicMock(side_effect=fake)):
+            response = self.api('POST', path, {})
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertEqual(fake.calls, [])  # the request only records itself
+            self.assertTrue(self.channel.analytics_sync_requested)
+            self.assertFalse(self.costs())
+            self.env['webvue.inbox.channel']._webvue_run_analytics_requested()
+        self.assertEqual((self.costs().volume, self.costs().cost), (3, 1.5))
+        self.assertEqual(self.env['webvue.inbox.template.day'].search([('template_id', '=', template.id)]).sent, 10)
+        self.assertFalse(self.channel.analytics_sync_requested)
+        self.assertTrue(self.channel.analytics_synced_at)
 
     def test_the_cron_syncs_connected_channels(self):
         with patch.object(requests, 'request', MagicMock(side_effect=Meta(pricing_analytics=meta(pricing())))):

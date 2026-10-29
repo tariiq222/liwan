@@ -2,7 +2,7 @@
 """Number health, business profile and Meta analytics actions of a channel (capability inbox.channels.manage)."""
 import re
 
-from odoo import http
+from odoo import fields, http
 from odoo.http import request
 
 from odoo.addons.webvue_api.controllers.common import (
@@ -24,6 +24,7 @@ from odoo.addons.webvue_inbox.controllers.helpers import (
 )
 from odoo.addons.webvue_inbox.models.access_service import MANAGE_CHANNELS
 from odoo.addons.webvue_inbox.models.constants import WHATSAPP_FEATURE
+from odoo.addons.webvue_inbox.models.health_constants import ACTION_COOLDOWN
 from odoo.addons.webvue_inbox.serializers.channel_health import dump_alert
 
 TEMPLATES_FEATURE = 'inbox.templates'
@@ -71,6 +72,17 @@ def parse_pin(payload):
     if not isinstance(payload['pin'], str) or not PIN.match(payload['pin']):
         reject('pin must be six digits', 'pin')
     return payload['pin']
+
+
+def reject_rate_limited(message):
+    raise ApiError(429, 'rate_limited', message)
+
+
+def claim_action(channel, field):
+    """Record the attempt of a number action (registration, PIN change); 429 while the last one is too recent."""
+    if channel._webvue_cooling_down(field, ACTION_COOLDOWN):
+        reject_rate_limited('this action was done a moment ago; wait a minute before repeating it')
+    channel[field] = fields.Datetime.now()
 
 
 def provider_call(call, *args, **kwargs):
@@ -154,7 +166,9 @@ class ChannelHealthController(http.Controller):
     @requires_capability(MANAGE_CHANNELS)
     def set_pin(self, channel_id, **payload):
         channel = get_channel(channel_id, MANAGE_CHANNELS)
-        provider_call(whatsapp.set_two_step_pin, channel._webvue_credentials(), parse_pin(payload))
+        pin = parse_pin(payload)
+        claim_action(channel, 'pin_attempted_at')
+        provider_call(whatsapp.set_two_step_pin, channel._webvue_credentials(), pin)
         return no_content()
 
     @http.route('/api/v1/inbox/channels/<int:channel_id>/register', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -163,7 +177,9 @@ class ChannelHealthController(http.Controller):
     @requires_capability(MANAGE_CHANNELS)
     def register_number(self, channel_id, **payload):
         channel = get_channel(channel_id, MANAGE_CHANNELS)
-        provider_call(whatsapp.register, channel._webvue_credentials(), parse_pin(payload))
+        pin = parse_pin(payload)
+        claim_action(channel, 'register_attempted_at')
+        provider_call(whatsapp.register, channel._webvue_credentials(), pin)
         channel._webvue_refresh_health()
         return dump(channel)
 
@@ -190,8 +206,6 @@ class ChannelHealthController(http.Controller):
         channel = get_channel(channel_id, MANAGE_CHANNELS)
         if payload:
             reject('no fields are accepted')
-        analytics = request.env['webvue.inbox.meta.analytics']
-        if analytics._webvue_cooling_down(channel):
-            raise ApiError(429, 'rate_limited', 'the analytics were synchronised a moment ago; try again in a few minutes')
-        analytics._webvue_sync(channel)
+        if not request.env['webvue.inbox.meta.analytics']._webvue_request(channel):
+            reject_rate_limited('the analytics were requested a moment ago; try again in a few minutes')
         return dump(channel)

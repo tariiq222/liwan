@@ -52,6 +52,16 @@ class WebVueInboxChannelHealth(models.Model):
     analytics_synced_at = fields.Datetime()
     analytics_attempted_at = fields.Datetime()
     analytics_error = fields.Char()
+    # A manager asked for a sync now: the cron pulls it, because only the cron's identity writes the analytics tables.
+    analytics_sync_requested = fields.Boolean(default=False, index=True)
+    # The last registration and PIN change, for the per-number cooldown of those actions.
+    register_attempted_at = fields.Datetime()
+    pin_attempted_at = fields.Datetime()
+
+    def _webvue_cooling_down(self, field, window):
+        """True when the channel's `field` timestamp is younger than `window`."""
+        self.ensure_one()
+        return bool(self[field] and fields.Datetime.now() - self[field] < window)
 
     # alerts and bell
 
@@ -212,7 +222,11 @@ class WebVueInboxChannelHealth(models.Model):
         if item.current_limit:
             self._webvue_set_limit(item.current_limit, item.occurred_at)
         if item.event != 'THROUGHPUT_UPGRADE':
-            self._webvue_fetch_health()  # Meta's word names the event, not the rating: read the rating
+            try:
+                self._webvue_fetch_health()  # Meta's word names the event, not the rating: read the rating
+            except whatsapp.ProviderError as error:
+                # The event's other changes stand; the 6-hourly refresh reads the rating.
+                _logger.warning('health read after a quality event of channel %s failed: %s', self.id, type(error).__name__)
         elif self.throughput_level != 'high':
             self.throughput_level = 'high'
             self._webvue_alert('throughput_upgraded', 'info', item.occurred_at)
@@ -273,6 +287,11 @@ class WebVueInboxChannelHealth(models.Model):
     def _webvue_run_analytics(self):
         """Pull Meta's cost and template analytics of every connected channel (daily)."""
         self.env['webvue.inbox.meta.analytics']._webvue_run()
+
+    @api.model
+    def _webvue_run_analytics_requested(self):
+        """Pull the analytics of the channels whose manager asked for a sync now."""
+        self.env['webvue.inbox.meta.analytics']._webvue_run_requested()
 
     @api.model
     def _webvue_health_failed(self, channel, error):

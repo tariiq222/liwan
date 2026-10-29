@@ -134,11 +134,11 @@ class ReportController(http.Controller):
         channels = channel or request.env['webvue.inbox.channel'].search([
             ('owner_company_id', '=', request.env.company.id), ('kind', '=', 'whatsapp'),
         ])
-        currencies = set(channels.mapped('currency_code')) - {False}
+        currencies = set(channels.mapped('currency_code'))  # a channel with no known currency counts as one of its own
         if len(currencies) > 1:
             reject('the selected channels are billed in different currencies; pick one channel', 'channel_id')
         result = request.env['webvue.inbox.report.meta.query']._webvue_cost_report(channels, date_from, date_to)
-        return dump_cost_report(date_from, date_to, next(iter(currencies), None), result, channels)
+        return dump_cost_report(date_from, date_to, next(iter(currencies), None) or None, result, channels)
 
     @http.route('/api/v1/inbox/reports/templates', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

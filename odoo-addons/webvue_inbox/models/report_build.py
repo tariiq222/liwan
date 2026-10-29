@@ -142,10 +142,20 @@ class WebVueInboxReportBuild(models.AbstractModel):
         today = self._webvue_today(company)
         if days >= NIGHTLY_DAYS and settings.reports_built_timezone != settings.hours_timezone:
             # The timezone changed (or this is the first build): every retained day moves to the new local days.
-            self._webvue_rebuild(company, today - relativedelta(months=settings.report_retention_months), today)
+            self._webvue_rebuild(company, self._webvue_backed_start(settings, today), today)
             settings.reports_built_timezone = settings.hours_timezone
         else:
             self._webvue_rebuild(company, today - timedelta(days=days - 1), today)
+
+    @api.model
+    def _webvue_backed_start(self, settings, today):
+        """The first local day a full rebuild may cover: later than the report retention and the conversation retention.
+
+        Older days keep their rows, because the conversations behind them are purged and a rebuild would empty them.
+        """
+        return max(
+            today - relativedelta(months=settings.report_retention_months), today - relativedelta(months=settings.retention_months),
+        )
 
     @api.model
     def _webvue_failed(self, company, error):
