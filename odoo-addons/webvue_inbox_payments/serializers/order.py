@@ -10,7 +10,7 @@ def dump_payment(payment):
         return None
     return {
         'status': payment['status'],
-        'refund_due': payment['refund_due'],
+        'refund_due': bool(payment['amount_to_refund']),
         'needs_attention': payment['needs_attention'],
         'currency': payment['currency'],
         'amount_total': payment['amount_total'],

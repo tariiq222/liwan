@@ -12,9 +12,10 @@ from odoo import fields
 from . import whatsapp_payloads as wa
 from .automation_common import WA_ID, AutomationCase
 from .common import PHONE_ID
+from odoo.addons.webvue_inbox.adapters import whatsapp
 
 BASE = '/api/v1/inbox'
-GRAPH = 'https://graph.facebook.com/v23.0/'
+GRAPH = f'{whatsapp.GRAPH_BASE}/{whatsapp.GRAPH_API_VERSION}/'
 # Every key of the contract's InboxFlowSchema.
 FLOW_KEYS = {
     'id', 'channel', 'name', 'category', 'language', 'status', 'health', 'provider_flow_id', 'json_version', 'supported',

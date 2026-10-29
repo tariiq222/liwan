@@ -184,8 +184,8 @@ class WebVueInboxOrder(models.Model):
         sale_order = service._webvue_new_order(self.company_id, partner)
         for line in self.line_ids:
             line.sale_order_line_id = service._webvue_add_line(sale_order, line.product_id, line.quantity).id
-        # Agents hold no right on sale orders: the number comes with the payment facts.
-        self.write({'state': 'ordered', 'reference': service._webvue_summary(sale_order)['reference']})
+        # Agents hold no right on sale orders: the number comes with the service's order row.
+        self.write({'state': 'ordered', 'reference': service._webvue_order_row(sale_order)['number']})
 
     def _webvue_summary_text(self):
         return f'طلبك جاهز للدفع: {len(self.line_ids)} منتج، الإجمالي {self._webvue_total():.2f} {self._webvue_currency()}'
