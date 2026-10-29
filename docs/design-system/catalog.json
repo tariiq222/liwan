@@ -4553,6 +4553,7 @@
       ],
       "slots": [],
       "nuxtUi": [
+        "UButton",
         "UPagination"
       ],
       "stories": [
@@ -6477,7 +6478,7 @@
       ]
     },
     {
-      "name": "SharedSettingsCard",
+      "name": "SettingsCard",
       "file": "packages/ui/app/components/shared/layout/SettingsCard.vue",
       "story": "apps/web/stories/shared/SettingsCard.stories.ts",
       "title": "Shared/SettingsCard",
@@ -6598,7 +6599,7 @@
       ]
     },
     {
-      "name": "SharedSettingsList",
+      "name": "SettingsList",
       "file": "packages/ui/app/components/shared/layout/SettingsList.vue",
       "story": "apps/web/stories/shared/SettingsList.stories.ts",
       "title": "Shared/SettingsList",
@@ -6708,7 +6709,7 @@
       ]
     },
     {
-      "name": "SharedSettingsListRow",
+      "name": "SettingsListRow",
       "file": "packages/ui/app/components/shared/layout/SettingsListRow.vue",
       "story": "apps/web/stories/shared/SettingsListRow.stories.ts",
       "title": "Shared/SettingsListRow",
