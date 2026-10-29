@@ -2,7 +2,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from odoo import api, models
+from odoo import SUPERUSER_ID, api, models
 from odoo.exceptions import AccessDenied, AccessError, UserError, ValidationError
 from odoo.http import request
 
@@ -322,7 +322,9 @@ class WebVueEntitlementService(models.AbstractModel):
         self.require_within_limit(
             'branches.extra_limit', Branch.search_count([('state', '=', 'active')]) + 1,
         )
-        company = self.env['res.company'].sudo().create({
+        # Created as the superuser identity, not just an elevated environment: installed applications bootstrap a new
+        # company's structural resources (for example the document library) only for the actual superuser.
+        company = self.env['res.company'].with_user(SUPERUSER_ID).create({
             'name': name, 'parent_id': root.id,
         })
         Branch.create({

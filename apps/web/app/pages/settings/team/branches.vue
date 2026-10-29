@@ -50,9 +50,7 @@ async function reloadPolicy() {
         <UFormField :label="t('access.branches.create.name')" name="branch-name">
           <UInput v-model="branchName" maxlength="200" class="w-full" :disabled="!hydrated || create.isPending.value" />
         </UFormField>
-        <UAlert v-if="createFailure" color="error" variant="subtle" :title="createFailure">
-          <template #actions><UButton to="/subscription/branches" color="neutral" variant="outline" size="sm">{{ t('access.branches.create.subscription') }}</UButton></template>
-        </UAlert>
+        <UAlert v-if="createFailure" color="error" variant="subtle" :title="createFailure" />
         <p v-else-if="created" role="status" class="text-sm text-muted">{{ t('access.branches.create.done') }}</p>
         <div><UButton type="submit" icon="i-lucide-plus" :loading="create.isPending.value" :disabled="!canSubmit">{{ t('access.branches.create.action') }}</UButton></div>
       </form>
