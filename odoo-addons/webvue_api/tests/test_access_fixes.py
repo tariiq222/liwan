@@ -101,7 +101,7 @@ class TestAccessFixes(WebVueApiCase):
         self.assertEqual(branding.after, {'fields': ['primary_color']})
 
     def test_a_request_without_a_session_is_401(self):
-        for path in ('/api/v1/me', '/api/v1/notifications', '/api/v1/admin/roles'):
+        for path in ('/api/v1/me', '/api/v1/admin/users', '/api/v1/admin/roles'):
             with self.subTest(path=path):
                 response = self.api('GET', path)
                 self.assertEqual(response.status_code, 401)
