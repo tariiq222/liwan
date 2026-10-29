@@ -6,13 +6,13 @@ import { agreeKey } from '@/utils/crmTermForms'
 const props = defineProps<{ settings: CrmSettings; canEdit: boolean; reloadSettings: () => Promise<CrmSettings> }>()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
-const { draft, shell, save, reload } = useCrmSettingsCard({
+const { draft, state, save, revert, reload } = useCrmSettingsCard({
   settings: () => props.settings,
   read: ({ terms }) => ({ terms }),
   toPatch: ({ terms }) => ({ values: { terms } }),
   reload: () => props.reloadSettings(),
 })
-const locked = computed(() => !hydrated.value || !props.canEdit || shell.value.saving || shell.value.reloading)
+const locked = computed(() => !hydrated.value || !props.canEdit || state.value.saving || state.value.reloading)
 const genders = computed(() => [
   { value: 'm', label: t('crm.settings.terms.masculine') },
   { value: 'f', label: t('crm.settings.terms.feminine') },
@@ -31,7 +31,7 @@ const preview = (key: 'customer' | 'opportunity' | 'package') => {
 </script>
 
 <template>
-  <CrmSettingsCard v-bind="shell" :title="t('crm.settings.terms.title')" :description="t('crm.settings.terms.hint')" :can-edit="canEdit" @save="save" @reload="reload">
+  <SharedSettingsCard id="terms" v-bind="state" :title="t('crm.settings.terms.title')" :description="t('crm.settings.terms.hint')" :can-edit="canEdit" @save="save" @revert="revert" @reload="reload">
     <fieldset v-for="group in groups" :key="group.key" class="grid gap-3 not-first:border-t not-first:border-default not-first:pt-4 sm:grid-cols-2">
       <legend class="mb-2 text-sm font-medium text-highlighted">{{ group.label }}</legend>
       <UFormField :label="t('crm.settings.terms.arSingular')" :name="`${group.key}-ar-singular`">
@@ -51,5 +51,5 @@ const preview = (key: 'customer' | 'opportunity' | 'package') => {
       </UFormField>
       <p class="self-end pb-2 text-sm text-muted">{{ t('crm.settings.terms.previewLabel') }}: <span class="font-medium text-default">{{ preview(group.key) }}</span></p>
     </fieldset>
-  </CrmSettingsCard>
+  </SharedSettingsCard>
 </template>

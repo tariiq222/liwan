@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { owningListBack } from '@/utils/recordListOrigin'
-import { ApiError } from '@/composables/useApi'
+import { accessErrorMessage } from '@/utils/accessErrors'
 import EmployeeAccountPicker from '@/components/access/users/EmployeeAccountPicker.vue'
 import { useAdminUser, useGrantAdminAccount, useReactivateAdminUser, useUpdateAdminUserAccess } from '@/composables/useAdminUsers'
 import { useEmployeeAccountBridge, useGrantEmployeeAccount } from '@/composables/useEmployeeAccounts'
@@ -63,15 +63,6 @@ function toggleRole(roleId: number, checked: boolean) {
   selectedRoleIds.value = [...next]
 }
 
-function showError(error: unknown) {
-  if (!(error instanceof ApiError)) return t('errors.generic')
-  if (error.code === 'weak_password') return t('access.errors.weakPassword')
-  const translated = `access.errors.${error.code}`
-  if (error.code && t(translated) !== translated) return t(translated)
-  if (error.status === 409) return t('access.errors.conflict')
-  return error.message || t('errors.generic')
-}
-
 async function submit() {
   errorKey.value = ''
   const selectedEmployeeId = employeeId.value
@@ -97,7 +88,7 @@ async function submit() {
   } catch (error) {
     password.value = ''
     passwordConfirmation.value = ''
-    errorKey.value = showError(error)
+    errorKey.value = accessErrorMessage(error, t)
   }
 }
 </script>
