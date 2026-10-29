@@ -6,7 +6,7 @@ from odoo.http import request
 from .common import filter_domain, list_page, require_capability
 from .finance_partners import company_partners_domain
 from .idempotency import idempotent
-from .write_support import attempt, company_records
+from .write_support import attempt, company_records, require_open_period
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
@@ -72,6 +72,7 @@ def _statement_values(parsed):
     )
     lines = []
     for index, item in enumerate(parsed['lines']):
+        require_open_period(item['date'], journal, company=request.env.company, field=f'lines[{index}].date')
         values = {'journal_id': journal.id, 'date': item['date'], 'payment_ref': item['payment_ref'], 'amount': item['amount']}
         if 'partner_id' in item:
             values['partner_id'] = company_records(
@@ -96,7 +97,11 @@ def _suspense_to_account(line, account, label):
 
 
 def _reconcile_line(line, items, account=None, label=None):
-    """Matches ``line`` with ``items``; what they leave over is booked on ``account``. 422 ``not_balanced`` when it does not clear."""
+    """Matches ``line`` with ``items``; what they leave over is booked on ``account``.
+
+    422 ``not_balanced`` when it does not clear, 422 ``period_locked`` when a lock date covers the line.
+    """
+    require_open_period(line.date, line.journal_id, company=line.company_id)
     line.reconcile_data_info = line._default_reconcile_data()
     for item in items:
         line._add_account_move_line(item)
