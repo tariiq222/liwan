@@ -57,6 +57,8 @@ class TestFinanceBank(WebVueFinanceOcaCase):
         self.assertEqual(set(first), {'id', 'date', 'payment_ref', 'partner', 'amount', 'is_reconciled', 'amount_residual'})
         self.assertEqual((first['payment_ref'], first['amount'], first['is_reconciled']), ('INV/2026/00001', 750, False))
         self.assertEqual(first['partner'], {'id': self.partner.id, 'name': 'Al Noor Trading'})
+        # An open line still has its whole amount to clear, in its own sign (#235).
+        self.assertEqual([line['amount_residual'] for line in body['lines']], [line['amount'] for line in body['lines']])
         self.assertEqual([line['date'] for line in body['lines']], ['2026-10-25', '2026-10-26', '2026-10-27', '2026-10-28'])
         self.assertEqual(len(lines), 4)
 
@@ -242,7 +244,7 @@ class TestFinanceBank(WebVueFinanceOcaCase):
         self.reconcile(line_id, move_line_ids=[self.receivable(self.invoice).id])
         undone = self.api('POST', f'{BANK_LINES}/{line_id}/unreconcile')
         self.assertEqual(undone.status_code, 200, undone.text)
-        self.assertEqual((undone.json()['is_reconciled'], abs(undone.json()['amount_residual'])), (False, 750))
+        self.assertEqual((undone.json()['is_reconciled'], undone.json()['amount_residual']), (False, 750))
         self.invoice.invalidate_recordset()
         self.assertEqual((self.invoice.amount_residual, self.invoice.payment_state), (750, 'partial'))
         self.assertEqual(self.reconcile(line_id, move_line_ids=[self.receivable(self.invoice).id]).status_code, 200)

@@ -26,7 +26,9 @@ def dump_bank_line(line):
         'partner': dump_ref(line.partner_id),
         'amount': line.amount,
         'is_reconciled': line.is_reconciled,
-        'amount_residual': line.amount_residual,
+        # Stock amount_residual is the suspense side, signed against the line; the contract gives what is
+        # still to clear in the line's own sign, which the open items it is matched with carry too.
+        'amount_residual': -line.amount_residual,
     }
 
 

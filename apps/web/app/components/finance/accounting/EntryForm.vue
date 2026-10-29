@@ -108,10 +108,10 @@ async function submit() {
           </UFormField>
           <div class="grid gap-3 md:col-span-2 md:grid-cols-[1fr_1fr_auto] md:items-start">
             <UFormField :label="t('financeAccounting.form.debit')" :name="`finance-line-debit-${index}`" :error="shown?.lines[index]?.amount ? t('financeAccounting.form.amountInvalid') : undefined">
-              <UInput v-model="line.debit" type="number" min="0" step="any" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" :aria-label="t('financeAccounting.form.lineAria', { number: index + 1, field: t('financeAccounting.form.debit') })" />
+              <UInput v-model="line.debit" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" :aria-label="t('financeAccounting.form.lineAria', { number: index + 1, field: t('financeAccounting.form.debit') })" />
             </UFormField>
             <UFormField :label="t('financeAccounting.form.credit')" :name="`finance-line-credit-${index}`">
-              <UInput v-model="line.credit" type="number" min="0" step="any" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" :aria-label="t('financeAccounting.form.lineAria', { number: index + 1, field: t('financeAccounting.form.credit') })" />
+              <UInput v-model="line.credit" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" :aria-label="t('financeAccounting.form.lineAria', { number: index + 1, field: t('financeAccounting.form.credit') })" />
             </UFormField>
             <UButton type="button" color="neutral" variant="ghost" icon="i-lucide-trash-2" class="md:mt-6" :disabled="!hydrated || pending || draft.lines.length <= 2" :aria-label="t('financeAccounting.form.removeLine', { number: index + 1 })" @click="removeLine(index)" />
           </div>

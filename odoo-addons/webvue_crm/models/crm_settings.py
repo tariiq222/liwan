@@ -26,6 +26,10 @@ TERM_DEFAULTS = {
 }
 
 
+# Key in the transaction cache of the opportunity terms per company, which the bell rows of one request share.
+TERM_MEMO = 'webvue_crm_terms'
+
+
 def term_field(term, language, form):
     return f'term_{term}_{form}_{language}'
 
@@ -144,6 +148,19 @@ class WebVueCrmSettings(models.Model):
     _discount_range = models.Constraint(
         'CHECK(discount_max_percent BETWEEN 0 AND 100)', 'the maximum discount is between 0 and 100 percent',
     )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        self.env.cr.cache.pop(TERM_MEMO, None)
+        return super().create(vals_list)
+
+    def write(self, vals):
+        self.env.cr.cache.pop(TERM_MEMO, None)
+        return super().write(vals)
+
+    def unlink(self):
+        self.env.cr.cache.pop(TERM_MEMO, None)
+        return super().unlink()
 
     @api.model
     def _webvue_current(self):
