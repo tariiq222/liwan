@@ -32,7 +32,7 @@ describe('HR overview privacy and ownership', () => {
     const calls: string[] = []
     const api = (async (path: string, options: any) => {
       calls.push(path)
-      return options.schema.parse(path === '/api/v1/hr/me' ? employee : {items:[{id:7,number:'PAY-7',month:'2026-10',net:12345}],total:1})
+      return options.schema.parse(path === '/api/v1/hr/me' ? employee : {items:[{id:7,number:'PAY-7',month:'2026-10',net:12345,currency:'SAR'}],total:1})
     }) as import('../../types').AppSearchApi
     const summary = await manifest.personal!.find(entry => entry.section === 'pay')!.summary!.load(api,translate)
     expect(calls).toEqual(['/api/v1/hr/me','/api/v1/hr/payroll/payslips/mine'])
