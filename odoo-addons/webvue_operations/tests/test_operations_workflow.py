@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo.exceptions import AccessError, ValidationError
+from odoo.exceptions import AccessError, LockError, ValidationError
 from odoo.tests import new_test_user, tagged
 
 from odoo.addons.webvue_api.tests.common import WebVueApiCase, set_probe_feature
@@ -7,7 +7,10 @@ from odoo.addons.webvue_core.models.access_service import WebVueAccessRule
 from odoo.addons.webvue_operations.models.operation_request import (
     OperationExecutionError,
 )
-from odoo.addons.webvue_operations.serializers.operations import dump_request
+from odoo.addons.webvue_operations.serializers.operations import (
+    dump_process,
+    dump_request,
+)
 
 
 @tagged('post_install', '-at_install', 'webvue')
@@ -419,3 +422,70 @@ class TestOperationsWorkflow(WebVueApiCase):
         foreign.invalidate_recordset()
         self.authenticate('api_emp', 'api_emp_pass_123')
         self.assertEqual(self.api('GET', self._path(foreign, foreign_file)).status_code, 404)
+
+    def test_stage_statuses_match_the_request_state_in_every_state(self):
+        def statuses(record):
+            return [step['status'] for step in dump_request(record)['steps']]
+        record = self._pending()
+        self.assertEqual(statuses(record), ['pending', 'waiting'])
+        record.with_user(self.reviewers[0]).action_approve(1)
+        self.assertEqual(statuses(record), ['approved', 'pending'])
+        record.with_user(self.reviewers[1]).action_return(2, 'Needs work')
+        self.assertEqual((record.state, statuses(record)), ('returned', ['waiting', 'waiting']))
+        record.with_user(self.employee).action_withdraw(3)
+        self.assertEqual((record.state, statuses(record)), ('withdrawn', ['waiting', 'waiting']))
+        withdrawn_pending = self._pending()
+        withdrawn_pending.with_user(self.employee).action_withdraw(1)
+        self.assertEqual(statuses(withdrawn_pending), ['waiting', 'waiting'])
+        rejected = self._pending()
+        rejected.with_user(self.reviewers[0]).action_approve(1)
+        rejected.with_user(self.reviewers[1]).action_reject(2, 'No')
+        self.assertEqual((rejected.state, statuses(rejected)), ('rejected', ['approved', 'rejected']))
+        done = self._pending()
+        done.with_user(self.reviewers[0]).action_approve(1)
+        done.with_user(self.reviewers[1]).action_approve(2)
+        self.assertEqual((done.state, statuses(done)), ('done', ['approved', 'approved']))
+
+    def test_publishing_with_an_ineligible_reviewer_answers_a_specific_code(self):
+        process = self.env['webvue.operation.process'].with_user(self.manager).create({'name': 'Needs a reviewer'})
+        process.with_user(self.manager).action_configure(0, 'Needs a reviewer', '', 'approval', [{'name': 'Review', 'reviewer_ids': [self.reviewers[0].id, self.outsider.id]}])
+        payload = dump_process(process)
+        self.assertEqual(payload['steps'][0]['ineligible_reviewer_ids'], [self.outsider.id])
+        self.authenticate('ops_manager', 'ops_manager_test_123')
+        response = self.api('POST', f'/api/v1/operations/processes/{process.id}/publish', {'revision': 1})
+        self.assertEqual((response.status_code, response.json()['code']), (422, 'reviewer_not_eligible'))
+        self.assertEqual(process.state, 'draft')
+
+    def test_saving_an_archived_process_keeps_it_archived_and_archiving_twice_is_rejected(self):
+        process = self.env['webvue.operation.process'].with_user(self.manager).create({'name': 'Retired'})
+        steps = [{'name': 'Review', 'reviewer_ids': [self.reviewers[0].id]}]
+        process.with_user(self.manager).action_configure(0, 'Retired', '', 'approval', steps)
+        process.with_user(self.manager).action_archive(1)
+        self.assertEqual((process.state, process.revision), ('archived', 2))
+        with self.assertRaises(ValidationError):
+            process.with_user(self.manager).action_archive(2)
+        self.assertEqual(process.revision, 2)
+        process.with_user(self.manager).action_configure(2, 'Retired again', '', 'approval', steps)
+        self.assertEqual((process.state, process.name, process.revision), ('archived', 'Retired again', 3))
+
+    def test_concurrent_decision_lock_answers_a_conflict_not_a_raw_engine_message(self):
+        record = self._pending()
+
+        def locked(*args, **kwargs):
+            message = 'Cannot grab a lock on records'
+            raise LockError(message)
+        self.patch(type(record), '_tier_lock', locked)
+        with self.assertRaises(WebVueAccessRule) as caught:
+            record.with_user(self.reviewers[0]).action_approve(1)
+        self.assertEqual((caught.exception.status, caught.exception.code), (409, 'conflict'))
+        with self.assertRaises(WebVueAccessRule) as caught:
+            record.with_user(self.employee).action_withdraw(1)
+        self.assertEqual(caught.exception.status, 409)
+
+    def test_create_without_the_capability_is_forbidden_before_body_validation(self):
+        nocap = new_test_user(self.env, login='ops_nocreate', password='ops_nocreate_test_123', groups='webvue_core.group_employee')
+        nocap.write({'webvue_access_managed': True})
+        self.authenticate('ops_nocreate', 'ops_nocreate_test_123')
+        for path in ('requests', 'processes'):
+            response = self.api('POST', f'/api/v1/operations/{path}', {'title': 'wrong field'})
+            self.assertEqual((response.status_code, response.json()['code']), (403, 'forbidden'), path)

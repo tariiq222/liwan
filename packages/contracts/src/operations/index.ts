@@ -16,6 +16,7 @@ export const OperationProcessSchema = z.object({
   execution_kind: z.string().min(1),
   steps: z.array(z.object({
     name: z.string(), reviewer_ids: z.array(Id), reviewers: z.array(PersonRefSchema),
+    ineligible_reviewer_ids: z.array(Id),
   }).strict()),
 }).strict()
 export const OperationActionsSchema = z.object({

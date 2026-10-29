@@ -92,6 +92,7 @@ class OperationsController(http.Controller):
     @api_handler
     @requires_feature('operations.enabled')
     def create_process(self, **_):
+        require_capabilities('operations.processes.manage')
         payload = body({'name', 'description', 'execution_kind', 'purpose', 'steps'})
         purpose = purpose_value(payload.get('purpose', 'work'))
         record = request.env['webvue.operation.process'].create({'name': payload.get('name'), 'description': payload.get('description', ''), 'execution_kind': payload.get('execution_kind', 'approval'), 'purpose': purpose})
@@ -167,6 +168,7 @@ class OperationsController(http.Controller):
     @api_handler
     @requires_feature('operations.enabled')
     def create_request(self, **_):
+        require_capabilities('operations.requests.create')
         payload = body({'name', 'description', 'process_id', 'target_id'})
         payload['process_id'] = parse_positive_int(payload.get('process_id'), 'process_id')
         if 'target_id' in payload:

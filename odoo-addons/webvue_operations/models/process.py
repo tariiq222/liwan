@@ -5,6 +5,7 @@ from odoo import Command, api, fields, models
 from odoo.exceptions import AccessError, ValidationError
 
 from .common import TOKEN, check_revision, require, reviewer_users, text, trusted
+from odoo.addons.webvue_core.models.access_service import WebVueAccessRule
 
 
 class OperationProcess(models.Model):
@@ -80,8 +81,14 @@ class OperationProcess(models.Model):
             prepared.append(Command.create({'name': text(self.env, item['name'], 'stage', 200, True), 'sequence': sequence, 'reviewer_ids': [Command.set(users.ids)], 'company_id': self.company_id.id}))
         process = self.with_context(_operations_write=TOKEN)
         process.step_ids.unlink()
-        process.write({'name': text(self.env, name, 'name', 200, True), 'description': text(self.env, description, 'description', 20000), 'execution_kind': execution_kind, 'purpose': purpose, 'step_ids': prepared, 'state': 'draft', 'revision': self.revision + 1})
+        # An archived process stays archived when its configuration is saved.
+        state = 'archived' if self.state == 'archived' else 'draft'
+        process.write({'name': text(self.env, name, 'name', 200, True), 'description': text(self.env, description, 'description', 20000), 'execution_kind': execution_kind, 'purpose': purpose, 'step_ids': prepared, 'state': state, 'revision': self.revision + 1})
         return self
+
+    def _ineligible_reviewers(self, users):
+        service = self.env['webvue.access.service']
+        return users.filtered(lambda user: not service._webvue_has_capability(user, 'operations.requests.review', company=self.company_id))
 
     def action_publish(self, revision):
         self.ensure_one()
@@ -94,8 +101,9 @@ class OperationProcess(models.Model):
         definitions = []
         for step in self.step_ids.sorted('sequence'):
             users = reviewer_users(self.env, step.reviewer_ids.ids)
-            if any(not self.env['webvue.access.service']._webvue_has_capability(user, 'operations.requests.review', company=self.company_id) for user in users):
-                raise ValidationError(self.env._('Every reviewer needs the operations review capability.'))
+            if self._ineligible_reviewers(users):
+                code = 'reviewer_not_eligible'
+                raise WebVueAccessRule(code, self.env._('Every reviewer needs the operations review capability.'), field='steps')
             definitions.append({
                 'name': step.name, 'model_id': self.env['ir.model']._get('webvue.operation.request').id,
                 'company_id': self.company_id.id, 'sequence': 100 - step.sequence,
@@ -116,6 +124,8 @@ class OperationProcess(models.Model):
         self.lock_for_update()
         self.invalidate_recordset()
         check_revision(self, revision)
+        if self.state == 'archived':
+            raise ValidationError(self.env._('The process is already archived.'))
         self.with_context(_operations_write=TOKEN).write({'state': 'archived', 'revision': self.revision + 1})
         return self
 

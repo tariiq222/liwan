@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo.exceptions import AccessError, ValidationError
+from odoo.exceptions import AccessError, LockError, ValidationError
 
 from odoo.addons.webvue_core.models.access_service import WebVueAccessRule
 
@@ -40,3 +40,12 @@ def reviewer_users(env, ids):
     if set(users.ids) != set(ids):
         raise ValidationError(env._('Reviewers must be active users of the current company.'))
     return users
+
+
+def lock_or_conflict(record, operation='read'):
+    """Take the tier row lock; a concurrent holder answers the same 409 as a stale revision."""
+    try:
+        record._tier_lock(operation)
+    except LockError as exc:
+        code = 'conflict'
+        raise WebVueAccessRule(code, record.env._('This record changed. Refresh and try again.'), status=409) from exc

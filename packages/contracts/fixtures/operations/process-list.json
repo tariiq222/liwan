@@ -20,7 +20,8 @@
               "name": "ops_branch_reviewer (base.group_user,base.group_allow_export)",
               "user_id": 225
             }
-          ]
+          ],
+          "ineligible_reviewer_ids": []
         }
       ]
     },
@@ -44,7 +45,8 @@
               "name": "ops_branch_reviewer (base.group_user,base.group_allow_export)",
               "user_id": 225
             }
-          ]
+          ],
+          "ineligible_reviewer_ids": []
         }
       ]
     },
@@ -68,7 +70,8 @@
               "name": "ops_branch_reviewer (base.group_user,base.group_allow_export)",
               "user_id": 225
             }
-          ]
+          ],
+          "ineligible_reviewer_ids": []
         }
       ]
     }
