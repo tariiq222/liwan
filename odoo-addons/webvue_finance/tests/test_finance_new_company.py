@@ -10,7 +10,7 @@ API = '/api/v1/finance'
 
 @tagged('post_install', '-at_install', 'webvue')
 class TestFinanceNewCompany(WebVueFinanceCase):
-    """A company with no chart is set up, then runs a purchase cycle, with WebVue routes only (no ORM write by the test)."""
+    """A company as provisioning leaves it (the Saudi chart, nothing else) runs a purchase cycle, with WebVue routes only (no ORM write by the test)."""
 
     @classmethod
     def setUpClass(cls):
@@ -18,19 +18,14 @@ class TestFinanceNewCompany(WebVueFinanceCase):
         cls.fresh = cls._fresh_company_manager('Finance New Company', LOGIN, PASSWORD)
 
     def call(self, method, path, json=None, status=200):
-        if path.startswith('/setup/'):
-            user = self.env['res.users'].sudo().search([('login', '=', LOGIN)], limit=1)
-            result = self.setup_api(method, f'{API}{path}', user=user, company=self.fresh, json=json)
-        else:
-            result = self.api(method, f'{API}{path}', json=json)
+        result = self.api(method, f'{API}{path}', json=json)
         self.assertEqual(result.status_code, status, result.text)
         return result.json()
 
     def test_set_up_and_run_a_purchase_cycle_from_the_routes(self):
         self.authenticate(LOGIN, PASSWORD)
-        # 1. The chart: the Saudi template is loaded by the route.
-        self.assertEqual(self.call('GET', '/setup')['chart']['loaded'], False)
-        self.assertTrue(self.call('POST', '/setup/chart', {})['chart']['loaded'])
+        # 1. The chart: the Saudi template the company was provisioned with.
+        self.assertEqual(self.call('GET', '/setup')['chart']['template'], 'sa')
         # 2. Accounts, a purchase tax, a payment term and journals made by the routes.
         expense = self.call('POST', '/accounts', {'code': '600900', 'name': 'Office supplies', 'account_type': 'expense'}, 201)
         cash_account = self.call('POST', '/accounts', {'code': '101900', 'name': 'Site cash', 'account_type': 'asset_cash'}, 201)
@@ -64,4 +59,4 @@ class TestFinanceNewCompany(WebVueFinanceCase):
         # 5. Everything is the new company's; the other companies' charts are untouched.
         self.assertEqual(self.env['account.move'].browse(bill['id']).company_id, self.fresh)
         actions = self.env['webvue.finance.audit.event'].search([('company_id', '=', self.fresh.id)]).mapped('action')
-        self.assertTrue({'chart_loaded', 'account_created', 'journal_created', 'tax_created', 'payment_term_created'} <= set(actions))
+        self.assertTrue({'account_created', 'journal_created', 'tax_created', 'payment_term_created'} <= set(actions))

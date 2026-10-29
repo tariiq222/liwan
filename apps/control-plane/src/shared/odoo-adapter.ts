@@ -46,7 +46,7 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
   const execute=async(job:SharedJob,action:'observe'|'apply',claim?:{attemptId:string;fence:number;assertOwned:()=>Promise<void>})=>{
     const packageAuthority=job.operation==='provision'?await resolvePackageJobAuthority(pool,job):undefined
     const authority=job.operation==='provision'?null:await resolveOdooBackupAuthority(pool,runtime,job,{starting:action==='apply'})
-    const onboarding=job.operation==='provision'?await pool.query(`SELECT o.admin_name,o.admin_login,o.issuer,o.actor_uid,o.request_id,t.name FROM shared_onboardings o
+    const onboarding=job.operation==='provision'?await pool.query(`SELECT o.admin_name,o.admin_login,o.host,o.issuer,o.actor_uid,o.request_id,t.name FROM shared_onboardings o
       JOIN tenants t ON t.id=o.control_tenant_id JOIN shared_jobs j ON j.id=o.job_id
       WHERE o.request_id=$1 AND o.job_digest=$2 AND j.payload_digest=o.job_digest AND o.tenant_slug=$3 AND o.database_name=$4`,[job.requestId,payloadDigest(job),job.binding.tenantId,job.binding.database]):null
     if(job.operation==='provision' && !onboarding?.rowCount)throw Error('shared_onboarding_missing')
@@ -115,7 +115,7 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
           else resolve(result)
         })
       })
-      child.stdin.write(JSON.stringify({action,config:runtime,job,businessKey:businessKey(job),payloadDigest:payloadDigest(job),...(job.operation==='provision'?{admin:{name:row.admin_name,login:row.admin_login},companyName:row.name,...(packageAuthority?{packageAuthority}:{})}:{authority}),...(claim?{attemptId:claim.attemptId,fence:claim.fence}:{})})+'\n')
+      child.stdin.write(JSON.stringify({action,config:runtime,job,businessKey:businessKey(job),payloadDigest:payloadDigest(job),...(job.operation==='provision'?{admin:{name:row.admin_name,login:row.admin_login},companyName:row.name,host:row.host,...(packageAuthority?{packageAuthority}:{})}:{authority}),...(claim?{attemptId:claim.attemptId,fence:claim.fence}:{})})+'\n')
     })
   }
   const subscriptionExecute=async(request:Record<string,unknown>,assertOwned?:()=>Promise<void>,cancel?:AbortSignal)=>{

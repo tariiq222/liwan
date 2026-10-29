@@ -265,6 +265,23 @@ class TestPayrollRuns(PayrollCase):
         names = [row['employee']['name'] for row in self._rows(run['id'])['items']]
         self.assertNotIn('No Compensation', names)
 
+    def test_compensated_employee_without_a_running_contract_is_warned(self):
+        no_start = self.make_employee('No Contract Start')
+        no_start.version_id.contract_date_start = False
+        self.set_compensation(no_start, 6000)
+        future = self.make_employee('Starts Next Year', start=date(2099, 1, 1))
+        self.set_compensation(future, 6000)
+        left = self.make_employee('Left Long Ago')
+        self.set_compensation(left, 6000)
+        left.departure_date = date(2020, 1, 1)
+        run = self._created_run()
+        self._login(self.reader)
+        warnings = self.api('GET', f"{RUNS}/{run['id']}").json()['warnings']
+        self.assertIn({'code': 'contract_missing', 'employee': {'id': no_start.id, 'name': no_start.name}}, warnings)
+        contract_warned = [item['employee']['id'] for item in warnings if item['code'] == 'contract_missing']
+        self.assertEqual(contract_warned, [no_start.id])
+        self.assertNotIn(no_start.name, [row['employee']['name'] for row in self._rows(run['id'])['items']])
+
     def test_compute_needs_the_payroll_structure(self):
         self.env['webvue.hr.payroll.settings']._webvue_save(self.env.company, {'structure_id': False})
         res = self._create()

@@ -139,13 +139,13 @@ describe('the messages a refusal becomes', () => {
     expect(financeFiscalErrorKey('fiscal_year_has_posted_entries')).toBe('finance.setup.fiscal.errors.fiscal_year_has_posted_entries')
     expect(financeFiscalErrorKey('lock_date_loosening')).toBe('finance.setup.fiscal.errors.lock_date_loosening')
     expect(financeFiscalErrorKey('request_context_changed')).toBe('finance.setup.fiscal.errors.request_context_changed')
-    expect(financeFiscalErrorKey('chart_already_loaded')).toBeNull()
+    expect(financeFiscalErrorKey('unknown_refusal')).toBeNull()
     expect(financeFiscalSaveMessage(new ApiError(422, 'fiscal_year_has_posted_entries', 'server text'), t))
       .toBe('t:finance.setup.fiscal.errors.fiscal_year_has_posted_entries')
   })
 
   it('keeps the server text for a code it does not know and never claims success', () => {
-    expect(financeFiscalSaveMessage(new ApiError(422, 'chart_already_loaded', 'server text'), t)).toBe('server text')
+    expect(financeFiscalSaveMessage(new ApiError(422, 'unknown_refusal', 'server text'), t)).toBe('server text')
     expect(financeFiscalSaveMessage({ status: 0, message: 'socket hang up' }, t)).toBe('t:errors.saveUncertain')
     expect(financeFiscalSaveMessage(new Error('boom'), t)).toBe('t:errors.generic')
   })

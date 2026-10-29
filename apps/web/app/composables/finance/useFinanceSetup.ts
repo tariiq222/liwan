@@ -130,22 +130,3 @@ export function useSaveFinanceFiscal() {
       : undefined),
   })
 }
-
-/** Loads the Saudi chart of accounts into the company. Like the fiscal save, it states the identity its
- * screen was read for and drops a response that belongs to an identity the screen has left. */
-export function useLoadFinanceChart() {
-  const qc = useQueryClient()
-  const { $api } = useApi()
-  const { scope, read } = useFinanceSetupScope()
-  return useMutation({
-    mutationFn: (target: FinanceSetupScope) => dispatchInScope(target, read, () => $api('/api/v1/finance/setup/chart', {
-      method: 'POST',
-      schema: FinanceSetupSchema,
-      headers: financeExpectedContextHeaders(target),
-    })),
-    onMutate: (target: FinanceSetupScope) => cancelFinanceSetupReads(qc, target),
-    onSuccess: (setup, target) => (sameFinanceSetupScope(target, scope.value)
-      ? applyFinanceSetupWrite(qc, target, setup)
-      : undefined),
-  })
-}

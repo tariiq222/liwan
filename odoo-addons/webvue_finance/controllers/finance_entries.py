@@ -10,9 +10,8 @@ from .idempotency import idempotent
 from .write_support import (
     attempt,
     company_records,
-    is_period_locked,
-    period_locked,
     require_balanced,
+    require_open_period,
     require_state,
 )
 from odoo.addons.webvue_api.controllers.common import (
@@ -94,12 +93,6 @@ def _entry_values(parsed, company):
     return values
 
 
-def _require_open_period(day, journal, company):
-    """Odoo would silently move the date of an entry in a closed period when it posts, so refuse it up front."""
-    if is_period_locked(day, journal, company=company):
-        raise period_locked(field='date')
-
-
 def _reconciled_lines(entry):
     return entry.line_ids.filtered(lambda line: line.matched_debit_ids or line.matched_credit_ids)
 
@@ -150,7 +143,7 @@ class FinanceEntryController(http.Controller):
         values = _entry_values(parsed, request.env.company)
         values.update({'move_type': 'entry', 'company_id': request.env.company.id})
         journal = request.env['account.journal'].browse(values['journal_id'])
-        _require_open_period(values['date'], journal, request.env.company)
+        require_open_period(values['date'], journal, company=request.env.company)
         written = tuple(values)  # account.move.create renames and adds keys in place
         entry = attempt(lambda: request.env['account.move'].create(values), day=values['date'], journal=journal)
         request.env['webvue.finance.audit.event']._webvue_log(
@@ -172,7 +165,7 @@ class FinanceEntryController(http.Controller):
         values = _entry_values(parsed, entry.company_id)
         day = values.get('date') or entry.date
         journal = request.env['account.journal'].browse(values.get('journal_id') or entry.journal_id.id)
-        _require_open_period(day, journal, entry.company_id)
+        require_open_period(day, journal, company=entry.company_id)
         written = tuple(values)  # account.move.write adds is_manually_modified in place
         attempt(lambda: entry.write(values), day=day, journal=journal, company=entry.company_id)
         request.env['webvue.finance.audit.event']._webvue_log(
@@ -201,7 +194,7 @@ class FinanceEntryController(http.Controller):
         require_capability('finance.entries.post')
         entry = _find_entry(entry_id)
         require_state(entry, 'draft', 'not_draft')
-        _require_open_period(entry.date, entry.journal_id, entry.company_id)
+        require_open_period(entry.date, entry.journal_id, company=entry.company_id)
         attempt(entry.action_post, day=entry.date, journal=entry.journal_id, company=entry.company_id)
         request.env['webvue.finance.audit.event']._webvue_log(
             'entry_posted', entry, fields_written=('state',), outcome=entry.state,
@@ -235,7 +228,7 @@ class FinanceEntryController(http.Controller):
             raise ApiError(422, 'invalid_state', 'the entry has no reconciled lines')
         counterparts = (lines.matched_debit_ids.debit_move_id | lines.matched_credit_ids.credit_move_id).move_id
         for move in entry | counterparts:
-            _require_open_period(move.date, move.journal_id, move.company_id)
+            require_open_period(move.date, move.journal_id, company=move.company_id)
         attempt(lines.remove_move_reconcile, day=entry.date, journal=entry.journal_id, company=entry.company_id)
         request.env['webvue.finance.audit.event']._webvue_log(
             'entry_unreconciled', entry, fields_written=('reconciled',), outcome=entry.state,
