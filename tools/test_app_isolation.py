@@ -103,11 +103,16 @@ class RepositoryTest(unittest.TestCase):
             self.assertEqual(app_isolation.main(list(argv)), 0)
         return out.getvalue().strip()
 
-    def test_the_matrices_are_the_rank_four_and_rank_five_modules(self):
+    def test_the_matrices_pack_the_rank_four_and_rank_five_modules_into_few_jobs(self):
         ranks = app_isolation.ranks()
-        self.assertEqual(json.loads(self.output('matrix', 'apps')),
-                         ['webvue_api', *sorted(m for m, r in ranks.items() if r == 4)])
-        self.assertEqual(json.loads(self.output('matrix', 'bridges')), sorted(m for m, r in ranks.items() if r == 5))
+        expected = {'apps': ['webvue_api', *sorted(m for m, r in ranks.items() if r == 4)],
+                    'bridges': sorted(m for m, r in ranks.items() if r == 5)}
+        for kind, modules in expected.items():
+            with self.subTest(kind=kind):
+                groups = json.loads(self.output('matrix', kind))
+                self.assertLessEqual(len(groups), app_isolation.GROUP_COUNT[kind])
+                packed = [module for group in groups for module in group.split()]
+                self.assertEqual(sorted(packed), sorted(modules))
 
     def test_every_registered_bridge_links_exactly_two_webvue_modules(self):
         for bridge in app_isolation.modules_of_rank(app_isolation.BRIDGE_RANK):
