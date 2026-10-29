@@ -31,7 +31,7 @@ def snapshot():
         'valid_until': None, 'features': copy.deepcopy(POLICY['features']),
         'policy_revision': 1,
         # webvue_access_hr is the auto-installed bridge of webvue_api and webvue_hr.
-        'modules': sorted([*POLICY['modules'], 'webvue_access_hr', 'base', 'hr', 'project']),
+        'modules': sorted([*POLICY['modules'], 'webvue_access_hr', 'webvue_notify', 'base', 'hr', 'project']),
     }
 
 
@@ -107,7 +107,7 @@ class Profile:
 class Modules:
     def __init__(self, events):
         self.events = events
-        self.names = [*POLICY['modules'], 'webvue_access_hr', 'base', 'hr', 'project']
+        self.names = [*POLICY['modules'], 'webvue_access_hr', 'webvue_notify', 'base', 'hr', 'project']
 
     def search(self, domain, limit=None):
         self.events.append(('modules.search', domain, limit))
