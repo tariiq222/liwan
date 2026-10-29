@@ -77,7 +77,7 @@ const BRANCH_DELEGATION = {
 }
 
 function jsonFor(pathname: string): unknown {
-  if (pathname === '/api/v1/hr/shifts/settings') return { day_reference: 'company', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', today: '2026-10-23', revision: 0 }
+  if (pathname === '/api/v1/hr/shifts/settings') return { day_reference: 'company', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', today: '2026-10-23', default_schedule: { id: 7, name: 'دوام الأحد إلى الخميس' }, revision: 0 }
   if (pathname === '/api/v1/admin/access/branches') return BRANCH_POLICY
   if (pathname === '/api/v1/admin/users/18/branches') return BRANCH_DELEGATION
   if (pathname === '/api/v1/me') return ME
@@ -370,7 +370,7 @@ test('shift settings default to company timezone and save the user reference wit
   await page.route('**/api/v1/hr/shifts/settings', async route => {
     if (route.request().method() === 'PATCH') {
       submitted = route.request().postDataJSON()
-      await route.fulfill({ json: { day_reference: 'user', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', today: '2026-10-23', revision: 1 } })
+      await route.fulfill({ json: { day_reference: 'user', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', today: '2026-10-23', default_schedule: { id: 7, name: 'دوام الأحد إلى الخميس' }, revision: 1 } })
       return
     }
     if (submitted) { await route.abort('failed'); return }

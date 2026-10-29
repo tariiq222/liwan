@@ -28,5 +28,6 @@ from . import (
     payroll_finance_link,
     payroll_settings,
     payslip_payment,
+    res_company,
     shift_settings,
 )

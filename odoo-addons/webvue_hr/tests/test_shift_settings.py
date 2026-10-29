@@ -50,6 +50,7 @@ class TestHrShiftSettings(WebVueHrCase):
         self.assertEqual(response.json(), {
             'day_reference': 'company', 'company_timezone': 'Pacific/Honolulu',
             'effective_timezone': 'Pacific/Honolulu', 'today': '2026-10-22', 'revision': 0,
+            'default_schedule': {'id': self.company.resource_calendar_id.id, 'name': self.company.resource_calendar_id.name},
         })
         self.assertFalse(self.env['webvue.hr.shift.settings'].search([]))
 
