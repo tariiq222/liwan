@@ -64,7 +64,7 @@ describe('automatic message content', () => {
     expect(buildInteractive(interactiveToDraft(list))).toEqual(list)
     const link: InboxInteractive = { type: 'cta_url', body: 'التعليمات', header: null, footer: null, display_text: 'افتح', url: 'https://example.test/a' }
     expect(buildInteractive(interactiveToDraft(link))).toEqual(link)
-    expect(buildAutoContent({ mode: 'interactive', body: '', interactive: emptyInteractiveDraft() })).toBeNull()
+    expect(buildAutoContent({ ...emptyAutoContentDraft(), mode: 'interactive', interactive: emptyInteractiveDraft() })).toBeNull()
   })
 })
 

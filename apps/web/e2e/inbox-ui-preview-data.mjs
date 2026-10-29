@@ -2,11 +2,14 @@
 // Every response is shaped like packages/contracts/src/inbox; app/composables/inbox/__tests__/inboxMockContract.test.ts
 // parses them with the contract schemas, so the mock cannot drift from the wire shape.
 
+import { catalogPreviewRoute, commerceReply, decorateCarts, seedCatalog, seedCommerceThread } from './inbox-catalog-preview-data.mjs'
+
 export const INBOX_CAPABILITIES = [
   'inbox.conversations.read', 'inbox.conversations.reply', 'inbox.conversations.assign', 'inbox.conversations.export',
   'inbox.channels.manage', 'inbox.settings.manage', 'inbox.templates.manage', 'inbox.automation.manage',
+  'inbox.catalog.manage', 'inbox.orders.manage',
 ]
-export const INBOX_FEATURES = ['inbox.enabled', 'inbox.whatsapp', 'inbox.automation']
+export const INBOX_FEATURES = ['inbox.enabled', 'inbox.whatsapp', 'inbox.automation', 'inbox.catalog']
 
 const ME = { id: 2, name: 'Admin' }
 const AGENTS = [{ id: 5, name: 'نورة الحربي' }, { id: 6, name: 'سارة محمد' }]
@@ -54,7 +57,7 @@ function seed() {
   const message = (direction, body, hoursAgo, extra = {}) => ({
     id: nextMessageId++, direction, kind: 'text', body, author: direction === 'in' ? null : AGENTS[0], template: null,
     delivery_state: direction === 'in' ? 'received' : 'sent', error: null, attachments: [], reply_to: null,
-    reactions: { customer: null, agent: null }, location: null, interactive: null, selected_option: null, automated: false, created_at: ago(hoursAgo), ...extra,
+    reactions: { customer: null, agent: null }, location: null, interactive: null, selected_option: null, automated: false, commerce: null, created_at: ago(hoursAgo), ...extra,
   })
   const quote = target => ({ id: target.id, preview: target.body.slice(0, 80) })
   const first = message('in', 'السلام عليكم، أريد حجز موعد يوم الخميس.', 3)
@@ -106,6 +109,9 @@ function seed() {
     3: [message('in', 'شكرًا لكم على الخدمة.', 5), message('out', 'العفو، سعداء بخدمتك.', 4.9, { delivery_state: 'delivered' })],
     4: [message('in', 'أحتاج مساعدة عاجلة في طلبي رقم 4521.', 1)],
   }
+  const catalog = seedCatalog()
+  const built = { catalog, channels, conversations }
+  messages[4].push(...seedCommerceThread(built, conversations[3], message))
   for (const c of conversations) {
     const last = messages[c.id].at(-1)
     c.last_message_at = last.created_at
@@ -136,6 +142,9 @@ function seed() {
     }),
     template(5, 'weekly_digest', { status: 'pending', quality: 'unknown', editable: false, body: 'ملخص أسبوعك: {{1}} طلبات جديدة.', body_examples: ['12'], param_count: 1 }),
     template(6, 'named_greeting', { supported: false, body: 'مرحبًا {{customer_name}}، شكرًا لزيارتك.' }),
+    template(7, 'order_pay_link', {
+      body: 'طلبك جاهز للدفع.', buttons: [{ type: 'url', text: 'ادفع الآن', url: 'https://app.example.test/pay/order/{{1}}', example: 'https://app.example.test/pay/order/4521' }],
+    }),
   ]
   const canned = [
     { id: 1, shortcut: 'hello', body: 'أهلًا بك، كيف يمكنني مساعدتك؟' },
@@ -158,8 +167,8 @@ function seed() {
       { id: 2, sequence: 20, channel: null, name: 'شكوى عاجلة', active: true, match_kind: 'starts_with', keywords: ['شكوى'], option_id: null, hours: 'any', stop: false,
         reply: null, resolve: false, department: null, assignee: null, tags: [{ id: 1, name: 'شكوى' }], priority: 'urgent' },
     ],
-    departments, tags, channels, contacts, conversations, messages, templates, canned,
-    ids: { department: 3, tag: 4, canned: 3, channel: 2, template: 7, rule: 3, upload: 100, message: () => nextMessageId++ },
+    departments, tags, channels, contacts, conversations, messages, templates, canned, catalog,
+    ids: { department: 3, tag: 4, canned: 3, channel: 2, template: 8, rule: 3, upload: 100, message: () => nextMessageId++ },
     statuses: new Map(),
     // Files uploaded to a conversation and not yet sent: attachment id -> { conversationId, attachment }.
     uploads: new Map(),
@@ -229,7 +238,7 @@ function patchConversation(conv, body) {
 function appendMessage(conv, fields) {
   const created = {
     id: state.ids.message(), direction: 'out', kind: 'text', body: '', author: ME, template: null, delivery_state: 'queued', error: null, attachments: [],
-    reply_to: null, reactions: { customer: null, agent: null }, location: null, interactive: null, selected_option: null, automated: false, created_at: iso(Date.now()), ...fields,
+    reply_to: null, reactions: { customer: null, agent: null }, location: null, interactive: null, selected_option: null, automated: false, commerce: null, created_at: iso(Date.now()), ...fields,
   }
   state.messages[conv.id].push(created)
   if (created.direction === 'out') {
@@ -237,6 +246,16 @@ function appendMessage(conv, fields) {
     conv.last_message_preview = (created.body || created.kind).slice(0, 140)
     state.statuses.set(created.id, Date.now())
   }
+  return created
+}
+
+// A customer's message arriving: the window reopens and the conversation is unread again.
+function appendInbound(conv, fields) {
+  const created = appendMessage(conv, { direction: 'in', author: null, delivery_state: 'received', ...fields })
+  conv.last_message_at = created.created_at
+  conv.last_message_preview = (created.body || created.kind).slice(0, 140)
+  conv.unread = true
+  conv.reply_window_ends_at = iso(Date.now() + 24 * HOUR)
   return created
 }
 
@@ -281,7 +300,7 @@ function interactiveProblem(interactive) {
 }
 
 function reply(conv, body) {
-  const free = ['body', 'attachment_id', 'location', 'interactive'].some(key => key in body)
+  const free = ['body', 'attachment_id', 'location', 'interactive', 'commerce'].some(key => key in body)
   if (free && !WINDOW_OPEN(conv)) return fail(422, 'invalid', 'انتهت نافذة الرد الحر، أرسل قالبًا معتمدًا')
   let quoted = null
   if (body.reply_to_id !== undefined) {
@@ -299,6 +318,10 @@ function reply(conv, body) {
     if (body.caption && held.attachment.mimetype.startsWith('audio/')) return fail(422, 'invalid', 'لا يسمح بتعليق على ملف صوتي', 'caption')
     state.uploads.delete(body.attachment_id)
     return ok(appendMessage(conv, { kind: kindOfMimetype(held.attachment.mimetype), body: body.caption ?? '', attachments: [held.attachment], reply_to: quoted }))
+  }
+  if (body.commerce) {
+    const { fields, refusal } = commerceReply(state, body.commerce)
+    return refusal ?? ok(appendMessage(conv, { ...fields, reply_to: quoted }))
   }
   if (body.location) return ok(appendMessage(conv, { kind: 'location', location: body.location, reply_to: quoted }))
   if (body.interactive) {
@@ -704,6 +727,10 @@ export function inboxPreviewData(method, path, url, body = {}) {
   const resource = parts[3]
   const id = parts[4] && /^\d+$/.test(parts[4]) ? Number(parts[4]) : undefined
 
+  // Catalog, product-message and order routes first: the conversation and channel branches below answer any sub-path.
+  const catalogAnswer = catalogPreviewRoute(state, method, parts, url, body, { me: ME, appendMessage, appendInbound })
+  if (catalogAnswer) return catalogAnswer
+
   if (resource === 'conversations') {
     if (parts[4] === 'export.csv') return { file: { filename: 'conversations.csv', body: 'id,contact,state\n' + state.conversations.map(c => `${c.id},${c.contact.name},${c.state}`).join('\n') + '\n' } }
     if (id === undefined) return method === 'GET' ? ok(conversationList(url)) : undefined
@@ -713,6 +740,7 @@ export function inboxPreviewData(method, path, url, body = {}) {
       if (method === 'POST') return reply(conv, body)
       settleStatuses(conv)
       const all = state.messages[conv.id]
+      decorateCarts(state, all)
       const offset = Math.max(0, Number(url.searchParams.get('offset') ?? 0) || 0)
       const limit = Math.max(1, Number(url.searchParams.get('limit') ?? 50) || 50)
       return ok({ items: all.slice(Math.max(0, all.length - offset - limit), all.length - offset), total: all.length })

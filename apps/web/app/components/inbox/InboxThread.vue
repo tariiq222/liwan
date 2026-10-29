@@ -7,7 +7,7 @@ import { INBOX_REACTION_EMOJIS } from '@/composables/inbox/inboxReactions'
 // The message thread of one conversation, oldest first. Inbound messages sit at the start of the line, replies at the
 // end, internal notes are a full-width tinted block that is never sent to the customer. Inside the reply window an agent
 // can quote a message (the `reply` event) and react to it with an emoji; the customer's reaction shows beside it.
-const props = defineProps<{ conversationId: number; canReply: boolean; windowOpen: boolean }>()
+const props = defineProps<{ conversationId: number; channelId?: number; canReply: boolean; windowOpen: boolean }>()
 const emit = defineEmits<{ reply: [target: { id: number; preview: string }] }>()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
@@ -122,7 +122,7 @@ const deliveryLabel = (item: InboxMessage) => t(`inbox.delivery.${item.delivery_
                 <span class="font-medium text-primary">{{ t('inbox.thread.inReplyTo') }}</span>
                 <span class="truncate text-muted">{{ row.item.reply_to.preview || t('inbox.thread.quotedMedia') }}</span>
               </component>
-              <InboxMessageContent :message="row.item" />
+              <InboxMessageContent :message="row.item" :conversation-id="props.conversationId" :channel-id="props.channelId" :window-open="props.windowOpen" />
               <p class="mt-1 flex items-center justify-end gap-1.5 text-xs text-muted">
                 <span v-if="row.item.author && row.item.direction !== 'in'">{{ row.item.author.name }}</span>
                 <time :datetime="row.item.created_at">{{ timeFormat.format(new Date(row.item.created_at)) }}</time>

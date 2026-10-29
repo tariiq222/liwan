@@ -5,6 +5,7 @@ import { RULE_HOURS, RULE_MATCH_KINDS, TEXT_MATCH_KINDS, emptyRuleDraft, ruleToD
 import { PRIORITIES } from '@/composables/inbox/inboxPresentation'
 import { useInboxAgents, useInboxTags } from '@/composables/inbox/useInbox'
 import { useInboxAutomationChannels, useSaveInboxRule } from '@/composables/inbox/useInboxAutomation'
+import { useInboxCatalogEnabled } from '@/composables/inbox/useInboxCatalog'
 import { useInboxDepartments } from '@/composables/inbox/useInboxSettings'
 
 // A rule: when a customer message matches (its words, or the option they chose from an interactive message, optionally
@@ -36,7 +37,9 @@ const NONE = 'none'
 const channelItems = computed(() => [{ value: ANY, label: t('inbox.automation.rules.anyChannel') }, ...(channels.data.value?.items ?? []).map(item => ({ value: String(item.id), label: item.name }))])
 const departmentItems = computed(() => [{ value: NONE, label: t('inbox.automation.rules.noChange') }, ...(departments.data.value?.items ?? []).map(item => ({ value: String(item.id), label: item.name }))])
 const priorityItems = computed(() => [{ value: NONE, label: t('inbox.automation.rules.noChange') }, ...PRIORITIES.map(value => ({ value, label: t(`inbox.priorities.${value}`) }))])
-const matchItems = computed(() => RULE_MATCH_KINDS.map(value => ({ value, label: t(`inbox.automation.rules.match.${value}`) })))
+const catalogOn = useInboxCatalogEnabled()
+// The cart match belongs to the catalog feature; a stored cart rule keeps its kind.
+const matchItems = computed(() => RULE_MATCH_KINDS.filter(value => value !== 'order' || catalogOn.value || draft.matchKind === 'order').map(value => ({ value, label: t(`inbox.automation.rules.match.${value}`) })))
 const hoursItems = computed(() => RULE_HOURS.map(value => ({ value, label: t(`inbox.automation.rules.hours.${value}`) })))
 const tagItems = computed(() => tags.data.value?.items ?? [])
 
@@ -107,7 +110,8 @@ async function submit() {
         <USwitch v-model="draft.replyEnabled" :disabled="off" data-testid="inbox-rule-reply-enabled" />{{ t('inbox.automation.rules.replyAction') }}
       </label>
       <template v-if="draft.replyEnabled">
-        <InboxAutoContentEditor v-model="draft.reply" :label="t('inbox.automation.rules.replyAction')" />
+        <InboxAutoContentEditor v-model="draft.reply" :label="t('inbox.automation.rules.replyAction')" :channel-id="draft.channelId" />
+        <UAlert v-if="draft.reply.mode === 'commerce' && !draft.channelId" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :description="t('inbox.catalog.picker.allChannelsWarning')" data-testid="inbox-rule-commerce-warning" />
         <p v-if="replyError ?? fieldError('reply')" class="text-sm text-error" role="alert">{{ replyError ?? fieldError('reply') }}</p>
       </template>
       <UFormField :label="t('inbox.automation.rules.department')">

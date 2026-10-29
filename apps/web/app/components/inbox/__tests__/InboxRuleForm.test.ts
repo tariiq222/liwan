@@ -26,6 +26,7 @@ function mountForm(props: { rule?: InboxRule } = {}, saveImpl?: () => Promise<un
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useToast: () => ({ add: toast }),
     ...helpers, PRIORITIES, InboxAutoContentEditor: {},
     useSaveInboxRule: () => ({ mutateAsync: save, isPending: Vue.ref(false) }),
+    useInboxCatalogEnabled: () => Vue.ref(true),
     useInboxAutomationChannels: () => list(), useInboxDepartments: () => list(), useInboxTags: () => list(), useInboxAgents: () => list(),
   }
   const code = ts.transpileModule(script, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText

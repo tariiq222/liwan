@@ -2,6 +2,7 @@ import {
   InboxAutoContentSchema, InboxChannelAutomationSchema, InboxRuleWriteSchema, InboxWorkingHoursSchema,
   type InboxAutoContent, type InboxChannelAutomation, type InboxPriority, type InboxRule, type InboxRuleMatchKind, type InboxRuleWrite, type InboxWorkingHours,
 } from '@webvue/contracts'
+import { buildCommerceContent, commerceToDraft, emptyCommerceDraft, type CommerceDraft } from './inboxCommerce'
 import { buildInteractive, emptyInteractiveDraft, interactiveToDraft, type InteractiveDraft } from './inboxInteractive'
 
 // Pure helpers of the inbox automation screens: the weekly hours grid, the text-or-interactive content of an
@@ -63,21 +64,22 @@ export function timezoneChoices(current: string): string[] {
 
 // ---------------------------------------------------------------- automatic message content
 
-export type AutoContentMode = 'text' | 'interactive'
-export interface AutoContentDraft { mode: AutoContentMode; body: string; interactive: InteractiveDraft }
+export type AutoContentMode = 'text' | 'interactive' | 'commerce'
+export interface AutoContentDraft { mode: AutoContentMode; body: string; interactive: InteractiveDraft; commerce: CommerceDraft }
 
-export const emptyAutoContentDraft = (): AutoContentDraft => ({ mode: 'text', body: '', interactive: emptyInteractiveDraft() })
+export const emptyAutoContentDraft = (): AutoContentDraft => ({ mode: 'text', body: '', interactive: emptyInteractiveDraft(), commerce: emptyCommerceDraft() })
 
 export function autoContentToDraft(content: InboxAutoContent | null): AutoContentDraft {
   const draft = emptyAutoContentDraft()
   if (!content) return draft
   if ('interactive' in content) return { ...draft, mode: 'interactive', interactive: interactiveToDraft(content.interactive) }
+  if ('commerce' in content) return { ...draft, mode: 'commerce', commerce: commerceToDraft(content.commerce) }
   return { ...draft, body: content.body }
 }
 
 /** The content the server stores, or null while the draft is empty or breaks a limit. */
 export function buildAutoContent(draft: AutoContentDraft): InboxAutoContent | null {
-  const candidate = draft.mode === 'text' ? { body: draft.body.trim() } : { interactive: buildInteractive(draft.interactive) }
+  const candidate = draft.mode === 'text' ? { body: draft.body.trim() } : draft.mode === 'interactive' ? { interactive: buildInteractive(draft.interactive) } : { commerce: buildCommerceContent(draft.commerce) }
   const parsed = InboxAutoContentSchema.safeParse(candidate)
   return parsed.success ? parsed.data : null
 }
@@ -85,7 +87,7 @@ export function buildAutoContent(draft: AutoContentDraft): InboxAutoContent | nu
 // ---------------------------------------------------------------- rules
 
 type InboxRuleHours = InboxRule['hours']
-export const RULE_MATCH_KINDS: readonly InboxRuleMatchKind[] = ['any', 'contains', 'exact', 'starts_with', 'option']
+export const RULE_MATCH_KINDS: readonly InboxRuleMatchKind[] = ['any', 'contains', 'exact', 'starts_with', 'option', 'order']
 export const RULE_HOURS: readonly InboxRuleHours[] = ['any', 'inside', 'outside']
 export const TEXT_MATCH_KINDS: readonly InboxRuleMatchKind[] = ['contains', 'exact', 'starts_with']
 
