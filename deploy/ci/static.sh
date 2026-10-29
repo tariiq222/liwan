@@ -25,4 +25,5 @@ npm -w apps/web run postinstall
 npm -w apps/vendor-admin run postinstall
 npx playwright install chromium
 npm test
-npm -w apps/web run lint
+# vue-tsc --build over the whole web app exceeds the default Node heap on the 16 GB runner (exit 250).
+NODE_OPTIONS=--max-old-space-size=8192 npm -w apps/web run lint
