@@ -17,8 +17,8 @@ const rows = computed(() => gateCheckRows(props.project.id, state.value.next_che
 const canManage = computed(() => props.project.can_manage)
 const canAdvance = computed(() => canMoveForward(state.value, canManage.value))
 const isClosed = computed(() => state.value.current === 'closed')
-const isVisible = computed(() => isGateCardVisible(state.value, canManage.value))
-const isAction = computed(() => isGateAction(state.value, canManage.value))
+const isVisible = computed(() => isGateCardVisible(state.value, canManage.value, props.project.active))
+const isAction = computed(() => isGateAction(state.value, canManage.value, props.project.active))
 const phaseLabel = (phase: ProjectPhase) => t(PHASE_LABEL_KEY[phase])
 const stepBack = ref(false)
 

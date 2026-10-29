@@ -1,6 +1,6 @@
 import type { ProjectPhaseState } from '@webvue/contracts'
 import { describe, expect, it } from 'vitest'
-import { canMoveForward, gateCheckRows, isGateCardVisible, phaseFailure, phaseNumber, phaseSteps, UNKNOWN_CHECK_KEY } from '../projectPhase'
+import { canMoveForward, gateCheckRows, isGateAction, isGateCardVisible, phaseFailure, phaseNumber, phaseSteps, UNKNOWN_CHECK_KEY } from '../projectPhase'
 
 describe('phaseSteps', () => {
   it('marks earlier steps done, the current one, and later steps upcoming', () => {
@@ -59,5 +59,18 @@ describe('phaseFailure', () => {
     expect(failure(500, 'boom')).toEqual({ key: 'errors.generic', color: 'error' })
     expect(phaseFailure(new Error('offline'))).toEqual({ key: 'errors.generic', color: 'error' })
     expect(phaseFailure(undefined)).toEqual({ key: 'errors.generic', color: 'error' })
+  })
+})
+
+describe('an archived project has no phase gate', () => {
+  const planning: ProjectPhaseState = { current: 'planning', next: 'executing', previous: 'initiating', next_checks: [{ key: 'charter_approved', ok: false }] }
+  it('hides the card and its call to action even from a manager', () => {
+    expect(isGateCardVisible(planning, true, false)).toBe(false)
+    expect(isGateAction(planning, true, false)).toBe(false)
+    expect(isGateCardVisible({ current: 'closed', next: null, previous: 'closing', next_checks: [] }, true, false)).toBe(false)
+  })
+  it('keeps the card for an active project', () => {
+    expect(isGateCardVisible(planning, true, true)).toBe(true)
+    expect(isGateAction(planning, false)).toBe(true)
   })
 })
