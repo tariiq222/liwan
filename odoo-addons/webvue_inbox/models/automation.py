@@ -58,6 +58,7 @@ class WebVueInboxAutomation(models.AbstractModel):
         if not asked:
             return False
         conversation.write({'csat_score': score, 'csat_at': message.date})
+        self.env['webvue.inbox.conversation.cycle']._webvue_record_csat(conversation, score, message.date)
         message.automation_done = True
         return True
 

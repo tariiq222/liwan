@@ -180,6 +180,7 @@
         "boolean:inbox.templates",
         "boolean:inbox.automation",
         "boolean:inbox.flows",
+        "boolean:inbox.reports",
         "limit:inbox.channels",
         "limit:inbox.messages_out"
       ]

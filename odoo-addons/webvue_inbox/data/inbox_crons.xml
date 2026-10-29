@@ -40,4 +40,56 @@
         <field name="interval_type">minutes</field>
         <field name="active" eval="True"/>
     </record>
+    <record id="ir_cron_inbox_health" model="ir.cron">
+        <field name="name">webvue inbox: refresh WhatsApp number health</field>
+        <field name="model_id" ref="model_webvue_inbox_channel"/>
+        <field name="state">code</field>
+        <field name="code">model._webvue_run_health()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">6</field>
+        <field name="interval_type">hours</field>
+        <field name="active" eval="True"/>
+    </record>
+    <record id="ir_cron_inbox_report_hourly" model="ir.cron">
+        <field name="name">webvue inbox: rebuild today's report rows</field>
+        <field name="model_id" ref="model_webvue_inbox_report_day"/>
+        <field name="state">code</field>
+        <field name="code">model._webvue_run_hourly()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">hours</field>
+        <field name="active" eval="True"/>
+    </record>
+    <record id="ir_cron_inbox_report_nightly" model="ir.cron">
+        <field name="name">webvue inbox: rebuild the last week of report rows</field>
+        <field name="model_id" ref="model_webvue_inbox_report_day"/>
+        <field name="state">code</field>
+        <field name="code">model._webvue_run_nightly()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).replace(hour=23, minute=0, second=0)"/>
+        <field name="active" eval="True"/>
+    </record>
+    <record id="ir_cron_inbox_meta_analytics" model="ir.cron">
+        <field name="name">webvue inbox: pull Meta cost and template analytics</field>
+        <field name="model_id" ref="model_webvue_inbox_channel"/>
+        <field name="state">code</field>
+        <field name="code">model._webvue_run_analytics()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).replace(hour=3, minute=0, second=0)"/>
+        <field name="active" eval="True"/>
+    </record>
+    <record id="ir_cron_inbox_analytics_requested" model="ir.cron">
+        <field name="name">webvue inbox: pull the Meta analytics a manager asked for</field>
+        <field name="model_id" ref="model_webvue_inbox_channel"/>
+        <field name="state">code</field>
+        <field name="code">model._webvue_run_analytics_requested()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
 </odoo>

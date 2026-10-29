@@ -30,6 +30,8 @@ class WebVueInboxInbound(models.AbstractModel):
                 self.env['webvue.inbox.template']._webvue_apply_update(channel, item)
             elif isinstance(item, whatsapp.FLOW_UPDATES):
                 self.env['webvue.inbox.flow']._webvue_apply_update(channel, item)
+            elif isinstance(item, whatsapp.HEALTH_UPDATES):
+                channel._webvue_apply_health_update(item)
             else:
                 changed |= self.env['webvue.inbox.message']._webvue_apply_status(item).conversation_id
         return changed
@@ -50,6 +52,7 @@ class WebVueInboxInbound(models.AbstractModel):
         automation = self.env['webvue.inbox.automation']
         if automation._webvue_record_csat(conversation, message):
             return conversation  # a survey answer neither reopens the conversation nor triggers the rules
+        self.env['webvue.inbox.conversation.cycle']._webvue_open_for(conversation, message.date)
         conversation.write({
             'unread': True,
             **({'state': 'open'} if conversation.state in REOPENED_STATES else {}),

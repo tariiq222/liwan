@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Wire shapes of the inbox settings, lists and channels."""
 from odoo.addons.webvue_api.serializers.common import iso
+from odoo.addons.webvue_inbox.serializers.channel_health import dump_health
 from odoo.addons.webvue_inbox.serializers.conversation import dump_attachment, dump_ref
 
 
@@ -88,4 +89,5 @@ def dump_channel(channel, callback_url):
         'callback_url': callback_url,
         'last_error': channel.last_error or None,
         'last_event_at': iso(channel.last_event_at),
+        'health': dump_health(channel),
     }

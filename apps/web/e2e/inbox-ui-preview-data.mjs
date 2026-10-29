@@ -2,11 +2,13 @@
 // Every response is shaped like packages/contracts/src/inbox; app/composables/inbox/__tests__/inboxMockContract.test.ts
 // parses them with the contract schemas, so the mock cannot drift from the wire shape.
 
+import { channelHealthRoute, emptyHealth, reportsRoute, seedChannelExtras, seedHealth } from './inbox-reports-preview-data.mjs'
+
 export const INBOX_CAPABILITIES = [
   'inbox.conversations.read', 'inbox.conversations.reply', 'inbox.conversations.assign', 'inbox.conversations.export',
-  'inbox.channels.manage', 'inbox.settings.manage', 'inbox.templates.manage', 'inbox.automation.manage', 'inbox.flows.manage',
+  'inbox.channels.manage', 'inbox.settings.manage', 'inbox.templates.manage', 'inbox.automation.manage', 'inbox.flows.manage', 'inbox.reports.read',
 ]
-export const INBOX_FEATURES = ['inbox.enabled', 'inbox.whatsapp', 'inbox.templates', 'inbox.automation', 'inbox.flows']
+export const INBOX_FEATURES = ['inbox.enabled', 'inbox.whatsapp', 'inbox.templates', 'inbox.automation', 'inbox.flows', 'inbox.reports']
 
 const ME = { id: 2, name: 'Admin' }
 const AGENTS = [{ id: 5, name: 'نورة الحربي' }, { id: 6, name: 'سارة محمد' }]
@@ -24,7 +26,7 @@ function seed() {
     id: 1, name: 'واتساب الاستقبال', kind: 'whatsapp', state: 'connected', department: { id: 1, name: 'الاستقبال' },
     phone_number_id: '109876543210987', business_account_id: '203456789012345', has_access_token: true, has_app_secret: true, app_id: '1234567890123',
     verify_token: 'mock-verify-token-4f9c2a', callback_url: 'https://app.example.test/api/v1/inbox/hooks/whatsapp',
-    last_error: null, last_event_at: ago(0.2),
+    last_error: null, last_event_at: ago(0.2), health: seedHealth(ago),
   }]
   const contacts = [
     { id: 1, name: 'ليلى القحطاني', phone: '+966500000001', email: null },
@@ -219,6 +221,8 @@ function seed() {
         reply: null, resolve: false, department: null, assignee: null, tags: [{ id: 1, name: 'شكوى' }], priority: 'urgent' },
     ],
     departments, tags, channels, contacts, conversations, messages, templates, canned, flows, submissions,
+    // Number-health timeline and business profile per channel (inbox-reports-preview-data.mjs).
+    health: seedChannelExtras(channels.map(item => item.id), ago),
     ids: { department: 3, tag: 4, canned: 3, channel: 2, template: 8, rule: 3, flow: 4, submission: 2, field: nextFieldId, upload: 100, message: () => nextMessageId++ },
     statuses: new Map(),
     // Files uploaded to a conversation and not yet sent: attachment id -> { conversationId, attachment }.
@@ -470,7 +474,16 @@ function channelRoute(method, parts, body, url) {
   if (action === 'templates') return method === 'GET' ? templateList(url) : createTemplate(channel, body)
   if (action === 'automation' && (method === 'GET' || method === 'PATCH')) return automationRoute(method, channel, body)
   if (method === 'POST' && action === 'uploads') return templateSample(body)
-  if (method === 'POST' && action === 'test') { channel.state = 'connected'; channel.last_error = null; return ok(channel) }
+  if (method === 'POST' && action === 'test') {
+    channel.state = 'connected'
+    channel.last_error = null
+    channel.health = { ...(channel.health.checked_at ? channel.health : seedHealth(ago)), checked_at: iso(Date.now()) }
+    return ok(channel)
+  }
+  if (channel) {
+    const answer = channelHealthRoute(mockContext(), method, action, parts, url, body, channel)
+    if (answer) return answer
+  }
   if (method === 'POST' && action === 'sync') return ok(list(state.templates))
   const department = value => value ? { id: value, name: state.departments.find(item => item.id === value)?.name ?? '' } : null
   return crud('channels', method, id, body, (input, current) => ({
@@ -481,7 +494,7 @@ function channelRoute(method, parts, body, url) {
     has_access_token: current?.has_access_token || !!input.access_token, has_app_secret: current?.has_app_secret || !!input.app_secret,
     app_id: 'app_id' in input ? input.app_id : current?.app_id ?? null,
     verify_token: current?.verify_token ?? `mock-verify-token-${state.ids.channel}`, callback_url: 'https://app.example.test/api/v1/inbox/hooks/whatsapp',
-    last_error: current?.last_error ?? null, last_event_at: current?.last_event_at ?? null,
+    last_error: current?.last_error ?? null, last_event_at: current?.last_event_at ?? null, health: current?.health ?? emptyHealth(),
   }))
 }
 
@@ -1019,8 +1032,14 @@ export function inboxPreviewData(method, path, url, body = {}) {
   if (resource === '__mock' && parts[4] === 'flow-answer' && method === 'POST') return answerFlow(body)
   if (resource === 'flows' && id !== undefined) return flowRoute(method, id, parts[5], body, url)
   if (resource === 'templates' && id !== undefined) return templateRoute(method, id, body)
+  if (resource === 'reports') return reportsRoute(mockContext(), method, parts, url)
   if (resource === 'channels') return channelRoute(method, parts, body, url)
   return undefined
+}
+
+/** What the sibling mock modules need from this one. */
+function mockContext() {
+  return { state, ok, fail, iso, ME, AGENTS, page }
 }
 
 /** Test hook: back to the seed data, so specs start from a known inbox. */

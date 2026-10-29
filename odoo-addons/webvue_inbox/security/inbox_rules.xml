@@ -95,6 +95,36 @@
         <field name="model_id" ref="model_webvue_inbox_template"/>
         <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="webvue_inbox_report_day_company_rule" model="ir.rule">
+        <field name="name">webvue.inbox.report.day: multi-company</field>
+        <field name="model_id" ref="model_webvue_inbox_report_day"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="webvue_inbox_conversation_cycle_company_rule" model="ir.rule">
+        <field name="name">webvue.inbox.conversation.cycle: multi-company</field>
+        <field name="model_id" ref="model_webvue_inbox_conversation_cycle"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="webvue_inbox_cost_day_company_rule" model="ir.rule">
+        <field name="name">webvue.inbox.cost.day: multi-company</field>
+        <field name="model_id" ref="model_webvue_inbox_cost_day"/>
+        <field name="domain_force">[('owner_company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="webvue_inbox_template_day_company_rule" model="ir.rule">
+        <field name="name">webvue.inbox.template.day: multi-company</field>
+        <field name="model_id" ref="model_webvue_inbox_template_day"/>
+        <field name="domain_force">[('owner_company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="webvue_inbox_template_click_company_rule" model="ir.rule">
+        <field name="name">webvue.inbox.template.click: multi-company</field>
+        <field name="model_id" ref="model_webvue_inbox_template_click"/>
+        <field name="domain_force">[('owner_company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="webvue_inbox_channel_alert_company_rule" model="ir.rule">
+        <field name="name">webvue.inbox.channel.alert: multi-company</field>
+        <field name="model_id" ref="model_webvue_inbox_channel_alert"/>
+        <field name="domain_force">[('owner_company_id', 'in', company_ids)]</field>
+    </record>
 
     <record id="webvue_inbox_flow_company_rule" model="ir.rule">
         <field name="name">webvue.inbox.flow: multi-company</field>
@@ -146,7 +176,7 @@
         <field name="name">webvue.inbox.channel: multi-company</field>
         <field name="model_id" ref="model_webvue_inbox_channel"/>
         <field name="domain_force">[('owner_company_id', 'in', company_ids)]</field>
-        <field name="groups" eval="[Command.link(ref('group_cap_inbox_conversations_read')), Command.link(ref('group_cap_inbox_channels_manage')), Command.link(ref('group_cap_inbox_templates_manage')), Command.link(ref('group_cap_inbox_automation_manage')), Command.link(ref('group_cap_inbox_flows_manage'))]"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_inbox_conversations_read')), Command.link(ref('group_cap_inbox_channels_manage')), Command.link(ref('group_cap_inbox_templates_manage')), Command.link(ref('group_cap_inbox_automation_manage')), Command.link(ref('group_cap_inbox_flows_manage')), Command.link(ref('group_cap_inbox_reports_read'))]"/>
     </record>
     <record id="webvue_inbox_channel_hook_rule" model="ir.rule">
         <field name="name">webvue.inbox.channel: webhook identity</field>

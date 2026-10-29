@@ -9,7 +9,6 @@ from odoo.addons.webvue_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
-from odoo.addons.webvue_inbox.adapters import whatsapp
 from odoo.addons.webvue_inbox.controllers.helpers import (
     check_fields,
     find_one,
@@ -127,10 +126,5 @@ class ChannelController(http.Controller):
         channel = get_channel(channel_id, MANAGE_CHANNELS)
         if channel.state == 'disabled':
             reject('the channel is disabled', 'state')
-        try:
-            whatsapp.check_phone(channel._webvue_credentials())
-        except whatsapp.ProviderError as error:
-            channel.write({'state': 'error', 'last_error': str(error)})
-        else:
-            channel.write({'state': 'connected', 'last_error': False})
+        channel._webvue_refresh_health()
         return dump(channel)

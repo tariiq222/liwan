@@ -388,6 +388,103 @@ export const InboxSettingsSchema = z.object({
 }).strict()
 export const InboxSettingsPatchSchema = InboxSettingsSchema.partial().strict()
 
+// ---------------------------------------------------------------- number health and business profile
+
+export const InboxQualityRatingSchema = z.enum(['green', 'yellow', 'red', 'unknown'])
+export const InboxNameStatusSchema = z.enum([
+  'approved', 'available_without_review', 'pending_review', 'declined', 'expired', 'none', 'unknown',
+])
+// The business portfolio's messaging limit per 24 hours (shared by every number of the portfolio).
+export const InboxMessagingLimitSchema = z.enum([
+  'tier_50', 'tier_250', 'tier_2k', 'tier_10k', 'tier_100k', 'unlimited', 'not_set', 'unknown',
+])
+export const InboxThroughputLevelSchema = z.enum(['standard', 'high', 'not_applicable', 'unknown'])
+export const InboxAccountStateSchema = z.enum(['active', 'restricted', 'scheduled_for_disable', 'disabled'])
+const CurrencyCode = z.string().regex(/^[A-Z]{3}$/)
+
+// Meta's last known view of the number and its account; null fields were never reported.
+export const InboxChannelHealthSchema = z.object({
+  display_phone_number: z.string().regex(/^\d{5,20}$/).nullable(),
+  verified_name: z.string().nullable(),
+  name_status: InboxNameStatusSchema,
+  // A display-name change waiting for Meta's review, and Meta's code when it was rejected.
+  requested_name: z.string().nullable(),
+  name_rejection_reason: z.string().nullable(),
+  quality_rating: InboxQualityRatingSchema,
+  messaging_limit: InboxMessagingLimitSchema,
+  throughput_level: InboxThroughputLevelSchema,
+  code_verified: z.boolean(),
+  account_state: InboxAccountStateSchema,
+  account_restricted_until: UtcDateTime.nullable(),
+  checked_at: UtcDateTime.nullable(),
+  // Template analytics is an irreversible opt-in on the business account.
+  template_insights_enabled: z.boolean(),
+  currency: CurrencyCode.nullable(),
+  analytics_synced_at: UtcDateTime.nullable(),
+  analytics_error: z.string().nullable(),
+}).strict()
+
+export const InboxChannelAlertKindSchema = z.enum([
+  'quality_changed', 'messaging_limit_changed', 'throughput_upgraded', 'name_approved', 'name_rejected',
+  'name_pending', 'account_restricted', 'account_disabled', 'account_reinstated', 'account_violation',
+  'scaling_denied', 'connection_failed',
+])
+export const InboxAlertSeveritySchema = z.enum(['info', 'warning', 'danger'])
+
+export const InboxChannelAlertSchema = z.object({
+  id: Id,
+  kind: InboxChannelAlertKindSchema,
+  severity: InboxAlertSeveritySchema,
+  occurred_at: UtcDateTime,
+  quality_rating: InboxQualityRatingSchema.nullable(),
+  messaging_limit: InboxMessagingLimitSchema.nullable(),
+  previous_messaging_limit: InboxMessagingLimitSchema.nullable(),
+  requested_name: z.string().nullable(),
+  // Meta's code as received: name rejection reason, restriction or violation type, or account alert type.
+  reason: z.string().max(200).nullable(),
+  expires_at: UtcDateTime.nullable(),
+}).strict()
+export const InboxChannelAlertListSchema = list(InboxChannelAlertSchema)
+
+export const InboxBusinessVerticalSchema = z.enum([
+  'alcohol', 'apparel', 'auto', 'beauty', 'edu', 'entertain', 'event_plan', 'finance', 'govt', 'grocery', 'health',
+  'hotel', 'nonprofit', 'online_gambling', 'otc_drugs', 'other', 'physical_gambling', 'prof_services', 'restaurant',
+  'retail', 'travel',
+])
+const ProfileWebsite = z.string().max(256).regex(/^https?:\/\/\S+$/)
+
+// The WhatsApp business profile, read live from Meta (not stored by WebVue).
+export const InboxBusinessProfileSchema = z.object({
+  about: z.string().nullable(),
+  address: z.string().nullable(),
+  description: z.string().nullable(),
+  email: z.string().nullable(),
+  websites: z.array(z.string()).max(2),
+  vertical: InboxBusinessVerticalSchema.nullable(),
+  picture_url: z.string().url().nullable(),
+}).strict()
+
+// Meta's limits; an omitted field is left as it is, an empty string clears it (about cannot be empty).
+export const InboxBusinessProfilePatchSchema = z.object({
+  about: z.string().min(1).max(139).optional(),
+  address: z.string().max(256).optional(),
+  description: z.string().max(512).optional(),
+  email: z.union([z.literal(''), z.email().max(128)]).optional(),
+  websites: z.array(ProfileWebsite).max(2).optional(),
+  vertical: InboxBusinessVerticalSchema.nullable().optional(),
+}).strict()
+
+// JPEG or PNG up to 5 MB, base64 like every WebVue upload; sent to Meta only.
+export const InboxProfilePictureUploadSchema = z.object({
+  name: z.string().min(1).max(255),
+  mimetype: z.enum(['image/jpeg', 'image/png']),
+  data: z.string().min(1).max(Math.ceil((5 * 1024 * 1024) / 3) * 4),
+}).strict()
+
+export const InboxDisplayNameRequestSchema = z.object({ name: z.string().trim().min(3).max(128) }).strict()
+// The two-step verification PIN: six digits, never stored or returned.
+export const InboxPinSchema = z.object({ pin: z.string().regex(/^\d{6}$/) }).strict()
+
 export const InboxChannelSchema = z.object({
   id: Id,
   name: z.string(),
@@ -406,6 +503,7 @@ export const InboxChannelSchema = z.object({
   callback_url: z.string(),
   last_error: z.string().nullable(),
   last_event_at: UtcDateTime.nullable(),
+  health: InboxChannelHealthSchema,
 }).strict()
 export const InboxChannelListSchema = list(InboxChannelSchema)
 
@@ -605,3 +703,17 @@ export type InboxSettingsPatch = z.infer<typeof InboxSettingsPatchSchema>
 export type InboxChannel = z.infer<typeof InboxChannelSchema>
 export type InboxChannelCreate = z.infer<typeof InboxChannelCreateSchema>
 export type InboxChannelPatch = z.infer<typeof InboxChannelPatchSchema>
+export type InboxChannelHealth = z.infer<typeof InboxChannelHealthSchema>
+export type InboxQualityRating = z.infer<typeof InboxQualityRatingSchema>
+export type InboxNameStatus = z.infer<typeof InboxNameStatusSchema>
+export type InboxMessagingLimit = z.infer<typeof InboxMessagingLimitSchema>
+export type InboxThroughputLevel = z.infer<typeof InboxThroughputLevelSchema>
+export type InboxAccountState = z.infer<typeof InboxAccountStateSchema>
+export type InboxChannelAlert = z.infer<typeof InboxChannelAlertSchema>
+export type InboxChannelAlertKind = z.infer<typeof InboxChannelAlertKindSchema>
+export type InboxBusinessVertical = z.infer<typeof InboxBusinessVerticalSchema>
+export type InboxBusinessProfile = z.infer<typeof InboxBusinessProfileSchema>
+export type InboxBusinessProfilePatch = z.infer<typeof InboxBusinessProfilePatchSchema>
+export type InboxProfilePictureUpload = z.infer<typeof InboxProfilePictureUploadSchema>
+export type InboxDisplayNameRequest = z.infer<typeof InboxDisplayNameRequestSchema>
+export type InboxPin = z.infer<typeof InboxPinSchema>

@@ -12,9 +12,10 @@ MANAGE_AUTOMATION = 'inbox.automation.manage'
 # Its group also reads and writes rules and automatic messages (security/ir.model.access.csv): only so that publishing a
 # copy can move them to it (webvue.inbox.flow._webvue_take_over). No route gives it more than that.
 MANAGE_FLOWS = 'inbox.flows.manage'
+REPORTS_READ = 'inbox.reports.read'
 
 PERMISSIONS = frozenset({
-    READ, REPLY, ASSIGN, EXPORT, MANAGE_CHANNELS, MANAGE_SETTINGS, MANAGE_TEMPLATES, MANAGE_AUTOMATION, MANAGE_FLOWS,
+    READ, REPLY, ASSIGN, EXPORT, MANAGE_CHANNELS, MANAGE_SETTINGS, MANAGE_TEMPLATES, MANAGE_AUTOMATION, MANAGE_FLOWS, REPORTS_READ,
 })
 PERMISSION_DEPENDENCIES = {
     REPLY: {READ},
@@ -24,7 +25,7 @@ PERMISSION_DEPENDENCIES = {
 # Customer messages are sensitive: the base employee role gets none of them.
 ROLE_GRANTS = {
     'webvue_inbox.role_inbox_agent': frozenset({READ, REPLY}),
-    'webvue_inbox.role_inbox_supervisor': frozenset({READ, REPLY, ASSIGN, EXPORT}),
+    'webvue_inbox.role_inbox_supervisor': frozenset({READ, REPLY, ASSIGN, EXPORT, REPORTS_READ}),
     'webvue_inbox.role_inbox_manager': PERMISSIONS,
     'webvue_core.role_vendor_support': PERMISSIONS,
 }
