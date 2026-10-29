@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import re
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, time, timedelta
+
+import pytz
 
 from odoo.addons.webvue_api.controllers.common import ApiError, parse_positive_int
 
@@ -35,3 +37,37 @@ def parse_iso_date(value, field):
 def dump_slot(start, stop):
     """One slot as UTC ISO strings; ``start`` and ``stop`` are timezone-aware datetimes."""
     return {'start': start.strftime(UTC_FORMAT), 'stop': stop.strftime(UTC_FORMAT)}
+
+
+def parse_type_slot_query(booking_type, args, settings, now):
+    """``parse_slot_query`` with today taken in the type's calendar timezone; ``now`` is timezone-aware."""
+    tz = _type_timezone(booking_type)
+    return parse_slot_query(args, now.astimezone(tz).date(), settings['horizon_days'])
+
+
+def type_slot_items(booking_type, combination, first, last, settings, now, origin=None):
+    """The free slots of ``booking_type`` (on ``combination`` when given) from ``first`` to ``last`` inclusive.
+
+    Only slots a booking route would accept are listed: the same notice and horizon bounds ``parse_start``
+    applies. ``origin`` is the booking being rescheduled: the engine then leaves its own meeting out
+    of the busy intervals. The engine reads other bookings in the environment of ``booking_type``, so that environment
+    decides which of them count as taken.
+    """
+    tz = _type_timezone(booking_type)
+    # The engine's public slot search on an unsaved booking, anchored to the type's calendar days.
+    booking = booking_type.env['resource.booking'].new({
+        'type_id': booking_type.id, 'combination_id': combination.id or False,
+    }, origin=origin)
+    slots = booking._get_available_slots(
+        tz.localize(datetime.combine(first, time.min)),
+        tz.localize(datetime.combine(last + timedelta(days=1), time.min)),
+    )
+    earliest = now + timedelta(hours=settings['min_notice_hours'])
+    latest = now + timedelta(days=settings['horizon_days'])
+    duration = timedelta(hours=booking.duration)
+    starts = sorted(start.astimezone(UTC) for day_slots in slots.values() for start in day_slots)
+    return [dump_slot(start, start + duration) for start in starts if earliest <= start <= latest]
+
+
+def _type_timezone(booking_type):
+    return pytz.timezone(booking_type.resource_calendar_id.tz or 'UTC')
