@@ -50,7 +50,7 @@ def purpose_value(value):
 
 
 def stage_approval_mode_value(value):
-    if value not in dict(STAGE_APPROVAL_MODES):
+    if not isinstance(value, str) or value not in dict(STAGE_APPROVAL_MODES):
         raise ApiError(422, 'invalid', 'Invalid stage approval mode.', field='stage_approval_mode')
     return value
 

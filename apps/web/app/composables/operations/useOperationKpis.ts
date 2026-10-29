@@ -13,7 +13,7 @@ export function useOperationKpis(scope: OperationScope, search: MaybeRefOrGetter
     id,
     useOperationRequests(() => ({ ...operationRequestListParams(scope, false, toValue(purpose)), q: toValue(search) || undefined, state, limit: 1 }), enabled),
   ]))
-  const tiles = computed(() => operationKpiTiles(scope, Object.fromEntries(Object.entries(queries).map(([id, query]) => [id, query.data.value?.total])), t, toValue(search) || undefined))
+  const tiles = computed(() => operationKpiTiles(scope, Object.fromEntries(Object.entries(queries).map(([id, query]) => [id, query.data.value?.total])), t, toValue(search) || undefined, toValue(purpose)))
   const loading = computed(() => Object.values(queries).some(query => query.isLoading.value))
   return { tiles, loading }
 }

@@ -487,6 +487,8 @@ class TestOperationsWorkflow(WebVueApiCase):
         for path, method, payload in [
             ('/api/v1/operations/processes', 'POST', {'name': 'Bad', 'steps': steps, 'stage_approval_mode': 'any'}),
             (f'/api/v1/operations/processes/{process_id}', 'PATCH', {'name': 'Bad', 'steps': steps, 'stage_approval_mode': 'any', 'revision': 3}),
+            ('/api/v1/operations/processes', 'POST', {'name': 'Bad', 'steps': steps, 'stage_approval_mode': []}),
+            ('/api/v1/operations/processes', 'POST', {'name': 'Bad', 'steps': steps, 'stage_approval_mode': {}}),
         ]:
             response = self.api(method, path, payload)
             self.assertEqual((response.status_code, response.json()['code'], response.json().get('field')), (422, 'invalid', 'stage_approval_mode'))
