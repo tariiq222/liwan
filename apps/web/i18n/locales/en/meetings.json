@@ -109,6 +109,9 @@
   },
   "meetingsUx": {
     "cancelMeetingAction": "Cancel meeting",
+    "deleteMeetingAction": "Delete draft",
+    "deleteMeetingConfirmLabel": "Delete",
+    "confirmDeleteMeeting": "Delete the draft meeting “{name}” for good? A confirmed meeting is cancelled, not deleted.",
     "editForbidden": "You do not have permission to edit this meeting.",
     "confirmComplete": "Complete this meeting? Once completed, the minutes are locked.",
     "confirmReopen": "Reopen this meeting?",

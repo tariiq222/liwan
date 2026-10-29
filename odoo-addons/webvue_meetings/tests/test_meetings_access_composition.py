@@ -15,11 +15,17 @@ RULES = (
     'rule_resolution_editors_write', 'rule_resolution_managers_write',
 )
 # (read, write, create, unlink) per capability group on each meeting model.
-# Nobody holds unlink on minutes and resolutions: cancel is the remove action and finalized minutes are
-# immutable, so no API route deletes them. The `unlink` overrides stay as ORM-level defence.
+# Only the manage group holds unlink, and only on minutes: the `unlink` override lets a manager delete a draft
+# (a confirmed meeting is cancelled, finalized minutes are immutable). Resolutions go with their meeting.
 ACL = {
-    'group_cap_meetings_read': (True, True, True, False),
-    'group_cap_meetings_manage': (True, True, True, False),
+    'webvue_meeting_minute': {
+        'group_cap_meetings_read': (True, True, True, False),
+        'group_cap_meetings_manage': (True, True, True, True),
+    },
+    'webvue_meeting_resolution': {
+        'group_cap_meetings_read': (True, True, True, False),
+        'group_cap_meetings_manage': (True, True, True, False),
+    },
 }
 
 
@@ -65,9 +71,9 @@ class TestMeetingsAccessComposition(TransactionCase):
         manage = self.env.ref('webvue_meetings.group_cap_meetings_manage')
         self.assertIn(manage, self.env.ref('webvue_core.group_access_admin').all_implied_ids)
         self.assertIn(manage, self.env.ref('webvue_core.group_vendor_support').all_implied_ids)
-        for model in ('model_webvue_meeting_minute', 'model_webvue_meeting_resolution'):
-            model_id = self.env.ref(f'webvue_meetings.{model}').id
-            for group_name, perms in ACL.items():
+        for model, groups in ACL.items():
+            model_id = self.env.ref(f'webvue_meetings.model_{model}').id
+            for group_name, perms in groups.items():
                 group = self.env.ref(f'webvue_meetings.{group_name}')
                 access = self.env['ir.model.access'].search([('model_id', '=', model_id), ('group_id', '=', group.id)])
                 self.assertEqual(len(access), 1, (model, group_name))

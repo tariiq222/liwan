@@ -109,6 +109,9 @@
   },
   "meetingsUx": {
     "cancelMeetingAction": "إلغاء الاجتماع",
+    "deleteMeetingAction": "حذف المسودة",
+    "deleteMeetingConfirmLabel": "حذف",
+    "confirmDeleteMeeting": "هل تريد حذف مسودة الاجتماع «{name}» نهائيًا؟ يُلغى الاجتماع المؤكد ولا يُحذف.",
     "editForbidden": "ليست لديك صلاحية تعديل هذا الاجتماع.",
     "confirmComplete": "إكمال الاجتماع؟ بعد الإكمال يصبح المحضر مقفلًا.",
     "confirmReopen": "إعادة فتح الاجتماع؟",
