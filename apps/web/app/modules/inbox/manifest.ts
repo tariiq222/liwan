@@ -7,6 +7,7 @@ const manifest: AppManifest = {
   rail: [{ id: 'inbox', labelKey: 'inbox.title', shortLabelKey: 'inbox.railLabel', icon: 'i-lucide-inbox', to: '/inbox', order: 90 }],
   nav: [
     { to: '/inbox', labelKey: 'inbox.nav.conversations', icon: 'i-lucide-inbox', shortcut: 't', capability: 'inbox.conversations.read' },
+    { to: '/inbox/reports', labelKey: 'inbox.nav.reports', icon: 'i-lucide-chart-column', shortcut: '', capability: 'inbox.reports.read', feature: 'inbox.reports' },
   ],
   settings: {
     id: 'inbox', labelKey: 'inbox.title', icon: 'i-lucide-inbox', to: '/settings/apps/inbox',
@@ -25,19 +26,29 @@ const manifest: AppManifest = {
   sidebarPanel: { module: 'inbox', width: 'wide', load: () => import('../../components/inbox/InboxSidebarPanel.vue') },
   contextLinks: () => [
     { id: 'inbox-conversations', labelKey: 'inbox.nav.conversations', icon: 'i-lucide-inbox', to: '/inbox', capability: 'inbox.conversations.read' },
+    { id: 'inbox-reports', labelKey: 'inbox.nav.reports', icon: 'i-lucide-chart-column', to: '/inbox/reports', capability: 'inbox.reports.read', feature: 'inbox.reports' },
   ],
-  landing: [{ path: '/inbox', capability: 'inbox.conversations.read' }],
+  landing: [
+    { path: '/inbox', capability: 'inbox.conversations.read' },
+    { path: '/inbox/reports', capability: 'inbox.reports.read' },
+  ],
+  // The conversations item is not lit on the reports pages, which have their own item.
+  isNavActive: (path, target) => (target === '/inbox' && /^\/inbox\/reports(?:\/|$)/.test(path) ? false : undefined),
   routeCapabilities: [
+    // Reports are agent-performance data: their own capability and sub-feature, matched before the generic inbox rule.
+    { pattern: /^\/inbox\/reports(?:\/|$)/, capability: 'inbox.reports.read', feature: 'inbox.reports' },
     { pattern: /^\/inbox(?:\/|$)/, capability: 'inbox.conversations.read' },
     // A templates-only manager has no channel administration, so the template pages are not under the channels part's capability.
     { pattern: /^\/settings\/apps\/inbox\/channels\/[^/]+\/templates\/new$/, capability: 'inbox.templates.manage', feature: 'inbox.templates' },
     { pattern: /^\/settings\/apps\/inbox\/channels\/[^/]+\/templates(?:\/|$)/, capability: 'webvue.internal', anyCapabilities: ['inbox.templates.manage', 'inbox.channels.manage'] },
   ],
   bell: {
-    capabilities: ['inbox.conversations.read'],
+    capabilities: ['inbox.conversations.read', 'inbox.channels.manage'],
     kinds: [
       { kind: 'inbox.assigned', href: row => `/inbox/${row.conversation_id}` },
       { kind: 'inbox.first_response', href: row => `/inbox/${row.conversation_id}` },
+      // Number health rings only for warnings and dangers, and only for the channel managers.
+      { kind: 'inbox.channel_health', href: row => `/settings/apps/inbox/channels/${row.channel_id}/health`, title: row => String(row.title) },
     ],
   },
 }

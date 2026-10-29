@@ -132,3 +132,40 @@ test('a manager creates a keyword rule and tries it in the dry run', { tags: ['j
   await screen.getByTestId('inbox-rule-test-run').tap();
   await expect(screen.getByTestId('inbox-rule-test-rules')).toContainText(name, slow);
 });
+
+test('a manager reads the inbox reports, checks the number health and edits the business profile', { tags: ['journey', 'inbox'] }, async ({ app, screen, browser }) => {
+  test.skip(process.env.E2E_STACK === 'odoo', 'the reports journey runs on the mock stack');
+  const about = `نبذة اختبار ${Date.now().toString(36)}`;
+
+  await app.open('/login');
+  await screen.getByLabel('اسم المستخدم').fill('admin');
+  await screen.getByLabel('كلمة المرور').fill('admin');
+  await screen.getByRole('button', 'دخول').tap();
+  await expect(browser).toHaveURL(/^(?!.*\/login)/, slow);
+
+  // The overview: the figures against the previous period, and the agent table.
+  await app.open('/inbox/reports');
+  await expect(screen.getByRole('heading', 'تقارير صندوق العملاء')).toBeVisible(slow);
+  await expect(screen.getByTestId('inbox-reports-kpis')).toBeVisible(slow);
+  await expect(screen.getByTestId('inbox-agent-table')).toBeVisible(slow);
+  await expect(screen.getByText('نورة الحربي').first()).toBeVisible(slow);
+
+  // Change the period: it is kept in the address.
+  await screen.getByRole('button', '7 أيام').tap();
+  await expect(browser).toHaveURL(/period=7/, slow);
+  await expect(screen.getByTestId('inbox-reports-kpis')).toBeVisible(slow);
+
+  // The number health: the metric tiles and the alert timeline of the channel.
+  await app.open('/settings/apps/inbox/channels/1/health');
+  await expect(screen.getByTestId('inbox-health-quality')).toBeVisible(slow);
+  await expect(screen.getByTestId('inbox-health-alerts')).toBeVisible(slow);
+
+  // The business profile: edit the about text, save it to Meta and see the preview follow.
+  await app.open('/settings/apps/inbox/channels/1/profile');
+  await screen.getByTestId('inbox-profile-about').fill(about);
+  await expect(screen.getByTestId('inbox-profile-preview-about')).toContainText(about);
+  await screen.getByTestId('inbox-profile-save').tap();
+  await expect(screen.getByText('تم حفظ الملف التجاري').first()).toBeVisible(slow);
+  await browser.reload();
+  await expect(screen.getByTestId('inbox-profile-preview-about')).toContainText(about, slow);
+});

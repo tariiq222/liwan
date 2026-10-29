@@ -2,6 +2,7 @@
 import { useClipboard } from '@vueuse/core'
 import { InboxChannelPatchSchema } from '@webvue/contracts'
 import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
+import InboxChannelTabs from '@/components/inbox/InboxChannelTabs.vue'
 import { CHANNEL_STATE_TONE } from '@/composables/inbox/inboxPresentation'
 import {
   useDeleteInboxChannel, useInboxChannel, useInboxDepartments, usePatchInboxChannel, useSyncInboxTemplates, useTestInboxChannel,
@@ -124,6 +125,7 @@ async function copy(kind: 'callback' | 'token', value: string) {
     </template>
 
     <template v-if="channel">
+      <InboxChannelTabs v-if="manage" :channel-id="channel.id" />
       <UAlert v-if="channel.last_error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('inbox.settings.channels.lastError')" :description="channel.last_error" data-testid="inbox-channel-error" />
 
       <SharedRecordSection id="webhook" variant="panel" :title="t('inbox.settings.channels.webhook.title')" :description="t('inbox.settings.channels.webhook.hint')">

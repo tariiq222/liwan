@@ -7,7 +7,8 @@
     "select": "Select a conversation",
     "selectDescription": "Pick a conversation from the list to read and reply.",
     "nav": {
-      "conversations": "Conversations"
+      "conversations": "Conversations",
+      "reports": "Reports"
     },
     "states": {
       "open": "Open",
@@ -671,6 +672,489 @@
         "none": "None",
         "rules": "Matching rules, in order",
         "noRules": "No rule matches."
+      }
+    },
+    "bell": {
+      "channelHealth": "WhatsApp number health"
+    },
+    "reports": {
+      "title": "Inbox reports",
+      "navLabel": "Report sections",
+      "backToInbox": "Conversations",
+      "tabs": {
+        "overview": "Overview",
+        "costs": "Costs",
+        "templates": "Templates"
+      },
+      "period": {
+        "label": "Period",
+        "d7": "7 days",
+        "d30": "30 days",
+        "d90": "90 days",
+        "custom": "Custom",
+        "from": "From date",
+        "to": "To date",
+        "invalid": "Choose a valid range of at most {max} days"
+      },
+      "filters": {
+        "title": "Filters",
+        "channel": "Channel",
+        "department": "Department",
+        "agent": "Agent",
+        "allChannels": "All channels",
+        "allDepartments": "All departments",
+        "allAgents": "All agents",
+        "clear": "Clear filters"
+      },
+      "tags": {
+        "range": "{from} to {to}",
+        "timezone": "Time zone: {zone}",
+        "computedAt": "Figures updated: {time}",
+        "utcDays": "Days are in UTC"
+      },
+      "units": {
+        "day": "d",
+        "hour": "h",
+        "minute": "m",
+        "second": "s"
+      },
+      "change": {
+        "up": "{value} higher than the previous period",
+        "down": "{value} lower than the previous period",
+        "flat": "No change vs previous period",
+        "new": "New vs previous period",
+        "none": "No earlier data to compare"
+      },
+      "kpiLabel": "Period figures",
+      "kpi": {
+        "opened": "New conversations",
+        "resolved": "Resolved conversations",
+        "firstResponse": "Average first response",
+        "resolution": "Average resolution time",
+        "csat": "Customer satisfaction",
+        "automated": "Automated reply share",
+        "messages": "Messages in / out",
+        "templateFailures": "Template failures"
+      },
+      "charts": {
+        "volume": {
+          "title": "Message volume",
+          "description": "Inbound, outbound and automated messages over the period",
+          "empty": "No messages in this period",
+          "in": "Inbound from customers",
+          "out": "Outbound by agents",
+          "automated": "Automated replies"
+        },
+        "firstResponse": {
+          "title": "First response time",
+          "description": "How long customers waited for the first agent reply",
+          "empty": "No first responses in this period",
+          "series": "Conversations",
+          "buckets": {
+            "under_5m": "Under 5 min",
+            "under_15m": "5 to 15 min",
+            "under_1h": "15 min to 1 h",
+            "under_4h": "1 to 4 h",
+            "under_24h": "4 to 24 h",
+            "over_24h": "Over 24 h"
+          }
+        },
+        "csat": {
+          "title": "Customer satisfaction",
+          "description": "Answers to the satisfaction survey after a conversation is resolved",
+          "empty": "No satisfaction answers in this period",
+          "good": "Satisfied",
+          "neutral": "Neutral",
+          "bad": "Unsatisfied",
+          "centerSub": "Satisfaction"
+        },
+        "answered": {
+          "title": "Who answered?",
+          "description": "Agents versus automated replies",
+          "empty": "No outbound replies in this period",
+          "agents": "Agents",
+          "automated": "Automated",
+          "centerSub": "outbound"
+        },
+        "resolvedBy": {
+          "title": "Resolved by department",
+          "description": "Conversations resolved in each department",
+          "empty": "No resolved conversations in this period",
+          "series": "Resolved"
+        }
+      },
+      "agents": {
+        "title": "Agent performance",
+        "description": "Resolved conversations and response times per agent",
+        "caption": "Agent performance table",
+        "cols": {
+          "index": "#",
+          "agent": "Agent",
+          "resolved": "Resolved",
+          "responses": "First responses",
+          "firstResponse": "Avg first response",
+          "resolution": "Avg resolution",
+          "csat": "Satisfaction",
+          "out": "Messages out"
+        },
+        "unassigned": "No agent (automated)",
+        "export": "Export CSV",
+        "exported": "File downloaded",
+        "exportFailed": "The report could not be exported",
+        "empty": "No data in this period",
+        "emptyHint": "Try a longer period or remove a filter."
+      },
+      "error": "The report could not be loaded",
+      "costs": {
+        "hint": "Figures come from Meta, are approximate and may differ from the invoice. Days are in UTC.",
+        "kpiLabel": "Cost figures",
+        "kpi": {
+          "total": "Total cost",
+          "totalHint": "Approximate (Meta)",
+          "paid": "Paid messages",
+          "free": "Free messages",
+          "freeHint": "Service window and free entry points",
+          "marketing": "Marketing share",
+          "marketingHint": "Of the total cost"
+        },
+        "noCost": "Meta returns no cost for this account (a partner credit line), so only volumes are shown.",
+        "charts": {
+          "daily": {
+            "title": "Daily cost",
+            "description": "Each day's cost in UTC",
+            "empty": "No cost in this period",
+            "series": "Cost"
+          },
+          "category": {
+            "title": "Cost by category",
+            "description": "How the cost splits across pricing categories",
+            "empty": "No cost by category",
+            "centerSub": "Total"
+          },
+          "type": {
+            "title": "Volume by pricing type",
+            "description": "Messages per pricing type",
+            "empty": "No messages in this period",
+            "series": "Messages"
+          }
+        },
+        "category": {
+          "authentication": "Authentication",
+          "authentication_international": "International authentication",
+          "marketing": "Marketing",
+          "marketing_lite": "Marketing lite",
+          "service": "Service",
+          "utility": "Utility",
+          "referral_conversion": "Referral conversion",
+          "unknown": "Unknown"
+        },
+        "type": {
+          "regular": "Regular",
+          "free_customer_service": "Free customer service",
+          "free_entry_point": "Free entry point",
+          "unknown": "Unknown"
+        },
+        "countries": {
+          "title": "By country",
+          "description": "The countries with the most volume",
+          "caption": "Cost by country table",
+          "country": "Country",
+          "volume": "Messages",
+          "cost": "Cost",
+          "empty": "No country data in this period"
+        },
+        "sync": {
+          "title": "Channel sync",
+          "description": "When we last pulled the figures from Meta",
+          "never": "Not synced yet",
+          "at": "Last sync {time}",
+          "error": "Sync error"
+        }
+      },
+      "templates": {
+        "title": "Template analytics",
+        "hint": "Meta's figures per template (up to 90 days) beside our own sends and failures.",
+        "noChannels": "There is no WhatsApp channel to show template analytics for.",
+        "caption": "Template analytics table",
+        "cols": {
+          "template": "Template",
+          "sent": "Sent",
+          "delivered": "Delivered",
+          "read": "Read",
+          "clicked": "Clicks",
+          "spent": "Spent",
+          "webvueSent": "We sent",
+          "webvueFailed": "Failed"
+        },
+        "empty": "No templates to show",
+        "emptyHint": "No approved template was sent from this channel in the period.",
+        "insightsOff": "Template analytics is not enabled",
+        "insightsOffHint": "Meta needs a one-time opt-in on the business account before it gives us delivery, read and click figures.",
+        "enableLink": "Enable template analytics",
+        "detail": {
+          "back": "Template analytics",
+          "funnel": "Message funnel",
+          "funnelLabel": "Stages the template reached",
+          "sent": "Sent",
+          "delivered": "Delivered",
+          "read": "Read",
+          "clicked": "Clicks",
+          "ofSent": "of sent",
+          "daily": {
+            "title": "Day by day",
+            "description": "Sent, delivered, read and clicks for each day",
+            "empty": "No data for this template in the period"
+          },
+          "buttons": {
+            "title": "Button clicks",
+            "caption": "Template button clicks table",
+            "type": "Type",
+            "text": "Button text",
+            "clicked": "Clicks",
+            "empty": "No clicks on this template's buttons",
+            "quick_reply": "Quick reply",
+            "url": "Link",
+            "unknown": "Unknown"
+          },
+          "totals": {
+            "spent": "Spent",
+            "webvueSent": "Sent from WebVue",
+            "webvueFailed": "Failed in WebVue"
+          }
+        }
+      }
+    },
+    "health": {
+      "tabs": {
+        "label": "Channel sections",
+        "details": "Details",
+        "health": "Health",
+        "profile": "Business profile",
+        "templates": "Templates"
+      },
+      "title": "Number health",
+      "refresh": "Refresh now",
+      "refreshed": "The number data was refreshed",
+      "checkedAt": "Last checked: {time}",
+      "neverChecked": "The number has not been checked yet. Press \"Refresh now\".",
+      "tilesLabel": "Number metrics",
+      "tiles": {
+        "quality": "Quality rating",
+        "limit": "Messaging limit",
+        "limitHint": "Per 24 hours, shared by all numbers of the business portfolio",
+        "throughput": "Throughput",
+        "name": "Verified name",
+        "code": "Number verification",
+        "number": "Display number",
+        "noName": "No verified name yet",
+        "requested": "Requested name: {name}",
+        "verified": "Verified",
+        "unverified": "Not verified"
+      },
+      "quality": {
+        "green": "High",
+        "yellow": "Medium",
+        "red": "Low",
+        "unknown": "Unknown"
+      },
+      "limit": {
+        "tier_50": "50",
+        "tier_250": "250",
+        "tier_2k": "2,000",
+        "tier_10k": "10,000",
+        "tier_100k": "100,000",
+        "unlimited": "Unlimited",
+        "not_set": "Not set",
+        "unknown": "Unknown"
+      },
+      "throughput": {
+        "standard": "Standard",
+        "high": "High",
+        "not_applicable": "Not applicable",
+        "unknown": "Unknown"
+      },
+      "nameStatus": {
+        "approved": "Approved",
+        "available_without_review": "Available without review",
+        "pending_review": "Pending review",
+        "declined": "Declined",
+        "expired": "Expired",
+        "none": "None",
+        "unknown": "Unknown"
+      },
+      "nameReasons": {
+        "NAME_EMPLOYEE_ISSUE": "The name belongs to an employee",
+        "NAME_ENDCLIENT_NOTRELATED": "The name is unrelated to your business",
+        "NAME_FORMAT_UNACCEPTABLE": "The name format is not acceptable",
+        "NAME_INDIVIDUAL_ISSUE": "The name belongs to an individual",
+        "NAME_NOT_CONSISTENT": "The name does not match your business",
+        "UNKNOWN": "Unknown reason"
+      },
+      "account": {
+        "restricted": "The account is restricted",
+        "restrictedUntil": "Meta restricted some account capabilities until {time}.",
+        "restrictedNoDate": "Meta restricted some account capabilities.",
+        "scheduled_for_disable": "The account is scheduled to be disabled",
+        "scheduledHint": "The business account will be disabled unless you resolve the cause in WhatsApp Manager.",
+        "disabled": "The account is disabled",
+        "disabledHint": "Meta disabled the business account: nothing can be sent until it is reinstated in WhatsApp Manager.",
+        "ok": "The account works normally"
+      },
+      "alerts": {
+        "title": "Alert timeline",
+        "description": "Quality, limit, name and account changes as Meta reported them",
+        "empty": "No alerts yet",
+        "caption": "Number alert timeline",
+        "severity": {
+          "info": "Info",
+          "warning": "Warning",
+          "danger": "Danger"
+        },
+        "reason": "Reason",
+        "expires": "Expires {time}",
+        "range": "{from}–{to} of {total}",
+        "kind": {
+          "quality_changed": "Quality rating changed to {quality}",
+          "messaging_limit_changed": "Messaging limit changed to {limit}",
+          "messaging_limit_changed_from": "Messaging limit changed from {previous} to {limit}",
+          "throughput_upgraded": "Throughput was upgraded",
+          "name_approved": "The display name was approved",
+          "name_rejected": "The requested name \"{name}\" was rejected",
+          "name_pending": "The requested name \"{name}\" is under Meta review",
+          "account_restricted": "The account was restricted",
+          "account_disabled": "The account was disabled",
+          "account_reinstated": "The account was reinstated",
+          "account_violation": "A violation was recorded on the account",
+          "scaling_denied": "Meta declined to raise the limit",
+          "connection_failed": "The connection to Meta failed"
+        }
+      },
+      "webhook": {
+        "title": "Webhook subscriptions",
+        "description": "Subscribe to these fields in the Meta app so every change to the number, account and templates reaches us.",
+        "copy": "Copy",
+        "copied": "Copied",
+        "copyAria": "Copy the field name {field}"
+      },
+      "actions": {
+        "displayName": {
+          "title": "Request a display name change",
+          "hint": "Meta reviews it and may reject it. The current name stays until it is approved.",
+          "label": "New name",
+          "submit": "Send request",
+          "done": "The name change was sent for review",
+          "invalid": "3 to 128 characters"
+        },
+        "pin": {
+          "title": "Two-step verification PIN",
+          "hint": "Six digits. The PIN is not stored and not shown after sending.",
+          "label": "PIN (6 digits)",
+          "submit": "Set PIN",
+          "done": "The two-step verification PIN was set",
+          "invalid": "The PIN is exactly six digits"
+        },
+        "register": {
+          "title": "Register the number",
+          "hint": "Register again after changing the PIN or migrating the number. It needs the two-step PIN (6 digits).",
+          "pinLabel": "PIN (6 digits)",
+          "button": "Register number",
+          "confirmTitle": "Register the number with Meta?",
+          "confirmDescription": "Meta allows only ten registration attempts per number in 72 hours, then blocks the number for 72 hours. Check the PIN before you continue.",
+          "confirm": "Confirm registration",
+          "done": "The number was registered"
+        },
+        "insights": {
+          "title": "Template analytics",
+          "hint": "A one-time opt-in on the business account gives us delivery, read and click figures.",
+          "enabled": "Enabled",
+          "enable": "Enable analytics",
+          "confirmTitle": "Enable template analytics?",
+          "confirmDescription": "This cannot be undone: Meta does not allow turning analytics off once it is on. It is unavailable for EU, UK and Japan accounts.",
+          "confirm": "Yes, enable",
+          "done": "Template analytics was enabled"
+        },
+        "sync": {
+          "title": "Sync analytics",
+          "hint": "Pull cost and template analytics from Meta now. Once every 10 minutes per channel.",
+          "button": "Sync now",
+          "done": "Analytics was synced",
+          "last": "Last sync: {time}",
+          "never": "Not synced yet",
+          "error": "Sync error"
+        },
+        "currency": "Billing currency: {currency}"
+      }
+    },
+    "profile": {
+      "title": "WhatsApp business profile",
+      "description": "What customers see when they open your business info. It is read from Meta live and no copy is kept.",
+      "loadError": "The profile could not be read from Meta",
+      "fields": {
+        "about": "About",
+        "address": "Address",
+        "description": "Description",
+        "email": "Email",
+        "website1": "First website",
+        "website2": "Second website",
+        "vertical": "Business category"
+      },
+      "hints": {
+        "about": "1 to 139 characters, plain text.",
+        "websites": "A link starting with http:// or https://",
+        "noVertical": "Not set"
+      },
+      "counter": "{used} / {max}",
+      "invalid": {
+        "about": "About is required (up to 139 characters)",
+        "address": "Address is up to 256 characters",
+        "description": "Description is up to 512 characters",
+        "email": "Not a valid email (up to 128 characters)",
+        "website": "A link starting with http:// or https:// (up to 256 characters)"
+      },
+      "vertical": {
+        "alcohol": "Alcohol",
+        "apparel": "Apparel and fashion",
+        "auto": "Automotive",
+        "beauty": "Beauty and personal care",
+        "edu": "Education",
+        "entertain": "Entertainment",
+        "event_plan": "Event planning",
+        "finance": "Finance and banking",
+        "govt": "Government",
+        "grocery": "Grocery",
+        "health": "Health",
+        "hotel": "Hotels and hospitality",
+        "nonprofit": "Non-profit",
+        "online_gambling": "Online gambling",
+        "otc_drugs": "Over-the-counter drugs",
+        "other": "Other",
+        "physical_gambling": "Physical gambling",
+        "prof_services": "Professional services",
+        "restaurant": "Restaurants and cafes",
+        "retail": "Retail",
+        "travel": "Travel and tourism"
+      },
+      "picture": {
+        "title": "Profile picture",
+        "hint": "JPEG or PNG up to 5 MB, square and at least 192 px wide.",
+        "choose": "Choose a picture",
+        "uploading": "Uploading to Meta…",
+        "uploaded": "The picture was updated",
+        "type": "The picture must be JPEG or PNG",
+        "size": "The picture is larger than 5 MB",
+        "needsAppId": "To upload a picture, add the Meta App ID in the channel details.",
+        "appIdLink": "Open channel details",
+        "aria": "Business profile picture"
+      },
+      "save": "Save to Meta",
+      "saved": "The business profile was saved",
+      "reset": "Discard changes",
+      "preview": {
+        "title": "Preview",
+        "hint": "An approximation of what customers see.",
+        "business": "Business account",
+        "about": "About",
+        "noAbout": "No about text yet"
       }
     }
   }
