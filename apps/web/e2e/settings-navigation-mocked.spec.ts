@@ -63,7 +63,7 @@ const BRANCH_ROLES = [
   { id: 4, key: 'finance_manager', active: true, name: { ar: 'Finance manager', en: 'Finance manager' }, company_id: null },
 ]
 const BRANCH_POLICY = {
-  version: 'b1-v1', mode: 'delegated',
+  version: 'b1-v1', mode: 'delegated', preset: 'independent_branches',
   branches: [{ id: 2, name: 'Riyadh branch', inherit: false, role_ids: [] as number[] }, { id: 3, name: 'Jeddah branch', inherit: false, role_ids: [] as number[] }],
   roles: BRANCH_ROLES,
 }
@@ -323,7 +323,7 @@ test('branch policy selects controlled inheritance and saves exact per-branch gr
     if (route.request().method() === 'PATCH') {
       submitted = route.request().postDataJSON()
       const body = submitted as unknown as { mode: string; branches: Array<{ id: number; inherit: boolean; role_ids: number[] }> }
-      policy = { ...policy, mode: body.mode, version: 'b1-v2', branches: policy.branches.map(branch => ({ ...branch, ...body.branches.find(row => row.id === branch.id) })) }
+      policy = { ...policy, mode: body.mode, preset: 'custom', version: 'b1-v2', branches: policy.branches.map(branch => ({ ...branch, ...body.branches.find(row => row.id === branch.id) })) }
     }
     await route.fulfill({ json: policy })
   })
