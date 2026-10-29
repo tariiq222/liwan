@@ -282,7 +282,9 @@ class TestPayrollEos(PayrollCase):
         first = self._confirmed_settlement()
         old = self.env['webvue.hr.payroll.eos.settlement'].browse(first['id'])
         self.leaver.write({'departure_date': date(2027, 6, 30), 'departure_reason_id': self.resigned.id})
-        self.assertEqual(self.api('GET', f'{EOS}/{self.leaver.id}/settlement').status_code, 404)
+        # The old settlement stays visible, flagged as no longer matching the new departure.
+        shown = self.api('GET', f'{EOS}/{self.leaver.id}/settlement').json()
+        self.assertEqual((shown['id'], shown['departure_mismatch']), (first['id'], True))
         res = self._put_settlement(self.officer, self.leaver, {'case': 'resignation', 'open_deductions': 0})
         self.assertEqual(res.status_code, 200, res.text)
         new = res.json()
