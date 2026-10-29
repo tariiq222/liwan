@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
-  InboxCannedReplyListSchema, InboxChannelListSchema, InboxChannelSchema, InboxConversationDetailSchema, InboxConversationListSchema,
+  InboxAttachmentSchema, InboxCannedReplyListSchema, InboxChannelListSchema, InboxChannelSchema, InboxConversationDetailSchema, InboxConversationListSchema,
   InboxDepartmentListSchema, InboxMessageListSchema, InboxMessageSchema, InboxSettingsSchema, InboxTagListSchema, InboxTemplateListSchema,
 } from '@webvue/contracts'
 import { inboxPreviewData, resetInboxPreview } from '../../../../e2e/inbox-ui-preview-data.mjs'
@@ -46,10 +46,51 @@ describe('inbox audit mock', () => {
     const ids = (query: string) => (call('GET', `/api/v1/inbox/conversations/1/messages?${query}`).body as { items: { id: number }[]; total: number })
     const newest = ids('limit=3&offset=0')
     const older = ids('limit=3&offset=3')
-    expect(newest.total).toBe(4)
+    expect(newest.total).toBeGreaterThan(10)
     expect(newest.items).toHaveLength(3)
-    expect(older.items).toHaveLength(1)
+    expect(older.items).toHaveLength(3)
     expect(older.items[0]!.id).toBeLessThan(newest.items[0]!.id)
+  })
+
+  it('shows one message of every kind with its reply, reaction, location and chosen option', () => {
+    const items = InboxMessageListSchema.parse(call('GET', '/api/v1/inbox/conversations/1/messages?limit=100').body).items
+    expect(new Set(items.map(item => item.kind))).toEqual(new Set(['text', 'image', 'location', 'contacts', 'audio', 'video', 'sticker', 'interactive', 'document']))
+    expect(items.map(item => item.interactive?.type).filter(Boolean)).toEqual(['buttons', 'list', 'cta_url'])
+    expect(items.some(item => item.reply_to && item.reactions.customer)).toBe(true)
+    expect(items.some(item => item.selected_option?.id === 'btn_1')).toBe(true)
+  })
+
+  it('uploads a file, sends it once with a caption and a quoted message, and refuses what the server refuses', () => {
+    const upload = (name: string, mimetype: string, size: number) => call('POST', '/api/v1/inbox/conversations/1/uploads', { name, mimetype, data: Buffer.alloc(size, 65).toString('base64') })
+    expect(upload('big.png', 'image/png', 5 * 1048576 + 1).status).toBe(413)
+    expect(upload('big.pdf', 'application/pdf', 10 * 1048576 + 1).status).toBe(413)
+    expect(upload('edge.pdf', 'application/pdf', 10 * 1048576).status).toBe(201)
+    expect(upload('anim.gif', 'image/gif', 10).status).toBe(422)
+    const attachment = InboxAttachmentSchema.parse(upload('plan.pdf', 'application/pdf', 2048).body)
+    const target = (call('GET', '/api/v1/inbox/conversations/1/messages?limit=1').body as { items: { id: number }[] }).items[0]!
+    const sent = InboxMessageSchema.parse(call('POST', '/api/v1/inbox/conversations/1/messages', { attachment_id: attachment.id, caption: 'الخطة', reply_to_id: target.id }).body)
+    expect(sent).toMatchObject({ kind: 'document', body: 'الخطة', attachments: [attachment], reply_to: { id: target.id } })
+    expect(call('POST', '/api/v1/inbox/conversations/1/messages', { attachment_id: attachment.id }).status).toBe(422)
+    const voice = InboxAttachmentSchema.parse(upload('note.ogg', 'audio/ogg', 2048).body)
+    expect(call('POST', '/api/v1/inbox/conversations/1/messages', { attachment_id: voice.id, caption: 'x' }).status).toBe(422)
+    expect(InboxMessageSchema.parse(call('POST', '/api/v1/inbox/conversations/1/messages', { attachment_id: voice.id }).body).kind).toBe('audio')
+    expect(call('POST', '/api/v1/inbox/conversations/1/messages', { body: 'x', reply_to_id: 99999 }).status).toBe(422)
+  })
+
+  it('sends a location and an interactive message only inside the window', () => {
+    const location = { latitude: 24.7, longitude: 46.6, name: null, address: null }
+    const interactive = { type: 'buttons', body: 'اختر', header: null, footer: null, buttons: [{ id: 'btn_1', title: 'نعم' }] }
+    expect(InboxMessageSchema.parse(call('POST', '/api/v1/inbox/conversations/1/messages', { location }).body).location).toEqual(location)
+    expect(InboxMessageSchema.parse(call('POST', '/api/v1/inbox/conversations/1/messages', { interactive }).body).interactive).toEqual(interactive)
+    expect(call('POST', '/api/v1/inbox/conversations/2/messages', { location }).status).toBe(422)
+    expect(call('POST', '/api/v1/inbox/conversations/2/messages', { interactive }).status).toBe(422)
+  })
+
+  it('reacts to a message, removes the reaction, and answers typing with 204', () => {
+    const target = (call('GET', '/api/v1/inbox/conversations/1/messages?limit=1').body as { items: { id: number }[] }).items[0]!
+    expect(InboxMessageSchema.parse(call('POST', `/api/v1/inbox/messages/${target.id}/reaction`, { emoji: '👍' }).body).reactions.agent).toBe('👍')
+    expect(InboxMessageSchema.parse(call('POST', `/api/v1/inbox/messages/${target.id}/reaction`, { emoji: '' }).body).reactions.agent).toBeNull()
+    expect(call('POST', '/api/v1/inbox/conversations/1/typing').status).toBe(204)
   })
 
   it('retries only a failed message', () => {
