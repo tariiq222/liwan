@@ -14,11 +14,11 @@ BASE = '/api/v1/inbox'
 WA_ID = '966501112222'
 # Every key of the contract's InboxRuleSchema and InboxChannelAutomationSchema blocks.
 RULE_KEYS = {
-    'id', 'sequence', 'channel', 'name', 'active', 'match_kind', 'keywords', 'option_id', 'hours', 'stop', 'reply',
+    'id', 'sequence', 'channel', 'name', 'active', 'match_kind', 'keywords', 'option_id', 'flow', 'hours', 'stop', 'reply',
     'resolve', 'department', 'assignee', 'tags', 'priority',
 }
 RULE_BODY = {
-    'channel_id': None, 'name': 'Prices', 'active': True, 'match_kind': 'contains', 'keywords': ['price'], 'option_id': None,
+    'channel_id': None, 'name': 'Prices', 'active': True, 'match_kind': 'contains', 'keywords': ['price'], 'option_id': None, 'flow_id': None,
     'hours': 'any', 'stop': True, 'reply': {'body': 'See our price list'}, 'resolve': False, 'department_id': None,
     'assignee_id': None, 'tag_ids': [], 'priority': None,
 }

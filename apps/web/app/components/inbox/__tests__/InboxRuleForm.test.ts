@@ -9,7 +9,7 @@ import { PRIORITIES } from '../../../composables/inbox/inboxPresentation'
 
 const filename = new URL('../InboxRuleForm.vue', import.meta.url).pathname
 const STORED: InboxRule = {
-  id: 4, sequence: 10, channel: null, name: 'حجز', active: true, match_kind: 'contains', keywords: ['حجز'], option_id: null, hours: 'any', stop: true,
+  id: 4, sequence: 10, channel: null, flow: null, name: 'حجز', active: true, match_kind: 'contains', keywords: ['حجز'], option_id: null, hours: 'any', stop: true,
   reply: { body: 'تفضل' }, resolve: false, department: null, assignee: null, tags: [], priority: null,
 }
 
@@ -24,8 +24,9 @@ function mountForm(props: { rule?: InboxRule } = {}, saveImpl?: () => Promise<un
   const bindings = {
     _defineComponent: Vue.defineComponent, _unref: Vue.unref, ref: Vue.ref, reactive: Vue.reactive, computed: Vue.computed,
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useToast: () => ({ add: toast }),
-    ...helpers, PRIORITIES, InboxAutoContentEditor: {},
+    ...helpers, PRIORITIES, InboxAutoContentEditor: {}, InboxFlowPicker: {},
     useSaveInboxRule: () => ({ mutateAsync: save, isPending: Vue.ref(false) }),
+    useInboxCatalogEnabled: () => Vue.ref(true),
     useInboxAutomationChannels: () => list(), useInboxDepartments: () => list(), useInboxTags: () => list(), useInboxAgents: () => list(),
   }
   const code = ts.transpileModule(script, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText
@@ -85,5 +86,21 @@ describe('InboxRuleForm', () => {
     await state.submit()
     expect(state.fieldError('keywords')).toBe('الكلمات مطلوبة')
     expect(toast).toHaveBeenCalledWith(expect.objectContaining({ color: 'error' }))
+  })
+
+  it('needs a channel and a form for a form rule, and sends the form id', async () => {
+    const { state, save } = mountForm()
+    state.draft.name = 'عند الطلب'
+    state.draft.matchKind = 'flow'
+    state.draft.resolve = true
+    state.draft.replyEnabled = false
+    await state.submit()
+    expect(save).not.toHaveBeenCalled()
+    expect(state.matchError).toBe('inbox.automation.rules.flowNeedsChannel')
+    state.draft.channelId = 3
+    expect(state.matchError).toBe('inbox.automation.rules.flowRequired')
+    state.draft.flowId = 9
+    await state.submit()
+    expect(save).toHaveBeenCalledWith({ id: undefined, body: expect.objectContaining({ match_kind: 'flow', flow_id: 9, channel_id: 3, keywords: [], option_id: null }) })
   })
 })

@@ -9,6 +9,10 @@ class WebVueInboxMailMessage(models.Model):
     # customer name of the conversation a bell row points at.
     webvue_notification_kind = fields.Selection(selection_add=[
         ('inbox.assigned', 'Conversation assigned'), ('inbox.first_response', 'Customer waiting for a first reply'),
+        ('inbox.channel_health', 'WhatsApp number health'),
     ])
     webvue_inbox_conversation_id = fields.Integer(copy=False, index=True)
     webvue_inbox_contact_name = fields.Char(copy=False)
+    # The channel (id and name) a health bell row points at.
+    webvue_inbox_channel_id = fields.Integer(copy=False, index=True)
+    webvue_inbox_channel_name = fields.Char(copy=False)

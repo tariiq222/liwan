@@ -2,6 +2,7 @@ import {
   InboxAutoContentSchema, InboxChannelAutomationSchema, InboxRuleWriteSchema, InboxWorkingHoursSchema,
   type InboxAutoContent, type InboxChannelAutomation, type InboxPriority, type InboxRule, type InboxRuleMatchKind, type InboxRuleWrite, type InboxWorkingHours,
 } from '@webvue/contracts'
+import { buildCommerceContent, commerceToDraft, emptyCommerceDraft, type CommerceDraft } from './inboxCommerce'
 import { buildInteractive, emptyInteractiveDraft, interactiveToDraft, type InteractiveDraft } from './inboxInteractive'
 
 // Pure helpers of the inbox automation screens: the weekly hours grid, the text-or-interactive content of an
@@ -63,21 +64,22 @@ export function timezoneChoices(current: string): string[] {
 
 // ---------------------------------------------------------------- automatic message content
 
-export type AutoContentMode = 'text' | 'interactive'
-export interface AutoContentDraft { mode: AutoContentMode; body: string; interactive: InteractiveDraft }
+export type AutoContentMode = 'text' | 'interactive' | 'commerce'
+export interface AutoContentDraft { mode: AutoContentMode; body: string; interactive: InteractiveDraft; commerce: CommerceDraft }
 
-export const emptyAutoContentDraft = (): AutoContentDraft => ({ mode: 'text', body: '', interactive: emptyInteractiveDraft() })
+export const emptyAutoContentDraft = (): AutoContentDraft => ({ mode: 'text', body: '', interactive: emptyInteractiveDraft(), commerce: emptyCommerceDraft() })
 
 export function autoContentToDraft(content: InboxAutoContent | null): AutoContentDraft {
   const draft = emptyAutoContentDraft()
   if (!content) return draft
   if ('interactive' in content) return { ...draft, mode: 'interactive', interactive: interactiveToDraft(content.interactive) }
+  if ('commerce' in content) return { ...draft, mode: 'commerce', commerce: commerceToDraft(content.commerce) }
   return { ...draft, body: content.body }
 }
 
 /** The content the server stores, or null while the draft is empty or breaks a limit. */
 export function buildAutoContent(draft: AutoContentDraft): InboxAutoContent | null {
-  const candidate = draft.mode === 'text' ? { body: draft.body.trim() } : { interactive: buildInteractive(draft.interactive) }
+  const candidate = draft.mode === 'text' ? { body: draft.body.trim() } : draft.mode === 'interactive' ? { interactive: buildInteractive(draft.interactive) } : { commerce: buildCommerceContent(draft.commerce) }
   const parsed = InboxAutoContentSchema.safeParse(candidate)
   return parsed.success ? parsed.data : null
 }
@@ -85,7 +87,7 @@ export function buildAutoContent(draft: AutoContentDraft): InboxAutoContent | nu
 // ---------------------------------------------------------------- rules
 
 type InboxRuleHours = InboxRule['hours']
-export const RULE_MATCH_KINDS: readonly InboxRuleMatchKind[] = ['any', 'contains', 'exact', 'starts_with', 'option']
+export const RULE_MATCH_KINDS: readonly InboxRuleMatchKind[] = ['any', 'contains', 'exact', 'starts_with', 'option', 'flow', 'order']
 export const RULE_HOURS: readonly InboxRuleHours[] = ['any', 'inside', 'outside']
 export const TEXT_MATCH_KINDS: readonly InboxRuleMatchKind[] = ['contains', 'exact', 'starts_with']
 
@@ -96,6 +98,8 @@ export interface RuleDraft {
   matchKind: InboxRuleMatchKind
   keywords: string[]
   optionId: string
+  /** The form whose submission triggers the rule, for the `flow` match. */
+  flowId: number | null
   hours: InboxRuleHours
   stop: boolean
   replyEnabled: boolean
@@ -108,14 +112,14 @@ export interface RuleDraft {
 }
 
 export const emptyRuleDraft = (): RuleDraft => ({
-  name: '', active: true, channelId: null, matchKind: 'contains', keywords: [], optionId: '', hours: 'any', stop: true,
+  name: '', active: true, channelId: null, matchKind: 'contains', keywords: [], optionId: '', flowId: null, hours: 'any', stop: true,
   replyEnabled: true, reply: emptyAutoContentDraft(), departmentId: null, assigneeId: null, tagIds: [], priority: null, resolve: false,
 })
 
 export function ruleToDraft(rule: InboxRule): RuleDraft {
   return {
     name: rule.name, active: rule.active, channelId: rule.channel?.id ?? null, matchKind: rule.match_kind, keywords: [...rule.keywords],
-    optionId: rule.option_id ?? '', hours: rule.hours, stop: rule.stop, replyEnabled: rule.reply !== null, reply: autoContentToDraft(rule.reply),
+    optionId: rule.option_id ?? '', flowId: rule.flow?.id ?? null, hours: rule.hours, stop: rule.stop, replyEnabled: rule.reply !== null, reply: autoContentToDraft(rule.reply),
     departmentId: rule.department?.id ?? null, assigneeId: rule.assignee?.id ?? null, tagIds: rule.tags.map(tag => tag.id), priority: rule.priority, resolve: rule.resolve,
   }
 }
@@ -127,6 +131,7 @@ export function ruleWriteCandidate(draft: RuleDraft): Record<keyof InboxRuleWrit
     name: draft.name.trim(), active: draft.active, channel_id: draft.channelId, match_kind: draft.matchKind,
     keywords: text ? draft.keywords.map(word => word.trim()).filter(Boolean) : [],
     option_id: draft.matchKind === 'option' ? draft.optionId.trim() || null : null,
+    flow_id: draft.matchKind === 'flow' ? draft.flowId : null,
     hours: draft.hours, stop: draft.stop,
     reply: draft.replyEnabled ? buildAutoContent(draft.reply) : null,
     resolve: draft.resolve, department_id: draft.departmentId, assignee_id: draft.assigneeId, tag_ids: draft.tagIds, priority: draft.priority,

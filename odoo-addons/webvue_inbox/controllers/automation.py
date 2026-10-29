@@ -24,8 +24,11 @@ from odoo.addons.webvue_inbox.controllers.helpers import (
     reject,
 )
 from odoo.addons.webvue_inbox.controllers.reply_parsing import parse_object
-from odoo.addons.webvue_inbox.models.access_service import MANAGE_AUTOMATION
-from odoo.addons.webvue_inbox.models.constants import AUTOMATION_FEATURE
+from odoo.addons.webvue_inbox.models.access_service import CAMPAIGNS, MANAGE_AUTOMATION
+from odoo.addons.webvue_inbox.models.constants import (
+    AUTOMATION_FEATURE,
+    CAMPAIGNS_FEATURE,
+)
 from odoo.addons.webvue_inbox.serializers.automation import (
     dump_channel_automation,
     dump_rule,
@@ -100,13 +103,20 @@ class AutomationController(http.Controller):
 
     @http.route('/api/v1/inbox/automation/channels', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_feature('inbox.enabled', AUTOMATION_FEATURE, operation='read')
-    @requires_capability(MANAGE_AUTOMATION)
+    @requires_feature('inbox.enabled', operation='read')
+    @requires_feature(AUTOMATION_FEATURE, CAMPAIGNS_FEATURE, operation='read', match='any')
+    @requires_capability(MANAGE_AUTOMATION, CAMPAIGNS, match='any')
     def list_automation_channels(self, **_):
-        """The channels the caller automates, as plain references (the channel list itself needs the channels capability)."""
+        """The channels the caller automates or sends campaigns on, as plain references (the channel list itself needs the channels capability)."""
         limit, offset = parse_page(request.httprequest.args)
-        companies = request.env['webvue.access.service']._webvue_capability_company_ids((MANAGE_AUTOMATION,))
-        domain = [('owner_company_id', 'in', companies)]
+        service, entitlement = request.env['webvue.access.service'], request.env['webvue.entitlement.service']
+        companies = {
+            company
+            for capability, feature in ((MANAGE_AUTOMATION, AUTOMATION_FEATURE), (CAMPAIGNS, CAMPAIGNS_FEATURE))
+            if entitlement._webvue_feature_read(feature)
+            for company in service._webvue_capability_company_ids((capability,))
+        }
+        domain = [('owner_company_id', 'in', sorted(companies))]
         Channel = request.env['webvue.inbox.channel']
         return {
             'items': [dump_ref(channel) for channel in Channel.search(domain, limit=limit, offset=offset)],
@@ -206,6 +216,6 @@ class AutomationController(http.Controller):
     @requires_capability(MANAGE_AUTOMATION)
     def test_rules(self, **payload):
         """Dry run: the rules and the automatic message a customer message would trigger. Nothing is written or sent."""
-        channel, text, option_id, at = parse_test(payload)
-        inside, greeting, rules = request.env['webvue.inbox.automation']._webvue_dry_run(channel, text, option_id, at)
+        channel, text, option_id, flow_id, at = parse_test(payload)
+        inside, greeting, rules = request.env['webvue.inbox.automation']._webvue_dry_run(channel, text, option_id, at, flow_id)
         return {'inside_hours': inside, 'auto_message': greeting, 'rules': [dump_ref(rule) for rule in rules]}

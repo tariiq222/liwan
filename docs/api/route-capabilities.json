@@ -261,6 +261,30 @@
       "handler": "delete_assignment",
       "no_capability_reason": null
     },
+    "DELETE /api/v1/inbox/audiences/{audience_id}": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "delete_audience",
+      "no_capability_reason": null
+    },
+    "DELETE /api/v1/inbox/campaigns/{campaign_id}": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "delete_campaign",
+      "no_capability_reason": null
+    },
     "DELETE /api/v1/inbox/canned-replies/{reply_id}": {
       "addon": "webvue_inbox",
       "auth": "user",
@@ -271,6 +295,30 @@
         "inbox.enabled"
       ],
       "handler": "delete_canned_reply",
+      "no_capability_reason": null
+    },
+    "DELETE /api/v1/inbox/catalog-items/{item_id}": {
+      "addon": "webvue_inbox_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "delete_item",
+      "no_capability_reason": null
+    },
+    "DELETE /api/v1/inbox/catalogs/{catalog_id}": {
+      "addon": "webvue_inbox_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "delete_catalog",
       "no_capability_reason": null
     },
     "DELETE /api/v1/inbox/channels/{channel_id}": {
@@ -297,6 +345,30 @@
       "handler": "delete_department",
       "no_capability_reason": null
     },
+    "DELETE /api/v1/inbox/flows/{flow_id}": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "delete_flow",
+      "no_capability_reason": null
+    },
+    "DELETE /api/v1/inbox/rules/{rule_id}": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "delete_rule",
+      "no_capability_reason": null
+    },
     "DELETE /api/v1/inbox/tags/{tag_id}": {
       "addon": "webvue_inbox",
       "auth": "user",
@@ -319,6 +391,20 @@
         "inbox.enabled"
       ],
       "handler": "delete_template",
+      "no_capability_reason": null
+    },
+    "DELETE /api/v1/meetings/{meeting_id}": {
+      "addon": "webvue_meetings",
+      "auth": "user",
+      "capability_keys": [
+        "meetings.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "meetings.enabled"
+      ],
+      "handler": "delete_meeting",
       "no_capability_reason": null
     },
     "DELETE /api/v1/meetings/{meeting_id}/attachments/{attachment_id}": {
@@ -712,6 +798,18 @@
       "handler": "get_combination",
       "no_capability_reason": null
     },
+    "GET /api/v1/appointments/reasons": {
+      "addon": "webvue_appointments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "appointments.enabled"
+      ],
+      "handler": "list_reasons",
+      "no_capability_reason": null
+    },
     "GET /api/v1/appointments/resources": {
       "addon": "webvue_appointments",
       "auth": "user",
@@ -881,6 +979,20 @@
       ],
       "handler": "list_recipients",
       "no_capability_reason": "Chat has no capability keys by design: webvue.chat.service requires an active internal WebVue user and limits every row to the caller's conversations."
+    },
+    "GET /api/v1/crm/agents": {
+      "addon": "webvue_crm",
+      "auth": "user",
+      "capability_keys": [
+        "crm.leads.assign"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "crm.enabled"
+      ],
+      "handler": "list_agents",
+      "no_capability_reason": null
     },
     "GET /api/v1/crm/audit/views": {
       "addon": "webvue_crm",
@@ -2875,12 +2987,96 @@
       "addon": "webvue_inbox",
       "auth": "user",
       "capability_keys": [],
-      "capability_match": "all",
+      "capability_match": "any",
       "capability_source": "decorator",
       "feature_keys": [
         "inbox.enabled"
       ],
       "handler": "list_agents",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/audiences": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "list_audiences",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/audiences/{audience_id}": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "read_audience",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/audiences/{audience_id}/members": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "list_members",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/automation/channels": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "any",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "list_automation_channels",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/campaigns": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "list_campaigns",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/campaigns/{campaign_id}": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "read_campaign",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/campaigns/{campaign_id}/recipients": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "list_recipients",
       "no_capability_reason": null
     },
     "GET /api/v1/inbox/canned-replies": {
@@ -2893,6 +3089,66 @@
         "inbox.enabled"
       ],
       "handler": "list_canned_replies",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/catalog-items/{item_id}": {
+      "addon": "webvue_inbox_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "read_item",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/catalogs": {
+      "addon": "webvue_inbox_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "list_catalogs",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/catalogs/{catalog_id}": {
+      "addon": "webvue_inbox_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "read_catalog",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/catalogs/{catalog_id}/items": {
+      "addon": "webvue_inbox_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "list_items",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/catalogs/{catalog_id}/products": {
+      "addon": "webvue_inbox_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "list_products",
       "no_capability_reason": null
     },
     "GET /api/v1/inbox/channels": {
@@ -2919,6 +3175,66 @@
       "handler": "read_channel",
       "no_capability_reason": null
     },
+    "GET /api/v1/inbox/channels/{channel_id}/alerts": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "list_alerts",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/channels/{channel_id}/automation": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "get_channel_automation",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/channels/{channel_id}/commerce": {
+      "addon": "webvue_inbox_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "read_commerce",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/channels/{channel_id}/flows": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "any",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "list_flows",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/channels/{channel_id}/profile": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "read_profile",
+      "no_capability_reason": null
+    },
     "GET /api/v1/inbox/channels/{channel_id}/ref": {
       "addon": "webvue_inbox",
       "auth": "user",
@@ -2929,6 +3245,18 @@
         "inbox.enabled"
       ],
       "handler": "read_channel_ref",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/channels/{channel_id}/sending": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "any",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "read_sending",
       "no_capability_reason": null
     },
     "GET /api/v1/inbox/channels/{channel_id}/templates": {
@@ -2953,6 +3281,18 @@
         "inbox.enabled"
       ],
       "handler": "get_contact",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/contacts/{contact_id}/marketing": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "any",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "read_marketing",
       "no_capability_reason": null
     },
     "GET /api/v1/inbox/conversations": {
@@ -2991,6 +3331,30 @@
       "handler": "get_conversation",
       "no_capability_reason": null
     },
+    "GET /api/v1/inbox/conversations/{conversation_id}/catalog-items": {
+      "addon": "webvue_inbox_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "pick_items",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/conversations/{conversation_id}/flow-submissions": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "list_conversation_submissions",
+      "no_capability_reason": null
+    },
     "GET /api/v1/inbox/conversations/{conversation_id}/messages": {
       "addon": "webvue_inbox",
       "auth": "user",
@@ -3003,6 +3367,18 @@
       "handler": "list_messages",
       "no_capability_reason": null
     },
+    "GET /api/v1/inbox/conversations/{conversation_id}/orders": {
+      "addon": "webvue_inbox_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "list_conversation_orders",
+      "no_capability_reason": null
+    },
     "GET /api/v1/inbox/departments": {
       "addon": "webvue_inbox",
       "auth": "user",
@@ -3013,6 +3389,54 @@
         "inbox.enabled"
       ],
       "handler": "list_departments",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/departments/{department_id}/working-hours": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "get_department_hours",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/flows/{flow_id}": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "any",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "read_flow",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/flows/{flow_id}/preview": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "preview_flow",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/flows/{flow_id}/submissions": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "list_submissions",
       "no_capability_reason": null
     },
     "GET /api/v1/inbox/hooks/whatsapp": {
@@ -3037,6 +3461,126 @@
       "handler": "download_attachment",
       "no_capability_reason": null
     },
+    "GET /api/v1/inbox/orders": {
+      "addon": "webvue_inbox_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "list_orders",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/orders/{order_id}": {
+      "addon": "webvue_inbox_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "read_order",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/reports/breakdown": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "breakdown",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/reports/costs": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "costs",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/reports/export": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "export",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/reports/overview": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "overview",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/reports/templates": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "templates",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/reports/templates/{template_id}": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "template_detail",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/rules": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "list_rules",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/rules/{rule_id}": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "get_rule",
+      "no_capability_reason": null
+    },
     "GET /api/v1/inbox/tags": {
       "addon": "webvue_inbox",
       "auth": "user",
@@ -3059,6 +3603,18 @@
         "inbox.enabled"
       ],
       "handler": "read_template",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/working-hours": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "get_working_hours",
       "no_capability_reason": null
     },
     "GET /api/v1/integrations/connections": {
@@ -3173,6 +3729,20 @@
         "meetings.enabled"
       ],
       "handler": "meeting_followup",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/meetings/settings": {
+      "addon": "webvue_meetings",
+      "auth": "user",
+      "capability_keys": [
+        "meetings.settings.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "meetings.enabled"
+      ],
+      "handler": "get_settings",
       "no_capability_reason": null
     },
     "GET /api/v1/meetings/{meeting_id}": {
@@ -3507,6 +4077,26 @@
       "handler": "download_attachment",
       "no_capability_reason": null
     },
+    "GET /api/v1/payments/orders": {
+      "addon": "webvue_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "list_orders",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/payments/orders/{order_id}": {
+      "addon": "webvue_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "get_order",
+      "no_capability_reason": null
+    },
     "GET /api/v1/payments/providers": {
       "addon": "webvue_payments",
       "auth": "user",
@@ -3791,6 +4381,19 @@
       "handler": "list_slots",
       "no_capability_reason": "Invited requester of one booking under /api/v1/public/ (auth='public', no session): the booking's access token, compared in constant time by webvue.appointment.guest, is the authorization; no capability applies."
     },
+    "GET /api/v1/public/inbox/catalog/images/{item_id}/{token}": {
+      "addon": "webvue_inbox_payments",
+      "auth": "public",
+      "capability_keys": [],
+      "capability_match": null,
+      "capability_source": "none",
+      "feature_keys": [
+        "inbox.enabled",
+        "inbox.catalog"
+      ],
+      "handler": "product_image",
+      "no_capability_reason": "Public catalog product image under /api/v1/public/ (auth='public', no session): authorized by the item's own random image token, compared in constant time; no user and no capability exist for Meta's fetcher."
+    },
     "GET /api/v1/public/payments/hooks/{code}/{kind}": {
       "addon": "webvue_payments",
       "auth": "public",
@@ -3859,6 +4462,18 @@
         "inbox.enabled"
       ],
       "handler": "get_settings",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/settings/inbox/campaigns": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "get_campaign_settings",
       "no_capability_reason": null
     },
     "GET /api/v1/settings/projects": {
@@ -4143,6 +4758,18 @@
       "handler": "update_user_branches",
       "no_capability_reason": null
     },
+    "PATCH /api/v1/appointments/bookings/{booking_id}": {
+      "addon": "webvue_appointments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "appointments.enabled"
+      ],
+      "handler": "patch_booking",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/appointments/combinations/{combination_id}": {
       "addon": "webvue_appointments",
       "auth": "user",
@@ -4153,6 +4780,18 @@
         "appointments.enabled"
       ],
       "handler": "patch_combination",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/appointments/reasons/{reason_id}": {
+      "addon": "webvue_appointments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "appointments.enabled"
+      ],
+      "handler": "patch_reason",
       "no_capability_reason": null
     },
     "PATCH /api/v1/appointments/resources/{resource_id}": {
@@ -4830,6 +5469,30 @@
       "handler": "patch_settings",
       "no_capability_reason": null
     },
+    "PATCH /api/v1/inbox/audiences/{audience_id}": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "patch_audience",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/inbox/campaigns/{campaign_id}": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "patch_campaign",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/inbox/canned-replies/{reply_id}": {
       "addon": "webvue_inbox",
       "auth": "user",
@@ -4840,6 +5503,30 @@
         "inbox.enabled"
       ],
       "handler": "patch_canned_reply",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/inbox/catalog-items/{item_id}": {
+      "addon": "webvue_inbox_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "patch_item",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/inbox/catalogs/{catalog_id}": {
+      "addon": "webvue_inbox_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "patch_catalog",
       "no_capability_reason": null
     },
     "PATCH /api/v1/inbox/channels/{channel_id}": {
@@ -4854,6 +5541,54 @@
       "handler": "patch_channel",
       "no_capability_reason": null
     },
+    "PATCH /api/v1/inbox/channels/{channel_id}/automation": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "patch_channel_automation",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/inbox/channels/{channel_id}/commerce": {
+      "addon": "webvue_inbox_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "patch_commerce",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/inbox/channels/{channel_id}/profile": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "update_profile",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/inbox/channels/{channel_id}/sending": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "patch_sending",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/inbox/contacts/{contact_id}": {
       "addon": "webvue_inbox",
       "auth": "user",
@@ -4864,6 +5599,18 @@
         "inbox.enabled"
       ],
       "handler": "patch_contact",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/inbox/contacts/{contact_id}/marketing": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "any",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "patch_marketing",
       "no_capability_reason": null
     },
     "PATCH /api/v1/inbox/conversations/{conversation_id}": {
@@ -4888,6 +5635,42 @@
         "inbox.enabled"
       ],
       "handler": "patch_department",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/inbox/flows/{flow_id}": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "edit_flow",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/inbox/orders/{order_id}": {
+      "addon": "webvue_inbox_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "patch_order",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/inbox/rules/{rule_id}": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "patch_rule",
       "no_capability_reason": null
     },
     "PATCH /api/v1/inbox/tags/{tag_id}": {
@@ -4936,6 +5719,20 @@
         "meetings.enabled"
       ],
       "handler": "patch_series",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/meetings/settings": {
+      "addon": "webvue_meetings",
+      "auth": "user",
+      "capability_keys": [
+        "meetings.settings.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "meetings.enabled"
+      ],
+      "handler": "patch_settings",
       "no_capability_reason": null
     },
     "PATCH /api/v1/meetings/{meeting_id}": {
@@ -5162,6 +5959,18 @@
       "handler": "patch_settings",
       "no_capability_reason": null
     },
+    "PATCH /api/v1/settings/inbox/campaigns": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "patch_campaign_settings",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/settings/projects": {
       "addon": "webvue_pmo",
       "auth": "user",
@@ -5344,6 +6153,18 @@
       "handler": "create_booking",
       "no_capability_reason": null
     },
+    "POST /api/v1/appointments/bookings/{booking_id}/attendance": {
+      "addon": "webvue_appointments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "appointments.enabled"
+      ],
+      "handler": "record_attendance",
+      "no_capability_reason": null
+    },
     "POST /api/v1/appointments/bookings/{booking_id}/cancel": {
       "addon": "webvue_appointments",
       "auth": "user",
@@ -5439,6 +6260,42 @@
         "appointments.enabled"
       ],
       "handler": "unarchive_combination",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/appointments/reasons": {
+      "addon": "webvue_appointments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "appointments.enabled"
+      ],
+      "handler": "create_reason",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/appointments/reasons/{reason_id}/archive": {
+      "addon": "webvue_appointments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "appointments.enabled"
+      ],
+      "handler": "archive_reason",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/appointments/reasons/{reason_id}/unarchive": {
+      "addon": "webvue_appointments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "appointments.enabled"
+      ],
+      "handler": "unarchive_reason",
       "no_capability_reason": null
     },
     "POST /api/v1/appointments/resources": {
@@ -6398,6 +7255,20 @@
         "finance.enabled"
       ],
       "handler": "cancel_invoice",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/invoices/{invoice_id}/credit-note": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.invoices.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "create_credit_note",
       "no_capability_reason": null
     },
     "POST /api/v1/finance/invoices/{invoice_id}/debit-note": {
@@ -7431,6 +8302,126 @@
       "handler": "archive_schedule",
       "no_capability_reason": null
     },
+    "POST /api/v1/inbox/audiences": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "create_audience",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/campaigns": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "create_campaign",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/campaigns/preview": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "preview",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/campaigns/uploads": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "upload_header",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/campaigns/{campaign_id}/cancel": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "cancel_campaign",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/campaigns/{campaign_id}/launch": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "launch_campaign",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/campaigns/{campaign_id}/pause": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "pause_campaign",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/campaigns/{campaign_id}/resume": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "resume_campaign",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/campaigns/{campaign_id}/retry": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "retry_campaign",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/campaigns/{campaign_id}/test": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "test_send",
+      "no_capability_reason": null
+    },
     "POST /api/v1/inbox/canned-replies": {
       "addon": "webvue_inbox",
       "auth": "user",
@@ -7443,6 +8434,42 @@
       "handler": "create_canned_reply",
       "no_capability_reason": null
     },
+    "POST /api/v1/inbox/catalogs": {
+      "addon": "webvue_inbox_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "create_catalog",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/catalogs/{catalog_id}/items": {
+      "addon": "webvue_inbox_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "create_item",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/catalogs/{catalog_id}/sync": {
+      "addon": "webvue_inbox_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "sync_catalog",
+      "no_capability_reason": null
+    },
     "POST /api/v1/inbox/channels": {
       "addon": "webvue_inbox",
       "auth": "user",
@@ -7453,6 +8480,90 @@
         "inbox.enabled"
       ],
       "handler": "create_channel",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/channels/{channel_id}/analytics/sync": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "sync_analytics",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/channels/{channel_id}/display-name": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "request_display_name",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/channels/{channel_id}/flows": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "create_flow",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/channels/{channel_id}/flows/sync": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "sync_flows",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/channels/{channel_id}/register": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "register_number",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/channels/{channel_id}/sending/refresh": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "any",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "refresh_sending",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/channels/{channel_id}/template-insights": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "enable_template_insights",
       "no_capability_reason": null
     },
     "POST /api/v1/inbox/channels/{channel_id}/templates": {
@@ -7503,6 +8614,30 @@
       "handler": "test_channel",
       "no_capability_reason": null
     },
+    "POST /api/v1/inbox/channels/{channel_id}/two-step-pin": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "set_pin",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/contacts/import": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "import_contacts",
+      "no_capability_reason": null
+    },
     "POST /api/v1/inbox/conversations/{conversation_id}/messages": {
       "addon": "webvue_inbox",
       "auth": "user",
@@ -7525,6 +8660,18 @@
         "inbox.enabled"
       ],
       "handler": "add_note",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/conversations/{conversation_id}/orders": {
+      "addon": "webvue_inbox_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "create_order",
       "no_capability_reason": null
     },
     "POST /api/v1/inbox/conversations/{conversation_id}/read": {
@@ -7575,6 +8722,42 @@
       "handler": "create_department",
       "no_capability_reason": null
     },
+    "POST /api/v1/inbox/flows/{flow_id}/copy": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "copy_flow",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/flows/{flow_id}/deprecate": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "deprecate_flow",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/flows/{flow_id}/publish": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "publish_flow",
+      "no_capability_reason": null
+    },
     "POST /api/v1/inbox/hooks/whatsapp": {
       "addon": "webvue_inbox",
       "auth": "inbox_hook",
@@ -7607,6 +8790,66 @@
         "inbox.enabled"
       ],
       "handler": "retry_message",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/orders/{order_id}/cancel": {
+      "addon": "webvue_inbox_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "cancel_order",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/orders/{order_id}/checkout": {
+      "addon": "webvue_inbox_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "checkout_order",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/rules": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "create_rule",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/rules/reorder": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "reorder_rules",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/rules/test": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "test_rules",
       "no_capability_reason": null
     },
     "POST /api/v1/inbox/tags": {
@@ -8020,6 +9263,16 @@
       "capability_source": "decorator",
       "feature_keys": [],
       "handler": "create_link",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/payments/orders/{order_id}/refunds": {
+      "addon": "webvue_payments",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "record_refund",
       "no_capability_reason": null
     },
     "POST /api/v1/payments/providers/{provider_id}/sync": {
@@ -8535,6 +9788,42 @@
         "hr.payroll"
       ],
       "handler": "put_settlement",
+      "no_capability_reason": null
+    },
+    "PUT /api/v1/inbox/channels/{channel_id}/profile/picture": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "upload_picture",
+      "no_capability_reason": null
+    },
+    "PUT /api/v1/inbox/departments/{department_id}/working-hours": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "put_department_hours",
+      "no_capability_reason": null
+    },
+    "PUT /api/v1/inbox/working-hours": {
+      "addon": "webvue_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "put_working_hours",
       "no_capability_reason": null
     },
     "PUT /api/v1/projects/{project_id}/stages/order": {

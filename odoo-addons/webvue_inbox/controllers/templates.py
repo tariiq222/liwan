@@ -19,6 +19,7 @@ from odoo.addons.webvue_inbox.controllers.helpers import (
 )
 from odoo.addons.webvue_inbox.controllers.template_parsing import parse_template_write
 from odoo.addons.webvue_inbox.models.access_service import (
+    CAMPAIGNS,
     MANAGE_CHANNELS,
     MANAGE_TEMPLATES,
     READ,
@@ -28,7 +29,7 @@ from odoo.addons.webvue_inbox.serializers.conversation import dump_attachment, d
 from odoo.addons.webvue_inbox.serializers.settings import dump_template
 
 TEMPLATES_FEATURE = 'inbox.templates'
-READ_CAPABILITIES = (READ, MANAGE_TEMPLATES, MANAGE_CHANNELS)
+READ_CAPABILITIES = (READ, MANAGE_TEMPLATES, MANAGE_CHANNELS, CAMPAIGNS)
 # Meta accepts one sample file per header kind: a PNG or JPEG image, an MP4 video, a PDF document.
 SAMPLE_MIMETYPES = {'image': {'image/png', 'image/jpeg'}, 'video': {'video/mp4'}, 'document': {'application/pdf'}}
 MAX_SEARCH = 128
@@ -78,10 +79,10 @@ class TemplateController(http.Controller):
     @http.route('/api/v1/inbox/channels/<int:channel_id>/ref', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('inbox.enabled', operation='read')
-    @requires_capability(MANAGE_TEMPLATES, MANAGE_CHANNELS, match='any')
+    @requires_capability(MANAGE_TEMPLATES, MANAGE_CHANNELS, CAMPAIGNS, match='any')
     def read_channel_ref(self, channel_id, **_):
-        """The id and name of a channel, for the pages of a user who manages its templates but not the channel itself."""
-        return dump_ref(get_channel(channel_id, MANAGE_TEMPLATES, MANAGE_CHANNELS))
+        """The id and name of a channel, for the pages of a user who manages its templates or campaigns but not the channel itself."""
+        return dump_ref(get_channel(channel_id, MANAGE_TEMPLATES, MANAGE_CHANNELS, CAMPAIGNS))
 
     @http.route('/api/v1/inbox/channels/<int:channel_id>/templates', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
