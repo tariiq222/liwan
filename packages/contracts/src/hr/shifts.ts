@@ -89,11 +89,14 @@ export const HrShiftSettingsSchema = z.object({
   company_timezone: z.string().min(1),
   effective_timezone: z.string().min(1),
   today: isoDate,
+  /** The company's default work schedule (`resource_calendar_id`), the one new employees start on. */
+  default_schedule: z.object({ id: z.number().int().positive(), name: z.string().min(1) }).strict().nullable(),
   revision: z.number().int().nonnegative(),
 }).strict()
 
 export const HrShiftSettingsPatchSchema = z.object({
   day_reference: z.enum(['company', 'user']),
+  default_schedule_id: z.number().int().positive().optional(),
   revision: z.number().int().nonnegative(),
 }).strict()
 export type HrShiftSettings = z.infer<typeof HrShiftSettingsSchema>

@@ -904,7 +904,7 @@
       "props": [
         {
           "name": "settings",
-          "type": "{ day_reference: \"company\" | \"user\"; company_timezone: string; effective_timezone: string; today: string; revision: number; }",
+          "type": "{ day_reference: \"company\" | \"user\"; company_timezone: string; effective_timezone: string; today: string; default_schedule: { id: number; name: string; } | null; revision: number; }",
           "required": true
         },
         {
@@ -914,7 +914,7 @@
         },
         {
           "name": "reloadSettings",
-          "type": "() => Promise<{ day_reference: \"company\" | \"user\"; company_timezone: string; effective_timezone: string; today: string; revision: number; }>",
+          "type": "() => Promise<{ day_reference: \"company\" | \"user\"; company_timezone: string; effective_timezone: string; today: string; default_schedule: { id: number; name: string; } | null; revision: number; }>",
           "required": true
         }
       ],
@@ -1575,16 +1575,16 @@
       ],
       "events": [
         {
+          "name": "select",
+          "payload": "[version: MeetingVersion]"
+        },
+        {
           "name": "retry",
           "payload": "[]"
         },
         {
           "name": "page",
           "payload": "[page: number]"
-        },
-        {
-          "name": "select",
-          "payload": "[version: MeetingVersion]"
         }
       ],
       "slots": [],

@@ -6,7 +6,7 @@
 // All CLI args are forwarded to `npx e2e run` (or `explore` with E2E_COMMAND=explore).
 import { spawn, spawnSync } from 'node:child_process'
 import { createServer } from 'node:net'
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -18,6 +18,7 @@ const MOCK_DB = 'webvue_ui_mock_only'
 export const SCRATCH_DB = 'webvue_scratch_e2e'
 const ODOO_ROOT = process.env.E2E_ODOO_ROOT || '/Users/tariq/code/odoo'
 const ODOO_DIR = join(ROOT, '.e2e', 'odoo')
+const REPORT_FILE = join(ROOT, '.e2e', 'report.json')
 
 // Only the fixed scratch database may be created, dropped or served.
 export function assertScratchDb(name) {
@@ -134,6 +135,25 @@ export async function pickPorts(env = process.env, pick = freePort, free = isFre
   const nuxt = await choose(parsePort(env.E2E_NUXT_PORT, 'E2E_NUXT_PORT'), PREFERRED.nuxt)
   if (backendPort === nuxt) throw new Error(`${backend} and Nuxt ports must differ`)
   return { [backend]: backendPort, nuxt }
+}
+
+// The runner's own exit code is authoritative when it is non-zero. When it is
+// zero, a `run` must still have written a fresh report that says it passed:
+// a failed, interrupted or missing report never counts as success.
+export function reportVerdict(file, startedMs) {
+  let run
+  try {
+    if (statSync(file).mtimeMs < startedMs) return 'no fresh report.json for this run'
+    run = JSON.parse(readFileSync(file, 'utf8')).run
+  } catch (error) {
+    return `report.json unreadable (${error.message})`
+  }
+  const failed = run?.summary?.failed ?? 0
+  const interrupted = run?.summary?.interrupted ?? 0
+  if (run?.status !== 'passed' || run?.exitCode !== 0 || failed > 0 || interrupted > 0) {
+    return `report.json says status=${run?.status} failed=${failed} interrupted=${interrupted}`
+  }
+  return null
 }
 
 function tail(file, lines = 30) {
@@ -328,13 +348,20 @@ async function main() {
     console.error(`e2e_isolated: ${backend.label}, nuxt :${nuxt} (logs in .e2e/logs/)`)
 
     const [cmd, ...args] = ['npx', ...forwardArgs(process.argv.slice(2), e2eCommand())]
+    const startedMs = Date.now()
     const runner = spawn(cmd, args, {
       cwd: ROOT,
       stdio: 'inherit',
       env: { ...process.env, E2E_BASE_URL: `http://localhost:${nuxt}`, E2E_TELEMETRY_DISABLED: '1' },
     })
     const { code, sig } = await new Promise((resolve) => runner.once('exit', (c, s) => resolve({ code: c, sig: s })))
-    return code ?? (sig ? 128 : 1)
+    if (code !== 0) return code ?? (sig ? 128 : 1)
+    const problem = e2eCommand() === 'run' ? reportVerdict(REPORT_FILE, startedMs) : null
+    if (problem) {
+      console.error(`e2e_isolated: runner exited 0 but ${problem}; failing the run`)
+      return 1
+    }
+    return 0
   } catch (error) {
     console.error(`e2e_isolated: ${error.message}`)
     return 1

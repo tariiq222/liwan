@@ -116,6 +116,12 @@ class TestFinancePaymentWrite(WebVueFinanceWriteCase):
         self.assertEqual((reset.status_code, reset.json()['state']), (200, 'draft'))
         self.assertRefused(self.api('POST', f'{PAYMENTS}/{payment["id"]}/reset-to-draft', json={}), 422, 'invalid_state')
 
+    def test_a_cancelled_payment_inside_a_closed_period_cannot_be_reset_to_draft(self):
+        payment = self._pay([self.posted_invoice()]).json()
+        self.api('POST', f'{PAYMENTS}/{payment["id"]}/cancel', json={})
+        self.company.fiscalyear_lock_date = '2026-10-31'
+        self.assertRefused(self.api('POST', f'{PAYMENTS}/{payment["id"]}/reset-to-draft', json={}), 422, 'period_locked')
+
     def test_a_foreign_or_missing_payment_is_a_404(self):
         for target in (self.other_payment.id, 999999999):
             for action in ('cancel', 'reset-to-draft'):

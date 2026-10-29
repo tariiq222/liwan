@@ -53,3 +53,9 @@ class TestFinanceActionsZatca(WebVueZatcaCase):
         self.authenticate('zatca_reader', PASSWORD)
         allowed, blocked = self.actions(invoice)
         self.assertFalse({'zatca_submit', 'zatca_retry'} & (allowed | set(blocked)))
+
+    def test_a_vendor_bill_is_not_applicable_rather_than_missing(self):
+        bill = self.posted_invoice(self.bill_body())
+        for action in ('submit', 'retry'):
+            with self.subTest(action=action):
+                self.assertRefused(self.submit(bill, action), 422, 'zatca_not_applicable')

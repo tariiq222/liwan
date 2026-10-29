@@ -45,6 +45,8 @@ def read_table(content, delimiter=None):
     if len(content.encode()) > MAX_BYTES:
         _refuse(f'the file is larger than {MAX_BYTES // (1024 * 1024)} MiB', 'content')
     text = content.lstrip('﻿')
+    if any(ord(char) < 32 and char not in '\t\r\n' for char in text):
+        _refuse('the file is not readable text', 'content')
     if delimiter is None:
         delimiter = _detect_delimiter(text)
     elif delimiter not in DELIMITERS:
