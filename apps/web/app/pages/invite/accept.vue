@@ -1,5 +1,5 @@
 <script setup lang="ts">
-definePageMeta({ layout: false, access: 'public' })
+definePageMeta({ layout: false, access: 'public', middleware: 'customer-commercial' })
 
 const MIN_LENGTH = 12
 const { t } = useI18n()

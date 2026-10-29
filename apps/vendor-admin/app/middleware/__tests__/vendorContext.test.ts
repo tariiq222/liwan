@@ -54,6 +54,13 @@ describe('10.vendor-context.global', () => {
     expect(fetcher).toHaveBeenCalledTimes(2)
   })
 
+  it('answers 403 forbidden for an account the control plane refuses', async () => {
+    setup(7, () => Promise.reject(Object.assign(new Error('Vendor account holds no role'), { statusCode: 403 })))
+    const createError = vi.fn((input: unknown) => Object.assign(new Error('forbidden'), input as object))
+    vi.stubGlobal('createError', createError)
+    await expect(run()).rejects.toMatchObject({ statusCode: 403 })
+  })
+
   it('records a failed context and retries on the next navigation', async () => {
     const { fetcher } = setup(7, () => Promise.reject(Object.assign(new Error('down'), { statusCode: 503 })))
     await run()

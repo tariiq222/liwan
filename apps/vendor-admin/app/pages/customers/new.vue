@@ -13,6 +13,10 @@ await ready
 const { data: targets, pending, error, refresh } = await useAsyncData('vendor:targets', () => sharedEnabled.value ? Promise.resolve({ items: [], total: 0 }) : request<{ items: { id: string; kind: string }[]; total: number }>('targets'))
 const { data: catalog, error: catalogError, refresh: refreshCatalog } = await useAsyncData('vendor:catalog-published', () => sharedEnabled.value ? Promise.resolve({ items: [], total: 0 }) : request<{ items: { id: string; version: string; status: string; solution: { tiers?: { id: string; name: string }[] } }[]; total: number }>('catalog'))
 const { data: plans, error: plansError, refresh: refreshPlans } = await useAsyncData('vendor:tenant-plans', () => sharedEnabled.value ? commercial.listPlans({ status: 'published', limit: 200 }).then(r => r.items) : Promise.resolve([]))
+// A customer is created before its first quote, and a quote needs a catalog release: without one the form stops here
+// instead of leaving an empty customer behind.
+const { data: releases } = await useAsyncData('vendor:catalog-releases', () => sharedEnabled.value ? commercial.releases() : Promise.resolve(null))
+const noRelease = computed(() => sharedEnabled.value && releases.value !== null && releases.value !== undefined && releases.value.length === 0)
 const published = computed(() => catalog.value?.items.filter(item => item.status === 'published') ?? [])
 const selectedCatalog = computed(() => published.value.find(item => item.version === form.catalog_version))
 const form = reactive({ name: '', commercial_mode: 'saas', hosting_model: 'managed', inventory_target: '', catalog_version: '', catalog_tier: '', reason: '', admin_name: '', admin_login: '', plan_revision_id: '', cadence: '' })
@@ -73,6 +77,7 @@ const backTo = computed(() => safeReturnTo(route.query.returnTo, '/customers', [
     <SharedForbiddenState v-if="!can('vendor.tenants.manage')" />
     <SharedPageState v-else :loading="pending || (!catalog && !catalogError) || (!plans && !plansError)" :error="error || catalogError || plansError" @retry="async () => { await refresh(); await refreshCatalog(); await refreshPlans() }">
       <form v-if="targets && catalog && plans" class="mx-auto grid max-w-2xl gap-6" @submit.prevent="submit">
+        <UAlert v-if="noRelease" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('vendor.customers.newPage.noRelease')" :description="t('vendor.customers.newPage.noReleaseHint')" />
         <UAlert v-if="saveError" color="error" variant="subtle" :title="t(errorKey)" />
         <template v-if="sharedEnabled">
           <SharedFormSection panel :title="t('vendor.customers.newPage.customerTitle')" :description="t('vendor.customers.newPage.customerHint')">
@@ -123,7 +128,7 @@ const backTo = computed(() => safeReturnTo(route.query.returnTo, '/customers', [
           </SharedFormSection>
         </template>
         <SharedFormActions>
-          <UButton type="submit" icon="i-lucide-plus" :loading="busy" :disabled="!hydrated || busy || (sharedEnabled && (!canSubscribe || !selectedCadence))">{{ t('vendor.customers.new') }}</UButton>
+          <UButton type="submit" icon="i-lucide-plus" :loading="busy" :disabled="!hydrated || busy || noRelease || (sharedEnabled && (!canSubscribe || !selectedCadence))">{{ t('vendor.customers.new') }}</UButton>
           <UButton :to="backTo" color="neutral" variant="outline">{{ t('app.cancel') }}</UButton>
         </SharedFormActions>
       </form>

@@ -151,9 +151,10 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     need(input,'vendor.billing.manage')
     if(!z.uuid().safeParse(settle[1]).success)throw new CommercialHttpError('not_found',404)
     const body=parseBody(input.raw,z.strictObject({outcome:z.enum(['succeeded','failed','canceled'])}))
-    const attempt=(await pool.query('SELECT provider,mode,provider_ref FROM payment_attempts WHERE id=$1',[settle[1]])).rows[0]
+    const attempt=(await pool.query('SELECT id,order_id,provider,mode,provider_ref,amount_minor,currency,exponent FROM payment_attempts WHERE id=$1',[settle[1]])).rows[0]
     if(!attempt||attempt.provider!=='simulator'||attempt.mode!=='simulator'||!attempt.provider_ref)throw new CommercialHttpError('not_found',404)
-    // A process restart loses memory; do not settle a recycled ref for another attempt.
+    // A process restart loses memory: re-adopt this attempt's own simulator ref, never a recycled or foreign one.
+    if(!adapter.adopt(attempt))throw new CommercialHttpError('not_found',404)
     const known=await adapter.lookupByAttemptId(settle[1]!)
     if(!known||known.provider_ref!==attempt.provider_ref)throw new CommercialHttpError('not_found',404)
     adapter.settle(attempt.provider_ref,body.outcome)
