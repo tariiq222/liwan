@@ -7,12 +7,18 @@ const messages: Record<string, string> = {
   'access.errors.conflict': 'conflict text',
   'access.errors.weakPassword': 'weak',
   'access.errors.last_access_admin': 'last admin',
+  'access.errors.self_access_change': 'self change text',
+  'access.errors.role_disabled': 'role disabled text',
 }
 const t = (key: string) => messages[key] ?? key
 
 describe('access error messages', () => {
   it('translates a known code, even on a 409', () => {
     expect(accessErrorMessage(new ApiError(409, 'last_access_admin', 'raw'), t)).toBe('last admin')
+  })
+  it('translates self_access_change and role_disabled, not the raw code', () => {
+    expect(accessErrorMessage(new ApiError(422, 'self_access_change', 'self_access_change'), t)).toBe('self change text')
+    expect(accessErrorMessage(new ApiError(422, 'role_disabled', 'role_disabled'), t)).toBe('role disabled text')
   })
   it('maps weak_password to its text', () => {
     expect(accessErrorMessage(new ApiError(422, 'weak_password', 'raw'), t)).toBe('weak')
