@@ -56,9 +56,9 @@ let canceled = new Set()
 const refusal = (status, code, message, field) => ({ status, body: { code, message, ...(field ? { field } : {}) } })
 const notFound = () => refusal(404, 'not_found', 'not found')
 
-/** The wire shape: `last_bookable_date` is the horizon from today; `awaits_confirmation` follows the booking's state. */
+/** The wire shape: the bookable days run from today to the horizon; `awaits_confirmation` follows the booking's state. */
 function dump(found) {
-  return { ...found, last_bookable_date: dayString(HORIZON_DAYS), awaits_confirmation: found.state === 'scheduled' && ASKS_TO_CONFIRM.has(found.id) }
+  return { ...found, first_bookable_date: dayString(0), last_bookable_date: dayString(HORIZON_DAYS), awaits_confirmation: found.state === 'scheduled' && ASKS_TO_CONFIRM.has(found.id) }
 }
 
 /** The booking the token opens, or a failure: 429 for the busy one, 404 for a wrong id or token or a canceled booking. */

@@ -80,6 +80,7 @@ const cancel = () => run(() => actions.cancel.mutateAsync({ link: link.value! })
           <BookSlotPicker
             v-if="link"
             :link="link"
+            :first-date="booking.first_bookable_date"
             :last-date="booking.last_bookable_date"
             :submit-label="t(booking.start ? 'appointments.book.reschedule' : 'appointments.book.schedule')"
             :pending="actions.schedule.isPending.value"

@@ -10,7 +10,7 @@ from odoo.addons.webvue_api.tests.common import set_probe_feature
 PUBLIC = '/api/v1/public/appointments/bookings'
 UTC_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 GUEST_KEYS = {
-    'id', 'state', 'type_name', 'duration_minutes', 'location', 'start', 'stop', 'is_modifiable', 'last_bookable_date',
+    'id', 'state', 'type_name', 'duration_minutes', 'location', 'start', 'stop', 'is_modifiable', 'first_bookable_date', 'last_bookable_date',
     'awaits_confirmation', 'company_name', 'requester',
 }
 REQUESTER_KEYS = {'name', 'phone', 'email'}
@@ -165,9 +165,12 @@ class TestAppointmentGuest(WebVueAppointmentsCase):
             self.assertLessEqual(start, now + timedelta(days=6))
         beyond = {'from': today, 'to': today + timedelta(days=7)}
         self._error(self._call('GET', self.invited, '/slots', **beyond), 422, 'invalid', 'to')
-        # The booking tells the page the last day it may ask for: the request for exactly that day is accepted.
-        last = self._call('GET', self.invited).json()['last_bookable_date']
-        self.assertIn(last, (str(today + timedelta(days=6)), str(today + timedelta(days=7))))
+        # The booking tells the page the type's calendar days it may ask for: from its today to the horizon, and a
+        # request for exactly the last of them is accepted.
+        booking = self._call('GET', self.invited).json()
+        first, last = booking['first_bookable_date'], booking['last_bookable_date']
+        self.assertIn(first, (str(today - timedelta(days=1)), str(today), str(today + timedelta(days=1))))
+        self.assertEqual(date.fromisoformat(last) - date.fromisoformat(first), timedelta(days=6))
         self.assertEqual(self._call('GET', self.invited, '/slots', **{'from': today, 'to': last}).status_code, 200)
         self._error(self._call('GET', self.invited, '/slots', **{'from': today, 'to': date.fromisoformat(last) + timedelta(days=1)}), 422, 'invalid', 'to')
         self._error(self._call('GET', self.invited, '/slots', **{'from': 'x', 'to': 'y'}), 422, 'invalid', 'from')

@@ -12,8 +12,9 @@ export const AppointmentInvitationSchema = z.object({
 /**
  * A booking as the invited requester sees it (GET /public/appointments/bookings/{id}): the requester's own name,
  * phone and email only, each null while the company hides that field. Never a partner id, the national id, notes
- * or any resource user. `last_bookable_date` is the last day a slots request may name (today in the type's calendar
- * timezone plus the booking horizon); `awaits_confirmation` says the requester is asked to confirm the scheduled time.
+ * or any resource user. `first_bookable_date` and `last_bookable_date` are the days a slots request may name, in the
+ * type's calendar: its today and that day plus the booking horizon. `awaits_confirmation` says the requester is asked to
+ * confirm the scheduled time.
  */
 export const AppointmentPublicBookingSchema = z.object({
   id: z.number().int().positive(),
@@ -24,6 +25,7 @@ export const AppointmentPublicBookingSchema = z.object({
   start: utcTimestamp.nullable(),
   stop: utcTimestamp.nullable(),
   is_modifiable: z.boolean(),
+  first_bookable_date: isoDate,
   last_bookable_date: isoDate,
   awaits_confirmation: z.boolean(),
   company_name: z.string(),

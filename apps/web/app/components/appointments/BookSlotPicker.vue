@@ -1,21 +1,25 @@
 <script setup lang="ts">
-import { addDays, BOOK_WINDOW_DAYS, formatDay, formatSlot, localDay, refusalStatus, slotsByDay, windowDays, type BookingLink } from '@/composables/appointmentBook'
+import { addDays, BOOK_WINDOW_DAYS, formatDay, formatSlot, refusalStatus, slotsByDay, windowDays, type BookingLink } from '@/composables/appointmentBook'
 import { useGuestSlots } from '@/composables/useAppointmentBooking'
 
-// The requester's choice of a time: a week of days at a time (from today to the last day the company takes bookings), and the
-// free slots of the chosen day as radio choices. Days and times are the requester's own; the server's slots are UTC.
-const props = defineProps<{ link: BookingLink; lastDate: string; submitLabel: string; pending: boolean }>()
+// The requester's choice of a time: a week of days at a time, and the free slots of the chosen day as radio choices. The
+// weeks are days of the booking type's calendar (its today to the last day the company takes bookings), which is how the
+// server reads a slots request; the slots themselves are UTC, shown as days and times of the requester's own.
+const props = defineProps<{ link: BookingLink; firstDate: string; lastDate: string; submitLabel: string; pending: boolean }>()
 const emit = defineEmits<{ submit: [start: string] }>()
 
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
 
-const today = localDay(new Date())
-const firstDay = computed(() => (today > props.lastDate ? props.lastDate : today))
-const windowStart = ref(firstDay.value)
+const windowStart = ref(props.firstDate)
+// A refused call re-reads the booking, whose bookable days may have moved (a shorter horizon, a new day): a week that
+// falls outside them starts again from the first.
+watch(() => [props.firstDate, props.lastDate], () => {
+  if (windowStart.value < props.firstDate || windowStart.value > props.lastDate) windowStart.value = props.firstDate
+})
 const days = computed(() => windowDays(windowStart.value, props.lastDate))
-const range = computed(() => ({ from: days.value[0]!, to: days.value.at(-1)! }))
-const hasPrevious = computed(() => windowStart.value > firstDay.value)
+const range = computed(() => (days.value.length ? { from: days.value[0]!, to: days.value.at(-1)! } : null))
+const hasPrevious = computed(() => windowStart.value > props.firstDate)
 const hasNext = computed(() => addDays(windowStart.value, BOOK_WINDOW_DAYS) <= props.lastDate)
 
 const slots = useGuestSlots(computed(() => props.link), range)
@@ -44,7 +48,7 @@ function move(direction: 1 | -1) {
     <h2 class="text-base font-semibold text-highlighted">{{ t('appointments.book.picker.title') }}</h2>
     <div class="flex items-center justify-between gap-2">
       <UButton type="button" color="neutral" variant="ghost" icon="i-lucide-chevron-left" class="rtl:rotate-180" :aria-label="t('appointments.book.picker.previous')" :disabled="!hydrated || !hasPrevious" data-testid="book-window-previous" @click="move(-1)" />
-      <p class="text-center text-sm text-muted" data-testid="book-window">{{ formatDay(range.from, locale, 'short') }} – {{ formatDay(range.to, locale, 'short') }}</p>
+      <p v-if="range" class="text-center text-sm text-muted" data-testid="book-window">{{ formatDay(range.from, locale, 'short') }} – {{ formatDay(range.to, locale, 'short') }}</p>
       <UButton type="button" color="neutral" variant="ghost" icon="i-lucide-chevron-right" class="rtl:rotate-180" :aria-label="t('appointments.book.picker.next')" :disabled="!hydrated || !hasNext" data-testid="book-window-next" @click="move(1)" />
     </div>
     <SharedLoadingSkeleton v-if="slots.isPending.value" />

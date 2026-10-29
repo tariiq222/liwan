@@ -29,12 +29,13 @@ export function useGuestBooking() {
   return { link, ...query }
 }
 
-/** The free slots from `from` to `to` (inclusive days) of the booking `link` names. */
-export function useGuestSlots(link: Ref<BookingLink>, range: Ref<{ from: string; to: string }>) {
+/** The free slots from `from` to `to` (inclusive days) of the booking `link` names; no request while there is no range. */
+export function useGuestSlots(link: Ref<BookingLink>, range: Ref<{ from: string; to: string } | null>) {
   const { $api } = useApi()
   return useQuery({
-    queryKey: computed(() => bookingKeys.slots(link.value, range.value.from, range.value.to)),
-    queryFn: () => $api(`${bookingPath(link.value)}/slots`, { query: { access_token: link.value.token, ...range.value }, schema: AppointmentSlotListSchema }),
+    queryKey: computed(() => bookingKeys.slots(link.value, range.value?.from, range.value?.to)),
+    enabled: computed(() => range.value !== null),
+    queryFn: () => $api(`${bookingPath(link.value)}/slots`, { query: { access_token: link.value.token, ...range.value! }, schema: AppointmentSlotListSchema }),
     retry: false,
   })
 }
