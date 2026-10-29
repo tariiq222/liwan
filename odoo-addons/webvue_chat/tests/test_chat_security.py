@@ -149,6 +149,36 @@ class TestChatSecurity(WebVueApiCase):
         })
         self.assertEqual(sent.status_code, 201)
 
+    def test_managed_account_creates_a_channel_and_is_its_member(self):
+        self.assertFalse(self.managed_empty.has_group('webvue_core.group_employee'))
+        self.authenticate('sec_managed_empty', 'sec_managed_empty_pass_123')
+        created = self.api('POST', '/api/v1/chat/conversations', {
+            'type': 'channel', 'name': 'قناة', 'user_ids': [],
+        })
+        self.assertEqual(created.status_code, 201, created.text)
+        channel = self.env['discuss.channel'].browse(created.json()['id'])
+        self.assertEqual(channel.channel_type, 'channel')
+        self.assertIn(self.managed_empty.partner_id, channel.channel_member_ids.partner_id)
+        sent = self.api('POST', f'/api/v1/chat/conversations/{channel.id}/messages', {'body': 'first'})
+        self.assertEqual(sent.status_code, 201, sent.text)
+
+    def test_managed_author_empties_own_message_and_others_cannot_edit(self):
+        channel = self.env['discuss.channel'].with_user(self.employee)._get_or_create_chat(
+            [self.managed_empty.partner_id.id],
+        )
+        path = f'/api/v1/chat/conversations/{channel.id}/messages'
+        self.authenticate('sec_managed_empty', 'sec_managed_empty_pass_123')
+        message = self.api('POST', path, {'body': 'see https://example.com/page'})
+        self.assertEqual(message.status_code, 201, message.text)
+        message_id = message.json()['id']
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        foreign = self.api('PATCH', f'{path}/{message_id}', {'body': 'hijacked'})
+        self.assertEqual(foreign.status_code, 403)
+        self.authenticate('sec_managed_empty', 'sec_managed_empty_pass_123')
+        emptied = self.api('PATCH', f'{path}/{message_id}', {'body': ''})
+        self.assertEqual(emptied.status_code, 200, emptied.text)
+        self.assertEqual(emptied.json()['body'], '')
+
     def test_member_cannot_read_channel_after_switching_company(self):
         conversation = self._direct()
         path = f"/api/v1/chat/conversations/{conversation['id']}"
