@@ -4,15 +4,12 @@ from datetime import timedelta
 from odoo import fields
 from odoo.tests import tagged
 
-from .common import WebVueInboxCase
+from .common import MESSAGE_KEYS, WebVueInboxCase
 from odoo.addons.webvue_api.tests.common import set_probe_feature
 
 CONVERSATION_KEYS = {
     'id', 'contact', 'channel', 'department', 'assignee', 'state', 'priority', 'tags', 'last_message_at',
     'last_message_preview', 'unread', 'reply_window_ends_at',
-}
-MESSAGE_KEYS = {
-    'id', 'direction', 'body', 'author', 'template_name', 'delivery_state', 'error', 'attachments', 'created_at',
 }
 
 

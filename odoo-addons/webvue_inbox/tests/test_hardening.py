@@ -113,7 +113,7 @@ class TestCronResilience(WebVueInboxCase):
 
         with patch.object(whatsapp, 'send_text', side_effect=send):
             self.env['webvue.inbox.message']._webvue_run_outbox()
-        self.assertEqual(self.commits.call_count, 3, 'once for the batch size and once per item')
+        self.assertEqual(self.commits.call_count, 6, 'once per batch (replies, reactions, receipts, typing) and once per item')
         self.assertEqual((first.delivery_state, first.attempts, first.error), ('queued', 1, 'unexpected error: RuntimeError'))
         self.assertGreater(first.next_attempt_at, fields.Datetime.now())
         self.assertEqual((second.delivery_state, second.provider_message_id), ('sent', 'wamid.OK2'))
