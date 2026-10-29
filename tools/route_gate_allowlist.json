@@ -79,13 +79,6 @@
       ]
     },
     {
-      "reason": "The webvue.operation.request/process model checks its operations.* capability inside create(), a stock name the analysis never credits; the route only validates the body.",
-      "routes": [
-        "webvue_operations/controllers/operations.py:create_process",
-        "webvue_operations/controllers/operations.py:create_request"
-      ]
-    },
-    {
       "reason": "Charter action: project._webvue_charter_<action> (and _webvue_lock_for_write(require_manage=...)) check pmo.projects.manage or the reviewer role in the model, but _run calls them from a branch, which the analysis does not credit.",
       "routes": [
         "webvue_pmo/controllers/project_charter.py:approve_charter",
