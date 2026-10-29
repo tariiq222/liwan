@@ -19,11 +19,13 @@ class WebVueInboxInbound(models.AbstractModel):
 
     @api.model
     def _webvue_ingest(self, channel, items):
-        """Apply `items` (parsed messages and statuses); returns the conversations that changed."""
+        """Apply `items` (parsed messages, reactions and statuses); returns the conversations that changed."""
         changed = self.env['webvue.inbox.conversation']
         for item in items:
             if isinstance(item, whatsapp.InboundMessage):
                 changed |= self._webvue_ingest_message(channel, item)
+            elif isinstance(item, whatsapp.InboundReaction):
+                changed |= self._webvue_ingest_reaction(channel, item)
             else:
                 changed |= self.env['webvue.inbox.message']._webvue_apply_status(item).conversation_id
         return changed
@@ -37,7 +39,7 @@ class WebVueInboxInbound(models.AbstractModel):
         message = Message.create({
             'conversation_id': conversation.id, 'company_id': channel.owner_company_id.id, 'direction': 'in',
             'body': item.body, 'date': item.sent_at, 'delivery_state': 'received',
-            'provider_message_id': item.provider_id,
+            'provider_message_id': item.provider_id, **self._webvue_content_values(conversation, item),
         })
         if item.media_id:
             self._webvue_attach_media(channel, message, item)
@@ -46,6 +48,33 @@ class WebVueInboxInbound(models.AbstractModel):
             **({'state': 'open'} if conversation.state in REOPENED_STATES else {}),
         })
         return conversation
+
+    @api.model
+    def _webvue_content_values(self, conversation, item):
+        """The kind-specific fields of an inbound message: reply target, location and the chosen option."""
+        values = {'kind': item.kind}
+        if item.context_id:
+            target = self.env['webvue.inbox.message'].search([
+                ('provider_message_id', '=', item.context_id), ('conversation_id', '=', conversation.id),
+            ], limit=1)
+            values['reply_to_id'] = target.id
+        if item.location:
+            values.update({
+                'latitude': item.location.latitude, 'longitude': item.location.longitude,
+                'location_name': item.location.name, 'location_address': item.location.address,
+            })
+        if item.option:
+            values.update({'selected_option_id': item.option.id, 'selected_option_title': item.option.title})
+        return values
+
+    @api.model
+    def _webvue_ingest_reaction(self, channel, item):
+        """Set (or clear) the customer's reaction on the message it names; a reaction is never a message."""
+        target = self.env['webvue.inbox.message'].search([
+            ('provider_message_id', '=', item.target_id), ('conversation_id.channel_id', '=', channel.id),
+        ], limit=1)
+        target.customer_reaction = item.emoji or False
+        return target.conversation_id
 
     @api.model
     def _webvue_identity(self, channel, item):

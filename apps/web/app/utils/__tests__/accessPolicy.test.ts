@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canReach, canReachPath, hasCapability, firstAllowedPath, isNavPathActive, requiredCapabilityForPath, requiredFeatureForPath, postLoginPath } from '../accessPolicy'
+import { appRootFallback, canReach, canReachPath, hasCapability, firstAllowedPath, isNavPathActive, requiredCapabilityForPath, requiredFeatureForPath, postLoginPath } from '../accessPolicy'
 
 describe('access policy navigation', () => {
   it('fails closed for legacy role names without server capabilities', () => {
@@ -179,5 +179,19 @@ describe('personal and HR management route boundaries', () => {
     const identity = { capabilities: ['hr.employees.read', 'hr.leave.read', 'hr.leave.manage', 'hr.leave.request'], platform: { readable_features: ['hr.enabled'], writable_features: [] } }
     expect(canReachPath(identity, '/hr/leave')).toBe(true)
     expect(canReachPath(identity, '/account/leave/new')).toBe(false)
+  })
+})
+
+describe('an application root an identity cannot open', () => {
+  it('sends a partial finance role to its first finance page (#171)', () => {
+    expect(appRootFallback({ capabilities: ['finance.payments.read'] }, '/finance')).toBe('/finance/payments')
+    expect(appRootFallback({ capabilities: ['finance.statements.read'] }, '/finance')).toBe('/finance/reports/trial-balance')
+    expect(appRootFallback({ capabilities: ['finance.reports.read'] }, '/finance')).toBe('/finance/reports/vat')
+  })
+
+  it('leaves reachable roots, other paths and empty applications alone', () => {
+    expect(appRootFallback({ capabilities: ['finance.invoices.read'] }, '/finance')).toBeNull()
+    expect(appRootFallback({ capabilities: ['finance.payments.read'] }, '/finance/sales/invoices')).toBeNull()
+    expect(appRootFallback({ capabilities: ['hr.employees.read'] }, '/finance')).toBeNull()
   })
 })
