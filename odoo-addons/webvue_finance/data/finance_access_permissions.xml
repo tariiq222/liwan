@@ -292,7 +292,7 @@
         <field name="key">finance.audit.read</field><field name="domain">finance</field>
         <field name="resource">audit</field><field name="action">read</field>
         <field name="name_ar">قراءة سجل تدقيق المالية</field><field name="name_en">Read the finance audit trail</field>
-        <field name="description_ar">قراءة أحداث التدقيق: تحميل الدليل وتعديل الشركة وإقفال السنة وإرسال زاتكا</field><field name="description_en">Read the audit events: chart load, company changes, year close and ZATCA actions</field>
+        <field name="description_ar">قراءة أحداث التدقيق: تعديل الشركة وإقفال السنة وإرسال زاتكا</field><field name="description_en">Read the audit events: company changes, year close and ZATCA actions</field>
         <field name="group_xmlid">webvue_finance.group_cap_finance_audit_read</field>
         <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>

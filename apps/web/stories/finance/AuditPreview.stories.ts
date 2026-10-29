@@ -13,7 +13,7 @@ const events = FinanceAuditEventListSchema.parse({
   items: [
     { id: 5, action: 'fiscal_year_closed', actor: { id: 7, name: 'سارة القحطاني' }, created_at: '2030-01-15T10:30:00Z', res_model: 'account.fiscal.year', res_id: 2029, fields_written: ['lock_date'], outcome: null },
     { id: 4, action: 'zatca_submitted', actor: { id: 8, name: 'فهد الدوسري' }, created_at: '2030-01-14T09:00:00Z', res_model: 'account.move', res_id: 88, fields_written: [], outcome: 'accepted' },
-    { id: 3, action: 'chart_loaded', actor: { id: 7, name: 'سارة القحطاني' }, created_at: '2030-01-10T08:00:00Z', res_model: 'res.company', res_id: 1, fields_written: [], outcome: null },
+    { id: 3, action: 'company_written', actor: { id: 7, name: 'سارة القحطاني' }, created_at: '2030-01-10T08:00:00Z', res_model: 'res.company', res_id: 1, fields_written: ['vat', 'company_registry'], outcome: null },
   ],
   total: 3,
 })
