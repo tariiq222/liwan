@@ -24,7 +24,7 @@ statements with reconciliation and the Zakat base come from pinned, unmodified O
 | `GET /journals` (`type`, `archived=true\|false`), `GET /journals/<id>` | `finance.journals.read` |
 | `POST /journals` (201), `PATCH /journals/<id>`, `POST /journals/<id>/archive`, `/unarchive` | `finance.journals.manage` |
 | `GET /setup` | `finance.setup.read` |
-| `POST /setup/chart`, `PATCH /setup/fiscal` | `finance.setup.manage` |
+| `PATCH /setup/fiscal` | `finance.setup.manage` |
 | `GET /reports/vat?date_from&date_to`, `GET /reports/vat-return?date_from&date_to`, `GET /reports/vat-return/items?code&column&date_from&date_to`, `GET /reports/withholding?date_from&date_to` | `finance.reports.read` |
 | `GET /entries` (`state`, `journal_id`, `date_from`, `date_to`, `q`), `GET /entries/<id>` | `finance.entries.read` |
 | `POST /entries` (201, a draft), `PATCH /entries/<id>`, `DELETE /entries/<id>` (204) | `finance.entries.manage` |
@@ -420,33 +420,31 @@ Odoo's translated names, in the language of the request user; nothing is hardcod
 ## Setup and VAT report routes
 
 - `GET /setup`: `finance.setup.read`. Chart, company tax identity (read-only here; written by the company profile, `PATCH /api/v1/admin/company`), fiscal settings, journal and tax counts,
-  ZATCA readiness, `ready` and stable `blockers` codes (`chart_not_loaded`, `vat_15_tax_missing`,
-  `company_vat_missing`, `company_registry_missing`, `company_address_incomplete`, `zatca_not_onboarded`)
-- `POST /setup/chart` (loads the Saudi `sa` chart, 422 `chart_already_loaded` when one is loaded),
-  and `PATCH /setup/fiscal` (`fiscalyear_last_day`, `fiscalyear_last_month`, the sale, purchase, tax and
+  ZATCA readiness, `ready` and stable `blockers` codes (`vat_15_tax_missing`,
+  `company_vat_missing`, `company_registry_missing`, `company_address_incomplete`, `zatca_not_onboarded`).
+  The chart is not a setup step: provisioning makes the root company Saudi (`webvue_platform`) before
+  `account` installs, so stock loads the `sa` chart and its VAT taxes, and stock loads the root's chart
+  into every new branch. This module's install hook rounds the taxes of the Saudi companies globally.
+- `PATCH /setup/fiscal` (`fiscalyear_last_day`, `fiscalyear_last_month`, the sale, purchase, tax and
   global lock dates; never the irreversible hard lock date): `finance.setup.manage` (needs
-  `finance.setup.read`); each returns the full setup status
+  `finance.setup.read`); it returns the full setup status
 - `GET /reports/vat?date_from&date_to`: `finance.reports.read`. Per tax base and tax amount for sales
   and purchases of the posted entries of the current company, and `net_payable` (output minus input VAT)
 
 ## Setup elevation (documented `sudo()` cases)
 
-Stock refuses `account.chart.template` loads to non-administrators and `res.company` writes without the
-Access Rights group. `webvue.finance.setup` elevates in exactly two methods, each of which checks
-`finance.setup.manage` itself before it elevates (a direct call without it raises `AccessError`), the R7 case "finance setup (chart load, company fiscal settings)":
-
-1. `_webvue_load_chart`: loads the Saudi template `sa` only, into the current company (`env.company`).
-   It refuses (422) when a chart is loaded (`chart_already_loaded`), the company has branches
-   (`company_has_branches`, stock recurses into them) or it already has journal entries.
-2. `_webvue_write_company`: writes the current company only, restricted to a field whitelist
-   (the fiscal year day/month and the four non-hard lock dates). Any other field, including `hard_lock_date`, raises `AccessError`.
+Stock refuses `res.company` writes without the Access Rights group. `webvue.finance.setup` elevates in exactly
+one method, which checks `finance.setup.manage` itself before it elevates (a direct call without it raises
+`AccessError`), the R7 case "finance setup (company fiscal settings)": `_webvue_write_company` writes the current
+company only, restricted to a field whitelist (the fiscal year day/month and the four non-hard lock dates). Any
+other field, including `hard_lock_date`, raises `AccessError`.
 
 Through `PATCH /setup/fiscal` a lock date can only be tightened (set, or moved later); removing or
 moving one earlier is 422 `lock_date_loosening`, done by an accounting administrator in Odoo. Stock
 `RedirectWarning`s (for example unreconciled bank lines before a lock date) become 422 `invalid`
 without the action link.
 
-Both re-check that the record is the current company. Reads, validation and serializers stay in the
+It re-checks that the record is the current company. Reads, validation and serializers stay in the
 caller's environment. A caller without `finance.setup.manage` gets 403 and nothing changes
 (`tests/test_finance_setup.py`).
 
@@ -463,7 +461,6 @@ groups). Read: `GET /audit-events` (`finance.audit.read`, in the finance manager
 
 | Event (log) | Audit `action` (record) |
 |---|---|
-| `finance.setup.chart_loaded` | `chart_loaded` (company, outcome = template) |
 | `finance.setup.company_written` (also the lock date of a year close) | `company_written` (company, `fields_written`) |
 | `finance.fiscal_year.closed` | `fiscal_year_closed` (closing entry or company, outcome = `<year>:<state>`) |
 | `finance.zatca.onboarded` | `zatca_onboarded` (journal) |

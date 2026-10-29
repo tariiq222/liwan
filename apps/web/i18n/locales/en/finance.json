@@ -166,7 +166,6 @@
       "stepsTitle": "Setup steps",
       "stepsEmpty": "No steps",
       "steps": {
-        "chart_not_loaded": "Load the chart of accounts",
         "vat_15_tax_missing": "15% VAT tax",
         "company_vat_missing": "Company tax number",
         "company_registry_missing": "Company commercial registration",
@@ -214,9 +213,6 @@
       "chart": {
         "title": "Chart of accounts",
         "hint": "The accounts, taxes and journals created from the Saudi chart of accounts.",
-        "load": "Load the Saudi chart of accounts",
-        "confirmTitle": "Load the Saudi chart of accounts?",
-        "confirmDescription": "This creates the company's accounts, taxes and journals, and cannot be undone from here.",
         "status": "Status",
         "loaded": "Loaded",
         "notLoaded": "Not loaded",

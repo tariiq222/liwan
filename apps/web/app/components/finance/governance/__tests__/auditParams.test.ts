@@ -16,7 +16,7 @@ describe('audit list filters', () => {
   })
 
   it('offers every action of the contract', () => {
-    expect(AUDIT_ACTIONS).toEqual(['chart_loaded', 'account_created', 'account_changed', 'account_archived', 'account_unarchived', 'zakat_adjustment_added', 'zakat_adjustment_removed', 'zakat_reviewed', 'asset_profile_created', 'asset_profile_changed', 'asset_profile_archived', 'asset_profile_unarchived', 'asset_changed', 'asset_deleted', 'asset_disposed', 'bank_statement_imported', 'bank_statement_changed', 'bank_statement_deleted', 'bank_line_unreconciled', 'bank_statement_auto_reconciled', 'payment_created', 'payment_changed', 'payment_posted', 'payment_allocated', 'payment_unallocated', 'invoice_created', 'invoice_changed', 'invoice_deleted', 'invoice_debit_note_created', 'invoice_credit_note_created', 'invoice_posted', 'invoice_cancelled', 'invoice_reset_to_draft', 'entry_created', 'entry_changed', 'entry_deleted', 'entry_posted', 'entry_reset_to_draft', 'entry_unreconciled', 'journal_created', 'journal_changed', 'journal_archived', 'journal_unarchived', 'tax_created', 'tax_changed', 'tax_archived', 'tax_unarchived', 'payment_term_created', 'payment_term_changed', 'payment_term_archived', 'payment_term_unarchived', 'company_written', 'fiscal_year_closed', 'zatca_onboarded', 'zatca_submitted'])
+    expect(AUDIT_ACTIONS).toEqual(['account_created', 'account_changed', 'account_archived', 'account_unarchived', 'zakat_adjustment_added', 'zakat_adjustment_removed', 'zakat_reviewed', 'asset_profile_created', 'asset_profile_changed', 'asset_profile_archived', 'asset_profile_unarchived', 'asset_changed', 'asset_deleted', 'asset_disposed', 'bank_statement_imported', 'bank_statement_changed', 'bank_statement_deleted', 'bank_line_unreconciled', 'bank_statement_auto_reconciled', 'payment_created', 'payment_changed', 'payment_posted', 'payment_allocated', 'payment_unallocated', 'invoice_created', 'invoice_changed', 'invoice_deleted', 'invoice_debit_note_created', 'invoice_credit_note_created', 'invoice_posted', 'invoice_cancelled', 'invoice_reset_to_draft', 'entry_created', 'entry_changed', 'entry_deleted', 'entry_posted', 'entry_reset_to_draft', 'entry_unreconciled', 'journal_created', 'journal_changed', 'journal_archived', 'journal_unarchived', 'tax_created', 'tax_changed', 'tax_archived', 'tax_unarchived', 'payment_term_created', 'payment_term_changed', 'payment_term_archived', 'payment_term_unarchived', 'company_written', 'fiscal_year_closed', 'zatca_onboarded', 'zatca_submitted'])
   })
 
   it('names every action of the contract in both locales', () => {
@@ -27,12 +27,12 @@ describe('audit list filters', () => {
 
   it('counts the applied filters', () => {
     expect(auditActiveFilterCount(auditFiltersFromQuery({}))).toBe(0)
-    expect(auditActiveFilterCount(auditFiltersFromQuery({ action: 'chart_loaded', date_from: '2026-10-01' }))).toBe(2)
+    expect(auditActiveFilterCount(auditFiltersFromQuery({ action: 'company_written', date_from: '2026-10-01' }))).toBe(2)
   })
 
   it('asks the server for one page at the right offset', () => {
-    expect(auditListParams(auditFiltersFromQuery({ page: '2', action: 'chart_loaded' })))
-      .toEqual({ action: 'chart_loaded', limit: AUDIT_PAGE_SIZE, offset: AUDIT_PAGE_SIZE })
+    expect(auditListParams(auditFiltersFromQuery({ page: '2', action: 'company_written' })))
+      .toEqual({ action: 'company_written', limit: AUDIT_PAGE_SIZE, offset: AUDIT_PAGE_SIZE })
     expect(auditListParams(auditFiltersFromQuery({}))).toEqual({ limit: AUDIT_PAGE_SIZE, offset: 0 })
   })
 })

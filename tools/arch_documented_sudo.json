@@ -101,8 +101,8 @@
       "reason": "webvue_pmo timeline tracking exposure: `message.sudo().tracking_value_ids._filter_has_field_access(message.env)`; blocked by the field-level group on `mail.message.tracking_value_ids` (/Users/tariq/code/odoo/addons/mail/models/mail_message.py:180-184) — an ACL cannot scope a field; the elevation only selects the candidate rows, which are then filtered by the caller's real field access."
     },
     "odoo-addons/webvue_finance/models/setup_service.py": {
-      "count": 2,
-      "reason": "finance setup, after the finance.setup.manage check and a field whitelist (owner approved 2026-10-18). Line 49, `self.env['account.chart.template'].sudo()` (Saudi chart load): the demonstrated blocker is Odoo's `account/models/chart_template.py:183` guard, which raises AccessError ('Only administrators can install chart templates') unless `self.env.is_system()`; stock sets `self = self.sudo()` right after it at :185 (E3-FIN49). Line 82, `company.sudo().write(vals)` (fiscal settings write): the blocker is the res.company write ACL `access_res_company_group_erp_manager` (/Users/tariq/code/odoo/odoo/addons/base/security/ir.model.access.csv:42), which grants write on `res.company` only to group_erp_manager; unelevated it fails with 'Access Denied by ACLs ... write, model: res.company' (E3-FIN82)."
+      "count": 1,
+      "reason": "finance setup, after the finance.setup.manage check and a field whitelist (owner approved 2026-10-18). Line 53, `company.sudo().write(vals)` (fiscal settings write): the blocker is the res.company write ACL `access_res_company_group_erp_manager` (/Users/tariq/code/odoo/odoo/addons/base/security/ir.model.access.csv:42), which grants write on `res.company` only to group_erp_manager; unelevated it fails with 'Access Denied by ACLs ... write, model: res.company' (E3-FIN82)."
     },
     "odoo-addons/webvue_finance/models/zatca_service.py": {
       "count": 2,

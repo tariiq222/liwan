@@ -143,22 +143,6 @@ describe('a save answered after the screen left its identity', () => {
     expect(h.value('fiscalError')).toBeNull()
     expect(h.value('fiscalNoticeKey')).toBeNull()
   })
-
-  it('does not report or keep the chart confirmation of an identity the screen left', async () => {
-    const h = mountPage()
-    await openCompany(h, 7, 3, 31)
-    ;(h.page.confirmChart as Vue.Ref<boolean>).value = true
-    const loading = (h.page.confirmLoadChart as () => Promise<void>)()
-    await h.settle()
-    const load = h.pending('/api/v1/finance/setup/chart', 'POST')[0]!
-
-    h.me.value = asUser(7, 4)
-    await h.settle()
-    load.reject(new ApiError(409, 'request_context_changed', 'changed'))
-    await loading
-    await h.settle()
-    expect(h.value('chartError')).toBeNull()
-  })
 })
 
 describe('several broken rules', () => {
@@ -190,7 +174,6 @@ describe('several broken rules', () => {
 })
 
 describe('a write queued while offline', () => {
-  const CHART_URL = '/api/v1/finance/setup/chart'
   const detours: Array<[string, (h: ReturnType<typeof mountPage>) => void]> = [
     ['A, then nobody, then A again', h => { h.me.value = null }],
     ['A, then B, then A again', h => { h.me.value = asUser(8, 3) }],
@@ -215,25 +198,6 @@ describe('a write queued while offline', () => {
     expect(h.pending(FISCAL_URL, 'PATCH')).toHaveLength(0)
     expect(h.value('fiscalError')).toBeNull()
     expect(h.value<boolean>('fiscalSaved')).toBe(false)
-  })
-
-  it.each(detours)('never reaches the network for a chart load once the view left and returned (%s)', async (_name, detour) => {
-    const h = mountPage()
-    await openCompany(h, 7, 3, 31)
-    onlineManager.setOnline(false)
-    const loading = (h.page.confirmLoadChart as () => Promise<void>)()
-    await h.settle()
-    expect(h.pending(CHART_URL, 'POST')).toHaveLength(0)
-
-    detour(h)
-    h.me.value = asUser(7, 3)
-    await h.settle()
-    onlineManager.setOnline(true)
-    await h.client.resumePausedMutations()
-    await loading
-    await h.settle()
-    expect(h.pending(CHART_URL, 'POST')).toHaveLength(0)
-    expect(h.value('chartError')).toBeNull()
   })
 
   it('still sends when the identity never moved', async () => {

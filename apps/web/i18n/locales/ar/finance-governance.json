@@ -130,7 +130,6 @@
         "outcome": "النتيجة"
       },
       "actions": {
-        "chart_loaded": "تحميل شجرة الحسابات",
         "account_created": "إنشاء حساب",
         "account_changed": "تعديل حساب",
         "account_archived": "أرشفة حساب",
