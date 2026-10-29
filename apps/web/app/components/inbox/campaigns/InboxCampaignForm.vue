@@ -168,7 +168,9 @@ async function submit() {
 </script>
 
 <template>
-  <form class="flex flex-col gap-5" novalidate data-testid="inbox-campaign-form" @submit.prevent="submit">
+  <!-- Drawn after hydration only: the template rows, the preview and the local time zone come from query data and the browser, which the server render does not have. -->
+  <SharedLoadingSkeleton v-if="!hydrated" />
+  <form v-else class="flex flex-col gap-5" novalidate data-testid="inbox-campaign-form" @submit.prevent="submit">
     <SharedUnsavedChanges :dirty="dirty" />
     <UAlert v-if="limited" color="info" variant="subtle" icon="i-lucide-info" :title="t('inbox.campaigns.form.limited')" data-testid="inbox-campaign-limited" />
 

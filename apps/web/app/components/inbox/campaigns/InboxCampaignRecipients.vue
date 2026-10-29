@@ -70,7 +70,8 @@ const detailOf = (row: InboxCampaignRecipient) => row.skip_reason
       </SharedFilterBar>
     </template>
 
-    <SharedPageState :error="list.error.value" :keep-content="items.length > 0" @retry="list.refetch">
+    <SharedLoadingSkeleton v-if="!hydrated" class="m-(--webvue-card-pad-dense)" />
+    <SharedPageState v-else :error="list.error.value" :keep-content="items.length > 0" @retry="list.refetch">
       <SharedEmptyState v-if="!list.isLoading.value && !items.length" class="m-(--webvue-card-pad-dense)" :title="t('inbox.campaigns.recipients.empty')" />
       <SharedDataTable v-else bare :rows="items" :columns="columns" row-key="id" :loading="list.isLoading.value" :caption="t('inbox.campaigns.recipients.title')">
         <template #contact-cell="{ row }">
