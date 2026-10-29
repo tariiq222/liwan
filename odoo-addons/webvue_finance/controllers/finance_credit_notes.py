@@ -47,7 +47,11 @@ class FinanceCreditNoteController(http.Controller):
                 'move_ids': [Command.set(invoice.ids)], 'company_id': invoice.company_id.id,
                 'journal_id': invoice.journal_id.id, **parsed,
             })
-            return request.env['account.move'].browse(wizard.refund_moves()['res_id'])
+            credit_note = request.env['account.move'].browse(wizard.refund_moves()['res_id'])
+            # The wizard schedules a future-dated reversal to post itself; posting needs its own capability.
+            if credit_note.auto_post != 'no':
+                credit_note.auto_post = 'no'
+            return credit_note
 
         lock = {**_lock_context(invoice), 'day': parsed.get('date') or invoice.date}
         if 'date' in parsed:

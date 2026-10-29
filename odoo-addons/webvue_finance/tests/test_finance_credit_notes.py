@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import date, timedelta
+
 from odoo.tests import tagged
 
 from .write_common import INVOICES, PASSWORD, WebVueFinanceWriteCase
@@ -29,6 +31,15 @@ class TestFinanceCreditNotes(WebVueFinanceWriteCase):
         record = self.env['account.move'].browse(note['id'])
         self.assertEqual((record.reversed_entry_id.id, record.company_id), (invoice['id'], self.company))
         self.assertIn('credit_note', self.api('GET', f'{INVOICES}/{invoice["id"]}').json()['allowed_actions'])
+
+    def test_a_future_dated_credit_note_waits_for_posting(self):
+        # Odoo's wizard schedules a future-dated reversal to post itself; posting needs its own capability.
+        invoice = self.posted_invoice()
+        future = (date.today() + timedelta(days=30)).isoformat()
+        result = self.credit(invoice['id'], {'date': future})
+        self.assertEqual(result.status_code, 201, result.text)
+        record = self.env['account.move'].browse(result.json()['id'])
+        self.assertEqual((record.state, record.auto_post), ('draft', 'no'))
 
     def test_posting_the_credit_note_lowers_the_invoice_residual_to_zero(self):
         invoice = self.posted_invoice()

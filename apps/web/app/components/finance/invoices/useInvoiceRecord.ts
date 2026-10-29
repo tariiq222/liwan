@@ -14,7 +14,7 @@ import { offeredMenuItems, readFinanceActions } from '../financeActions'
 import { registerPaymentLink } from '../payments/paymentModel'
 import { financeErrorMessage } from '../financeErrors'
 import { financeErrorKey, zatcaSubmissionFromDetails } from './invoiceErrors'
-import { INVOICE_KINDS, invoiceKindOf, invoiceRecordPath, invoiceTitle, type FinanceMoveType } from './invoiceKinds'
+import { INVOICE_KINDS, invoiceKindOf, invoiceRecordPath, invoiceTitle, reversedMoveType, type FinanceMoveType } from './invoiceKinds'
 import { INVOICE_STATE_TONE, PAYMENT_STATE_TONE, ZATCA_STATE_TONE } from './invoiceTones'
 
 export type Confirmation = 'delete' | 'cancel' | 'reset' | 'debit' | 'credit' | null
@@ -155,7 +155,8 @@ export function useInvoiceRecord(moveType: FinanceMoveType) {
     zatcaMessages,
     paymentTo: computed(() => registerPaymentLink([id.value], route.fullPath)),
     pdfHref: computed(() => `/api/v1/finance/invoices/${id.value}/pdf`),
-    creditOriginTo: computed(() => invoice.value?.credit_origin ? { path: invoiceRecordPath(invoice.value.move_type, invoice.value.credit_origin.id), query: { returnTo: backTo.value } } : null),
+    // A credit note reverses an invoice or a bill, so its origin opens under the invoice's own type.
+    creditOriginTo: computed(() => invoice.value?.credit_origin ? { path: invoiceRecordPath(reversedMoveType(invoice.value.move_type), invoice.value.credit_origin.id), query: { returnTo: backTo.value } } : null),
     debitOriginTo: computed(() => invoice.value?.debit_origin ? { path: invoiceRecordPath(invoice.value.move_type, invoice.value.debit_origin.id), query: { returnTo: backTo.value } } : null),
     posting: transition.isPending,
     removing: removal.isPending,
