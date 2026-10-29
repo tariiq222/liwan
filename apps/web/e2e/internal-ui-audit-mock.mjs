@@ -8,6 +8,7 @@ import { capabilitiesForRequest } from './mock-capabilities.mjs'
 import { crmPreviewWrite } from './crm-ui-preview-data.mjs'
 import { INBOX_CAPABILITIES, INBOX_FEATURES, inboxPreviewData, resetInboxPreview } from './inbox-ui-preview-data.mjs'
 import { handleCommercial } from './commercial-mock-routes.mjs'
+import { handlePublicAppointments } from './appointments-mock-routes.mjs'
 import { handlePayments, handlePublicPayments, PAYMENTS_LINKS_MANAGE, PAYMENTS_MANAGE, PAYMENTS_SETTINGS_MANAGE } from './payments-mock-routes.mjs'
 import crypto from 'node:crypto'
 import { URL } from 'node:url'
@@ -387,6 +388,8 @@ async function handle(req, res) {
 
   // The payer's routes answer without a session: the access token in the request is the only credential.
   if (await handlePublicPayments(req, res, path, url, { json, readBody })) return
+  // The invited requester's routes answer without a session too: the booking's access token is the only credential.
+  if (await handlePublicAppointments(req, res, path, url, { json, readBody })) return
 
   if (!hasSession(req)) return fail(res, 403, 'forbidden', 'not logged in')
 

@@ -108,7 +108,7 @@ describe('finance schemas', () => {
 })
 
 describe('the action contract of a finance record', () => {
-  const detail = { ...INVOICE, ref: '', debit_origin: null, zatca: null, lines: [LINE] }
+  const detail = { ...INVOICE, ref: '', debit_origin: null, credit_origin: null, zatca: null, lines: [LINE] }
 
   it('carries what the server allows and why it blocks the rest', () => {
     const body = {
@@ -141,17 +141,20 @@ describe('the action contract of a finance record', () => {
 
 describe('FinanceInvoiceDetailSchema', () => {
   it('adds the reference, the debit origin, the ZATCA block and the lines to the list shape', () => {
-    const detail = { ...INVOICE, ref: 'PO-1', debit_origin: null, zatca: null, lines: [LINE], allowed_actions: ['pdf'], blocked_actions: [] }
+    const detail = { ...INVOICE, ref: 'PO-1', debit_origin: null, credit_origin: null, zatca: null, lines: [LINE], allowed_actions: ['pdf'], blocked_actions: [] }
     expect(FinanceInvoiceDetailSchema.parse(detail)).toEqual(detail)
     const note = { ...detail, debit_origin: { id: 3, name: 'INV/2026/0003' } }
     expect(FinanceInvoiceDetailSchema.parse(note)).toEqual(note)
     expect(() => FinanceInvoiceDetailSchema.parse({ ...detail, debit_origin: { id: 3 } })).toThrow()
+    const credit = { ...detail, credit_origin: { id: 3, name: 'INV/2026/0003' } }
+    expect(FinanceInvoiceDetailSchema.parse(credit)).toEqual(credit)
+    expect(() => FinanceInvoiceDetailSchema.parse({ ...detail, credit_origin: { id: 3 } })).toThrow()
     expect(() => FinanceInvoiceDetailSchema.parse(INVOICE)).toThrow()
     expect(() => FinanceInvoiceDetailSchema.parse({ ...detail, lines: [{ ...LINE, extra: 1 }] })).toThrow()
   })
 
   it('carries the ZATCA block of a Saudi sale document and is strict about it', () => {
-    const detail = { ...INVOICE, ref: '', debit_origin: null, lines: [LINE], allowed_actions: [], blocked_actions: [] }
+    const detail = { ...INVOICE, ref: '', debit_origin: null, credit_origin: null, lines: [LINE], allowed_actions: [], blocked_actions: [] }
     const submission = { state: 'accepted', mode: 'clearance', errors: [], warnings: [], qr_present: true }
     const zatca = { qr_code: 'AQ==', confirmation_datetime: '2026-10-18T09:30:00Z', submission }
     expect(FinanceInvoiceDetailSchema.parse({ ...detail, zatca })).toEqual({ ...detail, zatca })

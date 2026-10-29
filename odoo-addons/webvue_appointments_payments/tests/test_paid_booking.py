@@ -47,6 +47,19 @@ class TestPaidBooking(WebVuePaidBookingCase):
         self.assertEqual((order.state, booking.state), ('sale', 'confirmed'))
         self.assertEqual(booking.with_user(self.booker)._webvue_payment()['status'], 'paid')
 
+    def test_the_guest_link_never_asks_to_confirm_a_paying_booking(self):
+        """The company asks requesters to confirm, but scheduling already confirmed the paying booking: its order holds
+        it, so the requester's page offers no confirmation and the confirm route refuses one."""
+        self.env['webvue.appointment.settings'].create({'company_id': self.env.company.id, 'requester_confirmation': True})
+        self.env.flush_all()
+        booking = self.env['resource.booking'].browse(self.book().id)
+        booking._portal_ensure_token()
+        path = '/api/v1/public/appointments/bookings/%d' % booking.id
+        body = self.api('GET', '%s?access_token=%s' % (path, booking.access_token)).json()
+        self.assertEqual((body['state'], body['awaits_confirmation']), ('scheduled', False))
+        refused = self.api('POST', path + '/confirm', json={'access_token': booking.access_token})
+        self.assertEqual((refused.status_code, refused.json()['code']), (422, 'invalid'), refused.text)
+
     def test_a_deposit_confirms_the_booking(self):
         self.paid_type.with_user(self.manager)._webvue_set_payment(online_payment='deposit', deposit_percent=30)
         booking = self.book()

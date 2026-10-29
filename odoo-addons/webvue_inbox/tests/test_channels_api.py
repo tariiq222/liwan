@@ -12,7 +12,7 @@ from odoo.addons.webvue_platform.models.entitlement_service import OPERATOR_CONT
 
 CHANNEL_KEYS = {
     'id', 'name', 'kind', 'state', 'department', 'phone_number_id', 'business_account_id', 'has_access_token',
-    'has_app_secret', 'verify_token', 'callback_url', 'last_error', 'last_event_at',
+    'has_app_secret', 'app_id', 'verify_token', 'callback_url', 'last_error', 'last_event_at',
 }
 NEW_CHANNEL = {
     'name': 'Branch line', 'kind': 'whatsapp', 'phone_number_id': '300000000001',
@@ -114,7 +114,7 @@ class TestChannelsApi(WebVueInboxCase):
 
     def test_template_sync_upserts_and_removes(self):
         stale = self.env['webvue.inbox.template'].create({
-            'channel_id': self.channel.id, 'name': 'stale', 'language': 'ar', 'status': 'APPROVED', 'body': 'x', 'param_count': 0,
+            'channel_id': self.channel.id, 'name': 'stale', 'language': 'ar', 'status': 'approved', 'body': 'x',
         })
         remote = [{
             'name': 'order_ready', 'language': 'ar', 'category': 'UTILITY', 'status': 'APPROVED',

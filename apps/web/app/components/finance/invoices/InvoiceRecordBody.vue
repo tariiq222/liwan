@@ -38,6 +38,11 @@ const { can } = useAccess()
         <USwitch v-model="record.debitCopyLines" :label="t('financeDocuments.confirm.debitCopyLines')" />
       </div>
     </SharedInlineConfirm>
+    <SharedInlineConfirm v-if="record.confirming === 'credit'" :title="t('financeDocuments.confirm.credit', { name: record.title })" :description="t('financeDocuments.confirm.creditHint')" :confirm-label="t('financeDocuments.actions.creditNote')" :pending="record.creatingCreditNote" :disabled="!record.hydrated" color="primary" @confirm="record.createCreditNote()" @cancel="record.confirming = null">
+      <div class="mt-3 grid gap-3">
+        <UFormField :label="t('financeDocuments.confirm.creditReason')" name="finance-credit-reason"><UInput id="finance-credit-reason" v-model="record.creditReason" class="w-full" maxlength="255" /></UFormField>
+      </div>
+    </SharedInlineConfirm>
 
     <InvoiceForm
       v-if="record.editing && record.actions.can('edit')"

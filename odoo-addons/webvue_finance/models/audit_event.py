@@ -41,6 +41,7 @@ class WebVueFinanceAuditEvent(models.Model):
         ('invoice_changed', 'Invoice changed'),
         ('invoice_deleted', 'Invoice deleted'),
         ('invoice_debit_note_created', 'Invoice debit note created'),
+        ('invoice_credit_note_created', 'Invoice credit note created'),
         ('invoice_posted', 'Invoice posted'),
         ('invoice_cancelled', 'Invoice cancelled'),
         ('invoice_reset_to_draft', 'Invoice reset to draft'),

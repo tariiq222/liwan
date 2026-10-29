@@ -14,7 +14,7 @@ export const FinancePaymentStateSchema = z.enum([
 ])
 
 export const FinanceInvoiceActionSchema = z.enum([
-  'edit', 'delete', 'post', 'reset_to_draft', 'cancel', 'debit_note', 'register_payment', 'pdf', 'zatca_submit', 'zatca_retry',
+  'edit', 'delete', 'post', 'reset_to_draft', 'cancel', 'debit_note', 'credit_note', 'register_payment', 'pdf', 'zatca_submit', 'zatca_retry',
 ])
 export const FinancePaymentActionSchema = z.enum(['cancel', 'reset_to_draft', 'post', 'edit', 'allocate', 'unallocate'])
 
@@ -59,6 +59,7 @@ export const FinanceInvoiceZatcaSchema = z.object({
 export const FinanceInvoiceDetailSchema = FinanceInvoiceSchema.extend({
   ref: z.string(),
   debit_origin: FinanceRefSchema.nullable(),
+  credit_origin: FinanceRefSchema.nullable(),
   /** Null for every document that is not a Saudi sale document. */
   zatca: FinanceInvoiceZatcaSchema.nullable(),
   lines: z.array(FinanceInvoiceLineSchema),
