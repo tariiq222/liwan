@@ -212,11 +212,16 @@ export const InboxChannelCommerceSchema = z.object({
   catalog: Ref.nullable(),
   cart_enabled: z.boolean().nullable(),
   catalog_visible: z.boolean().nullable(),
+  // Sent to the customer when an order is paid, inside the service window only; {reference} is the order number.
+  paid_notice_enabled: z.boolean(),
+  paid_notice_text: z.string(),
 }).strict()
 
 export const InboxChannelCommercePatchSchema = z.object({
   cart_enabled: z.boolean().optional(),
   catalog_visible: z.boolean().optional(),
+  paid_notice_enabled: z.boolean().optional(),
+  paid_notice_text: z.string().trim().min(1).max(L.body).optional(),
 }).strict().refine(body => Object.keys(body).length > 0, { message: 'send at least one field' })
 
 // ---- catalog items (bridge) ----
@@ -297,6 +302,19 @@ export const InboxCatalogItemPatchSchema = z.object({
   ...ItemFields,
   product: InboxCatalogProductPatchSchema.optional(),
 }).strict().refine(body => Object.keys(body).length > 0, { message: 'send at least one field' })
+
+// An existing product of the catalog's company that may be listed: the "existing product" picker of the item form.
+export const InboxCatalogProductOptionSchema = z.object({
+  id: Id,
+  name: z.string(),
+  list_price: Amount,
+  currency: Currency,
+  // Meta needs an image; a product without one cannot be listed until it gets one.
+  has_image: z.boolean(),
+  // Already an item of this catalog.
+  listed: z.boolean(),
+}).strict()
+export const InboxCatalogProductOptionListSchema = list(InboxCatalogProductOptionSchema)
 
 // What the composer's product picker lists: listed, synced, not rejected items of the conversation's catalog.
 export const InboxCatalogPickItemSchema = z.object({
@@ -415,6 +433,7 @@ export type InboxCatalogProductCreate = z.infer<typeof InboxCatalogProductCreate
 export type InboxCatalogProductPatch = z.infer<typeof InboxCatalogProductPatchSchema>
 export type InboxCatalogItemCreate = z.infer<typeof InboxCatalogItemCreateSchema>
 export type InboxCatalogItemPatch = z.infer<typeof InboxCatalogItemPatchSchema>
+export type InboxCatalogProductOption = z.infer<typeof InboxCatalogProductOptionSchema>
 export type InboxCatalogPickItem = z.infer<typeof InboxCatalogPickItemSchema>
 export type InboxCatalogPickItemList = z.infer<typeof InboxCatalogPickItemListSchema>
 export type InboxOrderPayment = z.infer<typeof InboxOrderPaymentSchema>
