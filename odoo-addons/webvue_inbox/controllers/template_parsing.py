@@ -9,6 +9,7 @@ from odoo.addons.webvue_api.controllers.common import parse_positive_int
 from odoo.addons.webvue_inbox.adapters import media_rules
 from odoo.addons.webvue_inbox.controllers.helpers import reject
 from odoo.addons.webvue_inbox.controllers.reply_parsing import (
+    MAX_COUPON,
     parse_https_url,
     parse_list,
     parse_object,
@@ -34,7 +35,6 @@ MAX_FOOTER = 60
 MAX_BUTTONS = 10
 MAX_BUTTON_TEXT = 25
 MAX_URL = 2000
-MAX_COUPON = 15
 MAX_URL_BUTTONS = 2
 MAX_EXPIRATION_MINUTES = 90
 URL_VARIABLE = '{{1}}'
@@ -78,14 +78,13 @@ def parse_example(value, key, maximum=MAX_EXAMPLE):
     return parse_string(value, key, maximum)
 
 
-def parse_sample(channel, template, attachment_id, kind):
-    """The sample file of a media header: an unused upload of the channel (or the template's own current sample)."""
-    owners = [(channel._name, channel.id)] + ([(template._name, template.id)] if template else [])
-    attachment = request.env['ir.attachment'].search([
-        ('id', '=', parse_positive_int(attachment_id, 'example_attachment_id')),
-    ]).filtered(lambda record: (record.res_model, record.res_id) in owners)
-    if not attachment or media_rules.kind_of(attachment.mimetype) != kind:
-        reject(f'example_attachment_id is not an uploaded {kind} sample of this channel', 'example_attachment_id')
+def parse_sample(template, attachment_id, kind):
+    """The sample file of a media header: the caller's own unused upload, or the template's current sample."""
+    attachment = request.env['ir.attachment'].search([('id', '=', parse_positive_int(attachment_id, 'example_attachment_id'))])
+    current = bool(template) and attachment == template.header_example_attachment_id
+    unused = (attachment.res_model, attachment.res_id) == ('webvue.inbox.template', 0) and attachment.create_uid == request.env.user
+    if not (attachment and (current or unused)) or media_rules.kind_of(attachment.mimetype) != kind:
+        reject(f'example_attachment_id is not an uploaded {kind} sample', 'example_attachment_id')
     return attachment
 
 
@@ -110,7 +109,7 @@ def parse_header(channel, template, value):
     value = parse_object(value, 'header', {'type', 'example_attachment_id'}, ('type', 'example_attachment_id'))
     if not channel.app_id:
         reject('the channel needs its Meta app id to upload the sample file of a media header', 'app_id')
-    attachment = parse_sample(channel, template, value['example_attachment_id'], kind)
+    attachment = parse_sample(template, value['example_attachment_id'], kind)
     return {**NO_HEADER, 'header_type': kind, 'header_example_attachment_id': attachment.id}
 
 

@@ -55,7 +55,10 @@ class TestOutbox(WebVueInboxCase):
             'channel_id': self.channel.id, 'name': 'order_ready', 'language': 'ar', 'status': 'approved',
             'body': 'Hi {{1}}',
         })
-        self.queue(template_name=template.name, template_language=template.language, template_params=['Sara'], body='Hi Sara')
+        self.queue(
+            template_id=template.id, template_name=template.name, template_language=template.language,
+            template_params=['Sara'], body='Hi Sara',
+        )
         mocked = MagicMock(return_value=response(200, {'messages': [{'id': 'wamid.T1'}]}))
         self.run_outbox(mocked)
         sent = mocked.call_args.kwargs['json']

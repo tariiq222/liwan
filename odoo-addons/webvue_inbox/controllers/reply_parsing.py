@@ -20,6 +20,8 @@ MAX_PARAM = 1024
 MAX_HEADER_PARAM = 60
 MAX_BUTTON_PARAMS = 3
 MAX_BUTTON_PARAM = 2000
+MAX_COUPON = 15
+MAX_OTP_CODE = 15
 MAX_TEMPLATE_BUTTONS = 10
 TEMPLATE_REPLY_KEYS = {
     'template_id', 'params', 'header_param', 'header_attachment_id', 'header_location', 'button_params',
@@ -220,27 +222,33 @@ def parse_header_input(conversation, payload):
     return header
 
 
-def parse_button_params(value):
-    """[(button position, value)] of the `button_params` list."""
+def parse_button_params(value, template):
+    """[(button index, value)] of the `button_params` list; a coupon code is shorter than a link suffix."""
+    kinds = dict(template._webvue_button_needs())
     params = []
     for item in parse_list(value, 'button_params', 0, MAX_BUTTON_PARAMS):
         item = parse_object(item, 'button_params', {'index', 'value'}, ('index', 'value'))
         index = item['index']
         if isinstance(index, bool) or not isinstance(index, int) or not 0 <= index < MAX_TEMPLATE_BUTTONS:
             reject(f'button_params index must be a whole number from 0 to {MAX_TEMPLATE_BUTTONS - 1}', 'button_params')
-        params.append((index, parse_string(item['value'], 'button_params', MAX_BUTTON_PARAM)))
+        maximum = MAX_COUPON if kinds.get(index) == 'copy_code' else MAX_BUTTON_PARAM
+        params.append((index, parse_string(item['value'], 'button_params', maximum)))
     return tuple(params)
 
 
 def parse_template(conversation, payload):
     """A template reply: the template, its body parameters, header values and button values (limits checked again by the message)."""
     check_fields(payload, TEMPLATE_REPLY_KEYS, required=('template_id', 'params'))
+    template = find_one('webvue.inbox.template', payload['template_id'], 'template_id')
+    if not template.supported:
+        reject('this template has parts WebVue cannot send; synchronise or recreate it', 'template_id')
     params = parse_list(payload['params'], 'params', 0, MAX_TEMPLATE_PARAMS)
+    limit = MAX_OTP_CODE if template.category == 'authentication' else MAX_PARAM
     return ParsedReply(
-        template=find_one('webvue.inbox.template', payload['template_id'], 'template_id'),
-        params=tuple(parse_string(param, 'params', MAX_PARAM) for param in params),
+        template=template,
+        params=tuple(parse_string(param, 'params', limit) for param in params),
         header=parse_header_input(conversation, payload),
-        button_params=parse_button_params(payload['button_params']) if 'button_params' in payload else (),
+        button_params=parse_button_params(payload['button_params'], template) if 'button_params' in payload else (),
     )
 
 

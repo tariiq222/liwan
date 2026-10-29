@@ -7,7 +7,7 @@ import requests
 from odoo.tests import tagged
 
 from .common import MESSAGE_KEYS, PHONE_ID, WebVueInboxCase
-from .media_samples import PDF, PNG
+from .media_samples import MP4, OGG, PDF, PNG
 from odoo.addons.webvue_inbox.adapters import whatsapp
 
 URL_BUTTON = {'kind': 'url', 'text': 'Track', 'url': 'https://example.com/{{1}}', 'example': 'https://example.com/9'}
@@ -182,6 +182,41 @@ class TestTemplateReplies(WebVueInboxCase):
         self.assertEqual((sent['name'], sent['language']), (template.name, {'code': 'ar'}))
         self.assertEqual([component['type'] for component in sent['components']], ['header', 'body', 'button', 'button'])
 
+    def test_button_values_are_limited_by_what_they_are(self):
+        template = self.make_template(button_ids=[URL_BUTTON, COPY_BUTTON])
+        for bad in ([{'index': 0, 'value': 'x' * 2001}, {'index': 1, 'value': 'C'}], [{'index': 0, 'value': 'x'}, {'index': 1, 'value': 'x' * 16}]):
+            result = self.reply(template, button_params=bad)
+            self.assertError(result, 422, 'invalid')
+            self.assertEqual(result.json()['field'], 'button_params')
+        ok = [{'index': 0, 'value': 'x' * 2000}, {'index': 1, 'value': 'x' * 15}]
+        self.assertEqual(self.reply(template, button_params=ok).status_code, 200)
+
+    def test_a_one_time_code_is_at_most_fifteen_characters(self):
+        template = self.make_template(category='authentication', body='{{1}} is your code.', button_ids=[{'kind': 'otp', 'text': 'Copy'}])
+        result = self.reply(template, ['1' * 16])
+        self.assertEqual((result.status_code, result.json()['field']), (422, 'params'))
+        self.assertEqual(self.reply(template, ['1' * 15]).status_code, 200)
+
+    def test_buttons_are_addressed_by_metas_index(self):
+        """A synchronised template keeps Meta's button index, so a gap left by a skipped button does not shift a value."""
+        template = self.make_template(button_ids=[COPY_BUTTON])
+        template.button_ids.sequence = 2
+        self.assertError(self.reply(template, button_params=[{'index': 0, 'value': 'C'}]), 422, 'invalid')
+        self.assertEqual(self.reply(template, button_params=[{'index': 2, 'value': 'C'}]).status_code, 200)
+        self.assertEqual(self.sent_template()['components'][0]['index'], '2')
+
+    def test_a_media_header_must_match_the_kind_exactly(self):
+        template = self.make_template(header_type='video')
+        self.assertError(self.reply(template, header_attachment_id=self.upload()), 422, 'invalid')
+        self.assertError(self.reply(template, header_attachment_id=self.upload(OGG, 'audio/ogg', 'a.ogg')), 422, 'invalid')
+        self.assertEqual(self.reply(template, header_attachment_id=self.upload(MP4, 'video/mp4', 'a.mp4')).status_code, 200)
+
+    def test_an_unsupported_template_cannot_be_sent(self):
+        template = self.make_template(supported=False)
+        result = self.reply(template)
+        self.assertEqual((result.status_code, result.json()['code'], result.json()['field']), (422, 'invalid', 'template_id'))
+        self.assertFalse(self.env['webvue.inbox.message'].search([('template_id', '=', template.id)]))
+
     # rules
 
     def test_only_an_approved_template_of_the_conversation_channel_is_sent(self):
@@ -207,13 +242,18 @@ class TestTemplateReplies(WebVueInboxCase):
         template = self.make_template(header_type='text', header_text='Hi {{1}}', footer='Bye', button_ids=[COPY_BUTTON])
         message_id = self.reply(template, header_param='Sara', button_params=[{'index': 0, 'value': 'C1'}]).json()['id']
         name = template.name
+        sent = {'name': name, 'header_text': 'Hi Sara', 'footer': 'Bye', 'buttons': [{'type': 'copy_code', 'text': 'C1'}]}
+        thread = lambda: self.get(self.path('/messages')).json()['items'][-1]['template']  # noqa: E731
+        self.assertEqual(thread(), sent)
+        template.write({'header_text': 'Changed', 'footer': 'Other', 'button_ids': [(5, 0, 0), (0, 0, {'kind': 'quick_reply', 'text': 'New'})]})
+        self.assertEqual(thread(), sent)
         template.unlink()
         message = self.env['webvue.inbox.message'].browse(message_id)
         self.assertFalse(message.template_id)
-        shown = self.get(self.path('/messages')).json()['items'][-1]
-        self.assertEqual(shown['template'], {'name': name, 'header_text': None, 'footer': None, 'buttons': []})
-        components = self.sent_template()['components']
-        self.assertEqual([component['type'] for component in components], ['header', 'button'])
+        self.assertEqual(thread(), sent)
+        # Still queued, so the outbox fails it instead of sending a half-known template.
+        self.run_outbox_offline()
+        self.assertEqual(message.delivery_state, 'failed')
 
 
 @tagged('post_install', '-at_install', 'webvue')

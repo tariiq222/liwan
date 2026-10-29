@@ -35,6 +35,9 @@ CATEGORY_NAMES = {key for key, _label in CATEGORIES}
 QUALITY_NAMES = {key for key, _label in QUALITIES}
 # The placeholder body of an authentication template until Meta's fixed text arrives with the next sync.
 OTP_BODY = '{{1}}'
+# Parts of Meta's listing WebVue can neither show nor send: named variables, carousels, offers, flow buttons, ...
+NAMED_VARIABLE = re.compile(r'\{\{\s*(?!\d+\s*\}\})[^}]*\}\}')
+SUPPORTED_COMPONENTS = frozenset({'HEADER', 'BODY', 'FOOTER', 'BUTTONS'})
 
 
 class WebVueInboxTemplate(models.Model):
@@ -68,6 +71,9 @@ class WebVueInboxTemplate(models.Model):
     # Authentication templates only: Meta writes the body; these are the options around it.
     add_security_recommendation = fields.Boolean()
     code_expiration_minutes = fields.Integer()
+    # False for a template that has parts WebVue cannot represent (or whose structure is not synchronised yet):
+    # it is listed but can be neither edited nor sent.
+    supported = fields.Boolean(default=True)
     param_count = fields.Integer(compute='_compute_param_count')
     editable = fields.Boolean(compute='_compute_editable')
 
@@ -84,10 +90,10 @@ class WebVueInboxTemplate(models.Model):
         for template in self:
             template.param_count = max(map(int, PLACEHOLDER.findall(template.body or '')), default=0)
 
-    @api.depends('status')
+    @api.depends('status', 'supported')
     def _compute_editable(self):
         for template in self:
-            template.editable = template.status in EDITABLE_STATUSES
+            template.editable = template.supported and template.status in EDITABLE_STATUSES
 
     def unlink(self):
         self.header_example_attachment_id.unlink()
@@ -104,10 +110,10 @@ class WebVueInboxTemplate(models.Model):
         return PLACEHOLDER.sub(lambda _match: param or '', self.header_text or '') if self.header_type == 'text' else None
 
     def _webvue_button_needs(self):
-        """The (position, kind) of every button that takes a value when the template is sent."""
+        """The (WhatsApp button index, kind) of every button that takes a value when the template is sent."""
         self.ensure_one()
         return [
-            (position, button.kind) for position, button in enumerate(self.button_ids.sorted('sequence'))
+            (button.sequence, button.kind) for button in self.button_ids.sorted('sequence')
             if button.kind == 'copy_code' or (button.kind == 'url' and button.url.endswith('{{1}}'))
         ]
 
@@ -193,7 +199,10 @@ class WebVueInboxTemplate(models.Model):
         if not (self.editable and self.provider_template_id):
             raise UserError(self.env._('Meta accepts edits of approved, rejected and paused templates only.'))
         category_changed = values.get('category', self.category) != self.category
+        previous_sample = self.header_example_attachment_id
         self.write(values)
+        if previous_sample != self.header_example_attachment_id:
+            previous_sample.unlink()
         self._webvue_own_example_attachment()
         credentials = self.channel_id._webvue_credentials()
         whatsapp.edit_template(
@@ -210,8 +219,8 @@ class WebVueInboxTemplate(models.Model):
         self._webvue_remove()
 
     def _webvue_remove(self):
+        """Remove the template; replies still queued with it fail when the outbox reaches them."""
         self.ensure_one()
-        self._webvue_fail_queued_sends(self.channel_id, self)
         self.unlink()
 
     def _webvue_own_example_attachment(self):
@@ -268,7 +277,9 @@ class WebVueInboxTemplate(models.Model):
                 parts.setdefault(component['type'].upper(), component)
         header, body, footer = parts.get('HEADER', {}), parts.get('BODY', {}), parts.get('FOOTER', {})
         header_type = str(header.get('format') or '').lower()
-        header_type = header_type if header_type in dict(HEADER_TYPES) and header_type != 'none' else 'none'
+        known_header = header_type in dict(HEADER_TYPES) and header_type != 'none'
+        header_type = header_type if known_header else 'none'
+        buttons, buttons_supported = self._webvue_buttons_from_meta(parts.get('BUTTONS', {}))
         status = self._webvue_status_values(
             str(item.get('status') or ''), item.get('rejected_reason') if item.get('rejected_reason') != 'NONE' else None,
         )
@@ -277,6 +288,7 @@ class WebVueInboxTemplate(models.Model):
         minutes = footer.get('code_expiration_minutes')
         return {
             'provider_template_id': str(item['id']) if item.get('id') else False,
+            'supported': buttons_supported and (known_header or not header) and self._webvue_is_positional(item),
             'category': category if category in CATEGORY_NAMES else 'utility',
             **status,
             'quality': self._webvue_quality(quality.get('score')),
@@ -289,7 +301,7 @@ class WebVueInboxTemplate(models.Model):
             'code_expiration_minutes': minutes if isinstance(minutes, int) and not isinstance(minutes, bool) else 0,
             'example_ids': [(5, 0, 0), *((0, 0, {'position': position, 'example': example}) for position, example in enumerate(
                 self._webvue_body_examples(body.get('example')), start=1))],
-            'button_ids': [(5, 0, 0), *((0, 0, button) for button in self._webvue_buttons_from_meta(parts.get('BUTTONS', {})))],
+            'button_ids': [(5, 0, 0), *((0, 0, button) for button in buttons)],
         }
 
     @api.model
@@ -304,22 +316,39 @@ class WebVueInboxTemplate(models.Model):
         return [value for value in first if isinstance(value, str)]
 
     @api.model
+    def _webvue_is_positional(self, item):
+        """True when the listing uses only components WebVue knows and numbered variables ({{1}}) in every text."""
+        components = [c for c in item.get('components') or [] if isinstance(c, dict)]
+        texts = [c.get('text') for c in components] + [
+            b.get('url') for c in components for b in (c.get('buttons') or []) if isinstance(b, dict)
+        ]
+        return (
+            {str(c.get('type') or '').upper() for c in components} <= SUPPORTED_COMPONENTS
+            and item.get('parameter_format', 'POSITIONAL') != 'NAMED'
+            and not any(NAMED_VARIABLE.search(text) for text in texts if isinstance(text, str))
+        )
+
+    @api.model
     def _webvue_buttons_from_meta(self, component):
-        """The supported buttons of Meta's BUTTONS component, in order; other button types are not stored."""
-        buttons = []
-        for raw in component.get('buttons') or []:
+        """(supported buttons keyed by Meta's own button index, whether every button is supported).
+
+        WhatsApp addresses a button by its index in Meta's list, so an unsupported button leaves a gap.
+        """
+        buttons, all_supported = [], True
+        for index, raw in enumerate(component.get('buttons') or []):
             kind = str(raw.get('type') or '').lower() if isinstance(raw, dict) else ''
-            if kind not in dict(BUTTON_KINDS):
+            if kind not in dict(BUTTON_KINDS) or (kind == 'otp' and raw.get('otp_type', 'COPY_CODE') != 'COPY_CODE'):
+                all_supported = False
                 continue
             example = raw.get('example')
             example = example[0] if isinstance(example, list) and example else example
             buttons.append({
-                'sequence': len(buttons), 'kind': kind, 'text': raw.get('text') if isinstance(raw.get('text'), str) else False,
+                'sequence': index, 'kind': kind, 'text': raw.get('text') if isinstance(raw.get('text'), str) else False,
                 'url': raw.get('url') if isinstance(raw.get('url'), str) else False,
                 'phone_number': raw.get('phone_number') if isinstance(raw.get('phone_number'), str) else False,
                 'example': example if isinstance(example, str) else False,
             })
-        return buttons
+        return buttons, all_supported
 
     def _webvue_sync(self, channel):
         """Upsert the channel's templates from Meta and delete those Meta no longer lists."""
@@ -334,22 +363,8 @@ class WebVueInboxTemplate(models.Model):
             else:
                 self.create({'channel_id': channel.id, 'company_id': channel.owner_company_id.id,
                              'name': key[0], 'language': key[1], **values})
-        removed = current.filtered(lambda t: (t.name, t.language) not in remote)
-        self._webvue_fail_queued_sends(channel, removed)
-        removed.unlink()
+        current.filtered(lambda t: (t.name, t.language) not in remote).unlink()
         return self.search([('channel_id', '=', channel.id)])
-
-    @api.model
-    def _webvue_fail_queued_sends(self, channel, templates):
-        """Fail the queued replies of templates the provider no longer lists, with a clear error."""
-        removed = {(template.name, template.language) for template in templates}
-        queued = self.env['webvue.inbox.message'].search([
-            ('conversation_id.channel_id', '=', channel.id), ('delivery_state', '=', 'queued'),
-            ('template_name', '!=', False),
-        ])
-        queued.filtered(lambda message: (message.template_name, message.template_language) in removed).write({
-            'delivery_state': 'failed', 'error': self.env._('The template was removed by the provider.'),
-        })
 
 
 class WebVueInboxTemplateExample(models.Model):

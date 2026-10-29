@@ -4,6 +4,8 @@ import os
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
+import requests
+
 from odoo import Command, fields
 from odoo.tests import new_test_user
 
@@ -26,6 +28,7 @@ MESSAGE_KEYS = {
 TEMPLATE_KEYS = {
     'id', 'name', 'language', 'category', 'status', 'status_reason', 'quality', 'header', 'body', 'body_examples', 'footer',
     'buttons', 'add_security_recommendation', 'code_expiration_minutes', 'otp_button_text', 'param_count', 'editable',
+    'supported',
 }
 
 
@@ -122,6 +125,12 @@ class WebVueInboxCase(WebVueApiCase):
             'date': fields.Datetime.now() - timedelta(minutes=minutes_ago),
         })
         return conversation
+
+    def run_outbox_offline(self):
+        """Run the outbox and prove it called Meta never (a reply that cannot be sent fails before any request)."""
+        with patch.object(requests, 'request') as request:
+            self.env['webvue.inbox.message']._webvue_run_outbox()
+        self.assertEqual(request.call_count, 0)
 
     def login(self, user):
         self.authenticate(user.login, PASSWORD)

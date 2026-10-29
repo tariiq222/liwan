@@ -44,7 +44,10 @@ class WebVueInboxMessage(models.Model):
     # What fills the template's header: a text (here), a file (the message's attachment) or a location (the fields below).
     template_header = fields.Selection(HEADER_TYPES, required=True, default='none')
     template_header_param = fields.Char()
-    template_button_param_ids = fields.One2many('webvue.inbox.message.button.param', 'message_id')
+    # The template as it was when sent, so the thread keeps showing it after the template is edited or deleted.
+    template_header_text = fields.Char()
+    template_footer = fields.Char()
+    template_button_ids = fields.One2many('webvue.inbox.message.button', 'message_id')
     provider_message_id = fields.Char(copy=False)
     # The message this one answers (WhatsApp context); always a message of the same conversation.
     reply_to_id = fields.Many2one('webvue.inbox.message', index=True, ondelete='set null')
@@ -207,8 +210,8 @@ class WebVueInboxMessage(models.Model):
 
     @api.model
     def _webvue_template_values(self, conversation, template, params, header, button_params):
-        if template.channel_id != conversation.channel_id or template.status != APPROVED:
-            raise ValidationError(self.env._('The template is not an approved template of this conversation channel.'))
+        if template.channel_id != conversation.channel_id or template.status != APPROVED or not template.supported:
+            raise ValidationError(self.env._('The template is not an approved, supported template of this conversation channel.'))
         if len(params) != template.param_count:
             raise ValidationError(self.env._('The template needs %(count)s parameter(s).', count=template.param_count))
         return {
@@ -216,10 +219,9 @@ class WebVueInboxMessage(models.Model):
             'template_language': template.language, 'template_params': list(params),
             'body': template._webvue_render(params),
             **self._webvue_template_header_values(template, header),
-            'template_button_param_ids': [
-                (0, 0, {'position': position, 'sub_type': sub_type, 'value': value})
-                for position, sub_type, value in self._webvue_template_button_rows(template, params, button_params)
-            ],
+            'template_header_text': template._webvue_render_header(header.get('text')) or False,
+            'template_footer': template.footer or False,
+            'template_button_ids': self._webvue_template_button_commands(template, params, button_params),
         }
 
     @api.model
@@ -243,18 +245,19 @@ class WebVueInboxMessage(models.Model):
         return {**values, **(header.get('location') or {})}
 
     @api.model
-    def _webvue_template_button_rows(self, template, params, button_params):
-        """(position, sub_type, value) of every button value a reply carries; a one-time-password button takes the code."""
+    def _webvue_template_button_commands(self, template, params, button_params):
+        """One row per template button, with the value it is sent with; a one-time-password button takes the code."""
         needs = template._webvue_button_needs()
         given = dict(button_params)
         if len(given) != len(button_params) or set(given) != {position for position, _kind in needs}:
             raise ValidationError(self.env._('The button values do not match the template buttons.'))
-        rows = [(position, 'copy_code' if kind == 'copy_code' else 'url', given[position]) for position, kind in needs]
-        rows += [
-            (position, 'url', params[0]) for position, button in enumerate(template.button_ids.sorted('sequence'))
-            if button.kind == 'otp'
+        return [
+            (0, 0, {
+                'position': button.sequence, 'kind': button.kind, 'text': button.text or False,
+                'value': params[0] if button.kind == 'otp' else given.get(button.sequence, False),
+            })
+            for button in template.button_ids.sorted('sequence')
         ]
-        return rows
 
     def _webvue_retry(self):
         """Queue a failed outbound message again."""

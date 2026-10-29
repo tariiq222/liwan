@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import json
+from datetime import timedelta
 
+from odoo import fields
 from odoo.tests import tagged
 
 from . import whatsapp_payloads as wa
@@ -121,9 +123,11 @@ class TestTemplateEvents(WebVueInboxCase):
         queued = self.env['webvue.inbox.message'].create({
             'conversation_id': conversation.id, 'direction': 'out', 'kind': 'template', 'body': 'x', 'delivery_state': 'queued',
             'template_name': template.name, 'template_language': 'ar', 'template_params': [], 'template_id': template.id,
+            'next_attempt_at': fields.Datetime.now() - timedelta(seconds=1),
         })
         self.process(STATUS, status_value(template, 'DELETED'))
         self.assertFalse(template.exists())
+        self.run_outbox_offline()
         self.assertEqual((queued.delivery_state, queued.error), ('failed', 'The template was removed by the provider.'))
 
     def test_category_and_quality_changes(self):

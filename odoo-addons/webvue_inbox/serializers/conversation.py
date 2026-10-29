@@ -45,17 +45,15 @@ def dump_attachment(attachment):
 
 def dump_message_template(message):
     """A sent template as the thread shows it: the name and the parts around the rendered body."""
-    template = message.template_id
-    values = {param.position: param.value for param in message.template_button_param_ids}
     buttons = [
         {'type': 'copy_code' if button.kind == 'otp' else button.kind,
-         'text': (values.get(position, '') if button.kind == 'copy_code' else button.text) or ''}
-        for position, button in enumerate(template.button_ids.sorted('sequence'))
+         'text': (button.value if button.kind == 'copy_code' else button.text) or ''}
+        for button in message.template_button_ids.sorted('position')
     ]
     return {
         'name': message.template_name,
-        'header_text': template._webvue_render_header(message.template_header_param) if template else None,
-        'footer': template.footer or None,
+        'header_text': message.template_header_text or None,
+        'footer': message.template_footer or None,
         'buttons': buttons,
     }
 

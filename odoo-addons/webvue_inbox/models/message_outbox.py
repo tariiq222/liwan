@@ -99,6 +99,8 @@ class WebVueInboxMessageOutbox(models.Model):
         to = conversation.identity_id.address
         context_id = self.reply_to_id.provider_message_id or None
         if self.template_name:
+            if not self.template_id:
+                raise UserError(self.env._('The template was removed by the provider.'))
             return whatsapp.send_template(
                 credentials, to, self.template_name, self.template_language, self.template_params or [],
                 header=self._webvue_template_header(credentials), buttons=self._webvue_template_buttons(),
@@ -147,8 +149,8 @@ class WebVueInboxMessageOutbox(models.Model):
 
     def _webvue_template_buttons(self):
         return [
-            {'index': param.position, 'sub_type': param.sub_type, 'value': param.value}
-            for param in self.template_button_param_ids.sorted('position')
+            {'index': button.position, 'sub_type': 'copy_code' if button.kind == 'copy_code' else 'url', 'value': button.value}
+            for button in self.template_button_ids.sorted('position') if button.value
         ]
 
     def _webvue_record_failure(self, error, retryable):

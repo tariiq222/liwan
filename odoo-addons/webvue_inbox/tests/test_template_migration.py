@@ -55,3 +55,16 @@ class TestTemplateSelectionsMigration(WebVueInboxCase):
         self.raw(template, 'MARKETING', 'APPROVED')
         load_migrate()(self.env.cr, False)
         self.assertEqual(self.values(template), ('MARKETING', 'APPROVED'))
+
+    def test_migrated_templates_are_unsupported_until_the_next_sync(self):
+        template = self.make_template()
+        self.assertTrue(template.supported)
+        spec = importlib.util.spec_from_file_location('inbox_template_unsynced', MIGRATION.with_name('post-template-unsynced.py'))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        module.migrate(self.env.cr, False)
+        template.invalidate_recordset()
+        self.assertTrue(template.supported)
+        module.migrate(self.env.cr, '19.0.1.1.0')
+        template.invalidate_recordset()
+        self.assertEqual((template.supported, template.editable), (False, False))

@@ -63,6 +63,7 @@ def dump_template(template):
         'otp_button_text': next((button.text for button in buttons if button.kind == 'otp'), None),
         'param_count': template.param_count,
         'editable': template.editable,
+        'supported': template.supported,
     }
 
 

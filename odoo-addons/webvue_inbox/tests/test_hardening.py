@@ -359,7 +359,7 @@ class TestTemplateRemovalAndMediaStreams(WebVueInboxCase):
         return self.env['webvue.inbox.message'].create({
             'conversation_id': self.conversation.id, 'direction': 'out', 'body': 'Hi Sara', 'delivery_state': 'queued',
             'template_name': template.name, 'template_language': template.language, 'template_params': ['Sara'],
-            'next_attempt_at': fields.Datetime.now() - timedelta(seconds=1),
+            'template_id': template.id, 'next_attempt_at': fields.Datetime.now() - timedelta(seconds=1),
         })
 
     def test_sync_fails_queued_replies_of_a_removed_template_instead_of_degrading_them(self):
@@ -372,23 +372,30 @@ class TestTemplateRemovalAndMediaStreams(WebVueInboxCase):
         with patch.object(whatsapp, 'list_templates', return_value=[]):
             self.env['webvue.inbox.template']._webvue_sync(self.channel)
         self.assertFalse(template.exists())
+        self.run_outbox_offline()
         self.assertEqual((queued.delivery_state, queued.error), ('failed', 'The template was removed by the provider.'))
         self.assertEqual(sent.delivery_state, 'sent')
-        with patch.object(requests, 'request') as request:
-            self.env['webvue.inbox.message']._webvue_run_outbox()
-        self.assertEqual(request.call_count, 0)
 
     def test_a_template_reply_is_sent_by_its_stored_name_never_as_text(self):
+        template = self.env['webvue.inbox.template'].create({
+            'channel_id': self.channel.id, 'name': 'present', 'language': 'ar', 'status': 'approved', 'body': 'Hi',
+        })
+        message = self.queued_template_reply(template)
+        message.template_params = []
+        with patch.object(whatsapp, 'send_text') as send_text, \
+                patch.object(whatsapp, 'send_template', return_value='wamid.T9') as send_template:
+            self.env['webvue.inbox.message']._webvue_run_outbox()
+        self.assertEqual((send_text.call_count, send_template.call_args.args[2:]), (0, ('present', 'ar', [])))
+        self.assertEqual(message.delivery_state, 'sent')
+
+    def test_a_template_reply_whose_template_is_gone_fails_and_is_never_sent_as_text(self):
         message = self.env['webvue.inbox.message'].create({
             'conversation_id': self.conversation.id, 'direction': 'out', 'body': 'Hi Sara', 'delivery_state': 'queued',
             'template_name': 'vanished', 'template_language': 'ar', 'template_params': [],
             'next_attempt_at': fields.Datetime.now() - timedelta(seconds=1),
         })
-        with patch.object(whatsapp, 'send_text') as send_text, \
-                patch.object(whatsapp, 'send_template', return_value='wamid.T9') as send_template:
-            self.env['webvue.inbox.message']._webvue_run_outbox()
-        self.assertEqual((send_text.call_count, send_template.call_args.args[2:]), (0, ('vanished', 'ar', [])))
-        self.assertEqual(message.delivery_state, 'sent')
+        self.run_outbox_offline()
+        self.assertEqual((message.delivery_state, message.error), ('failed', 'The template was removed by the provider.'))
 
     def test_a_free_text_message_is_still_sent(self):
         message = self.env['webvue.inbox.message'].create({

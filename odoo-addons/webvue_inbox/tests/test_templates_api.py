@@ -1,10 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import base64
+from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import requests
 
-from odoo import Command
+from odoo import Command, fields
 from odoo.tests import new_test_user, tagged
 
 from .common import PASSWORD, TEMPLATE_KEYS, WebVueInboxCase
@@ -80,6 +81,7 @@ class TestTemplatesApi(WebVueInboxCase):
                 {'type': 'copy_code', 'example': 'SAVE10'},
             ],
             'add_security_recommendation': False, 'code_expiration_minutes': None, 'otp_button_text': None, 'param_count': 2, 'editable': True,
+            'supported': True,
         })
         self.assertEqual(self.get(f'{BASE}/templates/{template.id}').json(), item)
         self.assertEqual(listed['total'], len(listed['items']))
@@ -350,6 +352,7 @@ class TestTemplatesApi(WebVueInboxCase):
         queued = self.env['webvue.inbox.message'].create({
             'conversation_id': conversation.id, 'direction': 'out', 'kind': 'template', 'body': 'x', 'delivery_state': 'queued',
             'template_name': 'gone', 'template_language': 'ar', 'template_params': [], 'template_id': template.id,
+            'next_attempt_at': fields.Datetime.now() - timedelta(seconds=1),
         })
         mocked = MagicMock(return_value=response(200, {'success': True}))
         provider_id = template.provider_template_id
@@ -360,6 +363,7 @@ class TestTemplatesApi(WebVueInboxCase):
         self.assertEqual((method, url.endswith(f'/{self.channel.business_account_id}/message_templates'), mocked.call_args.kwargs['params']),
                          ('DELETE', True, {'hsm_id': provider_id, 'name': 'gone'}))
         self.assertFalse(template.exists())
+        self.run_outbox_offline()
         self.assertEqual((queued.delivery_state, queued.error), ('failed', 'The template was removed by the provider.'))
         self.assertFalse(queued.template_id)
 
@@ -377,8 +381,8 @@ class TestTemplatesApi(WebVueInboxCase):
             result = self.upload(name, content, mimetype)
             self.assertEqual((result.status_code, result.json()['mimetype']), (201, mimetype), result.text)
             attachment = self.env['ir.attachment'].browse(result.json()['id'])
-            self.assertEqual((attachment.res_model, attachment.res_id), ('webvue.inbox.channel', self.channel.id))
-        for name, content, mimetype in (('a.ogg', OGG, 'audio/ogg'), ('a.txt', b'hello', 'text/plain'), ('a.bin', b'\x00\x01', 'application/octet-stream')):
+            self.assertEqual((attachment.res_model, attachment.res_id, attachment.create_uid), ('webvue.inbox.template', 0, self.manager))
+        for name, content, mimetype in (('a.gif', b'GIF89a\x01\x00\x01\x00', 'image/gif'), ('a.ogg', OGG, 'audio/ogg'), ('a.txt', b'hello', 'text/plain'), ('a.bin', b'\x00\x01', 'application/octet-stream')):
             self.assertError(self.upload(name, content, mimetype), 422, 'invalid')
         self.assertError(self.api('POST', f'{self.templates}/uploads', {'name': 'a.png'}), 422, 'invalid')
 
@@ -446,6 +450,94 @@ class TestTemplatesApi(WebVueInboxCase):
         with patch.object(requests, 'request', mocked):
             self.api('POST', f'{self.templates}/sync')
         self.assertEqual(mocked.call_args.kwargs['params']['fields'], 'id,name,language,category,status,components,quality_score,rejected_reason')
+
+    def test_a_template_with_parts_webvue_cannot_represent_is_flagged_unsupported(self):
+        ids = iter(range(880001, 880100))
+
+        def item(name, components, **extra):
+            return {'id': str(next(ids)), 'name': name, 'language': 'ar', 'category': 'UTILITY', 'status': 'APPROVED',
+                    'components': components, **extra}
+        body = {'type': 'BODY', 'text': 'Hello'}
+        quick = {'type': 'QUICK_REPLY', 'text': 'Yes'}
+        url = {'type': 'URL', 'text': 'Track', 'url': 'https://example.com/{{1}}', 'example': ['https://example.com/1']}
+        remote = [
+            item('plain', [body]),
+            item('flow_button', [body, {'type': 'BUTTONS', 'buttons': [quick, {'type': 'FLOW', 'text': 'Open', 'flow_id': '1'}, url]}]),
+            item('catalog_button', [body, {'type': 'BUTTONS', 'buttons': [{'type': 'CATALOG', 'text': 'Shop'}]}]),
+            item('voice_button', [body, {'type': 'BUTTONS', 'buttons': [{'type': 'VOICE_CALL', 'text': 'Call'}]}]),
+            item('named_body', [{'type': 'BODY', 'text': 'Hi {{first_name}}'}]),
+            item('named_format', [body], parameter_format='NAMED'),
+            item('named_url', [body, {'type': 'BUTTONS', 'buttons': [{'type': 'URL', 'text': 'Go', 'url': 'https://e.com/{{order}}'}]}]),
+            item('carousel', [body, {'type': 'CAROUSEL', 'cards': []}]),
+            item('odd_header', [{'type': 'HEADER', 'format': 'PRODUCT'}, body]),
+            item('one_tap', [body, {'type': 'BUTTONS', 'buttons': [{'type': 'OTP', 'otp_type': 'ONE_TAP', 'text': 'Autofill'}]}]),
+        ]
+        with patch.object(whatsapp, 'list_templates', return_value=remote):
+            result = self.api('POST', f'{self.templates}/sync')
+        items = {t['name']: t for t in result.json()['items']}
+        self.assertEqual({name: (t['supported'], t['editable']) for name, t in items.items()},
+                         {'plain': (True, True), **{name: (False, False) for name in items if name != 'plain'}})
+        stored = self.env['webvue.inbox.template'].search([('channel_id', '=', self.channel.id), ('name', '=', 'flow_button')])
+        # Meta's own indexes survive: the skipped flow button leaves a gap at 1.
+        self.assertEqual(stored.button_ids.sorted('sequence').mapped('sequence'), [0, 2])
+        self.assertEqual(stored.supported, False)
+        self.assertError(self.api('PATCH', f'{BASE}/templates/{stored.id}', STANDARD), 422, 'invalid')
+        self.assertEqual(self.get(f'{BASE}/templates/{stored.id}').json()['supported'], False)
+
+    # samples
+
+    def test_a_replaced_or_dropped_header_sample_is_deleted(self):
+        self.channel.app_id = '123456789'
+        template = self.make_template(name='order_ready', header_type='image')
+        calls = lambda: MagicMock(side_effect=[response(200, {'id': 'upload:a'}), response(200, {'h': 'H'}), response(200, {})])  # noqa: E731
+        first = self.upload().json()['id']
+        header = {'type': 'image', 'example_attachment_id': first}
+        payload = {**STANDARD, 'body': 'Hi', 'body_examples': [], 'header': header}
+        with patch.object(requests, 'request', calls()):
+            self.assertEqual(self.api('PATCH', f'{BASE}/templates/{template.id}', payload).status_code, 200)
+        template.status = 'approved'
+        # The template's own sample may be sent again; a new one replaces and deletes it.
+        with patch.object(requests, 'request', calls()):
+            self.assertEqual(self.api('PATCH', f'{BASE}/templates/{template.id}', payload).status_code, 200)
+        self.assertTrue(self.env['ir.attachment'].browse(first).exists())
+        second = self.upload(content=PNG + b'\x00', name='second.png').json()['id']
+        template.status = 'approved'
+        with patch.object(requests, 'request', calls()):
+            self.assertEqual(self.api('PATCH', f'{BASE}/templates/{template.id}', {**payload, 'header': {**header, 'example_attachment_id': second}}).status_code, 200)
+        self.assertFalse(self.env['ir.attachment'].browse(first).exists())
+        self.assertEqual(template.header_example_attachment_id.id, second)
+        template.status = 'approved'
+        with patch.object(whatsapp, 'edit_template'):
+            self.assertEqual(self.api('PATCH', f'{BASE}/templates/{template.id}', {**STANDARD, 'body': 'Hi', 'body_examples': []}).status_code, 200)
+        self.assertFalse(self.env['ir.attachment'].browse(second).exists())
+        self.assertEqual((template.header_type, template.header_example_attachment_id.id), ('none', False))
+
+    def test_deleting_a_template_deletes_its_sample(self):
+        template = self.make_template(header_type='image')
+        sample = self.env['ir.attachment'].create({'name': 's.png', 'raw': PNG, 'mimetype': 'image/png', 'res_model': template._name, 'res_id': template.id})
+        template.header_example_attachment_id = sample
+        with patch.object(whatsapp, 'delete_template'):
+            self.assertEqual(self.api('DELETE', f'{BASE}/templates/{template.id}').status_code, 204)
+        self.assertFalse(sample.exists())
+
+    def test_an_unused_sample_of_another_user_cannot_be_claimed(self):
+        self.channel.app_id = '123456789'
+        other = self.env['ir.attachment'].create({
+            'name': 'x.png', 'raw': PNG, 'mimetype': 'image/png', 'res_model': 'webvue.inbox.template', 'res_id': 0,
+        })
+        self.env.cr.execute('UPDATE ir_attachment SET create_uid = %s WHERE id = %s', [self.agent.id, other.id])
+        other.invalidate_recordset()
+        header = {'type': 'image', 'example_attachment_id': other.id}
+        self.assertError(self.create(header=header), 422, 'invalid')
+
+    def test_stale_loose_samples_are_purged_and_owned_ones_kept(self):
+        template = self.make_template(header_type='image')
+        owned = self.env['ir.attachment'].create({'name': 'o.png', 'raw': PNG, 'mimetype': 'image/png', 'res_model': template._name, 'res_id': template.id})
+        loose = self.env['ir.attachment'].create({'name': 'l.png', 'raw': PNG, 'mimetype': 'image/png', 'res_model': template._name, 'res_id': 0})
+        self.env.cr.execute('UPDATE ir_attachment SET create_date = create_date - interval \'3 days\' WHERE id IN %s', [(owned.id, loose.id)])
+        self.env['ir.attachment'].invalidate_model(['create_date'])
+        self.env['webvue.inbox.conversation']._webvue_run_maintenance()
+        self.assertEqual((owned.exists().id, loose.exists().id), (owned.id, False))
 
     # access
 
@@ -536,3 +628,73 @@ class TestTemplateCompanyScope(WebVueInboxCase):
             result = self.api('POST', path, STANDARD)
         self.assertEqual(result.status_code, 201, result.text)
         self.assertEqual(self.env['webvue.inbox.template'].browse(result.json()['id']).company_id, self.child)
+
+
+@tagged('post_install', '-at_install', 'webvue')
+class TestTemplatesOnlyRole(WebVueInboxCase):
+    """A custom role that holds nothing but `inbox.templates.manage` can run the whole template life cycle."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.channel.app_id = '123456789'
+        cls.templates_only = cls.custom_user('templates_only', 'inbox.templates.manage')
+        cls.read_only = cls.custom_user('conversations_read_only', 'inbox.conversations.read')
+
+    @classmethod
+    def custom_user(cls, login, permission):
+        user = new_test_user(cls.env, login=f'inbox_{login}', password=PASSWORD, name=login, groups='webvue_core.group_employee')
+        role = cls.env['webvue.access.role'].create({
+            'key': f'inbox_{login}', 'name_ar': login, 'name_en': login, 'type': 'custom',
+            'permission_ids': [Command.set(cls.env['webvue.access.permission'].search([('key', '=', permission)]).ids)],
+        })
+        cls.env['webvue.access.service']._webvue_replace_assignments(user, [{'role_id': role.id, 'company_id': cls.env.company.id}])
+        return user
+
+    def test_the_whole_life_cycle_works(self):
+        stale = self.make_template(name='stale')
+        self.login(self.templates_only)
+        templates = f'{BASE}/channels/{self.channel.id}/templates'
+        self.assertEqual(self.get(templates).status_code, 200)
+        self.assertEqual(self.get(f'{BASE}/templates/{stale.id}').status_code, 200)
+        sample = self.api('POST', f'{templates}/uploads', {'name': 's.png', 'mimetype': 'image/png', 'data': base64.b64encode(PNG).decode()})
+        self.assertEqual(sample.status_code, 201, sample.text)
+        header = {'type': 'image', 'example_attachment_id': sample.json()['id']}
+        calls = [response(200, {'id': 'upload:1'}), response(200, {'h': 'H1'}), response(200, {'id': '555000010'})]
+        with patch.object(requests, 'request', MagicMock(side_effect=calls)):
+            created = self.api('POST', templates, {**STANDARD, 'header': header})
+        self.assertEqual(created.status_code, 201, created.text)
+        template_id = created.json()['id']
+        self.assertEqual(created.json()['header']['example_attachment']['name'], 's.png')
+        template = self.env['webvue.inbox.template'].browse(template_id)
+        template.status = 'approved'
+        edit_calls = [response(200, {'id': 'upload:2'}), response(200, {'h': 'H2'}), response(200, {})]
+        with patch.object(requests, 'request', MagicMock(side_effect=edit_calls)):
+            edited = self.api('PATCH', f'{BASE}/templates/{template_id}', {**STANDARD, 'footer': 'Thanks', 'header': header})
+        self.assertEqual((edited.status_code, edited.json()['footer']), (200, 'Thanks'), edited.text)
+        remote = [{'id': '777', 'name': 'listed', 'language': 'ar', 'category': 'UTILITY', 'status': 'APPROVED', 'components': [{'type': 'BODY', 'text': 'Hi'}]}]
+        with patch.object(whatsapp, 'list_templates', return_value=remote):
+            synced = self.api('POST', f'{templates}/sync')
+        self.assertEqual((synced.status_code, [t['name'] for t in synced.json()['items']]), (200, ['listed']), synced.text)
+        listed = self.env['webvue.inbox.template'].search([('name', '=', 'listed')])
+        with patch.object(whatsapp, 'delete_template'):
+            self.assertEqual(self.api('DELETE', f'{BASE}/templates/{listed.id}').status_code, 204)
+
+    def test_it_reaches_only_its_own_companies_channels(self):
+        child = self.env['res.company'].create({'name': 'Templates-only child', 'parent_id': self.env.company.id})
+        foreign = self.make_channel(phone_id='820000000001', owner_company_id=child.id)
+        self.login(self.templates_only)
+        self.assertError(self.get(f'{BASE}/channels/{foreign.id}/templates'), 404, 'not_found')
+
+    def test_a_read_only_role_cannot_write(self):
+        template = self.make_template()
+        self.login(self.read_only)
+        templates = f'{BASE}/channels/{self.channel.id}/templates'
+        self.assertEqual(self.get(templates).status_code, 200)
+        for method, path, body in (
+            ('POST', templates, STANDARD), ('PATCH', f'{BASE}/templates/{template.id}', STANDARD),
+            ('DELETE', f'{BASE}/templates/{template.id}', None), ('POST', f'{templates}/uploads', {}),
+            ('POST', f'{templates}/sync', None),
+        ):
+            self.assertError(self.api(method, path, body), 403, 'forbidden')
+        self.assertTrue(template.exists())

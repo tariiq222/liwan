@@ -23,14 +23,14 @@ from odoo.addons.webvue_inbox.models.access_service import (
     MANAGE_TEMPLATES,
     READ,
 )
-from odoo.addons.webvue_inbox.models.template import CATEGORIES, MEDIA_HEADERS, STATUSES
+from odoo.addons.webvue_inbox.models.template import CATEGORIES, STATUSES
 from odoo.addons.webvue_inbox.serializers.conversation import dump_attachment
 from odoo.addons.webvue_inbox.serializers.settings import dump_template
 
 TEMPLATES_FEATURE = 'inbox.templates'
 READ_CAPABILITIES = (READ, MANAGE_TEMPLATES, MANAGE_CHANNELS)
 # Meta accepts one sample file per header kind: a PNG or JPEG image, an MP4 video, a PDF document.
-SAMPLE_MIMETYPES = {'image': None, 'video': {'video/mp4'}, 'document': {'application/pdf'}}
+SAMPLE_MIMETYPES = {'image': {'image/png', 'image/jpeg'}, 'video': {'video/mp4'}, 'document': {'application/pdf'}}
 MAX_SEARCH = 128
 
 
@@ -68,7 +68,7 @@ def parse_sample_upload(payload):
     """(name, bytes, mimetype) of a header sample: an image, an MP4 video or a PDF."""
     name, raw, mimetype = parse_upload(payload)
     kind = media_rules.kind_of(mimetype)
-    if kind not in MEDIA_HEADERS or (SAMPLE_MIMETYPES[kind] and mimetype not in SAMPLE_MIMETYPES[kind]):
+    if mimetype not in SAMPLE_MIMETYPES.get(kind, ()):
         reject('a header sample must be an image, an MP4 video or a PDF document', 'data')
     return name, raw, mimetype
 
@@ -159,11 +159,11 @@ class TemplateController(http.Controller):
     @requires_feature('inbox.enabled', TEMPLATES_FEATURE, operation='write')
     @requires_capability(MANAGE_TEMPLATES)
     def upload_sample(self, channel_id, **payload):
-        """Store the sample file of a media header; it hangs on the channel until a template uses it or a day passes."""
-        channel = get_channel(channel_id, MANAGE_TEMPLATES)
+        """Store the sample file of a media header; it is the uploader's own until a template uses it or a day passes."""
+        get_channel(channel_id, MANAGE_TEMPLATES)
         name, raw, mimetype = parse_sample_upload(payload)
         attachment = request.env['ir.attachment'].create({
             'name': name, 'raw': raw, 'mimetype': mimetype, 'type': 'binary',
-            'res_model': channel._name, 'res_id': channel.id,
+            'res_model': 'webvue.inbox.template', 'res_id': 0,
         })
         return request.make_json_response(dump_attachment(attachment), status=201)
