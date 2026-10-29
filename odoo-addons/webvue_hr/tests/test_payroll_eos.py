@@ -139,6 +139,15 @@ class TestPayrollEos(PayrollCase):
         res = self._put_settlement(self.officer, self.leaver, {'case': 'termination', 'open_deductions': 0})
         self.assertEqual((res.status_code, res.json()['code']), (403, 'transition_forbidden'))
 
+    def test_confirmed_settlement_stays_visible_after_the_departure_date_changes(self):
+        self._confirmed_settlement()
+        self.leaver.departure_date = date(2026, 12, 10)
+        self._login(self.officer)
+        res = self.api('GET', f'{EOS}/{self.leaver.id}/settlement')
+        self.assertEqual(res.status_code, 200, res.text)
+        shown = res.json()
+        self.assertEqual((shown['state'], shown['departure_mismatch']), ('confirmed', True))
+
     def test_confirm_needs_approve_and_refuses_own_employee(self):
         self.assertEqual(self._put_settlement(self.officer, self.leaver, {'case': 'resignation'}).status_code, 200)
         res = self._confirm(self.officer, self.leaver)

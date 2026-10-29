@@ -15,6 +15,7 @@ from odoo.tools import mute_logger
 from .common import RUNS, VALID_IBAN, PayrollFinanceCase
 from odoo.addons.webvue_finance.controllers import write_support
 from odoo.addons.webvue_hr.rules import WebVueHrRule
+from odoo.addons.webvue_hr.tests.common import set_hr_feature
 from odoo.addons.webvue_hr_finance.models.account_move import AccountMove as PayrollMove
 
 MONTH = '2026-11'
@@ -290,6 +291,13 @@ class TestPayrollPosting(PayrollFinanceCase):
         self.assertEqual(self.api('GET', f'{RUNS}?state=posted').json()['total'], 1)
         self.assertEqual(self.api('GET', f'{RUNS}?state=approved').json()['total'], 0)
         self.assertEqual(self.api('GET', f"{RUNS}/{run['id']}").json()['allowed_actions'], ['eos_provision'])
+
+    def test_no_finance_action_is_offered_while_finance_is_off(self):
+        run = self._approved_run([self.e1, self.e2], MONTH)
+        self.login_as(self.poster)
+        self.assertEqual(self.api('GET', f"{RUNS}/{run['id']}").json()['allowed_actions'], ['post'])
+        set_hr_feature(self, 'finance.enabled', False)
+        self.assertEqual(self.api('GET', f"{RUNS}/{run['id']}").json()['allowed_actions'], [])
 
     def test_entry_name_needs_entries_read(self):
         run, move = self._posted()

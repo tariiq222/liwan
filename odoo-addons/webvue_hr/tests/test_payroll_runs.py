@@ -208,6 +208,9 @@ class TestPayrollRuns(PayrollCase):
         self.assertEqual(self.api('GET', f'{RUNS}?year=2025').json()['total'], 0)
         self.assertEqual(self.api('GET', f'{RUNS}?state=approved').json()['total'], 0)
         self.assertEqual(self.api('GET', f'{RUNS}?state=bogus').status_code, 422)
+        bad_year = self.api('GET', f'{RUNS}?year=abc')
+        self.assertEqual((bad_year.status_code, bad_year.json()['field']), (422, 'year'))
+        self.assertIn('year', bad_year.json()['message'])
 
         detail = self.api('GET', f"{RUNS}/{run['id']}").json()
         self.assertEqual(set(detail), RUN_KEYS)
