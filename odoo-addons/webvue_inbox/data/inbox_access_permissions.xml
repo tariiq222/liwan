@@ -71,6 +71,7 @@
         <field name="description_ar">بناء نماذج واتساب داخل المحادثة ونشرها وإيقافها ونسخها</field><field name="description_en">Build, publish, deprecate and copy in-chat WhatsApp forms (reading the answers needs the conversations capability)</field>
         <field name="group_xmlid">webvue_inbox.group_cap_inbox_flows_manage</field>
         <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
+    </record>
     <record id="permission_inbox_reports_read" model="webvue.access.permission">
         <field name="key">inbox.reports.read</field><field name="domain">inbox</field>
         <field name="resource">reports</field><field name="action">read</field>
