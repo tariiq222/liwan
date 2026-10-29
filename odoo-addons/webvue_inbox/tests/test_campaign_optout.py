@@ -69,11 +69,38 @@ class TestCampaignOptOut(CampaignCase):
         self.assertFalse(self.automated(message.conversation_id))
         self.settings.stop_reply = 'تم'
 
-    def test_a_start_keyword_opts_the_contact_back_in(self):
-        contact = self.make_contact(consent='opted_out')
-        message, _event = self.deliver('اشتراك', wa_id=contact.identity_ids.address)
-        self.assertEqual((contact.marketing_consent, contact.marketing_consent_source), ('opted_in', 'keyword'))
-        self.assertEqual(self.automated(message.conversation_id).mapped('body'), [self.settings.start_reply])
+    def test_a_start_keyword_reverses_the_customers_own_keyword_opt_out(self):
+        contact = self.make_contact()
+        self.deliver('stop', wa_id=contact.identity_ids.address, provider_id='wamid.S1')
+        self.assertEqual(contact.marketing_consent, 'opted_out')
+        message, _event = self.deliver('تفعيل العروض', wa_id=contact.identity_ids.address, provider_id='wamid.S2')
+        self.assertEqual((contact.marketing_consent, contact.marketing_consent_source), ('opted_in', 'agent'))
+        self.assertIn(self.settings.start_reply, self.automated(message.conversation_id).mapped('body'))
+
+    def test_a_start_keyword_never_creates_consent_from_unknown(self):
+        contact = self.make_contact(consent=None)
+        self.deliver('stop', wa_id=contact.identity_ids.address, provider_id='wamid.U1')
+        self.deliver('start promotions', wa_id=contact.identity_ids.address, provider_id='wamid.U2')
+        self.assertEqual(contact.marketing_consent, 'unknown')
+        self.deliver('تفعيل العروض', wa_id=contact.identity_ids.address, provider_id='wamid.U3')
+        self.assertEqual(contact.marketing_consent, 'unknown')
+        self.assertFalse(self.env['webvue.inbox.contact.consent'].search([('contact_id', '=', contact.id), ('state', '=', 'opted_in')]))
+
+    def test_a_start_keyword_never_overrides_an_opt_out_of_another_origin(self):
+        self.make_rule(match_kind='any', reply={'body': 'rule reply'})
+        for index, source in enumerate(('agent', 'whatsapp', 'delivery_error')):
+            contact = self.make_contact(consent=None)
+            contact._webvue_record_consent('opted_out', source)
+            message, _event = self.deliver('تفعيل العروض', wa_id=contact.identity_ids.address, provider_id=f'wamid.O{index}')
+            self.assertEqual(contact.marketing_consent, 'opted_out', source)
+            self.assertEqual(self.automated(message.conversation_id).mapped('body'), ['rule reply'], source)
+
+    def test_the_ambiguous_old_start_words_are_no_keywords(self):
+        contact = self.make_contact(consent=None)
+        contact._webvue_record_consent('opted_out', 'keyword')
+        for index, word in enumerate(('اشتراك', 'subscribe', 'start')):
+            self.deliver(word, wa_id=contact.identity_ids.address, provider_id=f'wamid.A{index}')
+        self.assertEqual(contact.marketing_consent, 'opted_out')
 
     def test_a_reply_is_attributed_once_and_only_within_three_days(self):
         _campaign, contact, recipient = self.sent_campaign()

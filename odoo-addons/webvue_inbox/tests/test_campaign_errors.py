@@ -117,10 +117,18 @@ class TestCampaignErrors(CampaignCase):
         self.assertEqual(recipient.state, 'queued')
 
     def test_a_late_failure_never_pauses_a_finished_campaign(self):
-        campaign, _contact, recipient = self.one_recipient(131042)
+        campaign, _contact, recipient = self.one_recipient(132001)
         self.run_outbox()
         recipient.message_id.delivery_state = 'delivered'
         self.run_campaigns()
         self.assertEqual(campaign.state, 'done')
+        self.fail_status(recipient.message_id, 132001)
+        self.assertEqual((campaign.state, recipient.failure), ('done', 'template_unavailable'))
+
+    def test_a_released_recipient_of_a_finished_campaign_makes_it_run_again(self):
+        campaign, _contact, recipient = self.one_recipient(131042)
+        self.run_outbox()
+        recipient.message_id.delivery_state = 'delivered'
+        self.run_campaigns()
         self.fail_status(recipient.message_id, 131042)
-        self.assertEqual(campaign.state, 'done')
+        self.assertEqual((campaign.state, recipient.state, bool(campaign.completed_at)), ('running', 'pending', False))

@@ -4,7 +4,7 @@ import csv
 import io
 import re
 
-from odoo import http
+from odoo import fields, http
 from odoo.http import request
 
 from odoo.addons.webvue_api.controllers.common import (
@@ -14,7 +14,10 @@ from odoo.addons.webvue_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
-from odoo.addons.webvue_inbox.controllers.campaign_parsing import parse_marketing_patch
+from odoo.addons.webvue_inbox.controllers.campaign_parsing import (
+    in_company,
+    parse_marketing_patch,
+)
 from odoo.addons.webvue_inbox.controllers.conversation_files import decode_upload
 from odoo.addons.webvue_inbox.controllers.helpers import (
     check_fields,
@@ -32,6 +35,7 @@ MAX_FILE_BYTES = 2 * 1024 * 1024
 MAX_ENCODED = 2_800_000
 MAX_ROWS = 10_000
 MAX_ROW_ERRORS = 50
+NAME_LENGTH = 255
 PHONE_DIGITS = re.compile(r'^\d{8,15}$')
 PHONE_NOISE = re.compile(r'[\s\-().]')
 IMPORT_FIELDS = {'name', 'data', 'tag_ids', 'consent', 'consent_note'}
@@ -82,7 +86,7 @@ def parse_import(payload):
         if 'consent_note' not in payload:
             reject('consent_note is required for an opted_in import', 'consent_note')
         note = parse_text(payload, 'consent_note', 256)
-    return raw, find_ids('webvue.inbox.tag', tag_ids, 'tag_ids'), payload['consent'], note
+    return raw, in_company(find_ids('webvue.inbox.tag', tag_ids, 'tag_ids'), 'tag_ids'), payload['consent'], note
 
 
 def read_rows(raw):
@@ -91,11 +95,16 @@ def read_rows(raw):
         text = raw.decode('utf-8-sig')
     except UnicodeDecodeError:
         reject('the file must be UTF-8 text', 'data')
-    reader = csv.DictReader(io.StringIO(text))
-    reader.fieldnames = [(name or '').strip().lower() for name in reader.fieldnames or []]
-    if 'phone' not in reader.fieldnames:
-        reject('the CSV needs a phone column', 'data')
-    rows = [(reader.line_num, {key: (value or '').strip() for key, value in row.items() if key}) for row in reader]
+    try:
+        reader = csv.DictReader(io.StringIO(text), strict=True)
+        reader.fieldnames = [(name or '').strip().lower() for name in reader.fieldnames or []]
+        if 'phone' not in reader.fieldnames:
+            reject('the CSV needs a phone column', 'data')
+        rows = [
+            (reader.line_num, {key: (value if isinstance(value, str) else '').strip() for key, value in row.items() if key}) for row in reader
+        ]
+    except csv.Error:
+        reject('the file is not a readable CSV', 'data')
     if len(rows) > MAX_ROWS:
         reject(f'the CSV has more than {MAX_ROWS} rows', 'data')
     return rows
@@ -107,8 +116,9 @@ class ContactImport:
     def __init__(self, tags, consent, note):
         self.env = request.env
         self.tags, self.consent, self.note = tags, consent, note
+        self.company = self.env.company
         self.settings = self.env['webvue.inbox.settings']._get_for_company()
-        self.tag_by_name = {tag.name: tag for tag in self.env['webvue.inbox.tag'].search([])}
+        self.tag_by_name = {tag.name: tag for tag in self.env['webvue.inbox.tag'].search([('company_id', '=', self.company.id)])}
         self.created = self.updated = self.skipped = 0
         self.errors = []
 
@@ -139,18 +149,18 @@ class ContactImport:
                 parsed.append(item)
         Identity = self.env['webvue.inbox.contact.identity']
         known = {identity.address: identity.contact_id for identity in Identity.search([
-            ('channel_kind', '=', 'whatsapp'), ('address', 'in', [item[0] for item in parsed]),
+            ('company_id', '=', self.company.id), ('channel_kind', '=', 'whatsapp'), ('address', 'in', [item[0] for item in parsed]),
         ])}
         fresh = [item for item in parsed if item[0] not in known]
         contacts = self.env['webvue.inbox.contact'].create([{
-            'name': name, 'phone': f'+{digits}', 'tag_ids': [(6, 0, tags.ids)], 'imported': True,
+            'name': name[:NAME_LENGTH], 'phone': f'+{digits}', 'company_id': self.company.id, 'tag_ids': [(6, 0, tags.ids)],
         } for digits, name, tags in fresh])
         Identity.create([
-            {'contact_id': contact.id, 'channel_kind': 'whatsapp', 'address': item[0]} for contact, item in zip(contacts, fresh, strict=True)
+            {'contact_id': contact.id, 'company_id': self.company.id, 'channel_kind': 'whatsapp', 'address': item[0]} for contact, item in zip(contacts, fresh, strict=True)
         ])
         for digits, _name, tags in parsed:
             if digits in known:
-                known[digits].write({'tag_ids': [(4, tag.id) for tag in tags], 'imported': True})
+                known[digits].write({'tag_ids': [(4, tag.id) for tag in tags], 'last_activity_at': fields.Datetime.now()})
         self.created, self.updated = len(contacts), len(parsed) - len(fresh)
         if self.consent == 'opted_in':
             for contact in contacts | self.env['webvue.inbox.contact'].concat(*known.values()):

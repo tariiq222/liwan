@@ -105,8 +105,14 @@ class AutomationController(http.Controller):
     def list_automation_channels(self, **_):
         """The channels the caller automates or sends campaigns on, as plain references (the channel list itself needs the channels capability)."""
         limit, offset = parse_page(request.httprequest.args)
-        companies = request.env['webvue.access.service']._webvue_capability_company_ids((MANAGE_AUTOMATION, CAMPAIGNS), match='any')
-        domain = [('owner_company_id', 'in', companies)]
+        service, entitlement = request.env['webvue.access.service'], request.env['webvue.entitlement.service']
+        companies = {
+            company
+            for capability, feature in ((MANAGE_AUTOMATION, AUTOMATION_FEATURE), (CAMPAIGNS, CAMPAIGNS_FEATURE))
+            if entitlement._webvue_feature_read(feature)
+            for company in service._webvue_capability_company_ids((capability,))
+        }
+        domain = [('owner_company_id', 'in', sorted(companies))]
         Channel = request.env['webvue.inbox.channel']
         return {
             'items': [dump_ref(channel) for channel in Channel.search(domain, limit=limit, offset=offset)],

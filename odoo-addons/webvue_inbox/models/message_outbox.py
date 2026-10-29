@@ -74,9 +74,12 @@ class WebVueInboxMessageOutbox(models.Model):
     @api.model
     def _webvue_unexpected_failure(self, message, error):
         """An error outside the provider contract: counted as one retryable attempt."""
-        message._webvue_record_failure(f'unexpected error: {type(error).__name__}', retryable=True)
+        if message.exists():  # a message deleted while the batch ran (a paused campaign's) is simply gone
+            message._webvue_record_failure(f'unexpected error: {type(error).__name__}', retryable=True)
 
     def _webvue_deliver(self):
+        if not self.exists() or (self.campaign_recipient_ids and not self._webvue_claim_campaign_send()):
+            return
         self._webvue_send()
         self.conversation_id._webvue_notify_bus()
 

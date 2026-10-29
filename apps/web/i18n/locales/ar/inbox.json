@@ -1286,7 +1286,6 @@
         "skip": {
           "opted_out": "ألغى الاشتراك",
           "no_consent": "بلا موافقة",
-          "duplicate_number": "رقم مكرر",
           "invalid_number": "رقم غير صالح",
           "missing_param": "قيمة متغير ناقصة",
           "cancelled": "أُلغيت الحملة"

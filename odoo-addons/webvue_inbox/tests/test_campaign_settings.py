@@ -5,7 +5,10 @@ from pathlib import Path
 from odoo.tests import tagged
 
 from .campaign_common import CampaignCase
-from odoo.addons.webvue_inbox.models.campaign_constants import DEFAULT_KEYWORDS
+from odoo.addons.webvue_inbox.models.campaign_constants import (
+    DEFAULT_KEYWORDS,
+    DEFAULT_STOP_REPLY,
+)
 from odoo.addons.webvue_inbox.models.presets import PRESETS
 
 URL = '/api/v1/settings/inbox/campaigns'
@@ -30,7 +33,8 @@ class TestCampaignSettings(CampaignCase):
             ('opted_in_only', None, True, 0),
         )
         self.assertEqual((settings['stop_keywords'], settings['start_keywords']), (list(DEFAULT_KEYWORDS['stop']), list(DEFAULT_KEYWORDS['start'])))
-        self.assertIn('اشتراك', settings['stop_reply'])
+        self.assertIn('تفعيل العروض', settings['stop_reply'])
+        self.assertNotIn('اشتراك', settings['start_keywords'])
         self.assertNotIn('إلغاء', settings['stop_keywords'])
 
     def test_the_policy_is_patched_field_by_field(self):
@@ -94,12 +98,19 @@ class TestCampaignSettings(CampaignCase):
         self.assertEqual(len(settings._webvue_keywords('stop')), len(stop))
         self.assertEqual(settings.consent_policy, 'opted_in_only')
 
+    def test_a_preset_replaces_a_reply_that_is_still_the_default_text(self):
+        self.assertEqual(self.settings.stop_reply, DEFAULT_STOP_REPLY)
+        self.login(self.manager)
+        self.api('POST', '/api/v1/settings/inbox/presets/store')
+        self.assertEqual(self.settings.stop_reply, PRESETS['store']['campaigns']['stop_reply'])
+
     # migration
 
     def test_the_migration_gives_existing_settings_the_default_keywords_and_replies(self):
         self.settings._webvue_keywords('stop').unlink()
         self.settings._webvue_keywords('start').unlink()
-        self.settings.write({'stop_reply': False, 'start_reply': False})
+        self.settings._webvue_add_keywords({'start': ['اشتراك', 'subscribe', 'start']})
+        self.settings.write({'stop_reply': 'تم إيقاف الرسائل الترويجية. لإعادة تفعيلها أرسل «اشتراك».', 'start_reply': False})
         script = Path(__file__).resolve().parents[1] / 'migrations' / '19.0.1.7.0' / 'post-campaign-keywords.py'
         spec = importlib.util.spec_from_file_location('campaign_keywords_migration', script)
         migration = importlib.util.module_from_spec(spec)
@@ -109,6 +120,7 @@ class TestCampaignSettings(CampaignCase):
         migration.migrate(self.env.cr, '19.0.1.6.0')
         self.assertEqual(self.settings._webvue_keywords('stop').mapped('value'), list(DEFAULT_KEYWORDS['stop']))
         self.assertEqual(self.settings._webvue_keywords('start').mapped('value'), list(DEFAULT_KEYWORDS['start']))
-        self.assertTrue(self.settings.stop_reply and self.settings.start_reply)
+        self.assertTrue(self.settings.start_reply)
+        self.assertIn('تفعيل العروض', self.settings.stop_reply)
         migration.migrate(self.env.cr, '19.0.1.6.0')
         self.assertEqual(len(self.settings._webvue_keywords('stop')), len(DEFAULT_KEYWORDS['stop']))

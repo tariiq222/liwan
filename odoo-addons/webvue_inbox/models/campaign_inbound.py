@@ -20,15 +20,15 @@ class WebVueInboxCampaignInbound(models.AbstractModel):
     def _webvue_on_inbound(self, conversation, message):
         """Attribute a reply, then apply a stop or start keyword. True when the message was such a keyword (no rule runs on it)."""
         recipient = self.env['webvue.inbox.campaign.recipient']._webvue_latest_for_conversation(conversation, message.date)
-        age = message.date - recipient.message_id.date if recipient else None
+        age = message.date - recipient.sent_at if recipient else None
         if recipient and not recipient.replied_at and age <= REPLY_ATTRIBUTION:
             recipient.replied_at = message.date
         settings = self.env['webvue.inbox.settings']._get_for_company(conversation.company_id)
         if not settings.keyword_opt_out or message.kind not in KEYWORD_KINDS:
             return False
         kind = self.env['webvue.inbox.opt.keyword']._webvue_match(conversation.company_id, message.body)
-        if not kind:
-            return False
+        if not kind or (kind == 'start' and not conversation.contact_id._webvue_withdraw_opt_out('keyword')):
+            return False  # a start word reverses the customer's own keyword opt-out only; otherwise it is an ordinary message
         recent = recipient if recipient and age <= UNSUBSCRIBE_ATTRIBUTION else recipient.browse()
         contact, Message = conversation.contact_id, self.env['webvue.inbox.message']
         if kind == 'stop':
@@ -37,7 +37,6 @@ class WebVueInboxCampaignInbound(models.AbstractModel):
             Message._webvue_post_system_note(conversation, NOTE_STOP % message.body)
             reply = settings.stop_reply
         else:
-            contact._webvue_record_consent('opted_in', 'keyword', note=message.body)
             Message._webvue_post_system_note(conversation, NOTE_START % message.body)
             reply = settings.start_reply
         if reply:

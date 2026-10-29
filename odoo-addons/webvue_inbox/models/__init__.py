@@ -10,6 +10,7 @@ from . import (
     campaign_inbound,
     campaign_param,
     campaign_recipient,
+    campaign_retention,
     channel,
     channel_alert,
     channel_health,

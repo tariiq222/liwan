@@ -4,12 +4,19 @@ import logging
 import re
 from functools import partial
 
+from dateutil.relativedelta import relativedelta
+
 from odoo import api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
 from odoo.fields import Domain
 
 from .batch import process_each
-from .campaign_constants import WHATSAPP_ADDRESS_DIGITS
+from .campaign_constants import (
+    DISPATCH_ATTEMPTS,
+    MEDIA_MAX_AGE_DAYS,
+    PREPARE_FAILURES,
+    WHATSAPP_ADDRESS_DIGITS,
+)
 from .constants import CAMPAIGN_IN_FLIGHT, CAMPAIGNS_FEATURE, SNAPSHOT_CHUNK
 from odoo.addons.webvue_core.models.access_service import WebVueAccessRule
 from odoo.addons.webvue_inbox.adapters import whatsapp
@@ -35,8 +42,10 @@ class WebVueInboxCampaignDispatch(models.Model):
                 with self.env.cr.savepoint():
                     selected, media_id = campaign._webvue_prepare(run)
             except Exception as error:  # noqa: BLE001 - one campaign's failure must not stop the others
-                _logger.warning('campaign %s could not advance: %s', campaign.id, type(error).__name__)
+                campaign._webvue_prepare_failed(error)
                 continue
+            if campaign.prepare_failures:
+                campaign.prepare_failures = 0
             if selected:
                 process_each(selected, partial(campaign._webvue_dispatch_one, media_id=media_id), self._webvue_dispatch_failed)
                 self.env['webvue.inbox.message']._webvue_wake_outbox()
@@ -49,10 +58,19 @@ class WebVueInboxCampaignDispatch(models.Model):
         queued = self.env['webvue.inbox.message'].search([
             ('campaign_recipient_ids.campaign_id', 'in', inactive.ids), ('delivery_state', '=', 'queued'),
             ('provider_message_id', '=', False),
-        ])
+        ])._webvue_lock_available()  # a message the outbox is sending right now stays; the next run reaches it
         recipients = queued.campaign_recipient_ids
         queued.unlink()
-        recipients.write({'dispatched_at': False})  # a recipient given back is not counted against the monthly limit
+        recipients._webvue_reset()  # a recipient given back is pending again and not counted against the monthly limit
+
+    def _webvue_prepare_failed(self, error):
+        """Count an unexpected failure of a dispatcher step; the campaign pauses after a few in a row instead of failing forever."""
+        failures = self.prepare_failures + 1
+        _logger.warning('campaign %s could not advance (%s in a row): %s', self.id, failures, type(error).__name__)
+        self.prepare_failures = failures
+        if failures >= PREPARE_FAILURES:
+            self.prepare_failures = 0
+            self._webvue_pause('token', self.env._('The campaign could not advance: %(error)s', error=type(error).__name__))
 
     def _webvue_prepare(self, run):
         """Guards, snapshot step and budget of one running campaign: (the recipients to queue now, the header media id)."""
@@ -95,34 +113,29 @@ class WebVueInboxCampaignDispatch(models.Model):
             self.snapshot_done = True
             return
         policy = self.env['webvue.inbox.settings']._get_for_company(self.company_id).consent_policy
-        seen = set()
-        Recipient.create([self._webvue_recipient_values(contact, policy, seen) for contact in contacts])
+        Recipient.create([self._webvue_recipient_values(contact, policy) for contact in contacts])
         if len(contacts) < SNAPSHOT_CHUNK:
             self.snapshot_done = True
         else:
             self._webvue_wake()
 
-    def _webvue_recipient_values(self, contact, policy, seen):
+    def _webvue_recipient_values(self, contact, policy):
         identity = contact.identity_ids.filtered(lambda row: row.channel_kind == 'whatsapp')[:1]
         address = identity.address or False
         values = {'campaign_id': self.id, 'contact_id': contact.id, 'address': address}
-        reason = self._webvue_skip_reason(contact, address, policy, seen)
+        reason = self._webvue_skip_reason(contact, address, policy)
         if reason:
             values['skip_reason'] = reason
-        elif address:
-            seen.add(address)
         return values
 
-    def _webvue_skip_reason(self, contact, address, policy, seen):
-        """Why `contact` is not messaged (None when they are): number, consent under the policy, duplicate, parameters."""
+    def _webvue_skip_reason(self, contact, address, policy):
+        """Why `contact` is not messaged (None when they are): number, consent under the policy, parameters."""
         if not address or not ADDRESS.match(address):
             return 'invalid_number'
         if contact.marketing_consent == 'opted_out':
             return 'opted_out'
         if policy == 'opted_in_only' and contact.marketing_consent != 'opted_in':
             return 'no_consent'
-        if address in seen:
-            return 'duplicate_number'
         if self._webvue_resolve(contact) is None:
             return 'missing_param'
         return None
@@ -183,11 +196,15 @@ class WebVueInboxCampaignDispatch(models.Model):
         self.ensure_one()
         if self.template_id.header_type not in ('image', 'video', 'document'):
             return None
-        if not self.header_media_id:
+        stale = self.header_media_uploaded_at and self.header_media_uploaded_at < fields.Datetime.now() - relativedelta(days=MEDIA_MAX_AGE_DAYS)
+        if not self.header_media_id or stale:
             attachment = self.header_attachment_id
-            self.header_media_id = whatsapp.upload_media(
-                self.channel_id._webvue_credentials(), attachment.name, attachment.mimetype, attachment.raw,
-            )
+            self.write({
+                'header_media_id': whatsapp.upload_media(
+                    self.channel_id._webvue_credentials(), attachment.name, attachment.mimetype, attachment.raw,
+                ),
+                'header_media_uploaded_at': fields.Datetime.now(),
+            })
         return self.header_media_id
 
     def _webvue_consent_skip(self, contact):
@@ -206,6 +223,7 @@ class WebVueInboxCampaignDispatch(models.Model):
             return
         message = self._webvue_queue(self._webvue_conversation(contact, recipient.address), resolved, media_id)
         recipient.write({'message_id': message.id, 'dispatched_at': fields.Datetime.now()})
+        recipient._webvue_sync_outcome()
 
     def _webvue_queue(self, conversation, resolved, media_id=None, wake=False):
         """Queue the campaign template for `conversation`; the message is automated, so it has no author and ends no customer wait."""
@@ -235,9 +253,18 @@ class WebVueInboxCampaignDispatch(models.Model):
 
     @api.model
     def _webvue_dispatch_failed(self, recipient, error):
-        """A recipient that cannot be queued is skipped, so one bad row never blocks the campaign."""
+        """A recipient the engine refuses (a closed conversation, a bad value) is skipped; an unknown error is retried a few times.
+
+        A limit reached mid-batch leaves the recipient pending: the next run pauses the campaign on it.
+        """
         _logger.warning('recipient %s was not queued: %s', recipient.id, type(error).__name__)
-        if not isinstance(error, WebVueAccessRule):  # a limit reached mid-batch leaves it pending: the next run pauses on the limit
+        if isinstance(error, WebVueAccessRule):
+            return
+        if isinstance(error, (UserError, ValidationError)):
+            recipient.skip_reason = 'invalid_number'
+            return
+        recipient.dispatch_attempts += 1
+        if recipient.dispatch_attempts >= DISPATCH_ATTEMPTS:
             recipient.skip_reason = 'invalid_number'
 
     def _webvue_finish_if_done(self):

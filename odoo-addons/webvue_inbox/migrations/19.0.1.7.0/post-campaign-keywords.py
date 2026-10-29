@@ -5,16 +5,21 @@ from odoo.addons.webvue_inbox.models.campaign_constants import (
     DEFAULT_KEYWORDS,
     DEFAULT_START_REPLY,
     DEFAULT_STOP_REPLY,
+    RETIRED_START_KEYWORDS,
 )
+from odoo.addons.webvue_inbox.models.normalization import normalize_text
+
+RETIRED_NORMALIZED = {normalize_text(word) for word in RETIRED_START_KEYWORDS}
+RETIRED_STOP_REPLY = 'تم إيقاف الرسائل الترويجية. لإعادة تفعيلها أرسل «اشتراك».'
 
 
 def migrate(cr, version):
-    """Give the settings of every company that exists before the campaigns the default stop and start keywords and replies."""
+    """Give the settings of every company that exists before the campaigns the default keywords and replies, and drop the retired start words."""
     if not version:
         return
     env = api.Environment(cr, SUPERUSER_ID, {})
     for settings in env['webvue.inbox.settings'].search([]):
+        settings._webvue_keywords('start').filtered(lambda keyword: keyword.normalized in RETIRED_NORMALIZED).unlink()
         settings._webvue_add_keywords({kind: list(words) for kind, words in DEFAULT_KEYWORDS.items()})
-        settings.write({
-            'stop_reply': settings.stop_reply or DEFAULT_STOP_REPLY, 'start_reply': settings.start_reply or DEFAULT_START_REPLY,
-        })
+        stop_reply = settings.stop_reply if settings.stop_reply != RETIRED_STOP_REPLY else False
+        settings.write({'stop_reply': stop_reply or DEFAULT_STOP_REPLY, 'start_reply': settings.start_reply or DEFAULT_START_REPLY})

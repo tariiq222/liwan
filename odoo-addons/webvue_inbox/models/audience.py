@@ -29,6 +29,12 @@ class WebVueInboxAudience(models.Model):
 
     _name_unique = models.Constraint('UNIQUE(company_id, name)', 'An audience name is unique per company.')
 
+    @api.constrains('tag_ids', 'exclude_tag_ids', 'company_id')
+    def _check_tag_company(self):
+        for audience in self:
+            if (audience.tag_ids | audience.exclude_tag_ids).company_id - audience.company_id:
+                raise ValidationError(self.env._('An audience uses the tags of its own company.'))
+
     @api.constrains('active_within_days')
     def _check_days(self):
         for audience in self:

@@ -8,10 +8,10 @@ from .campaign_constants import (
     DEFAULT_KEYWORDS,
     DEFAULT_START_REPLY,
     DEFAULT_STOP_REPLY,
+    MAX_DAILY_CAP,
 )
 from .normalization import normalize_text
 
-MAX_DAILY_CAP = 1_000_000
 MAX_REPLY_LENGTH = 1024
 
 
@@ -76,9 +76,9 @@ class WebVueInboxSettingsCampaign(models.Model):
         self._webvue_add_keywords(words_by_kind)
 
     def _webvue_fill_campaigns(self, campaigns):
-        """A sector preset: add the keywords the company lacks and set the confirmation replies that are empty."""
+        """A sector preset: add the keywords the company lacks and set the confirmation replies that are empty or still the default text."""
         self.ensure_one()
         self._webvue_add_keywords({kind: campaigns.get(f'{kind}_keywords', []) for kind in ('stop', 'start')})
-        for field in ('stop_reply', 'start_reply'):
-            if not self[field] and campaigns.get(field):
+        for field, default in (('stop_reply', DEFAULT_STOP_REPLY), ('start_reply', DEFAULT_START_REPLY)):
+            if self[field] in (False, default) and campaigns.get(field):
                 self[field] = campaigns[field]

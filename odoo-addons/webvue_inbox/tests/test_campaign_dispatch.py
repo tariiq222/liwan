@@ -65,12 +65,6 @@ class TestCampaignDispatch(CampaignCase):
         self.assertEqual(self.recipient_of(campaign, with_email).state, 'queued')
         self.assertEqual(self.recipient_of(campaign, without).skip_reason, 'missing_param')
 
-    def test_a_number_already_in_the_batch_is_a_duplicate(self):
-        campaign = self.make_campaign()
-        seen = {'96655000001'}
-        reason = campaign._webvue_skip_reason(self.make_contact(), '96655000001', 'opted_in_only', seen)
-        self.assertEqual(reason, 'duplicate_number')
-
     def test_the_audience_decides_who_is_a_recipient(self):
         vip = self.make_contact(tags=[self.tag])
         plain = self.make_contact()

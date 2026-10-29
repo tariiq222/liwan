@@ -128,6 +128,7 @@ class CampaignCase(AutomationCase):
 
     def age_message(self, message, hours):
         message.date = fields.Datetime.now() - timedelta(hours=hours)
+        message.campaign_recipient_ids.sent_at = message.date
 
     def deliver_from(self, contact, body='Hello'):
         address = contact.identity_ids.address

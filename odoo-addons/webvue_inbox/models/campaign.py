@@ -4,7 +4,7 @@ from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 from odoo.fields import Domain
 
-from .campaign_constants import CAMPAIGN_STATES, PAUSE_REASONS
+from .campaign_constants import CAMPAIGN_STATES, MAX_DAILY_CAP, PAUSE_REASONS
 from .campaign_param import template_needs
 from .constants import (
     CAMPAIGN_CRON,
@@ -15,7 +15,6 @@ from .constants import (
 )
 from .template import APPROVED
 
-MAX_DAILY_CAP = 1_000_000
 EDITABLE_STATES = ('draft', 'scheduled', 'paused')
 STAT_KEYS = ('pending', 'skipped', 'queued', 'sent', 'delivered', 'read', 'failed')
 # The recipients counted by an extra condition on top of the exclusive state buckets.
@@ -43,6 +42,7 @@ class WebVueInboxCampaign(models.Model):
     # The file of a media-header template, and the WhatsApp media id it was uploaded as (once, at the first send).
     header_attachment_id = fields.Many2one('ir.attachment', ondelete='set null')
     header_media_id = fields.Char(copy=False)
+    header_media_uploaded_at = fields.Datetime(copy=False)
     state = fields.Selection(CAMPAIGN_STATES, required=True, default='draft', index=True)
     pause_reason = fields.Selection(PAUSE_REASONS)
     pause_detail = fields.Char(size=200)
@@ -54,6 +54,21 @@ class WebVueInboxCampaign(models.Model):
     launched_by_id = fields.Many2one('res.users', ondelete='set null')
     completed_at = fields.Datetime()
     snapshot_done = fields.Boolean(default=False)
+    # Consecutive dispatcher steps that failed unexpectedly; the campaign pauses after a few.
+    prepare_failures = fields.Integer(default=0)
+    # The recipients are purged with the retention window; the campaign then keeps its final statistics here.
+    stats_frozen = fields.Boolean(default=False)
+    frozen_total = fields.Integer()
+    frozen_pending = fields.Integer()
+    frozen_skipped = fields.Integer()
+    frozen_queued = fields.Integer()
+    frozen_sent = fields.Integer()
+    frozen_delivered = fields.Integer()
+    frozen_read = fields.Integer()
+    frozen_failed = fields.Integer()
+    frozen_replied = fields.Integer()
+    frozen_unsubscribed = fields.Integer()
+    frozen_held = fields.Integer()
     recipient_ids = fields.One2many('webvue.inbox.campaign.recipient', 'campaign_id')
     waiting = fields.Selection(
         [('schedule', 'Schedule'), ('working_hours', 'Working hours'), ('daily_cap', 'Daily cap'),
@@ -61,6 +76,13 @@ class WebVueInboxCampaign(models.Model):
     )
     can_edit = fields.Boolean(compute='_compute_can')
     can_delete = fields.Boolean(compute='_compute_can')
+
+    @api.constrains('company_id', 'channel_id', 'template_id', 'audience_id')
+    def _check_company(self):
+        for campaign in self:
+            parts = (campaign.channel_id.owner_company_id, campaign.template_id.company_id, campaign.audience_id.company_id)
+            if any(part and part != campaign.company_id for part in parts):
+                raise ValidationError(self.env._('The channel, template and audience of a campaign belong to its company.'))
 
     @api.constrains('daily_cap')
     def _check_daily_cap(self):
@@ -84,12 +106,15 @@ class WebVueInboxCampaign(models.Model):
         """{campaign id: the contract's stats} for `campaigns`, from a few grouped reads."""
         Recipient = self.env['webvue.inbox.campaign.recipient']
         stats = {campaign.id: dict.fromkeys((*STAT_KEYS, *EXTRA_STATS, 'total'), 0) for campaign in campaigns}
-        for campaign, state, count in Recipient._read_group([('campaign_id', 'in', campaigns.ids)], ['campaign_id', 'state'], ['__count']):
+        live = campaigns.filtered(lambda campaign: not campaign.stats_frozen)
+        for campaign in campaigns - live:
+            stats[campaign.id] = {key: campaign[f'frozen_{key}'] for key in stats[campaign.id]}
+        for campaign, state, count in Recipient._read_group([('campaign_id', 'in', live.ids)], ['campaign_id', 'state'], ['__count']):
             stats[campaign.id][state] = count
             stats[campaign.id]['total'] += count
         for key, condition in EXTRA_STATS.items():
             for campaign, count in Recipient._read_group(
-                Domain('campaign_id', 'in', campaigns.ids) & Domain([condition]), ['campaign_id'], ['__count'],
+                Domain('campaign_id', 'in', live.ids) & Domain([condition]), ['campaign_id'], ['__count'],
             ):
                 stats[campaign.id][key] = count
         return stats
@@ -109,7 +134,8 @@ class WebVueInboxCampaign(models.Model):
         settings = self.env['webvue.inbox.settings']._get_for_company(self.company_id)
         if self.send_within_hours and not settings._webvue_is_open(now):
             return 'working_hours'
-        if not self.snapshot_done or not self.recipient_ids.filtered_domain([('state', '=', 'pending')]):
+        pending = self.env['webvue.inbox.campaign.recipient'].search_count([('campaign_id', '=', self.id), ('state', '=', 'pending')], limit=1)
+        if not self.snapshot_done or not pending:
             return None
         if self.daily_cap and self._webvue_dispatched_24h() >= self.daily_cap:
             return 'daily_cap'
@@ -223,10 +249,10 @@ class WebVueInboxCampaign(models.Model):
         """Send again the recipients Meta capped for frequency at least a day ago; returns how many."""
         self._webvue_require_state('running', 'paused', 'done')
         cutoff = fields.Datetime.now() - FREQUENCY_RETRY_AFTER
-        retry = self.recipient_ids.filtered_domain([('failure', '=', 'frequency_capped'), ('message_id.date', '<=', cutoff)])
+        retry = self.recipient_ids.filtered_domain([('failure', '=', 'frequency_capped'), ('sent_at', '<=', cutoff)])
         if not retry:
             raise ValidationError(self.env._('No recipient is ready to be retried: a frequency-capped one waits 24 hours.'))
-        retry.write({'message_id': False})
+        retry._webvue_reset()
         if self.state == 'done':
             self.write({'state': 'running', 'completed_at': False})
         self._webvue_wake()

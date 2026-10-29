@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import base64
+from datetime import timedelta
 
+from odoo import fields
 from odoo.tests import tagged
 
 from .campaign_common import BASE, CampaignCase
@@ -29,7 +31,7 @@ class TestContactImport(CampaignCase):
         response = self.upload(f'{BOM}phone,name,tags\n+966501110001,Sara,vip;new\n00966501110002,Omar,\n966501110003,,vip\n', tag_ids=[self.tag.id])
         self.assertEqual(response.json(), {'created': 3, 'updated': 0, 'skipped': 0, 'errors': []})
         sara, omar, nameless = (self.contact_of(f'96650111000{n}') for n in (1, 2, 3))
-        self.assertEqual((sara.name, sara.phone, sara.marketing_consent, sara.imported), ('Sara', '+966501110001', 'unknown', True))
+        self.assertEqual((sara.name, sara.phone, sara.marketing_consent), ('Sara', '+966501110001', 'unknown'))
         self.assertEqual((set(sara.tag_ids.ids), omar.tag_ids.ids, nameless.name), ({self.tag.id, self.other_tag.id}, [self.tag.id], '+966501110003'))
 
     def test_local_numbers_need_the_default_country_code(self):
@@ -93,15 +95,10 @@ class TestContactImport(CampaignCase):
         self.assertGreater(len(big), 2 * 1024 * 1024)
         self.assertError(self.upload(big), 413, 'payload_too_large')
 
-    def test_imported_contacts_survive_the_retention_purge(self):
+    def test_imported_contacts_survive_the_retention_purge_while_they_are_recent(self):
         self.upload('phone\n+966501110014\n')
-        self.env['webvue.inbox.conversation']._webvue_purge_expired(self.env.company, fields_now())
+        self.env['webvue.inbox.campaign']._webvue_purge_marketing(self.env.company, fields.Datetime.now() - timedelta(days=30))
         self.assertTrue(self.contact_of('966501110014'))
-
-
-def fields_now():
-    from odoo import fields  # noqa: PLC0415 - one use
-    return fields.Datetime.now()
 
 
 @tagged('post_install', '-at_install', 'webvue')

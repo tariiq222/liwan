@@ -18,7 +18,7 @@ PAUSE_REASONS = [
     ('messages_limit', 'Messages limit'), ('recipients_limit', 'Recipients limit'),
 ]
 SKIP_REASONS = [
-    ('opted_out', 'Opted out'), ('no_consent', 'No consent'), ('duplicate_number', 'Duplicate number'),
+    ('opted_out', 'Opted out'), ('no_consent', 'No consent'),
     ('invalid_number', 'Invalid number'), ('missing_param', 'Missing parameter'), ('cancelled', 'Cancelled'),
 ]
 RECIPIENT_STATES = [
@@ -45,26 +45,35 @@ KEYWORD_KINDS = [('stop', 'Stop'), ('start', 'Start')]
 TIER_CAPS = {'tier_50': 50, 'tier_250': 250, 'tier_2k': 2000, 'tier_10k': 10000, 'tier_100k': 100000, 'unlimited': None}
 DEFAULT_TIER_CAP = 250
 WHATSAPP_ADDRESS_DIGITS = (8, 15)
+MAX_DAILY_CAP = 1_000_000
+# WhatsApp keeps an uploaded media id for 30 days; it is uploaded again after this many.
+MEDIA_MAX_AGE_DAYS = 25
+DISPATCH_ATTEMPTS = 3
+PREPARE_FAILURES = 3
 
-DEFAULT_STOP_REPLY = 'تم إيقاف الرسائل الترويجية. لإعادة تفعيلها أرسل «اشتراك».'
+DEFAULT_STOP_REPLY = 'تم إيقاف الرسائل الترويجية. لإعادة تفعيلها أرسل «تفعيل العروض».'
 DEFAULT_START_REPLY = 'تم تفعيل الرسائل الترويجية من جديد.'
 # Never «إلغاء» alone: it is a common word for cancelling an appointment.
 DEFAULT_KEYWORDS = {
     'stop': ('إيقاف', 'إلغاء الاشتراك', 'إيقاف العروض', 'stop', 'unsubscribe', 'stop promotions'),
-    'start': ('اشتراك', 'start', 'subscribe'),
+    'start': ('تفعيل العروض', 'start promotions'),
 }
+# The start words earlier versions seeded: ambiguous («اشتراك» is also a subscription request), so they are removed.
+RETIRED_START_KEYWORDS = ('اشتراك', 'start', 'subscribe')
 
 
 class Handling(NamedTuple):
     """What a Meta error code means for a campaign recipient.
 
     `failure`: the recipient's failure (None: the message never left, see `release`); `pause`: the reason the whole campaign
-    pauses; `consent`: the customer stopped marketing; `release`: the recipient goes back to pending after the pause.
+    pauses; `consent`: the customer stopped marketing; `release`: the recipient goes back to pending (after the pause, if any); `reupload`: the header media is uploaded again.
     """
     failure: str | None
     pause: str | None = None
     consent: bool = False
     release: bool = False
+    # The uploaded header media is gone: the campaign uploads it again.
+    reupload: bool = False
 
 
 ERROR_HANDLING = {
@@ -78,4 +87,5 @@ ERROR_HANDLING = {
     131042: Handling(None, pause='payment', release=True),
     190: Handling(None, pause='token', release=True),
     131063: Handling(None, pause='template_unavailable', release=True),
+    **dict.fromkeys((131052, 131053), Handling(None, release=True, reupload=True)),
 }

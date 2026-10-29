@@ -1286,7 +1286,6 @@
         "skip": {
           "opted_out": "Opted out",
           "no_consent": "No consent",
-          "duplicate_number": "Duplicate number",
           "invalid_number": "Invalid number",
           "missing_param": "Missing variable value",
           "cancelled": "Campaign cancelled"

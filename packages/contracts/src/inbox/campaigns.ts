@@ -274,7 +274,7 @@ export const InboxCampaignTestResultSchema = z.object({ conversation_id: Id, mes
 
 export const InboxRecipientStateSchema = z.enum(['pending', 'skipped', 'queued', 'sent', 'delivered', 'read', 'failed'])
 export const InboxRecipientSkipReasonSchema = z.enum([
-  'opted_out', 'no_consent', 'duplicate_number', 'invalid_number', 'missing_param', 'cancelled',
+  'opted_out', 'no_consent', 'invalid_number', 'missing_param', 'cancelled',
 ])
 export const InboxRecipientFailureSchema = z.enum([
   'frequency_capped', 'marketing_opt_out', 'not_on_whatsapp', 'template_unavailable', 'invalid_params',

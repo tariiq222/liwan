@@ -197,7 +197,7 @@ class WebVueInboxConversation(models.Model):
 
     @api.model
     def _webvue_purge_expired(self, company, cutoff):
-        """Delete the company's conversations idle since `cutoff` with their attachments and bell rows, stale events and orphaned contacts."""
+        """Delete the company's conversations idle since `cutoff` with their attachments and bell rows, stale events, and the marketing data (campaign recipients, contacts) past the same window."""
         expired = self.search([('company_id', '=', company.id), ('last_message_at', '<', cutoff)])
         self.env['mail.message'].search([
             ('webvue_notification_kind', 'in', KINDS), ('webvue_inbox_conversation_id', 'in', expired.ids),
@@ -208,7 +208,4 @@ class WebVueInboxConversation(models.Model):
             '&', ('res_model', '=', self._name), ('res_id', 'in', expired.ids),
         ]).unlink()
         expired.unlink()
-        # Contacts a company imported or a campaign messaged stay: they are the audience, not leftovers of a conversation.
-        self.env['webvue.inbox.contact'].search([
-            ('company_id', '=', company.id), ('conversation_ids', '=', False), ('imported', '=', False), ('recipient_ids', '=', False),
-        ]).unlink()
+        self.env['webvue.inbox.campaign']._webvue_purge_marketing(company, cutoff)

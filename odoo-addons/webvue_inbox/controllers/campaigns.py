@@ -15,6 +15,7 @@ from odoo.addons.webvue_api.controllers.common import (
 from odoo.addons.webvue_inbox.adapters import whatsapp
 from odoo.addons.webvue_inbox.controllers.audiences import search_term
 from odoo.addons.webvue_inbox.controllers.campaign_parsing import (
+    in_company,
     parse_campaign,
     parse_preview,
 )
@@ -213,7 +214,7 @@ class CampaignController(http.Controller):
     def test_send(self, campaign_id, **payload):
         campaign = campaign_of(campaign_id)
         check_fields(payload, {'contact_id'}, required=('contact_id',))
-        contact = find_one('webvue.inbox.contact', payload['contact_id'], 'contact_id')
+        contact = in_company(find_one('webvue.inbox.contact', payload['contact_id'], 'contact_id'), 'contact_id')
         try:
             message = campaign._webvue_send_test(contact)
         except whatsapp.ProviderError as error:

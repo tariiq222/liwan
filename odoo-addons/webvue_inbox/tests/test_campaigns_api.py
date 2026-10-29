@@ -307,9 +307,11 @@ class TestCampaignsApi(CampaignCase):
 
     def test_a_campaign_of_another_company_is_not_found(self):
         other = self.env['res.company'].create({'name': 'Other company'})
+        channel = self.make_channel(phone_id='100000000044', owner_company_id=other.id)
         foreign = self.env['webvue.inbox.campaign'].create({
-            'name': 'Foreign', 'company_id': other.id, 'channel_id': self.channel.id, 'template_id': self.template.id,
-            'audience_id': self.audience.id,
+            'name': 'Foreign', 'company_id': other.id, 'channel_id': channel.id,
+            'template_id': self.make_template(channel=channel, category='marketing', body='Hi {{1}}', company_id=other.id).id,
+            'audience_id': self.env['webvue.inbox.audience'].create({'name': 'Other audience', 'company_id': other.id}).id,
         })
         self.assertError(self.get(f'{BASE}/campaigns/{foreign.id}'), 404, 'not_found')
         self.assertError(self.api('POST', f'{BASE}/campaigns/{foreign.id}/launch', {}), 404, 'not_found')

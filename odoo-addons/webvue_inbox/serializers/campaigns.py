@@ -104,18 +104,18 @@ def dump_campaigns(campaigns):
 
 
 def dump_recipient(recipient):
-    message = recipient.message_id
-    sent = message and recipient.state in ('sent', 'delivered', 'read', 'failed')
+    """A recipient from its own frozen outcome, so it stays whole after the retention purge deleted its message."""
+    sent = recipient.state in ('sent', 'delivered', 'read', 'failed')
     return {
         'id': recipient.id,
         'contact': {'id': recipient.contact_id.id, 'name': recipient.contact_id.name, 'phone': recipient.contact_id.phone or None},
         'state': recipient.state,
         'skip_reason': recipient.skip_reason or None,
         'failure': recipient.failure or None,
-        'error_code': message.error_code or None,
-        'error': (message.error or None) if recipient.failure else None,
-        'conversation_id': message.conversation_id.id or None,
-        'sent_at': iso(message.date) if sent else None,
+        'error_code': recipient.error_code or None,
+        'error': recipient.error or None,
+        'conversation_id': recipient.message_id.conversation_id.id or None,
+        'sent_at': iso(recipient.sent_at) if sent else None,
         'replied_at': iso(recipient.replied_at),
         'unsubscribed_at': iso(recipient.unsubscribed_at),
         'can_retry': bool(recipient.failure) and recipient._webvue_can_retry(),
