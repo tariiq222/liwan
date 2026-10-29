@@ -181,7 +181,7 @@ export function useDeleteInboxChannel() {
 }
 
 /** The test and the template sync both change what the channel shows (state, last error, templates), so the channel is reloaded. */
-function useChannelAction(id: MaybeRefOrGetter<number>, path: 'test' | 'templates/sync') {
+function useChannelAction(id: MaybeRefOrGetter<number>, path: 'templates/sync') {
   const { $api } = useApi()
   const qc = useQueryClient()
   return useMutation({
@@ -190,7 +190,14 @@ function useChannelAction(id: MaybeRefOrGetter<number>, path: 'test' | 'template
   })
 }
 
-export const useTestInboxChannel = (id: MaybeRefOrGetter<number>) => useChannelAction(id, 'test')
+export function useTestInboxChannel(id: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => $api(`/api/v1/inbox/channels/${toValue(id)}/test`, { method: 'POST', schema: InboxChannelSchema }),
+    onSettled: () => qc.invalidateQueries({ queryKey: inboxKeys.all }),
+  })
+}
 export const useSyncInboxTemplates = (id: MaybeRefOrGetter<number>) => useChannelAction(id, 'templates/sync')
 
 // ---------------------------------------------------------------- templates (settings)

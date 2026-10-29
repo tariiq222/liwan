@@ -52,8 +52,8 @@ def parse_channel(payload, creating):
             if payload['department_id'] is not None else False
         )
     if 'state' in payload:
-        if payload['state'] not in ('connected', 'disabled'):
-            reject('state must be connected or disabled', 'state')
+        if payload['state'] != 'disabled':
+            reject('state can only be set to disabled; a passing connection test connects the channel', 'state')
         values['state'] = payload['state']
     for key in ('phone_number_id', 'business_account_id'):
         if key in payload:
@@ -91,7 +91,7 @@ class ChannelController(http.Controller):
         if not holds(MANAGE_CHANNELS, request.env.company):
             raise ApiError(403, 'forbidden', f'{MANAGE_CHANNELS} capability is required in the current company')
         values = parse_channel(payload, creating=True)
-        with unique_as_invalid('phone_number_id', 'this phone number id is already connected'):
+        with unique_as_invalid('phone_number_id', 'this phone number id is already connected', 'inbox_phone_number_taken'):
             channel = request.env['webvue.inbox.channel'].create(values)
         return dump(channel)
 
@@ -125,8 +125,6 @@ class ChannelController(http.Controller):
     @requires_capability(MANAGE_CHANNELS)
     def test_channel(self, channel_id, **_):
         channel = get_channel(channel_id, MANAGE_CHANNELS)
-        if channel.state == 'disabled':
-            reject('the channel is disabled', 'state')
         try:
             whatsapp.check_phone(channel._webvue_credentials())
         except whatsapp.ProviderError as error:

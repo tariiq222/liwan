@@ -6,6 +6,7 @@ from odoo.exceptions import ValidationError
 
 from .constants import MESSAGES_OUT_LIMIT, OUTBOX_CRON, REPLY_PREVIEW_LENGTH
 from .template import APPROVED, HEADER_TYPES, MEDIA_HEADERS, PLACEHOLDER
+from odoo.addons.webvue_core.models.access_service import WebVueAccessRule
 from odoo.addons.webvue_inbox.adapters import media_rules
 
 # A status never moves a message backwards (statuses may arrive out of order). `failed` is terminal
@@ -17,6 +18,9 @@ KINDS = [
     ('sticker', 'Sticker'), ('location', 'Location'), ('contacts', 'Contacts'), ('interactive', 'Interactive'),
     ('template', 'Template'), ('unsupported', 'Unsupported'),
 ]
+
+
+INVALID = 'invalid'
 
 
 class WebVueInboxMessage(models.Model):
@@ -198,15 +202,22 @@ class WebVueInboxMessage(models.Model):
     @api.model
     def _webvue_require_sendable(self, conversation):
         if conversation.state == 'closed':
-            raise ValidationError(self.env._('The conversation is closed; reopen it first.'))
+            raise WebVueAccessRule(
+                INVALID, self.env._('The conversation is closed; reopen it first.'), details={'reason': 'inbox_conversation_closed'},
+            )
         if conversation.channel_id.state == 'disabled':
-            raise ValidationError(self.env._('The channel is disabled.'))
+            raise WebVueAccessRule(
+                INVALID, self.env._('The channel is disabled.'), details={'reason': 'inbox_channel_disabled'},
+            )
 
     @api.model
     def _webvue_require_window(self, conversation):
         ends = conversation.reply_window_ends_at
         if not ends or fields.Datetime.now() > ends:
-            raise ValidationError(self.env._('The 24-hour reply window is closed; send an approved template.'))
+            raise WebVueAccessRule(
+                INVALID, self.env._('The 24-hour reply window is closed; send an approved template.'),
+                details={'reason': 'inbox_window_closed'},
+            )
 
     @api.model
     def _webvue_template_values(self, conversation, template, params, header, button_params):
@@ -298,7 +309,7 @@ class WebVueInboxMessage(models.Model):
         return False if self.body == f'[{self.kind}]' else self.body
 
     def _webvue_reply_preview(self):
-        return ' '.join(self.body.split())[:REPLY_PREVIEW_LENGTH]
+        return ' '.join((self._webvue_caption() or '').split())[:REPLY_PREVIEW_LENGTH]
 
     def _webvue_location(self):
         return {

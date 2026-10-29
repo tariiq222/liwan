@@ -73,7 +73,7 @@ def dump_message(message, attachments):
         'id': message.id,
         'direction': message.direction,
         'kind': message.kind,
-        'body': message.body,
+        'body': message._webvue_caption() or '',
         'author': dump_ref(message.author_id),
         'template': dump_message_template(message) if message.template_name else None,
         'delivery_state': message.delivery_state,

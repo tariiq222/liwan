@@ -60,6 +60,7 @@
       "note": "Internal note",
       "template": "Template: {name}",
       "failed": "The message could not be sent",
+      "mediaFailed": "The attachment of this message could not be downloaded from WhatsApp.",
       "retry": "Retry",
       "reply": "Reply",
       "react": "React",
@@ -301,7 +302,8 @@
         "noEvents": "No event received yet",
         "lastError": "Last error",
         "test": "Test connection",
-        "tested": "Connection test finished",
+        "tested": "Connection test passed",
+        "testFailed": "Connection test failed",
         "syncTemplates": "Sync templates",
         "synced": "Templates synced",
         "webhook": {
@@ -324,11 +326,11 @@
         "disable": "Disable channel",
         "disableHint": "The channel stops receiving and sending messages until it is enabled again.",
         "enable": "Enable channel",
-        "enableHint": "The channel is disabled. Enable it to resume receiving and sending.",
+        "enableHint": "The channel is disabled. Enabling runs a connection test and connects the channel if it passes.",
         "delete": "Delete channel",
-        "deleteHint": "Deletes the channel with all its conversations and messages.",
+        "deleteHint": "A channel with conversations cannot be deleted; disable it instead.",
         "deleteTitle": "Delete the channel \"{name}\"?",
-        "deleteDescription": "This cannot be undone. The conversations and messages of the channel are deleted.",
+        "deleteDescription": "This cannot be undone. Deleting is refused while the channel has conversations; disable it instead.",
         "appId": "Meta app id",
         "appIdHint": "Optional. Needed only to upload the sample file of a template header with an image, video or document."
       }
@@ -501,6 +503,19 @@
       },
       "unsupported": "Not supported in WebVue",
       "unsupportedDescription": "This template uses parts WebVue cannot fill (such as named variables or flow buttons), so it cannot be edited or sent from here. Manage it in Meta's dashboard."
+    }
+  },
+  "errors": {
+    "reasons": {
+      "inbox_department_name_taken": "A department with this name already exists.",
+      "inbox_tag_name_taken": "A tag with this name already exists.",
+      "inbox_shortcut_taken": "A canned reply with this shortcut already exists.",
+      "inbox_template_name_taken": "A template with this name and language already exists on the channel.",
+      "inbox_phone_number_taken": "This phone number id is already connected to a channel.",
+      "inbox_conversation_closed": "The conversation is closed. Reopen it first.",
+      "inbox_channel_disabled": "The channel is disabled.",
+      "inbox_window_closed": "The 24-hour reply window is closed. Send an approved template.",
+      "inbox_channel_has_conversations": "A channel with conversations cannot be deleted. Disable it instead."
     }
   }
 }

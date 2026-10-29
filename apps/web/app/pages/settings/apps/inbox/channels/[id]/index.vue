@@ -84,10 +84,17 @@ function saveSecrets() {
 }
 function toggleEnabled() {
   if (busy.value || !channel.value) return
-  patch({ state: channel.value.state === 'disabled' ? 'connected' : 'disabled' }, { onError: fail })
+  if (channel.value.state === 'disabled') runTest()
+  else patch({ state: 'disabled' }, { onError: fail })
 }
+// A passing test connects the channel (this is also how a disabled one is enabled); a failing one says so.
 function runTest() {
-  test(undefined, { onSuccess: () => toast.add({ title: t('inbox.settings.channels.tested'), color: 'success' }), onError: fail })
+  test(undefined, {
+    onSuccess: result => result.state === 'connected'
+      ? toast.add({ title: t('inbox.settings.channels.tested'), color: 'success' })
+      : toast.add({ title: t('inbox.settings.channels.testFailed'), description: result.last_error ?? undefined, color: 'error' }),
+    onError: fail,
+  })
 }
 function runSync() {
   sync(undefined, { onSuccess: () => toast.add({ title: t('inbox.settings.channels.synced'), color: 'success' }), onError: fail })

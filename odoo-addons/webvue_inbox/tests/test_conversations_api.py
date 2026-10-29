@@ -128,6 +128,7 @@ class TestConversationsApi(WebVueInboxCase):
         self.assertEqual([m['body'] for m in newest_two['items']], ['note 1', 'note 2'])
         older = self.get(self.path('/messages?limit=2&offset=2')).json()
         self.assertEqual([m['body'] for m in older['items']], [self.conversation.message_ids[0].body, 'note 0'])
+        self.assertError(self.get(self.path('/messages?limit=0')), 422, 'invalid')
 
     def test_free_text_reply_is_queued_inside_the_window(self):
         self.login(self.agent)

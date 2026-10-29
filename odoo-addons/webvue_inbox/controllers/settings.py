@@ -111,7 +111,7 @@ class SettingsController(http.Controller):
     @requires_capability(MANAGE_SETTINGS)
     def create_department(self, **payload):
         values = parse_department(payload)
-        with unique_as_invalid('name', 'a department with this name exists'):
+        with unique_as_invalid('name', 'a department with this name exists', 'inbox_department_name_taken'):
             department = request.env['webvue.inbox.department'].create(values)
         return dump_department(department)
 
@@ -122,7 +122,7 @@ class SettingsController(http.Controller):
     def patch_department(self, department_id, **payload):
         department = get_record('webvue.inbox.department', department_id)
         values = parse_department(payload, partial=True)
-        with unique_as_invalid('name', 'a department with this name exists'):
+        with unique_as_invalid('name', 'a department with this name exists', 'inbox_department_name_taken'):
             department.write(values)
         return dump_department(department)
 
@@ -149,7 +149,7 @@ class SettingsController(http.Controller):
     @requires_capability(MANAGE_SETTINGS)
     def create_tag(self, **payload):
         check_fields(payload, {'name'}, required=('name',))
-        with unique_as_invalid('name', 'a tag with this name exists'):
+        with unique_as_invalid('name', 'a tag with this name exists', 'inbox_tag_name_taken'):
             tag = request.env['webvue.inbox.tag'].create({'name': parse_text(payload, 'name', 64)})
         return dump_tag(tag)
 
@@ -160,7 +160,7 @@ class SettingsController(http.Controller):
     def patch_tag(self, tag_id, **payload):
         tag = get_record('webvue.inbox.tag', tag_id)
         check_fields(payload, {'name'}, required=('name',))
-        with unique_as_invalid('name', 'a tag with this name exists'):
+        with unique_as_invalid('name', 'a tag with this name exists', 'inbox_tag_name_taken'):
             tag.write({'name': parse_text(payload, 'name', 64)})
         return dump_tag(tag)
 
@@ -180,7 +180,7 @@ class SettingsController(http.Controller):
     @requires_capability(MANAGE_SETTINGS)
     def create_canned_reply(self, **payload):
         values = self._parse_canned(payload, required=True)
-        with unique_as_invalid('shortcut', 'a canned reply with this shortcut exists'):
+        with unique_as_invalid('shortcut', 'a canned reply with this shortcut exists', 'inbox_shortcut_taken'):
             reply = request.env['webvue.inbox.canned.reply'].create(values)
         return dump_canned_reply(reply)
 
@@ -191,7 +191,7 @@ class SettingsController(http.Controller):
     def patch_canned_reply(self, reply_id, **payload):
         reply = get_record('webvue.inbox.canned.reply', reply_id)
         values = self._parse_canned(payload, required=False)
-        with unique_as_invalid('shortcut', 'a canned reply with this shortcut exists'):
+        with unique_as_invalid('shortcut', 'a canned reply with this shortcut exists', 'inbox_shortcut_taken'):
             reply.write(values)
         return dump_canned_reply(reply)
 

@@ -1,4 +1,5 @@
 import {
+  InboxChannelPatchSchema,
   InboxChannelSchema,
   InboxConversationListSchema,
   InboxConversationPatchSchema,
@@ -49,6 +50,13 @@ describe('InboxConversationPatchSchema', () => {
   it('allows clearing the assignee and rejects unknown fields', () => {
     expect(InboxConversationPatchSchema.parse({ assignee_id: null })).toEqual({ assignee_id: null })
     expect(() => InboxConversationPatchSchema.parse({ contact_id: 1 })).toThrow()
+  })
+})
+
+describe('InboxChannelPatchSchema', () => {
+  it('only disables a channel: a passing connection test is what connects it', () => {
+    expect(InboxChannelPatchSchema.parse({ state: 'disabled' })).toEqual({ state: 'disabled' })
+    expect(() => InboxChannelPatchSchema.parse({ state: 'connected' })).toThrow()
   })
 })
 

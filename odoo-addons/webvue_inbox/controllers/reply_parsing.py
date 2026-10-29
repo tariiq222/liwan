@@ -266,8 +266,10 @@ def parse_reply_to(conversation, payload):
 def parse_reply(conversation, payload):
     """The validated ParsedReply of a reply body: exactly one content member, plus an optional `reply_to_id`."""
     present = [key for key in CONTENT_KEYS if key in payload]
+    if present == ['body', 'attachment_id']:
+        reject('a file carries its text as `caption`, not `body`', 'caption')
     if len(present) != 1:
-        reject(f'a reply carries exactly one of {CONTENT_KEYS}')
+        reject(f"a reply carries exactly one of: {', '.join(CONTENT_KEYS)}")
     content = present[0]
     if content == 'template_id':
         return parse_template(conversation, payload)

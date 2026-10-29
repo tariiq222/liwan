@@ -9,7 +9,7 @@ import { INBOX_PAGE_SIZE, inboxListQuery, inboxPageOffset, serializeInboxListRou
 // The conversation list: filters (assignee, state, department, search) are the URL query, owned by the page that hosts
 // this list. The component only reads them and emits the next filter state.
 const props = defineProps<{ routeState: InboxListRoute; selectedId?: number; pageHeading?: boolean }>()
-const emit = defineEmits<{ 'update:routeState': [InboxListRoute] }>()
+const emit = defineEmits<{ 'update:routeState': [InboxListRoute, options?: { replace: boolean }] }>()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
@@ -52,6 +52,10 @@ const pageCount = computed(() => Math.max(1, Math.ceil(total.value / INBOX_PAGE_
 function goToPage(page: number) {
   if (hydrated.value) emit('update:routeState', { ...props.routeState, offset: inboxPageOffset(page, total.value) })
 }
+// A link whose offset is past the end lands on the last page instead of an empty list; it replaces that entry so Back does not return to it.
+watch(() => [data.value?.total, props.routeState.offset] as const, ([count, offset]) => {
+  if (count && offset >= count) emit('update:routeState', { ...props.routeState, offset: inboxPageOffset(Math.ceil(count / INBOX_PAGE_SIZE), count) }, { replace: true })
+})
 const listQuery = computed(() => serializeInboxListRoute(props.routeState))
 const conversationTo = (id: number) => ({ path: `/inbox/${id}`, query: listQuery.value })
 // The export takes the same filters as the list, without the page window.

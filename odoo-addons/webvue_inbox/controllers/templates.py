@@ -127,9 +127,9 @@ class TemplateController(http.Controller):
         if Template.search_count([
             ('channel_id', '=', channel.id), ('name', '=', parsed.values['name']), ('language', '=', parsed.values['language']),
         ]):
-            reject('a template with this name and language already exists on the channel', 'name')
+            reject('a template with this name and language already exists on the channel', 'name', 'inbox_template_name_taken')
         try:
-            with unique_as_invalid('name', 'a template with this name and language already exists on the channel'):
+            with unique_as_invalid('name', 'a template with this name and language already exists on the channel', 'inbox_template_name_taken'):
                 template = Template._webvue_create_remote(channel, parsed.values, parsed.allow_category_change)
         except whatsapp.ProviderError as error:
             reject(str(error))

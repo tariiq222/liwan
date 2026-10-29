@@ -184,7 +184,10 @@ class ConversationController(http.Controller):
     @requires_capability(READ)
     def list_messages(self, conversation_id, **_):
         conversation = visible_conversation(conversation_id)
-        limit, offset = parse_page(request.httprequest.args)
+        args = request.httprequest.args
+        if args.get('limit') == '0':
+            reject('limit must be at least 1', 'limit')
+        limit, offset = parse_page(args)
         Message = request.env['webvue.inbox.message']
         domain = [('conversation_id', '=', conversation.id)]
         newest = Message.search(domain, order='date desc, id desc', limit=limit, offset=offset)

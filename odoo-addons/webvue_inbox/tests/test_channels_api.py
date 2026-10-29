@@ -76,12 +76,31 @@ class TestChannelsApi(WebVueInboxCase):
         self.assertEqual((patched.status_code, patched.json()['name'], patched.json()['state']), (200, 'Renamed', 'disabled'))
         self.assertEqual(self.reload(self.channel)._webvue_credentials().access_token, 'z' * 20)
         self.assertError(self.api('PATCH', path, {'state': 'error'}), 422, 'invalid')
+        self.assertError(self.api('PATCH', path, {'state': 'connected'}), 422, 'invalid')
         self.assertError(self.get('/api/v1/inbox/channels/999999999'), 404, 'not_found')
 
     def test_delete_refuses_a_channel_with_conversations(self):
         self.make_conversation()
         self.login(self.manager)
-        self.assertError(self.api('DELETE', f'/api/v1/inbox/channels/{self.channel.id}'), 422, 'invalid')
+        result = self.api('DELETE', f'/api/v1/inbox/channels/{self.channel.id}')
+        self.assertError(result, 422, 'invalid')
+        self.assertEqual(result.json()['details'], {'reason': 'inbox_channel_has_conversations'})
+
+    def test_a_passing_test_enables_a_disabled_channel_and_a_failing_one_does_not(self):
+        self.login(self.manager)
+        path = f'/api/v1/inbox/channels/{self.channel.id}/test'
+        self.channel.state = 'disabled'
+        failing = MagicMock(status_code=401)
+        failing.json.return_value = {'error': {'message': 'Invalid OAuth access token'}}
+        with patch.object(requests, 'request', MagicMock(return_value=failing)):
+            self.assertEqual(self.api('POST', path).json()['state'], 'error')
+        with patch.object(requests, 'request', MagicMock(return_value=MagicMock(status_code=200))):
+            self.assertEqual(self.api('POST', path).json()['state'], 'connected')
+
+    def test_a_duplicate_phone_number_id_names_its_reason(self):
+        self.login(self.manager)
+        result = self.api('POST', '/api/v1/inbox/channels', {**NEW_CHANNEL, 'phone_number_id': self.channel.phone_number_id})
+        self.assertEqual(result.json()['details'], {'reason': 'inbox_phone_number_taken'})
         empty = self.make_channel(phone_id='500000000001')
         self.assertEqual(self.api('DELETE', f'/api/v1/inbox/channels/{empty.id}').status_code, 204)
         self.assertFalse(empty.exists())

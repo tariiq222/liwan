@@ -236,6 +236,17 @@ def _message_event(raw, names):
     return _reaction(raw) if raw.get('type') == 'reaction' else _inbound(raw, names)
 
 
+def _well_formed(parse, raws, *args):
+    """The events of `raws`; one entry missing a required field is dropped so it cannot fail the whole payload."""
+    events = []
+    for raw in raws:
+        try:
+            events.append(parse(raw, *args))
+        except (KeyError, TypeError, ValueError, OverflowError, OSError):
+            continue
+    return [event for event in events if event]
+
+
 def _status(raw):
     errors = _dicts(raw.get('errors'))
     return StatusUpdate(
@@ -291,8 +302,8 @@ def parse_events(payload, phone_number_id, business_account_id):
                 contact.get('wa_id'): _dict(contact.get('profile')).get('name')
                 for contact in _dicts(value.get('contacts'))
             }
-            events += [event for event in (_message_event(raw, names) for raw in _dicts(value.get('messages'))) if event]
-            events += [_status(raw) for raw in _dicts(value.get('statuses'))]
+            events += _well_formed(_message_event, _dicts(value.get('messages')), names)
+            events += _well_formed(_status, _dicts(value.get('statuses')))
     return events
 
 
