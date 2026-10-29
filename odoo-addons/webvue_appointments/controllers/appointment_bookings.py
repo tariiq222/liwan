@@ -38,6 +38,7 @@ from odoo.addons.webvue_appointments.serializers.appointment_booking import (
 from odoo.addons.webvue_appointments.serializers.appointment_settings import (
     dump_settings,
 )
+from odoo.addons.webvue_appointments.serializers.payload import reject_unknown
 
 BOOKING = 'resource.booking'
 LIST_ORDER = 'start desc nulls last, id desc'
@@ -147,12 +148,13 @@ class AppointmentBookingController(http.Controller):
     @api_handler
     @requires_feature('appointments.enabled', operation='write')
     @requires_capability(WRITE_CAPABILITY)
-    def invite_booking(self, booking_id, **_):
+    def invite_booking(self, booking_id, **payload):
         """The requester's page path, with the booking's access token (made when missing).
 
         The answer is a path, not a URL: the browser that shows it knows the tenant's public origin.
         Sending it is not done here.
         """
+        reject_unknown(payload, ())
         booking = get_company_booking(booking_id)
         require_open_booking(booking)
         return {'path': booking.get_portal_url()}
