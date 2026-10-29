@@ -26,5 +26,6 @@ class PeopleController(http.Controller):
         limit = max(1, min(parse_nonneg_int(args.get('limit', 20), 'limit'), MAX_LIMIT))
         # A res.users lookup in the caller's environment, so a person-picking
         # user never traverses an HR employee access policy.
-        users = request.env['webvue.directory']._webvue_search_people(args.get('q'), limit=limit)
+        offset = parse_nonneg_int(args.get('offset', 0), 'offset')
+        users = request.env['webvue.directory']._webvue_search_people(args.get('q'), limit=limit, offset=offset)
         return [{'id': user.id, 'name': user.name, 'user_id': user.id} for user in users]

@@ -24,6 +24,15 @@ class AccessBranchesController(http.Controller):
         clear_security_caches_after_commit(request.env)
         return result
 
+    @http.route('/api/v1/admin/branches', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_capability('settings.company.manage')
+    def create_branch(self, **payload):
+        require_exact(payload, {'name'}, {'name'})
+        company = request.env['webvue.entitlement.service']._webvue_create_branch(payload['name'])
+        clear_security_caches_after_commit(request.env)
+        return {'id': company.id, 'name': company.name}
+
     @http.route('/api/v1/admin/access/branches/preset', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
     @requires_capability('access.users.assign_roles', 'access.roles.read')

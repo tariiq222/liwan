@@ -25,6 +25,7 @@ class PolicyError(Exception):
 
 def load_service():
     odoo = types.ModuleType('odoo')
+    odoo.SUPERUSER_ID = 1
     odoo.api = types.SimpleNamespace(model=lambda method: method)
     odoo.models = types.SimpleNamespace(AbstractModel=object)
     exceptions = types.ModuleType('odoo.exceptions')

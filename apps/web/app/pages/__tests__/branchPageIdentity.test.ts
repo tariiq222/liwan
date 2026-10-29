@@ -29,6 +29,7 @@ function mountPage(delegation: boolean) {
       '@/components/access/branches/BranchPolicyCard.vue': { __esModule: true, default: card },
       '@/components/access/branches/UserBranchAccessCard.vue': { __esModule: true, default: card },
       '@/composables/useApi': { ApiError: class extends Error {} },
+      '@/composables/useCreateBranch': { useCreateBranch: () => ({ isPending: { value: false }, mutateAsync: async () => ({}) }) },
       '@/composables/useBranchAccess': { useBranchPolicy: () => query, useUserBranchAccess: () => query },
     },
   })

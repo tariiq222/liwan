@@ -6081,6 +6081,18 @@
       "handler": "patch_task",
       "no_capability_reason": null
     },
+    "POST /api/v1/admin/branches": {
+      "addon": "webvue_api",
+      "auth": "user",
+      "capability_keys": [
+        "settings.company.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "create_branch",
+      "no_capability_reason": null
+    },
     "POST /api/v1/admin/company/logo": {
       "addon": "webvue_api",
       "auth": "user",

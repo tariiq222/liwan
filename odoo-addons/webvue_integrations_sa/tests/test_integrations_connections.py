@@ -135,7 +135,7 @@ class TestIntegrationConnections(WebVueIntegrationsCase):
         manage = Permission.search([('key', '=', 'integrations.manage')])
         read = Permission.search([('key', '=', 'integrations.read')])
         Role = self.env['webvue.access.role']
-        with self.assertRaisesRegex(ValidationError, 'missing_dependency'):
+        with self.assertRaisesRegex(ValidationError, 'missing_dependency'), self.cr.savepoint():
             Role.create({'name_ar': 'مدير ربط', 'type': 'custom', 'permission_ids': [(6, 0, manage.ids)]})
         role = Role.create({'name_ar': 'مدير ربط', 'type': 'custom', 'permission_ids': [(6, 0, (manage | read).ids)]})
         user = new_test_user(

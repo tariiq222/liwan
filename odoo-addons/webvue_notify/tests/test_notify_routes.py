@@ -6,7 +6,7 @@ from odoo.addons.webvue_api.tests.common import (
     WebVueApiCase,
     set_probe_feature,
 )
-from odoo.addons.webvue_notify.tests.common import NotifyProbe
+from odoo.addons.webvue_notify.tests.common import PROBE_TYPES, NotifyProbe
 
 
 @tagged('post_install', '-at_install', 'webvue')
@@ -72,3 +72,15 @@ class TestNotifyRoutes(NotifyProbe, WebVueApiCase):
         response = self.api('GET', '/api/v1/notifications')
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.json()['details'], {'reason': 'feature', 'feature': PROBE_FEATURE})
+
+    def test_a_platform_kind_stays_listed_when_every_application_feature_is_off(self):
+        platform = {'kind': 'probe_ping', 'owner': 'webvue_notify', 'model': 'res.partner'}
+        featured = {**PROBE_TYPES[1], 'kind': 'probe_live'}
+        registry = type(self.env['webvue.notify.registry'])
+        self.patch(registry, '_webvue_notification_types', lambda model: (platform, featured))
+        set_probe_feature(self, enabled=False)
+        row = self._deliver(self.employee.partner_id)
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        response = self.api('GET', '/api/v1/notifications')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([item['id'] for item in response.json()['items']], row.ids)

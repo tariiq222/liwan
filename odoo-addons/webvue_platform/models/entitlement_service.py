@@ -1,7 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import uuid
 from datetime import datetime, timezone
 
-from odoo import api, models
+from odoo import SUPERUSER_ID, api, models
 from odoo.exceptions import AccessDenied, AccessError, UserError, ValidationError
 from odoo.http import request
 
@@ -288,6 +289,51 @@ class WebVueEntitlementService(models.AbstractModel):
             )
             ids.extend(row[0] for row in self.env.cr.fetchall())
         return tuple(set(ids))
+
+    @api.model
+    def _webvue_create_branch(self, name):
+        """Create one branch company for a non-SaaS tenant administrator, within `branches.extra_limit`.
+
+        The route has already checked `settings.company.manage`. Plain ORM creation of a
+        child company is refused (`branch_requires_subscription`), and a WebVue system
+        administrator holds no Odoo ACL on `res.company`, so the two writes are elevated.
+        The profile row lock serializes concurrent creations against the limit.
+        """
+        name = name.strip() if isinstance(name, str) else ''
+        if not 1 <= len(name) <= 200:
+            msg = 'branch_name_invalid'
+            raise ValidationError(msg)
+        profile = self._webvue_profile()
+        root = profile.root_company_id
+        # A branch-scoped administrator must not spend the tenant-wide allowance or create siblings.
+        if self.env.company != root or not self.env['webvue.access.service']._webvue_has_capability(
+            self.env.user, 'settings.company.manage', company=root,
+        ):
+            code = 'forbidden'
+            raise WebVueAccessRule(code, 'branch creation requires company administration of the root company', status=403)
+        # In SaaS the control plane owns the branch count: a branch exists only after a paid order is fulfilled.
+        if profile.commercial_mode == 'saas':
+            code = 'branch_purchase_required'
+            raise WebVueAccessRule(code, 'branches are added through the subscription purchase flow', status=409)
+        # The quota fence writes the profile row, so a concurrent creation that read an older snapshot
+        # fails serialization instead of passing the limit check on stale counts.
+        profile._webvue_bump_quota_revision()
+        Branch = self.env['webvue.tenant.branch'].sudo()
+        self.require_within_limit(
+            'branches.extra_limit', Branch.search_count([('state', '=', 'active')]) + 1,
+        )
+        # Created as the superuser identity, not just an elevated environment: installed applications bootstrap a new
+        # company's structural resources (for example the document library) only for the actual superuser.
+        company = self.env['res.company'].with_user(SUPERUSER_ID).create({
+            'name': name, 'parent_id': root.id,
+        })
+        Branch.create({
+            'branch_uid': f'admin-{uuid.uuid4()}',
+            'company_id': company.id,
+            'operation_id': 'admin-create',
+            'state': 'active',
+        })
+        return company
 
     @api.model
     def _webvue_count_users(self):

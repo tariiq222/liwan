@@ -18,7 +18,7 @@ class TestCommercialSurface(WebVueApiCase):
         for path in PATHS:
             with self.subTest(path=path):
                 response = self.api('GET', path)
-                self.assertEqual(response.status_code, 403)
+                self.assertEqual(response.status_code, 401)
                 self.assertNotIn('commercial_unavailable', response.text)
 
     def test_saas_self_service_stays_closed(self):

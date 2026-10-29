@@ -42,6 +42,19 @@ class TestPeopleDirectory(WebVueApiCase):
         self.assertEqual(response.status_code, 422)
         self.assertEqual(response.json()['field'], 'limit')
 
+    def test_offset_skips_rows_and_a_bad_offset_is_422(self):
+        for index in range(3):
+            self._user('dir_page_%d' % index, name='Dir page %d' % index)
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        everyone = self.api('GET', '/api/v1/people?q=Dir%20page&limit=50').json()
+        self.assertEqual(len(everyone), 3)
+        self.assertEqual(self.api('GET', '/api/v1/people?q=Dir%20page&limit=50&offset=2').json(), everyone[2:])
+        self.assertEqual(self.api('GET', '/api/v1/people?q=Dir%20page&limit=2&offset=1').json(), everyone[1:])
+        self.assertEqual(self.api('GET', '/api/v1/people?q=Dir%20page&offset=9').json(), [])
+        response = self.api('GET', '/api/v1/people?offset=-1')
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.json()['field'], 'offset')
+
     def test_population_is_active_internal_users_of_the_current_company(self):
         kept = self._user('dir_kept', name='Dir kept')
         inactive = self._user('dir_inactive', name='Dir inactive')

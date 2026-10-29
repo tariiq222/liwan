@@ -28,7 +28,7 @@ const TEAM: SettingsPage = {
   parts: [
     { id: 'users', labelKey: 'nav.users', icon: 'i-lucide-user-cog', capability: 'access.users.read', within: '/settings/team/users' },
     { id: 'roles', labelKey: 'nav.roles', icon: 'i-lucide-shield-check', capability: 'access.roles.read', within: '/settings/team/roles' },
-    { id: 'branches', labelKey: 'access.branches.title', icon: 'i-lucide-git-branch', capability: 'access.users.assign_roles', within: '/settings/team/branches' },
+    { id: 'branches', labelKey: 'access.branches.title', icon: 'i-lucide-git-branch', capability: 'access.users.assign_roles', anyCapabilities: ['settings.company.manage'], within: '/settings/team/branches' },
     { id: 'access-log', labelKey: 'nav.accessLog', icon: 'i-lucide-history', capability: 'access.audit.read', within: '/settings/team/access-log' },
   ],
 }
