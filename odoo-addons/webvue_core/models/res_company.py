@@ -39,6 +39,15 @@ class ResCompany(models.Model):
         ondelete={'IBM_Plex_Sans_Arabic': 'set default'},
     )
 
+    @api.model
+    def _webvue_marked_write_fields(self):
+        """Extension point: ``{marker: fields}`` an application's own guarded operation may write.
+
+        Each application owns its marker and writes through ``marked``; the core guard below lets
+        a marked write of exactly those fields through for a caller holding a settings capability.
+        """
+        return {}
+
     @api.model_create_multi
     def create(self, vals_list):
         if not self.env.is_system():
@@ -70,7 +79,11 @@ class ResCompany(models.Model):
             )
         ):
             branding_allowed = is_marked_write(self, BRANDING_COMPANY_MARKER, BRANDING_COMPANY_FIELDS, vals)
-            if not (branding_allowed or profile_allowed or (
+            application_allowed = any(
+                is_marked_write(self, marker, fields, vals)
+                for marker, fields in self._webvue_marked_write_fields().items()
+            )
+            if not (branding_allowed or profile_allowed or application_allowed or (
                 set(vals) == {'webvue_branch_access_mode'}
                 and self.id in self.env.cr.precommit.data.get('webvue_core.branch_policy', set())
             )):

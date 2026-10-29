@@ -79,3 +79,4 @@ access_webvue_hr_audit_change_approve,webvue.hr.audit.change.approve,model_webvu
 access_webvue_hr_audit_event_log,webvue.hr.audit.event.log,model_webvue_hr_audit_event,group_cap_hr_payroll_read,0,0,1,0
 access_webvue_hr_audit_change_log,webvue.hr.audit.change.log,model_webvue_hr_audit_change,group_cap_hr_payroll_read,0,0,1,0
 access_webvue_hr_payroll_file_read,webvue.hr.payroll.file.read,model_webvue_hr_payroll_file,group_cap_hr_payroll_read,1,0,1,0
+access_webvue_hr_company_shifts_manager,webvue.hr.company.shifts.manager,base.model_res_company,group_cap_hr_shifts_manage,1,1,0,0
