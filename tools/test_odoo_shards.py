@@ -30,6 +30,45 @@ class SplitTest(unittest.TestCase):
                 odoo_shards.parse_selector(bad)
 
 
+class ShardCountTest(unittest.TestCase):
+    def test_count_follows_the_share_of_the_total_weight(self):
+        cases = {0: 1, 100: 1, 300: 1, 301: 2, 600: 2, 601: 3, 900: 3}
+        for weight, count in cases.items():
+            with self.subTest(weight=weight):
+                self.assertEqual(odoo_shards.shard_count_for(weight, 900), count)
+
+    def test_modules_never_get_more_shards_than_modules(self):
+        heavy = max(odoo_shards.release_modules(), key=odoo_shards.weight)
+        self.assertEqual(odoo_shards.shard_numbers([heavy]), [1])
+
+    def test_no_modules_means_every_shard(self):
+        self.assertEqual(odoo_shards.shard_numbers(), list(range(1, odoo_shards.SHARD_COUNT + 1)))
+
+    def test_all_release_modules_need_every_shard(self):
+        self.assertEqual(odoo_shards.shard_numbers(odoo_shards.release_modules()), [1, 2, 3])
+
+
+class AffectedTagsTest(unittest.TestCase):
+    def test_only_the_affected_modules_are_split_and_tagged(self):
+        modules = ['webvue_hr', 'webvue_access_hr', 'webvue_pmo']
+        count = len(odoo_shards.shard_numbers(modules))
+        tagged = [t for k in range(1, count + 1) for t in odoo_shards.tags('%d/%d' % (k, count), modules).split(',')]
+        self.assertEqual(sorted(tagged), sorted('/' + m for m in modules))
+
+    def test_a_non_release_module_is_refused(self):
+        with self.assertRaisesRegex(odoo_shards.ShardError, 'not_a_module'):
+            odoo_shards.tags('1/1', ['webvue_hr', 'not_a_module'])
+
+    def test_an_empty_shard_is_refused(self):
+        with self.assertRaisesRegex(odoo_shards.ShardError, 'no module'):
+            odoo_shards.tags('2/2', ['webvue_hr'])
+
+    def test_the_module_list_is_parsed_and_must_not_be_empty(self):
+        self.assertEqual(odoo_shards.parse_modules('a,b'), ['a', 'b'])
+        with self.assertRaises(odoo_shards.ShardError):
+            odoo_shards.parse_modules('')
+
+
 class WeightTest(unittest.TestCase):
     def test_counts_test_methods_and_floors_at_one(self):
         with tempfile.TemporaryDirectory() as root:
@@ -57,6 +96,11 @@ class CommandTest(unittest.TestCase):
         planned = odoo_shards.plan(count)
         for k in range(1, count + 1):
             self.assertEqual(self.output('tags', '%d/%d' % (k, count)), ','.join('/' + m for m in planned[k - 1]))
+
+    def test_modules_narrow_the_matrix_and_the_tags(self):
+        self.assertEqual(json.loads(self.output('matrix', '--modules', 'webvue_hr,webvue_access_hr')), [1])
+        self.assertEqual(self.output('tags', '1/1', '--modules', 'webvue_hr,webvue_access_hr'),
+                         '/webvue_access_hr,/webvue_hr')
 
     def test_invalid_count_and_missing_port_are_refused(self):
         with self.assertRaises(odoo_shards.ShardError):

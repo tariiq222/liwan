@@ -1,12 +1,18 @@
 """Choose the CI stages a change can affect; a path without a rule runs all twelve.
 
-    python3 -B tools/ci_scope.py --base <ref> [--commit <ref>] [--stages]
+    python3 -B tools/ci_scope.py --base <ref> [--commit <ref>] [--pull-request] [--stages | --modules]
     python3 -B tools/ci_scope.py --full [--stages]
 
 Prints the stages selected for the files changed between the two refs and the rule behind each
 changed path. With ``--stages`` it prints only the selected stage names as a JSON array, which
 the ``scope`` job of ``.github/workflows/ci.yml`` feeds to the stage jobs. ``--full`` selects every
 stage without reading a diff. This module is the only place the path-to-stage map lives.
+
+``--pull-request`` narrows the selection for a pull request: the ``DEFERRED_STAGES`` are left to the
+push to ``main``, the nightly run and a full dispatch, and the Odoo stages reach only the release modules
+the change affects (the changed addons plus every addon depending on them, ``None`` meaning all of them
+when a changed path outside ``odoo-addons/`` feeds an Odoo stage). ``--modules`` prints that affected list
+as comma-separated names (empty means every release module).
 """
 from __future__ import annotations
 
@@ -16,6 +22,9 @@ import subprocess
 import sys
 from fnmatch import fnmatchcase
 from pathlib import Path
+
+import app_isolation
+import odoo_shards
 
 STAGES = ('static', 'ai-service', 'control-plane', 'vendor-admin', 'odoo',
           'odoo-app-standalone', 'odoo-bridge', 'upgrade',
@@ -35,6 +44,9 @@ STATIC_ONLY_TOOLS = (
     'tools/ui_policy.py', 'tools/ui_templates.mjs', 'tools/worktree_claims.py', 'tools/wt.py',
 )
 ISOLATION_STAGES = ('odoo-app-standalone', 'odoo-bridge')
+ODOO_STAGES = ('odoo', *ISOLATION_STAGES)
+# Slow, and about the merged result rather than one change: a pull request leaves them to the push to main.
+DEFERRED_STAGES = ('upgrade', 'restore-drill', 'image')
 # The web and vendor-admin images build from these packages, so `image` is selected with them.
 SHARED_PACKAGE_STAGES = ('control-plane', 'vendor-admin', 'image', 'e2e-mock', 'rtl-stories')
 UNMAPPED = '(no rule: all stages)'
@@ -96,6 +108,40 @@ def stages_for(paths: list[str]) -> tuple[str, ...]:
     return tuple(stage for stage in STAGES if stage in selected)
 
 
+def affected_modules(paths: list[str], release: list[str], addons: Path = app_isolation.ADDONS) -> list[str] | None:
+    """The release modules the change can affect; None when it can affect all of them.
+
+    A path feeding an Odoo stage from outside `odoo-addons/<addon>/` (CI machinery, deploy scripts,
+    contracts, an unmapped file) may affect every module.
+    """
+    changed = set()
+    for path in paths:
+        if not set(matching_rule(path)[1]) & set(ODOO_STAGES):
+            continue
+        parts = path.split('/')
+        if parts[0] != 'odoo-addons' or len(parts) < 3:
+            return None
+        changed.add(parts[1])
+    return app_isolation.affected(changed, release, addons)
+
+
+def pull_request_stages(paths: list[str], affected: list[str] | None) -> tuple[str, ...]:
+    """The stages of a pull request: no deferred stage, and an Odoo stage only when it has something to run.
+
+    An addon file reaches only the Odoo stages here: the other stages that `odoo-addons/*` selects read
+    no addon code (the image, which packs them, is deferred), so they stay for the push to main.
+    """
+    addon_files = [path for path in paths if path.startswith('odoo-addons/') and path.count('/') >= 2]
+    selected = (set(stages_for([path for path in paths if path not in addon_files]))
+                | (set(ODOO_STAGES) if addon_files else set())) - set(DEFERRED_STAGES)
+    if affected is not None:
+        runs = {'odoo': affected,
+                'odoo-app-standalone': app_isolation.matrix('apps', only=affected),
+                'odoo-bridge': app_isolation.matrix('bridges', only=affected)}
+        selected -= {stage for stage, work in runs.items() if not work}
+    return tuple(stage for stage in STAGES if stage in selected)
+
+
 def changed_paths(repo: Path, base: str, commit: str, env: dict | None = None) -> list[str]:
     """Files changed from base to commit; a rename counts as a delete plus an add."""
     try:
@@ -120,10 +166,19 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument('--base')
     parser.add_argument('--commit', default='HEAD')
     parser.add_argument('--full', action='store_true', help='select every stage without reading a diff')
-    parser.add_argument('--stages', action='store_true', help='print only the selected stage names as a JSON array')
+    parser.add_argument('--pull-request', action='store_true',
+                        help='select for a pull request: defer the slow stages, narrow the Odoo stages to the affected modules')
+    output = parser.add_mutually_exclusive_group()
+    output.add_argument('--stages', action='store_true', help='print only the selected stage names as a JSON array')
+    output.add_argument('--modules', action='store_true',
+                        help='print the affected release modules, comma-separated (empty: all); needs --pull-request')
     args = parser.parse_args(argv)
     if not args.full and not args.base:
         parser.error('--base is required unless --full is given')
+    if args.full and args.pull_request:
+        parser.error('--full and --pull-request exclude each other')
+    if args.modules and not args.pull_request:
+        parser.error('--modules needs --pull-request')
     paths = []
     if not args.full:
         try:
@@ -132,13 +187,26 @@ def main(argv: list[str] | None = None) -> int:
         except ScopeError as error:
             print(f'ci_scope: {error}', file=sys.stderr)
             return 1
+    affected = None
     selected = STAGES if args.full else stages_for(paths)
+    if args.pull_request:
+        try:
+            affected = affected_modules(paths, odoo_shards.release_modules())
+            selected = pull_request_stages(paths, affected)
+        except (odoo_shards.ShardError, app_isolation.IsolationError) as error:
+            print(f'ci_scope: {error}', file=sys.stderr)
+            return 1
+    if args.modules:
+        print(','.join(affected or ()))
+        return 0
     if args.stages:
         print(json.dumps(selected))
         return 0
     for path in paths:
         pattern, stages = matching_rule(path)
         print(f"{path}  <-  {pattern}  ->  {', '.join(('static', *stages)) if stages != STAGES else 'all'}")
+    if args.pull_request:
+        print(f"affected modules: {'all' if affected is None else ', '.join(affected) or 'none'}")
     print(f'{len(selected)} of {len(STAGES)} stages: {", ".join(selected)}')
     return 0
 
