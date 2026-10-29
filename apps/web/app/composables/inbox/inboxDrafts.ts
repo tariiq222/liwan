@@ -1,4 +1,8 @@
-// Unsent text per conversation (reply, internal note, template choice and its parameters), kept in sessionStorage so it
+import { normalizeInteractiveDraft, type InteractiveDraft } from './inboxInteractive'
+import { normalizeLocationDraft, type LocationDraft } from './inboxLocation'
+
+// Unsent text per conversation (reply, internal note, template choice and its parameters, the message being answered,
+// a location and an interactive message in progress), kept in sessionStorage so it
 // survives switching conversations and leaving the page, like the chat drafts. The keys carry the user and the
 // conversation but no tenant: every tenant is served from its own origin and sessionStorage is per origin.
 
@@ -7,9 +11,12 @@ export interface InboxDraft {
   note: string
   templateId: number | null
   params: string[]
+  replyTo: { id: number; preview: string } | null
+  location: LocationDraft | null
+  interactive: InteractiveDraft | null
 }
 
-export const EMPTY_INBOX_DRAFT: InboxDraft = { reply: '', note: '', templateId: null, params: [] }
+export const emptyInboxDraft = (): InboxDraft => ({ reply: '', note: '', templateId: null, params: [], replyTo: null, location: null, interactive: null })
 
 type DraftStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem' | 'key' | 'length'>
 
@@ -17,9 +24,15 @@ const PREFIX = 'webvue.inbox.draft.'
 const key = (userId: number, conversationId: number) => `${PREFIX}${userId}.${conversationId}`
 
 const isEmpty = (draft: InboxDraft) => !draft.reply && !draft.note && draft.templateId === null && !draft.params.some(Boolean)
+  && !draft.replyTo && !draft.location && !draft.interactive
+
+function parseReplyTo(value: unknown): InboxDraft['replyTo'] {
+  const target = value as { id?: unknown; preview?: unknown } | null
+  return target && typeof target.id === 'number' && typeof target.preview === 'string' ? { id: target.id, preview: target.preview } : null
+}
 
 function parse(raw: string | null): InboxDraft {
-  if (!raw) return { ...EMPTY_INBOX_DRAFT, params: [] }
+  if (!raw) return emptyInboxDraft()
   try {
     const value = JSON.parse(raw) as Partial<InboxDraft>
     return {
@@ -27,9 +40,12 @@ function parse(raw: string | null): InboxDraft {
       note: typeof value.note === 'string' ? value.note : '',
       templateId: typeof value.templateId === 'number' ? value.templateId : null,
       params: Array.isArray(value.params) ? value.params.filter((item): item is string => typeof item === 'string') : [],
+      replyTo: parseReplyTo(value.replyTo),
+      location: normalizeLocationDraft(value.location),
+      interactive: normalizeInteractiveDraft(value.interactive),
     }
   } catch {
-    return { ...EMPTY_INBOX_DRAFT, params: [] }
+    return emptyInboxDraft()
   }
 }
 
@@ -44,7 +60,7 @@ export function createInboxDrafts(storage: () => DraftStorage | undefined) {
     }
   }
   return {
-    get: (userId: number, conversationId: number) => guarded(store => parse(store.getItem(key(userId, conversationId))), { ...EMPTY_INBOX_DRAFT, params: [] }),
+    get: (userId: number, conversationId: number) => guarded(store => parse(store.getItem(key(userId, conversationId))), emptyInboxDraft()),
     set: (userId: number, conversationId: number, draft: InboxDraft) => guarded((store) => {
       if (isEmpty(draft)) store.removeItem(key(userId, conversationId))
       else store.setItem(key(userId, conversationId), JSON.stringify(draft))
