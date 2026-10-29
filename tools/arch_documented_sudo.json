@@ -163,6 +163,10 @@
     "odoo-addons/webvue_payments/models/refund_policy.py": {
       "count": 2,
       "reason": "webvue_payments reads and writes the refund rules of the product a selling application sells, after that application authorized its own record (the bridge checks `appointments.bookings.manage` in the type's company): `product.sudo().product_tmpl_id` in `_webvue_refund_rules` reads the template's refund policy, refund amounts and notice tiers, and in `_webvue_set_refund_rules` writes those three rules only, replacing the `webvue.payments.refund.tier` rows; the application's managers are blocked by the stock `product.template` write ACL that only `sales_team.group_sale_manager` and `product` managers hold."
+    },
+    "odoo-addons/webvue_core/models/access_branch.py": {
+      "count": 1,
+      "reason": "webvue_core branch strictness audit row: `self.env['webvue.access.audit'].sudo()._webvue_log(...)` in `_webvue_set_branch_strict`, with `actor=self.env.user` so the row still names the caller; blocked by odoo-addons/webvue_core/security/ir.model.access.csv `access_audit_*`, which grants create only to base.group_system and the access.* capability groups, while the HR, payroll and finance managers who own the switch hold no access.* capability. It runs after the owning application's settings capability check and writes server values only."
     }
   }
 }

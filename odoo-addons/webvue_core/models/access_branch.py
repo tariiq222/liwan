@@ -216,8 +216,9 @@ class WebVueBranchAccessService(models.AbstractModel):
         after = sorted(self._webvue_branch_strict_enabled())
         if after != before:
             self._webvue_bump_policy(root)
-            self.env['webvue.access.audit']._webvue_log(
-                'branch.policy_changed', root, before={'strict_scopes': before}, after={'strict_scopes': after})
+            self.env['webvue.access.audit'].sudo()._webvue_log(
+                'branch.policy_changed', root, before={'strict_scopes': before}, after={'strict_scopes': after},
+                actor=self.env.user)
         return self._webvue_branch_strict_state(scope)
 
     @api.model
