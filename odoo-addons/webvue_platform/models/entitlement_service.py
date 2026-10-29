@@ -303,13 +303,23 @@ class WebVueEntitlementService(models.AbstractModel):
         if not 1 <= len(name) <= 200:
             msg = 'branch_name_invalid'
             raise ValidationError(msg)
-        profile = self._webvue_profile()._webvue_lock()
+        profile = self._webvue_profile()
+        root = profile.root_company_id
+        # A branch-scoped administrator must not spend the tenant-wide allowance or create siblings.
+        if self.env.company != root or not self.env['webvue.access.service']._webvue_has_capability(
+            self.env.user, 'settings.company.manage', company=root,
+        ):
+            code = 'forbidden'
+            raise WebVueAccessRule(code, 'branch creation requires company administration of the root company', status=403)
+        # The quota fence writes the profile row, so a concurrent creation that read an older snapshot
+        # fails serialization instead of passing the limit check on stale counts.
+        profile._webvue_bump_quota_revision()
         Branch = self.env['webvue.tenant.branch'].sudo()
         self.require_within_limit(
             'branches.extra_limit', Branch.search_count([('state', '=', 'active')]) + 1,
         )
         company = self.env['res.company'].sudo().create({
-            'name': name, 'parent_id': profile.root_company_id.id,
+            'name': name, 'parent_id': root.id,
         })
         Branch.create({
             'branch_uid': f'admin-{uuid.uuid4()}',

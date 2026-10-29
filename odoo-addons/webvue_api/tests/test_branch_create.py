@@ -52,3 +52,17 @@ class TestBranchCreateApi(WebVueApiCase):
         self.assertEqual(self.api('POST', '/api/v1/admin/branches', json={'name': '   '}).status_code, 422)
         self.assertEqual(self.api('POST', '/api/v1/admin/branches', json={}).status_code, 422)
         self.assertEqual(self.api('POST', '/api/v1/admin/branches', json={'name': 'A', 'parent_id': 1}).status_code, 422)
+
+    def test_branch_scoped_administrator_cannot_create(self):
+        branch = self.env['res.company'].create({'name': 'Scoped branch', 'parent_id': self.company.id})
+        scoped = new_test_user(
+            self.env, login='branch_scoped_admin', password='branch_scoped_password', groups='base.group_user',
+            company_id=branch.id, company_ids=[Command.set(branch.ids)],
+        )
+        self.env['webvue.access.assignment'].create({
+            'user_id': scoped.id, 'role_id': self.env.ref('webvue_core.role_system_admin').id, 'company_id': branch.id,
+        })
+        self._set_limit(5)
+        self.authenticate('branch_scoped_admin', 'branch_scoped_password')
+        denied = self.api('POST', '/api/v1/admin/branches', json={'name': 'Sibling'})
+        self.assertEqual(denied.status_code, 403, denied.text)
