@@ -24,6 +24,8 @@ class WebVueInboxSettings(models.Model):
     visibility_policy = fields.Selection(VISIBILITY_POLICIES, required=True, default='department')
     auto_close_hours = fields.Integer(default=72, help='Idle hours before a conversation closes; 0 never closes.')
     retention_months = fields.Integer(default=24)
+    # The sector presets whose items were created here, comma separated: applying one again never re-creates them.
+    applied_presets = fields.Char()
 
     _company_unique = models.Constraint('UNIQUE(company_id)', 'A company has one inbox settings row.')
 
@@ -42,9 +44,16 @@ class WebVueInboxSettings(models.Model):
         return settings or self.create({'company_id': company.id})
 
     def _webvue_apply_preset(self, key):
-        """Create the missing departments, tags and canned replies of a sector preset and set its policy; idempotent."""
+        """Create the missing departments, tags and canned replies of a sector preset the first time, and set its policy.
+
+        The preset is recorded as applied, so a later application does not bring back items the company renamed or deleted.
+        """
         self.ensure_one()
         preset = PRESETS[key]
+        applied = set((self.applied_presets or '').split(','))
+        if key in applied:
+            self.write(preset.get('settings', {}))
+            return self
         company_id = self.company_id.id
         for model, field, names in (
             ('webvue.inbox.department', 'name', preset['departments']),
@@ -59,5 +68,5 @@ class WebVueInboxSettings(models.Model):
             {'shortcut': shortcut, 'body': body, 'company_id': company_id}
             for shortcut, body in preset['canned_replies'] if shortcut not in existing
         ])
-        self.write(preset.get('settings', {}))
+        self.write({**preset.get('settings', {}), 'applied_presets': ','.join(sorted(applied - {''} | {key}))})
         return self
