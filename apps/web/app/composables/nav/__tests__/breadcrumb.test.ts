@@ -12,7 +12,7 @@ describe('shell breadcrumb', () => {
     ['/projects/5', 'الملخص', [{ label: 'nav.projects', to: '/projects' }, { label: 'الملخص' }]],
     ['/settings/team/roles', null, [{ label: 'nav.settings', to: '/settings' }, { label: 'settings.sections.team.title' }]],
     ['/settings/team', 'settings.sections.team.title', [{ label: 'nav.settings', to: '/settings' }]],
-    ['/meetings/calendar', null, [{ label: 'nav.meetings' }]],
+    ['/meetings/calendar', null, [{ label: 'nav.meetings', to: '/meetings' }]],
     ['/notifications', 'الإشعارات', []],
     ['/account/leave/7', 'إجازة', [{ label: 'nav.account', to: '/account' }]],
     ['/tasks', 'nav.tasks', [{ label: 'nav.projects', to: '/projects' }]],

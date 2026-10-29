@@ -10,9 +10,7 @@
   },
   "R6": {},
   "R7": {},
-  "R8": {
-    "apps/web/app/pages/invite/accept.vue lacks customer-commercial middleware": 1
-  },
+  "R8": {},
   "R9": {
     "override odoo-addons/webvue_core/models/ir_attachment.py": 1,
     "override odoo-addons/webvue_core/models/res_partner.py": 1,

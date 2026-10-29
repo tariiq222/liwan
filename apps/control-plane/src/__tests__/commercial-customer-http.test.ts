@@ -105,6 +105,19 @@ suite('signed customer commercial HTTP boundary on PostgreSQL', () => {
     expect(response.status).toBe(201)
     expect(await response.json()).toMatchObject({order_id:order,status:'redirected',amount:{minor:11500}})
   })
+  it('lets a customer cancel only its own unpaid first order',async()=>{
+    const order=await awaitingOrder()
+    expect((await call(`/v1/customer/orders/${order}/cancel`,{body:{reason:'x'},capabilities:['subscription.manage']})).status).toBe(422)
+    expect((await call(`/v1/customer/orders/${order}/cancel`,{body:{reason:'changed my mind'},capabilities:['subscription.read']})).status).toBe(403)
+    expect((await call(`/v1/customer/orders/${order}/cancel`,{body:{reason:'changed my mind'},capabilities:['subscription.manage'],tenantId:otherTenant})).status).toBe(404)
+    expect((await call(`/v1/customer/orders/${randomUUID()}/cancel`,{body:{reason:'changed my mind'},capabilities:['subscription.manage']})).status).toBe(404)
+    await pool.query("UPDATE orders SET kind='change' WHERE id=$1",[order])
+    expect((await call(`/v1/customer/orders/${order}/cancel`,{body:{reason:'changed my mind'},capabilities:['subscription.manage']})).status).toBe(409)
+    await pool.query("UPDATE orders SET kind='new' WHERE id=$1",[order])
+    const done=await call(`/v1/customer/orders/${order}/cancel`,{body:{reason:'changed my mind'},capabilities:['subscription.manage']})
+    expect(done.status).toBe(200)
+    expect(await (await call(`/v1/customer/orders/${order}`,{capabilities:['subscription.read']})).json()).toMatchObject({cancelled:true})
+  })
   // The web server signs a return anonymously: no principal, the tenant bound into the signed body.
   async function paymentReturn(attempt:string, options:{tenantId?:string;headerTenant?:string;key?:string;replay?:Record<string,string>;path?:string}={}) {
     const tenantId=options.tenantId??tenant, path=options.path??`/v1/customer/payment-returns/${attempt}`

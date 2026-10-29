@@ -7,6 +7,8 @@ class WebVueInboxMailMessage(models.Model):
 
     # The inbox kind (registered in models/notification_types.py) and the opaque id and
     # customer name of the conversation a bell row points at.
-    webvue_notification_kind = fields.Selection(selection_add=[('inbox.assigned', 'Conversation assigned')])
+    webvue_notification_kind = fields.Selection(selection_add=[
+        ('inbox.assigned', 'Conversation assigned'), ('inbox.first_response', 'Customer waiting for a first reply'),
+    ])
     webvue_inbox_conversation_id = fields.Integer(copy=False, index=True)
     webvue_inbox_contact_name = fields.Char(copy=False)

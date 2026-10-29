@@ -49,6 +49,17 @@ class TestCrmOpportunities(WebVueCrmCase):
         self.assertEqual(body['source'], {'id': self.source.id, 'name': 'Walk-in'})
         self.assertEqual(body['user']['id'], self.agent.id)
 
+    def test_the_agent_picker_lists_only_users_who_can_take_opportunities(self):
+        listed = self.as_user(self.manager).api('GET', '/api/v1/crm/agents')
+        self.assertEqual(listed.status_code, 200, listed.text)
+        ids = {person['id'] for person in listed.json()}
+        self.assertLessEqual({self.agent.id, self.agent2.id}, ids)
+        self.assertNotIn(self.outsider.id, ids)
+        self.assertEqual(set(listed.json()[0]), {'id', 'name', 'user_id'})
+        found = self.as_user(self.manager).api('GET', '/api/v1/crm/agents?q=two').json()
+        self.assertEqual([person['id'] for person in found], [self.agent2.id])
+        self.assertEqual(self.as_user(self.agent).api('GET', '/api/v1/crm/agents').status_code, 403)
+
     def test_creating_for_another_agent_tells_that_agent_only(self):
         response = self.create(self.manager, user_id=self.agent2.id)
         self.assertEqual(response.status_code, 200, response.text)

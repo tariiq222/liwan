@@ -72,6 +72,22 @@ class TestCrmSale(WebVueCrmCase):
         self.assertEqual(ok.status_code, 200, ok.text)
         self.assertEqual(ok.json()['discount_percent'], 10)
 
+    def test_a_price_above_the_package_follows_the_company_policy(self):
+        lead = self.make_lead(self.agent)
+        refused = self.won(self.agent, lead, final_price=1200)
+        self.assertEqual((refused.status_code, refused.json()['field']), (422, 'final_price'), 'managers only is the default')
+        self.assertEqual(refused.json()['details'], {'reason': 'crm_price_above_list_managers'})
+        self.set_settings(price_above_list='forbid')
+        forbidden = self.won(self.manager, lead, final_price=1200)
+        self.assertEqual((forbidden.status_code, forbidden.json()['details']), (422, {'reason': 'crm_price_above_list_forbid'}))
+        self.set_settings(price_above_list='managers')
+        sold = self.won(self.manager, lead, final_price=1200)
+        self.assertEqual((sold.status_code, sold.json()['final_price'], sold.json()['discount_percent']), (200, 1200, 0))
+
+    def test_every_agent_may_sell_above_the_package_when_the_policy_is_open(self):
+        self.set_settings(price_above_list='everyone')
+        self.assertEqual(self.won(self.agent, self.make_lead(self.agent), final_price=1200).status_code, 200)
+
     def test_a_declared_discount_must_match_the_prices(self):
         self.set_settings(discount_allowed=True, discount_max_percent=50)
         lead = self.make_lead(self.agent)
@@ -117,6 +133,12 @@ class TestCrmSale(WebVueCrmCase):
                      {'lost_reason_id': archived.id}):
             self.assertEqual(self.post(self.agent, lead, 'lost', **body).status_code, 422, body)
         self.assertEqual(self.post(self.agent2, lead, 'lost', lost_reason_id=self.reason.id).status_code, 404)
+
+    def test_the_reason_only_the_follow_up_engine_uses_is_not_a_manual_choice(self):
+        lead = self.make_lead(self.agent)
+        protected = self.env.ref('webvue_crm.lost_reason_attempts_exhausted')
+        response = self.post(self.agent, lead, 'lost', lost_reason_id=protected.id)
+        self.assertEqual((response.status_code, response.json()['details']), (422, {'reason': 'crm_lost_reason_system'}))
 
     # Reopen
 

@@ -1,7 +1,7 @@
 import type { VueQueryPluginOptions } from '@tanstack/vue-query'
 import { VueQueryPlugin, QueryCache, QueryClient, MutationCache, hydrate, dehydrate } from '@tanstack/vue-query'
 import { clearChatDrafts } from '@/utils/chatDrafts'
-import { isPossibleSessionExpiry } from '@/utils/sessionExpiry'
+import { isDifferentUser, isPossibleSessionExpiry } from '@/utils/sessionExpiry'
 import { clearTenantSuspension, dropToastsWhileSuspended, isTenantSuspended, onTenantSuspension, SUSPENDED_LOGIN } from '@/utils/tenantSuspension'
 import { restoreDehydratedErrors, serializeDehydratedErrors, settleServerQueries, type SerializedDehydratedState } from '@/lib/vueQuerySsr'
 
@@ -33,6 +33,8 @@ export default defineNuxtPlugin({
         await identity.refresh()
         if (identity.me.value) return // still signed in: a genuine permission error
         clearChatDrafts()
+        // The next sign-in may be another user: nothing cached for this one survives the session.
+        queryClient.clear()
         const current = router.currentRoute.value
         // Login (guest) and the public pages (pay page, invitation) have no session to lose.
         if (current.meta.access) return
@@ -89,6 +91,7 @@ export default defineNuxtPlugin({
       // Signing in again starts a session the old suspension no longer describes. Only a signed-out to
       // signed-in change clears it: a late success of a request sent before the suspension does not.
       watch(identity.me, (me, before) => { if (me && !before) clearTenantSuspension() })
+      watch(identity.me, (me, before) => { if (isDifferentUser(before, me)) queryClient.clear() })
     }
 
     const options: VueQueryPluginOptions = { queryClient }

@@ -6,6 +6,8 @@ from .access_service import READ
 from odoo.addons.webvue_api.serializers.common import iso
 
 KIND = 'inbox.assigned'
+FIRST_RESPONSE_KIND = 'inbox.first_response'
+KINDS = (KIND, FIRST_RESPONSE_KIND)
 CONVERSATION_MODEL = 'webvue.inbox.conversation'
 
 
@@ -16,7 +18,10 @@ class WebVueInboxNotificationTypes(models.AbstractModel):
     def _webvue_notification_types(self):
         return (
             *super()._webvue_notification_types(),
-            {'kind': KIND, 'owner': 'webvue_inbox', 'model': CONVERSATION_MODEL, 'feature_key': 'inbox.enabled'},
+            *(
+                {'kind': kind, 'owner': 'webvue_inbox', 'model': CONVERSATION_MODEL, 'feature_key': 'inbox.enabled'}
+                for kind in KINDS
+            ),
         )
 
     @api.model
@@ -30,7 +35,7 @@ class WebVueInboxNotificationTypes(models.AbstractModel):
         return [
             *super()._webvue_notify_visible_domain(),
             [
-                ('mail_message_id.webvue_notification_kind', '=', KIND),
+                ('mail_message_id.webvue_notification_kind', 'in', KINDS),
                 ('mail_message_id.model', '=', CONVERSATION_MODEL),
                 ('mail_message_id.res_id', 'in', ids),
                 ('mail_message_id.webvue_inbox_conversation_id', 'in', ids),
@@ -40,10 +45,10 @@ class WebVueInboxNotificationTypes(models.AbstractModel):
     @api.model
     def _webvue_notify_dump(self, row, extra):
         message = row.mail_message_id
-        if message.webvue_notification_kind == KIND:
+        if message.webvue_notification_kind in KINDS:
             return {
                 'id': row.id,
-                'kind': KIND,
+                'kind': message.webvue_notification_kind,
                 'conversation_id': message.webvue_inbox_conversation_id,
                 'title': message.webvue_inbox_contact_name or '',
                 'created_at': iso(message.date),
