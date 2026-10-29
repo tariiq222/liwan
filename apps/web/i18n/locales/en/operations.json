@@ -161,6 +161,14 @@
     },
     "attention": {
       "from": "From {name}"
-    }
+    },
+    "allPurposes": "All types",
+    "stageApprovalMode": "Reviewer on several stages",
+    "stageApprovalModeHint": "When the same reviewer sits on consecutive stages: «Approve each stage» asks for a separate decision per stage, and «One approval is enough» approves their consecutive stages in one decision. Submitted requests keep the mode they were submitted under.",
+    "stageApprovalModes": {
+      "per_stage": "Approve each stage",
+      "single": "One approval is enough"
+    },
+    "archivedNotEditable": "An archived procedure cannot be edited."
   }
 }

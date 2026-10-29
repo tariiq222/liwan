@@ -9,6 +9,8 @@ def dump_settings(settings):
         'visibility_policy': settings.visibility_policy,
         'auto_close_hours': settings.auto_close_hours,
         'retention_months': settings.retention_months,
+        'assignment_policy': settings.assignment_policy,
+        'first_response_alert_minutes': settings.first_response_alert_minutes,
     }
 
 

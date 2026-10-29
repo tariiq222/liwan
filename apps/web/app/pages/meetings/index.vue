@@ -130,6 +130,11 @@ const organizerOptions = computed(() => {
   if (selected && !people.some(person => person.id === selected)) people.unshift({ id: selected, name: rememberedOrganizers.value[selected] ?? t('meetingsFilters.selectedOrganizer') })
   return people
 })
+// "All organizers" is not a match for a typed search, so a search nobody matches leaves the menu empty and says so.
+const organizerItems = computed(() => [
+  ...(organizerSearch.value.trim() ? [] : [{ label: t('meetingsFilters.allOrganizers'), value: 'all' }]),
+  ...organizerOptions.value.map(person => ({ label: person.name, value: String(person.id) })),
+])
 const selectedOrganizerLabel = computed(() => organizerOptions.value.find(person => person.id === routeFilters.value.organizerId)?.name ?? t('meetingsFilters.selectedOrganizer'))
 const selectedState = computed(() => validStates.includes(routeFilters.value.state) ? routeFilters.value.state : '')
 const activeFilterCount = computed(() => [
@@ -285,14 +290,15 @@ function setPage(next: number) {
                 icon="i-lucide-user"
                 value-key="value"
                 :model-value="routeFilters.organizerId ? String(routeFilters.organizerId) : 'all'"
-                :items="[{ label: t('meetingsFilters.allOrganizers'), value: 'all' }, ...organizerOptions.map(person => ({ label: person.name, value: String(person.id) }))]"
+                :items="organizerItems"
                 :disabled="!hydrated || organizerQuery.isLoading.value"
                 :aria-label="t('meetingsFilters.organizer')"
                 @update:model-value="setOrganizer($event === 'all' ? '' : $event)"
-              />
+              >
+                <template #empty>{{ t('meetingsFilters.noOrganizers') }}</template>
+              </USelectMenu>
               <p v-if="organizerQuery.isLoading.value" class="text-xs text-muted" role="status">{{ t('meetingsFilters.organizersLoading') }}</p>
               <div v-else-if="organizerQuery.error.value" class="flex items-center gap-2 text-xs text-error" role="alert"><span>{{ t('meetingsFilters.organizersError') }}</span><UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingsFilters.retry')" @click="organizerQuery.refetch()" /></div>
-              <p v-else-if="!organizerOptions.length" class="text-xs text-muted">{{ t('meetingsFilters.noOrganizers') }}</p>
             </div>
             <SharedDateField id="meeting-date-from" v-model="dateFromField" class="w-full md:w-44" :label="dateFromField ? undefined : t('meetingsFilters.fromDateLabel')" :aria-label="t('meetingsFilters.fromDateLabel')" :disabled="!hydrated" />
             <SharedDateField id="meeting-date-to" v-model="dateToField" class="w-full md:w-44" :label="dateToField ? undefined : t('meetingsFilters.toDateLabel')" :aria-label="t('meetingsFilters.toDateLabel')" :disabled="!hydrated" />

@@ -37,6 +37,7 @@ STATUS_MARKER = re.compile(r'\[(\d{3})\]')
 TRANSPORT_TEXT = re.compile(r'timed out|timeout|connection|max retries|name or service|temporary failure|ssl', re.IGNORECASE)
 BUSY_TEXT = 'being sent by another process'
 SALE_MOVE_TYPES = ('out_invoice', 'out_refund')
+INVOICE_MOVE_TYPES = (*SALE_MOVE_TYPES, 'in_invoice', 'in_refund')
 
 
 class WebVueFinanceZatca(models.AbstractModel):
@@ -107,7 +108,9 @@ class WebVueFinanceZatca(models.AbstractModel):
         commit even when ZATCA said no.
         """
         self.env['webvue.access.service']._webvue_require_capability('finance.zatca.submit')
-        move = self._webvue_find('account.move', move_id, [('move_type', 'in', SALE_MOVE_TYPES)])
+        move = self._webvue_find('account.move', move_id, [('move_type', 'in', INVOICE_MOVE_TYPES)])
+        if move.move_type not in SALE_MOVE_TYPES:
+            raise ApiError(422, 'zatca_not_applicable', 'the document is not a ZATCA sale document')
         self._webvue_require_sandbox()
         document = zatca_document(move)
         if move.state != 'posted' or not document:

@@ -9,6 +9,7 @@ from odoo.exceptions import MissingError
 from odoo.http import request
 
 from odoo.addons.webvue_api.controllers.common import ApiError, parse_positive_int
+from odoo.addons.webvue_inbox.models.access_service import REPLY
 
 PROVIDER_ID = re.compile(r'^\d{5,32}$')
 CONVERSATION_STATES = ('open', 'pending', 'resolved', 'closed')
@@ -61,6 +62,15 @@ def find_ids(model, ids, field):
 
 def find_one(model, record_id, field):
     return find_ids(model, [parse_positive_int(record_id, field)], field)
+
+
+def find_agent(user_id, field, company=None):
+    """The id of an active user who can reply in `company` (default: the current one); 422 otherwise."""
+    user = find_one('res.users', user_id, field)
+    service = request.env['webvue.access.service']
+    if not user.active or not service._webvue_has_capability(user, REPLY, company=company or request.env.company):
+        reject(f'{field} must be an active agent who can reply', field)
+    return user.id
 
 
 def not_found():

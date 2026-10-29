@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { InboxDepartment } from '@webvue/contracts'
+import InboxDepartmentHours from '@/components/inbox/InboxDepartmentHours.vue'
 import { useDeleteInboxDepartment, useInboxDepartments, useSaveInboxDepartment } from '@/composables/inbox/useInboxSettings'
 
 // Departments route conversations to the people who answer them; members are chosen from the company's people.
 const { t } = useI18n()
 const hydrated = useHydrated()
+const { can } = useAccess()
 const toast = useToast()
 const { data, isLoading, error, refetch } = useInboxDepartments()
 const { mutate: save, isPending: saving } = useSaveInboxDepartment()
@@ -67,6 +69,7 @@ function confirmDelete() {
         <UFormField :label="t('inbox.settings.departments.members')" :description="t('inbox.settings.departments.membersHint')">
           <SharedPersonPicker :model-value="memberIds" multiple value-key="user_id" :known="known" :disabled="locked" :aria-label="t('inbox.settings.departments.members')" @update:model-value="setMembers" />
         </UFormField>
+        <InboxDepartmentHours v-if="editing && can('inbox.automation.manage')" :department-id="editing" />
         <div class="flex justify-end gap-2">
           <UButton type="button" color="neutral" variant="outline" :disabled="locked" :label="t('app.cancel')" @click="cancel" />
           <UButton type="submit" :disabled="locked" :loading="saving" :label="t('app.save')" data-testid="inbox-department-save" />

@@ -14,6 +14,7 @@ import { buildMeetingSchedulePayload, fromUtcDateTimeInput, localDateFromUtc, lo
 import { buildRecurrencePreview, getMeetingFormErrors, normalizeRecurrenceEnd } from '../../utils/meetingForm'
 import { parsePositiveId } from '../../utils/routeParams'
 import { ApiError } from '../../composables/useApi'
+import { localIsoDay } from '@webvue/ui/app/utils/formatDate'
 
 function form(file: string, routeQuery: Record<string, string> = {}, seriesInitiallyLoaded = true) {
   const source = readFileSync(resolve('app/pages/meetings', file), 'utf8')
@@ -28,7 +29,7 @@ function form(file: string, routeQuery: Record<string, string> = {}, seriesIniti
   const mutateAsync = vi.fn(async (..._args: unknown[]) => ({ id: 7 }))
   const navigateTo = vi.fn(async () => {})
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:pathMatch(.*)*', component: {} }] })
-  const scope = { useRouter: () => router, ...recordNavigation, ...meetingEditorContext, useMeetingFormFeedback, firstQuery, isCalendarDate, computed, ref, watch, nextTick, useRoute: () => ({ params: { id: '7' }, query: routeQuery }),
+  const scope = { useRouter: () => router, ...recordNavigation, ...meetingEditorContext, useMeetingFormFeedback, firstQuery, isCalendarDate, localIsoDay, useRecordPicker: () => ({ query: { data: ref([]) } }), computed, ref, watch, nextTick, useRoute: () => ({ params: { id: '7' }, query: routeQuery }),
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => ref(true),
     useSsrQuerySeed: () => {}, // Client workflow harness; actual SSR is tested separately.
     useMeetingSubmitError: () => ({ fieldErrors: computed(() => ({})), submitError: computed(() => '') }),
@@ -100,12 +101,13 @@ describe('meeting form unsaved changes', () => {
     expect(body.start_datetime.slice(0, 10)).toBe('2026-09-08')
     expect(body.start_datetime).toMatch(/[+-]03:00$/)
   })
-  it('does not save a named meeting with an explicitly empty date', async () => {
+  it('saves a title-only meeting for today when the date is left empty', async () => {
     const page = form('new.vue')
     page.name.value = 'Missing date'
     page.meetingDate.value = ''
     await page.save()
-    expect(page.mutateAsync).not.toHaveBeenCalled()
+    expect(page.mutateAsync).toHaveBeenCalledTimes(1)
+    expect(page.mutateAsync.mock.calls[0][0].meeting_date).toBe(localIsoDay(new Date()))
   })
   it('serializes edited datetime-local values as UTC instants', async () => {
     const page = form('[id]/edit.vue')

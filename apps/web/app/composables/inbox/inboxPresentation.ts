@@ -1,4 +1,4 @@
-import type { InboxChannelState, InboxConversationState, InboxDeliveryState, InboxPriority } from '@webvue/contracts'
+import type { InboxChannelState, InboxConversation, InboxConversationState, InboxDeliveryState, InboxPriority } from '@webvue/contracts'
 import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
 
 export const CONVERSATION_STATES: readonly InboxConversationState[] = ['open', 'pending', 'resolved', 'closed']
@@ -7,6 +7,10 @@ export const PRIORITIES: readonly InboxPriority[] = ['low', 'normal', 'high', 'u
 export const CONVERSATION_STATE_TONE: Record<InboxConversationState, StatusTone> = {
   open: 'info', pending: 'warning', resolved: 'success', closed: 'neutral',
 }
+/** The customer's answer to the satisfaction survey. */
+export type CsatScore = NonNullable<InboxConversation['csat']>['score']
+export const CSAT_SCORES: readonly CsatScore[] = ['good', 'neutral', 'bad']
+export const CSAT_TONE: Record<CsatScore, StatusTone> = { good: 'success', neutral: 'warning', bad: 'destructive' }
 export const CHANNEL_STATE_TONE: Record<InboxChannelState, StatusTone> = {
   draft: 'neutral', connected: 'success', error: 'destructive', disabled: 'neutral',
 }

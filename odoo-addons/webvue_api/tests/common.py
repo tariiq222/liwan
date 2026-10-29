@@ -229,3 +229,37 @@ def cover_isolation_routes(patterns, source):
 def exempt_isolation_route(pattern, reason):
     """Record that `pattern` has no company scope (with the reason made explicit)."""
     ISOLATION_NOT_APPLICABLE[pattern] = reason
+
+
+def route_owner_module(rule):
+    """The addon module serving `rule`, e.g. 'odoo.addons.webvue_api.controllers.company'."""
+    return getattr(getattr(rule.endpoint, '__func__', rule.endpoint), '__module__', '')
+
+
+def isolation_route_rules(case, addon):
+    """GET /api/v1 record, export and file routes served by `addon`'s controllers (public ones included)."""
+    prefix = f'odoo.addons.{addon}.'
+    return [
+        rule for rule in case.env['ir.http'].routing_map().iter_rules()
+        if 'GET' in (rule.methods or {'GET'})
+        and rule.rule.startswith('/api/v1/')
+        and ('<' in rule.rule or rule.rule.rsplit('/', 1)[-1].startswith('export'))
+        and route_owner_module(rule).startswith(prefix)
+    ]
+
+
+def assert_isolation_discovery(case, addon, expected):
+    """Fail on a GET record route of `addon` that no isolation case covers or exempts.
+
+    `expected` pins the discovered count so a new route cannot slip in unnoticed.
+    """
+    rules = isolation_route_rules(case, addon)
+    uncovered = sorted(
+        rule.rule for rule in rules
+        if rule.rule not in ISOLATION_COVERED_ROUTES and rule.rule not in ISOLATION_NOT_APPLICABLE
+    )
+    case.assertEqual(uncovered, [], f'{addon}: GET record routes without an isolation case or exemption')
+    case.assertEqual(
+        len(rules), expected,
+        f'{addon}: the GET record-route inventory moved; update the expected count and say why in the PR',
+    )

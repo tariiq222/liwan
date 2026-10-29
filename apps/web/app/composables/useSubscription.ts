@@ -40,6 +40,8 @@ export function useSubscriptionApi() {
     /** Accepting reuses the stored key for `action` until `done()` so refresh/retry cannot create a second order. */
     accept: (action: string, body: { quote_id: string; expected_subscription_revision: number }) =>
       request<CustomerOrderResult>('orders', { method: 'POST', body: { ...body, idempotency_key: idempotencyKey(store(), action) } }),
+    cancelOrder: (orderId: string, reason: string) =>
+      request<unknown>(`orders/${encodeURIComponent(orderId)}/cancel`, { method: 'POST', body: { reason: reason.trim() } }),
     payment: (orderId: string, action: string) =>
       request<PaymentAttempt>(`orders/${encodeURIComponent(orderId)}/payment-attempts`, { method: 'POST', body: { idempotency_key: idempotencyKey(store(), `${action}:pay`) } }),
     done: (action: string) => { forgetIdempotencyKey(store(), action); forgetIdempotencyKey(store(), `${action}:pay`) },

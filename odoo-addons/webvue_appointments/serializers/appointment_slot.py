@@ -54,18 +54,23 @@ def last_bookable_date(booking_type, settings, now):
     return type_today(booking_type, now) + timedelta(days=settings['horizon_days'])
 
 
-def type_slot_items(booking_type, combination, first, last, settings, now, origin=None):
+def type_slot_items(booking_type, combination, first, last, settings, now, origin=None, honour_deadline=True):
     """The free slots of ``booking_type`` (on ``combination`` when given) from ``first`` to ``last`` inclusive.
 
     Only slots a booking route would accept are listed: the same notice and horizon bounds ``parse_start``
     applies. ``origin`` is the booking being rescheduled: the engine then leaves its own meeting out
     of the busy intervals. The engine reads other bookings in the environment of ``booking_type``, so that environment
     decides which of them count as taken.
+
+    The engine's slot search also hides everything inside the type's modification deadline. A requester must keep to
+    it; a staff member booking for them does not (``parse_start`` accepts those starts), so staff pass
+    ``honour_deadline=False`` and the search runs on an unsaved copy of the type with no deadline.
     """
     tz = _type_timezone(booking_type)
+    searched_type = booking_type if honour_deadline else booking_type.new({'modifications_deadline': 0}, origin=booking_type)
     # The engine's public slot search on an unsaved booking, anchored to the type's calendar days.
     booking = booking_type.env['resource.booking'].new({
-        'type_id': booking_type.id, 'combination_id': combination.id or False,
+        'type_id': searched_type.id, 'combination_id': combination.id or False,
     }, origin=origin)
     slots = booking._get_available_slots(
         tz.localize(datetime.combine(first, time.min)),

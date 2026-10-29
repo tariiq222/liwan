@@ -7,6 +7,13 @@ const manifest: AppManifest = {
   feature: 'meetings.enabled',
   routePrefixes: ['/meetings'],
   recordListSources: [{ pattern: /^\/meetings\/series\/[1-9]\d*$/, capability: 'meetings.read' }],
+  // The application's settings are one page under Settings > Applications; who may schedule is its first card.
+  settings: {
+    id: 'meetings', labelKey: 'nav.meetings', icon: 'i-lucide-calendar-days', to: '/settings/apps/meetings',
+    parts: [
+      { id: 'schedule', labelKey: 'meetingsSettings.schedule.title', icon: 'i-lucide-calendar-plus', capability: 'meetings.settings.manage' },
+    ],
+  },
   rail: [{ id: 'meetings', labelKey: 'nav.meetings', icon: 'i-lucide-calendar-days', to: '/meetings', order: 30 }],
   nav: [
     { to: '/meetings', labelKey: 'nav.meetings', icon: 'i-lucide-calendar-days', shortcut: 'm', goKey: 'm', capability: 'meetings.read' },
@@ -18,6 +25,7 @@ const manifest: AppManifest = {
     { id: 'new-meeting', labelKey: 'nav.newMeeting', icon: 'i-lucide-plus', to: '/meetings/new', capability: 'meetings.create', pinned: true },
     { id: 'meetings', labelKey: 'nav.meetings', icon: 'i-lucide-calendar-days', to: '/meetings', capability: 'meetings.read' },
     { id: 'meeting-followup', labelKey: 'nav.meetingFollowup', icon: 'i-lucide-list-checks', to: '/meetings/follow-up', capability: 'meetings.read' },
+    { id: 'meeting-calendar', labelKey: 'nav.meetingCalendar', icon: 'i-lucide-calendar-range', to: '/meetings/calendar', capability: 'meetings.read' },
     { id: 'meeting-series', labelKey: 'nav.meetingSeriesShort', icon: 'i-lucide-repeat', to: '/meetings/series', capability: 'meetings.read' },
   ],
   landing: [

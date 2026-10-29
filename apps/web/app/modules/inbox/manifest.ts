@@ -16,6 +16,9 @@ const manifest: AppManifest = {
       { id: 'departments', labelKey: 'inbox.settings.departments.title', icon: 'i-lucide-network', capability: 'inbox.settings.manage' },
       { id: 'tags', labelKey: 'inbox.settings.tags.title', icon: 'i-lucide-tags', capability: 'inbox.settings.manage' },
       { id: 'canned-replies', labelKey: 'inbox.settings.canned.title', icon: 'i-lucide-message-square-quote', capability: 'inbox.settings.manage' },
+      { id: 'working-hours', labelKey: 'inbox.automation.hours.title', icon: 'i-lucide-clock', capability: 'inbox.automation.manage', to: '/settings/apps/inbox/working-hours', within: '/settings/apps/inbox/working-hours' },
+      { id: 'rules', labelKey: 'inbox.automation.rules.title', icon: 'i-lucide-list-checks', capability: 'inbox.automation.manage', to: '/settings/apps/inbox/rules', within: '/settings/apps/inbox/rules' },
+      { id: 'auto-messages', labelKey: 'inbox.automation.messages.title', icon: 'i-lucide-bot-message-square', capability: 'inbox.automation.manage', within: '/settings/apps/inbox/auto-messages' },
       { id: 'channels', labelKey: 'inbox.settings.channels.title', icon: 'i-lucide-plug-zap', capability: 'inbox.channels.manage', within: '/settings/apps/inbox/channels' },
     ],
   },
@@ -32,7 +35,10 @@ const manifest: AppManifest = {
   ],
   bell: {
     capabilities: ['inbox.conversations.read'],
-    kinds: [{ kind: 'inbox.assigned', href: row => `/inbox/${row.conversation_id}` }],
+    kinds: [
+      { kind: 'inbox.assigned', href: row => `/inbox/${row.conversation_id}` },
+      { kind: 'inbox.first_response', href: row => `/inbox/${row.conversation_id}` },
+    ],
   },
 }
 export default manifest

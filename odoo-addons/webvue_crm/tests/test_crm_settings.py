@@ -38,6 +38,7 @@ class TestCrmSettings(WebVueCrmCase):
         self.assertFalse(values['view_log_enabled'])
         self.assertFalse(values['discount_allowed'])
         self.assertEqual(values['discount_max_percent'], 0)
+        self.assertEqual(values['price_above_list'], 'managers')
         self.assertEqual(values['preset'], 'phone_packages')
         self.assertEqual(values['terms']['customer'], {
             'ar': {'singular': 'عميل', 'plural': 'عملاء'},
@@ -62,6 +63,7 @@ class TestCrmSettings(WebVueCrmCase):
         self.assertEqual(options['recycle_after_days'], {'min': 1, 'max': 365})
         self.assertEqual(options['recycle_cycles'], {'min': 0, 'max': 5})
         self.assertEqual(options['discount_max_percent'], {'min': 0, 'max': 100})
+        self.assertEqual(options['price_above_list'], ['forbid', 'managers', 'everyone'])
 
     def test_agent_can_neither_read_nor_patch(self):
         self.as_agent()

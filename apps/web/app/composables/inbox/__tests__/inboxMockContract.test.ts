@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   InboxAttachmentSchema, InboxCannedReplyListSchema, InboxChannelListSchema, InboxChannelSchema, InboxConversationDetailSchema, InboxConversationListSchema,
-  InboxDepartmentListSchema, InboxMessageListSchema, InboxMessageSchema, InboxRefSchema, InboxSettingsSchema, InboxTagListSchema, InboxTemplateListSchema, InboxTemplateSchema,
+  InboxChannelAutomationSchema, InboxDepartmentListSchema, InboxDepartmentWorkingHoursSchema, InboxMessageListSchema, InboxRefSchema, InboxRuleListSchema, InboxRuleSchema, InboxRuleTestResultSchema, InboxWorkingHoursSchema, InboxMessageSchema, InboxSettingsSchema, InboxTagListSchema, InboxTemplateListSchema, InboxTemplateSchema,
 } from '@webvue/contracts'
 import { inboxPreviewData, resetInboxPreview } from '../../../../e2e/inbox-ui-preview-data.mjs'
 
@@ -28,6 +28,9 @@ describe('inbox audit mock', () => {
   })
 
   it('filters the list like the server', () => {
+    const csat = (query: string) => (call('GET', `/api/v1/inbox/conversations?${query}`).body as { items: { id: number }[] }).items.map(item => item.id)
+    expect(csat('csat=good')).toEqual([3])
+    expect(csat('csat=bad')).toEqual([])
     const ids = (query: string) => (call('GET', `/api/v1/inbox/conversations?${query}`).body as { items: { id: number }[] }).items.map(item => item.id)
     expect(ids('assignee=me')).toEqual([1])
     expect(ids('assignee=unassigned')).toEqual(expect.arrayContaining([2, 4]))
@@ -185,6 +188,79 @@ describe('inbox audit mock', () => {
       const withImage = InboxMessageSchema.parse(sendTo({ template_id: 2, params: [], header_attachment_id: file.id }).body)
       expect(withImage.attachments).toHaveLength(1)
       expect(sendTo({ template_id: 4, params: ['918273'] }).status).toBe(200)
+    })
+  })
+
+  describe('automation', () => {
+    const rule = (extra: object = {}) => ({
+      channel_id: null, name: 'استفسار الأسعار', active: true, match_kind: 'contains', keywords: ['سعر'], option_id: null, hours: 'any', stop: true,
+      reply: { body: 'الأسعار في القائمة.' }, resolve: false, department_id: null, assignee_id: null, tag_ids: [], priority: null, ...extra,
+    })
+    const test = (body: object) => InboxRuleTestResultSchema.parse(call('POST', '/api/v1/inbox/rules/test', { channel_id: 1, text: null, option_id: null, at: null, ...body }).body)
+
+    it('serves the settings, hours, automatic messages and rules in the contract shape', () => {
+      expect(InboxSettingsSchema.parse(call('GET', '/api/v1/settings/inbox').body)).toMatchObject({ assignment_policy: 'manual', first_response_alert_minutes: 0 })
+      expect(InboxWorkingHoursSchema.parse(call('GET', '/api/v1/inbox/working-hours').body).days.length).toBeGreaterThan(0)
+      expect(InboxDepartmentWorkingHoursSchema.parse(call('GET', '/api/v1/inbox/departments/1/working-hours').body).working_hours).toBeNull()
+      expect(InboxChannelAutomationSchema.parse(call('GET', '/api/v1/inbox/channels/1/automation').body).welcome.enabled).toBe(true)
+      expect(call('GET', '/api/v1/inbox/automation/channels').body).toEqual({ items: [{ id: 1, name: 'واتساب الاستقبال' }], total: 1 })
+      expect(call('POST', '/api/v1/inbox/rules/test', { channel_id: 1, text: 'x' }).status).toBe(422)
+      expect(InboxRuleListSchema.parse(call('GET', '/api/v1/inbox/rules').body).total).toBe(2)
+      const messages = InboxMessageListSchema.parse(call('GET', '/api/v1/inbox/conversations/1/messages?limit=100').body).items
+      expect(messages.some(item => item.automated)).toBe(true)
+      expect(messages.some(item => item.direction === 'note' && item.author === null && !item.automated)).toBe(true)
+      expect(InboxConversationDetailSchema.parse(call('GET', '/api/v1/inbox/conversations/3').body).csat).toMatchObject({ score: 'good' })
+    })
+
+    it('saves hours, refuses a backwards range, and gives a department its own hours or none', () => {
+      const hours = { timezone: 'Asia/Dubai', days: [{ weekday: 1, from: '08:00', to: '12:00' }], holidays: [] }
+      expect(InboxWorkingHoursSchema.parse(call('PUT', '/api/v1/inbox/working-hours', hours).body)).toEqual(hours)
+      expect(call('PUT', '/api/v1/inbox/working-hours', { ...hours, days: [{ weekday: 1, from: '12:00', to: '08:00' }] })).toMatchObject({ status: 422, body: { code: 'invalid', field: 'days' } })
+      expect(InboxDepartmentWorkingHoursSchema.parse(call('PUT', '/api/v1/inbox/departments/2/working-hours', { working_hours: hours }).body).working_hours).toEqual(hours)
+      expect(InboxDepartmentWorkingHoursSchema.parse(call('PUT', '/api/v1/inbox/departments/2/working-hours', { working_hours: null }).body).working_hours).toBeNull()
+      expect(call('GET', '/api/v1/inbox/departments/99/working-hours').status).toBe(404)
+    })
+
+    it('refuses an enabled automatic message without content and a policy it does not know', () => {
+      expect(call('PATCH', '/api/v1/inbox/channels/1/automation', { away: { enabled: true, repeat_hours: 12, content: null } })).toMatchObject({ status: 422, body: { field: 'away.content' } })
+      const away = { enabled: true, repeat_hours: 6, content: { body: 'خارج الدوام' } }
+      expect(InboxChannelAutomationSchema.parse(call('PATCH', '/api/v1/inbox/channels/1/automation', { away }).body).away).toEqual(away)
+      expect(call('PATCH', '/api/v1/settings/inbox', { assignment_policy: 'random' }).status).toBe(422)
+      expect(InboxSettingsSchema.parse(call('PATCH', '/api/v1/settings/inbox', { assignment_policy: 'round_robin', first_response_alert_minutes: 15 }).body).assignment_policy).toBe('round_robin')
+    })
+
+    it('creates, edits, reorders and deletes rules, refusing a rule without keywords or action', () => {
+      const created = call('POST', '/api/v1/inbox/rules', rule())
+      expect(created.status).toBe(201)
+      const id = InboxRuleSchema.parse(created.body).id
+      expect(call('POST', '/api/v1/inbox/rules', rule({ keywords: [] }))).toMatchObject({ status: 422, body: { field: 'keywords' } })
+      expect(call('POST', '/api/v1/inbox/rules', rule({ reply: null }))).toMatchObject({ status: 422, body: { field: 'reply' } })
+      expect(InboxRuleSchema.parse(call('PATCH', `/api/v1/inbox/rules/${id}`, { active: false }).body)).toMatchObject({ active: false, name: 'استفسار الأسعار' })
+      expect(InboxRuleListSchema.parse(call('POST', '/api/v1/inbox/rules/reorder', { ids: [id, 1, 2] }).body).items.map(item => item.id)).toEqual([id, 1, 2])
+      expect(InboxRuleListSchema.parse(call('GET', '/api/v1/inbox/rules').body).items.map(item => item.id)).toEqual([id, 1, 2])
+      expect(call('POST', '/api/v1/inbox/rules/reorder', { ids: [1] }).status).toBe(422)
+      expect(call('DELETE', `/api/v1/inbox/rules/${id}`).status).toBe(204)
+      expect(call('GET', `/api/v1/inbox/rules/${id}`).status).toBe(404)
+    })
+
+    it('dry-runs the rules: words ignore diacritics, a stop ends the search, an inactive rule never fires', () => {
+      expect(test({ text: 'أريد حَجْز موعد' }).rules.map(item => item.id)).toEqual([1])
+      expect(test({ text: 'شكوى من التأخير' }).rules.map(item => item.id)).toEqual([2])
+      call('PATCH', '/api/v1/inbox/rules/2', { stop: false, active: true })
+      call('POST', '/api/v1/inbox/rules', rule({ match_kind: 'any', keywords: [], name: 'كل شيء' }))
+      expect(test({ text: 'شكوى' }).rules.map(item => item.name)).toEqual(['شكوى عاجلة', 'كل شيء'])
+      call('PATCH', '/api/v1/inbox/rules/1', { active: false })
+      expect(test({ text: 'حجز' }).rules.map(item => item.name)).toEqual(['كل شيء'])
+      expect(call('POST', '/api/v1/inbox/rules/test', { channel_id: 9, text: 'x', option_id: null, at: null }).status).toBe(422)
+    })
+
+    it('answers the welcome inside hours and the away message outside them', () => {
+      const monday10 = '2026-10-26T07:00:00Z'
+      const monday22 = '2026-10-26T19:00:00Z'
+      expect(test({ at: monday10 })).toMatchObject({ inside_hours: true, auto_message: 'welcome' })
+      call('PATCH', '/api/v1/inbox/channels/1/automation', { away: { enabled: true, repeat_hours: 12, content: { body: 'خارج الدوام' } } })
+      expect(test({ at: monday22 })).toMatchObject({ inside_hours: false, auto_message: 'away' })
+      expect(test({ at: '2026-09-23T07:00:00Z' }).inside_hours).toBe(false)
     })
   })
 })

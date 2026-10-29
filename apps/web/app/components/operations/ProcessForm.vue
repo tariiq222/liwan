@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { OperationProcess, OperationProcessBody } from '@webvue/contracts'
+import { OperationStageApprovalModeSchema, type OperationProcess, type OperationProcessBody } from '@webvue/contracts'
 import { createOperationSubmitGuard, operationErrorKey, processFormErrors } from '@/composables/operations/forms'
 import { useOperationExecutionKinds } from '@/composables/operations/useOperations'
 
@@ -11,6 +11,8 @@ const name = ref(props.process?.name ?? '')
 const description = ref(props.process?.description ?? '')
 const purpose = ref(props.process?.purpose ?? 'work')
 const purposeItems = computed(() => ['work', 'employee'].map(value => ({ value, label: t(`operations.purposes.${value}`) })))
+const stageApprovalMode = ref(props.process?.stage_approval_mode ?? 'per_stage')
+const stageApprovalModeItems = computed(() => OperationStageApprovalModeSchema.options.map(value => ({ value, label: t(`operations.stageApprovalModes.${value}`) })))
 const executionKind = ref(props.process?.execution_kind ?? 'approval')
 const acceptedRevision = ref(props.process?.revision)
 const steps = ref((props.process?.steps ?? [{ name: '', reviewer_ids: [], reviewers: [] }]).map(step => ({ name: step.name, reviewer_ids: [...step.reviewer_ids], reviewers: [...step.reviewers] })))
@@ -20,7 +22,7 @@ const error = ref<unknown>(null)
 const reloadRequested = ref(false)
 const gate = createOperationSubmitGuard()
 const pending = gate.pending
-function snapshot() { return JSON.stringify([name.value, description.value, purpose.value, executionKind.value, steps.value.map(step => [step.name, step.reviewer_ids])]) }
+function snapshot() { return JSON.stringify([name.value, description.value, purpose.value, stageApprovalMode.value, executionKind.value, steps.value.map(step => [step.name, step.reviewer_ids])]) }
 const baseline = ref(snapshot())
 const dirty = computed(() => snapshot() !== baseline.value)
 const errors = computed(() => processFormErrors({ name: name.value, steps: steps.value }))
@@ -47,7 +49,7 @@ async function submit() {
   await gate.run(async () => {
     error.value = null
     try {
-      const body: OperationProcessBody = { name: name.value.trim(), description: description.value, purpose: purpose.value, execution_kind: executionKind.value, steps: steps.value.map(step => ({ name: step.name.trim(), reviewer_ids: [...new Set(step.reviewer_ids)] })) }
+      const body: OperationProcessBody = { name: name.value.trim(), description: description.value, purpose: purpose.value, stage_approval_mode: stageApprovalMode.value, execution_kind: executionKind.value, steps: steps.value.map(step => ({ name: step.name.trim(), reviewer_ids: [...new Set(step.reviewer_ids)] })) }
       if (props.process) body.revision = acceptedRevision.value
       const process = await props.save(body)
       acceptedRevision.value = process.revision
@@ -66,7 +68,7 @@ async function reload() {
   await gate.run(async () => {
     try {
       const current = await props.refresh!()
-      name.value = current.name; description.value = current.description; executionKind.value = current.execution_kind; purpose.value = current.purpose
+      name.value = current.name; description.value = current.description; executionKind.value = current.execution_kind; purpose.value = current.purpose; stageApprovalMode.value = current.stage_approval_mode
       steps.value = current.steps.map(step => ({ name: step.name, reviewer_ids: [...step.reviewer_ids], reviewers: [...step.reviewers] }))
       acceptedRevision.value = current.revision
       baseline.value = snapshot(); error.value = null; attempted.value = false; reloadRequested.value = false
@@ -83,6 +85,7 @@ async function reload() {
     </SharedFormSection>
     <SharedFormSection panel :title="t('operations.stages')" :description="t('operations.stageOrderHelp')">
       <div class="space-y-3">
+      <UFormField name="stage_approval_mode" :label="t('operations.stageApprovalMode')" :description="t('operations.stageApprovalModeHint')" :error="fieldError('stage_approval_mode')"><USelect v-model="stageApprovalMode" :items="stageApprovalModeItems" class="w-full" :disabled="disabled" /></UFormField>
       <ol class="space-y-3"><SharedSubCard v-for="(step, index) in steps" :key="index" as="li" class="space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2"><h3 class="text-sm font-semibold text-highlighted">{{ t('operations.stageNumber', { number: index + 1 }) }}</h3><div class="flex gap-1"><UButton type="button" color="neutral" variant="ghost" square icon="i-lucide-arrow-up" :aria-label="t('operations.moveUp')" :disabled="disabled || index === 0" @click="move(index, -1)" /><UButton type="button" color="neutral" variant="ghost" square icon="i-lucide-arrow-down" :aria-label="t('operations.moveDown')" :disabled="disabled || index === steps.length - 1" @click="move(index, 1)" /><UButton type="button" color="error" variant="ghost" square icon="i-lucide-trash-2" :aria-label="t('operations.removeStage')" :disabled="disabled" @click="steps.splice(index, 1)" /></div></div>
         <UFormField :name="`steps.${index}.name`" :label="t('operations.stageName')" required :error="fieldError(`steps.${index}.name`)"><UInput v-model="step.name" class="w-full" :disabled="disabled" /></UFormField>

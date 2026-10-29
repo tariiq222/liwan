@@ -17,6 +17,7 @@ const seedSettings = () => ({
     view_log_enabled: false,
     discount_allowed: true,
     discount_max_percent: 10,
+    price_above_list: 'managers',
     terms: {
       customer: { ar: { singular: 'عميل', plural: 'عملاء' }, en: { singular: 'customer', plural: 'customers' }, gender: 'm' },
       opportunity: { ar: { singular: 'فرصة', plural: 'فرص' }, en: { singular: 'opportunity', plural: 'opportunities' }, gender: 'f' },
@@ -29,6 +30,7 @@ const OPTIONS = {
   after_attempts: ['lost', 'manager'],
   distribution_mode: ['round_robin', 'manual', 'on_import'],
   visibility: ['own', 'team', 'all'],
+  price_above_list: ['forbid', 'managers', 'everyone'],
   term_gender: ['m', 'f'],
   followup_attempts: { min: 0, max: 10 },
   followup_interval_hours: { min: 1, max: 720 },
