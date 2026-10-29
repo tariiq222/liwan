@@ -66,7 +66,7 @@ class TestBranchAccessApi(WebVueApiCase):
         self.assertEqual(self.api('PATCH', path, json={'expected_version': policy['version'],
                                                       'preset': 'group_of_companies'}).status_code, 409)
         version = applied.json()['version']
-        for bad in ({'preset': 'custom'}, {'preset': 'single_company'}, {'preset': 'central_branches', 'mode': 'isolated'}):
+        for bad in ({'preset': []}, {'preset': {}}, {'preset': 'custom'}, {'preset': 'single_company'}, {'preset': 'central_branches', 'mode': 'isolated'}):
             self.assertEqual(self.api('PATCH', path, json={'expected_version': version, **bad}).status_code, 422)
 
     def test_user_delegation_roundtrip_and_membership_fence(self):

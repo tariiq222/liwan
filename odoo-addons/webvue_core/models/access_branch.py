@@ -328,7 +328,7 @@ class WebVueBranchAccessService(models.AbstractModel):
     def _webvue_apply_branch_preset(self, expected, preset):
         """Write a preset through the one protected policy operation; it never bypasses it."""
         self._webvue_require_branch_admin()
-        if preset not in BRANCH_PRESET_MODES:
+        if not isinstance(preset, str) or preset not in BRANCH_PRESET_MODES:
             msg = 'invalid'
             raise WebVueAccessRule(msg, field='preset')
         branches = self._webvue_descendant_memberships()
