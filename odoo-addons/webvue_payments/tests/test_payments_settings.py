@@ -21,11 +21,17 @@ class TestPaymentsSettings(WebVueOrderCase):
     def test_the_defaults_are_read_until_a_company_saves_its_own(self):
         self.login_admin()
         self.assertEqual(self.api('GET', SETTINGS).json(), {
-            'unpaid_order_expiry_minutes': 60, 'invoice_when_paid': True, 'revision': 0,
+            'unpaid_order_expiry_minutes': 60, 'invoice_when_paid': True, 'refund_policy': 'full', 'refund_amounts': 'due',
+            'revision': 0,
         })
-        saved = self.patch(revision=0, unpaid_order_expiry_minutes=30, invoice_when_paid=False)
+        saved = self.patch(
+            revision=0, unpaid_order_expiry_minutes=30, invoice_when_paid=False, refund_policy='none', refund_amounts='any',
+        )
         self.assertEqual(saved.status_code, 200)
-        self.assertEqual(saved.json(), {'unpaid_order_expiry_minutes': 30, 'invoice_when_paid': False, 'revision': 1})
+        self.assertEqual(saved.json(), {
+            'unpaid_order_expiry_minutes': 30, 'invoice_when_paid': False, 'refund_policy': 'none', 'refund_amounts': 'any',
+            'revision': 1,
+        })
         self.assertEqual(self.env['ir.config_parameter'].sudo().get_param(AUTOMATIC_INVOICE), 'False')
         before = fields.Datetime.now()
         order = self.online_order()
@@ -41,6 +47,9 @@ class TestPaymentsSettings(WebVueOrderCase):
             ({'revision': 1, 'unpaid_order_expiry_minutes': 1441}, 'unpaid_order_expiry_minutes'),
             ({'revision': 1, 'unpaid_order_expiry_minutes': '30'}, 'unpaid_order_expiry_minutes'),
             ({'revision': 1, 'invoice_when_paid': 'yes'}, 'invoice_when_paid'),
+            ({'revision': 1, 'refund_policy': 'notice'}, 'refund_policy'),
+            ({'revision': 1, 'refund_policy': ['full']}, 'refund_policy'),
+            ({'revision': 1, 'refund_amounts': 'some'}, 'refund_amounts'),
             ({'revision': 1, 'company_id': 1}, 'company_id'),
             ({'unpaid_order_expiry_minutes': 30}, 'revision'),
         ):

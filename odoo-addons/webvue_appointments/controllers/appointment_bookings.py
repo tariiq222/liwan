@@ -15,6 +15,7 @@ from odoo.addons.webvue_appointments.controllers.records import (
     MANAGE_CAPABILITY,
     READ_CAPABILITY,
     WRITE_CAPABILITY,
+    company_reason,
     company_records,
     confirm_attendance,
     confirm_on_schedule,
@@ -24,12 +25,18 @@ from odoo.addons.webvue_appointments.controllers.records import (
     require_open_booking,
     slot_conflicts,
 )
+from odoo.addons.webvue_appointments.models.resource_booking import (
+    ATTENDANCE_TRANSITIONS,
+)
 from odoo.addons.webvue_appointments.serializers.appointment_booking import (
     booking_values,
     check_partner_contact,
     dump_booking,
     dump_booking_rows,
+    parse_attendance,
+    parse_booking_cancel,
     parse_booking_create,
+    parse_booking_patch,
     parse_booking_query,
     parse_booking_schedule,
     requester_values,
@@ -53,6 +60,11 @@ class AppointmentBookingController(http.Controller):
     create with a start or schedule stays ``scheduled`` until ``/confirm``; with it off, staff
     scheduling confirms it at once. Every route checks its capability in the current company and
     looks the booking up inside it (the ORM write rules are company-blind).
+
+    A walk-in is scheduled now through the same engine path as any scheduled booking (only the notice and
+    horizon limits of ``start`` do not apply), is confirmed at once whatever ``requester_confirmation`` says,
+    and records ``arrived``. Recording ``arrived`` on a booking that is still ``scheduled`` confirms it:
+    the person is here, so the booking happens.
     """
 
     @http.route('/api/v1/appointments/bookings', type='json2', auth='user', methods=['GET'], readonly=True)
@@ -94,13 +106,19 @@ class AppointmentBookingController(http.Controller):
             'partner_ids': [(6, 0, partner.ids)],
             **booking_values(parsed),
             **self._combination_values(combination),
+            'webvue_visit_reason_id': self._visit_reason(parsed['visit_reason_id']),
         }
         if parsed['start']:
             require_combination_links(booking_type)
             values['start'] = parsed['start']
+            if parsed['walk_in']:
+                values.update(webvue_walk_in=True, webvue_attendance='arrived' if settings['attendance_tracking'] else False)
             with slot_conflicts():
                 booking = request.env[BOOKING].create(values)
-            confirm_on_schedule(booking)
+            if parsed['walk_in']:
+                confirm_attendance(booking)
+            else:
+                confirm_on_schedule(booking)
         else:
             booking = request.env[BOOKING].create(values)
         return self._detail(booking, settings)
@@ -137,12 +155,44 @@ class AppointmentBookingController(http.Controller):
     @api_handler
     @requires_feature('appointments.enabled', operation='write')
     @requires_capability(WRITE_CAPABILITY)
-    def cancel_booking(self, booking_id, **_):
+    def cancel_booking(self, booking_id, **payload):
         booking = get_company_booking(booking_id)
+        settings = self._settings()
+        parsed = parse_booking_cancel(payload, settings)
         require_open_booking(booking)
         self._require_modifiable(booking, None)
+        if parsed['reason_id']:
+            booking.write({'webvue_cancel_reason_id': company_reason(parsed['reason_id'], 'cancel', 'reason_id').id})
         booking.action_cancel()
-        return self._detail(booking, self._settings())
+        return self._detail(booking, settings)
+
+    @http.route('/api/v1/appointments/bookings/<int:booking_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
+    @api_handler
+    @requires_feature('appointments.enabled', operation='write')
+    @requires_capability(WRITE_CAPABILITY)
+    def patch_booking(self, booking_id, **payload):
+        booking = get_company_booking(booking_id)
+        settings = self._settings()
+        parsed = parse_booking_patch(payload, settings)
+        require_open_booking(booking)
+        booking.write({'webvue_visit_reason_id': self._visit_reason(parsed['visit_reason_id'])})
+        return self._detail(booking, settings)
+
+    @http.route('/api/v1/appointments/bookings/<int:booking_id>/attendance', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature('appointments.enabled', operation='write')
+    @requires_capability(WRITE_CAPABILITY)
+    def record_attendance(self, booking_id, **payload):
+        booking = get_company_booking(booking_id)
+        settings = self._settings()
+        outcome = parse_attendance(payload)
+        if not settings['attendance_tracking']:
+            raise ApiError(422, 'invalid', 'attendance tracking is off in the appointment settings')
+        self._require_attendance_move(booking, outcome)
+        if outcome == 'arrived' and booking.state == 'scheduled':
+            confirm_attendance(booking)
+        booking.write({'webvue_attendance': outcome})
+        return self._detail(booking, settings)
 
     @http.route('/api/v1/appointments/bookings/<int:booking_id>/invitation', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -158,6 +208,22 @@ class AppointmentBookingController(http.Controller):
         booking = get_company_booking(booking_id)
         require_open_booking(booking)
         return {'path': booking.get_portal_url()}
+
+    @staticmethod
+    def _visit_reason(reason_id):
+        """The id of the company's active visit reason ``reason_id``, or False when none is given."""
+        return company_reason(reason_id, 'visit', 'visit_reason_id').id if reason_id else False
+
+    @staticmethod
+    def _require_attendance_move(booking, outcome):
+        """422 unless the booking is open and ``outcome`` may follow its current attendance."""
+        if booking.state not in ('scheduled', 'confirmed'):
+            raise ApiError(422, 'invalid', 'only a scheduled or confirmed booking records attendance')
+        current = booking.webvue_attendance or False
+        if outcome not in ATTENDANCE_TRANSITIONS.get(current, ()):
+            raise ApiError(422, 'invalid', 'attendance cannot move from %s to %s' % (current or 'not recorded', outcome), field='outcome')
+        if outcome == 'no_show' and booking.start > fields.Datetime.now():
+            raise ApiError(422, 'invalid', 'a booking is a no-show only after its start', field='outcome')
 
     @staticmethod
     def _settings():

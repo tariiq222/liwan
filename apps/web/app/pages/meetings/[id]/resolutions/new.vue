@@ -5,6 +5,7 @@ import { recordParentTo } from '@/utils/recordListOrigin'
 import { MEETING_LIST_PATHS } from '@/modules/meetings/navigation'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
 import { useCreateResolution, useMeeting } from '@/composables/useMeetings'
+import { ApiError } from '@/composables/useApi'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,6 +15,8 @@ const hydrated = useHydrated()
 const id = computed(() => Number(route.params.id))
 const query = useMeeting(id)
 const { mutateAsync, isPending, error } = useCreateResolution()
+// The server refuses an empty assignee on this field; show it where the person is picked, not as a generic alert.
+const responsibleServerError = computed(() => error.value instanceof ApiError && error.value.status === 422 && error.value.field === 'responsible_id' ? t('meetingsUx.validation.responsible') : undefined)
 // Child pages always return to their current record; only normalized list context follows.
 const editorContext = computed(() => parseMeetingEditorContext(route.query))
 const backTo = computed(() => editorContext.value ? meetingMinutesEditorTo(id.value, route.query, sourcePaths.value) : recordParentTo(`/meetings/${id.value}`, { ...cleanMeetingEditorQuery(route.query), tab: 'resolutions' }, sourcePaths.value, route.hash))
@@ -99,7 +102,7 @@ async function save() {
           <UFormField :label="t('meetingsUi.resolutionTitle')" name="name" required :error="visibleErrors.name">
             <UInput id="res-name" v-model="name" class="w-full" :aria-invalid="Boolean(visibleErrors.name)" :disabled="!hydrated || isPending" required />
           </UFormField>
-          <UFormField :label="t('meetingsUi.responsible')" name="responsible" required :error="visibleErrors.responsible">
+          <UFormField :label="t('meetingsUi.responsible')" name="responsible" required :error="visibleErrors.responsible || responsibleServerError">
             <SharedPersonPicker
               id="res-user"
               :model-value="responsibleId || null"
@@ -131,7 +134,7 @@ async function save() {
         </div>
       </SharedFormSection>
       <UAlert v-if="attemptedSubmit && Object.keys(formErrors).length > 1" color="error" variant="subtle" role="alert" :title="t('meetingsUx.validationSummary', { count: Object.keys(formErrors).length })" />
-      <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error.message" />
+      <UAlert v-if="error && !responsibleServerError" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error.message" />
 <SharedFormActions>
         <p class="text-xs text-muted">{{ t('meetingsUx.requiredHint') }}</p>
         <div class="ms-auto flex flex-wrap items-center gap-2">
