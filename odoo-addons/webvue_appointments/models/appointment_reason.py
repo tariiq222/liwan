@@ -27,10 +27,13 @@ class WebVueAppointmentReason(models.Model):
     def _webvue_seed_preset(self, preset, company):
         """Add the preset's visit reasons that ``company`` does not have yet, archived ones included. Never deletes."""
         english = self.with_context(lang='en_US', active_test=False)
+        # The Arabic name is a translation, so it can only be written while Arabic is an active language.
+        arabic_active = bool(self.env['res.lang']._get_code(SEED_ARABIC))
         present = set(english.search([('company_id', '=', company.id), ('kind', '=', 'visit')]).mapped('name'))
         reasons = PRESET_VISIT_REASONS.get(preset, ())
         for sequence, (name, arabic) in enumerate(reasons, start=1):
             if name in present:
                 continue
             reason = english.create({'company_id': company.id, 'kind': 'visit', 'name': name, 'sequence': sequence * 10})
-            reason.with_context(lang=SEED_ARABIC).name = arabic
+            if arabic_active:
+                reason.with_context(lang=SEED_ARABIC).name = arabic
