@@ -79,7 +79,7 @@ function confirmDelete() {
         <USelect id="import-field-source" v-model="sourceId" class="w-full" :items="sources.map(source => ({ value: source.id, label: source.name }))" :placeholder="t('crm.imports.flow.mapping.sourcePlaceholder')" :disabled="disabled" />
       </UFormField>
       <UFormField v-if="agentMode !== 'none'" :label="t('crm.imports.flow.mapping.agent')" name="import-agent" :required="agentMode === 'required'" :help="t(agentMode === 'required' ? 'crm.imports.flow.mapping.agentHint' : 'crm.imports.flow.mapping.agentOptionalHint')">
-        <SharedPersonPicker id="import-agent" v-model="agentId" value-key="user_id" :placeholder="t('crm.imports.flow.mapping.agentPlaceholder')" :disabled="disabled" />
+        <SharedPersonPicker id="import-agent" v-model="agentId" value-key="user_id" endpoint="/api/v1/crm/agents" :placeholder="t('crm.imports.flow.mapping.agentPlaceholder')" :disabled="disabled" />
       </UFormField>
     </SharedFormSection>
 

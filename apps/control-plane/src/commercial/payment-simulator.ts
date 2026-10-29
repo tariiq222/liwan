@@ -68,6 +68,26 @@ export class SimulatorAdapter implements PaymentAdapter {
     return { provider_ref: a.ref, redirect_url: `https://sim.test/pay/${a.ref}`, status: 'pending' }
   }
 
+  /**
+   * Rebuild an attempt this process no longer remembers (the API restarted after the attempt row was
+   * written). Only the ref the simulator itself issued is accepted, so a foreign ref is never adopted.
+   */
+  adopt(row: { id: string; order_id: string; provider_ref: string; amount_minor: number | string; currency: string; exponent: number }): boolean {
+    const ref = row.provider_ref
+    const known = this.byAttempt.get(row.id)
+    if (known) return known.ref === ref
+    if (!/^sim_inv_[0-9a-f]{8}_\d+$/.test(ref) || this.attempts.has(ref)) return false
+    const a: SimAttempt = {
+      input: {
+        attempt_id: row.id, order_id: row.order_id, amount: { minor: Number(row.amount_minor), currency: row.currency, exponent: row.exponent },
+        description: `WebVue order ${row.order_id}`, success_url: '', back_url: '', callback_url: '', expires_at: new Date(Date.now() + 3_600_000).toISOString(),
+      },
+      ref, payment_id: ref.replace('sim_inv_', 'sim_pay_'), status: 'pending', outcome: this.defaultOutcome,
+    }
+    this.attempts.set(ref, a); this.byAttempt.set(row.id, a)
+    return true
+  }
+
   /** Complete explicitly, or use the scripted outcome; webhookBody and lookup agree. */
   settle(ref: string, outcome?: 'succeeded' | 'failed' | 'canceled'): ProviderEvent {
     const a = this.need(ref)

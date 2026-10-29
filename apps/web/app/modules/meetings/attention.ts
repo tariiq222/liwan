@@ -44,7 +44,7 @@ export const overdueFollowupAttention: AppAttentionProvider = {
     const rows = page.items.slice(0, ATTENTION_ROWS_PER_PROVIDER).map(resolution => ({
       id: `resolution-${resolution.id}`,
       label: resolution.name,
-      to: `/meetings/${resolution.meeting_id}`,
+      to: `/meetings/${resolution.meeting_id}?tab=resolutions`,
       caption: resolution.meeting_name,
       tone: 'urgent' as const,
     }))

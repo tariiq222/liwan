@@ -14,7 +14,8 @@ const rowsSql = `WITH client_rows AS (
       WHEN o.payment_state IN ('refund_pending','refunded') THEN 'failed'
       WHEN o.id IS NOT NULL THEN 'activating'
       WHEN s.state IN ('suspended','cancelled') THEN 'inactive'
-      WHEN s.state='pending' AND s.applied_revision_id IS NULL THEN 'awaiting_payment'
+      WHEN s.state='pending' AND s.applied_revision_id IS NULL AND EXISTS (SELECT 1 FROM orders x WHERE x.subscription_id=s.id AND x.cancelled) THEN 'inactive'
+    WHEN s.state='pending' AND s.applied_revision_id IS NULL THEN 'awaiting_payment'
       WHEN s.state='pending' OR s.applied_revision_id IS NULL THEN 'activating'
       ELSE 'active' END AS subscription_state,
     p.name AS plan_name, pp.name AS pending_plan_name, to_char(s.renewal_at,'YYYY-MM-DD') AS renewal_at,

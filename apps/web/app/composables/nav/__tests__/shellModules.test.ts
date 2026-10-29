@@ -207,7 +207,7 @@ describe('projects dashboard navigation', () => {
     expect(hidePinnedNewProject('/projects/40/?tab=tasks')).toBe(true)
   })
   it('orders meetings as list, calendar, recurring series after the pinned create action', () => {
-    expect(contextLinksForModule('meetings', full).map(link => link.id)).toEqual(['new-meeting', 'meetings', 'meeting-followup', 'meeting-series'])
+    expect(contextLinksForModule('meetings', full).map(link => link.id)).toEqual(['new-meeting', 'meetings', 'meeting-followup', 'meeting-calendar', 'meeting-series'])
     expect(contextLinksForModule('hr', full, '/hr').map(link => link.labelKey)).toEqual(['hr.nav.people', 'nav.employees', 'nav.departments'])
   })
 })

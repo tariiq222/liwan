@@ -13,6 +13,7 @@ from odoo.fields import Domain
 
 from odoo.addons.webvue_api.controllers.common import ApiError, get_record
 
+PMO_FEATURE = 'pmo.enabled'
 TASK_EXECUTION_STATES = {
     '1_done': 'done',
     '1_canceled': 'cancelled',
@@ -62,6 +63,7 @@ class WebVueMeetingProjectLinks(models.AbstractModel):
 
     @api.model
     def _webvue_check_project(self, project_id):
+        self.env['webvue.entitlement.service'].require(PMO_FEATURE)
         project = get_record('project.project', project_id)
         if project.company_id != self.env.company:
             raise ApiError(422, 'invalid', 'project_id must belong to the current company', field='project_id')
@@ -70,6 +72,9 @@ class WebVueMeetingProjectLinks(models.AbstractModel):
 
     @api.model
     def _webvue_project_vals(self, project_id):
+        if project_id:
+            # Linking is a write owned by the projects application (R10); clearing the link stays open.
+            self.env['webvue.entitlement.service'].require(PMO_FEATURE)
         return {'project_id': project_id or False}
 
     @api.model

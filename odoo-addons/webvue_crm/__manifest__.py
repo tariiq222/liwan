@@ -2,7 +2,7 @@
 {
     'name': 'webvue CRM',
     'summary': 'webvue platform: the CRM application — /api/v1/crm opportunities, calls and follow-up',
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.2.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',

@@ -22,5 +22,8 @@ describe('minutes and recommendation return context', () => {
     expect(attachNewMeetingRecommendation(form, { topicKey: 'missing', newResolutionId: 12 }, [{ id: 12, name: 'New' }]).status).toBe('unassigned')
     expect(attachNewMeetingRecommendation(form, { topicKey: 'topic-a', newResolutionId: 99 }, []).status).toBe('unavailable')
     expect(attachNewMeetingRecommendation(form, { topicKey: 'topic-a', newResolutionId: 13 }, [{ id: 13, name: 'Existing' }]).form).toEqual(form)
+    // A recommendation already linked to a topic says so, whatever topic key the return link carries.
+    expect(attachNewMeetingRecommendation(form, { topicKey: 'topic-b', newResolutionId: 13 }, [{ id: 13, name: 'Existing' }]).status).toBe('already_linked')
+    expect(attachNewMeetingRecommendation(form, { topicKey: null, newResolutionId: 13 }, [{ id: 13, name: 'Existing' }]).status).toBe('already_linked')
   })
 })
