@@ -76,7 +76,9 @@
         "title": "Sector preset",
         "hint": "Sets the booking values and the requester fields together; adjust what you need in the next two cards.",
         "label": "Preset",
-        "warning": "Applying a preset replaces the values of the next two cards with its own."
+        "warning": "Applying replaces the values of the next two cards with the preset's own, even when it is the current preset.",
+      "apply": "Apply preset",
+      "applied": "Preset applied"
       },
       "booking": {
         "title": "Booking times",
@@ -103,7 +105,7 @@
         "title": "Requester",
         "hint": "What the requester is asked for and may do.",
         "selfBooking": "Who can book",
-        "selfBookingHint": "With \"Invite only\", only someone the company sent a link to can book.",
+        "selfBookingHint": "Invite only is what is available now; open booking needs a public booking page that is not built yet.",
         "policy": {
           "invite_only": "Invite only",
           "open": "Open to everyone"
