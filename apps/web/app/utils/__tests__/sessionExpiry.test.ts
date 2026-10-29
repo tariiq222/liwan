@@ -8,11 +8,11 @@ describe('isPossibleSessionExpiry', () => {
     code => expect(isPossibleSessionExpiry(new ApiError(403, code, 'x'))).toBe(false),
   )
 
-  it.each([['session_required', 403], ['forbidden', 403]] as const)('re-checks the session for %s', (code, status) => {
+  it.each([['session_required', 403], ['forbidden', 403], ['session_required', 401], ['unauthorized', 401]] as const)('re-checks the session for %s', (code, status) => {
     expect(isPossibleSessionExpiry(new ApiError(status, code, 'x'))).toBe(true)
   })
 
-  it('ignores refusals that are not 403 and errors that are not API errors', () => {
+  it('ignores other statuses and errors that are not API errors', () => {
     expect(isPossibleSessionExpiry(new ApiError(404, 'not_found', 'x'))).toBe(false)
     expect(isPossibleSessionExpiry(new Error('x'))).toBe(false)
   })
