@@ -187,7 +187,15 @@ decision; each is recorded here so review can judge it.
 1. **Refusal by an early stage: option A.** `hr_leave` stage reviewers are the employee's leave
    approver or HR officers only; at install the bridge sets `leave_validation_type='both'` on the
    tenant's validating leave types, so a manager-stage refusal passes stock `_check_approval_update`
-   without elevation or a private-method override (R9).
+   without elevation or a private-method override (R9). The stock check is not the only gate:
+   `webvue_hr/models/ir_rule.py` hides other employees' leaves unless the actor holds
+   `hr.leave.approve`, `hr.leave.manage` or `hr.payroll.read` in that company, and being
+   `leave_manager_id` is not an exception. The bridge therefore extends that fence through a
+   neutral HR hook (in task 2) with one narrow allowance: read and state-write of a leave whose
+   employee's `leave_manager_id` is the actor, in a company the actor belongs to, while an open
+   operations request targets that leave. No `sudo()`. Test: a manager who holds no HR capability
+   approves stage 1 and, separately, refuses at stage 1; both succeed, and the same manager still
+   cannot read the leave once the request is closed or of an employee they do not approve.
 2. **"Direct manager" is stock `leave_manager_id`**, which Odoo fills from the manager's user and HR may edit.
 3. **No resolvable approver** (no manager, or the manager is the requester): submission fails with 422 and a
    clear message; no stage is skipped silently.
@@ -196,6 +204,13 @@ decision; each is recorded here so review can judge it.
 5. **No published process, or operations disabled:** new leaves use today's HR-role path. A leave whose
    request is still pending stays governed only while operations is enabled; when it is disabled the
    HR approve/refuse routes apply again, because "governed" checks an open request with operations enabled.
+   An HR decision taken on such a leave closes its request in the same transaction, so nothing is left
+   pending when operations returns: the engine gains a generic terminal action
+   `_operations_close_externally(reason)` (state `withdrawn`, an audit event naming the outside decision,
+   no execution hook), callable only by the bridge's context token, and the HR approve, refuse and withdraw
+   hooks call it for any open request on the leave. Test: disable operations, approve and refuse pending
+   leaves through HR, re-enable operations; the requests are closed with the event, absent from every
+   pending queue, and the leave keeps the HR decision.
 6. **A leave HR creates on someone's behalf** is governed too, with the HR actor as requester.
 7. **One process per company** in this phase; per leave type is a later setting.
 8. **Return for edit and edit are disabled** for leave requests (HR has no leave-edit route).
