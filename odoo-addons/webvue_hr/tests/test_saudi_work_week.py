@@ -162,3 +162,16 @@ class TestSaudiWorkWeek(WebVueHrCase):
         other = self._calendar(self.saudi, '0123456', 'Direct week')
         with self.assertRaises(AccessError):
             self.saudi.with_user(self.manager).write({'resource_calendar_id': other.id})
+
+    def test_a_shifts_manager_writes_no_other_company_field(self):
+        # The company write ACL the shifts managers hold only serves the default-schedule operation.
+        branch = self.env['res.company'].create({'name': 'Saudi Week Branch', 'parent_id': self.saudi.id})
+        self.manager.write({'company_ids': [(4, branch.id)]})
+        for company in (self.saudi, branch):
+            for vals in ({'vat': '300000000000003'}, {'user_ids': [(4, self.manager.id)]}, {'currency_id': self.env.ref('base.USD').id}):
+                with self.subTest(company=company.name, vals=vals), self.assertRaises(AccessError):
+                    company.with_user(self.manager).with_company(self.saudi).write(vals)
+
+    def test_the_replaced_stock_schedule_is_not_left_behind(self):
+        calendars = self.env['resource.calendar'].search([('company_id', '=', self.saudi.id)])
+        self.assertEqual(calendars, self.saudi.resource_calendar_id)

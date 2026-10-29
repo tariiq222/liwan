@@ -48,6 +48,16 @@ class ResCompany(models.Model):
         """
         return {}
 
+    @api.model
+    def _webvue_application_write_fields(self):
+        """The applications' marked fields, refused when one names a structural field."""
+        declared = self._webvue_marked_write_fields()
+        for marker, names in declared.items():
+            if EXTENSION_BLOCKED_FIELDS.intersection(names):
+                msg = 'company write marker %s names a structural field' % marker
+                raise ValueError(msg)
+        return declared
+
     @api.model_create_multi
     def create(self, vals_list):
         if not self.env.is_system():
@@ -69,19 +79,13 @@ class ResCompany(models.Model):
         ):
             raise AccessError(self.env._('Only Odoo system administrators can change institution name and logo.'))
         service = self.env['webvue.access.service']
-        if (
-            not self.env.is_superuser()
-            and not self.env.user.has_group('base.group_system')
-            and (
-                service._webvue_has_capability(self.env.user, 'settings.branding.manage')
-                or service._webvue_has_capability(self.env.user, 'settings.company.manage')
-                or service._webvue_has_capability(self.env.user, 'access.users.assign_roles')
-            )
-        ):
+        # Default deny: whichever group an addon grants the company write ACL to, a caller who is not
+        # an Odoo administrator writes only through one of the marked operations below.
+        if not self.env.is_superuser() and not self.env.user.has_group('base.group_system'):
             branding_allowed = is_marked_write(self, BRANDING_COMPANY_MARKER, BRANDING_COMPANY_FIELDS, vals)
             application_allowed = any(
                 is_marked_write(self, marker, fields, vals)
-                for marker, fields in self._webvue_marked_write_fields().items()
+                for marker, fields in self._webvue_application_write_fields().items()
             )
             if not (branding_allowed or profile_allowed or application_allowed or (
                 set(vals) == {'webvue_branch_access_mode'}

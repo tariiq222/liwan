@@ -21,7 +21,8 @@ class ResCompany(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         companies = super().create(vals_list)
-        companies._webvue_ensure_saudi_schedule()
+        # A new company's stock schedule was made for it a moment ago and nothing uses it yet.
+        companies._webvue_ensure_saudi_schedule(drop_replaced=True)
         return companies
 
     def write(self, vals):
@@ -48,7 +49,7 @@ class ResCompany(models.Model):
         with marked(self.env, {DEFAULT_CALENDAR_MARKER: {self.id}}):
             return self.write({'resource_calendar_id': calendar.id})
 
-    def _webvue_ensure_saudi_schedule(self):
+    def _webvue_ensure_saudi_schedule(self, drop_replaced=False):
         """Give each Saudi company the Sunday to Thursday schedule as its default, once.
 
         The xmlid records that a company was provisioned, so a default the company later
@@ -76,5 +77,8 @@ class ResCompany(models.Model):
                 'module': 'webvue_hr', 'name': name, 'model': 'resource.calendar',
                 'res_id': calendar.id, 'noupdate': True,
             })
+            replaced = company.resource_calendar_id
             with marked(self.env, {DEFAULT_CALENDAR_MARKER: {company.id}}):
                 company.write({'resource_calendar_id': calendar.id})
+            if drop_replaced and replaced.company_id == company:
+                replaced.unlink()
