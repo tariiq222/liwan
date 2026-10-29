@@ -45,8 +45,6 @@ export function seedCampaigns(ago) {
   return state
 }
 
-const pad = value => String(value).padStart(2, '0')
-
 export function campaignsRoute(ctx, method, parts, url, body) {
   const { state, ok, fail, iso, page, ME } = ctx
   const data = state.campaignData
