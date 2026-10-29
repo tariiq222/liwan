@@ -93,6 +93,86 @@ class StagesForTest(unittest.TestCase):
                 self.assertLessEqual(set(stages), set(ALL))
 
 
+class PullRequestTest(unittest.TestCase):
+    """Deferred stages, the affected modules and the Odoo stages a pull request still runs."""
+    DEFERRED = ('upgrade', 'restore-drill', 'image')
+    ODOO = ('odoo', 'odoo-app-standalone', 'odoo-bridge')
+    RELEASE = ['base_mod', 'app_a', 'app_b', 'a_b', 'solo']
+    DEPENDS = {'base_mod': [], 'app_a': ['base_mod'], 'app_b': ['base_mod'], 'a_b': ['app_a', 'app_b'], 'solo': ['mail']}
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.addons = Path(tmp.name)
+        for module, depends in self.DEPENDS.items():
+            (self.addons / module).mkdir()
+            (self.addons / module / '__manifest__.py').write_text(repr({'depends': depends}))
+
+    def affected(self, *paths):
+        return ci_scope.affected_modules(list(paths), self.RELEASE, self.addons)
+
+    def test_push_selection_is_unchanged_and_keeps_the_deferred_stages(self):
+        self.assertEqual(ci_scope.stages_for(['odoo-addons/webvue_hr/models/a.py']), ALL)
+
+    def test_the_deferred_stages_never_run_on_a_pull_request(self):
+        for paths in (['odoo-addons/webvue_hr/models/a.py'], ['.github/workflows/ci.yml'], ['deploy/ci/odoo.sh'],
+                      ['apps/web/app/a.vue'], ['apps/ai-service/a.py'], ['plans/unmapped.txt']):
+            with self.subTest(paths=paths):
+                stages = ci_scope.pull_request_stages(paths, self.affected(*paths))
+                self.assertFalse(set(stages) & set(self.DEFERRED))
+
+    def test_a_pull_request_keeps_the_other_stages_of_a_path(self):
+        stages = ci_scope.pull_request_stages(['apps/web/app/a.vue'], None)
+        self.assertEqual(stages, ('static', 'control-plane', 'e2e-mock', 'rtl-stories'))
+
+    def test_a_changed_addon_reaches_its_dependents_transitively(self):
+        self.assertEqual(self.affected('odoo-addons/base_mod/models/a.py'), ['a_b', 'app_a', 'app_b', 'base_mod'])
+        self.assertEqual(self.affected('odoo-addons/app_a/README.md'), ['a_b', 'app_a'])
+        self.assertEqual(self.affected('odoo-addons/solo/a.py', 'odoo-addons/app_b/b.py'), ['a_b', 'app_b', 'solo'])
+
+    def test_a_path_that_feeds_an_odoo_stage_outside_an_addon_affects_every_module(self):
+        for path in ('.github/workflows/ci.yml', 'deploy/ci/odoo.sh', 'tools/catalog_check.py', 'tools/odoo_shards.py',
+                     'tools/app_isolation.py', 'tools/arch_layers.json', 'packages/contracts/src/a.ts', 'package.json',
+                     'odoo-addons/README.txt', 'plans/unmapped.txt'):
+            with self.subTest(path=path):
+                self.assertIsNone(self.affected('odoo-addons/app_a/a.py', path))
+
+    def test_a_path_no_odoo_stage_reads_does_not_widen_the_set(self):
+        self.assertEqual(self.affected('odoo-addons/app_a/a.py', 'apps/web/app/a.vue', 'docs/a.md'), ['a_b', 'app_a'])
+        self.assertEqual(self.affected('docs/a.md', 'apps/web/app/a.vue'), [])
+
+    def test_every_odoo_stage_runs_when_every_module_is_affected(self):
+        stages = ci_scope.pull_request_stages(['.github/workflows/ci.yml'], None)
+        self.assertEqual(stages, tuple(s for s in ALL if s not in self.DEFERRED))
+
+    def test_a_change_without_odoo_work_selects_no_odoo_stage(self):
+        stages = ci_scope.pull_request_stages(['odoo-addons/m/old.py'], [])
+        self.assertFalse(set(stages) & set(self.ODOO))
+        self.assertEqual(ci_scope.pull_request_stages(['docs/a.md'], []), ('static',))
+
+    def test_an_application_change_selects_the_application_and_its_bridges(self):
+        stages = ci_scope.pull_request_stages(['odoo-addons/webvue_hr/a.py'], ['webvue_hr', 'webvue_hr_finance'])
+        self.assertTrue(set(self.ODOO) <= set(stages))
+
+    def test_an_addon_change_selects_only_static_and_the_odoo_stages(self):
+        stages = ci_scope.pull_request_stages(['odoo-addons/webvue_hr/a.py'], ['webvue_hr', 'webvue_hr_finance'])
+        self.assertEqual(set(stages), {'static', *self.ODOO})
+        web = ci_scope.pull_request_stages(['odoo-addons/webvue_hr/a.py', 'apps/web/app/a.vue'], ['webvue_hr'])
+        self.assertIn('e2e-mock', web)
+
+    def test_a_bridge_only_change_selects_no_application_run(self):
+        stages = ci_scope.pull_request_stages(['odoo-addons/webvue_hr_finance/a.py'], ['webvue_hr_finance'])
+        self.assertIn('odoo', stages)
+        self.assertIn('odoo-bridge', stages)
+        self.assertNotIn('odoo-app-standalone', stages)
+
+    def test_a_shared_service_change_selects_no_isolation_run_without_dependents(self):
+        stages = ci_scope.pull_request_stages(['odoo-addons/x/a.py'], ['webvue_notify'])
+        self.assertIn('odoo', stages)
+        self.assertNotIn('odoo-app-standalone', stages)
+        self.assertNotIn('odoo-bridge', stages)
+
+
 class ChangedPathsTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -185,6 +265,35 @@ class ChangedPathsTest(unittest.TestCase):
     def test_full_selects_every_stage_without_a_base(self):
         self.assertEqual(json.loads(self.run_main('--full', '--stages')), list(ALL))
         self.assertIn('12 of 12 stages', self.run_main('--full'))
+
+    def test_pull_request_defers_stages_and_narrows_the_odoo_stages(self):
+        self.write('odoo-addons/webvue_hr/a.py', 'x\n')
+        head = self.commit()
+        stages = json.loads(self.run_main('--base', self.base, '--commit', head, '--pull-request', '--stages'))
+        self.assertNotIn('upgrade', stages)
+        self.assertNotIn('image', stages)
+        self.assertIn('odoo-app-standalone', stages)
+        modules = self.run_main('--base', self.base, '--commit', head, '--pull-request', '--modules').strip().split(',')
+        self.assertIn('webvue_hr', modules)
+        self.assertIn('webvue_hr_finance', modules)
+        self.assertNotIn('webvue_pmo', modules)
+        self.assertIn('affected modules: ', self.run_main('--base', self.base, '--commit', head, '--pull-request'))
+
+    def test_pull_request_modules_are_empty_when_every_module_is_affected(self):
+        self.write('.github/workflows/ci.yml', 'x\n')
+        head = self.commit()
+        self.assertEqual(self.run_main('--base', self.base, '--commit', head, '--pull-request', '--modules'), '\n')
+        self.assertIn('affected modules: all', self.run_main('--base', self.base, '--commit', head, '--pull-request'))
+
+    def test_without_pull_request_the_push_selection_stays_full(self):
+        self.write('odoo-addons/webvue_hr/a.py', 'x\n')
+        head = self.commit()
+        self.assertEqual(json.loads(self.run_main('--base', self.base, '--commit', head, '--stages')), list(ALL))
+
+    def test_pull_request_flag_conflicts_are_refused(self):
+        for argv in (['--full', '--pull-request'], ['--base', 'main', '--modules']):
+            with self.subTest(argv=argv), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                ci_scope.main(argv)
 
     def test_base_is_required_without_full(self):
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):

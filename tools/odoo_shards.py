@@ -1,7 +1,7 @@
 """Split the release modules into balanced Odoo test shards for the CI ``odoo`` stage.
 
-    python3 -B tools/odoo_shards.py matrix            # JSON array of shard numbers, for the workflow matrix
-    python3 -B tools/odoo_shards.py tags 2/3          # --test-tags value of shard 2 of 3
+    python3 -B tools/odoo_shards.py matrix [--modules a,b]   # JSON array of shard numbers, for the workflow matrix
+    python3 -B tools/odoo_shards.py tags 2/3 [--modules a,b] # --test-tags value of shard 2 of 3
     python3 -B tools/odoo_shards.py plan [N]          # every shard with its modules and test weight
     python3 -B tools/odoo_shards.py run [N]           # all N shards in parallel locally (deploy/ci/odoo.sh --shard k/N each)
 
@@ -14,6 +14,10 @@ Every shard still installs the whole release module list; a shard only differs i
 tests it runs. Weights are the ``def test_`` counts under ``odoo-addons/<module>/tests``, so no
 history file exists to go stale, times ``COST_FACTOR`` for a module whose tests are measurably slower
 per test; modules are assigned heaviest first to the lightest shard.
+
+On a pull request ``--modules`` restricts the run to the affected modules (``tools/ci_scope.py``): only
+those are split, over as few shards as ``shard_count_for`` allows, so a small change does not queue three
+full jobs. Push, schedule and full runs pass no ``--modules`` and keep ``SHARD_COUNT`` shards over everything.
 """
 from __future__ import annotations
 
@@ -65,6 +69,31 @@ def split(weights: dict[str, int], count: int) -> list[list[str]]:
     return [sorted(shard) for shard in shards]
 
 
+def parse_modules(text: str) -> list[str]:
+    modules = [module for module in text.split(',') if module]
+    if not modules:
+        raise ShardError('--modules needs at least one module name')
+    return modules
+
+
+def shard_count_for(affected_weight: int, total_weight: int) -> int:
+    """Shards for an affected subset: 1 up to a third of the release's test weight, 2 up to two thirds, else all."""
+    if 3 * affected_weight <= total_weight:
+        return 1
+    if 3 * affected_weight <= 2 * total_weight:
+        return 2
+    return SHARD_COUNT
+
+
+def shard_numbers(modules: list[str] | None = None) -> list[int]:
+    """The matrix of a run: every shard of SHARD_COUNT, or just enough for the affected modules."""
+    if modules is None:
+        return list(range(1, SHARD_COUNT + 1))
+    total = sum(weight(module) for module in release_modules())
+    count = shard_count_for(sum(weight(module) for module in modules), total)
+    return list(range(1, min(count, len(modules)) + 1))
+
+
 def parse_selector(selector: str) -> tuple[int, int]:
     match = re.fullmatch(r'([1-9][0-9]*)/([1-9][0-9]*)', selector)
     if not match or int(match[1]) > int(match[2]):
@@ -78,14 +107,20 @@ def require_count(count: int) -> int:
     return count
 
 
-def plan(count: int) -> list[list[str]]:
-    modules = release_modules()
-    return split({module: weight(module) for module in modules}, require_count(count))
+def plan(count: int, modules: list[str] | None = None) -> list[list[str]]:
+    release = release_modules()
+    unknown = sorted(set(modules or ()) - set(release))
+    if unknown:
+        raise ShardError('not release modules: ' + ', '.join(unknown))
+    return split({module: weight(module) for module in (release if modules is None else modules)}, require_count(count))
 
 
-def tags(selector: str) -> str:
+def tags(selector: str, modules: list[str] | None = None) -> str:
     index, count = parse_selector(selector)
-    return ','.join('/' + module for module in plan(count)[index - 1])
+    shard = plan(count, modules)[index - 1]
+    if not shard:
+        raise ShardError('shard %s has no module to test' % selector)
+    return ','.join('/' + module for module in shard)
 
 
 def run_all(count: int) -> int:
@@ -116,16 +151,21 @@ def run_all(count: int) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     sub = parser.add_subparsers(dest='command', required=True)
-    sub.add_parser('matrix')
-    sub.add_parser('tags').add_argument('selector')
+    sub.add_parser('matrix').add_argument('--modules')
+    tagging = sub.add_parser('tags')
+    tagging.add_argument('selector')
+    tagging.add_argument('--modules')
     sub.add_parser('plan').add_argument('count', nargs='?', type=int, default=SHARD_COUNT)
     sub.add_parser('run').add_argument('count', nargs='?', type=int, default=SHARD_COUNT)
     args = parser.parse_args(argv)
+    only = None
     try:
+        if args.command in ('matrix', 'tags') and args.modules is not None:
+            only = parse_modules(args.modules)
         if args.command == 'matrix':
-            print(json.dumps(list(range(1, SHARD_COUNT + 1))))
+            print(json.dumps(shard_numbers(only)))
         elif args.command == 'tags':
-            print(tags(args.selector))
+            print(tags(args.selector, only))
         elif args.command == 'run':
             return run_all(args.count)
         else:
