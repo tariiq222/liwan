@@ -66,8 +66,9 @@ it('only removes the dedicated /web proxy rule, keeps the redirects, and enforce
   const dedicated = nuxt('dedicated'); const shared = nuxt('shared')
   // Retired-URL redirects never reach Odoo, so both lanes keep them; only the proxies go.
   const redirects = { '/archived-tasks': { redirect: { to: '/tasks?scope=archived', statusCode: 301 } }, '/reports': { redirect: { to: '/projects/dashboard', statusCode: 301 } } }
-  // Security headers of the public pay pages carry an access token in their address; both lanes keep them.
-  const security = { '/pay/**': { headers: { 'referrer-policy': 'no-referrer', 'cache-control': 'no-store' } } }
+  // The public pay and booking pages carry an access token in their address; both lanes keep their security headers.
+  const tokenPage = { headers: { 'referrer-policy': 'no-referrer', 'cache-control': 'no-store' } }
+  const security = { '/pay/**': tokenPage, '/book/**': tokenPage }
   const kept = { ...redirects, ...security }
   const proxies = Object.entries(dedicated.routeRules).filter(([k]) => !(k in kept))
   expect(proxies.map(([path]) => path)).toEqual(['/web/**'])

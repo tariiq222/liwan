@@ -52,9 +52,9 @@ describe('useCrmSettingsCard', () => {
     await a.save()
     expect(serverRevision).toBe(1)
     expect(b.draft.value.discount_allowed).toBe(true)
-    expect(b.shell.value.dirty).toBe(true)
+    expect(b.state.value.dirty).toBe(true)
     await b.save()
-    expect(b.shell.value.conflict).toBe(false)
+    expect(b.state.value.conflict).toBe(false)
     expect(save).toHaveBeenLastCalledWith({ revision: 1, values: { discount_allowed: true, discount_max_percent: 0 } })
     expect(serverRevision).toBe(2)
     expect(settings.value.values.visibility).toBe('all')
@@ -66,8 +66,8 @@ describe('useCrmSettingsCard', () => {
     a.draft.value.visibility = 'team'
     serverRevision = 5 // another session saved; the shared query was not refetched
     await a.save()
-    expect(a.shell.value.conflict).toBe(true)
-    expect(a.shell.value.message).toBe('crm.settings.conflict')
+    expect(a.state.value.conflict).toBe(true)
+    expect(a.state.value.message).toBe('app.settingsConflict')
     expect(a.draft.value.visibility).toBe('team')
     save.mockClear()
     await a.save()
@@ -81,7 +81,7 @@ describe('useCrmSettingsCard', () => {
     serverRevision = 5
     await a.save()
     await a.reload()
-    expect(a.shell.value.conflict).toBe(false)
+    expect(a.state.value.conflict).toBe(false)
     expect(a.draft.value.visibility).toBe('all')
   })
 
@@ -91,8 +91,8 @@ describe('useCrmSettingsCard', () => {
     serverRevision = 3
     settings.value = { ...settings.value, revision: 3, values: { ...settings.value.values, visibility: 'all' } }
     await nextTick()
-    expect(a.shell.value.conflict).toBe(true)
-    expect(a.shell.value.message).toBe('crm.settings.conflict')
+    expect(a.state.value.conflict).toBe(true)
+    expect(a.state.value.message).toBe('app.settingsConflict')
     expect(a.draft.value.visibility).toBe('team')
     await a.save()
     expect(save).not.toHaveBeenCalled()
@@ -104,10 +104,10 @@ describe('useCrmSettingsCard', () => {
     serverRevision = 3
     settings.value = { ...settings.value, revision: 3, values: { ...settings.value.values, discount_allowed: true } }
     await nextTick()
-    expect(a.shell.value.conflict).toBe(false)
+    expect(a.state.value.conflict).toBe(false)
     expect(a.draft.value.visibility).toBe('team')
     await a.save()
     expect(save).toHaveBeenLastCalledWith({ revision: 3, values: { visibility: 'team', view_log_enabled: false } })
-    expect(a.shell.value.conflict).toBe(false)
+    expect(a.state.value.conflict).toBe(false)
   })
 })

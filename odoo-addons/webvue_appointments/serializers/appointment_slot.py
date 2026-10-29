@@ -41,8 +41,17 @@ def dump_slot(start, stop):
 
 def parse_type_slot_query(booking_type, args, settings, now):
     """``parse_slot_query`` with today taken in the type's calendar timezone; ``now`` is timezone-aware."""
-    tz = _type_timezone(booking_type)
-    return parse_slot_query(args, now.astimezone(tz).date(), settings['horizon_days'])
+    return parse_slot_query(args, type_today(booking_type, now), settings['horizon_days'])
+
+
+def type_today(booking_type, now):
+    """Today in the type's calendar timezone; ``now`` is timezone-aware."""
+    return now.astimezone(_type_timezone(booking_type)).date()
+
+
+def last_bookable_date(booking_type, settings, now):
+    """The last day a slots request may name: today in the type's calendar timezone plus the booking horizon."""
+    return type_today(booking_type, now) + timedelta(days=settings['horizon_days'])
 
 
 def type_slot_items(booking_type, combination, first, last, settings, now, origin=None):

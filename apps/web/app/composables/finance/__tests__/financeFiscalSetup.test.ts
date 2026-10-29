@@ -3,10 +3,8 @@ import { ApiError } from '../../useApi'
 import { financeSetupKey, financeSetupScopeKey } from '../useFinanceSetup'
 import {
   FINANCE_FISCAL_LOCK_FIELDS,
-  emptyFinanceFiscalDraft,
   financeExpectedContextHeaders,
   financeFiscalDelta,
-  financeFiscalDirty,
   financeFiscalDraftFromValues,
   financeFiscalErrorKey,
   financeFiscalFieldError,
@@ -38,20 +36,12 @@ const t = (key: string) => `t:${key}`
 const scope = (overrides: Partial<FinanceSetupScope> = {}): FinanceSetupScope => ({ userId: 7, companyId: 3, epoch: 4, ...overrides })
 
 describe('the fiscal draft and its delta', () => {
-  it('starts from the saved values, without the hard lock, and is not dirty', () => {
+  it('starts from the saved values, without the hard lock', () => {
     expect(baseline()).toEqual({
       fiscalyear_last_day: '31', fiscalyear_last_month: '12',
       fiscalyear_lock_date: '2026-06-30', tax_lock_date: null, sale_lock_date: null, purchase_lock_date: null,
     })
-    expect(financeFiscalDirty(baseline(), baseline())).toBe(false)
     expect(financeFiscalDelta(baseline(), baseline())).toBeNull()
-  })
-
-  it('never fabricates a year end before the setup was read', () => {
-    expect(emptyFinanceFiscalDraft()).toEqual({
-      fiscalyear_last_day: '', fiscalyear_last_month: '',
-      fiscalyear_lock_date: null, tax_lock_date: null, sale_lock_date: null, purchase_lock_date: null,
-    })
   })
 
   it('sends the changed fields only', () => {
@@ -62,11 +52,6 @@ describe('the fiscal draft and its delta', () => {
       .toEqual({ fiscalyear_lock_date: '2026-07-31' })
     expect(financeFiscalDelta(draftWith({ fiscalyear_last_day: '30', tax_lock_date: '2026-07-31' }), baseline()))
       .toEqual({ fiscalyear_last_day: 30, tax_lock_date: '2026-07-31' })
-  })
-
-  it('treats a retyped value that did not change as no change', () => {
-    expect(financeFiscalDirty(draftWith({ fiscalyear_last_day: '031' }), baseline())).toBe(true)
-    expect(financeFiscalDirty(draftWith({ fiscalyear_last_day: '31' }), baseline())).toBe(false)
   })
 })
 

@@ -10,10 +10,11 @@ class WebVueMeetingMinuteFollowers(models.Model):
     def _webvue_allowed_follower_partners(self):
         self.ensure_one()
         service = self.env['webvue.access.service']
-        # sudo READ: meeting-manager group members, narrowed by actual company grants; no meeting fields.
+        # Meeting-manager group members, narrowed by their company-scoped grant. The grant
+        # implies membership of the meeting's company; the manager's own company records are
+        # not read, because the caller may not see a branch that manager also works in.
         candidates = self.env.ref('webvue_meetings.group_cap_meetings_manage').user_ids
         managers = candidates.filtered(lambda user: user.active and not user.share
-            and self.company_id in user.company_ids
             and service._webvue_has_capability(user, 'meetings.manage', company=self.company_id))
         return (self._webvue_participant_users() | managers).mapped('partner_id')
 

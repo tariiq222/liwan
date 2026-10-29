@@ -28,41 +28,25 @@ async function reloadSettings() {
 </script>
 
 <template>
-  <SharedSettingsPage width="list">
+  <SharedSettingsPage width="form">
     <SharedPageHeader :title="t('nav.crm')" />
     <SharedForbiddenState v-if="!parts.length" :description="t('errors.forbidden')" />
     <template v-else>
       <SharedPageState :loading="settings.isLoading.value" :error="settings.data.value ? null : settings.error.value" :empty="!settings.data.value" @retry="settings.refetch">
         <template v-if="settings.data.value">
-          <section v-if="shows('preset')" id="preset" class="webvue-settings-anchor">
-            <CrmPresetCard :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
-          </section>
-          <section v-if="shows('terms')" id="terms" class="webvue-settings-anchor">
-            <CrmTermsCard :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
-          </section>
-          <section v-if="shows('followup')" id="followup" class="webvue-settings-anchor">
-            <CrmFollowupCard :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
-          </section>
-          <section v-if="shows('distribution')" id="distribution" class="webvue-settings-anchor">
-            <CrmDistributionCard :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
-          </section>
-          <section v-if="shows('privacy')" id="privacy" class="webvue-settings-anchor">
-            <CrmPrivacyCard :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
-          </section>
-          <section v-if="shows('pricing')" id="pricing" class="webvue-settings-anchor">
-            <CrmPricingCard :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
-          </section>
+          <CrmPresetCard v-if="shows('preset')" :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
+          <CrmTermsCard v-if="shows('terms')" :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
+          <CrmFollowupCard v-if="shows('followup')" :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
+          <CrmDistributionCard v-if="shows('distribution')" :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
+          <CrmPrivacyCard v-if="shows('privacy')" :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
+          <CrmPricingCard v-if="shows('pricing')" :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
         </template>
       </SharedPageState>
-      <section v-if="shows('packages')" id="packages" class="webvue-settings-anchor"><CrmPackageListCard :can-edit="canManage" /></section>
-      <section v-if="shows('stages')" id="stages" class="webvue-settings-anchor"><CrmStageListCard :can-edit="canManage" /></section>
-      <section v-if="shows('outcomes')" id="outcomes" class="webvue-settings-anchor"><CrmOutcomeListCard :can-edit="canManage" /></section>
-      <section v-if="shows('lostReasons')" id="lostReasons" class="webvue-settings-anchor">
-        <CrmNamedListCard kind="lost-reasons" :title="t('crm.settings.lostReasons.title')" :hint="t('crm.settings.lostReasons.hint')" :can-edit="canManage" />
-      </section>
-      <section v-if="shows('sources')" id="sources" class="webvue-settings-anchor">
-        <CrmNamedListCard kind="sources" :title="t('crm.settings.sources.title')" :hint="t('crm.settings.sources.hint')" :can-edit="canManage" />
-      </section>
+      <CrmPackageListCard v-if="shows('packages')" :can-edit="canManage" />
+      <CrmStageListCard v-if="shows('stages')" :can-edit="canManage" />
+      <CrmOutcomeListCard v-if="shows('outcomes')" :can-edit="canManage" />
+      <CrmNamedListCard v-if="shows('lostReasons')" kind="lost-reasons" :title="t('crm.settings.lostReasons.title')" :hint="t('crm.settings.lostReasons.hint')" :can-edit="canManage" />
+      <CrmNamedListCard v-if="shows('sources')" kind="sources" :title="t('crm.settings.sources.title')" :hint="t('crm.settings.sources.hint')" :can-edit="canManage" />
     </template>
   </SharedSettingsPage>
 </template>

@@ -8,6 +8,12 @@ import { locationMapUrl } from '@/composables/inbox/inboxLocation'
 // chose. Text and captions come last.
 const props = defineProps<{ message: InboxMessage }>()
 const { t } = useI18n()
+// A template's header file is a media of its own family, whatever the message kind says.
+const mediaKind = (mimetype: string) => {
+  const family = mimetype.split('/')[0]
+  return family === 'image' || family === 'video' ? family : 'document'
+}
+const kindOf = (attachment: { mimetype: string }) => props.message.kind === 'template' ? mediaKind(attachment.mimetype) : props.message.kind
 const attachmentUrl = (id: number) => `/api/v1/inbox/messages/${props.message.id}/attachments/${id}/download`
 // The option a customer chose already is the body of its reply; show it once, as the highlighted choice.
 const showBody = computed(() => !!props.message.body && !props.message.interactive && props.message.body !== props.message.selected_option?.title)
@@ -16,11 +22,11 @@ const showBody = computed(() => !!props.message.body && !props.message.interacti
 <template>
   <div class="flex flex-col gap-1.5">
     <template v-for="attachment in props.message.attachments" :key="attachment.id">
-      <a v-if="props.message.kind === 'image'" :href="attachmentUrl(attachment.id)" target="_blank" rel="noopener" class="block" :aria-label="t('inbox.thread.openImage', { name: attachment.name })">
+      <a v-if="kindOf(attachment) === 'image'" :href="attachmentUrl(attachment.id)" target="_blank" rel="noopener" class="block" :aria-label="t('inbox.thread.openImage', { name: attachment.name })">
         <img :src="attachmentUrl(attachment.id)" :alt="attachment.name" loading="lazy" class="max-h-64 max-w-full rounded-control object-cover" data-testid="inbox-image">
       </a>
       <img v-else-if="props.message.kind === 'sticker'" :src="attachmentUrl(attachment.id)" :alt="t('inbox.thread.sticker')" loading="lazy" class="size-28 object-contain" data-testid="inbox-sticker">
-      <video v-else-if="props.message.kind === 'video'" :src="attachmentUrl(attachment.id)" controls preload="metadata" class="max-h-64 max-w-full rounded-control" :aria-label="attachment.name" data-testid="inbox-video" />
+      <video v-else-if="kindOf(attachment) === 'video'" :src="attachmentUrl(attachment.id)" controls preload="metadata" class="max-h-64 max-w-full rounded-control" :aria-label="attachment.name" data-testid="inbox-video" />
       <audio v-else-if="props.message.kind === 'audio'" :src="attachmentUrl(attachment.id)" controls preload="metadata" class="w-full min-w-52" :aria-label="attachment.name" data-testid="inbox-audio" />
       <a
         v-else
@@ -67,7 +73,12 @@ const showBody = computed(() => !!props.message.body && !props.message.interacti
     <p v-if="props.message.selected_option" class="inline-flex items-center gap-1.5 self-start rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary" data-testid="inbox-selected-option">
       <UIcon name="i-lucide-circle-check" class="size-4" aria-hidden="true" />{{ t('inbox.thread.selected', { title: props.message.selected_option.title }) }}
     </p>
+    <p v-if="props.message.template?.header_text" dir="auto" class="font-semibold" data-testid="inbox-template-header">{{ props.message.template.header_text }}</p>
     <p v-if="showBody" dir="auto" class="whitespace-pre-wrap">{{ props.message.body }}</p>
     <p v-else-if="props.message.kind === 'unsupported' && !props.message.body" class="text-muted">{{ t('inbox.thread.unsupported') }}</p>
+    <p v-if="props.message.template?.footer" dir="auto" class="text-xs text-muted" data-testid="inbox-template-footer">{{ props.message.template.footer }}</p>
+    <ul v-if="props.message.template?.buttons.length" class="flex flex-wrap gap-1.5" :aria-label="t('inbox.thread.buttons')" data-testid="inbox-template-buttons">
+      <li v-for="(button, index) in props.message.template.buttons" :key="index" class="rounded-full px-3 py-1 text-sm text-primary ring ring-default">{{ button.text }}</li>
+    </ul>
   </div>
 </template>

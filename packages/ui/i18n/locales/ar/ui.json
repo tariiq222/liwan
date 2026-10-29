@@ -9,19 +9,34 @@
     "discardAndLeave": "المغادرة بدون حفظ",
     "hideKpis": "إخفاء المؤشرات",
     "kpis": "المؤشرات",
+    "list": {
+      "name": "الاسم",
+      "add": "إضافة",
+      "archive": "أرشفة",
+      "restore": "استعادة",
+      "archived": "مؤرشف",
+      "protected": "محمي",
+      "empty": "لا توجد عناصر بعد"
+    },
     "loading": "جارٍ التحميل",
     "noFileChosen": "لم يتم اختيار ملف",
     "noResults": "لا نتائج.",
     "notAvailable": "—",
     "pageOf": "صفحة {page} من {pages}",
     "pagination": "التنقل بين الصفحات",
+    "recordNumber": "الرقم",
+    "reloadCurrent": "تحميل القيم الحالية",
+    "reloadFailed": "تعذّر تحميل القيم الحالية",
     "retry": "إعادة المحاولة",
+    "revert": "تراجع",
+    "saveChanges": "حفظ التغييرات",
+    "saveFailed": "تعذّر الحفظ",
     "selectDate": "اختر التاريخ",
     "showKpis": "إظهار المؤشرات",
     "stay": "البقاء في الصفحة",
     "unsavedChanges": "إذا غادرت الآن، لن تُحفظ التغييرات.",
     "unsavedChangesTitle": "تغييرات غير محفوظة",
-    "recordNumber": "الرقم"
+    "viewOnly": "عرض فقط"
   },
   "brand": {
     "name": "ويب فيو"

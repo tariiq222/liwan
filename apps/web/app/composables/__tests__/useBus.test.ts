@@ -100,6 +100,12 @@ describe('collectInboxIds', () => {
       { id: 3, message: { type: 'webvue/inbox', payload: { id: 9 } } },
     ])).toEqual([9])
   })
+
+  it('collects the id of a template change, which refreshes every inbox query', () => {
+    expect(collectInboxIds([
+      { id: 1, message: { type: 'webvue/inbox', payload: { id: 12, event: 'template' } } },
+    ])).toEqual([12])
+  })
 })
 
 describe('applyChatTyping', () => {

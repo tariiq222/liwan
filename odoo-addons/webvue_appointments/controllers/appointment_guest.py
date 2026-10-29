@@ -16,6 +16,7 @@ from odoo.addons.webvue_appointments.controllers.records import (
     slot_conflicts,
 )
 from odoo.addons.webvue_appointments.serializers.appointment_guest import (
+    awaits_confirmation,
     dump_guest_booking,
     is_modifiable,
     parse_guest_start,
@@ -109,14 +110,12 @@ class AppointmentGuestController(http.Controller):
     def confirm_booking(self, booking_id, **payload):
         reject_unknown_fields(payload, (TOKEN,))
         booking = _guest_booking(booking_id, payload.get(TOKEN))
-        settings = _settings(booking)
-        if booking.state != 'scheduled' or not settings['requester_confirmation']:
+        # A paying booking was confirmed when it was scheduled and is held by its order, so it waits for no confirmation.
+        if not awaits_confirmation(booking):
             raise ApiError(422, 'invalid', 'this booking does not wait for your confirmation')
         _require_modifiable(booking, fields.Datetime.now())
-        # No hook for a held booking: the payments bridge returns True for paying types and sale_resource_booking
-        # keeps an unpaid booking scheduled after action_confirm(), so the engine already holds it.
         confirm_attendance(booking)
-        return dump_guest_booking(booking, settings, fields.Datetime.now())
+        return dump_guest_booking(booking, _settings(booking), fields.Datetime.now())
 
     @http.route(BOOKING_PATH + '/cancel', type='json2', auth='public', methods=['POST'], readonly=False, save_session=False)
     @api_handler

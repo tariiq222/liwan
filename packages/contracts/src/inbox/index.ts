@@ -125,7 +125,13 @@ export const InboxMessageSchema = z.object({
   kind: InboxMessageKindSchema,
   body: z.string(),
   author: InboxRefSchema.nullable(),
-  template_name: z.string().nullable(),
+  // A sent template: its name and the parts around the rendered body (header media is in attachments).
+  template: z.object({
+    name: z.string(),
+    header_text: z.string().nullable(),
+    footer: z.string().nullable(),
+    buttons: z.array(z.object({ type: z.string(), text: z.string() }).strict()),
+  }).strict().nullable(),
   delivery_state: InboxDeliveryStateSchema,
   error: z.string().nullable(),
   attachments: z.array(InboxAttachmentSchema),
@@ -160,7 +166,16 @@ export const InboxReplyCreateSchema = z.union([
   z.object({ attachment_id: Id, caption: z.string().min(1).max(1024).optional(), ...ReplyTo }).strict(),
   z.object({ location: InboxLocationSchema, ...ReplyTo }).strict(),
   z.object({ interactive: InboxInteractiveSchema, ...ReplyTo }).strict(),
-  z.object({ template_id: Id, params: z.array(z.string().max(1024)).max(20) }).strict(),
+  z.object({
+    template_id: Id,
+    params: z.array(z.string().min(1).max(1024)).max(20),
+    // The value of a text header's {{1}}, a file uploaded first for a media header, or a location header.
+    header_param: z.string().min(1).max(60).optional(),
+    header_attachment_id: Id.optional(),
+    header_location: InboxLocationSchema.optional(),
+    // The url suffix of a url button with a variable, or the code of a copy-code button, by button position.
+    button_params: z.array(z.object({ index: z.number().int().min(0).max(9), value: z.string().min(1).max(2000) }).strict()).max(3).optional(),
+  }).strict(),
 ])
 
 // The agent's reaction on a message; an empty string removes it.
@@ -187,16 +202,146 @@ export const InboxCannedReplyWriteSchema = z.object({
   body: z.string().min(1).max(4096),
 }).strict()
 
+// ---------------------------------------------------------------- templates
+// A WhatsApp message template as Meta reviews it. Variables are positional ({{1}}, {{2}}, ...) and every one
+// carries an example, which Meta requires for review. Limits are Meta's.
+
+export const InboxTemplateCategorySchema = z.enum(['marketing', 'utility', 'authentication'])
+export const InboxTemplateStatusSchema = z.enum([
+  'pending', 'approved', 'rejected', 'paused', 'disabled', 'in_appeal', 'flagged', 'pending_deletion',
+])
+export const InboxTemplateQualitySchema = z.enum(['green', 'yellow', 'red', 'unknown'])
+
+const PLACEHOLDER = /\{\{([1-9]\d*)\}\}/g
+// The highest positional placeholder of `text`, 0 when it has none.
+export const templatePlaceholderCount = (text: string) =>
+  Math.max(0, ...[...text.matchAll(PLACEHOLDER)].map(match => Number(match[1])))
+// Placeholders must run 1..n without gaps, as Meta requires.
+const consecutivePlaceholders = (text: string) => {
+  const used = new Set([...text.matchAll(PLACEHOLDER)].map(match => Number(match[1])))
+  return [...used].every(position => position <= used.size)
+}
+
+const TemplateExample = z.string().min(1).max(1024)
+const TemplateHeaderMediaKind = z.enum(['image', 'video', 'document'])
+
+const HeaderText = z.object({
+  type: z.literal('text'),
+  text: z.string().min(1).max(60).refine(text => templatePlaceholderCount(text) <= 1 && consecutivePlaceholders(text), 'a text header holds at most one variable, {{1}}'),
+  example: TemplateExample.nullable(),
+}).strict().refine(header => (templatePlaceholderCount(header.text) === 1) === (header.example !== null), 'a header variable needs exactly one example')
+const HeaderLocation = z.object({ type: z.literal('location') }).strict()
+
+// The header Meta shows above the body. A media header carries a sample file for review (uploaded first).
+export const InboxTemplateHeaderSchema = z.union([
+  z.object({ type: z.literal('text'), text: z.string(), example: z.string().nullable() }).strict(),
+  z.object({ type: TemplateHeaderMediaKind, example_attachment: InboxAttachmentSchema.nullable() }).strict(),
+  HeaderLocation,
+])
+export const InboxTemplateHeaderWriteSchema = z.union([
+  HeaderText,
+  z.object({ type: TemplateHeaderMediaKind, example_attachment_id: Id }).strict(),
+  HeaderLocation,
+])
+
+const ButtonText = z.string().min(1).max(25)
+// A button as stored, including templates made in WhatsApp Manager, so values are not re-checked against write rules.
+export const InboxTemplateButtonSchema = z.union([
+  z.object({ type: z.literal('quick_reply'), text: z.string() }).strict(),
+  z.object({ type: z.literal('url'), text: z.string(), url: z.string(), example: z.string().nullable() }).strict(),
+  z.object({ type: z.literal('phone_number'), text: z.string(), phone_number: z.string() }).strict(),
+  z.object({ type: z.literal('copy_code'), example: z.string() }).strict(),
+])
+
+export const InboxTemplateButtonWriteSchema = z.union([
+  z.object({ type: z.literal('quick_reply'), text: ButtonText }).strict(),
+  // A url may end with one variable, {{1}}, filled per message; its example is then the full example url.
+  z.object({
+    type: z.literal('url'),
+    text: ButtonText,
+    url: z.url({ protocol: /^https$/ }).max(2000),
+    example: z.url({ protocol: /^https$/ }).max(2000).nullable(),
+  }).strict()
+    .refine(button => !/\{\{/.test(button.url.replace(/\{\{1\}\}$/, '')), 'a url holds one variable, {{1}}, at its end')
+    .refine(button => button.url.endsWith('{{1}}') === (button.example !== null), 'a url variable needs an example'),
+  z.object({ type: z.literal('phone_number'), text: ButtonText, phone_number: z.string().regex(/^\+[1-9]\d{6,14}$/) }).strict(),
+  // Copies a coupon code given per message; the example is a sample code.
+  z.object({ type: z.literal('copy_code'), example: z.string().min(1).max(15) }).strict(),
+])
+
+const byType = (buttons: { type: string }[], type: string) => buttons.filter(button => button.type === type).length
+// Quick replies sit together, before or after the other buttons, never interleaved.
+const quickRepliesGrouped = (buttons: { type: string }[]) => {
+  const runs = buttons.map(button => button.type === 'quick_reply').filter((quick, index, all) => index === 0 || quick !== all[index - 1])
+  return runs.length <= 2
+}
+const TemplateButtons = z.array(InboxTemplateButtonWriteSchema).max(10)
+  .refine(buttons => byType(buttons, 'url') <= 2, 'at most two url buttons')
+  .refine(buttons => byType(buttons, 'phone_number') <= 1, 'at most one phone button')
+  .refine(buttons => byType(buttons, 'copy_code') <= 1, 'at most one copy-code button')
+  .refine(quickRepliesGrouped, 'quick replies must be grouped together')
+
+const TemplateName = z.string().regex(/^[a-z0-9_]{1,512}$/)
+// Meta language codes: ar, en, en_US, pt_BR, ...
+const TemplateLanguage = z.string().regex(/^[a-z]{2,3}(_[A-Z]{2})?$/)
+const TemplateBody = z.string().min(1).max(1024).refine(consecutivePlaceholders, 'variables run {{1}}, {{2}}, ... without gaps')
+
 export const InboxTemplateSchema = z.object({
   id: Id,
   name: z.string(),
   language: z.string(),
-  category: z.string(),
-  status: z.string(),
+  category: InboxTemplateCategorySchema,
+  status: InboxTemplateStatusSchema,
+  // Meta's reason for a rejection, pause or disable; null otherwise.
+  status_reason: z.string().nullable(),
+  quality: InboxTemplateQualitySchema,
+  header: InboxTemplateHeaderSchema.nullable(),
+  // Authentication templates carry Meta's fixed body text.
   body: z.string(),
+  body_examples: z.array(z.string()),
+  footer: z.string().nullable(),
+  buttons: z.array(InboxTemplateButtonSchema),
+  // Authentication templates only (false and null otherwise).
+  add_security_recommendation: z.boolean(),
+  code_expiration_minutes: z.number().int().min(1).max(90).nullable(),
+  // The label of the button that copies the code (authentication only).
+  otp_button_text: z.string().nullable(),
+  // Body variables an agent fills when sending.
   param_count: z.number().int().nonnegative(),
+  // Meta accepts edits of approved, rejected and paused templates only.
+  editable: z.boolean(),
+  // False when the template uses a part WebVue cannot fill (named variables, flow or catalog buttons, ...):
+  // it is then neither sent nor edited from WebVue.
+  supported: z.boolean(),
 }).strict()
 export const InboxTemplateListSchema = list(InboxTemplateSchema)
+
+// Create or edit a template. Name and language cannot change once created. Marketing and utility templates
+// are written in full; an authentication template only chooses Meta's options around its fixed text.
+const StandardTemplateWrite = z.object({
+  name: TemplateName,
+  language: TemplateLanguage,
+  category: z.enum(['marketing', 'utility']),
+  // Let Meta move the template to the category it judges right instead of rejecting it.
+  allow_category_change: z.boolean(),
+  header: InboxTemplateHeaderWriteSchema.nullable(),
+  body: TemplateBody,
+  body_examples: z.array(TemplateExample).max(20),
+  footer: z.string().min(1).max(60).nullable(),
+  buttons: TemplateButtons,
+}).strict().refine(template => template.body_examples.length === templatePlaceholderCount(template.body), 'every body variable needs one example')
+
+const AuthenticationTemplateWrite = z.object({
+  name: TemplateName,
+  language: TemplateLanguage,
+  category: z.literal('authentication'),
+  add_security_recommendation: z.boolean(),
+  code_expiration_minutes: z.number().int().min(1).max(90).nullable(),
+  // The one copy-code button that copies the code.
+  otp_button_text: ButtonText,
+}).strict()
+
+export const InboxTemplateWriteSchema = z.union([StandardTemplateWrite, AuthenticationTemplateWrite])
 
 // ---------------------------------------------------------------- settings
 
@@ -233,6 +378,8 @@ export const InboxChannelSchema = z.object({
   // Secrets are write-only: the API reports only whether one is stored.
   has_access_token: z.boolean(),
   has_app_secret: z.boolean(),
+  // The Meta app id: needed only to upload the sample file of a media-header template.
+  app_id: z.string().nullable(),
   // Shown to the administrator to paste into the Meta app's webhook settings.
   verify_token: z.string(),
   callback_url: z.string(),
@@ -240,6 +387,8 @@ export const InboxChannelSchema = z.object({
   last_event_at: UtcDateTime.nullable(),
 }).strict()
 export const InboxChannelListSchema = list(InboxChannelSchema)
+
+const AppId = z.string().regex(/^\d{5,32}$/)
 
 export const InboxChannelCreateSchema = z.object({
   name: z.string().min(1).max(128),
@@ -249,6 +398,7 @@ export const InboxChannelCreateSchema = z.object({
   business_account_id: z.string().regex(/^\d{5,32}$/),
   access_token: z.string().min(16).max(1024),
   app_secret: z.string().min(16).max(256),
+  app_id: AppId.nullable().optional(),
 }).strict()
 
 export const InboxChannelPatchSchema = z.object({
@@ -257,6 +407,7 @@ export const InboxChannelPatchSchema = z.object({
   state: z.enum(['connected', 'disabled']).optional(),
   access_token: z.string().min(16).max(1024).optional(),
   app_secret: z.string().min(16).max(256).optional(),
+  app_id: AppId.nullable().optional(),
 }).strict()
 
 export type InboxRef = z.infer<typeof InboxRefSchema>
@@ -287,6 +438,13 @@ export type InboxContactPatch = z.infer<typeof InboxContactPatchSchema>
 export type InboxCannedReply = z.infer<typeof InboxCannedReplySchema>
 export type InboxCannedReplyWrite = z.infer<typeof InboxCannedReplyWriteSchema>
 export type InboxTemplate = z.infer<typeof InboxTemplateSchema>
+export type InboxTemplateCategory = z.infer<typeof InboxTemplateCategorySchema>
+export type InboxTemplateStatus = z.infer<typeof InboxTemplateStatusSchema>
+export type InboxTemplateQuality = z.infer<typeof InboxTemplateQualitySchema>
+export type InboxTemplateHeader = z.infer<typeof InboxTemplateHeaderSchema>
+export type InboxTemplateButton = z.infer<typeof InboxTemplateButtonSchema>
+export type InboxTemplateButtonWrite = z.infer<typeof InboxTemplateButtonWriteSchema>
+export type InboxTemplateWrite = z.infer<typeof InboxTemplateWriteSchema>
 export type InboxDepartment = z.infer<typeof InboxDepartmentSchema>
 export type InboxDepartmentWrite = z.infer<typeof InboxDepartmentWriteSchema>
 export type InboxTag = z.infer<typeof InboxTagSchema>

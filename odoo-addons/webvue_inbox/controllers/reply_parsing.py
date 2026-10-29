@@ -17,6 +17,15 @@ MAX_BODY = 4096
 MAX_CAPTION = 1024
 MAX_TEMPLATE_PARAMS = 20
 MAX_PARAM = 1024
+MAX_HEADER_PARAM = 60
+MAX_BUTTON_PARAMS = 3
+MAX_BUTTON_PARAM = 2000
+MAX_COUPON = 15
+MAX_OTP_CODE = 15
+MAX_TEMPLATE_BUTTONS = 10
+TEMPLATE_REPLY_KEYS = {
+    'template_id', 'params', 'header_param', 'header_attachment_id', 'header_location', 'button_params',
+}
 MAX_LOCATION_TEXT = 1000
 MAX_INTERACTIVE_BODY = 1024
 MAX_INTERACTIVE_AFFIX = 60
@@ -40,6 +49,8 @@ class ParsedReply:
     values: dict = field(default_factory=dict)
     template: object = None
     params: tuple = ()
+    header: dict = field(default_factory=dict)
+    button_params: tuple = ()
     attachment: object = None
     reply_to: object = None
 
@@ -135,17 +146,25 @@ def parse_list_rows(value):
     return {'options': options, 'interactive_button': parse_string(value['button'], 'button', MAX_BUTTON_TITLE)}
 
 
-def parse_cta_url(value):
-    value = parse_object(value, 'interactive', SHARED_INTERACTIVE_KEYS | {'display_text', 'url'}, ('display_text', 'url'))
-    url = parse_string(value['url'], 'url', MAX_CTA_URL)
+def parse_https_url(value, key, maximum):
+    """An https address of at most `maximum` characters without whitespace."""
+    url = parse_string(value, key, maximum)
     try:
         parts = urlsplit(url)
         valid = parts.scheme == 'https' and parts.hostname and not any(char.isspace() for char in url)
     except ValueError:
         valid = False
     if not valid:
-        reject('url must be an https address', 'url')
-    return {'cta_display_text': parse_string(value['display_text'], 'display_text', MAX_BUTTON_TITLE), 'cta_url': url}
+        reject(f'{key} must be an https address', key)
+    return url
+
+
+def parse_cta_url(value):
+    value = parse_object(value, 'interactive', SHARED_INTERACTIVE_KEYS | {'display_text', 'url'}, ('display_text', 'url'))
+    return {
+        'cta_display_text': parse_string(value['display_text'], 'display_text', MAX_BUTTON_TITLE),
+        'cta_url': parse_https_url(value['url'], 'url', MAX_CTA_URL),
+    }
 
 
 PARSE_INTERACTIVE = {'buttons': parse_buttons, 'list': parse_list_rows, 'cta_url': parse_cta_url}
@@ -188,13 +207,49 @@ def parse_attachment(conversation, payload):
     return ParsedReply(values={'body': caption or f'[{kind}]'}, attachment=attachment)
 
 
-def parse_template(payload):
-    check_fields(payload, {'template_id', 'params'}, required=('template_id', 'params'))
-    params = payload['params']
-    if (not isinstance(params, list) or len(params) > MAX_TEMPLATE_PARAMS
-            or any(not isinstance(p, str) or len(p) > MAX_PARAM for p in params)):
-        reject(f'params must be a list of at most {MAX_TEMPLATE_PARAMS} strings', 'params')
-    return ParsedReply(template=find_one('webvue.inbox.template', payload['template_id'], 'template_id'), params=tuple(params))
+def parse_header_input(conversation, payload):
+    """The header values of a template reply: `text`, `attachment` (an upload of the conversation) and `location`."""
+    header = {}
+    if 'header_param' in payload:
+        header['text'] = parse_string(payload['header_param'], 'header_param', MAX_HEADER_PARAM)
+    if 'header_attachment_id' in payload:
+        header['attachment'] = find_upload(conversation, payload['header_attachment_id'])
+    if 'header_location' in payload:
+        location = parse_location(payload['header_location'])
+        header['location'] = {
+            key: location[key] for key in ('latitude', 'longitude', 'location_name', 'location_address')
+        }
+    return header
+
+
+def parse_button_params(value, template):
+    """[(button index, value)] of the `button_params` list; a coupon code is shorter than a link suffix."""
+    kinds = dict(template._webvue_button_needs())
+    params = []
+    for item in parse_list(value, 'button_params', 0, MAX_BUTTON_PARAMS):
+        item = parse_object(item, 'button_params', {'index', 'value'}, ('index', 'value'))
+        index = item['index']
+        if isinstance(index, bool) or not isinstance(index, int) or not 0 <= index < MAX_TEMPLATE_BUTTONS:
+            reject(f'button_params index must be a whole number from 0 to {MAX_TEMPLATE_BUTTONS - 1}', 'button_params')
+        maximum = MAX_COUPON if kinds.get(index) == 'copy_code' else MAX_BUTTON_PARAM
+        params.append((index, parse_string(item['value'], 'button_params', maximum)))
+    return tuple(params)
+
+
+def parse_template(conversation, payload):
+    """A template reply: the template, its body parameters, header values and button values (limits checked again by the message)."""
+    check_fields(payload, TEMPLATE_REPLY_KEYS, required=('template_id', 'params'))
+    template = find_one('webvue.inbox.template', payload['template_id'], 'template_id')
+    if not template.supported:
+        reject('this template has parts WebVue cannot send; synchronise or recreate it', 'template_id')
+    params = parse_list(payload['params'], 'params', 0, MAX_TEMPLATE_PARAMS)
+    limit = MAX_OTP_CODE if template.category == 'authentication' else MAX_PARAM
+    return ParsedReply(
+        template=template,
+        params=tuple(parse_string(param, 'params', limit) for param in params),
+        header=parse_header_input(conversation, payload),
+        button_params=parse_button_params(payload['button_params'], template) if 'button_params' in payload else (),
+    )
 
 
 def parse_reply_to(conversation, payload):
@@ -215,7 +270,7 @@ def parse_reply(conversation, payload):
         reject(f'a reply carries exactly one of {CONTENT_KEYS}')
     content = present[0]
     if content == 'template_id':
-        return parse_template(payload)
+        return parse_template(conversation, payload)
     check_fields(payload, {content, 'reply_to_id', *(('caption',) if content == 'attachment_id' else ())})
     if content == 'attachment_id':
         reply = parse_attachment(conversation, payload)
