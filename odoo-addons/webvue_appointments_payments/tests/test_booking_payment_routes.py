@@ -14,6 +14,7 @@ from odoo.addons.webvue_appointments_payments.serializers.booking_payment import
 TYPE_PAYMENT_KEYS = {'online_payment', 'deposit_percent', 'price', 'currency'}
 BOOKING_PAYMENT_KEYS = {'status', 'refund_due', 'needs_attention', 'currency', 'amount_total', 'amount_due', 'expires_at'}
 BOOKINGS = '/api/v1/appointments/bookings'
+PUBLIC_BOOKINGS = '/api/v1/public/appointments/bookings'
 
 
 @tagged('post_install', '-at_install', 'webvue')
@@ -138,3 +139,20 @@ class TestBookingPaymentRoutes(WebVuePaidBookingCase):
         scheduled = self.api('POST', f'{BOOKINGS}/{booking_id}/schedule', json={'start': self.first_slot()})
         self.assertEqual((scheduled.status_code, scheduled.json()['state']), (200, 'scheduled'), scheduled.text)
         self.assertEqual(self.api('GET', f'{BOOKINGS}/{booking_id}/payment').json()['status'], 'payable')
+
+    def test_the_invited_customer_schedules_pays_and_cancels_a_paid_booking(self):
+        invitation = self.book(scheduled=False)
+        invitation._portal_ensure_token()
+        token, path, today = invitation.access_token, f'{PUBLIC_BOOKINGS}/{invitation.id}', fields.Date.today()
+        slots = self.api('GET', f'{path}/slots?access_token={token}&from={today + timedelta(days=2)}&to={today + timedelta(days=9)}')
+        start = slots.json()['items'][0]['start']
+        scheduled = self.api('POST', f'{path}/schedule', json={'access_token': token, 'start': start})
+        self.assertEqual((scheduled.status_code, scheduled.json()['state']), (200, 'scheduled'), scheduled.text)
+        order = self.order_of(invitation)
+        # The anonymous requester opened the order: it is the customer's, and nobody is its salesperson.
+        self.assertEqual((order.state, order.partner_id, order.user_id), ('draft', self.customer, self.env['res.users']))
+        self.pay(order, order.amount_total)
+        self.assertEqual(self.api('GET', f'{path}?access_token={token}').json()['state'], 'confirmed')
+        cancelled = self.api('POST', f'{path}/cancel', json={'access_token': token})
+        self.assertEqual(cancelled.status_code, 200, cancelled.text)
+        self.assertEqual((order.state, order.sudo()._webvue_refund_due()), ('cancel', True))

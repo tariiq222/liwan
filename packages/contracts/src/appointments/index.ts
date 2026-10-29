@@ -1,6 +1,7 @@
 export * from './bookings'
 export * from './combinations'
 export * from './payments'
+export * from './public'
 export * from './resources'
 export * from './settings'
 export * from './slots'

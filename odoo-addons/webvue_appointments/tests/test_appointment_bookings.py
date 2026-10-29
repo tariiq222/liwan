@@ -6,9 +6,7 @@ from odoo.tests import new_test_user, tagged
 
 from .common import WebVueAppointmentsCase
 from odoo.addons.webvue_api.controllers.common import ApiError
-from odoo.addons.webvue_appointments.controllers.appointment_bookings import (
-    AppointmentBookingController,
-)
+from odoo.addons.webvue_appointments.controllers.records import slot_conflicts
 
 BOOKINGS = '/api/v1/appointments/bookings'
 UTC_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
@@ -374,7 +372,7 @@ class TestAppointmentBookings(WebVueAppointmentsCase):
         self._error(self.api('POST', '%s/%d/cancel' % (BOOKINGS, booking['id'])), 422, 'invalid')
 
     def test_only_a_refused_slot_is_a_conflict_a_lost_guard_race_propagates_for_the_retry(self):
-        conflicts = AppointmentBookingController._conflicts
+        conflicts = slot_conflicts
         race, taken = 'race', 'slot taken'
         with self.assertRaises(ConcurrencyError), conflicts():
             raise ConcurrencyError(race)

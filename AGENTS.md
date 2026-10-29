@@ -323,7 +323,8 @@ cross-addon links.
 - `webvue_hr`, `webvue_tasks`, `webvue_operations` and their bridges have no `sudo()` path.
   `webvue_pmo` uses it only for the documented manager-write,
   charter-approval (approval fields only, through `_webvue_write_sudo` with its own whitelist, after the manager or sponsor check), policy/config, display-lookup, integer-count, completion-status and notification
-  candidate cases, each after the caller's authorization check: the project copy-create policy, the stage and milestone
+  candidate cases, each after the caller's authorization check: the project create and copy-create policy, the shared
+  project-stage writes (Odoo lets a project user write only personal stages), the stage and milestone
   task counts, the settings and legacy
   `ir.config_parameter` policy writes, the project-type provisioning seed (a system administrator who creates a
   company need not hold the employee ACL on `webvue.project.type`), the task serializers' project and milestone
@@ -344,9 +345,12 @@ cross-addon links.
   `webvue_core` uses it only for the company-partner existence check, which Odoo's `res_company_rule_employee` hides and
   `active_test=False` must still see.
   `webvue_crm` uses it only for two boolean existence checks that return no record: the company-wide duplicate-phone check and the tenant-wide stage-occupancy check (stages are shared, the caller's rules hide other companies' deals).
+  `webvue_appointments` uses it only in `models/guest_service.py`, to read the one booking behind an invited requester's access token (the public user holds no ACL on `resource.booking`); the token is compared in constant time and the booking is returned, elevated, only when it matches. That elevated booking is then also used to schedule, confirm and cancel that one booking and its own meeting (the engine's `_sync_meeting` creates, updates and unlinks its calendar event and attendees), with the modification deadline checked by `within_deadline`.
   `webvue_chat` uses it for the two `mail.message.reaction` paths — the toggle after `_webvue_member_channel`
   proved the caller's membership, and the reaction aggregation of an already-authorized message — both blocked
-  by `mail.message.reaction` being system-only in Odoo (owner decision 2026-10-25: authorized).
+  by `mail.message.reaction` being system-only in Odoo (owner decision 2026-10-25: authorized), and for the author's
+  message edit after the member and author checks, because emptying a message reads `message_link_preview_ids`,
+  a field Odoo limits to `base.group_erp_manager` (as stock Odoo's own edit controller does).
   `webvue_notify` uses it for bell delivery and recipient-owned bell reads. The `mail.message` environment in
   `_webvue_deliver` bypasses the stock create/unlink document-access gates: create may be allowed by following the
   source, while unlink requires source write/create access. The three recipient-owned reader helpers retain
