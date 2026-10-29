@@ -6,7 +6,13 @@ from odoo.exceptions import ValidationError
 from odoo.fields import Domain
 
 from .access_service import ASSIGN, READ
-from .constants import PREVIEW_LENGTH, REPLY_WINDOW, STALE_UPLOAD_AGE, TYPING_THROTTLE
+from .constants import (
+    CSAT_SCORES,
+    PREVIEW_LENGTH,
+    REPLY_WINDOW,
+    STALE_UPLOAD_AGE,
+    TYPING_THROTTLE,
+)
 from .notification_types import KINDS
 
 BUS_CHANNEL = 'webvue/inbox'
@@ -74,12 +80,15 @@ class WebVueInboxConversation(models.Model):
             conversation.last_inbound_at = last
             conversation.reply_window_ends_at = last + REPLY_WINDOW if last else False
 
-    @api.depends('message_ids.direction', 'message_ids.date', 'message_ids.author_id')
+    @api.depends('message_ids.direction', 'message_ids.date', 'message_ids.author_id', 'message_ids.selected_option_id')
     def _compute_waiting_since(self):
         for conversation in self:
             messages = conversation.message_ids
             last_reply = max(messages.filtered(lambda m: m.direction == 'out' and m.author_id).mapped('date'), default=False)
-            waiting = messages.filtered(lambda m: m.direction == 'in' and (not last_reply or m.date > last_reply))
+            # A survey answer (tapping a csat_* button) asks for nothing: it never starts or backdates a wait.
+            waiting = messages.filtered(
+                lambda m: m.direction == 'in' and m.selected_option_id not in CSAT_SCORES and (not last_reply or m.date > last_reply),
+            )
             conversation.waiting_since = min(waiting.mapped('date'), default=False)
 
     def _webvue_latest_inbound(self):

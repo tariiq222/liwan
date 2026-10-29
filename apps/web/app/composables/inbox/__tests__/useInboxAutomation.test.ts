@@ -71,6 +71,13 @@ describe('channel automation hooks', () => {
 })
 
 describe('rule hooks', () => {
+  it('loads the whole ordered collection, up to the reorder cap', async () => {
+    hooks.useInboxRules()
+    await last().queryFn!()
+    expect($api).toHaveBeenLastCalledWith('/api/v1/inbox/rules', expect.objectContaining({ query: { limit: hooks.INBOX_RULES_LIMIT } }))
+    expect(hooks.INBOX_RULES_LIMIT).toBe(500)
+  })
+
   it('creates without an id, edits with one, and reloads the list', async () => {
     hooks.useSaveInboxRule()
     await last().mutationFn!({ body: { name: 'a' } } as never)

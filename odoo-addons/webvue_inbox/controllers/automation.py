@@ -49,6 +49,10 @@ def rule_scope():
     return request.env['webvue.inbox.rule'].with_context(active_test=False)
 
 
+# The rules page is read whole (the reorder sends every id), so its cap is the reorder's: InboxRuleReorderSchema max.
+MAX_RULES = 500
+
+
 class AutomationController(http.Controller):
 
     # working hours
@@ -135,7 +139,7 @@ class AutomationController(http.Controller):
     @requires_feature('inbox.enabled', AUTOMATION_FEATURE, operation='read')
     @requires_capability(MANAGE_AUTOMATION)
     def list_rules(self, **_):
-        limit, offset = parse_page(request.httprequest.args)
+        limit, offset = parse_page(request.httprequest.args, maximum=MAX_RULES)
         Rule = rule_scope()
         return {'items': [dump_rule(rule) for rule in Rule.search([], limit=limit, offset=offset)], 'total': Rule.search_count([])}
 

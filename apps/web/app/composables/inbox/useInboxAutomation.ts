@@ -94,12 +94,15 @@ export function useSaveInboxChannelAutomation(channelId: MaybeRefOrGetter<number
   })
 }
 
+/** Every rule needs to be loaded for the reorder (it sends all ids), so the list asks for the route's whole cap. */
+export const INBOX_RULES_LIMIT = 500
+
 export function useInboxRules() {
   const { $api } = useApi()
   return useQuery({
     queryKey: inboxAutomationKeys.rules,
     retry: false,
-    queryFn: () => $api('/api/v1/inbox/rules', { schema: InboxRuleListSchema }),
+    queryFn: () => $api('/api/v1/inbox/rules', { query: { limit: INBOX_RULES_LIMIT }, schema: InboxRuleListSchema }),
   })
 }
 

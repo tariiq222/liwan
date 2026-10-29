@@ -8,6 +8,7 @@ from dateutil.relativedelta import relativedelta
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
+from .access_service import REPLY
 from .constants import (
     AGENT_ACTIVE_WINDOW,
     AUTOMATED_RATE_WINDOW,
@@ -25,6 +26,7 @@ NOTE_AWAY = 'رد آلي: رسالة خارج أوقات الدوام'
 NOTE_RULE_REPLY = 'رد آلي: القاعدة «%s»'
 NOTE_DEPARTMENT = 'القاعدة «%s» حوّلت المحادثة إلى القسم «%s»'
 NOTE_ASSIGNEE = 'القاعدة «%s» أسندت المحادثة إلى %s'
+NOTE_ASSIGNEE_SKIPPED = 'القاعدة «%s» لم تسند المحادثة إلى %s لأنه لم يعد يملك صلاحية الرد في هذه الشركة'
 NOTE_TAGS = 'القاعدة «%s» أضافت الوسوم: %s'
 NOTE_PRIORITY = 'القاعدة «%s» ضبطت الأولوية: %s'
 NOTE_RESOLVE = 'القاعدة «%s» حلّت المحادثة'
@@ -162,9 +164,12 @@ class WebVueInboxAutomation(models.AbstractModel):
         if rule.department_id:
             values['department_id'] = rule.department_id.id
             note(NOTE_DEPARTMENT % (rule.name, rule.department_id.name))
-        if rule.assignee_id and rule.assignee_id.active:
-            values['assignee_id'] = rule.assignee_id.id
-            note(NOTE_ASSIGNEE % (rule.name, rule.assignee_id.name))
+        if rule.assignee_id:
+            if self._webvue_can_take(rule.assignee_id, conversation):
+                values['assignee_id'] = rule.assignee_id.id
+                note(NOTE_ASSIGNEE % (rule.name, rule.assignee_id.name))
+            else:
+                note(NOTE_ASSIGNEE_SKIPPED % (rule.name, rule.assignee_id.name))
         if rule.tag_ids:
             values['tag_ids'] = [(4, tag.id) for tag in rule.tag_ids]
             note(NOTE_TAGS % (rule.name, '، '.join(rule.tag_ids.mapped('name'))))
@@ -179,6 +184,11 @@ class WebVueInboxAutomation(models.AbstractModel):
             conversation.write(values)
             if conversation.assignee_id != previous:
                 conversation._webvue_notify_assigned()
+
+    @api.model
+    def _webvue_can_take(self, user, conversation):
+        """True when `user` is active and still holds the reply capability in the conversation's company (a rule stores the user, not the grant)."""
+        return user.active and self.env['webvue.access.service']._webvue_has_capability(user, REPLY, company=conversation.company_id)
 
     # auto-assignment
 

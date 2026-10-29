@@ -3,6 +3,7 @@
 from odoo.tests import tagged
 
 from .automation_common import AutomationCase
+from odoo.addons.webvue_inbox.models.automation import NOTE_ASSIGNEE_SKIPPED
 from odoo.addons.webvue_inbox.models.constants import FIRST_RESPONSE_CRON_BATCH
 from odoo.addons.webvue_inbox.models.notification_types import FIRST_RESPONSE_KIND
 
@@ -49,6 +50,15 @@ class TestAssignmentPolicy(AutomationCase):
         self.assertEqual(conversation.assignee_id, self.agent2)
         bell = self.env['mail.message'].search([('webvue_notification_kind', '=', 'inbox.assigned'), ('res_id', '=', conversation.id)])
         self.assertEqual(len(bell), 1)
+
+    def test_a_rule_assignee_who_lost_the_reply_capability_is_skipped_and_auto_assignment_proceeds(self):
+        self.settings.assignment_policy = 'round_robin'
+        self.department.member_ids = self.agent
+        self.channel.department_id = self.department
+        self.make_rule(match_kind='any', reply=None, assignee_id=self.outsider.id)
+        conversation = self.new_conversation(1)
+        self.assertEqual(conversation.assignee_id, self.agent)
+        self.assertIn(NOTE_ASSIGNEE_SKIPPED % ('rule', self.outsider.name), self.notes(conversation))
 
     def test_a_conversation_the_rules_resolved_is_not_auto_assigned(self):
         self.settings.assignment_policy = 'round_robin'
@@ -158,6 +168,23 @@ class TestFirstResponseAlert(AutomationCase):
         })
         self.assertFalse(conversation.waiting_since)
         self.assertTrue(second.exists())
+
+    def add_message(self, conversation, direction, minutes, **values):
+        return self.env['webvue.inbox.message'].create({
+            'conversation_id': conversation.id, 'company_id': conversation.company_id.id, 'direction': direction, 'body': 'x',
+            'delivery_state': 'received' if direction == 'in' else 'sent', 'date': self.minutes_ago(minutes), **values,
+        })
+
+    def test_a_survey_answer_never_starts_or_backdates_a_wait(self):
+        self.settings.first_response_alert_minutes = 10
+        conversation = self.make_conversation(minutes_ago=60, assignee_id=self.agent.id)
+        self.add_message(conversation, 'out', 50, author_id=self.agent.id)
+        self.add_message(conversation, 'in', 15, selected_option_id='csat_good')
+        self.assertFalse(conversation.waiting_since)
+        self.run_cron()
+        self.assertFalse(self.alerts(conversation))
+        question = self.add_message(conversation, 'in', 5)
+        self.assertEqual(conversation.waiting_since, question.date)
 
     def test_the_alert_shows_in_the_bell(self):
         self.settings.first_response_alert_minutes = 10

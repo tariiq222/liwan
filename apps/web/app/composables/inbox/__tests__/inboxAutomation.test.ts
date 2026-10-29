@@ -115,6 +115,14 @@ describe('rule draft', () => {
     expect(ruleWrite({ ...bare, resolve: true })).not.toBeNull()
   })
 
+  it('rejects a draft whose reply is switched on but cannot be built, and sends reply null only when it is off', () => {
+    const draft = ruleToDraft(rule)
+    draft.reply = emptyRuleDraft().reply
+    expect(draft.replyEnabled).toBe(true)
+    expect(ruleWrite(draft)).toBeNull()
+    expect(ruleWrite({ ...draft, replyEnabled: false })).toMatchObject({ reply: null })
+  })
+
   it('sends keywords only for a text match and an option id only for an option match', () => {
     const draft = { ...ruleToDraft(rule), matchKind: 'any' as const, optionId: 'btn_1' }
     expect(ruleWriteCandidate(draft)).toMatchObject({ keywords: [], option_id: null })

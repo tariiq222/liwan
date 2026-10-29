@@ -108,6 +108,18 @@ class TestRulesApi(AutomationCase):
         for bad in ({'ids': ids[:2]}, {'ids': ids + [ids[0]]}, {'ids': ids + [999999]}, {'ids': []}, {'ids': 'x'}, {}, {'ids': [0, 1, 2]}):
             self.assertError(self.api('POST', f'{RULES}/reorder', bad), 422, 'invalid')
 
+    def test_the_list_returns_every_rule_up_to_the_reorder_cap(self):
+        Rule = self.env['webvue.inbox.rule']
+        for index in range(210):
+            self.make_rule(name=f'Rule {index}', match_kind='any', sequence=index)
+        default = self.get(RULES).json()
+        self.assertEqual((len(default['items']), default['total']), (50, 210))
+        whole = self.get(f'{RULES}?limit=500').json()
+        self.assertEqual((len(whole['items']), whole['total']), (210, 210))
+        reorder = self.api('POST', f'{RULES}/reorder', {'ids': [item['id'] for item in reversed(whole['items'])]})
+        self.assertEqual(reorder.status_code, 200, reorder.text)
+        self.assertEqual(Rule.search_count([]), 210)
+
     def test_the_dry_run_names_the_rules_without_writing_anything(self):
         self.create(name='Price', keywords=['السعر'], stop=False)
         self.create(name='Everything', match_kind='any', keywords=[], stop=True)

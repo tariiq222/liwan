@@ -133,8 +133,11 @@ export function ruleWriteCandidate(draft: RuleDraft): Record<keyof InboxRuleWrit
   }
 }
 
+/** The write body, or null while the draft is incomplete; a reply that is switched on but cannot be built is never sent as "no reply". */
 export function ruleWrite(draft: RuleDraft): InboxRuleWrite | null {
-  const parsed = InboxRuleWriteSchema.safeParse(ruleWriteCandidate(draft))
+  const candidate = ruleWriteCandidate(draft)
+  if (draft.replyEnabled && candidate.reply === null) return null
+  const parsed = InboxRuleWriteSchema.safeParse(candidate)
   return parsed.success ? parsed.data : null
 }
 
