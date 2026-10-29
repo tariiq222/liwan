@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { InboxMessage } from '@webvue/contracts'
 import { mergeMessagePages, nextOlderOffset } from '../useInbox'
 
-const message = (id: number) => ({ id, direction: 'in', body: `m${id}`, author: null, template_name: null, delivery_state: 'received', error: null, attachments: [], created_at: '2026-10-28T10:00:00Z' }) as InboxMessage
+const message = (id: number) => ({ id, direction: 'in', body: `m${id}`, author: null, template_name: null, delivery_state: 'received', error: null, attachments: [], created_at: '2026-10-28T10:00:00Z' }) as unknown as InboxMessage
 const page = (ids: number[], total: number) => ({ items: ids.map(message), total })
 
 describe('inbox message pages', () => {

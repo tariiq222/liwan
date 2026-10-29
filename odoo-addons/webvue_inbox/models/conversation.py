@@ -6,7 +6,7 @@ from odoo.exceptions import ValidationError
 from odoo.fields import Domain
 
 from .access_service import ASSIGN, READ
-from .constants import PREVIEW_LENGTH, REPLY_WINDOW
+from .constants import PREVIEW_LENGTH, REPLY_WINDOW, STALE_UPLOAD_AGE, TYPING_THROTTLE
 
 BUS_CHANNEL = 'webvue/inbox'
 
@@ -40,6 +40,9 @@ class WebVueInboxConversation(models.Model):
     last_message_preview = fields.Char(compute='_compute_last_message', store=True)
     last_inbound_at = fields.Datetime(compute='_compute_last_inbound', store=True)
     reply_window_ends_at = fields.Datetime(compute='_compute_last_inbound', store=True)
+    # The last typing request (the throttle marker) and whether the outbox still has to send it.
+    typing_requested_at = fields.Datetime(copy=False)
+    typing_pending = fields.Boolean(default=False, index=True, copy=False)
 
     _one_open_per_identity = models.UniqueIndex(
         "(channel_id, identity_id) WHERE state != 'closed'",
@@ -61,6 +64,32 @@ class WebVueInboxConversation(models.Model):
             last = max(inbound.mapped('date'), default=False)
             conversation.last_inbound_at = last
             conversation.reply_window_ends_at = last + REPLY_WINDOW if last else False
+
+    def _webvue_latest_inbound(self):
+        """The newest inbound message the provider knows (a read receipt or typing call names it)."""
+        inbound = self.message_ids.filtered(lambda message: message.direction == 'in' and message.provider_message_id)
+        return inbound.sorted(lambda message: (message.date, message.id))[-1:]
+
+    def _webvue_replied_since(self, moment):
+        """True when an agent reply was queued at or after `moment`: that reply ends the typing it followed."""
+        return any(message.direction == 'out' and message.date >= moment for message in self.message_ids)
+
+    def _webvue_request_read_receipt(self):
+        """Queue the read receipt of the newest inbound message; older ones are read with it."""
+        self._webvue_latest_inbound()._webvue_request_read_receipt()
+
+    def _webvue_request_typing(self):
+        """Record that an agent is typing; the outbox shows it to the customer. Throttled, inside the window only."""
+        self.ensure_one()
+        now = fields.Datetime.now()
+        window_open = self.reply_window_ends_at and now <= self.reply_window_ends_at
+        throttled = self.typing_requested_at and now - self.typing_requested_at < TYPING_THROTTLE
+        if not self._webvue_latest_inbound() or not window_open or throttled:
+            return
+        if self.state == 'closed' or self.channel_id.state == 'disabled':
+            return
+        self.write({'typing_requested_at': now, 'typing_pending': True})
+        self.env['webvue.inbox.message']._webvue_wake_outbox()
 
     @api.constrains('state')
     def _check_single_open(self):
@@ -135,6 +164,14 @@ class WebVueInboxConversation(models.Model):
                 idle.write({'state': 'closed'})
             self._webvue_purge_expired(company, now - relativedelta(months=settings.retention_months))
         self.env['webvue.inbox.event']._webvue_purge_processed(now)
+        self._webvue_purge_stale_uploads(now)
+
+    @api.model
+    def _webvue_purge_stale_uploads(self, now):
+        """Delete files uploaded to a conversation that no reply ever used."""
+        self.env['ir.attachment'].search([
+            ('res_model', '=', self._name), ('create_date', '<', now - STALE_UPLOAD_AGE),
+        ]).unlink()
 
     @api.model
     def _webvue_purge_expired(self, company, cutoff):
@@ -145,7 +182,8 @@ class WebVueInboxConversation(models.Model):
         ]).unlink()
         self.env['webvue.inbox.event']._webvue_purge_unprocessed(company, cutoff)
         self.env['ir.attachment'].search([
-            ('res_model', '=', 'webvue.inbox.message'), ('res_id', 'in', expired.message_ids.ids),
+            '|', '&', ('res_model', '=', 'webvue.inbox.message'), ('res_id', 'in', expired.message_ids.ids),
+            '&', ('res_model', '=', self._name), ('res_id', 'in', expired.ids),
         ]).unlink()
         expired.unlink()
         self.env['webvue.inbox.contact'].search([
