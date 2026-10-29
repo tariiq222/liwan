@@ -11,7 +11,7 @@ const hydrated = useHydrated()
 const departments = useInboxDepartments()
 const { mutateAsync: create, isPending } = useCreateInboxChannel()
 const NONE = 'none'
-const form = reactive({ name: '', department: NONE, phone_number_id: '', business_account_id: '', access_token: '', app_secret: '' })
+const form = reactive({ name: '', department: NONE, phone_number_id: '', business_account_id: '', access_token: '', app_secret: '', app_id: '' })
 const attempted = ref(false)
 const serverError = ref<{ field?: string; message: string } | null>(null)
 const departmentItems = computed(() => [
@@ -26,13 +26,14 @@ const payload = computed(() => ({
   business_account_id: form.business_account_id.trim(),
   access_token: form.access_token.trim(),
   app_secret: form.app_secret.trim(),
+  app_id: form.app_id.trim() || null,
 }))
 const invalidFields = computed(() => {
   const parsed = InboxChannelCreateSchema.safeParse(payload.value)
   return new Set(parsed.success ? [] : parsed.error.issues.map(issue => String(issue.path[0])))
 })
 const saved = ref(false)
-const dirty = computed(() => !saved.value && !!(form.name || form.phone_number_id || form.business_account_id || form.access_token || form.app_secret))
+const dirty = computed(() => !saved.value && !!(form.name || form.phone_number_id || form.business_account_id || form.access_token || form.app_secret || form.app_id))
 function fieldError(field: keyof typeof form) {
   if (serverError.value?.field === field) return serverError.value.message
   return attempted.value && invalidFields.value.has(field === 'department' ? 'department_id' : field) ? t(`inbox.settings.channels.invalid.${field}`) : undefined
@@ -66,6 +67,9 @@ async function submit() {
         </UFormField>
         <UFormField name="phone_number_id" :label="t('inbox.settings.channels.phoneNumberId')" :description="t('inbox.settings.channels.phoneNumberIdHint')" required :error="fieldError('phone_number_id')">
           <UInput v-model="form.phone_number_id" class="w-full" dir="ltr" inputmode="numeric" autocomplete="off" :disabled="!hydrated || isPending" data-testid="inbox-channel-phone-id" />
+        </UFormField>
+        <UFormField name="app_id" :label="t('inbox.settings.channels.appId')" :description="t('inbox.settings.channels.appIdHint')" :error="fieldError('app_id')">
+          <UInput v-model="form.app_id" class="w-full" dir="ltr" inputmode="numeric" autocomplete="off" :disabled="!hydrated || isPending" data-testid="inbox-channel-app-id" />
         </UFormField>
         <UFormField name="business_account_id" :label="t('inbox.settings.channels.businessAccountId')" :description="t('inbox.settings.channels.businessAccountIdHint')" required :error="fieldError('business_account_id')">
           <UInput v-model="form.business_account_id" class="w-full" dir="ltr" inputmode="numeric" autocomplete="off" :disabled="!hydrated || isPending" data-testid="inbox-channel-waba-id" />

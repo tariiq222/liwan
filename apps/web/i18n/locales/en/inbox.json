@@ -152,7 +152,18 @@
         "urlHelp": "A secure link starting with https"
       },
       "captionTooLong": "A file caption is at most {max} characters. Shorten it to send the file.",
-      "audioNoCaption": "WhatsApp does not allow a caption on an audio file."
+      "audioNoCaption": "WhatsApp does not allow a caption on an audio file.",
+      "headerParam": "Header value",
+      "headerMedia": "Header file ({kind})",
+      "code": "Code",
+      "couponCode": "Coupon code",
+      "urlSuffix": "Variable part of the link of {text}",
+      "marketingNote": "Marketing template: Meta charges more for it than for utility templates.",
+      "headerWrongType": {
+        "image": "{name} is not an image.",
+        "video": "{name} is not a video.",
+        "document": "{name} is not a document."
+      }
     },
     "panel": {
       "title": "Customer and conversation",
@@ -281,7 +292,8 @@
           "phone_number_id": "Digits only (5 to 32 digits)",
           "business_account_id": "Digits only (5 to 32 digits)",
           "access_token": "The token is too short",
-          "app_secret": "The secret is too short"
+          "app_secret": "The secret is too short",
+          "app_id": "Digits only (5 to 32 digits)"
         },
         "status": "Status",
         "kind": "Type",
@@ -316,7 +328,9 @@
         "delete": "Delete channel",
         "deleteHint": "Deletes the channel with all its conversations and messages.",
         "deleteTitle": "Delete the channel \"{name}\"?",
-        "deleteDescription": "This cannot be undone. The conversations and messages of the channel are deleted."
+        "deleteDescription": "This cannot be undone. The conversations and messages of the channel are deleted.",
+        "appId": "Meta app id",
+        "appIdHint": "Optional. Needed only to upload the sample file of a template header with an image, video or document."
       }
     },
     "kinds": {
@@ -331,6 +345,160 @@
       "interactive": "Interactive message",
       "template": "Template",
       "unsupported": "Unsupported"
+    },
+    "templates": {
+      "title": "Message templates",
+      "hint": "WhatsApp templates that Meta reviews before they can be used to reply after the 24-hour window closes.",
+      "pageTitle": "{name} templates",
+      "create": "New template",
+      "createHint": "The template is sent to Meta for review when saved and cannot be used until it is approved.",
+      "empty": "This channel has no templates. Create one or sync the templates from Meta.",
+      "reason": "Meta's reason",
+      "saved": "Template saved and sent to Meta",
+      "serverError": "Meta refused the template or it could not be saved",
+      "readonlyTitle": "The template is read-only",
+      "readonlyDescription": "Meta accepts no edit in the template's current status, or you cannot manage templates.",
+      "dangerTitle": "Delete template",
+      "deleteHint": "The template is deleted from Meta and from WebVue and can no longer be used.",
+      "delete": "Delete template",
+      "deleteTitle": "Delete the template {name}?",
+      "deleteDescription": "Queued messages that use this template will fail.",
+      "status": {
+        "pending": "In review",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "paused": "Paused",
+        "disabled": "Disabled",
+        "in_appeal": "In appeal",
+        "flagged": "Flagged",
+        "pending_deletion": "Pending deletion"
+      },
+      "category": {
+        "marketing": "Marketing",
+        "utility": "Utility",
+        "authentication": "Authentication"
+      },
+      "categoryHint": {
+        "marketing": "Offers, news and campaigns. Meta charges more for them.",
+        "utility": "Messages about an order, appointment or existing service.",
+        "authentication": "A one-time verification code. Meta sets the template text."
+      },
+      "quality": {
+        "green": "High quality",
+        "yellow": "Medium quality",
+        "red": "Low quality",
+        "unknown": "Unknown quality"
+      },
+      "filter": {
+        "search": "Search by template name",
+        "status": "Status",
+        "category": "Category",
+        "all": {
+          "status": "All statuses",
+          "category": "All categories"
+        }
+      },
+      "header": {
+        "none": "No header",
+        "text": "Text",
+        "image": "Image",
+        "video": "Video",
+        "document": "Document",
+        "location": "Location"
+      },
+      "form": {
+        "identity": "Identity",
+        "identityHint": "The name and language cannot change after the template is created.",
+        "category": "Category",
+        "name": "Template name",
+        "nameHint": "Lowercase English letters, digits and underscores only.",
+        "language": "Language",
+        "allowCategoryChange": "Let Meta change the category",
+        "allowCategoryChangeHint": "If Meta judges another category fits better it moves the template there instead of rejecting it.",
+        "headerTitle": "Header",
+        "headerHint": "Optional. Shown above the message text.",
+        "headerType": "Header type",
+        "headerText": "Header text",
+        "addVariable": "Add variable",
+        "variableExample": "Example for variable {n}",
+        "sampleHint": "Meta reviews a sample of the file. The Meta app id must be set in the channel settings.",
+        "sampleUpload": "Upload sample file",
+        "locationHint": "The location is sent with every message that uses this template.",
+        "bodyTitle": "Message text",
+        "bodyHint": "Press add variable to insert the next value, and give an example for each variable.",
+        "body": "Text",
+        "examplesHint": "Meta asks for a realistic example of each variable to review the template.",
+        "footerTitle": "Footer",
+        "footerHint": "Optional. A small line under the text.",
+        "footer": "Footer text",
+        "buttonsTitle": "Buttons",
+        "buttonsHint": "Optional. Shown under the message.",
+        "saveChanges": "Save changes",
+        "submit": "Save and send to Meta"
+      },
+      "invalid": {
+        "name": "Use lowercase English letters, digits and underscores",
+        "language": "Choose a language",
+        "header": "Check the header",
+        "body": "The text is required, up to 1024 characters, with consecutive variables",
+        "body_examples": "Give an example for every variable",
+        "footer": "The footer is at most 60 characters",
+        "buttons": "Check the buttons and their limits",
+        "add_security_recommendation": "Invalid value",
+        "code_expiration_minutes": "From 1 to 90 minutes",
+        "otp_button_text": "Button text is required, up to 25 characters",
+        "form": "Check the template",
+        "sample": "Upload the sample file"
+      },
+      "button": {
+        "kind": {
+          "quick_reply": "Quick reply",
+          "url": "Link",
+          "phone_number": "Call",
+          "copy_code": "Copy code"
+        },
+        "count": "{n} of {max} buttons",
+        "limits": "Limits: 10 buttons, two links, one call button, one copy-code button. Quick replies sit together, before or after the other buttons.",
+        "problem": {
+          "tooMany": "More than 10 buttons",
+          "urls": "More than two links",
+          "phone": "More than one call button",
+          "copyCode": "More than one copy-code button",
+          "grouping": "Quick replies must be next to each other"
+        },
+        "moveUp": "Move up",
+        "moveDown": "Move down",
+        "remove": "Remove button",
+        "copyCodeHint": "The customer copies the code you type when sending.",
+        "couponExample": "Example code",
+        "text": "Button text",
+        "url": "Link",
+        "addUrlVariable": "Add link variable",
+        "urlExample": "Full example link",
+        "urlExampleHint": "The link with the variable replaced by a real value.",
+        "phone": "Phone number",
+        "phoneHint": "International format starting with +",
+        "none": "No buttons."
+      },
+      "auth": {
+        "title": "Authentication options",
+        "hint": "Meta sets the text of an authentication message. Choose only what surrounds it.",
+        "securityRecommendation": "Add the security notice",
+        "securityRecommendationHint": "Adds a notice not to share the code with anyone.",
+        "expiration": "Code validity in minutes",
+        "expirationHint": "Optional. From 1 to {max} minutes, shown in the message footer.",
+        "buttonText": "Copy button text",
+        "copyCode": "Copy code",
+        "previewBody": "123456 is your verification code.",
+        "previewSecurity": "For your security, do not share this code.",
+        "previewExpiry": "This code expires in {minutes} minutes."
+      },
+      "preview": {
+        "title": "Preview",
+        "hint": "This is how the customer sees it. The text direction follows the template language.",
+        "emptyBody": "Message text",
+        "emptyButton": "Button text"
+      }
     }
   }
 }

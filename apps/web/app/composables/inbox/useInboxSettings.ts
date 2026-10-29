@@ -7,9 +7,12 @@ import {
   InboxChannelSchema,
   InboxDepartmentListSchema,
   InboxDepartmentSchema,
+  InboxAttachmentSchema,
   InboxSettingsSchema,
   InboxTagListSchema,
   InboxTagSchema,
+  InboxTemplateListSchema,
+  InboxTemplateSchema,
   type InboxCannedReplyWrite,
   type InboxChannelCreate,
   type InboxChannelPatch,
@@ -17,7 +20,9 @@ import {
   type InboxPresetKey,
   type InboxSettingsPatch,
   type InboxTagWrite,
+  type InboxTemplateWrite,
 } from '@webvue/contracts'
+import { fileToBase64 } from '../../utils/attachmentFile'
 import { inboxKeys } from './useInbox'
 
 // Same 'inbox' root as the staff keys, so the bus invalidation of ['inbox'] refreshes the settings too.
@@ -185,3 +190,75 @@ function useChannelAction(id: MaybeRefOrGetter<number>, path: 'test' | 'template
 
 export const useTestInboxChannel = (id: MaybeRefOrGetter<number>) => useChannelAction(id, 'test')
 export const useSyncInboxTemplates = (id: MaybeRefOrGetter<number>) => useChannelAction(id, 'templates/sync')
+
+// ---------------------------------------------------------------- templates (settings)
+
+export interface InboxTemplateFilters {
+  status?: string
+  category?: string
+  q?: string
+  limit?: number
+  offset?: number
+}
+
+const cleanFilters = (filters: InboxTemplateFilters) => Object.fromEntries(Object.entries(filters).filter(([, value]) => value !== undefined && value !== ''))
+
+/** One channel's templates with any status, for the templates page. */
+export function useInboxChannelTemplates(channelId: MaybeRefOrGetter<number | null>, filters: MaybeRefOrGetter<InboxTemplateFilters>) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: computed(() => inboxKeys.templateList(toValue(channelId) ?? 0, cleanFilters(toValue(filters)))),
+    enabled: computed(() => !!toValue(channelId)),
+    retry: false,
+    queryFn: () => $api(`/api/v1/inbox/channels/${toValue(channelId)}/templates`, { query: cleanFilters(toValue(filters)), schema: InboxTemplateListSchema }),
+  })
+}
+
+export function useInboxTemplate(id: MaybeRefOrGetter<number | null>) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: computed(() => inboxKeys.template(toValue(id) ?? 0)),
+    enabled: computed(() => !!toValue(id)),
+    retry: false,
+    queryFn: () => $api(`/api/v1/inbox/templates/${toValue(id)}`, { schema: InboxTemplateSchema }),
+  })
+}
+
+/** Creates a template on the channel (and submits it to Meta), or edits an existing one when `id` is given. */
+export function useSaveInboxTemplate(channelId: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id?: number; body: InboxTemplateWrite }) => id
+      ? $api(`/api/v1/inbox/templates/${id}`, { method: 'PATCH', body, schema: InboxTemplateSchema })
+      : $api(`/api/v1/inbox/channels/${toValue(channelId)}/templates`, { method: 'POST', body, schema: InboxTemplateSchema }),
+    onSuccess: async (template) => {
+      qc.setQueryData(inboxKeys.template(template.id), template)
+      await qc.invalidateQueries({ queryKey: inboxKeys.templates(toValue(channelId)) })
+    },
+  })
+}
+
+export function useDeleteInboxTemplate(channelId: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => $api(`/api/v1/inbox/templates/${id}`, { method: 'DELETE' }),
+    onSuccess: async (_, id) => {
+      qc.removeQueries({ queryKey: inboxKeys.template(id) })
+      await qc.invalidateQueries({ queryKey: inboxKeys.templates(toValue(channelId)) })
+    },
+  })
+}
+
+/** Uploads the sample file of a media header, as base64 JSON; the answer is what the template then references by id. */
+export function useUploadInboxTemplateSample(channelId: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: async (file: File) => $api(`/api/v1/inbox/channels/${toValue(channelId)}/templates/uploads`, {
+      method: 'POST',
+      body: { name: file.name, mimetype: file.type || 'application/octet-stream', data: await fileToBase64(file) },
+      schema: InboxAttachmentSchema,
+    }),
+  })
+}

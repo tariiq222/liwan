@@ -4,7 +4,7 @@
 
 export const INBOX_CAPABILITIES = [
   'inbox.conversations.read', 'inbox.conversations.reply', 'inbox.conversations.assign', 'inbox.conversations.export',
-  'inbox.channels.manage', 'inbox.settings.manage',
+  'inbox.channels.manage', 'inbox.settings.manage', 'inbox.templates.manage',
 ]
 export const INBOX_FEATURES = ['inbox.enabled', 'inbox.whatsapp']
 
@@ -22,7 +22,7 @@ function seed() {
   const tags = [{ id: 1, name: 'شكوى' }, { id: 2, name: 'حجز' }, { id: 3, name: 'استفسار' }]
   const channels = [{
     id: 1, name: 'واتساب الاستقبال', kind: 'whatsapp', state: 'connected', department: { id: 1, name: 'الاستقبال' },
-    phone_number_id: '109876543210987', business_account_id: '203456789012345', has_access_token: true, has_app_secret: true,
+    phone_number_id: '109876543210987', business_account_id: '203456789012345', has_access_token: true, has_app_secret: true, app_id: '1234567890123',
     verify_token: 'mock-verify-token-4f9c2a', callback_url: 'https://app.example.test/api/v1/inbox/hooks/whatsapp',
     last_error: null, last_event_at: ago(0.2),
   }]
@@ -52,7 +52,7 @@ function seed() {
   }
   let nextMessageId = 100
   const message = (direction, body, hoursAgo, extra = {}) => ({
-    id: nextMessageId++, direction, kind: 'text', body, author: direction === 'in' ? null : AGENTS[0], template_name: null,
+    id: nextMessageId++, direction, kind: 'text', body, author: direction === 'in' ? null : AGENTS[0], template: null,
     delivery_state: direction === 'in' ? 'received' : 'sent', error: null, attachments: [], reply_to: null,
     reactions: { customer: null, agent: null }, location: null, interactive: null, selected_option: null, created_at: ago(hoursAgo), ...extra,
   })
@@ -96,6 +96,10 @@ function seed() {
       message('in', 'هل المنتج متوفر بلون آخر؟', 40),
       message('out', 'سنتحقق ونعود إليك.', 39, { delivery_state: 'delivered' }),
       message('out', 'تأكيد توفر اللون الأزرق.', 38, { delivery_state: 'failed', error: 'انتهت نافذة الرد: يلزم إرسال قالب معتمد.' }),
+      message('out', 'مرحبًا فهد، نذكّرك بموعدك يوم الخميس.', 37, {
+        kind: 'template', delivery_state: 'read',
+        template: { name: 'appointment_reminder', header_text: 'تذكير بموعدك', footer: 'عيادة الأمل', buttons: [{ type: 'quick_reply', text: 'تأكيد الحضور' }, { type: 'url', text: 'إدارة الموعد' }] },
+      }),
     ],
     3: [message('in', 'شكرًا لكم على الخدمة.', 5), message('out', 'العفو، سعداء بخدمتك.', 4.9, { delivery_state: 'delivered' })],
     4: [message('in', 'أحتاج مساعدة عاجلة في طلبي رقم 4521.', 1)],
@@ -105,9 +109,30 @@ function seed() {
     c.last_message_at = last.created_at
     c.last_message_preview = last.body.slice(0, 140)
   }
+  const sample = { id: 7, name: 'عينة-العيادة.jpg', mimetype: 'image/jpeg', size: 90000 }
+  const template = (id, name, rest) => ({
+    id, name, language: 'ar', category: 'utility', status: 'approved', status_reason: null, quality: 'green', header: null,
+    body: 'نشكرك على تواصلك.', body_examples: [], footer: null, buttons: [], add_security_recommendation: false, code_expiration_minutes: null,
+    param_count: 0, editable: true, otp_button_text: null, ...rest,
+  })
   const templates = [
-    { id: 1, name: 'appointment_reminder', language: 'ar', category: 'UTILITY', status: 'APPROVED', body: 'مرحبًا {{1}}، نذكّرك بموعدك يوم {{2}}.', param_count: 2 },
-    { id: 2, name: 'follow_up', language: 'ar', category: 'MARKETING', status: 'APPROVED', body: 'نشكرك على تواصلك. هل يمكننا مساعدتك في شيء آخر؟', param_count: 0 },
+    template(1, 'appointment_reminder', {
+      header: { type: 'text', text: 'تذكير بموعدك', example: null }, body: 'مرحبًا {{1}}، نذكّرك بموعدك يوم {{2}}.', body_examples: ['فهد', 'الخميس'], param_count: 2, footer: 'عيادة الأمل',
+      buttons: [{ type: 'quick_reply', text: 'تأكيد الحضور' }, { type: 'url', text: 'إدارة الموعد', url: 'https://example.test/appointments/{{1}}', example: 'https://example.test/appointments/4521' }],
+    }),
+    template(2, 'follow_up', {
+      category: 'marketing', quality: 'yellow', header: { type: 'image', example_attachment: sample },
+      body: 'نشكرك على تواصلك. هل يمكننا مساعدتك في شيء آخر؟', buttons: [{ type: 'phone_number', text: 'اتصل بنا', phone_number: '+966112345678' }],
+    }),
+    template(3, 'summer_offer', {
+      category: 'marketing', status: 'rejected', quality: 'unknown', status_reason: 'Meta: the variable at the start of the text is not allowed.',
+      body: 'خصم {{1}} على جميع الخدمات هذا الأسبوع.', body_examples: ['20%'], param_count: 1,
+    }),
+    template(4, 'login_code', {
+      category: 'authentication', body: '{{1}} هو رمز التحقق الخاص بك. حفاظًا على أمانك، لا تشارك هذا الرمز مع أحد.', param_count: 1,
+      add_security_recommendation: true, code_expiration_minutes: 10, otp_button_text: 'نسخ الرمز',
+    }),
+    template(5, 'weekly_digest', { status: 'pending', quality: 'unknown', editable: false, body: 'ملخص أسبوعك: {{1}} طلبات جديدة.', body_examples: ['12'], param_count: 1 }),
   ]
   const canned = [
     { id: 1, shortcut: 'hello', body: 'أهلًا بك، كيف يمكنني مساعدتك؟' },
@@ -116,10 +141,12 @@ function seed() {
   return {
     settings: { visibility_policy: 'department', auto_close_hours: 72, retention_months: 24 },
     departments, tags, channels, contacts, conversations, messages, templates, canned,
-    ids: { department: 3, tag: 4, canned: 3, channel: 2, upload: 100, message: () => nextMessageId++ },
+    ids: { department: 3, tag: 4, canned: 3, channel: 2, template: 6, upload: 100, message: () => nextMessageId++ },
     statuses: new Map(),
     // Files uploaded to a conversation and not yet sent: attachment id -> { conversationId, attachment }.
     uploads: new Map(),
+    // Sample files of template headers: attachment id -> attachment.
+    samples: new Map(),
   }
 }
 
@@ -181,7 +208,7 @@ function patchConversation(conv, body) {
 
 function appendMessage(conv, fields) {
   const created = {
-    id: state.ids.message(), direction: 'out', kind: 'text', body: '', author: ME, template_name: null, delivery_state: 'queued', error: null, attachments: [],
+    id: state.ids.message(), direction: 'out', kind: 'text', body: '', author: ME, template: null, delivery_state: 'queued', error: null, attachments: [],
     reply_to: null, reactions: { customer: null, agent: null }, location: null, interactive: null, selected_option: null, created_at: iso(Date.now()), ...fields,
   }
   state.messages[conv.id].push(created)
@@ -201,15 +228,28 @@ const kindOfMimetype = mimetype => {
 }
 
 // Same refusals as the upload route: unsupported media type 422, over the cap 413 (images 5 MB, others 10 MiB), created 201.
-function upload(conv, body) {
+function newUpload(body) {
   const { name, mimetype, data } = body
-  if (!name || !mimetype || !data) return fail(422, 'invalid', 'name, mimetype and data are required')
+  if (!name || !mimetype || !data) return { refusal: fail(422, 'invalid', 'name, mimetype and data are required') }
   const family = mimetype.split('/')[0]
-  if (family in GENERIC_MEDIA && !GENERIC_MEDIA[family].includes(mimetype)) return fail(422, 'invalid', 'نوع الملف غير مدعوم', 'mimetype')
+  if (family in GENERIC_MEDIA && !GENERIC_MEDIA[family].includes(mimetype)) return { refusal: fail(422, 'invalid', 'نوع الملف غير مدعوم', 'mimetype') }
   const size = Math.floor(data.length * 3 / 4) - (data.endsWith('==') ? 2 : data.endsWith('=') ? 1 : 0)
-  if (size > (family === 'image' ? 5 : 10) * MIB) return fail(413, 'payload_too_large', 'الملف أكبر من الحد المسموح')
-  const attachment = { id: state.ids.upload++, name, mimetype, size }
+  if (size > (family === 'image' ? 5 : 10) * MIB) return { refusal: fail(413, 'payload_too_large', 'الملف أكبر من الحد المسموح') }
+  return { attachment: { id: state.ids.upload++, name, mimetype, size } }
+}
+
+function upload(conv, body) {
+  const { attachment, refusal } = newUpload(body)
+  if (refusal) return refusal
   state.uploads.set(attachment.id, { conversationId: conv.id, attachment })
+  return { status: 201, body: attachment }
+}
+
+// The sample file of a template header, kept for the template that references it.
+function templateSample(body) {
+  const { attachment, refusal } = newUpload(body)
+  if (refusal) return refusal
+  state.samples.set(attachment.id, attachment)
   return { status: 201, body: attachment }
 }
 
@@ -245,10 +285,46 @@ function reply(conv, body) {
     if (interactiveProblem(body.interactive)) return fail(422, 'invalid', 'حدود الرسالة التفاعلية', 'interactive')
     return ok(appendMessage(conv, { kind: 'interactive', body: body.interactive.body, interactive: body.interactive, reply_to: quoted }))
   }
+  return sendTemplate(conv, body)
+}
+
+// The buttons that take a value per message, by position: a url ending in a variable and a copy-code button.
+const dynamicButtonIndexes = template => template.buttons.flatMap((button, index) => button.type === 'copy_code' || (button.type === 'url' && button.url.endsWith('{{1}}')) ? [index] : [])
+
+// Same refusals as the reply route for a template: it must be approved and every parameter present and counted.
+function sendTemplate(conv, body) {
+  if ('reply_to_id' in body) return fail(422, 'invalid', 'القوالب لا تدعم الرد على رسالة', 'reply_to_id')
   const template = state.templates.find(item => item.id === body.template_id)
   if (!template) return fail(422, 'invalid', 'القالب غير موجود لهذه القناة', 'template_id')
+  if (template.status !== 'approved') return fail(422, 'invalid', 'القالب غير معتمد بعد', 'template_id')
   if ((body.params ?? []).length !== template.param_count) return fail(422, 'invalid', 'عدد المتغيرات غير صحيح', 'params')
-  return ok(appendMessage(conv, { kind: 'template', body: renderTemplate(template.body, body.params), template_name: template.name }))
+  const header = template.header
+  let headerText = null
+  let attachments = []
+  let location = null
+  if (header?.type === 'text') {
+    headerText = header.text
+    if (header.example !== null) {
+      if (!body.header_param) return fail(422, 'invalid', 'قيمة الرأس مطلوبة', 'header_param')
+      headerText = renderTemplate(header.text, [body.header_param])
+    }
+  } else if (header?.type === 'location') {
+    if (!body.header_location) return fail(422, 'invalid', 'موقع الرأس مطلوب', 'header_location')
+    location = body.header_location
+  } else if (header) {
+    const held = state.uploads.get(body.header_attachment_id)
+    if (!held || held.conversationId !== conv.id) return fail(422, 'invalid', 'ملف الرأس غير موجود في هذه المحادثة', 'header_attachment_id')
+    if (!held.attachment.mimetype.startsWith(`${header.type === 'document' ? 'application' : header.type}/`)) return fail(422, 'invalid', 'نوع ملف الرأس لا يطابق القالب', 'header_attachment_id')
+    state.uploads.delete(body.header_attachment_id)
+    attachments = [held.attachment]
+  }
+  const expected = dynamicButtonIndexes(template)
+  const given = (body.button_params ?? []).map(item => item.index)
+  if (expected.join() !== given.join()) return fail(422, 'invalid', 'عدد متغيرات الأزرار غير صحيح', 'button_params')
+  return ok(appendMessage(conv, {
+    kind: 'template', body: renderTemplate(template.body, body.params), attachments, location,
+    template: { name: template.name, header_text: headerText, footer: template.footer, buttons: template.buttons.map(button => ({ type: button.type, text: button.text ?? 'نسخ الرمز' })) },
+  }))
 }
 
 function react(item, body) {
@@ -298,12 +374,13 @@ function crud(collection, method, id, body, make) {
   return fail(404, 'not_found', 'not found')
 }
 
-function channelRoute(method, parts, body) {
+function channelRoute(method, parts, body, url) {
   const id = parts[4] ? Number(parts[4]) : undefined
-  const action = parts[5] === 'templates' && parts[6] === 'sync' ? 'sync' : parts[5]
-  if (method === 'GET' && action === 'templates') return ok(list(state.templates.filter(item => item.status === 'APPROVED')))
+  const action = parts[5] === 'templates' && parts[6] ? parts[6] : parts[5]
   const channel = state.channels.find(item => item.id === id)
   if (id !== undefined && !channel) return fail(404, 'not_found', 'not found')
+  if (action === 'templates') return method === 'GET' ? templateList(url) : createTemplate(channel, body)
+  if (method === 'POST' && action === 'uploads') return templateSample(body)
   if (method === 'POST' && action === 'test') { channel.state = 'connected'; channel.last_error = null; return ok(channel) }
   if (method === 'POST' && action === 'sync') return ok(list(state.templates))
   const department = value => value ? { id: value, name: state.departments.find(item => item.id === value)?.name ?? '' } : null
@@ -313,9 +390,80 @@ function channelRoute(method, parts, body) {
     department: 'department_id' in input ? department(input.department_id) : current?.department ?? null,
     phone_number_id: current?.phone_number_id ?? input.phone_number_id, business_account_id: current?.business_account_id ?? input.business_account_id,
     has_access_token: current?.has_access_token || !!input.access_token, has_app_secret: current?.has_app_secret || !!input.app_secret,
+    app_id: 'app_id' in input ? input.app_id : current?.app_id ?? null,
     verify_token: current?.verify_token ?? `mock-verify-token-${state.ids.channel}`, callback_url: 'https://app.example.test/api/v1/inbox/hooks/whatsapp',
     last_error: current?.last_error ?? null, last_event_at: current?.last_event_at ?? null,
   }))
+}
+
+const placeholderCount = text => Math.max(0, ...[...text.matchAll(/\{\{(\d+)\}\}/g)].map(match => Number(match[1])))
+const AUTH_BODY = '{{1}} هو رمز التحقق الخاص بك.'
+const AUTH_SECURITY = ' حفاظًا على أمانك، لا تشارك هذا الرمز مع أحد.'
+
+// The stored template for a write: Meta's fixed text for authentication, the sample file for a media header, and the
+// review status "pending" a template always gets when it is submitted. Returns { refusal } the way Meta or the server would.
+function templateFromWrite(channel, input, current) {
+  const duplicate = state.templates.some(item => item.id !== current?.id && item.name === input.name && item.language === input.language)
+  if (duplicate) return { refusal: fail(422, 'invalid', 'Meta: a template with this name and language already exists.', 'name') }
+  if (current && (input.name !== current.name || input.language !== current.language)) return { refusal: fail(422, 'invalid', 'الاسم واللغة لا يتغيران', 'name') }
+  const base = { id: current?.id ?? state.ids.template++, name: input.name, language: input.language, category: input.category, status: 'pending', status_reason: null, quality: 'unknown', editable: false, otp_button_text: null }
+  if (input.category === 'authentication') {
+    return {
+      template: {
+        ...base, header: null, body: AUTH_BODY + (input.add_security_recommendation ? AUTH_SECURITY : ''), body_examples: [],
+        footer: input.code_expiration_minutes ? `تنتهي صلاحية هذا الرمز خلال ${input.code_expiration_minutes} دقيقة.` : null,
+        buttons: [], otp_button_text: input.otp_button_text, add_security_recommendation: input.add_security_recommendation,
+        code_expiration_minutes: input.code_expiration_minutes, param_count: 1,
+      },
+    }
+  }
+  if (/forbidden/i.test(input.body)) return { refusal: fail(422, 'invalid', 'Meta: the body contains text that is not allowed.', 'body') }
+  let header = null
+  if (input.header && ['image', 'video', 'document'].includes(input.header.type)) {
+    if (!channel.app_id) return { refusal: fail(422, 'invalid', 'معرّف تطبيق Meta مطلوب لرفع عينة الرأس', 'app_id') }
+    const example = state.samples.get(input.header.example_attachment_id)
+    if (!example) return { refusal: fail(422, 'invalid', 'ملف العينة غير موجود', 'header') }
+    header = { type: input.header.type, example_attachment: example }
+  } else header = input.header
+  return {
+    template: {
+      ...base, header, body: input.body, body_examples: input.body_examples, footer: input.footer, buttons: input.buttons,
+      add_security_recommendation: false, code_expiration_minutes: null, param_count: placeholderCount(input.body),
+    },
+  }
+}
+
+function templateList(url) {
+  const wanted = { status: url.searchParams.get('status'), category: url.searchParams.get('category'), q: (url.searchParams.get('q') ?? '').trim().toLowerCase() }
+  const items = state.templates
+    .filter(item => !wanted.status || item.status === wanted.status)
+    .filter(item => !wanted.category || item.category === wanted.category)
+    .filter(item => !wanted.q || item.name.includes(wanted.q))
+  return ok(page(items, url))
+}
+
+function createTemplate(channel, body) {
+  const { template, refusal } = templateFromWrite(channel, body)
+  if (refusal) return refusal
+  state.templates.push(template)
+  return { status: 201, body: template }
+}
+
+function templateRoute(method, id, body) {
+  const index = state.templates.findIndex(item => item.id === id)
+  if (index < 0) return fail(404, 'not_found', 'not found')
+  const current = state.templates[index]
+  if (method === 'GET') return ok(current)
+  if (method === 'DELETE') {
+    state.templates.splice(index, 1)
+    return { status: 204, body: undefined }
+  }
+  if (method !== 'PATCH') return fail(404, 'not_found', 'not found')
+  if (!current.editable) return fail(422, 'invalid', 'Meta: this template cannot be edited in its current status.')
+  const { template, refusal } = templateFromWrite(state.channels[0], body, current)
+  if (refusal) return refusal
+  state.templates[index] = template
+  return ok(template)
 }
 
 const PICTURE = '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="320"><rect width="480" height="320" fill="#d7e6f5"/><circle cx="130" cy="110" r="38" fill="#f2c94c"/><path d="M0 320 150 170l90 90 80-70 160 130z" fill="#5b8db8"/></svg>'
@@ -404,7 +552,8 @@ export function inboxPreviewData(method, path, url, body = {}) {
       members: (input.member_ids ?? current?.members.map(member => member.id) ?? []).map(member => ({ id: member, name: nameOf(member) })),
     }))
   }
-  if (resource === 'channels') return channelRoute(method, parts, body)
+  if (resource === 'templates' && id !== undefined) return templateRoute(method, id, body)
+  if (resource === 'channels') return channelRoute(method, parts, body, url)
   return undefined
 }
 

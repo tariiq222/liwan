@@ -6,7 +6,9 @@ import { INBOX_CAPTION_MAX, INBOX_UPLOAD_ACCEPT, inboxAcceptsCaption, inboxFileS
 import { emptyInboxDraft, inboxDrafts } from '@/composables/inbox/inboxDrafts'
 import { buildInteractive, emptyInteractiveDraft } from '@/composables/inbox/inboxInteractive'
 import { buildLocation, emptyLocationDraft } from '@/composables/inbox/inboxLocation'
-import { cannedSuggestions, renderTemplateBody, replyWindowOpen } from '@/composables/inbox/inboxWindow'
+import { TEMPLATE_CATEGORY_TONE, templatePreview } from '@/composables/inbox/inboxTemplate'
+import { HEADER_MEDIA_ACCEPT, buildTemplateReply, dynamicButtons, headerInput, templateReplyReady } from '@/composables/inbox/inboxTemplateSend'
+import { cannedSuggestions, replyWindowOpen } from '@/composables/inbox/inboxWindow'
 
 // Three ways to write: a reply (inside the 24-hour customer-service window) that is text, a file with a caption, a
 // location or an interactive message and may quote one message, an approved template with its parameters (the only
@@ -24,6 +26,14 @@ const texts = reactive({ reply: '', note: '' })
 const draft = computed({ get: () => texts[mode.value], set: (value: string) => { texts[mode.value] = value } })
 const templateId = ref<number | undefined>(undefined)
 const params = ref<string[]>([])
+// The other inputs a template may ask for: its header value (text, a file of this conversation, or a location) and one
+// value per button that takes one (a url suffix or a coupon code).
+const headerParam = ref('')
+const buttonValues = ref<string[]>([])
+const headerLocation = ref(emptyLocationDraft())
+const headerUpload = ref<{ name: string; attachment: InboxAttachment | null } | null>(null)
+const headerError = ref('')
+let headerSeq = 0
 const highlighted = ref(0)
 const suggestionsDismissed = ref(false)
 const panel = ref<'location' | 'interactive' | null>(null)
@@ -60,13 +70,25 @@ const { data: templates, isLoading: templatesLoading, isError: templatesFailed, 
 
 const suggestions = computed(() => mode.value === 'reply' && windowOpen.value && !suggestionsDismissed.value ? cannedSuggestions(draft.value, canned.value?.items ?? []) : [])
 const selectedTemplate = computed(() => templates.value?.items.find(item => item.id === templateId.value))
-const templateItems = computed(() => (templates.value?.items ?? []).map(item => ({ value: item.id, label: `${item.name} · ${item.language}` })))
+const templateItems = computed(() => (templates.value?.items ?? []).map(item => ({ value: item.id, label: `${item.name} · ${item.language}`, category: item.category })))
 const modeItems = computed(() => [
   { value: 'reply', label: t('inbox.composer.reply'), icon: 'i-lucide-reply' },
   { value: 'note', label: t('inbox.composer.note'), icon: 'i-lucide-lock' },
 ])
-const preview = computed(() => selectedTemplate.value ? renderTemplateBody(selectedTemplate.value.body, params.value) : '')
-const paramsFilled = computed(() => !selectedTemplate.value || params.value.slice(0, selectedTemplate.value.param_count).every(value => value.trim()))
+const headerNeeds = computed(() => selectedTemplate.value ? headerInput(selectedTemplate.value) : null)
+const buttonInputs = computed(() => selectedTemplate.value ? dynamicButtons(selectedTemplate.value) : [])
+const headerUploading = computed(() => !!headerUpload.value && !headerUpload.value.attachment)
+const sendInput = computed(() => ({
+  params: params.value,
+  headerParam: headerParam.value,
+  headerAttachmentId: headerUpload.value?.attachment?.id ?? null,
+  headerLocation: buildLocation(headerLocation.value),
+  buttonValues: buttonValues.value,
+}))
+const templateReady = computed(() => !!selectedTemplate.value && !headerUploading.value && templateReplyReady(selectedTemplate.value, sendInput.value))
+const previewParts = computed(() => selectedTemplate.value
+  ? templatePreview(selectedTemplate.value, { params: params.value, headerParam: headerParam.value, headerMediaName: headerUpload.value?.name ?? null }, t('inbox.templates.auth.copyCode'))
+  : null)
 const textareaLabel = computed(() => mode.value === 'note' ? t('inbox.composer.notePlaceholder') : upload.value ? t('inbox.composer.captionPlaceholder') : t('inbox.composer.placeholder'))
 const uploading = computed(() => !!upload.value && !upload.value.attachment)
 const captionAllowed = computed(() => !upload.value?.attachment || inboxAcceptsCaption(upload.value.attachment.mimetype))
@@ -78,15 +100,31 @@ const replyReady = computed(() => {
   if (panel.value === 'interactive') return !!buildInteractive(interactive.value)
   return !uploading.value && !captionTooLong.value && (!!upload.value || !!draft.value.trim())
 })
-const canSend = computed(() => hydrated.value && !sending.value && (templateMode.value ? !!selectedTemplate.value && paramsFilled.value : mode.value === 'note' ? !!draft.value.trim() : replyReady.value))
+const canSend = computed(() => hydrated.value && !sending.value && (templateMode.value ? templateReady.value : mode.value === 'note' ? !!draft.value.trim() : replyReady.value))
 
 watch(draft, () => { suggestionsDismissed.value = false; highlighted.value = 0 })
 // A restored draft keeps its parameters; choosing another template starts them empty.
 watch(selectedTemplate, (template, previous) => {
-  if (previous && template && previous.id !== template.id) params.value = []
+  if (previous && previous.id !== template?.id) resetTemplateInputs()
   const count = template?.param_count ?? 0
   if (params.value.length !== count) params.value = Array.from({ length: count }, (_, index) => params.value[index] ?? '')
+  const buttons = template ? dynamicButtons(template).length : 0
+  if (buttonValues.value.length !== buttons) buttonValues.value = Array.from({ length: buttons }, (_, index) => buttonValues.value[index] ?? '')
 })
+
+function resetTemplateInputs() {
+  params.value = []
+  headerParam.value = ''
+  buttonValues.value = []
+  headerLocation.value = emptyLocationDraft()
+  discardHeaderUpload()
+}
+function discardHeaderUpload() {
+  headerSeq++
+  headerUpload.value = null
+  headerError.value = ''
+}
+const FAMILY = { image: (type: string) => type.startsWith('image/'), video: (type: string) => type.startsWith('video/'), document: (type: string) => !/^(image|video|audio)\//.test(type) }
 
 // Drafts live per conversation (the workspace keys this component by conversation). Restored after mount so the
 // server-rendered and first client render agree; every change is stored, and a successful send clears what it sent.
@@ -98,13 +136,15 @@ onMounted(() => {
     texts.note = stored.note
     templateId.value = stored.templateId ?? undefined
     params.value = stored.params
+    headerParam.value = stored.headerParam
+    buttonValues.value = stored.buttonParams
     if (stored.replyTo && !props.replyTo) emit('update:replyTo', stored.replyTo)
     if (stored.location) { location.value = stored.location; panel.value = 'location' }
     if (stored.interactive) { interactive.value = stored.interactive; panel.value = 'interactive' }
   }
   hydratedDraft.value = true
 })
-watch([() => texts.reply, () => texts.note, templateId, params, () => props.replyTo, panel, location, interactive], () => {
+watch([() => texts.reply, () => texts.note, templateId, params, headerParam, buttonValues, () => props.replyTo, panel, location, interactive], () => {
   if (!hydratedDraft.value || !me.value?.id) return
   inboxDrafts.set(me.value.id, props.conversation.id, {
     ...emptyInboxDraft(),
@@ -112,6 +152,8 @@ watch([() => texts.reply, () => texts.note, templateId, params, () => props.repl
     note: texts.note,
     templateId: templateId.value ?? null,
     params: [...params.value],
+    headerParam: headerParam.value,
+    buttonParams: [...buttonValues.value],
     replyTo: props.replyTo ?? null,
     location: panel.value === 'location' ? { ...location.value } : null,
     interactive: panel.value === 'interactive' ? JSON.parse(JSON.stringify(interactive.value)) : null,
@@ -153,6 +195,33 @@ async function onFilePicked(event: Event) {
     if (current !== uploadSeq) return
     upload.value = null
     uploadError.value = e instanceof ApiError && e.status === 413 ? t('inbox.composer.upload.tooLargeServer') : t('inbox.composer.upload.failed')
+  }
+}
+
+async function onHeaderPicked(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file || headerNeeds.value?.kind !== 'media') return
+  discardHeaderUpload()
+  const problem = inboxUploadProblem(file)
+  if (problem) {
+    headerError.value = t(`inbox.composer.upload.${problem.reason}`, { name: file.name, limit: problem.reason === 'tooLarge' ? problem.limitMb : 0 })
+    return
+  }
+  if (!FAMILY[headerNeeds.value.media](file.type)) {
+    headerError.value = t(`inbox.composer.headerWrongType.${headerNeeds.value.media}`, { name: file.name })
+    return
+  }
+  const current = ++headerSeq
+  headerUpload.value = { name: file.name, attachment: null }
+  try {
+    const attachment = await uploadFile(file)
+    if (current === headerSeq && headerUpload.value) headerUpload.value.attachment = attachment
+  } catch (e) {
+    if (current !== headerSeq) return
+    headerUpload.value = null
+    headerError.value = e instanceof ApiError && e.status === 413 ? t('inbox.composer.upload.tooLargeServer') : t('inbox.composer.upload.failed')
   }
 }
 
@@ -205,9 +274,9 @@ async function submit() {
   if (!canSend.value) return
   try {
     if (templateMode.value) {
-      await sendReply({ template_id: selectedTemplate.value!.id, params: params.value.slice(0, selectedTemplate.value!.param_count).map(value => value.trim()) })
+      await sendReply(buildTemplateReply(selectedTemplate.value!, sendInput.value))
       templateId.value = undefined
-      params.value = []
+      resetTemplateInputs()
     } else if (mode.value === 'note') {
       await sendNote({ body: draft.value.trim() })
       texts.note = ''
@@ -247,15 +316,36 @@ async function submit() {
       <p v-else-if="!templateItems.length" class="text-sm text-muted" data-testid="inbox-no-templates">{{ t('inbox.composer.noTemplates') }}</p>
       <template v-else>
         <UFormField :label="t('inbox.composer.template')">
-          <USelect v-model="templateId" class="w-full" :items="templateItems" :placeholder="t('inbox.composer.pickTemplate')" :disabled="!hydrated || sending" data-testid="inbox-template-select" />
+          <USelect v-model="templateId" class="w-full" :items="templateItems" :placeholder="t('inbox.composer.pickTemplate')" :disabled="!hydrated || sending" data-testid="inbox-template-select">
+            <template #item-trailing="{ item }"><SharedStatusBadge v-if="typeof item === 'object' && 'category' in item" size="sm" :tone="TEMPLATE_CATEGORY_TONE[item.category]" :label="t(`inbox.templates.category.${item.category}`)" /></template>
+          </USelect>
         </UFormField>
         <div v-if="selectedTemplate" class="flex flex-col gap-2">
-          <UFormField v-for="(_, index) in params" :key="index" :label="t('inbox.composer.param', { n: index + 1 })" required>
+          <p v-if="selectedTemplate.category === 'marketing'" class="flex items-center gap-1.5 text-xs text-muted" data-testid="inbox-template-marketing-note">
+            <SharedStatusBadge size="sm" :tone="TEMPLATE_CATEGORY_TONE.marketing" :label="t('inbox.templates.category.marketing')" />{{ t('inbox.composer.marketingNote') }}
+          </p>
+          <UFormField v-if="headerNeeds?.kind === 'text'" :label="t('inbox.composer.headerParam')" required>
+            <UInput v-model="headerParam" class="w-full" maxlength="60" :disabled="!hydrated || sending" data-testid="inbox-template-header-param" />
+          </UFormField>
+          <div v-else-if="headerNeeds?.kind === 'media'" class="flex flex-col gap-2" data-testid="inbox-template-header-media">
+            <p class="text-sm font-medium">{{ t('inbox.composer.headerMedia', { kind: t(`inbox.templates.header.${headerNeeds.media}`) }) }} <span class="text-error" aria-hidden="true">*</span></p>
+            <div class="flex flex-wrap items-center gap-2">
+              <SharedFileField :accept="HEADER_MEDIA_ACCEPT[headerNeeds.media]" :label="t('inbox.composer.attach')" :show-file-name="false" :disabled="!hydrated || sending || headerUploading" data-testid="inbox-template-header-file" @change="onHeaderPicked" />
+              <span v-if="headerUpload" class="inline-flex min-w-0 items-center gap-1.5 text-sm"><UIcon name="i-lucide-paperclip" class="size-4 shrink-0 text-muted" aria-hidden="true" /><bdi class="truncate">{{ headerUpload.name }}</bdi><UIcon v-if="headerUploading" name="i-lucide-loader-circle" class="size-3.5 animate-spin text-muted" aria-hidden="true" /></span>
+              <UButton v-if="headerUpload" type="button" color="neutral" variant="ghost" size="sm" icon="i-lucide-x" :aria-label="t('inbox.composer.removeFile')" @click="discardHeaderUpload" />
+            </div>
+            <p v-if="headerError" class="text-sm text-error" role="alert" data-testid="inbox-template-header-error">{{ headerError }}</p>
+          </div>
+          <InboxLocationForm v-else-if="headerNeeds?.kind === 'location'" v-model="headerLocation" />
+          <UFormField v-for="(_, index) in params" :key="index" :label="selectedTemplate.category === 'authentication' ? t('inbox.composer.code') : t('inbox.composer.param', { n: index + 1 })" required>
             <UInput v-model="params[index]" class="w-full" maxlength="1024" :disabled="!hydrated || sending" />
           </UFormField>
+          <UFormField v-for="(button, position) in buttonInputs" :key="button.index" :label="button.type === 'copy_code' ? t('inbox.composer.couponCode') : t('inbox.composer.urlSuffix', { text: button.text })" required>
+            <UInput v-model="buttonValues[position]" class="w-full" dir="ltr" maxlength="2000" :disabled="!hydrated || sending" :data-testid="`inbox-template-button-param-${position}`" />
+          </UFormField>
           <SharedSubCard tone="tinted">
-            <p class="text-xs text-muted">{{ t('inbox.composer.preview') }}</p>
-            <p class="mt-1 text-sm whitespace-pre-wrap" data-testid="inbox-template-preview">{{ preview }}</p>
+            <p class="mb-2 text-xs text-muted">{{ t('inbox.composer.preview') }}</p>
+            <InboxTemplatePreview v-if="previewParts" :parts="previewParts" />
           </SharedSubCard>
         </div>
       </template>
