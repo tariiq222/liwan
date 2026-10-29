@@ -5,6 +5,7 @@ CHANNELS_LIMIT = 'inbox.channels'
 MESSAGES_OUT_LIMIT = 'inbox.messages_out'
 WHATSAPP_FEATURE = 'inbox.whatsapp'
 AUTOMATION_FEATURE = 'inbox.automation'
+DEFAULT_TIMEZONE = 'Asia/Riyadh'
 
 # WhatsApp customer-service window: free-form replies are accepted this long after the last inbound message.
 REPLY_WINDOW = timedelta(hours=24)

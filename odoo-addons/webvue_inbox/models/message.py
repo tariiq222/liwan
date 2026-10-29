@@ -97,7 +97,11 @@ class WebVueInboxMessage(models.Model):
         outbound = sum(1 for vals in vals_list if vals.get('direction') == 'out')
         if outbound:
             self._webvue_require_monthly_room(outbound)
-        return super().create(vals_list)
+        messages = super().create(vals_list)
+        # An agent's reply ends the customer's wait, so the next wait can be alerted again.
+        answered = messages.filtered(lambda message: message.direction == 'out' and message.author_id).conversation_id
+        answered.filtered('first_response_alerted').first_response_alerted = False
+        return messages
 
     @api.model
     def _webvue_month_start(self):

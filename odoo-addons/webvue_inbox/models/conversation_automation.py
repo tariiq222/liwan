@@ -44,14 +44,6 @@ class WebVueInboxConversationAutomation(models.Model):
 
     # first-response alert (cron)
 
-    def _webvue_waiting_since(self):
-        """When the customer's current wait for an agent began: the first inbound message after the last agent reply."""
-        self.ensure_one()
-        messages = self.message_ids.filtered(lambda message: message.direction != 'note').sorted(lambda m: (m.date, m.id))
-        last_reply = max((m.date for m in messages if m.direction == 'out' and m.author_id), default=False)
-        waiting = [m.date for m in messages if m.direction == 'in' and (not last_reply or m.date > last_reply)]
-        return waiting[0] if waiting else False
-
     @api.model
     def _webvue_run_first_response_alerts(self):
         """Bell the agents of every conversation whose customer has waited too long for a first reply, once per wait."""
@@ -63,22 +55,18 @@ class WebVueInboxConversationAutomation(models.Model):
             if not minutes:
                 continue
             waiting = self.search([
-                ('company_id', '=', company.id), ('state', 'in', ('open', 'pending')),
-                ('last_inbound_at', '<=', now - relativedelta(minutes=minutes)),
-            ], limit=FIRST_RESPONSE_CRON_BATCH)
-            process_each(waiting, lambda conversation: conversation._webvue_alert_if_overdue(now, minutes), self._webvue_alert_failed)
+                ('company_id', '=', company.id), ('state', 'in', ('open', 'pending')), ('first_response_alerted', '=', False),
+                ('waiting_since', '!=', False), ('waiting_since', '<=', now - relativedelta(minutes=minutes)),
+            ], order='waiting_since', limit=FIRST_RESPONSE_CRON_BATCH)
+            process_each(waiting, lambda conversation: conversation._webvue_alert(minutes), self._webvue_alert_failed)
 
     @api.model
     def _webvue_alert_failed(self, conversation, error):
         _logger.warning('first response alert of conversation %s failed: %s', conversation.id, type(error).__name__)
 
-    def _webvue_alert_if_overdue(self, now, minutes):
+    def _webvue_alert(self, minutes):
         self.ensure_one()
-        since = self._webvue_waiting_since()
-        if not since or since > now - relativedelta(minutes=minutes) or (self.first_response_alert_at and self.first_response_alert_at >= since):
-            return
-        recipients = self.assignee_id or self._webvue_agents()
-        for user in recipients:
+        for user in self.assignee_id or self._webvue_agents():
             self.env['webvue.notify.service']._webvue_deliver(
                 self._name, self.id, FIRST_RESPONSE_KIND, user.partner_id,
                 self.env._('%(customer)s has waited %(minutes)s minutes for a reply', customer=self.contact_id.name, minutes=minutes),
@@ -86,7 +74,7 @@ class WebVueInboxConversationAutomation(models.Model):
                 values={'webvue_inbox_conversation_id': self.id, 'webvue_inbox_contact_name': self.contact_id.name},
                 replace=True,
             )
-        self.first_response_alert_at = now
+        self.first_response_alerted = True
 
     # satisfaction survey
 

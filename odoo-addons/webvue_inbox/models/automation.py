@@ -41,9 +41,12 @@ class WebVueInboxAutomation(models.AbstractModel):
 
     @api.model
     def _webvue_record_csat(self, conversation, message):
-        """Store a customer's answer to the satisfaction survey. True when `message` is one: it is then not evaluated further."""
+        """Store a customer's answer to a survey asked in this conversation (the latest answer wins).
+
+        True when `message` is one: it never reopens the conversation and runs no rule, whenever it is tapped.
+        """
         score = CSAT_SCORES.get(message.selected_option_id)
-        if not score or conversation.state != 'resolved' or conversation.csat_score:
+        if not score:
             return False
         asked = self.env['webvue.inbox.message.option'].search_count([
             ('option_id', '=', message.selected_option_id), ('message_id.conversation_id', '=', conversation.id),
@@ -182,7 +185,7 @@ class WebVueInboxAutomation(models.AbstractModel):
     @api.model
     def _webvue_auto_assign(self, conversation, settings):
         """Give an unassigned conversation to an agent by the company's policy (round robin or fewest open)."""
-        if conversation.assignee_id or settings.assignment_policy == 'manual' or conversation.state == 'closed':
+        if conversation.assignee_id or settings.assignment_policy == 'manual' or conversation.state != 'open':
             return
         agents = conversation._webvue_agents().sorted('id')
         if not agents:

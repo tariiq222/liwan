@@ -210,17 +210,21 @@ class TestRulesCompanyScope(AutomationCase):
         self.assertTrue(self.child_rule.exists())
         self.assertEqual([item['name'] for item in self.get(RULES).json()['items']], ['Parent rule'])
 
-    def test_a_rule_cannot_name_another_company_channel_or_reorder_foreign_rules(self):
+    def test_a_rule_cannot_name_another_company_channel_department_or_tag(self):
         self.login(self.manager)
-        self.assertError(self.api('POST', RULES, {**RULE_BODY, 'channel_id': self.child_channel.id}), 422, 'invalid')
+        child_department = self.env['webvue.inbox.department'].create({'name': 'Child dept', 'company_id': self.child.id})
+        child_tag = self.env['webvue.inbox.tag'].create({'name': 'Child tag', 'company_id': self.child.id})
+        for bad in ({'channel_id': self.child_channel.id}, {'department_id': child_department.id}, {'tag_ids': [child_tag.id]}):
+            self.assertError(self.api('POST', RULES, {**RULE_BODY, **bad}), 422, 'invalid')
         body = {'channel_id': self.child_channel.id, 'text': 'x', 'option_id': None, 'at': None}
         self.assertError(self.api('POST', TEST, body), 422, 'invalid')
+        self.assertError(self.api('PATCH', f'{RULES}/{self.parent_rule.id}', {'channel_id': self.child_channel.id}), 422, 'invalid')
         self.assertError(self.api('POST', f'{RULES}/reorder', {'ids': [self.parent_rule.id, self.child_rule.id]}), 422, 'invalid')
 
-    def test_the_child_manager_creates_rules_in_the_child_company(self):
+    def test_the_child_manager_cannot_put_a_rule_on_a_company_it_is_not_working_in(self):
         self.login(self.child_manager)
-        result = self.api('POST', RULES, {**RULE_BODY, 'channel_id': self.child_channel.id})
-        self.assertEqual(result.status_code, 201, result.text)
-        self.assertEqual(self.env['webvue.inbox.rule'].browse(result.json()['id']).company_id, self.child)
-        self.assertError(self.api('POST', RULES, RULE_BODY), 403, 'forbidden')
+        for bad in ({'channel_id': self.child_channel.id}, {}):
+            result = self.api('POST', RULES, {**RULE_BODY, **bad})
+            self.assertIn(result.status_code, (403, 422), result.text)
+        self.assertEqual(self.env['webvue.inbox.rule'].search_count([('name', '=', RULE_BODY['name'])]), 0)
         self.assertNotIn(self.parent_rule.id, [item['id'] for item in self.get(RULES).json()['items']])

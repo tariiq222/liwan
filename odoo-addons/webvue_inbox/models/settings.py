@@ -2,6 +2,7 @@
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
+from .constants import DEFAULT_TIMEZONE
 from .presets import PRESETS
 
 VISIBILITY_POLICIES = [
@@ -30,8 +31,10 @@ class WebVueInboxSettings(models.Model):
     visibility_policy = fields.Selection(VISIBILITY_POLICIES, required=True, default='department')
     auto_close_hours = fields.Integer(default=72, help='Idle hours before a conversation closes; 0 never closes.')
     retention_months = fields.Integer(default=24)
-    # Working hours: a calendar (weekly attendances, holidays as time off, its timezone); none means always open.
-    calendar_id = fields.Many2one('resource.calendar', ondelete='set null')
+    # Working hours: weekly ranges and holidays (local dates) in a timezone; no ranges means always open.
+    hours_timezone = fields.Char(required=True, default=DEFAULT_TIMEZONE)
+    hours_range_ids = fields.One2many('webvue.inbox.hours.range', 'settings_id')
+    holiday_ids = fields.One2many('webvue.inbox.hours.holiday', 'settings_id')
     assignment_policy = fields.Selection(ASSIGNMENT_POLICIES, required=True, default='manual')
     # The agent who got the last conversation of a company without departments (the round robin pointer).
     round_robin_user_id = fields.Many2one('res.users', ondelete='set null')
@@ -60,7 +63,8 @@ class WebVueInboxSettings(models.Model):
     def _webvue_is_open(self, at, department=None):
         """Whether the UTC moment `at` is inside the working hours that apply (the department's, else the company's)."""
         self.ensure_one()
-        return self.env['webvue.inbox.working.hours']._webvue_is_open((department and department.calendar_id) or self.calendar_id, at)
+        owner = department if department and department.hours_own else self
+        return self.env['webvue.inbox.working.hours']._webvue_is_open(owner, at)
 
     def _webvue_apply_preset(self, key, automation=True):
         """Create the missing departments, tags and canned replies of a sector preset and set its policy; idempotent.
@@ -89,7 +93,7 @@ class WebVueInboxSettings(models.Model):
         return self
 
     def _webvue_seed_automation(self, automation):
-        """Fill the welcome and away messages of the company's channels and add the menu rules; never overwrites."""
+        """Fill the missing welcome and away messages of the company's channels and add the missing menu rules, switched off."""
         company = self.company_id
         channels = self.env['webvue.inbox.channel'].search([('owner_company_id', '=', company.id)])
         for channel in channels:
@@ -102,7 +106,7 @@ class WebVueInboxSettings(models.Model):
                 continue
             sequence += 10
             rule = Rule.create({
-                'company_id': company.id, 'sequence': sequence, 'name': spec['name'], 'match_kind': 'option',
+                'company_id': company.id, 'sequence': sequence, 'name': spec['name'], 'match_kind': 'option', 'active': False,
                 'option_id': spec['option_id'],
                 'department_id': self._webvue_named('webvue.inbox.department', spec.get('department')),
                 'tag_ids': [(6, 0, [self._webvue_named('webvue.inbox.tag', name) for name in spec.get('tags', [])])],

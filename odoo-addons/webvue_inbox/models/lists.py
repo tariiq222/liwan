@@ -2,6 +2,8 @@
 """The small tenant-managed lists: departments, tags and canned replies."""
 from odoo import fields, models
 
+from .constants import DEFAULT_TIMEZONE
+
 
 class WebVueInboxDepartment(models.Model):
     _name = 'webvue.inbox.department'
@@ -13,8 +15,11 @@ class WebVueInboxDepartment(models.Model):
                                  default=lambda self: self.env.company)
     name = fields.Char(required=True)
     member_ids = fields.Many2many('res.users', 'webvue_inbox_department_user_rel', 'department_id', 'user_id')
-    # Working hours of its own (replacing the company's) and the round robin pointer among its members.
-    calendar_id = fields.Many2one('resource.calendar', ondelete='set null')
+    # Working hours of its own (replacing the company's, when `hours_own`) and the round robin pointer among its members.
+    hours_own = fields.Boolean(default=False)
+    hours_timezone = fields.Char(required=True, default=DEFAULT_TIMEZONE)
+    hours_range_ids = fields.One2many('webvue.inbox.hours.range', 'department_id')
+    holiday_ids = fields.One2many('webvue.inbox.hours.holiday', 'department_id')
     round_robin_user_id = fields.Many2one('res.users', ondelete='set null')
 
     _name_unique = models.Constraint('UNIQUE(company_id, name)', 'A department name is unique per company.')

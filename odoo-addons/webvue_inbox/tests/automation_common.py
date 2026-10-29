@@ -97,16 +97,15 @@ class AutomationCase(WebVueInboxCase):
         rule._webvue_set_reply(reply)
         return rule
 
-    def closed_calendar_now(self):
+    def closed_hours_now(self):
         """Working hours that are closed right now: only another weekday is open (UTC)."""
         return hours([all_day((fields.Datetime.now().weekday() + 1) % 7)])
 
-    def open_calendar_now(self):
+    def open_hours_now(self):
         return hours([all_day(fields.Datetime.now().weekday())])
 
     def set_company_hours(self, data):
-        self.settings.calendar_id = False
-        self.env['webvue.inbox.working.hours']._webvue_write(self.settings, 'Test hours', data)
+        self.env['webvue.inbox.working.hours']._webvue_write(self.settings, data)
 
     def minutes_ago(self, minutes):
         return fields.Datetime.now() - timedelta(minutes=minutes)

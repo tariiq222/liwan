@@ -10,8 +10,8 @@
     # on webvue_api and no other application (spec R3); it owns its capabilities,
     # groups, roles and record rules (spec R2).
     # webvue_notify: the bell kind of a new assignment. mail: the bell row is a mail.message.
-    # bus: the realtime nudge of the conversation workspace. resource: working hours and holidays are resource calendars.
-    'depends': ['webvue_core', 'webvue_api', 'webvue_platform', 'webvue_notify', 'mail', 'bus', 'resource'],
+    # bus: the realtime nudge of the conversation workspace.
+    'depends': ['webvue_core', 'webvue_api', 'webvue_platform', 'webvue_notify', 'mail', 'bus'],
     'data': [
         'security/inbox_capability_groups.xml',
         'security/inbox_rules.xml',

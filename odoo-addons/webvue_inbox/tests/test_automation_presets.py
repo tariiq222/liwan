@@ -22,7 +22,7 @@ class TestAutomationPresets(AutomationCase):
             self.apply(key)
             channel = self.reload(channel)
             welcome, away = channel._webvue_auto_message('welcome'), channel._webvue_auto_message('away')
-            self.assertEqual((welcome.interactive_type, channel.welcome_enabled, channel.away_enabled), ('buttons', True, True), key)
+            self.assertEqual((welcome.interactive_type, channel.welcome_enabled, channel.away_enabled), ('buttons', False, False), key)
             wanted = preset['automation']
             self.assertEqual(welcome.body, wanted['welcome']['body'])
             self.assertEqual(away.body, wanted['away']['body'])
@@ -31,7 +31,7 @@ class TestAutomationPresets(AutomationCase):
             rules = self.rules().filtered(lambda rule: rule.name in {spec['name'] for spec in wanted['rules']})
             self.assertEqual({rule.option_id for rule in rules}, set(option_ids), key)
             for rule in rules:
-                self.assertEqual((rule.match_kind, bool(rule.reply_ids), rule.stop), ('option', True, True))
+                self.assertEqual((rule.match_kind, bool(rule.reply_ids), rule.stop, rule.active), ('option', True, True, False))
             rules.unlink()
 
     def test_applying_twice_adds_nothing_and_never_overwrites(self):
@@ -42,11 +42,13 @@ class TestAutomationPresets(AutomationCase):
         self.assertEqual((len(self.rules()), self.env['webvue.inbox.auto.message'].search_count([])), counts)
         channel = self.reload(self.channel)
         self.assertEqual(channel._webvue_auto_message('welcome').body, 'My own welcome')
-        self.assertFalse(channel.welcome_enabled)
-        self.assertTrue(channel.away_enabled)
+        self.assertEqual((channel.welcome_enabled, channel.away_enabled), (False, False))
+        self.assertTrue(channel._webvue_auto_message('away'))
 
-    def test_the_menu_rules_act_on_the_chosen_option(self):
+    def test_the_menu_rules_act_on_the_chosen_option_once_switched_on(self):
         self.apply('clinic')
+        self.channel.welcome_enabled = True
+        self.rules().write({'active': True})
         first, _event = self.deliver('مرحبا')
         conversation = first.conversation_id
         self.assertEqual(len(self.automated(conversation)), 1)
@@ -54,6 +56,12 @@ class TestAutomationPresets(AutomationCase):
         self.assertEqual(conversation.department_id.name, 'المواعيد')
         self.assertEqual(conversation.tag_ids.mapped('name'), ['حجز موعد'])
         self.assertEqual(len(self.automated(conversation)), 2)
+
+    def test_applying_a_sector_switches_nothing_on(self):
+        self.apply('clinic')
+        message, _event = self.deliver('مرحبا')
+        self.assertFalse(self.automated(message.conversation_id))
+        self.assertFalse(self.rules().filtered('active'))
 
     def test_a_settings_manager_without_automation_applies_the_sector_without_the_automation(self):
         user = self.custom_user('preset_settings_only', 'inbox.settings.manage')

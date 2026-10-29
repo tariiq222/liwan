@@ -44,10 +44,12 @@ class WebVueInboxConversation(models.Model):
     # The last typing request (the throttle marker) and whether the outbox still has to send it.
     typing_requested_at = fields.Datetime(copy=False)
     typing_pending = fields.Boolean(default=False, index=True, copy=False)
-    # Automation: when the away message was last sent, when the first-response alert was last raised, and the
-    # customer's answer to the satisfaction survey.
+    # Automation: when the away message was last sent, since when the customer waits for an agent (null once an
+    # agent replied), whether that wait was already alerted (reset by the next agent reply), and the customer's
+    # answer to the satisfaction survey.
     away_sent_at = fields.Datetime(copy=False)
-    first_response_alert_at = fields.Datetime(copy=False)
+    waiting_since = fields.Datetime(compute='_compute_waiting_since', store=True, index=True)
+    first_response_alerted = fields.Boolean(default=False, copy=False)
     csat_score = fields.Selection([('good', 'Good'), ('neutral', 'Neutral'), ('bad', 'Bad')], copy=False, index=True)
     csat_at = fields.Datetime(copy=False)
 
@@ -71,6 +73,14 @@ class WebVueInboxConversation(models.Model):
             last = max(inbound.mapped('date'), default=False)
             conversation.last_inbound_at = last
             conversation.reply_window_ends_at = last + REPLY_WINDOW if last else False
+
+    @api.depends('message_ids.direction', 'message_ids.date', 'message_ids.author_id')
+    def _compute_waiting_since(self):
+        for conversation in self:
+            messages = conversation.message_ids
+            last_reply = max(messages.filtered(lambda m: m.direction == 'out' and m.author_id).mapped('date'), default=False)
+            waiting = messages.filtered(lambda m: m.direction == 'in' and (not last_reply or m.date > last_reply))
+            conversation.waiting_since = min(waiting.mapped('date'), default=False)
 
     def _webvue_latest_inbound(self):
         """The newest inbound message the provider knows (a read receipt or typing call names it)."""
