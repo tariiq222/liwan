@@ -7,18 +7,23 @@ import { createInboxDrafts, emptyInboxDraft } from '../../../composables/inbox/i
 import { INBOX_CAPTION_MAX, INBOX_UPLOAD_ACCEPT, inboxAcceptsCaption, inboxFileSize, inboxUploadProblem } from '../../../composables/inbox/inboxAttachments'
 import { buildInteractive, emptyInteractiveDraft } from '../../../composables/inbox/inboxInteractive'
 import { buildLocation, emptyLocationDraft } from '../../../composables/inbox/inboxLocation'
-import { cannedSuggestions, renderTemplateBody, replyWindowOpen } from '../../../composables/inbox/inboxWindow'
+import { TEMPLATE_CATEGORY_TONE, templatePreview } from '../../../composables/inbox/inboxTemplate'
+import { HEADER_MEDIA_ACCEPT, buildTemplateReply, dynamicButtons, headerInput, templateReplyReady } from '../../../composables/inbox/inboxTemplateSend'
+import { cannedSuggestions, replyWindowOpen } from '../../../composables/inbox/inboxWindow'
 
 const filename = new URL('../InboxComposer.vue', import.meta.url).pathname
 const NOW = Date.parse('2026-10-28T12:00:00Z')
-const TEMPLATE = { id: 7, name: 'reminder', language: 'ar', category: 'UTILITY', status: 'APPROVED', body: 'مرحبا {{1}}', param_count: 1 }
+const TEMPLATE = {
+  id: 7, name: 'reminder', language: 'ar', category: 'utility', status: 'approved', status_reason: null, quality: 'green', header: null,
+  body: 'مرحبا {{1}}', body_examples: ['فهد'], footer: null, buttons: [], add_security_recommendation: false, code_expiration_minutes: null, param_count: 1, editable: true, otp_button_text: null, supported: true,
+}
 
 // The component script is compiled and run against stubbed composables, as the other component tests do.
 class ApiError extends Error {
   constructor(public status: number) { super('refused') }
 }
 
-function mountComposer(endsAt: string | null, store = new Map<string, string>()) {
+function mountComposer(endsAt: string | null, store = new Map<string, string>(), template: Record<string, unknown> = TEMPLATE) {
   const script = compileScript(parse(readFileSync(filename, 'utf8'), { filename }).descriptor, { id: 'inbox-composer' }).content
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
   const inboxDrafts = createInboxDrafts(() => ({ getItem: k => store.get(k) ?? null, setItem: (k, v) => void store.set(k, v), removeItem: k => void store.delete(k), key: i => [...store.keys()][i] ?? null, length: store.size }))
@@ -36,10 +41,10 @@ function mountComposer(endsAt: string | null, store = new Map<string, string>())
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useToast: () => ({ add: vi.fn() }), useMe: () => ({ me: Vue.ref({ id: 3 }) }),
     ApiError, useInboxTyping: () => notifyTyping, useUploadInboxFile: () => ({ mutateAsync: uploadInboxFile }), INBOX_CAPTION_MAX, INBOX_UPLOAD_ACCEPT, inboxAcceptsCaption, inboxFileSize, inboxUploadProblem, emptyInboxDraft,
     buildInteractive, emptyInteractiveDraft, buildLocation, emptyLocationDraft,
-    inboxDrafts, cannedSuggestions, renderTemplateBody, replyWindowOpen,
+    inboxDrafts, cannedSuggestions, replyWindowOpen, templatePreview, TEMPLATE_CATEGORY_TONE, HEADER_MEDIA_ACCEPT, buildTemplateReply, dynamicButtons, headerInput, templateReplyReady,
     useSendInboxReply: () => ({ mutateAsync: sendReply, isPending: Vue.ref(false) }), useSendInboxNote: () => ({ mutateAsync: sendNote, isPending: Vue.ref(false) }),
     useInboxCannedReplies: () => ({ data: Vue.ref({ items: [], total: 0 }) }),
-    useInboxTemplates: (_channel: unknown, enabled: Vue.Ref<boolean>) => { templatesEnabled.value = enabled.value; return { data: Vue.ref({ items: [TEMPLATE], total: 1 }), isLoading: Vue.ref(false), isError: Vue.ref(false), refetch: vi.fn() } },
+    useInboxTemplates: (_channel: unknown, enabled: Vue.Ref<boolean>) => { templatesEnabled.value = enabled.value; return { data: Vue.ref({ items: [template], total: 1 }), isLoading: Vue.ref(false), isError: Vue.ref(false), refetch: vi.fn() } },
   }
   const code = ts.transpileModule(script, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText
   const component = new Function(...Object.keys(bindings), code)(...Object.values(bindings))
@@ -273,5 +278,137 @@ describe('InboxComposer', () => {
     state.params.value = ['فهد']
     await state.submit()
     expect(sendReply).toHaveBeenCalledWith({ template_id: 7, params: ['فهد'] })
+  })
+
+  describe('template inputs', () => {
+    const FULL = {
+      ...TEMPLATE,
+      header: { type: 'text', text: 'طلب {{1}}', example: 'x' },
+      buttons: [{ type: 'quick_reply', text: 'نعم' }, { type: 'url', text: 'تتبع', url: 'https://example.test/{{1}}', example: 'https://example.test/1' }, { type: 'copy_code', example: 'SAVE' }],
+    }
+    const pick = async (state: ReturnType<typeof mountComposer>['state']) => {
+      state.templateId.value = 7
+      await Vue.nextTick()
+    }
+
+    it('asks for the header value and one value per dynamic button, and sends them by position', async () => {
+      const { state, sendReply } = mountComposer(null, new Map(), FULL)
+      await pick(state)
+      expect(state.headerNeeds.value).toEqual({ kind: 'text' })
+      expect(state.buttonInputs.value.map((button: { index: number }) => button.index)).toEqual([1, 2])
+      state.params.value = ['فهد']
+      expect(state.canSend.value).toBe(false)
+      state.headerParam.value = 'A-1'
+      state.buttonValues.value = ['4521', '']
+      expect(state.canSend.value).toBe(false)
+      state.buttonValues.value = ['4521', 'SAVE10']
+      expect(state.canSend.value).toBe(true)
+      await state.submit()
+      expect(sendReply).toHaveBeenCalledWith({ template_id: 7, params: ['فهد'], header_param: 'A-1', button_params: [{ index: 1, value: '4521' }, { index: 2, value: 'SAVE10' }] })
+      expect(state.headerParam.value).toBe('')
+      expect(state.buttonValues.value).toEqual([])
+    })
+
+    it('keeps header and button values as a draft', async () => {
+      const first = mountComposer(null, new Map(), FULL)
+      await pick(first.state)
+      first.state.headerParam.value = 'A-1'
+      first.state.buttonValues.value = ['4521', 'SAVE10']
+      await Vue.nextTick()
+      expect(first.inboxDrafts.get(3, 5)).toMatchObject({ headerParam: 'A-1', buttonParams: ['4521', 'SAVE10'] })
+      const reopened = mountComposer(null, first.store, FULL)
+      expect(reopened.state.headerParam.value).toBe('A-1')
+      expect(reopened.state.buttonValues.value).toEqual(['4521', 'SAVE10'])
+    })
+
+    const MEDIA = { ...TEMPLATE, header: { type: 'image', example_attachment: null } }
+
+    it('uploads the header file of the conversation and sends its id', async () => {
+      const { state, sendReply, uploadInboxFile } = mountComposer(null, new Map(), MEDIA)
+      await pick(state)
+      state.params.value = ['فهد']
+      expect(state.canSend.value).toBe(false)
+      await state.onHeaderPicked({ target: { files: [{ name: 'a.png', type: 'image/png', size: 2048 }], value: 'a' } } as unknown as Event)
+      expect(uploadInboxFile).toHaveBeenCalledWith(expect.objectContaining({ name: 'a.png' }))
+      expect(state.canSend.value).toBe(true)
+      expect(state.previewParts.value.header).toEqual({ kind: 'media', media: 'image', name: 'a.png' })
+      await state.submit()
+      expect(sendReply).toHaveBeenCalledWith({ template_id: 7, params: ['فهد'], header_attachment_id: 41 })
+      expect(state.headerUpload.value).toBeNull()
+    })
+
+    it('refuses a header file of the wrong kind or over the limit before uploading', async () => {
+      const { state, uploadInboxFile } = mountComposer(null, new Map(), MEDIA)
+      await pick(state)
+      const input = (name: string, type: string, size: number) => ({ target: { files: [{ name, type, size }], value: 'a' } }) as unknown as Event
+      await state.onHeaderPicked(input('a.pdf', 'application/pdf', 100))
+      expect(state.headerError.value).toBe('inbox.composer.headerWrongType.image')
+      await state.onHeaderPicked(input('big.png', 'image/png', 6 * 1048576))
+      expect(state.headerError.value).toBe('inbox.composer.upload.tooLarge')
+      expect(uploadInboxFile).not.toHaveBeenCalled()
+      expect(state.headerUpload.value).toBeNull()
+    })
+
+    it('waits for the header upload to finish', async () => {
+      const { state, uploadInboxFile } = mountComposer(null, new Map(), MEDIA)
+      await pick(state)
+      state.params.value = ['فهد']
+      let finish: (value: unknown) => void = () => {}
+      uploadInboxFile.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }) as never)
+      const picking = state.onHeaderPicked({ target: { files: [{ name: 'a.png', type: 'image/png', size: 10 }], value: 'a' } } as unknown as Event)
+      expect(state.headerUploading.value).toBe(true)
+      expect(state.canSend.value).toBe(false)
+      finish({ id: 5, name: 'a.png', mimetype: 'image/png', size: 10 })
+      await picking
+      expect(state.canSend.value).toBe(true)
+    })
+
+    it('sends a location header once valid coordinates are entered', async () => {
+      const place = { ...TEMPLATE, header: { type: 'location' } }
+      const { state, sendReply } = mountComposer(null, new Map(), place)
+      await pick(state)
+      state.params.value = ['فهد']
+      expect(state.canSend.value).toBe(false)
+      state.headerLocation.value = { ...emptyLocationDraft(), latitude: '24.7', longitude: '46.6' }
+      expect(state.canSend.value).toBe(true)
+      await state.submit()
+      expect(sendReply).toHaveBeenCalledWith(expect.objectContaining({ header_location: { latitude: 24.7, longitude: 46.6, name: null, address: null } }))
+    })
+
+    it('asks an authentication template for its code only', async () => {
+      const auth = { ...TEMPLATE, category: 'authentication', otp_button_text: 'نسخ' }
+      const { state, sendReply } = mountComposer(null, new Map(), auth)
+      await pick(state)
+      expect(state.buttonInputs.value).toEqual([])
+      state.params.value = ['918273']
+      expect(state.canSend.value).toBe(true)
+      expect(state.previewParts.value.buttons).toEqual([{ type: 'copy_code', text: 'نسخ' }])
+      await state.submit()
+      expect(sendReply).toHaveBeenCalledWith({ template_id: 7, params: ['918273'] })
+    })
+
+    it('does not offer a template WebVue cannot fill', async () => {
+      const { state } = mountComposer(null, new Map(), { ...TEMPLATE, supported: false })
+      expect(state.templateItems.value).toEqual([])
+      state.templateId.value = 7
+      await Vue.nextTick()
+      expect(state.selectedTemplate.value).toBeUndefined()
+      expect(state.canSend.value).toBe(false)
+    })
+
+    it('starts every input empty when the template is deselected and chosen again', async () => {
+      const { state } = mountComposer(null, new Map(), FULL)
+      await pick(state)
+      state.params.value = ['فهد']
+      state.headerParam.value = 'A-1'
+      state.buttonValues.value = ['1', '2']
+      state.templateId.value = undefined
+      await Vue.nextTick()
+      expect(state.headerParam.value).toBe('')
+      state.templateId.value = 7
+      await Vue.nextTick()
+      expect(state.params.value).toEqual([''])
+      expect(state.buttonValues.value).toEqual(['', ''])
+    })
   })
 })

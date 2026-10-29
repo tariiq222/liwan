@@ -4,7 +4,7 @@ from datetime import timedelta
 from odoo import fields
 from odoo.tests import tagged
 
-from .common import MESSAGE_KEYS, WebVueInboxCase
+from .common import MESSAGE_KEYS, TEMPLATE_KEYS, WebVueInboxCase
 from odoo.addons.webvue_api.tests.common import set_probe_feature
 
 CONVERSATION_KEYS = {
@@ -22,8 +22,8 @@ class TestConversationsApi(WebVueInboxCase):
         cls.settings.visibility_policy = 'all'
         cls.conversation = cls.make_conversation(unread=True)
         cls.template = cls.env['webvue.inbox.template'].create({
-            'channel_id': cls.channel.id, 'name': 'order_ready', 'language': 'ar', 'category': 'UTILITY',
-            'status': 'APPROVED', 'body': 'Hi {{1}}, order {{2}} is ready', 'param_count': 2,
+            'channel_id': cls.channel.id, 'name': 'order_ready', 'language': 'ar', 'category': 'utility',
+            'status': 'approved', 'body': 'Hi {{1}}, order {{2}} is ready',
         })
 
     def path(self, suffix=''):
@@ -146,18 +146,18 @@ class TestConversationsApi(WebVueInboxCase):
         result = self.api('POST', path, {'template_id': self.template.id, 'params': ['Sara', '42']})
         self.assertEqual(result.status_code, 200, result.text)
         self.assertEqual(result.json()['body'], 'Hi Sara, order 42 is ready')
-        self.assertEqual(result.json()['template_name'], 'order_ready')
+        self.assertEqual(result.json()['template']['name'], 'order_ready')
 
     def test_template_rules(self):
         self.login(self.agent)
         path = self.path('/messages')
         self.assertError(self.api('POST', path, {'template_id': self.template.id, 'params': ['only one']}), 422, 'invalid')
-        self.template.status = 'PENDING'
+        self.template.status = 'pending'
         self.assertError(self.api('POST', path, {'template_id': self.template.id, 'params': ['a', 'b']}), 422, 'invalid')
-        self.template.status = 'APPROVED'
+        self.template.status = 'approved'
         other_channel = self.make_channel(phone_id='100000000055')
         foreign = self.env['webvue.inbox.template'].create({
-            'channel_id': other_channel.id, 'name': 'x', 'language': 'ar', 'status': 'APPROVED', 'body': 'x', 'param_count': 0,
+            'channel_id': other_channel.id, 'name': 'x', 'language': 'ar', 'status': 'approved', 'body': 'x',
         })
         self.assertError(self.api('POST', path, {'template_id': foreign.id, 'params': []}), 422, 'invalid')
         self.assertError(self.api('POST', path, {'body': 'a', 'params': []}), 422, 'invalid')
@@ -200,14 +200,14 @@ class TestConversationsApi(WebVueInboxCase):
     def test_canned_replies_and_templates_lists(self):
         self.env['webvue.inbox.canned.reply'].create({'shortcut': 'hi', 'body': 'Hello!'})
         self.env['webvue.inbox.template'].create({
-            'channel_id': self.channel.id, 'name': 'pending_one', 'language': 'ar', 'status': 'PENDING', 'body': 'x', 'param_count': 0,
+            'channel_id': self.channel.id, 'name': 'pending_one', 'language': 'ar', 'status': 'pending', 'body': 'x',
         })
         self.login(self.agent)
         canned = self.get('/api/v1/inbox/canned-replies').json()
         self.assertEqual(canned['items'][0], {'id': canned['items'][0]['id'], 'shortcut': 'hi', 'body': 'Hello!'})
-        templates = self.get(f'/api/v1/inbox/channels/{self.channel.id}/templates').json()
+        templates = self.get(f'/api/v1/inbox/channels/{self.channel.id}/templates?status=approved').json()
         self.assertEqual([t['name'] for t in templates['items']], ['order_ready'])
-        self.assertEqual(set(templates['items'][0]), {'id', 'name', 'language', 'category', 'status', 'body', 'param_count'})
+        self.assertEqual(set(templates['items'][0]), TEMPLATE_KEYS)
         self.assertError(self.get('/api/v1/inbox/channels/999999999/templates'), 404, 'not_found')
 
     def test_agents_lists_active_users_who_can_reply(self):

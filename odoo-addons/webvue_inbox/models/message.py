@@ -5,7 +5,7 @@ from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
 from .constants import MESSAGES_OUT_LIMIT, OUTBOX_CRON, REPLY_PREVIEW_LENGTH
-from .template import APPROVED
+from .template import APPROVED, HEADER_TYPES, MEDIA_HEADERS, PLACEHOLDER
 from odoo.addons.webvue_inbox.adapters import media_rules
 
 # A status never moves a message backwards (statuses may arrive out of order). `failed` is terminal
@@ -40,6 +40,14 @@ class WebVueInboxMessage(models.Model):
     template_name = fields.Char()
     template_language = fields.Char()
     template_params = fields.Json()
+    template_id = fields.Many2one('webvue.inbox.template', index=True, ondelete='set null')
+    # What fills the template's header: a text (here), a file (the message's attachment) or a location (the fields below).
+    template_header = fields.Selection(HEADER_TYPES, required=True, default='none')
+    template_header_param = fields.Char()
+    # The template as it was when sent, so the thread keeps showing it after the template is edited or deleted.
+    template_header_text = fields.Char()
+    template_footer = fields.Char()
+    template_button_ids = fields.One2many('webvue.inbox.message.button', 'message_id')
     provider_message_id = fields.Char(copy=False)
     # The message this one answers (WhatsApp context); always a message of the same conversation.
     reply_to_id = fields.Many2one('webvue.inbox.message', index=True, ondelete='set null')
@@ -123,10 +131,18 @@ class WebVueInboxMessage(models.Model):
         })
 
     @api.model
-    def _webvue_queue_template(self, conversation, template, params=()):
-        """Queue an approved template reply (allowed at any time, also after the window closed)."""
+    def _webvue_queue_template(self, conversation, template, params=(), header=None, button_params=()):
+        """Queue an approved template reply (allowed at any time, also after the window closed).
+
+        `header` holds the validated header input: `text`, `attachment` (an upload of the conversation) or
+        `location` (location message values); `button_params` is a list of (button position, value).
+        """
         self._webvue_require_sendable(conversation)
-        message = self.create(self._webvue_outbound_values(conversation, self._webvue_template_values(conversation, template, params)))
+        header = header or {}
+        values = self._webvue_template_values(conversation, template, params, header, button_params)
+        message = self.create(self._webvue_outbound_values(conversation, values))
+        if header.get('attachment'):
+            header['attachment'].write({'res_model': message._name, 'res_id': message.id})
         self._webvue_wake_outbox()
         return message
 
@@ -193,15 +209,55 @@ class WebVueInboxMessage(models.Model):
             raise ValidationError(self.env._('The 24-hour reply window is closed; send an approved template.'))
 
     @api.model
-    def _webvue_template_values(self, conversation, template, params):
-        if template.channel_id != conversation.channel_id or template.status != APPROVED:
-            raise ValidationError(self.env._('The template is not an approved template of this conversation channel.'))
+    def _webvue_template_values(self, conversation, template, params, header, button_params):
+        if template.channel_id != conversation.channel_id or template.status != APPROVED or not template.supported:
+            raise ValidationError(self.env._('The template is not an approved, supported template of this conversation channel.'))
         if len(params) != template.param_count:
             raise ValidationError(self.env._('The template needs %(count)s parameter(s).', count=template.param_count))
         return {
-            'kind': 'template', 'template_name': template.name, 'template_language': template.language,
-            'template_params': list(params), 'body': template._webvue_render(params),
+            'kind': 'template', 'template_id': template.id, 'template_name': template.name,
+            'template_language': template.language, 'template_params': list(params),
+            'body': template._webvue_render(params),
+            **self._webvue_template_header_values(template, header),
+            'template_header_text': template._webvue_render_header(header.get('text')) or False,
+            'template_footer': template.footer or False,
+            'template_button_ids': self._webvue_template_button_commands(template, params, button_params),
         }
+
+    @api.model
+    def _webvue_template_header_values(self, template, header):
+        """The header fields of a template reply; the header input must match what the template's header takes."""
+        kind = template.header_type
+        wanted = {
+            'text': kind == 'text' and bool(PLACEHOLDER.search(template.header_text or '')),
+            'attachment': kind in MEDIA_HEADERS,
+            'location': kind == 'location',
+        }
+        if {key for key, value in header.items() if value} != {key for key, value in wanted.items() if value}:
+            raise ValidationError(self.env._('The header values do not match the template header.'))
+        values = {'template_header': kind if any(wanted.values()) else 'none'}
+        if header.get('text'):
+            values['template_header_param'] = header['text']
+        if header.get('attachment'):
+            if media_rules.kind_of(header['attachment'].mimetype) != kind:
+                raise ValidationError(self.env._('The header file must be %(kind)s.', kind=kind))
+            self._webvue_attachment_kind(header['attachment'])
+        return {**values, **(header.get('location') or {})}
+
+    @api.model
+    def _webvue_template_button_commands(self, template, params, button_params):
+        """One row per template button, with the value it is sent with; a one-time-password button takes the code."""
+        needs = template._webvue_button_needs()
+        given = dict(button_params)
+        if len(given) != len(button_params) or set(given) != {position for position, _kind in needs}:
+            raise ValidationError(self.env._('The button values do not match the template buttons.'))
+        return [
+            (0, 0, {
+                'position': button.sequence, 'kind': button.kind, 'text': button.text or False,
+                'value': params[0] if button.kind == 'otp' else given.get(button.sequence, False),
+            })
+            for button in template.button_ids.sorted('sequence')
+        ]
 
     def _webvue_retry(self):
         """Queue a failed outbound message again."""
