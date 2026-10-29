@@ -9,6 +9,8 @@ const { can } = useAccess()
 const { me } = useMe()
 const identity = computed(() => me.value ? `${me.value.id}:${me.value.company.id}` : null)
 const canCreate = computed(() => can('settings.company.manage'))
+// Owner decision 2026-10-29, option c: in SaaS a branch is bought, and the paid order creates it.
+const purchaseOnly = computed(() => me.value?.commercial?.mode === 'saas')
 const hydrated = useHydrated()
 const create = useCreateBranch()
 const branchName = ref('')
@@ -40,7 +42,10 @@ async function reloadPolicy() {
 <template>
   <SharedSettingsPage width="form">
     <SharedPageHeader :title="t('access.branches.title')" back-to="/settings/team" />
-    <SharedRecordSection v-if="canCreate" variant="panel" data-testid="branch-create" :title="t('access.branches.create.title')" :description="t('access.branches.create.description')">
+    <SharedRecordSection v-if="canCreate && purchaseOnly" variant="panel" data-testid="branch-purchase" :title="t('access.branches.create.title')" :description="t('access.branches.create.purchaseDescription')">
+      <UButton to="/subscription/branches/new" icon="i-lucide-plus" :disabled="!hydrated">{{ t('access.branches.create.purchase') }}</UButton>
+    </SharedRecordSection>
+    <SharedRecordSection v-else-if="canCreate" variant="panel" data-testid="branch-create" :title="t('access.branches.create.title')" :description="t('access.branches.create.description')">
       <form class="grid gap-4" @submit.prevent="submitBranch">
         <UFormField :label="t('access.branches.create.name')" name="branch-name">
           <UInput v-model="branchName" maxlength="200" class="w-full" :disabled="!hydrated || create.isPending.value" />

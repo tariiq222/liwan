@@ -292,7 +292,7 @@ class WebVueEntitlementService(models.AbstractModel):
 
     @api.model
     def _webvue_create_branch(self, name):
-        """Create one branch company for the tenant administrator, within `branches.extra_limit`.
+        """Create one branch company for a non-SaaS tenant administrator, within `branches.extra_limit`.
 
         The route has already checked `settings.company.manage`. Plain ORM creation of a
         child company is refused (`branch_requires_subscription`), and a WebVue system
@@ -311,6 +311,10 @@ class WebVueEntitlementService(models.AbstractModel):
         ):
             code = 'forbidden'
             raise WebVueAccessRule(code, 'branch creation requires company administration of the root company', status=403)
+        # In SaaS the control plane owns the branch count: a branch exists only after a paid order is fulfilled.
+        if profile.commercial_mode == 'saas':
+            code = 'branch_purchase_required'
+            raise WebVueAccessRule(code, 'branches are added through the subscription purchase flow', status=409)
         # The quota fence writes the profile row, so a concurrent creation that read an older snapshot
         # fails serialization instead of passing the limit check on stale counts.
         profile._webvue_bump_quota_revision()

@@ -21,6 +21,15 @@ class TestBranchService(TransactionCase):
     def _op(self):
         return self.profile.with_context(**{OPERATOR_CONTEXT: True})
 
+    def _set_mode(self, mode):
+        # Fixture-only conversion; production ORM conversion is deliberately forbidden.
+        source = 'control_plane' if mode == 'saas' else 'local_policy'
+        self.env.cr.execute(
+            "UPDATE webvue_tenant_profile SET commercial_mode=%s, entitlement_source=%s, valid_until=NULL WHERE id=%s",
+            [mode, source, self.profile.id],
+        )
+        self.profile.invalidate_recordset()
+
     def _set_limit(self, limit):
         self._op().write({'features': {**self.profile.features, 'branches.extra_limit': limit}})
 
@@ -155,7 +164,14 @@ class TestBranchService(TransactionCase):
         hq_operator._webvue_archive_branch('archive-b', 'b')
         self.assertEqual(b.state, 'archived')
 
+    def test_saas_refuses_admin_creation(self):
+        self._set_limit(5)
+        self._set_mode('saas')
+        with self.assertRaisesRegex(WebVueAccessRule, 'branch_purchase_required'):
+            self.env['webvue.entitlement.service']._webvue_create_branch('Direct')
+
     def test_admin_creation_counts_against_the_limit(self):
+        self._set_mode('non_saas')
         self._set_limit(1)
         service = self.env['webvue.entitlement.service']
         company = service._webvue_create_branch(' Jeddah ')
