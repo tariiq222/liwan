@@ -1,10 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import base64
 import logging
+from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import requests
 
+from odoo import fields
 from odoo.tests import tagged
 
 from .common import ACCESS_TOKEN, WebVueInboxCase
@@ -144,6 +146,8 @@ class TestBusinessProfileApi(WebVueInboxCase):
         response, mocked = self.call('POST', '/two-step-pin', {'pin': PIN})
         self.assertEqual((response.status_code, response.text), (204, ''))
         self.assertEqual(mocked.call_args.kwargs['json'], {'pin': PIN})
+        self.assertError(self.call('POST', '/two-step-pin', {'pin': PIN})[0], 429, 'rate_limited')
+        self.channel.pin_attempted_at = fields.Datetime.now() - timedelta(minutes=2)
         failing, _ = self.call('POST', '/two-step-pin', {'pin': PIN}, responses=[meta_error('Request failed')])
         self.assertNotIn(PIN, failing.text)
         self.assertFalse([line for line in capture.lines if PIN in line])
@@ -157,6 +161,10 @@ class TestBusinessProfileApi(WebVueInboxCase):
         self.assertEqual(register.kwargs['json'], {'messaging_product': 'whatsapp', 'pin': PIN})
         self.assertEqual(response.json()['health']['verified_name'], 'Acme')
         self.assertEqual(health.args[0], 'GET')
+        again, again_calls = self.call('POST', '/register', {'pin': PIN})
+        self.assertError(again, 429, 'rate_limited')
+        self.assertEqual(again_calls.call_count, 0)
+        self.channel.register_attempted_at = fields.Datetime.now() - timedelta(minutes=2)
         failing, _ = self.call('POST', '/register', {'pin': PIN}, responses=[meta_error('(#133016) Account could not be registered')])
         self.assertError(failing, 422, 'invalid')
         self.assertIn('133016', failing.json()['message'])

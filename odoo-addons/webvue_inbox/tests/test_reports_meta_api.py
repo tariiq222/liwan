@@ -55,6 +55,14 @@ class TestMetaReportsApi(WebVueInboxCase):
         self.assertError(self.query('costs'), 422, 'invalid')
         self.assertEqual(self.query('costs', channel_id=other.id).json()['currency'], 'USD')
 
+    def test_a_channel_without_a_known_currency_does_not_mix_with_one_that_has_it(self):
+        other = self.make_channel(phone_id='730000000002')
+        self.channel.currency_code = 'SAR'
+        self.assertError(self.query('costs'), 422, 'invalid')
+        self.channel.currency_code = False
+        body = self.query('costs').json()
+        self.assertEqual((body['currency'], other.currency_code), (None, False))
+
     def test_template_rows_join_meta_figures_with_our_own_sends(self):
         template = self.make_template(category='marketing')
         silent = self.make_template()

@@ -55,7 +55,13 @@ function confirmInsights() {
   insights.mutate({}, { onSuccess: () => { confirmingInsights.value = false; done('inbox.health.actions.insights.done') }, onError: fail })
 }
 function syncNow() {
-  sync.mutate({}, { onSuccess: () => done('inbox.health.actions.sync.done'), onError: fail })
+  sync.mutate({}, {
+    // Meta's refusal (an EU account, an expired token) comes back as a 200 with the error stored on the channel.
+    onSuccess: result => result.health.analytics_error
+      ? toast.add({ title: result.health.analytics_error, color: 'error' })
+      : done('inbox.health.actions.sync.done'),
+    onError: fail,
+  })
 }
 const syncedAt = computed(() => props.channel.health.analytics_synced_at ? formatDateTime(props.channel.health.analytics_synced_at) : null)
 </script>

@@ -9,6 +9,7 @@ from odoo import api, fields, models
 from .batch import process_each
 from .health_constants import (
     ANALYTICS_COOLDOWN,
+    ANALYTICS_REQUEST_CRON,
     PRICING_BACKFILL_DAYS,
     PRICING_REFRESH_DAYS,
     TEMPLATE_REFRESH_DAYS,
@@ -25,16 +26,21 @@ class WebVueInboxMetaAnalytics(models.AbstractModel):
     _webvue_scope = 'global'
 
     @api.model
-    def _webvue_cooling_down(self, channel):
-        attempted = channel.analytics_attempted_at
-        return bool(attempted and fields.Datetime.now() - attempted < ANALYTICS_COOLDOWN)
+    def _webvue_request(self, channel):
+        """Ask for a sync now: record the request and wake the cron, which pulls it with its own rights."""
+        if channel._webvue_cooling_down('analytics_attempted_at', ANALYTICS_COOLDOWN):
+            return False
+        channel.write({'analytics_attempted_at': fields.Datetime.now(), 'analytics_sync_requested': True})
+        cron_id = self.env['ir.model.data']._xmlid_to_res_id(ANALYTICS_REQUEST_CRON)
+        self.env['ir.cron'].browse(cron_id)._trigger()
+        return True
 
     @api.model
     def _webvue_sync(self, channel):
         """Pull the pricing and template analytics of one channel; a provider error is kept on the channel, not raised."""
         channel.ensure_one()
         now = fields.Datetime.now()
-        channel.analytics_attempted_at = now
+        channel.write({'analytics_attempted_at': now, 'analytics_sync_requested': False})
         try:
             with self.env.cr.savepoint():
                 credentials = channel._webvue_credentials()
@@ -130,6 +136,11 @@ class WebVueInboxMetaAnalytics(models.AbstractModel):
     def _webvue_run(self):
         """Pull the analytics of every connected channel (daily)."""
         channels = self.env['webvue.inbox.channel'].search([('kind', '=', 'whatsapp'), ('state', '=', 'connected')])
+        process_each(channels, self._webvue_sync, self._webvue_failed)
+
+    @api.model
+    def _webvue_run_requested(self):
+        channels = self.env['webvue.inbox.channel'].search([('analytics_sync_requested', '=', True), ('state', '=', 'connected')])
         process_each(channels, self._webvue_sync, self._webvue_failed)
 
     @api.model

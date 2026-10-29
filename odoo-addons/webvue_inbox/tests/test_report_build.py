@@ -111,6 +111,20 @@ class TestReportBuild(ReportCase):
         self.env['webvue.inbox.report.day']._webvue_run_nightly()
         self.assertEqual(sum(self.rows().mapped('messages_in')), 1)
 
+    def test_a_full_rebuild_leaves_days_older_than_the_retained_conversations_alone(self):
+        self.settings.retention_months = 1
+        today = self.env['webvue.inbox.report.build']._webvue_today(self.env.company)
+        old_day = today - timedelta(days=90)
+        old = self.env['webvue.inbox.report.day'].create({
+            'company_id': self.env.company.id, 'day': old_day, 'channel_id': self.channel.id, 'messages_in': 7,
+            'computed_at': fields.Datetime.now(),
+        })
+        nightly = self.env['webvue.inbox.report.day']._webvue_run_nightly
+        nightly()  # first build: every backed day
+        self.settings.hours_timezone = 'UTC'
+        nightly()  # timezone change: every backed day again
+        self.assertEqual((old.exists().messages_in, self.rows(day=old_day).messages_in), (7, 7))
+
     def test_retention_purges_old_rows_of_every_report_table(self):
         self.settings.report_retention_months = 12
         today = fields.Date.today()
@@ -139,7 +153,14 @@ class TestReportBuild(ReportCase):
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         module.migrate(self.env.cr, '19.0.1.4.0')
+        self.settings.retention_months = 1  # the conversations behind a 90 day old report day are gone
+        old_day = fields.Date.today() - timedelta(days=90)
+        old = self.env['webvue.inbox.report.day'].create({
+            'company_id': self.env.company.id, 'day': old_day, 'channel_id': self.channel.id, 'messages_in': 7,
+            'computed_at': fields.Datetime.now(),
+        })
         module.migrate(self.env.cr, '19.0.1.4.0')  # idempotent
+        self.assertEqual(old.exists().messages_in, 7)
         (cycle,) = self.cycles(conversation)
         self.assertEqual((cycle.end_reason, cycle.resolver_id, cycle.responder_id), ('resolved', self.agent, self.agent))
         self.assertTrue(self.rows())
