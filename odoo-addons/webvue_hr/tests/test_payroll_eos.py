@@ -16,10 +16,11 @@ from odoo.addons.webvue_hr.models.payroll_math import (
 
 ESTIMATE_KEYS = {
     'employee', 'start_date', 'end_date', 'service_years', 'eos_wage', 'case', 'award', 'leave_days', 'leave_amount',
+    'currency',
 }
 SETTLEMENT_KEYS = {
     'id', 'employee', 'state', 'departure_date', 'departure_mismatch', 'case', 'service_years', 'eos_wage', 'award',
-    'leave_days', 'leave_amount', 'open_deductions', 'total',
+    'leave_days', 'leave_amount', 'open_deductions', 'total', 'currency',
 }
 CASE_KEYS = {'departure_reason', 'case', 'revision'}
 EOS = '/api/v1/hr/payroll/eos'

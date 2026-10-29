@@ -229,7 +229,9 @@ class TestPayrollPosting(PayrollFinanceCase):
         run = self._approved_run([self.e1, self.e2], MONTH)
         usd = self.env.ref('base.USD')
         usd.active = True
-        self.company.currency_id = usd
+        # Odoo refuses this write once journal items exist, so the fixture changes the column the check reads.
+        self.env.cr.execute('UPDATE res_company SET currency_id = %s WHERE id = %s', (usd.id, self.company.id))
+        self.company.invalidate_recordset(['currency_id'])
         self.login_as(self.poster)
         preview = self.api('GET', f"{RUNS}/{run['id']}/posting-preview")
         posted = self._post(run['id'])

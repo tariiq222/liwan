@@ -7,9 +7,9 @@ from .payroll_common import PayrollCase
 
 RUN_KEYS = {
     'id', 'month', 'state', 'employee_count', 'totals', 'warnings', 'allowed_actions',
-    'approved_by', 'approved_at', 'finance',
+    'approved_by', 'approved_at', 'finance', 'currency',
 }
-SUMMARY_KEYS = {'id', 'month', 'state', 'employee_count', 'totals', 'approved_at'}
+SUMMARY_KEYS = {'id', 'month', 'state', 'employee_count', 'totals', 'approved_at', 'currency'}
 TOTALS_KEYS = {'gross', 'deductions', 'gosi_employee', 'gosi_employer', 'net'}
 ROW_KEYS = {
     'id', 'employee', 'department', 'state', 'paid_days', 'inputs', 'gross', 'deductions', 'net',
