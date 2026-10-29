@@ -45,10 +45,14 @@ class WebVueInboxInbound(models.AbstractModel):
         })
         if item.media_id:
             self._webvue_attach_media(channel, message, item)
+        automation = self.env['webvue.inbox.automation']
+        if automation._webvue_record_csat(conversation, message):
+            return conversation  # a survey answer neither reopens the conversation nor triggers the rules
         conversation.write({
             'unread': True,
             **({'state': 'open'} if conversation.state in REOPENED_STATES else {}),
         })
+        automation._webvue_run(conversation, message)
         return conversation
 
     @api.model

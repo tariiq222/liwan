@@ -370,11 +370,16 @@ class WebVueMeetingMinute(models.Model):
         if version_count:
             raise AccessError(self.env._('Meetings with finalized minutes versions cannot be deleted.'))
         if not self.env.su:
-            if any(meeting.state in self._LOCKED_STATES for meeting in self):
-                raise UserError(_('Completed and cancelled meetings cannot be deleted.'))
+            if any(meeting.state != 'draft' for meeting in self):
+                raise UserError(_('Only a draft meeting can be deleted. Cancel a confirmed meeting instead.'))
             if any(not meeting._webvue_is_manager() for meeting in self):
                 raise AccessError(_('Only a Meeting Manager may delete meetings.'))
-        return super().unlink()
+            if self.env['webvue.meeting.links']._webvue_linked_resolution_ids(self.resolution_ids):
+                raise UserError(_('A meeting with recommendations followed on a task cannot be deleted.'))
+        events = self.calendar_event_id
+        result = super().unlink()
+        events.unlink()
+        return result
 
     # ----- constraints and computes -----
 

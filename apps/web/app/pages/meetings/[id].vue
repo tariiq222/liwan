@@ -32,7 +32,13 @@ const isDetail = computed(() => route.path === `/meetings/${route.params.id}` ||
 const query = useMeeting(computed(() => isDetail.value ? id.value : null))
 // An invalid id has no record to load and uses the same not-found state as an unknown positive id.
 const pageError = computed(() => query.error.value ?? (id.value === null ? new ApiError(404, 'not_found', t('errors.generic')) : null))
-const { actionError, pendingMeetingAction, meetingActionConfirm, requestMeetingAction, confirmMeetingAction, transitioning } = useMeetingTransitions({ meetingId: id, meeting: query.data, hydrated })
+const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
+const { actionError, pendingMeetingAction, meetingActionConfirm, requestMeetingAction, confirmMeetingAction, transitioning } = useMeetingTransitions({
+  meetingId: id,
+  meeting: query.data,
+  hydrated,
+  onDeleted: () => navigateTo(backTo.value),
+})
 const completionGaps = computed(() => {
   const meeting = query.data.value
   if (!meeting) return []
@@ -54,7 +60,6 @@ const meetingEndLabel = computed(() => {
 })
 const attachmentCount = ref(0)
 const resolutionsBusy = ref(false)
-const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
 function childTo(path: string, query = route.query) {
   return recordChildTo(path, query, sourcePaths.value, route.hash)
 }
@@ -90,6 +95,10 @@ const moreActions = computed<DropdownMenuItem[][]>(() => {
   if (id.value !== null) groups[0]!.push({ label: t('meetingMinutesForm.downloadPdf'), icon: 'i-lucide-file-down', to: meetingMinutesPdfPath(id.value), external: true })
   if (m?.can_manage && m.state !== 'cancelled' && m.state !== 'done') {
     groups.push([{ label: t('meetingsUx.cancelMeetingAction'), icon: 'i-lucide-ban', color: 'error', disabled: transitioning.value, onSelect: () => requestMeetingAction('cancel') }])
+  }
+  // Only a draft is deleted; a confirmed meeting stays on record and is cancelled instead.
+  if (m?.can_manage && m.state === 'draft') {
+    groups.push([{ label: t('meetingsUx.deleteMeetingAction'), icon: 'i-lucide-trash-2', color: 'error', disabled: transitioning.value, onSelect: () => requestMeetingAction('delete') }])
   }
   return groups
 })
