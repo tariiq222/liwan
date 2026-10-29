@@ -2,6 +2,8 @@
 # CI stage: the whole release installed on a scratch database with its Odoo tests.
 #   deploy/ci/odoo.sh                run the tests of every release module (single run, the local full check)
 #   deploy/ci/odoo.sh --shard k/N    install every release module, run only shard k of N (tools/odoo_shards.py)
+#   ODOO_TEST_MODULES=a,b deploy/ci/odoo.sh --shard k/N
+#                                    same, but N shards split only the modules a,b (a pull request's affected set)
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 # Pinned OCA repositories (deploy/oca-addons.json), fetched by the setup action; appended after the WebVue addons.
@@ -16,7 +18,7 @@ esac
 MODULES="$(python3 -B tools/catalog_check.py --release-modules)"
 if [ -n "$SHARD" ]; then
   SCRATCH_DB="webvue_scratch_ci_${GITHUB_RUN_ID}_s${SHARD%/*}"
-  TAGS="$(python3 -B tools/odoo_shards.py tags "$SHARD")"
+  TAGS="$(python3 -B tools/odoo_shards.py tags "$SHARD" ${ODOO_TEST_MODULES:+--modules "$ODOO_TEST_MODULES"})"
 else
   SCRATCH_DB="webvue_scratch_ci_${GITHUB_RUN_ID}"
   TAGS="/${MODULES//,/,/}"
