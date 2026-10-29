@@ -45,7 +45,7 @@ class ProjectPhase(models.Model):
 
     def _webvue_open_tasks_check(self):
         """Closing with open tasks: a blocking check, or a ``warning`` one when the company allows it with a warning."""
-        open_tasks = self.env['project.task'].search_count([('project_id', '=', self.id), ('is_closed', '=', False)])
+        open_tasks = self._webvue_open_task_count()
         check = {'key': 'no_open_tasks', 'ok': not open_tasks}
         if self.env['webvue.pmo.settings'].get()['close_with_open_tasks'] == 'allow_with_warning':
             check['warning'] = True
