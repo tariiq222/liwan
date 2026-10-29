@@ -2,7 +2,7 @@
 from datetime import timedelta
 
 from odoo import api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
 
 from .appointment_settings import DEFAULTS
 from .res_company import REFERENCE_SEQUENCE_CODE
@@ -17,6 +17,8 @@ ATTENDANCE_TRANSITIONS = {
     'in_service': ('done',),
     'no_show': ('arrived',),
 }
+# A booking whose visit has begun or ended keeps its time; any other outcome no longer holds once it moves.
+STARTED_ATTENDANCE = frozenset({'in_service', 'done'})
 # One cron run marks at most this many bookings per company; the next run continues.
 NO_SHOW_BATCH = 500
 
@@ -97,12 +99,22 @@ class ResourceBooking(models.Model):
             late.write({'webvue_attendance': 'no_show'})
 
     def write(self, vals):
+        if 'start' in vals and 'webvue_attendance' not in vals:
+            self._webvue_clear_attendance_on_move(fields.Datetime.to_datetime(vals['start']))
         if GUARDED_FIELDS & vals.keys():
             self._webvue_guard_states([{
                 'start': booking.start, 'type_id': booking.type_id.id, 'combination_id': booking.combination_id.id,
                 'combination_auto_assign': booking.combination_auto_assign, **vals,
             } for booking in self])
         return super().write(vals)
+
+    def _webvue_clear_attendance_on_move(self, start):
+        """A booking moved to another time starts its attendance again: an arrival or a no-show belonged to the old
+        time. A booking whose visit has begun or ended cannot move (422 through the API)."""
+        moved = self.filtered(lambda booking: booking.webvue_attendance and booking.start != start)
+        if moved.filtered(lambda booking: booking.webvue_attendance in STARTED_ATTENDANCE):
+            raise UserError(self.env._('A booking whose visit has begun or ended cannot move to another time.'))
+        moved.write({'webvue_attendance': False})
 
     @api.model
     def _webvue_guard_states(self, states):

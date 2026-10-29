@@ -76,6 +76,22 @@ class TestAppointmentAttendance(WebVueAppointmentsCase):
             False: ('arrived', 'no_show'), 'arrived': ('in_service', 'done'), 'in_service': ('done',), 'no_show': ('arrived',),
         })
 
+    def test_moving_a_booking_clears_its_outcome_unless_its_visit_has_begun(self):
+        later = fields.Datetime.now().replace(second=0, microsecond=0) + timedelta(days=3)
+        for outcome in ('arrived', 'no_show'):
+            booking = self._booking_at(self._ago(hours=2), attendance=outcome)
+            self._always_open(booking.type_id, booking.combination_id)
+            booking.write({'start': later})
+            self.assertFalse(booking.webvue_attendance, outcome)
+        self._login('manager')  # a manager may move a booking past its change deadline: only the outcome refuses
+        for outcome in ('in_service', 'done'):
+            booking = self._booking_at(self._ago(hours=2), attendance=outcome)
+            self._always_open(booking.type_id, booking.combination_id)
+            moved = self.api('POST', '%s/%d/schedule' % (BOOKINGS, booking.id), json={'start': later.strftime(UTC_FORMAT)})
+            self._error(moved, 422, 'invalid')
+            self.assertIn('visit has begun or ended', moved.json()['message'], moved.text)
+            self.assertEqual(booking.webvue_attendance, outcome)
+
     def test_arrival_confirms_a_scheduled_booking_but_no_show_does_not(self):
         self._login()
         late = self._booking_at(self._ago(hours=1), confirm=False)

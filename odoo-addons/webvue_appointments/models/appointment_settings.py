@@ -59,7 +59,9 @@ class WebVueAppointmentSettings(models.Model):
     and ``self_booking_policy`` are enforced by the booking routes (tickets 05-07), and the attendance
     settings (``attendance_tracking``, ``auto_no_show``, ``no_show_grace_minutes``, ``walk_in_allowed``,
     ``visit_reason_field``, ``cancel_reason_required``) by the booking routes and the no-show cron
-    (ticket 14); ``reference_prefix`` is read when a booking is created. Existing bookings
+    (ticket 14); ``cancel_reason_required`` binds the staff cancel route only, because the invited
+    requester's page offers no reason list yet (ticket 11 follow-up). ``reference_prefix`` is read when a
+    booking is created. Existing bookings
     and types are never changed. Applying a sector preset writes ``sector_preset`` (the last applied
     preset) and every preset value in one save; a field sent with the preset overrides its value.
     """

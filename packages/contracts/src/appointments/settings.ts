@@ -28,6 +28,7 @@ export const AppointmentSettingsSchema = z.object({
   no_show_grace_minutes: noShowGraceMinutes,
   walk_in_allowed: z.boolean(),
   visit_reason_field: AppointmentFieldRequirementSchema,
+  /** Binds the staff cancel route; the invited requester's cancel takes no reason yet. */
   cancel_reason_required: z.boolean(),
   reference_prefix: referencePrefix,
   sector_preset: AppointmentSectorPresetSchema,
