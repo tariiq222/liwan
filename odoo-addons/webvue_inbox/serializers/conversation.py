@@ -39,27 +39,37 @@ def dump_conversation_detail(conversation, can_reply, can_assign):
     return {**dump_conversation(conversation), 'can_reply': can_reply, 'can_assign': can_assign}
 
 
+def dump_attachment(attachment):
+    return {'id': attachment.id, 'name': attachment.name, 'mimetype': attachment.mimetype, 'size': attachment.file_size}
+
+
 def dump_messages(messages):
     """Message shapes in input order; the attachments of the page are read with one search."""
     attachments = defaultdict(list)
     for attachment in messages.env['ir.attachment'].search([
         ('res_model', '=', 'webvue.inbox.message'), ('res_id', 'in', messages.ids),
     ], order='id'):
-        attachments[attachment.res_id].append({
-            'id': attachment.id, 'name': attachment.name,
-            'mimetype': attachment.mimetype, 'size': attachment.file_size,
-        })
-    return [
-        {
-            'id': message.id,
-            'direction': message.direction,
-            'body': message.body,
-            'author': dump_ref(message.author_id),
-            'template_name': message.template_name or None,
-            'delivery_state': message.delivery_state,
-            'error': message.error or None,
-            'attachments': attachments[message.id],
-            'created_at': iso(message.date),
-        }
-        for message in messages
-    ]
+        attachments[attachment.res_id].append(dump_attachment(attachment))
+    return [dump_message(message, attachments[message.id]) for message in messages]
+
+
+def dump_message(message, attachments):
+    return {
+        'id': message.id,
+        'direction': message.direction,
+        'kind': message.kind,
+        'body': message.body,
+        'author': dump_ref(message.author_id),
+        'template_name': message.template_name or None,
+        'delivery_state': message.delivery_state,
+        'error': message.error or None,
+        'attachments': attachments,
+        'reply_to': {'id': message.reply_to_id.id, 'preview': message.reply_to_id._webvue_reply_preview()}
+        if message.reply_to_id else None,
+        'reactions': {'customer': message.customer_reaction or None, 'agent': message.agent_reaction or None},
+        'location': message._webvue_location() if message.kind == 'location' else None,
+        'interactive': message._webvue_interactive() if message.interactive_type else None,
+        'selected_option': {'id': message.selected_option_id, 'title': message.selected_option_title or ''}
+        if message.selected_option_id else None,
+        'created_at': iso(message.date),
+    }

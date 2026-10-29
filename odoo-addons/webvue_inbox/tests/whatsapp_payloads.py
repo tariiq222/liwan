@@ -22,6 +22,14 @@ def inbound_media(provider_id='wamid.IMG1', wa_id='966501112222', kind='image', 
     }])
 
 
+def inbound_message(kind, block=None, provider_id='wamid.X1', wa_id='966501112222', **extra):
+    """An inbound message of any wire `kind`; `block` is the object under the kind key, `extra` top-level keys (context, ...)."""
+    raw = {'id': provider_id, 'from': wa_id, 'timestamp': str(TIMESTAMP), 'type': kind, **extra}
+    if block is not None:
+        raw[kind] = block
+    return payload(PHONE_ID, contacts=[{'wa_id': wa_id, 'profile': {'name': 'Sara'}}], messages=[raw])
+
+
 def status(provider_id, state, error=None):
     item = {'id': provider_id, 'status': state, 'timestamp': str(TIMESTAMP + 60), 'recipient_id': '966501112222'}
     if error:
