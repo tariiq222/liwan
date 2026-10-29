@@ -326,7 +326,7 @@ watch(() => props.denied, (value) => { if (value) seal() })
               </div>
               <p class="webvue-chat-bubble-meta">
                 <time>{{ timeFmt.format(new Date(row.item.created_at)) }}</time>
-                <span v-if="row.item.author.id === me?.id">{{ direct && peerSeenMessageId && row.item.id <= peerSeenMessageId ? t('chat.seen') : t('chat.sent') }}</span>
+                <span v-if="direct && row.item.author.id === me?.id">{{ peerSeenMessageId && row.item.id <= peerSeenMessageId ? t('chat.seen') : t('chat.sent') }}</span>
               </p>
             </div>
             <div v-if="props.writable" class="webvue-chat-msg-actions flex flex-wrap gap-1 text-xs text-muted">

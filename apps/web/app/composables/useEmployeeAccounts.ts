@@ -10,7 +10,7 @@ import {
 } from '@webvue/contracts'
 import { useSecureAdminUserMutation } from './useAdminUsers'
 
-export type EmployeeAccountCandidateParams = { q?: string; employee_id?: number; limit?: number; offset?: number }
+export type EmployeeAccountCandidateParams = { q?: string; employee_id?: number; status?: 'active' | 'archived'; limit?: number; offset?: number }
 
 export const employeeAccountKeys = {
   candidates: (params: EmployeeAccountCandidateParams) => ['access', 'employee-accounts', 'candidates', params] as const,
@@ -34,7 +34,7 @@ export function useEmployeeAccountBridge() {
 }
 
 export function employeeAccountCandidateQuery(params: EmployeeAccountCandidateParams = {}) {
-  return { q: params.q?.trim() || undefined, ...(params.employee_id !== undefined ? { employee_id: params.employee_id } : {}), limit: Math.min(Math.max(params.limit ?? 200, 0), 200), offset: Math.max(params.offset ?? 0, 0) }
+  return { q: params.q?.trim() || undefined, ...(params.employee_id !== undefined ? { employee_id: params.employee_id } : {}), ...(params.status ? { status: params.status } : {}), limit: Math.min(Math.max(params.limit ?? 200, 0), 200), offset: Math.max(params.offset ?? 0, 0) }
 }
 
 export function useEmployeeAccountCandidates(params: MaybeRefOrGetter<EmployeeAccountCandidateParams> = {}, enabled: MaybeRefOrGetter<boolean> = true) {

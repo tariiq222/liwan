@@ -15,17 +15,23 @@ RULES = (
     'rule_resolution_editors_write', 'rule_resolution_managers_write',
 )
 # (read, write, create, unlink) per capability group on each meeting model.
-# Nobody holds unlink on minutes and resolutions: cancel is the remove action and finalized minutes are
-# immutable, so no API route deletes them. The `unlink` overrides stay as ORM-level defence.
+# Only the manage group holds unlink, and only on minutes: the `unlink` override lets a manager delete a draft
+# (a confirmed meeting is cancelled, finalized minutes are immutable). Resolutions go with their meeting.
 ACL = {
-    'group_cap_meetings_read': (True, True, True, False),
-    'group_cap_meetings_manage': (True, True, True, False),
+    'webvue_meeting_minute': {
+        'group_cap_meetings_read': (True, True, True, False),
+        'group_cap_meetings_manage': (True, True, True, True),
+    },
+    'webvue_meeting_resolution': {
+        'group_cap_meetings_read': (True, True, True, False),
+        'group_cap_meetings_manage': (True, True, True, False),
+    },
 }
 
 
 @tagged('post_install', '-at_install', 'webvue', 'webvue_access')
 class TestMeetingsAccessComposition(TransactionCase):
-    """webvue_meetings owns the three meetings.* capabilities, their groups and
+    """webvue_meetings owns the four meetings.* capabilities, their groups and
     record rules (spec R2); it runs at install, so it also proves the hooks
     work without webvue_pmo or webvue_hr."""
 
@@ -39,11 +45,11 @@ class TestMeetingsAccessComposition(TransactionCase):
     def _keys(self, role_xmlid):
         return set(self.env.ref(role_xmlid).permission_ids.mapped('key'))
 
-    def test_meetings_own_three_capabilities_and_their_groups(self):
+    def test_meetings_own_four_capabilities_and_their_groups(self):
         catalog = self.service._webvue_capability_map()
         self.assertEqual({key for key, item in catalog.items() if item['owner'] == 'webvue_meetings'}, set(MEETINGS_PERMISSIONS))
         permissions = self.Permission.search([('key', 'in', sorted(MEETINGS_PERMISSIONS))])
-        self.assertEqual(len(permissions), 3)
+        self.assertEqual(len(permissions), 4)
         xmlids = permissions.get_external_id()
         for permission in permissions:
             self.assertTrue(xmlids[permission.id].startswith('webvue_meetings.permission_'), permission.key)
@@ -51,7 +57,7 @@ class TestMeetingsAccessComposition(TransactionCase):
             self.assertTrue(self.env.ref(permission.group_xmlid, raise_if_not_found=False), permission.key)
         self.assertEqual(
             {permission.key: set(permission.dependency_ids.mapped('key')) for permission in permissions if permission.dependency_ids},
-            {'meetings.create': {'meetings.read'}, 'meetings.manage': {'meetings.read'}},
+            {'meetings.create': {'meetings.read'}, 'meetings.manage': {'meetings.read'}, 'meetings.settings.manage': {'meetings.read'}},
         )
 
     def test_core_roles_get_their_meeting_grants(self):
@@ -65,9 +71,9 @@ class TestMeetingsAccessComposition(TransactionCase):
         manage = self.env.ref('webvue_meetings.group_cap_meetings_manage')
         self.assertIn(manage, self.env.ref('webvue_core.group_access_admin').all_implied_ids)
         self.assertIn(manage, self.env.ref('webvue_core.group_vendor_support').all_implied_ids)
-        for model in ('model_webvue_meeting_minute', 'model_webvue_meeting_resolution'):
-            model_id = self.env.ref(f'webvue_meetings.{model}').id
-            for group_name, perms in ACL.items():
+        for model, groups in ACL.items():
+            model_id = self.env.ref(f'webvue_meetings.model_{model}').id
+            for group_name, perms in groups.items():
                 group = self.env.ref(f'webvue_meetings.{group_name}')
                 access = self.env['ir.model.access'].search([('model_id', '=', model_id), ('group_id', '=', group.id)])
                 self.assertEqual(len(access), 1, (model, group_name))

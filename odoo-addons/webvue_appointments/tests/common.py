@@ -56,6 +56,18 @@ class WebVueAppointmentsCase(WebVueApiCase):
         })
 
     @classmethod
+    def _always_open(cls, booking_type, combination):
+        """Make the type and the combination's resources available around the clock, so a booking at any minute fits."""
+        calendar = cls.env['resource.calendar'].create({
+            'name': 'Always open', 'tz': 'UTC', 'company_id': booking_type.company_id.id,
+            'attendance_ids': [(0, 0, {
+                'name': 'Day %d' % day, 'dayofweek': str(day), 'hour_from': 0.0, 'hour_to': 24.0,
+            }) for day in range(7)],
+        })
+        booking_type.resource_calendar_id = calendar
+        combination.resource_ids.calendar_id = calendar
+
+    @classmethod
     def _create_booking(cls, booking_type, combination, partner=None):
         booking_type.combination_rel_ids = [(0, 0, {'combination_id': combination.id})]
         return cls.env['resource.booking'].with_context(mail_auto_subscribe_no_notify=True).create({

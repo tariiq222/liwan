@@ -9,5 +9,6 @@ from . import (
     payment_transaction,
     payments_settings,
     provider_registry,
+    refund_policy,
     sale_order,
 )

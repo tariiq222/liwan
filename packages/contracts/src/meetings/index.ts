@@ -283,3 +283,5 @@ export type MeetingResolutionPatch = z.infer<typeof MeetingResolutionPatchSchema
 export type MeetingSeriesListItem = z.infer<typeof MeetingSeriesListItemSchema>
 export type MeetingSeriesDetail = z.infer<typeof MeetingSeriesDetailSchema>
 export type MeetingSeriesCreate = z.infer<typeof MeetingSeriesCreateSchema>
+
+export * from './policy'

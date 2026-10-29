@@ -56,10 +56,11 @@ class ResourceBookingType(models.Model):
         self.ensure_one()
         return 1.0 if self.webvue_online_payment == 'full' else self.webvue_deposit_percent / 100
 
-    def _webvue_set_payment(self, online_payment=None, deposit_percent=None, price=None):
-        """Change how this type is paid online; ``price`` sets the list price of its product, created on first use.
+    def _webvue_set_payment(self, online_payment=None, deposit_percent=None, price=None, refund_rules=None):
+        """Change how this type is paid online; ``price`` sets the list price of its product, created on first use,
+        and ``refund_rules`` the refund rules of that product (``webvue.payments.service._webvue_set_refund_rules``).
 
-        :raise PriceRequired: when the type would take online payment without a price.
+        :raise PriceRequired: when the type would take online payment, or get refund rules, without a price.
         """
         self.ensure_one()
         if not self.env['webvue.access.service']._webvue_has_capability(
@@ -72,6 +73,10 @@ class ResourceBookingType(models.Model):
             product = self._webvue_price_product(product, price)
         elif mode != 'none' and not product:
             raise PriceRequired(self.env._("Set the price of this booking type before it takes online payment."))
+        if refund_rules:
+            if not product:
+                raise PriceRequired(self.env._("Set the price of this booking type before its refund rules."))
+            self.env['webvue.payments.service']._webvue_set_refund_rules(product, **refund_rules)
         values = {'webvue_online_payment': mode}
         if deposit_percent is not None:
             values['webvue_deposit_percent'] = deposit_percent
