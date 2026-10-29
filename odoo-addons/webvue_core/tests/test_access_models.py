@@ -89,7 +89,7 @@ class TestWebVueAccessModels(TransactionCase):
             })
 
     def test_assignments_are_additive_company_scoped_and_disabled_role_stays_effective(self):
-        users_role = self._custom_role('قراءة المستخدمين', ['access.users.read'])
+        users_role = self._custom_role('قراءة المستخدمين', ['access.users.read', 'access.roles.read'])
         branding_role = self._custom_role('إدارة الهوية', ['settings.branding.manage'])
         self.service._webvue_replace_assignments(
             self.employee,
