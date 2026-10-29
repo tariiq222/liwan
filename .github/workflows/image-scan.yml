@@ -1,0 +1,40 @@
+name: image-scan
+
+# Daily image build and Trivy scan of main. A new CRITICAL advisory against an unchanged base image
+# fails this run (GitHub notifies the owner) before it fails every pull request that selects the ci `image` stage.
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# The Postgres service container is ephemeral and reachable only from its own job, so these are throwaway values.
+env:
+  PGHOST: 127.0.0.1
+  PGPORT: '5432'
+  PGUSER: odoo
+  PGPASSWORD: odoo
+  ODOO_PORT: '8169'
+
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: odoo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U odoo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - run: deploy/ci/image.sh

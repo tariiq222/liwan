@@ -218,7 +218,8 @@ Docker socket) for vulnerabilities that have a fix available: any CRITICAL findi
 are listed in the job log and counted in the summary without failing, and a scanner error (for example the
 vulnerability database download) fails the stage with a message instead of passing. All images are scanned before
 the stage fails. The scan covers OS and language packages known to the Trivy database at run time, not the
-application code, and it does not allowlist anything. The image digests are not published artifacts. A change under
+application code, and it does not allowlist anything. The daily `image-scan` workflow runs the same stage on `main`,
+so an advisory published against an unchanged base image fails there first instead of in every pull request. The image digests are not published artifacts. A change under
 `apps/web`, `apps/vendor-admin`, `apps/ai-service`, `packages/ui`, `packages/commercial-ui` or
 `packages/commercial-contracts` selects the `image` stage because those images build from them. Mock browser tests and RTL stories cover their listed flows, not every possible
 real integration. No paid model calls are required.
