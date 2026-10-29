@@ -22,6 +22,10 @@
   "job_title": "",
   "manager": null,
   "name": "Separation Employee",
+  "nationality": {
+    "id": 192,
+    "name": "Saudi Arabia"
+  },
   "user_id": 16,
   "work_email": "s.s@example.com",
   "work_phone": ""
