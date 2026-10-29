@@ -45,7 +45,7 @@ async function submit() {
         <SharedDateField id="finance-asset-dispose-date" v-model="draft.date" :disabled="!hydrated || dispose.isPending.value" />
       </UFormField>
       <UFormField :label="t('financeAssets.dispose.saleValue')" name="finance-asset-dispose-sale" :help="t('financeAssets.dispose.saleHelp')" :error="shown.saleValue ? t('financeAssets.dispose.saleInvalid') : undefined">
-        <UInput id="finance-asset-dispose-sale" v-model="draft.saleValue" type="number" min="0" step="any" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || dispose.isPending.value" />
+        <UInput id="finance-asset-dispose-sale" v-model="draft.saleValue" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || dispose.isPending.value" />
       </UFormField>
       <UFormField v-if="sale" :label="t('financeAssets.dispose.saleAccount')" name="finance-asset-dispose-sale-account" required :help="t('financeAssets.dispose.saleAccountHelp')" :error="shown.saleAccountId ? t('financeAssets.dispose.saleAccountRequired') : undefined">
         <AccountPicker id="finance-asset-dispose-sale-account" v-model="draft.saleAccountId" :aria-label="t('financeAssets.dispose.saleAccount')" :invalid="!!shown.saleAccountId" />

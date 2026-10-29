@@ -8,6 +8,7 @@ import InboxThread from '@/components/inbox/InboxThread.vue'
 import { ApiError } from '@/composables/useApi'
 import { parseInboxListRoute, serializeInboxListRoute, type InboxListRoute } from '@/composables/inbox/inboxListRoute'
 import { CONVERSATION_STATE_TONE } from '@/composables/inbox/inboxPresentation'
+import { replyWindowOpen } from '@/composables/inbox/inboxWindow'
 import { useInboxConversation, useInboxConversations, useMarkInboxConversationRead } from '@/composables/inbox/useInbox'
 
 // The inbox screen on SharedConversationLayout. From 768px the list is the shell's context-sidebar panel
@@ -28,6 +29,9 @@ const hasSelection = computed(() => !!props.conversationId)
 const infoOpen = computed(() => !!props.infoOpen && hasSelection.value)
 const threadTo = computed(() => ({ path: `/inbox/${props.conversationId}`, query: listQuery.value }))
 const infoTo = computed(() => ({ path: `/inbox/${props.conversationId}/info`, query: listQuery.value }))
+// The message the agent is answering; each conversation starts without one (the composer restores a stored draft's).
+const replyTo = ref<{ id: number; preview: string } | null>(null)
+watch(() => props.conversationId, () => { replyTo.value = null })
 const status = computed(() => error.value instanceof ApiError ? error.value.status : undefined)
 // Escape leaves the open contact panel for the thread, as it leaves a record page for its list.
 useEscapeBack(() => (infoOpen.value ? threadTo.value : undefined))
@@ -75,7 +79,7 @@ function updateRoute(next: InboxListRoute) {
     <template #thread>
       <div class="flex min-h-0 flex-1 flex-col" data-testid="inbox-thread">
         <template v-if="props.conversationId && !error">
-          <InboxThread :conversation-id="props.conversationId" :can-reply="data?.can_reply ?? false" />
+          <InboxThread :conversation-id="props.conversationId" :can-reply="data?.can_reply ?? false" :window-open="!!data && replyWindowOpen(data)" @reply="replyTo = $event" />
         </template>
         <template v-else>
           <!-- The one page heading when no thread header is shown. -->
@@ -88,7 +92,7 @@ function updateRoute(next: InboxListRoute) {
     </template>
 
     <template v-if="data" #composer>
-      <InboxComposer v-if="data.can_reply" :key="data.id" :conversation="data" />
+      <InboxComposer v-if="data.can_reply" :key="data.id" v-model:reply-to="replyTo" :conversation="data" />
       <UAlert v-else class="m-2" color="neutral" variant="subtle" icon="i-lucide-eye" data-testid="inbox-read-only" :title="t('inbox.composer.readOnly')" :description="t('inbox.composer.readOnlyDescription')" />
     </template>
 

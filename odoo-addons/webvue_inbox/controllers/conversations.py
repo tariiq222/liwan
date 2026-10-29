@@ -24,6 +24,7 @@ from odoo.addons.webvue_inbox.controllers.helpers import (
     visible_conversation,
     visible_message,
 )
+from odoo.addons.webvue_inbox.controllers.reply_parsing import MAX_BODY
 from odoo.addons.webvue_inbox.models.access_service import ASSIGN, READ, REPLY
 from odoo.addons.webvue_inbox.models.notification_types import KIND
 from odoo.addons.webvue_inbox.serializers.conversation import (
@@ -39,9 +40,6 @@ PRIORITIES = ('low', 'normal', 'high', 'urgent')
 PATCH_FIELDS = {'state', 'priority', 'tag_ids', 'assignee_id', 'department_id'}
 REPLY_FIELDS = {'state', 'priority', 'tag_ids'}
 ASSIGN_FIELDS = {'assignee_id', 'department_id'}
-MAX_BODY = 4096
-MAX_TEMPLATE_PARAMS = 20
-MAX_PARAM = 1024
 
 
 def conversation_domain(args):
@@ -131,19 +129,6 @@ def notify_assignment(conversation):
     )
 
 
-def parse_reply(payload):
-    """('text', body) or ('template', template, params) from a reply body; 422 otherwise."""
-    if set(payload) == {'body'}:
-        return parse_text(payload, 'body', MAX_BODY), None, ()
-    check_fields(payload, {'template_id', 'params'}, required=('template_id', 'params'))
-    params = payload['params']
-    if (not isinstance(params, list) or len(params) > MAX_TEMPLATE_PARAMS
-            or any(not isinstance(p, str) or len(p) > MAX_PARAM for p in params)):
-        reject('params must be a list of at most 20 strings', 'params')
-    template = find_one('webvue.inbox.template', payload['template_id'], 'template_id')
-    return None, template, tuple(params)
-
-
 class ConversationController(http.Controller):
 
     @http.route('/api/v1/inbox/conversations', type='json2', auth='user', methods=['GET'], readonly=True)
@@ -172,10 +157,12 @@ class ConversationController(http.Controller):
     @requires_feature('inbox.enabled', operation='write')
     @requires_capability(READ)
     def mark_read(self, conversation_id, **_):
-        """Clear the unread flag; the UI calls this when it opens a conversation."""
+        """Clear the unread flag and, for an agent who can reply, queue the read receipt; the UI calls this when it opens a conversation."""
         conversation = visible_conversation(conversation_id)
         if conversation.unread:
             conversation.unread = False
+        if request.env['webvue.access.service']._webvue_has_capability(request.env.user, REPLY):
+            conversation._webvue_request_read_receipt()
         return no_content()
 
     @http.route('/api/v1/inbox/conversations/<int:conversation_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
@@ -202,17 +189,6 @@ class ConversationController(http.Controller):
         domain = [('conversation_id', '=', conversation.id)]
         newest = Message.search(domain, order='date desc, id desc', limit=limit, offset=offset)
         return {'items': dump_messages(newest.sorted(lambda m: (m.date, m.id))), 'total': Message.search_count(domain)}
-
-    @http.route('/api/v1/inbox/conversations/<int:conversation_id>/messages', type='json2', auth='user', methods=['POST'], readonly=False)
-    @api_handler
-    @requires_feature('inbox.enabled', operation='write')
-    @requires_capability(REPLY)
-    def reply(self, conversation_id, **payload):
-        conversation = visible_conversation(conversation_id)
-        body, template, params = parse_reply(payload)
-        message = request.env['webvue.inbox.message']._webvue_queue_reply(conversation, body, template, params)
-        conversation._webvue_notify_bus()
-        return dump_messages(message)[0]
 
     @http.route('/api/v1/inbox/conversations/<int:conversation_id>/notes', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

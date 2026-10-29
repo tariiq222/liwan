@@ -323,7 +323,8 @@ cross-addon links.
 - `webvue_hr`, `webvue_tasks`, `webvue_operations` and their bridges have no `sudo()` path.
   `webvue_pmo` uses it only for the documented manager-write,
   charter-approval (approval fields only, through `_webvue_write_sudo` with its own whitelist, after the manager or sponsor check), policy/config, display-lookup, integer-count, completion-status and notification
-  candidate cases, each after the caller's authorization check: the project copy-create policy, the stage and milestone
+  candidate cases, each after the caller's authorization check: the project create and copy-create policy, the shared
+  project-stage writes (Odoo lets a project user write only personal stages), the stage and milestone
   task counts, the settings and legacy
   `ir.config_parameter` policy writes, the project-type provisioning seed (a system administrator who creates a
   company need not hold the employee ACL on `webvue.project.type`), the task serializers' project and milestone
@@ -344,9 +345,12 @@ cross-addon links.
   `webvue_core` uses it only for the company-partner existence check, which Odoo's `res_company_rule_employee` hides and
   `active_test=False` must still see.
   `webvue_crm` uses it only for two boolean existence checks that return no record: the company-wide duplicate-phone check and the tenant-wide stage-occupancy check (stages are shared, the caller's rules hide other companies' deals).
+  `webvue_appointments` uses it only in `models/guest_service.py`, to read the one booking behind an invited requester's access token (the public user holds no ACL on `resource.booking`); the token is compared in constant time and the booking is returned, elevated, only when it matches. That elevated booking is then also used to schedule, confirm and cancel that one booking and its own meeting (the engine's `_sync_meeting` creates, updates and unlinks its calendar event and attendees), with the modification deadline checked by `within_deadline`.
   `webvue_chat` uses it for the two `mail.message.reaction` paths — the toggle after `_webvue_member_channel`
   proved the caller's membership, and the reaction aggregation of an already-authorized message — both blocked
-  by `mail.message.reaction` being system-only in Odoo (owner decision 2026-10-25: authorized).
+  by `mail.message.reaction` being system-only in Odoo (owner decision 2026-10-25: authorized), and for the author's
+  message edit after the member and author checks, because emptying a message reads `message_link_preview_ids`,
+  a field Odoo limits to `base.group_erp_manager` (as stock Odoo's own edit controller does).
   `webvue_notify` uses it for bell delivery and recipient-owned bell reads. The `mail.message` environment in
   `_webvue_deliver` bypasses the stock create/unlink document-access gates: create may be allowed by following the
   source, while unlink requires source write/create access. The three recipient-owned reader helpers retain
@@ -376,10 +380,21 @@ cross-addon links.
   stock `payment.provider.write` then archives the provider's saved tokens and toggles its payment
   methods and the payment post-processing cron, all system-only models. The tenant's gateway keys are
   written without elevation (the capability group joins the stock key field's group) and never returned.
-  It also uses it in `models/payer_service.py`, for the anonymous payer of one invoice whose access token
-  the stock portal check already verified: the compatible provider and payment-method lookups and the
-  transaction create, with the invoice's own amount, currency and partner, blocked by the system-only
-  `payment.provider` (read by the method lookup too) and `payment.transaction` ACL rows as in the stock portal.
+  It also uses it in `models/payer_service.py`, for the anonymous payer of one payable document (a posted
+  customer invoice or an online order) whose access token the stock portal check already verified: the
+  compatible provider and payment-method lookups and the transaction create, with the document's own
+  amount, currency and partner, blocked by the system-only `payment.provider` (read by the method lookup
+  too) and `payment.transaction` ACL rows as in the stock portal; in `models/order_service.py`, for the
+  online orders a selling application creates, cancels and reads after authorizing its own record (its
+  user holds no sales rights): order and line create with server values only (no price or amount
+  parameter), stock `_action_cancel`, the payment summary and the pay link of an authorized document,
+  every returned record unelevated; and in `models/payments_settings.py`, for the one whitelisted
+  tenant-wide stock parameter `sale.automatic_invoice`: read by the server when it decides, and written
+  only after the `payments.settings.manage` check in the tenant's root company.
+  `webvue_appointments_payments` uses it only in `models/resource_booking_type.py`, for the product
+  that sells a paying booking type: its price (and its creation, named after the type and linked to it)
+  after the `appointments.bookings.manage` check in the type's company, and the name sync after the
+  caller's own rename of the type; appointments managers hold no product rights.
   `webvue_api` uses it in `controllers/common.py` only for the single company-ownership
   read in `get_record`, before any access check, so another company's record answers the
   same 404 not-found as a missing one instead of a 403 that leaks its existence; in

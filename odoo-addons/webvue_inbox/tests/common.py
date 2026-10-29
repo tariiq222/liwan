@@ -14,6 +14,11 @@ PASSWORD = 'inbox_pass_123'
 PHONE_ID = '100000000001'
 ACCESS_TOKEN = 'EAAB-access-token-0123456789'
 APP_SECRET = 'app-secret-0123456789abcdef'
+# Every key of InboxMessageSchema (packages/contracts/src/inbox/index.ts).
+MESSAGE_KEYS = {
+    'id', 'direction', 'kind', 'body', 'author', 'template_name', 'delivery_state', 'error', 'attachments', 'reply_to',
+    'reactions', 'location', 'interactive', 'selected_option', 'created_at',
+}
 
 
 class WebVueInboxCase(WebVueApiCase):

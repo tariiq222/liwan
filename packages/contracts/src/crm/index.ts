@@ -4,6 +4,7 @@ export * from './call'
 export * from './dashboard'
 export * from './imports'
 export * from './lists'
+export * from './notification'
 export * from './opportunity'
 export * from './settings'
 

@@ -1,5 +1,14 @@
 {
   "crm": {
+    "bell": {
+      "assigned": "New {term} assigned to you: {name}",
+      "assignedMany": {
+        "m": "{count} {term} assigned to you, first: {name}",
+        "f": "{count} {term} assigned to you, first: {name}"
+      },
+      "followupDue": "Follow-up call due: {name}",
+      "needsManager": "Needs a manager decision: {name}"
+    },
     "nav": {
       "dashboard": "Dashboard",
       "opportunities": "Opportunities",
@@ -138,6 +147,7 @@
       }
     },
     "opportunities": {
+      "callAction": "Call {name}",
       "list": {
         "new": "Add {term}",
         "search": "Search by name, phone or email",
@@ -221,6 +231,8 @@
         "lostSubmit": "Close as lost",
         "outcomeRequired": "Choose the call outcome",
         "log": "Call log",
+        "logMore": "Show older calls",
+        "logCount": "Showing {shown} of {total}",
         "logEmpty": "No calls recorded yet",
         "logBy": "by {name}",
         "logNoOutcome": "No outcome",

@@ -14,11 +14,17 @@ import urllib3
 GRAPH_API_VERSION = 'v23.0'
 GRAPH_BASE = 'https://graph.facebook.com'
 TIMEOUT_SECONDS = 10
+UPLOAD_TIMEOUT_SECONDS = 60
+TYPING_TIMEOUT_SECONDS = 3
 MAX_MEDIA_BYTES = 16 * 1024 * 1024
 MAX_TEMPLATE_PAGES = 10
 MEDIA_KINDS = frozenset({'image', 'document', 'audio', 'video', 'sticker'})
+TEXT_KINDS = frozenset({'text', 'location', 'contacts'})
+# A WhatsApp message type that is not stored as itself: the customer's answer to an interactive message or template.
+REPLY_TYPES = frozenset({'interactive', 'button'})
 SIGNATURE_PREFIX = 'sha256='
 ERROR_TEXT_LENGTH = 200
+LOCATION_TEXT_LENGTH = 1000
 
 
 @dataclass(frozen=True)
@@ -26,6 +32,20 @@ class Credentials:
     phone_number_id: str
     business_account_id: str
     access_token: str
+
+
+@dataclass(frozen=True)
+class Location:
+    latitude: float
+    longitude: float
+    name: str | None
+    address: str | None
+
+
+@dataclass(frozen=True)
+class Option:
+    id: str
+    title: str
 
 
 @dataclass(frozen=True)
@@ -38,6 +58,17 @@ class InboundMessage:
     body: str
     media_id: str | None
     filename: str | None
+    context_id: str | None
+    location: Location | None
+    option: Option | None
+
+
+@dataclass(frozen=True)
+class InboundReaction:
+    """The customer's reaction to the message `target_id`; an empty `emoji` removes it."""
+    wa_id: str
+    target_id: str
+    emoji: str
 
 
 @dataclass(frozen=True)
@@ -82,31 +113,93 @@ def _timestamp(value):
     return datetime.fromtimestamp(int(value), timezone.utc).replace(tzinfo=None)
 
 
-def _text(kind, block):
+def _number(value):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _clip(value):
+    return str(value)[:LOCATION_TEXT_LENGTH] if value else None
+
+
+def _location(block):
+    latitude, longitude = _number(block.get('latitude')), _number(block.get('longitude'))
+    if latitude is None or longitude is None or not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+        return None
+    return Location(latitude, longitude, _clip(block.get('name')), _clip(block.get('address')))
+
+
+def _contacts_text(raw):
+    """One readable line per shared contact: the name and its phone numbers."""
+    lines = []
+    for contact in _dicts(raw.get('contacts')):
+        name = _dict(contact.get('name')).get('formatted_name') or ''
+        phones = [phone.get('phone') for phone in _dicts(contact.get('phones')) if phone.get('phone')]
+        lines.append(': '.join(part for part in (name, ', '.join(phones)) if part))
+    return '\n'.join(line for line in lines if line)
+
+
+def _option(kind, block):
+    """The option a customer chose: a template quick-reply button or an interactive reply."""
+    if kind == 'button':
+        text = block.get('text') or ''
+        return Option(block.get('payload') or text, text)
+    reply = _dict(block.get('button_reply')) or _dict(block.get('list_reply'))
+    return Option(str(reply.get('id') or ''), reply.get('title') or '') if reply else None
+
+
+def _kind(wire_kind):
+    if wire_kind in MEDIA_KINDS or wire_kind in TEXT_KINDS:
+        return wire_kind
+    return 'interactive' if wire_kind in REPLY_TYPES else 'unsupported'
+
+
+def _body(kind, raw, block, location, option):
     if kind == 'text':
         return block.get('body') or ''
-    if kind == 'button':
-        return block.get('text') or ''
+    if kind == 'contacts':
+        return _contacts_text(raw)
+    if kind == 'location':
+        return (location.name or location.address or f'{location.latitude:.6f}, {location.longitude:.6f}') if location else ''
     if kind == 'interactive':
-        reply = _dict(block.get('button_reply')) or _dict(block.get('list_reply'))
-        return reply.get('title') or ''
+        return option.title if option else ''
     return block.get('caption') or ''
 
 
 def _inbound(raw, names):
-    kind = raw.get('type') or 'unknown'
-    block = _dict(raw.get(kind))
+    wire_kind = raw.get('type') or 'unknown'
+    block = _dict(raw.get(wire_kind))
+    kind = _kind(wire_kind)
     media = kind in MEDIA_KINDS
+    location = _location(block) if kind == 'location' else None
+    option = _option(wire_kind, block) if kind == 'interactive' else None
+    if kind == 'location' and not location:
+        kind = 'unsupported'
     return InboundMessage(
         provider_id=raw['id'],
         wa_id=raw['from'],
         profile_name=names.get(raw['from']),
         sent_at=_timestamp(raw['timestamp']),
         kind=kind,
-        body=_text(kind, block) or f'[{kind}]',
+        body=_body(kind, raw, block, location, option) or f'[{kind}]',
         media_id=block.get('id') if media else None,
         filename=block.get('filename') if media else None,
+        context_id=_dict(raw.get('context')).get('id'),
+        location=location,
+        option=option,
     )
+
+
+def _reaction(raw):
+    block = _dict(raw.get('reaction'))
+    target = block.get('message_id')
+    return InboundReaction(raw['from'], target, block.get('emoji') or '') if isinstance(target, str) else None
+
+
+def _message_event(raw, names):
+    return _reaction(raw) if raw.get('type') == 'reaction' else _inbound(raw, names)
 
 
 def _status(raw):
@@ -120,7 +213,7 @@ def _status(raw):
 
 
 def parse_events(payload, phone_number_id):
-    """The inbound messages and status updates of `payload` addressed to `phone_number_id`."""
+    """The inbound messages, reactions and status updates of `payload` addressed to `phone_number_id`."""
     events = []
     for entry in _dicts(payload.get('entry')):
         for change in _dicts(entry.get('changes')):
@@ -131,7 +224,7 @@ def parse_events(payload, phone_number_id):
                 contact.get('wa_id'): _dict(contact.get('profile')).get('name')
                 for contact in _dicts(value.get('contacts'))
             }
-            events += [_inbound(raw, names) for raw in _dicts(value.get('messages'))]
+            events += [event for event in (_message_event(raw, names) for raw in _dicts(value.get('messages'))) if event]
             events += [_status(raw) for raw in _dicts(value.get('statuses'))]
     return events
 
@@ -154,10 +247,10 @@ def _error_text(response):
     return str(message)[:ERROR_TEXT_LENGTH]
 
 
-def _call(method, url, credentials, **kwargs):
+def _call(method, url, credentials, timeout=TIMEOUT_SECONDS, **kwargs):
     headers = {'Authorization': f'Bearer {credentials.access_token}'}
     try:
-        response = requests.request(method, url, headers=headers, timeout=TIMEOUT_SECONDS, **kwargs)
+        response = requests.request(method, url, headers=headers, timeout=timeout, **kwargs)
     except requests.RequestException as error:
         raise ProviderError(f'provider unreachable: {type(error).__name__}', retryable=True) from None
     if response.status_code >= 400:
@@ -182,8 +275,10 @@ def _graph(path):
     return f'{GRAPH_BASE}/{GRAPH_API_VERSION}/{path}'
 
 
-def _send(credentials, to, kind, content):
+def _send(credentials, to, kind, content, context_id=None):
     payload = {'messaging_product': 'whatsapp', 'to': to, 'type': kind, kind: content}
+    if context_id:
+        payload['context'] = {'message_id': context_id}
     response = _call('POST', _graph(f'{credentials.phone_number_id}/messages'), credentials, json=payload)
     messages = _json_dict(response).get('messages')
     provider_id = messages[0].get('id') if isinstance(messages, list) and messages and isinstance(messages[0], dict) else None
@@ -193,8 +288,8 @@ def _send(credentials, to, kind, content):
     return provider_id
 
 
-def send_text(credentials, to, body):
-    return _send(credentials, to, 'text', {'body': body})
+def send_text(credentials, to, body, context_id=None):
+    return _send(credentials, to, 'text', {'body': body}, context_id)
 
 
 def send_template(credentials, to, name, language, params):
@@ -202,6 +297,79 @@ def send_template(credentials, to, name, language, params):
     if params:
         content['components'] = [{'type': 'body', 'parameters': [{'type': 'text', 'text': p} for p in params]}]
     return _send(credentials, to, 'template', content)
+
+
+def upload_media(credentials, filename, mimetype, data):
+    """Upload a file to the business phone number and return its media id."""
+    response = _call(
+        'POST', _graph(f'{credentials.phone_number_id}/media'), credentials, timeout=UPLOAD_TIMEOUT_SECONDS,
+        data={'messaging_product': 'whatsapp', 'type': mimetype}, files={'file': (filename, data, mimetype)},
+    )
+    media_id = _json_dict(response).get('id')
+    if not isinstance(media_id, str):
+        message = 'malformed provider response'
+        raise ProviderError(message, retryable=False)
+    return media_id
+
+
+def send_media(credentials, to, kind, media_id, caption=None, filename=None, context_id=None):
+    """Send an uploaded file; audio takes no caption and only a document shows a filename."""
+    content = {'id': media_id}
+    if caption:
+        content['caption'] = caption
+    if kind == 'document' and filename:
+        content['filename'] = filename
+    return _send(credentials, to, kind, content, context_id)
+
+
+def send_location(credentials, to, location, context_id=None):
+    content = {'latitude': location.latitude, 'longitude': location.longitude}
+    content.update({key: value for key, value in (('name', location.name), ('address', location.address)) if value})
+    return _send(credentials, to, 'location', content, context_id)
+
+
+def _interactive_action(interactive):
+    if interactive['type'] == 'buttons':
+        return {'buttons': [{'type': 'reply', 'reply': button} for button in interactive['buttons']]}
+    if interactive['type'] == 'list':
+        sections = [
+            {**({'title': section['title']} if section['title'] else {}), 'rows': [
+                {key: value for key, value in row.items() if value is not None} for row in section['rows']
+            ]}
+            for section in interactive['sections']
+        ]
+        return {'button': interactive['button'], 'sections': sections}
+    return {'name': 'cta_url', 'parameters': {'display_text': interactive['display_text'], 'url': interactive['url']}}
+
+
+def send_interactive(credentials, to, interactive, context_id=None):
+    """Send an interactive message given as the wire shape of the inbox contract (buttons, list or cta_url)."""
+    content = {
+        'type': 'button' if interactive['type'] == 'buttons' else interactive['type'],
+        'body': {'text': interactive['body']},
+        'action': _interactive_action(interactive),
+    }
+    if interactive['header']:
+        content['header'] = {'type': 'text', 'text': interactive['header']}
+    if interactive['footer']:
+        content['footer'] = {'text': interactive['footer']}
+    return _send(credentials, to, 'interactive', content, context_id)
+
+
+def send_reaction(credentials, to, message_id, emoji):
+    """React to a message with `emoji`; an empty emoji removes the reaction."""
+    return _send(credentials, to, 'reaction', {'message_id': message_id, 'emoji': emoji})
+
+
+def mark_read(credentials, message_id, typing=False):
+    """Mark an inbound message read; with `typing` also show the typing indicator to the customer for a short while."""
+    payload = {'messaging_product': 'whatsapp', 'status': 'read', 'message_id': message_id}
+    if typing:
+        payload['typing_indicator'] = {'type': 'text'}
+    _call(
+        'POST', _graph(f'{credentials.phone_number_id}/messages'), credentials, json=payload,
+        timeout=TYPING_TIMEOUT_SECONDS if typing else TIMEOUT_SECONDS,
+    )
 
 
 def fetch_media(credentials, media_id):
