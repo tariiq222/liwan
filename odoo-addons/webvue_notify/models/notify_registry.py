@@ -68,6 +68,11 @@ class WebVueNotifyRegistry(models.AbstractModel):
         return tuple(keys)
 
     @api.model
+    def _webvue_notify_has_platform_kind(self):
+        """True when a registered kind belongs to no application feature (the platform's own rows)."""
+        return any(not item.get('feature_key') for item in self._webvue_notification_type_map().values())
+
+    @api.model
     def _webvue_notify_live_kinds(self):
         return tuple(kind for kind, item in self._webvue_notification_type_map().items() if item.get('live'))
 

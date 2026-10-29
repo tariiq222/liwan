@@ -106,3 +106,19 @@ class TestAccessFixes(WebVueApiCase):
                 response = self.api('GET', path)
                 self.assertEqual(response.status_code, 401)
                 self.assertEqual(response.json()['code'], 'session_required')
+
+    def test_a_settings_manager_without_access_administration_still_saves_and_is_logged(self):
+        role = self.env['webvue.access.role'].create({
+            'name_ar': 'مدير إعدادات الشركة', 'type': 'custom', 'company_id': self.env.company.id,
+            'permission_ids': [(6, 0, self.env['webvue.access.permission'].search([
+                ('key', 'in', ['settings.company.manage', 'settings.company.read', 'settings.branding.manage', 'settings.branding.read']),
+            ]).ids)],
+        })
+        manager = new_test_user(self.env, login='access_fix_settings', groups='webvue_core.group_employee')
+        self.service._webvue_replace_assignments(manager, [{'role_id': role.id, 'company_id': self.env.company.id}])
+        self.assertFalse(manager.has_group('base.group_system'))
+        company = self.env.company.with_user(manager)
+        company._webvue_write_company_profile({'city': 'جدة'})
+        company._webvue_write_branding({'primary_color': '#112233'})
+        self.assertEqual(self._events('company.profile_changed').actor_id, manager)
+        self.assertTrue(self._events('company.branding_changed'))

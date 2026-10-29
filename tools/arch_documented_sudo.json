@@ -163,6 +163,10 @@
     "odoo-addons/webvue_payments/models/refund_policy.py": {
       "count": 2,
       "reason": "webvue_payments reads and writes the refund rules of the product a selling application sells, after that application authorized its own record (the bridge checks `appointments.bookings.manage` in the type's company): `product.sudo().product_tmpl_id` in `_webvue_refund_rules` reads the template's refund policy, refund amounts and notice tiers, and in `_webvue_set_refund_rules` writes those three rules only, replacing the `webvue.payments.refund.tier` rows; the application's managers are blocked by the stock `product.template` write ACL that only `sales_team.group_sale_manager` and `product` managers hold."
+    },
+    "odoo-addons/webvue_core/models/access_audit.py": {
+      "count": 1,
+      "reason": "webvue_core access-log write: `super(WebVueAccessAudit, self.sudo()).create(vals)` in `_webvue_log`, called by the server after the caller's own capability check (role, grant, company profile and branding writes); blocked by odoo-addons/webvue_core/security/ir.model.access.csv `access_audit_*`, which grant create only to system and the access-administration capability groups, so a `settings.company.manage` or `settings.branding.manage` user would otherwise lose the whole settings write to an AccessError. The entry holds field names only (`_assert_safe`), and the model's public `create`, `write` and `unlink` stay system-only or immutable."
     }
   }
 }

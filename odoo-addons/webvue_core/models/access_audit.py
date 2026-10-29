@@ -99,4 +99,6 @@ class WebVueAccessAudit(models.Model):
             'after': after,
             'reason': reason,
         }
-        return super().create(vals)
+        # The server writes the entry after the caller's own capability check; the audit ACL lets only
+        # system and access administrators create, so a settings manager would lose the whole write.
+        return super(WebVueAccessAudit, self.sudo()).create(vals)
