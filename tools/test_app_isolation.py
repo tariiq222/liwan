@@ -65,6 +65,39 @@ class InstallListTest(Fixture):
             self.install('a_b')
 
 
+class AffectedTest(Fixture):
+    MODULES = list(DEPENDS) + ['webvue_core', 'webvue_platform', 'webvue_directory', 'webvue_ai']
+
+    def affected(self, *changed):
+        return app_isolation.affected(set(changed), [m for m in self.MODULES if m in DEPENDS], self.addons)
+
+    def test_a_change_reaches_its_dependents_transitively(self):
+        self.assertEqual(self.affected('webvue_api'), ['a_b', 'api_c', 'app_a', 'app_b', 'app_c', 'b_ai', 'webvue_api'])
+        self.assertEqual(self.affected('app_a'), ['a_b', 'app_a'])
+
+    def test_a_leaf_change_reaches_only_itself(self):
+        self.assertEqual(self.affected('a_b'), ['a_b'])
+
+    def test_a_changed_name_outside_the_modules_is_dropped_but_still_reaches_dependents(self):
+        self.assertEqual(self.affected('project'), ['a_b', 'app_a'])
+        self.assertEqual(self.affected('not_released'), [])
+
+    def test_the_matrix_keeps_only_the_affected_modules(self):
+        self.assertEqual(app_isolation.matrix('apps', self.layers, self.addons, only=['app_b', 'a_b']), ['app_b'])
+        self.assertEqual(app_isolation.matrix('bridges', self.layers, self.addons, only=['app_b', 'a_b']), ['a_b'])
+
+    def test_an_unaffected_kind_has_no_group(self):
+        self.assertEqual(app_isolation.matrix('apps', self.layers, self.addons, only=['a_b']), [])
+
+    def test_the_foundation_top_joins_the_apps_matrix_only_when_affected(self):
+        groups = app_isolation.matrix('apps', self.layers, self.addons, only=['webvue_api', 'app_c'])
+        self.assertEqual(sorted(' '.join(groups).split()), ['app_c', 'webvue_api'])
+
+    def test_no_filter_keeps_every_module(self):
+        groups = app_isolation.matrix('bridges', self.layers, self.addons)
+        self.assertEqual(sorted(' '.join(groups).split()), ['a_b', 'api_c', 'b_ai'])
+
+
 class CheckTest(Fixture):
     def test_an_application_with_its_foundation_and_engines_is_isolated(self):
         self.check('app_b', ['webvue_core', 'webvue_api', 'webvue_directory', 'app_b'])
@@ -113,6 +146,11 @@ class RepositoryTest(unittest.TestCase):
                 self.assertLessEqual(len(groups), app_isolation.GROUP_COUNT[kind])
                 packed = [module for group in groups for module in group.split()]
                 self.assertEqual(sorted(packed), sorted(modules))
+
+    def test_modules_narrow_the_matrix_and_a_bad_list_is_refused(self):
+        self.assertEqual(json.loads(self.output('matrix', 'apps', '--modules', 'webvue_hr,webvue_access_hr')), ['webvue_hr'])
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(app_isolation.main(['matrix', 'apps', '--modules', '']), 1)
 
     def test_every_registered_bridge_links_exactly_two_webvue_modules(self):
         for bridge in app_isolation.modules_of_rank(app_isolation.BRIDGE_RANK):
