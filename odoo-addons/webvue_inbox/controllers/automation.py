@@ -58,7 +58,7 @@ class AutomationController(http.Controller):
     @requires_feature('inbox.enabled', AUTOMATION_FEATURE, operation='read')
     @requires_capability(MANAGE_AUTOMATION)
     def get_working_hours(self, **_):
-        return hours_service()._webvue_dump(request.env['webvue.inbox.settings']._get_for_company().calendar_id)
+        return hours_service()._webvue_dump(request.env['webvue.inbox.settings']._get_for_company())
 
     @http.route(HOURS, type='json2', auth='user', methods=['PUT'], readonly=False)
     @api_handler
@@ -67,16 +67,16 @@ class AutomationController(http.Controller):
     def put_working_hours(self, **payload):
         data = parse_working_hours(payload, 'body')
         settings = request.env['webvue.inbox.settings']._get_for_company()
-        calendar = hours_service()._webvue_write(settings, request.env._('Inbox working hours of %s', settings.company_id.name), data)
-        return hours_service()._webvue_dump(calendar)
+        hours_service()._webvue_write(settings, data)
+        return hours_service()._webvue_dump(settings)
 
     @http.route('/api/v1/inbox/departments/<int:department_id>/working-hours', type='json2', auth='user', methods=['GET'], readonly=False)
     @api_handler
     @requires_feature('inbox.enabled', AUTOMATION_FEATURE, operation='read')
     @requires_capability(MANAGE_AUTOMATION)
     def get_department_hours(self, department_id, **_):
-        calendar = get_record('webvue.inbox.department', department_id).calendar_id
-        return {'working_hours': hours_service()._webvue_dump(calendar) if calendar else None}
+        department = get_record('webvue.inbox.department', department_id)
+        return {'working_hours': hours_service()._webvue_dump(department) if department.hours_own else None}
 
     @http.route('/api/v1/inbox/departments/<int:department_id>/working-hours', type='json2', auth='user', methods=['PUT'], readonly=False)
     @api_handler
@@ -89,8 +89,8 @@ class AutomationController(http.Controller):
             hours_service()._webvue_clear(department)
             return {'working_hours': None}
         data = parse_working_hours(payload['working_hours'])
-        calendar = hours_service()._webvue_write(department, request.env._('Inbox working hours of %s', department.name), data)
-        return {'working_hours': hours_service()._webvue_dump(calendar)}
+        hours_service()._webvue_write(department, data)
+        return {'working_hours': hours_service()._webvue_dump(department)}
 
     # channel automation
 
@@ -147,11 +147,7 @@ class AutomationController(http.Controller):
         parsed = parse_rule(payload)
         Rule = rule_scope()
         last = Rule.search([], order='sequence desc, id desc', limit=1)
-        channel = request.env['webvue.inbox.channel'].browse(parsed.values['channel_id'])
-        company = channel.owner_company_id or request.env.company
-        rule = Rule.with_company(company).create({
-            **parsed.values, 'company_id': company.id, 'sequence': last.sequence + SEQUENCE_STEP,
-        })
+        rule = Rule.create({**parsed.values, 'sequence': last.sequence + SEQUENCE_STEP})
         rule._webvue_set_reply(parsed.reply)
         return request.make_json_response(dump_rule(rule), status=201)
 
@@ -169,9 +165,6 @@ class AutomationController(http.Controller):
     def patch_rule(self, rule_id, **payload):
         rule = find_rule(rule_id)
         parsed = parse_rule(payload, rule)
-        channel = request.env['webvue.inbox.channel'].browse(parsed.values.get('channel_id'))
-        if channel and channel.owner_company_id != rule.company_id:
-            reject('channel_id names a channel of another company', 'channel_id')
         rule.write(parsed.values)
         if parsed.set_reply:
             rule._webvue_set_reply(parsed.reply)

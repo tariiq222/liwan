@@ -3,6 +3,7 @@
 from odoo.tests import tagged
 
 from .automation_common import AutomationCase
+from odoo.addons.webvue_inbox.models.constants import FIRST_RESPONSE_CRON_BATCH
 from odoo.addons.webvue_inbox.models.notification_types import FIRST_RESPONSE_KIND
 
 
@@ -49,6 +50,12 @@ class TestAssignmentPolicy(AutomationCase):
         bell = self.env['mail.message'].search([('webvue_notification_kind', '=', 'inbox.assigned'), ('res_id', '=', conversation.id)])
         self.assertEqual(len(bell), 1)
 
+    def test_a_conversation_the_rules_resolved_is_not_auto_assigned(self):
+        self.settings.assignment_policy = 'round_robin'
+        self.make_rule(match_kind='any', reply=None, resolve=True)
+        conversation = self.new_conversation(1)
+        self.assertEqual((conversation.state, conversation.assignee_id.id), ('resolved', False))
+
     def test_a_department_with_members_who_cannot_reply_leaves_it_unassigned(self):
         self.settings.assignment_policy = 'least_open'
         self.department.member_ids = self.outsider
@@ -72,26 +79,30 @@ class TestFirstResponseAlert(AutomationCase):
         conversation = self.make_conversation(minutes_ago=15, assignee_id=self.agent.id)
         self.run_cron()
         self.assertEqual(len(self.alerts(conversation)), 1)
-        self.assertTrue(conversation.first_response_alert_at)
+        self.assertTrue(conversation.first_response_alerted)
         before = self.alerts(conversation)
         self.run_cron()
         self.assertEqual(self.alerts(conversation), before)
 
     def test_a_new_waiting_period_is_alerted_again(self):
         self.settings.first_response_alert_minutes = 10
-        conversation = self.make_conversation(minutes_ago=15, assignee_id=self.agent.id)
+        conversation = self.make_conversation(minutes_ago=60, assignee_id=self.agent.id)
         self.run_cron()
-        conversation.first_response_alert_at = self.minutes_ago(60)
+        self.assertTrue(conversation.first_response_alerted)
         self.env['webvue.inbox.message'].create({
             'conversation_id': conversation.id, 'company_id': conversation.company_id.id, 'direction': 'out', 'body': 'Hi',
-            'author_id': self.agent.id, 'delivery_state': 'sent', 'date': self.minutes_ago(30),
+            'author_id': self.agent.id, 'delivery_state': 'sent', 'date': self.minutes_ago(40),
         })
+        self.assertFalse(conversation.first_response_alerted)
+        self.assertFalse(conversation.waiting_since)
         self.env['webvue.inbox.message'].create({
             'conversation_id': conversation.id, 'company_id': conversation.company_id.id, 'direction': 'in', 'body': 'And?',
             'delivery_state': 'received', 'date': self.minutes_ago(20),
         })
+        self.assertEqual(conversation.waiting_since, self.reload(conversation).waiting_since)
         self.run_cron()
-        self.assertEqual(conversation.first_response_alert_at > self.minutes_ago(5), True)
+        self.assertTrue(conversation.first_response_alerted)
+        self.assertEqual(len(self.alerts(conversation)), 1)
 
     def test_no_alert_when_off_when_recent_or_when_an_agent_replied(self):
         waiting = self.make_conversation(minutes_ago=15, assignee_id=self.agent.id)
@@ -125,6 +136,28 @@ class TestFirstResponseAlert(AutomationCase):
         resolved = self.make_conversation(minutes_ago=15, assignee_id=self.agent.id, state='resolved')
         self.run_cron()
         self.assertFalse(self.alerts(resolved))
+
+    def test_many_recent_conversations_do_not_hide_a_waiting_one(self):
+        self.settings.first_response_alert_minutes = 10
+        for _index in range(FIRST_RESPONSE_CRON_BATCH + 5):
+            self.make_conversation(minutes_ago=2, assignee_id=self.agent.id)
+        waiting = self.make_conversation(minutes_ago=15, assignee_id=self.agent.id)
+        self.run_cron()
+        self.assertEqual(len(self.alerts(waiting)), 1)
+
+    def test_waiting_since_is_the_first_unanswered_message(self):
+        conversation = self.make_conversation(minutes_ago=30)
+        second = self.env['webvue.inbox.message'].create({
+            'conversation_id': conversation.id, 'company_id': conversation.company_id.id, 'direction': 'in', 'body': 'again',
+            'delivery_state': 'received', 'date': self.minutes_ago(10),
+        })
+        self.assertEqual(conversation.waiting_since, conversation.message_ids.filtered(lambda m: m.direction == 'in').sorted('date')[0].date)
+        self.env['webvue.inbox.message'].create({
+            'conversation_id': conversation.id, 'company_id': conversation.company_id.id, 'direction': 'out', 'body': 'hi',
+            'author_id': self.agent.id, 'delivery_state': 'sent', 'date': self.minutes_ago(5),
+        })
+        self.assertFalse(conversation.waiting_since)
+        self.assertTrue(second.exists())
 
     def test_the_alert_shows_in_the_bell(self):
         self.settings.first_response_alert_minutes = 10
@@ -197,6 +230,18 @@ class TestSatisfactionSurvey(AutomationCase):
         self.make_rule(match_kind='any', reply=None, resolve=True)
         message, _event = self.deliver('done', wa_id='966500003001')
         self.assertFalse(self.automated(message.conversation_id))
+
+    def test_a_second_tap_replaces_the_answer_and_never_reopens_or_runs_rules(self):
+        self.make_rule(match_kind='any', reply={'body': 'rule reply'}, stop=False)
+        self.resolve()
+        wa_id = self.conversation.identity_id.address
+        self.deliver('', option=('csat_good', 'Great'), wa_id=wa_id)
+        later, _event = self.deliver('', option=('csat_bad', 'Bad'), wa_id=wa_id)
+        self.assertEqual((self.conversation.state, self.conversation.csat_score, self.conversation.csat_at), ('resolved', 'bad', later.date))
+        self.conversation.state = 'open'
+        self.deliver('', option=('csat_neutral', 'Meh'), wa_id=wa_id)
+        self.assertEqual((self.conversation.state, self.conversation.csat_score), ('open', 'neutral'))
+        self.assertEqual(len(self.survey()), 1)
 
     def test_a_csat_button_without_a_survey_is_an_ordinary_reply(self):
         self.conversation.state = 'resolved'

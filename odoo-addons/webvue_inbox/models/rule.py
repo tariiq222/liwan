@@ -2,7 +2,7 @@
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
-from .normalization import normalize_text
+from .normalization import normalize_text, word_tokens
 
 MATCH_KINDS = [
     ('any', 'Any message'), ('contains', 'Contains'), ('exact', 'Exact'), ('starts_with', 'Starts with'),
@@ -11,7 +11,8 @@ MATCH_KINDS = [
 HOURS_CONDITIONS = [('any', 'Any time'), ('inside', 'Inside working hours'), ('outside', 'Outside working hours')]
 PRIORITIES = [('low', 'Low'), ('normal', 'Normal'), ('high', 'High'), ('urgent', 'Urgent')]
 TEXT_MATCHERS = {
-    'contains': lambda keyword, text: keyword in text,
+    # Whole words or phrases, so "لا" does not match inside "السلام".
+    'contains': lambda keyword, text: f' {word_tokens(keyword)} ' in f' {word_tokens(text)} ',
     'exact': lambda keyword, text: keyword == text,
     'starts_with': lambda keyword, text: text.startswith(keyword),
 }
@@ -73,7 +74,7 @@ class WebVueInboxRule(models.Model):
         if text is None:
             return False
         matcher, normalized = TEXT_MATCHERS[self.match_kind], normalize_text(text)
-        return any(matcher(keyword.normalized, normalized) for keyword in self.keyword_ids)
+        return any(matcher(keyword.normalized, normalized) for keyword in self.keyword_ids if word_tokens(keyword.value))
 
     @api.model
     def _webvue_triggered(self, channel, text, option_id, inside, flow_id=None):
@@ -107,7 +108,7 @@ class WebVueInboxRuleKeyword(models.Model):
         for keyword in self:
             keyword.normalized = normalize_text(keyword.value)
 
-    @api.constrains('normalized')
-    def _check_normalized(self):
-        if any(not keyword.normalized for keyword in self):
+    @api.constrains('value')
+    def _check_words(self):
+        if any(not word_tokens(keyword.value) for keyword in self):
             raise ValidationError(self.env._('A keyword needs at least one letter or digit.'))

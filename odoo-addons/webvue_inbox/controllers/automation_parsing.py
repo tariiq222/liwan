@@ -3,8 +3,9 @@
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
-
-import pytz
+from functools import cache
+from itertools import pairwise
+from zoneinfo import available_timezones
 
 from odoo.exceptions import MissingError
 from odoo.http import request
@@ -73,11 +74,24 @@ def parse_date(value, key):
         reject(f'{key} must be a date as YYYY-MM-DD', key)
 
 
+@cache
+def known_timezones():
+    return available_timezones()
+
+
+def check_no_overlap(days):
+    """422 when two ranges of the same weekday overlap (touching ranges are fine)."""
+    ordered = sorted(days, key=lambda day: (day['weekday'], day['from']))
+    for before, after in pairwise(ordered):
+        if before['weekday'] == after['weekday'] and after['from'] < before['to']:
+            reject('ranges of the same day must not overlap', 'days')
+
+
 def parse_working_hours(value, key='working_hours'):
     """{timezone, days, holidays} of the contract."""
     value = parse_object(value, key, {'timezone', 'days', 'holidays'}, ('timezone', 'days', 'holidays'))
     zone = parse_string(value['timezone'], 'timezone', 64)
-    if zone not in pytz.all_timezones_set:
+    if zone not in known_timezones():
         reject('timezone must be an IANA timezone name', 'timezone')
     days = []
     for day in parse_list(value['days'], 'days', 0, MAX_DAYS):
@@ -86,6 +100,7 @@ def parse_working_hours(value, key='working_hours'):
         if not (CLOCK.match(start) and CLOCK.match(end)) or start >= end:
             reject('days need from and to as HH:MM, ending after they start', 'days')
         days.append({'weekday': parse_int(day['weekday'], 'weekday', 0, 6), 'from': start, 'to': end})
+    check_no_overlap(days)
     holidays = []
     for holiday in parse_list(value['holidays'], 'holidays', 0, MAX_HOLIDAYS):
         holiday = parse_object(holiday, 'holidays', {'name', 'date_from', 'date_to'}, ('name', 'date_from', 'date_to'))
@@ -166,11 +181,14 @@ class ParsedRule:
 
 
 def automation_channel(value):
-    """A channel the caller automates; any other is a 422 naming channel_id."""
+    """A channel of the current company the caller automates; any other is a 422 naming channel_id."""
     try:
-        return get_channel(parse_positive_int(value, 'channel_id'), MANAGE_AUTOMATION)
+        channel = get_channel(parse_positive_int(value, 'channel_id'), MANAGE_AUTOMATION)
     except MissingError:
         reject('channel_id names a channel that does not exist', 'channel_id')
+    if channel.owner_company_id != request.env.company:
+        reject('channel_id names a channel of another company', 'channel_id')
+    return channel
 
 
 def rule_state(rule):
@@ -204,6 +222,13 @@ def check_rule_state(state):
         reject('a rule needs at least one action')
 
 
+def in_company(records, field):
+    """`records` when all belong to the current company; otherwise 422 naming `field`."""
+    if records and records.company_id != request.env.company:
+        reject(f'{field} names a record of another company', field)
+    return records
+
+
 def parse_rule_references(payload, state):
     """The channel, department, assignee and tag references of a rule body, as column values."""
     values = {}
@@ -211,7 +236,7 @@ def parse_rule_references(payload, state):
         values['channel_id'] = automation_channel(payload['channel_id']).id if payload['channel_id'] is not None else False
     if 'department_id' in payload:
         values['department_id'] = (
-            find_one('webvue.inbox.department', payload['department_id'], 'department_id').id
+            in_company(find_one('webvue.inbox.department', payload['department_id'], 'department_id'), 'department_id').id
             if payload['department_id'] is not None else False
         )
     if 'assignee_id' in payload:
@@ -220,7 +245,7 @@ def parse_rule_references(payload, state):
         ids = parse_ids(payload['tag_ids'], 'tag_ids')
         if len(ids) > MAX_RULE_TAGS:
             reject(f'tag_ids holds at most {MAX_RULE_TAGS} tags', 'tag_ids')
-        values['tag_ids'] = [(6, 0, find_ids('webvue.inbox.tag', ids, 'tag_ids').ids)]
+        values['tag_ids'] = [(6, 0, in_company(find_ids('webvue.inbox.tag', ids, 'tag_ids'), 'tag_ids').ids)]
     for name, key in (('department', 'department_id'), ('assignee', 'assignee_id'), ('tags', 'tag_ids')):
         if key in payload:
             state['actions'].discard(name)

@@ -2,6 +2,7 @@
 from datetime import timedelta
 
 from odoo import fields
+from odoo.exceptions import ValidationError
 from odoo.tests import tagged
 
 from .automation_common import AutomationCase
@@ -19,8 +20,26 @@ class TestNormalization(AutomationCase):
         for raw, expected in (
             ('السِّعْر', 'السعر'), ('الســـعر', 'السعر'), ('أسعار إسعاف آسر', 'اسعار اسعاف اسر'),
             ('على', 'علي'), ('الخدمة', 'الخدمه'), ('HELLO   World', 'hello world'), ('  ', ''), (None, ''),
+            ('رقم ٠٥٠١٢٣', 'رقم 050123'), ('کد ۱۲۳۴', 'کد 1234'),
         ):
             self.assertEqual(normalize_text(raw), expected, raw)
+
+    def test_contains_matches_whole_words_only(self):
+        rule = self.make_rule(keywords=['لا', 'room 12'])
+        for text, expected in (
+            ('السلام عليكم', False), ('لا شكرا', True), ('قلت: لا!', True), ('hall', False), ('book room 12 please', True),
+            ('room 123', False), ('غرفة ١٢', False), ('room ١٢', True),
+        ):
+            self.assertEqual(rule._webvue_matches(text, None, True), expected, text)
+
+    def test_digits_of_every_script_match_one_another(self):
+        rule = self.make_rule(keywords=['١٢٣'])
+        self.assertTrue(rule._webvue_matches('code 123', None, True))
+        self.assertTrue(rule._webvue_matches('كود ۱۲۳', None, True))
+
+    def test_a_keyword_without_words_is_refused(self):
+        with self.assertRaises(ValidationError):
+            self.make_rule(keywords=['؟؟'])
 
     def test_keywords_are_stored_normalized(self):
         rule = self.make_rule(keywords=['أَسعار', 'Price'])
@@ -78,7 +97,7 @@ class TestWelcomeAndAway(AutomationCase):
         })
 
     def test_away_is_sent_outside_hours_and_suppresses_welcome(self):
-        self.set_company_hours(self.closed_calendar_now())
+        self.set_company_hours(self.closed_hours_now())
         self.set_text('welcome', 'Welcome!')
         self.set_text('away', 'We are closed')
         message, _event = self.deliver('Hi')
@@ -88,7 +107,7 @@ class TestWelcomeAndAway(AutomationCase):
         self.assertIn(engine.NOTE_AWAY, self.notes(conversation))
 
     def test_away_repeats_only_after_the_repeat_hours(self):
-        self.set_company_hours(self.closed_calendar_now())
+        self.set_company_hours(self.closed_hours_now())
         self.set_text('away', 'We are closed', away_repeat_hours=12)
         message, _event = self.deliver('Hi')
         conversation = message.conversation_id
@@ -102,14 +121,13 @@ class TestWelcomeAndAway(AutomationCase):
         self.set_text('away', 'We are closed')
         message, _event = self.deliver('Hi')
         self.assertFalse(self.automated(message.conversation_id))
-        self.set_company_hours(self.open_calendar_now())
+        self.set_company_hours(self.open_hours_now())
         other, _event = self.deliver('Hi again', wa_id='966500000099')
         self.assertFalse(self.automated(other.conversation_id))
 
-    def test_a_department_calendar_replaces_the_company_one(self):
-        self.set_company_hours(self.open_calendar_now())
-        self.department.calendar_id = False
-        self.env['webvue.inbox.working.hours']._webvue_write(self.department, 'Support hours', self.closed_calendar_now())
+    def test_a_department_hours_replace_the_company_ones(self):
+        self.set_company_hours(self.open_hours_now())
+        self.env['webvue.inbox.working.hours']._webvue_write(self.department, self.closed_hours_now())
         self.channel.department_id = self.department
         self.set_text('away', 'Support is closed')
         message, _event = self.deliver('Hi')
@@ -180,7 +198,7 @@ class TestRules(AutomationCase):
         self.make_rule(name='Inside only', match_kind='any', hours_condition='inside', reply={'body': 'inside'}, stop=False)
         message, _event = self.deliver('x')
         self.assertEqual(self.automated(message.conversation_id).mapped('body'), ['inside'])
-        self.set_company_hours(self.closed_calendar_now())
+        self.set_company_hours(self.closed_hours_now())
         later, _event = self.deliver('x', wa_id='966500000095')
         self.assertEqual(self.automated(later.conversation_id).mapped('body'), ['outside'])
 

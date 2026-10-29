@@ -70,14 +70,15 @@
         <field name="model_id" ref="model_webvue_inbox_auto_option"/>
         <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
-    <!-- Stock Odoo lets only an ERP manager change a global (company-wide) time off; the automation manager
-         keeps the holidays of the inbox working hours, which are global time off of the inbox calendar. -->
-    <record id="resource_calendar_leaves_inbox_automation_rule" model="ir.rule">
-        <field name="name">resource.calendar.leaves: inbox automation manager modifies global</field>
-        <field name="model_id" ref="resource.model_resource_calendar_leaves"/>
-        <field name="groups" eval="[Command.link(ref('group_cap_inbox_automation_manage'))]"/>
-        <field name="domain_force">[('resource_id', '=', False)]</field>
-        <field name="perm_read" eval="False"/>
+    <record id="webvue_inbox_hours_range_company_rule" model="ir.rule">
+        <field name="name">webvue.inbox.hours.range: multi-company</field>
+        <field name="model_id" ref="model_webvue_inbox_hours_range"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="webvue_inbox_hours_holiday_company_rule" model="ir.rule">
+        <field name="name">webvue.inbox.hours.holiday: multi-company</field>
+        <field name="model_id" ref="model_webvue_inbox_hours_holiday"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
     <record id="webvue_inbox_template_example_company_rule" model="ir.rule">
         <field name="name">webvue.inbox.template.example: multi-company</field>

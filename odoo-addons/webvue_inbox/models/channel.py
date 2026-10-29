@@ -145,9 +145,8 @@ class WebVueInboxChannel(models.Model):
         )
 
     def _webvue_fill_automation(self, welcome, away):
-        """Set and enable the welcome and away messages that the channel does not have yet (a sector preset)."""
+        """Set the welcome and away messages that the channel does not have yet (a sector preset); they stay as switched."""
         self.ensure_one()
         for purpose, content in (('welcome', welcome), ('away', away)):
             if content and not self._webvue_auto_message(purpose):
                 self._webvue_set_auto_message(purpose, content)
-                self[f'{purpose}_enabled'] = True
