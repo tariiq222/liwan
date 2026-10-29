@@ -26,6 +26,7 @@ jobs sign in and work, and requests move between people and applications.
 | [platform.md](platform.md) | Notifications (bell), people picker, assistant, feature switches |
 | [inbox.md](inbox.md) | Customer inbox: conversations, channels (WhatsApp), departments, tags, canned replies, contacts, export |
 | [appointments.md](appointments.md) | Appointments: bookings, types, settings |
+| [crm.md](crm.md) | CRM: pipeline board, opportunities, contacts and follow-ups, won/lost, assignment, import/export, settings |
 | [payments.md](payments.md) | Payment providers, payment links, the public invoice payer pages and gateway callbacks |
 | [journeys.md](journeys.md) | Journeys that cross applications (requests, approvals, money, people) |
 
