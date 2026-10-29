@@ -3,7 +3,8 @@
     "reset_to_draft",
     "cancel",
     "pdf",
-    "debit_note"
+    "debit_note",
+    "credit_note"
   ],
   "amount_residual": 1150.0,
   "amount_tax": 150.0,
@@ -11,6 +12,7 @@
   "amount_untaxed": 1000.0,
   "blocked_actions": [],
   "currency": "SAR",
+  "credit_origin": null,
   "debit_origin": null,
   "id": 1,
   "invoice_date": "2026-10-18",
