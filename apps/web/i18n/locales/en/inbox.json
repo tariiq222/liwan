@@ -775,8 +775,8 @@
           "existing": "Existing product",
           "new": "New product"
         },
-        "productId": "Product id",
-        "productIdHint": "The product's id in the system. It must have an image.",
+        "productId": "Product",
+        "productIdHint": "Pick a product that has an image and is not listed yet.",
         "invalid": {
           "productId": "Enter a valid product id",
           "retailerId": "English letters, digits and . _ - only"
@@ -804,13 +804,22 @@
         "listed": "Listed in the catalog",
         "add": "Add",
         "createHint": "Pick an existing product or create a new one with its image.",
-        "syncError": "The product could not be sent to Meta"
+        "syncError": "The product could not be sent to Meta",
+        "searchProducts": "Search products by name",
+        "noProducts": "No matching products",
+        "productList": "Company products",
+        "alreadyListed": "Already in the catalog",
+        "noImage": "No image: add an image to the product first"
       },
       "channelBlock": {
         "title": "WhatsApp commerce",
         "hint": "The catalog and the cart for this number.",
         "catalog": "Catalog",
-        "none": "No catalog is connected to this channel's account."
+        "none": "No catalog is connected to this channel's account.",
+        "paidNotice": "Notify the customer when paid",
+        "paidNoticeHint": "Sent inside the reply window only; otherwise only a note is added to the conversation.",
+        "paidNoticeText": "Notice text",
+        "paidNoticeTextHint": "Write {'{reference}'} to insert the order number."
       },
       "picker": {
         "title": "Products",

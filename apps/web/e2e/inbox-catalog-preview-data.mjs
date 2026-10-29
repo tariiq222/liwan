@@ -9,6 +9,7 @@ const ago = hours => iso(Date.now() - hours * HOUR)
 const META_ID = /^\d{5,32}$/
 const RETAILER_ID = /^[A-Za-z0-9._-]{1,100}$/
 const VAT = 1.15
+const DEFAULT_COMMERCE = { cart_enabled: true, catalog_visible: false, paid_notice_enabled: true, paid_notice_text: 'تم استلام دفعتك لطلب {reference}. شكرًا لك' }
 const IMAGE_MIN = 500
 const IMAGE_MAX_BYTES = 5 * 1024 * 1024
 const DEFAULT_LINK = 'https://wa.me/966112345678'
@@ -44,7 +45,7 @@ export function seedCatalog() {
       makeItem(6, 'wv-106', 'طقم ملاعق', 60, { review_status: 'rejected', review_reason: 'محتوى مخالف لسياسة التجارة' }),
     ],
     // Channel id -> Meta's commerce switches of that number.
-    commerce: new Map([[1, { cart_enabled: true, catalog_visible: false }]]),
+    commerce: new Map([[1, { ...DEFAULT_COMMERCE }]]),
     orders: [],
     // Item id -> when it was queued for Meta; the push cron is simulated by settleItems.
     queued: new Map(),
@@ -192,7 +193,7 @@ function createCatalog(state, body) {
     last_error: null, brand: body.brand.trim(), default_link: body.default_link ?? null, prices_include_tax: body.prices_include_tax, currency: 'SAR', last_sync_at: null, created_at: iso(Date.now()),
   }
   state.catalog.catalogs.push(catalog)
-  state.catalog.commerce.set(channel.id, { cart_enabled: true, catalog_visible: false })
+  state.catalog.commerce.set(channel.id, { ...DEFAULT_COMMERCE })
   return { status: 201, body: catalogOut(state, catalog) }
 }
 
@@ -207,6 +208,15 @@ function catalogRoute(state, method, parts, url, body) {
   if (parts[5] === 'items') {
     if (method === 'GET') return itemList(state, catalog, url)
     return method === 'POST' ? createItem(state, catalog, body) : undefined
+  }
+  if (parts[5] === 'products' && method === 'GET') {
+    const q = (url.searchParams.get('q') ?? '').trim().toLowerCase()
+    const options = Object.entries(PRODUCTS)
+      .filter(([, [name]]) => !q || name.toLowerCase().includes(q))
+      .map(([id, [name, price, hasImage]]) => ({ id: Number(id), name, list_price: price, currency: 'SAR', has_image: hasImage, listed: state.catalog.items.some(item => item.catalog_id === catalog.id && item.product.id === Number(id)) }))
+    const offset = Math.max(0, Number(url.searchParams.get('offset') ?? 0) || 0)
+    const limit = Math.max(1, Number(url.searchParams.get('limit') ?? 50) || 50)
+    return ok({ items: options.slice(offset, offset + limit), total: options.length })
   }
   if (parts[5] === 'sync' && method === 'POST') {
     for (const item of state.catalog.items) if (item.catalog_id === id && item.listed && item.sync_state !== 'error') queue(state, item)
@@ -249,10 +259,11 @@ function channelCommerce(state, method, channelId, body) {
   if (method === 'PATCH') {
     if (!catalog) return fail(409, 'no_catalog', 'لا يوجد كتالوج مرتبط')
     if (!Object.keys(body).length) return fail(422, 'invalid', 'send at least one field')
-    state.catalog.commerce.set(channelId, { ...(state.catalog.commerce.get(channelId) ?? { cart_enabled: true, catalog_visible: false }), ...body })
+    if ('paid_notice_text' in body && (!String(body.paid_notice_text).trim() || body.paid_notice_text.length > 1024)) return fail(422, 'invalid', 'نص الإشعار غير صحيح', 'paid_notice_text')
+    state.catalog.commerce.set(channelId, { ...(state.catalog.commerce.get(channelId) ?? DEFAULT_COMMERCE), ...body })
   }
   const settings = state.catalog.commerce.get(channelId)
-  return ok({ channel_id: channelId, catalog: catalog ? { id: catalog.id, name: catalog.name } : null, cart_enabled: catalog ? settings?.cart_enabled ?? null : null, catalog_visible: catalog ? settings?.catalog_visible ?? null : null })
+  return ok({ channel_id: channelId, catalog: catalog ? { id: catalog.id, name: catalog.name } : null, cart_enabled: catalog ? settings?.cart_enabled ?? null : null, catalog_visible: catalog ? settings?.catalog_visible ?? null : null, paid_notice_enabled: settings?.paid_notice_enabled ?? DEFAULT_COMMERCE.paid_notice_enabled, paid_notice_text: settings?.paid_notice_text ?? DEFAULT_COMMERCE.paid_notice_text })
 }
 
 function conversationPick(state, url) {

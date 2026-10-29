@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import {
   InboxAttachmentSchema, InboxCannedReplyListSchema, InboxChannelListSchema, InboxChannelSchema, InboxConversationDetailSchema, InboxConversationListSchema,
   InboxChannelAutomationSchema, InboxDepartmentListSchema, InboxDepartmentWorkingHoursSchema, InboxMessageListSchema, InboxRefSchema, InboxRuleListSchema, InboxRuleSchema, InboxRuleTestResultSchema, InboxWorkingHoursSchema, InboxMessageSchema, InboxSettingsSchema, InboxTagListSchema, InboxTemplateListSchema, InboxTemplateSchema,
-  InboxCatalogItemListSchema, InboxCatalogItemSchema, InboxCatalogListSchema, InboxCatalogPickItemListSchema, InboxCatalogSchema, InboxChannelCommerceSchema, InboxOrderCheckoutResultSchema, InboxOrderListSchema, InboxOrderSchema,
+  InboxCatalogItemListSchema, InboxCatalogItemSchema, InboxCatalogListSchema, InboxCatalogPickItemListSchema, InboxCatalogSchema, InboxChannelCommerceSchema, InboxCatalogProductOptionListSchema, InboxOrderCheckoutResultSchema, InboxOrderListSchema, InboxOrderSchema,
 } from '@webvue/contracts'
 import { inboxPreviewData, resetInboxPreview } from '../../../../e2e/inbox-ui-preview-data.mjs'
 
@@ -320,6 +320,21 @@ describe('inbox audit mock: catalog and orders', () => {
     expect(call('PATCH', '/api/v1/inbox/catalog-items/3', { product_retailer_id: 'other' }).status).toBe(200)
     expect(call('DELETE', '/api/v1/inbox/catalog-items/3').status).toBe(204)
     expect(call('GET', '/api/v1/inbox/catalog-items/3').status).toBe(404)
+  })
+
+  it('lists the company products that may be listed, with image and listed flags', () => {
+    const options = InboxCatalogProductOptionListSchema.parse(call('GET', '/api/v1/inbox/catalogs/1/products').body)
+    expect(options.items.map(item => [item.id, item.has_image, item.listed])).toEqual([[201, true, false], [202, true, false], [203, true, false], [204, false, false]])
+    expect(InboxCatalogProductOptionListSchema.parse(call('GET', '/api/v1/inbox/catalogs/1/products?q=عسل').body).items.map(item => item.id)).toEqual([202])
+    call('POST', '/api/v1/inbox/catalogs/1/items', { product_id: 201 })
+    expect(InboxCatalogProductOptionListSchema.parse(call('GET', '/api/v1/inbox/catalogs/1/products').body).items[0]).toMatchObject({ id: 201, listed: true })
+  })
+
+  it('keeps the paid notice on the channel and refuses an empty or too long text', () => {
+    expect(InboxChannelCommerceSchema.parse(call('GET', '/api/v1/inbox/channels/1/commerce').body)).toMatchObject({ paid_notice_enabled: true, paid_notice_text: expect.stringContaining('{reference}') })
+    expect(InboxChannelCommerceSchema.parse(call('PATCH', '/api/v1/inbox/channels/1/commerce', { paid_notice_enabled: false, paid_notice_text: 'شكرًا {reference}' }).body)).toMatchObject({ paid_notice_enabled: false, paid_notice_text: 'شكرًا {reference}' })
+    expect(call('PATCH', '/api/v1/inbox/channels/1/commerce', { paid_notice_text: ' ' }).body).toMatchObject({ field: 'paid_notice_text' })
+    expect(call('PATCH', '/api/v1/inbox/channels/1/commerce', { paid_notice_text: 'x'.repeat(1025) }).status).toBe(422)
   })
 
   it('toggles a number\'s switches', () => {

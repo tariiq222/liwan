@@ -5,7 +5,7 @@ import {
 } from '@webvue/contracts'
 import { fileToBase64 } from '@/utils/attachmentFile'
 import { CATALOG_IMAGE_ACCEPT, formatInboxMoney, imageProblem, measureImage, type ImageProblem } from '@/composables/inbox/inboxCommerce'
-import { useCreateInboxCatalogItem, usePatchInboxCatalogItem } from '@/composables/inbox/useInboxCatalog'
+import { useCreateInboxCatalogItem, useInboxCatalogProducts, usePatchInboxCatalogItem } from '@/composables/inbox/useInboxCatalog'
 
 // Adds a product to the catalog (an existing product, or a new one made here with a picture) or edits an item. The picture
 // is checked in the browser before it is uploaded: JPEG or PNG, at least 500 by 500 pixels, at most 5 MB. A new product
@@ -23,6 +23,8 @@ const pending = computed(() => creating.value || patching.value)
 
 const tab = ref<'existing' | 'new'>('existing')
 const productId = ref<number | null>(null)
+const productQuery = ref('')
+const products = useInboxCatalogProducts(() => (props.item ? null : props.catalogId), productQuery)
 const name = ref(props.item?.name ?? '')
 const description = ref(props.item?.description ?? '')
 const listPrice = ref<number | null>(props.item?.list_price ?? null)
@@ -113,9 +115,33 @@ async function submit() {
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedSegmentedControl v-if="!editing" v-model="tab" class="self-start" :items="tabItems" :label="t('inbox.catalog.itemForm.source')" />
 
-    <UFormField v-if="!editing && tab === 'existing'" :label="t('inbox.catalog.itemForm.productId')" :description="t('inbox.catalog.itemForm.productIdHint')" required :error="serverError?.field === 'product_id' ? serverError.message : attempted && !productId ? t('inbox.catalog.itemForm.invalid.productId') : undefined">
-      <UInput :model-value="productId ?? undefined" type="number" :min="1" class="w-full" dir="ltr" :disabled="off" data-testid="inbox-item-product-id" @update:model-value="productId = Number($event) > 0 ? Number($event) : null" />
-    </UFormField>
+    <div v-if="!editing && tab === 'existing'" class="flex flex-col gap-2" data-testid="inbox-item-existing">
+      <UFormField :label="t('inbox.catalog.itemForm.productId')" :description="t('inbox.catalog.itemForm.productIdHint')" required :error="serverError?.field === 'product_id' ? serverError.message : attempted && !productId ? t('inbox.catalog.itemForm.invalid.productId') : undefined">
+        <UInput v-model="productQuery" class="w-full" icon="i-lucide-search" :placeholder="t('inbox.catalog.itemForm.searchProducts')" :disabled="off" data-testid="inbox-item-product-search" />
+      </UFormField>
+      <SharedLoadingSkeleton v-if="products.isPending.value" />
+      <SharedPageState v-else-if="products.error.value" :error="products.error.value" @retry="products.refetch()" />
+      <p v-else-if="!products.data.value?.items.length" class="text-sm text-muted" data-testid="inbox-item-products-empty">{{ t('inbox.catalog.itemForm.noProducts') }}</p>
+      <ul v-else class="flex max-h-72 flex-col divide-y divide-default overflow-y-auto rounded-control ring ring-default" :aria-label="t('inbox.catalog.itemForm.productList')">
+        <li v-for="option in products.data.value.items" :key="option.id">
+          <button
+            type="button"
+            class="flex w-full items-center gap-3 px-3 py-2 text-start transition-colors hover:bg-elevated focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary disabled:opacity-50"
+            :class="{ 'bg-(--brand-soft)': productId === option.id }"
+            :aria-pressed="productId === option.id"
+            :disabled="off || !option.has_image || option.listed"
+            :data-testid="`inbox-item-product-${option.id}`"
+            @click="productId = productId === option.id ? null : option.id"
+          >
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-sm font-medium text-highlighted">{{ option.name }}</span>
+              <span class="block truncate text-xs text-muted">{{ formatInboxMoney(option.list_price, option.currency, locale) }}<template v-if="option.listed"> · {{ t('inbox.catalog.itemForm.alreadyListed') }}</template><template v-else-if="!option.has_image"> · {{ t('inbox.catalog.itemForm.noImage') }}</template></span>
+            </span>
+            <UIcon :name="productId === option.id ? 'i-lucide-circle-check' : 'i-lucide-circle'" class="size-5 shrink-0" :class="productId === option.id ? 'text-primary' : 'text-muted'" aria-hidden="true" />
+          </button>
+        </li>
+      </ul>
+    </div>
 
     <template v-if="editing || tab === 'new'">
       <UFormField :label="t('inbox.catalog.itemForm.name')" required :error="serverError?.field === 'product.name' ? serverError.message : attempted && !name.trim() ? t('inbox.settings.requiredName') : undefined">

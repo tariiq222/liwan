@@ -89,3 +89,11 @@ describe('order hooks', () => {
     expect($api).toHaveBeenLastCalledWith('/api/v1/inbox/orders/7/cancel', expect.objectContaining({ method: 'POST' }))
   })
 })
+
+describe('product options hook', () => {
+  it('searches the catalog\'s company products by name', async () => {
+    catalog.useInboxCatalogProducts(4, ' شاي ')
+    await last().queryFn!()
+    expect($api).toHaveBeenLastCalledWith('/api/v1/inbox/catalogs/4/products', expect.objectContaining({ query: { q: 'شاي', limit: 50 } }))
+  })
+})
