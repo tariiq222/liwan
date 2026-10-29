@@ -23,6 +23,17 @@ const pages = computed(() => Math.max(1, Math.ceil((data.value?.bundles.total ??
 const releaseOf = (b: BundleView) => data.value?.releases.find(r => r.id === b.catalog_release_id)
 const apps = (b: BundleView) => b.selections.map(s => { const a = releaseOf(b)?.applications.find(x => x.id === s.app_id); return a ? appName(a, locale.value) : s.app_id })
 const limits = (b: BundleView) => Object.entries(b.domain_limits).map(([k, v]) => `${keyLabel(k, t, te)}: ${limitLabel(v, t)}`)
+// Owner decision 2026-10-29: the seeded WebVue plan ships with a default bundle set for the sold applications.
+const latestRelease = computed(() => data.value?.releases[0])
+const canSeed = computed(() => can('vendor.catalog.manage') && can('vendor.pricing.manage') && Boolean(latestRelease.value))
+const seedBusy = ref(false); const seedState = ref<'done' | 'failed' | undefined>()
+async function seedBundles() {
+  const release = latestRelease.value
+  if (!hydrated.value || seedBusy.value || !release) return
+  seedBusy.value = true; seedState.value = undefined
+  try { await api.seedDefaultBundles(release.id, t('vendor.bundles.seed.reason')); seedState.value = 'done'; await refresh() }
+  catch { seedState.value = 'failed' } finally { seedBusy.value = false }
+}
 const nextKey = (b: BundleView) => (b.status === 'draft' ? 'validate' : b.status === 'validated' ? 'publish' : b.available ? 'view' : 'restore')
 const path = (b: BundleView) => ({ path: `/bundles/${encodeURIComponent(b.id)}`, query: { returnTo: listTo.value } })
 const statusItems = computed(() => STATUS_FILTERS.map(value => ({ value, label: t(`vendor.pricing.filter.${value}`) })))
@@ -44,6 +55,11 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
       <SharedFilterChoice :label="t('vendor.common.status')" :model-value="status" :items="statusItems" :disabled="!hydrated" @update:model-value="patch({ status: $event && $event !== 'all' ? $event : undefined })" />
       <template #active><SharedFilterChip v-if="q" :label="q" @remove="patch({ q: undefined })" /><SharedFilterChip v-if="status !== 'all'" :label="t(`vendor.pricing.filter.${status}`)" @remove="patch({ status: undefined })" /></template>
     </SharedFilterBar></template>
+<div v-if="canSeed" class="mb-3 flex flex-wrap items-center gap-3" data-testid="seed-default-bundles">
+  <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-package-plus" :disabled="!hydrated || seedBusy" :loading="seedBusy" @click="seedBundles">{{ t('vendor.bundles.seed.action') }}</UButton>
+  <span class="text-sm text-muted">{{ t('vendor.bundles.seed.hint') }}</span>
+  <span v-if="seedState" role="status" class="text-sm" :class="seedState === 'failed' ? 'text-error' : 'text-muted'">{{ t(seedState === 'done' ? 'vendor.bundles.seed.done' : 'vendor.bundles.seed.failed') }}</span>
+</div>
 <p v-if="data" class="text-sm text-muted" data-testid="bundles-result-count">{{ t('vendor.pagination.total', { count: data.bundles.total }, data.bundles.total) }}</p>
 
 <SharedDataTable  :rows="items" :columns="columns" row-key="id" :row-to="path" :loading="pending" :error="error" :empty-text="t(q || status !== 'all' ? 'vendor.bundles.noResults' : 'vendor.bundles.empty')" :caption="t('vendor.bundles.title')" @retry="refresh" :page="page" :pages="pages" @update:page="value => patch({ page: value })">

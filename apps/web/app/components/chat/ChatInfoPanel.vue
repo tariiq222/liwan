@@ -52,7 +52,10 @@ const offsetFor = (page: number, total: number | undefined) => nextListOffset(0,
 const writable = useChatWritable()
 const canManage = computed(() => writable.value && Boolean(conversation.value?.can_manage))
 const canRemoveMember = (memberId: number) => writable.value && Boolean(conversation.value?.can_remove_members) && memberId !== me.value?.id
-const canLeave = computed(() => writable.value && (conversation.value?.type === 'group' || conversation.value?.type === 'channel'))
+// A two-member group has nobody to hand over to; leaving is hidden there (CHT-113).
+const canLeave = computed(() => writable.value && (
+  conversation.value?.type === 'channel' || (conversation.value?.type === 'group' && conversation.value.member_count > 2)
+))
 
 // A removal can empty the last member page; step back to the page that still exists.
 watch(() => members.value?.total, (total) => {

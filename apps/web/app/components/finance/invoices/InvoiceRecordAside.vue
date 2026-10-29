@@ -21,6 +21,7 @@ const { t } = useI18n()
       <SharedPropertyRow :label="t('financeDocuments.record.currency')" :value="record.invoice.currency" />
       <SharedPropertyRow v-if="record.invoice.state === 'posted'" :label="t('financeDocuments.record.residual')"><Money :amount="record.invoice.amount_residual" :currency="record.invoice.currency" /></SharedPropertyRow>
       <SharedPropertyRow v-if="record.invoice.debit_origin && record.debitOriginTo" :label="t('financeDocuments.record.debitOrigin')"><NuxtLink :to="record.debitOriginTo" class="font-semibold text-primary hover:underline"><bdi>{{ record.invoice.debit_origin.name }}</bdi></NuxtLink></SharedPropertyRow>
+      <SharedPropertyRow v-if="record.invoice.credit_origin && record.creditOriginTo" :label="t('financeDocuments.record.creditOrigin')"><NuxtLink :to="record.creditOriginTo" class="font-semibold text-primary hover:underline"><bdi>{{ record.invoice.credit_origin.name }}</bdi></NuxtLink></SharedPropertyRow>
     </SharedPropertiesPanel>
     <InvoiceZatcaPanel v-if="record.invoice.zatca" :zatca="record.invoice.zatca" />
   </template>

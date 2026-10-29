@@ -24,6 +24,22 @@
         <field name="group_xmlid">webvue_payments.group_cap_payments_settings_manage</field>
         <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
+    <record id="permission_payments_orders_read" model="webvue.access.permission">
+        <field name="key">payments.orders.read</field><field name="domain">payments</field>
+        <field name="resource">orders</field><field name="action">read</field>
+        <field name="name_ar">عرض الطلبات المدفوعة أونلاين</field><field name="name_en">View online orders</field>
+        <field name="description_ar">عرض طلبات الدفع الأونلاين للشركة ومدفوعاتها والمبالغ المستحقة للعملاء</field><field name="description_en">View the company's online orders, their payments and the money due back to customers</field>
+        <field name="group_xmlid">webvue_payments.group_cap_payments_orders_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_payments_refund" model="webvue.access.permission">
+        <field name="key">payments.refund</field><field name="domain">payments</field>
+        <field name="resource">refunds</field><field name="action">manage</field>
+        <field name="name_ar">تسجيل استرجاع المبالغ</field><field name="name_en">Record refunds</field>
+        <field name="description_ar">تسجيل مبلغ أرجعته الشركة للعميل من لوحة بوابة الدفع، مع الإشعار الدائن</field><field name="description_en">Record money the company gave back to a customer from its gateway dashboard, with the credit note</field>
+        <field name="group_xmlid">webvue_payments.group_cap_payments_refund</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
     <!-- Built-in roles are noupdate records: these hooks link this addon's grants and
          dependencies on install and on every upgrade. -->
     <function model="webvue.access.service" name="_webvue_configure_permission_dependencies"/>

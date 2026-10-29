@@ -32,6 +32,10 @@ class TestFinanceBankImport(WebVueFinanceOcaCase):
         self.assertEqual(body['suggested_mapping'], {'date': 'Date', 'payment_ref': 'Description', 'debit': 'Debit', 'credit': 'Credit'})
         self.assertEqual(len(body['sample']), 3)
 
+    def test_a_binary_file_is_refused_as_unreadable(self):
+        result = self.api('POST', PREVIEW, json={'journal_id': self.bank.id, 'content': '\x00\x01binary'})
+        self.assertEqual((result.status_code, result.json()['code'], result.json()['field']), (422, 'invalid', 'content'))
+
     def test_the_preview_with_a_mapping_lists_the_lines_and_writes_nothing(self):
         before = self.env['account.bank.statement.line'].search_count([])
         body = self.api('POST', PREVIEW, json=self.body()).json()

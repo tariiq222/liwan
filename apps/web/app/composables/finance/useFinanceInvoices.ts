@@ -6,6 +6,7 @@ import {
   FinanceInvoiceListSchema,
   FinancePartnerListSchema,
   FinanceZatcaSubmissionSchema,
+  type FinanceCreditNoteCreate,
   type FinanceDebitNoteCreate,
   type FinanceInvoiceCreate,
   type FinanceInvoicePatch,
@@ -120,6 +121,12 @@ export function useCreateFinanceDebitNote() {
   const { $api } = useApi()
   return useInvoiceWrite(({ id, body }: { id: number; body: FinanceDebitNoteCreate }) =>
     $api(`/api/v1/finance/invoices/${id}/debit-note`, { method: 'POST', body, schema: FinanceInvoiceDetailSchema }))
+}
+
+export function useCreateFinanceCreditNote() {
+  const { $api } = useApi()
+  return useInvoiceWrite(({ id, body }: { id: number; body: FinanceCreditNoteCreate }) =>
+    $api(`/api/v1/finance/invoices/${id}/credit-note`, { method: 'POST', body, schema: FinanceInvoiceDetailSchema }))
 }
 
 /** The submission answer is a committed state even when ZATCA says no: the caller reads the record again either way. */

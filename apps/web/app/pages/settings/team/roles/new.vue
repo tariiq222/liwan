@@ -7,6 +7,7 @@ import { useAdminPermissionCatalog, useAdminRole, useCreateAdminRole } from '@/c
 import { adminListQuery } from '@/composables/adminSettingsPaths'
 import { permissionDomainLabel, builtinRoleDescription } from '@/utils/labelFallback'
 import { saveErrorMessage } from '@/utils/formFeedback'
+import { accessErrorMessage } from '@/utils/accessErrors'
 
 const { t, te, locale } = useI18n()
 const domainLabel = (domain: string) => permissionDomainLabel(domain, t, te)
@@ -75,10 +76,7 @@ function togglePermission(key: Capability, checked: boolean) {
 
 function showError(error: unknown) {
   if (error instanceof ApiError && error.status === 0) return saveErrorMessage(error, t('errors.generic'), t('errors.saveUncertain'))
-  if (!(error instanceof ApiError)) return t('errors.generic')
-  if (error.status === 409 || error.code === 'conflict') return t('access.errors.conflict')
-  const translated = `access.errors.${error.code}`
-  return error.code && t(translated) !== translated ? t(translated) : (error.message || t('errors.generic'))
+  return accessErrorMessage(error, t)
 }
 
 let submitting = false
@@ -126,6 +124,7 @@ async function submit() {
       <SharedFormSection panel :title="t('access.roles.permissions')">
         <fieldset class="grid min-w-0 gap-3" :disabled="!hydrated || create.isPending.value">
           <legend class="sr-only">{{ t('access.roles.permissions') }}</legend>
+          <UAlert v-if="availablePermissions.some((permission) => permission.sensitive)" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('access.roles.sensitiveNotice')" />
           <SharedSubCard v-for="[domain, domainPermissions] in groupedPermissions" :key="domain" tone="tinted" as="section" class="grid gap-3">
             <h3 class="text-sm font-semibold text-highlighted">{{ domainLabel(domain) }}</h3>
             <div class="grid gap-3 md:grid-cols-2">
@@ -135,7 +134,10 @@ async function submit() {
                 :model-value="selected.includes(permission.key)"
                 @update:model-value="(value) => togglePermission(permission.key, Boolean(value))"
               >
-                <template #label><span class="font-medium">{{ permissionLabel(permission.key) }}</span></template>
+                <template #label>
+                  <span class="font-medium">{{ permissionLabel(permission.key) }}</span>
+                  <SharedStatusBadge v-if="permission.sensitive" size="sm" tone="warning" class="ms-2" :label="t('access.roles.sensitive')" />
+                </template>
                 <template #description>
                   <span class="block text-sm text-muted">{{ permissionDescription(permission.key) }}</span>
                   <span class="block text-xs text-muted">{{ permission.dependencies.length ? `${t('access.roles.requires')}: ${joinList(permission.dependencies.map((key) => permissionLabel(key)), t)}` : t('access.roles.noDependencies') }}</span>

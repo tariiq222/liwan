@@ -3,16 +3,18 @@ import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import RolePermissionForm from '@/components/access/roles/RolePermissionForm.vue'
 import UserTable from '@/components/access/users/UserTable.vue'
 import { ApiError } from '@/composables/useApi'
+import { accessErrorMessage } from '@/utils/accessErrors'
 import { useAdminUsers } from '@/composables/useAdminUsers'
 import { useAdminPermissionCatalog, useAdminRole, useDeleteAdminRole, useDisableAdminRole, useEnableAdminRole } from '@/composables/useAdminRoles'
 import { ADMIN_PAGE_SIZE, adminListQuery } from '@/composables/adminSettingsPaths'
+import { builtinRoleDescription } from '@/utils/labelFallback'
 import { accessBadge } from '@/components/access/accessBadge'
 import { statusTag, type PageHeaderTag } from '@webvue/ui/app/utils/pageHeaderTag'
 import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
 
 const route = useRoute()
 const router = useRouter()
-const { t, locale } = useI18n()
+const { t, te, locale } = useI18n()
 const { can } = useAccess()
 const hydrated = useHydrated()
 const id = computed(() => Number(route.params.roleId))
@@ -49,10 +51,7 @@ async function confirmAction(action: RoleAction) {
     pendingAction.value = null
   } catch (error) {
     pendingAction.value = null
-    if (error instanceof ApiError) {
-      const translated = `access.errors.${error.code}`
-      actionError.value = error.code && t(translated) !== translated ? t(translated) : (error.message || t('errors.generic'))
-    } else actionError.value = t('errors.generic')
+    actionError.value = accessErrorMessage(error, t)
   }
 }
 const roleName = computed(() => role.data.value?.name[locale.value === 'ar' ? 'ar' : 'en'] ?? role.data.value?.name.ar ?? t('access.roles.title'))
@@ -71,7 +70,7 @@ const headerTags = computed<PageHeaderTag[]>(() => role.data.value
 const primaryAction = computed(() => {
   const allowed = role.data.value?.allowed_actions ?? []
   if (allowed.includes('edit')) return { icon: 'i-lucide-pencil', to: editTo.value, label: t('access.roles.editTitle') }
-  if (allowed.includes('clone')) return { icon: 'i-lucide-copy', to: cloneTo.value, label: t('access.roles.clone') }
+  if (can('access.roles.manage')) return { icon: 'i-lucide-copy', to: cloneTo.value, label: t('access.roles.clone') }
   return null
 })
 const menuActions = computed<RowAction[]>(() => {
@@ -137,7 +136,7 @@ const typeLabel = computed(() => role.data.value?.type === 'built_in' ? t('acces
     <template v-if="role.data.value && !forbidden" #aside>
       <SharedPropertiesPanel :title="t('access.roles.details')">
         <SharedPropertyRow :label="t('access.roles.columns.users')" :value="role.data.value.user_count" />
-        <SharedPropertyRow :label="t('access.roles.columns.description')" :value="role.data.value.description" />
+        <SharedPropertyRow :label="t('access.roles.columns.description')" :value="builtinRoleDescription(role.data.value, t, te)" />
       </SharedPropertiesPanel>
     </template>
   </SharedRecordPage>

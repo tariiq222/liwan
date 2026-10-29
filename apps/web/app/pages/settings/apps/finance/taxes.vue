@@ -7,7 +7,7 @@ const allowed = computed(() => can('finance.taxes.read'))
 </script>
 
 <template>
-  <SharedSettingsPage width="detail">
+  <SharedSettingsPage width="list">
     <SharedPageHeader :title="t('financeRecords.taxes.title')" />
     <SharedForbiddenState v-if="!allowed" :description="t('financeRecords.forbidden')" />
     <TaxesSection v-else />

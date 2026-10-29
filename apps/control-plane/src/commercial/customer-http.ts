@@ -11,7 +11,7 @@ import { parseBody } from './http.js'
 import { getSubscription } from './subscriptions.js'
 import { buildQuote, createQuoteForCustomer } from './quotes.js'
 import { convertTrial, startTrial } from './trial.js'
-import { acceptQuote, customerOrderStatusView } from './orders.js'
+import { acceptQuote, cancelOrder, customerOrderStatusView } from './orders.js'
 import { listInvoices, getInvoice } from './invoices.js'
 import { planWire } from './plans.js'
 import { bundleWire } from './bundles.js'
@@ -127,6 +127,16 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
     if(!z.uuid().safeParse(payment[1]).success || !(await pool.query('SELECT id FROM orders WHERE id=$1 AND customer_id=$2',[payment[1],customerId])).rowCount)throw new CommercialHttpError('not_found',404)
     parseBody(input.raw,z.strictObject({idempotency_key:z.uuid()}))
     return {status:201,data:await createPaymentAttempt(pool,{order_id:payment[1]!,customer_id:customerId,...needPayment(runtime)})}
+  }
+  const cancel=/^\/orders\/([^/]+)\/cancel$/.exec(path)
+  if(m==='POST'&&cancel){
+    requireCapability(principal,'subscription.manage')
+    // Owner decision 2026-10-29: a customer cancels only its own unpaid first order; changes and renewals stay with the vendor.
+    const own=z.uuid().safeParse(cancel[1]).success?(await pool.query('SELECT kind FROM orders WHERE id=$1 AND customer_id=$2',[cancel[1],customerId])).rows[0]:undefined
+    if(!own)throw new CommercialHttpError('not_found',404)
+    if(own.kind!=='new')throw new CommercialHttpError('order_not_cancellable',409)
+    const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().min(3).max(1000)}))
+    return {status:200,data:await cancelOrder(pool,{order_id:cancel[1]!,principal,reason:body.reason,adapter:runtime?.adapter ?? undefined})}
   }
   if(m==='GET'&&path==='/invoices'){requireCapability(principal,'billing.read');return {status:200,data:await listInvoices(pool,{customer_id:customerId})}}
   const invoice=/^\/invoices\/([^/]+)$/.exec(path)

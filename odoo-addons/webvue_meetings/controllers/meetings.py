@@ -357,6 +357,22 @@ class MeetingController(http.Controller):
                 meeting._webvue_set_minutes_form(payload['minutes_form'])
         return dump_meeting(meeting, detail=True)
 
+    @http.route('/api/v1/meetings/<int:meeting_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
+    @api_handler
+    @requires_feature('meetings.enabled', operation='write')
+    def delete_meeting(self, meeting_id, **_):
+        require_capabilities('meetings.read')
+        meeting = get_record('webvue.meeting.minute', meeting_id)
+        _require_manager(meeting)
+        if meeting.state != 'draft':
+            raise ApiError(409, 'conflict', 'only a draft meeting can be deleted; cancel a confirmed meeting instead')
+        try:
+            with request.env.cr.savepoint():
+                meeting.unlink()
+        except UserError as e:
+            raise ApiError(409, 'conflict', str(e)) from e
+        return request.make_json_response('', status=204)
+
     @http.route('/api/v1/meetings/<int:meeting_id>/cancel', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('meetings.enabled', operation='write')
@@ -406,7 +422,8 @@ class MeetingController(http.Controller):
                 raise ApiError(422, 'invalid', 'priority must be one of 0, 1, 2, or 3', field='priority')
             vals['priority'] = priority
         resolution = request.env['webvue.meeting.resolution'].create(vals)
-        if resolution.responsible_id:
+        # Assigning a recommendation to oneself tells the actor nothing new, like an invitation.
+        if resolution.responsible_id and resolution.responsible_id != request.env.user:
             meeting._webvue_notify_partners(
                 resolution.responsible_id.partner_id,
                 'meeting_resolution',
@@ -476,7 +493,9 @@ class MeetingController(http.Controller):
             vals['name'] = payload['name'].strip()
         if 'deadline' in payload:
             vals['deadline'] = _parse_deadline(payload['deadline']) if payload['deadline'] else False
-        if payload.get('responsible_id'):
+        if 'responsible_id' in payload:
+            if not payload['responsible_id']:
+                raise ApiError(422, 'invalid', 'responsible_id must not be empty', field='responsible_id')
             vals['responsible_id'] = parse_positive_int(payload['responsible_id'], 'responsible_id')
         if 'priority' in payload:
             if not isinstance(payload['priority'], str) or payload['priority'] not in {'0', '1', '2', '3'}:

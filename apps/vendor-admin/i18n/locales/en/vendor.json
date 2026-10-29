@@ -538,6 +538,7 @@
       "retiredHint": "Plans are sold from the Plans page. Customers already on a legacy package keep it unchanged."
     },
     "bundles": {
+      "seed": {"action": "Create default bundles", "hint": "Publishes one bundle per application of the latest catalog release and adds them to the WebVue plan at placeholder prices you edit later.", "reason": "Create the default bundles for the WebVue plan", "done": "The default bundles were published.", "failed": "The bundles could not be created. Check the catalog and the approved policy."},
       "title": "Bundles",
       "create": "New bundle",
       "search": "Search bundles",
@@ -826,6 +827,7 @@
       "resendInvitationHint": "Sends a new invitation to the customer administrator and replaces the previous one. It is valid for 72 hours.",
       "invitationQueued": "The invitation is queued for delivery.",
       "invitationFailed": "The invitation could not be sent. Try again.",
+      "payLink": {"create": "Create payment link", "label": "Payment link", "copy": "Copy link", "copied": "Link copied.", "copyFailed": "Copy failed. Copy it by hand.", "failed": "The payment link could not be created. Check the payment provider setup."},
       "trial": {"title": "Trial", "ends": "Ends on", "remaining": "Days remaining", "state": "State", "extend": "Extend trial", "end": "End trial now", "extendHint": "Add days to the trial end. The action is audited.", "endHint": "Ends the trial now and issues the first invoice with a payment link. The action is audited.", "days": "Days", "reason": "Reason", "readOnly": "Changing a trial requires the subscription management capability.", "states": {"trialing": "Trial", "active": "Active", "past_due": "Past due", "suspended": "Suspended", "pending": "Provisioning", "cancelled": "Cancelled"}},
       "trialStart": {"title": "Start a trial", "hint": "The customer has no subscription yet. A trial creates the workspace and sends the administrator invitation; the customer pays from inside the workspace after the trial.", "plan": "Plan", "cadence": "Billing cadence", "action": "Start {days}-day trial", "noPlans": "No published plan offers a trial."},
       "title": "Customers",

@@ -13,3 +13,8 @@ export function isPossibleSessionExpiry(error: unknown): boolean {
   return error instanceof ApiError && error.status === 403 && !AUTHORIZED_403_CODES.has(error.code)
     && error.code !== TENANT_SUSPENDED
 }
+
+/** A signed-in user replaced by another one in the same tab: the first user's cached data must not be shown to the second. */
+export function isDifferentUser(before: { id: number } | null | undefined, after: { id: number } | null | undefined): boolean {
+  return Boolean(before && after && before.id !== after.id)
+}
