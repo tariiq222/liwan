@@ -7,7 +7,7 @@ from .analytic_support import distribution_values, require_plain_distributions
 from .common import filter_domain, list_page, parse_choice, require_capability
 from .finance_partners import company_partners_domain
 from .idempotency import idempotent
-from .write_support import attempt, company_records, require_state
+from .write_support import attempt, company_records, require_open_period, require_state
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
@@ -228,12 +228,13 @@ class FinanceInvoiceController(http.Controller):
         )
         values['company_id'] = request.env.company.id
         written = tuple(values)  # account.move.create renames and adds keys in place
-        invoice = attempt(
-            lambda: request.env['account.move'].create(values),
-            day=values.get('invoice_date'),
-            journal=request.env['account.journal'].browse(values['journal_id']) if 'journal_id' in values else _default_journal(parsed['move_type']),
-            has_tax=any(line.get('tax_ids') for line in parsed['lines']),
-        )
+        lock = {
+            'day': values.get('invoice_date'),
+            'journal': request.env['account.journal'].browse(values['journal_id']) if 'journal_id' in values else _default_journal(parsed['move_type']),
+            'has_tax': any(line.get('tax_ids') for line in parsed['lines']),
+        }
+        require_open_period(**lock, company=request.env.company, field='invoice_date')
+        invoice = attempt(lambda: request.env['account.move'].create(values), **lock)
         request.env['webvue.finance.audit.event']._webvue_log(
             'invoice_created', invoice, fields_written=written, outcome=invoice.state,
         )
@@ -253,12 +254,14 @@ class FinanceInvoiceController(http.Controller):
         _effective_invoice_conversion(invoice, parsed, invoice.company_id)
         values = _move_values(parsed, invoice.move_type, invoice.company_id)
         written = tuple(values)  # account.move.write adds is_manually_modified in place
-        attempt(
-            lambda: invoice.write(values), day=values.get('invoice_date') or invoice.date,
-            journal=invoice.journal_id,
-            company=invoice.company_id,
-            has_tax=any(line.get('tax_ids') for line in parsed.get('lines', ())) or bool(invoice.invoice_line_ids.tax_ids),
-        )
+        lock = {
+            'day': values.get('invoice_date') or _lock_context(invoice)['day'],
+            'journal': invoice.journal_id,
+            'company': invoice.company_id,
+            'has_tax': any(line.get('tax_ids') for line in parsed.get('lines', ())) or bool(invoice.invoice_line_ids.tax_ids),
+        }
+        require_open_period(**lock, field='invoice_date')
+        attempt(lambda: invoice.write(values), **lock)
         request.env['webvue.finance.audit.event']._webvue_log(
             'invoice_changed', invoice, fields_written=written, outcome=invoice.state,
         )
@@ -287,7 +290,9 @@ class FinanceInvoiceController(http.Controller):
         require_state(invoice, 'draft', 'not_draft')
         # 422 zatca_not_onboarded means the sales journal is not ZATCA-onboarded; Odoo may list further
         # configuration errors in the same refusal, all of them in details.detail.
-        attempt(invoice.action_post, move=invoice, **_lock_context(invoice))
+        lock = _lock_context(invoice)
+        require_open_period(**lock, field='invoice_date')
+        attempt(invoice.action_post, move=invoice, **lock)
         request.env['webvue.finance.audit.event']._webvue_log(
             'invoice_posted', invoice, fields_written=('state',), outcome=invoice.state,
         )
