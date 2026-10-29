@@ -21,6 +21,7 @@ export const CrmPresetSchema = z.enum(['general', 'phone_packages'])
 export const CrmAfterAttemptsSchema = z.enum(['lost', 'manager'])
 export const CrmDistributionModeSchema = z.enum(['round_robin', 'manual', 'on_import'])
 export const CrmVisibilitySchema = z.enum(['own', 'team', 'all'])
+export const CrmPriceAboveListSchema = z.enum(['forbid', 'managers', 'everyone'])
 
 const RangeSchema = z.strictObject({ min: z.number().int(), max: z.number().int() })
 
@@ -38,6 +39,7 @@ export const CrmSettingsValuesSchema = z.strictObject({
   view_log_enabled: z.boolean(),
   discount_allowed: z.boolean(),
   discount_max_percent: z.number().int().min(0).max(100),
+  price_above_list: CrmPriceAboveListSchema,
   terms: CrmSettingsTermsSchema,
 })
 
@@ -46,6 +48,7 @@ export const CrmSettingsOptionsSchema = z.strictObject({
   after_attempts: z.array(CrmAfterAttemptsSchema),
   distribution_mode: z.array(CrmDistributionModeSchema),
   visibility: z.array(CrmVisibilitySchema),
+  price_above_list: z.array(CrmPriceAboveListSchema),
   term_gender: z.array(z.enum(['m', 'f'])),
   followup_attempts: RangeSchema,
   followup_interval_hours: RangeSchema,

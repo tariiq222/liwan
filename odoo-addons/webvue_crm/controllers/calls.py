@@ -10,7 +10,7 @@ from odoo.addons.webvue_api.controllers.common import (
     requires_feature,
 )
 from odoo.addons.webvue_crm.controllers.opportunities import find_opportunity
-from odoo.addons.webvue_crm.controllers.sale import sale_arguments
+from odoo.addons.webvue_crm.controllers.sale import manual_lost_reason, sale_arguments
 from odoo.addons.webvue_crm.serializers.call import dump_call, parse_call_body
 from odoo.addons.webvue_crm.serializers.opportunity import dump_opportunity
 
@@ -29,10 +29,7 @@ def _lost_reason(outcome, reason_id):
         return None
     if outcome.effect != 'lost':
         raise ApiError(422, 'invalid', 'only a losing outcome carries a reason', field='lost_reason_id')
-    reason = request.env['crm.lost.reason'].search([('id', '=', reason_id)], limit=1)
-    if not reason:
-        raise ApiError(422, 'invalid', 'lost reason does not exist', field='lost_reason_id')
-    return reason
+    return manual_lost_reason(reason_id)
 
 
 class CrmCallsController(http.Controller):

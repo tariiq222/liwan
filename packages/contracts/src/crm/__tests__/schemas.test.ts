@@ -53,6 +53,7 @@ const settings = {
     view_log_enabled: false,
     discount_allowed: false,
     discount_max_percent: 0,
+    price_above_list: 'managers',
     terms: {
       customer: term(['عميل', 'عملاء'], ['customer', 'customers'], 'm'),
       opportunity: term(['فرصة', 'فرص'], ['opportunity', 'opportunities'], 'f'),
@@ -65,6 +66,7 @@ const settings = {
     after_attempts: ['lost', 'manager'],
     distribution_mode: ['round_robin', 'manual', 'on_import'],
     visibility: ['own', 'team', 'all'],
+    price_above_list: ['forbid', 'managers', 'everyone'],
     term_gender: ['m', 'f'],
     followup_attempts: { min: 0, max: 10 },
     followup_interval_hours: { min: 1, max: 720 },

@@ -80,7 +80,7 @@ function submit() {
       </div>
       <UAlert v-if="error" role="alert" color="error" variant="subtle" :description="error" />
       <div class="flex justify-end">
-        <UButton type="submit" :loading="pending" :disabled="locked || !outcome" :label="askReason ? t('crm.opportunities.call.lostSubmit') : selling ? t('crm.opportunities.sale.submit') : t('crm.opportunities.call.submit')" data-testid="crm-call-submit" />
+        <UButton type="submit" :loading="pending" :disabled="locked" :label="askReason ? t('crm.opportunities.call.lostSubmit') : selling ? t('crm.opportunities.sale.submit') : t('crm.opportunities.call.submit')" data-testid="crm-call-submit" />
       </div>
     </UForm>
   </SharedRecordSection>
