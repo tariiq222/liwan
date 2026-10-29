@@ -2,7 +2,7 @@
 import { onBeforeUnmount } from 'vue'
 import { useIsMutating } from '@tanstack/vue-query'
 import type { AdminUserDetail } from '@webvue/contracts'
-import { ApiError } from '@/composables/useApi'
+import { accessErrorMessage } from '@/utils/accessErrors'
 import { adminUserMutationKey, useDisableAdminUser, useReactivateAdminUser, useResetAdminUserPassword } from '@/composables/useAdminUsers'
 
 const props = defineProps<{ user: AdminUserDetail; onSuccessKey: (userId: number, key: string) => void }>()
@@ -39,14 +39,6 @@ function beginOrConfirm(action: 'reset' | 'disable' | 'reactivate') {
   pendingAction.value = null
   return true
 }
-function showError(error: unknown) {
-  if (!(error instanceof ApiError)) return t('errors.generic')
-  if (error.status === 409 || error.code === 'conflict') return t('access.errors.conflict')
-  if (error.code === 'weak_password') return t('access.errors.weakPassword')
-  const translated = `access.errors.${error.code}`
-  return error.code && t(translated) !== translated ? t(translated) : (error.message || t('errors.generic'))
-}
-
 async function resetPassword() {
   errorKey.value = ''
   const targetId = props.user.id
@@ -58,7 +50,7 @@ async function resetPassword() {
     setSuccess('access.users.passwordReset', targetId)
   } catch (error) {
     clearSecrets()
-    errorKey.value = showError(error)
+    errorKey.value = accessErrorMessage(error, t)
   }
 }
 
@@ -75,7 +67,7 @@ async function changeState() {
     setSuccess(action === 'disable' ? 'access.users.accessDisabled' : 'access.users.accessReactivated', targetId)
   } catch (error) {
     clearSecrets()
-    errorKey.value = showError(error)
+    errorKey.value = accessErrorMessage(error, t)
   }
 }
 

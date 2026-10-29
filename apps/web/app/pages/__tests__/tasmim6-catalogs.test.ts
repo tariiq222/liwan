@@ -10,11 +10,11 @@ describe('project settings and catalogs', () => {
     for (const needle of ['<SharedSettingsPage', '<SharedDataTable', '#mobile-row', 'data-shortcut-create']) expect(page).toContain(needle)
     for (const gone of ['<ul>', 'border-default/80']) expect(page).not.toContain(gone)
   })
-  it('the settings page frames the catalogs as a record section and the form uses the shared skeleton', () => {
-    expect(read('pages/settings/apps/projects.vue')).toContain('<SharedRecordSection id="catalogs"')
-    const form = read('components/settings/ProjectSettingsForm.vue')
-    expect(form).toContain('<SharedLoadingSkeleton')
-    expect(form).not.toContain('<USkeleton')
+  it('the settings page frames the catalogs as a record section and loads the form through the shared page state', () => {
+    const page = read('pages/settings/apps/projects.vue')
+    expect(page).toContain('<SharedRecordSection v-if="shows(\'catalogs\')" id="catalogs"')
+    expect(page).toContain('<SharedPageState')
+    expect(read('components/settings/ProjectSettingsForm.vue')).not.toContain('<USkeleton')
   })
   it('the edit page has no hand-built card', () => {
     expect(read('pages/settings/apps/projects/catalogs/[resource]/[referenceId]/edit.vue')).not.toContain('rounded-lg ring ring-default')

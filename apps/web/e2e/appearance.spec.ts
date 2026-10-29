@@ -165,7 +165,7 @@ test('saving organization color preserves personal mode and font preferences', a
   async function save(value: string) {
     await color.fill(value)
     const response = page.waitForResponse(response => response.url().includes('/api/v1/admin/branding') && response.request().method() === 'PATCH')
-    await page.getByTestId('branding-submit').click()
+    await page.getByTestId('branding-form').getByRole('button', { name: 'حفظ التغييرات', exact: true }).click()
     expect((await response).status()).toBe(200)
   }
   try {
