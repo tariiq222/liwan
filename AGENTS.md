@@ -348,7 +348,9 @@ cross-addon links.
   `webvue_appointments` uses it only in `models/guest_service.py`, to read the one booking behind an invited requester's access token (the public user holds no ACL on `resource.booking`); the token is compared in constant time and the booking is returned, elevated, only when it matches. That elevated booking is then also used to schedule, confirm and cancel that one booking and its own meeting (the engine's `_sync_meeting` creates, updates and unlinks its calendar event and attendees), with the modification deadline checked by `within_deadline`.
   `webvue_chat` uses it for the two `mail.message.reaction` paths — the toggle after `_webvue_member_channel`
   proved the caller's membership, and the reaction aggregation of an already-authorized message — both blocked
-  by `mail.message.reaction` being system-only in Odoo (owner decision 2026-10-25: authorized).
+  by `mail.message.reaction` being system-only in Odoo (owner decision 2026-10-25: authorized), and for the author's
+  message edit after the member and author checks, because emptying a message reads `message_link_preview_ids`,
+  a field Odoo limits to `base.group_erp_manager` (as stock Odoo's own edit controller does).
   `webvue_notify` uses it for bell delivery and recipient-owned bell reads. The `mail.message` environment in
   `_webvue_deliver` bypasses the stock create/unlink document-access gates: create may be allowed by following the
   source, while unlink requires source write/create access. The three recipient-owned reader helpers retain
