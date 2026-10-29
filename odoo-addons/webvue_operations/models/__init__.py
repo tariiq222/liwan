@@ -5,6 +5,8 @@ from . import (
     directory,
     feature_registry,
     ir_rule,
+    mail_message,
+    notification_types,
     operation_request,
     process,
 )

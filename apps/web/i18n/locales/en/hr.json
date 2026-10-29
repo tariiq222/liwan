@@ -417,6 +417,10 @@
       "saveError": "Unable to save leave policy",
       "reload": "Reload policy",
       "reloadError": "Unable to reload. Your draft and conflict were retained."
+    },
+    "bell": {
+      "leaveApproved": "Your leave request ({dates}) was approved",
+      "leaveRefused": "Your leave request ({dates}) was refused"
     }
   }
 }

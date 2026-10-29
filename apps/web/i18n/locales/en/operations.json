@@ -163,6 +163,12 @@
     "attention": {
       "from": "From {name}"
     },
+    "bell": {
+      "reviewRequested": "A request is waiting for your review: {name}",
+      "approved": "Your request was approved: {name}",
+      "rejected": "Your request was refused: {name}",
+      "returned": "Your request was returned for changes: {name}"
+    },
     "allPurposes": "All types",
     "stageApprovalMode": "Reviewer on several stages",
     "stageApprovalModeHint": "When the same reviewer sits on consecutive stages: «Approve each stage» asks for a separate decision per stage, and «One approval is enough» approves their consecutive stages in one decision. Submitted requests keep the mode they were submitted under.",

@@ -282,6 +282,7 @@ class HrLeaveController(http.Controller):
         if leave.state not in ('confirm', 'validate1'):
             raise ApiError(422, 'invalid', 'only a request waiting for a decision can be approved', field='state')
         leave.action_approve()
+        leave._webvue_notify_decision()
         return dump_leave(leave)
 
     @http.route('/api/v1/hr/leave/requests/<int:leave_id>/refuse', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -296,6 +297,7 @@ class HrLeaveController(http.Controller):
         leave.action_refuse()
         if reason:
             leave.message_post(body=reason)
+        leave._webvue_notify_decision()
         return dump_leave(leave)
 
     @http.route('/api/v1/hr/leave/requests/<int:leave_id>/cancel', type='json2', auth='user', methods=['POST'], readonly=False)
