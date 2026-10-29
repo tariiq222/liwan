@@ -8,6 +8,7 @@ from odoo.addons.webvue_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
+from odoo.addons.webvue_crm.controllers.lists import is_protected_reason
 from odoo.addons.webvue_crm.controllers.opportunities import find_opportunity
 from odoo.addons.webvue_crm.serializers.call import (
     parse_assign_body,
@@ -36,6 +37,17 @@ def sale_arguments(sale):
     }
 
 
+def manual_lost_reason(reason_id):
+    """The lost reason an agent picked: it must exist and not be the one only the follow-up engine closes with."""
+    reason = request.env['crm.lost.reason'].search([('id', '=', reason_id)], limit=1)
+    if not reason:
+        raise ApiError(422, 'invalid', 'lost reason does not exist', field='lost_reason_id')
+    if is_protected_reason(reason):
+        raise ApiError(422, 'invalid', 'this lost reason is used by the system', field='lost_reason_id',
+                       details={'reason': 'crm_lost_reason_system'})
+    return reason
+
+
 class CrmSaleController(http.Controller):
 
     @http.route(f'{BASE}/won', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -54,10 +66,7 @@ class CrmSaleController(http.Controller):
     def mark_lost(self, lead_id, **payload):
         lead = find_opportunity(lead_id)
         reason_id = parse_lost_body(payload)['lost_reason_id']
-        reason = request.env['crm.lost.reason'].search([('id', '=', reason_id)], limit=1)
-        if not reason:
-            raise ApiError(422, 'invalid', 'lost reason does not exist', field='lost_reason_id')
-        lead._webvue_mark_lost(reason, request.env.user)
+        lead._webvue_mark_lost(manual_lost_reason(reason_id), request.env.user)
         return dump_opportunity(lead)
 
     @http.route(f'{BASE}/reopen', type='json2', auth='user', methods=['POST'], readonly=False)
