@@ -97,7 +97,7 @@ def requires_feature(*keys, operation='write', match='all'):
     return decorator
 
 
-def requires_registered_feature(model, method, *, keys, operation='write', match='any'):
+def requires_registered_feature(model, method, *, keys, operation='write', match='any', open_method=None):
     """Gate a route on the feature keys that installed addons register at request time.
 
     ``request.env[model].<method>()`` returns those keys, so a shared service
@@ -106,7 +106,9 @@ def requires_registered_feature(model, method, *, keys, operation='write', match
     tools/api_surface.py records and what the route-coverage test reads; it
     is never checked. The registered keys are checked sorted, so with
     ``match='any'`` the reported key is the last failing one in sorted order,
-    whatever order the addons registered them in.
+    whatever order the addons registered them in. ``open_method`` names a method of the same model
+    that returns True when something registered needs no feature (a platform-owned kind); the
+    route then runs ungated and the service filters each row by its own owner feature.
     """
     if not keys or not all(isinstance(key, str) and key for key in keys):
         msg = 'requires_registered_feature keys must document the gate'
@@ -116,6 +118,8 @@ def requires_registered_feature(model, method, *, keys, operation='write', match
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
+            if open_method and getattr(request.env[model], open_method)():
+                return func(*args, **kwargs)
             registered = tuple(sorted(set(getattr(request.env[model], method)())))
             if registered:
                 error = _feature_error(registered, operation, match)

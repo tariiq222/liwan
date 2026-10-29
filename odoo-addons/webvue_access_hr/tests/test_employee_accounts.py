@@ -175,7 +175,7 @@ class TestEmployeeAccounts(WebVueApiCase):
         self.assertEqual(changed['employee']['id'], self.target_employee.id)
         self.opener = Opener(self)
         self.opener.cookies.set('session_id', old_session.sid, domain=HOST)
-        self.assertEqual(self.api('GET', '/api/v1/me').status_code, 403)
+        self.assertEqual(self.api('GET', '/api/v1/me').status_code, 401)
 
         self._admin()
         stopped = self.api('POST', f"/api/v1/admin/users/{created['id']}/disable", {

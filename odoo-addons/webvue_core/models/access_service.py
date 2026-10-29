@@ -38,11 +38,23 @@ def _grantable(keys, known):
     return bool(keys) and set(keys) <= known and not set(keys) & SYSTEM_PERMISSIONS
 
 
+# Readable Arabic text for the codes an API caller can meet without any English message of their own.
+ARABIC_MESSAGES = {
+    'missing_dependency': 'أضف الصلاحيات التابعة أولًا.',
+    'employee_contact_required': 'لا توجد جهة اتصال للموظف. أضف بياناته أولًا.',
+    'role_name_exists': 'يوجد دور بهذا الاسم مسبقًا.',
+    'user_already_disabled': 'الحساب موقوف مسبقًا.',
+    'user_already_active': 'الحساب مفعّل مسبقًا.',
+    'role_state_unchanged': 'الدور في هذه الحالة مسبقًا.',
+}
+
+
 class WebVueAccessRule(AccessError, ValidationError):
     def __init__(self, code, message=None, field=None, status=422, details=None):
-        super().__init__('%s: %s' % (code, message or code))
+        message = message or ARABIC_MESSAGES.get(code, code)
+        super().__init__('%s: %s' % (code, message))
         self.code = code
-        self.message = message or code
+        self.message = message
         self.field = field
         self.status = status
         self.details = details
@@ -364,9 +376,11 @@ class WebVueAccessService(models.AbstractModel):
 
     @api.model
     def _webvue_user_version(self, user):
-        return 'u%s-r%s-v%s' % (
-            user.id, user.webvue_access_version, user.company_id.webvue_access_policy_version,
-        )
+        return 'u%s-r%s' % (user.id, user.webvue_access_version)
+
+    @api.model
+    def _webvue_access_changed(self, users):
+        """USERS' roles or role permissions changed. A shared service extends this through super() to tell them."""
 
     @api.model
     def _webvue_role_version(self, role):
@@ -378,11 +392,7 @@ class WebVueAccessService(models.AbstractModel):
         self.env.invalidate_all()
         self.env.cr.execute(
             '''
-                SELECT users.webvue_access_version, company.webvue_access_policy_version
-                  FROM res_users users
-                  JOIN res_company company ON company.id = users.company_id
-                 WHERE users.id = %s
-                 FOR UPDATE OF users
+                SELECT webvue_access_version FROM res_users WHERE id = %s FOR UPDATE
             ''',
             [user.id],
         )
@@ -390,7 +400,7 @@ class WebVueAccessService(models.AbstractModel):
         if not row:
             msg = 'not_found'
             raise WebVueAccessRule(msg, 'user does not exist', status=404)
-        current = 'u%s-r%s-v%s' % (user.id, row[0], row[1])
+        current = 'u%s-r%s' % (user.id, row[0])
         if expected != current:
             msg = 'conflict'
             raise WebVueAccessRule(msg, 'user was changed', status=409, details={'current_version': current})
@@ -512,6 +522,9 @@ class WebVueAccessService(models.AbstractModel):
             self.env['webvue.access.audit']._webvue_log(
                 'user.roles_changed', user, before={'assignments': before}, after={'assignments': after},
             )
+            if before:
+                # A first grant is not a change of access the user needs to hear about.
+                self._webvue_access_changed(user)
         return user
 
     @api.model
@@ -532,6 +545,9 @@ class WebVueAccessService(models.AbstractModel):
         self._webvue_check_user_version(user, expected_version)
         self._webvue_require_capability('access.users.disable')
         self._webvue_assert_user_scope(user)
+        if not user.active:
+            msg = 'user_already_disabled'
+            raise WebVueAccessRule(msg, status=409)
         if self._webvue_has_capability(
             user, 'access.users.assign_roles', company=user.company_id,
         ):
@@ -640,6 +656,9 @@ class WebVueAccessService(models.AbstractModel):
         self._webvue_check_user_version(user, expected_version)
         self._webvue_require_capability('access.users.disable')
         self._webvue_assert_user_scope(user)
+        if user.active:
+            msg = 'user_already_active'
+            raise WebVueAccessRule(msg, status=409)
         self._webvue_assert_account_reactivation(user)
         user._webvue_access_write(
             {'active': True, 'password': password}, 'access.users.disable',

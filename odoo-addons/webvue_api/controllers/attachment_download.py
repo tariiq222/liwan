@@ -6,8 +6,28 @@ ignores the capability of the owning application, so the product never links to 
 owning application authorizes its parent record and capability, then hands the attachments
 linked to that parent to ``download_linked_attachment``.
 """
+import os
+import re
+import unicodedata
+from urllib.parse import quote
+
 from odoo.exceptions import MissingError
 from odoo.http import request
+
+_UNSAFE_ASCII = re.compile(r'[^A-Za-z0-9._ -]+')
+
+
+def attachment_disposition(filename):
+    """``Content-Disposition`` for a download: an ASCII fallback plus the RFC 5987 UTF-8 name.
+
+    Werkzeug builds the fallback by dropping non-ASCII characters, so an Arabic name ends up
+    as ``filename=.txt``. The fallback here keeps the extension and never comes out empty.
+    """
+    stem, extension = os.path.splitext(filename)
+    ascii_stem = _UNSAFE_ASCII.sub('', unicodedata.normalize('NFKD', stem).encode('ascii', 'ignore').decode()).strip()
+    ascii_extension = _UNSAFE_ASCII.sub('', extension)
+    fallback = f'{ascii_stem or "attachment"}{ascii_extension}'
+    return f"attachment; filename=\"{fallback}\"; filename*=UTF-8''{quote(filename, safe='')}"
 
 
 def download_linked_attachment(attachments, attachment_id):
@@ -21,6 +41,7 @@ def download_linked_attachment(attachments, attachment_id):
         raise MissingError(request.env._('Attachment %(id)s is not linked to this record', id=attachment_id))
     attachment.check_access('read')
     response = request.env['ir.binary']._get_stream_from(attachment).get_response(as_attachment=True)
+    response.headers['Content-Disposition'] = attachment_disposition(attachment.name)
     # A download is never rendered: no sniffing, no scripts, no shared cache.
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['Content-Security-Policy'] = 'sandbox'
