@@ -495,6 +495,11 @@
           "name": "readonly",
           "type": "boolean",
           "required": false
+        },
+        {
+          "name": "duplicate",
+          "type": "File | null",
+          "required": false
         }
       ],
       "events": [
@@ -504,7 +509,11 @@
         },
         {
           "name": "upload",
-          "payload": "[file: File]"
+          "payload": "[file: File, options?: { name?: string | undefined; asVersion?: boolean | undefined; } | undefined]"
+        },
+        {
+          "name": "cancelDuplicate",
+          "payload": "[]"
         },
         {
           "name": "action",
@@ -517,7 +526,10 @@
       ],
       "slots": [],
       "nuxtUi": [
-        "UFormField"
+        "UAlert",
+        "UButton",
+        "UFormField",
+        "UInput"
       ],
       "stories": [
         {
@@ -1622,7 +1634,7 @@
       "props": [
         {
           "name": "process",
-          "type": "{ id: number; name: string; description: string; purpose: \"employee\" | \"work\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; }[]; }",
+          "type": "{ id: number; name: string; description: string; purpose: \"employee\" | \"work\"; approval_mode: \"per_stage\" | \"single\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; ineligible_reviewer_ids: number[]; }[]; }",
           "required": false
         },
         {
@@ -1637,19 +1649,19 @@
         },
         {
           "name": "refresh",
-          "type": "(() => Promise<{ id: number; name: string; description: string; purpose: \"employee\" | \"work\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; }[]; }>)",
+          "type": "(() => Promise<{ id: number; name: string; description: string; purpose: \"employee\" | \"work\"; approval_mode: \"per_stage\" | \"single\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; ineligible_reviewer_ids: number[]; }[]; }>)",
           "required": false
         },
         {
           "name": "save",
-          "type": "(body: OperationProcessBody) => Promise<{ id: number; name: string; description: string; purpose: \"employee\" | \"work\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; }[]; }>",
+          "type": "(body: OperationProcessBody) => Promise<{ id: number; name: string; description: string; purpose: \"employee\" | \"work\"; approval_mode: \"per_stage\" | \"single\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; ineligible_reviewer_ids: number[]; }[]; }>",
           "required": true
         }
       ],
       "events": [
         {
           "name": "saved",
-          "payload": "[process: { id: number; name: string; description: string; purpose: \"employee\" | \"work\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; }[]; }]"
+          "payload": "[process: { id: number; name: string; description: string; purpose: \"employee\" | \"work\"; approval_mode: \"per_stage\" | \"single\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; ineligible_reviewer_ids: number[]; }[]; }]"
         }
       ],
       "slots": [],
@@ -1775,7 +1787,7 @@
         },
         {
           "name": "processes",
-          "type": "{ id: number; name: string; description: string; purpose: \"employee\" | \"work\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; }[]; }[]",
+          "type": "{ id: number; name: string; description: string; purpose: \"employee\" | \"work\"; approval_mode: \"per_stage\" | \"single\"; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; ineligible_reviewer_ids: number[]; }[]; }[]",
           "required": false,
           "default": "[]"
         },
@@ -6477,7 +6489,7 @@
       ]
     },
     {
-      "name": "SharedSettingsCard",
+      "name": "SettingsCard",
       "file": "packages/ui/app/components/shared/layout/SettingsCard.vue",
       "story": "apps/web/stories/shared/SettingsCard.stories.ts",
       "title": "Shared/SettingsCard",
@@ -6598,7 +6610,7 @@
       ]
     },
     {
-      "name": "SharedSettingsList",
+      "name": "SettingsList",
       "file": "packages/ui/app/components/shared/layout/SettingsList.vue",
       "story": "apps/web/stories/shared/SettingsList.stories.ts",
       "title": "Shared/SettingsList",
@@ -6708,7 +6720,7 @@
       ]
     },
     {
-      "name": "SharedSettingsListRow",
+      "name": "SettingsListRow",
       "file": "packages/ui/app/components/shared/layout/SettingsListRow.vue",
       "story": "apps/web/stories/shared/SettingsListRow.stories.ts",
       "title": "Shared/SettingsListRow",
