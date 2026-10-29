@@ -3295,6 +3295,12 @@
           "required": false
         },
         {
+          "name": "endpoint",
+          "type": "string",
+          "required": false,
+          "default": "PEOPLE_ENDPOINT"
+        },
+        {
           "name": "id",
           "type": "string",
           "required": false
@@ -3334,6 +3340,11 @@
           "id": "Multiple",
           "name": "اختيار متعدد",
           "context": "apps/web/app/components/pmo/tasks/AssigneePicker.vue:34"
+        },
+        {
+          "id": "CustomEndpoint",
+          "name": "مصدر بحث مخصص",
+          "context": "apps/web/app/pages/crm/opportunities/[id].vue:219"
         },
         {
           "id": "FixedOptions",

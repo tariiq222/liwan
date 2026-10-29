@@ -5,6 +5,7 @@ from odoo.addons.webvue_crm.models.crm_settings import (
     DISTRIBUTION_MODES,
     PRESET_KEYS,
     PRESETS,
+    PRICE_ABOVE_LIST,
     RANGES,
     TERM_FORMS,
     TERM_GENDERS,
@@ -20,6 +21,7 @@ ENUMS = {
     'after_attempts': AFTER_ATTEMPTS,
     'distribution_mode': DISTRIBUTION_MODES,
     'visibility': VISIBILITIES,
+    'price_above_list': PRICE_ABOVE_LIST,
 }
 BOOLEANS = ('recycle_enabled', 'view_log_enabled', 'discount_allowed')
 # Plain fields a values patch may carry; `preset` changes only through a preset patch.
