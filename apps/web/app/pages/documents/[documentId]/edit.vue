@@ -7,7 +7,9 @@ import { createDocumentDraft } from '@/lib/documentEditorDraft'
 import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
 import { documentParentTo } from '@/lib/documentNavigation'
 const route = useRoute(); const { t } = useI18n(); const hydrated = useHydrated(); const toast = useToast()
-const id = computed(() => Number(route.params.documentId)); const query = useDocument(computed(() => Number.isSafeInteger(id.value) && id.value > 0 ? id.value : null))
+const id = computed(() => Number(route.params.documentId)); const validId = computed(() => /^[1-9]\d*$/.test(String(route.params.documentId)) && Number.isSafeInteger(id.value))
+const query = useDocument(computed(() => validId.value ? id.value : null))
+const pageError = computed(() => validId.value ? query.error.value : new ApiError(404, 'not_found', t('errors.generic')))
 const document = computed(() => query.data.value)
 const backTo = computed(() => documentParentTo(`/documents/${id.value}`, route.query, route.hash))
 const draft = reactive(createDocumentDraft()); const attempted = ref(false); const error = ref(''); const conflict = ref(false)
@@ -26,7 +28,7 @@ async function save() {
 <template>
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('documents.edit')" :back-to="backTo" />
-    <SharedPageState :loading="query.isLoading.value" :error="query.error.value" @retry="query.refetch">
+    <SharedPageState :loading="query.isLoading.value" :error="pageError" @retry="query.refetch">
       <SharedForbiddenState v-if="document && !document.allowed_actions.update" />
       <UForm v-else-if="document" :state="draft" class="webvue-form" @submit="save">
         <SharedUnsavedChanges :dirty="draft.isDirty() || update.isPending.value" />
