@@ -141,13 +141,28 @@ const OrderExpiryMinutesSchema = z.number().int()
   .min(PAYMENT_ORDER_EXPIRY_MINUTES.min).max(PAYMENT_ORDER_EXPIRY_MINUTES.max)
 
 /**
+ * What a customer who cancels gets back of what they paid: all of it, a percent by how long before the
+ * service they cancel (the product's notice tiers), or nothing. Money that arrives by mistake (a payment
+ * after cancellation or expiry, a second payment) is always refunded in full. A company default is
+ * `full` or `none`; a product may use `notice`, or `company` to keep the default.
+ */
+export const RefundPolicySchema = z.enum(['full', 'notice', 'none'])
+export const CompanyRefundPolicySchema = z.enum(['full', 'none'])
+/** How much one recorded refund may be: the whole amount due at once (`due`), or any part of it (`any`). */
+export const RefundAmountsSchema = z.enum(['due', 'any'])
+
+/**
  * The payments settings. `unpaid_order_expiry_minutes` belongs to the current company (default 60);
  * `invoice_when_paid` is one choice for the whole tenant (default on): stock invoices and posts a
- * paid online order at once. `revision` is the company's saved revision, 0 while it uses the defaults.
+ * paid online order at once. `refund_policy` (default `full`) and `refund_amounts` (default `due`)
+ * are the refund rules of the company's products that keep the company default. `revision` is the
+ * company's saved revision, 0 while it uses the defaults.
  */
 export const PaymentSettingsSchema = z.object({
   unpaid_order_expiry_minutes: OrderExpiryMinutesSchema,
   invoice_when_paid: z.boolean(),
+  refund_policy: CompanyRefundPolicySchema,
+  refund_amounts: RefundAmountsSchema,
   revision: z.number().int().nonnegative(),
 }).strict()
 
@@ -156,10 +171,114 @@ export const PaymentSettingsUpdateSchema = z.object({
   revision: z.number().int().nonnegative(),
   unpaid_order_expiry_minutes: OrderExpiryMinutesSchema.optional(),
   invoice_when_paid: z.boolean().optional(),
+  refund_policy: CompanyRefundPolicySchema.optional(),
+  refund_amounts: RefundAmountsSchema.optional(),
 }).strict()
 
+export type RefundPolicy = z.infer<typeof RefundPolicySchema>
+export type CompanyRefundPolicy = z.infer<typeof CompanyRefundPolicySchema>
+export type RefundAmounts = z.infer<typeof RefundAmountsSchema>
 export type PaymentSettings = z.infer<typeof PaymentSettingsSchema>
 export type PaymentSettingsUpdate = z.infer<typeof PaymentSettingsUpdateSchema>
+
+/** Inclusive bounds of a notice tier, and how many tiers a product may have. */
+export const REFUND_NOTICE_HOURS = { min: 0, max: 8760 } as const
+export const REFUND_MAX_TIERS = 5
+
+/** A customer who cancels at least `notice_hours` before the service gets `percent` of what they paid back. */
+export const RefundTierSchema = z.object({
+  notice_hours: z.number().int().min(REFUND_NOTICE_HOURS.min).max(REFUND_NOTICE_HOURS.max),
+  percent: z.number().int().min(0).max(100),
+}).strict()
+
+const uniqueNotice = (tiers: { notice_hours: number }[]) => new Set(tiers.map(tier => tier.notice_hours)).size === tiers.length
+
+/**
+ * The refund rules of a product a selling application sells. The tier with the largest notice not above
+ * the notice given applies; less notice than every tier refunds nothing; `notice` needs at least one tier.
+ */
+export const RefundTiersSchema = z.array(RefundTierSchema).max(REFUND_MAX_TIERS).refine(uniqueNotice, { message: 'one tier per notice' })
+
+export const RefundRulesSchema = z.object({
+  refund_policy: z.union([RefundPolicySchema, z.literal('company')]),
+  refund_amounts: z.union([RefundAmountsSchema, z.literal('company')]),
+  refund_tiers: RefundTiersSchema,
+}).strict()
+
+export type RefundTier = z.infer<typeof RefundTierSchema>
+export type RefundRules = z.infer<typeof RefundRulesSchema>
+
+/**
+ * An online order as the company's payments staff see it (`payments.orders.read`). `status` is the
+ * payer's status, or `cancelled`. `amount_received` is what it received less its refunds;
+ * `amount_to_refund` what it must give back. `needs_attention`: money was received but has not been
+ * recorded on the order for an hour, so a person must look at it.
+ */
+export const PaymentOrderStatusSchema = z.enum(['payable', 'processing', 'paid', 'not_payable', 'cancelled'])
+
+export const PaymentOrderItemSchema = z.object({
+  id: z.number().int().positive(),
+  number: z.string(),
+  customer: z.string(),
+  date: z.string().datetime(),
+  status: PaymentOrderStatusSchema,
+  needs_attention: z.boolean(),
+  currency: z.string().length(3),
+  amount_total: z.number(),
+  amount_due: z.number(),
+  amount_received: z.number(),
+  amount_to_refund: z.number().nonnegative(),
+  expires_at: z.string().datetime().nullable(),
+}).strict()
+
+export const PaymentOrderListSchema = z.object({
+  items: z.array(PaymentOrderItemSchema),
+  total: z.number().int().nonnegative(),
+}).strict()
+
+/** List filters: `state` is `open` (unpaid quotation), `confirmed` or `cancelled`. */
+export const PaymentOrderStateFilterSchema = z.enum(['open', 'confirmed', 'cancelled'])
+
+export const PaymentTransactionStateSchema = z.enum(['draft', 'pending', 'authorized', 'done', 'cancel', 'error'])
+
+/** One money move of an order: a payment, or a refund of one; `reference` is the gateway's. */
+export const PaymentOrderTransactionSchema = z.object({
+  id: z.number().int().positive(),
+  kind: z.enum(['payment', 'refund']),
+  state: PaymentTransactionStateSchema,
+  amount: z.number().nonnegative(),
+  provider: z.string(),
+  reference: z.string(),
+  date: z.string().datetime().nullable(),
+}).strict()
+
+/** The staff order page; `partial_refunds` says whether one refund may be less than the amount due. */
+export const PaymentOrderDetailSchema = PaymentOrderItemSchema.extend({
+  lines: z.array(z.object({ name: z.string(), quantity: z.number(), amount: z.number() }).strict()),
+  transactions: z.array(PaymentOrderTransactionSchema),
+  partial_refunds: z.boolean(),
+}).strict()
+
+/** The gateway refund reference a refund is recorded under, at most this long. */
+export const REFUND_REFERENCE_MAX_LENGTH = 128
+
+/**
+ * POST body of a refund the tenant already made in its gateway dashboard (`payments.refund`): at most the
+ * amount due, and all of it unless `partial_refunds`. The answer is the order page.
+ */
+export const PaymentRefundCreateSchema = z.object({
+  amount: z.number().positive(),
+  reference: z.string().trim().min(1).max(REFUND_REFERENCE_MAX_LENGTH),
+}).strict()
+
+export type PaymentOrderStatus = z.infer<typeof PaymentOrderStatusSchema>
+export type PaymentOrderItem = z.infer<typeof PaymentOrderItemSchema>
+export type PaymentOrderList = z.infer<typeof PaymentOrderListSchema>
+export type PaymentOrderStateFilter = z.infer<typeof PaymentOrderStateFilterSchema>
+export type PaymentTransactionState = z.infer<typeof PaymentTransactionStateSchema>
+export type PaymentOrderTransaction = z.infer<typeof PaymentOrderTransactionSchema>
+export type PaymentOrderDetail = z.infer<typeof PaymentOrderDetailSchema>
+export type PaymentRefundCreate = z.infer<typeof PaymentRefundCreateSchema>
 
 /**
  * The payer's way back from the gateway. Before leaving for the gateway page, the pay page stores

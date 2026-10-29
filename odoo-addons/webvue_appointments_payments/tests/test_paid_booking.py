@@ -42,7 +42,7 @@ class TestPaidBooking(WebVuePaidBookingCase):
         )
         self.assertEqual(order.order_line.price_unit, 115.0)
         payment = booking.with_user(self.booker)._webvue_payment()
-        self.assertEqual((payment['status'], payment['refund_due'], payment['amount_due']), ('payable', False, order.amount_total))
+        self.assertEqual((payment['status'], payment['amount_to_refund'], payment['amount_due']), ('payable', 0.0, order.amount_total))
         self.pay(order, order.amount_total)
         self.assertEqual((order.state, booking.state), ('sale', 'confirmed'))
         self.assertEqual(booking.with_user(self.booker)._webvue_payment()['status'], 'paid')
@@ -100,7 +100,7 @@ class TestPaidBooking(WebVuePaidBookingCase):
         tx = self.pay(order, order.amount_total)
         self.assertEqual((tx.state, order.state, booking.state), ('done', 'cancel', 'canceled'))
         payment = booking._webvue_payment()
-        self.assertEqual((payment['status'], payment['refund_due']), ('cancelled', True))
+        self.assertEqual((payment['status'], payment['amount_to_refund']), ('cancelled', order.amount_total))
 
     def test_a_booking_held_by_an_order_keeps_its_type(self):
         booking = self.book()

@@ -189,7 +189,9 @@ test.describe('payments orders settings', () => {
     await expect(page.getByTestId('payments-orders')).toContainText('تسري على الشركة الحالية')
     await expect(page.getByTestId('payments-orders')).toContainText('يسري هذا الخيار على الحساب كله')
     await expect(save(page)).toBeDisabled()
-    expect(await readSettings(page)).toEqual({ unpaid_order_expiry_minutes: 60, invoice_when_paid: true, revision: 0 })
+    expect(await readSettings(page)).toEqual({
+      unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', revision: 0,
+    })
   })
 
   test('is a part of the page\'s sidebar list, next to the gateways', async ({ page }) => {
