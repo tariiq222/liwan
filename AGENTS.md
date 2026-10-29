@@ -381,10 +381,21 @@ cross-addon links.
   stock `payment.provider.write` then archives the provider's saved tokens and toggles its payment
   methods and the payment post-processing cron, all system-only models. The tenant's gateway keys are
   written without elevation (the capability group joins the stock key field's group) and never returned.
-  It also uses it in `models/payer_service.py`, for the anonymous payer of one invoice whose access token
-  the stock portal check already verified: the compatible provider and payment-method lookups and the
-  transaction create, with the invoice's own amount, currency and partner, blocked by the system-only
-  `payment.provider` (read by the method lookup too) and `payment.transaction` ACL rows as in the stock portal.
+  It also uses it in `models/payer_service.py`, for the anonymous payer of one payable document (a posted
+  customer invoice or an online order) whose access token the stock portal check already verified: the
+  compatible provider and payment-method lookups and the transaction create, with the document's own
+  amount, currency and partner, blocked by the system-only `payment.provider` (read by the method lookup
+  too) and `payment.transaction` ACL rows as in the stock portal; in `models/order_service.py`, for the
+  online orders a selling application creates, cancels and reads after authorizing its own record (its
+  user holds no sales rights): order and line create with server values only (no price or amount
+  parameter), stock `_action_cancel`, the payment summary and the pay link of an authorized document,
+  every returned record unelevated; and in `models/payments_settings.py`, for the one whitelisted
+  tenant-wide stock parameter `sale.automatic_invoice`: read by the server when it decides, and written
+  only after the `payments.settings.manage` check in the tenant's root company.
+  `webvue_appointments_payments` uses it only in `models/resource_booking_type.py`, for the product
+  that sells a paying booking type: its price (and its creation, named after the type and linked to it)
+  after the `appointments.bookings.manage` check in the type's company, and the name sync after the
+  caller's own rename of the type; appointments managers hold no product rights.
   `webvue_api` uses it in `controllers/common.py` only for the single company-ownership
   read in `get_record`, before any access check, so another company's record answers the
   same 404 not-found as a missing one instead of a 403 that leaks its existence; in

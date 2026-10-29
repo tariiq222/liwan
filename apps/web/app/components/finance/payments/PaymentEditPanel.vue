@@ -41,7 +41,7 @@ async function submit() {
     <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" data-testid="finance-payment-edit-error" />
     <div class="webvue-form-grid">
       <UFormField :label="t('financeDocuments.payments.amount')" name="finance-payment-edit-amount" required :error="shown.amount ? t('financeDocuments.payments.form.amountRequired') : undefined">
-        <UInput id="finance-payment-edit-amount" v-model="draft.amount" type="number" min="0" step="any" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || patch.isPending.value" />
+        <UInput id="finance-payment-edit-amount" v-model="draft.amount" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || patch.isPending.value" />
       </UFormField>
       <UFormField :label="t('financeDocuments.payments.form.date')" name="finance-payment-edit-date" required :error="shown.paymentDate ? t('financeDocuments.payments.form.dateRequired') : undefined">
         <SharedDateField id="finance-payment-edit-date" v-model="draft.paymentDate" :disabled="!hydrated || patch.isPending.value" />

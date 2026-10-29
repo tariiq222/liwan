@@ -43,10 +43,10 @@ async function submit() {
         <UInput id="finance-bank-edit-name" v-model="draft.name" class="w-full" maxlength="120" :disabled="!hydrated || patch.isPending.value" />
       </UFormField>
       <UFormField :label="t('financeBank.form.balanceStart')" name="finance-bank-edit-start" required :error="shown.balanceStart ? t('financeBank.form.numberInvalid') : undefined">
-        <UInput id="finance-bank-edit-start" v-model="draft.balanceStart" type="number" step="any" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || patch.isPending.value" />
+        <UInput id="finance-bank-edit-start" v-model="draft.balanceStart" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || patch.isPending.value" />
       </UFormField>
       <UFormField :label="t('financeBank.form.balanceEndReal')" name="finance-bank-edit-end" required :error="shown.balanceEnd ? t('financeBank.form.numberInvalid') : undefined">
-        <UInput id="finance-bank-edit-end" v-model="draft.balanceEnd" type="number" step="any" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || patch.isPending.value" />
+        <UInput id="finance-bank-edit-end" v-model="draft.balanceEnd" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || patch.isPending.value" />
       </UFormField>
     </div>
     <div class="flex flex-wrap justify-end gap-2">

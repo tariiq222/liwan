@@ -3,6 +3,7 @@ import { joinList } from '@/utils/listFormat'
 import { ApiError } from '@/composables/useApi'
 import { useNotifications, useMarkNotificationRead, isDigestNotification, isKnownNotification, type BellNotification } from '@/composables/useNotifications'
 import { bellKindFor } from '@/modules/surfaces'
+import { declaredBellTitle } from '@/utils/bellTitle'
 import { formatNotificationTimestamp, genericNotificationText, isUserWrittenNotificationKind, notificationBody, notificationPreviewCaptionKey } from '@/utils/notificationPresentation'
 
 const { t, locale, localeProperties } = useI18n()
@@ -35,9 +36,7 @@ function notificationHref(item: BellNotification): string | null {
 }
 
 function previewTitle(item: BellNotification): string {
-  const declared = bellKindFor(item.kind)?.title
-  if (declared) return declared(asRow(item), (key, count) => (count === undefined ? t(key) : t(key, count)))
-  return genericNotificationText(item).title
+  return declaredBellTitle(item, t) ?? genericNotificationText(item).title
 }
 
 function previewSecondary(item: BellNotification): string {

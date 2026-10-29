@@ -3,7 +3,8 @@ import { createI18n } from 'vue-i18n'
 import { arabicPluralRule } from '../../../../i18n/pluralRules'
 import arCrm from '../../../../i18n/locales/ar/crm.json'
 import enCrm from '../../../../i18n/locales/en/crm.json'
-import { agreeKey, DEFAULT_CRM_TERMS, termFormForCount, termWord } from '../useCrmTerms'
+import { DEFAULT_CRM_TERMS, termWord } from '../useCrmTerms'
+import { agreeKey, termFormForCount } from '../../../utils/crmTermForms'
 
 const i18n = createI18n({
   legacy: false,
