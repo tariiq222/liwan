@@ -16,7 +16,7 @@ describe('the finance pages stay on their templates', () => {
     ['components/finance/PartnerProperties.vue', ['<SharedPropertiesPanel', '<SharedPropertyRow']],
     ['components/finance/PartnerForm.vue', ['<SharedFormSection panel', '<SharedFormActions', '<SharedUnsavedChanges']],
     ['components/finance/SetupChecklist.vue', ['<SharedChecklist']],
-    ['pages/settings/apps/finance/index.vue', ['<SharedSettingsPage', '<SharedPageHeader', '<SharedRecordSection', '<SharedPropertiesPanel', '<SharedInlineConfirm', '<SetupChecklist']],
+    ['pages/settings/apps/finance/index.vue', ['<SharedSettingsPage', '<SharedPageHeader', '<SharedRecordSection', '<SharedPropertiesPanel', '<SetupChecklist']],
   ])('%s uses its template', (file, needles) => {
     const source = read(file)
     for (const needle of needles) expect(source, needle).toContain(needle)

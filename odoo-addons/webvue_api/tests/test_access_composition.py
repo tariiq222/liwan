@@ -44,6 +44,7 @@ CATALOG = SYSTEM | HR | PAYROLL | PMO | MEETINGS
 RELEASE_OWNERS = frozenset({'webvue_core', 'webvue_hr', 'webvue_pmo', 'webvue_meetings'})
 BUILT_IN_ROLES = frozenset({'employee', 'hr_manager', 'payroll_manager', 'pmo_manager', 'system_admin', 'vendor_support'})
 DEPENDENCIES = {
+    'access.users.read': {'access.roles.read'},
     'access.users.grant': {'access.users.read', 'access.roles.read'},
     'access.users.assign_roles': {'access.users.read', 'access.roles.read'},
     'access.users.disable': {'access.users.read'},

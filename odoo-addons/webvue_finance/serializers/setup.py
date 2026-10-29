@@ -71,9 +71,7 @@ def setup_blockers(setup):
     """Stable codes of what still stops this company from invoicing, in the order a user fixes them."""
     missing = set(setup['company']['missing_fields'])
     blockers = []
-    if not setup['chart']['loaded']:
-        blockers.append('chart_not_loaded')
-    elif not setup['taxes']['vat_15_present']:
+    if not setup['taxes']['vat_15_present']:
         blockers.append('vat_15_tax_missing')
     if 'vat' in missing:
         blockers.append('company_vat_missing')

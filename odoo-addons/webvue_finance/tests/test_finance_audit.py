@@ -17,7 +17,7 @@ class TestFinanceAudit(WebVueFinanceCase):
         as_manager = self.events.with_user(self.manager).with_company(self.company)
         self.written = as_manager._webvue_log('company_written', self.company, fields_written=('vat', 'city'))
         self.submitted = as_manager._webvue_log('zatca_submitted', self.invoice, outcome='accepted')
-        self.foreign = self.events.with_company(self.other_company)._webvue_log('chart_loaded', self.other_company)
+        self.foreign = self.events.with_company(self.other_company)._webvue_log('company_written', self.other_company)
         self.authenticate('finance_manager', 'finance_manager_pass_123')
 
     def _list(self, query=''):
@@ -75,12 +75,12 @@ class TestFinanceAudit(WebVueFinanceCase):
             with self.subTest(user=user.login), self.assertRaises(AccessError):
                 events.unlink()
             with self.subTest(user=user.login), self.assertRaises(AccessError):
-                self.events.with_user(user).create({'company_id': self.company.id, 'action': 'chart_loaded', 'res_model': 'x', 'res_id': 1})
+                self.events.with_user(user).create({'company_id': self.company.id, 'action': 'company_written', 'res_model': 'x', 'res_id': 1})
         self.assertEqual(self.written.outcome, False)
 
     def test_a_caller_without_a_creating_capability_cannot_log(self):
         with self.assertRaises(AccessError):
-            self.events.with_user(self.outsider).with_company(self.company)._webvue_log('chart_loaded', self.company)
+            self.events.with_user(self.outsider).with_company(self.company)._webvue_log('company_written', self.company)
 
     def test_another_company_is_never_visible(self):
         visible = self.events.with_user(self.manager).with_company(self.company).search([])
