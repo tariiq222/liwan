@@ -61,9 +61,12 @@ class TestSaudiWorkWeek(WebVueHrCase):
         )
 
     def test_other_country_keeps_the_stock_default(self):
-        calendar = self.abroad.resource_calendar_id
-        self.assertEqual(calendar.name, 'Standard 40 hours/week')
-        self.assertEqual(set(calendar.attendance_ids.mapped('dayofweek')), {'0', '1', '2', '3', '4'})
+        # Odoo copies the current company's working days into a new company's stock schedule, so only
+        # the WebVue provisioning is asserted here: no Saudi schedule and no provisioning marker.
+        self.assertEqual(self.abroad.resource_calendar_id.name, 'Standard 40 hours/week')
+        self.assertFalse(self.env['ir.model.data'].search_count([
+            ('module', '=', 'webvue_hr'), ('name', '=', f'saudi_work_week_{self.abroad.id}'),
+        ]))
 
     def test_country_set_after_creation_provisions_once_and_keeps_a_later_choice(self):
         company = self.env['res.company'].create({'name': 'Late Saudi Co'})
@@ -90,8 +93,13 @@ class TestSaudiWorkWeek(WebVueHrCase):
         })
         self.assertEqual(leave.number_of_days, 2)
 
-    def test_stock_company_counts_sunday_to_monday_as_one_day(self):
+    def test_a_monday_to_friday_schedule_counts_sunday_to_monday_as_one_day(self):
         employee = self._employee(self.abroad)
+        employee.resource_calendar_id = self.env['resource.calendar'].create({
+            'name': 'Monday to Friday', 'company_id': self.abroad.id, 'tz': 'UTC',
+            'attendance_ids': [(0, 0, {'name': f'day {day}', 'dayofweek': day, 'day_period': 'morning', 'hour_from': 8, 'hour_to': 16})
+                               for day in ('0', '1', '2', '3', '4')],
+        })
         days = employee._get_work_days_data_batch(
             datetime(2026, 11, 1), datetime(2026, 11, 2, 23, 59, 59), compute_leaves=False,
         )[employee.id]['days']
