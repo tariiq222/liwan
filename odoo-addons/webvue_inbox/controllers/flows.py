@@ -200,6 +200,9 @@ class FlowController(http.Controller):
     @requires_capability(MANAGE_FLOWS)
     def publish_flow(self, flow_id, **_):
         flow = get_flow(flow_id, MANAGE_FLOWS)
+        blockers = flow._webvue_replace_blockers() if flow.editable else flow.browse()
+        if blockers:
+            reject(f'approved templates still open the form this copy replaces: {", ".join(blockers.mapped("name"))}', 'replace')
         try:
             flow._webvue_publish_remote()
         except whatsapp.ProviderError as error:

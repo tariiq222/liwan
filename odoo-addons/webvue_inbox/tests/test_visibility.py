@@ -123,9 +123,14 @@ class TestVisibilityPolicy(WebVueInboxCase):
             by_conversation[conversation.id] = self.env['webvue.inbox.flow.submission'].create({
                 'conversation_id': conversation.id, 'flow_id': flow.id, 'message_id': message.id, 'submitted_at': message.date,
             })
-        listed = lambda: {  # noqa: E731
-            row['conversation_id'] for row in self.get(f'/api/v1/inbox/flows/{flow.id}/submissions?limit=200').json()['items']
-        }
+
+        def listed():
+            items = self.get(f'/api/v1/inbox/flows/{flow.id}/submissions?limit=200').json()['items']
+            return {row['conversation_id'] for row in items}
+
+        def counted():
+            return self.get(f'/api/v1/inbox/flows/{flow.id}').json()['submission_count']
+
         expectations = {
             'assigned_only': (self.agent, [self.mine]),
             'department': (self.agent, [self.mine, self.in_department, self.unassigned]),
@@ -135,6 +140,7 @@ class TestVisibilityPolicy(WebVueInboxCase):
             self.set_policy(policy)
             self.login(user)
             self.assertEqual(listed(), {c.id for c in visible}, policy)
+            self.assertEqual(counted(), len(visible), policy)
             for conversation in self.everything:
                 response = self.get(f'/api/v1/inbox/conversations/{conversation.id}/flow-submissions')
                 if conversation in visible:

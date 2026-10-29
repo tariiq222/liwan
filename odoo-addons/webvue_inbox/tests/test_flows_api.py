@@ -73,7 +73,10 @@ class TestFlowsApi(FlowCase):
         draft = self.make_flow(status='draft', name='Alpha form')
         published = self.make_flow(name='Beta form')
         blocked = self.make_flow(name='Gamma form', health='blocked')
-        names = lambda query: {row['name'] for row in self.get(f'{self.flows}?{query}').json()['items']}  # noqa: E731
+
+        def names(query):
+            return {row['name'] for row in self.get(f'{self.flows}?{query}').json()['items']}
+
         self.assertEqual(names('status=draft') & {'Alpha form', 'Beta form'}, {'Alpha form'})
         self.assertEqual(names('sendable=true') & {'Alpha form', 'Beta form', 'Gamma form'}, {'Beta form'})
         self.assertEqual(names('q=GAMMA'), {'Gamma form'})
@@ -372,3 +375,58 @@ class TestStarterForms(FlowCase):
         self.apply('store', self.manager)
         self.api('POST', f'{BASE}/channels/{self.channel.id}/flows/sync')
         self.assertTrue(self.starters('store'))
+
+
+@tagged('post_install', '-at_install', 'webvue')
+class TestPublishResilience(FlowCase):
+    """Once Meta has published a form, nothing that fails afterwards undoes it."""
+
+    def setUp(self):
+        super().setUp()
+        self.login(self.manager)
+
+    def replacement(self):
+        original = self.make_flow(name='Original')
+        rule = self.make_rule(name='on original', match_kind='flow', flow_id=original.id, keywords=[])
+        copy = self.env['webvue.inbox.flow'].browse(
+            self.api('POST', self.flow_path(original, '/copy'), {'name': 'Replacement', 'replace': True}).json()['id'],
+        )
+        return original, copy, rule
+
+    def test_a_failed_read_back_keeps_the_form_published(self):
+        flow = self.make_flow(status='draft')
+        self.meta.fail_on = {('GET', flow.provider_flow_id)}
+        result = self.api('POST', self.flow_path(flow, '/publish'))
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual((flow.status, bool(flow.published_at), flow.last_error), ('published', True, 'Meta is down'))
+
+    def test_a_failed_deprecation_leaves_the_replace_pending_until_a_sync_finishes_it(self):
+        original, copy, rule = self.replacement()
+        self.meta.fail_on = {('POST', f'{original.provider_flow_id}/deprecate')}
+        result = self.api('POST', self.flow_path(copy, '/publish'))
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual((copy.status, original.status, copy.replaces_id, copy.last_error), ('published', 'published', original, 'Meta is down'))
+        self.assertEqual(result.json()['replaces'], {'id': original.id, 'name': 'Original'})
+        self.meta.fail_on = set()
+        synced = self.api('POST', f'{BASE}/channels/{self.channel.id}/flows/sync')
+        self.assertEqual(synced.status_code, 200, synced.text)
+        self.assertEqual((original.status, copy.status, copy.replaces_id, copy.last_error, rule.flow_id), ('deprecated', 'published', self.env['webvue.inbox.flow'], False, copy))
+
+    def test_a_replace_is_refused_while_an_approved_template_opens_the_original(self):
+        original, copy, _rule = self.replacement()
+        self.make_template(name='invite_form', button_ids=[{'kind': 'flow', 'text': 'Open', 'provider_flow_id': original.provider_flow_id}])
+        result = self.api('POST', self.flow_path(copy, '/publish'))
+        self.assertEqual((result.status_code, result.json().get('field')), (422, 'replace'))
+        self.assertIn('invite_form', result.json()['message'])
+        self.assertEqual((copy.status, original.status), ('draft', 'published'))
+        self.env['webvue.inbox.template'].search([('name', '=', 'invite_form')]).status = 'rejected'
+        self.assertEqual(self.api('POST', self.flow_path(copy, '/publish')).status_code, 200)
+
+    def test_a_forms_only_manager_cannot_reach_the_rules_or_channel_automation(self):
+        self.login(self.flows_user)
+        channel = f'{BASE}/channels/{self.channel.id}/automation'
+        for method, path, body in (
+            ('GET', f'{BASE}/rules', None), ('POST', f'{BASE}/rules/test', {}), ('GET', channel, None), ('PATCH', channel, {'csat': {}}),
+            ('GET', f'{BASE}/working-hours', None),
+        ):
+            self.assertError(self.api(method, path, body), 403, 'forbidden')

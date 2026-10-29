@@ -2,6 +2,7 @@
 """Shared fixtures of the form (WhatsApp Flows) tests: a valid form body, a form factory and a fake Meta."""
 import calendar
 import json
+from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import requests
@@ -77,17 +78,22 @@ class FakeMeta:
         self.errors = []
         self.failure = None
         self.status = 'PUBLISHED'
+        self.statuses = {}
+        self.fail_on = set()
         self.health = 'AVAILABLE'
         self.listing = []
         self.template_id = '555000009'
 
     def __call__(self, method, url, **kwargs):
-        self.calls.append((method, url.removeprefix(GRAPH), kwargs))
+        path = url.removeprefix(GRAPH)
+        self.calls.append((method, path, kwargs))
+        if any(method == failing and path.endswith(suffix) for failing, suffix in self.fail_on):
+            return response(500, {'error': {'message': 'Meta is down'}})
         if self.failure:
             if isinstance(self.failure, Exception):
                 raise self.failure
             return response(*self.failure)
-        return response(200, self.answer(method, url.removeprefix(GRAPH), kwargs))
+        return response(200, self.answer(method, path, kwargs))
 
     def answer(self, method, path, kwargs):
         if path.endswith('/messages'):
@@ -106,9 +112,13 @@ class FakeMeta:
             return {'preview': {'preview_url': 'https://business.facebook.com/wa/manage/flows/preview/abc', 'expires_at': '2026-11-28T10:00:00+0000'}}
         if method == 'GET':
             return {
-                'name': 'Meta name', 'status': self.status, 'categories': ['OTHER'], 'json_version': '7.3',
+                'name': 'Meta name', 'status': self.statuses.get(path, self.status), 'categories': ['OTHER'], 'json_version': '7.3',
                 'health_status': {'can_send_message': self.health}, 'validation_errors': [],
             }
+        if path.endswith('/publish'):
+            self.statuses[path.removesuffix('/publish')] = 'PUBLISHED'
+        if path.endswith('/deprecate'):
+            self.statuses[path.removesuffix('/deprecate')] = 'DEPRECATED'
         return {'success': True}
 
     def paths(self, method=None, suffix=''):
@@ -162,13 +172,13 @@ class FlowCase(AutomationCase):
         self.env['webvue.inbox.message']._webvue_run_outbox()
         return self.env['webvue.inbox.message'].browse(reply.json()['id'])
 
-    def deliver_form(self, response, provider_id=None, wa_id=WA_ID, context_id=None, channel=None):
+    def deliver_form(self, response, provider_id=None, wa_id=WA_ID, context_id=None, channel=None, age=None):
         """Run one completed form through the events pipeline; returns the stored inbound message."""
         channel = channel or self.channel
         type(self).counter += 1
         provider_id = provider_id or f'wamid.FORM{self.counter}'
         data = wa.flow_reply(response, provider_id, wa_id, context_id)
-        data['entry'][0]['changes'][0]['value']['messages'][0]['timestamp'] = str(calendar.timegm(fields.Datetime.now().timetuple()))
+        data['entry'][0]['changes'][0]['value']['messages'][0]['timestamp'] = str(calendar.timegm((fields.Datetime.now() - (age or timedelta())).timetuple()))
         return self.run_event(data, channel, provider_id)
 
     def run_event(self, data, channel=None, provider_id=None):

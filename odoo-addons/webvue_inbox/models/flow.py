@@ -1,13 +1,18 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import logging
 import re
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
+from odoo.fields import Domain
 
 from . import flow_json
+from .access_service import READ
 from .constants import FLOW_JSON_VERSION
 from .flow_starters import FLOW_STARTERS
 from odoo.addons.webvue_inbox.adapters import whatsapp
+
+_logger = logging.getLogger(__name__)
 
 CATEGORIES = [
     ('sign_up', 'Sign up'), ('sign_in', 'Sign in'), ('appointment_booking', 'Appointment booking'),
@@ -70,6 +75,9 @@ class WebVueInboxFlow(models.Model):
     completion_message = fields.Text()
     published_at = fields.Datetime()
     version_warning = fields.Char()
+    # Why the last step after Meta published the form failed (reading its state back, or taking over the form it replaces);
+    # the next synchronisation retries it.
+    last_error = fields.Char()
     # The published form this copy takes over (rules and automatic messages move to it) when it is published.
     replaces_id = fields.Many2one('webvue.inbox.flow', ondelete='set null', copy=False)
     screen_ids = fields.One2many('webvue.inbox.flow.screen', 'flow_id')
@@ -97,12 +105,16 @@ class WebVueInboxFlow(models.Model):
             flow.sendable = flow.status == 'published' and flow.health != 'blocked'
 
     def _compute_submission_count(self):
-        """How many answers each form has. A plain count over forms the caller already reads: managers and pickers hold no read right on the answers."""
-        self.env['webvue.inbox.flow.submission'].flush_model(['flow_id'])
-        self.env.cr.execute(
-            'SELECT flow_id, count(*) FROM webvue_inbox_flow_submission WHERE flow_id = ANY(%s) GROUP BY flow_id', [self.ids],
-        )
-        counts = dict(self.env.cr.fetchall())
+        """How many answers each form has among the conversations the caller may see (0 without the read capability)."""
+        counts = {}
+        if self.env['webvue.access.service']._webvue_has_capability(self.env.user, READ):
+            visible = self.env['webvue.inbox.conversation']._webvue_visible_domain()
+            counts = {
+                flow.id: count for flow, count in self.env['webvue.inbox.flow.submission']._read_group(
+                    Domain.AND([Domain('flow_id', 'in', self.ids), Domain('conversation_id', 'any', visible)]),
+                    ['flow_id'], ['__count'],
+                )
+            }
         for flow in self:
             flow.submission_count = counts.get(flow.id, 0)
 
@@ -207,11 +219,41 @@ class WebVueInboxFlow(models.Model):
             self._webvue_push(metadata_changed=False)
         if self.error_ids:
             raise UserError(self.env._('Fix the problems Meta found before publishing the form.'))
+        blockers = self._webvue_replace_blockers()
+        if blockers:
+            raise UserError(self.env._('Approved templates still open the form this copy replaces: %s', ', '.join(blockers.mapped('name'))))
         credentials = self.channel_id._webvue_credentials()
         whatsapp.publish_flow(credentials, self.provider_flow_id)
+        # Meta published it: that is kept whatever happens next.
         self.write({'status': 'published', 'published_at': fields.Datetime.now()})
-        self._webvue_refresh(credentials)
-        self._webvue_take_over(credentials)
+        self._webvue_settle(credentials)
+
+    def _webvue_replace_blockers(self):
+        """The approved templates whose form button opens the form this copy replaces (they would keep opening the old form)."""
+        self.ensure_one()
+        original = self.replaces_id
+        if original.status != 'published' or not original.provider_flow_id:
+            return self.env['webvue.inbox.template']
+        return self.env['webvue.inbox.template'].search([
+            ('channel_id', '=', self.channel_id.id), ('status', '=', 'approved'),
+            ('button_ids.provider_flow_id', '=', original.provider_flow_id),
+        ])
+
+    def _webvue_settle(self, credentials):
+        """After Meta published the form: read its state back and finish a pending replace.
+
+        A provider failure is recorded in `last_error` and retried by the next synchronisation; it never undoes the publish.
+        """
+        self.ensure_one()
+        try:
+            self._webvue_refresh(credentials)
+            if self.replaces_id:
+                self._webvue_take_over(credentials)
+        except whatsapp.ProviderError as error:
+            _logger.warning('form %s: finishing the publish failed: %s', self.id, error)
+            self.last_error = str(error)[:200]
+        else:
+            self.last_error = False
 
     def _webvue_refresh(self, credentials):
         """Read the status, Flow JSON version and health of the form from Meta."""
@@ -225,15 +267,17 @@ class WebVueInboxFlow(models.Model):
         self.write(values)
 
     def _webvue_take_over(self, credentials):
-        """Move the rules and automatic messages of the form this copy replaces to the copy, then deprecate the original."""
+        """Move the rules and automatic messages of the form this copy replaces to the copy, then deprecate the original.
+
+        Repeating it is safe: `replaces_id` is cleared only when every step is done. The caller's forms capability writes
+        the rules and automatic messages here (see MANAGE_FLOWS).
+        """
         original = self.replaces_id
+        if original.status == 'published':
+            self.env['webvue.inbox.rule'].with_context(active_test=False).search([('flow_id', '=', original.id)]).write({'flow_id': self.id})
+            self.env['webvue.inbox.auto.message'].search([('flow_id', '=', original.id)]).write({'flow_id': self.id})
+            original._webvue_deprecate_remote(credentials)
         self.replaces_id = False
-        if original.status != 'published':
-            return
-        scope = {'active_test': False}
-        self.env['webvue.inbox.rule'].with_context(**scope).search([('flow_id', '=', original.id)]).write({'flow_id': self.id})
-        self.env['webvue.inbox.auto.message'].search([('flow_id', '=', original.id)]).write({'flow_id': self.id})
-        original._webvue_deprecate_remote(credentials)
 
     def _webvue_deprecate_remote(self, credentials=None):
         self.ensure_one()
@@ -344,7 +388,10 @@ class WebVueInboxFlow(models.Model):
         ).unlink()
         flows = self.search([('channel_id', '=', channel.id)])
         for flow in flows.filtered(lambda flow: flow.status in LIVE_STATUSES):
-            flow._webvue_refresh(credentials)
+            if flow.status == 'published' and flow.replaces_id:
+                flow._webvue_settle(credentials)
+            else:
+                flow._webvue_refresh(credentials)
         return flows
 
     @api.model

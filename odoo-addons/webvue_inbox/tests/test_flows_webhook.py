@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import json
+from datetime import timedelta
 
 from odoo.tests import tagged
 
@@ -65,7 +66,10 @@ class TestFlowWebhookRouting(FlowCase):
         other = self.make_channel(phone_id='100000000003', business_account_id='299999999999')
         value = {'event': 'FLOW_STATUS_CHANGE', 'flow_id': '1', 'new_status': 'BLOCKED'}
         self.assertEqual(self.post(wa.flows_event(value)).status_code, 200)
-        events = lambda channel: self.env['webvue.inbox.event'].search_count([('channel_id', '=', channel.id)])  # noqa: E731
+
+        def events(channel):
+            return self.env['webvue.inbox.event'].search_count([('channel_id', '=', channel.id)])
+
         self.assertEqual((events(self.channel), events(sibling), events(other)), (1, 1, 0))
 
     def test_an_unknown_account_and_a_bad_signature_answer_403(self):
@@ -200,6 +204,22 @@ class TestFlowSubmissions(FlowCase):
         self.assertEqual([(m.body, m.kind, m.delivery_state) for m in sent], [('Thank you!', 'text', 'queued')])
         self.assertIn(flow_submission.NOTE_COMPLETION % 'Visit form', self.notes(message.conversation_id))
 
+    def test_a_late_answer_gets_a_note_instead_of_a_completion_message(self):
+        request = self.sent_request()
+        message = self.answer({'flow_token': request.flow_token, 'full_name': 'A'}, age=timedelta(hours=25))
+        self.assertTrue(self.submission(message))
+        self.assertFalse(self.automated(message.conversation_id))
+        self.assertIn(flow_submission.NOTE_COMPLETION_STALE % 'Visit form', self.notes(message.conversation_id))
+
+    def test_empty_optional_answers_are_skipped_silently(self):
+        request = self.sent_request()
+        message = self.answer({
+            'flow_token': request.flow_token, 'full_name': 'A', 'service': 'o1', 'day': '2026-11-20', 'consent': True,
+            'extras': [], 'notes': '',
+        })
+        self.assertEqual(set(self.submission(message).answer_ids.mapped('key')), {'full_name', 'service', 'day', 'consent'})
+        self.assertFalse([note for note in self.notes(self.conversation) if 'تُجوهلت' in note])
+
     def test_no_completion_message_when_the_form_has_none(self):
         silent = self.make_flow(completion_message=False)
         request = self.sent_request(silent)
@@ -230,7 +250,7 @@ class TestFlowSubmissions(FlowCase):
     def test_welcome_and_away_do_not_fire_on_a_form_answer(self):
         self.set_text('welcome', 'Welcome!')
         self.set_text('away', 'We are away', away_repeat_hours=1)
-        self.set_company_hours(self.closed_calendar_now())
+        self.set_company_hours(self.closed_hours_now())
         request = self.sent_request()
         message = self.answer({'flow_token': request.flow_token, 'full_name': 'A'})
         bodies = self.automated(message.conversation_id).mapped('body')

@@ -5,7 +5,7 @@ from datetime import date
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
-from .constants import FLOWS_FEATURE
+from .constants import FLOWS_FEATURE, REPLY_WINDOW
 from .flow import FIELD_KINDS, INPUT_KINDS
 
 MAX_TEXT = 4096
@@ -16,6 +16,7 @@ ANSWER_KINDS = [item for item in FIELD_KINDS if item[0] in INPUT_KINDS] + [(UNKN
 FALLBACK_BODY = 'نموذج'
 NOTE_IGNORED = 'النموذج «%s»: تُجوهلت إجابات غير صالحة: %s'
 NOTE_COMPLETION = 'رد آلي: رسالة إتمام النموذج «%s»'
+NOTE_COMPLETION_STALE = 'لم تُرسل رسالة إتمام النموذج «%s» لأن الإجابة وصلت متأخرة'
 
 
 def _is_number(value):
@@ -68,7 +69,10 @@ class WebVueInboxFlowSubmission(models.Model):
         if ignored:
             Message._webvue_post_system_note(conversation, NOTE_IGNORED % (flow.name, '، '.join(ignored)))
         if flow.completion_message and self.env['webvue.entitlement.service']._webvue_feature_write(FLOWS_FEATURE):
-            self.env['webvue.inbox.automation']._webvue_send(conversation, message, flow, NOTE_COMPLETION % flow.name)
+            if fields.Datetime.now() - message.date > REPLY_WINDOW:
+                Message._webvue_post_system_note(conversation, NOTE_COMPLETION_STALE % flow.name)  # a late delivery is never answered
+            else:
+                self.env['webvue.inbox.automation']._webvue_send(conversation, message, flow, NOTE_COMPLETION % flow.name)
 
     @api.model
     def _webvue_request(self, channel, conversation, token, context_id):
@@ -90,7 +94,7 @@ class WebVueInboxFlowSubmission(models.Model):
             return self._webvue_unknown_answers(values), []
         rows, ignored = [], []
         for field in flow._webvue_input_fields():
-            if field.key not in values:
+            if field.key not in values or (not field.required and values[field.key] in ('', [], None)):
                 continue
             row = self._webvue_answer(field, values[field.key])
             if row is None:
