@@ -477,7 +477,9 @@ class MeetingController(http.Controller):
             vals['name'] = payload['name'].strip()
         if 'deadline' in payload:
             vals['deadline'] = _parse_deadline(payload['deadline']) if payload['deadline'] else False
-        if payload.get('responsible_id'):
+        if 'responsible_id' in payload:
+            if not payload['responsible_id']:
+                raise ApiError(422, 'invalid', 'responsible_id must not be empty', field='responsible_id')
             vals['responsible_id'] = parse_positive_int(payload['responsible_id'], 'responsible_id')
         if 'priority' in payload:
             if not isinstance(payload['priority'], str) or payload['priority'] not in {'0', '1', '2', '3'}:
