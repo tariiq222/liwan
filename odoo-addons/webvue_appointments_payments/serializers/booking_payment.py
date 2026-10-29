@@ -7,21 +7,27 @@ from odoo.addons.webvue_appointments_payments.models.resource_booking_type impor
     DEPOSIT_RANGE,
     ONLINE_PAYMENTS,
 )
+from odoo.addons.webvue_payments.serializers.refund_rules import (
+    REFUND_RULE_FIELDS,
+    parse_refund_rules,
+)
 
 ONLINE_PAYMENT_OPTIONS = tuple(value for value, _label in ONLINE_PAYMENTS)
-TYPE_PAYMENT_FIELDS = {'online_payment', 'deposit_percent', 'price'}
+TYPE_PAYMENT_FIELDS = {'online_payment', 'deposit_percent', 'price'} | REFUND_RULE_FIELDS
 # The highest price a booking type takes, in the company currency: a bound against a mistyped amount.
 MAX_PRICE = 1_000_000
 
 
 def dump_type_payment(booking_type):
-    """How a booking type is paid online. ``price`` is its product's list price (before taxes), null while it has none."""
+    """How a booking type is paid online and refunded. ``price`` is its product's list price (before taxes),
+    null while it has none; the refund rules are its product's (the defaults while it has none)."""
     product = booking_type._webvue_product()
     return {
         'online_payment': booking_type.webvue_online_payment,
         'deposit_percent': booking_type.webvue_deposit_percent,
         'price': product.list_price if product else None,
         'currency': booking_type.company_id.currency_id.name,
+        **booking_type.env['webvue.payments.service']._webvue_refund_rules(product),
     }
 
 
@@ -47,6 +53,9 @@ def parse_type_payment(payload):
         if type(price) not in (int, float) or not math.isfinite(price) or not 0 < price <= MAX_PRICE:
             raise ApiError(422, 'invalid', 'must be a positive amount up to %d' % MAX_PRICE, field='price')
         values['price'] = float(price)
+    refund_rules = parse_refund_rules(payload)
+    if refund_rules:
+        values['refund_rules'] = refund_rules
     return values
 
 
@@ -54,7 +63,7 @@ def dump_booking_payment(payment):
     """The payment facts of a booking's online order, or ``status: none`` for a booking without one."""
     if payment is None:
         return {
-            'status': 'none', 'refund_due': False, 'needs_attention': False,
-            'currency': None, 'amount_total': None, 'amount_due': None, 'expires_at': None,
+            'status': 'none', 'needs_attention': False, 'currency': None, 'amount_total': None, 'amount_due': None,
+            'amount_received': None, 'amount_to_refund': None, 'expires_at': None,
         }
     return {**payment, 'expires_at': iso(payment['expires_at'])}

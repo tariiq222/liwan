@@ -1,0 +1,1 @@
+No data migration: the refund rules (company settings, product fields, notice tiers) start at their declared defaults, the retained amount of earlier cancelled orders is zero (all received money is due back, as before), and Odoo computes the stored refund-due amount of existing orders on update.
