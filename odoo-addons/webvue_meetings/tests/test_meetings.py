@@ -677,6 +677,17 @@ class TestMeetingsApi(WebVueMeetingsCase):
         self.assertEqual(created.status_code, 201, created.text)
         self.assertEqual(created.json()['meeting_date'], '2026-10-29')
 
+    def test_explicit_zero_offset_keeps_the_callers_calendar_day(self):
+        self._grant_meeting_create()
+        self.employee.tz = 'Asia/Riyadh'
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        created = self.api('POST', '/api/v1/meetings', {
+            'name': 'UTC browser', 'meeting_date': '2026-10-28',
+            'start_datetime': '2026-10-28T23:00:00+00:00', 'end_datetime': '2026-10-29T00:00:00+00:00',
+        })
+        self.assertEqual(created.status_code, 201, created.text)
+        self.assertEqual(created.json()['meeting_date'], '2026-10-28')
+
     def test_minutes_pdf_engine_failure_is_a_503_pdf_unavailable(self):
         self.employee.group_ids |= self.env.ref('webvue_meetings.group_cap_meetings_read')
         meeting = self.env['webvue.meeting.minute'].create({

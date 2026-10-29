@@ -48,8 +48,8 @@ def _parse_dt_parts(value, field):
         parsed = datetime.fromisoformat(raw.replace('Z', '+00:00'))
     except ValueError:
         raise ApiError(422, 'invalid', '%s must be a valid ISO datetime' % field, field=field) from None
-    # A non-UTC offset names the caller's own calendar day; a UTC stamp ("Z") says nothing about it, so the user's tz decides.
-    input_day = parsed.date().isoformat() if parsed.tzinfo and parsed.utcoffset() else None
+    # An explicit numeric offset (even +00:00) names the caller's own calendar day; only a "Z" stamp says nothing about it, so the user's tz decides.
+    input_day = parsed.date().isoformat() if parsed.tzinfo and not raw.endswith(('Z', 'z')) else None
     if parsed.tzinfo:
         parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
     storage = parsed.strftime('%Y-%m-%d %H:%M:%S')
