@@ -323,7 +323,8 @@ cross-addon links.
 - `webvue_hr`, `webvue_tasks`, `webvue_operations` and their bridges have no `sudo()` path.
   `webvue_pmo` uses it only for the documented manager-write,
   charter-approval (approval fields only, through `_webvue_write_sudo` with its own whitelist, after the manager or sponsor check), policy/config, display-lookup, integer-count, completion-status and notification
-  candidate cases, each after the caller's authorization check: the project copy-create policy, the stage and milestone
+  candidate cases, each after the caller's authorization check: the project create and copy-create policy, the shared
+  project-stage writes (Odoo lets a project user write only personal stages), the stage and milestone
   task counts, the settings and legacy
   `ir.config_parameter` policy writes, the project-type provisioning seed (a system administrator who creates a
   company need not hold the employee ACL on `webvue.project.type`), the task serializers' project and milestone
