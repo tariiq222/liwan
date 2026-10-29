@@ -143,6 +143,12 @@ const modes = computed(() => PAYMENT_PROVIDER_STATES.map(value => ({
 })))
 const countries = computed(() => props.provider.account_country_options.map(value => ({ value, label: countryName(value, locale.value) })))
 // The test reads the saved keys from a gateway that is on: unsaved keys, missing keys and a gateway that is off have nothing to test.
+// A gateway action (mode switch, connection test) and a credentials save both replace the cached provider, so the
+// footer is busy while an action runs and a submit during one sends nothing.
+function saveCredentials() {
+  if (working.value === null) void save()
+}
+
 const canTest = computed(() => !locked.value && !state.value.dirty && props.provider.configured && props.provider.state !== 'disabled')
 const testHint = computed(() => {
   if (state.value.dirty || !props.provider.configured) return t('payments.sync.saveFirst')
@@ -159,10 +165,11 @@ function credentialLabel(field: string): string {
   <SharedSettingsCard
     :id="`provider-${provider.code}`"
     v-bind="state"
+    :saving="state.saving || working !== null"
     :title="provider.name"
     :can-edit="canEdit"
     :data-testid="`payments-provider-${provider.code}`"
-    @save="save"
+    @save="saveCredentials"
     @revert="revert"
     @reload="reload"
   >

@@ -95,7 +95,8 @@ test('a settings card saves its draft with one button and keeps the draft locked
   await enterFoundation(page, '/settings/apps/projects')
   const card = page.locator('#project-creation')
   const control = card.getByRole('switch', { name: 'يشترط مدير المشروع', exact: true })
-  const save = card.getByRole('button', { name: 'حفظ التغييرات', exact: true })
+  // The footer sits after the card section inside the card's form.
+  const save = page.locator('form', { has: card }).getByRole('button', { name: 'حفظ التغييرات', exact: true })
   await expect(control).toBeEnabled()
   await expect(save).toBeDisabled()
   await control.click()
