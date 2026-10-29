@@ -52,7 +52,7 @@ async function submit() {
         <AccountPicker v-model="draft.accountId" :disabled="pending" :invalid="!!shown?.account" :aria-label="t('financeBudgets.lines.account')" />
       </UFormField>
       <UFormField :label="t('financeBudgets.lines.amount')" name="finance-budget-line-amount" required :error="shown?.amount ? t('financeBudgets.lines.amountInvalid') : undefined">
-        <UInput id="finance-budget-line-amount" v-model="draft.amount" type="number" min="0" step="any" inputmode="decimal" class="w-full tabular-nums" :color="shown?.amount ? 'error' : undefined" :disabled="!hydrated || pending" />
+        <UInput id="finance-budget-line-amount" v-model="draft.amount" inputmode="decimal" class="w-full tabular-nums" :color="shown?.amount ? 'error' : undefined" :disabled="!hydrated || pending" />
       </UFormField>
       <UFormField :label="t('financeBudgets.lines.label')" name="finance-budget-line-label" class="sm:col-span-2">
         <UInput id="finance-budget-line-label" v-model="draft.label" class="w-full" maxlength="255" :disabled="!hydrated || pending" />
