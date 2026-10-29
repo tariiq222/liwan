@@ -88,10 +88,16 @@ suite('vendor simulator settlement on live PostgreSQL', () => {
     expect((await pool.query('SELECT status FROM invoices WHERE id=$1',[f.invoice_id])).rows[0].status).toBe('issued')
     expect(await outboxCount(f.order_id)).toBe(0)
   })
-  it('fails closed for missing, non-simulator and stale process attempts', async () => {
+  it('recovers an attempt the restarted API no longer remembers', async () => {
+    const f = await fixture()
+    const restarted = {...f.runtime,adapter:new SimulatorAdapter()}
+    expect(await settle(pool,restarted,f.attempt.id)).toEqual({status:200,data:{status:200,outcome:'accepted',simulated:true}})
+    expect((await pool.query('SELECT payment_state FROM orders WHERE id=$1',[f.order_id])).rows[0].payment_state).toBe('paid')
+    expect(await outboxCount(f.order_id)).toBe(1)
+  })
+  it('fails closed for missing and non-simulator attempts', async () => {
     const f = await fixture()
     await expect(settle(pool,f.runtime,randomUUID())).rejects.toMatchObject({status:404})
-    await expect(settle(pool,{...f.runtime,adapter:new SimulatorAdapter()},f.attempt.id)).rejects.toMatchObject({status:404})
     await pool.query("UPDATE payment_attempts SET provider='moyasar',mode='test' WHERE id=$1",[f.attempt.id])
     await expect(settle(pool,f.runtime,f.attempt.id)).rejects.toMatchObject({status:404})
     expect(await outboxCount(f.order_id)).toBe(0)
