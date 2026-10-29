@@ -4,9 +4,9 @@
 
 export const INBOX_CAPABILITIES = [
   'inbox.conversations.read', 'inbox.conversations.reply', 'inbox.conversations.assign', 'inbox.conversations.export',
-  'inbox.channels.manage', 'inbox.settings.manage', 'inbox.templates.manage',
+  'inbox.channels.manage', 'inbox.settings.manage', 'inbox.templates.manage', 'inbox.automation.manage',
 ]
-export const INBOX_FEATURES = ['inbox.enabled', 'inbox.whatsapp']
+export const INBOX_FEATURES = ['inbox.enabled', 'inbox.whatsapp', 'inbox.automation']
 
 const ME = { id: 2, name: 'Admin' }
 const AGENTS = [{ id: 5, name: 'نورة الحربي' }, { id: 6, name: 'سارة محمد' }]
@@ -34,12 +34,12 @@ function seed() {
   ]
   const conversation = (id, contact, rest) => ({
     id, contact, channel: { id: 1, name: channels[0].name, kind: 'whatsapp' }, department: null, assignee: null, state: 'open', priority: 'normal', tags: [],
-    last_message_at: null, last_message_preview: null, unread: false, reply_window_ends_at: null, ...rest,
+    last_message_at: null, last_message_preview: null, unread: false, reply_window_ends_at: null, csat: null, ...rest,
   })
   const conversations = [
     conversation(1, contacts[0], { assignee: ME, department: { id: 1, name: 'الاستقبال' }, tags: [tags[1]], unread: true, reply_window_ends_at: iso(Date.now() + 20 * HOUR) }),
     conversation(2, contacts[1], { state: 'pending', priority: 'high', department: { id: 2, name: 'المبيعات' }, reply_window_ends_at: ago(30) }),
-    conversation(3, contacts[2], { state: 'resolved', assignee: AGENTS[0], department: { id: 1, name: 'الاستقبال' }, tags: [tags[2]], reply_window_ends_at: iso(Date.now() + 2 * HOUR) }),
+    conversation(3, contacts[2], { csat: { score: 'good', at: ago(4.8) }, state: 'resolved', assignee: AGENTS[0], department: { id: 1, name: 'الاستقبال' }, tags: [tags[2]], reply_window_ends_at: iso(Date.now() + 2 * HOUR) }),
     conversation(4, contacts[3], { priority: 'urgent', tags: [tags[0]], reply_window_ends_at: iso(Date.now() + 6 * HOUR) }),
   ]
   const attachment = { id: 1, name: 'نتيجة-الفحص.pdf', mimetype: 'application/pdf', size: 20480 }
@@ -54,7 +54,7 @@ function seed() {
   const message = (direction, body, hoursAgo, extra = {}) => ({
     id: nextMessageId++, direction, kind: 'text', body, author: direction === 'in' ? null : AGENTS[0], template: null,
     delivery_state: direction === 'in' ? 'received' : 'sent', error: null, attachments: [], reply_to: null,
-    reactions: { customer: null, agent: null }, location: null, interactive: null, selected_option: null, created_at: ago(hoursAgo), ...extra,
+    reactions: { customer: null, agent: null }, location: null, interactive: null, selected_option: null, automated: false, created_at: ago(hoursAgo), ...extra,
   })
   const quote = target => ({ id: target.id, preview: target.body.slice(0, 80) })
   const first = message('in', 'السلام عليكم، أريد حجز موعد يوم الخميس.', 3)
@@ -67,6 +67,8 @@ function seed() {
   const messages = {
     1: [
       first,
+      message('note', 'رد آلي: القاعدة «حجز موعد»', 2.94, { author: null, delivery_state: 'sent' }),
+      message('out', 'أهلًا بك في عيادة الأمل! سيرد عليك أحد موظفينا قريبًا.', 2.95, { author: null, delivery_state: 'delivered', automated: true }),
       answer,
       message('note', 'العميلة لديها ملف قديم، راجعوا الموعد السابق.', 2.7, { author: ME }),
       message('in', 'هذه صورة مدخل المبنى', 2.6, { kind: 'image', attachments: [media.image] }),
@@ -140,9 +142,24 @@ function seed() {
     { id: 2, shortcut: 'hours', body: 'ساعات العمل من 9 صباحًا حتى 5 مساءً، من الأحد إلى الخميس.' },
   ]
   return {
-    settings: { visibility_policy: 'department', auto_close_hours: 72, retention_months: 24 },
+    settings: { visibility_policy: 'department', auto_close_hours: 72, retention_months: 24, assignment_policy: 'manual', first_response_alert_minutes: 0 },
+    hours: { timezone: 'Asia/Riyadh', days: [0, 1, 2, 3, 6].map(weekday => ({ weekday, from: '09:00', to: '17:00' })), holidays: [{ name: 'اليوم الوطني', date_from: '2026-09-23', date_to: '2026-09-23' }] },
+    // Department id -> its own hours; a department without an entry follows the company's.
+    departmentHours: new Map(),
+    // Channel id -> its automatic messages (the seed channel has the welcome on, the others off).
+    automation: new Map([[1, {
+      welcome: { enabled: true, idle_days: 0, content: { body: 'أهلًا بك في عيادة الأمل! سيرد عليك أحد موظفينا قريبًا.' } },
+      away: { enabled: false, repeat_hours: 12, content: null },
+      csat: { enabled: false, question: 'كيف كانت تجربتك معنا؟', good: 'ممتاز', neutral: 'مقبول', bad: 'سيئ' },
+    }]]),
+    rules: [
+      { id: 1, sequence: 10, channel: null, name: 'حجز موعد', active: true, match_kind: 'contains', keywords: ['حجز', 'موعد'], option_id: null, hours: 'any', stop: true,
+        reply: { body: 'يسعدنا حجز موعدك، ما اليوم الأنسب لك؟' }, resolve: false, department: { id: 1, name: 'الاستقبال' }, assignee: null, tags: [{ id: 2, name: 'حجز' }], priority: null },
+      { id: 2, sequence: 20, channel: null, name: 'شكوى عاجلة', active: true, match_kind: 'starts_with', keywords: ['شكوى'], option_id: null, hours: 'any', stop: false,
+        reply: null, resolve: false, department: null, assignee: null, tags: [{ id: 1, name: 'شكوى' }], priority: 'urgent' },
+    ],
     departments, tags, channels, contacts, conversations, messages, templates, canned,
-    ids: { department: 3, tag: 4, canned: 3, channel: 2, template: 7, upload: 100, message: () => nextMessageId++ },
+    ids: { department: 3, tag: 4, canned: 3, channel: 2, template: 7, rule: 3, upload: 100, message: () => nextMessageId++ },
     statuses: new Map(),
     // Files uploaded to a conversation and not yet sent: attachment id -> { conversationId, attachment }.
     uploads: new Map(),
@@ -178,10 +195,12 @@ function conversationList(url) {
   const wanted = {
     state: url.searchParams.get('state'),
     department: Number(url.searchParams.get('department_id')) || null,
+    csat: url.searchParams.get('csat'),
   }
   const items = state.conversations
     .filter(c => !wanted.state || c.state === wanted.state)
     .filter(c => !wanted.department || c.department?.id === wanted.department)
+    .filter(c => !wanted.csat || c.csat?.score === wanted.csat)
     .filter(c => !assignee || (assignee === 'me' ? c.assignee?.id === ME.id : assignee === 'unassigned' ? !c.assignee : c.assignee?.id === Number(assignee)))
     .filter(c => !q || [c.contact.name, c.contact.phone, c.last_message_preview].some(text => text?.includes(q)))
     .sort((a, b) => Date.parse(b.last_message_at) - Date.parse(a.last_message_at))
@@ -210,7 +229,7 @@ function patchConversation(conv, body) {
 function appendMessage(conv, fields) {
   const created = {
     id: state.ids.message(), direction: 'out', kind: 'text', body: '', author: ME, template: null, delivery_state: 'queued', error: null, attachments: [],
-    reply_to: null, reactions: { customer: null, agent: null }, location: null, interactive: null, selected_option: null, created_at: iso(Date.now()), ...fields,
+    reply_to: null, reactions: { customer: null, agent: null }, location: null, interactive: null, selected_option: null, automated: false, created_at: iso(Date.now()), ...fields,
   }
   state.messages[conv.id].push(created)
   if (created.direction === 'out') {
@@ -383,6 +402,7 @@ function channelRoute(method, parts, body, url) {
   if (id !== undefined && !channel) return fail(404, 'not_found', 'not found')
   if (method === 'GET' && action === 'ref') return ok({ id: channel.id, name: channel.name })
   if (action === 'templates') return method === 'GET' ? templateList(url) : createTemplate(channel, body)
+  if (action === 'automation' && (method === 'GET' || method === 'PATCH')) return automationRoute(method, channel, body)
   if (method === 'POST' && action === 'uploads') return templateSample(body)
   if (method === 'POST' && action === 'test') { channel.state = 'connected'; channel.last_error = null; return ok(channel) }
   if (method === 'POST' && action === 'sync') return ok(list(state.templates))
@@ -397,6 +417,191 @@ function channelRoute(method, parts, body, url) {
     verify_token: current?.verify_token ?? `mock-verify-token-${state.ids.channel}`, callback_url: 'https://app.example.test/api/v1/inbox/hooks/whatsapp',
     last_error: current?.last_error ?? null, last_event_at: current?.last_event_at ?? null,
   }))
+}
+
+// ---------------------------------------------------------------- automation (working hours, automatic messages, rules)
+
+const WEEKDAYS_BY_NAME = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 }
+const CLOCK = /^([01]\d|2[0-3]):[0-5]\d$|^24:00$/
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+
+function hoursProblem(input) {
+  if (!input || typeof input.timezone !== 'string' || !input.timezone) return ['timezone', 'المنطقة الزمنية مطلوبة']
+  if (!Array.isArray(input.days) || !Array.isArray(input.holidays)) return ['days', 'صيغة الساعات غير صحيحة']
+  for (const range of input.days) {
+    if (!Number.isInteger(range.weekday) || range.weekday < 0 || range.weekday > 6 || !CLOCK.test(range.from) || !CLOCK.test(range.to)) return ['days', 'فترة غير صحيحة']
+    if (range.from >= range.to) return ['days', 'تنتهي الفترة بعد أن تبدأ']
+  }
+  for (const holiday of input.holidays) {
+    if (!holiday.name || !ISO_DATE.test(holiday.date_from) || !ISO_DATE.test(holiday.date_to) || holiday.date_from > holiday.date_to) return ['holidays', 'عطلة غير صحيحة']
+  }
+  return null
+}
+
+const cleanHours = input => ({
+  timezone: input.timezone,
+  days: input.days.map(({ weekday, from, to }) => ({ weekday, from, to })),
+  holidays: input.holidays.map(({ name, date_from, date_to }) => ({ name, date_from, date_to })),
+})
+
+function saveHours(input, store) {
+  const problem = hoursProblem(input)
+  if (problem) return fail(422, 'invalid', problem[1], problem[0])
+  store(cleanHours(input))
+  return null
+}
+
+/** Whether `at` falls inside the hours: no ranges at all means always open, a holiday means closed. */
+function insideHours(hours, at) {
+  if (!hours.days.length) return true
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+    timeZone: hours.timezone, weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(at).map(part => [part.type, part.value]))
+  const date = `${parts.year}-${parts.month}-${parts.day}`
+  if (hours.holidays.some(holiday => holiday.date_from <= date && date <= holiday.date_to)) return false
+  const clock = `${parts.hour}:${parts.minute}`
+  return hours.days.some(range => range.weekday === WEEKDAYS_BY_NAME[parts.weekday] && range.from <= clock && clock < range.to)
+}
+
+function departmentHoursRoute(method, id, body) {
+  if (!state.departments.some(item => item.id === id)) return fail(404, 'not_found', 'not found')
+  if (method === 'PUT') {
+    if (body.working_hours === null) state.departmentHours.delete(id)
+    else {
+      const refusal = saveHours(body.working_hours, value => state.departmentHours.set(id, value))
+      if (refusal) return refusal
+    }
+  }
+  return ok({ working_hours: state.departmentHours.get(id) ?? null })
+}
+
+const AUTO_PURPOSES = ['welcome', 'away']
+
+function automationProblem(automation) {
+  for (const purpose of AUTO_PURPOSES) {
+    const block = automation[purpose]
+    if (block?.enabled && !block.content) return [`${purpose}.content`, 'الرسالة المفعّلة تحتاج محتوى']
+  }
+  const csat = automation.csat
+  if (!csat?.question || !csat.good || !csat.neutral || !csat.bad || [csat.good, csat.neutral, csat.bad].some(label => label.length > 20)) return ['csat', 'نص الاستبيان غير صحيح']
+  return null
+}
+
+function automationRoute(method, channel, body) {
+  const current = state.automation.get(channel.id) ?? {
+    welcome: { enabled: false, idle_days: 0, content: null },
+    away: { enabled: false, repeat_hours: 12, content: null },
+    csat: { enabled: false, question: 'كيف كانت تجربتك معنا؟', good: 'ممتاز', neutral: 'مقبول', bad: 'سيئ' },
+  }
+  if (method === 'PATCH') {
+    const next = { ...current, ...body }
+    const problem = automationProblem(next)
+    if (problem) return fail(422, 'invalid', problem[1], problem[0])
+    state.automation.set(channel.id, next)
+    return ok(next)
+  }
+  return ok(current)
+}
+
+// Case, Arabic diacritics, tatweel and alef / yaa / hamza variants do not matter when words are compared.
+const normalizeText = text => String(text ?? '').toLowerCase().replace(/[ً-ٰٟـ]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ؤ/g, 'و').replace(/ئ/g, 'ي').trim()
+
+function ruleMatches(rule, { channelId, text, optionId, inside }) {
+  if (rule.channel && rule.channel.id !== channelId) return false
+  if (rule.hours === 'inside' && !inside) return false
+  if (rule.hours === 'outside' && inside) return false
+  const words = rule.keywords.map(normalizeText)
+  const said = normalizeText(text)
+  if (rule.match_kind === 'any') return true
+  if (rule.match_kind === 'option') return !!optionId && optionId === rule.option_id
+  if (!said) return false
+  if (rule.match_kind === 'exact') return words.includes(said)
+  if (rule.match_kind === 'starts_with') return words.some(word => said.startsWith(word))
+  return words.some(word => said.includes(word))
+}
+
+function ruleTest(body) {
+  if (!state.channels.some(item => item.id === body.channel_id)) return fail(422, 'invalid', 'القناة غير موجودة', 'channel_id')
+  const inside = insideHours(state.hours, body.at ? new Date(body.at) : new Date())
+  const automation = state.automation.get(body.channel_id)
+  const autoMessage = !inside && automation?.away.enabled ? 'away' : inside && automation?.welcome.enabled ? 'welcome' : null
+  const matched = []
+  for (const rule of [...state.rules].sort((a, b) => a.sequence - b.sequence)) {
+    if (!rule.active || !ruleMatches(rule, { channelId: body.channel_id, text: body.text, optionId: body.option_id, inside })) continue
+    matched.push({ id: rule.id, name: rule.name })
+    if (rule.stop) break
+  }
+  return ok({ inside_hours: inside, auto_message: autoMessage, rules: matched })
+}
+
+const TEXT_KINDS = ['contains', 'exact', 'starts_with']
+
+function ruleProblem(rule, input) {
+  if (!rule.name?.trim()) return ['name', 'اسم القاعدة مطلوب']
+  if (TEXT_KINDS.includes(rule.match_kind) && !(rule.keywords.length > 0 && rule.option_id === null)) return ['keywords', 'الكلمات مطلوبة لهذا النوع']
+  if (rule.match_kind === 'option' && !(rule.option_id && rule.keywords.length === 0)) return ['option_id', 'معرّف الخيار مطلوب']
+  if (rule.match_kind === 'any' && (rule.keywords.length || rule.option_id)) return ['match_kind', 'لا كلمات مع هذا النوع']
+  if (input.channel_id && !state.channels.some(item => item.id === input.channel_id)) return ['channel_id', 'القناة غير موجودة']
+  const acts = rule.reply || rule.department || rule.assignee || rule.tags.length || rule.priority || rule.resolve
+  return acts ? null : ['reply', 'تحتاج القاعدة إجراءً واحدًا على الأقل']
+}
+
+function ruleFromWrite(input, current) {
+  const refId = (value, list) => value ? list.find(item => item.id === value) ?? null : null
+  const pick = (key, fallback) => (key in input ? input[key] : fallback)
+  const department = 'department_id' in input ? refId(input.department_id, state.departments) : current?.department ?? null
+  const assignee = 'assignee_id' in input ? ([ME, ...AGENTS].find(item => item.id === input.assignee_id) ?? null) : current?.assignee ?? null
+  const channel = 'channel_id' in input ? refId(input.channel_id, state.channels) : current?.channel ?? null
+  return {
+    id: current?.id ?? state.ids.rule++,
+    sequence: current?.sequence ?? Math.max(0, ...state.rules.map(item => item.sequence)) + 10,
+    channel: channel ? { id: channel.id, name: channel.name } : null,
+    name: pick('name', current?.name), active: pick('active', current?.active ?? true), match_kind: pick('match_kind', current?.match_kind),
+    keywords: pick('keywords', current?.keywords ?? []), option_id: pick('option_id', current?.option_id ?? null), hours: pick('hours', current?.hours ?? 'any'),
+    stop: pick('stop', current?.stop ?? true), reply: pick('reply', current?.reply ?? null), resolve: pick('resolve', current?.resolve ?? false),
+    department: department ? { id: department.id, name: department.name } : null,
+    assignee: assignee ? { id: assignee.id, name: assignee.name } : null,
+    tags: 'tag_ids' in input ? state.tags.filter(tag => input.tag_ids.includes(tag.id)) : current?.tags ?? [],
+    priority: pick('priority', current?.priority ?? null),
+  }
+}
+
+function ruleRoute(method, parts, body) {
+  const id = parts[4] && /^\d+$/.test(parts[4]) ? Number(parts[4]) : undefined
+  if (parts[4] === 'reorder' && method === 'POST') {
+    const ids = body.ids ?? []
+    if (ids.length !== state.rules.length || !state.rules.every(rule => ids.includes(rule.id))) return fail(422, 'invalid', 'ترتيب غير مكتمل', 'ids')
+    ids.forEach((ruleId, index) => { state.rules.find(rule => rule.id === ruleId).sequence = (index + 1) * 10 })
+    return ok(list([...state.rules].sort((a, b) => a.sequence - b.sequence)))
+  }
+  if (parts[4] === 'test' && method === 'POST') {
+    if (!['channel_id', 'text', 'option_id', 'at'].every(key => key in body)) return fail(422, 'invalid', 'كل المفاتيح الأربعة مطلوبة')
+    return ruleTest(body)
+  }
+  if (id === undefined) {
+    if (method === 'GET') return ok(list([...state.rules].sort((a, b) => a.sequence - b.sequence)))
+    if (method !== 'POST') return undefined
+    const created = ruleFromWrite(body)
+    const problem = ruleProblem(created, body)
+    if (problem) return fail(422, 'invalid', problem[1], problem[0])
+    state.rules.push(created)
+    return { status: 201, body: created }
+  }
+  const current = state.rules.find(rule => rule.id === id)
+  if (!current) return fail(404, 'not_found', 'not found')
+  if (method === 'GET') return ok(current)
+  if (method === 'DELETE') {
+    state.rules.splice(state.rules.indexOf(current), 1)
+    return { status: 204, body: undefined }
+  }
+  if (method === 'PATCH') {
+    const next = ruleFromWrite(body, current)
+    const problem = ruleProblem(next, body)
+    if (problem) return fail(422, 'invalid', problem[1], problem[0])
+    state.rules[state.rules.indexOf(current)] = next
+    return ok(next)
+  }
+  return undefined
 }
 
 const placeholderCount = text => Math.max(0, ...[...text.matchAll(/\{\{(\d+)\}\}/g)].map(match => Number(match[1])))
@@ -489,7 +694,10 @@ export function inboxPreviewData(method, path, url, body = {}) {
       applyPreset(parts[5])
       return ok(state.settings)
     }
-    if (method === 'PATCH') Object.assign(state.settings, body)
+    if (method === 'PATCH') {
+      if ('assignment_policy' in body && !['manual', 'round_robin', 'least_open'].includes(body.assignment_policy)) return fail(422, 'invalid', 'سياسة التوزيع غير معروفة', 'assignment_policy')
+      Object.assign(state.settings, body)
+    }
     return ok(state.settings)
   }
   if (parts[2] !== 'inbox') return undefined
@@ -550,6 +758,16 @@ export function inboxPreviewData(method, path, url, body = {}) {
   }
   if (resource === 'canned-replies') return crud('canned', method, id, body, (input, current) => ({ id: current?.id ?? state.ids.canned++, shortcut: input.shortcut ?? current.shortcut, body: input.body ?? current.body }))
   if (resource === 'tags') return crud('tags', method, id, body, (input, current) => ({ id: current?.id ?? state.ids.tag++, name: input.name ?? current.name }))
+  if (resource === 'working-hours' && (method === 'GET' || method === 'PUT')) {
+    if (method === 'PUT') {
+      const refusal = saveHours(body, value => { state.hours = value })
+      if (refusal) return refusal
+    }
+    return ok(state.hours)
+  }
+  if (resource === 'automation' && parts[4] === 'channels' && method === 'GET') return ok(list(state.channels.map(({ id, name }) => ({ id, name }))))
+  if (resource === 'rules') return ruleRoute(method, parts, body)
+  if (resource === 'departments' && id !== undefined && parts[5] === 'working-hours' && (method === 'GET' || method === 'PUT')) return departmentHoursRoute(method, id, body)
   if (resource === 'departments') {
     return crud('departments', method, id, body, (input, current) => ({
       id: current?.id ?? state.ids.department++, name: input.name ?? current.name,

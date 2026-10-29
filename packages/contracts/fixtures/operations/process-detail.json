@@ -5,6 +5,7 @@
   "name": "Published 36",
   "purpose": "work",
   "revision": 1,
+  "stage_approval_mode": "per_stage",
   "state": "published",
   "steps": [
     {

@@ -14,6 +14,7 @@ from odoo.addons.webvue_api.controllers.common import (
 from odoo.addons.webvue_inbox.controllers.helpers import (
     CONVERSATION_STATES,
     check_fields,
+    find_agent,
     find_ids,
     find_one,
     no_content,
@@ -25,8 +26,12 @@ from odoo.addons.webvue_inbox.controllers.helpers import (
     visible_message,
 )
 from odoo.addons.webvue_inbox.controllers.reply_parsing import MAX_BODY
-from odoo.addons.webvue_inbox.models.access_service import ASSIGN, READ, REPLY
-from odoo.addons.webvue_inbox.models.notification_types import KIND
+from odoo.addons.webvue_inbox.models.access_service import (
+    ASSIGN,
+    MANAGE_AUTOMATION,
+    READ,
+    REPLY,
+)
 from odoo.addons.webvue_inbox.serializers.conversation import (
     dump_contact,
     dump_conversation,
@@ -37,13 +42,14 @@ from odoo.addons.webvue_inbox.serializers.conversation import (
 from odoo.addons.webvue_inbox.serializers.settings import dump_canned_reply
 
 PRIORITIES = ('low', 'normal', 'high', 'urgent')
+CSAT_SCORES = ('good', 'neutral', 'bad')
 PATCH_FIELDS = {'state', 'priority', 'tag_ids', 'assignee_id', 'department_id'}
 REPLY_FIELDS = {'state', 'priority', 'tag_ids'}
 ASSIGN_FIELDS = {'assignee_id', 'department_id'}
 
 
 def conversation_domain(args):
-    """The list filters of the query string (state, assignee, department_id, channel_id, q)."""
+    """The list filters of the query string (state, assignee, department_id, channel_id, csat, q)."""
     domain = []
     if args.get('state'):
         if args['state'] not in CONVERSATION_STATES:
@@ -56,6 +62,10 @@ def conversation_domain(args):
         domain.append(('assignee_id', '=', False))
     elif assignee:
         domain.append(('assignee_id', '=', parse_positive_int(assignee, 'assignee')))
+    if args.get('csat'):
+        if args['csat'] not in CSAT_SCORES:
+            reject(f'csat must be one of {CSAT_SCORES}', 'csat')
+        domain.append(('csat_score', '=', args['csat']))
     for key in ('department_id', 'channel_id'):
         if args.get(key):
             domain.append((key, '=', parse_positive_int(args[key], key)))
@@ -78,13 +88,9 @@ def detail(conversation):
 def parse_assignment(conversation, payload):
     values = {}
     if 'assignee_id' in payload:
-        values['assignee_id'] = False
-        if payload['assignee_id'] is not None:
-            assignee = find_one('res.users', payload['assignee_id'], 'assignee_id')
-            service = request.env['webvue.access.service']
-            if not assignee.active or not service._webvue_has_capability(assignee, REPLY, company=conversation.company_id):
-                reject('assignee_id must be an active agent who can reply', 'assignee_id')
-            values['assignee_id'] = assignee.id
+        values['assignee_id'] = (
+            find_agent(payload['assignee_id'], 'assignee_id', conversation.company_id) if payload['assignee_id'] is not None else False
+        )
     if 'department_id' in payload:
         values['department_id'] = (
             find_one('webvue.inbox.department', payload['department_id'], 'department_id').id
@@ -112,21 +118,6 @@ def parse_patch(conversation, payload):
         ids = parse_ids(payload['tag_ids'], 'tag_ids')
         values['tag_ids'] = [(6, 0, find_ids('webvue.inbox.tag', ids, 'tag_ids').ids)]
     return values
-
-
-def notify_assignment(conversation):
-    """Bell row for a new assignee, unless the actor assigned the conversation to themselves."""
-    assignee = conversation.assignee_id
-    if not assignee or assignee == request.env.user:
-        return
-    request.env['webvue.notify.service']._webvue_deliver(
-        conversation._name, conversation.id, KIND, assignee.partner_id,
-        request.env._('%(actor)s assigned you a conversation with %(customer)s',
-                      actor=request.env.user.name, customer=conversation.contact_id.name),
-        key=f'{KIND}:{conversation.id}:{assignee.partner_id.id}',
-        values={'webvue_inbox_conversation_id': conversation.id, 'webvue_inbox_contact_name': conversation.contact_id.name},
-        replace=True,
-    )
 
 
 class ConversationController(http.Controller):
@@ -171,10 +162,12 @@ class ConversationController(http.Controller):
     @requires_capability(READ)
     def patch_conversation(self, conversation_id, **payload):
         conversation = visible_conversation(conversation_id)
-        previous = conversation.assignee_id
+        previous, was_resolved = conversation.assignee_id, conversation.state == 'resolved'
         conversation.write(parse_patch(conversation, payload))
         if conversation.assignee_id != previous:
-            notify_assignment(conversation)
+            conversation._webvue_notify_assigned(actor=request.env.user)
+        if conversation.state == 'resolved' and not was_resolved:
+            conversation._webvue_send_csat_survey()
         conversation._webvue_notify_bus()
         return detail(conversation)
 
@@ -249,7 +242,7 @@ class ConversationController(http.Controller):
     @http.route('/api/v1/inbox/agents', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('inbox.enabled', operation='read')
-    @requires_capability(READ)
+    @requires_capability(READ, MANAGE_AUTOMATION, match='any')
     def list_agents(self, **_):
         """The assignee picker: active users of the company who can reply."""
         args = request.httprequest.args

@@ -3,7 +3,7 @@ import { avatarProps } from '@webvue/ui/app/utils/avatarTone'
 import EmptyState from '@webvue/ui/app/components/shared/feedback/EmptyState.vue'
 import { useInboxConversations } from '@/composables/inbox/useInbox'
 import { useInboxDepartments } from '@/composables/inbox/useInboxSettings'
-import { CONVERSATION_STATES, CONVERSATION_STATE_TONE, inboxListTime } from '@/composables/inbox/inboxPresentation'
+import { CONVERSATION_STATES, CONVERSATION_STATE_TONE, CSAT_SCORES, CSAT_TONE, inboxListTime } from '@/composables/inbox/inboxPresentation'
 import { INBOX_PAGE_SIZE, inboxListQuery, inboxPageOffset, serializeInboxListRoute, type InboxListRoute } from '@/composables/inbox/inboxListRoute'
 
 // The conversation list: filters (assignee, state, department, search) are the URL query, owned by the page that hosts
@@ -17,7 +17,7 @@ const { data, isLoading, isError, error, refetch } = useInboxConversations(() =>
 const departments = useInboxDepartments()
 const items = computed(() => data.value?.items ?? [])
 const total = computed(() => data.value?.total ?? 0)
-const filtered = computed(() => props.routeState.assignee !== 'all' || !!props.routeState.state || !!props.routeState.departmentId || !!props.routeState.q)
+const filtered = computed(() => props.routeState.assignee !== 'all' || !!props.routeState.state || !!props.routeState.departmentId || !!props.routeState.csat || !!props.routeState.q)
 const q = ref(props.routeState.q)
 watch(() => props.routeState.q, (value) => { q.value = value })
 // Clearing the box resets the results; any other change waits for Enter.
@@ -38,6 +38,10 @@ const stateItems = computed(() => [
 const departmentItems = computed(() => [
   { value: ALL, label: t('inbox.list.anyDepartment') },
   ...(departments.data.value?.items ?? []).map(department => ({ value: String(department.id), label: department.name })),
+])
+const csatItems = computed(() => [
+  { value: ALL, label: t('inbox.list.anyCsat') },
+  ...CSAT_SCORES.map(value => ({ value, label: t(`inbox.csat.${value}`) })),
 ])
 const showDepartments = computed(() => (departments.data.value?.items.length ?? 0) > 0)
 
@@ -111,6 +115,15 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
           @update:model-value="update({ departmentId: $event === ALL ? null : Number($event) })"
         />
       </div>
+      <USelect
+        :model-value="props.routeState.csat || ALL"
+        :items="csatItems"
+        class="w-full"
+        :aria-label="t('inbox.list.csat')"
+        :disabled="!hydrated"
+        data-testid="inbox-csat-filter"
+        @update:model-value="update({ csat: $event === ALL ? '' : ($event as InboxListRoute['csat']) })"
+      />
     </div>
     <EmptyState v-if="empty && !filtered" class="m-4" :title="t('inbox.list.empty')" :description="t('inbox.list.emptyDescription')">
       <template #icon>
@@ -145,6 +158,7 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
               </span>
               <span class="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-muted">
                 <SharedStatusBadge size="sm" :tone="CONVERSATION_STATE_TONE[item.state]" :label="t(`inbox.states.${item.state}`)" />
+                <SharedStatusBadge v-if="item.csat" size="sm" :tone="CSAT_TONE[item.csat.score]" :label="t(`inbox.csat.${item.csat.score}`)" />
                 <span class="truncate">{{ item.assignee?.name ?? t('inbox.unassigned') }}</span>
               </span>
             </span>
