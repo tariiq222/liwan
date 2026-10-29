@@ -54,6 +54,16 @@ async function continuePayment() {
     else payError.value = t('subscription.status.paymentFailed')
   } catch { payError.value = t('subscription.status.paymentFailed') } finally { payBusy.value = false }
 }
+// Owner decision 2026-10-29: a customer cancels only its own unpaid first order.
+const canCancel = computed(() => outcome.value === 'awaiting_payment' && order.value?.kind === 'new' && can('subscription.manage'))
+const cancelOpen = ref(false); const cancelReason = ref(''); const cancelBusy = ref(false); const cancelError = ref<string | undefined>()
+const validReason = computed(() => cancelReason.value.trim().length >= 3 && cancelReason.value.trim().length <= 1000)
+async function cancelFirstOrder() {
+  if (!order.value || cancelBusy.value || !validReason.value) return
+  cancelBusy.value = true; cancelError.value = undefined
+  try { await api.cancelOrder(order.value.id, cancelReason.value); cancelOpen.value = false; cancelReason.value = ''; await refresh() }
+  catch { cancelError.value = t('subscription.status.cancelFailed') } finally { cancelBusy.value = false }
+}
 definePageMeta({ middleware: 'customer-commercial' })
 </script>
 <template>
@@ -77,7 +87,12 @@ definePageMeta({ middleware: 'customer-commercial' })
           <p v-else-if="settled" class="text-sm text-muted" role="status" data-testid="order-settled">{{ t('subscription.status.settled') }}</p>
           <p v-else class="text-sm text-muted" role="status" data-testid="order-empty">{{ t('subscription.status.empty') }}</p>
           <UAlert v-if="payError" color="error" variant="subtle" role="alert" :title="payError" />
+          <SharedInlineConfirm v-if="canCancel && cancelOpen" :title="t('subscription.status.cancel.title')" :description="t('subscription.status.cancel.description')" :confirm-label="t('subscription.status.cancel.action')" :pending="cancelBusy" :disabled="!hydrated || cancelBusy || !validReason" @confirm="cancelFirstOrder" @cancel="cancelOpen = false">
+            <UFormField :label="t('subscription.status.cancel.reason')" required class="mt-3"><UTextarea v-model="cancelReason" :maxlength="1000" :disabled="!hydrated || cancelBusy" class="w-full" /></UFormField>
+          </SharedInlineConfirm>
+          <UAlert v-if="cancelError" color="error" variant="subtle" role="alert" :title="cancelError" />
           <div class="flex flex-wrap gap-2">
+            <UButton v-if="canCancel && !cancelOpen" color="error" variant="outline" :disabled="!hydrated" @click="cancelOpen = true">{{ t('subscription.status.cancel.action') }}</UButton>
             <UButton v-if="canRetry" :disabled="!hydrated || payBusy" :loading="payBusy" @click="continuePayment">{{ t('subscription.status.retryPayment') }}</UButton>
             <UButton v-if="!order || outcome === 'applied' || outcome === 'cancelled' || outcome === 'payment_failed'" to="/subscription" color="neutral" variant="outline">{{ t('subscription.status.viewSubscription') }}</UButton>
             <UButton color="neutral" variant="outline" :disabled="!hydrated" @click="refresh()">{{ t('subscription.status.refresh') }}</UButton>
