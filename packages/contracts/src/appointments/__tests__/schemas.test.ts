@@ -1,7 +1,10 @@
 import {
+  AppointmentAttendanceRecordSchema,
+  AppointmentBookingCancelSchema,
   AppointmentBookingCreateSchema,
   AppointmentBookingListQuerySchema,
   AppointmentBookingListSchema,
+  AppointmentBookingPatchSchema,
   AppointmentBookingScheduleSchema,
   AppointmentBookingSchema,
   AppointmentCombinationCreateSchema,
@@ -14,6 +17,11 @@ import {
   AppointmentPublicScheduleSchema,
   AppointmentPublicSlotQuerySchema,
   AppointmentPublicTokenSchema,
+  AppointmentReasonCreateSchema,
+  AppointmentReasonListQuerySchema,
+  AppointmentReasonListSchema,
+  AppointmentReasonPatchSchema,
+  AppointmentReasonSchema,
   AppointmentResourceCreateSchema,
   AppointmentResourceListSchema,
   AppointmentResourcePatchSchema,
@@ -169,6 +177,13 @@ const SETTINGS = {
   national_id_field: 'hidden',
   notes_field: 'optional',
   self_booking_policy: 'invite_only',
+  attendance_tracking: true,
+  auto_no_show: true,
+  no_show_grace_minutes: 30,
+  walk_in_allowed: false,
+  visit_reason_field: 'optional',
+  cancel_reason_required: false,
+  reference_prefix: 'APT',
   sector_preset: 'general',
   presets: ['general', 'clinic', 'services'],
   revision: 0,
@@ -186,6 +201,8 @@ describe('AppointmentSettingsSchema', () => {
       { default_slot_minutes: 4 }, { default_slot_minutes: 481 }, { min_notice_hours: 721 },
       { horizon_days: 0 }, { horizon_days: 366 }, { modification_deadline_hours: -1 },
       { phone_field: 'maybe' }, { self_booking_policy: 'anyone' }, { sector_preset: 'bank' }, { revision: -1 },
+      { no_show_grace_minutes: -1 }, { no_show_grace_minutes: 1441 }, { visit_reason_field: 'maybe' }, { walk_in_allowed: 'yes' },
+      { reference_prefix: '' }, { reference_prefix: 'apt' }, { reference_prefix: 'ABCDEFGHIJK' }, { reference_prefix: 'A/B' },
     ]) {
       expect(() => AppointmentSettingsSchema.parse({ ...SETTINGS, ...bad })).toThrow()
     }
@@ -205,13 +222,20 @@ describe('AppointmentSettingsPatchSchema', () => {
     expect(() => AppointmentSettingsPatchSchema.parse({ revision: 0, mystery: 1 })).toThrow()
     expect(() => AppointmentSettingsPatchSchema.parse({ revision: 0, horizon_days: 366 })).toThrow()
     expect(() => AppointmentSettingsPatchSchema.parse({ revision: 0, preset: 'bank' })).toThrow()
+    expect(() => AppointmentSettingsPatchSchema.parse({ revision: 0, no_show_grace_minutes: 1441 })).toThrow()
+    expect(() => AppointmentSettingsPatchSchema.parse({ revision: 0, reference_prefix: 'a' })).toThrow()
+    expect(AppointmentSettingsPatchSchema.parse({ revision: 0, reference_prefix: 'CLN-1', walk_in_allowed: true }))
+      .toEqual({ revision: 0, reference_prefix: 'CLN-1', walk_in_allowed: true })
     expect(() => AppointmentSettingsPatchSchema.parse({ revision: 0, sector_preset: 'clinic' })).toThrow()
   })
 })
 
 const BOOKING_ROW = {
   id: 7,
+  reference: 'APT/2026/000007',
   state: 'scheduled',
+  attendance: null,
+  walk_in: false,
   type_id: 1,
   type_name: 'Consultation',
   combination_id: 4,
@@ -225,6 +249,8 @@ const BOOKING = {
   requester: { id: 9, name: 'Sara', phone: '+966500000000', email: null },
   national_id: null,
   notes: 'First visit',
+  visit_reason: { id: 2, name: 'Consultation' },
+  cancel_reason: null,
   is_modifiable: true,
 }
 
@@ -275,6 +301,37 @@ describe('AppointmentBooking schemas', () => {
     expect(AppointmentBookingSchema.parse(hidden)).toEqual(hidden)
   })
 
+  it('a row carries its reference, attendance and walk-in flag', () => {
+    const arrived = { ...BOOKING_ROW, reference: null, attendance: 'arrived', walk_in: true }
+    expect(AppointmentBookingListSchema.parse({ items: [arrived], total: 1 }).items[0]).toEqual(arrived)
+    expect(() => AppointmentBookingListSchema.parse({ items: [{ ...BOOKING_ROW, attendance: 'late' }], total: 1 })).toThrow()
+    expect(() => AppointmentBookingSchema.parse({ ...BOOKING, visit_reason: { id: 2 } })).toThrow()
+  })
+
+  it('create takes a walk-in or a visit reason, and a walk-in has no start', () => {
+    const walkIn = { type_id: 1, requester_id: 3, walk_in: true, visit_reason_id: 2 }
+    expect(AppointmentBookingCreateSchema.parse(walkIn)).toEqual(walkIn)
+    expect(AppointmentBookingCreateSchema.parse({ type_id: 1, requester_id: 3, visit_reason_id: null }).visit_reason_id).toBeNull()
+    expect(() => AppointmentBookingCreateSchema.parse({ ...walkIn, start: '2026-11-02T09:00:00Z' })).toThrow()
+    expect(() => AppointmentBookingCreateSchema.parse({ ...walkIn, visit_reason_id: 0 })).toThrow()
+    expect(() => AppointmentBookingCreateSchema.parse({ ...walkIn, walk_in: 'yes' })).toThrow()
+  })
+
+  it('patch, cancel and attendance bodies are strict', () => {
+    expect(AppointmentBookingPatchSchema.parse({ visit_reason_id: 3 })).toEqual({ visit_reason_id: 3 })
+    expect(AppointmentBookingPatchSchema.parse({ visit_reason_id: null })).toEqual({ visit_reason_id: null })
+    expect(() => AppointmentBookingPatchSchema.parse({})).toThrow()
+    expect(() => AppointmentBookingPatchSchema.parse({ visit_reason_id: 3, notes: 'x' })).toThrow()
+    expect(AppointmentBookingCancelSchema.parse({})).toEqual({})
+    expect(AppointmentBookingCancelSchema.parse({ reason_id: 4 })).toEqual({ reason_id: 4 })
+    expect(() => AppointmentBookingCancelSchema.parse({ reason_id: 0 })).toThrow()
+    for (const outcome of ['arrived', 'in_service', 'done', 'no_show']) {
+      expect(AppointmentAttendanceRecordSchema.parse({ outcome })).toEqual({ outcome })
+    }
+    expect(() => AppointmentAttendanceRecordSchema.parse({ outcome: 'late' })).toThrow()
+    expect(() => AppointmentAttendanceRecordSchema.parse({})).toThrow()
+  })
+
   it('schedule needs a UTC start', () => {
     expect(AppointmentBookingScheduleSchema.parse({ start: '2026-11-02T09:00:00Z', combination_id: 4 })).toEqual({
       start: '2026-11-02T09:00:00Z', combination_id: 4,
@@ -320,5 +377,36 @@ describe('public appointment schemas', () => {
     expect(AppointmentInvitationSchema.parse({ path: '/book/7?access_token=abc-123' }).path).toBe('/book/7?access_token=abc-123')
     expect(() => AppointmentInvitationSchema.parse({ path: 'https://x.test/book/7?access_token=abc' })).toThrow()
     expect(() => AppointmentInvitationSchema.parse({ path: '/my/bookings/7?access_token=abc' })).toThrow()
+  })
+})
+
+const REASON = { id: 5, kind: 'visit', name: 'Consultation', sequence: 10, active: true }
+
+describe('AppointmentReason schemas', () => {
+  it('a reason is strict and has a kind of visit or cancel', () => {
+    expect(AppointmentReasonSchema.parse(REASON)).toEqual(REASON)
+    expect(Object.keys(AppointmentReasonSchema.shape).sort()).toEqual(Object.keys(REASON).sort())
+    expect(() => AppointmentReasonSchema.parse({ ...REASON, company_id: 1 })).toThrow()
+    expect(() => AppointmentReasonSchema.parse({ ...REASON, kind: 'other' })).toThrow()
+    const list = { items: [REASON], total: 1 }
+    expect(AppointmentReasonListSchema.parse(list)).toEqual(list)
+  })
+
+  it('the list query filters by kind and active', () => {
+    const query = { kind: 'cancel', active: 'false', limit: 20, offset: 0 }
+    expect(AppointmentReasonListQuerySchema.parse(query)).toEqual(query)
+    expect(() => AppointmentReasonListQuerySchema.parse({ kind: 'other' })).toThrow()
+    expect(() => AppointmentReasonListQuerySchema.parse({ q: 'x' })).toThrow()
+  })
+
+  it('create needs a kind and a name; patch cannot change the kind', () => {
+    expect(AppointmentReasonCreateSchema.parse({ kind: 'cancel', name: 'No longer needed', sequence: 20 }))
+      .toEqual({ kind: 'cancel', name: 'No longer needed', sequence: 20 })
+    expect(() => AppointmentReasonCreateSchema.parse({ name: 'x' })).toThrow()
+    expect(() => AppointmentReasonCreateSchema.parse({ kind: 'visit', name: ' ' })).toThrow()
+    expect(() => AppointmentReasonCreateSchema.parse({ kind: 'visit', name: 'x', sequence: 10000 })).toThrow()
+    expect(AppointmentReasonPatchSchema.parse({ name: 'Renamed' })).toEqual({ name: 'Renamed' })
+    expect(AppointmentReasonPatchSchema.parse({})).toEqual({})
+    expect(() => AppointmentReasonPatchSchema.parse({ kind: 'cancel' })).toThrow()
   })
 })

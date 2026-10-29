@@ -12,7 +12,10 @@ INTEGER_RANGES = {
     'min_notice_hours': (0, 720),
     'horizon_days': (1, 365),
     'modification_deadline_hours': (0, 720),
+    'no_show_grace_minutes': (0, 1440),
 }
+BOOLEAN_SETTINGS = ('requester_confirmation', 'attendance_tracking', 'auto_no_show', 'walk_in_allowed', 'cancel_reason_required')
+REFERENCE_PREFIX_PATTERN = r'[A-Z0-9-]{1,10}'
 REQUESTER_FIELDS = ('phone_field', 'email_field', 'national_id_field', 'notes_field')
 # Applying a preset writes all of these at once; the general preset is the field defaults.
 PRESETS = {
@@ -20,19 +23,26 @@ PRESETS = {
         'default_slot_minutes': 30, 'min_notice_hours': 2, 'horizon_days': 60, 'modification_deadline_hours': 24,
         'requester_confirmation': False, 'self_booking_policy': 'invite_only',
         'phone_field': 'required', 'email_field': 'optional', 'national_id_field': 'hidden', 'notes_field': 'optional',
+        'attendance_tracking': True, 'auto_no_show': True, 'no_show_grace_minutes': 30, 'walk_in_allowed': False,
+        'visit_reason_field': 'optional', 'cancel_reason_required': False,
     },
     'clinic': {
         'default_slot_minutes': 15, 'min_notice_hours': 12, 'horizon_days': 30, 'modification_deadline_hours': 24,
         'requester_confirmation': True, 'self_booking_policy': 'invite_only',
         'phone_field': 'required', 'email_field': 'optional', 'national_id_field': 'required', 'notes_field': 'optional',
+        'attendance_tracking': True, 'auto_no_show': True, 'no_show_grace_minutes': 30, 'walk_in_allowed': True,
+        'visit_reason_field': 'optional', 'cancel_reason_required': False,
     },
     'services': {
         'default_slot_minutes': 60, 'min_notice_hours': 24, 'horizon_days': 90, 'modification_deadline_hours': 48,
         'requester_confirmation': False, 'self_booking_policy': 'invite_only',
         'phone_field': 'required', 'email_field': 'required', 'national_id_field': 'hidden', 'notes_field': 'optional',
+        'attendance_tracking': True, 'auto_no_show': True, 'no_show_grace_minutes': 30, 'walk_in_allowed': False,
+        'visit_reason_field': 'optional', 'cancel_reason_required': False,
     },
 }
-DEFAULTS = PRESETS['general']
+# The booking reference prefix is the tenant's own identity, not a sector choice: presets leave it alone.
+DEFAULTS = {**PRESETS['general'], 'reference_prefix': 'APT'}
 
 
 def _range_check(name):
@@ -46,7 +56,10 @@ class WebVueAppointmentSettings(models.Model):
     Enforced now: ``default_slot_minutes`` and ``modification_deadline_hours`` are the defaults of a
     new booking type's ``slot_duration`` and ``modifications_deadline``. Not enforced here:
     ``min_notice_hours``, ``horizon_days``, the requester field policies, ``requester_confirmation``
-    and ``self_booking_policy`` are enforced by the booking routes (tickets 05-07). Existing bookings
+    and ``self_booking_policy`` are enforced by the booking routes (tickets 05-07), and the attendance
+    settings (``attendance_tracking``, ``auto_no_show``, ``no_show_grace_minutes``, ``walk_in_allowed``,
+    ``visit_reason_field``, ``cancel_reason_required``) by the booking routes and the no-show cron
+    (ticket 14); ``reference_prefix`` is read when a booking is created. Existing bookings
     and types are never changed. Applying a sector preset writes ``sector_preset`` (the last applied
     preset) and every preset value in one save; a field sent with the preset overrides its value.
     """
@@ -66,6 +79,13 @@ class WebVueAppointmentSettings(models.Model):
     national_id_field = fields.Selection(FIELD_REQUIREMENTS, required=True, default=DEFAULTS['national_id_field'])
     notes_field = fields.Selection(FIELD_REQUIREMENTS, required=True, default=DEFAULTS['notes_field'])
     self_booking_policy = fields.Selection(SELF_BOOKING_POLICIES, required=True, default=DEFAULTS['self_booking_policy'])
+    attendance_tracking = fields.Boolean(default=DEFAULTS['attendance_tracking'])
+    auto_no_show = fields.Boolean(default=DEFAULTS['auto_no_show'])
+    no_show_grace_minutes = fields.Integer(required=True, default=DEFAULTS['no_show_grace_minutes'])
+    walk_in_allowed = fields.Boolean(default=DEFAULTS['walk_in_allowed'])
+    visit_reason_field = fields.Selection(FIELD_REQUIREMENTS, required=True, default=DEFAULTS['visit_reason_field'])
+    cancel_reason_required = fields.Boolean(default=DEFAULTS['cancel_reason_required'])
+    reference_prefix = fields.Char(required=True, default=DEFAULTS['reference_prefix'])
     sector_preset = fields.Selection(SECTOR_PRESETS, required=True, default='general')
     revision = fields.Integer(required=True, default=1)
 
@@ -75,6 +95,10 @@ class WebVueAppointmentSettings(models.Model):
     _notice_range = _range_check('min_notice_hours')
     _horizon_range = _range_check('horizon_days')
     _deadline_range = _range_check('modification_deadline_hours')
+    _grace_range = _range_check('no_show_grace_minutes')
+    _prefix_format = models.Constraint(
+        "CHECK(reference_prefix ~ '^%s$')" % REFERENCE_PREFIX_PATTERN, 'the reference prefix is 1 to 10 of A-Z, 0-9 and -',
+    )
 
     @api.model
     def _webvue_require_current_company(self, *capabilities):
