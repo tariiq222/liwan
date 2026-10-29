@@ -85,6 +85,9 @@ database. Login is `e2e_<key>`; the credentials are declared in
 | `ops_manager` | لمى السبيعي, مديرة العمليات | العمليات | ceo | employee, operations_manager |
 | `staff1` | يوسف المالكي, مطور برمجيات | تقنية المعلومات | pm | employee |
 | `staff2` | سارة العمري, منسقة عمليات | العمليات | ops_manager | employee |
+| `crm_manager` | أحمد السهلي, مدير المبيعات | المبيعات | ceo | employee, crm_manager |
+| `crm_agent` | مها الثبيتي, موظفة مبيعات | المبيعات | crm_manager | employee, crm_agent |
+| `crm_agent2` | نايف العسيري, موظف مبيعات | المبيعات | crm_manager | employee, crm_agent |
 | `users_reader` | رامي القرني | تقنية المعلومات | it_admin | employee + custom «قراءة المستخدمين فقط» (`access.users.read`) |
 | `ops_monitor` | دانة الزهراني | العمليات | ops_manager | employee + custom «متابعة العمليات فقط» (`operations.monitoring.read`) |
 | `docs_editor` | تركي البقمي | الموارد البشرية | hr_manager | employee + custom «تحرير المستندات بلا إدارة الوصول» (`documents.items.manage`) |
