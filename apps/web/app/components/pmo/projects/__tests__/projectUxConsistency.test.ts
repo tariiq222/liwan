@@ -85,7 +85,7 @@ describe('project finance estimate reference', () => {
     expect(html).not.toContain('projects.finance.planned')
   })
   it('does not turn expenses with unknown budget into a budget dashboard', async () => {
-    const html = await renderView(finance(), { projectId: 12, canManage: true, summary: { ...summary, planned: null, budget_count: 0 } })
+    const html = await renderView(finance(), { projectId: 12, summary: { ...summary, planned: null, budget_count: 0 } })
     expect(html).toContain('projects.finance.budgetUnknown')
     expect(html).toContain('20.00 SAR')
     expect(html).not.toContain('projects.finance.planned')

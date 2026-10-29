@@ -5,10 +5,9 @@ import FinanceActualSource from '@/components/pmo/projects/finance/FinanceActual
 import { budgetStatus, financeSummaryMode, formatNullableAmount, formatUtilization, isExternalActual } from '@/utils/projectFinance'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 
-const props = defineProps<{ projectId: number; summary: FinanceSummary; canManage?: boolean }>()
+const props = defineProps<{ projectId: number; summary: FinanceSummary }>()
 const { t } = useI18n()
 const route = useRoute()
-const hydrated = useHydrated()
 const unknown = computed(() => t('projects.finance.unknown'))
 const currency = computed(() => props.summary.currency)
 const mode = computed(() => financeSummaryMode(props.summary))
@@ -24,7 +23,6 @@ const remainingTone = computed<'neutral' | 'danger' | 'success'>(() => {
   return remaining < 0 ? 'danger' : 'success'
 })
 const charterTo = computed(() => ({ path: `/projects/${props.projectId}/charter`, query: returnToQuery(route.fullPath) }))
-const budgetTo = computed(() => ({ path: `/projects/${props.projectId}/finance/new`, query: { kind: 'budget', ...returnToQuery(route.fullPath) } }))
 const showCharter = computed(() => props.summary.charter_estimate != null)
 const show = computed(() => mode.value !== 'empty' || props.summary.charter_estimate != null)
 </script>
@@ -33,7 +31,6 @@ const show = computed(() => mode.value !== 'empty' || props.summary.charter_esti
   <div v-if="show" data-testid="project-finance-summary" class="grid gap-(--webvue-gap-card)">
     <SharedRecordSection v-if="mode === 'need-budget'" variant="panel" :title="t('projects.finance.actual')">
       <template #actions>
-        <UButton v-if="canManage" icon="i-lucide-plus" :disabled="!hydrated" :to="budgetTo">{{ t('projects.finance.newBudget') }}</UButton>
         <UButton color="neutral" variant="outline" :to="charterTo" :label="t('projects.refresh.finance.viewCharter')" />
       </template>
       <div class="space-y-1">
