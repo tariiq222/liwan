@@ -16,16 +16,17 @@ const meta = {
   component: OrderSettingsCard,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/pages/settings/apps/payments/index.vue:36', 'إعدادات الطلبات الإلكترونية: مهلة دفع الطلب غير المدفوع (للشركة الحالية) وإصدار الفاتورة عند الدفع (للحساب كله)، تُحفظ مع رقم المراجعة ويُعاد التحميل عند التعارض.'),
+    ...storyContext('apps/web/app/pages/settings/apps/payments/index.vue:43', 'إعدادات الطلبات الإلكترونية: مهلة دفع الطلب غير المدفوع (للشركة الحالية) وإصدار الفاتورة عند الدفع (للحساب كله)، تُحفظ مع رقم المراجعة ويُعاد التحميل عند التعارض.'),
     msw: { handlers: { api: [manage, save] } },
   },
-  args: { settings, reloadSettings: async () => changedElsewhere },
+  args: { settings, canEdit: true, reloadSettings: async () => changedElsewhere },
 } satisfies Meta<typeof OrderSettingsCard>
 export default meta
 type Story = StoryObj<typeof meta>
 
 export const Defaults: Story = {}
 export const InvoiceWhenPaidOff: Story = { args: { settings: { ...settings, invoice_when_paid: false } } }
+export const ViewOnly: Story = { args: { canEdit: false } }
 export const Saving: Story = { parameters: { msw: { handlers: { api: [manage, http.patch('/api/v1/payments/settings', async () => { await delay(10_000); return HttpResponse.json({ ...settings, revision: 4 }) })] } } } }
 export const SaveError: Story = refuse(503, { code: 'unavailable', message: 'تعذّر حفظ الإعدادات الآن' })
 export const ExpiryRefused: Story = refuse(422, { code: 'invalid', message: 'المهلة خارج الحدود المسموحة', field: 'unpaid_order_expiry_minutes' })

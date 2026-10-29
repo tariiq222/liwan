@@ -27,11 +27,13 @@ const { mutate: test, isPending: testing } = useTestInboxChannel(() => id.value 
 const { mutate: sync, isPending: syncing } = useSyncInboxTemplates(() => id.value ?? 0)
 const { mutate: remove, isPending: removing } = useDeleteInboxChannel()
 const manage = computed(() => can('inbox.channels.manage'))
+const manageTemplates = computed(() => can('inbox.templates.manage'))
 const busy = computed(() => !hydrated.value || patching.value || testing.value || syncing.value || removing.value)
 
 const NONE = 'none'
 const name = ref('')
 const department = ref(NONE)
+const appId = ref('')
 const accessToken = ref('')
 const appSecret = ref('')
 const confirmingDelete = ref(false)
@@ -39,13 +41,15 @@ watch(channel, (value) => {
   if (!value) return
   name.value = value.name
   department.value = value.department ? String(value.department.id) : NONE
+  appId.value = value.app_id ?? ''
 }, { immediate: true })
 const departmentItems = computed(() => [
   { value: NONE, label: t('inbox.settings.channels.noDepartment') },
   ...(departments.data.value?.items ?? []).map(item => ({ value: String(item.id), label: item.name })),
 ])
-const detailsDirty = computed(() => !!channel.value && (name.value.trim() !== channel.value.name || department.value !== (channel.value.department ? String(channel.value.department.id) : NONE)))
-const detailsValid = computed(() => InboxChannelPatchSchema.safeParse({ name: name.value.trim() }).success)
+const appIdValue = computed(() => appId.value.trim() || null)
+const detailsDirty = computed(() => !!channel.value && (name.value.trim() !== channel.value.name || department.value !== (channel.value.department ? String(channel.value.department.id) : NONE) || appIdValue.value !== channel.value.app_id))
+const detailsValid = computed(() => InboxChannelPatchSchema.safeParse({ name: name.value.trim(), app_id: appIdValue.value }).success)
 const tags = computed(() => channel.value ? [statusTag({ tone: CHANNEL_STATE_TONE[channel.value.state], label: t(`inbox.channelStates.${channel.value.state}`) })] : [])
 const lastEvent = computed(() => channel.value?.last_event_at ? new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(channel.value.last_event_at)) : t('inbox.settings.channels.noEvents'))
 
@@ -54,7 +58,7 @@ function fail(e: unknown) {
 }
 function saveDetails() {
   if (busy.value || !detailsDirty.value || !detailsValid.value) return
-  patch({ name: name.value.trim(), department_id: department.value === NONE ? null : Number(department.value) }, {
+  patch({ name: name.value.trim(), department_id: department.value === NONE ? null : Number(department.value), app_id: appIdValue.value }, {
     onSuccess: () => toast.add({ title: t('inbox.settings.saved'), color: 'success' }),
     onError: fail,
   })
@@ -114,7 +118,8 @@ async function copy(kind: 'callback' | 'token', value: string) {
   >
     <template v-if="channel && manage" #actions>
       <UButton color="neutral" variant="outline" icon="i-lucide-plug-zap" :loading="testing" :disabled="busy" :label="t('inbox.settings.channels.test')" data-testid="inbox-channel-test" @click="runTest" />
-      <UButton color="neutral" variant="outline" icon="i-lucide-refresh-cw" :loading="syncing" :disabled="busy" :label="t('inbox.settings.channels.syncTemplates')" data-testid="inbox-channel-sync" @click="runSync" />
+      <UButton color="neutral" variant="outline" icon="i-lucide-file-text" :to="`/settings/apps/inbox/channels/${channel?.id}/templates`" :disabled="busy" :label="t('inbox.templates.title')" data-testid="inbox-channel-templates" />
+      <UButton v-if="manageTemplates" color="neutral" variant="outline" icon="i-lucide-refresh-cw" :loading="syncing" :disabled="busy" :label="t('inbox.settings.channels.syncTemplates')" data-testid="inbox-channel-sync" @click="runSync" />
     </template>
 
     <template v-if="channel">
@@ -145,6 +150,9 @@ async function copy(kind: 'callback' | 'token', value: string) {
             </UFormField>
             <UFormField :label="t('inbox.settings.channels.department')" :description="t('inbox.settings.channels.departmentHint')">
               <USelect v-model="department" :items="departmentItems" class="w-full" :disabled="busy" />
+            </UFormField>
+            <UFormField :label="t('inbox.settings.channels.appId')" :description="t('inbox.settings.channels.appIdHint')" :error="appIdValue && !detailsValid ? t('inbox.settings.channels.invalid.app_id') : undefined">
+              <UInput v-model="appId" class="w-full" dir="ltr" inputmode="numeric" autocomplete="off" :disabled="busy" data-testid="inbox-channel-edit-app-id" />
             </UFormField>
             <div class="flex justify-end">
               <UButton type="submit" :disabled="busy || !detailsDirty || !detailsValid" :loading="patching" :label="t('app.save')" />

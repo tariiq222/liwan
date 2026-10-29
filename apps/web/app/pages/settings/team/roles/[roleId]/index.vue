@@ -3,6 +3,7 @@ import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import RolePermissionForm from '@/components/access/roles/RolePermissionForm.vue'
 import UserTable from '@/components/access/users/UserTable.vue'
 import { ApiError } from '@/composables/useApi'
+import { accessErrorMessage } from '@/utils/accessErrors'
 import { useAdminUsers } from '@/composables/useAdminUsers'
 import { useAdminPermissionCatalog, useAdminRole, useDeleteAdminRole, useDisableAdminRole, useEnableAdminRole } from '@/composables/useAdminRoles'
 import { ADMIN_PAGE_SIZE, adminListQuery } from '@/composables/adminSettingsPaths'
@@ -49,10 +50,7 @@ async function confirmAction(action: RoleAction) {
     pendingAction.value = null
   } catch (error) {
     pendingAction.value = null
-    if (error instanceof ApiError) {
-      const translated = `access.errors.${error.code}`
-      actionError.value = error.code && t(translated) !== translated ? t(translated) : (error.message || t('errors.generic'))
-    } else actionError.value = t('errors.generic')
+    actionError.value = accessErrorMessage(error, t)
   }
 }
 const roleName = computed(() => role.data.value?.name[locale.value === 'ar' ? 'ar' : 'en'] ?? role.data.value?.name.ar ?? t('access.roles.title'))

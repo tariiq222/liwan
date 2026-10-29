@@ -11,7 +11,7 @@ const items = computed(() => data.value?.items ?? [])
 </script>
 
 <template>
-  <SharedRecordSection variant="list" :title="t('integrations.title')">
+  <SharedRecordSection id="integrations" variant="list" class="webvue-settings-anchor" :title="t('integrations.title')">
     <SharedPageState :loading="isLoading" :error="error" :empty="items.length === 0" :empty-text="t('integrations.empty')" @retry="refetch()">
       <ul class="divide-y divide-default" data-testid="integration-connections">
         <li v-for="item in items" :key="item.id" class="flex min-w-0 flex-wrap items-center justify-between gap-3 px-(--webvue-card-pad-dense) py-3 text-start" :data-testid="`integration-${item.id}`">

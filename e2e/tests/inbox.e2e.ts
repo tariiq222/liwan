@@ -69,3 +69,35 @@ test('an agent opens a conversation, replies, and opens the inbox settings', { t
   await expect(screen.getByRole('heading', 'السياسة العامة')).toBeVisible(slow);
   await expect(screen.getByRole('heading', 'القنوات')).toBeVisible(slow);
 });
+
+test('a manager creates a WhatsApp template and sees it waiting for Meta review', { tags: ['journey', 'inbox'] }, async ({ app, screen, browser }) => {
+  test.skip(process.env.E2E_STACK === 'odoo', 'the template journey runs on the mock stack');
+  const name = `offer_${Date.now().toString(36)}`;
+
+  await app.open('/login');
+  await screen.getByLabel('اسم المستخدم').fill('admin');
+  await screen.getByLabel('كلمة المرور').fill('admin');
+  await screen.getByRole('button', 'دخول').tap();
+  await expect(browser).toHaveURL(/^(?!.*\/login)/, slow);
+
+  // The channel's templates: the seeded ones with the status Meta gave each.
+  await app.open('/settings/apps/inbox/channels/1/templates');
+  await expect(screen.getByText('appointment_reminder')).toBeVisible(slow);
+  await expect(screen.getByText('summer_offer')).toBeVisible(slow);
+
+  // Create one: the name is slugged as typed and the preview follows the body and its example.
+  await screen.getByTestId('inbox-template-create').tap();
+  await expect(browser).toHaveURL(/\/templates\/new/, slow);
+  await screen.getByTestId('inbox-template-name').fill(name);
+  await screen.getByTestId('inbox-template-body').fill('مرحبًا ');
+  await screen.getByTestId('inbox-template-add-variable').tap();
+  await screen.getByTestId('inbox-template-example-0').fill('سارة');
+  await expect(screen.getByTestId('inbox-template-preview-body')).toContainText('مرحبًا سارة');
+  await screen.getByTestId('inbox-template-submit').tap();
+
+  // It opens as a page, in review and read-only, and appears in the list as waiting.
+  await expect(browser).toHaveURL(/\/templates\/\d+$/, slow);
+  await expect(screen.getByTestId('inbox-template-readonly')).toBeVisible(slow);
+  await app.open('/settings/apps/inbox/channels/1/templates?status=pending');
+  await expect(screen.getByText(name)).toBeVisible(slow);
+});

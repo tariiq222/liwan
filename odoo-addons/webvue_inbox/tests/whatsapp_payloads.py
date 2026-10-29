@@ -4,7 +4,7 @@ import hashlib
 import hmac
 import json
 
-from .common import APP_SECRET, PHONE_ID
+from .common import APP_SECRET, BUSINESS_ACCOUNT_ID, PHONE_ID
 
 TIMESTAMP = 1_790_000_000
 
@@ -43,6 +43,11 @@ def payload(phone_id, contacts=None, messages=None, statuses=None):
         if items:
             value[key] = items
     return {'object': 'whatsapp_business_account', 'entry': [{'id': '1', 'changes': [{'field': 'messages', 'value': value}]}]}
+
+
+def template_event(field, value, account_id=BUSINESS_ACCOUNT_ID):
+    """An account-level template webhook (no phone number id): `field` is the webhook field, `value` its object."""
+    return {'object': 'whatsapp_business_account', 'entry': [{'id': account_id, 'changes': [{'field': field, 'value': value}]}]}
 
 
 def body_of(data):

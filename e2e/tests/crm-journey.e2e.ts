@@ -5,8 +5,8 @@ import { expect } from 'e2e';
  * CRM user journey against the mock stack (`npm run e2e`): sign in, import a
  * leads file, call the due opportunity and record "no answer" (the next call is
  * scheduled), then record a sale with a package. The mock CRM keeps state and
- * is reset first; the scratch Odoo seed (tools/e2e_seed.py) grants no CRM role,
- * so this journey is mock-only. Arabic UI, exact steps only, no model calls.
+ * is reset first. The scratch Odoo seed (tools/e2e_seed.py) has the CRM personas
+ * (crm_manager, crm_agent, crm_agent2) but no packages or due calls, so this journey is mock-only. Arabic UI, exact steps only, no model calls.
  */
 const slow = { timeout: 30_000 };
 

@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import type { MaintenanceSnapshot } from '@webvue/contracts'
 import MaintenanceSettings from '../../app/components/settings/MaintenanceSettings.vue'
+import { ApiError } from '../../app/composables/useApi'
 import { storyContext } from '../support/context'
 
 const snapshot: MaintenanceSnapshot = {
@@ -13,10 +14,11 @@ const snapshot: MaintenanceSnapshot = {
 }
 const meta = {
   title: 'Settings/MaintenanceSettings', component: MaintenanceSettings,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/settings/system/index.vue:21'), a11y: { test: 'error' } },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/settings/system/index.vue:25'), a11y: { test: 'error' } },
   args: {
     snapshot,
     savePreference: async value => ({ ...value, id: 1, revision: value.revision + 1 }),
+    reload: async () => snapshot,
     book: async () => undefined,
     updateBooking: async () => undefined,
   },
@@ -26,4 +28,4 @@ type Story = StoryObj<typeof meta>
 export const PublishedUpdates: Story = {}
 export const Empty: Story = { args: { snapshot: { preference: null, releases: { items: [], total: 0 }, bookings: { items: [], total: 0 } } } }
 export const Running: Story = { args: { snapshot: { ...snapshot, bookings: { items: [{ ...snapshot.bookings.items[0]!, status: 'running' }], total: 1 } } } }
-export const FailedSave: Story = { args: { savePreference: async () => { throw new Error('تعذر الحفظ؛ بقيت المسودة لإعادة المحاولة.') } } }
+export const FailedSave: Story = { args: { savePreference: async () => { throw new ApiError(422, 'invalid', 'تعذر الحفظ؛ بقيت المسودة لإعادة المحاولة.') } } }

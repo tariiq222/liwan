@@ -8,12 +8,12 @@ import InboxTagsSection from '@/components/inbox/InboxTagsSection.vue'
 
 // The inbox application's settings: one page of cards under Settings > Applications. A card shows only when the user
 // holds its capability (useSettingsPage). A channel has a page of its own, and connecting one is the create panel
-// over this page, so the cards stay behind it.
+// over this page, so the cards stay behind it. A channel's templates pages are channel pages too.
 const route = useRoute()
 const { t } = useI18n()
 const { shows } = useSettingsPage('inbox')
 const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
-const isChannelPage = computed(() => /^\/settings\/apps\/inbox\/channels\/(?!new$)[^/]+$/.test(normalizedPath.value))
+const isChannelPage = computed(() => /^\/settings\/apps\/inbox\/channels\/(?!new$)[^/]+(?:\/|$)/.test(normalizedPath.value))
 </script>
 
 <template>

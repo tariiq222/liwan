@@ -6,12 +6,12 @@ from pathlib import Path
 from odoo.tests import tagged
 
 from . import whatsapp_payloads as wa
-from .common import MESSAGE_KEYS, PHONE_ID, WebVueInboxCase
+from .common import BUSINESS_ACCOUNT_ID, MESSAGE_KEYS, PHONE_ID, WebVueInboxCase
 from odoo.addons.webvue_inbox.adapters import whatsapp
 
 
 def parsed(payload):
-    return whatsapp.parse_events(payload, PHONE_ID)
+    return whatsapp.parse_events(payload, PHONE_ID, BUSINESS_ACCOUNT_ID)
 
 
 @tagged('post_install', '-at_install', 'webvue')

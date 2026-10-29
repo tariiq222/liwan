@@ -225,7 +225,7 @@ class TestRepliesApi(WebVueInboxCase):
         ):
             self.assertError(self.reply(payload, self.late), 422, 'invalid')
         template = self.env['webvue.inbox.template'].create({
-            'channel_id': self.channel.id, 'name': 'hello', 'language': 'ar', 'status': 'APPROVED', 'body': 'Hi', 'param_count': 0,
+            'channel_id': self.channel.id, 'name': 'hello', 'language': 'ar', 'status': 'approved', 'body': 'Hi',
         })
         result = self.reply({'template_id': template.id, 'params': []}, self.late)
         self.assertEqual((result.status_code, result.json()['kind']), (200, 'template'))

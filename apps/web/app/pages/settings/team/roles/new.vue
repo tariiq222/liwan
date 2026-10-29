@@ -7,6 +7,7 @@ import { useAdminPermissionCatalog, useAdminRole, useCreateAdminRole } from '@/c
 import { adminListQuery } from '@/composables/adminSettingsPaths'
 import { permissionDomainLabel, builtinRoleDescription } from '@/utils/labelFallback'
 import { saveErrorMessage } from '@/utils/formFeedback'
+import { accessErrorMessage } from '@/utils/accessErrors'
 
 const { t, te, locale } = useI18n()
 const domainLabel = (domain: string) => permissionDomainLabel(domain, t, te)
@@ -75,10 +76,7 @@ function togglePermission(key: Capability, checked: boolean) {
 
 function showError(error: unknown) {
   if (error instanceof ApiError && error.status === 0) return saveErrorMessage(error, t('errors.generic'), t('errors.saveUncertain'))
-  if (!(error instanceof ApiError)) return t('errors.generic')
-  if (error.status === 409 || error.code === 'conflict') return t('access.errors.conflict')
-  const translated = `access.errors.${error.code}`
-  return error.code && t(translated) !== translated ? t(translated) : (error.message || t('errors.generic'))
+  return accessErrorMessage(error, t)
 }
 
 let submitting = false

@@ -43,6 +43,21 @@ def dump_attachment(attachment):
     return {'id': attachment.id, 'name': attachment.name, 'mimetype': attachment.mimetype, 'size': attachment.file_size}
 
 
+def dump_message_template(message):
+    """A sent template as the thread shows it: the name and the parts around the rendered body."""
+    buttons = [
+        {'type': 'copy_code' if button.kind == 'otp' else button.kind,
+         'text': (button.value if button.kind == 'copy_code' else button.text) or ''}
+        for button in message.template_button_ids.sorted('position')
+    ]
+    return {
+        'name': message.template_name,
+        'header_text': message.template_header_text or None,
+        'footer': message.template_footer or None,
+        'buttons': buttons,
+    }
+
+
 def dump_messages(messages):
     """Message shapes in input order; the attachments of the page are read with one search."""
     attachments = defaultdict(list)
@@ -60,14 +75,14 @@ def dump_message(message, attachments):
         'kind': message.kind,
         'body': message.body,
         'author': dump_ref(message.author_id),
-        'template_name': message.template_name or None,
+        'template': dump_message_template(message) if message.template_name else None,
         'delivery_state': message.delivery_state,
         'error': message.error or None,
         'attachments': attachments,
         'reply_to': {'id': message.reply_to_id.id, 'preview': message.reply_to_id._webvue_reply_preview()}
         if message.reply_to_id else None,
         'reactions': {'customer': message.customer_reaction or None, 'agent': message.agent_reaction or None},
-        'location': message._webvue_location() if message.kind == 'location' else None,
+        'location': message._webvue_location() if message.kind == 'location' or message.template_header == 'location' else None,
         'interactive': message._webvue_interactive() if message.interactive_type else None,
         'selected_option': {'id': message.selected_option_id, 'title': message.selected_option_title or ''}
         if message.selected_option_id else None,

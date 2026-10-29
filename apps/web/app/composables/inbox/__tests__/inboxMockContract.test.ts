@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   InboxAttachmentSchema, InboxCannedReplyListSchema, InboxChannelListSchema, InboxChannelSchema, InboxConversationDetailSchema, InboxConversationListSchema,
-  InboxDepartmentListSchema, InboxMessageListSchema, InboxMessageSchema, InboxSettingsSchema, InboxTagListSchema, InboxTemplateListSchema,
+  InboxDepartmentListSchema, InboxMessageListSchema, InboxMessageSchema, InboxRefSchema, InboxSettingsSchema, InboxTagListSchema, InboxTemplateListSchema, InboxTemplateSchema,
 } from '@webvue/contracts'
 import { inboxPreviewData, resetInboxPreview } from '../../../../e2e/inbox-ui-preview-data.mjs'
 
@@ -19,11 +19,12 @@ describe('inbox audit mock', () => {
     expect(InboxConversationDetailSchema.parse(call('GET', '/api/v1/inbox/conversations/1').body).can_reply).toBe(true)
     expect(InboxMessageListSchema.parse(call('GET', '/api/v1/inbox/conversations/1/messages').body).items.length).toBeGreaterThan(0)
     expect(InboxCannedReplyListSchema.parse(call('GET', '/api/v1/inbox/canned-replies').body).total).toBe(2)
-    expect(InboxTemplateListSchema.parse(call('GET', '/api/v1/inbox/channels/1/templates').body).total).toBe(2)
+    expect(InboxTemplateListSchema.parse(call('GET', '/api/v1/inbox/channels/1/templates').body).total).toBe(6)
     expect(InboxTagListSchema.parse(call('GET', '/api/v1/inbox/tags').body).total).toBe(3)
     expect(InboxDepartmentListSchema.parse(call('GET', '/api/v1/inbox/departments').body).total).toBe(2)
     expect(InboxSettingsSchema.parse(call('GET', '/api/v1/settings/inbox').body).visibility_policy).toBe('department')
     expect(InboxChannelListSchema.parse(call('GET', '/api/v1/inbox/channels').body).total).toBe(1)
+    expect(InboxRefSchema.parse(call('GET', '/api/v1/inbox/channels/1/ref').body).id).toBe(1)
   })
 
   it('filters the list like the server', () => {
@@ -37,7 +38,7 @@ describe('inbox audit mock', () => {
   it('refuses free text after the window and accepts an approved template', () => {
     expect(call('POST', '/api/v1/inbox/conversations/2/messages', { body: 'مرحبا' }).status).toBe(422)
     expect(call('POST', '/api/v1/inbox/conversations/2/messages', { template_id: 1, params: ['فهد'] }).status).toBe(422)
-    const sent = call('POST', '/api/v1/inbox/conversations/2/messages', { template_id: 1, params: ['فهد', 'الخميس'] })
+    const sent = call('POST', '/api/v1/inbox/conversations/2/messages', { template_id: 1, params: ['فهد', 'الخميس'], button_params: [{ index: 1, value: '4521' }] })
     expect(InboxMessageSchema.parse(sent.body).delivery_state).toBe('queued')
     expect(call('POST', '/api/v1/inbox/conversations/1/messages', { body: 'مرحبا' }).status).toBe(200)
   })
@@ -117,5 +118,73 @@ describe('inbox audit mock', () => {
   it('refuses an assignee who is not an agent', () => {
     expect(call('PATCH', '/api/v1/inbox/conversations/4', { assignee_id: 999 }).status).toBe(422)
     expect(InboxConversationDetailSchema.parse(call('PATCH', '/api/v1/inbox/conversations/4', { assignee_id: 5, state: 'pending', tag_ids: [1, 2] }).body).tags).toHaveLength(2)
+  })
+
+  describe('templates', () => {
+    const write = (extra: object = {}) => ({
+      name: 'new_template', language: 'ar', category: 'utility', allow_category_change: true, header: null, body: 'مرحبا {{1}}', body_examples: ['فهد'], footer: null, buttons: [], ...extra,
+    })
+    const sendTo = (body: object) => call('POST', '/api/v1/inbox/conversations/2/messages', body)
+
+    it('serves every template in the contract shape and filters by status, category and name', () => {
+      const ids = (query: string) => InboxTemplateListSchema.parse(call('GET', `/api/v1/inbox/channels/1/templates?${query}`).body).items.map(item => item.id)
+      expect(ids('')).toEqual([1, 2, 3, 4, 5, 6])
+      expect(ids('status=approved')).toEqual([1, 2, 4, 6])
+      expect(ids('status=rejected')).toEqual([3])
+      expect(ids('category=authentication')).toEqual([4])
+      expect(ids('q=follow')).toEqual([2])
+      expect(InboxTemplateSchema.parse(call('GET', '/api/v1/inbox/templates/3').body).status_reason).toContain('Meta')
+      expect(call('GET', '/api/v1/inbox/templates/99').status).toBe(404)
+    })
+
+    it('creates a pending template, refuses a duplicate or a Meta rejection with the message and field', () => {
+      const created = call('POST', '/api/v1/inbox/channels/1/templates', write())
+      expect(created.status).toBe(201)
+      expect(InboxTemplateSchema.parse(created.body)).toMatchObject({ status: 'pending', param_count: 1, editable: false })
+      expect(call('POST', '/api/v1/inbox/channels/1/templates', write()).body).toMatchObject({ code: 'invalid', field: 'name' })
+      expect(call('POST', '/api/v1/inbox/channels/1/templates', write({ name: 'other', body: 'forbidden {{1}}' })).body).toMatchObject({ field: 'body' })
+    })
+
+    it('stores Meta\'s fixed text for an authentication template', () => {
+      const auth = call('POST', '/api/v1/inbox/channels/1/templates', { name: 'otp', language: 'ar', category: 'authentication', add_security_recommendation: false, code_expiration_minutes: 5, otp_button_text: 'نسخ' })
+      expect(InboxTemplateSchema.parse(auth.body)).toMatchObject({ category: 'authentication', param_count: 1, buttons: [], otp_button_text: 'نسخ', footer: expect.stringContaining('5') })
+    })
+
+    it('needs the app id and a sample file for a media header', () => {
+      const sample = call('POST', '/api/v1/inbox/channels/1/templates/uploads', { name: 'a.png', mimetype: 'image/png', data: 'aGVsbG8=' })
+      expect(sample.status).toBe(201)
+      const header = { type: 'image', example_attachment_id: (sample.body as { id: number }).id }
+      expect(InboxTemplateSchema.parse(call('POST', '/api/v1/inbox/channels/1/templates', write({ header })).body).header).toMatchObject({ type: 'image' })
+      expect(call('POST', '/api/v1/inbox/channels/1/templates', write({ name: 'x2', header: { type: 'image', example_attachment_id: 999 } })).body).toMatchObject({ field: 'header' })
+      call('PATCH', '/api/v1/inbox/channels/1', { app_id: null })
+      expect(call('POST', '/api/v1/inbox/channels/1/templates', write({ name: 'x3', header })).body).toMatchObject({ field: 'app_id' })
+    })
+
+    it('flags a template WebVue cannot fill, and refuses to edit or send it', () => {
+      const items = InboxTemplateListSchema.parse(call('GET', '/api/v1/inbox/channels/1/templates').body).items
+      expect(items.filter(item => !item.supported).map(item => item.id)).toEqual([6])
+      expect(call('PATCH', '/api/v1/inbox/templates/6', write({ name: 'named_greeting' })).status).toBe(422)
+      expect(sendTo({ template_id: 6, params: [] }).status).toBe(422)
+    })
+
+    it('edits an editable template, refuses a rename and a locked template, and deletes', () => {
+      expect(InboxTemplateSchema.parse(call('PATCH', '/api/v1/inbox/templates/3', write({ name: 'summer_offer', body: 'جديد' , body_examples: [] })).body).status).toBe('pending')
+      expect(call('PATCH', '/api/v1/inbox/templates/2', write({ name: 'renamed' })).body).toMatchObject({ field: 'name' })
+      expect(call('PATCH', '/api/v1/inbox/templates/5', write({ name: 'weekly_digest' })).status).toBe(422)
+      expect(call('DELETE', '/api/v1/inbox/templates/2').status).toBe(204)
+      expect(call('GET', '/api/v1/inbox/templates/2').status).toBe(404)
+    })
+
+    it('sends only an approved template with its header and button values', () => {
+      expect(sendTo({ template_id: 5, params: ['1'] }).status).toBe(422)
+      expect(sendTo({ template_id: 1, params: ['فهد', 'الخميس'] }).body).toMatchObject({ field: 'button_params' })
+      const reminder = InboxMessageSchema.parse(sendTo({ template_id: 1, params: ['فهد', 'الخميس'], button_params: [{ index: 1, value: '4521' }] }).body)
+      expect(reminder.template).toMatchObject({ name: 'appointment_reminder', header_text: 'تذكير بموعدك', footer: 'عيادة الأمل', buttons: [{ type: 'quick_reply' }, { type: 'url' }] })
+      expect(sendTo({ template_id: 2, params: [] }).body).toMatchObject({ field: 'header_attachment_id' })
+      const file = call('POST', '/api/v1/inbox/conversations/2/uploads', { name: 'a.png', mimetype: 'image/png', data: 'aGVsbG8=' }).body as { id: number }
+      const withImage = InboxMessageSchema.parse(sendTo({ template_id: 2, params: [], header_attachment_id: file.id }).body)
+      expect(withImage.attachments).toHaveLength(1)
+      expect(sendTo({ template_id: 4, params: ['918273'] }).status).toBe(200)
+    })
   })
 })

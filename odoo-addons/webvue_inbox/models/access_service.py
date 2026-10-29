@@ -7,8 +7,9 @@ ASSIGN = 'inbox.conversations.assign'
 EXPORT = 'inbox.conversations.export'
 MANAGE_CHANNELS = 'inbox.channels.manage'
 MANAGE_SETTINGS = 'inbox.settings.manage'
+MANAGE_TEMPLATES = 'inbox.templates.manage'
 
-PERMISSIONS = frozenset({READ, REPLY, ASSIGN, EXPORT, MANAGE_CHANNELS, MANAGE_SETTINGS})
+PERMISSIONS = frozenset({READ, REPLY, ASSIGN, EXPORT, MANAGE_CHANNELS, MANAGE_SETTINGS, MANAGE_TEMPLATES})
 PERMISSION_DEPENDENCIES = {
     REPLY: {READ},
     ASSIGN: {READ},
