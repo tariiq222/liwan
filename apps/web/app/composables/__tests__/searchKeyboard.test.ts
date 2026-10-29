@@ -28,6 +28,12 @@ describe('global search keyboard handler', () => {
     expect(findSearchShortcut({ key: 'x', target }, '', shortcuts)).toBeUndefined()
   })
 
+  it('jumps while the empty field is not focused (focus rests on a link or the page body)', () => {
+    const link = { tagName: 'A', closest: () => null }
+    expect(findSearchShortcut({ key: '1', target: link }, '', shortcuts)).toEqual(shortcuts[0])
+    expect(findSearchShortcut({ key: 's', code: 'KeyS', target: link }, '', shortcuts)).toEqual(shortcuts[1])
+  })
+
   it('matches an Arabic layout by key position and skips keys the shell already used', () => {
     const target = { tagName: 'BODY', closest: () => null }
     expect(findSearchShortcut({ key: 'س', code: 'KeyS', target }, '', shortcuts)).toEqual(shortcuts[1])

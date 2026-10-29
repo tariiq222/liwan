@@ -2,7 +2,7 @@
 import type { RouteLocationRaw } from 'vue-router'
 import type { HrCompensation } from '@webvue/contracts'
 import { formatDate } from '@webvue/ui/app/utils/formatDate'
-import { formatPayrollAmount } from '@/utils/payrollFormat'
+import { formatPayrollAmount, payrollCurrencyLabel } from '@/utils/payrollFormat'
 
 // The compensation block of the employee record: wage, allowances, bank account and GOSI facts.
 // A null record means nothing is recorded yet. The page owns the query and decides who sees this.
@@ -14,7 +14,7 @@ const props = defineProps<{
 
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
-const money = (value: number) => `${formatPayrollAmount(value, locale.value)} ${t('hrPayroll.currency')}`
+const money = (value: number) => `${formatPayrollAmount(value, locale.value)} ${payrollCurrencyLabel(props.compensation?.currency ?? 'SAR', t('hrPayroll.currency'))}`
 const relationshipItems = usePayrollRelationshipItems()
 const relationshipLabel = (value: string) => relationshipItems.value.find(item => item.value === value)?.label
 const editLabel = computed(() => t(props.compensation ? 'hrPayroll.compensation.edit' : 'hrPayroll.compensation.add'))

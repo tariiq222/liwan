@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addCalendarDays, buildScheduleAxis, daysBetween, formatScheduleDate, scheduleBarStyle, scheduleColumnSpan, scheduleDatePosition, scheduleFocusDate } from '../projectSchedule'
+import { addCalendarDays, addCalendarMonths, scheduleColumnLastDay, buildScheduleAxis, daysBetween, formatScheduleDate, scheduleBarStyle, scheduleColumnSpan, scheduleDatePosition, scheduleFocusDate } from '../projectSchedule'
 import { isCalendarDate } from '@webvue/ui/app/composables/calendarDate'
 
 const task = { id: 1, name: 'Build', start: '2030-01-05', end: '2030-01-12', state: 'in_progress' as const, dependency_ids: [], milestone_id: null }
@@ -68,5 +68,46 @@ describe('scheduleColumnSpan', () => {
     expect([1, 2, 3, 10, 11, 100].map(n => scheduleColumnSpan({ unitDays: n * 7 }, 'week', 'ar').form))
       .toEqual(['one', 'two', 'few', 'few', 'many', 'other'])
     expect([1, 11].map(n => scheduleColumnSpan({ unitDays: n * 30 }, 'month', 'en').form)).toEqual(['one', 'other'])
+  })
+})
+
+describe('calendar-month schedule columns', () => {
+  it('starts every column on the 1st of a month', () => {
+    const axis = buildScheduleAxis([], [], 'month', { start: '2026-10-01', end: '2027-03-31' })
+    expect(axis.dates).toEqual(['2026-10-01', '2026-11-01', '2026-12-01', '2027-01-01', '2027-02-01', '2027-03-01'])
+    expect(axis.end).toBe('2027-04-01')
+    expect(axis.totalDays).toBe(daysBetween('2026-10-01', '2027-04-01'))
+  })
+
+  it('opens on the 1st of the first month even when the first date is mid-month', () => {
+    const axis = buildScheduleAxis([{ ...task, start: '2030-01-17', end: '2030-02-03' }], [], 'month')
+    expect(axis.start).toBe('2030-01-01')
+    expect(axis.dates).toEqual(['2030-01-01', '2030-02-01'])
+  })
+
+  it('rolls over the year and ends each column on its own last day', () => {
+    expect(addCalendarMonths('2026-11-15', 2)).toBe('2027-01-01')
+    expect(addCalendarMonths('2026-12-01', 13)).toBe('2028-01-01')
+    const axis = buildScheduleAxis([], [], 'month', { start: '2027-01-10', end: '2027-03-02' })
+    expect(axis.dates.map((_, index) => scheduleColumnLastDay(axis, index))).toEqual(['2027-01-31', '2027-02-28', '2027-03-31'])
+  })
+
+  it('places a date inside its own month column, not on a 30-day step', () => {
+    const axis = buildScheduleAxis([], [], 'month', { start: '2026-10-01', end: '2026-12-31' })
+    const at = (date: string) => Number.parseFloat(String(scheduleDatePosition(date, axis).insetInlineStart))
+    expect(at('2026-11-01')).toBeCloseTo(100 / 3, 6)
+    expect(at('2026-12-01')).toBeCloseTo(200 / 3, 6)
+    expect(at('2026-10-16')).toBeCloseTo((15 / 31) * (100 / 3), 6)
+    expect(at('2027-01-01')).toBe(100)
+    const bar = scheduleBarStyle({ start: '2026-11-01', end: '2026-11-30' }, axis)
+    expect(Number.parseFloat(String(bar.width))).toBeCloseTo(100 / 3, 6)
+  })
+
+  it('groups months once a project needs more than 48 columns', () => {
+    const axis = buildScheduleAxis([], [], 'month', { start: '2026-01-01', end: '2035-12-31' })
+    expect(axis.dates.length).toBeLessThanOrEqual(48)
+    expect(axis.unitDays).toBe(90)
+    expect(scheduleColumnSpan(axis, 'month', 'en')).toMatchObject({ unit: 'month', count: 3 })
+    expect(axis.dates.slice(0, 2)).toEqual(['2026-01-01', '2026-04-01'])
   })
 })

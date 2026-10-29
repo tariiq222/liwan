@@ -13,6 +13,7 @@ import { errorStateKind } from '@webvue/ui/app/utils/errorState'
 import { currentListView, listViewQuery } from '@webvue/ui/app/utils/listView'
 import { useRowNavigation } from '@webvue/ui/app/composables/useRowNavigation'
 import {
+  lastPageOffset,
   listPatch,
   MY_TASK_SCOPES,
   MY_TASK_SORTS,
@@ -45,11 +46,6 @@ const total = computed(() => displayed.value?.total ?? 0)
 const countTags = computed(() => displayed.value ? [{ label: t('myTasks.list.countTag', { count: total.value }, total.value), kind: 'count' as const }] : [])
 const page = computed(() => Math.floor(state.value.offset / MY_TASK_PAGE_SIZE) + 1)
 const pages = computed(() => Math.ceil(total.value / MY_TASK_PAGE_SIZE))
-watch([query.data, query.isFetching], ([data, fetching]) => {
-  if (!data || fetching) return
-  const last = Math.max(0, Math.ceil(data.total / MY_TASK_PAGE_SIZE) - 1) * MY_TASK_PAGE_SIZE
-  if (state.value.offset > last) update({ offset: last })
-})
 
 // The local date is unknown on the server and can differ from the browser's: it is read after mount (so
 // hydration matches, with no overdue styling during SSR) and again when the tab becomes visible.
@@ -98,6 +94,13 @@ function settleNavigation(to: RouteLocationNormalized) {
 const stopAfterEach = router.afterEach(to => settleNavigation(to))
 const stopOnError = router.onError((_error, to) => settleNavigation(to))
 onScopeDispose(() => { disposed = true; stopNavigationStart(); stopAfterEach(); stopOnError() })
+// A past-the-end offset jumps to the last page. Immediate and after hydration, because a list that arrived with the
+// server render never changes `data` or `isFetching` on the client, so a plain watcher would never see it.
+watch([query.data, query.isFetching, hydrated], ([data, fetching, ready]) => {
+  if (!data || fetching || !ready) return
+  const last = lastPageOffset(data.total)
+  if (state.value.offset > last) update({ offset: last })
+}, { immediate: true })
 function flushSearch() {
   if (disposed || pendingNavigation || writesInFlight || !isCurrentList() || pendingSearch === null) return
   const next = pendingSearch

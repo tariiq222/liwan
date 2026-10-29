@@ -84,6 +84,10 @@ class ProjectTaskSchedule(models.Model):
             raise ValidationError(self.env._("Schedule start and end must be set together."))
         if start and end and start > end:
             raise ValidationError(self.env._("Schedule start must be on or before the end date."))
+        if start and project.date_start and start < project.date_start:
+            raise ValidationError(self.env._("Schedule start must be on or after the project start date."))
+        if end and project.date and end > project.date:
+            raise ValidationError(self.env._("Schedule end must be on or before the project end date."))
         marker = self.env.cr.precommit.data
         previous_depth = marker.get(SCHEDULE_WRITE_MARKER)
         marker[SCHEDULE_WRITE_MARKER] = (previous_depth or 0) + 1

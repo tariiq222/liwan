@@ -63,9 +63,21 @@ class TestAttachmentUpload(TransactionCase):
         self.assertInvalid(upload(PDF, mimetype=5), 'mimetype', 'mimetype must be a string')
         self.assertInvalid(upload(PDF, mimetype='text/html'), 'mimetype', 'mimetype is not allowed')
 
+    def test_name_length_and_extension_must_fit_the_file(self):
+        self.assertEqual(parse_attachment_upload(upload(PDF, name='a' * 251 + '.pdf'))['name'], 'a' * 251 + '.pdf')
+        self.assertInvalid(upload(PDF, name='a' * 252 + '.pdf'), 'name', 'name must be at most 255 characters')
+        # Text content named like a PDF is refused whatever the hint says; an unfixed extension is not checked.
+        self.assertInvalid(
+            upload(b'abc', name='x.pdf', mimetype='text/plain'), 'name', 'the file extension does not match the file content',
+        )
+        self.assertInvalid(upload(PNG, name='photo.JPG'), 'name', 'the file extension does not match the file content')
+        self.assertEqual(parse_attachment_upload(upload(b'a,b', name='table.csv'))['mimetype'], 'text/plain')
+        self.assertEqual(parse_attachment_upload(upload(PDF, name='NOTES'))['mimetype'], 'application/pdf')
+
     def test_data_is_bounded_decoded_and_sniffed(self):
         self.assertInvalid({'name': 'a.pdf'}, 'data', 'data is required')
-        self.assertInvalid({'name': 'a.pdf', 'data': '   '}, 'data', 'data is required')
+        self.assertInvalid({'name': 'a.pdf', 'data': ''}, 'data', 'the file is empty')
+        self.assertInvalid({'name': 'a.pdf', 'data': '   '}, 'data', 'the file is empty')
         self.assertInvalid({'name': 'a.pdf', 'data': 'abc$'}, 'data', 'data must be valid base64')
         self.assertInvalid(
             {'name': 'a.pdf', 'data': 'A' * (MAX_ENCODED_CHARS + 4)}, 'data',

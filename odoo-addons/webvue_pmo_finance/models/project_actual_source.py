@@ -11,7 +11,7 @@ from collections import defaultdict
 from decimal import Decimal
 
 from odoo import api, models
-from odoo.exceptions import MissingError
+from odoo.exceptions import AccessError, MissingError
 
 from .project_project import FINANCE_FEATURE
 from odoo.addons.webvue_api.controllers.common import ApiError
@@ -106,7 +106,8 @@ class WebVueProjectActualSource(models.AbstractModel):
     def _webvue_set_actual_account(self, project, account_id):
         if not self.env['webvue.entitlement.service']._webvue_feature_write(FINANCE_FEATURE):
             raise MissingError(self.env._("This project has no external actual cost."))
-        self.env['webvue.access.service']._webvue_require_capability(MANAGE_CAPABILITY, record=project)
+        if not self._webvue_has_capability(MANAGE_CAPABILITY, project):
+            raise AccessError(self.env._("Choosing the cost center of a project needs the finance.analytic.manage permission."))
         current = project.webvue_cost_center_ids
         if account_id is None:
             current.webvue_project_id = False

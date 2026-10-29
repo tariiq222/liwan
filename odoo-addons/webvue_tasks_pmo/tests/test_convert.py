@@ -71,6 +71,21 @@ class TestMyTaskConvert(WebVueTasksCase):
 
     # convert
 
+    def test_a_tasks_only_role_is_refused_with_403_before_the_project_is_checked(self):
+        user = new_test_user(self.env, login='tasks_only', password='tasks_only_pass_123', groups='base.group_user')
+        permissions = self.env['webvue.access.permission'].search([('key', 'in', ROLE_KEYS[:3])])
+        role = self.env['webvue.access.role'].create({
+            'name_ar': 'tasks only', 'permission_ids': [Command.set(permissions.ids)],
+        })
+        self.env['webvue.access.assignment'].create({
+            'user_id': user.id, 'role_id': role.id, 'company_id': self.env.company.id,
+        })
+        task = self._service(user)._create_task({'name': 'Mine'})
+        self._login(user)
+        for response in (self._convert(task, project=self.project), self.api('GET', TARGETS_URL)):
+            self._error(response, 403, 'forbidden')
+            self.assertEqual(response.json()['message'], 'pmo.projects.read capability is required')
+
     def test_convert_moves_subtasks_and_attachments(self):
         service = self._service(self.alice)
         parent = service._create_task({

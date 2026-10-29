@@ -56,6 +56,10 @@ describe('access policy navigation', () => {
     expect(postLoginPath({ capabilities: [] }, '/settings/appearance')).toBe('/')
     expect(postLoginPath({ capabilities: [] }, '/settings/company')).toBe('/')
   })
+  it('lands on / for a forbidden next while the identity is not loaded yet', () => {
+    expect(postLoginPath(null, '/finance/partners')).toBe('/')
+    expect(postLoginPath(undefined, undefined)).toBe('/')
+  })
   it('sends a user to a settings page when any of its cards is theirs, not only the first', () => {
     expect(postLoginPath({ capabilities: ['settings.branding.manage'] }, '/settings/company')).toBe('/settings/company')
     expect(postLoginPath({ capabilities: ['settings.maintenance.manage'] }, '/settings/system')).toBe('/settings/system')

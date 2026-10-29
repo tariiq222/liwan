@@ -40,7 +40,6 @@ function capture(group: string, target: 'container' | 'content', element: unknow
             class="webvue-module-rail-link"
             :data-active="item.id === props.activeId"
             :aria-current="item.id === props.activeId ? 'page' : undefined"
-            :aria-label="t(item.labelKey)"
             :title="t(item.labelKey)"
           >
             <span data-slot="icon" class="webvue-module-rail-icon" aria-hidden="true"><UIcon :name="item.icon" class="webvue-shell-icon" /></span>

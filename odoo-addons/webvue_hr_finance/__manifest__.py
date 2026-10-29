@@ -16,6 +16,7 @@
     'data': [
         'security/ir.model.access.csv',
         'security/payroll_finance_rules.xml',
+        'data/payroll_finance_roles.xml',
     ],
     'auto_install': True,
     'installable': True,

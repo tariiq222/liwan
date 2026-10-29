@@ -32,6 +32,8 @@ export type PaletteItemAction =
 export interface PaletteItem {
   id: string
   label: string
+  /** A second line after the label (the account's tax number, the invoice's party). */
+  suffix?: string
   icon?: string
   to?: RouteLocationRaw
   kbds?: string[]
@@ -143,6 +145,7 @@ export function paletteGroups(input: {
     const items: PaletteItem[] = section.rows.slice(0, PALETTE_SECTION_LIMIT).map(row => ({
       id: `search:${section.id}:${row.id}`,
       label: row.label,
+      suffix: row.caption,
       icon: section.icon,
       to: { path: row.to, query: { returnTo: input.returnTo } },
     }))

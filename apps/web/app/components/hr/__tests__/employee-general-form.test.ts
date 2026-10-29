@@ -95,4 +95,15 @@ describe('EmployeeGeneralForm production setup', () => {
     expect(items).toEqual([{ value: 66, label: 'Egypt' }, { value: 192, label: 'Saudi Arabia' }])
     expect((state.nationalityId as Vue.Ref<number | null>).value).toBe(66)
   })
+  it('accepts the number a number input emits for the notice period', () => {
+    const component = loadComponent()
+    const props = Vue.reactive({ employee: null, departments: [], employees: [] })
+    const state = component.setup(props, { emit: () => {}, expose: () => {} })
+    const notice = state.noticeDays as Vue.Ref<string | number>
+    const valid = state.noticeValid as Vue.ComputedRef<boolean>
+    notice.value = 30
+    expect(valid.value).toBe(true)
+    notice.value = ''
+    expect(valid.value).toBe(false)
+  })
 })

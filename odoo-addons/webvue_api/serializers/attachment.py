@@ -4,6 +4,7 @@ application that stores a user-uploaded file as a binary ``ir.attachment``.
 HR documents keep their own, looser parser and shape."""
 import base64
 import binascii
+from pathlib import PurePosixPath
 
 from odoo.tools.mimetypes import guess_mimetype
 
@@ -22,6 +23,18 @@ ALLOWED_MIMETYPES = frozenset({
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 })
 GENERIC_MIMETYPE = 'application/octet-stream'
+MAX_NAME_CHARS = 255
+# The extensions whose type is fixed: a file named like one of them must hold that kind of content,
+# whatever the client's mimetype hint says.
+EXTENSION_MIMETYPES = {
+    '.txt': 'text/plain',
+    '.pdf': 'application/pdf',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+}
 UPLOAD_FIELDS = frozenset({'name', 'mimetype', 'data'})
 
 
@@ -50,6 +63,8 @@ def _parse_name(value):
     name = value.strip()
     if '\x00' in name or '/' in name or '\\' in name or name in {'.', '..'}:
         raise ApiError(422, 'invalid', 'name must be a basename', field='name')
+    if len(name) > MAX_NAME_CHARS:
+        raise ApiError(422, 'invalid', f'name must be at most {MAX_NAME_CHARS} characters', field='name')
     return name
 
 
@@ -72,8 +87,10 @@ def parse_attachment_upload(payload):
     name = _parse_name(payload.get('name'))
     hinted_mimetype = _parse_mimetype(payload.get('mimetype'))
     data = payload.get('data')
-    if not isinstance(data, str) or not data.strip():
+    if not isinstance(data, str):
         raise ApiError(422, 'invalid', 'data is required', field='data')
+    if not data.strip():
+        raise ApiError(422, 'invalid', 'the file is empty', field='data')
     if len(data) > MAX_ENCODED_CHARS:
         raise ApiError(422, 'invalid', 'attachment data exceeds the encoded size limit', field='data')
     cleaned = ''.join(data.split())
@@ -84,13 +101,16 @@ def parse_attachment_upload(payload):
     except (binascii.Error, ValueError):
         raise ApiError(422, 'invalid', 'data must be valid base64', field='data') from None
     if not raw:
-        raise ApiError(422, 'invalid', 'data must contain a non-empty file', field='data')
+        raise ApiError(422, 'invalid', 'the file is empty', field='data')
     if len(raw) > MAX_ATTACHMENT_BYTES:
         raise ApiError(422, 'invalid', 'attachment exceeds 10MB', field='data')
 
     detected = (guess_mimetype(raw) or GENERIC_MIMETYPE).lower().split(';', 1)[0].strip()
     if detected not in ALLOWED_MIMETYPES:
         raise ApiError(422, 'invalid', 'file type is not allowed', field='data')
+    expected = EXTENSION_MIMETYPES.get(PurePosixPath(name).suffix.lower())
+    if expected not in (None, detected):
+        raise ApiError(422, 'invalid', 'the file extension does not match the file content', field='name')
     # The client MIME is only a checked hint. The sniffed bytes decide the
     # server response so a filename or browser hint cannot make unsafe data
     # acceptable; application/octet-stream is the normal empty browser hint.

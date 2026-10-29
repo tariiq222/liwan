@@ -12,6 +12,7 @@ describe('rowMove', () => {
   it.each([
     [{ key: 'j', code: 'KeyJ' }, 'j'], [{ key: 'k', code: 'KeyK' }, 'k'],
     [{ key: 'ت', code: 'KeyJ' }, 'j'], [{ key: 'ن', code: 'KeyK' }, 'k'],
+    [{ key: 'ArrowDown', code: 'ArrowDown' }, 'j'], [{ key: 'ArrowUp', code: 'ArrowUp' }, 'k'],
   ] as const)('%o moves %s', (patch, move) => {
     expect(rowMove(ev(patch), ready)).toBe(move)
   })
@@ -24,6 +25,22 @@ describe('rowMove', () => {
     ['another key', { key: 'x', code: 'KeyX' }],
   ] as const)('ignores %s', (_label, patch) => {
     expect(rowMove(ev(patch), ready)).toBeNull()
+  })
+
+  it.each([
+    ['an input', { tagName: 'INPUT' }],
+    ['a select', { tagName: 'SELECT' }],
+    ['a textarea', { tagName: 'TEXTAREA' }],
+    ['a combobox trigger', { tagName: 'BUTTON', closest: (s: string) => (s.includes('combobox') ? {} : null) }],
+  ] as const)('leaves the arrows to %s', (_label, target) => {
+    expect(rowMove(ev({ key: 'ArrowDown', code: 'ArrowDown', target }), ready)).toBeNull()
+    expect(rowMove(ev({ key: 'ArrowUp', code: 'ArrowUp', target }), ready)).toBeNull()
+  })
+
+  it('leaves the arrows alone with a modifier, with Shift, or while a menu is open', () => {
+    expect(rowMove(ev({ key: 'ArrowDown', code: 'ArrowDown', altKey: true }), ready)).toBeNull()
+    expect(rowMove(ev({ key: 'ArrowDown', code: 'ArrowDown', shiftKey: true }), ready)).toBeNull()
+    expect(rowMove(ev({ key: 'ArrowDown', code: 'ArrowDown' }), { hydrated: true, overlayOpen: true })).toBeNull()
   })
 
   it('still moves from a row that lives inside a grid, but not from a plain grid cell', () => {
