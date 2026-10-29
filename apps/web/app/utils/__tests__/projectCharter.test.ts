@@ -3,6 +3,7 @@ import { ApiError } from '../../composables/useApi'
 import type { ProjectDetail } from '@webvue/contracts'
 import {
   CHARTER_FIELD_KEYS,
+  formatCharterAmount,
   canOverwriteWithLatest,
   charterWriteFromDraft,
   charterCreateBody,
@@ -385,5 +386,17 @@ describe('charter submit decisions', () => {
     expect(sponsorMissingForSubmit(true, false, 7)).toBe(false)
     expect(sponsorMissingForSubmit(false, false, null)).toBe(false)
     expect(sponsorMissingForSubmit(true, true, null)).toBe(false)
+  })
+})
+
+describe('formatCharterAmount', () => {
+  it('groups thousands, keeps two decimals and puts a space before the currency', () => {
+    expect(formatCharterAmount('12345.5', 'USD ($)')).toBe('12,345.50 USD ($)')
+    expect(formatCharterAmount('1000000', 'SAR')).toBe('1,000,000.00 SAR')
+    expect(formatCharterAmount('0', null)).toBe('0.00')
+  })
+  it('shows an empty or unreadable value as typed', () => {
+    expect(formatCharterAmount('  ', 'SAR')).toBe('')
+    expect(formatCharterAmount('12a', 'SAR')).toBe('12a SAR')
   })
 })

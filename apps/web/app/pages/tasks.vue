@@ -59,7 +59,7 @@ const params = computed<TaskListParams>({
   get: () => ({ ...withTaskAttributeFilters(filters.value, route.query), sort: normalizeTaskSort(route.query.sort) }),
   set: ({ sort: _sort, ...rest }) => {
     filters.value = rest
-    void router.replace({ query: { ...route.query, ...taskAttributeQuery(rest) } })
+    void router.replace({ query: { ...route.query, ...taskAttributeQuery(rest), q: rest.q?.trim() || undefined } })
   },
 })
 const boardParams = computed<TaskListParams>(() => ({ ...params.value, sort: undefined }))

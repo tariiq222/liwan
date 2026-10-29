@@ -16,14 +16,15 @@ export const ProjectStageSchema = z.object({
 
 export const ProjectPhaseSchema = z.enum(['initiating', 'planning', 'executing', 'closing', 'closed'])
 export const PROJECT_PHASES = ProjectPhaseSchema.options
-export const ProjectPhaseGateCheckSchema = z.object({ key: z.string(), ok: z.boolean() }).strict()
+// `warning` marks a check that does not block the move: an unmet one needs `acknowledge_warnings` on the move.
+export const ProjectPhaseGateCheckSchema = z.object({ key: z.string(), ok: z.boolean(), warning: z.boolean().optional() }).strict()
 export const ProjectPhaseStateSchema = z.object({
   current: ProjectPhaseSchema, next: ProjectPhaseSchema.nullable(), previous: ProjectPhaseSchema.nullable(),
   next_checks: z.array(ProjectPhaseGateCheckSchema),
 }).strict()
 // Body of POST /api/v1/projects/{id}/phase.
 export const ProjectPhaseMoveSchema = z.object({
-  phase: ProjectPhaseSchema, expected_updated_at: z.string().regex(/^v\d+$/),
+  phase: ProjectPhaseSchema, expected_updated_at: z.string().regex(/^v\d+$/), acknowledge_warnings: z.boolean().optional(),
 }).strict()
 
 export const ProjectSchema = z.object({
@@ -55,6 +56,8 @@ export const ProjectListSchema = z.object({ items: z.array(ProjectSchema), total
 export const ProjectCopyInputSchema = z.object({
   name: z.string().trim().min(1).max(255),
   start_date: CalendarDateSchema,
+  // Required by the server when the source has no end date and the company requires one.
+  end_date: CalendarDateSchema.optional(),
 }).strict()
 export const ProjectCreateSchema = z.object({
   name: z.string().min(1),
@@ -78,13 +81,16 @@ export const ProjectCreateSchema = z.object({
 })
 export const ProjectPatchSchema = z.object({
   name: z.string().min(1).optional(), description: z.string().optional(), user_id: z.number().int().nullable().optional(),
-  privacy_visibility: VisibilitySchema.optional(), allow_task_dependencies: z.boolean().optional(), date_start: z.string().nullable().optional(), date: z.string().nullable().optional(),
+  privacy_visibility: VisibilitySchema.optional(), allow_task_dependencies: z.boolean().optional(), date_start: z.string().nullable().optional(), date: z.string().nullable().optional(), date_end: z.string().nullable().optional(),
   tag_ids: z.array(z.number().int()).optional(),
   webvue_completion_approval: ProjectCompletionApprovalSchema.optional(),
   webvue_completion_approver_id: z.number().int().positive().nullable().optional(),
   charter: ProjectCharterWriteSchema.optional(),
   expected_updated_at: z.string().regex(/^v\d+$/).optional(),
 }).strict().superRefine((value, ctx) => {
+  if (value.date !== undefined && value.date_end !== undefined) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'date and date_end cannot both be provided', path: ['date_end'] })
+  }
   if (value.charter !== undefined && value.expected_updated_at === undefined) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,

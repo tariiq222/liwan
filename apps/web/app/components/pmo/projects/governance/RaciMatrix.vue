@@ -73,6 +73,6 @@ const STICKY = 'sticky z-10 bg-default group-hover:bg-(--webvue-row-hover)'
         </tbody>
       </table>
     </div>
-    <p :id="helpId" class="border-t border-default px-(--webvue-card-pad) py-3 text-xs text-muted">{{ t('projects.governance.raci.matrixHelp') }}</p>
+    <p :id="helpId" class="border-t border-default px-(--webvue-card-pad) py-3 text-xs text-muted">{{ t(canManage ? 'projects.governance.raci.matrixHelp' : 'projects.governance.raci.matrixHelpReadonly') }}</p>
   </div>
 </template>

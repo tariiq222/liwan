@@ -7248,6 +7248,14 @@
         ],
         "type": "object"
       },
+      "CloseWithOpenTasksSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "block",
+          "allow_with_warning"
+        ],
+        "type": "string"
+      },
       "CommentNotificationSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -55743,6 +55751,10 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "end_date": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
           "name": {
             "maxLength": 255,
             "minLength": 1,
@@ -57891,6 +57903,9 @@
                     },
                     "ok": {
                       "type": "boolean"
+                    },
+                    "warning": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -58403,6 +58418,12 @@
               "null"
             ]
           },
+          "date_end": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "date_start": {
             "type": [
               "string",
@@ -58479,6 +58500,9 @@
           },
           "ok": {
             "type": "boolean"
+          },
+          "warning": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -58491,6 +58515,9 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "acknowledge_warnings": {
+            "type": "boolean"
+          },
           "expected_updated_at": {
             "pattern": "^v\\d+$",
             "type": "string"
@@ -58562,6 +58589,9 @@
                   "type": "string"
                 },
                 "ok": {
+                  "type": "boolean"
+                },
+                "warning": {
                   "type": "boolean"
                 }
               },
@@ -59961,6 +59991,13 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "close_with_open_tasks": {
+            "enum": [
+              "block",
+              "allow_with_warning"
+            ],
+            "type": "string"
+          },
           "deadline_reminders_days_before": {
             "maximum": 30,
             "minimum": 0,
@@ -60008,6 +60045,13 @@
             ],
             "type": "string"
           },
+          "register_status_transitions": {
+            "enum": [
+              "sequence",
+              "free"
+            ],
+            "type": "string"
+          },
           "require_charter_approval": {
             "type": "boolean"
           },
@@ -60024,6 +60068,13 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "close_with_open_tasks": {
+            "enum": [
+              "block",
+              "allow_with_warning"
+            ],
+            "type": "string"
+          },
           "deadline_reminders_days_before": {
             "maximum": 30,
             "minimum": 0,
@@ -60169,6 +60220,13 @@
             ],
             "type": "string"
           },
+          "register_status_transitions": {
+            "enum": [
+              "sequence",
+              "free"
+            ],
+            "type": "string"
+          },
           "require_charter_approval": {
             "type": "boolean"
           },
@@ -60189,6 +60247,8 @@
           "deadline_reminders_days_before",
           "overdue_digest_enabled",
           "require_charter_approval",
+          "close_with_open_tasks",
+          "register_status_transitions",
           "extensions"
         ],
         "type": "object"
@@ -60562,6 +60622,14 @@
           "name"
         ],
         "type": "object"
+      },
+      "RegisterStatusTransitionsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "sequence",
+          "free"
+        ],
+        "type": "string"
       },
       "ResetPasswordInputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -61507,6 +61575,11 @@
                   "minLength": 1,
                   "type": "string"
                 },
+                "size": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
                 "url": {
                   "minLength": 1,
                   "type": "string"
@@ -61516,7 +61589,8 @@
                 "id",
                 "name",
                 "mimetype",
-                "url"
+                "url",
+                "size"
               ],
               "type": "object"
             },
@@ -61551,6 +61625,11 @@
             "minLength": 1,
             "type": "string"
           },
+          "size": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
           "url": {
             "minLength": 1,
             "type": "string"
@@ -61560,7 +61639,8 @@
           "id",
           "name",
           "mimetype",
-          "url"
+          "url",
+          "size"
         ],
         "type": "object"
       },
@@ -61734,6 +61814,11 @@
                 "name": {
                   "type": "string"
                 },
+                "size": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
                 "url": {
                   "type": "string"
                 }
@@ -61742,7 +61827,8 @@
                 "id",
                 "name",
                 "mimetype",
-                "url"
+                "url",
+                "size"
               ],
               "type": "object"
             },

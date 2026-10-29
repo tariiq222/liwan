@@ -29,5 +29,8 @@ class MyTaskConvertController(http.Controller):
     @api_handler
     @requires_feature('tasks.enabled', 'pmo.enabled', operation='write')
     def convert_task(self, task_id, project_id=None, **_):
+        # Checked before the project is looked up, so a caller without PMO rights gets 403, never a project 422.
+        convert = request.env['webvue.my.task.convert']
+        convert._require('pmo.projects.read')
         project_id = parse_positive_int(project_id, 'project_id')
-        return {'href': request.env['webvue.my.task.convert']._convert(task_id, project_id)}
+        return {'href': convert._convert(task_id, project_id)}

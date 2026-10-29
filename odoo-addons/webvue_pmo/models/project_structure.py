@@ -19,6 +19,13 @@ class ProjectProject(models.Model):
         return self.env['project.task'].sudo().with_context(active_test=False).search_count(
             [('project_id', '=', self.id), ('stage_id', '=', stage.id)])
 
+    def _webvue_open_task_count(self):
+        # sudo(): only an integer count is returned (never task records). The closing
+        # gate must count every open task, including the ones a followers-only rule
+        # hides, and must not raise for a reader without task read access.
+        return self.env['project.task'].sudo().search_count(
+            [('project_id', '=', self.id), ('is_closed', '=', False)])
+
     def _webvue_stages_sudo(self):
         # sudo(): documented manager-write case for project stages. Odoo's
         # project.task.type rule lets a project user write only personal stages;

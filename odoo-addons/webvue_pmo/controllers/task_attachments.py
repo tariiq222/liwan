@@ -12,11 +12,8 @@ from odoo.addons.webvue_api.controllers.common import (
     get_record,
     requires_feature,
 )
-from odoo.addons.webvue_api.serializers.attachment import (
-    dump_attachment,
-    parse_attachment_upload,
-)
-from odoo.addons.webvue_pmo.serializers.task import task_attachments_route
+from odoo.addons.webvue_api.serializers.attachment import parse_attachment_upload
+from odoo.addons.webvue_pmo.serializers.task import dump_task_attachment
 
 
 class TaskAttachmentController(http.Controller):
@@ -34,7 +31,7 @@ class TaskAttachmentController(http.Controller):
         for attachment in attachments:
             attachment.check_access('read')
         return {
-            'items': [dump_attachment(attachment, task_attachments_route(task_id)) for attachment in attachments],
+            'items': [dump_task_attachment(attachment, task_id) for attachment in attachments],
             'total': len(attachments),
         }
 
@@ -73,7 +70,7 @@ class TaskAttachmentController(http.Controller):
             'res_model': 'project.task',
             'res_id': task.id,
         })
-        return request.make_json_response(dump_attachment(attachment, task_attachments_route(task.id)), status=201)
+        return request.make_json_response(dump_task_attachment(attachment, task.id), status=201)
 
     @http.route(
         '/api/v1/tasks/<int:task_id>/attachments/<int:attachment_id>',
