@@ -317,6 +317,7 @@
       "provision_after_run": "A run older than an already posted end-of-service provision cannot be posted.",
       "profile_in_use": "A generated salary file keeps this profile, so it cannot be deleted.",
       "profile_unavailable": "The salary file profile is no longer available. Refresh the page and choose another profile.",
+      "currency_unsupported": "Payroll can be posted to accounting only for companies in Saudi riyals.",
       "ownRecordForbidden": "You cannot approve a run that holds your own payslip. Someone else with the approval capability approves it."
     },
     "compensation": {

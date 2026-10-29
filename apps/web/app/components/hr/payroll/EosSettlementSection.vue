@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { HR_EOS_CASES, HrEosCaseSchema, HrSettlementWriteSchema, type HrEosCase, type HrEosEstimate, type HrSettlement, type HrSettlementWrite } from '@webvue/contracts'
 import { formatDate } from '@webvue/ui/app/utils/formatDate'
-import { formatPayrollAmount } from '@/utils/payrollFormat'
+import { formatPayrollAmount, payrollCurrencyLabel } from '@/utils/payrollFormat'
 import { parseMoneyInput } from '@/utils/moneyInput'
 
 // The final settlement of a leaver on the offboarding record: the end-of-service award for the chosen case, the paid
@@ -41,7 +41,7 @@ const mismatch = computed(() => props.settlement?.departure_mismatch === true)
 const editable = computed(() => props.canManage && (!confirmed.value || mismatch.value))
 const busy = computed(() => !hydrated.value || props.saving || props.confirming)
 const caseItems = computed(() => HR_EOS_CASES.map(value => ({ value, label: t(`hrPayroll.eos.cases.${value}`) })))
-const money = (value: number) => `${formatPayrollAmount(value, locale.value)} ${t('hrPayroll.currency')}`
+const money = (value: number) => `${formatPayrollAmount(value, locale.value)} ${payrollCurrencyLabel(figures.value?.currency ?? 'SAR', t('hrPayroll.currency'))}`
 const days = (value: number) => formatPayrollAmount(value, locale.value)
 
 watch(() => props.settlement, (settlement) => { openDeductions.value = settlement ? String(settlement.open_deductions) : (openDeductions.value || '0') }, { immediate: true })

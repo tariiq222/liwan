@@ -13,6 +13,11 @@ export function formatPayrollAmount(value: number, locale: string): string {
   return isolateLtr(plainAmount(value, locale))
 }
 
+/** The label of a payroll currency: the Saudi riyal keeps its Arabic symbol, any other code is printed as it is. */
+export function payrollCurrencyLabel(code: string, riyalLabel: string): string {
+  return code === 'SAR' ? riyalLabel : code
+}
+
 /** A contribution rate: the percent sign stays with its number inside right-to-left text. */
 export function formatPayrollPercent(value: number, locale: string): string {
   return isolateLtr(`${plainAmount(value, locale)}%`)

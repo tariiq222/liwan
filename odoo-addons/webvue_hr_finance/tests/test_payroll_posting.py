@@ -225,6 +225,18 @@ class TestPayrollPosting(PayrollFinanceCase):
         self.assertEqual(self.api('GET', f"{RUNS}/{run['id']}").json()['state'], 'approved')
         self.assertFalse(self.env['account.move'].search_count([('webvue_payroll_origin', '=', 'run')]))
 
+    def test_posting_is_refused_for_a_company_outside_saudi_riyals(self):
+        run = self._approved_run([self.e1, self.e2], MONTH)
+        usd = self.env.ref('base.USD')
+        usd.active = True
+        self.company.currency_id = usd
+        self.login_as(self.poster)
+        preview = self.api('GET', f"{RUNS}/{run['id']}/posting-preview")
+        posted = self._post(run['id'])
+        for res in (preview, posted):
+            self.assertEqual((res.status_code, res.json()['code']), (422, 'currency_unsupported'), res.text)
+        self.assertEqual(self.api('GET', f"{RUNS}/{run['id']}").json()['currency'], 'USD')
+
     def test_posting_journal_must_be_in_the_company_currency(self):
         run = self._approved_run([self.e1, self.e2], MONTH)
         foreign = self.env['res.currency'].search([('id', '!=', self.company.currency_id.id)], limit=1)
