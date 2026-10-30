@@ -1,6 +1,41 @@
 {
   "access": {
     "branches": {
+      "currentPreset": "Current company type: {preset}",
+      "presets": {
+        "title": "Company type",
+        "description": "Pick the description closest to your company. Branch access is set for you, and the details stay editable in the next card.",
+        "apply": "Apply type",
+        "single_company": "Single company",
+        "single_companyHint": "No branches. Available only while the company has no branches.",
+        "central_branches": "Centrally managed branches",
+        "central_branchesHint": "Management roles of the parent company extend to every branch: {roles}. Branch staff stay in their branch.",
+        "independent_branches": "Independent branches",
+        "independent_branchesHint": "The parent company sees a branch's data only through an explicit delegation.",
+        "group_of_companies": "Group of companies",
+        "group_of_companiesHint": "Each company is fully separate. Group-level access is delegated explicitly where you want it.",
+        "custom": "Current setup is custom",
+        "customHint": "The details were edited by hand and no longer match any of the four types.",
+        "customName": "Custom",
+        "confirm": "Saving replaces the current branch settings."
+      },
+      "strict": {
+        "description": "An optional switch that narrows the general policy for this application only.",
+        "label": "Stricter than the general policy",
+        "widens": "Turning this off lets this application's roles inherit into branches again, as the general policy says.",
+        "hr": {
+          "title": "Branch access to HR",
+          "hint": "When on, HR roles are not inherited into branches; each branch needs an explicit delegation."
+        },
+        "payroll": {
+          "title": "Branch access to payroll",
+          "hint": "When on, payroll roles are not inherited into branches; each branch needs an explicit delegation."
+        },
+        "finance": {
+          "title": "Branch access to finance",
+          "hint": "When on, finance roles are not inherited into branches; each branch needs an explicit delegation."
+        }
+      },
       "create": {"purchaseDescription": "Branches are added through your subscription. The paid order creates the branch.", "purchase": "Buy a branch", "title": "Add a branch", "description": "Creates a new branch under your company. The number of branches is limited by your plan.", "name": "Branch name", "action": "Add branch", "done": "The branch was added."},
       "title": "Branch access",
       "description": "Choose how parent-company permissions apply to branches. Membership alone never grants data access.",

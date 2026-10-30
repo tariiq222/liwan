@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BranchPresetCard from '@/components/access/branches/BranchPresetCard.vue'
 import BranchPolicyCard from '@/components/access/branches/BranchPolicyCard.vue'
 import { ApiError } from '@/composables/useApi'
 import { useBranchPolicy } from '@/composables/useBranchAccess'
@@ -58,7 +59,10 @@ async function reloadPolicy() {
     <SharedForbiddenState v-if="forbidden && !canCreate" :description="t('access.forbidden')" />
     <SharedPageState v-else-if="!forbidden" :loading="query.isLoading.value" :error="query.error.value" @retry="query.refetch">
       <!-- Keyed by the signed-in user and company, so a draft never outlives the identity it was made for. -->
-      <BranchPolicyCard v-if="query.data.value" :key="identity ?? ''" :policy="query.data.value" :reload-policy="reloadPolicy" />
+      <div v-if="query.data.value" :key="identity ?? ''" class="grid gap-(--webvue-gap-card)">
+        <BranchPresetCard :policy="query.data.value" :reload-policy="reloadPolicy" />
+        <BranchPolicyCard :policy="query.data.value" :reload-policy="reloadPolicy" />
+      </div>
     </SharedPageState>
   </SharedSettingsPage>
 </template>

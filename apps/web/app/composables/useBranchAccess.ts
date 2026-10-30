@@ -1,8 +1,8 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
-  BranchPolicySchema, BranchPolicyInputSchema, UserBranchAccessSchema, UserBranchAccessInputSchema,
-  type BranchPolicyInput, type UserBranchAccessInput,
+  BranchPolicySchema, BranchPolicyInputSchema, BranchPresetInputSchema, UserBranchAccessSchema, UserBranchAccessInputSchema,
+  type BranchPolicyInput, type BranchPresetInput, type UserBranchAccessInput,
 } from '@webvue/contracts'
 import { accessRefreshWait, refreshMeInNuxtContext } from './useAdminUsers'
 
@@ -45,6 +45,16 @@ export function useUpdateBranchPolicy() {
   return useMutation({
     gcTime: 0,
     mutationFn: (body: BranchPolicyInput) => $api('/api/v1/admin/access/branches', { method: 'PATCH', body: BranchPolicyInputSchema.parse(body), schema: BranchPolicySchema }),
+    onSuccess: refresh,
+  })
+}
+
+export function useApplyBranchPreset() {
+  const { $api } = useApi()
+  const refresh = branchMutationRefresh()
+  return useMutation({
+    gcTime: 0,
+    mutationFn: (body: BranchPresetInput) => $api('/api/v1/admin/access/branches/preset', { method: 'PATCH', body: BranchPresetInputSchema.parse(body), schema: BranchPolicySchema }),
     onSuccess: refresh,
   })
 }

@@ -2,6 +2,7 @@
 import SettingsPreviewCard from '@/components/settings/SettingsPreviewCard.vue'
 import SettingsPreviewList from '@/components/settings/SettingsPreviewList.vue'
 import { useAdminAuditLog } from '@/composables/useAdminAudit'
+import { useBranchPolicy } from '@/composables/useBranchAccess'
 import { useAdminRoles } from '@/composables/useAdminRoles'
 import { useAdminUsers } from '@/composables/useAdminUsers'
 import { AUDIT_ACTION_LABELS } from '@/components/access/audit/auditActionLabels'
@@ -12,6 +13,10 @@ const PREVIEW_ROWS = 5
 const { t, te, locale } = useI18n()
 const labels = computed(() => ({ t, te, locale: locale.value }))
 const { parts, shows } = useSettingsPage('team')
+const { can } = useAccess()
+// The branches card names the company type chosen for the tenant; the policy is read only by those who may edit it.
+const policy = useBranchPolicy(() => shows('branches') && can('access.users.assign_roles') && can('access.roles.read'))
+const presetLabel = computed(() => policy.data.value ? t(`access.branches.presets.${policy.data.value.preset === 'custom' ? 'customName' : policy.data.value.preset}`) : '')
 const users = useAdminUsers({ limit: PREVIEW_ROWS }, () => shows('users'))
 const roles = useAdminRoles({ limit: PREVIEW_ROWS }, () => shows('roles'))
 const events = useAdminAuditLog({ limit: PREVIEW_ROWS }, () => shows('access-log'))
@@ -26,7 +31,7 @@ const eventRows = computed(() => (events.data.value?.items ?? []).map(event => e
     <SharedForbiddenState v-if="!parts.length" :description="t('access.forbidden')" />
     <template v-else>
       <section v-if="shows('branches')" id="branches" class="webvue-settings-anchor">
-        <SharedRecordSection :title="t('access.branches.title')" :description="t('access.branches.description')">
+        <SharedRecordSection :title="t('access.branches.title')" :description="presetLabel ? t('access.branches.currentPreset', { preset: presetLabel }) : t('access.branches.description')">
           <UButton to="/settings/team/branches" color="neutral" variant="outline" :label="t('access.branches.configure')" />
         </SharedRecordSection>
       </section>
