@@ -283,9 +283,12 @@ def api_handler(func):
         except WebVueAccessRule as e:
             return error_response(e.status, e.code, e.message, e.field, e.details)
         except MissingError as e:
-            return error_response(404, 'not_found', str(e))
+            # Odoo's text names the model and record ids; the client gets a fixed message.
+            _logger.info('api not_found: %s', e)
+            return error_response(404, 'not_found', request.env._("Record does not exist"))
         except AccessError as e:
-            return error_response(403, 'forbidden', str(e))
+            _logger.info('api forbidden: %s', e)
+            return error_response(403, 'forbidden', request.env._("You do not have permission to do this"))
         except (ValidationError, UserError) as e:
             return error_response(422, 'invalid', str(e))
     wrapper._webvue_feature_keys = getattr(func, '_webvue_feature_keys', None)

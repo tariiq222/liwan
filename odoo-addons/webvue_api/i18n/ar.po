@@ -74,6 +74,12 @@ msgid "Record does not exist"
 msgstr "السجل غير موجود"
 
 #. module: webvue_api
+#. odoo-python
+#: code:addons/webvue_api/controllers/common.py:0
+msgid "You do not have permission to do this"
+msgstr "ليست لديك صلاحية لتنفيذ هذا الإجراء"
+
+#. module: webvue_api
 #: model:ir.model.fields.selection,name:webvue_api.selection__res_users__webvue_font_size__small
 msgid "Small"
 msgstr "صغير"
