@@ -121,14 +121,17 @@ class WebVueInboxChannelHealth(models.Model):
         self._webvue_apply_health(whatsapp.fetch_phone_health(self._webvue_credentials()))
 
     def _webvue_refresh_health(self):
-        """Connection test and health refresh: the channel becomes connected, or error (with an alert the first time)."""
+        """Connection test and health refresh: the channel becomes connected, or error (with an alert the first time).
+
+        A disabled channel that fails stays disabled, so a failed activation never resumes its traffic.
+        """
         self.ensure_one()
         try:
             with self.env.cr.savepoint():
                 self._webvue_fetch_health()
         except whatsapp.ProviderError as error:
-            was_failing = self.state == 'error'
-            self.write({'state': 'error', 'last_error': str(error)})
+            was_failing = self.state in ('error', 'disabled')
+            self.write({'state': 'disabled' if self.state == 'disabled' else 'error', 'last_error': str(error)})
             if not was_failing:
                 self._webvue_alert('connection_failed', 'danger', reason=str(error))
         else:

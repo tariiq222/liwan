@@ -8,7 +8,9 @@ from odoo.exceptions import ValidationError
 from .abstract_interactive import COMMERCE_TYPES
 from .constants import MESSAGES_OUT_LIMIT, OUTBOX_CRON, REPLY_PREVIEW_LENGTH
 from .template import APPROVED, HEADER_TYPES, MEDIA_HEADERS, PLACEHOLDER
+from odoo.addons.webvue_core.models.access_service import WebVueAccessRule
 from odoo.addons.webvue_inbox.adapters import media_rules
+from odoo.addons.webvue_inbox.adapters.whatsapp import MEDIA_KINDS
 
 # A status never moves a message backwards (statuses may arrive out of order). `failed` is terminal
 # and any other status (deleted, warning, ...) is ignored.
@@ -20,6 +22,9 @@ KINDS = [
     ('template', 'Template'), ('flow_response', 'Form answer'), ('product', 'Product'), ('product_list', 'Product list'),
     ('catalog_message', 'Catalog'), ('order', 'Order'), ('unsupported', 'Unsupported'),
 ]
+
+
+INVALID = 'invalid'
 
 
 class WebVueInboxMessage(models.Model):
@@ -282,9 +287,13 @@ class WebVueInboxMessage(models.Model):
     @api.model
     def _webvue_require_sendable(self, conversation):
         if conversation.state == 'closed':
-            raise ValidationError(self.env._('The conversation is closed; reopen it first.'))
+            raise WebVueAccessRule(
+                INVALID, self.env._('The conversation is closed; reopen it first.'), details={'reason': 'inbox_conversation_closed'},
+            )
         if conversation.channel_id.state == 'disabled':
-            raise ValidationError(self.env._('The channel is disabled.'))
+            raise WebVueAccessRule(
+                INVALID, self.env._('The channel is disabled.'), details={'reason': 'inbox_channel_disabled'},
+            )
 
     @api.model
     def _webvue_window_open(self, conversation):
@@ -294,7 +303,10 @@ class WebVueInboxMessage(models.Model):
     @api.model
     def _webvue_require_window(self, conversation):
         if not self._webvue_window_open(conversation):
-            raise ValidationError(self.env._('The 24-hour reply window is closed; send an approved template.'))
+            raise WebVueAccessRule(
+                INVALID, self.env._('The 24-hour reply window is closed; send an approved template.'),
+                details={'reason': 'inbox_window_closed'},
+            )
 
     @api.model
     def _webvue_template_values(self, conversation, template, params, header, button_params):
@@ -394,10 +406,10 @@ class WebVueInboxMessage(models.Model):
 
     def _webvue_caption(self):
         """The caption of an outbound file: its body unless that is the placeholder stored for no caption."""
-        return False if self.body == f'[{self.kind}]' else self.body
+        return False if self.kind in MEDIA_KINDS and self.body == f'[{self.kind}]' else self.body
 
     def _webvue_reply_preview(self):
-        return ' '.join(self.body.split())[:REPLY_PREVIEW_LENGTH]
+        return ' '.join((self._webvue_caption() or '').split())[:REPLY_PREVIEW_LENGTH]
 
     def _webvue_location(self):
         return {

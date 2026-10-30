@@ -57,7 +57,7 @@ class AudienceController(http.Controller):
     @requires_capability(CAMPAIGNS)
     def create_audience(self, **payload):
         values = parse_audience(payload)
-        with unique_as_invalid('name', 'an audience with this name exists'):
+        with unique_as_invalid('name', 'an audience with this name exists', 'inbox_audience_name_taken'):
             audience = request.env['webvue.inbox.audience'].create(values)
         return request.make_json_response(dump_audience(audience), status=201)
 
@@ -75,7 +75,7 @@ class AudienceController(http.Controller):
     def patch_audience(self, audience_id, **payload):
         audience = get_record('webvue.inbox.audience', audience_id)
         values = parse_audience(payload, partial=True)
-        with unique_as_invalid('name', 'an audience with this name exists'):
+        with unique_as_invalid('name', 'an audience with this name exists', 'inbox_audience_name_taken'):
             audience.write(values)
         return dump_audience(audience)
 

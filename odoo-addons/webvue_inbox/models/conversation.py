@@ -70,7 +70,7 @@ class WebVueInboxConversation(models.Model):
             customer_visible = conversation.message_ids.filtered(lambda message: message.direction != 'note')
             last = customer_visible.sorted(lambda message: (message.date, message.id))[-1:]
             conversation.last_message_at = last.date
-            conversation.last_message_preview = ' '.join(last.body.split())[:PREVIEW_LENGTH] if last else False
+            conversation.last_message_preview = ' '.join((last._webvue_caption() or '').split())[:PREVIEW_LENGTH] if last else False
 
     @api.depends('message_ids.direction', 'message_ids.date')
     def _compute_last_inbound(self):

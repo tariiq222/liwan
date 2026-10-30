@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo import api, fields, models
+from odoo import Command, api, fields, models
 from odoo.exceptions import ValidationError
 
 from .constants import DEFAULT_TIMEZONE
@@ -32,6 +32,7 @@ class WebVueInboxSettings(models.Model):
     visibility_policy = fields.Selection(VISIBILITY_POLICIES, required=True, default='department')
     auto_close_hours = fields.Integer(default=72, help='Idle hours before a conversation closes; 0 never closes.')
     retention_months = fields.Integer(default=24)
+    applied_preset_ids = fields.One2many('webvue.inbox.applied.preset', 'settings_id')
     # Working hours: weekly ranges and holidays (local dates) in a timezone; no ranges means always open.
     hours_timezone = fields.Char(required=True, default=DEFAULT_TIMEZONE)
     hours_range_ids = fields.One2many('webvue.inbox.hours.range', 'settings_id')
@@ -80,14 +81,31 @@ class WebVueInboxSettings(models.Model):
         return self.env['webvue.inbox.working.hours']._webvue_is_open(owner, at)
 
     def _webvue_apply_preset(self, key, automation=True, flows=False):
-        """Create the missing departments, tags and canned replies of a sector preset, set its policy and fill its opt-out keywords and
-        empty confirmation replies; idempotent.
+        """Create the missing departments, tags and canned replies of a sector preset the first time, set its policy and fill its
+        opt-out keywords and empty confirmation replies.
 
-        `automation` also fills the channels' welcome and away messages and adds the menu rules; `flows` adds the
-        sector's starter forms to the channels as drafts.
+        The preset is recorded as applied, so a later application does not bring back items the company renamed or deleted.
+
+        `automation` also fills the channels' welcome and away messages and adds the menu rules, on the first application only;
+        `flows` adds the sector's missing starter forms to the channels as drafts, whenever it is asked for.
         """
         self.ensure_one()
         preset = PRESETS[key]
+        first = key not in self.applied_preset_ids.mapped('key')
+        if first:
+            self._webvue_seed_preset_items(preset)
+        self.write(preset.get('settings', {}))
+        if first:
+            self.applied_preset_ids = [Command.create({'key': key})]
+            self._webvue_fill_campaigns(preset.get('campaigns', {}))
+            if automation:
+                self._webvue_seed_automation(preset.get('automation', {}))
+        if flows:
+            self.env['webvue.inbox.flow']._webvue_seed_starters(self.company_id, key)
+        return self
+
+    def _webvue_seed_preset_items(self, preset):
+        """Create the departments, tags and canned replies of `preset` that the company lacks."""
         company_id = self.company_id.id
         for model, field, names in (
             ('webvue.inbox.department', 'name', preset['departments']),
@@ -102,13 +120,6 @@ class WebVueInboxSettings(models.Model):
             {'shortcut': shortcut, 'body': body, 'company_id': company_id}
             for shortcut, body in preset['canned_replies'] if shortcut not in existing
         ])
-        self.write(preset.get('settings', {}))
-        self._webvue_fill_campaigns(preset.get('campaigns', {}))
-        if automation:
-            self._webvue_seed_automation(preset.get('automation', {}))
-        if flows:
-            self.env['webvue.inbox.flow']._webvue_seed_starters(self.company_id, key)
-        return self
 
     def _webvue_seed_automation(self, automation):
         """Fill the missing welcome and away messages of the company's channels and add the missing menu rules, switched off."""

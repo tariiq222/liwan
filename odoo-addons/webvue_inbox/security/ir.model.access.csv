@@ -1,6 +1,7 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_webvue_inbox_settings_reader,webvue.inbox.settings.reader,model_webvue_inbox_settings,group_cap_inbox_conversations_read,1,0,1,0
 access_webvue_inbox_settings_settings,webvue.inbox.settings.settings,model_webvue_inbox_settings,group_cap_inbox_settings_manage,1,1,1,0
+access_webvue_inbox_applied_preset_settings,webvue.inbox.applied.preset.settings,model_webvue_inbox_applied_preset,group_cap_inbox_settings_manage,1,0,1,0
 access_webvue_inbox_department_reader,webvue.inbox.department.reader,model_webvue_inbox_department,group_cap_inbox_conversations_read,1,0,0,0
 access_webvue_inbox_department_settings,webvue.inbox.department.settings,model_webvue_inbox_department,group_cap_inbox_settings_manage,1,1,1,1
 access_webvue_inbox_tag_reader,webvue.inbox.tag.reader,model_webvue_inbox_tag,group_cap_inbox_conversations_read,1,0,0,0

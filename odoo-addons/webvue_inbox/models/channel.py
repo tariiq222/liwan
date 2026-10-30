@@ -7,6 +7,7 @@ from odoo.exceptions import UserError, ValidationError
 
 from . import secret_box
 from .constants import WHATSAPP_FEATURE
+from odoo.addons.webvue_core.models.access_service import WebVueAccessRule
 from odoo.addons.webvue_inbox.adapters.whatsapp import Credentials
 
 PROVIDER_ID = re.compile(r'^\d{5,32}$')
@@ -21,6 +22,9 @@ SECRET_GROUPS = (
 
 def _new_verify_token():
     return secrets.token_urlsafe(24)
+
+
+INVALID = 'invalid'
 
 
 class WebVueInboxChannel(models.Model):
@@ -105,7 +109,10 @@ class WebVueInboxChannel(models.Model):
 
     def unlink(self):
         if self.conversation_ids:
-            raise UserError(self.env._('A channel with conversations cannot be deleted; disable it instead.'))
+            raise WebVueAccessRule(
+                INVALID, self.env._('A channel with conversations cannot be deleted; disable it instead.'),
+                details={'reason': 'inbox_channel_has_conversations'},
+            )
         self.env['webvue.entitlement.service']._webvue_claim_channels(-len(self))
         return super().unlink()
 

@@ -158,7 +158,14 @@ class TestRepliesApi(WebVueInboxCase):
     def test_attachment_without_caption_uses_the_placeholder_and_each_kind_is_detected(self):
         for name, data, mimetype, kind in (('d.pdf', PDF, 'application/pdf', 'document'), ('v.mp4', MP4, 'video/mp4', 'video'), ('a.ogg', OGG, 'audio/ogg', 'audio')):
             body = self.reply({'attachment_id': self.uploaded_id(name=name, content=data, mimetype=mimetype)}).json()
-            self.assertEqual((body['kind'], body['body']), (kind, f'[{kind}]'))
+            self.assertEqual((body['kind'], body['body']), (kind, ''))
+            self.assertEqual(self.last_message().body, f'[{kind}]')
+        self.assertFalse(self.reload(self.conversation).last_message_preview)
+
+    def test_a_file_carries_its_text_as_caption_not_body(self):
+        result = self.reply({'attachment_id': self.uploaded_id(), 'body': 'Look'})
+        self.assertError(result, 422, 'invalid')
+        self.assertEqual(result.json()['field'], 'caption')
 
     def test_attachment_rules(self):
         attachment_id = self.uploaded_id()
@@ -229,6 +236,13 @@ class TestRepliesApi(WebVueInboxCase):
         })
         result = self.reply({'template_id': template.id, 'params': []}, self.late)
         self.assertEqual((result.status_code, result.json()['kind']), (200, 'template'))
+
+    def test_refusals_name_a_locale_reason(self):
+        closed = self.make_conversation(state='closed')
+        result = self.reply({'body': 'x'}, closed)
+        self.assertEqual((result.status_code, result.json()['details']), (422, {'reason': 'inbox_conversation_closed'}))
+        result = self.reply({'body': 'late'}, self.late)
+        self.assertEqual(result.json()['details'], {'reason': 'inbox_window_closed'})
 
     def test_free_form_kinds_refuse_a_closed_conversation_and_a_missing_capability(self):
         closed = self.make_conversation(state='closed')

@@ -86,6 +86,15 @@ class TestWebhookMalformedShapes(WebVueInboxCase):
         self.assertEqual(whatsapp.parse_events(payload, 'p', 'w'), [])
         self.assertEqual(whatsapp.phone_number_ids(payload), {'p'})
 
+    def test_one_malformed_message_does_not_drop_the_good_ones(self):
+        good = {'id': 'wamid.GOOD', 'from': '966501112222', 'timestamp': '1790000000', 'type': 'text', 'text': {'body': 'hi'}}
+        no_timestamp = {'id': 'wamid.BAD', 'from': '966501112222', 'type': 'text', 'text': {'body': 'hi'}}
+        bad_status = {'id': 'wamid.S', 'status': 'sent', 'timestamp': 'soon'}
+        payload = {'entry': [{'changes': [{'value': {
+            'metadata': {'phone_number_id': 'p'}, 'messages': [no_timestamp, good], 'statuses': [bad_status],
+        }}]}]}
+        self.assertEqual([event.provider_id for event in whatsapp.parse_events(payload, 'p', 'w')], ['wamid.GOOD'])
+
 
 @tagged('post_install', '-at_install', 'webvue')
 class TestCronResilience(WebVueInboxCase):

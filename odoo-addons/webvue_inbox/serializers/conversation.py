@@ -125,7 +125,7 @@ def dump_message(message, attachments, products):
         'id': message.id,
         'direction': message.direction,
         'kind': message.kind,
-        'body': message.body,
+        'body': message._webvue_caption() or '',
         'author': dump_ref(message.author_id),
         'automated': message.automated,
         'campaign': dump_ref(message.campaign_recipient_ids[:1].campaign_id),
