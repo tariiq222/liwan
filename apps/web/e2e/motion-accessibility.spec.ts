@@ -175,7 +175,7 @@ for (const locale of ['ar', 'en']) {
         })
       })).toBe(true)
       expect(await sheet.evaluate(el => getComputedStyle(el).fontFamily)).toContain('IBM Plex Sans Arabic')
-      expect(await sheet.evaluate(el => getComputedStyle(el).getPropertyValue('--primary').trim())).toBe('#5b3f8c')
+      expect(await sheet.evaluate(el => getComputedStyle(el).getPropertyValue('--primary').trim())).toBe('#c9bbee')
       if (locale === 'ar' && width !== 768) await page.screenshot({ path: testInfo.outputPath(`assistant-${locale}-${width}.png`) })
     })
   }
