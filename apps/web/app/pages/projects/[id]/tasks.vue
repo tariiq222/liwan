@@ -132,7 +132,7 @@ function columnCreateTo(column: { state?: TaskState; stageId?: number }) {
         <TaskKpiStrip v-if="kpisShown" :params="params" />
         <SharedListCard :fill="isBoard">
           <template #filters><TaskToolbar :model-value="params" embedded hide-project-filter @update:model-value="onParams" @search="liveSearch = $event" /></template>
-          <TaskTable v-if="!isBoard" :params="params" variant="project" :row-to="task => taskTo(task.id)" @create="openCreate" @update:sort="sort => onParams({ ...params, sort })" />
+          <TaskTable v-if="!isBoard" :params="params" variant="project" :can-create="canCreate" :row-to="task => taskTo(task.id)" @create="openCreate" @update:sort="sort => onParams({ ...params, sort })" />
           <TaskBoard v-else :params="boardParams" :stage-source="stageSource" :card-to="(id: number) => ({ path: `/projects/${projectId}/tasks/${id}`, query: filterQuery })" :create-to="canCreate ? columnCreateTo : undefined" @open="(id: number) => openTask(`/projects/${projectId}/tasks/${id}`)" />
         </SharedListCard>
       </section>

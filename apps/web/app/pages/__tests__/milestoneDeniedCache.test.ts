@@ -5,6 +5,7 @@ import { renderShared } from '@webvue/ui/test/helpers/renderShared'
 import { ApiError } from '../../composables/useApi'
 import { parsePositiveId } from '../../utils/routeParams'
 import { owningListBack, recordChildTo } from '../../utils/recordListOrigin'
+import { milestoneBadge } from '../../components/pmo/projects/milestoneState'
 
 async function renderRecord(status?: number, source: 'project' | 'milestones' = 'milestones') {
   const denied = status ? new ApiError(status, 'forbidden', 'Read access withdrawn') : null
@@ -22,6 +23,7 @@ async function renderRecord(status?: number, source: 'project' | 'milestones' = 
         useUpdateMilestone: () => ({ isPending: ref(false) }), useDeleteMilestone: () => ({ isPending: ref(false) }),
       },
       '@/utils/recordListOrigin': { owningListBack, recordChildTo },
+      '@/components/pmo/projects/milestoneState': { milestoneBadge },
       '@/utils/routeParams': { parsePositiveId },
       '@webvue/ui/app/composables/calendarDate': { formatCalendarDate: () => '' },
     },

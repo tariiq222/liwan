@@ -64,7 +64,7 @@ function parseProjectId(value: unknown): number | undefined {
   return typeof value === 'string' && /^[1-9]\d*$/.test(value) ? Number(value) : undefined
 }
 
-function parseStates(value: unknown): TaskState[] | undefined {
+export function parseStates(value: unknown): TaskState[] | undefined {
   if (typeof value !== 'string') return undefined
   const known = [...OPEN_TASK_STATES, ...CLOSED_TASK_STATES]
   const picked = known.filter(state => value.split(',').includes(state))

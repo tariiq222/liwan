@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import type { Milestone } from '@webvue/contracts'
-import { getLocalTimeZone, today } from '@internationalized/date'
 import { ApiError } from '@/composables/useApi'
-import { formatCalendarDate, toCalendarDate } from '@webvue/ui/app/composables/calendarDate'
+import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
 import type { TableColumn } from '@nuxt/ui'
 import { useDeleteMilestone, useMilestones, useUpdateMilestone } from '@/composables/useMilestones'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
 import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
 import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import { isMilestoneOverdue, milestoneBadge } from './milestoneState'
 
 const props = defineProps<{ projectId: number; canManage: boolean }>()
 
@@ -50,20 +50,8 @@ function milestoneActions(m: Milestone): RowAction[] {
 }
 
 // --- deadline tone ---------------------------------------------------------
-// A milestone deadline is a calendar date, not an instant (see
-// calendarDate.ts) — comparing it against `today()` in the viewer's own
-// timezone avoids the UTC-midnight shift `new Date(...)` would introduce.
-function isPastDeadline(deadline: string | null): boolean {
-  const d = toCalendarDate(deadline)
-  if (!d) return false
-  return d.compare(today(getLocalTimeZone())) < 0
-}
-function deadlineTone(m: Milestone): 'destructive' | 'neutral' {
-  return !m.is_reached && isPastDeadline(m.deadline) ? 'destructive' : 'neutral'
-}
-const DEADLINE_TEXT_CLASS: Record<'destructive' | 'neutral', string> = {
-  destructive: 'text-error', neutral: '',
-}
+// An open milestone past its deadline reads in the error colour, like its badge.
+const deadlineClass = (m: Milestone) => (isMilestoneOverdue(m) ? 'text-error' : '')
 function deadlineText(m: Milestone): string {
   return m.deadline ? formatCalendarDate(m.deadline, locale.value) : '—'
 }
@@ -141,10 +129,10 @@ const columns = computed<TableColumn<Milestone>[]>(() => [
             </div>
           </template>
           <template #state-cell="{ row }">
-            <SharedStatusBadge :tone="row.original.is_reached ? 'success' : 'neutral'" :label="t(row.original.is_reached ? 'projects.milestones.reached' : 'projects.milestones.notReached')" />
+            <SharedStatusBadge :tone="milestoneBadge(row.original).tone" :label="t(milestoneBadge(row.original).labelKey)" />
           </template>
           <template #start-cell="{ row }">{{ startText(row.original) }}</template>
-          <template #deadline-cell="{ row }"><span :class="DEADLINE_TEXT_CLASS[deadlineTone(row.original)]">{{ deadlineText(row.original) }}</span></template>
+          <template #deadline-cell="{ row }"><span :class="deadlineClass(row.original)">{{ deadlineText(row.original) }}</span></template>
           <template #tasks-cell="{ row }">
             <div class="grid min-w-32 gap-1">
               <span class="text-sm">{{ t('projects.milestones.tasksOf', { done: row.original.done_task_count, total: row.original.task_count }) }}</span>
@@ -161,7 +149,7 @@ const columns = computed<TableColumn<Milestone>[]>(() => [
               <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
                   <NuxtLink :to="detailTo(m)" class="font-medium text-highlighted hover:underline">{{ m.name }}</NuxtLink>
-                  <SharedStatusBadge class="mt-1" :tone="m.is_reached ? 'success' : 'neutral'" :label="t(m.is_reached ? 'projects.milestones.reached' : 'projects.milestones.notReached')" />
+                  <SharedStatusBadge class="mt-1" :tone="milestoneBadge(m).tone" :label="t(milestoneBadge(m).labelKey)" />
                 </div>
                 <div v-if="canManage" data-testid="milestone-actions-card" class="shrink-0">
                   <SharedRowActions :actions="milestoneActions(m)" :label="t('projects.milestones.actionsNamed', { name: m.name })" />
@@ -170,7 +158,7 @@ const columns = computed<TableColumn<Milestone>[]>(() => [
               <SharedProgress size="sm" :value="taskProgress(m)" :label="t('projects.milestones.taskProgress', { percent: taskProgress(m) })" />
               <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
                 <span>{{ t('projects.milestones.startDate') }}: {{ startText(m) }}</span>
-                <span :class="DEADLINE_TEXT_CLASS[deadlineTone(m)]">{{ t('projects.milestones.deadline') }}: {{ deadlineText(m) }}</span>
+                <span :class="deadlineClass(m)">{{ t('projects.milestones.deadline') }}: {{ deadlineText(m) }}</span>
                 <span>{{ t('projects.milestones.tasksOf', { done: m.done_task_count, total: m.task_count }) }}</span>
                 <span>{{ t('projects.milestones.taskProgress', { percent: taskProgress(m) }) }}</span>
                 <span v-if="m.deliverables?.length">{{ t('projects.milestones.checklistOf', { done: m.deliverables.filter(item => item.done).length, total: m.deliverables.length }) }}</span>

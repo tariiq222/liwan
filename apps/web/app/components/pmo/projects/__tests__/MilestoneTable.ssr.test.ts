@@ -5,6 +5,7 @@ import * as dates from '@internationalized/date'
 import * as calendar from '@webvue/ui/app/composables/calendarDate'
 import { ApiError } from '../../../../composables/useApi'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import * as milestoneState from '../milestoneState'
 import { renderShared } from '@webvue/ui/test/helpers/renderShared'
 
 it('links to the milestone record and keeps an explained disabled delete for linked tasks', async () => {
@@ -14,7 +15,7 @@ it('links to the milestone record and keeps an explained disabled delete for lin
       useI18n: () => ({ locale: ref('en'), t: (key: string, args?: {count:number}) => args?.count ? `${key}:${args.count}` : key }),
     },
     modules: {
-      '@internationalized/date': dates, '@webvue/ui/app/composables/calendarDate': calendar, '@/composables/useApi': { ApiError }, '@webvue/ui/app/utils/safeReturnTo': { returnToQuery }, '@webvue/ui/app/utils/recordNumberHeader': { recordNumberHeader: () => 'number' },
+      './milestoneState': milestoneState, '@internationalized/date': dates, '@webvue/ui/app/composables/calendarDate': calendar, '@/composables/useApi': { ApiError }, '@webvue/ui/app/utils/safeReturnTo': { returnToQuery }, '@webvue/ui/app/utils/recordNumberHeader': { recordNumberHeader: () => 'number' },
       '@webvue/ui/app/components/shared/data/RecordNumber.vue': { default: defineComponent({ props: ['value'], setup: props => () => h('bdi', String(props.value)) }) },
       '@/composables/useMilestones': {
         useMilestones: () => ({ data: ref([{ id: 1, name: 'In use', start_date: null, deadline: null, deliverables: [{name:'output',done:false}], is_reached: false, task_count: 2, done_task_count: 1 }]), isLoading: ref(false), error: ref(null), refetch: () => {} }),
