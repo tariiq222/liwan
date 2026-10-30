@@ -15,7 +15,7 @@ import { useProjectArchive } from './projectArchive'
 // `toFor`; the name link's plain click goes through `open`, so the page can first commit the search being typed. Empty,
 // error and paging belong to the page. The server has one sort order per key, not a direction, so no header sorts.
 type ProjectListItem = Project & { manager?: { id: number; name: string } | null; date_end?: string | null }
-defineProps<{
+const props = defineProps<{
   items: ProjectListItem[]
   isLoading: boolean
   toFor: (project: ProjectListItem) => RouteLocationRaw
@@ -28,6 +28,10 @@ const archive = useProjectArchive()
 // The confirmation sits above the rows: bring it into view when a row far down asks for it.
 watch(archive.target, (target) => {
   if (target) void nextTick(() => document.querySelector('[data-testid="project-archive-confirm"]')?.scrollIntoView({ block: 'center' }))
+})
+// The confirmation names no project, so it never outlives its row: paging or filtering it away cancels it.
+watch(() => props.items, (items) => {
+  if (archive.target.value && !items.some(project => project.id === archive.target.value?.id)) archive.cancel()
 })
 
 // Narrow columns are fixed px (a pill or an avatar never clips), the name absorbs the rest and truncates; `fit` columns

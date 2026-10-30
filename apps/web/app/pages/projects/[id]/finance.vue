@@ -211,7 +211,7 @@ const liveListPath = computed(() => router.resolve({
   hash: route.hash,
   query: {
     ...serializeFinanceListRoute({ ...filters, q: search.value }),
-    ...Object.fromEntries(['returnTo', 'taskContext', 'projectListReturnTo'].filter(key => typeof route.query[key] === 'string').map(key => [key, route.query[key] as string])),
+    ...Object.fromEntries(['returnTo', 'taskContext', 'projectListReturnTo', 'linesOffset'].filter(key => typeof route.query[key] === 'string').map(key => [key, route.query[key] as string])),
   },
 }).fullPath)
 const entryTo = (item: { id: number }) => ({ path: `/projects/${projectId.value}/finance/${item.id}`, query: { ...serializeFinanceListRoute({ ...filters, q: search.value }), ...returnToQuery(liveListPath.value) } })
