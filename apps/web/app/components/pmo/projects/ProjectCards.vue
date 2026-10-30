@@ -34,7 +34,7 @@ function openWithKeyboard(project: Project, event: KeyboardEvent) {
         <article
           v-for="project in items"
           :key="project.id"
-          class="min-w-0 cursor-pointer rounded-card bg-default p-(--webvue-card-pad) ring ring-default transition duration-150 hover:-translate-y-px hover:shadow-md focus-visible:outline-2 focus-visible:outline-primary motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+          class="min-w-0 cursor-pointer rounded-card bg-default p-(--webvue-card-pad) ring ring-default focus-visible:outline-2 focus-visible:outline-primary"
           data-testid="project-card"
           tabindex="0"
           :aria-labelledby="`project-card-${project.id}`"

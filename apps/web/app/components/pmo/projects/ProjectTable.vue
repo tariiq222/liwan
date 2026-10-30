@@ -8,13 +8,14 @@ import { projectEndTagView, projectProgressTone, projectStatusPill } from './pro
 import ProjectCardBody from './ProjectCardBody.vue'
 import ProjectMenu from './ProjectMenu.vue'
 import ProjectProgress from './ProjectProgress.vue'
+import { useProjectArchive } from './projectArchive'
 
 // The table view of /projects on a bare SharedDataTable: the page wraps it in a SharedListCard whose header row holds the
 // filter bar and whose last row is the `footer` slot. A background click and Enter on a row open the project through
 // `toFor`; the name link's plain click goes through `open`, so the page can first commit the search being typed. Empty,
 // error and paging belong to the page. The server has one sort order per key, not a direction, so no header sorts.
 type ProjectListItem = Project & { manager?: { id: number; name: string } | null; date_end?: string | null }
-defineProps<{
+const props = defineProps<{
   items: ProjectListItem[]
   isLoading: boolean
   toFor: (project: ProjectListItem) => RouteLocationRaw
@@ -23,6 +24,15 @@ const emit = defineEmits<{ open: [id: number] }>()
 
 const { t } = useI18n()
 const hydrated = useHydrated()
+const archive = useProjectArchive()
+// The confirmation sits above the rows: bring it into view when a row far down asks for it.
+watch(archive.target, (target) => {
+  if (target) void nextTick(() => document.querySelector('[data-testid="project-archive-confirm"]')?.scrollIntoView({ block: 'center' }))
+})
+// The confirmation names no project, so it never outlives its row: paging or filtering it away cancels it.
+watch(() => props.items, (items) => {
+  if (archive.target.value && !items.some(project => project.id === archive.target.value?.id)) archive.cancel()
+})
 
 // Narrow columns are fixed px (a pill or an avatar never clips), the name absorbs the rest and truncates; `fit` columns
 // never clip. The table's minimum width is the sum of its columns (the name at its floor), and below it the table scrolls sideways.
@@ -62,6 +72,18 @@ function openLink(project: ProjectListItem, event: MouseEvent) {
 
 <template>
   <div class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,928px)] [&_table]:table-fixed">
+    <!-- The row menu only asks; the confirmation takes the full width of the list, not the 56px menu cell. -->
+    <SharedInlineConfirm
+      v-if="archive.target.value"
+      class="m-(--webvue-card-pad-dense)"
+      data-testid="project-archive-confirm"
+      :title="t('projects.archiveConfirmTitle')"
+      :description="t('projects.archiveConfirmText')"
+      :confirm-label="t('projects.menu.archive')"
+      :pending="archive.pending.value"
+      @cancel="archive.cancel"
+      @confirm="archive.archive"
+    />
     <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :row-to="toFor" :loading="isLoading" :caption="t('projects.title')">
       <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
       <template #name-cell="{ row }">
@@ -90,7 +112,7 @@ function openLink(project: ProjectListItem, event: MouseEvent) {
         <ProjectProgress :progress="row.original.progress" :task-count="row.original.task_count" :closed-task-count="row.original.closed_task_count" :tone="projectProgressTone(row.original)" />
       </template>
       <template #menu-cell="{ row }">
-        <ProjectMenu :project="row.original" :to="toFor(row.original)" hide-settings @click.stop />
+        <ProjectMenu :project="row.original" :to="toFor(row.original)" @archive="archive.request(row.original)" />
       </template>
       <template #mobile-row="{ row }">
         <ProjectCardBody :project="row" :to-for="toFor" />

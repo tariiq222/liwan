@@ -98,6 +98,7 @@ async function renderPage(detail: ProjectDetail, query: Record<string, string>) 
     '@/composables/useProjects': { useProject: () => ({ data: Vue.ref(detail), isLoading: Vue.ref(false), error: Vue.ref(null), refetch: () => {} }) },
     '@/composables/useMilestones': { useMilestones: () => ({ data: Vue.ref([]), isLoading: Vue.ref(false), error: Vue.ref(null), refetch: () => {} }) },
     '@/components/pmo/projects/ProjectCharterForm.vue': { __esModule: true, default: FormStub },
+    '@/components/pmo/projects/ProjectNotFoundState.vue': { __esModule: true, default: Stub('ProjectNotFoundState') },
     '@/components/pmo/projects/CharterApprovalPanel.vue': { __esModule: true, default: Stub('CharterApprovalPanel') },
   }, route(query))
   return renderToString(Vue.createSSRApp(page))

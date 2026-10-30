@@ -157,6 +157,12 @@
       "accept": "Accept and mark done",
       "return": "Return with note",
       "withdraw": "Withdraw request",
+      "done": {
+        "requested": "Completion approval requested",
+        "accepted": "Task completion accepted",
+        "returned": "Task returned with your note",
+        "withdrawn": "Completion request withdrawn"
+      },
       "note": "Return note",
       "contactManager": "Contact the project manager. If you requested this, you can withdraw it and request again after the reviewer is repaired.",
       "noReviewer": "No reviewer is assigned, so completion approval cannot be requested. Contact the project manager.",
@@ -179,7 +185,6 @@
       "add": "Add comment",
       "write": "Write a comment…",
       "post": "Post",
-      "loading": "Loading…",
       "empty": "No changes yet",
       "emptyComments": "No comments yet",
       "referenceHint": "Type {'@'} to mention a person and / to reference a subtask.",
@@ -225,6 +230,7 @@
       "add": "Add description",
       "save": "Save",
       "cancel": "Cancel",
+      "saved": "Description saved",
       "saveError": "Could not save the description. Try again.",
       "placeholder": "Describe the task…"
     },

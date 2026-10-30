@@ -30,7 +30,7 @@ type DescriptionState = {
 
 const mountedScopes: Vue.EffectScope[] = []
 
-function loadSetup(mutation: Mutation) {
+function loadSetup(mutation: Mutation, toasts: unknown[] = []) {
   const descriptor = parse(source, { filename }).descriptor
   const script = compileScript(descriptor, { id: 'task-description-test' }).content
   const code = ts.transpileModule(script, {
@@ -46,12 +46,13 @@ function loadSetup(mutation: Mutation) {
     if (request.endsWith('/DescriptionEditor.vue')) return {}
     return {}
   }
-  new Function('require', 'exports', 'module', 'useI18n', 'useHydrated', 'ref', 'computed', 'watch', code)(
+  new Function('require', 'exports', 'module', 'useI18n', 'useHydrated', 'useToast', 'ref', 'computed', 'watch', code)(
     localRequire,
     module.exports,
     module,
     () => ({ t: (key: string) => key }),
     () => Vue.ref(true),
+    () => ({ add: (toast: unknown) => toasts.push(toast) }),
     Vue.ref,
     Vue.computed,
     Vue.watch,
@@ -108,13 +109,15 @@ describe('TaskDescription production behavior', () => {
       isPending: Vue.ref(false),
       mutateAsync: async (input) => { calls.push(input); return savedTask('<p>Server result</p>') },
     }
-    const { state } = loadSetup(mutation)
+    const toasts: unknown[] = []
+    const { state } = loadSetup(mutation, toasts)
     state.startEdit()
     state.onDescriptionDraft({ html: '<p>Edited</p>', taskId: 7 })
 
     await state.save()
 
     expect(calls).toEqual([{ id: 7, patch: { description: '<p>Edited</p>' } }])
+    expect(toasts).toEqual([{ title: 'tasks.descriptionField.saved', color: 'success' }])
     expect(state.editing.value).toBe(false)
     expect(state.renderedHtml.value).toBe('<p>Server result</p>')
   })
@@ -124,12 +127,14 @@ describe('TaskDescription production behavior', () => {
       isPending: Vue.ref(false),
       mutateAsync: async () => { throw new Error('request failed') },
     }
-    const { state } = loadSetup(mutation)
+    const toasts: unknown[] = []
+    const { state } = loadSetup(mutation, toasts)
     state.startEdit()
     state.onDescriptionDraft({ html: '<p>Keep this draft</p>', taskId: 7 })
 
     await state.save()
 
+    expect(toasts).toEqual([])
     expect(state.editing.value).toBe(true)
     expect(state.draft.value).toBe('<p>Keep this draft</p>')
   })

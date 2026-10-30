@@ -3,6 +3,7 @@ import { recordParentTo } from '@/utils/recordListOrigin'
 import { ApiError } from '@/composables/useApi'
 import { useProjectFinanceEntry, useProjectFinanceList } from '@/composables/useProjectFinance'
 import FinanceEntryForm from '@/components/pmo/projects/finance/FinanceEntryForm.vue'
+import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState.vue'
 import {
   financeWriteAllowed,
   shouldKeepFinanceFormMounted,
@@ -65,16 +66,14 @@ function retry() {
 <template>
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('projects.finance.editTitle')" :back-to="backTo" :back-label="t('projects.finance.backToLedger')" />
-    <template v-if="projectId === null || entryId === null">
-      <p class="text-muted">{{ t('projects.invalidId') }}</p>
-    </template>
+    <ProjectNotFoundState v-if="notFound || projectId === null || entryId === null" embedded />
     <template v-else>
       <SharedPageState
         v-if="!keepForm"
         :loading="initialLoading"
         :error="pageError"
-        :empty="!initialLoading && !pageError && (notFound || (!!access.data.value && !writeAllowed))"
-        :empty-text="notFound ? t('projects.notFound') : t('projects.forbidden')"
+        :empty="!initialLoading && !pageError && !!access.data.value && !writeAllowed"
+        :empty-text="t('projects.forbidden')"
         @retry="retry"
       />
       <template v-else>

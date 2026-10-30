@@ -31,7 +31,7 @@ export function projectsPreviewData(path, url, { PROJECTS, TASKS, projectDetail,
   if (rest === 'register') return page([risk], { can_manage: true })
   if (rest === 'register/1') return risk
   if (rest === 'raci') return { items: [{ id: 1, task: { id: 101, name: TASKS[0].name }, stakeholder: { id: 1, name: stakeholder.name }, role: 'R' }], total: 1, can_manage: true }
-  if (rest === 'schedule') return { project_id: projectId, tasks: TASKS.map(t => ({ id: t.id, name: t.name, start: '2026-09-08', end: '2026-10-01', state: t.state, dependency_ids: [], milestone_id: 1 })), milestones: [{ id: 1, name: milestone.name, deadline: milestone.deadline }], can_manage: PROJECTS.find(project => project.id === projectId)?.can_manage !== false, total: TASKS.length }
+  if (rest === 'schedule') return { project_id: projectId, tasks: TASKS.map(t => ({ id: t.id, name: t.name, start: '2026-09-08', end: '2026-10-01', state: t.state, dependency_ids: [], milestone_id: 1 })), milestones: [{ id: 1, name: milestone.name, deadline: milestone.deadline, is_reached: milestone.is_reached }], can_manage: PROJECTS.find(project => project.id === projectId)?.can_manage !== false, total: TASKS.length }
   if (rest === 'finance') return page(entries.filter(e => !url.searchParams.get('kind') || url.searchParams.get('kind') === 'all' || e.kind === url.searchParams.get('kind')), { can_manage: true, summary: reportRow(PROJECTS[0]).finance })
   if (/^finance\/\d+$/.test(rest)) return entries.find(e => e.id === Number(rest.split('/')[1]))
   return undefined

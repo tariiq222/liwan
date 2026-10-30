@@ -93,6 +93,18 @@ class TestProjectSchedule(WebVuePmoCase):
         self.assertEqual(self.api('PATCH', patch_url, {'start': False, 'end': None}).status_code, 422)
         self.assertEqual(self.api('PATCH', patch_url, {'start': '2030-02-01'}).status_code, 422)
 
+    def test_schedule_milestones_report_whether_they_are_reached(self):
+        milestones = self.env['project.milestone'].create([
+            {'name': 'Reached', 'project_id': self.project.id, 'deadline': '2030-02-01', 'is_reached': True},
+            {'name': 'Open', 'project_id': self.project.id, 'deadline': '2030-03-01'},
+        ])
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        body = self.api('GET', f'/api/v1/projects/{self.project.id}/schedule').json()
+        by_id = {item['id']: item for item in body['milestones']}
+        self.assertEqual(set(by_id[milestones[0].id]), {'id', 'name', 'start_date', 'deadline', 'is_reached'})
+        self.assertIs(by_id[milestones[0].id]['is_reached'], True)
+        self.assertIs(by_id[milestones[1].id]['is_reached'], False)
+
     def test_schedule_http_ordinary_user_denial_and_task_project_mismatch(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
         url = f'/api/v1/projects/{self.project.id}/schedule/tasks/{self.task_overdue.id}'

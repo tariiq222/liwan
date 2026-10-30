@@ -8,6 +8,7 @@ const props = defineProps<{ projectId: number; stakeholder?: ProjectStakeholder 
 const emit = defineEmits<{ saved: [item: ProjectStakeholder]; cancel: [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
+const toast = useToast()
 const name = ref(props.stakeholder?.name ?? '')
 const organization = ref(props.stakeholder?.organization ?? '')
 const role = ref(props.stakeholder?.role ?? '')
@@ -58,6 +59,7 @@ async function submit() {
       ? await update.mutateAsync({ projectId: props.projectId, id: props.stakeholder.id, body })
       : await create.mutateAsync({ projectId: props.projectId, body })
     submitted.value = true
+    toast.add({ title: t(props.stakeholder ? 'projects.toast.stakeholderUpdated' : 'projects.toast.stakeholderCreated'), color: 'success' })
     await nextTick()
     emit('saved', item)
   }
@@ -114,7 +116,7 @@ async function submit() {
       <p class="me-auto text-xs text-muted">{{ t('projects.requiredHint') }}</p>
       <div class="flex flex-wrap items-center gap-2">
         <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated || pending" @click="emit('cancel')">{{ t('app.cancel') }}</UButton>
-        <UButton type="submit" :disabled="!hydrated || pending" :loading="pending">{{ pending ? t('projects.governance.saving') : t('app.save') }}</UButton>
+        <UButton type="submit" :disabled="!hydrated || pending" :loading="pending">{{ pending ? t('projects.governance.saving') : t(stakeholder ? 'app.save' : 'projects.governance.stakeholder.createTitle') }}</UButton>
       </div>
     </SharedFormActions>
   </form>

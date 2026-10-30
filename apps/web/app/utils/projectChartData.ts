@@ -126,7 +126,7 @@ export function projectChartLabels(t: (key: string) => string): ChartLabels {
 
 const STATUS_ORDER: Array<ProjectStatus | null> = ['on_track', 'at_risk', 'off_track', 'on_hold', 'done', null]
 const STATUS_TONE: Record<ProjectStatus | 'unset', ChartTone> = {
-  on_track: 'success', at_risk: 'warning', off_track: 'danger', on_hold: 'neutral', done: 'info', unset: 'neutral',
+  on_track: 'success', at_risk: 'warning', off_track: 'danger', on_hold: 'warning', done: 'success', unset: 'neutral',
 }
 
 function percent(value: number, total: number): number {

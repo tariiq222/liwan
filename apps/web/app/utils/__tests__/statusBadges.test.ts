@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { projectStatusBadge } from '../../composables/projectStatus'
-import { deadlineTone, taskStateBadge } from '../../composables/taskState'
+import { taskStateBadge } from '../../composables/taskState'
 import { accessStateBadge } from '../accessStateBadge'
 import { hrAccessBadge } from '../hrAccessBadge'
 import { badgeLabel, statusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
@@ -31,12 +31,6 @@ describe('status badge maps keep the colours and labels the old components had',
   it('labels a project without a status as unset', () => {
     expect(projectStatusBadge(null).tone).toBe('neutral')
     expect(projectStatusBadge(null).labelKey).toMatch(/^projects\.status\./)
-  })
-
-  it.each([
-    [null, false, 'neutral'], [-3, false, 'destructive'], [0, false, 'warning'], [2, false, 'warning'], [3, false, 'neutral'], [-3, true, 'neutral'],
-  ] as const)('a deadline %s days away (closed: %s) is %s', (days, closed, tone) => {
-    expect(deadlineTone(days, closed)).toBe(tone)
   })
 
   it('an unknown value falls back to a neutral badge that shows the value', () => {

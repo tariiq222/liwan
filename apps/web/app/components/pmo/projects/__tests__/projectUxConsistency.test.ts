@@ -27,8 +27,8 @@ function load(path: string, extra: Record<string, unknown> = {}) {
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '')
     .replaceAll('import.meta.server', 'false').replace('export default', 'return')
   const dependencies = {
-    _defineComponent: Vue.defineComponent, ref: Vue.ref, computed: Vue.computed,
-    useI18n: () => ({ t: (key: string) => key }), useRoute: () => route, useRouter: () => ({}), useHydrated: () => Vue.ref(true),
+    _defineComponent: Vue.defineComponent, ref: Vue.ref, computed: Vue.computed, watch: Vue.watch, nextTick: Vue.nextTick, refDebounced: (source: unknown) => source,
+    useI18n: () => ({ t: (key: string) => key }), useRoute: () => route, useRouter: () => ({}), useHydrated: () => Vue.ref(true), useToast: () => ({ add: () => {} }),
     budgetStatus, financeSummaryMode, formatNullableAmount, formatUtilization, isExternalActual, projectSectionLocation, returnToQuery, isDirtySnapshot, ApiError,
     DescriptionEditor: passthrough, FinanceActualSource: passthrough, FinanceActualAccountPicker: passthrough, FilterBar: passthrough, RaciMatrix: passthrough, SharedSegmentedControl: passthrough, RACI_ROLE_TONE: {},
     ...extra,

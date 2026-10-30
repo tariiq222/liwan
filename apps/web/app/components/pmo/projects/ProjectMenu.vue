@@ -3,44 +3,30 @@ import type { Project, ProjectDetail } from '@webvue/contracts'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import type { RouteLocationRaw } from 'vue-router'
 import { ApiError } from '@/composables/useApi'
-import { useArchiveProject, useUnarchiveProject } from '@/composables/useProjects'
+import { useUnarchiveProject } from '@/composables/useProjects'
 
-const props = withDefaults(defineProps<{ project: Project | ProjectDetail; hideSettings?: boolean; to?: RouteLocationRaw }>(), { hideSettings: false })
-const emit = defineEmits<{ settings: []; archived: []; unarchived: [] }>()
+const props = defineProps<{ project: Project | ProjectDetail; to?: RouteLocationRaw }>()
+// The archive confirmation is drawn by the list (a full-width block); the menu only asks for it.
+defineOptions({ inheritAttrs: false })
+const emit = defineEmits<{ archive: [] }>()
 
 const { t } = useI18n()
 const hydrated = useHydrated()
 const toast = useToast()
-const { mutateAsync: archiveMutate, isPending: archiving } = useArchiveProject()
 const { mutateAsync: unarchiveMutate, isPending: unarchiving } = useUnarchiveProject()
-
-const confirmOpen = ref(false)
 
 const items = computed<DropdownMenuItem[] | DropdownMenuItem[][]>(() => {
   const list: DropdownMenuItem[] = []
-  if (!props.hideSettings) list.push({ label: t('projects.menu.settings'), onSelect: () => emit('settings') })
   if (!props.project.active) list.push({ label: t('projects.menu.unarchive'), icon: 'i-lucide-archive-restore', disabled: unarchiving.value, onSelect: doUnarchive })
-  // Same grouping as SharedRowActions: destructive items last, in the error colour, opening an inline confirmation.
-  if (props.project.active) return [list, [{ label: t('projects.menu.archive'), icon: 'i-lucide-archive', color: 'error', onSelect: () => { confirmOpen.value = true } }]]
+  // Same grouping as SharedRowActions: destructive items last, in the error colour, opening an inline confirmation in the list.
+  if (props.project.active) return [list, [{ label: t('projects.menu.archive'), icon: 'i-lucide-archive', color: 'error', onSelect: () => emit('archive') }]]
   return list
 })
-
-async function doArchive() {
-  try {
-    await archiveMutate({ id: props.project.id })
-    toast.add({ title: t('projects.archived'), color: 'success' })
-    confirmOpen.value = false
-    emit('archived')
-  } catch (e) {
-    toast.add({ title: e instanceof ApiError ? e.message : t('errors.generic'), color: 'error' })
-  }
-}
 
 async function doUnarchive() {
   try {
     await unarchiveMutate({ id: props.project.id })
     toast.add({ title: t('projects.unarchived'), color: 'success' })
-    emit('unarchived')
   } catch (e) {
     toast.add({ title: e instanceof ApiError ? e.message : t('errors.generic'), color: 'error' })
   }
@@ -62,6 +48,7 @@ async function doUnarchive() {
       icon="i-lucide-ellipsis"
       :disabled="!hydrated"
       :aria-label="t('projects.menu.labelNamed', { name: project.name })"
+      v-bind="$attrs"
       @click.stop
     />
   </UDropdownMenu>
@@ -69,17 +56,6 @@ async function doUnarchive() {
     v-else-if="to"
     :actions="[{ label: t('projects.menu.open'), icon: 'i-lucide-eye', to }]"
     :label="t('projects.menu.labelNamed', { name: project.name })"
-  />
-
-  <SharedInlineConfirm
-    v-if="project.active && confirmOpen"
-    class="basis-full"
-    data-testid="project-archive-confirm"
-    :title="t('projects.archiveConfirmTitle')"
-    :description="t('projects.archiveConfirmText')"
-    :confirm-label="t('projects.menu.archive')"
-    :pending="archiving"
-    @cancel="confirmOpen = false"
-    @confirm="doArchive"
+    v-bind="$attrs"
   />
 </template>

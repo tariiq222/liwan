@@ -6,6 +6,7 @@ import { badgeLabel } from '@webvue/ui/app/utils/statusBadge'
 import type { TableColumn } from '@nuxt/ui'
 import { formatNullablePercent } from '@/utils/projectFinance'
 import type { DashboardProject } from '@/utils/projectChartData'
+import { projectProgressTone } from '../projectHealth'
 import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
 import { formatWebVueDateTime } from '@webvue/ui/app/composables/calendarDate'
 
@@ -51,12 +52,6 @@ const columns = computed<TableColumn<DashboardProject>[]>(() => [
   { id: 'updated', header: t('projects.dashboard.recentUpdated') },
 ])
 
-// A late project's bar turns red; an at-risk or off-track one amber; the rest keep the brand colour.
-function progressTone(row: DashboardProject) {
-  if ((row.overdue_task_count ?? 0) > 0 || row.project.status === 'off_track') return 'danger'
-  return row.project.status === 'at_risk' ? 'warning' : 'primary'
-}
-
 function updatedAt(value: string | null | undefined) {
   if (!value) return t('projects.dashboard.unknown')
   const date = new Date(value)
@@ -80,7 +75,7 @@ function updatedAt(value: string | null | undefined) {
       <template #status-cell="{ row }"><SharedStatusBadge v-bind="projectBadge(row.original.project.status)" data-testid="project-status" /></template>
       <template #progress-cell="{ row }">
         <div class="flex min-w-28 items-center gap-2">
-          <SharedProgress class="w-16" :value="row.original.progress" size="sm" :tone="progressTone(row.original)" />
+          <SharedProgress class="w-16" :value="row.original.progress" size="sm" :tone="(row.original.overdue_task_count ?? 0) > 0 ? 'danger' : projectProgressTone({ status: row.original.project.status, progress: row.original.progress ?? 0, date_end: null })" />
           <span dir="ltr" class="tabular-nums">{{ formatNullablePercent(row.original.progress, t('projects.dashboard.unavailable')) }}</span>
         </div>
       </template>

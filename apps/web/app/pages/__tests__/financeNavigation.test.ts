@@ -8,7 +8,8 @@ import { createHooks } from 'hookable'
 import { expect, it } from 'vitest'
 import * as finance from '../../utils/projectFinance'
 import { parsePositiveId } from '../../utils/routeParams'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery, safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import { listFilterQuery } from '../../composables/useRouteListFilters'
 import { rootedNode } from '../../../tests/hostNode'
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -30,12 +31,12 @@ async function mountFinance(auth: (to: RouteLocationNormalized) => unknown | Pro
   const bindings = {
     ...finance, _defineComponent: Vue.defineComponent, defineComponent: Vue.defineComponent,
     ref: Vue.ref, computed: Vue.computed, reactive: Vue.reactive, watch: Vue.watch, onScopeDispose: Vue.onScopeDispose,
-    useRoute: deferPageRoute ? () => deferredRoute : useRoute, useRouter, onBeforeRouteLeave, onBeforeRouteUpdate, refDebounced, parsePositiveId, returnToQuery,
+    useRoute: deferPageRoute ? () => deferredRoute : useRoute, useRouter, onBeforeRouteLeave, onBeforeRouteUpdate, refDebounced, parsePositiveId, returnToQuery, safeReturnTo, listFilterQuery,
     useNuxtApp: () => ({ hook: hooks.hook.bind(hooks) }),
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true),
     useProject: () => ({ data: Vue.ref({ id: 2 }) }),
     useProjectFinanceList: () => ({ data: Vue.ref({ items: [], total: 4, can_manage: true }), isFetching: Vue.ref(false), error: Vue.ref(null) }),
-    ApiError: class ApiError extends Error {}, FinanceEntryTable: {}, FinanceSummaryCards: {}, FinanceActualLines: {}, FilterBar: {}, SharedSegmentedControl: {},
+    ApiError: class ApiError extends Error {}, ProjectNotFoundState: {}, FinanceEntryTable: {}, FinanceSummaryCards: {}, FinanceActualLines: {}, FilterBar: {}, SharedSegmentedControl: {},
   }
   const code = ts.transpileModule(script, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText
   const page = new Function(...Object.keys(bindings), code)(...Object.values(bindings))

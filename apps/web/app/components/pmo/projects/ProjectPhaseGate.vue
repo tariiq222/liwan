@@ -36,6 +36,7 @@ async function run(phase: ProjectPhase, acknowledgeWarnings = false) {
     await move({ id: props.project.id, phase, expected: props.project.updated_at, acknowledgeWarnings })
     stepBack.value = false
     confirmWarning.value = false
+    toast.add({ title: t('projects.toast.phaseMoved'), color: 'success' })
   } catch (error) {
     stepBack.value = false
     // The server found warnings the cached card did not show: ask now, then resend acknowledged.

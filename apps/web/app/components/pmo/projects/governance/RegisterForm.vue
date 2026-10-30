@@ -9,6 +9,7 @@ const props = defineProps<{ projectId: number; item?: ProjectRegister }>()
 const emit = defineEmits<{ saved: [item: ProjectRegister]; cancel: [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
+const toast = useToast()
 const kind = ref<ProjectRegisterKind>(props.item?.kind ?? 'risk')
 const title = ref(props.item?.title ?? '')
 const description = ref(props.item?.description ?? '')
@@ -50,7 +51,7 @@ const priorityItems = computed(() => [
 ])
 const statusItems = computed(() => [
   { value: 'open', label: t('projects.governance.register.open') },
-  { value: 'in_progress', label: t('projects.governance.register.inProgress') },
+  { value: 'in_progress', label: t('projects.governance.register.in_progress') },
   { value: 'resolved', label: t('projects.governance.register.resolved') },
   { value: 'closed', label: t('projects.governance.register.closed') },
 ])
@@ -106,6 +107,7 @@ async function submit() {
       ? await update.mutateAsync({ projectId: props.projectId, id: props.item.id, body })
       : await create.mutateAsync({ projectId: props.projectId, body })
     submitted.value = true
+    toast.add({ title: t(props.item ? 'projects.toast.registerUpdated' : 'projects.toast.registerCreated'), color: 'success' })
     await nextTick()
     emit('saved', item)
   }
@@ -207,7 +209,7 @@ async function submit() {
       <p class="me-auto text-xs text-muted">{{ t('projects.requiredHint') }}</p>
       <div class="flex flex-wrap items-center gap-2">
         <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated || pending" @click="emit('cancel')">{{ t('app.cancel') }}</UButton>
-        <UButton type="submit" :disabled="!hydrated || pending" :loading="pending">{{ t('app.save') }}</UButton>
+        <UButton type="submit" :disabled="!hydrated || pending" :loading="pending">{{ t(item ? 'app.save' : 'projects.governance.registerForm.create') }}</UButton>
       </div>
     </SharedFormActions>
   </form>

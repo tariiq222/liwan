@@ -3,6 +3,7 @@ import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
 import { useMilestones } from '@/composables/useMilestones'
 import ProjectCharterForm from '@/components/pmo/projects/ProjectCharterForm.vue'
+import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState.vue'
 import CharterApprovalPanel from '@/components/pmo/projects/CharterApprovalPanel.vue'
 
 const route = useRoute()
@@ -51,12 +52,12 @@ function onCancel() {
 </script>
 
 <template>
-  <SharedStandalonePage v-if="readonly" variant="print" width="list">
+  <ProjectNotFoundState v-if="notFound" />
+  <SharedStandalonePage v-else-if="readonly" variant="print" width="list">
     <!-- The "Project charter" sub-tab already names this page (DESIGN 4): the state and the edit action live in the essentials panel header. -->
     <SharedPageHeader class="webvue-print-hide" hide-title :title="t('projects.charter.title')" />
     <CharterApprovalPanel v-if="project" :project="project" />
-    <p v-if="projectId === null" class="text-muted">{{ t('projects.invalidId') }}</p>
-    <SharedPageState v-else :loading="isLoading && !project" :error="notFound ? null : error" :empty="notFound || (!isLoading && !error && !project)" :empty-text="notFound ? t('projects.notFound') : t('projects.empty')" @retry="refetch">
+    <SharedPageState :loading="isLoading && !project" :error="error" :empty="!isLoading && !error && !project" :empty-text="t('projects.empty')" @retry="refetch">
       <ProjectCharterForm mode="edit" :project="project" readonly :milestones="milestones ?? []" :milestones-loading="milestonesLoading" :milestones-error="milestonesError" @retry-milestones="refetchMilestones">
         <template #state>
           <SharedStatusBadge v-if="charterState" data-testid="charter-state-badge" :tone="isDraft ? 'warning' : charterState === 'submitted' ? 'info' : 'success'" :label="t(`projects.charter.state.${charterState}`)" :aria-label="`${t('projects.charter.stateLabel')}: ${t(`projects.charter.state.${charterState}`)}`" />
@@ -73,8 +74,7 @@ function onCancel() {
         <SharedStatusBadge v-if="charterState" data-testid="charter-state-badge" :tone="isDraft ? 'warning' : charterState === 'submitted' ? 'info' : 'success'" :label="t(`projects.charter.state.${charterState}`)" :aria-label="`${t('projects.charter.stateLabel')}: ${t(`projects.charter.state.${charterState}`)}`" />
       </template>
     </SharedPageHeader>
-    <p v-if="projectId === null" class="text-muted">{{ t('projects.invalidId') }}</p>
-    <SharedPageState v-else :loading="isLoading && !project" :error="notFound ? null : error" :empty="notFound || (!isLoading && !error && !project)" :empty-text="notFound ? t('projects.notFound') : t('projects.empty')" @retry="refetch">
+    <SharedPageState :loading="isLoading && !project" :error="error" :empty="!isLoading && !error && !project" :empty-text="t('projects.empty')" @retry="refetch">
       <div class="grid gap-(--webvue-gap-card)">
         <UAlert v-if="project && charterState === 'draft' && project.charter.return_note" color="warning" variant="subtle" icon="i-lucide-undo-2" data-testid="charter-returned" :title="t('projects.charter.returned')" :description="project.charter.return_note" />
         <SharedFormSection panel>

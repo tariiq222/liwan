@@ -1,53 +1,34 @@
 <script setup lang="ts">
 import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
 import { useProjectRegister, useDeleteProjectRegister } from '@/composables/useProjectGovernance'
-import { governanceFilters } from '@/composables/projectGovernanceKeys'
+import { useGovernanceListPage } from '@/components/pmo/projects/governance/listPage'
 import { REGISTER_PRIORITY_TONE, REGISTER_STATUS_TONE, registerScoreTone } from '@/components/pmo/projects/governance/state'
 import { ApiError } from '@/composables/useApi'
 import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState.vue'
 import { useProjectMissing } from '@/composables/useProjects'
 import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const toast = useToast()
 const hydrated = useHydrated()
-const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
-const isListRoute = computed(() => {
-  const rest = normalizedPath.value.replace(/^\/projects\/[^/]+\/register/, '')
-  return rest === '' || rest === '/new'
-})
-const id = computed(() => Number(route.params.id))
-const notFound = useProjectMissing(id)
-const parsed = computed(() => governanceFilters(route.query))
-const filters = computed(() => (parsed.value))
-const list = useProjectRegister(computed(() => isListRoute.value ? id.value : null), filters)
 const remove = useDeleteProjectRegister()
-const confirmDeleteId = ref<number | null>(null)
-const error = ref<string | null>(null)
-function setFilter(key: string, value: string) {
-  router.replace({ query: { ...route.query, [key]: value || undefined, offset: undefined } })
-}
-const search = ref(typeof route.query.q === 'string' ? route.query.q : '')
-watch(search, value => setFilter('q', value), { flush: 'sync' })
-watch(() => route.query.q, value => { search.value = typeof value === 'string' ? value : '' })
-const q = search
-const PAGE = 50
-const pageNumber = computed(() => Math.floor((parsed.value.offset ?? 0) / PAGE) + 1)
-const pages = computed(() => Math.max(1, pageNumber.value, Math.ceil((list.data.value?.total ?? 0) / PAGE)))
-function setPage(next: number) {
-  if (!hydrated.value || list.isFetching.value || next < 1 || next > pages.value) return
-  void router.push({ query: { ...route.query, offset: next === 1 ? undefined : String((next - 1) * PAGE) } })
-}
-// A link out of the list carries the list's own state, with the search being typed; a referrer's returnTo is dropped.
-const liveQuery = computed(() => {
-  const { returnTo: _referrer, ...rest } = route.query
-  return { ...rest, q: search.value.trim() || undefined }
+const {
+  isListRoute, id, parsed, list, search, setFilter, pageNumber, pages, setPage, itemTo, createTo, openLiveItem,
+  error, confirmItem, deleteItem, rowActions, cancelDelete,
+} = useGovernanceListPage({
+  section: 'register',
+  useList: useProjectRegister,
+  remove,
+  deletedTitle: t('projects.toast.registerDeleted'),
+  deleteLabel: t('projects.governance.delete'),
+  confirmTestId: 'register-delete-confirm',
+  deleteError: cause => cause instanceof ApiError ? cause.message : t('errors.generic'),
+  context: { route, router, hydrated, toast },
 })
-const itemTo = (item: { id: number }) => ({ path: `/projects/${id.value}/register/${item.id}`, query: liveQuery.value })
-const createTo = computed(() => list.data.value?.can_manage ? { path: `/projects/${id.value}/register/new`, query: liveQuery.value } : undefined)
+const notFound = useProjectMissing(id)
 const kind = computed(() => parsed.value.kind ?? 'all')
 const status = computed(() => parsed.value.status ?? 'all')
 const priority = computed(() => parsed.value.priority ?? 'all')
@@ -63,7 +44,7 @@ function setStatus(value: unknown) {
 function setPriority(value: unknown) {
   setFilter('priority', value === 'all' ? '' : String(value ?? ''))
 }
-const activeFilterCount = computed(() => Number(Boolean(q.value.trim())) + Number(Boolean(parsed.value.kind)) + Number(Boolean(parsed.value.status)) + Number(Boolean(parsed.value.priority)))
+const activeFilterCount = computed(() => Number(Boolean(search.value.trim())) + Number(Boolean(parsed.value.kind)) + Number(Boolean(parsed.value.status)) + Number(Boolean(parsed.value.priority)))
 function clearFilters() {
   router.replace({ query: { ...route.query, q: undefined, kind: undefined, status: undefined, priority: undefined, offset: undefined } })
 }
@@ -76,7 +57,7 @@ const kindItems = computed(() => [
 const statusItems = computed(() => [
   { value: 'all', label: t('projects.clarity.allStatuses') },
   { value: 'open', label: t('projects.governance.register.open') },
-  { value: 'in_progress', label: t('projects.governance.register.inProgress') },
+  { value: 'in_progress', label: t('projects.governance.register.in_progress') },
   { value: 'resolved', label: t('projects.governance.register.resolved') },
   { value: 'closed', label: t('projects.governance.register.closed') },
 ])
@@ -99,46 +80,6 @@ const total = computed(() => list.data.value?.total ?? 0)
 const items = computed(() => list.data.value?.items ?? [])
 // Nothing registered and nothing filtered is an empty page, not an empty list: no filter row to show.
 const bareEmpty = computed(() => Boolean(list.data.value) && !items.value.length && !activeFilterCount.value && !parsed.value.offset)
-async function deleteItem(item: { id: number }) {
-  error.value = null
-  if (confirmDeleteId.value !== item.id) {
-    confirmDeleteId.value = item.id
-    return
-  }
-  try {
-    await remove.mutateAsync({ projectId: id.value, id: item.id })
-    confirmDeleteId.value = null
-  }
-  catch (cause) {
-    error.value = cause instanceof ApiError && cause.code === 'stakeholder_assigned'
-      ? t('projects.governance.stakeholderAssigned')
-      : cause instanceof ApiError ? cause.message : t('errors.generic')
-  }
-}
-const confirmItem = computed(() => list.data.value?.items.find(item => item.id === confirmDeleteId.value) ?? null)
-// The row menu only opens the confirmation; deletion happens from SharedInlineConfirm.
-function rowActions(item: { id: number; title: string }): RowAction[] {
-  return [{
-    label: t('projects.governance.delete'),
-    icon: 'i-lucide-trash-2',
-    destructive: true,
-    disabled: remove.isPending.value,
-    onSelect: () => {
-      if (confirmDeleteId.value === item.id) return
-      void deleteItem(item)
-      void nextTick(() => document.querySelector('[data-testid="register-delete-confirm"]')?.scrollIntoView({ block: 'nearest' }))
-    },
-  }]
-}
-function cancelDelete() {
-  confirmDeleteId.value = null
-  error.value = null
-}
-function openLiveItem(event: MouseEvent, item: { id: number }) {
-  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
-  event.preventDefault()
-  void router.push(itemTo(item))
-}
 </script>
 
 <template>

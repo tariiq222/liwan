@@ -8,6 +8,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
 import * as finance from '../../../../../utils/projectFinance'
 import { ApiError } from '../../../../../composables/useApi'
+import { parsePositiveId } from '../../../../../utils/routeParams'
+import { parseOffset } from '../../../../../utils/routeQuery'
+import { listFilterQuery } from '../../../../../composables/useRouteListFilters'
 
 const root = resolve(import.meta.dirname, '../../../../../../../..')
 const web = resolve(root, 'apps/web')
@@ -75,12 +78,13 @@ describe('FinanceActualLines', () => {
     { id: 1, date: '2026-10-01', label: 'Cement', reference: 'BILL/9', partner: { id: 4, name: 'Acme' }, amount: 25.5, record: { kind: 'finance-bill', id: 9 } },
     { id: 2, date: '2026-10-02', label: 'Refund', reference: 'RF/1', partner: null, amount: -65.5, record: null },
   ]
-  function view(opened: string[] = []) {
+  function view(opened: string[] = [], nav: { route?: { query: Record<string, unknown> }, router?: { push: ReturnType<typeof vi.fn>, replace: ReturnType<typeof vi.fn> }, total?: number } = {}) {
     return compile('components/pmo/projects/finance/FinanceActualLines.vue', {
-      _defineComponent: Vue.defineComponent, ref: Vue.ref, computed: Vue.computed, ...finance, formatCalendarDate,
+      _defineComponent: Vue.defineComponent, ref: Vue.ref, computed: Vue.computed, watch: Vue.watch, ...finance, parseOffset, formatCalendarDate,
+      useRoute: () => nav.route ?? { query: {} }, useRouter: () => nav.router ?? { push: vi.fn(), replace: vi.fn() },
       useI18n: () => ({ t, locale: Vue.ref('ar') }), useHydrated: () => Vue.ref(true),
       useRecordLink: () => (kind: string, id: number) => { opened.push(`${kind}:${id}`); return kind === 'finance-bill' ? `/finance/purchases/bills/${id}` : null },
-      useProjectActualLines: () => ({ data: Vue.ref({ items: lines, total: 2 }), isLoading: Vue.ref(false), isFetching: Vue.ref(false), error: Vue.ref(null), refetch: vi.fn() }),
+      useProjectActualLines: () => ({ data: Vue.ref({ items: lines, total: nav.total ?? 2 }), isLoading: Vue.ref(false), isFetching: Vue.ref(false), error: Vue.ref(null), refetch: vi.fn() }),
     })
   }
   it('lists date, label, reference, partner and the signed amount, linking a line only when its record resolves', async () => {
@@ -95,6 +99,21 @@ describe('FinanceActualLines', () => {
     expect(html).toContain('<span>RF/1</span>')
     expect(opened).toContain('finance-bill:9')
   })
+  it('keeps its page in ?linesOffset= and leaves the ledger offset alone', () => {
+    const router = { push: vi.fn(), replace: vi.fn() }
+    const route = { query: { offset: '50', linesOffset: '50' } }
+    const state = view([], { route, router, total: 120 }).component.setup({ projectId: 7, summary }, { expose: () => {} })
+    expect(state.page.value).toBe(2)
+    state.setPage(3)
+    expect(router.push).toHaveBeenLastCalledWith({ query: { offset: '50', linesOffset: '100' } })
+    state.setPage(1)
+    expect(router.push).toHaveBeenLastCalledWith({ query: { offset: '50', linesOffset: undefined } })
+  })
+  it('moves an offset past the last page back onto it', () => {
+    const router = { push: vi.fn(), replace: vi.fn() }
+    view([], { route: { query: { linesOffset: '500' } }, router, total: 60 }).component.setup({ projectId: 7, summary }, { expose: () => {} })
+    expect(router.replace).toHaveBeenCalledWith({ query: { linesOffset: '50' } })
+  })
   it('titles the section from the catalog', async () => {
     const html = await render(view(), { projectId: 7, summary })
     expect(html).toContain(t('projects.finance.actualLines.title'))
@@ -106,7 +125,7 @@ describe('FinanceActualAccountPicker', () => {
   function picker(options: { available?: boolean, data?: { id: number, name: string }[] } = {}) {
     const mutate = vi.fn()
     const compiled = compile('components/pmo/projects/finance/FinanceActualAccountPicker.vue', {
-      _defineComponent: Vue.defineComponent, ref: Vue.ref, computed: Vue.computed, ...finance, useI18n: () => ({ t }), useHydrated: () => Vue.ref(true),
+      _defineComponent: Vue.defineComponent, ref: Vue.ref, computed: Vue.computed, ...finance, useI18n: () => ({ t }), useHydrated: () => Vue.ref(true), useToast: () => ({ add: () => {} }),
       useRecordPicker: () => ({ available: Vue.ref(options.available !== false), query: { data: Vue.ref(options.data ?? [{ id: 3, name: 'CC-3 · Tower' }, { id: 5, name: 'Annex' }]), isLoading: Vue.ref(false), error: Vue.ref(null) } }),
       useSetActualAccount: () => ({ mutate, isPending: Vue.ref(false) }),
     })
@@ -153,7 +172,7 @@ describe('project finance page with an external actual', () => {
       ...finance, _defineComponent: Vue.defineComponent, ref: Vue.ref, computed: Vue.computed, reactive: Vue.reactive, watch: Vue.watch, onScopeDispose: Vue.onScopeDispose,
       useRoute: () => route, useRouter: () => ({ currentRoute: Vue.ref(route), resolve: () => ({ fullPath: '/projects/7/finance' }), replace: async () => undefined, afterEach: () => () => {}, onError: () => () => {} }),
       onBeforeRouteLeave: () => {}, onBeforeRouteUpdate: () => {}, refDebounced: (source: unknown) => source, useNuxtApp: () => ({ hook: () => () => {} }),
-      useI18n: () => ({ t }), useHydrated: () => Vue.ref(true), useProject: () => ({ data: Vue.ref({ id: 7 }) }), returnToQuery: () => ({}), ApiError,
+      useI18n: () => ({ t }), useHydrated: () => Vue.ref(true), useProject: () => ({ data: Vue.ref({ id: 7 }) }), returnToQuery: () => ({}), safeReturnTo: (value: string) => value, listFilterQuery, parsePositiveId, ApiError,
       useProjectFinanceList: () => ({ data, isFetching: Vue.ref(false), isLoading: Vue.ref(false), error: Vue.ref(null), refetch: vi.fn() }),
     })
     return Vue.effectScope().run(() => compiled.component.setup({}, { expose: () => {} }))

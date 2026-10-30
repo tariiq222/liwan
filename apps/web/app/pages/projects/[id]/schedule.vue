@@ -37,7 +37,7 @@ function retry() { void Promise.all([refetchProject(), refetch()]) }
 
 const gantt = ref<InstanceType<typeof ScheduleGantt> | null>(null)
 const scales = computed(() => [{ value: 'week', label: t('projects.schedule.week') }, { value: 'month', label: t('projects.schedule.month') }])
-const createTo = computed(() => ({ path: `/projects/${projectId.value}/tasks/new`, query: { ...route.query, ...returnToQuery(route.fullPath), tab: 'tasks' } }))
+const createTo = computed(() => ({ path: `/projects/${projectId.value}/tasks/new`, query: returnToQuery(route.fullPath) }))
 </script>
 
 <template>

@@ -5,7 +5,7 @@ import { moveId, stageMoveIndex, type StageMoveTarget } from '@/composables/stag
 // Presentational: no composable calls here. The host (ProjectSettingsForm)
 // owns the mutations and wires every emit to useAddStage/useUpdateStage/
 // useReorderStages/useDeleteStage, so this component only ever reflects
-// `stages` back out as edit intents.
+// `stages` back out as edit intents; the host calls `clearNewName` and `restoreOrder` with the outcome.
 interface StageRow {
   id: number | string
   name: string
@@ -113,8 +113,13 @@ function submitAdd() {
   const name = newName.value.trim()
   if (!name) return
   emit('add', name)
-  newName.value = ''
 }
+
+// The host owns the mutations: the typed name stays until the server accepts it, and a failed reorder puts the list back.
+defineExpose({
+  clearNewName: () => { newName.value = '' },
+  restoreOrder: () => { localStages.value = [...props.stages] },
+})
 
 function requestDelete(stageId: StageRow['id']) {
   if (disabled.value) return
