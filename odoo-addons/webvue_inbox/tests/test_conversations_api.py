@@ -198,6 +198,13 @@ class TestConversationsApi(WebVueInboxCase):
         self.assertError(self.api('PATCH', f'/api/v1/inbox/contacts/{contact.id}', {'email': 'not-an-email'}), 422, 'invalid')
         self.assertError(self.get('/api/v1/inbox/contacts/999999999'), 404, 'not_found')
 
+    def test_only_a_file_kind_treats_its_name_in_brackets_as_a_placeholder(self):
+        message = self.conversation.message_ids[0]
+        message.write({'kind': 'text', 'body': '[text]'})
+        self.assertEqual(message._webvue_caption(), '[text]')
+        message.write({'kind': 'image', 'body': '[image]'})
+        self.assertFalse(message._webvue_caption())
+
     def test_canned_replies_and_templates_lists(self):
         self.env['webvue.inbox.canned.reply'].create({'shortcut': 'hi', 'body': 'Hello!'})
         self.env['webvue.inbox.template'].create({

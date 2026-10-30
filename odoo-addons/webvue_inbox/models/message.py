@@ -10,6 +10,7 @@ from .constants import MESSAGES_OUT_LIMIT, OUTBOX_CRON, REPLY_PREVIEW_LENGTH
 from .template import APPROVED, HEADER_TYPES, MEDIA_HEADERS, PLACEHOLDER
 from odoo.addons.webvue_core.models.access_service import WebVueAccessRule
 from odoo.addons.webvue_inbox.adapters import media_rules
+from odoo.addons.webvue_inbox.adapters.whatsapp import MEDIA_KINDS
 
 # A status never moves a message backwards (statuses may arrive out of order). `failed` is terminal
 # and any other status (deleted, warning, ...) is ignored.
@@ -405,7 +406,7 @@ class WebVueInboxMessage(models.Model):
 
     def _webvue_caption(self):
         """The caption of an outbound file: its body unless that is the placeholder stored for no caption."""
-        return False if self.body == f'[{self.kind}]' else self.body
+        return False if self.kind in MEDIA_KINDS and self.body == f'[{self.kind}]' else self.body
 
     def _webvue_reply_preview(self):
         return ' '.join((self._webvue_caption() or '').split())[:REPLY_PREVIEW_LENGTH]

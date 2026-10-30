@@ -44,9 +44,9 @@ class TestSettingsApi(WebVueInboxCase):
         department.name = 'Renamed department'
         self.assertEqual(self.api('POST', '/api/v1/settings/inbox/presets/clinic').status_code, 200)
         self.assertFalse(self.env['webvue.inbox.department'].search([('name', '=', original)]))
-        self.assertEqual(self.env['webvue.inbox.settings']._get_for_company().applied_presets, 'clinic')
+        self.assertEqual(self.env['webvue.inbox.settings']._get_for_company().applied_preset_ids.mapped('key'), ['clinic'])
         self.assertEqual(self.api('POST', '/api/v1/settings/inbox/presets/store').status_code, 200)
-        self.assertEqual(self.env['webvue.inbox.settings']._get_for_company().applied_presets, 'clinic,store')
+        self.assertEqual(self.env['webvue.inbox.settings']._get_for_company().applied_preset_ids.mapped('key'), ['clinic', 'store'])
 
     def test_presets_are_idempotent(self):
         self.login(self.manager)

@@ -13,7 +13,7 @@ const emit = defineEmits<{ 'update:routeState': [InboxListRoute, options?: { rep
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
-const { data, isLoading, isError, error, refetch } = useInboxConversations(() => props.routeState)
+const { data, isLoading, isError, isPlaceholderData, error, refetch } = useInboxConversations(() => props.routeState)
 const departments = useInboxDepartments()
 const items = computed(() => data.value?.items ?? [])
 const total = computed(() => data.value?.total ?? 0)
@@ -57,8 +57,9 @@ function goToPage(page: number) {
   if (hydrated.value) emit('update:routeState', { ...props.routeState, offset: inboxPageOffset(page, total.value) })
 }
 // A link whose offset is past the end lands on the last page instead of an empty list; it replaces that entry so Back does not return to it.
-watch(() => [data.value?.total, props.routeState.offset] as const, ([count, offset]) => {
-  if (count && offset >= count) emit('update:routeState', { ...props.routeState, offset: inboxPageOffset(Math.ceil(count / INBOX_PAGE_SIZE), count) }, { replace: true })
+// The previous query's total stays on show while the new one loads, so only this query's own total can correct the offset.
+watch(() => [data.value?.total, props.routeState.offset, isPlaceholderData.value] as const, ([count, offset, stale]) => {
+  if (!stale && count && offset >= count) emit('update:routeState', { ...props.routeState, offset: inboxPageOffset(Math.ceil(count / INBOX_PAGE_SIZE), count) }, { replace: true })
 })
 const listQuery = computed(() => serializeInboxListRoute(props.routeState))
 const conversationTo = (id: number) => ({ path: `/inbox/${id}`, query: listQuery.value })

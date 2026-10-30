@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo import api, fields, models
+from odoo import Command, api, fields, models
 from odoo.exceptions import ValidationError
 
 from .constants import DEFAULT_TIMEZONE
@@ -32,8 +32,7 @@ class WebVueInboxSettings(models.Model):
     visibility_policy = fields.Selection(VISIBILITY_POLICIES, required=True, default='department')
     auto_close_hours = fields.Integer(default=72, help='Idle hours before a conversation closes; 0 never closes.')
     retention_months = fields.Integer(default=24)
-    # The sector presets whose items were created here, comma separated: applying one again never re-creates them.
-    applied_presets = fields.Char()
+    applied_preset_ids = fields.One2many('webvue.inbox.applied.preset', 'settings_id')
     # Working hours: weekly ranges and holidays (local dates) in a timezone; no ranges means always open.
     hours_timezone = fields.Char(required=True, default=DEFAULT_TIMEZONE)
     hours_range_ids = fields.One2many('webvue.inbox.hours.range', 'settings_id')
@@ -92,12 +91,12 @@ class WebVueInboxSettings(models.Model):
         """
         self.ensure_one()
         preset = PRESETS[key]
-        applied = set(filter(None, (self.applied_presets or '').split(',')))
-        first = key not in applied
+        first = key not in self.applied_preset_ids.mapped('key')
         if first:
             self._webvue_seed_preset_items(preset)
-        self.write({**preset.get('settings', {}), 'applied_presets': ','.join(sorted(applied | {key}))})
+        self.write(preset.get('settings', {}))
         if first:
+            self.applied_preset_ids = [Command.create({'key': key})]
             self._webvue_fill_campaigns(preset.get('campaigns', {}))
             if automation:
                 self._webvue_seed_automation(preset.get('automation', {}))
