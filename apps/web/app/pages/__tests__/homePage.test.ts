@@ -83,6 +83,12 @@ describe('home page', () => {
     expect(html).not.toContain('لا شيء لك اليوم')
   })
 
+  it('says there is nothing for today when the only thing on the page is the standing services link', async () => {
+    const html = await render({ work: false, services: true })
+    expect(html).toContain('data-testid="home-services"')
+    expect(html).toMatch(/data-testid="home-empty-today"[^>]*>لا شيء لك اليوم/)
+  })
+
   it('does not show an empty state when only the quick actions exist', async () => {
     const html = await render({ work: false, commands: [{ id: 'task', to: '/my-tasks/new', labelKey: 'nav.newTask' }] })
     expect(html).not.toContain('home-empty-')
