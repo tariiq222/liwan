@@ -90,6 +90,23 @@ class TestTenantLifecycle(HttpCase):
         )
         self.assertEqual(password.status_code, 200)
 
+    def test_expired_tenant_still_lets_the_recipient_clear_the_bell(self):
+        if self.record.commercial_mode == 'non_saas':
+            self.skipTest('a non-SaaS tenant has no expiry')
+        self._operator().write({'valid_until': datetime.now(timezone.utc).date() - timedelta(days=1)})
+        self.authenticate('lifecycle_emp', 'lifecycle_emp_pass_123')
+        read_all = self.url_open(
+            '/api/v1/notifications/read-all', method='POST', json={},
+            headers={'Content-Type': 'application/json'},
+        )
+        self.assertEqual(read_all.status_code, 200, read_all.text)
+        self.assertEqual(read_all.json(), {'updated': 0})
+        one = self.url_open(
+            '/api/v1/notifications/999999/read', method='POST', json={},
+            headers={'Content-Type': 'application/json'},
+        )
+        self.assertNotEqual(one.json().get('code'), 'tenant_read_only', one.text)
+
     def test_support_can_login_while_suspended_until_disabled(self):
         self._operator().write({'status': 'suspended'})
         self.authenticate('admin', 'admin')

@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import re
 import uuid
 from datetime import datetime, timezone
 
@@ -14,6 +15,7 @@ POLICY_FIELDS = frozenset({
     'quota_revision', 'support_access_enabled', 'commercial_mode', 'entitlement_source',
     'commercial_revision_id', 'commercial_digest', 'commercial_applied_at',
 })
+NOTIFICATION_READ_PATH = re.compile(r'/api/v1/notifications/\d+/read')
 OPERATOR_CONTEXT = 'webvue_platform.operator_policy'
 TERMINOLOGY_LOCALES = ('ar', 'en')
 TERMINOLOGY_MAX_KEYS = 64
@@ -106,7 +108,9 @@ class WebVueEntitlementService(models.AbstractModel):
 
     @api.model
     def _webvue_api_write_allowed(self, path):
-        return path in {'/api/v1/me/password', '/api/v1/auth/totp'}
+        # Clearing the notification bell is the recipient's own read state, not a business write.
+        return path in {'/api/v1/me/password', '/api/v1/auth/totp', '/api/v1/notifications/read-all'} \
+            or bool(NOTIFICATION_READ_PATH.fullmatch(path))
 
     @api.model
     def _webvue_guard_api(self):
