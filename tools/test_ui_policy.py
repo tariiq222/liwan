@@ -553,6 +553,12 @@ class StaticGateTest(unittest.TestCase):
         snapshot[UI + "assets/css/tokens.css"] += "\n--elevation-1: 0 1px 2px #0001;"
         self.assertTrue(any("--elevation-1" in error for error in policy.theme_errors(snapshot)))
 
+    def test_retired_identity_tokens_are_reported(self):
+        for token in ("--webvue-midnight", "--webvue-lime"):
+            snapshot = self.whole()
+            snapshot[UI + "assets/css/tokens.css"] += f"\n{token}: #000;"
+            self.assertTrue(any(token in error for error in policy.theme_errors(snapshot)))
+
     # --- page shell ------------------------------------------------------------
 
     def test_page_without_an_approved_shell_is_reported(self):

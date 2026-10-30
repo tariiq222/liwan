@@ -2,9 +2,9 @@
 // The one progress bar (a UProgress wrapper): a slim pill filled in a tone colour, 0-100 clamped. `sm` is 6px (KPI tiles,
 // table cells) and `md` 8px (a record's headline progress). The fill animates over 300ms and not at all under reduced motion
 // (the progress recipe in app.config.ts). With `label` the bar is a named group and the screen reader reads "label, N%".
-// A finished bar turns solid primary for the primary tone only; the other tones keep their colour at 100%.
+// Every tone keeps its colour at 100%.
 const TONE = {
-  primary: { color: 'primary', complete: 'data-[state=complete]:bg-primary' },
+  primary: { color: 'primary', complete: '' },
   success: { color: 'success', complete: 'data-[state=complete]:bg-success' },
   warning: { color: 'warning', complete: 'data-[state=complete]:bg-warning' },
   danger: { color: 'error', complete: 'data-[state=complete]:bg-error' },

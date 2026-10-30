@@ -2,6 +2,6 @@
 <odoo noupdate="1">
     <record id="base.main_company" model="res.company">
         <field name="font">IBM_Plex_Sans_Arabic</field>
-        <field name="primary_color">#5B3F8C</field>
+        <field name="primary_color">#5b3f8c</field>
     </record>
 </odoo>

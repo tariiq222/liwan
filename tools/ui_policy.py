@@ -570,7 +570,10 @@ ALLOWED_RECIPE_KEYS = frozenset((
 ))
 BRAND_COLORS = re.compile(r"colors:\s*\{\s*primary:\s*'brand',\s*neutral:\s*'stone'\s*\}")
 REQUIRED_TOKENS = ('--color-brand-500', 'IBM Plex Sans Arabic', '--webvue-sand', '.dark')
-RETIRED_TOKENS = ('--webvue-radius', '--elevation-1', '--content-shadow', '--radius:', ':root.cream')
+RETIRED_TOKENS = (
+    '--webvue-radius', '--elevation-1', '--content-shadow', '--radius:', ':root.cream',
+    '--webvue-midnight', '--webvue-lime',
+)
 
 
 def theme_errors(current: dict[str, str]) -> list[str]:

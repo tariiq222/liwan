@@ -72,7 +72,7 @@
   --chart-status-info: #1d4ed8;
   --chart-status-warning: #d97706;
   --chart-status-error: #dc2626;
-  --chart-status-neutral: #9c8660;
+  --chart-status-neutral: #8a7450;
   /* Hairline of cards, tables and dividers; --ui-border drives every ring-default and border-default. */
   --ui-border: #eadfc8;
   /* Ink for titles and numbers, brown for secondary text (on white, canvas and sand only); sand is the border,

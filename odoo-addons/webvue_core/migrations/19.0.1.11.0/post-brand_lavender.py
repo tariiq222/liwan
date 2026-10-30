@@ -7,7 +7,7 @@ colour a tenant chose is kept. Re-running the script changes nothing.
 """
 
 OLD_DEFAULTS = ('#13234a', '#0046d5', '#0066cc', '#007ff8')
-NEW_DEFAULT = '#5B3F8C'
+NEW_DEFAULT = '#5b3f8c'
 
 
 def migrate(cr, version):

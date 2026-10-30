@@ -158,7 +158,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .approved-account-menu .webvue-appearance-row { display: flex; width: 100%; gap: 4px; }
 .approved-account-menu .webvue-appearance-option { flex: 1; justify-content: center; height: 32px; border-radius: 9999px; }
 
-/* Module rail: a white floating card; the active module is marked in WebVue blue, never tenant-derived (tokens.css). */
+/* Module rail: a white floating card; the active module is marked in the WebVue primary, never tenant-derived (tokens.css). */
 .webvue-module-rail {
   position: fixed;
   inset-block: var(--shell-top) var(--shell-inset);

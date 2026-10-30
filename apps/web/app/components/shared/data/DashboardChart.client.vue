@@ -60,7 +60,7 @@ const TONE_TOKEN: Record<ChartTone, [string[], string]> = {
   info: [['--chart-status-info', '--status-info'], '#2563eb'],
   warning: [['--chart-status-warning', '--status-warning'], '#d97706'],
   danger: [['--chart-status-error', '--status-danger'], '#dc2626'],
-  neutral: [['--chart-status-neutral', '--muted-foreground'], '#64748b'],
+  neutral: [['--chart-status-neutral', '--muted-foreground'], '#8a7450'],
   primary: [['--chart-1'], '#5b3f8c'],
 }
 const toneColor = (tone: ChartTone) => {

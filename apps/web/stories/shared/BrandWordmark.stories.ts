@@ -20,7 +20,7 @@ export const OnRail: Story = {
   render: args => ({
     components: { BrandWordmark },
     setup: () => ({ args }),
-    template: '<div class="bg-inverted p-4"><BrandWordmark v-bind="args" /></div>',
+    template: '<div class="bg-(--primary-solid) p-4"><BrandWordmark v-bind="args" /></div>',
   }),
 }
 
@@ -30,6 +30,6 @@ export const MarkOnRail: Story = {
   render: args => ({
     components: { BrandWordmark },
     setup: () => ({ args }),
-    template: '<div class="bg-inverted p-4"><BrandWordmark v-bind="args" /></div>',
+    template: '<div class="bg-(--primary-solid) p-4"><BrandWordmark v-bind="args" /></div>',
   }),
 }

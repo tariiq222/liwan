@@ -29,13 +29,12 @@ describe('SharedProgress', () => {
     for (const value of [Number.NaN, undefined, null]) expect(await render({ value }), String(value)).not.toContain('progressbar')
   })
 
-  it('maps the tones to the library colours and keeps a finished non-primary bar in its tone', async () => {
+  it('maps the tones to the library colours and keeps a finished bar in its tone', async () => {
     expect(await render({ tone: 'danger' })).toContain('data-color="error"')
     expect(await render({ tone: 'success' })).toContain('data-color="success"')
     expect(await render({ tone: 'warning' })).toContain('data-color="warning"')
     expect(await render({ tone: 'neutral' })).toContain('data-color="neutral"')
     expect(await render({ tone: 'danger' })).toContain('data-[state=complete]:bg-error')
-    expect(await render({})).toContain('data-[state=complete]:bg-primary')
   })
 
   it('passes the md size and names the bar as a group when given a label', async () => {

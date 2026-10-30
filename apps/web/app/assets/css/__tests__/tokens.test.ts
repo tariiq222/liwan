@@ -110,6 +110,11 @@ describe('dark brand tone and chart defaults', () => {
     for (const token of tokens) expect(found.get(token), token).toBeDefined()
   })
 
+  it('keeps the neutral status series visible on white, the canvas and sand', () => {
+    const neutral = declarations(ruleBodies(sheet('tokens.css'), ':root')).get('--chart-status-neutral')!
+    for (const surface of ['#ffffff', '#f8f4ec', '#eadfc8']) expect(contrastRatio(neutral, surface), surface).toBeGreaterThanOrEqual(3)
+  })
+
   it('keeps the default dark brand tone readable on the dark surfaces', () => {
     const link = declarations(ruleBodies(sheet('tokens.css'), '.dark')).get('--brand-link')!
     for (const surface of Object.values(DARK_SURFACES)) expect(contrastRatio(link, surface), surface).toBeGreaterThanOrEqual(4.5)
