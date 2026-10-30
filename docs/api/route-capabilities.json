@@ -439,8 +439,8 @@
       "addon": "liwan_operations",
       "auth": "user",
       "capability_keys": [
-        "operations.requests.create",
-        "liwan.operation.request"
+        "liwan.operation.request",
+        "operations.requests.create"
       ],
       "capability_match": "all",
       "capability_source": "body",
@@ -4037,8 +4037,8 @@
       "addon": "liwan_operations",
       "auth": "user",
       "capability_keys": [
-        "operations.requests.read",
-        "liwan.operation.process"
+        "liwan.operation.process",
+        "operations.requests.read"
       ],
       "capability_match": "all",
       "capability_source": "body",
@@ -4052,8 +4052,8 @@
       "addon": "liwan_operations",
       "auth": "user",
       "capability_keys": [
-        "operations.requests.create",
-        "liwan.operation.process"
+        "liwan.operation.process",
+        "operations.requests.create"
       ],
       "capability_match": "all",
       "capability_source": "body",
@@ -4079,8 +4079,8 @@
       "addon": "liwan_operations",
       "auth": "user",
       "capability_keys": [
-        "operations.requests.read",
-        "liwan.operation.request"
+        "liwan.operation.request",
+        "operations.requests.read"
       ],
       "capability_match": "all",
       "capability_source": "body",
@@ -4094,8 +4094,8 @@
       "addon": "liwan_operations",
       "auth": "user",
       "capability_keys": [
-        "operations.requests.read",
-        "liwan.operation.request"
+        "liwan.operation.request",
+        "operations.requests.read"
       ],
       "capability_match": "all",
       "capability_source": "body",
@@ -4109,8 +4109,8 @@
       "addon": "liwan_operations",
       "auth": "user",
       "capability_keys": [
-        "operations.requests.read",
-        "liwan.operation.request"
+        "liwan.operation.request",
+        "operations.requests.read"
       ],
       "capability_match": "all",
       "capability_source": "body",
@@ -5867,8 +5867,8 @@
       "addon": "liwan_operations",
       "auth": "user",
       "capability_keys": [
-        "operations.processes.manage",
-        "liwan.operation.process"
+        "liwan.operation.process",
+        "operations.processes.manage"
       ],
       "capability_match": "all",
       "capability_source": "body",
@@ -5882,8 +5882,8 @@
       "addon": "liwan_operations",
       "auth": "user",
       "capability_keys": [
-        "operations.requests.create",
-        "liwan.operation.request"
+        "liwan.operation.request",
+        "operations.requests.create"
       ],
       "capability_match": "all",
       "capability_source": "body",
@@ -9302,8 +9302,8 @@
       "addon": "liwan_operations",
       "auth": "user",
       "capability_keys": [
-        "operations.processes.manage",
-        "liwan.operation.process"
+        "liwan.operation.process",
+        "operations.processes.manage"
       ],
       "capability_match": "all",
       "capability_source": "body",
@@ -9331,8 +9331,8 @@
       "addon": "liwan_operations",
       "auth": "user",
       "capability_keys": [
-        "operations.requests.create",
-        "liwan.operation.request"
+        "liwan.operation.request",
+        "operations.requests.create"
       ],
       "capability_match": "all",
       "capability_source": "body",
@@ -9346,8 +9346,8 @@
       "addon": "liwan_operations",
       "auth": "user",
       "capability_keys": [
-        "operations.requests.read",
-        "liwan.operation.request"
+        "liwan.operation.request",
+        "operations.requests.read"
       ],
       "capability_match": "all",
       "capability_source": "body",

@@ -13,6 +13,9 @@ python3 -B tools/migration_guard.py --base "$BASE_REF"
 python3 -B tools/git_policy.py --base "$BASE_REF"
 python3 -B tools/arch_policy.py --base "$BASE_REF"
 python3 -B tools/semgrep_gate.py --base "$BASE_REF"
+# The retired product name stays out of the tree. The repository slug and checkout path change last.
+python3 -B tools/forbidden_terms.py --terms tools/retired_terms.txt --exceptions tools/retired_terms_exceptions.txt \
+  --allow-string tariiq222/webvue --allow-string /code/webvue
 npm ci --ignore-scripts
 # Dependency advisories gate only a change to the dependency set; new advisories against an
 # unchanged set are reported by the daily audit workflow instead of failing unrelated PRs.

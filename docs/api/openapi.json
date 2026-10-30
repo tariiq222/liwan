@@ -47206,10 +47206,7 @@
             "type": "string"
           },
           "state": {
-            "enum": [
-              "connected",
-              "disabled"
-            ],
+            "const": "disabled",
             "type": "string"
           }
         },
@@ -64983,22 +64980,22 @@
                 "minimum": 0,
                 "type": "integer"
               },
-              "read": {
-                "maximum": 9007199254740991,
-                "minimum": 0,
-                "type": "integer"
-              },
-              "sent": {
-                "maximum": 9007199254740991,
-                "minimum": 0,
-                "type": "integer"
-              },
               "liwan_failed": {
                 "maximum": 9007199254740991,
                 "minimum": 0,
                 "type": "integer"
               },
               "liwan_sent": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "read": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "sent": {
                 "maximum": 9007199254740991,
                 "minimum": 0,
                 "type": "integer"
@@ -65055,6 +65052,16 @@
                   "minimum": 0,
                   "type": "integer"
                 },
+                "liwan_failed": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "liwan_sent": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
                 "read": {
                   "maximum": 9007199254740991,
                   "minimum": 0,
@@ -65095,16 +65102,6 @@
                     "category"
                   ],
                   "type": "object"
-                },
-                "liwan_failed": {
-                  "maximum": 9007199254740991,
-                  "minimum": 0,
-                  "type": "integer"
-                },
-                "liwan_sent": {
-                  "maximum": 9007199254740991,
-                  "minimum": 0,
-                  "type": "integer"
                 }
               },
               "required": [
@@ -65221,6 +65218,16 @@
             "minimum": 0,
             "type": "integer"
           },
+          "liwan_failed": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "liwan_sent": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
           "read": {
             "maximum": 9007199254740991,
             "minimum": 0,
@@ -65261,16 +65268,6 @@
               "category"
             ],
             "type": "object"
-          },
-          "liwan_failed": {
-            "maximum": 9007199254740991,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "liwan_sent": {
-            "maximum": 9007199254740991,
-            "minimum": 0,
-            "type": "integer"
           }
         },
         "required": [
@@ -67930,6 +67927,36 @@
           "amount_total"
         ],
         "type": "object"
+      },
+      "LiwanError": {
+        "description": "Contract error shape returned by api_handler with a real HTTP status.",
+        "properties": {
+          "code": {
+            "examples": [
+              "forbidden",
+              "not_found",
+              "invalid"
+            ],
+            "type": "string"
+          },
+          "details": {},
+          "field": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "type": "object"
+      },
+      "LiwanModuleIdSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "pattern": "^(liwan|customer)_[a-z0-9_]+$",
+        "type": "string"
       },
       "LocalizedLabelSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -81845,6 +81872,26 @@
             "pattern": "^v\\d+$",
             "type": "string"
           },
+          "liwan_completion_approval": {
+            "enum": [
+              "none",
+              "project_manager",
+              "specific_user"
+            ],
+            "type": "string"
+          },
+          "liwan_completion_approver_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "name": {
             "minLength": 1,
             "type": "string"
@@ -81869,26 +81916,6 @@
               {
                 "maximum": 9007199254740991,
                 "minimum": -9007199254740991,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "liwan_completion_approval": {
-            "enum": [
-              "none",
-              "project_manager",
-              "specific_user"
-            ],
-            "type": "string"
-          },
-          "liwan_completion_approver_id": {
-            "anyOf": [
-              {
-                "exclusiveMinimum": 0,
-                "maximum": 9007199254740991,
                 "type": "integer"
               },
               {
@@ -87070,36 +87097,6 @@
           "employees",
           "followers"
         ],
-        "type": "string"
-      },
-      "LiwanError": {
-        "description": "Contract error shape returned by api_handler with a real HTTP status.",
-        "properties": {
-          "code": {
-            "examples": [
-              "forbidden",
-              "not_found",
-              "invalid"
-            ],
-            "type": "string"
-          },
-          "details": {},
-          "field": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "message"
-        ],
-        "type": "object"
-      },
-      "LiwanModuleIdSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "pattern": "^(liwan|customer)_[a-z0-9_]+$",
         "type": "string"
       }
     },
