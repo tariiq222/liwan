@@ -8,7 +8,8 @@ import { createHooks } from 'hookable'
 import { expect, it } from 'vitest'
 import * as finance from '../../utils/projectFinance'
 import { parsePositiveId } from '../../utils/routeParams'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery, safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import { listFilterQuery } from '../../composables/useRouteListFilters'
 import { rootedNode } from '../../../tests/hostNode'
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -30,7 +31,7 @@ async function mountFinance(auth: (to: RouteLocationNormalized) => unknown | Pro
   const bindings = {
     ...finance, _defineComponent: Vue.defineComponent, defineComponent: Vue.defineComponent,
     ref: Vue.ref, computed: Vue.computed, reactive: Vue.reactive, watch: Vue.watch, onScopeDispose: Vue.onScopeDispose,
-    useRoute: deferPageRoute ? () => deferredRoute : useRoute, useRouter, onBeforeRouteLeave, onBeforeRouteUpdate, refDebounced, parsePositiveId, returnToQuery,
+    useRoute: deferPageRoute ? () => deferredRoute : useRoute, useRouter, onBeforeRouteLeave, onBeforeRouteUpdate, refDebounced, parsePositiveId, returnToQuery, safeReturnTo, listFilterQuery,
     useNuxtApp: () => ({ hook: hooks.hook.bind(hooks) }),
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true),
     useProject: () => ({ data: Vue.ref({ id: 2 }) }),

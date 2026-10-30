@@ -116,7 +116,7 @@ async function submit() {
       <p class="me-auto text-xs text-muted">{{ t('projects.requiredHint') }}</p>
       <div class="flex flex-wrap items-center gap-2">
         <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated || pending" @click="emit('cancel')">{{ t('app.cancel') }}</UButton>
-        <UButton type="submit" :disabled="!hydrated || pending" :loading="pending">{{ pending ? t('projects.governance.saving') : t('app.save') }}</UButton>
+        <UButton type="submit" :disabled="!hydrated || pending" :loading="pending">{{ pending ? t('projects.governance.saving') : t(stakeholder ? 'app.save' : 'projects.governance.stakeholder.createTitle') }}</UButton>
       </div>
     </SharedFormActions>
   </form>

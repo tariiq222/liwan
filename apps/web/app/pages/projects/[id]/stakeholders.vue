@@ -3,6 +3,7 @@ import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
 import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 import { useProjectStakeholders, useDeleteProjectStakeholder } from '@/composables/useProjectGovernance'
 import { governanceFilters } from '@/composables/projectGovernanceKeys'
+import { useGovernancePaging } from '@/components/pmo/projects/governance/listPaging'
 import { ApiError } from '@/composables/useApi'
 import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState.vue'
 import { useProjectMissing } from '@/composables/useProjects'
@@ -34,13 +35,7 @@ const search = ref(typeof route.query.q === 'string' ? route.query.q : '')
 watch(search, value => setFilter('q', value), { flush: 'sync' })
 watch(() => route.query.q, value => { search.value = typeof value === 'string' ? value : '' })
 const q = search
-const PAGE = 50
-const pageNumber = computed(() => Math.floor((parsed.value.offset ?? 0) / PAGE) + 1)
-const pages = computed(() => Math.max(1, pageNumber.value, Math.ceil((list.data.value?.total ?? 0) / PAGE)))
-function setPage(next: number) {
-  if (!hydrated.value || list.isFetching.value || next < 1 || next > pages.value) return
-  void router.push({ query: { ...route.query, offset: next === 1 ? undefined : String((next - 1) * PAGE) } })
-}
+const { pageNumber, pages, setPage } = useGovernancePaging(list, computed(() => parsed.value.offset ?? 0), isListRoute, { route, router, hydrated })
 // A link out of the list carries the list's own state, with the search being typed; a referrer's returnTo is dropped.
 const liveQuery = computed(() => {
   const { returnTo: _referrer, ...rest } = route.query

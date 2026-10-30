@@ -23,7 +23,8 @@ import {
   type FinanceListRouteState,
 } from '@/utils/projectFinance'
 import { parsePositiveId } from '@/utils/routeParams'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { listFilterQuery } from '@/composables/useRouteListFilters'
+import { returnToQuery, safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
@@ -37,7 +38,9 @@ const isListRoute = computed(() => {
   return rest === '' || rest === '/new'
 })
 
-const filters = reactive<FinanceListRouteState>(parseFinanceListRoute(route.query as Record<string, unknown>))
+// Behind the /new panel this page is only the backdrop: its filters travel in the panel's `returnTo`, and its own `?kind=` is the new entry's.
+const listQuery = computed(() => listFilterQuery(route.query, normalizedPath.value.endsWith('/new'), `/projects/${projectId.value}/finance`, (value, fallback) => safeReturnTo(value, fallback, ['/projects'])))
+const filters = reactive<FinanceListRouteState>(parseFinanceListRoute(listQuery.value))
 const search = ref(filters.q)
 const debouncedSearch = refDebounced(search, 250)
 let applyingRoute = false
@@ -102,7 +105,7 @@ function scheduleQueryWrite() {
   writeQuery = writeQuery.then(async () => {
     if (pendingDeparture || router.currentRoute.value.path.replace(/\/+$/, '') !== listPath()) return
     const query = serializeFinanceListRoute(filters)
-    if (sameFinanceListRoute(query, serializeFinanceListRoute(parseFinanceListRoute(route.query as Record<string, unknown>)))) return
+    if (sameFinanceListRoute(query, serializeFinanceListRoute(parseFinanceListRoute(listQuery.value)))) return
     const writeStartedAt = router.currentRoute.value
     let writeSucceeded = false
     applyingRoute = true
@@ -140,9 +143,9 @@ watch(debouncedSearch, (value) => {
 watch([() => filters.kind, () => filters.q, () => filters.offset], () => {
   scheduleQueryWrite()
 })
-watch(() => route.query, (query) => {
+watch(listQuery, (query) => {
   if (applyingRoute || !isListRoute.value) return
-  const parsed = parseFinanceListRoute(query as Record<string, unknown>)
+  const parsed = parseFinanceListRoute(query)
   if (sameFinanceListRoute(serializeFinanceListRoute(filters), serializeFinanceListRoute(parsed))) return
   applyingRoute = true
   search.value = parsed.q

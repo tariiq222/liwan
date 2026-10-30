@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import { REGISTER_PRIORITY_TONE, REGISTER_STATUS_TONE, registerScoreTone } from '@/components/pmo/projects/governance/state'
+import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
 import { useProject } from '@/composables/useProjects'
 import { useProjectRegisterItem } from '@/composables/useProjectGovernance'
 
@@ -60,7 +61,7 @@ const detailPath = computed(() => `/projects/${projectId.value}/register/${regis
           <span v-if="item.data.value.owner" class="inline-flex items-center gap-2"><SharedPersonAvatar :people="[item.data.value.owner]" />{{ item.data.value.owner.name }}</span>
           <span v-else aria-hidden="true">—</span>
         </SharedPropertyRow>
-        <SharedPropertyRow :label="t('projects.governance.register.dueDate')" :value="item.data.value.due_date" />
+        <SharedPropertyRow :label="t('projects.governance.register.dueDate')" :value="formatCalendarDate(item.data.value.due_date) || null" />
         <SharedPropertyRow :label="t('projects.governance.register.probability')" :value="item.data.value.probability" />
         <SharedPropertyRow :label="t('projects.governance.register.impact')" :value="item.data.value.impact" />
       </SharedPropertiesPanel>

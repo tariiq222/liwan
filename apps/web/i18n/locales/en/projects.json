@@ -631,7 +631,6 @@
         "high": "High",
         "critical": "Critical",
         "open": "Open",
-        "inProgress": "In progress",
         "resolved": "Resolved",
         "closed": "Closed",
         "in_progress": "In progress",

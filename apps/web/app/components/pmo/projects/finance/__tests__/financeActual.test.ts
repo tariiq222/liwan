@@ -8,6 +8,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
 import * as finance from '../../../../../utils/projectFinance'
 import { ApiError } from '../../../../../composables/useApi'
+import { parsePositiveId } from '../../../../../utils/routeParams'
+import { listFilterQuery } from '../../../../../composables/useRouteListFilters'
 
 const root = resolve(import.meta.dirname, '../../../../../../../..')
 const web = resolve(root, 'apps/web')
@@ -153,7 +155,7 @@ describe('project finance page with an external actual', () => {
       ...finance, _defineComponent: Vue.defineComponent, ref: Vue.ref, computed: Vue.computed, reactive: Vue.reactive, watch: Vue.watch, onScopeDispose: Vue.onScopeDispose,
       useRoute: () => route, useRouter: () => ({ currentRoute: Vue.ref(route), resolve: () => ({ fullPath: '/projects/7/finance' }), replace: async () => undefined, afterEach: () => () => {}, onError: () => () => {} }),
       onBeforeRouteLeave: () => {}, onBeforeRouteUpdate: () => {}, refDebounced: (source: unknown) => source, useNuxtApp: () => ({ hook: () => () => {} }),
-      useI18n: () => ({ t }), useHydrated: () => Vue.ref(true), useProject: () => ({ data: Vue.ref({ id: 7 }) }), returnToQuery: () => ({}), ApiError,
+      useI18n: () => ({ t }), useHydrated: () => Vue.ref(true), useProject: () => ({ data: Vue.ref({ id: 7 }) }), returnToQuery: () => ({}), safeReturnTo: (value: string) => value, listFilterQuery, parsePositiveId, ApiError,
       useProjectFinanceList: () => ({ data, isFetching: Vue.ref(false), isLoading: Vue.ref(false), error: Vue.ref(null), refetch: vi.fn() }),
     })
     return Vue.effectScope().run(() => compiled.component.setup({}, { expose: () => {} }))
