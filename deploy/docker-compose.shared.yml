@@ -4,8 +4,8 @@
 services:
   proxy:
     ports: !override
-      - "${WEBVUE_EDGE_BIND:-0.0.0.0}:${WEBVUE_EDGE_HTTPS_PORT:-443}:443"
-      - "${WEBVUE_EDGE_BIND:-0.0.0.0}:${WEBVUE_EDGE_HTTP_PORT:-80}:80"
+      - "${LIWAN_EDGE_BIND:-0.0.0.0}:${LIWAN_EDGE_HTTPS_PORT:-443}:443"
+      - "${LIWAN_EDGE_BIND:-0.0.0.0}:${LIWAN_EDGE_HTTP_PORT:-80}:80"
     volumes:
       - ./shared/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -14,24 +14,24 @@ services:
       guard: { condition: service_healthy }
 
   guard:
-    image: webvue-guard:${WEBVUE_IMAGE_TAG:?set WEBVUE_IMAGE_TAG}
+    image: liwan-guard:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG}
     build:
       context: ..
       dockerfile: deploy/shared/Dockerfile
     restart: unless-stopped
     ports: !reset []
     environment:
-      WEBVUE_TENANCY_MODE: shared
-      WEBVUE_TENANT_REGISTRY_PATH: /etc/webvue/registry.json
-      WEBVUE_SHARED_PROXY_TOKEN: ${WEBVUE_SHARED_PROXY_TOKEN:?set WEBVUE_SHARED_PROXY_TOKEN}
-      WEBVUE_SESSION_KEYS: ${WEBVUE_SESSION_KEYS:?set WEBVUE_SESSION_KEYS}
-      WEBVUE_SESSION_ACTIVE_KID: ${WEBVUE_SESSION_ACTIVE_KID:?set WEBVUE_SESSION_ACTIVE_KID}
-      WEBVUE_GUARD_ODOO_URL: http://odoo:8069
-      WEBVUE_GUARD_WEB_URL: http://web:3000
-      WEBVUE_GUARD_WS_URL: http://odoo:8072
-      WEBVUE_GUARD_PORT: "8080"
+      LIWAN_TENANCY_MODE: shared
+      LIWAN_TENANT_REGISTRY_PATH: /etc/liwan/registry.json
+      LIWAN_SHARED_PROXY_TOKEN: ${LIWAN_SHARED_PROXY_TOKEN:?set LIWAN_SHARED_PROXY_TOKEN}
+      LIWAN_SESSION_KEYS: ${LIWAN_SESSION_KEYS:?set LIWAN_SESSION_KEYS}
+      LIWAN_SESSION_ACTIVE_KID: ${LIWAN_SESSION_ACTIVE_KID:?set LIWAN_SESSION_ACTIVE_KID}
+      LIWAN_GUARD_ODOO_URL: http://odoo:8069
+      LIWAN_GUARD_WEB_URL: http://web:3000
+      LIWAN_GUARD_WS_URL: http://odoo:8072
+      LIWAN_GUARD_PORT: "8080"
     volumes:
-      - ${WEBVUE_TENANT_REGISTRY_DIR:?set WEBVUE_TENANT_REGISTRY_DIR}:/etc/webvue:ro
+      - ${LIWAN_TENANT_REGISTRY_DIR:?set LIWAN_TENANT_REGISTRY_DIR}:/etc/liwan:ro
     expose: ["8080"]
     networks: [edge, guard_web, guard_odoo]
     healthcheck:
@@ -46,28 +46,28 @@ services:
   web:
     build:
       args:
-        WEBVUE_TENANCY_MODE: shared
+        LIWAN_TENANCY_MODE: shared
     ports: !reset []
     networks: [guard_web]
     environment:
       NUXT_ODOO_URL: http://guard:8080
       NUXT_ODOO_DB: ""
       NUXT_PUBLIC_WS_URL: ""
-      WEBVUE_TENANCY_MODE: shared
-      WEBVUE_TENANT_REGISTRY_PATH: /etc/webvue/registry.json
-      WEBVUE_SHARED_PROXY_TOKEN: ${WEBVUE_SHARED_PROXY_TOKEN:?set WEBVUE_SHARED_PROXY_TOKEN}
+      LIWAN_TENANCY_MODE: shared
+      LIWAN_TENANT_REGISTRY_PATH: /etc/liwan/registry.json
+      LIWAN_SHARED_PROXY_TOKEN: ${LIWAN_SHARED_PROXY_TOKEN:?set LIWAN_SHARED_PROXY_TOKEN}
     volumes:
-      - ${WEBVUE_TENANT_REGISTRY_DIR:?set WEBVUE_TENANT_REGISTRY_DIR}:/etc/webvue:ro
+      - ${LIWAN_TENANT_REGISTRY_DIR:?set LIWAN_TENANT_REGISTRY_DIR}:/etc/liwan:ro
     # Liveness only: no tokenless HTTP auth bypass and no guard dependency cycle.
     healthcheck:
       test: ["CMD", "node", "-e", "const s=require('node:net').connect(3000,'127.0.0.1',()=>{s.end();process.exit(0)});s.setTimeout(2000,()=>process.exit(1));s.on('error',()=>process.exit(1))"]
 
   odoo:
     # Validation runs before the existing secure launcher; no CLI overrides.
-    entrypoint: ["/opt/venv/bin/python", "/opt/webvue/shared/launch_odoo.py"]
+    entrypoint: ["/opt/venv/bin/python", "/opt/liwan/shared/launch_odoo.py"]
     command: []
     environment:
-      WEBVUE_TENANCY_MODE: shared
+      LIWAN_TENANCY_MODE: shared
     ports: !reset []
     networks: [guard_odoo, database]
     # TCP listener check: shared mode dbfilter=^%h$ / list_db=False means localhost selects no DB,
@@ -75,7 +75,7 @@ services:
     healthcheck:
       test: ["CMD", "/opt/venv/bin/python", "-c", "import socket; s = socket.socket(); s.settimeout(2); s.connect(('127.0.0.1', 8069)); s.close()"]
     volumes:
-      - ${WEBVUE_SHARED_ODOO_CONFIG:?set WEBVUE_SHARED_ODOO_CONFIG to validated external secret config}:/etc/odoo/odoo.conf:ro
+      - ${LIWAN_SHARED_ODOO_CONFIG:?set LIWAN_SHARED_ODOO_CONFIG to validated external secret config}:/etc/odoo/odoo.conf:ro
       - odoo_data:/var/lib/odoo
 
   ai:

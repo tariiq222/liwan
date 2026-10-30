@@ -4,7 +4,7 @@
 // sessionStorage is per origin. They are removed at logout and when the session expires (clearChatDrafts).
 type DraftStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem' | 'key' | 'length'>
 
-const PREFIX = 'webvue.chat.draft.'
+const PREFIX = 'liwan.chat.draft.'
 const key = (userId: number, conversationId: number) => `${PREFIX}${userId}.${conversationId}`
 
 export function createChatDrafts(storage: () => DraftStorage | undefined) {

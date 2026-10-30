@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const FORBIDDEN_IMPORT = /from\s+['"](?:@@?|~~?)\//
-const FORBIDDEN = ['apps/', '@webvue/contracts', '$fetch(', 'useMe(', 'useApi(', '/api/', '/vendor', '/subscription', 'vendor.', 'vendor/']
+const FORBIDDEN = ['apps/', '@liwan/contracts', '$fetch(', 'useMe(', 'useApi(', '/api/', '/vendor', '/subscription', 'vendor.', 'vendor/']
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -21,7 +21,7 @@ describe('commercial-ui layer', () => {
   it('extends the ui layer and registers the billing components under their Shared names', async () => {
     vi.stubGlobal('defineNuxtConfig', (config: unknown) => config)
     const { default: config } = await import('../nuxt.config') as { default: { extends: string[]; components: { path: string, prefix: string, pathPrefix: boolean }[] } }
-    expect(config.extends).toEqual(['@webvue/ui'])
+    expect(config.extends).toEqual(['@liwan/ui'])
     expect(config.components).toContainEqual(expect.objectContaining({ path: join(root, 'app/components/shared/commerce'), prefix: 'SharedCommerce', pathPrefix: false }))
     expect(config.components).toContainEqual(expect.objectContaining({ path: join(root, 'app/components/shared/data'), prefix: 'Shared', pathPrefix: false }))
   })
@@ -40,7 +40,7 @@ describe('commercial-ui layer', () => {
     for (const file of sourceFiles(join(root, 'app'))) {
       const specifiers = [...readFileSync(file, 'utf8').matchAll(/from\s+'([^']+)'/g)].map(m => m[1]!)
       for (const specifier of specifiers) {
-        expect(specifier.startsWith('.') || specifier.startsWith('@webvue/ui/') || specifier === '@webvue/commercial-contracts', `${relative(root, file)} imports ${specifier}`).toBe(true)
+        expect(specifier.startsWith('.') || specifier.startsWith('@liwan/ui/') || specifier === '@liwan/commercial-contracts', `${relative(root, file)} imports ${specifier}`).toBe(true)
       }
     }
   })

@@ -21,7 +21,7 @@
 - Settings must preserve unseen/other-company assignments and reject stale edits.
 
 ### Task 1: Policy, authorization and typed API
-**Files:** odoo-addons/webvue_core/**, odoo-addons/webvue_api/**, packages/contracts/src/access/**; exports only in packages/contracts/src/index.ts if required.
+**Files:** odoo-addons/liwan_core/**, odoo-addons/liwan_api/**, packages/contracts/src/access/**; exports only in packages/contracts/src/index.ts if required.
 **Interfaces:** The two GET/PATCH admin APIs and shapes in the spec. Export BranchPolicySchema, BranchPolicyInputSchema, UserBranchAccessSchema, UserBranchAccessInputSchema and inferred types.
 - [ ] Write regression tests reproducing parent capability leakage and verify failure.
 - [ ] Implement core policy persistence, explicit branch assignment operations, capability scoping and inheritance; migration/version/audit.
@@ -45,7 +45,7 @@
 
 ### Approved independent repair packages — 2026-10-23
 - [ ] Direct web/session/HomeFocus/document-link corrections: worker owns declared files in web-review-fixes; focused regression evidence and local commit, no push. Canonical route decision changes no runtime code if live consumers already conform.
-- [ ] Shift-day settings: worker owns webvue_hr, contracts/hr/shifts.ts, HR personal summary/settings/form/stories/locales. Implement approved spec addendum; focused regression and scratch tests, version/migration.
+- [ ] Shift-day settings: worker owns liwan_hr, contracts/hr/shifts.ts, HR personal summary/settings/form/stories/locales. Implement approved spec addendum; focused regression and scratch tests, version/migration.
 - [ ] Coordinator owns native branch settings UI, finance shared imperative gate adoption and finance branch HTTP/ORM tests. Merge worker commits only after actual diff review; final broad review covers all packages.
 
 #### Full-release compatibility repair addendum

@@ -1,7 +1,7 @@
 import {
   InboxBusinessProfilePatchSchema, InboxBusinessVerticalSchema,
   type InboxBusinessProfile, type InboxBusinessProfilePatch, type InboxBusinessVertical,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 
 // The form state of the WhatsApp business profile and its mapping to Meta's limits. Meta is the only store: a draft is
 // built from the profile read live, and only the fields the user changed are sent.

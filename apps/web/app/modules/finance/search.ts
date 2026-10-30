@@ -1,4 +1,4 @@
-import { FinanceInvoiceListSchema, FinancePartnerListSchema } from '@webvue/contracts'
+import { FinanceInvoiceListSchema, FinancePartnerListSchema } from '@liwan/contracts'
 import type { AppSearchProvider } from '../types'
 import { invoiceRecordPath } from './routes'
 

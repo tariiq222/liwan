@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount } from 'vue'
 import { useIsMutating } from '@tanstack/vue-query'
-import type { AdminUserDetail } from '@webvue/contracts'
+import type { AdminUserDetail } from '@liwan/contracts'
 import { accessErrorMessage } from '@/utils/accessErrors'
 import { adminUserMutationKey, useDisableAdminUser, useReactivateAdminUser, useResetAdminUserPassword } from '@/composables/useAdminUsers'
 

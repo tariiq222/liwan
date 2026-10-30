@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxFlowInteractive } from '@webvue/contracts'
+import type { InboxFlowInteractive } from '@liwan/contracts'
 
 // The message that opens a form, as the customer sees it: header, body, footer and the button that opens the form.
 // `name` is the form's name when the caller knows it (the composer's picker); the thread only has the button text.

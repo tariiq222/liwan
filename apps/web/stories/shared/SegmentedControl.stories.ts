@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { ref } from 'vue'
-import SegmentedControl from '@webvue/ui/app/components/shared/data/SegmentedControl.vue'
+import SegmentedControl from '@liwan/ui/app/components/shared/data/SegmentedControl.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

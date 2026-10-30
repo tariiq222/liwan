@@ -14,5 +14,5 @@ async function copy() {
 </script>
 
 <template>
-  <UButton type="button" color="neutral" variant="ghost" size="xs" class="webvue-touch-target rounded-full" icon="i-lucide-copy" :label="t('ai.thread.copy')" data-testid="ai-copy" @click="copy" />
+  <UButton type="button" color="neutral" variant="ghost" size="xs" class="liwan-touch-target rounded-full" icon="i-lucide-copy" :label="t('ai.thread.copy')" data-testid="ai-copy" @click="copy" />
 </template>

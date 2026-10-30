@@ -1,8 +1,8 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import { isIP } from 'node:net'
 import type { H3Event } from 'h3'
-import { MeSchema } from '@webvue/contracts'
-import { signServiceRequest } from '@webvue/commercial-contracts/server'
+import { MeSchema } from '@liwan/contracts'
+import { signServiceRequest } from '@liwan/commercial-contracts/server'
 import { tenantRequest } from './tenantRequest'
 import { tenantTransport } from './tenantTransport'
 import { deriveCustomerCapabilities, type CustomerCommercialCapability } from '../../app/utils/customerCapabilities'
@@ -20,8 +20,8 @@ type CustomerConfig = {
 
 export type CustomerPrincipal = { actor_id: string; kind: 'customer'; tenant_id: string; capabilities: CustomerCommercialCapability[] }
 
-export const CSRF_COOKIE = 'webvue_csrf'
-export const CSRF_HEADER = 'x-webvue-csrf'
+export const CSRF_COOKIE = 'liwan_csrf'
+export const CSRF_HEADER = 'x-liwan-csrf'
 /** Keys that carry identity or authority. They are only ever derived server-side, so a client sending one is rejected. */
 export const FORBIDDEN_KEYS = new Set(['tenant_id', 'customer_id', 'capabilities', 'capability', 'principal', 'actor_id', 'issuer', 'kind_principal', 'tenantid', 'customerid'])
 
@@ -164,7 +164,7 @@ export function allowPaymentReturn(client: string, attempt: string, now = Date.n
 }
 /** The edge-supplied client address, or 'unknown'; a value that is not an IP is never used as a key. */
 function paymentReturnClient(event: H3Event): string {
-  const ip = getHeader(event, 'x-webvue-client-ip')
+  const ip = getHeader(event, 'x-liwan-client-ip')
   return ip && isIP(ip) ? ip : 'unknown'
 }
 
@@ -173,17 +173,17 @@ export const encodePrincipal = (p: CustomerPrincipal) => Buffer.from(JSON.string
 /**
  * Signature scheme (verified by the control plane with the customer service key, issuer = NUXT_CUSTOMER_COMMERCIAL_ISSUER):
  *   signServiceRequest({ method, path: '/v1/customer/...?query', actor: <odoo user id>, issuer, key,
- *                        body: `webvue-principal:${x-webvue-principal}\n${rawBody ?? ''}` })
+ *                        body: `liwan-principal:${x-liwan-principal}\n${rawBody ?? ''}` })
  * i.e. the principal header value is covered by the body hash. Verifier recomputes that exact body string.
  */
 export function signedBodyFor(principalHeader: string, rawBody: string | undefined): string {
-  return `webvue-principal:${principalHeader}\n${rawBody ?? ''}`
+  return `liwan-principal:${principalHeader}\n${rawBody ?? ''}`
 }
 
 export function signCustomerForward(input: { method: string; path: string; rawBody?: string; principal: CustomerPrincipal; issuer: string; key: string; timestamp?: number; nonce?: string }) {
   const principalHeader = encodePrincipal(input.principal)
   const signed = signServiceRequest({ method: input.method, path: input.path, body: signedBodyFor(principalHeader, input.rawBody), actor: input.principal.actor_id, issuer: input.issuer, key: input.key, timestamp: input.timestamp, nonce: input.nonce })
-  return { ...signed, 'x-webvue-principal': principalHeader }
+  return { ...signed, 'x-liwan-principal': principalHeader }
 }
 
 /** The tenant this request is bound to: the verified host binding in shared mode, the configured id in dedicated mode. */
@@ -199,7 +199,7 @@ export async function customerPrincipal(event: H3Event, config: CustomerConfig):
   if (!tenantId) fail(503, 'commercial_unavailable', 'Tenant binding is not configured')
   let me: unknown
   try {
-    if (tenant || process.env.WEBVUE_RELEASE_ROUTES_DIR) {
+    if (tenant || process.env.LIWAN_RELEASE_ROUTES_DIR) {
       const response = await tenantTransport(event, config.odooUrl ?? '', '/api/v1/me')
       if (!response.ok) throw new Error('actor_unavailable')
       me = await response.json()
@@ -258,7 +258,7 @@ export async function forwardCustomerRequest(event: H3Event): Promise<unknown> {
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const PAYMENT_RETURN_BODY = (tenantId: string) => `webvue-payment-return:${tenantId}\n`
+const PAYMENT_RETURN_BODY = (tenantId: string) => `liwan-payment-return:${tenantId}\n`
 
 /** Asks the control plane to verify one attempt with the provider; resolves the order id, or null on any failure. */
 async function verifyPaymentReturn(event: H3Event, config: CustomerConfig, attempt: string): Promise<string | null> {
@@ -270,7 +270,7 @@ async function verifyPaymentReturn(event: H3Event, config: CustomerConfig, attem
     const target = new URL(`/v1/customer/payment-returns/${attempt}`, customerControlBase(config))
     // Anonymous signature: the return carries no user, so it proves only that this web server asked.
     const signed = signServiceRequest({ method: 'POST', path: target.pathname, body: PAYMENT_RETURN_BODY(tenantId), actor: 'anonymous', anonymous: true, issuer: config.customerCommercialIssuer, key: config.customerCommercialServiceKey })
-    const response = await $fetch.raw(target.toString(), { method: 'POST', headers: { ...signed, 'x-webvue-tenant': tenantId, accept: 'application/json' }, redirect: 'error', signal: AbortSignal.timeout(8000) })
+    const response = await $fetch.raw(target.toString(), { method: 'POST', headers: { ...signed, 'x-liwan-tenant': tenantId, accept: 'application/json' }, redirect: 'error', signal: AbortSignal.timeout(8000) })
     const orderId = (response._data as { order_id?: unknown } | null)?.order_id
     return typeof orderId === 'string' && UUID.test(orderId) ? orderId : null
   } catch (cause: any) {

@@ -12,7 +12,7 @@ const status = useFinanceZatcaStatus(() => can('finance.zatca.read'))
 
 <template>
   <SharedPageState :loading="status.isLoading.value" :error="status.error.value" :empty="!status.data.value" @retry="status.refetch">
-    <div v-if="status.data.value" class="grid gap-(--webvue-gap-card)">
+    <div v-if="status.data.value" class="grid gap-(--liwan-gap-card)">
       <ZatcaBacklog :backlog="status.data.value.backlog" />
       <ZatcaWorkList />
       <ZatcaJournals :journals="status.data.value.journals" />

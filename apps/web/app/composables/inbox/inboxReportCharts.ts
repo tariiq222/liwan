@@ -1,8 +1,8 @@
 import type {
   InboxCostCategoryRow, InboxCostPoint, InboxCostReport, InboxFirstResponseBuckets, InboxPricingType, InboxReportBreakdownRow, InboxReportGranularity,
   InboxReportMetrics, InboxReportPoint, InboxTemplateAnalyticsPoint,
-} from '@webvue/contracts'
-import type { KpiTile, KpiTone } from '@webvue/ui/app/utils/kpiTile'
+} from '@liwan/contracts'
+import type { KpiTile, KpiTone } from '@liwan/ui/app/utils/kpiTile'
 import type { ReportBarChart as DashboardBarChart, ReportBarDatum as DashboardBarDatum, ReportDatum as ChartDatum, ReportDonutChart as DashboardDonutChart } from './inboxChartTypes'
 
 // Pure mappers from the report wire shapes to the existing DashboardChart kinds (donut and bar) and the KPI strip. They

@@ -1,6 +1,6 @@
 import { computed, nextTick, ref, watch, type ComputedRef, type Ref } from 'vue'
 import type { RouteLocationNormalizedLoaded, Router } from 'vue-router'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
 import { governanceFilters, type GovernanceRegisterFilters } from '../../../../composables/projectGovernanceKeys'
 import { useGovernancePaging } from './listPaging'
 

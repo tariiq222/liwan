@@ -14,7 +14,7 @@ import crypto from 'node:crypto'
 import { URL } from 'node:url'
 
 const PORT = Number(process.env.MOCK_PORT || 4388)
-const SESSION = 'webvue-ui-mock'
+const SESSION = 'liwan-ui-mock'
 const WS_MAGIC = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
 // Deterministic local asset for the two employee records in the screenshot fixture.
 const HR_FIXTURE_AVATAR = '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><rect width="128" height="128" rx="64" fill="#e2e8f0"/><circle cx="64" cy="46" r="22" fill="#64748b"/><path d="M24 120c0-27 18-44 40-44s40 17 40 44" fill="#64748b"/></svg>'
@@ -38,8 +38,8 @@ const ME = {
   role: 'admin',
   roles: [{ id: 1, key: 'admin', name: { ar: 'مدير', en: 'Admin' }, type: 'built_in', protected: true, source: 'assignment' }],
   capabilities: CAPABILITIES, access_policy_version: 1,
-  company: { id: 1, name: 'WebVue' },
-  modules: ['webvue_chat', 'webvue_hr', 'webvue_documents', 'webvue_pmo'],
+  company: { id: 1, name: 'LiwanOS' },
+  modules: ['liwan_chat', 'liwan_hr', 'liwan_documents', 'liwan_pmo'],
   entitlements: {
     'pmo.enabled': true, 'meetings.enabled': true, 'documents.enabled': true, 'hr.enabled': true, 'finance.enabled': true, 'chat.enabled': true, 'ai.enabled': true, 'payments.enabled': true,
     ...Object.fromEntries(INBOX_FEATURES.map(feature => [feature, true])),
@@ -55,7 +55,7 @@ const ME = {
 }
 
 const BRANDING = {
-  name: 'ويب فيو',
+  name: 'ليوان',
   logo_url: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="6" fill="#5b3f8c"/></svg>'),
   primary_color: process.env.PREVIEW_PRIMARY_COLOR || '#5b3f8c',
   font: 'IBM Plex Sans Arabic',
@@ -65,12 +65,12 @@ const BRANDING = {
 const COMPANY_COUNTRY = { id: 192, name: 'المملكة العربية السعودية', code: 'SA' }
 const COMPANY_STATES = { 192: [{ id: 1, name: 'الرياض', code: 'RUH' }, { id: 2, name: 'مكة المكرمة', code: 'MAK' }], 229: [{ id: 3, name: 'دبي', code: 'DU' }] }
 const COMPANY = {
-  id: 1, name: 'ويب فيو', logo_url: null, report_header: 'منصة عربية موحّدة لتشغيل الشركات', company_registry: '1010000000', vat: '300000000000003',
+  id: 1, name: 'ليوان', logo_url: null, report_header: 'منصة عربية موحّدة لتشغيل الشركات', company_registry: '1010000000', vat: '300000000000003',
   address: {
     street: 'طريق الملك فهد', street2: 'العليا', city: 'الرياض', zip: '12211', state: { id: 1, name: 'الرياض' },
     country: COMPANY_COUNTRY,
   },
-  email: 'info@webvue.example', phone: '+966110000000', website: null,
+  email: 'info@liwan.example', phone: '+966110000000', website: null,
   currency: { id: 5, name: 'SAR', symbol: 'ر.س' },
   // What an installed application adds to the profile (here: a text field and a select), flat by name on PATCH.
   extensions: [
@@ -132,7 +132,7 @@ const PROJECTS = [
 ]
 
 const COPIES = []
-// Rows the WebVue AI audit endpoint received; GET /__mock/ai-audit exposes them to specs.
+// Rows the LiwanOS AI audit endpoint received; GET /__mock/ai-audit exposes them to specs.
 const AI_AUDIT = []
 // Provider usage rows (POST /api/v1/ai/usage); GET /__mock/ai-usage exposes them to specs.
 const AI_USAGE = []
@@ -182,7 +182,7 @@ const PHASE_OF = new Map()
 const phaseOf = p => PHASE_OF.get(p.id) ?? (PROJECTS.includes(p) ? 'planning' : 'initiating')
 const listItem = p => ({ ...p, charter_state: stateOf(p).charter.state, phase: phaseOf(p) })
 
-// Mirrors Project._webvue_phase_state: only the gate into planning has a check today.
+// Mirrors Project._liwan_phase_state: only the gate into planning has a check today.
 function phaseState(p) {
   const index = PHASES.indexOf(phaseOf(p))
   const next = PHASES[index + 1] ?? null
@@ -356,7 +356,7 @@ async function handle(req, res) {
     let body = {}
     try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
     const params = body.params || {}
-    if (params.db !== 'webvue_ui_mock_only' || params.login !== 'admin' || params.password !== 'admin') {
+    if (params.db !== 'liwan_ui_mock_only' || params.login !== 'admin' || params.password !== 'admin') {
       return json(res, 200, { jsonrpc: '2.0', id: body.id ?? null, error: { code: 100, message: 'Access Denied' } })
     }
     return json(res, 200, { jsonrpc: '2.0', id: body.id ?? null, result: { uid: 2, username: 'admin', is_admin: true } }, {

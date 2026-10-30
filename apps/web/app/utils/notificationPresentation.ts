@@ -1,5 +1,5 @@
-import { MeetingNotificationSchema, NotificationKindSchema, ProjectNotificationKindSchema, TaskNotificationKindSchema, type NotificationKind } from '@webvue/contracts'
-import { formatDateTime } from '@webvue/ui/app/utils/formatDate'
+import { MeetingNotificationSchema, NotificationKindSchema, ProjectNotificationKindSchema, TaskNotificationKindSchema, type NotificationKind } from '@liwan/contracts'
+import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 
 /** Today's kinds keep their literal type; a newer application's kind is any other string. */
 export type NotificationPreviewKind = NotificationKind | (string & {})

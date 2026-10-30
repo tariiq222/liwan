@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import MetricTile from '@webvue/ui/app/components/shared/data/MetricTile.vue'
+import MetricTile from '@liwan/ui/app/components/shared/data/MetricTile.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -21,7 +21,7 @@ export const CompactStrip: Story = {
   name: 'شريط مدمج بنبرات (مؤشرات قائمة المهام)',
   render: () => ({
     components: { MetricTile },
-    template: `<div class="grid max-w-5xl grid-cols-2 gap-(--webvue-gap-card) lg:grid-cols-4"><MetricTile density="compact" icon="i-lucide-list-checks" label="إجمالي المهام" :value="128" hint="22٪ منجزة" :progress="22" value-dir="ltr" /><MetricTile density="compact" tone="warning" icon="i-lucide-clock" label="المهام المفتوحة" :value="82" hint="64٪ من الإجمالي" :progress="64" value-dir="ltr" /><MetricTile density="compact" tone="danger" icon="i-lucide-circle-alert" label="المهام المتأخرة" :value="18" hint="14٪ من الإجمالي" :progress="14" value-dir="ltr" /><MetricTile density="compact" tone="success" icon="i-lucide-circle-check" label="المهام المنجزة" :value="28" hint="22٪ من الإجمالي" :progress="22" value-dir="ltr" /></div>`,
+    template: `<div class="grid max-w-5xl grid-cols-2 gap-(--liwan-gap-card) lg:grid-cols-4"><MetricTile density="compact" icon="i-lucide-list-checks" label="إجمالي المهام" :value="128" hint="22٪ منجزة" :progress="22" value-dir="ltr" /><MetricTile density="compact" tone="warning" icon="i-lucide-clock" label="المهام المفتوحة" :value="82" hint="64٪ من الإجمالي" :progress="64" value-dir="ltr" /><MetricTile density="compact" tone="danger" icon="i-lucide-circle-alert" label="المهام المتأخرة" :value="18" hint="14٪ من الإجمالي" :progress="14" value-dir="ltr" /><MetricTile density="compact" tone="success" icon="i-lucide-circle-check" label="المهام المنجزة" :value="28" hint="22٪ من الإجمالي" :progress="22" value-dir="ltr" /></div>`,
   }),
 }
 
@@ -30,6 +30,6 @@ export const Emphasis: Story = {
   parameters: storyContext('unused', '`emphasis`: رقم أكبر ورقاقة بصبغة الهوية للرقم الرئيسي في الصفحة؛ `to` يجعل البطاقة كلها رابطًا بحلقة تركيز.'),
   render: () => ({
     components: { MetricTile },
-    template: `<div class="grid max-w-3xl gap-(--webvue-gap-card) sm:grid-cols-2"><MetricTile emphasis icon="i-lucide-folder-kanban" label="المشاريع النشطة" :value="12" value-dir="ltr" /><MetricTile emphasis to="/tasks" icon="i-lucide-circle-alert" tone="danger" label="مهام متأخرة" :value="18" hint="افتح القائمة" value-dir="ltr" /></div>`,
+    template: `<div class="grid max-w-3xl gap-(--liwan-gap-card) sm:grid-cols-2"><MetricTile emphasis icon="i-lucide-folder-kanban" label="المشاريع النشطة" :value="12" value-dir="ltr" /><MetricTile emphasis to="/tasks" icon="i-lucide-circle-alert" tone="danger" label="مهام متأخرة" :value="18" hint="افتح القائمة" value-dir="ltr" /></div>`,
   }),
 }

@@ -393,7 +393,7 @@
       "readonlyTitle": "The template is read-only",
       "readonlyDescription": "Meta accepts no edit in the template's current status, or you cannot manage templates.",
       "dangerTitle": "Delete template",
-      "deleteHint": "The template is deleted from Meta and from WebVue and can no longer be used.",
+      "deleteHint": "The template is deleted from Meta and from LiwanOS and can no longer be used.",
       "delete": "Delete template",
       "deleteTitle": "Delete the template {name}?",
       "deleteDescription": "Queued messages that use this template will fail.",
@@ -516,7 +516,7 @@
         "phoneHint": "International format starting with +",
         "none": "No buttons.",
         "flow": "Form",
-        "flowHint": "The button opens a published form of this channel. WebVue generates a token for each message."
+        "flowHint": "The button opens a published form of this channel. LiwanOS generates a token for each message."
       },
       "auth": {
         "title": "Authentication options",
@@ -537,8 +537,8 @@
         "emptyBody": "Message text",
         "emptyButton": "Button text"
       },
-      "unsupported": "Not supported in WebVue",
-      "unsupportedDescription": "This template uses parts WebVue cannot fill (such as named variables or flow buttons), so it cannot be edited or sent from here. Manage it in Meta's dashboard."
+      "unsupported": "Not supported in LiwanOS",
+      "unsupportedDescription": "This template uses parts LiwanOS cannot fill (such as named variables or flow buttons), so it cannot be edited or sent from here. Manage it in Meta's dashboard."
     },
     "csat": {
       "good": "Satisfied",
@@ -706,11 +706,11 @@
       "pageTitle": "{name} forms",
       "hint": "In-chat forms: the customer fills them without leaving WhatsApp and the answers reach the conversation.",
       "create": "New form",
-      "createHint": "The form is saved as a draft in WebVue and Meta, and is published only when you decide.",
+      "createHint": "The form is saved as a draft in LiwanOS and Meta, and is published only when you decide.",
       "sync": "Sync forms",
       "synced": "Forms synced with Meta",
       "empty": "This channel has no forms yet.",
-      "webhookGuidance": "So that form status changes reach WebVue, subscribe the Meta app to the flows field in its webhook settings. Sync imports forms made in WhatsApp Manager so they can be sent and their answers read, without editing their screens.",
+      "webhookGuidance": "So that form status changes reach LiwanOS, subscribe the Meta app to the flows field in its webhook settings. Sync imports forms made in WhatsApp Manager so they can be sent and their answers read, without editing their screens.",
       "external": "From WhatsApp Manager",
       "unknown": "Unknown form",
       "submissionCount": "{n} answers",
@@ -721,7 +721,7 @@
       "metaUnreachable": "Meta cannot be reached right now and nothing was saved. Try again shortly.",
       "readonlyTitle": "This form is read-only",
       "readonlyDescription": "A form cannot be edited once published. Copy it to get a new draft to edit and publish.",
-      "externalDescription": "This form was made in WhatsApp Manager: WebVue sends it and stores its answers, but cannot show or edit its screens.",
+      "externalDescription": "This form was made in WhatsApp Manager: LiwanOS sends it and stores its answers, but cannot show or edit its screens.",
       "status": {
         "draft": "Draft",
         "published": "Published",
@@ -859,7 +859,7 @@
         "maxSelected": "Maximum selections",
         "required": "Required",
         "sensitive": "Sensitive",
-        "sensitiveHint": "A sensitive field's value is masked in the customer's WhatsApp chat summary; authorized staff see it in WebVue.",
+        "sensitiveHint": "A sensitive field's value is masked in the customer's WhatsApp chat summary; authorized staff see it in LiwanOS.",
         "advanced": "Advanced",
         "key": "Answer key",
         "keyHint": "The field's name in the stored answer; lowercase Latin letters, digits and _ only."
@@ -896,12 +896,12 @@
         "deprecateTitle": "Deprecate “{name}”?",
         "deprecateDescription": "A deprecated form cannot be sent or restored. Rules and automatic messages that point to it stay, and the system skips them with a note.",
         "deleteTitle": "Delete the draft “{name}”?",
-        "deleteDescription": "The draft is deleted from WebVue and Meta and cannot be recovered.",
+        "deleteDescription": "The draft is deleted from LiwanOS and Meta and cannot be recovered.",
         "copyTitle": "Copy “{name}”",
         "copyDescription": "A new draft with the same content is created for you to edit.",
         "copyName": "{name} (copy)",
         "replace": "Replace the original when published",
-        "replaceHint": "WebVue's rules and automatic messages move to the copy and the original is deprecated. Templates stay bound to the old form.",
+        "replaceHint": "LiwanOS's rules and automatic messages move to the copy and the original is deprecated. Templates stay bound to the old form.",
         "published": "Form published",
         "deprecated": "Form deprecated",
         "copied": "Copy created"
@@ -1235,8 +1235,8 @@
           "read": "Read",
           "clicked": "Clicks",
           "spent": "Spent",
-          "webvueSent": "We sent",
-          "webvueFailed": "Failed"
+          "liwanSent": "We sent",
+          "liwanFailed": "Failed"
         },
         "empty": "No templates to show",
         "emptyHint": "No approved template was sent from this channel in the period.",
@@ -1270,8 +1270,8 @@
           },
           "totals": {
             "spent": "Spent",
-            "webvueSent": "Sent from WebVue",
-            "webvueFailed": "Failed in WebVue"
+            "liwanSent": "Sent from LiwanOS",
+            "liwanFailed": "Failed in LiwanOS"
           }
         }
       }
@@ -1543,7 +1543,7 @@
       "defaults": "Catalog defaults",
       "defaultsHint": "They apply to every product, and a change sends the products to Meta again.",
       "dangerTitle": "Danger zone",
-      "deleteHint": "Disconnecting the catalog from WebVue does not delete its products from Meta, and existing orders stay.",
+      "deleteHint": "Disconnecting the catalog from LiwanOS does not delete its products from Meta, and existing orders stay.",
       "delete": "Disconnect catalog",
       "deleteTitle": "Disconnect the catalog {name}?",
       "deleteDescription": "The team cannot send its products until you connect it again.",

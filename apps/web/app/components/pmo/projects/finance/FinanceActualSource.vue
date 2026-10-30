@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FinanceSummary } from '@webvue/contracts'
+import type { FinanceSummary } from '@liwan/contracts'
 import { actualAccountLabel } from '@/utils/projectFinance'
 
 // Under the actual figure of a project whose actual comes from linked accounts: where it comes from and the cost center it reads.

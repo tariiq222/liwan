@@ -13,7 +13,7 @@ const root = fileURLToPath(new URL('..', import.meta.url))
 const OUTPUT = 'docs/design-system/catalog.json'
 const STORIES = 'apps/web/stories'
 // Layer packages a story may import components from, by import prefix.
-const LAYER_PREFIXES = { '@webvue/ui/': 'packages/ui/', '@webvue/commercial-ui/': 'packages/commercial-ui/' }
+const LAYER_PREFIXES = { '@liwan/ui/': 'packages/ui/', '@liwan/commercial-ui/': 'packages/commercial-ui/' }
 const TSCONFIG = 'apps/web/.nuxt/tsconfig.app.json'
 const AUTO_IMPORTS = 'apps/web/.nuxt/components.d.ts'
 

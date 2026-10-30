@@ -22,7 +22,7 @@ const { rows } = useAttention(() => (surface.value ? 'all' : null), { limit: 3 }
         <h2 class="text-sm font-semibold text-highlighted">{{ t('ai.home.title') }}</h2>
         <p class="text-xs text-muted">{{ t('ai.home.source') }}</p>
       </div>
-      <UButton :to="surface.to" color="neutral" variant="outline" size="sm" class="webvue-touch-target rounded-full" icon="i-lucide-sparkles" :label="t('ai.home.ask')" data-testid="home-assistant-ask" />
+      <UButton :to="surface.to" color="neutral" variant="outline" size="sm" class="liwan-touch-target rounded-full" icon="i-lucide-sparkles" :label="t('ai.home.ask')" data-testid="home-assistant-ask" />
     </div>
     <ul class="mt-3 flex flex-col gap-2">
       <li v-for="row in rows" :key="row.id" class="rounded-control border border-default bg-muted p-3" data-testid="home-assistant-row">

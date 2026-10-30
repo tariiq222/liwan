@@ -5,7 +5,7 @@ import InboxFlowState from '@/components/inbox/InboxFlowState.vue'
 import { flowsRoute } from '@/composables/inbox/inboxFlow'
 import { useInboxFlow } from '@/composables/inbox/useInboxFlows'
 
-// One form: its builder with the live preview (read-only once it is published, deprecated or made outside WebVue), the
+// One form: its builder with the live preview (read-only once it is published, deprecated or made outside LiwanOS), the
 // state in the header, and the lifecycle actions (Meta preview, publish, deprecate, copy, delete) under the builder.
 const route = useRoute()
 const { t } = useI18n()

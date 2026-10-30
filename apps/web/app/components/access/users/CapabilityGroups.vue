@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { joinList } from '@/utils/listFormat'
-import type { EffectiveCapability, PermissionDefinition } from '@webvue/contracts'
+import type { EffectiveCapability, PermissionDefinition } from '@liwan/contracts'
 import { CAPABILITY_GROUPS_OPEN_LIMIT, groupCapabilities } from '@/components/access/capabilityGroups'
 import { permissionDomainLabel } from '@/utils/labelFallback'
 

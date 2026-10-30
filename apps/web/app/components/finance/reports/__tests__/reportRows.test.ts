@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { FinanceAgedPartnerBalance, FinanceAnalyticReport, FinanceAnalyticReportLine, FinanceGeneralLedger, FinancePartnerStatement, FinanceVatSummary } from '@webvue/contracts'
+import type { FinanceAgedPartnerBalance, FinanceAnalyticReport, FinanceAnalyticReportLine, FinanceGeneralLedger, FinancePartnerStatement, FinanceVatSummary } from '@liwan/contracts'
 import { agedRows, analyticRows, ledgerRows, misRows, misValue, selectedLedgerLines, statementRows, vatRows, ZAKAT_RESULT_CODES } from '../reportRows'
 
 const buckets = { current: 1, days_1_30: 0, days_31_60: 0, days_61_90: 0, days_91_120: 0, days_over_120: 0, total: 1 }

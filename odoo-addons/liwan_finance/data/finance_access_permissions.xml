@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="permission_finance_invoices_read" model="liwan.access.permission">
+        <field name="key">finance.invoices.read</field><field name="domain">finance</field>
+        <field name="resource">invoices</field><field name="action">read</field>
+        <field name="name_ar">قراءة الفواتير</field><field name="name_en">Read invoices</field>
+        <field name="description_ar">قراءة الفواتير</field><field name="description_en">Read invoices</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_invoices_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_payments_read" model="liwan.access.permission">
+        <field name="key">finance.payments.read</field><field name="domain">finance</field>
+        <field name="resource">payments</field><field name="action">read</field>
+        <field name="name_ar">قراءة المدفوعات</field><field name="name_en">Read payments</field>
+        <field name="description_ar">قراءة المدفوعات</field><field name="description_en">Read payments</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_payments_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_accounts_read" model="liwan.access.permission">
+        <field name="key">finance.accounts.read</field><field name="domain">finance</field>
+        <field name="resource">accounts</field><field name="action">read</field>
+        <field name="name_ar">قراءة الحسابات</field><field name="name_en">Read accounts</field>
+        <field name="description_ar">قراءة الحسابات</field><field name="description_en">Read accounts</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_accounts_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_accounts_manage" model="liwan.access.permission">
+        <field name="key">finance.accounts.manage</field><field name="domain">finance</field>
+        <field name="resource">accounts</field><field name="action">manage</field>
+        <field name="name_ar">إدارة الحسابات</field><field name="name_en">Manage accounts</field>
+        <field name="description_ar">إدارة الحسابات</field><field name="description_en">Manage accounts</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_accounts_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_taxes_read" model="liwan.access.permission">
+        <field name="key">finance.taxes.read</field><field name="domain">finance</field>
+        <field name="resource">taxes</field><field name="action">read</field>
+        <field name="name_ar">قراءة الضرائب</field><field name="name_en">Read taxes</field>
+        <field name="description_ar">قراءة الضرائب</field><field name="description_en">Read taxes</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_taxes_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_taxes_manage" model="liwan.access.permission">
+        <field name="key">finance.taxes.manage</field><field name="domain">finance</field>
+        <field name="resource">taxes</field><field name="action">manage</field>
+        <field name="name_ar">إدارة الضرائب</field><field name="name_en">Manage taxes</field>
+        <field name="description_ar">إدارة الضرائب</field><field name="description_en">Manage taxes</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_taxes_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_payment_terms_read" model="liwan.access.permission">
+        <field name="key">finance.payment_terms.read</field><field name="domain">finance</field>
+        <field name="resource">payment_terms</field><field name="action">read</field>
+        <field name="name_ar">قراءة شروط الدفع</field><field name="name_en">Read payment terms</field>
+        <field name="description_ar">قراءة شروط الدفع</field><field name="description_en">Read payment terms</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_payment_terms_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_payment_terms_manage" model="liwan.access.permission">
+        <field name="key">finance.payment_terms.manage</field><field name="domain">finance</field>
+        <field name="resource">payment_terms</field><field name="action">manage</field>
+        <field name="name_ar">إدارة شروط الدفع</field><field name="name_en">Manage payment terms</field>
+        <field name="description_ar">إدارة شروط الدفع</field><field name="description_en">Manage payment terms</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_payment_terms_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_zakat_manage" model="liwan.access.permission">
+        <field name="key">finance.zakat.manage</field><field name="domain">finance</field>
+        <field name="resource">zakat</field><field name="action">manage</field>
+        <field name="name_ar">إدارة تسويات الزكاة</field><field name="name_en">Manage Zakat adjustments</field>
+        <field name="description_ar">إدارة تسويات الزكاة</field><field name="description_en">Manage Zakat adjustments</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_zakat_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_zakat_review" model="liwan.access.permission">
+        <field name="key">finance.zakat.review</field><field name="domain">finance</field>
+        <field name="resource">zakat</field><field name="action">review</field>
+        <field name="name_ar">مراجعة حساب الزكاة</field><field name="name_en">Review the Zakat computation</field>
+        <field name="description_ar">مراجعة حساب الزكاة</field><field name="description_en">Review the Zakat computation</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_zakat_review</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_journals_read" model="liwan.access.permission">
+        <field name="key">finance.journals.read</field><field name="domain">finance</field>
+        <field name="resource">journals</field><field name="action">read</field>
+        <field name="name_ar">قراءة اليوميات</field><field name="name_en">Read journals</field>
+        <field name="description_ar">قراءة اليوميات</field><field name="description_en">Read journals</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_journals_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_journals_manage" model="liwan.access.permission">
+        <field name="key">finance.journals.manage</field><field name="domain">finance</field>
+        <field name="resource">journals</field><field name="action">manage</field>
+        <field name="name_ar">إدارة اليوميات</field><field name="name_en">Manage journals</field>
+        <field name="description_ar">إدارة اليوميات</field><field name="description_en">Manage journals</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_journals_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_partners_read" model="liwan.access.permission">
+        <field name="key">finance.partners.read</field><field name="domain">finance</field>
+        <field name="resource">partners</field><field name="action">read</field>
+        <field name="name_ar">قراءة العملاء والموردين</field><field name="name_en">Read customers and vendors</field>
+        <field name="description_ar">قراءة العملاء والموردين</field><field name="description_en">Read customers and vendors</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_partners_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_partners_manage" model="liwan.access.permission">
+        <field name="key">finance.partners.manage</field><field name="domain">finance</field>
+        <field name="resource">partners</field><field name="action">manage</field>
+        <field name="name_ar">إدارة العملاء والموردين</field><field name="name_en">Manage customers and vendors</field>
+        <field name="description_ar">إدارة العملاء والموردين</field><field name="description_en">Manage customers and vendors</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_partners_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_invoices_manage" model="liwan.access.permission">
+        <field name="key">finance.invoices.manage</field><field name="domain">finance</field>
+        <field name="resource">invoices</field><field name="action">manage</field>
+        <field name="name_ar">إدارة مسودات الفواتير</field><field name="name_en">Manage draft invoices</field>
+        <field name="description_ar">إدارة مسودات الفواتير</field><field name="description_en">Manage draft invoices</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_invoices_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_invoices_post" model="liwan.access.permission">
+        <field name="key">finance.invoices.post</field><field name="domain">finance</field>
+        <field name="resource">invoices</field><field name="action">post</field>
+        <field name="name_ar">ترحيل الفواتير وإلغاؤها</field><field name="name_en">Post and cancel invoices</field>
+        <field name="description_ar">ترحيل الفواتير وإلغاؤها</field><field name="description_en">Post and cancel invoices</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_invoices_post</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_payments_manage" model="liwan.access.permission">
+        <field name="key">finance.payments.manage</field><field name="domain">finance</field>
+        <field name="resource">payments</field><field name="action">manage</field>
+        <field name="name_ar">تسجيل المدفوعات</field><field name="name_en">Register payments</field>
+        <field name="description_ar">تسجيل المدفوعات</field><field name="description_en">Register payments</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_payments_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_setup_read" model="liwan.access.permission">
+        <field name="key">finance.setup.read</field><field name="domain">finance</field>
+        <field name="resource">setup</field><field name="action">read</field>
+        <field name="name_ar">قراءة إعداد المالية</field><field name="name_en">Read finance setup</field>
+        <field name="description_ar">قراءة إعداد المالية</field><field name="description_en">Read finance setup</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_setup_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_setup_manage" model="liwan.access.permission">
+        <field name="key">finance.setup.manage</field><field name="domain">finance</field>
+        <field name="resource">setup</field><field name="action">manage</field>
+        <field name="name_ar">إدارة إعداد المالية</field><field name="name_en">Manage finance setup</field>
+        <field name="description_ar">إدارة إعداد المالية</field><field name="description_en">Manage finance setup</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_setup_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_reports_read" model="liwan.access.permission">
+        <field name="key">finance.reports.read</field><field name="domain">finance</field>
+        <field name="resource">reports</field><field name="action">read</field>
+        <field name="name_ar">قراءة التقارير المالية</field><field name="name_en">Read finance reports</field>
+        <field name="description_ar">قراءة التقارير المالية</field><field name="description_en">Read finance reports</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_reports_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_entries_read" model="liwan.access.permission">
+        <field name="key">finance.entries.read</field><field name="domain">finance</field>
+        <field name="resource">entries</field><field name="action">read</field>
+        <field name="name_ar">قراءة القيود اليومية</field><field name="name_en">Read journal entries</field>
+        <field name="description_ar">قراءة القيود اليومية</field><field name="description_en">Read journal entries</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_entries_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_entries_manage" model="liwan.access.permission">
+        <field name="key">finance.entries.manage</field><field name="domain">finance</field>
+        <field name="resource">entries</field><field name="action">manage</field>
+        <field name="name_ar">إدارة مسودات القيود اليومية</field><field name="name_en">Manage draft journal entries</field>
+        <field name="description_ar">إدارة مسودات القيود اليومية</field><field name="description_en">Manage draft journal entries</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_entries_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_entries_post" model="liwan.access.permission">
+        <field name="key">finance.entries.post</field><field name="domain">finance</field>
+        <field name="resource">entries</field><field name="action">post</field>
+        <field name="name_ar">ترحيل القيود اليومية</field><field name="name_en">Post journal entries</field>
+        <field name="description_ar">ترحيل القيود اليومية</field><field name="description_en">Post journal entries</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_entries_post</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_statements_read" model="liwan.access.permission">
+        <field name="key">finance.statements.read</field><field name="domain">finance</field>
+        <field name="resource">statements</field><field name="action">read</field>
+        <field name="name_ar">قراءة القوائم المالية</field><field name="name_en">Read financial statements</field>
+        <field name="description_ar">قراءة القوائم المالية</field><field name="description_en">Read financial statements</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_statements_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_zakat_read" model="liwan.access.permission">
+        <field name="key">finance.zakat.read</field><field name="domain">finance</field>
+        <field name="resource">zakat</field><field name="action">read</field>
+        <field name="name_ar">قراءة وعاء الزكاة</field><field name="name_en">Read the Zakat base</field>
+        <field name="description_ar">قراءة وعاء الزكاة</field><field name="description_en">Read the Zakat base</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_zakat_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_bank_read" model="liwan.access.permission">
+        <field name="key">finance.bank.read</field><field name="domain">finance</field>
+        <field name="resource">bank</field><field name="action">read</field>
+        <field name="name_ar">قراءة كشوف البنك</field><field name="name_en">Read bank statements</field>
+        <field name="description_ar">قراءة كشوف البنك</field><field name="description_en">Read bank statements</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_bank_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_bank_manage" model="liwan.access.permission">
+        <field name="key">finance.bank.manage</field><field name="domain">finance</field>
+        <field name="resource">bank</field><field name="action">manage</field>
+        <field name="name_ar">إدارة كشوف البنك والمطابقة</field><field name="name_en">Manage bank statements and reconciliation</field>
+        <field name="description_ar">إدارة كشوف البنك والمطابقة</field><field name="description_en">Manage bank statements and reconciliation</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_bank_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_assets_read" model="liwan.access.permission">
+        <field name="key">finance.assets.read</field><field name="domain">finance</field>
+        <field name="resource">assets</field><field name="action">read</field>
+        <field name="name_ar">قراءة الأصول الثابتة</field><field name="name_en">Read fixed assets</field>
+        <field name="description_ar">قراءة الأصول الثابتة</field><field name="description_en">Read fixed assets</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_assets_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_assets_manage" model="liwan.access.permission">
+        <field name="key">finance.assets.manage</field><field name="domain">finance</field>
+        <field name="resource">assets</field><field name="action">manage</field>
+        <field name="name_ar">إدارة الأصول الثابتة</field><field name="name_en">Manage fixed assets</field>
+        <field name="description_ar">إدارة الأصول الثابتة</field><field name="description_en">Manage fixed assets</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_assets_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_zatca_read" model="liwan.access.permission">
+        <field name="key">finance.zatca.read</field><field name="domain">finance</field>
+        <field name="resource">zatca</field><field name="action">read</field>
+        <field name="name_ar">قراءة حالة الفوترة الإلكترونية (زاتكا)</field><field name="name_en">Read ZATCA e-invoicing status</field>
+        <field name="description_ar">قراءة حالة الفوترة الإلكترونية (زاتكا)</field><field name="description_en">Read ZATCA e-invoicing status</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_zatca_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_zatca_manage" model="liwan.access.permission">
+        <field name="key">finance.zatca.manage</field><field name="domain">finance</field>
+        <field name="resource">zatca</field><field name="action">manage</field>
+        <field name="name_ar">ربط يوميات المبيعات بزاتكا</field><field name="name_en">Onboard sales journals with ZATCA</field>
+        <field name="description_ar">ربط يوميات المبيعات بزاتكا</field><field name="description_en">Onboard sales journals with ZATCA</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_zatca_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_zatca_submit" model="liwan.access.permission">
+        <field name="key">finance.zatca.submit</field><field name="domain">finance</field>
+        <field name="resource">zatca</field><field name="action">submit</field>
+        <field name="name_ar">إرسال الفواتير إلى زاتكا</field><field name="name_en">Submit invoices to ZATCA</field>
+        <field name="description_ar">إرسال الفواتير إلى زاتكا</field><field name="description_en">Submit invoices to ZATCA</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_zatca_submit</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_analytic_read" model="liwan.access.permission">
+        <field name="key">finance.analytic.read</field><field name="domain">finance</field>
+        <field name="resource">analytic</field><field name="action">read</field>
+        <field name="name_ar">قراءة مراكز التكلفة وتقريرها</field><field name="name_en">Read cost centers and their report</field>
+        <field name="description_ar">قراءة مراكز التكلفة وتقريرها</field><field name="description_en">Read cost centers and their report</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_analytic_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_analytic_manage" model="liwan.access.permission">
+        <field name="key">finance.analytic.manage</field><field name="domain">finance</field>
+        <field name="resource">analytic</field><field name="action">manage</field>
+        <field name="name_ar">إدارة مراكز التكلفة</field><field name="name_en">Manage cost centers</field>
+        <field name="description_ar">إدارة مراكز التكلفة</field><field name="description_en">Manage cost centers</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_analytic_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_budgets_read" model="liwan.access.permission">
+        <field name="key">finance.budgets.read</field><field name="domain">finance</field>
+        <field name="resource">budgets</field><field name="action">read</field>
+        <field name="name_ar">قراءة الموازنات</field><field name="name_en">Read budgets</field>
+        <field name="description_ar">قراءة الموازنات</field><field name="description_en">Read budgets</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_budgets_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_budgets_manage" model="liwan.access.permission">
+        <field name="key">finance.budgets.manage</field><field name="domain">finance</field>
+        <field name="resource">budgets</field><field name="action">manage</field>
+        <field name="name_ar">إدارة الموازنات</field><field name="name_en">Manage budgets</field>
+        <field name="description_ar">إدارة الموازنات</field><field name="description_en">Manage budgets</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_budgets_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_audit_read" model="liwan.access.permission">
+        <field name="key">finance.audit.read</field><field name="domain">finance</field>
+        <field name="resource">audit</field><field name="action">read</field>
+        <field name="name_ar">قراءة سجل تدقيق المالية</field><field name="name_en">Read the finance audit trail</field>
+        <field name="description_ar">قراءة أحداث التدقيق: تعديل الشركة وإقفال السنة وإرسال زاتكا</field><field name="description_en">Read the audit events: company changes, year close and ZATCA actions</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_audit_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_closing_read" model="liwan.access.permission">
+        <field name="key">finance.closing.read</field><field name="domain">finance</field>
+        <field name="resource">closing</field><field name="action">read</field>
+        <field name="name_ar">قراءة إقفال السنة المالية</field><field name="name_en">Read fiscal year closing</field>
+        <field name="description_ar">قراءة السنوات المالية ومعاينة قيد الإقفال</field><field name="description_en">Read fiscal years and preview the closing entry</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_closing_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_finance_closing_manage" model="liwan.access.permission">
+        <field name="key">finance.closing.manage</field><field name="domain">finance</field>
+        <field name="resource">closing</field><field name="action">manage</field>
+        <field name="name_ar">إقفال السنة المالية</field><field name="name_en">Close fiscal years</field>
+        <field name="description_ar">إنشاء قيد الإقفال وقفل الفترة</field><field name="description_en">Create the closing entry and lock the period</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_closing_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <data noupdate="1">
+        <record id="role_finance_manager" model="liwan.access.role">
+            <field name="key">finance_manager</field><field name="name_ar">مدير المالية</field><field name="name_en">Finance manager</field>
+            <field name="description">Finance manager</field><field name="type">built_in</field><field name="protected" eval="True"/><field name="assignable" eval="True"/>
+            <field name="permission_ids" eval="[Command.set([ref('permission_finance_invoices_read'),ref('permission_finance_payments_read'),ref('permission_finance_accounts_read'),ref('permission_finance_zakat_review'),ref('permission_finance_zakat_manage'),ref('permission_finance_payment_terms_read'),ref('permission_finance_payment_terms_manage'),ref('permission_finance_taxes_read'),ref('permission_finance_taxes_manage'),ref('permission_finance_accounts_manage'),ref('permission_finance_journals_read'),ref('permission_finance_journals_manage'),ref('permission_finance_partners_read'),ref('permission_finance_partners_manage'),ref('permission_finance_invoices_manage'),ref('permission_finance_invoices_post'),ref('permission_finance_payments_manage'),ref('permission_finance_setup_read'),ref('permission_finance_setup_manage'),ref('permission_finance_reports_read'),ref('permission_finance_entries_read'),ref('permission_finance_entries_manage'),ref('permission_finance_entries_post'),ref('permission_finance_statements_read'),ref('permission_finance_zakat_read'),ref('permission_finance_bank_read'),ref('permission_finance_bank_manage'),ref('permission_finance_assets_read'),ref('permission_finance_assets_manage'),ref('permission_finance_budgets_read'),ref('permission_finance_budgets_manage'),ref('permission_finance_analytic_read'),ref('permission_finance_analytic_manage'),ref('permission_finance_closing_read'),ref('permission_finance_closing_manage'),ref('permission_finance_audit_read'),ref('permission_finance_zatca_read'),ref('permission_finance_zatca_manage'),ref('permission_finance_zatca_submit')])]"/>
+        </record>
+        <record id="role_finance_accountant" model="liwan.access.role">
+            <field name="key">finance_accountant</field><field name="name_ar">محاسب</field><field name="name_en">Accountant</field>
+            <field name="description">Accountant</field><field name="type">built_in</field><field name="protected" eval="True"/><field name="assignable" eval="True"/>
+            <field name="permission_ids" eval="[Command.set([ref('permission_finance_accounts_read'),ref('permission_finance_analytic_read'),ref('permission_finance_assets_read'),ref('permission_finance_bank_manage'),ref('permission_finance_bank_read'),ref('permission_finance_budgets_read'),ref('permission_finance_entries_manage'),ref('permission_finance_entries_read'),ref('permission_finance_invoices_manage'),ref('permission_finance_invoices_read'),ref('permission_finance_journals_read'),ref('permission_finance_partners_manage'),ref('permission_finance_partners_read'),ref('permission_finance_payments_manage'),ref('permission_finance_payments_read'),ref('permission_finance_reports_read'),ref('permission_finance_statements_read'),ref('permission_finance_zatca_read'),ref('permission_finance_zatca_submit')])]"/>
+        </record>
+        <record id="role_finance_auditor" model="liwan.access.role">
+            <field name="key">finance_auditor</field><field name="name_ar">مدقق</field><field name="name_en">Auditor</field>
+            <field name="description">Auditor</field><field name="type">built_in</field><field name="protected" eval="True"/><field name="assignable" eval="True"/>
+            <field name="permission_ids" eval="[Command.set([ref('permission_finance_accounts_read'),ref('permission_finance_analytic_read'),ref('permission_finance_assets_read'),ref('permission_finance_audit_read'),ref('permission_finance_bank_read'),ref('permission_finance_budgets_read'),ref('permission_finance_closing_read'),ref('permission_finance_entries_read'),ref('permission_finance_invoices_read'),ref('permission_finance_journals_read'),ref('permission_finance_partners_read'),ref('permission_finance_payments_read'),ref('permission_finance_reports_read'),ref('permission_finance_setup_read'),ref('permission_finance_statements_read'),ref('permission_finance_zakat_read'),ref('permission_finance_zatca_read')])]"/>
+        </record>
+    </data>
+    <!-- Built-in roles are noupdate records: these hooks link this addon's grants and
+         dependencies on install and on every upgrade. -->
+    <function model="liwan.access.service" name="_liwan_configure_permission_dependencies"/>
+    <function model="liwan.access.service" name="_liwan_repair_builtin_role_grants"/>
+</odoo>

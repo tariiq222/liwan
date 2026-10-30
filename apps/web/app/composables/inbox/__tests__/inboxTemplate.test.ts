@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { InboxTemplate } from '@webvue/contracts'
+import type { InboxTemplate } from '@liwan/contracts'
 import {
   addTemplateVariable, buttonProblems, canAddButton, draftFromTemplate, draftPreview, emptyButton, emptyTemplateDraft, finalTemplateName, moveItem,
   quickRepliesGrouped, resizeExamples, slugifyTemplateName, templatesRoute, templateDirection, templatePreview, templateWriteCandidate, validateTemplateDraft,

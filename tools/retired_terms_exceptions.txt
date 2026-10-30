@@ -1,0 +1,1 @@
+tools/retired_terms.txt  # the list itself

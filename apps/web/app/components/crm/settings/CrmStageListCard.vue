@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CrmStageSchema, type CrmStage } from '@webvue/contracts'
+import { CrmStageSchema, type CrmStage } from '@liwan/contracts'
 import { useCrmListEditor, useCrmStages, useReorderCrmStages } from '@/composables/crm/useCrmLists'
 import { saveErrorMessage } from '@/utils/formFeedback'
 

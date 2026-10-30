@@ -17,7 +17,7 @@ from tools import oca_addons
 from tools.shared_saas_lifecycle.odoo_effect import EffectError, MAX_OUTPUT, validate_database, effect_operation
 from tools.shared_saas_lifecycle.subscription_effect import ComposeRunner as SubscriptionComposeRunner, validate_tenant
 
-SENTINEL = 'WEBVUE_ADMIN_PASSWORD:'
+SENTINEL = 'LIWAN_ADMIN_PASSWORD:'
 ERROR_CODES = frozenset({'user_missing', 'user_inactive', 'password_policy', 'database_invalid', 'script_failed'})
 
 
@@ -46,7 +46,7 @@ def build_script():
     """Static code: no caller-supplied value is interpolated into source."""
     return '''import json
 from datetime import datetime, timezone
-from odoo.addons.webvue_platform.models.entitlement_service import OPERATOR_CONTEXT
+from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 class Refusal(Exception):
     pass
@@ -58,10 +58,10 @@ try:
         raise Refusal('script_failed')
     if not isinstance(secret, str) or not 12 <= len(secret) <= 256 or '\\x00' in secret:
         raise Refusal('password_policy')
-    profile = env['webvue.tenant.profile'].search([], limit=2)
+    profile = env['liwan.tenant.profile'].search([], limit=2)
     if len(profile) != 1 or profile.commercial_mode != 'saas' or profile.entitlement_source != 'control_plane':
         raise Refusal('script_failed')
-    profile = profile._webvue_lock()
+    profile = profile._liwan_lock()
     root = profile.root_company_id
     admin = env.ref('base.user_admin', raise_if_not_found=False)
     # The provisioned admin identity is fixed, not any user matching a login.
@@ -72,7 +72,7 @@ try:
     if not admin.active:
         raise Refusal('user_inactive')
     operator = admin.with_context(**{OPERATOR_CONTEXT: True})
-    operator.env['webvue.entitlement.service']._webvue_assert_operator()
+    operator.env['liwan.entitlement.service']._liwan_assert_operator()
     operator.write({'password': secret})
     env.flush_all()
     result = {'login': admin.login, 'user_id': admin.id,
@@ -90,7 +90,7 @@ except Exception:
 finally:
     secret = None
     values.clear()
-print('WEBVUE_ADMIN_PASSWORD:' + json.dumps(result, separators=(',', ':')))
+print('LIWAN_ADMIN_PASSWORD:' + json.dumps(result, separators=(',', ':')))
 '''
 
 
@@ -100,9 +100,9 @@ def build_bootstrap(script):
     return '''import json, logging, runpy, sys
 logging.disable(logging.CRITICAL)
 values = json.loads(sys.stdin.read(65537))
-launcher = runpy.run_path('/opt/webvue/odoo_secure.py')
+launcher = runpy.run_path('/opt/liwan/odoo_secure.py')
 root, forwarded = launcher['_parse_args'](sys.argv[1:])
-sys.argv = ['/opt/webvue/odoo_secure.py', *forwarded]
+sys.argv = ['/opt/liwan/odoo_secure.py', *forwarded]
 cli_main = launcher['_load_odoo_cli'](root)
 from odoo.cli.shell import Shell
 script = ''' + repr(script) + '''
@@ -144,10 +144,10 @@ class ComposeRunner(SubscriptionComposeRunner):
         # Fresh one-shot container, no shell interpolation, credential env or file.
         self.current_container = self.config['projectName'] + '-effect-password-' + secrets.token_hex(8)
         args = self.base + ['run', '--rm', '--no-deps', '-T', '--name', self.current_container,
-            '-e', 'WEBVUE_COMMERCIAL_CONFIG=/run/webvue-runtime/classifications/' + self.database + '.json',
+            '-e', 'LIWAN_COMMERCIAL_CONFIG=/run/liwan-runtime/classifications/' + self.database + '.json',
             '--entrypoint', '/opt/venv/bin/python', 'odoo', '-c', build_bootstrap(script),
             '--odoo-root', '/opt/odoo', 'shell', '-c', '/etc/odoo/odoo.conf',
-            '--addons-path=/opt/odoo/addons,/opt/webvue/addons,' + oca_addons.image_path(), '--data-dir=/var/lib/odoo',
+            '--addons-path=/opt/odoo/addons,/opt/liwan/addons,' + oca_addons.image_path(), '--data-dir=/var/lib/odoo',
             '-d', self.database, '--no-http', '--log-level=critical', '--log-handler=:CRITICAL']
         try:
             return self.command(args, stdin=stdin, timeout=180)

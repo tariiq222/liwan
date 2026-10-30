@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FinanceInvoiceCreateSchema, FinanceInvoicePatchSchema, type FinanceInvoiceDetail } from '@webvue/contracts'
+import { FinanceInvoiceCreateSchema, FinanceInvoicePatchSchema, type FinanceInvoiceDetail } from '@liwan/contracts'
 import {
   buildInvoiceCreate,
   buildInvoicePatch,

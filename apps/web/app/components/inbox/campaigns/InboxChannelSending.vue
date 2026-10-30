@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatDateTime } from '@webvue/ui/app/utils/formatDate'
+import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import { useInboxChannelSending, usePatchInboxChannelSending, useRefreshInboxChannelSending } from '@/composables/inbox/useInboxCampaigns'
 
 // How many customers this number may still start a conversation with in the rolling 24 hours (Meta's limit is shared by
@@ -35,7 +35,7 @@ function runRefresh() {
     <SharedLoadingSkeleton v-if="query.isPending.value" />
     <SharedPageState v-else-if="query.error.value" :error="query.error.value" @retry="query.refetch()" />
     <div v-else-if="sending" class="flex flex-col gap-4">
-      <section class="grid grid-cols-1 gap-(--webvue-gap-card) sm:grid-cols-2 xl:grid-cols-3" :aria-label="t('inbox.campaigns.sending.title')">
+      <section class="grid grid-cols-1 gap-(--liwan-gap-card) sm:grid-cols-2 xl:grid-cols-3" :aria-label="t('inbox.campaigns.sending.title')">
         <SharedMetricTile v-if="props.showHealth" density="compact" icon="i-lucide-messages-square" :label="t('inbox.health.tiles.limit')" :value="t(`inbox.health.limit.${sending.messaging_limit}`)" :hint="t('inbox.health.tiles.limitHint')" data-testid="inbox-sending-limit" />
         <SharedMetricTile v-if="props.showHealth" density="compact" icon="i-lucide-gauge" :label="t('inbox.health.tiles.quality')" :value="t(`inbox.health.quality.${sending.quality_rating}`)" :tone="QUALITY_TONE[sending.quality_rating]" data-testid="inbox-sending-quality" />
         <SharedMetricTile density="compact" icon="i-lucide-send" :label="t('inbox.campaigns.sending.used')" :value="sending.used_24h" value-dir="ltr" :hint="t('inbox.campaigns.sending.usedHint')" data-testid="inbox-sending-used" />

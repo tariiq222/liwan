@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
 import EquipmentForm from '../../../app/components/hr/assets/EquipmentForm.vue'
-import CreatePanel from '@webvue/ui/app/components/shared/layout/CreatePanel.vue'
+import CreatePanel from '@liwan/ui/app/components/shared/layout/CreatePanel.vue'
 import { storyContext } from '../../support/context'
 
 // The asset create form inside the /hr/assets/new SharedCreatePanel: it posts the exact

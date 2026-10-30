@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { HrPayrollSettingsPatchSchema, type HrPayrollSettings, type HrRef } from '@webvue/contracts'
+import { HrPayrollSettingsPatchSchema, type HrPayrollSettings, type HrRef } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import { payrollSettingsPatch } from '@/utils/payrollSettings'
@@ -67,13 +67,13 @@ async function submit() {
 </script>
 
 <template>
-  <UForm novalidate :state="{ dayDivisor, unpaidLeaveTypes, annualLeaveType }" class="webvue-form" method="post" data-testid="hr-payroll-settings-form" @submit="submit">
+  <UForm novalidate :state="{ dayDivisor, unpaidLeaveTypes, annualLeaveType }" class="liwan-form" method="post" data-testid="hr-payroll-settings-form" @submit="submit">
     <SharedUnsavedChanges :dirty="dirty" />
     <UAlert v-if="alertMessage" role="alert" color="error" variant="subtle" :title="t('hrPayroll.settings.saveError')" :description="alertMessage" />
     <UButton v-if="conflict" color="neutral" variant="outline" :label="t('hrPayroll.revision.reload')" :loading="reloading" :disabled="!hydrated || reloading" data-testid="hr-payroll-settings-reload" @click="reload" />
     <UAlert v-if="reloadFailure" role="alert" color="error" variant="subtle" :title="t('hrPayroll.revision.reloadError')" />
     <SharedFormSection panel :title="t('hrPayroll.settings.generalTitle')" :description="t('hrPayroll.settings.generalHint')">
-      <div class="webvue-form-grid">
+      <div class="liwan-form-grid">
         <UFormField :label="t('hrPayroll.settings.dayDivisor')" name="hr-payroll-divisor" :help="t('hrPayroll.settings.dayDivisorHint')" :error="fieldError('day_divisor')">
           <USelect id="hr-payroll-divisor" v-model="dayDivisor" class="w-full" :items="divisorOptions" :disabled="locked" data-testid="hr-payroll-divisor" />
         </UFormField>

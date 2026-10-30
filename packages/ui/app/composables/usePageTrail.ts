@@ -8,7 +8,7 @@ import type { ShellCrumb } from '../types/shell'
  * still one trail owner and one place a reader looks for it.
  */
 
-const PAGE_TRAIL: InjectionKey<Readonly<Ref<readonly ShellCrumb[]>>> = Symbol('webvue-page-trail')
+const PAGE_TRAIL: InjectionKey<Readonly<Ref<readonly ShellCrumb[]>>> = Symbol('liwan-page-trail')
 const NO_TRAIL: Readonly<Ref<readonly ShellCrumb[]>> = readonly(ref<ShellCrumb[]>([]))
 
 /** The shell publishes the ancestors of the current route; the page header injects them. */

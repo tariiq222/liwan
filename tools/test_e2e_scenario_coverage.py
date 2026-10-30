@@ -68,9 +68,9 @@ class TestScenarioCoverage(unittest.TestCase):
             self.assertEqual(referenced_tokens(Path(folder)), {'page /pay/[id]/[id]', 'GET /api/v1/x/<int:id>'})
 
     def test_report_lists_missing_and_unknown(self):
-        groups = {'webvue_hr': {'GET /api/v1/hr/me', 'POST /api/v1/hr/x'}}
+        groups = {'liwan_hr': {'GET /api/v1/hr/me', 'POST /api/v1/hr/x'}}
         missing, unknown = report(groups, {'GET /api/v1/hr/me', 'GET /api/v1/gone'})
-        self.assertEqual(missing, {'webvue_hr': ['POST /api/v1/hr/x']})
+        self.assertEqual(missing, {'liwan_hr': ['POST /api/v1/hr/x']})
         self.assertEqual(unknown, ['GET /api/v1/gone'])
 
 

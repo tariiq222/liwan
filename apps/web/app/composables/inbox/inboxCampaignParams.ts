@@ -6,7 +6,7 @@ import {
   type InboxCampaignParamSource,
   type InboxCampaignPreview,
   type InboxTemplate,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { templateDirection, type ButtonKind, type TemplatePreviewParts } from './inboxTemplate'
 import { dynamicButtons } from './inboxTemplateSend'
 
@@ -58,7 +58,7 @@ export function headerMediaKind(template: InboxTemplate | null): 'image' | 'vide
   return type === 'image' || type === 'video' || type === 'document' ? type : null
 }
 
-/** Marketing and utility templates WebVue can fill, without a location header (a campaign refuses it). */
+/** Marketing and utility templates LiwanOS can fill, without a location header (a campaign refuses it). */
 export const campaignTemplates = (templates: readonly InboxTemplate[]) =>
   templates.filter(template => template.status === 'approved' && template.supported && template.category !== 'authentication' && template.header?.type !== 'location')
 

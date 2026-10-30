@@ -19,7 +19,7 @@ describe('session cookie', () => {
 
   it('uses the __Host- name with Secure on an https origin', async () => {
     const { setCookie } = await run('https://admin.example.test', event => writeSession(event, SESSION, '2026-10-16T01:00:00Z'))
-    expect(setCookie).toContain(`__Host-webvue_admin=${SESSION}`)
+    expect(setCookie).toContain(`__Host-liwan_admin=${SESSION}`)
     expect(setCookie).toMatch(/Max-Age=3600/)
     for (const attribute of ['Path=/', 'HttpOnly', 'Secure', 'SameSite=Strict']) expect(setCookie).toContain(attribute)
     expect(setCookie).not.toMatch(/Domain=/i)
@@ -27,7 +27,7 @@ describe('session cookie', () => {
 
   it('uses the plain name without Secure on a loopback http origin', async () => {
     const { setCookie } = await run('http://localhost:3100', event => writeSession(event, SESSION, '2026-10-16T00:10:00Z'))
-    expect(setCookie).toContain(`webvue_admin=${SESSION}`)
+    expect(setCookie).toContain(`liwan_admin=${SESSION}`)
     expect(setCookie).not.toContain('__Host-')
     expect(setCookie).not.toContain('Secure')
     expect(setCookie).toMatch(/HttpOnly/)
@@ -47,19 +47,19 @@ describe('session cookie', () => {
   })
 
   it('reads a well-formed cookie and the account id inside it', async () => {
-    const { body } = await run('http://localhost:3100', readSession, `webvue_admin=${SESSION}`)
+    const { body } = await run('http://localhost:3100', readSession, `liwan_admin=${SESSION}`)
     expect(body.result).toEqual({ accountId: 7, value: SESSION })
   })
 
   it('rejects malformed values and the wrong cookie name', async () => {
-    for (const cookie of ['webvue_admin=garbage', `webvue_admin=7.${'A'.repeat(42)}`, `webvue_admin=a.${'A'.repeat(43)}`, `webvue_admin=99999999999999999.${'A'.repeat(43)}`, `__Host-webvue_admin=${SESSION}`]) {
+    for (const cookie of ['liwan_admin=garbage', `liwan_admin=7.${'A'.repeat(42)}`, `liwan_admin=a.${'A'.repeat(43)}`, `liwan_admin=99999999999999999.${'A'.repeat(43)}`, `__Host-liwan_admin=${SESSION}`]) {
       expect((await run('http://localhost:3100', readSession, cookie)).body.result, cookie).toBeNull()
     }
   })
 
   it('clears with the same attributes', async () => {
     const { setCookie } = await run('https://admin.example.test', clearSession)
-    expect(setCookie).toContain('__Host-webvue_admin=;')
+    expect(setCookie).toContain('__Host-liwan_admin=;')
     expect(setCookie).toMatch(/Max-Age=0/)
     expect(setCookie).toContain('Secure')
   })

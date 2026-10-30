@@ -5,7 +5,7 @@ test.beforeEach(async ({ page, baseURL }) => {
   const login = await page.request.post('/api/auth/login', { data: { login: process.env.E2E_ADMIN_LOGIN ?? 'admin', password: process.env.E2E_ADMIN_PASSWORD ?? 'admin' } })
   expect(login.status()).toBe(200)
   expect((await page.request.patch('/api/v1/me/appearance', { data: { mode: 'light', font_size: 'small' } })).status()).toBe(200)
-  await page.context().addCookies([{ name: 'webvue-appearance', value: encodeURIComponent(JSON.stringify({ mode: 'light', fontSize: 'small' })), url: baseURL! }])
+  await page.context().addCookies([{ name: 'liwan-appearance', value: encodeURIComponent(JSON.stringify({ mode: 'light', fontSize: 'small' })), url: baseURL! }])
   await page.goto('/tasks?view=board')
   await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
   await expect(page.locator('html')).toHaveCSS('color-scheme', 'light')
@@ -20,8 +20,8 @@ test('reduced motion reaches the portaled search overlay and preserves close foc
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.getByTestId('global-search-trigger').click()
   await expect(page.locator('#global-search-input')).toBeFocused()
-  await expect(page.locator('.webvue-search-overlay')).toHaveCSS('animation-name', 'none')
-  await expect(page.locator('.webvue-search-dialog')).toHaveCSS('animation-name', 'none')
+  await expect(page.locator('.liwan-search-overlay')).toHaveCSS('animation-name', 'none')
+  await expect(page.locator('.liwan-search-dialog')).toHaveCSS('animation-name', 'none')
   await page.locator('#global-search-input').fill('مشاريع')
   await page.keyboard.press('Escape')
   await expect(page.getByTestId('global-search-trigger')).toBeFocused()
@@ -34,31 +34,31 @@ test('assistant uses the approved text scale without changing family, primary or
   const sheet = page.getByTestId('assistant-sheet')
   await expect(sheet).toBeVisible()
   await expect(sheet).toHaveCSS('width', '380px')
-  await expect(page.locator('.webvue-shell-header')).toHaveCSS('height', '56px')
-  await expect(page.locator('.webvue-module-rail')).toHaveCSS('width', '76px')
-  await expect(page.locator('.webvue-assistant-button')).toHaveCSS('font-size', '13px')
-  await expect(page.locator('.webvue-assistant-module')).toHaveCSS('font-size', '12px')
+  await expect(page.locator('.liwan-shell-header')).toHaveCSS('height', '56px')
+  await expect(page.locator('.liwan-module-rail')).toHaveCSS('width', '76px')
+  await expect(page.locator('.liwan-assistant-button')).toHaveCSS('font-size', '13px')
+  await expect(page.locator('.liwan-assistant-module')).toHaveCSS('font-size', '12px')
   expect(await sheet.evaluate(el => getComputedStyle(el).fontFamily)).toContain('IBM Plex Sans Arabic')
   expect(await sheet.evaluate(el => getComputedStyle(el).getPropertyValue('--primary').trim())).toBe('#5b3f8c')
-  await expect(page.locator('.webvue-assistant-body')).toHaveCSS('overscroll-behavior-y', 'contain')
+  await expect(page.locator('.liwan-assistant-body')).toHaveCSS('overscroll-behavior-y', 'contain')
 })
 
 test('higher contrast uses solid material while retaining geometry', async ({ page }) => {
   await page.emulateMedia({ contrast: 'more' })
-  expect(await page.locator('.webvue-shell').evaluate(el => getComputedStyle(el, '::before').backdropFilter)).toBe('none')
+  expect(await page.locator('.liwan-shell').evaluate(el => getComputedStyle(el, '::before').backdropFilter)).toBe('none')
   await page.getByTestId('global-search-trigger').click()
-  await expect(page.locator('.webvue-search-overlay')).toHaveCSS('backdrop-filter', 'none')
-  await expect(page.locator('.webvue-search-dialog')).toHaveCSS('outline-width', '1px')
+  await expect(page.locator('.liwan-search-overlay')).toHaveCSS('backdrop-filter', 'none')
+  await expect(page.locator('.liwan-search-dialog')).toHaveCSS('outline-width', '1px')
 })
 
 test('reduced transparency uses solid material without changing the brand', async ({ page }) => {
   const session = await page.context().newCDPSession(page)
   await session.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-transparency', value: 'reduce' }] })
   expect(await page.evaluate(() => matchMedia('(prefers-reduced-transparency: reduce)').matches)).toBe(true)
-  expect(await page.locator('.webvue-shell').evaluate(el => getComputedStyle(el, '::before').backdropFilter)).toBe('none')
+  expect(await page.locator('.liwan-shell').evaluate(el => getComputedStyle(el, '::before').backdropFilter)).toBe('none')
   await page.getByTestId('global-search-trigger').click()
-  await expect(page.locator('.webvue-search-overlay')).toHaveCSS('backdrop-filter', 'none')
-  expect(await page.locator('.webvue-search-overlay').evaluate(el => getComputedStyle(el).getPropertyValue('--primary').trim())).toBe('#5b3f8c')
+  await expect(page.locator('.liwan-search-overlay')).toHaveCSS('backdrop-filter', 'none')
+  expect(await page.locator('.liwan-search-overlay').evaluate(el => getComputedStyle(el).getPropertyValue('--primary').trim())).toBe('#5b3f8c')
   await session.detach()
 })
 
@@ -66,7 +66,7 @@ test('an open search responds to a live reduced-motion change', async ({ page })
   await page.getByTestId('global-search-trigger').click()
   await page.locator('#global-search-input').fill('مشاريع')
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  await expect(page.locator('.webvue-search-overlay')).toHaveCSS('animation-name', 'none')
+  await expect(page.locator('.liwan-search-overlay')).toHaveCSS('animation-name', 'none')
   await expect(page.locator('#global-search-input')).toHaveValue('مشاريع')
   await page.keyboard.press('Escape')
   await expect(page.getByTestId('global-search-trigger')).toBeFocused()
@@ -139,7 +139,7 @@ test('chosen feedback is immediate and cards can be rearranged again without a s
   const next = (await second.boundingBox())!
   await page.mouse.move(next.x + 24, next.y + next.height / 2)
   await page.mouse.down()
-  expect(await second.evaluate(el => el.classList.contains('webvue-card-chosen'))).toBe(true)
+  expect(await second.evaluate(el => el.classList.contains('liwan-card-chosen'))).toBe(true)
   const back = (await card.boundingBox())!
   await page.mouse.move(next.x + 24, back.y + back.height - 10, { steps: 12 })
   await page.mouse.up()
@@ -151,8 +151,8 @@ for (const locale of ['ar', 'en']) {
     test(`assistant retains layout in ${locale} at ${width}px with large dark text`, async ({ page, baseURL }, testInfo) => {
       expect((await page.request.patch('/api/v1/me/appearance', { data: { mode: 'dark', font_size: 'large' } })).status()).toBe(200)
       await page.context().addCookies([
-        { name: 'webvue-locale', value: locale, url: baseURL! },
-        { name: 'webvue-appearance', value: encodeURIComponent(JSON.stringify({ mode: 'dark', fontSize: 'large' })), url: baseURL! },
+        { name: 'liwan-locale', value: locale, url: baseURL! },
+        { name: 'liwan-appearance', value: encodeURIComponent(JSON.stringify({ mode: 'dark', fontSize: 'large' })), url: baseURL! },
       ])
       await page.setViewportSize({ width, height: 1000 })
       await page.reload()
@@ -167,7 +167,7 @@ for (const locale of ['ar', 'en']) {
       await expect(sheet).toHaveCSS('width', `${width < 768 ? width : 380}px`)
       await expect(sheet).toHaveAttribute('data-mode', width < 768 ? 'full' : width < 1100 ? 'overlay' : 'push')
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-      expect(await page.locator('.webvue-assistant-head').evaluate(el => {
+      expect(await page.locator('.liwan-assistant-head').evaluate(el => {
         const head = el.getBoundingClientRect()
         return [...el.children].every(child => {
           const rect = child.getBoundingClientRect()

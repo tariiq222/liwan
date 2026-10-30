@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatDate, formatDateTime, localIsoDay } from '@webvue/ui/app/utils/formatDate'
+import { formatDate, formatDateTime, localIsoDay } from '@liwan/ui/app/utils/formatDate'
 import InboxCostCharts from '@/components/inbox/reports/InboxCostCharts.vue'
 import InboxCostCountries from '@/components/inbox/reports/InboxCostCountries.vue'
 import InboxReportFilters from '@/components/inbox/reports/InboxReportFilters.vue'
@@ -52,7 +52,7 @@ const costUnknown = computed(() => !!data.value && data.value.totals.cost === nu
         <InboxCostCountries class="col-span-full" :rows="data.by_country" :currency="data.currency" />
         <SharedRecordSection class="col-span-full" variant="list" :title="t('inbox.reports.costs.sync.title')" :description="t('inbox.reports.costs.sync.description')" data-testid="inbox-cost-sync">
           <ul class="divide-y divide-default">
-            <li v-for="item in data.channels" :key="item.channel.id" class="flex flex-col gap-1 px-(--webvue-card-pad) py-3">
+            <li v-for="item in data.channels" :key="item.channel.id" class="flex flex-col gap-1 px-(--liwan-card-pad) py-3">
               <span class="flex flex-wrap items-center justify-between gap-2">
                 <span class="text-sm font-medium text-highlighted"><bdi>{{ item.channel.name }}</bdi></span>
                 <span class="text-sm text-muted">{{ syncTime(item.synced_at) }}</span>

@@ -1,4 +1,4 @@
-import type { AiRunSummary } from '@webvue/contracts'
+import type { AiRunSummary } from '@liwan/contracts'
 
 export type AiRunGroupKey = 'today' | 'week' | 'older'
 export interface AiRunGroup { key: AiRunGroupKey; runs: AiRunSummary[] }

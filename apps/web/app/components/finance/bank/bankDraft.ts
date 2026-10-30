@@ -1,4 +1,4 @@
-import { FinanceBankStatementCreateSchema, type FinanceBankStatementCreate } from '@webvue/contracts'
+import { FinanceBankStatementCreateSchema, type FinanceBankStatementCreate } from '@liwan/contracts'
 import { roundMoney } from './bankModel'
 
 /** The most lines one statement can carry (the contract's limit). */

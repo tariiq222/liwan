@@ -6,7 +6,7 @@ import {
   TaskAttachmentSchema,
   type TaskAttachment,
   type TaskAttachmentList,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { taskKeys } from './useTasks'
 
 export type { TaskAttachment, TaskAttachmentList }

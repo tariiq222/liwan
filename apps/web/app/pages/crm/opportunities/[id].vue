@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { formatDate, formatDateTime } from '@webvue/ui/app/utils/formatDate'
-import { statusTag, type PageHeaderTag } from '@webvue/ui/app/utils/pageHeaderTag'
+import { formatDate, formatDateTime } from '@liwan/ui/app/utils/formatDate'
+import { statusTag, type PageHeaderTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import CrmOpportunityCallForm, { type CrmCallDraft } from '@/components/crm/opportunity/CrmOpportunityCallForm.vue'
 import CrmOpportunityCallLog from '@/components/crm/opportunity/CrmOpportunityCallLog.vue'
 import CrmOpportunityLostForm from '@/components/crm/opportunity/CrmOpportunityLostForm.vue'

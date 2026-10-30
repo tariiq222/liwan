@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from webvue_ai_service.contracts import ModelCallEvent, ModelUsageEvent, ResumeRequest, RunRequest, ToolSpec
+from liwan_ai_service.contracts import ModelCallEvent, ModelUsageEvent, ResumeRequest, RunRequest, ToolSpec
 
 READ_TOOL = {
     "name": "pmo.list_my_tasks",

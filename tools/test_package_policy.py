@@ -4,7 +4,7 @@ import hashlib
 import json
 import unittest
 from pathlib import Path
-from webvue_cli import managed_policy
+from liwan_cli import managed_policy
 
 CATALOG = Path(__file__).resolve().parents[1] / 'deploy/catalog/solutions/platform.json'
 

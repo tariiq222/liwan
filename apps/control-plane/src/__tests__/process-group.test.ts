@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { runProcessGroup } from '../process-group.js'
 
 it('terminates an operator and its child on timeout before returning', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'webvue-operator-group-'))
+  const directory = await mkdtemp(join(tmpdir(), 'liwan-operator-group-'))
   try {
     const heartbeat = join(directory, 'heartbeat')
     const script = join(directory, 'parent.mjs')

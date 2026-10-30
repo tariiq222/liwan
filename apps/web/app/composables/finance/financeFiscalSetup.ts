@@ -1,4 +1,4 @@
-import type { FinanceSetup, FinanceSetupFiscalInput } from '@webvue/contracts'
+import type { FinanceSetup, FinanceSetupFiscalInput } from '@liwan/contracts'
 import { ApiError } from '../useApi'
 import { saveErrorMessage } from '../../utils/formFeedback'
 
@@ -148,7 +148,7 @@ export function sameFinanceSetupScope(left: FinanceSetupScope | null, right: Fin
 /** The precondition a fiscal write states: the identity its screen was read for, never a target selector. */
 export function financeExpectedContextHeaders(scope: FinanceSetupScope): Record<string, string> {
   return {
-    'X-WebVue-Expected-User-Id': String(scope.userId),
-    'X-WebVue-Expected-Company-Id': String(scope.companyId),
+    'X-Liwan-Expected-User-Id': String(scope.userId),
+    'X-Liwan-Expected-Company-Id': String(scope.companyId),
   }
 }

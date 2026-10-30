@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Task } from '@webvue/contracts'
+import type { Task } from '@liwan/contracts'
 import type { PickedPerson } from '@/components/shared/form/PersonPicker.vue'
 
 type PersonRef = Task['assignees'][number]

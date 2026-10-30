@@ -10,7 +10,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 const settled = () => new Promise<void>(resolve => setTimeout(resolve, 0))
 import { buildDepartmentTree } from '../../../lib/departmentTree'
-import { listViewQuery } from '@webvue/ui/app/utils/listView'
+import { listViewQuery } from '@liwan/ui/app/utils/listView'
 
 // The departments list is the one HR surface with three presentations behind a
 // single route. Its real <script setup> is evaluated against a real router, and

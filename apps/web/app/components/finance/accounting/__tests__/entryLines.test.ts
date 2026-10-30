@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { JournalEntryCreateSchema, JournalEntryPatchSchema, type JournalEntryDetail } from '@webvue/contracts'
+import { JournalEntryCreateSchema, JournalEntryPatchSchema, type JournalEntryDetail } from '@liwan/contracts'
 import {
   buildEntryCreate,
   buildEntryPatch,

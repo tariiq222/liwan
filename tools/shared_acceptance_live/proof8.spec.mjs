@@ -40,15 +40,15 @@ const state = readState()
 const TMPDIR = state.TMPDIR_BASE
 if (!TMPDIR) throw new Error('No TMPDIR_BASE in .state — run up.sh first')
 const SPKI = readFileSync(resolve(TMPDIR, 'root.spki'), 'utf8').trim()
-const SCREENSHOT_DIR = process.env.WEBVUE_SCREENSHOT_DIR
+const SCREENSHOT_DIR = process.env.LIWAN_SCREENSHOT_DIR
   || resolve(__dirname, '../../docs/verification/assets/shared-live-acceptance')
 mkdirSync(SCREENSHOT_DIR, { recursive: true })
 
 const TENANTS = [
   {
     name: 'A',
-    base: 'https://a.accept.webvue.test',
-    login: 'admin@a.accept.webvue.test',
+    base: 'https://a.accept.liwan.test',
+    login: 'admin@a.accept.liwan.test',
     passwordFile: 'admin_a_password',
     ownProject: 'ACCEPT-A-ONLY',
     otherProject: 'ACCEPT-B-ONLY',
@@ -57,8 +57,8 @@ const TENANTS = [
   },
   {
     name: 'B',
-    base: 'https://b.accept.webvue.test',
-    login: 'admin@b.accept.webvue.test',
+    base: 'https://b.accept.liwan.test',
+    login: 'admin@b.accept.liwan.test',
     passwordFile: 'admin_b_password',
     ownProject: 'ACCEPT-B-ONLY',
     otherProject: 'ACCEPT-A-ONLY',
@@ -71,7 +71,7 @@ const test = base.extend({
   browser: async ({}, use) => {
     const ctx = await chromium.launch({
       args: [
-        '--host-resolver-rules=MAP a.accept.webvue.test 127.0.0.1, MAP b.accept.webvue.test 127.0.0.1',
+        '--host-resolver-rules=MAP a.accept.liwan.test 127.0.0.1, MAP b.accept.liwan.test 127.0.0.1',
         `--ignore-certificate-errors-spki-list=${SPKI}`,
       ],
     })
@@ -92,7 +92,7 @@ for (const tenant of TENANTS) {
     const diagFile = resolve(__dirname, `diag-tenant-${tenant.name}.json`)
     const dump = () => { try { writeFileSync(diagFile, JSON.stringify({ tenant: tenant.name, url: page.url(), evidence, httpLog }, null, 2)) } catch {} }
     page.on('response', r => {
-      if (!r.url().includes('.accept.webvue.test')) return
+      if (!r.url().includes('.accept.liwan.test')) return
       const line = `${r.status()} ${r.request().method()} ${new URL(r.url()).pathname}`
       httpLog.push(line)
       if (r.status() >= 400 && !line.includes('/api/auth/login')) evidence.push(`http-error: ${line}`)
@@ -128,7 +128,7 @@ for (const tenant of TENANTS) {
       landed = await page.waitForURL(url => !url.pathname.startsWith('/login'), { timeout: 15000 }).then(() => true).catch(() => false)
       evidence.push(`login attempt ${attempt} status=${status} landed=${landed}${landed ? ` url=${new URL(page.url()).pathname}` : ''}`)
       if (!landed) {
-        // The webvue_auth zone is 20 events/minute and the edge keys it by the edge
+        // The liwan_auth zone is 20 events/minute and the edge keys it by the edge
         // socket peer, so every tenant on 127.0.0.1 shares ONE bucket. A 429 here
         // is the limiter working (proof 9), not an isolation failure: drain the
         // window before retrying.
@@ -141,7 +141,7 @@ for (const tenant of TENANTS) {
     expect(landed, `tenant ${tenant.name} could not log in (html dir=${dir})`).toBe(true)
 
     // --- Three authenticated pages: no tenant leaks, own markers on record lists ---
-    // The edge keys the webvue_auth zone (20 events/min) by the edge socket peer, and
+    // The edge keys the liwan_auth zone (20 events/min) by the edge socket peer, and
     // every tenant on 127.0.0.1 shares that single bucket. A tenant's own page loads
     // (HTML + the app's bootstrap calls) therefore consume the budget the NEXT
     // tenant needs. Pace the navigation so two tenants fit in one window instead of

@@ -13,7 +13,7 @@ import {
 } from '@/composables/useHrOffboarding'
 import { ApiError } from '@/composables/useApi'
 import { payrollErrorMessage } from '@/utils/payrollErrors'
-import type { HrEosCase, HrSettlementWrite } from '@webvue/contracts'
+import type { HrEosCase, HrSettlementWrite } from '@liwan/contracts'
 
 const NAMESPACE = 'hrOffboarding'
 const route = useRoute()

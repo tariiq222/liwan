@@ -19,6 +19,6 @@ export const Open: Story = {
       const items = computed(() => applicationNavigation({ identity: shellMe, route: { path: '/meetings', fullPath: '/meetings', query: {}, params: {} }, activeId: 'meetings', contextLinks: contextLinksForModule('meetings', shellMe, '/meetings'), translate: t }))
       return { args, items, open: ref(true) }
     },
-    template: '<div class="webvue-shell min-h-svh"><MobileNavigation v-bind="args" :items="items" v-model:open="open" /></div>',
+    template: '<div class="liwan-shell min-h-svh"><MobileNavigation v-bind="args" :items="items" v-model:open="open" /></div>',
   }),
 }

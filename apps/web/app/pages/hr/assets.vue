@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import EquipmentTable from '@/components/hr/assets/EquipmentTable.vue'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import {
   HR_ASSETS_PAGE_SIZE,
   type HrEquipment,
@@ -154,7 +154,7 @@ function equipmentTo(row: HrEquipment) {
 
     <SharedListCard>
       <template #filters>
-        <div class="webvue-page-stack">
+        <div class="liwan-page-stack">
           <SharedSegmentedControl
             :model-value="active"
             :items="activeOptions"
@@ -216,7 +216,7 @@ function equipmentTo(row: HrEquipment) {
       </template>
 
       <SharedPageState :error="equipment.error.value" :keep-content="items.length > 0" @retry="equipment.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--webvue-card-pad-dense)" :title="t('hrAssets.emptyTitle')" :description="t('hrAssets.emptyHint')" />
+        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hrAssets.emptyTitle')" :description="t('hrAssets.emptyHint')" />
         <EquipmentTable v-else :equipment="items" :row-to="equipmentTo" :loading="equipment.isLoading.value" :caption="t('hrAssets.title')" />
       </SharedPageState>
       <template v-if="equipment.data.value && !showEmpty" #footer>

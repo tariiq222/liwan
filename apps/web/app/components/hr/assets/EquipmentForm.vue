@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
-import type { HrEquipment, HrRef } from '@webvue/contracts'
+import type { HrEquipment, HrRef } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 
 // The create form of one asset, inside the /hr/assets/new SharedCreatePanel. It posts the
@@ -61,7 +61,7 @@ async function submit() {
 </script>
 
 <template>
-  <UForm novalidate :state="{ name, categoryId, serialNo, model, warrantyDate }" class="webvue-form" method="post" data-testid="hr-asset-form" @submit="submit">
+  <UForm novalidate :state="{ name, categoryId, serialNo, model, warrantyDate }" class="liwan-form" method="post" data-testid="hr-asset-form" @submit="submit">
     <SharedUnsavedChanges :dirty="dirty" />
     <UAlert v-if="error && !serverField" role="alert" color="error" variant="subtle" :title="error" />
     <SharedFormSection panel :title="t('hrAssets.form.details')">

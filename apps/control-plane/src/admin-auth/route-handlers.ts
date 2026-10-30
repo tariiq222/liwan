@@ -1,6 +1,6 @@
 import type { IncomingHttpHeaders } from 'node:http'
 import type { Pool, PoolClient } from 'pg'
-import { adminChallengeResultSchema, adminInvitationInfoSchema, adminSessionResultSchema, adminTotpEnrollmentSchema } from '@webvue/commercial-contracts'
+import { adminChallengeResultSchema, adminInvitationInfoSchema, adminSessionResultSchema, adminTotpEnrollmentSchema } from '@liwan/commercial-contracts'
 import type { AdminConfig, Config } from '../config.js'
 import { transaction } from '../db.js'
 import { AdminAuthError, audit, normalizeEmail } from './accounts.js'
@@ -27,10 +27,10 @@ const tx = <T>(ctx: AuthContext, action: (client: PoolClient) => Promise<T>) => 
 
 // Verified once so unknown emails cost the same as wrong passwords.
 let dummyHash: Promise<string> | undefined
-const dummy = () => (dummyHash ??= hashPassword('webvue dummy password for timing'))
+const dummy = () => (dummyHash ??= hashPassword('liwan dummy password for timing'))
 
 function sessionHeader(ctx: AuthContext): string {
-  const value = ctx.headers['x-webvue-session']
+  const value = ctx.headers['x-liwan-session']
   if (typeof value !== 'string') throw authFailed()
   return value
 }

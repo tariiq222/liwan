@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { QueryClient } from '@tanstack/vue-query'
-import type { HrCompensation } from '@webvue/contracts'
+import type { HrCompensation } from '@liwan/contracts'
 import { ApiError } from '../useApi'
 import { fetchHrCompensation, hrPayrollKeys, saveHrCompensation } from '../useHrPayrollCompensation'
 

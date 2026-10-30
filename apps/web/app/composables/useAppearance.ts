@@ -1,4 +1,4 @@
-import { MeSchema, type Me } from '@webvue/contracts'
+import { MeSchema, type Me } from '@liwan/contracts'
 import {
   appearanceFromWire,
   appearancePatchBody,
@@ -14,7 +14,7 @@ export function useAppearance() {
   // first paint. The preference itself belongs to the signed-in user: it is
   // loaded from `/api/v1/me` once per user and written back on every change,
   // so two people sharing a browser each keep their own.
-  const cookie = useCookie<AppearancePreference>('webvue-appearance', {
+  const cookie = useCookie<AppearancePreference>('liwan-appearance', {
     default: () => normalizeAppearance(null),
     path: '/',
     sameSite: 'lax',

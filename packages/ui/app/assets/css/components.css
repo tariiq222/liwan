@@ -1,63 +1,63 @@
 /* Shell interaction states and browser surfaces. Components use Nuxt UI's
    stock recipes; there are deliberately no component classes here. */
 
-.webvue-mobile-menu-trigger { display: none; }
+.liwan-mobile-menu-trigger { display: none; }
 /* The one mobile drawer (Tasmim spec §5): px geometry, 320px at a 390px phone at any text size, from the inline-start side. */
-.webvue-mobile-menu { width: min(320px, calc(100vw - 48px)); max-width: none; z-index: 70; }
-.webvue-mobile-menu-overlay { z-index: 65; }
-.webvue-mobile-section { display: grid; gap: 2px; }
-.webvue-mobile-title { margin-block: 0 8px; font-size: .875rem; font-weight: 600; }
-.webvue-mobile-menu .webvue-context-link { width: 100%; min-height: 44px; }
-.webvue-mobile-menu .webvue-context-section-title { margin-block-start: 8px; }
-.webvue-search-overlay { z-index: 79; animation-duration: var(--webvue-motion-panel); }
-.webvue-search-dialog { z-index: 80; animation-duration: var(--webvue-motion-panel); }
-.webvue-search-dialog [data-slot="viewport"] { overscroll-behavior-y: contain; }
+.liwan-mobile-menu { width: min(320px, calc(100vw - 48px)); max-width: none; z-index: 70; }
+.liwan-mobile-menu-overlay { z-index: 65; }
+.liwan-mobile-section { display: grid; gap: 2px; }
+.liwan-mobile-title { margin-block: 0 8px; font-size: .875rem; font-weight: 600; }
+.liwan-mobile-menu .liwan-context-link { width: 100%; min-height: 44px; }
+.liwan-mobile-menu .liwan-context-section-title { margin-block-start: 8px; }
+.liwan-search-overlay { z-index: 79; animation-duration: var(--liwan-motion-panel); }
+.liwan-search-dialog { z-index: 80; animation-duration: var(--liwan-motion-panel); }
+.liwan-search-dialog [data-slot="viewport"] { overscroll-behavior-y: contain; }
 .approved-account-menu { z-index: 80; }
 
 /* The pinned create action keeps its primary fill even when its route is active. */
-.webvue-context-create[data-active="true"],
-.webvue-context-create[data-active="true"]:hover {
+.liwan-context-create[data-active="true"],
+.liwan-context-create[data-active="true"]:hover {
   background: var(--primary-fill);
   color: var(--primary-fill-foreground);
 }
 
 /* The create action also carries the generic context-link class. Keep its
    primary treatment ahead of the shared link hover state in shell.css. */
-.webvue-context-link.webvue-context-create,
-.webvue-context-link.webvue-context-create:hover,
-.webvue-context-link.webvue-context-create:focus-visible,
-.webvue-context-link.webvue-context-create[data-active="true"],
-.webvue-context-link.webvue-context-create[data-active="true"]:hover {
+.liwan-context-link.liwan-context-create,
+.liwan-context-link.liwan-context-create:hover,
+.liwan-context-link.liwan-context-create:focus-visible,
+.liwan-context-link.liwan-context-create[data-active="true"],
+.liwan-context-link.liwan-context-create[data-active="true"]:hover {
   background: var(--primary-fill);
   color: var(--primary-fill-foreground);
   border-color: transparent;
 }
-.webvue-context-link.webvue-context-create:active {
+.liwan-context-link.liwan-context-create:active {
   background: var(--primary-fill-active);
   color: var(--primary-fill-active-foreground);
 }
 
 @media (max-width: 767px) {
-  .webvue-mobile-menu [data-slot="body"] { padding-bottom: max(1.25rem, env(safe-area-inset-bottom)); }
+  .liwan-mobile-menu [data-slot="body"] { padding-bottom: max(1.25rem, env(safe-area-inset-bottom)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .webvue-mobile-menu,
-  .webvue-search-overlay,
-  .webvue-search-dialog,
-  .webvue-search-dialog * {
+  .liwan-mobile-menu,
+  .liwan-search-overlay,
+  .liwan-search-dialog,
+  .liwan-search-dialog * {
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;
   }
-  .webvue-search-dialog [data-slot="viewport"] { overscroll-behavior: none; }
+  .liwan-search-dialog [data-slot="viewport"] { overscroll-behavior: none; }
 }
 
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
-  .webvue-search-overlay { background: var(--ui-bg-elevated); backdrop-filter: none !important; }
+  .liwan-search-overlay { background: var(--ui-bg-elevated); backdrop-filter: none !important; }
 }
 @media (prefers-contrast: more) {
-  .webvue-search-dialog { outline: 1px solid var(--ui-text); }
+  .liwan-search-dialog { outline: 1px solid var(--ui-text); }
 }
 
 @layer base {
@@ -67,7 +67,7 @@
 
 /* The approved icon system uses one fixed Lucide geometry everywhere. */
 .iconify,
-.webvue-shell-icon {
+.liwan-shell-icon {
   width: 18px;
   height: 18px;
   flex: none;
@@ -107,18 +107,18 @@
 [data-variant="embedded"] .rounded-control[class*="pe-"] { padding-inline-end: 38px; }
 
 /* Semantic status surfaces: theme tokens, not ad-hoc Tailwind palettes. */
-.webvue-status-text-warning { color: var(--status-warning-foreground); }
+.liwan-status-text-warning { color: var(--status-warning-foreground); }
 
-.webvue-status-callout-danger {
+.liwan-status-callout-danger {
   border: 1px solid color-mix(in srgb, var(--destructive) 40%, var(--border));
   background: color-mix(in srgb, var(--destructive) 8%, var(--card));
   color: var(--foreground);
   border-radius: var(--ui-radius);
 }
 
-.webvue-status-dot-success { background: var(--status-success); }
-.webvue-status-dot-warning { background: var(--status-warning); }
-.webvue-unread-count {
+.liwan-status-dot-success { background: var(--status-success); }
+.liwan-status-dot-warning { background: var(--status-warning); }
+.liwan-unread-count {
   background: var(--destructive);
   color: var(--unread-count-foreground);
 }
@@ -138,25 +138,25 @@ html { caret-color: var(--brand-link); }
 *::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--foreground) 38%, transparent); }
 
 /* Print (Tasmim Plan 4). Paper never carries the app chrome: the header, the module
-   rail, the context sidebar, the mobile trigger and anything marked .webvue-print-hide are
+   rail, the context sidebar, the mobile trigger and anything marked .liwan-print-hide are
    dropped, and the workspace loses their offsets. A print page (SharedStandalonePage
-   variant="print", .webvue-print) is black on white in either appearance: it resets the
+   variant="print", .liwan-print) is black on white in either appearance: it resets the
    Nuxt UI tokens and the tokens.css aliases (resolved once on :root), so every utility
    inside follows. */
 @media print {
-  .webvue-shell-header,
-  .webvue-module-rail,
-  .webvue-context-sidebar,
-  .webvue-mobile-menu-trigger,
-  .webvue-print-hide { display: none !important; }
-  .webvue-shell-workspace { min-height: 0 !important; margin-inline: 0 !important; padding-block-start: 0 !important; }
-  .webvue-shell-main { min-height: 0 !important; padding: 0 !important; overflow: visible !important; }
-  :root:has(.webvue-print),
-  :root:has(.webvue-print) :is(body, .webvue-shell, .webvue-shell-workspace, .webvue-shell-main) {
+  .liwan-shell-header,
+  .liwan-module-rail,
+  .liwan-context-sidebar,
+  .liwan-mobile-menu-trigger,
+  .liwan-print-hide { display: none !important; }
+  .liwan-shell-workspace { min-height: 0 !important; margin-inline: 0 !important; padding-block-start: 0 !important; }
+  .liwan-shell-main { min-height: 0 !important; padding: 0 !important; overflow: visible !important; }
+  :root:has(.liwan-print),
+  :root:has(.liwan-print) :is(body, .liwan-shell, .liwan-shell-workspace, .liwan-shell-main) {
     background: #fff !important;
     color-scheme: light;
   }
-  .webvue-print {
+  .liwan-print {
     --ui-bg: #fff;
     --ui-bg-muted: #fff;
     --ui-bg-elevated: #fff;
@@ -179,13 +179,13 @@ html { caret-color: var(--brand-link); }
     background: #fff;
     color: #000;
   }
-  .webvue-print * { box-shadow: none !important; }
+  .liwan-print * { box-shadow: none !important; }
   /* SharedRecordSection panel: a card on screen, flat on paper. */
-  .webvue-print .webvue-record-panel { background: transparent; border-radius: 0; break-inside: avoid; }
-  .webvue-print .webvue-record-panel > header { border-color: #000; }
-  /* A wide document (the minutes' topic table) asks for landscape: the named page below is chosen by .webvue-print-landscape. */
-  @page webvue-landscape { size: A4 landscape; margin: 12mm; }
-  .webvue-print-landscape { page: webvue-landscape; }
+  .liwan-print .liwan-record-panel { background: transparent; border-radius: 0; break-inside: avoid; }
+  .liwan-print .liwan-record-panel > header { border-color: #000; }
+  /* A wide document (the minutes' topic table) asks for landscape: the named page below is chosen by .liwan-print-landscape. */
+  @page liwan-landscape { size: A4 landscape; margin: 12mm; }
+  .liwan-print-landscape { page: liwan-landscape; }
 }
 
 /* Phase7: component typography/layout belongs to the shared sheet. */
@@ -204,17 +204,17 @@ html { caret-color: var(--brand-link); }
 
 .chart-donut-svg {
   min-height: 0;
-  animation: webvue-chart-in var(--webvue-motion-panel) var(--webvue-motion-ease);
+  animation: liwan-chart-in var(--liwan-motion-panel) var(--liwan-motion-ease);
 }
 
-@keyframes webvue-chart-in {
+@keyframes liwan-chart-in {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
 .chart-donut-svg path[class*="-segment"],
 .chart-bar-plot path[class*="-bar"] {
-  transition: fill var(--chart-motion-duration, 0ms) var(--webvue-motion-color-ease), filter var(--webvue-motion-feedback) var(--webvue-motion-color-ease) !important;
+  transition: fill var(--chart-motion-duration, 0ms) var(--liwan-motion-color-ease), filter var(--liwan-motion-feedback) var(--liwan-motion-color-ease) !important;
 }
 
 .chart-donut-svg path[class*="-segment"]:hover,
@@ -328,7 +328,7 @@ html { caret-color: var(--brand-link); }
   height: 1px;
   background: var(--ui-border);
 }
-.dept-tree-chevron { transition: transform var(--webvue-motion-feedback) var(--webvue-motion-ease); }
+.dept-tree-chevron { transition: transform var(--liwan-motion-feedback) var(--liwan-motion-ease); }
 .dept-tree-chevron-collapsed { transform: rotate(-90deg); }
 .dept-tree-chevron-collapsed:dir(rtl) { transform: rotate(90deg); }
 
@@ -380,7 +380,7 @@ html { caret-color: var(--brand-link); }
 .rich-text-content img { max-width: 100%; height: auto; }
 
 /* The status pill (utils/statusPill.ts): one shape for every status, priority and deadline tag. */
-.webvue-pill {
+.liwan-pill {
   --pill-fg: var(--ui-text);
   --pill-soft: var(--ui-bg-elevated);
   --pill-border: var(--ui-border);
@@ -400,43 +400,43 @@ html { caret-color: var(--brand-link); }
   color: var(--pill-fg);
   background-color: var(--pill-soft);
   box-shadow: inset 0 0 0 1px var(--pill-border);
-  transition: background-color var(--webvue-motion-feedback) var(--webvue-motion-color-ease), box-shadow var(--webvue-motion-feedback) var(--webvue-motion-color-ease);
+  transition: background-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease), box-shadow var(--liwan-motion-feedback) var(--liwan-motion-color-ease);
 }
-.webvue-pill[data-tone="success"] { --pill-fg: var(--status-success-foreground); --pill-soft: var(--status-success-soft); --pill-border: var(--status-success-border); }
-.webvue-pill[data-tone="warning"] { --pill-fg: var(--status-warning-foreground); --pill-soft: var(--status-warning-soft); --pill-border: var(--status-warning-border); }
-.webvue-pill[data-tone="info"] { --pill-fg: var(--status-info-foreground); --pill-soft: var(--status-info-soft); --pill-border: var(--status-info-border); }
-.webvue-pill[data-tone="destructive"] { --pill-fg: var(--status-danger-foreground); --pill-soft: var(--status-danger-soft); --pill-border: var(--status-danger-border); }
-.webvue-pill[data-tone="primary"] { --pill-fg: var(--brand-link); --pill-soft: var(--brand-soft); --pill-border: var(--brand-border); }
-.webvue-pill[data-interactive] { cursor: pointer; }
+.liwan-pill[data-tone="success"] { --pill-fg: var(--status-success-foreground); --pill-soft: var(--status-success-soft); --pill-border: var(--status-success-border); }
+.liwan-pill[data-tone="warning"] { --pill-fg: var(--status-warning-foreground); --pill-soft: var(--status-warning-soft); --pill-border: var(--status-warning-border); }
+.liwan-pill[data-tone="info"] { --pill-fg: var(--status-info-foreground); --pill-soft: var(--status-info-soft); --pill-border: var(--status-info-border); }
+.liwan-pill[data-tone="destructive"] { --pill-fg: var(--status-danger-foreground); --pill-soft: var(--status-danger-soft); --pill-border: var(--status-danger-border); }
+.liwan-pill[data-tone="primary"] { --pill-fg: var(--brand-link); --pill-soft: var(--brand-soft); --pill-border: var(--brand-border); }
+.liwan-pill[data-interactive] { cursor: pointer; }
 /* A 24px pill keeps its look on touch while its target reaches 44px. */
 @media (pointer: coarse) {
-  .webvue-pill[data-interactive] { position: relative; }
-  .webvue-pill[data-interactive]::after { content: ""; position: absolute; inset-block: calc((1.714rem - 44px) / 2); inset-inline: 0; }
+  .liwan-pill[data-interactive] { position: relative; }
+  .liwan-pill[data-interactive]::after { content: ""; position: absolute; inset-block: calc((1.714rem - 44px) / 2); inset-inline: 0; }
 }
-.webvue-pill[data-interactive]:hover:not(:disabled) {
+.liwan-pill[data-interactive]:hover:not(:disabled) {
   background-color: color-mix(in srgb, var(--pill-fg) 8%, var(--pill-soft));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pill-fg) 40%, var(--pill-border));
 }
-.webvue-pill[data-interactive]:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-@media (prefers-reduced-motion: reduce) { .webvue-pill { transition: none; } }
-.webvue-pill [data-slot="leadingIcon"] { width: 0.929rem; height: 0.929rem; flex: none; }
+.liwan-pill[data-interactive]:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .liwan-pill { transition: none; } }
+.liwan-pill [data-slot="leadingIcon"] { width: 0.929rem; height: 0.929rem; flex: none; }
 
 /* Thin scrollbars that stay out of the way (the board's columns and its horizontal scroll). */
-.webvue-thin-scroll { scrollbar-width: thin; scrollbar-color: var(--ui-border-accented) transparent; }
-.webvue-board-scroll { overscroll-behavior-x: contain; }
-.webvue-board-column > .webvue-thin-scroll { overscroll-behavior-y: contain; }
-.webvue-card-chosen { outline: 2px solid var(--ui-primary); outline-offset: -2px; }
+.liwan-thin-scroll { scrollbar-width: thin; scrollbar-color: var(--ui-border-accented) transparent; }
+.liwan-board-scroll { overscroll-behavior-x: contain; }
+.liwan-board-column > .liwan-thin-scroll { overscroll-behavior-y: contain; }
+.liwan-card-chosen { outline: 2px solid var(--ui-primary); outline-offset: -2px; }
 @media (prefers-reduced-motion: reduce) {
-  .webvue-board-scroll, .webvue-board-column > .webvue-thin-scroll { overscroll-behavior: none; scroll-behavior: auto; }
+  .liwan-board-scroll, .liwan-board-column > .liwan-thin-scroll { overscroll-behavior: none; scroll-behavior: auto; }
 }
 /* A board column that is receiving a dragged card: primary tint and a dashed 1.5px primary border; the card's placeholder too. */
-.webvue-board-column:has(.webvue-card-ghost) { background-color: color-mix(in srgb, var(--primary) 6%, var(--ui-bg-elevated)); outline: 1.5px dashed var(--primary); outline-offset: -1.5px; }
-.webvue-card-ghost { opacity: 0.6; border-style: dashed; border-color: var(--primary); }
+.liwan-board-column:has(.liwan-card-ghost) { background-color: color-mix(in srgb, var(--primary) 6%, var(--ui-bg-elevated)); outline: 1.5px dashed var(--primary); outline-offset: -1.5px; }
+.liwan-card-ghost { opacity: 0.6; border-style: dashed; border-color: var(--primary); }
 
 /* The screen-sized list card (SharedListCard `fill`): docked under the floating header, as tall as the area below it. */
-.webvue-list-card-fill { display: flex; flex-direction: column; }
+.liwan-list-card-fill { display: flex; flex-direction: column; }
 @media (min-width: 768px) {
-  .webvue-list-card-fill {
+  .liwan-list-card-fill {
     position: sticky;
     inset-block-start: var(--shell-top);
     height: max(420px, calc(100svh - var(--shell-top) - var(--shell-inset)));
@@ -445,17 +445,17 @@ html { caret-color: var(--brand-link); }
   }
 }
 
-/* Touch targets below 768px are 44px (DESIGN.md): `.webvue-touch-target` on a control, `-buttons` on a wrapper of
+/* Touch targets below 768px are 44px (DESIGN.md): `.liwan-touch-target` on a control, `-buttons` on a wrapper of
    buttons, `-row-actions` where the buttons also need a 44px width. */
 @media (max-width: 767px) {
-  .webvue-touch-target,
-  .webvue-touch-target-buttons button,
-  .webvue-touch-target-row-actions button { min-height: 44px; }
-  .webvue-touch-target-row-actions button { min-width: 44px; }
+  .liwan-touch-target,
+  .liwan-touch-target-buttons button,
+  .liwan-touch-target-row-actions button { min-height: 44px; }
+  .liwan-touch-target-row-actions button { min-width: 44px; }
 }
 
 /* An inline disclosure body (AiRunList below 768px): capped so it scrolls inside itself. */
-.webvue-disclosure-body { height: min(26rem, 60svh); }
+.liwan-disclosure-body { height: min(26rem, 60svh); }
 
 /* A table whose fixed-width columns decide its floor: it fills its card and never shrinks under their sum (528px). */
-.webvue-fixed-table table { width: 100%; min-width: max(100%, 528px); table-layout: fixed; }
+.liwan-fixed-table table { width: 100%; min-width: max(100%, 528px); table-layout: fixed; }

@@ -1,0 +1,2 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_liwan_api_branding_partner_customer_admin,res.partner.branding.customer_admin,base.model_res_partner,liwan_core.group_customer_admin,0,1,0,0

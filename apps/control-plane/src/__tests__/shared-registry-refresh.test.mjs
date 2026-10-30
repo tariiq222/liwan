@@ -8,7 +8,7 @@ import { requestPlan, sessionCodec } from '../../../../deploy/shared/guard.mjs'
 
 test('atomic registry replacement revokes the next request without reader restart', () => {
   // Retained synthetic evidence directory; no cleanup/deletion operation.
-  const dir = mkdtempSync(join(tmpdir(), 'webvue-t5-registry-'))
+  const dir = mkdtempSync(join(tmpdir(), 'liwan-t5-registry-'))
   const path = join(dir, 'registry.json')
   const tenant = { tenantId: 'tenant_a', host: 'a.invalid', database: 'db_a', filestore: 'db_a', registryRevision: 1, enabled: true }
   const registry = { schemaVersion: 1, snapshotRevision: 1, targets: [tenant] }

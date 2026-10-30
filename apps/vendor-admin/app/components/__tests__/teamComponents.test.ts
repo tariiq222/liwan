@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineComponent, h } from 'vue'
 import { describe, expect, it } from 'vitest'
-import * as contracts from '@webvue/commercial-contracts'
+import * as contracts from '@liwan/commercial-contracts'
 import { renderSfc } from '../../../test/helpers/renderSfc'
 import * as team from '../../utils/team'
 
@@ -16,9 +16,9 @@ const options = {
   messages,
   modules: {
     '../../utils/team': team,
-    '@webvue/commercial-contracts': contracts,
+    '@liwan/commercial-contracts': contracts,
     '@/composables/useCopyLink': { useCopyLink: () => ({ copy: () => undefined, outcomeFor: () => null }) },
-    '@webvue/ui/app/utils/formatDate': { formatDateTime: (value: string) => `at ${value}` },
+    '@liwan/ui/app/utils/formatDate': { formatDateTime: (value: string) => `at ${value}` },
   },
   components: {
     TeamRolePicker: 'components/team/RolePicker.vue',

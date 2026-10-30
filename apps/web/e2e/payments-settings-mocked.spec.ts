@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { PaymentProviderListSchema, PaymentSettingsSchema } from '@webvue/contracts'
+import { PaymentProviderListSchema, PaymentSettingsSchema } from '@liwan/contracts'
 import { collectBrowserErrors, MOCK_STACK_ONLY, openPage as open, trackRefusedRequests } from './support/mock-pages'
 import { login } from './support/tasmim6'
 
@@ -7,7 +7,7 @@ test.skip(process.env.E2E_PROJECT_POPUPS !== '1', MOCK_STACK_ONLY)
 
 // The payments settings page against the stateful gateway of payments-mock-routes.mjs: the tenant connects its own
 // Paymob account. A secret key containing "reject" is refused by the gateway, one containing "nomethods" leaves the
-// gateway account without a payment method WebVue needs. The orders card reads and saves `/api/v1/payments/settings`
+// gateway account without a payment method LiwanOS needs. The orders card reads and saves `/api/v1/payments/settings`
 // with the revision it was made from; a save made on a stale revision answers 409.
 const PATH = '/settings/apps/payments'
 const FIELDS = ['paymob_public_key', 'paymob_secret_key', 'paymob_hmac_key', 'paymob_api_key'] as const
@@ -124,7 +124,7 @@ test.describe('payments settings', () => {
     await credential(page, 'paymob_secret_key').fill('sk_nomethods')
     await expect(page.getByTestId('payments-sync')).toBeDisabled()
     await saveKeys(page).click()
-    await expect(providerCard(page).getByRole('alert')).toContainText('حسابك لدى البوابة لا يفعّل طريقة دفع يحتاجها ويب فيو')
+    await expect(providerCard(page).getByRole('alert')).toContainText('حسابك لدى البوابة لا يفعّل طريقة دفع يحتاجها ليوان')
     await expect(credential(page, 'paymob_secret_key')).toHaveValue('sk_nomethods')
     errors = withoutRefusals(errors)
   })

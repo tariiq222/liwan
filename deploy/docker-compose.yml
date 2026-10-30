@@ -1,6 +1,6 @@
 services:
   proxy:
-    image: webvue-caddy:${WEBVUE_IMAGE_TAG:?set WEBVUE_IMAGE_TAG to the built image tag}
+    image: liwan-caddy:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG to the built image tag}
     build:
       context: ..
       dockerfile: deploy/proxy/Dockerfile
@@ -20,7 +20,7 @@ services:
     environment:
       NUXT_ODOO_URL: http://odoo:8069
       NUXT_ODOO_DB: "${DB_NAME}"
-      NUXT_AUTH_PROXY_CLIENT_IP_HEADER: x-webvue-client-ip
+      NUXT_AUTH_PROXY_CLIENT_IP_HEADER: x-liwan-client-ip
       NUXT_AI_SERVICE_URL: "${NUXT_AI_SERVICE_URL:-}"
       NUXT_AI_SERVICE_TOKEN: "${AI_SERVICE_TOKEN:-}"
     expose: ["3000"]
@@ -33,7 +33,7 @@ services:
       odoo: { condition: service_healthy }
 
   odoo:
-    image: webvue-odoo:${WEBVUE_IMAGE_TAG:?set WEBVUE_IMAGE_TAG to the built image tag}
+    image: liwan-odoo:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG to the built image tag}
     build:
       context: ..
       dockerfile: deploy/odoo/Dockerfile
@@ -45,7 +45,7 @@ services:
       HOST: db
       USER: odoo
       PASSWORD: "${DB_PASSWORD}"
-      WEBVUE_INBOX_SECRET_KEY: "${WEBVUE_INBOX_SECRET_KEY:-}"
+      LIWAN_INBOX_SECRET_KEY: "${LIWAN_INBOX_SECRET_KEY:-}"
     volumes:
       - ./data/odoo.conf:/etc/odoo/odoo.conf:ro
       - odoo_data:/var/lib/odoo
@@ -91,7 +91,7 @@ services:
       AI_DB_PASSWORD: "${AI_DB_PASSWORD:-}"
     volumes:
       - db_data:/var/lib/postgresql/data
-      - ./ai/init-db.sh:/docker-entrypoint-initdb.d/20-webvue-ai.sh:ro
+      - ./ai/init-db.sh:/docker-entrypoint-initdb.d/20-liwan-ai.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U odoo"]
       interval: 5s

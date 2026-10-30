@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { sharedReconfigureJobSchema, type SharedReconfigureJob } from '@webvue/commercial-contracts/shared'
+import { sharedReconfigureJobSchema, type SharedReconfigureJob } from '@liwan/commercial-contracts/shared'
 import { transaction } from '../db.js'
 import { applyReceipt, failFulfillment, type SubscriptionReceipt } from '../commercial/fulfillment.js'
 import type { ObserveRunner } from './subscription-reconcile.js'

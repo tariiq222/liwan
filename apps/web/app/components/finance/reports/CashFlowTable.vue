@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinanceCashFlow } from '@webvue/contracts'
+import type { FinanceCashFlow } from '@liwan/contracts'
 import Money from '../invoices/Money.vue'
 import { amountColumn } from './reportColumns'
 import { cashFlowRows, type CashFlowRow } from './reportRows'
@@ -24,8 +24,8 @@ const checks = computed(() => [{ label: t('financeReports.cashFlow.difference'),
 
 <template>
   <div class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,480px)]">
-    <UAlert color="info" variant="subtle" icon="i-lucide-info" class="m-(--webvue-card-pad-dense) w-auto" :title="t('financeReports.cashFlow.notice')" data-testid="finance-cash-flow-notice" />
-    <UAlert v-if="report.difference !== 0" role="alert" color="warning" variant="subtle" icon="i-lucide-triangle-alert" class="mx-(--webvue-card-pad-dense) mb-(--webvue-card-pad-dense) w-auto" :title="t('financeReports.cashFlow.notClosed')" data-testid="finance-cash-flow-difference" />
+    <UAlert color="info" variant="subtle" icon="i-lucide-info" class="m-(--liwan-card-pad-dense) w-auto" :title="t('financeReports.cashFlow.notice')" data-testid="finance-cash-flow-notice" />
+    <UAlert v-if="report.difference !== 0" role="alert" color="warning" variant="subtle" icon="i-lucide-triangle-alert" class="mx-(--liwan-card-pad-dense) mb-(--liwan-card-pad-dense) w-auto" :title="t('financeReports.cashFlow.notClosed')" data-testid="finance-cash-flow-difference" />
     <SharedDataTable bare :rows="rows" :columns="columns" row-key="key" :empty-text="t('financeReports.empty')" :caption="t('financeReports.reports.cashFlow.title')">
       <template #label-cell="{ row }"><span :class="weight(row.original)">{{ label(row.original) }}</span></template>
       <template #amount-cell="{ row }"><span :class="weight(row.original)"><Money :amount="row.original.amount" :currency="report.currency" /></span></template>

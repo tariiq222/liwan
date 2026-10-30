@@ -65,7 +65,7 @@ const signatures = computed(() => [t('meetingMinutesForm.chairperson'), t('meeti
 </script>
 
 <template>
-  <SharedStandalonePage variant="print" class="webvue-print-landscape">
+  <SharedStandalonePage variant="print" class="liwan-print-landscape">
     <h1 class="sr-only">{{ t('meetingMinutesForm.printTitle') }}</h1>
     <SharedPageState :loading="meetingQuery.isLoading.value || versionQuery.isLoading.value" :error="printError" :empty-text="t('meetingMinutesForm.printEmpty')" :empty="!meetingQuery.isLoading.value && !versionQuery.isLoading.value && !printReady" @retry="() => { meetingQuery.refetch(); versionQuery.refetch() }">
       <div v-if="meetingQuery.data.value && printReady" class="grid min-w-0 gap-4.5 print:gap-[10mm]" data-testid="meeting-print-sheet">

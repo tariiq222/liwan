@@ -13,20 +13,20 @@ const NAMES: Record<string, [string, string]> = {
   messaging: ['المحادثات', 'Messaging'],
 }
 const ENFORCEMENT: Record<string, string[]> = {
-  'users.limit': ['webvue_platform.res_users.users.limit'],
-  'storage.limit_mb': ['webvue_platform.ir_attachment.storage.limit_mb'],
-  'branches.extra_limit': ['webvue_platform.tenant_profile._webvue_apply_branches'],
-  'pmo.enabled': ['webvue_api.requires_feature:pmo.enabled'],
-  'meetings.enabled': ['webvue_api.requires_feature:meetings.enabled'],
-  'projects.max_projects': ['webvue_pmo.project_project._webvue_claim_projects'],
-  'hr.enabled': ['webvue_api.requires_feature:hr.enabled'],
-  'chat.enabled': ['webvue_api.requires_feature:chat.enabled'],
+  'users.limit': ['liwan_platform.res_users.users.limit'],
+  'storage.limit_mb': ['liwan_platform.ir_attachment.storage.limit_mb'],
+  'branches.extra_limit': ['liwan_platform.tenant_profile._liwan_apply_branches'],
+  'pmo.enabled': ['liwan_api.requires_feature:pmo.enabled'],
+  'meetings.enabled': ['liwan_api.requires_feature:meetings.enabled'],
+  'projects.max_projects': ['liwan_pmo.project_project._liwan_claim_projects'],
+  'hr.enabled': ['liwan_api.requires_feature:hr.enabled'],
+  'chat.enabled': ['liwan_api.requires_feature:chat.enabled'],
 }
 /** An application's `<app>.enabled` key is gated by the shared feature check unless an entry above says otherwise. */
 export function enforcementRefs(key: string): string[] {
   const explicit = ENFORCEMENT[key]
   if (explicit) return explicit
-  return /^[a-z][a-z0-9_]*\.enabled$/.test(key) ? [`webvue_api.requires_feature:${key}`] : []
+  return /^[a-z][a-z0-9_]*\.enabled$/.test(key) ? [`liwan_api.requires_feature:${key}`] : []
 }
 const PLATFORM_EXTRA = ['branches.extra_limit']
 

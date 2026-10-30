@@ -25,20 +25,20 @@ RUN python -m venv /opt/venv && /opt/venv/bin/pip install -r /tmp/requirements.t
 
 FROM base
 ARG ODOO_COMMIT
-ARG WEBVUE_REVISION=unknown
-LABEL sa.webvue.revision=$WEBVUE_REVISION sa.webvue.odoo-commit=$ODOO_COMMIT
+ARG LIWAN_REVISION=unknown
+LABEL sa.liwan.revision=$LIWAN_REVISION sa.liwan.odoo-commit=$ODOO_COMMIT
 COPY --from=build /opt/odoo /opt/odoo
 COPY --from=build /opt/venv /opt/venv
 COPY --from=build /opt/oca /opt/oca
-COPY odoo-addons /opt/webvue/addons
-COPY tools/oca_addons.py /opt/webvue/tools/oca_addons.py
-COPY deploy/oca-addons.json /opt/webvue/deploy/oca-addons.json
-COPY deploy/security/odoo_secure.py /opt/webvue/odoo_secure.py
-COPY deploy/shared/launch_odoo.py deploy/shared/validate_odoo_config.py /opt/webvue/shared/
-COPY deploy/odoo/entrypoint.sh /usr/local/bin/webvue-odoo
-RUN chmod 0755 /usr/local/bin/webvue-odoo \
+COPY odoo-addons /opt/liwan/addons
+COPY tools/oca_addons.py /opt/liwan/tools/oca_addons.py
+COPY deploy/oca-addons.json /opt/liwan/deploy/oca-addons.json
+COPY deploy/security/odoo_secure.py /opt/liwan/odoo_secure.py
+COPY deploy/shared/launch_odoo.py deploy/shared/validate_odoo_config.py /opt/liwan/shared/
+COPY deploy/odoo/entrypoint.sh /usr/local/bin/liwan-odoo
+RUN chmod 0755 /usr/local/bin/liwan-odoo \
     && useradd --system --uid 10001 --home-dir /var/lib/odoo --create-home odoo \
-    && chmod -R a-w /opt/odoo /opt/oca /opt/webvue
+    && chmod -R a-w /opt/odoo /opt/oca /opt/liwan
 ARG TARGETARCH
 COPY deploy/odoo/vendor/wkhtmltox_0.12.6.1-3.bookworm_${TARGETARCH}.deb /tmp/wkhtmltox/
 COPY deploy/odoo/vendor/SHA256SUMS /tmp/wkhtmltox/
@@ -51,4 +51,4 @@ RUN cd /tmp/wkhtmltox \
 USER odoo
 VOLUME /var/lib/odoo
 EXPOSE 8069 8072
-ENTRYPOINT ["webvue-odoo"]
+ENTRYPOINT ["liwan-odoo"]

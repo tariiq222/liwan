@@ -11,7 +11,7 @@ const backTo = '/settings/apps/inbox/rules'
 
 <template>
   <SharedRecordPage :title="t('inbox.automation.rules.title')" hide-header>
-    <div v-if="can('inbox.automation.manage')" class="flex flex-col gap-(--webvue-gap-card)">
+    <div v-if="can('inbox.automation.manage')" class="flex flex-col gap-(--liwan-gap-card)">
       <InboxRulesSection />
       <InboxRuleTester />
     </div>

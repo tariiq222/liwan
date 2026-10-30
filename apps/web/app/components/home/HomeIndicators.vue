@@ -18,7 +18,7 @@ const tiles = computed(() => WORK_KINDS.map(kind => ({
 </script>
 
 <template>
-  <section v-if="available" :aria-label="t('home.indicators')" class="grid gap-(--webvue-gap-card) sm:grid-cols-3" data-testid="home-indicators">
+  <section v-if="available" :aria-label="t('home.indicators')" class="grid gap-(--liwan-gap-card) sm:grid-cols-3" data-testid="home-indicators">
     <SharedMetricTile v-for="tile in tiles" :key="tile.kind" :label="tile.label" :value="tile.value" :icon="tile.icon" :to="tile.to" density="compact" value-dir="ltr" :data-testid="`home-indicator-${tile.kind}`" />
   </section>
 </template>

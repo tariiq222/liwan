@@ -9,8 +9,8 @@ import tempfile
 from datetime import date
 from pathlib import Path
 
-PARSER = Path(__file__).resolve().parents[1] / 'odoo-addons/webvue_platform/commercial_config.py'
-spec = importlib.util.spec_from_file_location('webvue_commercial_config', PARSER)
+PARSER = Path(__file__).resolve().parents[1] / 'odoo-addons/liwan_platform/commercial_config.py'
+spec = importlib.util.spec_from_file_location('liwan_commercial_config', PARSER)
 config = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(config)
 
@@ -20,7 +20,7 @@ def validate_bytes(raw, database, expected, *, fresh=False):
         message = 'classification exceeds 16 KiB'
         raise ValueError(message)
     # Validate exactly the bytes later mounted, not a source file that can change.
-    with tempfile.TemporaryDirectory(prefix='webvue-classification-check-') as tmp:
+    with tempfile.TemporaryDirectory(prefix='liwan-classification-check-') as tmp:
         path = Path(tmp) / 'input.json'
         path.write_bytes(raw)
         previous = os.environ.get(config.CONFIG_ENV)
@@ -54,9 +54,9 @@ def stage(source, output, database, expected, *, fresh=False):
 
 def fixture(database, mode, output):
     """Explicit disposable CI input, never a production classification generator."""
-    if (not re.fullmatch(r'webvue_[a-zA-Z0-9_]*scratch[a-zA-Z0-9_]*', database)
+    if (not re.fullmatch(r'liwan_[a-zA-Z0-9_]*scratch[a-zA-Z0-9_]*', database)
             or any(word in database.lower() for word in ('odoo19', 'production', 'postgres'))):
-        message = 'fixture requires a webvue_*scratch* disposable database name'
+        message = 'fixture requires a liwan_*scratch* disposable database name'
         raise ValueError(message)
     payload = {
         'schema_version': 1, 'database': database, 'commercial_mode': mode,

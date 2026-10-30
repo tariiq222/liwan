@@ -1,6 +1,6 @@
 {
   "app": {
-    "productName": "WebVue",
+    "productName": "LiwanOS",
     "error": {
       "notFound": "Page not found",
       "generic": "Something went wrong",
@@ -20,7 +20,7 @@
     },
     "shell": {
       "header": "Console header",
-      "consoleBadge": "WebVue console",
+      "consoleBadge": "LiwanOS console",
       "navigation": "Navigation",
       "openMenu": "Open menu",
       "account": "Account",

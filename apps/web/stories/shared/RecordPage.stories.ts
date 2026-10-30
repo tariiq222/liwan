@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
-import PropertiesPanel from '@webvue/ui/app/components/shared/layout/PropertiesPanel.vue'
-import PropertyRow from '@webvue/ui/app/components/shared/layout/PropertyRow.vue'
-import RecordPage from '@webvue/ui/app/components/shared/layout/RecordPage.vue'
-import RecordSection from '@webvue/ui/app/components/shared/layout/RecordSection.vue'
+import PropertiesPanel from '@liwan/ui/app/components/shared/layout/PropertiesPanel.vue'
+import PropertyRow from '@liwan/ui/app/components/shared/layout/PropertyRow.vue'
+import RecordPage from '@liwan/ui/app/components/shared/layout/RecordPage.vue'
+import RecordSection from '@liwan/ui/app/components/shared/layout/RecordSection.vue'
 import { project } from '../fixtures/pmo'
 import { storyContext } from '../support/context'
 
@@ -26,7 +26,7 @@ const record = (state: { loading?: boolean; error?: unknown; backSlot?: boolean;
     const { t } = useI18n()
     return { t, project, loading: state.loading ?? false, error: state.error }
   },
-  template: `<main class="webvue-shell-main">
+  template: `<main class="liwan-shell-main">
     <RecordPage :title="loading ? '' : project.name" back-to="/projects" :back-label="t('projects.backToProjects')" :loading="loading" :error="error">
       ${state.backSlot ? `<template #back><UButton to="/projects" color="neutral" variant="ghost" icon="i-lucide-arrow-right" data-testid="task-detail-back">{{ t('projects.backToProjects') }}</UButton></template>` : ''}
       <template #actions><UButton color="neutral" variant="outline" icon="i-lucide-pencil">{{ t('app.edit') }}</UButton></template>

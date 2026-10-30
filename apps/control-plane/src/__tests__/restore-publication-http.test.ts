@@ -5,7 +5,7 @@ import { createApp } from '../http.js'
 import { requestRestorePublication,restorePublication } from '../shared/restore-publication.js'
 import { vendorActorIssuer } from '../admin-auth/grants.js'
 vi.mock('../shared/restore-publication.js',()=>({requestRestorePublication:vi.fn(),restorePublication:vi.fn()}))
-vi.mock('../shared/runtime-config.js',()=>({loadSharedRuntimeConfig:()=>({projectName:'webvue-shared-publication'})}))
+vi.mock('../shared/runtime-config.js',()=>({loadSharedRuntimeConfig:()=>({projectName:'liwan-shared-publication'})}))
 const key='shared-queue-http-synthetic-key-'.repeat(2)
 const tenant='ad03d956-efef-4f80-baf3-9c23ea46e945'
 const approval="b68cb353-8e9b-4ad7-84a3-b634a8f346ca"
@@ -24,7 +24,7 @@ const pool={connect:async()=>client} as unknown as Pool
 const server=createApp(pool,config)
 let origin:string
 beforeAll(async()=>{
-  vi.stubEnv('WEBVUE_TENANCY_MODE','shared')
+  vi.stubEnv('LIWAN_TENANCY_MODE','shared')
   await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve))
   const address=server.address();if(!address||typeof address==='string')throw Error('missing address')
   origin=`http://127.0.0.1:${address.port}`
@@ -40,7 +40,7 @@ it('authenticated stepped-up operator queues only an approval and reason',async(
   const response=await post({reason:'Restore verified'})
   expect(response.status).toBe(202)
   expect(await response.json()).toMatchObject({approvalId:approval,status:'queued'})
-  expect(requestRestorePublication).toHaveBeenCalledWith(pool,{projectName:'webvue-shared-publication'},{issuer:vendorActorIssuer('queue-test'),actorUid:7},tenant,approval,'Restore verified')
+  expect(requestRestorePublication).toHaveBeenCalledWith(pool,{projectName:'liwan-shared-publication'},{issuer:vendorActorIssuer('queue-test'),actorUid:7},tenant,approval,'Restore verified')
 })
 it('caller cannot choose the target host or physical observation',async()=>{
   const response=await post({reason:'Injected target',host:'attacker.invalid',verified:true})

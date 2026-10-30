@@ -12,7 +12,7 @@ import { vendorAccount, replaceRoles } from './helpers/vendor-session.js'
 import { vendorActorIssuer } from '../admin-auth/grants.js'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
-if (url) { const p = new URL(url); if (!['127.0.0.1', 'localhost', '::1'].includes(p.hostname) || !/^webvue_control_scratch_[a-z0-9]+$/.test(p.pathname.slice(1))) throw Error('scratch control DB required') }
+if (url) { const p = new URL(url); if (!['127.0.0.1', 'localhost', '::1'].includes(p.hostname) || !/^liwan_control_scratch_[a-z0-9]+$/.test(p.pathname.slice(1))) throw Error('scratch control DB required') }
 const suite = url ? describe : describe.skip
 const repositoryRoot = fileURLToPath(new URL('../../../..', import.meta.url))
 const sql = (n: string) => readFile(new URL(`../${n}`, import.meta.url), 'utf8')
@@ -41,7 +41,7 @@ suite('legacy → SaaS commercial migration (C1)', () => {
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,true)`, [id, `Tenant ${id.slice(0, 6)}`, t.mode, t.hosting, `inv-${id}`, t.catalog_version, t.catalog_tier, t.package, t.desired, t.observed, t.rev])
   }
   async function binding(tenant: string) {
-    const slug = `t${tenant.replaceAll('-', '')}`, database = `webvue_scratch_${tenant.replaceAll('-', '')}`
+    const slug = `t${tenant.replaceAll('-', '')}`, database = `liwan_scratch_${tenant.replaceAll('-', '')}`
     await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,false,1)', [tenant, slug, `${slug}.c1.test`, database])
     return { slug, database }
   }

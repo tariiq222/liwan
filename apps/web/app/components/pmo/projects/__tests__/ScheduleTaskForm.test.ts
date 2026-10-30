@@ -6,12 +6,12 @@ import ts from 'typescript'
 import * as VueRouter from 'vue-router'
 import * as Vue from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ScheduleTaskPatchSchema, type ScheduleTask } from '@webvue/contracts'
-import { DEFAULT_STUBS, loadShared, renderShared, sharedFile } from '@webvue/ui/test/helpers/renderShared'
+import { ScheduleTaskPatchSchema, type ScheduleTask } from '@liwan/contracts'
+import { DEFAULT_STUBS, loadShared, renderShared, sharedFile } from '@liwan/ui/test/helpers/renderShared'
 import { ApiError } from '../../../../composables/useApi'
 import { validateTaskDates } from '../../../../utils/projectDateBounds'
-import { errorStateKind } from '@webvue/ui/app/utils/errorState'
-import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
+import { errorStateKind } from '@liwan/ui/app/utils/errorState'
+import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 import { rootedNode } from '../../../../../tests/hostNode'
 
 interface HostNode {
@@ -107,14 +107,14 @@ function harness(section = false, routing = false) {
   const schedule = { data: Vue.ref({ project_id: 7, tasks: [task, taskFixture(4)], milestones: [], can_manage: true, total: 2 }), error: Vue.ref<unknown>(null), isLoading: Vue.ref(false), refetch: vi.fn() }
   const project = { data: Vue.ref({ id: 7, active: true, date_start: null, date_end: null }), error: Vue.ref<unknown>(null), isLoading: Vue.ref(false), refetch: vi.fn() }
   const modules: Record<string, unknown> = {
-    '@webvue/contracts': { ScheduleTaskPatchSchema },
+    '@liwan/contracts': { ScheduleTaskPatchSchema },
     '@/composables/useProjectSchedule': { useUpdateProjectScheduleTask: () => ({ isPending: pending, mutateAsync }), useProjectSchedule: () => schedule },
     '@/composables/useProjects': { useProject: () => project },
     '@/composables/useApi': { ApiError },
     '@/utils/projectDateBounds': { validateTaskDates },
-    '@webvue/ui/app/utils/errorState': { errorStateKind },
+    '@liwan/ui/app/utils/errorState': { errorStateKind },
     '../../../utils/errorState': { errorStateKind },
-    '@webvue/ui/app/composables/calendarDate': { formatCalendarDate },
+    '@liwan/ui/app/composables/calendarDate': { formatCalendarDate },
   }
   const options = { modules, globals: { useToast: () => ({ add: toast }) } }
   const form = loadShared(resolve(import.meta.dirname, '../schedule/ScheduleTaskForm.vue'), options)
@@ -164,7 +164,7 @@ it('a pristine schedule cannot reset the time of an existing deadline', async ()
   }, {}, {
     globals: { useRouter: () => ({}), useToast: () => ({ add: () => {} }) },
     modules: {
-      '@webvue/contracts': { ScheduleTaskPatchSchema },
+      '@liwan/contracts': { ScheduleTaskPatchSchema },
       '@/composables/useProjectSchedule': { useUpdateProjectScheduleTask: () => ({ isPending: Vue.ref(false) }) },
       '@/composables/useApi': { ApiError },
       '@/utils/projectDateBounds': { validateTaskDates },

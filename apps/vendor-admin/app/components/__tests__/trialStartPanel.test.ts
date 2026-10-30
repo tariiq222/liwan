@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import * as Vue from 'vue'
-import { cadenceLabel } from '@webvue/commercial-ui/app/utils/commercial'
+import { cadenceLabel } from '@liwan/commercial-ui/app/utils/commercial'
 import { cadenceKey, commercialErrorKey, lifecycleStatus } from '../../utils/vendorCommercial'
 import { planRequestBody, planTenantQuoteBody } from '../../utils/vendorTenantPlan'
 import { loadSfc } from './sfc'

@@ -30,7 +30,7 @@ const managerTiles = computed(() => (dashboard.data.value?.manager ? managerKpiT
         <template v-if="dashboard.data.value.manager">
           <h2 class="text-base font-semibold text-highlighted">{{ t('crm.dashboard.manager.title') }}</h2>
           <SharedKpiStrip :tiles="managerTiles" :label="t('crm.dashboard.manager.title')" data-testid="crm-manager-kpis" />
-          <div class="grid min-w-0 items-start gap-(--webvue-gap-card) lg:grid-cols-2">
+          <div class="grid min-w-0 items-start gap-(--liwan-gap-card) lg:grid-cols-2">
             <CrmDashboardConversion :sources="dashboard.data.value.manager.conversion_by_source" />
             <CrmDashboardAgentTable :agents="dashboard.data.value.manager.agents" />
           </div>

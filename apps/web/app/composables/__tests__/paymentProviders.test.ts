@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { PaymentProviderSchema, type PaymentProvider, type PaymentProviderList } from '@webvue/contracts'
+import { PaymentProviderSchema, type PaymentProvider, type PaymentProviderList } from '@liwan/contracts'
 import {
   PAYMENT_PROVIDER_STATES,
   SYNC_OUTCOMES,

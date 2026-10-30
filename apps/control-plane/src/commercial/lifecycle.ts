@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { CommercialError } from '@webvue/commercial-contracts/server'
-import { canonicalJson, type CommercialIssue } from '@webvue/commercial-contracts'
+import { CommercialError } from '@liwan/commercial-contracts/server'
+import { canonicalJson, type CommercialIssue } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { actorLabel } from '../admin-auth/grants.js'
 

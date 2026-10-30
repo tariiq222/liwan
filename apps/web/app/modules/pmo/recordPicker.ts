@@ -1,4 +1,4 @@
-import { ProjectRefSchema } from '@webvue/contracts'
+import { ProjectRefSchema } from '@liwan/contracts'
 import { projectKeys } from '../../composables/projectKeys'
 import { fetchAllRecordOptions } from '../fetchAllRecordOptions'
 import type { AppRecordPicker } from '../types'

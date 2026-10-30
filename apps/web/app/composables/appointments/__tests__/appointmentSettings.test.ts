@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { AppointmentSettings } from '@webvue/contracts'
+import type { AppointmentSettings } from '@liwan/contracts'
 import { bookingDraft, bookingDraftValid, isInRange, requesterDraft, settingsPatch } from '../appointmentSettings'
 
 const settings: AppointmentSettings = {

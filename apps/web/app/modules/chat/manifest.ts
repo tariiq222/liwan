@@ -6,18 +6,18 @@ const manifest: AppManifest = {
   routePrefixes: ['/chat'],
   rail: [{ id: 'chat', labelKey: 'nav.chat', icon: 'i-lucide-message-circle', to: '/chat', order: 40 }],
   nav: [
-    { to: '/chat', labelKey: 'nav.chat', icon: 'i-lucide-message-circle', shortcut: 'n', goKey: 'c', capability: 'webvue.internal' },
+    { to: '/chat', labelKey: 'nav.chat', icon: 'i-lucide-message-circle', shortcut: 'n', goKey: 'c', capability: 'liwan.internal' },
   ],
   contextLinks: () => [
-    { id: 'new-chat', labelKey: 'nav.newConversation', icon: 'i-lucide-plus', to: '/chat/new', capability: 'webvue.internal', pinned: true },
-    { id: 'chat', labelKey: 'nav.chat', icon: 'i-lucide-message-circle', to: '/chat', capability: 'webvue.internal' },
+    { id: 'new-chat', labelKey: 'nav.newConversation', icon: 'i-lucide-plus', to: '/chat/new', capability: 'liwan.internal', pinned: true },
+    { id: 'chat', labelKey: 'nav.chat', icon: 'i-lucide-message-circle', to: '/chat', capability: 'liwan.internal' },
   ],
   commands: [
-    { id: 'chat.new-conversation', labelKey: 'nav.newConversation', icon: 'i-lucide-message-circle', to: '/chat/new', capability: 'webvue.internal' },
+    { id: 'chat.new-conversation', labelKey: 'nav.newConversation', icon: 'i-lucide-message-circle', to: '/chat/new', capability: 'liwan.internal' },
   ],
   sidebarPanel: { module: 'chat', width: 'wide', load: () => import('../../components/chat/ChatSidebarPanel.vue') },
-  routeCapabilities: [{ pattern: /^\/chat(?:\/|$)/, capability: 'webvue.internal' }],
-  capabilityAliases: { 'webvue.internal': 'chat.enabled' },
+  routeCapabilities: [{ pattern: /^\/chat(?:\/|$)/, capability: 'liwan.internal' }],
+  capabilityAliases: { 'liwan.internal': 'chat.enabled' },
   returnToPaths: ['/chat'],
   isNavActive: (path, target) => (target === '/chat' && path.startsWith('/chat/new') ? false : undefined),
 }

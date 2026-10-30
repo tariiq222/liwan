@@ -87,14 +87,14 @@ watch(items, async (now, before) => {
         <div class="flex flex-col gap-2 rounded-control bg-muted p-3">
           <div class="flex items-center justify-between gap-2">
             <h3 class="text-sm font-semibold text-highlighted">{{ t('ai.sheet.now.title') }}</h3>
-            <UButton type="button" color="neutral" variant="link" size="xs" class="webvue-touch-target" :label="t(hidden ? 'ai.sheet.now.show' : 'ai.sheet.now.hide')" :aria-expanded="!hidden" data-testid="ai-sheet-now-toggle" @click="toggleSection" />
+            <UButton type="button" color="neutral" variant="link" size="xs" class="liwan-touch-target" :label="t(hidden ? 'ai.sheet.now.show' : 'ai.sheet.now.hide')" :aria-expanded="!hidden" data-testid="ai-sheet-now-toggle" @click="toggleSection" />
           </div>
           <template v-if="!hidden">
             <USkeleton v-if="pending" class="h-9 w-full rounded-control" data-testid="ai-sheet-now-skeleton" />
             <template v-else-if="!failed">
               <ul v-if="rows.length" class="flex flex-col gap-1">
                 <li v-for="row in rows" :key="row.id">
-                  <NuxtLink :to="row.to" class="webvue-touch-target flex items-start gap-2 rounded-control px-1 py-1 text-sm text-highlighted hover:bg-elevated focus-visible:ring-2 focus-visible:ring-primary" data-testid="ai-sheet-now-row">
+                  <NuxtLink :to="row.to" class="liwan-touch-target flex items-start gap-2 rounded-control px-1 py-1 text-sm text-highlighted hover:bg-elevated focus-visible:ring-2 focus-visible:ring-primary" data-testid="ai-sheet-now-row">
                     <span aria-hidden="true" :class="['mt-2 size-2 shrink-0 rounded-full', row.tone === 'urgent' ? 'bg-warning' : 'bg-primary']" />
                     <span v-if="row.tone === 'urgent'" class="sr-only">{{ t('ai.glance.urgent') }}</span>
                     <span class="flex min-w-0 flex-col">
@@ -120,7 +120,7 @@ watch(items, async (now, before) => {
       <div class="flex shrink-0 items-center gap-3 px-3 pt-3">
         <h3 class="text-xs font-semibold text-muted">{{ t('ai.sheet.conversation') }}</h3>
         <span class="h-px flex-1 bg-accented" aria-hidden="true" />
-        <UButton v-if="conversation" type="button" color="neutral" variant="link" size="xs" class="webvue-touch-target" :label="t('ai.history.new')" data-testid="ai-sheet-new" @click="startNew" />
+        <UButton v-if="conversation" type="button" color="neutral" variant="link" size="xs" class="liwan-touch-target" :label="t('ai.history.new')" data-testid="ai-sheet-new" @click="startNew" />
       </div>
 
       <div ref="scroller" class="min-h-0 flex-1 overflow-y-auto">

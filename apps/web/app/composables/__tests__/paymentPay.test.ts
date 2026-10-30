@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { decodePayReturn, type PayableInvoice, type PayableOrder, type PaymentOption } from '@webvue/contracts'
+import { decodePayReturn, type PayableInvoice, type PayableOrder, type PaymentOption } from '@liwan/contracts'
 import {
   PAY_POLL_INTERVAL_MS,
   formatPayAmount,
@@ -93,7 +93,7 @@ describe('the start request', () => {
 describe('payReturnCookie', () => {
   it('stores the kind, id and token the return route decodes, on its path, for an hour', () => {
     const cookie = payReturnCookie(LINK, false)
-    expect(cookie).toBe('webvue_pay_return=invoice.42.abc_DEF-123; Path=/payment; Max-Age=3600; SameSite=Lax')
+    expect(cookie).toBe('liwan_pay_return=invoice.42.abc_DEF-123; Path=/payment; Max-Age=3600; SameSite=Lax')
     const value = cookie.split(';')[0]!.split('=')[1]
     expect(decodePayReturn(value)).toEqual({ kind: 'invoice', id: 42, accessToken: 'abc_DEF-123' })
   })

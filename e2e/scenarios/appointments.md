@@ -2,15 +2,15 @@
 
 Pages: `/appointments` (read-only list of appointment types); there is no other appointments page in the
 customer UI yet: no settings section, no booking pages, no type, resource or combination editor, and no
-requester page at `/book/[id]` although the invitation route answers that path. Owner: `webvue_appointments`
+requester page at `/book/[id]` although the invitation route answers that path. Owner: `liwan_appointments`
 (rank-4 application on the OCA `resource_booking` engine). Staff routes under `/api/v1/appointments`:
 settings (`GET`/`PATCH`), booking types (list, detail, create, `PATCH`, archive, unarchive, free slots),
 resources (list, create and edit material resources such as rooms and devices; employee resources are owned by
 HR and only listed), combinations (the resource sets a type books), and bookings (list, detail, create with or
 without a start, schedule, confirm, cancel, invitation link). The invited requester uses the public namespace
 `/api/v1/public/appointments/bookings/<id>` (read, slots, schedule, confirm, cancel) with the booking's
-`access_token` and no session (owner decision D3). The bridge `webvue_appointments_payments` (auto-installed with
-`webvue_payments`) adds how a type is paid online (none, full price or a deposit, and its price) under
+`access_token` and no session (owner decision D3). The bridge `liwan_appointments_payments` (auto-installed with
+`liwan_payments`) adds how a type is paid online (none, full price or a deposit, and its price) under
 `/api/v1/appointments/types/<id>/payment`, and the payment state and pay link of one booking under
 `/api/v1/appointments/bookings/<id>/payment`; a scheduled booking of a paying type is held by an online order
 that the payer pays on `/pay/order/<id>` (see [payments.md](payments.md)). Personas and status values:

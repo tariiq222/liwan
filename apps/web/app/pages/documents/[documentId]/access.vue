@@ -3,7 +3,7 @@ import DocumentAccessForm from '@/components/documents/DocumentAccessForm.vue'
 import { ApiError } from '@/composables/useApi'
 import { useDocument, useDocumentAccess, useUpdateDocumentAccess } from '@/composables/useDocuments'
 import { documentParentTo } from '@/lib/documentNavigation'
-import type { DocumentAccessUpdate } from '@webvue/contracts'
+import type { DocumentAccessUpdate } from '@liwan/contracts'
 const route = useRoute(); const { t } = useI18n(); const toast = useToast(); const hydrated = useHydrated()
 const id = computed(() => Number(route.params.documentId)); const document = useDocument(computed(() => Number.isSafeInteger(id.value) && id.value > 0 ? id.value : null))
 const query = useDocumentAccess(id, computed(() => !!document.data.value?.allowed_actions.manage_access)); const mutation = useUpdateDocumentAccess()

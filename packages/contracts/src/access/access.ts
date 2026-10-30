@@ -10,7 +10,7 @@ export const IDENTIFIER_PATTERN = /^[a-z][a-z0-9_]*$/
 /**
  * The capability keys of today's applications, for typed code. A newer application registers
  * its own keys on the server; the contract accepts any well-formed key and the server
- * (webvue_core `webvue.access.permission`) validates the same pattern.
+ * (liwan_core `liwan.access.permission`) validates the same pattern.
  */
 export const KNOWN_CAPABILITIES = [
   'access.users.read',
@@ -80,7 +80,7 @@ export const PermissionDomainSchema = z.string().regex(IDENTIFIER_PATTERN)
 
 /**
  * `company`, or a context kind an installed application registers on the server
- * (webvue_core `_webvue_scope_kinds`). A context kind is a read-only source: assignments stay company-scoped.
+ * (liwan_core `_liwan_scope_kinds`). A context kind is a read-only source: assignments stay company-scoped.
  */
 export const ScopeKindSchema = z.string().regex(IDENTIFIER_PATTERN)
 export const ScopeRefSchema = z.object({
@@ -151,7 +151,7 @@ const ACCESS_CHANGING: readonly KnownCapability[] = [
   'access.roles.manage',
 ]
 const ACCESS_CHANGING_CAPABILITIES = new Set<Capability>(ACCESS_CHANGING)
-// The foundation's own keys (webvue_core SYSTEM_PERMISSIONS): never granted through a context kind.
+// The foundation's own keys (liwan_core SYSTEM_PERMISSIONS): never granted through a context kind.
 const SYSTEM: readonly KnownCapability[] = [
   ...ACCESS_CHANGING,
   'access.users.read',

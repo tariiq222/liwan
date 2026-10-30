@@ -9,7 +9,7 @@ import {
   type FinancePaymentPatch,
   type FinancePaymentRegister,
   type FinancePaymentStandalone,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { financeInvoiceKeys } from './useFinanceInvoices'
 
 export const financePaymentKeys = {

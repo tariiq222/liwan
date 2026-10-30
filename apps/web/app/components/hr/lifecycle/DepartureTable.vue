@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { RouteLocationRaw } from 'vue-router'
-import type { HrDeparture } from '@webvue/contracts'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import type { HrDeparture } from '@liwan/contracts'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
 
 // The departure register on SharedDataTable: who is leaving, when, and how far their
 // clearance checklist has come.
@@ -47,7 +47,7 @@ function actionsFor(departure: HrDeparture): RowAction[] {
 </script>
 
 <template>
-  <div class="webvue-fixed-table min-w-0">
+  <div class="liwan-fixed-table min-w-0">
     <SharedDataTable
       bare
       data-testid="hr-departure-table"

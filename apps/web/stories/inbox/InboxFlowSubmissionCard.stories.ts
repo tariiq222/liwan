@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import { InboxFlowSubmissionSchema } from '@webvue/contracts'
-import SubCard from '@webvue/ui/app/components/shared/layout/SubCard.vue'
+import { InboxFlowSubmissionSchema } from '@liwan/contracts'
+import SubCard from '@liwan/ui/app/components/shared/layout/SubCard.vue'
 import InboxFlowSubmissionCard from '../../app/components/inbox/InboxFlowSubmissionCard.vue'
 import { storyContext } from '../support/context'
 

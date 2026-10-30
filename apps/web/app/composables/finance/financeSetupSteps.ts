@@ -1,4 +1,4 @@
-import type { FinanceSetup } from '@webvue/contracts'
+import type { FinanceSetup } from '@liwan/contracts'
 
 type Blocker = FinanceSetup['blockers'][number]
 

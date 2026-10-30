@@ -19,7 +19,7 @@ test('10 tenants positive plus 90 foreign session pairs reject before dispatch',
     assert.equal(browser.odoo, false)
     assert.equal(browser.headers.cookie, cookie)
     assert.equal(browser.headers.host, targets[i].host)
-    const internal = requestPlan(req(i, { cookie, 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1' }), registry, token, codec)
+    const internal = requestPlan(req(i, { cookie, 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1' }), registry, token, codec)
     assert.equal(internal.odoo, true)
     assert.equal(internal.headers.cookie, `session_id=sid_${i}`)
     assert.equal(internal.headers.host, targets[i].database)
@@ -29,7 +29,7 @@ test('10 tenants positive plus 90 foreign session pairs reject before dispatch',
 test('raw/tampered/expired/revoked sessions, selectors, header and route bypass deny', () => {
   const signed = codec.seal('sid_a', targets[0])
   for (const cookie of ['session_id=raw', `session_id=${signed}x`, `session_id=${signed}; session_id=${signed}`]) assert.throws(() => requestPlan(req(0, { cookie }), registry, token, codec))
-  for (const header of ['x-odoo-database', 'x-openerp-session-id', 'x-forwarded-host', 'forwarded', 'x-webvue-proxy-token']) assert.throws(() => requestPlan(req(0, { [header]: 'forged' }), registry, token, codec))
+  for (const header of ['x-odoo-database', 'x-openerp-session-id', 'x-forwarded-host', 'forwarded', 'x-liwan-proxy-token']) assert.throws(() => requestPlan(req(0, { [header]: 'forged' }), registry, token, codec))
   for (const path of ['/web/database/list', '/web/session/authenticate', '/jsonrpc', '/xmlrpc/2/object', '/api/v1/me?%64b=db_1', '/websocket?session_id=raw']) assert.throws(() => requestPlan(req(0, {}, path), registry, token, codec))
   assert.doesNotThrow(() => requestPlan(req(0, {}, '/report/barcode/?barcode_type=QR&value=x'), registry, token, codec))
   for (const path of ['/report/barcode/QR/x', '/report/pdf/x', '/report/barcode/x/']) assert.throws(() => requestPlan(req(0, {}, path), registry, token, codec))
@@ -76,7 +76,7 @@ const call = (url, path, headers, body) => new Promise((resolve, reject) => {
   const r = http.request(new URL(path, url), { method: body ? 'POST' : 'GET', headers }, res => { let text = ''; res.on('data', b => { text += b }); res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, text })) }); r.setTimeout(2000, () => r.destroy(Error('test_timeout'))); r.on('error', reject); r.end(body)
 })
 test('actual HTTP guard login/MFA/content/BFF, cookie propagation and fresh disable (mock upstream only)', async t => {
-  const root = mkdtempSync(join(tmpdir(), 'webvue-guard-test-'))
+  const root = mkdtempSync(join(tmpdir(), 'liwan-guard-test-'))
   const path = join(root, 'registry.json'); writeFileSync(path, JSON.stringify(registry))
   const calls = []
   const backend = http.createServer((req, res) => { calls.push({ url: req.url, headers: req.headers }); res.setHeader('set-cookie', ['session_id=odoo_sid; Path=/; HttpOnly']); if (req.url.startsWith('/web/image/')) res.setHeader('content-type', 'application/octet-stream'); res.end(req.url.startsWith('/web/image/') ? `MOCK_IMAGE_BYTES:${req.headers.host}:${req.url}` : 'ok') })
@@ -90,7 +90,7 @@ test('actual HTTP guard login/MFA/content/BFF, cookie propagation and fresh disa
   const guard = createGuard({ registryPath: path, proxyToken: token, keys, activeKid: 'test', odooUrl: backendUrl, webUrl: backendUrl })
   const url = await listen(guard)
   t.after(() => { guard.closeAllConnections(); guard.close(); backend.closeAllConnections(); backend.close() })
-  const trusted = { host: targets[0].host, 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1', 'content-type': 'application/json' }
+  const trusted = { host: targets[0].host, 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1', 'content-type': 'application/json' }
   let result = await call(url, '/web/session/authenticate', trusted, JSON.stringify({ params: { db: 'db_0', login: 'user', password: 'not-secret-fixture' } }))
   assert.equal(result.status, 200); assert.equal(calls[0].headers.host, 'db_0')
   const cookie = result.headers['set-cookie'][0].split(';')[0]
@@ -137,13 +137,13 @@ test('actual HTTP guard login/MFA/content/BFF, cookie propagation and fresh disa
   result = await call(url, '/api/auth/login', { host: targets[0].host, 'content-type': 'application/json' }, JSON.stringify({ db: 'db_1' }))
   assert.equal(result.status, 400)
   result = await call(url, '/dashboard', { host: targets[0].host, cookie })
-  assert.equal(result.status, 200); assert.equal(calls.at(-1).headers.cookie, cookie); assert.equal(calls.at(-1).headers['x-webvue-proxy-token'], token)
+  assert.equal(result.status, 200); assert.equal(calls.at(-1).headers.cookie, cookie); assert.equal(calls.at(-1).headers['x-liwan-proxy-token'], token)
   writeFileSync(path, JSON.stringify({ ...registry, targets: targets.map((x, i) => i ? x : { ...x, enabled: false, registryRevision: 2 }) }))
   result = await call(url, '/api/v1/me', { host: targets[0].host, cookie })
   assert.equal(result.status, 403)
 })
 test('HTTP recovery clears rejected cookies and preserves a newly issued session', async t => {
-  const root = mkdtempSync(join(tmpdir(), 'webvue-guard-recovery-'))
+  const root = mkdtempSync(join(tmpdir(), 'liwan-guard-recovery-'))
   const path = join(root, 'registry.json')
   const current = { ...targets[0], registryRevision: 2 }
   writeFileSync(path, JSON.stringify({ ...registry, targets: [current] }))
@@ -173,21 +173,21 @@ test('HTTP recovery clears rejected cookies and preserves a newly issued session
   const me = await call(url, '/api/v1/me', { host: current.host, cookie: issued[0].split(';')[0] })
   assert.equal(me.status, 200)
   assert.equal(calls.at(-1).cookie, issued[0].split(';')[0])
-  await call(url, '/api/v1/me', { host: current.host, cookie: issued[0].split(';')[0], 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '2' })
+  await call(url, '/api/v1/me', { host: current.host, cookie: issued[0].split(';')[0], 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '2' })
   assert.equal(calls.at(-1).cookie, 'session_id=fresh_sid')
   const before = calls.length
   assert.equal((await call(url, '/api/v1/me', headers)).status, 403)
   assert.equal(calls.length, before)
 })
-test('the web CSRF header passes to the Nuxt hop only; other x-webvue headers stay forbidden', () => {
-  const web = requestPlan(req(0, { 'x-webvue-csrf': 'c'.repeat(48) }, '/api/commercial/v1/branch-quotes'), registry, token, codec)
-  assert.equal(web.odoo, false); assert.equal(web.headers['x-webvue-csrf'], 'c'.repeat(48))
-  const odoo = requestPlan(req(0, { 'x-webvue-csrf': 'c'.repeat(48), 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1' }), registry, token, codec)
-  assert.equal(odoo.odoo, true); assert.equal(odoo.headers['x-webvue-csrf'], undefined)
-  for (const header of ['x-webvue-principal', 'x-webvue-tenant-revision', 'x-webvue-csrf-other']) assert.throws(() => requestPlan(req(0, { [header]: 'forged' }, '/api/commercial/v1/branch-quotes'), registry, token, codec))
+test('the web CSRF header passes to the Nuxt hop only; other x-liwan headers stay forbidden', () => {
+  const web = requestPlan(req(0, { 'x-liwan-csrf': 'c'.repeat(48) }, '/api/commercial/v1/branch-quotes'), registry, token, codec)
+  assert.equal(web.odoo, false); assert.equal(web.headers['x-liwan-csrf'], 'c'.repeat(48))
+  const odoo = requestPlan(req(0, { 'x-liwan-csrf': 'c'.repeat(48), 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1' }), registry, token, codec)
+  assert.equal(odoo.odoo, true); assert.equal(odoo.headers['x-liwan-csrf'], undefined)
+  for (const header of ['x-liwan-principal', 'x-liwan-tenant-revision', 'x-liwan-csrf-other']) assert.throws(() => requestPlan(req(0, { [header]: 'forged' }, '/api/commercial/v1/branch-quotes'), registry, token, codec))
 })
 test('guard denies bootstrap hosts and serves the first publication without restart', async t => {
-  const path = join(mkdtempSync(join(tmpdir(), 'webvue-guard-empty-')), 'registry.json')
+  const path = join(mkdtempSync(join(tmpdir(), 'liwan-guard-empty-')), 'registry.json')
   const bootstrap = { schemaVersion: 1, snapshotRevision: 0, targets: [] }
   writeFileSync(path, JSON.stringify(bootstrap))
   const backend = http.createServer((_req, res) => res.end('first tenant'))
@@ -210,7 +210,7 @@ test('guard denies bootstrap hosts and serves the first publication without rest
 const BODY_CREDITS = 4
 const settle = async () => { for (let turn = 0; turn < 50; turn++) await new Promise(resolve => setImmediate(resolve)) }
 async function hungGuard(t) {
-  const path = join(mkdtempSync(join(tmpdir(), 'webvue-guard-hung-')), 'registry.json')
+  const path = join(mkdtempSync(join(tmpdir(), 'liwan-guard-hung-')), 'registry.json')
   writeFileSync(path, JSON.stringify(registry))
   const hung = []
   let closed = 0
@@ -248,7 +248,7 @@ test('a departed external caller cannot pin body credits behind a hung auth targ
 test('a departed internal caller keeps its credit for one deadline, then the hung target is cancelled', async t => {
   const { url, hang } = await hungGuard(t)
   mock.timers.enable({ apis: ['setTimeout'] })
-  const { clients, upstreamClosed } = await hang('/api/v1/hang', { 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1' })
+  const { clients, upstreamClosed } = await hang('/api/v1/hang', { 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1' })
   for (const client of clients) client.destroy()
   await settle()
   assert.equal(upstreamClosed(), 0)
@@ -256,7 +256,7 @@ test('a departed internal caller keeps its credit for one deadline, then the hun
   mock.timers.reset()
   await settle()
   assert.equal(upstreamClosed(), BODY_CREDITS)
-  const next = await call(url, '/api/v1/me', { host: targets[0].host, 'content-type': 'application/json', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1' }, '{}')
+  const next = await call(url, '/api/v1/me', { host: targets[0].host, 'content-type': 'application/json', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1' }, '{}')
   assert.equal(next.status, 200)
 })
 

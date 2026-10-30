@@ -14,7 +14,7 @@ import {
   type GrantAccountInput,
   type ResetPasswordInput,
   type UpdateUserAccessInput,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 
 export type AdminUserListParams = {
   q?: string

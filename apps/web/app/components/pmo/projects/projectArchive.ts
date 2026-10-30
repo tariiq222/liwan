@@ -1,4 +1,4 @@
-import type { Project } from '@webvue/contracts'
+import type { Project } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useArchiveProject } from '@/composables/useProjects'
 

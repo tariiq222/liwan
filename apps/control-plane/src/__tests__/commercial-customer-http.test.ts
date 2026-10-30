@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
-import { signServiceRequest } from '@webvue/commercial-contracts/server'
+import { signServiceRequest } from '@liwan/commercial-contracts/server'
 import { migrate } from '../db.js'
 import { createApp } from '../http.js'
 import { url } from './commercial-helpers.js'
@@ -13,7 +13,7 @@ suite('signed customer commercial HTTP boundary on PostgreSQL', () => {
     customerCommercialIssuer:'customer-security-test', customerCommercialServiceKey:'customer-test-key-'.repeat(4),
     inventoryPath:'', repositoryRoot:'', python:'python3', stateDir:'' }
   let server: ReturnType<typeof createApp>, origin: string, tenant: string, otherTenant: string, ownInvoice: string, otherInvoice: string, ownCustomer: string, ownSubscription: string
-  const savedEnv = { provider: process.env.WEBVUE_PAYMENT_PROVIDER, origins: process.env.WEBVUE_PAYMENT_RETURN_ORIGINS }
+  const savedEnv = { provider: process.env.LIWAN_PAYMENT_PROVIDER, origins: process.env.LIWAN_PAYMENT_RETURN_ORIGINS }
   async function fixture() {
     const tenantId=randomUUID(), customer=randomUUID(), subscription=randomUUID(), invoice=randomUUID()
     await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'HTTP security','saas','managed',$2,false)",[tenantId,`security-${tenantId}`])
@@ -27,7 +27,7 @@ suite('signed customer commercial HTTP boundary on PostgreSQL', () => {
     await migrate(pool)
     const own=await fixture(), other=await fixture()
     tenant=own.tenant;ownInvoice=own.invoice;otherInvoice=other.invoice;otherTenant=other.tenant;ownCustomer=own.customer;ownSubscription=own.subscription
-    process.env.WEBVUE_PAYMENT_PROVIDER='simulator';process.env.WEBVUE_PAYMENT_RETURN_ORIGINS='https://webvue.test'
+    process.env.LIWAN_PAYMENT_PROVIDER='simulator';process.env.LIWAN_PAYMENT_RETURN_ORIGINS='https://liwan.test'
     server=createApp(pool,config).listen(0,'127.0.0.1')
     await new Promise<void>(resolve=>server.once('listening',resolve))
     const address=server.address()
@@ -36,16 +36,16 @@ suite('signed customer commercial HTTP boundary on PostgreSQL', () => {
   })
   afterAll(async () => {
     if(server)await new Promise<void>(resolve=>server.close(()=>resolve()));await pool.end()
-    for(const [name,value] of [['WEBVUE_PAYMENT_PROVIDER',savedEnv.provider],['WEBVUE_PAYMENT_RETURN_ORIGINS',savedEnv.origins]] as const){if(value===undefined)delete process.env[name];else process.env[name]=value}
+    for(const [name,value] of [['LIWAN_PAYMENT_PROVIDER',savedEnv.provider],['LIWAN_PAYMENT_RETURN_ORIGINS',savedEnv.origins]] as const){if(value===undefined)delete process.env[name];else process.env[name]=value}
   })
   async function call(path:string, options:{body?:unknown;capabilities?:string[];issuer?:string;badSignature?:boolean;tamperPrincipal?:boolean;tenantId?:string}={}) {
     const method=options.body===undefined?'GET':'POST', raw=options.body===undefined?'':JSON.stringify(options.body)
     const principal={actor_id:'7',kind:'customer',tenant_id:options.tenantId??tenant,capabilities:options.capabilities??['billing.read']}
     const header=Buffer.from(JSON.stringify(principal)).toString('base64')
-    const signed=signServiceRequest({method,path,body:`webvue-principal:${header}\n${raw}`,actor:7,
+    const signed=signServiceRequest({method,path,body:`liwan-principal:${header}\n${raw}`,actor:7,
       issuer:options.issuer??config.customerCommercialIssuer,key:options.badSignature?'wrong-test-key-'.repeat(4):config.customerCommercialServiceKey})
     const principalHeader=options.tamperPrincipal?Buffer.from(JSON.stringify({...principal,capabilities:['subscription.manage']})).toString('base64'):header
-    return fetch(origin+path,{method,headers:{...signed,'x-webvue-principal':principalHeader,'content-type':'application/json'},body:raw||undefined})
+    return fetch(origin+path,{method,headers:{...signed,'x-liwan-principal':principalHeader,'content-type':'application/json'},body:raw||undefined})
   }
   it('accepts a correctly signed request without vendor credentials',async()=>{
     const response=await call(`/v1/customer/invoices/${ownInvoice}`)
@@ -62,7 +62,7 @@ suite('signed customer commercial HTTP boundary on PostgreSQL', () => {
   it('resolves a shared web registry tenant id through its enabled binding only',async()=>{
     const slug=`t${tenant.replaceAll('-','')}`
     expect((await call(`/v1/customer/invoices/${ownInvoice}`,{tenantId:slug})).status).toBe(404)
-    await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,false,1)',[tenant,slug,`${slug}.test`,`webvue_scratch_${slug.slice(1)}`])
+    await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,false,1)',[tenant,slug,`${slug}.test`,`liwan_scratch_${slug.slice(1)}`])
     expect((await call(`/v1/customer/invoices/${ownInvoice}`,{tenantId:slug})).status).toBe(404)
     await pool.query('UPDATE shared_registry_bindings SET enabled=true,registry_revision=registry_revision+1 WHERE control_tenant_id=$1',[tenant])
     const response=await call(`/v1/customer/invoices/${ownInvoice}`,{tenantId:slug})
@@ -121,8 +121,8 @@ suite('signed customer commercial HTTP boundary on PostgreSQL', () => {
   // The web server signs a return anonymously: no principal, the tenant bound into the signed body.
   async function paymentReturn(attempt:string, options:{tenantId?:string;headerTenant?:string;key?:string;replay?:Record<string,string>;path?:string}={}) {
     const tenantId=options.tenantId??tenant, path=options.path??`/v1/customer/payment-returns/${attempt}`
-    const headers=options.replay??{...signServiceRequest({method:'POST',path,body:`webvue-payment-return:${tenantId}\n`,actor:'anonymous',anonymous:true,
-      issuer:config.customerCommercialIssuer,key:options.key??config.customerCommercialServiceKey}),'x-webvue-tenant':options.headerTenant??tenantId}
+    const headers=options.replay??{...signServiceRequest({method:'POST',path,body:`liwan-payment-return:${tenantId}\n`,actor:'anonymous',anonymous:true,
+      issuer:config.customerCommercialIssuer,key:options.key??config.customerCommercialServiceKey}),'x-liwan-tenant':options.headerTenant??tenantId}
     return {headers,response:await fetch(origin+path,{method:'POST',headers})}
   }
   it('accepts an anonymous signed payment return and reveals only the order state',async()=>{
@@ -143,8 +143,8 @@ suite('signed customer commercial HTTP boundary on PostgreSQL', () => {
     expect((await paymentReturn(created.id,{replay:first.headers})).response.status).toBe(401)
     const path=`/v1/customer/payment-returns/${created.id}`
     const principalHeader=Buffer.from(JSON.stringify({actor_id:'7',kind:'customer',tenant_id:tenant,capabilities:['subscription.read']})).toString('base64')
-    const signed=signServiceRequest({method:'POST',path,body:`webvue-principal:${principalHeader}\n`,actor:7,issuer:config.customerCommercialIssuer,key:config.customerCommercialServiceKey})
-    expect((await fetch(origin+path,{method:'POST',headers:{...signed,'x-webvue-tenant':tenant}})).status).toBe(401)
+    const signed=signServiceRequest({method:'POST',path,body:`liwan-principal:${principalHeader}\n`,actor:7,issuer:config.customerCommercialIssuer,key:config.customerCommercialServiceKey})
+    expect((await fetch(origin+path,{method:'POST',headers:{...signed,'x-liwan-tenant':tenant}})).status).toBe(401)
   })
   it('answers 404 for another customer attempt, an unknown tenant, a malformed id or a wrong method',async()=>{
     const order=await awaitingOrder()

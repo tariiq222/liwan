@@ -14,9 +14,9 @@
   },
   "dependencies": {
     "@iconify-json/lucide": "1.2.129",
-    "@webvue/commercial-contracts": "0.1.0",
-    "@webvue/commercial-ui": "0.1.0",
-    "@webvue/ui": "0.1.0",
+    "@liwan/commercial-contracts": "0.1.0",
+    "@liwan/commercial-ui": "0.1.0",
+    "@liwan/ui": "0.1.0",
     "@nuxt/ui": "4.11.1",
     "@nuxtjs/i18n": "^10.6.0",
     "@simplewebauthn/browser": "14.0.0",

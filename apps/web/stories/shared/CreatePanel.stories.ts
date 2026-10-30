@@ -2,9 +2,9 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { computed, defineComponent, onMounted, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import CreatePanel from '@webvue/ui/app/components/shared/layout/CreatePanel.vue'
-import FormSection from '@webvue/ui/app/components/shared/layout/FormSection.vue'
-import UnsavedChanges from '@webvue/ui/app/components/shared/form/UnsavedChanges.vue'
+import CreatePanel from '@liwan/ui/app/components/shared/layout/CreatePanel.vue'
+import FormSection from '@liwan/ui/app/components/shared/layout/FormSection.vue'
+import UnsavedChanges from '@liwan/ui/app/components/shared/form/UnsavedChanges.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -59,7 +59,7 @@ export const FormTemplate: Story = {
           return { t, state, dirty }
         },
         template: `<CreatePanel :title="t('tasks.new')" back-to="/tasks">
-          <UForm :state="state" class="webvue-form grid gap-6">
+          <UForm :state="state" class="liwan-form grid gap-6">
             <UnsavedChanges :dirty="dirty" />
             <FormSection>
               <UFormField :label="t('tasks.newTitle')" name="name" required>

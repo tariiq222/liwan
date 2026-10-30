@@ -1,4 +1,4 @@
-import type { InboxBusinessProfile, InboxChannelHealth } from '@webvue/contracts'
+import type { InboxBusinessProfile, InboxChannelHealth } from '@liwan/contracts'
 
 export const activeHealth: InboxChannelHealth = {
   display_phone_number: '966500000000', verified_name: 'عيادة الأمل', name_status: 'approved', requested_name: null, name_rejection_reason: null, quality_rating: 'green',

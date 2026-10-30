@@ -25,12 +25,12 @@ for closing the Finance application's gaps. Update the status column in the same
 | 3c | Bank statements limited to bank journals | **C**, fixed | statements and imports now accept cash journals; reconciling a cash-journal line is not yet tested |
 | 4a | Asset sale/disposal and gain/loss | **C** | `finance_assets.py` routes: profiles, list, get, create, validate, compute-depreciation |
 | 4b | Asset correction, creation from a purchase bill, profile management | **C** / **V** | no route; bill linkage depends on OCA `account_asset_management` profile on the product/account (not run) |
-| 5a | No cash-flow statement | **C** | no `cash` match in `odoo-addons/webvue_finance`, `apps/web/app`, `packages/contracts/src`; `data/finance_mis_reports.xml` defines profit-loss, balance-sheet, zakat only |
+| 5a | No cash-flow statement | **C** | no `cash` match in `odoo-addons/liwan_finance`, `apps/web/app`, `packages/contracts/src`; `data/finance_mis_reports.xml` defines profit-loss, balance-sheet, zakat only |
 | 5b | VAT report is per-tax totals, not return boxes | **C** | `models/vat_report.py` groups by tax; the Saudi return is data-only in Community (docstring) |
 | 5c | Opening balances, prior periods, late-dated adjustments in reports | **V** | `tests/test_finance_statements_parity.py` exists; scope not yet read |
 | 6a | Zakat is an administrative base, not a return | **C** | `GET /reports/zakat-base` over a MIS report; no accountant-review state |
 | 6b | Withholding report limits | **P** | `models/withholding_report.py` identifies taxes by the tags of the stock Saudi withholding return and counts posted lines; customer-withheld-from-company case not handled |
-| 7 | ZATCA refuses any api mode but sandbox | **C** | `models/zatca_service.py` `_webvue_require_sandbox`; the production policy `docs/superpowers/specs/2026-10-20-zatca-production-policy.md` is a **draft**; D2-D6 are deferred by the owner, so the sandbox confinement stays in force |
+| 7 | ZATCA refuses any api mode but sandbox | **C** | `models/zatca_service.py` `_liwan_require_sandbox`; the production policy `docs/superpowers/specs/2026-10-20-zatca-production-policy.md` is a **draft**; D2-D6 are deferred by the owner, so the sandbox confinement stays in force |
 | 8 | One account cannot be budgeted for two cost centers in the same period | **C** | `README.md` "Cost centers" budget section: OCA's overlap rule per account; one analytic account per line; no commitments, copy, or budget control |
 
 Section 3 items of the brief (opening balances, payroll/expenses/purchases/inventory/projects links, currencies and
@@ -45,8 +45,8 @@ Status: `open` / `blocked` / `in progress` / `done`. Priority follows the brief'
 | ID | Area | Gap | Files expected to change | Acceptance criteria | Status |
 |---|---|---|---|---|---|
 | G1 | Setup | Account create/update/archive with used-account guards (API and web screens built; browser verification pending) | `controllers/finance_accounts.py`, `serializers/account.py`, `models/setup_service.py` or a new service, contracts, web | Create/PATCH/archive through `/api/v1/finance/accounts`; type change refused when the account has posted items; archive refused with a non-zero balance or open items; audit event per write; tests for 403, other company, locked period | **in progress**: routes, capability, ACL, audit, contracts and 11 tests done; screens built, not visually verified in a browser |
-| G2 | Setup | (journals, taxes, payment terms and asset profiles API done with tests) Payment methods, bank accounts (`res.partner.bank` + journal link), asset profiles: manage routes | per resource controller + serializer + capability | A new company can be configured end to end from WebVue | in progress |
-| G3 | Setup | New-company end-to-end configuration test from WebVue only | `tests/test_finance_new_company.py` | Scratch-database test: empty company to first posted invoice with no Odoo UI step | **partial**: chart, accounts, tax, term, journals, vendor, bill, payment and trial balance pass through the routes; a Saudi sales invoice is not covered because posting needs a ZATCA-onboarded journal (G12), and company identity (VAT, registry) is still written outside this flow |
+| G2 | Setup | (journals, taxes, payment terms and asset profiles API done with tests) Payment methods, bank accounts (`res.partner.bank` + journal link), asset profiles: manage routes | per resource controller + serializer + capability | A new company can be configured end to end from LiwanOS | in progress |
+| G3 | Setup | New-company end-to-end configuration test from LiwanOS only | `tests/test_finance_new_company.py` | Scratch-database test: empty company to first posted invoice with no Odoo UI step | **partial**: chart, accounts, tax, term, journals, vendor, bill, payment and trial balance pass through the routes; a Saudi sales invoice is not covered because posting needs a ZATCA-onboarded journal (G12), and company identity (VAT, registry) is still written outside this flow |
 | G4 | Payments (done in the API: standalone receipt/payment, advances, allocate/unallocate to invoices and payments, 13 tests; screens built, browser verification pending) | Standalone receipt/payment, customer/vendor advances, allocation to invoices later | `finance_payments.py`, `serializers/payment.py` | `account.payment` without invoices; allocate/unallocate through reconciliation; overpayment becomes unallocated balance | open |
 | G5 | Payments | Internal transfers (bank/cash/bank) — open, Odoo 19 Community has no transfer payment, needs an accountant's decision on the transfer account; refund of unallocated balance, draft correction and re-post — done | `finance_payments.py` | transfer posts balanced pair; period-locked and permission denials tested | open |
 | G6 | Bank (CSV import done: preview, column mapping, balance check, duplicate prevention, 13 tests; OFX/CAMT blocked on pinning OCA/bank-statement-import, needs the owner; screens built, browser verification pending) | CSV statement import with preview, column mapping, balance check, duplicate prevention; assess OFX/CAMT addons in the pinned OCA set (`deploy/oca-addons.json`) | `finance_bank.py` or new `finance_bank_import.py`, serializers | duplicate file/line rejected; ending balance verified; nothing written before confirm | open |
@@ -62,14 +62,14 @@ Status: `open` / `blocked` / `in progress` / `done`. Priority follows the brief'
 ## Blockers needing the owner
 
 - **B1 (resolved for accounts, 2026-10-20): no `sudo()`.** Stock grants account writes to `account.group_account_manager`,
-  which WebVue never implies. The accounts route follows the cost-center and budget precedent instead: a dedicated
+  which LiwanOS never implies. The accounts route follows the cost-center and budget precedent instead: a dedicated
   capability group (`finance.accounts.manage`) with create/write ACL rows on `account.account` in
   `security/ir.model.access.csv`, so no new R7 case and no `Architecture-approved-by:` trailer. Journals, taxes,
   payment terms and bank accounts are to follow the same pattern; if one needs real elevation (for example a journal's
   sequences), that single case still needs the owner's trailer.
 - **B2 (resolved 2026-10-20): runtime.** Odoo 19 at `deploy/odoo/ODOO_COMMIT`, the pinned OCA repos and PostgreSQL 16 were
-  provisioned in the session (outside the repository) and tests run on `webvue_scratch_*` databases only. Baseline of
-  `webvue_finance` at `main`: 417 tests, 0 failed.
+  provisioned in the session (outside the repository) and tests run on `liwan_scratch_*` databases only. Baseline of
+  `liwan_finance` at `main`: 417 tests, 0 failed.
 - **B3: ZATCA production.** The production policy is a draft and the owner deferred D2-D6 until before the first
   production deployment. The sandbox confinement stays; only preparation work is allowed until then.
 - **B4: a qualified Saudi accountant** must review the VAT-return mapping, the Zakat inputs and the expected figures of
@@ -84,7 +84,7 @@ Status: `open` / `blocked` / `in progress` / `done`. Priority follows the brief'
 
 ## Month cycle (2026-10-20)
 
-`odoo-addons/webvue_finance/tests/test_finance_month_cycle.py` runs a fresh company through the routes only: chart, an
+`odoo-addons/liwan_finance/tests/test_finance_month_cycle.py` runs a fresh company through the routes only: chart, an
 account for capital, partners, opening balances as one posted entry, a sale, a credit note, a bill, a customer advance
 allocated to the sale, a partial bill payment, a CSV bank statement with a fee reconciled to an expense account, then the
 profit and loss (revenue 9000, net profit 4975), the VAT return (box 1: 9000 / 1350, box 7: 4000 / 600, net VAT 750), the cash
@@ -96,7 +96,7 @@ Not yet in the cycle: depreciation, returns of a purchase, a second company, the
 
 ## Screens (2026-10-21)
 
-The WebVue screens for the functions above. Evidence for all of them is type checking, unit tests of the models and source guards of the
+The LiwanOS screens for the functions above. Evidence for all of them is type checking, unit tests of the models and source guards of the
 templates; none was opened in a browser (no Chromium in the session), so they are **not visually verified**.
 
 | Area | Screen | Status |

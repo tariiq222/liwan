@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import DepartureTable from '@/components/hr/lifecycle/DepartureTable.vue'
-import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
+import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
 import { hrDepartureListQuery, useHrDepartures, type HrDepartureListParams } from '@/composables/useHrOffboarding'
 
 const NAMESPACE = 'hrOffboarding'
@@ -109,7 +109,7 @@ function setPage(next: number) {
       </template>
       <SharedPageState
         v-if="query.isLoading.value || query.error.value || !departures.length"
-        class="m-(--webvue-card-pad-dense)"
+        class="m-(--liwan-card-pad-dense)"
         :loading="query.isLoading.value"
         :error="query.error.value"
         :empty="!departures.length"

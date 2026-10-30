@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinanceAccount } from '@webvue/contracts'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import type { FinanceAccount } from '@liwan/contracts'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
 import { h } from 'vue'
 import { useArchiveSetupAccount, useSetupAccounts } from '@/composables/finance/useFinanceRecords'
 import { ACCOUNT_TYPES } from '../accounting/accountListParams'
@@ -43,7 +43,7 @@ const actions = (account: FinanceAccount): RowAction[] => [
     <template v-if="canManage" #actions>
       <UButton color="primary" icon="i-lucide-plus" :disabled="!list.hydrated.value || panel !== null" :label="t('financeRecords.accounts.new')" data-testid="finance-record-account-new" @click="panel = { kind: 'create' }" />
     </template>
-    <div class="grid gap-(--webvue-gap-card)">
+    <div class="grid gap-(--liwan-gap-card)">
       <template v-if="panel">
         <RecordArchiveConfirm v-if="panel.kind === 'archive'" :key="panelKey(panel)" scope="accounts" :name="panel.account.name" :active="panel.account.active" :pending="archiving" :send="archive => send({ id: (panel as { account: FinanceAccount }).account.id, archive })" @done="panel = null" @cancel="panel = null" />
         <AccountEditor v-else :key="panelKey(panel)" :account="panel.kind === 'edit' ? panel.account : undefined" @done="panel = null" @cancel="panel = null" />

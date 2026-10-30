@@ -45,7 +45,7 @@ function canonicalJson(value: unknown): string {
   return JSON.stringify(value)
 }
 
-// Match webvue_cli.journal.payload_digest: exact policy bytes and the full enrolled
+// Match liwan_cli.journal.payload_digest: exact policy bytes and the full enrolled
 // descriptor are length-framed; descriptor_digest itself excludes that field.
 function managedRequestDigest(lane: Extract<TargetLane, { kind: 'compose-local' }>, policyBytes: Buffer, fields: Record<string, string>): string {
   const enrollment = JSON.parse(lane.descriptorBytes.toString('utf8'))
@@ -73,10 +73,10 @@ function verifiedManagedCreate(receipt: Record<string, unknown>, policy: CreateP
   // Odoo installs the closure of policy.modules (implied services, auto-install bridges).
   // The Python readback proves that closure and reports it as expected_modules.
   const expected = receipt.expected_modules
-  if (!moduleList(expected) || expected.some(name => !name.startsWith('webvue_'))) return false
+  if (!moduleList(expected) || expected.some(name => !name.startsWith('liwan_'))) return false
   if (!policy.modules.every(name => expected.includes(name))) return false
-  // Stock Odoo dependencies are not additional WebVue pillars.
-  if (canonicalJson(modules.filter(name => name.startsWith('webvue_')).sort()) !== canonicalJson([...expected].sort())) return false
+  // Stock Odoo dependencies are not additional LiwanOS pillars.
+  if (canonicalJson(modules.filter(name => name.startsWith('liwan_')).sort()) !== canonicalJson([...expected].sort())) return false
   return true
 }
 
@@ -85,7 +85,7 @@ function moduleList(value: unknown): value is string[] {
 }
 
 export type Claimed = { client: PoolClient; operation: Record<string, unknown>; tenant: Record<string, unknown>; lockKey: string }
-export type OperatorInvocation = { moduleName: 'webvue_cli.operator' | 'webvue_cli.managed_runtime'; args: string[]; env: NodeJS.ProcessEnv; policyBytes?: Buffer; descriptorBytes?: Buffer; target?: string; operation?: string; requestId?: string; fingerprint?: string }
+export type OperatorInvocation = { moduleName: 'liwan_cli.operator' | 'liwan_cli.managed_runtime'; args: string[]; env: NodeJS.ProcessEnv; policyBytes?: Buffer; descriptorBytes?: Buffer; target?: string; operation?: string; requestId?: string; fingerprint?: string }
 
 export async function expireLeases(pool: Pool): Promise<number> {
   return transaction(pool, async (client) => {
@@ -182,8 +182,8 @@ export function publicReceipt(value: Record<string, unknown>): Record<string, un
 type OperatorResult = { code: number; receipt: Record<string, unknown> }
 async function operator(config: Config, args: string[], lane: TargetLane, policyBytes?: Buffer, journalFields?: Record<string, string>): Promise<OperatorResult> {
   const managed = lane.kind === 'compose-local'
-  const env = { ...process.env, WEBVUE_CLI_INVENTORY: config.inventoryPath, WEBVUE_MANAGED_INVENTORY: managed ? lane.inventoryPath : undefined, WEBVUE_CLI_STATE_DIR: managed ? lane.stateDir : config.stateDir, PYTHONPATH: join(config.repositoryRoot, 'tools') }
-  const moduleName = managed ? 'webvue_cli.managed_runtime' : 'webvue_cli.operator'
+  const env = { ...process.env, LIWAN_CLI_INVENTORY: config.inventoryPath, LIWAN_MANAGED_INVENTORY: managed ? lane.inventoryPath : undefined, LIWAN_CLI_STATE_DIR: managed ? lane.stateDir : config.stateDir, PYTHONPATH: join(config.repositoryRoot, 'tools') }
+  const moduleName = managed ? 'liwan_cli.managed_runtime' : 'liwan_cli.operator'
   if (config.invokeAdapter) {
     const invocation: import('./worker.js').OperatorInvocation = { moduleName, args, env, policyBytes, descriptorBytes: managed ? lane.descriptorBytes : undefined, target: managed ? journalFields?.target : undefined, operation: managed ? journalFields?.operation : undefined, requestId: managed ? journalFields?.request_id : undefined, fingerprint: managed ? lane.descriptorDigest : undefined }
     const result = await config.invokeAdapter(invocation)

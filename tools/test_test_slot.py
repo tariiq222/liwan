@@ -17,7 +17,7 @@ SCRIPT = Path(__file__).resolve().parent / 'test_slot.py'
 class TestSlotTest(unittest.TestCase):
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp())
-        env = {'WEBVUE_TEST_SLOT_DIR': str(self.dir), 'WEBVUE_TEST_SLOTS': '2'}
+        env = {'LIWAN_TEST_SLOT_DIR': str(self.dir), 'LIWAN_TEST_SLOTS': '2'}
         patcher = mock.patch.dict(os.environ, env)
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -66,7 +66,7 @@ class TestSlotTest(unittest.TestCase):
         self.assertEqual(test_slot.main(['--', sys.executable, '-c', 'raise SystemExit(3)']), 3)
 
     def test_rejects_a_bad_slot_count(self):
-        with mock.patch.dict(os.environ, {'WEBVUE_TEST_SLOTS': '0'}), self.assertRaises(SystemExit):
+        with mock.patch.dict(os.environ, {'LIWAN_TEST_SLOTS': '0'}), self.assertRaises(SystemExit):
             test_slot.slot_count()
 
 

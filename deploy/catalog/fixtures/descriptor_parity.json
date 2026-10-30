@@ -6,9 +6,9 @@
       "catalog": {
         "schema_version": 1,
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -22,7 +22,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -38,9 +38,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -55,7 +55,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -70,9 +70,9 @@
       "catalog": {
         "schema_version": 1,
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -86,7 +86,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -102,9 +102,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -119,7 +119,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -135,9 +135,9 @@
         "schema_version": 4,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -152,7 +152,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -169,9 +169,9 @@
         "schema_version": "2",
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -186,7 +186,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -201,9 +201,9 @@
       "name": "schema_version_missing",
       "catalog": {
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -217,7 +217,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -234,9 +234,9 @@
         "schema_version": 2.0,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -251,7 +251,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -272,9 +272,9 @@
         "schema_version": 2.5,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -289,7 +289,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -305,9 +305,9 @@
       "catalog": {
         "schema_version": true,
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -321,7 +321,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -337,9 +337,9 @@
       "catalog": {
         "schema_version": 2,
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -354,7 +354,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -371,9 +371,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -388,7 +388,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -405,9 +405,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -422,7 +422,7 @@
           {
             "id": "Projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -439,9 +439,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -456,7 +456,7 @@
           {
             "id": "1projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -473,9 +473,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -490,7 +490,7 @@
           {
             "id": "pro-jects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -507,9 +507,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -524,7 +524,7 @@
           {
             "id": "core",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -554,7 +554,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -571,15 +571,15 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -595,15 +595,15 @@
       "catalog": {
         "schema_version": 1,
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -619,9 +619,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -636,7 +636,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -652,9 +652,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -669,7 +669,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -685,9 +685,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -702,7 +702,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -718,9 +718,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -735,7 +735,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -751,9 +751,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -768,7 +768,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -785,9 +785,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -802,7 +802,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -819,9 +819,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -836,7 +836,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -853,9 +853,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -870,7 +870,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -887,9 +887,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -904,7 +904,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -921,9 +921,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -938,7 +938,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -955,9 +955,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -972,7 +972,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -989,9 +989,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -1006,7 +1006,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -1023,9 +1023,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -1040,7 +1040,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -1057,9 +1057,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -1074,7 +1074,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -1090,9 +1090,9 @@
       "catalog": {
         "schema_version": 1,
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -1113,9 +1113,9 @@
       "catalog": {
         "schema_version": 1,
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -1136,9 +1136,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -1152,7 +1152,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -1169,9 +1169,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -1185,7 +1185,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -1202,9 +1202,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -1217,7 +1217,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -1234,9 +1234,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -1249,7 +1249,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -1266,9 +1266,9 @@
         "schema_version": 3,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -1283,7 +1283,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -1299,15 +1299,15 @@
         "schema_version": 3,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "limit:users.limit",
@@ -1326,9 +1326,9 @@
         "schema_version": 3,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -1342,7 +1342,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -1351,7 +1351,7 @@
           {
             "id": "more",
             "modules": [
-              "webvue_hr"
+              "liwan_hr"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -1368,9 +1368,9 @@
         "schema_version": 3,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -1384,7 +1384,7 @@
           {
             "id": "projects",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:pmo.enabled"
@@ -1393,7 +1393,7 @@
           {
             "id": "people",
             "modules": [
-              "webvue_pmo"
+              "liwan_pmo"
             ],
             "features": [
               "boolean:hr.enabled"
@@ -1410,9 +1410,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {
@@ -1441,9 +1441,9 @@
         "schema_version": 3,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "webvue_core",
-          "webvue_platform",
-          "webvue_api"
+          "liwan_core",
+          "liwan_platform",
+          "liwan_api"
         ],
         "tiers": [
           {

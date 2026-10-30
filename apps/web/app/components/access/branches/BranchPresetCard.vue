@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BRANCH_PRESETS, type BranchPolicy } from '@webvue/contracts'
+import { BRANCH_PRESETS, type BranchPolicy } from '@liwan/contracts'
 import { useSettingsForm } from '@/composables/settings/useSettingsForm'
 import { useApplyBranchPreset } from '@/composables/useBranchAccess'
 

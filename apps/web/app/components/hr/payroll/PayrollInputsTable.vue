@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { RouteLocationRaw } from 'vue-router'
-import type { HrPayrollTotals, HrPayslipInputs, HrPayslipInputsPatch, HrPayslipRow } from '@webvue/contracts'
+import type { HrPayrollTotals, HrPayslipInputs, HrPayslipInputsPatch, HrPayslipRow } from '@liwan/contracts'
 import { parseMoneyInput } from '@/utils/moneyInput'
 import { formatPayrollAmount } from '@/utils/payrollFormat'
 

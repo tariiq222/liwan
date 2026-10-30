@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import InboxAutoContentEditor from '@/components/inbox/InboxAutoContentEditor.vue'
-import type { InboxChannelAutomation } from '@webvue/contracts'
+import type { InboxChannelAutomation } from '@liwan/contracts'
 import { automationToDraft, automationWrite } from '@/composables/inbox/inboxAutomation'
 import { useSaveInboxChannelAutomation } from '@/composables/inbox/useInboxAutomation'
 

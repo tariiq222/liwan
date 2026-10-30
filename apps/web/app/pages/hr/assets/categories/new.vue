@@ -44,7 +44,7 @@ async function submit() {
   <SharedCreatePanel :title="t('hrAssets.categories.new')" :back-to="backTo">
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedForbiddenState v-if="!canManage" />
-    <UForm v-else novalidate :state="{ name }" class="webvue-form" method="post" data-testid="hr-asset-category-form" @submit="submit">
+    <UForm v-else novalidate :state="{ name }" class="liwan-form" method="post" data-testid="hr-asset-category-form" @submit="submit">
       <UAlert v-if="error && !serverField" role="alert" color="error" variant="subtle" :title="error" />
       <SharedFormSection panel :title="t('hrAssets.categories.form.details')">
         <UFormField :label="t('hrAssets.categories.columns.name')" name="hr-asset-category-name" required :error="nameError">

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinanceAssetDetail } from '@webvue/contracts'
+import type { FinanceAssetDetail } from '@liwan/contracts'
 import Money from '../invoices/Money.vue'
 import { entryRecordPath } from '../accounting/entryPaths'
 import { LINE_TYPE_TONE } from './assetTones'

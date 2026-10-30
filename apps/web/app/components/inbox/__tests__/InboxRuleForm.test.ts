@@ -3,7 +3,7 @@ import { compileScript, parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import type { InboxRule } from '@webvue/contracts'
+import type { InboxRule } from '@liwan/contracts'
 import * as helpers from '../../../composables/inbox/inboxAutomation'
 import { PRIORITIES } from '../../../composables/inbox/inboxPresentation'
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { InboxCatalogPatchSchema, type InboxCatalog } from '@webvue/contracts'
+import { InboxCatalogPatchSchema, type InboxCatalog } from '@liwan/contracts'
 import { usePatchInboxCatalog } from '@/composables/inbox/useInboxCatalog'
 
 // The catalog-wide defaults: the brand name Meta shows, the product link used when an item has none (empty sends the

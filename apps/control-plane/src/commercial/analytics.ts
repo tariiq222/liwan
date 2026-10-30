@@ -1,7 +1,7 @@
 import type { Pool } from 'pg'
 import {
   analyticsQuerySchema, analyticsSchema, type Analytics, type AnalyticsFigure, type AnalyticsFigures, type AnalyticsSnapshot, type Cadence,
-} from '@webvue/commercial-contracts'
+} from '@liwan/commercial-contracts'
 import {
   bookInHistory, DAY_MS, inForceAt, monthEnds, movementIn, periodBounds, previousPeriod, ratio, recurringOf, riyadhDay, settleTrials, toTimelines,
   type AppliedOrder, type BookAt, type Period, type PricingBaseline, type Timelines,

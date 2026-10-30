@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatDate, formatDateTime, localIsoDay } from '@webvue/ui/app/utils/formatDate'
+import { formatDate, formatDateTime, localIsoDay } from '@liwan/ui/app/utils/formatDate'
 import InboxAgentTable from '@/components/inbox/reports/InboxAgentTable.vue'
 import InboxReportCharts from '@/components/inbox/reports/InboxReportCharts.vue'
 import InboxReportFilters from '@/components/inbox/reports/InboxReportFilters.vue'

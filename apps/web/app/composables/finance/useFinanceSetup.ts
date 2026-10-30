@@ -1,7 +1,7 @@
 import type { ComputedRef, MaybeRefOrGetter, Ref } from 'vue'
 import { computed, effectScope, ref, toValue, watch } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { FinanceSetupSchema, type FinanceSetup, type FinanceSetupFiscalInput } from '@webvue/contracts'
+import { FinanceSetupSchema, type FinanceSetup, type FinanceSetupFiscalInput } from '@liwan/contracts'
 import {
   financeExpectedContextHeaders,
   financeSetupScopeToken,

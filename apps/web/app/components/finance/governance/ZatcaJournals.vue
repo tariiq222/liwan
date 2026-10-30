@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FinanceZatcaJournal } from '@webvue/contracts'
+import type { FinanceZatcaJournal } from '@liwan/contracts'
 import ZatcaOnboardForm from './ZatcaOnboardForm.vue'
 import { ZATCA_JOURNAL_TONE } from './zatcaOnboarding'
 

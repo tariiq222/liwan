@@ -7,7 +7,7 @@ ALTER TABLE plan_revisions
   ADD COLUMN storage_prices jsonb NOT NULL DEFAULT '[]'::jsonb;
 
 -- PLACEHOLDER, not approved: the owner replaces every amount from the vendor console.
--- The WebVue plan is the single sellable platform plan: the base price covers the platform,
+-- The LiwanOS plan is the single sellable platform plan: the base price covers the platform,
 -- and every application is an optional, separately priced bundle. Prices here are development
 -- placeholders only; a real tenant must never be sold from them.
 UPDATE plan_revisions SET available=false, edit_revision=edit_revision+1 WHERE status='published' AND available;
@@ -16,7 +16,7 @@ UPDATE plan_revisions SET available=false, edit_revision=edit_revision+1 WHERE s
 -- revision is withdrawn in the same migration, so the catalog never lists one application twice.
 -- Seed a new priced revision only where the application has no sellable price at all;
 -- an application that already has one keeps it, and the unpriced duplicates are withdrawn below.
-CREATE TEMP TABLE webvue_seeded_bundle_revisions AS
+CREATE TEMP TABLE liwan_seeded_bundle_revisions AS
   SELECT DISTINCT ON (b.bundle_id) b.id AS old_id, b.bundle_id FROM bundle_revisions b
   WHERE b.status='published' AND b.available AND b.prices='[]'::jsonb
     AND NOT EXISTS (
@@ -30,16 +30,16 @@ SELECT gen_random_uuid(), s.bundle_id,
   b.name, b.description, b.audience, b.audience_customer_id, b.catalog_release_id, b.selections, b.domain_limits,
   '[{"cadence":{"unit":"month","count":1},"amount":{"currency":"SAR","exponent":2,"minor":19900}},{"cadence":{"unit":"year","count":1},"amount":{"currency":"SAR","exponent":2,"minor":199000}}]'::jsonb,
   'published', true,
-  encode(sha256(convert_to('webvue-bundle-seed:'||s.bundle_id::text,'UTF8')),'hex'),
-  encode(sha256(convert_to('webvue-bundle-seed:'||s.bundle_id::text,'UTF8')),'hex'),
+  encode(sha256(convert_to('liwan-bundle-seed:'||s.bundle_id::text,'UTF8')),'hex'),
+  encode(sha256(convert_to('liwan-bundle-seed:'||s.bundle_id::text,'UTF8')),'hex'),
   now()
-FROM webvue_seeded_bundle_revisions s JOIN bundle_revisions b ON b.id=s.old_id;
+FROM liwan_seeded_bundle_revisions s JOIN bundle_revisions b ON b.id=s.old_id;
 
 UPDATE bundle_revisions SET available=false, edit_revision=edit_revision+1
 WHERE status='published' AND available AND prices='[]'::jsonb;
 UPDATE commercial_bundles c SET next_version = GREATEST(c.next_version,
   (SELECT max(r.version)+1 FROM bundle_revisions r WHERE r.bundle_id=c.id))
-WHERE EXISTS (SELECT 1 FROM webvue_seeded_bundle_revisions s WHERE s.bundle_id=c.id);
+WHERE EXISTS (SELECT 1 FROM liwan_seeded_bundle_revisions s WHERE s.bundle_id=c.id);
 
 INSERT INTO commercial_plans(id) VALUES('00000000-0000-4000-8000-0000000000b1');
 INSERT INTO plan_revisions(
@@ -50,7 +50,7 @@ INSERT INTO plan_revisions(
   policy_revision_id, trial_days, grace_days, auto_suspend, auto_renew_allowed,
   content_digest, validated_digest, published_at)
 VALUES(
-  '00000000-0000-4000-8000-0000000000b2', '00000000-0000-4000-8000-0000000000b1', 1, 'WebVue',
+  '00000000-0000-4000-8000-0000000000b2', '00000000-0000-4000-8000-0000000000b1', 1, 'LiwanOS',
   '{"kind":"public"}', NULL, 'published', true, 12, 'SAR',
   '[{"cadence":{"unit":"month","count":1},"amount":{"currency":"SAR","exponent":2,"minor":29900}},{"cadence":{"unit":"year","count":1},"amount":{"currency":"SAR","exponent":2,"minor":299000}}]'::jsonb,
   '{}'::jsonb, '[]'::jsonb,
@@ -69,8 +69,8 @@ VALUES(
   '[{"cadence":{"unit":"month","count":1},"amount":{"currency":"SAR","exponent":2,"minor":1000}},{"cadence":{"unit":"year","count":1},"amount":{"currency":"SAR","exponent":2,"minor":10000}}]'::jsonb,
   '[{"cadence":{"unit":"month","count":1},"amount":{"currency":"SAR","exponent":2,"minor":100}},{"cadence":{"unit":"year","count":1},"amount":{"currency":"SAR","exponent":2,"minor":1000}}]'::jsonb,
   '6f1c3d8e-0000-4000-8000-000000000001', 14, 7, true, true,
-  encode(sha256(convert_to('webvue-plan-seed-v1','UTF8')),'hex'),
-  encode(sha256(convert_to('webvue-plan-seed-v1','UTF8')),'hex'),
+  encode(sha256(convert_to('liwan-plan-seed-v1','UTF8')),'hex'),
+  encode(sha256(convert_to('liwan-plan-seed-v1','UTF8')),'hex'),
   now()
 );
 
@@ -79,4 +79,4 @@ SELECT (jsonb_array_elements_text(optional_bundle_revision_ids))::uuid, 'bundle'
 FROM plan_revisions WHERE id='00000000-0000-4000-8000-0000000000b2'
 ON CONFLICT DO NOTHING;
 
-DROP TABLE webvue_seeded_bundle_revisions;
+DROP TABLE liwan_seeded_bundle_revisions;

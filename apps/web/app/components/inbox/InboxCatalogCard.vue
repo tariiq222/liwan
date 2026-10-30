@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxCatalog } from '@webvue/contracts'
+import type { InboxCatalog } from '@liwan/contracts'
 import { CATALOG_STATE_TONE } from '@/composables/inbox/inboxCommerce'
 import { usePatchInboxChannelCommerce, useSyncInboxCatalog } from '@/composables/inbox/useInboxCatalog'
 

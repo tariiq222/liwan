@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { transaction } from '../db.js'
-import { nextOrderState, type EffectReceipt } from '@webvue/commercial-contracts'
+import { nextOrderState, type EffectReceipt } from '@liwan/commercial-contracts'
 import { activateBranches, archiveBranches, listBranches } from './branches.js'
 import { claimOutbox, completeOutbox, deferOutbox, failOutbox, releaseOutbox, type OutboxRow } from './outbox.js'
 import { recordFulfillmentFailure } from './settlements.js'

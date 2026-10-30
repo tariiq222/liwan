@@ -1,5 +1,5 @@
 -- users.limit must admit the required customer administrator: null (unlimited) or an
--- integer >= 1, the same rule as admitsRequiredAdmin in @webvue/commercial-contracts.
+-- integer >= 1, the same rule as admitsRequiredAdmin in @liwan/commercial-contracts.
 -- Validated against existing rows: there are no live customers yet.
 CREATE FUNCTION commercial_users_limit_admits_admin(limits jsonb) RETURNS boolean
 LANGUAGE sql IMMUTABLE AS $$

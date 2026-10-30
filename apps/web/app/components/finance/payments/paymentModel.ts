@@ -1,5 +1,5 @@
-import type { FinanceInvoiceDetail, FinancePayment, FinancePaymentRegister, FinancePaymentStandalone } from '@webvue/contracts'
-import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
+import type { FinanceInvoiceDetail, FinancePayment, FinancePaymentRegister, FinancePaymentStandalone } from '@liwan/contracts'
+import type { StatusTone } from '@liwan/ui/app/utils/statusTone'
 import { invoiceKindOf } from '../invoices/invoiceKinds'
 import { queryText, queryDay } from '../../../utils/routeQuery'
 

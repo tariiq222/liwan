@@ -129,14 +129,14 @@ def main(argv=None):
         if args.action == 'restore':
             from .backup import restore_tenant
             binding, config = document(args.binding), document(args.runtime)
-            if not isinstance(binding.get('database'), str) or not binding['database'].startswith('webvue_scratch_'):
+            if not isinstance(binding.get('database'), str) or not binding['database'].startswith('liwan_scratch_'):
                 raise ValueError('protected_database_rejected')
             result = restore_tenant(local_path(args.backup, directory=True), binding, config)
             print(json.dumps(result, sort_keys=True))
             return 0
         if args.action == 'bootstrap':
             binding, route = document(args.binding), document(args.route)
-            if not binding['database'].startswith('webvue_scratch_'):
+            if not binding['database'].startswith('liwan_scratch_'):
                 raise ValueError('protected_database_rejected')
             validate_route(route)
             if (binding['filestore'] != binding['database'] or binding['tenantId'] != route['tenantId']

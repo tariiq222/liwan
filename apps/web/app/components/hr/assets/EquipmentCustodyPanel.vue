@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { HrEquipment, HrRef } from '@webvue/contracts'
-import { formatDate } from '@webvue/ui/app/utils/formatDate'
+import type { HrEquipment, HrRef } from '@liwan/contracts'
+import { formatDate } from '@liwan/ui/app/utils/formatDate'
 
 // The custody block of one asset: who holds it now, since when, and the assignment
 // control. The page owns the mutation and the inline confirmations.

@@ -6,12 +6,12 @@ import { enqueueSharedJob, bindQueuedRequest, deriveSharedPolicy } from './job-s
 import { businessKey, payloadDigest } from './provisioning.js'
 import { vendorActorIssuer } from '../admin-auth/grants.js'
 const binding = { tenantId: 'a', database: 'db_a', filestore: 'db_a', registryRevision: 1, enabled: true }
-const request = { schemaVersion: 1, requestId: '687674dc-5789-4a99-b151-12d69f010cc3', operation: 'provision', catalog: { version: 'v1', tier: 'core', sourceSha256: 'a'.repeat(64) }, policy: { schema_version: 1, channel: 'control_plane', modules: ['webvue_core'], features: { 'users.limit': 10, 'storage.limit_mb': 100 } } }
+const request = { schemaVersion: 1, requestId: '687674dc-5789-4a99-b151-12d69f010cc3', operation: 'provision', catalog: { version: 'v1', tier: 'core', sourceSha256: 'a'.repeat(64) }, policy: { schema_version: 1, channel: 'control_plane', modules: ['liwan_core'], features: { 'users.limit': 10, 'storage.limit_mb': 100 } } }
 it('persists one provisioning business key across distinct request IDs', async () => {
   const stored: Array<{id:string,payload_digest:string,state:string,issuer:string,actor_uid:number}> = []
   let inserts=0
   const audits:string[]=[]
-  const solution={schema_version:1,base_modules:['webvue_core'],tiers:[{id:'core',modules:[],features:[]}]}
+  const solution={schema_version:1,base_modules:['liwan_core'],tiers:[{id:'core',modules:[],features:[]}]}
   const client={release(){},async query(sql:string,params:any[]=[]){
     const result=(rows:unknown[]=[])=>({rows,rowCount:rows.length})
     if (['BEGIN','COMMIT','ROLLBACK'].includes(sql)||sql.startsWith('SELECT pg_advisory')) return result()
@@ -38,7 +38,7 @@ it('persists one provisioning business key across distinct request IDs', async (
   await expect(enqueueSharedJob(pool,request.requestId,{...actor,issuer:'other:vendor-account'},input,'Other issuer replay')).rejects.toThrow('shared_replay_forbidden')
   await expect(enqueueSharedJob(pool,request.requestId,actor,{...input,policy:request.policy},'Forged policy')).rejects.toThrow()
   // Changed authoritative catalog must not turn the singleton into a new effect.
-  solution.base_modules.push('webvue_pmo')
+  solution.base_modules.push('liwan_pmo')
   await expect(enqueueSharedJob(pool,request.requestId,actor,{...input,requestId:'81e71f13-a412-4d5d-b230-c6cd1dd45d35'},'Changed catalog replay')).rejects.toThrow('idempotency_conflict')
   expect(inserts).toBe(1)
   expect(audits).toEqual(['shared_job.queued','shared_job.replayed'])
@@ -62,7 +62,7 @@ it('enqueues and replays signed HTTP backup through actual store with registry-o
   }}
   const key='queue-store-integration-synthetic-key-'.repeat(2),issuer='queue-store-test'
   const server=createApp({connect:async()=>client} as unknown as Pool,{installationId:issuer,key,tenantRegistryPath:'/unused/registry.json',inventoryPath:'/unused',stateDir:'/unused',repositoryRoot:'/unused',python:'python3'})
-  vi.stubEnv('WEBVUE_TENANCY_MODE','shared')
+  vi.stubEnv('LIWAN_TENANCY_MODE','shared')
   try {
     await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve))
     const address=server.address();if(!address||typeof address==='string')throw Error('missing address')
@@ -98,8 +98,8 @@ it('rolls back queued insertion when durable audit cannot be written', async () 
   expect(rows).toEqual([]);expect(committed).toBe(0);expect(rolledBack).toBe(1)
 })
 it('derives policy only from published catalog module and feature definitions', () => {
-  expect(deriveSharedPolicy({ schema_version: 1, base_modules: ['webvue_core'], tiers: [{ id: 'core', modules: ['webvue_pmo'], features: ['boolean:pmo.projects', 'limit:users.limit'] }] }, 'core')).toEqual({ schema_version: 1, channel: 'control_plane', modules: ['webvue_core', 'webvue_pmo'], features: { 'users.limit': null, 'storage.limit_mb': null, 'pmo.projects': true } })
-  expect(() => deriveSharedPolicy({ schema_version: 1, base_modules: ['webvue_core'], tiers: [] }, 'core')).toThrow('catalog_tier_missing')
+  expect(deriveSharedPolicy({ schema_version: 1, base_modules: ['liwan_core'], tiers: [{ id: 'core', modules: ['liwan_pmo'], features: ['boolean:pmo.projects', 'limit:users.limit'] }] }, 'core')).toEqual({ schema_version: 1, channel: 'control_plane', modules: ['liwan_core', 'liwan_pmo'], features: { 'users.limit': null, 'storage.limit_mb': null, 'pmo.projects': true } })
+  expect(() => deriveSharedPolicy({ schema_version: 1, base_modules: ['liwan_core'], tiers: [] }, 'core')).toThrow('catalog_tier_missing')
 })
 it('binds only trusted registry identity and derives stable provisioning key across requests', () => {
   const a = bindQueuedRequest(request, binding)

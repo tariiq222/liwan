@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { refDebounced } from '@vueuse/core'
-import type { DocumentContext } from '@webvue/contracts'
+import type { DocumentContext } from '@liwan/contracts'
 import { useDocumentContexts, useDocumentContextOptions } from '@/composables/useDocuments'
 import { documentLookupItems, type DocumentOption } from '@/lib/documentLookup'
 const props = defineProps<{ modelValue: { kind: string; id: number } | null; known?: DocumentContext | null; disabled?: boolean }>()
@@ -31,7 +31,7 @@ function selectOption(value: unknown) {
 }
 </script>
 <template>
-  <div v-if="available.length" class="grid gap-(--webvue-gap-card) sm:grid-cols-2">
+  <div v-if="available.length" class="grid gap-(--liwan-gap-card) sm:grid-cols-2">
     <UFormField :label="t('documents.context')" name="document-context-kind">
       <USelect id="document-context-kind" :model-value="kind || 'none'" :items="[{ value: 'none', label: t('documents.noContext') }, ...available.map(item => ({ value: item.kind, label: item.label }))]" class="w-full" :disabled="disabled || !hydrated" @update:model-value="selectKind" />
     </UFormField>

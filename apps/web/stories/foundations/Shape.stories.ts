@@ -8,7 +8,7 @@ const names = [...new Set([...parseTokenNames(tokensCss), ...parseTokenNames(com
 const radius = names.filter(name => name.includes('radius'))
 const elevation = names.filter(name => name.startsWith('--elevation-'))
 const layers = names.filter(name => name.includes('-z-'))
-const elevationClasses = [1, 2, 3, 4].map(level => `webvue-elevation-${level}`)
+const elevationClasses = [1, 2, 3, 4].map(level => `liwan-elevation-${level}`)
 
 export default { title: 'Foundations/Shape' } satisfies Meta
 

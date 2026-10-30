@@ -1,7 +1,7 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { keepPreviousData, useQuery } from '@tanstack/vue-query'
-import { FinanceVatReturnItemListSchema } from '@webvue/contracts'
+import { FinanceVatReturnItemListSchema } from '@liwan/contracts'
 import { REPORTS, type ReportSlug } from '@/components/finance/reports/reportConfig'
 import type { ReportParams } from '@/components/finance/reports/reportParams'
 

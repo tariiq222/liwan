@@ -24,7 +24,7 @@ if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
 fi
 
 # Reinstall only when the lockfile changed, so a resumed session starts without a second install.
-stamp=node_modules/.webvue-lock.sha
+stamp=node_modules/.liwan-lock.sha
 lock_sha=$(sha256sum package-lock.json | cut -d' ' -f1)
 if [ ! -f "$stamp" ] || [ "$(cat "$stamp")" != "$lock_sha" ]; then
   npm ci --ignore-scripts --no-audit --no-fund

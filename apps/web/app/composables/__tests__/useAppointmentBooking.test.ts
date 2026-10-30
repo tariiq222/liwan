@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { AppointmentPublicBookingSchema, AppointmentSlotListSchema } from '@webvue/contracts'
+import { AppointmentPublicBookingSchema, AppointmentSlotListSchema } from '@liwan/contracts'
 import { bookingKeys, useGuestActions, useGuestBooking, useGuestSlots } from '../useAppointmentBooking'
 
 const mocks = vi.hoisted(() => ({ api: vi.fn(), client: { setQueryData: vi.fn(), invalidateQueries: vi.fn() } }))

@@ -7,7 +7,7 @@ import { ApiError } from '@/composables/useApi'
 import { projectIdFromPath } from '@/modules/pmo/projectRoutes'
 import { useProject, useProjectList } from '@/composables/useProjects'
 import { canCopyProject } from '@/utils/projectCopyAccess'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
@@ -42,7 +42,7 @@ const copyTo = computed(() => ({
     <template v-if="canCopy" #actions>
       <UButton color="neutral" variant="outline" icon="i-lucide-copy" :to="copyTo" data-testid="project-copy-link" :label="t('projects.copy.action')" />
     </template>
-    <div v-if="project" class="flex flex-col gap-(--webvue-gap-card)">
+    <div v-if="project" class="flex flex-col gap-(--liwan-gap-card)">
       <ProjectPhaseGate :project="project" />
       <ProjectOverview :project="project" />
     </div>

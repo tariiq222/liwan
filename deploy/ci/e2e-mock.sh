@@ -8,7 +8,7 @@ cd apps/web
 npx playwright install chromium
 test -s e2e/ci-mock-specs.txt
 export PROJECTS_UI_PREVIEW=1 MODULE_UI_PREVIEW=1
-export NUXT_ODOO_URL="http://127.0.0.1:$MOCK_PORT" NUXT_ODOO_DB=webvue_ui_mock_only
+export NUXT_ODOO_URL="http://127.0.0.1:$MOCK_PORT" NUXT_ODOO_DB=liwan_ui_mock_only
 export NUXT_PUBLIC_WS_URL="ws://127.0.0.1:$MOCK_PORT/websocket"
 export E2E_BASE_URL="http://localhost:$WEB_PORT" E2E_PROJECT_POPUPS=1
 node e2e/internal-ui-audit-mock.mjs > mock.log 2>&1 &

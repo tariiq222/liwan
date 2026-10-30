@@ -6,13 +6,13 @@ from dataclasses import replace
 import httpx
 from langgraph.checkpoint.memory import InMemorySaver
 
+from liwan_ai_service.service import create_app
+from liwan_ai_service.store import MemoryRunStore
 from tests.fakes import ScriptedChatModel, ai_text
 from tests.test_service import HEADERS, SETTINGS, fresh
-from webvue_ai_service.service import create_app
-from webvue_ai_service.store import MemoryRunStore
 
 TOKEN = "synthetic-release-token-" * 2
-ADMIN = {"x-webvue-service-token": TOKEN}
+ADMIN = {"x-liwan-service-token": TOKEN}
 OWNER = {**HEADERS, **ADMIN}
 
 

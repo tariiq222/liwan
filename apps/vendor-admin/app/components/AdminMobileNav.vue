@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core'
 import type { SlideoverProps } from '@nuxt/ui'
-import type { ShellRailItem } from '@webvue/ui/app/types/shell'
+import type { ShellRailItem } from '@liwan/ui/app/types/shell'
 
 // The same sections as the module rail, in a drawer below 768px where the rail is hidden.
 const props = defineProps<{ items: ShellRailItem[], activeId: string | null }>()
@@ -23,10 +23,10 @@ watch(() => route.fullPath, () => { open.value = false })
     :title="t('app.shell.navigation')"
     :description="t('app.shell.consoleBadge')"
     :content="dialogContent"
-    :ui="{ content: 'webvue-mobile-menu', overlay: 'webvue-mobile-menu-overlay' }"
+    :ui="{ content: 'liwan-mobile-menu', overlay: 'liwan-mobile-menu-overlay' }"
   >
     <UButton
-      class="webvue-mobile-menu-trigger"
+      class="liwan-mobile-menu-trigger"
       type="button"
       color="neutral"
       variant="ghost"
@@ -37,18 +37,18 @@ watch(() => route.fullPath, () => { open.value = false })
       :disabled="!hydrated"
     >
       <template #leading>
-        <UIcon name="i-lucide-menu" class="webvue-shell-icon size-4.5 shrink-0" aria-hidden="true" />
+        <UIcon name="i-lucide-menu" class="liwan-shell-icon size-4.5 shrink-0" aria-hidden="true" />
       </template>
     </UButton>
     <template #body>
-      <nav data-fresh-navigation data-testid="mobile-nav" :aria-label="t('app.shell.navigation')" class="webvue-mobile-section">
+      <nav data-fresh-navigation data-testid="mobile-nav" :aria-label="t('app.shell.navigation')" class="liwan-mobile-section">
         <UButton
           v-for="item in props.items"
           :key="item.id"
           :to="item.to"
           color="neutral"
           variant="ghost"
-          class="webvue-context-link"
+          class="liwan-context-link"
           :data-testid="`mobile-nav-${item.id}`"
           :data-active="props.activeId === item.id"
           :active="props.activeId === item.id"
@@ -56,7 +56,7 @@ watch(() => route.fullPath, () => { open.value = false })
           @click="open = false"
         >
           <template #leading>
-            <UIcon :name="item.icon" class="webvue-shell-icon size-4.5 shrink-0" aria-hidden="true" />
+            <UIcon :name="item.icon" class="liwan-shell-icon size-4.5 shrink-0" aria-hidden="true" />
           </template>
           <span data-slot="label">{{ t(item.labelKey) }}</span>
         </UButton>

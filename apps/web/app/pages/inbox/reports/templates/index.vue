@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { INBOX_TEMPLATE_ANALYTICS_MAX_DAYS } from '@webvue/contracts'
-import { formatDate, localIsoDay } from '@webvue/ui/app/utils/formatDate'
+import { INBOX_TEMPLATE_ANALYTICS_MAX_DAYS } from '@liwan/contracts'
+import { formatDate, localIsoDay } from '@liwan/ui/app/utils/formatDate'
 import InboxReportFilters from '@/components/inbox/reports/InboxReportFilters.vue'
 import InboxReportTabs from '@/components/inbox/reports/InboxReportTabs.vue'
 import InboxTemplateAnalyticsTable from '@/components/inbox/reports/InboxTemplateAnalyticsTable.vue'

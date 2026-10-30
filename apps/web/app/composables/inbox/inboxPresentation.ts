@@ -1,5 +1,5 @@
-import type { InboxChannelState, InboxConversation, InboxConversationState, InboxDeliveryState, InboxPriority } from '@webvue/contracts'
-import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
+import type { InboxChannelState, InboxConversation, InboxConversationState, InboxDeliveryState, InboxPriority } from '@liwan/contracts'
+import type { StatusTone } from '@liwan/ui/app/utils/statusTone'
 
 export const CONVERSATION_STATES: readonly InboxConversationState[] = ['open', 'pending', 'resolved', 'closed']
 export const PRIORITIES: readonly InboxPriority[] = ['low', 'normal', 'high', 'urgent']

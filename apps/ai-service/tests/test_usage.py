@@ -8,14 +8,14 @@ import openai
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 
+from liwan_ai_service import service, usage
+from liwan_ai_service.contracts import ModelCallEvent, ModelUsageEvent, RunRequest
+from liwan_ai_service.errors import is_transient_provider_error
+from liwan_ai_service.graph import build_graph, initial_state, run_config
+from liwan_ai_service.service import create_app
+from liwan_ai_service.store import MemoryRunStore
 from tests.fakes import IDENTITY, FlakyChatModel, ScriptedChatModel, SlowChatModel, SlowTitleChatModel, ai_text, ai_usage, new_id
 from tests.test_service import BODY, HEADERS, SETTINGS, fresh, parse_sse
-from webvue_ai_service import service, usage
-from webvue_ai_service.contracts import ModelCallEvent, ModelUsageEvent, RunRequest
-from webvue_ai_service.errors import is_transient_provider_error
-from webvue_ai_service.graph import build_graph, initial_state, run_config
-from webvue_ai_service.service import create_app
-from webvue_ai_service.store import MemoryRunStore
 
 REQUEST = httpx.Request("POST", "http://provider/v1/chat/completions")
 
@@ -183,7 +183,7 @@ async def test_a_new_run_id_names_the_run_and_a_second_use_of_it_is_a_conflict()
         assert events[0] == ("run", {"run_id": body["new_run_id"]})
         again = await client.post("/v1/runs", json={**body, "message": "ثانية"}, headers=HEADERS)
         assert again.status_code == 409
-        other_owner = await client.post("/v1/runs", json={**body, "tenant": "t9"}, headers={"X-WebVue-Tenant": "t9", "X-WebVue-User": "42"})
+        other_owner = await client.post("/v1/runs", json={**body, "tenant": "t9"}, headers={"X-Liwan-Tenant": "t9", "X-Liwan-User": "42"})
         assert other_owner.status_code == 409
 
 

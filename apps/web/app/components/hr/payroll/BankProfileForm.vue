@@ -10,7 +10,7 @@ import {
   HrBankProfileWriteSchema,
   type HrBankProfile,
   type HrBankProfileColumn,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import { payrollErrorMessage } from '@/utils/payrollErrors'
 
@@ -174,10 +174,10 @@ const rowActions = (profile: HrBankProfile) => [
       @cancel="askDelete(null)"
     />
 
-    <UForm v-if="editing" novalidate :state="body" class="webvue-form" method="post" data-testid="hr-bank-profile-form" @submit="submit">
+    <UForm v-if="editing" novalidate :state="body" class="liwan-form" method="post" data-testid="hr-bank-profile-form" @submit="submit">
       <UAlert v-if="formAlert" role="alert" color="error" variant="subtle" :title="t('hrPayroll.bankProfiles.saveError')" :description="formAlert" />
       <SharedFormSection :title="editing === 'new' ? t('hrPayroll.bankProfiles.new') : t('hrPayroll.bankProfiles.edit')">
-        <div class="webvue-form-grid">
+        <div class="liwan-form-grid">
           <UFormField :label="t('hrPayroll.bankProfiles.columns.name')" name="hr-bank-profile-name" required :error="nameInvalid ? t('hrPayroll.bankProfiles.fieldInvalid') : undefined">
             <UInput id="hr-bank-profile-name" v-model="name" class="w-full" :disabled="locked" data-testid="hr-bank-profile-name" />
           </UFormField>
@@ -201,7 +201,7 @@ const rowActions = (profile: HrBankProfile) => [
       <SharedFormSection :title="t('hrPayroll.bankProfiles.columns.columns')" :description="t('hrPayroll.bankProfiles.columnsHint')">
         <UAlert v-if="invalid && columns.length === 0" role="alert" color="error" variant="subtle" :title="t('hrPayroll.bankProfiles.columnsRequired')" />
         <ol class="grid gap-3" data-testid="hr-bank-profile-columns">
-          <li v-for="(column, index) in columns" :key="index" class="webvue-form-grid items-end">
+          <li v-for="(column, index) in columns" :key="index" class="liwan-form-grid items-end">
             <UFormField :label="t('hrPayroll.bankProfiles.source.label')" :name="`hr-bank-profile-source-${index}`">
               <USelect :id="`hr-bank-profile-source-${index}`" :model-value="column.source" class="w-full" :items="sourceOptions" :disabled="locked" :data-testid="`hr-bank-profile-source-${index}`" @update:model-value="setSource(column, $event)" />
             </UFormField>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import PayrollRunTable from '@/components/hr/payroll/PayrollRunTable.vue'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
-import type { HrPayrollRunState, HrPayrollRunSummary } from '@webvue/contracts'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
+import type { HrPayrollRunState, HrPayrollRunSummary } from '@liwan/contracts'
 import { HR_PAYROLL_PAGE_SIZE, hrPayrollRunsQuery, type HrPayrollRunStateFilter } from '@/composables/useHrPayrollRuns'
 import { currentPayrollMonth } from '@/utils/payrollFormat'
 
@@ -137,7 +137,7 @@ function runTo(row: HrPayrollRunSummary) {
       </template>
 
       <SharedPageState :error="runs.error.value" :keep-content="items.length > 0" @retry="runs.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--webvue-card-pad-dense)" :title="t('hrPayroll.runs.emptyTitle')" :description="t('hrPayroll.runs.emptyHint')" />
+        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hrPayroll.runs.emptyTitle')" :description="t('hrPayroll.runs.emptyHint')" />
         <PayrollRunTable v-else :runs="items" :row-to="runTo" :loading="runs.isLoading.value" :caption="t('hrPayroll.title')" />
       </SharedPageState>
       <template v-if="runs.data.value && !showEmpty" #footer>

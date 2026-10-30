@@ -3,7 +3,7 @@ import { compileScript, parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import type { InboxBusinessProfile } from '@webvue/contracts'
+import type { InboxBusinessProfile } from '@liwan/contracts'
 import * as profileHelpers from '../../../composables/inbox/inboxProfile'
 
 const filename = new URL('../InboxBusinessProfileForm.vue', import.meta.url).pathname

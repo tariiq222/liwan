@@ -14,7 +14,7 @@ suite('default bundles for a catalog release', () => {
   })
   afterAll(async () => { await pool.end() })
 
-  it('publishes one bundle per selectable application and lists them on a new WebVue plan revision, once', async () => {
+  it('publishes one bundle per selectable application and lists them on a new LiwanOS plan revision, once', async () => {
     const apps = release.applications.filter((a: any) => a.selectable)
     expect(apps.length).toBeGreaterThan(0)
     const first = await api('POST', `/catalog/releases/${release.id}/default-bundles`, { reason })

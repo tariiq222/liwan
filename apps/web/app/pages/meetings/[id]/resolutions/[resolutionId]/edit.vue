@@ -105,10 +105,10 @@ async function save() {
     <SharedPageHeader :title="t('meetingsUi.editResolution')" :back-to="backTo" />
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !resolution" @retry="query.refetch">
       <UAlert v-if="resolution && !canEditDecision && !canEditResult" color="neutral" variant="subtle" :title="t('meetingsUi.resolutionReadOnly')" />
-      <form ref="formElement" novalidate v-else-if="resolution" class="grid gap-(--webvue-gap-card)" @submit.prevent="save">
+      <form ref="formElement" novalidate v-else-if="resolution" class="grid gap-(--liwan-gap-card)" @submit.prevent="save">
         <SharedUnsavedChanges :dirty="dirty" />
         <SharedFormSection v-if="canEditDecision" panel :title="t('meetingsUi.resolutions')">
-          <div class="webvue-form-grid">
+          <div class="liwan-form-grid">
             <UFormField :label="t('meetingsUi.resolutionTitle')" name="name" required :error="visibleErrors.name">
               <UInput id="resolution-name" v-model="name" class="w-full" :aria-invalid="Boolean(visibleErrors.name)" :disabled="!hydrated || isPending" required />
             </UFormField>

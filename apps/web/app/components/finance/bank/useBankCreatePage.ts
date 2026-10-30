@@ -1,4 +1,4 @@
-import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import { BANK_STATEMENTS_PATH, statementPath } from './bankModel'
 import { useBankListPage } from './useBankListPage'
 

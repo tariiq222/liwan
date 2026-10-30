@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
 import PayrollRunCreateForm from '../../../app/components/hr/payroll/PayrollRunCreateForm.vue'
-import CreatePanel from '@webvue/ui/app/components/shared/layout/CreatePanel.vue'
+import CreatePanel from '@liwan/ui/app/components/shared/layout/CreatePanel.vue'
 import { storyContext } from '../../support/context'
 
 // The payroll run create form inside the /hr/payroll/new SharedCreatePanel: it asks for the month only, posts it and

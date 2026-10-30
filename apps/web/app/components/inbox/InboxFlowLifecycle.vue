@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxFlow } from '@webvue/contracts'
+import type { InboxFlow } from '@liwan/contracts'
 import { FLOW_LIMITS, flowResponsesRoute } from '@/composables/inbox/inboxFlow'
 import {
   useCopyInboxFlow, useDeleteInboxFlow, useDeprecateInboxFlow, useInboxFlowPreviewLink, usePublishInboxFlow,

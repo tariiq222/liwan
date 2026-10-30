@@ -23,7 +23,7 @@ const sections = [
 
 describe('ShellContextSubList', () => {
   it('renders nothing without sections', async () => {
-    expect(await render({})).not.toContain('webvue-quick-views')
+    expect(await render({})).not.toContain('liwan-quick-views')
   })
 
   it('renders one titled, named group per section with the rows test ids', async () => {

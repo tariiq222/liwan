@@ -1,6 +1,6 @@
 import pytest
 
-from webvue_ai_service.settings import CleanupSettings, Settings, SettingsError
+from liwan_ai_service.settings import CleanupSettings, Settings, SettingsError
 
 
 def test_settings_from_env_reads_the_provider_and_defaults():
@@ -90,7 +90,7 @@ def test_the_longest_model_name_and_a_unicode_one_boot():
 def test_every_registered_provider_name_fits_the_usage_ledger_rule():
     import re
 
-    from webvue_ai_service.contracts import PROVIDER_NAME
-    from webvue_ai_service.provider_registry import REGISTRY
+    from liwan_ai_service.contracts import PROVIDER_NAME
+    from liwan_ai_service.provider_registry import REGISTRY
 
     assert all(re.fullmatch(PROVIDER_NAME, name) for name in REGISTRY)

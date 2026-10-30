@@ -6,7 +6,7 @@ const READ = {
   input_map: { query: { filter: 'mine' } }, result_summary: ['items[].id'], draft_target: null,
 }
 
-describe('WebVue AI contracts', () => {
+describe('LiwanOS AI contracts', () => {
   it('parses the tools response with limits', () => {
     const parsed = AiToolsResponseSchema.parse({ items: [READ], total: 1, limits: { tool_calls_per_run: 8, messages_monthly: null, messages_used: 2 } })
     expect(parsed.items[0]!.route?.method).toBe('GET')
@@ -78,7 +78,7 @@ describe('WebVue AI contracts', () => {
   })
 })
 
-describe('WebVue AI usage contracts', () => {
+describe('LiwanOS AI usage contracts', () => {
   const call = { call_id: 'ab12cd34ef56ab78', kind: 'plan', provider: 'openrouter', model: 'anthropic/claude-sonnet-4.5', called_at: '2026-10-27T10:00:00Z' }
   const usage = { call_id: 'ab12cd34ef56ab78', outcome: 'ok', input_tokens: 120, output_tokens: 7 }
   const record = { conversation_id: 'r_1', kind: 'plan', provider: 'openrouter', model: 'm', outcome: 'ok', input_tokens: 1, output_tokens: 2, called_at: '2026-10-27T10:00:00+03:00' }

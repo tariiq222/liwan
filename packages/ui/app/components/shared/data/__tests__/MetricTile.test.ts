@@ -76,7 +76,7 @@ describe('SharedMetricTile', () => {
     const link = await render({ to: '/tasks?state=overdue' })
     expect(link).toContain('to="/tasks?state=overdue"')
     expect(link).toContain('aria-label="Overdue: 18"')
-    expect(link).toContain('hover:bg-(--webvue-row-hover)')
+    expect(link).toContain('hover:bg-(--liwan-row-hover)')
     const plain = await render({})
     expect(plain).not.toContain('<a')
     expect(plain).not.toContain('metric-link')

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxRule } from '@webvue/contracts'
+import type { InboxRule } from '@liwan/contracts'
 import InboxAutoContentEditor from '@/components/inbox/InboxAutoContentEditor.vue'
 import InboxFlowPicker from '@/components/inbox/InboxFlowPicker.vue'
 import { RULE_HOURS, RULE_MATCH_KINDS, TEXT_MATCH_KINDS, emptyRuleDraft, ruleToDraft, ruleWrite, ruleWriteCandidate } from '@/composables/inbox/inboxAutomation'

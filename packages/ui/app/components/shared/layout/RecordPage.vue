@@ -47,9 +47,9 @@ const heading = computed(() => (ready.value ? props.title.trim() || t('states.un
     <div v-if="ready && $slots.tabs" data-slot="record-tabs"><slot name="tabs" /></div>
     <PageState v-if="props.error" :error="props.error" @retry="$emit('retry')" />
     <LoadingSkeleton v-if="props.loading && !preserve" variant="record" />
-    <div v-else-if="!props.error || preserve" data-slot="record-body" class="grid gap-(--webvue-gap-card)" :class="{ 'lg:grid-cols-[minmax(0,1fr)_20rem]': $slots.aside }">
-      <div data-slot="record-main" class="grid min-w-0 content-start gap-(--webvue-gap-card)"><slot /></div>
-      <aside v-if="$slots.aside" data-slot="record-aside" class="grid min-w-0 gap-(--webvue-gap-card) lg:sticky lg:top-4 lg:self-start" :aria-label="t('states.properties')">
+    <div v-else-if="!props.error || preserve" data-slot="record-body" class="grid gap-(--liwan-gap-card)" :class="{ 'lg:grid-cols-[minmax(0,1fr)_20rem]': $slots.aside }">
+      <div data-slot="record-main" class="grid min-w-0 content-start gap-(--liwan-gap-card)"><slot /></div>
+      <aside v-if="$slots.aside" data-slot="record-aside" class="grid min-w-0 gap-(--liwan-gap-card) lg:sticky lg:top-4 lg:self-start" :aria-label="t('states.properties')">
         <slot name="aside" />
       </aside>
     </div>

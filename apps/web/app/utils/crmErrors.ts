@@ -1,4 +1,4 @@
-import { CrmOpportunityWriteReasonSchema } from '@webvue/contracts'
+import { CrmOpportunityWriteReasonSchema } from '@liwan/contracts'
 
 import { saveErrorMessage } from './formFeedback'
 

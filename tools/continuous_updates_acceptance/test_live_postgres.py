@@ -8,13 +8,13 @@ from .postgres_scratch import run_scratch, scratch_names
 
 class ScratchNamingTests(unittest.TestCase):
     def test_default_scope_is_the_exact_authorized_resource_set(self):
-        self.assertEqual(scratch_names(), ('webvue_scratch_updates_roles_1016',
-            'webvue_scratch_updates_restore_roles_1016', 'webvue_updates_owner_1016',
-            'webvue_updates_blue_1016', 'webvue_updates_green_1016'))
+        self.assertEqual(scratch_names(), ('liwan_scratch_updates_roles_1016',
+            'liwan_scratch_updates_restore_roles_1016', 'liwan_updates_owner_1016',
+            'liwan_updates_blue_1016', 'liwan_updates_green_1016'))
         with self.assertRaises(ValueError): scratch_names('../unsafe')
 
 
-@unittest.skipUnless(os.environ.get('WEBVUE_RUN_PG_SCRATCH') == '1', 'explicit scratch opt-in required')
+@unittest.skipUnless(os.environ.get('LIWAN_RUN_PG_SCRATCH') == '1', 'explicit scratch opt-in required')
 class LivePostgresAcceptance(unittest.TestCase):
     def test_live_role_fencing_dump_restore_and_attachment(self):
         root = Path(__file__).resolve().parents[2] / '.superpowers' / 'pg-scratch'

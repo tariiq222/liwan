@@ -34,7 +34,7 @@ from arch_policy import (
     unregistered_addons,
 )
 
-RANKS = {'webvue_core': 0, 'webvue_platform': 1, 'webvue_api': 2, 'webvue_pmo': 4, 'webvue_hr': 4, 'webvue_meetings_pmo': 5}
+RANKS = {'liwan_core': 0, 'liwan_platform': 1, 'liwan_api': 2, 'liwan_pmo': 4, 'liwan_hr': 4, 'liwan_meetings_pmo': 5}
 WEB_APPS = {
     'pmo': {'components': ['project', 'task'], 'pages': ['projects', 'tasks']},
     'meetings': {'components': ['meetings'], 'pages': ['meetings']},
@@ -53,30 +53,30 @@ class TestPureRules(unittest.TestCase):
         self.assertEqual(core_depends_violations(['base']), {})
         self.assertEqual(
             core_depends_violations(['base', 'project', 'hr']),
-            {'webvue_core depends on project': 1, 'webvue_core depends on hr': 1},
+            {'liwan_core depends on project': 1, 'liwan_core depends on hr': 1},
         )
 
     def test_dependencies_must_point_strictly_down(self):
-        self.assertEqual(layer_violations('webvue_pmo', ['webvue_api', 'project', 'webvue_pmo'], RANKS, 'depends on'), {})
+        self.assertEqual(layer_violations('liwan_pmo', ['liwan_api', 'project', 'liwan_pmo'], RANKS, 'depends on'), {})
         self.assertEqual(
-            layer_violations('webvue_pmo', ['webvue_hr'], RANKS, 'imports'),
-            {'webvue_pmo imports webvue_hr': 1},
+            layer_violations('liwan_pmo', ['liwan_hr'], RANKS, 'imports'),
+            {'liwan_pmo imports liwan_hr': 1},
         )
         self.assertEqual(
-            layer_violations('webvue_core', ['webvue_platform', 'webvue_platform'], RANKS, 'imports'),
-            {'webvue_core imports webvue_platform': 2},
+            layer_violations('liwan_core', ['liwan_platform', 'liwan_platform'], RANKS, 'imports'),
+            {'liwan_core imports liwan_platform': 2},
         )
-        self.assertEqual(layer_violations('webvue_meetings_pmo', ['webvue_pmo', 'webvue_api'], RANKS, 'depends on'), {})
+        self.assertEqual(layer_violations('liwan_meetings_pmo', ['liwan_pmo', 'liwan_api'], RANKS, 'depends on'), {})
 
     def test_unregistered_addons_are_listed(self):
         self.assertEqual(
-            unregistered_addons(['webvue_core', 'webvue_sales', 'web_theme_shadcn'], RANKS, ['web_theme_shadcn']),
-            ['webvue_sales'],
+            unregistered_addons(['liwan_core', 'liwan_sales', 'web_theme_shadcn'], RANKS, ['web_theme_shadcn']),
+            ['liwan_sales'],
         )
 
-    def test_sql_counts_only_non_webvue_tables(self):
+    def test_sql_counts_only_non_liwan_tables(self):
         text = (
-            "cr.execute('SELECT 1 FROM hr_employee e JOIN webvue_access_role r ON 1=1; UPDATE res_users SET x=1')\n"
+            "cr.execute('SELECT 1 FROM hr_employee e JOIN liwan_access_role r ON 1=1; UPDATE res_users SET x=1')\n"
         )
         self.assertEqual(sql_on_odoo_tables(text), 2)
 
@@ -86,22 +86,22 @@ class TestPureRules(unittest.TestCase):
         self.assertEqual(sql_on_odoo_tables("cr.execute(f'SELECT 1 FROM res_partner WHERE id = {x}')"), 1)
         self.assertEqual(sql_on_odoo_tables("q = SQL('delete from project_task WHERE id = %s', 1)"), 1)
         self.assertEqual(sql_on_odoo_tables("q = odoo.tools.SQL('INSERT INTO mail_message (a) VALUES (1)')"), 1)
-        self.assertEqual(sql_on_odoo_tables("cr.execute('SELECT 1 FROM webvue_access_role')"), 0)
+        self.assertEqual(sql_on_odoo_tables("cr.execute('SELECT 1 FROM liwan_access_role')"), 0)
 
     def test_for_update_of_is_not_a_table(self):
         self.assertEqual(sql_on_odoo_tables("cr.execute('SELECT 1 FROM res_users u FOR UPDATE OF u')"), 1)
 
     def test_sql_keywords_are_not_tables(self):
         for sql in (
-            "INSERT INTO webvue_x (a) VALUES (1) ON CONFLICT (a) DO UPDATE SET a = 1",
-            "SELECT 1 FROM webvue_x a JOIN LATERAL (SELECT 1) l ON TRUE",
-            "SELECT EXTRACT(EPOCH FROM created_at) FROM webvue_x",
-            "SELECT 1 FROM webvue_x WHERE a IS DISTINCT FROM b",
-            "SELECT 1 FROM webvue_x WHERE a IS NOT DISTINCT FROM b",
-            "SELECT SUBSTRING(x FROM 2) FROM webvue_x",
-            "SELECT TRIM(BOTH ' ' FROM x) FROM webvue_x",
-            "SELECT 1 FROM webvue_x FOR UPDATE OF u",
-            "SELECT 1 FROM UNNEST(ids) i JOIN GENERATE_SERIES(1, 2) g ON TRUE JOIN webvue_x ON TRUE",
+            "INSERT INTO liwan_x (a) VALUES (1) ON CONFLICT (a) DO UPDATE SET a = 1",
+            "SELECT 1 FROM liwan_x a JOIN LATERAL (SELECT 1) l ON TRUE",
+            "SELECT EXTRACT(EPOCH FROM created_at) FROM liwan_x",
+            "SELECT 1 FROM liwan_x WHERE a IS DISTINCT FROM b",
+            "SELECT 1 FROM liwan_x WHERE a IS NOT DISTINCT FROM b",
+            "SELECT SUBSTRING(x FROM 2) FROM liwan_x",
+            "SELECT TRIM(BOTH ' ' FROM x) FROM liwan_x",
+            "SELECT 1 FROM liwan_x FOR UPDATE OF u",
+            "SELECT 1 FROM UNNEST(ids) i JOIN GENERATE_SERIES(1, 2) g ON TRUE JOIN liwan_x ON TRUE",
         ):
             with self.subTest(sql=sql):
                 self.assertEqual(sql_on_odoo_tables(f"cr.execute({sql!r})"), 0)
@@ -125,7 +125,7 @@ class TestPureRules(unittest.TestCase):
 
     def test_augmented_assignment_adds_its_table(self):
         text = (
-            "def f(self):\n    query = 'SELECT 1 FROM webvue_x'\n    query += ' JOIN res_users u ON 1=1'\n"
+            "def f(self):\n    query = 'SELECT 1 FROM liwan_x'\n    query += ' JOIN res_users u ON 1=1'\n"
             "    self.env.cr.execute(query)\n"
         )
         self.assertEqual(sql_on_odoo_tables(text), 1)
@@ -133,7 +133,7 @@ class TestPureRules(unittest.TestCase):
     def test_same_named_variable_in_another_function_is_not_counted(self):
         text = (
             "def a(self):\n    query = 'SELECT 1 FROM res_users'\n    return query\n"
-            "def b(self):\n    query = 'SELECT 1 FROM webvue_x'\n    self.env.cr.execute(query)\n"
+            "def b(self):\n    query = 'SELECT 1 FROM liwan_x'\n    self.env.cr.execute(query)\n"
         )
         self.assertEqual(sql_on_odoo_tables(text), 0)
 
@@ -160,8 +160,8 @@ class TestPureRules(unittest.TestCase):
     def test_access_overrides_count_only_on_odoo_models(self):
         override = '    def _search(self, domain):\n        pass\n    def check_access(self, operation):\n        pass\n'
         self.assertEqual(odoo_access_overrides("    _inherit = 'hr.employee'\n" + override), 2)
-        self.assertEqual(odoo_access_overrides("    _inherit = 'webvue.access.role'\n" + override), 0)
-        self.assertEqual(odoo_access_overrides("    _name = 'webvue.thing'\n" + override), 0)
+        self.assertEqual(odoo_access_overrides("    _inherit = 'liwan.access.role'\n" + override), 0)
+        self.assertEqual(odoo_access_overrides("    _name = 'liwan.thing'\n" + override), 0)
 
     def test_sudo_counts_calls_not_comments_or_strings(self):
         text = "# x.sudo() in a comment\nA = 'y.sudo()'\nb = env['res.users'].sudo().browse(1).sudo()\n"
@@ -224,10 +224,10 @@ class TestPureRules(unittest.TestCase):
         self.assertEqual(foreign_component_uses(text, 'pmo', WEB_APPS, rel), 0)
 
     def test_test_paths_are_recognised(self):
-        self.assertTrue(is_test_path(Path('odoo-addons/webvue_pmo/tests/test_tasks.py')))
+        self.assertTrue(is_test_path(Path('odoo-addons/liwan_pmo/tests/test_tasks.py')))
         self.assertTrue(is_test_path(Path('apps/web/app/utils/__tests__/a.ts')))
         self.assertTrue(is_test_path(Path('apps/web/app/utils/a.test.ts')))
-        self.assertFalse(is_test_path(Path('odoo-addons/webvue_pmo/models/project_task.py')))
+        self.assertFalse(is_test_path(Path('odoo-addons/liwan_pmo/models/project_task.py')))
 
     def test_every_app_folder_is_caught_in_every_tag_form(self):
         for directory, name in (('project', 'Project'), ('task', 'Task'), ('meetings', 'Meetings'),
@@ -303,36 +303,36 @@ class TestPureRules(unittest.TestCase):
 
 class TestAppToken(unittest.TestCase):
     RANKS = {
-        'webvue_core': 0, 'webvue_platform': 1, 'webvue_api': 2, 'webvue_notify': 3,
-        'webvue_pmo': 4, 'webvue_sales': 4, 'webvue_meetings_pmo': 5, 'customer_acme_sales': 6,
+        'liwan_core': 0, 'liwan_platform': 1, 'liwan_api': 2, 'liwan_notify': 3,
+        'liwan_pmo': 4, 'liwan_sales': 4, 'liwan_meetings_pmo': 5, 'customer_acme_sales': 6,
     }
 
     def test_a_registered_application_contributes_its_key_prefix_and_its_xml_ids(self):
         token = app_token(self.RANKS)
         self.assertEqual(count(token, "k = 'sales.orders.read'"), 1)
-        self.assertEqual(count(token, "g = env.ref('webvue_sales.group_x')"), 1)
-        self.assertEqual(count(token, "from odoo.addons.webvue_sales.models import x"), 1)
+        self.assertEqual(count(token, "g = env.ref('liwan_sales.group_x')"), 1)
+        self.assertEqual(count(token, "from odoo.addons.liwan_sales.models import x"), 1)
 
     def test_a_bridge_token_counts_once(self):
         token = app_token(self.RANKS)
-        self.assertEqual(count(token, "r = 'webvue_meetings_pmo.rule_x'"), 1)
+        self.assertEqual(count(token, "r = 'liwan_meetings_pmo.rule_x'"), 1)
         self.assertEqual(count(token, "k = 'meetings_pmo.thing'"), 1)
 
     def test_odoo_models_stay_tokens(self):
-        token = app_token({'webvue_core': 0})
+        token = app_token({'liwan_core': 0})
         self.assertEqual(count(token, "m = 'project.task'; e = 'hr.employee'"), 1)
         self.assertEqual(count(token, "a = 'pmo.tasks.read'; b = 'meetings.read'; d = 'chat.title'"), 0)
 
     def test_shipped_application_prefixes_come_from_the_registered_ranks(self):
-        shipped = {'webvue_core': 0, 'webvue_hr': 4, 'webvue_pmo': 4, 'webvue_meetings': 4, 'webvue_chat': 4}
+        shipped = {'liwan_core': 0, 'liwan_hr': 4, 'liwan_pmo': 4, 'liwan_meetings': 4, 'liwan_chat': 4}
         token = app_token(shipped)
         self.assertEqual(count(token, "m = 'project.task'; e = 'hr.employee'"), 2)
         self.assertEqual(count(token, "a = 'pmo.tasks.read'; b = 'meetings.read'; d = 'chat.title'"), 3)
 
     def test_unregistered_names_shared_services_and_overlays_are_not_tokens(self):
         token = app_token(self.RANKS)
-        self.assertEqual(count(token, "a = 'crm.leads.read'; b = 'webvue_crm.group_x'"), 0)
-        self.assertEqual(count(token, "a = 'notify.kind'; b = 'webvue_notify.x'; c = 'api.v1'"), 0)
+        self.assertEqual(count(token, "a = 'crm.leads.read'; b = 'liwan_crm.group_x'"), 0)
+        self.assertEqual(count(token, "a = 'notify.kind'; b = 'liwan_notify.x'; c = 'api.v1'"), 0)
         self.assertEqual(count(token, "a = 'customer_acme_sales.x'; b = 'acme_sales.y'"), 0)
         self.assertEqual(count(token, "a = 'presales.x'"), 0)
 
@@ -362,7 +362,7 @@ class TestCollect(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
-        self.layers = {'ranks': {'webvue_core': 0, 'webvue_pmo': 4}, 'exempt': ['web_theme_shadcn'], 'web_apps': WEB_APPS,
+        self.layers = {'ranks': {'liwan_core': 0, 'liwan_pmo': 4}, 'exempt': ['web_theme_shadcn'], 'web_apps': WEB_APPS,
                        'commercial': COMMERCIAL}
 
     def write(self, relative, text):
@@ -374,11 +374,11 @@ class TestCollect(unittest.TestCase):
         self.write(f'odoo-addons/{name}/__manifest__.py', HEADER + repr({'name': name, 'depends': depends}) + extra)
 
     def clean_tree(self):
-        self.addon('webvue_core', ['base'])
-        self.addon('webvue_pmo', ['webvue_core', 'project'])
+        self.addon('liwan_core', ['base'])
+        self.addon('liwan_pmo', ['liwan_core', 'project'])
         self.write(
-            'odoo-addons/webvue_pmo/models/feature_registry.py',
-            HEADER + "X = {'key': 'pmo.enabled', 'owner': 'webvue_pmo'}\n",
+            'odoo-addons/liwan_pmo/models/feature_registry.py',
+            HEADER + "X = {'key': 'pmo.enabled', 'owner': 'liwan_pmo'}\n",
         )
 
     def test_shell_and_layout_name_no_application(self):
@@ -458,7 +458,7 @@ class TestCollect(unittest.TestCase):
         self.clean_tree()
         self.write('packages/commercial-ui/app/components/Bad.vue', "<script setup>import x from 'apps/vendor-admin/app/x'</script>\n")
         self.write('packages/commercial-ui/app/composables/useBad.ts', "import { y } from '@/composables/y'\n")
-        self.write('packages/commercial-ui/app/composables/useGood.ts', "import { z } from '@webvue/commercial-contracts'\n")
+        self.write('packages/commercial-ui/app/composables/useGood.ts', "import { z } from '@liwan/commercial-contracts'\n")
         self.write('packages/commercial-ui/app/components/__tests__/Bad.test.ts', "import x from 'apps/web/app/x'\n")
         self.write('packages/commercial-ui/node_modules/dep/index.ts', "import x from 'apps/web/x'\n")
         _, hard = collect(self.root, self.layers)
@@ -482,13 +482,13 @@ class TestCollect(unittest.TestCase):
         self.assertEqual(hard, [])
 
     def test_ui_layer_patterns(self):
-        for bad in ("import a from 'odoo-addons/x'", "import '@webvue/contracts'", "from '~/x'", "require('../../apps/web/x')",
+        for bad in ("import a from 'odoo-addons/x'", "import '@liwan/contracts'", "from '~/x'", "require('../../apps/web/x')",
                     "import c from '../../../control-plane/x'",
                     "import d from '~~/x'", "export * from '@@/x'", "const m = import('@/x')", "import.meta.glob('../../apps/web/*.ts')",
                     "import.meta.glob(['/apps/web/a.ts'])", "@source '../../apps/web/app';", "background: url(../../apps/web/a.png);",
                     "@import url('~/x.css');"):
             self.assertEqual(ui_layer_violations(bad), 1, bad)
-        for good in ("import a from 'vue'", "import b from '@webvue/ui/app/x'", "import c from './apps-list'",
+        for good in ("import a from 'vue'", "import b from '@liwan/ui/app/x'", "import c from './apps-list'",
                     "// moved from apps/web/app/x", "/* imported from @/composables by the app */", "see apps/web/app/x for import details",
                     "background: url(./a.png);", "@source '../app';"):
             self.assertEqual(ui_layer_violations(good), 0, good)
@@ -496,13 +496,13 @@ class TestCollect(unittest.TestCase):
     def test_vendor_admin_boundary_is_a_hard_failure(self):
         self.clean_tree()
         self.write('apps/vendor-admin/app/pages/a.vue', "<script setup>import x from '../../../web/app/x'\nimport y from 'apps/web/app/y'</script>\n")
-        self.write('apps/vendor-admin/server/api/b.ts', "import c from '@webvue/contracts'\n")
+        self.write('apps/vendor-admin/server/api/b.ts', "import c from '@liwan/contracts'\n")
         self.write('apps/vendor-admin/server/api/c.ts', "const r = await $fetch('/api/v1/people')\n")
         self.write('apps/vendor-admin/app/pages/d.vue', "<script setup>import q from '../../../../packages/x'</script>\n")
         self.write('apps/vendor-admin/server/utils/e.js', "const m = await import(`~~/../web/x`)\n")
         self.write('apps/vendor-admin/nuxt.config.ts', "export default { extends: ['../../packages/ui'], alias: { w: '../web/app' } }\n")
         self.write('apps/vendor-admin/app/assets/css/f.css', "@source '../../../../web/app';\n")
-        self.write('apps/vendor-admin/app/good.ts', "import { ref } from 'vue'\nimport z from '@webvue/commercial-contracts'\nimport c from '~/components/control-plane-status'\nfetch('/api/vendor/v1/context')\n")
+        self.write('apps/vendor-admin/app/good.ts', "import { ref } from 'vue'\nimport z from '@liwan/commercial-contracts'\nimport c from '~/components/control-plane-status'\nfetch('/api/vendor/v1/context')\n")
         self.write('apps/vendor-admin/app/good.test.ts', "import x from 'apps/web/x'\nfetch('/api/v1/x')\n")
         self.write('apps/vendor-admin/tests/t.ts', "import x from 'apps/web/x'\n")
         self.write('apps/vendor-admin/e2e/t.ts', "fetch('/web/session')\n")
@@ -540,8 +540,8 @@ class TestCollect(unittest.TestCase):
         css = app / 'app' / 'assets' / 'a.css'
         config = app / 'nuxt.config.ts'
         bad_cases = (
-            (page, "import a from 'apps/web/x'"), (page, "import a from `apps/web/x`"), (page, "import '@webvue/contracts'"),
-            (page, "import a from '@webvue/contracts/app/x'"), (page, "import a from 'odoo-addons/x'"),
+            (page, "import a from 'apps/web/x'"), (page, "import a from `apps/web/x`"), (page, "import '@liwan/contracts'"),
+            (page, "import a from '@liwan/contracts/app/x'"), (page, "import a from 'odoo-addons/x'"),
             (page, "import c from '../../../control-plane/x'"), (page, "require('../../../apps/control-plane/x')"),
             (page, "import.meta.glob('../../../web/*.ts')"), (page, "import a from '../../../web/app/x'"),
             (page, "import a from '~~/../web/x'"), (page, "import a from '@@/../web/x'"), (page, "import a from '~/../../web/x'"),
@@ -554,18 +554,18 @@ class TestCollect(unittest.TestCase):
         for file, bad in bad_cases:
             self.assertGreaterEqual(vendor_admin_violations(bad, file, app), 1, bad)
         good_cases = (
-            (page, "import a from 'vue'"), (page, "import b from '@webvue/ui/app/x'"), (page, "import c from '@webvue/commercial-ui/app/x'"),
-            (page, "import d from '@webvue/commercial-contracts/server'"), (page, "import e from './web'"), (page, "import f from '~/composables/x'"),
+            (page, "import a from 'vue'"), (page, "import b from '@liwan/ui/app/x'"), (page, "import c from '@liwan/commercial-ui/app/x'"),
+            (page, "import d from '@liwan/commercial-contracts/server'"), (page, "import e from './web'"), (page, "import f from '~/composables/x'"),
             (page, "import g from '~/components/control-plane-status'"), (page, "import h from '../../utils/x'"),
             (page, "import i from '~~/server/utils/x'"), (page, "import j from '@/utils/x'"),
             (page, "// moved from apps/web/app/x"), (page, "see /api/v1/people in the old app"), (page, "fetch('/api/vendor/v1/context')"),
             (page, "const p = '/webhooks'"), (page, "const q = '/overview'"), (page, "const r = '/mailbox'"),
-            (css, "@source '../../app';"), (css, "background: url(./a.png);"), (config, "extends: ['@webvue/ui']"),
+            (css, "@source '../../app';"), (css, "background: url(./a.png);"), (config, "extends: ['@liwan/ui']"),
         )
         for file, good in good_cases:
             self.assertEqual(vendor_admin_violations(good, file, app), 0, good)
         web = Path('/r/apps/web/app/a.ts')
-        for bad in ("import a from '../../../vendor-admin/x'", "import a from '@webvue/vendor-admin/x'", "import a from `apps/vendor-admin/x`"):
+        for bad in ("import a from '../../../vendor-admin/x'", "import a from '@liwan/vendor-admin/x'", "import a from `apps/vendor-admin/x`"):
             self.assertEqual(vendor_admin_imported(bad, web), 1, bad)
         for good in ("// see apps/vendor-admin/README", "import a from './vendor-admin-list'", "import a from '~/not-vendor-admin/x'"):
             self.assertEqual(vendor_admin_imported(good, web), 0, good)
@@ -577,34 +577,34 @@ class TestCollect(unittest.TestCase):
         self.assertEqual({rule: found for rule, found in violations.items() if found}, {})
 
     def test_each_rule_fires_on_its_violation(self):
-        self.addon('webvue_core', ['base', 'project'])
-        self.addon('webvue_pmo', ['webvue_core', 'project'])
+        self.addon('liwan_core', ['base', 'project'])
+        self.addon('liwan_pmo', ['liwan_core', 'project'])
         self.write(
-            'odoo-addons/webvue_core/models/access.py',
-            HEADER + "from odoo.addons.webvue_pmo.models import x\nKEY = 'pmo.tasks.read'\nrows = env['res.users'].sudo()\n",
+            'odoo-addons/liwan_core/models/access.py',
+            HEADER + "from odoo.addons.liwan_pmo.models import x\nKEY = 'pmo.tasks.read'\nrows = env['res.users'].sudo()\n",
         )
         self.write(
-            'odoo-addons/webvue_pmo/models/project_task.py',
+            'odoo-addons/liwan_pmo/models/project_task.py',
             HEADER + "class T:\n    _inherit = 'project.task'\n    def _search(self, d):\n"
             "        self.env.cr.execute('SELECT id FROM project_task')\n        is_gov = True\n",
         )
-        self.write('odoo-addons/webvue_pmo/tests/test_x.py', HEADER + "x = env['a'].sudo().sudo()\n")
+        self.write('odoo-addons/liwan_pmo/tests/test_x.py', HEADER + "x = env['a'].sudo().sudo()\n")
         self.write('apps/web/app/components/hr/Card.vue', '<template><TaskRow /></template>\n')
         self.write('apps/web/app/utils/cp.ts', "import { x } from '../../../control-plane/src/x'\n// control-plane note\n")
-        self.write('apps/web/app/pages/hr/index.vue', "<script setup>import type { Q } from '@webvue/commercial-contracts'</script>\n")
-        self.write('apps/web/app/pages/subscription/index.vue', "<script setup>import type { Q } from '@webvue/commercial-contracts'</script>\n")
+        self.write('apps/web/app/pages/hr/index.vue', "<script setup>import type { Q } from '@liwan/commercial-contracts'</script>\n")
+        self.write('apps/web/app/pages/subscription/index.vue', "<script setup>import type { Q } from '@liwan/commercial-contracts'</script>\n")
         self.write('apps/web/app/pages/subscription/ok.vue', "definePageMeta({ middleware: 'customer-commercial' })\n")
         self.write(
-            'odoo-addons/webvue_pmo/controllers/tasks.py',
+            'odoo-addons/liwan_pmo/controllers/tasks.py',
             HEADER + "class C:\n    @http.route('/api/v1/tasks')\n    def tasks(self):\n        pass\n",
         )
         violations, hard = collect(self.root, self.layers)
         self.assertEqual(hard, [])
-        self.assertEqual(violations['R1'], {'webvue_core depends on project': 1})
-        self.assertEqual(violations['R2'], {'odoo-addons/webvue_core/models/access.py': 2})
+        self.assertEqual(violations['R1'], {'liwan_core depends on project': 1})
+        self.assertEqual(violations['R2'], {'odoo-addons/liwan_core/models/access.py': 2})
         self.assertEqual(
             violations['R3'],
-            {'webvue_core imports webvue_pmo': 1, 'web apps/web/app/components/hr/Card.vue': 1},
+            {'liwan_core imports liwan_pmo': 1, 'web apps/web/app/components/hr/Card.vue': 1},
         )
         self.assertEqual(
             violations['R5'],
@@ -617,20 +617,20 @@ class TestCollect(unittest.TestCase):
             violations['R8'],
             {'apps/web/app/pages/subscription/index.vue lacks customer-commercial middleware': 1},
         )
-        self.assertEqual(violations['R6'], {'odoo-addons/webvue_pmo/models/project_task.py': 1})
-        self.assertEqual(violations['R7'], {'odoo-addons/webvue_core/models/access.py': 1})
+        self.assertEqual(violations['R6'], {'odoo-addons/liwan_pmo/models/project_task.py': 1})
+        self.assertEqual(violations['R7'], {'odoo-addons/liwan_core/models/access.py': 1})
         self.assertEqual(
             violations['R9'],
             {
-                'sql odoo-addons/webvue_pmo/models/project_task.py': 1,
-                'override odoo-addons/webvue_pmo/models/project_task.py': 1,
+                'sql odoo-addons/liwan_pmo/models/project_task.py': 1,
+                'override odoo-addons/liwan_pmo/models/project_task.py': 1,
             },
         )
         self.assertEqual(
             violations['R10'],
             {
-                'webvue_pmo registers no <app>.enabled feature it owns': 1,
-                'odoo-addons/webvue_pmo/controllers/tasks.py:tasks has no requires_feature': 1,
+                'liwan_pmo registers no <app>.enabled feature it owns': 1,
+                'odoo-addons/liwan_pmo/controllers/tasks.py:tasks has no requires_feature': 1,
             },
         )
 
@@ -689,72 +689,72 @@ class TestCollect(unittest.TestCase):
 
     def test_application_xml_ids_count_as_r2(self):
         self.clean_tree()
-        self.write('odoo-addons/webvue_core/models/x.py', HEADER + "g = self.env.ref('webvue_pmo.group_x')\n")
+        self.write('odoo-addons/liwan_core/models/x.py', HEADER + "g = self.env.ref('liwan_pmo.group_x')\n")
         violations, _ = collect(self.root, self.layers)
-        self.assertEqual(violations['R2'], {'odoo-addons/webvue_core/models/x.py': 1})
+        self.assertEqual(violations['R2'], {'odoo-addons/liwan_core/models/x.py': 1})
 
     def test_a_registered_application_prefix_counts_as_r2(self):
         self.clean_tree()
-        self.layers['ranks']['webvue_sales'] = 4
-        self.addon('webvue_sales', ['webvue_core'])
+        self.layers['ranks']['liwan_sales'] = 4
+        self.addon('liwan_sales', ['liwan_core'])
         self.write(
-            'odoo-addons/webvue_sales/models/feature_registry.py',
-            HEADER + "X = {'key': 'sales.enabled', 'owner': 'webvue_sales'}\n",
+            'odoo-addons/liwan_sales/models/feature_registry.py',
+            HEADER + "X = {'key': 'sales.enabled', 'owner': 'liwan_sales'}\n",
         )
         self.write(
-            'odoo-addons/webvue_core/models/x.py',
-            HEADER + "KEY = 'sales.orders.read'\ng = 'webvue_sales.group_x'\n",
+            'odoo-addons/liwan_core/models/x.py',
+            HEADER + "KEY = 'sales.orders.read'\ng = 'liwan_sales.group_x'\n",
         )
         violations, hard = collect(self.root, self.layers)
         self.assertEqual(hard, [])
-        self.assertEqual(violations['R2'], {'odoo-addons/webvue_core/models/x.py': 2})
+        self.assertEqual(violations['R2'], {'odoo-addons/liwan_core/models/x.py': 2})
 
     def test_bridge_routes_need_requires_feature(self):
         self.clean_tree()
-        self.layers['ranks']['webvue_meetings_pmo'] = 5
-        self.addon('webvue_meetings_pmo', ['webvue_pmo'], extra='')
-        self.write('odoo-addons/webvue_meetings_pmo/__manifest__.py', HEADER + repr(
-            {'name': 'm', 'depends': ['webvue_pmo'], 'auto_install': True}))
+        self.layers['ranks']['liwan_meetings_pmo'] = 5
+        self.addon('liwan_meetings_pmo', ['liwan_pmo'], extra='')
+        self.write('odoo-addons/liwan_meetings_pmo/__manifest__.py', HEADER + repr(
+            {'name': 'm', 'depends': ['liwan_pmo'], 'auto_install': True}))
         self.write(
-            'odoo-addons/webvue_meetings_pmo/controllers/m.py',
+            'odoo-addons/liwan_meetings_pmo/controllers/m.py',
             HEADER + "class C:\n    @http.route('/api/v1/m')\n    def m(self):\n        pass\n",
         )
         violations, _ = collect(self.root, self.layers)
         self.assertEqual(
-            violations['R10'], {'odoo-addons/webvue_meetings_pmo/controllers/m.py:m has no requires_feature': 1},
+            violations['R10'], {'odoo-addons/liwan_meetings_pmo/controllers/m.py:m has no requires_feature': 1},
         )
 
     def test_upward_manifest_dependency_is_r4(self):
         self.clean_tree()
-        self.addon('webvue_core', ['base', 'webvue_pmo'])
+        self.addon('liwan_core', ['base', 'liwan_pmo'])
         violations, _ = collect(self.root, self.layers)
-        self.assertEqual(violations['R4'], {'webvue_core depends on webvue_pmo': 1})
+        self.assertEqual(violations['R4'], {'liwan_core depends on liwan_pmo': 1})
 
     def test_unregistered_and_missing_addons_are_hard_failures(self):
         self.clean_tree()
-        self.addon('webvue_sales', ['webvue_core'])
+        self.addon('liwan_sales', ['liwan_core'])
         self.addon('web_theme_shadcn', ['web'])
-        self.layers['ranks']['webvue_gone'] = 4
+        self.layers['ranks']['liwan_gone'] = 4
         _, hard = collect(self.root, self.layers)
         self.assertEqual(
             hard,
             [
-                'unregistered addon webvue_sales: add it to tools/arch_layers.json',
-                'arch_layers.json lists missing addon webvue_gone',
+                'unregistered addon liwan_sales: add it to tools/arch_layers.json',
+                'arch_layers.json lists missing addon liwan_gone',
             ],
         )
 
     def test_bridge_must_auto_install(self):
         self.clean_tree()
-        self.layers['ranks']['webvue_meetings_pmo'] = 5
-        self.addon('webvue_meetings_pmo', ['webvue_pmo'])
+        self.layers['ranks']['liwan_meetings_pmo'] = 5
+        self.addon('liwan_meetings_pmo', ['liwan_pmo'])
         _, hard = collect(self.root, self.layers)
-        self.assertEqual(hard, ['bridge addon webvue_meetings_pmo must set auto_install'])
+        self.assertEqual(hard, ['bridge addon liwan_meetings_pmo must set auto_install'])
 
     def test_migrations_may_use_sql(self):
         self.clean_tree()
         self.write(
-            'odoo-addons/webvue_pmo/migrations/19.0.1.1.0/pre-x.py',
+            'odoo-addons/liwan_pmo/migrations/19.0.1.1.0/pre-x.py',
             HEADER + "def migrate(cr, version):\n    cr.execute('UPDATE project_task SET x = 1')\n",
         )
         violations, _ = collect(self.root, self.layers)
@@ -769,21 +769,21 @@ class TestCollect(unittest.TestCase):
         # Root path contains 'tests'; violations in non-test files must still be counted.
         self.root = Path(self.tmp.name) / 'tests' / 'repo'
         self.root.mkdir(parents=True)
-        self.layers = {'ranks': {'webvue_core': 0, 'webvue_pmo': 4}, 'exempt': ['web_theme_shadcn'], 'web_apps': WEB_APPS,
+        self.layers = {'ranks': {'liwan_core': 0, 'liwan_pmo': 4}, 'exempt': ['web_theme_shadcn'], 'web_apps': WEB_APPS,
                        'commercial': COMMERCIAL}
-        self.addon('webvue_core', ['base'])
-        self.addon('webvue_pmo', ['webvue_core', 'project'])
+        self.addon('liwan_core', ['base'])
+        self.addon('liwan_pmo', ['liwan_core', 'project'])
         self.write(
-            'odoo-addons/webvue_pmo/models/feature_registry.py',
-            HEADER + "X = {'key': 'pmo.enabled', 'owner': 'webvue_pmo'}\n",
+            'odoo-addons/liwan_pmo/models/feature_registry.py',
+            HEADER + "X = {'key': 'pmo.enabled', 'owner': 'liwan_pmo'}\n",
         )
         self.write(
-            'odoo-addons/webvue_pmo/models/project_task.py',
+            'odoo-addons/liwan_pmo/models/project_task.py',
             HEADER + "class T:\n    def do(self):\n        x = env['res.users'].sudo()\n",
         )
         violations, hard = collect(self.root, self.layers)
         self.assertEqual(hard, [])
-        self.assertEqual(violations['R7'], {'odoo-addons/webvue_pmo/models/project_task.py': 1})
+        self.assertEqual(violations['R7'], {'odoo-addons/liwan_pmo/models/project_task.py': 1})
 
 
 class TestMain(unittest.TestCase):
@@ -794,14 +794,14 @@ class TestMain(unittest.TestCase):
         self.layers_file = self.root / 'arch_layers.json'
         self.baseline_file = self.root / 'arch_baseline.json'
         self.layers_file.write_text(
-            json.dumps({'ranks': {'webvue_core': 0}, 'exempt': [], 'web_apps': {}, 'commercial': {'pages': {}, 'allowed': []}}), encoding='utf-8',
+            json.dumps({'ranks': {'liwan_core': 0}, 'exempt': [], 'web_apps': {}, 'commercial': {'pages': {}, 'allowed': []}}), encoding='utf-8',
         )
-        self.manifest = self.root / 'odoo-addons' / 'webvue_core' / '__manifest__.py'
+        self.manifest = self.root / 'odoo-addons' / 'liwan_core' / '__manifest__.py'
         self.manifest.parent.mkdir(parents=True)
         self.depends(['base', 'project'])
 
     def depends(self, names):
-        self.manifest.write_text(HEADER + repr({'name': 'webvue_core', 'depends': names}), encoding='utf-8')
+        self.manifest.write_text(HEADER + repr({'name': 'liwan_core', 'depends': names}), encoding='utf-8')
 
     def run_main(self, *argv):
         return main(list(argv), root=self.root, layers_file=self.layers_file, baseline_file=self.baseline_file)
@@ -811,7 +811,7 @@ class TestMain(unittest.TestCase):
 
     def test_first_write_records_debt_and_then_passes(self):
         self.assertEqual(self.run_main('--write-baseline'), 0)
-        self.assertEqual(json.loads(self.baseline_file.read_text())['R1'], {'webvue_core depends on project': 1})
+        self.assertEqual(json.loads(self.baseline_file.read_text())['R1'], {'liwan_core depends on project': 1})
         self.assertEqual(self.run_main(), 0)
 
     def test_later_write_refuses_an_increase_and_keeps_the_file(self):
@@ -841,7 +841,7 @@ class TestMain(unittest.TestCase):
         self.depends(['base', 'hr'])
         self.assertEqual(self.run_main(), 1)
         self.assertEqual(self.run_main('--write-baseline'), 0)
-        self.assertEqual(json.loads(self.baseline_file.read_text())['R1'], {'webvue_core depends on hr': 1})
+        self.assertEqual(json.loads(self.baseline_file.read_text())['R1'], {'liwan_core depends on hr': 1})
         self.assertEqual(self.run_main(), 0)
 
     def test_total_increase_is_refused_even_when_a_key_is_renamed(self):
@@ -864,10 +864,10 @@ class BaseRefCase(unittest.TestCase):
         self.layers_file.parent.mkdir()
         self.set_layers(exempt=['web_theme_shadcn'])
         for name in ('a', 'b'):
-            manifest = self.root / 'odoo-addons' / f'webvue_{name}' / '__manifest__.py'
+            manifest = self.root / 'odoo-addons' / f'liwan_{name}' / '__manifest__.py'
             manifest.parent.mkdir(parents=True)
-            manifest.write_text(HEADER + repr({'name': name, 'depends': ['webvue_core']}), encoding='utf-8')
-        core = self.root / 'odoo-addons' / 'webvue_core' / '__manifest__.py'
+            manifest.write_text(HEADER + repr({'name': name, 'depends': ['liwan_core']}), encoding='utf-8')
+        core = self.root / 'odoo-addons' / 'liwan_core' / '__manifest__.py'
         core.parent.mkdir(parents=True)
         core.write_text(HEADER + repr({'name': 'core', 'depends': ['base']}), encoding='utf-8')
         self.sudo('a', 2)
@@ -875,7 +875,7 @@ class BaseRefCase(unittest.TestCase):
 
     def set_layers(self, exempt):
         self.layers = {
-            'ranks': {'webvue_core': 0, 'webvue_a': 4, 'webvue_b': 4}, 'exempt': exempt, 'web_apps': {},
+            'ranks': {'liwan_core': 0, 'liwan_a': 4, 'liwan_b': 4}, 'exempt': exempt, 'web_apps': {},
             'commercial': {'pages': {}, 'allowed': []},
         }
         self.write_layers()
@@ -884,7 +884,7 @@ class BaseRefCase(unittest.TestCase):
         self.layers_file.write_text(json.dumps(self.layers), encoding='utf-8')
 
     def sudo(self, name, n):
-        path = self.root / 'odoo-addons' / f'webvue_{name}' / 'models' / 'm.py'
+        path = self.root / 'odoo-addons' / f'liwan_{name}' / 'models' / 'm.py'
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(HEADER + "x = env['a']" + '.sudo()' * n + '\n' if n else HEADER, encoding='utf-8')
 
@@ -946,12 +946,12 @@ class TestBaseRef(BaseRefCase):
 
     def test_exempt_growth_is_caught(self):
         self.adopt()
-        self.set_layers(exempt=['web_theme_shadcn', 'webvue_new'])
+        self.set_layers(exempt=['web_theme_shadcn', 'liwan_new'])
         self.assertEqual(self.run_main('--base', 'main'), 1)
 
     def test_file_move_is_accepted_by_base(self):
         self.adopt()
-        (self.root / 'odoo-addons/webvue_a/models/m.py').rename(self.root / 'odoo-addons/webvue_a/models/n.py')
+        (self.root / 'odoo-addons/liwan_a/models/m.py').rename(self.root / 'odoo-addons/liwan_a/models/n.py')
         self.assertEqual(self.run_main('--write-baseline', '--base', 'main'), 0)
         self.assertEqual(self.run_main('--base', 'main'), 0)
 
@@ -998,14 +998,14 @@ class TestLayersRatchet(BaseRefCase):
     def weaken(self, name):
         layers = self.layers
         if name == 'rank':
-            layers['ranks']['webvue_a'] = 3
-            return 'rank of webvue_a changed 4 -> 3'
+            layers['ranks']['liwan_a'] = 3
+            return 'rank of liwan_a changed 4 -> 3'
         if name == 'addon removed':
-            del layers['ranks']['webvue_b']
-            return 'webvue_b removed from arch_layers.json'
+            del layers['ranks']['liwan_b']
+            return 'liwan_b removed from arch_layers.json'
         if name == 'exempt':
-            layers['exempt'].append('webvue_new')
-            return 'exempt list grew: webvue_new'
+            layers['exempt'].append('liwan_new')
+            return 'exempt list grew: liwan_new'
         if name == 'allowed':
             layers['commercial']['allowed'].append('apps/web/app/pages/hr/')
             return 'commercial allowed list grew: apps/web/app/pages/hr/'
@@ -1046,8 +1046,8 @@ class TestLayersRatchet(BaseRefCase):
 
     def test_strengthening_is_not_reported(self):
         layers = self.layers
-        layers['ranks']['webvue_c'] = 4
-        (self.root / 'odoo-addons/webvue_c').mkdir()
+        layers['ranks']['liwan_c'] = 4
+        (self.root / 'odoo-addons/liwan_c').mkdir()
         layers['web_apps']['hr']['pages'].append('hr-new')
         (self.root / 'apps/web/app/pages/hr-new').mkdir()
         layers['commercial']['pages']['invite'] = 'customer-commercial'
@@ -1056,9 +1056,9 @@ class TestLayersRatchet(BaseRefCase):
         self.assertEqual(self.problems(), [])
 
     def test_removing_an_addon_whose_directory_is_gone_is_not_reported(self):
-        del self.layers['ranks']['webvue_b']
+        del self.layers['ranks']['liwan_b']
         self.write_layers()
-        shutil.rmtree(self.root / 'odoo-addons/webvue_b')
+        shutil.rmtree(self.root / 'odoo-addons/liwan_b')
         self.assertEqual(self.problems(), [])
 
     def test_composables_glob_that_matches_no_file_is_not_reported(self):
@@ -1104,7 +1104,7 @@ class TestLayersRatchet(BaseRefCase):
         self.adopt()
         self.git('branch', '-f', 'main', 'work')
         self.git('checkout', '-q', '-b', 'work2')
-        self.layers['exempt'].append('webvue_new')
+        self.layers['exempt'].append('liwan_new')
         self.commit_layers(TRAILER)
         self.baseline_file.unlink()
         self.sudo('a', 5)
@@ -1112,17 +1112,17 @@ class TestLayersRatchet(BaseRefCase):
         self.assertEqual(self.run_main('--base', 'main'), 1)
 
     def test_a_trailer_on_one_commit_does_not_waive_a_later_unapproved_change(self):
-        self.layers['ranks']['webvue_a'] = 3
+        self.layers['ranks']['liwan_a'] = 3
         self.commit_layers(TRAILER)
-        self.layers['exempt'].append('webvue_new')
+        self.layers['exempt'].append('liwan_new')
         self.commit_layers()
         # The trailer is read per commit, so one commit without it leaves the whole layers range unapproved.
-        self.assertEqual(self.problems(), ['exempt list grew: webvue_new', 'rank of webvue_a changed 4 -> 3'])
+        self.assertEqual(self.problems(), ['exempt list grew: liwan_new', 'rank of liwan_a changed 4 -> 3'])
 
     def test_a_trailer_on_every_layers_commit_waives_the_whole_range(self):
-        self.layers['ranks']['webvue_a'] = 3
+        self.layers['ranks']['liwan_a'] = 3
         self.commit_layers(TRAILER)
-        self.layers['exempt'].append('webvue_new')
+        self.layers['exempt'].append('liwan_new')
         self.commit_layers(TRAILER)
         self.assertEqual(self.problems(), [])
 
@@ -1183,8 +1183,8 @@ class TestLayersRatchetTags(BaseRefCase):
         # weakening commit alone.
         self.layers['web_apps']['pmo']['tags'].remove('Task')
         self.commit_layers(TRAILER)
-        self.layers['ranks']['webvue_new'] = 4
-        (self.root / 'odoo-addons/webvue_new').mkdir()
+        self.layers['ranks']['liwan_new'] = 4
+        (self.root / 'odoo-addons/liwan_new').mkdir()
         self.commit_layers()
         self.assertEqual(self.problems(), [])
 
@@ -1210,8 +1210,8 @@ class TestLayersRatchetTags(BaseRefCase):
         self.layers['web_apps']['pmo']['tags'].remove('Task')
         self.commit_layers(TRAILER)
         self.git('checkout', '-q', '-b', 'integration', 'main')
-        self.layers['ranks']['webvue_c'] = 4
-        (self.root / 'odoo-addons/webvue_c').mkdir()
+        self.layers['ranks']['liwan_c'] = 4
+        (self.root / 'odoo-addons/liwan_c').mkdir()
         self.commit_layers()
         conflict = subprocess.run(
             ['git', '-c', 'user.name=t', '-c', 'user.email=t@t', 'merge', '--no-ff', 'work'],
@@ -1219,13 +1219,13 @@ class TestLayersRatchetTags(BaseRefCase):
         )
         self.assertNotEqual(conflict.returncode, 0, 'this merge must conflict for the test to exercise a resolution')
         merged = json.loads(self.git('show', 'work:tools/arch_layers.json').stdout)
-        merged['ranks']['webvue_c'] = 4
-        merged['exempt'].append('webvue_new')
+        merged['ranks']['liwan_c'] = 4
+        merged['exempt'].append('liwan_new')
         self.layers_file.write_text(json.dumps(merged), encoding='utf-8')
         self.git('add', '-A')
         self.git('commit', '-q', '--no-edit')
         self.assertEqual(len(commit_parents(self.root, self.git('rev-parse', 'HEAD').stdout.strip())), 2)
-        self.assertEqual(self.problems(), ['exempt list grew: webvue_new', 'web app tag Task removed from pmo'])
+        self.assertEqual(self.problems(), ['exempt list grew: liwan_new', 'web app tag Task removed from pmo'])
 
     def test_a_merge_of_two_approved_weakenings_needs_no_trailer(self):
         # Two branches introduce a weakening each, both owner-approved. The merge introduces neither: each
@@ -1234,7 +1234,7 @@ class TestLayersRatchetTags(BaseRefCase):
         self.commit_layers(TRAILER)
         self.git('checkout', '-q', '-b', 'other', 'main')
         self.layers = json.loads(self.layers_file.read_text())
-        self.layers['exempt'].append('webvue_new')
+        self.layers['exempt'].append('liwan_new')
         self.commit_layers(TRAILER)
         self.git('checkout', '-q', 'work')
         self.layers = json.loads(self.layers_file.read_text())
@@ -1257,7 +1257,7 @@ class TestLayersRatchetTags(BaseRefCase):
         self.commit_layers(TRAILER)
         self.git('checkout', '-q', '-b', 'other', 'main')
         self.layers = json.loads(self.layers_file.read_text())
-        self.layers['exempt'].append('webvue_new')
+        self.layers['exempt'].append('liwan_new')
         self.commit_layers(TRAILER)
         self.git('checkout', '-q', 'work')
         self.layers = json.loads(self.layers_file.read_text())
@@ -1280,12 +1280,12 @@ class TestLayersRatchetTags(BaseRefCase):
 class TestDocumentedSudo(BaseRefCase):
     """R7 documented cases: a separate approved allowlist next to the shrink-only baseline."""
 
-    AGENTS = '# Agents\n\n- `webvue_a` has no `sudo()` path. `webvue_b` uses it only for X.\n- next item\n'
+    AGENTS = '# Agents\n\n- `liwan_a` has no `sudo()` path. `liwan_b` uses it only for X.\n- next item\n'
 
     def setUp(self):
         super().setUp()
         self.documented_file = self.root / 'tools' / 'arch_documented_sudo.json'
-        self.b_file = 'odoo-addons/webvue_b/models/m.py'
+        self.b_file = 'odoo-addons/liwan_b/models/m.py'
         (self.root / 'AGENTS.md').write_text(self.AGENTS, encoding='utf-8')
         self.sudo('b', 2)
 
@@ -1306,7 +1306,7 @@ class TestDocumentedSudo(BaseRefCase):
     def test_documented_case_allows_exactly_its_count_and_stays_out_of_the_baseline(self):
         self.adopt_documented()
         self.assertEqual(self.problems(), (0, ''))
-        self.assertEqual(json.loads(self.baseline_file.read_text())['R7'], {'odoo-addons/webvue_a/models/m.py': 2})
+        self.assertEqual(json.loads(self.baseline_file.read_text())['R7'], {'odoo-addons/liwan_a/models/m.py': 2})
 
     def test_excess_over_the_documented_count_fails(self):
         self.adopt_documented()
@@ -1317,10 +1317,10 @@ class TestDocumentedSudo(BaseRefCase):
 
     def test_a_file_in_neither_list_fails(self):
         self.adopt_documented()
-        (self.root / 'odoo-addons/webvue_b/models/n.py').write_text(HEADER + "x = y.sudo()\n", encoding='utf-8')
+        (self.root / 'odoo-addons/liwan_b/models/n.py').write_text(HEADER + "x = y.sudo()\n", encoding='utf-8')
         code, text = self.problems()
         self.assertEqual(code, 1)
-        self.assertIn('odoo-addons/webvue_b/models/n.py: 1 found, baseline allows 0', text)
+        self.assertIn('odoo-addons/liwan_b/models/n.py: 1 found, baseline allows 0', text)
 
     def test_baseline_growth_logic_is_unchanged(self):
         self.adopt_documented()
@@ -1384,12 +1384,12 @@ class TestDocumentedSudo(BaseRefCase):
         code, text = self.problems()
         self.assertEqual(code, 1)
         self.assertIn(f'R7: {self.b_file}: 2 found, documented sudo case says 3', text)
-        self.document(1, rel='odoo-addons/webvue_b/models/gone.py')
+        self.document(1, rel='odoo-addons/liwan_b/models/gone.py')
         self.assertIn('gone.py: 0 found, documented sudo case says 1', self.problems()[1])
 
     def test_case_must_be_described_in_agents_md(self):
         self.adopt_documented()
-        (self.root / 'AGENTS.md').write_text(self.AGENTS.replace('`webvue_b`', 'webvue_b'), encoding='utf-8')
+        (self.root / 'AGENTS.md').write_text(self.AGENTS.replace('`liwan_b`', 'liwan_b'), encoding='utf-8')
         code, text = self.problems()
         self.assertEqual(code, 1)
         self.assertIn(f'R7: {self.b_file}: documented case not described in AGENTS.md', text)
@@ -1408,7 +1408,7 @@ class TestDocumentedSudo(BaseRefCase):
         self.adopt_documented()
         before = self.baseline_file.read_text(encoding='utf-8')
         self.sudo('a', 1)
-        (self.root / 'AGENTS.md').write_text(self.AGENTS.replace('`webvue_b`', 'webvue_b'), encoding='utf-8')
+        (self.root / 'AGENTS.md').write_text(self.AGENTS.replace('`liwan_b`', 'liwan_b'), encoding='utf-8')
         code, text = self.problems('--write-baseline')
         self.assertEqual(code, 1)
         self.assertIn(f'R7: {self.b_file}: documented case not described in AGENTS.md', text)
@@ -1424,7 +1424,7 @@ class TestDocumentedSudo(BaseRefCase):
         self.assertEqual(self.problems('--write-baseline'), (0, ''))
         self.assertEqual(
             json.loads(self.baseline_file.read_text(encoding='utf-8'))['R7'],
-            {'odoo-addons/webvue_a/models/m.py': 1},
+            {'odoo-addons/liwan_a/models/m.py': 1},
         )
 
 

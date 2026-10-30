@@ -4,7 +4,7 @@ import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState
 import { ApiError } from '@/composables/useApi'
 import { projectIdFromPath } from '@/modules/pmo/projectRoutes'
 import { useProject } from '@/composables/useProjects'
-import { returnToQuery, safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery, safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const { t } = useI18n()

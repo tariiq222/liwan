@@ -1,4 +1,4 @@
-import { FinanceBankReconcileSchema, type FinanceAccount, type FinanceBankReconcile, type FinanceReconcileProposal } from '@webvue/contracts'
+import { FinanceBankReconcileSchema, type FinanceAccount, type FinanceBankReconcile, type FinanceReconcileProposal } from '@liwan/contracts'
 import { roundMoney, sameMoney } from './bankModel'
 
 /** The leftover of a reconciliation is never booked on these (the server refuses them): receivable, payable and liquidity. */

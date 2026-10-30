@@ -8,9 +8,9 @@ import { tenantTransport } from '../tenantTransport'
 
 it('strict receiving socket sees tenant Host/token/revision for API and all session flows', async () => {
   const token = 'synthetic-wire-token'.repeat(3)
-  const path = join(mkdtempSync(join(tmpdir(), 'webvue-wire-')), 'registry.json')
+  const path = join(mkdtempSync(join(tmpdir(), 'liwan-wire-')), 'registry.json')
   writeFileSync(path, JSON.stringify({ schemaVersion: 1, snapshotRevision: 1, targets: [{ host: 'a.example.test', tenantId: 'a', database: 'db_a', filestore: 'db_a', registryRevision: 1, enabled: true }] }))
-  vi.stubEnv('WEBVUE_TENANCY_MODE', 'shared'); vi.stubEnv('WEBVUE_SHARED_PROXY_TOKEN', token); vi.stubEnv('WEBVUE_TENANT_REGISTRY_PATH', path)
+  vi.stubEnv('LIWAN_TENANCY_MODE', 'shared'); vi.stubEnv('LIWAN_SHARED_PROXY_TOKEN', token); vi.stubEnv('LIWAN_TENANT_REGISTRY_PATH', path)
   const calls: http.IncomingHttpHeaders[] = []; let destroyed = false
   let sawAbortRequest: () => void = () => {}
   let sawAbortClose: () => void = () => {}
@@ -18,7 +18,7 @@ it('strict receiving socket sees tenant Host/token/revision for API and all sess
   const abortClose = new Promise<void>(resolve => { sawAbortClose = resolve })
   const server = http.createServer((req, res) => {
     calls.push(req.headers)
-    if (req.headers.host !== 'a.example.test' || req.headers['x-webvue-proxy-token'] !== token || req.headers['x-webvue-tenant-revision'] !== '1') { res.writeHead(403); res.end(); return }
+    if (req.headers.host !== 'a.example.test' || req.headers['x-liwan-proxy-token'] !== token || req.headers['x-liwan-tenant-revision'] !== '1') { res.writeHead(403); res.end(); return }
     req.resume()
     if (req.url === '/api/v1/abort') { res.once('close', sawAbortClose); sawAbortRequest(); return }
     if (req.url === '/api/v1/redirect') { res.writeHead(302, { location: 'http://forbidden.invalid' }); res.end(); return }
@@ -30,7 +30,7 @@ it('strict receiving socket sees tenant Host/token/revision for API and all sess
   })
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`
-  const req = Object.assign(new EventEmitter(), { headers: { host: 'a.example.test', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1', cookie: 'session_id=signed-envelope' } })
+  const req = Object.assign(new EventEmitter(), { headers: { host: 'a.example.test', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1', cookie: 'session_id=signed-envelope' } })
   const event = { node: { req, res: new EventEmitter() } } as never
   try {
     for (const route of ['/api/v1/me', '/api/v1/branding', '/web/session/authenticate', '/api/v1/auth/totp', '/web/session/destroy']) {
@@ -44,7 +44,7 @@ it('strict receiving socket sees tenant Host/token/revision for API and all sess
     expect((await tenantTransport(event, base, '/api/v1/missing')).status).toBe(404)
     await expect(tenantTransport(event, base, '/api/v1/redirect')).rejects.toThrow('tenant_upstream_unavailable')
     for (const headers of calls) {
-      expect(headers.host).toBe('a.example.test'); expect(headers['x-webvue-proxy-token']).toBe(token); expect(headers['x-webvue-tenant-revision']).toBe('1')
+      expect(headers.host).toBe('a.example.test'); expect(headers['x-liwan-proxy-token']).toBe(token); expect(headers['x-liwan-tenant-revision']).toBe('1')
     }
     const pending = tenantTransport(event, base, '/api/v1/abort')
     const rejected = expect(pending).rejects.toThrow('tenant_upstream_unavailable')
@@ -59,7 +59,7 @@ it('strict receiving socket sees tenant Host/token/revision for API and all sess
     for (const route of ['https://forbidden.invalid/api/v1/me', '//forbidden.invalid/api/v1/me', '/api/v1/../../web']) await expect(tenantTransport(event, base, route)).rejects.toThrow()
     req.headers.host = 'foreign.example.test'
     await expect(tenantTransport(event, base, '/api/v1/me')).rejects.toThrow('tenant_boundary_rejected')
-    req.headers.host = 'a.example.test'; req.headers['x-webvue-proxy-token'] = ''
+    req.headers.host = 'a.example.test'; req.headers['x-liwan-proxy-token'] = ''
     await expect(tenantTransport(event, base, '/api/v1/me')).rejects.toThrow('tenant_boundary_rejected')
     expect(calls).toHaveLength(count)
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); vi.unstubAllEnvs() }
@@ -69,9 +69,9 @@ it('strict receiving socket sees tenant Host/token/revision for API and all sess
 // bound transport forwards them and keeps every other client-declared identity header out.
 it('forwards the expected context in bound mode and never invents or accepts authority from it', async () => {
   const token = 'synthetic-wire-token'.repeat(3)
-  const path = join(mkdtempSync(join(tmpdir(), 'webvue-context-')), 'registry.json')
+  const path = join(mkdtempSync(join(tmpdir(), 'liwan-context-')), 'registry.json')
   writeFileSync(path, JSON.stringify({ schemaVersion: 1, snapshotRevision: 1, targets: [{ host: 'a.example.test', tenantId: 'a', database: 'db_a', filestore: 'db_a', registryRevision: 1, enabled: true }] }))
-  vi.stubEnv('WEBVUE_TENANCY_MODE', 'shared'); vi.stubEnv('WEBVUE_SHARED_PROXY_TOKEN', token); vi.stubEnv('WEBVUE_TENANT_REGISTRY_PATH', path)
+  vi.stubEnv('LIWAN_TENANCY_MODE', 'shared'); vi.stubEnv('LIWAN_SHARED_PROXY_TOKEN', token); vi.stubEnv('LIWAN_TENANT_REGISTRY_PATH', path)
   const seen: http.IncomingHttpHeaders[] = []
   const server = http.createServer((req, res) => { seen.push(req.headers); req.resume(); res.statusCode = 200; res.end('{}') })
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
@@ -80,24 +80,24 @@ it('forwards the expected context in bound mode and never invents or accepts aut
     node: { req: Object.assign(new EventEmitter(), { headers }), res: new EventEmitter() },
   } as never)
   const binding: Record<string, string> = {
-    host: 'a.example.test', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1', cookie: 'session_id=signed-envelope',
+    host: 'a.example.test', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1', cookie: 'session_id=signed-envelope',
     // Client-declared hop identity that must never reach Odoo from a caller.
-    'x-webvue-release-fence': 'forged',
+    'x-liwan-release-fence': 'forged',
   }
-  const stating: Record<string, string> = { ...binding, 'x-webvue-expected-user-id': '7', 'x-webvue-expected-company-id': '3' }
+  const stating: Record<string, string> = { ...binding, 'x-liwan-expected-user-id': '7', 'x-liwan-expected-company-id': '3' }
   const silent: Record<string, string> = { ...binding }
   const lastHeaders = () => seen[seen.length - 1] ?? {}
   const write = (event: never) => tenantTransport(event, base, '/api/v1/finance/setup/fiscal', { method: 'PATCH', body: '{}' })
   try {
     expect((await write(requestEvent(stating))).status).toBe(200)
-    expect(lastHeaders()['x-webvue-expected-user-id']).toBe('7')
-    expect(lastHeaders()['x-webvue-expected-company-id']).toBe('3')
-    expect(lastHeaders()['x-webvue-release-fence']).toBeUndefined()
-    expect(lastHeaders()['x-webvue-proxy-token']).toBe(token)
+    expect(lastHeaders()['x-liwan-expected-user-id']).toBe('7')
+    expect(lastHeaders()['x-liwan-expected-company-id']).toBe('3')
+    expect(lastHeaders()['x-liwan-release-fence']).toBeUndefined()
+    expect(lastHeaders()['x-liwan-proxy-token']).toBe(token)
     // A caller that states nothing forwards nothing: the precondition is never filled in for it.
     seen.length = 0
     expect((await write(requestEvent(silent))).status).toBe(200)
-    expect(lastHeaders()['x-webvue-expected-user-id']).toBeUndefined()
-    expect(lastHeaders()['x-webvue-expected-company-id']).toBeUndefined()
+    expect(lastHeaders()['x-liwan-expected-user-id']).toBeUndefined()
+    expect(lastHeaders()['x-liwan-expected-company-id']).toBeUndefined()
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); vi.unstubAllEnvs() }
 })

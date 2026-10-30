@@ -1,18 +1,18 @@
-# WebVue AI service
+# LiwanOS AI service
 
-The isolated agent service of WebVue AI (spec: `docs/superpowers/specs/2026-10-15-webvue-ai-design.md`).
-It holds no WebVue credential: it receives a message and the caller's tool catalog, decides, and
+The isolated agent service of LiwanOS AI (spec: `docs/superpowers/specs/2026-10-15-liwan-ai-design.md`).
+It holds no LiwanOS credential: it receives a message and the caller's tool catalog, decides, and
 stops at every tool with an `interrupt`; the Nuxt server executes tools and resumes it.
 
 ## Run locally
 
     python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
     # Operator bootstrap, once, against an empty AI database, before starting any runtime:
-    AI_DATABASE_URL=postgresql://localhost/webvue_ai_dev \
-    .venv/bin/python -m webvue_ai_service.store --initialize
+    AI_DATABASE_URL=postgresql://localhost/liwan_ai_dev \
+    .venv/bin/python -m liwan_ai_service.store --initialize
     AI_PROVIDER=ollama AI_MODEL=qwen2.5:7b AI_BASE_URL=http://localhost:11434 \
-    AI_DATABASE_URL=postgresql://localhost/webvue_ai_dev \
-    .venv/bin/uvicorn webvue_ai_service.service:app --port 8600
+    AI_DATABASE_URL=postgresql://localhost/liwan_ai_dev \
+    .venv/bin/uvicorn liwan_ai_service.service:app --port 8600
 
 `AI_DATABASE_URL` is required: without it the service refuses to start. For local development only, set
 `AI_ALLOW_MEMORY_STATE=true` (exactly) to keep the state in memory; the service then logs a warning at startup.
@@ -31,13 +31,13 @@ stops at every tool with an `interrupt`; the Nuxt server executes tools and resu
 | `AI_GENERATION_ID` | stable unique release generation id (`[a-z][a-z0-9_-]{0,62}`); required with a service token for release administration; reuse the same id on restart, never reuse a drained id for a replacement generation |
 | `AI_STATE_VERSION` | default `1`; run schema, graph/checkpoint payload and tool-result compatibility contract; another value refuses startup |
 | `AI_ALLOW_MEMORY_STATE` | `true` (exactly) lets the service start without a database, keeping state in memory (development only) |
-| `AI_RUN_RETENTION_DAYS` | default 30; `python -m webvue_ai_service.cleanup` deletes older runs |
+| `AI_RUN_RETENTION_DAYS` | default 30; `python -m liwan_ai_service.cleanup` deletes older runs |
 | `AI_DEFAULT_TIMEOUT_SECONDS` | default 120 |
 | `AI_SERVICE_TOKEN` | optional for development (the service logs a warning at startup when unset), at least 24 characters (it refuses to start with a shorter one) |
 
 ## Providers
 
-The registry in `src/webvue_ai_service/provider_registry.py` is the single list of providers: `Settings.from_env` takes the valid
+The registry in `src/liwan_ai_service/provider_registry.py` is the single list of providers: `Settings.from_env` takes the valid
 `AI_PROVIDER` names and the key rule from it, and `build_chat_model` builds the client from it.
 
 | `AI_PROVIDER` | `AI_API_KEY` | Default base URL | Example `AI_MODEL` |
@@ -79,7 +79,7 @@ final. Titles are never retried.
 
 ## Service token
 
-When `AI_SERVICE_TOKEN` is set, every route except `GET /healthz` requires the header `X-WebVue-Service-Token` to equal it
+When `AI_SERVICE_TOKEN` is set, every route except `GET /healthz` requires the header `X-Liwan-Service-Token` to equal it
 (constant-time comparison); anything else answers 401 with a fixed body. Without it the service is open (development only).
 The token is never logged or sent in an event. The Nuxt server sends it from `NUXT_AI_SERVICE_TOKEN`.
 Release administration always requires a configured token, including local memory mode.
@@ -120,7 +120,7 @@ In `AiMaintenanceCoordinator` operator configuration, `sharedStateId` must equal
 
 This pre-release metadata schema has no compatibility branch for earlier unrecognized metadata or a missing generation table. Use a newly authorized empty scratch schema for development proof; existing development state requires a separately reviewed offline migration. Never stamp an old database with a guessed identity or silently initialize it during startup.
 
-When `WEBVUE_RELEASE_ROUTES_DIR` is configured, the BFF requires trusted `event.context.webvueRelease`
+When `LIWAN_RELEASE_ROUTES_DIR` is configured, the BFF requires trusted `event.context.liwanRelease`
 (`releaseId`, `poolId`, `routeRevision`, `fence`, `aiUrl`, `aiStateVersion`, optional `aiMaintenance`).
 Tenant middleware supplies it only after the tenant boundary is verified. The BFF snapshots the AI
 destination for the entire request and sends the expected state version; browser headers never select
@@ -128,7 +128,7 @@ it. Missing/incompatible state metadata and maintenance fail closed. With releas
 the configured `NUXT_AI_SERVICE_URL` remains the normal destination.
 
 Every non-GET Odoo tool/audit dispatch also requires trusted
-`event.context.webvueReleaseWritePermit(action)` while release routing is enabled. The coordinator owns
+`event.context.liwanReleaseWritePermit(action)` while release routing is enabled. The coordinator owns
 the durable tenant lease, checks the barrier/authorized route after acquiring it, holds it through the
 response, and releases it on settlement. A shielded claimed write uses the same fence. The BFF permits
 only the matching successful claim's approved result to settle during newly announced maintenance;
@@ -172,8 +172,8 @@ a `resume` carrying `decision: "rejected"` answers 409; only the claimer's own r
 
     .venv/bin/pytest -q
     # Dedicated empty scratch state only, never odoo19 or a shared development AI database:
-    AI_DATABASE_URL=postgresql://localhost/webvue_ai_test .venv/bin/python -m webvue_ai_service.store --initialize
-    AI_TEST_DATABASE_URL=postgresql://localhost/webvue_ai_test .venv/bin/pytest -q tests/test_postgres_release.py tests/test_postgres_state.py
+    AI_DATABASE_URL=postgresql://localhost/liwan_ai_test .venv/bin/python -m liwan_ai_service.store --initialize
+    AI_TEST_DATABASE_URL=postgresql://localhost/liwan_ai_test .venv/bin/pytest -q tests/test_postgres_release.py tests/test_postgres_state.py
 
 `test_postgres_release.py` starts two Python claim processes and two independent service/checkpointer
 pools, proves one claim and checkpoint continuation, reads shared drain evidence, and temporarily tests
@@ -191,11 +191,11 @@ A startup failure names the offending variable only (for example `SettingsError:
 
 ### Durable generation restart acceptance
 
-The opt-in test creates two new unique `release_durable_1016_*` schemas in an explicitly selected local `webvue_scratch_*` AI database. It never overwrites or drops schemas and leaves identities/records for inspection. It uses scripted models, fresh Python processes, real PostgreSQL and real loopback HTTP endpoints; no model provider is called.
+The opt-in test creates two new unique `release_durable_1016_*` schemas in an explicitly selected local `liwan_scratch_*` AI database. It never overwrites or drops schemas and leaves identities/records for inspection. It uses scripted models, fresh Python processes, real PostgreSQL and real loopback HTTP endpoints; no model provider is called.
 
 ```sh
 PYTHONPATH=src:.:../.. AI_DURABLE_RELEASE_TEST=1 \
-  AI_TEST_DATABASE_URL=postgresql://scratch_operator@127.0.0.1/webvue_scratch_ai_test \
+  AI_TEST_DATABASE_URL=postgresql://scratch_operator@127.0.0.1/liwan_scratch_ai_test \
   .venv/bin/pytest -q -s tests/test_generation_restart_postgres.py
 ```
 

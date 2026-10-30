@@ -1,7 +1,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useMutation, useQuery } from '@tanstack/vue-query'
 import type { ZodType } from 'zod'
-import { PayableInvoiceSchema, PayableOrderSchema, PaymentRedirectSchema, type PayDocumentKind, type PaymentOption } from '@webvue/contracts'
+import { PayableInvoiceSchema, PayableOrderSchema, PaymentRedirectSchema, type PayDocumentKind, type PaymentOption } from '@liwan/contracts'
 import { PAY_POLL_WINDOW_MS, payKindOf, payLinkOf, pollDelay, startBody, type PayableDocument, type PayLink } from './paymentPay'
 
 /** Where each kind of document lives under the public payments namespace, and the contract its read answers with. */

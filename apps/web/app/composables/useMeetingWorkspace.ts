@@ -1,6 +1,6 @@
 import { computed, onServerPrefetch, toValue, type MaybeRefOrGetter } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
-import { MeetingFollowupListSchema, MeetingEventListSchema, MeetingVersionListSchema, MeetingVersionSchema, MeetingSeriesResolutionListSchema } from '@webvue/contracts'
+import { MeetingFollowupListSchema, MeetingEventListSchema, MeetingVersionListSchema, MeetingVersionSchema, MeetingSeriesResolutionListSchema } from '@liwan/contracts'
 import { meetingKeys, meetingSeriesKeys } from './meetingKeys'
 
 type WorkspaceParams = { limit?: number; offset?: number; q?: string; state?: string }

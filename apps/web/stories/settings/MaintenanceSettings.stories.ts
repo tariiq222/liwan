@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import type { MaintenanceSnapshot } from '@webvue/contracts'
+import type { MaintenanceSnapshot } from '@liwan/contracts'
 import MaintenanceSettings from '../../app/components/settings/MaintenanceSettings.vue'
 import { ApiError } from '../../app/composables/useApi'
 import { storyContext } from '../support/context'

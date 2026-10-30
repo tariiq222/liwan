@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { PlanView } from '@webvue/commercial-contracts'
-import { cadenceLabel } from '@webvue/commercial-ui/app/utils/commercial'
+import type { PlanView } from '@liwan/commercial-contracts'
+import { cadenceLabel } from '@liwan/commercial-ui/app/utils/commercial'
 import { cadenceKey, commercialErrorKey, lifecycleStatus } from '@/utils/vendorCommercial'
 import { planRequestBody } from '@/utils/vendorTenantPlan'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'

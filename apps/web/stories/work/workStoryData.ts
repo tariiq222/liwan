@@ -1,4 +1,4 @@
-import { MeSchema } from '@webvue/contracts'
+import { MeSchema } from '@liwan/contracts'
 import { http, HttpResponse } from 'msw'
 import { shellHandlers } from '../handlers/shell'
 import { shellMe } from '../fixtures/shell'

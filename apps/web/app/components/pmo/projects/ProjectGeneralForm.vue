@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProjectDetail, ProjectPatch, Visibility } from '@webvue/contracts'
+import type { ProjectDetail, ProjectPatch, Visibility } from '@liwan/contracts'
 import { refDebounced } from '@vueuse/core'
 import TagPicker from '@/components/shared/form/TagPicker.vue'
 import { saveErrorMessage } from '@/utils/formFeedback'
@@ -36,7 +36,7 @@ function save(body: ProjectPatch) {
       onSuccess: () => {
         pendingPatch.value = null
         pendingTags.value = null
-        if (body.webvue_completion_approval !== undefined) {
+        if (body.liwan_completion_approval !== undefined) {
           pendingMode.value = null
           pendingApprover.value = null
         }
@@ -79,8 +79,8 @@ const dirty = computed(() => pendingMode.value !== null || pendingPatch.value !=
 
 function saveApproval(mode: ProjectDetail['completion_approval'], approverId: number | null) {
   save({
-    webvue_completion_approval: mode,
-    webvue_completion_approver_id: mode === 'specific_user' ? approverId : null,
+    liwan_completion_approval: mode,
+    liwan_completion_approver_id: mode === 'specific_user' ? approverId : null,
   })
 }
 
@@ -118,13 +118,13 @@ const approverItems = computed(() => {
 </script>
 
 <template>
-  <div class="grid gap-(--webvue-gap-card)">
+  <div class="grid gap-(--liwan-gap-card)">
     <SharedUnsavedChanges :dirty="dirty" guard-route-updates />
     <p role="status" class="text-sm text-muted" data-testid="project-autosave-status">{{ t(saveState === 'saving' ? 'projects.clarity.saving' : saveState === 'error' ? 'projects.clarity.saveFailed' : choosingApprover ? 'projects.clarity.chooseApprover' : saveState === 'saved' ? 'projects.clarity.saved' : 'projects.clarity.autosaveHint') }}</p>
     <UAlert v-if="saveState === 'error'" role="alert" color="error" variant="subtle" :title="saveError">
       <template #actions><UButton type="button" color="neutral" variant="outline" data-testid="project-settings-retry" :label="t('app.retry')" @click="pendingPatch && save(pendingPatch)" /></template>
     </UAlert>
-    <fieldset :disabled="controlsLocked" class="grid min-w-0 gap-(--webvue-gap-card) border-0 p-0">
+    <fieldset :disabled="controlsLocked" class="grid min-w-0 gap-(--liwan-gap-card) border-0 p-0">
       <UFormField as="section" :description="t('projects.refresh.settings.visibilityHint')">
           <template #label><span id="project-settings-visibility-label">{{ t('projects.settings.visibility') }}</span></template>
           <USelect

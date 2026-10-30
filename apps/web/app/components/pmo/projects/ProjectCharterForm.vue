@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AiDraftPayload, ProjectCreateDefaults, ProjectDetail } from '@webvue/contracts'
+import type { AiDraftPayload, ProjectCreateDefaults, ProjectDetail } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { isStaleProjectWrite, useCharterTransition, useCreateProject, useProject, useUpdateProject } from '@/composables/useProjects'
 import { useCharterDefaults } from '@/composables/useProjectCharterCatalogs'
@@ -41,9 +41,9 @@ const props = defineProps<{
   milestones?: readonly CharterMilestone[]
   milestonesLoading?: boolean
   milestonesError?: unknown
-  /** A WebVue AI draft: applied once, after the create defaults, before the baseline snapshot. */
+  /** A LiwanOS AI draft: applied once, after the create defaults, before the baseline snapshot. */
   initialDraft?: AiDraftPayload | null
-  /** The final create needs the user's attestation (a draft prepared by WebVue AI). */
+  /** The final create needs the user's attestation (a draft prepared by LiwanOS AI). */
   attestRequired?: boolean
 }>()
 
@@ -423,7 +423,7 @@ function discardToServer() {
 </script>
 
 <template>
-  <div :data-testid="mode === 'create' ? 'project-create-form' : 'project-charter-form'" class="grid gap-(--webvue-card-pad)">
+  <div :data-testid="mode === 'create' ? 'project-create-form' : 'project-charter-form'" class="grid gap-(--liwan-card-pad)">
     <SharedUnsavedChanges v-if="!readonly || dirty" :dirty="dirty" :guard-route-updates="mode === 'edit'" :ignore-query-keys="['step']" />
     <ProjectCharterDisplay
       v-if="readonly"
@@ -436,7 +436,7 @@ function discardToServer() {
       <template #state><slot name="state" /></template>
       <template #actions><slot name="actions" /></template>
     </ProjectCharterDisplay>
-    <form v-else class="grid gap-(--webvue-card-pad)" data-testid="project-charter-wizard" @submit.prevent="isLastStep ? finalize() : next()">
+    <form v-else class="grid gap-(--liwan-card-pad)" data-testid="project-charter-wizard" @submit.prevent="isLastStep ? finalize() : next()">
       <div v-if="attestRequired">
         <UBadge color="primary" variant="subtle" data-testid="project-create-ai-badge">{{ t('projects.create.aiBadge') }}</UBadge>
       </div>
@@ -460,7 +460,7 @@ function discardToServer() {
 
       <p v-if="stepNotice" role="alert" data-testid="charter-step-notice" class="text-sm text-error">{{ stepNotice }}</p>
 
-      <div v-if="isLastStep" class="grid gap-(--webvue-gap-card)" data-testid="charter-review-step">
+      <div v-if="isLastStep" class="grid gap-(--liwan-gap-card)" data-testid="charter-review-step">
         <p class="text-sm text-muted">{{ t('projects.charter.reviewHint') }}</p>
         <ProjectCharterDisplay :draft="draft" :milestones="milestones ?? []" />
       </div>

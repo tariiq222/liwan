@@ -5,9 +5,9 @@ import { shellBreadcrumb } from '@/composables/nav/breadcrumb'
 import { useShellModel } from '@/composables/useShellModel'
 import { useAssistantSheet } from '@/composables/useAssistantSheet'
 import AssistantSheet from '@/components/shell/AssistantSheet.vue'
-import { usePageHeaderTitle } from '@webvue/ui/app/composables/usePageHeader'
-import { providePageTrail } from '@webvue/ui/app/composables/usePageTrail'
-import { providePageApp } from '@webvue/ui/app/composables/usePageApp'
+import { usePageHeaderTitle } from '@liwan/ui/app/composables/usePageHeader'
+import { providePageTrail } from '@liwan/ui/app/composables/usePageTrail'
+import { providePageApp } from '@liwan/ui/app/composables/usePageApp'
 const route = useRoute()
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -73,7 +73,7 @@ onBeforeUnmount(() => {
     <template #header><ShellHeader /></template>
     <template #sidebar><ShellAppSidebar /></template>
     <template #sheet><AssistantSheet v-if="assistant.surface.value" :surface="assistant.surface.value" /></template>
-    <main ref="shellMain" tabindex="-1" data-testid="shell-main" class="webvue-shell-main focus:outline-none" :class="{ 'webvue-page-content-motion': pageMotionActive }">
+    <main ref="shellMain" tabindex="-1" data-testid="shell-main" class="liwan-shell-main focus:outline-none" :class="{ 'liwan-page-content-motion': pageMotionActive }">
       <slot />
     </main>
   </ShellFrame>

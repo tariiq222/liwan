@@ -1,4 +1,4 @@
-import type { HrActivityPlan, HrDeparture, HrPlanRunDetail } from '@webvue/contracts'
+import type { HrActivityPlan, HrDeparture, HrPlanRunDetail } from '@liwan/contracts'
 
 export const plan: HrActivityPlan = {
   id: 4,

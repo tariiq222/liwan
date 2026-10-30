@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { DocumentDetailSchema, DocumentListSchema, DocumentContextListSchema, DocumentContextOptionListSchema } from '@webvue/contracts'
+import { DocumentDetailSchema, DocumentListSchema, DocumentContextListSchema, DocumentContextOptionListSchema } from '@liwan/contracts'
 import { documentsPreviewData } from '../../../e2e/documents-ui-preview-data.mjs'
 it('validates summary and detail previews and filters canonical context ids', () => {
   const path = '/api/v1/documents'

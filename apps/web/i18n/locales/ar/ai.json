@@ -1,7 +1,7 @@
 {
   "ai": {
-    "title": "WebVue AI",
-    "description": "اسأل عن مهامك ومشاريعك، واطلب ما تريد تجهيزه. يُعدّ WebVue AI، وأنت تعتمد.",
+    "title": "LiwanOS AI",
+    "description": "اسأل عن مهامك ومشاريعك، واطلب ما تريد تجهيزه. يُعدّ LiwanOS AI، وأنت تعتمد.",
     "name": "المساعد",
     "greeting": "أهلًا {name}",
     "greetingAnonymous": "أهلًا بك",
@@ -54,7 +54,7 @@
     },
     "thread": {
       "you": "أنت",
-      "assistant": "WebVue AI",
+      "assistant": "LiwanOS AI",
       "thinking": "يفكّر…",
       "records": "المصادر",
       "copy": "نسخ",
@@ -83,13 +83,13 @@
       "discard": "تجاهل المسودة"
     },
     "limits": {
-      "monthly": "وصلت شركتك إلى حد رسائل WebVue AI لهذا الشهر.",
+      "monthly": "وصلت شركتك إلى حد رسائل LiwanOS AI لهذا الشهر.",
       "run": "توقف هذا الطلب لأنه تجاوز عدد الخطوات المسموح.",
       "timeout": "استغرق الطلب وقتًا أطول من المسموح.",
       "used": "{used} من {limit} رسالة هذا الشهر"
     },
     "errors": {
-      "unavailable": "WebVue AI غير متاح الآن. حاول لاحقًا.",
+      "unavailable": "LiwanOS AI غير متاح الآن. حاول لاحقًا.",
       "provider": "تعذّر الاتصال بنموذج الذكاء. حاول لاحقًا.",
       "decide": "تعذّر حفظ قرارك. حاول مرة أخرى.",
       "auditFailed": "نُفّذ الإجراء لكن تعذّر حفظ سجل التدقيق.",

@@ -21,13 +21,13 @@ describe('BrandingPatchSchema', () => {
 
   it('accepts a null logo_url for a company without its own logo', () => {
     expect(BrandingSchema.parse({
-      name: 'WebVue', logo_url: null, font: 'IBM', primary_color: '#123456',
+      name: 'LiwanOS', logo_url: null, font: 'IBM', primary_color: '#123456',
     }).logo_url).toBeNull()
   })
 
   it('accepts nullable secondary color on BrandingSchema', () => {
     expect(BrandingSchema.parse({
-      name: 'WebVue',
+      name: 'LiwanOS',
       logo_url: '/logo',
       font: 'IBM',
       primary_color: '#123456',

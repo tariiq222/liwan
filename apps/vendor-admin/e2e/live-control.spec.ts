@@ -22,7 +22,7 @@ const LOCKED = 'محاولات كثيرة'
 const OWNER_PASSWORD = `Live-${randomBytes(12).toString('base64url')}`
 const FINANCE_PASSWORD = `Live-${randomBytes(12).toString('base64url')}`
 
-test.skip(!ORIGIN || !BOOTSTRAP_LINK || !/\/webvue_control_scratch_[a-z0-9_]+$/.test(DATABASE_URL), 'run through tools/vendor_admin_local_check.mjs')
+test.skip(!ORIGIN || !BOOTSTRAP_LINK || !/\/liwan_control_scratch_[a-z0-9_]+$/.test(DATABASE_URL), 'run through tools/vendor_admin_local_check.mjs')
 test.describe.configure({ mode: 'serial' })
 
 const pool = new Pool({ connectionString: DATABASE_URL })
@@ -111,8 +111,8 @@ async function fallbackPost(client: APIRequestContext, email: string, password: 
 }
 
 function cookieFlags(setCookies: string[]) {
-  const line = setCookies.find(value => value.startsWith('webvue_admin='))
-  expect(line, 'Set-Cookie carries webvue_admin').toBeTruthy()
+  const line = setCookies.find(value => value.startsWith('liwan_admin='))
+  expect(line, 'Set-Cookie carries liwan_admin').toBeTruthy()
   const parts = (line as string).split(';').map(part => part.trim().toLowerCase())
   return { httpOnly: parts.includes('httponly'), sameSiteStrict: parts.includes('samesite=strict'), secure: parts.includes('secure'), path: parts.includes('path=/'), hostPrefixed: (line as string).startsWith('__Host-') }
 }
@@ -166,7 +166,7 @@ test('sign out, then sign in with the passkey; the cookie is HttpOnly, SameSite=
   const { page, context } = owner
   const status = await page.evaluate(() => fetch('/api/auth/logout', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }).then(response => response.status))
   expect(status).toBe(204)
-  expect((await context.cookies()).filter(cookie => cookie.name === 'webvue_admin')).toEqual([])
+  expect((await context.cookies()).filter(cookie => cookie.name === 'liwan_admin')).toEqual([])
   await page.goto('/overview')
   await expect(page).toHaveURL(/\/login\?next=\/overview$/)
   const verified = page.waitForResponse(response => response.url().endsWith('/api/auth/passkey-verify'))
@@ -174,7 +174,7 @@ test('sign out, then sign in with the passkey; the cookie is HttpOnly, SameSite=
   const flags = cookieFlags((await (await verified).headersArray()).filter(header => header.name.toLowerCase() === 'set-cookie').map(header => header.value))
   expect(flags).toEqual({ httpOnly: true, sameSiteStrict: true, secure: false, path: true, hostPrefixed: false })
   await expect(page).toHaveURL(/\/overview$/)
-  expect(await page.evaluate(() => document.cookie)).not.toContain('webvue_admin')
+  expect(await page.evaluate(() => document.cookie)).not.toContain('liwan_admin')
 })
 
 test('team: the invitation needs a step-up once the window passed, then the invitee enrolls in a fresh browser', async ({ browser }) => {
@@ -271,8 +271,8 @@ test('an unknown email and a wrong password are indistinguishable', async () => 
 test('a browser supplied client address is ignored: the attempt scope comes from the socket address', async () => {
   await resetAttempts()
   const client = await api()
-  await fallbackPost(client, OWNER_EMAIL, 'wrong password one', { 'x-forwarded-for': '203.0.113.9', 'x-webvue-client-ip': '198.51.100.7' })
-  await fallbackPost(client, OWNER_EMAIL, 'wrong password two', { 'x-forwarded-for': '203.0.113.10', 'x-webvue-client-ip': '198.51.100.8' })
+  await fallbackPost(client, OWNER_EMAIL, 'wrong password one', { 'x-forwarded-for': '203.0.113.9', 'x-liwan-client-ip': '198.51.100.7' })
+  await fallbackPost(client, OWNER_EMAIL, 'wrong password two', { 'x-forwarded-for': '203.0.113.10', 'x-liwan-client-ip': '198.51.100.8' })
   const scopes = (await pool.query('SELECT scope, failures FROM vendor_auth_attempts ORDER BY scope')).rows as { scope: string, failures: number }[]
   const ipScopes = scopes.filter(row => row.scope.startsWith('ip:'))
   // One ip scope for both requests, and it is a loopback address (the BFF's socket), never the claimed ones.

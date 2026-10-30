@@ -12,7 +12,7 @@ import {
   HrPayrollRunSchema,
   type HrPayrollFinanceSettingsPatch,
   type HrPayrollPaymentCreate,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { hrPayrollKeys } from './useHrPayrollCompensation'
 import { fetchAllPages, replaceRun } from './useHrPayrollRuns'
 

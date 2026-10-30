@@ -28,7 +28,7 @@ from git_policy import check_subject
 UI_SOURCE_ROOTS = ('apps/web/', 'apps/vendor-admin/', 'packages/ui/', 'packages/commercial-ui/')
 
 REPO = Path(__file__).resolve().parents[1]
-MARKER = '# webvue-hook'
+MARKER = '# liwan-hook'
 HOOKS = ('pre-commit', 'commit-msg')
 JEV_TIMEOUT_SECONDS = 200
 JEV_TASK = 'staged changes about to be committed'
@@ -79,9 +79,9 @@ def staged_paths():
 def advisory_jev():
     """Print the advisory Jev scores for the staged diff; never changes the commit outcome.
 
-    Skipped with ``WEBVUE_SKIP_JEV=1``. A missing server, key or timeout is reported on stderr only.
+    Skipped with ``LIWAN_SKIP_JEV=1``. A missing server, key or timeout is reported on stderr only.
     """
-    if os.environ.get('WEBVUE_SKIP_JEV'):
+    if os.environ.get('LIWAN_SKIP_JEV'):
         return
     staged = subprocess.run(['git', 'diff', '--cached'], cwd=REPO, capture_output=True, text=True, check=True).stdout
     if not staged.strip():

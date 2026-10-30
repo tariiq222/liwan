@@ -8,7 +8,7 @@ import { createHooks } from 'hookable'
 import { expect, it } from 'vitest'
 import * as finance from '../../utils/projectFinance'
 import { parsePositiveId } from '../../utils/routeParams'
-import { returnToQuery, safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery, safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import { listFilterQuery } from '../../composables/useRouteListFilters'
 import { rootedNode } from '../../../tests/hostNode'
 
@@ -22,7 +22,7 @@ function gate() {
 }
 
 async function mountFinance(auth: (to: RouteLocationNormalized) => unknown | Promise<unknown>, deferPageRoute = false) {
-  const hooks = createHooks<{ 'webvue:navigation:start': (to: RouteLocationNormalized) => void }>()
+  const hooks = createHooks<{ 'liwan:navigation:start': (to: RouteLocationNormalized) => void }>()
   const pageRoute = Vue.shallowRef<any>(null)
   const deferredRoute = new Proxy({}, { get: (_target, key) => pageRoute.value?.[key] })
   const filename = new URL('../projects/[id]/finance.vue', import.meta.url).pathname
@@ -61,7 +61,7 @@ async function mountFinance(auth: (to: RouteLocationNormalized) => unknown | Pro
   router.beforeEach(async to => {
     // The public auth middleware contract: publish the real target before its first identity await.
     started.push(to)
-    await hooks.callHook('webvue:navigation:start', to)
+    await hooks.callHook('liwan:navigation:start', to)
     return await auth(to) as any
   })
   return { router, get state() { return state }, started, syncPageRoute: () => { pageRoute.value = router.currentRoute.value }, close: () => app.unmount() }

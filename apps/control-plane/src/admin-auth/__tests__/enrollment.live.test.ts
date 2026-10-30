@@ -20,9 +20,9 @@ else describe('enrollment', () => {
   afterAll(async () => { await pool.end() })
 
   it('enrolls once from a normalized email invitation', async () => {
-    const { token, accountId } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: ' Owner@WebVue.SA ', displayName: 'Owner', roles: ['owner'], reason: 'first owner' }, now))
+    const { token, accountId } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: ' Owner@liwanos.com ', displayName: 'Owner', roles: ['owner'], reason: 'first owner' }, now))
     const opened = await transaction(pool, (c) => openInvitation(c, token, now))
-    expect(opened.email).toBe('owner@webvue.sa')
+    expect(opened.email).toBe('owner@liwanos.com')
     await pool.query("INSERT INTO vendor_passkeys(credential_id,account_id,public_key) VALUES('cred-1',$1,'\\x00')", [opened.accountId])
     const secret = newTotpSecret()
     const input = { password: 'a long enough password', totpCode: totpAt(secret, totpStep(now.getTime())), totpSecretBox: seal(secretKey, secret, totpBoxAad(accountId)), passkeyRegistered: true }
@@ -35,12 +35,12 @@ else describe('enrollment', () => {
     expect(lost.reason).toMatchObject({ code: 'auth_failed' })
     const done = (first.status === 'fulfilled' ? first : second) as PromiseFulfilledResult<{ recoveryCodes: string[] }>
     expect(done.value.recoveryCodes).toHaveLength(10)
-    const account = await pool.query('SELECT status FROM vendor_accounts WHERE email=$1', ['owner@webvue.sa'])
+    const account = await pool.query('SELECT status FROM vendor_accounts WHERE email=$1', ['owner@liwanos.com'])
     expect(account.rows[0].status).toBe('active')
   })
   it('never deadlocks when a reset races a completion and ends with one consistent outcome', async () => {
     for (let round = 0; round < 8; round++) {
-      const { token, accountId } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: `race${round}@webvue.sa`, displayName: 'R', roles: ['support'], reason: 'support' }, now))
+      const { token, accountId } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: `race${round}@liwanos.com`, displayName: 'R', roles: ['support'], reason: 'support' }, now))
       await pool.query("INSERT INTO vendor_passkeys(credential_id,account_id,public_key) VALUES($1,$2,'\\x00')", [`race-${round}`, accountId])
       const secret = newTotpSecret()
       const input = { password: 'a long enough password', totpCode: totpAt(secret, totpStep(now.getTime())), totpSecretBox: seal(secretKey, secret, totpBoxAad(accountId)), passkeyRegistered: true }
@@ -56,24 +56,24 @@ else describe('enrollment', () => {
     }
   })
   it('refuses a duplicate email in another case', async () => {
-    await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'x@webvue.sa', displayName: 'X', roles: ['support'], reason: 'support' }, now))
-    await expect(transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'X@WEBVUE.SA', displayName: 'X2', roles: ['support'], reason: 'support' }, now))).rejects.toMatchObject({ code: 'conflict' })
+    await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'x@liwanos.com', displayName: 'X', roles: ['support'], reason: 'support' }, now))
+    await expect(transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'X@liwanos.com', displayName: 'X2', roles: ['support'], reason: 'support' }, now))).rejects.toMatchObject({ code: 'conflict' })
   })
   it('rejects an expired invitation and enrollment without passkey', async () => {
-    const { token, accountId } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'late@webvue.sa', displayName: 'L', roles: ['support'], reason: 'support' }, now))
+    const { token, accountId } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'late@liwanos.com', displayName: 'L', roles: ['support'], reason: 'support' }, now))
     await expect(transaction(pool, (c) => openInvitation(c, token, new Date(now.getTime() + 24 * 3600_000 + 1)))).rejects.toMatchObject({ code: 'auth_failed' })
     const secret = newTotpSecret()
     await expect(transaction(pool, (c) => completeEnrollment(c, token, { password: 'a long enough password', totpCode: totpAt(secret, totpStep(now.getTime())), totpSecretBox: seal(secretKey, secret, totpBoxAad(accountId)), passkeyRegistered: false }, secretKey, now))).rejects.toMatchObject({ code: 'invalid' })
   })
   it('refuses a TOTP box sealed for another account', async () => {
-    const { token, accountId } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'box@webvue.sa', displayName: 'B', roles: ['support'], reason: 'support' }, now))
+    const { token, accountId } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'box@liwanos.com', displayName: 'B', roles: ['support'], reason: 'support' }, now))
     const secret = newTotpSecret()
     const foreign = seal(secretKey, secret, totpBoxAad(accountId + 1))
     await expect(transaction(pool, (c) => completeEnrollment(c, token, { password: 'a long enough password', totpCode: totpAt(secret, totpStep(now.getTime())), totpSecretBox: foreign, passkeyRegistered: true }, secretKey, now))).rejects.toMatchObject({ code: 'invalid' })
     expect((await pool.query('SELECT status FROM vendor_accounts WHERE id=$1', [accountId])).rows[0].status).toBe('enrolling')
   })
   it('rejects a consumed token on reuse', async () => {
-    const { token, accountId } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'once@webvue.sa', displayName: 'O', roles: ['support'], reason: 'support' }, now))
+    const { token, accountId } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'once@liwanos.com', displayName: 'O', roles: ['support'], reason: 'support' }, now))
     const secret = newTotpSecret()
     const input = { password: 'a long enough password', totpCode: totpAt(secret, totpStep(now.getTime())), totpSecretBox: seal(secretKey, secret, totpBoxAad(accountId)), passkeyRegistered: true }
     await transaction(pool, (c) => completeEnrollment(c, token, input, secretKey, now))
@@ -81,8 +81,8 @@ else describe('enrollment', () => {
     await expect(transaction(pool, (c) => completeEnrollment(c, token, input, secretKey, now))).rejects.toMatchObject({ code: 'auth_failed' })
   })
   it('does not let an outstanding invitation reactivate a disabled account', async () => {
-    const { token } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'gone@webvue.sa', displayName: 'G', roles: ['support'], reason: 'support' }, now))
-    const id = (await pool.query("SELECT id FROM vendor_accounts WHERE email='gone@webvue.sa'")).rows[0].id
+    const { token } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'gone@liwanos.com', displayName: 'G', roles: ['support'], reason: 'support' }, now))
+    const id = (await pool.query("SELECT id FROM vendor_accounts WHERE email='gone@liwanos.com'")).rows[0].id
     await transaction(pool, (c) => disableAccount(c, 'operator', Number(id), 'left before joining'))
     await expect(transaction(pool, (c) => openInvitation(c, token, now))).rejects.toMatchObject({ code: 'auth_failed' })
     // defence in depth: even an unconsumed invitation must not reactivate (bypass the consume in disableAccount)

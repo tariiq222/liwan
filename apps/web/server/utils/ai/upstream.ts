@@ -8,7 +8,7 @@ import { upstreamError } from './executor'
 export type Upstream = { status: number; body: unknown }
 export type Owner = { tenant: string; user: string }
 
-const AI_ABORT = Symbol('webvue-ai-abort')
+const AI_ABORT = Symbol('liwan-ai-abort')
 const SERVICE_TIMEOUT_MS = 130000
 const ODOO_TIMEOUT_MS = 15000
 const MAX_SSE_BUFFER = 1024 * 1024
@@ -20,8 +20,8 @@ const acceptedClaims = new WeakMap<H3Event, Map<string, string>>()
 
 /** Only trusted middleware, after tenant boundary verification, supplies this context. Never read browser routing headers. */
 function releaseFor(event: H3Event, settlingClaim = false): Readonly<AiRelease> | undefined {
-  if (!process.env.WEBVUE_RELEASE_ROUTES_DIR) return undefined
-  const current = event.context.webvueRelease as AiRelease | undefined
+  if (!process.env.LIWAN_RELEASE_ROUTES_DIR) return undefined
+  const current = event.context.liwanRelease as AiRelease | undefined
   if (current?.aiMaintenance && !settlingClaim) throw serviceUnavailable('the AI service is under maintenance')
   const pinned = pinnedReleases.get(event)
   if (pinned) return pinned
@@ -40,7 +40,7 @@ function releaseFor(event: H3Event, settlingClaim = false): Readonly<AiRelease> 
 /** The coordinator owns the durable lease and barrier check. The callback lasts through response consumption. */
 export async function withReleaseWritePermit<T>(event: H3Event, action: () => Promise<T>): Promise<T> {
   if (!releaseFor(event)) return action()
-  const permit = event.context.webvueReleaseWritePermit as ReleaseWritePermit | undefined
+  const permit = event.context.liwanReleaseWritePermit as ReleaseWritePermit | undefined
   if (typeof permit !== 'function') throw serviceUnavailable('the AI release write permit is unavailable')
   return permit(action)
 }
@@ -66,7 +66,7 @@ const withTimeout = (event: H3Event, ms: number, signal: SignalOption): AbortSig
 
 /** Server-side log of a failure: the class name only, never a message that could carry Odoo or service details. */
 export function logFailure(what: string, error: unknown): void {
-  console.error(`[webvue-ai] ${what}: ${(error as object | null)?.constructor?.name ?? 'unknown'}`)
+  console.error(`[liwan-ai] ${what}: ${(error as object | null)?.constructor?.name ?? 'unknown'}`)
 }
 
 /** Throw an Odoo failure with its own status and structured code (flat body; `{error}` only as a fallback). */
@@ -95,7 +95,7 @@ export async function odooJson(event: H3Event, method: 'GET' | 'POST' | 'PATCH',
   return method === 'GET' ? dispatch() : withReleaseWritePermit(event, dispatch)
 }
 
-/** One call to the WebVue AI service. It gets no cookie and no bearer: the owner headers (plus the shared service token, when set) are all it sees. */
+/** One call to the LiwanOS AI service. It gets no cookie and no bearer: the owner headers (plus the shared service token, when set) are all it sees. */
 export async function serviceFetch(event: H3Event, method: 'GET' | 'POST' | 'PATCH', path: string, owner: Owner, body?: unknown, signal?: SignalOption): Promise<Response> {
   const config = useRuntimeConfig(event)
   const payload = body as { call_id?: string; result?: { decision?: string } } | undefined
@@ -110,9 +110,9 @@ export async function serviceFetch(event: H3Event, method: 'GET' | 'POST' | 'PAT
     const response = await fetch(joinURL(aiServiceUrl, path), {
       method,
       headers: {
-        'content-type': 'application/json', accept: 'text/event-stream, application/json', 'x-webvue-tenant': owner.tenant, 'x-webvue-user': owner.user,
-        ...(aiServiceToken ? { 'x-webvue-service-token': aiServiceToken } : {}),
-        ...(route ? { 'x-webvue-ai-state-version': route.aiStateVersion! } : {}),
+        'content-type': 'application/json', accept: 'text/event-stream, application/json', 'x-liwan-tenant': owner.tenant, 'x-liwan-user': owner.user,
+        ...(aiServiceToken ? { 'x-liwan-service-token': aiServiceToken } : {}),
+        ...(route ? { 'x-liwan-ai-state-version': route.aiStateVersion! } : {}),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: withTimeout(event, SERVICE_TIMEOUT_MS, signal),

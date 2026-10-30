@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinanceAccount } from '@webvue/contracts'
+import type { FinanceAccount } from '@liwan/contracts'
 import { useFinanceAccountList } from '@/composables/finance/useFinanceAccounts'
 import { useRouteListFilters } from '@/composables/useRouteListFilters'
 import { listReturnTo } from '../invoices/listLocation'
@@ -48,7 +48,7 @@ const reconcileLabel = (account: FinanceAccount) => t(account.reconcile ? 'finan
 
 <template>
   <SharedForbiddenState v-if="!allowed" :description="t('financeAccounting.forbidden')" />
-  <div v-else class="webvue-page-stack">
+  <div v-else class="liwan-page-stack">
     <SharedListCard>
       <template #filters>
         <SharedFilterBar embedded class="w-full" :active-count="activeCount" :default-open="!!filters.accountType" :disabled="!hydrated" @clear="clearFilters">
@@ -63,7 +63,7 @@ const reconcileLabel = (account: FinanceAccount) => t(account.reconcile ? 'finan
         </SharedFilterBar>
       </template>
       <SharedPageState :error="query.error.value" :keep-content="items.length > 0" @retry="query.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--webvue-card-pad-dense)" :title="t(activeCount ? 'app.noResults' : 'financeAccounting.accounts.empty')" />
+        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(activeCount ? 'app.noResults' : 'financeAccounting.accounts.empty')" />
         <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,720px)]">
           <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :loading="query.isPending.value" :caption="t('financeAccounting.accounts.title')">
             <template #code-cell="{ row }"><bdi class="font-semibold tabular-nums text-highlighted" dir="ltr">{{ row.original.code }}</bdi></template>

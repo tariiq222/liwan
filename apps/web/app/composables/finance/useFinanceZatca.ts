@@ -1,7 +1,7 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { FinanceZatcaJournalSchema, FinanceZatcaWaitingDocumentListSchema, FinanceZatcaStatusSchema, type FinanceZatcaOnboardInput } from '@webvue/contracts'
+import { FinanceZatcaJournalSchema, FinanceZatcaWaitingDocumentListSchema, FinanceZatcaStatusSchema, type FinanceZatcaOnboardInput } from '@liwan/contracts'
 import { financeSetupKey } from './useFinanceSetup'
 
 export const financeZatcaStatusKey = ['finance', 'zatca', 'status'] as const

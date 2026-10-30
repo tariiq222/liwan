@@ -1,8 +1,8 @@
-import { daysBetween, riyadhDate, type Invoice, type Money, type Order, type Quote, type SubscriptionDisplayState, type UsageMetric, type UsageSnapshot } from '@webvue/commercial-contracts'
+import { daysBetween, riyadhDate, type Invoice, type Money, type Order, type Quote, type SubscriptionDisplayState, type UsageMetric, type UsageSnapshot } from '@liwan/commercial-contracts'
 
-import { invoiceLineQuantities, type InvoiceLineView } from '@webvue/commercial-ui/app/utils/invoiceLines'
-import { humanizeId } from '@webvue/ui/app/utils/humanizeId'
-import { statusBadgeEntry, type StatusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
+import { invoiceLineQuantities, type InvoiceLineView } from '@liwan/commercial-ui/app/utils/invoiceLines'
+import { humanizeId } from '@liwan/ui/app/utils/humanizeId'
+import { statusBadgeEntry, type StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
 
 export type { SubscriptionDisplayState }
 export const DISPLAY_STATE_KEYS: Record<SubscriptionDisplayState, string> = {
@@ -84,14 +84,14 @@ export async function csrfTokenFor(current: string | null | undefined, fetchCook
 
 export type KeyStore = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 export function idempotencyKey(store: KeyStore | null, action: string, make: () => string = () => crypto.randomUUID()): string {
-  const name = `webvue:idem:${action}`
+  const name = `liwan:idem:${action}`
   const existing = store?.getItem(name)
   if (existing) return existing
   const fresh = make()
   store?.setItem(name, fresh)
   return fresh
 }
-export function forgetIdempotencyKey(store: KeyStore | null, action: string) { store?.removeItem(`webvue:idem:${action}`) }
+export function forgetIdempotencyKey(store: KeyStore | null, action: string) { store?.removeItem(`liwan:idem:${action}`) }
 
 /** Stable action name: same inputs (subscription, revision, request content) → same key across refresh/retry. */
 export function safeIdemAction(kind: string, subscriptionId: string, revision: number, content: string): string {

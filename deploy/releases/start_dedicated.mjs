@@ -5,27 +5,27 @@ import { createDedicatedGuard, readLocalBinding } from './dedicated_guard.mjs'
 import { validateAssetStore } from '../../apps/web/server/utils/releaseAssets.ts'
 
 export function loadDedicatedConfig(env = process.env) {
-  const bindingPath = env.WEBVUE_DEDICATED_BINDING_PATH
-  const releaseRoutesDir = env.WEBVUE_RELEASE_ROUTES_DIR
+  const bindingPath = env.LIWAN_DEDICATED_BINDING_PATH
+  const releaseRoutesDir = env.LIWAN_RELEASE_ROUTES_DIR
   readLocalBinding(bindingPath)
   if (!releaseRoutesDir || realpathSync(releaseRoutesDir) !== releaseRoutesDir || !lstatSync(releaseRoutesDir).isDirectory()) throw Error('dedicated_release_config_rejected')
-  let proxyToken = env.WEBVUE_DEDICATED_PROXY_TOKEN
-  if (env.WEBVUE_DEDICATED_PROXY_TOKEN_FILE) {
+  let proxyToken = env.LIWAN_DEDICATED_PROXY_TOKEN
+  if (env.LIWAN_DEDICATED_PROXY_TOKEN_FILE) {
     if (proxyToken !== undefined) throw Error('dedicated_release_config_rejected')
-    const path = env.WEBVUE_DEDICATED_PROXY_TOKEN_FILE
+    const path = env.LIWAN_DEDICATED_PROXY_TOKEN_FILE
     const info = lstatSync(path)
     if (realpathSync(path) !== path || !info.isFile() || info.isSymbolicLink() || info.size > 4096 || ![0o400, 0o440, 0o600].includes(info.mode & 0o777)) throw Error('dedicated_release_config_rejected')
     proxyToken = readFileSync(path, 'utf8').trim()
   }
   if (typeof proxyToken !== 'string' || Buffer.byteLength(proxyToken) < 32) throw Error('dedicated_release_config_rejected')
-  const trustedEdgeAddresses = env.WEBVUE_DEDICATED_TRUSTED_EDGE_IPS?.split(',').map(value => value.trim())
-  const releaseAssetsDir = env.WEBVUE_RELEASE_ASSETS_DIR
+  const trustedEdgeAddresses = env.LIWAN_DEDICATED_TRUSTED_EDGE_IPS?.split(',').map(value => value.trim())
+  const releaseAssetsDir = env.LIWAN_RELEASE_ASSETS_DIR
   if (releaseAssetsDir !== undefined) validateAssetStore(releaseAssetsDir)
-  return { bindingPath, releaseRoutesDir, proxyToken, ...(trustedEdgeAddresses ? { trustedEdgeAddresses } : {}), publicProto: env.WEBVUE_DEDICATED_PUBLIC_PROTO ?? 'https', ...(releaseAssetsDir !== undefined ? { releaseAssetsDir } : {}) }
+  return { bindingPath, releaseRoutesDir, proxyToken, ...(trustedEdgeAddresses ? { trustedEdgeAddresses } : {}), publicProto: env.LIWAN_DEDICATED_PUBLIC_PROTO ?? 'https', ...(releaseAssetsDir !== undefined ? { releaseAssetsDir } : {}) }
 }
 export function startDedicated(env = process.env) {
   const config = loadDedicatedConfig(env)
-  const port = Number(env.WEBVUE_DEDICATED_GUARD_PORT ?? 8080)
+  const port = Number(env.LIWAN_DEDICATED_GUARD_PORT ?? 8080)
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw Error('dedicated_release_config_rejected')
   const server = createDedicatedGuard(config)
   server.listen(port, '0.0.0.0')

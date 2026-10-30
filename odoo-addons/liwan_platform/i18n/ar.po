@@ -1,0 +1,1134 @@
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: LiwanOS 19.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-24 20:47+0000\n"
+"PO-Revision-Date: 2026-10-24 20:47+0000\n"
+"Last-Translator: LiwanOS\n"
+"Language-Team: Arabic\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 "
+"&& n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "A complete maintenance window is required."
+msgstr "يلزم تحديد نافذة صيانة مكتملة."
+
+#. module: liwan_platform
+#: model:ir.model.constraint,message:liwan_platform.constraint_liwan_maintenance_event_one_target
+msgid "A maintenance event must have exactly one target."
+msgstr "يجب أن يرتبط حدث الصيانة بسجل واحد فقط."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "A non-negative revision is required."
+msgstr "يلزم رقم مراجعة غير سالب."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "A release id, measured estimate and operator policy are required."
+msgstr "يلزم معرّف إصدار وتقدير مقاس وسياسة يحددها المشغل."
+
+#. module: liwan_platform
+#: model:ir.model.constraint,message:liwan_platform.constraint_liwan_maintenance_release_release_unique
+msgid "A release notice already exists for this tenant."
+msgstr "يوجد إشعار بهذا الإصدار لهذه الشركة بالفعل."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "A running release cannot be withdrawn."
+msgstr "لا يمكن سحب إصدار قيد التنفيذ."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+#: code:addons/liwan_platform/models/tenant_profile.py:0
+msgid "A trusted local operator is required."
+msgstr "يلزم مشغل محلي موثوق."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance_messages.py:0
+msgid "A valid IANA timezone is required."
+msgstr "يلزم تحديد منطقة زمنية صالحة بصيغة IANA."
+
+#. module: liwan_platform
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_release__scope__ai_service
+msgid "AI service"
+msgstr "خدمة الذكاء الاصطناعي"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_event__action
+msgid "Action"
+msgstr "الإجراء"
+
+#. module: liwan_platform
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_tenant_branch__state__active
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_tenant_profile__status__active
+msgid "Active"
+msgstr "نشط"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "An active maintenance booking conflicts with this window or release."
+msgstr "يوجد حجز صيانة نشط يتعارض مع هذه النافذة أو هذا الإصدار."
+
+#. module: liwan_platform
+#: model:ir.model.constraint,message:liwan_platform.constraint_liwan_maintenance_event_positive_revision
+msgid "An event revision must be positive."
+msgstr "يجب أن يكون رقم مراجعة الحدث موجبًا."
+
+#. module: liwan_platform
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_tenant_branch__state__archived
+msgid "Archived"
+msgstr "مؤرشف"
+
+#. module: liwan_platform
+#: model:ir.model,name:liwan_platform.model_ir_attachment
+msgid "Attachment"
+msgstr "المرفق"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_event__booking_id
+msgid "Booking"
+msgstr "الحجز"
+
+#. module: liwan_platform
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_event__action__booking_cancelled
+msgid "Booking cancelled"
+msgstr "أُلغي الحجز"
+
+#. module: liwan_platform
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_event__action__booking_complete
+msgid "Booking complete"
+msgstr "اكتمل الحجز"
+
+#. module: liwan_platform
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_event__action__booking_failed
+msgid "Booking failed"
+msgstr "فشل الحجز"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "Booking is outside this tenant."
+msgstr "الحجز لا يخص هذه الشركة."
+
+#. module: liwan_platform
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_event__action__booking_rescheduled
+msgid "Booking rescheduled"
+msgstr "أُعيدت جدولة الحجز"
+
+#. module: liwan_platform
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_event__action__booking_running
+msgid "Booking running"
+msgstr "بدأ تنفيذ الحجز"
+
+#. module: liwan_platform
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_event__action__booking_scheduled
+msgid "Booking scheduled"
+msgstr "جُدول الحجز"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_branch__branch_uid
+msgid "Branch Uid"
+msgstr "مُعرّف الفرع"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "Cancel maintenance bookings instead of deleting them."
+msgstr "ألغِ حجوزات الصيانة بدلًا من حذفها."
+
+#. module: liwan_platform
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_booking__status__cancelled
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_event__new_status__cancelled
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_event__old_status__cancelled
+msgid "Cancelled"
+msgstr "ملغى"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance_messages.py:0
+msgid "Choose a future maintenance window."
+msgstr "اختر نافذة صيانة مستقبلية."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/tenant_profile.py:0
+msgid "Classification differs from the local operator input."
+msgstr "التصنيف يخالف مدخل المشغّل المحلي."
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_profile__commercial_applied_at
+msgid "Commercial Applied At"
+msgstr "تاريخ تطبيق التصنيف التجاري"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_profile__commercial_digest
+msgid "Commercial Digest"
+msgstr "بصمة التصنيف التجاري"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_profile__commercial_mode
+msgid "Commercial Mode"
+msgstr "النمط التجاري"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_profile__commercial_revision_id
+msgid "Commercial Revision"
+msgstr "مراجعة التصنيف التجاري"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/tenant_profile.py:0
+msgid ""
+"Commercial classification is immutable; conversion requires a separate "
+"procedure."
+msgstr "التصنيف التجاري غير قابل للتغيير؛ التحويل يتطلب إجراءً مستقلًا."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/tenant_profile.py:0
+msgid "Commercial mode and policy source must match."
+msgstr "يجب أن يتطابق النمط التجاري مع مصدر السياسة."
+
+#. module: liwan_platform
+#: model:ir.model,name:liwan_platform.model_res_company
+msgid "Companies"
+msgstr "الشركات"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_authority__company_id
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_booking__company_id
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_event__company_id
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_preference__company_id
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_release__company_id
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_branch__company_id
+msgid "Company"
+msgstr "الشركة"
+
+#. module: liwan_platform
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_booking__status__complete
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_event__new_status__complete
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_event__old_status__complete
+msgid "Complete"
+msgstr "مكتمل"
+
+#. module: liwan_platform
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_tenant_profile__entitlement_source__control_plane
+msgid "Control plane"
+msgstr "مستوى التحكم"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_authority__create_uid
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_booking__create_uid
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_event__create_uid
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_preference__create_uid
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_release__create_uid
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_branch__create_uid
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_profile__create_uid
+msgid "Created by"
+msgstr "أنشأه"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_authority__create_date
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_booking__create_date
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_event__create_date
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_preference__create_date
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_release__create_date
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_branch__create_date
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_profile__create_date
+msgid "Created on"
+msgstr "تاريخ الإنشاء"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_release__deadline_at
+msgid "Deadline At"
+msgstr "الموعد النهائي"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_ir_attachment__display_name
+#: model:ir.model.fields,field_description:liwan_platform.field_ir_binary__display_name
+#: model:ir.model.fields,field_description:liwan_platform.field_ir_http__display_name
+#: model:ir.model.fields,field_description:liwan_platform.field_res_company__display_name
+#: model:ir.model.fields,field_description:liwan_platform.field_res_users__display_name
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_access_service__display_name
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_entitlement_service__display_name
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_feature_registry__display_name
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_authority__display_name
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_booking__display_name
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_event__display_name
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_preference__display_name
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_release__display_name
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_module_load_guard__display_name
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_branch__display_name
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_profile__display_name
+msgid "Display Name"
+msgstr "اسم العرض"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_booking__duration_minutes
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_preference__duration_minutes
+msgid "Duration Minutes"
+msgstr "المدة بالدقائق"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_profile__entitlement_source
+msgid "Entitlement Source"
+msgstr "مصدر الاستحقاقات"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_release__estimated_seconds
+msgid "Estimated Seconds"
+msgstr "المدة المقدّرة بالثواني"
+
+#. module: liwan_platform
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_booking__status__failed
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_event__new_status__failed
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_event__old_status__failed
+msgid "Failed"
+msgstr "فشل"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_profile__features
+msgid "Features"
+msgstr "الميزات"
+
+#. module: liwan_platform
+#: model:ir.model,name:liwan_platform.model_ir_binary
+msgid "File streaming helper model for controllers"
+msgstr "نموذج مساعد لبث الملفات لوحدات التحكم"
+
+#. module: liwan_platform
+#: model:ir.model,name:liwan_platform.model_ir_http
+msgid "HTTP Routing"
+msgstr "توجيه HTTP"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_ir_attachment__id
+#: model:ir.model.fields,field_description:liwan_platform.field_ir_binary__id
+#: model:ir.model.fields,field_description:liwan_platform.field_ir_http__id
+#: model:ir.model.fields,field_description:liwan_platform.field_res_company__id
+#: model:ir.model.fields,field_description:liwan_platform.field_res_users__id
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_access_service__id
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_entitlement_service__id
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_feature_registry__id
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_authority__id
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_booking__id
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_event__id
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_preference__id
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_release__id
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_module_load_guard__id
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_branch__id
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_profile__id
+msgid "ID"
+msgstr "المعرّف"
+
+#. module: liwan_platform
+#: model:ir.model,name:liwan_platform.model_liwan_maintenance_event
+msgid "Immutable maintenance event"
+msgstr "حدث صيانة غير قابل للتعديل"
+
+#. module: liwan_platform
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_tenant_profile__commercial_mode__non_saas
+msgid "Independent"
+msgstr "مستقل"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/tenant_profile.py:0
+msgid "Independent installations cannot have a subscription expiry."
+msgstr "ليس للتثبيتات المستقلة تاريخ انتهاء اشتراك."
+
+#. module: liwan_platform
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_release__scope__infrastructure
+msgid "Infrastructure"
+msgstr "البنية التحتية"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "Invalid maintenance booking fields."
+msgstr "حقول حجز الصيانة غير صالحة."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "Invalid maintenance preference fields."
+msgstr "حقول تفضيل الصيانة غير صالحة."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "Invalid maintenance preference window."
+msgstr "نافذة الصيانة المفضلة غير صالحة."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "Invalid maintenance status transition."
+msgstr "الانتقال بين حالتي الصيانة غير صالح."
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_authority__write_uid
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_booking__write_uid
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_event__write_uid
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_preference__write_uid
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_release__write_uid
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_branch__write_uid
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_profile__write_uid
+msgid "Last Updated by"
+msgstr "آخر تعديل بواسطة"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_authority__write_date
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_booking__write_date
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_event__write_date
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_preference__write_date
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_release__write_date
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_branch__write_date
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_profile__write_date
+msgid "Last Updated on"
+msgstr "تاريخ آخر تعديل"
+
+#. module: liwan_platform
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_tenant_profile__entitlement_source__local_policy
+msgid "Local policy"
+msgstr "سياسة محلية"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance_authority.py:0
+msgid ""
+"Maintenance authority can only be changed by an authorized maintenance "
+"operation."
+msgstr "لا يمكن تغيير سجل تنسيق الصيانة إلا من خلال عملية صيانة مصرح بها."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance_authority.py:0
+msgid "Maintenance authority cannot be deleted."
+msgstr "لا يمكن حذف سجل تنسيق الصيانة."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "Maintenance changed concurrently. Reload and retry."
+msgstr "تغيرت الصيانة بالتزامن مع طلبك. حدّث البيانات ثم أعد المحاولة."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "Maintenance changed. Reload before saving."
+msgstr "تغيرت بيانات الصيانة. حدّث البيانات قبل الحفظ."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance_event.py:0
+msgid "Maintenance event target is outside this tenant."
+msgstr "السجل المستهدف بحدث الصيانة لا يخص هذه الشركة."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance_event.py:0
+msgid "Maintenance events are immutable."
+msgstr "لا يمكن تعديل أحداث الصيانة أو حذفها."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance_event.py:0
+msgid ""
+"Maintenance events can only be recorded by an authorized maintenance "
+"operation."
+msgstr "لا تُسجل أحداث الصيانة إلا من خلال عملية صيانة مصرح بها."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "Maintenance is managed from the tenant root company."
+msgstr "تُدار الصيانة من الشركة الرئيسية."
+
+#. module: liwan_platform
+#: model:res.groups,name:liwan_platform.group_maintenance_manager
+msgid "Maintenance manager"
+msgstr "مسؤول الصيانة"
+
+#. module: liwan_platform
+#: model:ir.model.constraint,message:liwan_platform.constraint_liwan_maintenance_authority_positive_generation
+msgid "Maintenance operation generation must be positive."
+msgstr "يجب أن يكون رقم جيل عملية الصيانة موجبًا."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "Maintenance preferences cannot be deleted."
+msgstr "لا يمكن حذف تفضيلات الصيانة."
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_event__new_duration_minutes
+msgid "New Duration Minutes"
+msgstr "المدة الجديدة بالدقائق"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_event__new_scheduled_at
+msgid "New Scheduled At"
+msgstr "الموعد الجديد"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_event__new_start_minute
+msgid "New Start Minute"
+msgstr "دقيقة البدء الجديدة"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_event__new_status
+msgid "New Status"
+msgstr "الحالة الجديدة"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_event__new_timezone
+msgid "New Timezone"
+msgstr "المنطقة الزمنية الجديدة"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_event__new_weekday
+msgid "New Weekday"
+msgstr "يوم الأسبوع الجديد"
+
+#. module: liwan_platform
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_release__urgency__normal
+msgid "Normal"
+msgstr "عادي"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_event__old_duration_minutes
+msgid "Old Duration Minutes"
+msgstr "المدة السابقة بالدقائق"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_event__old_scheduled_at
+msgid "Old Scheduled At"
+msgstr "الموعد السابق"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_event__old_start_minute
+msgid "Old Start Minute"
+msgstr "دقيقة البدء السابقة"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_event__old_status
+msgid "Old Status"
+msgstr "الحالة السابقة"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_event__old_timezone
+msgid "Old Timezone"
+msgstr "المنطقة الزمنية السابقة"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_event__old_weekday
+msgid "Old Weekday"
+msgstr "يوم الأسبوع السابق"
+
+#. module: liwan_platform
+#: model:ir.model.constraint,message:liwan_platform.constraint_liwan_maintenance_authority_company_unique
+msgid "One maintenance authority per tenant."
+msgstr "سجل تنسيق صيانة واحد لكل شركة."
+
+#. module: liwan_platform
+#: model:ir.model.constraint,message:liwan_platform.constraint_liwan_maintenance_preference_company_unique
+msgid "One maintenance preference per tenant."
+msgstr "تفضيل صيانة واحد لكل شركة."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "Only scheduled maintenance can be changed or cancelled."
+msgstr "يمكن تعديل الصيانة المجدولة أو إلغاؤها قبل بدء التنفيذ فقط."
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_branch__operation_id
+msgid "Operation"
+msgstr "العملية"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_authority__operation_generation
+msgid "Operation Generation"
+msgstr "جيل العملية"
+
+#. module: liwan_platform
+#: model:ir.model,name:liwan_platform.model_liwan_maintenance_release
+msgid "Operator maintenance release notice"
+msgstr "إشعار المشغّل بإصدار للصيانة"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_release__policy
+msgid "Policy"
+msgstr "السياسة"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_profile__policy_revision
+msgid "Policy Revision"
+msgstr "مراجعة السياسة"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/tenant_profile.py:0
+msgid "Policy source is not permitted for this installation."
+msgstr "مصدر السياسة غير مسموح لهذا التثبيت."
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_event__preference_id
+msgid "Preference"
+msgstr "التفضيل"
+
+#. module: liwan_platform
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_event__action__preference_saved
+msgid "Preference saved"
+msgstr "حُفظ التفضيل"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_profile__quota_revision
+msgid "Quota Revision"
+msgstr "مراجعة الحصة"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_booking__release_id
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_release__release_id
+msgid "Release"
+msgstr "الإصدار"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "Release is outside this tenant."
+msgstr "الإصدار لا يخص هذه الشركة."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "Release notice not found."
+msgstr "لم يُعثر على إشعار الإصدار."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "Release notice tenant cannot change."
+msgstr "لا يمكن تغيير شركة إشعار الإصدار."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "Release notices belong to this database tenant."
+msgstr "تخص إشعارات الإصدارات شركة قاعدة البيانات هذه."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "Release timing and scope cannot change while bookings are active."
+msgstr "لا يمكن تغيير موعد الإصدار أو نطاقه أثناء وجود حجوزات نشطة."
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_profile__retained_read_features
+msgid "Retained Read Features"
+msgstr "الميزات المحتفظ بها للقراءة"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_booking__revision
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_event__revision
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_preference__revision
+msgid "Revision"
+msgstr "المراجعة"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_profile__root_company_id
+msgid "Root Company"
+msgstr "الشركة الرئيسية"
+
+#. module: liwan_platform
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_booking__status__running
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_event__new_status__running
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_event__old_status__running
+msgid "Running"
+msgstr "قيد التنفيذ"
+
+#. module: liwan_platform
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_tenant_profile__commercial_mode__saas
+msgid "SaaS"
+msgstr "اشتراك سحابي"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "Save a preferred maintenance window first."
+msgstr "احفظ نافذة الصيانة المفضلة أولًا."
+
+#. module: liwan_platform
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_booking__status__scheduled
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_event__new_status__scheduled
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_event__old_status__scheduled
+msgid "Scheduled"
+msgstr "مجدول"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_booking__scheduled_at
+msgid "Scheduled At"
+msgstr "الموعد المجدول"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_release__scope
+msgid "Scope"
+msgstr "النطاق"
+
+#. module: liwan_platform
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_release__urgency__security
+msgid "Security"
+msgstr "أمني"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_profile__singleton_key
+msgid "Singleton Key"
+msgstr "مفتاح السجل المفرد"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_profile__solution
+msgid "Solution"
+msgstr "الحل"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_preference__start_minute
+msgid "Start Minute"
+msgstr "دقيقة البدء"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_branch__state
+msgid "State"
+msgstr "الحالة"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_booking__status
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_release__status
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_profile__status
+msgid "Status"
+msgstr "الحالة"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_profile__support_access_enabled
+msgid "Support Access Enabled"
+msgstr "وصول الدعم مفعّل"
+
+#. module: liwan_platform
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_release__status__supported
+msgid "Supported"
+msgstr "مدعوم"
+
+#. module: liwan_platform
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_tenant_profile__status__suspended
+msgid "Suspended"
+msgstr "موقوف"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_branch__target_revision_id
+msgid "Target Revision"
+msgstr "المراجعة المستهدفة"
+
+#. module: liwan_platform
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_release__scope__tenant
+msgid "Tenant"
+msgstr "الشركة"
+
+#. module: liwan_platform
+#: model:ir.model,name:liwan_platform.model_liwan_maintenance_booking
+msgid "Tenant maintenance booking"
+msgstr "حجز صيانة الشركة"
+
+#. module: liwan_platform
+#: model:ir.model,name:liwan_platform.model_liwan_maintenance_preference
+msgid "Tenant maintenance preference"
+msgstr "تفضيل صيانة الشركة"
+
+#. module: liwan_platform
+#: model:ir.model,name:liwan_platform.model_liwan_maintenance_authority
+msgid "Tenant maintenance serialization authority"
+msgstr "سجل تنسيق عمليات صيانة الشركة"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_profile__terminology
+msgid "Terminology"
+msgstr "المصطلحات"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance_messages.py:0
+msgid "The maintenance window is shorter than the measured estimate."
+msgstr "نافذة الصيانة أقصر من التقدير المقاس."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance_messages.py:0
+msgid "The maintenance window must finish before the release deadline."
+msgstr "يجب أن تنتهي نافذة الصيانة قبل الموعد النهائي للإصدار."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "The release is no longer supported for this booking."
+msgstr "لم يعد الإصدار مدعومًا لهذا الحجز."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "This booking is outside its approved execution window."
+msgstr "الحجز خارج نافذة التنفيذ المعتمدة."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance_messages.py:0
+msgid ""
+"This local time is missing or ambiguous because of daylight saving time."
+msgstr "هذا الوقت المحلي مفقود أو ملتبس بسبب التوقيت الصيفي. اختر وقتًا آخر."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "This release is not available for an individual tenant booking."
+msgstr "هذا الإصدار غير متاح لحجز مستقل لشركة واحدة."
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_profile__tier
+msgid "Tier"
+msgstr "الفئة"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_booking__timezone
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_preference__timezone
+msgid "Timezone"
+msgstr "المنطقة الزمنية"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_release__urgency
+msgid "Urgency"
+msgstr "درجة الإلحاح"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance_messages.py:0
+msgid "Use a valid local date and time without an offset."
+msgstr "أدخل تاريخًا ووقتًا محليين صالحين دون إزاحة زمنية."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "Use the maintenance booking operation."
+msgstr "استخدم عملية حجز الصيانة."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "Use the maintenance preference operation."
+msgstr "استخدم عملية حفظ تفضيل الصيانة."
+
+#. module: liwan_platform
+#: model:ir.model,name:liwan_platform.model_res_users
+msgid "User"
+msgstr "المستخدم"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_tenant_profile__valid_until
+msgid "Valid Until"
+msgstr "صالح حتى"
+
+#. module: liwan_platform
+#: model:ir.model,name:liwan_platform.model_liwan_access_service
+msgid "LiwanOS Access Service"
+msgstr "خدمة الوصول في ليوان"
+
+#. module: liwan_platform
+#: model:ir.model,name:liwan_platform.model_liwan_entitlement_service
+msgid "LiwanOS entitlement service"
+msgstr "خدمة الاستحقاقات في ليوان"
+
+#. module: liwan_platform
+#: model:ir.model,name:liwan_platform.model_liwan_feature_registry
+msgid "LiwanOS feature and module registry"
+msgstr "سجل الميزات والوحدات في ليوان"
+
+#. module: liwan_platform
+#: model:ir.model,name:liwan_platform.model_liwan_module_load_guard
+msgid "LiwanOS installed-module load guard"
+msgstr "حارس تحميل الوحدات المثبّتة في ليوان"
+
+#. module: liwan_platform
+#: model:ir.model,name:liwan_platform.model_liwan_tenant_branch
+msgid "LiwanOS tenant commercial branch"
+msgstr "الفرع التجاري لشركة ليوان"
+
+#. module: liwan_platform
+#: model:ir.model,name:liwan_platform.model_liwan_tenant_profile
+msgid "LiwanOS tenant profile"
+msgstr "ملف شركة ليوان"
+
+#. module: liwan_platform
+#: model:ir.model.fields,field_description:liwan_platform.field_liwan_maintenance_preference__weekday
+msgid "Weekday"
+msgstr "يوم الأسبوع"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance_messages.py:0
+msgid "Window duration must be between 1 and 1440 minutes."
+msgstr "يجب أن تكون مدة النافذة بين دقيقة واحدة و1440 دقيقة."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/maintenance.py:0
+msgid "Withdraw release notices instead of deleting them."
+msgstr "اسحب إشعارات الإصدارات بدلًا من حذفها."
+
+#. module: liwan_platform
+#: model:ir.model.fields.selection,name:liwan_platform.selection__liwan_maintenance_release__status__withdrawn
+msgid "Withdrawn"
+msgstr "مسحوب"
+
+#. module: liwan_platform
+#: model:ir.model.constraint,message:liwan_platform.constraint_liwan_tenant_branch_company_unique
+msgid "a company can be bound to one liwan branch"
+msgstr "لا يمكن ربط الشركة إلا بفرع ليوان واحد"
+
+#. module: liwan_platform
+#: model:ir.model.constraint,message:liwan_platform.constraint_liwan_tenant_profile_independent_cutoff
+msgid "independent installations cannot have a subscription expiry"
+msgstr "ليس للتثبيتات المستقلة تاريخ انتهاء اشتراك"
+
+#. module: liwan_platform
+#: model:ir.model.constraint,message:liwan_platform.constraint_liwan_tenant_branch_branch_uid_unique
+msgid "liwan branch uid must be unique"
+msgstr "يجب أن يكون مُعرّف فرع ليوان فريدًا"
+
+#. module: liwan_platform
+#: model:ir.model.constraint,message:liwan_platform.constraint_liwan_tenant_profile_commercial_pair
+msgid "liwan commercial mode and entitlement source must match"
+msgstr "يجب أن يتطابق النمط التجاري مع مصدر الاستحقاقات"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/entitlement_service.py:0
+#: code:addons/liwan_platform/models/tenant_profile.py:0
+msgid "liwan tenant policy can only be changed by a trusted operator."
+msgstr "لا يمكن تغيير سياسة شركة ليوان إلا بمشغّل موثوق."
+
+#. module: liwan_platform
+#: model:ir.model.constraint,message:liwan_platform.constraint_liwan_tenant_profile_policy_revision_positive
+msgid "liwan tenant policy revision cannot be negative"
+msgstr "لا يمكن أن تكون مراجعة سياسة الشركة سالبة"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/tenant_profile.py:0
+msgid "liwan tenant profile cannot be deleted."
+msgstr "لا يمكن حذف ملف الشركة."
+
+#. module: liwan_platform
+#: model:ir.model.constraint,message:liwan_platform.constraint_liwan_tenant_profile_singleton
+msgid "liwan tenant profile is a singleton"
+msgstr "ملف الشركة سجل مفرد"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/tenant_profile.py:0
+msgid "liwan tenant profile is a singleton."
+msgstr "ملف الشركة سجل مفرد."
+
+#. module: liwan_platform
+#: model:ir.model.constraint,message:liwan_platform.constraint_liwan_tenant_profile_singleton_key
+msgid "liwan tenant profile only accepts the 'tenant' key"
+msgstr "ملف الشركة يقبل المفتاح 'tenant' فقط"
+
+#. module: liwan_platform
+#: model:ir.model.constraint,message:liwan_platform.constraint_liwan_tenant_profile_quota_revision_positive
+msgid "liwan tenant quota revision cannot be negative"
+msgstr "لا يمكن أن تكون مراجعة حصة الشركة سالبة"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/feature_registry.py:0
+msgid "liwan_platform: %(kind)s definition is missing an id"
+msgstr "تعريف %(kind)s في liwan_platform بلا مُعرّف"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/tenant_profile.py:0
+msgid ""
+"liwan_platform: cannot guess root company; found %(count)s roots (%"
+"(names)s). Set liwan.tenant.profile.root_company_id explicitly."
+msgstr "liwan_platform: تعذّر تحديد الشركة الرئيسية؛ وُجد %(count)s جذور (%(names)s). اضبط liwan.tenant.profile.root_company_id."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/feature_registry.py:0
+msgid "liwan_platform: duplicate %(kind)s key %(key)s"
+msgstr "مفتاح %(kind)s مكرر: %(key)s"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/feature_registry.py:0
+msgid "liwan_platform: feature %(key)s has invalid type"
+msgstr "الميزة %(key)s نوعها غير صالح"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/feature_registry.py:0
+msgid "liwan_platform: feature %(key)s is missing owner or module"
+msgstr "الميزة %(key)s بلا مالك أو وحدة"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/entitlement_service.py:0
+msgid "liwan_platform: feature %(key)s must be a boolean"
+msgstr "يجب أن تكون الميزة %(key)s قيمة منطقية"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/entitlement_service.py:0
+msgid "liwan_platform: features must be a flat object"
+msgstr "يجب أن تكون الميزات كائنًا مسطحًا"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/entitlement_service.py:0
+msgid "liwan_platform: features payload is missing required keys: %(keys)s"
+msgstr "حمولة الميزات تنقصها مفاتيح مطلوبة: %(keys)s"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/module_load_guard.py:0
+msgid ""
+"liwan_platform: installed modules were not loaded: %(modules)s. A "
+"dependency is missing from the addons path; build it with \"python3 -B tools/"
+"oca_addons.py path --check\" and read the module_graph warnings above."
+msgstr "liwan_platform: لم تُحمّل وحدات مثبّتة: %(modules)s. ينقص اعتماد من مسار الإضافات."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/entitlement_service.py:0
+msgid "liwan_platform: limit %(key)s must be a non-negative integer or null"
+msgstr "يجب أن يكون الحد %(key)s عددًا صحيحًا غير سالب أو فارغًا"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/tenant_profile.py:0
+msgid "liwan_platform: multiple tenant profiles exist; refuse to guess."
+msgstr "عدة ملفات شركة موجودة؛ لن نخمّن."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/entitlement_service.py:0
+msgid "liwan_platform: retained_read_features contains invalid key %(key)s"
+msgstr "تحوي الميزات المحتفظ بها للقراءة مفتاحًا غير صالح: %(key)s"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/entitlement_service.py:0
+msgid "liwan_platform: retained_read_features must be a list"
+msgstr "يجب أن تكون الميزات المحتفظ بها للقراءة قائمة"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/tenant_profile.py:0
+msgid "liwan_platform: revisions cannot be negative"
+msgstr "لا يمكن أن تكون المراجعات سالبة"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/tenant_profile.py:0
+msgid "liwan_platform: status must be active or suspended"
+msgstr "يجب أن تكون الحالة نشطة أو موقوفة"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/entitlement_service.py:0
+msgid "liwan_platform: tenant profile is missing or not a singleton."
+msgstr "ملف الشركة مفقود أو ليس سجلًا مفردًا."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/tenant_profile.py:0
+msgid "liwan_platform: tenant_profile xmlid points at a different record."
+msgstr "مُعرّف ملف الشركة يشير إلى سجل مختلف."
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/entitlement_service.py:0
+msgid "liwan_platform: terminology key %(key)s is not allowed"
+msgstr "مفتاح المصطلحات %(key)s غير مسموح"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/entitlement_service.py:0
+msgid "liwan_platform: terminology must be an object"
+msgstr "يجب أن تكون المصطلحات كائنًا"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/entitlement_service.py:0
+msgid ""
+"liwan_platform: terminology value for %(key)s contains forbidden markup"
+msgstr "liwan_platform: قيمة المصطلح %(key)s تحتوي وسومًا محظورة"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/entitlement_service.py:0
+msgid "liwan_platform: terminology value for %(key)s is too long"
+msgstr "قيمة المصطلح %(key)s طويلة جدًا"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/entitlement_service.py:0
+msgid "liwan_platform: terminology value for %(key)s must be text"
+msgstr "يجب أن تكون قيمة المصطلح %(key)s نصًا"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/entitlement_service.py:0
+msgid "liwan_platform: terminology.%(locale)s exceeds %(limit)s keys"
+msgstr "مصطلحات %(locale)s تتجاوز %(limit)s مفتاحًا"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/entitlement_service.py:0
+msgid "liwan_platform: terminology.%(locale)s must be an object"
+msgstr "يجب أن تكون مصطلحات %(locale)s كائنًا"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/entitlement_service.py:0
+msgid "liwan_platform: unknown feature %(key)s"
+msgstr "ميزة غير معروفة: %(key)s"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/tenant_profile.py:0
+msgid "liwan_platform: unknown selected modules %(modules)s"
+msgstr "وحدات مختارة غير معروفة: %(modules)s"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/entitlement_service.py:0
+msgid "liwan_platform: unknown terminology key %(key)s"
+msgstr "مفتاح مصطلحات غير معروف: %(key)s"
+
+#. module: liwan_platform
+#. odoo-python
+#: code:addons/liwan_platform/models/entitlement_service.py:0
+msgid "liwan_platform: unknown terminology locale %(locale)s"
+msgstr "لغة مصطلحات غير معروفة: %(locale)s"

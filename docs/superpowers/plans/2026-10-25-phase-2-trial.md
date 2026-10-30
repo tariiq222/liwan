@@ -6,7 +6,7 @@
 
 **Architecture:** A trial is an ordinary order whose `due_now` is zero, so it uses the existing provisioning and fulfillment path instead of a parallel one. Expiry is a scheduled job that both issues the first invoice and flips the state, because `applyDunning` only reacts to an overdue issued invoice. Suspension reaches Odoo through the existing `tenant.entitle` operation with a policy carrying `valid_until`, which Odoo already reads.
 
-**Tech Stack:** as Phase 1, plus `apps/control-plane/src/commercial/scheduler.ts`, `tools/webvue_cli/operator.py` (policy shape), `odoo-addons/webvue_platform` (already enforces).
+**Tech Stack:** as Phase 1, plus `apps/control-plane/src/commercial/scheduler.ts`, `tools/liwan_cli/operator.py` (policy shape), `odoo-addons/liwan_platform` (already enforces).
 
 **Spec:** [docs/superpowers/specs/2026-10-24-self-service-pricing-and-trial-design.md](../specs/2026-10-24-self-service-pricing-and-trial-design.md) §7, §10.3, and reviewer findings 1 and 2.
 
@@ -186,17 +186,17 @@ git commit -am "feat(cp): end a trial by issuing its first invoice"
 
 **Files:**
 - Modify: `apps/control-plane/src/commercial/fulfillment.ts` (reconfigure authority carries `valid_until`)
-- Modify: `tools/webvue_cli/operator.py` (`_policy` writes `valid_until` into the policy document; `ENTITLE_SCRIPT` writes `profile.valid_until`)
-- Test: `apps/control-plane/src/__tests__/commercial-trial.test.ts`, `tools/test_webvue_cli_operator.py`
+- Modify: `tools/liwan_cli/operator.py` (`_policy` writes `valid_until` into the policy document; `ENTITLE_SCRIPT` writes `profile.valid_until`)
+- Test: `apps/control-plane/src/__tests__/commercial-trial.test.ts`, `tools/test_liwan_cli_operator.py`
 
 **Interfaces:**
-- Produces: the entitlement policy document gains `valid_until` (ISO date or `null`); `ENTITLE_SCRIPT` writes `{'features': …, 'valid_until': …}` on `webvue.tenant.profile`.
+- Produces: the entitlement policy document gains `valid_until` (ISO date or `null`); `ENTITLE_SCRIPT` writes `{'features': …, 'valid_until': …}` on `liwan.tenant.profile`.
 - Consumes: Odoo's existing read at `entitlement_service.py:51` — **no Odoo change is needed**.
 
 - [ ] **Step 1: Write the failing tests**
 
 ```python
-# tools/test_webvue_cli_operator.py — the policy document the operator writes
+# tools/test_liwan_cli_operator.py — the policy document the operator writes
 def test_policy_document_carries_the_expiry(self):
     payload = json.loads(_policy(self.policy_path(valid_until='2026-11-08')))
     self.assertEqual(payload['valid_until'], '2026-11-08')
@@ -217,7 +217,7 @@ it('renews the tenant policy with the subscription expiry date', async () => {
 
 - [ ] **Step 2: Run to confirm failure**
 
-Run: `npm -w apps/control-plane run test -- -t "subscription expiry date"` and `python3 -B -m unittest tools.test_webvue_cli_operator -k expiry`
+Run: `npm -w apps/control-plane run test -- -t "subscription expiry date"` and `python3 -B -m unittest tools.test_liwan_cli_operator -k expiry`
 Expected: FAIL.
 
 - [ ] **Step 3: Implement**
@@ -226,8 +226,8 @@ Carry `valid_until = date(subscription.grace_ends_at ?? trial_ends_at + grace_da
 
 - [ ] **Step 4: Run the tests**
 
-Run: `npm -w apps/control-plane run test` and `python3 -B -m unittest tools.test_webvue_cli_operator`
-Expected: PASS. Also run `npm run test:odoo -- --addons webvue_platform` on a scratch database to prove Odoo still refuses a suspended tenant.
+Run: `npm -w apps/control-plane run test` and `python3 -B -m unittest tools.test_liwan_cli_operator`
+Expected: PASS. Also run `npm run test:odoo -- --addons liwan_platform` on a scratch database to prove Odoo still refuses a suspended tenant.
 
 - [ ] **Step 5: Commit**
 

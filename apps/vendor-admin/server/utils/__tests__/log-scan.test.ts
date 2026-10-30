@@ -14,7 +14,7 @@ import { json, send, stubConfig, stubUpstream } from './harness'
 const SECRET = 'LEAKME'
 const secretToken = SECRET.repeat(8).slice(0, 43).padEnd(43, 'Z')
 const secretSession = `7.${secretToken}`
-const secretHeaders = { cookie: `webvue_admin=${secretSession}`, authorization: `Bearer ${SECRET}` }
+const secretHeaders = { cookie: `liwan_admin=${secretSession}`, authorization: `Bearer ${SECRET}` }
 
 const requests = [
   () => send(enrollInvitation, '/api/auth/enroll/invitation', { body: { token: secretToken } }),

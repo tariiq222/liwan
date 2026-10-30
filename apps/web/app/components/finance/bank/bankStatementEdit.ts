@@ -1,4 +1,4 @@
-import type { FinanceBankStatementDetail, FinanceBankStatementPatch } from '@webvue/contracts'
+import type { FinanceBankStatementDetail, FinanceBankStatementPatch } from '@liwan/contracts'
 import { sameMoney } from './bankModel'
 
 export interface StatementEditDraft { name: string; balanceStart: string; balanceEnd: string }

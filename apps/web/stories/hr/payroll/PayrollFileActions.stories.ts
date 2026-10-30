@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import PayrollFileActions from '../../../app/components/hr/payroll/PayrollFileActions.vue'
-import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
+import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../../support/context'
 
 // The salary files of a fixed run under its totals: the bank transfer file with its value date, the WPS file, each laid
@@ -23,7 +23,7 @@ const meta = {
   render: args => ({
     components: { PayrollFileActions, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="webvue-shell-main"><PageContainer width="full"><PayrollFileActions v-bind="args" /></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer width="full"><PayrollFileActions v-bind="args" /></PageContainer></main>',
   }),
 } satisfies Meta<typeof PayrollFileActions>
 

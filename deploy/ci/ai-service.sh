@@ -8,7 +8,7 @@ cd apps/ai-service
 .venv/bin/pip install --quiet -e '.[dev]'
 .venv/bin/ruff check src tests
 # The Postgres state tests need a throwaway database, dropped on exit (the control-plane stage's conventions).
-AI_DB="webvue_ai_ci_${GITHUB_RUN_ID}"
+AI_DB="liwan_ai_ci_${GITHUB_RUN_ID}"
 trap 'dropdb -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" --if-exists "$AI_DB"' EXIT
 dropdb -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" --if-exists "$AI_DB"
 createdb -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" "$AI_DB"

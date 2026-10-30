@@ -20,7 +20,7 @@ async function reloadSettings() {
     <SharedPageHeader :title="t('nav.meetings')" />
     <SharedForbiddenState v-if="!parts.length" :description="t('errors.forbidden')" />
     <template v-else>
-      <section v-if="shows('schedule')" id="schedule" class="webvue-settings-anchor">
+      <section v-if="shows('schedule')" id="schedule" class="liwan-settings-anchor">
         <SharedPageState :loading="settings.isLoading.value" :error="settings.data.value ? null : settings.error.value" :empty="!settings.data.value" @retry="settings.refetch()">
           <MeetingScheduleCard v-if="settings.data.value" :settings="settings.data.value" :reload-settings="reloadSettings" />
         </SharedPageState>

@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import { renderShared } from '@webvue/ui/test/helpers/renderShared'
+import { renderShared } from '@liwan/ui/test/helpers/renderShared'
 
 const file = resolve(import.meta.dirname, '../TaskKpiStrip.vue')
 const projectFile = resolve(import.meta.dirname, '../../projects/ProjectKpiStrip.vue')

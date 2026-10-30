@@ -1,6 +1,6 @@
 // Presentation-only governance state: tone maps for badges. Cache keys and
 // route-filter parsers live in `composables/projectGovernanceKeys.ts`.
-import type { ProjectRaciRole, ProjectRegisterStatus, ProjectRegisterPriority } from '@webvue/contracts'
+import type { ProjectRaciRole, ProjectRegisterStatus, ProjectRegisterPriority } from '@liwan/contracts'
 import type { StateTone } from '@/composables/taskState'
 
 export const REGISTER_PRIORITY_TONE: Record<ProjectRegisterPriority, StateTone> = {

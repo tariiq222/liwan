@@ -1,4 +1,4 @@
-import type { Branch, Order, BranchSummary, Invoice, PaymentAttempt, Quote, SubscriptionView, UsageSnapshot } from '@webvue/commercial-contracts'
+import type { Branch, Order, BranchSummary, Invoice, PaymentAttempt, Quote, SubscriptionView, UsageSnapshot } from '@liwan/commercial-contracts'
 import { deriveCustomerCapabilities } from '@/utils/customerCapabilities'
 import { csrfTokenFor, forgetIdempotencyKey, idempotencyKey, safePaymentRedirect, sanitizeBody } from '@/utils/subscription'
 
@@ -7,10 +7,10 @@ export type CustomerCatalog = { plans: Array<Record<string, any>>; bundles: Arra
 /** Read-only order status; the control plane answers 404 for an order that is not this customer's. */
 export type CustomerOrderStatus = Pick<Order, 'id' | 'kind' | 'payment_state' | 'fulfillment_state' | 'due_now' | 'created_at'> & { cancelled: boolean }
 export type CustomerOrderResult = { order: NonNullable<SubscriptionView['pending_order']> }
-const CSRF_COOKIE = 'webvue_csrf'
+const CSRF_COOKIE = 'liwan_csrf'
 
 export function useSubscriptionApi() {
-  const headers = import.meta.server ? useRequestHeaders(['cookie', 'host', 'x-webvue-proxy-token', 'x-webvue-tenant-revision']) : undefined
+  const headers = import.meta.server ? useRequestHeaders(['cookie', 'host', 'x-liwan-proxy-token', 'x-liwan-tenant-revision']) : undefined
   const csrf = useCookie(CSRF_COOKIE)
   const csrfToken = () => csrfTokenFor(csrf.value, async () => { await $fetch('/api/commercial/csrf'); refreshCookie(CSRF_COOKIE) }, () => csrf.value)
   async function request<T>(path: string, options: { method?: string; body?: unknown; query?: Record<string, unknown> } = {}): Promise<T> {
@@ -19,7 +19,7 @@ export function useSubscriptionApi() {
       method: (options.method ?? 'GET') as any,
       body: options.body ? sanitizeBody(options.body as Record<string, unknown>) as any : undefined,
       query: options.query,
-      headers: { ...(headers ?? {}), ...(token ? { 'x-webvue-csrf': token } : {}) },
+      headers: { ...(headers ?? {}), ...(token ? { 'x-liwan-csrf': token } : {}) },
     }) as T
   }
   const store = (): Storage | null => (import.meta.client ? window.sessionStorage : null)

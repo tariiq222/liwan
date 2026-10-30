@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinanceBudgetDetail, FinanceBudgetLine } from '@webvue/contracts'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import type { FinanceBudgetDetail, FinanceBudgetLine } from '@liwan/contracts'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
 import { h } from 'vue'
 import { useDeleteFinanceBudgetLine } from '@/composables/finance/useFinanceBudgets'
 import Money from '../invoices/Money.vue'
@@ -57,7 +57,7 @@ async function remove(line: FinanceBudgetLine) {
 
 <template>
   <SharedRecordSection variant="list" :title="t('financeBudgets.lines.title')" data-testid="finance-budget-lines-panel">
-    <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" class="m-(--webvue-card-pad-dense)" data-testid="finance-budget-line-delete-error" />
+    <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" class="m-(--liwan-card-pad-dense)" data-testid="finance-budget-line-delete-error" />
     <SharedInlineConfirm
       v-if="editable && panel?.kind === 'delete'"
       :title="t('financeBudgets.lines.confirmDelete', { name: panel.line.account.name })"
@@ -100,7 +100,7 @@ async function remove(line: FinanceBudgetLine) {
     <BudgetLineForm v-if="props.editable && panel?.kind === 'edit'" :key="panel.line.id" :budget="budget" :line="panel.line" @done="panel = null" @cancel="panel = null" />
     <template v-else-if="props.editable">
       <BudgetDistributeForm v-if="splitting" :budget="budget" @done="splitting = false" @cancel="splitting = false" />
-      <div v-else class="border-t border-default p-(--webvue-card-pad-dense)">
+      <div v-else class="border-t border-default p-(--liwan-card-pad-dense)">
         <UButton color="neutral" variant="outline" icon="i-lucide-split" :label="t('financeBudgets.distribute.open')" data-testid="finance-budget-distribute-open" @click="splitting = true" />
       </div>
       <BudgetLineForm :budget="budget" />

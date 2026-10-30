@@ -28,7 +28,7 @@ ALLOWED_HOSTS = frozenset({
     'localhost',
     'meet.example',
     'meet.example.test',
-    'webvue.local',
+    'liwan.local',
     'series.example',
     'unovis.dev',
     'www.openstreetmap.org',

@@ -1,7 +1,7 @@
 import { computed } from 'vue'
 
 /** The cookie that remembers whether the pages' KPI strips are drawn; read on the server, so a hidden strip never flashes. */
-export const KPI_COOKIE = 'webvue-kpis'
+export const KPI_COOKIE = 'liwan-kpis'
 export type KpiVisibility = 'shown' | 'hidden'
 
 /**

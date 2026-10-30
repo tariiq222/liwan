@@ -27,7 +27,7 @@ const isSubPage = computed(() => /^\/settings\/apps\/inbox\/(?:channels\/(?!new$
   <template v-else>
     <SharedSettingsPage width="form">
       <SharedPageHeader :title="t('inbox.title')" />
-      <div class="grid gap-(--webvue-gap-card)" data-testid="inbox-settings">
+      <div class="grid gap-(--liwan-gap-card)" data-testid="inbox-settings">
         <InboxPolicyForm v-if="shows('policy')" />
         <InboxPresets v-if="shows('presets')" />
         <InboxDepartmentsSection v-if="shows('departments')" />

@@ -11,7 +11,7 @@ import {
   type FinanceBudgetDistribute,
   type FinanceBudgetLineCreate,
   type FinanceBudgetLinePatch,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import type { BudgetListParams } from '@/components/finance/budgets/budgetListParams'
 
 export const financeBudgetKeys = {

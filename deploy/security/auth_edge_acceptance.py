@@ -18,7 +18,7 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-DATABASE = 'webvue_auth_edge_scratch'
+DATABASE = 'liwan_auth_edge_scratch'
 TOTP_SECRET = 'JBSWY3DPEHPK3PXP'  # Synthetic fixture only.
 NODE_REQUEST = r'''
 const https = require('node:https'), fs = require('node:fs');
@@ -54,14 +54,14 @@ process.stdin.on('end', async () => {
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True, help='new private evidence directory')
-    parser.add_argument('--caddy-image', default='webvue-caddy:sca')
-    parser.add_argument('--odoo-image', default='webvue-odoo:sca')
+    parser.add_argument('--caddy-image', default='liwan-caddy:sca')
+    parser.add_argument('--odoo-image', default='liwan-odoo:sca')
     args = parser.parse_args()
     output = args.output.resolve()
     output.mkdir(mode=0o700, parents=True, exist_ok=False)
     if not (ROOT / 'apps/web/.output/server/index.mjs').is_file():
         raise RuntimeError('build the selected worktree web server first')
-    project = 'webvue_auth_scratch_' + secrets.token_hex(4)
+    project = 'liwan_auth_scratch_' + secrets.token_hex(4)
     password = secrets.token_hex(24)
     owner_password = secrets.token_hex(24)
     compose_file = output / 'compose.json'
@@ -100,15 +100,15 @@ def main():
     stack = {'services': {
         'db': {'image': 'postgres:16-alpine', 'environment': {'POSTGRES_USER': 'odoo', 'POSTGRES_PASSWORD': password},
                'volumes': ['db:/var/lib/postgresql/data']},
-        'odoo': {'image': args.odoo_image, 'environment': {'WEBVUE_COMMERCIAL_CONFIG': '/fixture/classification.json'},
+        'odoo': {'image': args.odoo_image, 'environment': {'LIWAN_COMMERCIAL_CONFIG': '/fixture/classification.json'},
                  'command': ['-d', DATABASE, '--workers', '2', '--max-cron-threads', '0', '--proxy-mode'],
                  'volumes': [str(output / 'odoo.conf') + ':/etc/odoo/odoo.conf:ro',
                              str(output / 'classification.json') + ':/fixture/classification.json:ro',
-                             str(ROOT / 'odoo-addons') + ':/opt/webvue/addons:ro', 'odoo:/var/lib/odoo']},
+                             str(ROOT / 'odoo-addons') + ':/opt/liwan/addons:ro', 'odoo:/var/lib/odoo']},
         'web': {'image': 'node:22-alpine', 'working_dir': '/app', 'command': ['node', '.output/server/index.mjs'],
                 'environment': {'NODE_ENV': 'production', 'HOST': '0.0.0.0', 'PORT': '3000',
                                 'NUXT_ODOO_URL': 'http://odoo:8069', 'NUXT_ODOO_DB': DATABASE,
-                                'NUXT_AUTH_PROXY_CLIENT_IP_HEADER': 'x-webvue-client-ip', 'NUXT_PUBLIC_WS_URL': ''},
+                                'NUXT_AUTH_PROXY_CLIENT_IP_HEADER': 'x-liwan-client-ip', 'NUXT_PUBLIC_WS_URL': ''},
                 'volumes': [str(ROOT / 'apps/web/.output') + ':/app/.output:ro']},
         'proxy': {'image': args.caddy_image, 'environment': {'DOMAIN': 'https://localhost'},
                   'volumes': [str(ROOT / 'deploy/Caddyfile') + ':/etc/caddy/Caddyfile:ro', 'caddy:/data']},
@@ -131,7 +131,7 @@ def main():
     try:
         compose('up', '-d', '--pull', 'never', 'db')
         result['db_ready_attempts'] = wait_for(('exec', '-T', 'db', 'pg_isready', '-U', 'odoo'))
-        compose('run', '--rm', '-T', '--no-deps', 'odoo', '-d', DATABASE, '-i', 'webvue_api',
+        compose('run', '--rm', '-T', '--no-deps', 'odoo', '-d', DATABASE, '-i', 'liwan_api',
                 '--without-demo=all', '--workers', '0', '--max-cron-threads', '0', '--stop-after-init')
         seed = (
             "owner = env.ref('base.user_admin')\n"
@@ -158,9 +158,9 @@ def main():
             raise RuntimeError('independent peers were not allocated')
 
         for peer in ('a', 'b'):
-            headers = {'X-Forwarded-For': '198.51.100.99', 'X-WebVue-Client-IP': '192.0.2.99',
-                       'X-WebVue-Client-Host': 'evil.example.test', 'X-WebVue-Client-Proto': 'ftp',
-                       'Connection': 'X-WebVue-Client-IP, X-WebVue-Client-Host, X-WebVue-Client-Proto'}
+            headers = {'X-Forwarded-For': '198.51.100.99', 'X-Liwan-Client-IP': '192.0.2.99',
+                       'X-Liwan-Client-Host': 'evil.example.test', 'X-Liwan-Client-Proto': 'ftp',
+                       'Connection': 'X-Liwan-Client-IP, X-Liwan-Client-Host, X-Liwan-Client-Proto'}
             rows = request(peer, [{'path': '/api/auth/login', 'headers': headers,
                                    'body': {'login': 'auth_edge_owner', 'password': owner_password}}])
             logs = compose('logs', '--no-color', 'odoo')

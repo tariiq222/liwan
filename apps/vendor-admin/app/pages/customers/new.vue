@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { Cadence } from '@webvue/commercial-contracts'
-import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import type { Cadence } from '@liwan/commercial-contracts'
+import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import { cadenceKey, commercialErrorKey } from '@/utils/vendorCommercial'
-import { cadenceLabel, formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercial'
+import { cadenceLabel, formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { planRequestBody, planTenantCustomerBody, planTenantQuoteBody } from '@/utils/vendorTenantPlan'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'

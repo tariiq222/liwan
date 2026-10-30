@@ -8,7 +8,7 @@ import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState
 import FinanceActualLines from '@/components/pmo/projects/finance/FinanceActualLines.vue'
 import FinanceEntryTable from '@/components/pmo/projects/finance/FinanceEntryTable.vue'
 import FinanceSummaryCards from '@/components/pmo/projects/finance/FinanceSummaryCards.vue'
-import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
+import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
 import {
   FINANCE_PAGE,
   financeKindFilters,
@@ -24,7 +24,7 @@ import {
 } from '@/utils/projectFinance'
 import { parsePositiveId } from '@/utils/routeParams'
 import { listFilterQuery } from '@/composables/useRouteListFilters'
-import { returnToQuery, safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery, safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
@@ -51,7 +51,7 @@ const listPath = () => `/projects/${projectId.value}/finance`
 // Auth publishes the router's actual target before awaiting identity refresh.
 // Track even a newer list/query navigation: an older cancelled record must not
 // resume a debounce writer while that newer navigation is still pending.
-const stopNavigationStart = useNuxtApp().hook('webvue:navigation:start', to => {
+const stopNavigationStart = useNuxtApp().hook('liwan:navigation:start', to => {
   pendingDeparture = to
   if (pendingOwnQuery && !pendingOwnQuery.navigation && to.fullPath === pendingOwnQuery.target) pendingOwnQuery.navigation = to
 })
@@ -257,7 +257,7 @@ const emptiness = computed(() => summary.value
             </FilterBar>
           </template>
           <SharedPageState :loading="list.isLoading.value && !list.data.value" :error="notFound ? null : list.error.value" :empty="false" @retry="list.refetch">
-            <div v-if="summary && showEmpty" class="p-(--webvue-card-pad)">
+            <div v-if="summary && showEmpty" class="p-(--liwan-card-pad)">
               <SharedEmptyState :title="t('projects.finance.filteredEmpty')" :description="t('projects.finance.filteredEmptyHint')" />
             </div>
             <FinanceEntryTable v-else-if="summary && projectId" :project-id="projectId" :items="items" :summary="summary" :is-loading="list.isLoading.value" :row-to="entryTo" :can-manage="canManage" />

@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
     const { odooUrl, authProxyClientIpHeader } = useRuntimeConfig(event)
 
     const cookie = getHeader(event, 'cookie') ?? ''
-    const send = tenantRequest(event) || process.env.WEBVUE_RELEASE_ROUTES_DIR ? (options: { method: string; headers: Record<string, string>; body: string }) => tenantTransport(event, odooUrl, '/api/v1/auth/totp', options) : (options: RequestInit) => withUpstreamSlot(signal => fetch(`${odooUrl}/api/v1/auth/totp`, { ...options, signal }), event)
+    const send = tenantRequest(event) || process.env.LIWAN_RELEASE_ROUTES_DIR ? (options: { method: string; headers: Record<string, string>; body: string }) => tenantTransport(event, odooUrl, '/api/v1/auth/totp', options) : (options: RequestInit) => withUpstreamSlot(signal => fetch(`${odooUrl}/api/v1/auth/totp`, { ...options, signal }), event)
     const upstream = await send({
       method: 'POST',
       headers: { 'Content-Type': 'application/json', cookie, ...authUpstreamHeaders(event, authProxyClientIpHeader) },

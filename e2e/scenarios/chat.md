@@ -1,11 +1,11 @@
 # Chat
 
-Pages: `/chat`, `/chat/new`, `/chat/[id]/[[panel]]` (the only panel is `info`). Owner: `webvue_chat`.
+Pages: `/chat`, `/chat/new`, `/chat/[id]/[[panel]]` (the only panel is `info`). Owner: `liwan_chat`.
 Personas and status values: [README](README.md).
 
 Notes: chat has no capability of its own. Any active internal user of the current company
 (employee group or any role) may use it; the UI gate is the feature `chat.enabled`. There is no
-bell kind for chat: new messages arrive through the live bus (`webvue/chat` events), the unread
+bell kind for chat: new messages arrive through the live bus (`liwan/chat` events), the unread
 badge and a 5-second poll fallback when the socket is down. A non-member of an existing
 conversation gets 403 «You are not a member of this conversation.»; a missing id or a
 conversation of another type gets 404. A read-only tenant keeps reading; every write answers 403
@@ -29,7 +29,7 @@ conversation of another type gets 404. A read-only tenant keeps reading; every w
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| CHT-10 | Open `/chat` with conversations | staff1 | Heading «المحادثة»; list of the user's conversations newest activity first with avatar, name, last message preview, time («أمس» for yesterday) and an unread badge; right pane says «اختر محادثة» | `page /chat`, `GET /api/v1/chat/conversations` | manual 2026-10-28 | Round 2: list pane is section.webvue-chat-list (H2 «المحادثات»); main H1 «المحادثة»; right pane «اختر محادثة»; rows newest first with preview and time; unread badge on general channel |
+| CHT-10 | Open `/chat` with conversations | staff1 | Heading «المحادثة»; list of the user's conversations newest activity first with avatar, name, last message preview, time («أمس» for yesterday) and an unread badge; right pane says «اختر محادثة» | `page /chat`, `GET /api/v1/chat/conversations` | manual 2026-10-28 | Round 2: list pane is section.liwan-chat-list (H2 «المحادثات»); main H1 «المحادثة»; right pane «اختر محادثة»; rows newest first with preview and time; unread badge on general channel |
 | CHT-11 | Open `/chat` with no conversation at all | staff2 | Empty state «لا محادثات بعد.» with «بدء محادثة» | `page /chat`, `GET /api/v1/chat/conversations` | manual 2026-10-28 | Round 2: jeddah_staff (no conversations): «لا محادثات بعد.» with «بدء محادثة» link |
 | CHT-12 | Search the list | staff1 | Enter applies `q` (matches the conversation name or a member's name); clearing the box resets; no match shows «لا محادثات تطابق هذا البحث.» | `page /chat`, `GET /api/v1/chat/conversations` | manual 2026-10-28 | API q: group name match 1, member name match 4, no match 0 (UI search box not driven) |
 | CHT-13 | Filter «غير مقروء» | staff1 | Only conversations with unread messages, filtered before paging | `page /chat`, `GET /api/v1/chat/conversations` | manual 2026-10-28 | API unread filter lists unread conversations and drops one after mark-read |
@@ -63,7 +63,7 @@ conversation of another type gets 404. A read-only tenant keeps reading; every w
 | CHT-42 | Leave the create form with input | staff1 | Unsaved-changes guard (list query keys ignored); none after creating | `page /chat/new` | planned | R3b: /chat/new and chat pages exceeded compile time on the loaded stack, not reached; R3: not reached |
 | CHT-43 | A channel is visible only to members | staff2 | A second employee does not see a channel created by staff1 until added; no join action exists | `POST /api/v1/chat/conversations`, `GET /api/v1/chat/conversations` | decision | #160; Found 2026-10-28: channels are created for the employee group but listing needs membership |
 | CHT-44 | Back and Escape on the create page | staff1 | Return to the list with its filter and search | `page /chat/new` | planned | R3b: /chat/new and chat pages exceeded compile time on the loaded stack, not reached; R3: not reached |
-| CHT-45 | Users with no chat access | api | A portal or external user gets 403 «Chat is limited to active internal WebVue users.» on every chat route | `GET /api/v1/chat/conversations`, `GET /api/v1/chat/recipients` | planned | R3: no portal user |
+| CHT-45 | Users with no chat access | api | A portal or external user gets 403 «Chat is limited to active internal LiwanOS users.» on every chat route | `GET /api/v1/chat/conversations`, `GET /api/v1/chat/recipients` | planned | R3: no portal user |
 
 ## Messages
 
@@ -107,7 +107,7 @@ conversation of another type gets 404. A read-only tenant keeps reading; every w
 | CHT-85 | Typing indicator | staff1 → staff2 | Typing sends `is_typing` true (at most every 3 seconds) and false after 3 seconds idle, on send and on leaving; the peer sees «{name} يكتب…» in the header for up to 6 seconds; the typist never sees their own | `POST /api/v1/chat/conversations/<id>/typing` | planned | R3: #212; #212; Round 2: typing POSTs sent (true/false) but peer never saw «يكتب» because the bus websocket delivers nothing on the scratch stack |
 | CHT-86 | Typing payload | api | `is_typing` must be a boolean (422), extra field 422 | `POST /api/v1/chat/conversations/<id>/typing` | manual 2026-10-28 | API 422 «is_typing must be a boolean», extra field 422 |
 | CHT-87 | Socket down | staff2 | Thread polls every 5 seconds for newer messages and catches up page by page | `GET /api/v1/chat/conversations/<id>/messages` | planned | R3: #212; #212 |
-| CHT-88 | Bus events | api | Members receive `webvue/chat` events: conversation_created, conversation_updated, message_created, message_updated, reaction_updated, pin_updated, star_updated, read_updated, members_updated, conversation_left, typing | `POST /api/v1/chat/conversations` | planned | R3: bus websocket not deliverable on scratch (#212) |
+| CHT-88 | Bus events | api | Members receive `liwan/chat` events: conversation_created, conversation_updated, message_created, message_updated, reaction_updated, pin_updated, star_updated, read_updated, members_updated, conversation_left, typing | `POST /api/v1/chat/conversations` | planned | R3: bus websocket not deliverable on scratch (#212) |
 | CHT-89 | Mark read validation | api | `message_id` missing 422 «message_id must be an integer»; unknown message 404; extra field 422 | `POST /api/v1/chat/conversations/<id>/read` | manual 2026-10-28 | API 422 «message_id must be an integer»; unknown message 404; extra field 422 |
 | CHT-90 | Reaction and edit appear live for the other member | staff1 → staff2 | Chip count and «معدّلة» update without reload | `POST /api/v1/chat/conversations/<id>/messages/<id>/reactions` | manual 2026-10-28 | Round 2: reaction chip «👍 1» reached the peer in about 1 s and «معدّلة» edit in about 5 s without reload (polling path; bus is silent here) |
 

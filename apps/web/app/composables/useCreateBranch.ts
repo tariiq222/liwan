@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/vue-query'
-import { BranchCreateInputSchema, BranchCreatedSchema, type BranchCreateInput } from '@webvue/contracts'
+import { BranchCreateInputSchema, BranchCreatedSchema, type BranchCreateInput } from '@liwan/contracts'
 import { branchMutationRefresh } from './useBranchAccess'
 
 export function useCreateBranch() {

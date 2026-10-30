@@ -1,5 +1,5 @@
-import { PaymentProviderStateSchema, type PaymentProvider, type PaymentProviderList, type PaymentProviderState, type PaymentProviderSyncStatus } from '@webvue/contracts'
-import { statusBadgeEntry, type StatusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
+import { PaymentProviderStateSchema, type PaymentProvider, type PaymentProviderList, type PaymentProviderState, type PaymentProviderSyncStatus } from '@liwan/contracts'
+import { statusBadgeEntry, type StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
 import { errorKeyFor } from './paymentErrors'
 
 /** The modes a gateway can run in, in the order the mode control shows them: off, sandbox, live. */

@@ -51,7 +51,7 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <form novalidate data-testid="project-update-form" class="grid gap-(--webvue-card-pad)" @submit.prevent="submit">
+  <form novalidate data-testid="project-update-form" class="grid gap-(--liwan-card-pad)" @submit.prevent="submit">
     <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />
     <UFormField :label="t('projects.updates.title')" required :error="requiredError">
       <UInput id="project-update-title" v-model="title" class="w-full" required :disabled="!hydrated || isPending" />

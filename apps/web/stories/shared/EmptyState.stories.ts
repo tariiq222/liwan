@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import EmptyState from '@webvue/ui/app/components/shared/feedback/EmptyState.vue'
+import EmptyState from '@liwan/ui/app/components/shared/feedback/EmptyState.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

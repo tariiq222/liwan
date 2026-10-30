@@ -10,13 +10,13 @@ afterEach(() => { vi.unstubAllEnvs(); vi.resetModules() })
 
 async function wireFixture() {
   vi.stubEnv('NUXT_ODOO_MAX_CONCURRENCY', '1')
-  vi.stubEnv('WEBVUE_TENANCY_MODE', 'shared')
+  vi.stubEnv('LIWAN_TENANCY_MODE', 'shared')
   const token = 'synthetic-queue-wire-token'.repeat(3)
-  vi.stubEnv('WEBVUE_SHARED_PROXY_TOKEN', token)
-  const directory = mkdtempSync(join(tmpdir(), 'webvue-queue-wire-'))
+  vi.stubEnv('LIWAN_SHARED_PROXY_TOKEN', token)
+  const directory = mkdtempSync(join(tmpdir(), 'liwan-queue-wire-'))
   const registry = join(directory, 'registry.json')
   writeFileSync(registry, JSON.stringify({ schemaVersion: 1, snapshotRevision: 1, targets: [{ host: 'a.example.test', tenantId: 'a', database: 'db_a', filestore: 'db_a', registryRevision: 1, enabled: true }] }))
-  vi.stubEnv('WEBVUE_TENANT_REGISTRY_PATH', registry)
+  vi.stubEnv('LIWAN_TENANT_REGISTRY_PATH', registry)
   vi.resetModules()
   const transport = await import('../tenantTransport')
   const calls: string[] = []
@@ -28,7 +28,7 @@ async function wireFixture() {
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`
   const event = () => {
-    const req = Object.assign(new EventEmitter(), { aborted: false, headers: { host: 'a.example.test', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1', cookie: 'session_id=synthetic' } })
+    const req = Object.assign(new EventEmitter(), { aborted: false, headers: { host: 'a.example.test', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1', cookie: 'session_id=synthetic' } })
     const res = Object.assign(new EventEmitter(), { destroyed: false, writableEnded: false })
     return { req, res, event: { node: { req, res } } as unknown as H3Event }
   }

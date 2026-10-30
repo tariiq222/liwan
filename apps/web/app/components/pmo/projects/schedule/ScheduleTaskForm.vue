@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ScheduleTaskPatchSchema, type Milestone, type ScheduleTask } from '@webvue/contracts'
+import { ScheduleTaskPatchSchema, type Milestone, type ScheduleTask } from '@liwan/contracts'
 import { useUpdateProjectScheduleTask } from '@/composables/useProjectSchedule'
 import { ApiError } from '@/composables/useApi'
 import { validateTaskDates } from '@/utils/projectDateBounds'

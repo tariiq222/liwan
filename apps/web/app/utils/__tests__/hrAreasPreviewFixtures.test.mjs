@@ -7,7 +7,7 @@ import {
   HrPlanRunDetailSchema, HrPlanRunListSchema, HrRecruitmentJobListSchema, HrRecruitmentJobSchema,
   HrRecruitmentRefuseReasonListSchema, HrRecruitmentStageListSchema, HrShiftAssignmentListSchema, HrShiftScheduleListSchema,
   HrShiftScheduleSchema,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 
 const at = (path, query = '') => new URL(`http://localhost${path}${query}`)
 const serve = (path, query = '') => moduleUiPreviewData(path, at(path, query))

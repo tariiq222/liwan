@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { UsageSnapshot } from '@webvue/commercial-contracts'
+import type { UsageSnapshot } from '@liwan/commercial-contracts'
 import { usageFigure, usageMetricLabel } from '@/utils/subscription'
 const props = defineProps<{ usage: UsageSnapshot }>()
 const { t, te, locale } = useI18n()
@@ -22,7 +22,7 @@ const rows = computed(() => props.usage.metrics.map((m) => {
       <SharedStatusBadge :tone="usage.freshness === 'stale' ? 'warning' : 'success'" variant="subtle" size="sm" :label="t(usage.freshness === 'stale' ? 'subscription.usage.stale' : 'subscription.usage.fresh')" />
       <span v-if="usage.observed_at">{{ t('subscription.usage.observed') }} <bdi dir="ltr">{{ usage.observed_at }}</bdi></span>
     </p>
-    <div class="grid gap-(--webvue-gap-card) sm:grid-cols-2">
+    <div class="grid gap-(--liwan-gap-card) sm:grid-cols-2">
       <div v-for="{ m, f, pct, tone: meter } in rows" :key="m.key" data-testid="usage-metric" :data-known="f.known">
         <SharedMetricTile
           :label="usageMetricLabel(m, t, te)"

@@ -15,7 +15,7 @@ class DockerAcceptanceBoundaryTests(unittest.TestCase):
         self.source = root / 'source'
         self.output = root / 'output'
         self.output.mkdir()
-        self.paths = ['odoo-addons/webvue_core/__manifest__.py',
+        self.paths = ['odoo-addons/liwan_core/__manifest__.py',
             'deploy/security/odoo_secure.py', 'deploy/shared/launch_odoo.py',
             'deploy/shared/validate_odoo_config.py', 'deploy/odoo/entrypoint.sh',
             'tools/oca_addons.py', 'deploy/oca-addons.json']
@@ -25,7 +25,7 @@ class DockerAcceptanceBoundaryTests(unittest.TestCase):
             target.write_text('original bytes\n')
         self.base = {'Id': 'sha256:' + 'a' * 64,
             'RepoDigests': ['local/base@sha256:' + 'b' * 64],
-            'Config': {'Labels': {'sa.webvue.odoo-commit': lab.STOCK}},
+            'Config': {'Labels': {'sa.liwan.odoo-commit': lab.STOCK}},
             'RootFS': {'Layers': ['sha256:base-layer']}}
 
     def test_source_mutation_after_copy_is_rejected_before_image_build(self):

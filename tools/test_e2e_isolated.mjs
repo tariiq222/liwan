@@ -61,9 +61,9 @@ test('pickPorts for the odoo stack picks odoo and nuxt only', async () => {
   await assert.rejects(pickPorts({ E2E_ODOO_PORT: '4701', E2E_NUXT_PORT: '4701' }, freePort, yes, 'odoo'))
 })
 
-test('the database guard only accepts webvue_scratch_e2e', () => {
-  assert.equal(assertScratchDb(SCRATCH_DB), 'webvue_scratch_e2e')
-  for (const bad of ['odoo19', 'webvue_scratch_e2e2', 'webvue_scratch', '', undefined, 'postgres']) {
+test('the database guard only accepts liwan_scratch_e2e', () => {
+  assert.equal(assertScratchDb(SCRATCH_DB), 'liwan_scratch_e2e')
+  for (const bad of ['odoo19', 'liwan_scratch_e2e2', 'liwan_scratch', '', undefined, 'postgres']) {
     assert.throws(() => assertScratchDb(bad), /refusing database/)
   }
   assert.throws(() => odooArgs('serve', { conf: '/c', db: 'odoo19' }), /refusing database/)
@@ -81,7 +81,7 @@ test('odoo args are built per command kind', () => {
 
 test('odoo conf is scratch-only and carries no password', () => {
   const conf = odooConf({ db: SCRATCH_DB, port: 43369, addonsPath: ['/o/a', '/r/odoo-addons'], dataDir: '/d', logFile: '/l', pg: pgSettings({}) })
-  assert.match(conf, /^dbfilter = \^webvue_scratch_e2e\$$/m)
+  assert.match(conf, /^dbfilter = \^liwan_scratch_e2e\$$/m)
   assert.match(conf, /^http_port = 43369$/m)
   assert.match(conf, /^addons_path = \/o\/a,\/r\/odoo-addons$/m)
   assert.match(conf, /^workers = 0$/m)

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { InboxCampaignSettingsPatchSchema, InboxConsentPolicySchema, type InboxCampaignSettings } from '@webvue/contracts'
+import { InboxCampaignSettingsPatchSchema, InboxConsentPolicySchema, type InboxCampaignSettings } from '@liwan/contracts'
 import { useInboxCampaignSettings, useUpdateInboxCampaignSettings } from '@/composables/inbox/useInboxCampaigns'
 
 // The company's campaign policy: who a campaign may message (only recorded opt-ins, or everyone who has not opted out), how
@@ -60,7 +60,7 @@ function submit() {
 </script>
 
 <template>
-  <SharedFormSection id="campaigns" panel class="webvue-settings-anchor" :title="t('inbox.campaigns.settings.title')" :description="t('inbox.campaigns.settings.hint')">
+  <SharedFormSection id="campaigns" panel class="liwan-settings-anchor" :title="t('inbox.campaigns.settings.title')" :description="t('inbox.campaigns.settings.hint')">
     <SharedLoadingSkeleton v-if="isLoading" />
     <SharedPageState v-else-if="error" :error="error" @retry="refetch()" />
     <form v-else class="flex flex-col gap-5" novalidate data-testid="inbox-campaign-settings" @submit.prevent="submit">

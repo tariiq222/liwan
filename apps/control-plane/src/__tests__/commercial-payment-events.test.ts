@@ -11,7 +11,7 @@ import { routesB } from '../commercial/routes-b.js'
 import { fixedReturnOrigin } from '../commercial/return-origin.js'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
-if (url && new URL(url).pathname !== '/webvue_control_scratch_payfinal') throw new Error('payment tests require own scratch DB')
+if (url && new URL(url).pathname !== '/liwan_control_scratch_payfinal') throw new Error('payment tests require own scratch DB')
 const suite = url ? describe : describe.skip
 suite('simulated payment settlement on live PostgreSQL', () => {
   const pool = new Pool({connectionString:url,max:8})
@@ -29,7 +29,7 @@ suite('simulated payment settlement on live PostgreSQL', () => {
       await c.query(`INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,due_at)
         VALUES($1,$2,$3,$4,'initial','SAR',2,10000,1500,11500,'2026-01-01','2026-02-01',now())`,[invoice,customer_id,sub,order_id])
     })
-    const input = {order_id,customer_id,adapter,returnOrigin: fixedReturnOrigin('https://webvue.test')}
+    const input = {order_id,customer_id,adapter,returnOrigin: fixedReturnOrigin('https://liwan.test')}
     return {input,adapter,order_id,invoice}
   }
   const deliver = (adapter: SimulatorAdapter, rawBody: Uint8Array) => handleProviderEvent(pool,{provider:'simulator',adapter,rawBody,headers:{}})
@@ -80,12 +80,12 @@ suite('simulated payment settlement on live PostgreSQL', () => {
     await pool.query("UPDATE payment_attempts SET updated_at=now()-interval '10 seconds' WHERE id=$1",[a.id])
     expect(await verifyReturnedAttempt(pool,{attempt_id:a.id,customer_id:f.input.customer_id,adapter:f.adapter})).toEqual({order_id:f.order_id,payment_state:'awaiting_payment',fulfillment_state:'not_started'})
     expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1',[a.id])).rows[0].status).toBe('redirected')
-    await expect(createPaymentAttempt(pool,{...f.input,returnOrigin: fixedReturnOrigin('https://webvue.test/path')})).rejects.toMatchObject({status:422})
+    await expect(createPaymentAttempt(pool,{...f.input,returnOrigin: fixedReturnOrigin('https://liwan.test/path')})).rejects.toMatchObject({status:422})
     expect((await pool.query('SELECT count(*)::int AS n FROM payment_attempts WHERE order_id=$1',[f.order_id])).rows[0].n).toBe(1)
   })
   it('hands the provider one return url per attempt that carries only the attempt id',async () => {
     const f=await fixture(),create=vi.spyOn(f.adapter,'createAttempt'),a=await createPaymentAttempt(pool,f.input)
-    const expected=`https://webvue.test/api/commercial/payment-callback?attempt=${a.id}`
+    const expected=`https://liwan.test/api/commercial/payment-callback?attempt=${a.id}`
     expect(create.mock.calls[0]![0]).toMatchObject({attempt_id:a.id,success_url:expected,back_url:expected,callback_url:expected})
   })
   it('a return verifies only its own customer attempt, at most once per 5 seconds, and queues fulfillment once',async () => {
@@ -219,7 +219,7 @@ suite('simulated payment settlement on live PostgreSQL', () => {
   it('the reconciler cancels a payable attempt of an order another attempt already paid',async()=>{
     const f=await fixture(),a=await createPaymentAttempt(pool,f.input)
     f.adapter.settle(a.provider_ref);await deliver(f.adapter,f.adapter.webhookBody(a.provider_ref))
-    const bid=randomUUID(),created=await f.adapter.createAttempt({attempt_id:bid,order_id:f.order_id,amount:{minor:11500,currency:'SAR',exponent:2},description:'x',success_url:'https://webvue.test/a',back_url:'https://webvue.test/a',callback_url:'https://webvue.test/a'})
+    const bid=randomUUID(),created=await f.adapter.createAttempt({attempt_id:bid,order_id:f.order_id,amount:{minor:11500,currency:'SAR',exponent:2},description:'x',success_url:'https://liwan.test/a',back_url:'https://liwan.test/a',callback_url:'https://liwan.test/a'})
     const b=(await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,provider_ref,amount_minor,currency,exponent,status)
       SELECT $1,order_id,invoice_id,provider,mode,merchant_ref,$2,amount_minor,currency,exponent,'redirected' FROM payment_attempts WHERE id=$3 RETURNING id`,[bid,created.provider_ref,a.id])).rows[0]
     await reconcileUnknownAttempts(pool,f.adapter)
@@ -308,7 +308,7 @@ suite('simulated payment settlement on live PostgreSQL', () => {
     const cancel=vi.spyOn(f.adapter,'cancelAttempt')
     await expect(cancelOrder(pool,{order_id:f.order_id,principal:{...principal,customer_id:randomUUID()},reason:'Cancel purchase',adapter:f.adapter})).rejects.toMatchObject({status:404})
     const pathname=`/v1/commercial/orders/${f.order_id}/cancel`
-    expect(await routesB(pool,{method:'POST',pathname,raw:JSON.stringify({reason:'Cancel purchase'}),issuer:'vendor-test',actor:7,capabilities:['vendor.subscriptions.manage'],stepUpFresh:true},new URL(pathname,'https://webvue.test'),{adapter:f.adapter,returnOrigin: fixedReturnOrigin('https://webvue.test')})).toMatchObject({status:200,data:{id:f.order_id}})
+    expect(await routesB(pool,{method:'POST',pathname,raw:JSON.stringify({reason:'Cancel purchase'}),issuer:'vendor-test',actor:7,capabilities:['vendor.subscriptions.manage'],stepUpFresh:true},new URL(pathname,'https://liwan.test'),{adapter:f.adapter,returnOrigin: fixedReturnOrigin('https://liwan.test')})).toMatchObject({status:200,data:{id:f.order_id}})
     expect(cancel).toHaveBeenCalledWith(a.provider_ref)
     expect(await state(f.order_id)).toMatchObject({cancelled:true,fulfillment_state:'not_started'})
     expect((await pool.query('SELECT target_revision_id,revision FROM subscriptions WHERE id=$1',[order.subscription_id])).rows[0]).toEqual({target_revision_id:null,revision:2})

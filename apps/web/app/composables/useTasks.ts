@@ -9,7 +9,7 @@ import {
   type TaskDetail,
   type TaskPatch,
   type TaskState,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { daysRemaining } from './taskState'
 import { ApiError } from './useApi'
 import { invalidateProjectCaches } from './projectKeys'

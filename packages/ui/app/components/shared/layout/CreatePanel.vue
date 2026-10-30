@@ -29,9 +29,9 @@ const dialogContent = computed<NonNullable<SlideoverProps['content']> & { 'aria-
 const side = computed(() => localeProperties.value.dir === 'rtl' ? 'left' : 'right')
 const slots = useSlots()
 const panelUi = computed(() => ({
-  content: 'webvue-create-panel w-full max-w-none',
+  content: 'liwan-create-panel w-full max-w-none',
   body: 'p-4 sm:p-6',
-  footer: footerActions.value || slots.footer ? 'webvue-create-panel-footer-surface shrink-0' : 'hidden',
+  footer: footerActions.value || slots.footer ? 'liwan-create-panel-footer-surface shrink-0' : 'hidden',
 }))
 
 async function onOpenUpdate(next: boolean) {
@@ -73,7 +73,7 @@ async function onOpenUpdate(next: boolean) {
       <slot />
     </template>
     <template #footer>
-      <div ref="footerTarget" class="webvue-create-panel-footer flex w-full flex-wrap items-center justify-between gap-2">
+      <div ref="footerTarget" class="liwan-create-panel-footer flex w-full flex-wrap items-center justify-between gap-2">
         <slot name="footer" />
       </div>
     </template>

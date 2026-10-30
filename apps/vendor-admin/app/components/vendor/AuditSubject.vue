@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AuditEvent } from '@webvue/commercial-contracts'
+import type { AuditEvent } from '@liwan/commercial-contracts'
 import { auditSubjectTo } from '@/utils/vendorAudit'
 const props = defineProps<{ event: Pick<AuditEvent, 'subject' | 'subject_ref'> }>()
 const { t } = useI18n()

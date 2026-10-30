@@ -4,9 +4,9 @@ import type {
   InboxCampaignStats,
   InboxConsentState,
   InboxRecipientState,
-} from '@webvue/contracts'
-import type { KpiTile } from '@webvue/ui/app/utils/kpiTile'
-import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
+} from '@liwan/contracts'
+import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
+import type { StatusTone } from '@liwan/ui/app/utils/statusTone'
 
 // What the campaign screens show for a state: the badge tone, the actions a state allows, the live-refresh rule and the
 // figures of the stats strip.

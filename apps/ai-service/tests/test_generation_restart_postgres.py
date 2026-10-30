@@ -13,32 +13,32 @@ import pytest
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
-from webvue_ai_service.store import open_state
+from liwan_ai_service.store import open_state
 
 pytestmark = pytest.mark.skipif(os.environ.get("AI_DURABLE_RELEASE_TEST") != "1", reason="explicit local scratch acceptance only")
 TOKEN = "synthetic-durable-test-token-" * 2
-ADMIN = {"x-webvue-service-token": TOKEN}
+ADMIN = {"x-liwan-service-token": TOKEN}
 CHILD = """
 import asyncio, importlib.util, json, os, sys
 from pathlib import Path
-import webvue_ai_service
-import webvue_ai_service.contracts
+import liwan_ai_service
+import liwan_ai_service.contracts
 for name in ('settings', 'store', 'service'):
     path = Path(os.environ['AI_TEST_SOURCE_DIR']) / (name+'.py')
-    spec = importlib.util.spec_from_file_location('webvue_ai_service.'+name, path)
+    spec = importlib.util.spec_from_file_location('liwan_ai_service.'+name, path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
-    setattr(webvue_ai_service, name, module)
+    setattr(liwan_ai_service, name, module)
     spec.loader.exec_module(module)
 import httpx
-from webvue_ai_service.service import create_app
-from webvue_ai_service.settings import Settings
-from webvue_ai_service.store import open_state
+from liwan_ai_service.service import create_app
+from liwan_ai_service.settings import Settings
+from liwan_ai_service.store import open_state
 from tests.fakes import ScriptedChatModel, ai_text
 from tests.test_service import BODY, HEADERS, fresh
 async def main():
     token = 'synthetic-durable-test-token-' * 2
-    admin = {'x-webvue-service-token':token}
+    admin = {'x-liwan-service-token':token}
     store, checkpoints, close = await open_state(os.environ['AI_TEST_DATABASE_URL'])
     settings = Settings.from_env({'AI_PROVIDER':'ollama', 'AI_MODEL':'scripted',
         'AI_DATABASE_URL':os.environ['AI_TEST_DATABASE_URL'], 'AI_SERVICE_TOKEN':token,
@@ -73,8 +73,8 @@ asyncio.run(main())
 async def scratch_states():
     database_url = os.environ["AI_TEST_DATABASE_URL"]
     config = conninfo_to_dict(database_url)
-    if not config.get("dbname", "").startswith("webvue_scratch_") or config.get("host") not in ("127.0.0.1", "localhost", "::1"):
-        pytest.fail("live AI proof requires an explicit local webvue_scratch_ database")
+    if not config.get("dbname", "").startswith("liwan_scratch_") or config.get("host") not in ("127.0.0.1", "localhost", "::1"):
+        pytest.fail("live AI proof requires an explicit local liwan_scratch_ database")
     conn = await psycopg.AsyncConnection.connect(database_url, autocommit=True)
     suffix = uuid4().hex[:12]
     schemas = [f"release_durable_1016_{suffix}_{name}" for name in ("a", "b")]
@@ -94,14 +94,14 @@ async def scratch_states():
 
 
 def child_env(state):
+    import liwan_ai_service
     import tests
-    import webvue_ai_service
 
     return {
         **os.environ,
         "AI_TEST_DATABASE_URL": state["url"],
-        "AI_TEST_SOURCE_DIR": str(Path(__file__).resolve().parents[1] / "src/webvue_ai_service"),
-        "PYTHONPATH": os.pathsep.join((str(Path(webvue_ai_service.__file__).parent.parent), str(Path(tests.__file__).parent.parent))),
+        "AI_TEST_SOURCE_DIR": str(Path(__file__).resolve().parents[1] / "src/liwan_ai_service"),
+        "PYTHONPATH": os.pathsep.join((str(Path(liwan_ai_service.__file__).parent.parent), str(Path(tests.__file__).parent.parent))),
     }
 
 
@@ -176,7 +176,7 @@ async def test_actual_different_database_identity_is_refused_before_migration(sc
         processes.append(wrong)
         state = ReleaseState(tmp_path.resolve() / "release")
         state.register(
-            {"tenantId": "a", "database": "webvue_scratch_a", "filestore": "webvue_scratch_a", "registryRevision": 1},
+            {"tenantId": "a", "database": "liwan_scratch_a", "filestore": "liwan_scratch_a", "registryRevision": 1},
             {
                 "schemaVersion": 1,
                 "tenantId": "a",

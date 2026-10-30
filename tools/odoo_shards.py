@@ -33,9 +33,9 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 SHARD_COUNT = 3
-# Per-test cost above the average module, measured on CI: webvue_finance's tests build accounting data
-# (journals, moves, reports), so its 653 tests took 837 s standalone against 279 s for webvue_hr's 626.
-COST_FACTOR = {'webvue_finance': 3}
+# Per-test cost above the average module, measured on CI: liwan_finance's tests build accounting data
+# (journals, moves, reports), so its 653 tests took 837 s standalone against 279 s for liwan_hr's 626.
+COST_FACTOR = {'liwan_finance': 3}
 TEST_DEF = re.compile(r'^\s*def test_', re.MULTILINE)
 
 

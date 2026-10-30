@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import SubCard from '@webvue/ui/app/components/shared/layout/SubCard.vue'
-import RecordSection from '@webvue/ui/app/components/shared/layout/RecordSection.vue'
+import SubCard from '@liwan/ui/app/components/shared/layout/SubCard.vue'
+import RecordSection from '@liwan/ui/app/components/shared/layout/RecordSection.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

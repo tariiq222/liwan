@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useQuery } from '@tanstack/vue-query'
-import { AppointmentTypeListSchema } from '@webvue/contracts'
+import { AppointmentTypeListSchema } from '@liwan/contracts'
 
 const { t } = useI18n()
 const { $api } = useApi()

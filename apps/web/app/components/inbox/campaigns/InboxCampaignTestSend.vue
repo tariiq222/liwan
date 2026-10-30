@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxCampaign } from '@webvue/contracts'
+import type { InboxCampaign } from '@liwan/contracts'
 import InboxCampaignContactPicker from '@/components/inbox/campaigns/InboxCampaignContactPicker.vue'
 import { useTestInboxCampaign } from '@/composables/inbox/useInboxCampaigns'
 

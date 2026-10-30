@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BranchPolicy } from '@webvue/contracts'
+import type { BranchPolicy } from '@liwan/contracts'
 import BranchRoleAssignments from '@/components/access/branches/BranchRoleAssignments.vue'
 import { useSettingsForm } from '@/composables/settings/useSettingsForm'
 import { useUpdateBranchPolicy } from '@/composables/useBranchAccess'

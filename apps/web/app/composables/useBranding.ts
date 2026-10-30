@@ -1,4 +1,4 @@
-import { BrandingSchema, type Branding } from '@webvue/contracts'
+import { BrandingSchema, type Branding } from '@liwan/contracts'
 
 export function useBranding() {
   const { data, refresh } = useFetch<Branding>('/api/v1/branding', {
@@ -19,7 +19,7 @@ export function useBranding() {
     return `/web/image/res.company/${company}/logo/32x32${query}`
   })
   useHead(() => ({
-    title: branding.value?.name ?? 'webvue',
+    title: branding.value?.name ?? 'liwan',
     link: faviconUrl.value ? [{ key: 'institution-favicon', rel: 'icon', href: faviconUrl.value }] : [],
   }))
   return { branding, refresh }

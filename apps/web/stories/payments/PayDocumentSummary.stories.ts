@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import type { PayableInvoice, PayableOrder } from '@webvue/contracts'
+import type { PayableInvoice, PayableOrder } from '@liwan/contracts'
 import PayDocumentSummary from '../../app/components/payments/PayDocumentSummary.vue'
 import { storyContext } from '../support/context'
 
-const shared = { id: 2, merchant: 'ويب فيو', currency: 'SAR', amount_total: 16905, amount_due: 16905, status: 'payable' as const, options: [] }
+const shared = { id: 2, merchant: 'ليوان', currency: 'SAR', amount_total: 16905, amount_due: 16905, status: 'payable' as const, options: [] }
 const invoice: PayableInvoice = { ...shared, number: 'INV/2026/0002', due_date: '2026-10-31' }
 const order: PayableOrder = { ...shared, number: 'S00017', expires_at: '2026-10-31T12:30:00Z' }
 

@@ -4,7 +4,7 @@ import { TaskSummarySchema } from '../task'
 
 describe('TaskSummarySchema', () => {
   // The same payload is asserted by TestTaskSummary.test_summary_matches_golden in
-  // odoo-addons/webvue_pmo/tests/test_task_summary.py.
+  // odoo-addons/liwan_pmo/tests/test_task_summary.py.
   it('accepts the golden payload the controller produces', () => {
     expect(TaskSummarySchema.parse(golden)).toEqual(golden)
   })

@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/vue-query'
 import { describe, expect, it } from 'vitest'
-import type { DocumentDetail } from '@webvue/contracts'
+import type { DocumentDetail } from '@liwan/contracts'
 import { documentKeys } from '../documentKeys'
 import {
   invalidateDocumentLists,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// WebVue logo: the approved mark (2026-10-17) followed by the product name; `markOnly` keeps the mark alone.
+// LiwanOS logo: the approved mark (2026-10-17) followed by the product name; `markOnly` keeps the mark alone.
 const props = withDefaults(defineProps<{ size?: 'sm' | 'md' | 'lg', inverted?: boolean, markOnly?: boolean }>(), { size: 'md', inverted: false, markOnly: false })
 const { t } = useI18n()
 const text = { sm: 'text-sm', md: 'text-base', lg: 'text-xl' } as const

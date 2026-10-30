@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Milestone } from '@webvue/contracts'
+import type { Milestone } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useCreateMilestone, useUpdateMilestone } from '@/composables/useMilestones'
 import { isDirtySnapshot } from '@/lib/formDirty'
@@ -120,7 +120,7 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <form novalidate data-testid="milestone-form" class="grid gap-(--webvue-card-pad)" @submit.prevent="submit">
+  <form novalidate data-testid="milestone-form" class="grid gap-(--liwan-card-pad)" @submit.prevent="submit">
     <UAlert v-if="serverChanged" color="warning" variant="subtle" :title="t('projects.milestones.changed')">
       <template #actions><UButton type="button" color="neutral" variant="outline" :disabled="isPending" :label="t('projects.milestones.reload')" @click="confirmReload = true" /></template>
     </UAlert>

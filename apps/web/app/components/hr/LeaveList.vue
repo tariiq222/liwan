@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { h } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
-import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
+import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
+import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import { ApiError } from '@/composables/useApi'
 import {
   useHrLeaveBalances,
@@ -16,7 +16,7 @@ import {
 } from '@/composables/useHrLeave'
 import { useHrLeaveFormat } from '@/composables/useHrLeaveFormat'
 import { hrLeaveBadge } from '@/utils/hrLeaveBadge'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 
 const props = defineProps<{ personal?: boolean }>()
 const route = useRoute()
@@ -187,7 +187,7 @@ const allocationsTo = { path: '/hr/leave/allocations' }
       <UButton color="neutral" variant="outline" icon="i-lucide-calendar-plus" :to="allocateTo" :disabled="!hydrated" :label="t('hr.leave.allocate')" data-testid="hr-leave-allocate" />
     </template>
 
-    <div class="webvue-page-stack">
+    <div class="liwan-page-stack">
       <SharedPageState v-if="props.personal" :loading="profile.isLoading.value" :error="profile.error.value" @retry="profile.refetch">
         <SharedEmptyState v-if="profile.data.value === null" bordered :title="t('hr.self.noEmployee')" :description="t('hr.self.noEmployeeHint')" />
       </SharedPageState>
@@ -195,7 +195,7 @@ const allocationsTo = { path: '/hr/leave/allocations' }
         <!-- Hiding the figures hides the tiles only: a failed balance load still shows its error and retry. -->
         <SharedPageState :loading="kpisShown && balances.isLoading.value" :error="balances.error.value" @retry="balances.refetch">
           <template v-if="kpisShown">
-            <div v-if="balanceItems.length" class="grid gap-(--webvue-gap-card) sm:grid-cols-2 xl:grid-cols-3">
+            <div v-if="balanceItems.length" class="grid gap-(--liwan-gap-card) sm:grid-cols-2 xl:grid-cols-3">
               <SharedMetricTile
                 v-for="balance in balanceItems"
                 :key="balance.leave_type.id"
@@ -232,7 +232,7 @@ const allocationsTo = { path: '/hr/leave/allocations' }
           />
         </template>
         <SharedPageState :error="requests.error.value" :keep-content="items.length > 0" @retry="requests.refetch">
-          <SharedEmptyState v-if="showEmpty" class="m-(--webvue-card-pad-dense)" :title="t(`hr.leave.empty.${scope}`)" />
+          <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(`hr.leave.empty.${scope}`)" />
           <SharedDataTable
             v-else
             bare

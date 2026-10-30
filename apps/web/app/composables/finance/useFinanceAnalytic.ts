@@ -11,7 +11,7 @@ import {
   type FinanceAnalyticAccountPatch,
   type FinanceAnalyticPlanCreate,
   type FinanceAnalyticPlanPatch,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import type { AnalyticAccountParams, AnalyticLineParams } from '@/components/finance/analytic/analyticParams'
 
 const PLAN_LIMIT = 100

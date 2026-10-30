@@ -39,7 +39,7 @@ class UpgradeLogGuardTests(unittest.TestCase):
     def test_final_missing_not_null_warning_is_rejected(self):
         problems = upgrade_log_guard.find_problems(
             '2026-09-20 12:00:00,000 WARNING odoo.schema: '
-            'Missing not-null constraint on res.company.webvue_ci_required_probe\n',
+            'Missing not-null constraint on res.company.liwan_ci_required_probe\n',
         )
         self.assertEqual(len(problems), 1)
         self.assertIn('Missing not-null constraint on', problems[0][1])

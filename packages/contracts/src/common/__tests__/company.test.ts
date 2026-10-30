@@ -3,7 +3,7 @@ import { CompanyLogoUploadSchema, CompanyProfilePatchSchema, CompanyProfileSchem
 
 const PROFILE = {
   id: 1,
-  name: 'WebVue',
+  name: 'LiwanOS',
   logo_url: null,
   report_header: null,
   company_registry: '1010000000',
@@ -51,7 +51,7 @@ describe('CompanyProfileSchema', () => {
 
 describe('CompanyProfilePatchSchema', () => {
   it('accepts editable fields and null to clear', () => {
-    expect(CompanyProfilePatchSchema.parse({ vat: null, state_id: null, name: 'WebVue' })).toBeTruthy()
+    expect(CompanyProfilePatchSchema.parse({ vat: null, state_id: null, name: 'LiwanOS' })).toBeTruthy()
   })
 
   it('refuses read-only, unknown and empty-name fields', () => {

@@ -1,5 +1,5 @@
-import type { IntegrationState } from '@webvue/contracts'
-import { statusBadgeEntry, type StatusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
+import type { IntegrationState } from '@liwan/contracts'
+import { statusBadgeEntry, type StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
 
 const INTEGRATION_STATE_BADGES: Readonly<Record<IntegrationState, StatusBadgeEntry>> = {
   not_configured: { tone: 'neutral', labelKey: 'integrations.state.not_configured' },

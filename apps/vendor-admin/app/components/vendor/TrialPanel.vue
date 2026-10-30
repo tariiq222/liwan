@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { daysBetween, riyadhDate, type SubscriptionView } from '@webvue/commercial-contracts'
+import { daysBetween, riyadhDate, type SubscriptionView } from '@liwan/commercial-contracts'
 import { commercialErrorKey } from '@/utils/vendorCommercial'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 const props = defineProps<{ subscription: SubscriptionView }>()

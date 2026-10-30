@@ -1,4 +1,4 @@
-import type { FinanceBudgetVsActual } from '@webvue/contracts'
+import type { FinanceBudgetVsActual } from '@liwan/contracts'
 
 type Side = 'debit' | 'credit'
 export type FigureTone = 'success' | 'danger' | 'neutral'

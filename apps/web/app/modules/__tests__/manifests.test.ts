@@ -7,7 +7,7 @@ import { allNavItems, contextLinksForModule } from '../../composables/nav/shellM
 import { goKeyProblems } from '../../composables/nav/paletteModel'
 import { isContextLinkActive } from '../../composables/useShellNavigation'
 import { appCommands } from '../surfaces'
-import { SHELL_RESERVED_KEYS } from '@webvue/ui/app/composables/shortcuts/keymap'
+import { SHELL_RESERVED_KEYS } from '@liwan/ui/app/composables/shortcuts/keymap'
 
 const pilot: AppManifest = {
   id: 'pilot',
@@ -56,7 +56,7 @@ describe('app manifests', () => {
   })
 
   it.each([
-    ['/chat', 'webvue.internal'], ['/chat/new', 'webvue.internal'],
+    ['/chat', 'liwan.internal'], ['/chat/new', 'liwan.internal'],
     ['/settings/apps/projects', 'pmo.settings.manage'], ['/settings/apps/projects/x', 'pmo.settings.manage'],
     ['/tasks/new', 'pmo.tasks.create'], ['/projects/5/tasks/new', 'pmo.tasks.create'], ['/projects/new', 'pmo.projects.create'],
     ['/projects/dashboard', 'pmo.projects.read'], ['/tasks/4', 'pmo.tasks.read'],
@@ -76,7 +76,7 @@ describe('app manifests', () => {
     ['/hr/payroll', 'hr.payroll.read'], ['/hr/payroll/4', 'hr.payroll.read'], ['/hr/payroll/4/payslips/9', 'hr.payroll.read'],
     ['/hr/payroll/new', 'hr.payroll.manage'],
     ['/account/pay', 'hr.employees.read'], ['/account/pay/7', 'hr.employees.read'],
-    ['/notifications', 'webvue.notifications'], ['/settings/team/users/new', 'access.users.grant'],
+    ['/notifications', 'liwan.notifications'], ['/settings/team/users/new', 'access.users.grant'],
     ['/settings/team/users/3/access', 'access.users.assign_roles'], ['/settings/team/roles/4/edit', 'access.roles.manage'],
     ['/settings/team/roles/4', 'access.roles.read'], ['/settings/company', 'settings.company.read'],
     ['/account', null], ['/zzz', null],
@@ -109,12 +109,12 @@ describe('app manifests', () => {
   })
 
   it('aliases chat access and shared notifications through the manifests', () => {
-    expect(featureForCapability('webvue.internal')).toBe('chat.enabled')
-    expect(canUse({ platform: { readable_features: ['chat.enabled'], writable_features: [] } }, 'webvue.internal')).toBe(true)
-    expect(hasCapability({ capabilities: ['hr.employees.read'] }, 'webvue.notifications')).toBe(false)
-    expect(hasCapability({ capabilities: ['meetings.read'] }, 'webvue.notifications')).toBe(true)
+    expect(featureForCapability('liwan.internal')).toBe('chat.enabled')
+    expect(canUse({ platform: { readable_features: ['chat.enabled'], writable_features: [] } }, 'liwan.internal')).toBe(true)
+    expect(hasCapability({ capabilities: ['hr.employees.read'] }, 'liwan.notifications')).toBe(false)
+    expect(hasCapability({ capabilities: ['meetings.read'] }, 'liwan.notifications')).toBe(true)
     const onlyHr = { capabilities: ['meetings.read'], platform: { readable_features: ['hr.enabled'], writable_features: [] } }
-    expect(canReach(onlyHr, 'webvue.notifications')).toBe(false)
+    expect(canReach(onlyHr, 'liwan.notifications')).toBe(false)
   })
 
   describe('a manifest registered for a new application', () => {
@@ -141,9 +141,9 @@ describe('app manifests', () => {
         expect(firstAllowedPath(identity)).toBe('/pilot')
         expect(postLoginPath(identity, '/pilot')).toBe('/pilot')
         expect(postLoginPath(withoutPilot, '/pilot')).toBe('/')
-        expect(hasCapability(identity, 'webvue.notifications')).toBe(true)
-        expect(canUse(identity, 'webvue.notifications')).toBe(true)
-        expect(canUse(withoutPilot, 'webvue.notifications')).toBe(false)
+        expect(hasCapability(identity, 'liwan.notifications')).toBe(true)
+        expect(canUse(identity, 'liwan.notifications')).toBe(true)
+        expect(canUse(withoutPilot, 'liwan.notifications')).toBe(false)
       })
     })
     it('gates a claimed prefix that has no capability rule by the application feature', () => {

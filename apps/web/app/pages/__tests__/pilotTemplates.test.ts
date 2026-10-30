@@ -38,6 +38,6 @@ describe('the pilot pages stay on their templates', () => {
   it('the project overview has no scoped style and no container hack', () => {
     const source = read('components/pmo/projects/ProjectOverview.vue')
     expect(source).not.toContain('<style')
-    expect(source).not.toContain('webvue-page-width')
+    expect(source).not.toContain('liwan-page-width')
   })
 })

@@ -8,7 +8,7 @@ if len(sys.argv) < 3:
     raise SystemExit(2)
 home = Path(sys.argv[1])
 command = sys.argv[2:]
-fd_text = os.environ.get('WEBVUE_PROCESS_LOCK_FD')
+fd_text = os.environ.get('LIWAN_PROCESS_LOCK_FD')
 if fd_text is None:
     raise SystemExit('missing_lifecycle_lock_capability')
 try:

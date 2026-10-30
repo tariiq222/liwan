@@ -12,7 +12,7 @@ import {
   type CrmPackage,
   type CrmSource,
   type CrmStage,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { saveErrorMessage } from '../../utils/formFeedback'
 import { crmKeys, type CrmListName } from './crmKeys'
 

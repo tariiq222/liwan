@@ -1,5 +1,5 @@
 import type { Pool } from 'pg'
-import { daysBetween, riyadhDate } from '@webvue/commercial-contracts'
+import { daysBetween, riyadhDate } from '@liwan/commercial-contracts'
 import type { MailAdapter } from './mail-adapter.js'
 import { completeOutbox, enqueueOutbox, failOutbox } from './outbox.js'
 
@@ -42,7 +42,7 @@ export async function sendTrialNotices(pool: Pool, input: { now: Date; mail: Mai
         const amount = quote?.next_renewal
         const text = `تنتهي تجربتك في ${riyadhDate(new Date(row.trial_ends_at))} (${daysLeft} يومًا متبقيًا).`
           + (amount ? ` قيمة أول فاتورة بعد التجربة: ${(amount.minor / 10 ** amount.exponent).toFixed(amount.exponent)} ${amount.currency}.` : '')
-        await input.mail.send({ to: row.admin_login, subject: 'تجربتك في WebVue على وشك الانتهاء', text, message_id: `trial-${row.id}-${dedupe}@webvue` })
+        await input.mail.send({ to: row.admin_login, subject: 'تجربتك في LiwanOS على وشك الانتهاء', text, message_id: `trial-${row.id}-${dedupe}@liwan` })
         await completeOutbox(pool, outboxId)
       } catch (error) {
         await failOutbox(pool, outboxId, error instanceof Error ? error.message.slice(0, 200) : 'trial_notice_failed')

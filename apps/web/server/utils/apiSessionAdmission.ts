@@ -79,7 +79,7 @@ function readSuspension(response: http.IncomingMessage): Promise<boolean> {
 export async function requireApiSession(event: H3Event, upstream: string, binding: Record<string, string>): Promise<void> {
   const session = getCookie(event, 'session_id')?.trim()
   if (!session || session.length > 1024) throw required()
-  const identityBinding = Object.fromEntries(Object.entries(binding).filter(([name]) => name !== 'x-webvue-release-admission'))
+  const identityBinding = Object.fromEntries(Object.entries(binding).filter(([name]) => name !== 'x-liwan-release-admission'))
   const key = createHash('sha256').update(JSON.stringify([upstream, identityBinding, session])).digest('hex')
   if ((verified.get(key) ?? 0) > Date.now()) return
   verified.delete(key)

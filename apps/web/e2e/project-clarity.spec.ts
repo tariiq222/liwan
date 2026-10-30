@@ -21,7 +21,7 @@ for (const [path, title] of [
     await page.waitForLoadState('networkidle')
     await expect(page.locator('.animate-pulse')).toHaveCount(0)
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(title)
-    await expect(page.locator('.webvue-project-identity')).toHaveCount(0)
+    await expect(page.locator('.liwan-project-identity')).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'البحث والفلاتر', exact: true })).toHaveCount(0)
     await expect(page.getByTestId('projects-list-tabs')).toHaveCount(0)
     await expect(page.locator('[data-slot="page-container"]').getByRole('heading', { name: title, level: 2, exact: true })).toHaveCount(0)

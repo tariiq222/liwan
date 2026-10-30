@@ -14,7 +14,7 @@ beforeEach(() => {
   vi.stubGlobal('useRuntimeConfig', () => config)
   vi.stubGlobal('createError', (e: any) => Object.assign(new Error(e.data?.code ?? 'err'), e))
   odooJson.mockImplementation(async (_e: unknown, _m: string, path: string) => path === '/api/v1/me' ? { status: 200, body: { id: 42, company: { id: 7 } } } : { status: 200, body: TOOLS })
-  delete process.env.WEBVUE_TENANCY_MODE
+  delete process.env.LIWAN_TENANCY_MODE
 })
 
 async function owner() {
@@ -24,8 +24,8 @@ async function owner() {
 
 describe('runSession tenant identity', () => {
   it('uses the tenant resolved by the shared edge before odooDb', async () => {
-    process.env.WEBVUE_TENANCY_MODE = 'shared'
-    tenantRequest.mockReturnValue({ tenantId: 'acme', database: 'acme_db', registryRevision: 3, host: 'acme.webvue.test' })
+    process.env.LIWAN_TENANCY_MODE = 'shared'
+    tenantRequest.mockReturnValue({ tenantId: 'acme', database: 'acme_db', registryRevision: 3, host: 'acme.liwan.test' })
     config = { odooDb: 'ignored' }
     expect(await owner()).toEqual({ tenant: 'acme', user: '42' })
   })
@@ -39,12 +39,12 @@ describe('runSession tenant identity', () => {
     expect(await owner()).toEqual({ tenant: 'company:7', user: '42' })
   })
   it('refuses with 403 in shared mode when no tenant was resolved', async () => {
-    process.env.WEBVUE_TENANCY_MODE = 'shared'
+    process.env.LIWAN_TENANCY_MODE = 'shared'
     tenantRequest.mockReturnValue(null)
     await expect(owner()).rejects.toMatchObject({ statusCode: 403 })
   })
   it('does not swallow the shared-edge rejection', async () => {
-    process.env.WEBVUE_TENANCY_MODE = 'shared'
+    process.env.LIWAN_TENANCY_MODE = 'shared'
     tenantRequest.mockImplementation(() => { throw Object.assign(new Error('tenant_boundary_rejected'), { statusCode: 403 }) })
     await expect(owner()).rejects.toMatchObject({ statusCode: 403 })
   })

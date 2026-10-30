@@ -2,10 +2,10 @@
 """Run a heavy check inside one of the machine-wide test slots.
 
 Every session and worktree on this machine shares the same few slots (``flock``
-files under ``~/.cache/webvue-test-slots``), so Odoo test runs, type checks, the
+files under ``~/.cache/liwan-test-slots``), so Odoo test runs, type checks, the
 full ``npm test`` and e2e runs queue instead of piling up. A slot is released
 when its process exits, even after a crash. A command started inside a slot
-(``WEBVUE_TEST_SLOT`` is set) runs at once and takes no second slot.
+(``LIWAN_TEST_SLOT`` is set) runs at once and takes no second slot.
 
     python3 -B tools/test_slot.py -- <command> [args...]
     python3 -B tools/test_slot.py --status
@@ -24,20 +24,20 @@ from pathlib import Path
 DEFAULT_SLOTS = 2
 POLL_SECONDS = 2
 REPORT_SECONDS = 60
-HELD_ENV = 'WEBVUE_TEST_SLOT'
+HELD_ENV = 'LIWAN_TEST_SLOT'
 
 
 def slot_dir():
-    root = os.environ.get('WEBVUE_TEST_SLOT_DIR')
-    path = Path(root) if root else Path.home() / '.cache' / 'webvue-test-slots'
+    root = os.environ.get('LIWAN_TEST_SLOT_DIR')
+    path = Path(root) if root else Path.home() / '.cache' / 'liwan-test-slots'
     path.mkdir(parents=True, exist_ok=True)
     return path
 
 
 def slot_count():
-    raw = os.environ.get('WEBVUE_TEST_SLOTS', str(DEFAULT_SLOTS))
+    raw = os.environ.get('LIWAN_TEST_SLOTS', str(DEFAULT_SLOTS))
     if not raw.isdigit() or int(raw) < 1:
-        raise SystemExit('test_slot: WEBVUE_TEST_SLOTS must be a positive integer, got %r' % raw)
+        raise SystemExit('test_slot: LIWAN_TEST_SLOTS must be a positive integer, got %r' % raw)
     return int(raw)
 
 
@@ -97,7 +97,7 @@ def acquire(path, count, label, out=sys.stderr):
 def hold(label):
     """Hold a test slot for the ``with`` body; a no-op inside an already held slot.
 
-    The slot number is exported in ``WEBVUE_TEST_SLOT`` so the commands the body
+    The slot number is exported in ``LIWAN_TEST_SLOT`` so the commands the body
     starts run inside it instead of queueing for another one.
     """
     if os.environ.get(HELD_ENV):

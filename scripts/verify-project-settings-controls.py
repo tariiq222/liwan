@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Guarded scratch-only verification for project-settings-controls.
 
-Database names must fully match ``webvue_psc_[a-z0-9_]+``. Comma-separated or
+Database names must fully match ``liwan_psc_[a-z0-9_]+``. Comma-separated or
 arbitrary names are rejected so a value cannot target ``odoo19``. Addons path
 and worktree are constructed internally. Modes are explicit.
 """
@@ -22,8 +22,8 @@ import urllib.request
 from datetime import datetime
 from pathlib import Path
 
-ALLOWED_DB = re.compile(r'^webvue_psc_scratch_[a-z0-9_]+$')
-FORBIDDEN_DBS = {'odoo19', 'webvue_psc_test_20260906'}
+ALLOWED_DB = re.compile(r'^liwan_psc_scratch_[a-z0-9_]+$')
+FORBIDDEN_DBS = {'odoo19', 'liwan_psc_test_20260906'}
 FORBIDDEN_PORTS = {80, 443, 3000, 5432, 8069, 8072, 9589, 3589}
 DEFAULT_TIMEOUT = 180
 XMLRPC_TIMEOUT = 60
@@ -40,10 +40,10 @@ import json
 from datetime import datetime, timedelta
 from odoo.tests import new_test_user
 company = env.company
-mgr = new_test_user(env, login='lg_mgr', password='lg_mgr_pass_12345', name='LegacyMgr', groups='webvue_core.group_employee,project.group_project_manager')
-emp = new_test_user(env, login='lg_emp', password='lg_emp_pass_12345', name='LegacyEmp', groups='webvue_core.group_employee')
+mgr = new_test_user(env, login='lg_mgr', password='lg_mgr_pass_12345', name='LegacyMgr', groups='liwan_core.group_employee,project.group_project_manager')
+emp = new_test_user(env, login='lg_emp', password='lg_emp_pass_12345', name='LegacyEmp', groups='liwan_core.group_employee')
 P = env['project.project']; T = env['project.task']
-p_nodates = P.with_user(mgr)._webvue_create_from_policy('Legacy no dates')
+p_nodates = P.with_user(mgr)._liwan_create_from_policy('Legacy no dates')
 p_startonly = P.create({'name': 'Legacy start only', 'user_id': mgr.id, 'date_start': '2026-01-01'})
 p_nomgr = P.create({'name': 'Legacy no manager', 'user_id': False})
 p_both = P.create({'name': 'Legacy both', 'user_id': mgr.id, 'date_start': '2026-01-01', 'date': '2026-12-31'})
@@ -51,14 +51,14 @@ t_open = T.create({'name': 'open', 'project_id': p_nodates.id, 'user_ids': [(4, 
 t_done = T.create({'name': 'done', 'project_id': p_nodates.id, 'user_ids': [(4, emp.id)], 'state': '1_done'})
 t_cancel = T.create({'name': 'cancelled', 'project_id': p_both.id, 'state': '1_canceled'})
 t_arch = T.create({'name': 'archived', 'project_id': p_both.id}); t_arch.write({'active': False})
-env['webvue.pmo.settings'].set_values({'project_creators': 'employees', 'default_stages': [{'name': 'قديم', 'fold': False}, {'name': 'منجز', 'fold': True}]})
-cron = env.ref('webvue_pmo.ir_cron_webvue_deadline_notifications')
+env['liwan.pmo.settings'].set_values({'project_creators': 'employees', 'default_stages': [{'name': 'قديم', 'fold': False}, {'name': 'منجز', 'fold': True}]})
+cron = env.ref('liwan_pmo.ir_cron_liwan_deadline_notifications')
 snap = {
   'projects': {str(p.id): {'name': p.name, 'user_id': p.user_id.id, 'date_start': str(p.date_start or ''), 'date': str(p.date or ''), 'active': p.active, 'stage_ids': p.type_ids.ids} for p in (p_nodates, p_startonly, p_nomgr, p_both)},
   'tasks': {str(t.id): {'name': t.name, 'state': t.state, 'active': t.active, 'project_id': t.project_id.id} for t in (t_open, t_done, t_cancel, t_arch)},
-  'settings': env['webvue.pmo.settings'].get(),
+  'settings': env['liwan.pmo.settings'].get(),
   'cron': {'id': cron.id, 'active': cron.active, 'interval': [cron.interval_number, cron.interval_type], 'code': cron.code},
-  'counts': {'projects': P.sudo().with_context(active_test=False).search_count([]), 'tasks': T.sudo().with_context(active_test=False).search_count([]), 'params': env['ir.config_parameter'].sudo().search_count([('key','like','webvue_pmo.%')])},
+  'counts': {'projects': P.sudo().with_context(active_test=False).search_count([]), 'tasks': T.sudo().with_context(active_test=False).search_count([]), 'params': env['ir.config_parameter'].sudo().search_count([('key','like','liwan_pmo.%')])},
   'users': {'mgr': mgr.id, 'emp': emp.id},
 }
 env.cr.commit()
@@ -74,20 +74,20 @@ for pid, e in exp['projects'].items():
     p = P.browse(int(pid))
     got = {'name': p.name, 'user_id': p.user_id.id, 'date_start': str(p.date_start or ''), 'date': str(p.date or ''), 'active': p.active, 'stage_ids': p.type_ids.ids}
     if got != e: fails.append(('project', pid, e, got))
-    if p.webvue_completion_approval != 'none' or p.webvue_completion_approver_id: fails.append(('project approval not none', pid))
+    if p.liwan_completion_approval != 'none' or p.liwan_completion_approver_id: fails.append(('project approval not none', pid))
 for tid, e in exp['tasks'].items():
     t = T.browse(int(tid))
     got = {'name': t.name, 'state': t.state, 'active': t.active, 'project_id': t.project_id.id}
     if got != e: fails.append(('task', tid, e, got))
-    if t.webvue_completion_pending or t.webvue_completion_revision: fails.append(('task meta dirty', tid))
-s = env['webvue.pmo.settings'].get()
+    if t.liwan_completion_pending or t.liwan_completion_revision: fails.append(('task meta dirty', tid))
+s = env['liwan.pmo.settings'].get()
 if {k: s[k] for k in ('project_creators', 'default_stages')} != {k: exp['settings'][k] for k in ('project_creators', 'default_stages')}:
     fails.append(('settings', s))
 new_defaults = {k: s[k] for k in ('require_manager_on_create','require_end_date_on_create','default_completion_approval','deadline_reminders_enabled','deadline_reminders_days_before','overdue_digest_enabled')}
 if new_defaults != {'require_manager_on_create': True, 'require_end_date_on_create': True, 'default_completion_approval': 'none', 'deadline_reminders_enabled': True, 'deadline_reminders_days_before': 1, 'overdue_digest_enabled': True}: fails.append(('new defaults', new_defaults))
-cron = env.ref('webvue_pmo.ir_cron_webvue_deadline_notifications')
+cron = env.ref('liwan_pmo.ir_cron_liwan_deadline_notifications')
 if (cron.id, cron.active, [cron.interval_number, cron.interval_type], cron.code) != (exp['cron']['id'], exp['cron']['active'], exp['cron']['interval'], exp['cron']['code']): fails.append(('cron', cron.read(['active','interval_number','interval_type','code'])))
-counts = {'projects': P.search_count([]), 'tasks': T.search_count([]), 'params': env['ir.config_parameter'].sudo().search_count([('key','like','webvue_pmo.%')])}
+counts = {'projects': P.search_count([]), 'tasks': T.search_count([]), 'params': env['ir.config_parameter'].sudo().search_count([('key','like','liwan_pmo.%')])}
 if counts['projects'] != exp['counts']['projects'] or counts['tasks'] != exp['counts']['tasks']: fails.append(('counts', exp['counts'], counts))
 mgr = env['res.users'].browse(exp['users']['mgr'])
 for pid, e in exp['projects'].items():
@@ -95,7 +95,7 @@ for pid, e in exp['projects'].items():
     if not p.user_id or p.user_id.id != mgr.id: continue
     try:
         with env.cr.savepoint():
-            p._webvue_write_as_manager({'name': p.name + ' edited'}); p._webvue_write_as_manager({'date': '2032-01-01'}); p.invalidate_recordset()
+            p._liwan_write_as_manager({'name': p.name + ' edited'}); p._liwan_write_as_manager({'date': '2032-01-01'}); p.invalidate_recordset()
             if str(p.date) != '2032-01-01': fails.append(('legacy date edit not persisted', pid, str(p.date), str(p.date_start)))
             raise Exception('rollback-probe')
     except Exception as ex:
@@ -121,7 +121,7 @@ def _run(argv: list[str], cwd: Path | None = None, timeout: int = DEFAULT_TIMEOU
 
 def _guard_database(database: str) -> str | None:
     if ',' in database or not ALLOWED_DB.fullmatch(database):
-        return f'database {database!r} does not fully match webvue_psc_scratch_[a-z0-9_]+'
+        return f'database {database!r} does not fully match liwan_psc_scratch_[a-z0-9_]+'
     if database in FORBIDDEN_DBS or 'odoo19' in database:
         return f'refusing database {database!r}'
     return None
@@ -134,8 +134,8 @@ def _guard_worktree(worktree: Path, addons_path: Path) -> str | None:
         return f'worktree {resolved} is not an existing directory'
     if addons != (resolved / 'odoo-addons').resolve():
         return 'addons path must be <worktree>/odoo-addons'
-    if not (addons / 'webvue_pmo' / '__manifest__.py').is_file():
-        return 'worktree is missing webvue_pmo'
+    if not (addons / 'liwan_pmo' / '__manifest__.py').is_file():
+        return 'worktree is missing liwan_pmo'
     return None
 
 
@@ -206,7 +206,7 @@ def _shell_cmd_for(ctx: dict, database: str, worktree_addons: str) -> list[str]:
 KW_RUNNER = (
     'import json, os\n'
     'from odoo.service.model import call_kw\n'
-    'model, method, args, kwargs = json.loads(os.environ["WEBVUE_KW"])\n'
+    'model, method, args, kwargs = json.loads(os.environ["LIWAN_KW"])\n'
     'result = call_kw(env(user=env.ref("base.user_admin").id)[model], method, args, kwargs)\n'
     'env.cr.commit()\n'
     'print("KW_RESULT=" + json.dumps(result, default=str))\n'
@@ -221,7 +221,7 @@ class ShellModels:
         self.cwd = str(Path(ctx['odoo_bin']).resolve().parent)
 
     def call(self, model: str, method: str, args: list, kwargs: dict | None = None):
-        env = {**os.environ, 'WEBVUE_KW': json.dumps([model, method, args, kwargs or {}])}
+        env = {**os.environ, 'LIWAN_KW': json.dumps([model, method, args, kwargs or {}])}
         ran = subprocess.run(self.cmd, cwd=self.cwd, input=KW_RUNNER, env=env, check=False,
                              timeout=120, capture_output=True, text=True)
         line = next((row for row in (ran.stdout or '').splitlines() if row.startswith('KW_RESULT=')), None)
@@ -296,9 +296,9 @@ def _wait_http(url: str, database: str, timeout: int = 90) -> bool:
 
 def _require_pending(models, task_id: int) -> str | None:
     row = _kw(models, 'project.task', 'read', [[task_id], [
-        'webvue_completion_pending', 'webvue_completion_revision', 'state',
+        'liwan_completion_pending', 'liwan_completion_revision', 'state',
     ]])[0]
-    if not row['webvue_completion_pending'] or row['state'] in ('1_done', '1_canceled'):
+    if not row['liwan_completion_pending'] or row['state'] in ('1_done', '1_canceled'):
         return f'task {task_id} is not pending: {row!r}'
     return None
 
@@ -358,13 +358,13 @@ def _race(ctx: dict, database: str, port: int, run_dir: Path) -> int:
         api = JsonSession(url, database, 'admin', password)
         project = _kw(models, 'project.project', 'create', [{
             'name': f'Race project {run_dir.name}', 'user_id': admin_id,
-            'webvue_completion_approval': 'project_manager',
+            'liwan_completion_approval': 'project_manager',
             'date': '2035-12-31', 'company_id': company,
         }])
 
         def new_pending(name: str) -> tuple[int, int] | str:
             patch = api.call('PATCH', f'/api/v1/projects/{project}', {
-                'webvue_completion_approval': 'project_manager', 'user_id': admin_id,
+                'liwan_completion_approval': 'project_manager', 'user_id': admin_id,
             })
             if patch[0] >= 400:
                 return f'reset policy failed: {patch}'
@@ -378,8 +378,8 @@ def _race(ctx: dict, database: str, port: int, run_dir: Path) -> int:
             if err:
                 return err
             revision = body.get('completion_revision') or _kw(models, 'project.task', 'read',
-                [[task_id], ['webvue_completion_revision']],
-            )[0]['webvue_completion_revision']
+                [[task_id], ['liwan_completion_revision']],
+            )[0]['liwan_completion_revision']
             return task_id, int(revision)
 
         created = new_pending('Race accept')
@@ -415,8 +415,8 @@ def _race(ctx: dict, database: str, port: int, run_dir: Path) -> int:
             return _fail(f'competing accept expected 1 ok + 1 domain rejection, got {results!r}')
         if not any(token in fails[0][1] for token in ('422', '403', 'invalid')):
             return _fail(f'losing accept was not a domain rejection: {fails[0]!r}')
-        state = _kw(models, 'project.task', 'read', [[task], ['state', 'webvue_completion_pending']])[0]
-        if state['state'] != '1_done' or state['webvue_completion_pending']:
+        state = _kw(models, 'project.task', 'read', [[task], ['state', 'liwan_completion_pending']])[0]
+        if state['state'] != '1_done' or state['liwan_completion_pending']:
             return _fail(f'final accept state unexpected: {state!r}')
 
         created = new_pending('Race policy')
@@ -428,7 +428,7 @@ def _race(ctx: dict, database: str, port: int, run_dir: Path) -> int:
 
         def policy_worker():
             barrier2.wait()
-            code, body = api.call('PATCH', f'/api/v1/projects/{project}', {'webvue_completion_approval': 'none'})
+            code, body = api.call('PATCH', f'/api/v1/projects/{project}', {'liwan_completion_approval': 'none'})
             if code >= 500:
                 policy_results.append(f'policy-server-{code}')
                 return
@@ -452,11 +452,11 @@ def _race(ctx: dict, database: str, port: int, run_dir: Path) -> int:
             return _fail(hung)
         if len(policy_results) != 2 or any('server-' in item for item in policy_results):
             return _fail(f'policy race incomplete or 5xx: {policy_results!r}')
-        row = _kw(models, 'project.task', 'read', [[task2], ['state', 'webvue_completion_pending', 'id']])[0]
+        row = _kw(models, 'project.task', 'read', [[task2], ['state', 'liwan_completion_pending', 'id']])[0]
         if row['id'] != task2:
             return _fail('policy/accept race crossed task ids')
         legal = (
-            ('policy-ok' in policy_results and 'accept-ok' in policy_results and row['state'] == '1_done' and not row['webvue_completion_pending'])
+            ('policy-ok' in policy_results and 'accept-ok' in policy_results and row['state'] == '1_done' and not row['liwan_completion_pending'])
             or ('policy-ok' in policy_results and any(item.startswith('accept-') and item != 'accept-ok' for item in policy_results) and row['state'] != '1_done')
             or (any(item.startswith('policy-') and item != 'policy-ok' for item in policy_results) and 'accept-ok' in policy_results and row['state'] == '1_done')
         )
@@ -495,7 +495,7 @@ def _race(ctx: dict, database: str, port: int, run_dir: Path) -> int:
         partner = _kw(models, 'res.users', 'read', [[admin_id], ['partner_id']])[0]['partner_id'][0]
         expected_key = f'overdue_digest:{company}:{partner}:{DIGEST_NOW.date().isoformat()}'
         existing = _kw(models, 'mail.message', 'search_count', [[
-            ['webvue_notification_key', '=', expected_key],
+            ['liwan_notification_key', '=', expected_key],
         ]])
         if existing:
             return _fail(f'digest key {expected_key} already existed')
@@ -511,7 +511,7 @@ def _race(ctx: dict, database: str, port: int, run_dir: Path) -> int:
             'ready.write_text("1", encoding="utf-8")\n'
             'while not go.exists():\n'
             '    pass\n'
-            f'env["project.task"]._webvue_run_deadline_notifications(now=datetime(2099, 6, 15, 10, 0, 0))\n'
+            f'env["project.task"]._liwan_run_deadline_notifications(now=datetime(2099, 6, 15, 10, 0, 0))\n'
             'env.cr.commit()\n'
             'print("DIGEST_WORKER_OK")\n',
             encoding='utf-8',
@@ -541,8 +541,8 @@ def _race(ctx: dict, database: str, port: int, run_dir: Path) -> int:
         if any('DIGEST_WORKER_OK' not in item for item in digest_out):
             return _fail(f'digest workers missing OK {digest_out!r}')
         messages = _kw(models, 'mail.message', 'search_read', [[
-            ['webvue_notification_key', '=', expected_key],
-        ]], {'fields': ['webvue_notification_key', 'partner_ids', 'webvue_digest_count']})
+            ['liwan_notification_key', '=', expected_key],
+        ]], {'fields': ['liwan_notification_key', 'partner_ids', 'liwan_digest_count']})
         if len(messages) != 1:
             return _fail(f'expected one digest message for {expected_key}, got {messages!r}')
         if partner not in (messages[0]['partner_ids'] or []):
@@ -554,10 +554,10 @@ def _race(ctx: dict, database: str, port: int, run_dir: Path) -> int:
             'from psycopg2 import IntegrityError\n'
             f'key = {expected_key!r}\n'
             'partner = env.user.partner_id\n'
-            'first = env["project.task"]._webvue_create_digest_notification('
+            'first = env["project.task"]._liwan_create_digest_notification('
             'company=env.company, partner=partner, body="dup", key=key, '
             'overdue_count=1, local_date=date(2099, 6, 15))\n'
-            'second = env["project.task"]._webvue_create_digest_notification('
+            'second = env["project.task"]._liwan_create_digest_notification('
             'company=env.company, partner=partner, body="dup", key=key, '
             'overdue_count=1, local_date=date(2099, 6, 15))\n'
             'assert second is False, second\n'
@@ -609,7 +609,7 @@ def _e2e_fixtures(ctx: dict, database: str, port: int, run_dir: Path) -> int:
     role = next(item for item in roles['items'] if item['key'] == 'pmo_manager')
     emp_role = next(item for item in roles['items'] if item['key'] == 'employee')
     stamp = run_dir.name
-    password = 'WebVuePsc-E2E-123!'
+    password = 'LiwanPsc-E2E-123!'
     mgr_login = f'psc-digest-{stamp}@example.test'
     emp_login = f'psc-digest-emp-{stamp}@example.test'
     mgr_emp = api.call('POST', '/api/v1/hr/employees', {'name': 'PSC digest mgr', 'work_email': mgr_login})
@@ -655,7 +655,7 @@ def _e2e_fixtures(ctx: dict, database: str, port: int, run_dir: Path) -> int:
     cron = run_dir / 'run-cron.py'
     cron.write_text(
         'from datetime import datetime\n'
-        'env["project.task"]._webvue_run_deadline_notifications(now=datetime(2099, 6, 15, 10, 0, 0))\n'
+        'env["project.task"]._liwan_run_deadline_notifications(now=datetime(2099, 6, 15, 10, 0, 0))\n'
         'env.cr.commit()\n'
         'print("CRON_OK")\n',
         encoding='utf-8',
@@ -668,7 +668,7 @@ def _e2e_fixtures(ctx: dict, database: str, port: int, run_dir: Path) -> int:
     company = me['company']['id']
     key = f'overdue_digest:{company}:{partner}:2099-06-15'
     messages = _kw(models, 'mail.message', 'search_read', [[
-        ['webvue_notification_key', '=', key],
+        ['liwan_notification_key', '=', key],
     ]], {'fields': ['id']})
     if not messages:
         return _fail(f'no digest message for {key}')
@@ -714,7 +714,7 @@ def _upgrade(ctx: dict, database: str, port: int, base_addons: Path, run_dir: Pa
         scratch_db=database,
         scratch_lifecycle=ctx['scratch_lifecycle'],
         http_port=port,
-        modules='webvue_core,webvue_api,webvue_pmo,webvue_hr',
+        modules='liwan_core,liwan_api,liwan_pmo,liwan_hr',
     )
     code = _run(init, cwd=Path(odoo_root), timeout=300)
     if code:
@@ -741,8 +741,8 @@ def _upgrade(ctx: dict, database: str, port: int, base_addons: Path, run_dir: Pa
         scratch_db=database,
         scratch_lifecycle=ctx['scratch_lifecycle'],
         http_port=port,
-        modules='webvue_core,webvue_api,webvue_pmo,webvue_hr',
-        test_tags='/webvue_pmo',
+        modules='liwan_core,liwan_api,liwan_pmo,liwan_hr',
+        test_tags='/liwan_pmo',
     )
     tag_at = upgrade.index('--test-tags')
     del upgrade[tag_at:tag_at + 2]

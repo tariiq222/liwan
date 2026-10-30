@@ -1,4 +1,4 @@
-import { OperationRequestListSchema } from '@webvue/contracts'
+import { OperationRequestListSchema } from '@liwan/contracts'
 import type { AppPersonalEntry } from '../types'
 
 export const operationPersonalEntry: AppPersonalEntry = {

@@ -1,6 +1,6 @@
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import type { InboxFlow } from '@webvue/contracts'
+import type { InboxFlow } from '@liwan/contracts'
 import { TEMPLATE_LANGUAGES } from '../../../composables/inbox/inboxTemplate'
 import * as inboxFlow from '../../../composables/inbox/inboxFlow'
 import { mountScript } from './scriptHarness'

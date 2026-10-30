@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { layerFile } from '@webvue/ui/test/helpers/layerFile'
-import { contrastRatio, DARK_SURFACES, STATUS_TEXT } from '../webvuePalette'
+import { layerFile } from '@liwan/ui/test/helpers/layerFile'
+import { contrastRatio, DARK_SURFACES, STATUS_TEXT } from '../liwanPalette'
 
 // Tailwind v4 default palette steps behind the Nuxt UI semantic colours
 // (success: green, warning: yellow, error: red, info/secondary: blue).

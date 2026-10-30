@@ -14,7 +14,7 @@ import {
   type FinanceBankReconcile,
   type FinanceBankStatementPatch,
   type FinanceBankStatementCreate,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import type { BankListParams } from '@/components/finance/bank/bankListParams'
 import { financeInvoiceKeys } from './useFinanceInvoices'
 

@@ -6,7 +6,7 @@ import { issueInvoiceFromQuote, getInvoice, listInvoices } from '../commercial/i
 import { enqueueOutbox, claimOutbox, completeOutbox } from '../commercial/outbox.js'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
-if (url) { const p = new URL(url); if (!['127.0.0.1', 'localhost', '::1'].includes(p.hostname) || !/^webvue_control_scratch_[a-z0-9]+$/.test(p.pathname.slice(1))) throw Error('scratch control DB required') }
+if (url) { const p = new URL(url); if (!['127.0.0.1', 'localhost', '::1'].includes(p.hostname) || !/^liwan_control_scratch_[a-z0-9]+$/.test(p.pathname.slice(1))) throw Error('scratch control DB required') }
 const suite = url ? describe : describe.skip
 const m = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })
 

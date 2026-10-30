@@ -1,6 +1,6 @@
 // Applies the language saved by the account menu before the first render.
 export default defineNuxtPlugin({
-  name: 'webvue-admin-locale-preference',
+  name: 'liwan-admin-locale-preference',
   dependsOn: ['i18n:plugin'],
   async setup(nuxtApp) {
     const saved = usePreferenceCookie<string>(LOCALE_COOKIE, '')

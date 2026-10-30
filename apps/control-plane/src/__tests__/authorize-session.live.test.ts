@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Pool } from 'pg'
 import { randomUUID } from 'node:crypto'
-import { signServiceRequest } from '@webvue/commercial-contracts/server'
+import { signServiceRequest } from '@liwan/commercial-contracts/server'
 import { migrate } from '../db.js'
 import { createApp } from '../http.js'
 import { client as commercialClient, money, monthly, setup } from './commercial-helpers.js'
@@ -10,7 +10,7 @@ import { TEST_KEY as key, replaceRoles, vendorSession } from './helpers/vendor-s
 const url = process.env.CONTROL_TEST_DATABASE_URL
 if (url) {
   const parsed = new URL(url)
-  if (!['127.0.0.1', 'localhost', '::1'].includes(parsed.hostname) || !/^webvue_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback webvue_control_scratch database')
+  if (!['127.0.0.1', 'localhost', '::1'].includes(parsed.hostname) || !/^liwan_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback liwan_control_scratch database')
 }
 const issuer = 'vendor-scratch'
 const config = { installationId: issuer, key, inventoryPath: '', repositoryRoot: '/nonexistent', python: 'python3', stateDir: '/nonexistent-state' }
@@ -39,11 +39,11 @@ else describe('session authorization', () => {
 
   it('rejects requests without a session, with a forged actor, or for a disabled account', async () => {
     const s = await vendorSession(pool, issuer, ['support'])
-    const noSession = s.headers('GET', '/v1/context'); delete noSession['x-webvue-session']
+    const noSession = s.headers('GET', '/v1/context'); delete noSession['x-liwan-session']
     expect((await call('GET', '/v1/context', noSession)).status).toBe(401)
     const forged = signServiceRequest({ method: 'GET', path: '/v1/context', actor: s.accountId + 1, issuer, key })
-    expect((await call('GET', '/v1/context', { ...forged, 'x-webvue-session': s.session })).status).toBe(401)
-    expect((await call('GET', '/v1/context', { ...s.headers('GET', '/v1/context'), 'x-webvue-session': 'garbage' })).status).toBe(401)
+    expect((await call('GET', '/v1/context', { ...forged, 'x-liwan-session': s.session })).status).toBe(401)
+    expect((await call('GET', '/v1/context', { ...s.headers('GET', '/v1/context'), 'x-liwan-session': 'garbage' })).status).toBe(401)
     await pool.query("UPDATE vendor_accounts SET status='disabled' WHERE id=$1", [s.accountId])
     expect((await call('GET', '/v1/context', s.headers('GET', '/v1/context'))).status).toBe(401)
   })

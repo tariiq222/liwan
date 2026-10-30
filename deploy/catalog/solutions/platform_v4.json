@@ -2,13 +2,13 @@
   "schema_version": 3,
   "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
   "id": "platform_v4",
-  "name": "webvue Platform",
+  "name": "liwan Platform",
   "description": "Operations application release revision; earlier catalog revisions remain unchanged.",
   "industry": "none",
   "base_modules": [
-    "webvue_core",
-    "webvue_platform",
-    "webvue_api"
+    "liwan_core",
+    "liwan_platform",
+    "liwan_api"
   ],
   "tiers": [
     {
@@ -27,8 +27,8 @@
       "name": "Projects",
       "description": "The project and meeting applications.",
       "modules": [
-        "webvue_pmo",
-        "webvue_meetings"
+        "liwan_pmo",
+        "liwan_meetings"
       ],
       "features": [
         "boolean:pmo.enabled",
@@ -41,7 +41,7 @@
       "name": "People",
       "description": "The HR application.",
       "modules": [
-        "webvue_hr"
+        "liwan_hr"
       ],
       "features": [
         "boolean:hr.enabled",
@@ -58,7 +58,7 @@
       "name": "Finance",
       "description": "The Finance application: Saudi accounting over Odoo accounting.",
       "modules": [
-        "webvue_finance"
+        "liwan_finance"
       ],
       "features": [
         "boolean:finance.enabled"
@@ -69,7 +69,7 @@
       "name": "Saudi integrations",
       "description": "Status of the live ZATCA and bank links on the dedicated settings page.",
       "modules": [
-        "webvue_integrations_sa"
+        "liwan_integrations_sa"
       ],
       "features": [
         "boolean:integrations.enabled"
@@ -80,7 +80,7 @@
       "name": "Online payments",
       "description": "The tenant's own payment gateway account, connected from the payments settings page.",
       "modules": [
-        "webvue_payments"
+        "liwan_payments"
       ],
       "features": [
         "boolean:payments.enabled"
@@ -91,7 +91,7 @@
       "name": "Messaging",
       "description": "The member-private chat application.",
       "modules": [
-        "webvue_chat"
+        "liwan_chat"
       ],
       "features": [
         "boolean:chat.enabled"
@@ -102,7 +102,7 @@
       "name": "Tasks",
       "description": "Personal and team tasks that need no project.",
       "modules": [
-        "webvue_tasks"
+        "liwan_tasks"
       ],
       "features": [
         "boolean:tasks.enabled"
@@ -113,7 +113,7 @@
       "name": "Operations",
       "description": "The Operations application.",
       "modules": [
-        "webvue_operations"
+        "liwan_operations"
       ],
       "features": [
         "boolean:operations.enabled"
@@ -121,10 +121,10 @@
     },
     {
       "id": "assistant",
-      "name": "WebVue AI",
-      "description": "The WebVue AI assistant: tool registry, audit log and message limits.",
+      "name": "LiwanOS AI",
+      "description": "The LiwanOS AI assistant: tool registry, audit log and message limits.",
       "modules": [
-        "webvue_ai"
+        "liwan_ai"
       ],
       "features": [
         "boolean:ai.enabled",
@@ -137,7 +137,7 @@
       "name": "Documents",
       "description": "The Documents application.",
       "modules": [
-        "webvue_documents"
+        "liwan_documents"
       ],
       "features": [
         "boolean:documents.enabled"
@@ -148,7 +148,7 @@
       "name": "CRM",
       "description": "The CRM application.",
       "modules": [
-        "webvue_crm"
+        "liwan_crm"
       ],
       "features": [
         "boolean:crm.enabled",
@@ -161,7 +161,7 @@
       "name": "Appointments",
       "description": "The Appointments application.",
       "modules": [
-        "webvue_appointments"
+        "liwan_appointments"
       ],
       "features": [
         "boolean:appointments.enabled"
@@ -172,8 +172,8 @@
       "name": "Customer Inbox",
       "description": "The Customer Inbox application.",
       "modules": [
-        "webvue_inbox",
-        "webvue_inbox_payments"
+        "liwan_inbox",
+        "liwan_inbox_payments"
       ],
       "features": [
         "boolean:inbox.enabled",

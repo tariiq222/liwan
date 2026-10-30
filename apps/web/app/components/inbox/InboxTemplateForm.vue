@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxTemplate } from '@webvue/contracts'
+import type { InboxTemplate } from '@liwan/contracts'
 import type { RouteLocationRaw } from 'vue-router'
 import {
   HEADER_KINDS,

@@ -1,5 +1,5 @@
 import type { H3Event } from 'h3'
-import { AI_USAGE_BATCH_MAX, AiModelCallEventSchema, AiModelUsageEventSchema, type AiModelCallEvent, type AiModelUsageEvent, type AiUsageRecord } from '@webvue/contracts'
+import { AI_USAGE_BATCH_MAX, AiModelCallEventSchema, AiModelUsageEventSchema, type AiModelCallEvent, type AiModelUsageEvent, type AiUsageRecord } from '@liwan/contracts'
 import { logFailure, odooJson } from './upstream'
 
 type Attempt = { call: AiModelCallEvent; usage: AiModelUsageEvent | null }

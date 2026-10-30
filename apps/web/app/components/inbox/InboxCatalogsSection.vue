@@ -20,7 +20,7 @@ const items = computed(() => query.data.value?.items ?? [])
     <template #icon><UIcon name="i-lucide-store" class="size-8" /></template>
     <template #action><UButton to="/settings/apps/inbox/catalog/new" icon="i-lucide-plus" :disabled="!hydrated" :label="t('inbox.catalog.connect.title')" data-testid="inbox-catalog-connect-cta" /></template>
   </SharedEmptyState>
-  <div v-else class="flex flex-col gap-(--webvue-gap-card)">
+  <div v-else class="flex flex-col gap-(--liwan-gap-card)">
     <InboxCatalogCard v-for="catalog in items" :key="catalog.id" :catalog="catalog" :manage="manage" />
   </div>
 </template>

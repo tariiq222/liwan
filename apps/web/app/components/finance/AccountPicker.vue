@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { refDebounced } from '@vueuse/core'
-import type { FinanceAccount } from '@webvue/contracts'
+import type { FinanceAccount } from '@liwan/contracts'
 import { useFinanceAccountOptions } from '@/composables/finance/useFinanceAccounts'
 
 // One account chosen from the chart of accounts, found by the typed code or name; `allow` leaves out the accounts the

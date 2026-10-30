@@ -23,7 +23,7 @@ header secret is defense in depth, NOT a replacement for this network boundary.
 `deploy/proxy/Dockerfile` (not the unmodified official Caddy image). Limits are per
 edge socket client IP: auth 20/min, API 300/min, Odoo/web 600/min. WS remains exempt
 from HTTP rate counting. Immutable static assets (`/_nuxt/*`, `/_i18n/*`,
-`/fonts/*`, `/favicon.ico`, `/robots.txt`) are exempt from the `webvue_web` zone so client
+`/fonts/*`, `/favicon.ico`, `/robots.txt`) are exempt from the `liwan_web` zone so client
 asset requests do not exhaust the interactive web budget or cause 429 white-screens for
 tenants behind a shared client IP. No trusted proxy headers are enabled. Module execution
 and real rate-limit behavior under load are NOT RUN; `caddy adapt` structure is tested.
@@ -34,12 +34,12 @@ them; `/web/image/*` is ACL-checked and stays limited, and `/web/content/*` is n
 (attachments download through the owning `/api/v1/.../attachments/<id>/download` routes).
 `/web/session/get_session_info` (browser websocket version probe, `useBus.ts`) was
 matched by the `/web/session/*` auth zone, i.e. it shared the 20/min login bucket; it
-now counts in `webvue_odoo`. Other `/web/session/*`, `/web/login`, `/api/auth/*` stay in
-`webvue_auth` at 20. Image bytes get `webvue_odoo_image` (1200) instead of competing with
-RPC/report traffic in `webvue_odoo` (600). Target: 30 users behind one NAT x 2 page
+now counts in `liwan_odoo`. Other `/web/session/*`, `/web/login`, `/api/auth/*` stay in
+`liwan_auth` at 20. Image bytes get `liwan_odoo_image` (1200) instead of competing with
+RPC/report traffic in `liwan_odoo` (600). Target: 30 users behind one NAT x 2 page
 loads/min = 60 loads/min. Per load: 1 probe + ~2 logo/favicon + ~10 avatars (assumed,
 unmeasured) -> odoo 60 (<600), image 60x12=720 (<1200). Auth unchanged.
-Reject inbound `X-WebVue-Proxy-Token` and `X-WebVue-Tenant-Revision` at edge;
+Reject inbound `X-Liwan-Proxy-Token` and `X-Liwan-Tenant-Revision` at edge;
 do not merely forward it. Strip forwarding headers, do not trust client proxy IPs.
 Guard itself rejects DB/session/forwarding selection headers. TLS is terminated at
 edge; private HTTP hops are assumed protected. Cookies always Secure in shared.
@@ -52,12 +52,12 @@ layout is `data_dir/filestore/<database>`: runtime registry rejects database != 
 Odoo sessions are unwrapped only on the Odoo hop after tenant binding verification.
 
 Environment:
-- all shared processes: `WEBVUE_TENANCY_MODE=shared` (unset/dedicated keeps Nuxt legacy behavior)
-- guard + Nuxt: `WEBVUE_TENANT_REGISTRY_PATH`, read-only mount of atomically published registry;
-  `WEBVUE_SHARED_PROXY_TOKEN`, random >=32-byte secret, no logs
-- guard: `WEBVUE_SESSION_KEYS` JSON map key-id → >=32-byte random secret;
-  `WEBVUE_SESSION_ACTIVE_KID`, `WEBVUE_GUARD_PORT` (default 8080),
-  `WEBVUE_GUARD_ODOO_URL`, `WEBVUE_GUARD_WEB_URL`, `WEBVUE_GUARD_WS_URL`
+- all shared processes: `LIWAN_TENANCY_MODE=shared` (unset/dedicated keeps Nuxt legacy behavior)
+- guard + Nuxt: `LIWAN_TENANT_REGISTRY_PATH`, read-only mount of atomically published registry;
+  `LIWAN_SHARED_PROXY_TOKEN`, random >=32-byte secret, no logs
+- guard: `LIWAN_SESSION_KEYS` JSON map key-id → >=32-byte random secret;
+  `LIWAN_SESSION_ACTIVE_KID`, `LIWAN_GUARD_PORT` (default 8080),
+  `LIWAN_GUARD_ODOO_URL`, `LIWAN_GUARD_WEB_URL`, `LIWAN_GUARD_WS_URL`
 - Nuxt: `NUXT_ODOO_URL=http://guard:8080`, public WS URL empty (same-origin).
   Remove Odoo routeRules and dev WS bypass in shared only. Do not expose keyring to Nuxt.
 - control-api + control-worker (invitation acceptance): control-api has no Docker access; it hands
@@ -73,7 +73,7 @@ Environment:
 
 `start.mjs` rejects invalid mode/port/token/registry before listening. The guard
 Dockerfile healthcheck is `node deploy/shared/healthcheck.mjs`: local TCP connect to
-127.0.0.1:$WEBVUE_GUARD_PORT, 2-second timeout, no output or database selection.
+127.0.0.1:$LIWAN_GUARD_PORT, 2-second timeout, no output or database selection.
 This is **liveness only**, not registry freshness/upstream/readiness proof. No public
 health route was added or exempted from tenant checks. Nuxt should use equivalent
 loopback TCP liveness on port 3000 in the shared overlay, never untrusted `/login`.
@@ -96,10 +96,10 @@ by the operator; no untrusted writer. Rotate via controlled replacement and rest
 validation is pre-start, not a concurrent config mutation defense.
 
 Shared startup integration contract for t5: mount `launch_odoo.py` and
-`validate_odoo_config.py` read-only in `/opt/webvue/shared/`, set entrypoint to
-`["/opt/venv/bin/python","/opt/webvue/shared/launch_odoo.py"]`, command to `[]`, and
-`WEBVUE_TENANCY_MODE=shared`. This wrapper accepts no CLI overrides, validates the
-fixed config path, then execs `/usr/local/bin/webvue-odoo` unchanged. It does not
+`validate_odoo_config.py` read-only in `/opt/liwan/shared/`, set entrypoint to
+`["/opt/venv/bin/python","/opt/liwan/shared/launch_odoo.py"]`, command to `[]`, and
+`LIWAN_TENANCY_MODE=shared`. This wrapper accepts no CLI overrides, validates the
+fixed config path, then execs `/usr/local/bin/liwan-odoo` unchanged. It does not
 replace the secure PDF launcher. Dedicated continues using its original entrypoint.
 The validator requires exact `dbfilter=^%h$`, `list_db=False`, `proxy_mode=False`,
 `workers=2`, `data_dir=/var/lib/odoo`, forbids any `db_name`, and fails missing or

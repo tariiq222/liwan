@@ -29,11 +29,11 @@ def make_generation(state: Path, pids: dict[str, int], generation: str = GENERAT
 
 class DeadGenerationRecovery(unittest.TestCase):
     def invoke(self, root: Path, action='recover'):
-        env = {**os.environ, 'WEBVUE_CONTROL_HOME': str(root), 'WEBVUE_REPOSITORY_ROOT': str(SCRIPT.parents[2]), 'WEBVUE_NODE_BIN': '/opt/homebrew/opt/node@22/bin'}
+        env = {**os.environ, 'LIWAN_CONTROL_HOME': str(root), 'LIWAN_REPOSITORY_ROOT': str(SCRIPT.parents[2]), 'LIWAN_NODE_BIN': '/opt/homebrew/opt/node@22/bin'}
         return subprocess.run(['/bin/bash', str(SCRIPT), action, 'runtime'], env=env, capture_output=True, text=True, timeout=10)
 
     def test_all_dead_coherent_generation_is_archived_without_deletion(self):
-        with tempfile.TemporaryDirectory(prefix='webvue-dead-generation-canary-') as tmp:
+        with tempfile.TemporaryDirectory(prefix='liwan-dead-generation-canary-') as tmp:
             root = Path(tmp); state = root / 'processes'
             make_generation(state, {'runtime': 99000101, 'api': 99000102, 'worker': 99000103})
             result = self.invoke(root)
@@ -47,7 +47,7 @@ class DeadGenerationRecovery(unittest.TestCase):
             self.assertEqual(list(state.iterdir()), [])
 
     def test_live_or_reused_pid_preserves_every_record(self):
-        with tempfile.TemporaryDirectory(prefix='webvue-live-generation-canary-') as tmp:
+        with tempfile.TemporaryDirectory(prefix='liwan-live-generation-canary-') as tmp:
             root = Path(tmp); state = root / 'processes'
             make_generation(state, {'runtime': os.getpid(), 'api': 99000202, 'worker': 99000203})
             before = {p.name: p.read_bytes() for p in state.iterdir()}
@@ -56,7 +56,7 @@ class DeadGenerationRecovery(unittest.TestCase):
             self.assertEqual({p.name: p.read_bytes() for p in state.iterdir()}, before)
 
     def test_mixed_generation_preserves_every_record(self):
-        with tempfile.TemporaryDirectory(prefix='webvue-mixed-generation-canary-') as tmp:
+        with tempfile.TemporaryDirectory(prefix='liwan-mixed-generation-canary-') as tmp:
             root = Path(tmp); state = root / 'processes'
             make_generation(state, {'runtime': 99000301, 'api': 99000302, 'worker': 99000303})
             (state / 'worker.generation').write_text('0123456789abcdef0123456789abcdef\n')
@@ -77,7 +77,7 @@ class DeadGenerationRecovery(unittest.TestCase):
 
     def test_unexpected_and_symlink_records_preserve_generation(self):
         for kind in ('unexpected', 'symlink'):
-            with self.subTest(kind=kind), tempfile.TemporaryDirectory(prefix='webvue-invalid-record-canary-') as tmp:
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory(prefix='liwan-invalid-record-canary-') as tmp:
                 root = Path(tmp); state = root / 'processes'
                 make_generation(state, {'runtime': 99000401, 'api': 99000402, 'worker': 99000403})
                 if kind == 'unexpected': (state / 'extra').write_text('preserve')
@@ -90,7 +90,7 @@ class DeadGenerationRecovery(unittest.TestCase):
                 self.assertEqual(before, after)
 
     def test_stop_refuses_partial_or_live_generation_without_any_signal(self):
-        with tempfile.TemporaryDirectory(prefix='webvue-stop-no-partial-canary-') as tmp:
+        with tempfile.TemporaryDirectory(prefix='liwan-stop-no-partial-canary-') as tmp:
             root=Path(tmp); state=root/'processes'
             make_generation(state, {'runtime':os.getpid(),'api':99001102,'worker':99001103})
             before={p.name:p.read_bytes() for p in state.iterdir()}
@@ -100,7 +100,7 @@ class DeadGenerationRecovery(unittest.TestCase):
             self.assertEqual(list(root.glob('processes-archive-*')),[])
 
     def test_partial_generation_and_stop_refuses_without_archiving(self):
-        with tempfile.TemporaryDirectory(prefix='webvue-partial-generation-canary-') as tmp:
+        with tempfile.TemporaryDirectory(prefix='liwan-partial-generation-canary-') as tmp:
             root = Path(tmp); state = root / 'processes'
             make_generation(state, {'runtime': 99000501, 'api': 99000502, 'worker': 99000503})
             (state / 'worker.start').unlink()
@@ -111,7 +111,7 @@ class DeadGenerationRecovery(unittest.TestCase):
             self.assertEqual(list(root.glob('processes-archive-*')), [])
 
     def test_recreate_directory_failure_preserves_archived_records(self):
-        with tempfile.TemporaryDirectory(prefix='webvue-mkdir-failure-canary-') as tmp:
+        with tempfile.TemporaryDirectory(prefix='liwan-mkdir-failure-canary-') as tmp:
             root = Path(tmp); state = root / 'processes'
             make_generation(state, {'runtime': 99000901, 'api': 99000902, 'worker': 99000903})
             def fail_mkdir(path, mode): raise OSError('injected mkdir failure')
@@ -126,7 +126,7 @@ class DeadGenerationRecovery(unittest.TestCase):
 
 
     def test_pid_reappearing_between_checks_prevents_archive(self):
-        with tempfile.TemporaryDirectory(prefix='webvue-pid-race-canary-') as tmp:
+        with tempfile.TemporaryDirectory(prefix='liwan-pid-race-canary-') as tmp:
             root = Path(tmp); state = root / 'processes'
             make_generation(state, {'runtime': 99000601, 'api': 99000602, 'worker': 99000603})
             calls = {}
@@ -140,8 +140,8 @@ class DeadGenerationRecovery(unittest.TestCase):
 
 
     def test_lock_wrapper_blocks_competing_process_transition(self):
-        with tempfile.TemporaryDirectory(prefix='webvue-lock-canary-') as tmp:
-            env = {**os.environ, 'WEBVUE_CONTROL_HOME': tmp}
+        with tempfile.TemporaryDirectory(prefix='liwan-lock-canary-') as tmp:
+            env = {**os.environ, 'LIWAN_CONTROL_HOME': tmp}
             lock = SCRIPT.with_name('process_lock.py')
             marker = Path(tmp) / 'ran'
             cmd = [sys.executable, str(lock), '--hold', sys.executable, '-c', f"import pathlib,time; pathlib.Path({str(marker)!r}).write_text('x'); time.sleep(.4)"]
@@ -155,7 +155,7 @@ class DeadGenerationRecovery(unittest.TestCase):
 
 
     def test_rename_and_recreate_failures_preserve_archive_or_original(self):
-        with tempfile.TemporaryDirectory(prefix='webvue-fs-failure-canary-') as tmp:
+        with tempfile.TemporaryDirectory(prefix='liwan-fs-failure-canary-') as tmp:
             root = Path(tmp); state = root / 'processes'
             make_generation(state, {'runtime': 99000801, 'api': 99000802, 'worker': 99000803})
             def no_rename(src, dst): raise OSError('rename')

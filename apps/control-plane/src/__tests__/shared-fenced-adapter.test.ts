@@ -25,7 +25,7 @@ const url = process.env.CONTROL_TEST_DATABASE_URL
 const tenantDatabases = url ? tenantDatabaseNames(2, url) : []
 if (url) {
   const parsed = new URL(url)
-  if (!['127.0.0.1','localhost','::1'].includes(parsed.hostname) || !/^webvue_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback webvue_control_scratch database')
+  if (!['127.0.0.1','localhost','::1'].includes(parsed.hostname) || !/^liwan_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback liwan_control_scratch database')
 }
 if (!url) describe.skip('fenced adapter live PostgreSQL integration (requires CONTROL_TEST_DATABASE_URL)', () => {})
 else describe('fenced adapter live PostgreSQL integration', () => {
@@ -46,9 +46,9 @@ else describe('fenced adapter live PostgreSQL integration', () => {
   }
 
   beforeAll(async () => {
-    registryDir = process.env.WEBVUE_LIVE_GATE_ROOT
-      ? join(process.env.WEBVUE_LIVE_GATE_ROOT, 'fenced')
-      : await mkdtemp(join(tmpdir(), 'webvue-fenced-'))
+    registryDir = process.env.LIWAN_LIVE_GATE_ROOT
+      ? join(process.env.LIWAN_LIVE_GATE_ROOT, 'fenced')
+      : await mkdtemp(join(tmpdir(), 'liwan-fenced-'))
     await mkdir(registryDir, { recursive: true })
     await migrate(pool)
     await ensureTenantDatabases(pool, tenantDatabases)
@@ -77,7 +77,7 @@ else describe('fenced adapter live PostgreSQL integration', () => {
   afterAll(async () => {
     for (const database of tenantDatabases) await tenantPools.get(database)!.end()
     await pool.end()
-    if (!process.env.WEBVUE_LIVE_GATE_ROOT) await rm(registryDir, { recursive: true, force: true })
+    if (!process.env.LIWAN_LIVE_GATE_ROOT) await rm(registryDir, { recursive: true, force: true })
   })
 
   const effectsIn = async (index: number) =>
@@ -151,7 +151,7 @@ else describe('fenced adapter live PostgreSQL integration', () => {
   })
 
   it('rejects a forged caller policy at enqueue', async () => {
-    await expect(enqueueSharedJob(pool, tenantA, actor, { schemaVersion: 1, operation: 'provision', requestId: randomUUID(), policy: { schema_version: 1, channel: 'control_plane', modules: ['webvue_core'], features: { 'forged.enabled': true } } }, 'Forged policy'))
+    await expect(enqueueSharedJob(pool, tenantA, actor, { schemaVersion: 1, operation: 'provision', requestId: randomUUID(), policy: { schema_version: 1, channel: 'control_plane', modules: ['liwan_core'], features: { 'forged.enabled': true } } }, 'Forged policy'))
       .rejects.toThrow()
   })
 

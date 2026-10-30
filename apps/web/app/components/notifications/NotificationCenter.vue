@@ -61,7 +61,7 @@ async function openNotification(item: BellNotification) {
   <UPopover
     v-model:open="open"
     :content="{ align: 'end', sideOffset: 12 }"
-    :ui="{ content: 'webvue-notification-preview flex max-h-[min(600px,80dvh)] w-[380px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-control p-0' }"
+    :ui="{ content: 'liwan-notification-preview flex max-h-[min(600px,80dvh)] w-[380px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-control p-0' }"
   >
     <UButton
       data-testid="notification-bell"
@@ -79,7 +79,7 @@ async function openNotification(item: BellNotification) {
         v-if="hydrated && data?.unread_count"
         data-testid="notification-count"
         dir="ltr"
-        class="webvue-unread-count pointer-events-none absolute -end-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-xs leading-none font-bold tabular-nums ring-2 ring-(--ui-bg)"
+        class="liwan-unread-count pointer-events-none absolute -end-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-xs leading-none font-bold tabular-nums ring-2 ring-(--ui-bg)"
       >{{ data.unread_count > 9 ? '9+' : data.unread_count }}</span>
     </UButton>
     <template #content>

@@ -41,7 +41,7 @@ class EngineTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name).resolve(); self.state = ReleaseState(self.root)
-        self.binding = {'tenantId': 'tenant_a', 'database': 'webvue_scratch_update_a', 'filestore': 'webvue_scratch_update_a', 'registryRevision': 1}
+        self.binding = {'tenantId': 'tenant_a', 'database': 'liwan_scratch_update_a', 'filestore': 'liwan_scratch_update_a', 'registryRevision': 1}
         self.old = {'schemaVersion': 1, 'tenantId': 'tenant_a', 'identityRevision': 1, 'routeRevision': 1, 'releaseId': 'r1', 'poolId': 'blue', 'fence': 1, 'state': 'serving'}
         self.state.register(self.binding, self.old)
     def request(self, manifest):
@@ -56,7 +56,7 @@ class EngineTests(unittest.TestCase):
         self.assertFalse((self.state.routes/'tenant_a.maintenance').exists())
         self.assertEqual(engine.apply(request,m)['stage'], 'verified')
     def test_migration_failure_keeps_target_closed_without_affecting_another_tenant(self):
-        m = release(releaseId='r2', mode='tenant_maintenance', upgradeModules=['webvue_api'],moduleVersions={'webvue_api':'19.0.1.0.0'})
+        m = release(releaseId='r2', mode='tenant_maintenance', upgradeModules=['liwan_api'],moduleVersions={'liwan_api':'19.0.1.0.0'})
         runtime = Runtime('migrate'); engine = ReleaseEngine(self.state, runtime)
         with self.assertRaises(RuntimeError):
             engine.apply(self.request(m), m)
@@ -72,7 +72,7 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(result['stage'],'draining_old')
         self.assertEqual(self.state.route('tenant_a')['draining'][0]['poolId'],'blue')
     def test_maintenance_retry_observes_retirement_again_instead_of_marking_verified(self):
-        m=release(releaseId='r2',mode='tenant_maintenance',upgradeModules=['webvue_api'],moduleVersions={'webvue_api':'19.0.1.0.0'})
+        m=release(releaseId='r2',mode='tenant_maintenance',upgradeModules=['liwan_api'],moduleVersions={'liwan_api':'19.0.1.0.0'})
         runtime=Runtime();runtime.drained=False;engine=ReleaseEngine(self.state,runtime);request=self.request(m)
         self.assertEqual(engine.apply(request,m)['stage'],'draining_old')
         self.assertEqual(engine.apply(request,m)['stage'],'draining_old')
@@ -86,7 +86,7 @@ class EngineTests(unittest.TestCase):
             ReleaseEngine(self.state,Runtime()).apply(request,m)
         self.assertEqual(self.state.route('tenant_a')['routeRevision'],1)
     def test_maintenance_validates_before_resuming_and_switches_only_target(self):
-        m=release(releaseId='r2',mode='tenant_maintenance',upgradeModules=['webvue_api'],moduleVersions={'webvue_api':'19.0.1.0.0'})
+        m=release(releaseId='r2',mode='tenant_maintenance',upgradeModules=['liwan_api'],moduleVersions={'liwan_api':'19.0.1.0.0'})
         runtime=Runtime();result=ReleaseEngine(self.state,runtime).apply(self.request(m),m)
         self.assertEqual(result['stage'],'verified')
         self.assertEqual(runtime.migrations,1)

@@ -1,4 +1,4 @@
-import { MeSchema } from '@webvue/contracts'
+import { MeSchema } from '@liwan/contracts'
 import { http, HttpResponse } from 'msw'
 import { defineComponent, h } from 'vue'
 import { appManifests } from '../../app/modules/manifests'

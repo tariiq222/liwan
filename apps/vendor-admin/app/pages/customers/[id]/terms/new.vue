@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Quote } from '@webvue/commercial-contracts'
+import type { Quote } from '@liwan/commercial-contracts'
 import { commercialErrorKey, commercialFailure } from '@/utils/vendorCommercial'
 import { customerQuoteBody, customersReturnTo, termsOnly, termsPayload, type TermsDraft } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'

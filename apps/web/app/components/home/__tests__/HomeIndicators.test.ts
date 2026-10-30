@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
 import * as Vue from 'vue'
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_STUBS, renderShared } from '@webvue/ui/test/helpers/renderShared'
+import { DEFAULT_STUBS, renderShared } from '@liwan/ui/test/helpers/renderShared'
 import { WORK_KINDS, workCountLabel } from '../../../composables/nav/attentionModel'
 
 const file = resolve(import.meta.dirname, '../HomeIndicators.vue')

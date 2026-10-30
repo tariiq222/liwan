@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { HrRef } from '@webvue/contracts'
+import type { HrRef } from '@liwan/contracts'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -38,7 +38,7 @@ const createTo = computed(() => canManage.value ? { path: '/hr/assets/categories
       <SharedPageState :error="categories.error.value" :keep-content="items.length > 0" @retry="categories.refetch">
         <SharedEmptyState
           v-if="showEmpty"
-          class="m-(--webvue-card-pad-dense)"
+          class="m-(--liwan-card-pad-dense)"
           :title="t('hrAssets.categories.emptyTitle')"
           :description="t('hrAssets.categories.emptyHint')"
         />

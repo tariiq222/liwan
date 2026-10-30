@@ -1,8 +1,8 @@
 import { z } from 'zod'
 import type { Pool, PoolClient } from 'pg'
 import type { IncomingHttpHeaders } from 'node:http'
-import { quoteRequestSchema, acceptQuoteRequestSchema } from '@webvue/commercial-contracts'
-import { verifyServiceRequest } from '@webvue/commercial-contracts/server'
+import { quoteRequestSchema, acceptQuoteRequestSchema } from '@liwan/commercial-contracts'
+import { verifyServiceRequest } from '@liwan/commercial-contracts/server'
 import type { Config } from '../config.js'
 import { transaction } from '../db.js'
 import { CommercialHttpError } from './lifecycle.js'
@@ -66,9 +66,9 @@ async function consumeNonce(client: PoolClient, signed: {issuer: string; nonce: 
  * the return only asks for a provider lookup of one attempt and reveals nothing but the order's state.
  */
 async function paymentReturn(pool: Pool, service: {issuer: string; key: string}, input: CustomerInput, attemptId: string, runtime?: PaymentRuntime) {
-  const tenant=input.headers['x-webvue-tenant']
+  const tenant=input.headers['x-liwan-tenant']
   if (typeof tenant !== 'string' || !tenant || tenant.length > 128 || /[\r\n]/.test(tenant)) throw new CommercialHttpError('unauthorized',401)
-  const signed=verifyServiceRequest({method:input.method,path:input.path,body:`webvue-payment-return:${tenant}\n`,headers:input.headers,key:service.key,anonymous:true})
+  const signed=verifyServiceRequest({method:input.method,path:input.path,body:`liwan-payment-return:${tenant}\n`,headers:input.headers,key:service.key,anonymous:true})
   if (!signed || signed.issuer !== service.issuer) throw new CommercialHttpError('unauthorized',401)
   const customer=await transaction(pool,async client=>{await consumeNonce(client,signed);return customerForTenant(client,tenant)})
   if (!z.uuid().safeParse(attemptId).success) throw new CommercialHttpError('not_found',404)
@@ -85,9 +85,9 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
     if (input.method !== 'POST') throw new CommercialHttpError('not_found',404)
     return paymentReturn(pool,{issuer:config.customerCommercialIssuer,key:config.customerCommercialServiceKey},input,returned[1]!,runtime)
   }
-  const header=input.headers['x-webvue-principal']
+  const header=input.headers['x-liwan-principal']
   if (typeof header !== 'string') throw new CommercialHttpError('unauthorized',401)
-  const signed=verifyServiceRequest({method:input.method,path:input.path,body:`webvue-principal:${header}\n${input.raw}`,headers:input.headers,key:config.customerCommercialServiceKey})
+  const signed=verifyServiceRequest({method:input.method,path:input.path,body:`liwan-principal:${header}\n${input.raw}`,headers:input.headers,key:config.customerCommercialServiceKey})
   if (!signed || signed.issuer !== config.customerCommercialIssuer) throw new CommercialHttpError('unauthorized',401)
   const unbound=parseCustomerPrincipal(header,'unbound')
   if (unbound.actor_id !== String(signed.actor)) throw new CommercialHttpError('unauthorized',401)

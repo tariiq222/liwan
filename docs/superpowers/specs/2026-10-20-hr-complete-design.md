@@ -5,7 +5,7 @@ integration branch `codex/hr-complete` (`.worktrees/hr-complete`).
 
 ## 1. Goal and owner decisions
 
-Add five HR capabilities to the HR application `webvue_hr`, each a thin WebVue surface over a
+Add five HR capabilities to the HR application `liwan_hr`, each a thin LiwanOS surface over a
 ready-made engine. No engine is written from scratch.
 
 | # | Capability | Engine (internal) | Source verified |
@@ -17,8 +17,8 @@ ready-made engine. No engine is written from scratch.
 | 5 | Employee assets / custody | stock `hr_maintenance` (`maintenance.equipment.employee_id`, `equipment_assign_to`, `assign_date`) on stock `maintenance` | `addons/hr_maintenance/models/equipment.py` |
 
 Owner decisions applied: ready-made modules only; OCA AGPL-3 modules accepted as internal engines;
-everything lives in the single addon `webvue_hr`; no timesheets; no payroll in this work; no `sudo()` in
-`webvue_hr`; the customer never opens Odoo (the `ir.http` guard stays as is).
+everything lives in the single addon `liwan_hr`; no timesheets; no payroll in this work; no `sudo()` in
+`liwan_hr`; the customer never opens Odoo (the `ir.http` guard stays as is).
 
 What is *not* the engine: OCA `hr_attendance_employee_calendar_planning` (attendance is out of scope).
 
@@ -26,7 +26,7 @@ What is *not* the engine: OCA `hr_attendance_employee_calendar_planning` (attend
 
 - **Attendance** (check-in/out, `hr_attendance`, the attendance planning bridge).
 - **Timesheets**: AGENTS.md: "do not add `hr_timesheet` or timesheet fields/endpoints to the customer UI".
-- **Payroll**: AGENTS.md (owner decision 2026-10-19): payroll is a section of `webvue_hr` behind dedicated
+- **Payroll**: AGENTS.md (owner decision 2026-10-19): payroll is a section of `liwan_hr` behind dedicated
   `hr.payroll.*` capabilities "that no other HR capability implies, and behind the `hr.payroll` sub-feature;
   they never appear in general employee, directory or people views or serializers." This work adds no payroll
   module, group, field or route. Applicant salary fields (`salary_proposed*`, `salary_expected*`) and equipment
@@ -45,7 +45,7 @@ What is *not* the engine: OCA `hr_attendance_employee_calendar_planning` (attend
 
 - Path prefix `/api/v1/hr/<area>/…` with `<area>` ∈ `recruitment`, `shifts`, `onboarding`, `offboarding`, `assets`.
 - Decorators, in this order: `@http.route(path, type='json2', auth='user', methods=[<one>], readonly=<GET>)`,
-  `@api_handler`, `@hr_rule_handler` (when the handler raises `WebVueHrRule`),
+  `@api_handler`, `@hr_rule_handler` (when the handler raises `LiwanHrRule`),
   `@requires_feature('hr.enabled', 'hr.<area>', operation='read'|'write')` (default `match='all'`: **both** keys),
   then `@requires_capability(...)` (or a top-level `_require(...)` call that `tools/route_gate_policy.py` credits).
 - Lists return exactly `{items, total}`; `limit/offset` through `parse_page`; ids through `parse_positive_int`.
@@ -64,11 +64,11 @@ What is *not* the engine: OCA `hr_attendance_employee_calendar_planning` (attend
 
 ## 4. Capabilities, groups and roles (catalog additions)
 
-Ten new capabilities, owner `webvue_hr`, appended to `HR_PERMISSIONS` (10 → 20). `EMPLOYEE_HR_PERMISSIONS` is
+Ten new capabilities, owner `liwan_hr`, appended to `HR_PERMISSIONS` (10 → 20). `EMPLOYEE_HR_PERMISSIONS` is
 **unchanged**: the employee role gets no new capability; self-service reads use the existing `hr.employees.read`
 plus an own-record filter (§6.2, §6.5).
 
-| Key | Depends on | Group xmlid (`webvue_hr.`) | Stock group implied | Sensitive | Roles |
+| Key | Depends on | Group xmlid (`liwan_hr.`) | Stock group implied | Sensitive | Roles |
 |---|---|---|---|---|---|
 | `hr.recruitment.read` | — | `group_cap_hr_recruitment_read` | none (own read ACLs) | no | hr_manager, vendor_support |
 | `hr.recruitment.manage` | `hr.recruitment.read` | `group_cap_hr_recruitment_manage` | `hr_recruitment.group_hr_recruitment_user` | yes | hr_manager, vendor_support |
@@ -82,7 +82,7 @@ plus an own-record filter (§6.2, §6.5).
 | `hr.assets.manage` | `hr.assets.read` | `group_cap_hr_assets_manage` | `maintenance.group_equipment_manager` | yes | hr_manager, vendor_support |
 
 Extra route-level requirements: hiring (`POST …/applicants/<id>/hire`) needs `hr.recruitment.manage` **and**
-`hr.employees.manage` (it creates an `hr.employee` through the WebVue-guarded model).
+`hr.employees.manage` (it creates an `hr.employee` through the LiwanOS-guarded model).
 
 Permission records (`data/hr_access_permissions.xml`, `domain=hr`, `custom_role_allowed=True`,
 `sensitive` as above). `resource`/`action`/names:
@@ -102,7 +102,7 @@ Permission records (`data/hr_access_permissions.xml`, `domain=hr`, `custom_role_
 
 `description_ar/en` equal the names. `role_hr_manager.permission_ids` (`Command.set`) lists all 20;
 `group_hr_manager.implied_ids` (`Command.set`) adds the ten new groups. The existing
-`_webvue_repair_builtin_role_grants` hook relinks grants on upgrade (role is `noupdate`).
+`_liwan_repair_builtin_role_grants` hook relinks grants on upgrade (role is `noupdate`).
 
 ### 4.1 Group implication proof (no `hr.group_hr_user`, no payroll leak)
 
@@ -112,11 +112,11 @@ Verified in stock source:
   (`hr_recruitment/security/hr_recruitment_security.xml:17-30`). It does **not** imply `hr.group_hr_user`.
   It grants: CRUD `hr.applicant`, `hr.job`, `hr.talent.pool`, `hr.recruitment.degree`, refuse reasons, sources,
   `res.partner`, `calendar.event`; `mail_message_user_rule` (a `(1,=,1)` rule — it never widens beyond
-  mail.message's document-based check). Salary fields are gated to this group in Odoo and excluded by WebVue.
+  mail.message's document-based check). Salary fields are gated to this group in Odoo and excluded by LiwanOS.
 - `maintenance.group_equipment_manager` → `base.group_user` only (`maintenance/security/maintenance.xml:9-16`).
   It grants CRUD on equipment, categories, teams, stages, requests and `mail.activity.type`.
   (`hr_maintenance` makes `hr.group_hr_user` imply it — the opposite direction, no leak.)
-- No new WebVue group implies `hr.group_hr_user`, `hr.group_hr_manager`, `hr_holidays.group_hr_holidays_user`
+- No new LiwanOS group implies `hr.group_hr_user`, `hr.group_hr_manager`, `hr_holidays.group_hr_holidays_user`
   or any payroll group, and no payroll module is installed by this work.
 - `hr.shifts.manage` and `hr.offboarding.manage` **depend on** `hr.employees.manage`, whose group already implies
   `hr.group_hr_user` (existing, accepted in `hr_capability_groups.xml`). Their own groups imply nothing. Reason:
@@ -133,18 +133,18 @@ Verified in stock source:
 
 | ACL id | model | group | r w c u |
 |---|---|---|---|
-| access_webvue_hr_applicant_reader | hr_recruitment.model_hr_applicant | group_cap_hr_recruitment_read | 1 0 0 0 |
-| access_webvue_hr_recruitment_stage_reader | hr_recruitment.model_hr_recruitment_stage | group_cap_hr_recruitment_read | 1 0 0 0 |
-| access_webvue_hr_refuse_reason_reader | hr_recruitment.model_hr_applicant_refuse_reason | group_cap_hr_recruitment_read | 1 0 0 0 |
-| access_webvue_hr_plan_run_onboarding_reader | model_webvue_hr_plan_run | group_cap_hr_onboarding_read | 1 0 0 0 |
-| access_webvue_hr_plan_run_onboarding_manager | model_webvue_hr_plan_run | group_cap_hr_onboarding_manage | 1 1 1 0 |
-| access_webvue_hr_plan_onboarding_manager | mail.model_mail_activity_plan | group_cap_hr_onboarding_manage | 1 1 1 1 |
-| access_webvue_hr_plan_template_onboarding_manager | mail.model_mail_activity_plan_template | group_cap_hr_onboarding_manage | 1 1 1 1 |
-| access_webvue_hr_plan_run_offboarding_reader | model_webvue_hr_plan_run | group_cap_hr_offboarding_read | 1 0 0 0 |
-| access_webvue_hr_plan_run_offboarding_manager | model_webvue_hr_plan_run | group_cap_hr_offboarding_manage | 1 1 1 0 |
-| access_webvue_hr_plan_offboarding_manager | mail.model_mail_activity_plan | group_cap_hr_offboarding_manage | 1 1 1 1 |
-| access_webvue_hr_plan_template_offboarding_manager | mail.model_mail_activity_plan_template | group_cap_hr_offboarding_manage | 1 1 1 1 |
-| access_webvue_hr_departure_reason_reader | hr.model_hr_departure_reason | group_cap_hr_offboarding_read | 1 0 0 0 |
+| access_liwan_hr_applicant_reader | hr_recruitment.model_hr_applicant | group_cap_hr_recruitment_read | 1 0 0 0 |
+| access_liwan_hr_recruitment_stage_reader | hr_recruitment.model_hr_recruitment_stage | group_cap_hr_recruitment_read | 1 0 0 0 |
+| access_liwan_hr_refuse_reason_reader | hr_recruitment.model_hr_applicant_refuse_reason | group_cap_hr_recruitment_read | 1 0 0 0 |
+| access_liwan_hr_plan_run_onboarding_reader | model_liwan_hr_plan_run | group_cap_hr_onboarding_read | 1 0 0 0 |
+| access_liwan_hr_plan_run_onboarding_manager | model_liwan_hr_plan_run | group_cap_hr_onboarding_manage | 1 1 1 0 |
+| access_liwan_hr_plan_onboarding_manager | mail.model_mail_activity_plan | group_cap_hr_onboarding_manage | 1 1 1 1 |
+| access_liwan_hr_plan_template_onboarding_manager | mail.model_mail_activity_plan_template | group_cap_hr_onboarding_manage | 1 1 1 1 |
+| access_liwan_hr_plan_run_offboarding_reader | model_liwan_hr_plan_run | group_cap_hr_offboarding_read | 1 0 0 0 |
+| access_liwan_hr_plan_run_offboarding_manager | model_liwan_hr_plan_run | group_cap_hr_offboarding_manage | 1 1 1 0 |
+| access_liwan_hr_plan_offboarding_manager | mail.model_mail_activity_plan | group_cap_hr_offboarding_manage | 1 1 1 1 |
+| access_liwan_hr_plan_template_offboarding_manager | mail.model_mail_activity_plan_template | group_cap_hr_offboarding_manage | 1 1 1 1 |
+| access_liwan_hr_departure_reason_reader | hr.model_hr_departure_reason | group_cap_hr_offboarding_read | 1 0 0 0 |
 
 `hr.job`, `resource.calendar(.attendance)`, `hr.employee.calendar`, `maintenance.equipment(.category)` and
 `mail.activity.plan(.template)` are already readable by `base.group_user`.
@@ -154,7 +154,7 @@ Record rules (new file `security/hr_engine_rules.xml`):
 - `rule_hr_plan_onboarding_manage` / `rule_hr_plan_offboarding_manage` on `mail.activity.plan`, groups the
   matching manage group, `perm_read=False`, domain `[('res_model','=','hr.employee'),('hr_purpose','=','onboarding'|'offboarding')]`;
   same pair on `mail.activity.plan.template` with `plan_id.` prefixes (mirrors stock `mail_plan_rule_group_hr_manager`).
-- `rule_hr_plan_run_company` (global): `[('company_id','in',company_ids)]` on `webvue.hr.plan.run`.
+- `rule_hr_plan_run_company` (global): `[('company_id','in',company_ids)]` on `liwan.hr.plan.run`.
 - `rule_hr_plan_run_onboarding` / `rule_hr_plan_run_offboarding` (group rules, all perms):
   `[('plan_id.hr_purpose','=','onboarding'|'offboarding')]` for the read groups (managers inherit through
   dependency, so their users are in the read group too).
@@ -165,12 +165,12 @@ Record rules (new file `security/hr_engine_rules.xml`):
 ## 5. Sub-features (R10)
 
 `models/feature_registry.py` appends five boolean definitions, each
-`{'key': 'hr.<area>', 'type': 'boolean', 'owner': 'webvue_hr', 'module': 'webvue_hr'}` for
+`{'key': 'hr.<area>', 'type': 'boolean', 'owner': 'liwan_hr', 'module': 'liwan_hr'}` for
 `hr.recruitment`, `hr.shifts`, `hr.onboarding`, `hr.offboarding`, `hr.assets`.
 
 - Every new route is gated by `requires_feature('hr.enabled', 'hr.<area>', …)` (both must hold).
-- Fresh install: `_webvue_legacy_features_for` grants every `webvue_hr` key when HR is selected.
-- Upgrade: `_webvue_register_missing_features` closes new keys (`False`). Pre-release only (no tenants),
+- Fresh install: `_liwan_legacy_features_for` grants every `liwan_hr` key when HR is selected.
+- Upgrade: `_liwan_register_missing_features` closes new keys (`False`). Pre-release only (no tenants),
   `migrations/19.0.1.6.0/post-hr_complete.py` sets each of the five keys to the stored value of `hr.enabled`
   for every profile (dev data carried forward; documented in the README).
 - Catalog: `tools/catalog_check.py` requires every feature of a release module in exactly one tier of each
@@ -207,7 +207,7 @@ Engine: `hr_recruitment` (+ its auto-installed bridges, recorded by the foundati
 
 Serializers:
 - `RecruitmentJob`: `id, name, department: HrRef|null, no_of_recruitment:int≥0, application_count:int≥0`
-  (WebVue `search_count` of ongoing applicants in the company, not the stock group-gated field),
+  (LiwanOS `search_count` of ongoing applicants in the company, not the stock group-gated field),
   `description: string` (plain text of the Html, '' when empty), `active`.
 - `RecruitmentStage`: `id, name, sequence, hired_stage, fold`.
 - `Applicant`: `id, partner_name, email_from, partner_phone, job: HrRef|null, department: HrRef|null,
@@ -271,11 +271,11 @@ appears on `/hr/shifts` when they lack `hr.shifts.read` (from `/me`). Locale `hr
 Engine: stock employee activity plans. Schema (foundation): `mail.activity.plan.hr_purpose` Selection
 `[('onboarding','Onboarding'),('offboarding','Offboarding')]`, allowed only when `res_model == 'hr.employee'`
 (`@api.constrains`); stock `hr.onboarding_plan` → onboarding, `hr.offboarding_plan` → offboarding (data XML on
-install, migration on upgrade). New model `webvue.hr.plan.run` (one launch of a plan on one employee):
+install, migration on upgrade). New model `liwan.hr.plan.run` (one launch of a plan on one employee):
 `employee_id` (m2o `hr.employee`, required, `ondelete='cascade'`, index), `plan_id` (m2o `mail.activity.plan`,
 required, `ondelete='restrict'`), `company_id` (related `employee_id.company_id`, stored, index), `plan_date`
 (Date, required), `launched_by_id` (m2o `res.users`, required, default current user), `activity_ids` (m2m
-`mail.activity`, relation `webvue_hr_plan_run_activity_rel`). Purpose and progress are derived, never stored.
+`mail.activity`, relation `liwan_hr_plan_run_activity_rel`). Purpose and progress are derived, never stored.
 
 Plan routes (identical shape under `/api/v1/hr/offboarding/…`, purpose fixed by the area):
 
@@ -322,7 +322,7 @@ Locale `hr-onboarding.json`, top key `hrOnboarding`.
 Engine: stock `hr.departure.wizard.action_register_departure` + `hr.departure.reason` + an offboarding plan run as
 the clearance checklist. Schema (foundation): `departure_reason_id`, `departure_description`, `departure_date`
 redeclared on `hr.version` (and on `hr.employee` with `inherited=True` if the `_inherits` copy needs it, proven by
-test) with `groups='hr.group_hr_user,webvue_hr.group_cap_hr_offboarding_read'` (same pattern as `CONTRACT_GROUPS`).
+test) with `groups='hr.group_hr_user,liwan_hr.group_cap_hr_offboarding_read'` (same pattern as `CONTRACT_GROUPS`).
 Archiving stays the existing `POST /api/v1/hr/employees/<id>/archive` (`hr.employees.archive`); this area never
 archives employees or users (`employee_termination` context is never set, `remove_related_user=False`).
 
@@ -403,10 +403,10 @@ User strings use `t('hr<Area>.…')` only from the area's own namespace (nav lab
 
 ## 7. Manifest, version, migration, OCA pin (foundation)
 
-`odoo-addons/webvue_hr/__manifest__.py`:
+`odoo-addons/liwan_hr/__manifest__.py`:
 - `version`: `19.0.1.5.0` → `19.0.1.6.0` (one bump for the whole work).
-- `summary`: `'webvue platform: the HR pillar — /api/v1/hr departments, employees, leave, recruitment, shifts, onboarding, offboarding, assets'`.
-- `depends`: `['webvue_api', 'hr', 'mail', 'hr_holidays', 'hr_work_entry_holidays', 'hr_recruitment',
+- `summary`: `'liwan platform: the HR pillar — /api/v1/hr departments, employees, leave, recruitment, shifts, onboarding, offboarding, assets'`.
+- `depends`: `['liwan_api', 'hr', 'mail', 'hr_holidays', 'hr_work_entry_holidays', 'hr_recruitment',
   'hr_employee_calendar_planning', 'maintenance', 'hr_maintenance']` (comment updated: engines are internal).
 - `data` (order): `security/hr_leave_officer_group.xml`, `security/hr_capability_groups.xml`,
   `security/ir.model.access.csv`, `security/hr_engine_rules.xml`, `data/hr_access_permissions.xml`,
@@ -418,7 +418,7 @@ records — and copies `hr.enabled` to the five sub-feature keys of every tenant
 
 `deploy/oca-addons.json`: add `{"repo": "OCA/hr", "branch": "19.0", "commit": "23e948031779315958c3897652d04da813a058fb"}`
 (no `python_requirements`: the module declares no external dependency). `docs/oca-addons.md`: add the module to
-"What uses them" (`hr_employee_calendar_planning` — `webvue_hr` shifts; AGPL-3 internal engine, owner-accepted;
+"What uses them" (`hr_employee_calendar_planning` — `liwan_hr` shifts; AGPL-3 internal engine, owner-accepted;
 only this module of OCA/hr is installed). `python3 -B tools/oca_addons.py check` must pass, then `fetch`.
 
 ## 8. Frozen foundation contract (lane `codex/hr-foundation`, merged before feature lanes start)
@@ -430,7 +430,7 @@ Delivered and frozen; feature lanes may not edit these files. A change needs a c
    `EMPLOYEE_HR_PERMISSIONS` unchanged; role grants unchanged in code (constant-driven).
 3. `models/feature_registry.py`: five sub-features (§5).
 4. `models/mail_activity_plan.py` (new, `hr_purpose` + constraint), `models/hr_plan_run.py` (new
-   `webvue.hr.plan.run`), `models/hr_version.py` (+ `hr_employee.py` if needed) departure field groups,
+   `liwan.hr.plan.run`), `models/hr_version.py` (+ `hr_employee.py` if needed) departure field groups,
    `models/__init__.py`.
 5. `security/hr_capability_groups.xml` (ten groups + `group_hr_manager` implications),
    `security/ir.model.access.csv` (§4.2 rows), `security/hr_engine_rules.xml` (new, §4.2).
@@ -441,12 +441,12 @@ Delivered and frozen; feature lanes may not edit these files. A change needs a c
    `controllers/{recruitment,shifts,lifecycle,assets}/__init__.py` and `serializers/{…}/__init__.py`
    (header comment only; ownership passes to the lane, which fills them).
 8. Tests: `tests/common.py` gains `set_hr_feature(case, key, enabled)` (tenant-profile write under the operator
-   context, like `webvue_api.tests.common.set_probe_feature`); `tests/test_hr_access_composition.py` counts 20,
+   context, like `liwan_api.tests.common.set_probe_feature`); `tests/test_hr_access_composition.py` counts 20,
    renames `…ten…` → `…twenty…`, asserts role/vendor grants and that `EMPLOYEE_HR_PERMISSIONS` is unchanged;
    new `tests/test_hr_engine_groups.py` (§4.1 implication asserts, `hr_purpose` constraint, run model company
    rule, departure field readable with `hr.offboarding.read` + `hr.employees.read` and not with
-   `hr.employees.read` alone, sub-features registered with owner `webvue_hr`).
-   `odoo-addons/webvue_api/tests/test_access_composition.py`: `HR` set +10 keys, `DEPENDENCIES` +10 entries,
+   `hr.employees.read` alone, sub-features registered with owner `liwan_hr`).
+   `odoo-addons/liwan_api/tests/test_access_composition.py`: `HR` set +10 keys, `DEPENDENCIES` +10 entries,
    `EMPLOYEE` unchanged.
 9. Contracts: `packages/contracts/src/hr/{recruitment,shifts,onboarding,offboarding,assets}.ts` with every schema of
    §6 (exact keys, `.strict()`), `hr/index.ts` re-exports the five, tests `hr/__tests__/<area>.test.ts`;
@@ -458,21 +458,21 @@ Delivered and frozen; feature lanes may not edit these files. A change needs a c
 
 Foundation verify: `python3 -B tools/oca_addons.py check`, `python3 -B tools/catalog_check.py`,
 `python3 -B tools/arch_policy.py --base main`, `python3 -B tools/git_policy.py --base main`, `npm test`,
-`npm -w apps/web run lint` (from `apps/web`), Odoo `-i webvue_hr --test-tags /webvue_hr,/webvue_api` on a fresh
-scratch DB, plus `-u webvue_hr` on a DB installed at `main` (upgrade path), all in `.worktrees/hr-complete`.
+`npm -w apps/web run lint` (from `apps/web`), Odoo `-i liwan_hr --test-tags /liwan_hr,/liwan_api` on a fresh
+scratch DB, plus `-u liwan_hr` on a DB installed at `main` (upgrade path), all in `.worktrees/hr-complete`.
 
 ## 9. Lane ownership (disjoint)
 
 | Lane (branch) | Owns exactly |
 |---|---|
 | foundation (`codex/hr-foundation`) | all files of §8 |
-| recruitment (`codex/hr-recruitment`) | `odoo-addons/webvue_hr/controllers/recruitment/**`, `serializers/recruitment/**`, `tests/test_hr_recruitment.py`; `apps/web/app/pages/hr/recruitment.vue`, `pages/hr/recruitment/**`, `components/hr/recruitment/**`, `composables/useHrRecruitment.ts`, `i18n/locales/{ar,en}/hr-recruitment.json`, their `__tests__` |
+| recruitment (`codex/hr-recruitment`) | `odoo-addons/liwan_hr/controllers/recruitment/**`, `serializers/recruitment/**`, `tests/test_hr_recruitment.py`; `apps/web/app/pages/hr/recruitment.vue`, `pages/hr/recruitment/**`, `components/hr/recruitment/**`, `composables/useHrRecruitment.ts`, `i18n/locales/{ar,en}/hr-recruitment.json`, their `__tests__` |
 | shifts (`codex/hr-shifts`) | `controllers/shifts/**`, `serializers/shifts/**`, `tests/test_hr_shifts.py`; `pages/hr/shifts.vue`, `pages/hr/shifts/**`, `components/hr/shifts/**`, `composables/useHrShifts.ts`, `hr-shifts.json` (ar, en), their tests |
 | lifecycle (`codex/hr-lifecycle`) | `controllers/lifecycle/**`, `serializers/lifecycle/**`, `tests/test_hr_onboarding.py`, `tests/test_hr_offboarding.py`; `pages/hr/onboarding.vue`, `pages/hr/onboarding/**`, `pages/hr/offboarding.vue`, `pages/hr/offboarding/**`, `components/hr/lifecycle/**`, `composables/useHrOnboarding.ts`, `composables/useHrOffboarding.ts`, `hr-onboarding.json`, `hr-offboarding.json` (ar, en), their tests |
 | assets (`codex/hr-assets`) | `controllers/assets/**`, `serializers/assets/**`, `tests/test_hr_assets.py`; `pages/hr/assets.vue`, `pages/hr/assets/**`, `components/hr/assets/**`, `composables/useHrAssets.ts`, `hr-assets.json` (ar, en), their tests |
 | integrator only (`codex/hr-complete`) | merges; `apps/web/app/modules/hr/manifest.ts` (nav, landing, contextLinks, commands, routeCapabilities, `subFeatures`, `isNavActive` for the five areas); `apps/web/i18n/locales/{ar,en}/common.json` (`nav.recruitment`, `nav.shifts`, `nav.onboarding`, `nav.offboarding`, `nav.assets`); conflict resolution; final checks. Never commits `docs/api/openapi.json` / `route-capabilities.json` (git_policy allows them only on `codex/tools-integrate-*`). |
 
-`odoo-addons/webvue_hr/{controllers,serializers}/` paths above are relative to `odoo-addons/webvue_hr/`; web paths to
+`odoo-addons/liwan_hr/{controllers,serializers}/` paths above are relative to `odoo-addons/liwan_hr/`; web paths to
 `apps/web/app/` except locales (`apps/web/i18n/locales/`). Composable names match `tools/arch_layers.json`
 `web_apps.hr` (`composables/useHr*`), so no arch change. No lane edits `tools/arch_layers.json`,
 `tools/arch_baseline.json`, `tools/arch_documented_sudo.json` or `tools/route_gate_allowlist.json`.
@@ -484,9 +484,9 @@ capabilities for every `/new` and record route (manage for `/new`); commands for
 
 ## 10. Security
 
-- **No new `sudo()`**: no `webvue_hr` file calls `sudo()`; `tools/arch_documented_sudo.json` unchanged; reviewers
+- **No new `sudo()`**: no `liwan_hr` file calls `sudo()`; `tools/arch_documented_sudo.json` unchanged; reviewers
   grep `sudo(` in the diff. Stock/OCA engine code keeps its own internal `sudo()` (e.g. OCA
-  `_get_planning_calendars`, stock `_get_employee_create_vals`); WebVue never adds one.
+  `_get_planning_calendars`, stock `_get_employee_create_vals`); LiwanOS never adds one.
 - **No privilege leak**: §4.1; new groups never imply `hr.group_hr_user` or payroll groups; the two dependencies on
   `hr.employees.manage` are explicit and enforced by the catalog dependency check.
 - **Company scoping**: every route filters the current company (§3); other-company ids → 404; plan-run global
@@ -498,10 +498,10 @@ capabilities for every `/new` and record route (manage for `/new`); commands for
   `subFeatures`.
 - R1–R10 hold: no new addon, no cross-application import, no control-plane reference, works in `saas` and `non_saas`.
 
-## 11. Odoo test plan (each lane, `WebVueHrCase` from `webvue_hr/tests/common.py`, extends `WebVueApiCase`)
+## 11. Odoo test plan (each lane, `LiwanHrCase` from `liwan_hr/tests/common.py`, extends `LiwanApiCase`)
 
 Every lane test file covers, per route group:
-1. 403 `forbidden` without the capability (user with `webvue_core.group_employee` only), and with read-only on write routes.
+1. 403 `forbidden` without the capability (user with `liwan_core.group_employee` only), and with read-only on write routes.
 2. 403 `feature_not_included` when `hr.<area>` is off while `hr.enabled` is on (`set_hr_feature`).
 3. 404 for a record of a second company (create a second `res.company` fixture through Odoo).
 4. 422 with `field` for an unknown payload key and for a bad relation id.
@@ -515,7 +515,7 @@ Recruitment additionally: hire needs `hr.employees.manage`; salary fields absent
 manager cannot read/launch offboarding plans/runs and vice versa (purpose rules). Assets additionally: `cost` absent.
 
 Commands (lane verify, in `.worktrees/hr-complete` worktree layout, scratch DB, unique port):
-`odoo-bin … --addons-path=<odoo>/addons,<worktree>/odoo-addons,$(python3 -B <worktree>/tools/oca_addons.py path) -d <scratch> -i webvue_hr --test-tags /webvue_hr --stop-after-init`,
+`odoo-bin … --addons-path=<odoo>/addons,<worktree>/odoo-addons,$(python3 -B <worktree>/tools/oca_addons.py path) -d <scratch> -i liwan_hr --test-tags /liwan_hr --stop-after-init`,
 `npm test`, `cd apps/web && npm run lint`, `python3 -B tools/route_gate_policy.py`, `python3 -B tools/arch_policy.py --base main`.
 
 ## 12. DAG

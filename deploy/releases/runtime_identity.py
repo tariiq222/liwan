@@ -23,9 +23,9 @@ NAME = re.compile(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}\Z')
 ROLE = re.compile(r'[a-z][a-z0-9_]{0,62}\Z')
 SHA = re.compile(r'[a-f0-9]{64}\Z')
 IMAGE = re.compile(r'[a-zA-Z0-9][a-zA-Z0-9./:_-]*@sha256:[a-f0-9]{64}\Z')
-SHARED_ENTRYPOINT = ['/opt/venv/bin/python', '/opt/webvue/shared/launch_odoo.py']
+SHARED_ENTRYPOINT = ['/opt/venv/bin/python', '/opt/liwan/shared/launch_odoo.py']
 CONFIG = '/etc/odoo/odoo.conf'
-PROTECTED = ('/opt/venv', '/opt/odoo', '/opt/oca', '/opt/webvue/addons', '/opt/webvue/tools', '/opt/webvue/deploy', '/opt/webvue/shared', '/opt/webvue/odoo_secure.py', '/usr/local/bin/webvue-odoo')
+PROTECTED = ('/opt/venv', '/opt/odoo', '/opt/oca', '/opt/liwan/addons', '/opt/liwan/tools', '/opt/liwan/deploy', '/opt/liwan/shared', '/opt/liwan/odoo_secure.py', '/usr/local/bin/liwan-odoo')
 MAX_OUTPUT = 1048576
 DOCKER_SECONDS = 10
 
@@ -103,18 +103,18 @@ def _launch(item, expected, cron_databases=None):
     config = item['Config']
     env = _environment(config['Env'])
     runtime_role = 'cron' if cron_databases is not None else 'http'
-    if config['Labels'].get('webvue.runtime') != runtime_role:
+    if config['Labels'].get('liwan.runtime') != runtime_role:
         raise ValueError()
     if cron_databases is not None:
         databases = ','.join(cron_databases)
-        if config['Labels'].get('webvue.database') != databases or env.get('WEBVUE_RELEASE_DATABASES') != databases:
+        if config['Labels'].get('liwan.database') != databases or env.get('LIWAN_RELEASE_DATABASES') != databases:
             raise ValueError()
-    elif 'webvue.database' in config['Labels'] or 'WEBVUE_RELEASE_DATABASES' in env:
+    elif 'liwan.database' in config['Labels'] or 'LIWAN_RELEASE_DATABASES' in env:
         raise ValueError()
     if any(env.get(key) for key in ('PYTHONPATH', 'PYTHONHOME', 'PYTHONUSERBASE', 'LD_PRELOAD', 'LD_LIBRARY_PATH')):
         raise ValueError()
-    if (env.get('WEBVUE_RELEASE_DB_USER') != expected['dbUser'] or env.get('WEBVUE_RELEASE_POOL_ID') != expected['poolId']
-            or env.get('WEBVUE_RELEASE_ROLE') != runtime_role or env.get('WEBVUE_TENANCY_MODE') != expected['tenancyMode']):
+    if (env.get('LIWAN_RELEASE_DB_USER') != expected['dbUser'] or env.get('LIWAN_RELEASE_POOL_ID') != expected['poolId']
+            or env.get('LIWAN_RELEASE_ROLE') != runtime_role or env.get('LIWAN_TENANCY_MODE') != expected['tenancyMode']):
         raise ValueError()
     entrypoint, arguments = config['Entrypoint'], config['Cmd']
     expected_arguments = (['--no-http', '--max-cron-threads=1', '--database=' + ','.join(cron_databases)]
@@ -123,13 +123,13 @@ def _launch(item, expected, cron_databases=None):
         if entrypoint != SHARED_ENTRYPOINT or arguments != expected_arguments:
             raise ValueError()
     else:
-        if entrypoint not in (['webvue-odoo'], ['/usr/local/bin/webvue-odoo']):
+        if entrypoint not in (['liwan-odoo'], ['/usr/local/bin/liwan-odoo']):
             raise ValueError()
         allowed = (expected_arguments, ['server', *expected_arguments]) if cron_databases is not None else (
             [], ['server'], expected_arguments, ['server', *expected_arguments])
         if arguments not in allowed:
             raise ValueError()
-        if entrypoint == ['webvue-odoo'] and 'PATH' in env:
+        if entrypoint == ['liwan-odoo'] and 'PATH' in env:
             safe = {'/opt/venv/bin', '/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin'}
             if any(directory not in safe for directory in env['PATH'].split(':')):
                 raise ValueError()
@@ -180,8 +180,8 @@ def inspect_odoo_runtime(container, expected, runner=subprocess.run, *, cron_dat
                 or not re.fullmatch(r'sha256:[a-f0-9]{64}', item['Image'])):
             raise ValueError()
         labels = item['Config']['Labels']
-        for key, value in {'webvue.pool': expected['poolId'], 'webvue.release': expected['releaseId'],
-                           'webvue.db-config-sha256': expected['configDigest']}.items():
+        for key, value in {'liwan.pool': expected['poolId'], 'liwan.release': expected['releaseId'],
+                           'liwan.db-config-sha256': expected['configDigest']}.items():
             if labels.get(key) != value:
                 raise ValueError()
         _launch(item, expected, cron_databases)

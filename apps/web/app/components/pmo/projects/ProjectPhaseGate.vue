@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProjectDetail, ProjectPhase } from '@webvue/contracts'
+import type { ProjectDetail, ProjectPhase } from '@liwan/contracts'
 import { PHASE_LABEL_KEY, canMoveForward, gateCheckRows, isGateAction, isGateCardVisible, isWarningGate, phaseFailure, unmetWarnings } from '@/composables/projectPhase'
 import { useMoveProjectPhase } from '@/composables/useProjects'
 
@@ -53,10 +53,10 @@ async function run(phase: ProjectPhase, acknowledgeWarnings = false) {
     v-if="isVisible"
     :variant="isAction ? 'action' : 'tinted'"
     :title="!isClosed && state.next ? t('projects.phase.gateTitle', { phase: phaseLabel(state.next) }) : undefined"
-    class="webvue-print-hide"
+    class="liwan-print-hide"
     data-testid="project-phase-gate"
   >
-    <div class="flex flex-col gap-(--webvue-gap-card)">
+    <div class="flex flex-col gap-(--liwan-gap-card)">
       <p v-if="isClosed" class="font-medium text-highlighted" data-testid="project-phase-closed-notice">{{ t('projects.phase.closedNotice') }}</p>
       <ul v-else-if="rows.length" class="flex flex-col gap-2" data-testid="project-phase-checks">
         <li v-for="row in rows" :key="row.key" class="flex flex-wrap items-center gap-2 text-sm" :data-testid="`project-phase-check-${row.key}`" :data-ok="row.ok">

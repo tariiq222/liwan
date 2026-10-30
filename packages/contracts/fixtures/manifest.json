@@ -2,7 +2,7 @@
   "fixtures": [
     {
       "name": "finance/invoice-list",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/invoices",
       "status": 200,
@@ -10,7 +10,7 @@
     },
     {
       "name": "finance/invoice-detail",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/invoices/{id}",
       "status": 200,
@@ -18,7 +18,7 @@
     },
     {
       "name": "finance/partner-list",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/partners",
       "status": 200,
@@ -26,7 +26,7 @@
     },
     {
       "name": "finance/partner-detail",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/partners/{id}",
       "status": 200,
@@ -34,7 +34,7 @@
     },
     {
       "name": "finance/payment-list",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/payments",
       "status": 200,
@@ -42,7 +42,7 @@
     },
     {
       "name": "finance/entry-list",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/entries",
       "status": 200,
@@ -50,7 +50,7 @@
     },
     {
       "name": "finance/entry-detail",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/entries/{id}",
       "status": 200,
@@ -58,7 +58,7 @@
     },
     {
       "name": "finance/setup",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/setup",
       "status": 200,
@@ -66,7 +66,7 @@
     },
     {
       "name": "finance/zatca-status",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/zatca/status",
       "status": 200,
@@ -74,7 +74,7 @@
     },
     {
       "name": "finance/report-vat",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/reports/vat",
       "status": 200,
@@ -82,7 +82,7 @@
     },
     {
       "name": "finance/budget-list",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/budgets",
       "status": 200,
@@ -90,7 +90,7 @@
     },
     {
       "name": "finance/budget-detail",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/budgets/{id}",
       "status": 200,
@@ -98,7 +98,7 @@
     },
     {
       "name": "finance/budget-vs-actual",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/reports/budget-vs-actual",
       "status": 200,
@@ -106,7 +106,7 @@
     },
     {
       "name": "finance/fiscal-year-list",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/fiscal-years",
       "status": 200,
@@ -114,7 +114,7 @@
     },
     {
       "name": "hr/employee-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/employees",
       "status": 200,
@@ -122,7 +122,7 @@
     },
     {
       "name": "hr/employee-detail",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/employees/{id}",
       "status": 200,
@@ -130,7 +130,7 @@
     },
     {
       "name": "hr/equipment-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/assets/equipment",
       "status": 200,
@@ -138,7 +138,7 @@
     },
     {
       "name": "hr/expiring-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/expiring",
       "status": 200,
@@ -146,7 +146,7 @@
     },
     {
       "name": "hr/payroll-run-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/payroll/runs",
       "status": 200,
@@ -154,7 +154,7 @@
     },
     {
       "name": "hr/payroll-run-detail",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/payroll/runs/{id}",
       "status": 200,
@@ -162,7 +162,7 @@
     },
     {
       "name": "hr/payroll-payslip-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/payroll/runs/{id}/payslips",
       "status": 200,
@@ -170,7 +170,7 @@
     },
     {
       "name": "hr/payroll-settings",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/payroll/settings",
       "status": 200,
@@ -178,7 +178,7 @@
     },
     {
       "name": "pmo/project-list",
-      "addon": "webvue_pmo",
+      "addon": "liwan_pmo",
       "method": "GET",
       "route": "/api/v1/projects",
       "status": 200,
@@ -186,7 +186,7 @@
     },
     {
       "name": "pmo/project-detail",
-      "addon": "webvue_pmo",
+      "addon": "liwan_pmo",
       "method": "GET",
       "route": "/api/v1/projects/{id}",
       "status": 200,
@@ -194,7 +194,7 @@
     },
     {
       "name": "pmo/project-schedule",
-      "addon": "webvue_pmo",
+      "addon": "liwan_pmo",
       "method": "GET",
       "route": "/api/v1/projects/{id}/schedule",
       "status": 200,
@@ -202,7 +202,7 @@
     },
     {
       "name": "pmo/project-stakeholder-list",
-      "addon": "webvue_pmo",
+      "addon": "liwan_pmo",
       "method": "GET",
       "route": "/api/v1/projects/{id}/stakeholders",
       "status": 200,
@@ -210,7 +210,7 @@
     },
     {
       "name": "pmo/project-raci-list",
-      "addon": "webvue_pmo",
+      "addon": "liwan_pmo",
       "method": "GET",
       "route": "/api/v1/projects/{id}/raci",
       "status": 200,
@@ -218,7 +218,7 @@
     },
     {
       "name": "pmo/project-register-list",
-      "addon": "webvue_pmo",
+      "addon": "liwan_pmo",
       "method": "GET",
       "route": "/api/v1/projects/{id}/register",
       "status": 200,
@@ -226,7 +226,7 @@
     },
     {
       "name": "pmo/task-list",
-      "addon": "webvue_pmo",
+      "addon": "liwan_pmo",
       "method": "GET",
       "route": "/api/v1/tasks",
       "status": 200,
@@ -234,7 +234,7 @@
     },
     {
       "name": "pmo/task-detail",
-      "addon": "webvue_pmo",
+      "addon": "liwan_pmo",
       "method": "GET",
       "route": "/api/v1/tasks/{id}",
       "status": 200,
@@ -242,7 +242,7 @@
     },
     {
       "name": "pmo/task-summary",
-      "addon": "webvue_pmo",
+      "addon": "liwan_pmo",
       "method": "GET",
       "route": "/api/v1/tasks/summary",
       "status": 200,
@@ -250,7 +250,7 @@
     },
     {
       "name": "meetings/meeting-list",
-      "addon": "webvue_meetings",
+      "addon": "liwan_meetings",
       "method": "GET",
       "route": "/api/v1/meetings",
       "status": 200,
@@ -258,7 +258,7 @@
     },
     {
       "name": "meetings/meeting-detail",
-      "addon": "webvue_meetings",
+      "addon": "liwan_meetings",
       "method": "GET",
       "route": "/api/v1/meetings/{id}",
       "status": 200,
@@ -266,7 +266,7 @@
     },
     {
       "name": "meetings/meeting-version-list",
-      "addon": "webvue_meetings",
+      "addon": "liwan_meetings",
       "method": "GET",
       "route": "/api/v1/meetings/{id}/versions",
       "status": 200,
@@ -274,7 +274,7 @@
     },
     {
       "name": "meetings/meeting-event-list",
-      "addon": "webvue_meetings",
+      "addon": "liwan_meetings",
       "method": "GET",
       "route": "/api/v1/meetings/{id}/events",
       "status": 200,
@@ -282,7 +282,7 @@
     },
     {
       "name": "meetings/followup-resolution-list",
-      "addon": "webvue_meetings",
+      "addon": "liwan_meetings",
       "method": "GET",
       "route": "/api/v1/meetings/resolutions",
       "status": 200,
@@ -290,7 +290,7 @@
     },
     {
       "name": "meetings/series-list",
-      "addon": "webvue_meetings",
+      "addon": "liwan_meetings",
       "method": "GET",
       "route": "/api/v1/meeting-series",
       "status": 200,
@@ -298,7 +298,7 @@
     },
     {
       "name": "meetings/series-detail",
-      "addon": "webvue_meetings",
+      "addon": "liwan_meetings",
       "method": "GET",
       "route": "/api/v1/meeting-series/{id}",
       "status": 200,
@@ -306,7 +306,7 @@
     },
     {
       "name": "meetings/series-resolution-list",
-      "addon": "webvue_meetings",
+      "addon": "liwan_meetings",
       "method": "GET",
       "route": "/api/v1/meeting-series/{id}/resolutions",
       "status": 200,
@@ -314,7 +314,7 @@
     },
     {
       "name": "operations/process-list",
-      "addon": "webvue_operations",
+      "addon": "liwan_operations",
       "method": "GET",
       "route": "/api/v1/operations/processes",
       "status": 200,
@@ -322,7 +322,7 @@
     },
     {
       "name": "operations/request-list",
-      "addon": "webvue_operations",
+      "addon": "liwan_operations",
       "method": "GET",
       "route": "/api/v1/operations/requests",
       "status": 200,
@@ -330,7 +330,7 @@
     },
     {
       "name": "operations/request-detail",
-      "addon": "webvue_operations",
+      "addon": "liwan_operations",
       "method": "GET",
       "route": "/api/v1/operations/requests/{id}",
       "status": 200,
@@ -338,7 +338,7 @@
     },
     {
       "name": "tasks/my-task-list",
-      "addon": "webvue_tasks",
+      "addon": "liwan_tasks",
       "method": "GET",
       "route": "/api/v1/my-tasks",
       "status": 200,
@@ -346,7 +346,7 @@
     },
     {
       "name": "tasks/my-task-summary",
-      "addon": "webvue_tasks",
+      "addon": "liwan_tasks",
       "method": "GET",
       "route": "/api/v1/my-tasks/summary",
       "status": 200,
@@ -354,7 +354,7 @@
     },
     {
       "name": "finance/account-list",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/accounts",
       "status": 200,
@@ -362,7 +362,7 @@
     },
     {
       "name": "finance/account-detail",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/accounts/{id}",
       "status": 200,
@@ -370,7 +370,7 @@
     },
     {
       "name": "finance/journal-list",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/journals",
       "status": 200,
@@ -378,7 +378,7 @@
     },
     {
       "name": "finance/journal-detail",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/journals/{id}",
       "status": 200,
@@ -386,7 +386,7 @@
     },
     {
       "name": "finance/tax-list",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/taxes",
       "status": 200,
@@ -394,7 +394,7 @@
     },
     {
       "name": "finance/tax-detail",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/taxes/{id}",
       "status": 200,
@@ -402,7 +402,7 @@
     },
     {
       "name": "finance/payment-term-list",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/payment-terms",
       "status": 200,
@@ -410,7 +410,7 @@
     },
     {
       "name": "finance/payment-term-detail",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/payment-terms/{id}",
       "status": 200,
@@ -418,7 +418,7 @@
     },
     {
       "name": "finance/analytic-plan-list",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/analytic-plans",
       "status": 200,
@@ -426,7 +426,7 @@
     },
     {
       "name": "finance/analytic-plan-detail",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/analytic-plans/{id}",
       "status": 200,
@@ -434,7 +434,7 @@
     },
     {
       "name": "finance/analytic-account-list",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/analytic-accounts",
       "status": 200,
@@ -442,7 +442,7 @@
     },
     {
       "name": "finance/analytic-account-detail",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/analytic-accounts/{id}",
       "status": 200,
@@ -450,7 +450,7 @@
     },
     {
       "name": "finance/asset-profile-list",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/asset-profiles",
       "status": 200,
@@ -458,7 +458,7 @@
     },
     {
       "name": "finance/asset-profile-detail",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/asset-profiles/{id}",
       "status": 200,
@@ -466,7 +466,7 @@
     },
     {
       "name": "finance/asset-list",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/assets",
       "status": 200,
@@ -474,7 +474,7 @@
     },
     {
       "name": "finance/asset-detail",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/assets/{id}",
       "status": 200,
@@ -482,7 +482,7 @@
     },
     {
       "name": "finance/bank-statement-list",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/bank-statements",
       "status": 200,
@@ -490,7 +490,7 @@
     },
     {
       "name": "finance/bank-statement-detail",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/bank-statements/{id}",
       "status": 200,
@@ -498,7 +498,7 @@
     },
     {
       "name": "finance/audit-event-list",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/audit-events",
       "status": 200,
@@ -506,7 +506,7 @@
     },
     {
       "name": "finance/reconcile-proposal-list",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/bank-statement-lines/{id}/reconcile-proposals",
       "status": 200,
@@ -514,7 +514,7 @@
     },
     {
       "name": "finance/analytic-report",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/reports/analytic",
       "status": 200,
@@ -522,7 +522,7 @@
     },
     {
       "name": "finance/analytic-report-line-list",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/reports/analytic/lines",
       "status": 200,
@@ -530,7 +530,7 @@
     },
     {
       "name": "finance/report-cash-flow",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/reports/cash-flow",
       "status": 200,
@@ -538,7 +538,7 @@
     },
     {
       "name": "finance/report-profit-loss",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/reports/profit-loss",
       "status": 200,
@@ -546,7 +546,7 @@
     },
     {
       "name": "finance/report-balance-sheet",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/reports/balance-sheet",
       "status": 200,
@@ -554,7 +554,7 @@
     },
     {
       "name": "finance/report-zakat-base",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/reports/zakat-base",
       "status": 200,
@@ -562,7 +562,7 @@
     },
     {
       "name": "finance/report-withholding",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/reports/withholding",
       "status": 200,
@@ -570,7 +570,7 @@
     },
     {
       "name": "finance/report-vat-return",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/reports/vat-return",
       "status": 200,
@@ -578,7 +578,7 @@
     },
     {
       "name": "finance/report-vat-return-item-list",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/reports/vat-return/items",
       "status": 200,
@@ -586,7 +586,7 @@
     },
     {
       "name": "finance/report-trial-balance",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/reports/trial-balance",
       "status": 200,
@@ -594,7 +594,7 @@
     },
     {
       "name": "finance/report-general-ledger",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/reports/general-ledger",
       "status": 200,
@@ -602,7 +602,7 @@
     },
     {
       "name": "finance/report-aged-partner-balance",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/reports/aged-partner-balance",
       "status": 200,
@@ -610,7 +610,7 @@
     },
     {
       "name": "finance/report-partner-statement",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/reports/partner-statement",
       "status": 200,
@@ -618,7 +618,7 @@
     },
     {
       "name": "finance/closing-preview",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/fiscal-years/{year}/closing-preview",
       "status": 200,
@@ -626,7 +626,7 @@
     },
     {
       "name": "finance/country-list",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/countries",
       "status": 200,
@@ -634,7 +634,7 @@
     },
     {
       "name": "finance/country-state-list",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/countries/{id}/states",
       "status": 200,
@@ -642,7 +642,7 @@
     },
     {
       "name": "finance/zakat-adjustment-list",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/zakat/adjustments",
       "status": 200,
@@ -650,7 +650,7 @@
     },
     {
       "name": "finance/zakat-review-list",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/zakat/reviews",
       "status": 200,
@@ -658,7 +658,7 @@
     },
     {
       "name": "finance/zatca-document-list",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/zatca/documents",
       "status": 200,
@@ -666,7 +666,7 @@
     },
     {
       "name": "finance/invoice-zatca",
-      "addon": "webvue_finance",
+      "addon": "liwan_finance",
       "method": "GET",
       "route": "/api/v1/finance/invoices/{id}/zatca",
       "status": 200,
@@ -674,7 +674,7 @@
     },
     {
       "name": "hr/department-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/departments",
       "status": 200,
@@ -682,7 +682,7 @@
     },
     {
       "name": "hr/department-detail",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/departments/{id}",
       "status": 200,
@@ -690,7 +690,7 @@
     },
     {
       "name": "hr/asset-category-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/assets/categories",
       "status": 200,
@@ -698,7 +698,7 @@
     },
     {
       "name": "hr/equipment-detail",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/assets/equipment/{id}",
       "status": 200,
@@ -706,7 +706,7 @@
     },
     {
       "name": "hr/my-equipment-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/assets/me",
       "status": 200,
@@ -714,7 +714,7 @@
     },
     {
       "name": "hr/me",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/me",
       "status": 200,
@@ -722,7 +722,7 @@
     },
     {
       "name": "hr/leave-type-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/leave/types",
       "status": 200,
@@ -730,7 +730,7 @@
     },
     {
       "name": "hr/leave-balance-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/leave/balances",
       "status": 200,
@@ -738,7 +738,7 @@
     },
     {
       "name": "hr/leave-request-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/leave/requests",
       "status": 200,
@@ -746,7 +746,7 @@
     },
     {
       "name": "hr/leave-request-detail",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/leave/requests/{id}",
       "status": 200,
@@ -754,7 +754,7 @@
     },
     {
       "name": "hr/my-leave-detail",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/leave/me/{id}",
       "status": 200,
@@ -762,7 +762,7 @@
     },
     {
       "name": "hr/leave-settings",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/leave/settings",
       "status": 200,
@@ -770,7 +770,7 @@
     },
     {
       "name": "hr/saudization",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/saudization",
       "status": 200,
@@ -778,7 +778,7 @@
     },
     {
       "name": "hr/departure-reason-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/offboarding/reasons",
       "status": 200,
@@ -786,7 +786,7 @@
     },
     {
       "name": "hr/departure-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/offboarding/departures",
       "status": 200,
@@ -794,7 +794,7 @@
     },
     {
       "name": "hr/departure-detail",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/offboarding/departures/{id}",
       "status": 200,
@@ -802,7 +802,7 @@
     },
     {
       "name": "hr/onboarding-plan-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/onboarding/plans",
       "status": 200,
@@ -810,7 +810,7 @@
     },
     {
       "name": "hr/onboarding-plan-detail",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/onboarding/plans/{id}",
       "status": 200,
@@ -818,7 +818,7 @@
     },
     {
       "name": "hr/onboarding-run-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/onboarding/runs",
       "status": 200,
@@ -826,7 +826,7 @@
     },
     {
       "name": "hr/onboarding-run-detail",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/onboarding/runs/{id}",
       "status": 200,
@@ -834,7 +834,7 @@
     },
     {
       "name": "hr/offboarding-plan-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/offboarding/plans",
       "status": 200,
@@ -842,7 +842,7 @@
     },
     {
       "name": "hr/offboarding-plan-detail",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/offboarding/plans/{id}",
       "status": 200,
@@ -850,7 +850,7 @@
     },
     {
       "name": "hr/offboarding-run-detail",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/offboarding/runs/{id}",
       "status": 200,
@@ -858,7 +858,7 @@
     },
     {
       "name": "hr/payroll-audit-event-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/payroll/audit-events",
       "status": 200,
@@ -866,7 +866,7 @@
     },
     {
       "name": "hr/payroll-compensation",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/payroll/compensation/{id}",
       "status": 200,
@@ -874,7 +874,7 @@
     },
     {
       "name": "hr/payroll-eos-case-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/payroll/eos-cases",
       "status": 200,
@@ -882,7 +882,7 @@
     },
     {
       "name": "hr/payroll-my-payslip-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/payroll/payslips/mine",
       "status": 200,
@@ -890,7 +890,7 @@
     },
     {
       "name": "hr/payroll-my-payslip-detail",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/payroll/payslips/mine/{id}",
       "status": 200,
@@ -898,7 +898,7 @@
     },
     {
       "name": "hr/payroll-payslip-detail",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/payroll/runs/{id}/payslips/{id}",
       "status": 200,
@@ -906,7 +906,7 @@
     },
     {
       "name": "hr/payroll-gosi-rate-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/payroll/gosi-rates",
       "status": 200,
@@ -914,7 +914,7 @@
     },
     {
       "name": "hr/payroll-bank-profile-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/payroll/bank-profiles",
       "status": 200,
@@ -922,7 +922,7 @@
     },
     {
       "name": "hr/payroll-gosi-statement",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/payroll/runs/{id}/gosi-statement",
       "status": 200,
@@ -930,7 +930,7 @@
     },
     {
       "name": "hr/payroll-eos-estimate",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/payroll/eos/{id}/estimate",
       "status": 200,
@@ -938,7 +938,7 @@
     },
     {
       "name": "hr/payroll-eos-settlement",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/payroll/eos/{id}/settlement",
       "status": 200,
@@ -946,7 +946,7 @@
     },
     {
       "name": "hr/applicant-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/recruitment/applicants",
       "status": 200,
@@ -954,7 +954,7 @@
     },
     {
       "name": "hr/applicant-detail",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/recruitment/applicants/{id}",
       "status": 200,
@@ -962,7 +962,7 @@
     },
     {
       "name": "hr/job-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/recruitment/jobs",
       "status": 200,
@@ -970,7 +970,7 @@
     },
     {
       "name": "hr/job-detail",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/recruitment/jobs/{id}",
       "status": 200,
@@ -978,7 +978,7 @@
     },
     {
       "name": "hr/recruitment-stage-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/recruitment/stages",
       "status": 200,
@@ -986,7 +986,7 @@
     },
     {
       "name": "hr/refuse-reason-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/recruitment/refuse-reasons",
       "status": 200,
@@ -994,7 +994,7 @@
     },
     {
       "name": "hr/shift-schedule-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/shifts/schedules",
       "status": 200,
@@ -1002,7 +1002,7 @@
     },
     {
       "name": "hr/shift-schedule-detail",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/shifts/schedules/{id}",
       "status": 200,
@@ -1010,7 +1010,7 @@
     },
     {
       "name": "hr/shift-assignment-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/shifts/assignments",
       "status": 200,
@@ -1018,7 +1018,7 @@
     },
     {
       "name": "hr/my-shift-assignment-list",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/shifts/me",
       "status": 200,
@@ -1026,7 +1026,7 @@
     },
     {
       "name": "hr/shift-settings",
-      "addon": "webvue_hr",
+      "addon": "liwan_hr",
       "method": "GET",
       "route": "/api/v1/hr/shifts/settings",
       "status": 200,
@@ -1034,7 +1034,7 @@
     },
     {
       "name": "meetings/meeting-version-detail",
-      "addon": "webvue_meetings",
+      "addon": "liwan_meetings",
       "method": "GET",
       "route": "/api/v1/meetings/{id}/versions/{id}",
       "status": 200,
@@ -1042,7 +1042,7 @@
     },
     {
       "name": "meetings/series-event-list",
-      "addon": "webvue_meetings",
+      "addon": "liwan_meetings",
       "method": "GET",
       "route": "/api/v1/meeting-series/{id}/events",
       "status": 200,
@@ -1050,7 +1050,7 @@
     },
     {
       "name": "operations/execution-kind-list",
-      "addon": "webvue_operations",
+      "addon": "liwan_operations",
       "method": "GET",
       "route": "/api/v1/operations/execution-kinds",
       "status": 200,
@@ -1058,7 +1058,7 @@
     },
     {
       "name": "operations/process-target-list",
-      "addon": "webvue_operations",
+      "addon": "liwan_operations",
       "method": "GET",
       "route": "/api/v1/operations/processes/{id}/targets",
       "status": 200,
@@ -1066,7 +1066,7 @@
     },
     {
       "name": "operations/process-detail",
-      "addon": "webvue_operations",
+      "addon": "liwan_operations",
       "method": "GET",
       "route": "/api/v1/operations/processes/{id}",
       "status": 200,
@@ -1074,7 +1074,7 @@
     },
     {
       "name": "operations/my-request-detail",
-      "addon": "webvue_operations",
+      "addon": "liwan_operations",
       "method": "GET",
       "route": "/api/v1/operations/requests/employee/me/{id}",
       "status": 200,
@@ -1082,7 +1082,7 @@
     },
     {
       "name": "tasks/my-task-detail",
-      "addon": "webvue_tasks",
+      "addon": "liwan_tasks",
       "method": "GET",
       "route": "/api/v1/my-tasks/{id}",
       "status": 200,
@@ -1090,7 +1090,7 @@
     },
     {
       "name": "tasks/notification-list",
-      "addon": "webvue_notify",
+      "addon": "liwan_notify",
       "method": "GET",
       "route": "/api/v1/notifications",
       "status": 200,
@@ -1098,7 +1098,7 @@
     },
     {
       "name": "pmo/charter-defaults",
-      "addon": "webvue_pmo",
+      "addon": "liwan_pmo",
       "method": "GET",
       "route": "/api/v1/project-charter/defaults",
       "status": 200,
@@ -1106,7 +1106,7 @@
     },
     {
       "name": "pmo/charter-catalog-owning-units",
-      "addon": "webvue_pmo",
+      "addon": "liwan_pmo",
       "method": "GET",
       "route": "/api/v1/project-charter/catalogs/owning-units",
       "status": 200,
@@ -1114,7 +1114,7 @@
     },
     {
       "name": "pmo/charter-catalog-types",
-      "addon": "webvue_pmo",
+      "addon": "liwan_pmo",
       "method": "GET",
       "route": "/api/v1/project-charter/catalogs/types",
       "status": 200,
@@ -1122,7 +1122,7 @@
     },
     {
       "name": "pmo/project-finance-list",
-      "addon": "webvue_pmo",
+      "addon": "liwan_pmo",
       "method": "GET",
       "route": "/api/v1/projects/{id}/finance",
       "status": 200,
@@ -1130,7 +1130,7 @@
     },
     {
       "name": "pmo/project-finance-summary",
-      "addon": "webvue_pmo",
+      "addon": "liwan_pmo",
       "method": "GET",
       "route": "/api/v1/projects/{id}/finance/summary",
       "status": 200,
@@ -1138,7 +1138,7 @@
     },
     {
       "name": "pmo/project-actual-line-list",
-      "addon": "webvue_pmo",
+      "addon": "liwan_pmo",
       "method": "GET",
       "route": "/api/v1/projects/{id}/finance/actual-lines",
       "status": 200,
@@ -1146,7 +1146,7 @@
     },
     {
       "name": "pmo/project-stakeholder-detail",
-      "addon": "webvue_pmo",
+      "addon": "liwan_pmo",
       "method": "GET",
       "route": "/api/v1/projects/{id}/stakeholders/{id}",
       "status": 200,
@@ -1154,7 +1154,7 @@
     },
     {
       "name": "pmo/project-register-detail",
-      "addon": "webvue_pmo",
+      "addon": "liwan_pmo",
       "method": "GET",
       "route": "/api/v1/projects/{id}/register/{id}",
       "status": 200,
@@ -1162,7 +1162,7 @@
     },
     {
       "name": "pmo/report-project-summary",
-      "addon": "webvue_pmo",
+      "addon": "liwan_pmo",
       "method": "GET",
       "route": "/api/v1/reports/projects/summary",
       "status": 200,
@@ -1170,7 +1170,7 @@
     },
     {
       "name": "pmo/report-project-analytics",
-      "addon": "webvue_pmo",
+      "addon": "liwan_pmo",
       "method": "GET",
       "route": "/api/v1/reports/projects/analytics",
       "status": 200,
@@ -1178,7 +1178,7 @@
     },
     {
       "name": "pmo/project-settings",
-      "addon": "webvue_pmo",
+      "addon": "liwan_pmo",
       "method": "GET",
       "route": "/api/v1/settings/projects",
       "status": 200,
@@ -1186,7 +1186,7 @@
     },
     {
       "name": "pmo/project-create-defaults",
-      "addon": "webvue_pmo",
+      "addon": "liwan_pmo",
       "method": "GET",
       "route": "/api/v1/settings/projects/create-defaults",
       "status": 200,
@@ -1194,7 +1194,7 @@
     },
     {
       "name": "pmo/task-archived-list",
-      "addon": "webvue_pmo",
+      "addon": "liwan_pmo",
       "method": "GET",
       "route": "/api/v1/tasks/archived",
       "status": 200,
@@ -1202,7 +1202,7 @@
     },
     {
       "name": "pmo/task-attachment-list",
-      "addon": "webvue_pmo",
+      "addon": "liwan_pmo",
       "method": "GET",
       "route": "/api/v1/tasks/{id}/attachments",
       "status": 200,
@@ -1210,7 +1210,7 @@
     },
     {
       "name": "pmo/task-dependency-list",
-      "addon": "webvue_pmo",
+      "addon": "liwan_pmo",
       "method": "GET",
       "route": "/api/v1/tasks/{id}/dependencies",
       "status": 200,
@@ -1218,7 +1218,7 @@
     },
     {
       "name": "pmo/task-dependency-candidate-list",
-      "addon": "webvue_pmo",
+      "addon": "liwan_pmo",
       "method": "GET",
       "route": "/api/v1/tasks/{id}/dependencies/candidates",
       "status": 200,
@@ -1226,7 +1226,7 @@
     },
     {
       "name": "pmo/notification-digest-detail",
-      "addon": "webvue_pmo",
+      "addon": "liwan_pmo",
       "method": "GET",
       "route": "/api/v1/notification-digests/{id}",
       "status": 200,

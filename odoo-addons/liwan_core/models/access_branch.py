@@ -1,0 +1,538 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo import api, fields, models
+from odoo.exceptions import AccessError, ValidationError
+from odoo.fields import Command
+
+from .access_service import LiwanAccessRule
+from .protected_write import marked
+
+BRANCH_POLICY_MARKER = 'liwan_core.branch_policy'
+BRANCH_METADATA_MARKER = 'liwan_core.branch_metadata_company'
+BRANCH_MODES = ('isolated', 'delegated', 'inherited')
+# Layer 1 of the branch policy: one sentence a tenant picks, mapped onto the mode and the
+# per-branch inheritance rules. The stored policy stays the only source of truth; the preset
+# is derived from it and reads 'custom' as soon as the details no longer match any of them.
+BRANCH_PRESET_MODES = {
+    'single_company': 'delegated',
+    'central_branches': 'inherited',
+    'independent_branches': 'delegated',
+    'group_of_companies': 'isolated',
+}
+UNPRESET_ROLE_KEYS = ('employee',)
+
+
+def _require_branch_policy_marker(env):
+    if not env.is_superuser() and env.company.id not in env.cr.precommit.data.get(BRANCH_POLICY_MARKER, set()):
+        msg = 'use_protected_liwan_access_operation'
+        raise AccessError(msg)
+
+
+class LiwanAccessBranchRule(models.Model):
+    _name = 'liwan.access.branch.rule'
+    _description = 'LiwanOS Branch Inheritance Rule'
+    _liwan_scope = 'company'
+    _check_company_auto = True
+
+    company_id = fields.Many2one('res.company', required=True, index=True, ondelete='cascade')
+    branch_id = fields.Many2one('res.company', required=True, index=True, ondelete='cascade')
+    inherit = fields.Boolean(default=False)
+    role_ids = fields.Many2many('liwan.access.role', 'liwan_access_branch_role_rel', 'rule_id', 'role_id', check_company=True)
+    _branch_unique = models.Constraint('UNIQUE(company_id, branch_id)', 'branch rule must be unique')
+
+    @api.constrains('branch_id', 'company_id', 'role_ids')
+    def _check_rule(self):
+        for rule in self:
+            if rule.branch_id == rule.company_id or not rule.branch_id.parent_path.startswith(rule.company_id.parent_path):
+                msg = 'invalid_branch'
+                raise ValidationError(msg)
+            if any(role.type != 'built_in' or role.company_id or not role.assignable for role in rule.role_ids):
+                msg = 'invalid_branch_role'
+                raise ValidationError(msg)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        _require_branch_policy_marker(self.env)
+        result = super().create(vals_list)
+        self.env['liwan.access.service']._liwan_clear_branch_cache()
+        return result
+
+    def write(self, vals):
+        _require_branch_policy_marker(self.env)
+        result = super().write(vals)
+        self.env['liwan.access.service']._liwan_clear_branch_cache()
+        return result
+
+    def unlink(self):
+        _require_branch_policy_marker(self.env)
+        result = super().unlink()
+        self.env['liwan.access.service']._liwan_clear_branch_cache()
+        return result
+
+
+class LiwanAccessBranchStrict(models.Model):
+    """One row per application scope the tenant keeps out of branch inheritance."""
+    _name = 'liwan.access.branch.strict'
+    _description = 'LiwanOS Stricter Branch Scope'
+    _liwan_scope = 'company'
+
+    company_id = fields.Many2one('res.company', required=True, index=True, ondelete='cascade')
+    scope = fields.Char(required=True)
+    _scope_unique = models.Constraint('UNIQUE(company_id, scope)', 'strict scope must be unique')
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        _require_branch_policy_marker(self.env)
+        result = super().create(vals_list)
+        self.env['liwan.access.service']._liwan_clear_branch_cache()
+        return result
+
+    def write(self, vals):
+        _require_branch_policy_marker(self.env)
+        result = super().write(vals)
+        self.env['liwan.access.service']._liwan_clear_branch_cache()
+        return result
+
+    def unlink(self):
+        _require_branch_policy_marker(self.env)
+        result = super().unlink()
+        self.env['liwan.access.service']._liwan_clear_branch_cache()
+        return result
+
+
+class LiwanBranchAccessService(models.AbstractModel):
+    _inherit = 'liwan.access.service'
+
+    @api.model
+    def _liwan_membership_company_ids(self, user=None):
+        """Stored, active memberships in the rollback-cleared transaction memo.
+
+        Native _get_company_ids is process-cached and can retain a grant computed
+        inside a rolled-back savepoint. Read native identity metadata separately
+        from attachment targets; this environment never authorizes the target file.
+        """
+        user = user or self.env.user
+        cache = self._liwan_branch_cache()
+        key = ('membership', self.env.uid, self.env.su, user.id)
+        if key not in cache:
+            metadata = self.with_context(allowed_company_ids=[], active_test=False,
+                                         liwan_attachment_target_check=False)
+            try:
+                target_ids = set(metadata.env['res.users'].browse(user.id).company_ids.ids)
+                if not self.env.su:
+                    target_ids &= set(metadata.env.user.company_ids.ids)
+                companies = metadata.env['res.company'].browse(sorted(target_ids))
+                cache[key] = tuple(companies.filtered('active').ids)
+            except AccessError:
+                cache[key] = ()
+        return list(cache[key])
+
+    @api.model
+    def _liwan_descendant_memberships(self, user=None):
+        user = user or self.env.user
+        root = self.env.company
+        memberships = sorted(set(self._liwan_membership_company_ids(user))
+                             & set(self._liwan_membership_company_ids()))
+        companies = self.env['res.company'].with_context(allowed_company_ids=memberships).browse(memberships)
+        return companies.filtered(
+            lambda company: company != root and company.parent_path.startswith(root.parent_path),
+        ).sorted('id')
+
+    @api.model
+    def _liwan_branch_company_allowed(self, user, company):
+        root = self.env.company
+        if company.id not in self._liwan_membership_company_ids(user):
+            return False
+        return company == root or (
+            root.liwan_branch_access_mode != 'isolated'
+            and company in self._liwan_descendant_memberships(user)
+        )
+
+    @api.model
+    def _liwan_inherited_capability_keys(self, user, company):
+        root = self.env.company
+        if company == root or root.liwan_branch_access_mode != 'inherited' or not self._liwan_branch_company_allowed(user, company):
+            return set()
+        # Owned policy/assignment tables only. No global-group cache participates in authorization.
+        self.env['liwan.access.branch.rule'].flush_model(['company_id', 'branch_id', 'inherit', 'role_ids'])
+        self.env['liwan.access.assignment'].flush_model(['user_id', 'company_id', 'role_id'])
+        self.env['liwan.access.role'].flush_model(['active', 'assignable', 'type', 'company_id', 'permission_ids'])
+        self.env.cr.execute('''
+            SELECT DISTINCT permission.key
+              FROM liwan_access_branch_rule rule
+              JOIN liwan_access_branch_role_rel selected ON selected.rule_id = rule.id
+              JOIN liwan_access_role role ON role.id = selected.role_id
+              JOIN liwan_access_assignment assignment ON assignment.role_id = role.id
+              JOIN liwan_access_role_permission_rel grant_rel ON grant_rel.role_id = role.id
+              JOIN liwan_access_permission permission ON permission.id = grant_rel.permission_id
+             WHERE rule.company_id = %s AND rule.branch_id = %s AND rule.inherit
+               AND role.active AND role.assignable AND role.type = 'built_in' AND role.company_id IS NULL
+               AND assignment.user_id = %s AND assignment.company_id = %s
+        ''', [root.id, company.id, user.id, root.id])
+        return self._liwan_branch_strict_narrow({key for key, in self.env.cr.fetchall()})
+
+    @api.model
+    def _liwan_branch_strict_definitions(self):
+        """Scope key to (covered key prefix, prefixes left to another scope); each application adds its own."""
+        return {}
+
+    @api.model
+    def _liwan_branch_strict_enabled(self):
+        self.env['liwan.access.branch.strict'].flush_model(['company_id', 'scope'])
+        self.env.cr.execute('SELECT scope FROM liwan_access_branch_strict WHERE company_id = %s', [self.env.company.id])
+        return {scope for scope, in self.env.cr.fetchall()}
+
+    @api.model
+    def _liwan_branch_strict_narrow(self, keys):
+        """Drop the capabilities a stricter scope keeps out of inheritance; it only ever narrows."""
+        enabled = self._liwan_branch_strict_enabled()
+        blocked = tuple(prefixes for scope, prefixes in self._liwan_branch_strict_definitions().items() if scope in enabled)
+        return {key for key in keys
+                if not any(key.startswith(covered) and not key.startswith(left) for covered, left in blocked)}
+
+    @api.model
+    def _liwan_branch_strict_state(self, scope):
+        if scope not in self._liwan_branch_strict_definitions():
+            msg = 'invalid'
+            raise LiwanAccessRule(msg, field='scope')
+        return {'scope': scope, 'enabled': scope in self._liwan_branch_strict_enabled()}
+
+    @api.model
+    def _liwan_set_branch_strict(self, scope, enabled):
+        """Switch one scope; the calling route has already checked the owning application's settings capability."""
+        self._liwan_branch_strict_state(scope)
+        if type(enabled) is not bool:
+            msg = 'invalid'
+            raise LiwanAccessRule(msg, field='enabled')
+        root = self.env.company
+        self._liwan_lock_company(root)
+        before = sorted(self._liwan_branch_strict_enabled())
+        Strict = self.env['liwan.access.branch.strict']
+        with marked(self.env, {BRANCH_POLICY_MARKER: {root.id}}):
+            row = Strict.search([('company_id', '=', root.id), ('scope', '=', scope)])
+            if enabled and not row:
+                Strict.create({'company_id': root.id, 'scope': scope})
+            elif not enabled and row:
+                row.unlink()
+        after = sorted(self._liwan_branch_strict_enabled())
+        if after != before:
+            self._liwan_bump_policy(root)
+            self.env['liwan.access.audit']._liwan_log(
+                'branch.policy_changed', root, before={'strict_scopes': before}, after={'strict_scopes': after},
+                actor=self.env.user)
+        return self._liwan_branch_strict_state(scope)
+
+    @api.model
+    def _liwan_capability_company_ids(self, keys, match='all'):
+        if not keys or match not in ('all', 'any'):
+            return [self.env.company.id]
+        user = self.env.user
+        candidates = self.env.company | self._liwan_descendant_memberships()
+        return [company.id for company in candidates if self._liwan_branch_company_allowed(user, company)
+                and (all if match == 'all' else any)(
+                    self._liwan_has_capability(user, key, company=company) for key in keys)]
+
+    @api.model
+    def _liwan_scoped_company_ids(self):
+        scopes = self.env.context.get('liwan_capability_scope')
+        cache = self._liwan_branch_cache()
+        cache_key = ('scope', self.env.uid, self.env.su, self.env.company.id, scopes)
+        if cache_key not in cache:
+            cache[cache_key] = tuple(self._liwan_compute_scoped_company_ids(scopes))
+        return list(cache[cache_key])
+
+    @api.model
+    def _liwan_compute_scoped_company_ids(self, scopes):
+        # Cached environments must not preserve even the home baseline after an
+        # inverse membership removal in this transaction.
+        if not self.env.su and self.env.company.id not in self._liwan_membership_company_ids():
+            return []
+        if not scopes:
+            return [self.env.company.id]
+        companies = None
+        for keys, match, *kind in scopes:
+            granted = set(self._liwan_capability_company_ids(keys, match))
+            if kind == ['contextual_read']:
+                granted.add(self.env.company.id)
+            companies = granted if companies is None else companies & granted
+        return sorted(companies)
+
+    @api.model
+    def _liwan_operation_capability_company_ids(self, key, user=None):
+        """Filter an existing operation scope; never declare or expand one.
+
+        Recheck the exact key in each owning company, including contextual scopes whose
+        current-company baseline carries no company-wide capability grant.
+        """
+        user = user or self.env.user
+        return [company.id for company in self.env['res.company'].browse(self._liwan_scoped_company_ids())
+                if self._liwan_has_capability(user, key, company=company)]
+
+    @api.model
+    def _liwan_has_operation_capability(self, user, key):
+        return bool(self._liwan_operation_capability_company_ids(key, user=user))
+
+    @api.model
+    def _liwan_model_company_ids(self, model_name, operation):
+        """Project native ACLs onto fresh per-company capability groups, never the global union.
+
+        The request capability gate selects candidate companies; native ACLs select the operation.
+        Native grants for unmanaged identities are retained only in their current home company;
+        managed identities retain the internal-user baseline in the current company. Descendants require
+        an actual capability group whose native ACL (including native implications) grants the operation.
+        """
+        candidates = self._liwan_scoped_company_ids()
+        if operation != 'read' and any(
+            gate[2:] == ('contextual_read',) for gate in (self.env.context.get('liwan_capability_scope') or ())
+        ):
+            candidates = [company_id for company_id in candidates if company_id == self.env.company.id]
+        if not candidates:
+            return []
+        access = self.env['ir.model.access']._get_access_groups(model_name, operation)
+        definitions = self.env['res.groups']._get_group_definitions()
+        cache = self._liwan_branch_cache()
+        cache_key = ('model', self.env.uid, self.env.su, self.env.company.id,
+                     tuple(candidates), model_name, operation, access, definitions)
+        if cache_key in cache:
+            return list(cache[cache_key])
+        # Native ACL/group-definition cache identities change when their definitions change.
+        catalog_key = ('catalog', definitions)
+        if catalog_key not in cache:
+            # Permission catalog is our security metadata; no elevated ORM or stock SQL.
+            self.env.cr.execute('SELECT key, group_xmlid FROM liwan_access_permission')
+            cache[catalog_key] = {key: self.env.ref(xmlid, raise_if_not_found=False).id
+                                  for key, xmlid in self.env.cr.fetchall()}
+        group_by_key = cache[catalog_key]
+        internal = self.env.ref('base.group_user').id
+        managed, main_company_id = self._liwan_identity_management_state(self.env.user)
+        allowed = []
+        for company in self.env['res.company'].browse(candidates):
+            groups = [group_by_key[key] for key in self._liwan_capability_keys(company=company)
+                      if group_by_key.get(key)]
+            projected = set(definitions.get_superset_ids(groups)) | set(groups)
+            if company == self.env.company:
+                projected.add(internal)
+                if not managed and company.id == main_company_id:
+                    # Legacy applications can authorize native roles without making their
+                    # permission groups imply those roles. Preserve that identity's native
+                    # ACLs only in its home company, as legacy capability fallback does.
+                    projected.update(self.env.user._get_group_ids())
+            if access.matches(projected):
+                allowed.append(company.id)
+        cache[cache_key] = tuple(allowed)
+        return allowed
+
+    @api.model
+    def _liwan_require_branch_admin(self):
+        self._liwan_require_capability('access.users.assign_roles')
+        self._liwan_require_capability('access.roles.read')
+
+    @api.model
+    def _liwan_selected_branch_role_ids(self, branches, user=None):
+        selected = {branch.id: [] for branch in branches}
+        if user:
+            for branch in branches:
+                with marked(self.env, {BRANCH_METADATA_MARKER: {branch.id}}):
+                    selected[branch.id] = self.env['liwan.access.assignment'].with_context(active_test=False).search([
+                        ('user_id', '=', user.id), ('company_id', '=', branch.id),
+                    ]).role_id.ids
+        else:
+            rules = self.env['liwan.access.branch.rule'].search([
+                ('company_id', '=', self.env.company.id), ('branch_id', 'in', branches.ids),
+            ])
+            selected.update({rule.branch_id.id: rule.with_context(active_test=False).role_ids.ids for rule in rules})
+        return selected
+
+    @api.model
+    def _liwan_branch_role_catalog(self, branches=None, *, selected=None):
+        selected = selected or {}
+
+        def dump(role):
+            return {'id': role.id, 'key': role.key, 'name': {'ar': role.name_ar, 'en': role.name_en or None},
+                    'company_id': role.company_id.id or None, 'active': role.active}
+
+        Role = self.env['liwan.access.role'].with_context(active_test=False)
+        retained_ids = sorted({role_id for role_ids in selected.values() for role_id in role_ids})
+        builtins = Role.search([
+            ('assignable', '=', True), ('type', '=', 'built_in'), ('company_id', '=', False),
+            '|', ('active', '=', True), ('id', 'in', retained_ids),
+        ])
+        result = [dump(role) for role in builtins]
+        for branch in branches or self.env['res.company']:
+            with marked(self.env, {BRANCH_METADATA_MARKER: {branch.id}}):
+                roles = Role.search([
+                    ('assignable', '=', True), ('type', '=', 'custom'), ('company_id', '=', branch.id),
+                    '|', ('active', '=', True), ('id', 'in', selected.get(branch.id, [])),
+                ])
+                result.extend(dump(role) for role in roles)
+        return result
+
+    @api.model
+    def _liwan_branch_policy_version(self):
+        return f'b{self.env.company.id}-v{self.env.company.liwan_access_policy_version}'
+
+    @api.model
+    def _liwan_branch_policy(self):
+        self._liwan_require_branch_admin()
+        rules = self.env['liwan.access.branch.rule'].search([('company_id', '=', self.env.company.id)])
+        by_branch = {rule.branch_id.id: rule for rule in rules}
+        branches = self._liwan_descendant_memberships()
+        selected = self._liwan_selected_branch_role_ids(branches)
+        items = [{'id': branch.id, 'name': branch.name,
+                  'inherit': bool(by_branch.get(branch.id) and by_branch[branch.id].inherit),
+                  'role_ids': selected[branch.id]}
+                 for branch in branches]
+        mode = self.env.company.liwan_branch_access_mode
+        return {'version': self._liwan_branch_policy_version(), 'mode': mode,
+                'preset': self._liwan_derive_branch_preset(mode, items),
+                'strict_scopes': sorted(self._liwan_branch_strict_enabled()), 'branches': items,
+                'roles': self._liwan_branch_role_catalog(selected=selected)}
+
+    @api.model
+    def _liwan_preset_role_ids(self):
+        """The parent's management roles: every assignable built-in role except the plain employee."""
+        return self.env['liwan.access.role'].search([
+            ('type', '=', 'built_in'), ('company_id', '=', False), ('assignable', '=', True),
+            ('key', 'not in', UNPRESET_ROLE_KEYS),
+        ]).ids
+
+    @api.model
+    def _liwan_derive_branch_preset(self, mode, branches):
+        if mode == 'inherited':
+            managed = set(self._liwan_preset_role_ids())
+            matches = all(branch['inherit'] and set(branch['role_ids']) == managed for branch in branches)
+            return 'central_branches' if matches else 'custom'
+        if any(branch['inherit'] or branch['role_ids'] for branch in branches):
+            return 'custom'
+        if mode == 'isolated':
+            return 'group_of_companies'
+        return 'independent_branches' if branches else 'single_company'
+
+    @api.model
+    def _liwan_apply_branch_preset(self, expected, preset):
+        """Write a preset through the one protected policy operation; it never bypasses it."""
+        self._liwan_require_branch_admin()
+        if not isinstance(preset, str) or preset not in BRANCH_PRESET_MODES:
+            msg = 'invalid'
+            raise LiwanAccessRule(msg, field='preset')
+        branches = self._liwan_descendant_memberships()
+        if preset == 'single_company' and branches:
+            msg = 'invalid'
+            raise LiwanAccessRule(msg, 'a company with branches cannot use the single company preset', field='preset')
+        central = preset == 'central_branches'
+        role_ids = self._liwan_preset_role_ids() if central else []
+        changes = [{'id': branch.id, 'inherit': central, 'role_ids': role_ids} for branch in branches]
+        return self._liwan_update_branch_policy(expected, BRANCH_PRESET_MODES[preset], changes)
+
+    @api.model
+    def _liwan_check_branch_version(self, expected, user=None):
+        self._liwan_lock_company(self.env.company)
+        self.env.invalidate_all()
+        self._liwan_require_branch_admin()
+        current = self._liwan_user_branch_version(user) if user else self._liwan_branch_policy_version()
+        if not isinstance(expected, str) or expected != current:
+            msg = 'conflict'
+            raise LiwanAccessRule(msg, 'branch access was changed', status=409,
+                                   details={'current_version': current})
+
+    @api.model
+    def _liwan_parse_branch_changes(self, changes, branches, *, inheritance=False, user=None):
+        if not isinstance(changes, list):
+            msg = 'invalid'
+            raise LiwanAccessRule(msg, field='branches')
+        selected = self._liwan_selected_branch_role_ids(branches, user=user)
+        catalog = self._liwan_branch_role_catalog(None if inheritance else branches, selected=selected)
+        allowed_roles = {role['id']: role for role in catalog}
+        seen = set()
+        for item in changes:
+            fields = {'id', 'role_ids', 'inherit'} if inheritance else {'id', 'role_ids'}
+            if not isinstance(item, dict) or set(item) != fields:
+                msg = 'invalid'
+                raise LiwanAccessRule(msg, field='branches')
+            branch_id = item['id']
+            role_ids = item['role_ids']
+            if (type(branch_id) is not int or branch_id not in branches.ids or branch_id in seen
+                    or not isinstance(role_ids, list) or any(type(role_id) is not int for role_id in role_ids)
+                    or len(set(role_ids)) != len(role_ids) or not set(role_ids) <= set(allowed_roles)
+                    or any(allowed_roles[role_id]['company_id'] not in (None, branch_id)
+                           or (not allowed_roles[role_id]['active'] and role_id not in selected.get(branch_id, []))
+                           for role_id in role_ids if role_id in allowed_roles)
+                    or (inheritance and type(item['inherit']) is not bool)):
+                msg = 'invalid'
+                raise LiwanAccessRule(msg, 'invalid branch or role', field='branches')
+            seen.add(branch_id)
+        return changes
+
+    @api.model
+    def _liwan_update_branch_policy(self, expected, mode, changes):
+        self._liwan_require_branch_admin()
+        self._liwan_check_branch_version(expected)
+        if mode not in BRANCH_MODES:
+            msg = 'invalid'
+            raise LiwanAccessRule(msg, field='mode')
+        changes = self._liwan_parse_branch_changes(changes, self._liwan_descendant_memberships(), inheritance=True)
+        before = self._liwan_branch_policy()
+        root = self.env.company
+        Rule = self.env['liwan.access.branch.rule']
+        with marked(self.env, {BRANCH_POLICY_MARKER: {root.id}}):
+            root.write({'liwan_branch_access_mode': mode})
+            for item in changes:
+                rule = Rule.search([('company_id', '=', root.id), ('branch_id', '=', item['id'])], limit=1)
+                vals = {'inherit': item['inherit'], 'role_ids': [Command.set(item['role_ids'])]}
+                if rule:
+                    rule.write(vals)
+                else:
+                    Rule.create({'company_id': root.id, 'branch_id': item['id'], **vals})
+        self._liwan_bump_policy(root)
+        after = self._liwan_branch_policy()
+        self.env['liwan.access.audit']._liwan_log('branch.policy_changed', root, before=before, after=after)
+        return after
+
+    @api.model
+    def _liwan_user_branch_version(self, user):
+        return f'{self._liwan_branch_policy_version()}-u{user.id}-r{user.liwan_access_version}'
+
+    @api.model
+    def _liwan_user_branch_access(self, user):
+        self._liwan_require_branch_admin()
+        self._liwan_assert_user_scope(user)
+        branches = self._liwan_descendant_memberships() & user.company_ids
+        selected = self._liwan_selected_branch_role_ids(branches, user=user)
+        items = [{'id': branch.id, 'name': branch.name, 'role_ids': selected[branch.id]} for branch in branches]
+        return {'version': self._liwan_user_branch_version(user), 'branches': items,
+                'roles': self._liwan_branch_role_catalog(branches, selected=selected)}
+
+    @api.model
+    def _liwan_update_user_branch_access(self, user, expected, changes):
+        self._liwan_require_branch_admin()
+        self._liwan_assert_user_scope(user)
+        self._liwan_check_branch_version(expected, user=user)
+        branches = self._liwan_descendant_memberships() & user.company_ids
+        changes = self._liwan_parse_branch_changes(changes, branches, user=user)
+        if user.has_group('liwan_core.group_vendor_support'):
+            msg = 'protected_user'
+            raise LiwanAccessRule(msg, status=403)
+        before = self._liwan_user_branch_access(user)
+        for item in sorted(changes, key=lambda change: change['id']):
+            branch = branches.browse(item['id'])
+            self._liwan_lock_company(branch)
+            with marked(self.env, {BRANCH_METADATA_MARKER: {branch.id}}):
+                Assignment = self.env['liwan.access.assignment']
+                existing = Assignment.search([('user_id', '=', user.id), ('company_id', '=', branch.id)])
+                role_ids = set(item['role_ids'])
+                old_role_ids = set(existing.role_id.ids)
+                removed = existing.filtered(lambda assignment: assignment.role_id.id not in role_ids)
+                future_admin = any('access.users.assign_roles' in role.permission_ids.mapped('key')
+                                   for role in self.env['liwan.access.role'].browse(list(role_ids)))
+                removed_admin = any('access.users.assign_roles' in assignment.role_id.permission_ids.mapped('key')
+                                    for assignment in removed)
+                if removed_admin and not future_admin:
+                    self._liwan_assert_admin_survives(branch, excluding_user=user)
+                removed._liwan_access_unlink()
+                for role_id in role_ids - old_role_ids:
+                    Assignment._liwan_access_create({
+                        'user_id': user.id, 'company_id': branch.id, 'role_id': role_id,
+                    })
+        self._liwan_bump_policy(self.env.company)
+        after = self._liwan_user_branch_access(user)
+        self.env['liwan.access.audit']._liwan_log('user.branch_roles_changed', user, before=before, after=after)
+        return after

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CrmImportMapping, CrmSource } from '@webvue/contracts'
+import type { CrmImportMapping, CrmSource } from '@liwan/contracts'
 import { draftFromColumns, IMPORT_FIELDS, REQUIRED_IMPORT_FIELDS, type ImportField, type MappingDraft } from '@/utils/crmImport'
 
 // Step 2: which column of the file feeds each detail, the source of the batch and, when distribution is "on import",

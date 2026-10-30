@@ -11,7 +11,7 @@ from unittest.mock import patch
 from tools.shared_saas_lifecycle import admin_password_effect as effect
 from tools.shared_saas_lifecycle.odoo_effect import EffectError, MAX_OUTPUT
 
-DATABASE = 'webvue_scratch_' + 'a' * 32
+DATABASE = 'liwan_scratch_' + 'a' * 32
 LOGIN = 'admin@example.test'
 CHANGED_AT = '2026-10-02T12:00:00Z'
 
@@ -19,7 +19,7 @@ CHANGED_AT = '2026-10-02T12:00:00Z'
 def request():
     return {'action': 'set_admin_password', 'tenant': {'database': DATABASE, 'host': 'tenant.test'},
             'login': LOGIN, 'password': secrets.token_urlsafe(24), 'config': {
-                'schemaVersion': 1, 'projectName': 'webvue-shared-test', 'composeFile': '/private/tmp/compose.yml',
+                'schemaVersion': 1, 'projectName': 'liwan-shared-test', 'composeFile': '/private/tmp/compose.yml',
                 'envFile': '/private/tmp/runtime.env', 'stateDir': '/private/tmp/state', 'domainSuffix': 'test'}}
 
 
@@ -49,7 +49,7 @@ class AdminPasswordEffectTest(unittest.TestCase):
                 with self.assertRaisesRegex(EffectError, '^' + code + '$'):
                     effect.execute(payload, runner)
                 self.assertEqual(runner.calls, [])
-        for database in ('odoo19', 'postgres', DATABASE + ';', 'webvue_scratch_test'):
+        for database in ('odoo19', 'postgres', DATABASE + ';', 'liwan_scratch_test'):
             payload = request()
             payload['tenant']['database'] = database
             with self.assertRaisesRegex(EffectError, '^database_invalid$'):
@@ -127,7 +127,7 @@ class AdminPasswordEffectTest(unittest.TestCase):
                 if case == 'wrong_company': admin.company_id = object()
                 if case == 'wrong_login': admin.login = 'other'
                 profile = SimpleNamespace(root_company_id=root, commercial_mode='saas', entitlement_source='control_plane',
-                                          _webvue_lock=lambda: profile)
+                                          _liwan_lock=lambda: profile)
                 class ProfileModel:
                     def search(self, _domain, limit): return self
                     def __len__(self): return 1
@@ -139,15 +139,15 @@ class AdminPasswordEffectTest(unittest.TestCase):
                     registry = SimpleNamespace(signal_changes=lambda: events.append('signal'))
                     def ref(self, _xmlid, **_kwargs): return None if case == 'missing' else admin
                     def __getitem__(self, model):
-                        return ProfileModel() if model == 'webvue.tenant.profile' else SimpleNamespace(_webvue_assert_operator=lambda: True)
+                        return ProfileModel() if model == 'liwan.tenant.profile' else SimpleNamespace(_liwan_assert_operator=lambda: True)
                     def flush_all(self): pass
                 env = Env()
                 admin.env = env
                 if case == 'wrong_database': env.cr.dbname = 'other'
                 data = {'database': DATABASE, 'login': LOGIN, 'password': payload['password'] if case != 'short' else ''}
                 captured = io.StringIO()
-                module = SimpleNamespace(OPERATOR_CONTEXT='webvue_platform.operator_policy')
-                with patch.dict('sys.modules', {'odoo.addons.webvue_platform.models.entitlement_service': module}), contextlib.redirect_stdout(captured):
+                module = SimpleNamespace(OPERATOR_CONTEXT='liwan_platform.operator_policy')
+                with patch.dict('sys.modules', {'odoo.addons.liwan_platform.models.entitlement_service': module}), contextlib.redirect_stdout(captured):
                     exec(effect.build_script(), {'env': env, 'values': data})
                 if code:
                     with self.assertRaisesRegex(EffectError, '^' + code + '$'):
@@ -185,7 +185,7 @@ class ReleasePasswordBoundaryTests(unittest.TestCase):
             payload = request()
             payload['releaseBinding'] = {'tenantId': 'tenant_a', 'registryRevision': 4, 'database': DATABASE}
             runner = FakeRunner('')
-            with patch.dict(os.environ, {'WEBVUE_RELEASE_ROUTES_DIR': str(root)}):
+            with patch.dict(os.environ, {'LIWAN_RELEASE_ROUTES_DIR': str(root)}):
                 with self.assertRaises(EffectError): effect.execute(payload, runner)
             self.assertEqual(runner.calls, [])
 

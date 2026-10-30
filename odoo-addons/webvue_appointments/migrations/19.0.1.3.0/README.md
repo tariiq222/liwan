@@ -1,1 +1,0 @@
-Adds the reason table, new nullable booking columns (attendance, walk-in, reasons, reference), and the attendance and reference-prefix settings columns, which start at their declared defaults. Existing bookings keep an empty reference and attendance; each company's reference counter is created by the module data on update.

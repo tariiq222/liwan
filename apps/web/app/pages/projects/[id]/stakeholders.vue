@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
-import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
+import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
+import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
 import { useProjectStakeholders, useDeleteProjectStakeholder } from '@/composables/useProjectGovernance'
 import { useGovernanceListPage } from '@/components/pmo/projects/governance/listPage'
 import { ApiError } from '@/composables/useApi'
 import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState.vue'
 import { useProjectMissing } from '@/composables/useProjects'
-import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
+import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -88,7 +88,7 @@ const bareEmpty = computed(() => Boolean(list.data.value) && !items.value.length
         </div>
       </template>
       <SharedPageState v-if="list.error.value" :error="list.error.value" @retry="list.refetch" />
-      <div v-else-if="!list.isLoading.value && !items.length" class="p-(--webvue-card-pad)">
+      <div v-else-if="!list.isLoading.value && !items.length" class="p-(--liwan-card-pad)">
         <SharedEmptyState :title="t(activeFilterCount ? 'projects.clarity.filteredEmpty' : 'projects.clarity.stakeholdersEmpty')" />
       </div>
       <SharedDataTable v-else bare :rows="items" :columns="columns" row-key="id" :row-to="itemTo" :loading="list.isLoading.value" :caption="t('projects.governance.stakeholders')">

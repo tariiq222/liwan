@@ -34,7 +34,7 @@ const invoices = [
 
 const setup = {
   chart: { loaded: true, template: 'sa', accounts_count: 182 },
-  company: { name: 'ويب فيو', vat: '300000000000003', company_registry: '', street: 'طريق الملك عبدالله', city: 'الرياض', state: RIYADH, country: SAUDI, currency: 'SAR', missing_fields: ['company_registry'] },
+  company: { name: 'ليوان', vat: '300000000000003', company_registry: '', street: 'طريق الملك عبدالله', city: 'الرياض', state: RIYADH, country: SAUDI, currency: 'SAR', missing_fields: ['company_registry'] },
   fiscal: { fiscalyear_last_day: 31, fiscalyear_last_month: 12, fiscalyear_lock_date: '2025-12-31', tax_lock_date: null, sale_lock_date: null, purchase_lock_date: null, hard_lock_date: null },
   journals: { sale: 1, purchase: 1, bank: 1, cash: 1 },
   taxes: { sale_count: 4, purchase_count: 4, vat_15_present: true },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { AttentionItem } from '@webvue/commercial-contracts'
+import type { AttentionItem } from '@liwan/commercial-contracts'
 import { attentionMessage, attentionPresentation, daysSinceRenewal, daysUntil } from '../vendorAttention'
 
 const now = new Date('2026-10-16T12:00:00Z')

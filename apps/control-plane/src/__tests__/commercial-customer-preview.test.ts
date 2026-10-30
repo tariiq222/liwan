@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
-import { signServiceRequest } from '@webvue/commercial-contracts/server'
+import { signServiceRequest } from '@liwan/commercial-contracts/server'
 import { createApp } from '../http.js'
 import { buildQuote } from '../commercial/quotes.js'
 import { client, money, monthly, setup, url } from './commercial-helpers.js'
@@ -21,9 +21,9 @@ suite('customer quote preview without persistence', () => {
     const method = 'POST', raw = JSON.stringify(body)
     const principal = { actor_id: '7', kind: 'customer', tenant_id: tenant, capabilities }
     const header = Buffer.from(JSON.stringify(principal)).toString('base64')
-    const signed = signServiceRequest({ method, path: '/v1/customer/preview', body: `webvue-principal:${header}\n${raw}`, actor: 7,
+    const signed = signServiceRequest({ method, path: '/v1/customer/preview', body: `liwan-principal:${header}\n${raw}`, actor: 7,
       issuer: config.customerCommercialIssuer, key: config.customerCommercialServiceKey })
-    return fetch(origin + '/v1/customer/preview', { method, headers: { ...signed, 'x-webvue-principal': header, 'content-type': 'application/json' }, body: raw })
+    return fetch(origin + '/v1/customer/preview', { method, headers: { ...signed, 'x-liwan-principal': header, 'content-type': 'application/json' }, body: raw })
   }
   const quoteRows = async () => Number((await pool.query('SELECT count(*)::int AS n FROM commercial_quotes')).rows[0].n)
   beforeAll(async () => {

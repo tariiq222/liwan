@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { HrPayrollTotals } from '@webvue/contracts'
-import type { KpiTile } from '@webvue/ui/app/utils/kpiTile'
+import type { HrPayrollTotals } from '@liwan/contracts'
+import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
 import { formatPayrollAmount, payrollCurrencyLabel } from '@/utils/payrollFormat'
 
 // The four figures of one payroll run above its register: what the employees get, what is deducted
@@ -24,5 +24,5 @@ const tiles = computed<KpiTile[]>(() => [
 </script>
 
 <template>
-  <SharedKpiStrip class="webvue-print-hide" :tiles="tiles" :loading="props.loading" :label="t('hrPayroll.totals.title')" data-testid="hr-payroll-totals" />
+  <SharedKpiStrip class="liwan-print-hide" :tiles="tiles" :loading="props.loading" :label="t('hrPayroll.totals.title')" data-testid="hr-payroll-totals" />
 </template>

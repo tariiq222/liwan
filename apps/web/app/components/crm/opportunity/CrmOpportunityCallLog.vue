@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { CrmCall } from '@webvue/contracts'
-import { formatDateTime } from '@webvue/ui/app/utils/formatDate'
+import type { CrmCall } from '@liwan/contracts'
+import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 
 // The calls made on one opportunity, newest first: outcome, time, who called, how long and the note.
 // Older calls load a page at a time: `hasMore` shows the button and `more` asks the page for the next one.

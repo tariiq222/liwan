@@ -11,7 +11,7 @@ import { CommercialHttpError } from '../commercial/lifecycle.js'
 import { fixedReturnOrigin } from '../commercial/return-origin.js'
 
 const url=process.env.CONTROL_TEST_DATABASE_URL
-if(url && new URL(url).pathname!=='/webvue_control_scratch_payfinal') throw new Error('renewal tests require own scratch DB')
+if(url && new URL(url).pathname!=='/liwan_control_scratch_payfinal') throw new Error('renewal tests require own scratch DB')
 const suite=url?describe:describe.skip
 suite('live PostgreSQL pinned subscription renewals',()=>{
   const pool=new Pool({connectionString:url,max:8}),api=client(pool)
@@ -41,7 +41,7 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
     await pool.query("UPDATE subscriptions SET applied_revision_id=target_revision_id,state='active',renewal_at='2026-10-01',revision=revision+1 WHERE id=$1",[order.subscription_id])
     return {customer,id:order.subscription_id}
   }
-  const args=(adapter:SimulatorAdapter)=>({now,adapter,returnOrigin: fixedReturnOrigin('https://webvue.test')})
+  const args=(adapter:SimulatorAdapter)=>({now,adapter,returnOrigin: fixedReturnOrigin('https://liwan.test')})
   it('invoices once across repeated and concurrent generation, uses pinned price despite newer revision',async()=>{
     const s=await subscription()
     // Publish a new revision in the SAME plan family without changing the applied revision.
@@ -67,7 +67,7 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
   })
   it('skips only the customer without a usable return origin, renews the others, and still fails the run',async()=>{
     const skipped=await subscription(),renewed=await subscription()
-    const returnOrigin=async(customer:string)=>{if(customer===skipped.customer)throw new CommercialHttpError('return_url_forbidden',422);return 'https://webvue.test'}
+    const returnOrigin=async(customer:string)=>{if(customer===skipped.customer)throw new CommercialHttpError('return_url_forbidden',422);return 'https://liwan.test'}
     await expect(generateRenewals(pool,{now,adapter:new SimulatorAdapter(),returnOrigin})).rejects.toMatchObject({status:422,code:'return_url_forbidden'})
     const rows=(await pool.query('SELECT subscription_id FROM renewals')).rows.map(r=>r.subscription_id)
     expect(rows).toEqual([renewed.id])
@@ -88,7 +88,7 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
     expect((await pool.query('SELECT status FROM renewals WHERE subscription_id=$1',[yes.id])).rows[0].status).toBe('charging')
     const attempt=(await pool.query('SELECT id FROM payment_attempts WHERE order_id=$1',[renewal.id])).rows[0]
     await pool.query("UPDATE payment_attempts SET updated_at=now()-interval '10 seconds' WHERE id=$1",[attempt.id])
-    expect(charge.mock.calls[0]![0].callback_url).toBe(`https://webvue.test/api/commercial/payment-callback?attempt=${attempt.id}`)
+    expect(charge.mock.calls[0]![0].callback_url).toBe(`https://liwan.test/api/commercial/payment-callback?attempt=${attempt.id}`)
     expect((await pool.query('SELECT token_charge FROM payment_attempts WHERE id=$1',[attempt.id])).rows[0].token_charge).toBe(true)
     const byInvoice=vi.spyOn(adapter,'lookupAttempt'),byPayment=vi.spyOn(adapter,'lookupPayment')
     await verifyReturnedAttempt(pool,{attempt_id:attempt.id,customer_id:yes.customer,adapter})

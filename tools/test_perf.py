@@ -79,10 +79,10 @@ class TestProcessTree(unittest.TestCase):
 
 class TestLaunch(unittest.TestCase):
     def test_non_scratch_databases_are_rejected(self):
-        for name in ('odoo19', 'webvue_dev', 'webvue_scratch_', 'postgres', ''):
+        for name in ('odoo19', 'liwan_dev', 'liwan_scratch_', 'postgres', ''):
             with self.assertRaises(odoo_launch.OdooTestError):
                 odoo_launch.require_scratch(name)
-        self.assertEqual(odoo_launch.require_scratch('webvue_scratch_perf'), 'webvue_scratch_perf')
+        self.assertEqual(odoo_launch.require_scratch('liwan_scratch_perf'), 'liwan_scratch_perf')
 
     def test_protected_ports_are_refused(self):
         for port in (8069, 8072, 3000):
@@ -100,12 +100,12 @@ class TestLaunch(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root, \
                 mock.patch.dict('os.environ', {'PERF_ROOT': root}), \
                 mock.patch.object(odoo_launch, 'addons_path', return_value='a,b'):
-            preload = odoo_launch.odoo_command('shell', 'webvue_scratch_perf', ['--no-http'])
-            server = odoo_launch.odoo_command('', 'webvue_scratch_perf', preload=False)
+            preload = odoo_launch.odoo_command('shell', 'liwan_scratch_perf', ['--no-http'])
+            server = odoo_launch.odoo_command('', 'liwan_scratch_perf', preload=False)
         self.assertIn('shell', preload)
-        self.assertEqual(preload[preload.index('-d') + 1], 'webvue_scratch_perf')
+        self.assertEqual(preload[preload.index('-d') + 1], 'liwan_scratch_perf')
         self.assertNotIn('-d', server)
-        self.assertIn('--db-filter=^webvue_scratch_perf$', server)
+        self.assertIn('--db-filter=^liwan_scratch_perf$', server)
         with self.assertRaises(odoo_launch.OdooTestError):
             odoo_launch.odoo_command('', 'odoo19')
 

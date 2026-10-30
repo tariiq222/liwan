@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FinanceAssetDisposeSchema } from '@webvue/contracts'
+import { FinanceAssetDisposeSchema } from '@liwan/contracts'
 import { buildDispose, emptyDisposeDraft, isSale, validateDispose } from '../assetDispose'
 
 describe('asset disposal draft', () => {

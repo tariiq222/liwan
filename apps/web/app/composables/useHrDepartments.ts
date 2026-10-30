@@ -6,7 +6,7 @@ import {
   HrDepartmentSchema,
   type HrDepartment,
   type HrDepartmentList,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 
 export type { HrDepartment, HrDepartmentList }
 

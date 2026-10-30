@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { formatDateTime } from '@webvue/ui/app/utils/formatDate'
-import { badgeLabel } from '@webvue/ui/app/utils/statusBadge'
+import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
+import { badgeLabel } from '@liwan/ui/app/utils/statusBadge'
 import { useIntegrationConnections } from '@/composables/useIntegrationConnections'
 import { integrationStateBadge } from '@/utils/integrationStateBadge'
 
@@ -11,10 +11,10 @@ const items = computed(() => data.value?.items ?? [])
 </script>
 
 <template>
-  <SharedRecordSection id="integrations" variant="list" class="webvue-settings-anchor" :title="t('integrations.title')">
+  <SharedRecordSection id="integrations" variant="list" class="liwan-settings-anchor" :title="t('integrations.title')">
     <SharedPageState :loading="isLoading" :error="error" :empty="items.length === 0" :empty-text="t('integrations.empty')" @retry="refetch()">
       <ul class="divide-y divide-default" data-testid="integration-connections">
-        <li v-for="item in items" :key="item.id" class="flex min-w-0 flex-wrap items-center justify-between gap-3 px-(--webvue-card-pad-dense) py-3 text-start" :data-testid="`integration-${item.id}`">
+        <li v-for="item in items" :key="item.id" class="flex min-w-0 flex-wrap items-center justify-between gap-3 px-(--liwan-card-pad-dense) py-3 text-start" :data-testid="`integration-${item.id}`">
           <div class="min-w-0">
             <p class="font-medium text-highlighted">{{ t(`integrations.kind.${item.kind}`) }}</p>
             <p class="text-sm text-muted">{{ item.provider }}</p>

@@ -1,5 +1,5 @@
 import type { Pool, PoolClient } from 'pg'
-import type { VendorCapability, VendorRole } from '@webvue/commercial-contracts'
+import type { VendorCapability, VendorRole } from '@liwan/commercial-contracts'
 import { capabilitiesFor, rolesGranting } from './roles.js'
 
 // A vendor actor is a vendor account: its authority is always computed from vendor_account_roles and

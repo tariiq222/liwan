@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HrEmployee } from '@webvue/contracts'
+import type { HrEmployee } from '@liwan/contracts'
 
 // The employee record's facts as the aside PropertiesPanel. A missing value is the row's empty form
 // (a dash, spoken as "no value"); the email and phone read left to right inside the Arabic page.

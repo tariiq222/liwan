@@ -1,6 +1,6 @@
 import http from 'node:http'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { AiUsageBatchSchema } from '@webvue/contracts'
+import { AiUsageBatchSchema } from '@liwan/contracts'
 import { appendResponseHeader, createApp, createError, createEventStream, defineEventHandler, getCookie, getHeader, getQuery, getRequestHeader, getRouterParam, readBody, setResponseHeader, toNodeListener } from 'h3'
 
 let odoo: http.Server, service: http.Server, app: http.Server
@@ -41,7 +41,7 @@ const TOOLS = {
   total: 3,
   limits: { tool_calls_per_run: 8, messages_monthly: 100, messages_used: 1 },
 }
-const ME = { id: 42, name: 'سارة', company: { id: 1, name: 'ويب فيو' } }
+const ME = { id: 42, name: 'سارة', company: { id: 1, name: 'ليوان' } }
 
 const CALL_A = '00000000000000a1', CALL_B = '00000000000000b2', CALL_C = '00000000000000c3', CALL_D = '00000000000000d4'
 const modelCall = (id: string, kind = 'plan'): [string, unknown] => ['model_call', { call_id: id, kind, provider: 'openrouter', model: 'anthropic/claude-sonnet-4.5', called_at: '2026-10-27T10:00:00Z' }]
@@ -222,8 +222,8 @@ describe('POST /api/ai/runs', () => {
     expect(tasksCall.cookie).toBe('session_id=s1')
     expect(tasksCall.url).toBe('/api/v1/tasks?filter=mine')
     const resumeCall = serviceCalls.find(c => c.url === '/v1/runs/r_1/resume')!
-    expect(resumeCall.headers['x-webvue-tenant']).toBe('x')
-    expect(resumeCall.headers['x-webvue-user']).toBe('42')
+    expect(resumeCall.headers['x-liwan-tenant']).toBe('x')
+    expect(resumeCall.headers['x-liwan-user']).toBe('42')
     expect(JSON.parse(resumeCall.body)).toEqual({ call_id: 'c_1', result: { ok: true, data: { items: [{ id: 5, name: 'تقرير' }], total: 1 } } })
     const audits = odooCalls.filter(c => c.url === '/api/v1/ai/audit').map(c => JSON.parse(c.body!))
     expect(audits.map(a => [a.kind, a.result])).toEqual([['message', 'ok'], ['read', 'ok']])
@@ -309,8 +309,8 @@ describe('POST /api/ai/runs', () => {
     expect(JSON.stringify(list[1]![1])).not.toMatch(/terminated|ECONNRESET|fetch failed/)
   })
 
-  it('sends the service locale from the webvue-locale cookie', async () => {
-    await events(await post('/api/ai/runs', { message: 'هلا' }, 'session_id=s1; webvue-locale=en'))
+  it('sends the service locale from the liwan-locale cookie', async () => {
+    await events(await post('/api/ai/runs', { message: 'هلا' }, 'session_id=s1; liwan-locale=en'))
     expect(JSON.parse(serviceCalls.find(c => c.url === '/v1/runs')!.body).locale).toBe('en')
     serviceCalls = []
     await events(await post('/api/ai/runs', { message: 'هلا' }, 'session_id=s1; i18n_redirected=en'))
@@ -410,7 +410,7 @@ describe('provider usage', () => {
     const list = await events(await post('/api/ai/runs', { message: 'هلا' }))
     expect(list.map(([n]) => n)).toEqual(['run', 'tool_request', 'tool_result', 'token', 'answer', 'done'])
     expect(list.at(-1)![1]).toEqual({ status: 'done' })
-    const reported = '[webvue-ai] usage report of 4 rows failed: UsageRefused'
+    const reported = '[liwan-ai] usage report of 4 rows failed: UsageRefused'
     await waitFor(() => spy.mock.calls.some(call => call[0] === reported))
     expect(spy.mock.calls.map(call => call[0])).toContain(reported)
     expect(JSON.stringify(spy.mock.calls)).not.toContain('secret detail')
@@ -432,7 +432,7 @@ describe('provider usage', () => {
     expect(list.map(([n]) => n)).toEqual(['run', 'done'])
     expect(list.at(-1)![1]).toEqual({ status: 'done' })
     expect(usageBatches).toEqual([])
-    expect(spy.mock.calls.map(call => call[0])).toContain('[webvue-ai] skipped a malformed model_call event: MalformedUsageEvent')
+    expect(spy.mock.calls.map(call => call[0])).toContain('[liwan-ai] skipped a malformed model_call event: MalformedUsageEvent')
     spy.mockRestore()
   })
 
@@ -548,7 +548,7 @@ describe('resume and status', () => {
   it('returns the run status with its pending call', async () => {
     const response = await fetch(`${url}/api/ai/runs/r_1`, { headers: { cookie: 'session_id=s1' } })
     expect((await response.json()).pending.tool).toBe('pmo.draft_project')
-    expect(serviceCalls.at(-1)!.headers['x-webvue-user']).toBe('42')
+    expect(serviceCalls.at(-1)!.headers['x-liwan-user']).toBe('42')
   })
 })
 
@@ -560,7 +560,7 @@ describe('GET /api/ai/runs', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({ total: 1, items: [{ run_id: 'r_1', title: 'هلا', status: 'done' }] })
     const call = serviceCalls.at(-1)!
-    expect([call.method, call.url, call.headers['x-webvue-tenant'], call.headers['x-webvue-user'], call.headers.cookie]).toEqual(['GET', '/v1/runs', 'x', '42', undefined])
+    expect([call.method, call.url, call.headers['x-liwan-tenant'], call.headers['x-liwan-user'], call.headers.cookie]).toEqual(['GET', '/v1/runs', 'x', '42', undefined])
     expect(odooCalls.map(c => c.url)).toEqual(['/api/v1/me', '/api/v1/ai/tools'])
   })
 
@@ -610,7 +610,7 @@ describe('PATCH /api/ai/runs/{id}', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({ run_id: 'r_1', title: 'مشروع البوابة', archived: true })
     const call = serviceCalls.at(-1)!
-    expect([call.method, call.url, call.headers['x-webvue-tenant'], call.headers['x-webvue-user'], call.headers.cookie]).toEqual(['PATCH', '/v1/runs/r_1', 'x', '42', undefined])
+    expect([call.method, call.url, call.headers['x-liwan-tenant'], call.headers['x-liwan-user'], call.headers.cookie]).toEqual(['PATCH', '/v1/runs/r_1', 'x', '42', undefined])
     expect(JSON.parse(call.body)).toEqual({ title: 'مشروع البوابة', archived: true })
   })
 
@@ -799,13 +799,13 @@ describe('draft rejection audit', () => {
 })
 
 describe('service token', () => {
-  it('sends X-WebVue-Service-Token only when configured', async () => {
+  it('sends X-Liwan-Service-Token only when configured', async () => {
     await events(await post('/api/ai/runs', { message: 'هلا' }))
-    expect(serviceCalls.every(c => c.headers['x-webvue-service-token'] === undefined)).toBe(true)
+    expect(serviceCalls.every(c => c.headers['x-liwan-service-token'] === undefined)).toBe(true)
     serviceCalls = []; serviceToken = 'tok-123'
     await events(await post('/api/ai/runs', { message: 'هلا' }))
     expect(serviceCalls.length).toBeGreaterThan(0)
-    expect(serviceCalls.every(c => c.headers['x-webvue-service-token'] === 'tok-123')).toBe(true)
+    expect(serviceCalls.every(c => c.headers['x-liwan-service-token'] === 'tok-123')).toBe(true)
   })
 })
 

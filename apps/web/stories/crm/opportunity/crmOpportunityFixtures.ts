@@ -1,4 +1,4 @@
-import type { CrmCall, CrmLostReason, CrmOpportunity, CrmOutcome, CrmPackage, CrmStage } from '@webvue/contracts'
+import type { CrmCall, CrmLostReason, CrmOpportunity, CrmOutcome, CrmPackage, CrmStage } from '@liwan/contracts'
 
 export const stages: CrmStage[] = [
   { id: 1, name: 'جديد', sequence: 10, is_won: false, active: true },

@@ -59,7 +59,7 @@ describe('the HR pages stay on their templates', () => {
       expect(source, file).not.toMatch(/rounded-(md|lg|xl|\[)/)
       expect(source, file).not.toMatch(/h-\[calc|min-h-\[|min-w-52/)
       expect(source, file).not.toMatch(/<SharedFormSection[^>]*(mt-4|space-y-)/)
-      expect(source, file).not.toMatch(/webvue-form-grid mt-4/)
+      expect(source, file).not.toMatch(/liwan-form-grid mt-4/)
     }
   })
 

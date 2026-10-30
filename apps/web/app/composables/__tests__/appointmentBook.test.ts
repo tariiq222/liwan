@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { AppointmentPublicBooking } from '@webvue/contracts'
+import type { AppointmentPublicBooking } from '@liwan/contracts'
 import { addDays, bookingLinkOf, canChange, formatDay, formatMoment, formatSlot, formatSlotTime, isInvalidBookingLink, localDay, refusalStatus, slotsByDay, windowDays } from '../appointmentBook'
 
 describe('bookingLinkOf', () => {

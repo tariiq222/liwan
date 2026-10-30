@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FinanceAccount, FinanceTax } from '@webvue/contracts'
+import type { FinanceAccount, FinanceTax } from '@liwan/contracts'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import AccountPicker from '../AccountPicker.vue'
 import { useCreateSetupTax, usePatchSetupTax } from '@/composables/finance/useFinanceRecords'
@@ -39,10 +39,10 @@ async function submit() {
 </script>
 
 <template>
-  <UForm :state="draft" class="webvue-form" method="post" :loading-auto="false" novalidate data-testid="finance-record-tax-form" @submit="submit">
+  <UForm :state="draft" class="liwan-form" method="post" :loading-auto="false" novalidate data-testid="finance-record-tax-form" @submit="submit">
     <UAlert v-if="failure" role="alert" color="error" variant="subtle" :title="t('financeRecords.saveError')" :description="saveErrorMessage(failure, t('errors.generic'), t('errors.saveUncertain'))" />
     <UAlert v-if="locked" color="info" variant="subtle" icon="i-lucide-lock" :description="t('financeRecords.taxes.lockedNote')" />
-    <div class="webvue-form-grid">
+    <div class="liwan-form-grid">
       <UFormField :label="t('financeRecords.taxes.form.name')" name="finance-record-tax-name" required>
         <UInput id="finance-record-tax-name" v-model="draft.name" class="w-full" :disabled="!hydrated" required />
       </UFormField>

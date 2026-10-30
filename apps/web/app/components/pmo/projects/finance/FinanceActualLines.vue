@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { ActualLine, FinanceSummary } from '@webvue/contracts'
-import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
+import type { ActualLine, FinanceSummary } from '@liwan/contracts'
+import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 import { useProjectActualLines } from '@/composables/useProjectFinance'
 import { FINANCE_PAGE, formatMoney, nextOffsetAfterListResult } from '@/utils/projectFinance'
 import { parseOffset } from '@/utils/routeQuery'
@@ -70,12 +70,12 @@ watch(() => ({ fetching: lines.isFetching.value, offset: offset.value, total: li
         <template #partner-cell="{ row }">{{ row.original.partner?.name ?? '—' }}</template>
         <template #amount-cell="{ row }"><span dir="ltr" class="font-semibold tabular-nums text-highlighted">{{ formatMoney(row.original.amount, summary.currency) }}</span></template>
         <template #mobile-row="{ row: line }">
-          <div data-testid="finance-actual-line-card" class="grid gap-(--webvue-gap-card)">
+          <div data-testid="finance-actual-line-card" class="grid gap-(--liwan-gap-card)">
             <div class="flex items-start justify-between gap-3">
               <p class="min-w-0 font-semibold text-highlighted">{{ line.label }}</p>
               <span dir="ltr" class="shrink-0 font-semibold tabular-nums text-highlighted">{{ formatMoney(line.amount, summary.currency) }}</span>
             </div>
-            <dl class="grid grid-cols-2 gap-(--webvue-gap-card) text-xs">
+            <dl class="grid grid-cols-2 gap-(--liwan-gap-card) text-xs">
               <div><dt class="text-muted">{{ t('projects.finance.columns.date') }}</dt><dd>{{ dateLabel(line) }}</dd></div>
               <div>
                 <dt class="text-muted">{{ t('projects.finance.columns.reference') }}</dt>

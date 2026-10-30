@@ -22,7 +22,7 @@ export const emptyInboxDraft = (): InboxDraft => ({ reply: '', note: '', templat
 
 type DraftStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem' | 'key' | 'length'>
 
-const PREFIX = 'webvue.inbox.draft.'
+const PREFIX = 'liwan.inbox.draft.'
 const key = (userId: number, conversationId: number) => `${PREFIX}${userId}.${conversationId}`
 
 const isEmpty = (draft: InboxDraft) => !draft.reply && !draft.note && draft.templateId === null && !draft.params.some(Boolean)

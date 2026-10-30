@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import AppSidebar from '../../app/components/shell/AppSidebar.vue'
 import AssistantSheet from '../../app/components/shell/AssistantSheet.vue'
-import ShellFrame from '@webvue/ui/app/components/shell/ShellFrame.vue'
+import ShellFrame from '@liwan/ui/app/components/shell/ShellFrame.vue'
 import ShellHeader from '../../app/components/shell/ShellHeader.vue'
 import { useAssistantSheet } from '../../app/composables/useAssistantSheet'
 import { __getRouter, useState } from '../../.storybook/nuxt-shims'
@@ -30,7 +30,7 @@ const frame = (open: boolean) => () => ({
     <template #header><ShellHeader /></template>
     <template #sidebar><AppSidebar /></template>
     <template #sheet><AssistantSheet v-if="assistant.surface.value" :surface="assistant.surface.value" /></template>
-    <main class="webvue-shell-main" data-testid="shell-main"><div class="webvue-page-stack webvue-page-width-list"><h1 class="text-xl font-semibold">المهام</h1></div></main>
+    <main class="liwan-shell-main" data-testid="shell-main"><div class="liwan-page-stack liwan-page-width-list"><h1 class="text-xl font-semibold">المهام</h1></div></main>
   </ShellFrame>`,
 })
 

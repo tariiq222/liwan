@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { PAYMENT_ORDER_EXPIRY_MINUTES, type PaymentSettings } from '@webvue/contracts'
+import { PAYMENT_ORDER_EXPIRY_MINUTES, type PaymentSettings } from '@liwan/contracts'
 import { draftOfSettings, isValidExpiry, refusesExpiry, type OrderSettingsDraft, settingsUpdate } from '@/composables/paymentSettings'
 import { useSavePaymentSettings } from '@/composables/usePaymentSettings'
 import { ApiError } from '@/composables/useApi'

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { OperationRequestSummary } from '@webvue/contracts'
-import { formatDate } from '@webvue/ui/app/utils/formatDate'
-import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
+import type { OperationRequestSummary } from '@liwan/contracts'
+import { formatDate } from '@liwan/ui/app/utils/formatDate'
+import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import { useOperationRequests, operationRequestListParams, type OperationScope } from '@/composables/operations/useOperations'
 import { operationListLocation, safeOperationReturnTo, operationPurposeChoices, operationPurposeFromSelection, operationStateChoices, operationStateFromSelection } from '@/composables/operations/forms'
 import { operationsStateTone } from '@/composables/operations/state'
@@ -71,7 +71,7 @@ const columns = computed<TableColumn<OperationRequestSummary>[]>(() => [
       </SharedFilterBar>
     </template>
     <SharedPageState v-if="query.error.value" :error="query.error.value" @retry="query.refetch()" />
-    <SharedEmptyState v-else-if="!query.isPending.value && !items.length" class="m-(--webvue-card-pad-dense)" :title="t(hasFilters ? 'app.noResults' : 'operations.emptyRequests')" />
+    <SharedEmptyState v-else-if="!query.isPending.value && !items.length" class="m-(--liwan-card-pad-dense)" :title="t(hasFilters ? 'app.noResults' : 'operations.emptyRequests')" />
     <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,792px)] [&_table]:table-fixed">
       <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :row-to="requestTo" :loading="query.isPending.value" :caption="t(personal ? 'operations.personal.title' : `operations.nav.${scope}`)">
         <template #record_number-cell="{ row }"><SharedRecordNumber :value="row.original.id" /></template>

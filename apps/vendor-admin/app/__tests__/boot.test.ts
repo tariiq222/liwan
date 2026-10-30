@@ -11,7 +11,7 @@ async function loadConfig(): Promise<Record<string, any>> {
 describe('vendor admin scaffold', () => {
   it('extends the shared ui layer and renders on the server', async () => {
     const config = await loadConfig()
-    expect(config.extends).toContain('@webvue/ui')
+    expect(config.extends).toContain('@liwan/ui')
     expect(config.ssr).not.toBe(false)
     expect(config.devServer.port).toBe(3100)
   })

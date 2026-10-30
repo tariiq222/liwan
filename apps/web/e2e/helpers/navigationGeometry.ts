@@ -2,10 +2,10 @@ import { expect, type Locator } from '@playwright/test'
 
 export async function expectAlignedGuide(parent: Locator) {
   const geometry = await parent.evaluate(el => {
-    const icon = el.querySelector('.webvue-quick-chip')!.getBoundingClientRect()
+    const icon = el.querySelector('.liwan-quick-chip')!.getBoundingClientRect()
     const row = el.getBoundingClientRect()
     const connector = getComputedStyle(el, '::after')
-    const body = el.parentElement!.querySelector<HTMLElement>('.webvue-navigation-submenu')!
+    const body = el.parentElement!.querySelector<HTMLElement>('.liwan-navigation-submenu')!
     const rect = body.getBoundingClientRect()
     const style = getComputedStyle(body)
     const guide = getComputedStyle(body, '::before')
@@ -13,9 +13,9 @@ export async function expectAlignedGuide(parent: Locator) {
     const width = pseudo ? parseFloat(guide.width) : parseFloat(style.borderInlineStartWidth)
     const inset = pseudo ? parseFloat(guide.insetInlineStart) : 0
     const center = (icon.left + icon.right) / 2
-    const children = [...body.querySelectorAll('.webvue-quick-chip')].filter(child => child.closest('.webvue-navigation-submenu') === body).map(child => child.getBoundingClientRect())
+    const children = [...body.querySelectorAll('.liwan-quick-chip')].filter(child => child.closest('.liwan-navigation-submenu') === body).map(child => child.getBoundingClientRect())
     const firstCenter = (children[0]!.left + children[0]!.right) / 2
-    const selected = [...body.querySelectorAll('.webvue-quick-link[data-active="true"] .webvue-quick-chip')].find(child => child.closest('.webvue-navigation-submenu') === body)
+    const selected = [...body.querySelectorAll('.liwan-quick-link[data-active="true"] .liwan-quick-chip')].find(child => child.closest('.liwan-navigation-submenu') === body)
     const selectedRect = selected?.getBoundingClientRect()
     const dot = selected ? getComputedStyle(selected, '::before') : null
     const dotInset = dot ? parseFloat(dot.insetInlineStart) + parseFloat(dot.width) / 2 : 0

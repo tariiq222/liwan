@@ -64,7 +64,7 @@ function navigate(item: ShellQuickItem) {
       :type="disclosure ? 'button' : undefined"
       color="neutral"
       variant="ghost"
-      class="webvue-context-link webvue-navigation-app"
+      class="liwan-context-link liwan-navigation-app"
       :disabled="disclosure && !props.hydrated"
       :data-testid="`${prefix}navigation-app-${item.id}`"
       :data-active="item.active"
@@ -74,15 +74,15 @@ function navigate(item: ShellQuickItem) {
       :title="collapsed ? item.label : undefined"
       @click="!disclosure && navigate({ id: item.id, label: item.label, icon: item.icon, to: item.to })"
     >
-      <template #leading><span class="webvue-context-chip" aria-hidden="true"><UIcon :name="item.icon" class="webvue-shell-icon size-4 shrink-0" /></span></template>
+      <template #leading><span class="liwan-context-chip" aria-hidden="true"><UIcon :name="item.icon" class="liwan-shell-icon size-4 shrink-0" /></span></template>
       <span data-slot="label">{{ item.label }}</span>
-      <template v-if="disclosure && !collapsed" #trailing><UIcon name="i-lucide-chevron-down" class="webvue-navigation-chevron size-4 shrink-0" :class="{ 'rotate-180': openId === item.id }" aria-hidden="true" /></template>
+      <template v-if="disclosure && !collapsed" #trailing><UIcon name="i-lucide-chevron-down" class="liwan-navigation-chevron size-4 shrink-0" :class="{ 'rotate-180': openId === item.id }" aria-hidden="true" /></template>
     </UButton>
   </DefineRow>
 
   <DefineContent v-slot="{ item, showPanel }">
-    <div class="webvue-navigation-children" :data-testid="collapsed && showPanel ? undefined : `${prefix}navigation-submenu-${item.id}`">
-      <div v-if="item.panel && showPanel" class="webvue-navigation-panel"><slot name="panel" :item="item" /></div>
+    <div class="liwan-navigation-children" :data-testid="collapsed && showPanel ? undefined : `${prefix}navigation-submenu-${item.id}`">
+      <div v-if="item.panel && showPanel" class="liwan-navigation-panel"><slot name="panel" :item="item" /></div>
       <template v-else>
         <ShellContextSubList :label="item.label" :sections="item.sections" :collapsed="false" surface="drawer" :test-id-prefix="`${prefix}${item.id}-`" :open-path="childOpenPath(item.id)" :hydrated="props.hydrated" @disclose="(path, open) => setSubmenuOpen([item.id, ...path], open)" @navigate="navigate" />
         <ShellQuickViews :label="t('nav.quickViews')" :views-label="t('nav.quickViewsList')" :actions-label="t('nav.quickActionsList')" :views="item.views" :actions="item.actions" :collapsed="false" surface="drawer" :test-id-prefix="`${prefix}${item.id}-`" @navigate="navigate" />
@@ -90,21 +90,21 @@ function navigate(item: ShellQuickItem) {
     </div>
   </DefineContent>
 
-  <aside class="webvue-context-sidebar webvue-navigation" :data-testid="`${prefix}application-navigation`" :data-expanded="!collapsed" :data-preference="props.preference" :data-surface="props.surface ?? 'sidebar'" :data-panel="panel ? 'true' : undefined" :data-panel-width="panel ? props.panelWidth : undefined" :aria-label="props.title ?? t('nav.modules')">
-    <div v-if="props.surface !== 'drawer'" class="webvue-context-heading">
+  <aside class="liwan-context-sidebar liwan-navigation" :data-testid="`${prefix}application-navigation`" :data-expanded="!collapsed" :data-preference="props.preference" :data-surface="props.surface ?? 'sidebar'" :data-panel="panel ? 'true' : undefined" :data-panel-width="panel ? props.panelWidth : undefined" :aria-label="props.title ?? t('nav.modules')">
+    <div v-if="props.surface !== 'drawer'" class="liwan-context-heading">
       <h2>{{ props.title ?? t('nav.apps') }}</h2>
       <UTooltip :text="t(collapsed ? 'nav.expandContext' : 'nav.collapseContext')" :kbds="['[']">
-        <UButton type="button" color="neutral" variant="ghost" square size="sm" class="webvue-context-toggle" data-testid="context-sidebar-toggle" :disabled="!props.hydrated || props.locked" :aria-expanded="!collapsed" :aria-label="t(collapsed ? 'nav.expandContext' : 'nav.collapseContext')" aria-keyshortcuts="[" @click="emit('toggle')">
-          <UIcon :name="collapsed ? 'i-lucide-chevron-right' : 'i-lucide-chevron-left'" class="webvue-shell-icon rtl:-scale-x-100" aria-hidden="true" />
+        <UButton type="button" color="neutral" variant="ghost" square size="sm" class="liwan-context-toggle" data-testid="context-sidebar-toggle" :disabled="!props.hydrated || props.locked" :aria-expanded="!collapsed" :aria-label="t(collapsed ? 'nav.expandContext' : 'nav.collapseContext')" aria-keyshortcuts="[" @click="emit('toggle')">
+          <UIcon :name="collapsed ? 'i-lucide-chevron-right' : 'i-lucide-chevron-left'" class="liwan-shell-icon rtl:-scale-x-100" aria-hidden="true" />
         </UButton>
       </UTooltip>
     </div>
-    <nav :id="menuId" class="webvue-navigation-list" data-fresh-navigation :aria-label="props.title ?? t('nav.apps')">
+    <nav :id="menuId" class="liwan-navigation-list" data-fresh-navigation :aria-label="props.title ?? t('nav.apps')">
       <template v-for="item in props.items" :key="item.id">
         <template v-if="hasChildren(item)">
           <UPopover v-if="collapsed" :open="openId === item.id" :content="{ side: localeProperties.dir === 'rtl' ? 'left' : 'right', align: 'start' }" @update:open="setOpen(item.id, $event)">
             <ReuseRow :item="item" :disclosure="true" />
-            <template #content><div class="webvue-navigation-popup"><h2 class="webvue-sub-list-title">{{ item.label }}</h2><ReuseContent :item="item" :show-panel="false" /></div></template>
+            <template #content><div class="liwan-navigation-popup"><h2 class="liwan-sub-list-title">{{ item.label }}</h2><ReuseContent :item="item" :show-panel="false" /></div></template>
           </UPopover>
           <UCollapsible v-if="!collapsed || (item.panel && props.showPanel)" :class="{ hidden: collapsed }" :open="!collapsed && (props.surface === 'context' || openId === item.id)" :unmount-on-hide="!(item.panel && props.showPanel)" :disabled="!props.hydrated" @update:open="setOpen(item.id, $event)">
             <template v-if="!collapsed && props.surface !== 'context'" #default><ReuseRow :item="item" :disclosure="true" /></template>
@@ -114,6 +114,6 @@ function navigate(item: ShellQuickItem) {
         <ReuseRow v-else :item="item" :disclosure="false" />
       </template>
     </nav>
-    <NuxtLink v-if="props.surface !== 'drawer' && !props.hideBrand" :to="props.homeTo" class="webvue-module-rail-brand" :aria-label="`${t('brand.name')} — ${t('nav.home')}`"><BrandWordmark size="md" :mark-only="collapsed" /></NuxtLink>
+    <NuxtLink v-if="props.surface !== 'drawer' && !props.hideBrand" :to="props.homeTo" class="liwan-module-rail-brand" :aria-label="`${t('brand.name')} — ${t('nav.home')}`"><BrandWordmark size="md" :mark-only="collapsed" /></NuxtLink>
   </aside>
 </template>

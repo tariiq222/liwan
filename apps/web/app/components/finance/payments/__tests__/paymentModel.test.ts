@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FinancePaymentRegisterSchema } from '@webvue/contracts'
+import { FinancePaymentRegisterSchema } from '@liwan/contracts'
 import {
   MAX_PREFILLED_INVOICES,
   PAYMENT_PAGE_SIZE,

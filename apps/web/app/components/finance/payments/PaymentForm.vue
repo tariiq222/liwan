@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
-import type { FinanceInvoice } from '@webvue/contracts'
+import type { FinanceInvoice } from '@liwan/contracts'
 import { refDebounced } from '@vueuse/core'
 import { useFinanceInvoicesByIds, useFinanceOpenInvoices } from '@/composables/finance/useFinanceInvoices'
 import { useFinancePaymentJournals, useRegisterFinancePayment } from '@/composables/finance/useFinancePayments'
@@ -81,7 +81,7 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <UForm novalidate :state="draft" class="webvue-form" method="post" data-testid="finance-payment-form" @submit="submit">
+  <UForm novalidate :state="draft" class="liwan-form" method="post" data-testid="finance-payment-form" @submit="submit">
     <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" data-testid="finance-payment-form-error" />
     <SharedFormSection panel :title="t('financeDocuments.payments.form.documents')">
       <div class="grid gap-4">

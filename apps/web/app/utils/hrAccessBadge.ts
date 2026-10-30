@@ -1,5 +1,5 @@
-import type { HrEmployee } from '@webvue/contracts'
-import type { StatusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
+import type { HrEmployee } from '@liwan/contracts'
+import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
 
 /** The directory's account column: system admin primary, active account success, stopped warning, no account neutral. */
 export function hrAccessBadge(access: HrEmployee['access']): StatusBadgeEntry {

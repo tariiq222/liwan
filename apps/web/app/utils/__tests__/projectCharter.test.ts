@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../../composables/useApi'
-import type { ProjectDetail } from '@webvue/contracts'
+import type { ProjectDetail } from '@liwan/contracts'
 import {
   CHARTER_FIELD_KEYS,
   formatCharterAmount,

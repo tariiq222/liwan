@@ -1,5 +1,5 @@
 import { computed, ref, type Ref } from 'vue'
-import type { MeetingDetail } from '@webvue/contracts'
+import type { MeetingDetail } from '@liwan/contracts'
 import { ApiError } from './useApi'
 import { useDeleteMeeting, useMeetingAction } from './useMeetings'
 

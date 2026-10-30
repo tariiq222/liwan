@@ -2,8 +2,8 @@ import { z } from 'zod'
 
 // Wire shapes of WhatsApp phase 7: catalog and commerce messages.
 // - The commerce content of a message (product, product_list, catalog_message) and the `commerce` block of a
-//   thread message are WhatsApp wire data serialized by odoo-addons/webvue_inbox (serializers/conversation.py).
-//   Their product details and order summary are filled by the bridge odoo-addons/webvue_inbox_payments and are
+//   thread message are WhatsApp wire data serialized by odoo-addons/liwan_inbox (serializers/conversation.py).
+//   Their product details and order summary are filled by the bridge odoo-addons/liwan_inbox_payments and are
 //   null without it.
 // - Catalogs, catalog items, channel commerce settings and orders are served by the bridge
 //   (/api/v1/inbox/catalogs, /api/v1/inbox/catalog-items, /api/v1/inbox/channels/<id>/commerce,
@@ -40,17 +40,17 @@ export const INBOX_COMMERCE_LIMITS = {
 } as const
 const L = INBOX_COMMERCE_LIMITS
 
-// A product's id in the Meta catalog (Meta `retailer_id`, "Content ID" in Commerce Manager). WebVue uses the
+// A product's id in the Meta catalog (Meta `retailer_id`, "Content ID" in Commerce Manager). LiwanOS uses the
 // product's internal reference when it fits, else `wv-<product id>`; it never changes once the item was synced.
 export const InboxRetailerIdSchema = z.string().min(1).max(L.retailerId).regex(/^[A-Za-z0-9._-]+$/)
 const RetailerId = InboxRetailerIdSchema
-// A retailer id as Meta sends it back in a cart or an inquiry: any id of the catalog, also one WebVue did not create.
+// A retailer id as Meta sends it back in a cart or an inquiry: any id of the catalog, also one LiwanOS did not create.
 const WireRetailerId = z.string().min(1).max(L.retailerId)
 
 const Body = z.string().min(1).max(L.body)
 const Footer = z.string().min(1).max(L.footer).nullable()
 
-// ---- commerce message content (webvue_inbox) ----
+// ---- commerce message content (liwan_inbox) ----
 
 export const InboxProductSectionSchema = z.object({
   title: z.string().min(1).max(L.sectionTitle),
@@ -111,7 +111,7 @@ const ProductRef = {
 
 // `cart`: received or built, still editable; `ordered`: an online order exists; `dismissed`: dropped by an agent.
 export const InboxOrderStateSchema = z.enum(['cart', 'ordered', 'dismissed'])
-// The payer's status of the online order (webvue.payments.service summary), or `cancelled` (expired or cancelled).
+// The payer's status of the online order (liwan.payments.service summary), or `cancelled` (expired or cancelled).
 export const InboxOrderPaymentStatusSchema = z.enum(['payable', 'processing', 'paid', 'not_payable', 'cancelled'])
 
 export const InboxOrderSummarySchema = z.object({
@@ -123,7 +123,7 @@ export const InboxOrderSummarySchema = z.object({
 }).strict()
 
 // `sent`: an outbound product, product list or catalog message, with the products it names in content order.
-// `order`: the customer's cart as WhatsApp sent it, and the WebVue order made from it.
+// `order`: the customer's cart as WhatsApp sent it, and the LiwanOS order made from it.
 // `inquiry`: the customer's text sent from a product ("Message business").
 export const InboxMessageCommerceSchema = z.discriminatedUnion('type', [
   z.object({
@@ -242,7 +242,7 @@ export const InboxCatalogItemSchema = z.object({
   product_retailer_id: RetailerId,
   name: z.string(),
   description: z.string(),
-  // The sales price stored in WebVue (before taxes), and the price the catalog shows (`price`, taxes per the catalog).
+  // The sales price stored in LiwanOS (before taxes), and the price the catalog shows (`price`, taxes per the catalog).
   list_price: Amount,
   price: Amount,
   currency: Currency,
@@ -259,7 +259,7 @@ export const InboxCatalogItemSchema = z.object({
 }).strict()
 export const InboxCatalogItemListSchema = list(InboxCatalogItemSchema)
 
-// A product image uploaded as base64 JSON like every WebVue attachment: JPEG or PNG, at least 500×500, at most 5 MB.
+// A product image uploaded as base64 JSON like every LiwanOS attachment: JPEG or PNG, at least 500×500, at most 5 MB.
 export const InboxCatalogImageUploadSchema = z.object({
   name: z.string().min(1).max(255),
   mimetype: z.enum(['image/jpeg', 'image/png']),
@@ -330,7 +330,7 @@ export const InboxCatalogPickItemListSchema = list(InboxCatalogPickItemSchema)
 
 // ---- orders (bridge) ----
 
-// The payment of the online order (webvue.payments.service summary). `refund_due`: money was received that must be
+// The payment of the online order (liwan.payments.service summary). `refund_due`: money was received that must be
 // given back; `needs_attention`: money was received but not recorded on the order for an hour.
 export const InboxOrderPaymentSchema = z.object({
   status: InboxOrderPaymentStatusSchema,

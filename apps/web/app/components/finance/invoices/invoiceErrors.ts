@@ -1,4 +1,4 @@
-import { FinanceZatcaSubmissionSchema, type FinanceZatcaSubmission } from '@webvue/contracts'
+import { FinanceZatcaSubmissionSchema, type FinanceZatcaSubmission } from '@liwan/contracts'
 
 /** API error codes the Finance pages explain in the user's language; any other code shows the server's own message. */
 const CODE_KEYS = {

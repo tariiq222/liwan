@@ -1,4 +1,4 @@
-import type { FinanceInvoiceCreate, FinanceInvoiceDetail, FinanceInvoiceLine, FinanceInvoiceLineInput, FinanceInvoicePatch } from '@webvue/contracts'
+import type { FinanceInvoiceCreate, FinanceInvoiceDetail, FinanceInvoiceLine, FinanceInvoiceLineInput, FinanceInvoicePatch } from '@liwan/contracts'
 import type { FinanceMoveType } from './invoiceKinds'
 
 /** One line of the editor as typed: numbers stay strings until they are validated. */

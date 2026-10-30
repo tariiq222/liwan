@@ -1,4 +1,4 @@
-import { InboxInteractiveSchema, type InboxInteractive } from '@webvue/contracts'
+import { InboxInteractiveSchema, type InboxInteractive } from '@liwan/contracts'
 
 // The WhatsApp interactive message an agent builds in the composer: reply buttons, a list, a call-to-action URL, or a form.
 // The limits are Meta's, mirrored by InboxInteractiveSchema; the builder shows them as live counters.

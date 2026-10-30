@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
+import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import { accessBadge } from '@/components/access/accessBadge'
 import type { TableColumn } from '@nuxt/ui'
-import type { RoleSummary } from '@webvue/contracts'
+import type { RoleSummary } from '@liwan/contracts'
 import type { RouteLocationRaw } from 'vue-router'
-import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
 import { builtinRoleDescription } from '@/utils/labelFallback'
 
 // The roles table on SharedDataTable. A row opens the role through `toFor`; clone is the page's call.
@@ -44,7 +44,7 @@ const columns = computed<TableColumn<RoleSummary>[]>(() => [
 </script>
 
 <template>
-  <SharedEmptyState v-if="!loading && !error && !roles.length" class="m-(--webvue-card-pad-dense)" :title="emptyText ?? t('app.noResults')" />
+  <SharedEmptyState v-if="!loading && !error && !roles.length" class="m-(--liwan-card-pad-dense)" :title="emptyText ?? t('app.noResults')" />
   <SharedDataTable
     v-else
     bare

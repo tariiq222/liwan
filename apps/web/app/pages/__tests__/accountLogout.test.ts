@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
 import * as Vue from 'vue'
 import { afterEach, expect, it, vi } from 'vitest'
-import { DEFAULT_STUBS, renderShared } from '@webvue/ui/test/helpers/renderShared'
+import { DEFAULT_STUBS, renderShared } from '@liwan/ui/test/helpers/renderShared'
 import { useAiConversation } from '../../composables/useAiConversation'
 
 afterEach(() => vi.unstubAllGlobals())

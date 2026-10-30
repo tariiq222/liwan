@@ -18,7 +18,7 @@ const currency = computed(() => setup.data.value?.company.currency)
 
 <template>
   <SharedPageState :loading="years.isLoading.value" :error="years.error.value" :empty="!items.length" :empty-text="t('financeGovernance.closing.empty')" @retry="years.refetch">
-    <div class="grid gap-(--webvue-gap-card)">
+    <div class="grid gap-(--liwan-gap-card)">
       <ClosingYears :years="items" :currency="currency" :selected="selected" />
       <ClosingPreview v-if="selected" :year="selected" :currency="currency" />
     </div>

@@ -13,7 +13,7 @@ import {
   type HrPayslipInputsPatch,
   type HrPayslipRow,
   type HrPayslipRowList,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { hrPayrollKeys } from './useHrPayrollCompensation'
 
 type Api = ReturnType<typeof useApi>['$api']

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinanceBankLine } from '@webvue/contracts'
+import type { FinanceBankLine } from '@liwan/contracts'
 import { useDeleteFinanceBankStatement, useUnreconcileFinanceBankLine } from '@/composables/finance/useFinanceBank'
 import { financeErrorMessage } from '../financeErrors'
 import Money from '../invoices/Money.vue'
@@ -61,10 +61,10 @@ const showReconcile = (line: FinanceBankLine) => canReconcile.value && !line.is_
 <template>
   <template v-if="statement">
     <SharedRecordSection variant="list" :title="t('financeBank.linesTitle')" data-testid="finance-bank-lines-panel">
-      <BankStatementEditPanel v-if="record.editing" class="m-(--webvue-card-pad-dense)" :statement="statement" @done="record.editing = false" @cancel="record.editing = false" />
+      <BankStatementEditPanel v-if="record.editing" class="m-(--liwan-card-pad-dense)" :statement="statement" @done="record.editing = false" @cancel="record.editing = false" />
       <SharedInlineConfirm
         v-if="record.deleting"
-        class="m-(--webvue-card-pad-dense)"
+        class="m-(--liwan-card-pad-dense)"
         :title="t('financeBank.delete.confirm', { name: statement.name })"
         :description="t('financeBank.delete.hint')"
         :confirm-label="t('financeBank.delete.action')"
@@ -74,10 +74,10 @@ const showReconcile = (line: FinanceBankLine) => canReconcile.value && !line.is_
         @confirm="confirmDelete"
         @cancel="record.deleting = false"
       />
-      <UAlert v-if="undoError" role="alert" color="error" variant="subtle" class="m-(--webvue-card-pad-dense)" :title="undoError" />
+      <UAlert v-if="undoError" role="alert" color="error" variant="subtle" class="m-(--liwan-card-pad-dense)" :title="undoError" />
       <SharedInlineConfirm
         v-if="undoing"
-        class="m-(--webvue-card-pad-dense)"
+        class="m-(--liwan-card-pad-dense)"
         :title="t('financeBank.undo.confirm', { label: undoing.payment_ref })"
         :description="t('financeBank.undo.hint')"
         :confirm-label="t('financeBank.undo.action')"
@@ -88,7 +88,7 @@ const showReconcile = (line: FinanceBankLine) => canReconcile.value && !line.is_
         @cancel="undoing = null"
       />
       <BankAutoMatch v-if="canReconcile && hasOpenLines" :statement-id="record.id" />
-      <SharedEmptyState v-if="!statement.lines.length" class="m-(--webvue-card-pad-dense)" :title="t('financeBank.noLines')" />
+      <SharedEmptyState v-if="!statement.lines.length" class="m-(--liwan-card-pad-dense)" :title="t('financeBank.noLines')" />
       <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,560px)]">
         <SharedDataTable bare :rows="statement.lines" :columns="columns" row-key="id" :caption="t('financeBank.linesTitle')">
           <template #date-cell="{ row }"><bdi class="tabular-nums">{{ row.original.date }}</bdi></template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CrmImportColumns, CrmImportFile, CrmImportPreview, CrmImportRequest } from '@webvue/contracts'
+import type { CrmImportColumns, CrmImportFile, CrmImportPreview, CrmImportRequest } from '@liwan/contracts'
 import CrmImportMappingStep from './CrmImportMappingStep.vue'
 import CrmImportPreviewStep from './CrmImportPreviewStep.vue'
 import CrmImportUploadStep from './CrmImportUploadStep.vue'
@@ -153,7 +153,7 @@ const submit = () => (step.value === 'mapping' ? toPreview() : step.value === 'p
 </script>
 
 <template>
-  <UForm novalidate :state="{}" class="webvue-form" data-testid="crm-import-flow" @submit="submit">
+  <UForm novalidate :state="{}" class="liwan-form" data-testid="crm-import-flow" @submit="submit">
     <SharedUnsavedChanges :dirty="dirty && !checking" />
     <div class="grid gap-5">
       <div class="grid gap-1">

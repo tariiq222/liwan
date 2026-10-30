@@ -5,7 +5,7 @@ import type { AppManifest } from '../../../modules/types'
 
 const identity = (capabilities: string[], platform?: { readable: string[]; writable?: string[] }) => ({
   role: 'employee',
-  capabilities: ['webvue.internal', ...capabilities],
+  capabilities: ['liwan.internal', ...capabilities],
   ...(platform ? { platform: { readable_features: platform.readable, writable_features: platform.writable ?? platform.readable } } : {}),
 })
 

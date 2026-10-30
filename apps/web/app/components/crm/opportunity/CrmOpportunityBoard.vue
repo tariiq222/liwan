@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
-import type { CrmOpportunity, CrmStage } from '@webvue/contracts'
-import { formatDateTime } from '@webvue/ui/app/utils/formatDate'
+import type { CrmOpportunity, CrmStage } from '@liwan/contracts'
+import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import CrmCallButton from './CrmCallButton.vue'
 import { isCallDue } from '@/utils/crmOpportunity'
 
@@ -22,7 +22,7 @@ const columns = computed<Column[]>(() => {
 </script>
 
 <template>
-  <div class="flex min-h-0 min-w-0 flex-1 gap-3 overflow-x-auto p-(--webvue-card-pad-dense)" data-testid="crm-board">
+  <div class="flex min-h-0 min-w-0 flex-1 gap-3 overflow-x-auto p-(--liwan-card-pad-dense)" data-testid="crm-board">
     <section v-for="column in columns" :key="column.key" class="flex w-72 shrink-0 flex-col gap-2 rounded-card bg-elevated/40 p-2" :data-testid="`crm-board-column-${column.key}`" :aria-label="column.title">
       <header class="flex items-center justify-between gap-2 px-1 py-1">
         <h2 class="truncate text-sm font-semibold text-highlighted">{{ column.title }}</h2>

@@ -20,9 +20,9 @@ SERVER = '''
 import asyncio, os, sys
 import uvicorn
 from langchain_core.messages import HumanMessage
-from webvue_ai_service.service import create_app
-from webvue_ai_service.settings import Settings
-from webvue_ai_service.store import open_state
+from liwan_ai_service.service import create_app
+from liwan_ai_service.settings import Settings
+from liwan_ai_service.store import open_state
 from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call
 class DelayedScript(ScriptedChatModel):
     async def _astream(self, messages, stop=None, run_manager=None, **kwargs):
@@ -72,7 +72,7 @@ async def runtimes():
     isolated = make_conninfo(database_url, options=f"-c search_path={schema}")
     env = {**os.environ, "AI_TEST_DATABASE_URL": isolated, "AI_DATABASE_URL": isolated}
     try:
-        bootstrap = await asyncio.create_subprocess_exec(sys.executable, "-m", "webvue_ai_service.store", "--initialize", env=env,
+        bootstrap = await asyncio.create_subprocess_exec(sys.executable, "-m", "liwan_ai_service.store", "--initialize", env=env,
                                                          stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
         out, err = await asyncio.wait_for(bootstrap.communicate(), 10)
         assert bootstrap.returncode == 0, f"bootstrap exit {bootstrap.returncode}; output bytes {len(out)}/{len(err)}"
@@ -107,7 +107,7 @@ async def runtimes():
 async def test_real_http_processes_keep_one_claim_shared_checkpoint_and_active_stream_drain(runtimes):
     old, new = runtimes
     assert (await old.get("/internal/release/readiness")).status_code == 401
-    incompatible = await old.post("/v1/runs", json=fresh(), headers={**OWNER, "x-webvue-ai-state-version": "future"})
+    incompatible = await old.post("/v1/runs", json=fresh(), headers={**OWNER, "x-liwan-ai-state-version": "future"})
     assert incompatible.status_code == 503
     response = await old.post("/v1/runs", json=fresh(), headers=OWNER)
     run_id = parse_sse(response.text)[0][1]["run_id"]

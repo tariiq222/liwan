@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
+import { statusTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import InboxCatalogItemsSection from '@/components/inbox/InboxCatalogItemsSection.vue'
 import InboxCatalogSettingsForm from '@/components/inbox/InboxCatalogSettingsForm.vue'
 import { CATALOG_STATE_TONE } from '@/composables/inbox/inboxCommerce'

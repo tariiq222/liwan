@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
 import { defineComponent, h, ref } from 'vue'
 import { describe, expect, it } from 'vitest'
-import { renderShared } from '@webvue/ui/test/helpers/renderShared'
+import { renderShared } from '@liwan/ui/test/helpers/renderShared'
 import { ApiError } from '../../composables/useApi'
 import { parsePositiveId } from '../../utils/routeParams'
 import { owningListBack, recordChildTo } from '../../utils/recordListOrigin'
@@ -25,7 +25,7 @@ async function renderRecord(status?: number, source: 'project' | 'milestones' = 
       '@/utils/recordListOrigin': { owningListBack, recordChildTo },
       '@/components/pmo/projects/milestoneState': { milestoneBadge },
       '@/utils/routeParams': { parsePositiveId },
-      '@webvue/ui/app/composables/calendarDate': { formatCalendarDate: () => '' },
+      '@liwan/ui/app/composables/calendarDate': { formatCalendarDate: () => '' },
     },
     stubs: {
       SharedRecordPage: defineComponent({ props: ['title'], setup: props => () => h('section', [h('h2', props.title)]) }),

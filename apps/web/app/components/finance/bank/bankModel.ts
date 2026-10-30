@@ -1,5 +1,5 @@
-import type { FinanceBankLine, FinanceBankStatement, FinanceBankStatementDetail } from '@webvue/contracts'
-import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
+import type { FinanceBankLine, FinanceBankStatement, FinanceBankStatementDetail } from '@liwan/contracts'
+import type { StatusTone } from '@liwan/ui/app/utils/statusTone'
 
 export const BANK_STATEMENTS_PATH = '/finance/bank/statements'
 export const statementPath = (statementId: number) => `${BANK_STATEMENTS_PATH}/${statementId}`

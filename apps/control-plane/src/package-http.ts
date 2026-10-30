@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import type { Pool } from 'pg'
-import type { VendorCapability } from '@webvue/commercial-contracts'
+import type { VendorCapability } from '@liwan/commercial-contracts'
 import { getPackage,listPackages,PackageError } from './packages.js'
 
 /** Returns null only when this route is outside the package resource. */

@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "id": "platform",
-  "name": "webvue Platform",
-  "description": "The composition baseline of the one webvue codebase, as it ships today. Each tier is a module composition label, not a commercial package: names, prices and numeric ceilings are pending decisions D16/D09/D11 and are deliberately absent. A limit feature is included by a tier with its ceiling left to the trusted operator, which matches the shipped default (an absent limit is unbounded).",
+  "name": "liwan Platform",
+  "description": "The composition baseline of the one liwan codebase, as it ships today. Each tier is a module composition label, not a commercial package: names, prices and numeric ceilings are pending decisions D16/D09/D11 and are deliberately absent. A limit feature is included by a tier with its ceiling left to the trusted operator, which matches the shipped default (an absent limit is unbounded).",
   "industry": "none",
-  "base_modules": ["webvue_core", "webvue_platform", "webvue_api"],
+  "base_modules": ["liwan_core", "liwan_platform", "liwan_api"],
   "tiers": [
     {
       "id": "core",
@@ -17,7 +17,7 @@
       "id": "projects",
       "name": "Projects",
       "description": "Adds the project and meeting pillar over the base modules.",
-      "modules": ["webvue_pmo", "webvue_meetings"],
+      "modules": ["liwan_pmo", "liwan_meetings"],
       "features": [
         "boolean:pmo.enabled",
         "boolean:meetings.enabled",
@@ -28,14 +28,14 @@
       "id": "people",
       "name": "People",
       "description": "Adds the HR pillar over the base modules.",
-      "modules": ["webvue_hr"],
+      "modules": ["liwan_hr"],
       "features": ["boolean:hr.enabled"]
     },
     {
       "id": "messaging",
       "name": "Messaging",
       "description": "Adds the member-private chat pillar over the base modules.",
-      "modules": ["webvue_chat"],
+      "modules": ["liwan_chat"],
       "features": ["boolean:chat.enabled"]
     }
   ]

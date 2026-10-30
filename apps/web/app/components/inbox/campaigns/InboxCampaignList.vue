@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { InboxCampaign } from '@webvue/contracts'
-import { formatDateTime } from '@webvue/ui/app/utils/formatDate'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import type { InboxCampaign } from '@liwan/contracts'
+import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import { CAMPAIGN_STATE_TONE, CAMPAIGN_STATES, deliveredPercent } from '@/composables/inbox/inboxCampaignPresentation'
 import {
   CAMPAIGN_PAGE_SIZE, campaignPageOffset, parseCampaignListRoute, serializeCampaignListRoute, type CampaignListRoute,
@@ -78,7 +78,7 @@ const createTo = computed(() => ({ path: '/inbox/campaigns/new', query: route.qu
 
     <SharedPageState :error="list.error.value" :keep-content="items.length > 0" @retry="list.refetch">
       <SharedEmptyState
-        v-if="showEmpty" class="m-(--webvue-card-pad-dense)"
+        v-if="showEmpty" class="m-(--liwan-card-pad-dense)"
         :title="filtered ? t('inbox.campaigns.emptyFiltered') : t('inbox.campaigns.empty')"
         :description="filtered ? undefined : t('inbox.campaigns.emptyHint')" data-testid="inbox-campaigns-empty"
       >

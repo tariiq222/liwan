@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import PartnerProperties from '@/components/finance/PartnerProperties.vue'
-import type { PageHeaderTag } from '@webvue/ui/app/utils/pageHeaderTag'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import type { PageHeaderTag } from '@liwan/ui/app/utils/pageHeaderTag'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
 import { partnerKinds } from '@/composables/finance/financePartnerParams'
 import { useArchiveFinancePartner, useFinancePartner, useUnarchiveFinancePartner } from '@/composables/finance/useFinancePartners'
 

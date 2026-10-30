@@ -1,0 +1,47 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+import re
+
+from odoo import http
+from odoo.exceptions import AccessDenied
+from odoo.http import request
+
+from odoo.addons.liwan_api.controllers.common import ApiError, api_handler
+from odoo.addons.liwan_api.serializers.user import dump_me
+from odoo.addons.liwan_platform.models.entitlement_service import LiwanTenantSuspended
+
+
+class AuthController(http.Controller):
+
+    @http.route('/api/v1/auth/totp', type='json2', auth='public', methods=['POST'], readonly=False)
+    @api_handler
+    def totp(self, code=None):
+        pre_uid = request.session.get('pre_uid')
+        if not pre_uid:
+            raise ApiError(401, 'no_pending_login', "No login is pending two-factor verification")
+
+        try:
+            token = int(re.sub(r'\s', '', str(code or '')))
+        except (TypeError, ValueError):
+            raise ApiError(422, 'invalid_code_format', "Invalid authentication code format")
+
+        # The password step already named this account, so its own environment may read its own
+        # flags; the public one cannot, and would answer a support account with a raw access error.
+        env = request.env(user=pre_uid)
+        user = env['res.users'].browse(pre_uid)
+        service = env['liwan.entitlement.service']
+        try:
+            service._liwan_assert_login_allowed(user)
+        except LiwanTenantSuspended:
+            raise ApiError(403, 'tenant_suspended', 'this tenant is suspended') from None
+        except AccessDenied:
+            raise ApiError(403, 'login_refused', 'this account may not sign in') from None
+        try:
+            with user._assert_can_auth(user=user.id):
+                credentials = {'type': user._mfa_type(), 'token': token}
+                user._check_credentials(credentials, {'interactive': True})
+        except AccessDenied:
+            raise ApiError(401, 'invalid_code', "Verification failed, please double-check the 6-digit code") from None
+
+        request.session.finalize(request.env)
+        request.update_env(user=request.session.uid)
+        return dump_me(request.env.user)

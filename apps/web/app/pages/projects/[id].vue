@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import type { ProjectStatus } from '@webvue/contracts'
-import { statusTag, type PageHeaderTag } from '@webvue/ui/app/utils/pageHeaderTag'
+import type { ProjectStatus } from '@liwan/contracts'
+import { statusTag, type PageHeaderTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import { projectStatusBadge } from '@/composables/projectStatus'
-import { badgeLabel } from '@webvue/ui/app/utils/statusBadge'
+import { badgeLabel } from '@liwan/ui/app/utils/statusBadge'
 import ProjectPhaseStepper from '@/components/pmo/projects/ProjectPhaseStepper.vue'
 import ProjectWorkspaceTabs from '@/components/pmo/projects/workspace/ProjectWorkspaceTabs.vue'
 import { ApiError } from '@/composables/useApi'
 import { activeGovernanceSection, activeProjectSection, projectIdFromPath } from '@/modules/pmo/projectRoutes'
 import { useProject } from '@/composables/useProjects'
 import { projectRecordBack } from '@/utils/projectNavigation'
-import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
+import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 
 const sourcePaths = useRecordListPaths(['/projects', '/projects/dashboard'])
 const route = useRoute()
@@ -86,9 +86,9 @@ provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)
 </script>
 
 <template>
-  <div class="webvue-project-workspace flex flex-col gap-(--webvue-gap-card)">
+  <div class="liwan-project-workspace flex flex-col gap-(--liwan-gap-card)">
     <!-- One compact card like SharedPageHeader (DESIGN.md §4): chip, title and tags, actions, the trail, then the tab strips. Only this card sticks (identity and tabs); the phase stepper is its own card below and scrolls away. -->
-    <SharedPageContainer v-if="showFrame" width="list" class="webvue-workspace-head webvue-print-hide" data-sticky="true" data-testid="project-workspace-frame">
+    <SharedPageContainer v-if="showFrame" width="list" class="liwan-workspace-head liwan-print-hide" data-sticky="true" data-testid="project-workspace-frame">
       <header class="flex flex-col gap-3 rounded-card bg-default px-4 py-3 ring ring-default">
         <div class="flex flex-col gap-0.5" data-testid="project-workspace-identity">
           <template v-if="project">
@@ -122,13 +122,13 @@ provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)
         </div>
         <!-- Tabs follow the hydrated project like the title row, so a first click is a client-side navigation. -->
         <ProjectWorkspaceTabs v-if="project" :project-id="projectId!" :active="project.active" />
-        <USkeleton v-else-if="isLoading || !hydrated" class="h-(--webvue-control-h) w-full max-w-lg rounded-full" />
+        <USkeleton v-else-if="isLoading || !hydrated" class="h-(--liwan-control-h) w-full max-w-lg rounded-full" />
         <!-- Governance and planning sub-sections: a second pill strip inside the same card. -->
         <ProjectWorkspaceTabs v-if="showGovernanceTabs" level="governance" :project-id="projectId!" />
         <ProjectWorkspaceTabs v-if="showPlanningTabs && projectId" :project-id="projectId" :active="project?.active" level="planning" />
       </header>
     </SharedPageContainer>
-    <SharedPageContainer v-if="showFrame && project" width="list" class="webvue-print-hide" data-testid="project-phase-card">
+    <SharedPageContainer v-if="showFrame && project" width="list" class="liwan-print-hide" data-testid="project-phase-card">
       <div class="rounded-card bg-default px-4 py-3 ring ring-default">
         <ProjectPhaseStepper :current="project.phase_state.current" />
       </div>

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
-import type { MeetingDetail } from '@webvue/contracts'
+import type { MeetingDetail } from '@liwan/contracts'
 import { ApiError } from '../useApi'
 
 const meetingAction = vi.hoisted(() => ({ mutateAsync: vi.fn(), isPending: { value: false } }))

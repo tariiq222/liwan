@@ -1,5 +1,5 @@
 import { test, expect, type APIResponse } from '@playwright/test'
-import { FinanceEntrySchema, ProjectDashboardAnalyticsSchema } from '@webvue/contracts'
+import { FinanceEntrySchema, ProjectDashboardAnalyticsSchema } from '@liwan/contracts'
 
 test.skip(process.env.E2E_PHASES_ISOLATED !== '1', 'Requires an explicitly isolated integration runtime')
 

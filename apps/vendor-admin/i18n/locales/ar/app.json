@@ -1,6 +1,6 @@
 {
   "app": {
-    "productName": "ويب فيو",
+    "productName": "ليوان",
     "error": {
       "notFound": "الصفحة غير موجودة",
       "generic": "حدث خطأ غير متوقع",
@@ -20,7 +20,7 @@
     },
     "shell": {
       "header": "رأس لوحة التحكم",
-      "consoleBadge": "لوحة تحكم ويب فيو",
+      "consoleBadge": "لوحة تحكم ليوان",
       "navigation": "التنقل",
       "openMenu": "فتح القائمة",
       "account": "الحساب",

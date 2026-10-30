@@ -1,4 +1,4 @@
-// Part of the isolated UI mock stack: the invited requester's public routes of webvue_appointments (no session). They serve a
+// Part of the isolated UI mock stack: the invited requester's public routes of liwan_appointments (no session). They serve a
 // fixed set of bookings whose access token is `tok-<id>`: 1 pending (no time yet), 2 scheduled and awaiting the requester's
 // confirmation (the company asks for it), 3 confirmed, 4 confirmed but past its change deadline (not modifiable), 5 answers 429 (the service is busy),
 // 6 pending, its slot on day 2 at 07:30Z is taken the moment it is chosen (409), 7 pending with no free slot in the first
@@ -30,7 +30,7 @@ const booking = (id, extra = {}) => ({
   start: null,
   stop: null,
   is_modifiable: true,
-  company_name: 'ويب فيو',
+  company_name: 'ليوان',
   requester: { name: 'سارة العتيبي', phone: '+966500000009', email: 'sara@example.com' },
   ...extra,
 })

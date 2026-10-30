@@ -13,7 +13,7 @@ class ReleaseStateTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name).resolve()
         self.state = ReleaseState(self.root)
-        self.binding = {'tenantId': 'tenant_a', 'database': 'webvue_scratch_release_a', 'filestore': 'webvue_scratch_release_a', 'registryRevision': 1}
+        self.binding = {'tenantId': 'tenant_a', 'database': 'liwan_scratch_release_a', 'filestore': 'liwan_scratch_release_a', 'registryRevision': 1}
         self.route = {'schemaVersion': 1, 'tenantId': 'tenant_a', 'identityRevision': 1, 'routeRevision': 1, 'releaseId': 'r1', 'poolId': 'blue', 'fence': 1, 'state': 'serving'}
         self.state.register(self.binding, self.route)
 

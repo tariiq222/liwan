@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
+import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import type { TableColumn } from '@nuxt/ui'
 import { h } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
-import type { FinanceEntry, FinanceSummary } from '@webvue/contracts'
-import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
-import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
+import type { FinanceEntry, FinanceSummary } from '@liwan/contracts'
+import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
+import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 import { formatMoney } from '@/utils/projectFinance'
 import { recordChildTo } from '@/utils/recordListOrigin'
 
@@ -65,7 +65,7 @@ const dateLabel = (item: FinanceEntry) => (item.expense_date ? formatCalendarDat
       <SharedRowActions :actions="entryActions(row.original)" :label="t('projects.finance.actionsNamed', { name: row.original.title })" />
     </template>
     <template #mobile-row="{ row: item }">
-      <div data-testid="finance-entry-card" class="grid gap-(--webvue-gap-card)">
+      <div data-testid="finance-entry-card" class="grid gap-(--liwan-gap-card)">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <RecordNumber :value="item.reference || item.id" />
@@ -76,7 +76,7 @@ const dateLabel = (item: FinanceEntry) => (item.expense_date ? formatCalendarDat
             <SharedRowActions v-if="canManage" :actions="entryActions(item)" :label="t('projects.finance.actionsNamed', { name: item.title })" />
           </div>
         </div>
-        <dl class="grid grid-cols-2 gap-(--webvue-gap-card) text-xs">
+        <dl class="grid grid-cols-2 gap-(--liwan-gap-card) text-xs">
           <div><dt class="text-muted">{{ t('projects.finance.columns.amount') }}</dt><dd dir="ltr" class="font-semibold tabular-nums text-highlighted">{{ formatMoney(item.amount, summary.currency) }}</dd></div>
           <div><dt class="text-muted">{{ t('projects.finance.columns.date') }}</dt><dd>{{ dateLabel(item) }}</dd></div>
           <div class="col-span-2"><dt class="text-muted">{{ t('projects.finance.columns.budget') }}</dt><dd>{{ budgetLabel(item) }}</dd></div>

@@ -26,7 +26,7 @@ import {
   type FinanceVatSummary,
   type FinanceWithholdingSummary,
   type FinanceZakatBase,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 
 export const REPORT_SLUGS = ['trial-balance', 'general-ledger', 'aged-partner-balance', 'partner-statement', 'vat', 'withholding', 'analytic', 'profit-loss', 'balance-sheet', 'zakat-base', 'budget-vs-actual', 'cash-flow', 'vat-return'] as const
 export type ReportSlug = (typeof REPORT_SLUGS)[number]

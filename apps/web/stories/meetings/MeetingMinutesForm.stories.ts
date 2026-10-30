@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { ref } from 'vue'
 import MeetingMinutesForm from '../../app/components/meetings/MeetingMinutesForm.vue'
-import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
+import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
 const meeting = {
@@ -45,7 +45,7 @@ type Story = StoryObj<typeof meta>
 const render: Story['render'] = args => ({
   components: { MeetingMinutesForm, PageContainer },
   setup: () => ({ args, value: ref(args.modelValue) }),
-  template: '<main class="webvue-shell-main"><PageContainer width="form"><MeetingMinutesForm v-model="value" :meeting="args.meeting" :recommendations="args.recommendations" :legacy-agenda="args.legacyAgenda" :readonly="args.readonly" :pending="args.pending" /></PageContainer></main>',
+  template: '<main class="liwan-shell-main"><PageContainer width="form"><MeetingMinutesForm v-model="value" :meeting="args.meeting" :recommendations="args.recommendations" :legacy-agenda="args.legacyAgenda" :readonly="args.readonly" :pending="args.pending" /></PageContainer></main>',
 })
 
 export const Populated: Story = {

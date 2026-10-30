@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { MeetingListItem } from '@webvue/contracts'
+import type { MeetingListItem } from '@liwan/contracts'
 import { refDebounced } from '@vueuse/core'
-import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
-import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
-import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
+import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
+import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
+import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
-import { formatCalendarDate, formatWebVueTime } from '@webvue/ui/app/composables/calendarDate'
+import { formatCalendarDate, formatLiwanTime } from '@liwan/ui/app/composables/calendarDate'
 import { useMeetingListQuerySync } from '@/composables/useMeetingListQuerySync'
 import { usePeople } from '@/composables/usePeople'
 import { useMeetings } from '@/composables/useMeetings'
 import { useMeetingListKpis } from '@/composables/useMeetingKpis'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { meetingStateBadgeProps } from '@/utils/meetingStatus'
 import { clearMeetingListFilters, meetingDateRange, parseMeetingListFilters, patchMeetingListQuery, type MeetingFilterKey, type MeetingFilterPatch } from '@/utils/meetingListFilters'
@@ -63,7 +63,7 @@ const { isCurrentList, currentListQuery, liveListQuery, liveReturnTo, replaceLis
     dateFrom.value = next.dateFrom
     dateTo.value = next.dateTo
   },
-  onNavigationStart: handler => useNuxtApp().hook('webvue:navigation:start', handler),
+  onNavigationStart: handler => useNuxtApp().hook('liwan:navigation:start', handler),
 })
 function openRecord(event: MouseEvent, record: { id: number }) {
   if (!hydrated.value || !isCurrentList() || !isPlainClick(event)) return
@@ -153,7 +153,7 @@ function localTime(value: string | null) {
   if (!value) return ''
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return formatLocalDateTime(value)
-  return hydrated.value ? formatWebVueTime(parsed, locale.value) : ''
+  return hydrated.value ? formatLiwanTime(parsed, locale.value) : ''
 }
 
 function meetingRecordNumber(meeting: { reference: string; id: number }) {
@@ -314,7 +314,7 @@ function setPage(next: number) {
         </FilterBar>
       </template>
 
-      <UAlert v-if="invalidDateRange" class="m-(--webvue-card-pad-dense)" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="dateValidation.reversed ? t('meetingsFilters.reversedDates') : t('meetingsFilters.invalidDate')" />
+      <UAlert v-if="invalidDateRange" class="m-(--liwan-card-pad-dense)" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="dateValidation.reversed ? t('meetingsFilters.reversedDates') : t('meetingsFilters.invalidDate')" />
       <SharedDataTable
         v-else
         bare

@@ -1,6 +1,6 @@
 import { activeManifests, appManifests, manifestForPath, settingsPartForPath } from './manifests'
 
-const NOTIFICATION_ACCESS = 'webvue.notifications'
+const NOTIFICATION_ACCESS = 'liwan.notifications'
 
 export type TenantIdentity = {
   role?: string
@@ -25,7 +25,7 @@ export const MODULE_FEATURES: Record<string, string | null | undefined> = {
 /**
  * A capability's application feature is `<first segment>.enabled` (pmo, meetings, hr and any
  * newer application). An application manifest lists its exceptions in `capabilityAliases`
- * (chat's capability is `webvue.internal`); the foundation (`access`, `settings`, `webvue`) and the
+ * (chat's capability is `liwan.internal`); the foundation (`access`, `settings`, `liwan`) and the
  * customer subscription prefixes belong to no application feature.
  */
 function aliasedFeature(capability: string): string | undefined {
@@ -36,7 +36,7 @@ function aliasedFeature(capability: string): string | undefined {
   return undefined
 }
 // Any unknown dotted prefix is gated by `<prefix>.enabled`, so a new foundation-like prefix must be added here.
-const FEATURELESS_PREFIXES: ReadonlySet<string> = new Set(['access', 'settings', 'webvue', 'subscription', 'billing', 'branches'])
+const FEATURELESS_PREFIXES: ReadonlySet<string> = new Set(['access', 'settings', 'liwan', 'subscription', 'billing', 'branches'])
 
 export function featureGateActive(identity: TenantIdentity): boolean {
   return Boolean(identity && (identity.modules || identity.entitlements || identity.platform))
@@ -52,7 +52,7 @@ export function featureForCapability(capability: string): string | null {
 }
 
 export function isWriteCapability(capability: string): boolean {
-  // An aliased capability (chat's `webvue.internal`) only opens its application for reading.
+  // An aliased capability (chat's `liwan.internal`) only opens its application for reading.
   if (aliasedFeature(capability)) return false
   return capability.slice(capability.lastIndexOf('.') + 1) !== 'read'
 }

@@ -2,7 +2,7 @@
 // Run the agentic e2e runner against an isolated stack and a private Nuxt dev
 // server on free ports. E2E_STACK=mock (default) uses the repo mock API;
 // E2E_STACK=odoo uses a real scratch Odoo on the fixed database
-// `webvue_scratch_e2e`. Never touches :3000, :8069 or the dev `odoo19` database.
+// `liwan_scratch_e2e`. Never touches :3000, :8069 or the dev `odoo19` database.
 // All CLI args are forwarded to `npx e2e run` (or `explore` with E2E_COMMAND=explore).
 import { spawn, spawnSync } from 'node:child_process'
 import { createServer } from 'node:net'
@@ -14,8 +14,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const WEB = join(ROOT, 'apps', 'web')
 const LOG_DIR = join(ROOT, '.e2e', 'logs')
 const FORBIDDEN_PORTS = new Set(['3000', '8069'])
-const MOCK_DB = 'webvue_ui_mock_only'
-export const SCRATCH_DB = 'webvue_scratch_e2e'
+const MOCK_DB = 'liwan_ui_mock_only'
+export const SCRATCH_DB = 'liwan_scratch_e2e'
 const ODOO_ROOT = process.env.E2E_ODOO_ROOT || '/Users/tariq/code/odoo'
 const ODOO_DIR = join(ROOT, '.e2e', 'odoo')
 const REPORT_FILE = join(ROOT, '.e2e', 'report.json')
@@ -246,7 +246,7 @@ function prepareOdoo({ port, pg, env }) {
   rmSync(classification, { force: true })
   const fixture = spawnSync('python3', ['-B', 'deploy/classification.py', 'fixture', '--database', db, '--mode', 'saas', '--output', classification], { cwd: ROOT, encoding: 'utf8' })
   if (fixture.status !== 0) throw new Error(`classification fixture failed: ${fixture.stderr}`)
-  const odooEnv = { ...env, PYTHONDONTWRITEBYTECODE: '1', WEBVUE_COMMERCIAL_CONFIG: classification, PGHOST: pg.host, PGPORT: pg.port, PGUSER: pg.user }
+  const odooEnv = { ...env, PYTHONDONTWRITEBYTECODE: '1', LIWAN_COMMERCIAL_CONFIG: classification, PGHOST: pg.host, PGPORT: pg.port, PGUSER: pg.user }
   const python = join(ODOO_ROOT, '.venv', 'bin', 'python')
   const bin = join(ODOO_ROOT, 'odoo-bin')
   if (!existsSync(bin)) throw new Error(`Odoo checkout not found at ${ODOO_ROOT}`)

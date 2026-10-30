@@ -1,5 +1,5 @@
 # Edge block for the vendor admin host. Add it next to the customer block of deploy/Caddyfile (or import it); it changes no
-# existing block. The BFF in apps/vendor-admin signs every call to the control plane and overwrites x-webvue-client-ip itself.
+# existing block. The BFF in apps/vendor-admin signs every call to the control plane and overwrites x-liwan-client-ip itself.
 {$ADMIN_DOMAIN} {
 	encode zstd gzip
 
@@ -24,14 +24,14 @@
 
 	route {
 		rate_limit {
-			zone webvue_admin {
+			zone liwan_admin {
 				key {remote_host}
 				events 120
 				window 1m
 				ipv6_prefix 64
 			}
 			# Sign-in, enrollment and step-up: same budget as the customer auth zone in deploy/Caddyfile.
-			zone webvue_admin_auth {
+			zone liwan_admin_auth {
 				match {
 					path /api/auth/* /api/vendor/v1/admin/auth/*
 				}

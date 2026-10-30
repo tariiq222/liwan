@@ -1,4 +1,4 @@
-import { HrLeaveBellRowSchema, type HrLeaveBellRow } from '@webvue/contracts'
+import { HrLeaveBellRowSchema, type HrLeaveBellRow } from '@liwan/contracts'
 
 type Translate = (key: string, named?: Record<string, unknown>) => string
 

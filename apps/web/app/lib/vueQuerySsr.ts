@@ -12,8 +12,8 @@ export type SerializedDehydratedState = Omit<DehydratedState, 'queries'> & {
   })[]
 }
 
-const API_ERROR_MARKER = '__webvue_api_error__'
-const ERROR_MARKER = '__webvue_error__'
+const API_ERROR_MARKER = '__liwan_api_error__'
+const ERROR_MARKER = '__liwan_error__'
 
 /**
  * Wait for the queries that a component started during SSR.

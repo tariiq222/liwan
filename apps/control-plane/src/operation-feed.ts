@@ -1,4 +1,4 @@
-import { restorePublicationSchema } from '@webvue/commercial-contracts'
+import { restorePublicationSchema } from '@liwan/commercial-contracts'
 import type { Pool } from 'pg'
 
 // This is a read projection only. Never copy shared jobs into the legacy queue.

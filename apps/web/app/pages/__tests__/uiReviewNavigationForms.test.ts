@@ -9,7 +9,7 @@ import * as Vue from 'vue'
 import ts from 'typescript'
 import { createMemoryHistory, createRouter, type RouteLocationRaw } from 'vue-router'
 import { describe, expect, it, vi } from 'vitest'
-import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import { activeProjectSection, activeGovernanceSection, projectIdFromPath } from '../../modules/pmo/projectRoutes'
 
 const projectTasks = 'projects/[id]/tasks.vue'

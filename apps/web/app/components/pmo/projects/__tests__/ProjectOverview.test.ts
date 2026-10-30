@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
 import { ref, defineComponent, h } from 'vue'
 import { describe, expect, it } from 'vitest'
-import { renderShared } from '@webvue/ui/test/helpers/renderShared'
+import { renderShared } from '@liwan/ui/test/helpers/renderShared'
 
 async function overview(state: { data?: unknown[]; loading?: boolean; error?: Error; canReadTasks?: boolean; active?: boolean }) {
   const canReadTasks = state.canReadTasks ?? true
@@ -10,10 +10,10 @@ async function overview(state: { data?: unknown[]; loading?: boolean; error?: Er
     modules: {
       '@/composables/useMilestones': { useMilestones: () => ({ data: ref(state.data), isLoading: ref(!!state.loading), error: ref(state.error), refetch: () => {} }) },
       '@/composables/useProjectUpdates': { useProjectUpdates: () => ({ data: ref([]), isLoading: ref(false), error: ref(null) }) },
-      '@webvue/ui/app/composables/calendarDate': { formatCalendarDate: (value: string) => value },
+      '@liwan/ui/app/composables/calendarDate': { formatCalendarDate: (value: string) => value },
       '@/composables/projectPhase': { isGateAction: () => false },
       '@/composables/projectStatus': { projectStatusBadge: () => ({ tone: 'neutral' }) },
-      '@webvue/ui/app/utils/statusBadge': { badgeLabel: () => '' },
+      '@liwan/ui/app/utils/statusBadge': { badgeLabel: () => '' },
       './ProjectOverviewTasks.vue': { __esModule: true, default: { render: () => h('section', { 'data-testid': 'attention' }) } },
     },
     stubs: { SharedMetricTile: defineComponent({ props: ['label','value','hint'], setup: props => () => h('div', `${props.label} ${props.value ?? ''} ${props.hint ?? ''}`) }) },

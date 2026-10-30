@@ -24,7 +24,7 @@ class FencingTests(unittest.TestCase):
         self.root = Path(self.temp.name).resolve()
         self.binding = {'tenantId': 'tenant_a', 'registryRevision': 4, 'database': 'tenant_a'}
         (self.root / 'tenant_a.json').write_text(json.dumps(route()))
-        self.env = patch.dict(os.environ, {'WEBVUE_RELEASE_ROUTES_DIR': str(self.root)})
+        self.env = patch.dict(os.environ, {'LIWAN_RELEASE_ROUTES_DIR': str(self.root)})
         self.env.start(); self.addCleanup(self.env.stop)
 
     def test_lease_lives_through_real_subprocess_and_records_release_fence(self):
@@ -111,12 +111,12 @@ class FencingTests(unittest.TestCase):
         (self.root / 'tenant_a.json').symlink_to(self.root / 'elsewhere')
         with self.assertRaises(fencing.ReleaseOperationError):
             with fencing.tenant_operation(self.binding, 'observe'): pass
-        with patch.dict(os.environ, {'WEBVUE_RELEASE_ROUTES_DIR': ''}), self.assertRaises(fencing.ReleaseOperationError):
+        with patch.dict(os.environ, {'LIWAN_RELEASE_ROUTES_DIR': ''}), self.assertRaises(fencing.ReleaseOperationError):
             with fencing.tenant_operation(self.binding, 'observe'): pass
 
     def test_unconfigured_legacy_path_needs_no_release_binding(self):
         with patch.dict(os.environ):
-            del os.environ['WEBVUE_RELEASE_ROUTES_DIR']
+            del os.environ['LIWAN_RELEASE_ROUTES_DIR']
             with fencing.tenant_operation({}, 'observe') as lease: self.assertIsNone(lease)
 
 

@@ -8,16 +8,16 @@ const items = computed(() => data.value?.items ?? [])
 </script>
 
 <template>
-  <SharedRecordSection id="auto-messages" variant="list" class="webvue-settings-anchor" :title="t('inbox.automation.messages.title')" :description="t('inbox.automation.messages.hint')">
+  <SharedRecordSection id="auto-messages" variant="list" class="liwan-settings-anchor" :title="t('inbox.automation.messages.title')" :description="t('inbox.automation.messages.hint')">
     <SharedLoadingSkeleton v-if="isLoading" class="m-4" />
     <SharedPageState v-else-if="error" class="m-4" :error="error" @retry="refetch()" />
-    <p v-else-if="!items.length" class="px-(--webvue-card-pad) py-4 text-sm text-muted">{{ t('inbox.settings.channels.empty') }}</p>
+    <p v-else-if="!items.length" class="px-(--liwan-card-pad) py-4 text-sm text-muted">{{ t('inbox.settings.channels.empty') }}</p>
     <NuxtLink
       v-for="channel in items"
       v-else
       :key="channel.id"
       :to="`/settings/apps/inbox/auto-messages/${channel.id}`"
-      class="flex items-center justify-between gap-3 px-(--webvue-card-pad) py-3 text-start transition-colors duration-150 hover:bg-(--webvue-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+      class="flex items-center justify-between gap-3 px-(--liwan-card-pad) py-3 text-start transition-colors duration-150 hover:bg-(--liwan-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
       :data-testid="`inbox-auto-messages-${channel.id}`"
     >
       <span class="flex min-w-0 items-center gap-3">

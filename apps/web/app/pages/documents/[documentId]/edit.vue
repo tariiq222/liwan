@@ -30,16 +30,16 @@ async function save() {
     <SharedPageHeader :title="t('documents.edit')" :back-to="backTo" />
     <SharedPageState :loading="query.isLoading.value" :error="pageError" @retry="query.refetch">
       <SharedForbiddenState v-if="document && !document.allowed_actions.update" />
-      <UForm v-else-if="document" :state="draft" class="webvue-form" @submit="save">
+      <UForm v-else-if="document" :state="draft" class="liwan-form" @submit="save">
         <SharedUnsavedChanges :dirty="draft.isDirty() || update.isPending.value" />
         <UAlert v-if="error" color="error" variant="subtle" :title="error" />
         <UAlert v-if="conflict" color="warning" :title="t('documents.conflict')" :description="t('documents.conflictHelp')"><template #actions><UButton type="button" color="neutral" :label="t('documents.reload')" :disabled="!hydrated || query.isFetching.value" @click="reload" /></template></UAlert>
-        <SharedFormSection panel :title="t('documents.documentInfo')"><div class="grid gap-(--webvue-gap-card)">
+        <SharedFormSection panel :title="t('documents.documentInfo')"><div class="grid gap-(--liwan-gap-card)">
           <UFormField :label="t('documents.columns.name')" name="document-name" required :error="titleError"><UInput id="document-name" v-model="draft.name" class="w-full" :disabled="!hydrated || update.isPending.value" /></UFormField>
           <UFormField :label="t('documents.body')" name="document-body" :help="t('documents.bodyHelp')"><DocumentEditor :key="`${draft.id}:${draft.revision}`" v-model="draft.body" :document-id="id" :debounce="false" :disabled="!hydrated || update.isPending.value" /></UFormField>
 
         </div></SharedFormSection>
-        <SharedFormSection panel :title="t('documents.optionalDetails')" :description="t('documents.optionalDetailsHelp')"><div class="grid gap-(--webvue-gap-card)">
+        <SharedFormSection panel :title="t('documents.optionalDetails')" :description="t('documents.optionalDetailsHelp')"><div class="grid gap-(--liwan-gap-card)">
           <DocumentMetadataFields :known-tags="document.tags" :known-context="document.context" v-model:expiry="draft.expiry_date" v-model:context="draft.context" v-model:tags="draft.tag_ids" :disabled="update.isPending.value" />
         </div></SharedFormSection>
         <p class="text-sm text-muted">{{ t('documents.editFilesHelp') }}</p>

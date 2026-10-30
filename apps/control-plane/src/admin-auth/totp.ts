@@ -20,4 +20,4 @@ export function checkTotp(secret: Buffer, code: string, nowMs: number, lastStep:
   return null
 }
 export const totpUri = (secret: Buffer, email: string): string =>
-  `otpauth://totp/${encodeURIComponent(`WebVue:${email}`)}?secret=${base32(secret).toUpperCase()}&issuer=WebVue&algorithm=SHA1&digits=6&period=30`
+  `otpauth://totp/${encodeURIComponent(`LiwanOS:${email}`)}?secret=${base32(secret).toUpperCase()}&issuer=LiwanOS&algorithm=SHA1&digits=6&period=30`

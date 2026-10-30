@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BranchStrictness } from '@webvue/contracts'
+import type { BranchStrictness } from '@liwan/contracts'
 import { useSettingsForm } from '@/composables/settings/useSettingsForm'
 import { useUpdateBranchStrictness } from '@/composables/useBranchStrictness'
 

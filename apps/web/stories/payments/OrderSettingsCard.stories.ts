@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { http, HttpResponse, delay } from 'msw'
-import type { PaymentSettings } from '@webvue/contracts'
+import type { PaymentSettings } from '@liwan/contracts'
 import OrderSettingsCard from '../../app/components/payments/OrderSettingsCard.vue'
 import { me } from '../fixtures/pmo'
 import { storyContext } from '../support/context'

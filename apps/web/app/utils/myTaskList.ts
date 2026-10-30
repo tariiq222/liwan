@@ -1,5 +1,5 @@
 import type { LocationQuery, LocationQueryRaw } from 'vue-router'
-import type { PersonalTaskState } from '@webvue/contracts'
+import type { PersonalTaskState } from '@liwan/contracts'
 import type { MyTaskListParams } from '@/composables/useMyTasks'
 import { firstQuery } from './routeQuery'
 

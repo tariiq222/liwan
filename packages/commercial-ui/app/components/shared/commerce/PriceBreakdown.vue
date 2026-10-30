@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Quote } from '@webvue/commercial-contracts'
+import type { Quote } from '@liwan/commercial-contracts'
 import type { InvoiceLineView } from '../../../utils/invoiceLines'
 import { cadenceLabel, formatCommercialMoney, quoteLinesByTiming } from '../../../utils/commercial'
 const props = defineProps<{ quote?: Quote | null; pending?: boolean; error?: string; includedExtraBranches?: number; hqIncluded?: boolean }>()

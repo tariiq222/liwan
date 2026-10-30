@@ -1,0 +1,17 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_liwan_crm_settings_reader,liwan.crm.settings.reader,model_liwan_crm_settings,group_cap_crm_leads_read,1,0,0,0
+access_liwan_crm_settings_settings_reader,liwan.crm.settings.settings_reader,model_liwan_crm_settings,group_cap_crm_settings_read,1,0,0,0
+access_liwan_crm_settings_manager,liwan.crm.settings.manager,model_liwan_crm_settings,group_cap_crm_settings_manage,1,1,1,0
+access_liwan_crm_call_outcome_leads_reader,liwan.crm.call.outcome.leads_reader,model_liwan_crm_call_outcome,group_cap_crm_leads_read,1,0,0,0
+access_liwan_crm_call_outcome_settings_reader,liwan.crm.call.outcome.settings_reader,model_liwan_crm_call_outcome,group_cap_crm_settings_read,1,0,0,0
+access_liwan_crm_call_outcome_manager,liwan.crm.call.outcome.manager,model_liwan_crm_call_outcome,group_cap_crm_settings_manage,1,1,1,0
+access_liwan_crm_stage_manager,crm.stage.crm_settings_manager,crm.model_crm_stage,group_cap_crm_settings_manage,1,1,1,0
+access_liwan_crm_lost_reason_manager,crm.lost.reason.crm_settings_manager,crm.model_crm_lost_reason,group_cap_crm_settings_manage,1,1,1,0
+access_liwan_crm_product_template_manager,product.template.crm_settings_manager,product.model_product_template,group_cap_crm_settings_manage,1,1,1,0
+access_liwan_crm_product_product_manager,product.product.crm_settings_manager,product.model_product_product,group_cap_crm_settings_manage,1,1,1,0
+access_liwan_crm_rotation_worker,liwan.crm.rotation.worker,model_liwan_crm_rotation,group_cap_crm_leads_work,1,1,1,0
+access_liwan_crm_rotation_assigner,liwan.crm.rotation.assigner,model_liwan_crm_rotation,group_cap_crm_leads_assign,1,1,1,0
+access_liwan_crm_view_log_auditor,liwan.crm.view.log.auditor,model_liwan_crm_view_log,group_cap_crm_audit_read,1,0,0,0
+access_liwan_crm_view_log_reader,liwan.crm.view.log.reader,model_liwan_crm_view_log,group_cap_crm_leads_read,0,0,1,0
+access_liwan_crm_import_batch_importer,liwan.crm.import.batch.importer,model_liwan_crm_import_batch,group_cap_crm_leads_import,1,1,1,0
+access_liwan_crm_import_mapping_importer,liwan.crm.import.mapping.importer,model_liwan_crm_import_mapping,group_cap_crm_leads_import,1,0,1,1

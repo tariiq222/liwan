@@ -1,4 +1,4 @@
-import type { ProjectPhaseState } from '@webvue/contracts'
+import type { ProjectPhaseState } from '@liwan/contracts'
 import { describe, expect, it } from 'vitest'
 import { canMoveForward, gateCheckRows, isGateAction, isGateCardVisible, isWarningGate, unmetWarnings, phaseFailure, phaseNumber, phaseSteps, UNKNOWN_CHECK_KEY } from '../projectPhase'
 

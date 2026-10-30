@@ -26,7 +26,7 @@ available locally, matching the restore-drill stage, `deploy/ci/restore-drill.sh
     python3 -B deploy/rpo_rto_drill.py \
         --odoo-root /Users/tariq/code/odoo \
         --repeat 2 \
-        --output-dir /tmp/webvue-rpo-rto-drill-<date>
+        --output-dir /tmp/liwan-rpo-rto-drill-<date>
 
 Never run against `odoo19` or any non-scratch database; the script enforces
 the same forbidden-name guard as `deploy/backup.py`.
@@ -53,18 +53,18 @@ FORBIDDEN_DB = {'odoo19', 'production', 'prod', 'postgres', 'template0', 'templa
 
 SEED_SCRIPT = '''
 import os
-DB_GUARD = os.environ["WEBVUE_DRILL_DB"]
+DB_GUARD = os.environ["LIWAN_DRILL_DB"]
 if env.cr.dbname != DB_GUARD:  # noqa: F821
     raise SystemExit(f"rpo_rto_drill refuses database {env.cr.dbname!r}")  # noqa: F821
 
-n_employees = int(os.environ.get("WEBVUE_DRILL_EMPLOYEES", "40"))
-n_projects = int(os.environ.get("WEBVUE_DRILL_PROJECTS", "15"))
-tasks_per_project = int(os.environ.get("WEBVUE_DRILL_TASKS_PER_PROJECT", "40"))
-attachments_per_task = int(os.environ.get("WEBVUE_DRILL_ATTACHMENTS_PER_TASK", "1"))
-attachment_kib = int(os.environ.get("WEBVUE_DRILL_ATTACHMENT_KIB", "64"))
+n_employees = int(os.environ.get("LIWAN_DRILL_EMPLOYEES", "40"))
+n_projects = int(os.environ.get("LIWAN_DRILL_PROJECTS", "15"))
+tasks_per_project = int(os.environ.get("LIWAN_DRILL_TASKS_PER_PROJECT", "40"))
+attachments_per_task = int(os.environ.get("LIWAN_DRILL_ATTACHMENTS_PER_TASK", "1"))
+attachment_kib = int(os.environ.get("LIWAN_DRILL_ATTACHMENT_KIB", "64"))
 
-registry = env["webvue.feature.registry"]  # noqa: F821
-env["webvue.tenant.profile"]._webvue_initialize_legacy_policy(registry._webvue_installed_module_ids())  # noqa: F821
+registry = env["liwan.feature.registry"]  # noqa: F821
+env["liwan.tenant.profile"]._liwan_initialize_legacy_policy(registry._liwan_installed_module_ids())  # noqa: F821
 env.cr.commit()  # noqa: F821
 
 Users = env["res.users"].with_context(no_reset_password=True, tracking_disable=True)  # noqa: F821
@@ -74,8 +74,8 @@ Tasks = env["project.task"].with_context(tracking_disable=True)  # noqa: F821
 Attachments = env["ir.attachment"].with_context(tracking_disable=True)  # noqa: F821
 
 company = env.company  # noqa: F821
-manager_group = env.ref("webvue_pmo.group_pmo_manager")  # noqa: F821
-employee_group = env.ref("webvue_core.group_employee")  # noqa: F821
+manager_group = env.ref("liwan_pmo.group_pmo_manager")  # noqa: F821
+employee_group = env.ref("liwan_core.group_employee")  # noqa: F821
 
 user_ids = []
 for i in range(n_employees):
@@ -85,7 +85,7 @@ for i in range(n_employees):
         "name": f"Drill Employee {i:04d}",
         "email": f"{login}@drill.test",
         "group_ids": [(6, 0, [manager_group.id if i == 0 else employee_group.id])],
-        "password": "webvue-drill-2026",
+        "password": "liwan-drill-2026",
     }
     if not user:
         user = Users.create({**vals, "login": login})
@@ -140,7 +140,7 @@ print("DRILL_SEED_COUNTS=" + __import__("json").dumps(counts))  # noqa: T201
 
 VERIFY_SCRIPT = '''
 import os
-DB_GUARD = os.environ["WEBVUE_DRILL_DB"]
+DB_GUARD = os.environ["LIWAN_DRILL_DB"]
 if env.cr.dbname != DB_GUARD:  # noqa: F821
     raise SystemExit(f"rpo_rto_drill refuses database {env.cr.dbname!r}")  # noqa: F821
 counts = {
@@ -265,7 +265,7 @@ def run_shell(cfg: DrillConfig, db: str, data_dir: Path, script: str, extra_env:
 def install_release(cfg: DrillConfig, db: str, data_dir: Path, modules: str, classification_path: Path) -> None:
     env = dict(os.environ)
     env['PGPASSWORD'] = cfg.pg_password
-    env['WEBVUE_COMMERCIAL_CONFIG'] = str(classification_path)
+    env['LIWAN_COMMERCIAL_CONFIG'] = str(classification_path)
     run(
         [
             str(odoo_python(cfg)), str(odoo_bin(cfg)),
@@ -283,9 +283,9 @@ def boot_odoo(cfg: DrillConfig, db: str, data_dir: Path, log_path: Path,
     env = dict(os.environ)
     env['PGPASSWORD'] = cfg.pg_password
     if classification_path is not None:
-        env['WEBVUE_COMMERCIAL_CONFIG'] = str(classification_path)
+        env['LIWAN_COMMERCIAL_CONFIG'] = str(classification_path)
     else:
-        env.pop('WEBVUE_COMMERCIAL_CONFIG', None)
+        env.pop('LIWAN_COMMERCIAL_CONFIG', None)
     log_fh = log_path.open('wb')
     proc = subprocess.Popen(
         [
@@ -345,12 +345,12 @@ def run_drill(cfg: DrillConfig) -> dict:
         f'{cfg.tasks_per_project} tasks/project, {cfg.attachments_per_task} attachment(s)/task @ '
         f'{cfg.attachment_kib} KiB')
     seed_out = run_shell(cfg, cfg.db, data_dir, SEED_SCRIPT, {
-        'WEBVUE_DRILL_DB': cfg.db,
-        'WEBVUE_DRILL_EMPLOYEES': str(cfg.employees),
-        'WEBVUE_DRILL_PROJECTS': str(cfg.projects),
-        'WEBVUE_DRILL_TASKS_PER_PROJECT': str(cfg.tasks_per_project),
-        'WEBVUE_DRILL_ATTACHMENTS_PER_TASK': str(cfg.attachments_per_task),
-        'WEBVUE_DRILL_ATTACHMENT_KIB': str(cfg.attachment_kib),
+        'LIWAN_DRILL_DB': cfg.db,
+        'LIWAN_DRILL_EMPLOYEES': str(cfg.employees),
+        'LIWAN_DRILL_PROJECTS': str(cfg.projects),
+        'LIWAN_DRILL_TASKS_PER_PROJECT': str(cfg.tasks_per_project),
+        'LIWAN_DRILL_ATTACHMENTS_PER_TASK': str(cfg.attachments_per_task),
+        'LIWAN_DRILL_ATTACHMENT_KIB': str(cfg.attachment_kib),
     })
     seeded_counts = parse_counts(seed_out, 'DRILL_SEED_COUNTS=')
     log(f'seeded: {seeded_counts}')
@@ -411,7 +411,7 @@ def run_drill(cfg: DrillConfig) -> dict:
         wait_for_health(cfg.http_port, cfg.boot_timeout_s)
         boot_ready_t = time.monotonic()
         verify_out = run_shell(cfg, cfg.restored_db, restored_dir, VERIFY_SCRIPT, {
-            'WEBVUE_DRILL_DB': cfg.restored_db,
+            'LIWAN_DRILL_DB': cfg.restored_db,
         })
     finally:
         stop_proc(proc)
@@ -463,8 +463,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument('--pg-host', default='127.0.0.1')
     parser.add_argument('--pg-user', default='odoo')
     parser.add_argument('--pg-password', default='odoo')
-    parser.add_argument('--db', default='webvue_rpo_rto_drill_scratch_src')
-    parser.add_argument('--restored-db', default='webvue_rpo_rto_drill_scratch_restored')
+    parser.add_argument('--db', default='liwan_rpo_rto_drill_scratch_src')
+    parser.add_argument('--restored-db', default='liwan_rpo_rto_drill_scratch_restored')
     parser.add_argument('--employees', type=int, default=40)
     parser.add_argument('--projects', type=int, default=15)
     parser.add_argument('--tasks-per-project', type=int, default=40)

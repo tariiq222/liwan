@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
+import { statusTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import { TEMPLATE_CATEGORY_TONE, TEMPLATE_STATUS_TONE, templatesRoute } from '@/composables/inbox/inboxTemplate'
 import { useDeleteInboxTemplate, useInboxTemplate } from '@/composables/inbox/useInboxSettings'
 

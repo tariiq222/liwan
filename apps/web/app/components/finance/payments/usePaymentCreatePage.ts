@@ -1,4 +1,4 @@
-import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import { PAYMENTS_PATH, prefilledInvoiceIds } from './paymentModel'
 import { usePaymentListPage } from './usePaymentListPage'
 

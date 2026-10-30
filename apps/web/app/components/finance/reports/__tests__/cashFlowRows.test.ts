@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { FinanceCashFlow } from '@webvue/contracts'
+import type { FinanceCashFlow } from '@liwan/contracts'
 import { cashFlowRows, vatReturnCells } from '../reportRows'
 
 const report: FinanceCashFlow = {

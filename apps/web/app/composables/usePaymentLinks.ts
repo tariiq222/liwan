@@ -1,6 +1,6 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useMutation } from '@tanstack/vue-query'
-import { PaymentLinkSchema } from '@webvue/contracts'
+import { PaymentLinkSchema } from '@liwan/contracts'
 import { ApiError } from './useApi'
 import { canReach } from '@/utils/accessPolicy'
 import { canUse, hasFeature } from '@/modules/registry'

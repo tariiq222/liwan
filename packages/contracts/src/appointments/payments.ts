@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { RefundRulesSchema, RefundTiersSchema } from '../payments'
 
 /**
- * How a booking type is paid online (the `webvue_appointments_payments` bridge, behind
+ * How a booking type is paid online (the `liwan_appointments_payments` bridge, behind
  * `payments.enabled`): not at all, in full, or a deposit of `deposit_percent` of the price. `price` is
  * the list price of the type's own product, before taxes, in `currency`; null until it is first set.
  * The refund rules are its product's (`RefundRulesSchema`): the defaults until it has a price.

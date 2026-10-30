@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { subscriptionStateBadge } from '@/utils/subscription'
-import { subscriptionDisplayState } from '@webvue/commercial-contracts'
-import { formatDate } from '@webvue/ui/app/utils/formatDate'
+import { subscriptionDisplayState } from '@liwan/commercial-contracts'
+import { formatDate } from '@liwan/ui/app/utils/formatDate'
 import { formatSubscriptionMoney, refusalCode, refusalKey, safePaymentRedirect, trialDaysRemaining } from '@/utils/subscription'
-import { entitledFeaturePrefixes } from '@webvue/commercial-ui/app/utils/entitlementApps'
-import { humanizeId } from '@webvue/ui/app/utils/humanizeId'
+import { entitledFeaturePrefixes } from '@liwan/commercial-ui/app/utils/entitlementApps'
+import { humanizeId } from '@liwan/ui/app/utils/humanizeId'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t, te, locale } = useI18n(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
 const allowed = computed(() => can('subscription.read'))
@@ -55,13 +55,13 @@ definePageMeta({ middleware: 'customer-commercial' })
     </SharedPageHeader>
     <SharedForbiddenState v-if="!allowed" />
     <SharedPageState v-else :loading="pending" :error="error" @retry="refresh">
-      <div v-if="data && !data.sub" class="grid gap-(--webvue-gap-card)">
+      <div v-if="data && !data.sub" class="grid gap-(--liwan-gap-card)">
         <SharedRecordSection variant="panel" :title="t('subscription.summary.plan')">
           <p class="text-sm text-muted">{{ t('subscription.summary.none') }}</p>
           <UButton v-if="can('subscription.manage')" class="mt-3" to="/subscription/change" :disabled="!hydrated">{{ t('subscription.trial.startSetup') }}</UButton>
         </SharedRecordSection>
       </div>
-      <div v-else-if="data && data.sub" class="grid gap-(--webvue-gap-card)">
+      <div v-else-if="data && data.sub" class="grid gap-(--liwan-gap-card)">
         <UAlert v-if="data.sub.state === 'trialing' && trialDaysLeft !== null" :color="trialDaysLeft <= 3 ? 'warning' : 'info'" variant="subtle" icon="i-lucide-hourglass"
           :title="t('subscription.trial.daysLeft', { count: trialDaysLeft })"
           :description="`${t('subscription.trial.endsOn', { date: formatDate(trialEndsAt, 'Asia/Riyadh') })}${trialDaysLeft <= 3 ? ' — ' + t('subscription.trial.expiring') : ''}`">
@@ -91,12 +91,12 @@ definePageMeta({ middleware: 'customer-commercial' })
         </SharedRecordSection>
         <SharedRecordSection variant="list" :title="t('subscription.branches.title')"><template #actions><UButton to="/subscription/branches" color="neutral" variant="link">{{ t('subscription.branches.title') }}</UButton></template>
           <SubscriptionBranchSummary v-if="data.branches" :summary="data.branches" />
-          <UAlert v-else-if="data.failed.has('branches')" class="m-(--webvue-card-pad)" color="warning" variant="subtle" role="status" :title="t('subscription.sectionError')" />
+          <UAlert v-else-if="data.failed.has('branches')" class="m-(--liwan-card-pad)" color="warning" variant="subtle" role="status" :title="t('subscription.sectionError')" />
         </SharedRecordSection>
         <SharedRecordSection v-if="data.invoices || data.failed.has('invoices')" variant="list" :title="t('subscription.invoices.preview')"><template #actions><UButton to="/subscription/invoices" color="neutral" variant="link">{{ t('subscription.invoices.all') }}</UButton></template>
-          <UAlert v-if="!data.invoices" class="m-(--webvue-card-pad)" color="warning" variant="subtle" role="status" :title="t('subscription.sectionError')" />
-          <p v-else-if="!data.invoices.items.length" class="p-(--webvue-card-pad) text-sm text-muted">{{ t('subscription.invoices.empty') }}</p>
-          <ul v-else class="divide-y divide-default"><li v-for="inv in data.invoices.items.slice(0, 3)" :key="inv.id" class="flex items-center justify-between gap-3 px-(--webvue-card-pad) py-3"><NuxtLink :to="`/subscription/invoices/${encodeURIComponent(inv.id)}`" class="font-medium hover:underline">{{ inv.number ?? inv.id }}</NuxtLink><span class="tabular-nums">{{ formatSubscriptionMoney(inv.total, locale) }}</span></li></ul>
+          <UAlert v-if="!data.invoices" class="m-(--liwan-card-pad)" color="warning" variant="subtle" role="status" :title="t('subscription.sectionError')" />
+          <p v-else-if="!data.invoices.items.length" class="p-(--liwan-card-pad) text-sm text-muted">{{ t('subscription.invoices.empty') }}</p>
+          <ul v-else class="divide-y divide-default"><li v-for="inv in data.invoices.items.slice(0, 3)" :key="inv.id" class="flex items-center justify-between gap-3 px-(--liwan-card-pad) py-3"><NuxtLink :to="`/subscription/invoices/${encodeURIComponent(inv.id)}`" class="font-medium hover:underline">{{ inv.number ?? inv.id }}</NuxtLink><span class="tabular-nums">{{ formatSubscriptionMoney(inv.total, locale) }}</span></li></ul>
         </SharedRecordSection>
         <SharedRecordSection variant="panel" :title="t('subscription.autoRenew.title')">
           <SubscriptionAutoRenewControl :enabled="data.sub.auto_renew.enabled" :can-manage="can('subscription.manage')" :pending="arBusy" :hydrated="hydrated" @change="setAutoRenew" />

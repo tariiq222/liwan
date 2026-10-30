@@ -18,7 +18,7 @@ const at = (path: string) => async () => { await __getRouter()!.replace(path); r
 const render = (open: boolean) => () => ({
   components: { AssistantButton },
   setup: () => { useState<boolean>('assistant-sheet-open').value = open },
-  template: '<div class="webvue-shell" style="padding: 24px"><AssistantButton /></div>',
+  template: '<div class="liwan-shell" style="padding: 24px"><AssistantButton /></div>',
 })
 
 export const Closed: Story = { name: 'مغلق', parameters: storyContext('apps/web/app/components/shell/ShellHeader.vue:79'), loaders: [at('/tasks')], render: render(false) }

@@ -3,7 +3,7 @@ import { compileScript, parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import type { InboxChannelAutomation, InboxRule } from '@webvue/contracts'
+import type { InboxChannelAutomation, InboxRule } from '@liwan/contracts'
 import * as helpers from '../../../composables/inbox/inboxAutomation'
 
 // The scripts of the automation components, compiled and run against stubbed composables (as the other component tests do).

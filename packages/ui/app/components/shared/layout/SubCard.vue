@@ -14,7 +14,7 @@ const props = withDefaults(defineProps<{
     :is="props.as"
     data-slot="sub-card"
     :data-tone="props.tone"
-    class="min-w-0 rounded-control p-(--webvue-subcard-pad)"
+    class="min-w-0 rounded-control p-(--liwan-subcard-pad)"
     :class="props.tone === 'tinted' ? 'bg-elevated/50' : 'ring ring-default'"
   >
     <slot />

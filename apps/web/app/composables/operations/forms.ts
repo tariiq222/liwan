@@ -1,4 +1,4 @@
-import { OperationPurposeSchema, OperationStateSchema } from '@webvue/contracts'
+import { OperationPurposeSchema, OperationStateSchema } from '@liwan/contracts'
 import { ref } from 'vue'
 
 export function operationListLocation(path: string, query: Record<string, unknown>, hash = '') {

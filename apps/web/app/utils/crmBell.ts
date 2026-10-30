@@ -1,4 +1,4 @@
-import { CrmBellRowSchema, type CrmBellRow } from '@webvue/contracts'
+import { CrmBellRowSchema, type CrmBellRow } from '@liwan/contracts'
 import { agreeKey, termFormForCount } from './crmTermForms'
 
 type Translate = (key: string, named?: Record<string, unknown>) => string

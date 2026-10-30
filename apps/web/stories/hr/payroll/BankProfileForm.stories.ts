@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import BankProfileForm from '../../../app/components/hr/payroll/BankProfileForm.vue'
-import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
+import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../../support/context'
 
 // The bank and WPS file layouts on the payroll settings page: a shared profile is read-only, a company profile opens
@@ -24,7 +24,7 @@ const meta = {
   render: args => ({
     components: { BankProfileForm, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="webvue-shell-main"><PageContainer width="list"><BankProfileForm v-bind="args" /></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer width="list"><BankProfileForm v-bind="args" /></PageContainer></main>',
   }),
 } satisfies Meta<typeof BankProfileForm>
 

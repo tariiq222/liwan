@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FinanceAssetUpdateSchema, FinanceAssetCreateSchema, type FinanceAssetDetail } from '@webvue/contracts'
+import { FinanceAssetUpdateSchema, FinanceAssetCreateSchema, type FinanceAssetDetail } from '@liwan/contracts'
 import { assetDraftDirty, assetDraftFromRecord, buildAssetCreate, buildAssetUpdate, emptyAssetDraft, hasAssetErrors, validateAssetDraft } from '../assetDraft'
 
 function valid() {

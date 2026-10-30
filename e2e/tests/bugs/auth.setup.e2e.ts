@@ -4,8 +4,8 @@ import { expect } from 'e2e';
 // Cookie sign-in for the repro tests under e2e/tests/bugs (scratch Odoo stack
 // only, accounts from tools/e2e_seed.py; defaults mirror e2e.config.ts).
 const accounts = {
-  admin: ['e2e_admin', process.env.E2E_USER_ADMIN_PASSWORD ?? 'webvue-e2e-admin-2026'],
-  employee: ['e2e_employee', process.env.E2E_USER_EMPLOYEE_PASSWORD ?? 'webvue-e2e-employee-2026'],
+  admin: ['e2e_admin', process.env.E2E_USER_ADMIN_PASSWORD ?? 'liwan-e2e-admin-2026'],
+  employee: ['e2e_employee', process.env.E2E_USER_EMPLOYEE_PASSWORD ?? 'liwan-e2e-employee-2026'],
 } as const;
 
 for (const [name, [login, password]] of Object.entries(accounts)) {

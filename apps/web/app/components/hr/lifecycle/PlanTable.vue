@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { RouteLocationRaw } from 'vue-router'
-import type { HrActivityPlan } from '@webvue/contracts'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import type { HrActivityPlan } from '@liwan/contracts'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
 
 // The plans list of one lifecycle area on SharedDataTable. Deactivation is handed to the
 // page, which owns the inline confirmation.
@@ -49,7 +49,7 @@ function actionsFor(plan: HrActivityPlan): RowAction[] {
 </script>
 
 <template>
-  <div class="webvue-fixed-table min-w-0">
+  <div class="liwan-fixed-table min-w-0">
     <SharedDataTable
       bare
       data-testid="hr-lifecycle-plan-table"

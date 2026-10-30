@@ -36,21 +36,21 @@ export function signServiceRequest(input: ServiceSignInput): Record<string, stri
   const { anonymous: _anonymous, ...rest } = input
   const full = { ...rest, body: input.body ?? '', timestamp: input.timestamp ?? Math.floor(Date.now() / 1000), nonce: input.nonce ?? randomUUID() }
   return {
-    'x-webvue-issuer': full.issuer,
-    'x-webvue-actor': String(full.actor),
-    'x-webvue-timestamp': String(full.timestamp),
-    'x-webvue-nonce': full.nonce,
-    'x-webvue-signature': signature(full),
+    'x-liwan-issuer': full.issuer,
+    'x-liwan-actor': String(full.actor),
+    'x-liwan-timestamp': String(full.timestamp),
+    'x-liwan-nonce': full.nonce,
+    'x-liwan-signature': signature(full),
   }
 }
 
 export function verifyServiceRequest(input: Omit<ServiceSignInput, 'actor' | 'issuer' | 'timestamp' | 'nonce'> & { headers: Headers; actor?: number | string; issuer?: string; timestamp?: number; nonce?: string; now?: number }): { actor: number | 'anonymous'; issuer: string; nonce: string; timestamp: number } | null {
   if (Buffer.byteLength(input.key) < 32) return null
-  const issuer = input.issuer ?? value(input.headers, 'x-webvue-issuer')
-  const actorText = String(input.actor ?? value(input.headers, 'x-webvue-actor') ?? '')
-  const timestampText = String(input.timestamp ?? value(input.headers, 'x-webvue-timestamp') ?? '')
-  const nonce = input.nonce ?? value(input.headers, 'x-webvue-nonce')
-  const received = value(input.headers, 'x-webvue-signature')
+  const issuer = input.issuer ?? value(input.headers, 'x-liwan-issuer')
+  const actorText = String(input.actor ?? value(input.headers, 'x-liwan-actor') ?? '')
+  const timestampText = String(input.timestamp ?? value(input.headers, 'x-liwan-timestamp') ?? '')
+  const nonce = input.nonce ?? value(input.headers, 'x-liwan-nonce')
+  const received = value(input.headers, 'x-liwan-signature')
   const now = input.now ?? Math.floor(Date.now() / 1000)
   const anonymous = input.anonymous === true
   if (!issuer || !/^[a-zA-Z0-9._-]{1,128}$/.test(issuer) || (anonymous ? actorText !== 'anonymous' : !/^[1-9][0-9]*$/.test(actorText)) || !/^\d{10,}$/.test(timestampText) || !nonce || !/^[a-zA-Z0-9._-]{1,128}$/.test(nonce) || !received || !/^[a-f0-9]{64}$/.test(received)) return null

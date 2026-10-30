@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { InboxChannelCreateSchema, type InboxChannel } from '@webvue/contracts'
+import { InboxChannelCreateSchema, type InboxChannel } from '@liwan/contracts'
 import { useInboxDepartments, useCreateInboxChannel } from '@/composables/inbox/useInboxSettings'
 
 // Connects a WhatsApp Cloud API number. The access token and the app secret are write-only: they are sent once, never

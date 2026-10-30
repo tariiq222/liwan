@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CrmLostReason } from '@webvue/contracts'
+import type { CrmLostReason } from '@liwan/contracts'
 
 // Closing an opportunity as lost: the reason, then an inline confirmation (never a dialog).
 defineProps<{ reasons: CrmLostReason[]; pending?: boolean; error?: string }>()

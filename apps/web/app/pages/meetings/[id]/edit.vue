@@ -3,7 +3,7 @@ import { owningListBack, recordParentTo } from '@/utils/recordListOrigin'
 import { MEETING_LIST_PATHS } from '@/modules/meetings/navigation'
 import DescriptionEditor from '@/components/shared/form/DescriptionEditor.vue'
 import MeetingPeopleFields from '@/components/meetings/MeetingPeopleFields.vue'
-import type { MeetingPatch } from '@webvue/contracts'
+import type { MeetingPatch } from '@liwan/contracts'
 import { useMeeting, usePatchMeeting } from '@/composables/useMeetings'
 import { buildMeetingSchedulePayload, localDateFromUtc, localTimeFromUtc } from '@/utils/meetingDateTime'
 import { getMeetingFormErrors } from '@/utils/meetingForm'
@@ -139,13 +139,13 @@ async function save() {
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('meetingsUi.edit')" :back-to="backTo" />
     <SharedPageState :loading="query.isLoading.value" :error="pageError" :empty="!query.isLoading.value && !pageError && !query.data.value" @retry="query.refetch">
-      <form ref="formElement" novalidate v-if="query.data.value" class="grid gap-(--webvue-gap-card)" @submit.prevent="save">
+      <form ref="formElement" novalidate v-if="query.data.value" class="grid gap-(--liwan-gap-card)" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
       <UAlert v-if="attemptedSubmit && Object.values(formErrors).filter(Boolean).length > 1" color="error" variant="subtle" role="alert" :title="t('meetingsUx.validationSummary', { count: Object.values(formErrors).filter(Boolean).length })" />
       <UAlert v-if="!canEdit" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.editForbidden')" />
       <UAlert v-if="context.series || context.project" color="neutral" variant="subtle" icon="i-lucide-info" :title="[context.series && t('meetingsUx.context.series', { name: context.series }), context.project && t('meetingsUx.context.project', { name: context.project })].filter(Boolean).join(' · ')" />
       <SharedFormSection panel :title="t('meetingsUi.sectionSchedule')" :description="t('meetingsUx.browserTimeZone', { zone: browserTimeZone })">
-        <div class="webvue-form-grid">
+        <div class="liwan-form-grid">
           <UFormField class="sm:col-span-2" :label="t('meetingsUi.title')" name="name" required :error="serverErrors.name || (visibleErrors.name ? t(`meetingsUx.errors.${visibleErrors.name}`) : undefined)">
             <UInput id="edit-name" v-model="name" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!visibleErrors.name" required />
           </UFormField>

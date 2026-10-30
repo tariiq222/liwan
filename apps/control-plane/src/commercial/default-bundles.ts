@@ -4,8 +4,8 @@ import { getRelease } from './catalog-releases.js'
 import { mutatePlan } from './plans.js'
 import { CommercialHttpError, type CommercialActor } from './lifecycle.js'
 
-/** The seeded WebVue plan family (schema_025.sql): the one sellable platform plan whose applications are optional bundles. */
-const WEBVUE_PLAN_ID = '00000000-0000-4000-8000-0000000000b1'
+/** The seeded LiwanOS plan family (schema_025.sql): the one sellable platform plan whose applications are optional bundles. */
+const LIWAN_PLAN_ID = '00000000-0000-4000-8000-0000000000b1'
 // PLACEHOLDER prices, the same development amounts schema_025 seeds; the owner replaces them from the vendor console.
 const PLACEHOLDER_PRICES = [
   { cadence: { unit: 'month', count: 1 }, amount: { currency: 'SAR', exponent: 2, minor: 19900 } },
@@ -16,7 +16,7 @@ const PLAN_FIELDS = ['name', 'audience', 'term_months', 'currency', 'prices', 'p
   'policy_revision_id', 'trial_days', 'grace_days', 'auto_suspend', 'auto_renew_allowed'] as const
 
 /**
- * Publishes one default bundle per selectable application of a catalog release, then a new revision of the WebVue
+ * Publishes one default bundle per selectable application of a catalog release, then a new revision of the LiwanOS
  * plan that lists them as optional. Idempotent: an application that already has a published, available bundle in
  * the release is reused, and the plan only gets a new revision when it is missing one of them.
  */
@@ -38,7 +38,7 @@ export async function seedDefaultBundles(pool: Pool, actor: CommercialActor, inp
     await mutateBundle(pool, actor, draft.id, 'publish', { edit_revision: (validated as { edit_revision: number }).edit_revision, reason }, { pricingGranted: true, pricingStepUp: true })
     bundleIds.push(draft.id); created.push(draft.id)
   }
-  const current = (await pool.query("SELECT id,optional_bundle_revision_ids,edit_revision FROM plan_revisions WHERE plan_id=$1 AND status='published' AND available ORDER BY version DESC LIMIT 1", [WEBVUE_PLAN_ID])).rows[0]
+  const current = (await pool.query("SELECT id,optional_bundle_revision_ids,edit_revision FROM plan_revisions WHERE plan_id=$1 AND status='published' AND available ORDER BY version DESC LIMIT 1", [LIWAN_PLAN_ID])).rows[0]
   if (!current) throw new CommercialHttpError('seed_plan_missing', 409)
   const listed = new Set<string>(current.optional_bundle_revision_ids)
   if (bundleIds.every(id => listed.has(id))) return { bundles: bundleIds, created, plan_revision_id: current.id as string, plan_created: false }

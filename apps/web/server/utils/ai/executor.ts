@@ -1,4 +1,4 @@
-import type { AiTool } from '@webvue/contracts'
+import type { AiTool } from '@liwan/contracts'
 
 export type ToolRequest = { method: 'GET' | 'POST' | 'PATCH'; path: string; query: Record<string, unknown>; body: Record<string, unknown> | undefined }
 export type ToolError = { code: string; message: string }

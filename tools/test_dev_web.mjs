@@ -11,12 +11,12 @@ const profile = {
   NUXT_PORT: '3117',
   ODOO_HTTP_PORT: '8217',
   NUXT_ODOO_URL: 'http://127.0.0.1:8217',
-  NUXT_ODOO_DB: 'webvue_scratch_example',
+  NUXT_ODOO_DB: 'liwan_scratch_example',
   NUXT_PUBLIC_WS_URL: 'ws://localhost:8217/websocket',
 }
 
 function checkout(t, { worktree = true, dependencies = true, values = profile } = {}) {
-  const root = mkdtempSync(join(tmpdir(), 'webvue-dev-entry-'))
+  const root = mkdtempSync(join(tmpdir(), 'liwan-dev-entry-'))
   t.after(() => rmSync(root, { recursive: true, force: true }))
   mkdirSync(join(root, 'apps/web'), { recursive: true })
   if (worktree) writeFileSync(join(root, '.git'), 'gitdir: /unused/worktrees/example\n')
@@ -33,12 +33,12 @@ function checkout(t, { worktree = true, dependencies = true, values = profile } 
 
 test('worktree launch selects its own profile and dependencies over unrelated inherited topology', t => {
   const root = checkout(t)
-  const inherited = { NUXT_PORT: '3000', NITRO_PORT: '3000', PORT: '3000', NUXT_ODOO_URL: 'http://localhost:8069', NUXT_ODOO_DB: 'odoo19', NUXT_PUBLIC_WS_URL: 'ws://localhost:8069/websocket', WEBVUE_TENANCY_MODE: 'shared', PRIVATE_TOKEN: 'do-not-print' }
+  const inherited = { NUXT_PORT: '3000', NITRO_PORT: '3000', PORT: '3000', NUXT_ODOO_URL: 'http://localhost:8069', NUXT_ODOO_DB: 'odoo19', NUXT_PUBLIC_WS_URL: 'ws://localhost:8069/websocket', LIWAN_TENANCY_MODE: 'shared', PRIVATE_TOKEN: 'do-not-print' }
   const launch = createDevLaunch({ root, env: inherited })
   assert.equal(launch.cwd, join(root, 'apps/web'))
   assert.deepEqual(launch.args, [join(root, 'node_modules/@nuxt/cli/bin/nuxi.mjs'), 'dev', '--dotenv', join(root, '.env.worktree'), '--port', '3117', '--strictPort', '--no-takeover'])
   for (const [key, value] of Object.entries(profile)) assert.equal(launch.env[key], value)
-  assert.equal(launch.env.WEBVUE_TENANCY_MODE, 'dedicated')
+  assert.equal(launch.env.LIWAN_TENANCY_MODE, 'dedicated')
   assert.equal(launch.env.PRIVATE_TOKEN, 'do-not-print')
   assert.equal(inherited.NUXT_ODOO_DB, 'odoo19')
 })

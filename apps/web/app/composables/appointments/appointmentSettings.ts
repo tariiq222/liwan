@@ -1,4 +1,4 @@
-import type { AppointmentSectorPresetSchema, AppointmentSettings, AppointmentSettingsPatch } from '@webvue/contracts'
+import type { AppointmentSectorPresetSchema, AppointmentSettings, AppointmentSettingsPatch } from '@liwan/contracts'
 import type { z } from 'zod'
 
 export type AppointmentSectorPreset = z.infer<typeof AppointmentSectorPresetSchema>

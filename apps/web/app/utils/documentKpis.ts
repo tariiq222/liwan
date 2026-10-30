@@ -1,4 +1,4 @@
-import type { KpiTile } from '@webvue/ui/app/utils/kpiTile'
+import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
 import { DOCUMENT_EXPIRING_DAYS } from '../lib/documentKeys'
 
 type Figure = number | null

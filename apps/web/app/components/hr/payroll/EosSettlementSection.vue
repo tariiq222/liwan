@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { HR_EOS_CASES, HrEosCaseSchema, HrSettlementWriteSchema, type HrEosCase, type HrEosEstimate, type HrSettlement, type HrSettlementWrite } from '@webvue/contracts'
-import { formatDate } from '@webvue/ui/app/utils/formatDate'
+import { HR_EOS_CASES, HrEosCaseSchema, HrSettlementWriteSchema, type HrEosCase, type HrEosEstimate, type HrSettlement, type HrSettlementWrite } from '@liwan/contracts'
+import { formatDate } from '@liwan/ui/app/utils/formatDate'
 import { formatPayrollAmount, payrollCurrencyLabel } from '@/utils/payrollFormat'
 import { parseMoneyInput } from '@/utils/moneyInput'
 
@@ -83,7 +83,7 @@ watch(() => props.confirming, (now, was) => { if (was && !now) asking.value = fa
     <UAlert v-if="props.error" role="alert" color="error" variant="subtle" :title="props.error" data-testid="hr-eos-failure" />
     <UAlert v-if="mismatch" role="status" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('hrPayroll.eos.mismatch', { date: settlement?.departure_date ? formatDate(settlement.departure_date) : '' })" data-testid="hr-eos-mismatch" />
     <UAlert v-if="stale" role="status" color="info" variant="subtle" icon="i-lucide-info" :title="t('hrPayroll.eos.stale')" data-testid="hr-eos-stale" />
-    <div v-if="editable" class="webvue-form-grid">
+    <div v-if="editable" class="liwan-form-grid">
       <UFormField :label="t('hrPayroll.eos.case')" name="hr-eos-case" required>
         <USelect id="hr-eos-case" :model-value="chosenCase ?? undefined" class="w-full" :items="caseItems" :placeholder="t('hrPayroll.eos.casePlaceholder')" :disabled="busy" data-testid="hr-eos-case" @update:model-value="pickCase" />
       </UFormField>

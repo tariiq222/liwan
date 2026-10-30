@@ -209,7 +209,7 @@
       "review": "Review this computation",
       "reviewHint": "You are recording that you reviewed this computation as it stands now. The record is permanent and any later change makes it out of date.",
       "credential": "Your credential",
-      "credentialHelp": "For example your SOCPA licence number. WebVue does not verify it.",
+      "credentialHelp": "For example your SOCPA licence number. LiwanOS does not verify it.",
       "confirmReview": "Record the review"
     },
     "mis": {

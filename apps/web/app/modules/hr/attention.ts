@@ -1,5 +1,5 @@
-import { HrLeaveListSchema } from '@webvue/contracts'
-import { formatDate, isolateLtr } from '@webvue/ui/app/utils/formatDate'
+import { HrLeaveListSchema } from '@liwan/contracts'
+import { formatDate, isolateLtr } from '@liwan/ui/app/utils/formatDate'
 import { ATTENTION_ROWS_PER_PROVIDER } from '../../composables/nav/attentionModel'
 import { HR_LEAVE_PENDING_STATES } from '../../composables/useHrLeave'
 import type { AppAttentionProvider } from '../types'

@@ -1,6 +1,6 @@
 import type { AddressInfo } from 'node:net'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { signServiceRequest } from '@webvue/commercial-contracts/server'
+import { signServiceRequest } from '@liwan/commercial-contracts/server'
 import { createMockControl } from '../e2e/mock-control.mjs'
 import { ADMIN_PASSWORD, INSTALLATION_ID, OWNER_EMAIL, SERVICE_KEY, TOTP_CODE } from '../e2e/mock-settings.mjs'
 
@@ -20,7 +20,7 @@ async function call(path: string, options: { method?: string, body?: object, ano
     method, path, body: raw, issuer: INSTALLATION_ID, key: options.key ?? SERVICE_KEY, nonce: options.nonce,
     ...(options.anonymous ? { actor: 'anonymous', anonymous: true as const } : { actor: options.actor ?? 1 }),
   })
-  const response = await fetch(`${base}${path}`, { method, body: raw, headers: { ...signed, ...(options.session ? { 'x-webvue-session': options.session } : {}), 'x-webvue-client-ip': '127.0.0.1' } })
+  const response = await fetch(`${base}${path}`, { method, body: raw, headers: { ...signed, ...(options.session ? { 'x-liwan-session': options.session } : {}), 'x-liwan-client-ip': '127.0.0.1' } })
   return response.status
 }
 
@@ -55,7 +55,7 @@ describe('mock account routes', () => {
   async function signed(path: string, method: string, body: object | undefined, session: string, options: { anonymous?: boolean } = {}) {
     const raw = method === 'GET' ? undefined : JSON.stringify(body ?? {})
     const headers = signServiceRequest({ method, path, body: raw, issuer: INSTALLATION_ID, key: SERVICE_KEY, ...(options.anonymous ? { actor: 'anonymous', anonymous: true as const } : { actor: 1 }) })
-    const response = await fetch(`${base}${path}`, { method, body: raw, headers: { ...headers, 'x-webvue-session': session, 'x-webvue-client-ip': '127.0.0.1' } })
+    const response = await fetch(`${base}${path}`, { method, body: raw, headers: { ...headers, 'x-liwan-session': session, 'x-liwan-client-ip': '127.0.0.1' } })
     return { status: response.status, body: response.status === 204 ? null : await response.json() as Record<string, unknown> }
   }
   async function ownerSession() {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { ProjectRaci, ProjectRaciRole } from '@webvue/contracts'
-import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
-import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
+import type { ProjectRaci, ProjectRaciRole } from '@liwan/contracts'
+import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
+import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import { RACI_ROLE_TONE } from './state'
 
 // Tasks × stakeholders, bare: the page puts it inside its SharedListCard. The record number and the task name stay in view
@@ -27,7 +27,7 @@ const role = (taskId: number, stakeholderId: number) => props.assignments.get(`$
 const NumberHeader = () => recordNumberHeader(t)
 const helpId = useId()
 // The sticky cells repeat the row tint, or the hover would stop at their edge.
-const STICKY = 'sticky z-10 bg-default group-hover:bg-(--webvue-row-hover)'
+const STICKY = 'sticky z-10 bg-default group-hover:bg-(--liwan-row-hover)'
 </script>
 
 <template>
@@ -37,19 +37,19 @@ const STICKY = 'sticky z-10 bg-default group-hover:bg-(--webvue-row-hover)'
         <thead>
           <tr class="h-10 border-b border-default bg-muted text-xs font-medium text-muted">
             <th scope="col" class="sticky start-0 z-10 w-12 min-w-12 bg-muted px-2 text-start font-medium"><NumberHeader /></th>
-            <th scope="col" class="sticky start-12 z-10 min-w-56 bg-muted px-(--webvue-card-pad-dense) text-start font-medium">{{ t('projects.governance.raci.task') }}</th>
-            <th v-for="item in stakeholders" :key="item.id" scope="col" class="min-w-32 px-(--webvue-card-pad-dense) text-start font-medium">
+            <th scope="col" class="sticky start-12 z-10 min-w-56 bg-muted px-(--liwan-card-pad-dense) text-start font-medium">{{ t('projects.governance.raci.task') }}</th>
+            <th v-for="item in stakeholders" :key="item.id" scope="col" class="min-w-32 px-(--liwan-card-pad-dense) text-start font-medium">
               <NuxtLink class="hover:text-highlighted hover:underline" :to="{ path: `/projects/${projectId}/stakeholders/${item.id}`, query: { returnTo } }">{{ item.name }}</NuxtLink>
             </th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="task in tasks" :key="task.id" class="group h-(--webvue-row-h) border-b border-default transition-colors duration-150 last:border-b-0 hover:bg-(--webvue-row-hover) motion-reduce:transition-none">
+          <tr v-for="task in tasks" :key="task.id" class="group h-(--liwan-row-h) border-b border-default transition-colors duration-150 last:border-b-0 hover:bg-(--liwan-row-hover) motion-reduce:transition-none">
             <td :class="[STICKY, 'start-0 w-12 min-w-12 px-2']"><RecordNumber :value="task.id" /></td>
-            <th scope="row" :class="[STICKY, 'start-12 min-w-56 px-(--webvue-card-pad-dense) text-start']">
+            <th scope="row" :class="[STICKY, 'start-12 min-w-56 px-(--liwan-card-pad-dense) text-start']">
               <NuxtLink class="block max-w-72 truncate text-base font-semibold text-highlighted hover:underline" :to="{ path: `/projects/${projectId}/tasks/${task.id}`, query: { returnTo } }" :title="task.name">{{ task.name }}</NuxtLink>
             </th>
-            <td v-for="item in stakeholders" :key="item.id" class="px-(--webvue-card-pad-dense)" data-testid="raci-cell">
+            <td v-for="item in stakeholders" :key="item.id" class="px-(--liwan-card-pad-dense)" data-testid="raci-cell">
               <USelect
                 v-if="canManage"
                 variant="ghost"
@@ -73,6 +73,6 @@ const STICKY = 'sticky z-10 bg-default group-hover:bg-(--webvue-row-hover)'
         </tbody>
       </table>
     </div>
-    <p :id="helpId" class="border-t border-default px-(--webvue-card-pad) py-3 text-xs text-muted">{{ t(canManage ? 'projects.governance.raci.matrixHelp' : 'projects.governance.raci.matrixHelpReadonly') }}</p>
+    <p :id="helpId" class="border-t border-default px-(--liwan-card-pad) py-3 text-xs text-muted">{{ t(canManage ? 'projects.governance.raci.matrixHelp' : 'projects.governance.raci.matrixHelpReadonly') }}</p>
   </div>
 </template>

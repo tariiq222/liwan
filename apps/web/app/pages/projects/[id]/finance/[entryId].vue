@@ -2,7 +2,7 @@
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState.vue'
 import { ApiError } from '@/composables/useApi'
-import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
+import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 import { useDeleteFinanceEntry, useProjectFinanceEntry, useProjectFinanceList } from '@/composables/useProjectFinance'
 import {
   financeWriteAllowed,

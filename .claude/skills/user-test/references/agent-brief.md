@@ -6,7 +6,7 @@ do NOT fix anything, do not commit, do not push, do not open GitHub issues.
 
 ## Environment (already running, shared — do NOT start, stop or restart it)
 - Web UI http://localhost:43300 (Nuxt dev, Arabic RTL); Odoo 127.0.0.1:43369, scratch DB
-  `webvue_scratch_e2e`. Repository: <WORKTREE> (cd there). Never touch the main checkout files,
+  `liwan_scratch_e2e`. Repository: <WORKTREE> (cd there). Never touch the main checkout files,
   ports 3000/8069 or the `odoo19` database.
 - Playwright is installed in the worktree. Write scripts in <SCRATCH>/<AREA>/ and load it with
   `createRequire('<WORKTREE>/package.json')('playwright')`; run them with `node` from the worktree.

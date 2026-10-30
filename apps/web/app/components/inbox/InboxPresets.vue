@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { InboxPresetKeySchema, type InboxPresetKey } from '@webvue/contracts'
+import { InboxPresetKeySchema, type InboxPresetKey } from '@liwan/contracts'
 import { useApplyInboxPreset } from '@/composables/inbox/useInboxSettings'
 
 // A sector preset sets several options at once: its departments, tags, canned replies and visibility policy. Applying
@@ -25,7 +25,7 @@ function applyAsked() {
 </script>
 
 <template>
-  <SharedRecordSection id="presets" variant="panel" class="webvue-settings-anchor" :title="t('inbox.settings.presets.title')" :description="t('inbox.settings.presets.hint')">
+  <SharedRecordSection id="presets" variant="panel" class="liwan-settings-anchor" :title="t('inbox.settings.presets.title')" :description="t('inbox.settings.presets.hint')">
     <ul class="grid gap-3 sm:grid-cols-3">
       <SharedSubCard v-for="key in PRESETS" :key="key" as="li" class="flex flex-col gap-2" :data-testid="`inbox-preset-${key}`">
         <span class="flex size-9 items-center justify-center rounded-full bg-primary/10 text-primary"><UIcon :name="ICONS[key]" class="size-5" aria-hidden="true" /></span>

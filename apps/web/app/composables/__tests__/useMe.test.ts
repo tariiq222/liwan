@@ -1,4 +1,4 @@
-import { MeSchema } from '@webvue/contracts'
+import { MeSchema } from '@liwan/contracts'
 import { createError } from 'h3'
 import { describe, expect, it } from 'vitest'
 import { isLoggedOutError, isSchemaError, isTenantSuspendedError } from '../useMe'

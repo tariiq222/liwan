@@ -1,4 +1,4 @@
-import type { MeetingOccurrenceCreate } from '@webvue/contracts'
+import type { MeetingOccurrenceCreate } from '@liwan/contracts'
 import { buildMeetingSchedulePayload, validateMeetingSchedule, type MeetingScheduleErrors } from './meetingDateTime'
 
 export type OccurrenceFormInput = { name: string; date: string; start: string; end: string }

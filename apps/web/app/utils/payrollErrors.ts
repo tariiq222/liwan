@@ -1,4 +1,4 @@
-import type { HrPayrollRunState, HrPayrollWarning } from '@webvue/contracts'
+import type { HrPayrollRunState, HrPayrollWarning } from '@liwan/contracts'
 import { ApiError } from '../composables/useApi'
 import { joinList } from './listFormat'
 

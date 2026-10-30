@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import type { Branding } from '@webvue/contracts'
-import { WEBVUE_PRIMARY } from '@/utils/webvuePalette'
+import type { Branding } from '@liwan/contracts'
+import { LIWAN_PRIMARY } from '@/utils/liwanPalette'
 import { ApiError } from '@/composables/useApi'
 import { buildBrandingPatch, normalizeHex } from '@/composables/colorHex'
 import { useBrandingAdmin, useUpdateBranding } from '@/composables/useBrandingAdmin'
 import { useSettingsForm } from '@/composables/settings/useSettingsForm'
 
 const PRESETS = [
-  { key: 'default', color: WEBVUE_PRIMARY, labelKey: 'settings.branding.presets.default' },
+  { key: 'default', color: LIWAN_PRIMARY, labelKey: 'settings.branding.presets.default' },
   { key: 'blue', color: '#0055ff', labelKey: 'settings.branding.presets.blue' },
   { key: 'teal', color: '#0f766e', labelKey: 'settings.branding.presets.teal' },
   { key: 'amber', color: '#b45309', labelKey: 'settings.branding.presets.amber' },
@@ -24,7 +24,7 @@ const { refetch } = useBrandingAdmin()
 const editable = computed(() => can('settings.branding.manage'))
 const { draft, state, save, revert, reload } = useSettingsForm<Branding, { primary_color: string }>({
   source: () => props.branding,
-  read: branding => ({ primary_color: normalizeHex(branding.primary_color) ?? WEBVUE_PRIMARY }),
+  read: branding => ({ primary_color: normalizeHex(branding.primary_color) ?? LIWAN_PRIMARY }),
   save: async (values) => {
     const patch = buildBrandingPatch({ primaryColor: values.primary_color })
     if (!patch) throw new ApiError(422, 'invalid', t('settings.branding.errors.invalidColor'), 'primary_color')
@@ -41,7 +41,7 @@ const { draft, state, save, revert, reload } = useSettingsForm<Branding, { prima
 
 const locked = computed(() => !hydrated.value || !editable.value || state.value.saving || state.value.reloading)
 const primaryValid = computed(() => normalizeHex(draft.value.primary_color) !== null)
-const swatchColor = computed(() => normalizeHex(draft.value.primary_color) ?? WEBVUE_PRIMARY)
+const swatchColor = computed(() => normalizeHex(draft.value.primary_color) ?? LIWAN_PRIMARY)
 </script>
 
 <template>

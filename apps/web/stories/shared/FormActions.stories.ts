@@ -1,6 +1,6 @@
 import { useI18n } from 'vue-i18n'
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import FormActions from '@webvue/ui/app/components/shared/form/FormActions.vue'
+import FormActions from '@liwan/ui/app/components/shared/form/FormActions.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

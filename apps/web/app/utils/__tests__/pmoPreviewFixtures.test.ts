@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   ProjectScheduleSchema, FinanceEntryListSchema, MilestoneSchema, ProjectCharterReferenceListSchema, ProjectRaciListSchema,
   ProjectRegisterListSchema, ProjectStakeholderListSchema, TaskListSchema,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 // the preview module is plain ESM shared with the mock server, so its inferred types are cast loose below
 import { pmoPreviewData } from '../../../e2e/pmo-ui-preview-data.mjs'
 import { projectsPreviewData } from '../../../e2e/projects-ui-preview-data.mjs'

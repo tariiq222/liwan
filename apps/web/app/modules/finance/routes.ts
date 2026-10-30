@@ -1,4 +1,4 @@
-import type { FinanceInvoice } from '@webvue/contracts'
+import type { FinanceInvoice } from '@liwan/contracts'
 
 /** The record page of an invoice-like document, by its move type. Receipts open with their invoice or bill family. */
 const RECORD_FOLDERS: Record<FinanceInvoice['move_type'], string> = {

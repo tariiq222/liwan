@@ -23,34 +23,34 @@ CADDYFILE = ROOT / 'deploy' / 'Caddyfile'
 DOCKERFILE = ROOT / 'deploy' / 'proxy' / 'Dockerfile'
 COMPOSE = ROOT / 'deploy' / 'docker-compose.yml'
 
-DEDICATED_ZONES = ('webvue_auth', 'webvue_api', 'webvue_public_appointments_ip', 'webvue_odoo', 'webvue_web')
-ZONES = ('webvue_auth', 'webvue_api', 'webvue_public_appointments_ip', 'webvue_odoo_image', 'webvue_odoo', 'webvue_web')
+DEDICATED_ZONES = ('liwan_auth', 'liwan_api', 'liwan_public_appointments_ip', 'liwan_odoo', 'liwan_web')
+ZONES = ('liwan_auth', 'liwan_api', 'liwan_public_appointments_ip', 'liwan_odoo_image', 'liwan_odoo', 'liwan_web')
 SHARED_CADDYFILE = ROOT / 'deploy' / 'shared' / 'Caddyfile'
-CADDY_IMAGE_REPOSITORY = 'webvue-caddy-test'
+CADDY_IMAGE_REPOSITORY = 'liwan-caddy-test'
 DOCKER_UNAVAILABLE = ('cannot connect to the docker daemon', 'is the docker daemon running',
                       'error during connect', 'failed to connect to the docker api')
 
 # Independent review observations: expected singleton sets also detect overlaps.
 SHARED_ZONE_CASES = (
-    ('/web/session/get_session_info', {'webvue_odoo'}),
-    ('/web/session/get_session_info/', {'webvue_auth'}),
-    ('/web/session/get_session_info/../authenticate', {'webvue_auth'}),
-    ('//web/session/get_session_info', {'webvue_odoo'}),
-    ('/web%2Fsession%2Fget_session_info', {'webvue_odoo'}),
-    ('/web/session/%67et_session_info', {'webvue_odoo'}),
-    ('/web/session/Get_Session_Info', {'webvue_odoo'}),
-    ('/WEB/session/get_session_info', {'webvue_odoo'}),
-    ('/web/session/get_session_info;x=1', {'webvue_auth'}),
-    ('/web/session/get_session_info?db=x', {'webvue_odoo'}),
-    ('/web/session/x/../get_session_info', {'webvue_odoo'}),
-    ('/web/image/../../web/session/authenticate', {'webvue_auth'}),
-    ('/web/binary/company_logo/../session/authenticate', {'webvue_odoo'}),
-    ('/web/session/authenticate', {'webvue_auth'}),
-    ('/api/auth/login', {'webvue_auth'}),
-    ('/web/image/res.company/1/logo', {'webvue_odoo_image'}),
-    ('/api/v1/me', {'webvue_api'}),
-    ('/api/v1/public/appointments/bookings/7/slots', {'webvue_api', 'webvue_public_appointments_ip'}),
-    ('/', {'webvue_web'}),
+    ('/web/session/get_session_info', {'liwan_odoo'}),
+    ('/web/session/get_session_info/', {'liwan_auth'}),
+    ('/web/session/get_session_info/../authenticate', {'liwan_auth'}),
+    ('//web/session/get_session_info', {'liwan_odoo'}),
+    ('/web%2Fsession%2Fget_session_info', {'liwan_odoo'}),
+    ('/web/session/%67et_session_info', {'liwan_odoo'}),
+    ('/web/session/Get_Session_Info', {'liwan_odoo'}),
+    ('/WEB/session/get_session_info', {'liwan_odoo'}),
+    ('/web/session/get_session_info;x=1', {'liwan_auth'}),
+    ('/web/session/get_session_info?db=x', {'liwan_odoo'}),
+    ('/web/session/x/../get_session_info', {'liwan_odoo'}),
+    ('/web/image/../../web/session/authenticate', {'liwan_auth'}),
+    ('/web/binary/company_logo/../session/authenticate', {'liwan_odoo'}),
+    ('/web/session/authenticate', {'liwan_auth'}),
+    ('/api/auth/login', {'liwan_auth'}),
+    ('/web/image/res.company/1/logo', {'liwan_odoo_image'}),
+    ('/api/v1/me', {'liwan_api'}),
+    ('/api/v1/public/appointments/bookings/7/slots', {'liwan_api', 'liwan_public_appointments_ip'}),
+    ('/', {'liwan_web'}),
 )
 
 
@@ -105,8 +105,8 @@ def _caddy_container(script: str) -> subprocess.CompletedProcess:
 def _adapt_shared_caddyfile(text: str) -> dict:
     result = _caddy_container(
         "set -eu\nexport DOMAIN=a.example.test\n"
-        "cat > /tmp/source.Caddyfile <<'WEBVUE_CADDY_SOURCE'\n"
-        + text + "\nWEBVUE_CADDY_SOURCE\n"
+        "cat > /tmp/source.Caddyfile <<'LIWAN_CADDY_SOURCE'\n"
+        + text + "\nLIWAN_CADDY_SOURCE\n"
         + 'caddy adapt --config /tmp/source.Caddyfile --adapter caddyfile\n'
     )
     return json.loads(result.stdout)
@@ -122,7 +122,7 @@ def _probe_shared_zones(text: str, paths: list[str]) -> list[set[str]]:
     # into a nonterminal marker route. Do not hand-copy or reimplement path rules.
     routes = [
         {'match': zone['match'], 'handle': [
-            {'handler': 'headers', 'response': {'set': {f'X-WebVue-Zone-{name}': ['matched']}}}
+            {'handler': 'headers', 'response': {'set': {f'X-Liwan-Zone-{name}': ['matched']}}}
         ]}
         for name, zone in zones.items()
     ]
@@ -131,8 +131,8 @@ def _probe_shared_zones(text: str, paths: list[str]) -> list[set[str]]:
         'listen': ['127.0.0.1:8080'], 'routes': routes,
     }}}}}
     script = (
-        "set -eu\ncat > /tmp/probe.json <<'WEBVUE_ZONE_PROBE'\n"
-        + json.dumps(config) + '\nWEBVUE_ZONE_PROBE\n'
+        "set -eu\ncat > /tmp/probe.json <<'LIWAN_ZONE_PROBE'\n"
+        + json.dumps(config) + '\nLIWAN_ZONE_PROBE\n'
         + 'caddy run --config /tmp/probe.json >/tmp/caddy.log 2>&1 &\n'
         + 'pid=$!\ntrap \'kill "$pid" 2>/dev/null || true\' EXIT\n'
         + 'ready=0\nfor attempt in $(seq 1 50); do\n'
@@ -141,13 +141,13 @@ def _probe_shared_zones(text: str, paths: list[str]) -> list[set[str]]:
         + 'if [ "$ready" != 1 ]; then cat /tmp/caddy.log >&2; exit 1; fi\n'
     )
     for index, path in enumerate(paths):
-        script += f"printf 'WEBVUE_PROBE {index}\\n'\n"
+        script += f"printf 'LIWAN_PROBE {index}\\n'\n"
         # request-target prevents the HTTP client from cleaning ../ or // aliases.
         script += ('curl --silent --show-error --fail --max-time 2 --noproxy "*" '
                    '--path-as-is --request-target ' + shlex.quote(path)
                    + ' --dump-header - --output /dev/null http://127.0.0.1:8080/\n')
     output = _caddy_container(script).stdout
-    records = output.split('WEBVUE_PROBE ')[1:]
+    records = output.split('LIWAN_PROBE ')[1:]
     if len(records) != len(paths):
         raise AssertionError(f'expected {len(paths)} probe responses, got {len(records)}')
     matched = []
@@ -158,10 +158,10 @@ def _probe_shared_zones(text: str, paths: list[str]) -> list[set[str]]:
         names = set()
         for line in lines[2:]:
             name, separator, value = line.partition(':')
-            if separator and name.lower().startswith('x-webvue-zone-'):
+            if separator and name.lower().startswith('x-liwan-zone-'):
                 if value.strip() != 'matched':
                     raise AssertionError(f'invalid zone marker: {line}')
-                names.add(name.lower().removeprefix('x-webvue-zone-'))
+                names.add(name.lower().removeprefix('x-liwan-zone-'))
         matched.append(names)
     return matched
 
@@ -205,7 +205,7 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
                 self.assertFalse(rendered['services'][name].get('ports'))
 
         rendered = self._render_shared(
-            {'WEBVUE_EDGE_BIND': '127.0.0.1', 'WEBVUE_EDGE_HTTPS_PORT': '8443', 'WEBVUE_EDGE_HTTP_PORT': '8080'}
+            {'LIWAN_EDGE_BIND': '127.0.0.1', 'LIWAN_EDGE_HTTPS_PORT': '8443', 'LIWAN_EDGE_HTTP_PORT': '8080'}
         )
         proxy = rendered['services']['proxy'].get('ports', [])
         self.assertEqual(
@@ -230,53 +230,53 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
         self.assertNotIn('socket', base_test)
 
     def test_shared_caddyfile_rate_limit_exempts_static_assets(self) -> None:
-        """Behavioral: caddy adapt in built image verifies static asset exemptions in webvue_web."""
+        """Behavioral: caddy adapt in built image verifies static asset exemptions in liwan_web."""
         adapted = _adapt_shared_caddyfile(SHARED_CADDYFILE.read_text(encoding='utf-8'))
 
         rl_handlers = _find_handlers(adapted, 'rate_limit')
         self.assertEqual(len(rl_handlers), 1)
         zones = rl_handlers[0]['rate_limits']
 
-        self.assertEqual(zones['webvue_auth']['max_events'], 20)
-        self.assertEqual(zones['webvue_auth']['match'][0]['path'], ['/api/auth/*', '/api/v1/auth/*', '/web/session/*', '/web/login'])
+        self.assertEqual(zones['liwan_auth']['max_events'], 20)
+        self.assertEqual(zones['liwan_auth']['match'][0]['path'], ['/api/auth/*', '/api/v1/auth/*', '/web/session/*', '/web/login'])
 
-        self.assertEqual(zones['webvue_api']['max_events'], 300)
-        self.assertEqual(zones['webvue_api']['match'][0]['path'], ['/api/v1/*'])
-        self.assertEqual(zones['webvue_api']['match'][0]['not'][0]['path'], ['/api/v1/auth/*'])
+        self.assertEqual(zones['liwan_api']['max_events'], 300)
+        self.assertEqual(zones['liwan_api']['match'][0]['path'], ['/api/v1/*'])
+        self.assertEqual(zones['liwan_api']['match'][0]['not'][0]['path'], ['/api/v1/auth/*'])
 
         # F5: get_session_info is a non-credential call and moves from the 20/min
         # auth bucket to the Odoo bucket; every other /web/session/* stays in auth.
-        auth_match = zones['webvue_auth']['match']
+        auth_match = zones['liwan_auth']['match']
         self.assertEqual(len(auth_match), 1)
         self.assertEqual(auth_match[0]['not'][0]['path'], ['/web/session/get_session_info'])
-        self.assertEqual(zones['webvue_auth']['window'], 60000000000)
-        self.assertNotIn('/web/image/*', zones['webvue_auth']['match'][0]['path'])
+        self.assertEqual(zones['liwan_auth']['window'], 60000000000)
+        self.assertNotIn('/web/image/*', zones['liwan_auth']['match'][0]['path'])
 
         # F5: image traffic has its own (ACL-checked, still limited) budget.
-        img = zones['webvue_odoo_image']
+        img = zones['liwan_odoo_image']
         self.assertEqual(img['max_events'], 1200)
         self.assertEqual(len(img['match']), 1)
         self.assertEqual(img['match'][0]['path'], ['/web/image/*', '/web/binary/company_logo'])
         self.assertNotIn('not', img['match'][0])
 
-        odoo = zones['webvue_odoo']
+        odoo = zones['liwan_odoo']
         self.assertEqual(odoo['max_events'], 600)
         self.assertEqual(odoo['match'][0]['path'], ['/web/*', '/odoo/*', '/jsonrpc', '/xmlrpc/*', '/report/*', '/mail/*', '/bus/*', '/discuss/*'])
         self.assertEqual(odoo['match'][0]['not'][0]['path'], ['/web/session/*', '/web/login', '/web/image/*', '/web/binary/company_logo'])
         self.assertEqual(odoo['match'][1]['path'], ['/web/session/get_session_info'])
         self.assertNotIn('not', odoo['match'][1])
         # No Odoo asset/attachment prefix is exempted anywhere: /web/content,
-        # /web/assets and /web/static stay inside webvue_odoo (none is served through this
+        # /web/assets and /web/static stay inside liwan_odoo (none is served through this
         # edge; attachments download from /api/v1/.../attachments/<id>/download).
-        for zname in ('webvue_odoo', 'webvue_web'):
+        for zname in ('liwan_odoo', 'liwan_web'):
             for m in zones[zname]['match']:
                 for neg in m.get('not', []):
                     for p in neg['path']:
                         self.assertFalse(p.startswith(('/web/content', '/web/assets', '/web/static')), p)
         # Nothing is exempt from all zones: the web zone still treats /web/* as Odoo-owned.
-        self.assertIn('/web/*', zones['webvue_web']['match'][0]['not'][0]['path'])
+        self.assertIn('/web/*', zones['liwan_web']['match'][0]['not'][0]['path'])
 
-        web_match = zones['webvue_web']['match'][0]
+        web_match = zones['liwan_web']['match'][0]
         self.assertIn('not', web_match)
         excluded_paths = web_match['not'][0]['path']
 
@@ -309,7 +309,7 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
         mutated = text.replace(exemption, '', 1)
         paths = [path for path, _ in SHARED_ZONE_CASES]
         actual = _probe_shared_zones(mutated, paths)
-        self.assertEqual(actual[0], {'webvue_auth', 'webvue_odoo'})
+        self.assertEqual(actual[0], {'liwan_auth', 'liwan_odoo'})
         # The SAME full-matrix assertion must fail, not just a string assertion.
         with self.assertRaises(AssertionError):
             self.assertEqual(actual, [expected for _, expected in SHARED_ZONE_CASES])
@@ -319,10 +319,10 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
                 ['docker', 'compose', 'version'], capture_output=True, timeout=60).returncode:
             self.skipTest('docker compose unavailable')
         env = {
-            'WEBVUE_IMAGE_TAG': 'test', 'ODOO_COMMIT': 'dummy', 'WEBVUE_SESSION_KEYS': 'dummy',
-            'WEBVUE_SESSION_ACTIVE_KID': 'k1', 'WEBVUE_SHARED_PROXY_TOKEN': 'dummy',
-            'WEBVUE_SHARED_ODOO_CONFIG': '/tmp/dummy-odoo.conf', 'WEBVUE_TENANT_REGISTRY_DIR': '/tmp',
-            'POSTGRES_PASSWORD': 'dummy', 'WEBVUE_DOMAIN': 'example.test', **extra,
+            'LIWAN_IMAGE_TAG': 'test', 'ODOO_COMMIT': 'dummy', 'LIWAN_SESSION_KEYS': 'dummy',
+            'LIWAN_SESSION_ACTIVE_KID': 'k1', 'LIWAN_SHARED_PROXY_TOKEN': 'dummy',
+            'LIWAN_SHARED_ODOO_CONFIG': '/tmp/dummy-odoo.conf', 'LIWAN_TENANT_REGISTRY_DIR': '/tmp',
+            'POSTGRES_PASSWORD': 'dummy', 'LIWAN_DOMAIN': 'example.test', **extra,
         }
         with tempfile.TemporaryDirectory() as tmp:
             envfile = Path(tmp) / 'dummy.env'
@@ -331,7 +331,7 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
                 ['docker', 'compose', '--env-file', str(envfile),
                  '-f', str(COMPOSE), '-f', str(ROOT / 'deploy' / 'docker-compose.shared.yml'),
                  'config', '--format', 'json'],
-                capture_output=True, text=True, timeout=60, cwd=ROOT, env={k: v for k, v in os.environ.items() if not k.startswith(('WEBVUE_', 'ODOO_', 'POSTGRES_'))},
+                capture_output=True, text=True, timeout=60, cwd=ROOT, env={k: v for k, v in os.environ.items() if not k.startswith(('LIWAN_', 'ODOO_', 'POSTGRES_'))},
             )
         self.assertEqual(res.returncode, 0, res.stderr)
         return json.loads(res.stdout)
@@ -341,7 +341,7 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
                 ['docker', 'compose', 'version'], capture_output=True, timeout=60).returncode:
             self.skipTest('docker compose unavailable')
         env = {
-            'WEBVUE_IMAGE_TAG': 'test', 'ODOO_COMMIT': 'dummy',
+            'LIWAN_IMAGE_TAG': 'test', 'ODOO_COMMIT': 'dummy',
             'DB_PASSWORD': 'dummy', 'DOMAIN': 'example.test', **extra,
         }
         with tempfile.TemporaryDirectory() as tmp:
@@ -351,15 +351,15 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
                 ['docker', 'compose', '--env-file', str(envfile),
                  '-f', str(COMPOSE),
                  'config', '--format', 'json'],
-                capture_output=True, text=True, timeout=60, cwd=ROOT, env={k: v for k, v in os.environ.items() if not k.startswith(('WEBVUE_', 'ODOO_', 'POSTGRES_'))},
+                capture_output=True, text=True, timeout=60, cwd=ROOT, env={k: v for k, v in os.environ.items() if not k.startswith(('LIWAN_', 'ODOO_', 'POSTGRES_'))},
             )
         self.assertEqual(res.returncode, 0, res.stderr)
         return json.loads(res.stdout)
 
     def test_auth_zone_is_tighter_than_the_api_zone(self) -> None:
         text = CADDYFILE.read_text(encoding='utf-8')
-        auth = text.split('zone webvue_auth {', 1)[1].split('zone webvue_api {', 1)[0]
-        api = text.split('zone webvue_api {', 1)[1].split('zone webvue_odoo {', 1)[0]
+        auth = text.split('zone liwan_auth {', 1)[1].split('zone liwan_api {', 1)[0]
+        api = text.split('zone liwan_api {', 1)[1].split('zone liwan_odoo {', 1)[0]
         self.assertIn('events 20', auth)
         self.assertIn('events 300', api)
         self.assertIn('not path /api/v1/auth/*', api)

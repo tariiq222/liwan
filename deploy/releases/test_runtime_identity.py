@@ -18,15 +18,15 @@ class RuntimeIdentityTests(unittest.TestCase):
         self.root = Path(self.temp.name).resolve(); self.config = self.root / 'odoo.conf'
         self.config.write_bytes(SECRET); self.config.chmod(0o400)
         self.hash = hashlib.sha256(SECRET).hexdigest()
-        self.expected = {'poolId': 'blue', 'releaseId': 'r1', 'image': 'webvue/odoo@sha256:' + 'a' * 64,
+        self.expected = {'poolId': 'blue', 'releaseId': 'r1', 'image': 'liwan/odoo@sha256:' + 'a' * 64,
                          'dbUser': 'pool_blue', 'dbHost': 'postgres', 'configPath': str(self.config),
                          'configDigest': self.hash, 'tenancyMode': 'shared'}
         self.container = {'Id': 'b' * 64, 'Image': 'sha256:' + 'c' * 64,
                           'State': {'Running': True, 'StartedAt': (datetime.now(timezone.utc) + timedelta(seconds=2)).isoformat().replace('+00:00', 'Z')},
-                          'Config': {'Image': self.expected['image'], 'Labels': {'webvue.pool': 'blue', 'webvue.release': 'r1', 'webvue.runtime': 'http', 'webvue.db-config-sha256': self.hash},
-                                     'Env': ['WEBVUE_TENANCY_MODE=shared', 'WEBVUE_RELEASE_POOL_ID=blue', 'WEBVUE_RELEASE_ROLE=http', 'WEBVUE_RELEASE_DB_USER=pool_blue'],
-                                     'Entrypoint': ['/opt/venv/bin/python', '/opt/webvue/shared/launch_odoo.py'], 'Cmd': ['--max-cron-threads=0']},
-                          'Path': '/opt/venv/bin/python', 'Args': ['/opt/webvue/shared/launch_odoo.py', '--max-cron-threads=0'],
+                          'Config': {'Image': self.expected['image'], 'Labels': {'liwan.pool': 'blue', 'liwan.release': 'r1', 'liwan.runtime': 'http', 'liwan.db-config-sha256': self.hash},
+                                     'Env': ['LIWAN_TENANCY_MODE=shared', 'LIWAN_RELEASE_POOL_ID=blue', 'LIWAN_RELEASE_ROLE=http', 'LIWAN_RELEASE_DB_USER=pool_blue'],
+                                     'Entrypoint': ['/opt/venv/bin/python', '/opt/liwan/shared/launch_odoo.py'], 'Cmd': ['--max-cron-threads=0']},
+                          'Path': '/opt/venv/bin/python', 'Args': ['/opt/liwan/shared/launch_odoo.py', '--max-cron-threads=0'],
                           'Mounts': [{'Type': 'bind', 'Source': str(self.config), 'Destination': '/etc/odoo/odoo.conf', 'RW': False}]}
         self.image = {'Id': self.container['Image'], 'RepoDigests': [self.expected['image']]}
         self.mounted = SECRET; self.commands = []; self.timeouts = []; self.call_cost = 0; self.clock = [0.0]
@@ -81,10 +81,10 @@ class RuntimeIdentityTests(unittest.TestCase):
 
     def test_stopped_wrong_pool_release_role_env_and_hash_label_are_refused(self):
         variants = [lambda: self.container['State'].update(Running=False),
-                    lambda: self.container['Config']['Labels'].update({'webvue.pool': 'green'}),
-                    lambda: self.container['Config']['Labels'].update({'webvue.release': 'r2'}),
-                    lambda: self.container['Config']['Labels'].update({'webvue.db-config-sha256': 'f' * 64}),
-                    lambda: self.container['Config']['Env'].append('WEBVUE_RELEASE_DB_USER=postgres')]
+                    lambda: self.container['Config']['Labels'].update({'liwan.pool': 'green'}),
+                    lambda: self.container['Config']['Labels'].update({'liwan.release': 'r2'}),
+                    lambda: self.container['Config']['Labels'].update({'liwan.db-config-sha256': 'f' * 64}),
+                    lambda: self.container['Config']['Env'].append('LIWAN_RELEASE_DB_USER=postgres')]
         original = copy.deepcopy(self.container)
         for mutate in variants:
             with self.subTest(mutate=variants.index(mutate)):
@@ -104,13 +104,13 @@ class RuntimeIdentityTests(unittest.TestCase):
                 self.mounted = modified
                 config_digest = hashlib.sha256(modified).hexdigest()
                 self.expected['configDigest'] = config_digest
-                self.container['Config']['Labels']['webvue.db-config-sha256'] = config_digest
+                self.container['Config']['Labels']['liwan.db-config-sha256'] = config_digest
                 self.refused()
 
     def test_a_mount_cannot_replace_the_guarded_launcher_or_its_imports(self):
-        for destination in ('/opt/webvue/shared/launch_odoo.py', '/opt/webvue/shared/validate_odoo_config.py', '/opt/webvue/addons', '/opt/odoo', '/opt/venv', '/usr/local/bin/webvue-odoo',
-                            '/opt/oca', '/opt/oca/server-ux', '/opt/webvue/tools', '/opt/webvue/tools/oca_addons.py',
-                            '/opt/webvue/deploy', '/opt/webvue/deploy/oca-addons.json'):
+        for destination in ('/opt/liwan/shared/launch_odoo.py', '/opt/liwan/shared/validate_odoo_config.py', '/opt/liwan/addons', '/opt/odoo', '/opt/venv', '/usr/local/bin/liwan-odoo',
+                            '/opt/oca', '/opt/oca/server-ux', '/opt/liwan/tools', '/opt/liwan/tools/oca_addons.py',
+                            '/opt/liwan/deploy', '/opt/liwan/deploy/oca-addons.json'):
             with self.subTest(destination=destination):
                 original = copy.deepcopy(self.container['Mounts'])
                 self.container['Mounts'].append({'Type': 'bind', 'Source': '/tmp/unreviewed', 'Destination': destination, 'RW': False})
@@ -138,11 +138,11 @@ class RuntimeIdentityTests(unittest.TestCase):
 
     def test_shared_entrypoint_profile_and_actual_args_cannot_override_db_credentials_or_config(self):
         original = copy.deepcopy(self.container)
-        cases = [lambda: self.container['Config'].update(Entrypoint=['webvue-odoo']),
+        cases = [lambda: self.container['Config'].update(Entrypoint=['liwan-odoo']),
                  lambda: self.container['Config'].update(Cmd=['--db_user=postgres']),
-                 lambda: self.container.update(Args=['/opt/webvue/shared/launch_odoo.py', '--db_user=postgres']),
-                 lambda: self.container['Config']['Env'].append('WEBVUE_RELEASE_ROLE=cron'),
-                 lambda: self.container['Config']['Env'].append('WEBVUE_TENANCY_MODE=dedicated')]
+                 lambda: self.container.update(Args=['/opt/liwan/shared/launch_odoo.py', '--db_user=postgres']),
+                 lambda: self.container['Config']['Env'].append('LIWAN_RELEASE_ROLE=cron'),
+                 lambda: self.container['Config']['Env'].append('LIWAN_TENANCY_MODE=dedicated')]
         for index, mutate in enumerate(cases):
             with self.subTest(index=index): self.container = copy.deepcopy(original); mutate(); self.refused()
 
@@ -155,25 +155,25 @@ class RuntimeIdentityTests(unittest.TestCase):
 
     def test_dedicated_entrypoint_allows_only_known_http_server_args(self):
         self.expected['tenancyMode'] = 'dedicated'
-        self.container['Config'].update(Entrypoint=['webvue-odoo'])
-        self.container['Config']['Env'] = ['WEBVUE_TENANCY_MODE=dedicated', 'WEBVUE_RELEASE_POOL_ID=blue', 'WEBVUE_RELEASE_ROLE=http', 'WEBVUE_RELEASE_DB_USER=pool_blue']
-        self.container.update(Path='webvue-odoo', Args=['--max-cron-threads=0'])
+        self.container['Config'].update(Entrypoint=['liwan-odoo'])
+        self.container['Config']['Env'] = ['LIWAN_TENANCY_MODE=dedicated', 'LIWAN_RELEASE_POOL_ID=blue', 'LIWAN_RELEASE_ROLE=http', 'LIWAN_RELEASE_DB_USER=pool_blue']
+        self.container.update(Path='liwan-odoo', Args=['--max-cron-threads=0'])
         self.assertTrue(self.inspect()['ready'])
         for arguments in (['--db_user', 'postgres'], ['--db-password=private'], ['-c', '/tmp/other.conf'], ['shell'], ['--db_host=other']):
             with self.subTest(arguments=arguments):
                 self.container['Config']['Cmd'] = arguments; self.container['Args'] = arguments; self.refused()
 
     def configure_cron(self, mode='shared', running=True):
-        databases = ['webvue_scratch_a']
+        databases = ['liwan_scratch_a']
         self.expected['tenancyMode'] = mode
         self.container['State']['Running'] = running
         if not running:
             self.container['State']['StartedAt'] = '0001-01-01T00:00:00Z'
-        self.container['Config']['Labels'].update({'webvue.runtime': 'cron', 'webvue.database': databases[0]})
-        self.container['Config']['Env'] = ['WEBVUE_TENANCY_MODE=' + mode, 'WEBVUE_RELEASE_POOL_ID=blue',
-                                           'WEBVUE_RELEASE_ROLE=cron', 'WEBVUE_RELEASE_DB_USER=pool_blue',
-                                           'WEBVUE_RELEASE_DATABASES=' + databases[0]]
-        entrypoint = ['/opt/venv/bin/python', '/opt/webvue/shared/launch_odoo.py'] if mode == 'shared' else ['webvue-odoo']
+        self.container['Config']['Labels'].update({'liwan.runtime': 'cron', 'liwan.database': databases[0]})
+        self.container['Config']['Env'] = ['LIWAN_TENANCY_MODE=' + mode, 'LIWAN_RELEASE_POOL_ID=blue',
+                                           'LIWAN_RELEASE_ROLE=cron', 'LIWAN_RELEASE_DB_USER=pool_blue',
+                                           'LIWAN_RELEASE_DATABASES=' + databases[0]]
+        entrypoint = ['/opt/venv/bin/python', '/opt/liwan/shared/launch_odoo.py'] if mode == 'shared' else ['liwan-odoo']
         arguments = ['--no-http', '--max-cron-threads=1', '--database=' + databases[0]]
         self.container['Config'].update(Entrypoint=entrypoint, Cmd=arguments)
         self.container.update(Path=entrypoint[0], Args=[*entrypoint[1:], *arguments])
@@ -203,9 +203,9 @@ class RuntimeIdentityTests(unittest.TestCase):
         self.container['Config']['Cmd'].insert(0, 'server'); self.container['Args'].insert(0, 'server')
         self.assertTrue(self.inspect(cron_databases=databases)['running'])
         for arguments in (['--no-http', '--max-cron-threads=1', '--database=other'],
-                          ['--no-http', '--max-cron-threads=2', '--database=webvue_scratch_a'],
-                          ['--max-cron-threads=1', '--database=webvue_scratch_a'],
-                          ['--no-http', '--max-cron-threads=1', '--database=webvue_scratch_a', '--db_user=postgres']):
+                          ['--no-http', '--max-cron-threads=2', '--database=liwan_scratch_a'],
+                          ['--max-cron-threads=1', '--database=liwan_scratch_a'],
+                          ['--no-http', '--max-cron-threads=1', '--database=liwan_scratch_a', '--db_user=postgres']):
             with self.subTest(arguments=arguments):
                 self.container['Config']['Cmd'] = arguments; self.container['Args'] = arguments
                 self.refused(cron_databases=databases)
@@ -213,24 +213,24 @@ class RuntimeIdentityTests(unittest.TestCase):
     def test_runtime_and_database_labels_cannot_disagree_with_cron_metadata(self):
         databases = self.configure_cron()
         original = copy.deepcopy(self.container)
-        for labels in ({'webvue.runtime': 'http'}, {'webvue.database': 'other'}, {'webvue.database': None}):
+        for labels in ({'liwan.runtime': 'http'}, {'liwan.database': 'other'}, {'liwan.database': None}):
             with self.subTest(labels=labels):
                 self.container = copy.deepcopy(original)
                 self.container['Config']['Labels'].update(labels)
                 self.refused(cron_databases=databases)
         self.container = copy.deepcopy(original)
-        self.container['Config']['Env'][-1] = 'WEBVUE_RELEASE_DATABASES=other'
+        self.container['Config']['Env'][-1] = 'LIWAN_RELEASE_DATABASES=other'
         self.refused(cron_databases=databases)
 
     def test_http_label_and_absence_of_cron_database_metadata_are_enforced(self):
         original = copy.deepcopy(self.container)
-        for labels in ({'webvue.runtime': 'cron'}, {'webvue.database': 'webvue_scratch_a'}):
+        for labels in ({'liwan.runtime': 'cron'}, {'liwan.database': 'liwan_scratch_a'}):
             with self.subTest(labels=labels):
                 self.container = copy.deepcopy(original)
                 self.container['Config']['Labels'].update(labels)
                 self.refused()
         self.container = copy.deepcopy(original)
-        self.container['Config']['Env'].append('WEBVUE_RELEASE_DATABASES=webvue_scratch_a')
+        self.container['Config']['Env'].append('LIWAN_RELEASE_DATABASES=liwan_scratch_a')
         self.refused()
 
     def test_stopped_candidate_still_rejects_wrong_config_and_unsafe_mount(self):

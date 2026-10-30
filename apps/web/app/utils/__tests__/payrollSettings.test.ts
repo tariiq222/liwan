@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { HrPayrollSettingsPatchSchema, type HrGosiRate, type HrPayrollSettings } from '@webvue/contracts'
+import { HrPayrollSettingsPatchSchema, type HrGosiRate, type HrPayrollSettings } from '@liwan/contracts'
 import { gosiRatePatch, payrollSettingsPatch } from '../payrollSettings'
 
 const settings: HrPayrollSettings = {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import PayrollRunCreateForm from '@/components/hr/payroll/PayrollRunCreateForm.vue'
 import { owningListBack } from '@/utils/recordListOrigin'
-import type { HrPayrollRun } from '@webvue/contracts'
+import type { HrPayrollRun } from '@liwan/contracts'
 
 const route = useRoute()
 const router = useRouter()

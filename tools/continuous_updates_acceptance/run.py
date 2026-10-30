@@ -40,7 +40,7 @@ def main(argv=None):
     config = json.loads(Path(args.config).read_text())
     if config.get('mode') != 'local' or not config['guardUrl'].startswith('http://127.0.0.1:'):
         raise ValueError('local_acceptance_required')
-    if any(not row['database'].startswith('webvue_scratch_') for row in config['tenants'].values()):
+    if any(not row['database'].startswith('liwan_scratch_') for row in config['tenants'].values()):
         raise ValueError('scratch_tenants_required')
     if len(config['tenants']) != 10: raise ValueError('ten_tenant_fixture_required')
     if any(type(row.get('actorUserId')) is not int or row['actorUserId'] < 1 for row in config['tenants'].values()):

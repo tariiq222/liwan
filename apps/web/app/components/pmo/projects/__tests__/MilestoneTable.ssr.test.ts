@@ -2,11 +2,11 @@ import { resolve } from 'node:path'
 import { defineComponent, h, ref } from 'vue'
 import { expect, it } from 'vitest'
 import * as dates from '@internationalized/date'
-import * as calendar from '@webvue/ui/app/composables/calendarDate'
+import * as calendar from '@liwan/ui/app/composables/calendarDate'
 import { ApiError } from '../../../../composables/useApi'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import * as milestoneState from '../milestoneState'
-import { renderShared } from '@webvue/ui/test/helpers/renderShared'
+import { renderShared } from '@liwan/ui/test/helpers/renderShared'
 
 it('links to the milestone record and keeps an explained disabled delete for linked tasks', async () => {
   const html = await renderShared(resolve(import.meta.dirname, '../MilestoneTable.vue'), { projectId: 1, canManage: true }, {}, {
@@ -15,8 +15,8 @@ it('links to the milestone record and keeps an explained disabled delete for lin
       useI18n: () => ({ locale: ref('en'), t: (key: string, args?: {count:number}) => args?.count ? `${key}:${args.count}` : key }),
     },
     modules: {
-      './milestoneState': milestoneState, '@internationalized/date': dates, '@webvue/ui/app/composables/calendarDate': calendar, '@/composables/useApi': { ApiError }, '@webvue/ui/app/utils/safeReturnTo': { returnToQuery }, '@webvue/ui/app/utils/recordNumberHeader': { recordNumberHeader: () => 'number' },
-      '@webvue/ui/app/components/shared/data/RecordNumber.vue': { default: defineComponent({ props: ['value'], setup: props => () => h('bdi', String(props.value)) }) },
+      './milestoneState': milestoneState, '@internationalized/date': dates, '@liwan/ui/app/composables/calendarDate': calendar, '@/composables/useApi': { ApiError }, '@liwan/ui/app/utils/safeReturnTo': { returnToQuery }, '@liwan/ui/app/utils/recordNumberHeader': { recordNumberHeader: () => 'number' },
+      '@liwan/ui/app/components/shared/data/RecordNumber.vue': { default: defineComponent({ props: ['value'], setup: props => () => h('bdi', String(props.value)) }) },
       '@/composables/useMilestones': {
         useMilestones: () => ({ data: ref([{ id: 1, name: 'In use', start_date: null, deadline: null, deliverables: [{name:'output',done:false}], is_reached: false, task_count: 2, done_task_count: 1 }]), isLoading: ref(false), error: ref(null), refetch: () => {} }),
         useUpdateMilestone: () => ({ mutateAsync: () => {} }), useDeleteMilestone: () => ({ mutateAsync: () => {}, isPending: ref(false) }),

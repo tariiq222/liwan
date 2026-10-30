@@ -9,5 +9,5 @@ const items = computed(() => props.items.map((item, index) => ({ label: item.lab
 </script>
 
 <template>
-  <UBreadcrumb v-if="items.length" :items="items" :aria-label="t('nav.breadcrumb')" data-testid="shell-breadcrumb" class="webvue-shell-breadcrumb" />
+  <UBreadcrumb v-if="items.length" :items="items" :aria-label="t('nav.breadcrumb')" data-testid="shell-breadcrumb" class="liwan-shell-breadcrumb" />
 </template>

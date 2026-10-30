@@ -9,8 +9,8 @@ import { useAdminPermissionCatalog, useAdminRole, useDeleteAdminRole, useDisable
 import { ADMIN_PAGE_SIZE, adminListQuery } from '@/composables/adminSettingsPaths'
 import { builtinRoleDescription } from '@/utils/labelFallback'
 import { accessBadge } from '@/components/access/accessBadge'
-import { statusTag, type PageHeaderTag } from '@webvue/ui/app/utils/pageHeaderTag'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import { statusTag, type PageHeaderTag } from '@liwan/ui/app/utils/pageHeaderTag'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -126,7 +126,7 @@ const typeLabel = computed(() => role.data.value?.type === 'built_in' ? t('acces
             :to-for="userTo"
             @retry="assignedUsers.refetch"
           />
-          <div v-if="assignedUsers.data.value && assignedUsers.data.value.total > assignedUsers.data.value.items.length" class="flex flex-wrap items-center justify-between gap-3 px-(--webvue-card-pad-dense) py-3 text-sm text-muted">
+          <div v-if="assignedUsers.data.value && assignedUsers.data.value.total > assignedUsers.data.value.items.length" class="flex flex-wrap items-center justify-between gap-3 px-(--liwan-card-pad-dense) py-3 text-sm text-muted">
             <p>{{ t('access.roles.assignedUsersCount', { count: assignedUsers.data.value.total }, assignedUsers.data.value.total) }}</p>
             <UButton color="primary" variant="link" class="p-0" :to="{ path: '/settings/team/users', query: { role_id: id } }" :label="t('access.roles.viewAllAssignedUsers')" />
           </div>

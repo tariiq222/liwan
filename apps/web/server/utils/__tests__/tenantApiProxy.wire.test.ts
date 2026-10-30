@@ -45,7 +45,7 @@ beforeAll(async () => {
   await new Promise<void>(resolve => app.listen(0, '127.0.0.1', resolve))
   url = `http://127.0.0.1:${(app.address() as { port: number }).port}`
 })
-beforeEach(() => { calls = 0; workCalls = 0; holdChecks = false; checkUnavailable = false; releaseChecks = []; vi.stubEnv('WEBVUE_TENANCY_MODE', 'dedicated') })
+beforeEach(() => { calls = 0; workCalls = 0; holdChecks = false; checkUnavailable = false; releaseChecks = []; vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated') })
 afterEach(() => vi.unstubAllEnvs())
 afterAll(async () => {
   for (const server of [app, upstream]) {

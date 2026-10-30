@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
-import type { HrCompensation } from '@webvue/contracts'
-import { formatDate } from '@webvue/ui/app/utils/formatDate'
+import type { HrCompensation } from '@liwan/contracts'
+import { formatDate } from '@liwan/ui/app/utils/formatDate'
 import { formatPayrollAmount, payrollCurrencyLabel } from '@/utils/payrollFormat'
 
 // The compensation block of the employee record: wage, allowances, bank account and GOSI facts.

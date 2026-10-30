@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxFlowSubmission } from '@webvue/contracts'
+import type { InboxFlowSubmission } from '@liwan/contracts'
 import type { RouteLocationRaw } from 'vue-router'
 import { answerDisplay } from '@/composables/inbox/inboxFlow'
 

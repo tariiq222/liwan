@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FinanceInvoice } from '@webvue/contracts'
+import type { FinanceInvoice } from '@liwan/contracts'
 import { invoiceRecordPath } from '@/modules/finance/routes'
 
 // Draft documents waiting to be posted, newest first: the "needs attention" list of the overview. The page owns the query.
@@ -13,7 +13,7 @@ const { t, n } = useI18n()
     :key="row.id"
     :to="invoiceRecordPath(row.move_type, row.id)"
     data-testid="finance-draft-row"
-    class="flex items-center justify-between gap-3 px-(--webvue-card-pad) py-3 text-sm transition-colors duration-150 hover:bg-(--webvue-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+    class="flex items-center justify-between gap-3 px-(--liwan-card-pad) py-3 text-sm transition-colors duration-150 hover:bg-(--liwan-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
   >
     <span class="min-w-0">
       <span class="block truncate font-medium text-highlighted">{{ row.name ?? t('finance.overview.draftUnnumbered') }}</span>

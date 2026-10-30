@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import ModuleRail from '@webvue/ui/app/components/shell/ModuleRail.vue'
+import ModuleRail from '@liwan/ui/app/components/shell/ModuleRail.vue'
 import { shellRail } from '../fixtures/shell'
 import { storyContext } from '../support/context'
 
@@ -15,7 +15,7 @@ type Story = StoryObj<typeof meta>
 export const Default: Story = {
   name: 'المشاريع نشطة',
   parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:25'),
-  render: args => ({ components: { ModuleRail }, setup: () => ({ args }), template: '<div class="webvue-shell"><ModuleRail v-bind="args" /></div>' }),
+  render: args => ({ components: { ModuleRail }, setup: () => ({ args }), template: '<div class="liwan-shell"><ModuleRail v-bind="args" /></div>' }),
 }
 
 export const SettingsActive: Story = { ...Default, name: 'الإعدادات نشطة', args: { activeId: 'settings' } }

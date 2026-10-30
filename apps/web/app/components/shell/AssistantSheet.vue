@@ -3,7 +3,7 @@ import { useEventListener, useMediaQuery } from '@vueuse/core'
 import { assistantBodyView, assistantEscapeCloses, assistantSheetMode, ASSISTANT_SHEET_ID, holdPageBehind, useAssistantSheet } from '@/composables/useAssistantSheet'
 import { useShellModel } from '@/composables/useShellModel'
 import type { AppAssistantSurface } from '@/modules/types'
-import { overlayOwnsEscape } from '@webvue/ui/app/composables/useEscapeBack'
+import { overlayOwnsEscape } from '@liwan/ui/app/composables/useEscapeBack'
 
 // The assistant sheet's host: an aside docked on the inline-end side beside the page. The shell owns only the frame
 // (header row, close, "open full page"); the body is the assistant application's own component, loaded lazily on the
@@ -74,32 +74,32 @@ useEventListener(() => (typeof document === 'undefined' ? undefined : document),
 </script>
 
 <template>
-  <div v-if="scrimShown" class="webvue-assistant-scrim" data-testid="assistant-scrim" aria-hidden="true" @click="sheet.close()" />
-  <Transition name="webvue-assistant-sheet">
+  <div v-if="scrimShown" class="liwan-assistant-scrim" data-testid="assistant-scrim" aria-hidden="true" @click="sheet.close()" />
+  <Transition name="liwan-assistant-sheet">
     <aside
       v-show="sheet.shown.value"
       :id="ASSISTANT_SHEET_ID"
       ref="panel"
-      class="webvue-assistant-sheet"
+      class="liwan-assistant-sheet"
       data-testid="assistant-sheet"
       :data-mode="mode"
       :role="mode === 'full' ? 'dialog' : undefined"
       :aria-modal="mode === 'full' ? 'true' : undefined"
       :aria-label="t('nav.assistantSheet.region')"
     >
-      <div class="webvue-assistant-head" data-slot="assistant-head">
-        <span class="webvue-assistant-mark" aria-hidden="true"><UIcon name="i-lucide-sparkles" class="size-4" /></span>
-        <h2 class="webvue-assistant-title">{{ t(props.surface.labelKey) }}</h2>
-        <span v-if="moduleLabel" class="webvue-assistant-module" data-testid="assistant-sheet-module">{{ moduleLabel }}</span>
-        <span class="webvue-assistant-head-space" />
-        <NuxtLink :to="fullPageTo" class="webvue-assistant-action" data-testid="assistant-sheet-full-page" :title="t('nav.assistantSheet.openFullPage')" :aria-label="t('nav.assistantSheet.openFullPage')">
+      <div class="liwan-assistant-head" data-slot="assistant-head">
+        <span class="liwan-assistant-mark" aria-hidden="true"><UIcon name="i-lucide-sparkles" class="size-4" /></span>
+        <h2 class="liwan-assistant-title">{{ t(props.surface.labelKey) }}</h2>
+        <span v-if="moduleLabel" class="liwan-assistant-module" data-testid="assistant-sheet-module">{{ moduleLabel }}</span>
+        <span class="liwan-assistant-head-space" />
+        <NuxtLink :to="fullPageTo" class="liwan-assistant-action" data-testid="assistant-sheet-full-page" :title="t('nav.assistantSheet.openFullPage')" :aria-label="t('nav.assistantSheet.openFullPage')">
           <UIcon name="i-lucide-maximize-2" class="size-4" aria-hidden="true" />
         </NuxtLink>
-        <button type="button" class="webvue-assistant-action" data-testid="assistant-sheet-close" :title="t('nav.assistantSheet.close')" :aria-label="t('nav.assistantSheet.close')" @click="sheet.close()">
+        <button type="button" class="liwan-assistant-action" data-testid="assistant-sheet-close" :title="t('nav.assistantSheet.close')" :aria-label="t('nav.assistantSheet.close')" @click="sheet.close()">
           <UIcon name="i-lucide-x" class="size-4" aria-hidden="true" />
         </button>
       </div>
-      <div class="webvue-assistant-body">
+      <div class="liwan-assistant-body">
         <component :is="body" v-if="everOpened" />
       </div>
     </aside>

@@ -5,7 +5,7 @@ import { composerKeyAction, mentionIdsInText, moveHighlight, shouldNotifyTyping,
 import { chatDrafts } from '@/utils/chatDrafts'
 import { preserveFailedDraft } from '@/utils/chatState'
 
-import type { ChatMessage } from '@webvue/contracts'
+import type { ChatMessage } from '@liwan/contracts'
 
 const props = defineProps<{ conversationId: number; replyTo?: ChatMessage | null }>()
 const emit = defineEmits<{ 'update:pending': [string]; 'clear-reply': [] }>()
@@ -128,7 +128,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <form class="webvue-chat-composer" @submit.prevent="submit">
+  <form class="liwan-chat-composer" @submit.prevent="submit">
     <p v-if="props.replyTo" class="flex items-center justify-between px-1 text-xs text-muted">
       <span>{{ t('chat.replyingTo', { name: props.replyTo.author.name }) }}</span>
       <UButton type="button" color="neutral" variant="ghost" size="xs" :label="t('app.cancel')" @click="emit('clear-reply')" />

@@ -18,7 +18,7 @@ class Probe:
 
     @route('/b', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_registered_feature('webvue.example', '_keys', keys=('registry:webvue.example',), operation='read')
+    @requires_registered_feature('liwan.example', '_keys', keys=('registry:liwan.example',), operation='read')
     def registered_gate(self):
         return None
 
@@ -34,7 +34,7 @@ class TestFeatureMetadata(unittest.TestCase):
     def test_both_gates_document_their_keys_and_operation(self):
         functions = {node.name: node for node in ast.walk(ast.parse(SOURCE)) if isinstance(node, ast.FunctionDef)}
         self.assertEqual(api_surface.feature_metadata(functions['static_gate']), (['a.enabled', 'b.enabled'], 'read'))
-        self.assertEqual(api_surface.feature_metadata(functions['registered_gate']), (['registry:webvue.example'], 'read'))
+        self.assertEqual(api_surface.feature_metadata(functions['registered_gate']), (['registry:liwan.example'], 'read'))
         self.assertEqual(api_surface.feature_metadata(functions['row_level']), ([], None))
 
 
@@ -56,7 +56,7 @@ class TestRoutePathResolution(unittest.TestCase):
     )
 
     def paths(self, source):
-        path = route_gate_policy.ADDONS / 'webvue_hr' / 'controllers' / 'probe.py'
+        path = route_gate_policy.ADDONS / 'liwan_hr' / 'controllers' / 'probe.py'
         return {r['handler']: r['paths'] for r in api_surface.extract_routes({path: ast.parse(source)})}
 
     def test_literal_constant_fstring_and_concatenation_resolve(self):
@@ -77,7 +77,7 @@ class TestRoutePathResolution(unittest.TestCase):
 class TestCapabilityMatrix(unittest.TestCase):
 
     def test_matrix_lists_keys_and_reasons_per_operation(self):
-        path = route_gate_policy.ADDONS / 'webvue_hr' / 'controllers' / 'probe.py'
+        path = route_gate_policy.ADDONS / 'liwan_hr' / 'controllers' / 'probe.py'
         source = (
             "class P:\n"
             "    @route('/api/v1/a/<int:rid>', type='json2', auth='user', methods=['GET', 'POST'])\n"
@@ -90,7 +90,7 @@ class TestCapabilityMatrix(unittest.TestCase):
         )
         trees = {path: ast.parse(source)}
         routes = route_gate_policy.extract_routes(trees, {})
-        allow = {'no_capability': {'webvue_hr/controllers/probe.py:open_route': 'own data only'}}
+        allow = {'no_capability': {'liwan_hr/controllers/probe.py:open_route': 'own data only'}}
         operations = api_surface.capability_matrix(routes, allow)['operations']
         self.assertEqual(list(operations), ['GET /api/v1/a/{rid}', 'POST /api/v1/a/{rid}', 'GET /api/v1/b'])
         gated = operations['GET /api/v1/a/{rid}']
@@ -104,30 +104,30 @@ class TestCapabilityMatrix(unittest.TestCase):
 class NestedPackageTests(unittest.TestCase):
     """A controller module inside a nested area package (spec §8.7) is parsed like a flat one."""
 
-    NESTED = api_surface.ADDONS / 'webvue_hr' / 'controllers' / 'shifts' / 'probe.py'
+    NESTED = api_surface.ADDONS / 'liwan_hr' / 'controllers' / 'shifts' / 'probe.py'
 
     def test_parse_controllers_scans_every_depth_once_in_a_stable_order(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / 'odoo-addons'
-            (root / 'webvue_hr' / 'controllers' / 'shifts').mkdir(parents=True)
-            (root / 'webvue_hr' / 'controllers' / 'flat.py').write_text('x = 1\n')
-            (root / 'webvue_hr' / 'controllers' / '__init__.py').write_text('from . import flat\n')
-            (root / 'webvue_hr' / 'controllers' / 'shifts' / 'deep.py').write_text('x = 1\n')
-            (root / 'webvue_hr' / 'controllers' / 'shifts' / '__init__.py').write_text('from . import deep\n')
+            (root / 'liwan_hr' / 'controllers' / 'shifts').mkdir(parents=True)
+            (root / 'liwan_hr' / 'controllers' / 'flat.py').write_text('x = 1\n')
+            (root / 'liwan_hr' / 'controllers' / '__init__.py').write_text('from . import flat\n')
+            (root / 'liwan_hr' / 'controllers' / 'shifts' / 'deep.py').write_text('x = 1\n')
+            (root / 'liwan_hr' / 'controllers' / 'shifts' / '__init__.py').write_text('from . import deep\n')
             with mock.patch.object(api_surface, 'ADDONS', root):
                 trees = api_surface.parse_controllers()
             keys = [str(path.relative_to(root)) for path in trees]
         # Both depths are parsed and every __init__.py (which only imports) is skipped.
-        self.assertEqual(keys, ['webvue_hr/controllers/flat.py', 'webvue_hr/controllers/shifts/deep.py'])
+        self.assertEqual(keys, ['liwan_hr/controllers/flat.py', 'liwan_hr/controllers/shifts/deep.py'])
         self.assertEqual(len(keys), len(set(keys)))
 
     def test_a_nested_module_reports_its_owning_addon_and_repo_path(self):
         raw = api_surface.extract_routes({self.NESTED: ast.parse(SOURCE)})
         self.assertEqual([item['handler'] for item in raw], ['static_gate', 'registered_gate', 'row_level'])
-        self.assertEqual({item['addon'] for item in raw}, {'webvue_hr'})
+        self.assertEqual({item['addon'] for item in raw}, {'liwan_hr'})
         self.assertEqual(
             {item['file'] for item in raw},
-            {'odoo-addons/webvue_hr/controllers/shifts/probe.py'},
+            {'odoo-addons/liwan_hr/controllers/shifts/probe.py'},
         )
 
 

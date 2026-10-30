@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { InboxContactMarketingPatchSchema } from '@webvue/contracts'
-import { formatDateTime } from '@webvue/ui/app/utils/formatDate'
+import { InboxContactMarketingPatchSchema } from '@liwan/contracts'
+import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import { CONSENT_TONE } from '@/composables/inbox/inboxCampaignPresentation'
 import { useInboxTags } from '@/composables/inbox/useInbox'
 import { useInboxContactMarketing, usePatchInboxContactMarketing } from '@/composables/inbox/useInboxCampaigns'

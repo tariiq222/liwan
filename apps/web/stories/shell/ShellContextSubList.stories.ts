@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import ShellContextSubList from '@webvue/ui/app/components/shell/ShellContextSubList.vue'
+import ShellContextSubList from '@liwan/ui/app/components/shell/ShellContextSubList.vue'
 import { subListFixture } from '../fixtures/shell'
 import { storyContext } from '../support/context'
 import { ref } from 'vue'
@@ -16,7 +16,7 @@ type Story = StoryObj<typeof meta>
 export const Default: Story = {
   name: 'أقسام القائمة الفرعية',
   parameters: storyContext('packages/ui/app/components/shell/ShellNavigation.vue:87'),
-  render: args => ({ components: { ShellContextSubList }, setup: () => ({ args }), template: '<div class="webvue-shell min-h-svh"><div class="webvue-context-column"><ShellContextSubList v-bind="args" /></div></div>' }),
+  render: args => ({ components: { ShellContextSubList }, setup: () => ({ args }), template: '<div class="liwan-shell min-h-svh"><div class="liwan-context-column"><ShellContextSubList v-bind="args" /></div></div>' }),
 }
 
 // The collapsed bar: the shell sets the context sidebar to 64px, which the card follows.
@@ -24,7 +24,7 @@ export const Collapsed: Story = {
   ...Default,
   name: 'مطوية (أيقونات)',
   args: { collapsed: true },
-  render: args => ({ components: { ShellContextSubList }, setup: () => ({ args }), template: '<div class="webvue-shell min-h-svh" style="--context-sidebar-width: 64px"><div class="webvue-context-column"><ShellContextSubList v-bind="args" /></div></div>' }),
+  render: args => ({ components: { ShellContextSubList }, setup: () => ({ args }), template: '<div class="liwan-shell min-h-svh" style="--context-sidebar-width: 64px"><div class="liwan-context-column"><ShellContextSubList v-bind="args" /></div></div>' }),
 }
 
 export const Nested: Story = {
@@ -44,6 +44,6 @@ export const Nested: Story = {
       const disclose = (path: string[], open: boolean) => { openPath.value = open ? path : path.slice(0, -1) }
       return { args, openPath, disclose }
     },
-    template: '<div class="webvue-shell min-h-svh"><div class="webvue-context-column"><ShellContextSubList v-bind="args" :open-path="openPath" :hydrated="true" @disclose="disclose" /></div></div>',
+    template: '<div class="liwan-shell min-h-svh"><div class="liwan-context-column"><ShellContextSubList v-bind="args" :open-path="openPath" :hydrated="true" @disclose="disclose" /></div></div>',
   }),
 }

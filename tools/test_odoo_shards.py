@@ -50,18 +50,18 @@ class ShardCountTest(unittest.TestCase):
 
 class AffectedTagsTest(unittest.TestCase):
     def test_only_the_affected_modules_are_split_and_tagged(self):
-        modules = ['webvue_hr', 'webvue_access_hr', 'webvue_pmo']
+        modules = ['liwan_hr', 'liwan_access_hr', 'liwan_pmo']
         count = len(odoo_shards.shard_numbers(modules))
         tagged = [t for k in range(1, count + 1) for t in odoo_shards.tags('%d/%d' % (k, count), modules).split(',')]
         self.assertEqual(sorted(tagged), sorted('/' + m for m in modules))
 
     def test_a_non_release_module_is_refused(self):
         with self.assertRaisesRegex(odoo_shards.ShardError, 'not_a_module'):
-            odoo_shards.tags('1/1', ['webvue_hr', 'not_a_module'])
+            odoo_shards.tags('1/1', ['liwan_hr', 'not_a_module'])
 
     def test_an_empty_shard_is_refused(self):
         with self.assertRaisesRegex(odoo_shards.ShardError, 'no module'):
-            odoo_shards.tags('2/2', ['webvue_hr'])
+            odoo_shards.tags('2/2', ['liwan_hr'])
 
     def test_the_module_list_is_parsed_and_must_not_be_empty(self):
         self.assertEqual(odoo_shards.parse_modules('a,b'), ['a', 'b'])
@@ -98,9 +98,9 @@ class CommandTest(unittest.TestCase):
             self.assertEqual(self.output('tags', '%d/%d' % (k, count)), ','.join('/' + m for m in planned[k - 1]))
 
     def test_modules_narrow_the_matrix_and_the_tags(self):
-        self.assertEqual(json.loads(self.output('matrix', '--modules', 'webvue_hr,webvue_access_hr')), [1])
-        self.assertEqual(self.output('tags', '1/1', '--modules', 'webvue_hr,webvue_access_hr'),
-                         '/webvue_access_hr,/webvue_hr')
+        self.assertEqual(json.loads(self.output('matrix', '--modules', 'liwan_hr,liwan_access_hr')), [1])
+        self.assertEqual(self.output('tags', '1/1', '--modules', 'liwan_hr,liwan_access_hr'),
+                         '/liwan_access_hr,/liwan_hr')
 
     def test_invalid_count_and_missing_port_are_refused(self):
         with self.assertRaises(odoo_shards.ShardError):

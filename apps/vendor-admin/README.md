@@ -1,13 +1,13 @@
-# WebVue vendor admin (`apps/vendor-admin`)
+# LiwanOS vendor admin (`apps/vendor-admin`)
 
-The staff console of the WebVue vendor: customers (every client, with its subscription and workspace), plans, bundles, catalog, invoices, operations, audit and the
+The staff console of the LiwanOS vendor: customers (every client, with its subscription and workspace), plans, bundles, catalog, invoices, operations, audit and the
 team that may use them. It is a separate Nuxt 4 application from the customer app (`apps/web`) and is served on its own
 `admin` host. Arabic is the default locale and the UI is RTL-first. Design rules: [DESIGN.md](../../DESIGN.md).
 
 ## Boundaries
 
-- It renders with the shared layers `@webvue/ui` and `@webvue/commercial-ui` and takes types and request signing from
-  `@webvue/commercial-contracts`. It never imports `apps/web`, `odoo-addons`, `@webvue/contracts` or the control plane code,
+- It renders with the shared layers `@liwan/ui` and `@liwan/commercial-ui` and takes types and request signing from
+  `@liwan/commercial-contracts`. It never imports `apps/web`, `odoo-addons`, `@liwan/contracts` or the control plane code,
   and never calls an Odoo route (rule `VA1` in `tools/arch_policy.py`). `apps/web` never imports this app.
 - There is no `/vendor` page prefix: pages are `/overview`, `/customers` (`/customers/new`, `/customers/{id}?tab=` and, for a workspace that has no commercial record, `/tenants/{id}`), `/operations`, `/plans`, `/bundles`,
   `/catalog`, `/invoices`, `/audit`, `/team`, `/login` and `/enroll`. The API prefix `/api/vendor/v1/**` names the upstream
@@ -17,13 +17,13 @@ team that may use them. It is a separate Nuxt 4 application from the customer ap
 
 The browser talks only to this app's own server routes (`server/api/**`, the backend for frontend). The BFF holds the
 service key and forwards each call to the control plane (`apps/control-plane`) as a signed request
-(`signServiceRequest` from `@webvue/commercial-contracts/server`):
+(`signServiceRequest` from `@liwan/commercial-contracts/server`):
 
 - Anonymous sign-in and enrollment routes (`/v1/admin/auth/*`) are signed with `anonymous: true`.
-- All other routes are signed with the numeric account id taken from the session cookie, plus the header `x-webvue-session`.
-- The session cookie (`__Host-webvue_admin`, `HttpOnly; Secure; SameSite=Strict; Path=/`; on a loopback `http:` origin in
-  development only: `webvue_admin` without `Secure`) is never forwarded upstream.
-- **The BFF always overwrites `x-webvue-client-ip`** with `getRequestIP(event, { xForwardedFor: trustProxy })`. A value sent
+- All other routes are signed with the numeric account id taken from the session cookie, plus the header `x-liwan-session`.
+- The session cookie (`__Host-liwan_admin`, `HttpOnly; Secure; SameSite=Strict; Path=/`; on a loopback `http:` origin in
+  development only: `liwan_admin` without `Secure`) is never forwarded upstream.
+- **The BFF always overwrites `x-liwan-client-ip`** with `getRequestIP(event, { xForwardedFor: trustProxy })`. A value sent
   by the browser is never forwarded. Turn `NUXT_TRUST_PROXY` on only behind the edge that sets `X-Forwarded-For` itself.
 - Without a service key of at least 32 bytes every API route answers `503 { "code": "vendor_unavailable" }`.
 - Request bodies are capped at 64 KiB at every hop: the edge (`request_body { max_size 64KB }` in
@@ -87,7 +87,7 @@ and authenticator. They exist only on a developer machine and are refused everyw
 - Both calls are audited with the reason `dev-login`, and `dev-step-up` only works for the `ADMIN_DEV_LOGIN_EMAIL` account.
 
 Checks: `npm -w apps/vendor-admin run lint`, `npm -w apps/vendor-admin run test`, `npm -w apps/vendor-admin run build`.
-Production image: `docker build -f apps/vendor-admin/Dockerfile -t webvue-vendor-admin .` (port 3100).
+Production image: `docker build -f apps/vendor-admin/Dockerfile -t liwan-vendor-admin .` (port 3100).
 
 ## Live proof against the real control plane
 
@@ -100,7 +100,7 @@ prints a pass/fail table and exits non-zero on any failure:
 PATH=/opt/homebrew/bin:$PATH node tools/vendor_admin_local_check.mjs
 ```
 
-It creates the scratch database `webvue_control_scratch_p3live` on the local Postgres (127.0.0.1:5432), runs the control
+It creates the scratch database `liwan_control_scratch_p3live` on the local Postgres (127.0.0.1:5432), runs the control
 plane on `127.0.0.1:4711` and this app's production build on `localhost:3103` with per-run random keys (never printed),
 writes screenshots to `.superpowers/wave4-live-shots/`, and drops the database on exit. It refuses to run against any
-database not named `webvue_control_scratch_*`.
+database not named `liwan_control_scratch_*`.

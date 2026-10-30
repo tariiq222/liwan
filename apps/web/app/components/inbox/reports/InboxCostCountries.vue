@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { InboxCostCountryRow } from '@webvue/contracts'
+import type { InboxCostCountryRow } from '@liwan/contracts'
 import { formatAmount } from '@/composables/inbox/inboxReportCharts'
 
 // Volume and cost per destination country, largest volume first (the server's order).

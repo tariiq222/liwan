@@ -8,7 +8,7 @@ import type {
   FinanceReportLine,
   FinanceVatReturn,
   FinanceVatSummary,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 
 type AgedBuckets = FinanceAgedPartnerBalance['totals']
 type LedgerAccount = FinanceGeneralLedger['accounts'][number]

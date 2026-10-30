@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { InboxFlow, InboxFlowSubmission } from '@webvue/contracts'
+import type { InboxFlow, InboxFlowSubmission } from '@liwan/contracts'
 import { answerColumns, answerDisplay, answerOf, conversationRoute } from '@/composables/inbox/inboxFlow'
 
 // The answers to one form: the date, the contact (a link to the answer in the conversation) and one column per

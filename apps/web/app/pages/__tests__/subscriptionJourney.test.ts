@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { subscriptionDisplayState } from '@webvue/commercial-contracts'
+import { subscriptionDisplayState } from '@liwan/commercial-contracts'
 import { safePaymentRedirect, forgetIdempotencyKey, idempotencyKey, QUOTE_IS_EXPIRED, safeIdemAction, sanitizeBody, usageFigure, usageMetricLabel } from '../../utils/subscription'
 import { deriveCustomerCapabilities } from '../../utils/customerCapabilities'
 

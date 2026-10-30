@@ -7,26 +7,26 @@ import unittest
 import urllib.error
 from unittest.mock import patch
 
-if importlib.util.find_spec('webvue_cli.managed_health') is None:
+if importlib.util.find_spec('liwan_cli.managed_health') is None:
     managed_health = None
 else:
-    from webvue_cli import managed_health
+    from liwan_cli import managed_health
 
-PROJECT = 'webvue-health-fixture'
+PROJECT = 'liwan-health-fixture'
 IMAGES = {service: 'sha256:' + letter * 64 for service, letter in zip(['db', 'odoo', 'web', 'edge'], 'abcd')}
 IDS = {service: letter * 64 for service, letter in zip(['db', 'odoo', 'web', 'edge'], '1234')}
 BRANDING = {
     'name': 'Fixture institution', 'logo_url': '/web/binary/company_logo?company=1&v=20260923112233445566-012345abcdef',
     'primary_color': '#18181b', 'font': 'IBM_Plex_Sans_Arabic',
 }
-LOGIN = b'<html><body><div id="__nuxt"><main class="webvue-login-page"><form><input id="login" autocomplete="username"><input id="password" type="password"></form></main></div></body></html>'
+LOGIN = b'<html><body><div id="__nuxt"><main class="liwan-login-page"><form><input id="login" autocomplete="username"><input id="password" type="password"></form></main></div></body></html>'
 
 
 def descriptor():
     return {
         'commercial_mode': 'saas',
         'resource_refs': {'project': PROJECT, 'compose_file': '/private/target/compose.json',
-                          'db_name': 'webvue_scratch_health_fixture',
+                          'db_name': 'liwan_scratch_health_fixture',
                           'ports': {'db': 25431, 'odoo': 28061, 'web': 23001}},
         'release_ref': {'identity_kind': 'image_id', 'odoo_image': IMAGES['odoo'],
                         'web_image': IMAGES['web'], 'proxy_image': IMAGES['edge']},
@@ -135,7 +135,7 @@ class HealthCase(unittest.TestCase):
         self.runner.ps_array = True
         self.descriptor['release_ref']['identity_kind'] = 'repo_digest'
         for name, key in [('odoo', 'odoo_image'), ('web', 'web_image'), ('edge', 'proxy_image')]:
-            reference = 'registry.invalid/webvue@' + IMAGES[name]
+            reference = 'registry.invalid/liwan@' + IMAGES[name]
             self.descriptor['release_ref'][key] = reference
             next(row for row in self.runner.containers if row['Id'] == IDS[name])['Config']['Image'] = reference
             self.runner.image_rows[reference] = {'Id': IMAGES[name], 'RepoDigests': [reference]}
@@ -228,7 +228,7 @@ class HealthCase(unittest.TestCase):
     def test_login_requires_real_nuxt_root_and_source_login_elements(self):
         response = self.opener.responses['http://127.0.0.1:23001/login']
         for body in [b'<html>unrelated</html>', LOGIN.replace(b'__nuxt', b'other'),
-                     LOGIN.replace(b'webvue-login-page', b'other'), LOGIN.replace(b'id="password"', b'id="other"'),
+                     LOGIN.replace(b'liwan-login-page', b'other'), LOGIN.replace(b'id="password"', b'id="other"'),
                      b'<html><!--' + LOGIN + b'--></html>', b'<html><script>' + LOGIN + b'</script></html>']:
             response.body = body
             self.assertFalse(self.health())
@@ -254,7 +254,7 @@ class HealthCase(unittest.TestCase):
 
     def test_retry_budget_is_bounded_and_reobserves_container_identity(self):
         self.runner.override = (1, '', '')
-        with patch('webvue_cli.managed_health.time.sleep') as sleep:
+        with patch('liwan_cli.managed_health.time.sleep') as sleep:
             self.assertFalse(self.health(attempts=3, delay=.5))
         self.assertEqual(len(self.runner.calls), 3)
         self.assertEqual(sleep.call_count, 2)

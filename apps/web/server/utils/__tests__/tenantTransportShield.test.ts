@@ -11,15 +11,15 @@ let server: http.Server
 let base = ''
 
 function browserEvent() {
-  const req = Object.assign(new EventEmitter(), { headers: { host: 'a.example.test', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1' } })
+  const req = Object.assign(new EventEmitter(), { headers: { host: 'a.example.test', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1' } })
   const res = Object.assign(new EventEmitter(), { writableEnded: false })
   return { event: { node: { req, res } } as never, res }
 }
 
 beforeEach(async () => {
-  const path = join(mkdtempSync(join(tmpdir(), 'webvue-shield-')), 'registry.json')
+  const path = join(mkdtempSync(join(tmpdir(), 'liwan-shield-')), 'registry.json')
   writeFileSync(path, JSON.stringify({ schemaVersion: 1, snapshotRevision: 1, targets: [{ host: 'a.example.test', tenantId: 'a', database: 'db_a', filestore: 'db_a', registryRevision: 1, enabled: true }] }))
-  vi.stubEnv('WEBVUE_TENANCY_MODE', 'shared'); vi.stubEnv('WEBVUE_SHARED_PROXY_TOKEN', token); vi.stubEnv('WEBVUE_TENANT_REGISTRY_PATH', path)
+  vi.stubEnv('LIWAN_TENANCY_MODE', 'shared'); vi.stubEnv('LIWAN_SHARED_PROXY_TOKEN', token); vi.stubEnv('LIWAN_TENANT_REGISTRY_PATH', path)
   server = http.createServer((req, res) => {
     req.resume()
     setTimeout(() => { res.setHeader('content-type', 'application/json'); res.end('{"ok":true}') }, 120)

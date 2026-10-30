@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxAudience, InboxAudienceTagMatch } from '@webvue/contracts'
+import type { InboxAudience, InboxAudienceTagMatch } from '@liwan/contracts'
 import { useInboxTags } from '@/composables/inbox/useInbox'
 import { useSaveInboxAudience } from '@/composables/inbox/useInboxCampaigns'
 
@@ -71,7 +71,7 @@ async function submit() {
     <UFormField :label="t('inbox.campaigns.audiences.activeWithin')" :description="t('inbox.campaigns.audiences.activeWithinHint')" :error="fieldError('active_within_days')">
       <UInputNumber v-model="draft.activeWithinDays" class="w-full sm:w-60" :min="0" :max="3650" :disabled="off" data-testid="inbox-audience-active" />
     </UFormField>
-    <div v-if="props.audience" class="grid grid-cols-2 gap-(--webvue-gap-card)" data-testid="inbox-audience-counts">
+    <div v-if="props.audience" class="grid grid-cols-2 gap-(--liwan-gap-card)" data-testid="inbox-audience-counts">
       <SharedMetricTile density="compact" icon="i-lucide-users" :label="t('inbox.campaigns.audiences.contacts')" :value="props.audience.contact_count" />
       <SharedMetricTile density="compact" icon="i-lucide-send" :label="t('inbox.campaigns.audiences.reachable')" :value="props.audience.reachable_count" :hint="t('inbox.campaigns.audiences.reachableHint')" tone="success" />
     </div>

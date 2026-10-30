@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AppointmentSettings } from '@webvue/contracts'
+import type { AppointmentSettings } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { settingsPatch } from '@/composables/appointments/appointmentSettings'
 import { useSaveAppointmentSettings } from '@/composables/appointments/useAppointmentSettings'
@@ -34,7 +34,7 @@ async function apply() {
 </script>
 
 <template>
-  <SharedRecordSection id="preset" class="webvue-settings-anchor" :title="t('appointments.settings.preset.title')" :description="t('appointments.settings.preset.hint')" data-testid="appointments-preset">
+  <SharedRecordSection id="preset" class="liwan-settings-anchor" :title="t('appointments.settings.preset.title')" :description="t('appointments.settings.preset.hint')" data-testid="appointments-preset">
     <div class="grid gap-3">
       <UFormField orientation="horizontal" :label="t('appointments.settings.preset.label')" name="sector_preset" :description="t('appointments.settings.preset.warning')">
         <USelect id="appointments-preset" v-model="chosen" class="w-full" :items="items" :disabled="locked" />

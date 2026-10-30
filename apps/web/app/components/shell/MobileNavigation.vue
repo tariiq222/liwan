@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { SlideoverProps } from '@nuxt/ui'
 import { useMediaQuery } from '@vueuse/core'
-import ShellNavigation from '@webvue/ui/app/components/shell/ShellNavigation.vue'
-import type { ShellNavigationItem, ShellQuickItem } from '@webvue/ui/app/types/shell'
+import ShellNavigation from '@liwan/ui/app/components/shell/ShellNavigation.vue'
+import type { ShellNavigationItem, ShellQuickItem } from '@liwan/ui/app/types/shell'
 import { isSamePageAnchor } from '@/composables/nav/settingsScroll'
 
 const props = defineProps<{ items: ShellNavigationItem[]; activeId: string | null; homeTo: string }>()
@@ -23,9 +23,9 @@ function onNavigate(item: ShellQuickItem) {
 </script>
 
 <template>
-  <USlideover v-model:open="open" :side="localeProperties.dir === 'rtl' ? 'right' : 'left'" :title="menuTitle" :description="t('nav.apps')" :content="dialogContent" :ui="{ content: 'webvue-mobile-menu', overlay: 'webvue-mobile-menu-overlay' }">
-    <UButton id="mobile-navigation-trigger" class="webvue-mobile-menu-trigger" type="button" color="neutral" variant="ghost" square data-testid="mobile-navigation-trigger" aria-controls="mobile-navigation" :aria-expanded="open" :aria-label="openMenuLabel" :disabled="!hydrated">
-      <template #leading><UIcon name="i-lucide-menu" class="webvue-shell-icon size-4.5 shrink-0" aria-hidden="true" /></template>
+  <USlideover v-model:open="open" :side="localeProperties.dir === 'rtl' ? 'right' : 'left'" :title="menuTitle" :description="t('nav.apps')" :content="dialogContent" :ui="{ content: 'liwan-mobile-menu', overlay: 'liwan-mobile-menu-overlay' }">
+    <UButton id="mobile-navigation-trigger" class="liwan-mobile-menu-trigger" type="button" color="neutral" variant="ghost" square data-testid="mobile-navigation-trigger" aria-controls="mobile-navigation" :aria-expanded="open" :aria-label="openMenuLabel" :disabled="!hydrated">
+      <template #leading><UIcon name="i-lucide-menu" class="liwan-shell-icon size-4.5 shrink-0" aria-hidden="true" /></template>
     </UButton>
     <template #body>
       <ShellNavigation surface="drawer" :items="props.items" :active-id="props.activeId" :route-key="route.fullPath" :home-to="props.homeTo" :expanded="true" :hydrated="hydrated" @navigate="onNavigate" />

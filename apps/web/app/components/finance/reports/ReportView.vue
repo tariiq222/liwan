@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { localIsoDay } from '@webvue/ui/app/utils/formatDate'
+import { localIsoDay } from '@liwan/ui/app/utils/formatDate'
 import { analyticLineParams, ANALYTIC_LINE_PAGE_SIZE } from '../analytic/analyticParams'
 import { useFinanceAnalyticLines } from '@/composables/finance/useFinanceAnalytic'
 import { useFinanceReport } from '@/composables/finance/useFinanceReports'
@@ -71,13 +71,13 @@ function clearFilters() {
 <template>
   <SharedListPage :title="t(`financeReports.reports.${config.key}.title`)" :tags="tags" kpi-toggle>
     <SharedForbiddenState v-if="!allowed" :description="t('financeReports.forbidden')" />
-    <div v-else class="webvue-page-stack">
+    <div v-else class="liwan-page-stack">
       <SharedKpiStrip v-if="kpisShown && (loading || tiles.length)" :tiles="tiles" :loading="loading" :skeleton-count="3" :label="t('financeReports.kpi.label')" data-testid="finance-report-kpis" />
       <SharedListCard>
         <template #filters>
           <ReportFilters :slug="slug" :filters="filters" :active-count="activeCount" :disabled="!hydrated" @change="update" @clear="clearFilters" />
         </template>
-        <SharedEmptyState v-if="!ready" class="m-(--webvue-card-pad-dense)" :title="pickPrompt.title" :description="pickPrompt.description" />
+        <SharedEmptyState v-if="!ready" class="m-(--liwan-card-pad-dense)" :title="pickPrompt.title" :description="pickPrompt.description" />
         <SharedPageState v-else :loading="loading" :error="query.error.value" :keep-content="!!loaded" @retry="query.refetch">
           <template v-if="loaded">
             <UAlert

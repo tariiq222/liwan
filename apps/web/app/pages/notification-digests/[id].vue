@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ApiError } from '@/composables/useApi'
 import { useNotificationDigest } from '@/composables/useNotifications'
-import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
+import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 
 const route = useRoute()
 const router = useRouter()
@@ -74,14 +74,14 @@ async function retryNextPage() {
     <SharedErrorState v-else-if="isError && !items.length" :title="queryErrorMessage" data-testid="digest-error" @retry="retryDigest" />
     <SharedEmptyState v-else-if="!items.length" bordered :title="t('tasks.digest.empty')" data-testid="digest-empty" />
     <SharedListCard v-else>
-      <p v-if="digestDate" class="border-b border-default px-(--webvue-card-pad-dense) py-2 text-sm text-muted tabular-nums" data-testid="digest-date">
+      <p v-if="digestDate" class="border-b border-default px-(--liwan-card-pad-dense) py-2 text-sm text-muted tabular-nums" data-testid="digest-date">
         <time :datetime="digestIso ?? undefined">{{ digestDate }}</time>
       </p>
       <ul class="divide-y divide-default">
         <li v-for="task in items" :key="task.id">
           <UButton
             type="button" color="neutral" variant="ghost"
-            class="grid w-full gap-1 rounded-none px-(--webvue-card-pad-dense) py-3 text-start hover:bg-elevated"
+            class="grid w-full gap-1 rounded-none px-(--liwan-card-pad-dense) py-3 text-start hover:bg-elevated"
             :disabled="!hydrated"
             :data-testid="`digest-task-${task.id}`"
             @click="openTask(task.id)"

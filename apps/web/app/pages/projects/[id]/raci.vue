@@ -5,11 +5,11 @@ import { useQueryClient } from '@tanstack/vue-query'
 import { settleServerQueries } from '@/lib/vueQuerySsr'
 import { governanceMatrixFilters } from '@/composables/projectGovernanceKeys'
 import { useGovernanceTaskPage, useProjectRaci, useProjectStakeholders, useCreateProjectRaci, useUpdateProjectRaci, useDeleteProjectRaci } from '@/composables/useProjectGovernance'
-import type { ProjectRaci, ProjectRaciRole } from '@webvue/contracts'
+import type { ProjectRaci, ProjectRaciRole } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState.vue'
 import { useProjectMissing } from '@/composables/useProjects'
-import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
+import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
 import { RACI_ROLE_TONE } from '@/components/pmo/projects/governance/state'
 import { projectSectionLocation } from '@/utils/projectWorkspaceMemory'
 const route = useRoute(); const router = useRouter(); const { t } = useI18n(); const toast = useToast(); const hydrated = useHydrated()
@@ -133,7 +133,7 @@ const settled = computed(() => !tasks.isLoading.value && !stakeholders.isLoading
         </FilterBar>
       </template>
       <SharedPageState v-if="!settled" :loading="tasks.isLoading.value || stakeholders.isLoading.value || rows.isLoading.value" :error="tasks.error.value || stakeholders.error.value || rows.error.value" :empty="false" @retry="() => { tasks.refetch(); stakeholders.refetch(); rows.refetch() }" />
-      <div v-else-if="noMatrix" class="p-(--webvue-card-pad)">
+      <div v-else-if="noMatrix" class="p-(--liwan-card-pad)">
         <SharedEmptyState
           data-testid="raci-empty"
           :title="t('projects.refresh.workspace.raciEmptyTitle')"
@@ -157,7 +157,7 @@ const settled = computed(() => !tasks.isLoading.value && !stakeholders.isLoading
         @change="changeRole"
       />
       <template v-if="taskPages > 1 || stakeholderPages > 1" #footer>
-        <div class="grid w-full gap-(--webvue-gap-card) sm:grid-cols-2">
+        <div class="grid w-full gap-(--liwan-gap-card) sm:grid-cols-2">
           <div role="group" :aria-label="t('projects.governance.raci.task')"><SharedPagination :page="taskPageNumber" :pages="taskPages" :disabled="loading || pending" @update:page="taskPage = $event - 1" /></div>
           <div role="group" :aria-label="t('projects.governance.raci.stakeholder')"><SharedPagination :page="stakeholderPageNumber" :pages="stakeholderPages" :disabled="loading || pending" @update:page="stakeholderPage = $event - 1" /></div>
         </div>
@@ -165,7 +165,7 @@ const settled = computed(() => !tasks.isLoading.value && !stakeholders.isLoading
     </SharedListCard>
 
     <SharedRecordSection variant="tinted" :title="t('projects.refresh.workspace.raciLegendTitle')" :description="t('projects.refresh.workspace.raciLegendDescription')">
-      <dl class="grid grid-cols-2 gap-(--webvue-gap-card) lg:grid-cols-4">
+      <dl class="grid grid-cols-2 gap-(--liwan-gap-card) lg:grid-cols-4">
         <div v-for="item in legend" :key="item.role" class="flex items-start gap-2">
           <SharedStatusBadge class="min-w-8 shrink-0 justify-center" :tone="RACI_ROLE_TONE[item.role]" :label="item.role" />
           <div class="min-w-0"><dt class="text-sm font-medium text-highlighted">{{ item.name }}</dt><dd class="text-xs text-muted">{{ item.hint }}</dd></div>

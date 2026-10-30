@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { InboxMessageCommerce } from '@webvue/contracts'
+import type { InboxMessageCommerce } from '@liwan/contracts'
 import {
   COMMERCE_LIMITS, addDraftSection, buildCommerceContent, cartLineRows, commerceProblem, commerceProductCount, commerceToDraft, emptyCommerceDraft, expiryCountdown, formatInboxMoney,
   imageProblem, linesTotal, normalizeCommerceDraft, orderBadge, orderLineRows, pickedIds, removeDraftSection, rowsTotal, toggleDraftProduct,

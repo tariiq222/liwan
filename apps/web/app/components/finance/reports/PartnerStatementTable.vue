@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinancePartnerStatement } from '@webvue/contracts'
+import type { FinancePartnerStatement } from '@liwan/contracts'
 import Money from '../invoices/Money.vue'
 import { amountColumn } from './reportColumns'
 import { AGED_BUCKETS, statementRows, type StatementRow } from './reportRows'

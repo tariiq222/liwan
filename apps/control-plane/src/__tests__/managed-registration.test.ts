@@ -23,7 +23,7 @@ function descriptor(target: string, overrides: Record<string, unknown> = {}) {
     allowed_operations: ['tenant.create', 'tenant.inspect', 'health', 'tenant.preflight'],
     commercial_mode: 'saas',
     release_ref: { catalog_version: 'test-v1', catalog_sha256: `sha256:${'a'.repeat(64)}`, identity_kind: 'image_id', odoo_image: `sha256:${'b'.repeat(64)}`, web_image: `sha256:${'c'.repeat(64)}`, proxy_image: `sha256:${'d'.repeat(64)}` },
-    resource_refs: { project: 'managed-fixture', compose_file: '/tmp/managed-fixture/compose.yml', db_name: 'webvue_scratch_managed_fixture', data_dir: '/tmp/managed-fixture/data', backup_root: '/tmp/managed-fixture/backups', ports: { db: 55433, odoo: 18169, web: 13130 } },
+    resource_refs: { project: 'managed-fixture', compose_file: '/tmp/managed-fixture/compose.yml', db_name: 'liwan_scratch_managed_fixture', data_dir: '/tmp/managed-fixture/data', backup_root: '/tmp/managed-fixture/backups', ports: { db: 55433, odoo: 18169, web: 13130 } },
     revision: 1,
     secret_refs: { db_password: 'secret-handle-db', admin_password: 'secret-handle-admin' },
     environment_id: 'managed-fixture',
@@ -244,7 +244,7 @@ describe('managed registration HTTP slice', () => {
     ['empty secret references', 'tgt_empty_secrets', { secret_refs: {} }],
     ['incomplete release references', 'tgt_incomplete_release', { release_ref: {} }],
     ['unknown operation', 'tgt_unknown_operation', { allowed_operations: ['tenant.create', 'backup'] }],
-    ['unsafe scratch database', 'tgt_unsafe_database', { resource_refs: { ...descriptor('nested').resource_refs as Record<string, unknown>, db_name: 'webvue_scratch_production' } }],
+    ['unsafe scratch database', 'tgt_unsafe_database', { resource_refs: { ...descriptor('nested').resource_refs as Record<string, unknown>, db_name: 'liwan_scratch_production' } }],
     ['shared reserved port', 'tgt_reserved_port', { resource_refs: { ...descriptor('nested').resource_refs as Record<string, unknown>, ports: { db: 55433, odoo: 8069, web: 13130 } } }],
   ])('rejects a managed descriptor with %s', async (_label, target, overrides) => {
     await setInventories({}, { [target]: descriptor(target, overrides) })

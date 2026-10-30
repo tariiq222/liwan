@@ -1,4 +1,4 @@
-import { OperationBellKindSchema } from '@webvue/contracts'
+import { OperationBellKindSchema } from '@liwan/contracts'
 import type { AppManifest } from '../types'
 import { operationBellHref, operationBellTitleInApp } from './bell'
 import { operationPersonalEntry } from './personal'

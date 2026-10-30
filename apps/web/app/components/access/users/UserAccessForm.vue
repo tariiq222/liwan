@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { joinList } from '@/utils/listFormat'
-import type { AdminUserDetail, CapabilitySource, EffectiveCapability, PermissionDefinition, RoleSummary } from '@webvue/contracts'
+import type { AdminUserDetail, CapabilitySource, EffectiveCapability, PermissionDefinition, RoleSummary } from '@liwan/contracts'
 import { useSettingsForm } from '@/composables/settings/useSettingsForm'
 import { useAdminRoleDetails } from '@/composables/useAdminRoles'
 import { useUpdateAdminUserAccess } from '@/composables/useAdminUsers'

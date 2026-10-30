@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { MeetingSeriesListItem } from '@webvue/contracts'
+import type { MeetingSeriesListItem } from '@liwan/contracts'
 import { refDebounced } from '@vueuse/core'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
-import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
-import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
+import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
+import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import { useMeetingListQuerySync } from '@/composables/useMeetingListQuerySync'
 import { useMeetingSeriesList } from '@/composables/useMeetings'
 import { useMeetingSeriesKpis } from '@/composables/useMeetingKpis'
-import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import { clearMeetingListFilters, parseMeetingListFilters, patchMeetingListQuery } from '@/utils/meetingListFilters'
 import { parseOffset } from '@/utils/routeQuery'
 
@@ -39,7 +39,7 @@ const { isCurrentList, liveListQuery, liveReturnTo, replaceListQuery, isPlainCli
   search,
   debouncedSearch,
   offset,
-  onNavigationStart: handler => useNuxtApp().hook('webvue:navigation:start', handler),
+  onNavigationStart: handler => useNuxtApp().hook('liwan:navigation:start', handler),
 })
 function openRecord(event: MouseEvent, record: { id: number }) {
   if (!hydrated.value || !isCurrentList() || !isPlainClick(event)) return

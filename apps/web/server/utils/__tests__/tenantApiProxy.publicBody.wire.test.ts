@@ -13,14 +13,14 @@ const listen = (server: http.Server) => new Promise<string>(resolve => server.li
 
 async function fixture(mode: 'shared' | 'dedicated', guarded = false) {
   vi.resetModules()
-  vi.stubEnv('WEBVUE_TENANCY_MODE', mode)
-  vi.stubEnv('WEBVUE_RELEASE_ROUTES_DIR', '')
+  vi.stubEnv('LIWAN_TENANCY_MODE', mode)
+  vi.stubEnv('LIWAN_RELEASE_ROUTES_DIR', '')
   vi.stubEnv('NUXT_ODOO_MAX_CONCURRENCY', '1')
-  const root = realpathSync(mkdtempSync(join(tmpdir(), 'webvue-public-body-')))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'liwan-public-body-')))
   const token = 'synthetic-public-body-token-'.repeat(3)
   writeFileSync(join(root, 'registry.json'), JSON.stringify({ schemaVersion: 1, snapshotRevision: 1, targets: [{ host: 'a.example.test', tenantId: 'a', database: 'db_a', filestore: 'db_a', registryRevision: 1, enabled: true }] }))
-  vi.stubEnv('WEBVUE_SHARED_PROXY_TOKEN', token)
-  vi.stubEnv('WEBVUE_TENANT_REGISTRY_PATH', join(root, 'registry.json'))
+  vi.stubEnv('LIWAN_SHARED_PROXY_TOKEN', token)
+  vi.stubEnv('LIWAN_TENANT_REGISTRY_PATH', join(root, 'registry.json'))
   const calls: Array<{ path: string; bytes: number; digest: string }> = []
   const authCalls: Array<{ path: string; body: Record<string, unknown>; headers: http.IncomingHttpHeaders }> = []
   let holdReplies = false
@@ -49,12 +49,12 @@ async function fixture(mode: 'shared' | 'dedicated', guarded = false) {
   const upstreamUrl = await listen(upstream)
   let configuredUpstream = upstreamUrl
   if (guarded) {
-    vi.stubEnv('WEBVUE_RELEASE_ROUTES_DIR', root)
-    vi.stubEnv('WEBVUE_RELEASE_TENANT_ID', 'a')
-    vi.stubEnv('WEBVUE_RELEASE_TENANT_HOST', 'a.example.test')
-    vi.stubEnv('WEBVUE_RELEASE_IDENTITY_REVISION', '1')
-    vi.stubEnv('WEBVUE_DEDICATED_PROXY_TOKEN', token)
-    vi.stubEnv('WEBVUE_RELEASE_POOL_ID', 'blue')
+    vi.stubEnv('LIWAN_RELEASE_ROUTES_DIR', root)
+    vi.stubEnv('LIWAN_RELEASE_TENANT_ID', 'a')
+    vi.stubEnv('LIWAN_RELEASE_TENANT_HOST', 'a.example.test')
+    vi.stubEnv('LIWAN_RELEASE_IDENTITY_REVISION', '1')
+    vi.stubEnv('LIWAN_DEDICATED_PROXY_TOKEN', token)
+    vi.stubEnv('LIWAN_RELEASE_POOL_ID', 'blue')
     writeFileSync(join(root, 'binding.json'), JSON.stringify({ tenantId: 'a', host: 'a.example.test', database: 'db_a', filestore: 'db_a', identityRevision: 1, commercialMode: 'non_saas' }))
     writeFileSync(join(root, 'a.json'), JSON.stringify({ schemaVersion: 1, tenantId: 'a', identityRevision: 1, routeRevision: 1, releaseId: 'r1', poolId: 'blue', fence: 1, state: 'serving' }))
   }
@@ -103,12 +103,12 @@ async function fixture(mode: 'shared' | 'dedicated', guarded = false) {
     if (mode === 'shared') openCookie = value => sessionCodec(keys, 'test').open(value, { tenantId: 'a', registryRevision: 1 })
   }
   const headers: Record<string, string> = guarded ? { host: 'a.example.test' } : mode === 'shared'
-    ? { host: 'a.example.test', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1' } : {}
+    ? { host: 'a.example.test', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1' } : {}
   let release: (() => void) | undefined
   let blocker: Promise<void> | undefined
   return {
     url, headers, calls, authCalls, webRequests, guardRequests, openCookie,
-    internalHeaders: { host: 'a.example.test', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1' },
+    internalHeaders: { host: 'a.example.test', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1' },
     readBytes: (req: http.IncomingMessage) => bodyBytes.get(req) ?? 0,
     holdReplies() { holdReplies = true },
     releaseReplies,
@@ -355,7 +355,7 @@ it.each((['shared', 'dedicated'] as const).flatMap(mode => ['', '/'].map(suffix 
     expect(wire.openCookie(second.headers['set-cookie']![0]!.split(';')[0]!.slice(11))).toBe('verified-wire')
     expect(wire.authCalls[0]!.body).toEqual({ jsonrpc: '2.0', method: 'call', params: { db: 'db_a', login: 'mfa', password: 'synthetic' } })
     expect(wire.authCalls[1]!.headers.cookie).toBe('session_id=pending-wire')
-    for (const call of wire.authCalls) expect(call.headers['x-webvue-proxy-token']).toBeUndefined()
+    for (const call of wire.authCalls) expect(call.headers['x-liwan-proxy-token']).toBeUndefined()
     const before = wire.calls.length
     const selected = await wire.call('/api/auth/login' + suffix + '?step=confirm', Buffer.from('{"db":"foreign","login":"user","password":"synthetic"}'), { 'content-type': 'application/json' })
     expect(selected.status).toBe(mode === 'shared' ? 400 : 403)

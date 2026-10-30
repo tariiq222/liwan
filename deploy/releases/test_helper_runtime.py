@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 from .helper_runtime import verify_helper_runtime
 
-IMAGE = 'webvue/odoo@sha256:' + 'a' * 64
+IMAGE = 'liwan/odoo@sha256:' + 'a' * 64
 
 
 def helper_fixture(root):
@@ -19,7 +19,7 @@ def helper_fixture(root):
     env.write_text('SYNTHETIC_HELPER_SECRET=secret-not-for-output\n')
     odoo.write_text('[options]\ndb_user = blue_role\ndb_password = SYNTHETIC_HELPER_SECRET\n')
     digest = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
-    config = {'projectName': 'webvue-shared-blue', 'composeFile': str(compose), 'envFile': str(env)}
+    config = {'projectName': 'liwan-shared-blue', 'composeFile': str(compose), 'envFile': str(env)}
     metadata = {**config, 'composeSha256': digest(compose), 'envSha256': digest(env),
                 'odooImage': IMAGE, 'odooConfig': str(odoo), 'odooConfigSha256': digest(odoo), 'dbUser': 'blue_role'}
     pools = {'schemaVersion': 1, 'pools': {'blue': {'poolId': 'blue', 'releaseId': 'release_blue','images':{'odoo':IMAGE},'dbUser':'blue_role', 'helperConfig': metadata}}}
@@ -35,11 +35,11 @@ class HelperRuntimeTests(unittest.TestCase):
         self.root = Path(self.temp.name).resolve()
         self.config, self.metadata, self.pools, self.rendered = helper_fixture(self.root)
         self.lease = {'tenantId': 'tenant_a', 'operation': 'observe', 'poolId': 'blue', 'routeRevision': 2, 'fence': 8}
-        self.env = patch.dict(os.environ, {'WEBVUE_RELEASE_ROUTES_DIR': str(self.root)})
+        self.env = patch.dict(os.environ, {'LIWAN_RELEASE_ROUTES_DIR': str(self.root)})
         self.env.start(); self.addCleanup(self.env.stop)
 
     def runner(self, argv, **kwargs):
-        self.assertEqual(argv, ['docker', 'compose', '--project-name', 'webvue-shared-blue', '--env-file', self.config['envFile'], '--file', self.config['composeFile'], 'config', '--format', 'json'])
+        self.assertEqual(argv, ['docker', 'compose', '--project-name', 'liwan-shared-blue', '--env-file', self.config['envFile'], '--file', self.config['composeFile'], 'config', '--format', 'json'])
         self.assertFalse(kwargs['shell']); self.assertEqual(kwargs['timeout'], 30)
         return subprocess.CompletedProcess(argv, 0, json.dumps(self.rendered), 'ignored synthetic diagnostic')
 
@@ -59,7 +59,7 @@ class HelperRuntimeTests(unittest.TestCase):
                 verify_helper_runtime(config, self.lease, 'blue', runner=self.runner)
 
     def test_unpinned_or_mismatched_rendered_image_is_rejected(self):
-        for image in ('webvue/odoo:latest', 'webvue/odoo@sha256:' + 'b' * 64):
+        for image in ('liwan/odoo:latest', 'liwan/odoo@sha256:' + 'b' * 64):
             self.rendered['services']['odoo']['image'] = image
             with self.subTest(image=image), self.assertRaises(ValueError): self.verify()
 

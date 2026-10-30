@@ -2,7 +2,7 @@
   "adminAuth": {
     "login": {
       "title": "Sign in",
-      "subtitle": "WebVue administration",
+      "subtitle": "LiwanOS administration",
       "passkey": "Sign in with a passkey",
       "passkeyHint": "Confirm it is you with your fingerprint, face or device lock.",
       "lostDevice": "Lost your device?",
@@ -22,7 +22,7 @@
     },
     "enroll": {
       "title": "Activate your account",
-      "subtitle": "WebVue administration",
+      "subtitle": "LiwanOS administration",
       "stepOf": "Step {current} of {total}",
       "checking": "Checking the invitation…",
       "invalidTitle": "This invitation link is not valid",

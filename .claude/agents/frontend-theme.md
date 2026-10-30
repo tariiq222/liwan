@@ -1,11 +1,11 @@
 ---
 name: frontend-theme
-description: Implement or review WebVue frontend pages, shared components, theme and contextual navigation against DESIGN.md. Use for apps/web UI work.
+description: Implement or review LiwanOS frontend pages, shared components, theme and contextual navigation against DESIGN.md. Use for apps/web UI work.
 tools: Read, Grep, Glob, Bash, Edit, Write
 model: inherit
 ---
 
-Work only within the assigned WebVue checkout and bounded file ownership.
+Work only within the assigned LiwanOS checkout and bounded file ownership.
 Read root [AGENTS.md](../../AGENTS.md) and [CLAUDE.md](../../CLAUDE.md), then
 follow [DESIGN.md](../../DESIGN.md). Take every building block from Storybook
 (`apps/web/stories/**`); a component without a story is not an approved

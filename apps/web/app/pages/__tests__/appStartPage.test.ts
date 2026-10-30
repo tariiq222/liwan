@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
 import * as Vue from 'vue'
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_STUBS, renderShared } from '@webvue/ui/test/helpers/renderShared'
+import { DEFAULT_STUBS, renderShared } from '@liwan/ui/test/helpers/renderShared'
 import * as startModel from '../../composables/nav/appStartModel'
 import { withManifests } from '../../modules/manifests'
 import type { AppManifest } from '../../modules/types'
@@ -27,7 +27,7 @@ const sales: AppManifest = {
   rail: [{ id: 'sales', labelKey: 'nav.sales', icon: 'i-lucide-receipt', to: '/sales', order: 90 }],
   nav: [{ to: '/sales', labelKey: 'nav.sales', icon: 'i-lucide-receipt', shortcut: '', capability: 'sales.orders.read' }],
 }
-const identity = (capabilities: string[]) => ({ role: 'employee', capabilities: ['webvue.internal', ...capabilities] })
+const identity = (capabilities: string[]) => ({ role: 'employee', capabilities: ['liwan.internal', ...capabilities] })
 
 function renderStart(id: string, capabilities: string[]) {
   const attention: unknown[] = []

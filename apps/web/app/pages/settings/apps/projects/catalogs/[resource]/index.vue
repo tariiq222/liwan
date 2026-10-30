@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
 import { ApiError } from '@/composables/useApi'
 import {
   CHARTER_CATALOG_PAGE_SIZE,
@@ -11,7 +11,7 @@ import {
   useUpdateCharterReference,
   type ProjectCharterReference,
 } from '@/composables/useProjectCharterCatalogs'
-import { returnToQuery, safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery, safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()

@@ -20,7 +20,7 @@ describe('PasskeyButton', () => {
 })
 
 describe('TotpSetup', () => {
-  const uri = 'otpauth://totp/WebVue%3Aa?secret=JBSWY3DPEHPK3PXP&issuer=WebVue'
+  const uri = 'otpauth://totp/LiwanOS%3Aa?secret=JBSWY3DPEHPK3PXP&issuer=LiwanOS'
 
   it('shows the setup key as left-to-right text and the link to open it', async () => {
     const html = await renderSfc('components/TotpSetup.vue', { uri, secret: 'JBSW Y3DP EHPK 3PXP' })

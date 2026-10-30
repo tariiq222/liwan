@@ -17,8 +17,8 @@ import {
   type HrRecruitmentJobCreate,
   type HrRecruitmentJobPatch,
   type HrRecruitmentStage,
-} from '@webvue/contracts'
-import type { StatusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
+} from '@liwan/contracts'
+import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
 
 type Api = ReturnType<typeof useApi>['$api']
 
@@ -300,5 +300,5 @@ export function useHireHrApplicant() {
 }
 
 // HrRef is not re-exported: Nuxt auto-imports every composable export, so a second owner
-// of the name would break the auto-import map. Import it from @webvue/contracts.
+// of the name would break the auto-import map. Import it from @liwan/contracts.
 export type { HrApplicant, HrRecruitmentJob, HrRecruitmentStage }

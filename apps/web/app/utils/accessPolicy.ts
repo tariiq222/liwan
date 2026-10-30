@@ -2,7 +2,7 @@ import { canUse, featureForPath, hasFeature, pathIsWrite } from '../modules/regi
 import { activeManifests, manifestForPath, settingsPartForPath } from '../modules/manifests'
 import { appSettingsPages, settingsPageForPath, settingsPages, type SettingsPage } from '../composables/nav/settingsSections'
 import { normalizedPath } from './routePath'
-import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 
 /** Server capabilities gate navigation; resource authorization remains on the API. */
 export type AccessIdentity = {
@@ -17,12 +17,12 @@ export type AccessIdentity = {
     read_only?: boolean
   }
 } | null | undefined
-/** Authenticated WebVue /api/v1/me identities carry a capabilities array. Portal/legacy role-only objects do not. */
-export const INTERNAL_WEBVUE_ACCESS = 'webvue.internal'
+/** Authenticated LiwanOS /api/v1/me identities carry a capabilities array. Portal/legacy role-only objects do not. */
+export const INTERNAL_LIWAN_ACCESS = 'liwan.internal'
 /** UI predicate for the shared inbox; this is not a server capability grant. */
-export const NOTIFICATION_ACCESS = 'webvue.notifications'
+export const NOTIFICATION_ACCESS = 'liwan.notifications'
 export function hasCapability(identity: AccessIdentity, capability: string): boolean {
-  if (capability === INTERNAL_WEBVUE_ACCESS) return Array.isArray(identity?.capabilities)
+  if (capability === INTERNAL_LIWAN_ACCESS) return Array.isArray(identity?.capabilities)
   if (capability === NOTIFICATION_ACCESS) {
     return activeManifests().some(manifest => manifest.bell?.capabilities.some(key => identity?.capabilities?.includes(key)))
   }
@@ -51,7 +51,7 @@ function destinations(): readonly Destination[] {
 }
 /** `feature` is an entry's explicit sub-feature (manifest `feature`), required on top of the capability's own gates. */
 export function canReach(identity: AccessIdentity, capability: string, path?: string, feature?: string): boolean {
-  if (capability === INTERNAL_WEBVUE_ACCESS && path === '/') return hasCapability(identity, capability)
+  if (capability === INTERNAL_LIWAN_ACCESS && path === '/') return hasCapability(identity, capability)
   if (capability === NOTIFICATION_ACCESS) {
     return hasCapability(identity, capability) && canUse(identity, capability)
   }
@@ -91,7 +91,7 @@ export function postLoginPath(identity: AccessIdentity, next: unknown): string {
   // An identity that is not loaded yet (right after sign-in) lands on `/`, which the route guard resolves with the real identity.
   const fallback = !identity || Array.isArray(identity.capabilities) ? '/' : firstAllowedPath(identity)
   const target = safeReturnTo(next, fallback, [...destinations().map(([path]) => path), ...FOUNDATION_RETURN_TO, ...activeManifests().flatMap(manifest => manifest.returnToPaths ?? [])])
-  const pathname = new URL(target, 'http://webvue.local').pathname
+  const pathname = new URL(target, 'http://liwan.local').pathname
   return canReachPath(identity, pathname) ? target : fallback
 }
 /** The settings overview page; every other settings page lives beneath it, so it matches only itself. */
@@ -117,7 +117,7 @@ export function requiredCapabilityForPath(path: string): string | null {
   if (owned) return owned.capability
   const registered = settingsPartForPath(path)
   if (registered) return registered.part.capability
-  if (path === '/') return INTERNAL_WEBVUE_ACCESS
+  if (path === '/') return INTERNAL_LIWAN_ACCESS
   if (path === '/notifications') return NOTIFICATION_ACCESS
   if (path === '/settings/team/users/new') return 'access.users.grant'
   if (/^\/settings\/team\/users\/[^/]+\/(access|branches)$/.test(path)) return 'access.users.assign_roles'

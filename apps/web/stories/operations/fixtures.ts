@@ -1,4 +1,4 @@
-import { OperationProcessSchema, OperationRequestSchema, OperationRequestSummarySchema } from '@webvue/contracts'
+import { OperationProcessSchema, OperationRequestSchema, OperationRequestSummarySchema } from '@liwan/contracts'
 import { http, HttpResponse } from 'msw'
 import { apiHandlers } from '../handlers/api'
 import { me } from '../fixtures/pmo'

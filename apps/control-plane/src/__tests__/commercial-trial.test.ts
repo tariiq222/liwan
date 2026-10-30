@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
-import { daysBetween, riyadhDate, type Principal } from '@webvue/commercial-contracts'
+import { daysBetween, riyadhDate, type Principal } from '@liwan/commercial-contracts'
 import { client, money, monthly, setup, url } from './commercial-helpers.js'
 import { convertTrial, extendTrial, startTrial } from '../commercial/trial.js'
 import { routesB } from '../commercial/routes-b.js'
@@ -29,7 +29,7 @@ suite('commercial trial', () => {
     await pool.query('INSERT INTO customers(id,name,tenant_id,admin_login) VALUES($1,$2,$3,$4)', [customer, 'Trial customer', ownTenant, `${customer}@example.test`])
     if (bind) {
       const slug = `t${ownTenant.replaceAll('-', '')}`
-      await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,true,1)', [ownTenant, slug, `${slug}.trial.test`, `webvue_scratch_${slug.slice(1)}`])
+      await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,true,1)', [ownTenant, slug, `${slug}.trial.test`, `liwan_scratch_${slug.slice(1)}`])
     }
     return { id: customer, principal: { ...principal, customer_id: customer, tenant_id: ownTenant } as Principal }
   }
@@ -96,7 +96,7 @@ suite('commercial trial', () => {
   it('ends a trial by issuing the first renewal invoice', async () => {
     const c = await trialAt(now, -1)
     const adapter = new SimulatorAdapter()
-    await expireTrials(pool, { now, adapter, returnOrigin: fixedReturnOrigin('https://webvue.test') })
+    await expireTrials(pool, { now, adapter, returnOrigin: fixedReturnOrigin('https://liwan.test') })
     const after = await getSubscription(pool, c.id)
     expect(after.state).toBe('past_due')
     expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [c.id])).rows[0].n).toBe(1)
@@ -109,14 +109,14 @@ suite('commercial trial', () => {
   it('is idempotent across a repeated run', async () => {
     const c = await trialAt(now, -1)
     const adapter = new SimulatorAdapter()
-    const args = { now, adapter, returnOrigin: fixedReturnOrigin('https://webvue.test') }
+    const args = { now, adapter, returnOrigin: fixedReturnOrigin('https://liwan.test') }
     await expireTrials(pool, args)
     await expireTrials(pool, args)
     expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [c.id])).rows[0].n).toBe(1)
   })
   it('does not end a trial before its end date', async () => {
     const c = await trialAt(now, 2)
-    await expireTrials(pool, { now, adapter: new SimulatorAdapter(), returnOrigin: fixedReturnOrigin('https://webvue.test') })
+    await expireTrials(pool, { now, adapter: new SimulatorAdapter(), returnOrigin: fixedReturnOrigin('https://liwan.test') })
     expect((await getSubscription(pool, c.id)).state).toBe('trialing')
   })
   it('writes each notice threshold exactly once', async () => {
@@ -155,7 +155,7 @@ suite('commercial trial', () => {
   it('ends a trial from the console and issues the first invoice', async () => {
     const c = await trialAt(now, 5)
     const sub = await getSubscription(pool, c.id)
-    const response = await vendorPost(`/trials/${sub.id}/end`, { reason: 'customer asked to start now' }, { adapter: new SimulatorAdapter(), returnOrigin: fixedReturnOrigin('https://webvue.test') })
+    const response = await vendorPost(`/trials/${sub.id}/end`, { reason: 'customer asked to start now' }, { adapter: new SimulatorAdapter(), returnOrigin: fixedReturnOrigin('https://liwan.test') })
     expect(response!.status).toBe(200)
     expect((await getSubscription(pool, c.id)).state).toBe('past_due')
     expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [c.id])).rows[0].n).toBe(1)
@@ -175,7 +175,7 @@ suite('commercial trial', () => {
     await pool.query(`INSERT INTO subscriptions(id,customer_id,tenant_id,state,renewal_at,applied_revision_id)
       VALUES('00000000-0000-4000-8000-000000000001',$1,$2,'past_due','2026-10-20',$3)`, [third, thirdTenant, otherSub.applied!.id])
     const c = await trialAt(now, 5)
-    const result = await convertTrial(pool, { customer_id: c.id, now, adapter: new SimulatorAdapter(), returnOrigin: fixedReturnOrigin('https://webvue.test') })
+    const result = await convertTrial(pool, { customer_id: c.id, now, adapter: new SimulatorAdapter(), returnOrigin: fixedReturnOrigin('https://liwan.test') })
     expect(result.order).toBeTruthy()
     expect(result.order!.customer_id).toBe(c.id)
     expect(result.attempt?.order_id).toBe(result.order!.id)
@@ -290,7 +290,7 @@ suite('commercial trial', () => {
     })
     async function paidFirstOrder(id: string, mode: string | undefined) {
       const quote = await createQuoteForCustomer(pool, { customer_id: id, request: request() })
-      if (mode) vi.stubEnv('WEBVUE_TENANCY_MODE', mode)
+      if (mode) vi.stubEnv('LIWAN_TENANCY_MODE', mode)
       return routesB(pool, { method: 'POST', pathname: '/v1/commercial/orders', raw: JSON.stringify({ quote_id: quote.id, expected_subscription_revision: 0, idempotency_key: randomUUID() }),
         issuer: 'trial-test', actor: 1, capabilities: ['vendor.subscriptions.manage', 'vendor.tenants.manage'], stepUpFresh: true }, new URL('http://localhost/v1/commercial/orders'))
     }
@@ -325,13 +325,13 @@ suite('commercial trial', () => {
       const sub = await getSubscription(pool, c.id)
       const quote = await createQuoteForCustomer(pool, { customer_id: c.id, request: { ...request(), kind: 'change', plan_revision_id: bigger.id, subscription_id: sub.id } })
       expect(quote.due_now.minor).toBeGreaterThan(0)
-      vi.stubEnv('WEBVUE_TENANCY_MODE', 'shared')
+      vi.stubEnv('LIWAN_TENANCY_MODE', 'shared')
       const attempt = routesB(pool, { method: 'POST', pathname: '/v1/commercial/orders', raw: JSON.stringify({ quote_id: quote.id, expected_subscription_revision: sub.revision, idempotency_key: randomUUID() }),
         issuer: 'trial-test', actor: 1, capabilities: ['vendor.subscriptions.manage', 'vendor.tenants.manage'], stepUpFresh: true }, new URL('http://localhost/v1/commercial/orders'))
       await expect(attempt.then(() => 'accepted', (e: { code?: string }) => e.code)).resolves.not.toBe('trial_required_first')
     })
     it('allows the zero-due trial order in shared mode', async () => {
-      vi.stubEnv('WEBVUE_TENANCY_MODE', 'shared')
+      vi.stubEnv('LIWAN_TENANCY_MODE', 'shared')
       const response = await startAs(await tenantless(), ['vendor.subscriptions.manage', 'vendor.tenants.manage'])
       expect(response!.status).toBe(201)
     })

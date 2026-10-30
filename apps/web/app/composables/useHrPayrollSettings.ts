@@ -8,7 +8,7 @@ import {
   type HrGosiRatePatch,
   type HrGosiRateWrite,
   type HrPayrollSettingsPatch,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { hrPayrollKeys } from './useHrPayrollCompensation'
 
 type Api = ReturnType<typeof useApi>['$api']

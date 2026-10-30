@@ -79,7 +79,7 @@ export function markTableRows(root: ParentNode): void {
 }
 
 /** A control inside a row keeps its own click: a link, a checkbox, a menu, a field, the select column's cell. */
-const ROW_CONTROL = 'a, button, input, select, textarea, label, [role="checkbox"], [role="combobox"], [role="menuitem"], .webvue-select-cell'
+const ROW_CONTROL = 'a, button, input, select, textarea, label, [role="checkbox"], [role="combobox"], [role="menuitem"], .liwan-select-cell'
 
 /** The index of the row a background click landed on, or null for a click on a control, outside a row, or on an unnumbered row. */
 export function clickedRowIndex(target: unknown): number | null {

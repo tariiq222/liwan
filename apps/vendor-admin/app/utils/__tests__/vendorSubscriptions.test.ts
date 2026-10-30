@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import type { Invoice, Order, SubscriptionView } from '@webvue/commercial-contracts'
+import type { Invoice, Order, SubscriptionView } from '@liwan/commercial-contracts'
 import {
   customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, daysUntilDate, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, formatBytes, vendorInvoiceLineViews,
   type VendorCustomer,
 } from '../vendorSubscriptions'
-import { formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercial'
+import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { sar } from '../vendorCommercial'
 
 const now = new Date('2026-10-10T00:00:00Z')

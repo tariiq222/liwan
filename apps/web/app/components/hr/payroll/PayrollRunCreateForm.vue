@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
-import { HrPayrollRunCreateSchema, type HrPayrollRun } from '@webvue/contracts'
+import { HrPayrollRunCreateSchema, type HrPayrollRun } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import { normalizeDigits } from '@/utils/moneyInput'
@@ -56,7 +56,7 @@ async function submit() {
 </script>
 
 <template>
-  <UForm novalidate :state="{ month }" class="webvue-form" method="post" data-testid="hr-payroll-run-form" @submit="submit">
+  <UForm novalidate :state="{ month }" class="liwan-form" method="post" data-testid="hr-payroll-run-form" @submit="submit">
     <SharedUnsavedChanges :dirty="dirty" />
     <UAlert v-if="formError" role="alert" color="error" variant="subtle" :title="formError" data-testid="hr-payroll-run-error" />
     <SharedFormSection panel :title="t('hrPayroll.runs.formTitle')" :description="t('hrPayroll.runs.formHint')">

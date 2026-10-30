@@ -4,7 +4,7 @@ import { accessErrorMessage } from '@/utils/accessErrors'
 import EmployeeAccountPicker from '@/components/access/users/EmployeeAccountPicker.vue'
 import { useAdminUser, useGrantAdminAccount, useReactivateAdminUser, useUpdateAdminUserAccess } from '@/composables/useAdminUsers'
 import { useEmployeeAccountBridge, useGrantEmployeeAccount } from '@/composables/useEmployeeAccounts'
-import type { EmployeeAccountCandidate } from '@webvue/contracts'
+import type { EmployeeAccountCandidate } from '@liwan/contracts'
 import { useAdminPermissionCatalog, useAdminRoleDetails, useAdminRoles } from '@/composables/useAdminRoles'
 import { adminListQuery } from '@/composables/adminSettingsPaths'
 
@@ -96,7 +96,7 @@ async function submit() {
 <template>
   <SharedCreatePanel :title="t('access.users.grantTitle')" :back-to="backTo">
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
-    <UForm v-else :state="{ name, login, employeeId, selectedRoleIds, password, passwordConfirmation }" class="webvue-form" method="post" @submit="submit">
+    <UForm v-else :state="{ name, login, employeeId, selectedRoleIds, password, passwordConfirmation }" class="liwan-form" method="post" @submit="submit">
       <SharedUnsavedChanges :dirty="dirty" />
       <SharedSegmentedControl v-if="bridge.available.value" :label="t('access.users.mode')" :items="modeItems" :model-value="mode" @update:model-value="chosenMode = $event as Mode" />
       <SharedFormSection v-if="mode === 'employee'" panel :title="t('access.users.employee')">

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HrLeaveSettings } from '@webvue/contracts'
+import type { HrLeaveSettings } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { saveErrorMessage } from '@/utils/formFeedback'
 
@@ -50,7 +50,7 @@ async function submit() {
 </script>
 
 <template>
-  <UForm novalidate :state="{ policy }" class="webvue-form" method="post" @submit="submit">
+  <UForm novalidate :state="{ policy }" class="liwan-form" method="post" @submit="submit">
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedFormSection panel :title="t('hr.leaveSettings.title')" :description="t('hr.leaveSettings.hint')">
       <UAlert v-if="message" role="alert" color="error" variant="subtle" :title="t('hr.leaveSettings.saveError')" :description="message" />

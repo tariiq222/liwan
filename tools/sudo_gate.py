@@ -56,7 +56,7 @@ CALL_TOKEN = re.compile(
 # ... and names what blocks the caller. Three blocker classes count, because Odoo enforces access at
 # three layers and a real reason must name the one that actually applies:
 #   1. an ACL row or record rule (named, or as an id) or an Odoo access file;
-#   2. a group, model or visibility domain of an addon, or a WebVue capability or feature key;
+#   2. a group, model or visibility domain of an addon, or a LiwanOS capability or feature key;
 #   3. a **Python-level access filter** — the identity-, partner- or parent-based narrowing a model
 #      applies inside `_search`/`_check_access`/`check_access`. It is not an ir.rule and cannot be
 #      cited as one, so without this class `mail.message` (whose visibility is decided in Python) has

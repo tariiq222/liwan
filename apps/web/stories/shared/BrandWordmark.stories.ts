@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import BrandWordmark from '@webvue/ui/app/components/shared/layout/BrandWordmark.vue'
+import BrandWordmark from '@liwan/ui/app/components/shared/layout/BrandWordmark.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -10,7 +10,7 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
-  parameters: storyContext('unused', 'شعار ويب فيو المعتمد: العلامة بلون العميل مع الاسم؛ يُستخدم في الشريط الجانبي وصفحة الدخول.'),
+  parameters: storyContext('unused', 'شعار ليوان المعتمد: العلامة بلون العميل مع الاسم؛ يُستخدم في الشريط الجانبي وصفحة الدخول.'),
   args: { size: 'md' },
 }
 

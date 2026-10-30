@@ -26,18 +26,18 @@ async function submit() {
 </script>
 <template>
   <SharedUnsavedChanges :dirty="dirty || mutation.isPending.value" />
-  <UForm novalidate :loading-auto="false" :state="{ name, body }" class="webvue-form" @submit="submit">
+  <UForm novalidate :loading-auto="false" :state="{ name, body }" class="liwan-form" @submit="submit">
     <UAlert v-if="error" color="error" variant="subtle" :title="error" />
     <UAlert color="info" variant="subtle" :title="t('documents.restrictedDefault')" :description="t('documents.visibilityHelp.restricted')" />
     <SharedFormSection panel :title="t('documents.documentInfo')">
-      <div class="grid gap-(--webvue-gap-card)">
+      <div class="grid gap-(--liwan-gap-card)">
         <UFormField :label="t('documents.columns.name')" name="document-name" required :error="titleError"><UInput ref="nameInput" id="document-name" v-model="name" class="w-full" :disabled="!hydrated || mutation.isPending.value" required /></UFormField>
         <UFormField :label="t('documents.body')" name="document-body" :help="t('documents.bodyHelp')"><DocumentEditor v-model="body" :document-id="0" :debounce="false" :disabled="!hydrated || mutation.isPending.value" /></UFormField>
         <p class="text-sm text-muted">{{ t('documents.createFilesHelp') }}</p>
       </div>
     </SharedFormSection>
     <SharedFormSection panel :title="t('documents.optionalDetails')" :description="t('documents.optionalDetailsHelp')">
-      <div class="grid gap-(--webvue-gap-card)"><DocumentMetadataFields v-model:expiry="expiry" v-model:context="context" v-model:tags="tags" :disabled="mutation.isPending.value" /></div>
+      <div class="grid gap-(--liwan-gap-card)"><DocumentMetadataFields v-model:expiry="expiry" v-model:context="context" v-model:tags="tags" :disabled="mutation.isPending.value" /></div>
     </SharedFormSection>
     <SharedFormActions><div class="ms-auto flex gap-2"><UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" :disabled="mutation.isPending.value" /><UButton type="submit" icon="i-lucide-plus" :label="t('documents.create')" :disabled="!hydrated" :loading="mutation.isPending.value" /></div></SharedFormActions>
   </UForm>

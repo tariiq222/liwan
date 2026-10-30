@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   MaintenanceSnapshotSchema, MaintenancePreferenceSchema, MaintenanceBookingSchema,
   type MaintenancePreferencePatch, type MaintenanceBookingInput, type MaintenanceBookingPatch,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 
 const maintenanceKey = ['admin-maintenance'] as const
 export function useMaintenance(enabled: MaybeRefOrGetter<boolean> = true) {

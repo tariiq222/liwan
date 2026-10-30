@@ -1,6 +1,6 @@
-import type { Task } from '@webvue/contracts'
+import type { Task } from '@liwan/contracts'
 import { deadlineLabel, deadlineTag } from '../../../composables/taskState'
-import { formatDate } from '@webvue/ui/app/utils/formatDate'
+import { formatDate } from '@liwan/ui/app/utils/formatDate'
 
 // Calendar days from today to the deadline, both read in the viewer's local zone - the same zone the
 // Deadline property prints its date in. The server's `days_remaining` counts UTC dates, so around

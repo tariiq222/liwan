@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Seed a scratch database for the perf baseline by piping ``seed_finance.py`` into ``odoo-bin shell``.
 
-    python3 -B tools/perf/run_seed.py [--database webvue_scratch_x] [--scale 1.0]
+    python3 -B tools/perf/run_seed.py [--database liwan_scratch_x] [--scale 1.0]
 
 The database must exist with the release modules installed; the seed refuses to run otherwise.
 """
@@ -52,9 +52,9 @@ def main():
     environment = dict(odoo_environment(database), PERF_SCALE=str(args.scale), PERF_LOGIN=LOGIN, PERF_PASSWORD=PASSWORD)
     begin = time.monotonic()
     with (Path(__file__).parent / 'seed_finance.py').open(encoding='utf-8') as source:
-        subprocess.run(command, stdin=source, env=environment, check=True)
+        subprocess.run(command, stdin=source, env=environment, check=True)  # nosemgrep: dangerous-subprocess-use-tainted-env-args -- operator-run local tool, arguments come from its own CLI flags
     sys.stdout.write('seed wall time %.1fs at scale %s\n' % (time.monotonic() - begin, args.scale))
-    subprocess.run([*PSQL, '-d', database, '-c', 'VACUUM ANALYZE'], check=True)
+    subprocess.run([*PSQL, '-d', database, '-c', 'VACUUM ANALYZE'], check=True)  # nosemgrep: dangerous-subprocess-use-tainted-env-args -- operator-run local tool, arguments come from its own CLI flags
 
 
 if __name__ == '__main__':

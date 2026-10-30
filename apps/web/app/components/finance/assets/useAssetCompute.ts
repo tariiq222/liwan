@@ -1,5 +1,5 @@
-import type { FinanceAssetComputeResult } from '@webvue/contracts'
-import { localIsoDay } from '@webvue/ui/app/utils/formatDate'
+import type { FinanceAssetComputeResult } from '@liwan/contracts'
+import { localIsoDay } from '@liwan/ui/app/utils/formatDate'
 import { useComputeFinanceDepreciation } from '@/composables/finance/useFinanceAssets'
 import { financeErrorMessage } from '../financeErrors'
 import { assetErrorKey } from './assetErrors'

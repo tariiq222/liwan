@@ -1,4 +1,4 @@
-from webvue_ai_service.records import records_from_results
+from liwan_ai_service.records import records_from_results
 
 
 def test_collects_id_name_rows_and_types_them_by_tool():

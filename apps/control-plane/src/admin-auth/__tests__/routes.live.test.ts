@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { Pool } from 'pg'
-import { adminChallengeResultSchema, adminErrorBodySchema, adminInvitationInfoSchema, adminSessionResultSchema, adminTotpEnrollmentSchema } from '@webvue/commercial-contracts'
-import { signServiceRequest } from '@webvue/commercial-contracts/server'
+import { adminChallengeResultSchema, adminErrorBodySchema, adminInvitationInfoSchema, adminSessionResultSchema, adminTotpEnrollmentSchema } from '@liwan/commercial-contracts'
+import { signServiceRequest } from '@liwan/commercial-contracts/server'
 import { migrate, transaction } from '../../db.js'
 import { createApp } from '../../http.js'
 import { inviteAccount, issueReset } from '../enrollment.js'
@@ -13,10 +13,10 @@ import { consumeChallenge, finishAuthentication, type WebAuthnLib } from '../web
 const url = process.env.CONTROL_TEST_DATABASE_URL
 if (url) {
   const parsed = new URL(url)
-  if (!['127.0.0.1', 'localhost', '::1'].includes(parsed.hostname) || !/^webvue_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback webvue_control_scratch database')
+  if (!['127.0.0.1', 'localhost', '::1'].includes(parsed.hostname) || !/^liwan_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback liwan_control_scratch database')
 }
 const key = 'test-key-'.repeat(8)
-const admin = { secretKey: Buffer.alloc(32, 5), rpId: 'localhost', origin: 'http://localhost:3100', rpName: 'WebVue' as const }
+const admin = { secretKey: Buffer.alloc(32, 5), rpId: 'localhost', origin: 'http://localhost:3100', rpName: 'LiwanOS' as const }
 const baseConfig = { installationId: 'vendor-scratch', key, inventoryPath: '', repositoryRoot: '/nonexistent', python: 'python3', stateDir: '/nonexistent-state' }
 const PASSWORD = 'a long enough password'
 const SESSION = /^\d+\.[A-Za-z0-9_-]{43}$/
@@ -59,7 +59,7 @@ else describe('admin auth routes', () => {
     const text = await res.text()
     return { status: res.status, text, body: text ? JSON.parse(text) : undefined }
   }
-  const signed = (session: string) => ({ 'x-webvue-session': session })
+  const signed = (session: string) => ({ 'x-liwan-session': session })
   const resolve = (session: string) => transaction(pool, (c) => resolveSession(c, session, new Date()))
   const attempts = async () => (await pool.query('SELECT scope, failures FROM vendor_auth_attempts ORDER BY scope')).rows
   let n = 0
@@ -85,14 +85,14 @@ else describe('admin auth routes', () => {
   let session: string
   let passkey: string
   const freshCode = async () => { await pool.query('UPDATE vendor_totp SET last_step=0 WHERE account_id=$1', [accountId]); return totpAt(secret, totpStep(Date.now())) }
-  const fallback = async (over: Record<string, unknown> = {}, extra: Record<string, string> = {}) => post('/v1/admin/auth/fallback', { email: 'owner@webvue.sa', password: PASSWORD, totp_code: await freshCode(), ...over }, extra)
+  const fallback = async (over: Record<string, unknown> = {}, extra: Record<string, string> = {}) => post('/v1/admin/auth/fallback', { email: 'owner@liwanos.com', password: PASSWORD, totp_code: await freshCode(), ...over }, extra)
 
   beforeEach(async () => {
     await pool.query('TRUNCATE vendor_accounts, vendor_auth_attempts, vendor_auth_challenges, service_nonces, audit_events CASCADE')
-    const { token } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'Owner@WebVue.sa', displayName: 'Owner', roles: ['owner'], reason: 'first owner' }, new Date()))
-    const done = await enrollVia(token, 'owner@webvue.sa')
+    const { token } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'Owner@liwanos.com', displayName: 'Owner', roles: ['owner'], reason: 'first owner' }, new Date()))
+    const done = await enrollVia(token, 'owner@liwanos.com')
     expect(done.complete.status).toBe(200)
-    accountId = Number((await pool.query("SELECT id FROM vendor_accounts WHERE email='owner@webvue.sa'")).rows[0].id)
+    accountId = Number((await pool.query("SELECT id FROM vendor_accounts WHERE email='owner@liwanos.com'")).rows[0].id)
     ;({ secret, passkey } = { secret: done.secret, passkey: done.id })
     codes = done.complete.body.recovery_codes
     session = done.complete.body.session
@@ -106,16 +106,16 @@ else describe('admin auth routes', () => {
     const row = await pool.query('SELECT status FROM vendor_accounts WHERE id=$1', [accountId])
     expect(row.rows[0].status).toBe('active')
     expect((await resolve(session)).stepUpFresh).toBe(true)
-    const { token } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'new@webvue.sa', displayName: 'New', roles: ['support'], reason: 'support' }, new Date()))
+    const { token } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'new@liwanos.com', displayName: 'New', roles: ['support'], reason: 'support' }, new Date()))
     const opened = await post('/v1/admin/auth/invitation', { token })
-    expect(opened).toMatchObject({ status: 200, body: { email: 'new@webvue.sa', purpose: 'enroll' } })
+    expect(opened).toMatchObject({ status: 200, body: { email: 'new@liwanos.com', purpose: 'enroll' } })
     const bad = await post('/v1/admin/auth/invitation', { token: 'A'.repeat(43) })
     expect([bad.status, bad.body]).toEqual([401, { code: 'auth_failed' }])
   })
   it('derives the passkey requirement from the database, not the request', async () => {
-    const { token } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'nopass@webvue.sa', displayName: 'N', roles: ['support'], reason: 'support' }, new Date()))
+    const { token } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'nopass@liwanos.com', displayName: 'N', roles: ['support'], reason: 'support' }, new Date()))
     const totp = await post('/v1/admin/auth/enroll/totp', { token })
-    const s = open(admin.secretKey, Buffer.from(totp.body.totp_box, 'base64'), totpBoxAad(Number((await pool.query("SELECT id FROM vendor_accounts WHERE email='nopass@webvue.sa'")).rows[0].id)))
+    const s = open(admin.secretKey, Buffer.from(totp.body.totp_box, 'base64'), totpBoxAad(Number((await pool.query("SELECT id FROM vendor_accounts WHERE email='nopass@liwanos.com'")).rows[0].id)))
     const body = { token, password: PASSWORD, totp_code: totpAt(s, totpStep(Date.now())), totp_box: totp.body.totp_box }
     const forged = await post('/v1/admin/auth/enroll/complete', { ...body, passkey_registered: true })
     expect([forged.status, forged.body]).toEqual([422, { code: 'invalid' }])
@@ -124,49 +124,49 @@ else describe('admin auth routes', () => {
   })
   it('signs in with a password and TOTP, and refuses the same TOTP code twice', async () => {
     const code = await freshCode()
-    const first = await post('/v1/admin/auth/fallback', { email: 'Owner@WebVue.sa', password: PASSWORD, totp_code: code })
+    const first = await post('/v1/admin/auth/fallback', { email: 'Owner@liwanos.com', password: PASSWORD, totp_code: code })
     expect(first.status).toBe(200)
     expect(first.body.session).toMatch(SESSION)
     expect(Object.keys(first.body).sort()).toEqual(['expires_at', 'idle_expires_at', 'session'])
     expect((await resolve(first.body.session)).stepUpFresh).toBe(false)
-    const replay = await post('/v1/admin/auth/fallback', { email: 'owner@webvue.sa', password: PASSWORD, totp_code: code })
+    const replay = await post('/v1/admin/auth/fallback', { email: 'owner@liwanos.com', password: PASSWORD, totp_code: code })
     expect(replay.status).toBe(401)
     expect(replay.body).toEqual({ code: 'auth_failed' })
   })
   it('answers identically for unknown email and wrong password', async () => {
-    const unknown = await post('/v1/admin/auth/fallback', { email: 'nobody@webvue.sa', password: PASSWORD, totp_code: '123456' })
-    const wrong = await post('/v1/admin/auth/fallback', { email: 'owner@webvue.sa', password: 'not the password', totp_code: '123456' })
+    const unknown = await post('/v1/admin/auth/fallback', { email: 'nobody@liwanos.com', password: PASSWORD, totp_code: '123456' })
+    const wrong = await post('/v1/admin/auth/fallback', { email: 'owner@liwanos.com', password: 'not the password', totp_code: '123456' })
     expect([unknown.status, unknown.body]).toEqual([wrong.status, wrong.body])
     expect(wrong.body).toEqual({ code: 'auth_failed' })
   })
   it('keeps counting failures after the 401 and locks after five', async () => {
-    for (let i = 0; i < 5; i++) expect((await post('/v1/admin/auth/fallback', { email: 'owner@webvue.sa', password: 'wrong wrong wrong', totp_code: '000000' })).status).toBe(401)
-    expect(await attempts()).toEqual(expect.arrayContaining([expect.objectContaining({ scope: 'account:owner@webvue.sa', failures: 5 })]))
+    for (let i = 0; i < 5; i++) expect((await post('/v1/admin/auth/fallback', { email: 'owner@liwanos.com', password: 'wrong wrong wrong', totp_code: '000000' })).status).toBe(401)
+    expect(await attempts()).toEqual(expect.arrayContaining([expect.objectContaining({ scope: 'account:owner@liwanos.com', failures: 5 })]))
     const locked = await fallback()
     expect([locked.status, locked.body]).toEqual([429, { code: 'rate_limited' }])
     const events = await pool.query("SELECT actor, subject, reason FROM audit_events WHERE action='auth.locked'")
-    expect(events.rows).toEqual([{ actor: 'anonymous', subject: 'account:owner@webvue.sa', reason: 'lockout' }])
+    expect(events.rows).toEqual([{ actor: 'anonymous', subject: 'account:owner@liwanos.com', reason: 'lockout' }])
     const failed = await pool.query("SELECT actor, subject, reason FROM audit_events WHERE action='auth.failed'")
-    expect(failed.rows).toEqual(Array(5).fill({ actor: 'anonymous', subject: 'account:owner@webvue.sa', reason: 'fallback' }))
+    expect(failed.rows).toEqual(Array(5).fill({ actor: 'anonymous', subject: 'account:owner@liwanos.com', reason: 'fallback' }))
   })
   it('scopes the client address from the signed forwarding header only when well formed', async () => {
-    await fallback({ password: 'wrong wrong wrong' }, { 'x-webvue-client-ip': '203.0.113.9' })
-    await fallback({ password: 'wrong wrong wrong' }, { 'x-webvue-client-ip': 'evil; DROP' })
+    await fallback({ password: 'wrong wrong wrong' }, { 'x-liwan-client-ip': '203.0.113.9' })
+    await fallback({ password: 'wrong wrong wrong' }, { 'x-liwan-client-ip': 'evil; DROP' })
     const scopes = (await attempts()).map((r) => r.scope)
     expect(scopes).toContain('ip:203.0.113.9')
     expect(scopes.filter((s) => s.startsWith('ip:') && s !== 'ip:203.0.113.9')).toHaveLength(1)
     expect(scopes.some((s) => s.includes('DROP'))).toBe(false)
   })
   it('counts an IPv6 client by its /64, so rotating the host part does not reset the limit', async () => {
-    await fallback({ password: 'wrong wrong wrong' }, { 'x-webvue-client-ip': '2001:db8:0:1::1' })
-    await fallback({ password: 'wrong wrong wrong' }, { 'x-webvue-client-ip': '2001:db8:0:1:ffff::9' })
-    await fallback({ password: 'wrong wrong wrong' }, { 'x-webvue-client-ip': '2001:db8:0:2::1' })
+    await fallback({ password: 'wrong wrong wrong' }, { 'x-liwan-client-ip': '2001:db8:0:1::1' })
+    await fallback({ password: 'wrong wrong wrong' }, { 'x-liwan-client-ip': '2001:db8:0:1:ffff::9' })
+    await fallback({ password: 'wrong wrong wrong' }, { 'x-liwan-client-ip': '2001:db8:0:2::1' })
     const rows = (await attempts()).filter((r) => String(r.scope).startsWith('ip:'))
     expect(rows).toEqual([{ scope: 'ip:2001:db8:0:1::/64', failures: 2 }, { scope: 'ip:2001:db8:0:2::/64', failures: 1 }])
   })
   it('lets exactly one of two parallel sign-ins with the same TOTP code through', async () => {
     const code = await freshCode()
-    const results = await Promise.all([0, 1].map(() => post('/v1/admin/auth/fallback', { email: 'owner@webvue.sa', password: PASSWORD, totp_code: code })))
+    const results = await Promise.all([0, 1].map(() => post('/v1/admin/auth/fallback', { email: 'owner@liwanos.com', password: PASSWORD, totp_code: code })))
     expect(results.map((r) => r.status).sort()).toEqual([200, 401])
   })
   it('answers 503 admin_unavailable, not a credential verdict, when storage fails', async () => {
@@ -174,31 +174,31 @@ else describe('admin auth routes', () => {
     await broken.end()
     const { s, origin: brokenOrigin } = await listen(createApp(broken, { ...baseConfig, admin }, { webauthn: lib }))
     try {
-      const res = await post('/v1/admin/auth/fallback', { email: 'owner@webvue.sa', password: PASSWORD, totp_code: '123456' }, {}, brokenOrigin)
+      const res = await post('/v1/admin/auth/fallback', { email: 'owner@liwanos.com', password: PASSWORD, totp_code: '123456' }, {}, brokenOrigin)
       expect([res.status, res.body]).toEqual([503, { code: 'admin_unavailable' }])
     } finally { await new Promise<void>((resolve) => s.close(() => resolve())) }
   })
   it('answers in the shapes of the shared contract, strictly', async () => {
-    expect(adminSessionResultSchema.parse(await freshCode().then((totp_code) => post('/v1/admin/auth/fallback', { email: 'owner@webvue.sa', password: PASSWORD, totp_code })).then((r) => r.body))).toBeDefined()
-    expect(adminSessionResultSchema.parse({ session, ...(await post('/v1/admin/auth/recovery', { email: 'owner@webvue.sa', password: PASSWORD, recovery_code: codes[0] })).body })).toBeDefined()
+    expect(adminSessionResultSchema.parse(await freshCode().then((totp_code) => post('/v1/admin/auth/fallback', { email: 'owner@liwanos.com', password: PASSWORD, totp_code })).then((r) => r.body))).toBeDefined()
+    expect(adminSessionResultSchema.parse({ session, ...(await post('/v1/admin/auth/recovery', { email: 'owner@liwanos.com', password: PASSWORD, recovery_code: codes[0] })).body })).toBeDefined()
     expect(adminChallengeResultSchema.parse((await post('/v1/admin/auth/passkey/options', {})).body)).toBeDefined()
-    const { token } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'shape@webvue.sa', displayName: 'S', roles: ['support'], reason: 'support' }, new Date()))
-    expect(adminInvitationInfoSchema.parse((await post('/v1/admin/auth/invitation', { token })).body)).toEqual({ email: 'shape@webvue.sa', purpose: 'enroll' })
+    const { token } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'shape@liwanos.com', displayName: 'S', roles: ['support'], reason: 'support' }, new Date()))
+    expect(adminInvitationInfoSchema.parse((await post('/v1/admin/auth/invitation', { token })).body)).toEqual({ email: 'shape@liwanos.com', purpose: 'enroll' })
     expect(adminTotpEnrollmentSchema.parse((await post('/v1/admin/auth/enroll/totp', { token })).body)).toBeDefined()
     const done = await transaction(pool, (c) => issueReset(c, 'operator', accountId, 'shape', new Date()))
-    const enrolled = await enrollVia(done.token, 'owner@webvue.sa', 'a brand new password')
+    const enrolled = await enrollVia(done.token, 'owner@liwanos.com', 'a brand new password')
     expect(adminSessionResultSchema.parse(enrolled.complete.body).recovery_codes).toHaveLength(10)
-    for (const failed of [await post('/v1/admin/auth/fallback', { email: 'nobody@webvue.sa', password: PASSWORD, totp_code: '123456' }), await post('/v1/admin/auth/fallback', {}), await post('/v1/admin/auth/passkey/options', {}, {}, bareOrigin)]) {
+    for (const failed of [await post('/v1/admin/auth/fallback', { email: 'nobody@liwanos.com', password: PASSWORD, totp_code: '123456' }), await post('/v1/admin/auth/fallback', {}), await post('/v1/admin/auth/passkey/options', {}, {}, bareOrigin)]) {
       expect(adminErrorBodySchema.parse(failed.body)).toEqual(failed.body)
     }
   })
   it('uses a recovery code once', async () => {
-    const first = await post('/v1/admin/auth/recovery', { email: 'owner@webvue.sa', password: PASSWORD, recovery_code: codes[0] })
+    const first = await post('/v1/admin/auth/recovery', { email: 'owner@liwanos.com', password: PASSWORD, recovery_code: codes[0] })
     expect(first.status).toBe(200)
     expect((await resolve(first.body.session)).stepUpFresh).toBe(false)
-    const again = await post('/v1/admin/auth/recovery', { email: 'owner@webvue.sa', password: PASSWORD, recovery_code: codes[0] })
+    const again = await post('/v1/admin/auth/recovery', { email: 'owner@liwanos.com', password: PASSWORD, recovery_code: codes[0] })
     expect([again.status, again.body]).toEqual([401, { code: 'auth_failed' }])
-    expect((await post('/v1/admin/auth/recovery', { email: 'owner@webvue.sa', password: PASSWORD, recovery_code: codes[1] })).status).toBe(200)
+    expect((await post('/v1/admin/auth/recovery', { email: 'owner@liwanos.com', password: PASSWORD, recovery_code: codes[1] })).status).toBe(200)
   })
   it('signs in with a passkey (step-up fresh) and burns the challenge', async () => {
     const options = await post('/v1/admin/auth/passkey/options', {})
@@ -218,7 +218,7 @@ else describe('admin auth routes', () => {
     expect(failed.rows.every((r) => String(r.subject).startsWith('ip:'))).toBe(true)
   })
   it('lets at most five of twenty parallel wrong sign-ins reach verification, then locks the correct one out', async () => {
-    const wrong = () => post('/v1/admin/auth/fallback', { email: 'owner@webvue.sa', password: 'wrong wrong wrong', totp_code: '000000' })
+    const wrong = () => post('/v1/admin/auth/fallback', { email: 'owner@liwanos.com', password: 'wrong wrong wrong', totp_code: '000000' })
     const results = await Promise.all(Array.from({ length: 20 }, wrong))
     const statuses = results.map((r) => r.status)
     expect(statuses.filter((x) => x === 401).length).toBeLessThanOrEqual(5)
@@ -258,7 +258,7 @@ else describe('admin auth routes', () => {
     expect((await resolve(s)).stepUpFresh).toBe(true)
   })
   it('refuses a step-up challenge of another account', async () => {
-    const b = Number((await pool.query("INSERT INTO vendor_accounts(email,display_name,status,password_hash) VALUES('b@webvue.sa','B','active','x') RETURNING id")).rows[0].id)
+    const b = Number((await pool.query("INSERT INTO vendor_accounts(email,display_name,status,password_hash) VALUES('b@liwanos.com','B','active','x') RETURNING id")).rows[0].id)
     await pool.query("INSERT INTO vendor_passkeys(credential_id,account_id,public_key) VALUES('cred-b',$1,'\\x01')", [b])
     const bSession = await transaction(pool, (c) => createSession(c, b, new Date(), false))
     const foreign = await post('/v1/admin/auth/step-up/options', {}, signed(bSession.session))
@@ -294,7 +294,7 @@ else describe('admin auth routes', () => {
     expect([off.status, off.body]).toEqual([503, { code: 'admin_unavailable' }])
     const get = await fetch(origin + '/v1/admin/auth/fallback')
     expect(get.status).toBe(404)
-    const extra = await post('/v1/admin/auth/fallback', { email: 'owner@webvue.sa', password: PASSWORD, totp_code: '123456', more: 1 })
+    const extra = await post('/v1/admin/auth/fallback', { email: 'owner@liwanos.com', password: PASSWORD, totp_code: '123456', more: 1 })
     expect([extra.status, extra.body]).toEqual([422, { code: 'invalid' }])
     const big = await post('/v1/admin/auth/passkey/verify', { challenge_id: crypto.randomUUID(), response: { id: 'x'.repeat(20000) } })
     expect([big.status, big.body]).toEqual([422, { code: 'invalid' }])
@@ -309,14 +309,14 @@ else describe('admin auth routes', () => {
       const code = await freshCode()
       const options = await post('/v1/admin/auth/passkey/options', {})
       const [password, passkeySignIn, recoverySignIn, reset] = await Promise.all([
-        post('/v1/admin/auth/fallback', { email: 'owner@webvue.sa', password: PASSWORD, totp_code: code }),
+        post('/v1/admin/auth/fallback', { email: 'owner@liwanos.com', password: PASSWORD, totp_code: code }),
         post('/v1/admin/auth/passkey/verify', { challenge_id: options.body.challenge_id, response: { id: passkey } }),
-        post('/v1/admin/auth/recovery', { email: 'owner@webvue.sa', password: PASSWORD, recovery_code: codes[round % codes.length] }),
+        post('/v1/admin/auth/recovery', { email: 'owner@liwanos.com', password: PASSWORD, recovery_code: codes[round % codes.length] }),
         transaction(pool, (c) => issueReset(c, 'operator', accountId, 'race', new Date())),
       ])
       for (const result of [password, passkeySignIn, recoverySignIn]) expect([200, 401]).toContain(result.status)
       const { token } = reset
-      const done = await enrollVia(token, 'owner@webvue.sa', PASSWORD)
+      const done = await enrollVia(token, 'owner@liwanos.com', PASSWORD)
       expect(done.complete.status).toBe(200)
       ;({ secret, passkey } = { secret: done.secret, passkey: done.id })
       codes = done.complete.body.recovery_codes
@@ -348,7 +348,7 @@ else describe('admin auth routes', () => {
     await expect(resolve(session)).rejects.toMatchObject({ code: 'auth_failed' })
     expect((await fallback()).status).toBe(401)
     await pool.query('TRUNCATE vendor_auth_attempts')
-    expect((await post('/v1/admin/auth/recovery', { email: 'owner@webvue.sa', password: PASSWORD, recovery_code: codes[0] })).status).toBe(401)
+    expect((await post('/v1/admin/auth/recovery', { email: 'owner@liwanos.com', password: PASSWORD, recovery_code: codes[0] })).status).toBe(401)
     expect((await passkeyLogin(passkey)).status).toBe(401)
   })
   it('refuses every sign-in for a half-finished reset', async () => {
@@ -359,7 +359,7 @@ else describe('admin auth routes', () => {
     expect((await pool.query('SELECT status FROM vendor_accounts WHERE id=$1', [accountId])).rows[0].status).toBe('enrolling')
     expect((await passkeyLogin(fresh)).status).toBe(401)
     expect((await fallback()).status).toBe(401)
-    expect((await post('/v1/admin/auth/recovery', { email: 'owner@webvue.sa', password: PASSWORD, recovery_code: codes[0] })).status).toBe(401)
+    expect((await post('/v1/admin/auth/recovery', { email: 'owner@liwanos.com', password: PASSWORD, recovery_code: codes[0] })).status).toBe(401)
     // The same token keeps working to finish the enrolment: nothing was consumed or wiped by the half step.
     const totp = await post('/v1/admin/auth/enroll/totp', { token })
     const secretNow = open(admin.secretKey, Buffer.from(totp.body.totp_box, 'base64'), totpBoxAad(accountId))
@@ -367,7 +367,7 @@ else describe('admin auth routes', () => {
   })
   it('finishes a reset once and keeps the new credentials when the token is replayed', async () => {
     const { token } = await transaction(pool, (c) => issueReset(c, 'operator', accountId, 'lost device', new Date()))
-    const done = await enrollVia(token, 'owner@webvue.sa', 'a brand new password')
+    const done = await enrollVia(token, 'owner@liwanos.com', 'a brand new password')
     expect(done.complete.status).toBe(200)
     const passkeys = await pool.query('SELECT credential_id FROM vendor_passkeys WHERE account_id=$1', [accountId])
     expect(passkeys.rows.map((r) => r.credential_id)).toEqual([done.id])

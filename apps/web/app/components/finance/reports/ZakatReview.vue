@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { FinanceZakatBase } from '@webvue/contracts'
+import type { FinanceZakatBase } from '@liwan/contracts'
 import { useReviewZakat } from '@/composables/finance/useFinanceZakat'
 import { financeErrorMessage } from '../financeErrors'
 import { financeErrorKey } from '../invoices/invoiceErrors'
 
 // The accountant's review of the Zakat computation as it stands. The status is the server's: management information until
 // someone reviews it, reviewed while the books and adjustments are unchanged, stale once either changes. Reviewing states the
-// reviewer's credential (WebVue does not verify it), is permanent, and only whoever holds the review capability can do it.
+// reviewer's credential (LiwanOS does not verify it), is permanent, and only whoever holds the review capability can do it.
 // Nothing is filed from here whatever the status.
 const props = defineProps<{ report: FinanceZakatBase }>()
 const { t, d } = useI18n()
@@ -33,7 +33,7 @@ async function submit() {
 </script>
 
 <template>
-  <section class="grid gap-3 border-t border-default p-(--webvue-card-pad-dense)" data-testid="finance-zakat-review">
+  <section class="grid gap-3 border-t border-default p-(--liwan-card-pad-dense)" data-testid="finance-zakat-review">
     <div class="flex flex-wrap items-center gap-2">
       <h3 class="font-semibold text-highlighted">{{ t('financeReports.zakat.reviewTitle') }}</h3>
       <SharedStatusBadge size="sm" :tone="TONES[report.status]" :label="t(`financeReports.zakat.status.${report.status}`)" data-testid="finance-zakat-status" />
@@ -47,7 +47,7 @@ async function submit() {
     <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />
     <template v-if="canReview">
       <UButton v-if="!opening" color="neutral" variant="outline" icon="i-lucide-badge-check" class="w-fit" :disabled="!hydrated" :label="t('financeReports.zakat.review')" data-testid="finance-zakat-review-open" @click="opening = true" />
-      <UForm v-else novalidate :state="draft" class="webvue-form rounded-card border border-default p-(--webvue-card-pad-dense)" method="post" data-testid="finance-zakat-review-form" @submit="submit">
+      <UForm v-else novalidate :state="draft" class="liwan-form rounded-card border border-default p-(--liwan-card-pad-dense)" method="post" data-testid="finance-zakat-review-form" @submit="submit">
         <p class="text-sm text-muted">{{ t('financeReports.zakat.reviewHint') }}</p>
         <UFormField :label="t('financeReports.zakat.credential')" name="finance-zakat-credential" required :help="t('financeReports.zakat.credentialHelp')">
           <UInput id="finance-zakat-credential" v-model="draft.credential" class="w-full" maxlength="255" :disabled="!hydrated || review.isPending.value" />

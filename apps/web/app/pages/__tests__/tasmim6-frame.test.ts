@@ -13,10 +13,10 @@ describe('the project frame uses one tab helper', () => {
     const frame = read('pages/projects/[id].vue')
     expect(frame).not.toContain('ProjectGovernanceTabs')
     expect(frame).toContain('level="governance"')
-    expect(frame).toContain('webvue-workspace-head webvue-print-hide')
+    expect(frame).toContain('liwan-workspace-head liwan-print-hide')
     expect(frame).toContain('rounded-card bg-default px-4 py-3 ring ring-default')
     expect(frame).toContain('<SharedHeaderTags :tags="tags" />')
-    expect(frame).not.toContain('webvue-page-band')
+    expect(frame).not.toContain('liwan-page-band')
     // The sub-strips live inside the same card as the main strip.
     expect(frame.indexOf('level="governance"')).toBeLessThan(frame.indexOf('</header>'))
     expect(frame).not.toContain('-my-2')

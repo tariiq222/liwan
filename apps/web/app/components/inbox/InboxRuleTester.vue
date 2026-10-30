@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxRuleTestResult } from '@webvue/contracts'
+import type { InboxRuleTestResult } from '@liwan/contracts'
 import InboxFlowPicker from '@/components/inbox/InboxFlowPicker.vue'
 import { useInboxAutomationChannels, useTestInboxRules } from '@/composables/inbox/useInboxAutomation'
 

@@ -3,7 +3,7 @@ import { owningListBack } from '@/utils/recordListOrigin'
 import ProcessList from '@/components/operations/ProcessList.vue'
 import ProcessForm from '@/components/operations/ProcessForm.vue'
 import { useOperationProcessMutation } from '@/composables/operations/useOperations'
-import type { OperationProcessBody } from '@webvue/contracts'
+import type { OperationProcessBody } from '@liwan/contracts'
 const route = useRoute()
 const router = useRouter()
 const sourcePaths = useRecordListPaths(['/settings/apps/operations/processes'])

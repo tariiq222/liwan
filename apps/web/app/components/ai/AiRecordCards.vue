@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AiRecordRef } from '@webvue/contracts'
+import type { AiRecordRef } from '@liwan/contracts'
 
 // Numbered source chips under a reply: one per record the tools returned, each linking to its record.
 const props = defineProps<{ records: AiRecordRef[] }>()
@@ -22,7 +22,7 @@ const CHIP = 'inline-flex max-w-full items-center gap-2 rounded-full bg-default 
     <ul class="flex flex-wrap gap-2">
       <li v-for="(record, index) in props.records" :key="`${record.type}:${record.id}`" class="max-w-full" data-testid="ai-record">
         <component :is="recordPath(record) ? NuxtLink : 'span'" v-bind="recordPath(record) ? { to: recordPath(record) } : {}" :class="[CHIP, recordPath(record) && 'hover:bg-elevated focus-visible:ring-2 focus-visible:ring-primary']">
-          <span class="grid size-5 shrink-0 place-items-center rounded-full bg-(--webvue-nav-active) text-xs font-medium text-(--webvue-rail-active-ink)">{{ index + 1 }}</span>
+          <span class="grid size-5 shrink-0 place-items-center rounded-full bg-(--liwan-nav-active) text-xs font-medium text-(--liwan-rail-active-ink)">{{ index + 1 }}</span>
           <span class="truncate">{{ record.label }}</span>
         </component>
       </li>

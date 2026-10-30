@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { TaskState } from '@webvue/contracts'
+import type { TaskState } from '@liwan/contracts'
 import TaskArchivedList from '@/components/pmo/tasks/TaskArchivedList.vue'
 import TaskBoard from '@/components/pmo/tasks/TaskBoard.vue'
 import TaskKpiStrip from '@/components/pmo/tasks/TaskKpiStrip.vue'
@@ -10,7 +10,7 @@ import { normalizeTaskSort } from '@/composables/taskSort'
 import type { TaskListParams } from '@/composables/useTasks'
 import { useTaskFilters } from '@/composables/useTaskFilters'
 import { taskCreatePresetQuery } from '@/utils/taskCreatePolicy'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()

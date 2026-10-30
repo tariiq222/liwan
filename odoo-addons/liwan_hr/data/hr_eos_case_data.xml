@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- VERIFY against the Saudi Labor Law (articles 84 to 87) before release. Shared mapping of the stock
+         departure reasons (no company); any other reason needs a mapping of its own or an explicit case. -->
+    <record id="eos_case_fired" model="liwan.hr.payroll.eos.case">
+        <field name="departure_reason_id" ref="hr.departure_fired"/>
+        <field name="case">termination</field>
+    </record>
+    <record id="eos_case_resigned" model="liwan.hr.payroll.eos.case">
+        <field name="departure_reason_id" ref="hr.departure_resigned"/>
+        <field name="case">resignation</field>
+    </record>
+</odoo>

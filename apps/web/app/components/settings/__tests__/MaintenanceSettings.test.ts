@@ -1,12 +1,12 @@
 import { resolve } from 'node:path'
 import * as Vue from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { loadShared, DEFAULT_STUBS, renderShared } from '@webvue/ui/test/helpers/renderShared'
+import { loadShared, DEFAULT_STUBS, renderShared } from '@liwan/ui/test/helpers/renderShared'
 import { canReachPath } from '../../../utils/accessPolicy'
 import { useNav } from '../../../composables/nav/shellModules'
 import { ApiError } from '../../../composables/useApi'
 import { useSettingsForm } from '../../../composables/settings/useSettingsForm'
-import { MaintenancePreferencePatchSchema, MaintenanceBookingInputSchema, MaintenanceBookingPatchSchema } from '@webvue/contracts'
+import { MaintenancePreferencePatchSchema, MaintenanceBookingInputSchema, MaintenanceBookingPatchSchema } from '@liwan/contracts'
 
 type Node = { type: string; props: Record<string, any>; children: Node[]; parent: Node | null; text?: string }
 const node = (type = 'root'): Node => ({ type, props: {}, children: [], parent: null })
@@ -35,7 +35,7 @@ const stubs = {
 }
 const filename = resolve(import.meta.dirname, '../MaintenanceSettings.vue')
 const snapshot = () => ({ preference: { id: 1, timezone: 'Asia/Riyadh', weekday: 4, startMinute: 120, durationMinutes: 60, revision: 1 }, releases: { items: [{ id: 2, releaseId: '19.0.2', deadlineAt: '2030-01-10T00:00:00Z', estimatedSeconds: 120, scope: 'tenant', status: 'supported', urgency: 'security', policy: 'Operator deadline' }], total: 1 }, bookings: { items: [{ id: 3, releaseId: 1, scheduledAt: '2030-01-01T00:00:00Z', timezone: 'Asia/Riyadh', durationMinutes: 60, status: 'scheduled', revision: 4 }], total: 1 } })
-const options = (hydrated: Vue.Ref<boolean>) => ({ modules: { '@webvue/contracts': { MaintenancePreferencePatchSchema, MaintenanceBookingInputSchema, MaintenanceBookingPatchSchema }, '@/composables/settings/useSettingsForm': { useSettingsForm }, '@/composables/useApi': { ApiError } }, globals: { useHydrated: () => hydrated } })
+const options = (hydrated: Vue.Ref<boolean>) => ({ modules: { '@liwan/contracts': { MaintenancePreferencePatchSchema, MaintenanceBookingInputSchema, MaintenanceBookingPatchSchema }, '@/composables/settings/useSettingsForm': { useSettingsForm }, '@/composables/useApi': { ApiError } }, globals: { useHydrated: () => hydrated } })
 function harness(preference: ReturnType<typeof snapshot>['preference'] | null = snapshot().preference) {
   const hydrated = Vue.ref(false)
   const props = Vue.reactive({ snapshot: { ...snapshot(), preference }, pending: false, reload: vi.fn(async () => snapshot()), savePreference: vi.fn(async () => { throw new ApiError(422, 'invalid', 'save failed') }), book: vi.fn(async () => undefined), updateBooking: vi.fn(async () => undefined) })

@@ -416,7 +416,7 @@ function sendTemplate(conv, body) {
   const template = state.templates.find(item => item.id === body.template_id)
   if (!template) return fail(422, 'invalid', 'القالب غير موجود لهذه القناة', 'template_id')
   if (template.status !== 'approved') return fail(422, 'invalid', 'القالب غير معتمد بعد', 'template_id')
-  if (!template.supported) return fail(422, 'invalid', 'القالب غير مدعوم في ويب فيو', 'template_id')
+  if (!template.supported) return fail(422, 'invalid', 'القالب غير مدعوم في ليوان', 'template_id')
   if ((body.params ?? []).length !== template.param_count) return fail(422, 'invalid', 'عدد المتغيرات غير صحيح', 'params')
   const header = template.header
   let headerText = null
@@ -790,7 +790,7 @@ function templateRoute(method, id, body) {
     return { status: 204, body: undefined }
   }
   if (method !== 'PATCH') return fail(404, 'not_found', 'not found')
-  if (!current.supported) return fail(422, 'invalid', 'القالب غير مدعوم في ويب فيو')
+  if (!current.supported) return fail(422, 'invalid', 'القالب غير مدعوم في ليوان')
   if (!current.editable) return fail(422, 'invalid', 'Meta: this template cannot be edited in its current status.')
   const { template, refusal } = templateFromWrite(state.channels[0], body, current)
   if (refusal) return refusal

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import type { MeetingDetail } from '@webvue/contracts'
+import type { MeetingDetail } from '@liwan/contracts'
 import MeetingResolutionsTab from '../../app/components/meetings/MeetingResolutionsTab.vue'
 import { shellHandlers } from '../handlers/shell'
 import { storyContext } from '../support/context'

@@ -12,22 +12,22 @@ that **salaries come out right every month, with GOSI and WPS, and land in the a
 without re-typing**. Payroll is therefore the core of the HR product, not an add-on, and it is
 linked to the Finance application from day one (owner, 2026-10-20).
 
-Success: an HR/payroll officer runs the month in WebVue — inputs, compute, review, approve —
+Success: an HR/payroll officer runs the month in LiwanOS — inputs, compute, review, approve —
 and the accountant posts it, exports the bank salary file, uploads it to the bank portal,
 records the payment and exports the WPS file, with no spreadsheet in between.
 
 ## 2. Owner decisions (2026-10-20)
 
 1. Payroll is essential and is linked to Finance.
-2. Payment method: WebVue **produces a bulk salary transfer file** for the bank's corporate
-   portal; the accountant uploads it and then **records the payment** in WebVue. No direct
-   bank API, no payment execution by WebVue.
+2. Payment method: LiwanOS **produces a bulk salary transfer file** for the bank's corporate
+   portal; the accountant uploads it and then **records the payment** in LiwanOS. No direct
+   bank API, no payment execution by LiwanOS.
 3. First release has **no attendance**: overtime, absence and other monthly variables are
    entered by hand by the payroll officer. Attendance (`hr_attendance`) comes after payroll
    and later feeds the same monthly inputs.
-4. Inherited from earlier decisions: payroll is a section of `webvue_hr` (one addon per
+4. Inherited from earlier decisions: payroll is a section of `liwan_hr` (one addon per
    application, 2026-10-19); OCA `payroll` is the internal engine (2026-10-18 fit test); the
-   bridge `webvue_hr_finance` posts to accounting; no paid modules or licences.
+   bridge `liwan_hr_finance` posts to accounting; no paid modules or licences.
 
 ## 3. Goals
 
@@ -63,21 +63,21 @@ records the payment and exports the WPS file, with no spreadsheet in between.
 
 ## 5. Architecture
 
-- **`webvue_hr` payroll section.** Depends additionally on OCA `payroll` (pin the OCA
+- **`liwan_hr` payroll section.** Depends additionally on OCA `payroll` (pin the OCA
   `payroll` repo at 19.0 in `deploy/oca-addons.json`; only the `payroll` module exists on
   19.0, `payroll_account` does not). Models, serializers and routes under
-  `/api/v1/hr/payroll/*`. Engine usage: salary structure and rules of OCA `payroll`; WebVue
+  `/api/v1/hr/payroll/*`. Engine usage: salary structure and rules of OCA `payroll`; LiwanOS
   ships one Saudi structure as data (basic, housing, transport, other allowances, overtime,
   absence, bonus, deduction, unpaid leave, GOSI employee, GOSI employer, net). If a rule
-  cannot be expressed cleanly in the OCA engine, compute it in a WebVue service and feed
+  cannot be expressed cleanly in the OCA engine, compute it in a LiwanOS service and feed
   the engine an input line — the builder decides per rule, without copying Odoo methods (R9).
-- **`webvue_hr_finance` bridge** (rank 5, `auto_install`, depends `webvue_hr` +
-  `webvue_finance`): payroll account mapping, journal entry creation, payment recording,
+- **`liwan_hr_finance` bridge** (rank 5, `auto_install`, depends `liwan_hr` +
+  `liwan_finance`): payroll account mapping, journal entry creation, payment recording,
   EOS provision, department → analytic account mapping. Registered in `tools/arch_layers.json`.
   UI for the finance side of payroll lives in the HR web area (`components/hr/payroll/`,
-  `pages/hr/payroll/`) like `webvue_pmo_finance` lives under pmo; Finance pages do not use
+  `pages/hr/payroll/`) like `liwan_pmo_finance` lives under pmo; Finance pages do not use
   HR components (R3).
-- **Capabilities** (R2, R10), owned by `webvue_hr`, implied by no other HR capability and not
+- **Capabilities** (R2, R10), owned by `liwan_hr`, implied by no other HR capability and not
   by `group_hr_manager`:
   - `hr.payroll.read` — see runs, payslips, compensation.
   - `hr.payroll.manage` — edit compensation, monthly inputs, compute runs.
@@ -89,10 +89,10 @@ records the payment and exports the WPS file, with no spreadsheet in between.
     (AGENTS.md: HR bridges have no `sudo()` path).
   - Self-service: an employee sees **own** payslips with `hr.employees.read` + sub-feature
     `hr.payroll`, like «عهدي».
-- **Sub-feature** `hr.payroll` registered in `webvue.feature.registry` (owner `webvue_hr`);
+- **Sub-feature** `hr.payroll` registered in `liwan.feature.registry` (owner `liwan_hr`);
   every payroll route checks it. Works in `saas` and `non_saas` (R8).
 - **Security risk carried from the fit test**: OCA `payroll` Officer group implies
-  `hr.group_hr_manager`. Never assign that group; grant engine ACLs to WebVue capability
+  `hr.group_hr_manager`. Never assign that group; grant engine ACLs to LiwanOS capability
   groups directly, with a test proving no HR capability implies payroll and payroll implies
   no broader HR write.
 - **Contracts**: new `packages/contracts/src/hr/payroll.ts`; compensation is a separate
@@ -110,7 +110,7 @@ records the payment and exports the WPS file, with no spreadsheet in between.
 
 ### 6.1a Relationship type (owner decision 2026-10-27, launch blocker B12)
 - Each compensation carries `relationship_type`: employee (default), independent contractor, consultant or
-  other cooperation arrangement. The customer chooses it; WebVue does not classify anyone.
+  other cooperation arrangement. The customer chooses it; LiwanOS does not classify anyone.
 - The label never changes a calculation: GOSI, WPS and end of service still apply as for an employee until a
   qualified Saudi reviewer decides per-type effects. Saudi labor law (Articles 2 and 50) looks at the actual
   relationship, not the contract's name.
@@ -209,7 +209,7 @@ bumps and migrations per `docs/migrations.md`, worktrees via `npm run wt -- new`
 
 ## 10. Verification
 
-- Odoo tests (`WebVueHrCase`): compensation visibility matrix (who can and cannot read
+- Odoo tests (`LiwanHrCase`): compensation visibility matrix (who can and cannot read
   salary/IBAN, including HR manager without payroll), GOSI per class and rate date, min/max
   wage caps, unpaid-leave and absence day math, EOS per Article case and service length
   boundaries (1.99, 2, 4.99, 5, 9.99, 10 years), run state machine and self-approval
@@ -231,7 +231,7 @@ bumps and migrations per `docs/migrations.md`, worktrees via `npm run wt -- new`
 ## 12. Left to the builder
 
 Model and field names, how much of the computation runs inside the OCA engine versus a
-WebVue service (§5), file layout within the owning folders, serializer shapes, test
+LiwanOS service (§5), file layout within the owning folders, serializer shapes, test
 fixtures, the OCA commit pin, whether generated files are stored, and component choices
 from the Storybook catalog.
 
@@ -277,43 +277,43 @@ R29) carried no cost in the ledger; their cost below was assessed at documentati
    to touch, but that registry warns, it does not block, so a builder may edit a path its plan names
    outside the claim. Code: `tools/wt.py`, `docs/parallel-work.md`. Cost if wrong: two sessions edit
    one file at once and the overlap surfaces only at review or integration.
-2. **R2 — approval blockers are structured dicts.** `_webvue_approval_blockers()` returns
+2. **R2 — approval blockers are structured dicts.** `_liwan_approval_blockers()` returns
    `{code, message, field?, details?}` entries (Task 8 first, extended by Task 18 with
    `settlement_missing`), while a negative net and approving one's own payslip stay inline refusals.
-   Code: `odoo-addons/webvue_hr/models/hr_payslip_run.py`. Cost if wrong: the approval path needs
+   Code: `odoo-addons/liwan_hr/models/hr_payslip_run.py`. Cost if wrong: the approval path needs
    small rework to read plain blockers.
 3. **R3 — the payslip `lines` payload excludes the codes it carries as their own fields.** The
    serializer drops `NET` and the employer GOSI share (`SEPARATE_CODES`); the statistical rule
    `GOSI_BASE` was the second code when this was decided and was removed from the structure in
-   Task 16 fix 2. Code: `odoo-addons/webvue_hr/serializers/payroll/payslip.py`. Cost if wrong: the UI
+   Task 16 fix 2. Code: `odoo-addons/liwan_hr/serializers/payroll/payslip.py`. Cost if wrong: the UI
    shows the net or the employer share twice.
 4. **R4 — a shared file is editable only when the task step names it.** The worktree's single-writer
    rule allows a builder to edit a shared file its own task step lists, with no extra agreement, and
    commits on the payroll branch were authorized by the owner's «نفذ». Code: `docs/parallel-work.md`.
    Cost if wrong: none beyond the normal review of those shared files.
-5. **R5 — `hr.version.wage` is never written.** The OCA engine reads wages from WebVue's own
+5. **R5 — `hr.version.wage` is never written.** The OCA engine reads wages from LiwanOS's own
    compensation model, so the HR version model never opens `wage`, which overrides §13's wording that
-   `wage` is written from that model. Code: `odoo-addons/webvue_hr/models/hr_version.py`. Cost if
+   `wage` is written from that model. Code: `odoo-addons/liwan_hr/models/hr_version.py`. Cost if
    wrong: the engine needs a hook that feeds it the wage value.
 6. **R6 — payroll keys are a set of their own in the catalog tests.** The composition test keeps
    `PAYROLL_PERMISSIONS` separate from `HR_PERMISSIONS` and the four keys were added to the
    unpublished catalog `platform_v3` with their count-pinning tests. Code:
-   `odoo-addons/webvue_hr/tests/test_hr_access_composition.py`, `deploy/catalog/solutions/platform_v3.json`.
+   `odoo-addons/liwan_hr/tests/test_hr_access_composition.py`, `deploy/catalog/solutions/platform_v3.json`.
    Cost if wrong: a reviewer flags the extra test and catalog edits.
 7. **R7 — the `payroll_manager` built-in role keeps exactly four keys.** It is
    `hr.payroll.read|manage|approve|config`; `hr.employees.read` reaches payroll users through the
    employee role, and payroll routes gate on `hr.payroll.*` plus `hr.employees.read` only where the
-   plan says. Code: `odoo-addons/webvue_hr/data/hr_access_permissions.xml`,
-   `odoo-addons/webvue_hr/models/access_service.py`. Cost if wrong: a payroll-only user without the
+   plan says. Code: `odoo-addons/liwan_hr/data/hr_access_permissions.xml`,
+   `odoo-addons/liwan_hr/models/access_service.py`. Cost if wrong: a payroll-only user without the
    employee role cannot open employee pages.
 8. **R8 — the payslip child tables and the run carry global company rules of their own.** OCA scopes
-   only the payslip and its configuration by company, so WebVue adds the company domain to
+   only the payslip and its configuration by company, so LiwanOS adds the company domain to
    `hr.payslip.line`, `hr.payslip.input`, `hr.payslip.worked_days` and `hr.payslip.run`. Code:
-   `odoo-addons/webvue_hr/security/hr_payroll_rules.xml`. Cost if wrong: none (the rule is stricter).
-9. **R9 — the IBAN check is WebVue's own.** `stdnum.iban` breaks under Odoo's import hook and
+   `odoo-addons/liwan_hr/security/hr_payroll_rules.xml`. Cost if wrong: none (the rule is stricter).
+9. **R9 — the IBAN check is LiwanOS's own.** `stdnum.iban` breaks under Odoo's import hook and
    `base_iban` would pull stock `account` into HR-only tenants, so a compact ISO 13616 mod-97 check
    with an `SA` prefix and 24-character length lives in the compensation model. Code:
-   `odoo-addons/webvue_hr/models/hr_compensation.py`. Cost if wrong: a mis-validated IBAN is caught by
+   `odoo-addons/liwan_hr/models/hr_compensation.py`. Cost if wrong: a mis-validated IBAN is caught by
    the bank at upload instead of at entry.
 10. **R10 — the compensation form has no bank picker.** The bank on the record is shown read-only
     (the Saudi IBAN carries the bank code) and setting the bank name waits for a lookup route. Code:
@@ -325,64 +325,64 @@ R29) carried no cost in the ledger; their cost below was assessed at documentati
     `apps/web/app/utils/moneyInput.ts`. Cost if wrong: a PMO import path has to change with it.
 12. **R12 — the default annual leave type is `hr_holidays.leave_type_paid_time_off`.** The xml id the
     spec assumed (`holiday_status_cl`) does not exist in Odoo 19, so the settings default points at
-    the stock paid-time-off type. Code: `odoo-addons/webvue_hr/models/payroll_settings.py`. Cost if
+    the stock paid-time-off type. Code: `odoo-addons/liwan_hr/models/payroll_settings.py`. Cost if
     wrong: none (the fallback is the stock type).
 13. **R13 — GOSI rates are read in the payslip's company.** The calculator switches to
     `with_company(payslip.company_id)` before the rate lookup, so a company row wins over the shared
-    seed row for the payslip being computed. Code: `odoo-addons/webvue_hr/models/payroll_calculator.py`.
+    seed row for the payslip being computed. Code: `odoo-addons/liwan_hr/models/payroll_calculator.py`.
     Cost assessed at documentation time: a company-specific rate row would be invisible to that
     company's runs, which would fall back to the shared seed row or raise `gosi_rate_missing`, and it
     would contribute at the wrong rate.
 14. **R14 — Saudi values are injected only into the company's own structure.** The rules run when the
     payslip's structure is the one in payroll settings, and `structure_saudi` belongs to the main
     company because OCA requires a `company_id`, so a second company in the same database needs its
-    own copy. Code: `odoo-addons/webvue_hr/data/hr_payroll_structure_data.xml`,
-    `odoo-addons/webvue_hr/models/payroll_settings.py`. Cost if wrong: multi-company tenants cannot
+    own copy. Code: `odoo-addons/liwan_hr/data/hr_payroll_structure_data.xml`,
+    `odoo-addons/liwan_hr/models/payroll_settings.py`. Cost if wrong: multi-company tenants cannot
     compute or create a run until that copy exists.
 15. **R15 — an hourly unpaid leave counts its fraction of a day.** A leave requested in hours for a
     single day counts `number_of_days` (its fraction), not a whole day. Code:
-    `odoo-addons/webvue_hr/models/payroll_calculator.py`. Cost if wrong: a small proration difference
+    `odoo-addons/liwan_hr/models/payroll_calculator.py`. Cost if wrong: a small proration difference
     on part-day unpaid leave.
 16. **R16 — an empty structure is a named refusal, never a silent zero.** Compute raises the 422
     `structure_missing`, and the input-code mapping is one constant. Code:
-    `odoo-addons/webvue_hr/models/hr_payslip_run.py`. Cost if wrong: a run would silently pay zeros
+    `odoo-addons/liwan_hr/models/hr_payslip_run.py`. Cost if wrong: a run would silently pay zeros
     until the guard is restored.
 17. **R17 — the run summary shape is `{id, month, state, employee_count, totals, approved_at}`.**
     The contract in `packages/contracts/src/hr/payroll.ts` must keep exact key parity with it. Code:
-    `odoo-addons/webvue_hr/serializers/payroll/run.py`. Cost if wrong: the Zod contract has to change
+    `odoo-addons/liwan_hr/serializers/payroll/run.py`. Cost if wrong: the Zod contract has to change
     with the serializer.
-18. **R18 — the paid days are a stored snapshot on the payslip.** `webvue_paid_days` is written when
+18. **R18 — the paid days are a stored snapshot on the payslip.** `liwan_paid_days` is written when
     the payslip is created and computed, like the department snapshot, because an employee cannot read
-    `hr.version`. Code: `odoo-addons/webvue_hr/models/hr_payslip.py`. Cost if wrong: the payslip shows
+    `hr.version`. Code: `odoo-addons/liwan_hr/models/hr_payslip.py`. Cost if wrong: the payslip shows
     stale paid days until it is recomputed.
 19. **R19 — the annual leave type is required and HR names its own run states.** The settings refuse
     to clear the leave type (EOS encashment needs it), the register prints every row with search, and
     the HR state filter accepts `draft`, `computed` and `approved` until the bridge widens the list.
-    Code: `odoo-addons/webvue_hr/models/payroll_settings.py`,
-    `odoo-addons/webvue_hr/serializers/payroll/run.py`. Cost if wrong: settings cannot be cleared back
+    Code: `odoo-addons/liwan_hr/models/payroll_settings.py`,
+    `odoo-addons/liwan_hr/serializers/payroll/run.py`. Cost if wrong: settings cannot be cleared back
     to no leave type.
 20. **R20 — payroll readers get read-only accounting vocabulary.** The bridge grants them read ACLs on
     `account.account`, `account.journal` and `account.analytic.account` so the finance settings can be
     shown; company rules still apply. Code:
-    `odoo-addons/webvue_hr_finance/security/ir.model.access.csv`. Cost if wrong: a payroll reader can
+    `odoo-addons/liwan_hr_finance/security/ir.model.access.csv`. Cost if wrong: a payroll reader can
     see the chart of accounts' names.
 21. **R21 — the run state filter reads the field selection at runtime.** HR lists the states the
-    `webvue_state` selection actually holds instead of naming bridge states, so a state added by
-    `webvue_hr_finance` is accepted without editing `webvue_hr`. Code:
-    `odoo-addons/webvue_hr/controllers/payroll/runs.py`,
-    `odoo-addons/webvue_hr/serializers/payroll/run.py`. Cost assessed at documentation time: a bridge
+    `liwan_state` selection actually holds instead of naming bridge states, so a state added by
+    `liwan_hr_finance` is accepted without editing `liwan_hr`. Code:
+    `odoo-addons/liwan_hr/controllers/payroll/runs.py`,
+    `odoo-addons/liwan_hr/serializers/payroll/run.py`. Cost assessed at documentation time: a bridge
     state the HR addon does not know would be rejected by the filter and unreachable from the list.
 22. **R22 — the bridge guards writes to the run.** `hr.payslip.run.write` lets a user without
-    `hr.payroll.manage` only move `approved → posted` (with `webvue_move_id`) and `posted → paid`
-    (with `webvue_payment_id`); the posting preview refuses a non-approved run and
-    `_webvue_finance_refs` merges `super()`. Code:
-    `odoo-addons/webvue_hr_finance/models/hr_payslip_run.py`. Cost if wrong: a small extra review
+    `hr.payroll.manage` only move `approved → posted` (with `liwan_move_id`) and `posted → paid`
+    (with `liwan_payment_id`); the posting preview refuses a non-approved run and
+    `_liwan_finance_refs` merges `super()`. Code:
+    `odoo-addons/liwan_hr_finance/models/hr_payslip_run.py`. Cost if wrong: a small extra review
     scope in the bridge task.
 23. **R23 — payment and approval guards were folded into the bridge task.** The approver guard is
     narrowed to the meeting fields, payment refuses a foreign-currency journal (422 `journal_id`),
     asserts the payable lines are reconciled and refuses a payment date before the posting date.
-    Code: `odoo-addons/webvue_hr_finance/models/payroll_posting.py`,
-    `odoo-addons/webvue_hr_finance/models/payroll_finance_link.py`. Cost if wrong: extra scope in that
+    Code: `odoo-addons/liwan_hr_finance/models/payroll_posting.py`,
+    `odoo-addons/liwan_hr_finance/models/payroll_finance_link.py`. Cost if wrong: extra scope in that
     task.
 24. **R24 — accounts and analytic accounts are paged in 200-row chunks.** The settings page follows
     the server's page cap until the total is reached, with no per-role narrowing. Code:
@@ -390,14 +390,14 @@ R29) carried no cost in the ledger; their cost below was assessed at documentati
     settings page lists accounts.
 25. **R25 — file routes accept every state except `draft` and `computed`.** HR names no bridge state,
     and text columns are neutralised against CSV formula injection before export. Code:
-    `odoo-addons/webvue_hr/controllers/payroll/files.py`,
-    `odoo-addons/webvue_hr/models/payroll_export.py`. Cost if wrong: an unapproved run could export
+    `odoo-addons/liwan_hr/controllers/payroll/files.py`,
+    `odoo-addons/liwan_hr/models/payroll_export.py`. Cost if wrong: an unapproved run could export
     figures that were never approved.
 26. **R26 — `main` was merged into the branch by the orchestrator without an owner request.** Main
     (`eebab3e2`, the finance completion) reached `codex/hr-payroll` at merge commit `043ea463` right
     after the salary-files task, before any owner request, and was accepted afterwards because the
     final integration needs current `main` anyway; the merge touched no payroll file and a combined
-    Odoo run covered `webvue_hr`, `webvue_hr_finance` and `webvue_finance`. Code: repository history
+    Odoo run covered `liwan_hr`, `liwan_hr_finance` and `liwan_finance`. Code: repository history
     (merge `043ea463`), against the merge authorization rule in `AGENTS.md`. Cost assessed at
     documentation time: the branch would be missing the finance completion from `main`, and the final
     integration would have to redo the merge and re-review the combined result.
@@ -409,14 +409,14 @@ R29) carried no cost in the ledger; their cost below was assessed at documentati
     The original ruling recorded "one settlement per employee, no re-hire redo" as a phase limit in the
     migration README; the repair wave replaced it with uniqueness per employee **and departure date**,
     so a re-hire that leaves again gets a new settlement and the earlier one stays as locked history.
-    Code: `odoo-addons/webvue_hr/models/eos_settlement.py`,
-    `odoo-addons/webvue_hr/migrations/19.0.1.7.0/README.md`. Cost if wrong: a re-hired leaver would
+    Code: `odoo-addons/liwan_hr/models/eos_settlement.py`,
+    `odoo-addons/liwan_hr/migrations/19.0.1.7.0/README.md`. Cost if wrong: a re-hired leaver would
     need the earlier settlement handled by hand.
 29. **R29 — service start is one helper with the stock no-gap rule.** The settlement and the monthly
-    provision both read the service start through `_webvue_service_start`, which applies Odoo's rule
+    provision both read the service start through `_liwan_service_start`, which applies Odoo's rule
     that a gap of four days or more starts a new service, on the versions payroll may read. Code:
-    `odoo-addons/webvue_hr/models/eos_settlement.py`,
-    `odoo-addons/webvue_hr_finance/models/eos_accrual.py`. Cost assessed at documentation time: the
+    `odoo-addons/liwan_hr/models/eos_settlement.py`,
+    `odoo-addons/liwan_hr_finance/models/eos_accrual.py`. Cost assessed at documentation time: the
     settlement and the provision would count different service lengths, so the accrued liability would
     not match the award paid on departure.
 
@@ -424,17 +424,17 @@ R29) carried no cost in the ledger; their cost below was assessed at documentati
 
 - **Final settlement is unique per employee and departure date.** A re-hire that leaves again gets a
   new settlement while the confirmed settlement of the earlier departure stays as locked history
-  (`_employee_departure_unique`, `_webvue_current`). Code:
-  `odoo-addons/webvue_hr/models/eos_settlement.py`.
+  (`_employee_departure_unique`, `_liwan_current`). Code:
+  `odoo-addons/liwan_hr/models/eos_settlement.py`.
 - **Approval refuses an empty run and a stale one.** `run_empty` for a run with no payslip and
   `run_stale` for a run whose figures changed after the last compute, alongside the existing
   `settlement_missing` and negative-net refusals. Code:
-  `odoo-addons/webvue_hr/models/hr_payslip_run.py`.
+  `odoo-addons/liwan_hr/models/hr_payslip_run.py`.
 - **Shared GOSI rate rows are read-only and a company's own row wins.** The shared seed rows carry no
   company and are writable by none; a company row with the same (or a later) start date wins over the
-  shared one for that company. Code: `odoo-addons/webvue_hr/security/hr_payroll_rules.xml`,
-  `odoo-addons/webvue_hr/models/gosi_rate.py`, `odoo-addons/webvue_hr/data/hr_gosi_rate_data.xml`.
+  shared one for that company. Code: `odoo-addons/liwan_hr/security/hr_payroll_rules.xml`,
+  `odoo-addons/liwan_hr/models/gosi_rate.py`, `odoo-addons/liwan_hr/data/hr_gosi_rate_data.xml`.
 - **The end-of-service provision nets payouts since the last accrual.** The posted delta is
   `target − (last accrual − paid)`, so an EOS amount paid out of the provision is not provisioned
   again, whichever month it was paid in. Code:
-  `odoo-addons/webvue_hr_finance/models/eos_accrual.py`.
+  `odoo-addons/liwan_hr_finance/models/eos_accrual.py`.

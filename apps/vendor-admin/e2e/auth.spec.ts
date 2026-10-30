@@ -83,16 +83,16 @@ test.describe('enrollment and passkey sign-in', () => {
 
     // Sign out (the cookie is cleared), the protected home redirects, then the passkey signs back in.
     expect(await signOutRequest(page)).toBe(204)
-    expect((await context.cookies()).filter(cookie => cookie.name === 'webvue_admin')).toEqual([])
+    expect((await context.cookies()).filter(cookie => cookie.name === 'liwan_admin')).toEqual([])
     await page.goto('/')
     // The home route redirects to the overview, which asks for the sign-in and returns there.
     await expect(page).toHaveURL(/\/login\?next=\/overview$/)
     await page.getByRole('button', { name: 'الدخول بمفتاح المرور' }).click()
     await expect(page).toHaveURL(/localhost:\d+\/overview$/)
     await expect(page.getByRole('heading', { level: 1, name: 'اليوم' })).toBeVisible()
-    const cookie = (await context.cookies()).find(item => item.name === 'webvue_admin')
+    const cookie = (await context.cookies()).find(item => item.name === 'liwan_admin')
     expect(cookie).toMatchObject({ httpOnly: true, sameSite: 'Strict', path: '/' })
-    expect(await page.evaluate(() => document.cookie)).not.toContain('webvue_admin')
+    expect(await page.evaluate(() => document.cookie)).not.toContain('liwan_admin')
   })
 
   test('a link without a valid token shows the invalid state and sends nothing', async ({ page }) => {
@@ -112,7 +112,7 @@ test.describe('enrollment and passkey sign-in', () => {
     await expect(alert(page)).toBeVisible()
     await expect(page.locator('#device-label')).toBeVisible()
     // The page keeps no session (the language preference cookie is not one).
-    expect((await context.cookies()).filter(cookie => cookie.name === 'webvue_admin')).toEqual([])
+    expect((await context.cookies()).filter(cookie => cookie.name === 'liwan_admin')).toEqual([])
   })
 })
 
@@ -121,7 +121,7 @@ test.describe('fallback sign-in', () => {
     await openFallback(page)
     await submitFallback(page, OWNER_EMAIL, ADMIN_PASSWORD)
     await expect(page).toHaveURL(/localhost:\d+\/overview$/)
-    expect((await context.cookies()).some(cookie => cookie.name === 'webvue_admin')).toBe(true)
+    expect((await context.cookies()).some(cookie => cookie.name === 'liwan_admin')).toBe(true)
     // Every request the BFF made was signed and accepted; none was rejected.
     const stats = await mockStats()
     expect(stats.rejected).toBe(0)

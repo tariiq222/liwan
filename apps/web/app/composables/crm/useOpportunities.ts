@@ -15,7 +15,7 @@ import {
   type CrmOpportunityFilters,
   type CrmOpportunityPatch,
   type CrmSaleSchema,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import type { z } from 'zod'
 import { crmKeys } from './crmKeys'
 

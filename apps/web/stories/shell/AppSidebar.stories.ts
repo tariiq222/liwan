@@ -16,5 +16,5 @@ export const Default: Story = {
   name: 'قائمة التطبيقات الموحّدة',
   parameters: storyContext('apps/web/app/layouts/default.vue:74'),
   loaders: [async () => { await __getRouter()!.replace('/projects'); return {} }],
-  render: () => ({ components: { AppSidebar }, template: '<div class="webvue-shell min-h-svh"><AppSidebar /></div>' }),
+  render: () => ({ components: { AppSidebar }, template: '<div class="liwan-shell min-h-svh"><AppSidebar /></div>' }),
 }

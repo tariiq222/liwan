@@ -2,7 +2,7 @@
 import { catalogReturn } from '@/utils/vendorCatalog'
 import { bundleEditPayload, commercialFailure, type BundleDraft, type BundleView } from '@/utils/vendorCommercial'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
-import type { CatalogRelease } from '@webvue/commercial-contracts'
+import type { CatalogRelease } from '@liwan/commercial-contracts'
 definePageMeta({ capability: 'vendor.catalog.manage' })
 const { t } = useI18n(); const route = useRoute(); const { can } = useVendorContext(); const api = useVendorCommercial()
 const id = computed(() => String(route.params.id)); const backTo = computed(() => catalogReturn(route.query.returnTo, 'bundles').to)

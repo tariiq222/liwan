@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
-import type { HrBankProfile } from '@webvue/contracts'
+import type { HrBankProfile } from '@liwan/contracts'
 
 // The salary files of a fixed run: the bank transfer file (with its value date) and the WPS file, each laid out by a
 // profile the company chose, and the link to the GOSI statement. The page sends the request and shows a refusal (missing IBAN, WPS totals) above; here a
@@ -39,8 +39,8 @@ function download(kind: Kind) {
 </script>
 
 <template>
-  <SharedFormSection class="webvue-print-hide" panel :title="t('hrPayroll.files.title')" :description="t('hrPayroll.files.hint')" data-testid="hr-payroll-files">
-    <div class="webvue-form-grid">
+  <SharedFormSection class="liwan-print-hide" panel :title="t('hrPayroll.files.title')" :description="t('hrPayroll.files.hint')" data-testid="hr-payroll-files">
+    <div class="liwan-form-grid">
       <UFormField :label="t('hrPayroll.files.bankProfile')" name="hr-payroll-file-bank-profile">
         <USelect id="hr-payroll-file-bank-profile" class="w-full" :items="items('bank')" :model-value="profileId('bank')" @update:model-value="chosen.bank = String($event)" :disabled="!hydrated || props.pending !== null" data-testid="hr-payroll-file-bank-profile" />
       </UFormField>

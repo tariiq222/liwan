@@ -51,7 +51,7 @@ function fixture() {
   } } } as unknown as Pool
   return { pool, flags, queries, state: () => state }
 }
-const publicationPath = async () => join(await mkdtemp(join(tmpdir(), 'webvue-registry-store-')), 'registry.json')
+const publicationPath = async () => join(await mkdtemp(join(tmpdir(), 'liwan-registry-store-')), 'registry.json')
 
 const input = { controlTenantId: 'ad03d956-efef-4f80-baf3-9c23ea46e945', expectedSnapshotRevision: 0, target: { host: 'a.invalid', tenantId: 'a', database: 'db_a', filestore: 'db_a', enabled: true, registryRevision: 1 }, reason: 'Enroll test tenant' }
 it('publishes through signed HTTP and real store/filesystem with trusted audit identity', async () => {

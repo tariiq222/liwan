@@ -1,4 +1,4 @@
-import type { FinanceBudgetCreate } from '@webvue/contracts'
+import type { FinanceBudgetCreate } from '@liwan/contracts'
 
 /** The create form as typed. */
 export interface BudgetFormDraft {

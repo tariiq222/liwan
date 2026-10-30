@@ -124,10 +124,10 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <UForm :state="{ name, email, phone, jobTitle, departmentId, managerId, nationalityId, contractStart, contractEnd, probationEnd, identityExpiry, noticeDays }" class="webvue-form" method="post" :loading-auto="false" novalidate @submit="submit">
+  <UForm :state="{ name, email, phone, jobTitle, departmentId, managerId, nationalityId, contractStart, contractEnd, probationEnd, identityExpiry, noticeDays }" class="liwan-form" method="post" :loading-auto="false" novalidate @submit="submit">
     <UAlert v-if="formError" role="alert" color="error" variant="subtle" :title="t('hr.form.saveError')" :description="errorMessage" />
     <SharedFormSection panel :title="t('hr.employee.general')" :description="t('hr.employee.generalHint')">
-      <div class="webvue-form-grid">
+      <div class="liwan-form-grid">
         <UFormField :label="t('hr.employee.name')" name="hr-employee-name" required :error="fieldError('name')">
           <UInput id="hr-employee-name" v-model="name" class="w-full" :disabled="!canManage || !hydrated || isPending" required />
         </UFormField>
@@ -150,7 +150,7 @@ async function submit() {
       </div>
     </SharedFormSection>
     <SharedFormSection panel :title="t('hr.employee.assignment')">
-      <div class="webvue-form-grid">
+      <div class="liwan-form-grid">
         <UFormField :label="t('hr.employee.department')" name="hr-employee-department" :error="fieldError('department_id')">
           <USelect :model-value="departmentId ? String(departmentId) : 'none'" :items="departmentOptions" class="w-full" :disabled="!canManage || !hydrated || isPending" @update:model-value="departmentId = idOrNull($event)" />
         </UFormField>
@@ -168,7 +168,7 @@ async function submit() {
       </div>
     </SharedFormSection>
     <SharedFormSection v-if="hasContract" panel :title="t('hr.employee.contract.title')" :description="t('hr.employee.contract.hint')">
-      <div class="webvue-form-grid" data-testid="hr-employee-contract">
+      <div class="liwan-form-grid" data-testid="hr-employee-contract">
         <UFormField :label="t('hr.employee.contract.start')" name="hr-contract-start" :error="fieldError('contract.start_date')">
           <SharedDateField id="hr-contract-start" v-model="contractStart" :disabled="!canManage || !hydrated || isPending" />
         </UFormField>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CompanyProfileExtension } from '@webvue/contracts'
+import type { CompanyProfileExtension } from '@liwan/contracts'
 
 // One field an installed application adds to the company profile: a text input, or a select over the server's options.
 const props = defineProps<{

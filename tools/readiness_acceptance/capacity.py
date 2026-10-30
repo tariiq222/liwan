@@ -34,7 +34,7 @@ def validate_config(config):
     if config.get('operation')=='edit' and config.get('allowWrites') is not True:raise ValueError('capacity_write_opt_in_required')
     if type(config.get('maxOperations',100000)) is not int or not 1<=config.get('maxOperations',100000)<=100000:raise ValueError('capacity_budget_rejected')
     for tenant in config['tenants']:
-        if (not re.fullmatch(r'webvue_scratch_[a-z0-9_]{1,45}',tenant['database'])
+        if (not re.fullmatch(r'liwan_scratch_[a-z0-9_]{1,45}',tenant['database'])
                 or not re.fullmatch(r'[a-z0-9-]+\.ready\.test',tenant['host'])
                 or any('\n' in tenant.get(k,'') or '\r' in tenant.get(k,'') for k in ('cookie','host'))):raise ValueError('capacity_binding_rejected')
         if config.get('operation')=='record' and not isinstance(tenant.get('expectedName'),str):raise ValueError('capacity_record_identity_missing')

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import MeetingEventList from '../../app/components/meetings/MeetingEventList.vue'
-import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
+import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
 const events = [
@@ -21,7 +21,7 @@ type Story = StoryObj<typeof meta>
 const render: Story['render'] = args => ({
   components: { MeetingEventList, PageContainer },
   setup: () => ({ args }),
-  template: '<main class="webvue-shell-main"><PageContainer width="detail"><MeetingEventList v-bind="args" /></PageContainer></main>',
+  template: '<main class="liwan-shell-main"><PageContainer width="detail"><MeetingEventList v-bind="args" /></PageContainer></main>',
 })
 
 export const Populated: Story = {

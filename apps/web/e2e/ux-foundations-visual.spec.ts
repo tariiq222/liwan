@@ -7,7 +7,7 @@ const stories = ['shared-listpage--default', 'shared-recordpage--operational-sum
 let base = ''
 let close: () => Promise<void>
 requireStorybook()
-test.beforeAll(async () => { ({ base, close } = await startStorybookServer()); await mkdir('/tmp/webvue-ux-visual', { recursive: true }) })
+test.beforeAll(async () => { ({ base, close } = await startStorybookServer()); await mkdir('/tmp/liwan-ux-visual', { recursive: true }) })
 test.afterAll(async () => { await close() })
 for (const locale of ['ar', 'en']) for (const appearance of ['light', 'dark']) for (const fontSize of ['small', 'medium', 'large']) for (const width of [390, 768, 1440]) {
   test(`${locale} ${appearance} ${fontSize} ${width}`, async ({ page }) => {
@@ -29,7 +29,7 @@ for (const locale of ['ar', 'en']) for (const appearance of ['light', 'dark']) f
         await expect.poll(async () => Math.round((await page.getByRole('dialog').boundingBox())!.width)).toBe(Math.min(640, width))
       }
       if (id.includes('operational-summary')) await expect(page.locator('[data-slot="record-summary"]')).toBeVisible()
-      await page.screenshot({ path: `/tmp/webvue-ux-visual/${id}-${locale}-${appearance}-${fontSize}-${width}.png`, fullPage: true })
+      await page.screenshot({ path: `/tmp/liwan-ux-visual/${id}-${locale}-${appearance}-${fontSize}-${width}.png`, fullPage: true })
       page.off('pageerror', onError)
     }
   })

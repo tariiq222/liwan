@@ -7,7 +7,7 @@ import {
   type HrEmployee,
   type HrEmployeeCreate,
   type HrEmployeePatch,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 
 export type { HrEmployee }
 

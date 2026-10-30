@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { JournalEntry } from '@webvue/contracts'
-import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
+import type { JournalEntry } from '@liwan/contracts'
+import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import { useFinanceEntryList, useFinanceGeneralJournals } from '@/composables/finance/useFinanceEntries'
 import { useRouteListFilters } from '@/composables/useRouteListFilters'
 import Money from '../invoices/Money.vue'
@@ -70,7 +70,7 @@ const label = (entry: JournalEntry) => entryTitle(entry, t('financeAccounting.dr
 
 <template>
   <SharedForbiddenState v-if="!allowed" :description="t('financeAccounting.forbidden')" />
-  <div v-else class="webvue-page-stack">
+  <div v-else class="liwan-page-stack">
     <EntryKpiStrip v-if="kpisShown" :filters="filters" />
     <SharedListCard>
       <template #filters>
@@ -95,7 +95,7 @@ const label = (entry: JournalEntry) => entryTitle(entry, t('financeAccounting.dr
         </SharedFilterBar>
       </template>
       <SharedPageState :error="query.error.value" :keep-content="items.length > 0" @retry="query.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--webvue-card-pad-dense)" :title="t(activeCount ? 'app.noResults' : 'financeAccounting.entries.empty')" />
+        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(activeCount ? 'app.noResults' : 'financeAccounting.entries.empty')" />
         <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,820px)]">
           <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :row-to="recordTo" :loading="query.isPending.value" :caption="t('financeAccounting.entries.title')">
             <template #record_number-cell="{ row }"><SharedRecordNumber :value="row.original.id" /></template>

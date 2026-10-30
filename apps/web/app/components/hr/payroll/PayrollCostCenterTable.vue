@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { HrPayrollCostCenter } from '@webvue/contracts'
+import type { HrPayrollCostCenter } from '@liwan/contracts'
 import { NO_RECORD, withCurrent } from '@/utils/payrollFinanceSettings'
 
 // The cost center each department's payroll cost is charged to. A choice is saved at once; only the row being saved

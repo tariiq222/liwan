@@ -5,8 +5,8 @@ import { renderToString } from '@vue/server-renderer'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import { HrPayrollSettingsPatchSchema } from '@webvue/contracts'
-import { DEFAULT_STUBS, fakeT } from '@webvue/ui/test/helpers/renderShared'
+import { HrPayrollSettingsPatchSchema } from '@liwan/contracts'
+import { DEFAULT_STUBS, fakeT } from '@liwan/ui/test/helpers/renderShared'
 import { ApiError } from '../../../composables/useApi'
 import { saveErrorMessage } from '../../../utils/formFeedback'
 import { payrollSettingsPatch } from '../../../utils/payrollSettings'
@@ -30,7 +30,7 @@ const LEAVE_TYPES = [{ id: 3, name: 'Annual' }, { id: 4, name: 'Unpaid' }]
 
 const MODULES: Record<string, unknown> = {
   'vue': Vue,
-  '@webvue/contracts': { HrPayrollSettingsPatchSchema },
+  '@liwan/contracts': { HrPayrollSettingsPatchSchema },
   '@/composables/useApi': { ApiError },
   '@/utils/formFeedback': { saveErrorMessage },
   '@/utils/payrollSettings': { payrollSettingsPatch },

@@ -133,7 +133,7 @@ flowchart TD
 | بناء صور Nuxt والحارس لـArm | لم تُفحص بعد |
 | تثبيت الوحدات واختبار PDF العربي | أول إثبات فعلي للنظام على الخادم |
 | تجربة نسخ واستعادة | شرط قبل أي بيانات حقيقية |
-| قياس 10 ثم 100 مستأجر | شرط في [عقد الاستضافة](../superpowers/specs/webvue-shared-saas-and-sovereign-deployment.md) |
+| قياس 10 ثم 100 مستأجر | شرط في [عقد الاستضافة](../superpowers/specs/liwan-shared-saas-and-sovereign-deployment.md) |
 
 ### تحسينات لاحقة
 

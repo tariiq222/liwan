@@ -22,7 +22,7 @@ async function setup() {
 
 describe('API proxy tenancy mode separation', () => {
   it('selects the bounded dedicated adapter without registry access', async () => {
-    vi.stubEnv('WEBVUE_TENANCY_MODE', 'dedicated')
+    vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated')
     const { proxy, handler } = await setup()
     const event = { path: '/api/v1/me', node: { req: { headers: { cookie: 'session_id=synthetic' } } } }
     await handler(event as never)
@@ -30,33 +30,33 @@ describe('API proxy tenancy mode separation', () => {
   })
 
   it('shared explicitly forwards trusted host, token and per-tenant revision', async () => {
-    const path = join(mkdtempSync(join(tmpdir(), 'webvue-proxy-fixture-')), 'registry.json')
+    const path = join(mkdtempSync(join(tmpdir(), 'liwan-proxy-fixture-')), 'registry.json')
     writeFileSync(path, JSON.stringify({ schemaVersion: 1, snapshotRevision: 9, targets: [{ tenantId: 'tenant_a', host: 'alpha.example.test', database: 'db_a', filestore: 'db_a', enabled: true, registryRevision: 3 }] }))
     const token = 'synthetic-private-token-'.repeat(3)
-    vi.stubEnv('WEBVUE_TENANCY_MODE', 'shared')
-    vi.stubEnv('WEBVUE_SHARED_PROXY_TOKEN', token)
-    vi.stubEnv('WEBVUE_TENANT_REGISTRY_PATH', path)
-    const headers = { host: 'alpha.example.test', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '3', cookie: 'session_id=synthetic' }
+    vi.stubEnv('LIWAN_TENANCY_MODE', 'shared')
+    vi.stubEnv('LIWAN_SHARED_PROXY_TOKEN', token)
+    vi.stubEnv('LIWAN_TENANT_REGISTRY_PATH', path)
+    const headers = { host: 'alpha.example.test', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '3', cookie: 'session_id=synthetic' }
     const event = { path: '/api/v1/me', node: { req: { headers } } }
     const { proxy, handler } = await setup()
     await handler(event as never)
     expect(proxy).not.toHaveBeenCalled()
     expect(transport).toHaveBeenCalledWith(event, 'http://guard:8080', '/api/v1/me', { method: undefined, body: undefined })
     proxy.mockClear()
-    event.node.req.headers['x-webvue-tenant-revision'] = '2'
+    event.node.req.headers['x-liwan-tenant-revision'] = '2'
     await expect(handler(event as never)).rejects.toThrow('tenant_boundary_rejected')
     expect(proxy).not.toHaveBeenCalled()
   })
 
   it('unknown modes never fall back to dedicated forwarding', async () => {
-    vi.stubEnv('WEBVUE_TENANCY_MODE', 'typo')
+    vi.stubEnv('LIWAN_TENANCY_MODE', 'typo')
     const { proxy, handler } = await setup()
     await expect(handler({ path: '/api/v1/me' } as never)).rejects.toThrow('invalid_tenancy_mode')
     expect(proxy).not.toHaveBeenCalled()
   })
 
   it('rejects anonymous requests before reading the body or holding a slot', async () => {
-    vi.stubEnv('WEBVUE_TENANCY_MODE', 'dedicated')
+    vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated')
     transport.mockClear()
     const { proxy, handler } = await setup()
     const event = { path: '/api/v1/me', node: { req: { headers: {} } } }
@@ -70,7 +70,7 @@ describe('API proxy tenancy mode separation', () => {
   })
 
   it('still serves the public api paths without a session cookie', async () => {
-    vi.stubEnv('WEBVUE_TENANCY_MODE', 'dedicated')
+    vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated')
     const { proxy, handler } = await setup()
     const event = { path: '/api/v1/branding', method: 'GET', node: { req: { headers: {} } } }
     await handler(event as never)
@@ -80,7 +80,7 @@ describe('API proxy tenancy mode separation', () => {
 
 describe('server-only API routes', () => {
   it.each(['POST', 'GET', 'PATCH'])('refuses %s /api/v1/ai/usage from a browser before any session check or dispatch', async (method) => {
-    vi.stubEnv('WEBVUE_TENANCY_MODE', 'dedicated')
+    vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated')
     transport.mockClear()
     const { proxy, handler } = await setup()
     for (const path of ['/api/v1/ai/usage', '/api/v1/ai/usage/', '/api/v1/ai/usage?x=1', '/api/v1/ai/%75sage']) {
@@ -92,7 +92,7 @@ describe('server-only API routes', () => {
   })
 
   it('still forwards the audit route, which the browser posts for approved drafts', async () => {
-    vi.stubEnv('WEBVUE_TENANCY_MODE', 'dedicated')
+    vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated')
     const { proxy, handler } = await setup()
     const event = { path: '/api/v1/ai/audit', method: 'POST', node: { req: { headers: { cookie: 'session_id=synthetic' } } } }
     await handler(event as never)
@@ -102,13 +102,13 @@ describe('server-only API routes', () => {
 
 describe('public API namespace', () => {
   function sharedEvent(path: string, method: string, cookie?: string) {
-    const registry = join(mkdtempSync(join(tmpdir(), 'webvue-proxy-public-')), 'registry.json')
+    const registry = join(mkdtempSync(join(tmpdir(), 'liwan-proxy-public-')), 'registry.json')
     writeFileSync(registry, JSON.stringify({ schemaVersion: 1, snapshotRevision: 9, targets: [{ tenantId: 'tenant_a', host: 'alpha.example.test', database: 'db_a', filestore: 'db_a', enabled: true, registryRevision: 3 }] }))
     const token = 'synthetic-private-token-'.repeat(3)
-    vi.stubEnv('WEBVUE_TENANCY_MODE', 'shared')
-    vi.stubEnv('WEBVUE_SHARED_PROXY_TOKEN', token)
-    vi.stubEnv('WEBVUE_TENANT_REGISTRY_PATH', registry)
-    const headers: Record<string, string> = { host: 'alpha.example.test', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '3' }
+    vi.stubEnv('LIWAN_TENANCY_MODE', 'shared')
+    vi.stubEnv('LIWAN_SHARED_PROXY_TOKEN', token)
+    vi.stubEnv('LIWAN_TENANT_REGISTRY_PATH', registry)
+    const headers: Record<string, string> = { host: 'alpha.example.test', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '3' }
     if (cookie) headers.cookie = cookie
     return { path, method, node: { req: { headers }, res: { setHeader: vi.fn(), getHeader: vi.fn() } } }
   }

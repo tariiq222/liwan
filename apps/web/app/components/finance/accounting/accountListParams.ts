@@ -1,4 +1,4 @@
-import { FinanceAccountTypeSchema, type FinanceAccount } from '@webvue/contracts'
+import { FinanceAccountTypeSchema, type FinanceAccount } from '@liwan/contracts'
 import { queryPositiveInt, queryText } from '../../../utils/routeQuery'
 
 export const ACCOUNT_PAGE_SIZE = 25

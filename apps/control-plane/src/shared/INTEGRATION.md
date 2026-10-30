@@ -29,7 +29,7 @@ policyForCreate/verifiedManagedCreate/publicReceipt), not their dedicated runtim
 
 ## Required integration, owned by baseline (t5)
 
-1. Expose the contract file as package subpath `@webvue/commercial-contracts/shared`
+1. Expose the contract file as package subpath `@liwan/commercial-contracts/shared`
    in package.json and replace the temporary relative source imports in planner
    and test. No barrel/export edits were made in t3.
 2. Authenticate and authorize using current vendor grants before queueing AND

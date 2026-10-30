@@ -1,7 +1,7 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { FinanceClosingPreviewSchema, FinanceFiscalYearListSchema, FinanceFiscalYearSchema } from '@webvue/contracts'
+import { FinanceClosingPreviewSchema, FinanceFiscalYearListSchema, FinanceFiscalYearSchema } from '@liwan/contracts'
 import { financeSetupKey } from './useFinanceSetup'
 
 export const financeClosingKeys = {

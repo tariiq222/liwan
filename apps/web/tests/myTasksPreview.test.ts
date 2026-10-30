@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { PersonalTaskSchema, MyTaskListPageSchema, TaskDetailSchema, TimelineEntrySchema } from '@webvue/contracts'
+import { PersonalTaskSchema, MyTaskListPageSchema, TaskDetailSchema, TimelineEntrySchema } from '@liwan/contracts'
 import { createMyTasksPreview } from '../e2e/my-tasks-preview-state.mjs'
 
 describe('stateful synthetic My tasks preview contract', () => {

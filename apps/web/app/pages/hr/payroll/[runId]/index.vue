@@ -5,8 +5,8 @@ import PayrollPaymentForm from '@/components/hr/payroll/PayrollPaymentForm.vue'
 import PayrollPostingPreview from '@/components/hr/payroll/PayrollPostingPreview.vue'
 import PayrollRunActions from '@/components/hr/payroll/PayrollRunActions.vue'
 import PayrollRunTotals from '@/components/hr/payroll/PayrollRunTotals.vue'
-import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
-import { formatDate, localIsoDay } from '@webvue/ui/app/utils/formatDate'
+import { statusTag } from '@liwan/ui/app/utils/pageHeaderTag'
+import { formatDate, localIsoDay } from '@liwan/ui/app/utils/formatDate'
 import { ApiError } from '@/composables/useApi'
 import { HR_PAYSLIP_PAGE_SIZE, fetchAllHrPayslips, hrPayslipsQuery } from '@/composables/useHrPayrollRuns'
 import { payrollFilesWritable } from '@/utils/payrollFilesWritable'
@@ -16,7 +16,7 @@ import { saveBlob } from '@/utils/saveBlob'
 import { formatPayrollMonth, payrollRunStateTone } from '@/utils/payrollFormat'
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import { parsePositiveId } from '@/utils/routeParams'
-import type { HrPayrollPaymentCreate, HrPayslipInputsPatch, HrPayslipRow } from '@webvue/contracts'
+import type { HrPayrollPaymentCreate, HrPayslipInputsPatch, HrPayslipRow } from '@liwan/contracts'
 
 const route = useRoute()
 const router = useRouter()
@@ -202,11 +202,11 @@ const partial = computed(() => !!run.value && !payslips.isLoading.value && rows.
     @retry="runQuery.refetch"
   >
     <template v-if="run" #actions>
-      <UButton class="webvue-print-hide" color="neutral" variant="outline" icon="i-lucide-printer" :disabled="!hydrated || printing" :loading="printing" :label="t('hrPayroll.actions.printRegister')" data-testid="hr-payroll-print" @click="printRegister" />
+      <UButton class="liwan-print-hide" color="neutral" variant="outline" icon="i-lucide-printer" :disabled="!hydrated || printing" :loading="printing" :label="t('hrPayroll.actions.printRegister')" data-testid="hr-payroll-print" @click="printRegister" />
     </template>
 
     <template v-if="run">
-      <UAlert v-if="failureMessage" class="webvue-print-hide" role="alert" color="error" variant="subtle" :title="failureMessage" data-testid="hr-payroll-run-failure" />
+      <UAlert v-if="failureMessage" class="liwan-print-hide" role="alert" color="error" variant="subtle" :title="failureMessage" data-testid="hr-payroll-run-failure" />
 
       <PayrollRunActions
         :run="run"
@@ -250,7 +250,7 @@ const partial = computed(() => !!run.value && !payslips.isLoading.value && rows.
 
       <UAlert
         v-if="showFiles && profiles.error.value"
-        class="webvue-print-hide"
+        class="liwan-print-hide"
         role="alert"
         color="error"
         variant="subtle"
@@ -280,7 +280,7 @@ const partial = computed(() => !!run.value && !payslips.isLoading.value && rows.
 
       <UAlert
         v-if="warnings.length"
-        class="webvue-print-hide"
+        class="liwan-print-hide"
         color="warning"
         variant="subtle"
         icon="i-lucide-triangle-alert"
@@ -296,7 +296,7 @@ const partial = computed(() => !!run.value && !payslips.isLoading.value && rows.
 
       <SharedRecordSection variant="panel" :title="t('hrPayroll.register.title')" :description="t('hrPayroll.register.hint')">
         <SharedPageState :error="payslips.error.value" :keep-content="rows.length > 0" @retry="payslips.refetch">
-          <SharedFilterBar inline class="webvue-print-hide mb-3" :active-count="search.trim() ? 1 : 0" :disabled="!hydrated" @clear="writeQuery({ q: '' })">
+          <SharedFilterBar inline class="liwan-print-hide mb-3" :active-count="search.trim() ? 1 : 0" :disabled="!hydrated" @clear="writeQuery({ q: '' })">
             <template #search>
               <UInput
                 :model-value="search"
@@ -310,7 +310,7 @@ const partial = computed(() => !!run.value && !payslips.isLoading.value && rows.
               />
             </template>
           </SharedFilterBar>
-          <p v-if="partial && run" class="webvue-print-hide mb-2 text-sm text-muted" data-testid="hr-payroll-register-note">{{ t('hrPayroll.register.footer', { shown: rows.length, total: run.employee_count }) }}</p>
+          <p v-if="partial && run" class="liwan-print-hide mb-2 text-sm text-muted" data-testid="hr-payroll-register-note">{{ t('hrPayroll.register.footer', { shown: rows.length, total: run.employee_count }) }}</p>
           <SharedEmptyState v-if="!payslips.isLoading.value && (printRows ?? rows).length === 0" compact :title="t('hrPayroll.register.emptyTitle')" :description="t(run.state === 'draft' ? 'hrPayroll.register.emptyDraftHint' : 'hrPayroll.register.emptyHint')" />
           <PayrollInputsTable
             v-else
@@ -326,7 +326,7 @@ const partial = computed(() => !!run.value && !payslips.isLoading.value && rows.
         </SharedPageState>
         <SharedListFooter
           v-if="payslips.data.value && pages > 1"
-          class="webvue-print-hide"
+          class="liwan-print-hide"
           :count-label="t('hrPayroll.register.footer', { shown: rows.length, total }, total)"
           :page="page"
           :pages="pages"

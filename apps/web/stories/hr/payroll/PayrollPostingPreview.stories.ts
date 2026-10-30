@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import PayrollPostingPreview from '../../../app/components/hr/payroll/PayrollPostingPreview.vue'
-import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
+import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../../support/context'
 
 // The accounting entry a posting would create, shown inline on the run page before the user confirms: date, journal,
@@ -31,7 +31,7 @@ const meta = {
   render: args => ({
     components: { PayrollPostingPreview, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="webvue-shell-main"><PageContainer width="full"><PayrollPostingPreview v-bind="args" /></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer width="full"><PayrollPostingPreview v-bind="args" /></PageContainer></main>',
   }),
 } satisfies Meta<typeof PayrollPostingPreview>
 

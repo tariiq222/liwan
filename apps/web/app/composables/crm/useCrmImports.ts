@@ -10,7 +10,7 @@ import {
   type CrmImportFile,
   type CrmImportMappingCreate,
   type CrmImportRequest,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { crmKeys } from './crmKeys'
 
 // The server caps a page at 200; a company has a handful of saved mappings.

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
-import type { PageHeaderTag } from '@webvue/ui/app/utils/pageHeaderTag'
+import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
+import type { PageHeaderTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import { refDebounced } from '@vueuse/core'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import PartnerTable from '@/components/finance/PartnerTable.vue'
 import { FINANCE_PARTNER_KINDS, FINANCE_PARTNER_PAGE_SIZE, parsePartnerListQuery, partnerListQuery, type FinancePartnerListState } from '@/composables/finance/financePartnerParams'
 import { useArchiveFinancePartner, useFinancePartners, useUnarchiveFinancePartner } from '@/composables/finance/useFinancePartners'
@@ -122,7 +122,7 @@ async function confirmArchive() {
 
       <SharedInlineConfirm
         v-if="pendingPartner"
-        class="m-(--webvue-card-pad-dense)"
+        class="m-(--liwan-card-pad-dense)"
         :color="pendingPartner.active ? 'error' : 'primary'"
         :title="t(pendingPartner.active ? 'finance.partners.archiveConfirm' : 'finance.partners.unarchiveConfirm', { name: pendingPartner.name })"
         :description="archiveError ? t('errors.generic') : t('finance.partners.archiveHint')"
@@ -132,7 +132,7 @@ async function confirmArchive() {
         @cancel="cancelArchive"
       />
 
-      <SharedEmptyState v-if="showEmpty" class="m-(--webvue-card-pad-dense)" :title="t(hasActiveFilters ? 'finance.partners.filteredEmpty' : state.archived ? 'finance.partners.emptyArchived' : 'finance.partners.empty')" :description="hasActiveFilters ? t('finance.partners.filteredEmptyHint') : undefined">
+      <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(hasActiveFilters ? 'finance.partners.filteredEmpty' : state.archived ? 'finance.partners.emptyArchived' : 'finance.partners.empty')" :description="hasActiveFilters ? t('finance.partners.filteredEmptyHint') : undefined">
         <template v-if="hasActiveFilters" #action><UButton color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('finance.partners.clear')" @click="clearFilters" /></template>
       </SharedEmptyState>
       <PartnerTable v-else :rows="items" :loading="isLoading" :error="error" :can-manage="canManage" @edit="editPartner" @archive="pendingId = $event" @retry="refetch" />

@@ -10,7 +10,7 @@ const container = props.embedded ? 'div' : resolveComponent('SharedPageContainer
 
 <template>
   <component :is="container" :width="embedded ? undefined : 'list'">
-    <div class="flex flex-col items-start gap-(--webvue-gap-card)" data-testid="project-not-found">
+    <div class="flex flex-col items-start gap-(--liwan-gap-card)" data-testid="project-not-found">
       <p class="text-muted">{{ t('projects.notFound') }}</p>
       <UButton :to="backTo ?? '/projects'" color="neutral" variant="outline" size="sm">{{ t('projects.backToProjects') }}</UButton>
     </div>

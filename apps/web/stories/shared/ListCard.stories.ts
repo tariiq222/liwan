@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import ListCard from '@webvue/ui/app/components/shared/layout/ListCard.vue'
+import ListCard from '@liwan/ui/app/components/shared/layout/ListCard.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -19,7 +19,7 @@ export const Fill: Story = {
   parameters: { layout: 'fullscreen' },
   render: () => ({
     components: { ListCard },
-    template: '<main class="webvue-shell-main"><ListCard fill><template #filters><UInput icon="i-lucide-search" placeholder="بحث" class="w-full" /></template><div class="webvue-thin-scroll min-h-0 flex-1 overflow-auto p-4"><p v-for="n in 40" :key="n" class="text-sm text-muted">سطر {{ n }}: يتمرر داخل البطاقة</p></div></ListCard></main>',
+    template: '<main class="liwan-shell-main"><ListCard fill><template #filters><UInput icon="i-lucide-search" placeholder="بحث" class="w-full" /></template><div class="liwan-thin-scroll min-h-0 flex-1 overflow-auto p-4"><p v-for="n in 40" :key="n" class="text-sm text-muted">سطر {{ n }}: يتمرر داخل البطاقة</p></div></ListCard></main>',
   }),
 }
 export const WithFooter: Story = {

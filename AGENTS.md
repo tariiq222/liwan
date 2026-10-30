@@ -1,4 +1,4 @@
-# WebVue agent instructions (single source)
+# LiwanOS agent instructions (single source)
 
 This file is the single source of repository instructions for every coding agent
 (Codex and Claude). `CLAUDE.md` imports it. Rules that apply only to one layer live in
@@ -31,7 +31,7 @@ Keep three claims separate: an approved requirement, implementation present in a
 
 ## تعريف المنتج المعتمد — 2026-09-30
 
-ويب فيو منصة عربية موحّدة لتشغيل الشركات، والأساس المشترك لجميع تطبيقاتها، ببيانات
+ليوان منصة عربية موحّدة لتشغيل الشركات، والأساس المشترك لجميع تطبيقاتها، ببيانات
 وإجراءات وصلاحيات مترابطة في نظام واحد. رؤيتها شاملة لوظائف الشركة، مثل أودو في
 اتساع النطاق، بدل الاشتراك في أنظمة متعددة معزولة، بهدف خفض التكلفة الإجمالية
 للاشتراكات والتكامل والتشغيل. المشاريع والمهام والموارد البشرية تطبيقات أولية
@@ -39,7 +39,7 @@ Keep three claims separate: an approved requirement, implementation present in a
 [تعريف المنتج](apps/web/PRODUCT.md).
 
 ميّز دائمًا بين هذه الرؤية والقدرات المنفّذة والمتحققة حاليًا. المجالات المؤجلة
-هي حدود مرحلة تنفيذ، وليست استبعادًا دائمًا من رؤية ويب فيو. توسيع التعريف لا يجيز
+هي حدود مرحلة تنفيذ، وليست استبعادًا دائمًا من رؤية ليوان. توسيع التعريف لا يجيز
 تنفيذ وحدات جديدة تلقائيًا أو الادعاء بجاهزيتها، وخفض التكلفة هدف يحتاج قياسًا.
 
 ## واجهة العميل
@@ -57,9 +57,9 @@ Read `docs/parallel-work.md` before parallel work or changing shared files.
   `main`. Give each task explicit file ownership and independent dependencies,
   generated files, databases, and ports. One orchestrator owns Git integration,
   shared-file edits, runtime changes, and final checks.
-- Preserve stock Odoo source. Extend `project` through `webvue_pmo` and `hr`
-  through `webvue_hr`. Do not recreate either pillar.
-- The HR page is `/hr`; `/api/v1/people` remains the user-id picker (owned by `webvue_directory`). Preserve
+- Preserve stock Odoo source. Extend `project` through `liwan_pmo` and `hr`
+  through `liwan_hr`. Do not recreate either pillar.
+- The HR page is `/hr`; `/api/v1/people` remains the user-id picker (owned by `liwan_directory`). Preserve
   HR documents and the `{items, total}` list envelopes.
 - Presentation (pages, the one route-backed create panel `SharedCreatePanel`,
   and the four overlay exceptions: search, notification bell, unsaved draft, the assistant sheet)
@@ -79,7 +79,7 @@ Read `docs/parallel-work.md` before parallel work or changing shared files.
   evidence and the actual branch/runtime state.
 
 Odoo 19 Community is the engine and `apps/web` (Nuxt 4) is the customer UI,
-with WebVue's own identity and experience. The current
+with LiwanOS's own identity and experience. The current
 deployment templates run an independent database, Odoo instance, frontend, and
 edge per customer. The **target primary model** is self-service SaaS on shared
 application services, retaining a separate database and filestore per customer;
@@ -87,19 +87,19 @@ local integration and acceptance boundaries are recorded in
 [WORKSPACE.md](docs/WORKSPACE.md); they do not establish release approval.
 Managed dedicated remains
 separate from customer-hosted non-SaaS, which must not require SaaS billing or a
-vendor connection at runtime. WebVue has a tenant abstraction through
-`webvue_platform`, but tenant isolation remains database-per-tenant. There is no
+vendor connection at runtime. LiwanOS has a tenant abstraction through
+`liwan_platform`, but tenant isolation remains database-per-tenant. There is no
 shared-database tenant layer. Customer-specific behavior belongs in a
 `customer_<name>_*` overlay, never in the core pillars. See the new
-[hosting and acceptance contract](docs/superpowers/specs/webvue-shared-saas-and-sovereign-deployment.md)
+[hosting and acceptance contract](docs/superpowers/specs/liwan-shared-saas-and-sovereign-deployment.md)
 for the target and its pending gates; the older
-`docs/superpowers/specs/2026-09-03-webvue-platform-design.md` describes its own
+`docs/superpowers/specs/2026-09-03-liwan-platform-design.md` describes its own
 historical scope. Government packaging from one release line is preferred for
 assessment; a permanent fork is not approved by default.
 
 ## Clean pre-release codebase: no accumulation — 2026-10-15
 
-WebVue has not been released and has no live tenants, so there is nothing to stay
+LiwanOS has not been released and has no live tenants, so there is nothing to stay
 backward compatible with. The product must ship sound and clean: clean code, correct data
 structures, and a file architecture where every file has one owner and one reason to exist.
 Accumulation in code or in the database schema is a defect, not technical debt to schedule.
@@ -144,7 +144,7 @@ Accumulation in code or in the database schema is a defect, not technical debt t
 - Before changing user-visible behavior with materially different valid outcomes,
   present the owner with the options, user impact and a recommended default.
 - Legitimate policies that vary across customers must have an explicit setting
-  in the owning WebVue settings surface. State its scope (customer, company,
+  in the owning LiwanOS settings surface. State its scope (customer, company,
   branch or user), default, who may change it and how it affects existing data.
   Reuse the owning configuration model; do not hardcode customer-specific behavior.
 - Configurable authorization policies must enforce the selected policy on the
@@ -176,17 +176,17 @@ fit it without code changes or a per-customer fork.
 
 ## Architecture rules (R1–R10)
 
-Spec: [reference architecture and Git workflow](docs/superpowers/specs/2026-10-05-webvue-reference-architecture-and-git-workflow-design.md).
+Spec: [reference architecture and Git workflow](docs/superpowers/specs/2026-10-05-liwan-reference-architecture-and-git-workflow-design.md).
 `tools/arch_policy.py` (the pre-commit hook and the CI `static` step) and `tools/git_policy.py` (CI `static` step) enforce these
 rules. Violations that predate them are recorded in `tools/arch_baseline.json`. That baseline only shrinks:
 never add an entry or raise a count to make a check pass.
 
-- **R1** `webvue_core` depends on `base` only and names no application model or group.
+- **R1** `liwan_core` depends on `base` only and names no application model or group.
 - **R2** Each application owns its capabilities, groups, roles and record rules inside its own addon.
 - **R3** No application imports another application. Two applications are linked by a bridge addon
-  `webvue_<a>_<b>` with `auto_install`. The same holds in `apps/web`: an application folder under
+  `liwan_<a>_<b>` with `auto_install`. The same holds in `apps/web`: an application folder under
   `pages/` or `components/` does not use another application's components.
-- **R4** Dependencies point down only: foundation (`webvue_core` ← `webvue_platform` ← `webvue_api`) ← shared
+- **R4** Dependencies point down only: foundation (`liwan_core` ← `liwan_platform` ← `liwan_api`) ← shared
   services ← applications ← bridges ← `customer_<name>_*`.
 - **R5** The product runs without the control plane. Nothing in `odoo-addons` or `apps/web/app` imports
   from `apps/control-plane`; no new file references the control plane. `apps/vendor-admin` is the only vendor
@@ -205,13 +205,13 @@ never add an entry or raise a count to make a check pass.
   SQL on Odoo tables, no new override of a private access method on an Odoo model without a documented
   reason and a test, no copied Odoo methods.
 - **R10** Each application registers its `<app>.enabled` feature, sub-features, limits and counters in
-  `webvue.feature.registry` with `owner` set to its addon name, and every route checks its feature. A
+  `liwan.feature.registry` with `owner` set to its addon name, and every route checks its feature. A
   shared service (rank 3) gates its routes with `requires_registered_feature`, whose keys the
   applications register in that service's registry.
 
 - **UI1** The shared UI layers `packages/ui` and `packages/commercial-ui` import no
-  application, addon, app alias, `@webvue/contracts` or control-plane code.
-- **VA1** `apps/vendor-admin` imports only itself, the shared UI layers and `@webvue/commercial-contracts`, calls no
+  application, addon, app alias, `@liwan/contracts` or control-plane code.
+- **VA1** `apps/vendor-admin` imports only itself, the shared UI layers and `@liwan/commercial-contracts`, calls no
   Odoo route, and `apps/web` never imports it. UI1 and VA1 are hard rules, never baselined.
 
 A new addon is registered in `tools/arch_layers.json` with its rank (0–2 foundation, 3 shared service,
@@ -320,14 +320,14 @@ cross-addon links.
   bearer token.
 - Keep `/api/v1/people?q=` and its user-id `PersonRef` contract unchanged.
   HR employee ids and user ids are distinct resources and must not be merged.
-- `webvue_hr`, `webvue_tasks`, `webvue_operations` and their bridges have no `sudo()` path.
-  `webvue_pmo` uses it only for the documented manager-write,
-  charter-approval (approval fields only, through `_webvue_write_sudo` with its own whitelist, after the manager or sponsor check), policy/config, display-lookup, integer-count, completion-status and notification
+- `liwan_hr`, `liwan_tasks`, `liwan_operations` and their bridges have no `sudo()` path.
+  `liwan_pmo` uses it only for the documented manager-write,
+  charter-approval (approval fields only, through `_liwan_write_sudo` with its own whitelist, after the manager or sponsor check), policy/config, display-lookup, integer-count, completion-status and notification
   candidate cases, each after the caller's authorization check: the project create and copy-create policy, the shared
   project-stage writes (Odoo lets a project user write only personal stages), the stage and milestone
   task counts, the settings and legacy
   `ir.config_parameter` policy writes, the project-type provisioning seed (a system administrator who creates a
-  company need not hold the employee ACL on `webvue.project.type`), the task serializers' project and milestone
+  company need not hold the employee ACL on `liwan.project.type`), the task serializers' project and milestone
   display lookups and milestone id lookup, the timeline tracking-value reads, and the charter and completion reviewer-eligibility
   company reads. Its milestone-bounds validators carry no elevation at all, and
   that is deliberate: Odoo's `_validate_fields` runs every `@api.constrains` method on `self.sudo()`
@@ -336,46 +336,46 @@ cross-addon links.
   project quota claims carry none either: the cron runs as `base.user_root`, and the entitlement service elevates
   its own tenant-profile read. The milestone routes, task-create milestone check and stage id checks look the
   reference up with `search` in the caller's environment, so a reference hidden by a record rule answers 422.
-  `webvue_platform` uses it only for the entitlement service's tenant-profile read, blocked by the system-only
-  `access_webvue_tenant_profile_system` row, which no ordinary user or public route may hold. Its callers (the user quota
+  `liwan_platform` uses it only for the entitlement service's tenant-profile read, blocked by the system-only
+  `access_liwan_tenant_profile_system` row, which no ordinary user or public route may hold. Its callers (the user quota
   delta, the pre-login suspension gates, the attachment storage-quota accounting, the binary image route and the
   pre-session request authentication guard) call the service unelevated: the service raises its own read, and its
   other reads (the support group, the user and storage counts) are raw SQL. The installed-module probe carries no elevation of its own: it reads the
   stock cached `ir.module.module._installed()` map, which serves every caller, including the public user of a feature-gated public route.
-  `webvue_core` uses it only for the company-partner existence check, which Odoo's `res_company_rule_employee` hides and
+  `liwan_core` uses it only for the company-partner existence check, which Odoo's `res_company_rule_employee` hides and
   `active_test=False` must still see.
-  `webvue_crm` uses it only for two boolean existence checks that return no record: the company-wide duplicate-phone check and the tenant-wide stage-occupancy check (stages are shared, the caller's rules hide other companies' deals).
-  `webvue_appointments` uses it only in `models/guest_service.py`, to read the one booking behind an invited requester's access token (the public user holds no ACL on `resource.booking`); the token is compared in constant time and the booking is returned, elevated, only when it matches. That elevated booking is then also used to schedule, confirm and cancel that one booking and its own meeting (the engine's `_sync_meeting` creates, updates and unlinks its calendar event and attendees), with the modification deadline checked by `within_deadline`.
-  `webvue_chat` uses it for the two `mail.message.reaction` paths — the toggle after `_webvue_member_channel`
+  `liwan_crm` uses it only for two boolean existence checks that return no record: the company-wide duplicate-phone check and the tenant-wide stage-occupancy check (stages are shared, the caller's rules hide other companies' deals).
+  `liwan_appointments` uses it only in `models/guest_service.py`, to read the one booking behind an invited requester's access token (the public user holds no ACL on `resource.booking`); the token is compared in constant time and the booking is returned, elevated, only when it matches. That elevated booking is then also used to schedule, confirm and cancel that one booking and its own meeting (the engine's `_sync_meeting` creates, updates and unlinks its calendar event and attendees), with the modification deadline checked by `within_deadline`.
+  `liwan_chat` uses it for the two `mail.message.reaction` paths — the toggle after `_liwan_member_channel`
   proved the caller's membership, and the reaction aggregation of an already-authorized message — both blocked
   by `mail.message.reaction` being system-only in Odoo (owner decision 2026-10-25: authorized), and for the author's
   message edit after the member and author checks, because emptying a message reads `message_link_preview_ids`,
   a field Odoo limits to `base.group_erp_manager` (as stock Odoo's own edit controller does).
-  `webvue_notify` uses it for bell delivery and recipient-owned bell reads. The `mail.message` environment in
-  `_webvue_deliver` bypasses the stock create/unlink document-access gates: create may be allowed by following the
+  `liwan_notify` uses it for bell delivery and recipient-owned bell reads. The `mail.message` environment in
+  `_liwan_deliver` bypasses the stock create/unlink document-access gates: create may be allowed by following the
   source, while unlink requires source write/create access. The three recipient-owned reader helpers retain
   elevation for the measured same-transaction flush/SQL-ordering issue in `mail.message._search`; the recorded
   cold reads miss rows without it, and after flush their results agree. These are not `mail.notification`
-  read-ACL failures. Elevated reader domains remain restricted to the current partner, and `_webvue_domain`
+  read-ACL failures. Elevated reader domains remain restricted to the current partner, and `_liwan_domain`
   refuses `env.su`. The idempotency precheck and the `mail.notification` create carry no elevation: the unique key
   index guarantees single delivery and the actor creates the linked message.
-  `webvue_meetings` uses it only for its server-controlled minutes, snapshot,
+  `liwan_meetings` uses it only for its server-controlled minutes, snapshot,
   version and event records (the finalized-version count that refuses a delete reads unelevated), the
   company-wide organizer-overlap check, the
   existence check of the minutes linked to a calendar event (read only, access is
   rechecked by the caller) and the recipient-owned bell candidates. It does not
   elevate the meeting-manager group lookup or the follower allow-list: tests
-  `webvue_meetings/tests/test_follower_access.py` and `webvue_meetings/tests/test_bell_access.py` call both as an ordinary
+  `liwan_meetings/tests/test_follower_access.py` and `liwan_meetings/tests/test_bell_access.py` call both as an ordinary
   participant who is not a meeting manager and pass unelevated, so the group's
   `user_ids` and the recipient's bell rows are readable through the ordinary ACLs;
-  `webvue_meetings_pmo` only for the id-only lookup of converted tasks;
-  `webvue_finance` only in `models/setup_service.py`, for writing the fiscal settings of the current
+  `liwan_meetings_pmo` only for the id-only lookup of converted tasks;
+  `liwan_finance` only in `models/setup_service.py`, for writing the fiscal settings of the current
   company, after the `finance.setup.manage` check, with a field whitelist, and in `models/zatca_service.py`, for the
   ZATCA onboarding of a sales journal and the submission of one invoice through stock `l10n_sa_edi`,
   after the `finance.zatca.manage` / `finance.zatca.submit` capability and current-company checks,
   in the sandbox api mode only (ZATCA onboarding is sandbox-only in this phase, so production invoicing for real
   tenants is a release blocker until the preprod/prod policy is approved).
-  `webvue_payments` uses it only in `models/payment_provider.py`, to switch one gateway's mode
+  `liwan_payments` uses it only in `models/payment_provider.py`, to switch one gateway's mode
   (disabled, test, live) after the `payments.providers.manage` capability and current-company checks:
   stock `payment.provider.write` then archives the provider's saved tokens and toggles its payment
   methods and the payment post-processing cron, all system-only models. The tenant's gateway keys are
@@ -395,11 +395,11 @@ cross-addon links.
   sells, after it authorized its own record; and in `models/payments_settings.py`, for the one whitelisted
   tenant-wide stock parameter `sale.automatic_invoice`: read by the server when it decides, and written
   only after the `payments.settings.manage` check in the tenant's root company.
-  `webvue_appointments_payments` uses it only in `models/resource_booking_type.py`, for the product
+  `liwan_appointments_payments` uses it only in `models/resource_booking_type.py`, for the product
   that sells a paying booking type: its price (and its creation, named after the type and linked to it)
   after the `appointments.bookings.manage` check in the type's company, and the name sync after the
   caller's own rename of the type; appointments managers hold no product rights.
-  `webvue_inbox_payments` uses it only for four bounded reads and writes of the WhatsApp catalog bridge, each after
+  `liwan_inbox_payments` uses it only for four bounded reads and writes of the WhatsApp catalog bridge, each after
   its own check: in `models/contact.py`, creating the `res.partner` of an inbox contact with server values only, after
   the `inbox.orders.manage` check (stock gives employees read-only partners); in `models/sale_order.py`, looking up the
   ids of the inbox order lines of a sale order that stock payment post-processing or the expiry cron confirms or
@@ -407,7 +407,7 @@ cross-addon links.
   automated paid-notice reply of that payment event, which the cron or payer identity cannot write; and in
   `controllers/images.py`, reading the image of one listed catalog item for the public product image route, after a
   constant-time token match (the public user holds no product read).
-  `webvue_api` uses it in `controllers/common.py` only for the single company-ownership
+  `liwan_api` uses it in `controllers/common.py` only for the single company-ownership
   read in `get_record`, before any access check, so another company's record answers the
   same 404 not-found as a missing one instead of a 403 that leaks its existence; in
   `controllers/branding.py`, for the one tenant-profile read behind the public
@@ -428,13 +428,13 @@ cross-addon links.
   or timesheet fields/endpoints to the customer UI; adding them requires a separately scoped
   implementation request. Payroll is approved (owner decision 2026-10-19) as the Saudi payroll
   phase of the HR and finance plan:
-  payroll is a section of the HR application `webvue_hr` (owner decision 2026-10-19: one addon per
+  payroll is a section of the HR application `liwan_hr` (owner decision 2026-10-19: one addon per
   application, not one addon per domain; ready-made modules such as OCA `payroll` are internal
   engines under it). Salary structures, GOSI, WPS, end of service, employee bank accounts and
   compensation data sit behind dedicated `hr.payroll.*` capabilities that no other HR capability
   implies, and behind the `hr.payroll` sub-feature; they never appear in general employee,
   directory or people views or serializers. The company's own bank statements and reconciliation in
-  `webvue_finance` are accounting data and are allowed.
+  `liwan_finance` are accounting data and are allowed.
 - Task detail routes are `/tasks/{id}` and `/projects/{id}/tasks/{taskId}`.
   Presentation follows DESIGN.md. Preserve URL query filters when returning;
   do not promise scroll restoration without evidence.
@@ -462,7 +462,7 @@ tests against the production-style `odoo19` database. Temporary integration
 databases, ports, and logs are disposable and must not be described as
 production evidence.
 
-The WebVue Git remote is `origin` (`https://github.com/tariiq222/webvue.git`),
+The LiwanOS Git remote is `origin` (`https://github.com/tariiq222/webvue.git`),
 tracked by `main`. Fetch and compare `main` with `origin/main` before
 integration work. Push only when the user authorizes that push, and do not
 force-push or rewrite published history. Do not imply a push, merge,
@@ -473,8 +473,8 @@ files.
 ## Authorization model
 
 
-Authorization uses the capability catalog composed by `webvue.access.service` (the eleven
-`webvue_core` system capabilities plus each application's own), built-in and
+Authorization uses the capability catalog composed by `liwan.access.service` (the eleven
+`liwan_core` system capabilities plus each application's own), built-in and
 custom roles, and company-scoped assignments. `system_admin` manages access
 and settings without implicitly granting HR/PMO write access. Project ownership
 contributes contextual PMO capabilities. Legacy groups are migration/ORM support,
@@ -482,8 +482,8 @@ not a substitute for capability checks. Every resource operation also enforces
 current-company and record visibility. Customers do not open Odoo.
 Nobody does: the Odoo web client and Odoo's generic endpoints (`/web/dataset`, `/json/2`,
 `/doc`, `/xmlrpc`, `/jsonrpc`, `/odoo`, `/report`, ...) are closed by the `ir.http` guard in
-`webvue_platform` (default-deny, 404) for every session including system admins. A function that
-was only reachable there moves into WebVue (`/api/v1` and the Nuxt UI).
+`liwan_platform` (default-deny, 404) for every session including system admins. A function that
+was only reachable there moves into LiwanOS (`/api/v1` and the Nuxt UI).
 
 
 ## Verification boundary
@@ -491,7 +491,7 @@ was only reachable there moves into WebVue (`/api/v1` and the Nuxt UI).
 Run focused checks appropriate to the changed layer, then the owning
 orchestrator runs broader gates once. Odoo addon checks run from
 `/Users/tariq/code/odoo` against a fresh scratch database with the selected
-WebVue worktree's addons path. Web checks run from the selected worktree. Fresh
+LiwanOS worktree's addons path. Web checks run from the selected worktree. Fresh
 test output proves that checked layer only; it is not production or DNS proof.
 Before claiming completion, report changed files, fresh command evidence, and
 any residual risk.
@@ -517,8 +517,8 @@ Use `npm test` for contracts and web unit tests, `npm -w apps/web run lint`
 `npx -w apps/web vue-tsc ...`: `npx` has no `-w` flag, so it silently runs
 from the repo root, checks nothing, and exits 0. Every `vue-tsc` invocation
 runs from `apps/web`. Employee fixtures are created through Odoo, never through the
-Nuxt UI. API tests extend `WebVueApiCase` from `webvue_api/tests/common.py` or
-`WebVuePmoCase` for PMO fixtures; every `test_*.py` must be imported by its
+Nuxt UI. API tests extend `LiwanApiCase` from `liwan_api/tests/common.py` or
+`LiwanPmoCase` for PMO fixtures; every `test_*.py` must be imported by its
 addon `tests/__init__.py`. Loading a code/data change into an authorized
 development database may use `-u <addon> --no-http --stop-after-init`; never
 run tests against the dev `odoo19` database.
@@ -531,9 +531,9 @@ Test layers and the isolated agentic e2e runner (`npm run e2e`) are described in
 [`docs/testing.md`](docs/testing.md).
 
 The global `~/.npmrc` may be malformed. Use `npm ci --ignore-scripts` and never
-edit that file. Use `rg` and targeted file reads for code search across Odoo and WebVue addons.
+edit that file. Use `rg` and targeted file reads for code search across Odoo and LiwanOS addons.
 
 New collaboration endpoints require the current company. Company-less
 projects and tasks are not visible after the Phase 1 backfill; isolation is
-database-per-tenant with `webvue_platform.root_company_id`. Addon versions follow
+database-per-tenant with `liwan_platform.root_company_id`. Addon versions follow
 [`docs/migrations.md`](docs/migrations.md).

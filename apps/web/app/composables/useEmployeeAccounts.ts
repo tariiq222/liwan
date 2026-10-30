@@ -7,7 +7,7 @@ import {
   EmployeeAccountInputSchema,
   type EmployeeAccountCandidateList,
   type EmployeeAccountInput,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { useSecureAdminUserMutation } from './useAdminUsers'
 
 export type EmployeeAccountCandidateParams = { q?: string; employee_id?: number; status?: 'active' | 'archived'; limit?: number; offset?: number }

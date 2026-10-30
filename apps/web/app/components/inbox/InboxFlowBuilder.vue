@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxFlow } from '@webvue/contracts'
+import type { InboxFlow } from '@liwan/contracts'
 import type { RouteLocationRaw } from 'vue-router'
 import InboxFlowPreview from '@/components/inbox/InboxFlowPreview.vue'
 import InboxFlowScreenEditor from '@/components/inbox/InboxFlowScreenEditor.vue'
@@ -12,7 +12,7 @@ import { useSaveInboxFlow } from '@/composables/inbox/useInboxFlows'
 // The form builder: the form's settings, its screens with their components, and a live WhatsApp-like preview beside
 // them. Every save replaces the whole draft on the server and in Meta; the contract's write schema decides what may be
 // sent, so an invalid draft never leaves the browser, and what Meta finds wrong comes back inline on the field. A form
-// that is no longer a draft (published, deprecated) or that WebVue cannot read is shown read-only: copy it to change it.
+// that is no longer a draft (published, deprecated) or that LiwanOS cannot read is shown read-only: copy it to change it.
 const props = defineProps<{ flow: InboxFlow; readonly?: boolean; backTo: RouteLocationRaw }>()
 const emit = defineEmits<{ saved: [flow: InboxFlow] }>()
 const { t, locale } = useI18n()

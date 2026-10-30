@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HrPayrollRelationship } from '@webvue/contracts'
+import type { HrPayrollRelationship } from '@liwan/contracts'
 
 // The non-blocking notice for a relationship other than employee: the customer's classification stands, the
 // calculation still applies GOSI, WPS and end of service, and nothing here stops a run or a payment.

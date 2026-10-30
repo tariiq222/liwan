@@ -250,13 +250,13 @@ it('cancels a running heavy read when its client disconnects and frees the ordin
 
 // The raw transport has its own timer; it must honour the heavy deadline too.
 it('lets tenantTransport wait for a heavy upstream beyond 15s but not an ordinary one', async () => {
-  vi.stubEnv('WEBVUE_TENANCY_MODE', 'shared')
+  vi.stubEnv('LIWAN_TENANCY_MODE', 'shared')
   const token = 'synthetic-heavy-transport-token'.repeat(3)
-  vi.stubEnv('WEBVUE_SHARED_PROXY_TOKEN', token)
-  const directory = mkdtempSync(join(tmpdir(), 'webvue-heavy-transport-'))
+  vi.stubEnv('LIWAN_SHARED_PROXY_TOKEN', token)
+  const directory = mkdtempSync(join(tmpdir(), 'liwan-heavy-transport-'))
   const registry = join(directory, 'registry.json')
   writeFileSync(registry, JSON.stringify({ schemaVersion: 1, snapshotRevision: 1, targets: [{ host: 'a.example.test', tenantId: 'a', database: 'db_a', filestore: 'db_a', registryRevision: 1, enabled: true }] }))
-  vi.stubEnv('WEBVUE_TENANT_REGISTRY_PATH', registry)
+  vi.stubEnv('LIWAN_TENANT_REGISTRY_PATH', registry)
   const { tenantTransport } = await load(32)
   const held = new Map<string, http.ServerResponse>()
   const server = http.createServer((req, res) => { req.resume(); held.set(req.url!, res) })
@@ -264,7 +264,7 @@ it('lets tenantTransport wait for a heavy upstream beyond 15s but not an ordinar
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`
   const request = (path: string, heavy?: HeavyBudget) => {
     const target = client()
-    Object.assign(target.req, { headers: { host: 'a.example.test', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1', cookie: 'session_id=synthetic' } })
+    Object.assign(target.req, { headers: { host: 'a.example.test', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1', cookie: 'session_id=synthetic' } })
     return tenantTransport(target.event, base, path, { heavy }).then(response => `status:${response.status}`, (error: { statusCode?: number }) => `rejected:${error.statusCode}`)
   }
   try {

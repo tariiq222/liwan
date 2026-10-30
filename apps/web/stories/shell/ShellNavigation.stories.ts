@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import ShellNavigation from '@webvue/ui/app/components/shell/ShellNavigation.vue'
+import ShellNavigation from '@liwan/ui/app/components/shell/ShellNavigation.vue'
 import { applicationNavigation } from '../../app/composables/nav/applicationNavigation'
 import { contextLinksForModule } from '../../app/composables/nav/shellModules'
 import { shellMe } from '../fixtures/shell'
@@ -22,7 +22,7 @@ const render: Story['render'] = args => ({
     const visibleItems = computed(() => args.surface === 'context' ? items.value.filter(item => item.id === 'meetings') : items.value)
     return { args, items: visibleItems }
   },
-  template: `<div class="webvue-shell"><div class="webvue-context-column" :class="{ 'bg-default': args.surface === 'drawer' }"><ShellNavigation v-bind="args" :items="items" /></div></div>`,
+  template: `<div class="liwan-shell"><div class="liwan-context-column" :class="{ 'bg-default': args.surface === 'drawer' }"><ShellNavigation v-bind="args" :items="items" /></div></div>`,
 })
 export const Expanded: Story = { name: 'قائمة التطبيق الداخلية', render, parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:27') }
 export const Collapsed: Story = { ...Expanded, name: 'مطوية', args: { expanded: false, preference: 'closed' } }

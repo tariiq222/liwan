@@ -5,7 +5,7 @@ import { renderToString } from '@vue/server-renderer'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_STUBS, fakeT, loadShared } from '@webvue/ui/test/helpers/renderShared'
+import { DEFAULT_STUBS, fakeT, loadShared } from '@liwan/ui/test/helpers/renderShared'
 
 // Every HR create/edit page gated on a capability renders the shared 403 state
 // (role="alert") when the caller lacks it, never an empty state (role="status").
@@ -72,7 +72,7 @@ const MODULES: Record<string, unknown> = {
   '@/composables/useHrLeave': { useHrLeaveAllocations: query, useHrLeaveAllocation: query, useRevokeLeaveAllocation: mutation },
   '@/composables/useHrLeaveFormat': { useHrLeaveFormat: () => ({ validity: () => '', days: () => '' }) },
   '@/utils/hrLeaveBadge': { hrLeaveBadge: () => ({ tone: 'neutral', labelKey: 'x' }) },
-  '@webvue/ui/app/utils/safeReturnTo': { returnToQuery: () => ({}) },
+  '@liwan/ui/app/utils/safeReturnTo': { returnToQuery: () => ({}) },
 }
 
 /** The Nuxt auto-imports these pages call. */

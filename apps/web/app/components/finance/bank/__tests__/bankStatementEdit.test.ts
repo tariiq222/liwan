@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FinanceBankStatementPatchSchema } from '@webvue/contracts'
+import { FinanceBankStatementPatchSchema } from '@liwan/contracts'
 import { statementEditDraft, statementPatch, validateStatementEdit } from '../bankStatementEdit'
 
 const statement = { name: 'May', balance_start: 1000, balance_end_real: 1250.5 }

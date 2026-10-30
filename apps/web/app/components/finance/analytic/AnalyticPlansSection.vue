@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { FinanceAnalyticPlan } from '@webvue/contracts'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import type { FinanceAnalyticPlan } from '@liwan/contracts'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
 import { useFinanceAnalyticPlans } from '@/composables/finance/useFinanceAnalytic'
 import { canWritePlan, mustChooseParent } from './analyticAccess'
 import AnalyticPlanEditor from './AnalyticPlanEditor.vue'
@@ -27,12 +27,12 @@ const planActions = (plan: FinanceAnalyticPlan): RowAction[] => canWritePlan(can
     <template v-if="canCreate" #actions>
       <UButton color="primary" icon="i-lucide-plus" :disabled="!hydrated || editing !== null" :label="t('financeAnalytic.plans.new')" data-testid="finance-analytic-plan-new" @click="editing = 'new'" />
     </template>
-    <div v-if="editing" class="p-(--webvue-card-pad-dense)">
+    <div v-if="editing" class="p-(--liwan-card-pad-dense)">
       <AnalyticPlanEditor :key="editing === 'new' ? 'new' : editing.id" :plan="editing === 'new' ? undefined : editing" :plans="plans" @done="editing = null" @cancel="editing = null" />
     </div>
     <SharedPageState :loading="query.isPending.value" :error="query.error.value" @retry="query.refetch">
-      <SharedEmptyState v-if="plans.length === 0" class="m-(--webvue-card-pad-dense)" :title="t('financeAnalytic.plans.empty')" />
-      <div v-for="plan in plans" :key="plan.id" class="flex min-w-0 items-center justify-between gap-3 p-(--webvue-card-pad-dense)" :data-testid="`finance-analytic-plan-${plan.id}`">
+      <SharedEmptyState v-if="plans.length === 0" class="m-(--liwan-card-pad-dense)" :title="t('financeAnalytic.plans.empty')" />
+      <div v-for="plan in plans" :key="plan.id" class="flex min-w-0 items-center justify-between gap-3 p-(--liwan-card-pad-dense)" :data-testid="`finance-analytic-plan-${plan.id}`">
         <div class="flex min-w-0 flex-col">
           <span class="truncate font-semibold text-highlighted">{{ plan.name }}</span>
           <span class="truncate text-sm text-muted">{{ parentLabel(plan) }}</span>

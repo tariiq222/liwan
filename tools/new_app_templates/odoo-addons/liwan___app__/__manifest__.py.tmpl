@@ -1,0 +1,21 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+{
+    'name': 'liwan {{name_en}}',
+    'summary': 'liwan platform: the {{name_en}} application — /api/v1/{{app}} records',
+    'version': '19.0.1.0.0',
+    'category': 'Hidden',
+    'author': 'Tariq Alwalidi',
+    'license': 'LGPL-3',
+    # liwan_api: shared api_handler/ApiError + LiwanApiCase. An application depends
+    # on liwan_api and no other application (spec R3); it owns its capabilities,
+    # groups, role and record rule (spec R2).
+    'depends': ['liwan_api'],
+    'data': [
+        'security/{{app}}_capability_groups.xml',
+        'security/{{app}}_rules.xml',
+        'security/ir.model.access.csv',
+        'data/{{app}}_access_permissions.xml',
+    ],
+    'installable': True,
+    'application': False,
+}

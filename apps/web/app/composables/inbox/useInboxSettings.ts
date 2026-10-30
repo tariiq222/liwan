@@ -22,7 +22,7 @@ import {
   type InboxSettingsPatch,
   type InboxTagWrite,
   type InboxTemplateWrite,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { fileToBase64 } from '../../utils/attachmentFile'
 import { inboxKeys } from './useInbox'
 

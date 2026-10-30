@@ -1,8 +1,8 @@
 import { resolve } from 'node:path'
 import * as Vue from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { DEFAULT_STUBS, loadShared } from '@webvue/ui/test/helpers/renderShared'
-import { createHostNode, hostRenderer, type HostNode } from '@webvue/ui/test/helpers/hostRenderer'
+import { DEFAULT_STUBS, loadShared } from '@liwan/ui/test/helpers/renderShared'
+import { createHostNode, hostRenderer, type HostNode } from '@liwan/ui/test/helpers/hostRenderer'
 
 const mounted: Vue.App[] = []
 afterEach(() => mounted.splice(0).forEach(app => app.unmount()))

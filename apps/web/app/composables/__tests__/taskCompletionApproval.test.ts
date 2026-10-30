@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { TaskDetailSchema } from '@webvue/contracts'
+import { TaskDetailSchema } from '@liwan/contracts'
 
 const base = {
   id: 1, name: 'Task', description_excerpt: '', subtask_count: 0, subtask_done_count: 0, attachment_count: 0, project: { id: 4, name: 'Project' }, state: 'in_progress' as const, priority: '0' as const,

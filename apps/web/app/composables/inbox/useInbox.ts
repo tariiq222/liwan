@@ -16,12 +16,12 @@ import {
   type InboxConversationPatch,
   type InboxNoteCreate,
   type InboxReplyCreate,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { inboxListQuery, type InboxListRoute } from './inboxListRoute'
 import { fileToBase64 } from '../../utils/attachmentFile'
 import { createTypingNotifier } from './inboxTyping'
 
-// Every key starts with 'inbox', so the bus handler's invalidation of ['inbox'] (type 'webvue/inbox') refreshes them all.
+// Every key starts with 'inbox', so the bus handler's invalidation of ['inbox'] (type 'liwan/inbox') refreshes them all.
 export const inboxKeys = {
   all: ['inbox'] as const,
   list: (route: InboxListRoute) => ['inbox', 'conversations', inboxListQuery(route)] as const,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxCampaign } from '@webvue/contracts'
+import type { InboxCampaign } from '@liwan/contracts'
 import { campaignActions, type CampaignAction } from '@/composables/inbox/inboxCampaignPresentation'
 
 // The header buttons of a campaign, by state. They only ask: the page confirms launch, cancel and delete inline and sends

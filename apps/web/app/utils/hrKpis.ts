@@ -1,4 +1,4 @@
-import type { KpiTile } from '@webvue/ui/app/utils/kpiTile'
+import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
 
 type Translate = (key: string, named?: Record<string, unknown>, plural?: number) => string
 type FormatNumber = (value: number, options?: Intl.NumberFormatOptions) => string

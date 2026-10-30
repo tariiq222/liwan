@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { transaction } from '../db.js'
-import type { RefundCreditNoteRequest } from '@webvue/commercial-contracts'
+import type { RefundCreditNoteRequest } from '@liwan/commercial-contracts'
 import { audit, CommercialHttpError, type CommercialActor } from './lifecycle.js'
 import { adjustmentView } from './invoices.js'
 import type { PaymentAdapter } from './payment-adapter.js'

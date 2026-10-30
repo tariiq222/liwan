@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { joinList } from '@/utils/listFormat'
-import type { PermissionDefinition, RoleDetail } from '@webvue/contracts'
+import type { PermissionDefinition, RoleDetail } from '@liwan/contracts'
 import { useSettingsForm } from '@/composables/settings/useSettingsForm'
 import { useUpdateAdminRole } from '@/composables/useAdminRoles'
 import { accessSaveError } from '@/utils/accessErrors'

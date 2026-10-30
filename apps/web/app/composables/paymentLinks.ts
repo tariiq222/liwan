@@ -1,4 +1,4 @@
-import type { FinanceInvoice } from '@webvue/contracts'
+import type { FinanceInvoice } from '@liwan/contracts'
 import { errorKeyFor } from './paymentErrors'
 
 /** What decides whether a payment link can be offered for a document. */

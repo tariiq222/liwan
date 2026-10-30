@@ -69,14 +69,14 @@ def verify_helper_runtime(config, lease, helper_pool, *, runner=None):
                 raise ValueError()
         elif (lease.get('poolId') != helper_pool or any(type(lease.get(field)) is not int or lease[field] < 1 for field in ('routeRevision', 'fence'))):
             raise ValueError()
-        root = Path(os.environ['WEBVUE_RELEASE_ROUTES_DIR'])
+        root = Path(os.environ['LIWAN_RELEASE_ROUTES_DIR'])
         if not root.is_absolute() or root.resolve() != root or not root.is_dir(): raise ValueError()
         pools = _json(_file(root / 'pools.json'))
         pool = pools['pools'][helper_pool]
         if pools.get('schemaVersion') != 1 or pool.get('poolId') != helper_pool: raise ValueError()
         metadata = pool['helperConfig']
         if not isinstance(metadata, dict) or set(metadata) != _FIELDS: raise ValueError()
-        if not re.fullmatch(r'webvue-(?:saas|shared)-[a-z0-9-]{3,48}', metadata['projectName']): raise ValueError()
+        if not re.fullmatch(r'liwan-(?:saas|shared)-[a-z0-9-]{3,48}', metadata['projectName']): raise ValueError()
         if any(config.get(field) != metadata[field] for field in ('projectName', 'composeFile', 'envFile')): raise ValueError()
         image, role = metadata['odooImage'], metadata['dbUser']
         if not isinstance(image, str) or not IMAGE.fullmatch(image) or not isinstance(role, str) or not re.fullmatch('[a-z][a-z0-9_]{0,62}', role):

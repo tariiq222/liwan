@@ -26,35 +26,35 @@ from odoo_test import (
 )
 
 DEPENDS = {
-    'webvue_core': [],
-    'webvue_api': ['webvue_core'],
-    'webvue_pmo': ['webvue_api'],
-    'webvue_hr': ['webvue_api'],
-    'webvue_meetings_pmo': ['webvue_meetings', 'webvue_pmo'],
-    'webvue_meetings': ['webvue_api'],
+    'liwan_core': [],
+    'liwan_api': ['liwan_core'],
+    'liwan_pmo': ['liwan_api'],
+    'liwan_hr': ['liwan_api'],
+    'liwan_meetings_pmo': ['liwan_meetings', 'liwan_pmo'],
+    'liwan_meetings': ['liwan_api'],
 }
 
 
 class TestOdooTest(unittest.TestCase):
     def test_changed_addons_maps_paths_to_known_addons(self):
-        paths = ['odoo-addons/webvue_hr/models/x.py', 'docs/a.md', 'odoo-addons/unknown/a.py', 'odoo-addons/README']
-        self.assertEqual(changed_addons(paths, set(DEPENDS)), {'webvue_hr'})
+        paths = ['odoo-addons/liwan_hr/models/x.py', 'docs/a.md', 'odoo-addons/unknown/a.py', 'odoo-addons/README']
+        self.assertEqual(changed_addons(paths, set(DEPENDS)), {'liwan_hr'})
         self.assertEqual(unmanifested_dirs(paths, set(DEPENDS)), {'unknown'})
 
     def test_dependents_are_transitive(self):
         self.assertEqual(
-            with_dependents({'webvue_pmo'}, DEPENDS),
-            {'webvue_pmo', 'webvue_meetings_pmo'},
+            with_dependents({'liwan_pmo'}, DEPENDS),
+            {'liwan_pmo', 'liwan_meetings_pmo'},
         )
-        self.assertEqual(with_dependents({'webvue_hr'}, DEPENDS), {'webvue_hr'})
-        self.assertEqual(with_dependents({'webvue_core'}, DEPENDS), set(DEPENDS))
+        self.assertEqual(with_dependents({'liwan_hr'}, DEPENDS), {'liwan_hr'})
+        self.assertEqual(with_dependents({'liwan_core'}, DEPENDS), set(DEPENDS))
 
     def test_only_scratch_databases_are_accepted(self):
-        for bad in ('odoo19', 'postgres', 'webvue_test', 'webvue_scratch', 'webvue_scratch_x; drop', 'WEBVUE_scratch_a',
-                    'webvue_scratch_a\n', 'webvue_tasks_scratch'):
+        for bad in ('odoo19', 'postgres', 'liwan_test', 'liwan_scratch', 'liwan_scratch_x; drop', 'LIWAN_scratch_a',
+                    'liwan_scratch_a\n', 'liwan_tasks_scratch'):
             with self.assertRaises(OdooTestError):
                 require_scratch(bad)
-        self.assertEqual(require_scratch('webvue_scratch_run_ab12'), 'webvue_scratch_run_ab12')
+        self.assertEqual(require_scratch('liwan_scratch_run_ab12'), 'liwan_scratch_run_ab12')
 
     def test_template_name_changes_with_each_key_part(self):
         base = template_name('c1', ['a', 'b'], 't1', 'p1')
@@ -63,15 +63,15 @@ class TestOdooTest(unittest.TestCase):
         self.assertNotEqual(base, template_name('c1', ['a'], 't1', 'p1'))
         self.assertNotEqual(base, template_name('c1', ['a', 'b'], 't2', 'p1'))
         self.assertNotEqual(base, template_name('c1', ['a', 'b'], 't1', 'p2'))
-        self.assertTrue(base.startswith('webvue_scratch_tpl_'))
+        self.assertTrue(base.startswith('liwan_scratch_tpl_'))
 
     def test_oca_dirs_fail_closed_when_a_pinned_repository_is_not_fetched(self):
-        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict('os.environ', {'WEBVUE_OCA_DIR': tmp}):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict('os.environ', {'LIWAN_OCA_DIR': tmp}):
             with self.assertRaisesRegex(odoo_test.OdooTestError, 'oca_addons.py fetch'):
                 odoo_test.oca_dirs()
 
     def test_oca_dirs_return_the_verified_pinned_repositories(self):
-        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict('os.environ', {'WEBVUE_OCA_DIR': tmp}), \
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict('os.environ', {'LIWAN_OCA_DIR': tmp}), \
                 mock.patch.object(oca_addons, 'verify_all') as verify:
             dirs = odoo_test.oca_dirs()
         verify.assert_called_once()
@@ -112,49 +112,49 @@ class TestAddonTree(TempDirCase):
         folder.mkdir()
         (folder / '__manifest__.py').write_text("{'name': '%s', 'depends': %r}" % (name, depends), encoding='utf-8')
 
-    def test_known_includes_non_webvue_addons_and_skips_plain_dirs(self):
+    def test_known_includes_non_liwan_addons_and_skips_plain_dirs(self):
         self.addon('vendor_like', ['base'])
-        self.addon('webvue_meetings', ['vendor_like', 'mail'])
+        self.addon('liwan_meetings', ['vendor_like', 'mail'])
         (self.root / 'no_manifest').mkdir()
         (self.root / 'README').write_text('x', encoding='utf-8')
         known = local_addons(self.root)
-        self.assertEqual(known, {'vendor_like', 'webvue_meetings'})
+        self.assertEqual(known, {'vendor_like', 'liwan_meetings'})
         depends = local_depends(self.root, known)
-        self.assertEqual(depends['webvue_meetings'], ['vendor_like'])
-        self.assertEqual(with_dependents({'vendor_like'}, depends), {'vendor_like', 'webvue_meetings'})
+        self.assertEqual(depends['liwan_meetings'], ['vendor_like'])
+        self.assertEqual(with_dependents({'vendor_like'}, depends), {'vendor_like', 'liwan_meetings'})
 
     def test_dependency_closure_follows_non_local_dependencies_and_not_dependents(self):
-        self.addon('webvue_hr', ['mail', 'payroll'])
-        self.addon('webvue_hr_finance', ['webvue_hr', 'webvue_finance'])
-        self.addon('webvue_finance', ['account'])
+        self.addon('liwan_hr', ['mail', 'payroll'])
+        self.addon('liwan_hr_finance', ['liwan_hr', 'liwan_finance'])
+        self.addon('liwan_finance', ['account'])
         known = local_addons(self.root)
         self.assertEqual(
-            with_dependencies({'webvue_hr_finance'}, self.root, known),
-            {'webvue_hr_finance', 'webvue_hr', 'webvue_finance', 'mail', 'payroll', 'account'},
+            with_dependencies({'liwan_hr_finance'}, self.root, known),
+            {'liwan_hr_finance', 'liwan_hr', 'liwan_finance', 'mail', 'payroll', 'account'},
         )
-        self.assertEqual(with_dependencies({'webvue_hr'}, self.root, known), {'webvue_hr', 'mail', 'payroll'})
-        self.assertNotIn('webvue_hr_finance', with_dependencies({'webvue_hr'}, self.root, known))
+        self.assertEqual(with_dependencies({'liwan_hr'}, self.root, known), {'liwan_hr', 'mail', 'payroll'})
+        self.assertNotIn('liwan_hr_finance', with_dependencies({'liwan_hr'}, self.root, known))
 
 
 class TestFilestoreAndPorts(TempDirCase):
     def test_filestore_paths(self):
         self.assertEqual(
-            filestore_src(self.root, 'webvue_scratch_tpl_ab'), self.root / 'webvue_scratch_tpl_ab' / 'filestore')
+            filestore_src(self.root, 'liwan_scratch_tpl_ab'), self.root / 'liwan_scratch_tpl_ab' / 'filestore')
         self.assertEqual(
-            filestore_dest(self.root / 'd', 'webvue_scratch_run_x'),
-            self.root / 'd' / 'filestore' / 'webvue_scratch_run_x')
+            filestore_dest(self.root / 'd', 'liwan_scratch_run_x'),
+            self.root / 'd' / 'filestore' / 'liwan_scratch_run_x')
         with self.assertRaises(OdooTestError):
             filestore_dest(self.root, 'odoo19')
 
     def test_copy_filestore_copies_files_and_requires_a_source(self):
         with self.assertRaises(OdooTestError):
-            copy_filestore(self.root, 'webvue_scratch_tpl_ab', self.root / 'data', 'webvue_scratch_run_x')
-        src = filestore_src(self.root, 'webvue_scratch_tpl_ab')
+            copy_filestore(self.root, 'liwan_scratch_tpl_ab', self.root / 'data', 'liwan_scratch_run_x')
+        src = filestore_src(self.root, 'liwan_scratch_tpl_ab')
         (src / 'ab').mkdir(parents=True)
         (src / 'ab' / 'file').write_text('x', encoding='utf-8')
-        count = copy_filestore(self.root, 'webvue_scratch_tpl_ab', self.root / 'data', 'webvue_scratch_run_x')
+        count = copy_filestore(self.root, 'liwan_scratch_tpl_ab', self.root / 'data', 'liwan_scratch_run_x')
         self.assertEqual(count, 1)
-        self.assertTrue((filestore_dest(self.root / 'data', 'webvue_scratch_run_x') / 'ab' / 'file').is_file())
+        self.assertTrue((filestore_dest(self.root / 'data', 'liwan_scratch_run_x') / 'ab' / 'file').is_file())
 
     def test_port_lock_is_exclusive_until_released(self):
         ports = range(8197, 8198)
@@ -171,14 +171,14 @@ class TestFilestoreAndPorts(TempDirCase):
 class TestGc(unittest.TestCase):
     def test_selection_keeps_current_active_and_foreign_databases(self):
         names = {
-            'webvue_scratch_tpl_cur', 'webvue_scratch_tpl_old', 'webvue_scratch_tpl_busy',
-            'webvue_scratch_tplb_1', 'webvue_scratch_run_1', 'webvue_scratch_run_busy',
-            'webvue_tasks_scratch', 'odoo19', 'webvue_scratch_other',
+            'liwan_scratch_tpl_cur', 'liwan_scratch_tpl_old', 'liwan_scratch_tpl_busy',
+            'liwan_scratch_tplb_1', 'liwan_scratch_run_1', 'liwan_scratch_run_busy',
+            'liwan_tasks_scratch', 'odoo19', 'liwan_scratch_other',
         }
-        active = {'webvue_scratch_tpl_busy', 'webvue_scratch_run_busy'}
+        active = {'liwan_scratch_tpl_busy', 'liwan_scratch_run_busy'}
         self.assertEqual(
-            gc_selection(names, 'webvue_scratch_tpl_cur', active),
-            ['webvue_scratch_run_1', 'webvue_scratch_tpl_old', 'webvue_scratch_tplb_1'],
+            gc_selection(names, 'liwan_scratch_tpl_cur', active),
+            ['liwan_scratch_run_1', 'liwan_scratch_tpl_old', 'liwan_scratch_tplb_1'],
         )
 
 

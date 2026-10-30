@@ -20,7 +20,7 @@ describe('commercial catalog and entitlement compiler', () => {
     const apps = fixture().release.applications
     expect(apps.map(a => a.id)).toEqual(['core', 'projects', 'people', 'messaging'])
     expect(apps[0].name_ar).toBe('المنصة')
-    expect(apps[1].modules).toEqual(['webvue_meetings', 'webvue_pmo'])
+    expect(apps[1].modules).toEqual(['liwan_meetings', 'liwan_pmo'])
     expect(apps[1].features.map(f => f.key)).toEqual(['pmo.enabled', 'meetings.enabled', 'projects.max_projects'])
     expect(apps.flatMap(a => a.features).every(f => f.enforcement_refs.length > 0)).toBe(true)
     expect(apps[0].features.every(f => !f.selectable)).toBe(true)
@@ -28,7 +28,7 @@ describe('commercial catalog and entitlement compiler', () => {
   it('installs the whole release, keeps 0/null, and overrides only explicit domain limits', () => {
     const input = fixture()
     const result = compileEntitlements({ ...input, terms: { id: id(9), customer_id: id(10), reason: 'Special terms', limits: { 'projects.max_projects': 1 } } })
-    expect(result.modules).toEqual(['webvue_api', 'webvue_chat', 'webvue_core', 'webvue_hr', 'webvue_meetings', 'webvue_platform', 'webvue_pmo'])
+    expect(result.modules).toEqual(['liwan_api', 'liwan_chat', 'liwan_core', 'liwan_hr', 'liwan_meetings', 'liwan_platform', 'liwan_pmo'])
     expect(result.features).toEqual({ 'branches.extra_limit': 8, 'chat.enabled': false, 'hr.enabled': true, 'meetings.enabled': true, 'pmo.enabled': true, 'projects.max_projects': 1, 'storage.limit_mb': 0, 'users.limit': 20 })
     expect(result.compiler_version).toBe('commercial-compiler/3')
     expect(input.quantities.users).toBe(20)
@@ -151,7 +151,7 @@ describe('commercial catalog and entitlement compiler', () => {
   })
   it('names an application unknown to the platform from its catalog tier', () => {
     const v3 = JSON.parse(readFileSync(new URL('../../../../deploy/catalog/solutions/platform_v3.json', import.meta.url), 'utf8'))
-    v3.tiers.push({ id: 'probe', name: 'Probe', modules: ['webvue_registry_probe'], features: ['boolean:probe.enabled'] })
+    v3.tiers.push({ id: 'probe', name: 'Probe', modules: ['liwan_registry_probe'], features: ['boolean:probe.enabled'] })
     const probe = catalogApplicationsFromSolution(v3, 'v3').find(a => a.id === 'probe')!
     expect([probe.name_ar, probe.name_en]).toEqual(['Probe', 'Probe'])
     expect(probe.features.map(f => [f.key, f.selectable])).toEqual([['probe.enabled', true]])

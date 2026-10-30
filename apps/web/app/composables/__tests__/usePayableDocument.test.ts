@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { PayableInvoiceSchema, PayableOrderSchema } from '@webvue/contracts'
+import { PayableInvoiceSchema, PayableOrderSchema } from '@liwan/contracts'
 import { PAY_POLL_INTERVAL_MS } from '../paymentPay'
 import { payableDocumentKeys, usePayableDocument, useStartPayment } from '../usePayableDocument'
 

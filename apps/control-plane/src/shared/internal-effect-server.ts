@@ -1,6 +1,6 @@
 import { createServer as createHttpsServer, type Server } from 'node:https'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { verifyServiceRequest } from '@webvue/commercial-contracts/server'
+import { verifyServiceRequest } from '@liwan/commercial-contracts/server'
 import { EFFECT_ISSUER, EFFECT_PATH, MAX_EFFECT_BODY, effectRequestSchema, isEffectCode, type EffectRequest } from './internal-effect-protocol.js'
 
 export type InternalEffectDeps = {

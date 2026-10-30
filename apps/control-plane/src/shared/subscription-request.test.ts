@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import type { SharedReconfigureJob } from '@webvue/commercial-contracts/shared'
+import type { SharedReconfigureJob } from '@liwan/commercial-contracts/shared'
 import { subscriptionRequest } from './odoo-adapter.js'
 
 const job = {
   host: 'acme.example.test',
-  binding: { database: 'webvue_scratch_' + 'a'.repeat(32), tenantId: 't', filestore: 'f', registryRevision: 1 },
+  binding: { database: 'liwan_scratch_' + 'a'.repeat(32), tenantId: 't', filestore: 'f', registryRevision: 1 },
   authority: { order_id: 'order-1', operation_id: 'op-1', target_revision_id: 'rev-1', entitlement: { digest: 'd' } },
 } as unknown as SharedReconfigureJob
 

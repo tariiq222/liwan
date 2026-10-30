@@ -2,7 +2,7 @@
 import {
   InboxCatalogItemCreateSchema, InboxCatalogItemPatchSchema, InboxRetailerIdSchema, INBOX_COMMERCE_LIMITS,
   type InboxCatalogImageUpload, type InboxCatalogItem,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { fileToBase64 } from '@/utils/attachmentFile'
 import { CATALOG_IMAGE_ACCEPT, formatInboxMoney, imageProblem, measureImage, type ImageProblem } from '@/composables/inbox/inboxCommerce'
 import { useCreateInboxCatalogItem, useInboxCatalogProducts, usePatchInboxCatalogItem } from '@/composables/inbox/useInboxCatalog'

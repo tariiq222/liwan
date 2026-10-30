@@ -1,15 +1,15 @@
-# Implementation plan: HR-60 leave approval on the operations workflow engine (new bridge `webvue_hr_operations`)
+# Implementation plan: HR-60 leave approval on the operations workflow engine (new bridge `liwan_hr_operations`)
 
 Status: plan, 2026-10-29. Owner decision: tariiq222/webvue#165 (HR-60), comments «قرارات المالك 2026-10-29» and
 «تكملة قرار المالك 2026-10-29». No code exists yet. Task 1 starts after the #163 operations change merges,
-because both edit `webvue_operations/models/process.py` and `operation_request.py`.
+because both edit `liwan_operations/models/process.py` and `operation_request.py`.
 
 
 The engine already supports most of what this needs. Requests keep the stages of the process revision they were submitted on, so a process change only affects new requests. What it lacks: a reviewer worked out from the request's record, a rejection hook, and a trusted way to create the default process. The biggest risk is not the dynamic reviewer. It is that stock `hr.leave` lets only some users refuse a leave, so a refusal at an early stage may fail (see section 5, question 1).
 
 ## 1. Current state
 
-**Leave in `webvue_hr`**
+**Leave in `liwan_hr`**
 - `models/hr_leave.py:9-12`: the only override. It blocks a direct `state='cancel'` write. Approval is fully stock.
 - `controllers/hr_leave.py:249-264`: `POST /api/v1/hr/leave/requests` (needs `hr.leave.request`) creates a stock `hr.leave`, which starts in `confirm`. Types set to `no_validation` are approved automatically inside stock `create` (`hr_holidays/models/hr_leave.py:939-942`).
 - `controllers/hr_leave.py:266-289`: approve and refuse (needs `hr.leave.approve`, never on your own request) call stock `action_approve()` and `action_refuse()`.
@@ -31,7 +31,7 @@ The engine already supports most of what this needs. Requests keep the stages of
 - `components/hr/LeaveRecord.vue` (149 lines) is shared with `/hr/leave/:id` and shows approve and refuse buttons.
 - `pages/settings/apps/hr/index.vue` holds `LeaveSettingsForm.vue`. Its header comment sets a precedent: the finance-bridge card appears only when the bridge route answers, and a 404 or 403 hides it.
 
-**Operations engine (`webvue_operations`)**
+**Operations engine (`liwan_operations`)**
 - `models/process.py:22,29-34`: `execution_kind` is a Char field, extended through `_operations_execution_kinds()`. `_operations_targets(q)` is the target picker hook.
 - `process.py:62-84` (`action_configure`): rebuilds the steps and sets `state='draft'`, then `revision+1`. Each step must be exactly `{name, reviewer_ids}`, and `reviewer_ids` is required (`:134`, `common.py:36-42`).
 - `process.py:86-111` (`action_publish`): checks that every reviewer holds `operations.requests.review`. It creates one immutable `tier.definition` per step, scoped by `definition_domain` to the process and revision (`:104`). Definitions can never be deleted (`:188-194`).
@@ -48,7 +48,7 @@ The engine already supports most of what this needs. Requests keep the stages of
 - `access_service.py:5-7`: `role_employee` has `requests.read` and `requests.create`. Review is only in the reviewer role.
 - `test_operations_workflow.py:322` shows that even the superuser needs a role assignment to pass the `processes.manage` check.
 
-**PMO bridge pattern** (`webvue_operations_pmo/models/operations.py`)
+**PMO bridge pattern** (`liwan_operations_pmo/models/operations.py`)
 - It registers the kind only when `pmo.enabled` can be written (`:9-14`).
 - It resolves and authorizes the target in the caller's own identity (`:28-45`).
 - At submission it checks that the final stage is the designated reviewer and creates the native pending state (`:47-61`).
@@ -58,10 +58,10 @@ The engine already supports most of what this needs. Requests keep the stages of
 
 ## 2. Target design
 
-### 2a. Generic changes in the engine (`webvue_operations`, must not mention HR, per R3)
+### 2a. Generic changes in the engine (`liwan_operations`, must not mention HR, per R3)
 
 1. **Reviewer resolver per stage.** This mirrors how `execution_kind` already works.
-   - Add `reviewer_resolver = fields.Char()` to `webvue.operation.process.step`, with no value meaning a fixed list of users. Drop `required=True` from `reviewer_ids`. A constraint requires either a resolver or at least one user, never both.
+   - Add `reviewer_resolver = fields.Char()` to `liwan.operation.process.step`, with no value meaning a fixed list of users. Drop `required=True` from `reviewer_ids`. A constraint requires either a resolver or at least one user, never both.
    - Add `process._operations_reviewer_resolvers()`, which returns `()` by default and is filtered by `self.execution_kind`. Each entry is `{'key', 'label', 'capability'}`.
    - Add `request._operations_resolve_reviewers(key)`, which raises `ValidationError` by default.
    - The step payload becomes `{name, reviewer_ids, resolver}`. Configure validates the resolver against the hook. Publish copies it to a new `tier.definition.operations_reviewer_resolver` and skips the "named users need review" check for resolver stages.
@@ -74,31 +74,31 @@ The engine already supports most of what this needs. Requests keep the stages of
    - Bridges remove `edit`, `return` and `withdraw` from `_operations_allowed_actions` and refuse those actions on the server.
 6. **Trusted seed.** Add `process._operations_seed(company, vals, steps)`, which requires `self.env.su` (the install or migration operator, with no `sudo()` call). It creates, configures and publishes without the capability check and is used only by install hooks. Version bump to 19.0.1.3.0 with a migration README; the `reviewer_ids` change is schema-only, no data.
 
-### 2b. New bridge `webvue_hr_operations`
+### 2b. New bridge `liwan_hr_operations`
 
-- Rank 5, `auto_install`, depends on `webvue_hr` and `webvue_operations`, version 19.0.1.0.0, `post_init_hook`, no `sudo()`.
+- Rank 5, `auto_install`, depends on `liwan_hr` and `liwan_operations`, version 19.0.1.0.0, `post_init_hook`, no `sudo()`.
 - **Execution kind `hr_leave`.** Registered when both `hr.enabled` and `operations.enabled` can be written. It is in `_operations_application_kinds`, and `_operations_targets` returns `[]`. Process purpose is `employee`.
 - **Resolvers for `hr_leave`:**
   - `hr_leave_approver`: the employee's stock `leave_manager_id` ("Time Off approver"; stock Odoo fills it from the direct manager's user). Capability `operations.requests.read`.
-  - `hr_leave_officers`: active users holding `hr.leave.approve` in the leave's company. Found by searching `group_cap_hr_leave_approve` and then checking `_webvue_has_capability(..., company=)`. Capability `hr.leave.approve`.
+  - `hr_leave_officers`: active users holding `hr.leave.approve` in the leave's company. Found by searching `group_cap_hr_leave_approve` and then checking `_liwan_has_capability(..., company=)`. Capability `hr.leave.approve`.
   - Labels are translated server-side through the bridge's `i18n`.
 - **Which process governs.** The company's single published `hr_leave` process. Override `action_publish` (a public method, then `super`) to refuse a second one. Publish also checks:
   - the final stage is `hr_leave_officers`, or fixed users who all hold `hr.leave.approve` (stock lets only officers validate);
   - every other stage is one of the resolvers or fixed officers (see section 5, question 1).
 - **Submission.**
-  - `webvue_hr` gains a neutral hook `hr.leave._webvue_request_approval()`, a no-op in HR, called by `create_request` after `create`.
+  - `liwan_hr` gains a neutral hook `hr.leave._liwan_request_approval()`, a no-op in HR, called by `create_request` after `create`.
   - The bridge overrides it. If the leave is `confirm`, the company has a governing process and operations is enabled, it creates the request in the caller's identity under a bridge-private context token that the bridge's `_operations_target_values` requires.
   - Request values: `name` = "type: employee, dates" and `description` = the leave notes. This gives managers the details without reading HR.
   - `target_ref` = `{'id', 'write_date'}`. The request is then submitted (`action_submit(0)`).
   - It all runs in one transaction, so if no approver can be resolved the leave creation fails with 422.
   - Without a governing process the hook does nothing, and today's HR-role path applies.
 - **Governed flag.**
-  - Neutral hook `hr.leave._webvue_approval_governed()`, `False` in HR. The bridge returns `True` when an open (`pending`) request targets the leave.
+  - Neutral hook `hr.leave._liwan_approval_governed()`, `False` in HR. The bridge returns `True` when an open (`pending`) request targets the leave.
   - HR approve and refuse routes answer 409 `approval_governed` for governed leaves, and `dump_leave` sets `can_approve` and `can_refuse` to false.
   - As a second line of defence, the bridge overrides the public stock `action_approve` and `action_refuse` to refuse governed leaves unless the bridge's execution token is present.
 - **Final approval.** `_execute_approved` for `hr_leave` re-reads the leave in the approver's own identity, checks it is still `confirm` and unchanged (`write_date`, otherwise a stale error), then calls stock `leave.with_context(token).action_approve()`. An officer goes `confirm` to `validate` for every type.
 - **Rejection.** `_execute_rejected` calls stock `action_refuse()` as the rejecting reviewer, then posts the comment on the leave.
-- **Withdraw.** HR's withdraw route calls the neutral hook `_webvue_withdraw_approval()`. The bridge withdraws the request as the requester first, then HR deletes the leave as today.
+- **Withdraw.** HR's withdraw route calls the neutral hook `_liwan_withdraw_approval()`. The bridge withdraws the request as the requester first, then HR deletes the leave as today.
 - **Default process seeding.**
   - `post_init_hook`: for each company where `operations.enabled` can be written and no `hr_leave` process exists, call `_operations_seed` with "Leave approval": stage 1 "Direct manager" (`hr_leave_approver`), stage 2 "HR" (`hr_leave_officers`).
   - The bridge also overrides `res.company.create` and seeds only when `env.su` (provisioning).
@@ -108,7 +108,7 @@ The engine already supports most of what this needs. Requests keep the stages of
 
 ## 3. Features (R10), routes, contracts and UI
 
-- **Features.** The bridge registers no feature of its own, following the `webvue_hr_finance` precedent. Its routes use `@requires_feature('hr.enabled', 'operations.enabled')`. Capabilities are reused: `hr.leave.read` and `hr.leave.config` (HR), `operations.processes.manage` and `operations.requests.read` (operations).
+- **Features.** The bridge registers no feature of its own, following the `liwan_hr_finance` precedent. Its routes use `@requires_feature('hr.enabled', 'operations.enabled')`. Capabilities are reused: `hr.leave.read` and `hr.leave.config` (HR), `operations.processes.manage` and `operations.requests.read` (operations).
 - **Engine route changes:**
   - Process steps gain `resolver: string|null` and `resolver_label`.
   - New `GET /api/v1/operations/processes/<id>/reviewer-resolvers`, or with `?execution_kind=` (needs `operations.processes.manage`), returns `{items:[{key,label}], total}`.
@@ -134,14 +134,14 @@ The engine already supports most of what this needs. Requests keep the stages of
 ## 4. Ordered tasks
 
 1. **Engine extension points.**
-   - Files: `webvue_operations/models/process.py`, `operation_request.py`, `common.py`, `controllers/operations.py`, `serializers/operations.py`, manifest and `migrations/19.0.1.3.0/README.md`.
+   - Files: `liwan_operations/models/process.py`, `operation_request.py`, `common.py`, `controllers/operations.py`, `serializers/operations.py`, manifest and `migrations/19.0.1.3.0/README.md`.
    - Tests in `tests/test_operations_workflow.py`, plus a new `tests/test_reviewer_resolvers.py`: a test resolver kind defined in the test, snapshot used for reviewers, per-stage capability, a revision change leaves pending requests on old stages, reject hook rollback, `requestable` filter, seed refuses without `su`, existing fixed-stage behavior unchanged.
 2. **Neutral HR hooks.**
-   - Files: `webvue_hr/models/hr_leave.py`, `controllers/hr_leave.py` (call the hooks, 409 when governed), `serializers/hr_leave.py`.
+   - Files: `liwan_hr/models/hr_leave.py`, `controllers/hr_leave.py` (call the hooks, 409 when governed), `serializers/hr_leave.py`.
    - Tests in `tests/test_hr_leave.py`: hooks are no-ops and today's path still passes.
 3. **Bridge addon.**
-   - Files: `odoo-addons/webvue_hr_operations/` (manifest, `__init__` with `post_init_hook`, `models/operations.py`, `models/hr_leave.py`, `models/res_company.py`, `controllers/leave_approval.py`, `serializers/`, `i18n/*.pot`, `tests/`).
-   - Register it in `tools/arch_layers.json` (rank 5) and the module lists: `deploy/provision.sh:133`, `deploy/verification-checks.json:53,55`, `deploy/check_isolated.py`, `tools/webvue_cli/operator.py`, `tools/shared_acceptance_live/up.sh`, `docs/agents/repository-layout.md`.
+   - Files: `odoo-addons/liwan_hr_operations/` (manifest, `__init__` with `post_init_hook`, `models/operations.py`, `models/hr_leave.py`, `models/res_company.py`, `controllers/leave_approval.py`, `serializers/`, `i18n/*.pot`, `tests/`).
+   - Register it in `tools/arch_layers.json` (rank 5) and the module lists: `deploy/provision.sh:133`, `deploy/verification-checks.json:53,55`, `deploy/check_isolated.py`, `tools/liwan_cli/operator.py`, `tools/shared_acceptance_live/up.sh`, `docs/agents/repository-layout.md`.
    - Tests:
      - install seeds two stages;
      - employee submits, manager approves, officer approves, leave is `validate`;
@@ -166,7 +166,7 @@ The engine already supports most of what this needs. Requests keep the stages of
    - Files: `components/hr/LeaveRecord.vue`, `LeaveSettingsForm.vue` or a new `LeaveApprovalCard.vue`, `composables/useHrLeave.ts`, `pages/settings/apps/hr/index.vue`, HR locale.
    - Tests: `pages/hr/__tests__/self-service-leave-record.test.ts`, plus a Storybook story for any new shared-looking component.
 7. **Docs and scenarios.**
-   - Files: `docs/superpowers/specs/2026-10-14-webvue-operations-approvals-design.md` (resolver section), `e2e/scenarios/hr.md` and `operations.md`.
+   - Files: `docs/superpowers/specs/2026-10-14-liwan-operations-approvals-design.md` (resolver section), `e2e/scenarios/hr.md` and `operations.md`.
    - Coordinate with the untracked WIP `e2e/tests/hr-leave-journey.e2e.ts`, which has an unknown owner.
 
 **Verification**
@@ -174,7 +174,7 @@ The engine already supports most of what this needs. Requests keep the stages of
 - `python3 -B tools/arch_policy.py`
 - `npm test` (includes `sudo_gate` and the route-gate policy)
 - `npm -w apps/web run lint`
-- Odoo on a scratch database per `docs/agents/odoo-rules.md`, with `-i webvue_hr_operations` and `--test-tags /webvue_operations,/webvue_hr,/webvue_hr_operations,/webvue_operations_pmo`
+- Odoo on a scratch database per `docs/agents/odoo-rules.md`, with `-i liwan_hr_operations` and `--test-tags /liwan_operations,/liwan_hr,/liwan_hr_operations,/liwan_operations_pmo`
 - `deploy/ci/odoo-bridge` stage locally
 - `cd apps/web && npm run test:e2e`
 
@@ -188,7 +188,7 @@ decision; each is recorded here so review can judge it.
    approver or HR officers only; at install the bridge sets `leave_validation_type='both'` on the
    tenant's validating leave types, so a manager-stage refusal passes stock `_check_approval_update`
    without elevation or a private-method override (R9). The stock check is not the only gate:
-   `webvue_hr/models/ir_rule.py` hides other employees' leaves unless the actor holds
+   `liwan_hr/models/ir_rule.py` hides other employees' leaves unless the actor holds
    `hr.leave.approve`, `hr.leave.manage` or `hr.payroll.read` in that company, and being
    `leave_manager_id` is not an exception. The bridge therefore extends that fence through a
    neutral HR hook (in task 2) with one narrow allowance: read and state-write of a leave whose
@@ -220,8 +220,8 @@ decision; each is recorded here so review can judge it.
 Each item becomes part of one implementation issue per task in section 4.
 
 ### Critical files for implementation
-- /Users/tariq/code/webvue/odoo-addons/webvue_operations/models/process.py
-- /Users/tariq/code/webvue/odoo-addons/webvue_operations/models/operation_request.py
-- /Users/tariq/code/webvue/odoo-addons/webvue_operations_pmo/models/operations.py
-- /Users/tariq/code/webvue/odoo-addons/webvue_hr/controllers/hr_leave.py
+- /Users/tariq/code/webvue/odoo-addons/liwan_operations/models/process.py
+- /Users/tariq/code/webvue/odoo-addons/liwan_operations/models/operation_request.py
+- /Users/tariq/code/webvue/odoo-addons/liwan_operations_pmo/models/operations.py
+- /Users/tariq/code/webvue/odoo-addons/liwan_hr/controllers/hr_leave.py
 - /Users/tariq/code/webvue/apps/web/app/components/hr/LeaveRecord.vue

@@ -12,8 +12,8 @@ const slow = { timeout: 30_000 };
 const FORBIDDEN = 'لا تملك صلاحية فتح هذه الصفحة';
 
 // Accessible names of the rail links. Two differ from the visible label (PLT-271):
-// «الموظفين» is named «الموارد البشرية» and «المساعد» is named «WebVue AI».
-const COMMON_APPS = ['يومي', 'مهامي', 'المشاريع', 'الاجتماعات', 'المحادثات', 'الموارد البشرية', 'العمليات', 'المستندات', 'WebVue AI'];
+// «الموظفين» is named «الموارد البشرية» and «المساعد» is named «LiwanOS AI».
+const COMMON_APPS = ['يومي', 'مهامي', 'المشاريع', 'الاجتماعات', 'المحادثات', 'الموارد البشرية', 'العمليات', 'المستندات', 'LiwanOS AI'];
 const FINANCE = 'المالية';
 const SETTINGS = 'الإعدادات';
 

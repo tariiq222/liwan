@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { fn } from 'storybook/test'
 import EquipmentCustodyPanel from '../../../app/components/hr/assets/EquipmentCustodyPanel.vue'
-import RecordPage from '@webvue/ui/app/components/shared/layout/RecordPage.vue'
+import RecordPage from '@liwan/ui/app/components/shared/layout/RecordPage.vue'
 import { storyContext } from '../../support/context'
 
 // The custody block of an asset record: the current holder and, when the asset is free,

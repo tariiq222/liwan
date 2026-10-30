@@ -17,7 +17,7 @@ test.describe('Plan 6a: the project file', () => {
     test('on paper the shell chrome and the frame are gone and the file is black on white', async ({ page }) => {
       await open(page, '/projects/2/charter')
       await page.emulateMedia({ media: 'print' })
-      await expect(page.locator('.webvue-shell-header')).toBeHidden()
+      await expect(page.locator('.liwan-shell-header')).toBeHidden()
       await expect(page.getByTestId('project-workspace-frame')).toBeHidden()
       await expect(page.getByTestId('project-charter-display')).toBeVisible()
       const color = await page.getByTestId('project-charter-display').evaluate(el => getComputedStyle(el).color)

@@ -1,5 +1,5 @@
 import { createError, deleteCookie, getCookie, getRouterParam, sendRedirect, sendWebResponse, setResponseHeader } from 'h3'
-import { decodePayReturn, PAY_RETURN_COOKIE, PAY_RETURN_COOKIE_PATH } from '@webvue/contracts'
+import { decodePayReturn, PAY_RETURN_COOKIE, PAY_RETURN_COOKIE_PATH } from '@liwan/contracts'
 import { boundedTenantBody, withTenantBody, withTenantResponse } from '../../../utils/tenantTransport'
 import { forwardPublicApi } from '../../../utils/publicApi'
 

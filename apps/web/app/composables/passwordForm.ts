@@ -1,4 +1,4 @@
-import { MIN_PASSWORD_LENGTH } from '@webvue/contracts'
+import { MIN_PASSWORD_LENGTH } from '@liwan/contracts'
 
 interface PasswordRef {
   value: string

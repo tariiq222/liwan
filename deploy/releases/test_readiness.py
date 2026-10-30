@@ -7,8 +7,8 @@ from .test_manifest import release
 
 
 def binding():
-    return {'tenantId': 'tenant_a', 'database': 'tenant_a', 'filestore': 'webvue_filestore',
-            'identityRevision': 7, 'host': 'tenant-a.webvue.test'}
+    return {'tenantId': 'tenant_a', 'database': 'tenant_a', 'filestore': 'liwan_filestore',
+            'identityRevision': 7, 'host': 'tenant-a.liwan.test'}
 
 
 def observation():
@@ -16,8 +16,8 @@ def observation():
             'assetsId': 'assets-1', 'aiStateVersion': '1', 'database': 'tenant_a',
             'tenantId': 'tenant_a', 'identityRevision': 7, 'moduleVersions': {},
             'moduleStatesReady': True, 'databaseReady': True, 'readOnly': True,
-            'sessionStore': 'webvue_sessions', 'sessionReadable': True,
-            'filestore': 'webvue_filestore', 'filestoreReadable': True}
+            'sessionStore': 'liwan_sessions', 'sessionReadable': True,
+            'filestore': 'liwan_filestore', 'filestoreReadable': True}
 
 
 class ReadinessTests(unittest.TestCase):

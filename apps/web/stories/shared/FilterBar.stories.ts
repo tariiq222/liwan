@@ -2,9 +2,9 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { fn } from 'storybook/test'
-import { ProjectStatusSchema } from '@webvue/contracts'
-import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
-import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
+import { ProjectStatusSchema } from '@liwan/contracts'
+import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
+import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -20,7 +20,7 @@ const meta = {
       const items = computed(() => [{ value: 'all', label: t('projects.filters.allStatuses') }, ...ProjectStatusSchema.options.map(value => ({ value, label: t(`projects.status.${value}`) }))])
       return { args, t, status, items, search: ref('') }
     },
-    template: `<main class="webvue-shell-main"><PageContainer width="list"><div class="w-full min-w-0" data-testid="projects-toolbar"><FilterBar class="w-full" v-bind="args"><template #search><UInput v-model="search" :placeholder="t('projects.filters.search')" :aria-label="t('projects.filters.search')" icon="i-lucide-search" class="w-full min-w-52" /></template><template #default><USelect v-model="status" :items="items" class="w-40" /></template><template #active><UBadge color="primary" variant="subtle">{{ t('projects.status.at_risk') }}</UBadge></template></FilterBar></div></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer width="list"><div class="w-full min-w-0" data-testid="projects-toolbar"><FilterBar class="w-full" v-bind="args"><template #search><UInput v-model="search" :placeholder="t('projects.filters.search')" :aria-label="t('projects.filters.search')" icon="i-lucide-search" class="w-full min-w-52" /></template><template #default><USelect v-model="status" :items="items" class="w-40" /></template><template #active><UBadge color="primary" variant="subtle">{{ t('projects.status.at_risk') }}</UBadge></template></FilterBar></div></PageContainer></main>`,
   }),
 } satisfies Meta<typeof FilterBar>
 export default meta
@@ -39,7 +39,7 @@ export const EmbeddedInCardHeader: Story = {
       const items = computed(() => ProjectStatusSchema.options.map(value => ({ value, label: t(`projects.status.${value}`) })))
       return { args, t, status, items, search: ref('') }
     },
-    template: `<main class="webvue-shell-main"><PageContainer width="list"><div class="overflow-hidden rounded-card bg-default ring ring-default"><div class="border-b border-default px-(--webvue-card-pad-dense) py-3"><FilterBar class="w-full" embedded v-bind="args"><template #search><UInput v-model="search" :placeholder="t('projects.filters.search')" :aria-label="t('projects.filters.search')" icon="i-lucide-search" class="w-full min-w-52" /></template><template #default><USelect v-model="status" multiple :items="items" :placeholder="t('projects.filters.allStatuses')" :aria-label="t('projects.filters.allStatuses')" class="w-full md:w-44" /></template></FilterBar></div></div></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer width="list"><div class="overflow-hidden rounded-card bg-default ring ring-default"><div class="border-b border-default px-(--liwan-card-pad-dense) py-3"><FilterBar class="w-full" embedded v-bind="args"><template #search><UInput v-model="search" :placeholder="t('projects.filters.search')" :aria-label="t('projects.filters.search')" icon="i-lucide-search" class="w-full min-w-52" /></template><template #default><USelect v-model="status" multiple :items="items" :placeholder="t('projects.filters.allStatuses')" :aria-label="t('projects.filters.allStatuses')" class="w-full md:w-44" /></template></FilterBar></div></div></PageContainer></main>`,
   }),
 }
 export const EmbeddedTaskFilters: Story = {
@@ -66,7 +66,7 @@ export const EmbeddedTaskFilters: Story = {
       ])
       return { args, t, priority, assignee, priorityItems, assigneeItems, deadlineItems, deadline: ref(undefined), search: ref('') }
     },
-    template: `<main class="webvue-shell-main"><PageContainer width="list"><div class="overflow-hidden rounded-card bg-default ring ring-default"><div class="border-b border-default px-(--webvue-card-pad-dense) py-3"><FilterBar class="w-full" embedded v-bind="args"><template #search><UInput v-model="search" :placeholder="t('tasks.filters.search')" :aria-label="t('tasks.filters.search')" icon="i-lucide-search" class="w-full min-w-52" /></template><template #default><USelect v-model="priority" multiple icon="i-lucide-flag" :items="priorityItems" :placeholder="t('tasks.filters.priorityLabel')" :aria-label="t('tasks.filters.priorityLabel')" class="w-full md:w-40" /><USelect v-model="assignee" icon="i-lucide-user" :items="assigneeItems" :placeholder="t('tasks.filters.assigneeLabel')" :aria-label="t('tasks.filters.assigneeLabel')" class="w-full md:w-40" /><USelect v-model="deadline" icon="i-lucide-calendar-clock" :items="deadlineItems" :placeholder="t('tasks.filters.deadlineLabel')" :aria-label="t('tasks.filters.deadlineLabel')" class="w-full md:w-40" /></template></FilterBar></div></div></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer width="list"><div class="overflow-hidden rounded-card bg-default ring ring-default"><div class="border-b border-default px-(--liwan-card-pad-dense) py-3"><FilterBar class="w-full" embedded v-bind="args"><template #search><UInput v-model="search" :placeholder="t('tasks.filters.search')" :aria-label="t('tasks.filters.search')" icon="i-lucide-search" class="w-full min-w-52" /></template><template #default><USelect v-model="priority" multiple icon="i-lucide-flag" :items="priorityItems" :placeholder="t('tasks.filters.priorityLabel')" :aria-label="t('tasks.filters.priorityLabel')" class="w-full md:w-40" /><USelect v-model="assignee" icon="i-lucide-user" :items="assigneeItems" :placeholder="t('tasks.filters.assigneeLabel')" :aria-label="t('tasks.filters.assigneeLabel')" class="w-full md:w-40" /><USelect v-model="deadline" icon="i-lucide-calendar-clock" :items="deadlineItems" :placeholder="t('tasks.filters.deadlineLabel')" :aria-label="t('tasks.filters.deadlineLabel')" class="w-full md:w-40" /></template></FilterBar></div></div></PageContainer></main>`,
   }),
 }
 export const Disabled: Story = { name: 'معطّل', args: { disabled: true, activeCount: 1 } }

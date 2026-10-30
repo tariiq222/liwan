@@ -19,7 +19,7 @@
 
 ## Package ownership and order
 
-- Backend package: `odoo-addons/webvue_hr`, `odoo-addons/webvue_operations`, `odoo-addons/webvue_documents_hr`, `packages/contracts/src/hr`, `packages/contracts/src/operations`, and related contract tests. One worker; no unrelated addon edits or shared barrel edits without parent coordination.
+- Backend package: `odoo-addons/liwan_hr`, `odoo-addons/liwan_operations`, `odoo-addons/liwan_documents_hr`, `packages/contracts/src/hr`, `packages/contracts/src/operations`, and related contract tests. One worker; no unrelated addon edits or shared barrel edits without parent coordination.
 - HR frontend package: a second worker owns HR pages/components/module, HR leave/shift/profile composables and HR locale namespace in a separate worktree. It consumes the personal manifest interface and HR APIs below. Parent supplies shared interface changes; workers never edit them.
 - Frontend integration package: parent owns operations/documents pages/composables/manifests, account foundation/shell, shared tests/stories/locales/docs. It consumes the fixed contracts below while backend and HR frontend work independently.
 - Verification: after actual patches are inspected and applied without committing, coordinator runs integrated checks and a fresh read-only reviewer checks changed source/authorization boundaries. No shared runtime is started by workers.

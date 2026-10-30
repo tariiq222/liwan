@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useClipboard } from '@vueuse/core'
-import { InboxChannelPatchSchema } from '@webvue/contracts'
-import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
+import { InboxChannelPatchSchema } from '@liwan/contracts'
+import { statusTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import InboxChannelTabs from '@/components/inbox/InboxChannelTabs.vue'
 import { useInboxCatalogEnabled } from '@/composables/inbox/useInboxCatalog'
 import { CHANNEL_STATE_TONE } from '@/composables/inbox/inboxPresentation'

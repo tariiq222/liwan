@@ -15,7 +15,7 @@ def probe_pool(pool, tenant_binding, probe=None):
     """
     checks = {key: False for key in ('identity', 'images', 'modules', 'database', 'session', 'filestore', 'assets', 'ai', 'readOnly')}
     try:
-        expected = pool['x-webvue-pool']
+        expected = pool['x-liwan-pool']
         binding = validate_binding(tenant_binding, require_commercial=False)
         if probe is None:
             return {'ready': False, 'checks': checks, 'reason': 'probe_unavailable'}

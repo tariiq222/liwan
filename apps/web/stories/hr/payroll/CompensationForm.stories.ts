@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import CompensationForm from '../../../app/components/hr/payroll/CompensationForm.vue'
-import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
+import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../../support/context'
 
 // The compensation editor: wage and allowances, IBAN, GOSI facts. The bank on record stays as it is and

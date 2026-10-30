@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const FORBIDDEN_IMPORT = /from\s+['"](?:@@?|~~?)\//
-const FORBIDDEN = ['@webvue/contracts', 'apps/web', '$fetch(', 'useMe(', 'useApi(', '/api/']
+const FORBIDDEN = ['@liwan/contracts', 'apps/web', '$fetch(', 'useMe(', 'useApi(', '/api/']
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

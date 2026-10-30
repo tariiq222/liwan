@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
-import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
+import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import {
   HR_RECRUITMENT_PAGE_SIZE,
   type HrRecruitmentActiveFilter,
@@ -105,7 +105,7 @@ function jobTo(job: HrRecruitmentJob) {
   >
     <SharedListCard>
       <template #filters>
-        <div class="webvue-page-stack">
+        <div class="liwan-page-stack">
           <SharedSegmentedControl
             :model-value="active"
             :items="activeOptions"
@@ -135,7 +135,7 @@ function jobTo(job: HrRecruitmentJob) {
       </template>
 
       <SharedPageState :error="jobs.error.value" :keep-content="items.length > 0" @retry="jobs.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--webvue-card-pad-dense)" :title="t('hrRecruitment.jobs.emptyTitle')" :description="t('hrRecruitment.jobs.emptyHint')" />
+        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hrRecruitment.jobs.emptyTitle')" :description="t('hrRecruitment.jobs.emptyHint')" />
         <SharedDataTable
           v-else
           bare

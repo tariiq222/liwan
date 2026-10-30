@@ -4,12 +4,12 @@ set +v
 set -euo pipefail
 mode="${1:-}"; name="${2:-}"
 case "$mode:$name" in start:api|start:worker|start:runtime|stop:api|stop:worker|stop:runtime|status:api|status:worker|status:runtime|recover:runtime) ;; *) printf 'Usage: local-process.sh start|stop|status|recover api|worker|runtime\n' >&2; exit 2;; esac
-HOME_DIR="${WEBVUE_CONTROL_HOME:-$HOME/.local/share/webvue-saas-control-local}"
-ROOT="${WEBVUE_REPOSITORY_ROOT:-$(cd "$(dirname "$0")/../.." && pwd -P)}"
-NODE_BIN="${WEBVUE_NODE_BIN:-/opt/homebrew/opt/node@22/bin}"
+HOME_DIR="${LIWAN_CONTROL_HOME:-$HOME/.local/share/liwan-saas-control-local}"
+ROOT="${LIWAN_REPOSITORY_ROOT:-$(cd "$(dirname "$0")/../.." && pwd -P)}"
+NODE_BIN="${LIWAN_NODE_BIN:-/opt/homebrew/opt/node@22/bin}"
 state="$HOME_DIR/processes"; mkdir -p "$HOME_DIR"; chmod 700 "$HOME_DIR"; [[ ! -e "$state" || ( -d "$state" && ! -L "$state" ) ]] || { printf 'Process path is not a private directory; refusing.\n' >&2; exit 12; }; [[ -d "$state" ]] || mkdir -m 700 "$state"; chmod 700 "$state"
 RECORD_NAMES=(generation runtime.pid runtime.start api.pid api.start api.generation worker.pid worker.start worker.generation)
-if [[ -z "${WEBVUE_PROCESS_LOCK_FD:-}" ]]; then exec python3 "$(dirname "$0")/process_lock.py" --hold /bin/bash "$0" "$@"; fi
+if [[ -z "${LIWAN_PROCESS_LOCK_FD:-}" ]]; then exec python3 "$(dirname "$0")/process_lock.py" --hold /bin/bash "$0" "$@"; fi
 proc_start() { ps -p "$1" -o lstart= 2>/dev/null | xargs || true; }
 expected() { case "$1" in api) printf '%s' "$NODE_BIN/node $ROOT/node_modules/tsx/dist/cli.mjs $ROOT/apps/control-plane/src/main.ts";; worker) printf '%s' "$NODE_BIN/node $ROOT/node_modules/tsx/dist/cli.mjs $ROOT/apps/control-plane/src/worker-main.ts";; runtime) printf '%s' "bash $ROOT/deploy/control-plane/run-local.sh";; esac; }
 command_matches() {
@@ -39,7 +39,7 @@ runtime_command_ok() {
 # lock file (inode-verified, bounded scan) and drop the inherited capability.
 close_lock_descriptors() {
  local lock="$HOME_DIR/processes.lock" ino n fdino
- unset WEBVUE_PROCESS_LOCK_FD
+ unset LIWAN_PROCESS_LOCK_FD
  [[ -e "$lock" ]] || return 0
  ino="$(/usr/bin/stat -f '%i' "$lock" 2>/dev/null || true)"; [[ -n "$ino" ]] || return 0
  for n in $(seq 3 63); do
@@ -85,7 +85,7 @@ start_one() {
  done
  printf '%s identity uncertain; owner record retained.\n' "$n" >&2; return 9
 }
-if [[ -z "${WEBVUE_PROCESS_LOCK_FD:-}" ]]; then
+if [[ -z "${LIWAN_PROCESS_LOCK_FD:-}" ]]; then
   exec python3 "$(dirname "$0")/process_lock.py" /bin/bash "$0" "$@"
 fi
 if [[ "$mode" != recover ]]; then

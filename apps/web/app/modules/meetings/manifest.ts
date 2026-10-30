@@ -1,4 +1,4 @@
-import { MeetingNotificationSchema } from '@webvue/contracts'
+import { MeetingNotificationSchema } from '@liwan/contracts'
 import type { AppManifest } from '../types'
 import { overdueFollowupAttention, todayMeetingsAttention } from './attention'
 

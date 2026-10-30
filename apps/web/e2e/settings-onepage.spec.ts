@@ -16,7 +16,7 @@ async function open(page: Page, path: string) {
   await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
 }
 const cardTop = (page: Page, id: string) => page.evaluate((target) => document.getElementById(target)?.getBoundingClientRect().top ?? Number.NaN, id)
-const subListLink = (page: Page, id: string) => page.locator(`.webvue-sub-list a[href="/settings/company#${id}"]`)
+const subListLink = (page: Page, id: string) => page.locator(`.liwan-sub-list a[href="/settings/company#${id}"]`)
 
 test.describe('settings page of cards', () => {
   test.beforeEach(async ({ page }) => {
@@ -98,11 +98,11 @@ test.describe('settings page of cards', () => {
     await expect(page.getByTestId('team-users-preview')).toBeVisible()
     await page.getByTestId('team-users-preview').getByRole('link', { name: 'كل المستخدمين' }).click()
     await expect(page).toHaveURL(/\/settings\/team\/users$/)
-    await expect(page.locator('.webvue-sub-list a[aria-current="true"]')).toHaveCount(1)
+    await expect(page.locator('.liwan-sub-list a[aria-current="true"]')).toHaveCount(1)
   })
 
   test.describe('projects settings', () => {
-    const projectLink = (id: string) => (page: Page) => page.locator(`.webvue-sub-list a[href="/settings/apps/projects#${id}"]`)
+    const projectLink = (id: string) => (page: Page) => page.locator(`.liwan-sub-list a[href="/settings/apps/projects#${id}"]`)
 
     test('cold client navigation from the overview: the spy follows the cards that render after the data arrives', async ({ page }) => {
       await open(page, '/settings')

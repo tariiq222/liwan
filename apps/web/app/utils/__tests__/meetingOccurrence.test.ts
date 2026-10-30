@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MeetingOccurrenceCreateSchema } from '@webvue/contracts'
+import { MeetingOccurrenceCreateSchema } from '@liwan/contracts'
 import { buildOccurrencePayload, occurrenceFormErrors } from '../meetingOccurrence'
 
 const empty = { name: '', date: '', start: '', end: '' }

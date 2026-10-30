@@ -1,10 +1,10 @@
 import { z } from 'zod'
 
-// Wire shapes of the WhatsApp Flows routes of /api/v1/inbox: in-chat forms built in WebVue, published to Meta,
+// Wire shapes of the WhatsApp Flows routes of /api/v1/inbox: in-chat forms built in LiwanOS, published to Meta,
 // sent in a conversation and answered by the customer. Every schema mirrors one serializer in
-// odoo-addons/webvue_inbox/serializers/flows.py exactly (strict objects). This file imports nothing from ./index:
+// odoo-addons/liwan_inbox/serializers/flows.py exactly (strict objects). This file imports nothing from ./index:
 // index re-exports it and composes the flow interactive, the template flow button and the submission into its own
-// shapes. Limits are Meta's unless marked "WebVue cap".
+// shapes. Limits are Meta's unless marked "LiwanOS cap".
 
 const Id = z.number().int().positive()
 const UtcDateTime = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/)
@@ -59,13 +59,13 @@ const fieldSchemas = <O extends z.ZodType, I extends z.ZodRawShape>(option: O, i
     member({
       kind: z.literal('text_input'), key: FieldKey, label: z.string().min(1).max(20), ...Required,
       input_type: InboxFlowInputTypeSchema, helper_text: HelperText,
-      // null leaves Meta's default (no minimum; at most 80 characters). 4096 is a WebVue cap.
+      // null leaves Meta's default (no minimum; at most 80 characters). 4096 is a LiwanOS cap.
       min_chars: z.number().int().min(1).max(4096).nullable(),
       max_chars: z.number().int().min(1).max(4096).nullable(),
     }),
     member({
       kind: z.literal('text_area'), key: FieldKey, label: z.string().min(1).max(20), ...Required, helper_text: HelperText,
-      // null leaves Meta's default of 600 characters, which is also the WebVue cap.
+      // null leaves Meta's default of 600 characters, which is also the LiwanOS cap.
       max_length: z.number().int().min(1).max(600).nullable(),
     }),
     member({
@@ -98,7 +98,7 @@ export const InboxFlowFieldSchema = fieldSchemas(InboxFlowOptionSchema, { id: Id
 // ---------------------------------------------------------------- screens and flows
 
 const ScreenText = {
-  // WebVue cap: Meta does not document a limit for the title shown in the top bar.
+  // LiwanOS cap: Meta does not document a limit for the title shown in the top bar.
   title: z.string().min(1).max(80),
   // The bottom button: "next" on every screen but the last, which submits the form.
   footer_label: z.string().min(1).max(35),
@@ -132,7 +132,7 @@ const checkFlow = (flow: { screens: { fields: FieldWrite[] }[] }, context: z.Ref
     issue('a screen holds at most five opt-in boxes')
   }
   const optionCount = fields.reduce((total, field) => total + ('options' in field ? field.options.length : 0), 0)
-  if (optionCount > 1000) issue('a form holds at most 1000 choices in all')  // WebVue cap (request size)
+  if (optionCount > 1000) issue('a form holds at most 1000 choices in all')  // LiwanOS cap (request size)
   for (const field of fields) {
     if (field.kind === 'text_input' && field.min_chars !== null && field.max_chars !== null && field.min_chars > field.max_chars) {
       issue(`${field.key}: the minimum length exceeds the maximum`)
@@ -152,13 +152,13 @@ const checkFlow = (flow: { screens: { fields: FieldWrite[] }[] }, context: z.Ref
 
 // Create or replace a draft form (the whole form each time). Only drafts are written; a published form is copied.
 export const InboxFlowWriteSchema = z.object({
-  name: z.string().min(1).max(128),  // WebVue cap; unique per channel
+  name: z.string().min(1).max(128),  // LiwanOS cap; unique per channel
   category: InboxFlowCategorySchema,
   // Meta language code of the texts (ar, en, en_US, ...): sets the preview direction.
   language: z.string().regex(/^[a-z]{2,3}(_[A-Z]{2})?$/),
   // Sent automatically to the customer after each submission; null sends nothing.
   completion_message: z.string().min(1).max(4096).nullable(),
-  screens: z.array(InboxFlowScreenWriteSchema).min(1).max(10),  // WebVue cap: linear forms
+  screens: z.array(InboxFlowScreenWriteSchema).min(1).max(10),  // LiwanOS cap: linear forms
 }).strict().superRefine(checkFlow)
 
 // A problem Meta found in the uploaded form; publishing waits until there are none.
@@ -179,7 +179,7 @@ const FlowSummaryFields = {
   health: InboxFlowHealthSchema,
   provider_flow_id: z.string().nullable(),
   json_version: z.string().nullable(),
-  // False for a form made in WhatsApp Manager: WebVue sends it and stores its answers but cannot show its screens.
+  // False for a form made in WhatsApp Manager: LiwanOS sends it and stores its answers but cannot show its screens.
   supported: z.boolean(),
   // A supported draft.
   editable: z.boolean(),
@@ -208,7 +208,7 @@ export const InboxFlowSchema = z.object({
 // Copy a form into a new draft (the way to change a published one).
 export const InboxFlowCopySchema = z.object({
   name: z.string().min(1).max(128),
-  // When the copy is published: move WebVue's rules and automatic messages to it and deprecate the original.
+  // When the copy is published: move LiwanOS's rules and automatic messages to it and deprecate the original.
   replace: z.boolean(),
 }).strict()
 
@@ -237,7 +237,7 @@ export const InboxFlowInteractiveSchema = z.object({
 export const InboxTemplateFlowButtonSchema = z.object({
   type: z.literal('flow'),
   text: z.string(),
-  // Null when the form is not known to WebVue (made in WhatsApp Manager and not synced).
+  // Null when the form is not known to LiwanOS (made in WhatsApp Manager and not synced).
   flow: Ref.nullable(),
   provider_flow_id: z.string(),
 }).strict()
@@ -254,7 +254,7 @@ const AnswerHead = { key: z.string(), label: z.string() }
 export const InboxFlowChoiceSchema = z.object({ key: z.string(), title: z.string() }).strict()
 
 // One answer, typed by the field that collected it. Labels and titles are those of the form when it was answered.
-// `unknown` is an answer of a form WebVue cannot read (made in WhatsApp Manager), kept as text.
+// `unknown` is an answer of a form LiwanOS cannot read (made in WhatsApp Manager), kept as text.
 export const InboxFlowAnswerSchema = z.union([
   z.object({ ...AnswerHead, kind: z.enum(['text_input', 'text_area', 'unknown']), value: z.string() }).strict(),
   z.object({ ...AnswerHead, kind: z.enum(['dropdown', 'radio', 'checkbox']), choices: z.array(InboxFlowChoiceSchema) }).strict(),

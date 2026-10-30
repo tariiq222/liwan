@@ -255,7 +255,7 @@ export interface AppManifest {
    */
   recordListSources?: Array<{ pattern: RegExp; capability: string }>
   landing?: AppLandingEntry[]                                     // firstAllowedPath order within the app
-  capabilityAliases?: Record<string, string>                      // chat: { 'webvue.internal': 'chat.enabled' }
+  capabilityAliases?: Record<string, string>                      // chat: { 'liwan.internal': 'chat.enabled' }
   /**
    * Capability prefix → feature key for an application whose areas are features of their
    * own, e.g. hr's `{ 'hr.recruitment.': 'hr.recruitment' }`. A capability that matches a

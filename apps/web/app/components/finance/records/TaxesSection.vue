@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinanceTax } from '@webvue/contracts'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import type { FinanceTax } from '@liwan/contracts'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
 import { h } from 'vue'
 import { useArchiveSetupTax, useSetupTaxes } from '@/composables/finance/useFinanceRecords'
 import RecordArchiveConfirm from './RecordArchiveConfirm.vue'
@@ -46,7 +46,7 @@ const actions = (tax: FinanceTax): RowAction[] => [
     <template v-if="canManage" #actions>
       <UButton color="primary" icon="i-lucide-plus" :disabled="!list.hydrated.value || panel !== null" :label="t('financeRecords.taxes.new')" data-testid="finance-record-tax-new" @click="panel = { kind: 'create' }" />
     </template>
-    <div class="grid gap-(--webvue-gap-card)">
+    <div class="grid gap-(--liwan-gap-card)">
       <template v-if="panel">
         <RecordArchiveConfirm v-if="panel.kind === 'archive'" :key="panelKey(panel)" scope="taxes" :name="panel.tax.name" :active="panel.tax.active" :pending="archiving" :send="archive => send({ id: (panel as { tax: FinanceTax }).tax.id, archive })" @done="panel = null" @cancel="panel = null" />
         <TaxEditor v-else :key="panelKey(panel)" :tax="panel.kind === 'edit' ? panel.tax : undefined" @done="panel = null" @cancel="panel = null" />

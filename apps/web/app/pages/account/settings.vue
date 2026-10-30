@@ -14,7 +14,7 @@ const { clear: clearAiConversation } = useAiConversation()
 const { t, locale, setLocale } = useI18n()
 const toast = useToast()
 const { mode, fontSize, setMode, setFontSize } = useAppearance()
-const localeCookie = useCookie<string | null>('webvue-locale', { default: () => null, path: '/', sameSite: 'lax', maxAge: 60 * 60 * 24 * 365 })
+const localeCookie = useCookie<string | null>('liwan-locale', { default: () => null, path: '/', sameSite: 'lax', maxAge: 60 * 60 * 24 * 365 })
 const languages = [{ code: 'ar', name: 'العربية' }, { code: 'en', name: 'English' }] as const
 const modes: AppearanceMode[] = ['light', 'dark']
 const sizes: FontSize[] = ['small', 'medium', 'large']
@@ -23,7 +23,7 @@ const sizeGlyphClass: Record<FontSize, string> = { small: 'text-xs', medium: 'te
 const { me } = useMe()
 const hydrated = useHydrated()
 
-const navPreferenceKey = computed(() => `webvue-nav:${me.value?.id ?? 'anonymous'}`)
+const navPreferenceKey = computed(() => `liwan-nav:${me.value?.id ?? 'anonymous'}`)
 
 function chooseLanguage(code: (typeof languages)[number]['code']) {
   if (locale.value === code) return

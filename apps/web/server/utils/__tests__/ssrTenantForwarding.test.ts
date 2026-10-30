@@ -3,14 +3,14 @@ import { readFileSync, mkdtempSync, writeFileSync, mkdirSync, realpathSync, rmSy
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import ts from 'typescript'
-import { ApiErrorSchema } from '@webvue/contracts'
+import { ApiErrorSchema } from '@liwan/contracts'
 import { tenantRequest, tenantUpstreamHeaders } from '../tenantRequest'
 import { installReleaseContext } from '../releaseRequest'
 import type { H3Event } from 'h3'
 
 const directories: string[] = []
 function temporaryDirectory() {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), 'webvue-ssr-fixture-')))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'liwan-ssr-fixture-')))
   directories.push(root)
   return root
 }
@@ -21,9 +21,9 @@ afterEach(() => {
 it('source SSR replay: cookie-only local dispatch fails; validated event identity repairs only local API', async () => {
   const path = join(temporaryDirectory(), 'registry.json')
   writeFileSync(path, JSON.stringify({ schemaVersion: 1, snapshotRevision: 1, targets: [{ host: 'a.example.test', tenantId: 'a', database: 'db_a', filestore: 'db_a', enabled: true, registryRevision: 1 }] }))
-  vi.stubEnv('WEBVUE_TENANCY_MODE', 'shared'); vi.stubEnv('WEBVUE_TENANT_REGISTRY_PATH', path)
-  const token = 'synthetic-token'.repeat(4); vi.stubEnv('WEBVUE_SHARED_PROXY_TOKEN', token)
-  const headers: Record<string, string> = { host: 'a.example.test', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1', cookie: 'session_id=envelope' }
+  vi.stubEnv('LIWAN_TENANCY_MODE', 'shared'); vi.stubEnv('LIWAN_TENANT_REGISTRY_PATH', path)
+  const token = 'synthetic-token'.repeat(4); vi.stubEnv('LIWAN_SHARED_PROXY_TOKEN', token)
+  const headers: Record<string, string> = { host: 'a.example.test', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1', cookie: 'session_id=envelope' }
   const event = (h: Record<string, string>) => ({ node: { req: { headers: h } } }) as never
   // Exact pre-fix cookie-only shape (Nitro transport itself is not mocked as proven).
   expect(() => tenantRequest(event({ cookie: headers.cookie! }))).toThrow('tenant_boundary_rejected')
@@ -60,16 +60,16 @@ function releaseFixture(mode: 'shared' | 'dedicated') {
   writeFileSync(join(root, 'leases', 'a', `${admission}.json`), JSON.stringify(route))
   const registry = join(root, 'registry.json')
   writeFileSync(registry, JSON.stringify({ schemaVersion: 1, snapshotRevision: 1, targets: [{ host, tenantId: 'a', database: 'db_a', filestore: 'db_a', enabled: true, registryRevision: 1 }] }))
-  vi.stubEnv('WEBVUE_TENANCY_MODE', mode)
-  vi.stubEnv('WEBVUE_RELEASE_ROUTES_DIR', root)
-  vi.stubEnv('WEBVUE_TENANT_REGISTRY_PATH', registry)
-  vi.stubEnv('WEBVUE_SHARED_PROXY_TOKEN', token)
-  vi.stubEnv('WEBVUE_DEDICATED_PROXY_TOKEN', token)
-  vi.stubEnv('WEBVUE_RELEASE_TENANT_ID', 'a')
-  vi.stubEnv('WEBVUE_RELEASE_TENANT_HOST', host)
-  vi.stubEnv('WEBVUE_RELEASE_IDENTITY_REVISION', '1')
-  vi.stubEnv('WEBVUE_RELEASE_POOL_ID', 'blue')
-  const headers: Record<string, string> = { host, cookie: 'session_id=existing-session', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1', 'x-webvue-release-pool': 'blue', 'x-webvue-release-revision': '3', 'x-webvue-release-fence': '5', 'x-webvue-release-admission': admission, 'x-webvue-client-ip': '203.0.113.7', 'x-webvue-client-host': host, 'x-webvue-client-proto': 'https' }
+  vi.stubEnv('LIWAN_TENANCY_MODE', mode)
+  vi.stubEnv('LIWAN_RELEASE_ROUTES_DIR', root)
+  vi.stubEnv('LIWAN_TENANT_REGISTRY_PATH', registry)
+  vi.stubEnv('LIWAN_SHARED_PROXY_TOKEN', token)
+  vi.stubEnv('LIWAN_DEDICATED_PROXY_TOKEN', token)
+  vi.stubEnv('LIWAN_RELEASE_TENANT_ID', 'a')
+  vi.stubEnv('LIWAN_RELEASE_TENANT_HOST', host)
+  vi.stubEnv('LIWAN_RELEASE_IDENTITY_REVISION', '1')
+  vi.stubEnv('LIWAN_RELEASE_POOL_ID', 'blue')
+  const headers: Record<string, string> = { host, cookie: 'session_id=existing-session', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1', 'x-liwan-release-pool': 'blue', 'x-liwan-release-revision': '3', 'x-liwan-release-fence': '5', 'x-liwan-release-admission': admission, 'x-liwan-client-ip': '203.0.113.7', 'x-liwan-client-host': host, 'x-liwan-client-proto': 'https' }
   const dispatch = (incoming: Record<string, string>) => {
     const event = { node: { req: { headers: incoming } }, context: {} } as H3Event
     event.context.tenant = tenantRequest(event)
@@ -95,19 +95,19 @@ it.each(['shared', 'dedicated'] as const)('actual %s release SSR dispatch keeps 
   const { headers, dispatch } = releaseFixture(mode)
   const outer = dispatch(headers).event
   if (mode === 'dedicated') {
-    // The dedicated tenant resolver deliberately remains null: webvueRelease is the validated SSR authority.
+    // The dedicated tenant resolver deliberately remains null: liwanRelease is the validated SSR authority.
     expect(outer.context.tenant).toBeNull()
-    expect(outer.context.webvueRelease?.tenantId).toBe('a')
+    expect(outer.context.liwanRelease?.tenantId).toBe('a')
   }
-  const identityOnly = Object.fromEntries(['cookie', 'host', 'x-webvue-proxy-token', 'x-webvue-tenant-revision'].map(name => [name, headers[name]!]))
+  const identityOnly = Object.fromEntries(['cookie', 'host', 'x-liwan-proxy-token', 'x-liwan-tenant-revision'].map(name => [name, headers[name]!]))
   expect(() => dispatch(identityOnly)).toThrow()
   let observed: ReturnType<typeof dispatch> | undefined
   const { $api, fetch } = sourceApi(headers, outer.context, incoming => { observed = dispatch(incoming) })
   await expect($api('/api/v1/me')).resolves.toEqual({ ok: true })
   expect(fetch.mock.calls[0]![1].headers).toStrictEqual(headers)
-  expect(observed?.event.context.webvueRelease).toMatchObject({ poolId: 'blue', routeRevision: 3, fence: 5, admissionId: headers['x-webvue-release-admission'] })
-  expect(observed?.upstream).toMatchObject({ host: headers.host, 'x-webvue-proxy-token': headers['x-webvue-proxy-token'], 'x-webvue-release-pool': 'blue', 'x-webvue-release-revision': '3', 'x-webvue-release-fence': '5', 'x-webvue-release-admission': headers['x-webvue-release-admission'] })
-  if (mode === 'dedicated') expect(observed?.upstream).toMatchObject({ 'x-webvue-client-ip': '203.0.113.7', 'x-webvue-client-host': headers.host, 'x-webvue-client-proto': 'https' })
+  expect(observed?.event.context.liwanRelease).toMatchObject({ poolId: 'blue', routeRevision: 3, fence: 5, admissionId: headers['x-liwan-release-admission'] })
+  expect(observed?.upstream).toMatchObject({ host: headers.host, 'x-liwan-proxy-token': headers['x-liwan-proxy-token'], 'x-liwan-release-pool': 'blue', 'x-liwan-release-revision': '3', 'x-liwan-release-fence': '5', 'x-liwan-release-admission': headers['x-liwan-release-admission'] })
+  if (mode === 'dedicated') expect(observed?.upstream).toMatchObject({ 'x-liwan-client-ip': '203.0.113.7', 'x-liwan-client-host': headers.host, 'x-liwan-client-proto': 'https' })
   for (const path of ['https://evil.test/api/v1/me', '//evil.test/api/v1/me', '/api/v1/../auth/login', '/api/v1/%2e%2e/auth', '/other']) {
     await $api(path)
     expect(fetch.mock.calls.at(-1)![1].headers).toStrictEqual({})

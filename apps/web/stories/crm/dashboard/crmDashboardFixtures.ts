@@ -1,4 +1,4 @@
-import type { CrmDashboard, CrmOpportunity } from '@webvue/contracts'
+import type { CrmDashboard, CrmOpportunity } from '@liwan/contracts'
 
 const base: CrmOpportunity = {
   id: 1, contact_name: 'أحمد العتيبي', phone: '0501234567', email: '', stage: { id: 1, name: 'جديد' }, user: { id: 3, name: 'ليلى الحربي' },

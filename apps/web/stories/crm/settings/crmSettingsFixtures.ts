@@ -1,4 +1,4 @@
-import type { CrmSettings } from '@webvue/contracts'
+import type { CrmSettings } from '@liwan/contracts'
 
 export const crmSettings: CrmSettings = {
   revision: 3,

@@ -1,5 +1,5 @@
-import { FinanceZatcaErrorCodeSchema, FinanceZatcaOnboardInputSchema, type FinanceZatcaStatus } from '@webvue/contracts'
-import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
+import { FinanceZatcaErrorCodeSchema, FinanceZatcaOnboardInputSchema, type FinanceZatcaStatus } from '@liwan/contracts'
+import type { StatusTone } from '@liwan/ui/app/utils/statusTone'
 import { financeErrorMessage } from '../financeErrors'
 
 export const OTP_LENGTH = 6

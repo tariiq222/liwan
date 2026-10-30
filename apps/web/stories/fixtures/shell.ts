@@ -1,4 +1,4 @@
-import { BrandingSchema, MeSchema } from '@webvue/contracts'
+import { BrandingSchema, MeSchema } from '@liwan/contracts'
 import { contextLinksForModule, visibleShellModules, type ShellContextLink } from '../../app/composables/nav/shellModules'
 import { contextLinkTestId, railModel, sidebarModel, subListSections } from '../../app/composables/nav/sidebarModel'
 
@@ -11,7 +11,7 @@ export const shellMe = MeSchema.parse({
     'meetings.read', 'meetings.create', 'hr.employees.read', 'hr.departments.read', 'documents.items.read',
     'access.users.read', 'access.roles.read', 'access.audit.read', 'settings.branding.manage',
   ],
-  modules: ['webvue_pmo', 'webvue_meetings', 'webvue_hr', 'webvue_documents'],
+  modules: ['liwan_pmo', 'liwan_meetings', 'liwan_hr', 'liwan_documents'],
   platform: {
     schema_version: 1, policy_revision: 1, state: 'active', valid_until: null, read_only: false,
     readable_features: ['pmo.enabled', 'meetings.enabled', 'documents.enabled', 'hr.enabled'],

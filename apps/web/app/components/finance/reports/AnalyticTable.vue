@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinanceAnalyticReport, FinanceAnalyticReportLine } from '@webvue/contracts'
+import type { FinanceAnalyticReport, FinanceAnalyticReportLine } from '@liwan/contracts'
 import Money from '../invoices/Money.vue'
 import { amountColumn } from './reportColumns'
 import { accountToggleTo } from './reportLinks'
@@ -48,7 +48,7 @@ const lineFigures = (row: Extract<AnalyticRow, { kind: 'line' }>) => [
 
 <template>
   <div class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,820px)]">
-    <UAlert v-if="linesFailed" role="alert" color="error" variant="subtle" class="m-(--webvue-card-pad-dense)" :title="t('financeReports.linesFailed')" />
+    <UAlert v-if="linesFailed" role="alert" color="error" variant="subtle" class="m-(--liwan-card-pad-dense)" :title="t('financeReports.linesFailed')" />
     <SharedDataTable bare :rows="rows" :columns="columns" row-key="key" :empty-text="t('financeReports.empty')" :caption="t('financeReports.reports.analytic.title')">
       <template #name-cell="{ row }">
         <NuxtLink v-if="row.original.kind === 'account'" :to="accountTo(row.original.row.account.id)" class="inline-flex items-center gap-2 font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :data-testid="`finance-analytic-report-account-${row.original.row.account.id}`">

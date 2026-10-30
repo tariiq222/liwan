@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { InboxTemplate } from '@webvue/contracts'
+import type { InboxTemplate } from '@liwan/contracts'
 import { INTERACTIVE_LIMITS, buildInteractive, emptyInteractiveDraft, interactiveToDraft, normalizeInteractiveDraft } from '../inboxInteractive'
 import { autoContentToDraft, buildAutoContent, emptyAutoContentDraft } from '../inboxAutomation'
 import { buttonProblems, canAddButton, draftFromTemplate, emptyButton, emptyTemplateDraft, templateWriteCandidate, validateTemplateDraft } from '../inboxTemplate'
@@ -57,7 +57,7 @@ describe('a template form button', () => {
     expect(buttonProblems(one)).toEqual([])
   })
 
-  it('reads back from a stored template, with its form or without it when WebVue does not know it', () => {
+  it('reads back from a stored template, with its form or without it when LiwanOS does not know it', () => {
     const template = {
       id: 1, name: 'booking', language: 'ar', category: 'utility', status: 'approved', status_reason: null, quality: 'green', header: null, body: 'احجز', body_examples: [], footer: null,
       add_security_recommendation: false, code_expiration_minutes: null, param_count: 0, editable: true, otp_button_text: null, supported: true,

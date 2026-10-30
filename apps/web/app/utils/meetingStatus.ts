@@ -1,5 +1,5 @@
-import { badgeLabel, statusBadgeEntry, type StatusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
-import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
+import { badgeLabel, statusBadgeEntry, type StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
+import type { StatusTone } from '@liwan/ui/app/utils/statusTone'
 
 export type MeetingState = 'draft' | 'confirmed' | 'done' | 'cancelled'
 export type ResolutionState = 'open' | 'in_progress' | 'done' | 'cancelled'

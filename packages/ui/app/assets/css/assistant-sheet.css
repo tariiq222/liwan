@@ -2,10 +2,10 @@
    Geometry reads the shell variables of shell.css (--shell-top, --shell-inset, --module-rail-width, --context-sidebar-*).
    >= 1100px the workspace gives the sheet its room; 768-1099px the sheet floats over it under a scrim; below 768px it
    covers the screen. ShellFrame reflects the open state as data-sheet="open". */
-.webvue-shell { --assistant-sheet-width: 380px; }
+.liwan-shell { --assistant-sheet-width: 380px; }
 
 /* Header button: a white pill, the solid assistant circle, the label; the open state is a 2px primary ring. */
-.webvue-assistant-button {
+.liwan-assistant-button {
   display: inline-flex;
   height: 38px;
   flex: none;
@@ -22,15 +22,15 @@
   white-space: nowrap;
   cursor: pointer;
 }
-.webvue-assistant-button:hover { background: var(--ui-bg-elevated); }
-.webvue-assistant-button[data-open="true"] { box-shadow: inset 0 0 0 2px var(--ui-primary); }
-.webvue-assistant-button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
-:is(.webvue-assistant-button-mark, .webvue-assistant-mark) { display: grid; flex: none; place-items: center; border-radius: 9999px; background: var(--ui-primary); color: var(--primary-foreground); }
-.webvue-assistant-button-mark { width: 26px; height: 26px; }
-.webvue-assistant-mark { width: 30px; height: 30px; }
+.liwan-assistant-button:hover { background: var(--ui-bg-elevated); }
+.liwan-assistant-button[data-open="true"] { box-shadow: inset 0 0 0 2px var(--ui-primary); }
+.liwan-assistant-button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+:is(.liwan-assistant-button-mark, .liwan-assistant-mark) { display: grid; flex: none; place-items: center; border-radius: 9999px; background: var(--ui-primary); color: var(--primary-foreground); }
+.liwan-assistant-button-mark { width: 26px; height: 26px; }
+.liwan-assistant-mark { width: 30px; height: 30px; }
 
 /* The sheet: between the header and the bottom inset, a card with the floating-layer shadow. */
-.webvue-assistant-sheet {
+.liwan-assistant-sheet {
   position: fixed;
   inset-block: var(--shell-top) var(--shell-inset);
   inset-inline-end: var(--shell-inset);
@@ -43,32 +43,32 @@
   background: var(--ui-bg);
   border: 1px solid var(--ui-border);
   border-radius: var(--radius-card);
-  box-shadow: var(--webvue-shell-shadow);
+  box-shadow: var(--liwan-shell-shadow);
   color: var(--ui-text);
 }
-.webvue-assistant-head { display: flex; height: var(--shell-header-height); flex: none; align-items: center; gap: 8px; padding-inline: 8px 12px; border-block-end: 1px solid var(--ui-border); }
-.webvue-assistant-title { margin: 0; flex: none; color: var(--ui-text-highlighted); font-size: var(--text-sm); font-weight: 600; line-height: 1.5; }
-.webvue-assistant-module { display: inline-flex; height: 24px; min-width: 0; align-items: center; padding-inline: 10px; overflow: hidden; border-radius: 9999px; background: var(--webvue-rail-active); color: var(--webvue-rail-active-ink); font-size: var(--text-xs); font-weight: 600; line-height: 1.5; text-overflow: ellipsis; white-space: nowrap; }
-.webvue-assistant-head-space { flex: 1; }
-.webvue-assistant-action { display: grid; width: 32px; height: 32px; flex: none; place-items: center; padding: 0; border: 0; border-radius: 9999px; background: transparent; color: var(--ui-text-muted); cursor: pointer; }
-.webvue-assistant-action:hover { background: var(--ui-bg-elevated); color: var(--ui-text-highlighted); }
-.webvue-assistant-action:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
-:is(.webvue-assistant-button, .webvue-assistant-action):active { background: var(--ui-bg-accented); transition: none; }
-.webvue-assistant-body { display: flex; min-height: 0; flex: 1; flex-direction: column; overflow-y: auto; overscroll-behavior-y: contain; }
-:lang(ar) :is(.webvue-assistant-button, .webvue-assistant-title, .webvue-assistant-module) { letter-spacing: normal; }
+.liwan-assistant-head { display: flex; height: var(--shell-header-height); flex: none; align-items: center; gap: 8px; padding-inline: 8px 12px; border-block-end: 1px solid var(--ui-border); }
+.liwan-assistant-title { margin: 0; flex: none; color: var(--ui-text-highlighted); font-size: var(--text-sm); font-weight: 600; line-height: 1.5; }
+.liwan-assistant-module { display: inline-flex; height: 24px; min-width: 0; align-items: center; padding-inline: 10px; overflow: hidden; border-radius: 9999px; background: var(--liwan-rail-active); color: var(--liwan-rail-active-ink); font-size: var(--text-xs); font-weight: 600; line-height: 1.5; text-overflow: ellipsis; white-space: nowrap; }
+.liwan-assistant-head-space { flex: 1; }
+.liwan-assistant-action { display: grid; width: 32px; height: 32px; flex: none; place-items: center; padding: 0; border: 0; border-radius: 9999px; background: transparent; color: var(--ui-text-muted); cursor: pointer; }
+.liwan-assistant-action:hover { background: var(--ui-bg-elevated); color: var(--ui-text-highlighted); }
+.liwan-assistant-action:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+:is(.liwan-assistant-button, .liwan-assistant-action):active { background: var(--ui-bg-accented); transition: none; }
+.liwan-assistant-body { display: flex; min-height: 0; flex: 1; flex-direction: column; overflow-y: auto; overscroll-behavior-y: contain; }
+:lang(ar) :is(.liwan-assistant-button, .liwan-assistant-title, .liwan-assistant-module) { letter-spacing: normal; }
 
-.webvue-assistant-sheet-enter-active, .webvue-assistant-sheet-leave-active { transition: opacity var(--webvue-motion-panel) var(--webvue-motion-ease), translate var(--webvue-motion-panel) var(--webvue-motion-ease); }
-.webvue-assistant-sheet-enter-from, .webvue-assistant-sheet-leave-to { opacity: 0; translate: var(--webvue-motion-inline-distance) 0; }
-html[dir="rtl"] :is(.webvue-assistant-sheet-enter-from, .webvue-assistant-sheet-leave-to) { translate: calc(-1 * var(--webvue-motion-inline-distance)) 0; }
+.liwan-assistant-sheet-enter-active, .liwan-assistant-sheet-leave-active { transition: opacity var(--liwan-motion-panel) var(--liwan-motion-ease), translate var(--liwan-motion-panel) var(--liwan-motion-ease); }
+.liwan-assistant-sheet-enter-from, .liwan-assistant-sheet-leave-to { opacity: 0; translate: var(--liwan-motion-inline-distance) 0; }
+html[dir="rtl"] :is(.liwan-assistant-sheet-enter-from, .liwan-assistant-sheet-leave-to) { translate: calc(-1 * var(--liwan-motion-inline-distance)) 0; }
 
 /* Wide: the workspace reserves the sheet's room so nothing is covered. */
 @media (min-width: 1100px) {
-  .webvue-shell[data-sheet="open"] .webvue-shell-workspace { margin-inline-end: calc(var(--shell-inset) * 2 + var(--assistant-sheet-width)); }
-  .webvue-shell-workspace { transition-property: margin-inline-start, margin-inline-end; }
+  .liwan-shell[data-sheet="open"] .liwan-shell-workspace { margin-inline-end: calc(var(--shell-inset) * 2 + var(--assistant-sheet-width)); }
+  .liwan-shell-workspace { transition-property: margin-inline-start, margin-inline-end; }
 }
 
 /* Medium: the sheet floats over the workspace; the scrim leaves the rail and the context strip usable. */
-.webvue-assistant-scrim {
+.liwan-assistant-scrim {
   position: fixed;
   inset-block: var(--shell-top) 0;
   inset-inline: calc(var(--shell-inset) * 2 + var(--module-rail-width) + var(--context-sidebar-width) + var(--context-sidebar-gap)) 0;
@@ -78,19 +78,19 @@ html[dir="rtl"] :is(.webvue-assistant-sheet-enter-from, .webvue-assistant-sheet-
 
 /* Small: the sheet is a full-screen layer above the header, opened from the header button; 44px touch targets. */
 @media (max-width: 767px) {
-  .webvue-assistant-sheet { inset: 0; z-index: 70; width: auto; max-width: none; border: 0; border-radius: 0; box-shadow: none; }
-  .webvue-assistant-head { padding-block-start: env(safe-area-inset-top); height: calc(var(--shell-header-height) + env(safe-area-inset-top)); }
-  .webvue-assistant-action { width: 44px; height: 44px; }
-  .webvue-assistant-button { width: 44px; height: 44px; justify-content: center; padding: 0; }
-  .webvue-assistant-button-label { display: none; }
+  .liwan-assistant-sheet { inset: 0; z-index: 70; width: auto; max-width: none; border: 0; border-radius: 0; box-shadow: none; }
+  .liwan-assistant-head { padding-block-start: env(safe-area-inset-top); height: calc(var(--shell-header-height) + env(safe-area-inset-top)); }
+  .liwan-assistant-action { width: 44px; height: 44px; }
+  .liwan-assistant-button { width: 44px; height: 44px; justify-content: center; padding: 0; }
+  .liwan-assistant-button-label { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .webvue-assistant-sheet-enter-active, .webvue-assistant-sheet-leave-active, .webvue-shell-workspace { transition: none; }
-  .webvue-assistant-sheet { translate: none; }
-  .webvue-assistant-body { overscroll-behavior: none; scroll-behavior: auto; }
+  .liwan-assistant-sheet-enter-active, .liwan-assistant-sheet-leave-active, .liwan-shell-workspace { transition: none; }
+  .liwan-assistant-sheet { translate: none; }
+  .liwan-assistant-body { overscroll-behavior: none; scroll-behavior: auto; }
 }
 
 @media (prefers-contrast: more) {
-  .webvue-assistant-sheet { border-color: var(--ui-text); }
+  .liwan-assistant-sheet { border-color: var(--ui-text); }
 }

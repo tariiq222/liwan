@@ -75,7 +75,7 @@ export function useSettingsScrollSpy(ids: MaybeRefOrGetter<readonly string[]>) {
     useEventListener(window, 'scroll', () => reselect(), { passive: true })
     useEventListener(document, 'click', (event: MouseEvent) => {
       if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
-      const anchor = (event.target as Element | null)?.closest<HTMLAnchorElement>('.webvue-sub-list a[href]')
+      const anchor = (event.target as Element | null)?.closest<HTMLAnchorElement>('.liwan-sub-list a[href]')
       const id = anchor && anchor.pathname === location.pathname && anchor.hash ? partFromHash(anchor.hash, toValue(ids)) : null
       if (!id) return
       event.preventDefault()

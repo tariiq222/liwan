@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw'
-import type { HrEmployee, HrLeave } from '@webvue/contracts'
+import type { HrEmployee, HrLeave } from '@liwan/contracts'
 import { me } from '../fixtures/pmo'
 
 export const employee: HrEmployee = {

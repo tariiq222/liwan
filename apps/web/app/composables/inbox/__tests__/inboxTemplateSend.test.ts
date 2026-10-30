@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { InboxReplyCreateSchema, type InboxTemplate } from '@webvue/contracts'
+import { InboxReplyCreateSchema, type InboxTemplate } from '@liwan/contracts'
 import { buildTemplateReply, dynamicButtons, headerInput, templateReplyReady, type TemplateSendInput } from '../inboxTemplateSend'
 
 const BASE: InboxTemplate = {

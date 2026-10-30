@@ -1,4 +1,4 @@
-import { formatDate, formatTime } from '@webvue/ui/app/utils/formatDate'
+import { formatDate, formatTime } from '@liwan/ui/app/utils/formatDate'
 
 const DAY_MS = 86_400_000
 const WEEK_DAYS = 6

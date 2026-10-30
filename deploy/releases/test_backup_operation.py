@@ -13,14 +13,14 @@ class BackupOperationTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve()
         self.state = ReleaseState(self.root / 'state')
-        self.binding = {'tenantId':'tenant_a','database':'webvue_scratch_a','filestore':'webvue_scratch_a','registryRevision':1}
+        self.binding = {'tenantId':'tenant_a','database':'liwan_scratch_a','filestore':'liwan_scratch_a','registryRevision':1}
         self.route = {'schemaVersion':1,'tenantId':'tenant_a','identityRevision':1,'routeRevision':1,'releaseId':'r1','poolId':'blue','fence':1,'state':'serving'}
         self.state.register(self.binding, self.route)
-        other = {**self.binding,'tenantId':'tenant_b','database':'webvue_scratch_b','filestore':'webvue_scratch_b'}
+        other = {**self.binding,'tenantId':'tenant_b','database':'liwan_scratch_b','filestore':'liwan_scratch_b'}
         self.state.register(other, {**self.route,'tenantId':'tenant_b'})
-        self.previous = {'version':2,'tenantId':'tenant_a','database':'webvue_scratch_a','filestore':'webvue_scratch_a',
+        self.previous = {'version':2,'tenantId':'tenant_a','database':'liwan_scratch_a','filestore':'liwan_scratch_a',
             'registryRevision':1,'releaseId':'r1','poolId':'blue','routeRevision':1,'fence':1,
-            'image':'webvue/odoo@sha256:'+'a'*64,'roles':['role_blue','role_green'],
+            'image':'liwan/odoo@sha256:'+'a'*64,'roles':['role_blue','role_green'],
             'grants':{'role_blue':True,'role_green':False},'cron':{'blue-cron':{'containerId':'1'*64,'running':False}}}
         self.events = []
         self.failure = None

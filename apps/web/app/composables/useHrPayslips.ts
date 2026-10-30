@@ -2,7 +2,7 @@ import { useHrOwnIdentity } from './useHrOwnIdentity'
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
-import { HrMyPayslipListSchema, HrPayslipSchema } from '@webvue/contracts'
+import { HrMyPayslipListSchema, HrPayslipSchema } from '@liwan/contracts'
 
 type Api = ReturnType<typeof useApi>['$api']
 

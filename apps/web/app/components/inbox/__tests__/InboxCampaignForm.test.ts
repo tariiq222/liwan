@@ -3,7 +3,7 @@ import { compileScript, parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import type { InboxCampaign, InboxTemplate } from '@webvue/contracts'
+import type { InboxCampaign, InboxTemplate } from '@liwan/contracts'
 import * as params from '../../../composables/inbox/inboxCampaignParams'
 
 const filename = new URL('../campaigns/InboxCampaignForm.vue', import.meta.url).pathname

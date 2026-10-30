@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Seed one Saudi company with a realistic finance and HR volume on a scratch database.
 
-    python3 -B tools/perf/run_seed.py [--database webvue_scratch_x] [--scale 1.0]
+    python3 -B tools/perf/run_seed.py [--database liwan_scratch_x] [--scale 1.0]
 
 The launcher pipes this file into ``odoo-bin shell`` with ``PERF_SCALE`` set. Scale 1.0 is ~300 employees, ~2,000 partners, 120,000 posted customer invoices and 20,000 vendor
 bills over twelve months (about 760k move lines, measured 189k at scale 0.25), payments for ~70% of them, 20 assets and a
@@ -22,7 +22,7 @@ from odoo.tests import new_test_user
 TODAY = date(2026, 10, 19)
 PERIOD_START = date(2025, 11, 1)
 COMPANY_NAME = 'Perf Co'
-SCRATCH_DB = re.compile(r'webvue_scratch_[a-z0-9_]{1,42}')
+SCRATCH_DB = re.compile(r'liwan_scratch_[a-z0-9_]{1,42}')
 INVOICE_BATCH = 500
 PAYMENT_RATE = 0.7
 FULL_SIZE = {'employees': 300, 'partners': 2000, 'invoices': 120000, 'bills': 20000, 'assets': 20}
@@ -36,7 +36,7 @@ def log(message):
 
 def seed(env, scale):
     if not SCRATCH_DB.fullmatch(env.cr.dbname):
-        raise SystemExit('refusing database %r: only webvue_scratch_* names are allowed' % env.cr.dbname)
+        raise SystemExit('refusing database %r: only liwan_scratch_* names are allowed' % env.cr.dbname)
     if env['res.company'].search_count([('name', '=', COMPANY_NAME)]):
         raise SystemExit('%s already exists in %s: seed a fresh database' % (COMPANY_NAME, env.cr.dbname))
     login, password = os.environ['PERF_LOGIN'], os.environ['PERF_PASSWORD']
@@ -62,15 +62,15 @@ def seed(env, scale):
     env['account.chart.template'].try_loading('sa', company)
     zatca = env.ref('l10n_sa_edi.edi_sa_zatca')
     env['account.journal'].search([('company_id', '=', company.id)]).edi_format_ids = [Command.unlink(zatca.id)]
-    env['webvue.tenant.profile']._webvue_initialize_legacy_policy(
-        env['webvue.feature.registry']._webvue_installed_module_ids())
+    env['liwan.tenant.profile']._liwan_initialize_legacy_policy(
+        env['liwan.feature.registry']._liwan_installed_module_ids())
     manager = new_test_user(
         env, login=login, password=password, name='Perf Finance Manager',
-        groups='webvue_core.group_employee', company_id=company.id, company_ids=[Command.set(company.ids)])
-    service = env['webvue.access.service']
-    service._webvue_replace_assignments(manager, [
-        {'role_id': env.ref('webvue_finance.role_finance_manager').id, 'company_id': company.id},
-        {'role_id': env.ref('webvue_hr.role_hr_manager').id, 'company_id': company.id},
+        groups='liwan_core.group_employee', company_id=company.id, company_ids=[Command.set(company.ids)])
+    service = env['liwan.access.service']
+    service._liwan_replace_assignments(manager, [
+        {'role_id': env.ref('liwan_finance.role_finance_manager').id, 'company_id': company.id},
+        {'role_id': env.ref('liwan_hr.role_hr_manager').id, 'company_id': company.id},
     ])
     env = env(context=dict(env.context, allowed_company_ids=company.ids))
     company = company.with_env(env)
@@ -193,14 +193,14 @@ def seed(env, scale):
     assets.validate()
     budget = env['mis.budget.by.account'].create({
         'name': 'Budget 2026', 'date_from': date(2026, 1, 1), 'date_to': date(2026, 12, 31), 'company_id': company.id})
-    budget_service = env['webvue.finance.budget']
+    budget_service = env['liwan.finance.budget']
     for kind in ('expense', 'income'):
         for target in env['account.account'].with_company(company).search(
                 [('company_ids', 'in', company.ids), ('account_type', '=', kind)], limit=15):
             env['mis.budget.by.account.item'].create({
                 'budget_id': budget.id, 'company_id': company.id, 'name': target.name, 'account_id': target.id,
                 'date_from': budget.date_from, 'date_to': budget.date_to,
-                **budget_service._webvue_amount_values(target, rng.randint(50000, 500000)),
+                **budget_service._liwan_amount_values(target, rng.randint(50000, 500000)),
             })
     phase('assets and budget', begin)
 

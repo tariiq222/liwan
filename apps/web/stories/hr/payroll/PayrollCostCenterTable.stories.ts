@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import PayrollCostCenterTable from '../../../app/components/hr/payroll/PayrollCostCenterTable.vue'
-import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
+import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../../support/context'
 
 // The cost center of each department in the payroll settings. A choice is saved at once; the row being saved waits.
@@ -26,7 +26,7 @@ const meta = {
   render: args => ({
     components: { PayrollCostCenterTable, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="webvue-shell-main"><PageContainer width="list"><PayrollCostCenterTable v-bind="args" /></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer width="list"><PayrollCostCenterTable v-bind="args" /></PageContainer></main>',
   }),
 } satisfies Meta<typeof PayrollCostCenterTable>
 

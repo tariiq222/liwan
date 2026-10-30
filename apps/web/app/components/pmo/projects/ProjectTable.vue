@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
+import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import type { TableColumn } from '@nuxt/ui'
-import type { Project } from '@webvue/contracts'
+import type { Project } from '@liwan/contracts'
 import type { RouteLocationRaw } from 'vue-router'
-import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
+import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
 import { projectEndTagView, projectProgressTone, projectStatusPill } from './projectHealth'
 import ProjectCardBody from './ProjectCardBody.vue'
 import ProjectMenu from './ProjectMenu.vue'
@@ -75,7 +75,7 @@ function openLink(project: ProjectListItem, event: MouseEvent) {
     <!-- The row menu only asks; the confirmation takes the full width of the list, not the 56px menu cell. -->
     <SharedInlineConfirm
       v-if="archive.target.value"
-      class="m-(--webvue-card-pad-dense)"
+      class="m-(--liwan-card-pad-dense)"
       data-testid="project-archive-confirm"
       :title="t('projects.archiveConfirmTitle')"
       :description="t('projects.archiveConfirmText')"

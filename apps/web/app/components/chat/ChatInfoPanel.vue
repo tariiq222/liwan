@@ -4,7 +4,7 @@ import { ApiError } from '@/composables/useApi'
 import { useChatWritable } from '@/composables/useChat'
 import { CHAT_PAGE_SIZE, nextListOffset, parseChatListRoute, serializeChatListRoute } from '@/utils/chatState'
 import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
-import { avatarProps } from '@webvue/ui/app/utils/avatarTone'
+import { avatarProps } from '@liwan/ui/app/utils/avatarTone'
 
 // The body of a conversation's info: rename, notifications, members, files and leave. The conversation layout shows it
 // in its `info` aside (ChatWorkspace); the info page wraps it for the stand-alone route.

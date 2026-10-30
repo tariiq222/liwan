@@ -12,7 +12,7 @@ import {
   type InboxReportQuery,
   type InboxTemplateAnalyticsDetailQuery,
   type InboxTemplateAnalyticsQuery,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { saveBlob } from '../../utils/saveBlob'
 
 // Every key starts with 'inbox', so the bus handler's invalidation of ['inbox'] refreshes a report when the inbox changes.

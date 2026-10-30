@@ -1,4 +1,4 @@
-import type { ShellNavigationItem, ShellNavigationLink, ShellQuickItem } from '@webvue/ui/app/types/shell'
+import type { ShellNavigationItem, ShellNavigationLink, ShellQuickItem } from '@liwan/ui/app/types/shell'
 import { canReach, canReachPath, type AccessIdentity } from '../../utils/accessPolicy'
 import { sidebarPanelFor } from '../../modules/surfaces'
 import { createLinkTo, type CreateActionRoute } from './createActions'

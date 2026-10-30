@@ -70,7 +70,7 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <UForm novalidate :state="draft" class="webvue-form" method="post" data-testid="finance-invoice-form" @submit="submit">
+  <UForm novalidate :state="draft" class="liwan-form" method="post" data-testid="finance-invoice-form" @submit="submit">
     <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" data-testid="finance-invoice-form-error" />
     <SharedFormSection panel :title="t('financeDocuments.form.details')">
       <div class="grid gap-4">

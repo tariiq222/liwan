@@ -1,6 +1,6 @@
-import type { Milestone } from '@webvue/contracts'
+import type { Milestone } from '@liwan/contracts'
 import { getLocalTimeZone, today } from '@internationalized/date'
-import { toCalendarDate } from '@webvue/ui/app/composables/calendarDate'
+import { toCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 
 type MilestoneInput = Pick<Milestone, 'is_reached' | 'deadline'>
 

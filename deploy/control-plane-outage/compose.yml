@@ -1,17 +1,17 @@
 services:
   postgres:
     image: postgres@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229
-    container_name: webvue-saas-outage-fixture-postgres
+    container_name: liwan-saas-outage-fixture-postgres
     environment:
       POSTGRES_DB: postgres
-      POSTGRES_USER: webvue_fixture
+      POSTGRES_USER: liwan_fixture
       POSTGRES_PASSWORD: ${FIXTURE_PG_PASSWORD:?set in private ignored env file}
     ports:
       - "127.0.0.1:55439:5432"
     volumes:
       - outage_pg:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U webvue_fixture -d postgres"]
+      test: ["CMD-SHELL", "pg_isready -U liwan_fixture -d postgres"]
       interval: 2s
       timeout: 3s
       retries: 40
@@ -19,4 +19,4 @@ services:
 
 volumes:
   outage_pg:
-    name: webvue-saas-outage-fixture_outage_pg
+    name: liwan-saas-outage-fixture_outage_pg

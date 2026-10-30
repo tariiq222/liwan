@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
 import * as Vue from 'vue'
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_STUBS, fakeT, renderShared } from '@webvue/ui/test/helpers/renderShared'
+import { DEFAULT_STUBS, fakeT, renderShared } from '@liwan/ui/test/helpers/renderShared'
 import * as aiMarkdown from '../../../utils/aiMarkdown'
 import * as aiMarkdownRender from '../../../utils/aiMarkdownRender'
 
@@ -31,7 +31,7 @@ describe('AiMessage', () => {
     expect(html).toContain('data-avatar')
     expect(html).toContain('عندك مهمتان')
     expect(html).toContain('<em>مصادر</em>')
-    expect(html).not.toContain('bg-(--webvue-nav-active)')
+    expect(html).not.toContain('bg-(--liwan-nav-active)')
     expect(html).not.toContain('data-typing')
   })
 

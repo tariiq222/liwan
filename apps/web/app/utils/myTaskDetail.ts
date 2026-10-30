@@ -1,4 +1,4 @@
-import type { PersonalTask } from '@webvue/contracts'
+import type { PersonalTask } from '@liwan/contracts'
 import { deadlineDay } from './myTaskList'
 
 // Pure helpers of the personal task detail page: draft diffing and

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProjectDetail } from '@webvue/contracts'
+import type { ProjectDetail } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useArchiveProject, useUnarchiveProject } from '@/composables/useProjects'
 
@@ -35,7 +35,7 @@ async function restore() {
 </script>
 
 <template>
-  <div v-if="project.can_manage" class="grid gap-(--webvue-gap-card)" data-testid="project-archive-settings">
+  <div v-if="project.can_manage" class="grid gap-(--liwan-gap-card)" data-testid="project-archive-settings">
     <SharedInlineConfirm
       v-if="project.active && confirming"
       data-testid="project-archive-confirm"

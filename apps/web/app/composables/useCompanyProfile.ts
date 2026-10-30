@@ -7,7 +7,7 @@ import {
   type CompanyLogoUpload,
   type CompanyProfile,
   type CompanyProfilePatch,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 
 const ROUTE = '/api/v1/admin/company'
 const companyKeys = {

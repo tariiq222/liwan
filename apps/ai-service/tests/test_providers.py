@@ -2,10 +2,10 @@ import pytest
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 
+from liwan_ai_service.provider_registry import REGISTRY
+from liwan_ai_service.providers import build_chat_model
+from liwan_ai_service.settings import Settings, SettingsError
 from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call
-from webvue_ai_service.provider_registry import REGISTRY
-from webvue_ai_service.providers import build_chat_model
-from webvue_ai_service.settings import Settings, SettingsError
 
 
 def settings(provider, **extra):
@@ -61,10 +61,10 @@ def test_openrouter_defaults_to_its_endpoint_and_honours_the_override():
 def test_openrouter_attribution_headers_are_sent_only_when_set():
     bare = build_chat_model(settings("openrouter", AI_API_KEY="k"))
     assert not bare.default_headers
-    referer_only = build_chat_model(settings("openrouter", AI_API_KEY="k", AI_OPENROUTER_REFERER="https://webvue.example"))
-    assert referer_only.default_headers == {"HTTP-Referer": "https://webvue.example"}
-    both = build_chat_model(settings("openrouter", AI_API_KEY="k", AI_OPENROUTER_REFERER="https://webvue.example", AI_OPENROUTER_TITLE="WebVue"))
-    assert both.default_headers == {"HTTP-Referer": "https://webvue.example", "X-Title": "WebVue"}
+    referer_only = build_chat_model(settings("openrouter", AI_API_KEY="k", AI_OPENROUTER_REFERER="https://liwan.example"))
+    assert referer_only.default_headers == {"HTTP-Referer": "https://liwan.example"}
+    both = build_chat_model(settings("openrouter", AI_API_KEY="k", AI_OPENROUTER_REFERER="https://liwan.example", AI_OPENROUTER_TITLE="LiwanOS"))
+    assert both.default_headers == {"HTTP-Referer": "https://liwan.example", "X-Title": "LiwanOS"}
 
 
 async def test_scripted_model_replays_and_streams():

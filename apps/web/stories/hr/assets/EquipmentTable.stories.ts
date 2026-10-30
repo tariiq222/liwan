@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import EquipmentTable from '../../../app/components/hr/assets/EquipmentTable.vue'
-import ListCard from '@webvue/ui/app/components/shared/layout/ListCard.vue'
-import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
+import ListCard from '@liwan/ui/app/components/shared/layout/ListCard.vue'
+import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../../support/context'
 
 // The equipment table of /hr/assets: one row per asset with its category, holder and
@@ -33,7 +33,7 @@ const meta = {
   render: args => ({
     components: { EquipmentTable, ListCard, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="webvue-shell-main"><PageContainer width="list"><ListCard><EquipmentTable v-bind="args" /></ListCard></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer width="list"><ListCard><EquipmentTable v-bind="args" /></ListCard></PageContainer></main>',
   }),
 } satisfies Meta<typeof EquipmentTable>
 

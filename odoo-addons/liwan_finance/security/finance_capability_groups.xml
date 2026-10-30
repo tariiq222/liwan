@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Stock account ACLs and multi-company record rules do the reading; the routes gate on the capability.
+         Every capability group implies account.group_account_readonly on purpose: the routes read in the caller's
+         own environment (no sudo allowed), so the caller needs ORM read rights, and any one capability therefore
+         grants ORM read of all accounting data. The per-capability gate is the route, pinned by
+         tests/test_finance_capability_isolation.py. -->
+    <record id="group_cap_finance_invoices_read" model="res.groups"><field name="name">Capability: read finance invoices</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_payments_read" model="res.groups"><field name="name">Capability: read finance payments</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_accounts_read" model="res.groups"><field name="name">Capability: read finance accounts</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_zakat_review" model="res.groups"><field name="name">Capability: review finance review the zakat computation</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_zakat_manage" model="res.groups"><field name="name">Capability: manage finance manage zakat adjustments</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_payment_terms_read" model="res.groups"><field name="name">Capability: read finance payment terms</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_payment_terms_manage" model="res.groups"><field name="name">Capability: manage finance payment terms</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_taxes_read" model="res.groups"><field name="name">Capability: read finance taxes</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_taxes_manage" model="res.groups"><field name="name">Capability: manage finance taxes</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_accounts_manage" model="res.groups"><field name="name">Capability: manage finance accounts</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_journals_read" model="res.groups"><field name="name">Capability: read finance journals</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_journals_manage" model="res.groups"><field name="name">Capability: manage finance journals</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_setup_read" model="res.groups"><field name="name">Capability: read finance setup</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_setup_manage" model="res.groups"><field name="name">Capability: manage finance setup</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_reports_read" model="res.groups"><field name="name">Capability: read finance reports</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+
+
+    <!-- Write capabilities imply the least stock group that lets the ORM do the operation, because the routes
+         run in the caller's own environment (no sudo). account.group_account_manager is never implied.
+         - partners.read: nothing; every internal user already reads res.partner (company rule), the route gates.
+         - partners.manage: base.group_partner_manager, the stock group with res.partner create/write.
+         - invoices.manage: account.group_account_invoice, the stock group with account.move and move-line
+           create/write/unlink, plus read of journals, accounts and taxes.
+         - invoices.post: account.group_account_invoice, the same group; posting, cancelling and resetting
+           need no extra ACL, only the route separates it from drafting.
+         - payments.manage: account.group_account_invoice, the stock group with account.payment and
+           account.payment.register (wizard) create/write, and the payment method lines.
+         Consequence, as for the read grants: the stock group is broader than the capability (it allows ORM
+         writes on every invoice and payment), so the per-capability gate is the route, pinned by
+         tests/test_finance_write_access.py. -->
+    <record id="group_cap_finance_partners_read" model="res.groups"><field name="name">Capability: read finance partners</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.clear()]"/></record>
+    <record id="group_cap_finance_partners_manage" model="res.groups"><field name="name">Capability: manage finance partners</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('base.group_partner_manager'))]"/></record>
+    <record id="group_cap_finance_invoices_manage" model="res.groups"><field name="name">Capability: manage finance invoices</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_invoice'))]"/></record>
+    <record id="group_cap_finance_invoices_post" model="res.groups"><field name="name">Capability: post finance invoices</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_invoice'))]"/></record>
+    <record id="group_cap_finance_payments_manage" model="res.groups"><field name="name">Capability: manage finance payments</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_invoice'))]"/></record>
+
+    <!-- Journal entries: entries.read implies the read group like every read capability; entries.manage and
+         entries.post imply account.group_account_invoice (account.move create/write/unlink and posting need
+         no more), only the route separates drafting from posting. -->
+    <record id="group_cap_finance_entries_read" model="res.groups"><field name="name">Capability: read finance journal entries</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_entries_manage" model="res.groups"><field name="name">Capability: manage finance journal entries</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_invoice'))]"/></record>
+    <record id="group_cap_finance_entries_post" model="res.groups"><field name="name">Capability: post finance journal entries</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_invoice'))]"/></record>
+
+    <!-- Reports, assets and bank capabilities (OCA modules), the least stock group that lets the ORM do the operation:
+         - statements.read, zakat.read, bank.read: account.group_account_readonly, which sees all journal items, the
+           bank statements and their lines (the OCA report models and mis_builder read them in the caller's own
+           environment; the report wizards and mis.report are open to every internal user).
+         - assets.read: account.group_account_readonly, plus read-only ACLs on the account_asset_management models in
+           security/ir.model.access.csv (that module grants the readonly group nothing). It cannot write assets or
+           create journal entries.
+         - assets.manage: account.group_account_invoice, which also creates and posts the depreciation entries
+           (account.asset create/write and account.move create/write).
+         - bank.manage: account.group_account_basic, the stock group for basic bank reconciliation: statements and
+           statement lines create/write/unlink. It implies the Invoicing group, so it is BROADER than the capability:
+           the holder can also create, edit and post invoices, bills and payments through the ORM. Reconciling
+           writes journal entries, which that group may do.
+         Consequence, as for the grants above: the stock group is broader than the capability, so the route is the
+         per-capability gate (tests/test_finance_oca_access.py). -->
+    <record id="group_cap_finance_statements_read" model="res.groups"><field name="name">Capability: read finance statements</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_zakat_read" model="res.groups"><field name="name">Capability: read the Zakat base</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_bank_read" model="res.groups"><field name="name">Capability: read finance bank statements</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_bank_manage" model="res.groups"><field name="name">Capability: manage finance bank statements</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_basic'))]"/></record>
+    <record id="group_cap_finance_assets_read" model="res.groups"><field name="name">Capability: read finance fixed assets</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.set([ref('account.group_account_readonly')])]"/></record>
+    <record id="group_cap_finance_assets_manage" model="res.groups"><field name="name">Capability: manage finance fixed assets</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_invoice'))]"/></record>
+
+    <!-- ZATCA e-invoicing: all three capabilities imply only account.group_account_readonly. Stock l10n_sa_edi needs
+         far more than any finance group (res.company, account.journal and ir.sequence writes, system-only fields), so
+         the onboarding and submission run in models/zatca_service.py, the one documented elevation, after the
+         capability and current-company checks; no stock group is widened for it. -->
+    <record id="group_cap_finance_zatca_read" model="res.groups"><field name="name">Capability: read finance ZATCA status</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_zatca_manage" model="res.groups"><field name="name">Capability: onboard finance ZATCA journals</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_zatca_submit" model="res.groups"><field name="name">Capability: submit finance invoices to ZATCA</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+
+    <!-- Cost centers (stock analytic plans and accounts). Both capabilities imply account.group_account_readonly, the
+         stock group that reads analytic items and journal items (the report and the distribution on documents read them
+         in the caller's own environment, no sudo). Stock grants account.analytic.account read to every internal user but
+         account.analytic.plan only to the accountant groups, so the stock write group (analytic.group_analytic_accounting,
+         which also edits applicability rules and distribution models) is NOT implied: security/ir.model.access.csv gives
+         the read group read of plans and the manage group read, create and write (never delete) of plans and
+         accounts. Plans and accounts are archived or kept, never deleted. Creating or renaming a ROOT plan changes the
+         analytic table schema, so the route also requires finance.setup.manage.
+         Using a distribution on an invoice or entry line needs only the invoice or entry capability and the stock
+         group it implies: tests/test_finance_analytic_documents.py pins that a writer without finance.analytic.read posts. -->
+    <record id="group_cap_finance_analytic_read" model="res.groups"><field name="name">Capability: read finance cost centers</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_analytic_manage" model="res.groups"><field name="name">Capability: manage finance cost centers</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+
+    <!-- Budgets (OCA mis_builder_budget, budget by account): budgets.read implies account.group_account_readonly (the
+         report reads journal items and accounts in the caller's environment); budgets.manage implies the same group and
+         its write access to mis.budget.by.account and its items comes from security/ir.model.access.csv, because
+         mis_builder_budget grants write only to the full Accountant group. -->
+    <record id="group_cap_finance_budgets_read" model="res.groups"><field name="name">Capability: read finance budgets</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_budgets_manage" model="res.groups"><field name="name">Capability: manage finance budgets</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+
+    <!-- Year-end closing: closing.read implies account.group_account_readonly like every read capability; closing.manage
+         implies account.group_account_invoice, the least stock group that creates and posts the closing account.move.
+         The fiscal-year lock date is written through the documented setup elevation (models/setup_service.py), not a group. -->
+    <record id="group_cap_finance_closing_read" model="res.groups"><field name="name">Capability: read finance year-end closing</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_audit_read" model="res.groups"><field name="name">Capability: read the finance audit trail</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_closing_manage" model="res.groups"><field name="name">Capability: close finance fiscal years</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_invoice'))]"/></record>
+
+    <record id="group_finance_manager" model="res.groups">
+        <field name="name">Finance Manager</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/>
+        <field name="implied_ids" eval="[Command.set([ref('liwan_core.group_employee'),ref('group_cap_finance_invoices_read'),ref('group_cap_finance_payments_read'),ref('group_cap_finance_accounts_read'),ref('group_cap_finance_zakat_review'),ref('group_cap_finance_zakat_manage'),ref('group_cap_finance_payment_terms_read'),ref('group_cap_finance_payment_terms_manage'),ref('group_cap_finance_taxes_read'),ref('group_cap_finance_taxes_manage'),ref('group_cap_finance_accounts_manage'),ref('group_cap_finance_journals_read'),ref('group_cap_finance_journals_manage'),ref('group_cap_finance_partners_read'),ref('group_cap_finance_partners_manage'),ref('group_cap_finance_invoices_manage'),ref('group_cap_finance_invoices_post'),ref('group_cap_finance_payments_manage'),ref('group_cap_finance_setup_read'),ref('group_cap_finance_setup_manage'),ref('group_cap_finance_reports_read'),ref('group_cap_finance_entries_read'),ref('group_cap_finance_entries_manage'),ref('group_cap_finance_entries_post'),ref('group_cap_finance_statements_read'),ref('group_cap_finance_zakat_read'),ref('group_cap_finance_bank_read'),ref('group_cap_finance_bank_manage'),ref('group_cap_finance_assets_read'),ref('group_cap_finance_assets_manage'),ref('group_cap_finance_budgets_read'),ref('group_cap_finance_budgets_manage'),ref('group_cap_finance_analytic_read'),ref('group_cap_finance_analytic_manage'),ref('group_cap_finance_closing_read'),ref('group_cap_finance_closing_manage'),ref('group_cap_finance_audit_read'),ref('group_cap_finance_zatca_read'),ref('group_cap_finance_zatca_manage'),ref('group_cap_finance_zatca_submit')])]"/>
+    </record>
+
+    <!-- liwan_core's support group reaches Finance through this link. -->
+    <record id="liwan_core.group_vendor_support" model="res.groups">
+        <field name="implied_ids" eval="[Command.link(ref('group_finance_manager'))]"/>
+    </record>
+</odoo>

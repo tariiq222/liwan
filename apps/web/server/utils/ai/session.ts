@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3'
 import { createError } from 'h3'
-import { AiToolsResponseSchema, type AiTool } from '@webvue/contracts'
+import { AiToolsResponseSchema, type AiTool } from '@liwan/contracts'
 import { tenantRequest } from '../tenantRequest'
 import { toolCallBudget } from './executor'
 import { forwardUpstream, odooJson, type Owner } from './upstream'
@@ -20,7 +20,7 @@ function ownerTenant(event: H3Event, companyId: number): string {
   if (resolved) return resolved.tenantId
   const { odooDb } = useRuntimeConfig(event)
   if (odooDb) return odooDb
-  if ((process.env.WEBVUE_TENANCY_MODE ?? 'dedicated') !== 'dedicated') throw createError({ statusCode: 403, data: { code: 'forbidden', message: 'tenant boundary rejected' } })
+  if ((process.env.LIWAN_TENANCY_MODE ?? 'dedicated') !== 'dedicated') throw createError({ statusCode: 403, data: { code: 'forbidden', message: 'tenant boundary rejected' } })
   return `company:${companyId}`
 }
 

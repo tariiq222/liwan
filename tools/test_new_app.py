@@ -20,20 +20,20 @@ import new_app  # noqa: E402
 REPO = Path(__file__).resolve().parents[1]
 REGISTRATION = (new_app.ARCH_LAYERS, new_app.PLATFORM_SOLUTION, new_app.CONTRACTS_INDEX)
 EXPECTED = (
-    'odoo-addons/webvue_zzprobe/__init__.py',
-    'odoo-addons/webvue_zzprobe/__manifest__.py',
-    'odoo-addons/webvue_zzprobe/models/feature_registry.py',
-    'odoo-addons/webvue_zzprobe/models/access_service.py',
-    'odoo-addons/webvue_zzprobe/models/zzprobe_record.py',
-    'odoo-addons/webvue_zzprobe/security/zzprobe_capability_groups.xml',
-    'odoo-addons/webvue_zzprobe/security/zzprobe_rules.xml',
-    'odoo-addons/webvue_zzprobe/security/ir.model.access.csv',
-    'odoo-addons/webvue_zzprobe/data/zzprobe_access_permissions.xml',
-    'odoo-addons/webvue_zzprobe/controllers/zzprobe_records.py',
-    'odoo-addons/webvue_zzprobe/serializers/zzprobe_record.py',
-    'odoo-addons/webvue_zzprobe/tests/common.py',
-    'odoo-addons/webvue_zzprobe/tests/test_zzprobe_access_composition.py',
-    'odoo-addons/webvue_zzprobe/tests/test_zzprobe_records.py',
+    'odoo-addons/liwan_zzprobe/__init__.py',
+    'odoo-addons/liwan_zzprobe/__manifest__.py',
+    'odoo-addons/liwan_zzprobe/models/feature_registry.py',
+    'odoo-addons/liwan_zzprobe/models/access_service.py',
+    'odoo-addons/liwan_zzprobe/models/zzprobe_record.py',
+    'odoo-addons/liwan_zzprobe/security/zzprobe_capability_groups.xml',
+    'odoo-addons/liwan_zzprobe/security/zzprobe_rules.xml',
+    'odoo-addons/liwan_zzprobe/security/ir.model.access.csv',
+    'odoo-addons/liwan_zzprobe/data/zzprobe_access_permissions.xml',
+    'odoo-addons/liwan_zzprobe/controllers/zzprobe_records.py',
+    'odoo-addons/liwan_zzprobe/serializers/zzprobe_record.py',
+    'odoo-addons/liwan_zzprobe/tests/common.py',
+    'odoo-addons/liwan_zzprobe/tests/test_zzprobe_access_composition.py',
+    'odoo-addons/liwan_zzprobe/tests/test_zzprobe_records.py',
     'packages/contracts/src/zzprobe/index.ts',
     'packages/contracts/src/zzprobe/__tests__/schemas.test.ts',
     'apps/web/app/modules/zzprobe/manifest.ts',
@@ -61,7 +61,7 @@ def seed(root):
 
 def strip_leftovers(root):
     """Remove anything a real generated app named like the fixtures would have left in the seed."""
-    for pattern in ('odoo-addons/webvue_zzprobe*', 'packages/contracts/src/zzprobe*', 'apps/web/app/modules/zzprobe*',
+    for pattern in ('odoo-addons/liwan_zzprobe*', 'packages/contracts/src/zzprobe*', 'apps/web/app/modules/zzprobe*',
                     'apps/web/app/pages/zzprobe*'):
         for path in root.glob(pattern):
             shutil.rmtree(path) if path.is_dir() else path.unlink()
@@ -98,7 +98,7 @@ class TestNewApp(unittest.TestCase):
         self.assertEqual(code, 0, err)
         for relative in EXPECTED:
             self.assertTrue((self.root / relative).is_file(), relative)
-        for path in (self.root / 'odoo-addons/webvue_zzprobe').rglob('*.json'):
+        for path in (self.root / 'odoo-addons/liwan_zzprobe').rglob('*.json'):
             json.loads(path.read_text(encoding='utf-8'))
         for relative in EXPECTED:
             if relative.endswith('.json'):
@@ -107,23 +107,23 @@ class TestNewApp(unittest.TestCase):
     def test_generated_model_declares_company_scope(self):
         code, _, err = run(self.root, *ARGS)
         self.assertEqual(code, 0, err)
-        model = (self.root / 'odoo-addons/webvue_zzprobe/models/zzprobe_record.py').read_text(encoding='utf-8')
-        self.assertIn("_webvue_scope = 'company'", model)
+        model = (self.root / 'odoo-addons/liwan_zzprobe/models/zzprobe_record.py').read_text(encoding='utf-8')
+        self.assertIn("_liwan_scope = 'company'", model)
 
     def test_every_python_file_has_the_odoo_header(self):
         run(self.root, *ARGS)
-        paths = list((self.root / 'odoo-addons/webvue_zzprobe').rglob('*.py'))
+        paths = list((self.root / 'odoo-addons/liwan_zzprobe').rglob('*.py'))
         self.assertGreaterEqual(len(paths), 10)
         for path in paths:
             self.assertEqual(path.read_text(encoding='utf-8').splitlines()[0], new_app.HEADER, path.name)
 
     def test_manifest_license_version_author(self):
         run(self.root, *ARGS)
-        manifest = eval((self.root / 'odoo-addons/webvue_zzprobe/__manifest__.py').read_text(encoding='utf-8'))  # noqa: S307
+        manifest = eval((self.root / 'odoo-addons/liwan_zzprobe/__manifest__.py').read_text(encoding='utf-8'))  # noqa: S307
         self.assertEqual(manifest['license'], 'LGPL-3')
         self.assertEqual(manifest['version'], '19.0.1.0.0')
         self.assertEqual(manifest['author'], 'Tariq Alwalidi')
-        self.assertEqual(manifest['depends'], ['webvue_api'])
+        self.assertEqual(manifest['depends'], ['liwan_api'])
 
     def test_no_placeholder_survives(self):
         run(self.root, *ARGS)
@@ -144,11 +144,11 @@ class TestNewApp(unittest.TestCase):
         run(self.root, *ARGS)
         after = {r: (self.root / r).read_text(encoding='utf-8') for r in REGISTRATION}
         removed, added = changed_lines(self.before[new_app.ARCH_LAYERS], after[new_app.ARCH_LAYERS])
-        self.assertEqual([line.strip() for line in added if 'webvue_zzprobe' in line], ['"webvue_zzprobe": 4,'])
+        self.assertEqual([line.strip() for line in added if 'liwan_zzprobe' in line], ['"liwan_zzprobe": 4,'])
         ranks = json.loads(self.before[new_app.ARCH_LAYERS])['ranks']
         anchor = [key for key, rank in ranks.items() if rank == new_app.APPLICATION_RANK][-1]
         keys = list(json.loads(after[new_app.ARCH_LAYERS])['ranks'])
-        self.assertEqual(keys[keys.index(anchor) + 1], 'webvue_zzprobe')
+        self.assertEqual(keys[keys.index(anchor) + 1], 'liwan_zzprobe')
         # The anchor line only gains a comma when it was the last entry of the object.
         self.assertTrue(all(line.strip() == f'"{anchor}": 4' for line in removed), removed)
         self.assertTrue(any('"zzprobe": {' in line for line in added))
@@ -156,7 +156,7 @@ class TestNewApp(unittest.TestCase):
         removed, added = changed_lines(self.before[new_app.PLATFORM_SOLUTION], after[new_app.PLATFORM_SOLUTION])
         self.assertFalse([line for line in removed if line.strip() not in ('}', '    }', '}', '  ]')])
         tier = json.loads(after[new_app.PLATFORM_SOLUTION])['tiers'][-1]
-        self.assertEqual(tier['modules'], ['webvue_zzprobe'])
+        self.assertEqual(tier['modules'], ['liwan_zzprobe'])
         self.assertEqual(tier['features'], ['boolean:zzprobe.enabled'])
         removed, added = changed_lines(self.before[new_app.CONTRACTS_INDEX], after[new_app.CONTRACTS_INDEX])
         self.assertEqual((removed, added), ([], ["export * from './zzprobe'"]))
@@ -171,13 +171,13 @@ class TestNewApp(unittest.TestCase):
         self.assertEqual(code, 0, err.getvalue())
         self.assertEqual(catalog_check.check_catalog(self.root), [])
         release = catalog_check.current_release(self.root)[1]
-        self.assertIn('webvue_zzprobe', release)
+        self.assertIn('liwan_zzprobe', release)
 
     def test_release_copies_are_synced(self):
         code, out, _ = run(self.root, *ARGS)
         self.assertEqual(code, 0)
         self.assertIn('SYNCED deploy/provision.sh', out)
-        self.assertIn('webvue_zzprobe', (self.root / 'deploy/provision.sh').read_text(encoding='utf-8'))
+        self.assertIn('liwan_zzprobe', (self.root / 'deploy/provision.sh').read_text(encoding='utf-8'))
 
     def test_rail_order_and_shortcut_are_computed_from_existing_manifests(self):
         self.collapse_shortcut_reservations()
@@ -225,7 +225,7 @@ class TestNewApp(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn('NEW_APP_REFUSED', err)
         self.assertIn('no free single-character nav shortcut is left', err)
-        self.assertFalse((self.root / 'odoo-addons/webvue_zzprobe_two').exists())
+        self.assertFalse((self.root / 'odoo-addons/liwan_zzprobe_two').exists())
         self.assertFalse((self.root / 'apps/web/app/modules/zzprobe_two').exists())
         self.assertEqual(before, self._snapshot())
 
@@ -311,7 +311,7 @@ class TestNewApp(unittest.TestCase):
         snapshot = {p: p.read_bytes() for p in self.root.rglob('*') if p.is_file()}
         code, out, _ = run(self.root, *ARGS, '--dry-run')
         self.assertEqual(code, 0)
-        self.assertIn('WOULD CREATE odoo-addons/webvue_zzprobe/__manifest__.py', out)
+        self.assertIn('WOULD CREATE odoo-addons/liwan_zzprobe/__manifest__.py', out)
         self.assertEqual(snapshot, {p: p.read_bytes() for p in self.root.rglob('*') if p.is_file()})
 
     def test_invalid_ids_are_refused(self):
@@ -319,13 +319,13 @@ class TestNewApp(unittest.TestCase):
             'Zzprobe', 'a', '1zzprobe', 'zzprobe-x', 'x' * 22, 'a_', '_a', 'a__b', 'zz probe',
             'hr', 'pmo', 'chat', 'meetings', 'core', 'web', 'tools', 'notify', 'api',
             'notification_digests', 'index', 'search', 'account', 'vendor', 'notifications', 'subscription', 'access', 'common',
-            'webvue_zzprobe', 'customer', 'customer_zzprobe', 'customerzzprobe',
+            'liwan_zzprobe', 'customer', 'customer_zzprobe', 'customerzzprobe',
         )
         for app in ids:
             code, _, err = run(self.root, app, '--name-ar', 'س', '--name-en', 'S')
             self.assertEqual(code, 1, app)
             self.assertIn('NEW_APP_REFUSED', err)
-        self.assertFalse((self.root / 'odoo-addons/webvue_reports').exists())
+        self.assertFalse((self.root / 'odoo-addons/liwan_reports').exists())
 
     def test_ids_colliding_with_foundation_tokens_are_refused(self):
         for app in ('mail', 'res', 'project'):
@@ -333,7 +333,7 @@ class TestNewApp(unittest.TestCase):
             self.assertEqual(code, 1, app)
             self.assertIn('NEW_APP_REFUSED', err)
             self.assertIn('R2', err)
-            self.assertFalse((self.root / f'odoo-addons/webvue_{app}').exists())
+            self.assertFalse((self.root / f'odoo-addons/liwan_{app}').exists())
 
     def test_a_clean_id_passes_the_foundation_token_check(self):
         code, _, err = run(self.root, *ARGS, '--dry-run')
@@ -360,7 +360,7 @@ class TestNewApp(unittest.TestCase):
                 other = '--name-ar' if flag == '--name-en' else '--name-en'
                 code, _, _ = run(self.root, 'zzprobe', flag, bad, other, 'ok')
                 self.assertEqual(code, 1, (flag, bad))
-        self.assertFalse((self.root / 'odoo-addons/webvue_zzprobe').exists())
+        self.assertFalse((self.root / 'odoo-addons/liwan_zzprobe').exists())
 
     def test_web_slots_read_double_and_backtick_quotes_and_high_orders(self):
         modules = self.root / 'apps/web/app/modules'
@@ -412,7 +412,7 @@ class TestNewApp(unittest.TestCase):
         code, _, err = run(self.root, *ARGS)
         self.assertEqual(code, 1)
         self.assertIn('NEW_APP_REFUSED', err)
-        self.assertFalse((self.root / 'odoo-addons/webvue_zzprobe').exists())
+        self.assertFalse((self.root / 'odoo-addons/liwan_zzprobe').exists())
 
     def _snapshot(self):
         return {p: p.read_bytes() for p in self.root.rglob('*') if p.is_file()}, {p for p in self.root.rglob('*') if p.is_dir()}
@@ -455,8 +455,8 @@ class TestNewApp(unittest.TestCase):
     def test_multi_word_ids_use_pascal_case_classes(self):
         code, _, err = run(self.root, 'zzprobe_ops', '--name-ar', 'العمليات', '--name-en', 'Probe Ops')
         self.assertEqual(code, 0, err)
-        text = (self.root / 'odoo-addons/webvue_zzprobe_ops/models/access_service.py').read_text(encoding='utf-8')
-        self.assertIn('class WebVueZzprobeOpsAccessService', text)
+        text = (self.root / 'odoo-addons/liwan_zzprobe_ops/models/access_service.py').read_text(encoding='utf-8')
+        self.assertIn('class LiwanZzprobeOpsAccessService', text)
 
     def test_route_defaults_to_the_app_id(self):
         code, _, err = run(self.root, *ARGS)
@@ -480,7 +480,7 @@ class TestNewApp(unittest.TestCase):
         self.assertNotIn('{{route}}', manifest)
         layers = json.loads((self.root / new_app.ARCH_LAYERS).read_text(encoding='utf-8'))
         self.assertEqual(layers['web_apps']['zzprobe'], {'components': ['my-probe'], 'pages': ['my-probe']})
-        self.assertTrue((self.root / 'odoo-addons/webvue_zzprobe/__manifest__.py').is_file())
+        self.assertTrue((self.root / 'odoo-addons/liwan_zzprobe/__manifest__.py').is_file())
 
     def test_reserved_route_id_needs_a_distinct_route(self):
         # `tasks` is a shell route; `notification_digests` is a page route taken by pages/notification-digests/.
@@ -491,7 +491,7 @@ class TestNewApp(unittest.TestCase):
                 self.assertIn('NEW_APP_REFUSED', err)
         code, _, err = run(self.root, 'notification_digests', '--route', 'my-digests', '--name-ar', 'الملخصات', '--name-en', 'Digests')
         self.assertEqual(code, 0, err)
-        for relative in ('apps/web/app/modules/notification_digests', 'odoo-addons/webvue_notification_digests', 'apps/web/app/pages/my-digests'):
+        for relative in ('apps/web/app/modules/notification_digests', 'odoo-addons/liwan_notification_digests', 'apps/web/app/pages/my-digests'):
             self.assertTrue((self.root / relative).is_dir(), relative)
 
     def test_edge_proxy_routes_are_reserved(self):
@@ -509,14 +509,14 @@ class TestNewApp(unittest.TestCase):
         code, _, err = run(self.root, *ARGS, '--route', 'projects')
         self.assertEqual(code, 1)
         self.assertIn('NEW_APP_REFUSED', err)
-        self.assertFalse((self.root / 'odoo-addons/webvue_zzprobe').exists())
+        self.assertFalse((self.root / 'odoo-addons/liwan_zzprobe').exists())
 
     def test_invalid_route_slug_is_refused(self):
         for route in ('My_Tasks', '-x', '', 'a--b', 'x-', '1x'):
             code, _, err = run(self.root, *ARGS, f'--route={route}')
             self.assertEqual(code, 1, route)
             self.assertIn('NEW_APP_REFUSED', err)
-        self.assertFalse((self.root / 'odoo-addons/webvue_zzprobe').exists())
+        self.assertFalse((self.root / 'odoo-addons/liwan_zzprobe').exists())
 
     def test_the_new_application_with_a_route_passes_the_policies(self):
         code, _, err = run(self.root, 'reports', '--route', 'my-reports', '--name-ar', 'التقارير', '--name-en', 'Reports')

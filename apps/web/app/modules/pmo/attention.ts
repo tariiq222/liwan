@@ -1,4 +1,4 @@
-import { ProjectListSchema, TaskListSchema } from '@webvue/contracts'
+import { ProjectListSchema, TaskListSchema } from '@liwan/contracts'
 import { ATTENTION_ROWS_PER_PROVIDER } from '../../composables/nav/attentionModel'
 import { PROJECT_STATUS_LABEL_KEY } from '../../composables/projectStatus'
 import type { AppAttentionProvider } from '../types'

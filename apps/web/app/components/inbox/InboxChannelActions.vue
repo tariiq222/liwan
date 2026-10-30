@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { InboxDisplayNameRequestSchema, InboxPinSchema, type InboxChannel } from '@webvue/contracts'
-import { formatDateTime } from '@webvue/ui/app/utils/formatDate'
+import { InboxDisplayNameRequestSchema, InboxPinSchema, type InboxChannel } from '@liwan/contracts'
+import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import {
   useEnableInboxTemplateInsights, useRegisterInboxNumber, useRequestInboxDisplayName, useSetInboxTwoStepPin, useSyncInboxAnalytics,
 } from '@/composables/inbox/useInboxChannelHealth'
@@ -67,7 +67,7 @@ const syncedAt = computed(() => props.channel.health.analytics_synced_at ? forma
 </script>
 
 <template>
-  <div class="flex min-w-0 flex-col gap-(--webvue-gap-card)" data-testid="inbox-health-actions">
+  <div class="flex min-w-0 flex-col gap-(--liwan-gap-card)" data-testid="inbox-health-actions">
     <form @submit.prevent="submitName">
       <SharedRecordSection variant="panel" :title="t('inbox.health.actions.displayName.title')" :description="t('inbox.health.actions.displayName.hint')">
         <div class="flex flex-wrap items-end gap-3">

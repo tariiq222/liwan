@@ -1,5 +1,5 @@
-import type { HrLeaveState } from '@webvue/contracts'
-import type { StatusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
+import type { HrLeaveState } from '@liwan/contracts'
+import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
 
 const LEAVE_STATE_TONE: Record<HrLeaveState, StatusBadgeEntry['tone']> = {
   confirm: 'info',

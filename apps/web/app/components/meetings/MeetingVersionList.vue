@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatWebVueDateTime } from '@webvue/ui/app/composables/calendarDate'
+import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
 
 type MeetingVersion = {
   id: number
@@ -24,7 +24,7 @@ const hydrated = useHydrated()
 const pages = computed(() => Math.max(1, Math.ceil((props.total ?? 0) / props.pageSize)))
 
 function capturedAt(value: string) {
-  return formatWebVueDateTime(value, locale.value)
+  return formatLiwanDateTime(value, locale.value)
 }
 </script>
 
@@ -35,7 +35,7 @@ function capturedAt(value: string) {
         <li v-for="version in versions" :key="version.id">
           <button
             type="button"
-            class="grid w-full min-w-0 justify-items-start gap-1 px-(--webvue-card-pad) py-3 text-start transition-colors duration-150 hover:bg-(--webvue-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary disabled:opacity-60 motion-reduce:transition-none"
+            class="grid w-full min-w-0 justify-items-start gap-1 px-(--liwan-card-pad) py-3 text-start transition-colors duration-150 hover:bg-(--liwan-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary disabled:opacity-60 motion-reduce:transition-none"
             :class="selectedId === version.id ? 'bg-primary/5' : ''"
             :aria-pressed="selectedId === version.id"
             :data-selected="selectedId === version.id ? 'true' : undefined"
@@ -51,7 +51,7 @@ function capturedAt(value: string) {
         </li>
       </ol>
     </SharedPageState>
-    <div v-if="pages > 1" class="border-t border-default px-(--webvue-card-pad) py-3">
+    <div v-if="pages > 1" class="border-t border-default px-(--liwan-card-pad) py-3">
       <SharedPagination :page="page" :pages="pages" :disabled="loading" @update:page="emit('page', $event)" />
     </div>
   </SharedRecordSection>

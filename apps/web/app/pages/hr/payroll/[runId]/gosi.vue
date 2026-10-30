@@ -31,7 +31,7 @@ function printPage() {
 <template>
   <SharedRecordPage width="full" :keep-content="!!statement || notApproved" :title="title" :back-to="backTo" :loading="query.isLoading.value" :error="pageError" @retry="query.refetch">
     <template v-if="statement" #actions>
-      <UButton class="webvue-print-hide" color="neutral" variant="outline" icon="i-lucide-printer" :disabled="!hydrated" :label="t('hrPayroll.gosiStatement.print')" data-testid="hr-payroll-gosi-print" @click="printPage" />
+      <UButton class="liwan-print-hide" color="neutral" variant="outline" icon="i-lucide-printer" :disabled="!hydrated" :label="t('hrPayroll.gosiStatement.print')" data-testid="hr-payroll-gosi-print" @click="printPage" />
     </template>
     <SharedEmptyState v-if="notApproved" bordered :title="t('hrPayroll.gosiStatement.notApprovedTitle')" :description="t('hrPayroll.gosiStatement.notApprovedHint')" data-testid="hr-payroll-gosi-not-approved">
       <template #action>

@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
-import { FinanceZakatAdjustmentSchema, FinanceZakatReviewSchema, type FinanceZakatAdjustmentInput, type FinanceZakatReviewInput } from '@webvue/contracts'
+import { FinanceZakatAdjustmentSchema, FinanceZakatReviewSchema, type FinanceZakatAdjustmentInput, type FinanceZakatReviewInput } from '@liwan/contracts'
 
 // The Zakat workpaper of a fiscal year: the company's adjustments to the base and the accountant's review. The report carries
 // both, so a write refreshes the finance reports; nothing here files anything.

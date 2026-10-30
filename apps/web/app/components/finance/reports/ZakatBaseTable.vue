@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FinanceZakatBase } from '@webvue/contracts'
+import type { FinanceZakatBase } from '@liwan/contracts'
 import MisLinesTable from './MisLinesTable.vue'
 import ZakatAdjustments from './ZakatAdjustments.vue'
 import ZakatReview from './ZakatReview.vue'
@@ -17,7 +17,7 @@ const totals = computed(() => [
 
 <template>
   <div class="min-w-0">
-    <UAlert color="warning" variant="subtle" icon="i-lucide-triangle-alert" class="m-(--webvue-card-pad-dense) w-auto" :title="t('financeReports.zakat.disclaimerLead')" :description="report.disclaimer" data-testid="finance-zakat-disclaimer" />
+    <UAlert color="warning" variant="subtle" icon="i-lucide-triangle-alert" class="m-(--liwan-card-pad-dense) w-auto" :title="t('financeReports.zakat.disclaimerLead')" :description="report.disclaimer" data-testid="finance-zakat-disclaimer" />
     <MisLinesTable kind="zakatBase" :lines="report.lines" :currency="report.currency" :hidden="ZAKAT_RESULT_CODES" :totals="totals" :caption="t('financeReports.reports.zakatBase.title')">
       <span class="flex items-center gap-2">
         <span class="text-muted">{{ t('financeReports.zakat.rate') }}</span>

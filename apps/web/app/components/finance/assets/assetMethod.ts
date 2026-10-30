@@ -1,4 +1,4 @@
-import type { FinanceAssetProfile } from '@webvue/contracts'
+import type { FinanceAssetProfile } from '@liwan/contracts'
 
 type Translate = (key: string, params?: Record<string, unknown>, count?: number) => string
 export type AssetMethodSource = Pick<FinanceAssetProfile, 'method' | 'method_time' | 'method_number' | 'method_period'>

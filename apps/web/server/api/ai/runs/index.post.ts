@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import { createEventStream, getCookie } from 'h3'
-import { AiStartRequestSchema } from '@webvue/contracts'
+import { AiStartRequestSchema } from '@liwan/contracts'
 import { audit, relay } from '../../../utils/ai/pump'
 import { serviceFetch } from '../../../utils/ai/upstream'
 import { runLocale } from '../../../utils/ai/runLocale'
@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
   // This server names a new run, so its first `message` audit already carries the run id and the message is still counted before the service is reached.
   const runId = continued ?? `r_${randomBytes(12).toString('hex')}`
   await audit(event, { conversation_id: runId, kind: 'message', tool_name: null, input: null, result: 'ok', http_status: null, draft: null, approved: null, attested: false })
-  const locale = runLocale(getCookie(event, 'webvue-locale'))
+  const locale = runLocale(getCookie(event, 'liwan-locale'))
   const response = await serviceFetch(event, 'POST', '/v1/runs', session.owner, {
     tenant: session.owner.tenant, user_ref: session.owner.user, locale, message,
     context: context ?? null, tools: session.tools, limits: session.limits, ...(continued ? { run_id: continued } : { new_run_id: runId }),

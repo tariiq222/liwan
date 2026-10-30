@@ -47,23 +47,23 @@ export default {
     },
   ],
   tests: ['e2e/tests/**/*.e2e.ts'],
-  // Test-only accounts seeded into the disposable webvue_scratch_e2e database by
+  // Test-only accounts seeded into the disposable liwan_scratch_e2e database by
   // tools/e2e_seed.py (run by `npm run e2e:odoo`). The defaults mirror that
   // script; E2E_USER_<NAME>_PASSWORD overrides both sides.
   credentials: {
     admin: {
       username: 'e2e_admin',
-      password: process.env.E2E_USER_ADMIN_PASSWORD ?? 'webvue-e2e-admin-2026',
+      password: process.env.E2E_USER_ADMIN_PASSWORD ?? 'liwan-e2e-admin-2026',
     },
     employee: {
       username: 'e2e_employee',
-      password: process.env.E2E_USER_EMPLOYEE_PASSWORD ?? 'webvue-e2e-employee-2026',
+      password: process.env.E2E_USER_EMPLOYEE_PASSWORD ?? 'liwan-e2e-employee-2026',
     },
     // Demo-company personas (PERSONAS in tools/e2e_seed.py): login e2e_<key>.
     ...Object.fromEntries(
       PERSONA_KEYS.map((key) => [key, {
         username: `e2e_${key}`,
-        password: process.env[`E2E_USER_${key.toUpperCase()}_PASSWORD`] ?? `webvue-e2e-${key}-2026`,
+        password: process.env[`E2E_USER_${key.toUpperCase()}_PASSWORD`] ?? `liwan-e2e-${key}-2026`,
       }]),
     ),
   },

@@ -8,14 +8,14 @@ import MeetingRecordTabs from '@/components/meetings/MeetingRecordTabs.vue'
 import MeetingResolutionsTab from '@/components/meetings/MeetingResolutionsTab.vue'
 import MeetingVersionList from '@/components/meetings/MeetingVersionList.vue'
 import { formatMeetingDate, formatMeetingTime, plainTextFromHtml, type MeetingMinutesFormValue, type MeetingMinutesRecommendation } from '@/utils/meetingMinutesForm'
-import { formatDate, formatDateTime } from '@webvue/ui/app/utils/formatDate'
+import { formatDate, formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import { ApiError } from '@/composables/useApi'
 import { useMeeting } from '@/composables/useMeetings'
 import { useMeetingEvents, useMeetingVersions } from '@/composables/useMeetingWorkspace'
 import { useMeetingTransitions } from '@/composables/useMeetingTransitions'
 import { meetingStateBadgeProps, resolutionStateBadgeProps } from '@/utils/meetingStatus'
-import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
+import { statusTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import { richTextHasContent } from '@/utils/richText'
 import { meetingMinutesPdfPath } from '@/utils/meetingRoutes'
 import { parsePositiveId } from '@/utils/routeParams'
@@ -187,7 +187,7 @@ function displayValue(value: string | null | undefined) {
       <MeetingRecordTabs :tabs="tabLinks" :log-tab-start="logTabStart" :label="t('meetingsUx.sections')" />
     </template>
 
-    <div v-if="query.data.value" class="grid min-w-0 gap-(--webvue-gap-card)">
+    <div v-if="query.data.value" class="grid min-w-0 gap-(--liwan-gap-card)">
       <UAlert v-if="actionError" role="alert" color="error" variant="subtle" :title="actionError" />
       <SharedRecordSection v-if="pendingMeetingAction?.action === 'complete' && completionGaps.length" variant="action" :title="t('meetingsUx.completionReview')">
         <div class="flex flex-wrap items-center gap-2">
@@ -246,8 +246,8 @@ function displayValue(value: string | null | undefined) {
           </div>
         </SharedRecordSection>
         <SharedRecordSection v-if="historicalSnapshot" id="meeting-snapshot" variant="list" :title="t('meetingsUx.historicalDecisionStates')" :description="t('meetingsUx.historicalMinutesTitle')">
-          <div v-if="!historicalSnapshot.resolutions.length" class="p-(--webvue-card-pad)"><SharedEmptyState :title="t('meetingsUi.emptyResolutions')" /></div>
-          <div v-for="item in historicalSnapshot.resolutions" :key="item.id" class="grid min-w-0 gap-1 px-(--webvue-card-pad) py-3 text-sm">
+          <div v-if="!historicalSnapshot.resolutions.length" class="p-(--liwan-card-pad)"><SharedEmptyState :title="t('meetingsUi.emptyResolutions')" /></div>
+          <div v-for="item in historicalSnapshot.resolutions" :key="item.id" class="grid min-w-0 gap-1 px-(--liwan-card-pad) py-3 text-sm">
             <div class="flex min-w-0 flex-wrap items-center gap-2">
               <span class="font-semibold text-highlighted">{{ item.name }}</span>
               <SharedStatusBadge v-bind="resolutionStateBadgeProps(item.state, t)" />
@@ -270,7 +270,7 @@ function displayValue(value: string | null | undefined) {
           @retry="eventQuery.refetch"
           @page="eventPage = $event"
         />
-        <div v-if="historyView === 'versions'" class="grid min-w-0 gap-(--webvue-gap-card)">
+        <div v-if="historyView === 'versions'" class="grid min-w-0 gap-(--liwan-gap-card)">
         <MeetingVersionList
           :versions="versionRows"
           :loading="versionQuery.isLoading.value"
@@ -300,7 +300,7 @@ function displayValue(value: string | null | undefined) {
         </div>
       </template>
       <!-- Stays mounted so its filters, pending confirmations and in-flight state survive tab switches. -->
-      <div v-show="activeTab === 'resolutions'" class="grid min-w-0 gap-(--webvue-gap-card)">
+      <div v-show="activeTab === 'resolutions'" class="grid min-w-0 gap-(--liwan-gap-card)">
         <MeetingResolutionsTab :meeting="query.data.value" :meeting-id="query.data.value.id" @update:busy="resolutionsBusy = $event" />
       </div>
       <!-- Stays mounted so the tab label always shows the attachment count. -->
@@ -308,7 +308,7 @@ function displayValue(value: string | null | undefined) {
     </div>
 
     <template v-if="query.data.value" #summary>
-      <div class="grid min-w-0 gap-(--webvue-gap-card) lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]" data-testid="meeting-hero">
+      <div class="grid min-w-0 gap-(--liwan-gap-card) lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]" data-testid="meeting-hero">
         <SharedRecordSection variant="panel">
           <div class="grid min-w-0 gap-3">
             <p class="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xl font-semibold text-highlighted">

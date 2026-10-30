@@ -74,7 +74,7 @@ class LocalRuntime:
                                **({'passfile': pg['passfile']} if pg.get('passfile') else {}), **options)
 
     def _tenant(self, binding):
-        if not binding['database'].startswith('webvue_scratch_'):
+        if not binding['database'].startswith('liwan_scratch_'):
             raise ValueError('protected_database_rejected')
         config = self.config['tenants'][binding['tenantId']]
         if config['database'] != binding['database'] or config['filestore'] != binding['filestore']:
@@ -88,7 +88,7 @@ class LocalRuntime:
         config = self.config['pools'][pool]
         declared = [*config['containers'].values(), *(job['container'] for job in config['cronRuntimes'])]
         if len(declared) != len(set(declared)): raise ReleaseConflict('duplicate_runtime_ownership')
-        observed = _docker(['docker','ps','--all','--filter','label=webvue.pool='+name(pool),'--format','{{.Names}}'],
+        observed = _docker(['docker','ps','--all','--filter','label=liwan.pool='+name(pool),'--format','{{.Names}}'],
                            deadline, 10, text=True).stdout.splitlines()
         if set(observed) != set(declared): raise ReleaseConflict('runtime_inventory_mismatch')
 
@@ -127,9 +127,9 @@ class LocalRuntime:
             raise ValueError('guard_endpoint_rejected')
         token = Path(self.config['proxyTokenFile']).read_text().strip()
         if len(token) < 32: raise ValueError('guard_token_rejected')
-        headers = {'Host': config['host'], 'X-WebVue-Proxy-Token': token,
-                   'X-WebVue-Tenant-Revision': str(binding['registryRevision'])}
-        return url.rstrip('/') + '/_webvue/release-status', headers
+        headers = {'Host': config['host'], 'X-Liwan-Proxy-Token': token,
+                   'X-Liwan-Tenant-Revision': str(binding['registryRevision'])}
+        return url.rstrip('/') + '/_liwan/release-status', headers
 
     def _guard(self, binding):
         url, headers = self._guard_request(binding)
@@ -557,7 +557,7 @@ class LocalRuntime:
             items = json.loads(raw.stdout)
             if len(items)!=1: raise ReleaseConflict('runtime_identity_missing')
             item=items[0];labels=item['Config']['Labels'] or {}
-            if not item['State']['Running'] or labels.get('webvue.pool')!=pool or labels.get('webvue.release')!=manifest['releaseId']:
+            if not item['State']['Running'] or labels.get('liwan.pool')!=pool or labels.get('liwan.release')!=manifest['releaseId']:
                 raise ReleaseConflict('runtime_identity_mismatch')
             image=json.loads(subprocess.run(['docker','image','inspect',item['Image']],check=True,capture_output=True,text=True,timeout=10).stdout)[0]
             if manifest['images'][service] not in (image.get('RepoDigests') or []): raise ReleaseConflict('runtime_image_mismatch')
@@ -628,7 +628,7 @@ class LocalRuntime:
             with build_opener(NoRedirect()).open(Request(url,headers=headers),timeout=10) as response:
                 if response.status!=200: raise ReleaseConflict('runtime_http_not_ready')
                 return response.read(1048576)
-        result=json.loads(get(config['webUrl'].rstrip('/')+'/_webvue/release-readiness',{'X-WebVue-Release-Probe':token}))
+        result=json.loads(get(config['webUrl'].rstrip('/')+'/_liwan/release-readiness',{'X-Liwan-Release-Probe':token}))
         if any(result.get(key)!=value for key,value in {'releaseId':manifest['releaseId'],'poolId':pool,'assetsId':manifest['assetsId'],'aiStateVersion':manifest['aiStateVersion']}.items()):
             raise ReleaseConflict('runtime_http_identity_mismatch')
         if not result.get('assets'):raise ReleaseConflict('runtime_assets_missing')
@@ -637,7 +637,7 @@ class LocalRuntime:
                 raise ReleaseConflict('runtime_messages_missing')
         for asset in result['assets']:
             if not isinstance(asset,str) or not re.fullmatch(r'/(?:_nuxt/[A-Za-z0-9_.-]+\.js|_i18n/[a-f0-9]{8,64}/(?:ar|en)/messages\.json)',asset):raise ReleaseConflict('runtime_asset_invalid')
-            get(config['webUrl'].rstrip('/')+asset,{'X-WebVue-Release-Probe':token})
+            get(config['webUrl'].rstrip('/')+asset,{'X-Liwan-Release-Probe':token})
         tenant=self._tenant(binding)
         sid=Path(tenant['probeSessionFile']).read_text().strip()
         if not sid or any(c not in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-' for c in sid):

@@ -220,7 +220,7 @@ test('disable and re-enroll: inline confirmation, a new link, and the last owner
 
 test('english interface reads left to right', async ({ page, context }) => {
   await ownerOnTeamPage(page, context)
-  await context.addCookies([{ name: 'webvue-admin-locale', value: 'en', url: new URL(page.url()).origin }])
+  await context.addCookies([{ name: 'liwan-admin-locale', value: 'en', url: new URL(page.url()).origin }])
   await page.reload()
   await expect(page.getByRole('heading', { level: 1, name: 'Team' })).toBeVisible()
   await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')

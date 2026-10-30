@@ -1,10 +1,10 @@
 import { resolve } from 'node:path'
-import { loadShared } from '@webvue/ui/test/helpers/renderShared'
+import { loadShared } from '@liwan/ui/test/helpers/renderShared'
 import { describe, expect, it, vi } from 'vitest'
 import { createSSRApp, defineComponent, h, ref, nextTick } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 import BranchRoleAssignments from '../BranchRoleAssignments.vue'
-import { createHostNode, findNode, hostRenderer } from '@webvue/ui/test/helpers/hostRenderer'
+import { createHostNode, findNode, hostRenderer } from '@liwan/ui/test/helpers/hostRenderer'
 
 const locale = ref('ar')
 vi.stubGlobal('useI18n', () => ({ locale, t: (key: string) => key }))

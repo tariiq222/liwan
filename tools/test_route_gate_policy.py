@@ -8,12 +8,12 @@ from unittest import mock
 
 import route_gate_policy as policy
 
-FAKE = policy.ADDONS / 'webvue_hr' / 'controllers' / 'sample.py'  # rank 4 application addon
-MODEL = policy.ADDONS / 'webvue_hr' / 'models' / 'sample_model.py'
-FOUNDATION = policy.ADDONS / 'webvue_api' / 'controllers' / 'sample.py'  # rank 2 foundation
+FAKE = policy.ADDONS / 'liwan_hr' / 'controllers' / 'sample.py'  # rank 4 application addon
+MODEL = policy.ADDONS / 'liwan_hr' / 'models' / 'sample_model.py'
+FOUNDATION = policy.ADDONS / 'liwan_api' / 'controllers' / 'sample.py'  # rank 2 foundation
 # The nested area packages of spec §8.7: one package per capability under controllers/.
-NESTED = policy.ADDONS / 'webvue_hr' / 'controllers' / 'shifts' / 'sample.py'
-NESTED_MODEL = policy.ADDONS / 'webvue_hr' / 'models' / 'planning' / 'sample_model.py'
+NESTED = policy.ADDONS / 'liwan_hr' / 'controllers' / 'shifts' / 'sample.py'
+NESTED_MODEL = policy.ADDONS / 'liwan_hr' / 'models' / 'planning' / 'sample_model.py'
 
 
 def routes_of(source: str, path: Path = FAKE, models: str = '') -> list[policy.Route]:
@@ -68,7 +68,7 @@ class TopLevelCheckTests(unittest.TestCase):
         self.assertEqual((route.capability_source, route.capability_keys), ('body', ['hr.read']))
 
     def test_service_method_and_any_variant_count(self):
-        self.assertTrue(only(handler("service._webvue_require_capability('a.b')")).has_capability)
+        self.assertTrue(only(handler("service._liwan_require_capability('a.b')")).has_capability)
         route = only(handler("require_any_capability(['a', 'b'])"))
         self.assertEqual(route.capability_match, 'any')
 
@@ -119,35 +119,35 @@ class ReaderTests(unittest.TestCase):
     """Finding 1: a reader counts only as the test of an if / assert that refuses."""
 
     def test_if_not_reader_raising_403_counts_with_the_reader_keys(self):
-        route = only(handler("if not svc._webvue_has_capability(u, 'hr.read'):\n    raise ApiError(403, 'forbidden', 'no')"))
+        route = only(handler("if not svc._liwan_has_capability(u, 'hr.read'):\n    raise ApiError(403, 'forbidden', 'no')"))
         self.assertEqual((route.capability_source, route.capability_keys), ('body', ['hr.read']))
 
     def test_access_error_and_a_require_helper_count_as_refusals(self):
-        self.assertTrue(only(handler("if not svc._webvue_has_capability(u, 'a'):\n    raise AccessError('no')")).has_capability)
-        self.assertTrue(only(handler("if not svc._webvue_has_capability(u, 'a'):\n    require_state(x)")).has_capability)
+        self.assertTrue(only(handler("if not svc._liwan_has_capability(u, 'a'):\n    raise AccessError('no')")).has_capability)
+        self.assertTrue(only(handler("if not svc._liwan_has_capability(u, 'a'):\n    require_state(x)")).has_capability)
 
     def test_assert_on_a_reader_counts(self):
-        self.assertTrue(only(handler("assert svc._webvue_has_capability(u, 'a')")).has_capability)
+        self.assertTrue(only(handler("assert svc._liwan_has_capability(u, 'a')")).has_capability)
 
-    def test_webvue_can_names_are_readers(self):
-        self.assertTrue(only(handler("if not project._webvue_can_manage():\n    raise AccessError('no')")).has_capability)
+    def test_liwan_can_names_are_readers(self):
+        self.assertTrue(only(handler("if not project._liwan_can_manage():\n    raise AccessError('no')")).has_capability)
 
     def test_reading_a_capability_without_refusing_is_not_a_gate(self):
-        self.assertFalse(only(handler("return svc._webvue_has_capability(u, 'a')")).has_capability)
-        self.assertFalse(only(handler("allowed = svc._webvue_has_capability(u, 'a')\nreturn allowed")).has_capability)
+        self.assertFalse(only(handler("return svc._liwan_has_capability(u, 'a')")).has_capability)
+        self.assertFalse(only(handler("allowed = svc._liwan_has_capability(u, 'a')\nreturn allowed")).has_capability)
 
     def test_an_unrelated_raise_does_not_help(self):
-        source = handler("ok = svc._webvue_has_capability(u, 'a')\nif bad:\n    raise ApiError(422, 'invalid', 'x')\nreturn ok")
+        source = handler("ok = svc._liwan_has_capability(u, 'a')\nif bad:\n    raise ApiError(422, 'invalid', 'x')\nreturn ok")
         self.assertFalse(only(source).has_capability)
 
     def test_a_refusal_that_is_not_a_403_does_not_count(self):
-        self.assertFalse(only(handler("if not svc._webvue_has_capability(u, 'a'):\n    raise ApiError(404, 'nf', 'x')")).has_capability)
+        self.assertFalse(only(handler("if not svc._liwan_has_capability(u, 'a'):\n    raise ApiError(404, 'nf', 'x')")).has_capability)
 
     def test_an_if_that_only_returns_on_a_reader_does_not_count(self):
-        self.assertFalse(only(handler("if not svc._webvue_has_capability(u, 'a'):\n    return []")).has_capability)
+        self.assertFalse(only(handler("if not svc._liwan_has_capability(u, 'a'):\n    return []")).has_capability)
 
     def test_a_local_function_that_calls_a_reader_is_a_reader(self):
-        helpers = "def _can(cap):\n    return svc._webvue_has_capability(u, cap)\n"
+        helpers = "def _can(cap):\n    return svc._liwan_has_capability(u, cap)\n"
         self.assertTrue(only(handler("if not _can('hr.read'):\n    raise ApiError(403, 'forbidden', 'no')", helpers)).has_capability)
 
 
@@ -156,7 +156,7 @@ class ReceiverTests(unittest.TestCase):
 
     MODELS = (
         "class Project:\n    _inherit = 'project.project'\n"
-        "    def _webvue_guard(self):\n        require_capability('pmo.projects.manage')\n"
+        "    def _liwan_guard(self):\n        require_capability('pmo.projects.manage')\n"
         "    def plain(self):\n        require_capability('pmo.projects.manage')\n"
         "class Other:\n    _name = 'other.model'\n"
         "    def plain(self):\n        return 1\n"
@@ -168,7 +168,7 @@ class ReceiverTests(unittest.TestCase):
     def route(self, body, models=None):
         return only(handler(body), models=self.MODELS if models is None else models)
 
-    def test_a_record_of_a_model_literal_resolves_to_its_webvue_class(self):
+    def test_a_record_of_a_model_literal_resolves_to_its_liwan_class(self):
         self.assertTrue(self.route("project = get_record('project.project', 1)\nproject.plain()").has_capability)
         self.assertTrue(self.route("request.env['project.project'].plain()").has_capability)
         self.assertTrue(self.route("P = request.env['project.project'].sudo()\nP.plain()").has_capability)
@@ -180,8 +180,8 @@ class ReceiverTests(unittest.TestCase):
     def test_an_unknown_receiver_gets_no_credit_by_a_plain_name(self):
         self.assertFalse(self.route("something.plain()").has_capability)
 
-    def test_an_unknown_receiver_resolves_webvue_prefixed_names_when_any_definition_gates(self):
-        self.assertTrue(self.route("record._webvue_guard()").has_capability)
+    def test_an_unknown_receiver_resolves_liwan_prefixed_names_when_any_definition_gates(self):
+        self.assertTrue(self.route("record._liwan_guard()").has_capability)
 
     def test_stock_names_never_count(self):
         for call in ("request.env['other.model'].action_do()", "request.env['other.model'].check_access('read')",
@@ -254,7 +254,7 @@ class AllowlistTests(unittest.TestCase):
         route = only(HEAD + "    def f(self): pass\n")
         allow = {**NO_ALLOW, 'no_capability': {route.key: 'because'}}
         self.assertEqual(policy.route_problems([route], allow), [])
-        stale = {**NO_ALLOW, 'no_capability': {'webvue_hr/controllers/sample.py:gone': 'because'}}
+        stale = {**NO_ALLOW, 'no_capability': {'liwan_hr/controllers/sample.py:gone': 'because'}}
         self.assertIn('no such route', ' '.join(policy.route_problems([route], stale)))
 
     def test_allowlist_entry_for_a_route_that_now_passes_is_an_error(self):
@@ -298,8 +298,8 @@ class NestedPackageTests(unittest.TestCase):
 
     def test_a_gated_nested_route_passes_with_a_stable_key(self):
         route = only(HEAD + "    @requires_capability('hr.shifts.read')\n    def f(self): pass\n", path=NESTED)
-        self.assertEqual((route.addon, route.rank), ('webvue_hr', 4))
-        self.assertEqual(route.key, 'webvue_hr/controllers/shifts/sample.py:f')
+        self.assertEqual((route.addon, route.rank), ('liwan_hr', 4))
+        self.assertEqual(route.key, 'liwan_hr/controllers/shifts/sample.py:f')
         self.assertEqual(policy.route_problems([route], NO_ALLOW), [])
 
     def test_an_ungated_nested_route_is_reported(self):
@@ -307,7 +307,7 @@ class NestedPackageTests(unittest.TestCase):
         problems = policy.route_problems([route], NO_ALLOW)
         self.assertEqual(len(problems), 3)
         self.assertTrue(
-            all(problem.startswith('odoo-addons/webvue_hr/controllers/shifts/sample.py:f') for problem in problems),
+            all(problem.startswith('odoo-addons/liwan_hr/controllers/shifts/sample.py:f') for problem in problems),
             problems,
         )
         self.assertIn('has no feature gate', ' '.join(problems))
@@ -315,11 +315,11 @@ class NestedPackageTests(unittest.TestCase):
 
     def test_a_nested_model_module_supplies_the_capability_gate(self):
         models = {NESTED_MODEL: ast.parse(
-            "class Run:\n    _name = 'webvue.hr.plan.run'\n"
-            "    def _webvue_guard(self):\n        require_capability('hr.shifts.read')\n",
+            "class Run:\n    _name = 'liwan.hr.plan.run'\n"
+            "    def _liwan_guard(self):\n        require_capability('hr.shifts.read')\n",
         )}
         routes = policy.extract_routes(
-            {NESTED: ast.parse(HEAD + "    def f(self):\n        request.env['webvue.hr.plan.run']._webvue_guard()\n")},
+            {NESTED: ast.parse(HEAD + "    def f(self):\n        request.env['liwan.hr.plan.run']._liwan_guard()\n")},
             models,
         )
         self.assertEqual(len(routes), 1)
@@ -332,20 +332,20 @@ class NestedPackageTests(unittest.TestCase):
     def test_service_trees_scan_nested_controller_and_model_modules(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / 'odoo-addons'
-            (root / 'webvue_hr' / 'controllers' / 'shifts').mkdir(parents=True)
-            (root / 'webvue_hr' / 'controllers' / 'flat.py').write_text('x = 1\n')
-            (root / 'webvue_hr' / 'controllers' / '__init__.py').write_text('from . import flat\n')
-            (root / 'webvue_hr' / 'controllers' / 'shifts' / 'deep.py').write_text('x = 1\n')
-            (root / 'webvue_hr' / 'controllers' / 'shifts' / '__init__.py').write_text('from . import deep\n')
-            (root / 'webvue_hr' / 'models' / 'planning').mkdir(parents=True)
-            (root / 'webvue_hr' / 'models' / 'planning' / 'model.py').write_text('x = 1\n')
-            (root / 'webvue_hr' / 'models' / 'planning' / '__init__.py').write_text('from . import model\n')
+            (root / 'liwan_hr' / 'controllers' / 'shifts').mkdir(parents=True)
+            (root / 'liwan_hr' / 'controllers' / 'flat.py').write_text('x = 1\n')
+            (root / 'liwan_hr' / 'controllers' / '__init__.py').write_text('from . import flat\n')
+            (root / 'liwan_hr' / 'controllers' / 'shifts' / 'deep.py').write_text('x = 1\n')
+            (root / 'liwan_hr' / 'controllers' / 'shifts' / '__init__.py').write_text('from . import deep\n')
+            (root / 'liwan_hr' / 'models' / 'planning').mkdir(parents=True)
+            (root / 'liwan_hr' / 'models' / 'planning' / 'model.py').write_text('x = 1\n')
+            (root / 'liwan_hr' / 'models' / 'planning' / '__init__.py').write_text('from . import model\n')
             with mock.patch.object(policy, 'ADDONS', root):
                 keys = [str(path.relative_to(root)) for path in policy._service_trees()]
         self.assertEqual(keys, [
-            'webvue_hr/controllers/flat.py',
-            'webvue_hr/controllers/shifts/deep.py',
-            'webvue_hr/models/planning/model.py',
+            'liwan_hr/controllers/flat.py',
+            'liwan_hr/controllers/shifts/deep.py',
+            'liwan_hr/models/planning/model.py',
         ])
 
 

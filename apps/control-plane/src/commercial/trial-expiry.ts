@@ -1,5 +1,5 @@
 import type { Pool } from 'pg'
-import { riyadhDate } from '@webvue/commercial-contracts'
+import { riyadhDate } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { CommercialHttpError } from './lifecycle.js'
 import { generateRenewals } from './renewals.js'

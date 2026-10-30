@@ -4,7 +4,7 @@ import { SERIES_LIST_PATHS } from '@/modules/meetings/navigation'
 import MeetingPeopleFields from '@/components/meetings/MeetingPeopleFields.vue'
 import { useMeetingSeries } from '@/composables/useMeetings'
 import { usePatchMeetingSeriesSettings } from '@/composables/useMeetingSeriesSettings'
-import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
+import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
 import { parsePositiveId } from '@/utils/routeParams'
 import { ApiError } from '@/composables/useApi'
@@ -98,12 +98,12 @@ async function save() {
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('meetingsUx.seriesSettingsTitle')" :back-to="backTo" />
     <SharedPageState :loading="query.isLoading.value" :error="pageError" :empty="!query.isLoading.value && !pageError && !query.data.value" @retry="query.refetch">
-      <form ref="formElement" novalidate v-if="query.data.value" class="grid gap-(--webvue-gap-card)" @submit.prevent="save">
+      <form ref="formElement" novalidate v-if="query.data.value" class="grid gap-(--liwan-gap-card)" @submit.prevent="save">
         <SharedUnsavedChanges :dirty="dirty" />
       <UAlert v-if="attemptedSubmit && Object.values(formErrors).filter(Boolean).length > 1" color="error" variant="subtle" role="alert" :title="t('meetingsUx.validationSummary', { count: Object.values(formErrors).filter(Boolean).length })" />
         <UAlert v-if="!canEdit" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.seriesSettingsForbidden')" />
         <SharedFormSection panel :title="t('meetingsUx.seriesDefaultsTitle')">
-          <div class="grid gap-(--webvue-gap-card)">
+          <div class="grid gap-(--liwan-gap-card)">
           <UFormField :label="t('meetingsUx.seriesName')" name="name" required :error="visibleErrors.name ? t(`meetingsUx.errors.${visibleErrors.name}`) : undefined">
             <UInput id="series-settings-name" v-model="name" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!visibleErrors.name" required />
           </UFormField>

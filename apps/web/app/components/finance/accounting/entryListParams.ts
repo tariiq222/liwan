@@ -1,5 +1,5 @@
-import type { JournalEntry } from '@webvue/contracts'
-import type { KpiTile } from '@webvue/ui/app/utils/kpiTile'
+import type { JournalEntry } from '@liwan/contracts'
+import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
 import { queryDay, queryPositiveInt, queryText } from '../../../utils/routeQuery'
 
 export const ENTRY_PAGE_SIZE = 25

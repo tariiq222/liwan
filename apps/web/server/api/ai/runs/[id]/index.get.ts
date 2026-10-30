@@ -1,5 +1,5 @@
 import { getRouterParam } from 'h3'
-import { AiRunStatusSchema } from '@webvue/contracts'
+import { AiRunStatusSchema } from '@liwan/contracts'
 import { serviceFetch } from '../../../../utils/ai/upstream'
 import { runSession } from '../../../../utils/ai/session'
 

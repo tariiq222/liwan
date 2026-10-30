@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { TaskDetail } from '@webvue/contracts'
+import type { TaskDetail } from '@liwan/contracts'
 import { useTimeline } from '@/composables/useTimeline'
 import CommentComposer from './CommentComposer.vue'
 import Timeline from './Timeline.vue'

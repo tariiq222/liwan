@@ -3,7 +3,7 @@ import { compileScript, parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import { InboxContactImportSchema, InboxContactMarketingPatchSchema, type InboxAudience, type InboxContactMarketing } from '@webvue/contracts'
+import { InboxContactImportSchema, InboxContactMarketingPatchSchema, type InboxAudience, type InboxContactMarketing } from '@liwan/contracts'
 import * as presentation from '../../../composables/inbox/inboxCampaignPresentation'
 
 // The campaign panels' scripts are compiled and run against stubbed composables, as the other component tests do.

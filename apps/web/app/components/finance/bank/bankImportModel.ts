@@ -1,4 +1,4 @@
-import type { FinanceBankImport, FinanceBankImportMapping, FinanceBankImportPreview } from '@webvue/contracts'
+import type { FinanceBankImport, FinanceBankImportMapping, FinanceBankImportPreview } from '@liwan/contracts'
 import { roundMoney, sameMoney } from './bankModel'
 
 /** The server refuses larger files (2 MiB); the screen says so before reading one. */

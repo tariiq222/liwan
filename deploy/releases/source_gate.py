@@ -43,7 +43,7 @@ def verify_sources(binding, manifest, gate, serving_manifest, serving_config, ta
         if evidence.get(key) != snapshot_digest(gate[root_key]):
             raise ReleaseConflict('release_source_snapshot_changed')
     for root_key, config in [('baseRoot', serving_config), ('targetRoot', target_config)]:
-        if source_tree_digest(gate[root_key]) != source_tree_digest(config['webvueRoot']):
+        if source_tree_digest(gate[root_key]) != source_tree_digest(config['liwanRoot']):
             raise ReleaseConflict('release_addon_source_mismatch')
     names = installed_modules(binding, serving_manifest, serving_config)
     decision = classify_release(gate['baseRoot'], gate['targetRoot'], manifest, installed_modules=names)

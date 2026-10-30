@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import PayslipDocument from '../../../app/components/hr/payroll/PayslipDocument.vue'
-import StandalonePage from '@webvue/ui/app/components/shared/layout/StandalonePage.vue'
+import StandalonePage from '@liwan/ui/app/components/shared/layout/StandalonePage.vue'
 import { storyContext } from '../../support/context'
 
 // One payslip as a printable document: company and employee heading, earnings and deductions, the net and the
@@ -38,7 +38,7 @@ const meta = {
   render: args => ({
     components: { PayslipDocument, StandalonePage },
     setup: () => ({ args }),
-    template: '<main class="webvue-shell-main"><StandalonePage variant="print"><PayslipDocument v-bind="args" /></StandalonePage></main>',
+    template: '<main class="liwan-shell-main"><StandalonePage variant="print"><PayslipDocument v-bind="args" /></StandalonePage></main>',
   }),
 } satisfies Meta<typeof PayslipDocument>
 

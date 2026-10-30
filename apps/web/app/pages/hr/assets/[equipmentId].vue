@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import EquipmentCustodyPanel from '@/components/hr/assets/EquipmentCustodyPanel.vue'
-import { formatDate } from '@webvue/ui/app/utils/formatDate'
+import { formatDate } from '@liwan/ui/app/utils/formatDate'
 import { ApiError } from '@/composables/useApi'
 import { owningListBack } from '@/utils/recordListOrigin'
 import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
-import type { HrEquipment, HrRef } from '@webvue/contracts'
+import type { HrEquipment, HrRef } from '@liwan/contracts'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -223,7 +223,7 @@ async function submit() {
     />
 
     <SharedRecordSection v-if="equipment" variant="panel" :title="t('hrAssets.form.details')">
-      <UForm novalidate :state="form" class="webvue-form" method="post" data-testid="hr-asset-edit" @submit="submit">
+      <UForm novalidate :state="form" class="liwan-form" method="post" data-testid="hr-asset-edit" @submit="submit">
         <SharedUnsavedChanges :dirty="dirty" />
         <UAlert v-if="editError && !editField" role="alert" color="error" variant="subtle" :title="editError" />
         <div class="grid gap-4">

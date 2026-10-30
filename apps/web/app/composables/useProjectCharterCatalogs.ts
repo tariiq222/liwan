@@ -13,7 +13,7 @@ import {
   type ProjectCharterReferenceCreate,
   type ProjectCharterReferenceList,
   type ProjectCharterReferencePatch,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 
 export type { ProjectCharterCatalogResource, ProjectCharterReference, ProjectCharterReferenceList }
 

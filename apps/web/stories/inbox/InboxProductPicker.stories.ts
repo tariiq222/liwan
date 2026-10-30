@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import type { InboxCatalogPickItem } from '@webvue/contracts'
+import type { InboxCatalogPickItem } from '@liwan/contracts'
 import InboxProductPicker from '../../app/components/inbox/InboxProductPicker.vue'
 import { storyContext } from '../support/context'
 

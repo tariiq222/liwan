@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { ref } from 'vue'
-import ListFooter from '@webvue/ui/app/components/shared/data/ListFooter.vue'
-import ListCard from '@webvue/ui/app/components/shared/layout/ListCard.vue'
+import ListFooter from '@liwan/ui/app/components/shared/data/ListFooter.vue'
+import ListCard from '@liwan/ui/app/components/shared/layout/ListCard.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

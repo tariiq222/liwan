@@ -1,5 +1,5 @@
-import type { FinanceAsset, FinanceAssetDetail } from '@webvue/contracts'
-import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
+import type { FinanceAsset, FinanceAssetDetail } from '@liwan/contracts'
+import type { StatusTone } from '@liwan/ui/app/utils/statusTone'
 
 export const ASSET_STATE_TONE: Record<FinanceAsset['state'], StatusTone> = {
   draft: 'neutral',

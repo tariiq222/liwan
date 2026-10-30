@@ -1,8 +1,8 @@
 <script setup lang="ts">
 definePageMeta({ path: '/account/pay' })
 import type { TableColumn } from '@nuxt/ui'
-import type { HrMyPayslipSummary } from '@webvue/contracts'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import type { HrMyPayslipSummary } from '@liwan/contracts'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import { formatPayrollAmount, formatPayrollMonth, payrollCurrencyLabel } from '@/utils/payrollFormat'
 
 // The caller's own approved payslips, newest first, one page at a time (`?offset=`):
@@ -50,7 +50,7 @@ function payslipTo(row: HrMyPayslipSummary) {
     </SharedPageState>
     <SharedListCard v-if="profile.data.value">
       <SharedPageState :error="mine.error.value" :keep-content="items.length > 0" @retry="mine.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--webvue-card-pad-dense)" :title="t('hrPayroll.mine.emptyTitle')" :description="t('hrPayroll.mine.emptyHint')" />
+        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hrPayroll.mine.emptyTitle')" :description="t('hrPayroll.mine.emptyHint')" />
         <SharedDataTable
           v-else
           bare

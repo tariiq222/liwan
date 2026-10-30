@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CrmPackage } from '@webvue/contracts'
+import type { CrmPackage } from '@liwan/contracts'
 import { derivedDiscountPercent } from '@/utils/crmOpportunity'
 import { useCrmTerms } from '@/composables/crm/useCrmTerms'
 

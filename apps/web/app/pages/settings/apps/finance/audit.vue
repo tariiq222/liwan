@@ -2,7 +2,7 @@
 import AuditList from '@/components/finance/governance/AuditList.vue'
 import { auditFiltersFromQuery, auditListParams } from '@/components/finance/governance/auditParams'
 import { useFinanceAuditEvents } from '@/composables/finance/useFinanceAudit'
-import type { PageHeaderTag } from '@webvue/ui/app/utils/pageHeaderTag'
+import type { PageHeaderTag } from '@liwan/ui/app/utils/pageHeaderTag'
 
 const { t } = useI18n()
 const { can } = useAccess()

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinanceAuditEvent } from '@webvue/contracts'
+import type { FinanceAuditEvent } from '@liwan/contracts'
 import { useFinanceAuditEvents } from '@/composables/finance/useFinanceAudit'
 import { useRouteListFilters } from '@/composables/useRouteListFilters'
 import { listReturnTo } from '../invoices/listLocation'
@@ -64,7 +64,7 @@ const time = (event: FinanceAuditEvent) => formatAuditTime(event.created_at, loc
       </SharedFilterBar>
     </template>
     <SharedPageState :error="query.error.value" :keep-content="items.length > 0" @retry="query.refetch">
-      <SharedEmptyState v-if="showEmpty" class="m-(--webvue-card-pad-dense)" :title="t(activeCount ? 'app.noResults' : 'financeGovernance.audit.empty')" />
+      <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(activeCount ? 'app.noResults' : 'financeGovernance.audit.empty')" />
       <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,900px)]">
         <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :loading="query.isPending.value" :caption="t('financeGovernance.audit.title')">
           <template #created_at-cell="{ row }"><bdi class="whitespace-nowrap tabular-nums">{{ time(row.original) }}</bdi></template>

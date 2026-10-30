@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { joinList } from '@/utils/listFormat'
-import type { PersonRef } from '@webvue/contracts'
+import type { PersonRef } from '@liwan/contracts'
 import { operationsStateTone } from '@/composables/operations/state'
 
 // One approval stage as a read-only row: its number and name, who reviews it and, on a request, where it stands.

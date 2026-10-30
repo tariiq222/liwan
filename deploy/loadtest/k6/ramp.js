@@ -1,4 +1,4 @@
-// Main ramp: 100 -> 5000 concurrent virtual users against the WebVue stack.
+// Main ramp: 100 -> 5000 concurrent virtual users against the LiwanOS stack.
 // Each VU logs in once (real session cookie, sent explicitly on every request),
 // then loops a realistic browse mix:
 // SSR pages (/ , /tasks , /projects) + API reads (/api/v1/me , /api/v1/projects , /api/v1/notifications).

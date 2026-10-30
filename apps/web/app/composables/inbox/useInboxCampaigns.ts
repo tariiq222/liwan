@@ -23,7 +23,7 @@ import {
   type InboxChannelSendingPatch,
   type InboxContactImport,
   type InboxContactMarketingPatch,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { hasFeature } from '@/modules/registry'
 import { fileToBase64 } from '../../utils/attachmentFile'
 import { campaignPollInterval, type CampaignAction } from './inboxCampaignPresentation'

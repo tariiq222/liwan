@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import RunCancel from '../../../app/components/hr/lifecycle/RunCancel.vue'
-import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
+import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../../support/context'
 import { run } from './fixtures'
 
@@ -9,7 +9,7 @@ const meta = {
   component: RunCancel,
   parameters: { layout: 'fullscreen' },
   args: { run, namespace: 'hrOnboarding', pending: false },
-  render: args => ({ components: { RunCancel, PageContainer }, setup: () => ({ args }), template: '<main class="webvue-shell-main"><PageContainer width="list"><RunCancel v-bind="args" /></PageContainer></main>' }),
+  render: args => ({ components: { RunCancel, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer width="list"><RunCancel v-bind="args" /></PageContainer></main>' }),
 } satisfies Meta<typeof RunCancel>
 export default meta
 type Story = StoryObj<typeof meta>

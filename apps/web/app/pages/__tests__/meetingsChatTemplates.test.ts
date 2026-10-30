@@ -16,7 +16,7 @@ describe('the meetings pages stay on their templates', () => {
     ['pages/meetings/[id].vue', ['<SharedRecordPage', '<MeetingRecordTabs', '<SharedPropertiesPanel', '<SharedRecordSection']],
     ['components/meetings/MeetingRecordTabs.vue', ['data-testid="meeting-tabs"']],
     ['pages/meetings/series/[id].vue', ['<SharedRecordPage', '<SharedRouteTabs', '<SharedPropertiesPanel']],
-    ['pages/meetings/[id]/print.vue', ['<SharedStandalonePage', 'variant="print"', 'webvue-print-landscape']],
+    ['pages/meetings/[id]/print.vue', ['<SharedStandalonePage', 'variant="print"', 'liwan-print-landscape']],
   ])('%s uses its template', (file, needles) => {
     const source = read(file)
     for (const needle of needles) expect(source, needle).toContain(needle)

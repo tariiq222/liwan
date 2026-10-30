@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FinanceInvoiceDetailSchema, FinanceInvoiceListSchema, FinanceJournalListSchema, FinancePartnerListSchema, FinancePaymentListSchema } from '@webvue/contracts'
+import { FinanceInvoiceDetailSchema, FinanceInvoiceListSchema, FinanceJournalListSchema, FinancePartnerListSchema, FinancePaymentListSchema } from '@liwan/contracts'
 import { moduleUiCapabilities, moduleUiPreviewData } from '../../../e2e/module-ui-preview-data.mjs'
 
 const at = (path, query = '') => new URL(`http://localhost${path}${query}`)

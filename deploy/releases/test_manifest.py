@@ -9,8 +9,8 @@ from .manifest import classify_release, load_manifest, validate_manifest
 
 def release(**changes):
     value = {
-        'releaseId': 'r20261016', 'webvueCommit': '1' * 40, 'odooCommit': '2' * 40,
-        'images': {'odoo': 'webvue/odoo@sha256:' + 'a' * 64, 'web': 'webvue/web@sha256:' + 'b' * 64},
+        'releaseId': 'r20261016', 'liwanCommit': '1' * 40, 'odooCommit': '2' * 40,
+        'images': {'odoo': 'liwan/odoo@sha256:' + 'a' * 64, 'web': 'liwan/web@sha256:' + 'b' * 64},
         'assetsId': 'assets-1', 'moduleVersions': {}, 'upgradeModules': [], 'installModules': [],
         'mode': 'online', 'affectedServices': ['web'], 'aiStateVersion': '1',
         'compatibilityEvidence': {'reviewer': 'owner', 'reference': 'review-42',
@@ -35,7 +35,7 @@ class ManifestTests(unittest.TestCase):
     def test_online_rejects_module_operations(self):
         for operation in ('upgradeModules', 'installModules'):
             with self.subTest(operation=operation), self.assertRaises(ValueError):
-                validate_manifest(release(**{operation: ['webvue_core']}))
+                validate_manifest(release(**{operation: ['liwan_core']}))
 
     def test_rejects_mutable_images_and_missing_evidence(self):
         for patch in ({'images': {'odoo': 'odoo:latest', 'web': 'web:latest'}},
@@ -74,64 +74,64 @@ class ManifestTests(unittest.TestCase):
         self.assertIn('unknown_change', result['reasons'])
 
     def test_reviewed_python_requires_explicit_semantic_evidence(self):
-        before = {'odoo-addons/webvue_a/__manifest__.py': "{'version':'19.0.1.0.0','depends':[]}",
-                  'odoo-addons/webvue_a/models/a.py': 'def value(): return 1'}
-        after = dict(before, **{'odoo-addons/webvue_a/models/a.py': 'def value(): return 2'})
-        manifest = release(moduleVersions={'webvue_a': '19.0.1.0.0'}, affectedServices=['odoo'])
+        before = {'odoo-addons/liwan_a/__manifest__.py': "{'version':'19.0.1.0.0','depends':[]}",
+                  'odoo-addons/liwan_a/models/a.py': 'def value(): return 1'}
+        after = dict(before, **{'odoo-addons/liwan_a/models/a.py': 'def value(): return 2'})
+        manifest = release(moduleVersions={'liwan_a': '19.0.1.0.0'}, affectedServices=['odoo'])
         self.assertFalse(self.classify(before, after, manifest)['eligible'])
-        manifest['compatibilityEvidence']['reviewedPaths'] = ['odoo-addons/webvue_a/models/a.py']
+        manifest['compatibilityEvidence']['reviewedPaths'] = ['odoo-addons/liwan_a/models/a.py']
         self.assertTrue(self.classify(before, after, manifest)['eligible'])
 
     def test_schema_security_data_and_dependencies_cannot_claim_online(self):
-        before = {'odoo-addons/webvue_a/__manifest__.py': "{'version':'19.0.1.0.0','depends':[]}",
-                  'odoo-addons/webvue_a/models/a.py': 'value = 1'}
+        before = {'odoo-addons/liwan_a/__manifest__.py': "{'version':'19.0.1.0.0','depends':[]}",
+                  'odoo-addons/liwan_a/models/a.py': 'value = 1'}
         for name, content in (
             ('models/a.py', "name = fields.Char()"),
             ('security/ir.model.access.csv', 'access'), ('data/a.xml', '<odoo/>'),
             ('__manifest__.py', "{'version':'19.0.1.0.0','depends':['base']}")):
-            after = dict(before, **{'odoo-addons/webvue_a/' + name: content})
+            after = dict(before, **{'odoo-addons/liwan_a/' + name: content})
             self.assertFalse(self.classify(before, after)['eligible'])
 
     def test_dependency_and_reverse_dependency_closure(self):
         before = {}
-        for module, dependencies in [('base', []), ('webvue_a', ['base']), ('webvue_bridge', ['webvue_a'])]:
+        for module, dependencies in [('base', []), ('liwan_a', ['base']), ('liwan_bridge', ['liwan_a'])]:
             before[f'odoo-addons/{module}/__manifest__.py'] = repr({'version': '19.0.1.0.0', 'depends': dependencies})
-        after = dict(before, **{'odoo-addons/webvue_a/data/a.xml': '<odoo/>'})
-        value = release(mode='tenant_maintenance', upgradeModules=['webvue_a'],
-                        moduleVersions={key: '19.0.1.0.0' for key in ('base', 'webvue_a', 'webvue_bridge')},
+        after = dict(before, **{'odoo-addons/liwan_a/data/a.xml': '<odoo/>'})
+        value = release(mode='tenant_maintenance', upgradeModules=['liwan_a'],
+                        moduleVersions={key: '19.0.1.0.0' for key in ('base', 'liwan_a', 'liwan_bridge')},
                         affectedServices=['odoo'])
         result = self.classify(before, after, value)
         self.assertTrue(result['eligible'])
-        self.assertEqual(result['affected_modules'], ['base', 'webvue_a', 'webvue_bridge'])
+        self.assertEqual(result['affected_modules'], ['base', 'liwan_a', 'liwan_bridge'])
 
     def test_reviewed_sql_and_model_security_changes_still_require_maintenance(self):
-        prefix = 'odoo-addons/webvue_a/'
+        prefix = 'odoo-addons/liwan_a/'
         before = {prefix + '__manifest__.py': "{'version':'19.0.1.0.0','depends':[]}",
                   prefix + 'models/a.py': 'def work(): return 1'}
         for code in ("def work(): env.cr.execute('ALTER TABLE x ADD y INTEGER')",
                      "def check_access(self): return True"):
             after = dict(before, **{prefix + 'models/a.py': code})
-            value = release(moduleVersions={'webvue_a': '19.0.1.0.0'}, affectedServices=['odoo'])
+            value = release(moduleVersions={'liwan_a': '19.0.1.0.0'}, affectedServices=['odoo'])
             value['compatibilityEvidence']['reviewedPaths'] = [prefix + 'models/a.py']
             self.assertFalse(self.classify(before, after, value)['eligible'])
 
     def test_manifest_versions_cover_every_declared_module(self):
         with self.assertRaises(ValueError):
-            validate_manifest(release(mode='tenant_maintenance', upgradeModules=['webvue_a']))
+            validate_manifest(release(mode='tenant_maintenance', upgradeModules=['liwan_a']))
 
     def test_stock_odoo_versions_match_the_canonical_installed_version(self):
         files = {'odoo/addons/base/__manifest__.py': "{'version':'1.3','depends':[]}",
-                 'odoo-addons/webvue_a/__manifest__.py': "{'version':'19.0.1.0.0','depends':['base']}"}
-        after = dict(files, **{'odoo-addons/webvue_a/data/a.xml': '<odoo/>'})
-        value = release(mode='tenant_maintenance', upgradeModules=['webvue_a'],
-                        moduleVersions={'base': '19.0.1.3', 'webvue_a': '19.0.1.0.0'})
+                 'odoo-addons/liwan_a/__manifest__.py': "{'version':'19.0.1.0.0','depends':['base']}"}
+        after = dict(files, **{'odoo-addons/liwan_a/data/a.xml': '<odoo/>'})
+        value = release(mode='tenant_maintenance', upgradeModules=['liwan_a'],
+                        moduleVersions={'base': '19.0.1.3', 'liwan_a': '19.0.1.0.0'})
         self.assertTrue(self.classify(files, after, value)['eligible'])
 
     def stock_inventory(self):
         modules = {'base': ('1.3', []), 'mail': ('1.19', ['base']),
                    'project': ('1.4', ['mail']), 'sale': ('1.2', ['mail']),
-                   'webvue_bridge': ('19.0.1.0.0', ['project']),
-                   'webvue_unused_bridge': ('19.0.1.0.0', ['project'])}
+                   'liwan_bridge': ('19.0.1.0.0', ['project']),
+                   'liwan_unused_bridge': ('19.0.1.0.0', ['project'])}
         return {f'addons/{name}/__manifest__.py': repr({'version': version, 'depends': deps})
                 for name, (version, deps) in modules.items()}
 
@@ -139,22 +139,22 @@ class ManifestTests(unittest.TestCase):
         before = self.stock_inventory()
         after = dict(before, **{'addons/project/data/project.xml': '<odoo/>'})
         versions = {'base': '19.0.1.3', 'mail': '19.0.1.19', 'project': '19.0.1.4',
-                    'webvue_bridge': '19.0.1.0.0'}
+                    'liwan_bridge': '19.0.1.0.0'}
         value = release(mode='tenant_maintenance', upgradeModules=['project'], moduleVersions=versions)
         result = self.classify(before, after, value)
         self.assertTrue(result['eligible'], result)
-        self.assertEqual(result['affected_modules'], ['base', 'mail', 'project', 'webvue_bridge'])
+        self.assertEqual(result['affected_modules'], ['base', 'liwan_bridge', 'mail', 'project'])
 
     def test_explicit_installed_scope_overrides_inventory_but_includes_requested_installs(self):
         before = self.stock_inventory()
         after = dict(before, **{'addons/project/data/project.xml': '<odoo/>'})
         versions = {'base': '19.0.1.3', 'mail': '19.0.1.19', 'project': '19.0.1.4',
-                    'sale': '19.0.1.2', 'webvue_bridge': '19.0.1.0.0'}
+                    'sale': '19.0.1.2', 'liwan_bridge': '19.0.1.0.0'}
         value = release(mode='tenant_maintenance', upgradeModules=['project'],
-                        installModules=['webvue_bridge'], moduleVersions=versions)
+                        installModules=['liwan_bridge'], moduleVersions=versions)
         result = self.classify(before, after, value, installed_modules={'base', 'mail', 'project'})
         self.assertTrue(result['eligible'], result)
-        self.assertEqual(result['affected_modules'], ['base', 'mail', 'project', 'webvue_bridge'])
+        self.assertEqual(result['affected_modules'], ['base', 'liwan_bridge', 'mail', 'project'])
 
     def test_forward_dependencies_are_not_limited_to_installed_scope(self):
         before = self.stock_inventory()
@@ -190,8 +190,8 @@ class ManifestTests(unittest.TestCase):
         self.assertTrue(self.classify({'.git': 'gitdir: before'}, {'.git': 'gitdir: after'})['eligible'])
 
     def test_missing_dependency_and_wrong_version_block_release(self):
-        contents = {'odoo-addons/webvue_a/__manifest__.py': "{'version':'19.0.2.0.0','depends':['missing']}"}
-        value = release(mode='tenant_maintenance', installModules=['webvue_a'], moduleVersions={'webvue_a': '19.0.1.0.0'})
+        contents = {'odoo-addons/liwan_a/__manifest__.py': "{'version':'19.0.2.0.0','depends':['missing']}"}
+        value = release(mode='tenant_maintenance', installModules=['liwan_a'], moduleVersions={'liwan_a': '19.0.1.0.0'})
         result = self.classify({}, contents, value)
         self.assertFalse(result['eligible'])
         self.assertIn('unresolved_dependency', result['reasons'])

@@ -1,5 +1,5 @@
-import type { JournalEntry } from '@webvue/contracts'
-import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
+import type { JournalEntry } from '@liwan/contracts'
+import type { StatusTone } from '@liwan/ui/app/utils/statusTone'
 
 export const ENTRY_STATE_TONE: Record<JournalEntry['state'], StatusTone> = {
   draft: 'neutral',

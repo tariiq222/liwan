@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HrShiftSettings } from '@webvue/contracts'
+import type { HrShiftSettings } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { saveErrorMessage } from '@/utils/formFeedback'
 
@@ -65,7 +65,7 @@ async function submit() {
 </script>
 
 <template>
-  <UForm novalidate :state="{ reference, defaultSchedule }" class="webvue-form" method="post" @submit="submit">
+  <UForm novalidate :state="{ reference, defaultSchedule }" class="liwan-form" method="post" @submit="submit">
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedFormSection panel :title="t('hr.shiftSettings.title')" :description="t('hr.shiftSettings.hint')">
       <UAlert v-if="message" role="alert" color="error" variant="subtle" :title="t('hr.shiftSettings.saveError')" :description="message" />

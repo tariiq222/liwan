@@ -2,13 +2,13 @@ import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { compileScript, parse } from '@vue/compiler-sfc'
-import type { ProjectDetail, ProjectPatch } from '@webvue/contracts'
+import type { ProjectDetail, ProjectPatch } from '@liwan/contracts'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { vueBindings } from '../../../../../tests/vueBindings'
 import * as VueRouter from 'vue-router'
 import { afterEach, describe, expect, it } from 'vitest'
-import { sharedFile } from '@webvue/ui/test/helpers/renderShared'
+import { sharedFile } from '@liwan/ui/test/helpers/renderShared'
 import { saveErrorMessage } from '../../../../utils/formFeedback'
 import { rootedNode } from '../../../../../tests/hostNode'
 
@@ -202,7 +202,7 @@ describe('ProjectGeneralForm autosave and draft behavior', () => {
     expect(text(form.control('project-approver'))).toBe('Noura')
     expect(await form.router.push('/projects')).toBeTruthy()
     await form.click('project-settings-retry')
-    expect(form.requests[1]?.variables.patch).toEqual({ webvue_completion_approval: 'specific_user', webvue_completion_approver_id: 9 })
+    expect(form.requests[1]?.variables.patch).toEqual({ liwan_completion_approval: 'specific_user', liwan_completion_approver_id: 9 })
     form.project.value = { ...form.project.value, completion_approval: 'specific_user', completion_approver: { id: 9, name: 'Noura' } }
     await form.settle()
     expect(await form.router.push('/projects')).toBeUndefined()

@@ -15,7 +15,7 @@ MODULE = re.compile(r'^[a-z][a-z0-9_]*$')
 IMAGE = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9./:_-]*@sha256:[a-f0-9]{64}$')
 MODES = {'online', 'tenant_maintenance', 'service_maintenance', 'infrastructure_maintenance'}
 SERVICES = {'odoo', 'web', 'guard', 'ai', 'database', 'edge', 'storage', 'host'}
-FIELDS = {'releaseId', 'webvueCommit', 'odooCommit', 'images', 'assetsId', 'moduleVersions',
+FIELDS = {'releaseId', 'liwanCommit', 'odooCommit', 'images', 'assetsId', 'moduleVersions',
           'upgradeModules', 'installModules', 'mode', 'affectedServices', 'aiStateVersion',
           'compatibilityEvidence', 'rollbackPolicy'}
 
@@ -50,7 +50,7 @@ def validate_manifest(value):
         for key in ('releaseId', 'assetsId', 'aiStateVersion'):
             if not _valid_name(value[key]):
                 raise ValueError()
-        for key in ('webvueCommit', 'odooCommit'):
+        for key in ('liwanCommit', 'odooCommit'):
             if not isinstance(value[key], str) or not re.fullmatch('[a-f0-9]{40}', value[key]):
                 raise ValueError()
         images = value['images']
@@ -215,7 +215,7 @@ def _python_schema_change(before, after):
 def classify_release(base_root, target_root, manifest, *, installed_modules=None):
     """Return deterministic fail-closed impact decision over two local trees.
 
-    Roots include WebVue ``odoo-addons`` and, when touched, pinned stock Odoo
+    Roots include LiwanOS ``odoo-addons`` and, when touched, pinned stock Odoo
     ``addons``/``odoo/addons``. Missing stock dependency manifests block rather
     than consulting a different checkout or fetching remote code.
 

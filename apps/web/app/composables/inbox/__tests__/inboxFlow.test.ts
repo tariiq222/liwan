@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { InboxFlowSchema, InboxFlowSubmissionSchema } from '@webvue/contracts'
+import { InboxFlowSchema, InboxFlowSubmissionSchema } from '@liwan/contracts'
 import { inboxPreviewData, resetInboxPreview } from '../../../../e2e/inbox-ui-preview-data.mjs'
 import {
   FLOW_LIMITS, FLOW_STARTERS, addField, answerColumns, answerDisplay, blankFlowDraft, conversationRoute, emptyField, emptyOption, fieldProblems, flowIsSendable, flowPreviewModel,

@@ -80,7 +80,7 @@ export class SimulatorAdapter implements PaymentAdapter {
     const a: SimAttempt = {
       input: {
         attempt_id: row.id, order_id: row.order_id, amount: { minor: Number(row.amount_minor), currency: row.currency, exponent: row.exponent },
-        description: `WebVue order ${row.order_id}`, success_url: '', back_url: '', callback_url: '', expires_at: new Date(Date.now() + 3_600_000).toISOString(),
+        description: `LiwanOS order ${row.order_id}`, success_url: '', back_url: '', callback_url: '', expires_at: new Date(Date.now() + 3_600_000).toISOString(),
       },
       ref, payment_id: ref.replace('sim_inv_', 'sim_pay_'), status: 'pending', outcome: this.defaultOutcome,
     }

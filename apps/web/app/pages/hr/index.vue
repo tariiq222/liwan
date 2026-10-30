@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import DirectoryTable from '@/components/hr/DirectoryTable.vue'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import { HR_EXPIRY_WINDOWS, useHrExpiring, useHrSaudization } from '@/composables/useHrReports'
 import { useHrEmployees } from '@/composables/useHrEmployees'
 import { employeeKpiTiles } from '@/utils/hrKpis'
@@ -47,7 +47,7 @@ function editEmployee(id: number) { void navigateTo({ path: `/hr/employees/${id}
     create-test-id="hr-employee-new"
     kpi-toggle
   >
-    <div class="webvue-page-stack">
+    <div class="liwan-page-stack">
       <SharedKpiStrip :tiles="kpiTiles" :loading="headcount.isLoading.value" :label="t('hr.kpi.label')" data-testid="hr-kpi-strip" />
       <UAlert
         v-if="expiringCount > 0"

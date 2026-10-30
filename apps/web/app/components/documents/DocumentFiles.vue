@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
-import type { DocumentDetail, DocumentFile } from '@webvue/contracts'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
+import type { DocumentDetail, DocumentFile } from '@liwan/contracts'
 const props = defineProps<{ document: DocumentDetail; files?: DocumentFile[]; pending?: boolean; loading?: boolean; error?: unknown; page?: number; pages?: number; readonly?: boolean; duplicate?: File | null }>()
 const emit = defineEmits<{ upload: [file: File, options?: { name?: string; asVersion?: boolean }]; cancelDuplicate: []; action: [file: DocumentFile, action: 'archive' | 'restore' | 'lock' | 'unlock']; page: [value: number]; retry: [] }>()
 const { t } = useI18n(); const hydrated = useHydrated(); const uploadError = ref(''); const confirmArchive = ref<number | null>(null)
@@ -51,7 +51,7 @@ function actions(file: DocumentFile): RowAction[] {
     </UAlert>
     <SharedPageState :loading="loading" :error="props.error" @retry="emit('retry')">
     <SharedEmptyState v-if="!files?.length" compact :title="t('documents.noFiles')" />
-    <ul v-else class="grid gap-(--webvue-gap-card)">
+    <ul v-else class="grid gap-(--liwan-gap-card)">
       <li v-for="file in files" :key="file.id" class="min-w-0">
         <SharedSubCard>
           <div class="flex flex-wrap items-center gap-2">

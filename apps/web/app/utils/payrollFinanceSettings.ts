@@ -4,7 +4,7 @@ import {
   type HrPayrollEntryDetail,
   type HrPayrollFinanceSettings,
   type HrPayrollFinanceSettingsPatch,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 
 /** The picker value that means "no record": a select item cannot carry an empty value. */
 export const NO_RECORD = 'none'

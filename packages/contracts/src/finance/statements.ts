@@ -165,7 +165,7 @@ export const FinanceZakatReviewSchema = z.object({
   id,
   date_to: day,
   reviewer: z.object({ id, name: z.string() }).strict(),
-  /** The credential the reviewer states (for example a SOCPA licence); WebVue does not verify it. */
+  /** The credential the reviewer states (for example a SOCPA licence); LiwanOS does not verify it. */
   credential: z.string().min(1),
   note: z.string(),
   reviewed_at: z.string().datetime(),
@@ -177,7 +177,7 @@ export const FinanceZakatReviewSchema = z.object({
 /**
  * A simplified Zakat base. `template_base` is the books' figure; `base` and `zakat_due` include the company's adjustments.
  * `status` is `management_information` until a review exists, `reviewed` while the latest review matches, `review_stale`
- * after a change. `filed` is always false: WebVue never files, and even a reviewed computation is the taxpayer's to file.
+ * after a change. `filed` is always false: LiwanOS never files, and even a reviewed computation is the taxpayer's to file.
  */
 export const FinanceZakatBaseSchema = z.object({
   date_to: day,

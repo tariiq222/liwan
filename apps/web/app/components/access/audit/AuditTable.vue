@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
+import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import type { TableColumn } from '@nuxt/ui'
-import type { AccessAuditSummary } from '@webvue/contracts'
+import type { AccessAuditSummary } from '@liwan/contracts'
 import type { RouteLocationRaw } from 'vue-router'
-import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
+import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
 import { AUDIT_ACTION_LABELS } from '@/components/access/audit/auditActionLabels'
-import { formatWebVueDateTime } from '@webvue/ui/app/composables/calendarDate'
+import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
 
 // The access-log table on SharedDataTable: a row (background click, Enter, the time link) opens the event
 // through `toFor`. Filters and pagination belong to the page.
@@ -20,7 +20,7 @@ defineEmits<{ retry: [] }>()
 const { t, locale } = useI18n()
 const actionLabel = (action: AccessAuditSummary['action']) => t(AUDIT_ACTION_LABELS[action])
 const eventTo = (event: AccessAuditSummary) => props.toFor(event.id)
-const when = (event: AccessAuditSummary) => formatWebVueDateTime(event.occurred_at, locale.value)
+const when = (event: AccessAuditSummary) => formatLiwanDateTime(event.occurred_at, locale.value)
 const actionsFor = (event: AccessAuditSummary) => [{ label: t('access.view'), to: eventTo(event) }]
 const columns = computed<TableColumn<AccessAuditSummary>[]>(() => [
   { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
@@ -34,7 +34,7 @@ const columns = computed<TableColumn<AccessAuditSummary>[]>(() => [
 </script>
 
 <template>
-  <SharedEmptyState v-if="!loading && !error && !events.length" class="m-(--webvue-card-pad-dense)" :title="emptyText ?? t('app.noResults')" />
+  <SharedEmptyState v-if="!loading && !error && !events.length" class="m-(--liwan-card-pad-dense)" :title="emptyText ?? t('app.noResults')" />
   <SharedDataTable
     v-else
     bare

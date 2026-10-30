@@ -16,7 +16,7 @@ describe('ModuleRail', () => {
     const at = (text: string) => html.indexOf(text)
     expect(at('to="/home"')).toBeLessThan(at('to="/projects"'))
     expect(at('to="/chat"')).toBeLessThan(at('to="/ai"'))
-    expect(html).toMatch(/<nav[^>]*class="webvue-module-rail-links"[^>]*aria-label="nav.railApps"[^>]*data-group="applications"/)
+    expect(html).toMatch(/<nav[^>]*class="liwan-module-rail-links"[^>]*aria-label="nav.railApps"[^>]*data-group="applications"/)
   })
   it('marks only the active entry and keeps an empty scroller hidden from screen readers', async () => {
     expect((await render()).match(/aria-current="page"/g)).toHaveLength(1)
@@ -25,7 +25,7 @@ describe('ModuleRail', () => {
   it('names each link by its visible text so voice control and screen readers agree', async () => {
     const html = await render({ rail: { ...rail, applications: [{ ...item('hr'), shortLabelKey: 'nav.railHr' }] } })
     expect(html).toContain('nav.railHr')
-    expect(html).not.toMatch(/<a[^>]*class="webvue-module-rail-link"[^>]*aria-label=/)
+    expect(html).not.toMatch(/<a[^>]*class="liwan-module-rail-link"[^>]*aria-label=/)
   })
   it('does not claim overflow before layout has measured it', async () => {
     const html = await render()

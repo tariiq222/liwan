@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FinanceAccount } from '@webvue/contracts'
+import type { FinanceAccount } from '@liwan/contracts'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import { useCreateSetupAccount, usePatchSetupAccount } from '@/composables/finance/useFinanceRecords'
 import { ACCOUNT_TYPES } from '../accounting/accountListParams'
@@ -34,9 +34,9 @@ async function submit() {
 </script>
 
 <template>
-  <UForm :state="draft" class="webvue-form" method="post" :loading-auto="false" novalidate data-testid="finance-record-account-form" @submit="submit">
+  <UForm :state="draft" class="liwan-form" method="post" :loading-auto="false" novalidate data-testid="finance-record-account-form" @submit="submit">
     <UAlert v-if="failure" role="alert" color="error" variant="subtle" :title="t('financeRecords.saveError')" :description="saveErrorMessage(failure, t('errors.generic'), t('errors.saveUncertain'))" />
-    <div class="webvue-form-grid">
+    <div class="liwan-form-grid">
       <UFormField :label="t('financeRecords.accounts.form.code')" name="finance-record-account-code" required>
         <UInput id="finance-record-account-code" v-model="draft.code" dir="ltr" class="w-full" :disabled="!hydrated" required />
       </UFormField>

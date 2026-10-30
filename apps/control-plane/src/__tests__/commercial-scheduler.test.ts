@@ -42,8 +42,8 @@ describe('commercial scheduler', () => {
     }
     expect(await run({}, 1000, 20)).toBe(1)                       // 20 s of ticks: one run
     expect(await run({}, 100_000, 7)).toBe(3)                     // 600 s: runs at 0, 300, 600 s
-    expect(await run({ WEBVUE_COMMERCIAL_USAGE_INTERVAL_SEC: '999999' }, 100_000, 7)).toBe(2)  // capped at 500 s: runs at 0 and 500 s
-    expect(await run({ WEBVUE_COMMERCIAL_USAGE_INTERVAL_SEC: 'junk' }, 100_000, 7)).toBe(3)    // invalid: default
+    expect(await run({ LIWAN_COMMERCIAL_USAGE_INTERVAL_SEC: '999999' }, 100_000, 7)).toBe(2)  // capped at 500 s: runs at 0 and 500 s
+    expect(await run({ LIWAN_COMMERCIAL_USAGE_INTERVAL_SEC: 'junk' }, 100_000, 7)).toBe(3)    // invalid: default
   });
 
   it('retries a lock-skipped usage run after 30 s, logs it once, and then waits a full interval after a real run', async () => {

@@ -13,7 +13,7 @@ function setup(overrides: Partial<EnrollmentDeps> = {}, token: string | null = T
     switch (path) {
       case '/api/auth/enroll/invitation': return { email: 'a@example.test', purpose: 'enroll' }
       case '/api/auth/enroll/passkey-options': return { challenge_id: 'c'.repeat(36), options: { challenge: 'x' } }
-      case '/api/auth/enroll/totp': return { totp_uri: 'otpauth://totp/WebVue%3Aa?secret=JBSWY3DPEHPK3PXP&issuer=WebVue', totp_box: 'QUJD' }
+      case '/api/auth/enroll/totp': return { totp_uri: 'otpauth://totp/LiwanOS%3Aa?secret=JBSWY3DPEHPK3PXP&issuer=LiwanOS', totp_box: 'QUJD' }
       case '/api/auth/enroll/complete': return { recovery_codes: CODES, expires_at: 'x', idle_expires_at: 'y' }
       default: return undefined
     }

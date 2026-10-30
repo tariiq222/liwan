@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import { REGISTER_PRIORITY_TONE, REGISTER_STATUS_TONE, registerScoreTone } from '@/components/pmo/projects/governance/state'
-import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
+import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 import { useProject } from '@/composables/useProjects'
 import { useProjectRegisterItem } from '@/composables/useProjectGovernance'
 
@@ -37,7 +37,7 @@ const detailPath = computed(() => `/projects/${projectId.value}/register/${regis
         <p class="whitespace-pre-wrap text-sm">{{ item.data.value.description || '—' }}</p>
       </SharedRecordSection>
       <SharedRecordSection variant="panel" :title="t('projects.refresh.workspace.registerPlan')">
-        <div class="grid gap-(--webvue-gap-card)">
+        <div class="grid gap-(--liwan-gap-card)">
           <p class="whitespace-pre-wrap text-sm">{{ item.data.value.response || '—' }}</p>
           <SharedSubCard v-if="item.data.value.task" tone="tinted" class="text-sm">
             <span class="text-muted">{{ t('projects.governance.register.task') }}:</span>

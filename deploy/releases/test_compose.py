@@ -8,12 +8,12 @@ def operator(pool='green'):
     upstreams = {'odoo': f'http://{pool}-odoo:8069', 'web': f'http://{pool}-web:3000',
                  'ws': f'http://{pool}-odoo:8072'}
     return {'runtimeDbUser':'pool_role','runtimeUid':501,'httpConfigDigest':'a'*64,'cronConfigDigest':'b'*64,
-            'guardWebNetwork':'webvue_guard_web','guardOdooNetwork':'webvue_guard_odoo','databaseNetwork':'webvue_database',
-            'releaseRoutesDir':'/run/webvue/releases','poolId': pool, 'tenancyMode': 'shared', 'upstreams': upstreams,
-            'allowedUpstreams': [*upstreams.values(), 'http://guard:8080'], 'guardUrl': 'http://guard:8080', 'sessionStore': 'webvue_sessions',
-            'filestore': 'webvue_filestore', 'assetsStore': 'webvue_assets',
-            'httpConfig': f'/etc/webvue/{pool}-http.conf', 'cronConfig': f'/etc/webvue/{pool}-cron.conf',
-            'cronDatabases': ['tenant_a', 'tenant_b'], 'runtimeSecret': f'/etc/webvue/{pool}-runtime.conf'}
+            'guardWebNetwork':'liwan_guard_web','guardOdooNetwork':'liwan_guard_odoo','databaseNetwork':'liwan_database',
+            'releaseRoutesDir':'/run/liwan/releases','poolId': pool, 'tenancyMode': 'shared', 'upstreams': upstreams,
+            'allowedUpstreams': [*upstreams.values(), 'http://guard:8080'], 'guardUrl': 'http://guard:8080', 'sessionStore': 'liwan_sessions',
+            'filestore': 'liwan_filestore', 'assetsStore': 'liwan_assets',
+            'httpConfig': f'/etc/liwan/{pool}-http.conf', 'cronConfig': f'/etc/liwan/{pool}-cron.conf',
+            'cronDatabases': ['tenant_a', 'tenant_b'], 'runtimeSecret': f'/etc/liwan/{pool}-runtime.conf'}
 
 
 class ComposeTests(unittest.TestCase):
@@ -37,8 +37,8 @@ class ComposeTests(unittest.TestCase):
         blue, green = render_pool(release(), operator('blue')), render_pool(release(), operator())
         mounts = lambda bundle, name: [entry for entry in bundle['services'][name]['volumes'] if entry['target'] == '/var/lib/odoo/sessions']
         self.assertEqual(mounts(blue, 'blue-odoo'), mounts(green, 'green-odoo'))
-        self.assertEqual(green['x-webvue-pool']['releaseId'], 'r20261016')
-        self.assertEqual(green['services']['green-web']['labels']['webvue.pool'], 'green')
+        self.assertEqual(green['x-liwan-pool']['releaseId'], 'r20261016')
+        self.assertEqual(green['services']['green-web']['labels']['liwan.pool'], 'green')
 
     def test_rejects_arbitrary_upstreams_names_paths_and_empty_cron_membership(self):
         cases = [dict(upstreams={'odoo': 'http://169.254.169.254:80', 'web': 'http://green-web:3000', 'ws': 'http://green-odoo:8072'}),
@@ -56,11 +56,11 @@ class ComposeTests(unittest.TestCase):
 
     def test_ai_generation_is_stable_on_restart_and_unique_when_reusing_pool(self):
         def generation(pool, release_id):
-            manifest = release(releaseId=release_id, images={**release()['images'], 'ai': 'webvue/ai@sha256:' + 'c' * 64})
+            manifest = release(releaseId=release_id, images={**release()['images'], 'ai': 'liwan/ai@sha256:' + 'c' * 64})
             value = operator(pool)
             value['upstreams']['ai'] = f'http://{pool}-ai:8081'
             value['allowedUpstreams'].append(value['upstreams']['ai'])
-            value['ai'] = {'mode': 'pool', 'stateStore': 'ai_state', 'config': '/etc/webvue/ai.conf'}
+            value['ai'] = {'mode': 'pool', 'stateStore': 'ai_state', 'config': '/etc/liwan/ai.conf'}
             return render_pool(manifest, value)['services'][pool + '-ai']['environment']['AI_GENERATION_ID']
         blue = generation('blue', 'r1')
         self.assertEqual(blue, generation('blue', 'r1'))
@@ -70,11 +70,11 @@ class ComposeTests(unittest.TestCase):
 
     def test_runtime_secret_files_are_consumed_by_services(self):
         result = render_pool(release(), operator())
-        self.assertEqual(result['services']['green-web']['env_file'], ['/etc/webvue/green-runtime.conf'])
+        self.assertEqual(result['services']['green-web']['env_file'], ['/etc/liwan/green-runtime.conf'])
 
     def test_service_mounts_cannot_alias_secret_or_persistent_paths(self):
-        for patch in ({'httpConfig': '/etc/webvue/green-cron.conf'},
-                      {'sessionStore': 'webvue_filestore'}):
+        for patch in ({'httpConfig': '/etc/liwan/green-cron.conf'},
+                      {'sessionStore': 'liwan_filestore'}):
             value = operator(); value.update(patch)
             with self.subTest(patch=patch), self.assertRaises(ValueError):
                 render_pool(release(), value)
@@ -87,13 +87,13 @@ class ComposeTests(unittest.TestCase):
             render_pool(release(), value)
 
     def test_ai_requires_explicit_pool_or_stable_state_configuration(self):
-        manifest = release(images={**release()['images'], 'ai': 'webvue/ai@sha256:' + 'c' * 64})
+        manifest = release(images={**release()['images'], 'ai': 'liwan/ai@sha256:' + 'c' * 64})
         with self.assertRaises(ValueError):
             render_pool(manifest, operator())
         value = operator()
         value['upstreams']['ai'] = 'http://green-ai:8081'
         value['allowedUpstreams'].append(value['upstreams']['ai'])
-        value['ai'] = {'mode': 'pool', 'stateStore': 'ai_state', 'config': '/etc/webvue/ai.conf'}
+        value['ai'] = {'mode': 'pool', 'stateStore': 'ai_state', 'config': '/etc/liwan/ai.conf'}
         self.assertEqual(render_pool(manifest, value)['services']['green-ai']['image'], manifest['images']['ai'])
         stable = operator(); stable['ai'] = {'mode': 'stable', 'url': 'http://stable-ai:8081'}
         stable['upstreams']['ai'] = 'http://stable-ai:8081'; stable['allowedUpstreams'].append('http://stable-ai:8081')

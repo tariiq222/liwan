@@ -61,7 +61,7 @@ async function submit() {
   <SharedCreatePanel :title="t('hrRecruitment.jobs.new')" :back-to="backTo">
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedForbiddenState v-if="!canManage" />
-    <UForm v-else novalidate :state="{ name, departmentId, target, description }" class="webvue-form" method="post" data-testid="hr-recruitment-job-form" @submit="submit">
+    <UForm v-else novalidate :state="{ name, departmentId, target, description }" class="liwan-form" method="post" data-testid="hr-recruitment-job-form" @submit="submit">
       <UAlert v-if="error && !serverField" role="alert" color="error" variant="subtle" :title="error" />
       <SharedFormSection panel :title="t('hrRecruitment.jobs.form.details')">
         <div class="grid gap-4">

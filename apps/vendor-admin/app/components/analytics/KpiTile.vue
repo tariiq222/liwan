@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AnalyticsFigure, Money } from '@webvue/commercial-contracts'
+import type { AnalyticsFigure, Money } from '@liwan/commercial-contracts'
 import { deltaOf, deltaTone, figureNumber, formatFigure, type Direction, type FigureFormat } from '@/utils/vendorAnalytics'
 
 // One analytics figure: SharedMetricTile plus its change against the previous period. An unavailable

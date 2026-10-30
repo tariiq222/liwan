@@ -3,7 +3,7 @@
 
 The gateway lists *all* running bookings plus due scheduled bookings across the
 operator's tenants. Its claim and transition operations are committed Odoo CAS
-transactions, using _webvue_transition under the trusted local operator context.
+transactions, using _liwan_transition under the trusted local operator context.
 No customer session, Odoo import, second rollout engine or scheduling DB exists
 here. One shared ReleaseState scheduler lock serializes admission processes.
 
@@ -74,9 +74,9 @@ class BookingGateway(Protocol):
 
     due MUST include every running booking regardless of its scheduled time.
     claim MUST freshly check scheduled status, revision, time, deadline and
-    supported tenant notice atomically before _webvue_transition('running', rev).
+    supported tenant notice atomically before _liwan_transition('running', rev).
     Known CAS/status races become BookingConflict; service failures propagate.
-    transition MUST invoke _webvue_transition(status, rev) and commit atomically.
+    transition MUST invoke _liwan_transition(status, rev) and commit atomically.
     Neither operation may return before its Odoo transaction has committed.
     """
 

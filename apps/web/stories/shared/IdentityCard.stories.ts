@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import IdentityCard from '@webvue/ui/app/components/shared/layout/IdentityCard.vue'
-import StatusBadge from '@webvue/ui/app/components/shared/data/StatusBadge.vue'
+import IdentityCard from '@liwan/ui/app/components/shared/layout/IdentityCard.vue'
+import StatusBadge from '@liwan/ui/app/components/shared/data/StatusBadge.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

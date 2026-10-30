@@ -1,4 +1,4 @@
-import type { DocumentAccess, DocumentDetail, DocumentFile } from '@webvue/contracts'
+import type { DocumentAccess, DocumentDetail, DocumentFile } from '@liwan/contracts'
 import { http, HttpResponse } from 'msw'
 import { me } from '../fixtures/pmo'
 export const document: DocumentDetail = {

@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { Pool } from 'pg'
 import { randomUUID } from 'node:crypto'
-import type { SharedJob } from '@webvue/commercial-contracts/shared'
+import type { SharedJob } from '@liwan/commercial-contracts/shared'
 import { migrate } from '../db.js'
 import { businessKey, payloadDigest } from '../shared/provisioning.js'
 import { runSharedJob, type SharedFencedAdapter } from '../shared/job-worker.js'
@@ -16,7 +16,7 @@ import { vendorActorIssuer } from '../admin-auth/grants.js'
 // No tenant database, Docker process, registry file, or production adapter is used.
 if (url) {
   const target = new URL(url)
-  if (!['127.0.0.1', 'localhost', '[::1]'].includes(target.hostname) || !/^\/webvue_control_scratch_[a-z0-9]+$/.test(target.pathname)) throw Error('loopback scratch control DB required')
+  if (!['127.0.0.1', 'localhost', '[::1]'].includes(target.hostname) || !/^\/liwan_control_scratch_[a-z0-9]+$/.test(target.pathname)) throw Error('loopback scratch control DB required')
 }
 describe.skipIf(!url)('shared restore waiting for commercial reconciliation', () => {
   const pool = new Pool({ connectionString: url, max: 10 })
@@ -36,8 +36,8 @@ describe.skipIf(!url)('shared restore waiting for commercial reconciliation', ()
   async function fixture(commercial: boolean) {
     const tenant = randomUUID(), backupId = randomUUID(), approval = randomUUID(), id = randomUUID()
     fixtureTenants.push(tenant)
-    const slug = `t${tenant.replaceAll('-', '')}`, database = `webvue_scratch_${randomUUID().replaceAll('-', '')}`
-    const restoredDatabase = `webvue_scratch_${randomUUID().replaceAll('-', '')}`
+    const slug = `t${tenant.replaceAll('-', '')}`, database = `liwan_scratch_${randomUUID().replaceAll('-', '')}`
+    const restoredDatabase = `liwan_scratch_${randomUUID().replaceAll('-', '')}`
     const binding = { tenantId: slug, database, filestore: database, registryRevision: 1 }
     await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Waiting restore','saas','managed',$2,true)", [tenant, slug])
     await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,true,1)', [tenant, slug, `${slug}.invalid`, database])
@@ -53,7 +53,7 @@ describe.skipIf(!url)('shared restore waiting for commercial reconciliation', ()
       const customer = randomUUID(), subscription = randomUUID()
       await pool.query("INSERT INTO customers(id,name,tenant_id) VALUES($1,'Waiting paid customer',$2)", [customer, tenant])
       await pool.query('INSERT INTO subscriptions(id,customer_id,tenant_id) VALUES($1,$2,$3)', [subscription, customer, tenant])
-      await pool.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,2,$3,$4)', [applied, subscription, { entitlement: { modules: ['webvue_platform'], features: { 'users.limit': 10 }, digest: 'c'.repeat(64), compiler_version: 1 } }, randomUUID()])
+      await pool.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,2,$3,$4)', [applied, subscription, { entitlement: { modules: ['liwan_platform'], features: { 'users.limit': 10 }, digest: 'c'.repeat(64), compiler_version: 1 } }, randomUUID()])
       await pool.query("UPDATE subscriptions SET applied_revision_id=$2,state='active',revision=revision+1 WHERE id=$1", [subscription, applied])
       await pool.query("INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent) VALUES($1,$2,$3,'change',$4,$5,'paid','applied',$6,'fixture',100,'SAR',2)", [order, customer, subscription, randomUUID(), applied, randomUUID()])
     }

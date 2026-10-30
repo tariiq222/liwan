@@ -9,7 +9,7 @@ const here = dirname(fileURLToPath(import.meta.url))
 export const webRoot = resolve(here, '..')
 const uiRoot = resolve(here, '../../../packages/ui')
 const commercialRoot = resolve(here, '../../../packages/commercial-ui')
-// The app and the @webvue/ui and @webvue/commercial-ui layers all contribute components, composables and utils.
+// The app and the @liwan/ui and @liwan/commercial-ui layers all contribute components, composables and utils.
 const appRoots = [join(webRoot, 'app'), join(uiRoot, 'app'), join(commercialRoot, 'app')]
 const nuxtDir = join(webRoot, '.nuxt')
 export const shimPath = join(here, 'nuxt-shims.ts')

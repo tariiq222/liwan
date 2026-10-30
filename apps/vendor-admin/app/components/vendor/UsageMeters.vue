@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { UsageSnapshot } from '@webvue/commercial-contracts'
+import type { UsageSnapshot } from '@liwan/commercial-contracts'
 import { formatBytes, usageDisplay, usageMetricLabel } from '@/utils/vendorSubscriptions'
-import { formatDateTime } from '@webvue/ui/app/utils/formatDate'
+import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 const props = defineProps<{ usage?: UsageSnapshot | null }>()
 const { t, te, locale } = useI18n()
 const fmt = (unit: string, n: number) => (unit === 'attachment_bytes' ? formatBytes(n) : String(n))

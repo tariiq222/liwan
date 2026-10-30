@@ -63,11 +63,11 @@ test('parent and child levels have distinct labels and visual hierarchy in RTL',
   expect(await parent.getAttribute('data-active')).toBeNull()
   const all = children.getByRole('link', { name: 'عرض الكل', exact: true })
   await expect(all).toHaveAttribute('data-active', 'true')
-  await expect(all.locator('.webvue-quick-chip')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+  await expect(all.locator('.liwan-quick-chip')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
 })
 
 test('English hierarchy mirrors the guide and reduced motion reaches collapsed popups', async ({ page, baseURL }) => {
-  await page.context().addCookies([{ name: 'webvue-locale', value: 'en', url: baseURL! }])
+  await page.context().addCookies([{ name: 'liwan-locale', value: 'en', url: baseURL! }])
   await page.goto('/projects')
   await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')
   const menu = page.getByTestId('application-navigation')
@@ -77,7 +77,7 @@ test('English hierarchy mirrors the guide and reduced motion reaches collapsed p
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.getByTestId('context-sidebar-toggle').click()
   await page.getByTestId('navigation-app-projects').click()
-  const popup = page.locator('.webvue-navigation-popup')
+  const popup = page.locator('.liwan-navigation-popup')
   await popup.getByTestId('context-link-projects').click()
   await expect(popup.getByTestId('projects-submenu-projects')).toBeVisible()
   await expectAlignedGuide(popup.getByTestId('context-link-projects'))
@@ -101,7 +101,7 @@ for (const entry of responsiveCases) {
       test(`aligns and fits in ${locale}, ${entry.fontSize}, ${entry.mode}`, async ({ page, baseURL }) => {
         expect((await page.request.patch('/api/v1/me/appearance', { data: { mode: entry.mode, font_size: entry.fontSize } })).status()).toBe(200)
         try {
-          await page.context().addCookies([{ name: 'webvue-locale', value: locale, url: baseURL! }])
+          await page.context().addCookies([{ name: 'liwan-locale', value: locale, url: baseURL! }])
           await page.goto('/projects?status=at_risk')
           await expect(page.getByTestId('global-search-trigger')).toBeEnabled({ timeout: 30_000 })
           await expect(page.locator('html')).toHaveAttribute('dir', locale === 'ar' ? 'rtl' : 'ltr')
@@ -117,16 +117,16 @@ for (const entry of responsiveCases) {
           const parent = menu.getByTestId('context-link-projects')
           await expect(parent).toBeVisible()
           await expect(parent).toHaveAttribute('aria-expanded', 'true')
-          const child = menu.locator('.webvue-navigation-submenu .webvue-quick-link[data-active="true"]')
+          const child = menu.locator('.liwan-navigation-submenu .liwan-quick-link[data-active="true"]')
           await expect(child).toBeVisible()
           // Finish width/open transitions before comparing exact visual geometry.
           await menu.evaluate(async el => { await Promise.all(el.getAnimations({ subtree: true }).map(animation => animation.finished.catch(() => undefined))) })
           await expectAlignedGuide(parent)
           expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true)
           expect(await menu.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
-          expect(await menu.locator('.webvue-navigation-submenu [data-slot="label"]').evaluateAll(labels => labels.every(label => {
+          expect(await menu.locator('.liwan-navigation-submenu [data-slot="label"]').evaluateAll(labels => labels.every(label => {
             const text = label.getBoundingClientRect()
-            const row = label.closest('.webvue-quick-link')!.getBoundingClientRect()
+            const row = label.closest('.liwan-quick-link')!.getBoundingClientRect()
             return text.left >= row.left - 1 && text.right <= row.right + 1
           }))).toBe(true)
         } finally {

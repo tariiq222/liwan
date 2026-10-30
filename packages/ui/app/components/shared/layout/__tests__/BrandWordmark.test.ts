@@ -19,7 +19,7 @@ function loadWordmark(): Vue.Component {
     if (path === 'vue') return Vue
     throw new Error(`Unhandled component dependency ${path}`)
   }
-  const useI18n = () => ({ t: (key: string) => ({ 'brand.name': 'ويب فيو' }[key] ?? key) })
+  const useI18n = () => ({ t: (key: string) => ({ 'brand.name': 'ليوان' }[key] ?? key) })
   new Function('require', 'exports', 'ref', 'computed', 'useI18n', code)(require, exports, Vue.ref, Vue.computed, useI18n)
   return exports.default!
 }
@@ -32,7 +32,7 @@ async function render(props: Record<string, unknown> = {}) {
 describe('BrandWordmark', () => {
   it('renders the product name and a decorative logo mark of three paths', async () => {
     const html = await render()
-    expect(html.replace(/<svg[\s\S]*?<\/svg>/, '').replace(/<[^>]+>/g, '').trim()).toBe('ويب فيو')
+    expect(html.replace(/<svg[\s\S]*?<\/svg>/, '').replace(/<[^>]+>/g, '').trim()).toBe('ليوان')
     const mark = html.match(/<svg[^>]*data-slot="mark"[^>]*>/)?.[0] ?? ''
     expect(mark).toContain('aria-hidden="true"')
     expect(html.match(/<path /g)).toHaveLength(3)

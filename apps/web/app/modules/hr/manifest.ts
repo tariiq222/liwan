@@ -1,4 +1,4 @@
-import { HrLeaveBellKindSchema } from '@webvue/contracts'
+import { HrLeaveBellKindSchema } from '@liwan/contracts'
 import type { AppContextLink, AppManifest } from '../types'
 import { hrBellHref, hrBellTitleInApp } from './bell'
 import { hrPersonalEntries } from './personal'

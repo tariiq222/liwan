@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import * as Vue from 'vue'
-import { loadShared, renderShared } from '@webvue/ui/test/helpers/renderShared'
+import { loadShared, renderShared } from '@liwan/ui/test/helpers/renderShared'
 import { withManifests } from '../../modules/manifests'
 import type { AppManifest } from '../../modules/types'
 import * as launcherModel from '../../composables/nav/launcherModel'
@@ -46,7 +46,7 @@ async function render(capabilities: string[], query = '', hydrated = true) {
       ref: (value: unknown) => (typeof value === 'string' && query ? Vue.ref(query) : Vue.ref(value)),
     },
     modules: {
-      '@webvue/ui/app/components/shared/data/FilterBar.vue': { __esModule: true, default: Vue.defineComponent({ setup(_, { slots }) { return () => Vue.h('div', slots.search?.()) } }) },
+      '@liwan/ui/app/components/shared/data/FilterBar.vue': { __esModule: true, default: Vue.defineComponent({ setup(_, { slots }) { return () => Vue.h('div', slots.search?.()) } }) },
       '@/components/launcher/LauncherCard.vue': { __esModule: true, default: loadShared(cardFile, { messages, stubs: {} }) },
       '@/composables/nav/launcherModel': launcherModel,
       '@/composables/nav/shellModules': shellModules,

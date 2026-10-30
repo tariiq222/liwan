@@ -182,7 +182,7 @@ test('project primary action and contextual settings remain accessible across fo
   const hostname = new URL(page.url()).hostname
   for (const fontSize of ['small', 'large'] as const) {
     await context.addCookies([{
-      name: 'webvue-appearance',
+      name: 'liwan-appearance',
       value: encodeURIComponent(JSON.stringify({ mode: 'light', fontSize })),
       domain: hostname,
       path: '/',

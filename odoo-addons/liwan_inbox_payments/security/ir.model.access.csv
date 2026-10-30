@@ -1,0 +1,12 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_liwan_inbox_catalog_reader,liwan.inbox.catalog.reader,model_liwan_inbox_catalog,liwan_inbox.group_cap_inbox_conversations_read,1,0,0,0
+access_liwan_inbox_catalog_manager,liwan.inbox.catalog.manager,model_liwan_inbox_catalog,group_cap_inbox_catalog_manage,1,1,1,1
+access_liwan_inbox_catalog_item_reader,liwan.inbox.catalog.item.reader,model_liwan_inbox_catalog_item,liwan_inbox.group_cap_inbox_conversations_read,1,0,0,0
+access_liwan_inbox_catalog_item_manager,liwan.inbox.catalog.item.manager,model_liwan_inbox_catalog_item,group_cap_inbox_catalog_manage,1,1,1,1
+access_liwan_inbox_order_reader,liwan.inbox.order.reader,model_liwan_inbox_order,liwan_inbox.group_cap_inbox_conversations_read,1,0,0,0
+access_liwan_inbox_order_manager,liwan.inbox.order.manager,model_liwan_inbox_order,group_cap_inbox_orders_manage,1,1,1,0
+access_liwan_inbox_order_line_reader,liwan.inbox.order.line.reader,model_liwan_inbox_order_line,liwan_inbox.group_cap_inbox_conversations_read,1,0,0,0
+access_liwan_inbox_order_line_manager,liwan.inbox.order.line.manager,model_liwan_inbox_order_line,group_cap_inbox_orders_manage,1,1,1,1
+access_liwan_inbox_channel_catalog,liwan.inbox.channel.catalog,liwan_inbox.model_liwan_inbox_channel,group_cap_inbox_catalog_manage,1,1,0,0
+access_product_template_inbox_catalog,product.template.inbox.catalog,product.model_product_template,group_cap_inbox_catalog_manage,1,1,1,0
+access_product_product_inbox_catalog,product.product.inbox.catalog,product.model_product_product,group_cap_inbox_catalog_manage,1,1,1,0

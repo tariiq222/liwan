@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FinancePaymentPatchSchema } from '@webvue/contracts'
+import { FinancePaymentPatchSchema } from '@liwan/contracts'
 import { paymentEditDraft, paymentPatch, validatePaymentEdit } from '../paymentEdit'
 
 const payment = { amount: 450, date: '2026-05-01', journal: { id: 8, name: 'Bank' }, memo: 'cheque 12' }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProjectSettings, ProjectSettingsPatch } from '@webvue/contracts'
+import type { ProjectSettings, ProjectSettingsPatch } from '@liwan/contracts'
 import StageListEditor from '@/components/pmo/projects/StageListEditor.vue'
 import { ApiError } from '@/composables/useApi'
 import { useSettingsForm } from '@/composables/settings/useSettingsForm'
@@ -137,13 +137,13 @@ function onDeleteStage(id: number | string) {
     </UFormField>
   </SharedSettingsCard>
 
-  <SharedRecordSection id="project-defaults" variant="panel" class="webvue-settings-anchor" :title="t('settings.projects.defaults.title')" :description="t('settings.projects.defaults.hint')">
+  <SharedRecordSection id="project-defaults" variant="panel" class="liwan-settings-anchor" :title="t('settings.projects.defaults.title')" :description="t('settings.projects.defaults.hint')">
     <div class="grid gap-4">
       <SharedUnsavedChanges :dirty="isPending || !!failedStages" />
       <UAlert v-if="stageError" role="alert" color="error" variant="subtle" :title="t('app.saveFailed')" :description="stageError" data-testid="stage-save-feedback">
         <template #actions><UButton v-if="failedStages" type="button" color="neutral" variant="outline" :label="t('app.retry')" @click="persist(failedStages)" /></template>
       </UAlert>
-      <div class="webvue-setting-rows">
+      <div class="liwan-setting-rows">
         <UFormField id="project-stages" :label="t('settings.projects.defaultStages.label')" :description="t('settings.projects.defaultStages.hint')">
           <StageListEditor ref="stageEditor" :stages="rows" :busy="isPending || locked" @add="onAddStage" @rename="onRenameStage" @fold="onFoldStage" @reorder="onReorderStages" @delete="onDeleteStage" />
         </UFormField>

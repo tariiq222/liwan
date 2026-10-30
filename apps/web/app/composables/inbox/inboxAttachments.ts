@@ -1,5 +1,5 @@
 // What an agent may attach to a WhatsApp reply, checked in the composer before the upload so a refusal is immediate.
-// The limits are Meta's media rules narrowed by the platform (the file travels as base64 JSON, like every WebVue
+// The limits are Meta's media rules narrowed by the platform (the file travels as base64 JSON, like every LiwanOS
 // attachment); the server answers 413 `payload_too_large` above the same sizes, which is what the composer prevents.
 
 const MIB = 1024 * 1024

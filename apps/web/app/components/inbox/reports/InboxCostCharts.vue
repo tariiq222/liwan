@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxCostReport } from '@webvue/contracts'
+import type { InboxCostReport } from '@liwan/contracts'
 import InboxChartPanel from './InboxChartPanel.vue'
 import {
   costByCategoryChart, dailyCostChart, hasCostCategories, hasCostSeries, hasVolumeByType, volumeByTypeChart,

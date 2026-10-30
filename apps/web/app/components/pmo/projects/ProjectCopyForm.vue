@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ProjectCopyInputSchema } from '@webvue/contracts'
-import { localIsoDay } from '@webvue/ui/app/utils/formatDate'
+import { ProjectCopyInputSchema } from '@liwan/contracts'
+import { localIsoDay } from '@liwan/ui/app/utils/formatDate'
 import { ApiError } from '@/composables/useApi'
 import { useCopyProject, useProject } from '@/composables/useProjects'
 
@@ -77,7 +77,7 @@ async function submit() {
 </script>
 
 <template>
-  <div class="webvue-form" data-testid="project-copy-form">
+  <div class="liwan-form" data-testid="project-copy-form">
     <p v-if="isLoading && !source" class="text-sm text-muted" data-testid="project-copy-loading">{{ t('projects.create.loading') }}</p>
     <div v-else-if="error && !source" role="alert" class="grid gap-2" data-testid="project-copy-source-error">
       <p class="text-sm text-error">{{ forbidden ? t('projects.copy.sourceUnavailable') : t('projects.copy.loadError') }}</p>
@@ -88,7 +88,7 @@ async function submit() {
     </div>
     <template v-else-if="source">
       <SharedUnsavedChanges :dirty="dirty" />
-      <form novalidate class="webvue-form" @submit.prevent="submit">
+      <form novalidate class="liwan-form" @submit.prevent="submit">
         <UAlert v-if="submitError" role="alert" color="error" variant="subtle" :title="submitError" data-testid="project-copy-submit-error" />
         <p class="text-sm text-muted">{{ t('projects.copy.hint') }}</p>
         <UFormField :label="t('projects.copy.source')">

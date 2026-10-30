@@ -24,7 +24,7 @@ const { t } = useI18n()
     </section>
     <section v-if="props.cards.length || props.creates.length" :aria-label="t('appStart.start')" class="space-y-3" data-testid="app-start-links">
       <h2 class="text-sm font-semibold text-muted">{{ t('appStart.start') }}</h2>
-      <div class="grid gap-(--webvue-gap-card) sm:grid-cols-2 xl:grid-cols-3">
+      <div class="grid gap-(--liwan-gap-card) sm:grid-cols-2 xl:grid-cols-3">
         <SharedLinkCard v-for="card in props.cards" :key="card.id" :to="card.to" :icon="card.icon" :title="t(card.labelKey)" data-testid="app-start-card" />
         <SharedLinkCard v-for="card in props.creates" :key="card.id" :to="card.to" :icon="card.icon" :title="t(card.labelKey)" tone="neutral" data-testid="app-start-create" />
       </div>

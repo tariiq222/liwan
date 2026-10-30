@@ -5,11 +5,11 @@ import os
 import pytest
 from langgraph.types import Command
 
+from liwan_ai_service.contracts import RunRequest, ToolResult
+from liwan_ai_service.graph import build_graph, initial_state, run_config
+from liwan_ai_service.store import open_state
 from tests.fakes import IDENTITY, ScriptedChatModel, ai_text, ai_tool_call, new_id
 from tests.test_contracts import READ_TOOL
-from webvue_ai_service.contracts import RunRequest, ToolResult
-from webvue_ai_service.graph import build_graph, initial_state, run_config
-from webvue_ai_service.store import open_state
 
 pytestmark = pytest.mark.skipif(not os.environ.get("AI_TEST_DATABASE_URL"), reason="needs AI_TEST_DATABASE_URL")
 
@@ -102,7 +102,7 @@ async def test_retention_deletes_stale_runs_with_their_checkpoints_and_keeps_rec
 
 
 async def test_the_cleanup_job_runs_with_only_the_database_and_the_window(monkeypatch, capsys):
-    from webvue_ai_service import cleanup
+    from liwan_ai_service import cleanup
 
     store, _checkpointer, aclose = await open_state(url())
     try:
@@ -159,7 +159,7 @@ async def test_failed_runtime_validation_closes_the_pool_without_checkpoint_setu
         pytest.fail("runtime must not execute checkpoint setup")
 
     monkeypatch.setattr(AsyncConnectionPool, "close", recording_close)
-    monkeypatch.setattr("webvue_ai_service.store._validate_state", broken_validation)
+    monkeypatch.setattr("liwan_ai_service.store._validate_state", broken_validation)
     monkeypatch.setattr(AsyncPostgresSaver, "setup", forbidden_setup)
     with pytest.raises(RuntimeError, match="incompatible state"):
         await open_state(url())

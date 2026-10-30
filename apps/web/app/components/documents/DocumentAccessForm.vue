@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
-import type { DocumentAccess, DocumentAccessUpdate } from '@webvue/contracts'
+import type { DocumentAccess, DocumentAccessUpdate } from '@liwan/contracts'
 import { documentAccessPayload } from '@/lib/documentAccess'
 const props = defineProps<{ access: DocumentAccess; pending?: boolean; error?: string; conflict?: boolean; backTo?: RouteLocationRaw }>()
 const emit = defineEmits<{ save: [body: DocumentAccessUpdate]; reload: [] }>()
@@ -25,15 +25,15 @@ function submit() {
 </script>
 <template>
   <SharedUnsavedChanges :dirty="dirty || !!pending" />
-  <UForm :state="{ visibility, grants }" class="webvue-form" @submit="submit">
+  <UForm :state="{ visibility, grants }" class="liwan-form" @submit="submit">
     <UAlert v-if="error || validation" color="error" :title="error || validation" />
     <UAlert v-if="conflict" color="warning" :title="t('documents.conflict')" :description="t('documents.conflictHelp')"><template #actions><UButton type="button" color="neutral" :label="t('documents.reload')" :disabled="pending" @click="emit('reload')" /></template></UAlert>
     <SharedFormSection panel :title="t('documents.access')">
-      <div class="grid gap-(--webvue-gap-card)">
+      <div class="grid gap-(--liwan-gap-card)">
         <UFormField :label="t('documents.visibility')" name="document-visibility"><USelect id="document-visibility" v-model="visibility" :items="[{ value: 'restricted', label: t('documents.visibilityOptions.restricted') }, { value: 'company', label: t('documents.visibilityOptions.company') }]" class="w-full" :disabled="!hydrated || pending || conflict" /></UFormField>
         <p class="text-sm text-muted">{{ t(`documents.visibilityHelp.${visibility}`) }}</p>
         <UFormField :label="t('documents.addPerson')" name="document-grant-person"><SharedPersonPicker v-model="selected" value-key="user_id" :exclude="grants.map(grant => grant.user.id)" :disabled="!hydrated || pending || conflict" @resolve="resolvePeople" /></UFormField>
-        <ul class="grid gap-(--webvue-gap-card)">
+        <ul class="grid gap-(--liwan-gap-card)">
           <li v-for="grant in grants" :key="grant.user.id" class="flex flex-wrap items-center gap-2">
             <span class="min-w-0 flex-1 break-words">{{ grant.user.name }}</span>
             <USelect v-model="grant.access" :aria-label="t('documents.personAccess', { name: grant.user.name })" :items="[{ value: 'reader', label: t('documents.reader'), disabled: grant.access === 'editor' && editorCount === 1 }, { value: 'editor', label: t('documents.editor') }]" :disabled="!hydrated || pending || conflict" />

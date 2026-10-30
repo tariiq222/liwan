@@ -37,7 +37,7 @@ const tiles = computed(() => {
     <SharedPageState :error="query.error.value" :keep-content="!!report" @retry="query.refetch">
       <template v-if="report">
         <BudgetVarianceTable :lines="report.lines" :loading="query.isPending.value" :caption="t('financeBudgets.actual.title')" />
-        <div class="grid gap-3 border-t border-default p-(--webvue-card-pad) sm:grid-cols-3" data-testid="finance-budget-actual-totals">
+        <div class="grid gap-3 border-t border-default p-(--liwan-card-pad) sm:grid-cols-3" data-testid="finance-budget-actual-totals">
           <SharedMetricTile v-for="tile in tiles" :key="tile.id" density="compact" :label="tile.label" :value="tile.value" :hint="tile.hint" :tone="tile.tone" value-dir="ltr" />
         </div>
       </template>

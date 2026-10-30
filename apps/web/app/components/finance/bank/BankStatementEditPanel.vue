@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FinanceBankStatementDetail } from '@webvue/contracts'
+import type { FinanceBankStatementDetail } from '@liwan/contracts'
 import { usePatchFinanceBankStatement } from '@/composables/finance/useFinanceBank'
 import { financeErrorMessage } from '../financeErrors'
 import { bankErrorKey } from './bankErrors'
@@ -35,10 +35,10 @@ async function submit() {
 </script>
 
 <template>
-  <UForm novalidate :state="draft" class="webvue-form rounded-card border border-default p-(--webvue-card-pad-dense)" method="post" data-testid="finance-bank-edit-form" @submit="submit">
+  <UForm novalidate :state="draft" class="liwan-form rounded-card border border-default p-(--liwan-card-pad-dense)" method="post" data-testid="finance-bank-edit-form" @submit="submit">
     <p class="font-semibold text-highlighted">{{ t('financeBank.edit.title') }}</p>
     <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" data-testid="finance-bank-edit-error" />
-    <div class="webvue-form-grid">
+    <div class="liwan-form-grid">
       <UFormField :label="t('financeBank.form.name')" name="finance-bank-edit-name" required class="sm:col-span-2" :error="shown.name ? t('financeBank.form.nameInvalid') : undefined">
         <UInput id="finance-bank-edit-name" v-model="draft.name" class="w-full" maxlength="120" :disabled="!hydrated || patch.isPending.value" />
       </UFormField>

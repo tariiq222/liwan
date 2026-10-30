@@ -1,4 +1,4 @@
-import type { FinancePayment, FinancePaymentPatch } from '@webvue/contracts'
+import type { FinancePayment, FinancePaymentPatch } from '@liwan/contracts'
 import { validatePaymentDraft, type PaymentDraft, type PaymentErrors } from './paymentModel'
 
 export const paymentEditDraft = (payment: Pick<FinancePayment, 'amount' | 'date' | 'journal' | 'memo'>): PaymentDraft =>

@@ -9,7 +9,7 @@ import {
   type FinanceAssetCreate,
   type FinanceAssetDispose,
   type FinanceAssetUpdate,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { financeEntryKeys } from '@/composables/finance/useFinanceEntries'
 import type { AssetListParams } from '@/components/finance/assets/assetListParams'
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FinanceBankImportSchema } from '@webvue/contracts'
+import { FinanceBankImportSchema } from '@liwan/contracts'
 import { applySuggestedMapping, closingMatches, emptyImportDraft, expectedClosing, importBody, importMapping } from '../bankImportModel'
 
 const ready = () => {

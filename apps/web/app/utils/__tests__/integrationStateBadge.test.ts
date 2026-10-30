@@ -1,4 +1,4 @@
-import { IntegrationStateSchema } from '@webvue/contracts'
+import { IntegrationStateSchema } from '@liwan/contracts'
 import { describe, expect, it } from 'vitest'
 import { integrationStateBadge } from '../integrationStateBadge'
 

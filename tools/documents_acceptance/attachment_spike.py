@@ -15,7 +15,7 @@ PYTHON = ODOO / '.venv/bin/python'
 
 MODEL = '''from odoo import api, fields, models
 class FitDocument(models.Model):
-    _name = 'webvue.docs.fit'
+    _name = 'liwan.docs.fit'
     _description = 'Disposable DMS fit fixture'
     name = fields.Char(required=True)
     company_id = fields.Many2one('res.company', required=True, default=lambda s: s.env.company)
@@ -46,19 +46,19 @@ class AttachmentFit(TransactionCase):
         cls.manager = new_test_user(cls.env, login='fit-manager', groups='base.group_user,dms.group_dms_user')
         cls.reader = new_test_user(cls.env, login='fit-reader', groups='base.group_user,dms.group_dms_user')
         cls.outsider = new_test_user(cls.env, login='fit-outsider', groups='base.group_user,dms.group_dms_user')
-        model = cls.env['ir.model']._get('webvue.docs.fit')
+        model = cls.env['ir.model']._get('liwan.docs.fit')
         cls.storage = cls.env['dms.storage'].create({'name': 'fit-storage', 'save_type': 'attachment', 'company_id': cls.env.company.id, 'model_ids': [Command.set(model.ids)], 'inherit_access_from_parent_record': True})
-        cls.root = cls.env['dms.directory'].create({'name': 'fit-root', 'storage_id': cls.storage.id, 'is_root_directory': True, 'res_model': 'webvue.docs.fit'})
+        cls.root = cls.env['dms.directory'].create({'name': 'fit-root', 'storage_id': cls.storage.id, 'is_root_directory': True, 'res_model': 'liwan.docs.fit'})
 
     def test_ordinary_atomic_record_directory(self):
-        doc = self.env['webvue.docs.fit'].with_user(self.manager).create({'name': 'ordinary'})
+        doc = self.env['liwan.docs.fit'].with_user(self.manager).create({'name': 'ordinary'})
         self.assertTrue(doc.directory_id, 'ordinary create must complete the linked directory')
         self.assertEqual(doc.directory_id.res_id, doc.id)
-        self.assertEqual(doc.directory_id.res_model, 'webvue.docs.fit')
+        self.assertEqual(doc.directory_id.res_model, 'liwan.docs.fit')
         self.assertFalse(doc.env.su)
 
     def test_existing_attachment_identity_and_two_files(self):
-        model = self.env['webvue.docs.fit'].with_user(self.manager)
+        model = self.env['liwan.docs.fit'].with_user(self.manager)
         # Create the original record before linking storage, as an old HR record would exist.
         self.storage.write({'model_ids': [Command.clear()]})
         doc = model.create({'name': 'two files'})
@@ -81,7 +81,7 @@ class AttachmentFit(TransactionCase):
             first.with_user(self.reader).write({'name': 'changed.txt'})
 
     def test_directory_failure_rolls_back_record_and_bytes(self):
-        model = self.env['webvue.docs.fit'].with_user(self.manager)
+        model = self.env['liwan.docs.fit'].with_user(self.manager)
         before = (model.search_count([]), self.env['dms.directory'].search_count([]), self.env['ir.attachment'].search_count([]))
         # A real directory constraint fails after the business row has been inserted.
         with self.assertRaises(ValidationError), self.env.cr.savepoint():
@@ -89,9 +89,9 @@ class AttachmentFit(TransactionCase):
         self.assertEqual((model.search_count([]), self.env['dms.directory'].search_count([]), self.env['ir.attachment'].search_count([])), before)
 '''
 DATA = '''<odoo>
-<record id="access_fit" model="ir.model.access"><field name="name">Fit model</field><field name="model_id" ref="model_webvue_docs_fit"/><field name="group_id" ref="base.group_user"/><field name="perm_read" eval="True"/><field name="perm_write" eval="True"/><field name="perm_create" eval="True"/><field name="perm_unlink" eval="True"/></record>
-<record id="fit_read" model="ir.rule"><field name="name">Fit linked record readers</field><field name="model_id" ref="model_webvue_docs_fit"/><field name="domain_force">[('company_id', '=', company_id), '|', ('user_id', '=', user.id), ('name', '=', 'two files')]</field><field name="perm_write" eval="False"/><field name="perm_create" eval="False"/><field name="perm_unlink" eval="False"/></record>
-<record id="fit_write" model="ir.rule"><field name="name">Fit owner mutations</field><field name="model_id" ref="model_webvue_docs_fit"/><field name="domain_force">[('user_id', '=', user.id)]</field><field name="perm_read" eval="False"/></record>
+<record id="access_fit" model="ir.model.access"><field name="name">Fit model</field><field name="model_id" ref="model_liwan_docs_fit"/><field name="group_id" ref="base.group_user"/><field name="perm_read" eval="True"/><field name="perm_write" eval="True"/><field name="perm_create" eval="True"/><field name="perm_unlink" eval="True"/></record>
+<record id="fit_read" model="ir.rule"><field name="name">Fit linked record readers</field><field name="model_id" ref="model_liwan_docs_fit"/><field name="domain_force">[('company_id', '=', company_id), '|', ('user_id', '=', user.id), ('name', '=', 'two files')]</field><field name="perm_write" eval="False"/><field name="perm_create" eval="False"/><field name="perm_unlink" eval="False"/></record>
+<record id="fit_write" model="ir.rule"><field name="name">Fit owner mutations</field><field name="model_id" ref="model_liwan_docs_fit"/><field name="domain_force">[('user_id', '=', user.id)]</field><field name="perm_read" eval="False"/></record>
 </odoo>'''
 
 def main():
@@ -100,12 +100,12 @@ def main():
     parser.add_argument('--database', required=True)
     parser.add_argument('--http-port', type=int, default=8294)
     parser.add_argument('--evidence-dir', type=Path, required=True)
-    parser.add_argument('--application', action='store_true', help='run standalone webvue_documents application tests')
+    parser.add_argument('--application', action='store_true', help='run standalone liwan_documents application tests')
     parser.add_argument('--mode', choices=('saas','non_saas'), default='saas')
     parser.add_argument('--upstream', action='store_true', help='run the pinned upstream DMS suite instead of fit assertions')
     parser.add_argument('--red', action='store_true', help='omit the fixture integration, prove assertions fail')
     args = parser.parse_args()
-    if not args.database.startswith('webvue_scratch_'):
+    if not args.database.startswith('liwan_scratch_'):
         parser.error('scratch database name required')
     with socket.socket() as probe:
         probe.bind(('127.0.0.1', args.http_port))
@@ -123,30 +123,30 @@ def main():
         if cursor.fetchone():
             parser.error('refusing existing database: ' + args.database)
     args.evidence_dir.mkdir(parents=True, exist_ok=True)
-    runtime = Path(tempfile.mkdtemp(prefix='webvue-docs-fit-'))
+    runtime = Path(tempfile.mkdtemp(prefix='liwan-docs-fit-'))
     addon = runtime / 'addons/docs_fit'
     (addon / 'tests').mkdir(parents=True)
     (addon / '__init__.py').write_text('from . import model, tests\n')
-    (addon / '__manifest__.py').write_text(repr({'name':'Disposable DMS fit', 'author':'WebVue test fixture', 'license':'LGPL-3', 'depends':['dms'], 'data':['access.xml']}))
+    (addon / '__manifest__.py').write_text(repr({'name':'Disposable DMS fit', 'author':'LiwanOS test fixture', 'license':'LGPL-3', 'depends':['dms'], 'data':['access.xml']}))
     (addon / 'model.py').write_text(MODEL + ('' if args.red else ADAPTER))
     data = DATA.replace("('name', '=', 'two files')", "('id', '!=', 0) if user.login == 'fit-reader' else ('id', '=', 0)")
     (addon / 'access.xml').write_text(data)
     (addon / 'tests/__init__.py').write_text('from . import test_fit\n')
     (addon / 'tests/test_fit.py').write_text(TESTS)
-    pins = subprocess.check_output([sys.executable, '-B', str(args.worktree/'tools/oca_addons.py'), 'path', '--check'], text=True).strip()
+    pins = subprocess.check_output([sys.executable, '-B', str(args.worktree/'tools/oca_addons.py'), 'path', '--check'], text=True).strip()  # nosemgrep: dangerous-subprocess-use-tainted-env-args -- operator-run local tool, arguments come from its own CLI flags
     conf = runtime/'odoo.conf'
     conf.write_text('[options]\nlist_db=False\n')
-    target = 'webvue_documents' if args.application else 'docs_fit'
+    target = 'liwan_documents' if args.application else 'docs_fit'
     env_vars = dict(os.environ, PYTHONDONTWRITEBYTECODE='1')
     if args.application:
         classification = runtime/'classification.json'
-        subprocess.run([sys.executable,'-B',str(args.worktree/'deploy/classification.py'),'fixture', '--database',args.database,'--mode',args.mode,'--output',str(classification)],check=True,stdout=subprocess.DEVNULL)
-        env_vars['WEBVUE_COMMERCIAL_CONFIG'] = str(classification)
+        subprocess.run([sys.executable,'-B',str(args.worktree/'deploy/classification.py'),'fixture', '--database',args.database,'--mode',args.mode,'--output',str(classification)],check=True,stdout=subprocess.DEVNULL)  # nosemgrep: dangerous-subprocess-use-tainted-env-args -- operator-run local tool, arguments come from its own CLI flags
+        env_vars['LIWAN_COMMERCIAL_CONFIG'] = str(classification)
     command = [str(PYTHON), '-B', str(ODOO/'odoo-bin'), '-c', str(conf), '--addons-path=' + ','.join([str(ODOO/'odoo/addons'),str(ODOO/'addons'),str(args.worktree/'odoo-addons'),str(runtime/'addons'), pins]), '--db_host=127.0.0.1', '--db_user='+os.environ.get('USER','tariq'), '-d', args.database, '--db-filter=^'+args.database+'$', '--data-dir='+str(runtime/'data'), '--logfile='+str(args.evidence_dir/'odoo.log'), '-i', target, '--test-enable', '--test-tags=' + ('/dms,-benchmark,-/dms:TestDmsPortal.test_tour' if args.upstream else '/' + target), '--without-demo=all','--stop-after-init','--http-interface=127.0.0.1','--http-port='+str(args.http_port),'--workers=0','--max-cron-threads=0']
     (args.evidence_dir/'command.json').write_text(json.dumps(command, indent=2))
     try:
         with (args.evidence_dir/'console.log').open('w') as output:
-            result = subprocess.run(command, stdout=output, stderr=subprocess.STDOUT, timeout=240, env=env_vars)
+            result = subprocess.run(command, stdout=output, stderr=subprocess.STDOUT, timeout=240, env=env_vars)  # nosemgrep: dangerous-subprocess-use-tainted-env-args -- operator-run local tool, arguments come from its own CLI flags
         log = (args.evidence_dir/'odoo.log').read_text()
         import re
         summary = re.findall(r'(\d+) failed, (\d+) error\(s\) of (\d+) tests', log)

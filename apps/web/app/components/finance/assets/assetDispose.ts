@@ -1,4 +1,4 @@
-import type { FinanceAssetDispose } from '@webvue/contracts'
+import type { FinanceAssetDispose } from '@liwan/contracts'
 
 export interface AssetDisposeDraft {
   date: string | null

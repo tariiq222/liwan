@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { TaskState } from '@webvue/contracts'
+import type { TaskState } from '@liwan/contracts'
 import type { LocationQueryRaw } from 'vue-router'
 import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState.vue'
 import TaskBoard from '@/components/pmo/tasks/TaskBoard.vue'
@@ -12,7 +12,7 @@ import { projectTaskParams, projectTaskQuery } from '@/composables/projectTaskPa
 import { useProject } from '@/composables/useProjects'
 import type { TaskListParams } from '@/composables/useTasks'
 import { taskCreatePresetQuery } from '@/utils/taskCreatePolicy'
-import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()

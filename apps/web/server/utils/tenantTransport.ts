@@ -160,7 +160,7 @@ function operatorUpstream(configuredUpstream: string, path: string): URL {
  * the existing admitted Response reader, size cap and native cancellation.
  */
 export async function legacyTenantResponse(event: H3Event, configuredUpstream: string, path: string, options: { method?: string; body?: Buffer; headers: Record<string, string>; heavy?: HeavyBudget }): Promise<Response> {
-  if ((process.env.WEBVUE_TENANCY_MODE ?? 'dedicated') !== 'dedicated' || process.env.WEBVUE_RELEASE_ROUTES_DIR) throw failure()
+  if ((process.env.LIWAN_TENANCY_MODE ?? 'dedicated') !== 'dedicated' || process.env.LIWAN_RELEASE_ROUTES_DIR) throw failure()
   const base = operatorUpstream(configuredUpstream, path)
   if (options.body && Buffer.byteLength(options.body) > MAX_REQUEST) throw payloadTooLarge()
   try {
@@ -197,7 +197,7 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
   // The two expected-context headers state the identity a finance setup screen was read for; Odoo compares
   // them with the authenticated session, so they never select a company and never grant access.
   for (const name of ['content-type', 'accept', 'if-none-match', 'if-modified-since', 'range',
-    'x-webvue-expected-user-id', 'x-webvue-expected-company-id']) {
+    'x-liwan-expected-user-id', 'x-liwan-expected-company-id']) {
     const value = options.headers?.[name] ?? getHeader(event, name)
     if (value) headers[name] = value
   }

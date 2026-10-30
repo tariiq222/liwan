@@ -33,7 +33,7 @@ const detailPath = computed(() => `/projects/${projectId.value}/stakeholders/${s
     </template>
     <SharedEmptyState v-if="!item.data?.value" :title="notFound ? t('projects.notFound') : t('app.noResults')" />
     <SharedRecordSection v-else variant="panel" :title="t('projects.refresh.workspace.stakeholderContact')">
-      <dl class="grid gap-(--webvue-gap-card) text-sm sm:grid-cols-2">
+      <dl class="grid gap-(--liwan-gap-card) text-sm sm:grid-cols-2">
         <SharedSubCard><dt class="text-muted">{{ t('projects.governance.stakeholder.contact') }}</dt><dd dir="ltr" class="text-start">{{ item.data.value.contact || '—' }}</dd></SharedSubCard>
         <SharedSubCard><dt class="text-muted">{{ t('projects.governance.stakeholder.notes') }}</dt><dd class="whitespace-pre-wrap">{{ item.data.value.notes || '—' }}</dd></SharedSubCard>
       </dl>

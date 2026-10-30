@@ -1,5 +1,5 @@
 import { computed, getCurrentScope, onScopeDispose, ref, watch } from 'vue'
-import { AiEventSchema, AiRunStatusSchema, type AiEvent, type AiRecordRef, type AiRunStatus, type AiRunStatusValue } from '@webvue/contracts'
+import { AiEventSchema, AiRunStatusSchema, type AiEvent, type AiRecordRef, type AiRunStatus, type AiRunStatusValue } from '@liwan/contracts'
 import { useAiStreamingRun } from './useAiConversation'
 
 export type AiThreadItem =

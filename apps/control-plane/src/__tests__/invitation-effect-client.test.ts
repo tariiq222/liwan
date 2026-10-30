@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { createServer, type Server } from 'node:https'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { verifyServiceRequest } from '@webvue/commercial-contracts/server'
+import { verifyServiceRequest } from '@liwan/commercial-contracts/server'
 import { internalEffectPasswordAdapter } from '../commercial/invitation-effect-client.js'
 import { EFFECT_ISSUER, EFFECT_PATH } from '../shared/internal-effect-protocol.js'
 

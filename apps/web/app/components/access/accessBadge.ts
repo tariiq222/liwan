@@ -1,5 +1,5 @@
 import { accessStateBadge } from '../../utils/accessStateBadge'
-import type { StatusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
+import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
 
 interface AccessBadge extends StatusBadgeEntry {
   icon?: string

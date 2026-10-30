@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PersonalTask } from '@webvue/contracts'
+import type { PersonalTask } from '@liwan/contracts'
 import type { MyTaskBody, MyTaskCreate } from '@/composables/useMyTasks'
 import { changedFields } from '@/utils/myTaskDetail'
 import { ApiError } from '@/composables/useApi'

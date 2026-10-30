@@ -2,7 +2,7 @@
 import { useDocumentContexts } from '@/composables/useDocuments'
 import DocumentCreateForm from '@/components/documents/DocumentCreateForm.vue'
 import { documentRecordBack } from '@/lib/documentNavigation'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 const route = useRoute(); const router = useRouter(); const { t } = useI18n(); const { can } = useAccess()
 const backTo = computed(() => documentRecordBack(route.query, route.hash))
 const contexts = useDocumentContexts(computed(() => can('documents.items.manage')))

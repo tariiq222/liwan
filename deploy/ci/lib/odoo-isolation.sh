@@ -7,13 +7,13 @@
 # isolation_setup <module>: a fresh scratch database and temporary root for this run, removed on exit.
 isolation_setup() {
   OCA_PATH="$(python3 -B tools/oca_addons.py path --check)"
-  SCRATCH_DB="webvue_scratch_ci_iso_${1}_${GITHUB_RUN_ID}"
+  SCRATCH_DB="liwan_scratch_ci_iso_${1}_${GITHUB_RUN_ID}"
   SCRATCH_ROOT="$(mktemp -d)"
   mkdir -p "$SCRATCH_ROOT/data" "$SCRATCH_ROOT/logs"
   trap 'dropdb -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" --if-exists "$SCRATCH_DB" 2>/dev/null || true; rm -rf "$SCRATCH_ROOT"' EXIT
   dropdb -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" --if-exists "$SCRATCH_DB" || true
-  export WEBVUE_COMMERCIAL_CONFIG="$SCRATCH_ROOT/odoo-classification.json"
-  python3 deploy/classification.py fixture --database "$SCRATCH_DB" --mode saas --output "$WEBVUE_COMMERCIAL_CONFIG"
+  export LIWAN_COMMERCIAL_CONFIG="$SCRATCH_ROOT/odoo-classification.json"
+  python3 deploy/classification.py fixture --database "$SCRATCH_DB" --mode saas --output "$LIWAN_COMMERCIAL_CONFIG"
   ODOO_ARGS=(
     --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$PWD/odoo-addons,$OCA_PATH"
     --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER"
@@ -41,12 +41,12 @@ isolation_install_and_test() {
 isolation_check() {
   local installed
   installed="$(psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$SCRATCH_DB" -At -v ON_ERROR_STOP=1 \
-    -c "SELECT string_agg(name, ',' ORDER BY name) FROM ir_module_module WHERE state = 'installed' AND name LIKE 'webvue%'")"
-  echo "installed WebVue modules: $installed"
+    -c "SELECT string_agg(name, ',' ORDER BY name) FROM ir_module_module WHERE state = 'installed' AND name LIKE 'liwan%'")"
+  echo "installed LiwanOS modules: $installed"
   python3 -B tools/app_isolation.py check "$1" --installed "$installed"
 }
 
-# isolation_probe <label>: deploy/ci/odoo_route_probe.py in an Odoo shell; the caller exports WEBVUE_PROBE_*.
+# isolation_probe <label>: deploy/ci/odoo_route_probe.py in an Odoo shell; the caller exports LIWAN_PROBE_*.
 isolation_probe() {
   echo "--- route probe: $1"
   "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" shell "${ODOO_ARGS[@]}" --logfile="$SCRATCH_ROOT/logs/probe.log" --no-http \

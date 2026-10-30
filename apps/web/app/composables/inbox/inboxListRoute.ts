@@ -1,5 +1,5 @@
 import type { LocationQuery } from 'vue-router'
-import { InboxConversationStateSchema, type InboxConversationState } from '@webvue/contracts'
+import { InboxConversationStateSchema, type InboxConversationState } from '@liwan/contracts'
 import { CSAT_SCORES, type CsatScore } from './inboxPresentation'
 
 /** Conversations per list page. */

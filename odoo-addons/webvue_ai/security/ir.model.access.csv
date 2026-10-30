@@ -1,7 +1,0 @@
-id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_ai_audit_use,ai.audit use,model_webvue_ai_audit,group_cap_ai_use,1,0,1,0
-access_ai_audit_reader,ai.audit reader,model_webvue_ai_audit,webvue_core.group_cap_access_audit_read,1,0,0,0
-access_ai_audit_system,ai.audit system,model_webvue_ai_audit,base.group_system,1,0,0,0
-access_ai_usage_use,ai.usage use,model_webvue_ai_usage,group_cap_ai_use,1,0,1,0
-access_ai_usage_reader,ai.usage reader,model_webvue_ai_usage,webvue_core.group_cap_access_audit_read,1,0,0,0
-access_ai_usage_system,ai.usage system,model_webvue_ai_usage,base.group_system,1,0,0,0

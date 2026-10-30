@@ -1,4 +1,4 @@
-import { CrmImportFileReasonSchema, type CrmImportColumns, type CrmImportFile, type CrmImportFileReason, type CrmImportInvalidReason } from '@webvue/contracts'
+import { CrmImportFileReasonSchema, type CrmImportColumns, type CrmImportFile, type CrmImportFileReason, type CrmImportInvalidReason } from '@liwan/contracts'
 import { fileToBase64 } from './attachmentFile'
 import { saveErrorMessage } from './formFeedback'
 

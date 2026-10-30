@@ -1,4 +1,4 @@
-import { localIsoDay } from '@webvue/ui/app/utils/formatDate'
+import { localIsoDay } from '@liwan/ui/app/utils/formatDate'
 import * as editorContext from '../../utils/meetingEditorContext'
 import { useMeetingFormFeedback } from '../../composables/useMeetingFormFeedback'
 import * as recordNavigation from './helpers/recordNavigation'
@@ -10,13 +10,13 @@ import * as Vue from 'vue'
 import { createMemoryHistory, createRouter, type RouteLocationRaw } from 'vue-router'
 import { createHooks } from 'hookable'
 import { describe, expect, it, vi } from 'vitest'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import * as tabs from '../../utils/meetingTabs'
 import * as filters from '../../utils/meetingListFilters'
 import { parseOffset, firstQuery } from '../../utils/routeQuery'
 import { parsePositiveId } from '../../utils/routeParams'
 import { ApiError } from '../../composables/useApi'
-import { isCalendarDate } from '@webvue/ui/app/composables/calendarDate'
+import { isCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 import { useMeetingListQuerySync } from '../../composables/useMeetingListQuerySync'
 
 const root = resolve(import.meta.dirname, '../..')
@@ -28,7 +28,7 @@ async function load(file: string, url: RouteLocationRaw) {
   ] })
   await router.push(url)
   const hooks = createHooks()
-  router.beforeEach(to => hooks.callHook('webvue:navigation:start', to))
+  router.beforeEach(to => hooks.callHook('liwan:navigation:start', to))
   const descriptor = parse(read(file), { filename: file }).descriptor
   const code = compileScript(descriptor, { id: 'return-chain' }).content.replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replaceAll('import.meta.client', 'false').replace('export default', 'return')
   const js = ts.transpileModule(code, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText

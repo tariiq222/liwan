@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinanceBudgetVsActual } from '@webvue/contracts'
+import type { FinanceBudgetVsActual } from '@liwan/contracts'
 import Money from '../invoices/Money.vue'
 import { formatPercent } from './budgetFigures'
 

@@ -39,7 +39,7 @@ function clear() {
     <template v-if="props.manage" #actions>
       <UButton :to="{ path: `/settings/apps/inbox/catalog/${props.catalogId}/items/new`, query: route.query }" icon="i-lucide-plus" :disabled="!hydrated" :label="t('inbox.catalog.items.add')" data-testid="inbox-catalog-item-add" />
     </template>
-    <div class="px-(--webvue-card-pad) py-3">
+    <div class="px-(--liwan-card-pad) py-3">
       <SharedFilterBar embedded class="w-full" :active-count="Number(!!syncState) + Number(!!committedSearch.trim())" :disabled="!hydrated" @clear="clear">
         <template #search>
           <form @submit.prevent="update({ q: search.trim() || undefined })">
@@ -51,8 +51,8 @@ function clear() {
     </div>
     <SharedLoadingSkeleton v-if="query.isPending.value" class="m-4" />
     <SharedPageState v-else-if="query.error.value" class="m-4" :error="query.error.value" @retry="query.refetch()" />
-    <p v-else-if="!items.length" class="px-(--webvue-card-pad) py-4 text-sm text-muted" data-testid="inbox-catalog-items-empty">{{ filtered ? t('app.noResults') : t('inbox.catalog.items.empty') }}</p>
+    <p v-else-if="!items.length" class="px-(--liwan-card-pad) py-4 text-sm text-muted" data-testid="inbox-catalog-items-empty">{{ filtered ? t('app.noResults') : t('inbox.catalog.items.empty') }}</p>
     <InboxCatalogItemTable v-else :items="items" :manage="props.manage" />
-    <div v-if="pages > 1" class="px-(--webvue-card-pad) py-3"><SharedPagination :page="page" :pages="pages" @update:page="update({ page: $event > 1 ? String($event) : undefined })" /></div>
+    <div v-if="pages > 1" class="px-(--liwan-card-pad) py-3"><SharedPagination :page="page" :pages="pages" @update:page="update({ page: $event > 1 ? String($event) : undefined })" /></div>
   </SharedRecordSection>
 </template>

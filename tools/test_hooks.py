@@ -24,8 +24,8 @@ class TestHooks(unittest.TestCase):
                 self.assertEqual(names([path])[3:], ['ui_policy', 'no_external_refs'])
 
     def test_addon_python_adds_ruff_on_those_files_only(self):
-        steps = dict(plan_pre_commit(['odoo-addons/webvue_hr/a.py', 'tools/x.py', 'docs/a.md']))
-        self.assertEqual(steps['ruff'], ['ruff', 'check', 'odoo-addons/webvue_hr/a.py'])
+        steps = dict(plan_pre_commit(['odoo-addons/liwan_hr/a.py', 'tools/x.py', 'docs/a.md']))
+        self.assertEqual(steps['ruff'], ['ruff', 'check', 'odoo-addons/liwan_hr/a.py'])
 
     def test_tools_python_alone_does_not_run_ruff(self):
         self.assertNotIn('ruff', names(['tools/x.py']))
@@ -71,12 +71,12 @@ class TestHooks(unittest.TestCase):
         with mock.patch.object(hooks.subprocess, 'run', side_effect=calls), \
                 mock.patch.dict(hooks.os.environ, {}, clear=False), \
                 mock.patch.object(hooks.sys, 'stderr', io.StringIO()) as err:
-            hooks.os.environ.pop('WEBVUE_SKIP_JEV', None)
+            hooks.os.environ.pop('LIWAN_SKIP_JEV', None)
             hooks.advisory_jev()
         self.assertIn('jev review skipped', err.getvalue())
 
     def test_jev_can_be_skipped(self):
-        with mock.patch.dict(hooks.os.environ, {'WEBVUE_SKIP_JEV': '1'}), \
+        with mock.patch.dict(hooks.os.environ, {'LIWAN_SKIP_JEV': '1'}), \
                 mock.patch.object(hooks.subprocess, 'run') as run:
             hooks.advisory_jev()
         run.assert_not_called()

@@ -3,7 +3,7 @@ import { compileScript, parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import type { InboxOrder } from '@webvue/contracts'
+import type { InboxOrder } from '@liwan/contracts'
 import * as commerce from '../../../composables/inbox/inboxCommerce'
 
 // The scripts of the commerce components, compiled and run against stubbed composables (as the other component tests do).

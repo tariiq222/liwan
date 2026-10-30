@@ -3,7 +3,7 @@ import { activeShellModule, contextModuleFor } from './activeRoute'
 import { allNavItems, LAUNCHER_MODULE, moduleContextLinks, shellModuleList } from './shellModules'
 import { isNavPathActive } from '../../utils/accessPolicy'
 
-import type { ShellCrumb } from '@webvue/ui/app/types/shell'
+import type { ShellCrumb } from '@liwan/ui/app/types/shell'
 
 const normalize = (path: string) => path.replace(/\/+$/, '') || '/'
 const target = (to: unknown): string => (typeof to === 'string' ? to : (to as { path?: string } | null)?.path ?? '')

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxMessage } from '@webvue/contracts'
+import type { InboxMessage } from '@liwan/contracts'
 import InboxCommerceMessage from '@/components/inbox/InboxCommerceMessage.vue'
 import InboxFlowBubble from '@/components/inbox/InboxFlowBubble.vue'
 import InboxFlowSubmissionCard from '@/components/inbox/InboxFlowSubmissionCard.vue'

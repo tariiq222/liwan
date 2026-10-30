@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxOrderPaymentStatus, InboxOrderState } from '@webvue/contracts'
+import type { InboxOrderPaymentStatus, InboxOrderState } from '@liwan/contracts'
 import InboxOrderEditor from '@/components/inbox/InboxOrderEditor.vue'
 import { COMMERCE_LIMITS } from '@/composables/inbox/inboxCommerce'
 import { useInboxTemplates } from '@/composables/inbox/useInbox'

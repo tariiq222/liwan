@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FinanceEntry, FinanceKind } from '@webvue/contracts'
+import type { FinanceEntry, FinanceKind } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useCreateFinanceEntry, useProjectFinanceEntry, useUpdateFinanceEntry } from '@/composables/useProjectFinance'
 import FinanceBudgetPicker from '@/components/pmo/projects/finance/FinanceBudgetPicker.vue'
@@ -213,12 +213,12 @@ async function saveOnLatest() {
 </script>
 
 <template>
-  <form data-testid="finance-form" class="webvue-page-stack" novalidate @submit.prevent="submit()">
+  <form data-testid="finance-form" class="liwan-page-stack" novalidate @submit.prevent="submit()">
     <SharedUnsavedChanges :dirty="dirty" />
     <UAlert v-if="!canWrite" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('projects.finance.writeRevoked')" />
     <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error" />
     <SharedFormSection panel :title="t('projects.refresh.finance.formDetailsTitle')" :description="t('projects.refresh.finance.formDetailsDescription')">
-      <div class="grid gap-(--webvue-gap-card)">
+      <div class="grid gap-(--liwan-gap-card)">
         <UFormField name="kind" :label="t('projects.finance.fields.kind')">
           <USelect
             id="finance-kind"
@@ -236,7 +236,7 @@ async function saveOnLatest() {
     </SharedFormSection>
 
     <SharedFormSection panel :title="t('projects.refresh.finance.formAmountTitle')" :description="t('projects.refresh.finance.formAmountDescription')">
-      <div class="grid gap-(--webvue-gap-card)">
+      <div class="grid gap-(--liwan-gap-card)">
         <UFormField name="amount" :label="t('projects.finance.fields.amount')" required :help="currencyHelp" :error="fieldErrors.amount">
           <UInput
             id="finance-amount"
@@ -264,7 +264,7 @@ async function saveOnLatest() {
     </SharedFormSection>
 
     <SharedFormSection panel :title="t('projects.refresh.finance.formReferenceTitle')" :description="t('projects.refresh.finance.formReferenceDescription')">
-      <div class="grid gap-(--webvue-gap-card)">
+      <div class="grid gap-(--liwan-gap-card)">
         <UFormField name="reference" :label="t('projects.finance.fields.reference')" :error="fieldErrors.reference">
           <UInput id="finance-reference" v-model="draft.reference" class="w-full" :disabled="!hydrated || pending" />
         </UFormField>

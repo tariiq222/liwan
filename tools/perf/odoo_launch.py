@@ -42,7 +42,7 @@ def worktree_env():
 
 
 def scratch_root():
-    root = Path(os.environ.get('PERF_ROOT') or Path.home() / '.cache' / 'webvue-perf')
+    root = Path(os.environ.get('PERF_ROOT') or Path.home() / '.cache' / 'liwan-perf')
     (root / 'data').mkdir(parents=True, exist_ok=True)
     (root / 'logs').mkdir(parents=True, exist_ok=True)
     return root
@@ -123,4 +123,4 @@ def odoo_environment(database):
     fixture = scratch_root() / ('classification-%s.json' % database)
     if not fixture.is_file():
         odoo_test.classification(database, fixture)
-    return dict(os.environ, PYTHONDONTWRITEBYTECODE='1', WEBVUE_COMMERCIAL_CONFIG=str(fixture))
+    return dict(os.environ, PYTHONDONTWRITEBYTECODE='1', LIWAN_COMMERCIAL_CONFIG=str(fixture))

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import SettingsPage from '@webvue/ui/app/components/shared/layout/SettingsPage.vue'
-import SettingsList from '@webvue/ui/app/components/shared/layout/SettingsList.vue'
-import SettingsListRow from '@webvue/ui/app/components/shared/layout/SettingsListRow.vue'
+import SettingsPage from '@liwan/ui/app/components/shared/layout/SettingsPage.vue'
+import SettingsList from '@liwan/ui/app/components/shared/layout/SettingsList.vue'
+import SettingsListRow from '@liwan/ui/app/components/shared/layout/SettingsListRow.vue'
 import { storyContext } from '../support/context'
 
 const rows = [
@@ -23,7 +23,7 @@ const meta = {
   render: args => ({
     components: { SettingsPage, SettingsList, SettingsListRow },
     setup: () => ({ args, rows }),
-    template: `<main class="webvue-shell-main"><SettingsPage width="form"><SettingsList v-bind="args">
+    template: `<main class="liwan-shell-main"><SettingsPage width="form"><SettingsList v-bind="args">
       <SettingsListRow v-for="row in rows" :key="row.id" :name="row.name" :active="row.active" :locked="row.locked" :can-edit="args.canEdit" />
       <template #add><UInput class="min-w-40 flex-1" placeholder="اسم جديد" aria-label="اسم جديد" /></template>
     </SettingsList></SettingsPage></main>`,

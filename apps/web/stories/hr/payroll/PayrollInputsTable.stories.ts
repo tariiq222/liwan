@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import PayrollInputsTable from '../../../app/components/hr/payroll/PayrollInputsTable.vue'
-import ListCard from '@webvue/ui/app/components/shared/layout/ListCard.vue'
-import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
+import ListCard from '@liwan/ui/app/components/shared/layout/ListCard.vue'
+import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../../support/context'
 
 // The payslip register of one run: a row per employee with the five monthly inputs (number cells while the run is
@@ -27,7 +27,7 @@ const meta = {
   render: args => ({
     components: { PayrollInputsTable, ListCard, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="webvue-shell-main"><PageContainer width="full"><ListCard><PayrollInputsTable v-bind="args" /></ListCard></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer width="full"><ListCard><PayrollInputsTable v-bind="args" /></ListCard></PageContainer></main>',
   }),
 } satisfies Meta<typeof PayrollInputsTable>
 

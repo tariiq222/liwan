@@ -125,7 +125,7 @@ async function onSaved() {
           <li
             v-for="(line, index) in sortShiftLines(schedule.attendances)"
             :key="index"
-            class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-(--webvue-card-pad) py-3 text-sm"
+            class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-(--liwan-card-pad) py-3 text-sm"
             data-testid="hr-shift-schedule-line"
           >
             <span class="font-medium">{{ t(`hrShifts.days.${line.dayofweek}`) }}</span>

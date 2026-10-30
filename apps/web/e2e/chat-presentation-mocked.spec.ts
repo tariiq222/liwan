@@ -175,7 +175,7 @@ test('switching creation kind protects the draft and discarding clears fields fr
 
 test('an English channel form stays inline and a failed create keeps its draft for retry', async ({ page, baseURL }) => {
   const creates = await setup(page)
-  await page.context().addCookies([{ name: 'webvue-locale', value: 'en', url: baseURL! }])
+  await page.context().addCookies([{ name: 'liwan-locale', value: 'en', url: baseURL! }])
   let failed = true
   await page.route('**/api/v1/chat/conversations', async route => {
     if (route.request().method() === 'POST' && failed) {
@@ -219,7 +219,7 @@ test.describe('touch', () => {
   test('message actions remain visible without hover', async ({ page }) => {
     await setup(page)
     await open(page, '/chat/42')
-    const actions = page.locator('.webvue-chat-msg-actions').first()
+    const actions = page.locator('.liwan-chat-msg-actions').first()
     await expect(actions).toBeVisible()
     await expect(actions).toHaveCSS('opacity', '1')
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)

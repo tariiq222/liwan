@@ -1,6 +1,6 @@
 # End-user test scenarios
 
-This folder is the register of every end-user scenario WebVue is tested against: what is
+This folder is the register of every end-user scenario LiwanOS is tested against: what is
 covered, by which persona, with what expected result, and whether it is automated, checked by
 hand, failing or still planned. Anyone testing the product starts here; anyone adding a test
 updates the matching row in the same change.
@@ -33,7 +33,7 @@ jobs sign in and work, and requests move between people and applications.
 ## Completeness
 
 The register must name every customer surface the code exposes: every page of `apps/web`
-and `apps/vendor-admin`, every Odoo route under `odoo-addons/webvue_*/controllers` and every
+and `apps/vendor-admin`, every Odoo route under `odoo-addons/liwan_*/controllers` and every
 capability. Each row lists what it exercises in its Covers column as backticked tokens:
 
 | Token | Surface |
@@ -69,7 +69,7 @@ the ID.
 ## Personas
 
 The demo company «شركة نخبة الأعمال للتقنية» and its personas are seeded through Odoo by
-[tools/e2e_seed.py](../../tools/e2e_seed.py) into the disposable `webvue_scratch_e2e`
+[tools/e2e_seed.py](../../tools/e2e_seed.py) into the disposable `liwan_scratch_e2e`
 database. Login is `e2e_<key>`; the credentials are declared in
 [e2e.config.ts](../../e2e.config.ts) (`credentials.user('<key>')` in a test).
 

@@ -3,7 +3,7 @@ import { projectStatusBadge } from '../../composables/projectStatus'
 import { taskStateBadge } from '../../composables/taskState'
 import { accessStateBadge } from '../accessStateBadge'
 import { hrAccessBadge } from '../hrAccessBadge'
-import { badgeLabel, statusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
+import { badgeLabel, statusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
 import { subscriptionStateBadge } from '../subscription'
 
 const t = (key: string) => `t:${key}`

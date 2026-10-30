@@ -1,5 +1,5 @@
-import type { FinanceActionBlockReason } from '@webvue/contracts'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import type { FinanceActionBlockReason } from '@liwan/contracts'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
 
 /** The two lists every finance record carries: what the server lets the caller do now, and what it offers but refuses. */
 interface ServerActions<A extends string> {

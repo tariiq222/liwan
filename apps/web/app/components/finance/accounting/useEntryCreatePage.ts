@@ -1,4 +1,4 @@
-import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import { ENTRIES_PATH, entryRecordPath } from './entryPaths'
 import { useEntryListPage } from './useEntryListPage'
 

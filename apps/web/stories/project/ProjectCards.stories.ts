@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import ProjectCards from '../../app/components/pmo/projects/ProjectCards.vue'
 import ProjectTable from '../../app/components/pmo/projects/ProjectTable.vue'
-import ListCard from '@webvue/ui/app/components/shared/layout/ListCard.vue'
-import ListFooter from '@webvue/ui/app/components/shared/data/ListFooter.vue'
+import ListCard from '@liwan/ui/app/components/shared/layout/ListCard.vue'
+import ListFooter from '@liwan/ui/app/components/shared/data/ListFooter.vue'
 import { archivedProject, project } from '../fixtures/pmo'
 import { storyContext } from '../support/context'
 
@@ -24,7 +24,7 @@ const meta = {
   render: args => ({
     components: { ProjectCards, ListCard, ListFooter },
     setup: () => ({ args }),
-    template: `<main class="webvue-shell-main"><ListCard><ProjectCards v-bind="args" /><template #footer><ListFooter :count-label="\`عرض \${args.items.length} من \${args.items.length}\`" :page="1" :pages="1" /></template></ListCard></main>`,
+    template: `<main class="liwan-shell-main"><ListCard><ProjectCards v-bind="args" /><template #footer><ListFooter :count-label="\`عرض \${args.items.length} من \${args.items.length}\`" :page="1" :pages="1" /></template></ListCard></main>`,
   }),
 } satisfies Meta<typeof ProjectCards>
 export default meta
@@ -39,6 +39,6 @@ export const Table: Story = {
   render: args => ({
     components: { ProjectTable, ListCard, ListFooter },
     setup: () => ({ args }),
-    template: `<main class="webvue-shell-main"><ListCard><ProjectTable v-bind="args" /><template #footer><ListFooter :count-label="\`عرض \${args.items.length} من \${args.items.length}\`" :page="1" :pages="1" /></template></ListCard></main>`,
+    template: `<main class="liwan-shell-main"><ListCard><ProjectTable v-bind="args" /><template #footer><ListFooter :count-label="\`عرض \${args.items.length} من \${args.items.length}\`" :page="1" :pages="1" /></template></ListCard></main>`,
   }),
 }

@@ -16,9 +16,9 @@ describe('SharedSettingsCard', () => {
   it('is the anchored panel card with its fields as setting rows and one footer: revert, then save', async () => {
     const html = await card({ dirty: true })
     expect(html).toContain('id="followup"')
-    expect(html).toContain('webvue-settings-anchor')
+    expect(html).toContain('liwan-settings-anchor')
     expect(html).toContain('variant="panel"')
-    expect(html).toMatch(/class="webvue-setting-rows">(<!--\[-->)?<p>FIELDS<\/p>/)
+    expect(html).toMatch(/class="liwan-setting-rows">(<!--\[-->)?<p>FIELDS<\/p>/)
     expect(html.indexOf('app.revert')).toBeLessThan(html.indexOf('app.saveChanges'))
     expect(html).not.toContain('app.viewOnly')
   })

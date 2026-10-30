@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { HrPayrollPostingPreview } from '@webvue/contracts'
-import { formatDate } from '@webvue/ui/app/utils/formatDate'
+import type { HrPayrollPostingPreview } from '@liwan/contracts'
+import { formatDate } from '@liwan/ui/app/utils/formatDate'
 import { formatPayrollAmount } from '@/utils/payrollFormat'
 
 // The accounting entry a posting would create, shown inline before the run is posted: the entry's date and journal,
@@ -27,7 +27,7 @@ const lineKey = (line: Line) => `${line.account.id}:${line.analytic_account?.id 
 </script>
 
 <template>
-  <div class="webvue-print-hide grid gap-3" data-testid="hr-payroll-posting-preview">
+  <div class="liwan-print-hide grid gap-3" data-testid="hr-payroll-posting-preview">
     <h3 class="font-semibold text-highlighted">{{ t('hrPayroll.finance.preview.title') }}</h3>
     <dl class="flex flex-wrap gap-x-6 gap-y-1 text-sm">
       <div class="flex gap-1"><dt class="text-muted">{{ t('hrPayroll.finance.preview.date') }}:</dt><dd class="tabular-nums">{{ formatDate(props.preview.date) }}</dd></div>

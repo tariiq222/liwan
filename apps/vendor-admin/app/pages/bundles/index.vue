@@ -2,13 +2,13 @@
 import type { TableColumn } from '@nuxt/ui'
 import { lifecycleBadge } from '@/utils/vendorCommercial'
 import { appName, commercialReturnTo, isStatusFilter, keyLabel, limitLabel, STATUS_FILTERS, type BundleView } from '@/utils/vendorCommercial'
-import { formatCommercialMoney, cadenceLabel } from '@webvue/commercial-ui/app/utils/commercial'
+import { formatCommercialMoney, cadenceLabel } from '@liwan/commercial-ui/app/utils/commercial'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 definePageMeta({ capability: 'vendor.read' })
 const { t, te, locale } = useI18n(); const route = useRoute(); const router = useRouter(); const { can } = useVendorContext(); const hydrated = useHydrated(); const api = useVendorCommercial()
 const PAGE = 25
 const isNew = computed(() => route.path.replace(/\/+$/, '').endsWith('/new'))
-const listQuery = computed<Record<string, unknown>>(() => (isNew.value ? Object.fromEntries(new URL(commercialReturnTo(route.query.returnTo, '/bundles'), 'http://webvue.local').searchParams) : route.query))
+const listQuery = computed<Record<string, unknown>>(() => (isNew.value ? Object.fromEntries(new URL(commercialReturnTo(route.query.returnTo, '/bundles'), 'http://liwan.local').searchParams) : route.query))
 const q = computed(() => (typeof listQuery.value.q === 'string' ? listQuery.value.q : ''))
 const status = computed(() => (isStatusFilter(listQuery.value.status) ? listQuery.value.status : 'all'))
 const page = computed(() => Math.max(1, Number(listQuery.value.page ?? 1) || 1))
@@ -23,7 +23,7 @@ const pages = computed(() => Math.max(1, Math.ceil((data.value?.bundles.total ??
 const releaseOf = (b: BundleView) => data.value?.releases.find(r => r.id === b.catalog_release_id)
 const apps = (b: BundleView) => b.selections.map(s => { const a = releaseOf(b)?.applications.find(x => x.id === s.app_id); return a ? appName(a, locale.value) : s.app_id })
 const limits = (b: BundleView) => Object.entries(b.domain_limits).map(([k, v]) => `${keyLabel(k, t, te)}: ${limitLabel(v, t)}`)
-// Owner decision 2026-10-29: the seeded WebVue plan ships with a default bundle set for the sold applications.
+// Owner decision 2026-10-29: the seeded LiwanOS plan ships with a default bundle set for the sold applications.
 const latestRelease = computed(() => data.value?.releases[0])
 const canSeed = computed(() => can('vendor.catalog.manage') && can('vendor.pricing.manage') && Boolean(latestRelease.value))
 const seedBusy = ref(false); const seedState = ref<'done' | 'failed' | undefined>()

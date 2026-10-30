@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import GosiRateTable from '../../../app/components/hr/payroll/GosiRateTable.vue'
-import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
+import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../../support/context'
 
 // The GOSI contribution rates of the company on the payroll settings page: a shared row is read-only, a company row
@@ -22,7 +22,7 @@ const meta = {
   render: args => ({
     components: { GosiRateTable, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="webvue-shell-main"><PageContainer width="list"><GosiRateTable v-bind="args" /></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer width="list"><GosiRateTable v-bind="args" /></PageContainer></main>',
   }),
 } satisfies Meta<typeof GosiRateTable>
 

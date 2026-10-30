@@ -11,7 +11,7 @@ import {
   type PaymentOption,
   type PaymentRedirect,
   type PaymentStart,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { errorKeyFor } from './paymentErrors'
 
 /** The gateway page the browser must open, as the start answer describes it. */

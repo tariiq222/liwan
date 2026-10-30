@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { OperationProcess, OperationRequest } from '@webvue/contracts'
+import type { OperationProcess, OperationRequest } from '@liwan/contracts'
 import { refDebounced } from '@vueuse/core'
 import { createOperationSubmitGuard, operationErrorKey, requestFormErrors } from '@/composables/operations/forms'
 import { useOperationTargets } from '@/composables/operations/useOperations'

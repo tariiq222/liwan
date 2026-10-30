@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { ProjectStatus } from '@webvue/contracts'
+import type { ProjectStatus } from '@liwan/contracts'
 import { projectStatusBadge } from '@/composables/projectStatus'
-import { badgeLabel } from '@webvue/ui/app/utils/statusBadge'
-import type { ProjectUpdate } from '@webvue/contracts'
-import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
+import { badgeLabel } from '@liwan/ui/app/utils/statusBadge'
+import type { ProjectUpdate } from '@liwan/contracts'
+import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 import { useProjectUpdates } from '@/composables/useProjectUpdates'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 
 const props = defineProps<{ projectId: number; canManage: boolean }>()
 
@@ -70,7 +70,7 @@ function openCreate() {
   <SharedListCard v-else>
     <ol ref="listEl" class="divide-y divide-default">
       <li v-for="u in items" :key="u.id">
-        <article data-testid="project-update" class="grid min-w-0 gap-2 px-(--webvue-card-pad) py-4">
+        <article data-testid="project-update" class="grid min-w-0 gap-2 px-(--liwan-card-pad) py-4">
           <div class="flex min-w-0 items-center justify-between gap-3">
             <h3 class="min-w-0 flex-1 truncate text-sm font-semibold text-highlighted">{{ u.name }}</h3>
             <SharedStatusBadge v-bind="projectBadge(u.status)" data-testid="project-status" class="shrink-0" />

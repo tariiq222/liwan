@@ -1,7 +1,7 @@
 {
   "ai": {
-    "title": "WebVue AI",
-    "description": "Ask about your tasks and projects, and request what you want prepared. WebVue AI prepares, you approve.",
+    "title": "LiwanOS AI",
+    "description": "Ask about your tasks and projects, and request what you want prepared. LiwanOS AI prepares, you approve.",
     "name": "Assistant",
     "greeting": "Hello {name}",
     "greetingAnonymous": "Hello",
@@ -54,7 +54,7 @@
     },
     "thread": {
       "you": "You",
-      "assistant": "WebVue AI",
+      "assistant": "LiwanOS AI",
       "thinking": "Thinking…",
       "records": "Sources",
       "copy": "Copy",
@@ -83,13 +83,13 @@
       "discard": "Discard the draft"
     },
     "limits": {
-      "monthly": "Your company reached its WebVue AI message limit for this month.",
+      "monthly": "Your company reached its LiwanOS AI message limit for this month.",
       "run": "This request stopped because it exceeded the allowed number of steps.",
       "timeout": "The request took longer than allowed.",
       "used": "{used} of {limit} messages this month"
     },
     "errors": {
-      "unavailable": "WebVue AI is unavailable right now. Try again later.",
+      "unavailable": "LiwanOS AI is unavailable right now. Try again later.",
       "provider": "Could not reach the AI model. Try again later.",
       "decide": "Could not save your decision. Try again.",
       "auditFailed": "The action was done but logging it failed.",

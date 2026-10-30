@@ -1,12 +1,12 @@
 # مرجع تقييم تحديث محرك Odoo
 
-هذا الملف مرجع يُقرأ **قبل** أي قرار تحديث لمحرك Odoo في ويب فيو: يثبّت منهج القياس،
+هذا الملف مرجع يُقرأ **قبل** أي قرار تحديث لمحرك Odoo في ليوان: يثبّت منهج القياس،
 ونقاط الاشتباك التي يقع فيها الأثر دائمًا، والبوابات الإلزامية قبل الدمج. الحالة الحية
 تُقاس ولا تُقرأ من وثيقة؛ جدول اللقطة في آخر الملف تاريخي ولا يُعتمد كوضع راهن.
 
 الوثيقة تخطيطية بالكامل: **لا تُنفّذ تحديثًا، ولا تُجيز دمجًا أو نشرًا.** كل قرار تحديث
 يخضع لـ[سياسة تحديث المصادر](UPDATE_POLICY.md) وللمخطط في
-[تحديث ويب فيو والإضافات](superpowers/specs/2026-10-16-webvue-continuous-updates-design.md).
+[تحديث ليوان والإضافات](superpowers/specs/2026-10-16-liwan-continuous-updates-design.md).
 
 ## 1. القاعدة الحاكمة
 
@@ -29,7 +29,7 @@
 | 5 | هل يلزم `-u`؟ | `git diff --stat <pin> <head> -- '*/__manifest__.py'` — كل رفع نسخة موديول يعني ترقية وحدات |
 
 في هذا الملف، كل مسار يبدأ بـ`odoo/` يشير إلى **مصدر Odoo** في `/Users/tariq/code/odoo`
-(للقراءة فقط)، وليس إلى هذا المستودع؛ وبقية المسارات نسبية إلى جذر ويب فيو.
+(للقراءة فقط)، وليس إلى هذا المستودع؛ وبقية المسارات نسبية إلى جذر ليوان.
 
 ملاحظات قياس مثبتة عمليًا:
 
@@ -57,18 +57,18 @@
 
 **الدوال الداخلية/الخاصة المستبدلة (الأكثر هشاشة):**
 
-- `ir.http._authenticate_explicit` — في [webvue_platform/models/ir_http.py](../odoo-addons/webvue_platform/models/ir_http.py):
+- `ir.http._authenticate_explicit` — في [liwan_platform/models/ir_http.py](../odoo-addons/liwan_platform/models/ir_http.py):
   بوابة المنع الافتراضي لكل مسارات Odoo العامة. كسرها يفتح أو يغلق الوصول، فهي أول فحص بعد أي تحديث.
-- `res.users._login` — في `webvue_platform/models/res_users.py`.
-- `ir.binary._find_record` و`ir.binary._record_to_stream` — في `webvue_platform/models/ir_binary.py`
-  و`webvue_documents/models/ir_binary.py`؛ الأولى استثناء R9 موثّق في
+- `res.users._login` — في `liwan_platform/models/res_users.py`.
+- `ir.binary._find_record` و`ir.binary._record_to_stream` — في `liwan_platform/models/ir_binary.py`
+  و`liwan_documents/models/ir_binary.py`؛ الأولى استثناء R9 موثّق في
   [قواعد Odoo](agents/odoo-rules.md) (توسيع token حقول محدودة).
-- `discuss.channel._get_or_create_chat` — في `webvue_chat/models/discuss_channel.py`.
-- `project.task._message_post_after_hook` و`_notify_get_recipients` — في `webvue_pmo` و`webvue_tasks`.
-- `ir.attachment.read/copy_data/export_data` — في `webvue_documents/models/ir_attachment.py`؛
+- `discuss.channel._get_or_create_chat` — في `liwan_chat/models/discuss_channel.py`.
+- `project.task._message_post_after_hook` و`_notify_get_recipients` — في `liwan_pmo` و`liwan_tasks`.
+- `ir.attachment.read/copy_data/export_data` — في `liwan_documents/models/ir_attachment.py`؛
   واجهة ORM عامة لكن حساسة لأنها تحمل قواعد الوصول إلى المستندات.
 - `res.users._notify_security_setting_update` و`_check_at_least_one_administrator`،
-  والثوابت `SELF_READABLE_FIELDS`/`SELF_WRITEABLE_FIELDS` — في `webvue_api` و`webvue_core`.
+  والثوابت `SELF_READABLE_FIELDS`/`SELF_WRITEABLE_FIELDS` — في `liwan_api` و`liwan_core`.
 
 **سطح التوسيع القاعدي:** نحو **20** موديل Odoo أساسيًا موسّعًا عبر نحو **76** دالة
 (الأكثر: `ir.attachment`، `res.users`، `project.task`، `res.company`، ثم `hr.employee`
@@ -77,7 +77,7 @@
 عند كل قياس؛ لا تُنسخ من هنا.
 
 **الواجهات:** صفر وراثة لقوالب Odoo (`inherit_id`) في كامل `odoo-addons`، ولا أي `xpath`.
-هذا يعني أن تغييرات شاشات Odoo لا تكسر ويب فيو بنيويًا.
+هذا يعني أن تغييرات شاشات Odoo لا تكسر ليوان بنيويًا.
 
 **محور ثانٍ مستقل:** مستودعات OCA المثبتة على فرع 19.0 مدرجة في
 [deploy/oca-addons.json](../deploy/oca-addons.json) (والتفاصيل في [oca-addons.md](oca-addons.md))،
@@ -91,7 +91,7 @@
    ([deploy/odoo/upgrade_smoke.py](../deploy/odoo/upgrade_smoke.py)) مع مصافي
    `tools/upgrade_baseline.py` و`tools/upgrade_log_guard.py`.
 2. **قاعدة scratch**: كل ترقية تُجرَّب على قاعدة معزولة. لا اختبار على `odoo19`
-   ولا على قاعدة عميل، وقاعدة `webvue_dev` ليست دليل إنتاج.
+   ولا على قاعدة عميل، وقاعدة `liwan_dev` ليست دليل إنتاج.
 3. **الفحوص المعتادة**: `npm test`، `python3 -B tools/arch_policy.py --base main`،
    `python3 -B tools/git_policy.py --base main`، واختبارات Odoo لكل إضافة تتغيّر، ثم
    مراجعة `odoo-reviewer` لأي تغيير في الإضافات أو العقود.

@@ -4,7 +4,7 @@ import InboxChannelTabs from '@/components/inbox/InboxChannelTabs.vue'
 import { useInboxBusinessProfile } from '@/composables/inbox/useInboxChannelHealth'
 import { useInboxChannel } from '@/composables/inbox/useInboxSettings'
 
-// The WhatsApp business profile of one channel, read from Meta each time the page opens (WebVue keeps no copy).
+// The WhatsApp business profile of one channel, read from Meta each time the page opens (LiwanOS keeps no copy).
 const route = useRoute()
 const { t } = useI18n()
 const hydrated = useHydrated()

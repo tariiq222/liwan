@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { FinanceFiscalYear } from '@webvue/contracts'
+import type { FinanceFiscalYear } from '@liwan/contracts'
 import { ApiError } from '../../../../composables/useApi'
 import { blockerText, closingErrorMessage, selectedOpenYear } from '../closingPresentation'
 

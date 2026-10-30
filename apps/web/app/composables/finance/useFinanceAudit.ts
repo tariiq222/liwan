@@ -1,7 +1,7 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { keepPreviousData, useQuery } from '@tanstack/vue-query'
-import { FinanceAuditEventListSchema } from '@webvue/contracts'
+import { FinanceAuditEventListSchema } from '@liwan/contracts'
 import type { AuditListParams } from '@/components/finance/governance/auditParams'
 
 export const financeAuditKeys = {

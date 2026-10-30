@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { compileScript, parse } from '@vue/compiler-sfc'
-import { AI_RUN_TITLE_MAX_CHARS, AiRunPatchSchema, type AiRunSummary } from '@webvue/contracts'
+import { AI_RUN_TITLE_MAX_CHARS, AiRunPatchSchema, type AiRunSummary } from '@liwan/contracts'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { vueBindings } from '../../../../tests/vueBindings'

@@ -1,5 +1,5 @@
 import { createEventStream, getRouterParam } from 'h3'
-import { AiRunStatusSchema } from '@webvue/contracts'
+import { AiRunStatusSchema } from '@liwan/contracts'
 import { auditFailedEvent, doneEvent, executeTool, relay, resumeFailedEvent, settle, tryAudit } from '../../../../utils/ai/pump'
 import { logFailure, serviceFetch } from '../../../../utils/ai/upstream'
 import { runSession } from '../../../../utils/ai/session'

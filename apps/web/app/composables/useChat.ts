@@ -14,7 +14,7 @@ import {
   type ChatMessageReactionWrite,
   type ChatMessageSend,
   type ChatMessageUpdate,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { hasFeature } from '../modules/registry'
 import { ApiError } from './useApi'
 import {

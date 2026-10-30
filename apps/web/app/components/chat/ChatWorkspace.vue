@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core'
 import { useQueryClient } from '@tanstack/vue-query'
-import EmptyState from '@webvue/ui/app/components/shared/feedback/EmptyState.vue'
+import EmptyState from '@liwan/ui/app/components/shared/feedback/EmptyState.vue'
 import ChatInfoPanel from '@/components/chat/ChatInfoPanel.vue'
 import ConversationList from '@/components/chat/ConversationList.vue'
 import MessageHistory from '@/components/chat/MessageHistory.vue'
@@ -11,8 +11,8 @@ import { applyChatAccessFailure, chatKeys, useChatWritable } from '@/composables
 import { chatTypingEvent } from '@/composables/useBus'
 import { chatDrafts } from '@/utils/chatDrafts'
 import { isFatalChatStatus, parseChatListRoute, serializeChatListRoute, type ChatListRoute } from '@/utils/chatState'
-import { avatarProps } from '@webvue/ui/app/utils/avatarTone'
-import type { ChatMessage } from '@webvue/contracts'
+import { avatarProps } from '@liwan/ui/app/utils/avatarTone'
+import type { ChatMessage } from '@liwan/contracts'
 
 // The conversation screen on SharedConversationLayout. From 768px the list is the shell's context-sidebar panel
 // (ChatSidebarPanel); below it the list, the thread and the info panel replace one another. The info panel is the URL
@@ -108,7 +108,7 @@ function updateRoute(next: ChatListRoute) {
     </template>
 
     <template v-if="composerOpen" #header>
-      <header class="webvue-chat-thread-header" data-testid="chat-thread-header">
+      <header class="liwan-chat-thread-header" data-testid="chat-thread-header">
         <UTooltip v-if="!isDesktop" :text="t('app.back')">
           <UButton color="neutral" variant="ghost" square :to="{ path: '/chat', query: listQuery }" :aria-label="t('app.back')">
             <UIcon name="i-lucide-arrow-left" class="size-5 rtl:rotate-180" aria-hidden="true" />
@@ -146,7 +146,7 @@ function updateRoute(next: ChatListRoute) {
             </UButton>
           </UTooltip>
         </div>
-        <UInput v-if="showMessageSearch" v-model="messageQuery" class="webvue-chat-thread-search" icon="i-lucide-search" :placeholder="t('chat.searchMessages')" :disabled="!hydrated" />
+        <UInput v-if="showMessageSearch" v-model="messageQuery" class="liwan-chat-thread-search" icon="i-lucide-search" :placeholder="t('chat.searchMessages')" :disabled="!hydrated" />
       </header>
     </template>
 
@@ -195,7 +195,7 @@ function updateRoute(next: ChatListRoute) {
     </template>
 
     <template #info="{ headingLevel }">
-      <header class="webvue-chat-thread-header">
+      <header class="liwan-chat-thread-header">
         <UTooltip :text="t('app.back')">
           <UButton color="neutral" variant="ghost" square :to="threadTo" :aria-label="t('app.back')">
             <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />

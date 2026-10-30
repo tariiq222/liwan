@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
+import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import type { TableColumn } from '@nuxt/ui'
-import type { MeetingListItem } from '@webvue/contracts'
-import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
-import { formatCalendarDate, formatWebVueTime } from '@webvue/ui/app/composables/calendarDate'
+import type { MeetingListItem } from '@liwan/contracts'
+import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
+import { formatCalendarDate, formatLiwanTime } from '@liwan/ui/app/composables/calendarDate'
 import { groupMeetingsByMonth, meetingTimelinePhase } from '@/utils/meetingWorkspace'
 import { meetingStateBadgeProps } from '@/utils/meetingStatus'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 
 const props = withDefaults(defineProps<{
   meetings: MeetingListItem[]
@@ -40,7 +40,7 @@ function phase(meeting: MeetingListItem) {
 function localTime(value: string) {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return t('meetingTimeline.unknownDate')
-  return hydrated.value ? formatWebVueTime(parsed, locale.value) : ''
+  return hydrated.value ? formatLiwanTime(parsed, locale.value) : ''
 }
 
 function meetingDate(meeting: MeetingListItem) {
@@ -64,7 +64,7 @@ function meetingTo(meeting: MeetingListItem, tab?: string) {
 </script>
 
 <template>
-  <div v-if="!meetings.length" class="p-(--webvue-card-pad)"><SharedEmptyState :title="t('meetingTimeline.empty')" /></div>
+  <div v-if="!meetings.length" class="p-(--liwan-card-pad)"><SharedEmptyState :title="t('meetingTimeline.empty')" /></div>
   <SharedDataTable
     v-else-if="view === 'table'"
     :bare="bare"
@@ -106,7 +106,7 @@ function meetingTo(meeting: MeetingListItem, tab?: string) {
       </div>
     </template>
   </SharedDataTable>
-  <div v-else class="grid gap-(--webvue-gap-card) p-(--webvue-card-pad)">
+  <div v-else class="grid gap-(--liwan-gap-card) p-(--liwan-card-pad)">
     <section v-for="group in groups" :key="group.key" :aria-labelledby="`meeting-month-${group.key}`">
       <h3 :id="`meeting-month-${group.key}`" class="mb-2 text-sm font-semibold text-highlighted">{{ group.label }}</h3>
       <ol class="relative ms-2 border-s border-default">

@@ -1,4 +1,4 @@
-import type { TableSort } from '@webvue/ui/app/utils/dataTable'
+import type { TableSort } from '@liwan/ui/app/utils/dataTable'
 
 // The task list sorts on the server. The URL (`?sort=`) and `TaskListParams.sort` carry the API's own
 // `<key> <asc|desc>` value; absent means the default order (record number ascending). Only the sortable columns'

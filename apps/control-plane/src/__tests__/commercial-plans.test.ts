@@ -68,8 +68,8 @@ suite('commercial plans', () => {
     expect(audit).toHaveLength(1)
     expect(audit[0].metadata.predecessor_id).toBe(c.body.id)
   })
-  it('seeds exactly one sellable WebVue plan with no included applications', async () => {
-    const rows = (await pool.query("SELECT * FROM plan_revisions WHERE status='published' AND available AND name='WebVue'")).rows
+  it('seeds exactly one sellable LiwanOS plan with no included applications', async () => {
+    const rows = (await pool.query("SELECT * FROM plan_revisions WHERE status='published' AND available AND name='LiwanOS'")).rows
     expect(rows).toHaveLength(1)
     expect(rows[0].included_bundle_revision_ids).toEqual([])
     expect(rows[0].trial_days).toBe(14)

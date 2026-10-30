@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import DocumentFiles from '../../app/components/documents/DocumentFiles.vue'
-import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
+import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 import { document, files, documentHandlers } from './fixtures'
 const meta = {
@@ -12,7 +12,7 @@ export default meta
 type Story = StoryObj<typeof meta>
 export const Default: Story = {
   parameters: storyContext('apps/web/app/pages/documents/[documentId].vue:87'),
-  render: args => ({ components: { DocumentFiles, PageContainer }, setup: () => ({ args }), template: '<main class="webvue-shell-main"><PageContainer width="form"><DocumentFiles v-bind="args" /></PageContainer></main>' }),
+  render: args => ({ components: { DocumentFiles, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer width="form"><DocumentFiles v-bind="args" /></PageContainer></main>' }),
 }
 
 export const Reader: Story = { ...Default, args: { document: { ...document, allowed_actions: { update: false, archive: false, restore: false, upload_file: false, manage_access: false } }, files: [ { ...files[0]!, allowed_actions: { archive: false, restore: false, lock: false, unlock: false } } ] } }

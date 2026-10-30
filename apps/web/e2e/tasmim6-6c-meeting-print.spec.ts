@@ -48,8 +48,8 @@ test.describe('Plan 6c: the minutes print page', () => {
     })
     expect(style.color).toBe('rgb(0, 0, 0)')
     expect(style.background).toBe('rgb(255, 255, 255)')
-    expect(style.page).toBe('webvue-landscape')
-    expect(await page.locator('.webvue-shell-header').evaluate(node => getComputedStyle(node).display)).toBe('none')
+    expect(style.page).toBe('liwan-landscape')
+    expect(await page.locator('.liwan-shell-header').evaluate(node => getComputedStyle(node).display)).toBe('none')
     expect(await page.getByTestId('meeting-print-action').evaluate(node => getComputedStyle(node.closest('footer')!).display)).toBe('none')
   })
 

@@ -6,7 +6,7 @@ import {
   nextOrgScale,
   type OrgChartBox,
 } from '@/lib/departmentOrgChart'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 
 const props = defineProps<{
   roots: DepartmentTreeNode[]
@@ -256,6 +256,6 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
-    <SharedEmptyState v-else class="m-(--webvue-card-pad-dense)" :title="$t('hr.depts.empty')" />
+    <SharedEmptyState v-else class="m-(--liwan-card-pad-dense)" :title="$t('hr.depts.empty')" />
   </section>
 </template>

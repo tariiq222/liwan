@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { UserBranchAccess } from '@webvue/contracts'
+import type { UserBranchAccess } from '@liwan/contracts'
 import BranchRoleAssignments from '@/components/access/branches/BranchRoleAssignments.vue'
 import { useSettingsForm } from '@/composables/settings/useSettingsForm'
 import { useUpdateUserBranchAccess } from '@/composables/useBranchAccess'

@@ -18,7 +18,7 @@ from pathlib import Path
 
 FORBIDDEN_DB_RE = re.compile(r'(?:^|_)(odoo19|production|prod|postgres|template0|template1)(?:_|$)', re.IGNORECASE)
 DB_NAME_RE = re.compile(r'^[A-Za-z][A-Za-z0-9_]*$')
-SQL_INSTALLED = "SELECT count(*) FROM ir_module_module WHERE name LIKE 'webvue\\_%' AND state = 'installed'"
+SQL_INSTALLED = "SELECT count(*) FROM ir_module_module WHERE name LIKE 'liwan\\_%' AND state = 'installed'"
 SQL_STUCK = "SELECT count(*) FROM ir_module_module WHERE state IN ('to upgrade', 'to install', 'to remove')"
 SQL_ATTACHMENTS = 'SELECT DISTINCT store_fname FROM ir_attachment WHERE store_fname IS NOT NULL ORDER BY 1'
 
@@ -89,7 +89,7 @@ def perform_restore(*, backup_dir, target_db, target_filestore, pg_restore, crea
         'restored_into': db,
         'source_manifest': json.loads(manifest.read_text(encoding='utf-8')),
         'checks': {
-            'webvue_modules_installed': installed,
+            'liwan_modules_installed': installed,
             'modules_stuck_mid_transition': stuck,
             'attachment_files_referenced': len(referenced),
             'missing_attachment_files': missing,

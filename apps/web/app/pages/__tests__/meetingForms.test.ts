@@ -1,7 +1,7 @@
 import * as meetingEditorContext from '../../utils/meetingEditorContext'
 import { useMeetingFormFeedback } from '../../composables/useMeetingFormFeedback'
 import { firstQuery } from '../../utils/routeQuery'
-import { isCalendarDate } from '@webvue/ui/app/composables/calendarDate'
+import { isCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 import * as recordNavigation from './helpers/recordNavigation'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -14,7 +14,7 @@ import { buildMeetingSchedulePayload, fromUtcDateTimeInput, localDateFromUtc, lo
 import { buildRecurrencePreview, getMeetingFormErrors, normalizeRecurrenceEnd } from '../../utils/meetingForm'
 import { parsePositiveId } from '../../utils/routeParams'
 import { ApiError } from '../../composables/useApi'
-import { localIsoDay } from '@webvue/ui/app/utils/formatDate'
+import { localIsoDay } from '@liwan/ui/app/utils/formatDate'
 
 function form(file: string, routeQuery: Record<string, string> = {}, seriesInitiallyLoaded = true) {
   const source = readFileSync(resolve('app/pages/meetings', file), 'utf8')

@@ -1,4 +1,4 @@
-import { MeSchema, type Me } from '@webvue/contracts'
+import { MeSchema, type Me } from '@liwan/contracts'
 
 // Pure and Nuxt-import-free so it can be unit tested directly: 401 means "not
 // logged in" (redirect to /login), and 403 is the suspension that ended the session;

@@ -13,7 +13,7 @@ import {
   type FinanceEntryPatch,
   type FinanceKind,
   type FinanceSummary,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { actualLinesQuery, financeListQuery, type FinanceKindFilter } from '@/utils/projectFinance'
 import { parsePositiveId } from '@/utils/routeParams'
 

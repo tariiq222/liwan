@@ -2,7 +2,7 @@
 
 Run against the coordinator's current source without copying it::
 
-    WEBVUE_RUNTIME_REVIEW_SOURCE=/absolute/coordinator/worktree python3 -m unittest deploy.releases.test_runtime_cron -v
+    LIWAN_RUNTIME_REVIEW_SOURCE=/absolute/coordinator/worktree python3 -m unittest deploy.releases.test_runtime_cron -v
 """
 from contextlib import contextmanager
 import importlib
@@ -20,8 +20,8 @@ from unittest.mock import patch
 from types import SimpleNamespace
 
 
-SOURCE = Path(os.environ.get('WEBVUE_RUNTIME_REVIEW_SOURCE', Path(__file__).resolve().parents[2]))
-PACKAGE = '_webvue_cron_review'
+SOURCE = Path(os.environ.get('LIWAN_RUNTIME_REVIEW_SOURCE', Path(__file__).resolve().parents[2]))
+PACKAGE = '_liwan_cron_review'
 spec = importlib.util.spec_from_file_location(PACKAGE, SOURCE / 'deploy/releases/__init__.py',
     submodule_search_locations=[str(SOURCE / 'deploy/releases')])
 package = importlib.util.module_from_spec(spec)
@@ -136,8 +136,8 @@ class RuntimeCronTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.state = state_module.ReleaseState(Path(temporary.name).resolve())
-        self.binding = {'tenantId': 'tenant_a', 'database': 'webvue_scratch_cron_a',
-            'filestore': 'webvue_scratch_cron_a', 'registryRevision': 1}
+        self.binding = {'tenantId': 'tenant_a', 'database': 'liwan_scratch_cron_a',
+            'filestore': 'liwan_scratch_cron_a', 'registryRevision': 1}
         self.old = {'schemaVersion': 1, 'tenantId': 'tenant_a', 'identityRevision': 1,
             'routeRevision': 1, 'fence': 1, 'releaseId': 'r1', 'poolId': 'blue', 'state': 'serving'}
         self.state.register(self.binding, self.old)
@@ -236,7 +236,7 @@ class RuntimeCronTests(unittest.TestCase):
             with self.subTest(observed=observed):
                 def docker(argv, **kwargs):
                     self.assertEqual(argv, ['docker', 'ps', '--all', '--filter',
-                        'label=webvue.pool=green', '--format', '{{.Names}}'])
+                        'label=liwan.pool=green', '--format', '{{.Names}}'])
                     return SimpleNamespace(stdout='\n'.join(observed) + '\n')
                 with patch.object(runtime_module.subprocess, 'run', docker):
                     if valid:
@@ -252,10 +252,10 @@ class RuntimeCronTests(unittest.TestCase):
                 self.runtime._inspect_inventory('green')
 
     def test_job_start_failure_preserves_retired_stage_and_reconcile_never_replays_upgrade(self):
-        manifest = {'releaseId': 'r2', 'webvueCommit': '1' * 40, 'odooCommit': '2' * 40,
-            'images': {'odoo': 'webvue/odoo@sha256:' + 'a' * 64, 'web': 'webvue/web@sha256:' + 'b' * 64},
-            'assetsId': 'assets2', 'moduleVersions': {'webvue_core': '19.0.1.0.0'},
-            'upgradeModules': ['webvue_core'], 'installModules': [], 'mode': 'tenant_maintenance',
+        manifest = {'releaseId': 'r2', 'liwanCommit': '1' * 40, 'odooCommit': '2' * 40,
+            'images': {'odoo': 'liwan/odoo@sha256:' + 'a' * 64, 'web': 'liwan/web@sha256:' + 'b' * 64},
+            'assetsId': 'assets2', 'moduleVersions': {'liwan_core': '19.0.1.0.0'},
+            'upgradeModules': ['liwan_core'], 'installModules': [], 'mode': 'tenant_maintenance',
             'affectedServices': ['odoo'], 'aiStateVersion': '1',
             'compatibilityEvidence': {'reviewer': 'owner', 'reference': 'review42'},
             'rollbackPolicy': {}}
@@ -393,7 +393,7 @@ class RuntimeCronTests(unittest.TestCase):
             result = self.runtime.resume_backup(self.binding, route, self.backup_previous(), backup_module.Deadline(30))
         self.assertEqual(result['restoredWriters'], ['role_blue'])
         sql = '\n'.join(statement for statement, _ in self.connection.statements)
-        self.assertIn('GRANT CONNECT ON DATABASE "webvue_scratch_cron_a" TO "role_blue"', sql)
+        self.assertIn('GRANT CONNECT ON DATABASE "liwan_scratch_cron_a" TO "role_blue"', sql)
         self.assertNotIn('role_green', sql)
         self.assertTrue(self.running['blue-cron'])
         starts = [event[1] for event in self.events if event[0] == 'docker']
@@ -433,7 +433,7 @@ class RuntimeCronTests(unittest.TestCase):
         def runner(argv, **kwargs):
             Path(argv[argv.index('--file') + 1]).write_bytes(b'dump')
             return SimpleNamespace(returncode=0, stdout='', stderr='')
-        image = 'webvue/odoo@sha256:' + 'c' * 64
+        image = 'liwan/odoo@sha256:' + 'c' * 64
         self.config['backup'].update(image=image, pgDump='/usr/bin/true', runner=runner)
         self.config['pools']['blue']['odooRuntime']['image'] = image
         self.config['tenants']['tenant_a']['filestorePath'] = str(store)
@@ -816,7 +816,7 @@ class RuntimeCronTests(unittest.TestCase):
         self.assertIsInstance(result, ValueError)
         self.assertEqual(str(result), 'backup_deadline_exceeded')
         self.assertLess(elapsed, 0.08 + 0.3)
-        self.assertEqual(served, [b'GET /_webvue/release-status HTTP/1.1'])
+        self.assertEqual(served, [b'GET /_liwan/release-status HTTP/1.1'])
 
     def test_never_ending_ack_body_is_refused_within_the_budget(self):
         with trickle_guard([('endless', None)]) as (url, _served):

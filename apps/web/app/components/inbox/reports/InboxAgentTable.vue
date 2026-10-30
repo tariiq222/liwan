@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { InboxReportBreakdownRow } from '@webvue/contracts'
-import type { TableSort } from '@webvue/ui/app/utils/dataTable'
+import type { InboxReportBreakdownRow } from '@liwan/contracts'
+import type { TableSort } from '@liwan/ui/app/utils/dataTable'
 import { durationUnits, formatDuration, formatRatio } from '@/composables/inbox/inboxReportCharts'
 
 // The agent table of the overview: resolved conversations, response times and satisfaction per agent, sortable here (the

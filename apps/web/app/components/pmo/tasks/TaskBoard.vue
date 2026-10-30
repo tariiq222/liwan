@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Task, TaskState } from '@webvue/contracts'
+import type { Task, TaskState } from '@liwan/contracts'
 import type { RouteLocationRaw } from 'vue-router'
 import { VueDraggable } from 'vue-draggable-plus'
 import type { BoardStage, StageSource } from '@/composables/boardStages'
@@ -8,10 +8,10 @@ import { STATE_LABEL_KEY, taskStateBadge } from '@/composables/taskState'
 import { ApiError } from '@/composables/useApi'
 import type { TaskListParams } from '@/composables/useTasks'
 import { useTasks, useTransitionTask, useUpdateTask } from '@/composables/useTasks'
-import { badgeLabel } from '@webvue/ui/app/utils/statusBadge'
+import { badgeLabel } from '@liwan/ui/app/utils/statusBadge'
 import { usePersonalStages } from '@/composables/usePersonalStages'
 import TaskCard from './TaskCard.vue'
-import EmptyState from '@webvue/ui/app/components/shared/feedback/EmptyState.vue'
+import EmptyState from '@liwan/ui/app/components/shared/feedback/EmptyState.vue'
 
 function isBoardCapped(loadedCount: number, cap: number, hasNextPage: boolean): boolean {
   return loadedCount > cap || (loadedCount >= cap && hasNextPage)
@@ -222,7 +222,7 @@ function dropGroup(lane: Lane) {
       The board fills the list card (SharedListCard `fill`, screen-sized): it scrolls horizontally, and each column
       scrolls vertically inside itself, so a column's header and drop target stay reachable whatever its card count.
     -->
-    <div v-else class="webvue-board-scroll webvue-thin-scroll flex min-h-105 flex-1 items-stretch gap-3 overflow-x-auto pb-2">
+    <div v-else class="liwan-board-scroll liwan-thin-scroll flex min-h-105 flex-1 items-stretch gap-3 overflow-x-auto pb-2">
       <template v-for="lane in lanes" :key="lane.key">
         <!-- Collapsed folded column: name + count, expands on click. -->
         <UButton
@@ -245,7 +245,7 @@ function dropGroup(lane: Lane) {
           v-else
           data-testid="board-column"
           :data-stage-id="lane.key"
-          class="webvue-board-column flex w-[21.4286rem] shrink-0 flex-col gap-2.5 rounded-card bg-elevated p-2.5"
+          class="liwan-board-column flex w-[21.4286rem] shrink-0 flex-col gap-2.5 rounded-card bg-elevated p-2.5"
         >
           <div class="sticky top-0 z-10 flex items-center gap-2 px-1 pb-0.5">
             <UButton
@@ -283,11 +283,11 @@ function dropGroup(lane: Lane) {
                card can be grabbed again at once, including with reduced motion; pointer tracking stays native. -->
           <VueDraggable
             v-model="columns[lane.key]!"
-            class="webvue-thin-scroll flex min-h-16 flex-1 flex-col gap-2.5 overflow-y-auto max-md:max-h-[70svh]"
+            class="liwan-thin-scroll flex min-h-16 flex-1 flex-col gap-2.5 overflow-y-auto max-md:max-h-[70svh]"
             :group="dropGroup(lane)"
             :animation="0"
-            chosen-class="webvue-card-chosen"
-            ghost-class="webvue-card-ghost"
+            chosen-class="liwan-card-chosen"
+            ghost-class="liwan-card-ghost"
             filter="[data-readonly=true]"
             @add="(e: any) => onColumnAdd(e, lane)"
           >

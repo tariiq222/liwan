@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxWorkingHours } from '@webvue/contracts'
+import type { InboxWorkingHours } from '@liwan/contracts'
 import InboxWorkingHoursEditor from '@/components/inbox/InboxWorkingHoursEditor.vue'
 import { draftToHours, hoursToDraft, hoursValid } from '@/composables/inbox/inboxAutomation'
 import { useSaveInboxWorkingHours } from '@/composables/inbox/useInboxAutomation'

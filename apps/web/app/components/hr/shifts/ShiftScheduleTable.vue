@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import { h } from 'vue'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
 import type { HrShiftSchedule } from '@/composables/useHrShifts'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 
 // The schedule list of /hr/shifts/schedules on SharedDataTable. A row opens its schedule
 // record page and carries the list state in returnTo; archiving is handed to the page,

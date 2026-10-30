@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatWebVueDateTime } from '@webvue/ui/app/composables/calendarDate'
+import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
 
 type MeetingEvent = {
   id: number
@@ -45,7 +45,7 @@ function kindLabel(kind: string) {
   return te(key) ? t(key) : t('meetingMinutesForm.eventKinds.generic')
 }
 function occurredAt(value: string) {
-  return formatWebVueDateTime(value, locale.value)
+  return formatLiwanDateTime(value, locale.value)
 }
 function hasInformativeSummary(event: MeetingEvent) {
   const summary = event.summary.trim()
@@ -59,7 +59,7 @@ function hasInformativeSummary(event: MeetingEvent) {
   <SharedRecordSection data-testid="meeting-event-list" variant="list" :title="title || t('meetingMinutesForm.history')" :description="description">
     <SharedPageState :loading="loading" :error="error" :empty="!events.length" :empty-text="t('meetingMinutesForm.noHistory')" @retry="emit('retry')">
       <ol class="divide-y divide-default">
-        <li v-for="event in events" :key="event.id" class="grid min-w-0 gap-1 px-(--webvue-card-pad) py-3">
+        <li v-for="event in events" :key="event.id" class="grid min-w-0 gap-1 px-(--liwan-card-pad) py-3">
           <div class="flex min-w-0 flex-wrap items-center justify-between gap-2">
             <span class="font-semibold text-highlighted">{{ kindLabel(event.kind) }}</span>
             <time class="text-xs text-muted" :datetime="event.occurred_at">{{ occurredAt(event.occurred_at) }}</time>
@@ -73,7 +73,7 @@ function hasInformativeSummary(event: MeetingEvent) {
         </li>
       </ol>
     </SharedPageState>
-    <div v-if="pages > 1" class="border-t border-default px-(--webvue-card-pad) py-3">
+    <div v-if="pages > 1" class="border-t border-default px-(--liwan-card-pad) py-3">
       <SharedPagination :page="page" :pages="pages" :disabled="loading" @update:page="emit('page', $event)" />
     </div>
   </SharedRecordSection>

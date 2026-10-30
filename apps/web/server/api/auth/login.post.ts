@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
     const { odooUrl, odooDb, authProxyClientIpHeader } = useRuntimeConfig(event)
     const tenant = tenantRequest(event)
 
-    const send = tenant || process.env.WEBVUE_RELEASE_ROUTES_DIR ? (options: { method: string; headers: Record<string, string>; body: string }) => tenantTransport(event, odooUrl, '/web/session/authenticate', options) : (options: RequestInit) => withUpstreamSlot(signal => fetch(`${odooUrl}/web/session/authenticate`, { ...options, signal }), event)
+    const send = tenant || process.env.LIWAN_RELEASE_ROUTES_DIR ? (options: { method: string; headers: Record<string, string>; body: string }) => tenantTransport(event, odooUrl, '/web/session/authenticate', options) : (options: RequestInit) => withUpstreamSlot(signal => fetch(`${odooUrl}/web/session/authenticate`, { ...options, signal }), event)
     const upstream = await send({
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authUpstreamHeaders(event, authProxyClientIpHeader) },
@@ -23,10 +23,10 @@ export default defineEventHandler(async (event) => {
     })
     const body = await upstream.json() as { result?: { uid?: number | null }; error?: { data?: { name?: unknown } } }
 
-    // Odoo raises WebVueTenantSuspended only after the password checked out, so naming
+    // Odoo raises LiwanTenantSuspended only after the password checked out, so naming
     // the suspension reveals nothing to a caller without valid credentials.
     const errorName = body.error?.data?.name
-    if (typeof errorName === 'string' && errorName.endsWith('.WebVueTenantSuspended')) {
+    if (typeof errorName === 'string' && errorName.endsWith('.LiwanTenantSuspended')) {
       throw createError({ statusCode: 403, data: { code: 'tenant_suspended' } })
     }
     if (body.error || body.result?.uid === undefined) {

@@ -1,9 +1,9 @@
 import { resolve } from 'node:path'
 import * as Vue from 'vue'
-import { BRANCH_PRESETS } from '@webvue/contracts'
+import { BRANCH_PRESETS } from '@liwan/contracts'
 import { describe, expect, it, vi } from 'vitest'
-import { DEFAULT_STUBS, loadShared } from '@webvue/ui/test/helpers/renderShared'
-import { createHostNode, findNode, hostRenderer, type HostNode } from '@webvue/ui/test/helpers/hostRenderer'
+import { DEFAULT_STUBS, loadShared } from '@liwan/ui/test/helpers/renderShared'
+import { createHostNode, findNode, hostRenderer, type HostNode } from '@liwan/ui/test/helpers/hostRenderer'
 import { useSettingsForm } from '../../../../composables/settings/useSettingsForm'
 
 const roles = [
@@ -45,7 +45,7 @@ function mountPreset(value: ReturnType<typeof policy>, mutateAsync = vi.fn(async
   const component = loadShared(resolve(import.meta.dirname, '../BranchPresetCard.vue'), {
     globals: common,
     modules: {
-      '@webvue/contracts': { BRANCH_PRESETS },
+      '@liwan/contracts': { BRANCH_PRESETS },
       '@/composables/settings/useSettingsForm': { useSettingsForm },
       '@/composables/useBranchAccess': { useApplyBranchPreset: () => ({ mutateAsync, isPending: Vue.ref(false) }) },
     },

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProjectReportRow } from '@webvue/contracts'
+import type { ProjectReportRow } from '@liwan/contracts'
 import { projectDashboardMetrics } from '@/utils/projectChartData'
 
 // The four headline figures. The one that asks for action (projects late or at risk) is the emphasised tile; every tile

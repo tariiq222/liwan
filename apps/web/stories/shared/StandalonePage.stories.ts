@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
 import AppSidebar from '../../app/components/shell/AppSidebar.vue'
-import ShellFrame from '@webvue/ui/app/components/shell/ShellFrame.vue'
+import ShellFrame from '@liwan/ui/app/components/shell/ShellFrame.vue'
 import ShellHeader from '../../app/components/shell/ShellHeader.vue'
-import StandalonePage from '@webvue/ui/app/components/shared/layout/StandalonePage.vue'
+import StandalonePage from '@liwan/ui/app/components/shared/layout/StandalonePage.vue'
 import { __getRouter } from '../../.storybook/nuxt-shims'
 import { shellHandlers } from '../handlers/shell'
 import { storyContext } from '../support/context'
@@ -71,7 +71,7 @@ export const Print: Story = {
   render: () => ({
     components: { StandalonePage },
     setup: () => ({ t: useI18n().t }),
-    template: `<main class="webvue-shell-main"><StandalonePage variant="print" :title="t('meetingMinutesForm.documentTitle')">${DOCUMENT}</StandalonePage></main>`,
+    template: `<main class="liwan-shell-main"><StandalonePage variant="print" :title="t('meetingMinutesForm.documentTitle')">${DOCUMENT}</StandalonePage></main>`,
   }),
 }
 
@@ -85,7 +85,7 @@ export const PrintInShell: Story = {
     template: `<ShellFrame>
       <template #header><ShellHeader /></template>
       <template #sidebar><AppSidebar /></template>
-      <main class="webvue-shell-main" data-testid="shell-main"><StandalonePage variant="print" :title="t('meetingMinutesForm.documentTitle')">${DOCUMENT}</StandalonePage></main>
+      <main class="liwan-shell-main" data-testid="shell-main"><StandalonePage variant="print" :title="t('meetingMinutesForm.documentTitle')">${DOCUMENT}</StandalonePage></main>
     </ShellFrame>`,
   }),
 }

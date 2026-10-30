@@ -17,22 +17,22 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   `not_found`, and 422 `invalid`. Never use `type='http'` for JSON or
   `auth='bearer'` for browser traffic. Never use `sudo()` to dodge an access
   error; fix the group or record rule.
-- An application registers its capabilities by extending `webvue.access.service`
-  through `super()`: `_webvue_capability_definitions` (with `owner` set to the
-  addon), `_webvue_permission_dependencies`, `_webvue_builtin_role_grants`, and when
-  needed `_webvue_legacy_capability_keys`, `_webvue_record_company`,
-  `_webvue_customer_actor_keys` and `_webvue_legacy_admin_roles`. An application that
+- An application registers its capabilities by extending `liwan.access.service`
+  through `super()`: `_liwan_capability_definitions` (with `owner` set to the
+  addon), `_liwan_permission_dependencies`, `_liwan_builtin_role_grants`, and when
+  needed `_liwan_legacy_capability_keys`, `_liwan_record_company`,
+  `_liwan_customer_actor_keys` and `_liwan_legacy_admin_roles`. An application that
   scopes permissions to its own records (PMO: `project`) registers that context kind in
-  `_webvue_scope_kinds` (its contextual permissions and contextual roles) and decides them in
-  `_webvue_contextual_capability` and `_webvue_contextual_role_held`; the foundation knows no
+  `_liwan_scope_kinds` (its contextual permissions and contextual roles) and decides them in
+  `_liwan_contextual_capability` and `_liwan_contextual_role_held`; the foundation knows no
   kind by name, and a context kind is never assignable. Its data declares
   its groups, permission records and role, then calls
-  `_webvue_configure_permission_dependencies` and `_webvue_repair_builtin_role_grants`.
+  `_liwan_configure_permission_dependencies` and `_liwan_repair_builtin_role_grants`.
   Moving an xml id between addons needs a `pre-` migration that renames the
   `ir_model_data` row.
 - Serializers whitelist fields explicitly: shared shapes belong in
-  `webvue_api/serializers`, PMO shapes in `webvue_pmo/serializers`, and HR shapes
-  in `webvue_hr/serializers`. Never send a raw ORM `read()` result. Every write
+  `liwan_api/serializers`, PMO shapes in `liwan_pmo/serializers`, and HR shapes
+  in `liwan_hr/serializers`. Never send a raw ORM `read()` result. Every write
   returns the full detail shape.
 - Task state names on the wire are
   `in_progress | changes_requested | approved | waiting | done | cancelled`,
@@ -40,13 +40,13 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   04_waiting_normal | 1_done | 1_canceled`. Write and approve capabilities
   and record-specific allowed actions decide transitions; do not infer them
   from a legacy role label.
-- Plans («باقة») are what customers buy; bundles («حزمة», managed only in the WebVue vendor administration, `apps/vendor-admin`) are
+- Plans («باقة») are what customers buy; bundles («حزمة», managed only in the LiwanOS vendor administration, `apps/vendor-admin`) are
   the app groups inside them; Track A packages are read-only history. Every
   application of the release is installed in every shared-SaaS tenant, and a
   policy or compiled entitlement carries every key of every release application
   (closed: `false` / `0`; catalog `deploy/catalog/solutions/platform_v4.json`, `commercial-compiler/3`).
-  `_webvue_validate_features` stays strict; operator scripts complete a target with
-  `_webvue_close_unlisted_features`, and `webvue.tenant.profile._register_hook`
+  `_liwan_validate_features` stays strict; operator scripts complete a target with
+  `_liwan_close_unlisted_features`, and `liwan.tenant.profile._register_hook`
   registers a newly installed application's keys closed. Usage is collected per
   limit key; removing an application is not a downgrade below usage.
 - Branding source of truth is `res.company`; `deploy/branding.json` seeds it.
@@ -54,14 +54,14 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   `primary_color`, and ignores stored secondary colour for rendering. The API
   retains optional `secondary_color` compatibility; it rejects identity fields
   and mixed identity/color requests before any write.
-- PMO project management uses record-scoped `_webvue_can_manage` and checked
+- PMO project management uses record-scoped `_liwan_can_manage` and checked
   private mutation helpers. Task writes, approvals, archive, dependency edits
   and attachment mutations preserve their dedicated capability/visibility gates.
 - Documented PMO elevated operations are policy/config access, policy-based
   project creation, checked manager mutations, serializer display lookups,
   integer counts, automatic completion status after an authorized task
   mutation, the notification cron scans, and the recipient-owned candidate
-  lookups that build PMO's notification visibility branches. `webvue_notify`'s
+  lookups that build PMO's notification visibility branches. `liwan_notify`'s
   documented elevated operations are bell delivery and recipient-owned bell
   reads: every elevated read first restricts to the current partner's inbox
   rows, and the owning application's branch decides, in the caller's ordinary
@@ -69,7 +69,7 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   Meeting-only access must not reveal task/digest notifications. Do not add an
   undocumented bypass.
 - The project charter is written as a stepper: basics, then the optional
-  steps the project type configures (`charter_steps` on `webvue.project.type`,
+  steps the project type configures (`charter_steps` on `liwan.project.type`,
   exposed on the types catalog and on `charter.type`), then review. The
   charter carries `state` (`draft | final`); a new charter is a draft and the
   review step finalizes it. `/projects/new` uses the route-backed create panel
@@ -85,12 +85,12 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   read the task, and replaces that person's `comment` row.
 - Task attachment uploads accept PDF, PNG, JPEG, text, DOCX and XLSX up to
   10 MiB decoded, with exact binary task linkage and ordinary attachment ACLs.
-  The validator is `webvue_api/serializers/attachment.py`, shared by task,
+  The validator is `liwan_api/serializers/attachment.py`, shared by task,
   meeting and chat uploads; HR documents keep their own parser.
   Dependency edits require project management, same active project, positive
   unique IDs and no cycles. Restores require a readable active parent project.
 - A new application starts from `python3 -B tools/new_app.py <app> --name-ar <ar>
-  --name-en <en>` and the `webvue-new-app` skill. Outside its own folders it edits
+  --name-en <en>` and the `liwan-new-app` skill. Outside its own folders it edits
   only three registration files: `tools/arch_layers.json`,
   `deploy/catalog/solutions/platform_v4.json` and `packages/contracts/src/index.ts`
   (plus copies written by `python3 -B tools/catalog_check.py --sync-release-copies`).
@@ -116,20 +116,20 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   `category: Hidden`, `installable: True`, `application: False`; versions use
   `19.0.X.Y.Z` (the current numbers are in each manifest). Follow
   `docs/migrations.md` for schema/data version bumps and migrations.
-- Declare real dependencies: core uses `base` only; HR uses `webvue_api`, `hr`,
-  `mail`; the shared services `webvue_notify` (`webvue_api`, `mail`) and
-  `webvue_directory` (`webvue_api`) know no application; PMO also uses
-  `webvue_platform`, `webvue_notify`, `webvue_directory`, `project`, `bus`; meetings
-  use `webvue_platform`, `webvue_notify`, `webvue_directory`, `calendar`, `mail`; the bridge `webvue_meetings_pmo` (`auto_install`) uses
-  `webvue_meetings` and `webvue_pmo` (see manifests). Preserve pillar direction:
-  shared `webvue_api` and the shared services never import a pillar, and one
+- Declare real dependencies: core uses `base` only; HR uses `liwan_api`, `hr`,
+  `mail`; the shared services `liwan_notify` (`liwan_api`, `mail`) and
+  `liwan_directory` (`liwan_api`) know no application; PMO also uses
+  `liwan_platform`, `liwan_notify`, `liwan_directory`, `project`, `bus`; meetings
+  use `liwan_platform`, `liwan_notify`, `liwan_directory`, `calendar`, `mail`; the bridge `liwan_meetings_pmo` (`auto_install`) uses
+  `liwan_meetings` and `liwan_pmo` (see manifests). Preserve pillar direction:
+  shared `liwan_api` and the shared services never import a pillar, and one
   application never imports another; only a bridge imports both.
 - Keep `models/`, `security/`, `data/`, `tests/`; API pillars additionally use
   `controllers/` and whitelist-based `serializers/`; PMO has `i18n/` and
-  `migrations/`; `webvue_meetings` has `report/` (the meeting report moved there). Import Python modules through their `__init__.py` files;
+  `migrations/`; `liwan_meetings` has `report/` (the meeting report moved there). Import Python modules through their `__init__.py` files;
   list every XML/CSV file in manifest `data` in the required dependency order.
 - Every `/api/v1` route has `api_handler`, a feature gate and a capability gate:
-  `@requires_capability('<key>', ..., match='all')` from `webvue_api/controllers/common.py`
+  `@requires_capability('<key>', ..., match='all')` from `liwan_api/controllers/common.py`
   (403 `forbidden`; `match='any'` accepts one of the keys; decorator order is `route`,
   `api_handler`, `requires_feature`, `requires_capability`; it cannot grant a record-contextual
   capability), or a top-level `require_capability` call (or a refusing `if not has_capability`) in
@@ -139,18 +139,18 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   `tools/test_route_gate_policy.py` in `npm test`) fails on any other route and on a
   `request.env[<non-constant>]`. The route to gate matrix (route-capabilities.json beside openapi.json in docs/api), generated by
   `tools/api_surface.py` at integration only, lists every operation's gate.
-- New models use dotted `webvue.*` names and `WebVue*` classes; extend stock models
+- New models use dotted `liwan.*` names and `LiwanOS*` classes; extend stock models
   with `_inherit`, not copies. Model files and local XML ids use snake_case
-  (`permission_access_users_read`, `webvue_hr_document_company_rule`); qualify
+  (`permission_access_users_read`, `liwan_hr_document_company_rule`); qualify
   cross-addon ids. ACLs live in `security/ir.model.access.csv` (PMO also has
   suffixed ACL CSVs), with `access_*` ids and `model_<dots_as_underscores>` refs.
 - Tests live in `tests/test_*.py`. First-party `tests/__init__.py` files call
-  `import_all_tests(__name__)` from `webvue_core.testing`, so new test files are
+  `import_all_tests(__name__)` from `liwan_core.testing`, so new test files are
   discovered automatically. The vendored OCA addon `base_tier_validation` is the
   sole exception allowed to import tests explicitly; `tools/test_addon_test_imports.py`
   enforces this boundary.
-  Model tests use `TransactionCase`; HTTP tests use `WebVueApiCase(HttpCase)` via
-  `WebVueHrCase` / `WebVuePmoCase`. Mirror existing `webvue` / `webvue_access` tags and
+  Model tests use `TransactionCase`; HTTP tests use `LiwanApiCase(HttpCase)` via
+  `LiwanHrCase` / `LiwanPmoCase`. Mirror existing `liwan` / `liwan_access` tags and
   `post_install`, `-at_install` selection where appropriate.
 - Arabic: PMO ships `i18n/ar.po`; core/HR currently have no `i18n/` directory.
   Core capability data has explicit `name_ar` / `name_en` fields. Keep shipped
@@ -170,7 +170,7 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
 ## Check commands (Odoo scratch database)
 
 Run Odoo checks from `/Users/tariq/code/odoo` using a fresh scratch database
-and the selected WebVue worktree's explicit addons path. Use a scratch-only
+and the selected LiwanOS worktree's explicit addons path. Use a scratch-only
 config at `/absolute/path/to/scratch-only.conf`; do not use a live config whose
 `data_dir` or `logfile` points inside the read-only Odoo checkout. Keep the
 temporary data and logs outside that checkout, and remove the scratch database,
@@ -182,14 +182,14 @@ cd /Users/tariq/code/odoo
 ODOO_ROOT=/Users/tariq/code/odoo
 ODOO_PYTHON="$ODOO_ROOT/.venv/bin/python"
 ODOO_CONF=/absolute/path/to/scratch-only.conf
-WORKTREE=/absolute/path/to/webvue-worktree
+WORKTREE=/absolute/path/to/liwan-worktree
 # Pinned OCA addons (deploy/oca-addons.json): fetch once, shared by every worktree (docs/oca-addons.md).
 (cd "$WORKTREE" && python3 -B tools/oca_addons.py fetch)
 OCA_PATH="$(cd "$WORKTREE" && python3 -B tools/oca_addons.py path)"
 SCRATCH_ROOT=$(mktemp -d)
 mkdir -p "$SCRATCH_ROOT/data" "$SCRATCH_ROOT/logs"
-export WEBVUE_COMMERCIAL_CONFIG="$SCRATCH_ROOT/odoo-classification.json"
-(cd "$WORKTREE" && python3 deploy/classification.py fixture --database webvue_scratch --mode saas --output "$WEBVUE_COMMERCIAL_CONFIG")
+export LIWAN_COMMERCIAL_CONFIG="$SCRATCH_ROOT/odoo-classification.json"
+(cd "$WORKTREE" && python3 deploy/classification.py fixture --database liwan_scratch --mode saas --output "$LIWAN_COMMERCIAL_CONFIG")
 # Set PGHOST, PGPORT, PGUSER, and PGPASSWORD in the environment as needed;
 # never put a password on the command line.
 PGHOST=${PGHOST:-127.0.0.1}; PGPORT=${PGPORT:-5432}; PGUSER=${PGUSER:-tariq}
@@ -199,7 +199,7 @@ TAGS="/${MODULES//,/,/}"
 "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" -c "$ODOO_CONF" \
   --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$WORKTREE/odoo-addons,$OCA_PATH" \
   --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
-  -d webvue_scratch --db-filter='^webvue_scratch$' \
+  -d liwan_scratch --db-filter='^liwan_scratch$' \
   --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/odoo.log" \
   -i "$MODULES" --test-tags "$TAGS" \
   --http-port=8169 --workers=0 --max-cron-threads=0 --stop-after-init
@@ -209,30 +209,30 @@ TAGS="/${MODULES//,/,/}"
 ## Account contact create (R9 exception)
 
 The access-grant capability (`group_cap_access_users_grant`) holds no `res.partner` create ACL.
-`webvue.access.service._webvue_create_account` creates the one contact of a new account inside
+`liwan.access.service._liwan_create_account` creates the one contact of a new account inside
 `protected_write.marked` with `PARTNER_CREATE_MARKER` set to the caller's uid, after its own
-`access.users.grant` check, and the `odoo-addons/webvue_core/models/res_partner.py` override of the public
+`access.users.grant` check, and the `odoo-addons/liwan_core/models/res_partner.py` override of the public
 `check_access` passes only the `create` operation while that marker holds the current uid; every other
 operation and every other caller keeps Odoo's ACLs and record rules. No Odoo method body is copied.
 Regression evidence: `test_grant_capability_creates_a_contact_only_inside_the_account_create` in
-`odoo-addons/webvue_api/tests/test_access_admin.py`. Do not widen the marker to other fields or callers.
+`odoo-addons/liwan_api/tests/test_access_admin.py`. Do not widen the marker to other fields or callers.
 
 ## Managed document engine boundaries
 
-`webvue_documents` uses pinned, unmodified OCA DMS in attachment mode. Its business
-policy lives on `webvue.document`; native groups do not grant a second document ACL.
+`liwan_documents` uses pinned, unmodified OCA DMS in attachment mode. Its business
+policy lives on `liwan.document`; native groups do not grant a second document ACL.
 Only the actual Odoo operator identity passes bootstrap/migration guards. An elevated
 environment retaining a customer uid and `base.group_system` are insufficient.
 
-The scoped `odoo-addons/webvue_documents/models/ir_binary.py` override of `ir.binary._record_to_stream` is the
+The scoped `odoo-addons/liwan_documents/models/ir_binary.py` override of `ir.binary._record_to_stream` is the
 required R9 exception: Odoo's `_find_record` accepts a limited-field token and elevates
 before ordinary ACL checks ([Odoo 19 binary source](/Users/tariq/code/odoo/odoo/addons/base/models/ir_binary.py:23)). The source calls
 this an extensible hook. The adapter checks the original actor, canonical attachment,
 company, feature and archive policy before delegating streaming; it wraps response
 headers with private/no-store and nosniff. No Odoo method body is copied.
-Regression evidence: `odoo-addons/webvue_documents/tests/test_document_downloads.py` exercises real limited-field tokens,
+Regression evidence: `odoo-addons/liwan_documents/tests/test_document_downloads.py` exercises real limited-field tokens,
 legacy tokens, unmanaged aliases, native portal routes, HEAD/Range, authorized reads
-and archive revocation. `odoo-addons/webvue_documents/tests/test_dms_boundaries.py` covers raw ORM and warm caches.
+and archive revocation. `odoo-addons/liwan_documents/tests/test_dms_boundaries.py` covers raw ORM and warm caches.
 
 OCA's public `filtered_domain` returns all elevated records. The managed file/directory
 extensions filter its result by the owned document policy so core warm-cache ACL
@@ -242,7 +242,7 @@ Public read/copy guards retain original actor checks. Do not add private native
 
 The attachment-mode create adapter fills existing DMS size/checksum metadata from the
 same attachment because upstream removes content before its inverse runs. It neither
-copies bytes nor claims quota. `webvue_platform` remains the sole quota writer through
+copies bytes nor claims quota. `liwan_platform` remains the sole quota writer through
 `ir.attachment`. A company policy fence handles stale role snapshots; lock order is
 company policy, document policy fence, document, tenant profile, then file/grant writes.
 Metadata operations share the company/fence/profile policy locks while each
@@ -270,9 +270,9 @@ company/ACL environment, retaining selected values outside the current page.
 
 ## Company-scoped native ACL fence (branch policy)
 
-`webvue_core.models.ir_rule.IrRule._compute_domain` extends Odoo 19's native
+`liwan_core.models.ir_rule.IrRule._compute_domain` extends Odoo 19's native
 `ir.rule._compute_domain` (upstream `/Users/tariq/code/odoo/odoo/addons/base/models/ir_rule.py:141`) with
-an uncached company/operation fence. Stock ACL groups are global; WebVue grants
+an uncached company/operation fence. Stock ACL groups are global; LiwanOS grants
 are company-scoped. The fence uses the native ACL group expression from
 `ir.model.access._get_access_groups` and the groups of the actor's effective
 company grants; it never promotes global group membership into a branch grant.
@@ -280,9 +280,9 @@ It is ANDed after the native cached domain so a revoked delegation or inherited
 role is rechecked for searches, direct reads/writes and exports. Identity/access
 metadata retain their protected service checks to avoid recursive authorization;
 trusted transaction markers are never accepted from client context.
-Regression evidence: `webvue_core/tests/test_branch_access.py`,
-`webvue_api/tests/test_branch_access.py` and
-`webvue_finance/tests/test_finance_branch_access.py` cover membership-only denial,
+Regression evidence: `liwan_core/tests/test_branch_access.py`,
+`liwan_api/tests/test_branch_access.py` and
+`liwan_finance/tests/test_finance_branch_access.py` cover membership-only denial,
 read-only delegation, operation gates, inheritance/revocation, ordinary ORM,
 exports/attachment targets and real finance HTTP requests. No stock source or
 ACL is weakened and no new elevated access is introduced.
@@ -320,7 +320,7 @@ identity-reference exception. Regression checks include direct reads, exact-targ
 and counts for private files linked to both partner and user identities.
 
 
-The HR extension of `_webvue_fresh_company_domain` adds a read-only staff/own-employee
+The HR extension of `_liwan_fresh_company_domain` adds a read-only staff/own-employee
 fence for `hr.leave` and `hr.leave.allocation` after the native rule cache. Approve/manage
 capabilities are checked in each already scoped owning company. The existing read-only
 payroll engine grant (`hr_payroll_rules.xml:162-178`) is preserved only where the actual

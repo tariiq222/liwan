@@ -9,19 +9,19 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from webvue_cli.managed_probe import DockerProbe
+from liwan_cli.managed_probe import DockerProbe
 
-if importlib.util.find_spec('webvue_cli.managed_bundle') is None:
+if importlib.util.find_spec('liwan_cli.managed_bundle') is None:
     bundle = None
 else:
-    from webvue_cli import managed_bundle as bundle
+    from liwan_cli import managed_bundle as bundle
 
 IMAGES = ['sha256:' + char * 64 for char in 'abcd']
 # Synthetic test tokens only, never runtime credentials.
 DB_TOKEN = 'synthetic_test_db_token_123456'
 ADMIN_TOKEN = 'synthetic_test_admin_token_123456'
-PROJECT = 'webvue-bundle-fixture'
-DATABASE = 'webvue_scratch_bundle_fixture'
+PROJECT = 'liwan-bundle-fixture'
+DATABASE = 'liwan_scratch_bundle_fixture'
 
 
 def descriptor():
@@ -100,7 +100,7 @@ class BundleCase(unittest.TestCase):
         self.assertEqual(services['db']['environment'], {
             'POSTGRES_DB': DATABASE, 'POSTGRES_USER': 'odoo', 'POSTGRES_PASSWORD': '${POSTGRES_PASSWORD}',
         })
-        self.assertEqual(services['odoo']['environment'], {'WEBVUE_COMMERCIAL_CONFIG': '/etc/odoo/commercial.json'})
+        self.assertEqual(services['odoo']['environment'], {'LIWAN_COMMERCIAL_CONFIG': '/etc/odoo/commercial.json'})
         self.assertEqual(services['web']['environment'], {'NUXT_ODOO_URL': 'http://odoo:8069', 'NUXT_ODOO_DB': DATABASE})
         self.assertEqual(services['edge'].get('environment', {}), {})
         for name, content in self.render().items():
@@ -118,7 +118,7 @@ class BundleCase(unittest.TestCase):
             'db_name': DATABASE, 'dbfilter': '^' + DATABASE + '$',
             'list_db': 'False', 'proxy_mode': 'True', 'workers': '2', 'max_cron_threads': '0',
             'http_port': '8069', 'gevent_port': '8072', 'data_dir': '/var/lib/odoo',
-            'addons_path': '/opt/odoo/addons,/opt/webvue/addons',
+            'addons_path': '/opt/odoo/addons,/opt/liwan/addons',
         })
 
     def test_classification_matches_target_and_has_no_expiry(self):
@@ -188,7 +188,7 @@ class BundleCase(unittest.TestCase):
         self.descriptor['release_ref']['identity_kind'] = 'repo_digest'
         self.reject()
         for key in ['odoo_image', 'web_image', 'proxy_image']:
-            self.descriptor['release_ref'][key] = 'registry.invalid/webvue@' + IMAGES[0]
+            self.descriptor['release_ref'][key] = 'registry.invalid/liwan@' + IMAGES[0]
         outputs = self.render(postgres_image='registry.invalid/postgres@' + IMAGES[3])
         self.assertIn('registry.invalid/postgres@', outputs['compose.json'])
 
@@ -201,8 +201,8 @@ class BundleCase(unittest.TestCase):
             self.descriptor['commercial_mode'] = mode
             self.reject()
         changes = {
-            'project': ['webvue-saas-control-local', 'webvue', 'production', 'x\n', '-option', None],
-            'db_name': ['odoo19', 'webvue_scratch_', 'webvue_scratch_prod', 'webvue_scratch_x\n', None],
+            'project': ['liwan-saas-control-local', 'liwan', 'production', 'x\n', '-option', None],
+            'db_name': ['odoo19', 'liwan_scratch_', 'liwan_scratch_prod', 'liwan_scratch_x\n', None],
             'compose_file': ['compose.json', '/tmp/../compose.json', '/tmp/other.json', '/tmp/x\n/compose.json', None],
         }
         for field, values in changes.items():

@@ -105,7 +105,7 @@ def _service(value, state_id):
 def _observe(service, method, token, timeout):
     path = '/internal/release/drain' if method == 'POST' else '/internal/release/readiness'
     request = Request(service['url'] + path, method=method, data=b'' if method == 'POST' else None,
-                      headers={'x-webvue-service-token': token, 'accept': 'application/json'})
+                      headers={'x-liwan-service-token': token, 'accept': 'application/json'})
     try:
         with build_opener(_NoRedirect()).open(request, timeout=timeout) as response:
             if response.status != 200:
