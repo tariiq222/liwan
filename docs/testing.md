@@ -114,8 +114,8 @@ changes) and only ever creates, clones or drops `webvue_scratch_*` databases. St
 ## CI workflow
 
 Integration uses a PR to `main`, following
-[`agents/integration-rules.md`](agents/integration-rules.md). `ci` runs on PRs and
-pushes to `main`, and can be started with `workflow_dispatch` (`full: true` for all
+[`agents/integration-rules.md`](agents/integration-rules.md). `ci` runs on PRs,
+merge-queue entries (`merge_group`) and pushes to `main`, and can be started with `workflow_dispatch` (`full: true` for all
 stages). Each job runs its `deploy/ci` script and can be reproduced locally with
 isolated resources. `ci-result` aggregates selected stages; its success is needed
 before merge, but does not prove a full run or owner authorization.
@@ -157,7 +157,7 @@ python3 -B tools/ci_scope.py --base main [--commit codex/<area>-<slug>] [--pull-
 ```
 
 A pull request is narrower still (`--pull-request`, passed by the `scope` job only for the `pull_request`
-event):
+and `merge_group` events; a merge-queue entry is selected from the queue base to the queued merge result):
 
 - `upgrade`, `restore-drill` and `image` never run on a pull request. They run on the push to `main`, the
   nightly run and a full dispatch.
