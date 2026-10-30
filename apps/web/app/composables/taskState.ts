@@ -74,21 +74,17 @@ export const PRIORITY_ICON: Record<'0' | '1' | '2' | '3', string> = { '0': 'i-lu
 
 export interface DeadlineTag { tone: StatusTone; icon: string }
 
-/** How many days ahead an open task's deadline starts to warn. */
-const DEADLINE_WARNING_DAYS = 2
-
-/** The deadline tag: overdue is danger (time exceeded), today and the next two days warning, a later date info (open within time), a closed task neutral (calendar); no deadline has no tag. */
+/** The deadline tag: overdue is danger (time exceeded), today warning (alarm), a future date success (time remaining), a closed task neutral (calendar); no deadline has no tag. */
 export function deadlineTag(daysRemaining: number | null, isClosed: boolean): DeadlineTag | null {
   if (daysRemaining === null) return null
   if (isClosed) return { tone: 'neutral', icon: 'i-lucide-calendar-check' }
-  if (daysRemaining < 0) return { tone: 'destructive', icon: 'i-lucide-timer-off' }
-  if (daysRemaining === 0) return { tone: 'warning', icon: 'i-lucide-alarm-clock' }
-  return { tone: daysRemaining <= DEADLINE_WARNING_DAYS ? 'warning' : 'info', icon: 'i-lucide-hourglass' }
+  if (daysRemaining > 0) return { tone: 'success', icon: 'i-lucide-hourglass' }
+  return daysRemaining < 0 ? { tone: 'destructive', icon: 'i-lucide-timer-off' } : { tone: 'warning', icon: 'i-lucide-alarm-clock' }
 }
 
 /** A closed task is never urgent; otherwise overdue is destructive and the next two days warn. */
 export function deadlineTone(daysRemaining: number | null, isClosed: boolean): StatusTone {
   if (isClosed || daysRemaining === null) return 'neutral'
   if (daysRemaining < 0) return 'destructive'
-  return daysRemaining <= DEADLINE_WARNING_DAYS ? 'warning' : 'neutral'
+  return daysRemaining <= 2 ? 'warning' : 'neutral'
 }
