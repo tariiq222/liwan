@@ -9,11 +9,11 @@ import httpx
 import pytest
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
+from liwan_ai_service.service import create_app
+from liwan_ai_service.store import StateCompatibilityError, open_state
 from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call
 from tests.test_release_continuity import ADMIN, OWNER, TOKEN
 from tests.test_service import RESUME_C1, SETTINGS, fresh, parse_sse
-from liwan_ai_service.service import create_app
-from liwan_ai_service.store import StateCompatibilityError, open_state
 
 pytestmark = pytest.mark.skipif(not os.environ.get("AI_TEST_DATABASE_URL"), reason="needs an isolated AI_TEST_DATABASE_URL")
 

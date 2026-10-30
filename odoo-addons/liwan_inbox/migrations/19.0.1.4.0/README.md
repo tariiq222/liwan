@@ -1,1 +1,0 @@
-19.0.1.4.0 adds WhatsApp Flows (in-chat forms): new tables, new nullable columns and appended selection values only. Nothing existing is renamed, converted or backfilled, so no script is needed. The new capability `inbox.flows.manage` is linked to the built-in manager role by the permission hooks that run on every upgrade.

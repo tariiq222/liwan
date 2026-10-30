@@ -133,20 +133,20 @@ def main():
     (addon / 'access.xml').write_text(data)
     (addon / 'tests/__init__.py').write_text('from . import test_fit\n')
     (addon / 'tests/test_fit.py').write_text(TESTS)
-    pins = subprocess.check_output([sys.executable, '-B', str(args.worktree/'tools/oca_addons.py'), 'path', '--check'], text=True).strip()
+    pins = subprocess.check_output([sys.executable, '-B', str(args.worktree/'tools/oca_addons.py'), 'path', '--check'], text=True).strip()  # nosemgrep: dangerous-subprocess-use-tainted-env-args -- operator-run local tool, arguments come from its own CLI flags
     conf = runtime/'odoo.conf'
     conf.write_text('[options]\nlist_db=False\n')
     target = 'liwan_documents' if args.application else 'docs_fit'
     env_vars = dict(os.environ, PYTHONDONTWRITEBYTECODE='1')
     if args.application:
         classification = runtime/'classification.json'
-        subprocess.run([sys.executable,'-B',str(args.worktree/'deploy/classification.py'),'fixture', '--database',args.database,'--mode',args.mode,'--output',str(classification)],check=True,stdout=subprocess.DEVNULL)
+        subprocess.run([sys.executable,'-B',str(args.worktree/'deploy/classification.py'),'fixture', '--database',args.database,'--mode',args.mode,'--output',str(classification)],check=True,stdout=subprocess.DEVNULL)  # nosemgrep: dangerous-subprocess-use-tainted-env-args -- operator-run local tool, arguments come from its own CLI flags
         env_vars['LIWAN_COMMERCIAL_CONFIG'] = str(classification)
     command = [str(PYTHON), '-B', str(ODOO/'odoo-bin'), '-c', str(conf), '--addons-path=' + ','.join([str(ODOO/'odoo/addons'),str(ODOO/'addons'),str(args.worktree/'odoo-addons'),str(runtime/'addons'), pins]), '--db_host=127.0.0.1', '--db_user='+os.environ.get('USER','tariq'), '-d', args.database, '--db-filter=^'+args.database+'$', '--data-dir='+str(runtime/'data'), '--logfile='+str(args.evidence_dir/'odoo.log'), '-i', target, '--test-enable', '--test-tags=' + ('/dms,-benchmark,-/dms:TestDmsPortal.test_tour' if args.upstream else '/' + target), '--without-demo=all','--stop-after-init','--http-interface=127.0.0.1','--http-port='+str(args.http_port),'--workers=0','--max-cron-threads=0']
     (args.evidence_dir/'command.json').write_text(json.dumps(command, indent=2))
     try:
         with (args.evidence_dir/'console.log').open('w') as output:
-            result = subprocess.run(command, stdout=output, stderr=subprocess.STDOUT, timeout=240, env=env_vars)
+            result = subprocess.run(command, stdout=output, stderr=subprocess.STDOUT, timeout=240, env=env_vars)  # nosemgrep: dangerous-subprocess-use-tainted-env-args -- operator-run local tool, arguments come from its own CLI flags
         log = (args.evidence_dir/'odoo.log').read_text()
         import re
         summary = re.findall(r'(\d+) failed, (\d+) error\(s\) of (\d+) tests', log)

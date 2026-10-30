@@ -1,14 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import base64
 import hashlib
-import importlib.util
 from datetime import date
 from unittest.mock import patch
 
 from odoo.exceptions import AccessError, ConcurrencyError
 from odoo.tests import tagged
 from odoo.tools import mute_logger
-from odoo.tools.misc import file_path
 from odoo.tools.sql import get_foreign_keys
 
 from .payroll_common import PayrollCase
@@ -24,14 +22,6 @@ IDENTIFICATION = '1012345678'
 NEW_IDENTIFICATION = '1098765432'
 SNAPSHOT_FIELDS = ('iban', 'bank_code', 'identification')
 EMPTY = (False, False, False)
-MIGRATION = 'liwan_hr/migrations/19.0.1.12.0/post-payment_snapshot.py'
-
-
-def _load_migration():
-    spec = importlib.util.spec_from_file_location('liwan_hr_post_payment_snapshot', file_path(MIGRATION))
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -423,45 +413,6 @@ class TestPayrollPaymentSnapshot(PayrollCase):
         self.assertEqual(self.Event.search_count([('action', '=', 'bank_profile_deleted')]), 0)
         # The violation was rolled back to its own savepoint: the request's transaction still answers.
         self.assertEqual(self.api('GET', PROFILES).status_code, 200)
-
-    # --- the 19.0.1.12.0 migration ----------------------------------------------------------------
-
-    def test_the_migration_fills_only_payslips_without_a_snapshot_and_is_idempotent(self):
-        other = self.make_employee('Snap Other')
-        self.set_compensation(other, 6000, iban=NEW_IBAN, gosi_registration_date=date(2020, 1, 1))
-        run = self._approved_run()
-        missing, kept = self._slip(run), self._slip(run, other)
-        # A run approved before 19.0.1.12.0 has no row; one already holding a row keeps it whatever it says.
-        self._payment(missing).unlink()
-        self._payment(kept).write({'iban': OLD_IBAN, 'bank_code': False, 'identification': False})
-        self._login(self.officer)
-        draft = self.env['hr.payslip.run'].browse(self.api('POST', RUNS, json={'month': '2026-12'}).json()['id'])
-        migration = _load_migration()
-        migration.migrate(self.env.cr, None)
-        self.assertIsNone(self._snapshot(missing))
-        for _attempt in range(2):
-            migration.migrate(self.env.cr, '19.0.1.11.0')
-            self.env.invalidate_all()
-            self.assertEqual(self._snapshot(missing), (IBAN, 'RJHISARI', IDENTIFICATION))
-            self.assertEqual(self._snapshot(kept), (OLD_IBAN, False, False))
-            self.assertFalse(self.Payment.search([('payslip_id', 'in', draft.slip_ids.ids)]))
-
-    def test_a_rerun_never_rewrites_an_empty_snapshot_even_after_the_live_data_changed(self):
-        """A zero net paid with no IBAN keeps its empty row: the row marks the payment data as fixed."""
-        zero = self.make_employee('Snap Zero Snapshot', country='EG')
-        compensation = self.set_compensation(zero, 5000)
-        run = self._computed_run(deduction_of=zero)
-        self.assertEqual(self._approve(run).status_code, 200)
-        empty = self._slip(run, zero)
-        self.assertEqual(self._snapshot(empty), EMPTY)
-        migration = _load_migration()
-        for live_iban in (False, NEW_IBAN):
-            compensation.iban = live_iban
-            migration.migrate(self.env.cr, '19.0.1.11.0')
-            self.env.invalidate_all()
-            self.assertEqual(self._snapshot(empty), EMPTY)
-            self.assertEqual(self._snapshot(self._slip(run))[0], IBAN)
-        self.assertEqual(self.Payment.search_count([('payslip_id', 'in', run.slip_ids.ids)]), len(run.slip_ids))
 
     # --- the mutation routes expose no snapshot write ----------------------------------------------
 

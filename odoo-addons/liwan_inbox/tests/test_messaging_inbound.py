@@ -1,7 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-import importlib.util
 import json
-from pathlib import Path
 
 from odoo.tests import tagged
 
@@ -191,39 +189,3 @@ class TestMessageSerializer(LiwanInboxCase):
         })
         preview = self.messages()[reply.id]['reply_to']['preview']
         self.assertEqual((len(preview), '\n' in preview), (80, False))
-
-
-@tagged('post_install', '-at_install', 'liwan')
-class TestKindMigration(LiwanInboxCase):
-    """The 19.0.1.1.0 post-migration derives `kind` for messages stored before the field existed."""
-
-    def test_old_rows_get_the_kind_their_content_shows(self):
-        spec = importlib.util.spec_from_file_location(
-            'post_message_kinds', Path(__file__).parents[1] / 'migrations' / '19.0.1.1.0' / 'post-message-kinds.py',
-        )
-        migration = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(migration)
-        conversation = self.make_conversation()
-        Message = self.env['liwan.inbox.message']
-
-        def old(body, direction='in', **values):
-            return Message.create({
-                'conversation_id': conversation.id, 'direction': direction, 'body': body,
-                'delivery_state': 'received' if direction == 'in' else 'sent', **values,
-            })
-
-        captioned = old('Look at this')
-        self.env['ir.attachment'].create({
-            'name': 'a.mp4', 'raw': b'x', 'mimetype': 'video/mp4', 'res_model': Message._name, 'res_id': captioned.id,
-        })
-        outbound_pdf = old('Invoice', 'out')
-        self.env['ir.attachment'].create({
-            'name': 'a.pdf', 'raw': b'x', 'mimetype': 'application/pdf', 'res_model': Message._name, 'res_id': outbound_pdf.id,
-        })
-        expected = {
-            captioned: 'video', outbound_pdf: 'document', old('[sticker]'): 'sticker', old('[contacts]'): 'contacts',
-            old('[button]'): 'interactive', old('[interactive]'): 'interactive', old('[location]'): 'unsupported',
-            old('Hi {{1}}', 'out', template_name='t'): 'template', old('plain text'): 'text',
-        }
-        migration.migrate(self.env.cr, '19.0.1.0.0')
-        self.assertEqual({message: message.kind for message in expected}, expected)

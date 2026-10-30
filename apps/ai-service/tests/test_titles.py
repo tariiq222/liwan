@@ -1,7 +1,7 @@
 import pytest
 
-from tests.fakes import ScriptedChatModel, ai_blocks
 from liwan_ai_service.titles import TITLE_MAX_CHARS, TITLE_RULES, clean_generated_title, generate_title, title_from
+from tests.fakes import ScriptedChatModel, ai_blocks
 
 
 def test_title_collapses_whitespace_and_cuts_long_messages_with_an_ellipsis():

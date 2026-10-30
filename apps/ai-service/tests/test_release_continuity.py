@@ -4,10 +4,10 @@ from dataclasses import replace
 import httpx
 from langgraph.checkpoint.memory import InMemorySaver
 
-from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call
-from tests.test_service import HEADERS, RESUME_C1, SETTINGS, fresh, parse_sse
 from liwan_ai_service.service import create_app
 from liwan_ai_service.store import MemoryRunStore
+from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call
+from tests.test_service import HEADERS, RESUME_C1, SETTINGS, fresh, parse_sse
 
 TOKEN = "t" * 30
 ADMIN = {"x-liwan-service-token": TOKEN}

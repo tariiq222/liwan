@@ -4,7 +4,6 @@ from odoo.exceptions import AccessError, MissingError, UserError
 from odoo.http import request
 from odoo.tools import consteq
 
-from odoo.addons.portal.controllers.portal import CustomerPortal
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
@@ -16,6 +15,7 @@ from odoo.addons.liwan_payments.serializers.payer import (
     dump_payable_invoice,
     dump_payable_order,
 )
+from odoo.addons.portal.controllers.portal import CustomerPortal
 
 FEATURE = 'payments.enabled'
 START_FIELDS = {'access_token', 'provider_id', 'payment_method_id'}

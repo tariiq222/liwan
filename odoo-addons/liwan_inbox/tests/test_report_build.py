@@ -1,14 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-import importlib.util
 from datetime import date, datetime, timedelta
-from pathlib import Path
 
 from odoo import fields
 from odoo.tests import tagged
 
 from .report_common import ReportCase
 
-MIGRATION = Path(__file__).parents[1] / 'migrations' / '19.0.1.5.0' / 'post-reports-backfill.py'
 DAY = date(2026, 10, 10)
 
 
@@ -145,23 +142,3 @@ class TestReportBuild(ReportCase):
             with self.assertRaises(Exception):  # noqa: B017 - any validation error
                 self.settings.report_retention_months = value
         self.assertEqual(self.env['liwan.inbox.settings'].default_get(['report_retention_months'])['report_retention_months'], 36)
-
-    def test_the_migration_builds_cycles_and_rows_for_existing_conversations(self):
-        conversation = self.make_conversation(minutes_ago=3 * 60, state='resolved', assignee_id=self.agent.id)
-        self.reply(conversation)
-        spec = importlib.util.spec_from_file_location('post_reports_backfill', MIGRATION)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        module.migrate(self.env.cr, '19.0.1.4.0')
-        self.settings.retention_months = 1  # the conversations behind a 90 day old report day are gone
-        old_day = fields.Date.today() - timedelta(days=90)
-        old = self.env['liwan.inbox.report.day'].create({
-            'company_id': self.env.company.id, 'day': old_day, 'channel_id': self.channel.id, 'messages_in': 7,
-            'computed_at': fields.Datetime.now(),
-        })
-        module.migrate(self.env.cr, '19.0.1.4.0')  # idempotent
-        self.assertEqual(old.exists().messages_in, 7)
-        (cycle,) = self.cycles(conversation)
-        self.assertEqual((cycle.end_reason, cycle.resolver_id, cycle.responder_id), ('resolved', self.agent, self.agent))
-        self.assertTrue(self.rows())
-        self.assertEqual(sum(self.rows().mapped('conversations_resolved')), 1)

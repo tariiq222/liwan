@@ -1,1 +1,0 @@
-Operations now registers three bell notification kinds (review requested, request decided) in the liwan_notify registry and depends on liwan_notify. The kinds are selection values of the shared `mail.message` column; no table, column or business data changes.

@@ -94,8 +94,8 @@ async def scratch_states():
 
 
 def child_env(state):
-    import tests
     import liwan_ai_service
+    import tests
 
     return {
         **os.environ,

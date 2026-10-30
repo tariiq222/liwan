@@ -1,1 +1,0 @@
-Adds the optional employee relationship to managed documents. Existing documents remain unlinked and retain their visibility and grants; no employee association is inferred or backfilled. No data transformation is needed.

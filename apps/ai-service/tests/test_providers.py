@@ -2,10 +2,10 @@ import pytest
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 
-from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call
 from liwan_ai_service.provider_registry import REGISTRY
 from liwan_ai_service.providers import build_chat_model
 from liwan_ai_service.settings import Settings, SettingsError
+from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call
 
 
 def settings(provider, **extra):

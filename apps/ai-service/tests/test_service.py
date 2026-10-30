@@ -9,6 +9,10 @@ import pytest
 from langchain_core.messages import AIMessage
 from langgraph.checkpoint.memory import InMemorySaver
 
+from liwan_ai_service import service
+from liwan_ai_service.service import create_app
+from liwan_ai_service.settings import Settings
+from liwan_ai_service.store import EXECUTING, MemoryRunStore
 from tests.fakes import (
     FailingChatModel,
     RenamingChatModel,
@@ -21,10 +25,6 @@ from tests.fakes import (
     new_id,
 )
 from tests.test_contracts import DRAFT_TOOL, READ_TOOL
-from liwan_ai_service import service
-from liwan_ai_service.service import create_app
-from liwan_ai_service.settings import Settings
-from liwan_ai_service.store import EXECUTING, MemoryRunStore
 
 HEADERS = {"X-Liwan-Tenant": "t1", "X-Liwan-User": "42"}
 BODY = {

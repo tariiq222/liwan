@@ -17,10 +17,10 @@ describe('token names from tokens.css', () => {
 
   it('groups by the first name segment', () => {
     expect(groupTokens(parseTokenNames(css))).toEqual([
+      { prefix: 'liwan', names: ['--liwan-surface', '--liwan-radius'] },
       { prefix: 'status', names: ['--status-danger'] },
       { prefix: 'text', names: ['--text-xs'] },
       { prefix: 'ui', names: ['--ui-bg'] },
-      { prefix: 'liwan', names: ['--liwan-surface', '--liwan-radius'] },
     ])
   })
 

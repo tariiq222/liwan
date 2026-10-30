@@ -143,7 +143,7 @@ class ManifestTests(unittest.TestCase):
         value = release(mode='tenant_maintenance', upgradeModules=['project'], moduleVersions=versions)
         result = self.classify(before, after, value)
         self.assertTrue(result['eligible'], result)
-        self.assertEqual(result['affected_modules'], ['base', 'mail', 'project', 'liwan_bridge'])
+        self.assertEqual(result['affected_modules'], ['base', 'liwan_bridge', 'mail', 'project'])
 
     def test_explicit_installed_scope_overrides_inventory_but_includes_requested_installs(self):
         before = self.stock_inventory()
@@ -154,7 +154,7 @@ class ManifestTests(unittest.TestCase):
                         installModules=['liwan_bridge'], moduleVersions=versions)
         result = self.classify(before, after, value, installed_modules={'base', 'mail', 'project'})
         self.assertTrue(result['eligible'], result)
-        self.assertEqual(result['affected_modules'], ['base', 'mail', 'project', 'liwan_bridge'])
+        self.assertEqual(result['affected_modules'], ['base', 'liwan_bridge', 'mail', 'project'])
 
     def test_forward_dependencies_are_not_limited_to_installed_scope(self):
         before = self.stock_inventory()

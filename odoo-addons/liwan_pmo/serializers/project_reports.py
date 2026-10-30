@@ -3,7 +3,6 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from odoo import fields
 
-from odoo.addons.project.models.project_task import CLOSED_STATES
 from odoo.addons.liwan_api.serializers.common import iso
 from odoo.addons.liwan_pmo.serializers.project import STATUS_TO_API
 from odoo.addons.liwan_pmo.serializers.project_charter import dump_currency
@@ -12,6 +11,7 @@ from odoo.addons.liwan_pmo.serializers.project_finance import (
     currency_quantum,
     to_decimal,
 )
+from odoo.addons.project.models.project_task import CLOSED_STATES
 
 _CLOSED_STATES = list(CLOSED_STATES)
 _ATTENTION_STATUSES = {'at_risk', 'off_track', 'on_hold'}

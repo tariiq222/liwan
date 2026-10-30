@@ -4,6 +4,7 @@ from . import (
     directory,
     entitlement_service,
     feature_registry,
+    liwan_settings,
     mail_notification_liwan,
     notification_types,
     project_actual_source,
@@ -26,5 +27,4 @@ from . import (
     task_notifications,
     task_schedule,
     task_transitions,
-    liwan_settings,
 )

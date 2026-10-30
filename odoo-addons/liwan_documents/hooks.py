@@ -1,27 +1,4 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from pathlib import Path
-
-from odoo.modules.module import load_script
-
-from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
-
-
-def adoption_script():
-    path = Path(__file__).parent / 'migrations/19.0.1.0.0/pre-adopt_hr.py'
-    return load_script(str(path), 'odoo.upgrade.liwan_documents.adopt_hr')
-
-
-def pre_init_hook(env):
-    if not env.user._is_superuser():
-        msg = 'Document installation is operator-only'
-        raise ValueError(msg)
-    migration = adoption_script()
-    report = migration.preflight(env.cr)
-    if report['issues']:
-        raise ValueError(
-            'Document installation preflight refused: ' + repr(report['issues']),
-        )
-    migration.adopt(env.cr)
 
 
 def post_init_hook(env):
@@ -67,31 +44,3 @@ def post_init_hook(env):
                         'attachment_id': attachment.id,
                     },
                 )
-
-    complete_legacy_adoption(env)
-
-
-def complete_legacy_adoption(env):
-    if not env.user._is_superuser():
-        msg = 'Document adoption completion is operator-only'
-        raise ValueError(msg)
-    marker = env['ir.model.data'].search([('module', '=', 'liwan_documents'), ('name', '=', 'legacy_hr_adoption_pending')])
-    if not marker:
-        return True
-    # HR can still be waiting in the module graph. Its end migration calls this
-    # again after all providers have registered their feature definitions.
-    features = env['liwan.feature.registry']._liwan_feature_map()
-    if 'hr.enabled' not in features:
-        return False
-    profile = env['liwan.tenant.profile'].search([], limit=1)
-    if profile and (profile.features or {}).get('hr.enabled') is True:
-        if profile.commercial_revision_id or profile.commercial_digest:
-            if profile.features.get('documents.enabled') is not True:
-                # A prior registry cannot accept an unregistered feature key.
-                # Finish schema installation closed, then let the trusted policy
-                # tool apply its compiled revision before operator cutover.
-                return False
-        elif profile.features.get('documents.enabled') is not True:
-            profile.with_context(**{OPERATOR_CONTEXT: True}).write({'features': {**profile.features, 'documents.enabled': True}})
-    marker.write({'name': 'legacy_hr_adoption_complete'})
-    return True

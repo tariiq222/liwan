@@ -4,6 +4,7 @@ import math
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
+from .liwan_settings import CREATORS
 from .project_charter import LiwanCharterState
 from .project_constants import (
     ACCESS_USER_CREATE_MARKER,
@@ -22,7 +23,6 @@ from .project_constants import (
     VISIBILITY_VALUES,
     _validate_charter_rows,
 )
-from .liwan_settings import CREATORS
 from odoo.addons.project.models.project_project import (
     ProjectProject as StockProjectProject,
 )

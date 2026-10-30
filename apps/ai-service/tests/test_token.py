@@ -6,11 +6,11 @@ import httpx
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 
-from tests.fakes import ScriptedChatModel, ai_text
-from tests.test_service import BODY, HEADERS, fresh, parse_sse
 from liwan_ai_service.service import create_app
 from liwan_ai_service.settings import Settings, SettingsError
 from liwan_ai_service.store import MemoryRunStore
+from tests.fakes import ScriptedChatModel, ai_text
+from tests.test_service import BODY, HEADERS, fresh, parse_sse
 
 TOKEN = "t" * 24 + "-service-token"
 ENV = {"AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_ALLOW_MEMORY_STATE": "true"}

@@ -8,9 +8,9 @@ from . import (
     access_service,
     ir_attachment,
     ir_rule,
+    liwan_model,
     res_company,
     res_groups,
     res_partner,
     res_users,
-    liwan_model,
 )

@@ -1,7 +1,4 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-import importlib.util
-from pathlib import Path
-
 from odoo.tests import tagged
 
 from .campaign_common import CampaignCase
@@ -103,24 +100,3 @@ class TestCampaignSettings(CampaignCase):
         self.login(self.manager)
         self.api('POST', '/api/v1/settings/inbox/presets/store')
         self.assertEqual(self.settings.stop_reply, PRESETS['store']['campaigns']['stop_reply'])
-
-    # migration
-
-    def test_the_migration_gives_existing_settings_the_default_keywords_and_replies(self):
-        self.settings._liwan_keywords('stop').unlink()
-        self.settings._liwan_keywords('start').unlink()
-        self.settings._liwan_add_keywords({'start': ['اشتراك', 'subscribe', 'start']})
-        self.settings.write({'stop_reply': 'تم إيقاف الرسائل الترويجية. لإعادة تفعيلها أرسل «اشتراك».', 'start_reply': False})
-        script = Path(__file__).resolve().parents[1] / 'migrations' / '19.0.1.7.0' / 'post-campaign-keywords.py'
-        spec = importlib.util.spec_from_file_location('campaign_keywords_migration', script)
-        migration = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(migration)
-        migration.migrate(self.env.cr, None)
-        self.assertFalse(self.settings._liwan_keywords('stop'))
-        migration.migrate(self.env.cr, '19.0.1.6.0')
-        self.assertEqual(self.settings._liwan_keywords('stop').mapped('value'), list(DEFAULT_KEYWORDS['stop']))
-        self.assertEqual(self.settings._liwan_keywords('start').mapped('value'), list(DEFAULT_KEYWORDS['start']))
-        self.assertTrue(self.settings.start_reply)
-        self.assertIn('تفعيل العروض', self.settings.stop_reply)
-        migration.migrate(self.env.cr, '19.0.1.6.0')
-        self.assertEqual(len(self.settings._liwan_keywords('stop')), len(DEFAULT_KEYWORDS['stop']))

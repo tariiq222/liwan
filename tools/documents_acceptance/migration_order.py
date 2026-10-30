@@ -110,7 +110,7 @@ def main():
     try:
         archive = subprocess.run(['git','archive',args.baseline,'odoo-addons'],cwd=args.worktree,check=True,capture_output=True)
         subprocess.run(['tar','-x','-C',str(runtime)],input=archive.stdout,check=True)
-        pins = subprocess.check_output([sys.executable,'-B',str(args.worktree/'tools/oca_addons.py'),'path','--check'],text=True).strip()
+        pins = subprocess.check_output([sys.executable,'-B',str(args.worktree/'tools/oca_addons.py'),'path','--check'],text=True).strip()  # nosemgrep: dangerous-subprocess-use-tainted-env-args -- operator-run local tool, arguments come from its own CLI flags
         for order, database in zip(('dms_before_hr','dms_after_hr'), databases):
             # Each order has its own baseline addon copy because the target removes the old model.
             source = runtime/order
@@ -119,7 +119,7 @@ def main():
             target.mkdir()
             conf = source/'odoo.conf'; conf.write_text('[options]\nlist_db=False\n')
             classification = source/'classification.json'
-            subprocess.run([sys.executable,'-B',str(args.worktree/'deploy/classification.py'),'fixture','--database',database,'--mode','saas','--output',str(classification)],check=True,stdout=subprocess.DEVNULL)
+            subprocess.run([sys.executable,'-B',str(args.worktree/'deploy/classification.py'),'fixture','--database',database,'--mode','saas','--output',str(classification)],check=True,stdout=subprocess.DEVNULL)  # nosemgrep: dangerous-subprocess-use-tainted-env-args -- operator-run local tool, arguments come from its own CLI flags
             env_vars = dict(os.environ,LIWAN_COMMERCIAL_CONFIG=str(classification),PYTHONDONTWRITEBYTECODE='1')
             port = 8295
             with socket.socket() as sock:

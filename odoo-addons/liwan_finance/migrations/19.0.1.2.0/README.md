@@ -1,1 +1,0 @@
-The new model `liwan.finance.audit.event` (table `liwan_finance_audit_event`) is created empty by the upgrade; no earlier action has an audit record to carry over. The unique index on `account.move (company_id, liwan_closing_year)` is guarded by `pre-closing_year_unique.py`, which refuses duplicates.

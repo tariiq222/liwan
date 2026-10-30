@@ -96,8 +96,8 @@ async def test_cleanup_failure_prints_only_the_error_class(monkeypatch, capsys):
 
 
 async def test_shutdown_waits_for_the_persist_tasks_before_closing_the_pool(monkeypatch):
-    from tests.fakes import ScriptedChatModel
     from liwan_ai_service.store import MemoryRunStore
+    from tests.fakes import ScriptedChatModel
 
     monkeypatch.setenv("AI_PROVIDER", "ollama")
     monkeypatch.setenv("AI_MODEL", "m")
