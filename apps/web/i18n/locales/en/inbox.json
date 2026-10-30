@@ -2111,6 +2111,8 @@
     "reasons": {
       "inbox_department_name_taken": "A department with this name already exists.",
       "inbox_tag_name_taken": "A tag with this name already exists.",
+      "inbox_flow_name_taken": "A form with this name already exists on the channel.",
+      "inbox_audience_name_taken": "An audience with this name already exists.",
       "inbox_shortcut_taken": "A canned reply with this shortcut already exists.",
       "inbox_template_name_taken": "A template with this name and language already exists on the channel.",
       "inbox_phone_number_taken": "This phone number id is already connected to a channel.",

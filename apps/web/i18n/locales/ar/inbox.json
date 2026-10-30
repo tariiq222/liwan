@@ -2111,6 +2111,8 @@
     "reasons": {
       "inbox_department_name_taken": "يوجد قسم بهذا الاسم.",
       "inbox_tag_name_taken": "يوجد وسم بهذا الاسم.",
+      "inbox_flow_name_taken": "يوجد نموذج بهذا الاسم في القناة.",
+      "inbox_audience_name_taken": "يوجد جمهور بهذا الاسم.",
       "inbox_shortcut_taken": "يوجد رد جاهز بهذا الاختصار.",
       "inbox_template_name_taken": "يوجد قالب بهذا الاسم واللغة في هذه القناة.",
       "inbox_phone_number_taken": "معرّف رقم الهاتف هذا مربوط بقناة أخرى.",

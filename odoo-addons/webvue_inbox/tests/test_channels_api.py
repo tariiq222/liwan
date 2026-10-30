@@ -94,7 +94,9 @@ class TestChannelsApi(WebVueInboxCase):
         failing.json.return_value = {'error': {'message': 'Invalid OAuth access token'}}
         with patch.object(requests, 'request', MagicMock(return_value=failing)):
             self.assertEqual(self.api('POST', path).json()['state'], 'error')
-        with patch.object(requests, 'request', MagicMock(return_value=MagicMock(status_code=200))):
+        passing = MagicMock(status_code=200)
+        passing.json.return_value = {}
+        with patch.object(requests, 'request', MagicMock(return_value=passing)):
             self.assertEqual(self.api('POST', path).json()['state'], 'connected')
 
     def test_a_duplicate_phone_number_id_names_its_reason(self):
