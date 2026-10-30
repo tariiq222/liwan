@@ -6,20 +6,21 @@ import { credentials, expect } from 'e2e';
  * employee requests one day of leave through the create panel, an HR manager
  * approves it from the pending queue, and the employee sees it approved.
  * Arabic UI, exact steps only. The two sides are separate saved sessions
- * (`e2e/tests/bugs/auth.setup.e2e.ts`, accounts from `tools/e2e_seed.py`);
- * data carries a timestamp so reruns on the reused database do not collide,
- * and stale pending requests are refused right after sign-in.
+ * (`e2e/tests/bugs/auth.setup.e2e.ts`, accounts from `tools/e2e_seed.py`).
+ * The request date is fixed a week ahead, so a rerun on the same day needs
+ * `E2E_ODOO_RESET=1`: an approved request occupies that date.
  */
 const slow = { timeout: 30_000 };
 
 /** The free working day's accessible label ("الاثنين، 2 نوفمبر 2026"), never today. */
-function leaveDay(): { from: Date; label: string } {
-  const day = new Date();
+function leaveDay(): { label: string; nextMonth: boolean } {
+  const today = new Date();
+  const day = new Date(today);
   day.setDate(day.getDate() + 7);
   while (day.getDay() === 5 || day.getDay() === 6) day.setDate(day.getDate() + 1);
   const weekday = new Intl.DateTimeFormat('ar', { weekday: 'long' }).format(day);
   const month = new Intl.DateTimeFormat('ar', { month: 'long' }).format(day);
-  return { from: day, label: `${weekday}، ${day.getDate()} ${month} ${day.getFullYear()}` };
+  return { label: `${weekday}، ${day.getDate()} ${month} ${day.getFullYear()}`, nextMonth: day.getMonth() !== today.getMonth() };
 }
 
 test(
@@ -27,7 +28,7 @@ test(
   { session: 'employee', tags: ['journey', 'hr', 'hr-leave'] },
   async ({ app, browser, screen }) => {
     test.skip(process.env.E2E_STACK !== 'odoo', 'needs the scratch Odoo stack (npm run e2e:odoo)');
-    const { label } = leaveDay();
+    const { label, nextMonth } = leaveDay();
 
     // The create panel opens over the list from its own route.
     await app.open('/account/leave');
@@ -35,10 +36,11 @@ test(
     await screen.getByTestId('hr-leave-new').tap();
     await expect(browser).toHaveURL(/\/account\/leave\/new(?:\?|$)/, slow);
 
-    // Type, then one day: the shared date field opens the calendar from its button.
+    // A type that needs no allocation, then one day: the shared date field opens the calendar from its button.
     await screen.getByTestId('hr-leave-type').tap();
-    await screen.getByRole('option').first().tap();
+    await screen.getByRole('option', 'Sick Time Off').tap();
     await screen.getByTestId('hr-leave-from').tap();
+    if (nextMonth) await screen.getByRole('button', 'الشهر المقبل').tap();
     await screen.getByRole('button', label).tap();
     await screen.getByTestId('hr-leave-submit').tap();
 
@@ -63,9 +65,9 @@ test(
     await row.getByTestId('row-actions-menu').tap();
     await screen.getByRole('menuitem', 'اعتماد').tap();
 
-    // An approval is not destructive: no confirmation step, the badge flips.
-    await expect(row.getByText('معتمدة'), slow).toBeVisible();
-    await row.getByRole('link').first().tap();
-    await expect(screen.getByText('معتمدة').first(), slow).toBeVisible();
+    // An approval is not destructive: no confirmation step, the request leaves the queue.
+    await expect(screen.getByText('لا طلبات بانتظار الاعتماد'), slow).toBeVisible();
+    await app.open('/hr/leave?scope=all');
+    await expect(screen.getByRole('row').filter({ hasText: 'E2E Employee' }).first().getByText('معتمدة'), slow).toBeVisible();
   },
 );
