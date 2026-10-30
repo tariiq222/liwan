@@ -17,9 +17,9 @@ const entries = computed(() => (timeline.value ?? []).filter(entry => (entry.kin
 <template>
   <div :data-testid="mode === 'log' ? 'task-activity-card' : 'task-comments-card'" class="space-y-4">
     <p v-if="mode === 'log'" class="text-xs text-muted">{{ t('tasks.detail.logDescription') }}</p>
-    <SharedPageState v-if="error" :error="error" @retry="refetch" />
-    <div v-if="isLoading" role="status" class="py-4 text-sm text-muted">{{ t('tasks.activity.loading') }}</div>
-    <Timeline v-else :entries="entries ?? []" :task-id="task.id" :empty-label="t(mode === 'log' ? 'tasks.activity.empty' : 'tasks.activity.emptyComments')" />
+    <SharedPageState :loading="isLoading" :error="error" @retry="refetch">
+      <Timeline :entries="entries" :task-id="task.id" :empty-label="t(mode === 'log' ? 'tasks.activity.empty' : 'tasks.activity.emptyComments')" />
+    </SharedPageState>
     <CommentComposer v-if="task.can_write && mode !== 'log'" :key="task.id" :task-id="task.id" />
   </div>
 </template>

@@ -6,6 +6,8 @@
     "upload": "Upload file",
     "help": "PDF, PNG, JPEG, plain text, DOCX, or XLSX; up to 10 MB",
     "delete": "Delete attachment",
+    "uploaded": "Attachment uploaded",
+    "deleted": "Attachment deleted",
     "deleteConfirm": "Delete this attachment?",
     "errors": {
       "tooLarge": "The file exceeds the 10 MB limit"
