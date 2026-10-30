@@ -11,6 +11,14 @@ _logger = logging.getLogger(__name__)
 MIN_PASSWORD_LENGTH = 8
 
 
+def _raised_by_webvue(error):
+    """True when WebVue's own code raised the error, so its text was written for the user."""
+    traceback = error.__traceback__
+    while traceback.tb_next:
+        traceback = traceback.tb_next
+    return traceback.tb_frame.f_globals.get('__name__', '').startswith(('odoo.addons.webvue_', 'odoo.addons.customer_'))
+
+
 def clear_security_caches_after_commit(env):
     """Discard security cache entries refilled before a user mutation commits."""
     env.cr.postcommit.add(env.registry.clear_cache)
@@ -287,6 +295,9 @@ def api_handler(func):
             _logger.info('api not_found: %s', e)
             return error_response(404, 'not_found', request.env._("Record does not exist"))
         except AccessError as e:
+            if _raised_by_webvue(e):
+                return error_response(403, 'forbidden', str(e))
+            # Stock Odoo's text names models, record ids and users; the client gets a fixed message.
             _logger.info('api forbidden: %s', e)
             return error_response(403, 'forbidden', request.env._("You do not have permission to do this"))
         except (ValidationError, UserError) as e:
