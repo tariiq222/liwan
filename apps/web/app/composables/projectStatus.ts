@@ -16,7 +16,7 @@ export const PROJECT_STATUS_TONE: Record<ProjectStatus, StateTone> = {
   on_track: 'success',
   at_risk: 'warning',
   off_track: 'destructive',
-  on_hold: 'neutral',
+  on_hold: 'warning',
   done: 'success',
 }
 

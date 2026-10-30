@@ -5,12 +5,12 @@ import type { StateTone } from '@/composables/taskState'
 
 export const REGISTER_PRIORITY_TONE: Record<ProjectRegisterPriority, StateTone> = {
   low: 'neutral',
-  normal: 'info',
+  normal: 'neutral',
   high: 'warning',
   critical: 'destructive',
 }
 export const REGISTER_STATUS_TONE: Record<ProjectRegisterStatus, StateTone> = {
-  open: 'warning',
+  open: 'info',
   in_progress: 'info',
   resolved: 'success',
   closed: 'neutral',
@@ -23,7 +23,7 @@ export const RACI_ROLE_TONE: Record<ProjectRaciRole, StateTone> = {
 }
 export function registerScoreTone(score: number | null | undefined): StateTone {
   if (score == null) return 'neutral'
-  if (score >= 16) return 'destructive'
-  if (score >= 9) return 'warning'
+  if (score >= 13) return 'destructive'
+  if (score >= 7) return 'warning'
   return 'info'
 }

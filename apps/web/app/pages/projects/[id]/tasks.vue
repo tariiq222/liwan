@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { TaskState } from '@webvue/contracts'
 import type { LocationQueryRaw } from 'vue-router'
+import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState.vue'
 import TaskBoard from '@/components/pmo/tasks/TaskBoard.vue'
 import TaskKpiStrip from '@/components/pmo/tasks/TaskKpiStrip.vue'
 import TaskTable from '@/components/pmo/tasks/TaskTable.vue'
@@ -108,10 +109,7 @@ function columnCreateTo(column: { state?: TaskState; stageId?: number }) {
       <SharedForbiddenState />
     </SharedPageContainer>
     <SharedPageContainer v-else-if="notFound || error" width="list">
-      <div v-if="notFound" class="flex flex-col items-start gap-3">
-        <p class="text-muted">{{ t('projects.notFound') }}</p>
-        <UButton type="button" color="neutral" variant="outline" size="sm" @click="router.push(projectReturnTo)">{{ t('projects.backToProjects') }}</UButton>
-      </div>
+      <ProjectNotFoundState v-if="notFound" embedded :back-to="projectReturnTo" />
       <SharedPageState v-else :error="error" @retry="refetch" />
     </SharedPageContainer>
     <!-- The frame is this page's h1: hide-header draws no heading, the create button stays in the header row. -->

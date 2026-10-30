@@ -4,6 +4,7 @@ import { refDebounced } from '@vueuse/core'
 import { ApiError } from '@/composables/useApi'
 import { useProjectFinanceList } from '@/composables/useProjectFinance'
 import { useProject } from '@/composables/useProjects'
+import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState.vue'
 import FinanceActualLines from '@/components/pmo/projects/finance/FinanceActualLines.vue'
 import FinanceEntryTable from '@/components/pmo/projects/finance/FinanceEntryTable.vue'
 import FinanceSummaryCards from '@/components/pmo/projects/finance/FinanceSummaryCards.vue'
@@ -221,9 +222,7 @@ const emptiness = computed(() => summary.value
 
 <template>
   <template v-if="isListRoute">
-    <SharedPageContainer v-if="projectId === null" width="list">
-      <p class="text-muted">{{ t('projects.invalidId') }}</p>
-    </SharedPageContainer>
+    <ProjectNotFoundState v-if="projectId === null" />
     <SharedListPage
       v-else
       hide-header
@@ -235,7 +234,7 @@ const emptiness = computed(() => summary.value
       <template v-if="canManage && !external" #actions>
         <UButton color="neutral" variant="outline" icon="i-lucide-plus" :disabled="!hydrated" :to="newTo('expense')">{{ t('projects.finance.newExpense') }}</UButton>
       </template>
-      <p v-if="notFound && !list.isLoading.value" class="text-muted">{{ t('projects.notFound') }}</p>
+      <ProjectNotFoundState v-if="notFound && !list.isLoading.value" embedded />
       <template v-else>
         <FinanceSummaryCards v-if="summary && projectId" :project-id="projectId" :summary="summary" />
         <SharedEmptyState v-if="emptiness === 'bare'" bordered :title="t('projects.finance.empty')" :description="canManage ? t('projects.finance.emptyHint') : undefined" />
