@@ -25,7 +25,7 @@ export const ScheduleTaskSchema = z.object({
 })
 
 export const ScheduleMilestoneSchema = z.object({
-  id: z.number().int().positive(), name: z.string(), start_date: ScheduleDateSchema.default(null), deadline: ScheduleDateSchema,
+  id: z.number().int().positive(), name: z.string(), start_date: ScheduleDateSchema.default(null), deadline: ScheduleDateSchema, is_reached: z.boolean(),
 }).strict()
 
 export const ProjectScheduleSchema = z.object({

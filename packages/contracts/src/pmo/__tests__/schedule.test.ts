@@ -9,9 +9,9 @@ describe('schedule contracts', () => {
     expect(ProjectScheduleSchema.parse({ project_id: 3, tasks: [task], milestones: [], can_manage: true, total: 1 }).tasks[0].start).toBe('2030-02-01')
     expect(ProjectScheduleSchema.parse({
       project_id: 3, tasks: [task], milestones: [{
-        id: 9, name: 'M', start_date: '2030-02-01', deadline: '2030-02-04',
+        id: 9, name: 'M', start_date: '2030-02-01', deadline: '2030-02-04', is_reached: true,
       }], can_manage: true, total: 1,
-    }).milestones[0]?.start_date).toBe('2030-02-01')
+    }).milestones[0]).toMatchObject({ start_date: '2030-02-01', is_reached: true })
     expect(ProjectScheduleSchema.parse({ project_id: 3, tasks: [{ ...task, start: null }], milestones: [], can_manage: false, total: 1 }).tasks[0].end).toBe('2030-02-04')
   })
 
