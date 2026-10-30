@@ -82,8 +82,7 @@ function createAction(input: QuickViewsInput, capability: string, id: string, la
   return [{ id, labelKey, icon: 'i-lucide-plus', to: input.createTo({ id, to }), active: false, primary }]
 }
 
-// Task presets. The keys assignee, deadline and priority are read by the tasks filters; the page may not honour them yet,
-// the links are built with exactly these keys regardless. `closed` and `scope` are already understood by the list.
+// Task presets: every key is read by the tasks list.
 const TASK_VIEWS: ViewSpec[] = [
   { id: 'assigned', labelKey: 'tasks.quickViews.assigned', icon: 'i-lucide-user', preset: { assignee: 'me' } },
   { id: 'today', labelKey: 'tasks.quickViews.today', icon: 'i-lucide-sun', preset: { deadline: 'today' } },
