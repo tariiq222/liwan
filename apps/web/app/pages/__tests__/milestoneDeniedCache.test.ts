@@ -12,7 +12,7 @@ async function renderRecord(status?: number, source: 'project' | 'milestones' = 
   return renderShared(resolve(import.meta.dirname, '../projects/[id]/milestones/[milestoneId].vue'), {}, {}, {
     globals: {
       useRoute: () => ({ path: '/projects/7/milestones/8', params: { id: '7', milestoneId: '8' }, query: {}, hash: '' }),
-      useRouter: () => ({}), useProjectRecordListPaths: () => ref(['/projects/7/milestones']),
+      useRouter: () => ({}), useToast: () => ({ add: () => {} }), useProjectRecordListPaths: () => ref(['/projects/7/milestones']),
     },
     modules: {
       '@/composables/useApi': { ApiError },

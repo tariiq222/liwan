@@ -80,6 +80,7 @@ const { mutateAsync: updateMutate } = useUpdateMilestone()
 async function toggleReached(m: Milestone) {
   try {
     await updateMutate({ projectId: props.projectId, id: m.id, patch: { is_reached: !m.is_reached } })
+    toast.add({ title: t('projects.toast.milestoneUpdated'), color: 'success' })
   } catch (e) {
     toast.add({ title: e instanceof ApiError ? e.message : t('errors.generic'), color: 'error' })
   }
@@ -95,6 +96,7 @@ async function confirmDelete() {
   try {
     await deleteMutate({ projectId: props.projectId, id: deleteTarget.value.id })
     deleteId.value = null
+    toast.add({ title: t('projects.toast.milestoneDeleted'), color: 'success' })
   } catch (e) {
     toast.add({ title: e instanceof ApiError ? e.message : t('errors.generic'), color: 'error' })
   }

@@ -24,7 +24,7 @@ function onError(e: unknown) {
 function addPerson(value: number | number[] | null) {
   const userId = Array.isArray(value) ? value[0] : value
   if (userId == null || followerIds.value.has(userId)) return
-  addFollower({ projectId: props.project.id, userId }, { onError })
+  addFollower({ projectId: props.project.id, userId }, { onSuccess: () => toast.add({ title: t('projects.toast.followerAdded'), color: 'success' }), onError })
 }
 
 // Removing a follower can take away their access to a followers-only project,
@@ -32,7 +32,7 @@ function addPerson(value: number | number[] | null) {
 const pendingRemoval = ref<number | null>(null)
 
 function removePerson(userId: number) {
-  removeFollower({ projectId: props.project.id, userId }, { onError, onSettled: () => { pendingRemoval.value = null } })
+  removeFollower({ projectId: props.project.id, userId }, { onSuccess: () => toast.add({ title: t('projects.toast.followerRemoved'), color: 'success' }), onError, onSettled: () => { pendingRemoval.value = null } })
 }
 </script>
 

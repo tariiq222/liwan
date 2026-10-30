@@ -11,6 +11,7 @@ const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
+const toast = useToast()
 const projectId = computed(() => parsePositiveId(route.params.id))
 const milestoneId = computed(() => parsePositiveId(route.params.milestoneId))
 const { data: project, error: projectError, isLoading: projectLoading, refetch: refetchProject } = useProject(projectId)
@@ -37,7 +38,9 @@ function failed(cause: unknown) {
 async function patch(body: MilestonePatch) {
   if (!hydrated.value || !canManage.value || pending.value || !milestone.value || !projectId.value) return
   mutationError.value = null
-  try { await update.mutateAsync({ projectId: projectId.value, id: milestone.value.id, patch: body }) }
+  try { await update.mutateAsync({ projectId: projectId.value, id: milestone.value.id, patch: body })
+    toast.add({ title: t('projects.toast.milestoneUpdated'), color: 'success' })
+  }
   catch (cause) { failed(cause) }
 }
 function toggleDeliverable(index: number, done: boolean) {
@@ -49,6 +52,7 @@ async function deleteMilestone() {
   mutationError.value = null
   try {
     await remove.mutateAsync({ projectId: projectId.value, id: milestone.value.id })
+    toast.add({ title: t('projects.toast.milestoneDeleted'), color: 'success' })
     await router.replace(backTo.value)
   } catch (cause) { failed(cause) }
 }

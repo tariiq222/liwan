@@ -12,6 +12,7 @@ import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const toast = useToast()
 const hydrated = useHydrated()
 const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
 const isListRoute = computed(() => {
@@ -70,6 +71,7 @@ async function deleteItem(item: { id: number }) {
   try {
     await remove.mutateAsync({ projectId: id.value, id: item.id })
     confirmDeleteId.value = null
+    toast.add({ title: t('projects.toast.stakeholderDeleted'), color: 'success' })
   }
   catch (cause) {
     error.value = cause instanceof ApiError && cause.code === 'stakeholder_assigned'

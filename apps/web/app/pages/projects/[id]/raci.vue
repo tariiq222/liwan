@@ -11,7 +11,7 @@ import { useProjectMissing } from '@/composables/useProjects'
 import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 import { RACI_ROLE_TONE } from '@/components/pmo/projects/governance/state'
 import { projectSectionLocation } from '@/utils/projectWorkspaceMemory'
-const route = useRoute(); const router = useRouter(); const { t } = useI18n(); const hydrated = useHydrated()
+const route = useRoute(); const router = useRouter(); const { t } = useI18n(); const toast = useToast(); const hydrated = useHydrated()
 const id = computed(() => Number(route.params.id)); const notFound = useProjectMissing(id); const viewport = computed(() => governanceMatrixFilters(route.query))
 const tasksTo = computed(() => projectSectionLocation(`/projects/${id.value}/tasks`, route.path, route.query))
 function replaceFilter(key: string, value: string | undefined, pageKey: string) { router.replace({ query: { ...route.query, [key]: value, [pageKey]: undefined } }) }
@@ -48,12 +48,13 @@ async function changeRole(taskId: number, stakeholderId: number, value: string) 
   try {
     if (row) await update.mutateAsync({ projectId: id.value, id: row.id, body: { role } })
     else await create.mutateAsync({ projectId: id.value, body: { task_id: taskId, stakeholder_id: stakeholderId, role } })
+    toast.add({ title: t('projects.toast.raciChanged'), color: 'success' })
   } catch (cause) { error.value = cause instanceof ApiError ? cause.message : t('errors.generic') }
 }
 async function deleteRow() {
   if (!confirmRow.value) return
   error.value = null
-  try { await remove.mutateAsync({ projectId: id.value, id: confirmRow.value.id }); confirmRow.value = null }
+  try { await remove.mutateAsync({ projectId: id.value, id: confirmRow.value.id }); confirmRow.value = null; toast.add({ title: t('projects.toast.raciChanged'), color: 'success' }) }
   catch (cause) { error.value = cause instanceof ApiError ? cause.message : t('errors.generic') }
 }
 const TASK_PAGE = 50

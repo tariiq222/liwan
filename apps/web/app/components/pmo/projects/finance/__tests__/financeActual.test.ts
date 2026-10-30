@@ -106,7 +106,7 @@ describe('FinanceActualAccountPicker', () => {
   function picker(options: { available?: boolean, data?: { id: number, name: string }[] } = {}) {
     const mutate = vi.fn()
     const compiled = compile('components/pmo/projects/finance/FinanceActualAccountPicker.vue', {
-      _defineComponent: Vue.defineComponent, ref: Vue.ref, computed: Vue.computed, ...finance, useI18n: () => ({ t }), useHydrated: () => Vue.ref(true),
+      _defineComponent: Vue.defineComponent, ref: Vue.ref, computed: Vue.computed, ...finance, useI18n: () => ({ t }), useHydrated: () => Vue.ref(true), useToast: () => ({ add: () => {} }),
       useRecordPicker: () => ({ available: Vue.ref(options.available !== false), query: { data: Vue.ref(options.data ?? [{ id: 3, name: 'CC-3 · Tower' }, { id: 5, name: 'Annex' }]), isLoading: Vue.ref(false), error: Vue.ref(null) } }),
       useSetActualAccount: () => ({ mutate, isPending: Vue.ref(false) }),
     })
