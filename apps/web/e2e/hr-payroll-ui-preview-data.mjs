@@ -43,6 +43,7 @@ function seed(finance = true, previewError = false, ibansComplete = false) {
   }))
   state = {
     nextRunId: 4,
+    strict: { hr: false, payroll: false },
     runs: [
       { id: 3, month: '2026-12', state: 'draft', approvedAt: null, slips: [] },
       { id: 2, month: '2026-11', state: 'computed', approvedAt: null, slips: slips(2, 500) },
@@ -216,6 +217,8 @@ export function hrPayrollPreviewData(route, url) {
   if (route === '/api/v1/hr/payroll/eos-cases') return { items: state.eosCases.map(caseItem), total: state.eosCases.length }
   if (route === '/api/v1/hr/payroll/eos-provisions') return state.finance && { items: state.provisions, total: state.provisions.length }
   if (route === '/api/v1/hr/payroll/settings') return state.settings
+  if (route === '/api/v1/hr/payroll/branch-strictness') return { scope: 'payroll', enabled: state.strict.payroll }
+  if (route === '/api/v1/hr/branch-strictness') return { scope: 'hr', enabled: state.strict.hr }
   if (route === '/api/v1/hr/payroll/gosi-rates') return { items: state.rates, total: state.rates.length }
   if (route === '/api/v1/hr/payroll/bank-profiles') return { items: state.profiles, total: state.profiles.length }
   if (route === '/api/v1/hr/payroll/finance-settings') return state.finance?.settings
@@ -299,6 +302,12 @@ function revised(record, revision, message, apply) {
 
 /** The writes: `{status, body}`, or undefined for a route this preview does not own. */
 export function hrPayrollPreviewWrite(method, route, body) {
+  const strict = /^\/api\/v1\/hr\/(payroll\/)?branch-strictness$/.exec(route)
+  if (method === 'PATCH' && strict) {
+    const scope = strict[1] ? 'payroll' : 'hr'
+    state.strict[scope] = body.enabled
+    return ok({ scope, enabled: body.enabled })
+  }
   if (method === 'POST' && route === '/api/v1/__mock/reset-payroll') { seed(body.finance !== false, body.previewError === true, body.ibansComplete === true); return ok({ ok: true }) }
   if (method === 'PATCH' && route === '/api/v1/hr/payroll/settings') {
     // Like the server: the revision read, then an empty patch, a divisor outside 28-31 and a null annual leave type are refused.
