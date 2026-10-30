@@ -1,7 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { layerFile } from '@webvue/ui/test/helpers/layerFile'
-import { contrastRatio, DARK_SURFACES, LIGHT_BORDER, LIGHT_CANVAS, STATUS_TEXT } from '../../../utils/webvuePalette'
+import {
+  contrastRatio, DARK_PRIMARY_ACCENT, DARK_PRIMARY_FILL, DARK_SAND, DARK_SURFACES, DARK_TEXT, LIGHT_ACTIVE_TINT, LIGHT_BORDER,
+  LIGHT_CANVAS, LIGHT_INK, LIGHT_MUTED_TEXT, LIGHT_SAND, STATUS_TEXT, WEBVUE_BLUE,
+} from '../../../utils/webvuePalette'
 
 const sheet = (name: string) => readFileSync(layerFile(`app/assets/css/${name}`), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
 
@@ -64,8 +67,8 @@ describe('dark surfaces', () => {
 describe('solid primary', () => {
   it('tokens.css :root declares one text-bearing solid primary for both modes, deeper than the accent', () => {
     const found = declarations(ruleBodies(sheet('tokens.css'), ':root'))
-    expect(found.get('--primary')?.toLowerCase()).toBe('#007ff8')
-    const solid = { '--primary-solid': '#0066cc', '--primary-solid-hover': '#0052a3', '--primary-solid-active': '#00478f' }
+    expect(found.get('--primary')?.toLowerCase()).toBe(WEBVUE_BLUE)
+    const solid = { '--primary-solid': WEBVUE_BLUE, '--primary-solid-hover': '#4a3374', '--primary-solid-active': '#3e2b63' }
     for (const [token, value] of Object.entries(solid)) {
       expect(found.get(token)?.toLowerCase(), token).toBe(value)
       expect(contrastRatio('#ffffff', value), `${token} under white text`).toBeGreaterThanOrEqual(4.5)
@@ -148,3 +151,81 @@ describe('hairline border', () => {
     expect(declarations(ruleBodies(sheet('tokens.css'), ':root')).get('--ui-border')?.toLowerCase()).toBe(LIGHT_BORDER)
   })
 })
+
+describe('approved lavender and sand palette', () => {
+  const light = () => declarations(ruleBodies(sheet('tokens.css'), ':root'))
+  const dark = () => declarations(ruleBodies(sheet('tokens.css'), '.dark'))
+  const hex = (value: string | undefined) => value?.toLowerCase()
+
+  it('paints links, titles, secondary text, sand and the active tint in light mode', () => {
+    const found = light()
+    expect(hex(found.get('--brand-link'))).toBe(WEBVUE_BLUE)
+    expect(hex(found.get('--ui-text-highlighted'))).toBe(LIGHT_INK)
+    expect(hex(found.get('--ui-text'))).toBe(LIGHT_INK)
+    expect(hex(found.get('--ui-text-muted'))).toBe(LIGHT_MUTED_TEXT)
+    expect(hex(found.get('--webvue-sand'))).toBe(LIGHT_SAND)
+    expect(hex(found.get('--webvue-nav-active'))).toBe(LIGHT_ACTIVE_TINT)
+    expect(hex(found.get('--webvue-rail-active'))).toBe(LIGHT_ACTIVE_TINT)
+  })
+
+  it('keeps secondary text at 4.5:1 on white, canvas and sand', () => {
+    for (const surface of ['#ffffff', LIGHT_CANVAS, LIGHT_SAND]) expect(contrastRatio(LIGHT_MUTED_TEXT, surface), surface).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('declares the dark lavender accent and the 5.02:1 text-bearing fill', () => {
+    const found = dark()
+    for (const token of ['--primary', '--brand-link', '--ring', '--sidebar-ring', '--webvue-rail-active-ink']) expect(hex(found.get(token)), token).toBe(DARK_PRIMARY_ACCENT)
+    expect(hex(found.get('--primary-solid'))).toBe(DARK_PRIMARY_FILL)
+    for (const token of ['--primary-solid', '--primary-solid-hover', '--primary-solid-active']) {
+      expect(contrastRatio('#ffffff', found.get(token)!), `${token} under white text`).toBeGreaterThanOrEqual(4.5)
+    }
+    expect(contrastRatio('#ffffff', DARK_PRIMARY_FILL)).toBeGreaterThanOrEqual(5)
+  })
+
+  it('keeps dark body text and sand text at 4.5:1 on every dark surface', () => {
+    const found = dark()
+    expect(hex(found.get('--ui-text'))).toBe(DARK_TEXT)
+    expect(hex(found.get('--ui-text-muted'))).toBe(DARK_SAND)
+    for (const surface of Object.values(DARK_SURFACES).filter(value => value !== DARK_SURFACES.border && value !== DARK_SURFACES.borderMuted && value !== DARK_SURFACES.borderAccented)) {
+      for (const token of ['--ui-text', '--ui-text-toned', '--ui-text-muted', '--ui-text-highlighted']) {
+        expect(contrastRatio(found.get(token)!, surface), `${token} on ${surface}`).toBeGreaterThanOrEqual(4.5)
+      }
+    }
+  })
+
+  it('leaves no blue or lime identity value behind', () => {
+    const css = sheet('tokens.css').toLowerCase()
+    for (const old of ['#007ff8', '#0066cc', '#c6f432', '#13234a', '#0052a3', '#00478f']) expect(css, old).not.toContain(old)
+  })
+
+  for (const mode of ['light', 'dark'] as const) {
+    it(`${mode} chart colours reach 3:1 on their surfaces and stay distinct`, () => {
+      const found = mode === 'light' ? light() : dark()
+      const surfaces = mode === 'light' ? ['#ffffff', LIGHT_CANVAS] : [DARK_SURFACES.bg, DARK_SURFACES.muted, DARK_SURFACES.elevated]
+      const colours = [1, 2, 3, 4, 5, 6].map(i => found.get(`--chart-${i}`)!)
+      for (const colour of colours) for (const surface of surfaces) expect(contrastRatio(colour, surface), `${colour} on ${surface}`).toBeGreaterThanOrEqual(3)
+      colours.forEach((first, i) => colours.slice(i + 1).forEach(second => expect(colourDistance(first, second), `${first} vs ${second}`).toBeGreaterThan(60)))
+    })
+  }
+
+  it('keeps the first chart colour led by the primary', () => {
+    expect(hex(light().get('--chart-1'))).toBe(WEBVUE_BLUE)
+    expect(hex(dark().get('--chart-1'))).toBe(DARK_PRIMARY_ACCENT)
+  })
+
+  it('keeps the violet tag hue distinct from the primary in both modes', () => {
+    expect(colourDistance(light().get('--accent-violet-fg')!, WEBVUE_BLUE)).toBeGreaterThan(60)
+    expect(colourDistance(dark().get('--accent-violet-fg')!, DARK_PRIMARY_ACCENT)).toBeGreaterThan(40)
+  })
+
+  it('keeps status text readable on sand and the white surfaces', () => {
+    for (const text of Object.values(STATUS_TEXT.light)) for (const surface of ['#ffffff', LIGHT_SAND]) expect(contrastRatio(text, surface), `${text} on ${surface}`).toBeGreaterThanOrEqual(4.5)
+  })
+})
+
+/** Euclidean distance in sRGB: a coarse "are these two swatches visibly different" guard. */
+function colourDistance(first: string, second: string): number {
+  const channels = (value: string) => [1, 3, 5].map(start => Number.parseInt(value.slice(start, start + 2), 16))
+  const [a, b] = [channels(first), channels(second)]
+  return Math.hypot(...a.map((channel, i) => channel - b[i]!))
+}

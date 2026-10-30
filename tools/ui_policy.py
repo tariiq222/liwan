@@ -560,7 +560,7 @@ def whole_tree(current: dict[str, str]) -> bool:
     return APP + 'app.vue' in current
 
 
-# The theme inputs are the brand primary, the slate neutral, WebVue midnight/lime,
+# The theme inputs are the brand primary, the stone neutral, WebVue lavender/sand/ink,
 # the official --ui-radius token, the Arabic font and the light/dark modes (DESIGN.md).
 ALLOWED_RECIPE_KEYS = frozenset((
     'colors', 'button', 'input', 'inputNumber', 'textarea', 'select', 'selectMenu', 'card', 'table', 'badge',
@@ -568,7 +568,7 @@ ALLOWED_RECIPE_KEYS = frozenset((
     'switch', 'formField', 'tv', 'contextMenu', 'toast', 'alert', 'pageCard', 'listbox', 'fileUpload', 'inputMenu',
     'inputTags', 'inputDate', 'inputTime',
 ))
-BRAND_COLORS = re.compile(r"colors:\s*\{\s*primary:\s*'brand',\s*neutral:\s*'slate'\s*\}")
+BRAND_COLORS = re.compile(r"colors:\s*\{\s*primary:\s*'brand',\s*neutral:\s*'stone'\s*\}")
 REQUIRED_TOKENS = ('--color-brand-500', 'IBM Plex Sans Arabic', '--webvue-midnight', '--webvue-lime', '.dark')
 RETIRED_TOKENS = ('--webvue-radius', '--elevation-1', '--content-shadow', '--radius:', ':root.cream')
 
@@ -582,7 +582,7 @@ def theme_errors(current: dict[str, str]) -> list[str]:
     complete = whole_tree(current)
     if complete:
         if not BRAND_COLORS.search(config):
-            errors.append(UI + "app.config.ts: theme colors must stay { primary: 'brand', neutral: 'slate' }")
+            errors.append(UI + "app.config.ts: theme colors must stay { primary: 'brand', neutral: 'stone' }")
         for key in re.findall(r'^\s{4}([a-zA-Z]+):', config, re.M):
             if key not in ALLOWED_RECIPE_KEYS:
                 errors.append(f'{UI}app.config.ts: undocumented theme recipe key {key}')

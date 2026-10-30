@@ -433,9 +433,9 @@ class StaticGateTest(unittest.TestCase):
         snapshot = {
             APP + "app.vue": "<template><NuxtPage /></template>",
             UI + "app.config.ts": "export default defineAppConfig({\n  ui: {\n"
-                                   "    colors: { primary: 'brand', neutral: 'slate' },\n  },\n})",
+                                   "    colors: { primary: 'brand', neutral: 'stone' },\n  },\n})",
             UI + "assets/css/tokens.css": ":root { --color-brand-500: #06c; --ui-radius: 0.428571rem;\n"
-                                           "  --webvue-midnight: #13234a; --webvue-lime: #c6f432;\n"
+                                           "  --webvue-midnight: #14102a; --webvue-lime: var(--primary);\n"
                                            "  --status-success: green; --status-warning: amber; --status-info: blue;\n"
                                            "  --status-danger: red; --status-danger-foreground: white;\n"
                                            "  --unread-count-foreground: white;\n"
@@ -545,7 +545,7 @@ class StaticGateTest(unittest.TestCase):
 
     def test_theme_probes_tolerate_reformatting(self):
         spaced = self.whole(**{UI + "app.config.ts":
-                               "  ui: {\n    colors: {   primary: 'brand',\n      neutral: 'slate' },\n  }"})
+                               "  ui: {\n    colors: {   primary: 'brand',\n      neutral: 'stone' },\n  }"})
         self.assertEqual([e for e in policy.theme_errors(spaced) if "theme colors" in e], [])
 
     def test_retired_theme_token_is_reported(self):

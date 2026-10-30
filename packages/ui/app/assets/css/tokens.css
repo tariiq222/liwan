@@ -1,4 +1,4 @@
-/* WebVue identity (midnight + lime), light/dark modes, dense type and shape on
+/* WebVue identity (lavender, sand and ink on warm stone neutrals), light/dark modes, dense type and shape on
    Nuxt UI's stock theme: the Arabic font and its size modes, the fixed brand primary
    (the company colour never themes the interface), the fixed shell rail, the chart
    palette, 32px controls, 44px rows, the soft 18px card / 12px control radii and the 4px spacing
@@ -35,11 +35,11 @@
   /* Official Nuxt UI radius token: 6px base (Apple-style soft corners), so rounded-md = 9px, rounded-lg = 12px and rounded-xl = 18px. */
   --ui-radius: 0.428571rem;
   /* Fixed WebVue primary family; nothing overwrites it at runtime. */
-  --primary: #007ff8;
+  --primary: #5b3f8c;
   --primary-foreground: #fff;
-  --primary-hover: #0052a3;
+  --primary-hover: #4a3374;
   --primary-hover-foreground: #fff;
-  --primary-active: #00478f;
+  --primary-active: #3e2b63;
   --primary-active-foreground: #fff;
   /* Text-bearing solid fills (white label) use the deeper --primary-solid family; --primary stays the accent. */
   --primary-fill: var(--primary-solid);
@@ -48,39 +48,48 @@
   --primary-fill-hover-foreground: var(--primary-solid-hover-foreground);
   --primary-fill-active: var(--primary-solid-active);
   --primary-fill-active-foreground: var(--primary-solid-active-foreground);
-  --primary-soft: color-mix(in srgb, var(--primary) 18%, var(--ui-bg));
+  --primary-soft: color-mix(in srgb, var(--primary) 12%, var(--ui-bg));
   --primary-soft-foreground: var(--ui-text);
-  /* Solid primary button, in both modes: #0066cc under white text is 5.57:1 (the accent #007ff8 is for fills without text). */
-  --primary-solid: #0066cc;
+  /* Solid primary button: #5b3f8c under white text is 8.29:1 (hover 10.41:1, active 12.13:1); dark mode overrides the family. */
+  --primary-solid: #5b3f8c;
   --primary-solid-foreground: #fff;
-  --primary-solid-hover: #0052a3;
+  --primary-solid-hover: #4a3374;
   --primary-solid-hover-foreground: #fff;
-  --primary-solid-active: #00478f;
+  --primary-solid-active: #3e2b63;
   --primary-solid-active-foreground: #fff;
-  --brand-link: #0066cc;
+  --brand-link: #5b3f8c;
   --brand-soft: color-mix(in srgb, var(--primary) 8%, var(--ui-bg));
   --brand-border: color-mix(in srgb, var(--primary) 24%, var(--ui-border));
   /* Charts: a fixed categorical palette. */
-  --chart-1: #007ff8;
-  --chart-2: #0d9488;
-  --chart-3: #d97706;
-  --chart-4: #8b5cf6;
-  --chart-5: #f43f5e;
-  --chart-6: #0284c7;
+  --chart-1: #5b3f8c;
+  --chart-2: #0f766e;
+  --chart-3: #a16207;
+  --chart-4: #be185d;
+  --chart-5: #4d7c0f;
+  --chart-6: #2563eb;
   /* Status series for charts: the same fixed colours as the status badges. */
   --chart-status-success: #16a34a;
   --chart-status-info: #1d4ed8;
   --chart-status-warning: #d97706;
   --chart-status-error: #dc2626;
-  --chart-status-neutral: #64748b;
+  --chart-status-neutral: #9c8660;
   /* Hairline of cards, tables and dividers; --ui-border drives every ring-default and border-default. */
-  --ui-border: #e6e9f2;
+  --ui-border: #eadfc8;
+  /* Ink for titles and numbers, brown for secondary text (on white, canvas and sand only); sand is the border,
+     table-head and neutral-bar family. The neutral scale is Nuxt UI `stone` (app.config.ts). */
+  --ui-text: #14102a;
+  --ui-text-highlighted: #14102a;
+  --ui-text-toned: #6b4e2e;
+  --ui-text-muted: #6b4e2e;
+  --ui-text-dimmed: #6b4e2e;
+  --webvue-sand: #eadfc8;
+  --webvue-table-head: var(--webvue-sand);
   /* WebVue identity and density, at the 14px root. Controls 32px. Tables: a row is 44px and cells use
      the card padding; the dense list variant (default) pads cells 16px, the comfortable variant (home and
      overview pages) 20px and a 52px row. Cards pad 20px. Cards sit 16px apart and page sections 32px apart. */
-  --webvue-midnight: #13234a;
-  --webvue-lime: #c6f432;
-  --webvue-lime-foreground: #13234a;
+  --webvue-midnight: #14102a;
+  --webvue-lime: var(--primary);
+  --webvue-lime-foreground: var(--primary-foreground);
   --webvue-control-h: 2.285714rem;
   --webvue-row-h: 3.142857rem;
   --webvue-row-h-comfortable: 3.714286rem;
@@ -92,8 +101,8 @@
   /* Tag-kind hues: the soft pill colours of the page-header tags (bg + fg per hue, a closed set named by the tag kind). */
   --accent-blue-bg: #dbeafe;
   --accent-blue-fg: #1d4ed8;
-  --accent-violet-bg: #ede9fe;
-  --accent-violet-fg: #6d28d9;
+  --accent-violet-bg: #fae8ff;
+  --accent-violet-fg: #a21caf;
   --accent-sky-bg: #e0f2fe;
   --accent-sky-fg: #0369a1;
   --accent-amber-bg: #fef3c7;
@@ -102,22 +111,22 @@
   --accent-indigo-fg: #4338ca;
   --webvue-progress-sm: 0.428571rem;
   --webvue-progress-md: 0.571429rem;
-  /* Shell: a white floating module rail (fixed WebVue blue accents, not tenant-derived) and surfaces. */
-  --webvue-rail-border: #d8deec;
-  --webvue-rail-ink: #475569;
-  --webvue-rail-active: #d9ecff;
+  /* Shell: a white floating module rail (fixed WebVue lavender accents, not tenant-derived) and surfaces. */
+  --webvue-rail-border: #eadfc8;
+  --webvue-rail-ink: #6b4e2e;
+  --webvue-rail-active: #eee8f8;
   /* Round icon chips (rail circles on hover, context sidebar links). */
-  --webvue-chip: #f1f4fa;
+  --webvue-chip: #f5efe3;
   --webvue-chip-active: #ffffff;
-  --webvue-rail-active-ink: #0066cc;
+  --webvue-rail-active-ink: #5b3f8c;
   /* Floating shell cards (header, rail, context sidebar) lift off the canvas with these shadows; the active context link is tinted. */
-  --webvue-shell-shadow: 0 12px 32px rgb(15 23 42 / 8%);
-  --webvue-rail-shadow: 0 12px 32px rgb(15 23 42 / 10%);
-  --webvue-nav-active: #e8f3ff;
-  /* Table row under the pointer: a very light blue tint (dark mode: a lighter layer on the surface). */
-  --webvue-row-hover: #f3f6ff;
-  /* Page canvas: a slate tint behind content cards, which stay --ui-bg (bg-default) with a hairline ring. */
-  --webvue-canvas: #f6f7fb;
+  --webvue-shell-shadow: 0 12px 32px rgb(20 16 42 / 8%);
+  --webvue-rail-shadow: 0 12px 32px rgb(20 16 42 / 10%);
+  --webvue-nav-active: #eee8f8;
+  /* Table row under the pointer: a very light sand tint (dark mode: a lighter layer on the surface). */
+  --webvue-row-hover: #faf6ee;
+  /* Page canvas: a warm cream behind content cards, which stay --ui-bg (bg-default) with a hairline ring. */
+  --webvue-canvas: #f8f4ec;
   --shell-background: var(--webvue-canvas);
   --shell-foreground: var(--ui-text);
   --context-surface: var(--ui-bg);
@@ -192,53 +201,65 @@
 :root:lang(en) { font-size: 13px; }
 :root:lang(en)[data-font-size="medium"] { font-size: 15px; }
 :root:lang(en)[data-font-size="large"] { font-size: 17px; }
-/* Dark mode: midnight-tinted surfaces; the rail stays midnight. */
+/* Dark mode: ink-violet stepped surfaces (base #14102a), lavender accents and sand secondary text. */
 .dark {
   color-scheme: dark;
-  --ui-bg: #0a1124;
-  --ui-bg-muted: #0f182f;
-  --ui-bg-elevated: #15203b;
-  --ui-bg-accented: #1d2a48;
-  --ui-border: #22304f;
-  --ui-border-muted: #1a2642;
-  --ui-border-accented: #2c3b5e;
-  --ui-text: #e2e8f0;
-  --ui-text-highlighted: #f8fafc;
-  --ui-text-muted: #94a3b8;
-  --ui-text-toned: #cbd5e1;
-  --ui-text-dimmed: #94a3b8;
-  --webvue-canvas: #070d1c;
-  /* The rail stays WebVue blue, clearly lighter than the page canvas, with an edge line (shell.css). */
-  --webvue-rail-border: #2c3b5e;
-  --webvue-rail-ink: #cbd5e1;
-  --webvue-rail-active: #1b2d5c;
-  --webvue-chip: #15203b;
-  --webvue-chip-active: #0a1124;
-  --webvue-rail-active-ink: #66b5ff;
+  --ui-bg: #14102a;
+  --ui-bg-muted: #1b1736;
+  --ui-bg-elevated: #231e42;
+  --ui-bg-accented: #2e2852;
+  --ui-border: #352e5c;
+  --ui-border-muted: #2a2448;
+  --ui-border-accented: #463e72;
+  --ui-text: #ede9f7;
+  --ui-text-highlighted: #f8f5ff;
+  --ui-text-muted: #d2c3a3;
+  --ui-text-toned: #e6dcc6;
+  --ui-text-dimmed: #d2c3a3;
+  --webvue-canvas: #0e0b1f;
+  --webvue-sand: #d2c3a3;
+  --webvue-table-head: var(--ui-bg-muted);
+  /* Accent lavender #c9bbee for icons, rings and text; the text-bearing fill is #7c5cc4 under white (5.02:1). */
+  --primary: #c9bbee;
+  --primary-foreground: #14102a;
+  --primary-hover: #b7a5e8;
+  --primary-hover-foreground: #14102a;
+  --primary-active: #a592dc;
+  --primary-active-foreground: #14102a;
+  --primary-solid: #7c5cc4;
+  --primary-solid-hover: #6a49b3;
+  --primary-solid-active: #5b3f8c;
+  /* The rail stays a surface step clearly lighter than the page canvas, with an edge line (shell.css). */
+  --webvue-rail-border: #352e5c;
+  --webvue-rail-ink: #d2c3a3;
+  --webvue-rail-active: #2e2852;
+  --webvue-chip: #231e42;
+  --webvue-chip-active: #14102a;
+  --webvue-rail-active-ink: #c9bbee;
   --webvue-shell-shadow: 0 12px 32px rgb(0 0 0 / 35%);
   --webvue-rail-shadow: 0 12px 32px rgb(0 0 0 / 35%);
-  --webvue-nav-active: #16264d;
-  --webvue-row-hover: #111c38;
+  --webvue-nav-active: #2a2350;
+  --webvue-row-hover: #1e1938;
   /* Brand tone on dark surfaces: 4.5:1 on every surface, hue kept (fixed values). */
-  --brand-link: #66b5ff;
-  --ring: #66b5ff;
-  --sidebar-ring: #66b5ff;
-  --chart-1: #66b5ff;
+  --brand-link: #c9bbee;
+  --ring: #c9bbee;
+  --sidebar-ring: #c9bbee;
+  --chart-1: #c9bbee;
   --chart-2: #2dd4bf;
   --chart-3: #fbbf24;
-  --chart-4: #a78bfa;
-  --chart-5: #fb7185;
-  --chart-6: #38bdf8;
+  --chart-4: #f472b6;
+  --chart-5: #a3c95f;
+  --chart-6: #60a5fa;
   --chart-status-success: #4ade80;
   --chart-status-info: #60a5fa;
   --chart-status-warning: #fbbf24;
   --chart-status-error: #f87171;
-  --chart-status-neutral: #94a3b8;
+  --chart-status-neutral: #b5a27e;
   /* Tag-kind pills on dark surfaces: light text on a 16% tint of the same hue. */
   --accent-blue-bg: color-mix(in srgb, #93c5fd 16%, transparent);
   --accent-blue-fg: #93c5fd;
-  --accent-violet-bg: color-mix(in srgb, #c4b5fd 16%, transparent);
-  --accent-violet-fg: #c4b5fd;
+  --accent-violet-bg: color-mix(in srgb, #f0abfc 16%, transparent);
+  --accent-violet-fg: #f0abfc;
   --accent-sky-bg: color-mix(in srgb, #7dd3fc 16%, transparent);
   --accent-sky-fg: #7dd3fc;
   --accent-amber-bg: color-mix(in srgb, #fcd34d 16%, transparent);
