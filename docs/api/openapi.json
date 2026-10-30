@@ -83074,6 +83074,9 @@
                   "maximum": 9007199254740991,
                   "type": "integer"
                 },
+                "is_reached": {
+                  "type": "boolean"
+                },
                 "name": {
                   "type": "string"
                 },
@@ -83094,7 +83097,8 @@
                 "id",
                 "name",
                 "start_date",
-                "deadline"
+                "deadline",
+                "is_reached"
               ],
               "type": "object"
             },
@@ -84868,6 +84872,9 @@
             "maximum": 9007199254740991,
             "type": "integer"
           },
+          "is_reached": {
+            "type": "boolean"
+          },
           "name": {
             "type": "string"
           },
@@ -84888,7 +84895,8 @@
           "id",
           "name",
           "start_date",
-          "deadline"
+          "deadline",
+          "is_reached"
         ],
         "type": "object"
       },

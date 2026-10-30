@@ -185,8 +185,6 @@ describe('task comment draft persistence', () => {
           ChevronLeft: passthrough,
           ChevronRight: passthrough,
           t: (key: string) => key,
-          deadlineTone: () => 'neutral',
-          deadlineLabel: () => '',
           refetch: () => {},
           startTitleEdit: () => {},
           saveTitle: () => {},

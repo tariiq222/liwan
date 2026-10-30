@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { projectRecordBack } from '@/utils/projectNavigation'
 import ProjectPhaseGate from '@/components/pmo/projects/ProjectPhaseGate.vue'
+import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState.vue'
 import ProjectOverview from '@/components/pmo/projects/ProjectOverview.vue'
 import { ApiError } from '@/composables/useApi'
 import { projectIdFromPath } from '@/modules/pmo/projectRoutes'
@@ -33,12 +34,7 @@ const copyTo = computed(() => ({
 </script>
 
 <template>
-  <SharedPageContainer v-if="notFound" width="list">
-    <div class="flex flex-col items-start gap-(--liwan-gap-card)">
-      <p class="text-muted">{{ t('projects.notFound') }}</p>
-      <UButton type="button" color="neutral" variant="outline" size="sm" @click="router.push(projectReturnTo)">{{ t('projects.backToProjects') }}</UButton>
-    </div>
-  </SharedPageContainer>
+  <ProjectNotFoundState v-if="notFound" :back-to="projectReturnTo" />
   <!-- The workspace frame above is this page's h1, so hide-header draws no heading here. The title still
        names the page for the shell. The frame and its tabs span the full list width, so the record is full width
        too and the summary tiles line up with the tab strip. -->

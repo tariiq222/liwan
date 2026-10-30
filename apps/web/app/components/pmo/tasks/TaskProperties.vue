@@ -112,6 +112,7 @@ function setDeadline(date: CalendarDate | undefined, time: string) {
     Number.isFinite(minutes) ? minutes : 0,
     0, 0,
   )
+  // Second precision: toISOString() emits milliseconds, and the API's contract shape (serializers/common.py::iso) has none.
   const dateDeadline = `${local.toISOString().slice(0, 19)}Z`
   const boundsError = validateTaskDates({
     milestoneStart: milestoneStart.value,
@@ -124,9 +125,7 @@ function setDeadline(date: CalendarDate | undefined, time: string) {
     return
   }
   deadlineError.value = null
-  // Second precision: toISOString() emits milliseconds, and the API's
-  // contract shape (serializers/common.py::iso) has none.
-  patch({ date_deadline: `${local.toISOString().slice(0, 19)}Z` })
+  patch({ date_deadline: dateDeadline })
 }
 
 function onDeadlineDateChange(value: string | null) {
@@ -164,7 +163,12 @@ watch(
 )
 function onHoursChange() {
   const n = Number(hoursDraft.value)
-  if (!Number.isFinite(n) || n === props.task.allocated_hours) return
+  // The field is min=0: a negative or empty entry puts the saved value back instead of staying on screen unsaved.
+  if (!Number.isFinite(n) || n < 0 || hoursDraft.value.trim() === '') {
+    hoursDraft.value = String(props.task.allocated_hours)
+    return
+  }
+  if (n === props.task.allocated_hours) return
   patch({ allocated_hours: n })
 }
 

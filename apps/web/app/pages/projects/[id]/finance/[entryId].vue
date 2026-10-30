@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
+import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState.vue'
 import { ApiError } from '@/composables/useApi'
 import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 import { useDeleteFinanceEntry, useProjectFinanceEntry, useProjectFinanceList } from '@/composables/useProjectFinance'
@@ -57,6 +58,11 @@ function editPageKey(target: { params: Record<string, string | string[]> }) {
   return `finance-edit-${project}-${entry}`
 }
 
+function cancelRemoval() {
+  confirmDelete.value = false
+  deleteError.value = null
+}
+
 async function confirmRemoval() {
   if (!hydrated.value || !canManage.value || !entry.value || deleting.value) return
   deleteError.value = null
@@ -87,10 +93,12 @@ async function confirmRemoval() {
   >
     <template v-if="entry && canManage && projectId && entryId" #actions>
       <UButton icon="i-lucide-pencil" :disabled="!hydrated" :to="editTo">{{ t('app.edit') }}</UButton>
-      <UButton color="error" variant="outline" icon="i-lucide-trash-2" :disabled="!hydrated || deleting" @click="confirmDelete = !confirmDelete">{{ t('projects.finance.delete') }}</UButton>
+      <SharedRowActions
+        :actions="[{ label: t('projects.finance.delete'), icon: 'i-lucide-trash-2', destructive: true, disabled: deleting, onSelect: () => { confirmDelete = true } }]"
+        :label="entry.title || t('projects.finance.detailTitle')"
+      />
     </template>
-    <p v-if="projectId === null || entryId === null" class="text-muted">{{ t('projects.invalidId') }}</p>
-    <p v-else-if="notFound" class="text-muted">{{ t('projects.notFound') }}</p>
+    <ProjectNotFoundState v-if="notFound" embedded />
     <template v-else-if="entry && currency">
       <SharedInlineConfirm
         v-if="confirmDelete"
@@ -99,7 +107,7 @@ async function confirmRemoval() {
         :confirm-label="t('projects.finance.delete')"
         :pending="deleting"
         :disabled="!canManage"
-        @cancel="confirmDelete = false"
+        @cancel="cancelRemoval"
         @confirm="confirmRemoval"
       >
         <p v-if="deleteError" class="text-error">{{ deleteError }}</p>

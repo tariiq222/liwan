@@ -7,6 +7,7 @@ const NONE = 'none'
 const props = defineProps<{ projectId: number; summary: FinanceSummary }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
+const toast = useToast()
 const { available, query } = useRecordPicker('cost-center')
 const { mutate, isPending } = useSetActualAccount()
 const error = ref('')
@@ -26,7 +27,7 @@ function choose(value: unknown) {
   error.value = ''
   mutate(
     { projectId: props.projectId, accountId: raw === NONE ? null : Number(raw) },
-    { onError: (e) => { error.value = t(actualAccountErrorKey(e)) } },
+    { onSuccess: () => toast.add({ title: t('projects.toast.actualAccountSaved'), color: 'success' }), onError: (e) => { error.value = t(actualAccountErrorKey(e)) } },
   )
 }
 </script>

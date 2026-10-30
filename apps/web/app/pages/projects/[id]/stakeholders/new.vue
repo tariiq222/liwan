@@ -23,7 +23,7 @@ function created(item: { id: number }) {
       :empty="!access.isLoading.value && !access.error.value && !access.data.value"
       @retry="access.refetch"
     />
-    <p v-if="access.data.value && !access.data.value.can_manage" role="status">{{ t('projects.governance.readOnly') }}</p>
+    <SharedForbiddenState v-if="access.data.value && !access.data.value.can_manage" :description="t('projects.governance.readOnly')" />
     <StakeholderForm v-if="access.data.value?.can_manage" :project-id="projectId" @saved="created" @cancel="router.push(backTo)" />
   </SharedCreatePanel>
 </template>

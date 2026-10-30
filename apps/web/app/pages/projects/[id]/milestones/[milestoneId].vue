@@ -3,6 +3,7 @@ import type { MilestonePatch } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
 import { useMilestones, useUpdateMilestone, useDeleteMilestone } from '@/composables/useMilestones'
+import { milestoneBadge } from '@/components/pmo/projects/milestoneState'
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import { parsePositiveId } from '@/utils/routeParams'
 import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
@@ -11,6 +12,7 @@ const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
+const toast = useToast()
 const projectId = computed(() => parsePositiveId(route.params.id))
 const milestoneId = computed(() => parsePositiveId(route.params.milestoneId))
 const { data: project, error: projectError, isLoading: projectLoading, refetch: refetchProject } = useProject(projectId)
@@ -37,7 +39,9 @@ function failed(cause: unknown) {
 async function patch(body: MilestonePatch) {
   if (!hydrated.value || !canManage.value || pending.value || !milestone.value || !projectId.value) return
   mutationError.value = null
-  try { await update.mutateAsync({ projectId: projectId.value, id: milestone.value.id, patch: body }) }
+  try { await update.mutateAsync({ projectId: projectId.value, id: milestone.value.id, patch: body })
+    toast.add({ title: t('projects.toast.milestoneUpdated'), color: 'success' })
+  }
   catch (cause) { failed(cause) }
 }
 function toggleDeliverable(index: number, done: boolean) {
@@ -49,6 +53,7 @@ async function deleteMilestone() {
   mutationError.value = null
   try {
     await remove.mutateAsync({ projectId: projectId.value, id: milestone.value.id })
+    toast.add({ title: t('projects.toast.milestoneDeleted'), color: 'success' })
     await router.replace(backTo.value)
   } catch (cause) { failed(cause) }
 }
@@ -56,11 +61,10 @@ async function deleteMilestone() {
 
 <template>
   <SharedRecordPage v-if="isRecord" :title="milestone?.name ?? t('projects.milestones.name')" :back-to="backTo" :back-label="t('projects.tabs.milestones')" :loading="(isLoading || projectLoading) && !milestone" :error="projectError || error" :keep-content="!!milestone && !notFound" @retry="retry">
-    <template #back><UButton :to="backTo" data-testid="milestone-detail-back" color="neutral" variant="ghost" icon="i-lucide-arrow-right" class="ltr:[&_svg]:rotate-180">{{ t('projects.tabs.milestones') }}</UButton></template>
     <template v-if="canManage && milestone" #actions>
       <UButton data-testid="milestone-detail-edit" :to="editTo" :disabled="!hydrated || pending">{{ t('app.edit') }}</UButton>
       <UButton color="neutral" variant="outline" :disabled="!hydrated || pending" @click="patch({ is_reached: !milestone.is_reached })">{{ t(milestone.is_reached ? 'projects.milestones.reopen' : 'projects.milestones.markReached') }}</UButton>
-      <UButton color="error" variant="outline" :disabled="!hydrated || pending || milestone.task_count > 0" :title="milestone.task_count > 0 ? t('projects.milestones.deleteBlocked', { count: milestone.task_count }, milestone.task_count) : undefined" @click="confirmingDelete = true">{{ t('projects.milestones.delete') }}</UButton>
+      <UButton color="error" variant="outline" :disabled="!hydrated || pending || milestone.task_count > 0" @click="confirmingDelete = true">{{ milestone.task_count > 0 ? t('projects.milestones.deleteBlocked', { count: milestone.task_count }, milestone.task_count) : t('projects.milestones.delete') }}</UButton>
     </template>
     <SharedEmptyState v-if="notFound" bordered :title="t('projects.milestones.notFound')" />
     <template v-else-if="milestone">
@@ -83,7 +87,7 @@ async function deleteMilestone() {
     <template v-if="milestone && !notFound" #summary>
       <SharedPropertiesPanel>
         <SharedPropertyRow :label="t('projects.milestones.state')">
-          <SharedStatusBadge :tone="milestone.is_reached ? 'success' : 'neutral'" :label="t(milestone.is_reached ? 'projects.milestones.reached' : 'projects.milestones.notReached')" />
+          <SharedStatusBadge :tone="milestoneBadge(milestone).tone" :label="t(milestoneBadge(milestone).labelKey)" />
         </SharedPropertyRow>
         <SharedPropertyRow :label="t('projects.milestones.startDate')" :value="formatCalendarDate(milestone.start_date, locale)" />
         <SharedPropertyRow :label="t('projects.milestones.deadline')" :value="formatCalendarDate(milestone.deadline, locale)" />

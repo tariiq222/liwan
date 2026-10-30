@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useQueryClient } from '@tanstack/vue-query'
-import { CHARTER_RETURN_NOTE_MAX, type ProjectCharterAction, type ProjectDetail } from '@liwan/contracts'
+import { CHARTER_RETURN_NOTE_MAX, type ProjectDetail } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { formatLiwanDate } from '@liwan/ui/app/composables/calendarDate'
 import { projectKeys } from '@/composables/projectKeys'
@@ -31,13 +31,20 @@ const withdrawing = ref(false)
 const note = ref('')
 const noteReady = computed(() => note.value.trim().length > 0)
 
-async function run(action: ProjectCharterAction, body?: string) {
+const CHARTER_ACTION_TOAST = {
+  approve: 'projects.toast.charterApproved',
+  return: 'projects.toast.charterReturned',
+  withdraw: 'projects.toast.charterWithdrawn',
+} as const
+
+async function run(action: keyof typeof CHARTER_ACTION_TOAST, body?: string) {
   if (!hydrated.value || isPending.value) return
   try {
     await transition({ id: props.project.id, action, expected: props.project.updated_at, note: body })
     returning.value = false
     withdrawing.value = false
     note.value = ''
+    toast.add({ title: t(CHARTER_ACTION_TOAST[action]), color: 'success' })
   } catch (error) {
     if (error instanceof ApiError && error.status === 409 && error.code === 'stale_write') {
       toast.add({ title: t('projects.charter.staleReview'), color: 'warning' })

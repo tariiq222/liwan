@@ -5,7 +5,6 @@ import { ATTACHMENT_ACCEPT, MAX_ATTACHMENT_BYTES, fileToBase64 } from '@/utils/a
 
 // The project task's wiring of `SharedAttachmentList`.
 const props = defineProps<{ taskId: number; canWrite: boolean }>()
-const emit = defineEmits<{ changed: [] }>()
 
 const { t } = useI18n()
 const toast = useToast()
@@ -33,7 +32,7 @@ async function uploadFile(file: File) {
   try {
     if (file.size > MAX_ATTACHMENT_BYTES) throw new Error(t('attachments.errors.tooLarge'))
     await upload({ taskId: props.taskId, name: file.name, mimetype: file.type || undefined, data: await fileToBase64(file) })
-    emit('changed')
+    toast.add({ title: t('attachments.uploaded'), color: 'success' })
   } catch (e) {
     fail(e)
   }
@@ -43,7 +42,7 @@ async function deleteFile(attachmentId: number) {
   error.value = ''
   try {
     await remove({ taskId: props.taskId, attachmentId })
-    emit('changed')
+    toast.add({ title: t('attachments.deleted'), color: 'success' })
   } catch (e) {
     fail(e)
   }

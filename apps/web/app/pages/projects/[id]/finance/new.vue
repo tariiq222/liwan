@@ -2,6 +2,7 @@
 import { owningListBack } from '@/utils/recordListOrigin'
 import { ApiError } from '@/composables/useApi'
 import { useProjectFinanceList } from '@/composables/useProjectFinance'
+import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState.vue'
 import FinanceEntryForm from '@/components/pmo/projects/finance/FinanceEntryForm.vue'
 import {
   financeWriteAllowed,
@@ -52,18 +53,10 @@ function saved(entry: { id: number }) {
 
 <template>
   <SharedCreatePanel :title="t('projects.finance.createTitle')" :back-to="backTo">
-    <template v-if="projectId === null">
-      <p class="text-muted">{{ t('projects.invalidId') }}</p>
-    </template>
+    <ProjectNotFoundState v-if="notFound || projectId === null" embedded />
     <template v-else>
-      <SharedPageState
-        v-if="!keepForm"
-        :loading="initialLoading"
-        :error="pageError"
-        :empty="!initialLoading && !pageError && (notFound || (access.data.value && !writeAllowed))"
-        :empty-text="notFound ? t('projects.notFound') : t('projects.forbidden')"
-        @retry="access.refetch"
-      />
+      <SharedForbiddenState v-if="!keepForm && !initialLoading && !pageError && access.data.value && !writeAllowed" :description="t('projects.forbidden')" />
+      <SharedPageState v-else-if="!keepForm" :loading="initialLoading" :error="pageError" @retry="access.refetch" />
       <template v-else>
         <UAlert v-if="refreshError" color="error" variant="soft" :title="t('projects.finance.refreshError')">
           <template #actions>

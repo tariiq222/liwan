@@ -81,10 +81,3 @@ export function deadlineTag(daysRemaining: number | null, isClosed: boolean): De
   if (daysRemaining > 0) return { tone: 'success', icon: 'i-lucide-hourglass' }
   return daysRemaining < 0 ? { tone: 'destructive', icon: 'i-lucide-timer-off' } : { tone: 'warning', icon: 'i-lucide-alarm-clock' }
 }
-
-/** A closed task is never urgent; otherwise overdue is destructive and the next two days warn. */
-export function deadlineTone(daysRemaining: number | null, isClosed: boolean): StatusTone {
-  if (isClosed || daysRemaining === null) return 'neutral'
-  if (daysRemaining < 0) return 'destructive'
-  return daysRemaining <= 2 ? 'warning' : 'neutral'
-}

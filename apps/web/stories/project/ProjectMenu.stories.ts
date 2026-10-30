@@ -6,8 +6,8 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Project/ProjectMenu',
   component: ProjectMenu,
-  args: { project, hideSettings: true },
-  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCardBody.vue:29', 'رأس بطاقة المشروع. الأرشفة تعرض تأكيدًا ثم خطأ 422 لأن Storybook لا يحاكي تفاصيل المشروع الكاملة.'),
+  args: { project },
+  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCardBody.vue:29', 'رأس بطاقة المشروع. القائمة تطلب الأرشفة فقط؛ التأكيد يرسمه الجدول أو البطاقة بعرض كامل.'),
   render: args => ({
     components: { ProjectMenu },
     setup: () => ({ args }),

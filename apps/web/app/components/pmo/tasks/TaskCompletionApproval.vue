@@ -55,6 +55,7 @@ async function request() {
   if (busy.value || !hydrated.value) return
   try {
     await requestCompletion({ id: props.task.id })
+    toast.add({ title: t('tasks.completion.done.requested'), color: 'success' })
   } catch (error) {
     await recover(error)
   }
@@ -64,6 +65,7 @@ async function accept() {
   if (busy.value || !hydrated.value) return
   try {
     await acceptCompletion({ id: props.task.id, revision: props.task.completion_revision ?? 0 })
+    toast.add({ title: t('tasks.completion.done.accepted'), color: 'success' })
   } catch (error) {
     await recover(error)
   }
@@ -75,6 +77,7 @@ async function returnTask() {
   try {
     await returnCompletion({ id: props.task.id, revision: props.task.completion_revision ?? 0, note: trimmed })
     note.value = ''
+    toast.add({ title: t('tasks.completion.done.returned'), color: 'success' })
   } catch (error) {
     await recover(error)
   }
@@ -84,6 +87,7 @@ async function withdraw() {
   if (busy.value || !hydrated.value) return
   try {
     await withdrawCompletion({ id: props.task.id, revision: props.task.completion_revision ?? 0 })
+    toast.add({ title: t('tasks.completion.done.withdrawn'), color: 'success' })
   } catch (error) {
     await recover(error)
   }

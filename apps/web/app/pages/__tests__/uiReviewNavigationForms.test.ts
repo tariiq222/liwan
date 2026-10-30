@@ -62,7 +62,7 @@ async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<s
     useUpdateDocument: () => ({ mutateAsync: update, isPending: Vue.ref(false) }),
     useSsrQuerySeed: () => undefined, navigateTo: navigate,
     ApiError: class ApiError extends Error {},
-    TaskBoard: {}, TaskTable: {}, TaskToolbar: {}, TaskKpiStrip: {}, FilterBar: {}, DocumentEditor: {},
+    ProjectNotFoundState: {}, TaskBoard: {}, TaskTable: {}, TaskToolbar: {}, TaskKpiStrip: {}, FilterBar: {}, DocumentEditor: {},
     projectStatusBadge: () => ({ tone: 'neutral', labelKey: '' }), badgeLabel: () => '', statusTag: () => ({ label: '' }), ProjectWorkspaceTabs: {}, ProjectPhaseStepper: {},
     ...overrides,
   }

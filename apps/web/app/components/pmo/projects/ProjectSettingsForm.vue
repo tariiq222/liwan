@@ -23,10 +23,23 @@ const sortedStages = computed(() => [...props.project.stages].sort((a, b) => a.s
 function onApiError(e: unknown) {
   toast.add({ title: e instanceof ApiError ? e.message : t('errors.generic'), color: 'error' })
 }
-function onAddStage(name: string) { addStage({ projectId: props.project.id, name }, { onError: onApiError }) }
-function onRenameStage(id: number | string, name: string) { updateStage({ projectId: props.project.id, id: Number(id), patch: { name } }, { onError: onApiError }) }
+const stageEditor = ref<InstanceType<typeof StageListEditor> | null>(null)
+function onAddStage(name: string) {
+  addStage({ projectId: props.project.id, name }, {
+    onSuccess: () => { stageEditor.value?.clearNewName(); toast.add({ title: t('projects.toast.stageAdded'), color: 'success' }) },
+    onError: onApiError,
+  })
+}
+function onRenameStage(id: number | string, name: string) {
+  updateStage({ projectId: props.project.id, id: Number(id), patch: { name } }, { onSuccess: () => toast.add({ title: t('projects.toast.stageRenamed'), color: 'success' }), onError: onApiError })
+}
 function onFoldStage(id: number | string, fold: boolean) { updateStage({ projectId: props.project.id, id: Number(id), patch: { fold } }, { onError: onApiError }) }
-function onReorderStages(ids: (number | string)[]) { reorderStages({ projectId: props.project.id, ids: ids.map(Number) }, { onError: onApiError }) }
+function onReorderStages(ids: (number | string)[]) {
+  reorderStages({ projectId: props.project.id, ids: ids.map(Number) }, {
+    onSuccess: () => toast.add({ title: t('projects.toast.stagesReordered'), color: 'success' }),
+    onError: (e) => { stageEditor.value?.restoreOrder(); onApiError(e) },
+  })
+}
 function onDeleteStage(id: number | string) {
   deleteStage({ projectId: props.project.id, id: Number(id) }, { onSuccess: () => toast.add({ title: t('projects.stages.deleted'), color: 'success' }), onError: onApiError })
 }
@@ -49,7 +62,7 @@ function onDeleteStage(id: number | string) {
       <ProjectGeneralForm :project="project" />
     </SharedFormSection>
     <SharedFormSection panel :title="t('projects.settings.tabs.stages')" :description="t('projects.refresh.settings.stagesDescription')">
-      <StageListEditor :stages="sortedStages" :busy="stagesBusy" @add="onAddStage" @rename="onRenameStage" @fold="onFoldStage" @reorder="onReorderStages" @delete="onDeleteStage" />
+      <StageListEditor ref="stageEditor" :stages="sortedStages" :busy="stagesBusy" @add="onAddStage" @rename="onRenameStage" @fold="onFoldStage" @reorder="onReorderStages" @delete="onDeleteStage" />
     </SharedFormSection>
     <SharedFormSection panel :title="t('projects.settings.tabs.followers')" :description="t('projects.refresh.settings.followersDescription')">
       <FollowerList :project="project" />

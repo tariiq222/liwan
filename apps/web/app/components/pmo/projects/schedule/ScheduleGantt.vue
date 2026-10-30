@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ProjectSchedule } from '@liwan/contracts'
 import { STATE_TONE, type StateTone } from '@/composables/taskState'
+import { milestoneBadge } from '@/components/pmo/projects/milestoneState'
 import { MONTH_DAYS, buildScheduleAxis, formatScheduleDate, scheduleBarStyle, scheduleColumnLastDay, scheduleDatePosition, scheduleFocusDate, type ScheduleScale } from '@/utils/projectSchedule'
 import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 
@@ -12,6 +13,13 @@ const BAR_TONE: Record<StateTone | 'primary', string> = {
   destructive: 'schedule-gantt-bar-danger',
   neutral: 'schedule-gantt-bar-muted',
 }
+
+// A milestone dot reads its state from the same rule as the milestone badge: reached, open, or past its deadline.
+const MILESTONE_DOT_CLASS = {
+  success: 'liwan-status-dot-success',
+  info: 'bg-(--status-info)',
+  destructive: 'bg-(--status-danger)',
+} as const
 
 const props = defineProps<{
   schedule: ProjectSchedule
@@ -110,12 +118,13 @@ defineExpose({ scrollPage, scrollToToday: scrollToFocus })
               <NuxtLink
                 v-for="milestone in datedMilestones"
                 :key="milestone.id"
-                class="schedule-gantt-mark liwan-status-dot-warning rtl:translate-x-full"
+                class="schedule-gantt-mark rtl:translate-x-full"
+                :class="MILESTONE_DOT_CLASS[milestoneBadge(milestone).tone]"
                 :style="markerPosition(milestone.deadline!)"
-                :title="`${milestone.name} · ${milestone.deadline}`"
+                :title="`${milestone.name} · ${milestone.deadline} · ${t(milestoneBadge(milestone).labelKey)}`"
                 :data-milestone-id="milestone.id"
                 :to="milestoneLink(milestone.id)"
-                :aria-label="milestone.name"
+                :aria-label="`${milestone.name} · ${t(milestoneBadge(milestone).labelKey)}`"
               />
             </div>
           </template>
@@ -163,7 +172,7 @@ defineExpose({ scrollPage, scrollToToday: scrollToFocus })
       </ul>
       <p v-if="groupedColumns" class="schedule-gantt-legend" data-testid="schedule-gantt-grouped-note">{{ t('projects.schedule.groupedColumns') }}</p>
       <ul v-if="datedMilestones.length" class="schedule-gantt-legend" :aria-label="t('projects.schedule.milestones')">
-        <li v-for="milestone in datedMilestones" :key="milestone.id">{{ milestone.name }} · {{ formatScheduleDate(milestone.deadline!, locale) }}</li>
+        <li v-for="milestone in datedMilestones" :key="milestone.id">{{ milestone.name }} · {{ formatScheduleDate(milestone.deadline!, locale) }} · {{ t(milestoneBadge(milestone).labelKey) }}</li>
       </ul>
   </div>
 </template>

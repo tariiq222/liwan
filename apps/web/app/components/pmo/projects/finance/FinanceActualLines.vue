@@ -3,15 +3,19 @@ import type { TableColumn } from '@nuxt/ui'
 import type { ActualLine, FinanceSummary } from '@liwan/contracts'
 import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 import { useProjectActualLines } from '@/composables/useProjectFinance'
-import { FINANCE_PAGE, formatMoney } from '@/utils/projectFinance'
+import { FINANCE_PAGE, formatMoney, nextOffsetAfterListResult } from '@/utils/projectFinance'
+import { parseOffset } from '@/utils/routeQuery'
 
-// The posted lines behind an external actual: a read-only table with its own paging. A line links to its record
-// when an application declares where that kind opens and the user may read it.
+// The posted lines behind an external actual: a read-only table with its own paging, kept in `?linesOffset=` so refresh and
+// back keep the page (the ledger above owns `?offset=`). A line links to its record when an application declares where that
+// kind opens and the user may read it.
 const props = defineProps<{ projectId: number; summary: FinanceSummary }>()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const linkTo = useRecordLink()
-const offset = ref(0)
+const route = useRoute()
+const router = useRouter()
+const offset = computed(() => parseOffset(route.query.linesOffset))
 const lines = useProjectActualLines(() => props.projectId, computed(() => ({ limit: FINANCE_PAGE, offset: offset.value })))
 const items = computed(() => lines.data.value?.items ?? [])
 const total = computed(() => lines.data.value?.total ?? 0)
@@ -29,10 +33,18 @@ const recordTo = (line: ActualLine) => line.record ? linkTo(line.record.kind, li
 const dateLabel = (line: ActualLine) => formatCalendarDate(line.date, locale.value)
 const empty = computed(() => !lines.isLoading.value && !lines.error.value && !items.value.length)
 
+const offsetQuery = (value: number) => (value > 0 ? String(value) : undefined)
+
 function setPage(next: number) {
   if (!hydrated.value || lines.isFetching.value || next < 1 || next > pages.value) return
-  offset.value = (next - 1) * FINANCE_PAGE
+  void router.push({ query: { ...route.query, linesOffset: offsetQuery((next - 1) * FINANCE_PAGE) } })
 }
+
+// An offset past the last page (a stale link, lines removed meanwhile) moves back onto it once the server has answered.
+watch(() => ({ fetching: lines.isFetching.value, offset: offset.value, total: lines.data.value?.total }), ({ fetching, offset: requested, total }) => {
+  const next = nextOffsetAfterListResult({ isFetching: fetching, requestedOffset: requested, responseOffset: requested, total, pageSize: FINANCE_PAGE })
+  if (next !== null) void router.replace({ query: { ...route.query, linesOffset: offsetQuery(next) } })
+}, { immediate: true })
 </script>
 
 <template>

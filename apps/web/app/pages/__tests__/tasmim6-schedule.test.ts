@@ -14,3 +14,12 @@ describe('the schedule stays on the timeline template', () => {
     expect(gantt).toContain('defineExpose')
   })
 })
+
+describe('the Gantt milestone dots', () => {
+  it('colour each dot from the milestone state, not one warning tone', () => {
+    const gantt = read('components/pmo/projects/schedule/ScheduleGantt.vue')
+    expect(gantt).toContain('MILESTONE_DOT_CLASS[milestoneBadge(milestone).tone]')
+    expect(gantt).not.toMatch(/liwan-status-dot-warning[^"]*"\s*:style="markerPosition\(milestone/)
+    for (const tone of ['success', 'info', 'destructive']) expect(gantt).toMatch(new RegExp(`${tone}: '(liwan-status-dot-success|bg-\\(--status-(info|danger)\\))'`))
+  })
+})

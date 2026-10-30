@@ -99,7 +99,6 @@ describe('ProjectCreateForm production template', () => {
       returnToQuery: () => ({}),
       defaultsLoading: true,
       defaults: undefined,
-      forbidden: false,
       defaultsFailed: false,
       defaultsFetching: false,
       hydrated: true,
@@ -112,29 +111,6 @@ describe('ProjectCreateForm production template', () => {
     expect(html).toContain('data-testid="project-create-submit" disabled')
   })
 
-  it('shows forbidden instead of rendering a writable charter form', async () => {
-    const html = await renderForm(() => ({
-      t,
-      route: { fullPath: '/projects/new' },
-      copyFrom: null,
-      returnToQuery: () => ({}),
-      defaultsLoading: false,
-      defaults: undefined,
-      forbidden: true,
-      defaultsFailed: true,
-      defaultsFetching: false,
-      hydrated: true,
-      defaultManagerName: null,
-      retryDefaults: () => {},
-      emit: () => {},
-    }))
-    expect(html).toContain('data-testid="project-create-forbidden"')
-    expect(html).toContain('projects.createForbidden')
-    expect(html).toContain('data-testid="project-create-form"')
-    expect(html).toContain('data-testid="project-create-submit" disabled')
-    expect(html).not.toContain('data-testid="project-create-retry"')
-  })
-
   it('passes required manager and end-date policy into the rendered merged form', async () => {
     const html = await renderForm(() => ({
       t,
@@ -143,7 +119,6 @@ describe('ProjectCreateForm production template', () => {
       returnToQuery: () => ({}),
       defaultsLoading: false,
       defaults: DEFAULTS,
-      forbidden: false,
       defaultsFailed: false,
       defaultsFetching: false,
       hydrated: true,
@@ -164,7 +139,6 @@ describe('ProjectCreateForm production template', () => {
       copyFrom: null,
       defaultsLoading: false,
       defaults: DEFAULTS,
-      forbidden: false,
       defaultsFailed: false,
       defaultsFetching: false,
       hydrated: true,
@@ -183,7 +157,6 @@ describe('ProjectCreateForm production template', () => {
       copyFrom: 12,
       defaultsLoading: false,
       defaults: DEFAULTS,
-      forbidden: false,
       defaultsFailed: false,
       defaultsFetching: false,
       hydrated: true,

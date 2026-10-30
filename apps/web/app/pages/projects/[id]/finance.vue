@@ -4,6 +4,7 @@ import { refDebounced } from '@vueuse/core'
 import { ApiError } from '@/composables/useApi'
 import { useProjectFinanceList } from '@/composables/useProjectFinance'
 import { useProject } from '@/composables/useProjects'
+import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState.vue'
 import FinanceActualLines from '@/components/pmo/projects/finance/FinanceActualLines.vue'
 import FinanceEntryTable from '@/components/pmo/projects/finance/FinanceEntryTable.vue'
 import FinanceSummaryCards from '@/components/pmo/projects/finance/FinanceSummaryCards.vue'
@@ -22,7 +23,8 @@ import {
   type FinanceListRouteState,
 } from '@/utils/projectFinance'
 import { parsePositiveId } from '@/utils/routeParams'
-import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
+import { listFilterQuery } from '@/composables/useRouteListFilters'
+import { returnToQuery, safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
@@ -36,7 +38,9 @@ const isListRoute = computed(() => {
   return rest === '' || rest === '/new'
 })
 
-const filters = reactive<FinanceListRouteState>(parseFinanceListRoute(route.query as Record<string, unknown>))
+// Behind the /new panel this page is only the backdrop: its filters travel in the panel's `returnTo`, and its own `?kind=` is the new entry's.
+const listQuery = computed(() => listFilterQuery(route.query, normalizedPath.value.endsWith('/new'), `/projects/${projectId.value}/finance`, (value, fallback) => safeReturnTo(value, fallback, ['/projects'])))
+const filters = reactive<FinanceListRouteState>(parseFinanceListRoute(listQuery.value))
 const search = ref(filters.q)
 const debouncedSearch = refDebounced(search, 250)
 let applyingRoute = false
@@ -101,14 +105,14 @@ function scheduleQueryWrite() {
   writeQuery = writeQuery.then(async () => {
     if (pendingDeparture || router.currentRoute.value.path.replace(/\/+$/, '') !== listPath()) return
     const query = serializeFinanceListRoute(filters)
-    if (sameFinanceListRoute(query, serializeFinanceListRoute(parseFinanceListRoute(route.query as Record<string, unknown>)))) return
+    if (sameFinanceListRoute(query, serializeFinanceListRoute(parseFinanceListRoute(listQuery.value)))) return
     const writeStartedAt = router.currentRoute.value
     let writeSucceeded = false
     applyingRoute = true
     let writeTarget: typeof pendingOwnQuery = null
     try {
       const context = Object.fromEntries(
-        ['returnTo', 'taskContext', 'projectListReturnTo']
+        ['returnTo', 'taskContext', 'projectListReturnTo', 'linesOffset']
           .filter(key => typeof route.query[key] === 'string')
           .map(key => [key, route.query[key] as string]),
       )
@@ -139,9 +143,9 @@ watch(debouncedSearch, (value) => {
 watch([() => filters.kind, () => filters.q, () => filters.offset], () => {
   scheduleQueryWrite()
 })
-watch(() => route.query, (query) => {
+watch(listQuery, (query) => {
   if (applyingRoute || !isListRoute.value) return
-  const parsed = parseFinanceListRoute(query as Record<string, unknown>)
+  const parsed = parseFinanceListRoute(query)
   if (sameFinanceListRoute(serializeFinanceListRoute(filters), serializeFinanceListRoute(parsed))) return
   applyingRoute = true
   search.value = parsed.q
@@ -207,7 +211,7 @@ const liveListPath = computed(() => router.resolve({
   hash: route.hash,
   query: {
     ...serializeFinanceListRoute({ ...filters, q: search.value }),
-    ...Object.fromEntries(['returnTo', 'taskContext', 'projectListReturnTo'].filter(key => typeof route.query[key] === 'string').map(key => [key, route.query[key] as string])),
+    ...Object.fromEntries(['returnTo', 'taskContext', 'projectListReturnTo', 'linesOffset'].filter(key => typeof route.query[key] === 'string').map(key => [key, route.query[key] as string])),
   },
 }).fullPath)
 const entryTo = (item: { id: number }) => ({ path: `/projects/${projectId.value}/finance/${item.id}`, query: { ...serializeFinanceListRoute({ ...filters, q: search.value }), ...returnToQuery(liveListPath.value) } })
@@ -221,9 +225,7 @@ const emptiness = computed(() => summary.value
 
 <template>
   <template v-if="isListRoute">
-    <SharedPageContainer v-if="projectId === null" width="list">
-      <p class="text-muted">{{ t('projects.invalidId') }}</p>
-    </SharedPageContainer>
+    <ProjectNotFoundState v-if="projectId === null" />
     <SharedListPage
       v-else
       hide-header
@@ -235,7 +237,7 @@ const emptiness = computed(() => summary.value
       <template v-if="canManage && !external" #actions>
         <UButton color="neutral" variant="outline" icon="i-lucide-plus" :disabled="!hydrated" :to="newTo('expense')">{{ t('projects.finance.newExpense') }}</UButton>
       </template>
-      <p v-if="notFound && !list.isLoading.value" class="text-muted">{{ t('projects.notFound') }}</p>
+      <ProjectNotFoundState v-if="notFound && !list.isLoading.value" embedded />
       <template v-else>
         <FinanceSummaryCards v-if="summary && projectId" :project-id="projectId" :summary="summary" />
         <SharedEmptyState v-if="emptiness === 'bare'" bordered :title="t('projects.finance.empty')" :description="canManage ? t('projects.finance.emptyHint') : undefined" />

@@ -13,7 +13,7 @@ test('milestones are compact links to readable records with their own checklist'
   await expect(page).toHaveURL(/\/milestones\/12\/edit\?/)
   await page.getByRole('button', { name: 'إلغاء', exact: true }).click()
   await expect(page).toHaveURL(/\/milestones\/12\?/)
-  await page.getByTestId('milestone-detail-back').click()
+  await page.getByTestId('page-header-trail').getByRole('link', { name: 'المعالم', exact: true }).click()
   await expect(page).toHaveURL(/\/projects\/2\/milestones$/)
 })
 

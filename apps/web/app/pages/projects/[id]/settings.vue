@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
+import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState.vue'
 import ProjectSettingsForm from '@/components/pmo/projects/ProjectSettingsForm.vue'
 
 const route = useRoute()
@@ -18,22 +19,19 @@ const canManage = computed(() => project.value?.can_manage ?? false)
 </script>
 
 <template>
-  <SharedSettingsPage width="list">
+  <ProjectNotFoundState v-if="notFound" />
+  <SharedSettingsPage v-else width="list">
     <SharedPageHeader
       :title="t('projects.settings.title')"
     />
-    <template v-if="projectId === null">
-      <p class="text-muted">{{ t('projects.invalidId') }}</p>
-    </template>
     <SharedPageState
-      v-else
       :loading="!project && !error && (isLoading || !hydrated)"
-      :error="notFound ? null : error"
-      :empty="notFound || (hydrated && !isLoading && !error && !project)"
-      :empty-text="t('projects.notFound')"
+      :error="error"
+      :empty="hydrated && !isLoading && !error && !project"
+      :empty-text="t('projects.empty')"
       @retry="refetch"
     >
-      <p v-if="!canManage" class="text-muted">{{ t('projects.forbidden') }}</p>
+      <SharedForbiddenState v-if="!canManage" :description="t('projects.forbidden')" />
       <template v-else-if="project">
         <ProjectSettingsForm :key="project.id" :project="project" />
       </template>

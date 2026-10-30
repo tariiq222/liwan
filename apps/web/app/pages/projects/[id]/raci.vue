@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import RaciMatrix from '@/components/pmo/projects/governance/RaciMatrix.vue'
+import { refDebounced } from '@vueuse/core'
 import { useQueryClient } from '@tanstack/vue-query'
 import { settleServerQueries } from '@/lib/vueQuerySsr'
 import { governanceMatrixFilters } from '@/composables/projectGovernanceKeys'
@@ -11,17 +12,24 @@ import { useProjectMissing } from '@/composables/useProjects'
 import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
 import { RACI_ROLE_TONE } from '@/components/pmo/projects/governance/state'
 import { projectSectionLocation } from '@/utils/projectWorkspaceMemory'
-const route = useRoute(); const router = useRouter(); const { t } = useI18n(); const hydrated = useHydrated()
+const route = useRoute(); const router = useRouter(); const { t } = useI18n(); const toast = useToast(); const hydrated = useHydrated()
 const id = computed(() => Number(route.params.id)); const notFound = useProjectMissing(id); const viewport = computed(() => governanceMatrixFilters(route.query))
 const tasksTo = computed(() => projectSectionLocation(`/projects/${id.value}/tasks`, route.path, route.query))
 function replaceFilter(key: string, value: string | undefined, pageKey: string) { router.replace({ query: { ...route.query, [key]: value, [pageKey]: undefined } }) }
-const taskSearch = computed({ get: () => viewport.value.taskQ, set: value => replaceFilter('task_q', value || undefined, 'task_page') })
-const stakeholderSearch = computed({ get: () => viewport.value.stakeholderQ, set: value => replaceFilter('stakeholder_q', value || undefined, 'stakeholder_page') })
+// The boxes are local refs; the URL (and so the queries) follow once typing pauses.
+const taskSearch = ref(viewport.value.taskQ)
+const stakeholderSearch = ref(viewport.value.stakeholderQ)
+watch(() => viewport.value.taskQ, value => { taskSearch.value = value })
+watch(() => viewport.value.stakeholderQ, value => { stakeholderSearch.value = value })
+const debouncedTaskSearch = refDebounced(taskSearch, 300)
+const debouncedStakeholderSearch = refDebounced(stakeholderSearch, 300)
+watch(debouncedTaskSearch, value => { if (value.trim() !== viewport.value.taskQ.trim()) replaceFilter('task_q', value.trim() || undefined, 'task_page') })
+watch(debouncedStakeholderSearch, value => { if (value.trim() !== viewport.value.stakeholderQ.trim()) replaceFilter('stakeholder_q', value.trim() || undefined, 'stakeholder_page') })
 const closed = computed({ get: () => viewport.value.closed, set: value => replaceFilter('closed', value ? '1' : undefined, 'task_page') })
 const taskPage = computed({ get: () => viewport.value.taskPage, set: value => { router.push({ query: { ...route.query, task_page: String(Math.max(0, value)) } }) } })
 const stakeholderPage = computed({ get: () => viewport.value.stakeholderPage, set: value => { router.push({ query: { ...route.query, stakeholder_page: String(Math.max(0, value)) } }) } })
-const tasks = useGovernanceTaskPage(id, computed(() => ({ q: taskSearch.value, closed: closed.value, offset: taskPage.value * 50 })))
-const stakeholders = useProjectStakeholders(id, computed(() => ({ q: stakeholderSearch.value || undefined, limit: 10, offset: stakeholderPage.value * 10 })))
+const tasks = useGovernanceTaskPage(id, computed(() => ({ q: viewport.value.taskQ, closed: closed.value, offset: taskPage.value * 50 })))
+const stakeholders = useProjectStakeholders(id, computed(() => ({ q: viewport.value.stakeholderQ || undefined, limit: 10, offset: stakeholderPage.value * 10 })))
 const visibleTasks = computed(() => tasks.data.value?.items ?? [])
 const visibleStakeholders = computed(() => stakeholders.data.value?.items ?? [])
 // The assignment query key depends on both lists. Resolve the active SSR
@@ -34,9 +42,16 @@ const pending = computed(() => create.isPending.value || update.isPending.value 
 const loading = computed(() => tasks.isFetching.value || stakeholders.isFetching.value || rows.isFetching.value)
 const activeFilterCount = computed(() => Number(Boolean(taskSearch.value.trim())) + Number(Boolean(stakeholderSearch.value.trim())))
 const error = ref<string | null>(null); const confirmRow = ref<ProjectRaci | null>(null)
+// The confirmation and the error sit above a long matrix: bring them into view when they appear.
+watch([confirmRow, error], ([row, message]) => {
+  if (!row && !message) return
+  void nextTick(() => document.querySelector(row ? '[data-testid="raci-delete-confirm"]' : '[data-testid="raci-error"]')?.scrollIntoView({ block: 'nearest' }))
+})
 const assignments = computed(() => new Map(rows.data.value?.items.map(row => [`${row.task.id}:${row.stakeholder.id}`, row])))
 function assignment(taskId: number, stakeholderId: number) { return assignments.value.get(`${taskId}:${stakeholderId}`) }
 function clearFilters() {
+  taskSearch.value = ''
+  stakeholderSearch.value = ''
   router.replace({ query: { ...route.query, task_q: undefined, stakeholder_q: undefined, task_page: undefined, stakeholder_page: undefined } })
 }
 async function changeRole(taskId: number, stakeholderId: number, value: string) {
@@ -48,12 +63,13 @@ async function changeRole(taskId: number, stakeholderId: number, value: string) 
   try {
     if (row) await update.mutateAsync({ projectId: id.value, id: row.id, body: { role } })
     else await create.mutateAsync({ projectId: id.value, body: { task_id: taskId, stakeholder_id: stakeholderId, role } })
+    toast.add({ title: t('projects.toast.raciChanged'), color: 'success' })
   } catch (cause) { error.value = cause instanceof ApiError ? cause.message : t('errors.generic') }
 }
 async function deleteRow() {
   if (!confirmRow.value) return
   error.value = null
-  try { await remove.mutateAsync({ projectId: id.value, id: confirmRow.value.id }); confirmRow.value = null }
+  try { await remove.mutateAsync({ projectId: id.value, id: confirmRow.value.id }); confirmRow.value = null; toast.add({ title: t('projects.toast.raciChanged'), color: 'success' }) }
   catch (cause) { error.value = cause instanceof ApiError ? cause.message : t('errors.generic') }
 }
 const TASK_PAGE = 50
@@ -79,7 +95,7 @@ const settled = computed(() => !tasks.isLoading.value && !stakeholders.isLoading
 <template>
   <ProjectNotFoundState v-if="notFound" />
   <SharedListPage v-else hide-header :title="t('projects.governance.raci.title')">
-    <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
+    <p v-if="error" role="alert" data-testid="raci-error" class="text-sm text-error">{{ error }}</p>
     <!-- role="group" keeps the confirmation addressable by its question while the matrix stays locked. -->
     <SharedInlineConfirm
       v-if="confirmRow"

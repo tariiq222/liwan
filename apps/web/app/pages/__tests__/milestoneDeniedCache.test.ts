@@ -5,6 +5,7 @@ import { renderShared } from '@liwan/ui/test/helpers/renderShared'
 import { ApiError } from '../../composables/useApi'
 import { parsePositiveId } from '../../utils/routeParams'
 import { owningListBack, recordChildTo } from '../../utils/recordListOrigin'
+import { milestoneBadge } from '../../components/pmo/projects/milestoneState'
 
 async function renderRecord(status?: number, source: 'project' | 'milestones' = 'milestones') {
   const denied = status ? new ApiError(status, 'forbidden', 'Read access withdrawn') : null
@@ -12,7 +13,7 @@ async function renderRecord(status?: number, source: 'project' | 'milestones' = 
   return renderShared(resolve(import.meta.dirname, '../projects/[id]/milestones/[milestoneId].vue'), {}, {}, {
     globals: {
       useRoute: () => ({ path: '/projects/7/milestones/8', params: { id: '7', milestoneId: '8' }, query: {}, hash: '' }),
-      useRouter: () => ({}), useProjectRecordListPaths: () => ref(['/projects/7/milestones']),
+      useRouter: () => ({}), useToast: () => ({ add: () => {} }), useProjectRecordListPaths: () => ref(['/projects/7/milestones']),
     },
     modules: {
       '@/composables/useApi': { ApiError },
@@ -22,6 +23,7 @@ async function renderRecord(status?: number, source: 'project' | 'milestones' = 
         useUpdateMilestone: () => ({ isPending: ref(false) }), useDeleteMilestone: () => ({ isPending: ref(false) }),
       },
       '@/utils/recordListOrigin': { owningListBack, recordChildTo },
+      '@/components/pmo/projects/milestoneState': { milestoneBadge },
       '@/utils/routeParams': { parsePositiveId },
       '@liwan/ui/app/composables/calendarDate': { formatCalendarDate: () => '' },
     },

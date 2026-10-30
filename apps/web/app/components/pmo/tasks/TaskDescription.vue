@@ -10,6 +10,7 @@ const props = defineProps<{ task: TaskDetail }>()
 
 const { t } = useI18n()
 const hydrated = useHydrated()
+const toast = useToast()
 const { mutateAsync, isPending } = useUpdateTask({ notifyErrors: false })
 
 const editing = ref(false)
@@ -74,6 +75,7 @@ async function save() {
     if (session !== editSession || taskId !== props.task.id || !editing.value) return
     const persisted = saved.description_html
     resetReadView(persisted)
+    toast.add({ title: t('tasks.descriptionField.saved'), color: 'success' })
   } catch {
     if (session !== editSession || taskId !== props.task.id || !editing.value) return
     error.value = t('tasks.descriptionField.saveError')

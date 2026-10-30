@@ -17,4 +17,8 @@ describe('projectStatus', () => {
   it('uses the shared success tone for completed projects, matching completed tasks', () => {
     expect(PROJECT_STATUS_TONE.done).toBe('success')
   })
+
+  it('reads a paused project as warning, as DESIGN.md does for paused states', () => {
+    expect(PROJECT_STATUS_TONE.on_hold).toBe('warning')
+  })
 })

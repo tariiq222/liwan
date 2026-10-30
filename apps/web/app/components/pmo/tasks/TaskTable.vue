@@ -22,7 +22,9 @@ const props = withDefaults(defineProps<{
   params: TaskListParams
   rowTo: (task: Task) => RouteLocationRaw
   variant?: 'mine' | 'project'
-}>(), { variant: 'mine' })
+  /** False when the host cannot take new tasks (an archived project): the empty state then offers no create action. */
+  canCreate?: boolean
+}>(), { variant: 'mine', canCreate: true })
 const emit = defineEmits<{ create: []; 'update:sort': [sort: string | undefined] }>()
 
 const { t } = useI18n()
@@ -45,7 +47,7 @@ const emptyTitleKey = computed(() => {
   if (props.params.closed) return 'tasks.empty.closedTitle'
   return props.variant === 'project' ? 'projects.tasksEmpty' : 'tasks.empty.title'
 })
-const showCreateAction = computed(() => can('pmo.tasks.create') && !hasActiveFilters.value && !props.params.closed)
+const showCreateAction = computed(() => props.canCreate && can('pmo.tasks.create') && !hasActiveFilters.value && !props.params.closed)
 
 // One width scale for both variants. Narrow columns are fixed px (a pill or tag never clips or wraps), Project takes 16%
 // with a floor, and the title absorbs the rest. A width sits on the header and the cell alike. Text columns truncate with an

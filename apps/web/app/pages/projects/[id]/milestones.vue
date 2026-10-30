@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import MilestoneTable from '@/components/pmo/projects/MilestoneTable.vue'
+import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState.vue'
 import { ApiError } from '@/composables/useApi'
 import { projectIdFromPath } from '@/modules/pmo/projectRoutes'
 import { useProject } from '@/composables/useProjects'
 import { returnToQuery, safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
-const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const projectId = computed(() => projectIdFromPath(route.path))
@@ -28,10 +28,7 @@ const createTo = computed(() => ({ path: `/projects/${projectId.value}/milestone
 <template>
   <template v-if="isListRoute">
     <SharedPageContainer v-if="notFound || error" width="list">
-      <div v-if="notFound" class="flex flex-col items-start gap-(--liwan-gap-card)">
-        <p class="text-muted">{{ t('projects.notFound') }}</p>
-        <UButton type="button" color="neutral" variant="outline" size="sm" @click="router.push(projectReturnTo)">{{ t('projects.backToProjects') }}</UButton>
-      </div>
+      <ProjectNotFoundState v-if="notFound" embedded :back-to="projectReturnTo" />
       <SharedPageState v-else :error="error" @retry="refetch" />
     </SharedPageContainer>
     <!-- The frame is this page's h1: hide-header draws no heading, the create button stays in the header row. -->
@@ -43,7 +40,7 @@ const createTo = computed(() => ({ path: `/projects/${projectId.value}/milestone
       :create-label="t('projects.milestones.new')"
       create-test-id="project-header-create"
     >
-      <MilestoneTable v-if="project" :project-id="project.id" :can-manage="project.can_manage" />
+      <MilestoneTable v-if="project" :project-id="project.id" :can-manage="project.can_manage && project.active" />
       <SharedLoadingSkeleton v-else-if="isLoading || !hydrated" />
     </SharedListPage>
   </template>

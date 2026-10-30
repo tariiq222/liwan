@@ -17,7 +17,8 @@ import {
   useProjectList,
   type ProjectListRouteState,
 } from '@/composables/useProjects'
-import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
+import { listFilterQuery } from '@/composables/useRouteListFilters'
+import { returnToQuery, safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 
 const router = useRouter()
 const route = useRoute()
@@ -29,7 +30,10 @@ const { shown: kpisShown } = useKpiVisibility()
 const activeList = useProjectList(ref(false), { limit: 1 })
 const canListArchived = computed(() => activeList.data.value?.can_list_archived ?? false)
 
-const filters = reactive<ProjectListRouteState>(parseProjectListRoute(route.query as Record<string, unknown>))
+// Behind the /projects/new panel this page is only the backdrop: its filters travel in the panel's `returnTo`.
+const background = computed(() => (route.path.replace(/\/+$/, '') || '/') === '/projects/new')
+const listQuery = computed(() => listFilterQuery(route.query, background.value, '/projects', (value, fallback) => safeReturnTo(value, fallback, ['/projects'])))
+const filters = reactive<ProjectListRouteState>(parseProjectListRoute(listQuery.value))
 const search = ref(filters.q)
 const debouncedSearch = refDebounced(search, 250)
 let applyingRoute = false
@@ -81,7 +85,7 @@ function scheduleQueryWrite(): Promise<void> {
   writeQuery = writeQuery.then(async () => {
     if (pendingDeparture || (route.path.replace(/\/+$/, '') || '/') !== '/projects') return
     const query = serializeProjectListRoute(committedState())
-    if (sameProjectListRoute(query, serializeProjectListRoute(parseProjectListRoute(route.query as Record<string, unknown>)))) return
+    if (sameProjectListRoute(query, serializeProjectListRoute(parseProjectListRoute(listQuery.value)))) return
     applyingRoute = true
     try {
       await router.replace({ query })
@@ -177,9 +181,9 @@ watch(
     scheduleQueryWrite()
   },
 )
-watch(() => route.query, (query) => {
+watch(listQuery, (query) => {
   if (applyingRoute) return
-  const parsed = parseProjectListRoute(query as Record<string, unknown>)
+  const parsed = parseProjectListRoute(query)
   const fromRoute = serializeProjectListRoute({ ...parsed, archived: canListArchived.value && parsed.archived })
   if (sameProjectListRoute(serializeProjectListRoute(committedState()), fromRoute)) return
   applyingRoute = true

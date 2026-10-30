@@ -16,6 +16,7 @@ import { adminListQuery, adminPathWithQuery } from '../../composables/adminSetti
 import { parsePositiveId } from '../../utils/routeParams'
 import { parseFinanceKind } from '../../utils/projectFinance'
 import { governanceFilters, governanceMatrixFilters } from '../../composables/projectGovernanceKeys'
+import { useGovernanceListPage } from '../../components/pmo/projects/governance/listPage'
 
 const webRoot = resolve(import.meta.dirname, '../../../')
 
@@ -62,7 +63,7 @@ function loadSetupState(rel: string, router: Router) {
     parsePositiveId, parseFinanceKind, adminListQuery, adminPathWithQuery,
     financeWriteAllowed: () => true,
     shouldKeepFinanceFormMounted: () => false,
-    governanceFilters, governanceMatrixFilters,
+    governanceFilters, governanceMatrixFilters, useGovernanceListPage,
     useQueryClient: () => ({}),
     useProjectRegister: () => ({ ...emptyQuery(), data: Vue.ref({ items: [], total: 1, can_manage: true }) }),
     useProjectStakeholders: () => ({ ...emptyQuery(), data: Vue.ref({ items: [], total: 1, can_manage: true }) }),
@@ -221,16 +222,16 @@ describe('finance navigation keeps normalized list context through forms', () =>
   })
 })
 
-describe('governance empty offset pages keep Previous reachable', () => {
-  it.each(['register', 'stakeholders'])('%s keeps its current page when total shrinks', async section => {
+describe('governance offset pages stay on a real page', () => {
+  it.each(['register', 'stakeholders'])('%s clamps an offset past the last page back onto it', async section => {
     const router = makeRouter()
     await router.push(`/projects/7/${section}?offset=50`)
     await router.isReady()
     const scope = Vue.effectScope()
     try {
-      const state = scope.run(() => loadSetupState(`app/pages/projects/[id]/${section}.vue`, router))!
-      expect(Vue.unref(state.pageNumber as Vue.Ref<number>)).toBe(2)
-      expect(Vue.unref(state.pages as Vue.Ref<number>)).toBe(2)
+      scope.run(() => loadSetupState(`app/pages/projects/[id]/${section}.vue`, router))
+      await new Promise(resolve => setTimeout(resolve, 0))
+      expect(router.currentRoute.value.query.offset).toBeUndefined()
     } finally { scope.stop() }
   })
   it('RACI independently keeps both current task and stakeholder pages', async () => {

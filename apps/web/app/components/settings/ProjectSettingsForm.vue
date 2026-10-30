@@ -84,18 +84,21 @@ const rows = ref<StageRow[]>(withIds(props.settings.default_stages))
 watch(() => props.settings.default_stages, (stages) => { rows.value = withIds(stages) }, { flush: 'sync' })
 const stageError = ref('')
 const failedStages = shallowRef<StageRow[] | null>(null)
+const stageEditor = ref<InstanceType<typeof StageListEditor> | null>(null)
 
-async function persist(next: StageRow[]) {
-  if (!hydrated.value || isPending.value) return
+async function persist(next: StageRow[]): Promise<boolean> {
+  if (!hydrated.value || isPending.value) return false
   rows.value = withIds(next)
   stageError.value = ''
   failedStages.value = null
   try {
     await updateSettings({ default_stages: rows.value.map(({ name, fold }) => ({ name, fold })) })
+    return true
   } catch (e) {
     // The rows stay as typed so the manager can retry without retyping them.
     stageError.value = saveErrorMessage(e, t('errors.generic'), t('errors.saveUncertain'))
     failedStages.value = rows.value
+    return false
   }
 }
 
@@ -103,8 +106,8 @@ async function persist(next: StageRow[]) {
 // per-project stage editor, whose ids are numeric); this component only ever
 // hands it the synthetic string ids from withIds(), so the comparisons below
 // only ever match against strings at runtime.
-function onAddStage(name: string) {
-  persist([...rows.value, { id: '', name, fold: false }])
+async function onAddStage(name: string) {
+  if (await persist([...rows.value, { id: '', name, fold: false }])) stageEditor.value?.clearNewName()
 }
 function onRenameStage(id: number | string, name: string) {
   persist(rows.value.map((r) => (r.id === id ? { ...r, name } : r)))
@@ -142,7 +145,7 @@ function onDeleteStage(id: number | string) {
       </UAlert>
       <div class="liwan-setting-rows">
         <UFormField id="project-stages" :label="t('settings.projects.defaultStages.label')" :description="t('settings.projects.defaultStages.hint')">
-          <StageListEditor :stages="rows" :busy="isPending || locked" @add="onAddStage" @rename="onRenameStage" @fold="onFoldStage" @reorder="onReorderStages" @delete="onDeleteStage" />
+          <StageListEditor ref="stageEditor" :stages="rows" :busy="isPending || locked" @add="onAddStage" @rename="onRenameStage" @fold="onFoldStage" @reorder="onReorderStages" @delete="onDeleteStage" />
         </UFormField>
       </div>
     </div>

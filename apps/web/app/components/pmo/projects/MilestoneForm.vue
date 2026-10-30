@@ -15,6 +15,7 @@ const props = defineProps<{
 const emit = defineEmits<{ saved: [id?: number]; cancel: [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
+const toast = useToast()
 const { mutateAsync: createMutate, isPending: creating } = useCreateMilestone()
 const { mutateAsync: updateMutate, isPending: updating } = useUpdateMilestone()
 const isEdit = computed(() => !!props.milestone)
@@ -103,10 +104,12 @@ async function submit() {
     if (props.milestone) {
       await updateMutate({ projectId: props.projectId, id: props.milestone.id, patch: buildMilestonePatch({ name: trimmed, startDate: nextStartDate, deadline: nextDeadline, deliverables: output, originalStartDate: props.milestone.start_date, originalDeadline: props.milestone.deadline, isNew: false }) })
       submitted.value = true
+      toast.add({ title: t('projects.toast.milestoneUpdated'), color: 'success' })
       emit('saved', props.milestone.id)
     } else {
       const created = await createMutate({ projectId: props.projectId, name: trimmed, start_date: startDate.value, deadline: deadline.value, deliverables: output })
       submitted.value = true
+      toast.add({ title: t('projects.toast.milestoneCreated'), color: 'success' })
       emit('saved', created.id)
     }
   } catch (e) {

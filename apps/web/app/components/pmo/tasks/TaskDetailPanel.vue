@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { deadlineLabel, deadlineTone } from '@/composables/taskState'
-import { taskDaysRemaining } from './taskDeadline'
+import { deadlineTagView } from './taskDeadline'
 import type { RouteLocationRaw } from 'vue-router'
 import { statusTag, type PageHeaderTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import { ApiError } from '@/composables/useApi'
@@ -95,16 +94,17 @@ function onKeydown(e: KeyboardEvent) {
 
 useEventListener(document, 'keydown', onKeydown)
 const title = computed(() => task.value?.name ?? t('tasks.detail.pageLabel'))
-// Counted from the same instant the Deadline property prints, so the badge and the date cannot disagree.
-const deadlineDays = computed(() => (task.value ? taskDaysRemaining(task.value) : null))
-// The task's context sits in the heading: its project (a link), the workflow stage and the deadline.
+// The task's context sits in the heading: its project (a link), the workflow stage and the deadline. The deadline is the
+// same tag the lists draw (DESIGN.md: overdue danger, today warning, a future date success, closed neutral, none no tag),
+// counted from the instant the Deadline property prints so the tag and the date cannot disagree.
 const headerTags = computed<PageHeaderTag[]>(() => {
   const current = task.value
   if (!current) return []
+  const deadline = deadlineTagView(current, t)
   return [
     ...(current.project ? [{ label: current.project.name, icon: 'i-lucide-folder-kanban', to: `/projects/${current.project.id}`, testId: 'task-detail-context', kind: 'project' as const }] : []),
     { label: `${t('tasks.detail.workflowStage')}: ${current.stage?.name ?? t('tasks.detail.stageUnset')}`, icon: 'i-lucide-git-commit-horizontal', kind: 'category' },
-    statusTag({ tone: deadlineTone(deadlineDays.value, current.is_closed), label: deadlineLabel(deadlineDays.value, t) }, 'deadline-badge'),
+    ...(deadline ? [{ ...statusTag({ tone: deadline.tone, label: deadline.label }, 'deadline-badge'), icon: deadline.icon }] : []),
   ]
 })
 </script>

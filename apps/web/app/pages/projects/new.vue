@@ -23,7 +23,7 @@ const returnTo = computed(() => {
   const parent = copyId ? recordEntryOrigin(route.query.returnTo, `/projects/${copyId}`, sourcePaths.value) : undefined
   return parent ?? router.resolve(owningListBack(route.query, sourcePaths.value, route.hash)).fullPath
 })
-const { data: projects, isLoading, error: listError } = useProjectList(ref(false))
+const { data: projects, isLoading, error: listError } = useProjectList(ref(false), { limit: 1 })
 const canCreate = computed(() => projects.value?.can_create ?? false)
 // A refused list read means the same as a refused create policy: an in-page notice with the way back, not a bare 403.
 const forbidden = computed(() => errorStateKind(listError.value) === 'forbidden' || (!isLoading.value && !listError.value && !canCreate.value))
