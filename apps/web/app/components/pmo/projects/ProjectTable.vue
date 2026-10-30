@@ -25,6 +25,10 @@ const emit = defineEmits<{ open: [id: number] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const archive = useProjectArchive()
+// The confirmation sits above the rows: bring it into view when a row far down asks for it.
+watch(archive.target, (target) => {
+  if (target) void nextTick(() => document.querySelector('[data-testid="project-archive-confirm"]')?.scrollIntoView({ block: 'center' }))
+})
 
 // Narrow columns are fixed px (a pill or an avatar never clips), the name absorbs the rest and truncates; `fit` columns
 // never clip. The table's minimum width is the sum of its columns (the name at its floor), and below it the table scrolls sideways.

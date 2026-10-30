@@ -50,6 +50,8 @@ watch([confirmRow, error], ([row, message]) => {
 const assignments = computed(() => new Map(rows.data.value?.items.map(row => [`${row.task.id}:${row.stakeholder.id}`, row])))
 function assignment(taskId: number, stakeholderId: number) { return assignments.value.get(`${taskId}:${stakeholderId}`) }
 function clearFilters() {
+  taskSearch.value = ''
+  stakeholderSearch.value = ''
   router.replace({ query: { ...route.query, task_q: undefined, stakeholder_q: undefined, task_page: undefined, stakeholder_page: undefined } })
 }
 async function changeRole(taskId: number, stakeholderId: number, value: string) {

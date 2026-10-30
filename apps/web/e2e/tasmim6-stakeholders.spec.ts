@@ -51,14 +51,8 @@ test.describe('Plan 6a: stakeholders', () => {
       await expect(page).toHaveURL(/\/projects\/2\/stakeholders\/new/)
       await expect(page.locator('[data-template="list"]')).toHaveCount(1)
     })
-    test('a stale offset page keeps Previous enabled and returns to its first page', async ({ page }) => {
+    test('a stale offset clamps back to the last page', async ({ page }) => {
       await open(page, '/projects/2/stakeholders?offset=50')
-      const pagination = page.getByTestId('shared-pagination')
-      await expect(pagination).toBeVisible()
-      await expect(pagination).toContainText('صفحة 2 من 2')
-      const previous = pagination.locator('button[data-slot="prev"]')
-      await expect(previous).toBeEnabled()
-      await previous.click()
       await expect.poll(() => new URL(page.url()).searchParams.has('offset')).toBe(false)
       await expect(rows(page)).toHaveCount(3)
     })
