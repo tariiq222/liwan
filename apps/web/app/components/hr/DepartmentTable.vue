@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { HrDepartment } from '@/composables/useHrDepartments'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
 
 // The list view of /hr/departments on SharedDataTable. A row opens its department through `rowTo`
 // (the same `departmentTo` target the tree uses); delete is handed to the page, which owns the inline
@@ -52,7 +52,7 @@ function actionsFor(department: HrDepartment): RowAction[] {
 </script>
 
 <template>
-  <div class="webvue-fixed-table min-w-0">
+  <div class="liwan-fixed-table min-w-0">
     <SharedDataTable
       bare
       data-testid="hr-department-table"

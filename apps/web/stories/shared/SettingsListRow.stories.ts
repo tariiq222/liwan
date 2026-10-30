@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import SettingsListRow from '@webvue/ui/app/components/shared/layout/SettingsListRow.vue'
+import SettingsListRow from '@liwan/ui/app/components/shared/layout/SettingsListRow.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

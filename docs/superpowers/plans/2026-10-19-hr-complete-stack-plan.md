@@ -10,7 +10,7 @@
 الإجازات والعطل السعودية، الحضور، التوظيف، الإجراءات الإدارية (إنذارات، عهد، سلف وقروض،
 استقالة وإخلاء طرف)، ثم الرواتب السعودية (GOSI، نهاية الخدمة، WPS) في addon منفصل.
 لا توجد حزمة مفتوحة جاهزة تغطي هذا (انظر «الأساس» أدناه)، فالنهج تركيب محركات جاهزة
-داخلية + طبقة WebVue واحدة.
+داخلية + طبقة LiwanOS واحدة.
 
 ## الأساس (تم التحقق 2026-10-19، قراءة ساكنة)
 
@@ -20,12 +20,12 @@
 | محرك رواتب | OCA `payroll` 19.0 (`58f8a39`, v19.0.1.0.2) | LGPL-3 | محرك داخلي، يعمل على `hr.version` |
 | أسباب الحضور | OCA `hr_attendance_reason` (`hr-attendance` `f9ff6f5`) | LGPL-3 | محرك داخلي |
 | فترة طبيعية للإجازة، الأقارب | OCA `hr_holidays_natural_period`, `hr_employee_relative` | AGPL-3 | معلّق على قرار AGPL (D1) |
-| عطل رسمية | OCA `hr_holidays_public` | AGPL-3 + `openupgradelib` غير مثبّت | مرفوض؛ العطل بيانات في `webvue_hr` (كما في التصميم) |
+| عطل رسمية | OCA `hr_holidays_public` | AGPL-3 + `openupgradelib` غير مثبّت | مرفوض؛ العطل بيانات في `liwan_hr` (كما في التصميم) |
 | تقييم أداء | OCA `hr_appraisal_oca` | — | غير منقول إلى 19.0؛ يُبنى أو يؤجَّل (D4) |
 | OpenHRMS 19.0 | Cybrosys | LGPL-3 | مرفوض كأساس (محرك رواتب منافس، يسحب `hr_timesheet`) |
 | `l10n_sa_hr_payroll` | Odoo Enterprise | OEEL-1 | مرجع وظيفي فقط، لا كود ([تقرير الدراسة](/Users/tariq/code/spikes/odoo19-enterprise-l10n-sa/REPORT-ar.md)) |
 
-ما هو موجود الآن على `main` (`4e3488b9`): `webvue_hr` 19.0.1.3.0 بالموظفين والأقسام والوثائق،
+ما هو موجود الآن على `main` (`4e3488b9`): `liwan_hr` 19.0.1.3.0 بالموظفين والأقسام والوثائق،
 حقول العقد على `hr.version`، تنبيهات الانتهاء، تقرير السعودة (`5036556e`، مدموج).
 لا إجازات، لا حضور، لا توظيف، لا رواتب في الواجهة أو الـAPI.
 
@@ -33,9 +33,9 @@
 
 - **D1 مقبول:** وحدات OCA بترخيص AGPL-3 مقبولة دائمًا كمحركات داخلية.
 - **D4 / النهج العام:** لا بناء؛ نأخذ الجاهز ونركّبه فقط. ما لا يوجد له موديول جاهز لا يُبنى، بل يُعرض على المالك.
-- **D2 (قرار المالك):** لا addon جديد لكل مجال. الرواتب قسم داخل `webvue_hr` (صفحة `/hr/payroll`،
+- **D2 (قرار المالك):** لا addon جديد لكل مجال. الرواتب قسم داخل `liwan_hr` (صفحة `/hr/payroll`،
   API `/api/v1/hr/payroll/*`)، بصلاحيات مخصّصة `hr.payroll.read|manage|run|approve|export` لا تُمنح ضمنيًا مع أي
-  صلاحية HR أخرى، وميزة فرعية `hr.payroll` في `webvue.feature.registry` لتفعيلها أو إيقافها لكل عميل (R10).
+  صلاحية HR أخرى، وميزة فرعية `hr.payroll` في `liwan.feature.registry` لتفعيلها أو إيقافها لكل عميل (R10).
   القاعدة العامة: addon واحد لكل **تطبيق** (HR، المالية، …)، وكل موديول جاهز يُركَّب محركًا داخليًا تحت تطبيقه.
   يلزم تعديل سطر الرواتب في `AGENTS.md` ("only in the payroll addon") وفي التصميم بعد إذن المالك بالتعديل.
 - **D5 (قرار المالك):** لا Enterprise بأي شكل. الرواتب السعودية (GOSI، نهاية الخدمة، WPS) مؤجلة لآخر مرحلة.
@@ -44,59 +44,59 @@
 ## قرارات كانت مطلوبة من المالك (أصل الخطة)
 
 - **D1 — AGPL-3:** هل تُقبل وحدات OCA بترخيص AGPL-3 كمحركات داخلية في منتج SaaS؟
-  الافتراض في هذه الخطة: **لا**، إلا بموافقة صريحة؛ عندها تُبنى `natural_period` والأقارب داخل `webvue_hr`.
+  الافتراض في هذه الخطة: **لا**، إلا بموافقة صريحة؛ عندها تُبنى `natural_period` والأقارب داخل `liwan_hr`.
 - **D2 — مكان صلاحيات الرواتب:** `AGENTS.md` (قرار 2026-10-19) يقول إن الرواتب تعيش **فقط في addon الرواتب
   وخلف صلاحيات رواتب مخصصة**؛ التصميم يقول «عبر صلاحيات `hr.*`». الخطة تتبع `AGENTS.md`:
-  كتالوج `payroll.*` يملكه `webvue_hr_payroll_sa`. يلزم تحديث التصميم بعد الموافقة.
-- **D3 — تسجيل addon الرواتب:** `webvue_hr_payroll_sa` بالرتبة 4 في `tools/arch_layers.json`
+  كتالوج `payroll.*` يملكه `liwan_hr_payroll_sa`. يلزم تحديث التصميم بعد الموافقة.
+- **D3 — تسجيل addon الرواتب:** `liwan_hr_payroll_sa` بالرتبة 4 في `tools/arch_layers.json`
   (يحتاج `Architecture-approved-by:` من المالك)، وتثبيت `OCA/payroll` و`OCA/hr-attendance` في `deploy/oca-addons.json`.
-- **D4 — تقييم الأداء:** بناء داخل `webvue_hr` في 3b، أم تأجيله لمرحلة لاحقة.
+- **D4 — تقييم الأداء:** بناء داخل `liwan_hr` في 3b، أم تأجيله لمرحلة لاحقة.
 - **D5 — مراجع نهاية الخدمة وGOSI:** من المحاسب/المستشار السعودي الذي يعتمد المعادلات (سؤال مفتوح في التصميم).
 
-## المرحلة A — اختبار الملاءمة (spike، بلا تغيير في `webvue`)
+## المرحلة A — اختبار الملاءمة (spike، بلا تغيير في `liwan`)
 
 الغرض: إثبات أن الحزمة تتركّب وتعمل معًا قبل أي كود منتج. مخرجها تقرير فقط.
 
-- **المكان:** الشجرة المستقلة `/Users/tariq/code/spikes/oca-hr-stack` (مستنسخة)، و`webvue` على `main`
-  للقراءة فقط عبر addons path. قاعدة scratch مسماة `webvue_hr_fit_<timestamp>`، data/logs في `mktemp -d`،
+- **المكان:** الشجرة المستقلة `/Users/tariq/code/spikes/oca-hr-stack` (مستنسخة)، و`liwan` على `main`
+  للقراءة فقط عبر addons path. قاعدة scratch مسماة `liwan_hr_fit_<timestamp>`، data/logs في `mktemp -d`،
   منفذ `8179`، `--workers=0 --max-cron-threads=0`. **لا `odoo19`.**
-- **التركيب:** `webvue_hr,hr_holidays,hr_attendance,hr_recruitment,hr_skills,hr_work_entry,payroll,hr_attendance_reason`
+- **التركيب:** `liwan_hr,hr_holidays,hr_attendance,hr_recruitment,hr_skills,hr_work_entry,payroll,hr_attendance_reason`
   (+ وحدات AGPL فقط إن وُوفق على D1).
 - **فحوصات:**
-  1. التثبيت دون أخطاء أو تحذيرات override، وتشغيل اختبارات `webvue_hr` كاملة مع الوحدات محمّلة
+  1. التثبيت دون أخطاء أو تحذيرات override، وتشغيل اختبارات `liwan_hr` كاملة مع الوحدات محمّلة
      (التصميم سجّل أن هذا **لم** يُجرَ سابقًا).
   2. سيناريو سموك عبر `odoo-bin shell` على قاعدة scratch: شركة سعودية → موظف بعقد (`hr.version`: أجر، بداية عقد) →
      إجازة سنوية معتمدة → حضور يوم → هيكل رواتب OCA بقاعدتين (أساسي، صافي) → مسيّر شهري يحسب
      `WORK100` ويخصم الإجازة.
-  3. فحص المجموعات: لا تمنح أي صلاحية WebVue `payroll.group_payroll_user` ضمنيًا، ولا تمنح الأخيرة
-     `hr.group_hr_manager` لمستخدم WebVue دون قصد.
-  4. حصر الحقول/النماذج المكررة بين OCA `payroll` و`hr`/`webvue_hr` (قاعدة «نموذج واحد لكل حقيقة»).
-  5. التأكد أن `ir.http` guard في `webvue_platform` يغلق قوائم ومسارات الوحدات الجديدة (لا واجهة Odoo).
+  3. فحص المجموعات: لا تمنح أي صلاحية LiwanOS `payroll.group_payroll_user` ضمنيًا، ولا تمنح الأخيرة
+     `hr.group_hr_manager` لمستخدم LiwanOS دون قصد.
+  4. حصر الحقول/النماذج المكررة بين OCA `payroll` و`hr`/`liwan_hr` (قاعدة «نموذج واحد لكل حقيقة»).
+  5. التأكد أن `ir.http` guard في `liwan_platform` يغلق قوائم ومسارات الوحدات الجديدة (لا واجهة Odoo).
 - **الخروج:** تقرير في `docs/reports/2026-10-19-hr-stack-fit.md` (أوامر، نتائج، قائمة مقبولة/مرفوضة).
   حذف قاعدة scratch وملفاتها بعد الفحص.
 
-## المرحلة B — HR الأساسي (التصميم §3) داخل `webvue_hr`
+## المرحلة B — HR الأساسي (التصميم §3) داخل `liwan_hr`
 
 كل حزمة عمل = worktree `codex/hr-<slug>` من `main`، مالك واحد، ترقية نسخة + migration في نفس الـcommit.
 
 | WP | المحتوى | الملكية (inScope) | يعتمد على |
 |---|---|---|---|
-| B1 `hr-leave` | أنواع إجازات سعودية (سنوية 21/30، مرضية 30/60/30 بنسب 100/75/0، أمومة، وفاة، زواج، حج، اختبارات) وعطل رسمية كبيانات؛ API `/api/v1/hr/leave/*` (طلب، اعتماد، رصيد) | `odoo-addons/webvue_hr/{data,models,controllers,serializers,security,tests}/*leave*`، `packages/contracts/src/hr/leave*` | A |
+| B1 `hr-leave` | أنواع إجازات سعودية (سنوية 21/30، مرضية 30/60/30 بنسب 100/75/0، أمومة، وفاة، زواج، حج، اختبارات) وعطل رسمية كبيانات؛ API `/api/v1/hr/leave/*` (طلب، اعتماد، رصيد) | `odoo-addons/liwan_hr/{data,models,controllers,serializers,security,tests}/*leave*`، `packages/contracts/src/hr/leave*` | A |
 | B2 `hr-attendance` | حضور وانصراف وأسباب؛ API `/api/v1/hr/attendance/*`؛ بلا تايم شيت | ملفات `*attendance*` بنفس الطبقات | A |
 | B3 `hr-recruitment` | وظائف شاغرة، متقدمون، مراحل، تحويل لموظف؛ API `/api/v1/hr/recruitment/*` | ملفات `*recruitment*` | A |
 | B4 `web-hr-core` | صفحات `/hr/leave`، `/hr/attendance`، `/hr/recruitment` + `/new` عبر `SharedCreatePanel`، مكونات Storybook فقط، `ar` RTL | `apps/web/app/pages/hr/{leave,attendance,recruitment}*`، `apps/web/app/components/hr/*`، locale `hr` | B1–B3 (العقد في contracts) |
 
-ملف مشترك واحد يملكه المنسّق فقط: `webvue_hr/__manifest__.py` و`models/__init__.py` و`feature_registry.py`
+ملف مشترك واحد يملكه المنسّق فقط: `liwan_hr/__manifest__.py` و`models/__init__.py` و`feature_registry.py`
 (تُدمج إضافات WPs بالتتابع لتجنّب التعارض). كل route يفحص feature فرعيًا مسجّلًا (`hr.leave`، `hr.attendance`، `hr.recruitment`) — R10.
 
-## المرحلة C — HR الموسّع (التصميم §3b) داخل `webvue_hr`
+## المرحلة C — HR الموسّع (التصميم §3b) داخل `liwan_hr`
 
 C1 الإنذارات والجزاءات · C2 العهد · C3 السلف والقروض (السجل فقط؛ الخصم من الراتب في D) ·
 C4 الاستقالة وإخلاء الطرف (مع سبب الترك المطابق لتصنيف نهاية الخدمة) · C5 التأمين الطبي ·
 C6 الورديات · C7 قائمة الاستقبال (onboarding) · C8 التقييم (حسب D4).
-كل واحدة نموذج `webvue.hr.*` + API + صفحة، بنفس نمط B. تُجدول دفعات من 2–3 بملكيات منفصلة.
+كل واحدة نموذج `liwan.hr.*` + API + صفحة، بنفس نمط B. تُجدول دفعات من 2–3 بملكيات منفصلة.
 
-## المرحلة D — الرواتب السعودية: `webvue_hr_payroll_sa` (بعد D2/D3)
+## المرحلة D — الرواتب السعودية: `liwan_hr_payroll_sa` (بعد D2/D3)
 
 مبني على OCA `payroll`، والقواعد **بيانات** حيث أمكن. مكتوب من الصفر؛ دراسة Enterprise مرجع سلوكي فقط.
 
@@ -109,7 +109,7 @@ C6 الورديات · C7 قائمة الاستقبال (onboarding) · C8 ال�
 - **WPS:** طبقة تخطيط ملف مستقلة، مع تحقق إلزامي من IBAN/SARIE/الهوية ورقم منشأة MoL، ومرجع فريد.
 - **السلف والقروض:** استقطاع شهري يقرأ سجل C3.
 - **اختبارات قبول ذهبية:** حالات رقمية مكتوبة مستقلة (شهري كامل، مادة 77، EOS لثلاث مدد، استقالة < 2 و2–5 و5–10 و>10، عمل إضافي، سقف GOSI).
-- **الجسر المالي** `webvue_hr_finance` (رتبة 5، `auto_install`): قيود الرواتب والمخصصات على دفتر `l10n_sa`؛ مرحلة لاحقة بعد استقرار `webvue_finance`.
+- **الجسر المالي** `liwan_hr_finance` (رتبة 5، `auto_install`): قيود الرواتب والمخصصات على دفتر `l10n_sa`؛ مرحلة لاحقة بعد استقرار `liwan_finance`.
 
 ## التحقق (لكل WP)
 

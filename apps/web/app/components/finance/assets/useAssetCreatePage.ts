@@ -1,4 +1,4 @@
-import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import { ASSETS_PATH, assetRecordPath } from './assetPaths'
 import { useAssetListPage } from './useAssetListPage'
 

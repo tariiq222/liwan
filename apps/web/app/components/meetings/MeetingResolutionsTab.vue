@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { MeetingDetail } from '@webvue/contracts'
+import type { MeetingDetail } from '@liwan/contracts'
 import { recordChildTo } from '@/utils/recordListOrigin'
 import { MEETING_LIST_PATHS } from '@/modules/meetings/navigation'
-import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
+import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
 import { ApiError } from '@/composables/useApi'
 import { useConvertResolution, useResolutionAction } from '@/composables/useMeetings'
 import { formatMeetingDate } from '@/utils/meetingMinutesForm'
@@ -143,7 +143,7 @@ async function confirmResolutionAction() {
     <template v-if="meeting.can_edit && !['done', 'cancelled'].includes(meeting.state)" #actions>
       <UButton size="sm" icon="i-lucide-plus" :to="childTo(`/meetings/${meetingId}/resolutions/new`, { ...route.query, tab: 'resolutions' })" :label="t('meetingsUi.newResolution')" />
     </template>
-    <div v-if="meeting.resolutions.length" class="min-w-0 px-(--webvue-card-pad-dense) py-3">
+    <div v-if="meeting.resolutions.length" class="min-w-0 px-(--liwan-card-pad-dense) py-3">
       <FilterBar embedded class="w-full" :active-count="Number(Boolean(recommendationSearch.trim())) + Number(Boolean(recommendationState))" :disabled="!hydrated" @clear="recommendationSearch = ''; recommendationState = ''">
         <template #search>
           <UInput v-model="recommendationSearch" icon="i-lucide-search" :disabled="!hydrated" class="w-full" :placeholder="t('meetingsUx.searchRecommendations')" :aria-label="t('meetingsUx.searchRecommendations')">
@@ -157,11 +157,11 @@ async function confirmResolutionAction() {
         </template>
       </FilterBar>
     </div>
-    <p v-if="conversionError" role="alert" class="px-(--webvue-card-pad) py-3 text-sm text-error">{{ conversionError }}</p>
-    <div v-if="!meeting.resolutions.length" class="p-(--webvue-card-pad)"><SharedEmptyState :title="t('meetingsUi.emptyResolutions')" /></div>
-    <div v-else-if="!filteredResolutions.length" class="p-(--webvue-card-pad)"><SharedEmptyState :title="t('meetingsUx.noMatchingRecommendations')" /></div>
+    <p v-if="conversionError" role="alert" class="px-(--liwan-card-pad) py-3 text-sm text-error">{{ conversionError }}</p>
+    <div v-if="!meeting.resolutions.length" class="p-(--liwan-card-pad)"><SharedEmptyState :title="t('meetingsUi.emptyResolutions')" /></div>
+    <div v-else-if="!filteredResolutions.length" class="p-(--liwan-card-pad)"><SharedEmptyState :title="t('meetingsUx.noMatchingRecommendations')" /></div>
     <template v-else>
-      <article v-for="item in filteredResolutions" :key="item.id" class="grid min-w-0 gap-3 px-(--webvue-card-pad) py-4">
+      <article v-for="item in filteredResolutions" :key="item.id" class="grid min-w-0 gap-3 px-(--liwan-card-pad) py-4">
         <div class="flex min-w-0 flex-wrap items-center justify-between gap-2">
           <h3 class="min-w-0 break-words text-base font-semibold text-highlighted">{{ item.name }}</h3>
           <div class="flex min-w-0 flex-wrap gap-1.5">
@@ -217,7 +217,7 @@ async function confirmResolutionAction() {
     </template>
   </SharedRecordSection>
   <SharedRecordSection v-if="meeting.previous_resolutions.length" id="meeting-follow-up" variant="list" :title="t('meetingsUi.previousResolutions')" :description="t('meetingsUx.currentPreviousFollowUp')">
-    <article v-for="item in meeting.previous_resolutions" :key="item.id" class="grid min-w-0 gap-2 px-(--webvue-card-pad) py-3">
+    <article v-for="item in meeting.previous_resolutions" :key="item.id" class="grid min-w-0 gap-2 px-(--liwan-card-pad) py-3">
       <UButton color="primary" variant="link" class="w-fit p-0 font-semibold whitespace-normal text-start" :to="`/meetings/${item.meeting_id}`">{{ item.meeting_name }}</UButton>
       <div class="flex min-w-0 flex-wrap items-center gap-2 text-sm">
         <span class="text-highlighted">{{ item.name }}</span>

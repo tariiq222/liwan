@@ -12,7 +12,7 @@ import {
   type InboxRuleTest,
   type InboxRuleWrite,
   type InboxWorkingHours,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 
 // Same 'inbox' root as the staff keys, so the bus invalidation of ['inbox'] refreshes the automation screens too.
 

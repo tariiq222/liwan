@@ -25,7 +25,7 @@ test.describe('Tasmim context sidebar', () => {
   test.beforeEach(async ({ page }) => { await login(page) })
 
   test('collapse survives a reload and is server-rendered before hydration', async ({ page, context }) => {
-    await context.clearCookies({ name: 'webvue-context-sidebar' })
+    await context.clearCookies({ name: 'liwan-context-sidebar' })
     await page.goto('/tasks')
     const sidebar = page.getByTestId('application-navigation')
     const toggle = page.getByTestId('context-sidebar-toggle')
@@ -34,7 +34,7 @@ test.describe('Tasmim context sidebar', () => {
     await toggle.click()
     await expect(sidebar).toHaveAttribute('data-expanded', 'false')
     await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(64)
-    expect((await context.cookies()).find(cookie => cookie.name === 'webvue-context-sidebar')?.value).toBe('closed')
+    expect((await context.cookies()).find(cookie => cookie.name === 'liwan-context-sidebar')?.value).toBe('closed')
 
     const hydrate = await beforeHydration(page, '/tasks')
     await expect(sidebar).toHaveAttribute('data-expanded', 'false')

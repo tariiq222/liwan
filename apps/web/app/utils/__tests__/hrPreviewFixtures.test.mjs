@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { hrPreviewData } from '../../../e2e/hr-ui-preview-data.mjs'
 import { capabilitiesForRequest } from '../../../e2e/mock-capabilities.mjs'
 import { moduleUiPreviewData } from '../../../e2e/module-ui-preview-data.mjs'
-import { HrDepartmentListSchema, HrDepartmentSchema, HrEmployeeListSchema, HrEmployeeSchema, HrExpiringListSchema, HrLeaveListSchema, HrLeaveSchema, HrSaudizationSchema } from '@webvue/contracts'
+import { HrDepartmentListSchema, HrDepartmentSchema, HrEmployeeListSchema, HrEmployeeSchema, HrExpiringListSchema, HrLeaveListSchema, HrLeaveSchema, HrSaudizationSchema } from '@liwan/contracts'
 
 const at = (path, query = '') => new URL(`http://localhost${path}${query}`)
 const names = (list) => list.items.map(item => item.name)

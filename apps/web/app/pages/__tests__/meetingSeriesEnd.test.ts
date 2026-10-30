@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { parse } from '@vue/compiler-sfc'
 import { describe, expect, it } from 'vitest'
-import { MeetingSeriesDetailSchema } from '@webvue/contracts'
+import { MeetingSeriesDetailSchema } from '@liwan/contracts'
 
 const { descriptor } = parse(readFileSync(resolve('app/pages/meetings/series/[id].vue'), 'utf8'))
 

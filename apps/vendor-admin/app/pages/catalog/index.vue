@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { PackageRevision } from '@webvue/commercial-contracts'
+import type { PackageRevision } from '@liwan/commercial-contracts'
 import { packageLabel, packageListReturnTo, packageMatchesStatus } from '@/utils/vendorPackages'
 definePageMeta({ capability: 'vendor.read' })
 const { t } = useI18n(); const route = useRoute(); const router = useRouter(); const { request } = useVendorApi(); const { can } = useVendorContext(); const hydrated = useHydrated()

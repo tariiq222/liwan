@@ -19,7 +19,7 @@ STATE = FIXTURE / 'state'
 ODOO = Path('/Users/tariq/code/odoo')
 PYTHON = ODOO / '.venv/bin/python'
 ODOO_BIN = ODOO / 'odoo-bin'
-DB = 'webvue_scratch_p1outage'
+DB = 'liwan_scratch_p1outage'
 PGPORT = '55439'
 LOGIN = 'outage_fixture_admin'
 
@@ -57,9 +57,9 @@ def main() -> None:
 
     # The container's postgres OS account is the existing isolated cluster
     # superuser. Use psql's password prompt over stdin; no password in argv.
-    run(['docker', 'exec', '-u', 'postgres', '-i', 'webvue-saas-outage-fixture-postgres',
-         'psql', '-U', 'webvue_fixture', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1'],
-        env=dict(os.environ), stdin=f'\\password webvue_fixture\n{new_pg}\n{new_pg}\n')
+    run(['docker', 'exec', '-u', 'postgres', '-i', 'liwan-saas-outage-fixture-postgres',
+         'psql', '-U', 'liwan_fixture', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1'],
+        env=dict(os.environ), stdin=f'\\password liwan_fixture\n{new_pg}\n{new_pg}\n')
 
     # Make the new DB credential live before any Odoo shell connection. Odoo
     # keeps pool connections in its long-running process, so the old process
@@ -71,12 +71,12 @@ def main() -> None:
     config_path.write_text(config.replace(f'db_password = {old_pg}', f'db_password = {new_pg}'))
     config_path.chmod(0o600)
 
-    env = dict(os.environ, PGHOST='127.0.0.1', PGPORT=PGPORT, PGUSER='webvue_fixture', PGPASSWORD=new_pg)
-    env['WEBVUE_FIXTURE_ADMIN_LOGIN'] = LOGIN
-    env['WEBVUE_FIXTURE_ADMIN_PASSWORD'] = new_admin
+    env = dict(os.environ, PGHOST='127.0.0.1', PGPORT=PGPORT, PGUSER='liwan_fixture', PGPASSWORD=new_pg)
+    env['LIWAN_FIXTURE_ADMIN_LOGIN'] = LOGIN
+    env['LIWAN_FIXTURE_ADMIN_PASSWORD'] = new_admin
     shell_args = [str(PYTHON), str(ODOO_BIN), 'shell', '-c', str(STATE / 'odoo.conf'),
                   f'--addons-path={ODOO}/odoo/addons,{ODOO}/addons,{ROOT}/odoo-addons',
-                  '--db_host=127.0.0.1', '--db_port=55439', '--db_user=webvue_fixture',
+                  '--db_host=127.0.0.1', '--db_port=55439', '--db_user=liwan_fixture',
                   '-d', DB, f'--db-filter=^{DB}$', f'--data-dir={STATE}/odoo-data',
                   f'--logfile={STATE}/logs/rotate.log', '--http-interface=127.0.0.1',
                   '--http-port=18179', '--workers=0', '--max-cron-threads=0', '--no-http']
@@ -85,8 +85,8 @@ def main() -> None:
         raise RuntimeError('Odoo credential rotation did not confirm')
 
     secrets_env['FIXTURE_PG_PASSWORD'] = new_pg
-    secrets_env['WEBVUE_FIXTURE_ADMIN_PASSWORD'] = new_admin
-    secrets_env.setdefault('WEBVUE_FIXTURE_MARKER', 'OUTAGE-FIXTURE-' + secrets.token_hex(16))
+    secrets_env['LIWAN_FIXTURE_ADMIN_PASSWORD'] = new_admin
+    secrets_env.setdefault('LIWAN_FIXTURE_MARKER', 'OUTAGE-FIXTURE-' + secrets.token_hex(16))
     envfile.write_text(''.join(f'{k}={v}\n' for k, v in secrets_env.items()))
     envfile.chmod(0o600)
     pgfile.write_text(new_pg + '\n')

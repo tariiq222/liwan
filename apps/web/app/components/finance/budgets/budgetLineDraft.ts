@@ -1,4 +1,4 @@
-import type { FinanceBudgetDetail, FinanceBudgetLine, FinanceBudgetLineCreate, FinanceBudgetLinePatch } from '@webvue/contracts'
+import type { FinanceBudgetDetail, FinanceBudgetLine, FinanceBudgetLineCreate, FinanceBudgetLinePatch } from '@liwan/contracts'
 
 /** The line form as typed: the amount stays a string until it is validated. */
 export interface BudgetLineDraft {

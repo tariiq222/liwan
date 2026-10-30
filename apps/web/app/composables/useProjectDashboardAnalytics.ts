@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/vue-query'
 import {
   ProjectDashboardAnalyticsSchema,
   type ProjectDashboardAnalytics,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { type ProjectReportStatusFilter } from '../utils/projectFinance'
 
 export type { ProjectDashboardAnalytics }

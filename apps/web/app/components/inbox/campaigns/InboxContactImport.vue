@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { InboxContactImportSchema, type InboxContactImportResult } from '@webvue/contracts'
+import { InboxContactImportSchema, type InboxContactImportResult } from '@liwan/contracts'
 import { fileToBase64 } from '@/utils/attachmentFile'
 import { useInboxTags } from '@/composables/inbox/useInbox'
 import { useImportInboxContacts } from '@/composables/inbox/useInboxCampaigns'
@@ -79,7 +79,7 @@ async function submit() {
       </div>
     </form>
     <div v-if="result" class="mt-4 flex flex-col gap-3" role="status" data-testid="inbox-import-result">
-      <div class="grid grid-cols-3 gap-(--webvue-gap-card)">
+      <div class="grid grid-cols-3 gap-(--liwan-gap-card)">
         <SharedMetricTile density="compact" :label="t('inbox.campaigns.import.created')" :value="result.created" tone="success" />
         <SharedMetricTile density="compact" :label="t('inbox.campaigns.import.updated')" :value="result.updated" />
         <SharedMetricTile density="compact" :label="t('inbox.campaigns.import.skipped')" :value="result.skipped" :tone="result.skipped ? 'warning' : 'neutral'" />

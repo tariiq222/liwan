@@ -1,7 +1,7 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
-import { HrExpiringListSchema, HrSaudizationSchema } from '@webvue/contracts'
+import { HrExpiringListSchema, HrSaudizationSchema } from '@liwan/contracts'
 
 /** The look-ahead windows the expiry report offers, in days; the first is the default. */
 export const HR_EXPIRY_WINDOWS = [30, 60, 90] as const

@@ -14,7 +14,7 @@ describe('release-complete derivation (same file as tools/test_managed_policy.py
     })
   }
   it('lists the release modules once, base first', () => {
-    expect(releaseModules(fixture.cases[0]!.catalog)).toEqual(['webvue_core', 'webvue_platform', 'webvue_api', 'webvue_pmo', 'webvue_meetings', 'webvue_hr'])
+    expect(releaseModules(fixture.cases[0]!.catalog)).toEqual(['liwan_core', 'liwan_platform', 'liwan_api', 'liwan_pmo', 'liwan_meetings', 'liwan_hr'])
   })
   it('accepts a ceiling under schema 3 and refuses schema 4', () => {
     expect(parseFeatureDescriptor('limit:a.b:3', 3).value).toBe(3)

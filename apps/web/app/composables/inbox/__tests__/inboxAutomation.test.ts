@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { InboxInteractive, InboxRule } from '@webvue/contracts'
+import type { InboxInteractive, InboxRule } from '@liwan/contracts'
 import {
   autoContentToDraft, automationToDraft, automationWrite, buildAutoContent, draftToHours, emptyAutoContentDraft, emptyHoursDraft, emptyRuleDraft,
   hoursToDraft, hoursValid, moveRuleId, overlappingWeekdays, ruleActionKeys, ruleToDraft, ruleWrite, ruleWriteCandidate, timezoneChoices,

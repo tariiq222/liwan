@@ -1,6 +1,6 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
-import { MyTaskListPageSchema } from '@webvue/contracts'
+import { MyTaskListPageSchema } from '@liwan/contracts'
 import { myTaskListQuery, type MyTaskListParams } from './useMyTasks'
 import { myTaskKeys } from './myTaskKeys'
 import { MY_TASK_PAGE_SIZE } from '@/utils/myTaskList'

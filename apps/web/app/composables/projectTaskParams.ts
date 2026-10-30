@@ -1,4 +1,4 @@
-import type { TaskState } from '@webvue/contracts'
+import type { TaskState } from '@liwan/contracts'
 import type { TaskListParams } from './useTasks'
 import { taskAttributeFilters, taskAttributeQuery } from './taskFilterParams'
 import { normalizeTaskSort } from './taskSort'

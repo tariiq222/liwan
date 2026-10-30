@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
-import type { HrShiftAttendance, HrShiftSchedule } from '@webvue/contracts'
+import type { HrShiftAttendance, HrShiftSchedule } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { SHIFT_WEEK_START } from '@/utils/hrShiftWeek'
 import { useCreateHrShiftSchedule, useUpdateHrShiftSchedule } from '@/composables/useHrShifts'
@@ -71,7 +71,7 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <UForm novalidate :state="{ name, tz, attendances }" class="webvue-form" method="post" data-testid="hr-shift-schedule-form" @submit="submit">
+  <UForm novalidate :state="{ name, tz, attendances }" class="liwan-form" method="post" data-testid="hr-shift-schedule-form" @submit="submit">
     <UAlert v-if="error && !serverField" role="alert" color="error" variant="subtle" :title="error" />
     <SharedFormSection panel :title="t('hrShifts.form.scheduleSection')">
       <div class="grid gap-4">

@@ -59,7 +59,7 @@ class ReservationRecovery(unittest.TestCase):
         self.assertTrue(_runtime_candidate('node node_modules/tsx/dist/cli.mjs apps/control-plane/src/main.ts',
                                            ROOT, NODE_BIN))
         self.assertTrue(_runtime_candidate('bash deploy/control-plane/run-local.sh runtime', ROOT, NODE_BIN))
-        with tempfile.TemporaryDirectory(prefix='webvue-alias-') as tmp:
+        with tempfile.TemporaryDirectory(prefix='liwan-alias-') as tmp:
             alias = Path(tmp) / 'alias-main.ts'
             os.symlink(real, alias)
             self.assertTrue(_runtime_candidate(f'{node} {alias}', ROOT, NODE_BIN),
@@ -74,7 +74,7 @@ class ReservationRecovery(unittest.TestCase):
         self.assertFalse(_runtime_candidate(f'{node} {ROOT}-other/apps/control-plane/src/main.ts', ROOT, NODE_BIN))
 
     def test_live_candidate_without_listener_refuses_preserving_reservation(self):
-        with tempfile.TemporaryDirectory(prefix='webvue-reservation-live-') as tmp:
+        with tempfile.TemporaryDirectory(prefix='liwan-reservation-live-') as tmp:
             home = Path(tmp); state = reservation(home)
             before = (state / 'generation').read_bytes()
             with patch('recover_generation._process_snapshot', return_value=rows_with_coordinator(4242)):
@@ -87,7 +87,7 @@ class ReservationRecovery(unittest.TestCase):
 
     def test_unknown_symlink_and_malformed_reservations_refuse(self):
         for kind in ('unknown', 'symlink', 'malformed'):
-            with self.subTest(kind=kind), tempfile.TemporaryDirectory(prefix='webvue-reservation-invalid-') as tmp:
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory(prefix='liwan-reservation-invalid-') as tmp:
                 home = Path(tmp); state = reservation(home)
                 if kind == 'unknown': (state / 'foreign').write_text('untouched')
                 elif kind == 'symlink':
@@ -103,7 +103,7 @@ class ReservationRecovery(unittest.TestCase):
                 self.assertEqual(list(home.glob('processes-archive-*')), [])
 
     def test_foreign_supervisor_with_same_argv_refuses_even_without_listener(self):
-        with tempfile.TemporaryDirectory(prefix='webvue-reservation-foreign-runtime-') as tmp:
+        with tempfile.TemporaryDirectory(prefix='liwan-reservation-foreign-runtime-') as tmp:
             home = Path(tmp); state = reservation(home)
             before = (state / 'generation').read_bytes()
             rows = {1233: (1234, 'begin-start', f'{sys.executable} {ROOT / "deploy/control-plane/begin_generation.py"}'),
@@ -117,7 +117,7 @@ class ReservationRecovery(unittest.TestCase):
             self.assertEqual(list(home.glob('processes-archive-*')), [])
 
     def test_listener_command_error_refuses(self):
-        with tempfile.TemporaryDirectory(prefix='webvue-reservation-listener-error-') as tmp:
+        with tempfile.TemporaryDirectory(prefix='liwan-reservation-listener-error-') as tmp:
             home = Path(tmp); state = reservation(home)
             class Failed:
                 returncode = 2
@@ -133,7 +133,7 @@ class ReservationRecovery(unittest.TestCase):
             self.assertEqual(list(home.glob('processes-archive-*')), [])
 
     def test_probe_errors_refuse(self):
-        with tempfile.TemporaryDirectory(prefix='webvue-reservation-probe-error-') as tmp:
+        with tempfile.TemporaryDirectory(prefix='liwan-reservation-probe-error-') as tmp:
             home = Path(tmp); state = reservation(home)
             for listener, candidate in ((lambda: True, lambda root, node, pid, coordinator: False),
                                         (lambda: False, lambda root, node, pid, coordinator: (_ for _ in ()).throw(ValueError('process_enumeration_failed')))):

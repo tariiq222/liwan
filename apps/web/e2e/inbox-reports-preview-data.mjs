@@ -308,7 +308,7 @@ function templateRow(template, filters) {
       template: { id: template.id, name: template.name, language: template.language, category: template.category },
       sent: sum(points, point => point.sent), delivered: sum(points, point => point.delivered), read: sum(points, point => point.read), clicked: sum(points, point => point.clicked),
       amount_spent: template.category === 'marketing' ? Math.round(sum(points, point => point.delivered) * 0.034 * 100) / 100 : null,
-      webvue_sent: sum(points, point => point.sent) + 1, webvue_failed: template.status === 'rejected' ? 0 : template.id % 3 === 0 ? 2 : 0,
+      liwan_sent: sum(points, point => point.sent) + 1, liwan_failed: template.status === 'rejected' ? 0 : template.id % 3 === 0 ? 2 : 0,
     },
   }
 }

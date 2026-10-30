@@ -23,7 +23,7 @@ class SourceGateTests(unittest.TestCase):
 
     def check(self, manifest=None, gate=None):
         return verify_sources({}, manifest or self.manifest, self.gate if gate is None else gate, self.manifest,
-                              {'webvueRoot':self.root/'base'}, {'webvueRoot':self.root/'target'})
+                              {'liwanRoot':self.root/'base'}, {'liwanRoot':self.root/'target'})
 
     def test_observed_inventory_and_matching_complete_sources_are_required(self):
         with patch('deploy.releases.source_gate.installed_modules',return_value=['base']) as observation:

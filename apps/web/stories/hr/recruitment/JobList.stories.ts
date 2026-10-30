@@ -1,16 +1,16 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import type { TableColumn } from '@nuxt/ui'
 import { useI18n } from 'vue-i18n'
-import type { HrRecruitmentJob } from '@webvue/contracts'
-import ListPage from '@webvue/ui/app/components/shared/layout/ListPage.vue'
-import ListCard from '@webvue/ui/app/components/shared/layout/ListCard.vue'
-import DataTable from '@webvue/ui/app/components/shared/data/DataTable.vue'
-import SegmentedControl from '@webvue/ui/app/components/shared/data/SegmentedControl.vue'
-import StatusBadge from '@webvue/ui/app/components/shared/data/StatusBadge.vue'
+import type { HrRecruitmentJob } from '@liwan/contracts'
+import ListPage from '@liwan/ui/app/components/shared/layout/ListPage.vue'
+import ListCard from '@liwan/ui/app/components/shared/layout/ListCard.vue'
+import DataTable from '@liwan/ui/app/components/shared/data/DataTable.vue'
+import SegmentedControl from '@liwan/ui/app/components/shared/data/SegmentedControl.vue'
+import StatusBadge from '@liwan/ui/app/components/shared/data/StatusBadge.vue'
 import { storyContext } from '../../support/context'
 
 // The job-position list of /hr/recruitment/jobs: the active/archived scope, the search and
-// the table with WebVue's own ongoing-applicant count. Static fixtures, no requests.
+// the table with LiwanOS's own ongoing-applicant count. Static fixtures, no requests.
 const jobs: HrRecruitmentJob[] = [
   { id: 3, name: 'مهندس واجهات', department: { id: 1, name: 'الهندسة' }, no_of_recruitment: 2, application_count: 6, description: '', active: true },
   { id: 4, name: 'مصمم تجربة', department: { id: 2, name: 'المنتج' }, no_of_recruitment: 1, application_count: 3, description: '', active: true },

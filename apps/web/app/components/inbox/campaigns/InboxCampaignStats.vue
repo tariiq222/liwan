@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxCampaign } from '@webvue/contracts'
+import type { InboxCampaign } from '@liwan/contracts'
 import { campaignTiles, dispatchedPercent } from '@/composables/inbox/inboxCampaignPresentation'
 
 // The live numbers of one campaign: why it is paused or waiting (with Meta's own words), the figures of its recipients and
@@ -12,7 +12,7 @@ const waiting = computed(() => props.campaign.waiting && (props.campaign.state =
 </script>
 
 <template>
-  <div class="flex min-w-0 flex-col gap-(--webvue-gap-card)" data-testid="inbox-campaign-stats">
+  <div class="flex min-w-0 flex-col gap-(--liwan-gap-card)" data-testid="inbox-campaign-stats">
     <UAlert
       v-if="props.campaign.state === 'paused' && props.campaign.pause_reason" role="alert" color="warning" variant="subtle" icon="i-lucide-pause-circle"
       :title="t(`inbox.campaigns.pause.${props.campaign.pause_reason}`)" :description="props.campaign.pause_detail ?? t(`inbox.campaigns.pauseHint.${props.campaign.pause_reason}`)" data-testid="inbox-campaign-paused"

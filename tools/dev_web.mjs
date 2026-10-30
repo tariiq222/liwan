@@ -69,11 +69,11 @@ export function createDevLaunch({ root = ROOT, env = process.env, args = [] } = 
   if (Number(backend.port) !== backendPort || Number(websocket.port) !== backendPort || frontendPort === backendPort) {
     throw new Error('Inconsistent frontend/backend ports in .env.worktree.')
   }
-  if (!/^webvue_scratch_[a-z0-9_]+$/.test(profile.NUXT_ODOO_DB ?? '')) throw new Error('NUXT_ODOO_DB in .env.worktree must name a worktree scratch database.')
-  if (profile.WEBVUE_TENANCY_MODE && profile.WEBVUE_TENANCY_MODE !== 'dedicated') throw new Error('.env.worktree local backend requires dedicated tenancy.')
+  if (!/^liwan_scratch_[a-z0-9_]+$/.test(profile.NUXT_ODOO_DB ?? '')) throw new Error('NUXT_ODOO_DB in .env.worktree must name a worktree scratch database.')
+  if (profile.LIWAN_TENANCY_MODE && profile.LIWAN_TENANCY_MODE !== 'dedicated') throw new Error('.env.worktree local backend requires dedicated tenancy.')
   return {
     cwd,
-    env: { ...env, ...profile, WEBVUE_TENANCY_MODE: 'dedicated' },
+    env: { ...env, ...profile, LIWAN_TENANCY_MODE: 'dedicated' },
     args: [cli, 'dev', '--dotenv', profilePath, '--port', String(frontendPort), '--strictPort', '--no-takeover'],
     worktree,
   }

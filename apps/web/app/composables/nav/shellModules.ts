@@ -33,7 +33,7 @@ const SETTINGS_KEYS: Readonly<Record<string, { shortcut: string; goKey?: string 
   '/subscription': { shortcut: 'b' },
 }
 
-const homeItem: NavItem = { to: '/', labelKey: 'nav.home', icon: House, shortcut: 'h', goKey: 'h', module: 'home', capability: 'webvue.internal' }
+const homeItem: NavItem = { to: '/', labelKey: 'nav.home', icon: House, shortcut: 'h', goKey: 'h', module: 'home', capability: 'liwan.internal' }
 
 /** The parts of every settings page as nav items (palette, search and rail visibility); registered parts carry no shortcut. */
 function settingsNavItems(): NavItem[] {
@@ -89,7 +89,7 @@ export function useNav(identity: AccessIdentity): NavItem[] {
     const feature = featureForRailModule(item.module)
     return Array.isArray(identity?.capabilities) && feature !== undefined && hasFeature(identity, feature)
   }
-  return allNavItems().filter(item => (item.capability === 'webvue.internal' ? internalAccess(item) : navAllowed(identity, item.capability, item.to, item.feature)))
+  return allNavItems().filter(item => (item.capability === 'liwan.internal' ? internalAccess(item) : navAllowed(identity, item.capability, item.to, item.feature)))
 }
 
 export interface ShellModuleDefinition {

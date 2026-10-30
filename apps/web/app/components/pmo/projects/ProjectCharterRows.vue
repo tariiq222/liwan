@@ -49,7 +49,7 @@ function addDeliverable() {
 </script>
 
 <template>
-  <div class="grid gap-(--webvue-gap-section)">
+  <div class="grid gap-(--liwan-gap-section)">
     <section v-if="showObjectives" class="grid gap-3" data-testid="charter-field-objectives">
       <div class="flex items-center gap-1">
         <h2 class="text-base font-semibold text-highlighted">{{ t('projects.charter.fields.objectives') }}</h2>

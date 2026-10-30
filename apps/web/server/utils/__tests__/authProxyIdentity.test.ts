@@ -10,7 +10,7 @@ let app: http.Server
 let url: string
 let upstreamUrl: string
 let calls: http.IncomingHttpHeaders[] = []
-let configuredHeader = 'x-webvue-client-ip'
+let configuredHeader = 'x-liwan-client-ip'
 let authenticateAnswer: object = { result: { uid: 7 } }
 
 beforeAll(async () => {
@@ -38,7 +38,7 @@ beforeAll(async () => {
   url = `http://127.0.0.1:${(app.address() as { port: number }).port}`
 })
 
-beforeEach(() => { vi.stubEnv('WEBVUE_TENANCY_MODE', 'dedicated'); calls = []; configuredHeader = 'x-webvue-client-ip'; authenticateAnswer = { result: { uid: 7 } } })
+beforeEach(() => { vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated'); calls = []; configuredHeader = 'x-liwan-client-ip'; authenticateAnswer = { result: { uid: 7 } } })
 afterEach(() => vi.unstubAllEnvs())
 afterAll(async () => {
   for (const server of [app, upstream]) {
@@ -48,7 +48,7 @@ afterAll(async () => {
   vi.unstubAllGlobals()
 })
 
-const edge = { 'x-webvue-client-ip': '203.0.113.7', 'x-webvue-client-host': 'webvue.example.test:8443', 'x-webvue-client-proto': 'https' }
+const edge = { 'x-liwan-client-ip': '203.0.113.7', 'x-liwan-client-host': 'liwan.example.test:8443', 'x-liwan-client-proto': 'https' }
 async function request(path: string, headers: Record<string, string> = edge) {
   // Node's fetch may ignore an explicit Host. The shared boundary test needs
   // the literal tenant Host on the wire, as Caddy sends it in production.
@@ -74,18 +74,18 @@ describe.each(['/login', '/totp'])('dedicated auth identity on %s', (path) => {
     const response = await request(path, { ...edge, 'x-forwarded-for': '198.51.100.99', 'x-forwarded-host': 'evil.example.test', 'x-forwarded-proto': 'http', forwarded: 'for=198.51.100.100' })
     expect(response.status).toBe(200)
     expect(calls).toHaveLength(1)
-    expect(calls[0]).toMatchObject({ 'x-forwarded-for': '203.0.113.7', 'x-forwarded-host': 'webvue.example.test:8443', 'x-forwarded-proto': 'https' })
+    expect(calls[0]).toMatchObject({ 'x-forwarded-for': '203.0.113.7', 'x-forwarded-host': 'liwan.example.test:8443', 'x-forwarded-proto': 'https' })
     expect(calls[0]?.forwarded).toBeUndefined()
     expect(response.headers.getSetCookie()[0]).toContain('session_id=synthetic-wire-session')
   })
 
   it.each(['2001:db8::1234', '::ffff:192.0.2.8'])('supports a single IPv6 peer %s', async (ip) => {
-    expect((await request(path, { ...edge, 'x-webvue-client-ip': ip })).status).toBe(200)
+    expect((await request(path, { ...edge, 'x-liwan-client-ip': ip })).status).toBe(200)
     expect(calls[0]?.['x-forwarded-for']).toBe(ip)
   })
 
   it.each(['', '192.0.2.1, 192.0.2.2', 'not-an-ip', 'fe80::1%en0', '192.0.2.1:80'])('rejects malformed or ambiguous identity %j before contacting Odoo', async (ip) => {
-    expect((await request(path, { ...edge, 'x-webvue-client-ip': ip })).status).toBe(503)
+    expect((await request(path, { ...edge, 'x-liwan-client-ip': ip })).status).toBe(503)
     expect(calls).toHaveLength(0)
   })
 
@@ -95,10 +95,10 @@ describe.each(['/login', '/totp'])('dedicated auth identity on %s', (path) => {
   })
 
   it.each([
-    { 'x-webvue-client-host': 'user@webvue.example.test' },
-    { 'x-webvue-client-host': 'webvue.example.test/other' },
-    { 'x-webvue-client-host': 'webvue.example.test,evil.example.test' },
-    { 'x-webvue-client-proto': 'ftp' },
+    { 'x-liwan-client-host': 'user@liwan.example.test' },
+    { 'x-liwan-client-host': 'liwan.example.test/other' },
+    { 'x-liwan-client-host': 'liwan.example.test,evil.example.test' },
+    { 'x-liwan-client-proto': 'ftp' },
   ])('rejects malformed proxy origin %j', async (invalid) => {
     expect((await request(path, { ...edge, ...invalid })).status).toBe(503)
     expect(calls).toHaveLength(0)
@@ -119,16 +119,16 @@ describe.each(['/login', '/totp'])('dedicated auth identity on %s', (path) => {
 })
 
 it.each(['/login', '/totp'])('shared %s preserves tenant authority without trusting dedicated headers', async (path) => {
-  const directory = mkdtempSync(join(tmpdir(), 'webvue-auth-shared-'))
+  const directory = mkdtempSync(join(tmpdir(), 'liwan-auth-shared-'))
   const registry = join(directory, 'registry.json')
   const token = 'synthetic-shared-auth-boundary'.repeat(2)
   writeFileSync(registry, JSON.stringify({ schemaVersion: 1, snapshotRevision: 1, targets: [{ host: 'a.example.test', tenantId: 'a', database: 'db_a', filestore: 'db_a', enabled: true, registryRevision: 1 }] }))
-  vi.stubEnv('WEBVUE_TENANCY_MODE', 'shared')
-  vi.stubEnv('WEBVUE_TENANT_REGISTRY_PATH', registry)
-  vi.stubEnv('WEBVUE_SHARED_PROXY_TOKEN', token)
+  vi.stubEnv('LIWAN_TENANCY_MODE', 'shared')
+  vi.stubEnv('LIWAN_TENANT_REGISTRY_PATH', registry)
+  vi.stubEnv('LIWAN_SHARED_PROXY_TOKEN', token)
   try {
-    expect((await request(path, { host: 'a.example.test', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1', ...edge })).status).toBe(200)
-    expect(calls[0]).toMatchObject({ host: 'a.example.test', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1' })
+    expect((await request(path, { host: 'a.example.test', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1', ...edge })).status).toBe(200)
+    expect(calls[0]).toMatchObject({ host: 'a.example.test', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1' })
     expect(calls[0]?.['x-forwarded-for']).toBeUndefined()
     expect(calls[0]?.['x-forwarded-host']).toBeUndefined()
   } finally {
@@ -140,7 +140,7 @@ describe('login refusal codes', () => {
   const refused = (name: string) => ({ error: { code: 200, message: 'Odoo Server Error', data: { name, message: 'Access Denied' } } })
 
   it('names a suspended tenant only for the error Odoo raises after valid credentials', async () => {
-    authenticateAnswer = refused('odoo.addons.webvue_platform.models.entitlement_service.WebVueTenantSuspended')
+    authenticateAnswer = refused('odoo.addons.liwan_platform.models.entitlement_service.LiwanTenantSuspended')
     const response = await request('/login')
     expect(response.status).toBe(403)
     expect(await response.json()).toMatchObject({ data: { code: 'tenant_suspended' } })

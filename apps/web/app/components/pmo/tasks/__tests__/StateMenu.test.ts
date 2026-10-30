@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { compileTemplate, parse } from '@vue/compiler-sfc'
 import { renderToString } from '@vue/server-renderer'
-import type { Task } from '@webvue/contracts'
+import type { Task } from '@liwan/contracts'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { computed, createSSRApp, defineComponent, h, type RenderFunction } from 'vue'
@@ -58,7 +58,7 @@ function loadStateMenu() {
       const onSelect = (state: string) => state
       const items = computed(() => states.value.map((s) => ({ label: t(STATE_LABEL_KEY[s]), onSelect: () => onSelect(s) })))
       const stateBadge = (state: string) => ({ tone: 'info', label: state })
-      const statusPillAttrs = (tone: string) => ({ class: 'webvue-pill', 'data-tone': tone })
+      const statusPillAttrs = (tone: string) => ({ class: 'liwan-pill', 'data-tone': tone })
       return { states, hydrated, isPending, t, onSelect, STATE_LABEL_KEY, items, stateBadge, statusPillAttrs }
     },
     render,

@@ -19,10 +19,10 @@ function mount(initial: unknown) {
 describe('useKpiVisibility', () => {
   beforeEach(() => { cookieName = '' })
 
-  it('shows the strips by default and reads the webvue-kpis cookie', () => {
+  it('shows the strips by default and reads the liwan-kpis cookie', () => {
     expect(mount(undefined).shown.value).toBe(true)
     expect(cookieName).toBe(KPI_COOKIE)
-    expect(KPI_COOKIE).toBe('webvue-kpis')
+    expect(KPI_COOKIE).toBe('liwan-kpis')
   })
 
   it('starts hidden from a hidden cookie, and treats any other value as shown', () => {

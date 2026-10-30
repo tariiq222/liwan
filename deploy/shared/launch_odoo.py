@@ -9,11 +9,11 @@ from validate_odoo_config import ConfigRejected, validate_config, validate_launc
 def main():
     try:
         # Only role-specific public options may supplement the checked config.
-        if os.environ.get("WEBVUE_TENANCY_MODE") != "shared":
+        if os.environ.get("LIWAN_TENANCY_MODE") != "shared":
             raise ConfigRejected()
         arguments = validate_launch_arguments(sys.argv[1:])
         validate_config("/etc/odoo/odoo.conf")
-        os.execv("/usr/local/bin/webvue-odoo", ["webvue-odoo", *arguments])
+        os.execv("/usr/local/bin/liwan-odoo", ["liwan-odoo", *arguments])
     except (ConfigRejected, OSError):
         sys.stderr.write("shared_config_rejected\n")
         return 1

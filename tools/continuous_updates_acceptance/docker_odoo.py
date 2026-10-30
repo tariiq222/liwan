@@ -25,15 +25,15 @@ from deploy.releases.postgres import fence_runtime, identifier, runtime_role_fix
 from deploy.releases.runtime_identity import RuntimeIdentityError, inspect_odoo_runtime
 from deploy.releases.state import ReleaseState, atomic_json
 
-DATABASE = 'webvue_scratch_updates_docker_t03_1016'
-OWNER = 'webvue_updates_docker_owner_1016'
-BLUE = 'webvue_updates_docker_blue_1016'
-GREEN = 'webvue_updates_docker_green_1016'
+DATABASE = 'liwan_scratch_updates_docker_t03_1016'
+OWNER = 'liwan_updates_docker_owner_1016'
+BLUE = 'liwan_updates_docker_blue_1016'
+GREEN = 'liwan_updates_docker_green_1016'
 STOCK = '34eed49d88f0f4357e1f54fe82cb0ad280939572'
-BASE = 'webvue-odoo:67902a0'
-TAG = 'webvue-updates-odoo-review:current-source-1016'
-NAMES = {'blue': 'webvue-updates-odoo-review-blue-1016',
-    'green': 'webvue-updates-odoo-review-green-1016', 'cron': 'webvue-updates-odoo-review-cron-1016'}
+BASE = 'liwan-odoo:67902a0'
+TAG = 'liwan-updates-odoo-review:current-source-1016'
+NAMES = {'blue': 'liwan-updates-odoo-review-blue-1016',
+    'green': 'liwan-updates-odoo-review-green-1016', 'cron': 'liwan-updates-odoo-review-cron-1016'}
 
 
 def run(argv, *, timeout=30, **kwargs):
@@ -65,7 +65,7 @@ def save(root, report):
 
 def build(source, root, report):
     base = docker_json(['image', 'inspect', BASE])[0]
-    if base['Config']['Labels'].get('sa.webvue.odoo-commit') != STOCK:
+    if base['Config']['Labels'].get('sa.liwan.odoo-commit') != STOCK:
         raise ValueError('cached_stock_commit_mismatch')
     digests = base.get('RepoDigests', [])
     if not digests: raise ValueError('cached_base_digest_required')
@@ -90,15 +90,15 @@ def build(source, root, report):
     artifact = hashlib.sha256(json.dumps(facts, sort_keys=True).encode()).hexdigest()
     (context / 'Dockerfile').write_text(
         'FROM ' + BASE + '\nUSER root\n'
-        'COPY odoo-addons /opt/webvue/addons\n'
-        'COPY deploy/security/odoo_secure.py /opt/webvue/odoo_secure.py\n'
-        'COPY deploy/shared/launch_odoo.py deploy/shared/validate_odoo_config.py /opt/webvue/shared/\n'
-        'COPY deploy/odoo/entrypoint.sh /usr/local/bin/webvue-odoo\n'
-        'COPY tools/oca_addons.py /opt/webvue/tools/oca_addons.py\n'
-        'COPY deploy/oca-addons.json /opt/webvue/deploy/oca-addons.json\n'
-        'RUN chmod 0755 /usr/local/bin/webvue-odoo && chmod -R a-w /opt/webvue\n'
-        'LABEL webvue.acceptance.kind="cached-base-current-source-overlay" '
-        'webvue.acceptance.source-sha256="' + artifact + '"\nUSER 501:501\n')
+        'COPY odoo-addons /opt/liwan/addons\n'
+        'COPY deploy/security/odoo_secure.py /opt/liwan/odoo_secure.py\n'
+        'COPY deploy/shared/launch_odoo.py deploy/shared/validate_odoo_config.py /opt/liwan/shared/\n'
+        'COPY deploy/odoo/entrypoint.sh /usr/local/bin/liwan-odoo\n'
+        'COPY tools/oca_addons.py /opt/liwan/tools/oca_addons.py\n'
+        'COPY deploy/oca-addons.json /opt/liwan/deploy/oca-addons.json\n'
+        'RUN chmod 0755 /usr/local/bin/liwan-odoo && chmod -R a-w /opt/liwan\n'
+        'LABEL liwan.acceptance.kind="cached-base-current-source-overlay" '
+        'liwan.acceptance.source-sha256="' + artifact + '"\nUSER 501:501\n')
     result = subprocess.run(['docker', 'build', '--pull=false', '--network=none', '-t', TAG, str(context)],
         stdout=(root / 'build.log').open('wb'), stderr=subprocess.STDOUT, timeout=180)
     if result.returncode: raise ValueError('acceptance_overlay_build_failed')
@@ -108,7 +108,7 @@ def build(source, root, report):
     base_layers = base.get('RootFS', {}).get('Layers', [])
     built_layers = image.get('RootFS', {}).get('Layers', [])
     if (not base_layers or built_layers[:len(base_layers)] != base_layers
-            or image['Config']['Labels'].get('sa.webvue.odoo-commit') != STOCK):
+            or image['Config']['Labels'].get('sa.liwan.odoo-commit') != STOCK):
         raise ValueError('built_image_base_mismatch')
     report['artifact'] = {**facts, 'sourceArtifactDigest': artifact, 'imageId': image['Id'],
         'repoDigests': image.get('RepoDigests', []), 'baseLayerPrefixVerified': True, 'scope': 'cached-base-current-source-overlay',
@@ -162,7 +162,7 @@ def configuration(root, role, password, *, cron=False):
         '\ndb_password=' + password + '\nadmin_passwd=' + secrets.token_urlsafe(32) +
         '\ndbfilter=^%h$\nlist_db=False\nproxy_mode=False\ndata_dir=/var/lib/odoo\nworkers=2\n'
         'http_interface=0.0.0.0\nhttp_port=8069\nlog_level=info\n'
-        + 'db_app_name=webvue-docker-review-' + ('cron' if cron else 'http') + '-{pid}\n'
+        + 'db_app_name=liwan-docker-review-' + ('cron' if cron else 'http') + '-{pid}\n'
         + ('db_name=' + DATABASE + '\nmax_cron_threads=1\n' if cron else 'max_cron_threads=0\n'))
     path.chmod(0o400)
     return path
@@ -174,17 +174,17 @@ def create(root, image, data, config, pool, role, *, cron=False, port=None):
     # Docker CLI cannot supply a multi-element entrypoint; use create then the API
     # via an inspectable Compose document instead (created below).
     service = {'image': image['Id'], 'container_name': name, 'user': '501:501',
-        'entrypoint': ['/opt/venv/bin/python', '/opt/webvue/shared/launch_odoo.py'],
+        'entrypoint': ['/opt/venv/bin/python', '/opt/liwan/shared/launch_odoo.py'],
         'command': ['--no-http', '--max-cron-threads=1', '--database=' + DATABASE] if cron else ['--max-cron-threads=0'],
-        'environment': {'WEBVUE_TENANCY_MODE': 'shared', 'WEBVUE_RELEASE_POOL_ID': pool,
-            'WEBVUE_RELEASE_DB_USER': role, 'WEBVUE_RELEASE_ROLE': 'cron' if cron else 'http'},
-        'labels': {'webvue.pool': pool, 'webvue.release': 'dockerreview',
-            'webvue.db-config-sha256': sha(config), 'webvue.runtime': 'cron' if cron else 'http'},
+        'environment': {'LIWAN_TENANCY_MODE': 'shared', 'LIWAN_RELEASE_POOL_ID': pool,
+            'LIWAN_RELEASE_DB_USER': role, 'LIWAN_RELEASE_ROLE': 'cron' if cron else 'http'},
+        'labels': {'liwan.pool': pool, 'liwan.release': 'dockerreview',
+            'liwan.db-config-sha256': sha(config), 'liwan.runtime': 'cron' if cron else 'http'},
         'volumes': [{'type': 'bind', 'source': str(config), 'target': '/etc/odoo/odoo.conf', 'read_only': True},
             {'type': 'bind', 'source': str(data), 'target': '/var/lib/odoo'}]}
     if cron:
-        service['environment']['WEBVUE_RELEASE_DATABASES'] = DATABASE
-        service['labels']['webvue.database'] = DATABASE
+        service['environment']['LIWAN_RELEASE_DATABASES'] = DATABASE
+        service['labels']['liwan.database'] = DATABASE
     if port: service['ports'] = ['127.0.0.1:' + str(port) + ':8069']
     compose = root / (name + '.compose.json')
     compose.write_text(json.dumps({'services': {'odoo': service}}, indent=2))
@@ -239,7 +239,7 @@ def observe_cron(root, report):
             rows = sql(connection, 'SELECT datname,application_name,state FROM pg_stat_activity '
                 'WHERE usename=%s', (GREEN,))
         observed.update(tuple(row) for row in rows)
-        expected = {'webvue-docker-review-cron-' + pid for pid in workers}
+        expected = {'liwan-docker-review-cron-' + pid for pid in workers}
         worker_connection = any(db == DATABASE and app in expected for db, app, _ in observed)
         if len(workers) == 1 and worker_connection: break
         if time.monotonic() >= deadline: raise ValueError('actual_cron_worker_not_observed')
@@ -251,7 +251,7 @@ def observe_cron(root, report):
     report['singletonCronWorkerObserved'] = len(top.strip().splitlines()) == 3 and len(workers) == 1
     report['cronWorkerTenantConnectionObserved'] = worker_connection
     report['cronOnlyExpectedDatabaseAndStockNotificationListener'] = all(
-        db in (DATABASE, 'postgres') for db, app, _ in observed if app.startswith('webvue-docker-review-cron-'))
+        db in (DATABASE, 'postgres') for db, app, _ in observed if app.startswith('liwan-docker-review-cron-'))
     report['workerConnectionEvidence'] = sorted(observed)
     report['httpHasNoCronWorkers'] = all(b'Worker WorkerCron' not in (
         (result := run(['docker', 'logs', NAMES[key]])).stdout + result.stderr) for key in ('blue', 'green'))
@@ -310,10 +310,10 @@ def acceptance(source, root):
         if not report['attachmentReadableOverHttpAndDisk']: raise ValueError('restored_attachment_mismatch')
         # The guarded shared launcher must reject CLI database-role overrides before Odoo imports/connects.
         rejected = subprocess.run(['docker', 'run', '--rm', '--user', '501:501', '--entrypoint', '/opt/venv/bin/python',
-            '-e', 'WEBVUE_TENANCY_MODE=shared', '-e', 'WEBVUE_RELEASE_POOL_ID=dockgreen',
-            '-e', 'WEBVUE_RELEASE_ROLE=http', '-e', 'WEBVUE_RELEASE_DB_USER=' + GREEN,
+            '-e', 'LIWAN_TENANCY_MODE=shared', '-e', 'LIWAN_RELEASE_POOL_ID=dockgreen',
+            '-e', 'LIWAN_RELEASE_ROLE=http', '-e', 'LIWAN_RELEASE_DB_USER=' + GREEN,
             '--mount', 'type=bind,src=' + str(configs['green']) + ',dst=/etc/odoo/odoo.conf,readonly',
-            image['Id'], '/opt/webvue/shared/launch_odoo.py', '--db_user=tariq'], capture_output=True, timeout=20)
+            image['Id'], '/opt/liwan/shared/launch_odoo.py', '--db_user=tariq'], capture_output=True, timeout=20)
         report['unsafeRoleOverrideRefused'] = rejected.returncode == 1 and b'shared_config_rejected' in rejected.stderr
         if not report['unsafeRoleOverrideRefused']: raise ValueError('guarded_argument_override_accepted')
         state = ReleaseState(root / 'release-scratch')

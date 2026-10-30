@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Task, TaskDetail } from '@webvue/contracts'
+import type { Task, TaskDetail } from '@liwan/contracts'
 import { applyPatchToTask, PAGE, taskKeys } from '../useTasks'
 
 const baseTask: Task = {

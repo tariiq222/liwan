@@ -26,7 +26,7 @@ const hydrated = useHydrated()
 </script>
 
 <template>
-  <SharedRecordSection :id="id" variant="panel" class="webvue-settings-anchor" data-slot="settings-list" :title="title" :description="description">
+  <SharedRecordSection :id="id" variant="panel" class="liwan-settings-anchor" data-slot="settings-list" :title="title" :description="description">
     <template v-if="!canEdit || $slots.actions" #actions>
       <slot name="actions" />
       <UBadge v-if="!canEdit" color="neutral" variant="subtle" class="rounded-full" :label="t('app.viewOnly')" />

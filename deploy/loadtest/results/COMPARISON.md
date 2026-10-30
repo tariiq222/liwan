@@ -1,8 +1,8 @@
 # مقارنة الأداء تحت الحمل: أودو بنمط الخيوط (Threaded) مقابل نمط العمّال (Workers) مقابل الحزمة المبوّبة
 
 > قياسات فعلية بتاريخ **2026-10-22** على macOS arm64 (14 نواة / 24 جيجابايت)، بأداة k6 v2.3.0 مع مسبار `node:http`.
-> اختبارات النمطين الخيطي والعملي الأولى جرت على القاعدة المؤقتة `webvue_loadtest` (استنساخ من `webvue_dev`)،
-> واختبارات المرحلة 1 النهائية على `webvue_scratch_deploy_performance` داخل شجرة العمل `deploy-performance` (الفرع `codex/deploy-performance`).
+> اختبارات النمطين الخيطي والعملي الأولى جرت على القاعدة المؤقتة `liwan_loadtest` (استنساخ من `liwan_dev`)،
+> واختبارات المرحلة 1 النهائية على `liwan_scratch_deploy_performance` داخل شجرة العمل `deploy-performance` (الفرع `codex/deploy-performance`).
 
 ## 1. نمط الخيوط (Threaded) — `db_maxconn` = 64 ثم 80
 

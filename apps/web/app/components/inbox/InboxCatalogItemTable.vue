@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxCatalogItem } from '@webvue/contracts'
+import type { InboxCatalogItem } from '@liwan/contracts'
 import { REVIEW_TONE, SYNC_STATE_TONE, formatInboxMoney } from '@/composables/inbox/inboxCommerce'
 import { usePatchInboxCatalogItem } from '@/composables/inbox/useInboxCatalog'
 
@@ -17,7 +17,7 @@ function toggle(item: InboxCatalogItem, listed: boolean) {
 
 <template>
   <ul class="flex flex-col divide-y divide-default" :aria-label="t('inbox.catalog.items.title')" data-testid="inbox-catalog-items">
-    <li v-for="item in props.items" :key="item.id" class="flex flex-wrap items-center gap-3 px-(--webvue-card-pad) py-3" :data-testid="`inbox-catalog-item-${item.id}`">
+    <li v-for="item in props.items" :key="item.id" class="flex flex-wrap items-center gap-3 px-(--liwan-card-pad) py-3" :data-testid="`inbox-catalog-item-${item.id}`">
       <InboxProductImage :src="item.image?.url ?? null" class="size-12 shrink-0 rounded-control" />
       <NuxtLink :to="`/settings/apps/inbox/catalog/${item.catalog_id}/items/${item.id}`" class="min-w-0 flex-1 text-start focus-visible:outline-2 focus-visible:outline-primary">
         <span class="block truncate text-sm font-medium text-highlighted" :class="{ 'text-muted': !item.listed }">{{ item.name }}</span>

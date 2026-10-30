@@ -7,7 +7,7 @@ defineProps<{ item: SettingsPreviewItem }>()
 </script>
 
 <template>
-  <NuxtLink :to="item.to" class="flex min-w-0 items-center gap-3 px-(--webvue-card-pad) py-3 transition-colors duration-150 hover:bg-(--webvue-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none" data-testid="settings-preview-row">
+  <NuxtLink :to="item.to" class="flex min-w-0 items-center gap-3 px-(--liwan-card-pad) py-3 transition-colors duration-150 hover:bg-(--liwan-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none" data-testid="settings-preview-row">
     <SharedPersonAvatar v-if="item.person" :people="[item.person]" />
     <span v-else-if="item.icon" class="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-primary" aria-hidden="true"><UIcon :name="item.icon" class="size-4" /></span>
     <span class="min-w-0 flex-1">

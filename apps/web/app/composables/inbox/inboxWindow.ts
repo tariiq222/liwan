@@ -1,4 +1,4 @@
-import type { InboxConversation } from '@webvue/contracts'
+import type { InboxConversation } from '@liwan/contracts'
 
 /**
  * Whether a free-form WhatsApp reply is still accepted: the customer-service window closes

@@ -2,7 +2,7 @@
 
 Surfaces: vendor console `apps/vendor-admin` (every page listed in the Covers column), control plane
 `apps/control-plane`, customer pages `/invite/accept`, `/login`, `/subscription` (`change`, `status`, `invoices`,
-`branches`) in `apps/web`, entitlement enforcement in `odoo-addons/webvue_platform/models/entitlement_service.py`.
+`branches`) in `apps/web`, entitlement enforcement in `odoo-addons/liwan_platform/models/entitlement_service.py`.
 Personas and status values: [README](README.md).
 
 How a customer starts today (code checked 2026-10-28): there is **no public self-service
@@ -27,7 +27,7 @@ Reading this file:
   needs `vendor.pricing.manage`, `vendor.billing.manage`, `vendor.operations.run` or `vendor.accounts.manage`, and
   for catalog publication and trial extend or end. Refusal: 403 `step_up_required`; missing capability: 403
   `forbidden`. Session: 30 minutes idle, 12 hours absolute.
-- Customer capabilities are derived from WebVue capabilities (`app/utils/customerCapabilities.ts`): administrators
+- Customer capabilities are derived from LiwanOS capabilities (`app/utils/customerCapabilities.ts`): administrators
   (`settings.branding.manage` or `access.roles.manage`) get subscription.read, subscription.manage, branches.manage,
   billing.read; a holder of `access.users.read` only gets subscription.read; everyone else none.
 - Customer commercial routes are off (404) unless `customerCommercialEnabled` is true; `non_saas` builds never set it.
@@ -61,7 +61,7 @@ Reading this file:
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | SAAS-20 | Signed-out visit to any vendor page | visitor | Redirect to `/login?next=<page>`; `/` redirects to `/overview` once signed in | `vendor /login`, `vendor /` | manual 2026-10-28 | signed-out /overview -> /login?next=/overview; signed-in / -> /overview; next=https://evil and //evil ignored (lands /overview); `decideAccess`; `next` must be a same-app path, otherwise `/` |
-| SAAS-21 | Sign in with a passkey | vendor owner | Passkey options, verify, session cookie `__Host-webvue_admin`; step-up is fresh straight after a passkey sign-in | `vendor /login` | planned | WebAuthn needs a virtual authenticator, not set up in this run; cp /v1/admin/auth/passkey/options and verify |
+| SAAS-21 | Sign in with a passkey | vendor owner | Passkey options, verify, session cookie `__Host-liwan_admin`; step-up is fresh straight after a passkey sign-in | `vendor /login` | planned | WebAuthn needs a virtual authenticator, not set up in this run; cp /v1/admin/auth/passkey/options and verify |
 | SAAS-22 | Passkey sign-in fails | vendor operator | 401 `auth_failed`; counted against the ip scope | `vendor /login` | planned | passkey verify with garbage answers 422 invalid (no counted failure observed); fallback failures see SAAS-24; Limit 20 failures per 15 minutes per IP |
 | SAAS-23 | Lost device: email, password and TOTP code | vendor owner | Signed in; session has no fresh step-up, so sensitive actions ask for a passkey | `vendor /login` | planned | no account with password and TOTP exists (enrollment needs a passkey); cp /v1/admin/auth/fallback; the TOTP step may not be reused (`last_step`) |
 | SAAS-24 | Fallback with a wrong password, wrong code or unknown email | vendor operator | Same 401 `auth_failed` for all (timing equalised with a dummy hash) | `vendor /login` | manual 2026-10-28 | fallback with unknown email, enrolling account and wrong password: all 401 auth_failed; timing not measured |
@@ -276,12 +276,12 @@ Reading this file:
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| SAAS-200 | User limit | it_admin | Creating or reactivating the user that exceeds `users.limit` answers 403 `feature_not_included` «this limit has been reached», limit key `users.limit`; message «بلغت الحد المسموح للمستخدمين في باقتك.» | `page /subscription` | planned | needs a provisioned tenant; the shared scratch Odoo must not be changed; `_webvue_claim_users`; vendor support and the root user are not counted |
+| SAAS-200 | User limit | it_admin | Creating or reactivating the user that exceeds `users.limit` answers 403 `feature_not_included` «this limit has been reached», limit key `users.limit`; message «بلغت الحد المسموح للمستخدمين في باقتك.» | `page /subscription` | planned | needs a provisioned tenant; the shared scratch Odoo must not be changed; `_liwan_claim_users`; vendor support and the root user are not counted |
 | SAAS-201 | Archiving frees a seat | it_admin | After archiving one user the next creation succeeds | `page /subscription` | planned | needs a provisioned tenant; the shared scratch Odoo must not be changed |
 | SAAS-202 | Limit unset | it_admin | `null` limit means unlimited | `page /subscription` | planned | needs a provisioned tenant; the shared scratch Odoo must not be changed |
 | SAAS-203 | Corrupt limit in the tenant profile | it_admin | 503 `tenant_configuration_invalid` | `page /subscription` | planned | needs a provisioned tenant; the shared scratch Odoo must not be changed; Negative or non-integer limit |
 | SAAS-204 | Storage limit | staff1 | An upload that would pass `storage.limit_mb` answers 403 limit reached; «بلغت سعة المرفقات المسموح بها في باقتك.»; deleting frees space | `page /subscription` | planned | needs a provisioned tenant; the shared scratch Odoo must not be changed; Sum of binary attachment sizes |
-| SAAS-205 | Project limit | pm | The project above `projects.max_projects` is refused; message «بلغت الحد المسموح للمشاريع في باقتك.»; copying a project counts | `page /subscription` | planned | needs a provisioned tenant; the shared scratch Odoo must not be changed; `_webvue_claim_projects` |
+| SAAS-205 | Project limit | pm | The project above `projects.max_projects` is refused; message «بلغت الحد المسموح للمشاريع في باقتك.»; copying a project counts | `page /subscription` | planned | needs a provisioned tenant; the shared scratch Odoo must not be changed; `_liwan_claim_projects` |
 | SAAS-206 | Extra branch limit | it_admin | Active extra branches counted against `branches.extra_limit` | `page /subscription/branches` | planned | needs a provisioned tenant; the shared scratch Odoo must not be changed |
 | SAAS-207 | Limit race | it_admin | Two concurrent creates at the last seat: exactly one succeeds (tenant profile row lock) | `page /subscription` | planned | needs a provisioned tenant; the shared scratch Odoo must not be changed |
 | SAAS-208 | Plan changes the limits | it_admin | New limits apply after fulfilment, not before | `page /subscription/status` | planned | needs a provisioned tenant; the shared scratch Odoo must not be changed |

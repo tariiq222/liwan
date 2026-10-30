@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinanceBankStatement } from '@webvue/contracts'
-import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
+import type { FinanceBankStatement } from '@liwan/contracts'
+import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import { useFinanceBankJournals, useFinanceBankStatements } from '@/composables/finance/useFinanceBank'
 import { useRouteListFilters } from '@/composables/useRouteListFilters'
 import { listReturnTo, useListLocation } from '../invoices/listLocation'
@@ -66,7 +66,7 @@ const dash = computed(() => t('app.notAvailable'))
 
 <template>
   <SharedForbiddenState v-if="!allowed" :description="t('financeBank.forbidden')" />
-  <div v-else class="webvue-page-stack">
+  <div v-else class="liwan-page-stack">
     <BankKpiStrip v-if="kpisShown" :filters="filters" :filtered="activeCount > 0" />
     <div v-if="importTo" class="flex justify-end">
       <UButton color="neutral" variant="outline" icon="i-lucide-file-up" :to="importTo" :label="t('financeBank.import.link')" data-testid="finance-bank-import-link" />
@@ -86,7 +86,7 @@ const dash = computed(() => t('app.notAvailable'))
         </SharedFilterBar>
       </template>
       <SharedPageState :error="query.error.value" :keep-content="items.length > 0" @retry="query.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--webvue-card-pad-dense)" :title="t(activeCount ? 'app.noResults' : 'financeBank.empty')" />
+        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(activeCount ? 'app.noResults' : 'financeBank.empty')" />
         <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,900px)]">
           <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :row-to="recordTo" :loading="query.isPending.value" :caption="t('financeBank.title')">
             <template #record_number-cell="{ row }"><SharedRecordNumber :value="row.original.id" /></template>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import { useHrLeaveAllocations, type HrLeaveAllocation } from '@/composables/useHrLeave'
 import { useHrLeaveFormat } from '@/composables/useHrLeaveFormat'
 import { hrLeaveBadge } from '@/utils/hrLeaveBadge'
@@ -61,7 +61,7 @@ const createTo = computed(() => ({ path: '/hr/leave/allocations/new', query: ret
     <SharedForbiddenState v-if="!can('hr.leave.manage')" />
     <SharedListCard v-else>
       <SharedPageState :error="allocations.error.value" :keep-content="items.length > 0" @retry="allocations.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--webvue-card-pad-dense)" :title="t('hr.leave.allocation.emptyTitle')" :description="t('hr.leave.allocation.emptyHint')" />
+        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hr.leave.allocation.emptyTitle')" :description="t('hr.leave.allocation.emptyHint')" />
         <SharedDataTable
           v-else
           bare

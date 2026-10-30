@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { formatDateTime } from '@webvue/ui/app/utils/formatDate'
-import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
+import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
+import { statusTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import InboxChannelActions from '@/components/inbox/InboxChannelActions.vue'
 import InboxChannelAlerts from '@/components/inbox/InboxChannelAlerts.vue'
 import InboxChannelHealthCard from '@/components/inbox/InboxChannelHealthCard.vue'

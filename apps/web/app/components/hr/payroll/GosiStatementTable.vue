@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { HrGosiStatement, HrGosiStatementLine } from '@webvue/contracts'
+import type { HrGosiStatement, HrGosiStatementLine } from '@liwan/contracts'
 import { formatPayrollAmount } from '@/utils/payrollFormat'
 
 // The GOSI statement of a fixed run: a row per employee with the capped contributory wage, the employee and employer

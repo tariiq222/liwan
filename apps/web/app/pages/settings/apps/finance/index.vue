@@ -11,7 +11,7 @@ import FiscalSetupCard from '@/components/finance/FiscalSetupCard.vue'
 import { financeSetupProgress } from '@/composables/finance/financeSetupSteps'
 import { financeSetupScopeToken } from '@/composables/finance/financeFiscalSetup'
 import { useFinanceSetup } from '@/composables/finance/useFinanceSetup'
-import type { PageHeaderTag } from '@webvue/ui/app/utils/pageHeaderTag'
+import type { PageHeaderTag } from '@liwan/ui/app/utils/pageHeaderTag'
 
 const { t } = useI18n()
 const { can } = useAccess()
@@ -49,9 +49,9 @@ const ZATCA_TONE = { not_started: 'neutral', compliance_checked: 'info', onboard
     <SharedPageHeader :title="t('nav.finance')" :tags="headerTags" />
     <SharedForbiddenState v-if="!parts.length" :description="t('errors.forbidden')" />
     <template v-else>
-    <section v-if="shows('setup')" id="setup" class="webvue-settings-anchor">
+    <section v-if="shows('setup')" id="setup" class="liwan-settings-anchor">
     <SharedPageState :loading="setup.isLoading.value" :error="setup.error.value" :empty="!data" @retry="setup.refetch">
-      <div v-if="data" class="grid gap-(--webvue-gap-card)">
+      <div v-if="data" class="grid gap-(--liwan-gap-card)">
         <SharedRecordSection variant="panel" :title="t('finance.setup.stepsTitle')" :description="progress ? t('finance.overview.setupProgress', { done: progress.done, total: progress.total }) : undefined" data-testid="finance-setup-steps">
           <SetupChecklist :setup="data" />
         </SharedRecordSection>
@@ -108,13 +108,13 @@ const ZATCA_TONE = { not_started: 'neutral', compliance_checked: 'info', onboard
     </SharedPageState>
     </section>
 
-    <section v-if="shows('analytic')" id="analytic" class="webvue-settings-anchor grid gap-(--webvue-gap-card)">
+    <section v-if="shows('analytic')" id="analytic" class="liwan-settings-anchor grid gap-(--liwan-gap-card)">
       <AnalyticPlansSection />
       <AnalyticAccountsSection />
     </section>
-    <section v-if="shows('closing')" id="closing" class="webvue-settings-anchor"><ClosingView /></section>
-    <section v-if="shows('zatca')" id="zatca" class="webvue-settings-anchor"><ZatcaView /></section>
-    <section v-if="shows('audit')" id="audit" class="webvue-settings-anchor">
+    <section v-if="shows('closing')" id="closing" class="liwan-settings-anchor"><ClosingView /></section>
+    <section v-if="shows('zatca')" id="zatca" class="liwan-settings-anchor"><ZatcaView /></section>
+    <section v-if="shows('audit')" id="audit" class="liwan-settings-anchor">
       <SettingsPreviewCard :title="t('financeGovernance.audit.title')" :all-label="t('settings.preview.allAudit')" all-to="/settings/apps/finance/audit" test-id="finance-audit-card">
         <AuditPreview />
       </SettingsPreviewCard>

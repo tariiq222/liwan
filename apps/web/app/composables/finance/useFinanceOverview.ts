@@ -1,8 +1,8 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
-import { FinanceAgedPartnerBalanceSchema, FinanceInvoiceListSchema } from '@webvue/contracts'
-import { localIsoDay } from '@webvue/ui/app/utils/formatDate'
+import { FinanceAgedPartnerBalanceSchema, FinanceInvoiceListSchema } from '@liwan/contracts'
+import { localIsoDay } from '@liwan/ui/app/utils/formatDate'
 
 export type FinanceAgingKind = 'receivable' | 'payable'
 

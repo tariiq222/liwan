@@ -33,10 +33,10 @@ class ControlPlaneCiTest(unittest.TestCase):
                                     cwd=ROOT, env=environment, text=True, capture_output=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             calls = [json.loads(line) for line in log.read_text().splitlines()]
-            self.assertIn('webvue_control_scratch_analytics',
+            self.assertIn('liwan_control_scratch_analytics',
                           [call['args'][-1] for call in calls if call['tool'] == 'createdb'])
             suites = [call for call in calls if call['tool'] == 'npm' and call['database']]
-            main = next(call for call in suites if call['database'] == '/webvue_control_scratch_ci')
+            main = next(call for call in suites if call['database'] == '/liwan_control_scratch_ci')
             self.assertIn('**/commercial-analytics.test.ts', main['args'])
-            analytics = next(call for call in suites if call['database'] == '/webvue_control_scratch_analytics')
+            analytics = next(call for call in suites if call['database'] == '/liwan_control_scratch_analytics')
             self.assertIn('commercial-analytics', analytics['args'])

@@ -6,11 +6,11 @@ from langgraph.checkpoint.memory import InMemorySaver
 
 from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call
 from tests.test_service import HEADERS, RESUME_C1, SETTINGS, fresh, parse_sse
-from webvue_ai_service.service import create_app
-from webvue_ai_service.store import MemoryRunStore
+from liwan_ai_service.service import create_app
+from liwan_ai_service.store import MemoryRunStore
 
 TOKEN = "t" * 30
-ADMIN = {"x-webvue-service-token": TOKEN}
+ADMIN = {"x-liwan-service-token": TOKEN}
 OWNER = {**HEADERS, **ADMIN}
 
 
@@ -52,7 +52,7 @@ async def test_an_incompatible_bff_state_version_is_refused_before_any_run_is_cr
     store = MemoryRunStore()
     app = create_app(ScriptedChatModel([ai_text("x")]), store, InMemorySaver(), SETTINGS)
     async with client(app) as http:
-        response = await http.post("/v1/runs", json=fresh(), headers={**HEADERS, "x-webvue-ai-state-version": "future"})
+        response = await http.post("/v1/runs", json=fresh(), headers={**HEADERS, "x-liwan-ai-state-version": "future"})
         assert response.status_code == 503
         assert store.records == {}
 

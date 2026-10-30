@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { PaymentSettingsUpdateSchema, type PaymentSettings } from '@webvue/contracts'
+import { PaymentSettingsUpdateSchema, type PaymentSettings } from '@liwan/contracts'
 import { draftOfSettings, isValidExpiry, refusesExpiry, settingsUpdate } from '../paymentSettings'
 
 const SAVED: PaymentSettings = { unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', revision: 3 }

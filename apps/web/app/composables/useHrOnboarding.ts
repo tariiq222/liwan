@@ -19,7 +19,7 @@ import {
   type HrPlanRunList,
   type HrPlanRunState,
   type HrPlanStepDone,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 
 export type {
   HrActivityPlan,
@@ -28,7 +28,7 @@ export type {
   HrPlanStep,
   HrPlanRunStep,
   HrPlanRun,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 
 /**
  * The plan and run layer of the two employee-lifecycle areas. Both areas run the same

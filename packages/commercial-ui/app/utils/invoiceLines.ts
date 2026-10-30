@@ -1,4 +1,4 @@
-import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
+import type { StatusTone } from '@liwan/ui/app/utils/statusTone'
 
 /** One invoice line as SharedInvoiceLines draws it: every label translated and every amount formatted by the caller. */
 export interface InvoiceLineView {

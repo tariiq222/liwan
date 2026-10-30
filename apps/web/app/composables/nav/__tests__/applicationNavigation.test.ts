@@ -3,7 +3,7 @@ import { applicationNavigation } from '../applicationNavigation'
 import { contextLinksForModule } from '../shellModules'
 import { isContextLinkActive } from '../../useShellNavigation'
 
-const identity = { capabilities: ['webvue.internal', 'meetings.read', 'meetings.create', 'operations.requests.read', 'operations.requests.create'] }
+const identity = { capabilities: ['liwan.internal', 'meetings.read', 'meetings.create', 'operations.requests.read', 'operations.requests.create'] }
 const route = (path = '/meetings', query: Record<string, unknown> = {}) => ({ path, fullPath: path, query, params: {} })
 const build = (path = '/meetings', query: Record<string, unknown> = {}, actor = identity) => applicationNavigation({
   identity: actor, route: route(path, query), activeId: path.startsWith('/meetings') ? 'meetings' : 'operations',
@@ -16,9 +16,9 @@ describe('shared section hierarchy across applications', () => {
     const actor = { capabilities }
     return applicationNavigation({ identity: actor, route: route(path, query), activeId: module, contextLinks: contextLinksForModule(module, actor, path).map(link => ({ ...link, active: isContextLinkActive(path, link) })), translate: key => key }).find(item => item.id === module)!
   }
-  const finance = ['webvue.internal', 'finance.invoices.read', 'finance.partners.read', 'finance.entries.read', 'finance.accounts.read', 'finance.statements.read', 'finance.reports.read', 'finance.analytic.read', 'finance.budgets.read', 'finance.zakat.read']
-  const hr = ['webvue.internal', 'hr.employees.read', 'hr.employees.manage', 'hr.departments.read', 'hr.recruitment.read', 'hr.leave.read', 'hr.leave.approve', 'hr.shifts.read', 'hr.onboarding.read', 'hr.offboarding.read', 'hr.assets.read']
-  const settings = ['webvue.internal', 'settings.company.read', 'settings.branding.manage', 'access.users.read', 'access.roles.read', 'access.users.assign_roles', 'access.audit.read']
+  const finance = ['liwan.internal', 'finance.invoices.read', 'finance.partners.read', 'finance.entries.read', 'finance.accounts.read', 'finance.statements.read', 'finance.reports.read', 'finance.analytic.read', 'finance.budgets.read', 'finance.zakat.read']
+  const hr = ['liwan.internal', 'hr.employees.read', 'hr.employees.manage', 'hr.departments.read', 'hr.recruitment.read', 'hr.leave.read', 'hr.leave.approve', 'hr.shifts.read', 'hr.onboarding.read', 'hr.offboarding.read', 'hr.assets.read']
+  const settings = ['liwan.internal', 'settings.company.read', 'settings.branding.manage', 'access.users.read', 'access.roles.read', 'access.users.assign_roles', 'access.audit.read']
 
   it('builds unopened finance siblings from their own manifest sections without flattening or changing destinations', () => {
     const menu = buildModule('finance', '/finance', finance)
@@ -49,7 +49,7 @@ describe('shared section hierarchy across applications', () => {
     expect(menu.views).toEqual([])
   })
   it('retains a permitted child when its section parent is filtered out, without exposing that parent destination', () => {
-    const menu = buildModule('finance', '/finance/sales/invoices', ['webvue.internal', 'finance.partners.read'])
+    const menu = buildModule('finance', '/finance/sales/invoices', ['liwan.internal', 'finance.partners.read'])
     const rows = menu.sections.flatMap(section => section.items)
     const destinations = rows.flatMap(row => [row.to, ...(row.children?.map(child => child.to) ?? [])])
     expect(destinations).toContain('/finance/partners?kind=customer')
@@ -57,13 +57,13 @@ describe('shared section hierarchy across applications', () => {
     expect(destinations).not.toContain('/finance/purchases/bills')
   })
   it('discovers permitted children of unopened denied parents without exposing denied destinations', () => {
-    const partners = buildModule('finance', '/finance/partners', ['webvue.internal', 'finance.partners.read'])
+    const partners = buildModule('finance', '/finance/partners', ['liwan.internal', 'finance.partners.read'])
     const financeTargets = partners.sections.flatMap(section => section.items).flatMap(row => [row.to, ...(row.children?.map(child => child.to) ?? [])])
     expect(financeTargets).toContain('/finance/partners?kind=customer')
     expect(financeTargets).toContain('/finance/partners?kind=vendor')
     expect(financeTargets).not.toContain('/finance/sales/invoices')
     expect(financeTargets).not.toContain('/finance/purchases/bills')
-    const people = buildModule('hr', '/hr', ['webvue.internal', 'hr.employees.read', 'hr.shifts.read'])
+    const people = buildModule('hr', '/hr', ['liwan.internal', 'hr.employees.read', 'hr.shifts.read'])
     const hrTargets = people.sections.flatMap(section => section.items).flatMap(row => [row.to, ...(row.children?.map(child => child.to) ?? [])])
     expect(hrTargets).toContain('/hr/shifts')
     expect(hrTargets).not.toContain('/hr/leave')
@@ -77,7 +77,7 @@ describe('shared section hierarchy across applications', () => {
     }
   })
   it('nests the document archive only when permitted and otherwise retains a direct link', () => {
-    const capabilities = ['webvue.internal', 'documents.items.read']
+    const capabilities = ['liwan.internal', 'documents.items.read']
     const direct = buildModule('documents', '/documents', capabilities).sections.flatMap(section => section.items).find(row => row.id === 'documents')!
     expect(direct.to).toBe('/documents')
     expect(direct.children).toBeUndefined()
@@ -105,7 +105,7 @@ describe('unified application navigation', () => {
     expect(create.to).toEqual({ path: '/meetings/new', query: { returnTo: '/meetings' } })
   })
   it('keeps creation and unavailable applications out of a read-only menu', () => {
-    const items = build('/meetings', {}, { capabilities: ['webvue.internal', 'meetings.read'] })
+    const items = build('/meetings', {}, { capabilities: ['liwan.internal', 'meetings.read'] })
     const meetings = items.find(item => item.id === 'meetings')!
     expect(meetings.actions).toEqual([])
     expect(items.some(item => item.id === 'operations')).toBe(false)
@@ -126,7 +126,7 @@ describe('unified application navigation', () => {
     expect(item.sections.flatMap(section => section.items).find(link => link.to === '/meetings')?.active).toBe(false)
   })
   it('disambiguates the projects landing link while retaining overview and task destinations', () => {
-    const actor = { capabilities: ['webvue.internal', 'pmo.projects.read', 'pmo.tasks.read'] }
+    const actor = { capabilities: ['liwan.internal', 'pmo.projects.read', 'pmo.tasks.read'] }
     const item = applicationNavigation({ identity: actor, route: route('/projects'), activeId: 'projects', contextLinks: contextLinksForModule('projects', actor, '/projects'), translate: key => key }).find(item => item.id === 'projects')!
     const links = item.sections.flatMap(section => section.items)
     expect(links.find(link => link.to === '/projects')).toMatchObject({ label: 'nav.listOf' })
@@ -135,32 +135,32 @@ describe('unified application navigation', () => {
     expect(links.map(link => link.to)).toContain('/tasks')
   })
   it('View all clears project filters while preserving the chosen layout', () => {
-    const actor = { capabilities: ['webvue.internal', 'pmo.projects.read'] }
+    const actor = { capabilities: ['liwan.internal', 'pmo.projects.read'] }
     const current = route('/projects', { mine: '1', status: 'at_risk', view: 'board' })
     const links = contextLinksForModule('projects', actor, '/projects').map(link => link.to === '/projects' ? { ...link, to: { path: '/projects', query: { mine: '1', status: 'at_risk', view: 'board' } } } : link)
     const item = applicationNavigation({ identity: actor, route: current, activeId: 'projects', contextLinks: links, translate: key => key }).find(item => item.id === 'projects')!
     expect(item.sections.flatMap(section => section.items).find(link => link.id === 'projects')?.to).toEqual({ path: '/projects', query: { view: 'board' } })
   })
   it('keeps the Tasks landing page reachable alongside its work destination', () => {
-    const actor = { capabilities: ['webvue.internal', 'tasks.tasks.read'] }
+    const actor = { capabilities: ['liwan.internal', 'tasks.tasks.read'] }
     const item = applicationNavigation({ identity: actor, route: route('/work'), activeId: 'tasks', contextLinks: contextLinksForModule('tasks', actor, '/work'), translate: key => key }).find(item => item.id === 'tasks')!
     const links = item.sections.flatMap(section => section.items)
     expect(links.find(link => link.to === '/my-tasks')).toMatchObject({ label: 'nav.viewAll', active: false })
     expect(links.map(link => link.to)).toContain('/work')
   })
   it('marks only Archive selected on the archived project list', () => {
-    const actor = { capabilities: ['webvue.internal', 'pmo.projects.read', 'pmo.projects.manage'] }
+    const actor = { capabilities: ['liwan.internal', 'pmo.projects.read', 'pmo.projects.manage'] }
     const item = applicationNavigation({ identity: actor, route: route('/projects', { archived: '1' }), activeId: 'projects', contextLinks: contextLinksForModule('projects', actor, '/projects').map(link => ({ ...link, active: link.to === '/projects' })), translate: key => key }).find(item => item.id === 'projects')!
     expect(item.sections.flatMap(section => section.items).flatMap(row => row.children ?? []).find(action => action.id === 'archived-projects')?.active).toBe(true)
     expect(item.sections.flatMap(section => section.items).find(link => link.to === '/projects')?.active).toBe(false)
   })
   it('preserves the Tasks cards layout on its fallback landing link', () => {
-    const actor = { capabilities: ['webvue.internal', 'tasks.tasks.read'] }
+    const actor = { capabilities: ['liwan.internal', 'tasks.tasks.read'] }
     const item = applicationNavigation({ identity: actor, route: route('/my-tasks', { view: 'cards', q: 'test' }), activeId: 'tasks', contextLinks: contextLinksForModule('tasks', actor, '/my-tasks'), translate: key => key }).find(item => item.id === 'tasks')!
     expect(item.sections.flatMap(section => section.items).find(link => link.label === 'nav.viewAll')?.to).toEqual({ path: '/my-tasks', query: { view: 'cards' } })
   })
   it('puts task filters and archive under Tasks while retaining View all and global creation actions', () => {
-    const actor = { capabilities: ['webvue.internal', 'pmo.projects.read', 'pmo.projects.create', 'pmo.tasks.read', 'pmo.tasks.create'] }
+    const actor = { capabilities: ['liwan.internal', 'pmo.projects.read', 'pmo.projects.create', 'pmo.tasks.read', 'pmo.tasks.create'] }
     const current = route('/tasks', { view: 'board', deadline: 'today' })
     const item = applicationNavigation({ identity: actor, route: current, activeId: 'projects', contextLinks: contextLinksForModule('projects', actor, '/tasks').map(link => ({ ...link, active: link.to === '/tasks' })), translate: key => key }).find(item => item.id === 'projects')!
     const tasks = item.sections.flatMap(section => section.items).find(row => row.id === 'tasks')!
@@ -173,7 +173,7 @@ describe('unified application navigation', () => {
     expect(projects.children?.find(child => child.id === 'mine')).toMatchObject({ to: { path: '/projects', query: { mine: '1' } }, active: false })
   })
   it('preserves the selected task preset and board layout on a trailing-slash URL', () => {
-    const actor = { capabilities: ['webvue.internal', 'pmo.projects.read', 'pmo.tasks.read'] }
+    const actor = { capabilities: ['liwan.internal', 'pmo.projects.read', 'pmo.tasks.read'] }
     const current = route('/tasks/', { view: 'board', deadline: 'today' })
     const item = applicationNavigation({ identity: actor, route: current, activeId: 'projects', contextLinks: contextLinksForModule('projects', actor, current.path).map(link => ({ ...link, active: link.id === 'tasks' })), translate: key => key }).find(item => item.id === 'projects')!
     const tasks = item.sections.flatMap(section => section.items).find(row => row.id === 'tasks')!

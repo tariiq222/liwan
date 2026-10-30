@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- Tenant-wide starting lists. Editable in the CRM settings; upgrades never overwrite them. -->
+    <record id="stage_new" model="crm.stage"><field name="name">New</field><field name="sequence">10</field></record>
+    <record id="stage_contacted" model="crm.stage"><field name="name">Contacted</field><field name="sequence">20</field></record>
+    <record id="stage_interested" model="crm.stage"><field name="name">Interested</field><field name="sequence">30</field></record>
+    <record id="stage_won" model="crm.stage"><field name="name">Won</field><field name="sequence">40</field><field name="is_won" eval="True"/></record>
+
+    <function model="crm.stage" name="_liwan_retire_stock_stages"/>
+
+    <record id="lost_reason_attempts_exhausted" model="crm.lost.reason"><field name="name">Contact attempts exhausted</field></record>
+
+    <record id="outcome_no_answer" model="liwan.crm.call.outcome"><field name="name">No answer</field><field name="sequence">10</field><field name="effect">follow_up</field></record>
+    <record id="outcome_thinking" model="liwan.crm.call.outcome"><field name="name">Will think about it</field><field name="sequence">20</field><field name="effect">follow_up</field></record>
+    <record id="outcome_call_later" model="liwan.crm.call.outcome"><field name="name">Asked to call later</field><field name="sequence">30</field><field name="effect">follow_up</field></record>
+    <record id="outcome_sold" model="liwan.crm.call.outcome"><field name="name">Sold</field><field name="sequence">40</field><field name="effect">won</field></record>
+    <record id="outcome_not_interested" model="liwan.crm.call.outcome"><field name="name">Not interested</field><field name="sequence">50</field><field name="effect">lost</field></record>
+    <record id="outcome_wrong_number" model="liwan.crm.call.outcome"><field name="name">Wrong number</field><field name="sequence">60</field><field name="effect">lost</field></record>
+</odoo>

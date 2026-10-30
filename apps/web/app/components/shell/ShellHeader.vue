@@ -25,7 +25,7 @@ const { homePath, contextLabelKey, contextLinks, panel, createTo } = useShellMod
 const { expanded } = useContextSidebar()
 const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
 // The tenant's own mark: its logo, else its initials on the primary colour. A tenant without a
-// name or logo shows nothing here, because the rail already carries the WebVue wordmark.
+// name or logo shows nothing here, because the rail already carries the LiwanOS wordmark.
 const tenantName = computed(() => branding.value?.name?.trim() ?? '')
 const tenantInitials = computed(() => tenantName.value.split(/\s+/).filter(Boolean).slice(0, 2).map(word => Array.from(word)[0]!).join('').toLocaleUpperCase())
 const showTenantMark = computed(() => !!branding.value?.logo_url || !!tenantName.value)
@@ -58,26 +58,26 @@ useShellShortcuts({
 </script>
 
 <template>
-  <header data-testid="shell-header" class="webvue-shell-header" :aria-label="t('nav.header')">
-    <div class="webvue-shell-header-start">
+  <header data-testid="shell-header" class="liwan-shell-header" :aria-label="t('nav.header')">
+    <div class="liwan-shell-header-start">
       <MobileNavigation
         v-model:open="mobileOpen"
         :items="navigation.items.value"
         :active-id="navigation.activeId.value"
         :home-to="homePath"
       />
-      <NuxtLink v-if="showTenantMark" :to="homePath" class="webvue-shell-brand" :aria-label="`${tenantName || t('app.productName')} — ${t('nav.home')}`">
-        <img v-if="branding?.logo_url" :src="branding.logo_url" alt="" class="webvue-shell-brand-logo">
-        <span v-else class="webvue-shell-brand-mark bg-primary! text-inverted!" aria-hidden="true">{{ tenantInitials }}</span>
-        <span v-if="tenantName" class="webvue-shell-brand-name">{{ tenantName }}</span>
+      <NuxtLink v-if="showTenantMark" :to="homePath" class="liwan-shell-brand" :aria-label="`${tenantName || t('app.productName')} — ${t('nav.home')}`">
+        <img v-if="branding?.logo_url" :src="branding.logo_url" alt="" class="liwan-shell-brand-logo">
+        <span v-else class="liwan-shell-brand-mark bg-primary! text-inverted!" aria-hidden="true">{{ tenantInitials }}</span>
+        <span v-if="tenantName" class="liwan-shell-brand-name">{{ tenantName }}</span>
       </NuxtLink>
     </div>
-    <div class="webvue-shell-header-search">
+    <div class="liwan-shell-header-search">
       <GlobalSearch />
     </div>
-    <div class="webvue-shell-header-actions">
+    <div class="liwan-shell-header-actions">
       <AssistantButton />
-      <NotificationCenter v-if="can('webvue.notifications')" />
+      <NotificationCenter v-if="can('liwan.notifications')" />
       <AppAccountMenu />
     </div>
   </header>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProjectReportRow } from '@webvue/contracts'
+import type { ProjectReportRow } from '@liwan/contracts'
 import DashboardChart from '@/components/shared/data/DashboardChart.client.vue'
 import DashboardChartPanel from './DashboardChartPanel.vue'
 import {

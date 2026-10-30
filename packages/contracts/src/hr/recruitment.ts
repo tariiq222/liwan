@@ -16,7 +16,7 @@ export const HrRecruitmentJobSchema = z.object({
   name: z.string(),
   department: HrRefSchema.nullable(),
   no_of_recruitment: z.number().int().nonnegative(),
-  // WebVue counts the ongoing applicants of the company; the stock field is group-gated.
+  // LiwanOS counts the ongoing applicants of the company; the stock field is group-gated.
   application_count: z.number().int().nonnegative(),
   description: z.string(),
   active: z.boolean(),

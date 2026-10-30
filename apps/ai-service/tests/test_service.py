@@ -21,12 +21,12 @@ from tests.fakes import (
     new_id,
 )
 from tests.test_contracts import DRAFT_TOOL, READ_TOOL
-from webvue_ai_service import service
-from webvue_ai_service.service import create_app
-from webvue_ai_service.settings import Settings
-from webvue_ai_service.store import EXECUTING, MemoryRunStore
+from liwan_ai_service import service
+from liwan_ai_service.service import create_app
+from liwan_ai_service.settings import Settings
+from liwan_ai_service.store import EXECUTING, MemoryRunStore
 
-HEADERS = {"X-WebVue-Tenant": "t1", "X-WebVue-User": "42"}
+HEADERS = {"X-Liwan-Tenant": "t1", "X-Liwan-User": "42"}
 BODY = {
     "tenant": "t1", "user_ref": "42", "locale": "ar", "message": "وش مهامي؟", "context": {"page": "project", "id": 1},
     "tools": [READ_TOOL, DRAFT_TOOL], "limits": {"max_steps": 6, "max_tool_calls": 2, "timeout_seconds": 60},
@@ -114,19 +114,19 @@ async def test_resume_with_a_wrong_call_id_is_409_and_changes_nothing(client_fac
 async def test_another_tenant_or_user_cannot_see_or_resume_the_run(client_factory):
     async with client_factory([ai_tool_call("pmo__list_my_tasks", {}, "c_1")]) as client:
         run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
-        for headers in ({"X-WebVue-Tenant": "t2", "X-WebVue-User": "42"}, {"X-WebVue-Tenant": "t1", "X-WebVue-User": "7"}):
+        for headers in ({"X-Liwan-Tenant": "t2", "X-Liwan-User": "42"}, {"X-Liwan-Tenant": "t1", "X-Liwan-User": "7"}):
             assert (await client.get(f"/v1/runs/{run_id}", headers=headers)).status_code == 404
             assert (await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_1", "result": {"ok": True, "data": {}}}, headers=headers)).status_code == 404
 
 
 async def start(client, message, headers=HEADERS):
-    body = fresh({**BODY, "message": message, "tenant": headers["X-WebVue-Tenant"], "user_ref": headers["X-WebVue-User"]})
+    body = fresh({**BODY, "message": message, "tenant": headers["X-Liwan-Tenant"], "user_ref": headers["X-Liwan-User"]})
     return parse_sse((await client.post("/v1/runs", json=body, headers=headers)).text)[0][1]["run_id"]
 
 
 async def test_the_run_list_is_the_callers_own_newest_first_with_a_title_set_once(client_factory):
-    other_user = {"X-WebVue-Tenant": "t1", "X-WebVue-User": "7"}
-    other_tenant = {"X-WebVue-Tenant": "t2", "X-WebVue-User": "42"}
+    other_user = {"X-Liwan-Tenant": "t1", "X-Liwan-User": "7"}
+    other_tenant = {"X-Liwan-Tenant": "t2", "X-Liwan-User": "42"}
     async with client_factory([ai_text("ا")] * 6) as client:
         older = await start(client, "  أول\n  رسالة  ")
         newer = await start(client, "ثاني " * 30)
@@ -138,7 +138,7 @@ async def test_the_run_list_is_the_callers_own_newest_first_with_a_title_set_onc
         assert listed["items"][0]["title"] == "أول رسالة" and listed["items"][1]["title"].endswith("…") and len(listed["items"][1]["title"]) <= 60
         assert set(listed["items"][0]) == {"run_id", "title", "status", "updated_at", "archived"} and listed["items"][0]["archived"] is False
         assert (await client.get("/v1/runs", headers=other_user)).json()["total"] == 1
-        assert (await client.get("/v1/runs", headers={"X-WebVue-Tenant": "t3", "X-WebVue-User": "42"})).json() == {"items": [], "total": 0}
+        assert (await client.get("/v1/runs", headers={"X-Liwan-Tenant": "t3", "X-Liwan-User": "42"})).json() == {"items": [], "total": 0}
         assert (await client.get(f"/v1/runs/{newer}", headers=HEADERS)).json()["run_id"] == newer  # the list route does not shadow the item route
 
 
@@ -158,7 +158,7 @@ async def test_a_stale_executing_run_is_listed_as_failed():
 
 async def test_headers_must_match_the_body(client_factory):
     async with client_factory([ai_text("x")]) as client:
-        response = await client.post("/v1/runs", json=fresh(), headers={"X-WebVue-Tenant": "t9", "X-WebVue-User": "42"})
+        response = await client.post("/v1/runs", json=fresh(), headers={"X-Liwan-Tenant": "t9", "X-Liwan-User": "42"})
         assert response.status_code == 422
         response = await client.post("/v1/runs", json=fresh())
         assert response.status_code == 422
@@ -486,7 +486,7 @@ async def test_patch_accepts_the_longest_title(client_factory):
 async def test_patch_is_for_the_owner_only(client_factory):
     async with client_factory([ai_text("ا")]) as client:
         run_id = await start(client, "رسالة")
-        for headers in ({"X-WebVue-Tenant": "t2", "X-WebVue-User": "42"}, {"X-WebVue-Tenant": "t1", "X-WebVue-User": "7"}):
+        for headers in ({"X-Liwan-Tenant": "t2", "X-Liwan-User": "42"}, {"X-Liwan-Tenant": "t1", "X-Liwan-User": "7"}):
             assert (await client.patch(f"/v1/runs/{run_id}", json={"title": "مخترق", "archived": True}, headers=headers)).status_code == 404
         assert (await client.patch("/v1/runs/r_missing", json={"title": "x"}, headers=HEADERS)).status_code == 404
         assert (await client.patch(f"/v1/runs/{run_id}", json={"title": "x"})).status_code == 422  # owner headers are required

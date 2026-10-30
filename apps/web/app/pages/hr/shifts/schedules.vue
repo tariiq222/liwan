@@ -84,7 +84,7 @@ const createTo = computed(() => canManage.value ? { path: '/hr/shifts/schedules/
     :back-to="{ path: '/hr/shifts' }"
     :back-label="t('hrShifts.title')"
   >
-    <div class="webvue-page-stack">
+    <div class="liwan-page-stack">
       <UAlert v-if="archiveError" role="alert" color="error" variant="subtle" :title="archiveError" data-testid="hr-shifts-archive-error" />
       <SharedInlineConfirm
         v-if="archiving"
@@ -109,7 +109,7 @@ const createTo = computed(() => canManage.value ? { path: '/hr/shifts/schedules/
           />
         </template>
         <SharedPageState :error="query.error.value" :keep-content="schedules.length > 0" @retry="query.refetch">
-          <SharedEmptyState v-if="showEmpty" class="m-(--webvue-card-pad-dense)" :title="t('hrShifts.schedulesEmpty')" :description="t('hrShifts.schedulesEmptyHint')" />
+          <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hrShifts.schedulesEmpty')" :description="t('hrShifts.schedulesEmptyHint')" />
           <ShiftScheduleTable
             v-else
             :schedules="schedules"

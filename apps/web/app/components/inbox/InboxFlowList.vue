@@ -5,7 +5,7 @@ import { useInboxChannelFlows } from '@/composables/inbox/useInboxFlows'
 
 // The forms of one channel with their state and sending health, filtered by status and a name search kept in the
 // address (`?status=&q=`), so a filtered list can be shared and survives refresh and back. An empty list explains what
-// the Meta app must be subscribed to before status changes reach WebVue.
+// the Meta app must be subscribed to before status changes reach LiwanOS.
 const props = defineProps<{ channelId: number }>()
 const route = useRoute()
 const router = useRouter()
@@ -41,7 +41,7 @@ function clear() {
     <template #actions>
       <UButton v-if="can('inbox.flows.manage')" :to="flowsRoute(props.channelId, route.query, '/new')" icon="i-lucide-plus" :disabled="!hydrated" :label="t('inbox.flows.create')" data-testid="inbox-flow-create" />
     </template>
-    <div class="px-(--webvue-card-pad) py-3">
+    <div class="px-(--liwan-card-pad) py-3">
       <SharedFilterBar embedded class="w-full" :active-count="Number(!!status) + Number(!!committedSearch.trim())" :disabled="!hydrated" @clear="clear">
         <template #search>
           <form @submit.prevent="update({ q: search.trim() || undefined })">
@@ -53,7 +53,7 @@ function clear() {
     </div>
     <SharedLoadingSkeleton v-if="query.isPending.value" class="m-4" />
     <SharedPageState v-else-if="query.error.value" class="m-4" :error="query.error.value" @retry="query.refetch()" />
-    <div v-else-if="!items.length" class="flex flex-col gap-2 px-(--webvue-card-pad) py-4 text-sm text-muted" data-testid="inbox-flows-empty">
+    <div v-else-if="!items.length" class="flex flex-col gap-2 px-(--liwan-card-pad) py-4 text-sm text-muted" data-testid="inbox-flows-empty">
       <p>{{ filtered ? t('app.noResults') : t('inbox.flows.empty') }}</p>
       <p v-if="!filtered" class="text-xs">{{ t('inbox.flows.webhookGuidance') }}</p>
     </div>
@@ -62,7 +62,7 @@ function clear() {
         v-for="flow in items"
         :key="flow.id"
         :to="flowsRoute(props.channelId, route.query, `/${flow.id}`)"
-        class="flex flex-col gap-1.5 px-(--webvue-card-pad) py-3 text-start transition-colors duration-150 hover:bg-(--webvue-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+        class="flex flex-col gap-1.5 px-(--liwan-card-pad) py-3 text-start transition-colors duration-150 hover:bg-(--liwan-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
         :data-testid="`inbox-flow-${flow.id}`"
       >
         <span class="flex flex-wrap items-center justify-between gap-3">

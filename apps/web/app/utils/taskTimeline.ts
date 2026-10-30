@@ -1,4 +1,4 @@
-import { formatDate } from '@webvue/ui/app/utils/formatDate'
+import { formatDate } from '@liwan/ui/app/utils/formatDate'
 
 type TimelineTranslate = (key: string, params?: Record<string, unknown>) => string
 

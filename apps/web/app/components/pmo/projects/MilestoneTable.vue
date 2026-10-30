@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import type { Milestone } from '@webvue/contracts'
+import type { Milestone } from '@liwan/contracts'
 import { getLocalTimeZone, today } from '@internationalized/date'
 import { ApiError } from '@/composables/useApi'
-import { formatCalendarDate, toCalendarDate } from '@webvue/ui/app/composables/calendarDate'
+import { formatCalendarDate, toCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 import type { TableColumn } from '@nuxt/ui'
 import { useDeleteMilestone, useMilestones, useUpdateMilestone } from '@/composables/useMilestones'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
-import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
-import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
+import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
+import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
 
 const props = defineProps<{ projectId: number; canManage: boolean }>()
 
@@ -111,7 +111,7 @@ const columns = computed<TableColumn<Milestone>[]>(() => [
 </script>
 
 <template>
-  <div class="grid min-w-0 gap-(--webvue-gap-card)" data-testid="milestone-table">
+  <div class="grid min-w-0 gap-(--liwan-gap-card)" data-testid="milestone-table">
     <SharedPageState v-if="error" :error="error" @retry="refetch" />
     <SharedEmptyState
       v-else-if="hydrated && !isLoading && items.length === 0"

@@ -1,5 +1,5 @@
-import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
-import { statusTag, type PageHeaderTag } from '@webvue/ui/app/utils/pageHeaderTag'
+import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
+import { statusTag, type PageHeaderTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import { ApiError } from '@/composables/useApi'
 import { useFinanceBankStatement } from '@/composables/finance/useFinanceBank'
 import { BANK_LINE_TONE, BANK_STATEMENTS_PATH, statementSummary } from './bankModel'

@@ -10,16 +10,16 @@ import types
 import unittest
 from unittest.mock import patch
 
-if importlib.util.find_spec('webvue_cli.managed_verify') is None:
+if importlib.util.find_spec('liwan_cli.managed_verify') is None:
     verify = None
 else:
-    from webvue_cli import managed_verify as verify
+    from liwan_cli import managed_verify as verify
 
-DATABASE = 'webvue_scratch_managed_verify'
-MARKER = 'WEBVUE_MANAGED_POLICY:'
+DATABASE = 'liwan_scratch_managed_verify'
+MARKER = 'LIWAN_MANAGED_POLICY:'
 POLICY = {
     'schema_version': 1, 'channel': 'control_plane',
-    'modules': ['webvue_core', 'webvue_platform', 'webvue_api', 'webvue_hr'],
+    'modules': ['liwan_core', 'liwan_platform', 'liwan_api', 'liwan_hr'],
     'features': {'users.limit': None, 'storage.limit_mb': 50, 'hr.enabled': True},
 }
 
@@ -30,8 +30,8 @@ def snapshot():
         'entitlement_source': 'control_plane', 'status': 'active',
         'valid_until': None, 'features': copy.deepcopy(POLICY['features']),
         'policy_revision': 1,
-        # webvue_access_hr is the auto-installed bridge of webvue_api and webvue_hr.
-        'modules': sorted([*POLICY['modules'], 'webvue_access_hr', 'webvue_notify', 'base', 'hr', 'project']),
+        # liwan_access_hr is the auto-installed bridge of liwan_api and liwan_hr.
+        'modules': sorted([*POLICY['modules'], 'liwan_access_hr', 'liwan_notify', 'base', 'hr', 'project']),
     }
 
 
@@ -76,13 +76,13 @@ class Profile:
         self.events.append(('profile.search', domain, limit))
         return self
 
-    def _webvue_lock(self):
+    def _liwan_lock(self):
         self.events.append(('lock',))
         if self.on_lock:
             self.on_lock(self)
         return self
 
-    def _webvue_require_policy_source(self, source):
+    def _liwan_require_policy_source(self, source):
         self.events.append(('require_source', source))
         if self.entitlement_source != source:
             message = 'private exception details'
@@ -93,7 +93,7 @@ class Profile:
         return self
 
     def write(self, values):
-        assert self.context == {'webvue_platform.operator_policy': True}
+        assert self.context == {'liwan_platform.operator_policy': True}
         self.events.append(('write', copy.deepcopy(values)))
         if not self.ignore_write:
             for key, value in values.items():
@@ -107,7 +107,7 @@ class Profile:
 class Modules:
     def __init__(self, events):
         self.events = events
-        self.names = [*POLICY['modules'], 'webvue_access_hr', 'webvue_notify', 'base', 'hr', 'project']
+        self.names = [*POLICY['modules'], 'liwan_access_hr', 'liwan_notify', 'base', 'hr', 'project']
 
     def search(self, domain, limit=None):
         self.events.append(('modules.search', domain, limit))
@@ -128,16 +128,16 @@ class Environment:
         self.su = True
 
     def __getitem__(self, name):
-        return {'webvue.tenant.profile': self.profile, 'ir.module.module': self.modules}[name]
+        return {'liwan.tenant.profile': self.profile, 'ir.module.module': self.modules}[name]
 
     def invalidate_all(self, *args, **kwargs):
         self.events.append(('invalidate_all',))
 
 
 def execute_script(script, env, classification=None):
-    config = types.ModuleType('odoo.addons.webvue_platform.commercial_config')
-    entitlement = types.ModuleType('odoo.addons.webvue_platform.models.entitlement_service')
-    entitlement.OPERATOR_CONTEXT = 'webvue_platform.operator_policy'
+    config = types.ModuleType('odoo.addons.liwan_platform.commercial_config')
+    entitlement = types.ModuleType('odoo.addons.liwan_platform.models.entitlement_service')
+    entitlement.OPERATOR_CONTEXT = 'liwan_platform.operator_policy'
 
     def load_classification(database, valid_until=None):
         env.events.append(('classification', database, valid_until))
@@ -190,7 +190,7 @@ class VerifyCase(unittest.TestCase):
 
     def test_profile_and_revision_are_strict(self):
         changes = {
-            'database': ['webvue_scratch_other', 'odoo19', None],
+            'database': ['liwan_scratch_other', 'odoo19', None],
             'commercial_mode': ['non_saas', None], 'entitlement_source': ['local_policy'],
             'status': ['suspended', None], 'valid_until': ['2099-01-01', False, 0, ''],
             'policy_revision': [True, -1, 1.0, '1', None],
@@ -223,9 +223,9 @@ class VerifyCase(unittest.TestCase):
             data['features'] = features
             self.reject(output(data))
 
-    def test_module_composition_exact_for_webvue_not_upstream(self):
-        for modules in [None, POLICY['modules'][:-1], [*snapshot()['modules'], 'webvue_pmo'],
-                        [*snapshot()['modules'], 'webvue_chat'], [*snapshot()['modules'], 'webvue_extra'],
+    def test_module_composition_exact_for_liwan_not_upstream(self):
+        for modules in [None, POLICY['modules'][:-1], [*snapshot()['modules'], 'liwan_pmo'],
+                        [*snapshot()['modules'], 'liwan_chat'], [*snapshot()['modules'], 'liwan_extra'],
                         [*snapshot()['modules'], 'hr'], [*snapshot()['modules'], 1],
                         [*snapshot()['modules'], 'private-secret!']]:
             data = snapshot()
@@ -233,8 +233,8 @@ class VerifyCase(unittest.TestCase):
             self.reject(output(data))
 
     def test_invalid_database_never_builds_executable_script(self):
-        for database in ['odoo19', 'webvue_scratch_', 'webvue_scratch_X', 'webvue_scratch_a\n',
-                         "webvue_scratch_x';raise Exception('injected')#", None, 'webvue_scratch_' + 'x' * 43]:
+        for database in ['odoo19', 'liwan_scratch_', 'liwan_scratch_X', 'liwan_scratch_a\n',
+                         "liwan_scratch_x';raise Exception('injected')#", None, 'liwan_scratch_' + 'x' * 43]:
             for builder in [lambda: verify.build_policy_script(self.policy, database),
                             lambda: verify.build_snapshot_script(database)]:
                 with self.assertRaises(verify.VerificationError):
@@ -243,8 +243,8 @@ class VerifyCase(unittest.TestCase):
     def test_invalid_policy_cannot_build_or_parse(self):
         policies = [None, {}, {**POLICY, 'channel': 'local_policy'},
                     {**POLICY, 'schema_version': True}, {**POLICY, 'password': 'private-secret'},
-                    {**POLICY, 'modules': ['webvue_hr']},
-                    {**POLICY, 'modules': [*POLICY['modules'], 'webvue_hr']},
+                    {**POLICY, 'modules': ['liwan_hr']},
+                    {**POLICY, 'modules': [*POLICY['modules'], 'liwan_hr']},
                     {**POLICY, 'modules': [*POLICY['modules'], "x';raise Exception('injected')#"]},
                     {**POLICY, 'features': {'users.limit': 'private-secret'}},
                     {**POLICY, 'features': {'users.limit': -1}},
@@ -299,7 +299,7 @@ class VerifyCase(unittest.TestCase):
 
     def test_scripts_reject_wrong_target_before_model_access(self):
         for script in [verify.build_policy_script(self.policy, DATABASE), verify.build_snapshot_script(DATABASE)]:
-            env = Environment('webvue_scratch_other')
+            env = Environment('liwan_scratch_other')
             self.reject(execute_script(script, env))
             self.assertFalse(any(event[0] in {'profile.search', 'modules.search', 'write', 'commit'} for event in env.events))
 
@@ -325,8 +325,8 @@ class VerifyCase(unittest.TestCase):
                 self.assertNotIn(('commit',), env.events)
 
     def test_apply_checks_missing_and_unselected_modules_before_write(self):
-        for modules in [POLICY['modules'][:-1], [*POLICY['modules'], 'webvue_pmo'],
-                        [*POLICY['modules'], 'webvue_chat']]:
+        for modules in [POLICY['modules'][:-1], [*POLICY['modules'], 'liwan_pmo'],
+                        [*POLICY['modules'], 'liwan_chat']]:
             env = Environment()
             env.modules.names = modules
             self.reject(execute_script(verify.build_policy_script(self.policy, DATABASE), env))
@@ -352,26 +352,26 @@ class VerifyCase(unittest.TestCase):
         self.reject(stdout)
 
     def test_each_supported_composition_runs_without_extra_pillars(self):
-        base = ['webvue_core', 'webvue_platform', 'webvue_api']
-        for selected, extra_features in [([], {}), (['webvue_chat'], {'chat.enabled': True}),
-                                         (['webvue_pmo'], {'pmo.enabled': True, 'meetings.enabled': True,
+        base = ['liwan_core', 'liwan_platform', 'liwan_api']
+        for selected, extra_features in [([], {}), (['liwan_chat'], {'chat.enabled': True}),
+                                         (['liwan_pmo'], {'pmo.enabled': True, 'meetings.enabled': True,
                                                          'projects.max_projects': None})]:
             policy = {**POLICY, 'modules': base + selected,
                       'features': {'users.limit': None, 'storage.limit_mb': None, **extra_features}}
             env = Environment()
             # Odoo also installs what the selection implies (pmo needs notify and directory).
-            implied = ['webvue_notify', 'webvue_directory'] if 'webvue_pmo' in selected else []
+            implied = ['liwan_notify', 'liwan_directory'] if 'liwan_pmo' in selected else []
             env.modules.names = base + selected + implied + ['hr', 'project']
             stdout = execute_script(verify.build_policy_script(policy, DATABASE), env)
             self.assertEqual(verify.parse_snapshot(stdout, policy, DATABASE)['features'], policy['features'])
 
     def test_installed_set_is_compared_with_the_install_closure(self):
-        base = ['webvue_core', 'webvue_platform', 'webvue_api']
-        policy = {**POLICY, 'modules': base + ['webvue_pmo'],
+        base = ['liwan_core', 'liwan_platform', 'liwan_api']
+        policy = {**POLICY, 'modules': base + ['liwan_pmo'],
                   'features': {'users.limit': None, 'storage.limit_mb': None,
                                'pmo.enabled': True, 'meetings.enabled': True,
                                'projects.max_projects': None}}
-        closure = base + ['webvue_notify', 'webvue_directory', 'webvue_pmo']
+        closure = base + ['liwan_notify', 'liwan_directory', 'liwan_pmo']
 
         def installed(extra):
             data = snapshot()
@@ -379,27 +379,27 @@ class VerifyCase(unittest.TestCase):
             data['modules'] = sorted([*closure, *extra, 'base', 'project'])
             return output(data)
 
-        self.assertEqual(verify.parse_snapshot(installed([]), policy, DATABASE)['modules'].count('webvue_notify'), 1)
-        for extra in (['webvue_chat'], ['webvue_hr']):
+        self.assertEqual(verify.parse_snapshot(installed([]), policy, DATABASE)['modules'].count('liwan_notify'), 1)
+        for extra in (['liwan_chat'], ['liwan_hr']):
             with self.assertRaises(verify.VerificationError) as caught:
                 verify.parse_snapshot(installed(extra), policy, DATABASE)
             self.assertEqual(caught.exception.code, 'modules_mismatch')
         data = snapshot()
         data['features'] = copy.deepcopy(policy['features'])
-        data['modules'] = sorted([*base, 'webvue_notify', 'webvue_pmo', 'base'])  # webvue_directory missing
+        data['modules'] = sorted([*base, 'liwan_notify', 'liwan_pmo', 'base'])  # liwan_directory missing
         with self.assertRaises(verify.VerificationError) as caught:
             verify.parse_snapshot(output(data), policy, DATABASE)
         self.assertEqual(caught.exception.code, 'modules_mismatch')
 
     def test_apply_script_accepts_closure_and_refuses_extra_or_missing(self):
-        base = ['webvue_core', 'webvue_platform', 'webvue_api']
-        policy = {**POLICY, 'modules': base + ['webvue_pmo'],
+        base = ['liwan_core', 'liwan_platform', 'liwan_api']
+        policy = {**POLICY, 'modules': base + ['liwan_pmo'],
                   'features': {'users.limit': None, 'storage.limit_mb': None,
                                'pmo.enabled': True, 'meetings.enabled': True,
                                'projects.max_projects': None}}
-        closure = base + ['webvue_notify', 'webvue_directory', 'webvue_pmo']
-        for names, ok in [(closure, True), (closure + ['webvue_chat'], False),
-                          ([n for n in closure if n != 'webvue_notify'], False)]:
+        closure = base + ['liwan_notify', 'liwan_directory', 'liwan_pmo']
+        for names, ok in [(closure, True), (closure + ['liwan_chat'], False),
+                          ([n for n in closure if n != 'liwan_notify'], False)]:
             env = Environment()
             env.modules.names = names + ['project']
             stdout = execute_script(verify.build_policy_script(policy, DATABASE), env)
@@ -447,7 +447,7 @@ class VerifyCase(unittest.TestCase):
 class V2RevisionZeroTests(unittest.TestCase):
     def test_revision_zero_accepts_complete_v2_policy_and_rejects_legacy_subset(self):
         policy = {'schema_version': 1, 'channel': 'control_plane',
-                  'modules': ['webvue_core', 'webvue_platform', 'webvue_api'],
+                  'modules': ['liwan_core', 'liwan_platform', 'liwan_api'],
                   'features': {'users.limit': None, 'storage.limit_mb': None, 'branches.extra_limit': 0}}
         data = {'database': DATABASE, 'commercial_mode': 'saas', 'entitlement_source': 'control_plane',
                 'status': 'active', 'valid_until': None, 'features': dict(policy['features']),

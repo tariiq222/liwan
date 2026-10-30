@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 /** Wire contract between control-api (caller) and control-worker (executor) for the admin password effect. */
 export const EFFECT_PATH = '/v1/internal/admin-password'
-export const EFFECT_ISSUER = 'webvue-internal-effect'
+export const EFFECT_ISSUER = 'liwan-internal-effect'
 export const EFFECT_ACTOR = 1
 export const MAX_EFFECT_BODY = 4096
 /** The worker gives the effect 200s; the API waits slightly longer so the worker's own refusal arrives first. */

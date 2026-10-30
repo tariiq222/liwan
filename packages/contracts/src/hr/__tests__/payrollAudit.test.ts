@@ -7,7 +7,7 @@ const EVENT = {
   action: 'gosi_rate_changed',
   actor: { id: 7, name: 'مسؤول الرواتب' },
   created_at: '2026-10-25T10:00:00Z',
-  res_model: 'webvue.hr.gosi.rate',
+  res_model: 'liwan.hr.gosi.rate',
   res_id: 12,
   changes: [
     { field: 'employer_rate', old_value: '9.0', new_value: '10.0' },
@@ -16,7 +16,7 @@ const EVENT = {
 }
 
 describe('payroll audit trail', () => {
-  // The same golden file is compared with the Odoo action Selection in webvue_hr/tests/test_payroll_audit.py.
+  // The same golden file is compared with the Odoo action Selection in liwan_hr/tests/test_payroll_audit.py.
   it('lists exactly the actions the server records', () => {
     expect([...HR_PAYROLL_AUDIT_ACTIONS].sort()).toEqual([...ACTIONS].sort())
   })
@@ -29,7 +29,7 @@ describe('payroll audit trail', () => {
   it('parses a payroll run event that names input codes without amounts', () => {
     const run = {
       ...EVENT, action: 'run_inputs_changed', res_model: 'hr.payslip.run',
-      changes: [{ field: 'WV_BONUS', old_value: null, new_value: null }, { field: 'webvue_state', old_value: 'computed', new_value: 'draft' }],
+      changes: [{ field: 'WV_BONUS', old_value: null, new_value: null }, { field: 'liwan_state', old_value: 'computed', new_value: 'draft' }],
     }
     expect(HrPayrollAuditEventSchema.parse(run)).toEqual(run)
     for (const action of ['run_approved', 'run_cancelled']) {

@@ -6,7 +6,7 @@ from .backup import _run
 from .migrate import _local
 from .scheduler import Booking, BookingConflict, BookingRef, ReleaseNotice
 
-MARKER = 'WEBVUE_BOOKING_RESULT='
+MARKER = 'LIWAN_BOOKING_RESULT='
 
 SERIALIZE = '''
 def snapshot(record):
@@ -30,13 +30,13 @@ class OdooBookingGateway:
         launcher,options=_local(binding,manifest,config)
         script='''import json
 from odoo import fields
-from odoo.addons.webvue_core.models.access_service import WebVueAccessRule
-from odoo.addons.webvue_platform.models.entitlement_service import OPERATOR_CONTEXT
-profile = env['webvue.tenant.profile'].search([], limit=2)
+from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
+from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
+profile = env['liwan.tenant.profile'].search([], limit=2)
 if len(profile) != 1:
     raise RuntimeError('tenant_profile_invalid')
 company = profile.root_company_id
-records = env['webvue.maintenance.booking'].with_context(**{OPERATOR_CONTEXT: True, 'allowed_company_ids': [company.id]})
+records = env['liwan.maintenance.booking'].with_context(**{OPERATOR_CONTEXT: True, 'allowed_company_ids': [company.id]})
 '''+SERIALIZE+operation+"\nprint('"+MARKER+"'+json.dumps(result, sort_keys=True))\n"
         output=_run([*launcher,'shell',*options,'--shell-interface=python'],config,input=script)
         rows=[line[len(MARKER):] for line in output.splitlines() if line.startswith(MARKER)]
@@ -73,10 +73,10 @@ try:
     if not record:
         result={{'conflict':True}}
     else:
-        record._webvue_transition({status!r}, {revision})
+        record._liwan_transition({status!r}, {revision})
         env.cr.commit()
         result=snapshot(record)
-except WebVueAccessRule as error:
+except LiwanAccessRule as error:
     if error.status != 409:
         raise
     env.cr.rollback()

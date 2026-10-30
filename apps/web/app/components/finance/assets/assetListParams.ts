@@ -1,5 +1,5 @@
-import type { FinanceAsset } from '@webvue/contracts'
-import type { KpiTile } from '@webvue/ui/app/utils/kpiTile'
+import type { FinanceAsset } from '@liwan/contracts'
+import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
 import { queryPositiveInt, queryText } from '../../../utils/routeQuery'
 
 export const ASSET_PAGE_SIZE = 25

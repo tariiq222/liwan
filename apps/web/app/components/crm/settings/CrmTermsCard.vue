@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CrmSettings } from '@webvue/contracts'
+import type { CrmSettings } from '@liwan/contracts'
 import { useCrmSettingsCard } from '@/composables/crm/useCrmSettingsCard'
 import { agreeKey } from '@/utils/crmTermForms'
 

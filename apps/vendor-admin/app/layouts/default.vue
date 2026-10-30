@@ -25,7 +25,7 @@ watch(() => route.path, () => {
     <template #sidebar>
       <ModuleRail :rail="rail" :active-id="activeId" home-to="/" />
     </template>
-    <main ref="main" tabindex="-1" data-testid="shell-main" class="webvue-shell-main focus:outline-none" :aria-label="t('app.shell.content')">
+    <main ref="main" tabindex="-1" data-testid="shell-main" class="liwan-shell-main focus:outline-none" :aria-label="t('app.shell.content')">
       <slot />
     </main>
   </ShellFrame>

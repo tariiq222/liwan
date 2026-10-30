@@ -15,7 +15,7 @@ import {
   type HrShiftSchedule,
   type HrShiftScheduleCreate,
   type HrShiftSchedulePatch,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 
 export type { HrShiftAssignment, HrShiftSchedule }
 

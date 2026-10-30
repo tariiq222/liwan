@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import InboxAudienceForm from '@/components/inbox/campaigns/InboxAudienceForm.vue'
 import InboxAudienceMembers from '@/components/inbox/campaigns/InboxAudienceMembers.vue'
 import { useDeleteInboxAudience, useInboxAudience } from '@/composables/inbox/useInboxCampaigns'

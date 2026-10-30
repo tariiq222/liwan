@@ -1,5 +1,5 @@
 /**
- * Maps a WebVue user's real capabilities (webvue.access.service, /api/v1/me) to the
+ * Maps a LiwanOS user's real capabilities (liwan.access.service, /api/v1/me) to the
  * customer commercial capability set. One mapping used by the BFF (authoritative)
  * and by the shell navigation (display only).
  *
@@ -11,8 +11,8 @@
 export const CUSTOMER_COMMERCIAL_CAPABILITIES = ['subscription.read', 'subscription.manage', 'branches.manage', 'billing.read'] as const
 export type CustomerCommercialCapability = (typeof CUSTOMER_COMMERCIAL_CAPABILITIES)[number]
 
-export function deriveCustomerCapabilities(webvueCapabilities: readonly string[] | undefined | null): CustomerCommercialCapability[] {
-  const has = (c: string) => Array.isArray(webvueCapabilities) && webvueCapabilities.includes(c)
+export function deriveCustomerCapabilities(liwanCapabilities: readonly string[] | undefined | null): CustomerCommercialCapability[] {
+  const has = (c: string) => Array.isArray(liwanCapabilities) && liwanCapabilities.includes(c)
   const admin = has('settings.branding.manage') || has('access.roles.manage')
   if (admin) return ['subscription.read', 'subscription.manage', 'branches.manage', 'billing.read']
   if (has('access.users.read')) return ['subscription.read']

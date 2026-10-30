@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { Task } from '@webvue/contracts'
-import { statusPillAttrs } from '@webvue/ui/app/utils/statusPill'
+import type { Task } from '@liwan/contracts'
+import { statusPillAttrs } from '@liwan/ui/app/utils/statusPill'
 import { PRIORITY_LABEL_KEY, PRIORITY_ICON, PRIORITY_TONE } from '@/composables/taskState'
 import { useUpdateTask } from '@/composables/useTasks'
 
@@ -40,7 +40,7 @@ function onChange(value: unknown) {
     variant="none"
     class="w-fit"
     :icon="PRIORITY_ICON[task.priority]"
-    :ui="{ base: 'webvue-pill min-w-25 w-fit justify-center ps-2.5 pe-2.5 focus:outline-none', trailing: 'hidden', leading: 'static inset-auto flex items-center p-0', leadingIcon: 'size-3.5 text-current' }"
+    :ui="{ base: 'liwan-pill min-w-25 w-fit justify-center ps-2.5 pe-2.5 focus:outline-none', trailing: 'hidden', leading: 'static inset-auto flex items-center p-0', leadingIcon: 'size-3.5 text-current' }"
     :data-tone="PRIORITY_TONE[task.priority]"
     data-interactive
     :items="items"

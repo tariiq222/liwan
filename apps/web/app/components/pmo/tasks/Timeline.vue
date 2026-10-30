@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { TimelineEntry } from '@webvue/contracts'
+import type { TimelineEntry } from '@liwan/contracts'
 import { formatTimelineChange } from '@/utils/taskTimeline'
 
 const props = defineProps<{ entries: TimelineEntry[]; emptyLabel?: string; taskId?: number }>()

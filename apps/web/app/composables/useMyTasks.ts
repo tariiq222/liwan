@@ -9,7 +9,7 @@ import {
   PersonalTaskCommentSchema,
   PersonalTaskSchema,
   type PersonalTask,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { ApiError } from './useApi'
 import { myTaskKeys } from './myTaskKeys'
 

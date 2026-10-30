@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { TaskDetail, TaskState } from '@webvue/contracts'
+import type { TaskDetail, TaskState } from '@liwan/contracts'
 import { useQueryClient } from '@tanstack/vue-query'
 import { taskStateBadge } from '@/composables/taskState'
 import { ApiError } from '@/composables/useApi'
 import { taskKeys, useCreateTask } from '@/composables/useTasks'
-import { badgeLabel } from '@webvue/ui/app/utils/statusBadge'
+import { badgeLabel } from '@liwan/ui/app/utils/statusBadge'
 
 // The project task's wiring of `SharedChecklist`: rows open the sub-task keeping the query. The API creates a sub-task
 // only inside a project (`project_id` is required), so a task without one gets no add input.

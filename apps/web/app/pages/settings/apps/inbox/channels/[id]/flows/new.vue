@@ -3,7 +3,7 @@ import InboxFlowCreateForm from '@/components/inbox/InboxFlowCreateForm.vue'
 import InboxFlowList from '@/components/inbox/InboxFlowList.vue'
 import { flowsRoute } from '@/composables/inbox/inboxFlow'
 
-// Create a form: the route-backed create panel over the channel's forms list. The form is stored as a draft in WebVue
+// Create a form: the route-backed create panel over the channel's forms list. The form is stored as a draft in LiwanOS
 // and Meta, and its builder opens next; nothing is published here.
 const route = useRoute()
 const { t } = useI18n()

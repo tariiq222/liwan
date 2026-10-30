@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinanceVatSummary } from '@webvue/contracts'
+import type { FinanceVatSummary } from '@liwan/contracts'
 import Money from '../invoices/Money.vue'
 import { amountColumn } from './reportColumns'
 import { vatRows, type VatTableRow } from './reportRows'

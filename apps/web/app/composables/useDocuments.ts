@@ -1,6 +1,6 @@
 import { computed, ref, watch, toValue, type MaybeRefOrGetter } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { HrEmployeeSchema, DocumentListSchema, DocumentDetailSchema, DocumentFileListSchema, DocumentAccessSchema, DocumentTagListSchema, DocumentTagSchema, DocumentContextListSchema, DocumentContextOptionListSchema, type DocumentCreate, type DocumentPatch, type DocumentAccessUpdate, type DocumentUpload, type DocumentDetail, type DocumentAccess } from '@webvue/contracts'
+import { HrEmployeeSchema, DocumentListSchema, DocumentDetailSchema, DocumentFileListSchema, DocumentAccessSchema, DocumentTagListSchema, DocumentTagSchema, DocumentContextListSchema, DocumentContextOptionListSchema, type DocumentCreate, type DocumentPatch, type DocumentAccessUpdate, type DocumentUpload, type DocumentDetail, type DocumentAccess } from '@liwan/contracts'
 import { ApiError } from './useApi'
 import { documentKeys, type DocumentListQueryParams, type DocumentLookupParams } from '../lib/documentKeys'
 import { replaceDocumentDetail, invalidateDocumentLists, preferNewerDocumentRevision } from '../lib/documentListCache'

@@ -33,22 +33,22 @@ function declarations(block: string, selector: string): Map<string, string> {
 const print = printBlock(css)
 
 describe('the print sheet', () => {
-  it('names a landscape page that .webvue-print-landscape selects', () => {
-    expect(declarations(print, '@page webvue-landscape').get('size')).toBe('A4 landscape')
-    expect(declarations(print, '@page webvue-landscape').get('margin')).toBe('12mm')
-    expect(declarations(print, '.webvue-print-landscape').get('page')).toBe('webvue-landscape')
+  it('names a landscape page that .liwan-print-landscape selects', () => {
+    expect(declarations(print, '@page liwan-landscape').get('size')).toBe('A4 landscape')
+    expect(declarations(print, '@page liwan-landscape').get('margin')).toBe('12mm')
+    expect(declarations(print, '.liwan-print-landscape').get('page')).toBe('liwan-landscape')
   })
 
-  it('never prints the shell chrome or a .webvue-print-hide element', () => {
-    for (const selector of ['.webvue-shell-header', '.webvue-module-rail', '.webvue-context-sidebar', '.webvue-mobile-menu-trigger', '.webvue-print-hide']) {
+  it('never prints the shell chrome or a .liwan-print-hide element', () => {
+    for (const selector of ['.liwan-shell-header', '.liwan-module-rail', '.liwan-context-sidebar', '.liwan-mobile-menu-trigger', '.liwan-print-hide']) {
       expect(declarations(print, selector).get('display'), selector).toBe('none !important')
     }
-    expect(declarations(print, '.webvue-shell-workspace').get('margin-inline')).toBe('0 !important')
-    expect(declarations(print, '.webvue-shell-workspace').get('padding-block-start')).toBe('0 !important')
+    expect(declarations(print, '.liwan-shell-workspace').get('margin-inline')).toBe('0 !important')
+    expect(declarations(print, '.liwan-shell-workspace').get('padding-block-start')).toBe('0 !important')
   })
 
-  it('prints a .webvue-print page black on white through the tokens and their aliases', () => {
-    const page = declarations(print, '.webvue-print')
+  it('prints a .liwan-print page black on white through the tokens and their aliases', () => {
+    const page = declarations(print, '.liwan-print')
     for (const token of ['--ui-bg', '--ui-bg-muted', '--ui-bg-elevated', '--ui-bg-accented', '--background', '--card', '--muted']) {
       expect(page.get(token), token).toBe('#fff')
     }

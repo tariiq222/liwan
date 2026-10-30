@@ -1,15 +1,15 @@
-# webvue
+# liwan
 
 **تعليمات ومراجع الواجهة: ابدأ من [DESIGN.md](DESIGN.md).** التنفيذ في `apps/web/app` باستخدام Nuxt UI.
 
 هذه نسخة عمل؛ راجع [خريطة مساحة العمل](docs/WORKSPACE.md) قبل مقارنتها بـ`main` أو بمهمة أخرى.
 
-**ويب فيو منصة عربية موحّدة لتشغيل الشركات، تكون الأساس المشترك لجميع تطبيقاتها،
+**ليوان منصة عربية موحّدة لتشغيل الشركات، تكون الأساس المشترك لجميع تطبيقاتها،
 وتربط بياناتها وإجراءاتها وصلاحياتها في نظام واحد.** تستهدف الرؤية الشركات بمختلف
 أنشطتها؛ بدل اشتراكات متعددة في أنظمة معزولة، تبدأ الشركة بما تحتاجه وتتوسع
 تدريجيًا، بهدف خفض التكلفة الإجمالية للاشتراكات والتكامل والتشغيل.
 
-WebVue's product vision is a unified business platform spanning company functions,
+LiwanOS's product vision is a unified business platform spanning company functions,
 comparable in breadth of ambition to Odoo. Projects, tasks, and HR are initial
 applications, not the limit of the product. Sales, finance, purchasing,
 inventory, and other business applications belong to the broader vision;
@@ -18,10 +18,10 @@ Lower total cost is a product objective, not a measured savings claim.
 See [the product definition](apps/web/PRODUCT.md).
 
 Odoo 19 Community is the business engine and Nuxt 4 is the customer UI, under
-WebVue's own identity and experience. The primary hosting target is self-service
+LiwanOS's own identity and experience. The primary hosting target is self-service
 SaaS with shared application services and a separate database and filestore per
 customer. Dedicated and customer-hosted deployments are separate options.
-See [the hosting contract](docs/superpowers/specs/webvue-shared-saas-and-sovereign-deployment.md)
+See [the hosting contract](docs/superpowers/specs/liwan-shared-saas-and-sovereign-deployment.md)
 and [WORKSPACE.md](docs/WORKSPACE.md) for implementation and acceptance evidence;
 the product vision does not establish production readiness.
 
@@ -44,14 +44,14 @@ The following is a partial overview of implemented surfaces, not a complete rele
   the AI workspace at `/ai`.
 - HR at `/hr`, including the employee directory, leave, recruitment, shifts,
   onboarding/offboarding, assets and payroll; department documents are linked to
-  the separate document library. Payroll belongs to `webvue_hr`, uses dedicated
+  the separate document library. Payroll belongs to `liwan_hr`, uses dedicated
   capabilities and retains the [open payroll release gates](docs/WORKSPACE.md#الرواتب-السعودية-بوابات-الإطلاق-المفتوحة).
   HR routes live under `/api/v1/hr/*` and use employee ids. The PMO assignee
   picker at `/api/v1/people` remains a user-id resource.
 - Access administration at `/settings/team/users`, roles and audit with capability
   checks. Company branding colour is for documents and reports and does not
   change the fixed UI palette; company name/logo edits require
-  `settings.company.manage` through WebVue. `/account` opens Self-service, with
+  `settings.company.manage` through LiwanOS. `/account` opens Self-service, with
   application-owned personal services
   and password/appearance controls at `/account/settings`.
 - PMO adds task attachments, recipient notifications, dependencies and a routed
@@ -70,7 +70,7 @@ historical evidence, not UI policy.
 
 The canonical checkout is `/Users/tariq/code/webvue`. A
 temporary worktree may be used for a bounded task. Always point the Odoo
-addons path at that chosen WebVue worktree; `/Users/tariq/code/odoo` is the
+addons path at that chosen LiwanOS worktree; `/Users/tariq/code/odoo` is the
 read-only Odoo 19 upstream source checkout. Authorized commands may use an
 explicitly isolated scratch database; do not operate on arbitrary databases.
 
@@ -82,12 +82,12 @@ cd /Users/tariq/code/odoo
 # Use your scratch-only config and unique allocated database/ports.
 # Keep data_dir and logfile outside the read-only upstream checkout.
 .venv/bin/python odoo-bin -c /absolute/path/to/scratch-only.conf \
-  --addons-path=/Users/tariq/code/odoo/addons,/path/to/webvue-worktree/odoo-addons,$(python3 -B /path/to/webvue-worktree/tools/oca_addons.py path) \
-  -d webvue_scratch_example --http-port=8171
+  --addons-path=/Users/tariq/code/odoo/addons,/path/to/liwan-worktree/odoo-addons,$(python3 -B /path/to/liwan-worktree/tools/oca_addons.py path) \
+  -d liwan_scratch_example --http-port=8171
 
 # Nuxt loads the selected worktree's allocated .env.worktree profile.
 # Match the Odoo database/port above to that profile's actual values first.
-cd /path/to/webvue-worktree
+cd /path/to/liwan-worktree
 npm run dev
 ```
 
@@ -108,7 +108,7 @@ npm -w apps/vendor-admin run postinstall
 
 The ordinary local development topology is Odoo `:8069` and Nuxt `:3000`.
 Use Node 24.15.0 from `.nvmrc`. Main's private apps/web/.env selects the explicitly
-configured `webvue_dev` database; it is a development target, never a test target.
+configured `liwan_dev` database; it is a development target, never a test target.
 In a task worktree, `npm run dev` loads that worktree's git-ignored `.env.worktree`
 for its allocated Nuxt/Odoo ports, database and WebSocket endpoint. Install local
 dependencies and run Nuxt postinstall in each worktree first; a shared parent
@@ -125,17 +125,17 @@ No production deployment or DNS cutover is implied by this repository.
 - `packages/contracts` contains the Zod wire contracts. Shared contracts live
   under `src/common`; PMO contracts under `src/pmo`; HR contracts under
   `src/hr`.
-- `odoo-addons/webvue_core` depends on `base` only and owns the access service,
+- `odoo-addons/liwan_core` depends on `base` only and owns the access service,
   the system capabilities and branding defaults; each application owns its own
   capabilities, groups and roles;
-  `webvue_api` owns shared API plumbing; the shared services `webvue_notify` (the
-  notification bell) and `webvue_directory` (the user-id people picker) know no
-  application; `webvue_tasks` owns personal tasks without a project, while
-  `webvue_pmo` owns projects and project-linked task workflows, with
-  `webvue_tasks_pmo` bridging personal-task creation when both are installed;
-  `webvue_meetings` owns meetings, series and minutes, and `webvue_meetings_pmo` links them to projects and tasks;
-  `webvue_finance`, `webvue_documents`, `webvue_operations` and `webvue_hr` own
-  their corresponding application APIs and capabilities; `webvue_documents_hr`
+  `liwan_api` owns shared API plumbing; the shared services `liwan_notify` (the
+  notification bell) and `liwan_directory` (the user-id people picker) know no
+  application; `liwan_tasks` owns personal tasks without a project, while
+  `liwan_pmo` owns projects and project-linked task workflows, with
+  `liwan_tasks_pmo` bridging personal-task creation when both are installed;
+  `liwan_meetings` owns meetings, series and minutes, and `liwan_meetings_pmo` links them to projects and tasks;
+  `liwan_finance`, `liwan_documents`, `liwan_operations` and `liwan_hr` own
+  their corresponding application APIs and capabilities; `liwan_documents_hr`
   connects the document library to HR department and own-employee contexts.
 - `deploy` contains per-customer provisioning and reverse-proxy templates.
 

@@ -31,7 +31,7 @@ function pick(value: string) {
       </template>
     </SharedPageHeader>
     <div data-slot="timeline-card" class="min-w-0 overflow-hidden rounded-card bg-default ring ring-default">
-      <div data-template="timeline-toolbar" class="flex flex-wrap items-center justify-between gap-3 border-b border-default px-(--webvue-card-pad-dense) py-3">
+      <div data-template="timeline-toolbar" class="flex flex-wrap items-center justify-between gap-3 border-b border-default px-(--liwan-card-pad-dense) py-3">
         <div class="flex items-center gap-1.5" role="group" :aria-label="t('states.period')">
           <UButton type="button" color="neutral" variant="ghost" size="sm" square class="rounded-full" data-testid="timeline-prev" :disabled="!hydrated" :aria-label="t('states.previous')" @click="emit('prev')">
             <UIcon name="i-lucide-chevron-left" class="size-4.5 rtl:-scale-x-100" aria-hidden="true" />

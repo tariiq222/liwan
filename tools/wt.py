@@ -30,7 +30,7 @@ moves, renames or removes a worktree, so a worktree that predates these rules is
 merged into main with commits of their own, clean and held by no process, plus the scratch databases
 of those worktrees nobody is connected to; it only prints unless ``--apply`` is given, which needs the
 owner's authorization. Unmerged, dirty, current, in-use and missing worktrees and databases it cannot
-tie to a worktree (``webvue_scratch_e2e``, hand-named ones) are never touched. ``--branch`` limits ``gc``
+tie to a worktree (``liwan_scratch_e2e``, hand-named ones) are never touched. ``--branch`` limits ``gc``
 to that one branch's worktree and scratch database, says why a worktree it names is kept, and deletes the
 local branch when it has no worktree and is merged into main.
 """
@@ -67,8 +67,8 @@ ODOO_PORTS = range(8170, 8270)
 DB_SLUG_MAX = 42
 TAIL = 400
 MAIN = 'main'
-E2E_DATABASE = 'webvue_scratch_e2e'  # SCRATCH_DB in tools/e2e_isolated.mjs, a fixed database no worktree owns
-SCRATCH_PREFIX = 'webvue_scratch_'
+E2E_DATABASE = 'liwan_scratch_e2e'  # SCRATCH_DB in tools/e2e_isolated.mjs, a fixed database no worktree owns
+SCRATCH_PREFIX = 'liwan_scratch_'
 WORKTREES_DIR = '.worktrees'
 INSTALL = (
     ['npm', 'ci', '--ignore-scripts', '--prefer-offline'],
@@ -134,7 +134,7 @@ def database_name(suffix):
     if len(slug) > DB_SLUG_MAX:
         digest = hashlib.sha1(slug.encode('utf-8')).hexdigest()[:6]
         slug = slug[:DB_SLUG_MAX - 7].rstrip('_') + '_' + digest
-    return 'webvue_scratch_' + slug
+    return 'liwan_scratch_' + slug
 
 
 def pick_port(candidates, used, is_free):

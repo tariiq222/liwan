@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Pool } from 'pg'
 import { randomUUID } from 'node:crypto'
-import { operationFeedSchema, sharedOperationFeedSchema } from '@webvue/commercial-contracts'
+import { operationFeedSchema, sharedOperationFeedSchema } from '@liwan/commercial-contracts'
 import { vendorSession } from './helpers/vendor-session.js'
 import { createApp } from '../http.js'
 import { migrate } from '../db.js'
@@ -9,7 +9,7 @@ import { migrate } from '../db.js'
 const url = process.env.CONTROL_TEST_DATABASE_URL
 if (url) {
   const parsed = new URL(url)
-  if (!['127.0.0.1', 'localhost', '::1'].includes(parsed.hostname) || !/^webvue_control_scratch_[a-z0-9_]+$/.test(parsed.pathname.slice(1))) throw Error('Requires isolated loopback scratch database')
+  if (!['127.0.0.1', 'localhost', '::1'].includes(parsed.hostname) || !/^liwan_control_scratch_[a-z0-9_]+$/.test(parsed.pathname.slice(1))) throw Error('Requires isolated loopback scratch database')
 }
 describe.skipIf(!url)('opt-in operation feed on PostgreSQL', () => {
   const pool = new Pool({ connectionString: url })

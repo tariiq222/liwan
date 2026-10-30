@@ -23,9 +23,9 @@ def _databases(value):
 
 def release_profile():
     """Explicit operator profile; partial/unknown release settings fail closed."""
-    pool = os.environ.get('WEBVUE_RELEASE_POOL_ID')
-    role = os.environ.get('WEBVUE_RELEASE_ROLE')
-    databases = os.environ.get('WEBVUE_RELEASE_DATABASES')
+    pool = os.environ.get('LIWAN_RELEASE_POOL_ID')
+    role = os.environ.get('LIWAN_RELEASE_ROLE')
+    databases = os.environ.get('LIWAN_RELEASE_DATABASES')
     if pool is None and role is None and databases is None:
         return None
     if (not isinstance(pool, str) or not re.fullmatch(r'[a-z][a-z0-9-]{0,39}', pool)
@@ -81,7 +81,7 @@ def validate_config(path):
         if "db_name" in options:
             if profile is None or profile['role'] != 'cron' or _databases(options['db_name']) != profile['databases']:
                 raise ConfigRejected()
-        if profile is not None and options.get('db_user') != os.environ.get('WEBVUE_RELEASE_DB_USER'):
+        if profile is not None and options.get('db_user') != os.environ.get('LIWAN_RELEASE_DB_USER'):
             raise ConfigRejected()
         if profile is not None and 'max_cron_threads' in options:
             expected = '0' if profile['role'] == 'http' else '1'

@@ -47,7 +47,7 @@ beforeAll(async () => {
   app.on('request', (req, res) => { res.once('close', () => closedByClient.push(req.url!)) })
   await new Promise<void>(resolve => app.listen(0, '127.0.0.1', resolve))
   url = `http://127.0.0.1:${(app.address() as { port: number }).port}`
-  registryDirectory = mkdtempSync(join(tmpdir(), 'webvue-heavy-wire-'))
+  registryDirectory = mkdtempSync(join(tmpdir(), 'liwan-heavy-wire-'))
   writeFileSync(join(registryDirectory, 'registry.json'), JSON.stringify({ schemaVersion: 1, snapshotRevision: 1, targets: [{ host: TENANT_HOST, tenantId: 'a', database: 'db_a', filestore: 'db_a', registryRevision: 1, enabled: true }] }))
 })
 beforeEach(() => { held = []; reached = []; closedByClient = [] })
@@ -64,10 +64,10 @@ afterAll(async () => {
 /** Dedicated mode reaches Odoo through the legacy fetch transport; shared mode through the bound raw transport. */
 function useMode(selected: typeof mode) {
   mode = selected
-  vi.stubEnv('WEBVUE_TENANCY_MODE', selected)
+  vi.stubEnv('LIWAN_TENANCY_MODE', selected)
   if (selected === 'shared') {
-    vi.stubEnv('WEBVUE_SHARED_PROXY_TOKEN', PROXY_TOKEN)
-    vi.stubEnv('WEBVUE_TENANT_REGISTRY_PATH', join(registryDirectory, 'registry.json'))
+    vi.stubEnv('LIWAN_SHARED_PROXY_TOKEN', PROXY_TOKEN)
+    vi.stubEnv('LIWAN_TENANT_REGISTRY_PATH', join(registryDirectory, 'registry.json'))
   }
 }
 
@@ -75,7 +75,7 @@ type Reply = { status: number; body?: { data?: { code?: string } } }
 /** Plain http.request, because fetch cannot set the Host header shared mode resolves the tenant from. */
 const call = (path: string, options: { method?: string; signal?: AbortSignal } = {}) => new Promise<Reply>((resolve, reject) => {
   const headers: Record<string, string> = { cookie: COOKIE }
-  if (mode === 'shared') Object.assign(headers, { host: TENANT_HOST, 'x-webvue-proxy-token': PROXY_TOKEN, 'x-webvue-tenant-revision': '1' })
+  if (mode === 'shared') Object.assign(headers, { host: TENANT_HOST, 'x-liwan-proxy-token': PROXY_TOKEN, 'x-liwan-tenant-revision': '1' })
   const request = http.request(`${url}${path}`, { method: options.method ?? 'GET', headers, signal: options.signal, agent: false }, response => {
     const chunks: Buffer[] = []
     response.on('data', chunk => chunks.push(chunk))

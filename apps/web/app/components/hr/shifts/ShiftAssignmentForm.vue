@@ -93,7 +93,7 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" :guard-route-updates="!!props.assignment" />
-  <UForm novalidate :state="{ employeeId, scheduleId, dateStart, dateEnd }" class="webvue-form" method="post" data-testid="hr-shift-assignment-form" @submit="submit">
+  <UForm novalidate :state="{ employeeId, scheduleId, dateStart, dateEnd }" class="liwan-form" method="post" data-testid="hr-shift-assignment-form" @submit="submit">
     <UAlert v-if="error && !serverField" role="alert" color="error" variant="subtle" :title="error" />
     <SharedFormSection panel :title="t('hrShifts.form.assignmentSection')" :description="sectionHint">
       <div class="grid gap-4">

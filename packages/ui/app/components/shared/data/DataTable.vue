@@ -59,12 +59,12 @@ const tableHost = ref<HTMLElement | null>(null)
 useRowNavigation(body)
 
 const tableColumns = computed<TableColumn<T>[]>(() => props.selectable
-  ? [{ id: 'select', enableSorting: false, enableHiding: false, meta: { class: { td: 'webvue-select-cell' } } }, ...props.columns]
+  ? [{ id: 'select', enableSorting: false, enableHiding: false, meta: { class: { td: 'liwan-select-cell' } } }, ...props.columns]
   : props.columns)
 // Cells pad with the card padding and rows take the row height (app.config table recipe): density swaps those two tokens.
 const densityClass = computed(() => props.density === 'dense'
-  ? '[--webvue-card-pad:var(--webvue-card-pad-dense)]'
-  : '[--webvue-row-h:var(--webvue-row-h-comfortable)]')
+  ? '[--liwan-card-pad:var(--liwan-card-pad-dense)]'
+  : '[--liwan-row-h:var(--liwan-row-h-comfortable)]')
 // The ring and radius sit on the card around the table, unless the caller's SharedListCard draws it.
 const surfaceClass = 'overflow-hidden rounded-card bg-default ring ring-default'
 const rowId = (row: T) => String(dataRowKey(row, props.rowKey))
@@ -135,7 +135,7 @@ function clear() {
 </script>
 
 <template>
-  <div data-slot="data-table" class="grid min-w-0 gap-(--webvue-gap-card)">
+  <div data-slot="data-table" class="grid min-w-0 gap-(--liwan-gap-card)">
     <div v-if="$slots.filters" data-slot="data-table-filters" class="min-w-0"><slot name="filters" /></div>
     <div
       v-if="props.selectable && props.selected.length > 0 && $slots.bulk"
@@ -223,7 +223,7 @@ function clear() {
               <slot name="mobile-row" :row="row" />
             </li>
           </ul>
-          <div v-if="$slots.footer" data-slot="data-table-footer" class="flex flex-wrap items-center justify-between gap-3 border-t border-default px-(--webvue-card-pad) py-3 text-sm text-muted">
+          <div v-if="$slots.footer" data-slot="data-table-footer" class="flex flex-wrap items-center justify-between gap-3 border-t border-default px-(--liwan-card-pad) py-3 text-sm text-muted">
             <slot name="footer" />
           </div>
         </div>

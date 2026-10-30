@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import DashboardChartPanel from '../../../app/components/pmo/projects/dashboard/DashboardChartPanel.vue'
-import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
+import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
 import type { DashboardChart } from '../../../app/utils/projectChartData'
 import { dashboardCharts } from '../../fixtures/projectReports'
 import { storyContext } from '../../support/context'
@@ -19,7 +19,7 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 type ChartKey = keyof ReturnType<typeof dashboardCharts>
-const GRID = 'display: grid; gap: var(--webvue-gap-card); grid-template-columns: repeat(2, minmax(0, 1fr));'
+const GRID = 'display: grid; gap: var(--liwan-gap-card); grid-template-columns: repeat(2, minmax(0, 1fr));'
 
 function panel(key: ChartKey, title: string, options: { variant?: 'pie' | 'donut' | 'donut-text'; size?: 'sm' | 'md' | 'lg'; wide?: boolean; loading?: boolean; hasData?: boolean } = {}): Story['render'] {
   return () => ({
@@ -28,7 +28,7 @@ function panel(key: ChartKey, title: string, options: { variant?: 'pie' | 'donut
       const { t } = useI18n()
       return { chart: computed(() => dashboardCharts(t)[key]), t, title, options, grid: GRID }
     },
-    template: `<main class="webvue-shell-main"><PageContainer width="list"><div class="min-w-0" style="container-type: inline-size"><div class="min-w-0" :style="grid"><DashboardChartPanel :test-id="'story-' + title" :title="t(title)" description="" :chart="chart" :variant="options.variant" :has-data="options.hasData ?? true" :loading="options.loading ?? false" :empty-text="t('projects.dashboard.charts.noStatusData')" :accessible-label="t(title)" :span="options.wide ? 'full' : 'half'" :size="options.size" /></div></div></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer width="list"><div class="min-w-0" style="container-type: inline-size"><div class="min-w-0" :style="grid"><DashboardChartPanel :test-id="'story-' + title" :title="t(title)" description="" :chart="chart" :variant="options.variant" :has-data="options.hasData ?? true" :loading="options.loading ?? false" :empty-text="t('projects.dashboard.charts.noStatusData')" :accessible-label="t(title)" :span="options.wide ? 'full' : 'half'" :size="options.size" /></div></div></PageContainer></main>`,
   })
 }
 

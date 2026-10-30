@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { TaskState } from '@webvue/contracts'
+import type { TaskState } from '@liwan/contracts'
 import { refDebounced } from '@vueuse/core'
 import type { TaskListParams } from '@/composables/useTasks'
 import { PRIORITY_LABEL_KEY, STATE_LABEL_KEY } from '@/composables/taskState'
 import { CLOSED_TASK_STATES, OPEN_TASK_STATES, parsePriorities, TASK_DEADLINES, TASK_PRIORITIES, taskAttributeFilterCount, type TaskPriority } from '@/composables/taskFilterParams'
 import { useProjects } from '@/composables/useProjects'
-import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
+import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
 
 const props = defineProps<{ modelValue: TaskListParams; hideProjectFilter?: boolean; embedded?: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [TaskListParams]; search: [string] }>()

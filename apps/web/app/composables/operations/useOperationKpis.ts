@@ -1,6 +1,6 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { operationKpiStates, operationKpiTiles } from './kpis'
-import type { OperationPurpose } from '@webvue/contracts'
+import type { OperationPurpose } from '@liwan/contracts'
 import { useOperationRequests, operationRequestListParams, type OperationScope } from './useOperations'
 
 // Every count is the `total` of the list API (`/operations/requests`) asked for one row with the tile's state, under the

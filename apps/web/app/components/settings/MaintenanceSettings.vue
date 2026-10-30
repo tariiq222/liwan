@@ -6,7 +6,7 @@ import {
   MaintenanceBookingInputSchema, MaintenanceBookingPatchSchema, MaintenancePreferencePatchSchema,
   type MaintenanceBooking, type MaintenanceBookingInput, type MaintenanceBookingPatch,
   type MaintenancePreference, type MaintenancePreferencePatch, type MaintenanceSnapshot,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 
 const props = defineProps<{
   snapshot: MaintenanceSnapshot
@@ -111,7 +111,7 @@ function resetBooking() {
 </script>
 
 <template>
-  <div class="grid gap-(--webvue-gap-card)">
+  <div class="grid gap-(--liwan-gap-card)">
     <SharedUnsavedChanges :dirty="dirty" />
     <UAlert v-if="error" data-testid="maintenance-error" color="error" :title="error" :description="t('settings.maintenance.keepDraft')" />
     <SharedSettingsCard id="maintenance" v-bind="state" data-testid="maintenance-preference-form" :title="t('settings.maintenance.preference')" :description="t('settings.maintenance.preferenceHint')" :can-edit="true" @save="savePreferenceDraft" @revert="revert" @reload="reloadPreference">
@@ -129,8 +129,8 @@ function resetBooking() {
       </UFormField>
     </SharedSettingsCard>
     <SharedRecordSection variant="list" :title="t('settings.maintenance.releases')">
-      <p v-if="!snapshot.releases.items.length" class="p-(--webvue-card-pad) text-sm text-muted">{{ t('settings.maintenance.noReleases') }}</p>
-      <article v-for="notice in snapshot.releases.items" :key="notice.id" class="space-y-2 p-(--webvue-card-pad)">
+      <p v-if="!snapshot.releases.items.length" class="p-(--liwan-card-pad) text-sm text-muted">{{ t('settings.maintenance.noReleases') }}</p>
+      <article v-for="notice in snapshot.releases.items" :key="notice.id" class="space-y-2 p-(--liwan-card-pad)">
         <div class="flex flex-wrap items-center gap-2">
           <h3 class="font-semibold" dir="ltr">{{ notice.releaseId }}</h3>
           <SharedStatusBadge tone="neutral" :label="t(`settings.maintenance.scope.${notice.scope}`)" />
@@ -144,7 +144,7 @@ function resetBooking() {
         <p v-if="notice.scope !== 'tenant'" class="text-muted">{{ t('settings.maintenance.sharedScope') }}</p>
       </article>
     </SharedRecordSection>
-    <form v-if="available.length || editing" class="webvue-form" data-testid="maintenance-booking-form" @submit.prevent="saveBooking">
+    <form v-if="available.length || editing" class="liwan-form" data-testid="maintenance-booking-form" @submit.prevent="saveBooking">
       <SharedFormSection panel :title="t(editing ? 'settings.maintenance.editBooking' : 'settings.maintenance.newBooking')">
         <UFormField :label="t('settings.maintenance.release')" name="release">
           <USelect v-model="releaseId" data-testid="maintenance-release" :items="releaseItems" :disabled="disabled || !!editing" @update:model-value="bookingDirty = true" />
@@ -169,8 +169,8 @@ function resetBooking() {
       </SharedFormActions>
     </form>
     <SharedRecordSection variant="list" :title="t('settings.maintenance.bookings')">
-      <p v-if="!snapshot.bookings.items.length" class="p-(--webvue-card-pad) text-sm text-muted">{{ t('settings.maintenance.noBookings') }}</p>
-      <article v-for="booking in snapshot.bookings.items" :key="booking.id" class="space-y-2 p-(--webvue-card-pad)">
+      <p v-if="!snapshot.bookings.items.length" class="p-(--liwan-card-pad) text-sm text-muted">{{ t('settings.maintenance.noBookings') }}</p>
+      <article v-for="booking in snapshot.bookings.items" :key="booking.id" class="space-y-2 p-(--liwan-card-pad)">
         <h3 class="font-semibold">{{ snapshot.releases.items.find(item => item.id === booking.releaseId)?.releaseId ?? booking.releaseId }}</h3>
         <p>{{ formatDate(booking.scheduledAt, booking.timezone) }} · {{ booking.timezone }}</p>
         <p>{{ t('settings.maintenance.windowMinutes', { minutes: booking.durationMinutes }) }}</p>

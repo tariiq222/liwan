@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { InboxBusinessProfile } from '@webvue/contracts'
-import { InboxBusinessProfilePatchSchema } from '@webvue/contracts'
+import type { InboxBusinessProfile } from '@liwan/contracts'
+import { InboxBusinessProfilePatchSchema } from '@liwan/contracts'
 import { changedProfileFields, draftPatch, mergeDraft, profileErrors, profileToDraft } from '../inboxProfile'
 
 const PROFILE: InboxBusinessProfile = {

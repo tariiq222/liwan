@@ -108,7 +108,7 @@ describe('SharedDashboardPage', () => {
     expect(positions.every(position => position >= 0)).toBe(true)
     expect([...positions].sort((a, b) => a - b)).toEqual(positions)
     expect(html).toContain('@min-[768px]:grid-cols-2')
-    expect(html).toContain('gap-(--webvue-gap-card)')
+    expect(html).toContain('gap-(--liwan-gap-card)')
     expect(html).not.toMatch(/\bgap-[356]\b/)
   })
 

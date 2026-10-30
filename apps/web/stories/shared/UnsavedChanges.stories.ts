@@ -3,9 +3,9 @@ import { defineComponent, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
-import SettingsPage from '@webvue/ui/app/components/shared/layout/SettingsPage.vue'
-import FormSection from '@webvue/ui/app/components/shared/layout/FormSection.vue'
-import UnsavedChanges from '@webvue/ui/app/components/shared/form/UnsavedChanges.vue'
+import SettingsPage from '@liwan/ui/app/components/shared/layout/SettingsPage.vue'
+import FormSection from '@liwan/ui/app/components/shared/layout/FormSection.vue'
+import UnsavedChanges from '@liwan/ui/app/components/shared/form/UnsavedChanges.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -28,14 +28,14 @@ export const GuardsLeavingDirtyForm: Story = {
       const Form = defineComponent({
         components: { FormSection, UnsavedChanges },
         setup: () => ({ args, t }),
-        template: `<UForm :state="{}" class="webvue-form"><UnsavedChanges :dirty="args.dirty" /><FormSection :title="t('access.users.employee')" class="space-y-4"><UFormField :label="t('access.users.employee')" name="employee-search"><UInput class="w-full" /></UFormField></FormSection></UForm>`,
+        template: `<UForm :state="{}" class="liwan-form"><UnsavedChanges :dirty="args.dirty" /><FormSection :title="t('access.users.employee')" class="space-y-4"><UFormField :label="t('access.users.employee')" name="employee-search"><UInput class="w-full" /></UFormField></FormSection></UForm>`,
       })
       if (router.hasRoute('story-unsaved-form')) router.removeRoute('story-unsaved-form')
       router.addRoute({ name: 'story-unsaved-form', path: '/__story/unsaved-form', component: Form })
       onMounted(() => router.push('/__story/unsaved-form'))
       return { t, leave: () => router.push('/__story/elsewhere') }
     },
-    template: `<main class="webvue-shell-main"><SettingsPage width="form"><RouterView /><div><UButton color="neutral" variant="outline" data-testid="leave" @click="leave">{{ t('app.back') }}</UButton></div></SettingsPage></main>`,
+    template: `<main class="liwan-shell-main"><SettingsPage width="form"><RouterView /><div><UButton color="neutral" variant="outline" data-testid="leave" @click="leave">{{ t('app.back') }}</UButton></div></SettingsPage></main>`,
   }),
   play: async ({ canvasElement, args }) => {
     const leave = await within(canvasElement).findByTestId('leave')

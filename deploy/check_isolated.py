@@ -20,14 +20,14 @@ from urllib.parse import urlparse
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
-WEBVUE_ADDONS = (
-    'webvue_core', 'webvue_platform', 'webvue_api', 'webvue_directory', 'webvue_notify',
-    'webvue_pmo', 'webvue_meetings', 'webvue_meetings_pmo', 'webvue_hr', 'webvue_access_hr',
-    'webvue_integrations_sa', 'webvue_finance', 'webvue_hr_finance', 'webvue_pmo_finance',
-    'webvue_payments', 'webvue_chat', 'webvue_tasks', 'webvue_tasks_pmo', 'webvue_operations',
-    'webvue_operations_pmo', 'webvue_ai', 'webvue_pmo_ai', 'webvue_documents',
-    'webvue_documents_hr', 'webvue_crm', 'webvue_appointments', 'webvue_appointments_payments',
-    'webvue_inbox', 'webvue_inbox_payments',
+LIWAN_ADDONS = (
+    'liwan_core', 'liwan_platform', 'liwan_api', 'liwan_directory', 'liwan_notify',
+    'liwan_pmo', 'liwan_meetings', 'liwan_meetings_pmo', 'liwan_hr', 'liwan_access_hr',
+    'liwan_integrations_sa', 'liwan_finance', 'liwan_hr_finance', 'liwan_pmo_finance',
+    'liwan_payments', 'liwan_chat', 'liwan_tasks', 'liwan_tasks_pmo', 'liwan_operations',
+    'liwan_operations_pmo', 'liwan_ai', 'liwan_pmo_ai', 'liwan_documents',
+    'liwan_documents_hr', 'liwan_crm', 'liwan_appointments', 'liwan_appointments_payments',
+    'liwan_inbox', 'liwan_inbox_payments',
 )
 SCRATCH_LIFECYCLE_TOKEN = 'CREATE_NEW_SCRATCH'
 FORBIDDEN_DB_RE = re.compile(
@@ -163,9 +163,9 @@ def validate_worktree_addons(worktree: str, addons_path: str) -> tuple[Path, Pat
     expected = (worktree_dir / 'odoo-addons').resolve()
     if addons_dir != expected:
         fail('worktree addons path must be <worktree>/odoo-addons')
-    missing = [name for name in WEBVUE_ADDONS if not (addons_dir / name / '__manifest__.py').is_file()]
+    missing = [name for name in LIWAN_ADDONS if not (addons_dir / name / '__manifest__.py').is_file()]
     if missing:
-        fail(f'worktree addons path is missing webvue manifests: {", ".join(missing)}')
+        fail(f'worktree addons path is missing liwan manifests: {", ".join(missing)}')
     return worktree_dir, addons_dir
 
 
@@ -217,8 +217,8 @@ def validate_modules(raw: str) -> str:
     parts = raw.split(',')
     if any(not MODULE_RE.fullmatch(part) for part in parts):
         fail('modules must be comma-separated [a-z0-9_]+ names')
-    if 'webvue_core' not in parts:
-        fail('modules list must include webvue_core')
+    if 'liwan_core' not in parts:
+        fail('modules list must include liwan_core')
     return raw
 
 
@@ -305,7 +305,7 @@ def build_install_argv(
         scratch_lifecycle=scratch_lifecycle,
         http_port=http_port,
         modules=modules,
-        test_tags='/webvue_core',
+        test_tags='/liwan_core',
     )
     tag_at = argv.index('--test-tags')
     del argv[tag_at:tag_at + 2]
@@ -512,7 +512,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest='command', required=True)
     odoo_parser = sub.add_parser('odoo', help='run Odoo tests on an explicit scratch database')
     _add_odoo_flags(odoo_parser)
-    upgrade_parser = sub.add_parser('upgrade', help='upgrade webvue modules on an explicit scratch database')
+    upgrade_parser = sub.add_parser('upgrade', help='upgrade liwan modules on an explicit scratch database')
     _add_odoo_flags(upgrade_parser)
     runtime_parser = sub.add_parser('runtime', help='serve Odoo on an explicit scratch database without stop-after-init')
     runtime_parser.add_argument('--worktree', required=True)

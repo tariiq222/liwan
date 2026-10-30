@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import ForbiddenState from '@webvue/ui/app/components/shared/feedback/ForbiddenState.vue'
-import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
+import ForbiddenState from '@liwan/ui/app/components/shared/feedback/ForbiddenState.vue'
+import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -10,7 +10,7 @@ const meta = {
   render: args => ({
     components: { ForbiddenState, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="webvue-shell-main"><PageContainer width="detail"><ForbiddenState v-bind="args" /></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer width="detail"><ForbiddenState v-bind="args" /></PageContainer></main>',
   }),
 } satisfies Meta<typeof ForbiddenState>
 export default meta

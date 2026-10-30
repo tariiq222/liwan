@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { INBOX_COMMERCE_LIMITS } from '@webvue/contracts'
+import { INBOX_COMMERCE_LIMITS } from '@liwan/contracts'
 import { useInboxChannelCommerce, usePatchInboxChannelCommerce } from '@/composables/inbox/useInboxCatalog'
 
 // A channel's commerce block: the catalog its WhatsApp account uses (a link to the catalog page, or a link to connect

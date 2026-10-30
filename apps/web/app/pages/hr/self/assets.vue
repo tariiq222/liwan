@@ -1,8 +1,8 @@
 <script setup lang="ts">
 definePageMeta({ path: '/account/assets' })
 import type { TableColumn } from '@nuxt/ui'
-import type { HrEquipment } from '@webvue/contracts'
-import { formatDate } from '@webvue/ui/app/utils/formatDate'
+import type { HrEquipment } from '@liwan/contracts'
+import { formatDate } from '@liwan/ui/app/utils/formatDate'
 
 // Own custody remains read-only and never links into administrative asset records.
 const { t } = useI18n()
@@ -27,7 +27,7 @@ const columns = computed<TableColumn<HrEquipment>[]>(() => [
     </SharedPageState>
     <SharedListCard v-if="profile.data.value">
       <SharedPageState :error="mine.error.value" :keep-content="items.length > 0" @retry="mine.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--webvue-card-pad-dense)" :title="t('hrAssets.mine.emptyTitle')" :description="t('hrAssets.mine.emptyHint')" />
+        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hrAssets.mine.emptyTitle')" :description="t('hrAssets.mine.emptyHint')" />
         <SharedDataTable
           v-else
           bare

@@ -12,7 +12,7 @@ const START = new Date('2026-10-01T09:00:00.000Z')
 const EFFECTIVE = new Date('2026-10-17T09:00:00.000Z')
 if (url) {
   const target = new URL(url)
-  if (!['127.0.0.1', 'localhost', '[::1]'].includes(target.hostname) || !/^\/webvue_control_scratch_[a-z0-9]+$/.test(target.pathname)) throw Error('loopback scratch control DB required')
+  if (!['127.0.0.1', 'localhost', '[::1]'].includes(target.hostname) || !/^\/liwan_control_scratch_[a-z0-9]+$/.test(target.pathname)) throw Error('loopback scratch control DB required')
 }
 describe.skipIf(!url)('commercial server change quote proration', () => {
   const pool = new Pool({ connectionString: url, max: 5 })

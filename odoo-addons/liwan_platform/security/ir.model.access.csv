@@ -1,0 +1,8 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_liwan_tenant_profile_system,liwan.tenant.profile.system,model_liwan_tenant_profile,base.group_system,1,1,1,0
+access_liwan_tenant_branch_user,liwan.tenant.branch.user,model_liwan_tenant_branch,base.group_user,1,0,0,0
+access_maintenance_preference_manager,maintenance.preference.manager,model_liwan_maintenance_preference,liwan_platform.group_maintenance_manager,1,1,1,0
+access_maintenance_release_manager,maintenance.release.manager,model_liwan_maintenance_release,liwan_platform.group_maintenance_manager,1,0,0,0
+access_maintenance_booking_manager,maintenance.booking.manager,model_liwan_maintenance_booking,liwan_platform.group_maintenance_manager,1,1,1,0
+access_maintenance_event_manager,maintenance.event.manager,model_liwan_maintenance_event,liwan_platform.group_maintenance_manager,1,0,1,0
+access_maintenance_authority_manager,maintenance.authority.manager,model_liwan_maintenance_authority,liwan_platform.group_maintenance_manager,1,1,1,0

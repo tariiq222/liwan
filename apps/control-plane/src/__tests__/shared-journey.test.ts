@@ -32,7 +32,7 @@ const sourceDatabase = scratchDatabases[9] ?? ''
 const restoreTarget = scratchDatabases[5] ?? ''
 if (url) {
   const parsed = new URL(url)
-  if (!['127.0.0.1','localhost','::1'].includes(parsed.hostname) || !/^webvue_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback webvue_control_scratch database')
+  if (!['127.0.0.1','localhost','::1'].includes(parsed.hostname) || !/^liwan_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback liwan_control_scratch database')
 }
 if (!url) describe.skip('shared SaaS full journey (requires CONTROL_TEST_DATABASE_URL)', () => {})
 else describe('shared SaaS full journey', () => {
@@ -49,7 +49,7 @@ else describe('shared SaaS full journey', () => {
   let registryPath = ''
 
   beforeAll(async () => {
-    const gateRoot = process.env.WEBVUE_LIVE_GATE_ROOT ?? await mkdtemp(join(tmpdir(), 'webvue-journey-'))
+    const gateRoot = process.env.LIWAN_LIVE_GATE_ROOT ?? await mkdtemp(join(tmpdir(), 'liwan-journey-'))
     backupRoot = join(gateRoot, 'journey-backups')
     registryPath = join(gateRoot, 'journey-registry.json')
     await mkdir(backupRoot, { recursive: true })

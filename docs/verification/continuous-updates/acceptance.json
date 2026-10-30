@@ -112,6 +112,6 @@
   ],
   "review": {
     "independent": "three final findings reproduced and fixed; reviewer reports no remaining blocker in scoped fixes",
-    "remaining": "fresh product Dockerfile build, production edge/storage/HA/provider quality, later WebVue namespace integration"
+    "remaining": "fresh product Dockerfile build, production edge/storage/HA/provider quality, later LiwanOS namespace integration"
   }
 }

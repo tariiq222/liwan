@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FinanceAnalyticAccount } from '@webvue/contracts'
+import type { FinanceAnalyticAccount } from '@liwan/contracts'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import { usePatchAnalyticAccount } from '@/composables/finance/useFinanceAnalytic'
 

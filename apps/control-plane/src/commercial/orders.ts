@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { acceptQuoteRequestSchema, orderSchema, initialOrderStates, quoteSchema, addCadence, type AcceptQuoteRequest, type Principal, type Quote } from '@webvue/commercial-contracts'
-import { compileEntitlements } from '@webvue/commercial-contracts/server'
+import { acceptQuoteRequestSchema, orderSchema, initialOrderStates, quoteSchema, addCadence, type AcceptQuoteRequest, type Principal, type Quote } from '@liwan/commercial-contracts'
+import { compileEntitlements } from '@liwan/commercial-contracts/server'
 import { transaction } from '../db.js'
 import { CommercialHttpError, digestOf, iso } from './lifecycle.js'
 import { requireCapability } from './authorization.js'
@@ -130,7 +130,7 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
   let subscription = (await client.query('SELECT * FROM subscriptions WHERE customer_id=$1 FOR UPDATE', [quote.customer_id])).rows[0]
   // Shared mode returns payments to the tenant's own host, so a paid first order for a customer with no tenant
   // binding could never be paid: the first order there is the trial, and the customer pays from inside the tenant.
-  if (principal.kind === 'vendor' && process.env.WEBVUE_TENANCY_MODE === 'shared' && quote.due_now.minor > 0 && !subscription?.applied_revision_id
+  if (principal.kind === 'vendor' && process.env.LIWAN_TENANCY_MODE === 'shared' && quote.due_now.minor > 0 && !subscription?.applied_revision_id
     && !(await client.query('SELECT 1 FROM shared_registry_bindings WHERE control_tenant_id=$1 AND enabled', [customer.tenant_id])).rowCount) throw new CommercialHttpError('trial_required_first', 409)
   if (!subscription) {
     if (quote.subscription_id || input.expected_subscription_revision !== 0) throw new CommercialHttpError('revision_conflict', 409)

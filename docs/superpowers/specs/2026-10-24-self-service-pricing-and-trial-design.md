@@ -112,7 +112,7 @@ bundles, and the base price covers only the platform.
 
 | Value | Store | Editable by | Notes |
 | --- | --- | --- | --- |
-| Base price per cadence | `plan_revisions.prices` | `vendor.pricing.manage` + step-up | one plan, "WebVue" |
+| Base price per cadence | `plan_revisions.prices` | `vendor.pricing.manage` + step-up | one plan, "LiwanOS" |
 | Application price per cadence | `bundle_revisions.prices` | `vendor.pricing.manage` + step-up | was always empty |
 | Included minimums | new plan columns: `included_users`, `included_storage_mb` | same | branches reuse `included_extra_branches` |
 | Unit prices | new plan columns: `user_prices`, `storage_prices` (JSONB arrays of `{cadence, amount}`) | same | same shape as `extra_branch_prices` |
@@ -292,7 +292,7 @@ same transaction.** The operator no longer depends on remembering a second click
 ### 10.2 AI has a real marginal cost
 
 `ai.messages.monthly` counts provider messages and is enforced at
-`webvue_ai/models/ai_audit.py:198`. "No cap" on a flat-priced AI application means the vendor
+`liwan_ai/models/ai_audit.py:198`. "No cap" on a flat-priced AI application means the vendor
 pays for heavy users. Owner decision 2026-10-24: this phase keeps the platform key and a
 flat AI price; the cap becomes an internal fair-use limit documented in the terms, not a
 customer-facing quantity. **Risk accepted by the owner, recorded here.**

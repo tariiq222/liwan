@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { InboxCatalogCreateSchema, type InboxCatalog } from '@webvue/contracts'
+import { InboxCatalogCreateSchema, type InboxCatalog } from '@liwan/contracts'
 import { useCreateInboxCatalog } from '@/composables/inbox/useInboxCatalog'
 import { useInboxChannels } from '@/composables/inbox/useInboxSettings'
 
 // Connects the catalog made in Commerce Manager to a WhatsApp business account: the number to use, the catalog's id
-// (pasted from Commerce Manager), whether WebVue connects it to the account through the API, and the defaults every
+// (pasted from Commerce Manager), whether LiwanOS connects it to the account through the API, and the defaults every
 // product gets (brand, product link, whether prices include VAT). The server checks the catalog with Meta.
 const props = defineProps<{ backTo: string }>()
 const emit = defineEmits<{ saved: [catalog: InboxCatalog] }>()

@@ -4,8 +4,8 @@ import { appendResponseHeader, createApp, createError, defineEventHandler, delet
 
 const token = 'synthetic-dedicated-release-boundary'.repeat(2)
 const host = 'tenant.example.test'
-const pin = { 'x-webvue-release-pool': 'blue', 'x-webvue-release-revision': '4', 'x-webvue-release-fence': '9' }
-const edge = { host, 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '2', 'x-webvue-client-ip': '203.0.113.7', 'x-webvue-client-host': host, 'x-webvue-client-proto': 'https' }
+const pin = { 'x-liwan-release-pool': 'blue', 'x-liwan-release-revision': '4', 'x-liwan-release-fence': '9' }
+const edge = { host, 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '2', 'x-liwan-client-ip': '203.0.113.7', 'x-liwan-client-host': host, 'x-liwan-client-proto': 'https' }
 let upstream: http.Server
 let app: http.Server
 let base: string
@@ -16,7 +16,7 @@ let calls: { path: string; headers: http.IncomingHttpHeaders; body: string }[] =
 
 beforeAll(async () => {
   for (const [name, value] of Object.entries({ appendResponseHeader, createError, defineEventHandler, deleteCookie, getHeader, getRequestHeader, getRequestProtocol, readBody, setResponseStatus })) vi.stubGlobal(name, value)
-  vi.stubGlobal('useRuntimeConfig', () => ({ odooUrl, odooDb: 'webvue_scratch_dedicated_auth', authProxyClientIpHeader: configuredHeader }))
+  vi.stubGlobal('useRuntimeConfig', () => ({ odooUrl, odooDb: 'liwan_scratch_dedicated_auth', authProxyClientIpHeader: configuredHeader }))
   const { assertSameSiteJson } = await import('../same-site')
   vi.stubGlobal('assertSameSiteJson', assertSameSiteJson)
   vi.stubGlobal('$fetch', async (url: string, options: RequestInit) => (await fetch(url, options)).json())
@@ -30,7 +30,7 @@ beforeAll(async () => {
     for await (const chunk of req) buffers.push(Buffer.from(chunk))
     calls.push({ path: req.url!, headers: req.headers, body: Buffer.concat(buffers).toString() })
     res.setHeader('content-type', 'application/json')
-    if (process.env.WEBVUE_RELEASE_ROUTES_DIR && (req.headers.host !== host || req.headers['x-webvue-proxy-token'] !== token || req.headers['x-webvue-tenant-revision'] !== '2' || Object.entries(pin).some(([key, value]) => req.headers[key] !== value))) {
+    if (process.env.LIWAN_RELEASE_ROUTES_DIR && (req.headers.host !== host || req.headers['x-liwan-proxy-token'] !== token || req.headers['x-liwan-tenant-revision'] !== '2' || Object.entries(pin).some(([key, value]) => req.headers[key] !== value))) {
       res.writeHead(403); res.end(JSON.stringify({ code: 'release_binding_missing' })); return
     }
     if (failure) { res.writeHead(500); res.end(JSON.stringify({ error: { code: 'synthetic_failure' } })); return }
@@ -42,7 +42,7 @@ beforeAll(async () => {
   odooUrl = `http://127.0.0.1:${(upstream.address() as { port: number }).port}`
   const h3 = createApp()
   h3.use(eventHandler(event => {
-    if (process.env.WEBVUE_RELEASE_ROUTES_DIR) event.context.webvueRelease = { tenantId: 'release-route-tenant', identityRevision: 2, poolId: 'blue', releaseId: 'r1', routeRevision: 4, fence: 9, aiMaintenance: false, odooUrl, webUrl: odooUrl, wsUrl: odooUrl }
+    if (process.env.LIWAN_RELEASE_ROUTES_DIR) event.context.liwanRelease = { tenantId: 'release-route-tenant', identityRevision: 2, poolId: 'blue', releaseId: 'r1', routeRevision: 4, fence: 9, aiMaintenance: false, odooUrl, webUrl: odooUrl, wsUrl: odooUrl }
   }))
   h3.use('/login', login)
   h3.use('/totp', totp)
@@ -56,11 +56,11 @@ beforeAll(async () => {
 
 beforeEach(() => {
   calls = []; failure = false; configuredHeader = ''
-  vi.stubEnv('WEBVUE_TENANCY_MODE', 'dedicated')
-  vi.stubEnv('WEBVUE_RELEASE_ROUTES_DIR', '/operator/routes')
-  vi.stubEnv('WEBVUE_DEDICATED_PROXY_TOKEN', token)
-  vi.stubEnv('WEBVUE_RELEASE_TENANT_HOST', host)
-  vi.stubEnv('WEBVUE_RELEASE_IDENTITY_REVISION', '2')
+  vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated')
+  vi.stubEnv('LIWAN_RELEASE_ROUTES_DIR', '/operator/routes')
+  vi.stubEnv('LIWAN_DEDICATED_PROXY_TOKEN', token)
+  vi.stubEnv('LIWAN_RELEASE_TENANT_HOST', host)
+  vi.stubEnv('LIWAN_RELEASE_IDENTITY_REVISION', '2')
 })
 afterEach(() => vi.unstubAllEnvs())
 afterAll(async () => {
@@ -92,15 +92,15 @@ describe('dedicated release authentication transport', () => {
     const response = await request(path)
     expect(response.status).toBe(status)
     expect(calls).toHaveLength(1)
-    expect(calls[0]).toMatchObject({ path: target, headers: { host, 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '2', ...pin, cookie: 'session_id=existing-session' } })
+    expect(calls[0]).toMatchObject({ path: target, headers: { host, 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '2', ...pin, cookie: 'session_id=existing-session' } })
     const cookies = response.headers.getSetCookie()
     if (path === '/logout') expect(cookies.some(cookie => cookie.startsWith('session_id=;') && cookie.includes('Max-Age=0'))).toBe(true)
     else expect(cookies.some(cookie => cookie.startsWith('session_id=rotated-session'))).toBe(true)
-    if (path === '/login') expect(JSON.parse(calls[0]!.body).params.db).toBe('webvue_scratch_dedicated_auth')
+    if (path === '/login') expect(JSON.parse(calls[0]!.body).params.db).toBe('liwan_scratch_dedicated_auth')
   })
 
   it('browser release selectors cannot replace the server-installed generation pin', async () => {
-    const response = await request('/login', { 'x-webvue-release-pool': 'green', 'x-webvue-release-revision': '999', 'x-webvue-release-fence': '999' })
+    const response = await request('/login', { 'x-liwan-release-pool': 'green', 'x-liwan-release-revision': '999', 'x-liwan-release-fence': '999' })
     expect(response.status).toBe(200)
     expect(calls[0]?.headers).toMatchObject(pin)
   })
@@ -108,7 +108,7 @@ describe('dedicated release authentication transport', () => {
   it('auth headers preserve the release binding even without a legacy client-IP option', async () => {
     const response = await request('/headers')
     expect(response.status).toBe(200)
-    expect(await response.json()).toMatchObject({ host, 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '2', ...pin })
+    expect(await response.json()).toMatchObject({ host, 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '2', ...pin })
   })
 
   it('commercial actor lookup uses the bound session but keeps the dedicated configured tenant identity', async () => {
@@ -116,11 +116,11 @@ describe('dedicated release authentication transport', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ actor_id: '7', tenant_id: 'dedicated-config-tenant', kind: 'customer', capabilities: ['subscription.read'] })
     expect(calls).toHaveLength(1)
-    expect(calls[0]).toMatchObject({ path: '/api/v1/me', headers: { host, ...pin, 'x-webvue-proxy-token': token, cookie: 'session_id=existing-session' } })
+    expect(calls[0]).toMatchObject({ path: '/api/v1/me', headers: { host, ...pin, 'x-liwan-proxy-token': token, cookie: 'session_id=existing-session' } })
   })
 
   it.each(['/login', '/totp', '/logout', '/principal'])('%s rejects an untrusted dedicated proxy before contacting Odoo', async (path) => {
-    expect((await request(path, { 'x-webvue-proxy-token': 'forged' })).status).toBe(403)
+    expect((await request(path, { 'x-liwan-proxy-token': 'forged' })).status).toBe(403)
     expect(calls).toEqual([])
   })
 
@@ -132,7 +132,7 @@ describe('dedicated release authentication transport', () => {
   })
 
   it('unbound logout fails when Odoo does not destroy the session', async () => {
-    vi.stubEnv('WEBVUE_RELEASE_ROUTES_DIR', '')
+    vi.stubEnv('LIWAN_RELEASE_ROUTES_DIR', '')
     failure = true
     const response = await request('/logout')
     expect(response.status).toBe(502)

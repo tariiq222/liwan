@@ -5,7 +5,7 @@ const localeFiles = discoverLocaleFiles(fileURLToPath(new URL('./i18n/locales', 
 
 // Shared multi-tenant lane is opt-in. Dedicated (default) keeps the historical topology:
 // Nuxt talks to Odoo directly and routeRules proxy Odoo browser paths.
-const tenancyMode = process.env.WEBVUE_TENANCY_MODE ?? 'dedicated'
+const tenancyMode = process.env.LIWAN_TENANCY_MODE ?? 'dedicated'
 if (!['dedicated', 'shared'].includes(tenancyMode)) throw new Error('invalid_tenancy_mode')
 const shared = tenancyMode === 'shared'
 const odoo = process.env.NUXT_ODOO_URL ?? (shared ? 'http://guard:8080' : 'http://localhost:8069')
@@ -13,7 +13,7 @@ const odooWebsocket = new URL('/websocket', odoo)
 odooWebsocket.protocol = odooWebsocket.protocol === 'https:' ? 'wss:' : 'ws:'
 
 export default defineNuxtConfig({
-  extends: ['@webvue/ui', '@webvue/commercial-ui'],
+  extends: ['@liwan/ui', '@liwan/commercial-ui'],
   // Test helpers must never become pages or production browser chunks.
   ignore: ['**/__tests__/**'],
   compatibilityDate: '2025-07-15',
@@ -44,7 +44,7 @@ export default defineNuxtConfig({
   // Application folders keep their historical auto-import names through `prefix`
   // (components/pmo/projects/ProjectTable.vue stays ProjectTable); the shared groups
   // drop their group folder (components/shared/data/CommentThread.vue is SharedCommentThread). The presentational
-  // groups (layout, feedback, and most of data and form) come from the @webvue/ui layer. Specific folders
+  // groups (layout, feedback, and most of data and form) come from the @liwan/ui layer. Specific folders
   // come first: a file belongs to the first entry whose path contains it.
   components: [
     { path: '~/components/pmo/projects', prefix: 'Project', ignore: ['**/__tests__/**'] },
@@ -56,7 +56,7 @@ export default defineNuxtConfig({
   ],
   app: {
     head: {
-      title: 'webvue',
+      title: 'liwan',
       meta: [{ name: 'viewport', content: 'width=device-width, initial-scale=1' }],
     },
   },
@@ -79,7 +79,7 @@ export default defineNuxtConfig({
   // dev proxy is not registered there (deploy/shared/Caddyfile carries the WS route).
   nitro: {
     // Literal bundled into the server plugin, outside runtimeConfig/env overrides.
-    replace: { __WEBVUE_BUILD_TENANCY_MODE__: JSON.stringify(tenancyMode) },
+    replace: { __LIWAN_BUILD_TENANCY_MODE__: JSON.stringify(tenancyMode) },
     ...(shared ? {} : { devProxy: {
       '/websocket': { target: odooWebsocket.href, ws: true, changeOrigin: false },
     } }),
@@ -96,9 +96,9 @@ export default defineNuxtConfig({
     odooDb: shared ? '' : (process.env.NUXT_ODOO_DB ?? 'odoo19'),
     // Opt-in only behind the dedicated edge that overwrites private identity fields.
     authProxyClientIpHeader: '',
-    // WebVue AI service (apps/ai-service). Empty hides /ai and disables the executor.
+    // LiwanOS AI service (apps/ai-service). Empty hides /ai and disables the executor.
     aiServiceUrl: process.env.NUXT_AI_SERVICE_URL ?? '',
-    // Shared secret the AI service requires in X-WebVue-Service-Token (empty = none sent).
+    // Shared secret the AI service requires in X-Liwan-Service-Token (empty = none sent).
     aiServiceToken: process.env.NUXT_AI_SERVICE_TOKEN ?? '',
     public: {
       customerCommercialEnabled: false,
@@ -130,14 +130,14 @@ export default defineNuxtConfig({
     '/book/**': { headers: { 'referrer-policy': 'no-referrer', 'cache-control': 'no-store' } },
     // Keep future security/cache rules outside this proxy-only spread.
     ...(shared ? {} : {
-    // The only stock routes left (ir.http guard in webvue_platform): session, assets and images.
+    // The only stock routes left (ir.http guard in liwan_platform): session, assets and images.
     // Keep Odoo's redirects and login Set-Cookie response in the browser.
     '/web/**': { proxy: { to: `${odoo}/web/**`, fetchOptions: { redirect: 'manual' } } },
     }),
   },
   // Opt-in diagnostic build: identify actual SSR/client differences during UI acceptance.
   vite: {
-    define: { __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: process.env.WEBVUE_HYDRATION_DEBUG === '1' },
+    define: { __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: process.env.LIWAN_HYDRATION_DEBUG === '1' },
     // Pre-bundle deps that only lazily-loaded pages import. Discovered late,
     // Vite re-optimizes and changes the dep hash, so an open page's module
     // imports fail with 504 "Outdated Optimize Dep" and the route errors.

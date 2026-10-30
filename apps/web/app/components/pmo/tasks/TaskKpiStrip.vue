@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { kpiSharesApply } from './kpiShares'
-import type { KpiTile } from '@webvue/ui/app/utils/kpiTile'
+import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
 import { useTaskSummary, type TaskListParams } from '@/composables/useTasks'
 
 // The four figures above a task list: total, open, overdue and done for the tasks the list filters select. Compact

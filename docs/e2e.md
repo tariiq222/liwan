@@ -12,7 +12,7 @@ The scenario register and personas are in [e2e/scenarios](../e2e/scenarios/READM
 - `npm run e2e` runs the suite through `tools/e2e_isolated.mjs` against a private mock API and Nuxt server.
 - `npm run e2e:smoke` runs only `e2e/tests/smoke.e2e.ts` through that wrapper.
 - `npm run e2e -- --agent fast` selects a configured agent while retaining isolation.
-- `npm run e2e:odoo` uses the isolated Odoo stack and the fixed disposable database `webvue_scratch_e2e`.
+- `npm run e2e:odoo` uses the isolated Odoo stack and the fixed disposable database `liwan_scratch_e2e`.
 - Preferred ports are mock `43388`, Nuxt `43300`, and Odoo `43369`; occupied defaults fall back to free ports.
 - The wrapper rejects `E2E_BASE_URL` on ports `3000` and `8069`. `npm run e2e:dev` deliberately bypasses the wrapper and uses the direct configuration (`E2E_TELEMETRY_DISABLED=1 e2e run`), which defaults to `http://localhost:3000` and can reuse an existing server.
 - Inspect collected tests with `npx e2e list`. The coding-agent skill is in `.claude/skills/e2e/`. `npx e2e mcp` exposes the framework MCP server; the repository ships no `.mcp.json`.
@@ -21,7 +21,7 @@ The scenario register and personas are in [e2e/scenarios](../e2e/scenarios/READM
 
 - يشغّل `npm run e2e` الاختبارات عبر `tools/e2e_isolated.mjs` بخادم Nuxt وواجهة API وهمية معزولين.
 - يشغّل `npm run e2e:smoke` اختبار الدخان فقط، ويحافظ `npm run e2e -- --agent fast` على العزل عند اختيار الوكيل.
-- يستخدم `npm run e2e:odoo` قاعدة الاختبار المؤقتة الثابتة `webvue_scratch_e2e`.
+- يستخدم `npm run e2e:odoo` قاعدة الاختبار المؤقتة الثابتة `liwan_scratch_e2e`.
 - المنافذ المفضلة هي `43388` للواجهة الوهمية و`43300` لـNuxt و`43369` لـOdoo؛ يختار الغلاف منافذ حرة إن كانت مشغولة.
 - يرفض الغلاف توجيه الاختبارات إلى `3000` أو `8069`. الأمر `npm run e2e:dev` يتجاوز الغلاف صراحةً ويستخدم الإعداد المباشر (`E2E_TELEMETRY_DISABLED=1 e2e run`)، الذي يبدأ افتراضيًا من `http://localhost:3000` ويمكنه إعادة استخدام خادم قائم.
 - استعرض الاختبارات بـ `npx e2e list`، ومهارة وكلاء البرمجة في `.claude/skills/e2e/`.

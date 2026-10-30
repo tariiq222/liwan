@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { TagSchema } from '@webvue/contracts'
+import { TagSchema } from '@liwan/contracts'
 
 export const tagKeys = {
   all: ['tags'] as const,

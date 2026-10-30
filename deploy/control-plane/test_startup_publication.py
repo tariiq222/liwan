@@ -36,10 +36,10 @@ LOCAL = HERE / 'local-process.sh'
 
 # Stand-in supervisor body used by the forged-marker case: sources the REAL
 # runtime-trap.sh, holds the lifecycle lock only until the records are published,
-# then releases it while WEBVUE_PROCESS_LOCK_FD stays in the environment.
+# then releases it while LIWAN_PROCESS_LOCK_FD stays in the environment.
 RUNNER_BODY = '''#!/bin/bash
 set +x; set +v; set -euo pipefail
-HOME_DIR="$WEBVUE_CONTROL_HOME"; DEPLOY="$WEBVUE_TEST_DEPLOY"
+HOME_DIR="$LIWAN_CONTROL_HOME"; DEPLOY="$LIWAN_TEST_DEPLOY"
 source "$DEPLOY/runtime-trap.sh"
 trap 'control_runtime_trap || exit $?; exit 0' TERM INT
 printf ready > "$HOME_DIR/ready"
@@ -79,9 +79,9 @@ def spawn(children, reapers, argv, **kwargs):
 
 class StartupPublication(unittest.TestCase):
     def test_second_start_blocked_until_publication_then_rejected(self):
-        with tempfile.TemporaryDirectory(prefix='webvue-run-sequence-canary-') as tmp:
+        with tempfile.TemporaryDirectory(prefix='liwan-run-sequence-canary-') as tmp:
             home = Path(tmp); state = home / 'processes'; state.mkdir(mode=0o700); (home / 'processes.lock').touch()
-            env = {**os.environ, 'WEBVUE_CONTROL_HOME': str(home)}
+            env = {**os.environ, 'LIWAN_CONTROL_HOME': str(home)}
             # The previous generation must be genuinely not-dead, so the second
             # start is refused by the fail-closed liveness probe rather than by a
             # guessed, out-of-range PID. The two live records are this test's own
@@ -94,7 +94,7 @@ class StartupPublication(unittest.TestCase):
                 return ' '.join(out.split())
 
             adapter = r'''import fcntl,os,pathlib,subprocess,sys,time
-h=pathlib.Path(sys.argv[1]); p=h/'processes'; fd=os.open(h/'processes.lock',os.O_RDWR); fcntl.flock(fd,fcntl.LOCK_EX); os.set_inheritable(fd,True); os.environ['WEBVUE_PROCESS_LOCK_FD']=str(fd)
+h=pathlib.Path(sys.argv[1]); p=h/'processes'; fd=os.open(h/'processes.lock',os.O_RDWR); fcntl.flock(fd,fcntl.LOCK_EX); os.set_inheritable(fd,True); os.environ['LIWAN_PROCESS_LOCK_FD']=str(fd)
 subprocess.check_call([sys.executable,sys.argv[2],'--check'],pass_fds=(fd,)); subprocess.check_call([sys.executable,sys.argv[3],str(h)],pass_fds=(fd,))
 own=subprocess.run(['/bin/ps','-p',str(os.getpid()),'-o','lstart='],capture_output=True,text=True).stdout
 (p/'runtime.pid').write_text(str(os.getpid())+'\n'); time.sleep(.2); (p/'runtime.start').write_text(' '.join(own.split())+'\n'); g=(p/'generation').read_text()
@@ -132,7 +132,7 @@ for n,pid,start in (('api',sys.argv[4],sys.argv[6]),('worker',sys.argv[5],sys.ar
     def test_actual_local_stop_runtime_uses_real_run_local_trap_without_deadlock(self):
         children = []
         reapers = []
-        with tempfile.TemporaryDirectory(prefix='webvue-actual-stop-canary-') as tmp:
+        with tempfile.TemporaryDirectory(prefix='liwan-actual-stop-canary-') as tmp:
             home = Path(tmp); root = home
             state = home / 'processes'; state.mkdir(mode=0o700)
             (home / 'processes.lock').touch(); (home / 'runtime.env').write_text(''); (home / 'logs').mkdir()
@@ -155,7 +155,7 @@ for n,pid,start in (('api',sys.argv[4],sys.argv[6]),('worker',sys.argv[5],sys.ar
             runner = root / 'deploy' / 'control-plane' / 'run-local.sh'; runner.parent.mkdir(parents=True)
             runner.write_text('''#!/bin/bash
 set +x; set +v; set -euo pipefail
-HOME_DIR="$WEBVUE_CONTROL_HOME"; DEPLOY="$WEBVUE_TEST_DEPLOY"
+HOME_DIR="$LIWAN_CONTROL_HOME"; DEPLOY="$LIWAN_TEST_DEPLOY"
 source "$DEPLOY/runtime-trap.sh"
 trap 'control_runtime_trap || exit $?; exit 0' TERM INT
 printf ready > "$HOME_DIR/ready"
@@ -166,8 +166,8 @@ exec 3>&-
 while :; do /bin/sleep 0.05; done
 '''); runner.chmod(0o700)
 
-            env = {**os.environ, 'WEBVUE_CONTROL_HOME': str(home), 'WEBVUE_REPOSITORY_ROOT': str(root),
-                   'WEBVUE_NODE_BIN': str(node_bin), 'WEBVUE_TEST_DEPLOY': str(HERE)}
+            env = {**os.environ, 'LIWAN_CONTROL_HOME': str(home), 'LIWAN_REPOSITORY_ROOT': str(root),
+                   'LIWAN_NODE_BIN': str(node_bin), 'LIWAN_TEST_DEPLOY': str(HERE)}
 
             def spawn(argv, **kwargs):
                 child = subprocess.Popen(argv, **kwargs)
@@ -246,7 +246,7 @@ while :; do /bin/sleep 0.05; done
         """
         children = []
         reapers = []
-        with tempfile.TemporaryDirectory(prefix='webvue-forged-marker-canary-') as tmp:
+        with tempfile.TemporaryDirectory(prefix='liwan-forged-marker-canary-') as tmp:
             home = Path(tmp); root = home
             state = home / 'processes'; state.mkdir(mode=0o700)
             (home / 'processes.lock').touch(); (home / 'runtime.env').write_text(''); (home / 'logs').mkdir()
@@ -254,8 +254,8 @@ while :; do /bin/sleep 0.05; done
             runner = root / 'deploy' / 'control-plane' / 'run-local.sh'; runner.parent.mkdir(parents=True)
             runner.write_text(RUNNER_BODY); runner.chmod(0o700)
             trace = home / 'runtime-stderr.txt'; trace_handle = trace.open('w')
-            env = {**os.environ, 'WEBVUE_CONTROL_HOME': str(home), 'WEBVUE_REPOSITORY_ROOT': str(root),
-                   'WEBVUE_NODE_BIN': str(node_bin), 'WEBVUE_TEST_DEPLOY': str(HERE)}
+            env = {**os.environ, 'LIWAN_CONTROL_HOME': str(home), 'LIWAN_REPOSITORY_ROOT': str(root),
+                   'LIWAN_NODE_BIN': str(node_bin), 'LIWAN_TEST_DEPLOY': str(HERE)}
             owner = api = worker = foreign = None
             try:
                 owner = spawn(children, reapers, [sys.executable, str(LOCK), '--hold', 'bash', str(runner)],

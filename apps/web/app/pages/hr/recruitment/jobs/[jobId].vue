@@ -2,7 +2,7 @@
 import { ApiError } from '@/composables/useApi'
 import { owningListBack } from '@/utils/recordListOrigin'
 import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
-import type { HrRecruitmentJob } from '@webvue/contracts'
+import type { HrRecruitmentJob } from '@liwan/contracts'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -138,7 +138,7 @@ const applicantsTo = computed(() => ({ path: '/hr/recruitment', query: { job_id:
     </SharedIdentityCard>
 
     <SharedRecordSection v-if="job" variant="panel" :title="t('hrRecruitment.jobs.form.details')">
-      <UForm novalidate :state="form" class="webvue-form" method="post" data-testid="hr-recruitment-job-edit" @submit="submit">
+      <UForm novalidate :state="form" class="liwan-form" method="post" data-testid="hr-recruitment-job-edit" @submit="submit">
         <SharedUnsavedChanges :dirty="dirty" />
         <div class="grid gap-4">
           <UFormField :label="t('hrRecruitment.jobs.columns.name')" name="hr-recruitment-edit-name" required :error="nameError">

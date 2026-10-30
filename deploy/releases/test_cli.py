@@ -65,12 +65,12 @@ class CliTests(unittest.TestCase):
         upstreams = {'odoo': 'http://green-odoo:8069', 'web': 'http://green-web:3000', 'ws': 'http://green-odoo:8072'}
         operator = {'poolId': pool, 'tenancyMode': 'shared', 'upstreams': upstreams,
             'allowedUpstreams': [*upstreams.values(), 'http://guard:8080'], 'guardUrl': 'http://guard:8080',
-            'sessionStore': 'webvue_sessions', 'filestore': 'webvue_filestore', 'assetsStore': 'webvue_assets',
-            'httpConfig': '/etc/webvue/green-http.conf', 'cronConfig': '/etc/webvue/green-cron.conf',
-            'cronDatabases': ['webvue_scratch_a'], 'runtimeSecret': '/etc/webvue/green.env',
+            'sessionStore': 'liwan_sessions', 'filestore': 'liwan_filestore', 'assetsStore': 'liwan_assets',
+            'httpConfig': '/etc/liwan/green-http.conf', 'cronConfig': '/etc/liwan/green-cron.conf',
+            'cronDatabases': ['liwan_scratch_a'], 'runtimeSecret': '/etc/liwan/green.env',
             'runtimeDbUser': 'green_runtime', 'runtimeUid': 1000, 'httpConfigDigest': 'a'*64, 'cronConfigDigest': 'b'*64,
             'guardWebNetwork': 'guard_web', 'guardOdooNetwork': 'guard_odoo', 'databaseNetwork': 'db_net',
-            'releaseRoutesDir': '/etc/webvue/releases/routes'}
+            'releaseRoutesDir': '/etc/liwan/releases/routes'}
         with patch('subprocess.run', side_effect=AssertionError('render started a process')):
             code, out, err = self.invoke(['render', '--manifest', self.doc('manifest.json', release()),
                                           '--operator-config', self.doc('operator.json', operator)])
@@ -78,13 +78,13 @@ class CliTests(unittest.TestCase):
         result = json.loads(out)
         self.assertEqual(result['services']['green-odoo']['command'], ['--max-cron-threads=0'])
         self.assertTrue(all('ports' not in service for service in result['services'].values()))
-        self.assertEqual(result['x-webvue-pool']['releaseId'], 'r20261016')
+        self.assertEqual(result['x-liwan-pool']['releaseId'], 'r20261016')
 
     def bootstrap_args(self, **changes):
-        binding = {'tenantId': 'tenant_a', 'database': 'webvue_scratch_a', 'filestore': 'webvue_scratch_a', 'registryRevision': 1}
+        binding = {'tenantId': 'tenant_a', 'database': 'liwan_scratch_a', 'filestore': 'liwan_scratch_a', 'registryRevision': 1}
         route = {'schemaVersion': 1, 'tenantId': 'tenant_a', 'identityRevision': 1, 'routeRevision': 1,
                  'fence': 1, 'state': 'serving', 'releaseId': 'r20261016', 'poolId': 'blue'}
-        evidence = {'schemaVersion': 1, 'tenantId': 'tenant_a', 'database': 'webvue_scratch_a', 'filestore': 'webvue_scratch_a',
+        evidence = {'schemaVersion': 1, 'tenantId': 'tenant_a', 'database': 'liwan_scratch_a', 'filestore': 'liwan_scratch_a',
                     'identityRevision': 1, 'poolId': 'blue', 'releaseId': 'r20261016', 'fence': 1,
                     'edgeOffline': True, 'cronStopped': True, 'admittedWriters': 0, 'activeTransactions': 0,
                     'oldConnections': 0, 'reviewer': 'operator', 'reference': 'offline-check-1'}
@@ -117,13 +117,13 @@ class CliTests(unittest.TestCase):
         (root / 'database.dump').write_bytes(b'scratch-dump')
         attachment = self.root / 'attachment'; attachment.write_bytes(b'attachment')
         with tarfile.open(root / 'filestore.tar', 'w') as archive: archive.add(attachment, arcname='ab/attachment')
-        receipt = {'version': 1, 'tenantId': 'tenant_a', 'database': 'webvue_scratch_a', 'filestore': 'webvue_scratch_a',
-                   'fence': 2, 'image': 'webvue/odoo@sha256:'+'a'*64, 'consistency': 'quiescent_gate', 'restoreVerified': False,
+        receipt = {'version': 1, 'tenantId': 'tenant_a', 'database': 'liwan_scratch_a', 'filestore': 'liwan_scratch_a',
+                   'fence': 2, 'image': 'liwan/odoo@sha256:'+'a'*64, 'consistency': 'quiescent_gate', 'restoreVerified': False,
                    'hashes': {name: hashlib.sha256((root/name).read_bytes()).hexdigest() for name in ('database.dump','filestore.tar')}}
         (root / 'receipt.json').write_text(json.dumps(receipt))
-        binding = {'tenantId': 'tenant_a', 'database': 'webvue_scratch_restore', 'filestore': 'webvue_scratch_restore'}
+        binding = {'tenantId': 'tenant_a', 'database': 'liwan_scratch_restore', 'filestore': 'liwan_scratch_restore'}
         config = {'mode': 'local', 'restoreAllowed': True, 'writesResumed': False, 'createdb': '/usr/bin/true',
-                  'pgRestore': '/usr/bin/true', 'targetFilestore': str(self.root/'webvue_scratch_restore'),
+                  'pgRestore': '/usr/bin/true', 'targetFilestore': str(self.root/'liwan_scratch_restore'),
                   'recoverySource': {key: receipt[key] for key in ('tenantId','database','filestore','fence')}}
         return root, binding, config
 
@@ -138,9 +138,9 @@ class CliTests(unittest.TestCase):
                                           '--runtime', self.doc('restore.json', config)])
         self.assertEqual((code, err), (0, ''))
         self.assertFalse(json.loads(out)['restoreVerified'])
-        self.assertEqual((self.root/'webvue_scratch_restore/ab/attachment').read_bytes(), b'attachment')
+        self.assertEqual((self.root/'liwan_scratch_restore/ab/attachment').read_bytes(), b'attachment')
         self.assertEqual(len(commands), 2)
-        self.assertEqual(commands[0][-1], 'webvue_scratch_restore')
+        self.assertEqual(commands[0][-1], 'liwan_scratch_restore')
 
     def test_restore_refuses_resumed_writes_and_corrupt_backup_before_process(self):
         backup, binding, config = self.backup()

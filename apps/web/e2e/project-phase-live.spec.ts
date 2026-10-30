@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 import { open } from './support/tasmim6'
 
-const live = process.env.E2E_PHASE_LIVE_DB === 'webvue_scratch_phase_review_20261016'
+const live = process.env.E2E_PHASE_LIVE_DB === 'liwan_scratch_phase_review_20261016'
 test.skip(!live, 'Requires the explicitly named disposable phase-review database')
 const fixture = live ? JSON.parse(readFileSync(process.env.E2E_PHASE_FIXTURE!, 'utf8')) : {}
 async function signIn(page: Page, login: string) {
@@ -101,7 +101,7 @@ test('phase, charter and bell fit Arabic and English large text in both themes',
   await signIn(page, 'phase_manager')
   for (const width of [390, 768, 1440]) for (const language of ['ar', 'en']) for (const mode of ['light', 'dark']) {
     expect((await page.request.patch('/api/v1/me/appearance', { data: { mode, font_size: 'large' } })).status()).toBe(200)
-    await page.context().addCookies([{ name: 'webvue-locale', value: language, url: new URL(baseURL!).origin }])
+    await page.context().addCookies([{ name: 'liwan-locale', value: language, url: new URL(baseURL!).origin }])
     await page.setViewportSize({ width, height: 900 })
     for (const path of [`/projects/${fixture.project_id}`, `/projects/${fixture.project_id}/charter`, '/notifications']) {
       await open(page, path)

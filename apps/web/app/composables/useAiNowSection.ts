@@ -1,6 +1,6 @@
 import { onMounted, ref } from 'vue'
 
-const SECTION_KEY = 'webvue-assistant-now-hidden'
+const SECTION_KEY = 'liwan-assistant-now-hidden'
 
 /**
  * Whether the sheet's "in this page now" section is folded to its title row. Remembered for the browser session; storage can

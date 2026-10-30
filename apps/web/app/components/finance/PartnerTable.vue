@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import { partnerKinds } from '@/composables/finance/financePartnerParams'
 import type { FinancePartner } from '@/composables/finance/useFinancePartners'
 

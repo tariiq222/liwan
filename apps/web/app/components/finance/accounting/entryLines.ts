@@ -1,4 +1,4 @@
-import type { JournalEntryCreate, JournalEntryDetail, JournalEntryLine, JournalEntryLineInput, JournalEntryPatch } from '@webvue/contracts'
+import type { JournalEntryCreate, JournalEntryDetail, JournalEntryLine, JournalEntryLineInput, JournalEntryPatch } from '@liwan/contracts'
 
 /** One line of the editor as typed: amounts stay strings until they are validated. */
 interface EntryLineDraft {

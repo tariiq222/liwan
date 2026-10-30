@@ -2,7 +2,7 @@ import { useHrOwnIdentity } from './useHrOwnIdentity'
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
-import { HrEmployeeSchema } from '@webvue/contracts'
+import { HrEmployeeSchema } from '@liwan/contracts'
 
 export const hrOwnProfileKey = ['hr', 'me'] as const
 

@@ -16,7 +16,7 @@ import {
   type HrLeaveAllocationPatch,
   type HrLeaveRequestCreate,
   type HrLeaveState,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 
 export type { HrLeave, HrLeaveAllocation }
 

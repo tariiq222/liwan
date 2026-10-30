@@ -22,7 +22,7 @@ class TestClassification(unittest.TestCase):
         self.source = self.root / 'input.json'
         self.output = self.root / 'snapshot.json'
         self.data = {
-            'schema_version': 1, 'database': 'webvue_test_scratch',
+            'schema_version': 1, 'database': 'liwan_test_scratch',
             'commercial_mode': 'non_saas', 'entitlement_source': 'local_policy',
             'expected_valid_until': None, 'valid_until_action': 'preserve',
         }
@@ -56,13 +56,13 @@ class TestClassification(unittest.TestCase):
         self.assertTrue(self.output.exists())
 
     def test_fixture_is_explicit_scratch_only_and_never_overwrites(self):
-        for db in ('customer', 'odoo19', 'webvue_production_scratch'):
+        for db in ('customer', 'odoo19', 'liwan_production_scratch'):
             with self.assertRaises(ValueError):
                 classification.fixture(db, 'saas', self.output)
-        classification.fixture('webvue_test_scratch', 'saas', self.output)
+        classification.fixture('liwan_test_scratch', 'saas', self.output)
         self.assertEqual(json.loads(self.output.read_text())['entitlement_source'], 'control_plane')
         with self.assertRaises(FileExistsError):
-            classification.fixture('webvue_test_scratch', 'non_saas', self.output)
+            classification.fixture('liwan_test_scratch', 'non_saas', self.output)
 
     def test_missing_and_invalid_json_are_fail_closed(self):
         with self.assertRaises(FileNotFoundError):
@@ -78,7 +78,7 @@ class TestClassification(unittest.TestCase):
         deploy.mkdir()
         for name in ('provision.sh', 'classification.py', 'seed_branding.py', 'seed_legacy_policy.py', 'seed_public_origin.py'):
             shutil.copy(ROOT / 'deploy' / name, deploy / name)
-        config = self.root / 'odoo-addons/webvue_platform'
+        config = self.root / 'odoo-addons/liwan_platform'
         config.mkdir(parents=True)
         shutil.copy(classification.PARSER, config / 'commercial_config.py')
         (deploy / 'odoo').mkdir()
@@ -98,7 +98,7 @@ import json, os, pathlib, sys
 args = sys.argv[1:]
 record = {'args': args}
 if 'docker-compose.classification.yml' in args:
-    path = pathlib.Path(os.environ['WEBVUE_CLASSIFICATION_FILE'])
+    path = pathlib.Path(os.environ['LIWAN_CLASSIFICATION_FILE'])
     record['snapshot'] = json.loads(path.read_text())
     record['path'] = str(path)
 if 'psql' in args or 'shell' in args:
@@ -112,7 +112,7 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
         envsubst.write_text('#!/bin/sh\nexec cat\n')
         envsubst.chmod(0o755)
         env = {**os.environ, 'PATH': str(binpath) + os.pathsep + os.environ['PATH'],
-               'WEBVUE_COMMERCIAL_CONFIG': str(self.source), 'WEBVUE_IMAGE_TAG': 'test-only',
+               'LIWAN_COMMERCIAL_CONFIG': str(self.source), 'LIWAN_IMAGE_TAG': 'test-only',
                'DOCKER_LOG': str(self.root / 'docker.log')}
         return deploy, env
 
@@ -147,15 +147,15 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
         self.assertIn(f'tenant_db={self.data["database"]}', record['args'])
         self.assertIn('ON_ERROR_STOP=1', record['args'])
         sql = record['stdin']
-        self.assertIn("rolname = 'webvue_ai'", sql)
+        self.assertIn("rolname = 'liwan_ai'", sql)
         self.assertIn('FROM PUBLIC', sql)
-        self.assertIn('FROM webvue_ai', sql)
+        self.assertIn('FROM liwan_ai', sql)
         self.assertNotIn(self.data['database'], sql)
 
     def origin_records(self):
         records = [json.loads(line) for line in (self.root / 'docker.log').read_text().splitlines()]
         return records, [index for index, record in enumerate(records)
-                         if '_webvue_set_public_origin' in record.get('stdin', '')]
+                         if '_liwan_set_public_origin' in record.get('stdin', '')]
 
     def test_provision_pins_the_public_origin_before_serving(self):
         deploy, env = self.provision_fixture()
@@ -212,8 +212,8 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
     def test_compose_overlay_is_readonly_opt_in_and_ci_targets_are_explicit(self):
         base = (ROOT / 'deploy/docker-compose.yml').read_text()
         overlay = (ROOT / 'deploy/docker-compose.classification.yml').read_text()
-        self.assertNotIn('WEBVUE_COMMERCIAL_CONFIG', base)
-        for text in ('read_only: true', 'create_host_path: false', '/run/webvue/classification.json', '${WEBVUE_CLASSIFICATION_FILE:?'):
+        self.assertNotIn('LIWAN_COMMERCIAL_CONFIG', base)
+        for text in ('read_only: true', 'create_host_path: false', '/run/liwan/classification.json', '${LIWAN_CLASSIFICATION_FILE:?'):
             self.assertIn(text, overlay)
         # CI is the GitHub Actions workflow running deploy/ci/<stage>.sh. The same
         # provisioning invariants must hold in the stage scripts.
@@ -230,12 +230,12 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
         previous = pipeline.split('# Install the previous release', 1)[1].split('# Upgrade to this commit', 1)[0]
         upgrade = pipeline.split('# Upgrade to this commit', 1)[1].split('# Post-upgrade smoke', 1)[0]
         self.assertIn('previous release must not inherit a commercial classification', previous)
-        self.assertIn('WEBVUE_COMMERCIAL_CONFIG="$SCRATCH_ROOT/baseline-classification.json"', previous)
+        self.assertIn('LIWAN_COMMERCIAL_CONFIG="$SCRATCH_ROOT/baseline-classification.json"', previous)
         self.assertNotIn('upgrade-classification.json', previous)
-        self.assertIn('WEBVUE_COMMERCIAL_CONFIG="$SCRATCH_ROOT/upgrade-classification.json"', upgrade)
-        self.assertIn('-e WEBVUE_COMMERCIAL_CONFIG=/run/webvue/classification.json', pipeline)
-        self.assertIn('classification.json:/run/webvue/classification.json:ro', pipeline)
-        self.assertIn('unset WEBVUE_COMMERCIAL_CONFIG', pipeline)
+        self.assertIn('LIWAN_COMMERCIAL_CONFIG="$SCRATCH_ROOT/upgrade-classification.json"', upgrade)
+        self.assertIn('-e LIWAN_COMMERCIAL_CONFIG=/run/liwan/classification.json', pipeline)
+        self.assertIn('classification.json:/run/liwan/classification.json:ro', pipeline)
+        self.assertIn('unset LIWAN_COMMERCIAL_CONFIG', pipeline)
         self.assertIn('negative case passed unexpectedly', pipeline)
         self.assertIn('tools/upgrade_log_guard.py', pipeline)
 

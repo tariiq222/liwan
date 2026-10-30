@@ -29,9 +29,9 @@ def edge_requests(cases, *, identify_backend=False):
     config['apps']['http']['servers']['echo'] = {
         'listen': ['127.0.0.1:8081'],
         'routes': [{'handle': [{'handler': 'static_response', 'body': json.dumps({
-            'ip': '{http.request.header.X-WebVue-Client-IP}',
-            'host': '{http.request.header.X-WebVue-Client-Host}',
-            'proto': '{http.request.header.X-WebVue-Client-Proto}',
+            'ip': '{http.request.header.X-Liwan-Client-IP}',
+            'host': '{http.request.header.X-Liwan-Client-Host}',
+            'proto': '{http.request.header.X-Liwan-Client-Proto}',
             'xff': '{http.request.header.X-Forwarded-For}',
         })}]}],
     }
@@ -45,22 +45,22 @@ def edge_requests(cases, *, identify_backend=False):
             }
 
     script = (
-        "set -eu\ncat > /tmp/edge.json <<'WEBVUE_AUTH_EDGE'\n" + json.dumps(config)
-        + "\nWEBVUE_AUTH_EDGE\ncaddy run --config /tmp/edge.json >/tmp/caddy.log 2>&1 &\n"
+        "set -eu\ncat > /tmp/edge.json <<'LIWAN_AUTH_EDGE'\n" + json.dumps(config)
+        + "\nLIWAN_AUTH_EDGE\ncaddy run --config /tmp/edge.json >/tmp/caddy.log 2>&1 &\n"
         + "pid=$!\ntrap 'kill \"$pid\" 2>/dev/null || true' EXIT\n"
         + "ready=0\nfor attempt in $(seq 1 50); do\n"
         + " if curl -sf --max-time 1 http://127.0.0.1:8081/ >/dev/null; then ready=1; break; fi\n"
         + " sleep 0.1\ndone\n[ \"$ready\" = 1 ] || { cat /tmp/caddy.log >&2; exit 1; }\n"
     )
     for i, case in enumerate(cases):
-        script += f"printf 'WEBVUE_AUTH_CASE {i}\\n'\n"
+        script += f"printf 'LIWAN_AUTH_CASE {i}\\n'\n"
         script += 'curl --silent --show-error --max-time 3 --noproxy "*" --path-as-is '
         script += '--interface ' + shlex.quote(case.get('peer', '127.0.0.2'))
         script += ' --request-target ' + shlex.quote(case['path'])
         for name, value in case.get('headers', {}).items():
             script += ' -H ' + shlex.quote(f'{name}: {value}')
         script += ' -o /tmp/body -w "%{http_code}\\n" http://127.0.0.1:8080/\ncat /tmp/body\nprintf "\\n"\n'
-    records = _caddy_container(script).stdout.split('WEBVUE_AUTH_CASE ')[1:]
+    records = _caddy_container(script).stdout.split('LIWAN_AUTH_CASE ')[1:]
     if len(records) != len(cases):
         raise AssertionError('missing real edge response')
     results = []
@@ -83,9 +83,9 @@ class TestDedicatedAuthEdge(unittest.TestCase):
         rows = edge_requests([
             {'path': '/api/auth/login', 'peer': ip, 'headers': {
                 'X-Forwarded-For': '198.51.100.99', 'Forwarded': 'for=198.51.100.98',
-                'X-WebVue-Client-IP': '192.0.2.99', 'X-WebVue-Client-Host': 'evil.example.test',
-                'X-WebVue-Client-Proto': 'ftp',
-                'Connection': 'X-WebVue-Client-IP, X-WebVue-Client-Host, X-WebVue-Client-Proto',
+                'X-Liwan-Client-IP': '192.0.2.99', 'X-Liwan-Client-Host': 'evil.example.test',
+                'X-Liwan-Client-Proto': 'ftp',
+                'Connection': 'X-Liwan-Client-IP, X-Liwan-Client-Host, X-Liwan-Client-Proto',
             }} for ip in ('127.0.0.2', '127.0.0.3')
         ])
         self.assertEqual(rows, [(200, {'ip': ip, 'host': '127.0.0.1:8080', 'proto': 'http', 'xff': ip})
@@ -94,7 +94,7 @@ class TestDedicatedAuthEdge(unittest.TestCase):
     def test_rotating_headers_does_not_reset_socket_peer_budget(self):
         rows = edge_requests([
             {'path': '/api/auth/login', 'headers': {'X-Forwarded-For': f'198.51.100.{i + 1}',
-                                                 'X-WebVue-Client-IP': f'192.0.2.{i + 1}'}}
+                                                 'X-Liwan-Client-IP': f'192.0.2.{i + 1}'}}
             for i in range(21)
         ] + [{'path': '/api/auth/login', 'peer': '127.0.0.3'}])
         self.assertEqual([status for status, _ in rows], [200] * 20 + [429, 200])

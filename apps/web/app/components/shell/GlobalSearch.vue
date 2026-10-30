@@ -5,10 +5,10 @@ import { useNav, type NavItem } from '@/composables/nav/shellModules'
 import {
   commandItems, goToItems, helpItems, paletteGroups, PALETTE_SECTION_LIMIT, visibleCommands, type PaletteItem,
 } from '@/composables/nav/paletteModel'
-import { isApplePlatform } from '@webvue/ui/app/composables/shortcuts/keymap'
+import { isApplePlatform } from '@liwan/ui/app/composables/shortcuts/keymap'
 import { useAppSearch } from '@/composables/useAppSearch'
 import { paletteNavigationBlocked, shouldRestoreTriggerFocus, usePalette } from '@/composables/usePalette'
-import { clearNavigationFocus, offerNavigationFocus } from '@webvue/ui/app/composables/useNavigationFocus'
+import { clearNavigationFocus, offerNavigationFocus } from '@liwan/ui/app/composables/useNavigationFocus'
 
 // The command palette (Tasmim spec §5) and still the one approved search overlay
 // (DESIGN.md §5; tools/ui_policy.py OVERLAY_OWNERS): Go to (the nav the user can reach),
@@ -165,20 +165,20 @@ function onAfterLeave() {
     :description="t('search.description')"
     :content="{ onCloseAutoFocus }"
     @after:leave="onAfterLeave"
-    :ui="{ content: 'webvue-search-dialog max-w-2xl max-h-[min(620px,calc(100dvh-2rem))] gap-0 divide-y-0 overflow-hidden rounded-card p-0', overlay: 'webvue-search-overlay' }"
+    :ui="{ content: 'liwan-search-dialog max-w-2xl max-h-[min(620px,calc(100dvh-2rem))] gap-0 divide-y-0 overflow-hidden rounded-card p-0', overlay: 'liwan-search-overlay' }"
   >
     <UButton
       :aria-label="t('app.search')"
       aria-keyshortcuts="Meta+K Control+K"
       color="neutral"
       variant="outline"
-      class="webvue-search-trigger max-md:bg-transparent max-md:ring-0"
+      class="liwan-search-trigger max-md:bg-transparent max-md:ring-0"
       data-testid="global-search-trigger"
       :disabled="!hydrated"
     >
       <span class="flex min-w-0 items-center gap-2">
         <UIcon name="i-lucide-search" class="size-4 shrink-0" aria-hidden="true" />
-        <span data-slot="label" class="webvue-search-trigger-label truncate">{{ t('app.search') }}</span>
+        <span data-slot="label" class="liwan-search-trigger-label truncate">{{ t('app.search') }}</span>
       </span>
       <UKbd dir="ltr">{{ metaKey }}K</UKbd>
     </UButton>

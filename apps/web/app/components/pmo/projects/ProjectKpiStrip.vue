@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { KpiTile } from '@webvue/ui/app/utils/kpiTile'
+import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
 import { useProjectSummary, type ProjectSummaryFilters } from '@/composables/useProjects'
 
 // The four figures above the projects list, laid out like the task KPI strip: total, active, needing attention and done

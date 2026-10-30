@@ -4,7 +4,7 @@ import { compileScript, parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import * as contracts from '@webvue/contracts'
+import * as contracts from '@liwan/contracts'
 import { ApiError } from '../../../composables/useApi'
 import { usePayrollConflict } from '../../../composables/usePayrollConflict'
 import { saveErrorMessage } from '../../../utils/formFeedback'
@@ -17,8 +17,8 @@ import { parseMoneyInput } from '../../../utils/moneyInput'
 // its declared imports and the mutations replaced.
 const MODULES: Record<string, unknown> = {
   'vue': Vue,
-  '@webvue/contracts': contracts,
-  '@webvue/ui/app/utils/formatDate': { formatDate: (value: string) => value },
+  '@liwan/contracts': contracts,
+  '@liwan/ui/app/utils/formatDate': { formatDate: (value: string) => value },
   '@/composables/useApi': { ApiError },
   '@/utils/formFeedback': { saveErrorMessage },
   '@/utils/payrollSettings': { gosiRatePatch },

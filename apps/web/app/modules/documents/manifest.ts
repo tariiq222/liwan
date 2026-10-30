@@ -1,4 +1,4 @@
-import { DocumentListSchema, HrEmployeeSchema } from '@webvue/contracts'
+import { DocumentListSchema, HrEmployeeSchema } from '@liwan/contracts'
 import type { AppManifest } from '../types'
 const manifest: AppManifest = {
   id: 'documents', feature: 'documents.enabled', routePrefixes: ['/documents', '/account/documents'],

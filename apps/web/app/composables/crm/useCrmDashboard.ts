@@ -1,6 +1,6 @@
 import { computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
-import { CrmDashboardSchema } from '@webvue/contracts'
+import { CrmDashboardSchema } from '@liwan/contracts'
 import { crmKeys } from './crmKeys'
 
 /** The agent block for everyone and the manager block when the server sends one; per company like the data it counts. */

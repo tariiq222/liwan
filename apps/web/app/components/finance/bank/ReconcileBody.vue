@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinanceReconcileProposal } from '@webvue/contracts'
+import type { FinanceReconcileProposal } from '@liwan/contracts'
 import Money from '../invoices/Money.vue'
 import AccountPicker from '../AccountPicker.vue'
 import { canWriteOffTo, toggleSelected } from './reconcileModel'

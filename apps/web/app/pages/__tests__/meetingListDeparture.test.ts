@@ -10,7 +10,7 @@ import { useMeetingListQuerySync } from '../../composables/useMeetingListQuerySy
 import { expect, it } from 'vitest'
 import * as filters from '../../utils/meetingListFilters'
 import { parseOffset } from '../../utils/routeQuery'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import { rootedNode } from '../../../tests/hostNode'
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -25,7 +25,7 @@ function gate() {
 
 async function mountList(file: 'index.vue' | 'series.vue', base: string, auth: (to: RouteLocationNormalized) => unknown | Promise<unknown>, deferPageRoute = false, initial = `${base}#agenda`, renderedLink?: 'desktop' | 'mobile') {
   const permission = Vue.ref(true)
-  const hooks = createHooks<{ 'webvue:navigation:start': (to: RouteLocationNormalized) => void }>()
+  const hooks = createHooks<{ 'liwan:navigation:start': (to: RouteLocationNormalized) => void }>()
   const pageRoute = Vue.shallowRef<any>(null)
   const deferredRoute = new Proxy({}, { get: (_target, key) => pageRoute.value?.[key] })
   const filename = new URL(`../meetings/${file}`, import.meta.url).pathname
@@ -43,7 +43,7 @@ async function mountList(file: 'index.vue' | 'series.vue', base: string, auth: (
     useMeetings: () => ({ data: Vue.ref({ items: [], total: 120 }), isLoading: Vue.ref(false), isFetching: Vue.ref(false), error: Vue.ref(null) }),
     useMeetingListKpis: () => ({ tiles: Vue.ref([]), loading: Vue.ref(false) }), useMeetingSeriesKpis: () => ({ tiles: Vue.ref([]), loading: Vue.ref(false) }),
     useMeetingSeriesList: () => ({ data: Vue.ref({ items: [], total: 120 }), isLoading: Vue.ref(false), isFetching: Vue.ref(false), error: Vue.ref(null) }),
-    formatCalendarDate: () => '', formatWebVueTime: () => '', formatLocalDateTime: () => '', meetingStateBadgeProps: () => ({}),
+    formatCalendarDate: () => '', formatLiwanTime: () => '', formatLocalDateTime: () => '', meetingStateBadgeProps: () => ({}),
     FilterBar: {}, RecordNumber: {}, MeetingProjectFilter: {},
   }
   const code = ts.transpileModule(script, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText
@@ -82,7 +82,7 @@ async function mountList(file: 'index.vue' | 'series.vue', base: string, auth: (
   router.beforeEach(async to => {
     // The public auth middleware contract: publish the real target before its first identity await.
     started.push(to)
-    await hooks.callHook('webvue:navigation:start', to)
+    await hooks.callHook('liwan:navigation:start', to)
     return await auth(to) as any
   })
   const createExpression = parse(readFileSync(filename, 'utf8')).descriptor.template!.content.match(/:create-to="([^"]+)"/)![1]!

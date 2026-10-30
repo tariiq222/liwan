@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { joinList } from '@/utils/listFormat'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
-import type { DocumentFile } from '@webvue/contracts'
-import type { PageHeaderTag } from '@webvue/ui/app/utils/pageHeaderTag'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
+import type { DocumentFile } from '@liwan/contracts'
+import type { PageHeaderTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import { ApiError } from '@/composables/useApi'
 import { useDocument, useDocumentFiles, useDocumentTransition, useUploadDocumentFile, useDocumentFileAction } from '@/composables/useDocuments'
 import { documentRecordBack, documentChildTo } from '@/lib/documentNavigation'

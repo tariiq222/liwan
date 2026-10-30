@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxCatalogPickItem } from '@webvue/contracts'
+import type { InboxCatalogPickItem } from '@liwan/contracts'
 import { formatInboxMoney } from '@/composables/inbox/inboxCommerce'
 
 // The product list of a conversation's or channel's catalog, with a search box: tap a product to pick it, tap again to

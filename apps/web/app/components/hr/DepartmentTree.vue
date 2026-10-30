@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { SegmentedItem } from '@webvue/ui/app/components/shared/data/SegmentedControl.vue'
+import type { SegmentedItem } from '@liwan/ui/app/components/shared/data/SegmentedControl.vue'
 import { filterDepartmentTree, flattenDepartmentTree, type DepartmentTreeNode } from '@/lib/departmentTree'
 
 const props = defineProps<{
@@ -131,5 +131,5 @@ function toggle(node: DepartmentTreeNode) {
       />
     </div>
   </div>
-  <SharedEmptyState v-else class="m-(--webvue-card-pad-dense)" :title="$t('hr.depts.empty')" />
+  <SharedEmptyState v-else class="m-(--liwan-card-pad-dense)" :title="$t('hr.depts.empty')" />
 </template>

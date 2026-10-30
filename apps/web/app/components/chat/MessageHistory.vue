@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ChatMessageListSchema, type ChatMessage } from '@webvue/contracts'
+import { ChatMessageListSchema, type ChatMessage } from '@liwan/contracts'
 import ChatAttachment from '@/components/chat/ChatAttachment.vue'
 import { ApiError } from '@/composables/useApi'
-import { formatDate, formatTime } from '@webvue/ui/app/utils/formatDate'
-import { avatarProps } from '@webvue/ui/app/utils/avatarTone'
+import { formatDate, formatTime } from '@liwan/ui/app/utils/formatDate'
+import { avatarProps } from '@liwan/ui/app/utils/avatarTone'
 import {
   CHAT_PAGE_SIZE,
   CHAT_POLL_MS,
@@ -273,17 +273,17 @@ watch(() => props.denied, (value) => { if (value) seal() })
     </div>
     <SharedErrorState v-if="isError && !items.length" :error="error" :title="t('chat.unavailable')" class="m-4" @retry="refetch()" />
     <SharedEmptyState v-else-if="sealed && !items.length" :title="t('chat.unavailable')" class="m-4" />
-    <div ref="scroller" class="webvue-chat-scroller min-h-0 flex-1 overflow-y-auto px-4 py-2" data-testid="chat-scroller" @scroll="onScroll">
+    <div ref="scroller" class="liwan-chat-scroller min-h-0 flex-1 overflow-y-auto px-4 py-2" data-testid="chat-scroller" @scroll="onScroll">
       <ol class="flex flex-col gap-1">
         <template v-for="row in rows" :key="row.kind === 'day' ? row.key : row.item.id">
-          <li v-if="row.kind === 'day'" class="webvue-chat-day">{{ formatDate(row.key) }}</li>
-          <li v-else-if="row.item.notice" :data-message-id="row.item.id" class="webvue-chat-day" data-testid="chat-notice">
+          <li v-if="row.kind === 'day'" class="liwan-chat-day">{{ formatDate(row.key) }}</li>
+          <li v-else-if="row.item.notice" :data-message-id="row.item.id" class="liwan-chat-day" data-testid="chat-notice">
             {{ t('chat.memberRemovedNotice', { actor: row.item.author.name, name: row.item.notice.user.name }) }}
           </li>
           <li
             v-else
             :data-message-id="row.item.id"
-            class="webvue-chat-row flex max-w-[min(100%,28rem)] flex-col gap-1"
+            class="liwan-chat-row flex max-w-[min(100%,28rem)] flex-col gap-1"
             :class="row.item.author.id === me?.id ? 'ms-auto items-end' : 'me-auto items-start'"
           >
             <span v-if="!direct && row.item.author.id !== me?.id" class="flex items-center gap-2 px-1 text-xs font-medium text-muted">
@@ -291,7 +291,7 @@ watch(() => props.denied, (value) => { if (value) seal() })
               <span>{{ row.item.author.name }}</span>
             </span>
             <div
-              class="webvue-chat-bubble max-w-full text-start text-sm whitespace-pre-wrap break-words"
+              class="liwan-chat-bubble max-w-full text-start text-sm whitespace-pre-wrap break-words"
               :data-out="row.item.author.id === me?.id"
             >
               <p v-if="row.item.parent" class="mb-1 border-s-2 ps-2 text-xs opacity-80">{{ row.item.parent.author.name }}: {{ row.item.parent.body }}</p>
@@ -324,12 +324,12 @@ watch(() => props.denied, (value) => { if (value) seal() })
                   :label="`${reaction.content} ${reaction.count}`"
                 />
               </div>
-              <p class="webvue-chat-bubble-meta">
+              <p class="liwan-chat-bubble-meta">
                 <time>{{ timeFmt.format(new Date(row.item.created_at)) }}</time>
                 <span v-if="direct && row.item.author.id === me?.id">{{ peerSeenMessageId && row.item.id <= peerSeenMessageId ? t('chat.seen') : t('chat.sent') }}</span>
               </p>
             </div>
-            <div v-if="props.writable" class="webvue-chat-msg-actions flex flex-wrap gap-1 text-xs text-muted">
+            <div v-if="props.writable" class="liwan-chat-msg-actions flex flex-wrap gap-1 text-xs text-muted">
               <UButton type="button" color="neutral" variant="ghost" size="xs" :disabled="busyId === row.item.id" :label="t('chat.reply')" @click="emit('reply', row.item)" />
               <UButton
                 v-for="emoji in CHAT_REACTIONS"
@@ -359,7 +359,7 @@ watch(() => props.denied, (value) => { if (value) seal() })
           </li>
         </template>
         <li v-if="pendingBody" class="ms-auto flex max-w-[min(100%,24rem)] flex-col items-end gap-1" data-testid="chat-pending">
-          <div class="webvue-chat-bubble max-w-full text-start text-sm whitespace-pre-wrap break-words" data-out="true">{{ pendingBody }}</div>
+          <div class="liwan-chat-bubble max-w-full text-start text-sm whitespace-pre-wrap break-words" data-out="true">{{ pendingBody }}</div>
           <p class="text-xs text-muted">{{ t('chat.pending') }}</p>
         </li>
       </ol>

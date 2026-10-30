@@ -5,7 +5,7 @@ Scenarios about plans, limits and subscription states need the tenant profile
 changed, which only the trusted operator may do. Run through the Odoo shell:
 
     E2E_TENANT_STATE='{"off": ["finance.enabled"], "drop_retained": ["finance.enabled"]}' \\
-        odoo-bin shell -c <scratch conf> -d webvue_scratch_e2e --no-http < tools/e2e_tenant_state.py
+        odoo-bin shell -c <scratch conf> -d liwan_scratch_e2e --no-http < tools/e2e_tenant_state.py
 
 State keys: ``off`` (feature keys set to false), ``drop_retained`` (keys removed
 from the retained read features), ``limits`` (feature key -> value, e.g.
@@ -21,15 +21,15 @@ import json
 import os
 from pathlib import Path
 
-from odoo.addons.webvue_platform.models.entitlement_service import OPERATOR_CONTEXT
+from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
-DB_GUARD = 'webvue_scratch_e2e'
+DB_GUARD = 'liwan_scratch_e2e'
 BASELINE = Path('.e2e/tenant_baseline.json')
 
 if env.cr.dbname != DB_GUARD:  # noqa: F821
     raise SystemExit(f'e2e_tenant_state refuses database {env.cr.dbname!r}; only {DB_GUARD} is allowed')  # noqa: F821
 
-profile = env['webvue.tenant.profile'].search([])  # noqa: F821
+profile = env['liwan.tenant.profile'].search([])  # noqa: F821
 if len(profile) != 1:
     raise SystemExit('e2e_tenant_state expects exactly one tenant profile')
 # The baseline belongs to one database instance: a rebuilt scratch database
@@ -51,11 +51,11 @@ for key in state.get('off', []):
     features[key] = False
 features.update(state.get('limits', {}))
 if 'users_limit_delta' in state:
-    features['users.limit'] = env['webvue.entitlement.service']._webvue_count_users() + int(state['users_limit_delta'])  # noqa: F821
+    features['users.limit'] = env['liwan.entitlement.service']._liwan_count_users() + int(state['users_limit_delta'])  # noqa: F821
 retained = [key for key in retained if key not in state.get('drop_retained', [])]
 valid_until = datetime.date.today() - datetime.timedelta(days=3) if state.get('expired') else False
 
-# sudo: webvue.tenant.profile - the system-only access_webvue_tenant_profile_system row blocks the shell user's
+# sudo: liwan.tenant.profile - the system-only access_liwan_tenant_profile_system row blocks the shell user's
 # write; OPERATOR_CONTEXT is the trusted-operator path the platform requires for policy changes.
 profile.with_context(**{OPERATOR_CONTEXT: True}).sudo().write({
     'features': features, 'retained_read_features': retained,

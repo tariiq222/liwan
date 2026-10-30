@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="rule_meeting_series_capability_scope" model="ir.rule">
+        <field name="name">LiwanOS meeting series: capability and participation</field>
+        <field name="model_id" ref="model_liwan_meeting_series"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_meeting_event_current_company" model="ir.rule">
+        <field name="name">LiwanOS meeting events: pinned companies</field>
+        <field name="model_id" ref="model_liwan_meeting_event"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_meeting_minutes_version_current_company" model="ir.rule">
+        <field name="name">LiwanOS meeting versions: pinned companies</field>
+        <field name="model_id" ref="model_liwan_meeting_minutes_version"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

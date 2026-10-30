@@ -1,5 +1,5 @@
 {
-  "name": "@webvue/control-plane",
+  "name": "@liwan/control-plane",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -13,7 +13,7 @@
     "worker:shared": "tsx src/shared-worker-main.ts"
   },
   "dependencies": {
-    "@webvue/commercial-contracts": "0.1.0",
+    "@liwan/commercial-contracts": "0.1.0",
     "@node-rs/argon2": "2.2.1",
     "@simplewebauthn/server": "14.0.3",
     "pg": "^8.16.3",

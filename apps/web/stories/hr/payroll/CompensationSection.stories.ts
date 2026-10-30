@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import CompensationSection from '../../../app/components/hr/payroll/CompensationSection.vue'
-import RecordPage from '@webvue/ui/app/components/shared/layout/RecordPage.vue'
+import RecordPage from '@liwan/ui/app/components/shared/layout/RecordPage.vue'
 import { storyContext } from '../../support/context'
 
 // The payroll-only compensation block of the employee record: wage, allowances, bank account and GOSI facts.

@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 
 export default {
   title: 'Nuxt UI/Overlays',
-  parameters: { docs: { description: { component: 'وصفات `dropdownMenu` و`tooltip` و`popover` و`slideover` و`modal` وطبقاتها `--webvue-ui-z-menu` و`--webvue-ui-z-sheet`.' } } },
+  parameters: { docs: { description: { component: 'وصفات `dropdownMenu` و`tooltip` و`popover` و`slideover` و`modal` وطبقاتها `--liwan-ui-z-menu` و`--liwan-ui-z-sheet`.' } } },
 } satisfies Meta
 
 export const Menus: StoryObj = {

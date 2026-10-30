@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { InboxFlowSummary } from '@webvue/contracts'
+import type { InboxFlowSummary } from '@liwan/contracts'
 import { FLOW_HEALTH_TONE, FLOW_STATUS_TONE } from '@/composables/inbox/inboxFlow'
 
 // A form's lifecycle state, with its sending health when Meta reports a problem (limited or blocked) and a mark for a
-// form made in WhatsApp Manager, which WebVue sends but cannot show or edit.
+// form made in WhatsApp Manager, which LiwanOS sends but cannot show or edit.
 const props = defineProps<{ flow: Pick<InboxFlowSummary, 'status' | 'health' | 'supported'> }>()
 const { t } = useI18n()
 const showHealth = computed(() => props.flow.status === 'published' && (props.flow.health === 'limited' || props.flow.health === 'blocked'))

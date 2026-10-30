@@ -27,32 +27,32 @@ EXPECTED_BASE = 'd194f93f65c377a4f2e23e3ca067514bb692805b'
 # CP1-T1/T2 artifacts retained unchanged for the /me slice. This runner itself
 # is intentionally evolving and is reviewed/fingerprinted by the verification gate.
 PRESERVED = {
-    'odoo-addons/webvue_platform/models/tenant_profile.py': '577073515e3f8094eeb12f528653592b19e271dc0c1d8791db8c7939da85b171',
-    'odoo-addons/webvue_platform/models/entitlement_service.py': '1f36f7db0bc60db556e8dfff12871abcee3f2549366028d100613924ba310820',
-    'odoo-addons/webvue_platform/commercial_config.py': 'a261b08ee644ad1a974b3b7da9762c17f081ad1a73e9023be2ea615f84a717c7',
-    'odoo-addons/webvue_platform/__manifest__.py': '43b351ee064e8924ffe82e6cc3d9f2839bba22888c8adaa42b41029983b62657',
-    'odoo-addons/webvue_platform/migrations/19.0.1.2.0/pre-commercial_mode.py': 'b6de0ff6b63539ffaf9657607d864ba7620be736f062e2bbec7d9748515891e2',
-    'odoo-addons/webvue_platform/tests/__init__.py': '41aca99d42c21d547fb9c26a8a4e085155bf27b5cba69f966d2d3c8fdec17129',
-    'odoo-addons/webvue_platform/tests/test_commercial_mode.py': '54ce0ba3cd50aff16d4cfc22a4629e6d831e6e467fa8351c2cf0ed1b55e05080',
+    'odoo-addons/liwan_platform/models/tenant_profile.py': '577073515e3f8094eeb12f528653592b19e271dc0c1d8791db8c7939da85b171',
+    'odoo-addons/liwan_platform/models/entitlement_service.py': '1f36f7db0bc60db556e8dfff12871abcee3f2549366028d100613924ba310820',
+    'odoo-addons/liwan_platform/commercial_config.py': 'a261b08ee644ad1a974b3b7da9762c17f081ad1a73e9023be2ea615f84a717c7',
+    'odoo-addons/liwan_platform/__manifest__.py': '43b351ee064e8924ffe82e6cc3d9f2839bba22888c8adaa42b41029983b62657',
+    'odoo-addons/liwan_platform/migrations/19.0.1.2.0/pre-commercial_mode.py': 'b6de0ff6b63539ffaf9657607d864ba7620be736f062e2bbec7d9748515891e2',
+    'odoo-addons/liwan_platform/tests/__init__.py': '41aca99d42c21d547fb9c26a8a4e085155bf27b5cba69f966d2d3c8fdec17129',
+    'odoo-addons/liwan_platform/tests/test_commercial_mode.py': '54ce0ba3cd50aff16d4cfc22a4629e6d831e6e467fa8351c2cf0ed1b55e05080',
     'tools/test_commercial_config.py': '74cf752fbaafd6bfef22a66ccee11be0489567e22dd460af20f685c1172e3758',
     'docs/verification/cp1-commercial-mode.md': '60bcbd59928bdcd68c1cd11dea70ed503f1c188d4c4465624131a93fdeb83a70',
-    'odoo-addons/webvue_api/serializers/user.py': 'd92fd4ab33077e0ba8350b64c16040deeccd5b153e7c277bde8802055714f7c0',
-    'odoo-addons/webvue_api/tests/test_me.py': '4a29ec2e32644db22df4c1cb2407688720fa14b131d32a3b127296b8edd137da',
+    'odoo-addons/liwan_api/serializers/user.py': 'd92fd4ab33077e0ba8350b64c16040deeccd5b153e7c277bde8802055714f7c0',
+    'odoo-addons/liwan_api/tests/test_me.py': '4a29ec2e32644db22df4c1cb2407688720fa14b131d32a3b127296b8edd137da',
     'packages/contracts/src/common/me.ts': 'd933dae0c7671ddf53c888f6a19f04c4e8ecca766abefdaeaa9ab7cce6afb135',
     'packages/contracts/src/common/__tests__/commercial.test.ts': '86e9154483f6f0d59e28dcf94e9fe582c4967e8ee749d8f0aaa90f97611fefca',
     'docs/verification/cp1-me-commercial.md': '82a4c1babc322e8d8c3194b1a18e3423cfed51d3fe92739c1064d78621a1643b',
 }
 ALLOWED = {
-    'odoo-addons/webvue_platform/models/tenant_profile.py',
-    'odoo-addons/webvue_platform/models/entitlement_service.py',
-    'odoo-addons/webvue_platform/commercial_config.py',
-    'odoo-addons/webvue_platform/__manifest__.py',
-    'odoo-addons/webvue_platform/migrations/19.0.1.2.0/pre-commercial_mode.py',
-    'odoo-addons/webvue_platform/tests/__init__.py',
-    'odoo-addons/webvue_platform/tests/test_commercial_mode.py',
+    'odoo-addons/liwan_platform/models/tenant_profile.py',
+    'odoo-addons/liwan_platform/models/entitlement_service.py',
+    'odoo-addons/liwan_platform/commercial_config.py',
+    'odoo-addons/liwan_platform/__manifest__.py',
+    'odoo-addons/liwan_platform/migrations/19.0.1.2.0/pre-commercial_mode.py',
+    'odoo-addons/liwan_platform/tests/__init__.py',
+    'odoo-addons/liwan_platform/tests/test_commercial_mode.py',
     'tools/test_commercial_config.py', 'tools/check_cp1_scratch.py',
     'docs/verification/cp1-commercial-mode.md',
-    'odoo-addons/webvue_api/serializers/user.py', 'odoo-addons/webvue_api/tests/test_me.py',
+    'odoo-addons/liwan_api/serializers/user.py', 'odoo-addons/liwan_api/tests/test_me.py',
     'packages/contracts/src/common/me.ts',
     'packages/contracts/src/common/__tests__/commercial.test.ts',
     'docs/verification/cp1-me-commercial.md',
@@ -60,10 +60,10 @@ ALLOWED = {
     'deploy/provision.sh', 'deploy/test_classification.py', 'deploy/.env.example',
     'deploy/ci/odoo.sh', 'deploy/ci/upgrade.sh', 'deploy/ci/restore-drill.sh', 'deploy/ci/image.sh',
     'docs/verification/cp1-provisioning.md',
-    'odoo-addons/webvue_api/controllers/commercial.py',
-    'odoo-addons/webvue_api/controllers/__init__.py',
-    'odoo-addons/webvue_api/tests/test_commercial_surface.py',
-    'odoo-addons/webvue_api/tests/__init__.py',
+    'odoo-addons/liwan_api/controllers/commercial.py',
+    'odoo-addons/liwan_api/controllers/__init__.py',
+    'odoo-addons/liwan_api/tests/test_commercial_surface.py',
+    'odoo-addons/liwan_api/tests/__init__.py',
     'deploy/Caddyfile',
     'apps/web/app/composables/nav/shellModules.ts',
     'apps/web/app/composables/nav/__tests__/shellModules.test.ts',
@@ -76,14 +76,14 @@ def offline(create, run, sql, mapping):
     """Upgrade a legacy profile, then prove business routes need no seller network."""
     db = create()
     run(db, BASELINE, ['-i', MODULES, '--stop-after-init', '--no-http'])
-    sql(db, "UPDATE webvue_tenant_profile SET valid_until='2026-01-01', status='active', support_access_enabled=false")
+    sql(db, "UPDATE liwan_tenant_profile SET valid_until='2026-01-01', status='active', support_access_enabled=false")
     run(db, WORKTREE, ['-u', MODULES, '--stop-after-init', '--no-http'],
         classification=mapping(db, 'non_saas', '2026-01-01', 'clear'))
-    assert sql(db, "SELECT commercial_mode || ':' || (valid_until IS NULL)::text || ':' || status FROM webvue_tenant_profile") == 'non_saas:true:active'
+    assert sql(db, "SELECT commercial_mode || ':' || (valid_until IS NULL)::text || ':' || status FROM liwan_tenant_profile") == 'non_saas:true:active'
     script = r"""
-from odoo.addons.webvue_api.serializers.user import dump_me
-env['webvue.tenant.profile']._webvue_initialize_legacy_policy(env['webvue.feature.registry']._webvue_installed_module_ids())
-user = env['res.users'].create({'name': 'Offline', 'login': 'offline_cp1', 'password': 'offline_cp1_pass', 'group_ids': [(4, env.ref('webvue_core.group_employee').id)]})
+from odoo.addons.liwan_api.serializers.user import dump_me
+env['liwan.tenant.profile']._liwan_initialize_legacy_policy(env['liwan.feature.registry']._liwan_installed_module_ids())
+user = env['res.users'].create({'name': 'Offline', 'login': 'offline_cp1', 'password': 'offline_cp1_pass', 'group_ids': [(4, env.ref('liwan_core.group_employee').id)]})
 env.cr.commit()
 body = dump_me(user)
 assert body['commercial'] == {'schema_version': 1, 'mode': 'non_saas', 'self_service_available': False}
@@ -100,10 +100,10 @@ def release(create, run, sql, mapping):
     """Install the previous release without a mapping, then classify only on upgrade."""
     db = create()
     run(db, BASELINE, ['-i', MODULES, '--stop-after-init', '--no-http'])
-    assert sql(db, "SELECT count(*) FROM information_schema.columns WHERE table_name='webvue_tenant_profile' AND column_name='commercial_mode'") == '0'
+    assert sql(db, "SELECT count(*) FROM information_schema.columns WHERE table_name='liwan_tenant_profile' AND column_name='commercial_mode'") == '0'
     run(db, WORKTREE, ['-u', MODULES, '--stop-after-init', '--no-http'],
         classification=mapping(db, 'saas'))
-    assert sql(db, "SELECT commercial_mode || ':' || entitlement_source || ':' || status FROM webvue_tenant_profile") == 'saas:control_plane:active'
+    assert sql(db, "SELECT commercial_mode || ':' || entitlement_source || ':' || status FROM liwan_tenant_profile") == 'saas:control_plane:active'
     print('PASS previous release installed unclassified; upgrade classification was explicit', flush=True)
 
 
@@ -131,9 +131,9 @@ def main():
     print('PASS target baseline, tracked/untracked path allowlist and prior CP1 hashes', flush=True)
     env = {**os.environ, 'PYTHONDONTWRITEBYTECODE': '1', 'PGHOST': '127.0.0.1',
            'PGPORT': '5432', 'PGUSER': 'tariq'}
-    env.pop('WEBVUE_COMMERCIAL_CONFIG', None)
+    env.pop('LIWAN_COMMERCIAL_CONFIG', None)
     created = []
-    root = Path(tempfile.mkdtemp(prefix='webvue_cp1_scratch_'))
+    root = Path(tempfile.mkdtemp(prefix='liwan_cp1_scratch_'))
     config = root / 'scratch.conf'
     config.write_text('[options]\nadmin_passwd = scratch-unused-only\n')
     data = root / 'data'
@@ -156,7 +156,7 @@ def main():
         return str(path)
 
     def create():
-        db = 'webvue_cp1_scratch_' + uuid.uuid4().hex[:16]
+        db = 'liwan_cp1_scratch_' + uuid.uuid4().hex[:16]
         subprocess.run(['createdb', '--template=template0', db], env=env, check=True)
         created.append(db)
         return db
@@ -176,7 +176,7 @@ def main():
             '--workers=0', '--max-cron-threads=0', '--without-demo=all', *args]
         call_env = dict(env)
         if classification:
-            call_env['WEBVUE_COMMERCIAL_CONFIG'] = classification
+            call_env['LIWAN_COMMERCIAL_CONFIG'] = classification
         result = subprocess.run(command, cwd=ODOO, env=call_env, input=script,
                                 text=True, capture_output=True, timeout=240, check=False)
         text = (log.read_text() if log.exists() else '') + result.stdout + result.stderr
@@ -205,7 +205,7 @@ def main():
             return
         if mode in ('regression', 'me', 'full'):
             db = create()
-            tags = '/webvue_platform' if mode == 'regression' else '/webvue_api:TestMeEndpoint,/webvue_api:TestMeCommercial,/webvue_api:TestChangePassword,/webvue_api:TestCommercialSurface'
+            tags = '/liwan_platform' if mode == 'regression' else '/liwan_api:TestMeEndpoint,/liwan_api:TestMeCommercial,/liwan_api:TestChangePassword,/liwan_api:TestCommercialSurface'
             if mode == 'full':
                 tags = ','.join('/' + module for module in MODULES.split(','))
             run(db, WORKTREE, ['-i', MODULES, '--test-enable', '--test-tags', tags, '--stop-after-init'],
@@ -213,38 +213,38 @@ def main():
             return
         if mode == 'fresh':
             db = create()
-            run(db, WORKTREE, ['-i', 'webvue_platform', '--stop-after-init', '--no-http'], reject='WEBVUE_COMMERCIAL_CONFIG')
-            run(db, WORKTREE, ['-i', 'webvue_platform', '--stop-after-init', '--no-http'], classification=mapping(db, 'non_saas'))
-            assert sql(db, "SELECT commercial_mode || ':' || entitlement_source FROM webvue_tenant_profile") == 'non_saas:local_policy'
+            run(db, WORKTREE, ['-i', 'liwan_platform', '--stop-after-init', '--no-http'], reject='LIWAN_COMMERCIAL_CONFIG')
+            run(db, WORKTREE, ['-i', 'liwan_platform', '--stop-after-init', '--no-http'], classification=mapping(db, 'non_saas'))
+            assert sql(db, "SELECT commercial_mode || ':' || entitlement_source FROM liwan_tenant_profile") == 'non_saas:local_policy'
             return
         db = create()
-        run(db, BASELINE, ['-i', 'webvue_platform', '--stop-after-init', '--no-http'])
-        sql(db, "UPDATE webvue_tenant_profile SET valid_until='2026-01-01', status='suspended', support_access_enabled=false")
+        run(db, BASELINE, ['-i', 'liwan_platform', '--stop-after-init', '--no-http'])
+        sql(db, "UPDATE liwan_tenant_profile SET valid_until='2026-01-01', status='suspended', support_access_enabled=false")
         if mode == 'saas':
-            run(db, WORKTREE, ['-u', 'webvue_platform', '--stop-after-init', '--no-http'],
+            run(db, WORKTREE, ['-u', 'liwan_platform', '--stop-after-init', '--no-http'],
                 classification=mapping(db, 'saas', '2026-01-01'))
-            assert sql(db, "SELECT commercial_mode || ':' || valid_until::text || ':' || status FROM webvue_tenant_profile") == 'saas:2026-01-01:suspended'
-            assert sql(db, 'SELECT support_access_enabled FROM webvue_tenant_profile') == 'f'
+            assert sql(db, "SELECT commercial_mode || ':' || valid_until::text || ':' || status FROM liwan_tenant_profile") == 'saas:2026-01-01:suspended'
+            assert sql(db, 'SELECT support_access_enabled FROM liwan_tenant_profile') == 'f'
             return
-        preserved = sql(db, 'SELECT json_build_array(status,support_access_enabled,features,retained_read_features,policy_revision,quota_revision,root_company_id)::text FROM webvue_tenant_profile')
-        run(db, WORKTREE, ['-u', 'webvue_platform', '--stop-after-init', '--no-http'], reject='WEBVUE_COMMERCIAL_CONFIG')
-        assert sql(db, "SELECT count(*) FROM information_schema.columns WHERE table_name='webvue_tenant_profile' AND column_name='commercial_mode'") == '0'
+        preserved = sql(db, 'SELECT json_build_array(status,support_access_enabled,features,retained_read_features,policy_revision,quota_revision,root_company_id)::text FROM liwan_tenant_profile')
+        run(db, WORKTREE, ['-u', 'liwan_platform', '--stop-after-init', '--no-http'], reject='LIWAN_COMMERCIAL_CONFIG')
+        assert sql(db, "SELECT count(*) FROM information_schema.columns WHERE table_name='liwan_tenant_profile' AND column_name='commercial_mode'") == '0'
         invalid = mapping(db, 'non_saas', '2026-01-01')
-        run(db, WORKTREE, ['-u', 'webvue_platform', '--stop-after-init', '--no-http'], classification=invalid, reject='explicit clear approval')
+        run(db, WORKTREE, ['-u', 'liwan_platform', '--stop-after-init', '--no-http'], classification=invalid, reject='explicit clear approval')
         valid = mapping(db, 'non_saas', '2026-01-01', 'clear')
-        run(db, WORKTREE, ['-u', 'webvue_platform', '--stop-after-init', '--no-http'], classification=valid)
-        assert preserved == sql(db, 'SELECT json_build_array(status,support_access_enabled,features,retained_read_features,policy_revision,quota_revision,root_company_id)::text FROM webvue_tenant_profile')
-        assert sql(db, "SELECT commercial_mode || ':' || entitlement_source || ':' || (valid_until IS NULL)::text FROM webvue_tenant_profile") == 'non_saas:local_policy:true'
+        run(db, WORKTREE, ['-u', 'liwan_platform', '--stop-after-init', '--no-http'], classification=valid)
+        assert preserved == sql(db, 'SELECT json_build_array(status,support_access_enabled,features,retained_read_features,policy_revision,quota_revision,root_company_id)::text FROM liwan_tenant_profile')
+        assert sql(db, "SELECT commercial_mode || ':' || entitlement_source || ':' || (valid_until IS NULL)::text FROM liwan_tenant_profile") == 'non_saas:local_policy:true'
         # A replay asserts the CURRENT cutoff, not the obsolete pre-clear snapshot.
         valid = mapping(db, 'non_saas')
-        migration = WORKTREE / 'odoo-addons/webvue_platform/migrations/19.0.1.2.0/pre-commercial_mode.py'
+        migration = WORKTREE / 'odoo-addons/liwan_platform/migrations/19.0.1.2.0/pre-commercial_mode.py'
         script = f"""
 import importlib.util
 s = importlib.util.spec_from_file_location('cp1_migration', {str(migration)!r})
 m = importlib.util.module_from_spec(s)
 s.loader.exec_module(m)
 m.migrate(env.cr, '19.0.1.1.0')
-p = env.ref('webvue_platform.tenant_profile')
+p = env.ref('liwan_platform.tenant_profile')
 assert p.commercial_mode == 'non_saas' and p.status == 'suspended'
 assert not p.support_access_enabled and not p.valid_until
 print('PASS idempotent migration and preserved local suspension/support')
@@ -252,7 +252,7 @@ print('PASS idempotent migration and preserved local suspension/support')
         run(db, WORKTREE, ['--no-http'], classification=valid, script=script)
         run(db, WORKTREE, ['--no-http'], classification=mapping(db, 'saas'), script=script,
             reject='cannot be converted')
-        assert sql(db, 'SELECT commercial_mode FROM webvue_tenant_profile') == 'non_saas'
+        assert sql(db, 'SELECT commercial_mode FROM liwan_tenant_profile') == 'non_saas'
         print('PASS non-SaaS upgrade, rejection, explicit clearing, preservation and replay', flush=True)
     finally:
         failures = []

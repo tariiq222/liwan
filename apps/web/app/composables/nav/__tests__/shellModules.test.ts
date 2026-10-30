@@ -6,7 +6,7 @@ import { activeShellModule } from '../activeRoute'
 
 const employee = { role: 'employee', capabilities: ['pmo.tasks.read', 'pmo.projects.read', 'meetings.read', 'hr.employees.read', 'hr.departments.read', 'documents.items.read'] }
 const admin = { role: 'admin', capabilities: [...employee.capabilities, 'access.users.read', 'access.roles.read', 'access.audit.read', 'settings.branding.manage'] }
-const full = { role: 'admin', capabilities: ['webvue.internal', 'pmo.projects.read', 'pmo.projects.create', 'pmo.tasks.read', 'meetings.read', 'meetings.create', 'hr.employees.read', 'hr.departments.read', 'documents.items.read', 'pmo.settings.manage', 'access.users.read', 'access.roles.read', 'access.audit.read'] }
+const full = { role: 'admin', capabilities: ['liwan.internal', 'pmo.projects.read', 'pmo.projects.create', 'pmo.tasks.read', 'meetings.read', 'meetings.create', 'hr.employees.read', 'hr.departments.read', 'documents.items.read', 'pmo.settings.manage', 'access.users.read', 'access.roles.read', 'access.audit.read'] }
 
 describe('capability-based navigation', () => {
   it('has no links before authenticated capabilities arrive', () => {
@@ -79,10 +79,10 @@ describe('subscription navigation', () => {
 
 describe('contextual module links', () => {
   it('gates and pins meeting and chat creation links', () => {
-    const internal = { capabilities: ['webvue.internal', 'meetings.read', 'meetings.create'] }
+    const internal = { capabilities: ['liwan.internal', 'meetings.read', 'meetings.create'] }
     expect(contextLinksForModule('meetings', internal)[0]).toMatchObject({ id: 'new-meeting', pinned: true, capability: 'meetings.create' })
     expect(contextLinksForModule('meetings', employee).some(link => link.id === 'new-meeting')).toBe(false)
-    expect(contextLinksForModule('chat', internal)[0]).toMatchObject({ id: 'new-chat', pinned: true, capability: 'webvue.internal' })
+    expect(contextLinksForModule('chat', internal)[0]).toMatchObject({ id: 'new-chat', pinned: true, capability: 'liwan.internal' })
   })
 
   it('keeps task creation out of the sidebar and selects one HR action for each context', () => {
@@ -271,7 +271,7 @@ describe('navigation built from app manifests', () => {
     })
   })
   it('hides an internal-access item whose rail module no manifest declares', () => {
-    const ghost: AppManifest = { ...pilot, nav: [{ to: '/pilot/ghost', labelKey: 'nav.ghost', icon: 'i-lucide-ghost', shortcut: '', capability: 'webvue.internal', module: 'ghost' }] }
+    const ghost: AppManifest = { ...pilot, nav: [{ to: '/pilot/ghost', labelKey: 'nav.ghost', icon: 'i-lucide-ghost', shortcut: '', capability: 'liwan.internal', module: 'ghost' }] }
     withManifests([...appManifests, ghost], () => {
       expect(featureForRailModule('ghost')).toBeUndefined()
       expect(useNav(pilotIdentity).map(item => item.to)).not.toContain('/pilot/ghost')

@@ -1,6 +1,6 @@
 import { computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
-import { CrmSettingsTermsSchema, type CrmSettingsTerms } from '@webvue/contracts'
+import { CrmSettingsTermsSchema, type CrmSettingsTerms } from '@liwan/contracts'
 import { termFormForCount, type CrmTermForm, type CrmTermGender } from '../../utils/crmTermForms'
 import { crmKeys } from './crmKeys'
 

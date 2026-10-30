@@ -26,14 +26,14 @@ function canonical(value: unknown): string {
 }
 
 async function managedConfig(adapter: (invocation: OperatorInvocation) => Promise<{ code: number; receipt: Record<string, unknown> }>): Promise<Config> {
-  fixture = await mkdtemp(join(tmpdir(), 'webvue-worker-managed-'))
+  fixture = await mkdtemp(join(tmpdir(), 'liwan-worker-managed-'))
   const classificationPath = join(fixture, 'classification.json')
   const inventoryPath = join(fixture, 'inventory.json')
   const managedInventoryPath = join(fixture, 'managed.json')
   const digest = `sha256:${'a'.repeat(64)}`
   const descriptor = { adapter: { kind: 'compose-local', version: 1 }, allowed_operations: ['tenant.create'], commercial_mode: 'saas', environment_id: 'env-a',
     release_ref: { catalog_version: 'release-a', catalog_sha256: digest, identity_kind: 'image_id', odoo_image: digest, web_image: digest, proxy_image: digest },
-    resource_refs: { project: 'managed-fixture', compose_file: join(fixture, 'compose.yml'), db_name: 'webvue_scratch_managed_fixture', data_dir: join(fixture, 'data'), backup_root: join(fixture, 'backups'), ports: { db: 55433, odoo: 18169, web: 13130 } },
+    resource_refs: { project: 'managed-fixture', compose_file: join(fixture, 'compose.yml'), db_name: 'liwan_scratch_managed_fixture', data_dir: join(fixture, 'data'), backup_root: join(fixture, 'backups'), ports: { db: 55433, odoo: 18169, web: 13130 } },
     revision: 1, secret_refs: { db_password: 'db-handle', admin_password: 'admin-handle' } }
   const descriptorDigest = `sha256:${createHash('sha256').update(canonical({ target, descriptor })).digest('hex')}`
   await writeFile(classificationPath, JSON.stringify({ schema_version: 1, database: 'scratch_db', commercial_mode: 'saas', entitlement_source: 'control_plane' }))
@@ -168,12 +168,12 @@ describe('executeClaimed lanes', () => {
     ['uninitialized revision', (r: Record<string, unknown>) => { returnedProfile(r).policy_revision = 0; r.policy_revision = 0 }],
     ['revision disagreement', (r: Record<string, unknown>) => { r.policy_revision = 2 }],
     ['missing module', (r: Record<string, unknown>) => { (returnedProfile(r).modules as string[]).shift() }],
-    ['extra WEBVUE module', (r: Record<string, unknown>) => { (returnedProfile(r).modules as string[]).push('webvue_unselected') }],
-    ['duplicate module', (r: Record<string, unknown>) => { (returnedProfile(r).modules as string[]).push('webvue_core') }],
-    ['malformed modules', (r: Record<string, unknown>) => { returnedProfile(r).modules = 'webvue_core' }],
+    ['extra LIWAN module', (r: Record<string, unknown>) => { (returnedProfile(r).modules as string[]).push('liwan_unselected') }],
+    ['duplicate module', (r: Record<string, unknown>) => { (returnedProfile(r).modules as string[]).push('liwan_core') }],
+    ['malformed modules', (r: Record<string, unknown>) => { returnedProfile(r).modules = 'liwan_core' }],
     ['missing expected modules', (r: Record<string, unknown>) => { delete r.expected_modules }],
-    ['expected modules without a policy module', (r: Record<string, unknown>) => { r.expected_modules = (r.expected_modules as string[]).filter(name => name !== 'webvue_api') }],
-    ['non-WebVue expected module', (r: Record<string, unknown>) => { r.expected_modules = [...(r.expected_modules as string[]), 'web'] }],
+    ['expected modules without a policy module', (r: Record<string, unknown>) => { r.expected_modules = (r.expected_modules as string[]).filter(name => name !== 'liwan_api') }],
+    ['non-LiwanOS expected module', (r: Record<string, unknown>) => { r.expected_modules = [...(r.expected_modules as string[]), 'web'] }],
   ])('rejects truth flags with %s in the durable receipt', async (_name, corrupt) => {
     const claim = fakeClaim('tenant.create')
     const config = await managedConfig(async (invocation) => {
@@ -194,8 +194,8 @@ describe('executeClaimed lanes', () => {
     const config = await managedConfig(async (invocation) => {
       const receipt = verifiedReceipt(invocation)
       if (invocation.args[0] === 'status') {
-        ;(returnedProfile(receipt).modules as string[]).push('webvue_notify')
-        receipt.expected_modules = [...(receipt.expected_modules as string[]), 'webvue_notify']
+        ;(returnedProfile(receipt).modules as string[]).push('liwan_notify')
+        receipt.expected_modules = [...(receipt.expected_modules as string[]), 'liwan_notify']
       }
       return { code: 0, receipt }
     })
@@ -242,7 +242,7 @@ describe('executeClaimed lanes', () => {
         enrollment.descriptor.descriptor_digest = invocation.fingerprint
         const digest = spawnSync('python3', ['-B', '-c', [
           'import base64,json,sys',
-          'from webvue_cli.journal import payload_digest',
+          'from liwan_cli.journal import payload_digest',
           'd=json.load(sys.stdin)',
           'descriptor=json.dumps(d["descriptor"],sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()',
           'print(payload_digest(d["fields"],[base64.b64decode(d["policy"]),descriptor],d["fingerprint"]))',
@@ -286,7 +286,7 @@ describe('executeClaimed lanes', () => {
     })
     const pool = fakePool(claim, await publishedCatalog())
     await executeClaimed(pool, claim, config)
-    expect(calls.map(({ moduleName }) => moduleName)).toEqual(['webvue_cli.operator', 'webvue_cli.operator'])
+    expect(calls.map(({ moduleName }) => moduleName)).toEqual(['liwan_cli.operator', 'liwan_cli.operator'])
     expect(terminal(pool).slice(0, 2)).toEqual(['needs_intervention', 'deployment_incomplete'])
     expect(isScratchDeploymentExemption(terminal(pool)[2] as Record<string, unknown>)).toBe(true)
     expect(pool.finishQueries.find(({ sql }) => sql.includes('SET observed_policy=$1'))?.values?.[0]).toEqual(JSON.parse(calls[0].policyBytes!.toString()).features)
@@ -408,7 +408,7 @@ describe('executeClaimed lanes', () => {
   })
 
   it('a bound verified status lookup does not replay creation or activate the tenant', async () => {
-    const policy = { schema_version: 1, channel: 'control_plane', modules: ['webvue_core'], features: { 'users.limit': null, 'storage.limit_mb': null } }
+    const policy = { schema_version: 1, channel: 'control_plane', modules: ['liwan_core'], features: { 'users.limit': null, 'storage.limit_mb': null } }
     const claim = fakeClaim('status', 'saas', { operation: 'tenant.create', receipt_request_id: requestId, operation_id: operationId, policy_bytes: JSON.stringify(policy) })
     const calls: OperatorInvocation[] = []
     const config = await managedConfig(async (invocation) => { calls.push(invocation); return { code: 0, receipt: verifiedReceipt(invocation) } })
@@ -425,7 +425,7 @@ describe('executeClaimed lanes', () => {
 
   it.each(['digest', 'fingerprint', 'request_id', 'operation'])('rejects a status receipt with invalid %s binding', async (field) => {
     const claim = fakeClaim('status', 'saas', { operation: 'tenant.create', receipt_request_id: requestId, operation_id: operationId,
-      policy_bytes: JSON.stringify({ schema_version: 1, channel: 'control_plane', modules: ['webvue_core'], features: { 'users.limit': null, 'storage.limit_mb': null } }) })
+      policy_bytes: JSON.stringify({ schema_version: 1, channel: 'control_plane', modules: ['liwan_core'], features: { 'users.limit': null, 'storage.limit_mb': null } }) })
     const config = await managedConfig(async (invocation) => {
       const receipt = verifiedReceipt(invocation)
       receipt[field] = { digest: 'b'.repeat(64), fingerprint: `sha256:${'b'.repeat(64)}`, request_id: randomUUID(), operation: 'tenant.inspect' }[field]
@@ -438,7 +438,7 @@ describe('executeClaimed lanes', () => {
     expectNotActivated(pool)
   })
 
-  it('keeps scratch operations on webvue_cli.operator', async () => {
+  it('keeps scratch operations on liwan_cli.operator', async () => {
     const calls: OperatorInvocation[] = []
     const claim = fakeClaim('health', 'saas')
     claim.tenant.inventory_target = 'scratch'
@@ -447,9 +447,9 @@ describe('executeClaimed lanes', () => {
     await writeFile(classificationPath, JSON.stringify({ schema_version: 1, database: 'scratch_db', commercial_mode: 'saas', entitlement_source: 'control_plane' }))
     await writeFile(config.inventoryPath, JSON.stringify({ version: 2, targets: { scratch: { kind: 'scratch', database: 'scratch_db', classification_file: classificationPath } } }))
     await executeClaimed(fakePool(claim), claim, config)
-    expect(calls[0].moduleName).toBe('webvue_cli.operator')
-    expect(calls[0].env.WEBVUE_CLI_INVENTORY).toBe(config.inventoryPath)
-    expect(calls[0].env.WEBVUE_MANAGED_INVENTORY).toBeUndefined()
+    expect(calls[0].moduleName).toBe('liwan_cli.operator')
+    expect(calls[0].env.LIWAN_CLI_INVENTORY).toBe(config.inventoryPath)
+    expect(calls[0].env.LIWAN_MANAGED_INVENTORY).toBeUndefined()
   })
 
   it('routes managed create and its status check to managed adapter with the identical policy bytes', async () => {
@@ -466,10 +466,10 @@ describe('executeClaimed lanes', () => {
     const pool = fakePool(claim, { solution, source_sha256: createHash('sha256').update(catalogSource).digest('hex') })
     await executeClaimed(pool, claim, config)
     expect(calls).toHaveLength(2)
-    expect(calls.map((call) => call.moduleName)).toEqual(['webvue_cli.managed_runtime', 'webvue_cli.managed_runtime'])
+    expect(calls.map((call) => call.moduleName)).toEqual(['liwan_cli.managed_runtime', 'liwan_cli.managed_runtime'])
     expect(calls[1].args).toContain('--policy-bytes-file')
     expect(calls[0].policyBytes?.equals(calls[1].policyBytes ?? Buffer.alloc(0))).toBe(true)
-    expect(calls[0].env.WEBVUE_MANAGED_INVENTORY).toBe(config.managedInventoryPath)
+    expect(calls[0].env.LIWAN_MANAGED_INVENTORY).toBe(config.managedInventoryPath)
     expect(pool.finishQueries.some(({ sql, values }) => sql.includes('UPDATE operations SET status=$1') && values?.[0] === 'needs_intervention' && values?.[1] === 'deployment_incomplete')).toBe(true)
   })
 
@@ -495,7 +495,7 @@ describe('executeClaimed lanes', () => {
     const pool = fakePool(claim)
     await executeClaimed(pool, claim, config)
     expect(calls).toHaveLength(1)
-    expect(calls[0].moduleName).toBe('webvue_cli.managed_runtime')
+    expect(calls[0].moduleName).toBe('liwan_cli.managed_runtime')
     expect(calls[0].args).toContain('--policy-bytes-file')
     expect(calls[0].policyBytes?.toString()).toBe('{"schema_version":1,"channel":"control_plane"}')
     expect(pool.finishQueries.some(({ sql, values }) => sql.includes('UPDATE operations SET status=$1') && values?.[0] === 'succeeded')).toBe(true)
@@ -509,7 +509,7 @@ describe('executeClaimed lanes', () => {
     const pool = fakePool(claim)
     await executeClaimed(pool, claim, config)
     expect(calls).toHaveLength(1)
-    expect(calls[0].moduleName).toBe('webvue_cli.managed_runtime')
+    expect(calls[0].moduleName).toBe('liwan_cli.managed_runtime')
     expect(pool.finishQueries.some(({ sql }) => sql.includes("SET status='active'") || sql.includes('observed_policy=desired_policy'))).toBe(false)
   })
 })

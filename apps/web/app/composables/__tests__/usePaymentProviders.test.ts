@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/vue-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { PaymentProviderSchema, type PaymentProviderList } from '@webvue/contracts'
+import { PaymentProviderSchema, type PaymentProviderList } from '@liwan/contracts'
 import { paymentProviderKeys, usePaymentProviders, useSyncPaymentProvider, useUpdatePaymentProvider } from '../usePaymentProviders'
 
 const mocks = vi.hoisted(() => ({ api: vi.fn(), client: null as unknown }))

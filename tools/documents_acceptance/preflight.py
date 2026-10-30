@@ -15,14 +15,14 @@ def main():
     parser.add_argument('--database',required=True)
     parser.add_argument('--output',type=Path,required=True)
     args=parser.parse_args()
-    if not re.fullmatch(r'webvue_scratch_[a-z0-9_]+',args.database):
+    if not re.fullmatch(r'liwan_scratch_[a-z0-9_]+',args.database):
         parser.error('scratch database required; live inventory has no authorization here')
     try:
         import psycopg2
     except ModuleNotFoundError:
         os.execv(str(PYTHON),[str(PYTHON),'-B',__file__,*sys.argv[1:]])
     sys.path.insert(0,str(ODOO))
-    path=Path(__file__).resolve().parents[2]/'odoo-addons/webvue_documents/migrations/19.0.1.0.0/pre-adopt_hr.py'
+    path=Path(__file__).resolve().parents[2]/'odoo-addons/liwan_documents/migrations/19.0.1.0.0/pre-adopt_hr.py'
     spec=importlib.util.spec_from_file_location('documents_migration_preflight',path)
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
     connection=psycopg2.connect(host='127.0.0.1',user=os.environ.get('USER','tariq'),dbname=args.database)

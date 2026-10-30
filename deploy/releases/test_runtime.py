@@ -2,7 +2,7 @@
 
 Run from the worktree root: python3 -m unittest deploy.releases.test_runtime -v
 Node + the worktree's installed jiti/h3 exercise the actual TypeScript handlers.
-WEBVUE_RUNTIME_REVIEW_SOURCE may select the coordinator source during worker review.
+LIWAN_RUNTIME_REVIEW_SOURCE may select the coordinator source during worker review.
 Only PostgreSQL and stock Odoo process boundaries use external-system seams.
 """
 import json
@@ -31,9 +31,9 @@ from .state import ReleaseConflict, ReleaseState, atomic_json
 
 
 def manifest(release='r2'):
-    return {'releaseId': release, 'webvueCommit': '1' * 40, 'odooCommit': '2' * 40,
-            'images': {'odoo': 'webvue/odoo@sha256:' + 'a' * 64,
-                       'web': 'webvue/web@sha256:' + 'b' * 64},
+    return {'releaseId': release, 'liwanCommit': '1' * 40, 'odooCommit': '2' * 40,
+            'images': {'odoo': 'liwan/odoo@sha256:' + 'a' * 64,
+                       'web': 'liwan/web@sha256:' + 'b' * 64},
             'assetsId': 'assets_2', 'moduleVersions': {}, 'upgradeModules': [],
             'installModules': [], 'mode': 'online', 'affectedServices': ['web'],
             'aiStateVersion': '1',
@@ -75,8 +75,8 @@ class RuntimeTests(unittest.TestCase):
         self.addCleanup(temp.cleanup)
         self.root = Path(temp.name).resolve()
         self.state = ReleaseState(self.root / 'state')
-        self.binding = {'tenantId': 'tenant_a', 'database': 'webvue_scratch_runtime_a',
-                        'filestore': 'webvue_scratch_runtime_a', 'registryRevision': 1}
+        self.binding = {'tenantId': 'tenant_a', 'database': 'liwan_scratch_runtime_a',
+                        'filestore': 'liwan_scratch_runtime_a', 'registryRevision': 1}
         self.old = {'schemaVersion': 1, 'tenantId': 'tenant_a', 'identityRevision': 1,
                     'routeRevision': 1, 'releaseId': 'r1', 'poolId': 'blue', 'fence': 1,
                     'state': 'serving'}
@@ -106,10 +106,10 @@ class RuntimeTests(unittest.TestCase):
 
         def respond(path, headers):
             requests.append((path, dict(headers)))
-            if guard and path == '/_webvue/release-status':
+            if guard and path == '/_liwan/release-status':
                 return 200, guard()
-            if path == '/_webvue/release-readiness':
-                if headers.get('X-WebVue-Release-Probe') != 't' * 40:
+            if path == '/_liwan/release-readiness':
+                if headers.get('X-Liwan-Release-Probe') != 't' * 40:
                     return 403, {}
                 return readiness_status, {**{k: self.manifest[k] for k in ('releaseId', 'assetsId', 'aiStateVersion')},
                                           'poolId': 'green', 'assets': ['/_nuxt/app.js','/_i18n/1234abcd/ar/messages.json','/_i18n/1234abcd/en/messages.json'], **(identity or {})}
@@ -142,7 +142,7 @@ class RuntimeTests(unittest.TestCase):
             result = self.verify_target()
         self.assertTrue(result['ready'])
         self.assertEqual(inspected, [('green', 'r2')])
-        self.assertEqual([path for path, _ in requests], ['/_webvue/release-readiness', '/_nuxt/app.js', '/_i18n/1234abcd/ar/messages.json','/_i18n/1234abcd/en/messages.json','/api/v1/me','/api/v1/tasks/5/attachments/11/download'])
+        self.assertEqual([path for path, _ in requests], ['/_liwan/release-readiness', '/_nuxt/app.js', '/_i18n/1234abcd/ar/messages.json','/_i18n/1234abcd/en/messages.json','/api/v1/me','/api/v1/tasks/5/attachments/11/download'])
         self.assertEqual((self.root / 'filestore' / 'attachment').read_bytes(), b'existing-tenant-data')
 
     def test_running_container_does_not_mask_502_missing_chunk_stale_identity_or_session(self):
@@ -192,9 +192,9 @@ class RuntimeTests(unittest.TestCase):
         outcome, errors = [], []
 
         def guard(path, headers):
-            self.assertEqual(path, '/_webvue/release-status')
+            self.assertEqual(path, '/_liwan/release-status')
             self.assertEqual(headers.get('Host'), 'tenant.example')
-            self.assertEqual(headers.get('X-WebVue-Proxy-Token'), 'p' * 40)
+            self.assertEqual(headers.get('X-Liwan-Proxy-Token'), 'p' * 40)
             guard_seen.set()
             return 200, {**self.old, 'maintenance': True}
 
@@ -253,13 +253,13 @@ class RuntimeTests(unittest.TestCase):
         for pool, release in [('blue', 'r1'), ('green', 'r2')]:
             path = self.root / (release + '.json')
             path.write_text(json.dumps(manifest(release)))
-            self.config['pools'][pool]['operator'] = {'manifest': str(path), 'migration': {'webvueRoot': '/source/' + pool}}
+            self.config['pools'][pool]['operator'] = {'manifest': str(path), 'migration': {'liwanRoot': '/source/' + pool}}
             tenant['gateway'][pool] = {'dataDir': '/data/' + pool}
 
     def test_gateway_uses_serving_source_until_published_route_changes(self):
         self.configure_gateway()
         release, config = self.runtime.gateway_context(self.binding)
-        self.assertEqual((release['releaseId'], config['webvueRoot'], config['dataDir']), ('r1', '/source/blue', '/data/blue'))
+        self.assertEqual((release['releaseId'], config['liwanRoot'], config['dataDir']), ('r1', '/source/blue', '/data/blue'))
         self.state.maintenance('tenant_a', 1)
         gateway = OdooBookingGateway(self.state, self.runtime, self.manifest)
         with patch('deploy.releases.odoo_gateway._local') as launcher:
@@ -269,7 +269,7 @@ class RuntimeTests(unittest.TestCase):
         self.state.resume('tenant_a', 1)
         self.state.publish({**self.old, 'routeRevision': 2, 'fence': 2, 'poolId': 'green', 'releaseId': 'r2'}, expected_revision=1)
         release, config = self.runtime.gateway_context(self.binding)
-        self.assertEqual((release['releaseId'], config['webvueRoot']), ('r2', '/source/green'))
+        self.assertEqual((release['releaseId'], config['liwanRoot']), ('r2', '/source/green'))
         self.config['pools']['green']['operator']['manifest'] = str(self.root / 'r1.json')
         with self.assertRaisesRegex(ReleaseConflict, 'gateway_release_mismatch'):
             self.runtime.gateway_context(self.binding)
@@ -284,7 +284,7 @@ class RuntimeTests(unittest.TestCase):
                              'estimated_seconds': 30, 'scope': 'tenant', 'status': 'supported'}}
 
         def local(binding, release, config):
-            sources.append((release['releaseId'], config['webvueRoot']))
+            sources.append((release['releaseId'], config['liwanRoot']))
             return ['python', 'odoo_secure'], []
 
         def orm(argv, config, *, input):
@@ -304,7 +304,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(result[0]['reason'], 'preflight_failed')
         self.assertGreaterEqual(len(sources), 2)
         self.assertEqual(set(sources), {('r1', '/source/blue')})
-        self.assertFalse(any('_webvue_transition' in command for command in commands))
+        self.assertFalse(any('_liwan_transition' in command for command in commands))
         self.assertEqual(self.state.route('tenant_a'), self.old)
         self.assertFalse((self.state.routes / 'tenant_a.maintenance').exists())
 
@@ -359,7 +359,7 @@ class RuntimeTests(unittest.TestCase):
                   'pgDump': '/usr/bin/true', 'createdb': '/usr/bin/true', 'pgRestore': '/usr/bin/true',
                   'image': self.manifest['images']['odoo'], 'runner': runner}
         capture_tenant(source, proof, config)
-        target = self.root / 'webvue_scratch_restore_b'
+        target = self.root / 'liwan_scratch_restore_b'
         with self.assertRaises(ValueError):
             restore_tenant(self.root / 'backup', {'tenantId': 'tenant_b', 'database': target.name, 'filestore': target.name},
                            {**config, 'restoreAllowed': True, 'writesResumed': False,
@@ -371,8 +371,8 @@ class RuntimeTests(unittest.TestCase):
         # The real ReleaseEngine and LocalRuntime: only PostgreSQL, the stock Odoo
         # process boundary and pg_dump are seams. Backup-only writer-window rules
         # must never reach this path (it failed before pg_dump on b4ad4a100).
-        release = {**manifest(), 'mode': 'tenant_maintenance', 'upgradeModules': ['webvue_core'],
-                   'moduleVersions': {'webvue_core': '19.0.1.0.0'}, 'affectedServices': ['odoo']}
+        release = {**manifest(), 'mode': 'tenant_maintenance', 'upgradeModules': ['liwan_core'],
+                   'moduleVersions': {'liwan_core': '19.0.1.0.0'}, 'affectedServices': ['odoo']}
         self.manifest = release
         store = self.root / self.binding['database']
         store.mkdir()
@@ -428,7 +428,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(len(dumps), 1)
         backup = self.state.root / 'backups' / 'tenant_a' / '1'
         self.assertTrue(json.loads((backup / 'receipt.json').read_text())['hashes'])
-        self.assertIn('GRANT CONNECT ON DATABASE "webvue_scratch_runtime_a" TO "runtime_green"', statements)
+        self.assertIn('GRANT CONNECT ON DATABASE "liwan_scratch_runtime_a" TO "runtime_green"', statements)
         self.assertEqual(self.state.route('tenant_a')['poolId'], 'green')
         self.assertFalse(marker.exists())
 
@@ -490,7 +490,7 @@ class RuntimeTests(unittest.TestCase):
             self.assertNotIn('pg_terminate_backend', sql)
 
     def test_actual_h3_readiness_assets_and_retired_generation_admission(self):
-        source = Path(os.environ.get('WEBVUE_RUNTIME_REVIEW_SOURCE', Path(__file__).resolve().parents[2]))
+        source = Path(os.environ.get('LIWAN_RUNTIME_REVIEW_SOURCE', Path(__file__).resolve().parents[2]))
         script = r'''
 const { createJiti } = require(process.env.REVIEW_SOURCE + '/node_modules/jiti/lib/jiti.cjs');
 const jiti = createJiti(process.env.REVIEW_SOURCE + '/runtime-review.cjs');
@@ -503,33 +503,33 @@ const root = process.env.REVIEW_ROOT;
 const assets = path.join(root, 'public', '_nuxt'); fs.mkdirSync(assets, { recursive: true });
 fs.writeFileSync(path.join(assets, 'app.js'), 'export default "verified";');
 for (const locale of ['ar','en']) { const folder=path.join(root,'public','_i18n','1234abcd',locale); fs.mkdirSync(folder,{recursive:true}); fs.writeFileSync(path.join(folder,'messages.json'),JSON.stringify({messages:'verified'})); }
-Object.assign(process.env, { WEBVUE_RELEASE_PUBLIC_DIR: path.join(root, 'public'), WEBVUE_RELEASE_PROBE_TOKEN: 't'.repeat(40), WEBVUE_RELEASE_ID: 'r2', WEBVUE_RELEASE_POOL_ID: 'green', WEBVUE_ASSETS_ID: 'assets_2', AI_STATE_VERSION: '1', WEBVUE_TENANCY_MODE: 'shared', WEBVUE_RELEASE_ROUTES_DIR: path.join(root, 'state', 'routes') });
-const routeRoot = process.env.WEBVUE_RELEASE_ROUTES_DIR;
+Object.assign(process.env, { LIWAN_RELEASE_PUBLIC_DIR: path.join(root, 'public'), LIWAN_RELEASE_PROBE_TOKEN: 't'.repeat(40), LIWAN_RELEASE_ID: 'r2', LIWAN_RELEASE_POOL_ID: 'green', LIWAN_ASSETS_ID: 'assets_2', AI_STATE_VERSION: '1', LIWAN_TENANCY_MODE: 'shared', LIWAN_RELEASE_ROUTES_DIR: path.join(root, 'state', 'routes') });
+const routeRoot = process.env.LIWAN_RELEASE_ROUTES_DIR;
 const old = { poolId: 'blue', releaseId: 'r1', routeRevision: 1, fence: 1 };
 fs.writeFileSync(path.join(routeRoot, 'tenant_a.json'), JSON.stringify({ schemaVersion: 1, tenantId: 'tenant_a', identityRevision: 1, state: 'serving', poolId: 'green', releaseId: 'r2', routeRevision: 2, fence: 2, draining: [old] }));
 const pool = (poolId, releaseId) => ({ poolId, releaseId, odooUrl: 'http://127.0.0.1:1', webUrl: 'http://127.0.0.1:2', wsUrl: 'http://127.0.0.1:3' });
 fs.writeFileSync(path.join(routeRoot, 'pools.json'), JSON.stringify({ schemaVersion: 1, pools: { blue: pool('blue', 'r1'), green: pool('green', 'r2') } }));
 const app = createApp();
 app.use(eventHandler(event => {
-  if (event.path === '/_webvue/release-readiness') return releaseReadiness(event);
+  if (event.path === '/_liwan/release-readiness') return releaseReadiness(event);
   event.context.tenant = { tenantId: 'tenant_a', registryRevision: 1 };
   installReleaseContext(event);
-  return { pool: event.context.webvueRelease.poolId };
+  return { pool: event.context.liwanRelease.poolId };
 }));
 (async () => {
  const server = createServer(toNodeListener(app)); await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
  const base = 'http://127.0.0.1:' + server.address().port;
- const headers = { 'X-WebVue-Release-Probe': 't'.repeat(40) };
- const pin = { 'X-WebVue-Release-Pool': 'blue', 'X-WebVue-Release-Revision': '1', 'X-WebVue-Release-Fence': '1' };
+ const headers = { 'X-Liwan-Release-Probe': 't'.repeat(40) };
+ const pin = { 'X-Liwan-Release-Pool': 'blue', 'X-Liwan-Release-Revision': '1', 'X-Liwan-Release-Fence': '1' };
  try {
-  const denied = await fetch(base + '/_webvue/release-readiness');
-  const ready = await fetch(base + '/_webvue/release-readiness', { headers }); const payload = await ready.json();
+  const denied = await fetch(base + '/_liwan/release-readiness');
+  const ready = await fetch(base + '/_liwan/release-readiness', { headers }); const payload = await ready.json();
   fs.unlinkSync(path.join(assets, 'app.js'));
-  const missing = await fetch(base + '/_webvue/release-readiness', { headers });
+  const missing = await fetch(base + '/_liwan/release-readiness', { headers });
   const before = await fetch(base + '/business', { headers: pin }); const admitted = await before.json();
   fs.writeFileSync(path.join(routeRoot, 'tenant_a.blue.1.retired'), '{}');
   const after = await fetch(base + '/business', { headers: pin });
-  const current = await fetch(base + '/business', { headers: { 'X-WebVue-Release-Pool': 'green', 'X-WebVue-Release-Revision': '2', 'X-WebVue-Release-Fence': '2' } });
+  const current = await fetch(base + '/business', { headers: { 'X-Liwan-Release-Pool': 'green', 'X-Liwan-Release-Revision': '2', 'X-Liwan-Release-Fence': '2' } });
   process.stdout.write(JSON.stringify({ denied: denied.status, ready: ready.status, payload, missing: missing.status, before: before.status, admitted, after: after.status, current: current.status }));
  } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

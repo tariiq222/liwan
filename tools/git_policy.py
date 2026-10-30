@@ -21,9 +21,9 @@ FIXED_AREAS = ('core', 'platform', 'api', 'web', 'cp', 'deploy', 'tools', 'docs'
 
 
 def app_areas(layers_path: Path = ARCH_LAYERS) -> tuple[str, ...]:
-    """Application areas: the rank-4 addons of arch_layers.json without their `webvue_` prefix."""
+    """Application areas: the rank-4 addons of arch_layers.json without their `liwan_` prefix."""
     ranks = json.loads(layers_path.read_text(encoding='utf-8')).get('ranks', {})
-    return tuple(sorted(name.removeprefix('webvue_') for name, rank in ranks.items() if rank == APP_RANK))
+    return tuple(sorted(name.removeprefix('liwan_') for name, rank in ranks.items() if rank == APP_RANK))
 
 
 AREAS = (*FIXED_AREAS[:3], *app_areas(), *FIXED_AREAS[3:])

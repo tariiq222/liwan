@@ -16,12 +16,12 @@ const USAGE = { 'users.limit': 3, 'storage.limit_mb': 2, 'branches.extra_limit':
 const ok = (database: string, over: Record<string, unknown> = {}) => ({ database, observed_at: '2026-10-07T09:59:00Z', usage: USAGE, limit_gates: GATES, ...over })
 
 describe('usage observation gate (no database)', () => {
-  const db = 'webvue_scratch_' + 'a'.repeat(32)
+  const db = 'liwan_scratch_' + 'a'.repeat(32)
   it('accepts a fresh, limit-keyed observation of the bound database with its gates', () => {
     expect(acceptObservation(ok(db), db, NOW)).toEqual(ok(db))
   })
   it.each([
-    ['another tenant database', ok('webvue_scratch_' + 'b'.repeat(32))],
+    ['another tenant database', ok('liwan_scratch_' + 'b'.repeat(32))],
     ['a stale sample', ok(db, { observed_at: '2026-10-07T09:44:59Z' })],
     ['a future sample', ok(db, { observed_at: '2026-10-07T10:06:00Z' })],
     ['a malformed time', ok(db, { observed_at: 'yesterday' })],
@@ -41,7 +41,7 @@ describe('usage observation gate (no database)', () => {
 })
 
 describe('usage collector yields to shared runtime jobs (no database)', () => {
-  const rows = ['t1', 't2', 't3'].map(id => ({ tenant_id: id, database_name: 'webvue_scratch_' + id.repeat(16).slice(0, 32).replace(/[^a-f0-9]/g, 'a'), registry_revision: '1' }))
+  const rows = ['t1', 't2', 't3'].map(id => ({ tenant_id: id, database_name: 'liwan_scratch_' + id.repeat(16).slice(0, 32).replace(/[^a-f0-9]/g, 'a'), registry_revision: '1' }))
   const fakePool = () => ({
     connect: async () => ({ query: async () => ({ rows: [{ ok: true }] }), release() {} }),
     query: async (sql: string) => (String(sql).includes('SELECT x.tenant_id') ? { rows, rowCount: rows.length } : { rows: [], rowCount: 0 }),
@@ -73,7 +73,7 @@ describe('usage collector yields to shared runtime jobs (no database)', () => {
       const state = join(dir, 'state'); mkdirSync(state)
       writeFileSync(join(dir, 'compose.yml'), ''); writeFileSync(join(dir, 'env'), '')
       const configPath = join(dir, 'runtime.json')
-      writeFileSync(configPath, JSON.stringify({ schemaVersion: 1, projectName: 'webvue-shared-test', composeFile: join(dir, 'compose.yml'), envFile: join(dir, 'env'), stateDir: state, domainSuffix: 'example.test' }))
+      writeFileSync(configPath, JSON.stringify({ schemaVersion: 1, projectName: 'liwan-shared-test', composeFile: join(dir, 'compose.yml'), envFile: join(dir, 'env'), stateDir: state, domainSuffix: 'example.test' }))
       let running = 0
       const pool = { query: async (sql: string) => { expect(sql).toContain("state='running'"); return { rows: [], rowCount: running } } }
       const busy = sharedRuntimeBusy(pool as never, { sharedRuntimeConfigPath: configPath } as never)
@@ -120,7 +120,7 @@ suite('usage collector (scratch control database)', () => {
   afterAll(async () => pool.end())
 
   async function tenant(enabled = true, opts: { state?: string; ops?: boolean } = {}) {
-    const id = randomUUID(), hex = id.replaceAll('-', ''), database = `webvue_scratch_${hex}`
+    const id = randomUUID(), hex = id.replaceAll('-', ''), database = `liwan_scratch_${hex}`
     await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Usage','saas','managed',$2,$3)", [id, `inv-${id}`, opts.ops ?? true])
     const customer = randomUUID(), subscription = randomUUID(), revision = randomUUID()
     await pool.query('INSERT INTO customers(id,name,tenant_id) VALUES($1,$2,$3)', [customer, 'Usage', id])

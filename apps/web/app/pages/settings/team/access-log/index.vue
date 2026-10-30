@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { AuditAction } from '@webvue/contracts'
+import type { AuditAction } from '@liwan/contracts'
 import { AUDIT_ACTION_LABELS } from '@/components/access/audit/auditActionLabels'
 import AuditTable from '@/components/access/audit/AuditTable.vue'
-import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
+import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
 import { useAdminAuditLog, type AdminAuditListParams } from '@/composables/useAdminAudit'
 import { useAdminUsers } from '@/composables/useAdminUsers'
 import { useAdminRoles } from '@/composables/useAdminRoles'

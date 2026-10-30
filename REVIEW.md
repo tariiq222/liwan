@@ -52,7 +52,7 @@ file the tool does not scan).
    - A raw `read()` result sent to the client instead of a whitelisting serializer.
    - A schema change without its version bump and migration directory in the same commit.
    - Timesheet data added to the customer UI; payroll, employee bank account or compensation data
-      exposed outside the payroll section of `webvue_hr` and its approved `webvue_hr_finance` bridge, or without the operation's dedicated capability or documented own-payslip access contract. General HR access never grants payroll administration.
+      exposed outside the payroll section of `liwan_hr` and its approved `liwan_hr_finance` bridge, or without the operation's dedicated capability or documented own-payslip access contract. General HR access never grants payroll administration.
 2. **Contract parity.** Serializer keys, the Zod `.strict()` schema, the test key set and what
    the composable reads must match; every write returns the full detail shape; errors carry a
    real HTTP status with `{code, message, field?}`.

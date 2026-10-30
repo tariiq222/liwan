@@ -1,4 +1,4 @@
-import type { HrLeave, HrLeaveAllocation } from '@webvue/contracts'
+import type { HrLeave, HrLeaveAllocation } from '@liwan/contracts'
 
 /** How leave reads in the lists and on the records: a request's period (one date or a range),
  *  a grant's validity (open when it never expires) and a day count. */

@@ -12,7 +12,7 @@ import { expect, test, type Page, type Route } from '@playwright/test'
 // The stub grants `finance.setup.read`/`finance.setup.manage`; the shared UI preview mock does not carry the
 // finance capabilities, which is why this spec brings its own upstream instead of depending on that mock.
 //
-process.env.NUXT_ODOO_DB = 'webvue_fiscal_settings_unused_scratch'
+process.env.NUXT_ODOO_DB = 'liwan_fiscal_settings_unused_scratch'
 
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -21,11 +21,11 @@ let mode: Mode = 'manager'
 let fiscalPatches: Array<{ headers: Record<string, string>; body: unknown }> = []
 let rejectNextPatch: { status: number; code: string; message: string } | null = null
 
-const COMPANY = { id: 1, name: 'ويب فيو' }
+const COMPANY = { id: 1, name: 'ليوان' }
 const SETUP = {
   chart: { loaded: true, template: 'sa', accounts_count: 182 },
   company: {
-    name: 'ويب فيو', vat: '300000000000003', company_registry: '', street: 'طريق الملك عبدالله', city: 'الرياض',
+    name: 'ليوان', vat: '300000000000003', company_registry: '', street: 'طريق الملك عبدالله', city: 'الرياض',
     state: { id: 1, name: 'منطقة الرياض' }, country: { id: 1, name: 'المملكة العربية السعودية' }, currency: 'SAR',
     missing_fields: ['company_registry'],
   },
@@ -48,7 +48,7 @@ function me() {
   return {
     id: 2, name: 'مدير النظام', login: 'admin', email: 'admin@example.com', lang: 'ar_001', tz: 'Asia/Riyadh',
     role: 'admin', roles: [], capabilities: capabilities(), access_policy_version: 1, company: COMPANY,
-    modules: ['webvue_finance'],
+    modules: ['liwan_finance'],
     entitlements: { 'finance.enabled': true, 'users.limit': null, 'storage.limit_mb': null },
     platform: {
       schema_version: 1, policy_revision: 1, state: 'active', valid_until: null, read_only: false,
@@ -61,7 +61,7 @@ function me() {
 function jsonFor(pathname: string): unknown {
   if (pathname === '/api/v1/me') return me()
   if (pathname === '/api/v1/finance/setup') return SETUP
-  if (pathname === '/api/v1/branding') return { name: 'ويب فيو', logo_url: null, primary_color: '#5b3f8c', font: 'IBM_Plex_Sans_Arabic' }
+  if (pathname === '/api/v1/branding') return { name: 'ليوان', logo_url: null, primary_color: '#5b3f8c', font: 'IBM_Plex_Sans_Arabic' }
   // The other cards of the page are not this spec's subject; they answer an empty list.
   if (pathname.startsWith('/api/v1/')) return { items: [], total: 0 }
   return null
@@ -124,7 +124,7 @@ test.beforeAll(async () => {
       NITRO_PORT: String(appPort),
       NITRO_HOST: '127.0.0.1',
       NUXT_ODOO_URL: `http://127.0.0.1:${upstreamPort}`,
-      NUXT_ODOO_DB: 'webvue_fiscal_settings_unused_scratch',
+      NUXT_ODOO_DB: 'liwan_fiscal_settings_unused_scratch',
       NUXT_PUBLIC_WS_URL: '',
       NUXT_CUSTOMER_COMMERCIAL_ENABLED: 'false',
     },
@@ -195,8 +195,8 @@ test('a manager edits inline and the write states the identity the screen was re
   const [patch] = fiscalPatches
   expect(patch?.body).toEqual({ fiscalyear_last_day: 30, fiscalyear_last_month: 6 })
   expect(patch?.body).not.toHaveProperty('company_id')
-  expect(patch?.headers['x-webvue-expected-user-id']).toBe('2')
-  expect(patch?.headers['x-webvue-expected-company-id']).toBe('1')
+  expect(patch?.headers['x-liwan-expected-user-id']).toBe('2')
+  expect(patch?.headers['x-liwan-expected-company-id']).toBe('1')
   await expect(saveButton(page)).toBeDisabled()
   await expect(day).toHaveValue('30')
 })
@@ -311,15 +311,15 @@ test('reverting sends nothing, and a hash change keeps the draft', async ({ page
 
 // The matrix the design review asked for: the reader, editor and rejection states at the three widths.
 // Light/dark come from the appearance cookie and RTL/LTR from the locale cookie; both cookie names are read
-// from the app's own composables (webvue-appearance, webvue-locale) and are re-checked when this runs.
+// from the app's own composables (liwan-appearance, liwan-locale) and are re-checked when this runs.
 for (const { locale, dir, i18n } of [{ locale: 'ar', dir: 'rtl', i18n: 'ar' }, { locale: 'en', dir: 'ltr', i18n: 'en' }]) {
   for (const appearance of ['light', 'dark']) {
     test(`fiscal.<state>.${locale}.${appearance} across widths`, async ({ page }, testInfo) => {
       for (const width of [390, 768, 1440]) {
         await page.setViewportSize({ width, height: 900 })
         await openFiscal(page, [
-          { name: 'webvue-appearance', value: JSON.stringify({ mode: appearance, fontSize: 'medium' }) },
-          ...(i18n ? [{ name: 'webvue-locale', value: i18n }] : []),
+          { name: 'liwan-appearance', value: JSON.stringify({ mode: appearance, fontSize: 'medium' }) },
+          ...(i18n ? [{ name: 'liwan-locale', value: i18n }] : []),
         ])
         await expect(page.locator('html')).toHaveAttribute('dir', dir)
         await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)

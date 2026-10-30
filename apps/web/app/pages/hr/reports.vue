@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { HrExpiringItem, HrSaudizationRow } from '@webvue/contracts'
+import type { HrExpiringItem, HrSaudizationRow } from '@liwan/contracts'
 import { HR_EXPIRY_WINDOWS, hrExpiryWindowFrom, useHrExpiring, useHrSaudization } from '@/composables/useHrReports'
 import { hrExpiryTone } from '@/utils/hrExpiryBadge'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
@@ -72,11 +72,11 @@ function setWindow(value: string) {
 <template>
   <SharedListPage :title="t('hr.reports.title')" :kpi-toggle="!forbidden">
     <SharedForbiddenState v-if="forbidden" :description="t('hr.reports.forbidden')" />
-    <div v-else class="webvue-page-stack">
+    <div v-else class="liwan-page-stack">
       <SharedRecordSection :title="t('hr.reports.saudization.title')" data-testid="hr-saudization">
         <SharedPageState :loading="saudization.isLoading.value" :error="saudization.error.value" @retry="saudization.refetch">
-          <div v-if="overall" class="webvue-page-stack">
-            <div v-if="kpisShown" class="grid gap-(--webvue-gap-card) sm:grid-cols-2 xl:grid-cols-4" data-testid="hr-saudization-tiles">
+          <div v-if="overall" class="liwan-page-stack">
+            <div v-if="kpisShown" class="grid gap-(--liwan-gap-card) sm:grid-cols-2 xl:grid-cols-4" data-testid="hr-saudization-tiles">
               <SharedMetricTile
                 icon="i-lucide-chart-pie"
                 :label="t('hr.reports.saudization.rate')"
@@ -99,7 +99,7 @@ function setWindow(value: string) {
               />
             </div>
             <SharedListCard>
-              <SharedEmptyState v-if="!departments.length" class="m-(--webvue-card-pad-dense)" :title="t('hr.reports.saudization.empty')" />
+              <SharedEmptyState v-if="!departments.length" class="m-(--liwan-card-pad-dense)" :title="t('hr.reports.saudization.empty')" />
               <SharedDataTable
                 v-else
                 bare
@@ -145,7 +145,7 @@ function setWindow(value: string) {
             />
           </template>
           <SharedPageState :loading="expiring.isLoading.value" :error="expiring.error.value" :keep-content="items.length > 0" @retry="expiring.refetch">
-            <SharedEmptyState v-if="showEmpty" class="m-(--webvue-card-pad-dense)" :title="t('hr.reports.expiring.empty')" />
+            <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hr.reports.expiring.empty')" />
             <SharedDataTable
               v-else-if="items.length"
               bare

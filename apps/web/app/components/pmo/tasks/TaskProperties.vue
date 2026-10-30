@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { joinList } from '@/utils/listFormat'
-import type { TaskDetail } from '@webvue/contracts'
+import type { TaskDetail } from '@liwan/contracts'
 import { CalendarDate, parseDate } from '@internationalized/date'
-import { formatWebVueDate } from '@webvue/ui/app/composables/calendarDate'
+import { formatLiwanDate } from '@liwan/ui/app/composables/calendarDate'
 import { usePersonalStages } from '@/composables/usePersonalStages'
 import { useUpdateTask } from '@/composables/useTasks'
 import { useMilestones } from '@/composables/useMilestones'
@@ -65,7 +65,7 @@ function onTagsChange({ ids, resolved }: { ids: number[]; resolved: TaskDetail['
 // *both* locales by accident. `calendar: 'gregory'` pins the calendar system
 // explicitly so an Arabic locale still gets Gregorian dates (with
 // Arabic-Indic digits). Timeline.vue already follows this pattern.
-const dateFmt = computed(() => ({ format: (value: Date) => formatWebVueDate(value, locale.value) }))
+const dateFmt = computed(() => ({ format: (value: Date) => formatLiwanDate(value, locale.value) }))
 
 // --- deadline ------------------------------------------------------------
 // Contract: a deadline is a UTC *instant* (the API stores/returns an ISO

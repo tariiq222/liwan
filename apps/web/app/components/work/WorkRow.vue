@@ -8,7 +8,7 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <li class="flex min-w-0 items-start gap-3 px-(--webvue-card-pad-dense) py-3" data-testid="work-row" :data-tone="row.tone">
+  <li class="flex min-w-0 items-start gap-3 px-(--liwan-card-pad-dense) py-3" data-testid="work-row" :data-tone="row.tone">
     <span aria-hidden="true" :class="['mt-1.5 size-2 shrink-0 rounded-full', row.tone === 'urgent' ? 'bg-warning' : 'bg-primary']" />
     <div class="min-w-0 flex-1">
       <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">

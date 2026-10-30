@@ -66,7 +66,7 @@ function clear() {
       </template>
       <SharedLoadingSkeleton v-if="query.isPending.value" class="m-4" />
       <SharedPageState v-else-if="query.error.value" class="m-4" :error="query.error.value" @retry="query.refetch()" />
-      <SharedEmptyState v-else-if="!items.length" class="m-(--webvue-card-pad-dense)" :title="filtered ? t('app.noResults') : t('inbox.orders.empty')" :description="filtered ? undefined : t('inbox.orders.emptyDescription')" />
+      <SharedEmptyState v-else-if="!items.length" class="m-(--liwan-card-pad-dense)" :title="filtered ? t('app.noResults') : t('inbox.orders.empty')" :description="filtered ? undefined : t('inbox.orders.emptyDescription')" />
       <InboxOrdersTable v-else :orders="items" />
       <template v-if="pages > 1" #footer>
         <SharedPagination :page="page" :pages="pages" class="w-full" @update:page="update({ page: $event > 1 ? String($event) : undefined })" />

@@ -1,8 +1,8 @@
-import { AiDraftHandoffSchema, AiDraftPayloadSchema, type AiAuditRequest, type AiDraftHandoff, type AiDraftPayload } from '@webvue/contracts'
+import { AiDraftHandoffSchema, AiDraftPayloadSchema, type AiAuditRequest, type AiDraftHandoff, type AiDraftPayload } from '@liwan/contracts'
 import { emptyObjective, type CharterDraft } from './projectCharter'
 
-const DRAFT_PREFIX = 'webvue:ai-draft:'
-const CREATED_PREFIX = 'webvue:ai-created:'
+const DRAFT_PREFIX = 'liwan:ai-draft:'
+const CREATED_PREFIX = 'liwan:ai-created:'
 const storageKey = (draftId: string) => `${DRAFT_PREFIX}${draftId}`
 const createdKey = (runId: string, callId: string) => `${CREATED_PREFIX}${runId}:${callId}`
 
@@ -114,14 +114,14 @@ export function aiApprovalAudit(handoff: AiDraftHandoff | null, createdId: numbe
 
 /** `returnTo` with `created=<id>` appended, whether or not it already has a query. */
 export function withCreatedProject(returnTo: string, createdId: number): string {
-  const url = new URL(returnTo, 'http://webvue.local')
+  const url = new URL(returnTo, 'http://liwan.local')
   url.searchParams.set('created', String(createdId))
   return `${url.pathname}${url.search}${url.hash}`
 }
 
 /** `returnTo` without `created`: what a cancel returns, which `/ai` reads as a rejection. */
 export function withoutCreated(returnTo: string): string {
-  const url = new URL(returnTo, 'http://webvue.local')
+  const url = new URL(returnTo, 'http://liwan.local')
   url.searchParams.delete('created')
   return `${url.pathname}${url.search}${url.hash}`
 }

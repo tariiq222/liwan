@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
-import type { OperationAction } from '@webvue/contracts'
-import { formatDateTime } from '@webvue/ui/app/utils/formatDate'
+import type { OperationAction } from '@liwan/contracts'
+import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import OperationStepRow from '@/components/operations/OperationStepRow.vue'
 import { operationsStateTone } from '@/composables/operations/state'
-import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
+import { statusTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import { useOperationRequest, useOperationRequestMutation } from '@/composables/operations/useOperations'
 import { createOperationSubmitGuard, operationAttachmentBody, operationErrorKey, operationId } from '@/composables/operations/forms'
 const props = defineProps<{ personal?: boolean }>()
@@ -107,8 +107,8 @@ const eventKinds = ['submitted', 'approved', 'rejected', 'returned', 'withdrawn'
         </div>
       </SharedRecordSection>
       <SharedRecordSection variant="list" :title="t('operations.history')">
-        <p v-if="!record.events.length" class="p-(--webvue-card-pad) text-sm text-muted">{{ t('operations.noHistory') }}</p>
-        <ol v-else class="divide-y divide-default"><li v-for="event in record.events" :key="event.id" class="space-y-1 px-(--webvue-card-pad) py-3"><div class="flex flex-wrap items-center justify-between gap-2"><span class="flex items-center gap-2 text-sm font-medium"><SharedPersonAvatar :people="[event.actor]" />{{ t(`operations.events.${eventKinds.includes(event.kind) ? event.kind : 'updated'}`) }} · {{ event.actor.name }}</span><time class="text-sm text-muted" :datetime="event.created_at">{{ date(event.created_at) }}</time></div><p v-if="event.comment" class="whitespace-pre-wrap text-sm">{{ event.comment }}</p></li></ol>
+        <p v-if="!record.events.length" class="p-(--liwan-card-pad) text-sm text-muted">{{ t('operations.noHistory') }}</p>
+        <ol v-else class="divide-y divide-default"><li v-for="event in record.events" :key="event.id" class="space-y-1 px-(--liwan-card-pad) py-3"><div class="flex flex-wrap items-center justify-between gap-2"><span class="flex items-center gap-2 text-sm font-medium"><SharedPersonAvatar :people="[event.actor]" />{{ t(`operations.events.${eventKinds.includes(event.kind) ? event.kind : 'updated'}`) }} · {{ event.actor.name }}</span><time class="text-sm text-muted" :datetime="event.created_at">{{ date(event.created_at) }}</time></div><p v-if="event.comment" class="whitespace-pre-wrap text-sm">{{ event.comment }}</p></li></ol>
       </SharedRecordSection>
     </template>
     <template v-if="record" #aside>

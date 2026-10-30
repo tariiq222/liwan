@@ -57,7 +57,7 @@ export async function sendInvitationOutbox(pool: Pool, o: { mail: MailAdapter; r
          WHERE i.id=$1 AND i.consumed_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > now()`, [invitation_id])
       if (!q.rows[0] || !token) { await completeOutbox(pool, row.id); continue } // superseded/expired: nothing to send
       const mail = renderInvitationEmail({ companyName: q.rows[0].name, url: buildInvitationUrl(await o.returnOrigin(q.rows[0].customer_id), token) })
-      const message_id = `${invitation_id}@webvue`
+      const message_id = `${invitation_id}@liwan`
       const res = await o.mail.send({ to: q.rows[0].admin_login, ...mail, message_id })
       const status = o.smtpHost && isLocalCapture(o.smtpHost) ? 'local_capture' : 'sent'
       await pool.query(`UPDATE admin_invitations SET delivery_status=$2, sent_at=now(), message_id=$3 WHERE id=$1`, [invitation_id, status, res.provider_message_id])

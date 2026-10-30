@@ -9,7 +9,7 @@ import { computed, inject, provide, readonly, ref, toValue, type InjectionKey, t
 /** `label` and `to` name the application and its landing page: the first step of the header trail. */
 export interface PageApp { icon: string; label?: string; to?: string }
 
-const PAGE_APP: InjectionKey<Readonly<Ref<PageApp | null>>> = Symbol('webvue-page-app')
+const PAGE_APP: InjectionKey<Readonly<Ref<PageApp | null>>> = Symbol('liwan-page-app')
 const NO_APP: Readonly<Ref<PageApp | null>> = readonly(ref<PageApp | null>(null))
 
 /** The shell publishes the icon, name and landing page of the application that owns the current route. */

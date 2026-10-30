@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { joinList } from '@/utils/listFormat'
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import { SERIES_LIST_PATHS } from '@/modules/meetings/navigation'
-import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
+import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
 import MeetingEventList from '@/components/meetings/MeetingEventList.vue'
 import MeetingTimeline from '@/components/meetings/MeetingTimeline.vue'
 import { useAddSeriesOccurrence, useCancelMeetingSeries, useMeetingSeries } from '@/composables/useMeetings'
@@ -11,15 +11,15 @@ import { useMeetingFormFeedback } from '@/composables/useMeetingFormFeedback'
 import { useMeetingSubmitError } from '@/composables/useMeetingSubmitError'
 import { buildOccurrencePayload, occurrenceFormErrors } from '@/utils/meetingOccurrence'
 import { useMeetingEvents, useMeetingSeriesResolutions } from '@/composables/useMeetingWorkspace'
-import { formatCalendarDate, formatWebVueTime } from '@webvue/ui/app/composables/calendarDate'
-import { isCalendarDate } from '@webvue/ui/app/composables/calendarDate'
+import { formatCalendarDate, formatLiwanTime } from '@liwan/ui/app/composables/calendarDate'
+import { isCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 import { meetingTimestamp, prioritizeTimelinePage, selectNextMeeting, selectPreviousMeeting } from '@/utils/meetingWorkspace'
 import { resolutionStateBadgeProps } from '@/utils/meetingStatus'
 import { richTextHasContent } from '@/utils/richText'
 import { firstQuery } from '@/utils/routeQuery'
 import { parsePositiveId } from '@/utils/routeParams'
 import { ApiError } from '@/composables/useApi'
-import type { PageHeaderTag } from '@webvue/ui/app/utils/pageHeaderTag'
+import type { PageHeaderTag } from '@liwan/ui/app/utils/pageHeaderTag'
 
 type SeriesTab = 'sessions' | 'followup' | 'history' | 'details'
 const tabs: SeriesTab[] = ['sessions', 'followup', 'history', 'details']
@@ -146,7 +146,7 @@ function loadMoreMeetings() {
 function localTime(value: string | null) {
   if (!value) return '—'
   const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? '—' : hydrated.value ? formatWebVueTime(parsed, locale.value) : ''
+  return Number.isNaN(parsed.getTime()) ? '—' : hydrated.value ? formatLiwanTime(parsed, locale.value) : ''
 }
 function occurrenceLabel(meeting: { meeting_date: string | null; start_datetime: string | null }) {
   const date = meeting.meeting_date ? formatCalendarDate(meeting.meeting_date, locale.value) : t('meetingTimeline.unknownDate')
@@ -282,13 +282,13 @@ function setHistoryPage(page: number) {
       <SharedRouteTabs data-testid="meeting-series-tabs" variant="pill" :items="tabLinks" :ariaLabel="t('meetingTimeline.sections')" />
     </template>
 
-    <div v-if="query.data.value" class="grid min-w-0 gap-(--webvue-gap-card)">
+    <div v-if="query.data.value" class="grid min-w-0 gap-(--liwan-gap-card)">
       <UAlert v-if="endError" role="alert" color="error" variant="subtle" :title="endError" />
       <SharedInlineConfirm v-if="confirmingEnd && canEndSeries" color="error" :title="t('meetingsUx.confirmEndSeries')" :confirm-label="t('meetingsUx.endSeriesConfirmLabel')" :pending="cancelSeries.isPending.value" @cancel="confirmingEnd = false" @confirm="endSeries" />
       <form v-if="addingOccurrence && canAddOccurrence" ref="occurrenceForm" novalidate data-testid="meeting-occurrence-form" @submit.prevent="submitOccurrence">
         <SharedUnsavedChanges :dirty="occurrenceDirty" />
         <SharedFormSection panel :title="t('meetingsUx.occurrence.title')" :description="t('meetingsUx.occurrence.hint')">
-          <div class="webvue-form-grid">
+          <div class="liwan-form-grid">
             <UFormField class="sm:col-span-2" :label="t('meetingsUx.occurrence.name')" name="name" :error="occurrenceServerErrors.name">
               <UInput id="occurrence-name" v-model="occurrenceName" class="w-full" :disabled="!hydrated || addOccurrence.isPending.value" />
             </UFormField>
@@ -303,17 +303,17 @@ function setHistoryPage(page: number) {
             </UFormField>
           </div>
         </SharedFormSection>
-        <UAlert v-if="addOccurrence.error.value" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" class="mt-(--webvue-gap-card)" :title="occurrenceSubmitError" />
-        <SharedFormActions class="mt-(--webvue-gap-card)">
+        <UAlert v-if="addOccurrence.error.value" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" class="mt-(--liwan-gap-card)" :title="occurrenceSubmitError" />
+        <SharedFormActions class="mt-(--liwan-gap-card)">
           <div class="flex flex-wrap items-center gap-2">
             <UButton type="button" color="neutral" variant="outline" :disabled="addOccurrence.isPending.value" :label="t('app.cancel')" @click="closeOccurrenceForm" />
             <UButton type="submit" :disabled="!hydrated || addOccurrence.isPending.value" :loading="addOccurrence.isPending.value" :label="t('meetingsUx.occurrence.submit')" />
           </div>
         </SharedFormActions>
       </form>
-      <section v-if="activeTab === 'sessions'" class="grid gap-(--webvue-gap-card)" data-testid="meeting-series-sessions">
+      <section v-if="activeTab === 'sessions'" class="grid gap-(--liwan-gap-card)" data-testid="meeting-series-sessions">
         <SharedRecordSection :title="t('meetingTimeline.scheduleSummary')" :description="t('meetingTimeline.scheduleSummaryHint')">
-          <div class="grid w-full min-w-0 gap-(--webvue-gap-card) sm:grid-cols-2 xl:grid-cols-4">
+          <div class="grid w-full min-w-0 gap-(--liwan-gap-card) sm:grid-cols-2 xl:grid-cols-4">
             <SharedMetricTile density="compact" icon="i-lucide-list-checks" :label="t('meetingTimeline.openTile')" :value="query.data.value.open_resolution_count" :to="followupLink('active')" />
             <SharedMetricTile density="compact" icon="i-lucide-triangle-alert" :tone="query.data.value.overdue_resolution_count ? 'danger' : 'neutral'" :label="t('meetingTimeline.overdueTile')" :value="query.data.value.overdue_resolution_count" :to="followupLink('overdue')" />
             <SharedMetricTile density="compact" icon="i-lucide-calendar-clock" :label="t('meetingsUi.nextMeeting')" :value="upcoming ? occurrenceLabel(upcoming) : '—'" :hint="upcoming ? upcoming.name : t('meetingsUx.noNextMeeting')" :to="upcoming ? meetingLink(upcoming) : undefined" />
@@ -341,7 +341,7 @@ function setHistoryPage(page: number) {
               </template>
             </FilterBar>
           </template>
-          <UAlert v-if="!validDateRange" class="m-(--webvue-card-pad-dense)" role="alert" color="error" variant="subtle" :title="t('meetingTimeline.invalidDateRange')" />
+          <UAlert v-if="!validDateRange" class="m-(--liwan-card-pad-dense)" role="alert" color="error" variant="subtle" :title="t('meetingTimeline.invalidDateRange')" />
           <MeetingTimeline :meetings="visibleMeetings" :next-meeting-id="upcoming?.id" :view="occurrenceView" bare :preserve-order="occurrenceSort !== 'timeline'" :return-to="route.fullPath" :now="now" />
           <template v-if="visibleMeetings.length" #footer>
             <span class="tabular-nums" data-testid="meeting-series-sessions-count">{{ t('meetingsUi.footer.results', { shown: visibleMeetings.length, total: filteredMeetings.length }, filteredMeetings.length) }}</span>
@@ -350,7 +350,7 @@ function setHistoryPage(page: number) {
         </SharedListCard>
       </section>
 
-      <section v-else-if="activeTab === 'followup'" class="grid gap-(--webvue-gap-card)" data-testid="meeting-series-followup">
+      <section v-else-if="activeTab === 'followup'" class="grid gap-(--liwan-gap-card)" data-testid="meeting-series-followup">
         <SharedListCard>
           <template #filters>
             <FilterBar embedded class="w-full" :active-count="followupFilterCount" :clear-label="t('meetingsUi.clear')" :disabled="!hydrated" @clear="clearFollowupFilters">
@@ -368,7 +368,7 @@ function setHistoryPage(page: number) {
           </template>
           <SharedPageState :loading="followupQuery.isLoading.value" :error="followupQuery.error.value" :empty="!followupQuery.isLoading.value && !followupQuery.data.value?.items.length" :empty-text="t('meetingTimeline.noFollowup')" @retry="followupQuery.refetch">
             <ul class="divide-y divide-default">
-              <li v-for="item in followupQuery.data.value?.items" :key="`${item.meeting_id}-${item.id}`" class="grid gap-2 px-(--webvue-card-pad) py-4">
+              <li v-for="item in followupQuery.data.value?.items" :key="`${item.meeting_id}-${item.id}`" class="grid gap-2 px-(--liwan-card-pad) py-4">
                 <div class="flex flex-wrap items-start justify-between gap-2">
                   <div class="grid min-w-0 gap-0.5">
                     <UButton color="primary" variant="link" class="w-fit p-0 text-base font-semibold whitespace-normal text-start" :to="{ path: `/meetings/${item.meeting_id}`, query: { ...returnToQuery(route.fullPath), tab: 'resolutions' } }">{{ item.name }}</UButton>
@@ -393,11 +393,11 @@ function setHistoryPage(page: number) {
         </SharedListCard>
       </section>
 
-      <section v-else-if="activeTab === 'history'" class="grid gap-(--webvue-gap-card)" data-testid="meeting-series-history">
+      <section v-else-if="activeTab === 'history'" class="grid gap-(--liwan-gap-card)" data-testid="meeting-series-history">
         <MeetingEventList :title="t('meetingTimeline.historyTitle')" :description="t('meetingTimeline.historyHint')" :events="historyQuery.data.value?.items ?? []" :loading="historyQuery.isLoading.value" :error="historyQuery.error.value" :total="historyQuery.data.value?.total ?? 0" :page="historyPageNumber" :page-size="historyPageSize" @retry="historyQuery.refetch" @page="setHistoryPage" />
       </section>
 
-      <section v-else class="grid gap-(--webvue-gap-card)" data-testid="meeting-series-details">
+      <section v-else class="grid gap-(--liwan-gap-card)" data-testid="meeting-series-details">
         <SharedRecordSection variant="panel" :title="t('meetingsUi.series')">
           <dl class="grid gap-x-6 gap-y-4 sm:grid-cols-2">
             <div class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUi.organizer') }}</dt><dd class="text-highlighted">{{ query.data.value.organizer?.name || '—' }}</dd></div>

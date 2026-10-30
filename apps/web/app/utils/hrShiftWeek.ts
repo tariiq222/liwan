@@ -1,4 +1,4 @@
-import type { HrShiftAttendance } from '@webvue/contracts'
+import type { HrShiftAttendance } from '@liwan/contracts'
 
 type ShiftDay = HrShiftAttendance['dayofweek']
 

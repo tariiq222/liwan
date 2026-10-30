@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { InboxTemplateAnalyticsRow } from '@webvue/contracts'
+import type { InboxTemplateAnalyticsRow } from '@liwan/contracts'
 import { TEMPLATE_CATEGORY_TONE } from '@/composables/inbox/inboxTemplate'
 import { formatAmount, formatRatio, shareOf } from '@/composables/inbox/inboxReportCharts'
 
@@ -19,8 +19,8 @@ const columns = computed<TableColumn<Row>[]>(() => [
   numeric('read', t('inbox.reports.templates.cols.read')),
   numeric('clicked', t('inbox.reports.templates.cols.clicked')),
   numeric('spent', t('inbox.reports.templates.cols.spent')),
-  numeric('webvueSent', t('inbox.reports.templates.cols.webvueSent')),
-  numeric('webvueFailed', t('inbox.reports.templates.cols.webvueFailed')),
+  numeric('liwanSent', t('inbox.reports.templates.cols.liwanSent')),
+  numeric('liwanFailed', t('inbox.reports.templates.cols.liwanFailed')),
 ])
 const share = (part: number, whole: number) => formatRatio(shareOf(part, whole), locale.value)
 const rowTo = (row: Row) => ({ path: `/inbox/reports/templates/${row.template.id}`, query: props.detailQuery })
@@ -47,8 +47,8 @@ const rowTo = (row: Row) => ({ path: `/inbox/reports/templates/${row.template.id
         <template #read-cell="{ row }">{{ count.format(row.original.read) }} <span class="text-muted">({{ share(row.original.read, row.original.sent) }})</span></template>
         <template #clicked-cell="{ row }">{{ count.format(row.original.clicked) }}</template>
         <template #spent-cell="{ row }">{{ formatAmount(row.original.amount_spent, currency, locale) }}</template>
-        <template #webvueSent-cell="{ row }">{{ count.format(row.original.webvue_sent) }}</template>
-        <template #webvueFailed-cell="{ row }"><span :class="row.original.webvue_failed > 0 ? 'text-error' : ''">{{ count.format(row.original.webvue_failed) }}</span></template>
+        <template #liwanSent-cell="{ row }">{{ count.format(row.original.liwan_sent) }}</template>
+        <template #liwanFailed-cell="{ row }"><span :class="row.original.liwan_failed > 0 ? 'text-error' : ''">{{ count.format(row.original.liwan_failed) }}</span></template>
         <template #mobile-row="{ row }">
           <NuxtLink :to="rowTo(row)" class="flex min-w-0 flex-col gap-1">
             <span class="truncate font-semibold text-highlighted"><bdi dir="ltr">{{ row.template.name }}</bdi></span>

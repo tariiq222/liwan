@@ -27,7 +27,7 @@ const NAMESPACES = [
 let scratch: string[] = []
 
 function makeLocales(files: Record<string, string[]>): string {
-  const root = mkdtempSync(join(tmpdir(), 'webvue-locales-'))
+  const root = mkdtempSync(join(tmpdir(), 'liwan-locales-'))
   scratch.push(root)
   for (const [code, names] of Object.entries(files)) {
     mkdirSync(join(root, code))

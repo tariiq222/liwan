@@ -56,8 +56,8 @@ const manifest: AppManifest = {
     { pattern: /^\/settings\/apps\/inbox\/channels\/[^/]+\/templates\/new$/, capability: 'inbox.templates.manage', feature: 'inbox.templates' },
     // The same for forms: a forms-only manager has no channel administration.
     { pattern: /^\/settings\/apps\/inbox\/channels\/[^/]+\/flows\/new$/, capability: 'inbox.flows.manage', feature: 'inbox.flows' },
-    { pattern: /^\/settings\/apps\/inbox\/channels\/[^/]+\/flows(?:\/|$)/, capability: 'webvue.internal', anyCapabilities: ['inbox.flows.manage', 'inbox.channels.manage'] },
-    { pattern: /^\/settings\/apps\/inbox\/channels\/[^/]+\/templates(?:\/|$)/, capability: 'webvue.internal', anyCapabilities: ['inbox.templates.manage', 'inbox.channels.manage'] },
+    { pattern: /^\/settings\/apps\/inbox\/channels\/[^/]+\/flows(?:\/|$)/, capability: 'liwan.internal', anyCapabilities: ['inbox.flows.manage', 'inbox.channels.manage'] },
+    { pattern: /^\/settings\/apps\/inbox\/channels\/[^/]+\/templates(?:\/|$)/, capability: 'liwan.internal', anyCapabilities: ['inbox.templates.manage', 'inbox.channels.manage'] },
   ],
   bell: {
     capabilities: ['inbox.conversations.read', 'inbox.channels.manage'],

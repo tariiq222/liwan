@@ -3,7 +3,7 @@
     "selectPerson": "اختر شخصًا",
     "actions": "الإجراءات",
     "edit": "تعديل",
-    "productName": "ويب فيو",
+    "productName": "ليوان",
     "search": "بحث",
     "save": "حفظ",
     "settingsConflict": "غيّر شخص آخر هذه الإعدادات بعد فتحك الصفحة. حمّل القيم الحالية ثم أعد تعديلك.",
@@ -81,7 +81,7 @@
     "chat": "المحادثات",
     "myTasks": "مهامي",
     "meetings": "الاجتماعات",
-    "ai": "WebVue AI",
+    "ai": "LiwanOS AI",
     "rail": {
       "hr": "الموظفين",
       "ai": "المساعد"

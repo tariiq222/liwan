@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { InboxCostCategoryRow, InboxReportBreakdownRow, InboxReportMetrics } from '@webvue/contracts'
-import { InboxReportMetricsSchema } from '@webvue/contracts'
+import type { InboxCostCategoryRow, InboxReportBreakdownRow, InboxReportMetrics } from '@liwan/contracts'
+import { InboxReportMetricsSchema } from '@liwan/contracts'
 import {
   answeredChart, changeOf, changeTone, costByCategoryChart, costTiles, csatChart, dailyCostChart, firstResponseChart, formatAmount, formatDuration, formatRatio,
   hasCostCategories, hasCsat, hasFirstResponses, overviewTiles, resolvedByChart, shareOf, volumeByTypeChart, volumeChart,

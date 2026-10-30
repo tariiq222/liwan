@@ -6,7 +6,7 @@
 // marker-data upstream. This file replaces the synthetic upstream with ONE
 // live Odoo process serving all ten tenant databases via `dbfilter = ^%h$`
 // (the documented shared-mode mechanism in deploy/shared/odoo.conf), with
-// real ACLs, real sessions, and real webvue_api/webvue_pmo controllers. It proves
+// real ACLs, real sessions, and real liwan_api/liwan_pmo controllers. It proves
 // (or disproves) the explicit "Real Odoo ACLs are not proven" gap recorded in
 // docs/verification/shared-isolation-matrix.md.
 //
@@ -30,26 +30,26 @@ import { createGuard } from '../../deploy/shared/guard.mjs'
 
 const root = new URL('../../', import.meta.url).pathname
 
-// Stock addons, the WebVue addons and the pinned OCA repositories (deploy/oca-addons.json), verified at their pins.
+// Stock addons, the LiwanOS addons and the pinned OCA repositories (deploy/oca-addons.json), verified at their pins.
 function addonsPath() {
   const oca = spawnSync('python3', ['-B', join(root, 'tools/oca_addons.py'), 'path', '--check'], { cwd: root, encoding: 'utf8' })
   if (oca.status !== 0) throw new Error(`pinned OCA addons are not ready: ${oca.stderr}`)
   return `${ODOO_ROOT}/addons,${root}odoo-addons,${oca.stdout.trim()}`
 }
-const ODOO_ROOT = process.env.WEBVUE_ODOO_ROOT || '/Users/tariq/code/odoo'
-const PG_HOST = process.env.WEBVUE_PG_HOST || '127.0.0.1'
-const PG_USER = process.env.WEBVUE_PG_USER || 'odoo'
-const PG_PASSWORD = process.env.WEBVUE_PG_PASSWORD || 'odoo'
-const SUFFIX = process.env.WEBVUE_DRILL_SUFFIX || 'realiso20261009'
+const ODOO_ROOT = process.env.LIWAN_ODOO_ROOT || '/Users/tariq/code/odoo'
+const PG_HOST = process.env.LIWAN_PG_HOST || '127.0.0.1'
+const PG_USER = process.env.LIWAN_PG_USER || 'odoo'
+const PG_PASSWORD = process.env.LIWAN_PG_PASSWORD || 'odoo'
+const SUFFIX = process.env.LIWAN_DRILL_SUFFIX || 'realiso20261009'
 const N_TENANTS = 10
 
 const tenants = Array.from({ length: N_TENANTS }, (_, i) => {
   const nn = String(i + 1).padStart(2, '0')
-  const db = `webvue_scratch_${SUFFIX}_t${nn}`
+  const db = `liwan_scratch_${SUFFIX}_t${nn}`
   return {
     host: `t${nn}.real-isolation-matrix.invalid`, tenantId: `t${nn}`,
     database: db, filestore: db, enabled: true, registryRevision: 1,
-    login: `drill_admin_${nn}`, password: 'webvue-real-iso-2026',
+    login: `drill_admin_${nn}`, password: 'liwan-real-iso-2026',
     marker: `REALISO_T${nn}`,
   }
 })
@@ -94,7 +94,7 @@ async function installTenant(cfg, tenant, dataDir, modules) {
     '--addons-path', addonsPath(),
     '--data-dir', dataDir, '-d', tenant.database, '-i', modules,
     '--without-demo=all', '--http-port', '0', '--workers=0', '--max-cron-threads=0', '--stop-after-init',
-  ], { env: { ...process.env, PGPASSWORD: PG_PASSWORD, WEBVUE_COMMERCIAL_CONFIG: classificationPath }, cwd: root })
+  ], { env: { ...process.env, PGPASSWORD: PG_PASSWORD, LIWAN_COMMERCIAL_CONFIG: classificationPath }, cwd: root })
 
   // Seed a unique per-tenant admin user, a project, and a task-linked attachment via shell.
   const seed = `
@@ -102,12 +102,12 @@ import base64
 login = ${JSON.stringify(tenant.login)}
 password = ${JSON.stringify(tenant.password)}
 marker = ${JSON.stringify(tenant.marker)}
-registry = env["webvue.feature.registry"]  # noqa: F821
-env["webvue.tenant.profile"]._webvue_initialize_legacy_policy(registry._webvue_installed_module_ids())  # noqa: F821
+registry = env["liwan.feature.registry"]  # noqa: F821
+env["liwan.tenant.profile"]._liwan_initialize_legacy_policy(registry._liwan_installed_module_ids())  # noqa: F821
 env.cr.commit()  # noqa: F821
 Users = env["res.users"].with_context(no_reset_password=True)  # noqa: F821
-employee_group = env.ref("webvue_core.group_employee")  # noqa: F821
-manager_group = env.ref("webvue_pmo.group_pmo_manager")  # noqa: F821
+employee_group = env.ref("liwan_core.group_employee")  # noqa: F821
+manager_group = env.ref("liwan_pmo.group_pmo_manager")  # noqa: F821
 user = Users.search([("login", "=", login)], limit=1)
 vals = {"name": f"Drill Admin {marker}", "login": login, "password": password,
         "group_ids": [(6, 0, [employee_group.id, manager_group.id])]}
@@ -133,7 +133,7 @@ print("SEED_OK", task.id, project.id, attachment.id)  # noqa: T201
 }
 
 test('real-Odoo ten-tenant isolation matrix: dbfilter-selected live Odoo behind the real guard', { timeout: 20 * 60 * 1000 }, async (t) => {
-  const directory = await mkdtemp(join(tmpdir(), 'webvue-real-isolation-'))
+  const directory = await mkdtemp(join(tmpdir(), 'liwan-real-isolation-'))
   const dataDir = join(directory, 'data')
   await mkdir(dataDir, { recursive: true })
   const registry = join(directory, 'registry.json')
@@ -247,7 +247,7 @@ test('real-Odoo ten-tenant isolation matrix: dbfilter-selected live Odoo behind 
   const cookies = new Map()
   for (const tenant of tenants) {
     const result = await call('POST', '/web/session/authenticate',
-      { host: tenant.host, 'content-type': 'application/json', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1' },
+      { host: tenant.host, 'content-type': 'application/json', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1' },
       JSON.stringify({ jsonrpc: '2.0', method: 'call', params: { db: tenant.database, login: tenant.login, password: tenant.password } }))
     assert.equal(result.status, 200, `login failed for ${tenant.tenantId}: ${result.text.slice(0, 500)}`)
     const body = JSON.parse(result.text)
@@ -259,7 +259,7 @@ test('real-Odoo ten-tenant isolation matrix: dbfilter-selected live Odoo behind 
   }
   console.log(`Phase 1: ${N_TENANTS}/${N_TENANTS} full-chain logins against REAL Odoo produced sealed per-tenant cookies`)
 
-  // Phase 2: positive controls — own session, own identity, own project/attachment, via real webvue_api.
+  // Phase 2: positive controls — own session, own identity, own project/attachment, via real liwan_api.
   for (const tenant of tenants) {
     const me = await call('GET', '/api/v1/me', { host: tenant.host, cookie: cookies.get(tenant.tenantId) })
     assert.equal(me.status, 200, me.text.slice(0, 300))
@@ -340,7 +340,7 @@ test('real-Odoo ten-tenant isolation matrix: dbfilter-selected live Odoo behind 
     not_covered: ['SSR/Nuxt markup crossing against real Odoo pages (scoped out)', 'TLS/Caddy', 'physical fenced adapter', 'MFA', 'multi-node', 'concurrent production load'],
   }
   await writeFile(join(directory, 'report.json'), JSON.stringify(report, null, 2))
-  const outPath = process.env.WEBVUE_REAL_ISOLATION_REPORT
+  const outPath = process.env.LIWAN_REAL_ISOLATION_REPORT
   if (outPath) await writeFile(outPath, JSON.stringify(report, null, 2))
   console.log('REAL_ISOLATION_REPORT=' + JSON.stringify(report))
 })

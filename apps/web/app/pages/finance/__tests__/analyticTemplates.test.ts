@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { FinanceAnalyticAccountListSchema, FinanceAnalyticPlanListSchema, FinanceAnalyticReportLineListSchema, FinanceAnalyticReportSchema } from '@webvue/contracts'
+import { FinanceAnalyticAccountListSchema, FinanceAnalyticPlanListSchema, FinanceAnalyticReportLineListSchema, FinanceAnalyticReportSchema } from '@liwan/contracts'
 import { financeAnalyticPreviewData } from '../../../../e2e/finance-analytic-ui-preview-data.mjs'
 
 // The analytic cards of the finance settings page and the cost center report stay on their templates. This is a source guard, not a behaviour test.

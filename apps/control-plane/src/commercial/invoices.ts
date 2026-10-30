@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { adjustmentSchema, invoiceSchema, TAX_LABEL, type Adjustment, type Invoice, type Money, type Quote } from '@webvue/commercial-contracts'
+import { adjustmentSchema, invoiceSchema, TAX_LABEL, type Adjustment, type Invoice, type Money, type Quote } from '@liwan/commercial-contracts'
 
 export type InvoiceView = Invoice
 /** Vendor-console view: the customer-facing invoice plus the customer's name (never sent to customers). */
@@ -33,12 +33,12 @@ export function invoiceView(row: any, lines: any[]): InvoiceView {
 }
 
 const DEFAULT_DUE_DAYS = 7
-/** Days between issuing an invoice and its due date: WEBVUE_INVOICE_DUE_DAYS (0-90), default 7 (owner decision 2026-10-29). */
+/** Days between issuing an invoice and its due date: LIWAN_INVOICE_DUE_DAYS (0-90), default 7 (owner decision 2026-10-29). */
 export function invoiceDueDays(env: Record<string, string | undefined> = process.env): number {
-  const raw = env.WEBVUE_INVOICE_DUE_DAYS
+  const raw = env.LIWAN_INVOICE_DUE_DAYS
   if (raw === undefined || raw === '') return DEFAULT_DUE_DAYS
   const days = Number(raw)
-  if (!Number.isInteger(days) || days < 0 || days > 90) throw new Error('invalid WEBVUE_INVOICE_DUE_DAYS')
+  if (!Number.isInteger(days) || days < 0 || days > 90) throw new Error('invalid LIWAN_INVOICE_DUE_DAYS')
   return days
 }
 

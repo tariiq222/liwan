@@ -35,7 +35,7 @@ it('keeps explicit direct WS configuration while using backend URL for same-orig
 })
 
 it('keeps shared WebSocket on its edge and production dedicated same-origin by default', async () => {
-  const shared = await config({ WEBVUE_TENANCY_MODE: 'shared', NODE_ENV: 'development' })
+  const shared = await config({ LIWAN_TENANCY_MODE: 'shared', NODE_ENV: 'development' })
   expect(shared.nitro.devProxy).toBeUndefined()
   expect(shared.runtimeConfig.public.wsUrl).toBe('')
   expect((await config({ NODE_ENV: 'production' })).runtimeConfig.public.wsUrl).toBe('')

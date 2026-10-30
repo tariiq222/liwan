@@ -1,5 +1,5 @@
-import { shortcutKey } from '@webvue/ui/app/composables/shortcuts/keymap'
-import { isEditableKeyTarget } from '@webvue/ui/app/composables/useEscapeBack'
+import { shortcutKey } from '@liwan/ui/app/composables/shortcuts/keymap'
+import { isEditableKeyTarget } from '@liwan/ui/app/composables/useEscapeBack'
 
 type Shortcut = { shortcut: string; to: string }
 type KeyboardLikeEvent = Pick<KeyboardEvent, 'key'> & { code?: string; target?: unknown; keyCode?: number }

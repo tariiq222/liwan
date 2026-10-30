@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinanceFiscalYear } from '@webvue/contracts'
+import type { FinanceFiscalYear } from '@liwan/contracts'
 import Money from '../invoices/Money.vue'
 import { CLOSING_HASH, CLOSING_PATH, FISCAL_YEAR_STATE_TONE } from './closingPresentation'
 

@@ -11,8 +11,8 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage, SystemMessage
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 
-from webvue_ai_service.titles import TITLE_RULES
-from webvue_ai_service.usage import ModelIdentity
+from liwan_ai_service.titles import TITLE_RULES
+from liwan_ai_service.usage import ModelIdentity
 
 IDENTITY = ModelIdentity("ollama", "m")  # what the Settings of the service tests name
 

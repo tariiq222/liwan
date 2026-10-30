@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import { normalizeEmail } from './admin-auth/accounts.js'
 
-export type AdminConfig = { secretKey: Buffer; rpId: string; origin: string; rpName: 'WebVue'; /** Development only: the one account the dev sign-in routes may open. */ devLoginEmail?: string }
+export type AdminConfig = { secretKey: Buffer; rpId: string; origin: string; rpName: 'LiwanOS'; /** Development only: the one account the dev sign-in routes may open. */ devLoginEmail?: string }
 
 export type Config = {
   admin?: AdminConfig
@@ -33,12 +33,12 @@ export function getConfig(): Config & { databaseUrl: string; host: string; port:
   if (customerCommercialIssuer && customerCommercialIssuer === installationId) throw new Error('CUSTOMER_COMMERCIAL_ISSUER must be distinct from vendor issuer')
   const internalEffect = internalEffectConfig(key, customerCommercialServiceKey)
   const admin = adminConfig(process.env)
-  const inventoryPath = required('WEBVUE_CLI_INVENTORY')
-  const managedInventoryPath = process.env.WEBVUE_MANAGED_INVENTORY
-  const sharedRuntimeConfigPath = process.env.WEBVUE_SHARED_RUNTIME_CONFIG
-  const tenantRegistryPath = process.env.WEBVUE_TENANT_REGISTRY_PATH
-  const stateDir = required('WEBVUE_CLI_STATE_DIR')
-  const repositoryRoot = required('WEBVUE_REPOSITORY_ROOT')
+  const inventoryPath = required('LIWAN_CLI_INVENTORY')
+  const managedInventoryPath = process.env.LIWAN_MANAGED_INVENTORY
+  const sharedRuntimeConfigPath = process.env.LIWAN_SHARED_RUNTIME_CONFIG
+  const tenantRegistryPath = process.env.LIWAN_TENANT_REGISTRY_PATH
+  const stateDir = required('LIWAN_CLI_STATE_DIR')
+  const repositoryRoot = required('LIWAN_REPOSITORY_ROOT')
   for (const path of [inventoryPath, managedInventoryPath, tenantRegistryPath, sharedRuntimeConfigPath, stateDir, repositoryRoot]) if (path && !isAbsolute(path)) throw new Error('operator paths must be absolute')
   const host = process.env.CONTROL_HOST ?? '127.0.0.1'
   const port = Number(process.env.CONTROL_PORT ?? '4179')
@@ -46,7 +46,7 @@ export function getConfig(): Config & { databaseUrl: string; host: string; port:
   const tlsKey = process.env.CONTROL_TLS_KEY
   const tlsCert = process.env.CONTROL_TLS_CERT
   if (!isLoopbackHost(host) && (!tlsKey || !tlsCert)) throw new Error('HTTPS is required outside loopback')
-  return { installationId, key, customerCommercialIssuer, customerCommercialServiceKey, ...(sharedRuntimeConfigPath ? { sharedRuntimeConfigPath } : {}), ...(internalEffect ? { internalEffect } : {}), ...(admin ? { admin } : {}), inventoryPath, managedInventoryPath, ...(tenantRegistryPath ? { tenantRegistryPath } : {}), stateDir, repositoryRoot, python: process.env.WEBVUE_CLI_PYTHON ?? 'python3', databaseUrl: required('CONTROL_DATABASE_URL'), host, port,
+  return { installationId, key, customerCommercialIssuer, customerCommercialServiceKey, ...(sharedRuntimeConfigPath ? { sharedRuntimeConfigPath } : {}), ...(internalEffect ? { internalEffect } : {}), ...(admin ? { admin } : {}), inventoryPath, managedInventoryPath, ...(tenantRegistryPath ? { tenantRegistryPath } : {}), stateDir, repositoryRoot, python: process.env.LIWAN_CLI_PYTHON ?? 'python3', databaseUrl: required('CONTROL_DATABASE_URL'), host, port,
     tls: tlsKey && tlsCert ? { key: readFileSync(tlsKey), cert: readFileSync(tlsCert) } : undefined }
 }
 
@@ -63,7 +63,7 @@ export function adminConfig(env: Record<string, string | undefined>): AdminConfi
   const loopback = rpId === 'localhost' && origin.hostname === 'localhost'
   if (origin.hostname !== rpId || (origin.protocol !== 'https:' && !(loopback && origin.protocol === 'http:')) || origin.pathname !== '/' || origin.search) throw new Error('ADMIN_ORIGIN must be the https origin of ADMIN_RP_ID')
   const devLoginEmail = devLoginEmailConfig(env, origin)
-  return { secretKey: Buffer.from(secret), rpId, origin: origin.origin, rpName: 'WebVue', ...(devLoginEmail ? { devLoginEmail } : {}) }
+  return { secretKey: Buffer.from(secret), rpId, origin: origin.origin, rpName: 'LiwanOS', ...(devLoginEmail ? { devLoginEmail } : {}) }
 }
 
 /** A host name or address of this machine (a bracketed IPv6 literal from a URL is accepted). */

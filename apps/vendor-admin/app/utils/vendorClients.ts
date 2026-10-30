@@ -1,5 +1,5 @@
 import type { RouteLocationRaw } from 'vue-router'
-import { clientStateFilters, CLIENT_LIST_PAGE_SIZE, type ClientRow } from '@webvue/commercial-contracts'
+import { clientStateFilters, CLIENT_LIST_PAGE_SIZE, type ClientRow } from '@liwan/commercial-contracts'
 
 // ---- The unified client list (URL-backed filters) ----
 export const CLIENT_STATE_FILTERS = ['all', ...clientStateFilters] as const

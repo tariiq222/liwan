@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
+import { statusTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import InboxCatalogItemForm from '@/components/inbox/InboxCatalogItemForm.vue'
 import { REVIEW_TONE, SYNC_STATE_TONE } from '@/composables/inbox/inboxCommerce'
 import { useDeleteInboxCatalogItem, useInboxCatalogItem } from '@/composables/inbox/useInboxCatalog'
 
 // One catalog item: its sync and review status, the editable fields, and the inline-confirmed removal (the item leaves
-// Meta first, then WebVue).
+// Meta first, then LiwanOS).
 const route = useRoute()
 const { t } = useI18n()
 const hydrated = useHydrated()

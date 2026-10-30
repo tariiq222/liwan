@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { QueryClient } from '@tanstack/vue-query'
-import type { HrBankProfile, HrBankProfileWrite } from '@webvue/contracts'
+import type { HrBankProfile, HrBankProfileWrite } from '@liwan/contracts'
 import { hrPayrollKeys } from '../useHrPayrollCompensation'
 import { deleteHrBankProfile, hrPayrollFileRequest, saveHrBankProfile } from '../useHrPayrollFiles'
 

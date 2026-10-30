@@ -36,7 +36,7 @@ const detailPath = computed(() => `/projects/${projectId.value}/register/${regis
         <p class="whitespace-pre-wrap text-sm">{{ item.data.value.description || '—' }}</p>
       </SharedRecordSection>
       <SharedRecordSection variant="panel" :title="t('projects.refresh.workspace.registerPlan')">
-        <div class="grid gap-(--webvue-gap-card)">
+        <div class="grid gap-(--liwan-gap-card)">
           <p class="whitespace-pre-wrap text-sm">{{ item.data.value.response || '—' }}</p>
           <SharedSubCard v-if="item.data.value.task" tone="tinted" class="text-sm">
             <span class="text-muted">{{ t('projects.governance.register.task') }}:</span>

@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { hrAccessBadge } from '@/utils/hrAccessBadge'
 import type { TableColumn } from '@nuxt/ui'
-import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
 import { ApiError } from '@/composables/useApi'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 import { useArchiveHrEmployee, useHrEmployees, useUnarchiveHrEmployee, type HrEmployee } from '@/composables/useHrEmployees'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import { hasPendingHrSearch, hrCommittedListParams } from '@/composables/useHrSearch'
 import { refDebounced } from '@vueuse/core'
 
@@ -201,7 +201,7 @@ function clearFilters() {
 
     <UAlert
       v-if="exitBlocker"
-      class="m-(--webvue-card-pad-dense)"
+      class="m-(--liwan-card-pad-dense)"
       role="alert"
       color="warning"
       variant="subtle"
@@ -211,7 +211,7 @@ function clearFilters() {
     />
     <SharedInlineConfirm
       v-if="pendingEmployee"
-      class="m-(--webvue-card-pad-dense)"
+      class="m-(--liwan-card-pad-dense)"
       :color="pendingEmployee.active ? 'error' : 'primary'"
       :title="t('hr.employee.archiveConfirm')"
       :description="pendingEmployee.name"
@@ -221,7 +221,7 @@ function clearFilters() {
       @cancel="pendingArchiveId = null"
     />
 
-    <SharedEmptyState v-if="showEmpty" class="m-(--webvue-card-pad-dense)" :title="t(hasActiveFilters ? 'hr.directory.filteredEmpty' : 'hr.directory.empty')" :description="hasActiveFilters ? t('hr.directory.filteredEmptyHint') : undefined">
+    <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(hasActiveFilters ? 'hr.directory.filteredEmpty' : 'hr.directory.empty')" :description="hasActiveFilters ? t('hr.directory.filteredEmptyHint') : undefined">
       <template v-if="hasActiveFilters" #action><UButton color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('hr.directory.clear')" @click="clearFilters" /></template>
     </SharedEmptyState>
     <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,832px)] [&_table]:table-fixed">

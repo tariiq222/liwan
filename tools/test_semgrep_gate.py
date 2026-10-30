@@ -7,11 +7,11 @@ from semgrep_gate import blocking, select_files, unjustified_suppressions
 class TestSemgrepGate(unittest.TestCase):
     def test_select_files_keeps_source_and_drops_tests_and_generated(self):
         paths = [
-            'odoo-addons/webvue_hr/models/a.py', 'odoo-addons/webvue_hr/tests/test_a.py', 'tools/test_x.py',
+            'odoo-addons/liwan_hr/models/a.py', 'odoo-addons/liwan_hr/tests/test_a.py', 'tools/test_x.py',
             'apps/web/app/a.vue', 'apps/web/app/a.test.ts', 'apps/web/app/__tests__/b.ts',
             'apps/web/.nuxt/x.ts', 'docs/a.md', 'deploy/x.sh', 'e2e/tests/a.e2e.ts', 'a.json',
         ]
-        self.assertEqual(select_files(paths), ['apps/web/app/a.vue', 'deploy/x.sh', 'odoo-addons/webvue_hr/models/a.py'])
+        self.assertEqual(select_files(paths), ['apps/web/app/a.vue', 'deploy/x.sh', 'odoo-addons/liwan_hr/models/a.py'])
 
     def test_select_files_filters_by_path_component_not_substring(self):
         paths = [

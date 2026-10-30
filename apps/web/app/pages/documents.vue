@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { LocationQueryRaw, RouteLocationNormalized } from 'vue-router'
-import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
+import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
 import { useDocuments, useDocumentContexts, useDocumentContextOptions } from '@/composables/useDocuments'
 import DocumentList from '@/components/documents/DocumentList.vue'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import { refDebounced } from '@vueuse/core'
 import { documentKpiTiles } from '@/utils/documentKpis'
 import { DOCUMENT_EXPIRING_DAYS, documentCommittedListParams, hasPendingDocumentSearch } from '@/lib/documentKeys'
@@ -80,7 +80,7 @@ let writesInFlight = 0
 let lastWrite = 0
 let disposed = false
 function isCurrentList() { return (router.currentRoute.value.path.replace(/\/+$/, '') || '/') === '/documents' }
-const stopNavigationStart = useNuxtApp().hook('webvue:navigation:start', to => { pendingNavigation = to })
+const stopNavigationStart = useNuxtApp().hook('liwan:navigation:start', to => { pendingNavigation = to })
 function settleNavigation(to: RouteLocationNormalized) {
   if (to !== pendingNavigation) return
   pendingNavigation = null
@@ -231,7 +231,7 @@ function openLiveCreate(event: MouseEvent) {
         </div>
       </template>
       <SharedPageState :error="query.error.value" :keep-content="items.length > 0" @retry="query.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--webvue-card-pad-dense)" :title="t(activeFilterCount ? 'documents.noResults' : params.archived ? 'documents.emptyArchive' : 'documents.empty')" :description="t(activeFilterCount ? 'documents.noResultsHelp' : 'documents.emptyHelp')">
+        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(activeFilterCount ? 'documents.noResults' : params.archived ? 'documents.emptyArchive' : 'documents.empty')" :description="t(activeFilterCount ? 'documents.noResultsHelp' : 'documents.emptyHelp')">
           <template #icon><UIcon :name="activeFilterCount ? 'i-lucide-search' : 'i-lucide-files'" class="size-6" /></template>
           <template v-if="activeFilterCount || (createTo && !params.archived)" #action>
             <UButton v-if="activeFilterCount" type="button" color="neutral" variant="outline" :label="t('documents.clearFilters')" :disabled="!hydrated" @click="clearFilters" />

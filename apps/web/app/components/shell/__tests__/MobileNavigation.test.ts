@@ -2,8 +2,8 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import * as Vue from 'vue'
 import { createReusableTemplate } from '@vueuse/core'
-import { renderShared, loadShared } from '@webvue/ui/test/helpers/renderShared'
-import { useNavigationDisclosure, useNavigationPathDisclosure } from '@webvue/ui/app/composables/useNavigationDisclosure'
+import { renderShared, loadShared } from '@liwan/ui/test/helpers/renderShared'
+import { useNavigationDisclosure, useNavigationPathDisclosure } from '@liwan/ui/app/composables/useNavigationDisclosure'
 
 const component = resolve(__dirname, '../MobileNavigation.vue')
 const shared = resolve(__dirname, '../../../../../../packages/ui/app/components/shell/ShellNavigation.vue')
@@ -27,7 +27,7 @@ async function render(activeId = 'tasks') {
       '../shared/layout/BrandWordmark.vue': { __esModule: true, default: stub },
     } as Record<string, unknown>,
   }
-  options.modules['@webvue/ui/app/components/shell/ShellNavigation.vue'] = { __esModule: true, default: loadShared(shared, options) }
+  options.modules['@liwan/ui/app/components/shell/ShellNavigation.vue'] = { __esModule: true, default: loadShared(shared, options) }
   return renderShared(component, { items, activeId, homeTo: '/' }, {}, options)
 }
 

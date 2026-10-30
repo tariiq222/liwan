@@ -29,8 +29,8 @@ describe('canOfferPaymentLink', () => {
 
 describe('paymentLinkUrl', () => {
   it('puts the link\'s path on the origin the staff member is browsing', () => {
-    expect(paymentLinkUrl('https://acme.webvue.example', '/pay/invoice/2?access_token=tok-2'))
-      .toBe('https://acme.webvue.example/pay/invoice/2?access_token=tok-2')
+    expect(paymentLinkUrl('https://acme.liwan.example', '/pay/invoice/2?access_token=tok-2'))
+      .toBe('https://acme.liwan.example/pay/invoice/2?access_token=tok-2')
   })
 })
 

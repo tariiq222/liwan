@@ -10,8 +10,8 @@ import { availablePort, assertTenantIdentity, cookieHeader, edgeRequest, isBound
 
 const toolDir = dirname(fileURLToPath(import.meta.url))
 const sourceRoot = realpathSync(process.env.FOUNDATION_SOURCE_ROOT ?? join(toolDir, '..', '..'))
-const tag = process.env.WEBVUE_IMAGE_TAG
-if (process.argv.length > 2 || !tag || !/^[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}$/.test(tag)) throw new Error('usage: WEBVUE_IMAGE_TAG=<matching-built-tag> node --import tsx tools/foundation_acceptance/provision_two_tenants.mjs (no flags)')
+const tag = process.env.LIWAN_IMAGE_TAG
+if (process.argv.length > 2 || !tag || !/^[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}$/.test(tag)) throw new Error('usage: LIWAN_IMAGE_TAG=<matching-built-tag> node --import tsx tools/foundation_acceptance/provision_two_tenants.mjs (no flags)')
 const ports = await Promise.all(['FOUNDATION_HTTPS_PORT', 'FOUNDATION_HTTP_PORT', 'FOUNDATION_CONTROL_PORT', 'FOUNDATION_CONTROL_DB_PORT'].map(async name => process.env[name] ? Number(process.env[name]) : availablePort()))
 validatePorts(ports)
 const [httpsPort, httpPort, controlPort, controlDbPort] = ports
@@ -26,14 +26,14 @@ const baseEnv = Object.fromEntries(['PATH', 'HOME', 'USER', 'LANG', 'TMPDIR', 'D
 const sourceCommit = run('git', ['rev-parse', 'HEAD'], { cwd: sourceRoot }).stdout.trim()
 if (!/^[a-f0-9]{40}$/.test(sourceCommit)) throw new Error('source root must identify a Git checkout')
 if (run('git', ['status', '--porcelain', '--untracked-files=all'], { cwd: sourceRoot }).stdout.trim()) throw new Error('source root must be clean and committed before acceptance')
-for (const image of ['webvue-odoo', 'webvue-web', 'webvue-guard', 'webvue-accept-caddy'].map(name => `${name}:${tag}`).concat('postgres:16')) {
+for (const image of ['liwan-odoo', 'liwan-web', 'liwan-guard', 'liwan-accept-caddy'].map(name => `${name}:${tag}`).concat('postgres:16')) {
   if (!run('docker', ['image', 'inspect', image]).ok) throw new Error(`required local image is absent: ${image}`)
 }
 const outputParent = realpathSync(process.env.FOUNDATION_OUTPUT_DIR ?? tmpdir())
-const runDir = realpathSync(mkdtempSync(join(outputParent, 'webvue-foundation-')))
+const runDir = realpathSync(mkdtempSync(join(outputParent, 'liwan-foundation-')))
 chmodSync(runDir, 0o700)
-const project = `webvue-shared-found-${randomBytes(8).toString('hex')}`
-const domainSuffix = 'foundation.webvue.test'
+const project = `liwan-shared-found-${randomBytes(8).toString('hex')}`
+const domainSuffix = 'foundation.liwan.test'
 const stateDir = join(runDir, 'state')
 const registryDir = join(stateDir, 'registry')
 const logsDir = join(runDir, 'logs')
@@ -85,7 +85,7 @@ for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { interru
 console.log(`retained run directory: ${runDir}\nproject: ${project}`)
 writePrivate(join(runDir, 'run.json'), JSON.stringify({ schemaVersion: 1, sourceRoot, sourceCommit, imageTag: tag, project, ports: { httpsPort, httpPort, controlPort, controlDbPort }, runDir }, null, 2))
 try {
-  for (const image of ['webvue-odoo', 'webvue-web', 'webvue-guard', 'webvue-accept-caddy'].map(name => `${name}:${tag}`)) {
+  for (const image of ['liwan-odoo', 'liwan-web', 'liwan-guard', 'liwan-accept-caddy'].map(name => `${name}:${tag}`)) {
     imageIdentities[image] = JSON.parse(command('image-identity', 'docker', ['image', 'inspect', '--format', '{{json .Id}}', image]).stdout)
   }
   const { signServiceRequest } = await import(pathToFileURL(join(sourceRoot, 'packages/commercial-contracts/src/server.ts')).href)
@@ -96,12 +96,12 @@ try {
   chmodSync(odooConfig, 0o400)
   // Linux needs exact ownership; Docker Desktop exposes the mounted file differently.
   if (process.platform === 'linux') {
-    const uid = Number(command('odoo-uid', 'docker', ['run', '--rm', '--entrypoint', 'id', `webvue-odoo:${tag}`, '-u']).stdout.trim())
+    const uid = Number(command('odoo-uid', 'docker', ['run', '--rm', '--entrypoint', 'id', `liwan-odoo:${tag}`, '-u']).stdout.trim())
     if (!Number.isSafeInteger(uid) || uid < 1) throw new Error('cannot identify Odoo runtime uid')
     if (process.getuid() === 0) chownSync(odooConfig, uid, uid)
     else if (process.getuid() !== uid) throw new Error('Linux config ownership needs an operator-owned config readable by Odoo runtime uid; no permission bypass applied')
   }
-  record('Odoo secret config validated by image runtime uid', command('validate-config', 'docker', ['run', '--rm', '--mount', `type=bind,source=${odooConfig},target=/etc/odoo/odoo.conf,readonly`, '--entrypoint', '/opt/venv/bin/python', `webvue-odoo:${tag}`, '/opt/webvue/shared/validate_odoo_config.py', '/etc/odoo/odoo.conf']).ok)
+  record('Odoo secret config validated by image runtime uid', command('validate-config', 'docker', ['run', '--rm', '--mount', `type=bind,source=${odooConfig},target=/etc/odoo/odoo.conf,readonly`, '--entrypoint', '/opt/venv/bin/python', `liwan-odoo:${tag}`, '/opt/liwan/shared/validate_odoo_config.py', '/etc/odoo/odoo.conf']).ok)
   const ids = command('network-list', 'docker', ['network', 'ls', '-q'])
   if (!ids.ok) throw new Error('Docker network inventory unavailable')
   const networks = ids.stdout.trim() ? command('network-inspect', 'docker', ['network', 'inspect', ...ids.stdout.trim().split(/\s+/)]) : { ok: true, stdout: '[]' }
@@ -121,10 +121,10 @@ try {
     if (!occupied.some(([a, b]) => low <= b && a <= high)) subnets.push(subnet)
   }
   if (subnets.length !== 5) throw new Error('no five isolated acceptance subnets available')
-  const env = { ...baseEnv, WEBVUE_IMAGE_TAG: tag, ODOO_COMMIT: readFileSync(join(sourceRoot, 'deploy/odoo/ODOO_COMMIT'), 'utf8').trim(), DB_NAME: '', DB_PASSWORD: dbPassword,
-    WEBVUE_SHARED_PROXY_TOKEN: secret(), WEBVUE_SESSION_KEYS: JSON.stringify({ k1: secret() }), WEBVUE_SESSION_ACTIVE_KID: 'k1',
-    WEBVUE_TENANT_REGISTRY_DIR: registryDir, WEBVUE_SHARED_ODOO_CONFIG: odooConfig,
-    WEBVUE_EDGE_BIND: '127.0.0.1', WEBVUE_EDGE_HTTPS_PORT: String(httpsPort), WEBVUE_EDGE_HTTP_PORT: String(httpPort),
+  const env = { ...baseEnv, LIWAN_IMAGE_TAG: tag, ODOO_COMMIT: readFileSync(join(sourceRoot, 'deploy/odoo/ODOO_COMMIT'), 'utf8').trim(), DB_NAME: '', DB_PASSWORD: dbPassword,
+    LIWAN_SHARED_PROXY_TOKEN: secret(), LIWAN_SESSION_KEYS: JSON.stringify({ k1: secret() }), LIWAN_SESSION_ACTIVE_KID: 'k1',
+    LIWAN_TENANT_REGISTRY_DIR: registryDir, LIWAN_SHARED_ODOO_CONFIG: odooConfig,
+    LIWAN_EDGE_BIND: '127.0.0.1', LIWAN_EDGE_HTTPS_PORT: String(httpsPort), LIWAN_EDGE_HTTP_PORT: String(httpPort),
     FOUNDATION_CADDYFILE: join(sourceRoot, 'tools/shared_acceptance_live/acceptance.Caddyfile'), FOUNDATION_STATE_DIR: stateDir, FOUNDATION_DOMAIN_SUFFIX: domainSuffix,
     FOUNDATION_CONTROL_DB_PASSWORD: controlDbPassword, FOUNDATION_CONTROL_DB_PORT: String(controlDbPort),
     ...Object.fromEntries(['EDGE', 'WEB', 'ODOO', 'DB', 'CONTROL'].map((key, index) => [`FOUNDATION_NET_${key}`, subnets[index]])),
@@ -140,10 +140,10 @@ try {
   record('all shared services healthy before any tenant is created', compose(['up', '--detach', '--no-build', '--pull', 'never', '--wait', '--wait-timeout', '300', 'db', 'odoo', 'web', 'guard', 'proxy', 'control-db']).ok)
   const installationId = 'foundation-vendor'
   const serviceKey = secret()
-  const controlEnv = { ...baseEnv, NODE_ENV: 'development', CONTROL_DATABASE_URL: `postgresql://foundation:${controlDbPassword}@127.0.0.1:${controlDbPort}/webvue_control_scratch_foundation`, CONTROL_INSTALLATION_ID: installationId, CONTROL_SERVICE_KEY: serviceKey,
+  const controlEnv = { ...baseEnv, NODE_ENV: 'development', CONTROL_DATABASE_URL: `postgresql://foundation:${controlDbPassword}@127.0.0.1:${controlDbPort}/liwan_control_scratch_foundation`, CONTROL_INSTALLATION_ID: installationId, CONTROL_SERVICE_KEY: serviceKey,
     CONTROL_HOST: '127.0.0.1', CONTROL_PORT: String(controlPort), ADMIN_SECRET_KEY: secret(), ADMIN_RP_ID: 'localhost', ADMIN_ORIGIN: `http://localhost:${controlPort}`, ADMIN_DEV_LOGIN_EMAIL: 'dev@foundation.test',
-    WEBVUE_TENANCY_MODE: 'shared', WEBVUE_SHARED_RUNTIME_CONFIG: join(runDir, 'runtime.json'), WEBVUE_TENANT_REGISTRY_PATH: registryFile,
-    WEBVUE_CLI_INVENTORY: join(runDir, 'inventory.json'), WEBVUE_CLI_STATE_DIR: join(runDir, 'operator'), WEBVUE_REPOSITORY_ROOT: sourceRoot }
+    LIWAN_TENANCY_MODE: 'shared', LIWAN_SHARED_RUNTIME_CONFIG: join(runDir, 'runtime.json'), LIWAN_TENANT_REGISTRY_PATH: registryFile,
+    LIWAN_CLI_INVENTORY: join(runDir, 'inventory.json'), LIWAN_CLI_STATE_DIR: join(runDir, 'operator'), LIWAN_REPOSITORY_ROOT: sourceRoot }
   const api = startProcess('control-api', 'dev', controlEnv)
   await waitFor(async () => { assertRunning(api); return fetch(`http://127.0.0.1:${controlPort}/health`, { signal: AbortSignal.timeout(3000) }).then(response => response.status < 500, () => false) }, 'control API readiness')
   record('control API answering on isolated loopback port', true)
@@ -155,7 +155,7 @@ try {
   const send = async (path, { method = 'POST', body, anonymous = !session } = {}) => {
     assertRunning(api)
     const raw = body === undefined ? undefined : JSON.stringify(body)
-    const headers = { ...signServiceRequest({ method, path, body: raw, issuer: installationId, key: serviceKey, ...(anonymous ? { actor: 'anonymous', anonymous: true } : { actor }) }), accept: 'application/json', ...(raw === undefined ? {} : { 'content-type': 'application/json' }), ...(session ? { 'x-webvue-session': session } : {}), ...(anonymous ? { 'x-webvue-client-ip': '127.0.0.1' } : {}) }
+    const headers = { ...signServiceRequest({ method, path, body: raw, issuer: installationId, key: serviceKey, ...(anonymous ? { actor: 'anonymous', anonymous: true } : { actor }) }), accept: 'application/json', ...(raw === undefined ? {} : { 'content-type': 'application/json' }), ...(session ? { 'x-liwan-session': session } : {}), ...(anonymous ? { 'x-liwan-client-ip': '127.0.0.1' } : {}) }
     // No automatic retry of state-changing requests: preserve the first failure.
     const response = await fetch(`http://127.0.0.1:${controlPort}${path}`, { method, headers, body: raw, signal: AbortSignal.timeout(30_000) })
     const text = await response.text()
@@ -180,7 +180,7 @@ try {
   const cookies = []
   for (const letter of ['A', 'B']) {
     const requestId = randomUUID()
-    const tenant = { name: `Foundation Tenant ${letter}`, adminLogin: `admin-${letter.toLowerCase()}@foundation.test`, database: `webvue_scratch_${requestId.replaceAll('-', '')}` }
+    const tenant = { name: `Foundation Tenant ${letter}`, adminLogin: `admin-${letter.toLowerCase()}@foundation.test`, database: `liwan_scratch_${requestId.replaceAll('-', '')}` }
     tenant.filestore = tenant.database
     await stepUp()
     const created = await send('/v1/shared/tenants', { body: { request_id: requestId, name: tenant.name, catalog_version: version, catalog_tier: 'projects', admin_name: `Foundation Admin ${letter}`, admin_login: tenant.adminLogin, reason: 'Foundation worker acceptance' } })

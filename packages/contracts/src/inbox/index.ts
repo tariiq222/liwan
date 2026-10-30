@@ -6,7 +6,7 @@ export * from './flows'
 export * from './catalog'
 
 // Wire shapes of /api/v1/inbox and /api/v1/settings/inbox. Every schema mirrors one
-// serializer in odoo-addons/webvue_inbox/serializers exactly (strict objects).
+// serializer in odoo-addons/liwan_inbox/serializers exactly (strict objects).
 
 const Id = z.number().int().positive()
 const UtcDateTime = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/)
@@ -166,7 +166,7 @@ export const InboxMessageSchema = z.object({
 
 export const InboxMessageListSchema = list(InboxMessageSchema)
 
-// An agent file is uploaded first, as base64 JSON like every WebVue attachment (json2, same-origin only), then
+// An agent file is uploaded first, as base64 JSON like every LiwanOS attachment (json2, same-origin only), then
 // sent with {attachment_id}. Images up to 5 MB, video, audio and documents up to 10 MB (the platform cap).
 export const InboxUploadCreateSchema = z.object({
   name: z.string().min(1).max(255),
@@ -332,8 +332,8 @@ export const InboxTemplateSchema = z.object({
   param_count: z.number().int().nonnegative(),
   // Meta accepts edits of approved, rejected and paused templates only.
   editable: z.boolean(),
-  // False when the template uses a part WebVue cannot fill (named variables, catalog buttons, ...):
-  // it is then neither sent nor edited from WebVue.
+  // False when the template uses a part LiwanOS cannot fill (named variables, catalog buttons, ...):
+  // it is then neither sent nor edited from LiwanOS.
   supported: z.boolean(),
 }).strict()
 export const InboxTemplateListSchema = list(InboxTemplateSchema)
@@ -460,7 +460,7 @@ export const InboxBusinessVerticalSchema = z.enum([
 ])
 const ProfileWebsite = z.string().max(256).regex(/^https?:\/\/\S+$/)
 
-// The WhatsApp business profile, read live from Meta (not stored by WebVue).
+// The WhatsApp business profile, read live from Meta (not stored by LiwanOS).
 export const InboxBusinessProfileSchema = z.object({
   about: z.string().nullable(),
   address: z.string().nullable(),
@@ -481,7 +481,7 @@ export const InboxBusinessProfilePatchSchema = z.object({
   vertical: InboxBusinessVerticalSchema.nullable().optional(),
 }).strict()
 
-// JPEG or PNG up to 5 MB, base64 like every WebVue upload; sent to Meta only.
+// JPEG or PNG up to 5 MB, base64 like every LiwanOS upload; sent to Meta only.
 export const InboxProfilePictureUploadSchema = z.object({
   name: z.string().min(1).max(255),
   mimetype: z.enum(['image/jpeg', 'image/png']),

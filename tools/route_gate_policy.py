@@ -10,15 +10,15 @@ gate, ``requires_capability``. A capability gate is
 
 * the ``requires_capability`` decorator, or
 * a top-level statement of the handler, before it returns data, that is a call to
-  ``require_capability`` / ``require_any_capability`` / ``_webvue_require_capability`` or to a
+  ``require_capability`` / ``require_any_capability`` / ``_liwan_require_capability`` or to a
   helper whose own top-level statements make such a call, or
 * a top-level ``if`` / ``assert`` whose test calls a reader (``*has_capability``,
-  ``_webvue_can_*`` or a function that calls one) and whose body raises 403 / AccessError or
+  ``_liwan_can_*`` or a function that calls one) and whose body raises 403 / AccessError or
   calls a ``require*`` helper.
 
 A check inside a conditional branch does not count, nor does an unrelated ``raise``. A method call
 earns credit by name only on ``self`` or on a record whose model is a literal (``request.env['x']``,
-a variable assigned from it, ``get_record('x', ...)``) and only when a WebVue class of that model
+a variable assigned from it, ``get_record('x', ...)``) and only when a LiwanOS class of that model
 defines the method; stock ORM names never count. A route intentionally without a gate is listed with a
 reason in ``tools/route_gate_allowlist.json``; an allowlist entry that no longer matches, or whose
 route is now gated, is an error, so the list only shrinks. The check also flags
@@ -51,7 +51,7 @@ FEATURE_MIN_RANK = 3
 API_PREFIX = '/api/v1'
 CAPABILITY_DECORATOR = 'requires_capability'
 # Primitives that check a capability; credited by name on any receiver.
-CAPABILITY_CALLS = frozenset({'require_capability', 'require_capabilities', 'require_any_capability', '_webvue_require_capability'})
+CAPABILITY_CALLS = frozenset({'require_capability', 'require_capabilities', 'require_any_capability', '_liwan_require_capability'})
 # Stock Odoo names the models override: never a gate by name.
 ORM_METHODS = frozenset({
     'check_access', 'has_access', '_check_access', 'create', 'write', 'unlink', 'read', '_read', 'search',
@@ -193,7 +193,7 @@ def _calls(scope):
 
 
 def _is_reader_name(name: str) -> bool:
-    return name.endswith('has_capability') or name.startswith('_webvue_can_')
+    return name.endswith('has_capability') or name.startswith('_liwan_can_')
 
 
 def _is_stock(name: str) -> bool:
@@ -320,7 +320,7 @@ class Gates:
         model = _receiver_model(receiver, local)
         if model:
             return self.index.by_model.get(model, {}).get(name, []), False
-        if name.startswith('_webvue_'):  # a record of unknown model: WebVue's own names, if any definition gates
+        if name.startswith('_liwan_'):  # a record of unknown model: LiwanOS's own names, if any definition gates
             return [f for methods in self.index.by_model.values() for f in methods.get(name, [])], False
         return [], False
 
@@ -356,7 +356,7 @@ def _refuses(node: ast.AST) -> bool:
     if isinstance(node, ast.Raise) and isinstance(node.exc, ast.Call):
         name = call_name(node.exc)
         first = node.exc.args[0] if node.exc.args else None
-        return name in ('AccessError', 'WebVueAccessRule') or (
+        return name in ('AccessError', 'LiwanAccessRule') or (
             name == 'ApiError' and isinstance(first, ast.Constant) and first.value == 403)
     return isinstance(node, ast.Call) and 'require' in call_name(node)
 

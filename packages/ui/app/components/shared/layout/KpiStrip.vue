@@ -18,7 +18,7 @@ const skeletons = computed(() => props.skeletonCount ?? (props.tiles.length || 4
 </script>
 
 <template>
-  <section v-if="shown" data-slot="kpi-strip" class="grid grid-cols-2 gap-(--webvue-gap-card) lg:grid-cols-4" :aria-label="props.label ?? t('states.metrics')">
+  <section v-if="shown" data-slot="kpi-strip" class="grid grid-cols-2 gap-(--liwan-gap-card) lg:grid-cols-4" :aria-label="props.label ?? t('states.metrics')">
     <template v-if="!props.loading">
       <SharedMetricTile
         v-for="tile in props.tiles"

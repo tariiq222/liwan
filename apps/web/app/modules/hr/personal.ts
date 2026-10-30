@@ -6,7 +6,7 @@ import {
   HrMyPayslipListSchema,
   HrShiftAssignmentListSchema,
   HrShiftSettingsSchema,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import type { AppPersonalEntry, AppPersonalSummary, AppSearchApi } from '../types'
 
 type Translate = (key: string, params?: Record<string, unknown>) => string

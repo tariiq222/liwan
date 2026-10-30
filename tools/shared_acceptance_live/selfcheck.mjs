@@ -13,7 +13,7 @@ const REPO_ROOT = resolve(__dirname, '../..')
 const { validateRegistry, readTenantRegistry } = await import(resolve(REPO_ROOT, 'apps/web/server/utils/tenantRegistry.ts'))
 const { sessionCodec } = await import(resolve(REPO_ROOT, 'deploy/shared/guard.mjs'))
 
-const TMPDIR = resolve('/tmp', `webvue-selfcheck-${Date.now()}`)
+const TMPDIR = resolve('/tmp', `liwan-selfcheck-${Date.now()}`)
 mkdirSync(TMPDIR, { recursive: true })
 
 let failures = 0
@@ -35,18 +35,18 @@ const validRegistry = {
   snapshotRevision: 1,
   targets: [
     {
-      host: 'a.accept.webvue.test',
+      host: 'a.accept.liwan.test',
       tenantId: 'accept-a',
-      database: 'webvue_accept_a',
-      filestore: 'webvue_accept_a',
+      database: 'liwan_accept_a',
+      filestore: 'liwan_accept_a',
       enabled: true,
       registryRevision: 1,
     },
     {
-      host: 'b.accept.webvue.test',
+      host: 'b.accept.liwan.test',
       tenantId: 'accept-b',
-      database: 'webvue_accept_b',
-      filestore: 'webvue_accept_b',
+      database: 'liwan_accept_b',
+      filestore: 'liwan_accept_b',
       enabled: true,
       registryRevision: 1,
     },

@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as Vue from 'vue'
-import { cadenceLabel, formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercial'
-import { invoiceStatusBadge } from '@webvue/commercial-ui/app/utils/commercialBadges'
-import { formatWebVueDate } from '@webvue/ui/app/composables/calendarDate'
+import { cadenceLabel, formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
+import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
+import { formatLiwanDate } from '@liwan/ui/app/composables/calendarDate'
 import { sharedTenantLoginUrl } from '../../composables/useSharedTenantOnboarding'
 import * as subscriptions from '../../utils/vendorSubscriptions'
 import { customerDisplayBadge, operationStatusBadge } from '../../utils/vendorBadges'
@@ -80,7 +80,7 @@ describe('provisioning poll', () => {
 })
 
 describe('customer glance', () => {
-  const glance = loadSfc('components/vendor/CustomerGlance.vue', { useI18n, cadenceLabel, formatCommercialMoney, invoiceStatusBadge, formatWebVueDate, customerDisplayBadge, ...subscriptions })
+  const glance = loadSfc('components/vendor/CustomerGlance.vue', { useI18n, cadenceLabel, formatCommercialMoney, invoiceStatusBadge, formatLiwanDate, customerDisplayBadge, ...subscriptions })
   const base = { setupRequired: false, subscription: null, hasWorkspace: true, workspaceBadge: null, provisioningFailed: false, operationFailed: false, workspaceUnreadable: false, invoicesOffered: true, loginUrl: null, tabTo: (tab: string) => `/c?tab=${tab}` }
   const pastDue = { id: 's', state: 'past_due', applied: null, target: null, pending_order: null, revision: 1, auto_renew: { enabled: false } }
   it('never says there are no problems while the workspace state could not be read, and offers a retry', async () => {
@@ -119,7 +119,7 @@ describe('workspace panel', () => {
 describe('operations panel enqueue confirmation', () => {
   const tenant = Vue.ref({ operations_enabled: true, available_operations: ['tenant.entitle'], observed_policy: { 'users.limit': 5 }, desired_policy: {}, policy_revision: 3, catalog_version: '1', catalog_tier: 'x', status: 'active' })
   const mount = () => loadSfc('components/vendor/TenantOperationsPanel.vue', {
-    useI18n, formatWebVueDateTime: () => '', operationStatusBadge, buildVendorPolicy, navigateTo: vi.fn(),
+    useI18n, formatLiwanDateTime: () => '', operationStatusBadge, buildVendorPolicy, navigateTo: vi.fn(),
     _useModel: () => Vue.ref(false), onBeforeUnmount: () => {},
     useVendorApi: () => ({ request: vi.fn() }), useVendorContext: () => ({ can: () => true }),
     useVendorTenant: () => ({ data: tenant, error: Vue.ref(null), pending: Vue.ref(false), refresh: vi.fn() }),

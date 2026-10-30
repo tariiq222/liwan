@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
+import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
 import { useMeetings } from '@/composables/useMeetings'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
-import { localIsoDay } from '@webvue/ui/app/utils/formatDate'
-import { formatCalendarDate, formatWebVueTime, isCalendarDate } from '@webvue/ui/app/composables/calendarDate'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
+import { localIsoDay } from '@liwan/ui/app/utils/formatDate'
+import { formatCalendarDate, formatLiwanTime, isCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { parseMeetingListFilters, patchMeetingListQuery, type MeetingFilterPatch } from '@/utils/meetingListFilters'
 import { calendarCoverage } from '@/utils/meetingWorkspace'
@@ -175,7 +175,7 @@ function localTime(value: string | null) {
   if (!value) return ''
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return formatLocalDateTime(value)
-  return hydrated.value ? formatWebVueTime(parsed, locale.value) : ''
+  return hydrated.value ? formatLiwanTime(parsed, locale.value) : ''
 }
 
 function localDate(value: string | null) {
@@ -215,7 +215,7 @@ function goToday() {
   <SharedTimelineFrame :title="t('nav.meetings')" :range-label="monthLabel" @prev="shift(-1)" @next="shift(1)" @today="goToday">
     <template #actions><UButton v-if="can('meetings.create')" icon="i-lucide-plus" :to="createTo" :label="t('nav.newMeeting')" data-testid="meeting-calendar-new" /></template>
     <div class="grid min-w-0">
-      <div class="border-b border-default px-(--webvue-card-pad-dense) py-3">
+      <div class="border-b border-default px-(--liwan-card-pad-dense) py-3">
         <FilterBar embedded class="w-full" :active-count="activeFilterCount" :clear-label="t('meetingsUi.clear')" :disabled="!hydrated" @clear="clearFilters">
           <template #search>
             <UInput :model-value="routeFilters.q" class="w-full" icon="i-lucide-search" :placeholder="t('meetingsFilters.searchMeetings')" :aria-label="t('meetingsFilters.searchMeetings')" :disabled="!hydrated" @update:model-value="patchFilters({ q: String($event) || undefined })">
@@ -239,21 +239,21 @@ function goToday() {
           </template>
         </FilterBar>
       </div>
-      <p v-if="coverage.status === 'truncated'" class="px-(--webvue-card-pad-dense) py-3 text-sm text-warning" role="status">
+      <p v-if="coverage.status === 'truncated'" class="px-(--liwan-card-pad-dense) py-3 text-sm text-warning" role="status">
         {{ t('meetingsUx.calendarTruncated', { count: coverage.total }, coverage.total) }}
       </p>
-      <p v-else-if="coverage.status === 'unknown' && !query.isLoading.value" class="px-(--webvue-card-pad-dense) py-3 text-sm text-muted" role="status">
+      <p v-else-if="coverage.status === 'unknown' && !query.isLoading.value" class="px-(--liwan-card-pad-dense) py-3 text-sm text-muted" role="status">
         {{ t('meetingsUx.calendarCoverageUnknown') }}
       </p>
       <SharedPageState :loading="query.isLoading.value" :error="query.error.value" @retry="query.refetch">
         <div class="@container min-w-0">
           <div class="@xl:hidden">
-            <div v-if="!agenda.length" class="p-(--webvue-card-pad-dense)"><SharedEmptyState :title="t('meetingsUi.empty')" /></div>
+            <div v-if="!agenda.length" class="p-(--liwan-card-pad-dense)"><SharedEmptyState :title="t('meetingsUi.empty')" /></div>
             <ul v-else class="grid divide-y divide-default">
               <li v-for="meeting in agenda" :key="meeting.id">
                 <NuxtLink
                   :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }"
-                  class="grid min-w-0 gap-1 px-(--webvue-card-pad-dense) py-3 hover:bg-(--webvue-row-hover) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+                  class="grid min-w-0 gap-1 px-(--liwan-card-pad-dense) py-3 hover:bg-(--liwan-row-hover) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
                 >
                   <div class="flex min-w-0 items-start justify-between gap-2">
                     <span class="min-w-0 break-words font-semibold text-highlighted">{{ meeting.name }}</span>
@@ -270,7 +270,7 @@ function goToday() {
           </div>
           <div class="hidden @xl:grid @4xl:grid-cols-[minmax(0,1fr)_18rem]">
             <div class="min-w-0 overflow-x-auto">
-              <div class="min-w-[calc(var(--webvue-row-h)*14)]">
+              <div class="min-w-[calc(var(--liwan-row-h)*14)]">
                 <div class="grid grid-cols-7 border-b border-default bg-muted text-center text-xs font-medium text-muted">
                   <div v-for="label in weekdayLabels" :key="label" class="py-2">{{ label }}</div>
                 </div>
@@ -278,13 +278,13 @@ function goToday() {
                   <div
                     v-for="cell in cells"
                     :key="cell.key"
-                    class="relative grid min-h-[calc(var(--webvue-row-h)*3)] content-start gap-1 border-e border-b border-default p-(--webvue-subcard-pad) last:border-e-0"
+                    class="relative grid min-h-[calc(var(--liwan-row-h)*3)] content-start gap-1 border-e border-b border-default p-(--liwan-subcard-pad) last:border-e-0"
                     :class="{ 'ring-2 ring-inset ring-primary': cell.key === selectedDay }"
                   >
                     <button
                       v-if="cell.day"
                       type="button"
-                      class="absolute inset-0 hover:bg-(--webvue-row-hover) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+                      class="absolute inset-0 hover:bg-(--liwan-row-hover) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
                       :disabled="!hydrated"
                       :aria-pressed="cell.key === selectedDay"
                       :aria-label="t('meetingsUx.dayCardSelect', { date: localDate(cell.key) })"
@@ -312,11 +312,11 @@ function goToday() {
                 </div>
               </div>
             </div>
-            <aside class="min-w-0 border-t border-default p-(--webvue-card-pad-dense) @4xl:border-s @4xl:border-t-0" :aria-label="t('meetingsUx.dayCardTitle')">
+            <aside class="min-w-0 border-t border-default p-(--liwan-card-pad-dense) @4xl:border-s @4xl:border-t-0" :aria-label="t('meetingsUx.dayCardTitle')">
               <SharedRecordSection variant="list" :title="t('meetingsUx.dayCardTitle')" :description="selectedDay ? localDate(selectedDay) : t('meetingsUx.dayCardHint')">
                 <template v-if="selectedDay" #actions><UBadge color="neutral" variant="subtle" class="shrink-0">{{ t('meetingsUx.dayCardCount', { count: selectedMeetings.length }, selectedMeetings.length) }}</UBadge></template>
-                <p v-if="selectedDay && !selectedMeetings.length" class="px-(--webvue-card-pad) py-4 text-sm text-muted">{{ t('meetingsUx.dayCardEmpty') }}</p>
-                <div v-for="meeting in selectedMeetings" :key="meeting.id" class="flex min-w-0 items-start justify-between gap-2 px-(--webvue-card-pad) py-3">
+                <p v-if="selectedDay && !selectedMeetings.length" class="px-(--liwan-card-pad) py-4 text-sm text-muted">{{ t('meetingsUx.dayCardEmpty') }}</p>
+                <div v-for="meeting in selectedMeetings" :key="meeting.id" class="flex min-w-0 items-start justify-between gap-2 px-(--liwan-card-pad) py-3">
                   <div class="grid min-w-0 gap-1">
                     <NuxtLink :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }" class="break-words text-sm font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ meeting.name }}</NuxtLink>
                     <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">

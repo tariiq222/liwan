@@ -13,6 +13,6 @@ export const Scale: StoryObj = {
   render: (_args, { globals }) => ({
     components: { TokenTable },
     setup: () => ({ names: ['--font-sans', ...sizes], classes, key: JSON.stringify(globals) }),
-    template: `<div class="space-y-6"><div class="space-y-3"><p v-for="size in classes" :key="size" :class="size" class="text-highlighted"><span class="font-mono text-xs text-muted" dir="ltr">{{ size }}</span> ويب فيو لإدارة المشاريع — WebVue 0123</p></div><TokenTable :key="key" :names="names" /></div>`,
+    template: `<div class="space-y-6"><div class="space-y-3"><p v-for="size in classes" :key="size" :class="size" class="text-highlighted"><span class="font-mono text-xs text-muted" dir="ltr">{{ size }}</span> ليوان لإدارة المشاريع — LiwanOS 0123</p></div><TokenTable :key="key" :names="names" /></div>`,
   }),
 }

@@ -10,7 +10,7 @@ export const TaskSchema = z.object({
   id: z.number().int().positive(), name: z.string(), description_excerpt: z.string().max(140),
   project: RefSchema.nullable(), state: TaskStateSchema,
   // Priorities match the '0'..'3' values accepted by
-  // odoo-addons/webvue_pmo/serializers/task.py::parse_task_vals.
+  // odoo-addons/liwan_pmo/serializers/task.py::parse_task_vals.
   priority: z.enum(['0', '1', '2', '3']), date_deadline: z.string().nullable(), days_remaining: z.number().int().nullable(),
   is_overdue: z.boolean(), is_closed: z.boolean(), personal_stage: RefSchema.nullable(), stage: RefSchema.nullable(),
   assignees: z.array(RefSchema), tags: z.array(TagSchema),

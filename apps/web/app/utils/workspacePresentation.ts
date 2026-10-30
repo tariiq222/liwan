@@ -1,4 +1,4 @@
-import type { PageArea } from '@webvue/ui/app/composables/usePageArea'
+import type { PageArea } from '@liwan/ui/app/composables/usePageArea'
 
 /** Chat, login and meeting print keep their own frame: no workspace theme (stable spacing, no entrance motion). */
 const PLAIN_ROUTE = /^\/(?:chat|login)(\/|$)|^\/meetings\/[1-9]\d*\/print\/?$/

@@ -1,4 +1,4 @@
-import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import { listFilterQuery } from '@/composables/useRouteListFilters'
 
 /** `safeReturnTo` for one list: only that list's own path (and its query) is an acceptable origin. */

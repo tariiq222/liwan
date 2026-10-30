@@ -35,8 +35,8 @@ function setPage(value: number) {
       <p class="text-sm text-muted">{{ t('documents.personal.description') }}</p>
       <SharedListCard>
         <SharedPageState :loading="employee.isLoading.value || (hasEmployee && query.isLoading.value)" :error="employee.error.value || (hasEmployee ? query.error.value : null)" @retry="employee.error.value ? employee.refetch() : query.refetch()">
-          <SharedEmptyState v-if="noEmployee" class="m-(--webvue-card-pad-dense)" :title="t('documents.personal.noEmployee')" :description="t('documents.personal.noEmployeeHelp')" />
-          <SharedEmptyState v-else-if="!items.length" class="m-(--webvue-card-pad-dense)" :title="t('documents.personal.empty')" :description="t('documents.personal.emptyHelp')">
+          <SharedEmptyState v-if="noEmployee" class="m-(--liwan-card-pad-dense)" :title="t('documents.personal.noEmployee')" :description="t('documents.personal.noEmployeeHelp')" />
+          <SharedEmptyState v-else-if="!items.length" class="m-(--liwan-card-pad-dense)" :title="t('documents.personal.empty')" :description="t('documents.personal.emptyHelp')">
             <template #icon><UIcon name="i-lucide-files" class="size-6" /></template>
           </SharedEmptyState>
           <DocumentList v-else :documents="items" record-base="/account/documents" :return-to="listPath" />

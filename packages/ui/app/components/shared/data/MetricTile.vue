@@ -44,8 +44,8 @@ const figureSize = computed(() => props.emphasis ? 'text-3xl/10' : compact.value
 
 <template>
   <UCard
-    :class="{ 'relative transition-colors duration-150 hover:bg-(--webvue-row-hover) motion-reduce:transition-none': props.to }"
-    :ui="{ body: compact ? 'flex items-center gap-3 px-(--webvue-card-pad) py-3.5' : 'flex items-start gap-4 p-5' }"
+    :class="{ 'relative transition-colors duration-150 hover:bg-(--liwan-row-hover) motion-reduce:transition-none': props.to }"
+    :ui="{ body: compact ? 'flex items-center gap-3 px-(--liwan-card-pad) py-3.5' : 'flex items-start gap-4 p-5' }"
     data-testid="metric-tile"
     :data-density="props.density"
     :data-tone="props.tone"

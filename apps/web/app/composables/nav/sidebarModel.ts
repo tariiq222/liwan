@@ -1,5 +1,5 @@
 // Relative imports: this module is unit-tested directly under plain vitest.
-import type { ShellRailGroups, ShellRailItem, ShellSubListSection } from '@webvue/ui/app/types/shell'
+import type { ShellRailGroups, ShellRailItem, ShellSubListSection } from '@liwan/ui/app/types/shell'
 import { hidePinnedNewProject, LAUNCHER_MODULE, type ShellContextLink, type ShellModuleDefinition } from './shellModules'
 
 /** A run of context links under one optional section heading (a locale key). */

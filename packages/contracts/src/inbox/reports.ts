@@ -1,9 +1,9 @@
 import { z } from 'zod'
 import { InboxRefSchema, InboxTemplateCategorySchema } from './index'
 
-// Wire shapes of /api/v1/inbox/reports: inbox analytics from WebVue's own daily aggregates, Meta's cost and volume
+// Wire shapes of /api/v1/inbox/reports: inbox analytics from LiwanOS's own daily aggregates, Meta's cost and volume
 // per day, and Meta's template analytics. Every schema mirrors one serializer in
-// odoo-addons/webvue_inbox/serializers/reports.py exactly (strict objects).
+// odoo-addons/liwan_inbox/serializers/reports.py exactly (strict objects).
 
 const Id = z.number().int().positive()
 const Count = z.number().int().nonnegative()
@@ -84,7 +84,7 @@ export const InboxTemplateAnalyticsDetailQuerySchema = z.object({
   message: `the range runs forward and covers at most ${INBOX_TEMPLATE_ANALYTICS_MAX_DAYS} days`, path: ['to'],
 })
 
-// ---------------------------------------------------------------- inbox metrics (WebVue's own data)
+// ---------------------------------------------------------------- inbox metrics (LiwanOS's own data)
 
 // How long customers waited for the first agent reply of a conversation period.
 export const InboxFirstResponseBucketsSchema = z.object({
@@ -226,7 +226,7 @@ export const InboxTemplateAnalyticsTemplateSchema = z.object({
   category: InboxTemplateCategorySchema,
 }).strict()
 
-// Meta's counts (sent, delivered, read, clicked, amount spent) beside WebVue's own sends and failures of the template.
+// Meta's counts (sent, delivered, read, clicked, amount spent) beside LiwanOS's own sends and failures of the template.
 export const InboxTemplateAnalyticsRowSchema = z.object({
   template: InboxTemplateAnalyticsTemplateSchema,
   sent: Count,
@@ -234,8 +234,8 @@ export const InboxTemplateAnalyticsRowSchema = z.object({
   read: Count,
   clicked: Count,
   amount_spent: Amount.nullable(),
-  webvue_sent: Count,
-  webvue_failed: Count,
+  liwan_sent: Count,
+  liwan_failed: Count,
 }).strict()
 export const InboxTemplateAnalyticsListSchema = list(InboxTemplateAnalyticsRowSchema)
 

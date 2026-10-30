@@ -9,7 +9,7 @@ const { t } = useI18n()
 <template>
   <SharedRecordSection variant="list" :title="title" :description="t('settings.preview.latest')" :data-testid="testId">
     <slot />
-    <div class="flex justify-end px-(--webvue-card-pad) py-3">
+    <div class="flex justify-end px-(--liwan-card-pad) py-3">
       <NuxtLink :to="allTo" class="inline-flex items-center gap-1 text-sm font-medium text-primary focus-visible:outline-2 focus-visible:outline-primary motion-reduce:transition-none">
         {{ allLabel }}
         <UIcon name="i-lucide-chevron-left" class="size-4 rtl:rotate-180" aria-hidden="true" />

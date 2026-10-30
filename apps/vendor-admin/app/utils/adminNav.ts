@@ -1,4 +1,4 @@
-import type { ShellRailGroups, ShellRailItem } from '@webvue/ui/app/types/shell'
+import type { ShellRailGroups, ShellRailItem } from '@liwan/ui/app/types/shell'
 import { CATALOG_TABS } from './vendorCatalog'
 
 /** `to`: the section's landing path when it is not `/<id>`; `alsoUnder`: further path prefixes that belong to this section (workspaces without a customer sit under customers, bundles and the retired legacy packages under the catalog). */

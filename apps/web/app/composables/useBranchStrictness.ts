@@ -1,6 +1,6 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { BranchStrictnessSchema, BranchStrictnessInputSchema, type BranchStrictnessInput } from '@webvue/contracts'
+import { BranchStrictnessSchema, BranchStrictnessInputSchema, type BranchStrictnessInput } from '@liwan/contracts'
 
 // «Stricter than the general policy» of one application: read and written at that application's own route.
 export function useBranchStrictness(path: string, enabled: MaybeRefOrGetter<boolean>) {

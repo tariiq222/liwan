@@ -24,8 +24,8 @@ class StagesForTest(unittest.TestCase):
         for path in ('.github/workflows/ci.yml', '.github/actions/setup/action.yml', 'tools/ci_scope.py',
                      'tools/catalog_check.py', 'tools/upgrade_baseline.py', 'tools/upgrade_log_guard.py',
                      'deploy/ci/static.sh',
-                     'deploy/odoo/Dockerfile', 'odoo-addons/webvue_pmo/models/project.py',
-                     'odoo-addons/webvue_pmo/README.md', 'packages/contracts/src/task.ts', 'package.json',
+                     'deploy/odoo/Dockerfile', 'odoo-addons/liwan_pmo/models/project.py',
+                     'odoo-addons/liwan_pmo/README.md', 'packages/contracts/src/task.ts', 'package.json',
                      'package-lock.json', '.npmrc', '.nvmrc', '.dockerignore'):
             self.assert_stages(path, ALL)
         self.assert_stages('tools/odoo_shards.py', ('static', 'odoo'))
@@ -51,7 +51,7 @@ class StagesForTest(unittest.TestCase):
         self.assert_stages('tools/test_ci_scope.py', ('static',))
 
     def test_tools_that_steps_or_apps_run_select_all_twelve(self):
-        for path in ('tools/webvue_cli/module_closure.py', 'tools/webvue_cli/managed_policy.py',
+        for path in ('tools/liwan_cli/module_closure.py', 'tools/liwan_cli/managed_policy.py',
                      'tools/shared_saas_lifecycle/run.py', 'tools/shared_saas_lifecycle/test_run.py',
                      'tools/brand_new_tool.py', 'tools/vendor_admin_local_check.mjs'):
             self.assert_stages(path, ALL)
@@ -112,10 +112,10 @@ class PullRequestTest(unittest.TestCase):
         return ci_scope.affected_modules(list(paths), self.RELEASE, self.addons)
 
     def test_push_selection_is_unchanged_and_keeps_the_deferred_stages(self):
-        self.assertEqual(ci_scope.stages_for(['odoo-addons/webvue_hr/models/a.py']), ALL)
+        self.assertEqual(ci_scope.stages_for(['odoo-addons/liwan_hr/models/a.py']), ALL)
 
     def test_the_deferred_stages_never_run_on_a_pull_request(self):
-        for paths in (['odoo-addons/webvue_hr/models/a.py'], ['.github/workflows/ci.yml'], ['deploy/ci/odoo.sh'],
+        for paths in (['odoo-addons/liwan_hr/models/a.py'], ['.github/workflows/ci.yml'], ['deploy/ci/odoo.sh'],
                       ['apps/web/app/a.vue'], ['apps/ai-service/a.py'], ['plans/unmapped.txt']):
             with self.subTest(paths=paths):
                 stages = ci_scope.pull_request_stages(paths, self.affected(*paths))
@@ -151,23 +151,23 @@ class PullRequestTest(unittest.TestCase):
         self.assertEqual(ci_scope.pull_request_stages(['docs/a.md'], []), ('static',))
 
     def test_an_application_change_selects_the_application_and_its_bridges(self):
-        stages = ci_scope.pull_request_stages(['odoo-addons/webvue_hr/a.py'], ['webvue_hr', 'webvue_hr_finance'])
+        stages = ci_scope.pull_request_stages(['odoo-addons/liwan_hr/a.py'], ['liwan_hr', 'liwan_hr_finance'])
         self.assertTrue(set(self.ODOO) <= set(stages))
 
     def test_an_addon_change_selects_only_static_and_the_odoo_stages(self):
-        stages = ci_scope.pull_request_stages(['odoo-addons/webvue_hr/a.py'], ['webvue_hr', 'webvue_hr_finance'])
+        stages = ci_scope.pull_request_stages(['odoo-addons/liwan_hr/a.py'], ['liwan_hr', 'liwan_hr_finance'])
         self.assertEqual(set(stages), {'static', *self.ODOO})
-        web = ci_scope.pull_request_stages(['odoo-addons/webvue_hr/a.py', 'apps/web/app/a.vue'], ['webvue_hr'])
+        web = ci_scope.pull_request_stages(['odoo-addons/liwan_hr/a.py', 'apps/web/app/a.vue'], ['liwan_hr'])
         self.assertIn('e2e-mock', web)
 
     def test_a_bridge_only_change_selects_no_application_run(self):
-        stages = ci_scope.pull_request_stages(['odoo-addons/webvue_hr_finance/a.py'], ['webvue_hr_finance'])
+        stages = ci_scope.pull_request_stages(['odoo-addons/liwan_hr_finance/a.py'], ['liwan_hr_finance'])
         self.assertIn('odoo', stages)
         self.assertIn('odoo-bridge', stages)
         self.assertNotIn('odoo-app-standalone', stages)
 
     def test_a_shared_service_change_selects_no_isolation_run_without_dependents(self):
-        stages = ci_scope.pull_request_stages(['odoo-addons/x/a.py'], ['webvue_notify'])
+        stages = ci_scope.pull_request_stages(['odoo-addons/x/a.py'], ['liwan_notify'])
         self.assertIn('odoo', stages)
         self.assertNotIn('odoo-app-standalone', stages)
         self.assertNotIn('odoo-bridge', stages)
@@ -267,16 +267,16 @@ class ChangedPathsTest(unittest.TestCase):
         self.assertIn('12 of 12 stages', self.run_main('--full'))
 
     def test_pull_request_defers_stages_and_narrows_the_odoo_stages(self):
-        self.write('odoo-addons/webvue_hr/a.py', 'x\n')
+        self.write('odoo-addons/liwan_hr/a.py', 'x\n')
         head = self.commit()
         stages = json.loads(self.run_main('--base', self.base, '--commit', head, '--pull-request', '--stages'))
         self.assertNotIn('upgrade', stages)
         self.assertNotIn('image', stages)
         self.assertIn('odoo-app-standalone', stages)
         modules = self.run_main('--base', self.base, '--commit', head, '--pull-request', '--modules').strip().split(',')
-        self.assertIn('webvue_hr', modules)
-        self.assertIn('webvue_hr_finance', modules)
-        self.assertNotIn('webvue_pmo', modules)
+        self.assertIn('liwan_hr', modules)
+        self.assertIn('liwan_hr_finance', modules)
+        self.assertNotIn('liwan_pmo', modules)
         self.assertIn('affected modules: ', self.run_main('--base', self.base, '--commit', head, '--pull-request'))
 
     def test_pull_request_modules_are_empty_when_every_module_is_affected(self):
@@ -286,7 +286,7 @@ class ChangedPathsTest(unittest.TestCase):
         self.assertIn('affected modules: all', self.run_main('--base', self.base, '--commit', head, '--pull-request'))
 
     def test_without_pull_request_the_push_selection_stays_full(self):
-        self.write('odoo-addons/webvue_hr/a.py', 'x\n')
+        self.write('odoo-addons/liwan_hr/a.py', 'x\n')
         head = self.commit()
         self.assertEqual(json.loads(self.run_main('--base', self.base, '--commit', head, '--stages')), list(ALL))
 

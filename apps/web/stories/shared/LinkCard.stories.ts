@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import LinkCard from '@webvue/ui/app/components/shared/layout/LinkCard.vue'
+import LinkCard from '@liwan/ui/app/components/shared/layout/LinkCard.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

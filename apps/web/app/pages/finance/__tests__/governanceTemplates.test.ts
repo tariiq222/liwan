@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   FinanceAuditEventListSchema, FinanceClosingPreviewSchema, FinanceFiscalYearListSchema, FinanceZatcaStatusSchema,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { financeGovernancePreviewData } from '../../../../e2e/finance-governance-ui-preview-data.mjs'
 
 // The finance governance settings pages stay on their templates. This is a source guard, not a behaviour test.

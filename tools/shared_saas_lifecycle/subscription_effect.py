@@ -24,7 +24,7 @@ DIGEST_RE = re.compile(r'[a-f0-9]{64}')
 FEATURE_RE = re.compile(r'[a-z][a-z0-9_.-]{0,63}')
 ORDER_RE = re.compile(r'[A-Za-z0-9_.:-]{1,128}')
 HOST_RE = re.compile(r'[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?')
-SENTINEL = 'WEBVUE_SUBSCRIPTION:'
+SENTINEL = 'LIWAN_SUBSCRIPTION:'
 SCRIPT_ERRORS = frozenset({
     'stale_target', 'observed_mismatch', 'profile_invalid', 'target_mismatch',
     'tenant_upgrade_required', 'commercial_expiry_revision_stale',
@@ -137,22 +137,22 @@ def collect(profile):
     feats = profile.features
     if type(feats) is not dict:
         refuse('profile_invalid')
-    service = env['webvue.entitlement.service']
-    modules = sorted(env['ir.module.module'].search([('state', '=', 'installed'), ('name', '=like', 'webvue\\\\_%%')]).mapped('name'))
+    service = env['liwan.entitlement.service']
+    modules = sorted(env['ir.module.module'].search([('state', '=', 'installed'), ('name', '=like', 'liwan\\\\_%%')]).mapped('name'))
     branches = []
-    for b in env['webvue.tenant.branch'].with_context(active_test=False).search([]):
+    for b in env['liwan.tenant.branch'].with_context(active_test=False).search([]):
         c = b.company_id.with_context(active_test=False)
         branches.append({'branch_id': b.branch_uid, 'state': b.state, 'odoo_company_id': c.id,
                          'active': bool(c.active), 'parent_is_root': c.parent_id == root})
-    definitions = env['webvue.feature.registry']._webvue_feature_map()
+    definitions = env['liwan.feature.registry']._liwan_feature_map()
     usage, gates = {}, {}
     for key, item in sorted(definitions.items()):
         if item['type'] != 'limit':
             continue
-        usage[key] = int(service._webvue_count_usage(key))
+        usage[key] = int(service._liwan_count_usage(key))
         owner = item['module']
         gates[key] = sorted(k for k, other in definitions.items()
-                            if other['type'] == 'boolean' and other['module'] == owner and owner != 'webvue_platform')
+                            if other['type'] == 'boolean' and other['module'] == owner and owner != 'liwan_platform')
     return {'database': env.cr.dbname, 'root_company_id': root.id, 'commercial_revision_id': profile.commercial_revision_id or None,
             'commercial_digest': profile.commercial_digest or None,
             'commercial_applied_at': str(profile.commercial_applied_at) if profile.commercial_applied_at else None,
@@ -163,7 +163,7 @@ def collect(profile):
             'features': feats, 'modules': modules, 'branches': branches, 'usage': usage, 'limit_gates': gates}
 
 def read_profile():
-    profile = env['webvue.tenant.profile'].search([], limit=2)
+    profile = env['liwan.tenant.profile'].search([], limit=2)
     if len(profile) != 1:
         refuse('profile_invalid')
     return profile
@@ -189,10 +189,10 @@ except Exception:
 _APPLY_BODY = '''
 try:
     from odoo import fields
-    from odoo.addons.webvue_platform.models.entitlement_service import OPERATOR_CONTEXT
+    from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
     if env.cr.dbname != values['database'] or not env.su:
         refuse('target_mismatch')
-    profile = read_profile()._webvue_lock()
+    profile = read_profile()._liwan_lock()
     current = profile.commercial_revision_id or None
     if current not in (None, values['previous_revision_id'], values['target_revision_id']):
         refuse('stale_target')
@@ -202,16 +202,16 @@ try:
     not_granted = None
     expiry_vals = _commercial_expiry_vals(values, profile, refuse)
     if current != values['target_revision_id']:
-        roles_before = env['webvue.entitlement.service']._webvue_entitled_admin_roles()
+        roles_before = env['liwan.entitlement.service']._liwan_entitled_admin_roles()
         # Every application stays installed; keys the target omits close (booleans
         # false, limits 0). Odoo still refuses a target without its platform keys.
-        features = env['webvue.entitlement.service']._webvue_close_unlisted_features(values['features'])
+        features = env['liwan.entitlement.service']._liwan_close_unlisted_features(values['features'])
         write_vals = {'features': features, 'commercial_revision_id': values['target_revision_id'],
                       'commercial_digest': values['digest'],
                       'commercial_applied_at': fields.Datetime.now()}
         # Roles the policy newly opened go to the enrolment administrator only.
-        granted = operator._webvue_grant_opened_admin_roles(values['admin_login'], roles_before)
-        opened = [k for k in env['webvue.entitlement.service']._webvue_entitled_admin_roles() if k not in set(roles_before or ())]
+        granted = operator._liwan_grant_opened_admin_roles(values['admin_login'], roles_before)
+        opened = [k for k in env['liwan.entitlement.service']._liwan_entitled_admin_roles() if k not in set(roles_before or ())]
         if opened and not granted:
             admin = values['admin_login'] and env['res.users'].search(
                 [('login', '=', values['admin_login']), ('active', '=', True), ('share', '=', False)], limit=1)
@@ -230,11 +230,11 @@ try:
         operator.write(write_vals)
     # Archive first so a swap never trips branches.extra_limit; data is kept.
     for uid in values['archive']:
-        branch = env['webvue.tenant.branch'].search([('branch_uid', '=', uid)])
+        branch = env['liwan.tenant.branch'].search([('branch_uid', '=', uid)])
         if branch and branch.state == 'active':
-            operator._webvue_archive_branch(values['operation_id'], uid)
+            operator._liwan_archive_branch(values['operation_id'], uid)
     if values['apply']:
-        operator._webvue_apply_branches(values['operation_id'], values['target_revision_id'], values['apply'])
+        operator._liwan_apply_branches(values['operation_id'], values['target_revision_id'], values['apply'])
     result = {'applied': True}
     if not_granted:
         result.update({'roles_not_granted': True, 'roles_not_granted_reason': not_granted})
@@ -509,7 +509,7 @@ class ComposeRunner(odoo_effect.Runner):
         config = request['config']
         if (set(config) - {'releaseBackupConfig'} != {'schemaVersion', 'projectName', 'composeFile', 'envFile', 'stateDir', 'domainSuffix'}
                 or config['schemaVersion'] != 1
-                or not re.fullmatch(r'webvue-(?:saas|shared)-[a-z0-9-]{3,48}', config['projectName'])):
+                or not re.fullmatch(r'liwan-(?:saas|shared)-[a-z0-9-]{3,48}', config['projectName'])):
             raise EffectError('runtime_invalid')
         for key in ('composeFile', 'envFile', 'stateDir'):
             odoo_effect.no_symlink(config[key])
@@ -536,8 +536,8 @@ class ComposeRunner(odoo_effect.Runner):
         suffix = stage if mutate else stage + '-' + odoo_effect.secrets.token_hex(4)
         self.current_container = self.config['projectName'] + '-effect-' + attempt[:8] + '-' + suffix
         args = self.base + ['run', '--rm', '--no-deps', '-T', '--name', self.current_container,
-            '-e', 'WEBVUE_COMMERCIAL_CONFIG=/run/webvue-runtime/classifications/' + self.database + '.json',
-            '--entrypoint', '/usr/local/bin/webvue-odoo', 'odoo', 'shell', '-c', '/etc/odoo/odoo.conf',
+            '-e', 'LIWAN_COMMERCIAL_CONFIG=/run/liwan-runtime/classifications/' + self.database + '.json',
+            '--entrypoint', '/usr/local/bin/liwan-odoo', 'odoo', 'shell', '-c', '/etc/odoo/odoo.conf',
             '-d', self.database, '--no-http']
         try:
             return self.command(args, stdin=script, timeout=180)
@@ -551,8 +551,8 @@ class ComposeRunner(odoo_effect.Runner):
         self.current_container = self.config['projectName'] + '-effect-' + attempt[:8] + '-modules'
         try:
             self.command(self.base + ['run', '--rm', '--no-deps', '-T', '--name', self.current_container,
-                '-e', 'WEBVUE_COMMERCIAL_CONFIG=/run/webvue-runtime/classifications/' + self.database + '.json',
-                '--entrypoint', '/usr/local/bin/webvue-odoo', 'odoo', '-c', '/etc/odoo/odoo.conf', '-d', self.database,
+                '-e', 'LIWAN_COMMERCIAL_CONFIG=/run/liwan-runtime/classifications/' + self.database + '.json',
+                '--entrypoint', '/usr/local/bin/liwan-odoo', 'odoo', '-c', '/etc/odoo/odoo.conf', '-d', self.database,
                 '-i', ','.join(names), '--stop-after-init', '--no-http'], timeout=1500)
         finally:
             self.current_container = None

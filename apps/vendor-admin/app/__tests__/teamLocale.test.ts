@@ -2,7 +2,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { VENDOR_ROLES } from '@webvue/commercial-contracts'
+import { VENDOR_ROLES } from '@liwan/commercial-contracts'
 
 const appDir = fileURLToPath(new URL('..', import.meta.url))
 const localesDir = join(appDir, '../i18n/locales')

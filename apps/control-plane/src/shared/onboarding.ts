@@ -3,8 +3,8 @@ import { PackageError } from '../packages.js'
 import { createHash, randomUUID } from 'node:crypto'
 import { lstat } from 'node:fs/promises'
 import type { Pool, PoolClient } from 'pg'
-import { sharedOnboardingRequestSchema } from '@webvue/commercial-contracts'
-import type { SharedJob } from '@webvue/commercial-contracts/shared'
+import { sharedOnboardingRequestSchema } from '@liwan/commercial-contracts'
+import type { SharedJob } from '@liwan/commercial-contracts/shared'
 import type { Config } from '../config.js'
 import { transaction } from '../db.js'
 import { loadSharedRuntimeConfig } from './runtime-config.js'
@@ -16,7 +16,7 @@ import { actorHolds, actorLabel } from '../admin-auth/grants.js'
 export function onboardingIdentity(value:unknown,domainSuffix:string){
   const input=sharedOnboardingRequestSchema.parse(value)
   const hex=input.request_id.replaceAll('-','')
-  return {tenantId:input.request_id,slug:`t${hex}`,database:`webvue_scratch_${hex}`,host:`t${hex}.${domainSuffix}`,digest:createHash('sha256').update(JSON.stringify(input)).digest('hex')}
+  return {tenantId:input.request_id,slug:`t${hex}`,database:`liwan_scratch_${hex}`,host:`t${hex}.${domainSuffix}`,digest:createHash('sha256').update(JSON.stringify(input)).digest('hex')}
 }
 export function assertOnboardingReplay(row:{issuer:string;actor_uid:number|string;request_digest:string},actor:RegistryActor,digest:string){
   if(row.issuer!==actor.issuer || Number(row.actor_uid)!==actor.actorUid)throw Error('shared_replay_forbidden')
@@ -27,7 +27,7 @@ export async function requireOnboardingAuthority(client:PoolClient,actor:Registr
   if(!await actorHolds(client,actor,['vendor.tenants.manage','vendor.operations.run'],true))throw Error('shared_onboarding_forbidden')
 }
 export async function sharedOnboardingEnabled(config:Config){
-  if(!config.sharedRuntimeConfigPath || !config.tenantRegistryPath || process.env.WEBVUE_TENANCY_MODE!=='shared')return false
+  if(!config.sharedRuntimeConfigPath || !config.tenantRegistryPath || process.env.LIWAN_TENANCY_MODE!=='shared')return false
   try{loadSharedRuntimeConfig(config.sharedRuntimeConfigPath);return true}catch{return false}
 }
 /** Only exact durable first-create identity can treat a disabled route as a worker target. */

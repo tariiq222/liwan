@@ -5,7 +5,7 @@ const { t } = useI18n()
 
 <template>
   <SharedPageContainer width="list">
-    <div class="flex flex-col items-start gap-(--webvue-gap-card)" data-testid="project-not-found">
+    <div class="flex flex-col items-start gap-(--liwan-gap-card)" data-testid="project-not-found">
       <p class="text-muted">{{ t('projects.notFound') }}</p>
       <UButton to="/projects" color="neutral" variant="outline" size="sm">{{ t('projects.backToProjects') }}</UButton>
     </div>

@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 const NAME_MAX = 200
-// The server's PRICE_MAX (webvue_crm serializers/lists.py).
+// The server's PRICE_MAX (liwan_crm serializers/lists.py).
 const PRICE_MAX = 999_999_999
 
 const NameSchema = z.string().trim().min(1).max(NAME_MAX)

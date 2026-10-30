@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
-import RecordSection from '@webvue/ui/app/components/shared/layout/RecordSection.vue'
+import RecordSection from '@liwan/ui/app/components/shared/layout/RecordSection.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -35,14 +35,14 @@ export const Panel: Story = {
   }),
 }
 
-const row = (text: string) => `<p class="px-(--webvue-card-pad) py-3 text-sm">${text}</p>`
+const row = (text: string) => `<p class="px-(--liwan-card-pad) py-3 text-sm">${text}</p>`
 
 export const Variants: Story = {
   name: 'الأنواع الخمسة',
   render: () => ({
     components: { RecordSection },
     setup: () => ({ t: useI18n().t }),
-    template: `<div class="grid max-w-2xl gap-(--webvue-gap-card) bg-muted p-4">
+    template: `<div class="grid max-w-2xl gap-(--liwan-gap-card) bg-muted p-4">
       <RecordSection variant="flat" :title="t('projects.tabs.milestones')"><p class="text-sm text-muted">{{ t('app.noResults') }}</p></RecordSection>
       <RecordSection variant="panel" :title="t('projects.tabs.milestones')"><p class="text-sm text-muted">{{ t('app.noResults') }}</p></RecordSection>
       <RecordSection variant="list" :title="t('projects.tabs.milestones')">${row('{{ t(\'projects.tabs.milestones\') }}')}${row('{{ t(\'projects.tabs.milestones\') }}')}</RecordSection>

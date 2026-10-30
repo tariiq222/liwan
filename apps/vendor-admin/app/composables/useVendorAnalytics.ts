@@ -1,4 +1,4 @@
-import type { Analytics } from '@webvue/commercial-contracts'
+import type { Analytics } from '@liwan/commercial-contracts'
 
 /** The executive analytics for one period; the control plane computes every figure. */
 export function useVendorAnalytics() {

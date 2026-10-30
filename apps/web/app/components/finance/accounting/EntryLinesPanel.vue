@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { JournalEntryDetail, JournalEntryLine } from '@webvue/contracts'
+import type { JournalEntryDetail, JournalEntryLine } from '@liwan/contracts'
 import Money from '../invoices/Money.vue'
 import { entryTotals } from './entryLines'
 
@@ -37,7 +37,7 @@ const dash = computed(() => t('app.notAvailable'))
         </div>
       </template>
     </SharedDataTable>
-    <dl class="ms-auto grid w-full max-w-sm gap-2 border-t border-default p-(--webvue-card-pad) text-sm font-semibold text-highlighted" data-testid="finance-entry-totals">
+    <dl class="ms-auto grid w-full max-w-sm gap-2 border-t border-default p-(--liwan-card-pad) text-sm font-semibold text-highlighted" data-testid="finance-entry-totals">
       <div class="flex items-center justify-between gap-4">
         <dt>{{ t('financeAccounting.form.totalDebit') }}</dt>
         <dd><Money :amount="totals.debit" :currency="entry.currency" /></dd>

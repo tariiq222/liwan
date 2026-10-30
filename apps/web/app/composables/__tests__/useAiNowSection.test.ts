@@ -25,14 +25,14 @@ describe('useAiNowSection', () => {
     const section = setup()
     section.toggle()
     expect(section.hidden.value).toBe(true)
-    expect(store.get('webvue-assistant-now-hidden')).toBe('hidden')
+    expect(store.get('liwan-assistant-now-hidden')).toBe('hidden')
     section.toggle()
     expect(section.hidden.value).toBe(false)
-    expect(store.get('webvue-assistant-now-hidden')).toBe('shown')
+    expect(store.get('liwan-assistant-now-hidden')).toBe('shown')
   })
 
   it('comes back hidden when the session says so', () => {
-    stubStorage({ 'webvue-assistant-now-hidden': 'hidden' })
+    stubStorage({ 'liwan-assistant-now-hidden': 'hidden' })
     expect(setup().hidden.value).toBe(true)
   })
 

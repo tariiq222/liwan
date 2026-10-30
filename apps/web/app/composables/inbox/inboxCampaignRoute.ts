@@ -8,7 +8,7 @@ import {
   type InboxConsentState,
   type InboxRecipientFailure,
   type InboxRecipientState,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 
 // The filters of the campaign screens. Each lives in the URL query, so a direct link, a refresh and Back keep them:
 // the campaigns list, the recipients table of one campaign, the audience list and an audience's members.

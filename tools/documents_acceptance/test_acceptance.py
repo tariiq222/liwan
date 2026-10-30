@@ -14,14 +14,14 @@ from linux_stack import choose_subnet, reserve_directory, validate_prefix
 class AcceptanceEvidenceTests(unittest.TestCase):
     def test_only_disposable_scratch_prefixes_are_accepted(self):
         self.assertEqual(
-            validate_prefix("webvue_scratch_docs_accept"), "webvue_scratch_docs_accept",
+            validate_prefix("liwan_scratch_docs_accept"), "liwan_scratch_docs_accept",
         )
         for value in (
             "odoo19",
             "postgres",
             "production",
-            "webvue_scratch_production",
-            "../webvue_scratch_docs",
+            "liwan_scratch_production",
+            "../liwan_scratch_docs",
         ):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 validate_prefix(value)
@@ -70,7 +70,7 @@ class AcceptanceEvidenceTests(unittest.TestCase):
 
     def test_external_operator_commits_then_signals_persistent_workers(self):
         with patch("acceptance.shell", return_value={"updated": True}) as shell:
-            operator({}, {"database": "webvue_scratch_docs_accept_saas_a"}, {}, None, "result={'updated':True}")
+            operator({}, {"database": "liwan_scratch_docs_accept_saas_a"}, {}, None, "result={'updated':True}")
         script = shell.call_args.args[2]
         self.assertIn("env.registry.signal_changes()", script)
         self.assertLess(script.index("env.cr.commit()"), script.index("env.registry.signal_changes()"))

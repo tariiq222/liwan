@@ -12,7 +12,7 @@ test.describe('Plan 6d: the sign-in page', () => {
     await expect(page.getByLabel('اسم المستخدم')).toBeVisible()
     await expect(page.getByLabel('كلمة المرور', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'دخول', exact: true })).toBeVisible()
-    expect(await page.locator('.webvue-login-page, .webvue-login-card').count()).toBe(0)
+    expect(await page.locator('.liwan-login-page, .liwan-login-card').count()).toBe(0)
   })
 
   test('the submit stays disabled until hydration and keeps a prefilled login', async ({ page }) => {

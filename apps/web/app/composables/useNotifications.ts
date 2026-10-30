@@ -5,7 +5,7 @@ import {
   NotificationReadResultSchema,
   type BellNotification,
   type Notification,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 // Relative, not '@/': the component unit tests import this file without the Nuxt alias.
 import { isKnownNotificationKind, isMeetingNotificationKind, isProjectNotificationKind } from '../utils/notificationPresentation'
 

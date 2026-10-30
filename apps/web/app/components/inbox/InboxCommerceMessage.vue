@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxCommerceProduct, InboxMessage } from '@webvue/contracts'
+import type { InboxCommerceProduct, InboxMessage } from '@liwan/contracts'
 import InboxOrderActions from '@/components/inbox/InboxOrderActions.vue'
 import InboxOrderLines from '@/components/inbox/InboxOrderLines.vue'
 import { cartLineRows, formatInboxMoney, orderBadge } from '@/composables/inbox/inboxCommerce'

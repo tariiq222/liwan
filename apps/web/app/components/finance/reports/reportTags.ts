@@ -1,5 +1,5 @@
-import type { PageHeaderTag } from '@webvue/ui/app/utils/pageHeaderTag'
-import { isolateLtr } from '@webvue/ui/app/utils/formatDate'
+import type { PageHeaderTag } from '@liwan/ui/app/utils/pageHeaderTag'
+import { isolateLtr } from '@liwan/ui/app/utils/formatDate'
 import { reportCurrency, type LoadedReport, type ReportSlug } from './reportConfig'
 import { reportEndsOnly, type ReportFilters } from './reportParams'
 

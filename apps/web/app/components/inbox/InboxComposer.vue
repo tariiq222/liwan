@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxAttachment, InboxConversationDetail, InboxReplyCreate } from '@webvue/contracts'
+import type { InboxAttachment, InboxConversationDetail, InboxReplyCreate } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useInboxCannedReplies, useInboxTemplates, useInboxTyping, useSendInboxNote, useSendInboxReply, useUploadInboxFile } from '@/composables/inbox/useInbox'
 import { INBOX_CAPTION_MAX, INBOX_UPLOAD_ACCEPT, inboxAcceptsCaption, inboxFileSize, inboxUploadProblem } from '@/composables/inbox/inboxAttachments'

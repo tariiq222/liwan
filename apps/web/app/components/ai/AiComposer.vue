@@ -43,7 +43,7 @@ function onKeydown(event: KeyboardEvent) {
     />
     <UButton
       type="submit"
-      class="webvue-touch-target shrink-0 rounded-full"
+      class="liwan-touch-target shrink-0 rounded-full"
       icon="i-lucide-arrow-up"
       size="lg"
       :disabled="!canSend"

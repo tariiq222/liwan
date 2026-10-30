@@ -3,7 +3,7 @@
 
 Odoo runs only the ``test_*`` modules bound on the tests package, so a file the package
 does not import silently never runs. ``tests/__init__.py`` either imports each file by
-name or calls ``import_all_tests(__name__)`` (webvue_core.testing), which imports them all.
+name or calls ``import_all_tests(__name__)`` (liwan_core.testing), which imports them all.
 """
 import ast
 import unittest
@@ -43,11 +43,11 @@ class AddonTestImportTests(unittest.TestCase):
         self.assertEqual(uncollected(source, ['test_a', 'test_b']), ['test_b'])
 
     def test_the_helper_collects_everything(self):
-        source = 'from odoo.addons.webvue_core.testing import import_all_tests\n\nimport_all_tests(__name__)\n'
+        source = 'from odoo.addons.liwan_core.testing import import_all_tests\n\nimport_all_tests(__name__)\n'
         self.assertEqual(uncollected(source, ['test_a', 'test_b']), [])
 
     def test_the_helper_must_receive_the_package_name(self):
-        source = "from odoo.addons.webvue_core.testing import import_all_tests\n\nimport_all_tests('other')\n"
+        source = "from odoo.addons.liwan_core.testing import import_all_tests\n\nimport_all_tests('other')\n"
         self.assertEqual(uncollected(source, ['test_a']), ['test_a'])
 
     def test_every_addon_collects_all_its_test_files(self):

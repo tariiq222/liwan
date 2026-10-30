@@ -313,7 +313,7 @@ const roleRef = {
 const assignment = {
   id: 1,
   role: roleRef,
-  scope: { kind: 'company', id: 1, name: 'شركة ويب فيو' },
+  scope: { kind: 'company', id: 1, name: 'شركة ليوان' },
 }
 const employeeRef = { id: 1, name: employee.name, department: DEPARTMENT }
 const adminUser = {

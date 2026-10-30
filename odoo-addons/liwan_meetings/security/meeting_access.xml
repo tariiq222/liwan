@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Keep native cached domains independent of mutable company grants.
+         Fresh capability, participation and manager checks run in the owned ir.rule hook. -->
+    <record id="rule_meeting_capability_scope" model="ir.rule">
+        <field name="name">LiwanOS meetings: pinned-company capability and participation</field>
+        <field name="model_id" ref="model_liwan_meeting_minute"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_resolution_capability_scope" model="ir.rule">
+        <field name="name">LiwanOS resolutions: pinned-company capability and participation</field>
+        <field name="model_id" ref="model_liwan_meeting_resolution"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <!-- Preserve static editor/assignee group rules. The manager group opens the native
+         group union; the fresh hook narrows that union by current owning-company grants. -->
+    <record id="rule_meeting_editors_write" model="ir.rule">
+        <field name="name">LiwanOS meetings: organizers and secretaries write</field>
+        <field name="model_id" ref="model_liwan_meeting_minute"/>
+        <field name="groups" eval="[(4, ref('group_cap_meetings_read'))]"/>
+        <field name="domain_force">['|', ('organizer_id', '=', user.id), ('secretary_id', '=', user.id)]</field>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_meeting_managers_write" model="ir.rule">
+        <field name="name">LiwanOS meetings: managers write company records</field>
+        <field name="model_id" ref="model_liwan_meeting_minute"/>
+        <field name="groups" eval="[(4, ref('group_cap_meetings_manage'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="perm_read" eval="False"/>
+    </record>
+    <record id="rule_resolution_editors_write" model="ir.rule">
+        <field name="name">LiwanOS resolutions: editors and assignees write</field>
+        <field name="model_id" ref="model_liwan_meeting_resolution"/>
+        <field name="groups" eval="[(4, ref('group_cap_meetings_read'))]"/>
+        <field name="domain_force">['|', '|', ('meeting_id.organizer_id', '=', user.id), ('meeting_id.secretary_id', '=', user.id), ('responsible_id', '=', user.id)]</field>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_resolution_managers_write" model="ir.rule">
+        <field name="name">LiwanOS resolutions: managers write company records</field>
+        <field name="model_id" ref="model_liwan_meeting_resolution"/>
+        <field name="groups" eval="[(4, ref('group_cap_meetings_manage'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="perm_read" eval="False"/>
+    </record>
+</odoo>

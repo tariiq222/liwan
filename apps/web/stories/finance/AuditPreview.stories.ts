@@ -1,12 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { http, HttpResponse } from 'msw'
-import { FinanceAuditEventListSchema, MeSchema } from '@webvue/contracts'
+import { FinanceAuditEventListSchema, MeSchema } from '@liwan/contracts'
 import AuditPreview from '../../app/components/finance/governance/AuditPreview.vue'
 import { storyContext } from '../support/context'
 
 const me = MeSchema.parse({
   id: 7, name: 'سارة القحطاني', login: 'sara', email: 'sara@example.com', lang: 'ar_001', tz: 'Asia/Riyadh', role: 'admin', roles: [],
-  access_policy_version: 1, company: { id: 1, name: 'شركة المثال' }, capabilities: ['finance.audit.read'], modules: ['webvue_finance'],
+  access_policy_version: 1, company: { id: 1, name: 'شركة المثال' }, capabilities: ['finance.audit.read'], modules: ['liwan_finance'],
   platform: { schema_version: 1, policy_revision: 1, state: 'active', valid_until: null, read_only: false, readable_features: ['finance.enabled'], writable_features: ['finance.enabled'] },
 })
 const events = FinanceAuditEventListSchema.parse({

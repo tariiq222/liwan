@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- company_ids is the request's pinned set (current company + its own
+         branches) from liwan_api's _pin_current_company, so the charter
+         catalogs of the subtree are readable together. A company-less row
+         matches no id in the set and stays hidden. -->
+    <record id="rule_liwan_project_type_current_company" model="ir.rule">
+        <field name="name">LiwanOS project types in the pinned company subtree</field>
+        <field name="model_id" ref="model_liwan_project_type"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_liwan_project_owning_unit_current_company" model="ir.rule">
+        <field name="name">LiwanOS owning units in the pinned company subtree</field>
+        <field name="model_id" ref="model_liwan_project_owning_unit"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

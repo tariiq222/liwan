@@ -15,14 +15,14 @@ const SIZE = 32 * 1024 * 1024
 
 async function fixture(mode: 'shared' | 'dedicated' | 'legacy') {
   vi.resetModules()
-  const root = realpathSync(mkdtempSync(join(tmpdir(), 'webvue-response-credit-')))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'liwan-response-credit-')))
   const token = 'synthetic-response-credit-token-'.repeat(3)
   const keys = { test: 'synthetic-response-credit-cookie-'.repeat(3) }
   const tenant = { tenantId: 'a', host: 'a.example.test', database: 'db_a', filestore: 'db_a', registryRevision: 1, enabled: true }
   writeFileSync(join(root, 'registry.json'), JSON.stringify({ schemaVersion: 1, snapshotRevision: 1, targets: [tenant] }))
   writeFileSync(join(root, 'binding.json'), JSON.stringify({ tenantId: 'a', host: tenant.host, database: 'db_a', filestore: 'db_a', identityRevision: 1, commercialMode: 'non_saas' }))
   writeFileSync(join(root, 'a.json'), JSON.stringify({ schemaVersion: 1, tenantId: 'a', identityRevision: 1, routeRevision: 1, releaseId: 'r1', poolId: 'blue', fence: 1, state: 'serving' }))
-  for (const [name, value] of Object.entries({ WEBVUE_TENANCY_MODE: mode === 'legacy' ? 'dedicated' : mode, WEBVUE_SHARED_PROXY_TOKEN: token, WEBVUE_TENANT_REGISTRY_PATH: join(root, 'registry.json'), WEBVUE_RELEASE_ROUTES_DIR: mode === 'legacy' ? '' : root, WEBVUE_RELEASE_TENANT_ID: 'a', WEBVUE_RELEASE_TENANT_HOST: tenant.host, WEBVUE_RELEASE_IDENTITY_REVISION: '1', WEBVUE_DEDICATED_PROXY_TOKEN: token, WEBVUE_RELEASE_POOL_ID: 'blue', NUXT_ODOO_MAX_CONCURRENCY: '1' })) vi.stubEnv(name, value)
+  for (const [name, value] of Object.entries({ LIWAN_TENANCY_MODE: mode === 'legacy' ? 'dedicated' : mode, LIWAN_SHARED_PROXY_TOKEN: token, LIWAN_TENANT_REGISTRY_PATH: join(root, 'registry.json'), LIWAN_RELEASE_ROUTES_DIR: mode === 'legacy' ? '' : root, LIWAN_RELEASE_TENANT_ID: 'a', LIWAN_RELEASE_TENANT_HOST: tenant.host, LIWAN_RELEASE_IDENTITY_REVISION: '1', LIWAN_DEDICATED_PROXY_TOKEN: token, LIWAN_RELEASE_POOL_ID: 'blue', NUXT_ODOO_MAX_CONCURRENCY: '1' })) vi.stubEnv(name, value)
   const sockets = new Set<Socket>()
   const track = (server: http.Server) => server.on('connection', socket => { sockets.add(socket); socket.once('close', () => sockets.delete(socket)) })
   const upstreamCalls: string[] = []

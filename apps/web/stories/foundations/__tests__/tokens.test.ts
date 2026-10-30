@@ -4,15 +4,15 @@ import { groupTokens, isColorToken, parseTokenNames } from '../tokens'
 const css = `@theme { --text-xs: 0.85rem; }
 :root {
   /* --commented-out: red; */
-  --webvue-surface: #fff;
-  --ui-bg: var(--webvue-surface);
-  --webvue-radius: 14px;
+  --liwan-surface: #fff;
+  --ui-bg: var(--liwan-surface);
+  --liwan-radius: 14px;
 }
-.dark { --webvue-surface: #111; --status-danger: #f00; }`
+.dark { --liwan-surface: #111; --status-danger: #f00; }`
 
 describe('token names from tokens.css', () => {
   it('lists each declared custom property once, in source order, ignoring comments and usages', () => {
-    expect(parseTokenNames(css)).toEqual(['--text-xs', '--webvue-surface', '--ui-bg', '--webvue-radius', '--status-danger'])
+    expect(parseTokenNames(css)).toEqual(['--text-xs', '--liwan-surface', '--ui-bg', '--liwan-radius', '--status-danger'])
   })
 
   it('groups by the first name segment', () => {
@@ -20,16 +20,16 @@ describe('token names from tokens.css', () => {
       { prefix: 'status', names: ['--status-danger'] },
       { prefix: 'text', names: ['--text-xs'] },
       { prefix: 'ui', names: ['--ui-bg'] },
-      { prefix: 'webvue', names: ['--webvue-surface', '--webvue-radius'] },
+      { prefix: 'liwan', names: ['--liwan-surface', '--liwan-radius'] },
     ])
   })
 
   it.each([
-    ['--webvue-surface', true],
+    ['--liwan-surface', true],
     ['--status-danger-soft', true],
-    ['--webvue-radius', false],
+    ['--liwan-radius', false],
     ['--elevation-2', false],
-    ['--webvue-ui-z-menu', false],
+    ['--liwan-ui-z-menu', false],
     ['--text-xs', false],
     ['--font-sans', false],
     ['--shell-header-height', false],

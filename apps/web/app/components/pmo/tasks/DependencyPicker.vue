@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { TaskState } from '@webvue/contracts'
+import type { TaskState } from '@liwan/contracts'
 import { taskStateBadge } from '@/composables/taskState'
-import { badgeLabel } from '@webvue/ui/app/utils/statusBadge'
-import type { TaskDetail } from '@webvue/contracts'
+import { badgeLabel } from '@liwan/ui/app/utils/statusBadge'
+import type { TaskDetail } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useTaskDependencies, useTaskDependencyCandidates, useUpdateTaskDependencies } from '@/composables/useTaskDependencies'
 

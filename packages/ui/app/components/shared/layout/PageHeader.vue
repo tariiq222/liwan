@@ -14,7 +14,7 @@ const props = withDefaults(defineProps<{
   hideTitle?: boolean
   /**
    * The heading keeps its place under the floating header while the page scrolls under it
-   * (`.webvue-sticky-head` in shell.css). Off where another sticky thing owns that slot: a page frame
+   * (`.liwan-sticky-head` in shell.css). Off where another sticky thing owns that slot: a page frame
    * that already carries the identity band, or a docked `SharedListCard fill` board.
    */
   sticky?: boolean

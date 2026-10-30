@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { PaymentProvider, PaymentProviderState, PaymentProviderSyncStatus, PaymentProviderUpdate } from '@webvue/contracts'
-import { badgeLabel } from '@webvue/ui/app/utils/statusBadge'
+import type { PaymentProvider, PaymentProviderState, PaymentProviderSyncStatus, PaymentProviderUpdate } from '@liwan/contracts'
+import { badgeLabel } from '@liwan/ui/app/utils/statusBadge'
 import {
   PAYMENT_PROVIDER_STATES,
   SYNC_OUTCOMES,

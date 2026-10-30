@@ -6,7 +6,7 @@
 
 **Architecture:** The selling unit becomes the application (bundle) instead of the plan limit. The plan collapses to one platform record that carries the base price, the included minimums, and unit prices for users, storage and branches. `computeQuote` gains two metered lines beside the existing branch line, and `compileEntitlements` stops reading `platform_limits` for users and storage in favour of the quantities the customer chose.
 
-**Tech Stack:** `packages/commercial-contracts` (zod + pure pricing), `apps/control-plane` (pg + http), `apps/vendor-admin` (Nuxt 4, `@webvue/commercial-ui`), `apps/web` (Nuxt 4, `/subscription`), Postgres 16.
+**Tech Stack:** `packages/commercial-contracts` (zod + pure pricing), `apps/control-plane` (pg + http), `apps/vendor-admin` (Nuxt 4, `@liwan/commercial-ui`), `apps/web` (Nuxt 4, `/subscription`), Postgres 16.
 
 **Spec:** [docs/superpowers/specs/2026-10-24-self-service-pricing-and-trial-design.md](../specs/2026-10-24-self-service-pricing-and-trial-design.md) §2, §3, §4, §5 (partial), §6 (items 1–2), §10.1
 
@@ -291,8 +291,8 @@ Register version 25 in the loop in `db.ts` exactly like 24.
 
 - [ ] **Step 4: Run the tests against a scratch database**
 
-Run: `npm -w apps/control-plane run migrate` against `webvue_control_scratch_*` only, then `npm -w apps/control-plane run test`
-Expected: PASS. Never run this against `webvue_control_dev` while the running console points at it.
+Run: `npm -w apps/control-plane run migrate` against `liwan_control_scratch_*` only, then `npm -w apps/control-plane run test`
+Expected: PASS. Never run this against `liwan_control_dev` while the running console points at it.
 
 - [ ] **Step 5: Commit**
 
@@ -543,7 +543,7 @@ git commit -am "feat(web): one subscription screen with a live total"
 - Test: `apps/control-plane/src/__tests__/commercial-plans.test.ts`
 
 **Interfaces:**
-- Produces: exactly one published plan named `WebVue` whose `prices` are the base and whose `included_bundle_revision_ids` is empty; the six bundles carry placeholder prices marked in `approval_note`-style text as **unapproved**, and `trial_days: 14`.
+- Produces: exactly one published plan named `LiwanOS` whose `prices` are the base and whose `included_bundle_revision_ids` is empty; the six bundles carry placeholder prices marked in `approval_note`-style text as **unapproved**, and `trial_days: 14`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -563,11 +563,11 @@ Expected: FAIL — three plans.
 
 - [ ] **Step 3: Write the seed**
 
-Mark the three seeded plans unavailable (`UPDATE plan_revisions SET available=false`), insert one `WebVue` plan with placeholder base prices and `included_users: 3`, `included_storage_mb: 5120`, `included_extra_branches: 0`, and one monthly + one yearly unit price for users, storage and branches. Insert `prices` for the six bundles. Put `-- PLACEHOLDER, not approved: the owner replaces every amount from the console` at the top of the block.
+Mark the three seeded plans unavailable (`UPDATE plan_revisions SET available=false`), insert one `LiwanOS` plan with placeholder base prices and `included_users: 3`, `included_storage_mb: 5120`, `included_extra_branches: 0`, and one monthly + one yearly unit price for users, storage and branches. Insert `prices` for the six bundles. Put `-- PLACEHOLDER, not approved: the owner replaces every amount from the console` at the top of the block.
 
 - [ ] **Step 4: Run against a fresh scratch database**
 
-Run: `npm run test:odoo -- --addons webvue_platform` is **not** needed; run only `npm -w apps/control-plane run test`.
+Run: `npm run test:odoo -- --addons liwan_platform` is **not** needed; run only `npm -w apps/control-plane run test`.
 Expected: PASS.
 
 - [ ] **Step 5: Commit**

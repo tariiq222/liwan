@@ -1,8 +1,8 @@
-import type { Project, ProjectStatus } from '@webvue/contracts'
-import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
+import type { Project, ProjectStatus } from '@liwan/contracts'
+import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 import { deadlineLabel, deadlineTag } from '../../../composables/taskState'
 import { projectStatusBadge } from '../../../composables/projectStatus'
-import { badgeLabel } from '@webvue/ui/app/utils/statusBadge'
+import { badgeLabel } from '@liwan/ui/app/utils/statusBadge'
 
 // What the project list says about a project at a glance: its status pill, its end-date pill and the colour of its
 // progress bar. Pure and shared by the card, the table row and the phone row, so the three never disagree.

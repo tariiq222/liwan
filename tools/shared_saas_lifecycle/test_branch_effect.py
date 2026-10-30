@@ -26,9 +26,9 @@ class ScriptContentTests(unittest.TestCase):
         for field in ("'features'", "'commercial_revision_id'", "'commercial_digest'", "'commercial_applied_at'"):
             self.assertIn(field, block)
         self.assertIn('write_vals.update(expiry_vals)', text)
-        self.assertIn('_webvue_apply_branches(values', text)
-        self.assertIn('_webvue_archive_branch(values', text)
-        self.assertLess(text.index('_webvue_archive_branch'), text.index('_webvue_apply_branches('))
+        self.assertIn('_liwan_apply_branches(values', text)
+        self.assertIn('_liwan_archive_branch(values', text)
+        self.assertLess(text.index('_liwan_archive_branch'), text.index('_liwan_apply_branches('))
 
     def test_no_sudo_no_uninstall_no_delete(self):
         for text in (self.script(), se.build_observe_script(DB)):
@@ -37,7 +37,7 @@ class ScriptContentTests(unittest.TestCase):
 
     def test_removed_module_flags_turned_off_not_uninstalled(self):
         text = self.script()
-        self.assertIn("._webvue_close_unlisted_features(values['features'])", text)
+        self.assertIn("._liwan_close_unlisted_features(values['features'])", text)
         self.assertNotIn('button_uninstall', text)
 
     def test_observe_is_read_only(self):

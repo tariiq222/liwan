@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { QueryClient } from '@tanstack/vue-query'
-import type { HrPayrollRun } from '@webvue/contracts'
+import type { HrPayrollRun } from '@liwan/contracts'
 import { hrPayrollKeys } from '../useHrPayrollCompensation'
 import { isTruncated } from '../../utils/payrollFinanceSettings'
 import {

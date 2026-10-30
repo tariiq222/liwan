@@ -1,10 +1,10 @@
 """Opt-in real PostgreSQL: writer fence, window recheck, capture and scratch restore.
 
-Runs only on a task-owned ``webvue_scratch_backup_*`` loopback database. The two
+Runs only on a task-owned ``liwan_scratch_backup_*`` loopback database. The two
 runtime roles are fixture principals: the test refuses to run if one already
 exists, creates them, and drops at the end only the roles it created. The source
 database belongs to the operator and is never dropped here. The restore target is a fresh
-``webvue_scratch_backup_restore_<random>`` name per run; an existing name is
+``liwan_scratch_backup_restore_<random>`` name per run; an existing name is
 refused, and only a database this run itself created is dropped.
 """
 import os
@@ -22,15 +22,15 @@ from .runtime import LocalRuntime
 from .state import ReleaseState, ReleaseConflict
 
 
-@unittest.skipUnless(os.environ.get('WEBVUE_BACKUP_TEST_DSN'),'isolated PostgreSQL opt-in required')
+@unittest.skipUnless(os.environ.get('LIWAN_BACKUP_TEST_DSN'),'isolated PostgreSQL opt-in required')
 class BackupLiveTests(unittest.TestCase):
-    roles = ('webvue_backup_live_blue', 'webvue_backup_live_green')
+    roles = ('liwan_backup_live_blue', 'liwan_backup_live_green')
 
     def setUp(self):
         import psycopg2
         self.psycopg2 = psycopg2
-        dsn = os.environ['WEBVUE_BACKUP_TEST_DSN']; url = urlsplit(dsn)
-        if url.hostname not in ('localhost', '127.0.0.1') or not url.path.startswith('/webvue_scratch_backup_'):
+        dsn = os.environ['LIWAN_BACKUP_TEST_DSN']; url = urlsplit(dsn)
+        if url.hostname not in ('localhost', '127.0.0.1') or not url.path.startswith('/liwan_scratch_backup_'):
             raise ValueError('scratch_required')
         self.database = url.path[1:]
         self.admin = psycopg2.connect(dsn); self.admin.autocommit = True
@@ -73,7 +73,7 @@ class BackupLiveTests(unittest.TestCase):
         self.assertTrue(proof['gateClosed'])
         self.assertEqual(proof['deniedWriters'], list(self.roles))
         self.assertEqual(proof['writerConnections'], 0)
-        other = self.psycopg2.connect(os.environ['WEBVUE_BACKUP_TEST_DSN'])
+        other = self.psycopg2.connect(os.environ['LIWAN_BACKUP_TEST_DSN'])
         try:
             with other.cursor() as cursor:
                 cursor.execute('SELECT 1')
@@ -87,8 +87,8 @@ class BackupLiveTests(unittest.TestCase):
     def test_inherited_writer_login_refuses_the_window_and_the_recheck(self):
         # An undeclared login that is a member of a declared writer inherits its
         # CONNECT and table privileges; its idle session survives the revocation.
-        dsn = os.environ['WEBVUE_BACKUP_TEST_DSN']
-        member = 'webvue_backup_live_member'
+        dsn = os.environ['LIWAN_BACKUP_TEST_DSN']
+        member = 'liwan_backup_live_member'
         with self.admin.cursor() as cursor:
             self.create_role(cursor, member, inherit='INHERIT')  # connects through the writer's grant
             cursor.execute(f'GRANT "{self.roles[0]}" TO "{member}"')
@@ -115,8 +115,8 @@ class BackupLiveTests(unittest.TestCase):
         self.fail('member session never left')
 
     def test_fence_capture_and_restore_against_real_postgres(self):
-        dsn = os.environ['WEBVUE_BACKUP_TEST_DSN']
-        restored = 'webvue_scratch_backup_restore_' + secrets.token_hex(6)
+        dsn = os.environ['LIWAN_BACKUP_TEST_DSN']
+        restored = 'liwan_scratch_backup_restore_' + secrets.token_hex(6)
         with self.admin.cursor() as cursor:
             cursor.execute('SELECT 1 FROM pg_database WHERE datname=%s', (restored,))
             if cursor.fetchone(): self.fail('restore target already exists; refusing to reuse or drop it')
@@ -150,19 +150,19 @@ class BackupLiveTests(unittest.TestCase):
             with idle.cursor() as cursor: cursor.execute('SELECT 1')
         # An unlisted principal with write authority must refuse the window.
         with self.admin.cursor() as cursor:
-            self.create_role(cursor, 'webvue_backup_live_rogue')
-            cursor.execute(f'GRANT CONNECT ON DATABASE "{self.database}" TO webvue_backup_live_rogue')
+            self.create_role(cursor, 'liwan_backup_live_rogue')
+            cursor.execute(f'GRANT CONNECT ON DATABASE "{self.database}" TO liwan_backup_live_rogue')
         rogue = fence_writers(binding, list(self.roles), connect, deadline=Deadline(30),
                               allowed_principals=(admin_user,), drain_seconds=10)
         self.assertEqual(rogue['reason'], 'unsupported_writer_principal')
         with self.admin.cursor() as cursor:
-            cursor.execute(f'REVOKE CONNECT ON DATABASE "{self.database}" FROM webvue_backup_live_rogue')
+            cursor.execute(f'REVOKE CONNECT ON DATABASE "{self.database}" FROM liwan_backup_live_rogue')
         store = Path(self.temp.name).resolve() / 'filestore' / self.database
         store.mkdir(parents=True); (store / 'attachment').write_bytes(b'live-attachment')
         pg = Path(shutil.which('pg_dump') or '').parent
         config = {'mode': 'local', 'outputDir': str(Path(self.temp.name).resolve() / 'backup'), 'filestorePath': str(store),
                   'pgDump': str(pg / 'pg_dump'), 'createdb': str(pg / 'createdb'), 'pgRestore': str(pg / 'pg_restore'),
-                  'image': 'webvue/odoo@sha256:' + 'a' * 64, 'recheck': self.runtime._recheck_window, 'timeoutSeconds': 60}
+                  'image': 'liwan/odoo@sha256:' + 'a' * 64, 'recheck': self.runtime._recheck_window, 'timeoutSeconds': 60}
         proof = {**self.binding, 'fence': 1, 'gateClosed': True, 'admittedWriters': 0, 'activeTransactions': 0,
                  'oldConnections': 0, 'writerConnections': 0, 'deniedWriters': list(self.roles)}
         receipt = capture_window({**self.binding, 'fence': 1}, proof, config, Deadline(120))

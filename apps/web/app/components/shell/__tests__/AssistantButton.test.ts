@@ -1,8 +1,8 @@
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import * as Vue from 'vue'
-import { loadShared, renderShared } from '@webvue/ui/test/helpers/renderShared'
-import { createHostNode, findNode, hostRenderer } from '@webvue/ui/test/helpers/hostRenderer'
+import { loadShared, renderShared } from '@liwan/ui/test/helpers/renderShared'
+import { createHostNode, findNode, hostRenderer } from '@liwan/ui/test/helpers/hostRenderer'
 
 const component = resolve(__dirname, '../AssistantButton.vue')
 const state = (over: Partial<{ showButton: boolean; shown: boolean }> = {}) => ({
@@ -57,7 +57,7 @@ describe('AssistantButton', () => {
     expect(html).toContain('aria-label="المساعد"')
     expect(html).toContain('aria-controls="assistant-sheet"')
     expect(html).toContain('aria-expanded="false"')
-    expect(html).toContain('webvue-assistant-button-label')
+    expect(html).toContain('liwan-assistant-button-label')
     expect(html).not.toContain('data-open')
   })
 

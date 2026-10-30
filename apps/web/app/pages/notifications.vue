@@ -171,7 +171,7 @@ async function retryNextPage() {
               type="button"
               color="neutral"
               variant="ghost"
-              class="grid w-full gap-1 rounded-none px-(--webvue-card-pad-dense) py-3 text-start transition-colors hover:bg-elevated"
+              class="grid w-full gap-1 rounded-none px-(--liwan-card-pad-dense) py-3 text-start transition-colors hover:bg-elevated"
               :disabled="!hydrated || actionPending"
               :data-testid="`notification-${item.id}`"
               @click="openNotification(item)"

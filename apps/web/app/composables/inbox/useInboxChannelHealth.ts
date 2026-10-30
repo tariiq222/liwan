@@ -8,7 +8,7 @@ import {
   type InboxChannel,
   type InboxDisplayNameRequest,
   type InboxPin,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { fileToBase64 } from '../../utils/attachmentFile'
 import { inboxSettingsKeys } from './useInboxSettings'
 

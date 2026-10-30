@@ -15,5 +15,5 @@ export function movePersonalCard(order: readonly string[], id: string, direction
 }
 
 export function personalOrderKey(companyId?: number, userId?: number): string | null {
-  return companyId && userId ? `webvue:personal-order:${companyId}:${userId}` : null
+  return companyId && userId ? `liwan:personal-order:${companyId}:${userId}` : null
 }

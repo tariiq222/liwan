@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
-import { HrCompensationWriteSchema, type HrCompensation, type HrPayrollRelationship } from '@webvue/contracts'
+import { HrCompensationWriteSchema, type HrCompensation, type HrPayrollRelationship } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import { parseMoneyInput } from '@/utils/moneyInput'
@@ -98,10 +98,10 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <UForm :state="{ relationshipType, basicWage, housingAllowance, transportAllowance, otherAllowance, iban, gosiNumber, gosiRegistrationDate }" class="webvue-form" method="post" novalidate data-testid="hr-compensation-form" @submit="submit">
+  <UForm :state="{ relationshipType, basicWage, housingAllowance, transportAllowance, otherAllowance, iban, gosiNumber, gosiRegistrationDate }" class="liwan-form" method="post" novalidate data-testid="hr-compensation-form" @submit="submit">
     <UAlert v-if="showAlert" role="alert" color="error" variant="subtle" :title="t('hrPayroll.compensation.saveError')" :description="errorMessage" />
     <SharedFormSection panel :title="t('hrPayroll.compensation.relationshipSection')" :description="t('hrPayroll.compensation.relationshipHint')">
-      <div class="webvue-form-grid">
+      <div class="liwan-form-grid">
         <UFormField :label="t('hrPayroll.compensation.relationship')" name="hr-compensation-relationship" required :error="fieldError('relationship_type', t('errors.generic'))">
           <USelect id="hr-compensation-relationship" v-model="relationshipType" class="w-full" :items="relationshipItems" :disabled="!hydrated || isPending" data-testid="hr-compensation-relationship" />
         </UFormField>
@@ -109,7 +109,7 @@ async function submit() {
       <HrPayrollRelationshipWarning :relationship="relationshipType" />
     </SharedFormSection>
     <SharedFormSection panel :title="t('hrPayroll.compensation.wageSection')" :description="t('hrPayroll.compensation.wageHint')">
-      <div class="webvue-form-grid">
+      <div class="liwan-form-grid">
         <UFormField :label="t('hrPayroll.compensation.basicWage')" name="hr-compensation-basic" required :error="fieldError('basic_wage', t('hrPayroll.compensation.basicWageInvalid'))">
           <UInput id="hr-compensation-basic" v-model="basicWage" inputmode="decimal" class="w-full" :disabled="!hydrated || isPending" />
         </UFormField>
@@ -125,7 +125,7 @@ async function submit() {
       </div>
     </SharedFormSection>
     <SharedFormSection panel :title="t('hrPayroll.compensation.bankSection')" :description="t('hrPayroll.compensation.bankHint')">
-      <div class="webvue-form-grid">
+      <div class="liwan-form-grid">
         <UFormField :label="t('hrPayroll.compensation.iban')" name="hr-compensation-iban" :error="fieldError('iban', t('hrPayroll.compensation.ibanInvalid'))">
           <UInput id="hr-compensation-iban" v-model="iban" dir="ltr" class="w-full" :placeholder="t('hrPayroll.compensation.ibanPlaceholder')" :disabled="!hydrated || isPending" />
         </UFormField>
@@ -135,7 +135,7 @@ async function submit() {
       </div>
     </SharedFormSection>
     <SharedFormSection panel :title="t('hrPayroll.compensation.gosiSection')">
-      <div class="webvue-form-grid">
+      <div class="liwan-form-grid">
         <UFormField :label="t('hrPayroll.compensation.gosiNumber')" name="hr-compensation-gosi" :error="fieldError('gosi_number', t('errors.generic'))">
           <UInput id="hr-compensation-gosi" v-model="gosiNumber" dir="ltr" class="w-full" :disabled="!hydrated || isPending" />
         </UFormField>

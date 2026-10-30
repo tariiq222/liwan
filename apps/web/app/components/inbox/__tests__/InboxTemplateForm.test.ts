@@ -3,7 +3,7 @@ import { compileScript, parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import type { InboxTemplate } from '@webvue/contracts'
+import type { InboxTemplate } from '@liwan/contracts'
 import * as helpers from '../../../composables/inbox/inboxTemplate'
 import { HEADER_MEDIA_ACCEPT } from '../../../composables/inbox/inboxTemplateSend'
 import { inboxUploadProblem } from '../../../composables/inbox/inboxAttachments'
@@ -140,7 +140,7 @@ describe('InboxTemplateForm', () => {
     expect(locked.state.dirty).toBe(false)
   })
 
-  it('is read-only for a template WebVue cannot fill, even when Meta would take an edit', async () => {
+  it('is read-only for a template LiwanOS cannot fill, even when Meta would take an edit', async () => {
     const { state, save } = mountForm({ template: { ...STORED, supported: false }, readonly: true })
     expect(state.off).toBe(true)
     await state.submit()

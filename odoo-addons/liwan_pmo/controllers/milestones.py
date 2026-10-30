@@ -1,0 +1,115 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo import http
+from odoo.exceptions import UserError, ValidationError
+from odoo.http import request
+
+from odoo.addons.liwan_api.controllers.common import (
+    ApiError,
+    api_handler,
+    declare_read_capability_scope,
+    get_record,
+    requires_feature,
+)
+from odoo.addons.liwan_pmo.models.project_milestone import _validate_deliverables
+from odoo.addons.liwan_pmo.serializers.dates import parse_date
+from odoo.addons.liwan_pmo.serializers.milestone import dump_milestone
+
+
+def _milestone_of(project, mid):
+    """Coerce + authorise a milestone id: it must belong to `project`.
+
+    Searched in the caller's own environment with the project in the domain: a
+    milestone of another, unreadable project (e.g. `privacy_visibility='followers'`)
+    is simply not found, so it answers the contracted 422 rather than a
+    `milestone_visibility_rule` AccessError (403, an existence oracle). `project`
+    was already access-checked by `get_record`, and the returned record stays in
+    the caller's environment for the write or unlink that follows.
+    """
+    m = request.env['project.milestone'].search([
+        ('id', '=', int(mid)), ('project_id', '=', project.id),
+    ], limit=1)
+    if not m:
+        raise ApiError(422, 'invalid', "milestone must belong to this project", field='milestone_id')
+    return m
+
+
+def _sorted(milestones):
+    return milestones.sorted(lambda m: (m.deadline is False, m.deadline or '', m.id))
+
+
+def _parse_deliverables(value):
+    if not isinstance(value, list):
+        raise ApiError(422, 'invalid', "deliverables must be a list", field='deliverables')
+    try:
+        return _validate_deliverables(value, request.env)
+    except ValidationError as error:
+        raise ApiError(422, 'invalid', str(error), field='deliverables') from error
+
+
+class MilestoneController(http.Controller):
+
+    @http.route('/api/v1/projects/<int:project_id>/milestones', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('pmo.enabled', operation='read')
+    def list_milestones(self, project_id):
+        declare_read_capability_scope('pmo.projects.read')
+        project = get_record('project.project', project_id)
+        return [dump_milestone(project, m) for m in _sorted(project.milestone_ids)]
+
+    @http.route('/api/v1/projects/<int:project_id>/milestones', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature('pmo.enabled', operation='write')
+    def create_milestone(self, project_id, name=None, deadline=None, start_date=None, deliverables=None, **_):
+        project = get_record('project.project', project_id)
+        if not isinstance(name, str) or not name.strip():
+            raise ApiError(422, 'invalid', "name must not be empty", field='name')
+        day = parse_date(deadline, 'deadline')
+        start = parse_date(start_date, 'start_date')
+        outputs = [] if deliverables is None else _parse_deliverables(deliverables)
+        m = project._liwan_create_milestone(
+            name.strip(), deadline=day or None, start_date=start or None, deliverables=outputs,
+        )
+        return request.make_json_response(dump_milestone(project, m), status=201)
+
+    @http.route('/api/v1/projects/<int:project_id>/milestones/<int:mid>', type='json2', auth='user', methods=['PATCH'], readonly=False)
+    @api_handler
+    @requires_feature('pmo.enabled', operation='write')
+    def patch_milestone(self, project_id, mid, **payload):
+        payload.pop('project_id', None)
+        payload.pop('mid', None)
+        project = get_record('project.project', project_id)
+        m = _milestone_of(project, mid)
+        vals = {}
+        for key, value in payload.items():
+            if key == 'name':
+                if not isinstance(value, str) or not value.strip():
+                    raise ApiError(422, 'invalid', "name must not be empty", field=key)
+                vals[key] = value.strip()
+            elif key == 'deadline' or key == 'start_date':
+                vals[key] = parse_date(value, key)
+            elif key == 'deliverables':
+                vals[key] = _parse_deliverables(value)
+            elif key == 'is_reached':
+                if not isinstance(value, bool):
+                    raise ApiError(422, 'invalid', "is_reached must be a boolean", field=key)
+                vals[key] = value
+            else:
+                raise ApiError(422, 'unknown_field', f"field {key!r} is not writable", field=key)
+        if not vals:
+            raise ApiError(422, 'invalid', "no fields to update")
+        return dump_milestone(project, project._liwan_update_milestone(m, vals))
+
+    @http.route('/api/v1/projects/<int:project_id>/milestones/<int:mid>', type='json2', auth='user', methods=['DELETE'], readonly=False)
+    @api_handler
+    @requires_feature('pmo.enabled', operation='write')
+    def delete_milestone(self, project_id, mid, **_):
+        project = get_record('project.project', project_id)
+        m = _milestone_of(project, mid)
+        try:
+            project._liwan_delete_milestone(m)
+        except UserError as e:
+            count = getattr(e, 'liwan_count', None)
+            if count is None:
+                raise
+            raise ApiError(422, 'milestone_has_tasks', f"{count} task(s) are linked to this milestone.") from e
+        return request.make_json_response('', status=204)

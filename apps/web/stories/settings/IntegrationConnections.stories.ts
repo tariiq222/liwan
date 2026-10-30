@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { http, HttpResponse } from 'msw'
-import { IntegrationConnectionListSchema } from '@webvue/contracts'
+import { IntegrationConnectionListSchema } from '@liwan/contracts'
 import IntegrationConnections from '../../app/components/settings/IntegrationConnections.vue'
 import { storyContext } from '../support/context'
 

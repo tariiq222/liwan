@@ -5,9 +5,9 @@ Usage, from provision.sh after ``-i`` and before branding:
 
     odoo shell -d <db> --no-http < /seed/seed_legacy_policy.py
 """
-profile = env['webvue.tenant.profile']  # noqa: F821
-registry = env['webvue.feature.registry']  # noqa: F821
-record = profile._webvue_initialize_legacy_policy(registry._webvue_installed_module_ids())
+profile = env['liwan.tenant.profile']  # noqa: F821
+registry = env['liwan.feature.registry']  # noqa: F821
+record = profile._liwan_initialize_legacy_policy(registry._liwan_installed_module_ids())
 env.cr.commit()  # noqa: F821
 print(  # noqa: T201
     'legacy policy initialized:',

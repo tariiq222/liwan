@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxMessage } from '@webvue/contracts'
+import type { InboxMessage } from '@liwan/contracts'
 import { useInboxMessages, useReactToInboxMessage, useRetryInboxMessage } from '@/composables/inbox/useInbox'
 import { DELIVERY_ICON, inboxDayKey } from '@/composables/inbox/inboxPresentation'
 import { INBOX_REACTION_EMOJIS } from '@/composables/inbox/inboxReactions'
@@ -84,7 +84,7 @@ const deliveryLabel = (item: InboxMessage) => t(`inbox.delivery.${item.delivery_
     <SharedErrorState v-if="isError && !items.length" :error="error" class="m-4" @retry="refetch()" />
     <SharedLoadingSkeleton v-else-if="isLoading" class="m-4" />
     <SharedEmptyState v-else-if="!items.length" :title="t('inbox.thread.empty')" class="m-4" />
-    <div v-else ref="scroller" class="min-h-0 flex-1 overflow-y-auto bg-(--webvue-canvas) px-4 py-2" data-testid="inbox-thread-scroller">
+    <div v-else ref="scroller" class="min-h-0 flex-1 overflow-y-auto bg-(--liwan-canvas) px-4 py-2" data-testid="inbox-thread-scroller">
       <div v-if="hasNextPage" class="flex justify-center p-2">
         <UButton type="button" color="neutral" variant="ghost" size="sm" :disabled="!hydrated || isFetchingNextPage" :label="t('inbox.thread.loadOlder')" @click="loadOlder" />
       </div>

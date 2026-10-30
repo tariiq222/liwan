@@ -1,4 +1,4 @@
-import type { StatusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
+import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
 
 /** Items due within this many days are urgent. */
 export const HR_EXPIRY_URGENT_DAYS = 14

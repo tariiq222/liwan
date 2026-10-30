@@ -11,14 +11,14 @@ from tools.shared_saas_lifecycle import odoo_effect
 
 class PhysicalBoundaryTests(unittest.TestCase):
     def test_database_and_modules_fail_closed(self):
-        self.assertEqual(odoo_effect.validate_database('webvue_scratch_' + 'a' * 32), 'webvue_scratch_' + 'a' * 32)
-        for value in ['odoo19', 'postgres', 'webvue_scratch_prod', 'webvue_scratch_a;drop']:
+        self.assertEqual(odoo_effect.validate_database('liwan_scratch_' + 'a' * 32), 'liwan_scratch_' + 'a' * 32)
+        for value in ['odoo19', 'postgres', 'liwan_scratch_prod', 'liwan_scratch_a;drop']:
             with self.assertRaises(odoo_effect.EffectError):
                 odoo_effect.validate_database(value)
-        for value in [['webvue_core', 'sale'], ['webvue_core', 'webvue_not_shipped'], ['webvue_core', 'webvue_registry_probe'], [{'a': 1}], [], ['webvue_core', 'webvue_core'], 'webvue_core']:
+        for value in [['liwan_core', 'sale'], ['liwan_core', 'liwan_not_shipped'], ['liwan_core', 'liwan_registry_probe'], [{'a': 1}], [], ['liwan_core', 'liwan_core'], 'liwan_core']:
             with self.subTest(value=value), self.assertRaises(odoo_effect.EffectError):
                 odoo_effect.validate_modules(value)
-        release = ['webvue_core', 'webvue_platform', 'webvue_api', 'webvue_pmo', 'webvue_meetings', 'webvue_hr', 'webvue_chat']
+        release = ['liwan_core', 'liwan_platform', 'liwan_api', 'liwan_pmo', 'liwan_meetings', 'liwan_hr', 'liwan_chat']
         self.assertEqual(odoo_effect.validate_modules(release), release)
         self.assertFalse(hasattr(odoo_effect, 'ALLOWED_MODULES'))
 
@@ -65,7 +65,7 @@ class PackageAdministratorScriptTests(unittest.TestCase):
             login = 'customer@example.test' if snapshot else 'admin'
             name = 'Customer administrator' if snapshot else 'Administrator'
             support_member = support
-            def _webvue_access_write(self, values, capability):
+            def _liwan_access_write(self, values, capability):
                 writes.append(('user', values, capability))
                 for key, value in values.items():
                     if key == 'group_ids':
@@ -74,10 +74,10 @@ class PackageAdministratorScriptTests(unittest.TestCase):
                         self.support_member = False
                     else:
                         setattr(self, key, value)
-            def _webvue_sync_capability_groups(self):
+            def _liwan_sync_capability_groups(self):
                 writes.append(('sync', set(roles)))
             def has_group(self, xmlid):
-                assert xmlid == 'webvue_core.group_vendor_support'
+                assert xmlid == 'liwan_core.group_vendor_support'
                 return self.support_member
             def _crypt_context(self):
                 return SimpleNamespace(verify=lambda value, hashed: value == 'known-secret' and hashed == 'hash')
@@ -95,7 +95,7 @@ class PackageAdministratorScriptTests(unittest.TestCase):
             def with_context(self, **context):
                 assert context == {'operator-context': True}
                 return self
-            def _webvue_set_public_origin(self, host):
+            def _liwan_set_public_origin(self, host):
                 writes.append(('origin', host))
                 params.update({'web.base.url': 'https://' + host, 'web.base.url.freeze': 'True'})
 
@@ -108,7 +108,7 @@ class PackageAdministratorScriptTests(unittest.TestCase):
                 writes.append(('role', values['role_id']))
 
         class Cursor:
-            dbname = 'webvue_scratch_' + 'a' * 32
+            dbname = 'liwan_scratch_' + 'a' * 32
             def rollback(self):
                 pass
             def commit(self):
@@ -124,18 +124,18 @@ class PackageAdministratorScriptTests(unittest.TestCase):
             cr = Cursor()
             registry = SimpleNamespace(signal_changes=lambda: writes.append(('signal',)))
             def __getitem__(self, model):
-                if model == 'webvue.tenant.profile':
+                if model == 'liwan.tenant.profile':
                     return SimpleNamespace(search=lambda *args, **kwargs: Records([1]))
-                if model == 'webvue.access.assignment':
+                if model == 'liwan.access.assignment':
                     return Assignments()
-                if model == 'webvue.entitlement.service':
+                if model == 'liwan.entitlement.service':
                     return SimpleNamespace(
-                        _webvue_excluded_user_ids=lambda: (1, 2) if admin.support_member else (1,),
-                        _webvue_count_users=lambda: count if count is not None else (0 if admin.support_member else 1),
-                        _webvue_entitled_admin_roles=lambda: ['system_admin', 'pmo_manager', 'hr_manager'],
-                        _webvue_limit_value=lambda key: limit if key == 'users.limit' else None,
+                        _liwan_excluded_user_ids=lambda: (1, 2) if admin.support_member else (1,),
+                        _liwan_count_users=lambda: count if count is not None else (0 if admin.support_member else 1),
+                        _liwan_entitled_admin_roles=lambda: ['system_admin', 'pmo_manager', 'hr_manager'],
+                        _liwan_limit_value=lambda key: limit if key == 'users.limit' else None,
                     )
-                if model == 'webvue.access.role':
+                if model == 'liwan.access.role':
                     return SimpleNamespace(search=lambda domain, limit=None: SimpleNamespace(id=domain[0][2]))
                 if model == 'ir.config_parameter':
                     return SimpleNamespace(get_param=params.get)
@@ -143,7 +143,7 @@ class PackageAdministratorScriptTests(unittest.TestCase):
             def ref(self, xmlid):
                 if xmlid == 'base.user_admin':
                     return admin
-                if xmlid == 'webvue_core.group_vendor_support':
+                if xmlid == 'liwan_core.group_vendor_support':
                     return SimpleNamespace(id=99)
                 raise AssertionError(xmlid)
             def invalidate_all(self, **kwargs):
@@ -155,25 +155,25 @@ class PackageAdministratorScriptTests(unittest.TestCase):
         runner.database = Cursor.dbname
         runner.request = {'admin': {'name': 'Customer administrator', 'login': 'customer@example.test'},
                           'companyName': 'Company', 'host': self.HOST,
-                          'job': {'policy': {'modules': ['webvue_core', 'webvue_platform', 'webvue_api', 'webvue_pmo', 'webvue_hr']}}}
+                          'job': {'policy': {'modules': ['liwan_core', 'liwan_platform', 'liwan_api', 'liwan_pmo', 'liwan_hr']}}}
         if package:
             runner.request['job']['packageAuthority'] = {'schemaVersion': 2}
         output = io.StringIO()
         platform = SimpleNamespace(OPERATOR_CONTEXT='operator-context')
-        with unittest.mock.patch.dict('sys.modules', {'odoo.addons.webvue_platform.models.entitlement_service': platform}), \
+        with unittest.mock.patch.dict('sys.modules', {'odoo.addons.liwan_platform.models.entitlement_service': platform}), \
                 contextlib.redirect_stdout(output):
             exec(compile(runner.admin_script('known-secret', snapshot=snapshot), '<generated-admin>', 'exec'), {'env': Environment()})
-        result = json.loads(output.getvalue().strip().removeprefix('WEBVUE_SHARED_ADMIN:'))
+        result = json.loads(output.getvalue().strip().removeprefix('LIWAN_SHARED_ADMIN:'))
         return result, writes, admin, roles
 
     def test_admin_script_reads_roles_from_the_entitlement_not_modules(self):
         script = object.__new__(odoo_effect.Runner)
-        script.database = 'webvue_scratch_' + 'a' * 32
+        script.database = 'liwan_scratch_' + 'a' * 32
         script.request = {'admin': {'name': 'A', 'login': 'a@example.test'}, 'companyName': 'C', 'host': 'a.example.test',
-                          'job': {'policy': {'modules': ['webvue_core', 'webvue_platform', 'webvue_api', 'webvue_pmo', 'webvue_hr']}}}
+                          'job': {'policy': {'modules': ['liwan_core', 'liwan_platform', 'liwan_api', 'liwan_pmo', 'liwan_hr']}}}
         text = script.admin_script('known-secret', snapshot=False)
-        self.assertIn('_webvue_entitled_admin_roles()', text)
-        self.assertNotIn("'webvue_pmo' in values['modules']", text)
+        self.assertIn('_liwan_entitled_admin_roles()', text)
+        self.assertNotIn("'liwan_pmo' in values['modules']", text)
         self.assertNotIn('"modules"', text.split('\n', 2)[1])
 
     def test_package_apply_removes_only_support_and_preserves_customer_roles(self):
@@ -205,7 +205,7 @@ class PackageAdministratorScriptTests(unittest.TestCase):
         self.assertLess(writes.index(('commit',)), writes.index(('signal',)))
 
     def test_snapshot_refuses_a_public_origin_that_is_not_the_routed_host(self):
-        for origin in ('https://' + self.HOST + '.other.test', 'http://' + self.HOST, 'https://webvue_scratch_' + 'a' * 32):
+        for origin in ('https://' + self.HOST + '.other.test', 'http://' + self.HOST, 'https://liwan_scratch_' + 'a' * 32):
             with self.subTest(origin=origin):
                 result, writes, _admin, _roles = self.run_script(snapshot=True, support=False, count=1, origin=origin)
                 self.assertEqual(result, {'verified': False})
@@ -249,7 +249,7 @@ class PackageAdministratorScriptTests(unittest.TestCase):
 
     def test_admin_script_has_no_package_branch(self):
         runner = object.__new__(odoo_effect.Runner)
-        runner.database = 'webvue_scratch_' + 'a' * 32
+        runner.database = 'liwan_scratch_' + 'a' * 32
         runner.request = {'admin': {'name': 'A', 'login': 'a@example.test'}, 'companyName': 'C', 'host': 'a.example.test', 'job': {'policy': {}}}
         text = runner.admin_script('known-secret', snapshot=False)
         self.assertNotIn('packageAdmin', text)
@@ -263,16 +263,16 @@ class DiagnosticsAndCatalogTests(unittest.TestCase):
 
     def assert_preflight_failure(self, error, expected_stdout, users_limit=None):
         """Exercise real main/observe/preflight, with no runtime or file access."""
-        config = {'schemaVersion': 1, 'projectName': 'webvue-shared-diagnostic',
+        config = {'schemaVersion': 1, 'projectName': 'liwan-shared-diagnostic',
                   'composeFile': '/synthetic/compose.yml', 'envFile': '/synthetic/runtime.env',
                   'stateDir': '/synthetic/state', 'domainSuffix': 'example.test'}
-        database = 'webvue_scratch_' + 'a' * 32
+        database = 'liwan_scratch_' + 'a' * 32
         digest = 'b' * 64
         request = {'action': 'observe', 'config': config, 'host': 'tenant.example.test',
                    'job': {'operation': 'provision',
                            'binding': {'database': database, 'filestore': database},
                            'policy': {'schema_version': 1, 'channel': 'control_plane',
-                                      'modules': ['webvue_core', 'webvue_platform', 'webvue_api'],
+                                      'modules': ['liwan_core', 'liwan_platform', 'liwan_api'],
                                       'features': {'users.limit': users_limit, 'storage.limit_mb': None,
                                                    'branches.extra_limit': 0}},
                            'catalog': {'sourceSha256': digest}}}
@@ -385,7 +385,7 @@ class DiagnosticsAndCatalogTests(unittest.TestCase):
                 self.assert_preflight_failure(error, '{"error_code":"shared_effect_unverified"}\n')
 
     def test_classify_error_allowlists_non_secret_codes_only(self):
-        from tools.webvue_cli.managed_verify import VerificationError
+        from tools.liwan_cli.managed_verify import VerificationError
         from tools.shared_saas_lifecycle.catalog_source import CatalogSourceError
         for code in ('policy_script_failed', 'target_mismatch', 'policy_already_initialized',
                      'features_mismatch', 'modules_mismatch', 'snapshot_invalid'):
@@ -393,7 +393,7 @@ class DiagnosticsAndCatalogTests(unittest.TestCase):
         self.assertEqual(odoo_effect.classify_error(CatalogSourceError('catalog_source_ambiguous')),
                          'catalog_source_ambiguous')
         # Managed-policy refusal codes are stable safe identifiers and propagate.
-        from tools.webvue_cli.managed_policy import POLICY_ERROR_CODES, PolicyError
+        from tools.liwan_cli.managed_policy import POLICY_ERROR_CODES, PolicyError
         for code in POLICY_ERROR_CODES:
             self.assertEqual(odoo_effect.classify_error(PolicyError(code)), code)
         self.assertEqual(odoo_effect.classify_error(PolicyError('not_an_allowlisted_code')),
@@ -412,7 +412,7 @@ class DiagnosticsAndCatalogTests(unittest.TestCase):
 
     def test_policy_payload_is_checked_against_sha_pinned_catalog_bytes(self):
         import hashlib
-        from tools.webvue_cli.managed_policy import PolicyError, parse_create_policy
+        from tools.liwan_cli.managed_policy import PolicyError, parse_create_policy
         from tools.shared_saas_lifecycle.catalog_source import resolve_catalog_path
         root = Path(__file__).resolve().parents[2]
         raw = (root / 'deploy/catalog/solutions/platform_v2.json').read_bytes()
@@ -431,7 +431,7 @@ class DiagnosticsAndCatalogTests(unittest.TestCase):
                                 catalog_sha256='sha256:' + digest, commercial_mode='saas')
 
 class RuntimeWriterCodeTests(unittest.TestCase):
-    PROJECT = 'webvue-shared-test'
+    PROJECT = 'liwan-shared-test'
 
     def test_codes_cross_the_boundary_by_name(self):
         for code in ('runtime_writer_present', 'runtime_writer_after_effect'):
@@ -458,7 +458,7 @@ class RuntimeWriterCodeTests(unittest.TestCase):
 
 class RuntimeWriterCheckOrderTests(unittest.TestCase):
     """The writer check runs before the gate exists, so a busy project never wedges the lane."""
-    PROJECT = 'webvue-shared-test'
+    PROJECT = 'liwan-shared-test'
 
     def runner(self, root, containers, calls):
         runner = object.__new__(odoo_effect.Runner)
@@ -518,7 +518,7 @@ class ReleaseOperationBoundaryTests(unittest.TestCase):
             calls = []
             runner.preflight = lambda: calls.append('runtime')
             runner.root = root
-            with unittest.mock.patch.dict(os.environ, {'WEBVUE_RELEASE_ROUTES_DIR': str(root)}):
+            with unittest.mock.patch.dict(os.environ, {'LIWAN_RELEASE_ROUTES_DIR': str(root)}):
                 with self.assertRaises(odoo_effect.EffectError): runner.observe()
             self.assertEqual(calls, [])
 
@@ -537,11 +537,11 @@ class VerifiedHelperRuntimeBoundaryTests(unittest.TestCase):
         import subprocess
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw).resolve(); request, rendered = self.fixture(root)
-            rendered['services']['odoo']['image'] = 'webvue/odoo@sha256:' + 'b' * 64
+            rendered['services']['odoo']['image'] = 'liwan/odoo@sha256:' + 'b' * 64
             def docker_config(argv, **kwargs):
                 self.assertEqual(len(list((root / 'leases' / 'tenant_a').glob('*.json'))), 1)
                 return subprocess.CompletedProcess(argv, 0, json.dumps(rendered), '')
-            with unittest.mock.patch.dict(os.environ, {'WEBVUE_RELEASE_ROUTES_DIR': str(root), 'WEBVUE_RELEASE_HELPER_POOL_ID': 'blue'}), unittest.mock.patch('deploy.releases.helper_runtime.subprocess.run', docker_config):
+            with unittest.mock.patch.dict(os.environ, {'LIWAN_RELEASE_ROUTES_DIR': str(root), 'LIWAN_RELEASE_HELPER_POOL_ID': 'blue'}), unittest.mock.patch('deploy.releases.helper_runtime.subprocess.run', docker_config):
                 with self.assertRaisesRegex(odoo_effect.EffectError, '^release_operation_blocked$'):
                     with odoo_effect.effect_operation(request, 'observe'): self.fail('wrong image effect admitted')
             self.assertFalse(list((root / 'leases' / 'tenant_a').glob('*.json')))
@@ -554,7 +554,7 @@ class VerifiedHelperRuntimeBoundaryTests(unittest.TestCase):
             def docker_config(argv, **kwargs):
                 self.assertEqual(len(list((root / 'leases' / 'tenant_a').glob('*.json'))), 1)
                 return subprocess.CompletedProcess(argv, 0, json.dumps(rendered), '')
-            with unittest.mock.patch.dict(os.environ, {'WEBVUE_RELEASE_ROUTES_DIR': str(root), 'WEBVUE_RELEASE_HELPER_POOL_ID': 'blue'}), unittest.mock.patch('deploy.releases.helper_runtime.subprocess.run', docker_config):
+            with unittest.mock.patch.dict(os.environ, {'LIWAN_RELEASE_ROUTES_DIR': str(root), 'LIWAN_RELEASE_HELPER_POOL_ID': 'blue'}), unittest.mock.patch('deploy.releases.helper_runtime.subprocess.run', docker_config):
                 with odoo_effect.effect_operation(request, 'observe') as lease:
                     self.assertEqual(lease['fence'], 8)
                 (root / 'tenant_a.json').unlink()

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FinancePayment } from '@webvue/contracts'
+import type { FinancePayment } from '@liwan/contracts'
 import { refDebounced } from '@vueuse/core'
 import { useFinanceOpenInvoices } from '@/composables/finance/useFinanceInvoices'
 import { useFinancePaymentAllocate } from '@/composables/finance/useFinancePayments'

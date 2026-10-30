@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { InboxRef } from '@webvue/contracts'
-import { inboxReportRangeDays } from '@webvue/contracts'
+import type { InboxRef } from '@liwan/contracts'
+import { inboxReportRangeDays } from '@liwan/contracts'
 import { DEFAULT_REPORT_PERIOD, reportRange, type InboxReportRoute, type ReportPeriod } from '@/composables/inbox/inboxReportRoute'
 
 // The report filters: a quick period (7/30/90 days) or a custom date pair, then the channel, department and agent. The

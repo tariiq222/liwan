@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { OperationStageApprovalModeSchema, type OperationProcess, type OperationProcessBody, type PersonRef } from '@webvue/contracts'
+import { OperationStageApprovalModeSchema, type OperationProcess, type OperationProcessBody, type PersonRef } from '@liwan/contracts'
 import { joinList } from '@/utils/listFormat'
 import { createOperationSubmitGuard, operationErrorKey, processFormErrors } from '@/composables/operations/forms'
 import { useOperationExecutionKinds } from '@/composables/operations/useOperations'

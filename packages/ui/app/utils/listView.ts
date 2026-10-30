@@ -17,4 +17,4 @@ export function listViewQuery(query: LocationQuery, value: string, options: read
 
 /** What a list page offers its embedded filter bar when `viewsInFilters` is set: the bar draws the view switch in its own row. */
 export interface ListViewContext { view: ComputedRef<string | undefined>; options: readonly ListViewOption[]; setView: (value: string) => void }
-export const LIST_VIEW_KEY: InjectionKey<ListViewContext> = Symbol('webvue-list-view')
+export const LIST_VIEW_KEY: InjectionKey<ListViewContext> = Symbol('liwan-list-view')

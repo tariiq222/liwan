@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import type { HrLeave } from '@webvue/contracts'
+import type { HrLeave } from '@liwan/contracts'
 import LeaveDecisionConfirm from '../../app/components/hr/LeaveDecisionConfirm.vue'
 import { storyContext } from '../support/context'
 

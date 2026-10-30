@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { AppointmentPublicBookingSchema, AppointmentSlotListSchema } from '@webvue/contracts'
+import { AppointmentPublicBookingSchema, AppointmentSlotListSchema } from '@liwan/contracts'
 import { collectBrowserErrors, heading, MOCK_STACK_ONLY, trackRefusedRequests } from './support/mock-pages'
 
 test.skip(process.env.E2E_PROJECT_POPUPS !== '1', MOCK_STACK_ONLY)
@@ -43,7 +43,7 @@ test.describe('the booking page', () => {
     await openBooking(page, 1)
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
     await expect(heading(page, 'موعدك')).toBeVisible()
-    await expect(page.getByTestId('book-brand')).toHaveText('ويب فيو')
+    await expect(page.getByTestId('book-brand')).toHaveText('ليوان')
     await expect(page.getByTestId('book-type')).toHaveText('استشارة')
     await expect(page.getByTestId('book-state')).toHaveText('بانتظار اختيار الوقت')
     await expect(page.getByTestId('book-requester')).toHaveText('سارة العتيبي')

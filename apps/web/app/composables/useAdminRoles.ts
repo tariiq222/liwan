@@ -14,7 +14,7 @@ import {
   type RoleList,
   type RolePatchInput,
   type RoleStateInput,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { accessRefreshWait, refreshMeInNuxtContext, type NuxtContextRunner } from './useAdminUsers'
 
 export type AdminRoleListParams = {

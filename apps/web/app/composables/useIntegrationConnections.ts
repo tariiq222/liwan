@@ -1,6 +1,6 @@
 import { type MaybeRefOrGetter } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
-import { IntegrationConnectionListSchema } from '@webvue/contracts'
+import { IntegrationConnectionListSchema } from '@liwan/contracts'
 
 export function useIntegrationConnections(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()

@@ -1,4 +1,4 @@
-import type { KpiTile } from '@webvue/ui/app/utils/kpiTile'
+import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
 import { queryDay, queryPositiveInt } from '../../../utils/routeQuery'
 
 export const BANK_PAGE_SIZE = 25

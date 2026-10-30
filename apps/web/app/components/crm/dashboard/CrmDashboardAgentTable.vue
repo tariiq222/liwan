@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { CrmDashboardAgentRowSchema } from '@webvue/contracts'
+import type { CrmDashboardAgentRowSchema } from '@liwan/contracts'
 import type { z } from 'zod'
 
 // One row per agent who holds records: open, due now and won. The server orders the rows.
@@ -18,7 +18,7 @@ const columns = computed<TableColumn<Row>[]>(() => [
 
 <template>
   <SharedRecordSection variant="list" :title="t('crm.dashboard.manager.agentsTitle')" data-testid="crm-agent-table">
-    <SharedEmptyState v-if="!agents.length" class="m-(--webvue-card-pad-dense)" :title="t('crm.dashboard.manager.agentsEmpty')" />
+    <SharedEmptyState v-if="!agents.length" class="m-(--liwan-card-pad-dense)" :title="t('crm.dashboard.manager.agentsEmpty')" />
     <SharedDataTable v-else bare :rows="agents" :columns="columns" row-key="user_id" :caption="t('crm.dashboard.manager.agentsTitle')">
       <template #agent-cell="{ row }"><span class="block truncate font-semibold text-highlighted">{{ row.original.name }}</span></template>
       <template #open-cell="{ row }">{{ row.original.open }}</template>

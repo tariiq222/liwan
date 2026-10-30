@@ -22,7 +22,7 @@ const actions = [
 
 describe('ShellQuickViews', () => {
   it('renders nothing when there is nothing to list', async () => {
-    expect(await render({})).not.toContain('webvue-quick-views')
+    expect(await render({})).not.toContain('liwan-quick-views')
   })
 
   it('renders the views, a divider, then the actions as links with their test ids', async () => {

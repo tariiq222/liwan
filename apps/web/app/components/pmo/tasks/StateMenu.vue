@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { taskStateBadge } from '@/composables/taskState'
-import { statusPillAttrs } from '@webvue/ui/app/utils/statusPill'
-import { badgeLabel } from '@webvue/ui/app/utils/statusBadge'
-import type { Task, TaskState } from '@webvue/contracts'
+import { statusPillAttrs } from '@liwan/ui/app/utils/statusPill'
+import { badgeLabel } from '@liwan/ui/app/utils/statusBadge'
+import type { Task, TaskState } from '@liwan/contracts'
 import { STATE_LABEL_KEY } from '@/composables/taskState'
 import { ApiError } from '@/composables/useApi'
 import { useTransitionTask } from '@/composables/useTasks'

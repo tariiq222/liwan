@@ -49,14 +49,14 @@ export async function startStorybookServer(): Promise<{ base: string, close: () 
 
 /**
  * Call inside a `test.describe` body. Without a Storybook build the describe is
- * skipped, unless WEBVUE_REQUIRE_STORYBOOK=1 (checkpoints and CI), where a missing
+ * skipped, unless LIWAN_REQUIRE_STORYBOOK=1 (checkpoints and CI), where a missing
  * build is a failure, not a silent skip.
  */
 export function requireStorybook(): void {
   if (storybookBuilt) return
-  if (process.env.WEBVUE_REQUIRE_STORYBOOK === '1') {
+  if (process.env.LIWAN_REQUIRE_STORYBOOK === '1') {
     test('Storybook build is present', () => {
-      throw new Error('WEBVUE_REQUIRE_STORYBOOK=1 but apps/web/storybook-static/index.json is missing. Run `npm -w apps/web run build-storybook`.')
+      throw new Error('LIWAN_REQUIRE_STORYBOOK=1 but apps/web/storybook-static/index.json is missing. Run `npm -w apps/web run build-storybook`.')
     })
     return
   }

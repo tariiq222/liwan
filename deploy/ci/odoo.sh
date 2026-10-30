@@ -6,7 +6,7 @@
 #                                    same, but N shards split only the modules a,b (a pull request's affected set)
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-# Pinned OCA repositories (deploy/oca-addons.json), fetched by the setup action; appended after the WebVue addons.
+# Pinned OCA repositories (deploy/oca-addons.json), fetched by the setup action; appended after the LiwanOS addons.
 OCA_PATH="$(python3 -B tools/oca_addons.py path --check)"
 : "${ODOO_ROOT:?}" "${ODOO_PYTHON:?}" "${ODOO_PORT:?}" "${PGHOST:?}" "${PGPORT:?}" "${PGUSER:?}" "${PGPASSWORD?}" "${GITHUB_RUN_ID:?}"
 SHARD=""
@@ -17,10 +17,10 @@ case "${1:-}" in
 esac
 MODULES="$(python3 -B tools/catalog_check.py --release-modules)"
 if [ -n "$SHARD" ]; then
-  SCRATCH_DB="webvue_scratch_ci_${GITHUB_RUN_ID}_s${SHARD%/*}"
+  SCRATCH_DB="liwan_scratch_ci_${GITHUB_RUN_ID}_s${SHARD%/*}"
   TAGS="$(python3 -B tools/odoo_shards.py tags "$SHARD" ${ODOO_TEST_MODULES:+--modules "$ODOO_TEST_MODULES"})"
 else
-  SCRATCH_DB="webvue_scratch_ci_${GITHUB_RUN_ID}"
+  SCRATCH_DB="liwan_scratch_ci_${GITHUB_RUN_ID}"
   TAGS="/${MODULES//,/,/}"
 fi
 SCRATCH_ROOT="$(mktemp -d)"
@@ -28,8 +28,8 @@ mkdir -p "$SCRATCH_ROOT/data" "$SCRATCH_ROOT/logs"
 cleanup() { dropdb -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" --if-exists "$SCRATCH_DB" 2>/dev/null || true; rm -rf "$SCRATCH_ROOT"; }
 trap cleanup EXIT
 dropdb -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" --if-exists "$SCRATCH_DB" || true
-export WEBVUE_COMMERCIAL_CONFIG="$SCRATCH_ROOT/odoo-classification.json"
-python3 deploy/classification.py fixture --database "$SCRATCH_DB" --mode saas --output "$WEBVUE_COMMERCIAL_CONFIG"
+export LIWAN_COMMERCIAL_CONFIG="$SCRATCH_ROOT/odoo-classification.json"
+python3 deploy/classification.py fixture --database "$SCRATCH_DB" --mode saas --output "$LIWAN_COMMERCIAL_CONFIG"
 "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" \
   --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$PWD/odoo-addons,$OCA_PATH" \
   --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \

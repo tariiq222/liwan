@@ -33,7 +33,7 @@ function setup(invoice: unknown = OWING, capable = true, featureOpen = true) {
   vi.stubGlobal('useApi', () => ({ $api: mocks.api }))
   vi.stubGlobal('useI18n', () => ({ t: (key: string) => MESSAGES[key] ?? key }))
   vi.stubGlobal('useToast', () => ({ add: mocks.toast }))
-  vi.stubGlobal('window', { location: { origin: 'https://acme.webvue.example' } })
+  vi.stubGlobal('window', { location: { origin: 'https://acme.liwan.example' } })
   vi.stubGlobal('navigator', { clipboard: { writeText: mocks.writeText } })
   return usePaymentLinkAction(() => invoice as never)
 }
@@ -64,7 +64,7 @@ describe('usePaymentLinkAction', () => {
     mocks.api.mockResolvedValue({ path: '/pay/invoice/2?access_token=tok-2' })
     await action.copyLink()
     expect(mocks.api).toHaveBeenCalledWith('/api/v1/payments/links', expect.objectContaining({ method: 'POST', body: { invoice_id: 2 }, schema: expect.anything() }))
-    expect(mocks.writeText).toHaveBeenCalledWith('https://acme.webvue.example/pay/invoice/2?access_token=tok-2')
+    expect(mocks.writeText).toHaveBeenCalledWith('https://acme.liwan.example/pay/invoice/2?access_token=tok-2')
     expect(mocks.toast).toHaveBeenCalledWith({ title: 'تم نسخ رابط الدفع', description: 'أرسله إلى العميل', color: 'success' })
   })
 
@@ -73,7 +73,7 @@ describe('usePaymentLinkAction', () => {
     mocks.api.mockResolvedValue({ path: '/pay/invoice/2?access_token=tok-2' })
     mocks.writeText.mockRejectedValue(new Error('denied'))
     await action.copyLink()
-    expect(mocks.toast).toHaveBeenCalledWith({ title: 'تعذّر النسخ', description: 'https://acme.webvue.example/pay/invoice/2?access_token=tok-2', color: 'warning', duration: 0 })
+    expect(mocks.toast).toHaveBeenCalledWith({ title: 'تعذّر النسخ', description: 'https://acme.liwan.example/pay/invoice/2?access_token=tok-2', color: 'warning', duration: 0 })
   })
 
   it.each([

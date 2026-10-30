@@ -27,15 +27,15 @@ function orFallback(formatted: string, value: string | number | Date | null | un
   return typeof value === 'string' && value !== '' ? value : '—'
 }
 
-export function formatWebVueDate(value: string | number | Date | null | undefined, _locale?: string): string {
+export function formatLiwanDate(value: string | number | Date | null | undefined, _locale?: string): string {
   return orFallback(formatDate(value), value)
 }
 
-export function formatWebVueDateTime(value: string | number | Date | null | undefined, _locale?: string): string {
+export function formatLiwanDateTime(value: string | number | Date | null | undefined, _locale?: string): string {
   return orFallback(formatDateTime(value), value)
 }
 
-export function formatWebVueTime(value: string | number | Date | null | undefined, _locale?: string): string {
+export function formatLiwanTime(value: string | number | Date | null | undefined, _locale?: string): string {
   return orFallback(formatTime(value), value)
 }
 

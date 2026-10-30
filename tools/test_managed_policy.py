@@ -9,10 +9,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 # Missing implementation is the intended first RED, not an import/setup accident.
-if importlib.util.find_spec('webvue_cli.managed_policy') is None:
+if importlib.util.find_spec('liwan_cli.managed_policy') is None:
     managed_policy = None
 else:
-    from webvue_cli import managed_policy
+    from liwan_cli import managed_policy
 
 CATALOG_PATH = Path(__file__).resolve().parents[1] / 'deploy/catalog/solutions/platform.json'
 POLICY_MAX_BYTES = 16384
@@ -67,7 +67,7 @@ class ManagedPolicyCase(unittest.TestCase):
 
     def test_base_only_core_does_not_add_pillars(self):
         result = self.parse(self.policy_for('core'))
-        self.assertEqual(result['modules'], ['webvue_core', 'webvue_platform', 'webvue_api'])
+        self.assertEqual(result['modules'], ['liwan_core', 'liwan_platform', 'liwan_api'])
         self.assertEqual(result['features'], {'users.limit': None, 'storage.limit_mb': None})
 
     def test_repeated_calls_are_independent_and_catalog_is_read_only(self):
@@ -158,16 +158,16 @@ class ManagedPolicyCase(unittest.TestCase):
                     commercial_mode='non_saas')
 
     def test_modules_require_list_of_strings(self):
-        for modules in (None, True, 1, {}, 'webvue_pmo', [1], [True], [[]], [{}]):
+        for modules in (None, True, 1, {}, 'liwan_pmo', [1], [True], [[]], [{}]):
             with self.subTest(modules=modules):
                 self.refuse('policy_invalid', {**self.policy, 'modules': modules})
 
     def test_exact_ordered_base_plus_single_tier_modules(self):
         base = self.catalog['base_modules']
-        for modules in ([], ['webvue_pmo'], self.policy['modules'][::-1],
-                        base + ['webvue_hr'], base + ['webvue_pmo', 'webvue_hr', 'webvue_chat'],
-                        base + ['webvue_pmo', 'webvue_pmo'], base + ['unknown'],
-                        base + ['webvue_pmo', 'hr_timesheet']):
+        for modules in ([], ['liwan_pmo'], self.policy['modules'][::-1],
+                        base + ['liwan_hr'], base + ['liwan_pmo', 'liwan_hr', 'liwan_chat'],
+                        base + ['liwan_pmo', 'liwan_pmo'], base + ['unknown'],
+                        base + ['liwan_pmo', 'hr_timesheet']):
             with self.subTest(modules=modules):
                 self.refuse('policy_composition_mismatch', {**self.policy, 'modules': modules})
 
@@ -250,7 +250,7 @@ class ManagedPolicyCase(unittest.TestCase):
             self.catalog_refuse(value)
 
     def test_catalog_invalid_base_modules(self):
-        for base in ([], None, 'webvue_core', [1], ['webvue_core', 'webvue_core'], ['bad;module']):
+        for base in ([], None, 'liwan_core', [1], ['liwan_core', 'liwan_core'], ['bad;module']):
             with self.subTest(base=base):
                 self.catalog_refuse({**self.catalog, 'base_modules': base})
 
@@ -262,8 +262,8 @@ class ManagedPolicyCase(unittest.TestCase):
 
     def test_catalog_invalid_tier_members(self):
         for key, value in (('id', True), ('id', 'bad-id'), ('modules', None),
-                           ('modules', [True]), ('modules', ['webvue_core']),
-                           ('modules', ['webvue_pmo', 'webvue_pmo']), ('features', None),
+                           ('modules', [True]), ('modules', ['liwan_core']),
+                           ('modules', ['liwan_pmo', 'liwan_pmo']), ('features', None),
                            ('features', [True]), ('features', ['boolean:']),
                            ('features', ['unknown:pmo.enabled']),
                            ('features', ['boolean:pmo.enabled:extra']),
@@ -286,9 +286,9 @@ class ManagedPolicyCase(unittest.TestCase):
 
     def test_catalog_drives_composition_without_fixed_pillars(self):
         catalog = copy.deepcopy(self.catalog)
-        catalog['base_modules'].append('webvue_extra_base')
+        catalog['base_modules'].append('liwan_extra_base')
         policy = copy.deepcopy(self.policy)
-        policy['modules'].insert(3, 'webvue_extra_base')
+        policy['modules'].insert(3, 'liwan_extra_base')
         raw = json.dumps(catalog).encode()
         with patch.object(Path, 'read_bytes', return_value=raw):
             self.assertEqual(self.parse(policy, catalog_sha256='sha256:' + hashlib.sha256(raw).hexdigest()), policy)
@@ -386,8 +386,8 @@ class ManagedPolicyV2Case(unittest.TestCase):
     def test_catalog_features_cover_platform_registry_required_limits(self):
         import re
         registry = (Path(__file__).resolve().parents[1]
-                    / 'odoo-addons/webvue_platform/models/feature_registry.py').read_text()
-        required = set(re.findall(r"'key': '([a-z_.]+)',\s*'type': 'limit',\s*'owner': 'webvue_platform'", registry))
+                    / 'odoo-addons/liwan_platform/models/feature_registry.py').read_text()
+        required = set(re.findall(r"'key': '([a-z_.]+)',\s*'type': 'limit',\s*'owner': 'liwan_platform'", registry))
         self.assertEqual(required, {'users.limit', 'storage.limit_mb', 'branches.extra_limit'})
         for tier in self.catalog['tiers']:
             self.assertLessEqual(required, set(self.policy_for(tier['id'])['features']))
@@ -447,4 +447,4 @@ class ReleaseFeaturesFixtureCase(unittest.TestCase):
     def test_release_modules_lists_base_first(self):
         catalog = json.loads(RELEASE_PATH.read_text('utf-8'))['cases'][0]['catalog']
         self.assertEqual(managed_policy.release_modules(catalog),
-                         ['webvue_core', 'webvue_platform', 'webvue_api', 'webvue_pmo', 'webvue_meetings', 'webvue_hr'])
+                         ['liwan_core', 'liwan_platform', 'liwan_api', 'liwan_pmo', 'liwan_meetings', 'liwan_hr'])

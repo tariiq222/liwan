@@ -9,10 +9,10 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { mswLoader } from 'msw-storybook-addon/csf3'
-import messages, { locales } from 'virtual:webvue-i18n'
+import messages, { locales } from 'virtual:liwan-i18n'
 import { pluralRules } from '../i18n/pluralRules'
 import { apiHandlers } from '../stories/handlers/api'
-import nuxtUiComponents from 'virtual:webvue-nuxt-ui-components'
+import nuxtUiComponents from 'virtual:liwan-nuxt-ui-components'
 import { useAppearance } from '../app/composables/useAppearance'
 import { htmlAttrsFor, type AppearanceMode, type FontSize } from '../app/utils/appearance'
 import { __resetState, __setRouter } from './nuxt-shims'
@@ -24,7 +24,7 @@ import { init as initLucideIcons } from './nuxt-icon-client-bundle-shim.mjs'
 // every icon usage regardless of which internal path resolves it.
 initLucideIcons()
 
-// virtual:webvue-i18n's messages are generated per app locale from JSON files,
+// virtual:liwan-i18n's messages are generated per app locale from JSON files,
 // so vue-i18n's exact `{ ar, en }` message-map type cannot be declared statically.
 const i18n = createI18n({ legacy: false, locale: 'ar', fallbackLocale: 'ar', pluralRules, messages: messages as any })
 // @nuxtjs/i18n adds `localeProperties` (the active locale's config, incl. `dir`) to the composer;

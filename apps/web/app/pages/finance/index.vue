@@ -36,9 +36,9 @@ const progress = computed(() => setup.data.value ? financeSetupProgress(setup.da
 
 <template>
   <SharedListPage :title="t('finance.overview.title')" kpi-toggle>
-    <div class="webvue-page-stack">
+    <div class="liwan-page-stack">
       <SharedKpiStrip :tiles="tiles" :loading="loadingTiles" :label="t('finance.kpi.label')" data-testid="finance-kpi-strip" />
-      <div class="grid gap-(--webvue-gap-card) lg:grid-cols-2">
+      <div class="grid gap-(--liwan-gap-card) lg:grid-cols-2">
         <SharedRecordSection
           v-if="canSetup"
           variant="panel"
@@ -58,7 +58,7 @@ const progress = computed(() => setup.data.value ? financeSetupProgress(setup.da
           :description="t('finance.overview.attentionDescription')"
           data-testid="finance-attention-card"
         >
-          <SharedPageState class="m-(--webvue-card-pad-dense)" :loading="drafts.isLoading.value" :error="drafts.error.value" :empty="!drafts.data.value?.items.length" :empty-text="t('finance.overview.attentionEmpty')" @retry="drafts.refetch">
+          <SharedPageState class="m-(--liwan-card-pad-dense)" :loading="drafts.isLoading.value" :error="drafts.error.value" :empty="!drafts.data.value?.items.length" :empty-text="t('finance.overview.attentionEmpty')" @retry="drafts.refetch">
             <DraftDocumentList :rows="drafts.data.value?.items ?? []" />
           </SharedPageState>
         </SharedRecordSection>

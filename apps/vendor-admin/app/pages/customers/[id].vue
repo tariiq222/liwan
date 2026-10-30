@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { formatWebVueDate } from '@webvue/ui/app/composables/calendarDate'
-import { invoiceStatusBadge } from '@webvue/commercial-ui/app/utils/commercialBadges'
-import { formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercial'
+import { formatLiwanDate } from '@liwan/ui/app/composables/calendarDate'
+import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
+import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { cancellationErrorKey, branchSummaryText, customersReturnTo, isNotAvailable, subscriptionDisplayState } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 import { useCopyLink } from '@/composables/useCopyLink'
 import { entitledSelections } from '@/utils/vendorEntitlement'
 import { customerDisplayBadge, operationStatusBadge } from '@/utils/vendorBadges'
-import type { StatusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
+import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
 import { CUSTOMER_TABS, clientTab, clientTabItems, type ClientTab } from '@/utils/vendorClients'
 definePageMeta({ capability: 'vendor.read' })
 const { t, locale } = useI18n(); const route = useRoute(); const { can } = useVendorContext(); const api = useVendorSubscriptions()
@@ -224,7 +224,7 @@ async function cancelPendingOrder() {
             <li v-for="i in invoices" :key="i.id" class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-3" data-testid="customer-invoice">
               <div class="min-w-0">
                 <NuxtLink :to="{ path: `/invoices/${encodeURIComponent(i.id)}`, query: { returnTo: route.fullPath } }" class="font-medium hover:underline">{{ i.number ?? t('vendor.invoices.draftNumber') }}</NuxtLink>
-                <p class="text-xs text-muted">{{ t(`vendor.invoices.kind.${i.kind}`) }} · <bdi dir="ltr" class="tabular-nums">{{ formatWebVueDate(i.period_start, locale) }} → {{ formatWebVueDate(i.period_end, locale) }}</bdi></p>
+                <p class="text-xs text-muted">{{ t(`vendor.invoices.kind.${i.kind}`) }} · <bdi dir="ltr" class="tabular-nums">{{ formatLiwanDate(i.period_start, locale) }} → {{ formatLiwanDate(i.period_end, locale) }}</bdi></p>
               </div>
               <div class="flex items-center gap-3">
                 <bdi dir="ltr" class="font-semibold tabular-nums">{{ formatCommercialMoney(i.total, locale) }}</bdi>

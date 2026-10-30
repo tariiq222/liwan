@@ -17,8 +17,8 @@ STATE_ID = 'state_' + 'a' * 32
 
 
 def manifest(**changes):
-    value = {'releaseId': 'r2', 'webvueCommit': '1' * 40, 'odooCommit': '2' * 40,
-             'images': {'odoo': 'webvue/odoo@sha256:' + 'a' * 64, 'web': 'webvue/web@sha256:' + 'b' * 64},
+    value = {'releaseId': 'r2', 'liwanCommit': '1' * 40, 'odooCommit': '2' * 40,
+             'images': {'odoo': 'liwan/odoo@sha256:' + 'a' * 64, 'web': 'liwan/web@sha256:' + 'b' * 64},
              'assetsId': 'assets-1', 'moduleVersions': {}, 'upgradeModules': [], 'installModules': [],
              'mode': 'service_maintenance', 'affectedServices': ['ai'], 'aiStateVersion': '1',
              'compatibilityEvidence': {'reviewer': 'owner', 'reference': 'review-42'},
@@ -35,8 +35,8 @@ def ai_server(**changes):
     calls = []
     class Handler(BaseHTTPRequestHandler):
         def handle_call(self):
-            calls.append((self.command, self.path, self.headers.get('x-webvue-service-token')))
-            if self.headers.get('x-webvue-service-token') != TOKEN:
+            calls.append((self.command, self.path, self.headers.get('x-liwan-service-token')))
+            if self.headers.get('x-liwan-service-token') != TOKEN:
                 self.send_error(401); return
             if self.path == '/internal/release/drain' and self.command == 'POST':
                 observation['accepting'] = False
@@ -61,7 +61,7 @@ class AiMaintenanceTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve(); self.state = ReleaseState(self.root)
         for tenant, pool in (('a', 'blue'), ('b', 'blue')):
-            self.state.register({'tenantId': tenant, 'database': 'webvue_scratch_' + tenant, 'filestore': 'webvue_scratch_' + tenant, 'registryRevision': 1},
+            self.state.register({'tenantId': tenant, 'database': 'liwan_scratch_' + tenant, 'filestore': 'liwan_scratch_' + tenant, 'registryRevision': 1},
                                 {'schemaVersion': 1, 'tenantId': tenant, 'identityRevision': 1, 'routeRevision': 1,
                                  'releaseId': 'r1', 'poolId': pool, 'fence': 1, 'state': 'serving', 'aiStateVersion': '1'})
         self.token = self.root / 'ai-token'; self.token.write_text(TOKEN); self.token.chmod(0o600)

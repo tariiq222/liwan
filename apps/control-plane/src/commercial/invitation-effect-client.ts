@@ -1,5 +1,5 @@
 import { request as httpsRequest } from 'node:https'
-import { signServiceRequest } from '@webvue/commercial-contracts/server'
+import { signServiceRequest } from '@liwan/commercial-contracts/server'
 import type { OdooPasswordAdapter } from './invitation-odoo.js'
 import { API_EFFECT_TIMEOUT_MS, EFFECT_ACTOR, EFFECT_ISSUER, EFFECT_PATH, isEffectCode } from '../shared/internal-effect-protocol.js'
 

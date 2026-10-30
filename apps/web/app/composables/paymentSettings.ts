@@ -1,4 +1,4 @@
-import { PAYMENT_ORDER_EXPIRY_MINUTES, type PaymentSettings, type PaymentSettingsUpdate } from '@webvue/contracts'
+import { PAYMENT_ORDER_EXPIRY_MINUTES, type PaymentSettings, type PaymentSettingsUpdate } from '@liwan/contracts'
 
 /** What the orders card edits. The expiry is null while its input is empty. */
 export interface OrderSettingsDraft {

@@ -1,7 +1,7 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
-import { HrCompensationSchema, type HrCompensation, type HrCompensationWrite, type HrPayrollRelationship } from '@webvue/contracts'
+import { HrCompensationSchema, type HrCompensation, type HrCompensationWrite, type HrPayrollRelationship } from '@liwan/contracts'
 import { ApiError } from './useApi'
 
 type Api = ReturnType<typeof useApi>['$api']

@@ -1,7 +1,7 @@
 import {
   AccessAuditDetailSchema, AccessAuditListSchema, AdminUserDetailSchema, AdminUserListSchema,
   PermissionCatalogSchema, RoleDetailSchema, RoleListSchema,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { expect, type Page } from '@playwright/test'
 
 // Shared by the Plan 6d specs (tasmim6-*.spec.ts for settings, account and the standalone pages).
@@ -31,7 +31,7 @@ export async function openClientSide(page: Page, path: string) {
 
 export const fitsWidth = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
 
-const COMPANY = { kind: 'company', id: 1, name: 'ويب فيو' } as const
+const COMPANY = { kind: 'company', id: 1, name: 'ليوان' } as const
 const roleRef = (id: number, key: string, ar: string, en: string, type: 'built_in' | 'custom' = 'built_in') =>
   ({ id, key, name: { ar, en }, type, protected: false })
 export const ROLE_REFS = {

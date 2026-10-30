@@ -20,7 +20,7 @@ import {
   type MeetingPatch,
   type MeetingResolutionCreate,
   type MeetingSeriesCreate,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { invalidateMeetingCaches, meetingKeys, meetingSeriesKeys } from './meetingKeys'
 
 function prefetchMeetingQuery(query: { suspense: () => Promise<unknown> }, enabled: MaybeRefOrGetter<boolean> = true) {

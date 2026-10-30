@@ -5,13 +5,13 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 : "${ODOO_PORT:?}" "${PGPORT:?}" "${PGUSER:?}" "${PGPASSWORD?}" "${GITHUB_RUN_ID:?}" "${GITHUB_SHA:?}"
-IMAGE="webvue-odoo:ci-${GITHUB_RUN_ID}"
-IMAGE_CONTAINER="webvue-ci-${GITHUB_RUN_ID}-image"
-CHECK_CONTAINER="webvue-ci-${GITHUB_RUN_ID}-check"
+IMAGE="liwan-odoo:ci-${GITHUB_RUN_ID}"
+IMAGE_CONTAINER="liwan-ci-${GITHUB_RUN_ID}-image"
+CHECK_CONTAINER="liwan-ci-${GITHUB_RUN_ID}-check"
 IMAGE_ROOT="$(mktemp -d)"
 # Trivy 0.75.0 (published 2026-10-01), pinned by tag and by the digest of its multi-arch index.
 TRIVY_IMAGE="aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa"
-TRIVY_CACHE="webvue-ci-${GITHUB_RUN_ID}-trivy-cache"
+TRIVY_CACHE="liwan-ci-${GITHUB_RUN_ID}-trivy-cache"
 # name:Dockerfile:context for every production image besides Odoo (built, smoke-checked, digest recorded).
 OTHER_IMAGES=(
   "web:apps/web/Dockerfile:."
@@ -20,8 +20,8 @@ OTHER_IMAGES=(
   "proxy:deploy/proxy/Dockerfile:."
   "guard:deploy/shared/Dockerfile:."
 )
-tag_of() { printf 'webvue-%s:ci-%s' "$1" "$GITHUB_RUN_ID"; }
-container_of() { printf 'webvue-ci-%s-%s' "$GITHUB_RUN_ID" "$1"; }
+tag_of() { printf 'liwan-%s:ci-%s' "$1" "$GITHUB_RUN_ID"; }
+container_of() { printf 'liwan-ci-%s-%s' "$GITHUB_RUN_ID" "$1"; }
 cleanup() {
   docker rm -fv "$IMAGE_CONTAINER" "$CHECK_CONTAINER" "$(container_of trivy)" >/dev/null 2>&1 || true
   docker volume rm -f "$TRIVY_CACHE" >/dev/null 2>&1 || true
@@ -34,17 +34,17 @@ cleanup() {
 }
 trap cleanup EXIT
 docker info
-docker build -f deploy/odoo/Dockerfile --build-arg ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)" --build-arg WEBVUE_REVISION="${GITHUB_SHA:0:12}" -t "$IMAGE" .
-SCRATCH_DB="webvue_image_scratch"
+docker build -f deploy/odoo/Dockerfile --build-arg ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)" --build-arg LIWAN_REVISION="${GITHUB_SHA:0:12}" -t "$IMAGE" .
+SCRATCH_DB="liwan_image_scratch"
 MODULES="$(python3 -B tools/catalog_check.py --release-modules)"
 python3 deploy/classification.py fixture --database "$SCRATCH_DB" --mode non_saas --output "$IMAGE_ROOT/classification.json"
 printf '%s\n' '[options]' 'db_host = 127.0.0.1' "db_port = $PGPORT" "db_user = $PGUSER" "db_password = $PGPASSWORD" 'list_db = False' > "$IMAGE_ROOT/odoo.conf"
 chmod 644 "$IMAGE_ROOT/odoo.conf" "$IMAGE_ROOT/classification.json"
 docker run --rm --name "$IMAGE_CONTAINER" --network host -v "$IMAGE_ROOT/odoo.conf:/etc/odoo/odoo.conf:ro" \
-  -v "$IMAGE_ROOT/classification.json:/run/webvue/classification.json:ro" \
-  -e WEBVUE_COMMERCIAL_CONFIG=/run/webvue/classification.json "$IMAGE" \
+  -v "$IMAGE_ROOT/classification.json:/run/liwan/classification.json:ro" \
+  -e LIWAN_COMMERCIAL_CONFIG=/run/liwan/classification.json "$IMAGE" \
   -d "$SCRATCH_DB" -i "$MODULES" --without-demo=all --http-port="$ODOO_PORT" --stop-after-init
-docker run --rm --name "$CHECK_CONTAINER" --entrypoint sh "$IMAGE" -c 'test ! -w /opt/webvue/addons && test "$(id -u)" = 10001 && ! command -v git'
+docker run --rm --name "$CHECK_CONTAINER" --entrypoint sh "$IMAGE" -c 'test ! -w /opt/liwan/addons && test "$(id -u)" = 10001 && ! command -v git'
 
 # Start a long-running image detached, assert its user is not root, and wait (bounded) for a probe run inside it.
 # The probe runs in the container, so no host port is published and parallel runs cannot collide.
@@ -88,11 +88,11 @@ PROBE=(node deploy/shared/healthcheck.mjs)
 # Throwaway per-run values for the guard's required token and session key.
 PROXY_TOKEN="$(python3 -c 'import secrets; print(secrets.token_hex(24))')"
 SESSION_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(24))')"
-smoke_started guard -v "$IMAGE_ROOT/registry.json:/etc/webvue/registry.json:ro" \
-  -e WEBVUE_TENANCY_MODE=shared -e WEBVUE_TENANT_REGISTRY_PATH=/etc/webvue/registry.json \
-  -e "WEBVUE_SHARED_PROXY_TOKEN=$PROXY_TOKEN" \
-  -e "WEBVUE_SESSION_KEYS={\"k1\":\"$SESSION_KEY\"}" -e WEBVUE_SESSION_ACTIVE_KID=k1 \
-  -e WEBVUE_GUARD_ODOO_URL=http://127.0.0.1:1 -e WEBVUE_GUARD_WEB_URL=http://127.0.0.1:1
+smoke_started guard -v "$IMAGE_ROOT/registry.json:/etc/liwan/registry.json:ro" \
+  -e LIWAN_TENANCY_MODE=shared -e LIWAN_TENANT_REGISTRY_PATH=/etc/liwan/registry.json \
+  -e "LIWAN_SHARED_PROXY_TOKEN=$PROXY_TOKEN" \
+  -e "LIWAN_SESSION_KEYS={\"k1\":\"$SESSION_KEY\"}" -e LIWAN_SESSION_ACTIVE_KID=k1 \
+  -e LIWAN_GUARD_ODOO_URL=http://127.0.0.1:1 -e LIWAN_GUARD_WEB_URL=http://127.0.0.1:1
 # The guard denies an unknown host with 403 (a 5xx or no answer would be a broken guard).
 [ "$(docker exec "$(container_of guard)" node -e "fetch('http://127.0.0.1:8080/',{headers:{host:'unknown.invalid'}}).then(r => console.log(r.status))")" = 403 ]
 # proxy: both Caddyfiles validate against the image's Caddy, which has the rate-limit module compiled in.

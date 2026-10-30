@@ -89,16 +89,16 @@ async function save() {
   <SharedCreatePanel :title="t('meetingsUi.newResolution')" :back-to="backTo">
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !query.data.value" @retry="query.refetch">
     <UAlert v-if="query.data.value && !canCreate" color="neutral" variant="subtle" :title="t('meetingMinutesForm.readOnlyMeeting')" />
-    <div v-else-if="hasReceipt" class="grid gap-(--webvue-gap-card)">
+    <div v-else-if="hasReceipt" class="grid gap-(--liwan-gap-card)">
       <UAlert :color="createdResolutionId || receiptId ? 'success' : 'warning'" :title="t(createdResolutionId || receiptId ? 'meetingsUx.recommendationCreated' : 'meetingsUx.recommendationReturn.unavailable')" />
       <UButton v-if="createdResolutionId || receiptId" type="button" class="w-fit" :disabled="!hydrated" :label="t('meetingsUx.returnAfterRecommendation')" @click="save" />
       <UButton v-else color="neutral" :to="backTo" :label="t('app.back')" />
     </div>
-    <form ref="formElement" novalidate v-else-if="query.data.value" class="grid gap-(--webvue-gap-card)" @submit.prevent="save">
+    <form ref="formElement" novalidate v-else-if="query.data.value" class="grid gap-(--liwan-gap-card)" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
       <UAlert v-if="editorContext" color="neutral" variant="subtle" icon="i-lucide-info" :title="t('meetingsUx.recommendationEditorContext', { name: query.data.value.name })" />
       <SharedFormSection panel :title="t('meetingsUi.resolutions')">
-        <div class="webvue-form-grid">
+        <div class="liwan-form-grid">
           <UFormField :label="t('meetingsUi.resolutionTitle')" name="name" required :error="visibleErrors.name">
             <UInput id="res-name" v-model="name" class="w-full" :aria-invalid="Boolean(visibleErrors.name)" :disabled="!hydrated || isPending" required />
           </UFormField>

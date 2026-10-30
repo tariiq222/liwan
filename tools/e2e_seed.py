@@ -1,13 +1,13 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Seed the e2e scratch database through Odoo (never through the Nuxt UI).
 
-Run by tools/e2e_isolated.mjs after the first install of ``webvue_scratch_e2e``:
+Run by tools/e2e_isolated.mjs after the first install of ``liwan_scratch_e2e``:
 
-    odoo-bin shell -c <scratch conf> -d webvue_scratch_e2e --no-http < tools/e2e_seed.py
+    odoo-bin shell -c <scratch conf> -d liwan_scratch_e2e --no-http < tools/e2e_seed.py
 
 Idempotent: it opens the legacy full-product policy once, creates or resets the
 two technical test accounts, and builds the demo company used by the persona
-journeys: departments, two branches, custom roles, persona users with WebVue
+journeys: departments, two branches, custom roles, persona users with LiwanOS
 roles, and one linked employee per persona with its manager chain. Business records (projects, leave, invoices,
 requests) are left to the tests, which create them through the UI.
 
@@ -16,16 +16,16 @@ database; the defaults are mirrored in e2e.config.ts and can be overridden with 
 """
 import os
 
-DB_GUARD = 'webvue_scratch_e2e'
+DB_GUARD = 'liwan_scratch_e2e'
 COMPANY_NAME = 'شركة نخبة الأعمال للتقنية'
 EMAIL_DOMAIN = 'nukhba.example.test'
 ACCOUNTS = (
     # login, display name, groups, password env var, default password
-    ('e2e_admin', 'E2E Admin', ('base.group_user', 'base.group_system', 'webvue_core.group_employee', 'webvue_pmo.group_pmo_manager',
-      'webvue_hr.group_hr_manager', 'webvue_core.group_access_admin'),
-     'E2E_USER_ADMIN_PASSWORD', 'webvue-e2e-admin-2026'),
-    ('e2e_employee', 'E2E Employee', ('base.group_user', 'webvue_core.group_employee'),
-     'E2E_USER_EMPLOYEE_PASSWORD', 'webvue-e2e-employee-2026'),
+    ('e2e_admin', 'E2E Admin', ('base.group_user', 'base.group_system', 'liwan_core.group_employee', 'liwan_pmo.group_pmo_manager',
+      'liwan_hr.group_hr_manager', 'liwan_core.group_access_admin'),
+     'E2E_USER_ADMIN_PASSWORD', 'liwan-e2e-admin-2026'),
+    ('e2e_employee', 'E2E Employee', ('base.group_user', 'liwan_core.group_employee'),
+     'E2E_USER_EMPLOYEE_PASSWORD', 'liwan-e2e-employee-2026'),
 )
 # department -> persona key of its head
 DEPARTMENT_HEADS = {
@@ -83,8 +83,8 @@ if env.cr.dbname != DB_GUARD:  # noqa: F821
 
 # Every application of the release is installed; open the full legacy policy
 # (pmo.enabled and the rest) once. A configured tenant is never rewritten.
-registry = env['webvue.feature.registry']  # noqa: F821
-env['webvue.tenant.profile']._webvue_initialize_legacy_policy(registry._webvue_installed_module_ids())  # noqa: F821
+registry = env['liwan.feature.registry']  # noqa: F821
+env['liwan.tenant.profile']._liwan_initialize_legacy_policy(registry._liwan_installed_module_ids())  # noqa: F821
 
 users = env['res.users'].with_context(no_reset_password=True)  # noqa: F821
 for login, name, groups, password_var, default_password in ACCOUNTS:
@@ -97,10 +97,10 @@ for login, name, groups, password_var, default_password in ACCOUNTS:
     else:
         users.create({**values, 'login': login})
 
-company = env['webvue.tenant.profile'].search([], limit=1).root_company_id  # noqa: F821
+company = env['liwan.tenant.profile'].search([], limit=1).root_company_id  # noqa: F821
 company.write({'name': COMPANY_NAME})
-Role = env['webvue.access.role']  # noqa: F821
-Permission = env['webvue.access.permission']  # noqa: F821
+Role = env['liwan.access.role']  # noqa: F821
+Permission = env['liwan.access.permission']  # noqa: F821
 
 
 def with_dependencies(permissions):
@@ -139,7 +139,7 @@ employees = {}
 def ensure_persona(key, name, job_title, home, role_keys, department=False, manager=False):
     """The login e2e_<key> working in HOME only, holding ROLE_KEYS there, with one linked employee."""
     login = f'e2e_{key}'
-    password = os.environ.get(f'E2E_USER_{key.upper()}_PASSWORD') or f'webvue-e2e-{key}-2026'
+    password = os.environ.get(f'E2E_USER_{key.upper()}_PASSWORD') or f'liwan-e2e-{key}-2026'
     values = {
         'name': name, 'email': f'{key}@{EMAIL_DOMAIN}', 'password': password,
         'company_id': home.id, 'company_ids': [(6, 0, home.ids)],
@@ -151,11 +151,11 @@ def ensure_persona(key, name, job_title, home, role_keys, department=False, mana
     else:
         user = users.create({**values, 'login': login})
     wanted = Role.browse([roles[role_key].id for role_key in role_keys])
-    assignments = env['webvue.access.assignment'].search([('user_id', '=', user.id)])  # noqa: F821
+    assignments = env['liwan.access.assignment'].search([('user_id', '=', user.id)])  # noqa: F821
     (assignments - assignments.filtered(lambda a: a.role_id in wanted and a.company_id == home)).unlink()
     for role in wanted - assignments.filtered(lambda a: a.company_id == home).role_id:
-        env['webvue.access.assignment'].create({'user_id': user.id, 'role_id': role.id, 'company_id': home.id})  # noqa: F821
-    user._webvue_sync_capability_groups()
+        env['liwan.access.assignment'].create({'user_id': user.id, 'role_id': role.id, 'company_id': home.id})  # noqa: F821
+    user._liwan_sync_capability_groups()
 
     employee = env['hr.employee'].with_context(active_test=False).search([('user_id', '=', user.id)], limit=1)  # noqa: F821
     employee_values = {

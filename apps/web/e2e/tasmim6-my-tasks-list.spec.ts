@@ -134,7 +134,7 @@ test.describe('Plan 6a: my tasks list', () => {
       await typeThenOpen(page, { search: 'ترتيب', link: 'tbody tr[data-shortcut-row] a[href^="/my-tasks/"]' })
       await expect(page).toHaveURL(/\/my-tasks\/\d+/)
       const returnTo = new URL(page.url()).searchParams.get('returnTo') ?? ''
-      expect(new URL(returnTo, 'http://webvue.local').searchParams.get('q')).toBe('ترتيب')
+      expect(new URL(returnTo, 'http://liwan.local').searchParams.get('q')).toBe('ترتيب')
     })
 
   })

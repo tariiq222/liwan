@@ -17,16 +17,16 @@ const CONFIG_KEYS: readonly string[] = [
   'CONTROL_INSTALLATION_ID',
   'CONTROL_SERVICE_KEY',
   'CONTROL_DATABASE_URL',
-  'WEBVUE_CLI_INVENTORY',
-  'WEBVUE_MANAGED_INVENTORY',
-  'WEBVUE_TENANT_REGISTRY_PATH',
-  'WEBVUE_CLI_STATE_DIR',
-  'WEBVUE_REPOSITORY_ROOT',
+  'LIWAN_CLI_INVENTORY',
+  'LIWAN_MANAGED_INVENTORY',
+  'LIWAN_TENANT_REGISTRY_PATH',
+  'LIWAN_CLI_STATE_DIR',
+  'LIWAN_REPOSITORY_ROOT',
   'CONTROL_HOST',
   'CONTROL_PORT',
   'CONTROL_TLS_KEY',
   'CONTROL_TLS_CERT',
-  'WEBVUE_CLI_PYTHON',
+  'LIWAN_CLI_PYTHON',
   'CUSTOMER_COMMERCIAL_SERVICE_KEY',
   'INTERNAL_EFFECT_KEY',
   'INTERNAL_EFFECT_URL',
@@ -41,20 +41,20 @@ const REQUIRED_KEYS: readonly string[] = [
   'CONTROL_INSTALLATION_ID',
   'CONTROL_SERVICE_KEY',
   'CONTROL_DATABASE_URL',
-  'WEBVUE_CLI_INVENTORY',
-  'WEBVUE_CLI_STATE_DIR',
-  'WEBVUE_REPOSITORY_ROOT',
+  'LIWAN_CLI_INVENTORY',
+  'LIWAN_CLI_STATE_DIR',
+  'LIWAN_REPOSITORY_ROOT',
 ]
 
-const PATH_KEYS: readonly string[] = ['WEBVUE_CLI_INVENTORY', 'WEBVUE_CLI_STATE_DIR', 'WEBVUE_REPOSITORY_ROOT']
+const PATH_KEYS: readonly string[] = ['LIWAN_CLI_INVENTORY', 'LIWAN_CLI_STATE_DIR', 'LIWAN_REPOSITORY_ROOT']
 
 const BASE_ENV: Readonly<Record<string, string>> = {
   CONTROL_INSTALLATION_ID: 'vendor-installation',
   CONTROL_SERVICE_KEY: 's'.repeat(32),
-  CONTROL_DATABASE_URL: 'postgres://control:placeholder@127.0.0.1:5432/webvue_control',
-  WEBVUE_CLI_INVENTORY: '/srv/webvue/inventory.json',
-  WEBVUE_CLI_STATE_DIR: '/srv/webvue/state',
-  WEBVUE_REPOSITORY_ROOT: '/srv/webvue/repo',
+  CONTROL_DATABASE_URL: 'postgres://control:placeholder@127.0.0.1:5432/liwan_control',
+  LIWAN_CLI_INVENTORY: '/srv/liwan/inventory.json',
+  LIWAN_CLI_STATE_DIR: '/srv/liwan/state',
+  LIWAN_REPOSITORY_ROOT: '/srv/liwan/repo',
 }
 
 const original = new Map<string, string | undefined>()
@@ -108,11 +108,11 @@ describe('required configuration', () => {
     expect(getConfig()).toEqual({
       installationId: 'vendor-installation',
       key: 's'.repeat(32),
-      inventoryPath: '/srv/webvue/inventory.json',
-      stateDir: '/srv/webvue/state',
-      repositoryRoot: '/srv/webvue/repo',
+      inventoryPath: '/srv/liwan/inventory.json',
+      stateDir: '/srv/liwan/state',
+      repositoryRoot: '/srv/liwan/repo',
       python: 'python3',
-      databaseUrl: 'postgres://control:placeholder@127.0.0.1:5432/webvue_control',
+      databaseUrl: 'postgres://control:placeholder@127.0.0.1:5432/liwan_control',
       host: '127.0.0.1',
       port: 4179,
       tls: undefined,
@@ -148,11 +148,11 @@ describe('CONTROL_SERVICE_KEY strength', () => {
 
 describe('registry publication path', () => {
   it('accepts an explicitly configured absolute registry publication path', () => {
-    applyEnv({ WEBVUE_TENANT_REGISTRY_PATH: '/srv/webvue/registry/registry.json' })
-    expect(getConfig()).toHaveProperty('tenantRegistryPath', '/srv/webvue/registry/registry.json')
+    applyEnv({ LIWAN_TENANT_REGISTRY_PATH: '/srv/liwan/registry/registry.json' })
+    expect(getConfig()).toHaveProperty('tenantRegistryPath', '/srv/liwan/registry/registry.json')
   })
   it('rejects a relative registry publication path', () => {
-    applyEnv({ WEBVUE_TENANT_REGISTRY_PATH: 'registry.json' })
+    applyEnv({ LIWAN_TENANT_REGISTRY_PATH: 'registry.json' })
     expect(() => getConfig()).toThrow('operator paths must be absolute')
   })
 })
@@ -173,9 +173,9 @@ describe('absolute operator paths', () => {
   it('returns absolute operator paths unchanged', () => {
     applyEnv()
     const config = getConfig()
-    expect(config.inventoryPath).toBe('/srv/webvue/inventory.json')
-    expect(config.stateDir).toBe('/srv/webvue/state')
-    expect(config.repositoryRoot).toBe('/srv/webvue/repo')
+    expect(config.inventoryPath).toBe('/srv/liwan/inventory.json')
+    expect(config.stateDir).toBe('/srv/liwan/state')
+    expect(config.repositoryRoot).toBe('/srv/liwan/repo')
   })
 })
 
@@ -218,7 +218,7 @@ describe('host binding and TLS', () => {
     })
   }
 
-  for (const host of ['0.0.0.0', '10.0.0.5', '192.168.1.10', 'webvue.internal', '127.0.0.1 ']) {
+  for (const host of ['0.0.0.0', '10.0.0.5', '192.168.1.10', 'liwan.internal', '127.0.0.1 ']) {
     it(`requires TLS for non-loopback host ${JSON.stringify(host)}`, () => {
       applyEnv({ CONTROL_HOST: host })
       expect(() => getConfig()).toThrowError('HTTPS is required outside loopback')
@@ -226,12 +226,12 @@ describe('host binding and TLS', () => {
   }
 
   it('requires TLS when only the key is configured', () => {
-    applyEnv({ CONTROL_HOST: '192.168.1.10', CONTROL_TLS_KEY: '/srv/webvue/tls/key.pem' })
+    applyEnv({ CONTROL_HOST: '192.168.1.10', CONTROL_TLS_KEY: '/srv/liwan/tls/key.pem' })
     expect(() => getConfig()).toThrowError('HTTPS is required outside loopback')
   })
 
   it('requires TLS when only the certificate is configured', () => {
-    applyEnv({ CONTROL_HOST: '192.168.1.10', CONTROL_TLS_CERT: '/srv/webvue/tls/cert.pem' })
+    applyEnv({ CONTROL_HOST: '192.168.1.10', CONTROL_TLS_CERT: '/srv/liwan/tls/cert.pem' })
     expect(() => getConfig()).toThrowError('HTTPS is required outside loopback')
   })
 
@@ -241,7 +241,7 @@ describe('host binding and TLS', () => {
   })
 
   it('loads TLS material for a non-loopback bind when both files are readable', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'webvue-control-config-'))
+    const directory = await mkdtemp(join(tmpdir(), 'liwan-control-config-'))
     try {
       const keyPath = join(directory, 'key.pem')
       const certPath = join(directory, 'cert.pem')
@@ -259,7 +259,7 @@ describe('host binding and TLS', () => {
   })
 
   it('loads TLS material on loopback when both files are configured', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'webvue-control-config-'))
+    const directory = await mkdtemp(join(tmpdir(), 'liwan-control-config-'))
     try {
       const keyPath = join(directory, 'key.pem')
       const certPath = join(directory, 'cert.pem')
@@ -279,21 +279,21 @@ describe('host binding and TLS', () => {
   it('fails loudly instead of starting when TLS files cannot be read', () => {
     applyEnv({
       CONTROL_HOST: '0.0.0.0',
-      CONTROL_TLS_KEY: '/nonexistent/webvue/key.pem',
-      CONTROL_TLS_CERT: '/nonexistent/webvue/cert.pem',
+      CONTROL_TLS_KEY: '/nonexistent/liwan/key.pem',
+      CONTROL_TLS_CERT: '/nonexistent/liwan/cert.pem',
     })
     expect(() => getConfig()).toThrowError()
   })
 })
 
 describe('safe defaults and returned shape', () => {
-  it('defaults WEBVUE_CLI_PYTHON to python3', () => {
+  it('defaults LIWAN_CLI_PYTHON to python3', () => {
     applyEnv()
     expect(getConfig().python).toBe('python3')
   })
 
-  it('honours an explicit WEBVUE_CLI_PYTHON', () => {
-    applyEnv({ WEBVUE_CLI_PYTHON: '/usr/bin/python3.12' })
+  it('honours an explicit LIWAN_CLI_PYTHON', () => {
+    applyEnv({ LIWAN_CLI_PYTHON: '/usr/bin/python3.12' })
     expect(getConfig().python).toBe('/usr/bin/python3.12')
   })
 

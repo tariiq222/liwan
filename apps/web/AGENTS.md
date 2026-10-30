@@ -1,4 +1,4 @@
-# WebVue frontend instructions
+# LiwanOS frontend instructions
 
 ابدأ من [DESIGN.md](../../DESIGN.md): سياسة الواجهة الوحيدة وروابط الفهرس والمرجع التقني. التقارير والأرشيف ليست تعليمات تصميم نشطة.
 

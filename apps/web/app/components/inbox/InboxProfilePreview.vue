@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxBusinessVertical } from '@webvue/contracts'
+import type { InboxBusinessVertical } from '@liwan/contracts'
 
 // A WhatsApp-style business card: the picture, the display name with its business badge, the about text and the contact
 // rows, as a customer sees them. It is a rough preview of the draft, not Meta's exact rendering. Logical classes keep it

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { PersonalTask } from '@webvue/contracts'
+import type { PersonalTask } from '@liwan/contracts'
 import {
   changedFields, commentProblem, draftFromTask, oldestFirst,
 } from '../myTaskDetail'

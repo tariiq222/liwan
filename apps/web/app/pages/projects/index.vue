@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { PROJECT_STATUSES } from '@webvue/contracts'
+import { PROJECT_STATUSES } from '@liwan/contracts'
 import { refDebounced } from '@vueuse/core'
 import { onScopeDispose } from 'vue'
 import { onBeforeRouteLeave, type RouteLocationNormalized } from 'vue-router'
-import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
+import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
 import ProjectTable from '@/components/pmo/projects/ProjectTable.vue'
 import ProjectCards from '@/components/pmo/projects/ProjectCards.vue'
 import ProjectKpiStrip from '@/components/pmo/projects/ProjectKpiStrip.vue'
@@ -17,7 +17,7 @@ import {
   useProjectList,
   type ProjectListRouteState,
 } from '@/composables/useProjects'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 
 const router = useRouter()
 const route = useRoute()
@@ -326,7 +326,7 @@ async function openProject(id: number) {
           color="error"
           variant="subtle"
           icon="i-lucide-circle-alert"
-          class="m-(--webvue-card-pad-dense)"
+          class="m-(--liwan-card-pad-dense)"
           :title="t('projects.loadError')"
         >
           <template #actions>
@@ -335,7 +335,7 @@ async function openProject(id: number) {
         </UAlert>
 
         <SharedPageState :error="projectList.error.value" :keep-content="displayedItems.length > 0" @retry="projectList.refetch">
-          <SharedEmptyState v-if="showEmpty" class="m-(--webvue-card-pad-dense)" :title="t(`projects.${emptyKey}`)" :description="t(`projects.${emptyKey}Hint`)" />
+          <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(`projects.${emptyKey}`)" :description="t(`projects.${emptyKey}Hint`)" />
           <ProjectTable v-else-if="view === 'table'" :items="displayedItems" :is-loading="isLoading" :to-for="projectTo" @open="openProject" />
           <ProjectCards v-else :items="displayedItems" :is-loading="isLoading" :to-for="projectTo" @open="openProject" />
         </SharedPageState>

@@ -10,7 +10,7 @@ const keys = { first: 'release-session-key-'.repeat(3) }
 const listen = s => new Promise(resolve => s.listen(0, '127.0.0.1', () => resolve(`http://127.0.0.1:${s.address().port}`)))
 const call = (base, path, headers, method = 'GET') => new Promise((resolve, reject) => { const req = http.request(new URL(path, base), { method, headers }, res => { let body = ''; res.on('data', b => { body += b }); res.on('end', () => resolve({ status: res.statusCode, body })) }); req.on('error', reject); req.end() })
 test('actual release routing keeps an old BFF request pinned across online cutover and fences it after drain', async t => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), 'webvue-release-http-')))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'liwan-release-http-')))
   const tenant = { tenantId: 'tenant_a', host: 'a.example.test', database: 'db_a', filestore: 'db_a', enabled: true, registryRevision: 1 }
   writeFileSync(join(root, 'registry.json'), JSON.stringify({ schemaVersion: 1, snapshotRevision: 1, targets: [tenant] }))
   const blue = http.createServer((req, res) => res.end('blue'))
@@ -28,11 +28,11 @@ test('actual release routing keeps an old BFF request pinned across online cutov
   const next = { ...initial, routeRevision: 2, releaseId: 'r2', poolId: 'green', fence: 2, draining: [{ releaseId: 'r1', poolId: 'blue', routeRevision: 1, fence: 1 }] }
   writeFileSync(join(root, 'tenant_a.json'), JSON.stringify(next))
   assert.equal((await call(base, '/api/v1/me', { host: tenant.host, cookie })).body, 'green')
-  const pinned = { host: tenant.host, cookie, 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1', 'x-webvue-release-pool': 'blue', 'x-webvue-release-revision': '1', 'x-webvue-release-fence': '1' }
+  const pinned = { host: tenant.host, cookie, 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1', 'x-liwan-release-pool': 'blue', 'x-liwan-release-revision': '1', 'x-liwan-release-fence': '1' }
   assert.equal((await call(base, '/api/v1/me', pinned)).body, 'blue')
   writeFileSync(join(root, 'tenant_a.json'), JSON.stringify({ ...next, draining: [] }))
   assert.equal((await call(base, '/api/v1/me', pinned)).status, 503)
-  assert.equal((await call(base, '/api/v1/me', { host: tenant.host, 'x-webvue-release-pool': 'blue' })).status, 403)
+  assert.equal((await call(base, '/api/v1/me', { host: tenant.host, 'x-liwan-release-pool': 'blue' })).status, 403)
   writeFileSync(join(root, 'tenant_a.maintenance'), '{}')
   assert.equal((await call(base, '/api/v1/me', { host: tenant.host, cookie })).status, 503)
 })
@@ -40,7 +40,7 @@ test('actual release routing keeps an old BFF request pinned across online cutov
 test('a shielded old write finishes through its child lease after the browser disconnects during retirement', async t => {
   const { createReleaseLease, withReleaseLease, currentReleaseWrite } = await import('../../apps/web/server/utils/releaseRouting.ts')
   const { existsSync } = await import('node:fs')
-  const root=realpathSync(mkdtempSync(join(tmpdir(),'webvue-release-shield-')))
+  const root=realpathSync(mkdtempSync(join(tmpdir(),'liwan-release-shield-')))
   const tenant={tenantId:'tenant_a',host:'a.example.test',database:'db_a',filestore:'db_a',enabled:true,registryRevision:1}
   writeFileSync(join(root,'registry.json'),JSON.stringify({schemaVersion:1,snapshotRevision:1,targets:[tenant]}))
   const old={schemaVersion:1,tenantId:'tenant_a',identityRevision:1,routeRevision:1,releaseId:'r1',poolId:'blue',fence:1,state:'serving'}
@@ -54,11 +54,11 @@ test('a shielded old write finishes through its child lease after the browser di
   const odooUrl=await listen(odoo)
   const web=http.createServer(async(req,res)=>{
     try {
-      parentAdmission=req.headers['x-webvue-release-admission'];entered();await paused
+      parentAdmission=req.headers['x-liwan-release-admission'];entered();await paused
       const pin={poolId:'blue',routeRevision:1,fence:1}
       await withReleaseLease(root,tenant,pin,async()=>{
         const child=currentReleaseWrite();childEntered();await childPaused
-        const result=await call(base,'/api/v1/write',{host:tenant.host,'x-webvue-proxy-token':token,'x-webvue-tenant-revision':'1','x-webvue-release-pool':'blue','x-webvue-release-revision':'1','x-webvue-release-fence':'1','x-webvue-release-admission':child.admissionId},'POST')
+        const result=await call(base,'/api/v1/write',{host:tenant.host,'x-liwan-proxy-token':token,'x-liwan-tenant-revision':'1','x-liwan-release-pool':'blue','x-liwan-release-revision':'1','x-liwan-release-fence':'1','x-liwan-release-admission':child.admissionId},'POST')
         assert.equal(result.status,200);assert.equal(result.body,'committed')
       },parentAdmission)
       res.end('finished');finish()

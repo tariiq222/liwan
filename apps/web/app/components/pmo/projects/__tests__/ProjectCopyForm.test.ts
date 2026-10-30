@@ -1,11 +1,11 @@
-import { localIsoDay } from '@webvue/ui/app/utils/formatDate'
+import { localIsoDay } from '@liwan/ui/app/utils/formatDate'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { compileScript, parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import { ProjectCopyInputSchema } from '@webvue/contracts'
+import { ProjectCopyInputSchema } from '@liwan/contracts'
 
 const filename = resolve(import.meta.dirname, '../ProjectCopyForm.vue')
 const arMessages = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../../../../i18n/locales/ar/projects.json'), 'utf8'))

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { RouteLocationRaw } from 'vue-router'
-import type { HrPlanRun } from '@webvue/contracts'
+import type { HrPlanRun } from '@liwan/contracts'
 
 // The runs list of one lifecycle area: the employee, its plan, when it started and how
 // many steps are done.
@@ -38,7 +38,7 @@ function stateTone(run: HrPlanRun) {
 </script>
 
 <template>
-  <div class="webvue-fixed-table min-w-0">
+  <div class="liwan-fixed-table min-w-0">
     <SharedDataTable
       bare
       data-testid="hr-lifecycle-run-table"

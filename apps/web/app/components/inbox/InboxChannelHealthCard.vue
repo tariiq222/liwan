@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { InboxChannelHealth, InboxQualityRating } from '@webvue/contracts'
-import { formatDateTime } from '@webvue/ui/app/utils/formatDate'
+import type { InboxChannelHealth, InboxQualityRating } from '@liwan/contracts'
+import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 
 // Meta's last known view of a WhatsApp number: the account-state banner (only when something is wrong) and the metric
 // tiles (quality, messaging limit, throughput, verified name, code verification). It reads nothing and writes nothing.
@@ -30,9 +30,9 @@ const nameHint = computed(() => {
 </script>
 
 <template>
-  <div class="flex min-w-0 flex-col gap-(--webvue-gap-card)" data-testid="inbox-health-card">
+  <div class="flex min-w-0 flex-col gap-(--liwan-gap-card)" data-testid="inbox-health-card">
     <SharedRecordSection v-if="accountBanner" variant="action" :title="t(`inbox.health.account.${accountBanner}`)" :description="bannerDescription" data-testid="inbox-health-banner" :data-state="accountBanner" />
-    <section class="grid grid-cols-1 gap-(--webvue-gap-card) sm:grid-cols-2 xl:grid-cols-3" :aria-label="t('inbox.health.tilesLabel')">
+    <section class="grid grid-cols-1 gap-(--liwan-gap-card) sm:grid-cols-2 xl:grid-cols-3" :aria-label="t('inbox.health.tilesLabel')">
       <SharedMetricTile
         density="compact" icon="i-lucide-gauge" :label="t('inbox.health.tiles.quality')" :value="t(`inbox.health.quality.${health.quality_rating}`)"
         :tone="QUALITY_TONE[health.quality_rating]" data-testid="inbox-health-quality"

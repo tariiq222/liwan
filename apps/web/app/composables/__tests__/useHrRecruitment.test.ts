@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { QueryClient } from '@tanstack/vue-query'
-import type { HrApplicant, HrRecruitmentJob } from '@webvue/contracts'
+import type { HrApplicant, HrRecruitmentJob } from '@liwan/contracts'
 import {
   createHrApplicant,
   hireHrApplicant,

@@ -1,6 +1,6 @@
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { renderShared } from '@webvue/ui/test/helpers/renderShared'
+import { renderShared } from '@liwan/ui/test/helpers/renderShared'
 const component = resolve(__dirname, '../LauncherCard.vue')
 const entry = { id: 'projects', labelKey: 'nav.projects', icon: 'i-lucide-folder', to: '/projects', actions: [] }
 const messages = { 'nav.projects': 'المشاريع', 'launcher.open': 'فتح التطبيق', 'launcher.actions': 'إجراءات سريعة', 'nav.newProject': 'مشروع جديد' }

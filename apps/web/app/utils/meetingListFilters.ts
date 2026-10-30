@@ -1,5 +1,5 @@
 import type { LocationQueryRaw } from 'vue-router'
-import { isCalendarDate } from '@webvue/ui/app/composables/calendarDate'
+import { isCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 import { parsePositiveId } from './routeParams'
 import { firstQuery } from './routeQuery'
 

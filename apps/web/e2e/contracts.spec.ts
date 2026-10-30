@@ -7,13 +7,13 @@ import {
   ProjectCharterDefaultsSchema, ProjectCharterReferenceListSchema, ProjectCharterSchema,
   ChatConversationListSchema, ChatConversationSchema, ChatMessageListSchema,
   ChatRecipientListSchema,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { z } from 'zod'
 
 const ADMIN_LOGIN = process.env.E2E_ADMIN_LOGIN ?? 'admin'
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'admin'
 const BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:3000'
-const FIXTURE_PASSWORD = 'WebVueContract-Initial-123!'
+const FIXTURE_PASSWORD = 'LiwanContract-Initial-123!'
 
 async function createPasswordFixture(request, suffix: string) {
   const meRes = await request.get('/api/v1/me')

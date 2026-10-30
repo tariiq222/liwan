@@ -4,7 +4,7 @@ import { migrate, transaction } from '../../db.js'
 import { authenticationOptions, consumeChallenge, finishAuthentication, finishRegistration, registrationOptions, type WebAuthnLib } from '../webauthn.js'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
-const admin = { secretKey: Buffer.alloc(32), rpId: 'localhost', origin: 'http://localhost:3100', rpName: 'WebVue' as const }
+const admin = { secretKey: Buffer.alloc(32), rpId: 'localhost', origin: 'http://localhost:3100', rpName: 'LiwanOS' as const }
 const now = new Date('2026-11-01T10:00:00Z')
 // Same shapes as @simplewebauthn/server v14.0.3 returns.
 function lib(overrides: Partial<WebAuthnLib> = {}): WebAuthnLib {
@@ -33,13 +33,13 @@ else describe('webauthn', () => {
   beforeEach(async () => {
     await migrate(pool)
     await pool.query('TRUNCATE vendor_accounts CASCADE')
-    accountId = Number((await pool.query("INSERT INTO vendor_accounts(email,display_name,status,password_hash) VALUES('a@webvue.sa','A','active','x') RETURNING id")).rows[0].id)
-    otherAccountId = Number((await pool.query("INSERT INTO vendor_accounts(email,display_name,status,password_hash) VALUES('b@webvue.sa','B','active','x') RETURNING id")).rows[0].id)
+    accountId = Number((await pool.query("INSERT INTO vendor_accounts(email,display_name,status,password_hash) VALUES('a@liwanos.com','A','active','x') RETURNING id")).rows[0].id)
+    otherAccountId = Number((await pool.query("INSERT INTO vendor_accounts(email,display_name,status,password_hash) VALUES('b@liwanos.com','B','active','x') RETURNING id")).rows[0].id)
   })
   afterAll(async () => { await pool.end() })
 
   it('registers and then signs in with a discoverable passkey, once per challenge', async () => {
-    const reg = await transaction(pool, (c) => registrationOptions(c, lib(), admin, { id: accountId, email: 'a@webvue.sa', displayName: 'A' }, now))
+    const reg = await transaction(pool, (c) => registrationOptions(c, lib(), admin, { id: accountId, email: 'a@liwanos.com', displayName: 'A' }, now))
     await register(reg.challengeId)
     const stored = await pool.query('SELECT account_id, public_key, counter, transports, label FROM vendor_passkeys WHERE credential_id=$1', ['cred-1'])
     expect(stored.rows).toHaveLength(1)
@@ -100,7 +100,7 @@ else describe('webauthn', () => {
   })
   it('rejects registering a credential id that already exists', async () => {
     await insertCred()
-    const reg = await transaction(pool, (c) => registrationOptions(c, lib(), admin, { id: otherAccountId, email: 'b@webvue.sa', displayName: 'B' }, now))
+    const reg = await transaction(pool, (c) => registrationOptions(c, lib(), admin, { id: otherAccountId, email: 'b@liwanos.com', displayName: 'B' }, now))
     const consumed = await consumeChallenge(pool, reg.challengeId, 'register', now)
     await expect(transaction(pool, (c) => finishRegistration(c, lib(), admin, otherAccountId, consumed, { id: 'cred-1' }, 'X', now))).rejects.toMatchObject({ code: 'auth_failed' })
   })
@@ -112,7 +112,7 @@ else describe('webauthn', () => {
     expect(authArgs).toMatchObject({ expectedChallenge: 'auth-challenge', expectedOrigin: admin.origin, expectedRPID: admin.rpId, requireUserVerification: true })
     await pool.query('DELETE FROM vendor_passkeys')
     let regArgs: Record<string, unknown> = {}
-    const reg = await transaction(pool, (c) => registrationOptions(c, lib(), admin, { id: accountId, email: 'a@webvue.sa', displayName: 'A' }, now))
+    const reg = await transaction(pool, (c) => registrationOptions(c, lib(), admin, { id: accountId, email: 'a@liwanos.com', displayName: 'A' }, now))
     await register(reg.challengeId, lib({ verifyRegistrationResponse: (async (o: Record<string, unknown>) => { regArgs = o; return { verified: true, registrationInfo: { credential: { id: 'cred-1', publicKey: new Uint8Array([1]), counter: 0 } } } }) as never }))
     expect(regArgs).toMatchObject({ expectedChallenge: 'reg-challenge', expectedOrigin: admin.origin, expectedRPID: admin.rpId, requireUserVerification: true })
   })

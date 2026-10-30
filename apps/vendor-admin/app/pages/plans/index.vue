@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import { lifecycleBadge } from '@/utils/vendorCommercial'
-import { cadenceLabel, formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercial'
+import { cadenceLabel, formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { commercialReturnTo, isStatusFilter, STATUS_FILTERS, type PlanView } from '@/utils/vendorCommercial'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 definePageMeta({ capability: 'vendor.read' })
 const { t, te, locale } = useI18n(); const route = useRoute(); const router = useRouter(); const { can } = useVendorContext(); const hydrated = useHydrated(); const api = useVendorCommercial()
 const PAGE = 25
 const isNew = computed(() => route.path.replace(/\/+$/, '').endsWith('/new'))
-const listQuery = computed<Record<string, unknown>>(() => (isNew.value ? Object.fromEntries(new URL(commercialReturnTo(route.query.returnTo, '/plans'), 'http://webvue.local').searchParams) : route.query))
+const listQuery = computed<Record<string, unknown>>(() => (isNew.value ? Object.fromEntries(new URL(commercialReturnTo(route.query.returnTo, '/plans'), 'http://liwan.local').searchParams) : route.query))
 const q = computed(() => (typeof listQuery.value.q === 'string' ? listQuery.value.q : ''))
 const status = computed(() => (isStatusFilter(listQuery.value.status) ? listQuery.value.status : 'all'))
 const page = computed(() => Math.max(1, Number(listQuery.value.page ?? 1) || 1))

@@ -2,7 +2,7 @@ import http from 'node:http'
 import { afterEach, expect, it, vi } from 'vitest'
 import * as h3 from 'h3'
 import { $fetch } from 'ofetch'
-import { verifyServiceRequest } from '@webvue/commercial-contracts/server'
+import { verifyServiceRequest } from '@liwan/commercial-contracts/server'
 
 const KEY = 'k'.repeat(48)
 const ATTEMPT = '3f2b8c1e-5d4a-4b7e-9c10-2a6d8e0f1b34'
@@ -24,8 +24,8 @@ async function fixture(reply: (req: http.IncomingMessage, res: http.ServerRespon
     let body = ''
     req.on('data', chunk => { body += chunk })
     req.on('end', () => {
-      const tenant = String(req.headers['x-webvue-tenant'])
-      received.push({ method: req.method, url: req.url, tenant, body, verified: !!verifyServiceRequest({ method: req.method!, path: req.url!, body: `webvue-payment-return:${tenant}\n`, headers: req.headers, key: KEY, anonymous: true }) })
+      const tenant = String(req.headers['x-liwan-tenant'])
+      received.push({ method: req.method, url: req.url, tenant, body, verified: !!verifyServiceRequest({ method: req.method!, path: req.url!, body: `liwan-payment-return:${tenant}\n`, headers: req.headers, key: KEY, anonymous: true }) })
       res.setHeader('content-type', 'application/json')
       reply(req, res)
     })

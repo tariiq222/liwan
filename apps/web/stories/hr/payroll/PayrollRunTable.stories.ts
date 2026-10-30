@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import PayrollRunTable from '../../../app/components/hr/payroll/PayrollRunTable.vue'
-import ListCard from '@webvue/ui/app/components/shared/layout/ListCard.vue'
-import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
+import ListCard from '@liwan/ui/app/components/shared/layout/ListCard.vue'
+import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../../support/context'
 
 // The runs table of /hr/payroll: one row per payroll month with its state pill and totals, inside the page's
@@ -25,7 +25,7 @@ const meta = {
   render: args => ({
     components: { PayrollRunTable, ListCard, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="webvue-shell-main"><PageContainer width="list"><ListCard><PayrollRunTable v-bind="args" /></ListCard></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer width="list"><ListCard><PayrollRunTable v-bind="args" /></ListCard></PageContainer></main>',
   }),
 } satisfies Meta<typeof PayrollRunTable>
 

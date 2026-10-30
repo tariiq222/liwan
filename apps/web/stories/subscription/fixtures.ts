@@ -1,4 +1,4 @@
-import type { BranchSummary, Invoice, UsageSnapshot } from '@webvue/commercial-contracts'
+import type { BranchSummary, Invoice, UsageSnapshot } from '@liwan/commercial-contracts'
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 const sar = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })
 export const usageFresh: UsageSnapshot = { tenant_id: 't1', observed_at: '2026-10-02T08:00:00Z', policy_revision_id: id(1), freshness: 'fresh', metrics: [

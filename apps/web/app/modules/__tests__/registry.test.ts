@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { KNOWN_CAPABILITIES, MeSchema } from '@webvue/contracts'
+import { KNOWN_CAPABILITIES, MeSchema } from '@liwan/contracts'
 import { canUse, capabilityAllowed, featureForCapability, featureForPath, hasFeature, isWriteCapability, subFeatureForCapability } from '../registry'
 import { firstAllowedPath, postLoginPath } from '../../utils/accessPolicy'
 import { useNav } from '../../composables/nav/shellModules'
@@ -8,7 +8,7 @@ const caps = ['pmo.tasks.read', 'pmo.projects.read', 'meetings.read', 'hr.employ
 const withdrawnPmo = {
   role: 'employee',
   capabilities: caps,
-  modules: ['webvue_pmo', 'webvue_hr'],
+  modules: ['liwan_pmo', 'liwan_hr'],
   entitlements: { 'pmo.enabled': false, 'meetings.enabled': true, 'hr.enabled': true, 'chat.enabled': false },
   platform: {
     readable_features: ['meetings.enabled', 'hr.enabled'],
@@ -31,9 +31,9 @@ describe('module registry', () => {
   it('lands a parsed task-reader identity with pmo enabled on /tasks', () => {
     const me = MeSchema.parse({
       id: 1, name: 'Admin', login: 'admin', email: '', lang: 'ar_001', tz: '',
-      role: 'admin', company: { id: 1, name: 'webvue' },
+      role: 'admin', company: { id: 1, name: 'liwan' },
       roles: [], capabilities: ['pmo.tasks.read'], access_policy_version: 1,
-      modules: ['webvue_pmo'],
+      modules: ['liwan_pmo'],
       entitlements: { 'pmo.enabled': true },
       platform: {
         schema_version: 1, policy_revision: 1, state: 'active',
@@ -81,7 +81,7 @@ const TODAY: ReadonlyArray<readonly [string, string | null, boolean]> = [
   ['settings.branding.manage', null, true],
   ['settings.company.read', null, false], ['settings.company.manage', null, true],
   ['meetings.read', 'meetings.enabled', false], ['meetings.create', 'meetings.enabled', true],
-  ['webvue.internal', 'chat.enabled', false],
+  ['liwan.internal', 'chat.enabled', false],
 ]
 
 describe('capability gate derivation', () => {
@@ -95,10 +95,10 @@ describe('capability gate derivation', () => {
 
   it('leaves the foundation and subscription prefixes ungated by any application feature', () => {
     const locked = { platform: { readable_features: [], writable_features: [] } }
-    for (const capability of ['subscription.read', 'billing.read', 'branches.manage', 'webvue.notifications', 'access.users.grant', 'settings.branding.manage']) {
+    for (const capability of ['subscription.read', 'billing.read', 'branches.manage', 'liwan.notifications', 'access.users.grant', 'settings.branding.manage']) {
       expect(featureForCapability(capability), capability).toBeNull()
-      // webvue.notifications is the bell: canUse gates it on pmo/meetings, so it is only checked above.
-      if (capability !== 'webvue.notifications') expect(canUse(locked, capability, true), capability).toBe(true)
+      // liwan.notifications is the bell: canUse gates it on pmo/meetings, so it is only checked above.
+      if (capability !== 'liwan.notifications') expect(canUse(locked, capability, true), capability).toBe(true)
     }
   })
 
@@ -108,7 +108,7 @@ describe('capability gate derivation', () => {
     const subFeatures = { 'hr.recruitment.': 'hr.recruitment', 'hr.shifts.': 'hr.shifts' }
     const tenant = (readable: string[], writable: string[]) => ({
       capabilities: ['hr.recruitment.read', 'hr.recruitment.manage', 'hr.employees.read'],
-      modules: ['webvue_hr'],
+      modules: ['liwan_hr'],
       entitlements: { 'hr.enabled': readable.includes('hr.enabled') },
       platform: { readable_features: readable, writable_features: writable },
     })
@@ -167,7 +167,7 @@ describe('capability gate derivation', () => {
     expect(isWriteCapability('sales.reports.export')).toBe(true)
     const tenant = (readable: string[], writable: string[]) => ({
       capabilities: ['sales.orders.read', 'sales.orders.write'],
-      modules: ['webvue_sales'],
+      modules: ['liwan_sales'],
       entitlements: { 'sales.enabled': readable.includes('sales.enabled') },
       platform: { readable_features: readable, writable_features: writable },
     })

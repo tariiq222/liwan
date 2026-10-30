@@ -13,14 +13,14 @@ class MigrationTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve()
-        for name in ('odoo', 'webvue', 'addons', 'data', 'webvue_scratch_state'): (self.root / name).mkdir()
-        (self.root / 'webvue' / 'odoo-addons').mkdir()
+        for name in ('odoo', 'liwan', 'addons', 'data', 'liwan_scratch_state'): (self.root / name).mkdir()
+        (self.root / 'liwan' / 'odoo-addons').mkdir()
         (self.root / 'odoo' / 'addons').mkdir()
-        (self.root / 'webvue' / 'odoo-addons' / 'source.py').write_text('value = 1')
+        (self.root / 'liwan' / 'odoo-addons' / 'source.py').write_text('value = 1')
         for name in ('launcher.py', 'odoo.conf'): (self.root / name).write_text('')
-        self.binding = {'tenantId': 'a', 'database': 'webvue_scratch_a', 'fence': 2}
-        self.manifest = release(mode='tenant_maintenance', upgradeModules=['webvue_a'],
-                                moduleVersions={'webvue_a': '19.0.1.0.0'}, affectedServices=['odoo'])
+        self.binding = {'tenantId': 'a', 'database': 'liwan_scratch_a', 'fence': 2}
+        self.manifest = release(mode='tenant_maintenance', upgradeModules=['liwan_a'],
+                                moduleVersions={'liwan_a': '19.0.1.0.0'}, affectedServices=['odoo'])
         self.calls = []
         def runner(argv, **kwargs):
             self.calls.append((argv, kwargs))
@@ -28,23 +28,23 @@ class MigrationTests(unittest.TestCase):
             if 'rev-parse' in argv:
                 commit = '2' * 40 if str(self.root / 'odoo') in argv else '1' * 40
                 return subprocess.CompletedProcess(argv, 0, commit + '\n', '')
-            output = 'WEBVUE_RELEASE_OBSERVATION=' + json.dumps({'moduleVersions': {'webvue_a': '19.0.1.0.0'},
-                      'moduleStatesReady': True, 'database': 'webvue_scratch_a', 'profile': {'commercial_mode': 'non_saas'}, 'readOnly': True})
+            output = 'LIWAN_RELEASE_OBSERVATION=' + json.dumps({'moduleVersions': {'liwan_a': '19.0.1.0.0'},
+                      'moduleStatesReady': True, 'database': 'liwan_scratch_a', 'profile': {'commercial_mode': 'non_saas'}, 'readOnly': True})
             return subprocess.CompletedProcess(argv, 0, output, '')
         self.config = {'mode': 'local', 'python': '/usr/bin/true', 'odooRoot': str(self.root / 'odoo'),
-                       'webvueRoot': str(self.root / 'webvue'), 'launcher': str(self.root / 'launcher.py'),
-                       'odooConfig': str(self.root / 'odoo.conf'), 'addonsPaths': [str(self.root / 'odoo' / 'addons'), str(self.root / 'webvue' / 'odoo-addons')],
-                       'dataDir': str(self.root / 'data'), 'stateDir': str(self.root / 'webvue_scratch_state'), 'timeoutSeconds': 20, 'runner': runner,
-                       'sourceIdentity': {'webvueCommit': '1' * 40, 'odooCommit': '2' * 40,
-                                          'image': self.manifest['images']['odoo'], 'treeDigest': source_tree_digest(self.root / 'webvue')},
+                       'liwanRoot': str(self.root / 'liwan'), 'launcher': str(self.root / 'launcher.py'),
+                       'odooConfig': str(self.root / 'odoo.conf'), 'addonsPaths': [str(self.root / 'odoo' / 'addons'), str(self.root / 'liwan' / 'odoo-addons')],
+                       'dataDir': str(self.root / 'data'), 'stateDir': str(self.root / 'liwan_scratch_state'), 'timeoutSeconds': 20, 'runner': runner,
+                       'sourceIdentity': {'liwanCommit': '1' * 40, 'odooCommit': '2' * 40,
+                                          'image': self.manifest['images']['odoo'], 'treeDigest': source_tree_digest(self.root / 'liwan')},
                        'expectedProfile': {'commercial_mode': 'non_saas'},
                        'quiescence': {**self.binding, 'gateClosed': True, 'admittedWriters': 0, 'activeTransactions': 0, 'oldConnections': 0}}
 
     def test_stock_upgrade_command_and_orm_verification(self):
         result = migrate_tenant(self.binding, self.manifest, self.config, 2)
         self.assertTrue(result['migrated'])
-        argv = next(argv for argv, kwargs in self.calls if '--update=webvue_a' in argv)
-        for flag in ('--no-http', '--stop-after-init', '--max-cron-threads=0', '--database=webvue_scratch_a'):
+        argv = next(argv for argv, kwargs in self.calls if '--update=liwan_a' in argv)
+        for flag in ('--no-http', '--stop-after-init', '--max-cron-threads=0', '--database=liwan_scratch_a'):
             self.assertIn(flag, argv)
         self.assertNotIn('--update=all', argv)
         shell = next(kwargs for argv, kwargs in self.calls if 'shell' in argv)
@@ -60,7 +60,7 @@ class MigrationTests(unittest.TestCase):
         runner = self.config['runner']
         def wrong(argv, **kwargs):
             result = runner(argv, **kwargs)
-            if 'shell' in argv: result.stdout = 'WEBVUE_RELEASE_OBSERVATION=' + json.dumps({'moduleVersions': {}, 'moduleStatesReady': False, 'database': 'webvue_scratch_a', 'profile': {}, 'readOnly': True})
+            if 'shell' in argv: result.stdout = 'LIWAN_RELEASE_OBSERVATION=' + json.dumps({'moduleVersions': {}, 'moduleStatesReady': False, 'database': 'liwan_scratch_a', 'profile': {}, 'readOnly': True})
             return result
         with self.assertRaises(ValueError):
             verify_tenant(self.binding, self.manifest, {**self.config, 'runner': wrong})
@@ -72,25 +72,25 @@ class MigrationTests(unittest.TestCase):
         self.assertFalse(any('server' in argv for argv, _ in self.calls))
 
     def oca_setup(self):
-        """A WebVue root with the real OCA helper and a one-repository pin file, plus that repository."""
+        """A LiwanOS root with the real OCA helper and a one-repository pin file, plus that repository."""
         repo = self.root / 'oca' / 'demo'
         repo.mkdir(parents=True)
         git = ['git', '-c', 'user.email=t@t', '-c', 'user.name=t']
         for args in (['init', '-q'], ['commit', '-q', '--allow-empty', '-m', 'one']):
             subprocess.run([*git, *args], cwd=repo, check=True, capture_output=True)
         commit = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=repo, check=True, capture_output=True, text=True).stdout.strip()
-        (self.root / 'webvue' / 'tools').mkdir()
-        (self.root / 'webvue' / 'deploy').mkdir()
-        shutil.copy(Path(__file__).resolve().parents[2] / 'tools' / 'oca_addons.py', self.root / 'webvue' / 'tools')
+        (self.root / 'liwan' / 'tools').mkdir()
+        (self.root / 'liwan' / 'deploy').mkdir()
+        shutil.copy(Path(__file__).resolve().parents[2] / 'tools' / 'oca_addons.py', self.root / 'liwan' / 'tools')
         pins = {'repos': [{'repo': 'OCA/demo', 'branch': '19.0', 'commit': commit}]}
-        (self.root / 'webvue' / 'deploy' / 'oca-addons.json').write_text(json.dumps(pins))
+        (self.root / 'liwan' / 'deploy' / 'oca-addons.json').write_text(json.dumps(pins))
         return {**self.config, 'ocaDir': str(self.root / 'oca'),
                 'addonsPaths': [*self.config['addonsPaths'], str(repo)]}
 
     def test_pinned_oca_repositories_are_allowed_when_verified_at_their_pin(self):
         config = self.oca_setup()
         self.assertTrue(migrate_tenant(self.binding, self.manifest, config, 2)['migrated'])
-        argv = next(argv for argv, kwargs in self.calls if '--update=webvue_a' in argv)
+        argv = next(argv for argv, kwargs in self.calls if '--update=liwan_a' in argv)
         self.assertIn(str(self.root / 'oca' / 'demo'), next(a for a in argv if a.startswith('--addons-path=')))
 
     def test_oca_repository_not_at_its_pin_or_unlisted_is_rejected(self):
@@ -114,11 +114,11 @@ class MigrationTests(unittest.TestCase):
         python.symlink_to('/usr/bin/true')
         result = migrate_tenant(self.binding, self.manifest, {**self.config, 'python': str(python)}, 2)
         self.assertTrue(result['migrated'])
-        argv = next(argv for argv, kwargs in self.calls if '--update=webvue_a' in argv)
+        argv = next(argv for argv, kwargs in self.calls if '--update=liwan_a' in argv)
         self.assertEqual(argv[0], str(python))
 
     def test_source_digest_changes_block_launch_without_requiring_a_commit(self):
-        (self.root / 'webvue' / 'odoo-addons' / 'source.py').write_text('value = 2')
+        (self.root / 'liwan' / 'odoo-addons' / 'source.py').write_text('value = 2')
         with self.assertRaisesRegex(ValueError, '^source_identity_mismatch$'):
             migrate_tenant(self.binding, self.manifest, self.config, 2)
         self.assertFalse(any('server' in argv for argv, _ in self.calls))
@@ -128,7 +128,7 @@ class MigrationTests(unittest.TestCase):
                                    lambda pool, binding: {'poolId': 'green', 'images': self.manifest['images']})
         result = callback({}, self.binding)
         self.assertTrue(result['databaseReady'])
-        self.assertEqual(result['moduleVersions'], {'webvue_a': '19.0.1.0.0'})
+        self.assertEqual(result['moduleVersions'], {'liwan_a': '19.0.1.0.0'})
         self.assertEqual(result['poolId'], 'green')
 
     def test_subprocess_failure_is_sanitized_and_timeout_bounded(self):

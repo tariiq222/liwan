@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import ts from 'typescript'
 const source = readFileSync(new URL('../../apps/web/app/composables/useApi.ts', import.meta.url), 'utf8')
 const secret = 'synthetic-private-hop-token'
-const incoming = { cookie: 'session_id=synthetic', host: 'tenant.acceptance.test', 'x-webvue-proxy-token': secret, 'x-webvue-tenant-revision': '7' }
+const incoming = { cookie: 'session_id=synthetic', host: 'tenant.acceptance.test', 'x-liwan-proxy-token': secret, 'x-liwan-tenant-revision': '7' }
 function replay(server, trusted) {
   const js = ts.transpileModule(source.replaceAll('import.meta.server', String(server)), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText
   const exports = {}, calls = []

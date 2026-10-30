@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FinanceActionBlockReason } from '@webvue/contracts'
+import type { FinanceActionBlockReason } from '@liwan/contracts'
 
 // Why a button of the record page is disabled: one line per reason the server blocks an offered action for.
 defineProps<{ reasons: readonly FinanceActionBlockReason[] }>()

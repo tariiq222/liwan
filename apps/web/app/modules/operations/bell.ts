@@ -1,4 +1,4 @@
-import { OperationBellRowSchema, type OperationBellRow } from '@webvue/contracts'
+import { OperationBellRowSchema, type OperationBellRow } from '@liwan/contracts'
 
 type Translate = (key: string, named?: Record<string, unknown>) => string
 

@@ -1,4 +1,4 @@
-import type { StatusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
+import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
 
 /** Users and roles: a protected system record reads primary, active is success, stopped warns, read-only is neutral. */
 export function accessStateBadge(row: { active: boolean; protected?: boolean; readOnly?: boolean }): StatusBadgeEntry {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CrmPackageSchema, type CrmPackage } from '@webvue/contracts'
+import { CrmPackageSchema, type CrmPackage } from '@liwan/contracts'
 import { useCrmListEditor, useCrmPackages } from '@/composables/crm/useCrmLists'
 import { useCrmTerms } from '@/composables/crm/useCrmTerms'
 

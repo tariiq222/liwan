@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import PlanTable from '@/components/hr/lifecycle/PlanTable.vue'
-import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
+import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
 import type { HrPlanListParams } from '@/composables/useHrOnboarding'
 import { useHrOffboardingPlans } from '@/composables/useHrOffboarding'
 
@@ -98,7 +98,7 @@ function askToggle(plan: { id: number, name: string, active: boolean }) {
       </template>
       <SharedInlineConfirm
         v-if="pendingToggle"
-        class="m-(--webvue-card-pad-dense)"
+        class="m-(--liwan-card-pad-dense)"
         :title="t(`hrOffboarding.plans.deactivateTitle`)"
         :description="toggleError ? t(`hrOffboarding.form.saveError`) : t(`hrOffboarding.plans.deactivateDescription`)"
         :confirm-label="pendingToggle.active ? t(`hrOffboarding.plans.deactivate`) : t(`hrOffboarding.plans.activate`)"
@@ -108,7 +108,7 @@ function askToggle(plan: { id: number, name: string, active: boolean }) {
       />
       <SharedPageState
         v-if="query.isLoading.value || query.error.value || !plans.length"
-        class="m-(--webvue-card-pad-dense)"
+        class="m-(--liwan-card-pad-dense)"
         :loading="query.isLoading.value"
         :error="query.error.value"
         :empty="!plans.length"

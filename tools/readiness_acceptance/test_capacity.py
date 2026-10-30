@@ -19,7 +19,7 @@ class CapacityTests(unittest.TestCase):
 
     def test_foreign_hosts_excessive_load_or_non_scratch_binding_refused(self):
         base={'baseUrl':'http://127.0.0.1:9001','concurrency':4,'durationSeconds':5,
-              'tenants':[{'host':'a.ready.test','database':'webvue_scratch_ready_a','cookie':'synthetic','documentId':1001,'revision':3,'editIds':[2,3,4,5]}]}
+              'tenants':[{'host':'a.ready.test','database':'liwan_scratch_ready_a','cookie':'synthetic','documentId':1001,'revision':3,'editIds':[2,3,4,5]}]}
         capacity.validate_config(base)
         for patch in ({'baseUrl':'https://external.invalid'},{'concurrency':1000},{'durationSeconds':0},
                       {'tenants':[{**base['tenants'][0],'database':'odoo19'}]}):
@@ -36,7 +36,7 @@ class CapacityTests(unittest.TestCase):
         worker=threading.Thread(target=server.serve_forever,daemon=True);worker.start()
         try:
             config={'baseUrl':'http://127.0.0.1:'+str(server.server_port),'concurrency':1,'durationSeconds':1,'maxOperations':6,
-                    'tenants':[{'host':name+'.ready.test','database':'webvue_scratch_'+name,'cookie':'synthetic'} for name in ('a','b','c')]}
+                    'tenants':[{'host':name+'.ready.test','database':'liwan_scratch_'+name,'cookie':'synthetic'} for name in ('a','b','c')]}
             result=capacity.run(config)
             self.assertEqual({s['tenant'] for s in result['samples']},{'a.ready.test','b.ready.test','c.ready.test'})
             self.assertEqual(result['tenantCount'],3)
@@ -53,7 +53,7 @@ class CapacityTests(unittest.TestCase):
         worker=threading.Thread(target=server.serve_forever,daemon=True);worker.start()
         try:
             result=capacity.run({'baseUrl':'http://127.0.0.1:'+str(server.server_port),'concurrency':1,'durationSeconds':1,'maxOperations':1,
-                'tenants':[{'host':name+'.ready.test','database':'webvue_scratch_'+name,'cookie':'synthetic'} for name in ('a','b','c')]})
+                'tenants':[{'host':name+'.ready.test','database':'liwan_scratch_'+name,'cookie':'synthetic'} for name in ('a','b','c')]})
             self.assertEqual(result['summary']['errors'],0)
             self.assertFalse(result['coverageComplete'])
             self.assertEqual(result['missingTenants'],['b.ready.test','c.ready.test'])
@@ -69,7 +69,7 @@ class CapacityTests(unittest.TestCase):
         server=ThreadingHTTPServer(('127.0.0.1',0),Handler);worker=threading.Thread(target=server.serve_forever,daemon=True);worker.start()
         try:
             config={'baseUrl':'http://127.0.0.1:'+str(server.server_port),'operation':'record','concurrency':1,'durationSeconds':1,'maxOperations':1,
-                    'tenants':[{'host':'a.ready.test','database':'webvue_scratch_a','cookie':'synthetic','documentId':1,'revision':1,'expectedName':'Actual document'}]}
+                    'tenants':[{'host':'a.ready.test','database':'liwan_scratch_a','cookie':'synthetic','documentId':1,'revision':1,'expectedName':'Actual document'}]}
             result=capacity.run(config)
             self.assertEqual(result['summary']['errors'],1)
             self.assertEqual(result['httpStatuses'],{'200':1})

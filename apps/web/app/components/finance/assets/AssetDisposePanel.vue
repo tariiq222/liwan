@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FinanceAssetDetail } from '@webvue/contracts'
+import type { FinanceAssetDetail } from '@liwan/contracts'
 import { useDisposeFinanceAsset } from '@/composables/finance/useFinanceAssets'
 import AccountPicker from '../AccountPicker.vue'
 import { financeErrorMessage } from '../financeErrors'
@@ -36,11 +36,11 @@ async function submit() {
 </script>
 
 <template>
-  <UForm novalidate :state="draft" class="webvue-form rounded-card border border-default p-(--webvue-card-pad-dense)" method="post" data-testid="finance-asset-dispose-form" @submit="submit">
+  <UForm novalidate :state="draft" class="liwan-form rounded-card border border-default p-(--liwan-card-pad-dense)" method="post" data-testid="finance-asset-dispose-form" @submit="submit">
     <p class="font-semibold text-highlighted">{{ t('financeAssets.dispose.title', { name: asset.name }) }}</p>
     <p class="text-sm text-muted">{{ t('financeAssets.dispose.hint') }}</p>
     <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" data-testid="finance-asset-dispose-error" />
-    <div class="webvue-form-grid">
+    <div class="liwan-form-grid">
       <UFormField :label="t('financeAssets.dispose.date')" name="finance-asset-dispose-date" required :error="shown.date ? t('financeAssets.dispose.dateRequired') : undefined">
         <SharedDateField id="finance-asset-dispose-date" v-model="draft.date" :disabled="!hydrated || dispose.isPending.value" />
       </UFormField>

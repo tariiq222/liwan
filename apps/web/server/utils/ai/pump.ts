@@ -1,5 +1,5 @@
 import { isError, type createEventStream, type H3Event } from 'h3'
-import type { AiAuditRequest, AiTool } from '@webvue/contracts'
+import type { AiAuditRequest, AiTool } from '@liwan/contracts'
 import { buildToolRequest, toolError, toolResultFromUpstream, type ToolResult } from './executor'
 import { clientSignal, forwardUpstream, logFailure, odooJson, readSse, serviceFetch, type SignalOption } from './upstream'
 import { createUsageLedger, type UsageLedger } from './usage'

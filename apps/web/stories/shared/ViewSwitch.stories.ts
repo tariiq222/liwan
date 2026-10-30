@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import ViewSwitch from '@webvue/ui/app/components/shared/data/ViewSwitch.vue'
+import ViewSwitch from '@liwan/ui/app/components/shared/data/ViewSwitch.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { owningListBack } from '@/utils/recordListOrigin'
 import { ApiError } from '@/composables/useApi'
-import { avatarProps } from '@webvue/ui/app/utils/avatarTone'
+import { avatarProps } from '@liwan/ui/app/utils/avatarTone'
 import { parseChatListRoute, serializeChatListRoute } from '@/utils/chatState'
 
 const { t } = useI18n()
@@ -80,9 +80,9 @@ async function submit() {
 </script>
 
 <template>
-  <SharedConversationLayout :has-selection="true" class="webvue-chat-create-layout" data-testid="chat-create-layout">
+  <SharedConversationLayout :has-selection="true" class="liwan-chat-create-layout" data-testid="chat-create-layout">
     <template #header>
-      <header class="webvue-chat-thread-header">
+      <header class="liwan-chat-thread-header">
         <UButton color="neutral" variant="ghost" square icon="i-lucide-arrow-left" :to="backTo" :aria-label="t('app.back')" :ui="{ leadingIcon: 'rtl:rotate-180' }" />
         <div class="min-w-0 flex-1">
           <h1 class="text-lg font-semibold text-highlighted">{{ t(copy.title) }}</h1>

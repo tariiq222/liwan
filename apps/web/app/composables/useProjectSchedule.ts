@@ -2,7 +2,7 @@ import { taskKeys } from './useTasks'
 import { projectKeys } from './projectKeys'
 import type { Ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { ProjectScheduleSchema, ScheduleTaskSchema, type ProjectSchedule, type ScheduleTaskPatch } from '@webvue/contracts'
+import { ProjectScheduleSchema, ScheduleTaskSchema, type ProjectSchedule, type ScheduleTaskPatch } from '@liwan/contracts'
 
 export const scheduleKeys = {
   detail: (id: number) => [...projectKeys.detail(id), 'schedule'] as const,

@@ -2,7 +2,7 @@ import { computed, ref, type Ref } from 'vue'
 
 export type ContextSidebarCookie = 'open' | 'closed'
 /** Read during SSR, so the server renders the collapsed width and the first paint never jumps. */
-export const CONTEXT_SIDEBAR_COOKIE = 'webvue-context-sidebar'
+export const CONTEXT_SIDEBAR_COOKIE = 'liwan-context-sidebar'
 
 /**
  * Automatic geometry follows the viewport; only an explicit toggle persists a preference. `forced` (a layer that needs

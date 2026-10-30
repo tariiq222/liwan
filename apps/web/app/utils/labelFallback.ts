@@ -1,4 +1,4 @@
-import { humanizeId } from '@webvue/ui/app/utils/humanizeId'
+import { humanizeId } from '@liwan/ui/app/utils/humanizeId'
 
 /** The role-screen heading of a permission domain; known domains keep their translation. */
 export function permissionDomainLabel(domain: string, t: (key: string) => string, te: (key: string) => boolean): string {

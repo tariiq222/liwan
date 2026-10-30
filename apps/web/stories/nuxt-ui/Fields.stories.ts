@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { ref } from 'vue'
-import { ProjectStatusSchema } from '@webvue/contracts'
+import { ProjectStatusSchema } from '@liwan/contracts'
 
 export default {
   title: 'Nuxt UI/Fields',
@@ -11,7 +11,7 @@ export const TextInputs: StoryObj = {
   name: 'حقول النص',
   render: () => ({
     setup: () => ({ name: ref(''), count: ref(3), body: ref('') }),
-    template: `<div class="webvue-form-grid">
+    template: `<div class="liwan-form-grid">
       <UFormField :label="$t('meetingsUi.title')" name="name" required><UInput v-model="name" class="w-full" /></UFormField>
       <UFormField :label="$t('meetingsUi.title')" name="invalid" :error="$t('meetingsUx.errors.required')"><UInput class="w-full" aria-invalid="true" /></UFormField>
       <UFormField label="#" name="count"><UInputNumber v-model="count" class="w-full" /></UFormField>
@@ -28,7 +28,7 @@ export const Selects: StoryObj = {
       const items = ProjectStatusSchema.options
       return { items, status: ref('on_track'), statuses: ref<string[]>(['at_risk']) }
     },
-    template: `<div class="webvue-form-grid">
+    template: `<div class="liwan-form-grid">
       <UFormField :label="$t('projects.filters.allStatuses')" name="status"><USelect v-model="status" :items="items.map(value => ({ value, label: $t('projects.status.' + value) }))" class="w-full" /></UFormField>
       <UFormField :label="$t('projects.filters.allStatuses')" name="statuses"><USelectMenu v-model="statuses" multiple value-key="value" :items="items.map(value => ({ value, label: $t('projects.status.' + value) }))" class="w-full" /></UFormField>
     </div>`,

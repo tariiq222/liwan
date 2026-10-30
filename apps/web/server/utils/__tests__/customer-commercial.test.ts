@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { verifyServiceRequest } from '@webvue/commercial-contracts/server'
+import { verifyServiceRequest } from '@liwan/commercial-contracts/server'
 import { assertCustomerMutationOrigin, assertNoForgedFields, csrfMatches, customerCommercialEnabled, customerRoute, allowPaymentReturn, forwardCustomerRequest, issueCsrfCookie, PAYMENT_RETURN_LIMITS, paymentReturnStoreSize, rateLimitMutation, relayPaymentReturn, resetRateLimitForTests, signedBodyFor } from '../customer-commercial'
 import { deriveCustomerCapabilities } from '../../../app/utils/customerCapabilities'
 
@@ -15,8 +15,8 @@ const config = { customerCommercialEnabled: true, customerCommercialControlUrl: 
 const me = (capabilities: string[]) => ({ id: 7, name: 'U', login: 'u', email: '', lang: 'ar_001', tz: 'UTC', role: 'employee', capabilities, company: { id: 1, name: 'C' } })
 
 function setup(opts: { method?: string; url?: string; body?: string; headers?: Record<string, string>; cookies?: Record<string, string>; caps?: string[]; cfg?: Record<string, unknown> } = {}) {
-  const headers: Record<string, string> = { cookie: 'session_id=s', origin: 'https://acme.example', 'content-type': 'application/json', 'x-webvue-csrf': CSRF, ...opts.headers }
-  const cookies: Record<string, string> = { webvue_csrf: CSRF, ...opts.cookies }
+  const headers: Record<string, string> = { cookie: 'session_id=s', origin: 'https://acme.example', 'content-type': 'application/json', 'x-liwan-csrf': CSRF, ...opts.headers }
+  const cookies: Record<string, string> = { liwan_csrf: CSRF, ...opts.cookies }
   vi.stubGlobal('useRuntimeConfig', () => ({ ...config, ...opts.cfg }))
   vi.stubGlobal('getMethod', () => opts.method ?? 'GET')
   vi.stubGlobal('getHeader', (_e: unknown, n: string) => headers[n])
@@ -58,9 +58,9 @@ describe('customer commercial BFF', () => {
     expect(url).toBe('https://control.example/v1/customer/subscription')
     const h = init.headers as Record<string, string>
     expect(h).not.toHaveProperty('cookie')
-    const principal = JSON.parse(Buffer.from(h['x-webvue-principal']!, 'base64').toString())
+    const principal = JSON.parse(Buffer.from(h['x-liwan-principal']!, 'base64').toString())
     expect(principal).toEqual({ actor_id: '7', kind: 'customer', tenant_id: 'tenant-acme', capabilities: ['subscription.read', 'subscription.manage', 'branches.manage', 'billing.read'] })
-    const ok = verifyServiceRequest({ method: 'GET', path: '/v1/customer/subscription', body: signedBodyFor(h['x-webvue-principal']!, undefined), key: KEY, headers: h })
+    const ok = verifyServiceRequest({ method: 'GET', path: '/v1/customer/subscription', body: signedBodyFor(h['x-liwan-principal']!, undefined), key: KEY, headers: h })
     expect(ok).toMatchObject({ actor: 7, issuer: 'customer-web' })
     // Tampering with the principal invalidates the signature.
     const forged = Buffer.from(JSON.stringify({ ...principal, tenant_id: 'tenant-other' })).toString('base64')
@@ -84,7 +84,7 @@ describe('customer commercial BFF', () => {
   it('requires CSRF header = cookie, JSON, and same origin for mutations', async () => {
     const body = JSON.stringify({ kind: 'new' })
     const url = 'https://acme.example/api/commercial/v1/quotes'
-    setup({ method: 'POST', url, body, headers: { 'x-webvue-csrf': 'z'.repeat(40) } })
+    setup({ method: 'POST', url, body, headers: { 'x-liwan-csrf': 'z'.repeat(40) } })
     await expect(forwardCustomerRequest({} as never)).rejects.toMatchObject({ statusCode: 403, data: { code: 'csrf_failed' } })
     setup({ method: 'POST', url, body, headers: { origin: 'https://evil.example' } })
     await expect(forwardCustomerRequest({} as never)).rejects.toMatchObject({ statusCode: 403, data: { code: 'cross_site_request' } })
@@ -175,9 +175,9 @@ describe('payment return relay', () => {
     expect(init).toMatchObject({ method: 'POST', redirect: 'error' })
     expect(init.signal).toBeInstanceOf(AbortSignal)
     const h = init.headers as Record<string, string>
-    expect(h).not.toHaveProperty('cookie'); expect(h).not.toHaveProperty('x-webvue-principal')
-    expect(h['x-webvue-tenant']).toBe('tenant-acme')
-    const verify = (key: string, tenant: string) => verifyServiceRequest({ method: 'POST', path: `/v1/customer/payment-returns/${ATTEMPT}`, body: `webvue-payment-return:${tenant}\n`, key, headers: h, anonymous: true })
+    expect(h).not.toHaveProperty('cookie'); expect(h).not.toHaveProperty('x-liwan-principal')
+    expect(h['x-liwan-tenant']).toBe('tenant-acme')
+    const verify = (key: string, tenant: string) => verifyServiceRequest({ method: 'POST', path: `/v1/customer/payment-returns/${ATTEMPT}`, body: `liwan-payment-return:${tenant}\n`, key, headers: h, anonymous: true })
     expect(verify(KEY, 'tenant-acme')).toMatchObject({ actor: 'anonymous', issuer: 'customer-web' })
     expect(verify(KEY, 'tenant-other')).toBeNull()
     expect(verify('x'.repeat(48), 'tenant-acme')).toBeNull()
@@ -219,14 +219,14 @@ describe('payment return relay', () => {
     const { raw } = returnSetup()
     vi.mocked(tenantRequest).mockReturnValueOnce({ tenantId: 'registry-tenant', host: 'acme.example' } as never)
     await relayPaymentReturn({} as never)
-    expect((raw.mock.calls[0]![1].headers as Record<string, string>)['x-webvue-tenant']).toBe('registry-tenant')
+    expect((raw.mock.calls[0]![1].headers as Record<string, string>)['x-liwan-tenant']).toBe('registry-tenant')
   })
   it('limits a client that sends a fresh attempt id every time, without touching the signed-in buckets', async () => {
     const { raw } = returnSetup({ attempt: '00000000-0000-4000-8000-000000000000' })
     for (let i = 0; i < 10; i++) rateLimitMutation('signed-in-user') // an unrelated signed-in session
     const ids = Array.from({ length: PAYMENT_RETURN_LIMITS.perClient + 20 }, (_, n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`)
     for (const id of ids) {
-      setup({ method: 'GET', url: `https://acme.example/api/commercial/payment-callback?attempt=${id}`, headers: { cookie: '', 'x-webvue-client-ip': '203.0.113.9' } })
+      setup({ method: 'GET', url: `https://acme.example/api/commercial/payment-callback?attempt=${id}`, headers: { cookie: '', 'x-liwan-client-ip': '203.0.113.9' } })
       vi.stubGlobal('$fetch', Object.assign(vi.fn(), { raw }))
       vi.stubGlobal('setResponseStatus', vi.fn()); vi.stubGlobal('setResponseHeader', vi.fn())
       await relayPaymentReturn({} as never)
@@ -258,9 +258,9 @@ describe('payment return relay', () => {
 
 describe('issueCsrfCookie', () => {
   it('sets the double-submit cookie on a browser-side GET when none exists and answers 204', () => {
-    setup({ cookies: { webvue_csrf: '' } })
+    setup({ cookies: { liwan_csrf: '' } })
     expect(issueCsrfCookie({} as never)).toBeNull()
-    expect(setCookie).toHaveBeenCalledWith(expect.anything(), 'webvue_csrf', expect.stringMatching(/^[0-9a-f]{48}$/), expect.objectContaining({ httpOnly: false, sameSite: 'strict' }))
+    expect(setCookie).toHaveBeenCalledWith(expect.anything(), 'liwan_csrf', expect.stringMatching(/^[0-9a-f]{48}$/), expect.objectContaining({ httpOnly: false, sameSite: 'strict' }))
     expect(setResponseStatus).toHaveBeenCalledWith(expect.anything(), 204)
     expect(setResponseHeader).toHaveBeenCalledWith(expect.anything(), 'Cache-Control', 'no-store')
   })

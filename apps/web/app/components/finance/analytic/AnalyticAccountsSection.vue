@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinanceAnalyticAccount } from '@webvue/contracts'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import type { FinanceAnalyticAccount } from '@liwan/contracts'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
 import { h } from 'vue'
 import { useFinanceAnalyticAccounts, useFinanceAnalyticPlans } from '@/composables/finance/useFinanceAnalytic'
 import { useRouteListFilters } from '@/composables/useRouteListFilters'
@@ -61,7 +61,7 @@ const accountActions = (account: FinanceAnalyticAccount): RowAction[] => [
     <template v-if="canManage" #actions>
       <UButton color="primary" icon="i-lucide-plus" :disabled="!hydrated || panel !== null || planList.length === 0" :label="t('financeAnalytic.accounts.new')" data-testid="finance-analytic-account-new" @click="panel = { kind: 'create' }" />
     </template>
-    <div class="grid gap-(--webvue-gap-card)">
+    <div class="grid gap-(--liwan-gap-card)">
       <template v-if="panel">
         <AnalyticArchiveConfirm v-if="panel.kind === 'archive'" :key="panelKey(panel)" :account="panel.account" @done="panel = null" @cancel="panel = null" />
         <AnalyticAccountEditor v-else :key="panelKey(panel)" :account="panel.kind === 'edit' ? panel.account : undefined" :plans="planList" @done="panel = null" @cancel="panel = null" />

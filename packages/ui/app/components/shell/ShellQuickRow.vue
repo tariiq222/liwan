@@ -9,14 +9,14 @@ const countLabel = (value: number) => (value > 99 ? '99+' : String(value))
 </script>
 
 <template>
-  <div class="webvue-quick-row">
+  <div class="liwan-quick-row">
     <UTooltip :text="props.item.label" :disabled="!props.collapsed">
       <UButton
         :to="props.item.to"
         color="neutral"
         variant="ghost"
-        class="webvue-quick-link"
-        :class="{ 'webvue-quick-action': props.action }"
+        class="liwan-quick-link"
+        :class="{ 'liwan-quick-action': props.action }"
         :data-primary="props.item.primary ? 'true' : undefined"
         :data-active="props.item.active"
         :active="!!props.item.active"
@@ -26,11 +26,11 @@ const countLabel = (value: number) => (value > 99 ? '99+' : String(value))
         @click="emit('navigate', props.item)"
       >
         <template #leading>
-          <span class="webvue-quick-chip" aria-hidden="true"><UIcon :name="props.item.icon" class="webvue-shell-icon size-4 shrink-0" /></span>
+          <span class="liwan-quick-chip" aria-hidden="true"><UIcon :name="props.item.icon" class="liwan-shell-icon size-4 shrink-0" /></span>
         </template>
         <span data-slot="label">{{ props.item.label }}</span>
       </UButton>
     </UTooltip>
-    <span v-if="props.item.count !== undefined" class="webvue-quick-count">{{ countLabel(props.item.count) }}</span>
+    <span v-if="props.item.count !== undefined" class="liwan-quick-count">{{ countLabel(props.item.count) }}</span>
   </div>
 </template>

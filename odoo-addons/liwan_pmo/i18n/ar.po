@@ -1,0 +1,1883 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* liwan_pmo
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 19.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-24 20:46+0000\n"
+"PO-Revision-Date: 2026-09-08 00:00+0000\n"
+"Last-Translator: LiwanOS\n"
+"Language-Team: Arabic\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 "
+"&& n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+msgid "%(label)s must be at most %(max)s characters."
+msgstr "%(label)s يجب ألا تتجاوز %(max)s حرفًا."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+msgid "%s must be a positive integer."
+msgstr "%s يجب أن يكون عددًا صحيحًا موجبًا."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+msgid "%s must be a string."
+msgstr "%s يجب أن يكون نصًا."
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__liwan_project_raci__role__a
+msgid "A"
+msgstr "أ"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_project.py:0
+msgid "A company-less project cannot take a catalog reference."
+msgstr "لا يمكن أن يأخذ مشروع بلا شركة مرجع كتالوج."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/task_completion.py:0
+msgid "A completion revision is required."
+msgstr "مراجعة الإكمال مطلوبة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_copy.py:0
+msgid "A copied date falls outside the calendar range."
+msgstr "تاريخ منسوخ يقع خارج نطاق التقويم."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_project.py:0
+msgid "A project manager is required to create a project."
+msgstr "مدير مشروع مطلوب لإنشاء المشروع."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_phase.py:0
+msgid "A project moves one phase at a time."
+msgstr "ينتقل المشروع مرحلة واحدة في كل مرة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_copy.py:0
+msgid "A project with more than %(max)s milestones cannot be copied."
+msgstr "لا يمكن نسخ مشروع فيه أكثر من %(max)s معلمًا."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_copy.py:0
+msgid "A project with more than %(max)s tasks cannot be copied."
+msgstr "لا يمكن نسخ مشروع فيه أكثر من %(max)s مهمة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/task_completion.py:0
+msgid "A return note is required."
+msgstr "ملاحظة الإرجاع مطلوبة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_charter.py:0
+msgid "A return note of 1 to 2000 characters is required."
+msgstr "مطلوبة ملاحظة إرجاع من 1 إلى 2000 حرف."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_project.py:0
+#: code:addons/liwan_pmo/models/project_status.py:0
+msgid "A specific approver is only valid for specific_user mode."
+msgstr "المعتمد المحدد صالح لنمط specific_user فقط."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_project.py:0
+#: code:addons/liwan_pmo/models/project_status.py:0
+msgid "A specific approver is required."
+msgstr "المعتمد المحدد مطلوب."
+
+#. module: liwan_pmo
+#: model:ir.model.constraint,message:liwan_pmo.constraint_liwan_project_raci_raci_pair_uniq
+msgid "A stakeholder may have only one RACI row per task."
+msgstr "لكل صاحب مصلحة صف RACI واحد لكل مهمة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/task_schedule.py:0
+msgid "A task cannot depend on itself."
+msgstr "لا يمكن أن تعتمد المهمة على نفسها."
+
+#. module: liwan_pmo
+#: model:ir.model.constraint,message:liwan_pmo.constraint_liwan_project_raci_raci_authoritative_accountable
+#: model:ir.model.constraint,message:liwan_pmo.constraint_liwan_project_raci_raci_one_accountable
+msgid "A task may have only one accountable stakeholder."
+msgstr "لكل مهمة صاحب مصلحة مسؤول واحد."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_task.py:0
+msgid "A visible current-company project is required."
+msgstr "مطلوب مشروع مقروء في الشركة الحالية."
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_raci__accountable_task_id
+msgid "Accountable Task"
+msgstr "المهمة المسؤول عنها"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_charter_catalog_mixin__active
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_owning_unit__active
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_type__active
+msgid "Active"
+msgstr "نشط"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_status.py:0
+msgid "All tasks are complete"
+msgstr "اكتملت جميع المهام"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_finance_entry__amount
+msgid "Amount"
+msgstr "المبلغ"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+msgid "Amount has more precision than the currency allows."
+msgstr "دقة المبلغ أكبر مما تسمح به العملة."
+
+#. module: liwan_pmo
+#: model:ir.model.constraint,message:liwan_pmo.constraint_liwan_project_finance_entry_liwan_amount_bounds
+msgid "Amount must be a finite number between 0 and 1e12."
+msgstr "يجب أن يكون المبلغ عددًا محدودًا بين 0 و1e12."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+msgid "Amount must be a finite number."
+msgstr "يجب أن يكون المبلغ عددًا محدودًا."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+msgid "Amount must be between 0 and 1e12."
+msgstr "يجب أن يكون المبلغ بين 0 و1e12."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_project.py:0
+msgid "An end date is required to create a project."
+msgstr "تاريخ النهاية مطلوب لإنشاء المشروع."
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__project_project__liwan_charter_state__approved
+msgid "Approved"
+msgstr "معتمد"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__mail_message__liwan_notification_kind__assignment
+msgid "Assignment"
+msgstr "الإسناد"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/controllers/task_attachments.py:0
+msgid "Attachment %(attachment_id)s is not linked to task %(task_id)s"
+msgstr "المرفق %(attachment_id)s غير مرتبط بالمهمة %(task_id)s"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__liwan_project_finance_entry__kind__budget
+msgid "Budget"
+msgstr "الميزانية"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_finance_entry__budget_entry_id
+msgid "Budget Entry"
+msgstr "بند الميزانية"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_project.py:0
+msgid "Budget amount must be a finite non-negative number."
+msgstr "يجب أن يكون مبلغ الميزانية عددًا محدودًا غير سالب."
+
+#. module: liwan_pmo
+#: model:ir.model.constraint,message:liwan_pmo.constraint_project_project_liwan_budget_nonnegative
+msgid "Budget amount must be finite and non-negative."
+msgstr "يجب أن يكون مبلغ الميزانية محدودًا وغير سالب."
+
+#. module: liwan_pmo
+#: model:ir.model.constraint,message:liwan_pmo.constraint_liwan_project_finance_entry_liwan_budget_no_date_or_link
+msgid "Budget entries cannot have an expense date or a linked budget."
+msgstr "بنود الميزانية لا تحمل تاريخ مصروف ولا ميزانية مرتبطة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+msgid "Budget entries cannot have an expense date."
+msgstr "بنود الميزانية لا تحمل تاريخ مصروف."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+msgid "Budget entries cannot link to another budget entry."
+msgstr "بنود الميزانية لا ترتبط ببند ميزانية آخر."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+msgid "Budget entry has linked expenses."
+msgstr "بند الميزانية مرتبط بمصروفات."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_project.py:0
+msgid "Budget state must be unknown or estimate."
+msgstr "يجب أن تكون حالة الميزانية غير معروفة أو تقديرية."
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__liwan_project_raci__role__c
+msgid "C"
+msgstr "ج"
+
+#. module: liwan_pmo
+#: model:ir.model,name:liwan_pmo.model_liwan_governance_visibility
+msgid "Caller-scoped governance visibility"
+msgstr "رؤية الحوكمة في نطاق المستدعي"
+
+#. module: liwan_pmo
+#: model:res.groups,name:liwan_pmo.group_cap_pmo_tasks_approve
+msgid "Capability: approve tasks"
+msgstr "صلاحية: اعتماد المهام"
+
+#. module: liwan_pmo
+#: model:res.groups,name:liwan_pmo.group_cap_pmo_projects_create
+msgid "Capability: create projects"
+msgstr "صلاحية: إنشاء المشاريع"
+
+#. module: liwan_pmo
+#: model:res.groups,name:liwan_pmo.group_cap_pmo_tasks_create
+msgid "Capability: create tasks"
+msgstr "صلاحية: إنشاء المهام"
+
+#. module: liwan_pmo
+#: model:res.groups,name:liwan_pmo.group_cap_pmo_settings_manage
+msgid "Capability: manage PMO settings"
+msgstr "صلاحية: إدارة إعدادات مكتب المشاريع"
+
+#. module: liwan_pmo
+#: model:res.groups,name:liwan_pmo.group_cap_pmo_projects_manage
+msgid "Capability: manage projects"
+msgstr "صلاحية: إدارة المشاريع"
+
+#. module: liwan_pmo
+#: model:res.groups,name:liwan_pmo.group_cap_pmo_projects_read
+msgid "Capability: read projects"
+msgstr "صلاحية: قراءة المشاريع"
+
+#. module: liwan_pmo
+#: model:res.groups,name:liwan_pmo.group_cap_pmo_tasks_read
+msgid "Capability: read tasks"
+msgstr "صلاحية: قراءة المهام"
+
+#. module: liwan_pmo
+#: model:res.groups,name:liwan_pmo.group_cap_pmo_tasks_write
+msgid "Capability: write tasks"
+msgstr "صلاحية: كتابة المهام"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_charter_reference.py:0
+msgid "Catalog company cannot be changed."
+msgstr "لا يمكن تغيير شركة الكتالوج."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_charter_reference.py:0
+msgid "Catalog record is outside the current company."
+msgstr "سجل الكتالوج خارج الشركة الحالية."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_project.py:0
+msgid "Catalog references must be active."
+msgstr "يجب أن تكون مراجع الكتالوج نشطة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_project.py:0
+msgid "Catalog references must belong to the project company."
+msgstr "يجب أن تنتمي مراجع الكتالوج لشركة المشروع."
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_type__charter_steps
+msgid "Charter Steps"
+msgstr "خطوات الميثاق"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__mail_message__liwan_notification_kind__charter_approved
+msgid "Charter approved"
+msgstr "اعتُمد الميثاق"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__mail_message__liwan_notification_kind__charter_returned
+msgid "Charter returned"
+msgstr "أُرجع الميثاق"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__mail_message__liwan_notification_kind__charter_review
+msgid "Charter review"
+msgstr "مراجعة الميثاق"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_charter.py:0
+msgid "Choose a sponsor who can open projects before submitting the charter."
+msgstr "اختر راعيًا يستطيع فتح المشاريع قبل إرسال الميثاق."
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__project_project__liwan_phase__closed
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__liwan_project_register__status__closed
+msgid "Closed"
+msgstr "مغلق"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__project_project__liwan_phase__closing
+msgid "Closing"
+msgstr "الإغلاق"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__mail_message__liwan_notification_kind__comment
+msgid "Comment"
+msgstr "التعليق"
+
+#. module: liwan_pmo
+#: model:ir.model,name:liwan_pmo.model_res_company
+msgid "Companies"
+msgstr "الشركات"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_charter_catalog_mixin__company_id
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_finance_entry__company_id
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_owning_unit__company_id
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_raci__company_id
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_register__company_id
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_stakeholder__company_id
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_type__company_id
+msgid "Company"
+msgstr "الشركة"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_completion_approval
+msgid "Completion approval"
+msgstr "اعتماد الإكمال"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_completion_approver_id
+msgid "Completion approver"
+msgstr "معتمد الإكمال"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_task.py:0
+msgid "Completion metadata cannot be set on create."
+msgstr "لا تُحدَّد بيانات الإكمال عند الإنشاء."
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_stakeholder__contact
+msgid "Contact"
+msgstr "جهة الاتصال"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_task.py:0
+msgid "Copied task must belong to the new project."
+msgstr "يجب أن تنتمي المهمة المنسوخة للمشروع الجديد."
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_finance_entry__create_uid
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_owning_unit__create_uid
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_raci__create_uid
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_register__create_uid
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_stakeholder__create_uid
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_type__create_uid
+msgid "Created by"
+msgstr "أنشأه"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_finance_entry__create_date
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_owning_unit__create_date
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_raci__create_date
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_register__create_date
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_stakeholder__create_date
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_type__create_date
+msgid "Created on"
+msgstr "تاريخ الإنشاء"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__project_project__liwan_priority__critical
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__liwan_project_register__priority__critical
+msgid "Critical"
+msgstr "حرج"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_finance_entry__currency_id
+msgid "Currency"
+msgstr "العملة"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__mail_message__liwan_notification_kind__deadline
+msgid "Deadline"
+msgstr "الموعد النهائي"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/task_schedule.py:0
+msgid "Dependencies must belong to the same readable project."
+msgstr "يجب أن تنتمي الاعتماديات لنفس المشروع المقروء."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/task_schedule.py:0
+msgid "Dependencies require an active current-company project."
+msgstr "الاعتماديات تحتاج مشروعًا نشطًا في الشركة الحالية."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/task_schedule.py:0
+msgid "Dependency ids must be positive integers."
+msgstr "يجب أن تكون معرّفات الاعتماديات أعدادًا صحيحة موجبة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/task_schedule.py:0
+msgid "Dependency ids must be unique."
+msgstr "يجب أن تكون معرّفات الاعتماديات فريدة."
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_register__description
+msgid "Description"
+msgstr "الوصف"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_mail_message__display_name
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_milestone__display_name
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__display_name
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_task__display_name
+#: model:ir.model.fields,field_description:liwan_pmo.field_res_company__display_name
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_access_service__display_name
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_directory__display_name
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_entitlement_service__display_name
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_feature_registry__display_name
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_governance_visibility__display_name
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_notify_registry__display_name
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_pmo_settings__display_name
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_actual_source__display_name
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_charter_catalog_mixin__display_name
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_finance_entry__display_name
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_owning_unit__display_name
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_raci__display_name
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_register__display_name
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_stakeholder__display_name
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_type__display_name
+msgid "Display Name"
+msgstr "الاسم المعروض"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__project_project__liwan_charter_state__draft
+msgid "Draft"
+msgstr "مسودة"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_register__due_date
+msgid "Due Date"
+msgstr "تاريخ الاستحقاق"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__res_company__liwan_pmo_project_creators__employees
+msgid "Employees"
+msgstr "الموظفون"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__project_project__liwan_budget_state__estimate
+msgid "Estimate"
+msgstr "تقديري"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__project_project__liwan_phase__executing
+msgid "Executing"
+msgstr "تنفيذ"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__liwan_project_finance_entry__kind__expense
+msgid "Expense"
+msgstr "المصروف"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_finance_entry__expense_date
+msgid "Expense Date"
+msgstr "تاريخ المصروف"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+#: model:ir.model.constraint,message:liwan_pmo.constraint_liwan_project_finance_entry_liwan_expense_amount_positive
+msgid "Expense amount must be positive."
+msgstr "يجب أن يكون مبلغ المصروف موجبًا."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+#: model:ir.model.constraint,message:liwan_pmo.constraint_liwan_project_finance_entry_liwan_expense_date_required
+msgid "Expense entries require an expense date."
+msgstr "بنود المصروف تحتاج تاريخ مصروف."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+msgid "Expenses are recorded in the project's cost center, not here."
+msgstr "تُسجَّل المصروفات في مركز تكلفة المشروع وليس هنا."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+msgid "Finance entry does not exist."
+msgstr "القيد المالي غير موجود."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+msgid "Finance entry fields are not allowed."
+msgstr "حقول القيد المالي غير مسموحة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+msgid "Finance entry identity fields cannot be changed."
+msgstr "لا يمكن تغيير حقول هوية القيد المالي."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+msgid ""
+"Finance entry requires pmo.projects.read and a readable active current-"
+"company project."
+msgstr "يتطلب القيد المالي صلاحية pmo.projects.read ومشروعًا نشطًا مقروءًا في الشركة الحالية."
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__project_project__liwan_priority__high
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__liwan_project_register__priority__high
+msgid "High"
+msgstr "مرتفع"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__liwan_project_raci__role__i
+msgid "I"
+msgstr "م"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_mail_message__id
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_milestone__id
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__id
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_task__id
+#: model:ir.model.fields,field_description:liwan_pmo.field_res_company__id
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_access_service__id
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_directory__id
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_entitlement_service__id
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_feature_registry__id
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_governance_visibility__id
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_notify_registry__id
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_pmo_settings__id
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_actual_source__id
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_charter_catalog_mixin__id
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_finance_entry__id
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_owning_unit__id
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_raci__id
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_register__id
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_stakeholder__id
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_type__id
+msgid "ID"
+msgstr "المعرّف"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_register__impact
+msgid "Impact"
+msgstr "الأثر"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__liwan_project_register__status__in_progress
+msgid "In Progress"
+msgstr "قيد التنفيذ"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__project_project__liwan_phase__initiating
+msgid "Initiating"
+msgstr "البدء"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_project.py:0
+msgid "Invalid project priority."
+msgstr "أولوية مشروع غير صالحة."
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__liwan_project_register__kind__issue
+msgid "Issue"
+msgstr "المشكلة"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_finance_entry__kind
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_register__kind
+msgid "Kind"
+msgstr "النوع"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_finance_entry__write_uid
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_owning_unit__write_uid
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_raci__write_uid
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_register__write_uid
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_stakeholder__write_uid
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_type__write_uid
+msgid "Last Updated by"
+msgstr "آخر تعديل بواسطة"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_finance_entry__write_date
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_owning_unit__write_date
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_raci__write_date
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_register__write_date
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_stakeholder__write_date
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_type__write_date
+msgid "Last Updated on"
+msgstr "تاريخ آخر تعديل"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__project_project__liwan_priority__low
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__liwan_project_register__priority__low
+msgid "Low"
+msgstr "منخفض"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__res_company__liwan_pmo_project_creators__managers
+msgid "Managers"
+msgstr "المديرون"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__mail_message__liwan_notification_kind__mention
+msgid "Mention"
+msgstr "إشارة"
+
+#. module: liwan_pmo
+#: model:ir.model,name:liwan_pmo.model_mail_message
+msgid "Message"
+msgstr "الرسالة"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_milestone.py:0
+msgid "Milestone and task must belong to the same project."
+msgstr "يجب أن ينتمي المعلم والمهمة إلى المشروع نفسه."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_milestone.py:0
+msgid "Milestone deadline must be on or after the project start date."
+msgstr "يجب أن يكون الموعد النهائي للمعلم في أو بعد تاريخ بدء المشروع."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_milestone.py:0
+msgid "Milestone deadline must be on or before the project end date."
+msgstr "يجب أن يكون الموعد النهائي للمعلم في أو قبل تاريخ انتهاء المشروع."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_milestone.py:0
+msgid "Milestone deliverable done must be a boolean."
+msgstr "يجب أن تكون حالة إنجاز مخرج المعلم قيمة منطقية (صحيح أو خطأ)."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_milestone.py:0
+msgid "Milestone deliverable names must not be empty."
+msgstr "يجب ألا تكون أسماء مخرجات المعلم فارغة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_milestone.py:0
+msgid "Milestone deliverables must be a list."
+msgstr "يجب أن تكون مخرجات المعلم قائمة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_milestone.py:0
+msgid "Milestone deliverables must contain exactly name and done."
+msgstr "يجب أن تحتوي مخرجات المعلم على الاسم وحالة الإنجاز فقط."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_task.py:0
+msgid "Milestone must belong to the task's project."
+msgstr "يجب أن ينتمي المعلم إلى مشروع المهمة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_milestone.py:0
+msgid "Milestone start date must be on or after the project start date."
+msgstr "يجب أن يكون تاريخ بدء المعلم في أو بعد تاريخ بدء المشروع."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_milestone.py:0
+msgid "Milestone start date must be on or before its deadline."
+msgstr "يجب أن يكون تاريخ بدء المعلم في أو قبل موعده النهائي."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_milestone.py:0
+msgid "Milestone start date must be on or before the project end date."
+msgstr "يجب أن يكون تاريخ بدء المعلم في أو قبل تاريخ انتهاء المشروع."
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_charter_catalog_mixin__name
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_owning_unit__name
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_stakeholder__name
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_type__name
+msgid "Name"
+msgstr "الاسم"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__project_project__liwan_completion_approval__none
+msgid "None"
+msgstr "لا يوجد"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__project_project__liwan_priority__normal
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__liwan_project_register__priority__normal
+msgid "Normal"
+msgstr "عادي"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_finance_entry__notes
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_stakeholder__notes
+msgid "Notes"
+msgstr "الملاحظات"
+
+#. module: liwan_pmo
+#: model:ir.model.constraint,message:liwan_pmo.constraint_liwan_project_finance_entry_liwan_notes_length
+msgid "Notes must be at most 10000 characters."
+msgstr "يجب ألا تتجاوز الملاحظات 10000 حرف."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/controllers/notifications.py:0
+msgid "Notification does not exist"
+msgstr "الإشعار غير موجود"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/liwan_settings.py:0
+msgid "Only a customer administrator can change project policies."
+msgstr "مدير الشركة فقط يغيّر سياسات المشروع."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/controllers/settings.py:0
+msgid "Only a customer administrator can read project policies."
+msgstr "مدير الشركة فقط يقرأ سياسات المشروع."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_task.py:0
+#: code:addons/liwan_pmo/models/task_transitions.py:0
+msgid "Only a project manager can approve or request changes."
+msgstr "مدير المشروع فقط يعتمد أو يطلب تغييرات."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/controllers/tags.py:0
+msgid "Only a project manager can create tags."
+msgstr "مدير المشروع فقط ينشئ الوسوم."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/controllers/projects.py:0
+msgid "Only a project manager can list archived projects."
+msgstr "مدير المشروع فقط يسرد المشاريع المؤرشفة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_status.py:0
+msgid "Only a project manager can set the project status."
+msgstr "مدير المشروع فقط يحدد حالة المشروع."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_charter_reference.py:0
+msgid "Only a settings manager can change this catalog."
+msgstr "مدير الإعدادات فقط يغيّر هذا الكتالوج."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/controllers/project_charter_catalogs.py:0
+msgid "Only a settings manager can list inactive catalog values."
+msgstr "مدير الإعدادات فقط يسرد قيم الكتالوج غير النشطة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_task.py:0
+msgid "Only tasks in the new project may be read during a project copy."
+msgstr "أثناء نسخ المشروع تُقرأ مهام المشروع الجديد فقط."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/task_completion.py:0
+msgid "Only the designated reviewer can decide this request."
+msgstr "المراجع المحدد فقط يحسم هذا الطلب."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/task_schedule.py:0
+msgid "Only the project manager can change task dependencies."
+msgstr "مدير المشروع فقط يغيّر اعتماديات المهمة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/controllers/tasks.py:0
+#: code:addons/liwan_pmo/models/task_schedule.py:0
+msgid "Only the project manager can change task scheduling."
+msgstr "مدير المشروع فقط يغيّر جدولة المهمة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_project.py:0
+msgid "Only the project manager can change this project."
+msgstr "مدير المشروع فقط يغيّر هذا المشروع."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_task.py:0
+msgid "Only the project manager or the task's creator can archive it."
+msgstr "مدير المشروع أو منشئ المهمة فقط يؤرشفها."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_charter.py:0
+msgid "Only the project sponsor can review the charter."
+msgstr "راعي المشروع فقط يراجع الميثاق."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/task_completion.py:0
+msgid "Only the requester can withdraw this completion request."
+msgstr "طالب الإكمال فقط يسحب طلبه."
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__liwan_project_register__status__open
+msgid "Open"
+msgstr "مفتوح"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_stakeholder__organization
+msgid "Organization"
+msgstr "الجهة"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__mail_message__liwan_notification_kind__overdue_digest
+msgid "Overdue digest"
+msgstr "ملخص المتأخرات"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_register__owner_id
+msgid "Owner"
+msgstr "المالك"
+
+#. module: liwan_pmo
+#: model:res.groups,name:liwan_pmo.group_pmo_manager
+msgid "PMO Manager"
+msgstr "مدير مكتب المشاريع"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_task.py:0
+msgid "Parent task must belong to the same project."
+msgstr "يجب أن تنتمي المهمة الأب لنفس المشروع."
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__project_project__liwan_phase__planning
+msgid "Planning"
+msgstr "تخطيط"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_register__priority
+msgid "Priority"
+msgstr "الأولوية"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_register__probability
+msgid "Probability"
+msgstr "الاحتمالية"
+
+#. module: liwan_pmo
+#: model:ir.model,name:liwan_pmo.model_project_project
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_finance_entry__project_id
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_raci__project_id
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_register__project_id
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_stakeholder__project_id
+msgid "Project"
+msgstr "المشروع"
+
+#. module: liwan_pmo
+#: model:ir.model,name:liwan_pmo.model_project_milestone
+msgid "Project Milestone"
+msgstr "معلم المشروع"
+
+#. module: liwan_pmo
+#: model:ir.model,name:liwan_pmo.model_liwan_project_raci
+msgid "Project RACI assignment"
+msgstr "إسناد RACI للمشروع"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_project.py:0
+msgid "Project code cannot be set."
+msgstr "لا يُحدَّد رمز المشروع."
+
+#. module: liwan_pmo
+#: model:ir.model.constraint,message:liwan_pmo.constraint_project_project_liwan_code_uniq
+msgid "Project code must be unique."
+msgstr "يجب أن يكون رمز المشروع فريدًا."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_task.py:0
+msgid "Project copy scope is required."
+msgstr "نطاق نسخ المشروع مطلوب."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_project.py:0
+msgid "Project fields are not allowed."
+msgstr "حقول المشروع غير مسموحة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_project.py:0
+msgid "Project is outside the current company."
+msgstr "المشروع خارج الشركة الحالية."
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__project_project__liwan_completion_approval__project_manager
+msgid "Project manager"
+msgstr "مدير المشروع"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_project.py:0
+msgid "Project revision cannot be set."
+msgstr "لا تُحدَّد مراجعة المشروع."
+
+#. module: liwan_pmo
+#: model:ir.model,name:liwan_pmo.model_liwan_project_register
+msgid "Project risk and issue register item"
+msgstr "بند سجل مخاطر ومشكلات المشروع"
+
+#. module: liwan_pmo
+#: model:ir.model,name:liwan_pmo.model_liwan_project_stakeholder
+msgid "Project stakeholder"
+msgstr "صاحب مصلحة في المشروع"
+
+#. module: liwan_pmo
+#: model:ir.model.constraint,message:liwan_pmo.constraint_liwan_project_type_liwan_type_seed_uniq
+msgid "Project type seed identity must be unique per company."
+msgstr "يجب أن تكون هوية بذرة نوع المشروع فريدة لكل شركة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_project.py:0
+msgid "Projects cannot be permanently deleted."
+msgstr "لا تُحذف المشاريع نهائيًا."
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__liwan_project_raci__role__r
+msgid "R"
+msgstr "ر"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_finance_entry__reference
+msgid "Reference"
+msgstr "المرجع"
+
+#. module: liwan_pmo
+#: model:ir.model.constraint,message:liwan_pmo.constraint_liwan_project_finance_entry_liwan_reference_length
+msgid "Reference must be at most 200 characters."
+msgstr "يجب ألا يتجاوز المرجع 200 حرف."
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__liwan_project_register__status__resolved
+msgid "Resolved"
+msgstr "محلول"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_register__response
+msgid "Response"
+msgstr "الرد"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__liwan_project_register__kind__risk
+msgid "Risk"
+msgstr "الخطر"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_raci__role
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_stakeholder__role
+msgid "Role"
+msgstr "الدور"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/task_schedule.py:0
+msgid "Schedule %(field)s must be a calendar date or empty."
+msgstr "يجب أن يكون %(field)s في الجدولة تاريخًا أو فارغًا."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/task_schedule.py:0
+msgid ""
+"Schedule start and end must be set together, with start on or before the end "
+"date."
+msgstr "يجب تحديد بداية الجدولة ونهايتها معًا، وأن تكون البداية في تاريخ الانتهاء أو قبله."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/task_schedule.py:0
+msgid "Schedule start and end must be set together."
+msgstr "تُحدَّد بداية الجدولة ونهايتها معًا."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_task.py:0
+#: code:addons/liwan_pmo/models/task_schedule.py:0
+msgid "Schedule start must be on or before the end date."
+msgstr "يجب أن يكون بدء الجدولة في تاريخ الانتهاء أو قبله."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/task_schedule.py:0
+msgid "Scheduling requires an active current-company project."
+msgstr "الجدولة تحتاج مشروعًا نشطًا في الشركة الحالية."
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_register__score
+msgid "Score"
+msgstr "الدرجة"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_type__seed_key
+msgid "Seed Key"
+msgstr "مفتاح البذرة"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_charter_catalog_mixin__sequence
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_owning_unit__sequence
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_type__sequence
+msgid "Sequence"
+msgstr "الترتيب"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__project_project__liwan_completion_approval__specific_user
+msgid "Specific user"
+msgstr "مستخدم محدد"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_project.py:0
+msgid "Sponsor must be an active internal user in the current company."
+msgstr "يجب أن يكون الراعي مستخدمًا داخليًا نشطًا في الشركة الحالية."
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_raci__stakeholder_id
+msgid "Stakeholder"
+msgstr "صاحب المصلحة"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_register__status
+msgid "Status"
+msgstr "الحالة"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__project_project__liwan_charter_state__submitted
+msgid "Submitted"
+msgstr "مُرسل"
+
+#. module: liwan_pmo
+#: model:ir.model,name:liwan_pmo.model_project_task
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_raci__task_id
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_register__task_id
+msgid "Task"
+msgstr "المهمة"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_milestone.py:0
+msgid "Task deadline must be on or after the milestone start date."
+msgstr "يجب أن يكون الموعد النهائي للمهمة في أو بعد تاريخ بدء المعلم."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_milestone.py:0
+msgid "Task deadline must be on or before the milestone deadline."
+msgstr "يجب أن يكون الموعد النهائي للمهمة في أو قبل الموعد النهائي للمعلم."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_task.py:0
+msgid "Task deliverable done must be a boolean."
+msgstr "يجب أن تكون حالة إنجاز المخرج قيمة منطقية."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_task.py:0
+msgid "Task deliverable names must not be empty."
+msgstr "يجب ألا تكون أسماء مخرجات المهمة فارغة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_task.py:0
+msgid "Task deliverables must be a list."
+msgstr "يجب أن تكون مخرجات المهمة قائمة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_task.py:0
+msgid "Task deliverables must contain exactly name and done."
+msgstr "يجب أن يحتوي مخرج المهمة على الاسم والحالة فقط."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/task_schedule.py:0
+msgid "Task dependencies are disabled for this project."
+msgstr "اعتماديات المهام معطّلة لهذا المشروع."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/task_schedule.py:0
+msgid "Task dependencies cannot contain a cycle."
+msgstr "لا يمكن أن تحوي اعتماديات المهمة دورة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_task.py:0
+msgid "Task fields are not allowed."
+msgstr "حقول المهمة غير مسموحة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_task.py:0
+msgid "Task is outside the current company."
+msgstr "المهمة خارج الشركة الحالية."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_milestone.py:0
+msgid "Task planned start must be on or after the milestone start date."
+msgstr "يجب أن يكون تاريخ بدء المهمة في أو بعد تاريخ بدء المعلم."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_milestone.py:0
+msgid "Task planned start must be on or before the milestone deadline."
+msgstr "يجب أن يكون تاريخ بدء المهمة في أو قبل الموعد النهائي للمعلم."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_task.py:0
+msgid "Task scheduling must use the dedicated schedule operation."
+msgstr "يجب أن تستخدم جدولة المهمة عملية الجدولة المخصصة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_structure.py:0
+msgid "Tasks are still linked to this milestone."
+msgstr "ما زالت مهام مرتبطة بهذا المعلم."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_task.py:0
+msgid "Tasks cannot be permanently deleted."
+msgstr "لا تُحذف المهام نهائيًا."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_charter.py:0
+msgid "The charter is not in the expected state."
+msgstr "الميثاق ليس في الحالة المتوقعة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_charter.py:0
+msgid "The charter is waiting for approval; withdraw it to edit."
+msgstr "الميثاق بانتظار الاعتماد؛ اسحبه للتعديل."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_phase.py:0
+msgid "The gate into this phase has unmet checks."
+msgstr "بوابة هذه المرحلة فيها شروط لم تُستوفَ."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_status.py:0
+msgid "The project has open tasks again"
+msgstr "عادت للمشروع مهام مفتوحة"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+msgid "The project is outside the active current company."
+msgstr "المشروع خارج الشركة النشطة الحالية."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_project.py:0
+msgid "The project manager is outside the current company."
+msgstr "مدير المشروع خارج الشركة الحالية."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_project.py:0
+msgid "The project manager must be an active internal user."
+msgstr "يجب أن يكون مدير المشروع مستخدمًا داخليًا نشطًا."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_status.py:0
+msgid "The selected approver cannot see this project."
+msgstr "المعتمد المختار لا يرى هذا المشروع."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_status.py:0
+msgid "The selected approver is outside the current company."
+msgstr "المعتمد المختار خارج الشركة الحالية."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_status.py:0
+msgid "The selected approver must already have approval capability."
+msgstr "يجب أن يملك المعتمد المختار صلاحية الاعتماد أصلًا."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_status.py:0
+msgid "The selected approver must be an active internal user."
+msgstr "يجب أن يكون المعتمد المختار مستخدمًا داخليًا نشطًا."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_structure.py:0
+msgid ""
+"The sponsor is reviewing the charter; withdraw it before removing the "
+"sponsor."
+msgstr "الراعي يراجع الميثاق؛ اسحبه قبل إزالة الراعي."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/task_completion.py:0
+msgid "There is no eligible reviewer for this task."
+msgstr "لا يوجد مراجع مؤهل لهذه المهمة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/task_completion.py:0
+msgid "There is no pending completion request."
+msgstr "لا يوجد طلب إكمال معلّق."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_charter_reference.py:0
+msgid "This catalog value is still in use."
+msgstr "قيمة الكتالوج ما زالت مستخدمة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/task_completion.py:0
+msgid "This completion request is stale."
+msgstr "طلب الإكمال قديم."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+msgid "This entry was changed by someone else."
+msgstr "غيّر هذا البند شخص آخر."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_actual_source.py:0
+#: code:addons/liwan_pmo/tests/common.py:0
+msgid "This project has no external actual cost."
+msgstr "ليس لهذا المشروع تكلفة فعلية من مصدر خارجي."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_project.py:0
+msgid "This project was changed by someone else."
+msgstr "غيّر هذا المشروع شخص آخر."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_structure.py:0
+msgid "This stage still holds tasks."
+msgstr "هذه المرحلة ما زالت فيها مهام."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/task_completion.py:0
+msgid "This task is not open for a completion decision."
+msgstr "هذه المهمة ليست مفتوحة لقرار إكمال."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_task.py:0
+#: code:addons/liwan_pmo/models/task_transitions.py:0
+msgid "This task requires completion approval."
+msgstr "هذه المهمة تحتاج اعتماد إكمال."
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_finance_entry__title
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_register__title
+msgid "Title"
+msgstr "العنوان"
+
+#. module: liwan_pmo
+#: model:ir.model.constraint,message:liwan_pmo.constraint_liwan_project_finance_entry_liwan_title_length
+msgid "Title must be a non-blank string up to 200 characters."
+msgstr "يجب أن يكون العنوان نصًا غير فارغ حتى 200 حرف."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+msgid "Title must be at most %s characters."
+msgstr "يجب ألا يتجاوز العنوان %s حرفًا."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+msgid "Title must not be empty."
+msgstr "يجب ألا يكون العنوان فارغًا."
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__project_project__liwan_budget_state__unknown
+msgid "Unknown"
+msgstr "غير معروف"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_project.py:0
+#: model:ir.model.constraint,message:liwan_pmo.constraint_project_project_liwan_budget_unknown_zero
+msgid "Unknown budget amount must be zero."
+msgstr "مبلغ الميزانية غير المعروفة يجب أن يكون صفرًا."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_project.py:0
+#: code:addons/liwan_pmo/models/project_status.py:0
+msgid "Unknown completion approval mode."
+msgstr "نمط اعتماد إكمال غير معروف."
+
+#. module: liwan_pmo
+#: model:ir.model.fields,help:liwan_pmo.field_project_task__display_name
+msgid ""
+"Use these keywords in the title to set new tasks:\n"
+"\n"
+"            #tags Set tags on the task\n"
+"            @user Assign the task to a user\n"
+"            ! Set the task a medium priority\n"
+"            !! Set the task a high priority\n"
+"            !!! Set the task a urgent priority\n"
+"\n"
+"            Make sure to use the right format and order e.g. Improve the "
+"configuration screen #feature #v16 @Mitchell !"
+msgstr "استخدم هذه الكلمات المفتاحية في العنوان لضبط مهام جديدة:\n\n            #tags ضع وسومًا على المهمة\n            @user أسند المهمة إلى مستخدم\n            ! اضبط أولوية المهمة إلى متوسطة\n            !! اضبط أولوية المهمة إلى مرتفعة\n            !!! اضبط أولوية المهمة إلى عاجلة\n\n            تأكد من استخدام الصيغة والترتيب الصحيحين، مثل: Improve the configuration screen #feature #v16 @Mitchell !"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_stakeholder__user_id
+msgid "User"
+msgstr "المستخدم"
+
+#. module: liwan_pmo
+#: model:ir.model,name:liwan_pmo.model_liwan_access_service
+msgid "LiwanOS Access Service"
+msgstr "خدمة الوصول في ليوان"
+
+#. module: liwan_pmo
+#: model:ir.model,name:liwan_pmo.model_liwan_project_finance_entry
+msgid "LiwanOS Project Finance Entry"
+msgstr "قيد مالية مشروع ليوان"
+
+#. module: liwan_pmo
+#: model:ir.model,name:liwan_pmo.model_liwan_entitlement_service
+msgid "LiwanOS entitlement service"
+msgstr "خدمة الاستحقاقات في ليوان"
+
+#. module: liwan_pmo
+#: model:ir.model,name:liwan_pmo.model_liwan_feature_registry
+msgid "LiwanOS feature and module registry"
+msgstr "سجل الميزات والوحدات في ليوان"
+
+#. module: liwan_pmo
+#: model:ir.model,name:liwan_pmo.model_liwan_notify_registry
+msgid "LiwanOS notification type registry"
+msgstr "سجل أنواع الإشعارات في ليوان"
+
+#. module: liwan_pmo
+#: model:ir.model,name:liwan_pmo.model_liwan_directory
+msgid "LiwanOS people directory"
+msgstr "دليل الأشخاص في ليوان"
+
+#. module: liwan_pmo
+#: model:ir.model,name:liwan_pmo.model_liwan_project_charter_catalog_mixin
+msgid "LiwanOS project charter catalog"
+msgstr "كتالوج ميثاق المشروع في ليوان"
+
+#. module: liwan_pmo
+#: model:ir.model,name:liwan_pmo.model_liwan_project_owning_unit
+msgid "LiwanOS project owning unit"
+msgstr "الوحدة المالكة للمشروع في ليوان"
+
+#. module: liwan_pmo
+#: model:ir.model,name:liwan_pmo.model_liwan_project_type
+msgid "LiwanOS project type"
+msgstr "نوع المشروع في ليوان"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_assumptions
+msgid "Liwan Assumptions"
+msgstr "الافتراضات"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_authority
+msgid "Liwan Authority"
+msgstr "الجهة المخوّلة"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_benefits
+msgid "Liwan Benefits"
+msgstr "الفوائد"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_budget_amount
+msgid "Liwan Budget Amount"
+msgstr "مبلغ الميزانية"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_budget_state
+msgid "Liwan Budget State"
+msgstr "حالة الميزانية"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_charter_approved_at
+msgid "Liwan Charter Approved At"
+msgstr "تاريخ اعتماد الميثاق"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_charter_approved_by_id
+msgid "Liwan Charter Approved By"
+msgstr "معتمد الميثاق"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_charter_return_note
+msgid "Liwan Charter Return Note"
+msgstr "ملاحظة إرجاع الميثاق"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_charter_state
+msgid "Liwan Charter State"
+msgstr "حالة الميثاق"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_charter_submitted_at
+msgid "Liwan Charter Submitted At"
+msgstr "تاريخ إرسال الميثاق"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_charter_submitted_by_id
+msgid "Liwan Charter Submitted By"
+msgstr "مُرسل الميثاق"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_closure
+msgid "Liwan Closure"
+msgstr "الإغلاق"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_code
+msgid "Liwan Code"
+msgstr "الرمز"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_task__liwan_completion_pending
+msgid "Liwan Completion Pending"
+msgstr "الإكمال بانتظار الاعتماد"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_task__liwan_completion_requested_at
+msgid "Liwan Completion Requested At"
+msgstr "تاريخ طلب الإكمال"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_task__liwan_completion_requested_by
+msgid "Liwan Completion Requested By"
+msgstr "طالب الإكمال"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_task__liwan_completion_return_note
+msgid "Liwan Completion Return Note"
+msgstr "ملاحظة إرجاع الإكمال"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_task__liwan_completion_revision
+msgid "Liwan Completion Revision"
+msgstr "مراجعة الإكمال"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_constraints
+msgid "Liwan Constraints"
+msgstr "القيود"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_milestone__liwan_deliverables
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_deliverables
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_task__liwan_deliverables
+msgid "Liwan Deliverables"
+msgstr "المخرجات"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_exclusions
+msgid "Liwan Exclusions"
+msgstr "الاستثناءات"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_high_level_requirements
+msgid "Liwan High Level Requirements"
+msgstr "المتطلبات عالية المستوى"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_objectives
+msgid "Liwan Objectives"
+msgstr "الأهداف"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_owning_unit_id
+msgid "Liwan Owning Unit"
+msgstr "الوحدة المالكة"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_phase
+msgid "Liwan Phase"
+msgstr "المرحلة"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_task__liwan_planned_start
+msgid "Liwan Planned Start"
+msgstr "البداية المخططة"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_res_company__liwan_pmo_default_stages
+msgid "Liwan Pmo Default Stages"
+msgstr "مراحل مكتب المشاريع الافتراضية"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_res_company__liwan_pmo_project_creators
+msgid "Liwan Pmo Project Creators"
+msgstr "منشئو المشاريع في مكتب المشاريع"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_res_company__liwan_pmo_settings_initialized
+msgid "Liwan Pmo Settings Initialized"
+msgstr "تهيئة إعدادات مكتب المشاريع"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_priority
+msgid "Liwan Priority"
+msgstr "الأولوية"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_rationale
+msgid "Liwan Rationale"
+msgstr "المبررات"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_revision
+#: model:ir.model.fields,field_description:liwan_pmo.field_liwan_project_finance_entry__liwan_revision
+msgid "Liwan Revision"
+msgstr "المراجعة"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_scope
+msgid "Liwan Scope"
+msgstr "النطاق"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_sponsor_id
+msgid "Liwan Sponsor"
+msgstr "الراعي"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_milestone__liwan_start_date
+msgid "Liwan Start Date"
+msgstr "تاريخ البداية"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_status_auto_done
+msgid "Liwan Status Auto Done"
+msgstr "الإكمال الآلي للحالة"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_status_before_auto_done
+msgid "Liwan Status Before Auto Done"
+msgstr "الحالة قبل الإكمال الآلي"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_success
+msgid "Liwan Success"
+msgstr "معايير النجاح"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_type_id
+msgid "Liwan Type"
+msgstr "النوع"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/controllers/task_attachments.py:0
+#: code:addons/liwan_pmo/controllers/tasks.py:0
+#: code:addons/liwan_pmo/models/project_task.py:0
+msgid "You are not allowed to change this task."
+msgstr "لا يحق لك تغيير هذه المهمة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_copy.py:0
+#: code:addons/liwan_pmo/models/project_task.py:0
+msgid "You are not allowed to copy this project."
+msgstr "لا يحق لك نسخ هذا المشروع."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/controllers/projects.py:0
+#: code:addons/liwan_pmo/controllers/settings.py:0
+#: code:addons/liwan_pmo/models/project_copy.py:0
+#: code:addons/liwan_pmo/models/project_project.py:0
+msgid "You are not allowed to create projects."
+msgstr "لا يحق لك إنشاء المشاريع."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/controllers/project_charter_catalogs.py:0
+msgid "You are not allowed to read project charter defaults."
+msgstr "لا يحق لك قراءة افتراضات ميثاق المشروع."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/controllers/project_finance.py:0
+msgid "You are not allowed to read the lines of the actual cost."
+msgstr "غير مسموح لك بقراءة بنود التكلفة الفعلية."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_charter_reference.py:0
+msgid "You are not allowed to read this catalog."
+msgstr "لا يحق لك قراءة هذا الكتالوج."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/task_completion.py:0
+msgid "You cannot request completion for this task."
+msgstr "لا يمكنك طلب إكمال هذه المهمة."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+msgid "You do not have permission to read project finance."
+msgstr "ليست لديك صلاحية قراءة مالية المشروع."
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__project_project__liwan_status_before_auto_done__at_risk
+msgid "at_risk"
+msgstr "معرّض للخطر"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+msgid "budget_entry_id must be a positive integer or null."
+msgstr "يجب أن يكون معرّف بند الميزانية عددًا صحيحًا موجبًا أو فارغًا."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+msgid "budget_entry_id must reference a budget entry in the same project."
+msgstr "يجب أن يشير معرّف بند الميزانية لبند في نفس المشروع."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/controllers/project_charter_catalogs.py:0
+msgid "catalog value does not exist"
+msgstr "قيمة الكتالوج غير موجودة"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+msgid "default_%s cannot be set for finance entries."
+msgstr "لا يُحدَّد default_%s لبنود المالية."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+msgid "expense_date must be a valid YYYY-MM-DD date."
+msgstr "يجب أن يكون تاريخ المصروف بتاريخ YYYY-MM-DD صالحًا."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+msgid "kind must be 'budget' or 'expense'."
+msgstr "يجب أن يكون النوع 'budget' أو 'expense'."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_copy.py:0
+msgid "name must be a non-empty string of at most 255 characters."
+msgstr "يجب أن يكون الاسم نصًا غير فارغ حتى 255 حرفًا."
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__project_project__liwan_status_before_auto_done__off_track
+msgid "off_track"
+msgstr "خارج المسار"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__project_project__liwan_status_before_auto_done__on_hold
+msgid "on_hold"
+msgstr "معلّق"
+
+#. module: liwan_pmo
+#: model:ir.model.fields.selection,name:liwan_pmo.selection__project_project__liwan_status_before_auto_done__on_track
+msgid "on_track"
+msgstr "على المسار"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/controllers/task_archive.py:0
+msgid "project not found"
+msgstr "المشروع غير موجود"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_finance.py:0
+msgid "project_id must reference an existing project."
+msgstr "يجب أن يشير معرّف المشروع لمشروع موجود."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_copy.py:0
+msgid "start_date must be a valid ISO date."
+msgstr "يجب أن يكون تاريخ البداية تاريخ ISO صالحًا."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_copy.py:0
+msgid "start_date must use YYYY-MM-DD."
+msgstr "يجب أن يستخدم تاريخ البداية صيغة YYYY-MM-DD."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/controllers/task_archive.py:0
+msgid "task not found"
+msgstr "المهمة غير موجودة"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_mail_mail__liwan_digest_count
+#: model:ir.model.fields,field_description:liwan_pmo.field_mail_message__liwan_digest_count
+msgid "liwan Digest Count"
+msgstr "عدّاد الملخص"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_mail_mail__liwan_digest_date
+#: model:ir.model.fields,field_description:liwan_pmo.field_mail_message__liwan_digest_date
+msgid "liwan Digest Date"
+msgstr "تاريخ الملخص"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_mail_mail__liwan_digest_task_ids
+#: model:ir.model.fields,field_description:liwan_pmo.field_mail_message__liwan_digest_task_ids
+msgid "liwan Digest Task Ids"
+msgstr "معرّفات مهام الملخص"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_mail_mail__liwan_notification_kind
+#: model:ir.model.fields,field_description:liwan_pmo.field_mail_message__liwan_notification_kind
+msgid "liwan Notification Kind"
+msgstr "نوع إشعار ليوان"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_mail_mail__liwan_project_id
+#: model:ir.model.fields,field_description:liwan_pmo.field_mail_message__liwan_project_id
+msgid "liwan Project"
+msgstr "مشروع ليوان"
+
+#. module: liwan_pmo
+#: model:ir.model.fields,field_description:liwan_pmo.field_mail_mail__liwan_task_id
+#: model:ir.model.fields,field_description:liwan_pmo.field_mail_message__liwan_task_id
+msgid "liwan Task"
+msgstr "مهمة ليوان"
+
+#. module: liwan_pmo
+#: model:ir.model,name:liwan_pmo.model_liwan_project_actual_source
+msgid "liwan project actual cost source"
+msgstr "مصدر التكلفة الفعلية للمشروع"
+
+#. module: liwan_pmo
+#: model:ir.model,name:liwan_pmo.model_liwan_pmo_settings
+msgid "liwan project policies"
+msgstr "سياسات المشروع"
+
+#. module: liwan_pmo
+#: model:ir.actions.server,name:liwan_pmo.ir_cron_liwan_deadline_notifications_ir_actions_server
+msgid "liwan: deadline notifications"
+msgstr "ليوان: إشعارات المواعيد النهائية"
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/task_schedule.py:0
+msgid "Schedule start must be on or after the project start date."
+msgstr "يجب أن يكون بدء الجدولة في تاريخ بدء المشروع أو بعده."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/task_schedule.py:0
+msgid "Schedule end must be on or before the project end date."
+msgstr "يجب أن يكون انتهاء الجدولة في تاريخ انتهاء المشروع أو قبله."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_phase.py:0
+msgid "The gate into this phase has warnings that need confirmation."
+msgstr "بوابة هذه المرحلة فيها تحذيرات تحتاج إلى تأكيد."
+
+#. module: liwan_pmo
+#. odoo-python
+#: code:addons/liwan_pmo/models/project_copy.py:0
+msgid "The copy's end date must be on or after its start date."
+msgstr "يجب أن يكون تاريخ انتهاء النسخة في تاريخ بدئها أو بعده."

@@ -11,7 +11,7 @@ import {
   type HrEquipment,
   type HrEquipmentCreate,
   type HrEquipmentPatch,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 
 type Api = ReturnType<typeof useApi>['$api']
 
@@ -215,5 +215,5 @@ export function useArchiveHrEquipment() {
 }
 
 // HrRef is not re-exported: Nuxt auto-imports every composable export, so a second owner
-// of the name would break the auto-import map. Import it from @webvue/contracts.
+// of the name would break the auto-import map. Import it from @liwan/contracts.
 export type { HrEquipment }

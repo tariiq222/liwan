@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinanceInvoiceDetail, FinanceInvoiceLine } from '@webvue/contracts'
+import type { FinanceInvoiceDetail, FinanceInvoiceLine } from '@liwan/contracts'
 import Money from './Money.vue'
 
 // The lines of a document and its totals, read-only. A draft is edited in the InvoiceForm instead.
@@ -42,7 +42,7 @@ const totals = computed(() => [
         </div>
       </template>
     </SharedDataTable>
-    <dl class="ms-auto grid w-full max-w-sm gap-2 border-t border-default p-(--webvue-card-pad) text-sm" data-testid="finance-invoice-totals">
+    <dl class="ms-auto grid w-full max-w-sm gap-2 border-t border-default p-(--liwan-card-pad) text-sm" data-testid="finance-invoice-totals">
       <div v-for="row in totals" :key="row.id" class="flex items-center justify-between gap-4" :class="row.strong ? 'font-semibold text-highlighted' : 'text-muted'">
         <dt>{{ row.label }}</dt>
         <dd><Money :amount="row.amount" :currency="invoice.currency" /></dd>

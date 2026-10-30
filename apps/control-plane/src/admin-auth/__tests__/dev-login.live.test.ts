@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { Pool } from 'pg'
-import { adminErrorBodySchema, adminSessionResultSchema } from '@webvue/commercial-contracts'
-import { signServiceRequest } from '@webvue/commercial-contracts/server'
+import { adminErrorBodySchema, adminSessionResultSchema } from '@liwan/commercial-contracts'
+import { signServiceRequest } from '@liwan/commercial-contracts/server'
 import { migrate, transaction } from '../../db.js'
 import { createApp } from '../../http.js'
 import { assertLoopbackDatabase, ensureDevOwner } from '../dev-owner.js'
@@ -12,11 +12,11 @@ import type { WebAuthnLib } from '../webauthn.js'
 const url = process.env.CONTROL_TEST_DATABASE_URL
 if (url) {
   const parsed = new URL(url)
-  if (!['127.0.0.1', 'localhost', '::1'].includes(parsed.hostname) || !/^webvue_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback webvue_control_scratch database')
+  if (!['127.0.0.1', 'localhost', '::1'].includes(parsed.hostname) || !/^liwan_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback liwan_control_scratch database')
 }
 const key = 'test-key-'.repeat(8)
-const DEV_EMAIL = 'dev@webvue.sa'
-const admin = { secretKey: Buffer.alloc(32, 5), rpId: 'localhost', origin: 'http://localhost:3100', rpName: 'WebVue' as const }
+const DEV_EMAIL = 'dev@liwanos.com'
+const admin = { secretKey: Buffer.alloc(32, 5), rpId: 'localhost', origin: 'http://localhost:3100', rpName: 'LiwanOS' as const }
 const baseConfig = { installationId: 'vendor-scratch', key, inventoryPath: '', repositoryRoot: '/nonexistent', python: 'python3', stateDir: '/nonexistent-state' }
 const lib = {} as unknown as WebAuthnLib
 
@@ -84,19 +84,19 @@ else describe('admin dev login', () => {
 
   it('confirms step-up only for the configured account', async () => {
     const { id } = await devOwner()
-    const other = Number((await pool.query("INSERT INTO vendor_accounts(email,display_name,status,password_hash) VALUES('other@webvue.sa','Other','active','x') RETURNING id")).rows[0].id)
+    const other = Number((await pool.query("INSERT INTO vendor_accounts(email,display_name,status,password_hash) VALUES('other@liwanos.com','Other','active','x') RETURNING id")).rows[0].id)
     const sessionOf = (accountId: number) => transaction(pool, async (c) => (await createSession(c, accountId, new Date(), false)).session)
     const own = await sessionOf(id)
     const foreign = await sessionOf(other)
 
-    const denied = await post('/v1/admin/auth/dev-step-up', devOrigin, { 'x-webvue-session': foreign })
+    const denied = await post('/v1/admin/auth/dev-step-up', devOrigin, { 'x-liwan-session': foreign })
     expect([denied.status, denied.body]).toEqual([401, { code: 'auth_failed' }])
     expect((await resolve(foreign)).stepUpFresh).toBe(false)
 
     const missing = await post('/v1/admin/auth/dev-step-up', devOrigin)
     expect(missing.status).toBe(401)
 
-    expect((await post('/v1/admin/auth/dev-step-up', devOrigin, { 'x-webvue-session': own })).status).toBe(204)
+    expect((await post('/v1/admin/auth/dev-step-up', devOrigin, { 'x-liwan-session': own })).status).toBe(204)
     expect((await resolve(own)).stepUpFresh).toBe(true)
     expect((await pool.query("SELECT 1 FROM audit_events WHERE action='auth.step_up' AND reason='dev-login'")).rowCount).toBe(1)
   })

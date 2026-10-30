@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Record rules for the engine models of the five HR areas: the purpose split of
+         the stock employee activity plans (mirroring hr's mail_plan_rule_group_hr_manager),
+         the company and purpose scoping of the LiwanOS plan run, and the asset read that
+         lets the assets capability see equipment without following it. -->
+    <!-- HR writers keep their stock reach over every resource.resource. Group rules are joined
+         with OR, but only across the groups that have a rule: another application's rule that
+         narrows its own writers (the appointments material-only rule, for one) would otherwise
+         also narrow a user who holds HR write access through a group with no rule. -->
+    <record id="rule_hr_resource_resource_write" model="ir.rule">
+        <field name="name">liwan HR: HR writers write every resource</field>
+        <field name="model_id" ref="resource.model_resource_resource"/>
+        <field name="groups" eval="[Command.link(ref('hr.group_hr_user'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="perm_read" eval="False"/>
+    </record>
+    <record id="rule_hr_plan_onboarding_manage" model="ir.rule">
+        <field name="name">liwan onboarding: manage employee onboarding plans</field>
+        <field name="model_id" ref="mail.model_mail_activity_plan"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_hr_onboarding_manage'))]"/>
+        <field name="domain_force">[('res_model', '=', 'hr.employee'), ('hr_purpose', '=', 'onboarding')]</field>
+        <field name="perm_read" eval="False"/>
+    </record>
+    <record id="rule_hr_plan_offboarding_manage" model="ir.rule">
+        <field name="name">liwan offboarding: manage employee offboarding plans</field>
+        <field name="model_id" ref="mail.model_mail_activity_plan"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_hr_offboarding_manage'))]"/>
+        <field name="domain_force">[('res_model', '=', 'hr.employee'), ('hr_purpose', '=', 'offboarding')]</field>
+        <field name="perm_read" eval="False"/>
+    </record>
+    <record id="rule_hr_plan_template_onboarding_manage" model="ir.rule">
+        <field name="name">liwan onboarding: manage onboarding plan steps</field>
+        <field name="model_id" ref="mail.model_mail_activity_plan_template"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_hr_onboarding_manage'))]"/>
+        <field name="domain_force">[('plan_id.res_model', '=', 'hr.employee'), ('plan_id.hr_purpose', '=', 'onboarding')]</field>
+        <field name="perm_read" eval="False"/>
+    </record>
+    <record id="rule_hr_plan_template_offboarding_manage" model="ir.rule">
+        <field name="name">liwan offboarding: manage offboarding plan steps</field>
+        <field name="model_id" ref="mail.model_mail_activity_plan_template"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_hr_offboarding_manage'))]"/>
+        <field name="domain_force">[('plan_id.res_model', '=', 'hr.employee'), ('plan_id.hr_purpose', '=', 'offboarding')]</field>
+        <field name="perm_read" eval="False"/>
+    </record>
+
+    <!-- The plan run is company-scoped for everyone (a rule without groups is global);
+         the area read groups see the runs of their own purpose only (a manager inherits
+         its read group, so managers are covered by the same pair). -->
+    <record id="rule_hr_plan_run_company" model="ir.rule">
+        <field name="name">liwan plan run: multi company</field>
+        <field name="model_id" ref="model_liwan_hr_plan_run"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_hr_plan_run_onboarding" model="ir.rule">
+        <field name="name">liwan plan run: onboarding runs</field>
+        <field name="model_id" ref="model_liwan_hr_plan_run"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_hr_onboarding_read'))]"/>
+        <field name="domain_force">[('plan_id.hr_purpose', '=', 'onboarding')]</field>
+    </record>
+    <record id="rule_hr_plan_run_offboarding" model="ir.rule">
+        <field name="name">liwan plan run: offboarding runs</field>
+        <field name="model_id" ref="model_liwan_hr_plan_run"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_hr_offboarding_read'))]"/>
+        <field name="domain_force">[('plan_id.hr_purpose', '=', 'offboarding')]</field>
+    </record>
+
+    <!-- Stock restricts base.group_user to the equipment they follow; the assets read
+         capability sees every equipment of its companies (the global multi-company rule
+         still applies). The archive and payroll-approval capabilities read it too: the exit
+         check (_liwan_exit_blockers) must see every custody, because a search the rule
+         narrowed would read as "no custody" and let an employee leave holding equipment. -->
+    <record id="rule_hr_equipment_assets_read" model="ir.rule">
+        <field name="name">liwan assets: read the company equipment</field>
+        <field name="model_id" ref="maintenance.model_maintenance_equipment"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_hr_assets_read')),Command.link(ref('group_cap_hr_employees_archive')),Command.link(ref('group_cap_hr_payroll_approve'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+</odoo>

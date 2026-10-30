@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
-import FileField from '@webvue/ui/app/components/shared/form/FileField.vue'
+import FileField from '@liwan/ui/app/components/shared/form/FileField.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -17,7 +17,7 @@ export const InMeetingAttachments: Story = {
   render: args => ({
     components: { FileField },
     setup: () => ({ args, t: useI18n().t }),
-    template: `<div class="grid min-w-0 gap-(--webvue-gap-card) mt-4 border-t border-default pt-4"><label for="meeting-attachment-upload" class="text-sm font-medium text-highlighted">{{ t('meetingsUi.uploadAttachment') }}</label><FileField id="meeting-attachment-upload" class="w-full" :disabled="args.disabled" /><p class="text-xs text-muted">{{ t('meetingsUi.attachmentHelp') }}</p></div>`,
+    template: `<div class="grid min-w-0 gap-(--liwan-gap-card) mt-4 border-t border-default pt-4"><label for="meeting-attachment-upload" class="text-sm font-medium text-highlighted">{{ t('meetingsUi.uploadAttachment') }}</label><FileField id="meeting-attachment-upload" class="w-full" :disabled="args.disabled" /><p class="text-xs text-muted">{{ t('meetingsUi.attachmentHelp') }}</p></div>`,
   }),
 }
 

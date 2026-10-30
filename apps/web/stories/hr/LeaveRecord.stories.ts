@@ -1,4 +1,4 @@
-import type { HrLeave } from '@webvue/contracts'
+import type { HrLeave } from '@liwan/contracts'
 import { http, HttpResponse } from 'msw'
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import LeaveRecord from '../../app/components/hr/LeaveRecord.vue'

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
-import type { HrDeparture } from '@webvue/contracts'
+import type { HrDeparture } from '@liwan/contracts'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import { ApiError } from '@/composables/useApi'
 import { useHrEmployees } from '@/composables/useHrEmployees'
@@ -125,10 +125,10 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <UForm :state="{ employeeId, departureDate, reasonId, description }" class="webvue-form" method="post" :loading-auto="false" novalidate @submit="submit">
+  <UForm :state="{ employeeId, departureDate, reasonId, description }" class="liwan-form" method="post" :loading-auto="false" novalidate @submit="submit">
     <UAlert v-if="formError" role="alert" color="error" variant="subtle" :title="t(`${namespace}.form.saveError`)" :description="errorMessage" />
     <SharedFormSection panel :title="t(`${namespace}.departures.title`)">
-      <div class="webvue-form-grid">
+      <div class="liwan-form-grid">
         <UFormField v-if="!departure" :label="t(`${namespace}.form.employee`)" name="hr-departure-employee" required :error="fieldError('employee_id')">
           <USelect
             id="hr-departure-employee"

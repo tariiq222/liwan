@@ -13,10 +13,10 @@ describe('SharedListCard', () => {
 
   it('fill makes the card screen-sized with a flexible body under the filter row', async () => {
     const html = await renderShared('ListCard', { fill: true }, { filters: () => h('input'), default: () => h('p', 'board') })
-    expect(html).toContain('webvue-list-card-fill')
+    expect(html).toContain('liwan-list-card-fill')
     expect(html).toContain('data-fill')
     expect(html).toMatch(/list-card-body[^>]*>(<!--\[-->)?<p>board/)
-    expect(await renderShared('ListCard', {}, { default: () => h('p', 'board') })).not.toContain('webvue-list-card-fill')
+    expect(await renderShared('ListCard', {}, { default: () => h('p', 'board') })).not.toContain('liwan-list-card-fill')
   })
 
   it('draws the footer as the last row under a hairline, and no row without the slot', async () => {

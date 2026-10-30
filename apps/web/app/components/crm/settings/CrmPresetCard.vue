@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CrmPreset, CrmSettings } from '@webvue/contracts'
+import type { CrmPreset, CrmSettings } from '@liwan/contracts'
 import { useCrmSettingsCard } from '@/composables/crm/useCrmSettingsCard'
 
 const props = defineProps<{ settings: CrmSettings; canEdit: boolean; reloadSettings: () => Promise<CrmSettings> }>()

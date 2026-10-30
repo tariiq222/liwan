@@ -1,5 +1,5 @@
 import { test as base, expect, type Page, type BrowserContext } from '@playwright/test'
-import { DocumentDetailSchema, DocumentListSchema } from '@webvue/contracts'
+import { DocumentDetailSchema, DocumentListSchema } from '@liwan/contracts'
 
 // One serial customer browser keeps its normal HTTP asset cache across journeys.
 // Fresh pages still isolate drafts; the real edge rate limits remain unchanged.

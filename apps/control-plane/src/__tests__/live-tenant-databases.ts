@@ -6,7 +6,7 @@
 // (^[a-z][a-z0-9_]{0,62}$) and the 63-byte PostgreSQL identifier limit.
 import type { Pool } from 'pg'
 
-const CONTROL_SUFFIX = /^webvue_control_scratch_([a-z0-9]+)$/
+const CONTROL_SUFFIX = /^liwan_control_scratch_([a-z0-9]+)$/
 const TENANT_NAME = /^[a-z][a-z0-9_]{0,62}$/
 
 /** Derive `count` tenant database names from the control URL's scratch suffix. */
@@ -15,7 +15,7 @@ export function tenantDatabaseNames(count: number, controlUrl: string): string[]
   const database = new URL(controlUrl).pathname.slice(1)
   const match = CONTROL_SUFFIX.exec(database)
   if (!match) throw new Error('control_database_must_be_scratch')
-  return Array.from({ length: count }, (_, index) => `webvue_shared_scratch_${match[1]}_t${String(index + 1).padStart(2, '0')}`)
+  return Array.from({ length: count }, (_, index) => `liwan_shared_scratch_${match[1]}_t${String(index + 1).padStart(2, '0')}`)
 }
 
 /** Create any missing tenant scratch database; existing ones are reused as is. */

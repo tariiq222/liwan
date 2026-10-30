@@ -120,12 +120,12 @@ function save() {
 
 <template>
   <SharedCreatePanel :title="t('meetingsUi.newSeries')" :back-to="backTo">
-    <form ref="formElement" novalidate class="grid gap-(--webvue-gap-card)" @submit.prevent="save">
+    <form ref="formElement" novalidate class="grid gap-(--liwan-gap-card)" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
       <UAlert v-if="attemptedSubmit && Object.values(formErrors).filter(Boolean).length > 1" color="error" variant="subtle" role="alert" :title="t('meetingsUx.validationSummary', { count: Object.values(formErrors).filter(Boolean).length })" />
       <UAlert v-if="context" color="neutral" variant="subtle" icon="i-lucide-info" :title="t('meetingsUx.context.project', { name: context })" />
       <SharedFormSection panel :title="t('meetingsUi.sectionSchedule')">
-        <div class="grid gap-(--webvue-gap-card)">
+        <div class="grid gap-(--liwan-gap-card)">
         <UFormField :label="t('meetingsUx.seriesName')" name="name" required :error="serverErrors.name || (visibleErrors.name ? t(`meetingsUx.errors.${visibleErrors.name}`) : undefined)">
           <UInput id="series-name" v-model="name" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!visibleErrors.name" required />
         </UFormField>

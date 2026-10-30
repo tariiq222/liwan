@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import * as Vue from 'vue'
-import { renderShared } from '@webvue/ui/test/helpers/renderShared'
+import { renderShared } from '@liwan/ui/test/helpers/renderShared'
 
 const component = resolve(__dirname, '../AssistantSheet.vue')
 const Body = Vue.defineComponent({ render: () => Vue.h('div', { 'data-testid': 'stub-body' }, 'body') })
@@ -38,7 +38,7 @@ async function render({ shown = false, mode = 'push', module = 'finance' }: Opti
       '@/composables/useShellModel': {
         useShellModel: () => ({ activeModule: Vue.ref(module), rail: Vue.ref({ all: [{ id: 'finance', labelKey: 'nav.finance', icon: 'i-lucide-landmark', to: '/finance' }] }) }),
       },
-      '@webvue/ui/app/composables/useEscapeBack': { overlayOwnsEscape: () => false },
+      '@liwan/ui/app/composables/useEscapeBack': { overlayOwnsEscape: () => false },
     },
   })
 }
@@ -73,11 +73,11 @@ describe('AssistantSheet', () => {
   })
 
   it('draws a scrim only in the overlay layout, and a modal dialog only in full screen', async () => {
-    expect(await render({ shown: true, mode: 'overlay' })).toContain('webvue-assistant-scrim')
-    expect(await render({ shown: true, mode: 'push' })).not.toContain('webvue-assistant-scrim')
-    expect(await render({ shown: false, mode: 'overlay' })).not.toContain('webvue-assistant-scrim')
+    expect(await render({ shown: true, mode: 'overlay' })).toContain('liwan-assistant-scrim')
+    expect(await render({ shown: true, mode: 'push' })).not.toContain('liwan-assistant-scrim')
+    expect(await render({ shown: false, mode: 'overlay' })).not.toContain('liwan-assistant-scrim')
     const full = await render({ shown: true, mode: 'full' })
-    expect(full).not.toContain('webvue-assistant-scrim')
+    expect(full).not.toContain('liwan-assistant-scrim')
     expect(full).toContain('role="dialog"')
     expect(full).toContain('aria-modal="true"')
   })

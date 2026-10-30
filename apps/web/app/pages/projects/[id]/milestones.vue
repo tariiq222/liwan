@@ -3,7 +3,7 @@ import MilestoneTable from '@/components/pmo/projects/MilestoneTable.vue'
 import { ApiError } from '@/composables/useApi'
 import { projectIdFromPath } from '@/modules/pmo/projectRoutes'
 import { useProject } from '@/composables/useProjects'
-import { returnToQuery, safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery, safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
@@ -28,7 +28,7 @@ const createTo = computed(() => ({ path: `/projects/${projectId.value}/milestone
 <template>
   <template v-if="isListRoute">
     <SharedPageContainer v-if="notFound || error" width="list">
-      <div v-if="notFound" class="flex flex-col items-start gap-(--webvue-gap-card)">
+      <div v-if="notFound" class="flex flex-col items-start gap-(--liwan-gap-card)">
         <p class="text-muted">{{ t('projects.notFound') }}</p>
         <UButton type="button" color="neutral" variant="outline" size="sm" @click="router.push(projectReturnTo)">{{ t('projects.backToProjects') }}</UButton>
       </div>

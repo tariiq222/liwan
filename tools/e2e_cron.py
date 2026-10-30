@@ -5,18 +5,18 @@ The scratch stack starts Odoo with ``max_cron_threads = 0``, so reminders,
 overdue digests and auto tier validation never run by themselves. Scenarios
 that depend on them trigger the jobs explicitly:
 
-    E2E_CRONS=webvue_meetings.ir_cron_webvue_meeting_reminders \\
-        odoo-bin shell -c <scratch conf> -d webvue_scratch_e2e --no-http < tools/e2e_cron.py
+    E2E_CRONS=liwan_meetings.ir_cron_liwan_meeting_reminders \\
+        odoo-bin shell -c <scratch conf> -d liwan_scratch_e2e --no-http < tools/e2e_cron.py
 
 ``E2E_CRONS`` is a comma-separated list of cron XML ids; without it every job in
 CRONS runs. Each job runs as it would from the scheduler (``method_direct_trigger``).
 """
 import os
 
-DB_GUARD = 'webvue_scratch_e2e'
+DB_GUARD = 'liwan_scratch_e2e'
 CRONS = (
-    'webvue_pmo.ir_cron_webvue_deadline_notifications',
-    'webvue_meetings.ir_cron_webvue_meeting_reminders',
+    'liwan_pmo.ir_cron_liwan_deadline_notifications',
+    'liwan_meetings.ir_cron_liwan_meeting_reminders',
     'base_tier_validation.ir_cron_auto_tier_validation',
 )
 

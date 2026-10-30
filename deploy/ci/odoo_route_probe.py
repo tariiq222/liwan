@@ -1,25 +1,25 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Call the parameterless GET /api/v1 routes of some modules on a scratch database; run inside `odoo-bin shell`.
 
-    WEBVUE_PROBE_ANSWER=webvue_hr [WEBVUE_PROBE_ALSO_ANSWER=webvue_documents_hr] [WEBVUE_PROBE_OFF=webvue_documents] \
-      [WEBVUE_PROBE_CALM=webvue_documents_hr] \
+    LIWAN_PROBE_ANSWER=liwan_hr [LIWAN_PROBE_ALSO_ANSWER=liwan_documents_hr] [LIWAN_PROBE_OFF=liwan_documents] \
+      [LIWAN_PROBE_CALM=liwan_documents_hr] \
       odoo-bin shell -d <scratch db> ... < deploy/ci/odoo_route_probe.py
 
 Every boolean feature of the installed modules is switched on (reads and writes), then every feature owned
-by WEBVUE_PROBE_OFF is switched off with no retained read. A probe user holding every assignable role of the
+by LIWAN_PROBE_OFF is switched off with no retained read. A probe user holding every assignable role of the
 company calls, through the real HTTP dispatch (ir.http guard, feature and capability gates):
 
-- the routes of WEBVUE_PROBE_ANSWER and WEBVUE_PROBE_ALSO_ANSWER modules, which must answer 2xx (or 400/422 for a
+- the routes of LIWAN_PROBE_ANSWER and LIWAN_PROBE_ALSO_ANSWER modules, which must answer 2xx (or 400/422 for a
   missing query input);
-- the routes of WEBVUE_PROBE_OFF, which must own at least one boolean feature and must refuse with 403 ``feature_not_included`` (nothing leaks);
-- the routes of WEBVUE_PROBE_CALM modules, which may refuse but must not fail with a 5xx.
+- the routes of LIWAN_PROBE_OFF, which must own at least one boolean feature and must refuse with 403 ``feature_not_included`` (nothing leaks);
+- the routes of LIWAN_PROBE_CALM modules, which may refuse but must not fail with a 5xx.
 
-With WEBVUE_PROBE_ACCOUNTS=1 (the foundation-alone run) the probe user also creates an account with the
+With LIWAN_PROBE_ACCOUNTS=1 (the foundation-alone run) the probe user also creates an account with the
 foundation contract (name, login, password, assignments: no HR employee), disables and reactivates it; each
 step must answer 2xx.
 
-A WEBVUE_PROBE_ANSWER module without a single parameterless GET route, or with none answering 2xx, fails the
-probe, since it would prove nothing; WEBVUE_PROBE_ALSO_ANSWER is for a bridge, which may serve no route of its own. The last
+A LIWAN_PROBE_ANSWER module without a single parameterless GET route, or with none answering 2xx, fails the
+probe, since it would prove nothing; LIWAN_PROBE_ALSO_ANSWER is for a bridge, which may serve no route of its own. The last
 line is ``ROUTE_PROBE_OK`` only when every call met its expectation; the calling stage requires it.
 """
 import os
@@ -30,10 +30,10 @@ from werkzeug.test import Client
 from odoo import http
 from odoo.service import security
 
-from odoo.addons.webvue_platform.models.entitlement_service import OPERATOR_CONTEXT
+from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
-PROBE_LOGIN = 'webvue_ci_route_probe'
-ACCOUNT_LOGIN = 'webvue-ci-account@example.invalid'
+PROBE_LOGIN = 'liwan_ci_route_probe'
+ACCOUNT_LOGIN = 'liwan-ci-account@example.invalid'
 ACCOUNT_PASSWORD = 'ci-account-pass-1'  # a disposable scratch database account
 NEEDS_INPUT = (400, 422)
 
@@ -72,13 +72,13 @@ def probed_routes(env, modules):
 
 def set_features(env, off_module):
     """All installed boolean features on, the ones off_module owns off and not retained."""
-    profile = env.ref('webvue_platform.tenant_profile')
-    registry = env['webvue.feature.registry']
-    installed = registry._webvue_installed_module_ids()
-    profile._webvue_initialize_legacy_policy(installed)
+    profile = env.ref('liwan_platform.tenant_profile')
+    registry = env['liwan.feature.registry']
+    installed = registry._liwan_installed_module_ids()
+    profile._liwan_initialize_legacy_policy(installed)
     features = dict(profile.features or {})
     switched_off = []
-    for key, definition in registry._webvue_feature_map().items():
+    for key, definition in registry._liwan_feature_map().items():
         if definition['type'] != 'boolean' or definition['module'] not in installed:
             continue
         features[key] = definition['module'] != off_module
@@ -99,13 +99,13 @@ def probe_user(env):
         user = env['res.users'].with_context(no_reset_password=True).create({
             'name': 'CI route probe', 'login': PROBE_LOGIN,
             'company_id': company.id, 'company_ids': [(6, 0, company.ids)],
-            'group_ids': [(4, env.ref('webvue_core.group_employee').id)],
+            'group_ids': [(4, env.ref('liwan_core.group_employee').id)],
         })
-    roles = env['webvue.access.role'].search([
+    roles = env['liwan.access.role'].search([
         ('active', '=', True), ('assignable', '=', True), ('company_id', 'in', (False, company.id)),
     ])
-    held = env['webvue.access.assignment'].search([('user_id', '=', user.id)]).role_id
-    env['webvue.access.assignment'].create([
+    held = env['liwan.access.assignment'].search([('user_id', '=', user.id)]).role_id
+    env['liwan.access.assignment'].create([
         {'user_id': user.id, 'role_id': role.id, 'company_id': company.id} for role in roles - held
     ])
     return user, roles
@@ -137,7 +137,7 @@ def verdict(expectation, status, body):
 
 def account_lifecycle(env, client, cookie):
     """Create, disable and reactivate an account through /api/v1/admin/users; the failures, if any."""
-    role = env['webvue.access.role'].search([('key', '=', 'employee')], limit=1)
+    role = env['liwan.access.role'].search([('key', '=', 'employee')], limit=1)
     create = {
         'name': 'CI account', 'login': ACCOUNT_LOGIN, 'password': ACCOUNT_PASSWORD,
         'assignments': [{'role_id': role.id, 'scope': {'kind': 'company', 'id': env.company.id}}],
@@ -159,7 +159,7 @@ def account_lifecycle(env, client, cookie):
 
 
 def run(env):
-    off = os.environ.get('WEBVUE_PROBE_OFF', '')
+    off = os.environ.get('LIWAN_PROBE_OFF', '')
     switched_off = set_features(env, off)
     user, roles = probe_user(env)
     env.cr.commit()
@@ -170,11 +170,11 @@ def run(env):
     if me.status_code != 200:
         print('ROUTE_PROBE_FAILED', f'the probe session is not accepted: GET /api/v1/me {me.status_code}', sep='\n')
         sys.exit(1)
-    required = modules_from('WEBVUE_PROBE_ANSWER')
+    required = modules_from('LIWAN_PROBE_ANSWER')
     plan = [
-        ('answer', required + modules_from('WEBVUE_PROBE_ALSO_ANSWER')),
+        ('answer', required + modules_from('LIWAN_PROBE_ALSO_ANSWER')),
         ('closed', [off] if switched_off else []),
-        ('calm', modules_from('WEBVUE_PROBE_CALM')),
+        ('calm', modules_from('LIWAN_PROBE_CALM')),
     ]
     failures = [f'{off}: owns no boolean feature, so switching it off proves nothing'] if off and not switched_off else []
     answered = set()
@@ -193,7 +193,7 @@ def run(env):
             elif expectation == 'answer' and 200 <= response.status_code < 300:
                 answered.add(module)
     failures += [f'{module}: no route answered 2xx (only input errors)' for module in required if module not in answered]
-    if os.environ.get('WEBVUE_PROBE_ACCOUNTS') == '1':
+    if os.environ.get('LIWAN_PROBE_ACCOUNTS') == '1':
         failures += account_lifecycle(env, client, cookie)
     if failures:
         print('ROUTE_PROBE_FAILED', *failures, sep='\n')

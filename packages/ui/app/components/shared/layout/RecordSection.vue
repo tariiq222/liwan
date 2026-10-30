@@ -2,7 +2,7 @@
 /*
  * A titled block of a record's main column; `id` makes it a link target (`#milestones`). One card recipe for every
  * block that is a card (DESIGN.md §6): radius `rounded-card`, the hairline ring of the list card, a header row of
- * `--webvue-card-pad` inline padding, and the body padded by `--webvue-card-pad`.
+ * `--liwan-card-pad` inline padding, and the body padded by `--liwan-card-pad`.
  * `variant` picks the look:
  *   flat    no card: a page-section title (text-base) over the content (default)
  *   panel   the card: a panel title (text-sm) in a header row with a hairline below, a padded body
@@ -30,12 +30,12 @@ const bordered = computed(() => props.variant === 'panel' || props.variant === '
     :id="props.id"
     data-slot="record-section"
     :data-variant="props.variant"
-    :class="card ? ['webvue-record-panel min-w-0 rounded-card', CARD[props.variant as keyof typeof CARD]] : 'space-y-3'"
+    :class="card ? ['liwan-record-panel min-w-0 rounded-card', CARD[props.variant as keyof typeof CARD]] : 'space-y-3'"
     :aria-labelledby="props.title ? headingId : undefined"
   >
     <header
       v-if="props.title || props.description || $slots.actions"
-      :class="card ? ['flex flex-wrap items-center justify-between gap-3 px-(--webvue-card-pad) py-3', bordered && 'border-b border-default'] : 'flex flex-wrap items-start justify-between gap-3'"
+      :class="card ? ['flex flex-wrap items-center justify-between gap-3 px-(--liwan-card-pad) py-3', bordered && 'border-b border-default'] : 'flex flex-wrap items-start justify-between gap-3'"
     >
       <div class="min-w-0">
         <h2 v-if="props.title" :id="headingId" :class="card ? 'text-sm font-semibold text-highlighted' : 'text-base font-semibold text-highlighted'">{{ props.title }}</h2>
@@ -44,7 +44,7 @@ const bordered = computed(() => props.variant === 'panel' || props.variant === '
       <div v-if="$slots.actions" class="flex shrink-0 flex-wrap items-center gap-2"><slot name="actions" /></div>
     </header>
     <div v-if="props.variant === 'list'" class="divide-y divide-default"><slot /></div>
-    <div v-else-if="card" class="p-(--webvue-card-pad)" :class="{ 'pt-0': !bordered && (props.title || props.description || $slots.actions) }"><slot /></div>
+    <div v-else-if="card" class="p-(--liwan-card-pad)" :class="{ 'pt-0': !bordered && (props.title || props.description || $slots.actions) }"><slot /></div>
     <slot v-else />
   </section>
 </template>

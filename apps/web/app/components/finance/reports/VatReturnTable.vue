@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinanceVatReturn } from '@webvue/contracts'
+import type { FinanceVatReturn } from '@liwan/contracts'
 import Money from '../invoices/Money.vue'
 import { amountColumn } from './reportColumns'
 import ReportMobileRow from './ReportMobileRow.vue'
@@ -27,7 +27,7 @@ watch(() => [props.report.date_from, props.report.date_to], () => { open.value =
 
 <template>
   <div class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,560px)]">
-    <UAlert color="warning" variant="subtle" icon="i-lucide-triangle-alert" class="m-(--webvue-card-pad-dense) w-auto" :title="t('financeReports.vatReturn.noticeTitle')" :description="t('financeReports.vatReturn.notice')" data-testid="finance-vat-return-notice" />
+    <UAlert color="warning" variant="subtle" icon="i-lucide-triangle-alert" class="m-(--liwan-card-pad-dense) w-auto" :title="t('financeReports.vatReturn.noticeTitle')" :description="t('financeReports.vatReturn.notice')" data-testid="finance-vat-return-notice" />
     <SharedDataTable bare :rows="report.boxes" :columns="columns" row-key="code" :empty-text="t('financeReports.empty')" :caption="t('financeReports.reports.vatReturn.title')">
       <template #number-cell="{ row }"><bdi class="tabular-nums text-muted">{{ row.original.number }}</bdi></template>
       <template #name-cell="{ row }">{{ name(row.original) }}</template>

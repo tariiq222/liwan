@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import ProjectSettingsForm from '@/components/settings/ProjectSettingsForm.vue'
 import { useProjectSettings } from '@/composables/useProjectSettings'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -23,17 +23,17 @@ const catalogs = computed(() => [
     <SharedPageHeader :title="t('nav.projects')" />
     <SharedForbiddenState v-if="!parts.length" :description="t('settings.forbidden')" />
     <template v-else>
-      <template v-if="!settings"><span v-for="id in CARD_IDS" :id="id" :key="id" class="webvue-settings-anchor block h-0" /></template>
+      <template v-if="!settings"><span v-for="id in CARD_IDS" :id="id" :key="id" class="liwan-settings-anchor block h-0" /></template>
       <SharedPageState v-if="shows('project-creation')" :loading="isLoading" :error="error" @retry="refetch()">
         <ProjectSettingsForm v-if="settings" :settings="settings" :can-edit="can('pmo.settings.manage')" />
       </SharedPageState>
-      <SharedRecordSection v-if="shows('catalogs')" id="catalogs" variant="list" class="webvue-settings-anchor" :title="t('settings.projects.catalogs.title')" :description="t('settings.projects.catalogs.hint')">
+      <SharedRecordSection v-if="shows('catalogs')" id="catalogs" variant="list" class="liwan-settings-anchor" :title="t('settings.projects.catalogs.title')" :description="t('settings.projects.catalogs.hint')">
         <NuxtLink
           v-for="catalog in catalogs"
           :key="catalog.testId"
           :to="{ path: catalog.path, query: returnToQuery(route.fullPath) }"
           :data-testid="catalog.testId"
-          class="flex items-center justify-between gap-3 px-(--webvue-card-pad) py-3 text-sm font-medium text-highlighted transition-colors duration-150 hover:bg-(--webvue-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+          class="flex items-center justify-between gap-3 px-(--liwan-card-pad) py-3 text-sm font-medium text-highlighted transition-colors duration-150 hover:bg-(--liwan-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
         >
           {{ catalog.label }}
           <UIcon name="i-lucide-chevron-right" class="size-4 text-muted rtl:rotate-180" aria-hidden="true" />

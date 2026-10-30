@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FinanceSetup } from '@webvue/contracts'
+import type { FinanceSetup } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useFinanceSetupScope, useSaveFinanceFiscal } from '@/composables/finance/useFinanceSetup'
 import { useSettingsForm } from '@/composables/settings/useSettingsForm'

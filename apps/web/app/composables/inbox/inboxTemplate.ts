@@ -6,8 +6,8 @@ import {
   type InboxTemplateQuality,
   type InboxTemplateStatus,
   type InboxTemplateWrite,
-} from '@webvue/contracts'
-import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
+} from '@liwan/contracts'
+import type { StatusTone } from '@liwan/ui/app/utils/statusTone'
 import type { LocationQuery } from 'vue-router'
 import { renderTemplateBody } from './inboxWindow'
 

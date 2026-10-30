@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { ProjectDetail, ProjectStatus } from '@webvue/contracts'
-import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
+import type { ProjectDetail, ProjectStatus } from '@liwan/contracts'
+import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 import { projectStatusBadge } from '@/composables/projectStatus'
 import { isGateAction } from '@/composables/projectPhase'
 import { useMilestones } from '@/composables/useMilestones'
 import { useProjectUpdates } from '@/composables/useProjectUpdates'
-import { badgeLabel } from '@webvue/ui/app/utils/statusBadge'
+import { badgeLabel } from '@liwan/ui/app/utils/statusBadge'
 import ProjectOverviewTasks from './ProjectOverviewTasks.vue'
 
 // The main column of the project record: the tiles (progress, tasks, milestones, followers), tasks that need
@@ -37,11 +37,11 @@ function dateLabel(value: string | null) {
 </script>
 
 <template>
-  <div data-testid="project-overview" class="@container flex min-w-0 flex-col gap-(--webvue-gap-card)">
+  <div data-testid="project-overview" class="@container flex min-w-0 flex-col gap-(--liwan-gap-card)">
     <ProjectOverviewTasks v-if="showTasks" :project-id="project.id" :return-to="route.fullPath" :gate-action="isGateAction(project.phase_state, project.can_manage, project.active)" />
 
     <!-- One tile grid: two columns on phones, three from a roomy container; the headline figure spans two cells. -->
-    <section class="grid grid-cols-2 gap-(--webvue-gap-card) @2xl:grid-cols-3">
+    <section class="grid grid-cols-2 gap-(--liwan-gap-card) @2xl:grid-cols-3">
       <SharedMetricTile
         class="col-span-2"
         data-testid="project-overview-progress"

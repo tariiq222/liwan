@@ -5,7 +5,7 @@ from docs_policy import find_missing
 
 KNOWN = {
     'tools', 'tools/real.py', 'docs', 'docs/a.md',
-    'odoo-addons', 'odoo-addons/webvue_hr', 'odoo-addons/webvue_hr/tests', 'odoo-addons/webvue_hr/tests/common.py',
+    'odoo-addons', 'odoo-addons/liwan_hr', 'odoo-addons/liwan_hr/tests', 'odoo-addons/liwan_hr/tests/common.py',
 }
 
 
@@ -18,7 +18,7 @@ class TestDocsPolicy(unittest.TestCase):
         self.assertEqual(find_missing('docs/x.md', '[a](a.md) [b](gone.md)', KNOWN), [(1, 'gone.md')])
 
     def test_accepts_addon_shorthand(self):
-        self.assertEqual(find_missing('CLAUDE.md', '`webvue_hr/tests/common.py`', KNOWN), [])
+        self.assertEqual(find_missing('CLAUDE.md', '`liwan_hr/tests/common.py`', KNOWN), [])
 
     def test_bare_name_does_not_match_by_shorthand(self):
         self.assertEqual(find_missing('docs/x.md', '`common.py`', KNOWN), [(1, 'common.py')])

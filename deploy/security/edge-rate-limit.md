@@ -16,21 +16,21 @@ addresses. A request matches exactly one zone.
 
 | Zone | Paths | Events / minute | Why |
 | --- | --- | --- | --- |
-| `webvue_auth` | `/api/auth/*`, `/api/v1/auth/*`, `/web/session/*` except `get_session_info`, `/web/login` and `/web/login/*` | 20 total | credential attempts across Nuxt and Odoo |
-| `webvue_api` | other `/api/v1/*` except `/api/v1/public/appointments/*` | 300 | authenticated product API |
-| `webvue_public_appointments_ip` | `/api/v1/public/appointments/*` | 60 | an invited requester's token routes (no session) |
-| `webvue_odoo` | other Odoo paths except `/web/health`, including `/web/session/get_session_info` | 600 | Odoo web client, assets, reports |
-| `webvue_web` | Nuxt responses | 600 | customer UI |
+| `liwan_auth` | `/api/auth/*`, `/api/v1/auth/*`, `/web/session/*` except `get_session_info`, `/web/login` and `/web/login/*` | 20 total | credential attempts across Nuxt and Odoo |
+| `liwan_api` | other `/api/v1/*` except `/api/v1/public/appointments/*` | 300 | authenticated product API |
+| `liwan_public_appointments_ip` | `/api/v1/public/appointments/*` | 60 | an invited requester's token routes (no session) |
+| `liwan_odoo` | other Odoo paths except `/web/health`, including `/web/session/get_session_info` | 600 | Odoo web client, assets, reports |
+| `liwan_web` | Nuxt responses | 600 | customer UI |
 
 `/websocket*` is not counted. `/web/health` is exempt so a probe cannot consume
 a customer's interactive budget. These are abuse boundaries, not billing quotas.
 
 ## Authentication client identity
 
-The dedicated edge overwrites `X-WebVue-Client-IP`, `X-WebVue-Client-Host` and
-`X-WebVue-Client-Proto` on its Nuxt hop after removing Connection-nominated
+The dedicated edge overwrites `X-Liwan-Client-IP`, `X-Liwan-Client-Host` and
+`X-Liwan-Client-Proto` on its Nuxt hop after removing Connection-nominated
 headers. The dedicated Compose web service sets
-`NUXT_AUTH_PROXY_CLIENT_IP_HEADER=x-webvue-client-ip`. Login and TOTP validate
+`NUXT_AUTH_PROXY_CLIENT_IP_HEADER=x-liwan-client-ip`. Login and TOTP validate
 these fields and send them as the three `X-Forwarded-*` headers to Odoo.
 Stock Odoo needs `proxy_mode=True` and `X-Forwarded-Host` to activate ProxyFix;
 this lets its worker-local login cooldown use the real peer instead of Nuxt's IP.
@@ -61,10 +61,10 @@ or Nuxt.
 Before using the template, build and validate the pinned module image:
 
 ```sh
-docker build -f deploy/proxy/Dockerfile -t webvue-caddy:check .
-docker run --rm webvue-caddy:check list-modules | grep http.handlers.rate_limit
+docker build -f deploy/proxy/Dockerfile -t liwan-caddy:check .
+docker run --rm liwan-caddy:check list-modules | grep http.handlers.rate_limit
 docker run --rm -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" \
-  -e DOMAIN=example.test webvue-caddy:check validate --config /etc/caddy/Caddyfile
+  -e DOMAIN=example.test liwan-caddy:check validate --config /etc/caddy/Caddyfile
 ```
 
 A green local build proves the template and module. It does not prove a

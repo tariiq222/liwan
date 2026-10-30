@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FinanceZakatAdjustment } from '@webvue/contracts'
+import type { FinanceZakatAdjustment } from '@liwan/contracts'
 import { useAddZakatAdjustment, useRemoveZakatAdjustment } from '@/composables/finance/useFinanceZakat'
 import { financeErrorMessage } from '../financeErrors'
 import { financeErrorKey } from '../invoices/invoiceErrors'
@@ -50,7 +50,7 @@ async function confirmRemove() {
 </script>
 
 <template>
-  <section class="grid gap-3 border-t border-default p-(--webvue-card-pad-dense)" data-testid="finance-zakat-adjustments">
+  <section class="grid gap-3 border-t border-default p-(--liwan-card-pad-dense)" data-testid="finance-zakat-adjustments">
     <h3 class="font-semibold text-highlighted">{{ t('financeReports.zakat.adjustmentsTitle') }}</h3>
     <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />
     <SharedInlineConfirm
@@ -78,8 +78,8 @@ async function confirmRemove() {
         </span>
       </li>
     </ul>
-    <UForm v-if="canManage" novalidate :state="draft" class="webvue-form" method="post" data-testid="finance-zakat-adjustment-form" @submit="submit">
-      <div class="webvue-form-grid">
+    <UForm v-if="canManage" novalidate :state="draft" class="liwan-form" method="post" data-testid="finance-zakat-adjustment-form" @submit="submit">
+      <div class="liwan-form-grid">
         <UFormField :label="t('financeReports.zakat.kind')" name="finance-zakat-kind"><USelect id="finance-zakat-kind" v-model="draft.kind" :items="kindItems" class="w-full" :disabled="!hydrated || add.isPending.value" /></UFormField>
         <UFormField :label="t('financeReports.zakat.amount')" name="finance-zakat-amount" required :error="attempted && !(amount > 0) ? t('financeReports.zakat.amountInvalid') : undefined">
           <UInput id="finance-zakat-amount" v-model="draft.amount" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || add.isPending.value" />

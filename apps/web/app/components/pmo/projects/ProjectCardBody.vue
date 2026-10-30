@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { Project } from '@webvue/contracts'
+import type { Project } from '@liwan/contracts'
 import type { RouteLocationRaw } from 'vue-router'
-import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
+import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
 import { PHASE_LABEL_KEY } from '@/composables/projectPhase'
 import { projectEndTagView, projectProgressTone, projectStatusPill } from './projectHealth'
 import ProjectMenu from './ProjectMenu.vue'

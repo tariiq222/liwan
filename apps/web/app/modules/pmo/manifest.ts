@@ -1,4 +1,4 @@
-import { ProjectNotificationKindSchema, TaskNotificationKindSchema } from '@webvue/contracts'
+import { ProjectNotificationKindSchema, TaskNotificationKindSchema } from '@liwan/contracts'
 import type { AppManifest } from '../types'
 import { projectIdFromPath } from './projectRoutes'
 import { projectPicker } from './recordPicker'

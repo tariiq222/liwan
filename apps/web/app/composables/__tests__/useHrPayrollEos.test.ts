@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { QueryClient } from '@tanstack/vue-query'
-import type { HrSettlement } from '@webvue/contracts'
+import type { HrSettlement } from '@liwan/contracts'
 import { hrPayrollKeys } from '../useHrPayrollCompensation'
 import {
   confirmHrSettlement,

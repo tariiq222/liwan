@@ -279,7 +279,7 @@ export const HrGosiStatementSchema = z.object({
   totals: z.object({ contributory_wage: amount, employee_amount: amount, employer_amount: amount }).strict(),
 }).strict()
 
-// ---- The finance side of payroll, served by the webvue_hr_finance bridge (absent: the routes answer 404) ----
+// ---- The finance side of payroll, served by the liwan_hr_finance bridge (absent: the routes answer 404) ----
 export const HR_PAYROLL_ACCOUNT_ROLES = [
   'basic_expense', 'allowance_expense', 'variable_expense', 'gosi_expense', 'gosi_payable',
   'salaries_payable', 'deduction', 'advance', 'eos_expense', 'eos_provision',

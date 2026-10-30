@@ -49,7 +49,7 @@
       },
       "methodsMissing": {
         "title": "The gateway account is missing some payment methods",
-        "hint": "The gateway accepted the keys, but your account there does not turn on a payment method WebVue needs. Turn it on in the gateway dashboard, then test again."
+        "hint": "The gateway accepted the keys, but your account there does not turn on a payment method LiwanOS needs. Turn it on in the gateway dashboard, then test again."
       }
     },
     "methods": {
@@ -60,7 +60,7 @@
       "notConfigured": "Enter all the keys and save them first.",
       "disabled": "The gateway is off. Turn on Test or Live first.",
       "syncFailed": "The gateway could not be reached or refused the keys. Check the keys and try again.",
-      "methodsMissing": "Your gateway account does not turn on a payment method WebVue needs. Turn it on in the gateway dashboard, then try again.",
+      "methodsMissing": "Your gateway account does not turn on a payment method LiwanOS needs. Turn it on in the gateway dashboard, then try again.",
       "invalid": "Invalid value. Check that you copied the whole key."
     },
     "pay": {

@@ -1,4 +1,4 @@
-import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import { INVOICE_KINDS, invoiceRecordPath, type FinanceMoveType } from './invoiceKinds'
 import { useInvoiceListPage } from './useInvoiceListPage'
 

@@ -40,7 +40,7 @@ class ValidateTest(unittest.TestCase):
 
 class DestTest(unittest.TestCase):
     def test_env_wins_and_default_is_beside_the_main_checkout(self):
-        self.assertEqual(oca_addons.default_dest({'WEBVUE_OCA_DIR': '/x/oca'}), Path('/x/oca'))
+        self.assertEqual(oca_addons.default_dest({'LIWAN_OCA_DIR': '/x/oca'}), Path('/x/oca'))
         self.assertEqual(oca_addons.default_dest({}), oca_addons.main_checkout().parent / 'oca-19.0')
 
     def test_path_joins_repo_directories_in_pin_order(self):

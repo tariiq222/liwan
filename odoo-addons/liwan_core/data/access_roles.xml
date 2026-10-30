@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="role_employee" model="liwan.access.role">
+        <field name="key">employee</field><field name="name_ar">موظف</field><field name="name_en">Employee</field>
+        <field name="description">Employee</field><field name="type">built_in</field><field name="protected" eval="True"/><field name="assignable" eval="True"/>
+        <field name="permission_ids" eval="[Command.set([])]"/>
+    </record>
+    <record id="role_system_admin" model="liwan.access.role">
+        <field name="key">system_admin</field><field name="name_ar">مدير النظام</field><field name="name_en">System administrator</field>
+        <field name="description">System administrator</field><field name="type">built_in</field><field name="protected" eval="True"/><field name="assignable" eval="True"/>
+        <field name="permission_ids" eval="[Command.set([ref('permission_access_users_read'),ref('permission_access_users_grant'),ref('permission_access_users_assign_roles'),ref('permission_access_users_disable'),ref('permission_access_users_reset_password'),ref('permission_access_roles_read'),ref('permission_access_roles_manage'),ref('permission_access_audit_read'),ref('permission_settings_branding_manage'),ref('permission_settings_company_read'),ref('permission_settings_company_manage')])]"/>
+    </record>
+    <record id="role_vendor_support" model="liwan.access.role">
+        <field name="key">vendor_support</field><field name="name_ar">دعم المورّد</field><field name="name_en">Vendor support</field>
+        <field name="description">Vendor support</field><field name="type">built_in</field><field name="protected" eval="True"/><field name="assignable" eval="False"/>
+        <field name="permission_ids" eval="[Command.set([ref('permission_access_users_read'),ref('permission_access_users_grant'),ref('permission_access_users_assign_roles'),ref('permission_access_users_disable'),ref('permission_access_users_reset_password'),ref('permission_access_roles_read'),ref('permission_access_roles_manage'),ref('permission_access_audit_read'),ref('permission_settings_branding_manage'),ref('permission_settings_company_read'),ref('permission_settings_company_manage')])]"/>
+    </record>
+</odoo>
+

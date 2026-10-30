@@ -27,24 +27,24 @@ fi
 # uses `:?` on several variables. Supply the same non-secret values up.sh used
 # (and derive the temp-dir paths from TMPDIR_BASE) so teardown works even when the
 # operator's shell no longer carries them — e.g. after a failed up.sh.
-: "${WEBVUE_IMAGE_TAG:=unknown}"
-: "${DOMAIN:=a.accept.webvue.test b.accept.webvue.test}"
-: "${DB_NAME:=webvue_accept_a_scratch}"
+: "${LIWAN_IMAGE_TAG:=unknown}"
+: "${DOMAIN:=a.accept.liwan.test b.accept.liwan.test}"
+: "${DB_NAME:=liwan_accept_a_scratch}"
 : "${ODOO_COMMIT:=unknown}"
-: "${WEBVUE_EDGE_BIND:=127.0.0.1}"
-: "${WEBVUE_EDGE_HTTPS_PORT:=443}"
-: "${WEBVUE_EDGE_HTTP_PORT:=80}"
-: "${WEBVUE_TENANT_REGISTRY_DIR:=$TMPDIR_BASE/registry}"
-: "${WEBVUE_SHARED_ODOO_CONFIG:=$TMPDIR_BASE/odoo.conf}"
-: "${WEBVUE_COMMERCIAL_CONFIG_DIR:=$TMPDIR_BASE/commercial}"
+: "${LIWAN_EDGE_BIND:=127.0.0.1}"
+: "${LIWAN_EDGE_HTTPS_PORT:=443}"
+: "${LIWAN_EDGE_HTTP_PORT:=80}"
+: "${LIWAN_TENANT_REGISTRY_DIR:=$TMPDIR_BASE/registry}"
+: "${LIWAN_SHARED_ODOO_CONFIG:=$TMPDIR_BASE/odoo.conf}"
+: "${LIWAN_COMMERCIAL_CONFIG_DIR:=$TMPDIR_BASE/commercial}"
 # Dummy non-empty values: unused by `down`, but required to satisfy :? in the
 # shared overlay so the file can be parsed. Never printed.
-: "${WEBVUE_SHARED_PROXY_TOKEN:=teardown-unused}"
-: "${WEBVUE_SESSION_KEYS:={\"k1\":\"teardownunusedteardownunusedteardown-unused\"}}"
-: "${WEBVUE_SESSION_ACTIVE_KID:=k1}"
-export WEBVUE_IMAGE_TAG DOMAIN DB_NAME ODOO_COMMIT WEBVUE_EDGE_BIND WEBVUE_EDGE_HTTPS_PORT \
-  WEBVUE_EDGE_HTTP_PORT WEBVUE_TENANT_REGISTRY_DIR WEBVUE_SHARED_ODOO_CONFIG \
-  WEBVUE_COMMERCIAL_CONFIG_DIR WEBVUE_SHARED_PROXY_TOKEN WEBVUE_SESSION_KEYS WEBVUE_SESSION_ACTIVE_KID
+: "${LIWAN_SHARED_PROXY_TOKEN:=teardown-unused}"
+: "${LIWAN_SESSION_KEYS:={\"k1\":\"teardownunusedteardownunusedteardown-unused\"}}"
+: "${LIWAN_SESSION_ACTIVE_KID:=k1}"
+export LIWAN_IMAGE_TAG DOMAIN DB_NAME ODOO_COMMIT LIWAN_EDGE_BIND LIWAN_EDGE_HTTPS_PORT \
+  LIWAN_EDGE_HTTP_PORT LIWAN_TENANT_REGISTRY_DIR LIWAN_SHARED_ODOO_CONFIG \
+  LIWAN_COMMERCIAL_CONFIG_DIR LIWAN_SHARED_PROXY_TOKEN LIWAN_SESSION_KEYS LIWAN_SESSION_ACTIVE_KID
 
 echo "Tearing down project: $PROJECT_NAME"
 

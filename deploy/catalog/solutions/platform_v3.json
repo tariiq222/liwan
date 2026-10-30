@@ -2,13 +2,13 @@
   "schema_version": 3,
   "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
   "id": "platform_v3",
-  "name": "webvue Platform",
+  "name": "liwan Platform",
   "description": "Release-complete revision (spec 3.6): every application of the release is installed in every shared-SaaS tenant and a plan controls feature keys and limits only. Every tier composes the core limit set, its own keys, and every other application closed (booleans false, limits 0). Names, prices and numeric ceilings remain commercial decisions.",
   "industry": "none",
   "base_modules": [
-    "webvue_core",
-    "webvue_platform",
-    "webvue_api"
+    "liwan_core",
+    "liwan_platform",
+    "liwan_api"
   ],
   "tiers": [
     {
@@ -27,8 +27,8 @@
       "name": "Projects",
       "description": "The project and meeting applications.",
       "modules": [
-        "webvue_pmo",
-        "webvue_meetings"
+        "liwan_pmo",
+        "liwan_meetings"
       ],
       "features": [
         "boolean:pmo.enabled",
@@ -41,7 +41,7 @@
       "name": "People",
       "description": "The HR application.",
       "modules": [
-        "webvue_hr"
+        "liwan_hr"
       ],
       "features": [
         "boolean:hr.enabled",
@@ -58,7 +58,7 @@
       "name": "Messaging",
       "description": "The member-private chat application.",
       "modules": [
-        "webvue_chat"
+        "liwan_chat"
       ],
       "features": [
         "boolean:chat.enabled"
@@ -69,7 +69,7 @@
       "name": "Tasks",
       "description": "Personal and team tasks that need no project.",
       "modules": [
-        "webvue_tasks"
+        "liwan_tasks"
       ],
       "features": [
         "boolean:tasks.enabled"

@@ -1,4 +1,4 @@
-import { FinanceAnalyticAccountListSchema } from '@webvue/contracts'
+import { FinanceAnalyticAccountListSchema } from '@liwan/contracts'
 import { financeAnalyticKeys } from '../../composables/finance/useFinanceAnalytic'
 import { fetchAllRecordOptions } from '../fetchAllRecordOptions'
 import type { AppRecordPicker } from '../types'

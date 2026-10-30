@@ -1,4 +1,4 @@
-import type { TaskCreate, TaskState } from '@webvue/contracts'
+import type { TaskCreate, TaskState } from '@liwan/contracts'
 
 export type TaskDeliverable = { name: string; done: boolean }
 

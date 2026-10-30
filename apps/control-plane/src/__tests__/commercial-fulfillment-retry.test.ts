@@ -21,7 +21,7 @@ suite('fulfillment enqueue retry on scratch PostgreSQL', () => {
     const customer = randomUUID(), subscription = randomUUID(), target = randomUUID(), order = randomUUID()
     await pool.query('INSERT INTO customers(id,name,admin_name,admin_login) VALUES($1,$2,$3,$4)', [customer, 'Retry customer', 'Admin', `${customer}@example.test`])
     await pool.query('INSERT INTO subscriptions(id,customer_id) VALUES($1,$2)', [subscription, customer])
-    const entitlement = { catalog_release_id: opts.catalogRelease ?? release, modules: ['webvue_core'], features: {}, digest: 'a'.repeat(64), compiler_version: 1 }
+    const entitlement = { catalog_release_id: opts.catalogRelease ?? release, modules: ['liwan_core'], features: {}, digest: 'a'.repeat(64), compiler_version: 1 }
     await pool.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,1,$3,$4)', [target, subscription, { entitlement, period_end: '2027-01-01' }, randomUUID()])
     await pool.query('UPDATE subscriptions SET target_revision_id=$2,revision=revision+1 WHERE id=$1', [subscription, target])
     await pool.query("INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent) VALUES($1,$2,$3,'new',$4,$5,$6,'queued',$7,'test',100,'SAR',2)", [order, customer, subscription, randomUUID(), target, opts.payment ?? 'paid', randomUUID()])

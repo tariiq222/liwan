@@ -2,8 +2,8 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MeetingPeopleFields from '../../app/components/meetings/MeetingPeopleFields.vue'
-import FormSection from '@webvue/ui/app/components/shared/layout/FormSection.vue'
-import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
+import FormSection from '@liwan/ui/app/components/shared/layout/FormSection.vue'
+import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -14,7 +14,7 @@ const meta = {
   render: args => ({
     components: { FormSection, MeetingPeopleFields, PageContainer },
     setup: () => ({ args, t: useI18n().t, attendees: ref(args.attendeeIds), secretary: ref(args.secretaryId) }),
-    template: `<main class="webvue-shell-main"><PageContainer width="form"><form class="space-y-8"><FormSection :title="t('meetingsUi.sectionPeople')"><MeetingPeopleFields v-model:attendee-ids="attendees" v-model:secretary-id="secretary" :disabled="args.disabled" /></FormSection></form></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer width="form"><form class="space-y-8"><FormSection :title="t('meetingsUi.sectionPeople')"><MeetingPeopleFields v-model:attendee-ids="attendees" v-model:secretary-id="secretary" :disabled="args.disabled" /></FormSection></form></PageContainer></main>`,
   }),
 } satisfies Meta<typeof MeetingPeopleFields>
 export default meta

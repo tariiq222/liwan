@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
-import type { HrActivityPlan, HrPlanStepInput } from '@webvue/contracts'
+import type { HrActivityPlan, HrPlanStepInput } from '@liwan/contracts'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import { ApiError } from '@/composables/useApi'
 import { useHrDepartments } from '@/composables/useHrDepartments'
@@ -135,10 +135,10 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <UForm :state="{ name, departmentId, active, steps }" class="webvue-form" method="post" :loading-auto="false" novalidate @submit="submit">
+  <UForm :state="{ name, departmentId, active, steps }" class="liwan-form" method="post" :loading-auto="false" novalidate @submit="submit">
     <UAlert v-if="formError" role="alert" color="error" variant="subtle" :title="t(`${namespace}.form.saveError`)" :description="errorMessage" />
     <SharedFormSection panel :title="t(`${namespace}.plans.title`)">
-      <div class="webvue-form-grid">
+      <div class="liwan-form-grid">
         <UFormField :label="t(`${namespace}.form.name`)" name="hr-lifecycle-plan-name" required :error="fieldError('name')">
           <UInput id="hr-lifecycle-plan-name" v-model="name" class="w-full" :placeholder="t(`${namespace}.form.namePlaceholder`)" :disabled="!canManage || !hydrated || pending" required />
         </UFormField>
@@ -161,7 +161,7 @@ async function submit() {
       <div class="grid gap-4">
         <UAlert v-if="stepsError" role="alert" color="error" variant="subtle" :title="stepsError" />
         <div v-for="(step, index) in steps" :key="index" class="grid gap-3 border-default border-t pt-4 first:border-t-0 first:pt-0">
-          <div class="webvue-form-grid">
+          <div class="liwan-form-grid">
             <UFormField :label="t(`${namespace}.form.stepSummary`)" :name="`step-${index}-summary`" required>
               <UInput v-model="step.summary" class="w-full" :disabled="!canManage || !hydrated || pending" required />
             </UFormField>

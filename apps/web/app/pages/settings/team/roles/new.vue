@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { joinList } from '@/utils/listFormat'
 import { owningListBack } from '@/utils/recordListOrigin'
-import type { Capability, PermissionDefinition } from '@webvue/contracts'
+import type { Capability, PermissionDefinition } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useAdminPermissionCatalog, useAdminRole, useCreateAdminRole } from '@/composables/useAdminRoles'
 import { adminListQuery } from '@/composables/adminSettingsPaths'
@@ -110,11 +110,11 @@ async function submit() {
 <template>
   <SharedCreatePanel :title="t('access.roles.createTitle')" :back-to="backTo">
     <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
-    <UForm v-else :state="{ nameAr, nameEn, description }" class="webvue-form" method="post" :loading-auto="false" novalidate @submit="submit">
+    <UForm v-else :state="{ nameAr, nameEn, description }" class="liwan-form" method="post" :loading-auto="false" novalidate @submit="submit">
       <SharedUnsavedChanges :dirty="dirty" />
       <SharedFormSection panel :title="t('access.roles.details')">
         <div class="grid gap-4">
-          <div class="webvue-form-grid">
+          <div class="liwan-form-grid">
             <UFormField :label="t('access.roles.nameArabic')" name="name-ar" required :error="nameError"><UInput id="name-ar" v-model="nameAr" class="w-full" required :disabled="!hydrated || create.isPending.value" /></UFormField>
             <UFormField :label="t('access.roles.nameEnglish')" name="name-en"><UInput id="name-en" v-model="nameEn" dir="ltr" class="w-full" :disabled="!hydrated || create.isPending.value" /></UFormField>
           </div>

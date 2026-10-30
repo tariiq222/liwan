@@ -10,8 +10,8 @@ import {
   type InboxFlowStatus,
   type InboxFlowSummary,
   type InboxFlowWrite,
-} from '@webvue/contracts'
-import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
+} from '@liwan/contracts'
+import type { StatusTone } from '@liwan/ui/app/utils/statusTone'
 import type { LocationQuery } from 'vue-router'
 import { TEMPLATE_LANGUAGES, templateDirection } from './inboxTemplate'
 
@@ -426,7 +426,7 @@ export function answerDisplay(answer: InboxFlowAnswer): AnswerDisplay {
 export interface AnswerColumn { key: string; label: string }
 
 /**
- * The columns of a responses table: the answer fields of the form in their order when WebVue can read its screens,
+ * The columns of a responses table: the answer fields of the form in their order when LiwanOS can read its screens,
  * then any key the answers carry that the form does not list (an answer of an older version, or of an external form).
  */
 export function answerColumns(flow: InboxFlow | undefined, submissions: ReadonlyArray<{ answers: readonly InboxFlowAnswer[] }>): AnswerColumn[] {

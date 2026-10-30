@@ -1,4 +1,4 @@
-import type { Quote } from '@webvue/commercial-contracts'
+import type { Quote } from '@liwan/commercial-contracts'
 const sha = 'a'.repeat(64)
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 const sar = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })

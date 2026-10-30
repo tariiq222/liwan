@@ -7,7 +7,7 @@ import {
   JournalEntryListSchema,
   type JournalEntryCreate,
   type JournalEntryPatch,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import type { EntryListParams } from '@/components/finance/accounting/entryListParams'
 
 export const financeEntryKeys = {

@@ -12,7 +12,7 @@ import { runSubscriptionReconfigure } from '../shared/subscription-reconfigure.j
 import type { SharedRuntimeConfig } from '../shared/runtime-config.js'
 import type { ObserveRunner } from '../shared/subscription-reconcile.js'
 import type { Pool, PoolClient } from 'pg'
-import type { SharedJob } from '@webvue/commercial-contracts/shared'
+import type { SharedJob } from '@liwan/commercial-contracts/shared'
 import * as backup from '../shared/shared-backup.js'
 import { vendorAccount, replaceRoles } from './helpers/vendor-session.js'
 import { vendorActorIssuer } from '../admin-auth/grants.js'
@@ -38,7 +38,7 @@ describe('commercial restore completion contract', () => {
 })
 
 const source = process.env.CONTROL_TEST_DATABASE_URL
-const url = source ? (() => { const u = new URL(source); if (!['localhost','127.0.0.1','::1'].includes(u.hostname)) throw Error('scratch_required'); u.pathname='/webvue_control_scratch_restorec'; return u.toString() })() : undefined
+const url = source ? (() => { const u = new URL(source); if (!['localhost','127.0.0.1','::1'].includes(u.hostname)) throw Error('scratch_required'); u.pathname='/liwan_control_scratch_restorec'; return u.toString() })() : undefined
 
 describe.skipIf(!url)('commercial restore publication (live PG, fake physical receipts)', () => {
   const pool = new PgPool({ connectionString: url, max: 10 })
@@ -46,15 +46,15 @@ describe.skipIf(!url)('commercial restore publication (live PG, fake physical re
   let root = '', runtime: SharedRuntimeConfig
   beforeAll(async () => {
     await migrate(pool)
-    root = await realpath(await mkdtemp(join(tmpdir(), 'webvue-restore-commercial-')))
-    runtime = { schemaVersion: 1, projectName: 'webvue-restore-commercial', composeFile: join(root,'compose.yml'), envFile: join(root,'env'), stateDir: root, domainSuffix: 'restore.invalid' }
+    root = await realpath(await mkdtemp(join(tmpdir(), 'liwan-restore-commercial-')))
+    runtime = { schemaVersion: 1, projectName: 'liwan-restore-commercial', composeFile: join(root,'compose.yml'), envFile: join(root,'env'), stateDir: root, domainSuffix: 'restore.invalid' }
     await vendorAccount(pool, ['customer_success', 'operations'], 7)
   })
   afterAll(async () => { await pool.end(); if (root) await rm(root, { recursive: true, force: true }) })
 
   async function fixture(commercial: boolean) {
     const tenant = randomUUID(), approval = randomUUID(), backupId = randomUUID(), customer = randomUUID(), subscription = randomUUID(), applied = randomUUID(), older = randomUUID(), order = randomUUID()
-    const slug = `t${tenant.replaceAll('-','')}`, database = `webvue_scratch_${randomUUID().replaceAll('-','')}`, target = `webvue_scratch_${randomUUID().replaceAll('-','')}`
+    const slug = `t${tenant.replaceAll('-','')}`, database = `liwan_scratch_${randomUUID().replaceAll('-','')}`, target = `liwan_scratch_${randomUUID().replaceAll('-','')}`
     const binding = { tenantId: slug, database, filestore: database, registryRevision: 1 }
     await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Restore fixture','saas','managed',$2,true)", [tenant, slug])
     await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,true,1)', [tenant, slug, `${slug}.invalid`, database])
@@ -71,7 +71,7 @@ describe.skipIf(!url)('commercial restore publication (live PG, fake physical re
     if (commercial) {
       await pool.query("INSERT INTO customers(id,name,tenant_id) VALUES($1,'Paid fixture',$2)", [customer,tenant])
       await pool.query('INSERT INTO subscriptions(id,customer_id,tenant_id) VALUES($1,$2,$3)', [subscription,customer,tenant])
-      await pool.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,2,$3,$4)', [applied,subscription,{ entitlement: { modules:['webvue_platform'],features:{'users.limit':10},digest:'c'.repeat(64),compiler_version:'1' } },randomUUID()])
+      await pool.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,2,$3,$4)', [applied,subscription,{ entitlement: { modules:['liwan_platform'],features:{'users.limit':10},digest:'c'.repeat(64),compiler_version:'1' } },randomUUID()])
       await pool.query("UPDATE subscriptions SET applied_revision_id=$2,state='active',revision=revision+1 WHERE id=$1", [subscription,applied])
       await pool.query("INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent) VALUES($1,$2,$3,'change',$4,$5,'paid','applied',$6,'fixture',100,'SAR',2)", [order,customer,subscription,randomUUID(),applied,randomUUID()])
     }

@@ -7,7 +7,7 @@ import {
   type InboxOrderCheckout,
   type InboxOrderCreate,
   type InboxOrderPatch,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 
 // Orders: the carts customers send, the orders agents build, and the checkout that turns one into an online order with a
 // pay link. Every key starts with 'inbox', so the bus invalidation of ['inbox'] (a payment arriving) refreshes them.

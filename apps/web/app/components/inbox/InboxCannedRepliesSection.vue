@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { InboxCannedReplyWriteSchema, type InboxCannedReply } from '@webvue/contracts'
+import { InboxCannedReplyWriteSchema, type InboxCannedReply } from '@liwan/contracts'
 import { useInboxCannedReplies } from '@/composables/inbox/useInbox'
 import { useDeleteInboxCannedReply, useSaveInboxCannedReply } from '@/composables/inbox/useInboxSettings'
 
@@ -45,7 +45,7 @@ function confirmDelete() {
 </script>
 
 <template>
-  <SharedRecordSection id="canned-replies" variant="panel" class="webvue-settings-anchor" :title="t('inbox.settings.canned.title')" :description="t('inbox.settings.canned.hint')">
+  <SharedRecordSection id="canned-replies" variant="panel" class="liwan-settings-anchor" :title="t('inbox.settings.canned.title')" :description="t('inbox.settings.canned.hint')">
     <template #actions>
       <UButton type="button" color="neutral" variant="outline" icon="i-lucide-plus" :disabled="locked" :label="t('inbox.settings.canned.add')" data-testid="inbox-canned-add" @click="edit()" />
     </template>

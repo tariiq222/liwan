@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import PersonAvatar from '@webvue/ui/app/components/shared/data/PersonAvatar.vue'
+import PersonAvatar from '@liwan/ui/app/components/shared/data/PersonAvatar.vue'
 import { storyContext } from '../support/context'
 
 // Photos are generated data URLs, so the story needs no external image.

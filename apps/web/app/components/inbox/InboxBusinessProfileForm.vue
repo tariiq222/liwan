@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxBusinessProfile } from '@webvue/contracts'
+import type { InboxBusinessProfile } from '@liwan/contracts'
 import InboxProfilePreview from '@/components/inbox/InboxProfilePreview.vue'
 import {
   PROFILE_LIMITS, PROFILE_VERTICALS, changedProfileFields, draftPatch, mergeDraft, profileErrors, profileToDraft, type ProfileDraft, type ProfileField,
@@ -69,8 +69,8 @@ function onPicture(event: Event) {
 <template>
   <div data-testid="inbox-profile">
     <SharedUnsavedChanges :dirty="dirty" />
-    <div class="grid min-w-0 items-start gap-(--webvue-gap-card) lg:grid-cols-[minmax(0,1fr)_20rem]">
-    <div class="flex min-w-0 flex-col gap-(--webvue-gap-card)">
+    <div class="grid min-w-0 items-start gap-(--liwan-gap-card) lg:grid-cols-[minmax(0,1fr)_20rem]">
+    <div class="flex min-w-0 flex-col gap-(--liwan-gap-card)">
       <SharedRecordSection variant="panel" :title="t('inbox.profile.picture.title')" :description="t('inbox.profile.picture.hint')">
         <div class="flex flex-col gap-3">
           <div class="flex flex-wrap items-center gap-4">

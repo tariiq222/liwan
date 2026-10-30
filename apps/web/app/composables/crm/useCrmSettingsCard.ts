@@ -1,4 +1,4 @@
-import type { CrmPreset, CrmSettings, CrmSettingsValues, CrmSettingsValuesPatch } from '@webvue/contracts'
+import type { CrmPreset, CrmSettings, CrmSettingsValues, CrmSettingsValuesPatch } from '@liwan/contracts'
 import { useSettingsForm } from '../settings/useSettingsForm'
 import { useSaveCrmSettings } from './useCrmSettings'
 

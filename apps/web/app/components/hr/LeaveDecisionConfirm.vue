@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HrLeave } from '@webvue/contracts'
+import type { HrLeave } from '@liwan/contracts'
 import { useHrLeaveFormat } from '@/composables/useHrLeaveFormat'
 
 export type LeaveConfirmKind = 'refuse' | 'cancel' | 'withdraw' | 'requestCancellation' | 'approveCancellation' | 'refuseCancellation' | 'managerCancel'

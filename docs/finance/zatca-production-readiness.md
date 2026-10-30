@@ -1,7 +1,7 @@
 # ZATCA: what is ready, and what only the owner can release
 
-Status: **preparation only** (2026-10-20). Nothing here changes the sandbox confinement of `webvue_finance`
-(`models/zatca_service.py`, `_webvue_require_sandbox`). The production policy
+Status: **preparation only** (2026-10-20). Nothing here changes the sandbox confinement of `liwan_finance`
+(`models/zatca_service.py`, `_liwan_require_sandbox`). The production policy
 ([draft](../superpowers/specs/2026-10-20-zatca-production-policy.md)) is not approved and the owner deferred its decisions
 D2 to D6 until before the first production server deployment, so production invoicing for real tenants stays a release blocker.
 
@@ -15,7 +15,7 @@ D2 to D6 until before the first production server deployment, so production invo
 | Standard (clearance) and simplified (reporting) invoices, with their credit and debit notes | stock `l10n_sa_edi`, `mode` in the submission | `tests/test_finance_zatca.py` |
 | Backlog counts and the **work list of stuck documents** | `GET /zatca/status` (`backlog`), `GET /zatca/documents?state=` | `TestFinanceZatcaWorkList` |
 | Keys, CSR, CSIDs and raw responses never leave the service | `secret_keys` assertions on every response and on the logs | `tests/test_finance_zatca*.py` |
-| Connection status per company | `webvue_integrations_sa` | onboarding updates it |
+| Connection status per company | `liwan_integrations_sa` | onboarding updates it |
 
 Secrets are per company already: the private key and the CSIDs live on the company and its journals in stock models, one
 database per tenant.
@@ -30,7 +30,7 @@ These are the changes, listed so the owner can approve them; none is made.
    manager holds and that is not granted to custom roles by default, writing `l10n_sa_api_mode` (`sandbox`, `preprod`, `prod`)
    and logging an audit event. Leaving the sandbox must drop the onboarding of every sales journal (a device onboarded in one
    environment is not onboarded in another).
-3. **`_webvue_require_sandbox` becomes a policy check** of the allowed modes of that company; `preprod` first, `prod` only
+3. **`_liwan_require_sandbox` becomes a policy check** of the allowed modes of that company; `preprod` first, `prod` only
    after a recorded go-live evidence step.
 4. **The `sudo()` case** in `tools/arch_documented_sudo.json` for `zatca_service.py` is worded "sandbox api mode only": widening
    it needs the owner's `Architecture-approved-by:` trailer.
@@ -42,4 +42,4 @@ These are the changes, listed so the owner can approve them; none is made.
 ## What stays outside the code
 
 Passing the sandbox or the SDK is not ZATCA approval; each taxpayer completes onboarding and the compliance checks in
-production. WebVue never claims compliance because the code is complete.
+production. LiwanOS never claims compliance because the code is complete.

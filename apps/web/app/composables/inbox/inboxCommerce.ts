@@ -1,8 +1,8 @@
 import {
   INBOX_COMMERCE_LIMITS, InboxCommerceContentSchema,
   type InboxCatalogItemReview, type InboxCatalogItemSyncState, type InboxCatalogState, type InboxCommerceContent, type InboxMessageCommerce, type InboxOrder, type InboxOrderPaymentStatus, type InboxOrderState,
-} from '@webvue/contracts'
-import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
+} from '@liwan/contracts'
+import type { StatusTone } from '@liwan/ui/app/utils/statusTone'
 
 // Pure helpers of the WhatsApp commerce screens: the product message an agent, a rule or an automatic message sends from
 // the channel's catalog (a draft, Meta's limits, the wire content), the totals and money of a cart, and the tone and
@@ -243,7 +243,7 @@ export const CATALOG_IMAGE_ACCEPT = IMAGE_TYPES.join(',')
 
 export type ImageProblem = 'type' | 'tooLarge' | 'tooSmall'
 
-/** Why a product image would be refused (Meta needs a JPEG or PNG of at least 500 by 500, and WebVue caps the size); null when it is fine. */
+/** Why a product image would be refused (Meta needs a JPEG or PNG of at least 500 by 500, and LiwanOS caps the size); null when it is fine. */
 export function imageProblem(file: { type: string; size: number }, dimensions: { width: number; height: number } | null): ImageProblem | null {
   if (!IMAGE_TYPES.includes(file.type as typeof IMAGE_TYPES[number])) return 'type'
   if (file.size > COMMERCE_LIMITS.imageBytes) return 'tooLarge'

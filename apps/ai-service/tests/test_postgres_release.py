@@ -12,8 +12,8 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call
 from tests.test_release_continuity import ADMIN, OWNER, TOKEN
 from tests.test_service import RESUME_C1, SETTINGS, fresh, parse_sse
-from webvue_ai_service.service import create_app
-from webvue_ai_service.store import StateCompatibilityError, open_state
+from liwan_ai_service.service import create_app
+from liwan_ai_service.store import StateCompatibilityError, open_state
 
 pytestmark = pytest.mark.skipif(not os.environ.get("AI_TEST_DATABASE_URL"), reason="needs an isolated AI_TEST_DATABASE_URL")
 
@@ -34,7 +34,7 @@ async def state():
 
 CLAIM_PROCESS = '''
 import asyncio, json, os
-from webvue_ai_service.store import open_state
+from liwan_ai_service.store import open_state
 async def main():
     store, _, close = await open_state(os.environ["AI_TEST_DATABASE_URL"])
     try:

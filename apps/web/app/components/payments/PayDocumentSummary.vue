@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PayDocumentKind } from '@webvue/contracts'
+import type { PayDocumentKind } from '@liwan/contracts'
 import { formatPayAmount, payDeadline, type PayableDocument } from '@/composables/paymentPay'
 
 // What the payer sees of an invoice or an online order: the amount due, who it is owed to, its number and its deadline

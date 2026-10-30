@@ -16,9 +16,9 @@ export function personalEntries(identity: AccessIdentity): AppPersonalEntry[] {
 
 export function personalContextLinks(identity: AccessIdentity): ShellContextLink[] {
   return [
-    { id: 'personal-overview', labelKey: 'account.overview', icon: 'i-lucide-layout-dashboard', to: '/account', capability: 'webvue.internal', exact: true },
+    { id: 'personal-overview', labelKey: 'account.overview', icon: 'i-lucide-layout-dashboard', to: '/account', capability: 'liwan.internal', exact: true },
     ...personalEntries(identity).map(entry => ({ id: `personal-${entry.section}`, labelKey: entry.labelKey, icon: entry.icon, to: entry.to, capability: entry.capability })),
-    { id: 'personal-settings', labelKey: 'account.settings', icon: 'i-lucide-settings-2', to: '/account/settings', capability: 'webvue.internal' },
+    { id: 'personal-settings', labelKey: 'account.settings', icon: 'i-lucide-settings-2', to: '/account/settings', capability: 'liwan.internal' },
   ]
 }
 

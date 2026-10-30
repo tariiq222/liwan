@@ -27,7 +27,7 @@ workers = 2
 class SharedConfigTest(unittest.TestCase):
     def setUp(self):
         # Retain synthetic artifacts rather than deleting any resources.
-        self.root = Path(tempfile.mkdtemp(prefix="webvue-config-fixture-"))
+        self.root = Path(tempfile.mkdtemp(prefix="liwan-config-fixture-"))
         self.path = self.root / "synthetic.conf"
 
     def fixture(self, content=FIXTURE, mode=0o400):
@@ -75,15 +75,15 @@ class SharedConfigTest(unittest.TestCase):
         self.assertEqual(output.getvalue(), "shared_config_rejected\n")
 
     def test_launch_delegates_secure_entrypoint_only_after_validation(self):
-        with patch.dict(os.environ, {"WEBVUE_TENANCY_MODE": "shared"}), patch("sys.argv", ["launch"]), patch.object(launch_odoo, "validate_config") as validate, patch.object(launch_odoo.os, "execv") as execute:
+        with patch.dict(os.environ, {"LIWAN_TENANCY_MODE": "shared"}), patch("sys.argv", ["launch"]), patch.object(launch_odoo, "validate_config") as validate, patch.object(launch_odoo.os, "execv") as execute:
             launch_odoo.main()
             validate.assert_called_once_with("/etc/odoo/odoo.conf")
-            execute.assert_called_once_with("/usr/local/bin/webvue-odoo", ["webvue-odoo"])
+            execute.assert_called_once_with("/usr/local/bin/liwan-odoo", ["liwan-odoo"])
 
     def test_launch_rejects_overrides_and_bad_config_without_exec(self):
         for argv in (["launch", "--db-filter=.*"], ["launch"]):
             output = io.StringIO()
-            with patch.dict(os.environ, {"WEBVUE_TENANCY_MODE": "shared"}), patch("sys.argv", argv), patch.object(launch_odoo, "validate_config", side_effect=ConfigRejected()), patch.object(launch_odoo.os, "execv") as execute, contextlib.redirect_stderr(output):
+            with patch.dict(os.environ, {"LIWAN_TENANCY_MODE": "shared"}), patch("sys.argv", argv), patch.object(launch_odoo, "validate_config", side_effect=ConfigRejected()), patch.object(launch_odoo.os, "execv") as execute, contextlib.redirect_stderr(output):
                 self.assertEqual(launch_odoo.main(), 1)
                 execute.assert_not_called()
             self.assertEqual(output.getvalue(), "shared_config_rejected\n")
@@ -94,8 +94,8 @@ class ReleaseConfigTest(unittest.TestCase):
     setUp = SharedConfigTest.setUp
     fixture = SharedConfigTest.fixture
     def release_env(self, role='http', **extra):
-        return {'WEBVUE_TENANCY_MODE': 'shared', 'WEBVUE_RELEASE_POOL_ID': 'green',
-                'WEBVUE_RELEASE_DB_USER':'synthetic_user','WEBVUE_RELEASE_ROLE': role, **extra}
+        return {'LIWAN_TENANCY_MODE': 'shared', 'LIWAN_RELEASE_POOL_ID': 'green',
+                'LIWAN_RELEASE_DB_USER':'synthetic_user','LIWAN_RELEASE_ROLE': role, **extra}
 
     def launch(self, args, env, content=FIXTURE):
         path = self.fixture(content)
@@ -109,13 +109,13 @@ class ReleaseConfigTest(unittest.TestCase):
     def test_http_release_forwards_only_exact_public_cron_disable(self):
         result, executions = self.launch(['--max-cron-threads=0'], self.release_env())
         self.assertIsNone(result)
-        self.assertEqual(executions, [('/usr/local/bin/webvue-odoo', ['webvue-odoo', '--max-cron-threads=0'])])
+        self.assertEqual(executions, [('/usr/local/bin/liwan-odoo', ['liwan-odoo', '--max-cron-threads=0'])])
 
     def test_cron_release_requires_exact_explicit_database_membership(self):
-        env = self.release_env('cron', WEBVUE_RELEASE_DATABASES='tenant_b,tenant_a')
+        env = self.release_env('cron', LIWAN_RELEASE_DATABASES='tenant_b,tenant_a')
         argv = ['--no-http', '--max-cron-threads=1', '--database=tenant_a,tenant_b']
         _, executions = self.launch(argv, env, FIXTURE + 'db_name = tenant_b,tenant_a\n')
-        self.assertEqual(executions[0][1], ['webvue-odoo', *argv])
+        self.assertEqual(executions[0][1], ['liwan-odoo', *argv])
         for args in ([], argv[:-1], [*argv, '--db-filter=.*'],
                      ['--no-http', '--max-cron-threads=1', '--database=tenant_a']):
             with self.subTest(args=args), contextlib.redirect_stderr(io.StringIO()):
@@ -124,7 +124,7 @@ class ReleaseConfigTest(unittest.TestCase):
 
     def test_release_profiles_do_not_weaken_http_or_secret_config(self):
         cases = [(self.release_env(), FIXTURE + 'db_name = tenant_a\n', ['--max-cron-threads=0']),
-                 (self.release_env('cron', WEBVUE_RELEASE_DATABASES='tenant_a'), FIXTURE + 'db_name = tenant_b\n', ['--no-http', '--max-cron-threads=1', '--database=tenant_a']),
+                 (self.release_env('cron', LIWAN_RELEASE_DATABASES='tenant_a'), FIXTURE + 'db_name = tenant_b\n', ['--no-http', '--max-cron-threads=1', '--database=tenant_a']),
                  (self.release_env(), FIXTURE.replace('^%h$', '.*'), ['--max-cron-threads=0'])]
         for env, content, args in cases:
             with self.subTest(env=env), contextlib.redirect_stderr(io.StringIO()):
@@ -132,11 +132,11 @@ class ReleaseConfigTest(unittest.TestCase):
                 self.assertEqual(result, 1); self.assertFalse(calls)
 
     def test_missing_profile_forged_pool_and_protected_db_refuse_before_exec(self):
-        envs = [self.release_env(WEBVUE_RELEASE_POOL_ID='../escape'),
-                {'WEBVUE_TENANCY_MODE': 'shared', 'WEBVUE_RELEASE_POOL_ID': 'green'},
-                self.release_env('cron', WEBVUE_RELEASE_DATABASES='odoo19'),
-                self.release_env('cron', WEBVUE_RELEASE_DATABASES='tenant_a,tenant_a'),
-                self.release_env('cron', WEBVUE_RELEASE_DATABASES='tenant_a;DROP')]
+        envs = [self.release_env(LIWAN_RELEASE_POOL_ID='../escape'),
+                {'LIWAN_TENANCY_MODE': 'shared', 'LIWAN_RELEASE_POOL_ID': 'green'},
+                self.release_env('cron', LIWAN_RELEASE_DATABASES='odoo19'),
+                self.release_env('cron', LIWAN_RELEASE_DATABASES='tenant_a,tenant_a'),
+                self.release_env('cron', LIWAN_RELEASE_DATABASES='tenant_a;DROP')]
         for env in envs:
             with self.subTest(env=env), contextlib.redirect_stderr(io.StringIO()):
                 result, calls = self.launch(['--max-cron-threads=0'], env)

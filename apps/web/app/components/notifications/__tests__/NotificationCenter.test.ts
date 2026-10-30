@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { NotificationListSchema, NotificationSchema, type BellNotification } from '@webvue/contracts'
+import { NotificationListSchema, NotificationSchema, type BellNotification } from '@liwan/contracts'
 import { isDigestNotification, isKnownNotification, isMeetingNotification, isProjectNotification } from '../../../composables/useNotifications'
 
 // Mirrors notificationHref() in NotificationCenter.vue.

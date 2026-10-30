@@ -32,7 +32,7 @@ const profile = computed(() => cards.value.find(card => card.entry.section === '
       </ul>
     </SharedRecordSection>
     <UAlert v-if="failed" color="warning" :title="t('account.preferenceError')" />
-    <div v-if="cards.length" class="grid gap-(--webvue-gap-card) lg:grid-cols-2">
+    <div v-if="cards.length" class="grid gap-(--liwan-gap-card) lg:grid-cols-2">
       <PersonalSummaryCard v-for="(card, index) in orderedCards" :key="card.entry.id" :entry="card.entry" :data="card.data" :pending="card.pending" :error="card.error" :action="card.action" :customize="customize" :first="index === 0" :last="index === orderedCards.length - 1" @retry="card.retry" @move="move(card.entry.id, $event)" />
     </div>
     <SharedEmptyState v-else bordered :title="t('account.noServices')" :description="t('account.noServicesHint')" />

@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import { DEFAULT_STUBS, loadShared, renderShared } from '@webvue/ui/test/helpers/renderShared'
+import { DEFAULT_STUBS, loadShared, renderShared } from '@liwan/ui/test/helpers/renderShared'
 
 const file = resolve(import.meta.dirname, '../HomeFocus.vue')
 const rowFile = resolve(import.meta.dirname, '../../work/WorkRow.vue')

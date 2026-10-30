@@ -13,6 +13,6 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 const at = (path: string) => async () => { await __getRouter()!.replace(path); return {} }
-const render = () => ({ components: { ShellHeader }, template: '<div class="webvue-shell" style="min-height: 64px"><ShellHeader /></div>' })
+const render = () => ({ components: { ShellHeader }, template: '<div class="liwan-shell" style="min-height: 64px"><ShellHeader /></div>' })
 
 export const Default: Story = { name: 'مهامي', parameters: storyContext('apps/web/app/layouts/default.vue:73'), loaders: [at('/tasks')], render }

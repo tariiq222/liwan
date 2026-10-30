@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinanceJournal } from '@webvue/contracts'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import type { FinanceJournal } from '@liwan/contracts'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
 import { h } from 'vue'
 import { useArchiveSetupJournal, useSetupJournals } from '@/composables/finance/useFinanceRecords'
 import JournalEditor from './JournalEditor.vue'
@@ -45,7 +45,7 @@ const actions = (journal: FinanceJournal): RowAction[] => [
     <template v-if="canManage" #actions>
       <UButton color="primary" icon="i-lucide-plus" :disabled="!list.hydrated.value || panel !== null" :label="t('financeRecords.journals.new')" data-testid="finance-record-journal-new" @click="panel = { kind: 'create' }" />
     </template>
-    <div class="grid gap-(--webvue-gap-card)">
+    <div class="grid gap-(--liwan-gap-card)">
       <template v-if="panel">
         <RecordArchiveConfirm v-if="panel.kind === 'archive'" :key="panelKey(panel)" scope="journals" :name="panel.journal.name" :active="panel.journal.active" :pending="archiving" :send="archive => send({ id: (panel as { journal: FinanceJournal }).journal.id, archive })" @done="panel = null" @cancel="panel = null" />
         <JournalEditor v-else :key="panelKey(panel)" :journal="panel.kind === 'edit' ? panel.journal : undefined" @done="panel = null" @cancel="panel = null" />

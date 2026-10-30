@@ -1,15 +1,15 @@
 # Commercial expiry — rollout, verification and recovery
 
 > Scope: the `commercial_valid_until` field added in Phase 2 Task 4. It is a commercial
-> backstop enforced by Odoo (`_webvue_effective_state`), separate from the classification
+> backstop enforced by Odoo (`_liwan_effective_state`), separate from the classification
 > cutoff `valid_until`. This runbook does not authorize a production migration, publication
 > or a customer-wide change; those need the owner's explicit word for that action.
 
 ## What must be deployed, in this order
 
-1. **Odoo image** carrying `webvue_platform 19.0.1.7.0` **and** the matching `tools/` tree
-   (`tools/shared_saas_lifecycle/subscription_effect.py`, `tools/webvue_cli/operator.py`).
-2. **Each tenant database** upgraded (`-u webvue_platform`) so the column exists.
+1. **Odoo image** carrying `liwan_platform 19.0.1.7.0` **and** the matching `tools/` tree
+   (`tools/shared_saas_lifecycle/subscription_effect.py`, `tools/liwan_cli/operator.py`).
+2. **Each tenant database** upgraded (`-u liwan_platform`) so the column exists.
 3. **Control plane** that sends `commercial_valid_until` in the reconfigure authority.
 
 Deploying 3 before 1–2 is refused visibly by the effect (`tenant_upgrade_required`); it is
@@ -41,8 +41,8 @@ Read-only checks on the tenant database:
 ```sql
 SELECT column_name, data_type, is_nullable
 FROM information_schema.columns
-WHERE table_name = 'webvue_tenant_profile' AND column_name = 'commercial_valid_until';
-SELECT id, valid_until, commercial_valid_until FROM webvue_tenant_profile;
+WHERE table_name = 'liwan_tenant_profile' AND column_name = 'commercial_valid_until';
+SELECT id, valid_until, commercial_valid_until FROM liwan_tenant_profile;
 ```
 
 Expected: one row, both `commercial_valid_until` and `commercial_valid_until_revision` exist and are
@@ -67,7 +67,7 @@ ORDER BY created_at DESC LIMIT 5;
 Then read the tenant profile again; the two dates must match. A customer still in the trial
 keeps access until that date. Afterwards the tenant is `expired` and read-only: every write
 answers `403 tenant_read_only`, while authorized reads of retained features keep working
-(`entitlement_service._webvue_assert_lifecycle`). Only a `suspended` tenant refuses reads,
+(`entitlement_service._liwan_assert_lifecycle`). Only a `suspended` tenant refuses reads,
 except for an allowed support login.
 
 ## Failure modes
@@ -104,7 +104,7 @@ operator leaves the last date in place.
 
 ## Evidence boundary
 
-The Phase 2 local evidence is: Odoo `webvue_platform` 121 tests, shared effect 51, operator 37,
+The Phase 2 local evidence is: Odoo `liwan_platform` 121 tests, shared effect 51, operator 37,
 control-plane suites, `npm test`, and scratch-database runs. It does not prove an image
 upgrade, a real payment, Odoo behaviour at the date in production, or a maintenance-window
 rollback. Record those separately when they are actually executed.

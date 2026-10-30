@@ -15,7 +15,7 @@ import time
 from deploy.releases.backup import capture_tenant, validate_backup, restore_tenant
 from deploy.releases.postgres import identifier, runtime_role_fixture, validate_runtime_role, fence_runtime
 
-ATTACHMENT = b'WebVue isolated PostgreSQL infrastructure acceptance attachment\n'
+ATTACHMENT = b'LiwanOS isolated PostgreSQL infrastructure acceptance attachment\n'
 CHECKS = ('role_valid', 'public_connect_rejected', 'membership_rejected',
           'active_transaction_refused', 'active_work_preserved', 'idle_old_terminated',
           'old_reconnect_refused', 'new_role_dml', 'backup_hashes_valid',
@@ -26,8 +26,8 @@ def scratch_names(suffix='1016'):
     """Build isolated names for a separately authorized future scratch run."""
     if not isinstance(suffix, str) or not re.fullmatch(r'[a-z0-9_]{1,16}', suffix):
         raise ValueError('scratch_suffix_rejected')
-    return ('webvue_scratch_updates_roles_' + suffix, 'webvue_scratch_updates_restore_roles_' + suffix,
-            'webvue_updates_owner_' + suffix, 'webvue_updates_blue_' + suffix, 'webvue_updates_green_' + suffix)
+    return ('liwan_scratch_updates_roles_' + suffix, 'liwan_scratch_updates_restore_roles_' + suffix,
+            'liwan_updates_owner_' + suffix, 'liwan_updates_blue_' + suffix, 'liwan_updates_green_' + suffix)
 
 
 def _connect(database, role='tariq'):
@@ -51,7 +51,7 @@ def _file_hash(path):
 def run_scratch(output_root, *, suffix='1016'):
     """Run exact authorized fixture using actual DB driver and subprocess tools."""
     DATABASE, RESTORED, OWNER, BLUE, GREEN = scratch_names(suffix)
-    if os.environ.get('WEBVUE_RUN_PG_SCRATCH') != '1': raise ValueError('scratch_opt_in_required')
+    if os.environ.get('LIWAN_RUN_PG_SCRATCH') != '1': raise ValueError('scratch_opt_in_required')
     root = Path(output_root)
     if not root.is_absolute() or root.resolve() != root or root.exists(): raise ValueError('scratch_output_must_be_new')
     tools = {key: shutil.which(name) for key, name in [('pgDump', 'pg_dump'), ('pgRestore', 'pg_restore'), ('createdb', 'createdb')]}

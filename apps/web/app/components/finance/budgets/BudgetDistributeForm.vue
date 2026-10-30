@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FinanceBudgetDetail } from '@webvue/contracts'
+import type { FinanceBudgetDetail } from '@liwan/contracts'
 import { useFinanceAnalyticAccounts } from '@/composables/finance/useFinanceAnalytic'
 import { useDistributeFinanceBudget } from '@/composables/finance/useFinanceBudgets'
 import AccountPicker from '../AccountPicker.vue'
@@ -45,7 +45,7 @@ async function submit() {
 </script>
 
 <template>
-  <UForm novalidate :state="draft" class="grid gap-4 border-t border-default p-(--webvue-card-pad)" method="post" data-testid="finance-budget-distribute-form" @submit="submit">
+  <UForm novalidate :state="draft" class="grid gap-4 border-t border-default p-(--liwan-card-pad)" method="post" data-testid="finance-budget-distribute-form" @submit="submit">
     <h3 class="text-sm font-semibold text-highlighted">{{ t('financeBudgets.distribute.title') }}</h3>
     <p class="text-sm text-muted">{{ t('financeBudgets.distribute.hint') }}</p>
     <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" data-testid="finance-budget-distribute-error" />

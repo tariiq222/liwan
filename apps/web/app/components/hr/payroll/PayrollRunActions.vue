@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HrPayrollRun } from '@webvue/contracts'
+import type { HrPayrollRun } from '@liwan/contracts'
 
 // The transitions of one payroll run. Compute is a plain action; approving (it locks the payslips), cancelling (it
 // deletes the run) and posting (it creates the accounting entry, whose preview the page fills in the `post-preview`
@@ -34,7 +34,7 @@ watch(() => props.pending, (now, was) => { if (was && !now && was !== 'post' && 
 </script>
 
 <template>
-  <div v-if="visible" class="webvue-print-hide grid gap-3" data-testid="hr-payroll-run-actions">
+  <div v-if="visible" class="liwan-print-hide grid gap-3" data-testid="hr-payroll-run-actions">
     <div class="flex flex-wrap items-center gap-2">
       <UButton
         v-if="allowed('compute')"

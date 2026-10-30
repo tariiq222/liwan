@@ -1,4 +1,4 @@
-import type { MilestonePatch } from '@webvue/contracts'
+import type { MilestonePatch } from '@liwan/contracts'
 
 export function buildMilestonePatch(input: {
   name: string

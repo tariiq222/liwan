@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxConversationDetail, InboxConversationPatch } from '@webvue/contracts'
+import type { InboxConversationDetail, InboxConversationPatch } from '@liwan/contracts'
 import InboxFlowSubmissionsSection from '@/components/inbox/InboxFlowSubmissionsSection.vue'
 import InboxContactMarketing from '@/components/inbox/campaigns/InboxContactMarketing.vue'
 import { useInboxCampaignsEnabled } from '@/composables/inbox/useInboxCampaigns'

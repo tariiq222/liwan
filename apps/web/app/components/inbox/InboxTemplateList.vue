@@ -47,7 +47,7 @@ function clear() {
     <template #actions>
       <UButton v-if="can('inbox.templates.manage')" :to="templatesRoute(props.channelId, route.query, '/new')" icon="i-lucide-plus" :disabled="!hydrated" :label="t('inbox.templates.create')" data-testid="inbox-template-create" />
     </template>
-    <div class="px-(--webvue-card-pad) py-3">
+    <div class="px-(--liwan-card-pad) py-3">
       <SharedFilterBar embedded class="w-full" :active-count="Number(!!status) + Number(!!category) + Number(!!committedSearch.trim())" :disabled="!hydrated" @clear="clear">
         <template #search>
           <form @submit.prevent="update({ q: search.trim() || undefined })">
@@ -60,13 +60,13 @@ function clear() {
     </div>
     <SharedLoadingSkeleton v-if="query.isPending.value" class="m-4" />
     <SharedPageState v-else-if="query.error.value" class="m-4" :error="query.error.value" @retry="query.refetch()" />
-    <p v-else-if="!items.length" class="px-(--webvue-card-pad) py-4 text-sm text-muted" data-testid="inbox-templates-empty">{{ filtered ? t('app.noResults') : t('inbox.templates.empty') }}</p>
+    <p v-else-if="!items.length" class="px-(--liwan-card-pad) py-4 text-sm text-muted" data-testid="inbox-templates-empty">{{ filtered ? t('app.noResults') : t('inbox.templates.empty') }}</p>
     <template v-else>
       <NuxtLink
         v-for="template in items"
         :key="template.id"
         :to="templatesRoute(props.channelId, route.query, `/${template.id}`)"
-        class="flex flex-col gap-1.5 px-(--webvue-card-pad) py-3 text-start transition-colors duration-150 hover:bg-(--webvue-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+        class="flex flex-col gap-1.5 px-(--liwan-card-pad) py-3 text-start transition-colors duration-150 hover:bg-(--liwan-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
         :data-testid="`inbox-template-${template.id}`"
       >
         <span class="flex flex-wrap items-center justify-between gap-3">

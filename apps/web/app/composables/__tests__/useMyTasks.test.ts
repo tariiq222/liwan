@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { QueryClient } from '@tanstack/vue-query'
-import type { PersonalTask } from '@webvue/contracts'
+import type { PersonalTask } from '@liwan/contracts'
 import { ApiError } from '../useApi'
 import { myTaskKeys } from '../myTaskKeys'
 import { myTasksAttention } from '../../modules/tasks/attention'

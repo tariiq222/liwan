@@ -13,4 +13,4 @@ COPY --from=build /usr/local/bin/uvicorn /usr/local/bin/uvicorn
 USER ai
 EXPOSE 8600
 HEALTHCHECK --interval=10s --timeout=3s --retries=6 CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8600/healthz', timeout=2)"
-CMD ["uvicorn", "webvue_ai_service.service:app", "--host", "0.0.0.0", "--port", "8600"]
+CMD ["uvicorn", "liwan_ai_service.service:app", "--host", "0.0.0.0", "--port", "8600"]

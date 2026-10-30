@@ -1,7 +1,7 @@
 [project]
-name = "webvue-ai-service"
+name = "liwan-ai-service"
 version = "0.1.0"
-description = "WebVue AI: the isolated agent service (LangGraph). It holds no WebVue credential; it decides and waits."
+description = "LiwanOS AI: the isolated agent service (LangGraph). It holds no LiwanOS credential; it decides and waits."
 requires-python = ">=3.12"
 license = { text = "LGPL-3.0-or-later" }
 dependencies = [

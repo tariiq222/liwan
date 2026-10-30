@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatDateTime } from '@webvue/ui/app/utils/formatDate'
+import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import { useCopyLink } from '@/composables/useCopyLink'
 
 const props = defineProps<{ name: string, link: string, expiresAt: string }>()

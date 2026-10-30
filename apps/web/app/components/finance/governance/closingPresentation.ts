@@ -1,5 +1,5 @@
-import { FinanceClosingBlockerCodeSchema, type FinanceClosingBlocker, type FinanceFiscalYear } from '@webvue/contracts'
-import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
+import { FinanceClosingBlockerCodeSchema, type FinanceClosingBlocker, type FinanceFiscalYear } from '@liwan/contracts'
+import type { StatusTone } from '@liwan/ui/app/utils/statusTone'
 import { financeErrorMessage } from '../financeErrors'
 import { queryPositiveInt } from '../../../utils/routeQuery'
 

@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Seed a scratch database for the perf baseline by piping ``seed_finance.py`` into ``odoo-bin shell``.
 
-    python3 -B tools/perf/run_seed.py [--database webvue_scratch_x] [--scale 1.0]
+    python3 -B tools/perf/run_seed.py [--database liwan_scratch_x] [--scale 1.0]
 
 The database must exist with the release modules installed; the seed refuses to run otherwise.
 """

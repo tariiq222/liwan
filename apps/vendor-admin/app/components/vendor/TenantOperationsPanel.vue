@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { formatWebVueDateTime } from '@webvue/ui/app/composables/calendarDate'
+import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
 import { operationStatusBadge } from '@/utils/vendorBadges'
 import { buildVendorPolicy, type VendorFeatureValue } from '@/utils/vendorPolicy'
 import type { VendorTenant } from '@/utils/vendorTenant'
-import type { OperationFeed } from '@webvue/commercial-contracts'
+import type { OperationFeed } from '@liwan/commercial-contracts'
 type TenantOperation = 'tenant.create' | 'tenant.inspect' | 'health' | 'backup' | 'tenant.entitle'
 const tenantOperationTypes = new Set<TenantOperation>(['tenant.create', 'tenant.inspect', 'health', 'backup', 'tenant.entitle'])
 type Catalog = { version: string; status: string; solution: { tiers?: { id: string; name: string; features?: string[]; limits?: Record<string, number> }[] } }
@@ -117,7 +117,7 @@ const canEnqueue = computed(() => Boolean(reason.value.trim()) && !(actionType.v
 // Anything the confirmation names (type, reason, limits, switches) closes it when it changes.
 watch([actionType, reason, edits], () => { confirmEnqueue.value = false }, { deep: true })
 const operationsNeedEnabling = computed(() => Boolean(data.value && !data.value.operations_enabled))
-const operationTime = (op: OperationFeed) => formatWebVueDateTime(op.source === 'shared' ? (op.last_event_at ?? op.created_at) : op.updated_at, locale.value)
+const operationTime = (op: OperationFeed) => formatLiwanDateTime(op.source === 'shared' ? (op.last_event_at ?? op.created_at) : op.updated_at, locale.value)
 </script>
 
 <template>

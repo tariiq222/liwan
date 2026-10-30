@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { CrmDashboard } from '@webvue/contracts'
+import type { CrmDashboard } from '@liwan/contracts'
 import { agentKpiTiles, conversionPercent, managerKpiTiles } from '../crmDashboard'
 
 const t = (key: string, named?: Record<string, unknown>) => (named ? `${key} ${JSON.stringify(named)}` : key)

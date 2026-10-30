@@ -1,4 +1,4 @@
-import type { AiRunSummary } from '@webvue/contracts'
+import type { AiRunSummary } from '@liwan/contracts'
 import { describe, expect, it } from 'vitest'
 import { filterRunsByTitle, groupRunsByDate } from '../aiRunGroups'
 

@@ -106,10 +106,10 @@
       "retry": "إعادة المحاولة",
       "createFinal": "إنشاء المشروع",
       "drafted": "أُنشئ المشروع وحُفظ ميثاقه كمسودة",
-      "aiBadge": "مسودة من WebVue AI",
+      "aiBadge": "مسودة من LiwanOS AI",
       "aiAttest": "قرأت المحتوى كاملًا وأعتمده وأتحمل مسؤوليته",
       "aiAttestRequired": "أكّد قراءة المسودة واعتمادها قبل الإرسال",
-      "aiAuditFailed": "أُنشئ المشروع، لكن تعذّر تسجيل اعتماده في سجل WebVue AI"
+      "aiAuditFailed": "أُنشئ المشروع، لكن تعذّر تسجيل اعتماده في سجل LiwanOS AI"
     },
     "filters": {
       "active": "النشطة",

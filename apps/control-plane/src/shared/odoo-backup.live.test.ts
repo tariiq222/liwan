@@ -10,19 +10,19 @@ import {approveOdooRestore,resolveOdooBackupAuthority} from './odoo-backup.js'
 import {enqueueSharedJob} from './job-store.js'
 import {businessKey,payloadDigest} from './provisioning.js'
 import type {SharedRuntimeConfig} from './runtime-config.js'
-import type {SharedJob} from '@webvue/commercial-contracts/shared'
+import type {SharedJob} from '@liwan/commercial-contracts/shared'
 import { vendorAccount } from '../__tests__/helpers/vendor-session.js'
 import { vendorActorIssuer } from '../admin-auth/grants.js'
 const url=process.env.CONTROL_TEST_DATABASE_URL
-if(url){const u=new URL(url);if(!['localhost','127.0.0.1','::1'].includes(u.hostname)||!/^webvue_control_scratch_[a-z0-9]+$/.test(u.pathname.slice(1)))throw Error('isolated control test database required')}
+if(url){const u=new URL(url);if(!['localhost','127.0.0.1','::1'].includes(u.hostname)||!/^liwan_control_scratch_[a-z0-9]+$/.test(u.pathname.slice(1)))throw Error('isolated control test database required')}
 describe.skipIf(!url)('real Odoo backup/restore authority (live PostgreSQL)',()=>{
  const pool=new Pool({connectionString:url,max:4}),tenant=randomUUID(),backupId=randomUUID(),jobId=randomUUID(),issuer=vendorActorIssuer('odoo-backup-'+randomUUID()),actor={issuer,actorUid:7}
- const db='webvue_scratch_'+randomUUID().replaceAll('-',''),binding={tenantId:'t'+tenant.replaceAll('-',''),database:db,filestore:db,registryRevision:1}
+ const db='liwan_scratch_'+randomUUID().replaceAll('-',''),binding={tenantId:'t'+tenant.replaceAll('-',''),database:db,filestore:db,registryRevision:1}
  const job:SharedJob={schemaVersion:1,operation:'backup',requestId:backupId,binding}
  let root='',runtime:SharedRuntimeConfig
  beforeAll(async()=>{
-  await migrate(pool);root=await realpath(await mkdtemp(join(tmpdir(),'webvue-real-backup-')))
-  runtime={schemaVersion:1,projectName:'webvue-saas-test-backup',composeFile:join(root,'compose.yml'),envFile:join(root,'compose.env'),stateDir:root,domainSuffix:'saas.accept.webvue.test'}
+  await migrate(pool);root=await realpath(await mkdtemp(join(tmpdir(),'liwan-real-backup-')))
+  runtime={schemaVersion:1,projectName:'liwan-saas-test-backup',composeFile:join(root,'compose.yml'),envFile:join(root,'compose.env'),stateDir:root,domainSuffix:'saas.accept.liwan.test'}
   await vendorAccount(pool,['operations'],7)
   await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Real authority fixture','saas','managed',$2,true)",[tenant,'fixture-'+tenant])
   await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,true,1)',[tenant,binding.tenantId,binding.tenantId+'.invalid',db])
@@ -46,7 +46,7 @@ describe.skipIf(!url)('real Odoo backup/restore authority (live PostgreSQL)',()=
   await expect(resolveOdooBackupAuthority(pool,runtime,stored,{starting:true})).rejects.toThrow('shared_restore_approval_unavailable')
   await expect(pool.query('UPDATE shared_restore_approvals SET consumed_at=NULL WHERE id=$1',[approval.approval_id])).rejects.toThrow('already consumed')
   await expect(pool.query('DELETE FROM shared_odoo_restore_targets WHERE approval_id=$1',[approval.approval_id])).rejects.toThrow('permanent')
-  await expect(pool.query("UPDATE shared_odoo_restore_targets SET target_database=$2 WHERE approval_id=$1",[approval.approval_id,'webvue_scratch_'+randomUUID().replaceAll('-','')])).rejects.toThrow('append only')
+  await expect(pool.query("UPDATE shared_odoo_restore_targets SET target_database=$2 WHERE approval_id=$1",[approval.approval_id,'liwan_scratch_'+randomUUID().replaceAll('-','')])).rejects.toThrow('append only')
  })
  it('rejects registry publication into a permanently reserved restore target',async()=>{
   const approval=await approveOdooRestore(pool,runtime,actor,tenant,{backup_id:backupId,reason:'Reserve new target'})
@@ -64,7 +64,7 @@ describe.skipIf(!url)('real Odoo backup/restore authority (live PostgreSQL)',()=
  it.each(['consumed','expired'])('replays only the exact verified request after approval is %s',async(state)=>{
   // Persist a historical verified effect directly: this fixture tests enqueue
   // replay, not physical receipt production, and never runs application SQL.
-  const approval=randomUUID(),requestId=randomUUID(),restoredJobId=randomUUID(),target='webvue_scratch_'+randomUUID().replaceAll('-','')
+  const approval=randomUUID(),requestId=randomUUID(),restoredJobId=randomUUID(),target='liwan_scratch_'+randomUUID().replaceAll('-','')
   await pool.query(`INSERT INTO shared_restore_approvals(id,backup_id,control_tenant_id,target_database,reason,expires_at,consumed_at)
    VALUES($1,$2,$3,$4,'Historical effect',clock_timestamp()+$5::interval,CASE WHEN $6 THEN clock_timestamp() ELSE NULL END)`,[approval,backupId,tenant,target,state==='expired'?'-1 second':'1 hour',state==='consumed'])
   await pool.query('INSERT INTO shared_odoo_restore_targets(approval_id,backup_id,control_tenant_id,target_database,source_binding,runtime_scope) VALUES($1,$2,$3,$4,$5,$6)',[approval,backupId,tenant,target,binding,runtime.projectName])

@@ -10,7 +10,7 @@ class DedicatedTests(unittest.TestCase):
 
     def test_non_saas_binding_is_local_without_vendor_dependency(self):
         self.assertEqual(validate_binding(self.local_binding())['commercialMode'], 'non_saas')
-        result = select_dedicated_route(self.local_binding(), 'tenant-a.webvue.test',
+        result = select_dedicated_route(self.local_binding(), 'tenant-a.liwan.test',
                                        {'poolId': 'green', 'releaseId': 'r1', 'state': 'serving'})
         self.assertTrue(result['allowed'])
         self.assertEqual(result['cookieMode'], 'odoo')
@@ -27,7 +27,7 @@ class DedicatedTests(unittest.TestCase):
 
     def test_maintenance_blocks_auth_content_and_business_paths(self):
         for path in ('/web/login', '/api/v1/tasks/1/attachments/1/download', '/api/v1/me', '/websocket'):
-            result = select_dedicated_route(self.local_binding(), 'tenant-a.webvue.test',
+            result = select_dedicated_route(self.local_binding(), 'tenant-a.liwan.test',
                                            {'poolId': 'green', 'releaseId': 'r1', 'state': 'maintenance'}, path=path)
             self.assertFalse(result['allowed'])
             self.assertEqual(result['status'], 503)

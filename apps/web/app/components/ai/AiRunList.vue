@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { formatDate, formatTime } from '@webvue/ui/app/utils/formatDate'
-import { AI_RUN_TITLE_MAX_CHARS, AiRunPatchSchema, type AiRunSummary } from '@webvue/contracts'
+import { formatDate, formatTime } from '@liwan/ui/app/utils/formatDate'
+import { AI_RUN_TITLE_MAX_CHARS, AiRunPatchSchema, type AiRunSummary } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useAiRunActions, useAiRuns } from '@/composables/useAiRuns'
 import { filterRunsByTitle, groupRunsByDate } from '@/utils/aiRunGroups'
@@ -13,10 +13,10 @@ import { filterRunsByTitle, groupRunsByDate } from '@/utils/aiRunGroups'
 // place or archived (both reversible); the archived ones are one toggle away and an open conversation stays open when archived.
 const props = defineProps<{ disclosure?: boolean }>()
 // Touch targets below 768px are 44px (DESIGN.md); the inline disclosure body is capped so it scrolls inside itself.
-const TOUCH_TARGET = 'webvue-touch-target'
-const TOUCH_TARGET_BUTTONS = 'webvue-touch-target-buttons'
-const TOUCH_TARGET_ROW_ACTION = 'webvue-touch-target-row-actions'
-const DISCLOSURE_BODY = 'webvue-disclosure-body border-t border-default'
+const TOUCH_TARGET = 'liwan-touch-target'
+const TOUCH_TARGET_BUTTONS = 'liwan-touch-target-buttons'
+const TOUCH_TARGET_ROW_ACTION = 'liwan-touch-target-row-actions'
+const DISCLOSURE_BODY = 'liwan-disclosure-body border-t border-default'
 const route = useRoute()
 const { t } = useI18n()
 const toast = useToast()
@@ -185,12 +185,12 @@ const actionsOf = (run: AiRunSummary) => [
                 <template v-else>
                   <NuxtLink
                     :to="{ path: '/ai', query: { run: run.run_id } }"
-                    class="flex min-w-0 flex-1 flex-col gap-0.5 rounded-control px-3 py-2 text-start hover:bg-elevated focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary data-[selected=true]:bg-(--webvue-nav-active) data-[selected=true]:text-(--webvue-rail-active-ink)"
+                    class="flex min-w-0 flex-1 flex-col gap-0.5 rounded-control px-3 py-2 text-start hover:bg-elevated focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary data-[selected=true]:bg-(--liwan-nav-active) data-[selected=true]:text-(--liwan-rail-active-ink)"
                     :data-selected="run.run_id === selectedId"
                     :aria-current="run.run_id === selectedId ? 'page' : undefined"
                     data-testid="ai-run-item"
                   >
-                    <span dir="auto" :class="['truncate text-sm font-medium', run.run_id === selectedId ? 'text-(--webvue-rail-active-ink)' : 'text-highlighted']">{{ titleOf(run) }}</span>
+                    <span dir="auto" :class="['truncate text-sm font-medium', run.run_id === selectedId ? 'text-(--liwan-rail-active-ink)' : 'text-highlighted']">{{ titleOf(run) }}</span>
                     <span class="flex items-center justify-between gap-2 text-xs text-muted">
                       <time :datetime="run.updated_at">{{ shortDate(run) }}</time>
                       <span v-if="hint(run)" :class="run.status === 'failed' ? 'text-error' : 'text-warning'">{{ hint(run) }}</span>

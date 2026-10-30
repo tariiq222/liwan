@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { addCalendarDays, addCalendarMonths, scheduleColumnLastDay, buildScheduleAxis, daysBetween, formatScheduleDate, scheduleBarStyle, scheduleColumnSpan, scheduleDatePosition, scheduleFocusDate } from '../projectSchedule'
-import { isCalendarDate } from '@webvue/ui/app/composables/calendarDate'
+import { isCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 
 const task = { id: 1, name: 'Build', start: '2030-01-05', end: '2030-01-12', state: 'in_progress' as const, dependency_ids: [], milestone_id: null }
 

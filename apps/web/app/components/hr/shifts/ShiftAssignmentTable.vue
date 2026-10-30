@@ -2,7 +2,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import { h } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
 import type { HrShiftAssignment } from '@/composables/useHrShifts'
 
 // The assignment list of /hr/shifts (and of the employee's own schedule) on SharedDataTable.

@@ -6,7 +6,7 @@ const id = useId()
 </script>
 
 <template>
-  <article data-testid="launcher-card" :data-app="props.entry.id" :aria-labelledby="`${id}-title`" class="flex min-w-0 flex-col gap-(--webvue-gap-card) rounded-card bg-default p-(--webvue-card-pad) ring ring-default">
+  <article data-testid="launcher-card" :data-app="props.entry.id" :aria-labelledby="`${id}-title`" class="flex min-w-0 flex-col gap-(--liwan-gap-card) rounded-card bg-default p-(--liwan-card-pad) ring ring-default">
     <div class="flex min-w-0 items-start gap-3">
       <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary" aria-hidden="true"><UIcon :name="props.entry.icon" class="size-5" /></span>
       <div class="grid min-w-0 flex-1 gap-1">

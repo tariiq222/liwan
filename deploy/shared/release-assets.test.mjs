@@ -31,7 +31,7 @@ function publish(publicDir, store, release) {
   assert.equal(done.status, 0, 'asset publisher failed')
 }
 async function fixture(t) {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), 'webvue-retained-assets-')))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'liwan-retained-assets-')))
   const store = join(root, 'assets')
   const first = source(root, 'first', { '_nuxt/Abc12345.js': 'old_chunk', '_nuxt/entry.Def67890.css': 'old_css', '_i18n/Abc12345/ar.json': '{"hello":"old"}', 'fonts/Arabic-Regular.woff2': 'font-bytes', 'fonts/LICENSE.txt': 'font-license', '_nuxt/builds/latest.json': '{"id":"blue-build"}', '_nuxt/builds/meta/11111111-1111-4111-8111-111111111111.json': '{"id":"old-meta"}' })
   const second = source(root, 'second', { '_nuxt/New12345.js': 'new_chunk', 'fonts/Arabic-Regular.woff2': 'font-bytes', 'fonts/LICENSE.txt': 'font-license', '_nuxt/builds/latest.json': '{"id":"green-build"}' })
@@ -60,7 +60,7 @@ test('published old chunks/css/i18n remain available after green routing without
     assert.equal(response.status, 200); assert.equal(response.body, bytes)
     assert.match(response.headers['content-type'], new RegExp('^' + mime))
     assert.match(response.headers['cache-control'], /immutable/)
-    assert.equal(response.headers['x-webvue-proxy-token'], undefined)
+    assert.equal(response.headers['x-liwan-proxy-token'], undefined)
     assert.equal(response.headers['set-cookie'], undefined)
   }
   assert.equal(f.calls.length, 0)

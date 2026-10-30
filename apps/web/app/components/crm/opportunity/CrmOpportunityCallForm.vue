@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CrmLostReason, CrmOutcome, CrmPackage } from '@webvue/contracts'
+import type { CrmLostReason, CrmOutcome, CrmPackage } from '@liwan/contracts'
 import CrmOpportunitySaleForm, { type CrmSaleDraft } from './CrmOpportunitySaleForm.vue'
 
 export interface CrmCallDraft {

@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { FinanceBudgetDetailSchema, FinanceBudgetListSchema, FinanceBudgetVsActualSchema } from '@webvue/contracts'
+import { FinanceBudgetDetailSchema, FinanceBudgetListSchema, FinanceBudgetVsActualSchema } from '@liwan/contracts'
 import { financeBudgetsPreviewData } from '../../../../e2e/finance-budgets-ui-preview-data.mjs'
 
 // The finance budgets pages stay on their templates. This is a source guard, not a behaviour test.

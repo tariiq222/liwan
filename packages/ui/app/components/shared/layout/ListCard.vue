@@ -14,10 +14,10 @@ defineProps<{ fill?: boolean }>()
 </script>
 
 <template>
-  <div data-slot="list-card" :data-fill="fill || undefined" class="min-w-0 overflow-hidden rounded-card bg-default ring ring-default" :class="{ 'webvue-list-card-fill': fill }">
-    <div v-if="$slots.filters" data-slot="list-card-filters" class="min-w-0 flex-none border-b border-default px-(--webvue-card-pad-dense) py-3"><slot name="filters" /></div>
+  <div data-slot="list-card" :data-fill="fill || undefined" class="min-w-0 overflow-hidden rounded-card bg-default ring ring-default" :class="{ 'liwan-list-card-fill': fill }">
+    <div v-if="$slots.filters" data-slot="list-card-filters" class="min-w-0 flex-none border-b border-default px-(--liwan-card-pad-dense) py-3"><slot name="filters" /></div>
     <div v-if="fill" data-slot="list-card-body" class="flex min-h-0 flex-1 flex-col"><slot /></div>
     <slot v-else />
-    <div v-if="$slots.footer" data-slot="list-card-footer" class="flex min-w-0 flex-none flex-wrap items-center justify-between gap-3 border-t border-default px-(--webvue-card-pad-dense) py-3 text-sm text-muted"><slot name="footer" /></div>
+    <div v-if="$slots.footer" data-slot="list-card-footer" class="flex min-w-0 flex-none flex-wrap items-center justify-between gap-3 border-t border-default px-(--liwan-card-pad-dense) py-3 text-sm text-muted"><slot name="footer" /></div>
   </div>
 </template>

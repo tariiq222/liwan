@@ -20,8 +20,8 @@ def preflight():
         if env[name].with_context(active_test=False).search_count([]):
             raise RuntimeError('unowned DMS resources require a separate adoption plan: ' + name)
 preflight()
-old = 'webvue.hr.document'
-new = 'webvue.document'
+old = 'liwan.hr.document'
+new = 'liwan.document'
 models = env['ir.model'].search([('model', '=', old)])
 if models:
     if env['ir.model'].search_count([('model', '=', new)]):
@@ -31,15 +31,15 @@ if models:
     env['ir.model.data'].search([('model', '=', old)]).write({'model': new})
     fields = models.field_id
     model_xid = env['ir.model.data'].search([('model', '=', 'ir.model'), ('res_id', '=', models.id)])
-    model_xid.write({'module': 'docs_adoption', 'name': 'model_webvue_document'})
+    model_xid.write({'module': 'docs_adoption', 'name': 'model_liwan_document'})
     for field in fields:
         xid = env['ir.model.data'].search([('model', '=', 'ir.model.fields'), ('res_id', '=', field.id)])
         if xid:
-            xid.write({'module': 'docs_adoption', 'name': 'field_webvue_document__' + field.name})
+            xid.write({'module': 'docs_adoption', 'name': 'field_liwan_document__' + field.name})
     cr.execute("UPDATE ir_model SET model=%s WHERE id=%s", [new, models.id])
     cr.execute("UPDATE ir_model_fields SET model=%s WHERE model_id=%s", [new, models.id])
     cr.execute("UPDATE ir_model_fields SET relation=%s WHERE relation=%s", [new, old])
-    cr.execute('ALTER TABLE webvue_hr_document RENAME TO webvue_document')
+    cr.execute('ALTER TABLE liwan_hr_document RENAME TO liwan_document')
     env.invalidate_all()
 env.cr.commit()
 '''
@@ -49,12 +49,12 @@ from pathlib import Path
 from odoo import Command
 company = env.company
 department = env['hr.department'].create({'name': 'Adoption department', 'company_id': company.id})
-record = env['webvue.hr.document'].create({'name': 'Original document', 'body': '<p>Original body</p>', 'expiry_date': '2030-01-01', 'department_id': department.id})
+record = env['liwan.hr.document'].create({'name': 'Original document', 'body': '<p>Original body</p>', 'expiry_date': '2030-01-01', 'department_id': department.id})
 attachment = env['ir.attachment'].create({'name': 'original.txt', 'datas': base64.b64encode(b'original adoption bytes'), 'res_model': record._name, 'res_id': record.id})
 record.write({'attachment_ids': [Command.link(attachment.id)]})
-permission = env.ref('webvue_hr.permission_hr_documents_read')
-role = env['webvue.access.role'].create({'key':'docs_adoption_fixture', 'name_ar':'دور اختبار', 'company_id':company.id, 'permission_ids':[Command.set(permission.ids)]})
-assignment = env['webvue.access.assignment'].create({'user_id':env.ref('base.user_admin').id, 'role_id':role.id, 'company_id':company.id})
+permission = env.ref('liwan_hr.permission_hr_documents_read')
+role = env['liwan.access.role'].create({'key':'docs_adoption_fixture', 'name_ar':'دور اختبار', 'company_id':company.id, 'permission_ids':[Command.set(permission.ids)]})
+assignment = env['liwan.access.assignment'].create({'user_id':env.ref('base.user_admin').id, 'role_id':role.id, 'company_id':company.id})
 env['ir.model.data'].create({'module':'docs_adoption_fixture', 'name':'document', 'model':record._name, 'res_id':record.id, 'noupdate':True})
 Path(EVIDENCE).write_text(json.dumps({'id':record.id, 'attachment_id':attachment.id, 'checksum':attachment.checksum, 'store_fname':attachment.store_fname, 'model_id':env['ir.model']._get(record._name).id, 'role_id':role.id, 'permission_id':permission.id, 'assignment_id':assignment.id}))
 env.cr.commit()
@@ -63,21 +63,21 @@ VERIFY = '''
 import json
 from pathlib import Path
 expected = json.loads(Path(EVIDENCE).read_text())
-record = env['webvue.document'].browse(expected['id']).exists()
+record = env['liwan.document'].browse(expected['id']).exists()
 assert record and record.name == 'Original document'
 assert record.body == '<p>Original body</p>'
 assert str(record.expiry_date) == '2030-01-01'
 assert record.attachment_ids.ids == [expected['attachment_id']]
 attachment = record.attachment_ids
 assert attachment.checksum == expected['checksum'] and attachment.store_fname == expected['store_fname']
-assert attachment.res_model == 'webvue.document' and attachment.res_id == record.id
+assert attachment.res_model == 'liwan.document' and attachment.res_id == record.id
 assert env.ref('docs_adoption_fixture.document') == record
-assert env['ir.model']._get('webvue.document').id == expected['model_id']
-role = env['webvue.access.role'].browse(expected['role_id'])
+assert env['ir.model']._get('liwan.document').id == expected['model_id']
+role = env['liwan.access.role'].browse(expected['role_id'])
 assert role.permission_ids.ids == [expected['permission_id']]
-assert env['webvue.access.assignment'].browse(expected['assignment_id']).role_id == role
-assert not env['ir.model'].search_count([('model', '=', 'webvue.hr.document')])
-env.cr.execute("SELECT to_regclass('webvue_hr_document')")
+assert env['liwan.access.assignment'].browse(expected['assignment_id']).role_id == role
+assert not env['ir.model'].search_count([('model', '=', 'liwan.hr.document')])
+env.cr.execute("SELECT to_regclass('liwan_hr_document')")
 assert env.cr.fetchone()[0] is None
 '''
 
@@ -89,7 +89,7 @@ def main():
     parser.add_argument('--evidence-dir', type=Path, required=True)
     args = parser.parse_args()
     import re
-    if not re.fullmatch(r'webvue_scratch_[a-z0-9_]{1,38}', args.database_prefix):
+    if not re.fullmatch(r'liwan_scratch_[a-z0-9_]{1,38}', args.database_prefix):
         parser.error('scratch database prefix required')
     try:
         import psycopg2
@@ -104,7 +104,7 @@ def main():
         if cursor.fetchall():
             parser.error('refusing existing database')
     args.evidence_dir.mkdir(parents=True, exist_ok=True)
-    runtime = Path(tempfile.mkdtemp(prefix='webvue-docs-order-'))
+    runtime = Path(tempfile.mkdtemp(prefix='liwan-docs-order-'))
     owned = []
     results = []
     try:
@@ -120,7 +120,7 @@ def main():
             conf = source/'odoo.conf'; conf.write_text('[options]\nlist_db=False\n')
             classification = source/'classification.json'
             subprocess.run([sys.executable,'-B',str(args.worktree/'deploy/classification.py'),'fixture','--database',database,'--mode','saas','--output',str(classification)],check=True,stdout=subprocess.DEVNULL)
-            env_vars = dict(os.environ,WEBVUE_COMMERCIAL_CONFIG=str(classification),PYTHONDONTWRITEBYTECODE='1')
+            env_vars = dict(os.environ,LIWAN_COMMERCIAL_CONFIG=str(classification),PYTHONDONTWRITEBYTECODE='1')
             port = 8295
             with socket.socket() as sock:
                 sock.bind(('127.0.0.1',port))
@@ -136,7 +136,7 @@ def main():
                     raise RuntimeError('stage failed: '+str(logfile))
             # Claim only the names we verified absent; never drop a pre-existing database.
             owned.append(database)
-            first, second = ('dms','webvue_hr') if order == 'dms_before_hr' else ('webvue_hr','dms')
+            first, second = ('dms','liwan_hr') if order == 'dms_before_hr' else ('liwan_hr','dms')
             run('first',['-i',first,'--without-demo=all','--stop-after-init'])
             run('second',['-i',second,'--without-demo=all','--stop-after-init'])
             evidence = str(args.evidence_dir/(order+'-seed.json'))
@@ -146,25 +146,25 @@ def main():
             negative = ADOPT[:ADOPT.index("old = ")]
             run('unowned-preflight', [], "env['dms.storage'].create({'name': 'Unowned storage'})\n" + "try:\n" + ''.join('    ' + line + '\n' for line in negative.splitlines()) + "except RuntimeError:\n    env.cr.rollback()\nelse:\n    raise AssertionError('unowned DMS storage was accepted')\n")
             run('adopt',[], ADOPT)
-            hr = source/'odoo-addons/webvue_hr'
+            hr = source/'odoo-addons/liwan_hr'
             p = hr/'models/__init__.py'; p.write_text(p.read_text().replace('    hr_document,\n',''))
             p = hr/'controllers/__init__.py'; p.write_text(p.read_text().replace('    hr_documents,\n',''))
             p = hr/'__manifest__.py'; p.write_text(p.read_text().replace("        'security/hr_document_rules.xml',\n",'').replace('19.0.1.3.0','19.0.1.4.0'))
-            p = hr/'security/ir.model.access.csv'; p.write_text('\n'.join(line for line in p.read_text().splitlines() if 'model_webvue_hr_document' not in line)+'\n')
+            p = hr/'security/ir.model.access.csv'; p.write_text('\n'.join(line for line in p.read_text().splitlines() if 'model_liwan_hr_document' not in line)+'\n')
             (target/'__init__.py').write_text('from . import model\n')
-            (target/'__manifest__.py').write_text(repr({'name':'Disposable adoption fixture','author':'WebVue test fixture','version':'19.0.1.0.0','license':'LGPL-3','depends':['webvue_api','dms'],'installable':True}))
+            (target/'__manifest__.py').write_text(repr({'name':'Disposable adoption fixture','author':'LiwanOS test fixture','version':'19.0.1.0.0','license':'LGPL-3','depends':['liwan_api','dms'],'installable':True}))
             (target/'model.py').write_text('''from odoo import fields, models
 class Document(models.Model):
-    _name = 'webvue.document'
+    _name = 'liwan.document'
     _description = 'Adoption fixture'
     name = fields.Char(required=True)
     body = fields.Html()
     expiry_date = fields.Date()
     company_id = fields.Many2one('res.company', required=True)
     department_id = fields.Many2one('hr.department', ondelete='restrict')
-    attachment_ids = fields.Many2many('ir.attachment', relation='ir_attachment_webvue_hr_document_rel', column1='webvue_hr_document_id', column2='ir_attachment_id')
+    attachment_ids = fields.Many2many('ir.attachment', relation='ir_attachment_liwan_hr_document_rel', column1='liwan_hr_document_id', column2='ir_attachment_id')
 ''')
-            run('upgrade',['-i','docs_adoption','-u','webvue_hr','--without-demo=all','--stop-after-init'])
+            run('upgrade',['-i','docs_adoption','-u','liwan_hr','--without-demo=all','--stop-after-init'])
             run('verify',[], 'EVIDENCE='+repr(evidence)+'\n'+VERIFY)
             run('repeat-adopt',[], ADOPT)
             run('repeat-verify',[], 'EVIDENCE='+repr(evidence)+'\n'+VERIFY)

@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
 import { defineComponent, h } from 'vue'
 import { describe, expect, it } from 'vitest'
-import { renderShared } from '@webvue/ui/test/helpers/renderShared'
+import { renderShared } from '@liwan/ui/test/helpers/renderShared'
 import * as commercial from '../../../../utils/commercial'
 
 const sar = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { ProjectSchedule } from '@webvue/contracts'
+import type { ProjectSchedule } from '@liwan/contracts'
 import { STATE_TONE, type StateTone } from '@/composables/taskState'
 import { MONTH_DAYS, buildScheduleAxis, formatScheduleDate, scheduleBarStyle, scheduleColumnLastDay, scheduleDatePosition, scheduleFocusDate, type ScheduleScale } from '@/utils/projectSchedule'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 
 const BAR_TONE: Record<StateTone | 'primary', string> = {
   primary: 'schedule-gantt-bar-info',
@@ -110,7 +110,7 @@ defineExpose({ scrollPage, scrollToToday: scrollToFocus })
               <NuxtLink
                 v-for="milestone in datedMilestones"
                 :key="milestone.id"
-                class="schedule-gantt-mark webvue-status-dot-warning rtl:translate-x-full"
+                class="schedule-gantt-mark liwan-status-dot-warning rtl:translate-x-full"
                 :style="markerPosition(milestone.deadline!)"
                 :title="`${milestone.name} · ${milestone.deadline}`"
                 :data-milestone-id="milestone.id"
@@ -141,7 +141,7 @@ defineExpose({ scrollPage, scrollToToday: scrollToFocus })
               />
               <span
                 v-else-if="task.end"
-                class="schedule-gantt-mark webvue-status-dot-warning rtl:translate-x-full"
+                class="schedule-gantt-mark liwan-status-dot-warning rtl:translate-x-full"
                 :style="markerPosition(task.end)"
                 :title="t('projects.schedule.endOnly', { date: task.end })"
               />

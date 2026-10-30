@@ -10,7 +10,7 @@ backticked tokens:
     `cap hr.leave.approve`                a capability, allowed or refused
 
 The surfaces are read from the code: apps/web/app/pages, apps/vendor-admin/app/pages,
-every @http.route in odoo-addons/webvue_*/controllers and every capability key in
+every @http.route in odoo-addons/liwan_*/controllers and every capability key in
 odoo-addons/*/data. `--check` exits 1 when a surface has no scenario or a token
 names a surface that does not exist.
 
@@ -29,7 +29,7 @@ WEB_PAGES = ROOT / 'apps' / 'web' / 'app' / 'pages'
 VENDOR_PAGES = ROOT / 'apps' / 'vendor-admin' / 'app' / 'pages'
 ADDONS = ROOT / 'odoo-addons'
 TOKEN = re.compile(r'`((?:page|vendor|cap) [^`]+|(?:GET|HEAD|POST|PUT|PATCH|DELETE) /[^`]+)`')
-PERMISSION_RECORD = re.compile(r'<record [^>]*model="webvue\.access\.permission"[^>]*>(.*?)</record>', re.S)
+PERMISSION_RECORD = re.compile(r'<record [^>]*model="liwan\.access\.permission"[^>]*>(.*?)</record>', re.S)
 CAPABILITY_KEY = re.compile(r'<field name="key">([a-z_]+(?:\.[a-z_]+)+)</field>')
 METHODS = ('GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE')
 
@@ -108,7 +108,7 @@ def routes_in_source(source):
 
 def addon_routes():
     by_addon = defaultdict(set)
-    for path in sorted(ADDONS.glob('webvue_*/controllers/**/*.py')):
+    for path in sorted(ADDONS.glob('liwan_*/controllers/**/*.py')):
         by_addon[path.relative_to(ADDONS).parts[0]] |= routes_in_source(path.read_text(encoding='utf-8'))
     return by_addon
 

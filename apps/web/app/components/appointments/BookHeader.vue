@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The head of the public booking page's card: the tenant's own logo and name above the page title, and none of WebVue's shell.
+// The head of the public booking page's card: the tenant's own logo and name above the page title, and none of LiwanOS's shell.
 // It fills the `#header` slot of SharedStandalonePage, which the page uses as its shell.
 defineProps<{ title: string }>()
 const { t } = useI18n()

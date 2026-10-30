@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { CharterDraft, CharterMilestone } from '@/utils/projectCharter'
 import { aggregateMilestoneOutputs, formatCharterAmount } from '@/utils/projectCharter'
-import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
+import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 
 const props = defineProps<{
   draft: CharterDraft
@@ -45,7 +45,7 @@ function budgetAmount(): string {
 </script>
 
 <template>
-  <article data-testid="project-charter-display" class="grid gap-(--webvue-gap-card)" aria-labelledby="project-charter-essentials-title">
+  <article data-testid="project-charter-display" class="grid gap-(--liwan-gap-card)" aria-labelledby="project-charter-essentials-title">
     <div v-if="milestonesLoading" role="status" data-testid="charter-milestones-loading" class="text-sm text-muted">
       {{ t('projects.charter.milestonesLoading') }}
     </div>
@@ -61,8 +61,8 @@ function budgetAmount(): string {
       </template>
     </UAlert>
 
-    <div class="grid gap-(--webvue-gap-card) lg:grid-cols-3 lg:items-start">
-      <div class="grid min-w-0 gap-(--webvue-gap-card) lg:col-span-2">
+    <div class="grid gap-(--liwan-gap-card) lg:grid-cols-3 lg:items-start">
+      <div class="grid min-w-0 gap-(--liwan-gap-card) lg:col-span-2">
         <SharedRecordSection variant="panel" id="project-charter-essentials" :title="t('projects.charter.sections.essentials')">
           <template #actions>
             <slot name="state" />
@@ -95,7 +95,7 @@ function budgetAmount(): string {
         </SharedRecordSection>
 
         <SharedRecordSection v-if="visibleObjectives.length" variant="panel" id="project-charter-objectives" :title="t('projects.charter.fields.objectives')">
-          <ul class="grid gap-(--webvue-gap-card) sm:grid-cols-2">
+          <ul class="grid gap-(--liwan-gap-card) sm:grid-cols-2">
             <SharedSubCard v-for="row in visibleObjectives" :key="row.key" as="li" tone="tinted">
               <dl class="grid gap-2 text-sm">
                 <div v-if="row.goal.trim()"><dt class="text-muted">{{ t('projects.charter.fields.objectiveGoal') }}</dt><dd>{{ row.goal }}</dd></div>
@@ -130,13 +130,13 @@ function budgetAmount(): string {
             color="neutral"
             variant="ghost"
             block
-            class="group justify-between p-(--webvue-card-pad) font-semibold text-highlighted"
+            class="group justify-between p-(--liwan-card-pad) font-semibold text-highlighted"
             trailing-icon="i-lucide-chevron-down"
             :ui="{ trailingIcon: 'transition-transform group-data-[state=open]:rotate-180' }"
             :label="t('projects.charter.legacyDetails')"
           />
           <template #content>
-          <div class="grid gap-(--webvue-gap-card) p-(--webvue-card-pad) pt-0">
+          <div class="grid gap-(--liwan-gap-card) p-(--liwan-card-pad) pt-0">
             <dl class="grid gap-4 sm:grid-cols-2">
               <div v-if="draft.owningUnitName?.trim()"><dt class="text-sm text-muted">{{ t('projects.charter.fields.owning_unit') }}</dt><dd class="mt-1 text-sm">{{ draft.owningUnitName }}</dd></div>
               <div v-if="draft.sponsorName?.trim()"><dt class="text-sm text-muted">{{ t('projects.charter.fields.sponsor') }}</dt><dd class="mt-1 text-sm">{{ draft.sponsorName }}</dd></div>
@@ -166,7 +166,7 @@ function budgetAmount(): string {
         </UCollapsible>
       </div>
 
-      <div class="grid min-w-0 gap-(--webvue-gap-card)">
+      <div class="grid min-w-0 gap-(--liwan-gap-card)">
         <SharedRecordSection variant="panel" id="project-charter-budget" :title="t('projects.charter.sections.planning')">
           <dl class="grid gap-4">
             <div><dt class="text-xs text-muted">{{ t('projects.charter.fields.budget_state') }}</dt><dd class="mt-1 text-sm text-default">{{ t(`projects.charter.budget.${draft.budgetState}`) }}</dd></div>

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { InboxTemplateButtonClicks } from '@webvue/contracts'
-import { INBOX_TEMPLATE_ANALYTICS_MAX_DAYS } from '@webvue/contracts'
-import type { KpiTile } from '@webvue/ui/app/utils/kpiTile'
-import { formatDate } from '@webvue/ui/app/utils/formatDate'
+import type { InboxTemplateButtonClicks } from '@liwan/contracts'
+import { INBOX_TEMPLATE_ANALYTICS_MAX_DAYS } from '@liwan/contracts'
+import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
+import { formatDate } from '@liwan/ui/app/utils/formatDate'
 import InboxChartPanel from '@/components/inbox/reports/InboxChartPanel.vue'
 import InboxReportFilters from '@/components/inbox/reports/InboxReportFilters.vue'
 import { formatAmount, formatRatio, hasTemplateSeries, shareOf, templateSeriesChart } from '@/composables/inbox/inboxReportCharts'
@@ -11,7 +11,7 @@ import { REPORTS_PATH } from '@/composables/inbox/inboxReportNav'
 import { parseInboxReportRoute, reportRange, serializeInboxReportRoute, type InboxReportRoute } from '@/composables/inbox/inboxReportRoute'
 import { TEMPLATE_CATEGORY_TONE } from '@/composables/inbox/inboxTemplate'
 import { useInboxCostReport, useInboxTemplateAnalyticsDetail } from '@/composables/inbox/useInboxReports'
-import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
+import { statusTag } from '@liwan/ui/app/utils/pageHeaderTag'
 
 // One template's analytics: the funnel (sent, delivered, read, clicked), the days, and the clicks of each button.
 const route = useRoute()
@@ -64,8 +64,8 @@ const extras = computed<KpiTile[]>(() => {
   if (!totals) return []
   return [
     { id: 'spent', icon: 'i-lucide-wallet', label: t('inbox.reports.templates.detail.totals.spent'), value: formatAmount(totals.amount_spent, currency.value, locale.value) },
-    { id: 'webvue-sent', icon: 'i-lucide-send', label: t('inbox.reports.templates.detail.totals.webvueSent'), value: count.value.format(totals.webvue_sent) },
-    { id: 'webvue-failed', icon: 'i-lucide-triangle-alert', label: t('inbox.reports.templates.detail.totals.webvueFailed'), value: count.value.format(totals.webvue_failed), ...(totals.webvue_failed > 0 ? { tone: 'danger' as const } : {}) },
+    { id: 'liwan-sent', icon: 'i-lucide-send', label: t('inbox.reports.templates.detail.totals.liwanSent'), value: count.value.format(totals.liwan_sent) },
+    { id: 'liwan-failed', icon: 'i-lucide-triangle-alert', label: t('inbox.reports.templates.detail.totals.liwanFailed'), value: count.value.format(totals.liwan_failed), ...(totals.liwan_failed > 0 ? { tone: 'danger' as const } : {}) },
   ]
 })
 const chart = computed(() => templateSeriesChart(data.value?.series ?? [], {

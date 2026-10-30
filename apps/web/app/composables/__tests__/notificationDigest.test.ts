@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { NotificationSchema } from '@webvue/contracts'
+import { NotificationSchema } from '@liwan/contracts'
 
 describe('notification digest client variant', () => {
   it('routes digest items away from task ids', () => {

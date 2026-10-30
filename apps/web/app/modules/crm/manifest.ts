@@ -1,4 +1,4 @@
-import { CrmBellKindSchema } from '@webvue/contracts'
+import { CrmBellKindSchema } from '@liwan/contracts'
 import { crmBellTitleInApp } from '../../utils/crmBell'
 import type { AppManifest } from '../types'
 

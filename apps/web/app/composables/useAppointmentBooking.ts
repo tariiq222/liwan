@@ -1,6 +1,6 @@
 import { computed, type Ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { AppointmentPublicBookingSchema, AppointmentSlotListSchema } from '@webvue/contracts'
+import { AppointmentPublicBookingSchema, AppointmentSlotListSchema } from '@liwan/contracts'
 import { bookingLinkOf, refusalStatus, type BookingLink } from './appointmentBook'
 
 const bookingPath = (link: BookingLink) => `/api/v1/public/appointments/bookings/${link.id}`

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { customerTermsRevisionSchema, type Principal } from '@webvue/commercial-contracts'
+import { customerTermsRevisionSchema, type Principal } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { CommercialHttpError } from './lifecycle.js'
 import { requireVendor } from './authorization.js'

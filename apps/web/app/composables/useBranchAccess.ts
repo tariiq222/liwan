@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   BranchPolicySchema, BranchPolicyInputSchema, BranchPresetInputSchema, UserBranchAccessSchema, UserBranchAccessInputSchema,
   type BranchPolicyInput, type BranchPresetInput, type UserBranchAccessInput,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { accessRefreshWait, refreshMeInNuxtContext } from './useAdminUsers'
 
 export function useBranchPolicy(enabled: MaybeRefOrGetter<boolean>) {

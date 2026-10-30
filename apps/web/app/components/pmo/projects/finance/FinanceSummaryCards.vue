@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { FinanceSummary } from '@webvue/contracts'
+import type { FinanceSummary } from '@liwan/contracts'
 import FinanceActualAccountPicker from '@/components/pmo/projects/finance/FinanceActualAccountPicker.vue'
 import FinanceActualSource from '@/components/pmo/projects/finance/FinanceActualSource.vue'
 import { budgetStatus, financeSummaryMode, formatNullableAmount, formatUtilization, isExternalActual } from '@/utils/projectFinance'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 
 const props = defineProps<{ projectId: number; summary: FinanceSummary }>()
 const { t } = useI18n()
@@ -28,7 +28,7 @@ const show = computed(() => mode.value !== 'empty' || props.summary.charter_esti
 </script>
 
 <template>
-  <div v-if="show" data-testid="project-finance-summary" class="grid gap-(--webvue-gap-card)">
+  <div v-if="show" data-testid="project-finance-summary" class="grid gap-(--liwan-gap-card)">
     <SharedRecordSection v-if="mode === 'need-budget'" variant="panel" :title="t('projects.finance.actual')">
       <template #actions>
         <UButton color="neutral" variant="outline" :to="charterTo" :label="t('projects.refresh.finance.viewCharter')" />
@@ -40,7 +40,7 @@ const show = computed(() => mode.value !== 'empty' || props.summary.charter_esti
       </div>
     </SharedRecordSection>
 
-    <section v-else-if="mode === 'dashboard'" class="grid gap-(--webvue-gap-card) sm:grid-cols-3">
+    <section v-else-if="mode === 'dashboard'" class="grid gap-(--liwan-gap-card) sm:grid-cols-3">
       <SharedMetricTile
         density="compact"
         icon="i-lucide-wallet"

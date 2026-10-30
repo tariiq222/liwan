@@ -1,8 +1,8 @@
 """Refresh or check the contract fixtures in packages/contracts/fixtures.
 
-``WebVueApiCase`` records real JSON responses of the routes listed in
+``LiwanApiCase`` records real JSON responses of the routes listed in
 ``packages/contracts/fixtures/manifest.json`` while the Odoo tests of their addons
-run (opt-in through ``WEBVUE_CONTRACT_FIXTURES``). The vitest suite in
+run (opt-in through ``LIWAN_CONTRACT_FIXTURES``). The vitest suite in
 ``packages/contracts`` parses every committed fixture with its zod schema.
 
     python3 -B tools/contract_fixtures.py            # regenerate the committed fixtures
@@ -27,7 +27,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 FIXTURES = REPO / 'packages' / 'contracts' / 'fixtures'
-ENV_VAR = 'WEBVUE_CONTRACT_FIXTURES'
+ENV_VAR = 'LIWAN_CONTRACT_FIXTURES'
 
 
 def manifest_entries():
@@ -100,7 +100,7 @@ def main(argv=None):
     parser.add_argument('--check', action='store_true', help='fail when the regenerated fixture structure differs from the committed one')
     parser.add_argument('--base', default='main', help='base ref passed to odoo_test.py (default: main)')
     args = parser.parse_args(argv)
-    with tempfile.TemporaryDirectory(prefix='webvue-contract-fixtures-') as tmp:
+    with tempfile.TemporaryDirectory(prefix='liwan-contract-fixtures-') as tmp:
         fresh = Path(tmp)
         code = record(fresh, args.base)
         problems = differences(fresh)

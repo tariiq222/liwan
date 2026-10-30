@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { HrPayrollFinanceSettings } from '@webvue/contracts'
+import type { HrPayrollFinanceSettings } from '@liwan/contracts'
 import { NO_RECORD, payrollFinanceDraft, payrollFinancePatch } from '../payrollFinanceSettings'
 
 const accounts = Object.fromEntries(

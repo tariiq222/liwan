@@ -2,11 +2,11 @@
 services:
   odoo:
     environment:
-      WEBVUE_COMMERCIAL_CONFIG: /run/webvue/classification.json
+      LIWAN_COMMERCIAL_CONFIG: /run/liwan/classification.json
     volumes:
       - type: bind
-        source: ${WEBVUE_CLASSIFICATION_FILE:?set absolute path to validated classification snapshot}
-        target: /run/webvue/classification.json
+        source: ${LIWAN_CLASSIFICATION_FILE:?set absolute path to validated classification snapshot}
+        target: /run/liwan/classification.json
         read_only: true
         bind:
           create_host_path: false

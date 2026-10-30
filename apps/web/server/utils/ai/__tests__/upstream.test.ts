@@ -81,12 +81,12 @@ describe('odooJson on the shared lane', () => {
 
 
 describe('release-pinned AI destination', () => {
-  const event = (release?: Record<string, unknown>) => ({ node: { req: { headers: { 'x-webvue-ai-url': 'http://browser.test' } }, res: { once: () => undefined, writableEnded: false } }, context: release ? { webvueRelease: release } : {} }) as never
+  const event = (release?: Record<string, unknown>) => ({ node: { req: { headers: { 'x-liwan-ai-url': 'http://browser.test' } }, res: { once: () => undefined, writableEnded: false } }, context: release ? { liwanRelease: release } : {} }) as never
   const release = () => ({ releaseId: 'r1', poolId: 'blue', routeRevision: 3, fence: 8, aiUrl: 'http://ai-blue.test', aiStateVersion: '1' })
   beforeEach(() => {
     vi.stubGlobal('useRuntimeConfig', () => ({ aiServiceUrl: 'http://generic.test', aiServiceToken: 'secret' }))
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}')))
-    vi.stubEnv('WEBVUE_RELEASE_ROUTES_DIR', '/trusted/routes')
+    vi.stubEnv('LIWAN_RELEASE_ROUTES_DIR', '/trusted/routes')
   })
   it('pins the destination and state contract for every call of a request', async () => {
     const { serviceFetch } = await import('../upstream')
@@ -96,7 +96,7 @@ describe('release-pinned AI destination', () => {
     pinned.aiUrl = 'http://ai-green.test'
     await serviceFetch(e, 'GET', '/v1/runs/r_1', { tenant: 't', user: '1' })
     expect(vi.mocked(fetch).mock.calls.map(call => call[0])).toEqual(['http://ai-blue.test/v1/runs', 'http://ai-blue.test/v1/runs/r_1'])
-    expect(vi.mocked(fetch).mock.calls[0]![1]?.headers).toMatchObject({ 'x-webvue-ai-state-version': '1' })
+    expect(vi.mocked(fetch).mock.calls[0]![1]?.headers).toMatchObject({ 'x-liwan-ai-state-version': '1' })
   })
   it.each([undefined, { ...release(), aiStateVersion: undefined }, { ...release(), aiMaintenance: true }, { ...release(), aiStateVersion: 'future' }])('fails closed before contacting a service for missing or incompatible routing', async (route) => {
     const { serviceFetch } = await import('../upstream')
@@ -116,7 +116,7 @@ describe('release-pinned AI destination', () => {
     expect(vi.mocked(fetch).mock.calls.map(call => call[0])).toEqual(['http://ai-blue.test/v1/runs/r_1/claim', 'http://ai-blue.test/v1/runs/r_1/resume'])
   })
   it('keeps the configured destination when release routing is disabled', async () => {
-    vi.stubEnv('WEBVUE_RELEASE_ROUTES_DIR', '')
+    vi.stubEnv('LIWAN_RELEASE_ROUTES_DIR', '')
     const { serviceFetch } = await import('../upstream')
     await serviceFetch(event(), 'GET', '/v1/runs', { tenant: 't', user: '1' })
     expect(vi.mocked(fetch).mock.calls[0]![0]).toBe('http://generic.test/v1/runs')
@@ -126,11 +126,11 @@ describe('release-pinned AI destination', () => {
 
 describe('release write fencing', () => {
   beforeEach(() => {
-    vi.stubEnv('WEBVUE_RELEASE_ROUTES_DIR', '/trusted/routes')
+    vi.stubEnv('LIWAN_RELEASE_ROUTES_DIR', '/trusted/routes')
     vi.stubGlobal('useRuntimeConfig', () => ({ odooUrl: 'http://odoo.test' }))
     transport.mockReset().mockResolvedValue(new Response('{"ok":true}', { status: 200 }))
   })
-  const event = (permit?: <T>(action: () => Promise<T>) => Promise<T>) => ({ node: { req: { headers: { cookie: 'session_id=s1' } }, res: { once: () => undefined } }, context: { webvueRelease: { releaseId: 'r1', poolId: 'blue', routeRevision: 3, fence: 8, aiUrl: 'http://ai-blue.test', aiStateVersion: '1' }, webvueReleaseWritePermit: permit } }) as never
+  const event = (permit?: <T>(action: () => Promise<T>) => Promise<T>) => ({ node: { req: { headers: { cookie: 'session_id=s1' } }, res: { once: () => undefined } }, context: { liwanRelease: { releaseId: 'r1', poolId: 'blue', routeRevision: 3, fence: 8, aiUrl: 'http://ai-blue.test', aiStateVersion: '1' }, liwanReleaseWritePermit: permit } }) as never
   it('refuses ordinary and claimed writes before dispatch when the durable permit is absent', async () => {
     for (const signal of [undefined, null]) {
       await expect(odooJson(event(), 'POST', '/api/v1/tasks/7/transition', { body: {}, signal })).rejects.toMatchObject({ statusCode: 503 })

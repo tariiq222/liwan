@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinanceZatcaWaitingDocument } from '@webvue/contracts'
+import type { FinanceZatcaWaitingDocument } from '@liwan/contracts'
 import { useFinanceZatcaWaitingDocuments, ZATCA_WAITING_PAGE_SIZE } from '@/composables/finance/useFinanceZatca'
 import { invoiceRecordPath, invoiceTitle } from '../invoices/invoiceKinds'
 import { ZATCA_STATE_TONE } from '../invoices/invoiceTones'
@@ -35,7 +35,7 @@ function choose(value: unknown) { state.value = String(value); page.value = 1 }
 
 <template>
   <SharedRecordSection variant="panel" :title="t('financeGovernance.zatca.work.title')" :description="t('financeGovernance.zatca.work.hint')" data-testid="finance-zatca-work-list">
-    <div class="grid gap-(--webvue-gap-card)">
+    <div class="grid gap-(--liwan-gap-card)">
       <UFormField :label="t('financeGovernance.zatca.work.state')" name="finance-zatca-work-state" class="w-full sm:w-64">
         <USelect id="finance-zatca-work-state" :model-value="state" :items="stateItems" class="w-full" :disabled="!hydrated" @update:model-value="choose" />
       </UFormField>

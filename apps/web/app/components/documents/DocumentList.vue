@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { DocumentSummary } from '@webvue/contracts'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import type { DocumentSummary } from '@liwan/contracts'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 const props = defineProps<{ documents: DocumentSummary[]; loading?: boolean; returnTo: string; recordBase?: string }>()
 const { t } = useI18n()
 const columns = computed<TableColumn<DocumentSummary>[]>(() => [

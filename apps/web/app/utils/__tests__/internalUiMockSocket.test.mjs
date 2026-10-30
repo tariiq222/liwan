@@ -54,11 +54,11 @@ it('keeps HTTP authentication alive after an upgraded client resets its socket',
     const login = await fetch(`http://127.0.0.1:${port}/web/session/authenticate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ params: { db: 'webvue_ui_mock_only', login: 'admin', password: 'admin' } }),
+      body: JSON.stringify({ params: { db: 'liwan_ui_mock_only', login: 'admin', password: 'admin' } }),
     })
     expect(login.status).toBe(200)
     expect((await login.json()).result.uid).toBe(2)
-    expect(login.headers.get('set-cookie')).toContain('session_id=webvue-ui-mock;')
+    expect(login.headers.get('set-cookie')).toContain('session_id=liwan-ui-mock;')
   } finally {
     client?.destroy()
     if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM')

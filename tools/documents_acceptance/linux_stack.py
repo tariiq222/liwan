@@ -19,15 +19,15 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-KIND = "webvue-documents-linux-acceptance-v1"
-CADDY_IMAGE = "webvue-caddy-test:218733f7b281e7af"
+KIND = "liwan-documents-linux-acceptance-v1"
+CADDY_IMAGE = "liwan-caddy-test:218733f7b281e7af"
 
 
 def validate_prefix(value):
-    if not re.fullmatch(r"webvue_scratch_[a-z0-9_]{1,30}", value) or any(
+    if not re.fullmatch(r"liwan_scratch_[a-z0-9_]{1,30}", value) or any(
         word in value for word in ("production", "postgres", "odoo19", "_prod")
     ):
-        msg = "a disposable webvue_scratch_* prefix is required"
+        msg = "a disposable liwan_scratch_* prefix is required"
         raise ValueError(msg)
     return value
 
@@ -101,7 +101,7 @@ def read_state(path):
         raise ValueError(msg)
     state = json.loads(path.read_text(encoding="utf-8"))
     if state.get("kind") != KIND or not re.fullmatch(
-        r"webvue-docs-accept-[a-z0-9-]+", state.get("project", ""),
+        r"liwan-docs-accept-[a-z0-9-]+", state.get("project", ""),
     ):
         msg = "not an owned documents stack state"
         raise ValueError(msg)
@@ -204,7 +204,7 @@ def shell(state, database, code, runner, *, config="odoo.conf"):
         "--no-deps",
         "-T",
         "--entrypoint",
-        "/usr/local/bin/webvue-odoo",
+        "/usr/local/bin/liwan-odoo",
         "operator",
         "shell",
         "-c",
@@ -234,27 +234,27 @@ from pathlib import Path
 values=json.loads(Path('/etc/odoo/seed-input.json').read_text(encoding="utf-8"))
 company=env.company
 other_company=env['res.company'].create({'name':'Acceptance company B'})
-manager_role=env.ref('webvue_documents.role_documents_manager')
-permissions=env['webvue.access.permission'].search([('key','in',['documents.items.read','documents.items.manage'])])
-editor_role=env['webvue.access.role'].create({'key':'accept_document_editor','name_ar':'محرر اختبار','name_en':'Acceptance editor','company_id':company.id,'permission_ids':[Command.set(permissions.ids)]})
+manager_role=env.ref('liwan_documents.role_documents_manager')
+permissions=env['liwan.access.permission'].search([('key','in',['documents.items.read','documents.items.manage'])])
+editor_role=env['liwan.access.role'].create({'key':'accept_document_editor','name_ar':'محرر اختبار','name_en':'Acceptance editor','company_id':company.id,'permission_ids':[Command.set(permissions.ids)]})
 actors={}
 for name in ['manager','reader','editor','outsider','system_admin','foreign']:
     home=other_company if name=='foreign' else company
     groups=[env.ref('base.group_user').id]
     if name=='system_admin': groups.append(env.ref('base.group_system').id)
-    else: groups.append(env.ref('webvue_core.group_employee').id)
+    else: groups.append(env.ref('liwan_core.group_employee').id)
     user=env['res.users'].with_context(no_reset_password=True).create({'name':'Acceptance '+name,'login':values['actors'][name]['login'],'password':values['actors'][name]['password'],'company_id':home.id,'company_ids':[Command.set([company.id,other_company.id])],'group_ids':[Command.set(groups)]})
-    roles=[env.ref('webvue_core.role_system_admin')] if name=='system_admin' else [editor_role] if name=='editor' else [manager_role] if name in ['manager','outsider','foreign'] else [env.ref('webvue_core.role_employee')]
-    for role in roles: env['webvue.access.assignment'].create({'user_id':user.id,'role_id':role.id,'company_id':home.id})
-    if name=='manager': env['webvue.access.assignment'].create({'user_id':user.id,'role_id':manager_role.id,'company_id':other_company.id})
+    roles=[env.ref('liwan_core.role_system_admin')] if name=='system_admin' else [editor_role] if name=='editor' else [manager_role] if name in ['manager','outsider','foreign'] else [env.ref('liwan_core.role_employee')]
+    for role in roles: env['liwan.access.assignment'].create({'user_id':user.id,'role_id':role.id,'company_id':home.id})
+    if name=='manager': env['liwan.access.assignment'].create({'user_id':user.id,'role_id':manager_role.id,'company_id':other_company.id})
     actors[name]=user
 manager=actors['manager']
-model=env['webvue.document'].with_user(manager).with_context(allowed_company_ids=[company.id])
+model=env['liwan.document'].with_user(manager).with_context(allowed_company_ids=[company.id])
 secret=model.create({'name':'Restricted acceptance '+values['label'],'body':'<p>Private acceptance content</p>'})
-secret._webvue_set_access('restricted',[{'user_id':manager.id,'access':'editor'},{'user_id':actors['reader'].id,'access':'reader'},{'user_id':actors['editor'].id,'access':'editor'}],1)
+secret._liwan_set_access('restricted',[{'user_id':manager.id,'access':'editor'},{'user_id':actors['reader'].id,'access':'reader'},{'user_id':actors['editor'].id,'access':'editor'}],1)
 company_doc=model.create({'name':'Company acceptance '+values['label']})
-company_doc._webvue_set_access('company',[{'user_id':manager.id,'access':'editor'}],1)
-foreign=env['webvue.document'].with_user(actors['foreign']).with_context(allowed_company_ids=[other_company.id]).create({'name':'Foreign company acceptance'})
+company_doc._liwan_set_access('company',[{'user_id':manager.id,'access':'editor'}],1)
+foreign=env['liwan.document'].with_user(actors['foreign']).with_context(allowed_company_ids=[other_company.id]).create({'name':'Foreign company acceptance'})
 raw=('private Linux document bytes '+values['label']).encode()
 file=env['dms.file'].create({'name':'acceptance.txt','directory_id':secret.directory_id.id,'content':base64.b64encode(raw)})
 attachment=file.attachment_id
@@ -265,10 +265,10 @@ group=env['dms.access.group'].create({'name':'Alias outsiders','company_id':comp
 directory=env['dms.directory'].create({'name':'Unmanaged alias root','storage_id':store.id,'is_root_directory':True,'group_ids':[Command.set(group.ids)]})
 alias=env['dms.file'].create({'name':'alias.txt','directory_id':directory.id,'attachment_id':attachment.id})
 env.ref('base.user_admin').write({'password':values['root_password']})
-profile=env.ref('webvue_platform.tenant_profile')
-identity=env['webvue.access.service']
+profile=env.ref('liwan_platform.tenant_profile')
+identity=env['liwan.access.service']
 for name,user in actors.items():
-    caps=identity.with_company(user.company_id)._webvue_identity(user)['capabilities']
+    caps=identity.with_company(user.company_id)._liwan_identity(user)['capabilities']
     assert ('documents.items.read' in caps)==(name!='system_admin'),(name,caps)
     assert ('documents.items.manage' in caps)==(name in ['manager','editor','outsider','foreign']),(name,caps)
 result={'company_id':company.id,'other_company_id':other_company.id,'document_id':secret.id,'company_document_id':company_doc.id,'foreign_document_id':foreign.id,'file_id':file.id,'attachment_id':attachment.id,'alias_id':alias.id,'directory_id':directory.id,'editor_role_id':editor_role.id,'actors':{name:user.id for name,user in actors.items()},'raw_b64':base64.b64encode(raw).decode(),'file_token':limited_field_access_token(file,'content',scope='binary'),'attachment_token':limited_field_access_token(attachment,'raw',scope='binary'),'alias_token':limited_field_access_token(alias,'content',scope='binary'),'features':profile.features,'commercial_mode':profile.commercial_mode}
@@ -282,7 +282,7 @@ def start(args):
     runtime = reserve_directory(args.evidence_dir.resolve())
     runner = Runner(runtime / "commands")
     prefix = validate_prefix(args.database_prefix)
-    project = "webvue-docs-accept-" + str(int(time.time())) + "-" + secrets.token_hex(3)
+    project = "liwan-docs-accept-" + str(int(time.time())) + "-" + secrets.token_hex(3)
     state = {
         "kind": KIND,
         "project": project,
@@ -388,16 +388,16 @@ def start(args):
     (runtime / "postgres.env").chmod(0o600)
     keys = {"accept": secrets.token_hex(32)}
     (runtime / "guard.env").write_text(
-        "WEBVUE_SHARED_PROXY_TOKEN="
+        "LIWAN_SHARED_PROXY_TOKEN="
         + secrets.token_hex(32)
-        + "\nWEBVUE_SESSION_KEYS="
+        + "\nLIWAN_SESSION_KEYS="
         + json.dumps(keys)
-        + "\nWEBVUE_SESSION_ACTIVE_KID=accept\n",
+        + "\nLIWAN_SESSION_ACTIVE_KID=accept\n",
     )
     (runtime / "guard.env").chmod(0o600)
     for mode, label in [("saas", "a"), ("saas", "b"), ("non_saas", "a")]:
         database = prefix + "_" + ("saas" if mode == "saas" else "local") + "_" + label
-        host = ("saas-" if mode == "saas" else "local-") + label + ".docs.webvue.test"
+        host = ("saas-" if mode == "saas" else "local-") + label + ".docs.liwan.test"
         descriptor = {
             "database": database,
             "mode": mode,
@@ -469,9 +469,9 @@ def start(args):
         },
         "odoo-shared": {
             "image": args.image,
-            "entrypoint": ["/opt/venv/bin/python", "/opt/webvue/shared/launch_odoo.py"],
+            "entrypoint": ["/opt/venv/bin/python", "/opt/liwan/shared/launch_odoo.py"],
             "command": [],
-            "environment": {"WEBVUE_TENANCY_MODE": "shared"},
+            "environment": {"LIWAN_TENANCY_MODE": "shared"},
             "ports": ["127.0.0.1:" + str(shared_port) + ":8069"],
             "volumes": ["config:/etc/odoo:ro", "filestore:/var/lib/odoo"],
             "depends_on": {"db": {"condition": "service_healthy"}},
@@ -492,13 +492,13 @@ def start(args):
             "image": guard_image,
             "env_file": [str(runtime / "guard.env")],
             "environment": {
-                "WEBVUE_TENANCY_MODE": "shared",
-                "WEBVUE_TENANT_REGISTRY_PATH": "/etc/webvue/registry.json",
-                "WEBVUE_GUARD_ODOO_URL": "http://odoo-shared:8069",
-                "WEBVUE_GUARD_WEB_URL": "http://web:3000",
-                "WEBVUE_GUARD_WS_URL": "http://odoo-shared:8072",
+                "LIWAN_TENANCY_MODE": "shared",
+                "LIWAN_TENANT_REGISTRY_PATH": "/etc/liwan/registry.json",
+                "LIWAN_GUARD_ODOO_URL": "http://odoo-shared:8069",
+                "LIWAN_GUARD_WEB_URL": "http://web:3000",
+                "LIWAN_GUARD_WS_URL": "http://odoo-shared:8072",
             },
-            "volumes": ["config:/etc/webvue:ro"],
+            "volumes": ["config:/etc/liwan:ro"],
             "depends_on": {"odoo-shared": {"condition": "service_healthy"}},
         },
         "edge-shared": {
@@ -580,7 +580,7 @@ def start(args):
             "aliases": ["web"],
         }
     for name, service in services.items():
-        service.setdefault("labels", {})["sa.webvue.acceptance.owner"] = project
+        service.setdefault("labels", {})["sa.liwan.acceptance.owner"] = project
     compose_value = {
         "name": project,
         "services": services,
@@ -649,16 +649,16 @@ os.chown('/data',10001,10001)
                 "--no-deps",
                 "-T",
                 "-e",
-                "WEBVUE_COMMERCIAL_CONFIG=/etc/odoo/" + database + ".json",
+                "LIWAN_COMMERCIAL_CONFIG=/etc/odoo/" + database + ".json",
                 "--entrypoint",
-                "/usr/local/bin/webvue-odoo",
+                "/usr/local/bin/liwan-odoo",
                 "operator",
                 "server",
                 "-d",
                 database,
                 "--db-filter=^" + database + "$",
                 "-i",
-                "webvue_documents,webvue_hr,webvue_documents_hr",
+                "liwan_documents,liwan_hr,liwan_documents_hr",
                 "--stop-after-init",
                 "--no-http",
                 "--without-demo=all",
@@ -707,7 +707,7 @@ os.chown('/data',10001,10001)
             + entry["direct_url"]
             + "\nNUXT_ODOO_DB="
             + entry["database"]
-            + "\nNUXT_AUTH_PROXY_CLIENT_IP_HEADER=x-webvue-client-ip\nNUXT_PUBLIC_WS_URL=\nE2E_BASE_URL="
+            + "\nNUXT_AUTH_PROXY_CLIENT_IP_HEADER=x-liwan-client-ip\nNUXT_PUBLIC_WS_URL=\nE2E_BASE_URL="
             + entry["dedicated_url"]
             + "\nE2E_ADMIN_LOGIN="
             + actor_values["manager"]["login"]
@@ -740,7 +740,7 @@ os.chown('/data',10001,10001)
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--worktree", type=Path, required=True)
-    parser.add_argument("--database-prefix", default="webvue_scratch_docs_accept")
+    parser.add_argument("--database-prefix", default="liwan_scratch_docs_accept")
     parser.add_argument("--evidence-dir", type=Path, required=True)
     parser.add_argument("--image", help="Confirmed product image; resolved to immutable ID before resource creation")
     parser.add_argument("--resume-state", type=Path)

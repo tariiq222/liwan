@@ -1,4 +1,4 @@
-import { PROJECT_STATUSES, type ActualAccount, type ActualSource, type FinanceEntry, type FinanceEntryCreate, type FinanceEntryPatch, type FinanceKind, type ProjectStatus } from '@webvue/contracts'
+import { PROJECT_STATUSES, type ActualAccount, type ActualSource, type FinanceEntry, type FinanceEntryCreate, type FinanceEntryPatch, type FinanceKind, type ProjectStatus } from '@liwan/contracts'
 import { ApiError } from '../composables/useApi'
 import { canonicalFromMinor, parseMoneyInput } from './moneyInput'
 import { parseOffset } from './routeQuery'

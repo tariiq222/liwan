@@ -1,8 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Time the key finance and HR routes against a seeded scratch database.
 
-    python3 -B tools/perf/measure.py --database webvue_scratch_x --port 8196 --workers 2 --runs 30 --output out.json
-    python3 -B tools/perf/measure.py --database webvue_scratch_x --port 8196 --workers 0 --runs 30
+    python3 -B tools/perf/measure.py --database liwan_scratch_x --port 8196 --workers 2 --runs 30 --output out.json
+    python3 -B tools/perf/measure.py --database liwan_scratch_x --port 8196 --workers 0 --runs 30
 
 Starts its own Odoo on a port nothing listens on (``--workers=2`` mirrors
 ``deploy/shared/validate_odoo_config.py``; ``0`` is the profiling shape), times the first request after the

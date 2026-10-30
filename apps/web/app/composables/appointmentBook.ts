@@ -1,4 +1,4 @@
-import type { AppointmentPublicBooking } from '@webvue/contracts'
+import type { AppointmentPublicBooking } from '@liwan/contracts'
 
 /** The booking and access token a booking-page address names. */
 export interface BookingLink {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { Task } from '@webvue/contracts'
+import type { Task } from '@liwan/contracts'
 import type { RouteLocationRaw } from 'vue-router'
-import { statusPillAttrs } from '@webvue/ui/app/utils/statusPill'
+import { statusPillAttrs } from '@liwan/ui/app/utils/statusPill'
 import { deadlineTagView } from './taskDeadline'
 import type { BoardStage } from '@/composables/boardStages'
 import { PRIORITY_ICON, PRIORITY_LABEL_KEY, PRIORITY_TONE } from '@/composables/taskState'

@@ -1,9 +1,9 @@
 ---
 name: user-test
-description: Test WebVue the way customers use it — role personas of a demo company sign in to the real UI, run every scenario of the register (e2e/scenarios), record pass/fail in place, and open one GitHub issue per problem; later re-test the scenarios of a fixed issue. Use when asked to "اختبر النظام كمستخدم", test as end users or personas, run or extend the scenario register, find problems across apps, open issues for findings, re-test after a fix (retest #NNN), or check scenario coverage of new pages, routes or capabilities.
+description: Test LiwanOS the way customers use it — role personas of a demo company sign in to the real UI, run every scenario of the register (e2e/scenarios), record pass/fail in place, and open one GitHub issue per problem; later re-test the scenarios of a fixed issue. Use when asked to "اختبر النظام كمستخدم", test as end users or personas, run or extend the scenario register, find problems across apps, open issues for findings, re-test after a fix (retest #NNN), or check scenario coverage of new pages, routes or capabilities.
 ---
 
-# user-test: end-user scenario testing for WebVue
+# user-test: end-user scenario testing for LiwanOS
 
 The register `e2e/scenarios/*.md` lists every scenario (ID, persona, expected result, Covers
 tokens, status, notes). `e2e/scenarios/README.md` holds the personas, status values and rules.
@@ -31,7 +31,7 @@ Reply to the owner in simple Arabic. Never use port 3000, 8069 or the `odoo19` d
 3. Re-run until complete; commit the register change.
 
 ## Stack
-1. The scratch stack is the fixed DB `webvue_scratch_e2e` built and seeded by
+1. The scratch stack is the fixed DB `liwan_scratch_e2e` built and seeded by
    `npm run e2e:odoo` (`E2E_ODOO_SEED=1` re-seeds, `E2E_ODOO_RESET=1` rebuilds). For long runs
    start it once and keep it up — commands in [references/stack.md](references/stack.md).
 2. Personas come from `tools/e2e_seed.py` (login `e2e_<key>`); never change them during a run.

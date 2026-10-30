@@ -12,7 +12,7 @@ web
 
 ## Users
 
-Confirmed: a customer **company and its employees**. WebVue is used inside the institution, not as a consumer app.
+Confirmed: a customer **company and its employees**. LiwanOS is used inside the institution, not as a consumer app.
 
 The vision serves companies across business functions and industries. The
 currently implemented roles below do not limit the long-term audience to PMO
@@ -22,12 +22,12 @@ Examples of roles inside that company (from shipped routes, not ranked personas)
 
 ## Product Purpose
 
-**ويب فيو منصة عربية موحّدة لتشغيل الشركات، تكون الأساس المشترك لجميع تطبيقاتها،
+**ليوان منصة عربية موحّدة لتشغيل الشركات، تكون الأساس المشترك لجميع تطبيقاتها،
 وتربط بياناتها وإجراءاتها وصلاحياتها في نظام واحد.** بدل اشتراك الشركة في أنظمة
-متعددة معزولة وتكرار البيانات وبناء تكاملات بينها، تبدأ بما تحتاجه في ويب فيو وتتوسع
+متعددة معزولة وتكرار البيانات وبناء تكاملات بينها، تبدأ بما تحتاجه في ليوان وتتوسع
 تدريجيًا، بهدف خفض التكلفة الإجمالية للاشتراكات والتكامل والتشغيل.
 
-WebVue aims to cover company operations with a breadth comparable to Odoo,
+LiwanOS aims to cover company operations with a breadth comparable to Odoo,
 under its own identity and customer experience. The vision includes sales,
 finance, purchasing, inventory, HR, projects, and other business applications
 on a common foundation. PMO and HR are initial applications within that
@@ -45,7 +45,7 @@ Owner-approved positioning:
 
 1. One business platform with connected applications, data, workflows, and
    permissions, replacing fragmented subscriptions and isolated systems.
-2. Arabic RTL-first customer experience under WebVue's identity, built on Odoo
+2. Arabic RTL-first customer experience under LiwanOS's identity, built on Odoo
    Community as the business engine.
 3. Progressive adoption: companies use the applications they need and expand
    as their needs grow.
@@ -60,11 +60,11 @@ company; it does not permit sharing data between customer companies.
 ## Operating Context
 
 - Customer UI: `apps/web` (Nuxt 4) talking to Odoo through `/api/v1`.
-- Engine: Odoo 19 CE. Foundation: `webvue_core` (capabilities/identity) and `webvue_api` (HTTP). Application addons: `webvue_tasks` (personal tasks without a project), `webvue_pmo` (projects and project-linked task workflows), `webvue_hr`, `webvue_finance`, `webvue_documents`, and `webvue_operations`. `webvue_tasks_pmo` bridges personal-task creation when Tasks and PMO are both installed. `webvue_meetings` owns the meeting engine and links it to projects through `webvue_meetings_pmo`; `webvue_documents_hr` links the document library to HR department and own-employee contexts. The `/ai` workspace calls the separately configured `apps/ai-service`.
+- Engine: Odoo 19 CE. Foundation: `liwan_core` (capabilities/identity) and `liwan_api` (HTTP). Application addons: `liwan_tasks` (personal tasks without a project), `liwan_pmo` (projects and project-linked task workflows), `liwan_hr`, `liwan_finance`, `liwan_documents`, and `liwan_operations`. `liwan_tasks_pmo` bridges personal-task creation when Tasks and PMO are both installed. `liwan_meetings` owns the meeting engine and links it to projects through `liwan_meetings_pmo`; `liwan_documents_hr` links the document library to HR department and own-employee contexts. The `/ai` workspace calls the separately configured `apps/ai-service`.
 - Primary hosting target: self-service SaaS on shared application services,
   with a separate database and filestore per customer. Managed dedicated and
   customer-hosted deployments remain separate options. See the
-  [hosting contract](../../docs/superpowers/specs/webvue-shared-saas-and-sovereign-deployment.md)
+  [hosting contract](../../docs/superpowers/specs/liwan-shared-saas-and-sovereign-deployment.md)
   and [delivery evidence](../../docs/WORKSPACE.md); local integration is not
   production or release approval.
 - HR records live at `/hr`. Account grants live at `/settings/team/users`. `/api/v1/people` remains the PMO user-id picker; employee ids and user ids stay distinct.
@@ -82,18 +82,18 @@ updating the definition does not implement or authorize them automatically.
 - Finance: sales and purchase records, payments, partners, accounting, bank statements, budgets, assets and reports; see the finance gap register for remaining work and verification status.
 - Documents: document list, creation, editing and access routes.
 - Operations: request, pending-approval, monitoring and process-settings routes.
-- AI: `/ai` workspace backed by the configured WebVue AI service; provider, model and API-key configuration is held by that service.
-- HR: employees, departments/org, department and own-employee document-library contexts through `webvue_documents_hr`, leave, recruitment, shifts, onboarding/offboarding, assets and payroll. Payroll belongs to `webvue_hr`, uses dedicated `hr.payroll.*` capabilities and the `hr.payroll` sub-feature, and retains the [open payroll release gates](../../docs/WORKSPACE.md#الرواتب-السعودية-بوابات-الإطلاق-المفتوحة).
+- AI: `/ai` workspace backed by the configured LiwanOS AI service; provider, model and API-key configuration is held by that service.
+- HR: employees, departments/org, department and own-employee document-library contexts through `liwan_documents_hr`, leave, recruitment, shifts, onboarding/offboarding, assets and payroll. Payroll belongs to `liwan_hr`, uses dedicated `hr.payroll.*` capabilities and the `hr.payroll` sub-feature, and retains the [open payroll release gates](../../docs/WORKSPACE.md#الرواتب-السعودية-بوابات-الإطلاق-المفتوحة).
 - Approved leave cancellation uses a company policy: manager approval by default, direct employee cancellation or manager-only cancellation. A pending cancellation preserves the approved leave and balance until the decision. See the [approved workflow](../../docs/superpowers/specs/2026-10-23-approved-leave-cancellation-design.md); implementation and passing checks do not establish deployment.
 - Self-service: `/account` aggregates permission-filtered personal contributions from applications; profile, leave, employee requests, pay, assets, documents, schedule and personal settings use canonical `/account/*` routes.
-- Settings: users, roles, access log, institution branding (one document colour for invoices, reports and printouts; it never themes the interface, which keeps the fixed WebVue palette; ignore the backend's legacy `secondary_color` field; name and logo require `settings.company.manage` in WebVue).
+- Settings: users, roles, access log, institution branding (one document colour for invoices, reports and printouts; it never themes the interface, which keeps the fixed LiwanOS palette; ignore the backend's legacy `secondary_color` field; name and logo require `settings.company.manage` in LiwanOS).
 - Authorization is capability-based, not role-name-based.
 - Default locale Arabic / RTL-first; English secondary. Business screens are real routes: direct link, refresh, back with list filters. Overlay exceptions: global search dialog, notification popover (latest five, then `/notifications`), unsaved-draft guard, assistant sheet shared with `/ai`, value-selection menus, inline destroy confirm. Do not stack business dialogs.
 - Presentation follows [DESIGN.md](../../DESIGN.md); architecture, contracts and security belong to [AGENTS.md](../../AGENTS.md). `CLAUDE.md` imports those instructions and does not own a separate policy.
 
 ## Brand Commitments
 
-Name: ويب فيو (WebVue). Binding UI constitution: [DESIGN.md](../../DESIGN.md). This file does not define a second theme.
+Name: ليوان (LiwanOS). Binding UI constitution: [DESIGN.md](../../DESIGN.md). This file does not define a second theme.
 
 ## Evidence on Hand
 
@@ -104,7 +104,7 @@ Name: ويب فيو (WebVue). Binding UI constitution: [DESIGN.md](../../DESIGN.
 ## Product Principles
 
 1. Customer data stays isolated even when application services are shared.
-2. Employees work in WebVue; the WebVue vendor administration (`apps/vendor-admin`) is a separate staff application, not part of this product.
+2. Employees work in LiwanOS; the LiwanOS vendor administration (`apps/vendor-admin`) is a separate staff application, not part of this product.
 3. Business applications share a coherent platform; PMO and HR are initial
    domains, with their own contracts, within the broader product vision.
 4. Capability and record/company context gate every action.

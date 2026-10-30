@@ -3,14 +3,14 @@
     python3 -B tools/app_isolation.py matrix apps|bridges [--modules a,b]   # JSON array of job groups, for the ci workflow matrix
     python3 -B tools/app_isolation.py install <module>        # the -i list of that run (a bridge: its two sides)
     python3 -B tools/app_isolation.py tags <module>           # the --test-tags of that run
-    python3 -B tools/app_isolation.py foundation              # the foundation top module (webvue_api)
+    python3 -B tools/app_isolation.py foundation              # the foundation top module (liwan_api)
     python3 -B tools/app_isolation.py rank <module>           # its rank in tools/arch_layers.json
     python3 -B tools/app_isolation.py check <module> --installed a,b,c
 
 The applications are the rank-4 addons and the bridges the rank-5 addons of ``tools/arch_layers.json``,
 so a newly registered application or bridge joins the ``odoo-app-standalone`` / ``odoo-bridge`` stages
 without editing the workflow. The application matrix starts with the foundation itself: its top module
-(the highest of ranks 0-2, ``webvue_api``) installed with no shared service or application, running the
+(the highest of ranks 0-2, ``liwan_api``) installed with no shared service or application, running the
 tests of every foundation module. An application run installs the application alone (Odoo brings its
 declared foundation, shared-service and engine dependencies); a bridge run installs the bridge's two
 sides and expects the bridge to auto-install. ``check`` fails when the installed set holds an
@@ -98,13 +98,13 @@ def affected(changed: set[str], modules: list[str], addons: Path = ADDONS) -> li
 
 
 def sides(bridge: str, layers: Path = LAYERS, addons: Path = ADDONS) -> list[str]:
-    """The WebVue modules a bridge links; a bridge links exactly two."""
+    """The LiwanOS modules a bridge links; a bridge links exactly two."""
     known = ranks(layers)
     if known.get(bridge) != BRIDGE_RANK:
         raise IsolationError(f'{bridge} is not a rank-{BRIDGE_RANK} bridge in {layers.name}')
     linked = sorted(module for module in depends(bridge, addons) if module in known)
     if len(linked) != 2:
-        raise IsolationError(f'{bridge} must depend on exactly two WebVue modules, found {linked}')
+        raise IsolationError(f'{bridge} must depend on exactly two LiwanOS modules, found {linked}')
     return linked
 
 
@@ -129,8 +129,8 @@ def unexpected(module: str, installed: set[str], layers: Path = LAYERS, addons: 
     asked = set(install_list(module, layers, addons))
     allowed = asked | {module}
     # A bridge whose sides are all part of the run auto-installs legitimately. The foundation is part of
-    # every run, so a bridge between the foundation and the application under test (webvue_access_hr for
-    # webvue_hr) belongs to that application's standalone install.
+    # every run, so a bridge between the foundation and the application under test (liwan_access_hr for
+    # liwan_hr) belongs to that application's standalone install.
     present = asked | set(foundation(layers))
     for bridge in modules_of_rank(BRIDGE_RANK, layers):
         if set(sides(bridge, layers, addons)) <= present:

@@ -3,7 +3,7 @@ import { compileScript, parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { describe, expect, it } from 'vitest'
-import type { InboxChannelHealth } from '@webvue/contracts'
+import type { InboxChannelHealth } from '@liwan/contracts'
 
 const filename = new URL('../InboxChannelHealthCard.vue', import.meta.url).pathname
 const HEALTH: InboxChannelHealth = {

@@ -2,12 +2,12 @@
 import DepartmentOrgChart from '@/components/hr/DepartmentOrgChart.vue'
 import DepartmentTable from '@/components/hr/DepartmentTable.vue'
 import DepartmentTree from '@/components/hr/DepartmentTree.vue'
-import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
+import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
 import { buildDepartmentTree } from '@/lib/departmentTree'
 import { departmentKpiTiles } from '@/utils/hrKpis'
 import { ApiError } from '@/composables/useApi'
 import { useDeleteHrDepartment, useHrDepartments, type HrDepartment } from '@/composables/useHrDepartments'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
@@ -87,7 +87,7 @@ async function confirmDelete() {
       </template>
       <SharedInlineConfirm
         v-if="deleting"
-        class="m-(--webvue-card-pad-dense)"
+        class="m-(--liwan-card-pad-dense)"
         :title="t('hr.depts.deleteConfirm', { name: deleting.name })"
         :description="deleteError?.message"
         :confirm-label="t('hr.depts.delete')"
@@ -95,7 +95,7 @@ async function confirmDelete() {
         @confirm="confirmDelete"
         @cancel="deleting = null"
       />
-      <SharedPageState v-if="query.isLoading.value || query.error.value || !departments.length" class="m-(--webvue-card-pad-dense)" :loading="query.isLoading.value" :error="query.error.value" :empty="!departments.length" @retry="query.refetch" />
+      <SharedPageState v-if="query.isLoading.value || query.error.value || !departments.length" class="m-(--liwan-card-pad-dense)" :loading="query.isLoading.value" :error="query.error.value" :empty="!departments.length" @retry="query.refetch" />
       <DepartmentOrgChart v-else-if="canvasView" :roots="roots" :query="search" :hydrated="hydrated" :return-to="route.fullPath" />
       <DepartmentTree v-else-if="treeView" :roots="roots" :query="search" :hydrated="hydrated" :can-manage="can('hr.departments.manage')" :can-read-employees="can('hr.employees.read')" :can-read-documents="can('documents.items.read')" @select="openDepartment" @edit="editDepartment" @create-child="createChild" />
       <DepartmentTable v-else :departments="filtered" :can-manage="can('hr.departments.manage')" @delete="askDelete" />

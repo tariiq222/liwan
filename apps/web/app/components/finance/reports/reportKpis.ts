@@ -1,5 +1,5 @@
-import type { FinanceReportLine } from '@webvue/contracts'
-import type { KpiTile } from '@webvue/ui/app/utils/kpiTile'
+import type { FinanceReportLine } from '@liwan/contracts'
+import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
 import type { LoadedReport } from './reportConfig'
 import { misValue } from './reportRows'
 import { sideTone } from '../budgets/budgetFigures'

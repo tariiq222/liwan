@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxReportBreakdownRow, InboxReportOverview } from '@webvue/contracts'
+import type { InboxReportBreakdownRow, InboxReportOverview } from '@liwan/contracts'
 import InboxChartPanel from './InboxChartPanel.vue'
 import {
   answeredChart, csatChart, firstResponseChart, hasAnswered, hasCsat, hasFirstResponses, hasResolved, hasVolume, resolvedByChart, volumeChart,

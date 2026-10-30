@@ -15,7 +15,7 @@
    never listed twice. A published revision is immutable, so a new revision is the only legal
    way to price one. Plans that referenced the withdrawn bundle revisions are withdrawn by
    step 1 and are not restored by this seed.
-3. Inserts one published plan named `WebVue` (the SQL seed writes a fixed placeholder
+3. Inserts one published plan named `LiwanOS` (the SQL seed writes a fixed placeholder
    `content_digest`; the application only recomputes it when a revision moves through
    validate/publish, and a seeded row is already published):
    - base prices: monthly and yearly (placeholder);
@@ -36,7 +36,7 @@ Run the normal control-plane migration against the target control database:
 npm -w apps/control-plane run migrate
 ```
 
-Do not run it against `webvue_control_dev` while a console or worker is using that database.
+Do not run it against `liwan_control_dev` while a console or worker is using that database.
 On a fresh database there are no bundles yet, so only step 3 runs; bundle prices are then
 entered from the console after the catalogs are published. On a database that already has
 applications from more than one catalog release, the plan is seeded against the newest
@@ -51,7 +51,7 @@ FROM plan_revisions WHERE status='published' AND available;
 SELECT name, prices FROM bundle_revisions WHERE status='published' AND available ORDER BY name;
 ```
 
-Expected: exactly one sellable plan (`WebVue`), and every sellable application has at least
+Expected: exactly one sellable plan (`LiwanOS`), and every sellable application has at least
 one monthly price and one yearly price.
 
 ## Replace the placeholders (owner, from the console)
@@ -59,7 +59,7 @@ one monthly price and one yearly price.
 The console is `apps/vendor-admin`. Plans and bundles change through a new revision
 (draft → validate → publish), never by editing a published row.
 
-1. **Plan** — open `/plans`, create a revision of `WebVue`, enter the approved base price,
+1. **Plan** — open `/plans`, create a revision of `LiwanOS`, enter the approved base price,
    the included minimums, the user/storage/branch unit prices for both cadences, the trial
    and grace days, then validate and publish. Publishing withdraws the previous revision in
    the same transaction (Phase 1, Task 7).

@@ -21,9 +21,9 @@ type LocaleConfig = { code: string; language: string; dir: 'rtl' | 'ltr'; files:
 
 // Layer messages merge first (ui, then commercial-ui) so the app's own files win, as @nuxtjs/i18n merges extended layers.
 function i18nMessages(layerLocales: LayerLocale[], locales: LocaleConfig[]): Plugin {
-  const id = 'virtual:webvue-i18n'
+  const id = 'virtual:liwan-i18n'
   return {
-    name: 'webvue:i18n-messages',
+    name: 'liwan:i18n-messages',
     resolveId: source => (source === id ? `\0${id}` : undefined),
     load(source) {
       if (source !== `\0${id}`) return
@@ -55,9 +55,9 @@ export default { ${table.join(', ')} }`
 // same set must be registered globally once, generated from the installed
 // package rather than a hand-written list.
 function nuxtUiComponents(): Plugin {
-  const id = 'virtual:webvue-nuxt-ui-components'
+  const id = 'virtual:liwan-nuxt-ui-components'
   return {
-    name: 'webvue:nuxt-ui-components',
+    name: 'liwan:nuxt-ui-components',
     resolveId: source => (source === id ? `\0${id}` : undefined),
     load(source) {
       if (source !== `\0${id}`) return
@@ -92,7 +92,7 @@ function importMetaEnvShim(): Plugin {
   const pattern = /import\.meta\.(server|client|dev)\b/g
   const replacements: Record<string, string> = { server: 'false', client: 'true', dev: 'true' }
   return {
-    name: 'webvue:import-meta-env-shim',
+    name: 'liwan:import-meta-env-shim',
     transform(code, id) {
       if (!id.includes('node_modules') || !pattern.test(code)) return
       pattern.lastIndex = 0
@@ -121,7 +121,7 @@ const config: StorybookConfig = {
     const { imports, components, report } = await buildNuxtImports()
 
     if (report.missing.length) {
-      const message = `[webvue-storybook] app code calls Nuxt runtime APIs without a shim in .storybook/nuxt-shims.ts: ${report.missing.join(', ')}`
+      const message = `[liwan-storybook] app code calls Nuxt runtime APIs without a shim in .storybook/nuxt-shims.ts: ${report.missing.join(', ')}`
       if (configType === 'PRODUCTION') throw new Error(message)
       console.warn(message)
     }

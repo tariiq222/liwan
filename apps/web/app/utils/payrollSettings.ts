@@ -1,4 +1,4 @@
-import type { HrGosiRate, HrGosiRateWrite, HrPayrollSettings, HrPayrollSettingsPatch } from '@webvue/contracts'
+import type { HrGosiRate, HrGosiRateWrite, HrPayrollSettings, HrPayrollSettingsPatch } from '@liwan/contracts'
 
 /** The settings form as the user left it: ids as picker strings, `annualLeaveType` empty until one is chosen. */
 export interface PayrollSettingsDraft {

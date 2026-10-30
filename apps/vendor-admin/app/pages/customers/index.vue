@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { ClientRow } from '@webvue/commercial-contracts'
+import type { ClientRow } from '@liwan/commercial-contracts'
 import { customerDisplayBadge, operationStatusBadge } from '@/utils/vendorBadges'
 import { CLIENT_PAGE_SIZE, CLIENT_STATE_FILTERS, clientListQuery, clientTo, isClientStateFilter } from '@/utils/vendorClients'
 import { isNotAvailable } from '@/utils/vendorSubscriptions'

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FinanceZatcaJournal } from '@webvue/contracts'
+import type { FinanceZatcaJournal } from '@liwan/contracts'
 import { useOnboardZatcaJournal } from '@/composables/finance/useFinanceZatca'
 import { isOtpValid, OTP_LENGTH, otpDigits, zatcaErrorMessage } from './zatcaOnboarding'
 

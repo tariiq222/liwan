@@ -6,7 +6,7 @@ import { test, expect, type Page } from '@playwright/test'
 //   cd apps/web && PROJECTS_UI_PREVIEW=1 MODULE_UI_PREVIEW=1 MOCK_PORT=4512 \
 //     MOCK_TASK_COUNT=60 node e2e/internal-ui-audit-mock.mjs
 //   cd apps/web && NUXT_ODOO_URL=http://127.0.0.1:4512 \
-//     NUXT_ODOO_DB=webvue_ui_mock_only NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4512/websocket \
+//     NUXT_ODOO_DB=liwan_ui_mock_only NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4512/websocket \
 //     npx nuxt dev --port 4111
 //   E2E_BASE_URL=http://localhost:4111 npx playwright test e2e/navigation-gate.spec.ts
 

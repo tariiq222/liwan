@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { ShellSubListSection } from '@webvue/ui/app/types/shell'
-import ShellContextSubList from '@webvue/ui/app/components/shell/ShellContextSubList.vue'
+import type { ShellSubListSection } from '@liwan/ui/app/types/shell'
+import ShellContextSubList from '@liwan/ui/app/components/shell/ShellContextSubList.vue'
 import InboxConversationList from '@/components/inbox/InboxConversationList.vue'
 import { activeReportTab, isReportsPath, reportTabs, type ReportTabId } from '@/composables/inbox/inboxReportNav'
 import { parseInboxListRoute, serializeInboxListRoute, type InboxListRoute } from '@/composables/inbox/inboxListRoute'

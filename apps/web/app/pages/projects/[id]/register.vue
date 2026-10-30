@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
+import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import { useProjectRegister, useDeleteProjectRegister } from '@/composables/useProjectGovernance'
 import { governanceFilters } from '@/composables/projectGovernanceKeys'
 import { REGISTER_PRIORITY_TONE, REGISTER_STATUS_TONE, registerScoreTone } from '@/components/pmo/projects/governance/state'
 import { ApiError } from '@/composables/useApi'
 import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState.vue'
 import { useProjectMissing } from '@/composables/useProjects'
-import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
-import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
+import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -185,7 +185,7 @@ function openLiveItem(event: MouseEvent, item: { id: number }) {
         </FilterBar>
       </template>
       <SharedPageState v-if="list.error.value" :error="list.error.value" @retry="list.refetch" />
-      <div v-else-if="!list.isLoading.value && !items.length" class="p-(--webvue-card-pad)">
+      <div v-else-if="!list.isLoading.value && !items.length" class="p-(--liwan-card-pad)">
         <SharedEmptyState :title="t(activeFilterCount ? 'projects.clarity.filteredEmpty' : 'projects.clarity.registerEmpty')" />
       </div>
       <SharedDataTable v-else bare :rows="items" :columns="columns" row-key="id" :row-to="itemTo" :loading="list.isLoading.value" :caption="t('projects.refresh.workspace.registerTitle')">

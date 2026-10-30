@@ -10,7 +10,7 @@ import {
   type FinanceDebitNoteCreate,
   type FinanceInvoiceCreate,
   type FinanceInvoicePatch,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import type { InvoiceListParams } from '@/components/finance/invoices/invoiceListParams'
 
 export const financeInvoiceKeys = {

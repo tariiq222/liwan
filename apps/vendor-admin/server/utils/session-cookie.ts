@@ -9,7 +9,7 @@ export type AdminSession = { accountId: number; value: string }
 function cookieSettings(event: H3Event) {
   const { adminOrigin } = bffConfig(event)
   const secure = adminOrigin.protocol === 'https:'
-  return { name: secure ? '__Host-webvue_admin' : 'webvue_admin', secure }
+  return { name: secure ? '__Host-liwan_admin' : 'liwan_admin', secure }
 }
 
 /** The signed-in session from the cookie, or null when absent or malformed. */

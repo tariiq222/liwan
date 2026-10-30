@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { InboxChannelAlert } from '@webvue/contracts'
-import { formatDateTime } from '@webvue/ui/app/utils/formatDate'
-import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
+import type { InboxChannelAlert } from '@liwan/contracts'
+import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
+import type { StatusTone } from '@liwan/ui/app/utils/statusTone'
 import { INBOX_ALERT_PAGE, useInboxChannelAlerts } from '@/composables/inbox/useInboxChannelHealth'
 
 // The alert timeline of one number: what Meta told us about its quality, limit, name and account, newest first, paginated.
@@ -41,9 +41,9 @@ const reasonText = (reason: string) => te(`inbox.health.nameReasons.${reason}`) 
   <SharedRecordSection variant="list" :title="t('inbox.health.alerts.title')" :description="t('inbox.health.alerts.description')" data-testid="inbox-health-alerts">
     <SharedPageState v-if="query.error.value" class="m-4" :error="query.error.value" @retry="query.refetch()" />
     <SharedLoadingSkeleton v-else-if="query.isPending.value" class="m-4" />
-    <p v-else-if="!items.length" class="px-(--webvue-card-pad) py-4 text-sm text-muted" data-testid="inbox-health-alerts-empty">{{ t('inbox.health.alerts.empty') }}</p>
+    <p v-else-if="!items.length" class="px-(--liwan-card-pad) py-4 text-sm text-muted" data-testid="inbox-health-alerts-empty">{{ t('inbox.health.alerts.empty') }}</p>
     <ol v-else :aria-label="t('inbox.health.alerts.caption')" class="divide-y divide-default">
-      <li v-for="alert in items" :key="alert.id" class="flex items-start gap-3 px-(--webvue-card-pad) py-3" :data-testid="`inbox-health-alert-${alert.id}`" :data-severity="alert.severity">
+      <li v-for="alert in items" :key="alert.id" class="flex items-start gap-3 px-(--liwan-card-pad) py-3" :data-testid="`inbox-health-alert-${alert.id}`" :data-severity="alert.severity">
         <UIcon :name="SEVERITY_ICON[alert.severity]" class="mt-0.5 size-5 shrink-0" :class="{ 'text-info': alert.severity === 'info', 'text-warning': alert.severity === 'warning', 'text-error': alert.severity === 'danger' }" aria-hidden="true" />
         <div class="flex min-w-0 flex-1 flex-col gap-1">
           <div class="flex flex-wrap items-center justify-between gap-2">
@@ -58,7 +58,7 @@ const reasonText = (reason: string) => te(`inbox.health.nameReasons.${reason}`) 
         </div>
       </li>
     </ol>
-    <div v-if="total > INBOX_ALERT_PAGE" class="flex px-(--webvue-card-pad) py-3 text-sm text-muted">
+    <div v-if="total > INBOX_ALERT_PAGE" class="flex px-(--liwan-card-pad) py-3 text-sm text-muted">
       <SharedListFooter :count-label="rangeLabel" :page="page" :pages="pages" :disabled="!hydrated || query.isFetching.value" @update:page="page = $event" />
     </div>
   </SharedRecordSection>

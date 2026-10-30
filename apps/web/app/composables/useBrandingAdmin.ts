@@ -4,7 +4,7 @@ import {
   BrandingSchema,
   type Branding,
   type BrandingPatch,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 
 const brandingAdminKeys = {
   all: ['branding-admin'] as const,

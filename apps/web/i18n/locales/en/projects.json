@@ -106,10 +106,10 @@
       "retry": "Retry",
       "createFinal": "Create project",
       "drafted": "Project created with its charter saved as a draft",
-      "aiBadge": "Draft from WebVue AI",
+      "aiBadge": "Draft from LiwanOS AI",
       "aiAttest": "I have read all of the content, I approve it and I take responsibility for it",
       "aiAttestRequired": "Confirm you read and approve the draft before submitting",
-      "aiAuditFailed": "The project was created, but its approval could not be recorded in the WebVue AI log"
+      "aiAuditFailed": "The project was created, but its approval could not be recorded in the LiwanOS AI log"
     },
     "filters": {
       "active": "Active",

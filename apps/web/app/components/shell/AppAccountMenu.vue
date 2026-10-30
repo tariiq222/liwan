@@ -22,7 +22,7 @@ const initials = computed(() => (me.value?.name ?? '?').trim().slice(0, 1))
         <ClientOnly>
           <span
             class="absolute -end-px -top-px block size-2.5 rounded-full ring-2 ring-(--ui-bg)"
-            :class="connected ? 'webvue-status-dot-success' : 'bg-(--ui-text-dimmed)'"
+            :class="connected ? 'liwan-status-dot-success' : 'bg-(--ui-text-dimmed)'"
             :title="connected ? t('bus.connected') : t('bus.disconnected')"
             :aria-label="connected ? t('bus.connected') : t('bus.disconnected')"
             role="status"

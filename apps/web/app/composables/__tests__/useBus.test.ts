@@ -4,18 +4,18 @@ import { CHAT_TYPING_MS } from '../../utils/chatState'
 
 describe('parseBusFrame', () => {
   it('parses a frame with one notification and returns its id as lastId', () => {
-    const raw = JSON.stringify([{ id: 42, message: { type: 'webvue/task', payload: { id: 7, event: 'updated' } } }])
+    const raw = JSON.stringify([{ id: 42, message: { type: 'liwan/task', payload: { id: 7, event: 'updated' } } }])
     const { notifications, lastId } = parseBusFrame(raw)
     expect(notifications).toHaveLength(1)
-    expect(notifications[0]!.message.type).toBe('webvue/task')
+    expect(notifications[0]!.message.type).toBe('liwan/task')
     expect(lastId).toBe(42)
   })
 
   it('takes the id of the last notification when a frame carries several', () => {
     const raw = JSON.stringify([
-      { id: 10, message: { type: 'webvue/task', payload: { id: 1 } } },
-      { id: 11, message: { type: 'webvue/task', payload: { id: 2 } } },
-      { id: 12, message: { type: 'webvue/task', payload: { id: 3 } } },
+      { id: 10, message: { type: 'liwan/task', payload: { id: 1 } } },
+      { id: 11, message: { type: 'liwan/task', payload: { id: 2 } } },
+      { id: 12, message: { type: 'liwan/task', payload: { id: 3 } } },
     ])
     const { lastId } = parseBusFrame(raw)
     expect(lastId).toBe(12)
@@ -52,27 +52,27 @@ describe('parseBusFrame', () => {
 describe('collectTaskIds', () => {
   it('dedupes multiple notifications for the same task id, keeping first-seen order', () => {
     const raw = [
-      { id: 1, message: { type: 'webvue/task', payload: { id: 7 } } },
-      { id: 2, message: { type: 'webvue/task', payload: { id: 9 } } },
-      { id: 3, message: { type: 'webvue/task', payload: { id: 7 } } },
-      { id: 4, message: { type: 'webvue/task', payload: { id: 7 } } },
+      { id: 1, message: { type: 'liwan/task', payload: { id: 7 } } },
+      { id: 2, message: { type: 'liwan/task', payload: { id: 9 } } },
+      { id: 3, message: { type: 'liwan/task', payload: { id: 7 } } },
+      { id: 4, message: { type: 'liwan/task', payload: { id: 7 } } },
     ]
     expect(collectTaskIds(raw)).toEqual([7, 9])
   })
 
-  it('ignores notification types other than webvue/task', () => {
+  it('ignores notification types other than liwan/task', () => {
     const raw = [
       { id: 1, message: { type: 'some/other', payload: { id: 1 } } },
-      { id: 2, message: { type: 'webvue/task', payload: { id: 2 } } },
+      { id: 2, message: { type: 'liwan/task', payload: { id: 2 } } },
     ]
     expect(collectTaskIds(raw)).toEqual([2])
   })
 
   it('ignores notifications missing a numeric payload id', () => {
     const raw = [
-      { id: 1, message: { type: 'webvue/task', payload: {} } },
-      { id: 2, message: { type: 'webvue/task' } },
-      { id: 3, message: { type: 'webvue/task', payload: { id: 'not-a-number' } } },
+      { id: 1, message: { type: 'liwan/task', payload: {} } },
+      { id: 2, message: { type: 'liwan/task' } },
+      { id: 3, message: { type: 'liwan/task', payload: { id: 'not-a-number' } } },
     ]
     expect(collectTaskIds(raw as any)).toEqual([])
   })
@@ -83,27 +83,27 @@ describe('collectTaskIds', () => {
 })
 
 describe('collectChatIds', () => {
-  it('collects webvue/chat conversation ids', () => {
+  it('collects liwan/chat conversation ids', () => {
     expect(collectChatIds([
-      { id: 1, message: { type: 'webvue/chat', payload: { id: 42, event: 'message' } } },
-      { id: 2, message: { type: 'webvue/task', payload: { id: 7 } } },
-      { id: 3, message: { type: 'webvue/chat', payload: { id: 42 } } },
+      { id: 1, message: { type: 'liwan/chat', payload: { id: 42, event: 'message' } } },
+      { id: 2, message: { type: 'liwan/task', payload: { id: 7 } } },
+      { id: 3, message: { type: 'liwan/chat', payload: { id: 42 } } },
     ])).toEqual([42])
   })
 })
 
 describe('collectInboxIds', () => {
-  it('collects webvue/inbox conversation ids only', () => {
+  it('collects liwan/inbox conversation ids only', () => {
     expect(collectInboxIds([
-      { id: 1, message: { type: 'webvue/inbox', payload: { id: 9, event: 'conversation' } } },
-      { id: 2, message: { type: 'webvue/chat', payload: { id: 42 } } },
-      { id: 3, message: { type: 'webvue/inbox', payload: { id: 9 } } },
+      { id: 1, message: { type: 'liwan/inbox', payload: { id: 9, event: 'conversation' } } },
+      { id: 2, message: { type: 'liwan/chat', payload: { id: 42 } } },
+      { id: 3, message: { type: 'liwan/inbox', payload: { id: 9 } } },
     ])).toEqual([9])
   })
 
   it('collects the id of a template change, which refreshes every inbox query', () => {
     expect(collectInboxIds([
-      { id: 1, message: { type: 'webvue/inbox', payload: { id: 12, event: 'template' } } },
+      { id: 1, message: { type: 'liwan/inbox', payload: { id: 12, event: 'template' } } },
     ])).toEqual([12])
   })
 })

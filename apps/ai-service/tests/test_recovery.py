@@ -14,10 +14,10 @@ from langgraph.checkpoint.memory import InMemorySaver
 from tests.fakes import IDENTITY, ScriptedChatModel, ai_text, ai_tool_call, new_id
 from tests.test_contracts import READ_TOOL
 from tests.test_service import BODY, HEADERS, LEAKY, RESUME_C1, SETTINGS, fresh, parse_sse
-from webvue_ai_service.contracts import RunRequest
-from webvue_ai_service.graph import build_graph, request_state, run_config
-from webvue_ai_service.service import STALE_AFTER_SECONDS, create_app
-from webvue_ai_service.store import MemoryRunStore
+from liwan_ai_service.contracts import RunRequest
+from liwan_ai_service.graph import build_graph, request_state, run_config
+from liwan_ai_service.service import STALE_AFTER_SECONDS, create_app
+from liwan_ai_service.store import MemoryRunStore
 
 TASKS = "pmo__list_my_tasks"
 
@@ -50,7 +50,7 @@ async def disconnect_at(app, event, body=None, *, wait=True):
         "type": "http", "asgi": {"version": "3.0", "spec_version": "2.4"}, "http_version": "1.1", "method": "POST", "scheme": "http",
         "path": "/v1/runs", "raw_path": b"/v1/runs", "root_path": "", "query_string": b"", "server": ("ai", 80), "client": ("c", 1),
         "headers": [(b"content-type", b"application/json"), (b"content-length", str(len(payload)).encode()),
-                    (b"x-webvue-tenant", b"t1"), (b"x-webvue-user", b"42")],
+                    (b"x-liwan-tenant", b"t1"), (b"x-liwan-user", b"42")],
     }
     call = asyncio.create_task(app(scope, receive, send))
     await asyncio.wait_for(reached.wait(), 5)
@@ -212,7 +212,7 @@ async def test_continuing_a_thread_cuts_short_tool_calls_that_never_got_a_reply(
 
 
 async def test_a_settled_waiting_status_is_stored_as_is_even_when_the_checkpoint_cannot_be_read(monkeypatch):
-    from webvue_ai_service import service
+    from liwan_ai_service import service
 
     class Probed(InMemorySaver):
         async def aget_tuple(self, config):
@@ -231,7 +231,7 @@ async def test_a_settled_waiting_status_is_stored_as_is_even_when_the_checkpoint
 
 
 async def test_the_response_closes_its_generator_when_the_send_is_cancelled_even_while_something_still_holds_it():
-    from webvue_ai_service.service import ClosingStreamingResponse
+    from liwan_ai_service.service import ClosingStreamingResponse
 
     closed = asyncio.Event()
 

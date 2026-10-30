@@ -35,9 +35,9 @@ export function tenantReturnOrigin(pool: Pool, allowed: readonly string[]): Retu
   }
 }
 
-/** The resolver for `WEBVUE_PAYMENT_RETURN_ORIGINS` and the tenancy mode; null when no origin is configured. */
+/** The resolver for `LIWAN_PAYMENT_RETURN_ORIGINS` and the tenancy mode; null when no origin is configured. */
 export function returnOriginFromEnv(pool: Pool, env: Record<string, string | undefined>): ReturnOrigin | null {
-  const entries = (env.WEBVUE_PAYMENT_RETURN_ORIGINS ?? '').split(',').map(s => s.trim()).filter(Boolean)
+  const entries = (env.LIWAN_PAYMENT_RETURN_ORIGINS ?? '').split(',').map(s => s.trim()).filter(Boolean)
   if (!entries.length) return null
-  return env.WEBVUE_TENANCY_MODE === 'shared' ? tenantReturnOrigin(pool, entries) : fixedReturnOrigin(entries[0]!)
+  return env.LIWAN_TENANCY_MODE === 'shared' ? tenantReturnOrigin(pool, entries) : fixedReturnOrigin(entries[0]!)
 }

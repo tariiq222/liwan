@@ -1,4 +1,4 @@
-import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import { BUDGETS_PATH, budgetRecordPath } from './budgetPaths'
 import { useBudgetListPage } from './useBudgetListPage'
 

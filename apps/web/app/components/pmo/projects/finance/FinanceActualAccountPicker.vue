@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FinanceSummary } from '@webvue/contracts'
+import type { FinanceSummary } from '@liwan/contracts'
 import { useSetActualAccount } from '@/composables/useProjectFinance'
 import { actualAccountErrorKey, actualAccountLabel } from '@/utils/projectFinance'
 

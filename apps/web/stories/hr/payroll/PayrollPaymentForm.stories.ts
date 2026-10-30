@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import PayrollPaymentForm from '../../../app/components/hr/payroll/PayrollPaymentForm.vue'
-import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
+import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
 import { ApiError } from '../../../app/composables/useApi'
 import { storyContext } from '../../support/context'
 
@@ -22,7 +22,7 @@ const meta = {
   render: args => ({
     components: { PayrollPaymentForm, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="webvue-shell-main"><PageContainer width="full"><PayrollPaymentForm v-bind="args" /></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer width="full"><PayrollPaymentForm v-bind="args" /></PageContainer></main>',
   }),
 } satisfies Meta<typeof PayrollPaymentForm>
 

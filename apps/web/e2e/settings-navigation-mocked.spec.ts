@@ -6,7 +6,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, test, type Page, type Route } from '@playwright/test'
 
-process.env.NUXT_ODOO_DB = 'webvue_settings_nav_unused_scratch'
+process.env.NUXT_ODOO_DB = 'liwan_settings_nav_unused_scratch'
 
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const CAPABILITIES = [
@@ -22,8 +22,8 @@ const CAPABILITIES = [
 const ME = {
   id: 2, name: 'مدير النظام', login: 'admin', email: 'admin@example.com', lang: 'ar_001',
   tz: 'Asia/Riyadh', role: 'admin', roles: [], capabilities: [...CAPABILITIES],
-  access_policy_version: 1, company: { id: 1, name: 'ويب فيو' },
-  modules: ['webvue_chat', 'webvue_hr', 'webvue_pmo'],
+  access_policy_version: 1, company: { id: 1, name: 'ليوان' },
+  modules: ['liwan_chat', 'liwan_hr', 'liwan_pmo'],
   entitlements: {
     'pmo.enabled': true, 'meetings.enabled': true, 'hr.enabled': true, 'hr.shifts': true, 'chat.enabled': true,
     'users.limit': null, 'projects.max_projects': null, 'storage.limit_mb': null,
@@ -35,7 +35,7 @@ const ME = {
   },
   terminology: { ar: {}, en: {} },
 }
-const BRANDING = { name: 'ويب فيو', logo_url: '/web/binary/company_logo?company=1', primary_color: '#5b3f8c', font: 'IBM_Plex_Sans_Arabic' }
+const BRANDING = { name: 'ليوان', logo_url: '/web/binary/company_logo?company=1', primary_color: '#5b3f8c', font: 'IBM_Plex_Sans_Arabic' }
 const PROJECT_SETTINGS = {
   project_creators: 'managers',
   default_stages: [{ name: 'جديد', fold: false }, { name: 'جارٍ', fold: false }],
@@ -55,7 +55,7 @@ const USERS = {
     id: 18, name: 'سارة محمد', login: 'sara@example.com',
     employee: { id: 31, name: 'سارة محمد', department: { id: 3, name: 'الموارد البشرية' } },
     active: true, protected: false,
-    assignments: [{ id: 44, role: { id: 4, key: 'hr_manager', name: { ar: 'مسؤول موارد بشرية', en: 'HR manager' }, type: 'built_in', protected: true }, scope: { kind: 'company', id: 1, name: 'ويب فيو' } }],
+    assignments: [{ id: 44, role: { id: 4, key: 'hr_manager', name: { ar: 'مسؤول موارد بشرية', en: 'HR manager' }, type: 'built_in', protected: true }, scope: { kind: 'company', id: 1, name: 'ليوان' } }],
     version: 'u18-a3-v7',
   }],
   total: 1,
@@ -150,7 +150,7 @@ test.beforeAll(async () => {
       NITRO_PORT: String(appPort),
       NITRO_HOST: '127.0.0.1',
       NUXT_ODOO_URL: `http://127.0.0.1:${upstreamPort}`,
-      NUXT_ODOO_DB: 'webvue_settings_nav_unused_scratch',
+      NUXT_ODOO_DB: 'liwan_settings_nav_unused_scratch',
       NUXT_PUBLIC_WS_URL: '',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -195,7 +195,7 @@ test('project settings open as a real page under Settings > Apps', async ({ page
   await expect(settingsProjects).toHaveAttribute('aria-expanded', 'true')
   await expect(page.getByTestId('application-navigation').locator('a[href="/settings/apps/projects"]')).toBeVisible()
   await expect(page.getByRole('region', { name: 'سياسة إنشاء المشاريع', exact: true }).getByRole('radiogroup')).toBeVisible()
-  await expect(page.locator('.webvue-settings-content [data-slot="record-section"]')).toHaveCount(5)
+  await expect(page.locator('.liwan-settings-content [data-slot="record-section"]')).toHaveCount(5)
   expect(new URL(page.url()).pathname).toBe('/settings/apps/projects')
   await page.screenshot({ path: testInfo.outputPath('submenu-projects-desktop-rtl.png'), fullPage: true })
 })

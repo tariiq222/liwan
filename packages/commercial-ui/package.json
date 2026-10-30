@@ -1,5 +1,5 @@
 {
-  "name": "@webvue/commercial-ui",
+  "name": "@liwan/commercial-ui",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -8,8 +8,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@webvue/commercial-contracts": "0.1.0",
-    "@webvue/ui": "0.1.0"
+    "@liwan/commercial-contracts": "0.1.0",
+    "@liwan/ui": "0.1.0"
   },
   "devDependencies": {
     "@vue/compiler-sfc": "^3.5.42",

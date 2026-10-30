@@ -20,7 +20,7 @@ class ReleaseOperationError(ValueError):
 
 
 def release_routes_enabled():
-    return 'WEBVUE_RELEASE_ROUTES_DIR' in os.environ
+    return 'LIWAN_RELEASE_ROUTES_DIR' in os.environ
 
 
 def _canonical(path):
@@ -112,7 +112,7 @@ def tenant_operation(binding, operation, *, allow_unrouted=False):
     path, lock, lease = None, None, None
     lock_acquired = False
     try:
-        root = _canonical(os.environ['WEBVUE_RELEASE_ROUTES_DIR'])
+        root = _canonical(os.environ['LIWAN_RELEASE_ROUTES_DIR'])
         if not root.is_dir(): raise ValueError()
         if (not isinstance(binding, dict) or not isinstance(binding.get('tenantId'), str)
                 or not SAFE_NAME.fullmatch(binding['tenantId']) or type(binding.get('registryRevision')) is not int

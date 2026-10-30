@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import * as Vue from 'vue'
-import { DEFAULT_STUBS, loadShared, renderShared } from '@webvue/ui/test/helpers/renderShared'
+import { DEFAULT_STUBS, loadShared, renderShared } from '@liwan/ui/test/helpers/renderShared'
 import { filterWorkRows, groupByWork, mergeAttentionRows, parseWorkKind, sourcesOf, WORK_ROWS_LIMIT, workCountLabel } from '../../composables/nav/attentionModel'
 import type { AppAttentionProvider, AppWorkKind } from '../../modules/types'
 

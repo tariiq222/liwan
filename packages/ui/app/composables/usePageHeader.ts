@@ -7,7 +7,7 @@ interface PageHeaderRegistration {
   title: string
 }
 
-const PAGE_HEADER_STATE_KEY = 'webvue-page-header'
+const PAGE_HEADER_STATE_KEY = 'liwan-page-header'
 
 function usePageHeaderState() {
   return useState<PageHeaderRegistration | null>(PAGE_HEADER_STATE_KEY, () => null)
@@ -41,7 +41,7 @@ export function usePageHeader(title: MaybeRefOrGetter<string>) {
   })
 }
 
-const FRAME_OWNS_HEADING = Symbol('webvue-frame-owns-heading') as InjectionKey<Readonly<Ref<boolean>>>
+const FRAME_OWNS_HEADING = Symbol('liwan-frame-owns-heading') as InjectionKey<Readonly<Ref<boolean>>>
 const NO_FRAME_HEADING = readonly(ref(false))
 
 /**

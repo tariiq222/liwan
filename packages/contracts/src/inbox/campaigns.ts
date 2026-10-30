@@ -9,7 +9,7 @@ import {
 
 // Wire shapes of the campaign routes of /api/v1/inbox (audiences, campaigns, recipients, contact consent and import,
 // channel sending health) and /api/v1/settings/inbox/campaigns. Every schema mirrors one serializer in
-// odoo-addons/webvue_inbox/serializers/campaigns.py exactly (strict objects).
+// odoo-addons/liwan_inbox/serializers/campaigns.py exactly (strict objects).
 
 const Id = z.number().int().positive()
 const UtcDateTime = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/)
@@ -57,7 +57,7 @@ export const InboxContactMarketingPatchSchema = z.object({
   tag_ids: z.array(Id).max(50).optional(),
 }).strict().refine(hasFields, { message: NO_FIELDS })
 
-// A CSV file (base64 JSON like every WebVue upload): header `phone` required, `name` and `tags` (existing tag names
+// A CSV file (base64 JSON like every LiwanOS upload): header `phone` required, `name` and `tags` (existing tag names
 // separated by `;`) optional, at most 10,000 rows. `tag_ids` are added to every row; an import never overrides an
 // opt-out.
 export const InboxContactImportSchema = z.object({

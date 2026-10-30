@@ -42,9 +42,9 @@ describe('chatDrafts', () => {
     const drafts = createChatDrafts(() => store)
     drafts.set(1, 10, 'a')
     drafts.set(2, 11, 'b')
-    store.setItem('webvue-nav:1', 'keep')
+    store.setItem('liwan-nav:1', 'keep')
     drafts.clear()
-    expect([...store.map.keys()]).toEqual(['webvue-nav:1'])
+    expect([...store.map.keys()]).toEqual(['liwan-nav:1'])
     expect(() => createChatDrafts(() => { throw new Error('blocked') }).clear()).not.toThrow()
   })
   it('is cleared at logout and when the session expires', () => {

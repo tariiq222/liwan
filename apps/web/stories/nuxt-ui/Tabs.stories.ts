@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import { sectionTabsUi } from '@webvue/ui/app/utils/sectionTabs'
+import { sectionTabsUi } from '@liwan/ui/app/utils/sectionTabs'
 
 export default {
   title: 'Nuxt UI/Tabs',

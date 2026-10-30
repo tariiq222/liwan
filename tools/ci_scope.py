@@ -31,7 +31,7 @@ STAGES = ('static', 'ai-service', 'control-plane', 'vendor-admin', 'odoo',
           'restore-drill', 'image', 'e2e-mock', 'rtl-stories')
 # Tools no non-static step runs and no application code executes (checked with rg across
 # `.github/`, deploy/, apps/, packages/ and odoo-addons/). Everything else under tools/,
-# including tools/webvue_cli/ and tools/shared_saas_lifecycle/ (run by the control-plane tests),
+# including tools/liwan_cli/ and tools/shared_saas_lifecycle/ (run by the control-plane tests),
 # is unmapped on purpose, so a new tool runs all twelve stages until it is listed here.
 STATIC_ONLY_TOOLS = (
     'tools/test_*', 'tools/api_surface.py', 'tools/arch_baseline.json', 'tools/arch_documented_sudo.json',

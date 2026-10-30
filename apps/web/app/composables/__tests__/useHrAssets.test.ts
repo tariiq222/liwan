@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { QueryClient } from '@tanstack/vue-query'
-import type { HrEquipment } from '@webvue/contracts'
+import type { HrEquipment } from '@liwan/contracts'
 import {
   archiveHrEquipment,
   assignHrEquipment,

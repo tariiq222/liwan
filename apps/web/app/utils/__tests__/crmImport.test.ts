@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CrmImportFileReasonSchema } from '@webvue/contracts'
+import { CrmImportFileReasonSchema } from '@liwan/contracts'
 import { crmImportErrorMessage, draftFromColumns, importFileProblem, mappingBody, MAX_IMPORT_BYTES } from '../crmImport'
 
 const t = (key: string) => key

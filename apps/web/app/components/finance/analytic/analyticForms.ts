@@ -1,4 +1,4 @@
-import type { FinanceAnalyticAccount, FinanceAnalyticAccountPatch } from '@webvue/contracts'
+import type { FinanceAnalyticAccount, FinanceAnalyticAccountPatch } from '@liwan/contracts'
 
 /** The `name` and `code` that changed on an edited cost center, or null when nothing did (no request is sent then). */
 export function accountPatch(account: FinanceAnalyticAccount, name: string, code: string): FinanceAnalyticAccountPatch | null {

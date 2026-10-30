@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinanceInvoice } from '@webvue/contracts'
-import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
+import type { FinanceInvoice } from '@liwan/contracts'
+import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import { useFinanceInvoiceList } from '@/composables/finance/useFinanceInvoices'
 import { useFinancePartner } from '@/composables/finance/useFinancePartners'
 import { useRouteListFilters } from '@/composables/useRouteListFilters'
@@ -81,7 +81,7 @@ const label = (invoice: FinanceInvoice) => invoiceTitle(invoice, t('financeDocum
 
 <template>
   <SharedForbiddenState v-if="!allowed" :description="t('financeDocuments.forbidden')" />
-  <div v-else class="webvue-page-stack">
+  <div v-else class="liwan-page-stack">
     <InvoiceKpiStrip v-if="kpisShown" :move-type="moveType" :filters="filters" />
     <SharedListCard>
       <template #filters>
@@ -106,7 +106,7 @@ const label = (invoice: FinanceInvoice) => invoiceTitle(invoice, t('financeDocum
         </SharedFilterBar>
       </template>
       <SharedPageState :error="query.error.value" :keep-content="items.length > 0" @retry="query.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--webvue-card-pad-dense)" :title="t(activeCount ? 'app.noResults' : `financeDocuments.kinds.${moveType}.empty`)" />
+        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(activeCount ? 'app.noResults' : `financeDocuments.kinds.${moveType}.empty`)" />
         <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,880px)]">
           <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :row-to="recordTo" :loading="query.isPending.value" :caption="t(`financeDocuments.kinds.${moveType}.title`)">
             <template #record_number-cell="{ row }"><SharedRecordNumber :value="row.original.id" /></template>

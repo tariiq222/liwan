@@ -3,7 +3,7 @@
     "selectPerson": "Select a person",
     "actions": "Actions",
     "edit": "Edit",
-    "productName": "WebVue",
+    "productName": "LiwanOS",
     "search": "Search",
     "save": "Save",
     "settingsConflict": "Someone else changed these settings after you opened the page. Load the current values, then make your change again.",
@@ -81,7 +81,7 @@
     "chat": "Chat",
     "myTasks": "My tasks",
     "meetings": "Meetings",
-    "ai": "WebVue AI",
+    "ai": "LiwanOS AI",
     "rail": {
       "hr": "People",
       "ai": "Assistant"

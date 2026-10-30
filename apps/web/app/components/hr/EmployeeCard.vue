@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HrEmployee } from '@webvue/contracts'
+import type { HrEmployee } from '@liwan/contracts'
 import { hrAccessBadge } from '@/utils/hrAccessBadge'
 
 // The employee record's main column: the identity hero (avatar, name, job line; the status is a tag in the page heading) and, for a reader who may

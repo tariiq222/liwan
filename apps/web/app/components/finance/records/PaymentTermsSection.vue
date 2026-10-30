@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinancePaymentTerm } from '@webvue/contracts'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import type { FinancePaymentTerm } from '@liwan/contracts'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
 import { h } from 'vue'
 import { useArchiveSetupPaymentTerm, useSetupPaymentTerms } from '@/composables/finance/useFinanceRecords'
 import PaymentTermEditor from './PaymentTermEditor.vue'
@@ -45,7 +45,7 @@ const actions = (term: FinancePaymentTerm): RowAction[] => term.shared
     <template v-if="canManage" #actions>
       <UButton color="primary" icon="i-lucide-plus" :disabled="!list.hydrated.value || panel !== null" :label="t('financeRecords.paymentTerms.new')" data-testid="finance-record-term-new" @click="panel = { kind: 'create' }" />
     </template>
-    <div class="grid gap-(--webvue-gap-card)">
+    <div class="grid gap-(--liwan-gap-card)">
       <template v-if="panel">
         <RecordArchiveConfirm v-if="panel.kind === 'archive'" :key="panelKey(panel)" scope="paymentTerms" :name="panel.term.name" :active="panel.term.active" :pending="archiving" :send="archive => send({ id: (panel as { term: FinancePaymentTerm }).term.id, archive })" @done="panel = null" @cancel="panel = null" />
         <PaymentTermEditor v-else :key="panelKey(panel)" :term="panel.kind === 'edit' ? panel.term : undefined" @done="panel = null" @cancel="panel = null" />

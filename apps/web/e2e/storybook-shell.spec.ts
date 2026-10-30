@@ -43,7 +43,7 @@ test.describe('Tasmim shell (desktop)', () => {
       await open(page, 'shell-shellframe--default', `locale:${locale};appearance:light`)
       const active = page.getByTestId('module-rail').locator('[aria-current="page"]')
       await expect(active).toHaveCount(1)
-      await expect(active.locator('.webvue-module-rail-icon')).toHaveCSS('border-radius', '9999px')
+      await expect(active.locator('.liwan-module-rail-icon')).toHaveCSS('border-radius', '9999px')
       await expect(page.getByTestId('application-navigation')).toHaveCSS('background-color', 'rgb(255, 255, 255)')
     })
   }

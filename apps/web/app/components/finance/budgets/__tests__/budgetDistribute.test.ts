@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FinanceBudgetDistributeSchema } from '@webvue/contracts'
+import { FinanceBudgetDistributeSchema } from '@liwan/contracts'
 import { buildDistribute, emptyDistribute, evenPercents, hasDistributeErrors, percentTotal, shareAmount, validateDistribute } from '../budgetDistribute'
 
 const valid = () => ({ ...emptyDistribute(), accountId: 7, amount: '1000', shares: [{ analyticId: 1, percent: '60' }, { analyticId: 2, percent: '40' }] })

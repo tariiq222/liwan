@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import { DEFAULT_STUBS, renderShared } from '@webvue/ui/test/helpers/renderShared'
+import { DEFAULT_STUBS, renderShared } from '@liwan/ui/test/helpers/renderShared'
 
 const file = resolve(import.meta.dirname, '../index.vue')
 const UButton = Vue.defineComponent({

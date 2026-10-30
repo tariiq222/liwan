@@ -116,10 +116,10 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <UForm :state="{ name, vat }" class="webvue-form" method="post" :loading-auto="false" novalidate @submit="submit">
+  <UForm :state="{ name, vat }" class="liwan-form" method="post" :loading-auto="false" novalidate @submit="submit">
     <UAlert v-if="formError" role="alert" color="error" variant="subtle" :title="t('finance.partners.form.saveError')" :description="errorMessage" />
     <SharedFormSection panel :title="t('finance.partners.form.general')" :description="t('finance.partners.form.generalHint')">
-      <div class="webvue-form-grid">
+      <div class="liwan-form-grid">
         <UFormField :label="t('finance.partners.form.name')" name="finance-partner-name" required :error="fieldError('name')">
           <UInput id="finance-partner-name" v-model="name" class="w-full" :disabled="disabled" required />
         </UFormField>
@@ -133,7 +133,7 @@ async function submit() {
       </div>
     </SharedFormSection>
     <SharedFormSection panel :title="t('finance.partners.form.tax')" :description="t('finance.partners.form.taxHint')">
-      <div class="webvue-form-grid">
+      <div class="liwan-form-grid">
         <UFormField :label="t('finance.partners.form.vat')" name="finance-partner-vat" :error="fieldError('vat')">
           <UInput id="finance-partner-vat" v-model="vat" dir="ltr" class="w-full" :disabled="disabled" inputmode="numeric" />
         </UFormField>
@@ -143,7 +143,7 @@ async function submit() {
       </div>
     </SharedFormSection>
     <SharedFormSection panel :title="t('finance.partners.form.address')">
-      <div class="webvue-form-grid">
+      <div class="liwan-form-grid">
         <UFormField :label="t('finance.partners.form.street')" name="finance-partner-street" :error="fieldError('street')">
           <UInput id="finance-partner-street" v-model="street" class="w-full" :disabled="disabled" />
         </UFormField>

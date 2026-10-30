@@ -83,17 +83,17 @@
 | control-plane | `apps/control-plane/src/schema_025.sql` | أعمدة metered والبذرة |
 | control-plane | `apps/control-plane/src/schema_026.sql` | `customers.trial_used_at` |
 | control-plane | `apps/control-plane/src/schema_027.sql` | `subscriptions.commercial_expiry_revision`، `tenants.commercial_expiry_supported` |
-| Odoo | `odoo-addons/webvue_platform/migrations/19.0.1.6.0` | `commercial_valid_until` |
-| Odoo | `odoo-addons/webvue_platform/migrations/19.0.1.7.0` | `commercial_valid_until_revision` |
+| Odoo | `odoo-addons/liwan_platform/migrations/19.0.1.6.0` | `commercial_valid_until` |
+| Odoo | `odoo-addons/liwan_platform/migrations/19.0.1.7.0` | `commercial_valid_until_revision` |
 
 ### آخر أدلة مُشغَّلة
 
 | الأمر | النتيجة |
 | --- | --- |
-| Odoo `--test-tags /webvue_platform` على قاعدة scratch جديدة | 121 اختبارًا، 0 فشل |
+| Odoo `--test-tags /liwan_platform` على قاعدة scratch جديدة | 121 اختبارًا، 0 فشل |
 | ترقية محاكاة 19.0.1.6.0 → 19.0.1.7.0 | نجحت، العمود والبيانات سليمة |
 | `tools/shared_saas_lifecycle/test_*.py` | 110 OK (منها 62 للـeffect والفرع) |
-| `tools.test_webvue_cli_operator` | 39 OK |
+| `tools.test_liwan_cli_operator` | 39 OK |
 | control-plane المجموعة الرئيسية | 1058 ناجحًا، 7 متجاوزة |
 | control-plane payment / analytics | 28 / 12 |
 | `npm test` | exit 0 (web 3815، vendor 639، contracts 119) |
@@ -137,7 +137,7 @@
 | مستأجر من صورة أقدم من 19.0.1.7.0 بعد النشر | يحرق تجربته الوحيدة قبل الفشل | التجهيز من الصورة الحالية فقط؛ غير ممكن في التركيب الحالي |
 | مهمة دفع تاريخ تنتهي بـ`needs_intervention` | تاريخ قديم في Odoo | المراقبة وإعادة الدفع، موثق في الدليل |
 | محرك ضريبة مكرر (البند 7) | اختلاف حساب بين الاشتراك والدفاتر | قرار المالك قبل المرحلة ٣ |
-| تحصيل 15% قبل التسجيل الضريبي | ويب فيو غير مسجلة ضريبيًا الآن (المالك 2026-10-26)، والبيع يبدأ قبل التسجيل المتوقع بعد نحو 4 أشهر؛ إضافة ضريبة على فاتورة جهة غير مسجلة قد يكون تحصيلًا غير نظامي | يُحسم ضمن القرار المعلّق في البند 7؛ لا يُفعَّل البيع المدفوع قبله. **غير مُتحقق قانونيًا** |
+| تحصيل 15% قبل التسجيل الضريبي | ليوان غير مسجلة ضريبيًا الآن (المالك 2026-10-26)، والبيع يبدأ قبل التسجيل المتوقع بعد نحو 4 أشهر؛ إضافة ضريبة على فاتورة جهة غير مسجلة قد يكون تحصيلًا غير نظامي | يُحسم ضمن القرار المعلّق في البند 7؛ لا يُفعَّل البيع المدفوع قبله. **غير مُتحقق قانونيًا** |
 | لا اختبار إنتاجي | لم تُثبت ترقية فعلية ولا دفع حقيقي | **غير مُتحقق**؛ يُسجَّل عند تنفيذه |
 | إعداد `allow_auto_merge` على المستودع | أي PR يستطيع تفعيل الدمج التلقائي | فُعِّل بطلب المالك؛ يُعطَّل بـ`gh api -X PATCH repos/tariiq222/webvue -F allow_auto_merge=false` |
 
@@ -166,8 +166,8 @@ npm -w apps/vendor-admin run lint
 
 ```bash
 # control-plane: كل مجموعة على قاعدة scratch جديدة
-psql -d postgres -c 'DROP DATABASE IF EXISTS webvue_control_scratch_ci' && createdb webvue_control_scratch_ci
-CONTROL_TEST_DATABASE_URL='postgresql://tariq@127.0.0.1:5432/webvue_control_scratch_ci' \
+psql -d postgres -c 'DROP DATABASE IF EXISTS liwan_control_scratch_ci' && createdb liwan_control_scratch_ci
+CONTROL_TEST_DATABASE_URL='postgresql://tariq@127.0.0.1:5432/liwan_control_scratch_ci' \
   npm -w apps/control-plane run test -- --exclude '**/commercial-analytics.test.ts' \
   --exclude '**/commercial-payment-events.test.ts' \
   --exclude '**/commercial-payment-simulator-settle.test.ts' \
@@ -189,13 +189,13 @@ CONTROL_TEST_DATABASE_URL='postgresql://tariq@127.0.0.1:5432/webvue_control_scra
 | رفض ظاهر على مستأجر غير مُرقّى | تجاهل الحقل | فشل صامت يعني استخدامًا بلا إنفاذ |
 | تفعيل `allow_auto_merge` | الدمج اليدوي في كل نافذة | طلب المالك لإنهاء السباق مع `main` |
 
-### قرار معلّق: تكرار الضريبة والفوترة مع `webvue_finance`
+### قرار معلّق: تكرار الضريبة والفوترة مع `liwan_finance`
 
-**السؤال:** لماذا تبني مالية الاشتراكات نظامًا مستقلًا للضريبة والفوترة بدل نظام ويب فيو الأساسي؟
+**السؤال:** لماذا تبني مالية الاشتراكات نظامًا مستقلًا للضريبة والفوترة بدل نظام ليوان الأساسي؟
 
 **الوضع في الكود [مثبت]:**
 
-| البند | control-plane (الاشتراكات) | `webvue_finance` |
+| البند | control-plane (الاشتراكات) | `liwan_finance` |
 | --- | --- | --- |
 | حساب الضريبة | نسبة ثابتة `VAT 15% exclusive` في `packages/commercial-contracts/src/commercial/billing.ts` | محرك ضريبة Odoo |
 | الفاتورة | `official_tax_invoice: false` دائمًا، أي ليست فاتورة ضريبية رسمية | فواتير محاسبية |
@@ -204,8 +204,8 @@ CONTROL_TEST_DATABASE_URL='postgresql://tariq@127.0.0.1:5432/webvue_control_scra
 
 **ما يبرر الفصل:**
 
-1. `webvue_finance` داخل قاعدة كل عميل، أي دفاتر العميل نفسه. فاتورة الاشتراك مبيعات شركة
-   ويب فيو، فلا مكان لها في دفاتر العميل.
+1. `liwan_finance` داخل قاعدة كل عميل، أي دفاتر العميل نفسه. فاتورة الاشتراك مبيعات شركة
+   ليوان، فلا مكان لها في دفاتر العميل.
 2. R5 وR8: المنتج يعمل بلا control plane، والعميل `non_saas` بلا فوترة اشتراكات.
 3. العرض والتجربة والتجهيز تحدث قبل وجود قاعدة Odoo للعميل.
 4. بوابة الدفع والاستحقاقات والتجديد تخص المورّد.
@@ -221,20 +221,20 @@ CONTROL_TEST_DATABASE_URL='postgresql://tariq@127.0.0.1:5432/webvue_control_scra
 
 | الخيار | الفكرة | الأثر |
 | --- | --- | --- |
-| **أ (موصى به)** هجين | control-plane يبقى للتسعير والاستحقاق والدفع؛ **مستأجر ويب فيو الخاص بالشركة** (`webvue_finance`) يصبح الدفتر ومصدر الفاتورة الضريبية ومصدر نسبة الضريبة؛ control-plane يرسل الطلب المدفوع إليه عبر API | محرك ضريبة واحد، فواتير ZATCA حقيقية، ودليل عملي على المنتج. يحتاج API فواتير وحلّ حاجز ZATCA للإنتاج |
+| **أ (موصى به)** هجين | control-plane يبقى للتسعير والاستحقاق والدفع؛ **مستأجر ليوان الخاص بالشركة** (`liwan_finance`) يصبح الدفتر ومصدر الفاتورة الضريبية ومصدر نسبة الضريبة؛ control-plane يرسل الطلب المدفوع إليه عبر API | محرك ضريبة واحد، فواتير ZATCA حقيقية، ودليل عملي على المنتج. يحتاج API فواتير وحلّ حاجز ZATCA للإنتاج |
 | ب كما هو | تنفيذ المرحلة ٣ كما كُتبت | أسرع، لكن الضريبة مكررة والفاتورة غير رسمية إلى أجل غير محدد |
-| ج كل شيء في Odoo | التسعير والتجربة داخل `webvue_finance` | مرفوض: يكسر R5/R8 ولا يعمل قبل وجود المستأجر |
+| ج كل شيء في Odoo | التسعير والتجربة داخل `liwan_finance` | مرفوض: يكسر R5/R8 ولا يعمل قبل وجود المستأجر |
 
 **أثر (أ) على الخطة:** تُعاد كتابة المرحلة ٣ لتصبح «control-plane يقرأ النسبة من مالية
-مستأجر ويب فيو ويرسل إليها الفواتير». الحسبة قبل الدفع تبقى في control-plane بالنسبة
+مستأجر ليوان ويرسل إليها الفواتير». الحسبة قبل الدفع تبقى في control-plane بالنسبة
 نفسها التي يعتمدها الدفتر، وفواتير control-plane الحالية تتحول إلى كشف/إيصال. R5 لا يُكسر
 لأن الاتصال من control-plane إلى Odoo عبر API.
 
-**[كود] API الفواتير:** `webvue_finance` على `origin/main` فيه `POST /api/v1/finance/invoices`
+**[كود] API الفواتير:** `liwan_finance` على `origin/main` فيه `POST /api/v1/finance/invoices`
 (`controllers/finance_invoices.py:215`) ثم `/post` و`/cancel`، بـ`auth='user'` أي بجلسة مستخدم في
-مستأجر ويب فيو. **غير مُتحقق:** صلاحية هوية آلية من control-plane لاستدعائه، وسلامة ذلك مع R5.
+مستأجر ليوان. **غير مُتحقق:** صلاحية هوية آلية من control-plane لاستدعائه، وسلامة ذلك مع R5.
 
-**معلومة المالك 2026-10-26:** ويب فيو **غير مسجلة ضريبيًا الآن**، والتسجيل متوقع خلال نحو
+**معلومة المالك 2026-10-26:** ليوان **غير مسجلة ضريبيًا الآن**، والتسجيل متوقع خلال نحو
 4 أشهر، والبيع يبدأ قبل التسجيل. فالسؤال قبل «أين محرك الضريبة» هو «هل تُضاف ضريبة أصلًا
 قبل التسجيل».
 
@@ -252,8 +252,8 @@ CONTROL_TEST_DATABASE_URL='postgresql://tariq@127.0.0.1:5432/webvue_control_scra
 | محرك التسعير والعقود | الفرع | `packages/commercial-contracts/src/commercial/` |
 | التجربة والتسعير والتنفيذ | الفرع | `apps/control-plane/src/commercial/` |
 | مهمة reconfigure | الفرع | `apps/control-plane/src/shared/subscription-reconfigure.ts`، `tools/shared_saas_lifecycle/subscription_effect.py` |
-| حقل الانتهاء في Odoo | الفرع | `odoo-addons/webvue_platform/models/tenant_profile.py`، `entitlement_service.py` |
-| CLI المشغّل | الفرع | `tools/webvue_cli/operator.py` |
+| حقل الانتهاء في Odoo | الفرع | `odoo-addons/liwan_platform/models/tenant_profile.py`، `entitlement_service.py` |
+| CLI المشغّل | الفرع | `tools/liwan_cli/operator.py` |
 | شاشة العميل | الفرع | `apps/web/app/pages/subscription/` |
 | كونسول المورّد | الفرع | `apps/vendor-admin/app/components/vendor/` |
 | دليل النشر | الفرع | `docs/superpowers/plans/2026-10-25-commercial-expiry-rollout.md` |

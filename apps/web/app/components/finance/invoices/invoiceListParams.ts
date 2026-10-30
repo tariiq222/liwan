@@ -1,5 +1,5 @@
-import type { KpiTile } from '@webvue/ui/app/utils/kpiTile'
-import type { FinanceInvoice } from '@webvue/contracts'
+import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
+import type { FinanceInvoice } from '@liwan/contracts'
 import type { FinanceMoveType } from './invoiceKinds'
 import { queryText, queryDay } from '../../../utils/routeQuery'
 

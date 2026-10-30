@@ -1,5 +1,5 @@
-import { statusBadgeEntry, type StatusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
-import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
+import { statusBadgeEntry, type StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
+import type { StatusTone } from '@liwan/ui/app/utils/statusTone'
 
 // Status tones for the vendor console (DESIGN.md §2: tones are fixed; failed and canceled read as errors).
 // Pages translate `labelKey` at the call site and hand both to SharedStatusBadge. These maps take plain

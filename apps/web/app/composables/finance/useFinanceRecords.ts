@@ -23,7 +23,7 @@ import {
   type FinancePaymentTermPatch,
   type FinanceTaxCreate,
   type FinanceTaxPatch,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import type { RecordParams } from '@/components/finance/records/recordParams'
 
 // The setup records of a company: accounts, journals, taxes, payment terms and asset profiles. Each has a list (with an archived switch), a create,

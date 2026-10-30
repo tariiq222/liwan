@@ -1,5 +1,5 @@
-import type { KpiTile } from '@webvue/ui/app/utils/kpiTile'
-import type { OperationPurpose } from '@webvue/contracts'
+import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
+import type { OperationPurpose } from '@liwan/contracts'
 import type { OperationScope } from './useOperations'
 
 type Translate = (key: string) => string

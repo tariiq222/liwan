@@ -1,4 +1,4 @@
-import type { ChatMessage } from '@webvue/contracts'
+import type { ChatMessage } from '@liwan/contracts'
 
 export const CHAT_POLL_MS = 5_000
 export const CHAT_TYPING_MS = 6_000

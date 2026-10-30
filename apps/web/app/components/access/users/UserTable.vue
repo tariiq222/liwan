@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { joinList } from '@/utils/listFormat'
-import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
+import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import { accessBadge } from '@/components/access/accessBadge'
 import type { TableColumn } from '@nuxt/ui'
-import type { AdminUserSummary } from '@webvue/contracts'
+import type { AdminUserSummary } from '@liwan/contracts'
 import type { RouteLocationRaw } from 'vue-router'
-import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
 
 // The users table on SharedDataTable (the settings list and a role's assigned users). A row opens the
 // account through `toFor` (background click, Enter and the name link). Pagination belongs to the page.
@@ -46,7 +46,7 @@ const columns = computed<TableColumn<AdminUserSummary>[]>(() => [
 </script>
 
 <template>
-  <SharedEmptyState v-if="!loading && !error && !users.length" class="m-(--webvue-card-pad-dense)" :title="emptyText ?? t('app.noResults')" />
+  <SharedEmptyState v-if="!loading && !error && !users.length" class="m-(--liwan-card-pad-dense)" :title="emptyText ?? t('app.noResults')" />
   <SharedDataTable
     v-else
     bare

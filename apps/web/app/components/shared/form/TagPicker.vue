@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { joinList } from '@/utils/listFormat'
-import type { Task } from '@webvue/contracts'
+import type { Task } from '@liwan/contracts'
 import { refDebounced } from '@vueuse/core'
 import { ApiError } from '@/composables/useApi'
 import { useCreateTag, useTags } from '@/composables/useTags'

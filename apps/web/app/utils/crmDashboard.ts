@@ -1,5 +1,5 @@
-import type { CrmDashboard } from '@webvue/contracts'
-import type { KpiTile } from '@webvue/ui/app/utils/kpiTile'
+import type { CrmDashboard } from '@liwan/contracts'
+import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
 import { CRM_LIST_PATH, formatPrice } from './crmOpportunity'
 
 type Translate = (key: string, named?: Record<string, unknown>) => string

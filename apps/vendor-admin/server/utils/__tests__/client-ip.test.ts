@@ -16,11 +16,11 @@ const devProxyHeaders = (forwardedFor: string) => ({ 'x-nuxt-dev-request-id': 'r
 describe('clientIp', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('ignores a browser-supplied x-webvue-client-ip and uses the observed socket address', async () => {
+  it('ignores a browser-supplied x-liwan-client-ip and uses the observed socket address', async () => {
     stubConfig()
-    expect((await send(handler, '/x', { method: 'GET', headers: { 'x-webvue-client-ip': '6.6.6.6' } })).body.ip).toBe('127.0.0.1')
+    expect((await send(handler, '/x', { method: 'GET', headers: { 'x-liwan-client-ip': '6.6.6.6' } })).body.ip).toBe('127.0.0.1')
     stubConfig({ trustProxy: true })
-    expect((await send(handler, '/x', { method: 'GET', headers: { 'x-webvue-client-ip': '6.6.6.6', 'x-forwarded-for': '203.0.113.9' } })).body.ip).toBe('203.0.113.9')
+    expect((await send(handler, '/x', { method: 'GET', headers: { 'x-liwan-client-ip': '6.6.6.6', 'x-forwarded-for': '203.0.113.9' } })).body.ip).toBe('203.0.113.9')
   })
 
   it('ignores x-forwarded-for unless the proxy is trusted', async () => {

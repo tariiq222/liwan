@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CrmImportPreview } from '@webvue/contracts'
+import type { CrmImportPreview } from '@liwan/contracts'
 import { invalidReasonKey } from '@/utils/crmImport'
 
 // Step 3: what the import would do, in counts, then the rows that would be refused (their number and why) and the rows
@@ -17,7 +17,7 @@ const duplicateHidden = computed(() => props.preview.duplicate - props.preview.d
 
 <template>
   <div class="grid gap-5" data-testid="crm-import-preview">
-    <div class="grid grid-cols-3 gap-(--webvue-gap-card)">
+    <div class="grid grid-cols-3 gap-(--liwan-gap-card)">
       <SharedMetricTile v-for="tile in tiles" :key="tile.id" density="compact" :tone="tile.tone" :icon="tile.icon" :label="tile.label" :value="tile.value" value-dir="ltr" :data-testid="`crm-import-count-${tile.id}`" />
     </div>
     <p v-if="!preview.new" class="text-sm text-muted">{{ t('crm.imports.flow.preview.nothingNew') }}</p>

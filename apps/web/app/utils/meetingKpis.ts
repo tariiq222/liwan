@@ -1,5 +1,5 @@
-import { localIsoDay } from '@webvue/ui/app/utils/formatDate'
-import type { KpiTile } from '@webvue/ui/app/utils/kpiTile'
+import { localIsoDay } from '@liwan/ui/app/utils/formatDate'
+import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
 
 type Scope = Record<string, string | number | boolean | undefined>
 type Translate = (key: string) => string

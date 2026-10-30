@@ -8,7 +8,7 @@ import type {
   ProjectDetail,
   ProjectPatch,
   ProjectPriority,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 
 export const CHARTER_FIELD_KEYS = [
   'name',

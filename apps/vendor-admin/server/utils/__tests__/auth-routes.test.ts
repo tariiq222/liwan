@@ -99,7 +99,7 @@ describe('auth routes', () => {
     expect(result.status).toBe(200)
     expect(result.body).toEqual({ expires_at: signedIn.expires_at, idle_expires_at: signedIn.idle_expires_at })
     expect(result.text).not.toContain(SESSION)
-    expect(result.headers.get('set-cookie')).toContain(`webvue_admin=${SESSION}`)
+    expect(result.headers.get('set-cookie')).toContain(`liwan_admin=${SESSION}`)
   })
 
   it('enroll-complete also returns the recovery codes once', async () => {
@@ -139,18 +139,18 @@ describe('session header and signing mode by route', () => {
   beforeEach(() => stubConfig())
   afterEach(() => vi.unstubAllGlobals())
 
-  it.each(cases.filter(c => !c.sessionCookie))('$name never sends x-webvue-session even when the browser has the cookie', async ({ handler, path, body }) => {
+  it.each(cases.filter(c => !c.sessionCookie))('$name never sends x-liwan-session even when the browser has the cookie', async ({ handler, path, body }) => {
     const calls = stubUpstream(() => json(200, { ...signedIn }))
     await send(handler, path, { body, headers: cookieHeader() })
-    expect(Object.keys(at(calls, 0).headers)).not.toContain('x-webvue-session')
+    expect(Object.keys(at(calls, 0).headers)).not.toContain('x-liwan-session')
   })
 
   it('signs logout as the anonymous actor with the session header', async () => {
     const calls = stubUpstream(() => json(204))
     await send(logout, '/api/auth/logout', { body: {}, headers: cookieHeader() })
     const call = at(calls, 0)
-    expect(call.headers['x-webvue-actor']).toBe('anonymous')
-    expect(call.headers['x-webvue-session']).toBe(SESSION)
+    expect(call.headers['x-liwan-actor']).toBe('anonymous')
+    expect(call.headers['x-liwan-session']).toBe(SESSION)
   })
 })
 
@@ -186,7 +186,7 @@ describe('GET /api/auth/session', () => {
     stubUpstream(() => json(401, { code: 'unauthorized' }))
     const result = await send(session, '/api/auth/session', { method: 'GET', headers: cookieHeader() })
     expect(result).toMatchObject({ status: 401, body: { code: 'auth_failed' } })
-    expect(result.headers.get('set-cookie')).toMatch(/webvue_admin=;/)
+    expect(result.headers.get('set-cookie')).toMatch(/liwan_admin=;/)
   })
 
   it('is 503 vendor_unavailable when not configured, even without a cookie', async () => {
@@ -203,7 +203,7 @@ describe('step-up routes with a rejected session', () => {
     stubUpstream(() => json(401, { code: 'auth_failed' }))
     const result = await send(handler, path, { body, headers: cookieHeader() })
     expect(result).toMatchObject({ status: 401, body: { code: 'auth_failed' } })
-    expect(result.headers.get('set-cookie')).toMatch(/webvue_admin=;/)
+    expect(result.headers.get('set-cookie')).toMatch(/liwan_admin=;/)
   })
 
   it('a failed passkey assertion on a live session keeps the cookie', async () => {
@@ -223,21 +223,21 @@ describe('POST /api/auth/logout', () => {
     const calls = stubUpstream(() => json(204))
     const result = await send(logout, '/api/auth/logout', { body: {}, headers: cookieHeader() })
     expect(result.status).toBe(204)
-    expect(result.headers.get('set-cookie')).toMatch(/webvue_admin=;/)
+    expect(result.headers.get('set-cookie')).toMatch(/liwan_admin=;/)
     expect(at(calls, 0).url.pathname).toBe('/v1/admin/auth/logout')
-    expect(at(calls, 0).headers['x-webvue-session']).toBe(SESSION)
+    expect(at(calls, 0).headers['x-liwan-session']).toBe(SESSION)
   })
 
   it('treats only the genuine auth_failed of an already-invalid session as logged out', async () => {
     stubUpstream(() => json(401, { code: 'auth_failed' }))
     const expired = await send(logout, '/api/auth/logout', { body: {}, headers: cookieHeader() })
     expect(expired.status).toBe(204)
-    expect(expired.headers.get('set-cookie')).toMatch(/webvue_admin=;/)
+    expect(expired.headers.get('set-cookie')).toMatch(/liwan_admin=;/)
     // Any other 401 (signature, clock) is reported as it is, and the cookie is still cleared.
     stubUpstream(() => json(401, { code: 'unauthorized' }))
     const other = await send(logout, '/api/auth/logout', { body: {}, headers: cookieHeader() })
     expect(other).toMatchObject({ status: 401, body: { code: 'unauthorized' } })
-    expect(other.headers.get('set-cookie')).toMatch(/webvue_admin=;/)
+    expect(other.headers.get('set-cookie')).toMatch(/liwan_admin=;/)
     stubUpstream(() => json(429, { code: 'rate_limited' }))
     expect((await send(logout, '/api/auth/logout', { body: {}, headers: cookieHeader() })).status).toBe(429)
   })
@@ -246,7 +246,7 @@ describe('POST /api/auth/logout', () => {
     stubUpstream(() => json(500))
     const down = await send(logout, '/api/auth/logout', { body: {}, headers: cookieHeader() })
     expect(down.status).toBe(503)
-    expect(down.headers.get('set-cookie')).toMatch(/webvue_admin=;/)
+    expect(down.headers.get('set-cookie')).toMatch(/liwan_admin=;/)
   })
 
   it('is a no-op without a cookie', async () => {

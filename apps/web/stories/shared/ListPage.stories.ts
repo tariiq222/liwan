@@ -3,11 +3,11 @@ import type { TableColumn } from '@nuxt/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppSidebar from '../../app/components/shell/AppSidebar.vue'
-import ShellFrame from '@webvue/ui/app/components/shell/ShellFrame.vue'
+import ShellFrame from '@liwan/ui/app/components/shell/ShellFrame.vue'
 import ShellHeader from '../../app/components/shell/ShellHeader.vue'
-import DataTable from '@webvue/ui/app/components/shared/data/DataTable.vue'
-import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
-import ListPage from '@webvue/ui/app/components/shared/layout/ListPage.vue'
+import DataTable from '@liwan/ui/app/components/shared/data/DataTable.vue'
+import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
+import ListPage from '@liwan/ui/app/components/shared/layout/ListPage.vue'
 import { __getRouter, useCookie } from '../../.storybook/nuxt-shims'
 import { shellHandlers } from '../handlers/shell'
 import { people, projectRefs } from '../fixtures/pmo'
@@ -76,13 +76,13 @@ const page = makePage(false)
 export const Default: Story = {
   name: 'قائمة بجدول',
   loaders: [at('/projects')],
-  render: () => ({ components: { Page: page }, template: '<main class="webvue-shell-main"><Page /></main>' }),
+  render: () => ({ components: { Page: page }, template: '<main class="liwan-shell-main"><Page /></main>' }),
 }
 
 export const Board: Story = {
   name: 'رابط ?view=board',
   loaders: [at('/projects?view=board')],
-  render: () => ({ components: { Page: page }, template: '<main class="webvue-shell-main"><Page /></main>' }),
+  render: () => ({ components: { Page: page }, template: '<main class="liwan-shell-main"><Page /></main>' }),
 }
 
 export const InShell: Story = {
@@ -90,11 +90,11 @@ export const InShell: Story = {
   loaders: [at('/projects')],
   render: () => ({
     components: { AppSidebar, Page: page, ShellFrame, ShellHeader },
-    setup: () => { useCookie<'open' | 'closed'>('webvue-context-sidebar').value = 'open' },
+    setup: () => { useCookie<'open' | 'closed'>('liwan-context-sidebar').value = 'open' },
     template: `<ShellFrame>
       <template #header><ShellHeader /></template>
       <template #sidebar><AppSidebar /></template>
-      <main class="webvue-shell-main" data-testid="shell-main"><Page /></main>
+      <main class="liwan-shell-main" data-testid="shell-main"><Page /></main>
     </ShellFrame>`,
   }),
 }
@@ -102,5 +102,5 @@ export const InShell: Story = {
 export const WithBack: Story = {
   name: 'مع رابط الرجوع',
   loaders: [at('/projects')],
-  render: () => ({ components: { Page: makePage(true) }, template: '<main class="webvue-shell-main"><Page /></main>' }),
+  render: () => ({ components: { Page: makePage(true) }, template: '<main class="liwan-shell-main"><Page /></main>' }),
 }

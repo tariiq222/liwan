@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { Quote } from '@webvue/commercial-contracts'
+import type { Quote } from '@liwan/commercial-contracts'
 import { cadenceKey, commercialErrorKey, parseCount } from '@/utils/vendorCommercial'
-import { cadenceLabel } from '@webvue/commercial-ui/app/utils/commercial'
+import { cadenceLabel } from '@liwan/commercial-ui/app/utils/commercial'
 import { customerQuoteBody, customersReturnTo } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'

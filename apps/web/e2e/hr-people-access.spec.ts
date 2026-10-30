@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test'
-import { AdminUserDetailSchema, HrEmployeeSchema, MeSchema, RoleListSchema } from '@webvue/contracts'
+import { AdminUserDetailSchema, HrEmployeeSchema, MeSchema, RoleListSchema } from '@liwan/contracts'
 
 test('HR archival disables linked access and unarchival requires explicit account reactivation', async ({ page, browser }) => {
   expect((await page.request.post('/api/auth/login', { data: { login: 'admin', password: 'admin' } })).status()).toBe(200)
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   const email = `hr-lifecycle-${suffix}@example.test`
-  const password = `WebVue-lifecycle-${suffix}`
+  const password = `LiwanOS-lifecycle-${suffix}`
   const employeeRes = await page.request.post('/api/v1/hr/employees', { data: { name: `موظف دورة ${suffix}`, work_email: email } })
   expect(employeeRes.status()).toBe(201)
   const employee = HrEmployeeSchema.parse(await employeeRes.json())

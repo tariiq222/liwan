@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { Pool } from 'pg'
-import { adminAccountListSchema, adminErrorBodySchema, adminInviteResultSchema, adminMeSchema, adminResetResultSchema } from '@webvue/commercial-contracts'
-import { signServiceRequest } from '@webvue/commercial-contracts/server'
+import { adminAccountListSchema, adminErrorBodySchema, adminInviteResultSchema, adminMeSchema, adminResetResultSchema } from '@liwan/commercial-contracts'
+import { signServiceRequest } from '@liwan/commercial-contracts/server'
 import { migrate, transaction } from '../../db.js'
 import { createApp } from '../../http.js'
 import { TEST_KEY as key, vendorSession } from '../../__tests__/helpers/vendor-session.js'
@@ -11,7 +11,7 @@ import { inviteAccount } from '../enrollment.js'
 const url = process.env.CONTROL_TEST_DATABASE_URL
 if (url) {
   const parsed = new URL(url)
-  if (!['127.0.0.1', 'localhost', '::1'].includes(parsed.hostname) || !/^webvue_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback webvue_control_scratch database')
+  if (!['127.0.0.1', 'localhost', '::1'].includes(parsed.hostname) || !/^liwan_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback liwan_control_scratch database')
 }
 const issuer = 'vendor-scratch'
 const config = { installationId: issuer, key, inventoryPath: '', repositoryRoot: '/nonexistent', python: 'python3', stateDir: '/nonexistent-state' }
@@ -47,14 +47,14 @@ else describe('account management routes', () => {
   /** An owner created through inviteAccount('operator') and activated, so the roles come from real code. */
   async function ownerSession(options: { stepUp: boolean }): Promise<Session> {
     return transaction(pool, async (client) => {
-      await inviteAccount(client, 'operator', { email: `owner-${++seq}@webvue.sa`, displayName: 'Owner', roles: ['owner'], reason: 'test owner' }, new Date())
-      const row = await client.query("UPDATE vendor_accounts SET status='active', password_hash='x' WHERE email=$1 RETURNING id", [`owner-${seq}@webvue.sa`])
+      await inviteAccount(client, 'operator', { email: `owner-${++seq}@liwanos.com`, displayName: 'Owner', roles: ['owner'], reason: 'test owner' }, new Date())
+      const row = await client.query("UPDATE vendor_accounts SET status='active', password_hash='x' WHERE email=$1 RETURNING id", [`owner-${seq}@liwanos.com`])
       const accountId = Number(row.rows[0].id)
       const { session } = await createSession(client, accountId, new Date(), options.stepUp)
-      return { accountId, session, headers: (method, path, body = '') => ({ ...signServiceRequest({ method, path, body, actor: accountId, issuer, key }), 'x-webvue-session': session }) }
+      return { accountId, session, headers: (method, path, body = '') => ({ ...signServiceRequest({ method, path, body, actor: accountId, issuer, key }), 'x-liwan-session': session }) }
     })
   }
-  const invite = { email: 'n@webvue.sa', display_name: 'N', roles: ['support'], reason: 'new hire' }
+  const invite = { email: 'n@liwanos.com', display_name: 'N', roles: ['support'], reason: 'new hire' }
 
   it('lets only owners manage accounts, with step-up', async () => {
     const finance = await vendorSession(pool, issuer, ['finance'])
@@ -62,7 +62,7 @@ else describe('account management routes', () => {
     const owner = await ownerSession({ stepUp: false })
     expect((await post('/v1/admin/accounts', invite, owner)).body.code).toBe('step_up_required')
     const fresh = await ownerSession({ stepUp: true })
-    const created = await post('/v1/admin/accounts', { ...invite, email: 'N@WebVue.sa' }, fresh)
+    const created = await post('/v1/admin/accounts', { ...invite, email: 'N@liwanos.com' }, fresh)
     expect(created.status).toBe(201)
     expect(created.body.invitation_token).toMatch(/^[A-Za-z0-9_-]{43}$/)
     expect(created.body.id).toEqual(expect.any(Number))

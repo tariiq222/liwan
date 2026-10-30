@@ -58,7 +58,7 @@ export type FinanceWithholdingSummary = z.infer<typeof FinanceWithholdingSummary
 /**
  * GET /finance/reports/vat-return?date_from&date_to: the 16 boxes of the Saudi VAT return from the tax tags of the posted
  * journal items. A box has a `base` and/or a `tax` column (the other is null). It is a draft for the taxpayer's review and
- * is never filed by WebVue: `filed` is always false.
+ * is never filed by LiwanOS: `filed` is always false.
  */
 export const FinanceVatReturnSchema = z.object({
   date_from: day,

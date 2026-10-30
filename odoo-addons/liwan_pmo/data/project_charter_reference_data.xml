@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <function model="liwan.project.type" name="_liwan_seed_all_companies"/>
+</odoo>

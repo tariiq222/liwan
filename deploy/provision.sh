@@ -84,7 +84,7 @@ export DOMAIN DB_NAME
 if [ "$MODE" = public-origin ]; then
   [ -f data/odoo.conf ] || { echo "provision: data/odoo.conf missing; provision $DB_NAME first" >&2; exit 1; }
   export ODOO_COMMIT="$(cat "$PWD/odoo/ODOO_COMMIT")"
-  export WEBVUE_IMAGE_TAG="${WEBVUE_IMAGE_TAG:?set WEBVUE_IMAGE_TAG to the running image tag}"
+  export LIWAN_IMAGE_TAG="${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG to the running image tag}"
   set_public_origin
   exit 0
 fi
@@ -101,18 +101,18 @@ done
 
 # Explicit classification is required before starting any Docker service.
 # Keep the validated snapshot separate from branding's replaceable staging directory.
-CLASSIFICATION_DIR="$(mktemp -d "${TMPDIR:-/tmp}/webvue-classification.XXXXXX")"
+CLASSIFICATION_DIR="$(mktemp -d "${TMPDIR:-/tmp}/liwan-classification.XXXXXX")"
 trap 'rm -rf -- "$CLASSIFICATION_DIR"' EXIT
 python3 classification.py stage \
-  --file "${WEBVUE_COMMERCIAL_CONFIG:?set WEBVUE_COMMERCIAL_CONFIG to an absolute operator mapping file}" \
+  --file "${LIWAN_COMMERCIAL_CONFIG:?set LIWAN_COMMERCIAL_CONFIG to an absolute operator mapping file}" \
   --output "$CLASSIFICATION_DIR/classification.json" --database "$DB_NAME" \
   --expected-valid-until none --fresh
-export WEBVUE_CLASSIFICATION_FILE="$CLASSIFICATION_DIR/classification.json"
+export LIWAN_CLASSIFICATION_FILE="$CLASSIFICATION_DIR/classification.json"
 # Directory traversal for the container's unprivileged UID; input contains no secrets.
 chmod 0755 "$CLASSIFICATION_DIR"
 
 export ODOO_COMMIT="$(cat "$PWD/odoo/ODOO_COMMIT")"
-export WEBVUE_IMAGE_TAG="${WEBVUE_IMAGE_TAG:-$(git -C "$PWD/.." rev-parse --short HEAD)}"
+export LIWAN_IMAGE_TAG="${LIWAN_IMAGE_TAG:-$(git -C "$PWD/.." rev-parse --short HEAD)}"
 
 mkdir -p data
 envsubst < odoo.conf > data/odoo.conf
@@ -127,23 +127,23 @@ for _ in $(seq 1 60); do
 done
 docker compose exec -T db pg_isready -U odoo >/dev/null 2>&1 || { echo "db not ready after 60s"; exit 1; }
 
-# Every pillar must be listed explicitly: pillars depend on webvue_api, not the other way round.
+# Every pillar must be listed explicitly: pillars depend on liwan_api, not the other way round.
 docker compose -f docker-compose.yml -f docker-compose.classification.yml run --rm \
   -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" odoo \
-  -d "$DB_NAME" -i webvue_core,webvue_platform,webvue_api,webvue_directory,webvue_notify,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_access_hr,webvue_integrations_sa,webvue_finance,webvue_hr_finance,webvue_pmo_finance,webvue_payments,webvue_chat,webvue_tasks,webvue_tasks_pmo,webvue_operations,webvue_operations_pmo,webvue_ai,webvue_pmo_ai,webvue_documents,webvue_documents_hr,webvue_crm,webvue_appointments,webvue_appointments_payments,webvue_inbox,webvue_inbox_payments --stop-after-init
+  -d "$DB_NAME" -i liwan_core,liwan_platform,liwan_api,liwan_directory,liwan_notify,liwan_pmo,liwan_meetings,liwan_meetings_pmo,liwan_hr,liwan_access_hr,liwan_integrations_sa,liwan_finance,liwan_hr_finance,liwan_pmo_finance,liwan_payments,liwan_chat,liwan_tasks,liwan_tasks_pmo,liwan_operations,liwan_operations_pmo,liwan_ai,liwan_pmo_ai,liwan_documents,liwan_documents_hr,liwan_crm,liwan_appointments,liwan_appointments_payments,liwan_inbox,liwan_inbox_payments --stop-after-init
 docker compose run --rm -T -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
   shell -d "$DB_NAME" --no-http < data/seed/seed_legacy_policy.py
 docker compose run --rm -T -e VENDOR_PASSWORD -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
   shell -d "$DB_NAME" --no-http < data/seed/seed_branding.py
 set_public_origin
-# WebVue AI's database role must not connect to a customer database. Postgres grants CONNECT on a
+# LiwanOS AI's database role must not connect to a customer database. Postgres grants CONNECT on a
 # new database to PUBLIC, so close it for the tenant database just created. A no-op when the
-# webvue_ai role does not exist (deployments without AI); a real error still stops provisioning.
+# liwan_ai role does not exist (deployments without AI); a real error still stops provisioning.
 docker compose exec -T db psql -U odoo -d postgres -v ON_ERROR_STOP=1 -v tenant_db="$DB_NAME" <<'SQL'
 SELECT format('REVOKE CONNECT ON DATABASE %I FROM PUBLIC', :'tenant_db')
-  WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'webvue_ai') \gexec
-SELECT format('REVOKE CONNECT ON DATABASE %I FROM webvue_ai', :'tenant_db')
-  WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'webvue_ai') \gexec
+  WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'liwan_ai') \gexec
+SELECT format('REVOKE CONNECT ON DATABASE %I FROM liwan_ai', :'tenant_db')
+  WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'liwan_ai') \gexec
 SQL
 docker compose up -d
 echo "https://$DOMAIN is provisioning; vendor login: admin / (VENDOR_PASSWORD from .env)."

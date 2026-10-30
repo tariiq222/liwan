@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import PayrollRunActions from '../../../app/components/hr/payroll/PayrollRunActions.vue'
-import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
+import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../../support/context'
 
 // The transitions of one payroll run, offered exactly as the run's `allowed_actions` say (post and record payment come
@@ -31,7 +31,7 @@ const meta = {
   render: args => ({
     components: { PayrollRunActions, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="webvue-shell-main"><PageContainer width="full"><PayrollRunActions v-bind="args" /></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer width="full"><PayrollRunActions v-bind="args" /></PageContainer></main>',
   }),
 } satisfies Meta<typeof PayrollRunActions>
 

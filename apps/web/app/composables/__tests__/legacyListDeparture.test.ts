@@ -1,5 +1,5 @@
-import { localIsoDay } from '@webvue/ui/app/utils/formatDate'
-import { currentListView, listViewQuery } from '@webvue/ui/app/utils/listView'
+import { localIsoDay } from '@liwan/ui/app/utils/formatDate'
+import { currentListView, listViewQuery } from '@liwan/ui/app/utils/listView'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { compileScript, compileTemplate, parse } from '@vue/compiler-sfc'
@@ -22,8 +22,8 @@ async function mountList(testCase: typeof cases[number], guard: (to: RouteLocati
   const filename = resolve(import.meta.dirname, '../../pages', testCase.file)
   const source = compileScript(parse(readFileSync(filename, 'utf8'), { filename }).descriptor, { id: 'legacy-list-departure' }).content
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
-  const hooks = createHooks<{ 'webvue:navigation:start': (to: RouteLocationNormalized) => void }>()
-  const nuxt = { hook: hooks.hook, callHook: (to: RouteLocationNormalized) => Promise.resolve().then(() => hooks.callHook('webvue:navigation:start', to)) }
+  const hooks = createHooks<{ 'liwan:navigation:start': (to: RouteLocationNormalized) => void }>()
+  const nuxt = { hook: hooks.hook, callHook: (to: RouteLocationNormalized) => Promise.resolve().then(() => hooks.callHook('liwan:navigation:start', to)) }
   const bindings = {
     ...myTaskList, currentListView, listViewQuery, useRowNavigation: () => {}, _defineComponent: Vue.defineComponent, h: Vue.h, ref: Vue.ref, shallowRef: Vue.shallowRef, computed: Vue.computed, reactive: Vue.reactive, watch: Vue.watch,
     onMounted: Vue.onMounted, onBeforeUnmount: Vue.onBeforeUnmount, onScopeDispose: Vue.onScopeDispose, useRoute, useRouter, refDebounced,

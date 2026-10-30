@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
+import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import type { TableColumn } from '@nuxt/ui'
-import type { MeetingListItem } from '@webvue/contracts'
-import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
+import type { MeetingListItem } from '@liwan/contracts'
+import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
 import { ApiError } from '@/composables/useApi'
-import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
+import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 import { useMeetings } from '@/composables/useMeetings'
 import { useProject } from '@/composables/useProjects'
 import { meetingStateBadgeProps } from '@/utils/meetingStatus'
 import { parsePositiveId } from '@/utils/routeParams'
 import { parseOffset } from '@/utils/routeQuery'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()

@@ -1,4 +1,4 @@
-import { OperationRequestListSchema } from '@webvue/contracts'
+import { OperationRequestListSchema } from '@liwan/contracts'
 import { ATTENTION_ROWS_PER_PROVIDER } from '../../composables/nav/attentionModel'
 import type { AppAttentionProvider } from '../types'
 

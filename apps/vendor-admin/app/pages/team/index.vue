@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import { formatDateTime } from '@webvue/ui/app/utils/formatDate'
+import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import { useAdminAccounts } from '@/composables/useAdminAccounts'
 import { useTeamActions } from '@/composables/useTeamActions'
 import type { TeamAccount, TeamAccountStatus } from '@/utils/team'

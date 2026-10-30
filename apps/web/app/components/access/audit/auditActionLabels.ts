@@ -1,4 +1,4 @@
-import type { AccessAuditSummary } from '@webvue/contracts'
+import type { AccessAuditSummary } from '@liwan/contracts'
 
 /** The locale key of each access-log action. */
 export const AUDIT_ACTION_LABELS: Record<AccessAuditSummary['action'], string> = {

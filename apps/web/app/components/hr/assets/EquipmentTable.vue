@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { RouteLocationRaw } from 'vue-router'
-import type { HrEquipment } from '@webvue/contracts'
-import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
-import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
-import { formatDate } from '@webvue/ui/app/utils/formatDate'
+import type { HrEquipment } from '@liwan/contracts'
+import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
+import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
+import { formatDate } from '@liwan/ui/app/utils/formatDate'
 
 // The equipment table of /hr/assets: one row per asset with its category, its holder and
 // the state pill. It is a bare SharedDataTable inside the page's SharedListCard.

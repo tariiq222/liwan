@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createServer, request, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { signServiceRequest } from '@webvue/commercial-contracts/server'
+import { signServiceRequest } from '@liwan/commercial-contracts/server'
 import { handleInternalEffect, type InternalEffectDeps } from '../shared/internal-effect-server.js'
 import { EFFECT_ACTOR, EFFECT_ISSUER, EFFECT_PATH, type EffectRequest } from '../shared/internal-effect-protocol.js'
 

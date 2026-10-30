@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { AuditEvent, AuditList } from '@webvue/commercial-contracts'
-import { formatDateTime } from '@webvue/ui/app/utils/formatDate'
+import type { AuditEvent, AuditList } from '@liwan/commercial-contracts'
+import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import { AUDIT_CATEGORIES, AUDIT_PAGE_SIZE, auditActionParts, auditActor, auditFilterCount, auditFilters, auditListQuery } from '@/utils/vendorAudit'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 definePageMeta({ capability: 'vendor.audit.read' })

@@ -10,7 +10,7 @@ import {
   InboxTagListSchema, InboxTemplateListSchema, InboxTemplateSchema, InboxCatalogItemListSchema, InboxCatalogItemSchema, InboxCatalogListSchema,
   InboxCatalogPickItemListSchema, InboxCatalogSchema, InboxChannelCommerceSchema, InboxCatalogProductOptionListSchema,
   InboxOrderCheckoutResultSchema, InboxOrderListSchema, InboxOrderSchema,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { inboxPreviewData, resetInboxPreview } from '../../../../e2e/inbox-ui-preview-data.mjs'
 
 const call = (method: string, target: string, body: object = {}) => {
@@ -171,7 +171,7 @@ describe('inbox audit mock', () => {
       expect(call('POST', '/api/v1/inbox/channels/1/templates', write({ name: 'x3', header })).body).toMatchObject({ field: 'app_id' })
     })
 
-    it('flags a template WebVue cannot fill, and refuses to edit or send it', () => {
+    it('flags a template LiwanOS cannot fill, and refuses to edit or send it', () => {
       const items = InboxTemplateListSchema.parse(call('GET', '/api/v1/inbox/channels/1/templates').body).items
       expect(items.filter(item => !item.supported).map(item => item.id)).toEqual([6])
       expect(call('PATCH', '/api/v1/inbox/templates/6', write({ name: 'named_greeting' })).status).toBe(422)

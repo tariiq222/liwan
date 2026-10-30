@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinanceVatReturn, FinanceVatReturnItem } from '@webvue/contracts'
+import type { FinanceVatReturn, FinanceVatReturnItem } from '@liwan/contracts'
 import { useFinanceVatReturnItems, VAT_RETURN_ITEMS_PAGE_SIZE } from '@/composables/finance/useFinanceReports'
 import Money from '../invoices/Money.vue'
 import { amountColumn } from './reportColumns'
@@ -26,7 +26,7 @@ const dash = computed(() => t('app.notAvailable'))
 </script>
 
 <template>
-  <div class="border-t border-default p-(--webvue-card-pad-dense)" data-testid="finance-vat-return-items">
+  <div class="border-t border-default p-(--liwan-card-pad-dense)" data-testid="finance-vat-return-items">
     <div class="mb-2 flex items-center justify-between gap-2">
       <p class="font-semibold text-highlighted">{{ t('financeReports.vatReturn.itemsTitle', { box: box.number, column: t(`financeReports.vatReturn.columns.${column}`) }) }}</p>
       <UButton color="neutral" variant="ghost" size="sm" icon="i-lucide-x" :label="t('financeReports.vatReturn.close')" @click="emit('close')" />

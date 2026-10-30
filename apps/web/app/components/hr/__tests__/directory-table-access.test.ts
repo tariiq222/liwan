@@ -5,7 +5,7 @@ import { renderToString } from '@vue/server-renderer'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_STUBS, fakeT } from '@webvue/ui/test/helpers/renderShared'
+import { DEFAULT_STUBS, fakeT } from '@liwan/ui/test/helpers/renderShared'
 import { hrAccessBadge } from '../../../utils/hrAccessBadge'
 
 // The server fills an employee's `access` only for a caller holding
@@ -45,10 +45,10 @@ function load(can: (capability: string) => boolean): Vue.Component {
     'vue': Vue,
     '@/composables/useApi': { ApiError: class extends Error {} },
     '@/utils/hrAccessBadge': { hrAccessBadge },
-    '@webvue/ui/app/components/shared/data/FilterBar.vue': { __esModule: true, default: Stub('FilterBar') },
+    '@liwan/ui/app/components/shared/data/FilterBar.vue': { __esModule: true, default: Stub('FilterBar') },
     '@/composables/useHrDepartments': { useHrDepartments: () => query({ items: [], total: 0 }) },
     '@/composables/useHrEmployees': { useHrEmployees: () => query({ items: EMPLOYEES, total: EMPLOYEES.length }), useArchiveHrEmployee: mutation, useUnarchiveHrEmployee: mutation },
-    '@webvue/ui/app/utils/safeReturnTo': { returnToQuery: (value: string) => ({ returnTo: value }) },
+    '@liwan/ui/app/utils/safeReturnTo': { returnToQuery: (value: string) => ({ returnTo: value }) },
     '@/composables/useHrSearch': { hasPendingHrSearch: () => false, hrCommittedListParams: () => ({ offset: 0 }) },
     '@vueuse/core': { refDebounced: (value: unknown) => value },
   }

@@ -31,7 +31,7 @@ describe('PersonalTaskSchema', () => {
   })
 
   // The same payload is asserted by test_serializer_shape in
-  // odoo-addons/webvue_tasks/tests/test_serializers.py (ids differ, shape is identical).
+  // odoo-addons/liwan_tasks/tests/test_serializers.py (ids differ, shape is identical).
   it('accepts the golden payload the Python serializer produces', () => {
     expect(PersonalTaskSchema.parse(golden)).toEqual(golden)
   })

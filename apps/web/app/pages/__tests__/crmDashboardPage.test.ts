@@ -1,8 +1,8 @@
 import { resolve } from 'node:path'
 import * as Vue from 'vue'
 import { describe, expect, it } from 'vitest'
-import type { CrmDashboard } from '@webvue/contracts'
-import { DEFAULT_STUBS, renderShared } from '@webvue/ui/test/helpers/renderShared'
+import type { CrmDashboard } from '@liwan/contracts'
+import { DEFAULT_STUBS, renderShared } from '@liwan/ui/test/helpers/renderShared'
 import * as crmDashboard from '../../utils/crmDashboard'
 import * as crmOpportunity from '../../utils/crmOpportunity'
 

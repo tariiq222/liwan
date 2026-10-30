@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FinancePayment } from '@webvue/contracts'
+import type { FinancePayment } from '@liwan/contracts'
 import { useFinancePaymentJournals, usePatchFinancePayment } from '@/composables/finance/useFinancePayments'
 import { financeErrorMessage } from '../financeErrors'
 import { financeErrorKey } from '../invoices/invoiceErrors'
@@ -36,10 +36,10 @@ async function submit() {
 </script>
 
 <template>
-  <UForm novalidate :state="draft" class="webvue-form rounded-card border border-default p-(--webvue-card-pad-dense)" method="post" data-testid="finance-payment-edit-form" @submit="submit">
+  <UForm novalidate :state="draft" class="liwan-form rounded-card border border-default p-(--liwan-card-pad-dense)" method="post" data-testid="finance-payment-edit-form" @submit="submit">
     <p class="font-semibold text-highlighted">{{ t('financeDocuments.payments.edit.title', { name: payment.name ?? `#${payment.id}` }) }}</p>
     <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" data-testid="finance-payment-edit-error" />
-    <div class="webvue-form-grid">
+    <div class="liwan-form-grid">
       <UFormField :label="t('financeDocuments.payments.amount')" name="finance-payment-edit-amount" required :error="shown.amount ? t('financeDocuments.payments.form.amountRequired') : undefined">
         <UInput id="finance-payment-edit-amount" v-model="draft.amount" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || patch.isPending.value" />
       </UFormField>

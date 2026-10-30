@@ -1,4 +1,4 @@
-import { PROJECT_PHASES, type ProjectPhase, type ProjectPhaseGateCheck, type ProjectPhaseState } from '@webvue/contracts'
+import { PROJECT_PHASES, type ProjectPhase, type ProjectPhaseGateCheck, type ProjectPhaseState } from '@liwan/contracts'
 
 // Pure project-phase helpers (no Nuxt imports) — see __tests__/projectPhase.test.ts.
 export const PHASE_LABEL_KEY: Record<ProjectPhase, string> = {

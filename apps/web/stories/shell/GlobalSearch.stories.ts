@@ -15,7 +15,7 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 const context = storyContext('apps/web/app/components/shell/ShellHeader.vue:76')
-const template = '<div class="webvue-shell-header-actions"><GlobalSearch /></div>'
+const template = '<div class="liwan-shell-header-actions"><GlobalSearch /></div>'
 /** The palette already open: the state is set in setup, after the global loader resets the shim state. */
 const opened = (view: PaletteView = 'main', term = '') => () => ({
   components: { GlobalSearch },

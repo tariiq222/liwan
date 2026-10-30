@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_liwan_integration_connection_reader,liwan.integration.connection.reader,model_liwan_integration_connection,group_cap_integrations_read,1,0,0,0
+access_liwan_integration_connection_manager,liwan.integration.connection.manager,model_liwan_integration_connection,group_cap_integrations_manage,1,1,1,1

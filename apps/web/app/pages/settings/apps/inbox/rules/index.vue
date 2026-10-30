@@ -9,7 +9,7 @@ const { can } = useAccess()
 
 <template>
   <SharedRecordPage :title="t('inbox.automation.rules.title')" back-to="/settings/apps/inbox" :back-label="t('inbox.title')">
-    <div v-if="can('inbox.automation.manage')" class="flex flex-col gap-(--webvue-gap-card)">
+    <div v-if="can('inbox.automation.manage')" class="flex flex-col gap-(--liwan-gap-card)">
       <InboxRulesSection />
       <InboxRuleTester />
     </div>

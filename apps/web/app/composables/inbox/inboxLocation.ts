@@ -1,4 +1,4 @@
-import { InboxLocationSchema, type InboxLocation } from '@webvue/contracts'
+import { InboxLocationSchema, type InboxLocation } from '@liwan/contracts'
 
 /** A location as typed: strings, so a half-typed number is not lost. */
 export interface LocationDraft {

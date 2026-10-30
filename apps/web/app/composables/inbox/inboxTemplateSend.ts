@@ -1,4 +1,4 @@
-import { templatePlaceholderCount, type InboxLocation, type InboxReplyCreate, type InboxTemplate } from '@webvue/contracts'
+import { templatePlaceholderCount, type InboxLocation, type InboxReplyCreate, type InboxTemplate } from '@liwan/contracts'
 
 // What an agent fills in to send an approved template: the header value (text, a file of the conversation or a
 // location), the body variables and the parameter of each button that takes one. The server validates every count

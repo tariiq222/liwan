@@ -12,7 +12,7 @@ import { documentAccessPayload } from '../../../lib/documentAccess'
 import { ApiError } from '../../../composables/useApi'
 import * as navigation from '../../../utils/recordListOrigin'
 import { joinList } from '../../../utils/listFormat'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 export const documentFixture = { id: 8, revision: 3, name: 'Policy', body: '<p>Original</p>', expiry_date: null, context: null, tags: [], file_count: 0, visibility: 'restricted' as const, active: true, write_date: '2026-10-19T00:00:00Z', allowed_actions: { update: true, archive: true, restore: false, upload_file: true, manage_access: true } }
 export async function load(file: string, props: Record<string, unknown> = {}, allowed = true, options: { path?: string; bindings?: Record<string, unknown> } = {}) {
   const filename = resolve(import.meta.dirname, '../../../..', file)

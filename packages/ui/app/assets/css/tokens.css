@@ -1,4 +1,4 @@
-/* WebVue identity (lavender, sand and ink on warm stone neutrals), light/dark modes, dense type and shape on
+/* LiwanOS identity (lavender, sand and ink on warm stone neutrals), light/dark modes, dense type and shape on
    Nuxt UI's stock theme: the Arabic font and its size modes, the fixed brand primary
    (the company colour never themes the interface), the fixed shell rail, the chart
    palette, 32px controls, 44px rows, the soft 18px card / 12px control radii and the 4px spacing
@@ -22,19 +22,19 @@
   color-scheme: light;
   font-size: 14px;
   /* Shared motion also reaches portaled controls outside the shell. */
-  --webvue-motion-feedback: 150ms;
-  --webvue-motion-panel: 200ms;
-  --webvue-motion-ease: cubic-bezier(0.2, 0, 0, 1);
-  --webvue-motion-color-ease: ease;
-  --webvue-motion-inline-distance: 16px;
+  --liwan-motion-feedback: 150ms;
+  --liwan-motion-panel: 200ms;
+  --liwan-motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --liwan-motion-color-ease: ease;
+  --liwan-motion-inline-distance: 16px;
   /* Shared navigation geometry keeps the submenu guide on the parent icon centre in either direction. */
-  --webvue-nav-row-inset: 8px;
-  --webvue-nav-chip-size: 28px;
-  --webvue-nav-submenu-chip-size: 20px;
-  --webvue-nav-submenu-indent: 20px;
+  --liwan-nav-row-inset: 8px;
+  --liwan-nav-chip-size: 28px;
+  --liwan-nav-submenu-chip-size: 20px;
+  --liwan-nav-submenu-indent: 20px;
   /* Official Nuxt UI radius token: 6px base (Apple-style soft corners), so rounded-md = 9px, rounded-lg = 12px and rounded-xl = 18px. */
   --ui-radius: 0.428571rem;
-  /* Fixed WebVue primary family; nothing overwrites it at runtime. */
+  /* Fixed LiwanOS primary family; nothing overwrites it at runtime. */
   --primary: #5b3f8c;
   --primary-foreground: #fff;
   --primary-hover: #4a3374;
@@ -82,19 +82,19 @@
   --ui-text-toned: #6b4e2e;
   --ui-text-muted: #6b4e2e;
   --ui-text-dimmed: #6b4e2e;
-  --webvue-sand: #eadfc8;
-  --webvue-table-head: var(--webvue-sand);
-  /* WebVue identity and density, at the 14px root. Controls 32px. Tables: a row is 44px and cells use
+  --liwan-sand: #eadfc8;
+  --liwan-table-head: var(--liwan-sand);
+  /* LiwanOS identity and density, at the 14px root. Controls 32px. Tables: a row is 44px and cells use
      the card padding; the dense list variant (default) pads cells 16px, the comfortable variant (home and
      overview pages) 20px and a 52px row. Cards pad 20px. Cards sit 16px apart and page sections 32px apart. */
-  --webvue-control-h: 2.285714rem;
-  --webvue-row-h: 3.142857rem;
-  --webvue-row-h-comfortable: 3.714286rem;
-  --webvue-card-pad: 1.428571rem;
-  --webvue-card-pad-dense: 1.142857rem;
-  --webvue-subcard-pad: 0.857143rem;
-  --webvue-gap-card: 1.142857rem;
-  --webvue-gap-section: 2.285714rem;
+  --liwan-control-h: 2.285714rem;
+  --liwan-row-h: 3.142857rem;
+  --liwan-row-h-comfortable: 3.714286rem;
+  --liwan-card-pad: 1.428571rem;
+  --liwan-card-pad-dense: 1.142857rem;
+  --liwan-subcard-pad: 0.857143rem;
+  --liwan-gap-card: 1.142857rem;
+  --liwan-gap-section: 2.285714rem;
   /* Tag-kind hues: the soft pill colours of the page-header tags (bg + fg per hue, a closed set named by the tag kind). */
   --accent-blue-bg: #dbeafe;
   --accent-blue-fg: #1d4ed8;
@@ -106,25 +106,25 @@
   --accent-amber-fg: #b45309;
   --accent-indigo-bg: #e0e7ff;
   --accent-indigo-fg: #4338ca;
-  --webvue-progress-sm: 0.428571rem;
-  --webvue-progress-md: 0.571429rem;
-  /* Shell: a white floating module rail (fixed WebVue lavender accents, not tenant-derived) and surfaces. */
-  --webvue-rail-border: #eadfc8;
-  --webvue-rail-ink: #6b4e2e;
-  --webvue-rail-active: #eee8f8;
+  --liwan-progress-sm: 0.428571rem;
+  --liwan-progress-md: 0.571429rem;
+  /* Shell: a white floating module rail (fixed LiwanOS lavender accents, not tenant-derived) and surfaces. */
+  --liwan-rail-border: #eadfc8;
+  --liwan-rail-ink: #6b4e2e;
+  --liwan-rail-active: #eee8f8;
   /* Round icon chips (rail circles on hover, context sidebar links). */
-  --webvue-chip: #f5efe3;
-  --webvue-chip-active: #ffffff;
-  --webvue-rail-active-ink: #5b3f8c;
+  --liwan-chip: #f5efe3;
+  --liwan-chip-active: #ffffff;
+  --liwan-rail-active-ink: #5b3f8c;
   /* Floating shell cards (header, rail, context sidebar) lift off the canvas with these shadows; the active context link is tinted. */
-  --webvue-shell-shadow: 0 12px 32px rgb(20 16 42 / 8%);
-  --webvue-rail-shadow: 0 12px 32px rgb(20 16 42 / 10%);
-  --webvue-nav-active: #eee8f8;
+  --liwan-shell-shadow: 0 12px 32px rgb(20 16 42 / 8%);
+  --liwan-rail-shadow: 0 12px 32px rgb(20 16 42 / 10%);
+  --liwan-nav-active: #eee8f8;
   /* Table row under the pointer: a very light sand tint (dark mode: a lighter layer on the surface). */
-  --webvue-row-hover: #faf6ee;
+  --liwan-row-hover: #faf6ee;
   /* Page canvas: a warm cream behind content cards, which stay --ui-bg (bg-default) with a hairline ring. */
-  --webvue-canvas: #f8f4ec;
-  --shell-background: var(--webvue-canvas);
+  --liwan-canvas: #f8f4ec;
+  --shell-background: var(--liwan-canvas);
   --shell-foreground: var(--ui-text);
   --context-surface: var(--ui-bg);
   /* Aliases used by the shell stylesheet and older components; every one
@@ -153,10 +153,10 @@
   --sidebar-accent-foreground: var(--ui-text);
   --sidebar-border: var(--ui-border);
   --sidebar-ring: var(--brand-link);
-  --webvue-surface: var(--ui-bg);
-  --webvue-surface-soft: var(--ui-bg-muted);
-  --webvue-text: var(--ui-text);
-  --webvue-border: var(--ui-border);
+  --liwan-surface: var(--ui-bg);
+  --liwan-surface-soft: var(--ui-bg-muted);
+  --liwan-text: var(--ui-text);
+  --liwan-border: var(--ui-border);
   /* Semantic status colours: the indicator (dot, ring, soft fill) follows the library's own; the badge TEXT is a
      separate darker tone (-foreground), >= 4.5:1 on its soft fill (guarded in tokens.test.ts). */
   --status-success: var(--ui-success);
@@ -182,14 +182,14 @@
   --project-type-section: var(--text-lg);
   --project-type-title: var(--text-xl);
   --project-section-surface: var(--ui-bg-muted);
-  --webvue-ui-z-sheet: 60;
-  --webvue-ui-z-menu: 130;
+  --liwan-ui-z-sheet: 60;
+  --liwan-ui-z-menu: 130;
 }
 @media (prefers-reduced-motion: reduce) {
   :root {
-    --webvue-motion-feedback: 0ms;
-    --webvue-motion-panel: 0ms;
-    --webvue-motion-inline-distance: 0px;
+    --liwan-motion-feedback: 0ms;
+    --liwan-motion-panel: 0ms;
+    --liwan-motion-inline-distance: 0px;
   }
 }
 
@@ -213,9 +213,9 @@
   --ui-text-muted: #d2c3a3;
   --ui-text-toned: #e6dcc6;
   --ui-text-dimmed: #d2c3a3;
-  --webvue-canvas: #0e0b1f;
-  --webvue-sand: #d2c3a3;
-  --webvue-table-head: var(--ui-bg-muted);
+  --liwan-canvas: #0e0b1f;
+  --liwan-sand: #d2c3a3;
+  --liwan-table-head: var(--ui-bg-muted);
   /* Accent lavender #c9bbee for icons, rings and text; the text-bearing fill is #7c5cc4 under white (5.02:1). */
   --primary: #c9bbee;
   --primary-foreground: #14102a;
@@ -227,16 +227,16 @@
   --primary-solid-hover: #6a49b3;
   --primary-solid-active: #5b3f8c;
   /* The rail stays a surface step clearly lighter than the page canvas, with an edge line (shell.css). */
-  --webvue-rail-border: #352e5c;
-  --webvue-rail-ink: #d2c3a3;
-  --webvue-rail-active: #2e2852;
-  --webvue-chip: #231e42;
-  --webvue-chip-active: #14102a;
-  --webvue-rail-active-ink: #c9bbee;
-  --webvue-shell-shadow: 0 12px 32px rgb(0 0 0 / 35%);
-  --webvue-rail-shadow: 0 12px 32px rgb(0 0 0 / 35%);
-  --webvue-nav-active: #2a2350;
-  --webvue-row-hover: #1e1938;
+  --liwan-rail-border: #352e5c;
+  --liwan-rail-ink: #d2c3a3;
+  --liwan-rail-active: #2e2852;
+  --liwan-chip: #231e42;
+  --liwan-chip-active: #14102a;
+  --liwan-rail-active-ink: #c9bbee;
+  --liwan-shell-shadow: 0 12px 32px rgb(0 0 0 / 35%);
+  --liwan-rail-shadow: 0 12px 32px rgb(0 0 0 / 35%);
+  --liwan-nav-active: #2a2350;
+  --liwan-row-hover: #1e1938;
   /* Brand tone on dark surfaces: 4.5:1 on every surface, hue kept (fixed values). */
   --brand-link: #c9bbee;
   --ring: #c9bbee;
@@ -284,11 +284,11 @@
   --color-brand-900: color-mix(in srgb, var(--primary) 65%, black);
   --color-brand-950: color-mix(in srgb, var(--primary) 50%, black);
 }
-/* Only webvue-specific colours are exposed as utilities. The shadcn-style names
+/* Only liwan-specific colours are exposed as utilities. The shadcn-style names
    (text-muted-foreground, border-border, text-destructive, bg-card…) were
    retired: use Nuxt UI's text-muted, border-default, text-error, bg-default. */
 @theme inline {
-  --color-webvue-canvas: var(--webvue-canvas);
+  --color-liwan-canvas: var(--liwan-canvas);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-hover: var(--primary-hover);
   --color-primary-hover-foreground: var(--primary-hover-foreground);

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { useEventListener, useMediaQuery } from '@vueuse/core'
-import ModuleRail from '@webvue/ui/app/components/shell/ModuleRail.vue'
+import ModuleRail from '@liwan/ui/app/components/shell/ModuleRail.vue'
 import { hasNoContextSidebar } from './noContextRoutes'
-import ShellNavigation from '@webvue/ui/app/components/shell/ShellNavigation.vue'
-import { overlayOwnsEscape } from '@webvue/ui/app/composables/useEscapeBack'
+import ShellNavigation from '@liwan/ui/app/components/shell/ShellNavigation.vue'
+import { overlayOwnsEscape } from '@liwan/ui/app/composables/useEscapeBack'
 import { useApplicationNavigation } from '@/composables/useApplicationNavigation'
 import { useContextSidebar } from '@/composables/useShellNavigation'
 import { isSidebarToggleShortcut } from '@/composables/nav/sidebarShortcut'
@@ -23,7 +23,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 
 <template>
   <ModuleRail :rail="navigation.rail.value" :active-id="navigation.railActive.value" :home-to="navigation.homePath.value" />
-  <div v-if="showContext" class="webvue-context-column">
+  <div v-if="showContext" class="liwan-context-column">
     <ShellNavigation
       surface="context"
       :items="contextItems"

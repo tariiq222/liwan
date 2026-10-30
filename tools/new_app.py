@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""Scaffold a new webvue application.
+"""Scaffold a new liwan application.
 
     python3 -B tools/new_app.py <app> --name-ar <ar> --name-en <en> [--route SLUG] [--root DIR] [--dry-run]
 
@@ -22,7 +22,7 @@ DEFAULT_ROOT = TOOLS.parent
 
 APP_ID = re.compile(r'^[a-z][a-z0-9]*(_[a-z0-9]+)*$')
 MAX_APP_ID = 21
-FORBIDDEN_PREFIXES = ('webvue_', 'customer')
+FORBIDDEN_PREFIXES = ('liwan_', 'customer')
 # Names end up inside Python, XML, JSON and vue-i18n messages: no quotes, escapes, markup,
 # interpolation (`{}`, `$`) or message syntax (`|`, `@`, `%`).
 SAFE_NAME = re.compile(r"^[^'\"\\<>&{}|@%$\r\n]+$")
@@ -140,7 +140,7 @@ def _load_exact(root, relative):
 def registration_edits(root, tokens):
     """Map each registration file to its new text (the three allowed edits)."""
     app, name_en = tokens['app'], tokens['name_en']
-    addon = f'webvue_{app}'
+    addon = f'liwan_{app}'
 
     layers = _load_exact(root, ARCH_LAYERS)
     ranks = layers.get('ranks', {})
@@ -233,11 +233,11 @@ def validate(root, app, name_ar, name_en, route=None):
             msg = f"{label} must be non-empty and contain none of ' \" \\ < > & {{ }} | @ % $ or a newline"
             raise ScaffoldError(msg)
     layers = _load_exact(root, ARCH_LAYERS)
-    existing = {name.removeprefix('webvue_') for name in layers.get('ranks', {})}
+    existing = {name.removeprefix('liwan_') for name in layers.get('ranks', {})}
     existing |= set(layers.get('web_apps', {}))
     addons = Path(root) / 'odoo-addons'
     if addons.is_dir():
-        existing |= {path.name.removeprefix('webvue_') for path in addons.iterdir() if path.is_dir()}
+        existing |= {path.name.removeprefix('liwan_') for path in addons.iterdir() if path.is_dir()}
     if app in existing:
         msg = f'{app!r} is already an addon, application or area'
         raise ScaffoldError(msg)
@@ -250,7 +250,7 @@ def validate(root, app, name_ar, name_en, route=None):
 
 
 def _arch_policy_module():
-    spec = importlib.util.spec_from_file_location('webvue_arch_policy', TOOLS / 'arch_policy.py')
+    spec = importlib.util.spec_from_file_location('liwan_arch_policy', TOOLS / 'arch_policy.py')
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
@@ -258,7 +258,7 @@ def _arch_policy_module():
 
 
 def _catalog_module():
-    spec = importlib.util.spec_from_file_location('webvue_catalog_check', TOOLS / 'catalog_check.py')
+    spec = importlib.util.spec_from_file_location('liwan_catalog_check', TOOLS / 'catalog_check.py')
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
@@ -328,7 +328,7 @@ def scaffold(root, app, name_ar, name_en, dry_run=False, route=None):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('app', help='application id, e.g. sales (addon webvue_sales)')
+    parser.add_argument('app', help='application id, e.g. sales (addon liwan_sales)')
     parser.add_argument('--name-ar', required=True, help='Arabic display name')
     parser.add_argument('--name-en', required=True, help='English display name')
     parser.add_argument('--route', default=None, help='web route slug (kebab-case); defaults to the application id')

@@ -1,5 +1,5 @@
-import { MeetingFollowupListSchema, MeetingListSchema } from '@webvue/contracts'
-import { formatTime, localIsoDay } from '@webvue/ui/app/utils/formatDate'
+import { MeetingFollowupListSchema, MeetingListSchema } from '@liwan/contracts'
+import { formatTime, localIsoDay } from '@liwan/ui/app/utils/formatDate'
 import { ATTENTION_ROWS_PER_PROVIDER } from '../../composables/nav/attentionModel'
 import type { AppAttentionProvider } from '../types'
 

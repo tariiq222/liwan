@@ -18,12 +18,12 @@
 | الرسوم | `apps/web/app/components/shared/data/DashboardChart.client.vue` ومحولات `apps/web/app/components/charts/` باستخدام Unovis |
 | ملكية المكونات | [فهرس المكونات](components.md)؛ المسارات تشمل `apps/web/app/components/` و`packages/ui/app/components/` و`packages/commercial-ui/app/` |
 
-مدخلات الثيم (كما في DESIGN.md §1): لوحة ويب فيو الثابتة (لافندر `#5b3f8c`، يمرّ بنص أبيض بنسبة 8.29:1) تغذّي `primary`، والمحايد `stone`، وهوية ويب فيو: الرمل `#eadfc8`
+مدخلات الثيم (كما في DESIGN.md §1): لوحة ليوان الثابتة (لافندر `#5b3f8c`، يمرّ بنص أبيض بنسبة 8.29:1) تغذّي `primary`، والمحايد `stone`، وهوية ليوان: الرمل `#eadfc8`
 والحبر `#14102a` والبني `#6b4e2e` في `tokens.css`، وخط IBM Plex Sans Arabic بثلاثة أحجام،
 ومظهران فقط (فاتح وداكن؛ أي قيمة قديمة مخزنة تُقرأ فاتحًا). الكثافة من
-`--webvue-control-h` (32px) و`--webvue-row-h` (44px)، والزوايا من
+`--liwan-control-h` (32px) و`--liwan-row-h` (44px)، والزوايا من
 `--radius-card` (18px) و`--radius-control` (12px)، والظلال للطبقات العائمة فقط. الريل ثابت
-بـ `--webvue-rail`. هندسة الغلاف في قسم «الغلاف» أدناه.
+بـ `--liwan-rail`. هندسة الغلاف في قسم «الغلاف» أدناه.
 اللون الافتراضي للشركة (`primary_color`) هو `#5b3f8c`. الواجهة لا تتبع لون الشركة: عائلة `--primary*` و`--chart-*` وتوكنات النجاح
 والتحذير والخطأ والمعلومة ثابتة في `tokens.css` لكل مظهر. الشعار المعتمد في
 `packages/ui/app/components/shared/layout/BrandWordmark.vue`. ولا تُنقل ملفات المصدر المقارن
@@ -59,7 +59,7 @@ Storybook في `apps/web` هو **فهرس المكونات الملزم** لكل
 | الاستيرادات التلقائية | تُولَّد من `.nuxt/imports.d.ts` و`.nuxt/components.d.ts` في `nuxt-imports.mjs` |
 | بدائل Nuxt | `apps/web/.storybook/nuxt-shims.ts`؛ البناء يفشل إذا استدعى كود التطبيق واجهة Nuxt بلا بديل |
 | القصص | `apps/web/stories/**`؛ كل قصة مكوّن تذكر سياقها الحقيقي بـ `storyContext('ملف:سطر')` |
-| البيانات والـ API | `apps/web/stories/fixtures/**` تمر عبر مخططات `@webvue/contracts`؛ `apps/web/stories/handlers/api.ts` يحاكي `/api/v1` عبر MSW |
+| البيانات والـ API | `apps/web/stories/fixtures/**` تمر عبر مخططات `@liwan/contracts`؛ `apps/web/stories/handlers/api.ts` يحاكي `/api/v1` عبر MSW |
 | قائمة التغطية | `STORYBOOK_COMPONENTS` في `tools/ui_policy.py` |
 
 التشغيل: `npm -w apps/web run storybook` (منفذ 6006، أو `-- -p <port>`). البناء: `npm -w apps/web run build-storybook`. الفحص: `cd apps/web && npx playwright test e2e/storybook-smoke.spec.ts` بعد البناء (بلا فلترة grep؛ فحص الأنواع `cd apps/web && npx vue-tsc --noEmit -p .storybook/tsconfig.json` يجب أن يخرج بـ 0 مباشرة (لا تستخدم `npx -w`؛ `npx` لا يدعمها فيفحص لا شيء ويخرج بـ 0 كاذب)).
@@ -84,7 +84,7 @@ Storybook في `apps/web` هو **فهرس المكونات الملزم** لكل
 
 ## الغلاف
 
-غلاف ويب فيو مخصص (`apps/web/app/components/shell/`) ولا يستخدم `UDashboard*`، لثلاثة أسباب: الهيدر يجب أن يعلو القائمة السياقية، ونقطة التوقف `lg` مثبتة داخل المكونات، ولكل شريط جانبي درج جوال خاص بجهة ثابتة على اليسار. زر طي القائمة السياقية يبقى معطلًا حتى الترطيب (قاعدة `useHydrated()`)، أما حالته فتُحفظ في كوكي `webvue-context-sidebar` يقرؤه الخادم فتُرسم من أول إطار، بالأسلوب نفسه الذي يستخدمه `useResizable`. المكونات المستخدمة داخله: `USlideover` و`UButton` و`UTooltip` و`UBreadcrumb` و`UBadge`.
+غلاف ليوان مخصص (`apps/web/app/components/shell/`) ولا يستخدم `UDashboard*`، لثلاثة أسباب: الهيدر يجب أن يعلو القائمة السياقية، ونقطة التوقف `lg` مثبتة داخل المكونات، ولكل شريط جانبي درج جوال خاص بجهة ثابتة على اليسار. زر طي القائمة السياقية يبقى معطلًا حتى الترطيب (قاعدة `useHydrated()`)، أما حالته فتُحفظ في كوكي `liwan-context-sidebar` يقرؤه الخادم فتُرسم من أول إطار، بالأسلوب نفسه الذي يستخدمه `useResizable`. المكونات المستخدمة داخله: `USlideover` و`UButton` و`UTooltip` و`UBreadcrumb` و`UBadge`.
 
 تُستخدم `UCommandPalette` داخل `UModal` في `shell/GlobalSearch.vue` وحده، ويمنع `ui_policy` استخدامها في مكان آخر. إعداداتها:
 

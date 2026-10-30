@@ -1,4 +1,4 @@
-import { FinanceBudgetLineCreateSchema, FinanceBudgetLinePatchSchema, type FinanceBudgetLine } from '@webvue/contracts'
+import { FinanceBudgetLineCreateSchema, FinanceBudgetLinePatchSchema, type FinanceBudgetLine } from '@liwan/contracts'
 import { describe, expect, it } from 'vitest'
 import { budgetLineDraftFrom, buildBudgetLine, buildBudgetLinePatch, emptyBudgetLine, hasBudgetLineErrors, validateBudgetLine } from '../budgetLineDraft'
 

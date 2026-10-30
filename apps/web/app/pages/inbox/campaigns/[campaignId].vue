@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
-import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
+import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
+import { statusTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import InboxChannelSending from '@/components/inbox/campaigns/InboxChannelSending.vue'
 import InboxCampaignActions from '@/components/inbox/campaigns/InboxCampaignActions.vue'
 import InboxCampaignForm from '@/components/inbox/campaigns/InboxCampaignForm.vue'

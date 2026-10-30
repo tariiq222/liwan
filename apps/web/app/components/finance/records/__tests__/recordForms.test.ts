@@ -1,11 +1,11 @@
-import type { FinanceAssetProfile, FinanceAccount, FinanceJournal, FinancePaymentTerm, FinanceTax } from '@webvue/contracts'
+import type { FinanceAssetProfile, FinanceAccount, FinanceJournal, FinancePaymentTerm, FinanceTax } from '@liwan/contracts'
 import {
   FinanceAccountCreateSchema,
   FinanceAssetProfileCreateSchema,
   FinanceJournalCreateSchema,
   FinancePaymentTermCreateSchema,
   FinanceTaxCreateSchema,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { describe, expect, it } from 'vitest'
 import {
   accountCreate, accountDraft, accountPatch, accountValid,

@@ -1,0 +1,1 @@
+`liwan.hr.plan.run` gains `state` (required, default `open`), `cancelled_by_id`, `cancelled_on` and `cancel_reason`. Odoo fills the new required column of every existing run with its default `open`, which is what each existing run is: none was ever cancelled. The new columns stay empty and no existing run or activity is rewritten.

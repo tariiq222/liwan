@@ -111,7 +111,7 @@ function createRecommendation(topicKey?: string) {
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('meetingsUx.minutesEditorTitle')" :back-to="backTo" />
     <SharedPageState :loading="query.isLoading.value" :error="pageError" :empty="!query.isLoading.value && !pageError && !query.data.value" @retry="query.refetch">
-      <form novalidate v-if="query.data.value" class="grid gap-(--webvue-gap-card)" @submit.prevent="save(false)">
+      <form novalidate v-if="query.data.value" class="grid gap-(--liwan-gap-card)" @submit.prevent="save(false)">
         <SharedUnsavedChanges :dirty="dirty" />
         <UAlert color="neutral" variant="subtle" icon="i-lucide-info" :title="t('meetingsUx.minutesEditorContext', { name: query.data.value.name })" />
         <UAlert v-if="recommendationReturn" :color="recommendationReturn === 'unavailable' ? 'warning' : 'info'" variant="subtle" :title="t(`meetingsUx.recommendationReturn.${recommendationReturn}`)" />
@@ -146,7 +146,7 @@ function createRecommendation(topicKey?: string) {
         </SharedRecordSection>
         <SharedSubCard as="details" :open="Boolean(minutes)">
           <summary class="cursor-pointer text-sm font-semibold text-highlighted">{{ t('meetingsUx.additionalNotes') }}</summary>
-          <UFormField name="minutes" :error="serverErrors.minutes" class="pt-(--webvue-subcard-pad)">
+          <UFormField name="minutes" :error="serverErrors.minutes" class="pt-(--liwan-subcard-pad)">
             <ClientOnly><DescriptionEditor :model-value="minutes" :task-id="-query.data.value.id" :aria-label="t('meetingsUx.additionalNotes')" :readonly="!canEdit || lifecycleLocked || isPending" @draft="minutes = $event.html" /></ClientOnly>
           </UFormField>
         </SharedSubCard>

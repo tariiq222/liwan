@@ -1,6 +1,6 @@
 import type { RouteLocationNormalized, RouteLocationRaw, LocationQueryRaw } from 'vue-router'
 import { stringifyQuery } from 'vue-router'
-import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 
 const positiveId = (value: string) => /^[1-9]\d*$/.test(value) && Number.isSafeInteger(Number(value))
 function mapQuery(query: RouteLocationNormalized['query'], department?: string): LocationQueryRaw {
@@ -10,7 +10,7 @@ function mapQuery(query: RouteLocationNormalized['query'], department?: string):
   if (context) { mapped.context_kind = 'hr.department'; mapped.context_id = context }
   const safe = safeReturnTo(returnTo, '', ['/documents', '/hr/documents', '/hr/departments'])
   if (safe) {
-    const url = new URL(safe, 'http://webvue.local')
+    const url = new URL(safe, 'http://liwan.local')
     url.searchParams.delete('returnTo'); url.searchParams.delete('listOrigin')
     if (url.pathname === '/hr/documents') {
       const params = Object.fromEntries(url.searchParams)

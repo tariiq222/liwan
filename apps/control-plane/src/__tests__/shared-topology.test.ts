@@ -17,10 +17,10 @@ function rendered(shared: boolean) {
   args.push('config', '--format', 'json')
   return JSON.parse(execFileSync('docker', args, { cwd: root, encoding: 'utf8', env: {
     PATH: process.env.PATH, HOME: process.env.HOME, DOCKER_CONFIG: process.env.DOCKER_CONFIG,
-    WEBVUE_IMAGE_TAG: 'synthetic', DOMAIN: 'tenant.invalid',
+    LIWAN_IMAGE_TAG: 'synthetic', DOMAIN: 'tenant.invalid',
     ODOO_COMMIT: 'synthetic', DB_NAME: 'synthetic', DB_PASSWORD: 'synthetic-not-secret',
-    WEBVUE_SHARED_PROXY_TOKEN: 'synthetic-not-a-real-token', WEBVUE_SESSION_KEYS: '{}', WEBVUE_SESSION_ACTIVE_KID: 'test',
-    WEBVUE_TENANT_REGISTRY_DIR: '/synthetic/registry', WEBVUE_SHARED_ODOO_CONFIG: '/synthetic/odoo.conf',
+    LIWAN_SHARED_PROXY_TOKEN: 'synthetic-not-a-real-token', LIWAN_SESSION_KEYS: '{}', LIWAN_SESSION_ACTIVE_KID: 'test',
+    LIWAN_TENANT_REGISTRY_DIR: '/synthetic/registry', LIWAN_SHARED_ODOO_CONFIG: '/synthetic/odoo.conf',
   } }))
 }
 it.skipIf(!hasDocker)('renders dedicated defaults without shared services or build mode', () => {
@@ -34,14 +34,14 @@ it.skipIf(!hasDocker)('renders shared network boundaries, commands, directory mo
   for (const name of ['web', 'odoo', 'guard', 'db']) expect(s[name].ports ?? []).toEqual([])
   expect(s.proxy.ports.map((p: { published: string }) => p.published).sort()).toEqual(['443', '80'])
   expect(s.odoo.command ?? []).toEqual([])
-  expect(s.odoo.entrypoint).toEqual(['/opt/venv/bin/python', '/opt/webvue/shared/launch_odoo.py'])
-  expect(s.odoo.environment.WEBVUE_TENANCY_MODE).toBe('shared')
+  expect(s.odoo.entrypoint).toEqual(['/opt/venv/bin/python', '/opt/liwan/shared/launch_odoo.py'])
+  expect(s.odoo.environment.LIWAN_TENANCY_MODE).toBe('shared')
   expect(Object.keys(s.proxy.networks)).toEqual(['edge'])
   expect(Object.keys(s.web.networks)).toEqual(['guard_web'])
   expect(Object.keys(s.odoo.networks).sort()).toEqual(['database', 'guard_odoo'])
-  expect(s.web.build.args.WEBVUE_TENANCY_MODE).toBe('shared')
+  expect(s.web.build.args.LIWAN_TENANCY_MODE).toBe('shared')
   expect(s.web.environment.NUXT_ODOO_URL).toBe('http://guard:8080')
-  for (const name of ['web', 'guard']) expect(s[name].volumes).toContainEqual(expect.objectContaining({ source: '/synthetic/registry', target: '/etc/webvue', read_only: true }))
+  for (const name of ['web', 'guard']) expect(s[name].volumes).toContainEqual(expect.objectContaining({ source: '/synthetic/registry', target: '/etc/liwan', read_only: true }))
   expect(s.odoo.volumes).toContainEqual(expect.objectContaining({ source: '/synthetic/odoo.conf', target: '/etc/odoo/odoo.conf', read_only: true }))
   expect(JSON.stringify(s.web.healthcheck)).not.toContain('/login')
 })
@@ -52,7 +52,7 @@ function nuxt(mode: string) {
     .replaceAll('import.meta.url', "'file:///synthetic/nuxt.config.ts'")
     .replace('export default defineNuxtConfig(', 'globalThis.result = defineNuxtConfig(')
   const context = {
-    process: { env: { WEBVUE_TENANCY_MODE: mode, NODE_ENV: 'production' } },
+    process: { env: { LIWAN_TENANCY_MODE: mode, NODE_ENV: 'production' } },
     URL,
     fileURLToPath: (u: URL) => u.pathname,
     discoverLocaleFiles: () => ({ ar: [], en: [] }),

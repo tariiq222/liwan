@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { InboxCampaign, InboxCampaignPreview, InboxTemplate } from '@webvue/contracts'
+import type { InboxCampaign, InboxCampaignPreview, InboxTemplate } from '@liwan/contracts'
 import {
   campaignDraftSignature, campaignPreviewParts, campaignTemplates, campaignToDraft, campaignWrite, emptyCampaignDraft, headerMediaKind,
   localInputToUtc, paramRows, paramsComplete, paramsWrite, rowsFromCampaign, utcToLocalInput,
@@ -55,7 +55,7 @@ describe('campaign placeholders', () => {
 })
 
 describe('campaign templates', () => {
-  it('offers approved marketing and utility templates WebVue can fill, never authentication or a location header', () => {
+  it('offers approved marketing and utility templates LiwanOS can fill, never authentication or a location header', () => {
     const all = [
       template({ id: 1 }),
       template({ id: 2, category: 'marketing' }),

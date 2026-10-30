@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="permission_{{app}}_records_read" model="liwan.access.permission">
+        <field name="key">{{app}}.records.read</field><field name="domain">{{app}}</field>
+        <field name="resource">records</field><field name="action">read</field>
+        <field name="name_ar">قراءة سجلات {{name_ar}}</field><field name="name_en">Read {{name_en}} records</field>
+        <field name="description_ar">قراءة سجلات {{name_ar}}</field><field name="description_en">Read {{name_en}} records</field>
+        <field name="group_xmlid">liwan_{{app}}.group_cap_{{app}}_records_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
+    </record>
+    <record id="permission_{{app}}_records_manage" model="liwan.access.permission">
+        <field name="key">{{app}}.records.manage</field><field name="domain">{{app}}</field>
+        <field name="resource">records</field><field name="action">manage</field>
+        <field name="name_ar">إدارة سجلات {{name_ar}}</field><field name="name_en">Manage {{name_en}} records</field>
+        <field name="description_ar">إدارة سجلات {{name_ar}}</field><field name="description_en">Manage {{name_en}} records</field>
+        <field name="group_xmlid">liwan_{{app}}.group_cap_{{app}}_records_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <data noupdate="1">
+        <record id="role_{{app}}_manager" model="liwan.access.role">
+            <field name="key">{{app}}_manager</field><field name="name_ar">مدير {{name_ar}}</field><field name="name_en">{{name_en}} manager</field>
+            <field name="description">{{name_en}} manager</field><field name="type">built_in</field><field name="protected" eval="True"/><field name="assignable" eval="True"/>
+            <field name="permission_ids" eval="[Command.set([ref('permission_{{app}}_records_read'),ref('permission_{{app}}_records_manage')])]"/>
+        </record>
+    </data>
+    <!-- Built-in roles are noupdate records: these hooks link this addon's grants and
+         dependencies on install and on every upgrade. -->
+    <function model="liwan.access.service" name="_liwan_configure_permission_dependencies"/>
+    <function model="liwan.access.service" name="_liwan_repair_builtin_role_grants"/>
+</odoo>

@@ -6,7 +6,7 @@ import { ApiError } from '@/composables/useApi'
 import { projectIdFromPath } from '@/modules/pmo/projectRoutes'
 import { useProject, useProjectList } from '@/composables/useProjects'
 import { canCopyProject } from '@/utils/projectCopyAccess'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
@@ -34,7 +34,7 @@ const copyTo = computed(() => ({
 
 <template>
   <SharedPageContainer v-if="notFound" width="list">
-    <div class="flex flex-col items-start gap-(--webvue-gap-card)">
+    <div class="flex flex-col items-start gap-(--liwan-gap-card)">
       <p class="text-muted">{{ t('projects.notFound') }}</p>
       <UButton type="button" color="neutral" variant="outline" size="sm" @click="router.push(projectReturnTo)">{{ t('projects.backToProjects') }}</UButton>
     </div>
@@ -46,7 +46,7 @@ const copyTo = computed(() => ({
     <template v-if="canCopy" #actions>
       <UButton color="neutral" variant="outline" icon="i-lucide-copy" :to="copyTo" data-testid="project-copy-link" :label="t('projects.copy.action')" />
     </template>
-    <div v-if="project" class="flex flex-col gap-(--webvue-gap-card)">
+    <div v-if="project" class="flex flex-col gap-(--liwan-gap-card)">
       <ProjectPhaseGate :project="project" />
       <ProjectOverview :project="project" />
     </div>

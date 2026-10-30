@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { PROJECT_STATUSES } from '@webvue/contracts'
+import { PROJECT_STATUSES } from '@liwan/contracts'
 import { PROJECT_STATUS_LABEL_KEY, PROJECT_STATUS_TONE, PROJECT_STATUS_UNSET_KEY, projectStatusLabelKey } from '../projectStatus'
 
 describe('projectStatus', () => {

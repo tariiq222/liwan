@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxDepartment } from '@webvue/contracts'
+import type { InboxDepartment } from '@liwan/contracts'
 import InboxDepartmentHours from '@/components/inbox/InboxDepartmentHours.vue'
 import { useDeleteInboxDepartment, useInboxDepartments, useSaveInboxDepartment } from '@/composables/inbox/useInboxSettings'
 
@@ -55,7 +55,7 @@ function confirmDelete() {
 </script>
 
 <template>
-  <SharedRecordSection id="departments" variant="panel" class="webvue-settings-anchor" :title="t('inbox.settings.departments.title')" :description="t('inbox.settings.departments.hint')">
+  <SharedRecordSection id="departments" variant="panel" class="liwan-settings-anchor" :title="t('inbox.settings.departments.title')" :description="t('inbox.settings.departments.hint')">
     <template #actions>
       <UButton type="button" color="neutral" variant="outline" icon="i-lucide-plus" :disabled="locked" :label="t('inbox.settings.departments.add')" data-testid="inbox-department-add" @click="edit()" />
     </template>

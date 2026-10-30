@@ -5,8 +5,8 @@ withDefaults(defineProps<{
 </script>
 
 <template>
-  <div class="webvue-settings-layout" data-testid="settings-layout">
-    <SharedPageContainer :width="width" class="webvue-settings-content">
+  <div class="liwan-settings-layout" data-testid="settings-layout">
+    <SharedPageContainer :width="width" class="liwan-settings-content">
       <slot />
     </SharedPageContainer>
   </div>

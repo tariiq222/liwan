@@ -1,6 +1,6 @@
 # Testing guide
 
-webvue has four test layers. Pick the cheapest one that proves the change.
+liwan has four test layers. Pick the cheapest one that proves the change.
 
 | Layer | Use it for | Run |
 | --- | --- | --- |
@@ -18,7 +18,7 @@ This is a **manual scratch-only drill**, not a CI test or release gate. Never ru
 1. From the Odoo environment, clone the local test template (substitute the actual template database name):
 
    ```sh
-   createdb --template=webvue_test_template webvue_scratch_finance_race
+   createdb --template=liwan_test_template liwan_scratch_finance_race
    ```
 
 2. Seed and commit the fixture through `odoo-bin shell` with the selected worktree addon path. Use a local seed script which creates the company, loads the chart, posts balanced entries dated within the open year, creates the manager, assigns the finance manager role, and confirms the year remains open:
@@ -26,7 +26,7 @@ This is a **manual scratch-only drill**, not a CI test or release gate. Never ru
    ```sh
    "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" shell --no-http \\
      --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$WORKTREE/odoo-addons,$OCA_PATH" \\
-     -d webvue_scratch_finance_race < /path/to/scratch-seed.py
+     -d liwan_scratch_finance_race < /path/to/scratch-seed.py
    ```
 
 3. Start Odoo on an available loopback port, with only the scratch DB and isolated data/log paths:
@@ -34,7 +34,7 @@ This is a **manual scratch-only drill**, not a CI test or release gate. Never ru
    ```sh
    "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" \\
      --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$WORKTREE/odoo-addons,$OCA_PATH" \\
-     -d webvue_scratch_finance_race --db-filter='^webvue_scratch_finance_race$' \\
+     -d liwan_scratch_finance_race --db-filter='^liwan_scratch_finance_race$' \\
      --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/odoo.log" \\
      --http-interface=127.0.0.1 --http-port=8178 --workers=0 --max-cron-threads=0
    ```
@@ -43,7 +43,7 @@ This is a **manual scratch-only drill**, not a CI test or release gate. Never ru
 
    ```sh
    python3 tools/finance_close_race.py \\
-     --base-url http://127.0.0.1:8178 --db webvue_scratch_finance_race \\
+     --base-url http://127.0.0.1:8178 --db liwan_scratch_finance_race \\
      --login finance_race_manager --password "$RACE_PASSWORD" --year 2025 \\
      --timeout 30 --json-out "$SCRATCH_ROOT/race-result.json"
    ```
@@ -64,8 +64,8 @@ and regenerate both apps' Nuxt files with their `postinstall` scripts before
 root tests/type checks. Do not share `node_modules` or `.nuxt` by symlink.
 `npm run dev` loads the selected worktree's git-ignored `.env.worktree` automatically,
 including its Nuxt/Odoo ports, scratch database and WebSocket URL. Main uses its
-private apps/web/.env with the explicitly configured `webvue_dev` development
-database. Neither `webvue_dev` nor `odoo19` is a test target; use scratch resources.
+private apps/web/.env with the explicitly configured `liwan_dev` development
+database. Neither `liwan_dev` nor `odoo19` is a test target; use scratch resources.
 
 In a Claude Code cloud session (`CLAUDE_CODE_REMOTE=true`) the same hook fetches the full Git history (the clone is
 shallow, and `tools/ui_policy.py` reads its baseline commit), runs `npm ci --ignore-scripts` when
@@ -74,7 +74,7 @@ shallow, and `tools/ui_policy.py` reads its baseline commit), runs `npm ci --ign
 runs out of Node's default heap there. The container's network policy blocks the Playwright browser download, so the
 hook points `PLAYWRIGHT_BROWSERS_PATH` at `~/.cache/ms-playwright`, where the Chromium revisions the repo's
 `playwright-core` expects are linked to the container's own `/opt/pw-browsers` builds. Odoo tests are not set up there: they run in the `ci` workflow or locally.
-The Bash guard reads the upstream Odoo checkout from `WEBVUE_ODOO_SRC` (default `~/code/odoo`).
+The Bash guard reads the upstream Odoo checkout from `LIWAN_ODOO_SRC` (default `~/code/odoo`).
 
 ## Fast local loop
 
@@ -89,12 +89,12 @@ The complete `npm test` sequence remains binding in CI before merge.
 | --- | --- |
 | `npm run check:fast` | Policy checks always, plus ruff, tools tests, contracts/web tests and the web type check only for the layers that changed against `main` (`tools/check_fast.py`). |
 | `npm run test:odoo` | Odoo tests of the changed addons and their dependents on a scratch database cloned from a cached template (`tools/odoo_test.py`). Options: `--addons a,b`, `--all`, `--base`, `--dry-run`, `--keep-db`. |
-| `python3 -B tools/test_slot.py -- <command>` | Machine-wide test queue shared by every session and worktree: at most `WEBVUE_TEST_SLOTS` (default 2) heavy checks run at once, the rest wait and print who holds the slots. `npm test`, `npm run test:odoo`, `npm run check:fast`, the `npm run e2e*` scripts and `npm -w apps/web run lint` already take a slot; wrap any other heavy command (a direct `odoo-bin` test run, `vitest`, Playwright, `vue-tsc`) in it. A command inside a held slot takes no second one. `--status` lists the holders. From a worktree that predates it, call it by the main checkout path. |
+| `python3 -B tools/test_slot.py -- <command>` | Machine-wide test queue shared by every session and worktree: at most `LIWAN_TEST_SLOTS` (default 2) heavy checks run at once, the rest wait and print who holds the slots. `npm test`, `npm run test:odoo`, `npm run check:fast`, the `npm run e2e*` scripts and `npm -w apps/web run lint` already take a slot; wrap any other heavy command (a direct `odoo-bin` test run, `vitest`, Playwright, `vue-tsc`) in it. A command inside a held slot takes no second one. `--status` lists the holders. From a worktree that predates it, call it by the main checkout path. |
 | `npm run wt -- new <area>-<slug> --owner <who> --task <what> --scope <path>` | New task worktree with its own `node_modules`/`.nuxt`, free ports and a scratch DB name in the git-ignored `.env.worktree`, and its ownership claim; accepts any valid branch name as a base and refuses scopes that overlap another active claim unless `--allow-overlap "<reason>"` (`tools/wt.py`, rules in `docs/parallel-work.md`). |
 | `npm run wt -- claim --owner <who> [--task ...] [--scope ...]` | Inside a task worktree: record its claim, change or refresh your own, or take over an expired one (`tools/wt.py`). |
 | `npm run wt -- check` | Read-only report of worktrees that break the location, naming or claim rules; exit 1 when there is one (`tools/wt.py`). |
 | `npm run wt -- status` | One table of every worktree wherever it lives (`*` = outside `.worktrees/`): branch, owner and claim state, ahead/behind `main`, merged, dirty, last commit age, `node_modules` size, recorded scratch DB and ports, a summary line and the rule report (`tools/wt.py`). |
-| `npm run wt -- gc [--apply] [--branch codex/<area>-<slug>]` | Dry run by default: lists worktrees+branches merged into `main` with commits of their own, clean, and held by no process, plus the scratch databases of those worktrees that nobody is connected to (`webvue_scratch_e2e`, hand-named and `odoo_test.py` databases are never touched). Removing a worktree also deletes its ignored files (`.env.worktree`, `.nuxt`, `node_modules`). `--apply` runs `git worktree remove`, `git branch -d` and `dropdb`, reports each failure and continues; unmerged, dirty, current, in-use and missing-folder worktrees are skipped. `--apply` needs the owner's authorization. `--branch` limits it to that branch's worktree and scratch database, says why a worktree is kept, and deletes the local branch when it has no worktree and is merged. |
+| `npm run wt -- gc [--apply] [--branch codex/<area>-<slug>]` | Dry run by default: lists worktrees+branches merged into `main` with commits of their own, clean, and held by no process, plus the scratch databases of those worktrees that nobody is connected to (`liwan_scratch_e2e`, hand-named and `odoo_test.py` databases are never touched). Removing a worktree also deletes its ignored files (`.env.worktree`, `.nuxt`, `node_modules`). `--apply` runs `git worktree remove`, `git branch -d` and `dropdb`, reports each failure and continues; unmerged, dirty, current, in-use and missing-folder worktrees are skipped. `--apply` needs the owner's authorization. `--branch` limits it to that branch's worktree and scratch database, says why a worktree is kept, and deletes the local branch when it has no worktree and is merged. |
 | `npm run check:audit` | `npm audit` gate: fails on a high or critical advisory in production dependencies, or a critical one in any dependency. Needs registry access. The CI `static` stage runs it when a change touches `package.json` or `package-lock.json`; the daily `audit` workflow runs it on `main`. |
 | `npm run check:semgrep` | Semgrep (`p/python`, `p/typescript`, `p/secrets`) on the source files changed against `main`, tests and generated files excluded (`tools/semgrep_gate.py`). ERROR and secrets findings fail; WARNING is listed only. Needs network for the rulesets, sends no usage data, exits 3 when semgrep or the registry is unavailable. Also runs in the CI `static` stage. |
 | `npm run review:jev -- --task "<what the change does>"` | Advisory Jev quality scores (score and confidence per dimension, plus priorities) for the diff against `main` (`tools/jev_review.mjs`; `--base <ref>`, `--diff <file>`, `--json`, `--previous <file>` for a before/after delta). Needs the local `~/code/jev-review` server and a key in `JEV_API_KEY` or `~/.config/jev-review/api-key`; refuses diffs that touch secret-bearing paths; always exits 0. Never a gate: see `REVIEW.md`. |
@@ -104,12 +104,12 @@ Optional local git hooks: `npm run hooks:install` writes `pre-commit` (secret gu
 architecture policy, plus ui policy and ruff for staged files) and `commit-msg` (the
 `type(scope): subject` rule) into the shared `.git/hooks`, so every worktree gets them. It leaves
 `core.hooksPath` and the existing Git LFS hooks alone, refuses to overwrite a hook that is not
-its own, and `git commit --no-verify` still bypasses it. When the checks pass, `pre-commit` also prints the advisory Jev scores for the staged diff (never blocks; `WEBVUE_SKIP_JEV=1` skips it). The `ci` workflow stays binding.
+its own, and `git commit --no-verify` still bypasses it. When the checks pass, `pre-commit` also prints the advisory Jev scores for the staged diff (never blocks; `LIWAN_SKIP_JEV=1` skips it). The `ci` workflow stays binding.
 
 `tools/odoo_test.py` builds the template once from the base branch (Odoo commit, release
 module list and the base `odoo-addons` tree form its name, so it is rebuilt when any of them
-changes) and only ever creates, clones or drops `webvue_scratch_*` databases. Stale
-`webvue_scratch_tpl_*` templates are small and can be dropped by hand.
+changes) and only ever creates, clones or drops `liwan_scratch_*` databases. Stale
+`liwan_scratch_tpl_*` templates are small and can be dropped by hand.
 
 ## CI workflow
 
@@ -197,7 +197,7 @@ The `odoo` stage covers the release modules and is a matrix of three shards (a j
 `ci-result`, so it stays one of the twelve stages). Every shard installs the whole release module list on
 its own Postgres service and runs only its share of the module tests (`--test-tags`), so cross-module
 behaviour is exercised in each. `tools/odoo_shards.py` splits the release modules by their `def test_`
-counts times `COST_FACTOR` for a module measured slower per test (`webvue_finance`: 3) (greedy, heaviest first; revisit the factors when the shard times drift apart); `python3 -B tools/odoo_shards.py plan` shows the split. Run one shard
+counts times `COST_FACTOR` for a module measured slower per test (`liwan_finance`: 3) (greedy, heaviest first; revisit the factors when the shard times drift apart); `python3 -B tools/odoo_shards.py plan` shows the split. Run one shard
 with `deploy/ci/odoo.sh --shard k/N`, all shards in parallel locally with `python3 -B tools/odoo_shards.py run`
 (same environment as `odoo.sh`; shard k uses `ODOO_PORT + k - 1` and its own scratch database), and the
 unsharded full run with plain `deploy/ci/odoo.sh`. A template database does not help the shards: Odoo
@@ -214,7 +214,7 @@ applications, 2 for bridges, split by test weight like the `odoo` shards); `depl
 runs each module of its job in turn and fails at the end naming every module that did not pass. Each run
 installs only its part on a disposable PostgreSQL database:
 
-- `deploy/ci/odoo-app-standalone.sh webvue_api` installs the foundation alone (ranks 0-2, no shared service,
+- `deploy/ci/odoo-app-standalone.sh liwan_api` installs the foundation alone (ranks 0-2, no shared service,
   application or bridge), runs the tests of every foundation module, and with the route probe also creates,
   disables and reactivates an account through `/api/v1/admin/users` with no HR employee in the payload (the
   account contract approved on 2026-10-20; it fails until the foundation stops requiring `employee_id`).
@@ -234,10 +234,10 @@ refuse with 403 `feature_not_included`, and a module asked to answer needs at le
 (gated by the keys applications register, so closed with the application side) may refuse but never fail
 with a 5xx. It checks the route surface, not bridge-specific fields inside a side's responses: those stay with
 the bridge's own tests. Run one locally with the environment of `odoo.sh` plus `ISOLATION_PORT`, for example
-`deploy/ci/odoo-app-standalone.sh webvue_hr` or `deploy/ci/odoo-bridge.sh webvue_tasks_pmo`. The
+`deploy/ci/odoo-app-standalone.sh liwan_hr` or `deploy/ci/odoo-bridge.sh liwan_tasks_pmo`. The
 control-plane PostgreSQL suites run serially because they share their isolated scratch databases.
 `vendor-admin` has its own prepare, types, tests and build checks. The `image` stage builds every production image
-(Odoo, web, vendor-admin, ai-service, proxy and guard) under owned `webvue-<name>:ci-<run id>` tags. It
+(Odoo, web, vendor-admin, ai-service, proxy and guard) under owned `liwan-<name>:ci-<run id>` tags. It
 installs the release in the Odoo image and checks it is hardened, starts web, vendor-admin, ai-service
 and guard without external services (web answers `/login`, vendor-admin serves a built static asset because its pages need the control plane, ai-service `/healthz`, guard
 denies an unknown host with 403 and passes its healthcheck) and asserts none runs as root, validates both
@@ -269,7 +269,7 @@ outcome is not evidence of an upgrade having been exercised. Migration rules are
 | `tools/wt.py new` (worktree, install, `nuxt prepare`) | about 10 s |
 | Odoo install of the 10 release modules | about 17 s |
 | `createdb -T` clone of the installed template | about 1.2 s |
-| `npm run test:odoo -- --addons webvue_hr` (80 tests), warm / cold template | 30 s / 43 s |
+| `npm run test:odoo -- --addons liwan_hr` (80 tests), warm / cold template | 30 s / 43 s |
 | Full Odoo run (install and tests of all release modules, 658 tests) | 234 s |
 | CI `e2e-mock` locally (`nuxt build` 28.8 s, 7 Playwright tests 4.9 s) | about 35 s |
 | `npm run test:rtl` (Storybook build 7.6 s, 184 stories x 2 viewports, 4 workers) | about 2.4 min |
@@ -279,15 +279,15 @@ Not measured: the agentic e2e runner (needs model credentials) and the Odoo-back
 
 ## 1. Odoo tests
 
-Extend `WebVueApiCase` (or `WebVuePmoCase`) from `webvue_api/tests/common.py`. Every `test_*.py`
-is collected by its addon `tests/__init__.py` (`import_all_tests(__name__)` from `webvue_core.testing`). Never run them against the dev `odoo19` DB.
+Extend `LiwanApiCase` (or `LiwanPmoCase`) from `liwan_api/tests/common.py`. Every `test_*.py`
+is collected by its addon `tests/__init__.py` (`import_all_tests(__name__)` from `liwan_core.testing`). Never run them against the dev `odoo19` DB.
 
 `tools/odoo_test.py` clones a template with every release module installed and runs `-u` of the
 selected addons, so an `at_install` test of a low-rank addon sees a PARTIAL registry (later modules
-such as `calendar` or `webvue_tasks_pmo` are not loaded yet) over a COMPLETE schema. Any test that
+such as `calendar` or `liwan_tasks_pmo` are not loaded yet) over a COMPLETE schema. Any test that
 creates users or tasks, or touches rules or fields owned by later modules, must be tagged
-`@tagged('post_install', '-at_install')` (examples: `webvue_core` `tests/test_access_models.py`,
-`webvue_pmo` `tests/test_transition.py`).
+`@tagged('post_install', '-at_install')` (examples: `liwan_core` `tests/test_access_models.py`,
+`liwan_pmo` `tests/test_transition.py`).
 
 ## 2. Unit tests
 
@@ -298,8 +298,8 @@ logic in composables so it can be tested here without a browser.
 ### Contract fixtures (serializer to zod parity)
 
 `packages/contracts/fixtures/manifest.json` lists routes (name, addon, route, status, zod schema
-export). `WebVueApiCase.api()` records the real JSON response of each listed route while the Odoo
-tests run, only when `WEBVUE_CONTRACT_FIXTURES=<dir>` is set (the richest response wins, ids are
+export). `LiwanApiCase.api()` records the real JSON response of each listed route while the Odoo
+tests run, only when `LIWAN_CONTRACT_FIXTURES=<dir>` is set (the richest response wins, ids are
 renumbered, timestamps pinned). The committed files in `packages/contracts/fixtures/<app>/` are
 parsed with their strict schema by `src/fixtures.test.ts`, which runs in `npm test`.
 
@@ -314,7 +314,7 @@ Specs live in `apps/web/e2e` and talk to `internal-ui-audit-mock.mjs`. They are
 deterministic and free, and CI runs the list in `ci-mock-specs.txt`. Use them for page
 states, navigation and regressions that need no judgement.
 
-### WebVue AI spec
+### LiwanOS AI spec
 
 `e2e/ai-mocked.spec.ts` is in `ci-mock-specs.txt`. Besides the audit mock it needs `e2e/ai-service-mock.mjs`, a
 scripted stand-in for the AI service (no model; port `AI_MOCK_PORT`, 4499 in CI) that Nuxt reaches through
@@ -341,7 +341,7 @@ database), point Nuxt at the wrapper port, and open Nuxt on `localhost`, not `12
 ```sh
 MOCK_PORT=4501 node apps/web/e2e/my-tasks-mock.mjs   # wrapper 4501, upstream 5501
 cd apps/web
-NUXT_ODOO_URL=http://127.0.0.1:4501 NUXT_ODOO_DB=webvue_ui_mock_only \
+NUXT_ODOO_URL=http://127.0.0.1:4501 NUXT_ODOO_DB=liwan_ui_mock_only \
   NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4501/websocket npx nuxt dev --port 4401
 E2E_MY_TASKS=1 E2E_BASE_URL=http://localhost:4401 npx playwright test e2e/my-tasks-*.spec.ts
 ```
@@ -380,7 +380,7 @@ scenario yet (`--check` exits 1 on a gap).
 - `npm run e2e:odoo` (same wrapper with `E2E_STACK=odoo`) runs against a real scratch Odoo
   instead of the mock, for journeys that write data (`e2e/tests/pmo-journey.e2e.ts`, tag
   `journey`; it skips itself on the mock stack). The database is the fixed
-  `webvue_scratch_e2e` (the wrapper refuses any other name and never uses `odoo19`), served
+  `liwan_scratch_e2e` (the wrapper refuses any other name and never uses `odoo19`), served
   from `/Users/tariq/code/odoo` (override `E2E_ODOO_ROOT`) with a generated config, data
   and logs under `.e2e/odoo/` and a `saas` classification fixture like CI. PostgreSQL comes
   from `PGHOST`/`PGPORT`/`PGUSER` (defaults `127.0.0.1`, `5432`, `tariq`); passwords only
@@ -441,7 +441,7 @@ scenario yet (`--check` exits 1 on a gap).
 | `npm -w apps/vendor-admin run lint` | Type check (`vue-tsc --build --noEmit`); CI step `vendor-admin`. |
 | `npm -w apps/vendor-admin run test` | Unit tests (vitest); CI step `vendor-admin`. |
 | `npm -w apps/vendor-admin run e2e` | Playwright against the mock control service in `apps/vendor-admin/e2e`, on a production build; `e2e:dev` runs the `*.dev.spec.ts` specs on `nuxt dev`. Not a CI step. |
-| `PATH=/opt/homebrew/bin:$PATH node tools/vendor_admin_local_check.mjs` | Live proof: sign-in, enrollment and team management against the real control plane with real WebAuthn verification. Needs local Postgres; scratch database `webvue_control_scratch_p3live`. Details in `apps/vendor-admin/README.md`. Not a CI step. |
+| `PATH=/opt/homebrew/bin:$PATH node tools/vendor_admin_local_check.mjs` | Live proof: sign-in, enrollment and team management against the real control plane with real WebAuthn verification. Needs local Postgres; scratch database `liwan_control_scratch_p3live`. Details in `apps/vendor-admin/README.md`. Not a CI step. |
 
 Local evidence only; it does not establish deployment readiness.
 
@@ -473,7 +473,7 @@ HTTP/session/attachment and concurrent tenant evidence from Docker/production
 proof. `tools/continuous_updates_acceptance/docker_odoo.py` is a separate scoped
 image experiment, not fresh product Dockerfile acceptance.
 
-Maintenance model/API checks use test tag `webvue_maintenance`: authorization,
+Maintenance model/API checks use test tag `liwan_maintenance`: authorization,
 company isolation, operator notices, immutable events, preference/booking CAS,
 overlap serialization, scheduling policy and atomic claim duration. Contracts
 and web tests cover Arabic/English, draft preservation and IANA/DST windows.

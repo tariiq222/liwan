@@ -83,7 +83,7 @@ async function submit() {
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
   <SharedPageState :loading="types.isLoading.value" :error="types.error.value" :empty="!types.isLoading.value && !typeOptions.length" :empty-text="t('hr.leave.form.noTypes')" @retry="types.refetch">
-    <UForm novalidate :state="{ employeeId, leaveTypeId, dateFrom, dateTo, notes }" class="webvue-form" method="post" data-testid="hr-leave-request-form" @submit="submit">
+    <UForm novalidate :state="{ employeeId, leaveTypeId, dateFrom, dateTo, notes }" class="liwan-form" method="post" data-testid="hr-leave-request-form" @submit="submit">
       <UAlert v-if="error && !serverField" role="alert" color="error" variant="subtle" :title="error" />
       <SharedFormSection panel :title="t('hr.leave.form.details')">
         <div class="grid gap-4">

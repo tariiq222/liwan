@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { HrShiftSettingsSchema } from '@webvue/contracts'
+import { HrShiftSettingsSchema } from '@liwan/contracts'
 import { collectBrowserErrors, currentRoute, dialog, heading, MOCK_STACK_ONLY, openPage as open, row, trackRefusedRequests } from './support/mock-pages'
 import { login } from './support/tasmim6'
 
@@ -160,7 +160,7 @@ test.describe('payslip page', () => {
     await page.emulateMedia({ media: 'print' })
     await expect(page.getByTestId('hr-payslip-net')).toBeVisible()
     await expect(page.getByTestId('hr-payslip-print')).toBeHidden()
-    await expect(page.locator('.webvue-shell-header')).toBeHidden()
+    await expect(page.locator('.liwan-shell-header')).toBeHidden()
   })
 
   test('an unknown payslip shows the not-found state', async ({ page }) => {

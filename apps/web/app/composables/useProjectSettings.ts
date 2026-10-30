@@ -1,7 +1,7 @@
 import type { QueryClient } from '@tanstack/vue-query'
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { ProjectCreateDefaultsSchema, ProjectSettingsSchema, type ProjectSettings, type ProjectSettingsPatch } from '@webvue/contracts'
+import { ProjectCreateDefaultsSchema, ProjectSettingsSchema, type ProjectSettings, type ProjectSettingsPatch } from '@liwan/contracts'
 
 export const projectSettingsKeys = {
   all: ['project-settings'] as const,

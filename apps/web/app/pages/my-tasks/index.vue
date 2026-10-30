@@ -2,16 +2,16 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { RouteLocationNormalized } from 'vue-router'
 import { refDebounced } from '@vueuse/core'
-import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
+import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
 import MyTaskRow from '@/components/personal-tasks/MyTaskRow.vue'
-import type { MyTaskListPage } from '@webvue/contracts'
+import type { MyTaskListPage } from '@liwan/contracts'
 import { useMyTaskList } from '@/composables/useMyTaskList'
 import { useMyTaskSummary } from '@/composables/useMyTaskSummary'
 import { myTaskKpiTiles } from '@/utils/myTaskKpi'
-import { localIsoDay } from '@webvue/ui/app/utils/formatDate'
-import { errorStateKind } from '@webvue/ui/app/utils/errorState'
-import { currentListView, listViewQuery } from '@webvue/ui/app/utils/listView'
-import { useRowNavigation } from '@webvue/ui/app/composables/useRowNavigation'
+import { localIsoDay } from '@liwan/ui/app/utils/formatDate'
+import { errorStateKind } from '@liwan/ui/app/utils/errorState'
+import { currentListView, listViewQuery } from '@liwan/ui/app/utils/listView'
+import { useRowNavigation } from '@liwan/ui/app/composables/useRowNavigation'
 import {
   lastPageOffset,
   listPatch,
@@ -84,7 +84,7 @@ let writesInFlight = 0
 let lastWrite = 0
 let disposed = false
 function isCurrentList() { return (router.currentRoute.value.path.replace(/\/+$/, '') || '/') === '/my-tasks' }
-const stopNavigationStart = useNuxtApp().hook('webvue:navigation:start', to => { pendingNavigation = to })
+const stopNavigationStart = useNuxtApp().hook('liwan:navigation:start', to => { pendingNavigation = to })
 function settleNavigation(to: RouteLocationNormalized) {
   if (to !== pendingNavigation) return
   pendingNavigation = null
@@ -230,7 +230,7 @@ function openLiveTask(_event: MouseEvent, task: (typeof items.value)[number]) { 
           <UButton v-if="state.q || state.scope !== 'all'" type="button" color="neutral" variant="outline" :label="t('filterCard.clear')" :disabled="!hydrated" @click="clearFilters" />
           <UButton v-else :to="createTo" icon="i-lucide-plus" :label="t('myTasks.new')" />
         </template>
-        <ul ref="cardList" class="grid min-w-0 gap-4 p-(--webvue-card-pad-dense) sm:grid-cols-2 xl:grid-cols-3" :aria-label="t('myTasks.title')" data-testid="my-tasks-cards">
+        <ul ref="cardList" class="grid min-w-0 gap-4 p-(--liwan-card-pad-dense) sm:grid-cols-2 xl:grid-cols-3" :aria-label="t('myTasks.title')" data-testid="my-tasks-cards">
           <SharedSubCard v-for="(task, index) in items" :key="`${task.source}:${task.id}`" as="li" data-shortcut-row :data-row-index="index" tabindex="-1" class="outline-none focus-visible:ring-2 focus-visible:ring-primary">
             <MyTaskRow :task="task" :to="rowTo(task)" :today="today" part="card" @open="openLiveTask" />
           </SharedSubCard>

@@ -2,11 +2,11 @@
 
 Status: **draft** (2026-10-20). D1 is decided; D2-D6 are **deferred by the owner until before the first production
 server deployment** and are decided then, together with the approval of this policy. Until the owner approves it, the sandbox-only
-confinement in `webvue_finance` stays in force and production invoicing for real tenants remains a release
-blocker (AGENTS.md, `odoo-addons/webvue_finance/README.md`).
+confinement in `liwan_finance` stays in force and production invoicing for real tenants remains a release
+blocker (AGENTS.md, `odoo-addons/liwan_finance/README.md`).
 
-Scope: when and how a WebVue company leaves the ZATCA developer-portal sandbox for the Fatoora simulation
-environment and then production, through stock `l10n_sa_edi` driven by `webvue_finance`. It covers the
+Scope: when and how a LiwanOS company leaves the ZATCA developer-portal sandbox for the Fatoora simulation
+environment and then production, through stock `l10n_sa_edi` driven by `liwan_finance`. It covers the
 environments, who may switch them, key and certificate custody, renewal, revocation, submission timing, chain
 integrity, responsibility, and the evidence required before a tenant goes live. It does not cover Zakat or income
 tax filing (out of scope in the HR and finance design).
@@ -44,7 +44,7 @@ The simulation and production portals are independent: a device onboarded in one
 Passing the sandbox or the SDK does not mean ZATCA approval. Each taxpayer must still complete onboarding and
 the compliance checks in production (Developer Portal manual, Integration Sandbox FAQ 5).
 
-### 2.2 Onboarding (per EGS unit; in WebVue one EGS unit is one sales journal)
+### 2.2 Onboarding (per EGS unit; in LiwanOS one EGS unit is one sales journal)
 
 1. The taxpayer logs into the FATOORA portal (or the simulation portal) with ERAD credentials and generates one or
    more OTPs. **An OTP is valid for one hour** (FATOORA manual §1.B, §2.E).
@@ -90,10 +90,10 @@ The CSR's functionality map limits what the unit may submit: `1000` standard onl
   (`l10n_sa_production_csid_validity`, the certificate's `date_end`), never hard-code it.
 - Rate limits and retry guidance for the gateway.
 
-## 3. Current WebVue state
+## 3. Current LiwanOS state
 
-- `res.company` constraint (`webvue_finance/models/res_company.py`) refuses any `l10n_sa_api_mode` but `sandbox`.
-- `webvue.finance.zatca` refuses onboarding, submit and retry outside `sandbox` (422 `zatca_mode_not_allowed`)
+- `res.company` constraint (`liwan_finance/models/res_company.py`) refuses any `l10n_sa_api_mode` but `sandbox`.
+- `liwan.finance.zatca` refuses onboarding, submit and retry outside `sandbox` (422 `zatca_mode_not_allowed`)
   before the documented `sudo()`; no route changes the mode.
 - The stock EDI cron is active with a one-day interval; posting or retrying triggers it immediately, so the daily
   run is a fallback. It skips documents blocked with `error`.
@@ -125,20 +125,20 @@ says it comes from the matching portal (simulation or production) and expires on
 
 **P4. Key and certificate custody.** The private key (`certificate.key`) and the CSID secrets stay in the tenant
 database, readable only by the documented `sudo()` path in `zatca_service.py`, never serialized. They are part of
-the tenant's encrypted backups. No WebVue staff member exports them. A suspected key leak triggers revocation by the
+the tenant's encrypted backups. No LiwanOS staff member exports them. A suspected key leak triggers revocation by the
 customer in the FATOORA portal and a new onboarding (P6).
 
-**P5. Renewal.** WebVue shows each journal's certificate expiry and warns the finance managers 30 days, 7 days and
-1 day before it. Because stock renews only after expiry (G1), D3 decides whether WebVue adds renewal before
+**P5. Renewal.** LiwanOS shows each journal's certificate expiry and warns the finance managers 30 days, 7 days and
+1 day before it. Because stock renews only after expiry (G1), D3 decides whether LiwanOS adds renewal before
 expiry through stock's public methods (R9) or accepts the gap.
 
-**P6. Revocation and re-onboarding.** Revocation is done by the customer in the FATOORA portal; WebVue never
+**P6. Revocation and re-onboarding.** Revocation is done by the customer in the FATOORA portal; LiwanOS never
 revokes. When ZATCA answers that a certificate is not authorized (`unauthorized` state), the journal is marked
 not onboarded and the managers are told to onboard it again. A VAT group change needs re-onboarding under the
 group TRN.
 
 **P7. Submission timing and monitoring.** Standard invoices are not sent or printed to the buyer before clearance
-succeeds. Simplified documents are tracked against the 24-hour window: WebVue alerts the finance managers when any
+succeeds. Simplified documents are tracked against the 24-hour window: LiwanOS alerts the finance managers when any
 document has waited more than 12 hours or is `rejected` or `blocked`, and shows the backlog on the ZATCA status page.
 D4 decides the cron fallback interval.
 
@@ -149,7 +149,7 @@ and re-submits documents generated after the restore point in their original ord
 tables do not touch the ZATCA documents.
 
 **P9. Responsibility.** The customer is the taxpayer and owns its FATOORA access, OTPs, revocations and the
-correctness of its invoices. WebVue is the solution provider and owns the EGS behavior (XML, signing, chain,
+correctness of its invoices. LiwanOS is the solution provider and owns the EGS behavior (XML, signing, chain,
 submission). The SaaS terms of service must state this split before production is enabled (D5).
 
 **P10. Customer-hosted (`non_saas`).** The same rules apply with the customer operating the server; ZATCA traffic
@@ -159,13 +159,13 @@ team owns P8 there.
 **P11. Go-live evidence.** Production is enabled for real tenants only after:
 1. The reference taxpayer (D1: the first pilot customer, a VAT-registered company with its own ERAD account, in its
    own tenant database, with its written consent to run the simulation; it generates the simulation OTPs and accepts
-   the simulation terms itself) has onboarded a journal in simulation and submitted, through the WebVue UI, at
+   the simulation terms itself) has onboarded a journal in simulation and submitted, through the LiwanOS UI, at
    least: a standard invoice (cleared), a simplified invoice (reported), a credit note and a debit note of
    each kind, one rejected document followed by a corrected one, and a renewal.
 2. The FATOORA simulation statistics show those documents with the expected outcomes; the pilot customer shares a
    screenshot or the CSV export, kept as release evidence. Simulation documents have no tax effect for the pilot
    customer, which later onboards again in production (P1).
-3. The Odoo tests of `webvue_finance` cover the mode route, the audit entry, the alerts and the refusals.
+3. The Odoo tests of `liwan_finance` cover the mode route, the audit entry, the alerts and the refusals.
 4. An `odoo-reviewer` review of the change passes.
 
 **P12. Keeping current.** Before each release that touches ZATCA, and at least every quarter, the guidelines page is
@@ -178,21 +178,21 @@ below are proposals, not decisions.
 
 | # | Decision | Options | Recommendation |
 |---|---|---|---|
-| D1 | Is simulation mandatory before production? | (a) per tenant; (b) once for the product with a reference taxpayer, optional per tenant; (c) never | **Decided (owner, 2026-10-20): (b), with the first pilot customer as the reference taxpayer.** WebVue is not VAT-registered, so it has no ERAD account and cannot open the FATOORA simulation portal itself. ZATCA calls simulation optional, and a per-tenant step adds an OTP round per journal. |
+| D1 | Is simulation mandatory before production? | (a) per tenant; (b) once for the product with a reference taxpayer, optional per tenant; (c) never | **Decided (owner, 2026-10-20): (b), with the first pilot customer as the reference taxpayer.** LiwanOS is not VAT-registered, so it has no ERAD account and cannot open the FATOORA simulation portal itself. ZATCA calls simulation optional, and a per-tenant step adds an OTP round per journal. |
 | D2 | Which capability switches the mode? | reuse `finance.zatca.manage`; new `finance.zatca.environment` | New `finance.zatca.environment`, not implied by any other capability, because the switch to `prod` is one-way. |
-| D3 | Renewal before expiry | (a) add pre-expiry renewal in `webvue_finance` through stock's public API; (b) accept the gap and renew right after expiry | (a), if it can be done without overriding stock's private methods (R9); otherwise (b) with the P5 warnings and an owner-accepted risk. |
+| D3 | Renewal before expiry | (a) add pre-expiry renewal in `liwan_finance` through stock's public API; (b) accept the gap and renew right after expiry | (a), if it can be done without overriding stock's private methods (R9); otherwise (b) with the P5 warnings and an owner-accepted risk. |
 | D4 | Cron fallback interval | keep 1 day; change to 1 hour | 1 hour, so a failed immediate trigger is retried well inside the 24-hour window. |
 | D5 | Terms of service | add the P9 split to the SaaS terms | Yes, before the first production tenant. |
-| D6 | Who may approve a production switch for a tenant in SaaS | the customer alone; the customer plus a WebVue operations check | The customer alone through P2, with the P11 gates already met by the product. |
+| D6 | Who may approve a production switch for a tenant in SaaS | the customer alone; the customer plus a LiwanOS operations check | The customer alone through P2, with the P11 gates already met by the product. |
 
 ## 7. Implementation that follows approval (not started)
 
-- Replace the sandbox-only constraint in `webvue_finance/models/res_company.py` and the
-  `_webvue_require_sandbox` check in `zatca_service.py` with the P1/P2 rules (no parallel old path).
+- Replace the sandbox-only constraint in `liwan_finance/models/res_company.py` and the
+  `_liwan_require_sandbox` check in `zatca_service.py` with the P1/P2 rules (no parallel old path).
 - Add the mode route, capability (D2), audit entry, expiry and backlog alerts (P5, P7) and the contracts in
   `packages/contracts`, with Odoo and web tests.
 - Update the documented `sudo()` reason in `tools/arch_documented_sudo.json` and the ZATCA lines in AGENTS.md and the
-  `webvue_finance` README. The `arch_documented_sudo.json` change needs the owner's `Architecture-approved-by:`
+  `liwan_finance` README. The `arch_documented_sudo.json` change needs the owner's `Architecture-approved-by:`
   trailer.
 - Write the P8 restore runbook under `docs/operations/`.
 - Tests keep mocking the gateway; the fake must also cover the simulation base URL.

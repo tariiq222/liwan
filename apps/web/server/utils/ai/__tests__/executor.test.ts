@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { AiTool } from '@webvue/contracts'
+import type { AiTool } from '@liwan/contracts'
 import { buildToolRequest, summarizeResult, toolCallBudget, toolResultFromUpstream } from '../executor'
 
 const list: AiTool = {

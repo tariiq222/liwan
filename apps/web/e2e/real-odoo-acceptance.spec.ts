@@ -4,7 +4,7 @@ test.skip(process.env.E2E_REAL_ODOO !== '1', 'Explicit isolated real Odoo accept
 test.beforeEach(async ({}, info) => { const origin = new URL(String(info.project.use.baseURL)); expect(origin.hostname).toBe('localhost'); expect(origin.port).toBe('44300'); });
 const fixture = process.env.E2E_REAL_ODOO === '1' ? JSON.parse(readFileSync(new URL('../../../.superpowers/real-odoo/fixtures.json', import.meta.url), 'utf8')) : {};
 async function body(response: APIResponse, status = 200) { expect(response.status(), await response.text()).toBe(status); return response.json(); }
-async function login(page: Page, reader = false) { await body(await page.request.post('/api/auth/login', { data: { login: reader ? 'e2e_employee' : 'e2e_admin', password: reader ? (process.env.E2E_USER_EMPLOYEE_PASSWORD ?? process.env.E2E_EMPLOYEE_PASSWORD ?? 'webvue-e2e-employee-2026') : (process.env.E2E_USER_ADMIN_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD ?? 'webvue-e2e-admin-2026') } })); }
+async function login(page: Page, reader = false) { await body(await page.request.post('/api/auth/login', { data: { login: reader ? 'e2e_employee' : 'e2e_admin', password: reader ? (process.env.E2E_USER_EMPLOYEE_PASSWORD ?? process.env.E2E_EMPLOYEE_PASSWORD ?? 'liwan-e2e-employee-2026') : (process.env.E2E_USER_ADMIN_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD ?? 'liwan-e2e-admin-2026') } })); }
 async function open(page: Page, path: string) { await page.goto(path); await expect(page.getByTestId('global-search-trigger')).toBeEnabled(); await expect(page.locator('main')).toBeVisible(); }
 async function project(page: Page) { return body(await page.request.post('/api/v1/projects', { data: { name: `تحقق حقيقي ${Date.now()}`, date_end: '2030-12-31' } }), 201); }
 test('real login form rejects invalid credentials then loads a real capability identity', async ({ page }) => {
@@ -15,7 +15,7 @@ test('real login form rejects invalid credentials then loads a real capability i
     await page.getByRole('button', { name: 'دخول', exact: true }).click();
     expect((await response).status()).toBe(401);
     await expect(page.getByText('بيانات الدخول غير صحيحة')).toBeVisible();
-    await page.getByLabel('كلمة المرور').fill(process.env.E2E_USER_ADMIN_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD ?? 'webvue-e2e-admin-2026');
+    await page.getByLabel('كلمة المرور').fill(process.env.E2E_USER_ADMIN_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD ?? 'liwan-e2e-admin-2026');
     response = page.waitForResponse(r => r.url().endsWith('/api/auth/login') && r.request().method() === 'POST');
     await page.getByRole('button', { name: 'دخول', exact: true }).click();
     expect((await response).status()).toBe(200);
@@ -131,7 +131,7 @@ test('real chat message arrives in another logged-in browser without refresh', a
         const sentMessage = await body(await page.request.post(`/api/v1/chat/conversations/${conversation.id}/messages`, { data: { body: message } }), 201);
         const received = peer.getByTestId('chat-thread').locator(`[data-message-id="${sentMessage.id}"]`);
         await expect(received).toBeVisible({ timeout: 10000 });
-        await expect(received.locator('.webvue-chat-bubble')).toContainText(message);
+        await expect(received.locator('.liwan-chat-bubble')).toContainText(message);
     }
     finally {
         await peerContext.close();

@@ -14,12 +14,12 @@ afterEach(() => vi.unstubAllGlobals())
 
 describe('shell navigation on a page the identity may not open', () => {
   it('shows no application chrome on /ai without the assistant capability', () => {
-    const { activeModule, contextLinks } = navigation('/ai', ['webvue.internal'])
+    const { activeModule, contextLinks } = navigation('/ai', ['liwan.internal'])
     expect(activeModule.value).toBeNull()
     expect(contextLinks.value).toEqual([])
   })
 
   it('keeps the application for an identity that may open its page', () => {
-    expect(navigation('/ai', ['webvue.internal', 'ai.use']).activeModule.value).toBe('ai')
+    expect(navigation('/ai', ['liwan.internal', 'ai.use']).activeModule.value).toBe('ai')
   })
 })

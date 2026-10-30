@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { ref } from 'vue'
-import FilterChoice from '@webvue/ui/app/components/shared/data/FilterChoice.vue'
+import FilterChoice from '@liwan/ui/app/components/shared/data/FilterChoice.vue'
 import { storyContext } from '../support/context'
 
 const items = [

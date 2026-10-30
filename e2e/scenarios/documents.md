@@ -1,8 +1,8 @@
 # Documents
 
 Pages: `/documents` (`new`, `[documentId]`, `edit`, `access`), `/documents/self` (served at
-`/account/documents`), `/hr/departments/[id]/documents`. Owners: `webvue_documents`,
-`webvue_documents_hr`. Personas and status values: [README](README.md).
+`/account/documents`), `/hr/departments/[id]/documents`. Owners: `liwan_documents`,
+`liwan_documents_hr`. Personas and status values: [README](README.md).
 
 The department document pages under `/hr/departments/[id]/documents` are scenarios of
 [hr.md](hr.md); this file covers the library itself, its API and the redirects into it.
@@ -133,7 +133,7 @@ API errors quoted below are the server messages; the UI shows its own Arabic tex
 | DOC-99 | Archived document for a reader | staff1 | Direct link answers 404; absent from the list even with a grant | `GET /api/v1/documents/<id>` | manual 2026-10-28 | reader direct link 404 and absent from list; Archive holders still read it |
 | DOC-100 | Archive without archive capability or editor grant | custom role (documents.items.manage) | 403 | `POST /api/v1/documents/<id>/archive` | manual 2026-10-28 | admin without archive capability restore 403 forbidden |
 | DOC-101 | Archive or restore with a stale or missing revision | hr_manager | 409 `conflict` / 422 field `expected_revision` | `POST /api/v1/documents/<id>/restore` | manual 2026-10-28 | stale 409 conflict; missing revision 422 |
-| DOC-102 | Archive an already archived document through the API | hr_manager | Doubtful: accepted again and the revision grows; the UI offers only the valid action | `POST /api/v1/documents/<id>/archive` | decision | 2026-10-28 confirmed: a second archive of an archived document answers 200 and revision grows; #161; `models/document.py:_webvue_set_active` does not compare with the current state |
+| DOC-102 | Archive an already archived document through the API | hr_manager | Doubtful: accepted again and the revision grows; the UI offers only the valid action | `POST /api/v1/documents/<id>/archive` | decision | 2026-10-28 confirmed: a second archive of an archived document answers 200 and revision grows; #161; `models/document.py:_liwan_set_active` does not compare with the current state |
 | DOC-103 | Archived documents keep their files and grants | hr_manager | After restore files and grants are unchanged | `POST /api/v1/documents/<id>/restore` | manual 2026-10-28 | after restore files and grants unchanged |
 
 ## Visibility and grants
@@ -161,7 +161,7 @@ API errors quoted below are the server messages; the UI shows its own Arabic tex
 | DOC-118 | Grant to a user without `documents.items.read` | hr_manager | The user still cannot read; no data is exposed | `PUT /api/v1/documents/<id>/access` | manual 2026-10-28 | round 2: a grant to a user with no role is accepted 200 (listed «قارئ») but that user still gets 403 on the document and its files |
 | DOC-119 | Company isolation | staff1 | A document of another company answers 404 on detail, files, download and access | `GET /api/v1/documents/<id>` | manual 2026-10-28 | round 2: Dammam document answers 404 «document not found» on detail, files and download for staff1, hr_manager and Jeddah; access, patch, archive and upload answer 404 for hr_manager and 403 for users without manage (the same 403 as an unknown id, no leak); Odoo test `test_company_isolation.py` |
 
-## Employee and department links (webvue_documents_hr)
+## Employee and department links (liwan_documents_hr)
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |

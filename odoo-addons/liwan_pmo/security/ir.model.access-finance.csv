@@ -1,0 +1,2 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_liwan_project_finance_entry_user,liwan.project.finance.entry.user,model_liwan_project_finance_entry,base.group_user,1,1,1,1

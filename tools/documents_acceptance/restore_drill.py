@@ -23,7 +23,7 @@ def main():
     parser.add_argument('--evidence-dir',type=Path,required=True)
     parser.add_argument('--worktree',type=Path,default=Path(__file__).resolve().parents[2])
     args=parser.parse_args()
-    if not re.fullmatch(r'webvue_scratch_[a-z0-9_]{1,28}',args.database_prefix):
+    if not re.fullmatch(r'liwan_scratch_[a-z0-9_]{1,28}',args.database_prefix):
         parser.error('fresh scratch prefix required')
     try:
         import psycopg2
@@ -36,7 +36,7 @@ def main():
     validated=[]
     for path in fixtures:
         manifest=json.loads(path.read_text())
-        if manifest.get('kind')!='webvue-documents-synthetic-fixture-v1' or not re.fullmatch(r'webvue_scratch_[a-z0-9_]+',manifest.get('database','')):
+        if manifest.get('kind')!='liwan-documents-synthetic-fixture-v1' or not re.fullmatch(r'liwan_scratch_[a-z0-9_]+',manifest.get('database','')):
             raise ValueError('unrecognized synthetic fixture backup')
         for key in ('dump','filestore','snapshot'):
             name=manifest.get(key,'')
@@ -55,7 +55,7 @@ def main():
         if cursor.fetchall():
             raise ValueError('refusing existing restore target')
     args.evidence_dir.mkdir(parents=True,exist_ok=True)
-    runtime=Path(tempfile.mkdtemp(prefix='webvue-docs-restore-'))
+    runtime=Path(tempfile.mkdtemp(prefix='liwan-docs-restore-'))
     owned=[];results=[]
     try:
         baseline=validated[0]['baseline']
@@ -93,7 +93,7 @@ def main():
             with console.open('a') as output:
                 subprocess.run(command,input='OUTPUT='+repr(str(restored))+'\n'+SNAPSHOT,text=True,
                     stdout=output,stderr=subprocess.STDOUT,check=True,timeout=120,
-                    env=dict(os.environ,WEBVUE_COMMERCIAL_CONFIG=str(classification),PYTHONDONTWRITEBYTECODE='1'))
+                    env=dict(os.environ,LIWAN_COMMERCIAL_CONFIG=str(classification),PYTHONDONTWRITEBYTECODE='1'))
             expected=json.loads((args.fixture_evidence/manifest['snapshot']).read_text())
             actual=json.loads(restored.read_text())
             if expected!=actual:

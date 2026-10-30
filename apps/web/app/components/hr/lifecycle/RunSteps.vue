@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HrPlanRunDetail, HrPlanRunStep } from '@webvue/contracts'
+import type { HrPlanRunDetail, HrPlanRunStep } from '@liwan/contracts'
 
 // The checklist of one plan run: the server decides `can_complete` (an HR manager or the
 // step's assignee), and the completion note is optional.

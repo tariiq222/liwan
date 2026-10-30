@@ -43,12 +43,12 @@ if 'shell' in args: print('ROUTE_PROBE_OK')
 ''')
         self.fake('python3', '''
 if args[0] == '-': os.execv(sys.executable, [sys.executable, *args])
-if 'tools/catalog_check.py' in args: print('webvue_tasks')
+if 'tools/catalog_check.py' in args: print('liwan_tasks')
 if 'tools/oca_addons.py' in args: print('/oca/repo')
 if 'tools/app_isolation.py' in args and 'install' in args:
- print({'webvue_tasks_pmo': 'webvue_pmo,webvue_tasks'}.get(args[-1], args[-1]))
+ print({'liwan_tasks_pmo': 'liwan_pmo,liwan_tasks'}.get(args[-1], args[-1]))
 if 'tools/app_isolation.py' in args and 'tags' in args: print('/' + args[-1])
-if 'tools/app_isolation.py' in args and 'foundation' in args: print('webvue_api')
+if 'tools/app_isolation.py' in args and 'foundation' in args: print('liwan_api')
 if 'tools/app_isolation.py' in args and 'rank' in args: print(4)
 if 'deploy/classification.py' in args:
  output=Path(args[args.index('--output')+1]); output.parent.mkdir(parents=True, exist_ok=True); output.write_text('{}')
@@ -68,7 +68,7 @@ if args[:1] == ['run'] and any(a.startswith('aquasec/trivy:') for a in args):
     sys.exit(plan.get('exit', 0))
 ''')
         self.fake('psql', '''
-if 'webvue_tasks_pmo' in ' '.join(args) and "SELECT state" in ' '.join(args): print('installed')
+if 'liwan_tasks_pmo' in ' '.join(args) and "SELECT state" in ' '.join(args): print('installed')
 elif "SELECT state" in ' '.join(args): print('installed')
 ''')
         config = {'PGHOST': '127.0.0.1', 'PGPORT': '55432', 'PGUSER': 'odoo', 'PGPASSWORD': 'scratch',
@@ -92,9 +92,9 @@ elif "SELECT state" in ' '.join(args): print('installed')
                               env=self.environment, capture_output=True, text=True, check=False)
 
     def test_odoo_steps_execute_against_the_isolated_connection_and_pinned_source(self):
-        for name, args, wanted_modules, wanted_port in (('odoo', (), 'webvue_tasks', '52101'),
-                                                        ('odoo-app-standalone', ('webvue_tasks',), 'webvue_tasks', '52102'),
-                                                        ('odoo-bridge', ('webvue_tasks_pmo',), 'webvue_pmo,webvue_tasks', '52102')):
+        for name, args, wanted_modules, wanted_port in (('odoo', (), 'liwan_tasks', '52101'),
+                                                        ('odoo-app-standalone', ('liwan_tasks',), 'liwan_tasks', '52102'),
+                                                        ('odoo-bridge', ('liwan_tasks_pmo',), 'liwan_pmo,liwan_tasks', '52102')):
             with self.subTest(stage=name):
                 self.calls.write_text('')
                 process = self.execute(name, *args)
@@ -106,7 +106,7 @@ elif "SELECT state" in ' '.join(args): print('installed')
                 self.assertIn('--http-port=' + wanted_port, odoo)
                 self.assertEqual(odoo[odoo.index('-i') + 1], wanted_modules)
                 # Committed Odoo concurrency fixtures require this safe prefix.
-                self.assertTrue(odoo[odoo.index('-d') + 1].startswith('webvue_scratch_'))
+                self.assertTrue(odoo[odoo.index('-d') + 1].startswith('liwan_scratch_'))
                 self.assertEqual(odoo[1], str(self.odoo / 'odoo-bin'))
                 probes = [x for x in calls if x[0] == 'odoo-python' and 'shell' in x]
                 self.assertEqual(len(probes), {'odoo': 0, 'odoo-app-standalone': 1, 'odoo-bridge': 3}[name])
@@ -131,7 +131,7 @@ sys.exit(3)
     def test_upgrade_without_baseline_is_an_explicit_completed_result(self):
         process = self.execute('upgrade')
         self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
-        self.assertIn('no WebVue-namespace release baseline; fresh-install gate remains binding', process.stdout)
+        self.assertIn('no LiwanOS-namespace release baseline; fresh-install gate remains binding', process.stdout)
         self.assertFalse([x for x in self.calls.read_text().splitlines() if '"odoo-python"' in x])
 
     def test_upgrade_uses_previous_odoo_pin_without_mutating_upstream_or_worktrees(self):
@@ -159,7 +159,7 @@ sys.exit(3)
         self.fake('odoo-python', "if 'shell' in args: print('UPGRADE_SMOKE_OK')\n")
         self.fake('python3', '''
 if args[0] == '-': os.execv(sys.executable, [sys.executable, *args])
-if 'tools/catalog_check.py' in args: print('webvue_tasks')
+if 'tools/catalog_check.py' in args: print('liwan_tasks')
 if 'tools/upgrade_baseline.py' in args: print('release/test')
 if 'deploy/classification.py' in args: Path(args[args.index('--output')+1]).write_text('{}')
 ''')
@@ -190,7 +190,7 @@ if args[:2] == ['-m','venv']:
         process = self.execute('ai-service')
         self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
         self.assertEqual((self.root / 'apps/ai-service/observed-url').read_text(),
-                         'postgresql://odoo:scratch@127.0.0.1:55432/webvue_ai_ci_123')
+                         'postgresql://odoo:scratch@127.0.0.1:55432/liwan_ai_ci_123')
 
     def test_restore_drill_uses_the_isolated_port_in_backup_restore_and_odoo(self):
         self.fake('curl', '')
@@ -203,7 +203,7 @@ if '--stop-after-init' not in args:
         self.fake('psql', "print('aa/attachment')\n")
         self.fake('python3', '''
 if args[0] in ('-', '-c'): os.execv(sys.executable, [sys.executable, *args])
-if 'tools/catalog_check.py' in args: print('webvue_tasks')
+if 'tools/catalog_check.py' in args: print('liwan_tasks')
 if 'deploy/classification.py' in args: Path(args[args.index('--output')+1]).write_text('{}')
 if 'deploy/backup.py' in args:
  backup=Path(args[args.index('--output-dir')+1]); (backup/'filestore/aa').mkdir(parents=True)
@@ -230,16 +230,16 @@ if 'deploy/restore_verify.py' in args:
         self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
         calls = [json.loads(line) for line in self.calls.read_text().splitlines()]
         build = next(x for x in calls if x[:2] == ['docker', 'build'])
-        self.assertEqual(build[build.index('-t') + 1], 'webvue-odoo:ci-123')
-        self.assertIn('WEBVUE_REVISION=' + 'b' * 12, build)
+        self.assertEqual(build[build.index('-t') + 1], 'liwan-odoo:ci-123')
+        self.assertIn('LIWAN_REVISION=' + 'b' * 12, build)
         runs = [x for x in calls if x[:2] == ['docker', 'run']]
-        install = next(x for x in runs if x[x.index('--name') + 1] == 'webvue-ci-123-image')
-        check = next(x for x in runs if x[x.index('--name') + 1] == 'webvue-ci-123-check')
+        install = next(x for x in runs if x[x.index('--name') + 1] == 'liwan-ci-123-image')
+        check = next(x for x in runs if x[x.index('--name') + 1] == 'liwan-ci-123-check')
         self.assertEqual(install[install.index('--network') + 1], 'host')
         self.assertIn('--entrypoint', check)
-        for value in (x for x in install if ':/etc/odoo/' in x or ':/run/webvue/' in x):
+        for value in (x for x in install if ':/etc/odoo/' in x or ':/run/liwan/' in x):
             self.assertFalse(value.startswith(str(self.root)), value)
-        self.assertIn(['docker', 'rmi', '-f', 'webvue-odoo:ci-123'], calls)
+        self.assertIn(['docker', 'rmi', '-f', 'liwan-odoo:ci-123'], calls)
 
     def test_image_gate_builds_smokes_cleans_and_records_every_production_image(self):
         process = self.execute('image')
@@ -250,10 +250,10 @@ if 'deploy/restore_verify.py' in args:
         dockerfiles = {'web': 'apps/web/Dockerfile', 'vendor-admin': 'apps/vendor-admin/Dockerfile',
                        'ai-service': 'apps/ai-service/Dockerfile', 'proxy': 'deploy/proxy/Dockerfile',
                        'guard': 'deploy/shared/Dockerfile'}
-        self.assertEqual(set(builds), {'webvue-odoo:ci-123', *('webvue-%s:ci-123' % n for n in contexts)})
+        self.assertEqual(set(builds), {'liwan-odoo:ci-123', *('liwan-%s:ci-123' % n for n in contexts)})
         for name, context in contexts.items():
             with self.subTest(image=name):
-                tag = 'webvue-%s:ci-123' % name
+                tag = 'liwan-%s:ci-123' % name
                 build = builds[tag]
                 self.assertEqual(build[build.index('-f') + 1], dockerfiles[name])
                 self.assertEqual(build[-1], context)
@@ -262,17 +262,17 @@ if 'deploy/restore_verify.py' in args:
                 self.assertIn('| %s | sha256:%s |' % (tag, tag), process.stdout)
                 if name != 'proxy':
                     started = next(x for x in calls if x[:3] == ['docker', 'run', '-d']
-                                   and x[x.index('--name') + 1] == 'webvue-ci-123-' + name)
+                                   and x[x.index('--name') + 1] == 'liwan-ci-123-' + name)
                     self.assertIn(tag, started)
-                    self.assertIn(['docker', 'exec', 'webvue-ci-123-' + name, 'id', '-u'], calls)
-                    self.assertIn(['docker', 'rm', '-fv', 'webvue-ci-123-' + name], calls)
-        self.assertIn('| webvue-odoo:ci-123 | sha256:webvue-odoo:ci-123 |', process.stdout)
-        proxy = [x for x in calls if x[:2] == ['docker', 'run'] and 'webvue-proxy:ci-123' in x]
+                    self.assertIn(['docker', 'exec', 'liwan-ci-123-' + name, 'id', '-u'], calls)
+                    self.assertIn(['docker', 'rm', '-fv', 'liwan-ci-123-' + name], calls)
+        self.assertIn('| liwan-odoo:ci-123 | sha256:liwan-odoo:ci-123 |', process.stdout)
+        proxy = [x for x in calls if x[:2] == ['docker', 'run'] and 'liwan-proxy:ci-123' in x]
         validated = [x for x in proxy if 'validate' in x]
         self.assertEqual(len(validated), 2)
         self.assertTrue(any('http.handlers.rate_limit' in ' '.join(x) for x in proxy))
-        guard = next(x for x in calls if x[:3] == ['docker', 'run', '-d'] and 'webvue-ci-123-guard' in x)
-        self.assertIn('WEBVUE_TENANCY_MODE=shared', guard)
+        guard = next(x for x in calls if x[:3] == ['docker', 'run', '-d'] and 'liwan-ci-123-guard' in x)
+        self.assertIn('LIWAN_TENANCY_MODE=shared', guard)
 
     def test_image_gate_fails_when_an_image_runs_as_root(self):
         self.fake('docker', "if args[:1] == ['inspect']: print('true')\nif args[:1] == ['exec'] and ' '.join(args).endswith('id -u'): print(0)\n")
@@ -285,7 +285,7 @@ if 'deploy/restore_verify.py' in args:
         self.environment['GITHUB_STEP_SUMMARY'] = str(summary)
         process = self.execute('image')
         self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
-        self.assertIn('| webvue-guard:ci-123 |', summary.read_text())
+        self.assertIn('| liwan-guard:ci-123 |', summary.read_text())
         self.assertNotIn('| Image |', process.stdout)
 
     def trivy_report(self, severity, count=1):
@@ -298,44 +298,44 @@ if 'deploy/restore_verify.py' in args:
         return [x for x in calls if x[:2] == ['docker', 'run'] and any(a.startswith('aquasec/trivy:') for a in x)]
 
     def test_image_gate_scans_every_image_with_the_pinned_scanner_and_reports_counts(self):
-        self.environment['TRIVY_FAKE'] = json.dumps({'webvue-web:ci-123': {'report': self.trivy_report('HIGH', 2)}})
+        self.environment['TRIVY_FAKE'] = json.dumps({'liwan-web:ci-123': {'report': self.trivy_report('HIGH', 2)}})
         summary = self.root / 'summary.md'
         self.environment['GITHUB_STEP_SUMMARY'] = str(summary)
         process = self.execute('image')
         self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
         runs = self.trivy_runs()
-        tags = ['webvue-%s:ci-123' % n for n in ('odoo', 'web', 'vendor-admin', 'ai-service', 'proxy', 'guard')]
+        tags = ['liwan-%s:ci-123' % n for n in ('odoo', 'web', 'vendor-admin', 'ai-service', 'proxy', 'guard')]
         self.assertEqual([x[-1] for x in runs], tags)
         for run in runs:
             with self.subTest(image=run[-1]):
-                self.assertEqual(run[run.index('--name') + 1], 'webvue-ci-123-trivy')
+                self.assertEqual(run[run.index('--name') + 1], 'liwan-ci-123-trivy')
                 scanner = next(a for a in run if a.startswith('aquasec/trivy:'))
                 self.assertRegex(scanner, r'^aquasec/trivy:\d+\.\d+\.\d+@sha256:[0-9a-f]{64}$')
                 self.assertIn('/var/run/docker.sock:/var/run/docker.sock', run)
                 self.assertEqual(run[run.index('--severity') + 1], 'HIGH,CRITICAL')
                 self.assertIn('--ignore-unfixed', run)
                 self.assertEqual(run[run.index('--exit-code') + 1], '0')
-        self.assertIn(['docker', 'volume', 'rm', '-f', 'webvue-ci-123-trivy-cache'], [
+        self.assertIn(['docker', 'volume', 'rm', '-f', 'liwan-ci-123-trivy-cache'], [
             json.loads(line) for line in self.calls.read_text().splitlines()])
         text = summary.read_text()
-        self.assertIn('| webvue-web:ci-123 | 0 | 2 |', text)
-        self.assertIn('| webvue-guard:ci-123 | 0 | 0 |', text)
-        self.assertIn('webvue-web:ci-123: HIGH CVE-2099-0 libfake 1.0 -> fixed in 1.1', process.stderr)
+        self.assertIn('| liwan-web:ci-123 | 0 | 2 |', text)
+        self.assertIn('| liwan-guard:ci-123 | 0 | 0 |', text)
+        self.assertIn('liwan-web:ci-123: HIGH CVE-2099-0 libfake 1.0 -> fixed in 1.1', process.stderr)
 
     def test_image_gate_fails_on_a_critical_finding_after_scanning_every_image(self):
-        self.environment['TRIVY_FAKE'] = json.dumps({'webvue-web:ci-123': {'report': self.trivy_report('CRITICAL')}})
+        self.environment['TRIVY_FAKE'] = json.dumps({'liwan-web:ci-123': {'report': self.trivy_report('CRITICAL')}})
         process = self.execute('image')
         self.assertNotEqual(process.returncode, 0)
-        self.assertIn('webvue-web:ci-123 has 1 CRITICAL vulnerabilities with a fix available', process.stderr)
-        self.assertIn('| webvue-web:ci-123 | 1 | 0 |', process.stdout)
+        self.assertIn('liwan-web:ci-123 has 1 CRITICAL vulnerabilities with a fix available', process.stderr)
+        self.assertIn('| liwan-web:ci-123 | 1 | 0 |', process.stdout)
         self.assertEqual(len(self.trivy_runs()), 6)
 
     def test_image_gate_fails_with_a_message_when_the_scanner_errors(self):
-        self.environment['TRIVY_FAKE'] = json.dumps({'webvue-proxy:ci-123': {'exit': 1, 'report': {}}})
+        self.environment['TRIVY_FAKE'] = json.dumps({'liwan-proxy:ci-123': {'exit': 1, 'report': {}}})
         process = self.execute('image')
         self.assertNotEqual(process.returncode, 0)
-        self.assertIn('webvue-proxy:ci-123 scan failed: trivy exited with an error', process.stderr)
-        self.assertIn('| webvue-proxy:ci-123 | scan error | scan error |', process.stdout)
+        self.assertIn('liwan-proxy:ci-123 scan failed: trivy exited with an error', process.stderr)
+        self.assertIn('| liwan-proxy:ci-123 | scan error | scan error |', process.stdout)
         self.assertEqual(len(self.trivy_runs()), 6)
 
     def test_image_gate_fails_when_the_scanner_report_is_unreadable(self):

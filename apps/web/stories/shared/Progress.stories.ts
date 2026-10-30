@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import Progress from '@webvue/ui/app/components/shared/data/Progress.vue'
+import Progress from '@liwan/ui/app/components/shared/data/Progress.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

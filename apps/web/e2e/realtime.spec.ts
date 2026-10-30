@@ -72,7 +72,7 @@ test('a task rename from another session arrives over the bus, live, without a r
 // A has the task's activity column open (drawer/detail already mounted, so
 // taskKeys.timeline(id) is a live query); B posts a comment purely over the
 // API. project_task.py's _message_post_after_hook makes message_post() emit
-// the same webvue/task bus notification write()/create() do, so A's
+// the same liwan/task bus notification write()/create() do, so A's
 // useBus()-driven invalidation picks it up without any reload.
 test('a comment posted from another session arrives in the activity column, live', async ({ browser }: { browser: Browser }) => {
   const contextA = await browser.newContext()

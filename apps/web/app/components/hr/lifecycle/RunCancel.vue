@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { HrPlanRunDetail } from '@webvue/contracts'
-import { formatDateTime } from '@webvue/ui/app/utils/formatDate'
+import type { HrPlanRunDetail } from '@liwan/contracts'
+import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 
 // Cancelling a plan run launched by mistake (wrong employee or plan): an inline confirmation
 // with a required reason. The server removes the open steps and keeps the done ones; once

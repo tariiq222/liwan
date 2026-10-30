@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { InboxSettingsPatchSchema, type InboxAssignmentPolicy, type InboxVisibilityPolicy } from '@webvue/contracts'
+import { InboxSettingsPatchSchema, type InboxAssignmentPolicy, type InboxVisibilityPolicy } from '@liwan/contracts'
 import { useInboxSettings, useUpdateInboxSettings } from '@/composables/inbox/useInboxSettings'
 
 // Visibility, automatic closing, retention, who gets new conversations and the first-response alert: the tenant-wide
@@ -50,7 +50,7 @@ function submit() {
 </script>
 
 <template>
-  <SharedFormSection id="policy" panel class="webvue-settings-anchor" :title="t('inbox.settings.policy.title')" :description="t('inbox.settings.policy.hint')">
+  <SharedFormSection id="policy" panel class="liwan-settings-anchor" :title="t('inbox.settings.policy.title')" :description="t('inbox.settings.policy.hint')">
     <SharedLoadingSkeleton v-if="isLoading" />
     <SharedPageState v-else-if="error" :error="error" @retry="refetch()" />
     <form v-else class="flex flex-col gap-5" novalidate @submit.prevent="submit">

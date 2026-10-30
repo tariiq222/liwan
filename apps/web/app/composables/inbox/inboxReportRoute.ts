@@ -1,6 +1,6 @@
 import type { LocationQuery } from 'vue-router'
-import { InboxCostQuerySchema, InboxReportQuerySchema, inboxReportRangeDays } from '@webvue/contracts'
-import { localIsoDay } from '@webvue/ui/app/utils/formatDate'
+import { InboxCostQuerySchema, InboxReportQuerySchema, inboxReportRangeDays } from '@liwan/contracts'
+import { localIsoDay } from '@liwan/ui/app/utils/formatDate'
 
 /** The quick periods of the report filters; `custom` carries its own `from` and `to`. */
 export const REPORT_PERIODS = ['7', '30', '90'] as const

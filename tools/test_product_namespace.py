@@ -40,12 +40,12 @@ class ProductNamespaceTest(unittest.TestCase):
         self.assertTrue(layers['ranks'])
         for addon in layers['ranks']:
             with self.subTest(addon=addon):
-                self.assertTrue(addon.startswith('webvue_') or addon == 'base_tier_validation', addon)
+                self.assertTrue(addon.startswith('liwan_') or addon == 'base_tier_validation', addon)
                 manifest = ast.literal_eval((ROOT / 'odoo-addons' / addon / '__manifest__.py').read_text())
                 self.assertFalse(any(PREVIOUS_NAMESPACE in dep for dep in manifest.get('depends', [])))
         for manifest in (ROOT / 'packages').glob('*/package.json'):
             with self.subTest(package=str(manifest.relative_to(ROOT))):
-                self.assertTrue(json.loads(manifest.read_text())['name'].startswith('@webvue/'))
+                self.assertTrue(json.loads(manifest.read_text())['name'].startswith('@liwan/'))
 
     def test_active_owned_source_has_no_retired_namespace(self):
         result = subprocess.run(['git', 'ls-files', '-z', '--cached', '--others', '--exclude-standard'],

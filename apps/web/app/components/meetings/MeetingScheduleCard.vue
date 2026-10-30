@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { MeetingSchedulePolicy, MeetingSettings } from '@webvue/contracts'
+import type { MeetingSchedulePolicy, MeetingSettings } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useSaveMeetingSettings } from '@/composables/useMeetingSettings'
 import { saveErrorMessage } from '@/utils/formFeedback'
@@ -62,7 +62,7 @@ async function submit() {
 </script>
 
 <template>
-  <UForm novalidate :state="{ policy }" class="webvue-form" method="post" data-testid="meetings-schedule" @submit="submit">
+  <UForm novalidate :state="{ policy }" class="liwan-form" method="post" data-testid="meetings-schedule" @submit="submit">
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedFormSection panel :title="t('meetingsSettings.schedule.title')" :description="t('meetingsSettings.schedule.hint')">
       <UAlert v-if="notice === 'conflict'" role="status" color="warning" variant="subtle" icon="i-lucide-refresh-cw" :title="t('meetingsSettings.conflict')" data-testid="meetings-schedule-conflict" />

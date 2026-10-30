@@ -1,12 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import type { TableColumn } from '@nuxt/ui'
 import { useI18n } from 'vue-i18n'
-import type { HrApplicant } from '@webvue/contracts'
-import ListPage from '@webvue/ui/app/components/shared/layout/ListPage.vue'
-import ListCard from '@webvue/ui/app/components/shared/layout/ListCard.vue'
-import DataTable from '@webvue/ui/app/components/shared/data/DataTable.vue'
-import SegmentedControl from '@webvue/ui/app/components/shared/data/SegmentedControl.vue'
-import StatusBadge from '@webvue/ui/app/components/shared/data/StatusBadge.vue'
+import type { HrApplicant } from '@liwan/contracts'
+import ListPage from '@liwan/ui/app/components/shared/layout/ListPage.vue'
+import ListCard from '@liwan/ui/app/components/shared/layout/ListCard.vue'
+import DataTable from '@liwan/ui/app/components/shared/data/DataTable.vue'
+import SegmentedControl from '@liwan/ui/app/components/shared/data/SegmentedControl.vue'
+import StatusBadge from '@liwan/ui/app/components/shared/data/StatusBadge.vue'
 import { storyContext } from '../../support/context'
 
 // The applicant list of /hr/recruitment: the shared list page with its status scope,

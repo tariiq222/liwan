@@ -8,7 +8,7 @@ import {
   type FinancePartner,
   type FinancePartnerCreate,
   type FinancePartnerPatch,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { FINANCE_PARTNER_PAGE_SIZE, type FinancePartnerKind } from './financePartnerParams'
 
 export type { FinancePartner }

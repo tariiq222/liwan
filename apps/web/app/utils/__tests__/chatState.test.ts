@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ChatMessage } from '@webvue/contracts'
+import type { ChatMessage } from '@liwan/contracts'
 import {
   CHAT_PAGE_SIZE,
   CHAT_POLL_MS,

@@ -8,7 +8,7 @@ import { WORKER_EFFECT_TIMEOUT_MS, type EffectRequest } from './internal-effect-
 export function buildEffectEnv(env: NodeJS.ProcessEnv = process.env): Record<string, string> {
   const out: Record<string, string> = {}
   for (const [name, value] of Object.entries(env)) {
-    if (value !== undefined && (name === 'PATH' || name === 'HOME' || name === 'TMPDIR' || name === 'LANG' || /^(LC_|PYTHON|DOCKER_)/.test(name) || ['WEBVUE_RELEASE_ROUTES_DIR', 'WEBVUE_RELEASE_HELPER_POOL_ID'].includes(name))) out[name] = value
+    if (value !== undefined && (name === 'PATH' || name === 'HOME' || name === 'TMPDIR' || name === 'LANG' || /^(LC_|PYTHON|DOCKER_)/.test(name) || ['LIWAN_RELEASE_ROUTES_DIR', 'LIWAN_RELEASE_HELPER_POOL_ID'].includes(name))) out[name] = value
   }
   out.PYTHONUNBUFFERED = '1'
   return out

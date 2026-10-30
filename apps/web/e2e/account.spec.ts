@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test'
-import { MeSchema } from '@webvue/contracts'
+import { MeSchema } from '@liwan/contracts'
 
 const ADMIN_LOGIN = process.env.E2E_ADMIN_LOGIN ?? 'admin'
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'admin'
 const BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:3000'
-const FIXTURE_PASSWORD = 'WebVueAccount-Initial-123!'
+const FIXTURE_PASSWORD = 'LiwanAccount-Initial-123!'
 
 async function login(page, loginName = ADMIN_LOGIN, password = ADMIN_PASSWORD) {
   await page.goto('/login')

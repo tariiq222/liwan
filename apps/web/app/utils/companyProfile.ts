@@ -1,4 +1,4 @@
-import type { CompanyProfile, CompanyProfileExtension, CompanyProfilePatch } from '@webvue/contracts'
+import type { CompanyProfile, CompanyProfileExtension, CompanyProfilePatch } from '@liwan/contracts'
 
 export type CompanySection = 'profile' | 'address' | 'contact'
 

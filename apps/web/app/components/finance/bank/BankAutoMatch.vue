@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FinanceBankAutoReconcile } from '@webvue/contracts'
+import type { FinanceBankAutoReconcile } from '@liwan/contracts'
 import { useAutoReconcileFinanceBankStatement } from '@/composables/finance/useFinanceBank'
 import { financeErrorMessage } from '../financeErrors'
 import { bankErrorKey } from './bankErrors'
@@ -27,7 +27,7 @@ const toReview = computed(() => result.value?.review.filter(item => item.reason 
 </script>
 
 <template>
-  <div class="grid gap-3 p-(--webvue-card-pad-dense)" data-testid="finance-bank-auto-match">
+  <div class="grid gap-3 p-(--liwan-card-pad-dense)" data-testid="finance-bank-auto-match">
     <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />
     <template v-if="result">
       <UAlert

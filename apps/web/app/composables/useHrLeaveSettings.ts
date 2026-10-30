@@ -1,6 +1,6 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { HrLeaveSettingsSchema, type HrLeaveSettingsPatch } from '@webvue/contracts'
+import { HrLeaveSettingsSchema, type HrLeaveSettingsPatch } from '@liwan/contracts'
 import { hrLeaveKeys } from './useHrLeave'
 
 export function useHrLeaveSettings(enabled: MaybeRefOrGetter<boolean> = true) {

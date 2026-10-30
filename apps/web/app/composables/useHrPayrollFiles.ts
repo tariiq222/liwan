@@ -8,7 +8,7 @@ import {
   HrPayrollRevisionSchema,
   type HrBankProfilePatch,
   type HrBankProfileWrite,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { hrPayrollKeys } from './useHrPayrollCompensation'
 
 type Api = ReturnType<typeof useApi>['$api']

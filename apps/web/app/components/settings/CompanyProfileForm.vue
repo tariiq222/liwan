@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CompanyProfile } from '@webvue/contracts'
+import type { CompanyProfile } from '@liwan/contracts'
 import CompanyExtensionField from '@/components/settings/CompanyExtensionField.vue'
 import { ApiError } from '@/composables/useApi'
 import {

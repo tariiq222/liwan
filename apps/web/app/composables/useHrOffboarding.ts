@@ -9,7 +9,7 @@ import {
   type HrDepartureCreate,
   type HrDepartureList,
   type HrDeparturePatch,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import {
   hrLifecycleKeys,
   useHrActivityPlan,
@@ -22,7 +22,7 @@ import {
   type HrPlanListParams,
 } from './useHrOnboarding'
 
-export type { HrDeparture, HrDepartureList } from '@webvue/contracts'
+export type { HrDeparture, HrDepartureList } from '@liwan/contracts'
 
 /** GET /departures query: the register of the current company, with its clearance filter. */
 export interface HrDepartureListParams {

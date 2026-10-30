@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { CompanyProfile } from '@webvue/contracts'
-import { avatarProps } from '@webvue/ui/app/utils/avatarTone'
+import type { CompanyProfile } from '@liwan/contracts'
+import { avatarProps } from '@liwan/ui/app/utils/avatarTone'
 
 // The company at the top of the company page: logo, name, the registration facts and how much of the profile is filled in.
 const props = defineProps<{ profile: CompanyProfile }>()

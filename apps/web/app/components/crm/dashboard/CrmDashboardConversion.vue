@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CrmDashboardSourceSchema } from '@webvue/contracts'
+import type { CrmDashboardSourceSchema } from '@liwan/contracts'
 import type { z } from 'zod'
 import { conversionPercent } from '@/utils/crmDashboard'
 

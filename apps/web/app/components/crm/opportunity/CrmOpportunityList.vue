@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { CrmOpportunity } from '@webvue/contracts'
-import { formatDateTime } from '@webvue/ui/app/utils/formatDate'
+import type { CrmOpportunity } from '@liwan/contracts'
+import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import CrmCallButton from './CrmCallButton.vue'
 import CrmOpportunityBoard from './CrmOpportunityBoard.vue'
 import { useCrmOpportunities } from '@/composables/crm/useOpportunities'
@@ -87,7 +87,7 @@ const statusTone = (item: CrmOpportunity) => (item.status === 'won' ? 'success' 
       </SharedFilterBar>
     </template>
     <SharedPageState v-if="query.error.value" :error="query.error.value" @retry="query.refetch()" />
-    <SharedEmptyState v-else-if="!query.isPending.value && !items.length" class="m-(--webvue-card-pad-dense)" :title="t(count ? 'app.noResults' : 'crm.opportunities.list.empty')" />
+    <SharedEmptyState v-else-if="!query.isPending.value && !items.length" class="m-(--liwan-card-pad-dense)" :title="t(count ? 'app.noResults' : 'crm.opportunities.list.empty')" />
     <CrmOpportunityBoard v-else-if="board" :stages="stages.data.value?.items ?? []" :items="items" :to="recordTo" :now="now" />
     <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,760px)] [&_table]:table-fixed">
       <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :row-to="recordTo" :loading="query.isPending.value" :caption="t('nav.crm')">

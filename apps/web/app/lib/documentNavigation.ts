@@ -1,13 +1,13 @@
 import type { LocationQuery, RouteLocationRaw } from 'vue-router'
 import { recordEntryOrigin, recordListOrigin } from '../utils/recordListOrigin'
-import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 
 function origin(value: unknown): string | undefined {
   const list = recordListOrigin(value, ['/documents', '/hr/departments'])
   if (list) return list
   const safe = safeReturnTo(value, '', ['/hr/departments'])
   if (!safe) return undefined
-  const path = new URL(safe, 'http://webvue.local').pathname
+  const path = new URL(safe, 'http://liwan.local').pathname
   if (!/^\/hr\/departments\/[1-9]\d*$/.test(path)) return undefined
   return recordEntryOrigin(safe, path, ['/hr/departments'])
 }

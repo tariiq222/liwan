@@ -10,12 +10,12 @@ Run from a clean committed checkout with its own installed dependencies
 (`npm ci --ignore-scripts --prefer-offline`) and Node from `.nvmrc`:
 
 ```sh
-WEBVUE_IMAGE_TAG=<matching-built-tag> \
+LIWAN_IMAGE_TAG=<matching-built-tag> \
   node --import tsx tools/foundation_acceptance/provision_two_tenants.mjs
 ```
 
-The local images must already exist: `webvue-odoo`, `webvue-web` (shared build),
-`webvue-guard`, `webvue-accept-caddy` (pinned rate-limit module) at that tag,
+The local images must already exist: `liwan-odoo`, `liwan-web` (shared build),
+`liwan-guard`, `liwan-accept-caddy` (pinned rate-limit module) at that tag,
 plus `postgres:16`. The harness neither builds nor pulls images. Image IDs,
 source commit, commands' exit codes and result rows are recorded. The operator
 must establish that these image IDs were built from that source; a matching tag

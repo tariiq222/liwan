@@ -8,7 +8,7 @@ import type { AppAssistantSurface } from '../modules/types'
 /** The sheet's element id: the header button's `aria-controls` points at it. */
 export const ASSISTANT_SHEET_ID = 'assistant-sheet'
 /** Where the open state is kept for the browser session. */
-export const SESSION_KEY = 'webvue-assistant-sheet'
+export const SESSION_KEY = 'liwan-assistant-sheet'
 
 /** `push` reserves room beside the workspace, `overlay` floats over it under a scrim, `full` covers the screen. */
 export type AssistantSheetMode = 'push' | 'overlay' | 'full'
@@ -57,7 +57,7 @@ export function assistantEscapeCloses(
  */
 export function holdPageBehind(sheet: Element, body: HTMLElement): () => void {
   const behind = [...(sheet.parentElement?.children ?? [])]
-    .filter(element => element !== sheet && !element.hasAttribute('inert') && !element.classList.contains('webvue-assistant-scrim'))
+    .filter(element => element !== sheet && !element.hasAttribute('inert') && !element.classList.contains('liwan-assistant-scrim'))
   for (const element of behind) element.setAttribute('inert', '')
   const overflow = body.style.overflow
   body.style.overflow = 'hidden'

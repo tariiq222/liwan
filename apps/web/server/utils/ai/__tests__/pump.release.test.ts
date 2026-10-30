@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import type { AiTool } from '@webvue/contracts'
+import type { AiTool } from '@liwan/contracts'
 import { executeTool } from '../pump'
 import type { RunSession } from '../session'
 
@@ -14,15 +14,15 @@ vi.mock('../../tenantTransport', () => ({
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
 it('keeps a successful claimed effect when a later drain refuses its audit, without turning it into a rejection', async () => {
-  vi.stubEnv('WEBVUE_RELEASE_ROUTES_DIR', '/trusted/routes')
+  vi.stubEnv('LIWAN_RELEASE_ROUTES_DIR', '/trusted/routes')
   vi.stubGlobal('useRuntimeConfig', () => ({ odooUrl: 'http://odoo.test' }))
   vi.spyOn(console, 'error').mockImplementation(() => undefined)
   let permits = 0
   const event = {
     node: { req: { headers: { cookie: 'session_id=s1' } }, res: { once: () => undefined } },
     context: {
-      webvueRelease: { releaseId: 'r1', poolId: 'blue', routeRevision: 3, fence: 8, aiUrl: 'http://ai-blue.test', aiStateVersion: '1' },
-      webvueReleaseWritePermit: async <T>(action: () => Promise<T>): Promise<T> => {
+      liwanRelease: { releaseId: 'r1', poolId: 'blue', routeRevision: 3, fence: 8, aiUrl: 'http://ai-blue.test', aiStateVersion: '1' },
+      liwanReleaseWritePermit: async <T>(action: () => Promise<T>): Promise<T> => {
         if (++permits > 1) throw new Error('generation drained before audit')
         return action()
       },

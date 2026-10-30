@@ -1,16 +1,16 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
 import { computed, ref } from 'vue'
-import { ProjectStatusSchema } from '@webvue/contracts'
-import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
-import FilterChip from '@webvue/ui/app/components/shared/data/FilterChip.vue'
-import SegmentedControl from '@webvue/ui/app/components/shared/data/SegmentedControl.vue'
-import ViewSwitch from '@webvue/ui/app/components/shared/data/ViewSwitch.vue'
-import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
-import PageHeader from '@webvue/ui/app/components/shared/layout/PageHeader.vue'
-import RecordSection from '@webvue/ui/app/components/shared/layout/RecordSection.vue'
-import { providePageApp } from '@webvue/ui/app/composables/usePageApp'
-import { providePageTrail } from '@webvue/ui/app/composables/usePageTrail'
+import { ProjectStatusSchema } from '@liwan/contracts'
+import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
+import FilterChip from '@liwan/ui/app/components/shared/data/FilterChip.vue'
+import SegmentedControl from '@liwan/ui/app/components/shared/data/SegmentedControl.vue'
+import ViewSwitch from '@liwan/ui/app/components/shared/data/ViewSwitch.vue'
+import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
+import PageHeader from '@liwan/ui/app/components/shared/layout/PageHeader.vue'
+import RecordSection from '@liwan/ui/app/components/shared/layout/RecordSection.vue'
+import { providePageApp } from '@liwan/ui/app/composables/usePageApp'
+import { providePageTrail } from '@liwan/ui/app/composables/usePageTrail'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -28,17 +28,17 @@ export const WithActions: Story = {
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
-    template: `<main class="webvue-shell-main"><PageContainer width="list"><PageHeader :title="t('tasks.title')"><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton><UButton color="neutral" variant="outline">{{ t('taskLifecycle.archivedTasks') }}</UButton></template></PageHeader></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer width="list"><PageHeader :title="t('tasks.title')"><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton><UButton color="neutral" variant="outline">{{ t('taskLifecycle.archivedTasks') }}</UButton></template></PageHeader></PageContainer></main>`,
   }),
 }
 
 export const WithKpiToggle: Story = {
   name: 'مع زر المؤشرات',
-  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:49', '`kpi-toggle` يرسم قبل الإجراءات زر أيقونة دائريًا واحدًا يخفي شريط المؤشرات `SharedKpiStrip` أو يظهره؛ الاختيار عام ويُحفظ في الكوكي `webvue-kpis`.'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:49', '`kpi-toggle` يرسم قبل الإجراءات زر أيقونة دائريًا واحدًا يخفي شريط المؤشرات `SharedKpiStrip` أو يظهره؛ الاختيار عام ويُحفظ في الكوكي `liwan-kpis`.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
-    template: `<main class="webvue-shell-main"><PageContainer width="list"><PageHeader :title="t('tasks.title')" kpi-toggle><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton></template></PageHeader></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer width="list"><PageHeader :title="t('tasks.title')" kpi-toggle><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton></template></PageHeader></PageContainer></main>`,
   }),
 }
 
@@ -53,7 +53,7 @@ export const TitleOnly: Story = {
       providePageApp({ icon: 'i-lucide-folder-kanban' })
       return { t: useI18n().t }
     },
-    template: `<main class="webvue-shell-main"><PageContainer width="list"><PageHeader :title="t('projects.title')" /></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer width="list"><PageHeader :title="t('projects.title')" /></PageContainer></main>`,
   }),
 }
 
@@ -72,7 +72,7 @@ export const WithTags: Story = {
       ]
       return { t, tags }
     },
-    template: `<main class="webvue-shell-main"><PageContainer width="list"><PageHeader :title="t('tasks.title')" :tags="tags"><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton><UButton color="neutral" variant="outline">{{ t('taskLifecycle.archivedTasks') }}</UButton></template></PageHeader></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer width="list"><PageHeader :title="t('tasks.title')" :tags="tags"><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton><UButton color="neutral" variant="outline">{{ t('taskLifecycle.archivedTasks') }}</UButton></template></PageHeader></PageContainer></main>`,
   }),
 }
 
@@ -84,7 +84,7 @@ export const WithBack: Story = {
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
-    template: `<main class="webvue-shell-main"><PageContainer width="form"><PageHeader :title="t('app.search')" back-to="/tasks" /></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer width="form"><PageHeader :title="t('app.search')" back-to="/tasks" /></PageContainer></main>`,
   }),
 }
 
@@ -104,7 +104,7 @@ export const TrailUnderTitle: Story = {
       ])
       return { t }
     },
-    template: `<main class="webvue-shell-main"><PageContainer width="list"><PageHeader :title="t('nav.reports')"><template #actions><UButton icon="i-lucide-plus">{{ t('projects.new') }}</UButton></template></PageHeader><div class="rounded-card bg-default p-6 text-sm text-muted ring ring-default">{{ t('app.noResults') }}</div></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer width="list"><PageHeader :title="t('nav.reports')"><template #actions><UButton icon="i-lucide-plus">{{ t('projects.new') }}</UButton></template></PageHeader><div class="rounded-card bg-default p-6 text-sm text-muted ring ring-default">{{ t('app.noResults') }}</div></PageContainer></main>`,
   }),
 }
 
@@ -114,7 +114,7 @@ export const TitleAndDescription: Story = {
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
-    template: `<main class="webvue-shell-main"><PageContainer width="form"><PageHeader :title="t('account.title')" /></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer width="form"><PageHeader :title="t('account.title')" /></PageContainer></main>`,
   }),
 }
 
@@ -148,7 +148,7 @@ export const UnifiedHeaderWithFilters: Story = {
       return { t, search, status, sort, scope, view, statusItems, sortItems, scopeItems, viewOptions }
     },
     template: `
-      <main class="webvue-shell-main">
+      <main class="liwan-shell-main">
         <PageContainer width="list">
           <!-- 1. ترويسة الصفحة وإجراءاتها (PageHeader & Actions) -->
           <PageHeader
@@ -164,7 +164,7 @@ export const UnifiedHeaderWithFilters: Story = {
 
           <!-- 2. بطاقة الفلاتر والبحث الموحدة (Unified Filter Card & Bar) -->
           <div class="overflow-hidden rounded-card bg-default ring ring-default">
-            <div class="border-b border-default px-(--webvue-card-pad-dense) py-3">
+            <div class="border-b border-default px-(--liwan-card-pad-dense) py-3">
               <FilterBar class="w-full" embedded :active-count="2" @clear="() => {}">
                 <!-- البحث السريع -->
                 <template #search>
@@ -228,7 +228,7 @@ export const StickyHeading: Story = {
   render: () => ({
     components: { PageContainer, PageHeader, RecordSection },
     setup: () => ({ t: useI18n().t, rows: [1, 2, 3, 4, 5, 6, 7, 8] }),
-    template: `<div class="webvue-shell" style="height: 30rem; overflow-y: auto"><main class="webvue-shell-main"><PageContainer width="list"><PageHeader :title="t('projects.title')"><template #actions><UButton icon="i-lucide-plus">{{ t('projects.new') }}</UButton></template></PageHeader><div class="grid gap-(--webvue-gap-card)"><RecordSection v-for="row in rows" :key="row" variant="panel" :title="t('projects.title') + ' ' + row"><p class="text-sm text-muted">{{ t('projects.description') }}</p></RecordSection></div></PageContainer></main></div>`,
+    template: `<div class="liwan-shell" style="height: 30rem; overflow-y: auto"><main class="liwan-shell-main"><PageContainer width="list"><PageHeader :title="t('projects.title')"><template #actions><UButton icon="i-lucide-plus">{{ t('projects.new') }}</UButton></template></PageHeader><div class="grid gap-(--liwan-gap-card)"><RecordSection v-for="row in rows" :key="row" variant="panel" :title="t('projects.title') + ' ' + row"><p class="text-sm text-muted">{{ t('projects.description') }}</p></RecordSection></div></PageContainer></main></div>`,
   }),
 }
 
@@ -238,6 +238,6 @@ export const HiddenTitle: Story = {
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
-    template: `<main class="webvue-shell-main"><PageContainer width="list"><h1 class="text-xl font-semibold text-highlighted">{{ t('projects.title') }}</h1><PageHeader :title="t('tasks.title')" hide-title><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton></template></PageHeader></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer width="list"><h1 class="text-xl font-semibold text-highlighted">{{ t('projects.title') }}</h1><PageHeader :title="t('tasks.title')" hide-title><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton></template></PageHeader></PageContainer></main>`,
   }),
 }

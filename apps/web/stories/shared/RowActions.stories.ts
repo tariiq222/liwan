@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { fn } from 'storybook/test'
-import RowActions from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import RowActions from '@liwan/ui/app/components/shared/data/RowActions.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

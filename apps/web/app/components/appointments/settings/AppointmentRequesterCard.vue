@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AppointmentSettings } from '@webvue/contracts'
+import type { AppointmentSettings } from '@liwan/contracts'
 import { requesterDraft, settingsPatch, type RequesterDraft } from '@/composables/appointments/appointmentSettings'
 import { useSaveAppointmentSettings } from '@/composables/appointments/useAppointmentSettings'
 import { useSettingsForm } from '@/composables/settings/useSettingsForm'

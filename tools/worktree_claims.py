@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Ownership claims of task worktrees: who owns one, for which task, and which paths it will change.
 
-A claim is ``webvue-claim.json`` in the worktree's own git directory (``.git/worktrees/<id>/``), so
+A claim is ``liwan-claim.json`` in the worktree's own git directory (``.git/worktrees/<id>/``), so
 it is never tracked, never shows in ``git status`` and disappears with ``git worktree remove``.
 ``tools/wt.py`` writes it on ``new``, replaces or refreshes it on ``claim`` and reads it for ``status``,
 ``check`` and the overlap refusal. A claim whose worktree saw no activity (commit, edited file or
@@ -15,7 +15,7 @@ import time
 from pathlib import Path
 from typing import NamedTuple
 
-CLAIM_FILE = 'webvue-claim.json'
+CLAIM_FILE = 'liwan-claim.json'
 WHOLE_REPOSITORY = '.'  # the integration scope: overlaps every other scope, so it always needs a stated reason
 CLAIM_TTL_HOURS = 24
 SECONDS_PER_HOUR = 3600

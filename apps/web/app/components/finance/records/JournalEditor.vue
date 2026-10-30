@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FinanceAccount, FinanceJournal } from '@webvue/contracts'
+import type { FinanceAccount, FinanceJournal } from '@liwan/contracts'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import AccountPicker from '../AccountPicker.vue'
 import { useCreateSetupJournal, usePatchSetupJournal } from '@/composables/finance/useFinanceRecords'
@@ -36,9 +36,9 @@ async function submit() {
 </script>
 
 <template>
-  <UForm :state="draft" class="webvue-form" method="post" :loading-auto="false" novalidate data-testid="finance-record-journal-form" @submit="submit">
+  <UForm :state="draft" class="liwan-form" method="post" :loading-auto="false" novalidate data-testid="finance-record-journal-form" @submit="submit">
     <UAlert v-if="failure" role="alert" color="error" variant="subtle" :title="t('financeRecords.saveError')" :description="saveErrorMessage(failure, t('errors.generic'), t('errors.saveUncertain'))" />
-    <div class="webvue-form-grid">
+    <div class="liwan-form-grid">
       <UFormField :label="t('financeRecords.journals.form.name')" name="finance-record-journal-name" required>
         <UInput id="finance-record-journal-name" v-model="draft.name" class="w-full" :disabled="!hydrated" required />
       </UFormField>

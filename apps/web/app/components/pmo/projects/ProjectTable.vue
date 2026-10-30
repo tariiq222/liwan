@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
+import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import type { TableColumn } from '@nuxt/ui'
-import type { Project } from '@webvue/contracts'
+import type { Project } from '@liwan/contracts'
 import type { RouteLocationRaw } from 'vue-router'
-import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
+import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
 import { projectEndTagView, projectProgressTone, projectStatusPill } from './projectHealth'
 import ProjectCardBody from './ProjectCardBody.vue'
 import ProjectMenu from './ProjectMenu.vue'

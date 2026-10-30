@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinancePayment } from '@webvue/contracts'
-import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
+import type { FinancePayment } from '@liwan/contracts'
+import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import { useFinancePartner } from '@/composables/finance/useFinancePartners'
 import { useFinancePaymentPost, useFinancePaymentTransition, useFinancePaymentUnallocate, useFinancePayments } from '@/composables/finance/useFinancePayments'
 import { useRouteListFilters } from '@/composables/useRouteListFilters'
@@ -122,7 +122,7 @@ const dash = computed(() => t('app.notAvailable'))
 
 <template>
   <SharedForbiddenState v-if="!allowed" :description="t('financeDocuments.forbidden')" />
-  <div v-else class="webvue-page-stack">
+  <div v-else class="liwan-page-stack">
     <UAlert v-if="actionError" role="alert" color="error" variant="subtle" :title="actionError" data-testid="finance-payment-action-error" />
     <FinanceBlockedNotice :reasons="blockedReasons" />
     <SharedInlineConfirm
@@ -167,7 +167,7 @@ const dash = computed(() => t('app.notAvailable'))
         </SharedFilterBar>
       </template>
       <SharedPageState :error="query.error.value" :keep-content="items.length > 0" @retry="query.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--webvue-card-pad-dense)" :title="t(activeCount ? 'app.noResults' : 'financeDocuments.payments.empty')" />
+        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(activeCount ? 'app.noResults' : 'financeDocuments.payments.empty')" />
         <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,820px)]">
           <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :loading="query.isPending.value" :caption="t('financeDocuments.payments.title')">
             <template #record_number-cell="{ row }"><SharedRecordNumber :value="row.original.id" /></template>

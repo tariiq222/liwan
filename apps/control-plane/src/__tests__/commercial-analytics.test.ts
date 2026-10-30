@@ -9,7 +9,7 @@ import { getAnalytics } from '../commercial/analytics.js'
 import { bookAt, monthEnds, periodBounds, previousPeriod, recurringOf, riyadhDay, settleTrials, toTimelines, type AppliedOrder } from '../commercial/analytics-model.js'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
-if (url && new URL(url).pathname !== '/webvue_control_scratch_analytics') throw new Error('analytics tests require their own scratch DB')
+if (url && new URL(url).pathname !== '/liwan_control_scratch_analytics') throw new Error('analytics tests require their own scratch DB')
 const suite = url ? describe : describe.skip
 const now = new Date('2026-10-15T12:00:00Z')
 const period = { from: '2026-10-01', to: '2026-10-15' }

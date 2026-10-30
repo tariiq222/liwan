@@ -12,7 +12,7 @@ export function shouldApplyDocumentBodyModel(
   return editorHtml !== pendingDraft
 }
 
-import type { DocumentDetail, DocumentPatch } from '@webvue/contracts'
+import type { DocumentDetail, DocumentPatch } from '@liwan/contracts'
 type EditableDocument = Pick<DocumentDetail, 'id' | 'revision' | 'name' | 'body' | 'expiry_date' | 'context' | 'tags'>
 /** Receive once per record; refreshed server state never overwrites an open draft. */
 export function createDocumentDraft() {

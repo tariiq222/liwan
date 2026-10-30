@@ -1,5 +1,5 @@
 import type { Pool } from 'pg'
-import { ATTENTION_LIMIT, attentionSchema } from '@webvue/commercial-contracts'
+import { ATTENTION_LIMIT, attentionSchema } from '@liwan/commercial-contracts'
 
 export const RENEWAL_WINDOW_DAYS = 7
 export const STALLED_HOURS = 24

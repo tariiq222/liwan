@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProjectDetail } from '@webvue/contracts'
+import type { ProjectDetail } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useAddFollower, useFollowers, useRemoveFollower } from '@/composables/useProjectFollowers'
 

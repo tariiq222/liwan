@@ -3,13 +3,13 @@ import { randomUUID } from 'node:crypto'
 
 const [baseUrl, evidencePath, credentialFile, expectedNuxtPid] = process.argv.slice(2)
 const secrets = Object.fromEntries((await (await import('node:fs/promises')).readFile(credentialFile, 'utf8')).trim().split('\n').map(line => line.split(/=(.*)/s).slice(0, 2)))
-const login = secrets.WEBVUE_FIXTURE_ADMIN_LOGIN
-const password = secrets.WEBVUE_FIXTURE_ADMIN_PASSWORD
-const marker = secrets.WEBVUE_FIXTURE_MARKER
+const login = secrets.LIWAN_FIXTURE_ADMIN_LOGIN
+const password = secrets.LIWAN_FIXTURE_ADMIN_PASSWORD
+const marker = secrets.LIWAN_FIXTURE_MARKER
 if (!baseUrl || !evidencePath || !credentialFile || !login || !password || !marker || !expectedNuxtPid) throw new Error('fixture inputs are required')
 const url = new URL(baseUrl)
 if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || url.port !== '13109') throw new Error('probe target must be exact fixture loopback URL')
-const evidence = { schema_version: 1, base_url: baseUrl, started_at: new Date().toISOString(), fixture_identity: { expected_nuxt_pid: Number(expectedNuxtPid), db: 'webvue_scratch_p1outage', marker: 'redacted-present' }, checks: [] }
+const evidence = { schema_version: 1, base_url: baseUrl, started_at: new Date().toISOString(), fixture_identity: { expected_nuxt_pid: Number(expectedNuxtPid), db: 'liwan_scratch_p1outage', marker: 'redacted-present' }, checks: [] }
 const cookieJar = new Map()
 
 async function request(path, { method = 'GET', body, expected, label }) {

@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/vue-query'
-import { MeSchema, type Me, type PasswordChange } from '@webvue/contracts'
+import { MeSchema, type Me, type PasswordChange } from '@liwan/contracts'
 
 export const PASSWORD_MUTATION_GC_TIME = 0
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { InboxCampaignStats } from '@webvue/contracts'
+import type { InboxCampaignStats } from '@liwan/contracts'
 import { CAMPAIGN_POLL_MS, campaignActions, campaignPollInterval, campaignTiles, deliveredPercent, dispatchedPercent } from '../inboxCampaignPresentation'
 
 const stats = (rest: Partial<InboxCampaignStats> = {}): InboxCampaignStats => ({

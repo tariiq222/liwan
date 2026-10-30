@@ -8,9 +8,9 @@ import { createReleaseLease, readReleaseRoute } from '../../apps/web/server/util
 import { readdirSync, existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const forbidden = /^(x-odoo-|x-openerp-|x-webvue-|forwarded$|x-forwarded-)/i
+const forbidden = /^(x-odoo-|x-openerp-|x-liwan-|forwarded$|x-forwarded-)/i
 // The web's double-submit CSRF token (compared with its cookie, never trusted as identity); Nuxt hop only.
-const browserHeaders = new Set(['x-webvue-csrf'])
+const browserHeaders = new Set(['x-liwan-csrf'])
 const selectors = /^(db|database|session_id|sid)$/i
 // Match the BFF's fixed public auth budgets before this edge buffers JSON.
 // Separate hop pools avoid a public BFF request deadlocking its internal continuation.
@@ -39,12 +39,12 @@ export function sessionCodec(keys, activeKid, now = () => Math.floor(Date.now() 
 export function requestPlan(req, registry, token, codec) {
   const host = req.headers.host
   const tenant = resolveTenantHost(host, registry.targets)
-  const internal = equal(req.headers['x-webvue-proxy-token'], token)
+  const internal = equal(req.headers['x-liwan-proxy-token'], token)
   if (!token || token.length < 32) throw Error('invalid_proxy_token')
   for (const name of Object.keys(req.headers)) {
-    if (forbidden.test(name) && !browserHeaders.has(name) && !(internal && ['x-webvue-proxy-token', 'x-webvue-tenant-revision', 'x-webvue-release-pool', 'x-webvue-release-revision', 'x-webvue-release-fence', 'x-webvue-release-admission'].includes(name))) throw Error('forbidden_header')
+    if (forbidden.test(name) && !browserHeaders.has(name) && !(internal && ['x-liwan-proxy-token', 'x-liwan-tenant-revision', 'x-liwan-release-pool', 'x-liwan-release-revision', 'x-liwan-release-fence', 'x-liwan-release-admission'].includes(name))) throw Error('forbidden_header')
   }
-  if (internal && req.headers['x-webvue-tenant-revision'] !== String(tenant.registryRevision)) throw Error('stale_binding')
+  if (internal && req.headers['x-liwan-tenant-revision'] !== String(tenant.registryRevision)) throw Error('stale_binding')
   if (!req.url.startsWith('/') || req.url.startsWith('//') || /[\\\r\n]/.test(req.url)) throw Error('invalid_path')
   const url = new URL(req.url, 'http://boundary.invalid')
   for (const key of url.searchParams.keys()) if (selectors.test(key)) throw Error('forbidden_selector')
@@ -102,8 +102,8 @@ export function requestPlan(req, registry, token, codec) {
   if (odoo) headers.cookie = rawSid ? `session_id=${rawSid}` : ''
   headers.host = odoo ? tenant.database : host
   if (!odoo) {
-    headers['x-webvue-proxy-token'] = token
-    headers['x-webvue-tenant-revision'] = String(tenant.registryRevision)
+    headers['x-liwan-proxy-token'] = token
+    headers['x-liwan-tenant-revision'] = String(tenant.registryRevision)
   }
   return { tenant, internal, odoo, headers, path: url.pathname + url.search, clearSession }
 }
@@ -130,16 +130,16 @@ export function createGuard({ registryPath, proxyToken, keys, activeKid, odooUrl
     if (registry.targets.some(t => t.database !== t.filestore)) throw Error('filestore_binding_invalid')
     const p = requestPlan(req, registry, proxyToken, codec)
     if (!releaseRoutesDir) return p
-    if (p.internal && p.path === '/_webvue/release-status') return { ...p, status: true }
-    const pinHeaders = ['x-webvue-release-pool', 'x-webvue-release-revision', 'x-webvue-release-fence']
+    if (p.internal && p.path === '/_liwan/release-status') return { ...p, status: true }
+    const pinHeaders = ['x-liwan-release-pool', 'x-liwan-release-revision', 'x-liwan-release-fence']
     const hasPin = pinHeaders.some(key => req.headers[key] !== undefined)
     const pin = p.internal && hasPin ? { poolId: req.headers[pinHeaders[0]], routeRevision: Number(req.headers[pinHeaders[1]]), fence: Number(req.headers[pinHeaders[2]]) } : undefined
-    const lease = createReleaseLease(releaseRoutesDir, p.tenant, pin, 'http', p.internal ? req.headers['x-webvue-release-admission'] : undefined)
+    const lease = createReleaseLease(releaseRoutesDir, p.tenant, pin, 'http', p.internal ? req.headers['x-liwan-release-admission'] : undefined)
     if (!p.odoo) {
-      p.headers['x-webvue-release-pool'] = lease.context.poolId
-      p.headers['x-webvue-release-revision'] = String(lease.context.routeRevision)
-      p.headers['x-webvue-release-fence'] = String(lease.context.fence)
-      p.headers['x-webvue-release-admission'] = lease.context.admissionId
+      p.headers['x-liwan-release-pool'] = lease.context.poolId
+      p.headers['x-liwan-release-revision'] = String(lease.context.routeRevision)
+      p.headers['x-liwan-release-fence'] = String(lease.context.fence)
+      p.headers['x-liwan-release-admission'] = lease.context.admissionId
     }
     return { ...p, release: lease.context, closeLease: lease.release }
   }

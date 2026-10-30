@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxTag } from '@webvue/contracts'
+import type { InboxTag } from '@liwan/contracts'
 import { useInboxTags } from '@/composables/inbox/useInbox'
 import { useDeleteInboxTag, useSaveInboxTag } from '@/composables/inbox/useInboxSettings'
 
@@ -42,7 +42,7 @@ function confirmDelete() {
 </script>
 
 <template>
-  <SharedRecordSection id="tags" variant="panel" class="webvue-settings-anchor" :title="t('inbox.settings.tags.title')" :description="t('inbox.settings.tags.hint')">
+  <SharedRecordSection id="tags" variant="panel" class="liwan-settings-anchor" :title="t('inbox.settings.tags.title')" :description="t('inbox.settings.tags.hint')">
     <template #actions>
       <UButton type="button" color="neutral" variant="outline" icon="i-lucide-plus" :disabled="locked" :label="t('inbox.settings.tags.add')" data-testid="inbox-tag-add" @click="edit()" />
     </template>

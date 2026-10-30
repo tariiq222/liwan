@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { FinanceBalanceSheetSchema, FinanceProfitLossSchema, FinanceZakatBaseSchema } from '@webvue/contracts'
+import { FinanceBalanceSheetSchema, FinanceProfitLossSchema, FinanceZakatBaseSchema } from '@liwan/contracts'
 import { financeReportsPreviewData } from '../../../../e2e/finance-reports-ui-preview-data.mjs'
 
 // The finance report page and its tables stay on the list template. This is a source guard, not a behaviour test.

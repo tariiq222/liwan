@@ -4,7 +4,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-FOUNDATION_MANIFEST = 'odoo-addons/webvue_core/__manifest__.py'
+FOUNDATION_MANIFEST = 'odoo-addons/liwan_core/__manifest__.py'
 
 
 def git(*arguments):

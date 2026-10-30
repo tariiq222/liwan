@@ -2,8 +2,8 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
 import { fn } from 'storybook/test'
 import DescriptionEditor from '../../app/components/shared/form/DescriptionEditor.vue'
-import FormSection from '@webvue/ui/app/components/shared/layout/FormSection.vue'
-import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
+import FormSection from '@liwan/ui/app/components/shared/layout/FormSection.vue'
+import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
 import { ClientOnly } from '../../.storybook/nuxt-shims'
 import { storyContext } from '../support/context'
 
@@ -15,7 +15,7 @@ const meta = {
   render: args => ({
     components: { DescriptionEditor, FormSection, PageContainer, ClientOnly },
     setup: () => ({ args, t: useI18n().t }),
-    template: `<main class="webvue-shell-main"><PageContainer width="form"><form class="space-y-8"><FormSection :title="t('meetingsUi.agenda')"><ClientOnly><DescriptionEditor v-bind="args" :aria-label="t('meetingsUx.agendaLabel')" /></ClientOnly></FormSection></form></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer width="form"><form class="space-y-8"><FormSection :title="t('meetingsUi.agenda')"><ClientOnly><DescriptionEditor v-bind="args" :aria-label="t('meetingsUx.agendaLabel')" /></ClientOnly></FormSection></form></PageContainer></main>`,
   }),
 } satisfies Meta<typeof DescriptionEditor>
 export default meta

@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test'
-import { PayableInvoiceSchema, PayableOrderSchema, type PayDocumentKind } from '@webvue/contracts'
+import { PayableInvoiceSchema, PayableOrderSchema, type PayDocumentKind } from '@liwan/contracts'
 import { collectBrowserErrors, heading, MOCK_STACK_ONLY, openPage as open, trackRefusedRequests } from './support/mock-pages'
 import { login } from './support/tasmim6'
 
@@ -41,7 +41,7 @@ async function captureGateway(page: Page) {
   const seen: { url: string; method: string; body: string | null; cookie: string | undefined }[] = []
   await page.route(GATEWAY, async (route: Route) => {
     const request = route.request()
-    const cookie = (await page.context().cookies()).find(item => item.name === 'webvue_pay_return')
+    const cookie = (await page.context().cookies()).find(item => item.name === 'liwan_pay_return')
     seen.push({ url: request.url(), method: request.method(), body: request.postData(), cookie: cookie ? `${cookie.value} ${cookie.path}` : undefined })
     await route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>gateway</title><h1>gateway</h1>' })
   })
@@ -53,10 +53,10 @@ test.describe('the pay page', () => {
     await page.goto(PAY(2))
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
     await expect(heading(page, 'دفع الفاتورة')).toBeVisible()
-    await expect(page.getByTestId('pay-brand')).toHaveText('ويب فيو')
+    await expect(page.getByTestId('pay-brand')).toHaveText('ليوان')
     await expect(page.getByTestId('pay-amount-due')).toHaveText('16,905.00 SAR')
     await expect(page.getByTestId('pay-number')).toContainText('INV/2026/0002')
-    await expect(page.getByTestId('pay-merchant')).toContainText('ويب فيو')
+    await expect(page.getByTestId('pay-merchant')).toContainText('ليوان')
     await expect(page.getByTestId('pay-due-date')).toContainText('31 أكتوبر 2026')
     await expect(page.getByTestId('pay-total')).toHaveCount(0)
     await expect(option(page, /بطاقة بنكية/)).toBeChecked()
@@ -115,11 +115,11 @@ test.describe('the pay page', () => {
     await captureGateway(page)
     await openPayable(page)
     await payButton(page).click()
-    await expect.poll(async () => (await page.context().cookies()).some(item => item.name === 'webvue_pay_return')).toBe(true)
+    await expect.poll(async () => (await page.context().cookies()).some(item => item.name === 'liwan_pay_return')).toBe(true)
     await page.goto('/payment/paymob/return?success=true')
     await expect(page).toHaveURL(/\/pay\/invoice\/2\/status\?access_token=tok-2$/)
     await expect(page.getByTestId('pay-status-confirming')).toBeVisible()
-    expect((await page.context().cookies()).some(item => item.name === 'webvue_pay_return')).toBe(false)
+    expect((await page.context().cookies()).some(item => item.name === 'liwan_pay_return')).toBe(false)
   })
 
   test('a start the gateway refuses stays on the page with a clear message, nothing stored and the button usable again', async ({ page }) => {
@@ -130,7 +130,7 @@ test.describe('the pay page', () => {
     await expect(page.getByTestId('pay-start-error')).toContainText('بوابة الدفع غير متاحة الآن')
     await expect(payButton(page)).toBeEnabled()
     expect(seen).toEqual([])
-    expect((await page.context().cookies()).some(item => item.name === 'webvue_pay_return')).toBe(false)
+    expect((await page.context().cookies()).some(item => item.name === 'liwan_pay_return')).toBe(false)
     errors = withoutRefusals(errors)
   })
 
@@ -145,7 +145,7 @@ test.describe('the pay page', () => {
     await page.route('**/api/v1/public/payments/invoices/2?*', route => route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ id: 2, merchant: 'ويب فيو', number: 'INV/2026/0002', due_date: '2026-10-31', currency: 'SAR', amount_total: 16905, amount_due: 0, status: 'paid', options: [] }),
+      body: JSON.stringify({ id: 2, merchant: 'ليوان', number: 'INV/2026/0002', due_date: '2026-10-31', currency: 'SAR', amount_total: 16905, amount_due: 0, status: 'paid', options: [] }),
     }))
     await payButton(page).click()
     await expect.poll(() => started).toBe(true)
@@ -251,7 +251,7 @@ test.describe('the status page', () => {
     let reads = 0
     await page.route('**/api/v1/public/payments/invoices/2?*', async (route) => {
       const status = answers[Math.min(reads++, answers.length - 1)]
-      const body = { id: 2, merchant: 'ويب فيو', number: 'INV/2026/0002', due_date: '2026-10-31', currency: 'SAR', amount_total: 16905, amount_due: status === 'paid' ? 0 : 16905, status, options: [] }
+      const body = { id: 2, merchant: 'ليوان', number: 'INV/2026/0002', due_date: '2026-10-31', currency: 'SAR', amount_total: 16905, amount_due: status === 'paid' ? 0 : 16905, status, options: [] }
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(PayableInvoiceSchema.parse(body)) })
     })
     await page.goto(STATUS(2))
@@ -288,11 +288,11 @@ test.describe('the pay page of an online order', () => {
     await page.goto(PAY(21, undefined, 'order'))
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
     await expect(heading(page, 'دفع الطلب')).toBeVisible()
-    await expect(page.getByTestId('pay-brand')).toHaveText('ويب فيو')
+    await expect(page.getByTestId('pay-brand')).toHaveText('ليوان')
     await expect(page.getByTestId('pay-amount-due')).toHaveText('16,905.00 SAR')
     await expect(page.getByTestId('pay-number')).toContainText('رقم الطلب')
     await expect(page.getByTestId('pay-number')).toContainText('S00021')
-    await expect(page.getByTestId('pay-merchant')).toContainText('ويب فيو')
+    await expect(page.getByTestId('pay-merchant')).toContainText('ليوان')
     await expect(page.getByTestId('pay-expires-at')).toContainText('آخر موعد للدفع')
     await expect(page.getByTestId('pay-expires-at')).toHaveText(/31 أكتوبر 2026.*3:30/)
     await expect(page.getByTestId('pay-due-date')).toHaveCount(0)
@@ -332,13 +332,13 @@ test.describe('the pay page of an online order', () => {
     await captureGateway(page)
     await openPayable(page, PAY(21, undefined, 'order'))
     await payButton(page).click()
-    await expect.poll(async () => (await page.context().cookies()).some(item => item.name === 'webvue_pay_return')).toBe(true)
+    await expect.poll(async () => (await page.context().cookies()).some(item => item.name === 'liwan_pay_return')).toBe(true)
     await page.goto('/payment/paymob/return?success=true')
     await expect(page).toHaveURL(/\/pay\/order\/21\/status\?access_token=tok-21$/)
     await expect(heading(page, 'حالة الدفع')).toBeVisible()
     await expect(page.getByTestId('pay-number')).toContainText('S00021')
     await expect(page.getByTestId('pay-status-confirming')).toBeVisible()
-    expect((await page.context().cookies()).some(item => item.name === 'webvue_pay_return')).toBe(false)
+    expect((await page.context().cookies()).some(item => item.name === 'liwan_pay_return')).toBe(false)
   })
 
   test('a start refused because a payment is already in progress says so in the order\'s words', async ({ page }) => {

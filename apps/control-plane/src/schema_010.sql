@@ -12,7 +12,7 @@ CREATE TABLE shared_odoo_restore_targets (
   approval_id uuid PRIMARY KEY REFERENCES shared_restore_approvals(id),
   backup_id uuid NOT NULL REFERENCES shared_odoo_backups(backup_id),
   control_tenant_id uuid NOT NULL REFERENCES tenants(id),
-  target_database text NOT NULL UNIQUE CHECK(target_database ~ '^webvue_scratch_[a-f0-9]{32}$'),
+  target_database text NOT NULL UNIQUE CHECK(target_database ~ '^liwan_scratch_[a-f0-9]{32}$'),
   source_binding jsonb NOT NULL,
   runtime_scope text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT clock_timestamp()

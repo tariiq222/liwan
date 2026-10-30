@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProjectStakeholder, ProjectStakeholderWrite } from '@webvue/contracts'
+import type { ProjectStakeholder, ProjectStakeholderWrite } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { usePeople } from '@/composables/usePeople'
 import { useCreateProjectStakeholder, useUpdateProjectStakeholder } from '@/composables/useProjectGovernance'
@@ -68,11 +68,11 @@ async function submit() {
 </script>
 
 <template>
-  <form novalidate class="webvue-page-stack" @submit.prevent="submit">
+  <form novalidate class="liwan-page-stack" @submit.prevent="submit">
     <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error" />
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedFormSection panel :title="t('projects.refresh.workspace.stakeholderIdentity')" :description="t('projects.refresh.workspace.stakeholderIdentityDescription')">
-      <div class="grid gap-(--webvue-gap-card)">
+      <div class="grid gap-(--liwan-gap-card)">
         <UFormField :label="t('projects.governance.stakeholder.name')" required :error="requiredError">
           <UInput id="stakeholder-name" v-model="name" class="w-full" required :disabled="!hydrated || pending" />
         </UFormField>
@@ -85,7 +85,7 @@ async function submit() {
       </div>
     </SharedFormSection>
     <SharedFormSection panel :title="t('projects.refresh.workspace.stakeholderConnection')" :description="t('projects.refresh.workspace.stakeholderConnectionDescription')">
-      <div class="grid gap-(--webvue-gap-card)">
+      <div class="grid gap-(--liwan-gap-card)">
         <UFormField :label="t('projects.governance.stakeholder.contact')">
           <UInput id="stakeholder-contact" v-model="contact" class="w-full" :disabled="!hydrated || pending" />
         </UFormField>

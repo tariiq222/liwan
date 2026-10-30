@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core'
-import EmptyState from '@webvue/ui/app/components/shared/feedback/EmptyState.vue'
+import EmptyState from '@liwan/ui/app/components/shared/feedback/EmptyState.vue'
 import { ApiError } from '@/composables/useApi'
-import { avatarProps } from '@webvue/ui/app/utils/avatarTone'
+import { avatarProps } from '@liwan/ui/app/utils/avatarTone'
 import { chatListTime } from '@/utils/chatTime'
 import { CHAT_PAGE_SIZE, isFatalChatStatus, nextListOffset, serializeChatListRoute, type ChatFilter, type ChatListRoute } from '@/utils/chatState'
 
@@ -63,10 +63,10 @@ function conversationTo(id: number) {
 </script>
 
 <template>
-  <section class="webvue-chat-list flex h-full min-h-0 flex-col" data-testid="chat-list">
+  <section class="liwan-chat-list flex h-full min-h-0 flex-col" data-testid="chat-list">
     <h1 v-if="props.pageHeading" class="px-3 pt-3 text-lg font-semibold text-highlighted">{{ t('chat.title') }}</h1>
-    <header class="webvue-chat-list-toolbar">
-      <form class="webvue-chat-list-search" @submit.prevent="applySearch">
+    <header class="liwan-chat-list-toolbar">
+      <form class="liwan-chat-list-search" @submit.prevent="applySearch">
         <UInput
           id="chat-list-search"
           v-model="q"
@@ -81,7 +81,7 @@ function conversationTo(id: number) {
         <UButton type="button" color="neutral" variant="soft" icon="i-lucide-plus" :label="t('chat.newAction')" :disabled="!hydrated" class="shrink-0" />
       </UDropdownMenu>
     </header>
-    <div class="webvue-chat-list-filters">
+    <div class="liwan-chat-list-filters">
       <SharedSegmentedControl
         class="w-full"
         :model-value="props.routeState.filter"
@@ -109,7 +109,7 @@ function conversationTo(id: number) {
         <li v-for="item in items" :key="item.id">
           <NuxtLink
             :to="conversationTo(item.id)"
-            class="webvue-chat-conversation-link"
+            class="liwan-chat-conversation-link"
             :data-selected="props.selectedId === item.id"
             :aria-current="props.selectedId === item.id ? 'page' : undefined"
           >
@@ -118,17 +118,17 @@ function conversationTo(id: number) {
               <span
                 v-if="item.type === 'direct' && item.im_status"
                 class="absolute end-0 bottom-0 z-10 size-3 rounded-full border-2 border-(--ui-bg)"
-                :class="item.im_status === 'online' ? 'webvue-status-dot-success' : 'bg-(--ui-text-dimmed)'"
+                :class="item.im_status === 'online' ? 'liwan-status-dot-success' : 'bg-(--ui-text-dimmed)'"
                 :title="item.im_status === 'online' ? t('chat.online') : t('chat.offline')"
               />
-              <span v-else-if="item.type !== 'direct'" class="webvue-chat-avatar-badge" :title="t(`chat.${item.type}`)">
+              <span v-else-if="item.type !== 'direct'" class="liwan-chat-avatar-badge" :title="t(`chat.${item.type}`)">
                 <UIcon name="i-lucide-users-round" class="size-3" aria-hidden="true" />
               </span>
             </span>
             <span class="min-w-0 flex-1">
               <span class="flex items-center justify-between gap-2">
                 <span class="truncate font-medium">{{ item.name }}{{ item.muted ? ` · ${t('chat.muted')}` : '' }}</span>
-                <time v-if="item.last_message_at" class="webvue-chat-list-time" :class="{ 'text-brand-link': item.unread_count }">{{ timeLabel(item.last_message_at) }}</time>
+                <time v-if="item.last_message_at" class="liwan-chat-list-time" :class="{ 'text-brand-link': item.unread_count }">{{ timeLabel(item.last_message_at) }}</time>
               </span>
               <span class="flex items-center justify-between gap-2">
                 <span class="truncate text-sm text-muted">{{ item.last_message_preview || t(`chat.${item.type}`) }}</span>

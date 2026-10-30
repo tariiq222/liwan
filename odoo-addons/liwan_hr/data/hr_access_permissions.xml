@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="permission_hr_employees_read" model="liwan.access.permission">
+        <field name="key">hr.employees.read</field><field name="domain">hr</field>
+        <field name="resource">employees</field><field name="action">read</field>
+        <field name="name_ar">قراءة الموظفين</field><field name="name_en">Read employees</field>
+        <field name="description_ar">قراءة الموظفين</field><field name="description_en">Read employees</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_employees_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
+    </record>
+    <record id="permission_hr_employees_manage" model="liwan.access.permission">
+        <field name="key">hr.employees.manage</field><field name="domain">hr</field>
+        <field name="resource">employees</field><field name="action">manage</field>
+        <field name="name_ar">إدارة الموظفين</field><field name="name_en">Manage employees</field>
+        <field name="description_ar">إدارة الموظفين</field><field name="description_en">Manage employees</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_employees_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_hr_employees_archive" model="liwan.access.permission">
+        <field name="key">hr.employees.archive</field><field name="domain">hr</field>
+        <field name="resource">employees</field><field name="action">archive</field>
+        <field name="name_ar">أرشفة الموظفين</field><field name="name_en">Archive employees</field>
+        <field name="description_ar">أرشفة الموظفين</field><field name="description_en">Archive employees</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_employees_archive</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_hr_employees_access_status_read" model="liwan.access.permission">
+        <field name="key">hr.employees.access_status.read</field><field name="domain">hr</field>
+        <field name="resource">employees</field><field name="action">access_status_read</field>
+        <field name="name_ar">قراءة حالة الوصول</field><field name="name_en">Read access status</field>
+        <field name="description_ar">قراءة حالة الوصول</field><field name="description_en">Read access status</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_employees_access_status_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
+    </record>
+    <record id="permission_hr_departments_read" model="liwan.access.permission">
+        <field name="key">hr.departments.read</field><field name="domain">hr</field>
+        <field name="resource">departments</field><field name="action">read</field>
+        <field name="name_ar">قراءة الأقسام</field><field name="name_en">Read departments</field>
+        <field name="description_ar">قراءة الأقسام</field><field name="description_en">Read departments</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_departments_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
+    </record>
+    <record id="permission_hr_departments_manage" model="liwan.access.permission">
+        <field name="key">hr.departments.manage</field><field name="domain">hr</field>
+        <field name="resource">departments</field><field name="action">manage</field>
+        <field name="name_ar">إدارة الأقسام</field><field name="name_en">Manage departments</field>
+        <field name="description_ar">إدارة الأقسام</field><field name="description_en">Manage departments</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_departments_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_hr_leave_read" model="liwan.access.permission">
+        <field name="key">hr.leave.read</field><field name="domain">hr</field>
+        <field name="resource">leave</field><field name="action">read</field>
+        <field name="name_ar">قراءة الإجازات</field><field name="name_en">Read leave</field>
+        <field name="description_ar">قراءة الإجازات</field><field name="description_en">Read leave</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_leave_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
+    </record>
+    <record id="permission_hr_leave_request" model="liwan.access.permission">
+        <field name="key">hr.leave.request</field><field name="domain">hr</field>
+        <field name="resource">leave</field><field name="action">request</field>
+        <field name="name_ar">طلب إجازة</field><field name="name_en">Request leave</field>
+        <field name="description_ar">طلب إجازة</field><field name="description_en">Request leave</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_leave_request</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
+    </record>
+    <record id="permission_hr_leave_approve" model="liwan.access.permission">
+        <field name="key">hr.leave.approve</field><field name="domain">hr</field>
+        <field name="resource">leave</field><field name="action">approve</field>
+        <field name="name_ar">اعتماد الإجازات</field><field name="name_en">Approve leave</field>
+        <field name="description_ar">اعتماد الإجازات</field><field name="description_en">Approve leave</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_leave_approve</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_hr_leave_manage" model="liwan.access.permission">
+        <field name="key">hr.leave.manage</field><field name="domain">hr</field>
+        <field name="resource">leave</field><field name="action">manage</field>
+        <field name="name_ar">إدارة أرصدة الإجازات</field><field name="name_en">Manage leave balances</field>
+        <field name="description_ar">إدارة أرصدة الإجازات</field><field name="description_en">Manage leave balances</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_leave_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_hr_recruitment_read" model="liwan.access.permission">
+        <field name="key">hr.recruitment.read</field><field name="domain">hr</field>
+        <field name="resource">recruitment</field><field name="action">read</field>
+        <field name="name_ar">قراءة التوظيف</field><field name="name_en">Read recruitment</field>
+        <field name="description_ar">قراءة التوظيف</field><field name="description_en">Read recruitment</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_recruitment_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
+    </record>
+    <record id="permission_hr_recruitment_manage" model="liwan.access.permission">
+        <field name="key">hr.recruitment.manage</field><field name="domain">hr</field>
+        <field name="resource">recruitment</field><field name="action">manage</field>
+        <field name="name_ar">إدارة التوظيف</field><field name="name_en">Manage recruitment</field>
+        <field name="description_ar">إدارة التوظيف</field><field name="description_en">Manage recruitment</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_recruitment_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_hr_shifts_read" model="liwan.access.permission">
+        <field name="key">hr.shifts.read</field><field name="domain">hr</field>
+        <field name="resource">shifts</field><field name="action">read</field>
+        <field name="name_ar">قراءة الورديات</field><field name="name_en">Read shifts</field>
+        <field name="description_ar">قراءة الورديات</field><field name="description_en">Read shifts</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_shifts_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
+    </record>
+    <record id="permission_hr_shifts_manage" model="liwan.access.permission">
+        <field name="key">hr.shifts.manage</field><field name="domain">hr</field>
+        <field name="resource">shifts</field><field name="action">manage</field>
+        <field name="name_ar">إدارة الورديات</field><field name="name_en">Manage shifts</field>
+        <field name="description_ar">إدارة الورديات</field><field name="description_en">Manage shifts</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_shifts_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_hr_onboarding_read" model="liwan.access.permission">
+        <field name="key">hr.onboarding.read</field><field name="domain">hr</field>
+        <field name="resource">onboarding</field><field name="action">read</field>
+        <field name="name_ar">قراءة خطط التهيئة</field><field name="name_en">Read onboarding</field>
+        <field name="description_ar">قراءة خطط التهيئة</field><field name="description_en">Read onboarding</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_onboarding_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
+    </record>
+    <record id="permission_hr_onboarding_manage" model="liwan.access.permission">
+        <field name="key">hr.onboarding.manage</field><field name="domain">hr</field>
+        <field name="resource">onboarding</field><field name="action">manage</field>
+        <field name="name_ar">إدارة خطط التهيئة</field><field name="name_en">Manage onboarding</field>
+        <field name="description_ar">إدارة خطط التهيئة</field><field name="description_en">Manage onboarding</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_onboarding_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_hr_offboarding_read" model="liwan.access.permission">
+        <field name="key">hr.offboarding.read</field><field name="domain">hr</field>
+        <field name="resource">offboarding</field><field name="action">read</field>
+        <field name="name_ar">قراءة إنهاء الخدمة</field><field name="name_en">Read offboarding</field>
+        <field name="description_ar">قراءة إنهاء الخدمة</field><field name="description_en">Read offboarding</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_offboarding_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_hr_offboarding_manage" model="liwan.access.permission">
+        <field name="key">hr.offboarding.manage</field><field name="domain">hr</field>
+        <field name="resource">offboarding</field><field name="action">manage</field>
+        <field name="name_ar">إدارة إنهاء الخدمة والإخلاء</field><field name="name_en">Manage offboarding and clearance</field>
+        <field name="description_ar">إدارة إنهاء الخدمة والإخلاء</field><field name="description_en">Manage offboarding and clearance</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_offboarding_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_hr_assets_read" model="liwan.access.permission">
+        <field name="key">hr.assets.read</field><field name="domain">hr</field>
+        <field name="resource">assets</field><field name="action">read</field>
+        <field name="name_ar">قراءة العهد</field><field name="name_en">Read assets</field>
+        <field name="description_ar">قراءة العهد</field><field name="description_en">Read assets</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_assets_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
+    </record>
+    <record id="permission_hr_assets_manage" model="liwan.access.permission">
+        <field name="key">hr.assets.manage</field><field name="domain">hr</field>
+        <field name="resource">assets</field><field name="action">manage</field>
+        <field name="name_ar">إدارة العهد</field><field name="name_en">Manage assets</field>
+        <field name="description_ar">إدارة العهد</field><field name="description_en">Manage assets</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_assets_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_hr_payroll_read" model="liwan.access.permission">
+        <field name="key">hr.payroll.read</field><field name="domain">hr</field>
+        <field name="resource">payroll</field><field name="action">read</field>
+        <field name="name_ar">قراءة الرواتب</field><field name="name_en">Read payroll</field>
+        <field name="description_ar">قراءة الرواتب</field><field name="description_en">Read payroll</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_payroll_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_hr_payroll_manage" model="liwan.access.permission">
+        <field name="key">hr.payroll.manage</field><field name="domain">hr</field>
+        <field name="resource">payroll</field><field name="action">manage</field>
+        <field name="name_ar">إدارة الرواتب</field><field name="name_en">Manage payroll</field>
+        <field name="description_ar">إدارة الرواتب</field><field name="description_en">Manage payroll</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_payroll_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_hr_payroll_approve" model="liwan.access.permission">
+        <field name="key">hr.payroll.approve</field><field name="domain">hr</field>
+        <field name="resource">payroll</field><field name="action">approve</field>
+        <field name="name_ar">اعتماد مسيّرات الرواتب</field><field name="name_en">Approve payroll runs</field>
+        <field name="description_ar">اعتماد مسيّرات الرواتب</field><field name="description_en">Approve payroll runs</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_payroll_approve</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_hr_payroll_config" model="liwan.access.permission">
+        <field name="key">hr.payroll.config</field><field name="domain">hr</field>
+        <field name="resource">payroll</field><field name="action">config</field>
+        <field name="name_ar">إعدادات الرواتب</field><field name="name_en">Configure payroll</field>
+        <field name="description_ar">إعدادات الرواتب</field><field name="description_en">Configure payroll</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_payroll_config</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_hr_payroll_audit_read" model="liwan.access.permission">
+        <field name="key">hr.payroll.audit.read</field><field name="domain">hr</field>
+        <field name="resource">payroll</field><field name="action">audit_read</field>
+        <field name="name_ar">قراءة سجل تدقيق الرواتب</field><field name="name_en">Read the payroll audit trail</field>
+        <field name="description_ar">قراءة من غيّر إعدادات الرواتب وسجلاتها ومتى</field><field name="description_en">Read who changed payroll settings and records, and when</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_payroll_audit_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_hr_payroll_finance_manage" model="liwan.access.permission">
+        <field name="key">hr.payroll.finance.manage</field><field name="domain">hr</field>
+        <field name="resource">payroll_finance</field><field name="action">manage</field>
+        <field name="name_ar">إدارة إعدادات مالية الرواتب</field><field name="name_en">Manage payroll finance settings</field>
+        <field name="description_ar">إدارة إعدادات مالية الرواتب</field><field name="description_en">Manage payroll finance settings</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_payroll_finance_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_hr_leave_config" model="liwan.access.permission">
+        <field name="key">hr.leave.config</field><field name="domain">hr</field>
+        <field name="resource">leave</field><field name="action">config</field>
+        <field name="name_ar">إعداد سياسة إلغاء الإجازات</field><field name="name_en">Configure leave cancellation</field>
+        <field name="description_ar">إعداد سياسة إلغاء الإجازات للشركة</field><field name="description_en">Configure company leave cancellation policy</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_leave_config</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <data noupdate="1">
+        <record id="role_hr_manager" model="liwan.access.role">
+            <field name="key">hr_manager</field><field name="name_ar">مدير الموارد البشرية</field><field name="name_en">HR manager</field>
+            <field name="description">HR manager</field><field name="type">built_in</field><field name="protected" eval="True"/><field name="assignable" eval="True"/>
+            <field name="permission_ids" eval="[Command.set([ref('permission_hr_employees_read'),ref('permission_hr_employees_manage'),ref('permission_hr_employees_archive'),ref('permission_hr_employees_access_status_read'),ref('permission_hr_departments_read'),ref('permission_hr_departments_manage'),ref('permission_hr_leave_read'),ref('permission_hr_leave_request'),ref('permission_hr_leave_approve'),ref('permission_hr_leave_manage'),ref('permission_hr_leave_config'),ref('permission_hr_recruitment_read'),ref('permission_hr_recruitment_manage'),ref('permission_hr_shifts_read'),ref('permission_hr_shifts_manage'),ref('permission_hr_onboarding_read'),ref('permission_hr_onboarding_manage'),ref('permission_hr_offboarding_read'),ref('permission_hr_offboarding_manage'),ref('permission_hr_assets_read'),ref('permission_hr_assets_manage')])]"/>
+        </record>
+        <record id="role_payroll_manager" model="liwan.access.role">
+            <field name="key">payroll_manager</field><field name="name_ar">مسؤول الرواتب</field><field name="name_en">Payroll manager</field>
+            <field name="description">Payroll manager</field><field name="type">built_in</field><field name="protected" eval="True"/><field name="assignable" eval="True"/>
+            <field name="permission_ids" eval="[Command.set([ref('permission_hr_payroll_read'),ref('permission_hr_payroll_manage'),ref('permission_hr_payroll_approve'),ref('permission_hr_payroll_config'),ref('permission_hr_payroll_audit_read'),ref('permission_hr_payroll_finance_manage')])]"/>
+        </record>
+        <record id="role_payroll_offboarding_officer" model="liwan.access.role">
+            <field name="key">payroll_offboarding_officer</field><field name="name_ar">مسؤول رواتب وإخلاء طرف</field><field name="name_en">Payroll and offboarding officer</field>
+            <field name="description">Payroll and offboarding officer</field><field name="type">built_in</field><field name="protected" eval="True"/><field name="assignable" eval="True"/>
+            <field name="permission_ids" eval="[Command.set([ref('permission_hr_employees_read'),ref('permission_hr_offboarding_read'),ref('permission_hr_payroll_read'),ref('permission_hr_payroll_manage'),ref('permission_hr_payroll_approve')])]"/>
+        </record>
+    </data>
+    <!-- Built-in roles are noupdate records: these hooks link this addon's grants and
+         dependencies on install and on every upgrade. -->
+    <function model="liwan.access.service" name="_liwan_configure_permission_dependencies"/>
+    <function model="liwan.access.service" name="_liwan_repair_builtin_role_grants"/>
+</odoo>

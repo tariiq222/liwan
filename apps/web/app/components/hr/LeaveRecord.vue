@@ -5,7 +5,7 @@ import { useHrLeaveFormat } from '@/composables/useHrLeaveFormat'
 import { useHrLeaveRequest, useMyHrLeaveRequest, useLeaveDecision, useCancellationDecision, useWithdrawLeaveRequest, type HrLeaveDecision } from '@/composables/useHrLeave'
 import type { LeaveConfirmKind } from '@/components/hr/LeaveDecisionConfirm.vue'
 import { hrLeaveBadge } from '@/utils/hrLeaveBadge'
-import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
+import { statusTag } from '@liwan/ui/app/utils/pageHeaderTag'
 
 const props = defineProps<{ personal?: boolean }>()
 const route = useRoute()

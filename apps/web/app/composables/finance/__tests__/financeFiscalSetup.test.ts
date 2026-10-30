@@ -162,11 +162,11 @@ describe('the identity a setup screen answers for', () => {
 
   it('states the expected context as canonical decimals, never as a target', () => {
     expect(financeExpectedContextHeaders(scope())).toEqual({
-      'X-WebVue-Expected-User-Id': '7',
-      'X-WebVue-Expected-Company-Id': '3',
+      'X-Liwan-Expected-User-Id': '7',
+      'X-Liwan-Expected-Company-Id': '3',
     })
     expect(financeExpectedContextHeaders({ userId: 9007199254740991, companyId: 1, epoch: 0 }))
-      .toEqual({ 'X-WebVue-Expected-User-Id': '9007199254740991', 'X-WebVue-Expected-Company-Id': '1' })
+      .toEqual({ 'X-Liwan-Expected-User-Id': '9007199254740991', 'X-Liwan-Expected-Company-Id': '1' })
   })
 
   it('keeps the setup cache under the shared prefix with one leaf per identity', () => {

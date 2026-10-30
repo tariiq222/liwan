@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinanceAsset } from '@webvue/contracts'
-import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
+import type { FinanceAsset } from '@liwan/contracts'
+import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import { useFinanceAssetList, useFinanceAssetProfiles } from '@/composables/finance/useFinanceAssets'
 import { useRouteListFilters } from '@/composables/useRouteListFilters'
 import Money from '../invoices/Money.vue'
@@ -69,7 +69,7 @@ const dash = computed(() => t('app.notAvailable'))
 
 <template>
   <SharedForbiddenState v-if="!allowed" :description="t('financeAssets.forbidden')" />
-  <div v-else class="webvue-page-stack">
+  <div v-else class="liwan-page-stack">
     <AssetComputeSection v-if="compute" :compute="compute" />
     <AssetKpiStrip v-if="kpisShown" :filters="filters" />
     <SharedListCard>
@@ -89,7 +89,7 @@ const dash = computed(() => t('app.notAvailable'))
         </SharedFilterBar>
       </template>
       <SharedPageState :error="query.error.value" :keep-content="items.length > 0" @retry="query.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--webvue-card-pad-dense)" :title="t(activeCount ? 'app.noResults' : 'financeAssets.assets.empty')" />
+        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(activeCount ? 'app.noResults' : 'financeAssets.assets.empty')" />
         <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,900px)]">
           <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :row-to="recordTo" :loading="query.isPending.value" :caption="t('financeAssets.assets.title')">
             <template #record_number-cell="{ row }"><SharedRecordNumber :value="row.original.id" /></template>

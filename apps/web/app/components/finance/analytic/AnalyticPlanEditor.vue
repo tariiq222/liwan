@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FinanceAnalyticPlan } from '@webvue/contracts'
+import type { FinanceAnalyticPlan } from '@liwan/contracts'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import { useCreateAnalyticPlan, useRenameAnalyticPlan } from '@/composables/finance/useFinanceAnalytic'
 import { mustChooseParent } from './analyticAccess'
@@ -35,9 +35,9 @@ async function submit() {
 </script>
 
 <template>
-  <UForm :state="{ name }" class="webvue-form" method="post" :loading-auto="false" novalidate data-testid="finance-analytic-plan-form" @submit="submit">
+  <UForm :state="{ name }" class="liwan-form" method="post" :loading-auto="false" novalidate data-testid="finance-analytic-plan-form" @submit="submit">
     <UAlert v-if="failure" role="alert" color="error" variant="subtle" :title="t('financeAnalytic.saveError')" :description="saveErrorMessage(failure, t('errors.generic'), t('errors.saveUncertain'))" />
-    <div class="webvue-form-grid">
+    <div class="liwan-form-grid">
       <UFormField :label="t('financeAnalytic.plans.form.name')" name="finance-analytic-plan-name" required>
         <UInput id="finance-analytic-plan-name" v-model="name" class="w-full" :disabled="!hydrated" required />
       </UFormField>

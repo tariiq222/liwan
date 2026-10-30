@@ -1,4 +1,4 @@
-import type { Task, TaskState } from '@webvue/contracts'
+import type { Task, TaskState } from '@liwan/contracts'
 import type { TaskListParams } from './useTasks'
 
 // The three attribute filters of the task list. The URL (`?assignee=`, `?deadline=`, `?priority=`) and the API

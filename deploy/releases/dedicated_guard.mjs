@@ -8,16 +8,16 @@ import { join, resolve } from 'node:path'
 import { createReleaseLease, readReleaseRoute, readReleasePools } from '../../apps/web/server/utils/releaseRouting.ts'
 import { isReleaseAssetRequest, readAsset, validateAssetStore } from '../../apps/web/server/utils/releaseAssets.ts'
 
-const privateHeader = /^(x-odoo-|x-openerp-|x-webvue-|forwarded$|x-forwarded-)/i
+const privateHeader = /^(x-odoo-|x-openerp-|x-liwan-|forwarded$|x-forwarded-)/i
 const selectors = /^(db|database|session_id|sid)$/i
 // Match the BFF's fixed public auth budgets before this edge buffers JSON.
 // Separate hop pools avoid a public BFF request deadlocking its internal continuation.
 const acquireExternalBody = createBodyAdmission('session')
 const acquireInternalBody = createBodyAdmission('session')
 const publicAuthBodyLimits = { '/api/auth/totp': 1024, '/api/auth/login': 64 * 1024 }
-const pinNames = ['x-webvue-release-pool', 'x-webvue-release-revision', 'x-webvue-release-fence']
-const internalNames = new Set(['x-webvue-proxy-token', 'x-webvue-tenant-revision', ...pinNames, 'x-webvue-release-admission'])
-const edgeNames = new Set(['x-webvue-client-ip', 'x-webvue-client-host', 'x-webvue-client-proto'])
+const pinNames = ['x-liwan-release-pool', 'x-liwan-release-revision', 'x-liwan-release-fence']
+const internalNames = new Set(['x-liwan-proxy-token', 'x-liwan-tenant-revision', ...pinNames, 'x-liwan-release-admission'])
+const edgeNames = new Set(['x-liwan-client-ip', 'x-liwan-client-host', 'x-liwan-client-proto'])
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b))
 const fail = (statusCode = 403) => Object.assign(Error('dedicated_boundary_rejected'), { statusCode })
 
@@ -99,19 +99,19 @@ export function createDedicatedGuard({ bindingPath, releaseRoutesDir, proxyToken
   const plan = req => {
     const hostFields = (req.rawHeaders ?? []).filter((_, index) => index % 2 === 0 && req.rawHeaders[index].toLowerCase() === 'host')
     if (hostFields.length !== 1 || req.headers.host !== binding.host) throw fail()
-    const internal = equal(req.headers['x-webvue-proxy-token'], proxyToken)
+    const internal = equal(req.headers['x-liwan-proxy-token'], proxyToken)
     const peerTrusted = trustedEdgeAddresses.includes(req.socket.remoteAddress)
     for (const name of Object.keys(req.headers)) {
-      if (privateHeader.test(name) && name !== 'x-webvue-csrf' && !(internal && internalNames.has(name)) && !((peerTrusted || internal) && edgeNames.has(name))) throw fail()
+      if (privateHeader.test(name) && name !== 'x-liwan-csrf' && !(internal && internalNames.has(name)) && !((peerTrusted || internal) && edgeNames.has(name))) throw fail()
     }
-    if (internal && req.headers['x-webvue-tenant-revision'] !== String(binding.identityRevision)) throw fail()
+    if (internal && req.headers['x-liwan-tenant-revision'] !== String(binding.identityRevision)) throw fail()
     const suppliedEdge = [...edgeNames].filter(name => req.headers[name] !== undefined)
-    if (suppliedEdge.length && (suppliedEdge.length !== 3 || !(peerTrusted || internal) || !isIP(req.headers['x-webvue-client-ip']) || req.headers['x-webvue-client-host'] !== binding.host || !['http', 'https'].includes(req.headers['x-webvue-client-proto']))) throw fail()
+    if (suppliedEdge.length && (suppliedEdge.length !== 3 || !(peerTrusted || internal) || !isIP(req.headers['x-liwan-client-ip']) || req.headers['x-liwan-client-host'] !== binding.host || !['http', 'https'].includes(req.headers['x-liwan-client-proto']))) throw fail()
     if (typeof req.url !== 'string' || !req.url.startsWith('/') || req.url.startsWith('//') || /[\\\r\n#]/.test(req.url)) throw fail()
     const url = new URL(req.url, 'http://dedicated.invalid')
     if (url.pathname !== req.url.split('?')[0]) throw fail()
     for (const key of url.searchParams.keys()) if (selectors.test(key)) throw fail()
-    const status = url.pathname === '/_webvue/release-status'
+    const status = url.pathname === '/_liwan/release-status'
     if (status && (!internal || req.method !== 'GET')) throw fail()
     const hasPin = pinNames.some(name => req.headers[name] !== undefined)
     if (hasPin && (!internal || !pinNames.every(name => typeof req.headers[name] === 'string'))) throw fail()
@@ -121,26 +121,26 @@ export function createDedicatedGuard({ bindingPath, releaseRoutesDir, proxyToken
     if (status) return { status: true }
     const websocket = url.pathname.startsWith('/websocket')
     if (websocket && !internal && req.headers.origin !== `${publicProto}://${binding.host}`) throw fail()
-    const lease = createReleaseLease(releaseRoutesDir, tenant, pin, websocket ? 'ws' : 'http', internal ? req.headers['x-webvue-release-admission'] : undefined)
+    const lease = createReleaseLease(releaseRoutesDir, tenant, pin, websocket ? 'ws' : 'http', internal ? req.headers['x-liwan-release-admission'] : undefined)
     // API admission wins even over legacy paths containing /static/.
     const odoo = url.pathname.startsWith('/api/v1/') ? internal : websocket || odooPath(url.pathname)
     const headers = cleanHeaders(req.headers)
     headers.host = binding.host
-    headers['x-forwarded-for'] = suppliedEdge.length ? req.headers['x-webvue-client-ip'] : req.socket.remoteAddress
+    headers['x-forwarded-for'] = suppliedEdge.length ? req.headers['x-liwan-client-ip'] : req.socket.remoteAddress
     headers['x-forwarded-host'] = binding.host
-    headers['x-forwarded-proto'] = suppliedEdge.length ? req.headers['x-webvue-client-proto'] : publicProto
+    headers['x-forwarded-proto'] = suppliedEdge.length ? req.headers['x-liwan-client-proto'] : publicProto
     if (!odoo) {
       // CSRF is a browser double-submit header, not a private routing selector.
-      if (req.headers['x-webvue-csrf'] !== undefined) headers['x-webvue-csrf'] = req.headers['x-webvue-csrf']
-      headers['x-webvue-client-ip'] = headers['x-forwarded-for']
-      headers['x-webvue-client-host'] = binding.host
-      headers['x-webvue-client-proto'] = headers['x-forwarded-proto']
-      headers['x-webvue-proxy-token'] = proxyToken
-      headers['x-webvue-tenant-revision'] = String(binding.identityRevision)
-      headers['x-webvue-release-pool'] = lease.context.poolId
-      headers['x-webvue-release-revision'] = String(lease.context.routeRevision)
-      headers['x-webvue-release-fence'] = String(lease.context.fence)
-      headers['x-webvue-release-admission'] = lease.context.admissionId
+      if (req.headers['x-liwan-csrf'] !== undefined) headers['x-liwan-csrf'] = req.headers['x-liwan-csrf']
+      headers['x-liwan-client-ip'] = headers['x-forwarded-for']
+      headers['x-liwan-client-host'] = binding.host
+      headers['x-liwan-client-proto'] = headers['x-forwarded-proto']
+      headers['x-liwan-proxy-token'] = proxyToken
+      headers['x-liwan-tenant-revision'] = String(binding.identityRevision)
+      headers['x-liwan-release-pool'] = lease.context.poolId
+      headers['x-liwan-release-revision'] = String(lease.context.routeRevision)
+      headers['x-liwan-release-fence'] = String(lease.context.fence)
+      headers['x-liwan-release-admission'] = lease.context.admissionId
     }
     return { internal, odoo, websocket, path, headers, lease }
   }

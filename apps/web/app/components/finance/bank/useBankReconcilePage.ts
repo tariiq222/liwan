@@ -1,4 +1,4 @@
-import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import { ApiError } from '@/composables/useApi'
 import { useFinanceBankStatement, useFinanceReconcileProposals, useReconcileFinanceBankLine } from '@/composables/finance/useFinanceBank'
 import { financeErrorMessage } from '../financeErrors'

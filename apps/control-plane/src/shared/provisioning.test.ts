@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { sharedJobSchema, tenantBindingSchema } from '@webvue/commercial-contracts/shared'
+import { sharedJobSchema, tenantBindingSchema } from '@liwan/commercial-contracts/shared'
 import { bindJob, businessKey, payloadDigest, reconcileSharedJob, assertSameBinding, verifiedReceipt } from './provisioning.js'
 
 const binding = { tenantId: 'tenant_a', database: 'db_a', filestore: 'fs_a', registryRevision: 1 }
@@ -7,7 +7,7 @@ const target = { ...binding, enabled: true }
 const request = {
   schemaVersion: 1, operation: 'provision', requestId: '11111111-1111-4111-8111-111111111111', binding,
   catalog: { version: 'v1', tier: 'basic', sourceSha256: 'a'.repeat(64) },
-  policy: { schema_version: 1, channel: 'control_plane', modules: ['webvue_core'], features: { 'users.limit': null, 'storage.limit_mb': null } },
+  policy: { schema_version: 1, channel: 'control_plane', modules: ['liwan_core'], features: { 'users.limit': null, 'storage.limit_mb': null } },
 }
 const job = () => bindJob(request)
 const absent = { state: 'absent' }

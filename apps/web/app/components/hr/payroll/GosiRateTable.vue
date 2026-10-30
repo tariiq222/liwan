@@ -7,8 +7,8 @@ import {
   HrGosiRateWriteSchema,
   type HrGosiRate,
   type HrGosiRateWrite,
-} from '@webvue/contracts'
-import { formatDate } from '@webvue/ui/app/utils/formatDate'
+} from '@liwan/contracts'
+import { formatDate } from '@liwan/ui/app/utils/formatDate'
 import { ApiError } from '@/composables/useApi'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import { gosiRatePatch } from '@/utils/payrollSettings'
@@ -165,10 +165,10 @@ const rateLabel = (rate: HrGosiRate) => `${t(`hrPayroll.gosi.branch.${rate.branc
       @cancel="askDelete(null)"
     />
 
-    <UForm v-if="editing" novalidate :state="{ branch, nationalityClass, dateFrom, ...numbers }" class="webvue-form" method="post" data-testid="hr-gosi-form" @submit="submit">
+    <UForm v-if="editing" novalidate :state="{ branch, nationalityClass, dateFrom, ...numbers }" class="liwan-form" method="post" data-testid="hr-gosi-form" @submit="submit">
       <UAlert v-if="formAlert" role="alert" color="error" variant="subtle" :title="t('hrPayroll.gosi.saveError')" :description="formAlert" />
       <SharedFormSection :title="editing === 'new' ? t('hrPayroll.gosi.new') : t('hrPayroll.gosi.edit')">
-        <div class="webvue-form-grid">
+        <div class="liwan-form-grid">
           <UFormField :label="t('hrPayroll.gosi.columns.branch')" name="hr-gosi-branch" :error="fieldError('branch')">
             <USelect id="hr-gosi-branch" v-model="branch" class="w-full" :items="branchOptions" :disabled="!hydrated || saving || reloading" data-testid="hr-gosi-branch" />
           </UFormField>

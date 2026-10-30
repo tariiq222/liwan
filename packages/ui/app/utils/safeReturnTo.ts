@@ -15,8 +15,8 @@ export function safeReturnTo(
   if (CONTROL_OR_BACKSLASH.test(value)) return fallback
 
   try {
-    const parsed = new URL(value, 'http://webvue.local')
-    if (parsed.origin !== 'http://webvue.local') return fallback
+    const parsed = new URL(value, 'http://liwan.local')
+    if (parsed.origin !== 'http://liwan.local') return fallback
     if (!allowedPrefixes.some((prefix) => belongsToPrefix(parsed.pathname, prefix))) return fallback
     return `${parsed.pathname}${parsed.search}${parsed.hash}`
   } catch {

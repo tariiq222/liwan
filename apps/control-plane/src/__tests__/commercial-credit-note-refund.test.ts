@@ -31,7 +31,7 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
   const call = (note: string, body: unknown, options: { caps?: string[]; stepUp?: boolean; method?: string } = {}) => {
     const pathname = `/v1/commercial/invoice-adjustments/${note}/refund`
     return routesB(pool, { method: options.method ?? 'POST', pathname, raw: JSON.stringify(body), issuer: 'vendor-test', actor: 7,
-      capabilities: (options.caps ?? ['vendor.read', 'vendor.billing.manage']) as any, stepUpFresh: options.stepUp ?? true }, new URL(pathname, 'https://webvue.test'))
+      capabilities: (options.caps ?? ['vendor.read', 'vendor.billing.manage']) as any, stepUpFresh: options.stepUp ?? true }, new URL(pathname, 'https://liwan.test'))
   }
   const ok = { external_reference: 'MOY-REFUND-77', reason: 'Refunded in the provider dashboard' }
   const row = async (id: string) => (await pool.query('SELECT * FROM invoice_adjustments WHERE id=$1', [id])).rows[0]
@@ -105,7 +105,7 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
     const f = await failedOrder()
     const read = async () => {
       const pathname = `/v1/commercial/invoices/${f.invoice}`
-      return (await routesB(pool, { method: 'GET', pathname, raw: '', issuer: 'vendor-test', actor: 7, capabilities: ['vendor.billing.manage'] }, new URL(pathname, 'https://webvue.test')))!.data as any
+      return (await routesB(pool, { method: 'GET', pathname, raw: '', issuer: 'vendor-test', actor: 7, capabilities: ['vendor.billing.manage'] }, new URL(pathname, 'https://liwan.test')))!.data as any
     }
     expect((await read()).adjustments).toMatchObject([{ id: f.note, kind: 'credit_note', status: 'pending', refund_reference: null }])
     await call(f.note, ok)

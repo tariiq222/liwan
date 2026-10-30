@@ -1,0 +1,1 @@
+Reload Operations record rules to retain their native company boundary while the Operations extension of the fresh LiwanOS authorization fence evaluates publication and participation in each owning company. This keeps branch-policy revocation outside Odoo native rule caches. No business data or schema rewrite is required.

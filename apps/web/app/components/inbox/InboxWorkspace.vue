@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import EmptyState from '@webvue/ui/app/components/shared/feedback/EmptyState.vue'
-import { avatarProps } from '@webvue/ui/app/utils/avatarTone'
+import EmptyState from '@liwan/ui/app/components/shared/feedback/EmptyState.vue'
+import { avatarProps } from '@liwan/ui/app/utils/avatarTone'
 import InboxComposer from '@/components/inbox/InboxComposer.vue'
 import InboxContactPanel from '@/components/inbox/InboxContactPanel.vue'
 import InboxOrderPanel from '@/components/inbox/InboxOrderPanel.vue'

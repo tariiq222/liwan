@@ -12,7 +12,7 @@ import { fixedReturnOrigin } from '../commercial/return-origin.js'
 const url = process.env.CONTROL_TEST_DATABASE_URL
 if (url) {
   const parsed = new URL(url)
-  if (!['127.0.0.1', 'localhost', '[::1]'].includes(parsed.hostname) || parsed.pathname !== '/webvue_control_scratch_payfinal') throw new Error('simulator settlement tests require own loopback webvue_control_scratch_payfinal DB')
+  if (!['127.0.0.1', 'localhost', '[::1]'].includes(parsed.hostname) || parsed.pathname !== '/liwan_control_scratch_payfinal') throw new Error('simulator settlement tests require own loopback liwan_control_scratch_payfinal DB')
 }
 function settle(pool: Pool, runtime: PaymentRuntime | undefined, id: string, body: unknown = {outcome:'succeeded'}, caps: CommercialInput['capabilities'] = ['vendor.billing.manage']) {
   const pathname = `/v1/commercial/payment-simulator/${id}/settle`
@@ -25,17 +25,17 @@ describe('simulator settlement fail-closed guards', () => {
   it('returns 404 in production even with an existing simulator instance', async () => {
     const adapter = new SimulatorAdapter({env:{NODE_ENV:'test'}})
     vi.stubEnv('NODE_ENV','production')
-    await expect(settle(pool,{adapter,returnOrigin: fixedReturnOrigin('https://webvue.test')},randomUUID())).rejects.toMatchObject({status:404,code:'not_found'})
+    await expect(settle(pool,{adapter,returnOrigin: fixedReturnOrigin('https://liwan.test')},randomUUID())).rejects.toMatchObject({status:404,code:'not_found'})
   })
   it('returns 404 for Moyasar and absent adapters without touching the database', async () => {
     vi.stubEnv('NODE_ENV','test')
     const adapter = Object.create(MoyasarAdapter.prototype) as MoyasarAdapter
-    for (const runtime of [{adapter,returnOrigin: fixedReturnOrigin('https://webvue.test')},{adapter:null,returnOrigin:null},undefined]) {
+    for (const runtime of [{adapter,returnOrigin: fixedReturnOrigin('https://liwan.test')},{adapter:null,returnOrigin:null},undefined]) {
       await expect(settle(pool,runtime,randomUUID())).rejects.toMatchObject({status:404,code:'not_found'})
     }
   })
   it('requires vendor.billing.manage and validates the explicit outcome before lookup', async () => {
-    const runtime = {adapter:new SimulatorAdapter({env:{NODE_ENV:'test'}}),returnOrigin: fixedReturnOrigin('https://webvue.test')}
+    const runtime = {adapter:new SimulatorAdapter({env:{NODE_ENV:'test'}}),returnOrigin: fixedReturnOrigin('https://liwan.test')}
     await expect(settle(pool,runtime,randomUUID(),{outcome:'succeeded'},['vendor.read'])).rejects.toMatchObject({status:403})
     for (const body of [{outcome:'pending'},{outcome:'succeeded',provider_ref:'injected'},{}]) {
       await expect(settle(pool,runtime,randomUUID(),body)).rejects.toMatchObject({status:422})
@@ -60,7 +60,7 @@ suite('vendor simulator settlement on live PostgreSQL', () => {
       await c.query(`INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,due_at)
         VALUES($1,$2,$3,$4,'initial','SAR',2,10000,1500,11500,'2026-01-01','2026-02-01',now())`,[invoice_id,customer_id,subscription_id,order_id])
     })
-    const runtime = {adapter:new SimulatorAdapter(),returnOrigin: fixedReturnOrigin('https://webvue.test')}
+    const runtime = {adapter:new SimulatorAdapter(),returnOrigin: fixedReturnOrigin('https://liwan.test')}
     const pathname = `/v1/commercial/orders/${order_id}/payment-attempts`
     const result = await routesB(pool,{method:'POST',pathname,raw:JSON.stringify({}),issuer:'test-vendor',actor:7,capabilities:['vendor.billing.manage'],stepUpFresh:true},new URL(pathname,'http://localhost'),runtime)
     const attempt = result!.data as {id:string;provider_ref:string}
@@ -113,7 +113,7 @@ describe('simulator settlement after an API restart', () => {
     expect(adapter.adopt(attemptRow)).toBe(true)
     expect((await adapter.lookupByAttemptId(attemptRow.id))?.provider_ref).toBe(attemptRow.provider_ref)
     const fresh = new SimulatorAdapter({ env: { NODE_ENV: 'test' } })
-    const runtime = { adapter: fresh, returnOrigin: fixedReturnOrigin('https://webvue.test') }
+    const runtime = { adapter: fresh, returnOrigin: fixedReturnOrigin('https://liwan.test') }
     // The settle route re-adopts, then fails only later at the webhook handler (no database in this pool double).
     await expect(settle(pool, runtime, attemptRow.id)).rejects.not.toMatchObject({ status: 404 })
   })

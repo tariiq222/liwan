@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
-import CreatePanel from '@webvue/ui/app/components/shared/layout/CreatePanel.vue'
-import FormSection from '@webvue/ui/app/components/shared/layout/FormSection.vue'
-import FormActions from '@webvue/ui/app/components/shared/form/FormActions.vue'
-import DateField from '@webvue/ui/app/components/shared/form/DateField.vue'
+import CreatePanel from '@liwan/ui/app/components/shared/layout/CreatePanel.vue'
+import FormSection from '@liwan/ui/app/components/shared/layout/FormSection.vue'
+import FormActions from '@liwan/ui/app/components/shared/form/FormActions.vue'
+import DateField from '@liwan/ui/app/components/shared/form/DateField.vue'
 import { storyContext } from '../../support/context'
 
 // The applicant create panel of /hr/recruitment/new: the route-backed SharedCreatePanel

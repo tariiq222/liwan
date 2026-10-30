@@ -111,7 +111,7 @@ Expected: FAIL.
 
 - [ ] **Step 3: Implement**
 
-Select `state IN ('active','past_due') AND renewal_at <= today + lead_days` and `auto_renew_enabled`, write the notice with the exact amount of the next invoice (computed with `computeQuote` from the pinned snapshot, so the customer sees the real number), and mention how to turn it off. `lead_days` comes from the env (`WEBVUE_RENEWAL_NOTICE_DAYS`, default 7) and is asserted to be greater than zero.
+Select `state IN ('active','past_due') AND renewal_at <= today + lead_days` and `auto_renew_enabled`, write the notice with the exact amount of the next invoice (computed with `computeQuote` from the pinned snapshot, so the customer sees the real number), and mention how to turn it off. `lead_days` comes from the env (`LIWAN_RENEWAL_NOTICE_DAYS`, default 7) and is asserted to be greater than zero.
 
 - [ ] **Step 4: Run the tests**
 

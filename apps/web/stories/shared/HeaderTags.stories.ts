@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import HeaderTags from '@webvue/ui/app/components/shared/layout/HeaderTags.vue'
+import HeaderTags from '@liwan/ui/app/components/shared/layout/HeaderTags.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

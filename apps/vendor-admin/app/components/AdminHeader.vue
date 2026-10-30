@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
-import type { ShellRailItem } from '@webvue/ui/app/types/shell'
-import { usePageHeaderTitle } from '@webvue/ui/app/composables/usePageHeader'
+import type { ShellRailItem } from '@liwan/ui/app/types/shell'
+import { usePageHeaderTitle } from '@liwan/ui/app/composables/usePageHeader'
 
 // The 48px neutral header: mobile menu, breadcrumb, the console badge that marks this as the
 // vendor console, and the account menu (language, appearance, sign-out).
@@ -16,7 +16,7 @@ const { mode, setMode } = useAppearance()
 const toast = useToast()
 
 const modes = [{ value: 'light', icon: 'i-lucide-sun' }, { value: 'dark', icon: 'i-lucide-moon' }] as const
-type MenuItem = DropdownMenuItem & { webvueIcon?: string }
+type MenuItem = DropdownMenuItem & { liwanIcon?: string }
 
 const initials = computed(() => Array.from((me.value?.display_name ?? '?').trim())[0] ?? '?')
 const roleNames = computed(() => (me.value?.roles ?? []).map(role => (te(`app.shell.roles.${role}`) ? t(`app.shell.roles.${role}`) : role)).join('، '))
@@ -39,7 +39,7 @@ async function leave() {
   }
 }
 
-const iconOf = (item: DropdownMenuItem) => (item as MenuItem).webvueIcon
+const iconOf = (item: DropdownMenuItem) => (item as MenuItem).liwanIcon
 const menu = computed<MenuItem[][]>(() => [
   [
     { type: 'label' as const, label: me.value?.display_name ?? '' },
@@ -61,27 +61,27 @@ const menu = computed<MenuItem[][]>(() => [
     ...modes.map(item => ({
       type: 'checkbox' as const,
       label: t(`app.shell.${item.value}`),
-      webvueIcon: item.icon,
+      liwanIcon: item.icon,
       checked: mode.value === item.value,
       onUpdateChecked: (checked: boolean) => { if (checked) setMode(item.value) },
     })),
   ],
   [
-    { label: t('app.shell.signOut'), color: 'error' as const, webvueIcon: 'i-lucide-log-out', onSelect: () => { void leave() } },
+    { label: t('app.shell.signOut'), color: 'error' as const, liwanIcon: 'i-lucide-log-out', onSelect: () => { void leave() } },
   ],
 ])
 </script>
 
 <template>
-  <header data-testid="shell-header" class="webvue-shell-header" :aria-label="t('app.shell.header')">
-    <div class="webvue-shell-header-start">
+  <header data-testid="shell-header" class="liwan-shell-header" :aria-label="t('app.shell.header')">
+    <div class="liwan-shell-header-start">
       <AdminMobileNav :items="props.items" :active-id="props.activeId" />
       <ShellBreadcrumb :items="crumbs" />
       <UBadge color="neutral" variant="subtle" size="sm" class="min-w-0 shrink grow-0 overflow-hidden whitespace-nowrap" data-testid="vendor-console-badge">
         {{ t('app.shell.consoleBadge') }}
       </UBadge>
     </div>
-    <div class="webvue-shell-header-actions">
+    <div class="liwan-shell-header-actions">
       <UDropdownMenu
         :items="menu"
         :modal="false"
@@ -107,7 +107,7 @@ const menu = computed<MenuItem[][]>(() => [
           </span>
         </UButton>
         <template #item-leading="{ item }">
-          <UIcon v-if="iconOf(item)" :name="iconOf(item)!" class="webvue-shell-icon size-4.5 shrink-0" aria-hidden="true" />
+          <UIcon v-if="iconOf(item)" :name="iconOf(item)!" class="liwan-shell-icon size-4.5 shrink-0" aria-hidden="true" />
         </template>
       </UDropdownMenu>
     </div>

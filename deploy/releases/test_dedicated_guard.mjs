@@ -11,7 +11,7 @@ import { createDedicatedGuard } from './dedicated_guard.mjs'
 import { loadDedicatedConfig } from './start_dedicated.mjs'
 
 const token = 'synthetic-local-token-'.repeat(3)
-const binding = { tenantId: 'tenant_a', database: 'webvue_scratch_dedicated', filestore: 'webvue_scratch_dedicated', identityRevision: 4, host: 'tenant.test', commercialMode: 'non_saas' }
+const binding = { tenantId: 'tenant_a', database: 'liwan_scratch_dedicated', filestore: 'liwan_scratch_dedicated', identityRevision: 4, host: 'tenant.test', commercialMode: 'non_saas' }
 const route = { schemaVersion: 1, tenantId: 'tenant_a', identityRevision: 4, routeRevision: 2, poolId: 'blue', releaseId: 'release_one', fence: 8, state: 'serving' }
 const listen = async (server, host = '127.0.0.1') => { server.listen(0, host); await once(server, 'listening'); return `http://127.0.0.1:${server.address().port}` }
 function call(url, path = '/', headers = {}, body) {
@@ -24,7 +24,7 @@ function call(url, path = '/', headers = {}, body) {
   })
 }
 async function fixture(t, { listenHost, ...guardOptions } = {}) {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), 'webvue-dedicated-guard-')))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'liwan-dedicated-guard-')))
   const bindingPath = join(root, 'binding.json'); writeFileSync(bindingPath, JSON.stringify(binding))
   const observed = [], control = { hung: [], closed: 0 }
   control.admitted = new Promise(resolve => { control.mark = resolve })
@@ -55,7 +55,7 @@ async function fixture(t, { listenHost, ...guardOptions } = {}) {
   const url = await listen(guard, listenHost)
   return { root, bindingPath, guard, url, observed, control }
 }
-const internal = { 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '4' }
+const internal = { 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '4' }
 
 test('dedicated edge routes legacy Odoo paths and passes raw session cookie unchanged', async t => {
   const f = await fixture(t)
@@ -69,33 +69,33 @@ test('dedicated edge routes legacy Odoo paths and passes raw session cookie unch
   const cookie = 'session_id=existing-raw-cookie; preference=x'
   assert.equal((await call(f.url, '/api/v1/me', { cookie })).body, 'web')
   assert.equal(f.observed.at(-1).headers.cookie, cookie)
-  assert.equal(f.observed.at(-1).headers['x-webvue-proxy-token'], token)
+  assert.equal(f.observed.at(-1).headers['x-liwan-proxy-token'], token)
   assert.equal((await call(f.url, '/api/v1/me', { ...internal, cookie })).body, 'odoo')
   assert.equal(f.observed.at(-1).headers.cookie, cookie)
-  assert.equal(f.observed.at(-1).headers['x-webvue-proxy-token'], undefined)
+  assert.equal(f.observed.at(-1).headers['x-liwan-proxy-token'], undefined)
 })
 
 test('dedicated Nuxt hop preserves browser CSRF while private and Odoo headers stay isolated', async t => {
   const f = await fixture(t)
   const csrf = 'synthetic-browser-csrf-value'
-  const headers = { cookie: `session_id=raw; webvue_csrf=${csrf}`, 'x-webvue-csrf': csrf }
+  const headers = { cookie: `session_id=raw; liwan_csrf=${csrf}`, 'x-liwan-csrf': csrf }
   assert.equal((await call(f.url, '/api/commercial/subscription', headers, '{}')).status, 200)
   const forwarded = f.observed.at(-1)
   assert.equal(forwarded.kind, 'web')
-  assert.equal(forwarded.headers['x-webvue-csrf'], csrf)
+  assert.equal(forwarded.headers['x-liwan-csrf'], csrf)
   assert.equal(forwarded.headers.cookie, headers.cookie)
   assert.equal((await call(f.url, '/api/v1/me', headers)).status, 200)
   assert.equal(f.observed.at(-1).kind, 'web')
-  assert.equal(f.observed.at(-1).headers['x-webvue-csrf'], csrf)
+  assert.equal(f.observed.at(-1).headers['x-liwan-csrf'], csrf)
   assert.equal((await call(f.url, '/api/v1/me', { ...headers, ...internal })).status, 200)
   assert.equal(f.observed.at(-1).kind, 'odoo')
-  assert.equal(f.observed.at(-1).headers['x-webvue-csrf'], undefined)
-  assert.equal((await call(f.url, '/', { ...headers, 'x-webvue-release-pool': 'green' })).status, 403)
+  assert.equal(f.observed.at(-1).headers['x-liwan-csrf'], undefined)
+  assert.equal((await call(f.url, '/', { ...headers, 'x-liwan-release-pool': 'green' })).status, 403)
 })
 
 test('other Host, browser selectors and private release headers cannot choose a pool or DB', async t => {
   const f = await fixture(t)
-  for (const [path, headers] of [['/', { host: 'other.test' }], ['/?db=foreign', {}], ['/', { 'x-webvue-release-pool': 'blue' }], ['/', { 'x-forwarded-host': 'other.test' }]]) {
+  for (const [path, headers] of [['/', { host: 'other.test' }], ['/?db=foreign', {}], ['/', { 'x-liwan-release-pool': 'blue' }], ['/', { 'x-forwarded-host': 'other.test' }]]) {
     assert.equal((await call(f.url, path, headers)).status, 403)
   }
   assert.equal(f.observed.length, 0)
@@ -107,17 +107,17 @@ test('token and identity revision guard internal pin and auth DB parameter', asy
   assert.equal((await call(f.url, '/web/session/authenticate', { 'content-type': 'application/json' }, body)).status, 403)
   assert.equal((await call(f.url, '/web/session/authenticate', { ...internal, 'content-type': 'application/json' }, body)).status, 200)
   assert.equal((await call(f.url, '/web/session/authenticate', { ...internal, 'content-type': 'application/json' }, body.replace(binding.database, 'foreign'))).status, 403)
-  assert.equal((await call(f.url, '/', { ...internal, 'x-webvue-tenant-revision': '3' })).status, 403)
-  assert.equal((await call(f.url, '/', { ...internal, 'x-webvue-release-pool': 'green', 'x-webvue-release-revision': '1', 'x-webvue-release-fence': '1' })).status, 503)
-  assert.equal((await call(f.url, '/', { ...internal, 'x-webvue-release-pool': 'blue', 'x-webvue-release-revision': '2', 'x-webvue-release-fence': '8' })).status, 200)
+  assert.equal((await call(f.url, '/', { ...internal, 'x-liwan-tenant-revision': '3' })).status, 403)
+  assert.equal((await call(f.url, '/', { ...internal, 'x-liwan-release-pool': 'green', 'x-liwan-release-revision': '1', 'x-liwan-release-fence': '1' })).status, 503)
+  assert.equal((await call(f.url, '/', { ...internal, 'x-liwan-release-pool': 'blue', 'x-liwan-release-revision': '2', 'x-liwan-release-fence': '8' })).status, 200)
 })
 
 test('maintenance denies every exposed path while privileged status observes current route', async t => {
   const f = await fixture(t)
   writeFileSync(join(f.root, 'tenant_a.maintenance'), '{}')
   for (const path of ['/', '/api/v1/me', '/api/v1/tasks/1/attachments/1/download', '/web/session/authenticate', '/websocket', '/base/static/a.js']) assert.equal((await call(f.url, path, { origin: 'https://' + binding.host })).status, 503)
-  assert.equal((await call(f.url, '/_webvue/release-status')).status, 403)
-  const status = await call(f.url, '/_webvue/release-status', internal)
+  assert.equal((await call(f.url, '/_liwan/release-status')).status, 403)
+  const status = await call(f.url, '/_liwan/release-status', internal)
   assert.equal(status.status, 200)
   assert.deepEqual(JSON.parse(status.body), { routeRevision: 2, fence: 8, poolId: 'blue', releaseId: 'release_one', maintenance: true, leases: [] })
   assert.equal(f.observed.length, 0)
@@ -125,14 +125,14 @@ test('maintenance denies every exposed path while privileged status observes cur
 
 test('trusted socket edge client authority is retained for BFF and overwritten downstream', async t => {
   const f = await fixture(t)
-  const response = await call(f.url, '/', { 'x-webvue-client-ip': '192.0.2.5', 'x-webvue-client-host': binding.host, 'x-webvue-client-proto': 'https' })
+  const response = await call(f.url, '/', { 'x-liwan-client-ip': '192.0.2.5', 'x-liwan-client-host': binding.host, 'x-liwan-client-proto': 'https' })
   assert.equal(response.status, 200)
   const headers = f.observed.at(-1).headers
-  assert.equal(headers['x-webvue-client-ip'], '192.0.2.5')
-  assert.equal(headers['x-webvue-client-host'], binding.host)
-  assert.equal(headers['x-webvue-release-pool'], 'blue')
-  assert.equal(headers['x-webvue-proxy-token'], token)
-  assert.equal((await call(f.url, '/', { 'x-webvue-client-ip': 'bad', 'x-webvue-client-host': binding.host, 'x-webvue-client-proto': 'https' })).status, 403)
+  assert.equal(headers['x-liwan-client-ip'], '192.0.2.5')
+  assert.equal(headers['x-liwan-client-host'], binding.host)
+  assert.equal(headers['x-liwan-release-pool'], 'blue')
+  assert.equal(headers['x-liwan-proxy-token'], token)
+  assert.equal((await call(f.url, '/', { 'x-liwan-client-ip': 'bad', 'x-liwan-client-host': binding.host, 'x-liwan-client-proto': 'https' })).status, 403)
 })
 
 test('WebSocket upgrade tunnel holds its lease and carries the raw cookie', async t => {
@@ -157,10 +157,10 @@ test('WebSocket upgrade tunnel holds its lease and carries the raw cookie', asyn
 test('startup reads only local binding, token and release files with no vendor network', async t => {
   const f = await fixture(t)
   const tokenPath = join(f.root, 'proxy-token'); writeFileSync(tokenPath, token, { mode: 0o600 })
-  const config = loadDedicatedConfig({ WEBVUE_DEDICATED_BINDING_PATH: f.bindingPath, WEBVUE_RELEASE_ROUTES_DIR: f.root, WEBVUE_DEDICATED_PROXY_TOKEN_FILE: tokenPath })
+  const config = loadDedicatedConfig({ LIWAN_DEDICATED_BINDING_PATH: f.bindingPath, LIWAN_RELEASE_ROUTES_DIR: f.root, LIWAN_DEDICATED_PROXY_TOKEN_FILE: tokenPath })
   assert.equal(config.proxyToken, token)
   assert.equal(config.bindingPath, f.bindingPath)
-  assert.throws(() => loadDedicatedConfig({ WEBVUE_DEDICATED_BINDING_PATH: f.bindingPath, WEBVUE_RELEASE_ROUTES_DIR: f.root, WEBVUE_DEDICATED_PROXY_TOKEN: 'short' }))
+  assert.throws(() => loadDedicatedConfig({ LIWAN_DEDICATED_BINDING_PATH: f.bindingPath, LIWAN_RELEASE_ROUTES_DIR: f.root, LIWAN_DEDICATED_PROXY_TOKEN: 'short' }))
 })
 
 test('running HTTP lease remains visible to maintenance status until response completion', async t => {
@@ -168,16 +168,16 @@ test('running HTTP lease remains visible to maintenance status until response co
   const pending = call(f.url, '/slow')
   await f.control.admitted
   writeFileSync(join(f.root, 'tenant_a.maintenance'), '{}')
-  const status = JSON.parse((await call(f.url, '/_webvue/release-status', internal)).body)
+  const status = JSON.parse((await call(f.url, '/_liwan/release-status', internal)).body)
   assert.deepEqual(status.leases, [{ poolId: 'blue', operation: 'http' }])
   f.control.reply.end('finished-on-old-pool')
   assert.equal((await pending).body, 'finished-on-old-pool')
-  assert.deepEqual(JSON.parse((await call(f.url, '/_webvue/release-status', internal)).body).leases, [])
+  assert.deepEqual(JSON.parse((await call(f.url, '/_liwan/release-status', internal)).body).leases, [])
 })
 
 test('untrusted socket peer cannot supply client authority and symlink binding fails startup', async t => {
   const f = await fixture(t, { trustedEdgeAddresses: ['192.0.2.1'] })
-  assert.equal((await call(f.url, '/', { 'x-webvue-client-ip': '192.0.2.5', 'x-webvue-client-host': binding.host, 'x-webvue-client-proto': 'https' })).status, 403)
+  assert.equal((await call(f.url, '/', { 'x-liwan-client-ip': '192.0.2.5', 'x-liwan-client-host': binding.host, 'x-liwan-client-proto': 'https' })).status, 403)
   const link = join(f.root, 'binding-link.json'); symlinkSync(f.bindingPath, link)
   assert.throws(() => createDedicatedGuard({ bindingPath: link, releaseRoutesDir: f.root, proxyToken: token }))
   assert.equal(f.observed.length, 0)
@@ -185,7 +185,7 @@ test('untrusted socket peer cannot supply client authority and symlink binding f
 
 
 test('dedicated retained assets survive pool switch, latest follows active web and maintenance still gates', async t => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), 'webvue-dedicated-assets-')))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'liwan-dedicated-assets-')))
   const store = join(root, 'assets')
   const source = (name, files) => {
     const path = join(root, name); mkdirSync(path)
@@ -211,7 +211,7 @@ test('dedicated retained assets survive pool switch, latest follows active web a
     const result = await call(f.url, path)
     assert.equal(result.status, 200); assert.equal(result.body, expected)
     assert.match(result.headers['cache-control'], /immutable/)
-    assert.equal(result.headers['x-webvue-proxy-token'], undefined); assert.equal(result.headers['set-cookie'], undefined)
+    assert.equal(result.headers['x-liwan-proxy-token'], undefined); assert.equal(result.headers['set-cookie'], undefined)
     const head = await new Promise((resolve, reject) => {
       const url = new URL(f.url)
       const req = http.request({ hostname: url.hostname, port: url.port, path, method: 'HEAD', headers: { host: binding.host } }, res => { let body = ''; res.on('data', bytes => { body += bytes }); res.on('end', () => resolve({ status: res.statusCode, body })) })
@@ -221,7 +221,7 @@ test('dedicated retained assets survive pool switch, latest follows active web a
   }
   assert.equal((await call(f.url, '/_nuxt/Missing1.js')).status, 404)
   assert.equal((await call(f.url, '/_nuxt/builds/latest.json')).body, '{"id":"green-live"}')
-  assert.deepEqual(JSON.parse((await call(f.url, '/_webvue/release-status', internal)).body).leases, [])
+  assert.deepEqual(JSON.parse((await call(f.url, '/_liwan/release-status', internal)).body).leases, [])
   writeFileSync(join(f.root, 'tenant_a.maintenance'), '{}')
   assert.equal((await call(f.url, '/_nuxt/Old12345.js')).status, 503)
   assert.equal(f.observed.length, 0)
@@ -230,7 +230,7 @@ test('dedicated retained assets survive pool switch, latest follows active web a
 test('dedicated asset store startup is explicit and rejects symlink roots', async t => {
   const f = await fixture(t)
   const store = join(f.root, 'assets'); mkdirSync(store)
-  const config = loadDedicatedConfig({ WEBVUE_DEDICATED_BINDING_PATH: f.bindingPath, WEBVUE_RELEASE_ROUTES_DIR: f.root, WEBVUE_DEDICATED_PROXY_TOKEN: token, WEBVUE_RELEASE_ASSETS_DIR: store })
+  const config = loadDedicatedConfig({ LIWAN_DEDICATED_BINDING_PATH: f.bindingPath, LIWAN_RELEASE_ROUTES_DIR: f.root, LIWAN_DEDICATED_PROXY_TOKEN: token, LIWAN_RELEASE_ASSETS_DIR: store })
   assert.equal(config.releaseAssetsDir, store)
   const alias = join(f.root, 'asset-alias'); symlinkSync(store, alias)
   assert.throws(() => createDedicatedGuard({ bindingPath: f.bindingPath, releaseRoutesDir: f.root, proxyToken: token, releaseAssetsDir: alias }))
@@ -239,11 +239,11 @@ test('dedicated asset store startup is explicit and rejects symlink roots', asyn
 
 test('authenticated BFF hop preserves original edge authority while an untrusted public peer cannot spoof it', async t => {
   const f = await fixture(t, { trustedEdgeAddresses: ['::ffff:127.0.0.1'], listenHost: '::' })
-  const edge = { 'x-webvue-client-ip': '198.51.100.9', 'x-webvue-client-host': binding.host, 'x-webvue-client-proto': 'https' }
+  const edge = { 'x-liwan-client-ip': '198.51.100.9', 'x-liwan-client-host': binding.host, 'x-liwan-client-proto': 'https' }
   const bffUrl = f.url.replace('127.0.0.1', '[::1]')
   f.control.bffHop = async (req, res) => {
     try {
-      const headers = Object.fromEntries(['x-webvue-proxy-token', 'x-webvue-tenant-revision', 'x-webvue-release-pool', 'x-webvue-release-revision', 'x-webvue-release-fence', 'x-webvue-release-admission', ...Object.keys(edge)].filter(name => req.headers[name] !== undefined).map(name => [name, req.headers[name]]))
+      const headers = Object.fromEntries(['x-liwan-proxy-token', 'x-liwan-tenant-revision', 'x-liwan-release-pool', 'x-liwan-release-revision', 'x-liwan-release-fence', 'x-liwan-release-admission', ...Object.keys(edge)].filter(name => req.headers[name] !== undefined).map(name => [name, req.headers[name]]))
       const response = await call(bffUrl, '/api/v1/me', headers)
       res.writeHead(response.status); res.end(response.body)
     } catch { res.writeHead(500); res.end('bff_test_failed') }
@@ -252,22 +252,22 @@ test('authenticated BFF hop preserves original edge authority while an untrusted
   assert.equal(result.status, 200); assert.equal(result.body, 'odoo')
   const downstream = f.observed.at(-1)
   assert.equal(downstream.kind, 'odoo')
-  assert.equal(downstream.headers['x-forwarded-for'], edge['x-webvue-client-ip'])
+  assert.equal(downstream.headers['x-forwarded-for'], edge['x-liwan-client-ip'])
   assert.equal(downstream.headers['x-forwarded-host'], binding.host)
   assert.equal(downstream.headers['x-forwarded-proto'], 'https')
-  assert.equal(downstream.headers['x-webvue-client-ip'], undefined)
-  assert.equal(downstream.headers['x-webvue-proxy-token'], undefined)
+  assert.equal(downstream.headers['x-liwan-client-ip'], undefined)
+  assert.equal(downstream.headers['x-liwan-proxy-token'], undefined)
   const count = f.observed.length
-  for (const headers of [edge, { ...edge, 'x-webvue-proxy-token': 'invalid' },
-    { ...edge, ...internal, 'x-webvue-tenant-revision': '3' },
-    { ...edge, ...internal, 'x-webvue-client-ip': '198.51.100.9, 127.0.0.1' },
-    { ...edge, ...internal, 'x-webvue-client-host': 'foreign.test' },
-    { ...edge, ...internal, 'x-webvue-client-proto': 'ftp' },
-    { ...internal, 'x-webvue-client-ip': edge['x-webvue-client-ip'] }]) {
+  for (const headers of [edge, { ...edge, 'x-liwan-proxy-token': 'invalid' },
+    { ...edge, ...internal, 'x-liwan-tenant-revision': '3' },
+    { ...edge, ...internal, 'x-liwan-client-ip': '198.51.100.9, 127.0.0.1' },
+    { ...edge, ...internal, 'x-liwan-client-host': 'foreign.test' },
+    { ...edge, ...internal, 'x-liwan-client-proto': 'ftp' },
+    { ...internal, 'x-liwan-client-ip': edge['x-liwan-client-ip'] }]) {
     assert.equal((await call(bffUrl, '/api/v1/me', headers)).status, 403)
   }
   assert.equal(f.observed.length, count)
-  assert.deepEqual(JSON.parse((await call(f.url, '/_webvue/release-status', internal)).body).leases, [])
+  assert.deepEqual(JSON.parse((await call(f.url, '/_liwan/release-status', internal)).body).leases, [])
 })
 
 // Body credits are four per hop pool: four hung forwards would admit nothing else if a departed caller kept them.

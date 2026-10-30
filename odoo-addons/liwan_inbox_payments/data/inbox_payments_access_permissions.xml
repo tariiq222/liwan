@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="permission_inbox_catalog_manage" model="liwan.access.permission">
+        <field name="key">inbox.catalog.manage</field><field name="domain">inbox</field>
+        <field name="resource">catalog</field><field name="action">manage</field>
+        <field name="name_ar">إدارة كتالوج المنتجات</field><field name="name_en">Manage the product catalog</field>
+        <field name="description_ar">ربط كتالوج ميتا برقم واتساب وإضافة المنتجات إليه وضبط السلة وزر الكتالوج</field><field name="description_en">Connect the Meta catalog to the WhatsApp account, add products to it and set the cart and the catalog button</field>
+        <field name="group_xmlid">liwan_inbox_payments.group_cap_inbox_catalog_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
+    </record>
+    <record id="permission_inbox_orders_manage" model="liwan.access.permission">
+        <field name="key">inbox.orders.manage</field><field name="domain">inbox</field>
+        <field name="resource">orders</field><field name="action">manage</field>
+        <field name="name_ar">إدارة طلبات واتساب</field><field name="name_en">Manage WhatsApp orders</field>
+        <field name="description_ar">تعديل سلة العميل وإنشاء الطلب وإرسال رابط الدفع وإلغاؤه</field><field name="description_en">Edit the customer's cart, create the order, send its pay link and cancel it</field>
+        <field name="group_xmlid">liwan_inbox_payments.group_cap_inbox_orders_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
+    </record>
+    <!-- Built-in roles are noupdate records: these hooks link this addon's grants and
+         dependencies on install and on every upgrade. -->
+    <function model="liwan.access.service" name="_liwan_configure_permission_dependencies"/>
+    <function model="liwan.access.service" name="_liwan_repair_builtin_role_grants"/>
+</odoo>

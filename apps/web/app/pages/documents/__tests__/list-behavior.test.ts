@@ -7,7 +7,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { createHooks } from 'hookable'
 import ts from 'typescript'
 import { hasPendingDocumentSearch, documentCommittedListParams, DOCUMENT_EXPIRING_DAYS } from '../../../lib/documentKeys'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 
 const cleanups: Array<() => void> = []
 afterEach(() => { cleanups.splice(0).forEach(cleanup => cleanup()) })
@@ -23,19 +23,19 @@ async function loadPage(allowed = true, initialPath = '/documents?q=term&context
     get fullPath() { return router.currentRoute.value.fullPath }, get hash() { return router.currentRoute.value.hash },
   })
   const hooks = createHooks()
-  router.beforeEach(to => hooks.callHook('webvue:navigation:start', to))
+  router.beforeEach(to => hooks.callHook('liwan:navigation:start', to))
   const replace = vi.spyOn(router, 'replace')
   let documentParams: Vue.ComputedRef<Record<string, unknown>> | undefined
   const require = (name: string) => {
     if (name === 'vue') return Vue
-    if (name === '@webvue/ui/app/components/shared/data/FilterBar.vue' || name === '@webvue/ui/app/components/shared/data/RecordNumber.vue' || name === '@webvue/ui/app/utils/recordNumberHeader') return {}
+    if (name === '@liwan/ui/app/components/shared/data/FilterBar.vue' || name === '@liwan/ui/app/components/shared/data/RecordNumber.vue' || name === '@liwan/ui/app/utils/recordNumberHeader') return {}
     if (name === '@vueuse/core') return { refDebounced: (value: Vue.Ref<string>) => value }
     if (name === '@/components/documents/DocumentList.vue') return {}
     if (name === '@/composables/useDocuments') return { useDocumentContexts: () => ({ data: Vue.ref({ items: [{ kind: 'hr.department', label: 'Department' }] }) }), useDocumentContextOptions: () => ({ data: Vue.ref({ items: [] }) }), useDocuments: (params: Vue.ComputedRef<Record<string, unknown>>) => {
       if ('value' in params) documentParams = params
       return { data: Vue.ref({ items: Array.from({ length: 50 }, (_, index) => ({ id: index + 1 })), total: 50 }), isFetching: Vue.ref(false), isLoading: Vue.ref(false), error: Vue.ref(null), refetch: () => Promise.resolve() }
     } }
-    if (name === '@webvue/ui/app/utils/safeReturnTo') return { returnToQuery }
+    if (name === '@liwan/ui/app/utils/safeReturnTo') return { returnToQuery }
     if (name === '@/utils/documentKpis') return { documentKpiTiles: () => [] }
     if (name === '@/lib/documentKeys') return { hasPendingDocumentSearch, documentCommittedListParams, DOCUMENT_EXPIRING_DAYS }
     throw new Error(`Unexpected import: ${name}`)

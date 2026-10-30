@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CrmOutcomeSchema, type CrmOutcome } from '@webvue/contracts'
+import { CrmOutcomeSchema, type CrmOutcome } from '@liwan/contracts'
 import { useCrmListEditor, useCrmLostReasons, useCrmOutcomes } from '@/composables/crm/useCrmLists'
 
 // What a call can end in, and what each ending does to the opportunity.

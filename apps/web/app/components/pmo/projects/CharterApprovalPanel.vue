@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { useQueryClient } from '@tanstack/vue-query'
-import { CHARTER_RETURN_NOTE_MAX, type ProjectCharterAction, type ProjectDetail } from '@webvue/contracts'
+import { CHARTER_RETURN_NOTE_MAX, type ProjectCharterAction, type ProjectDetail } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
-import { formatWebVueDate } from '@webvue/ui/app/composables/calendarDate'
+import { formatLiwanDate } from '@liwan/ui/app/composables/calendarDate'
 import { projectKeys } from '@/composables/projectKeys'
 import { useCharterTransition } from '@/composables/useProjects'
 
@@ -23,7 +23,7 @@ const canWithdraw = computed(() => state.value === 'submitted' && props.project.
 const sponsorName = computed(() => charter.value.sponsor?.name ?? '')
 const approvedLabel = computed(() => {
   const { approved_by: by, approved_at: at } = charter.value
-  return by ? t('projects.charter.approvedBy', { name: by.name, date: formatWebVueDate(at) }) : t('projects.charter.state.approved')
+  return by ? t('projects.charter.approvedBy', { name: by.name, date: formatLiwanDate(at) }) : t('projects.charter.state.approved')
 })
 
 const returning = ref(false)
@@ -52,7 +52,7 @@ async function run(action: ProjectCharterAction, body?: string) {
 </script>
 
 <template>
-  <div class="webvue-print-hide" data-testid="charter-approval-panel">
+  <div class="liwan-print-hide" data-testid="charter-approval-panel">
     <UAlert v-if="state === 'draft' && charter.return_note" color="warning" variant="subtle" icon="i-lucide-undo-2" data-testid="charter-returned" :title="t('projects.charter.returned')" :description="charter.return_note" />
     <UAlert v-else-if="state === 'draft'" color="warning" variant="subtle" icon="i-lucide-pencil-line" data-testid="charter-draft-banner" :title="t('projects.charter.draftBanner')" />
 

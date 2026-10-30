@@ -53,10 +53,10 @@ async function submit() {
   <SharedCreatePanel :title="t(`${NAMESPACE}.runs.new`)" :back-to="backTo">
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedForbiddenState v-if="!can('hr.onboarding.manage')" :description="t(`${NAMESPACE}.errors.forbidden`)" />
-    <UForm v-else :state="{ employeeId, planId, planDate }" class="webvue-form" method="post" :loading-auto="false" novalidate @submit="submit">
+    <UForm v-else :state="{ employeeId, planId, planDate }" class="liwan-form" method="post" :loading-auto="false" novalidate @submit="submit">
       <UAlert v-if="formError" role="alert" color="error" variant="subtle" :title="t(`${NAMESPACE}.form.saveError`)" :description="errorMessage" />
       <SharedFormSection panel :title="t(`${NAMESPACE}.runs.title`)">
-        <div class="webvue-form-grid">
+        <div class="liwan-form-grid">
           <UFormField :label="t(`${NAMESPACE}.form.employee`)" name="hr-onboarding-employee" required :error="employeeError">
             <USelect
               id="hr-onboarding-employee"

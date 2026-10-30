@@ -2,7 +2,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { defineComponent, h } from 'vue'
-import type { ProjectPhaseState } from '@webvue/contracts'
+import type { ProjectPhaseState } from '@liwan/contracts'
 import { PHASE_LABEL_KEY, canMoveForward, gateCheckRows, isGateCardVisible } from '../../../../composables/projectPhase'
 import { renderTemplate } from './helpers/renderTemplate'
 

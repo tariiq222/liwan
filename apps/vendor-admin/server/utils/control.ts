@@ -1,5 +1,5 @@
 import type { H3Event } from 'h3'
-import { signServiceRequest } from '@webvue/commercial-contracts/server'
+import { signServiceRequest } from '@liwan/commercial-contracts/server'
 import { bffConfig } from './config'
 import { bffFail } from './errors'
 import { clientIp } from './client-ip'
@@ -29,7 +29,7 @@ function parseJson(text: string): unknown {
 
 /**
  * One signed control-plane request. Request headers are built from scratch: no browser header or
- * cookie is forwarded, and x-webvue-client-ip always carries the address this BFF observed.
+ * cookie is forwarded, and x-liwan-client-ip always carries the address this BFF observed.
  * 2xx and 4xx come back as data; anything else (5xx, network, timeout, redirect) is 503.
  */
 export async function controlCall(event: H3Event, request: ControlRequest): Promise<ControlResult> {
@@ -54,8 +54,8 @@ export async function controlCall(event: H3Event, request: ControlRequest): Prom
     ...signed,
     accept: 'application/json',
     ...(rawBody === undefined ? {} : { 'content-type': 'application/json' }),
-    ...(ip ? { 'x-webvue-client-ip': ip } : {}),
-    ...(request.session ? { 'x-webvue-session': request.session.value } : {}),
+    ...(ip ? { 'x-liwan-client-ip': ip } : {}),
+    ...(request.session ? { 'x-liwan-session': request.session.value } : {}),
   }
   let response: Response
   try {

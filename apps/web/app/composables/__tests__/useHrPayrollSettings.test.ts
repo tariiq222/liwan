@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { QueryClient } from '@tanstack/vue-query'
-import type { HrGosiRate, HrPayrollSettings } from '@webvue/contracts'
+import type { HrGosiRate, HrPayrollSettings } from '@liwan/contracts'
 import { hrPayrollKeys } from '../useHrPayrollCompensation'
 import { deleteHrGosiRate, patchHrPayrollSettings, saveHrGosiRate } from '../useHrPayrollSettings'
 

@@ -2,7 +2,7 @@ import { readFileSync, lstatSync, realpathSync } from 'node:fs'
 import { isAbsolute, parse, dirname } from 'node:path'
 import { z } from 'zod'
 const absolute = z.string().refine(isAbsolute)
-const schema = z.strictObject({schemaVersion:z.literal(1),releaseBackupConfig:absolute.optional(),projectName:z.string().regex(/^webvue-(?:saas|shared)-[a-z0-9-]{3,48}$/),composeFile:absolute,envFile:absolute,stateDir:absolute,domainSuffix:z.string().max(200).regex(/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/)})
+const schema = z.strictObject({schemaVersion:z.literal(1),releaseBackupConfig:absolute.optional(),projectName:z.string().regex(/^liwan-(?:saas|shared)-[a-z0-9-]{3,48}$/),composeFile:absolute,envFile:absolute,stateDir:absolute,domainSuffix:z.string().max(200).regex(/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/)})
 export type SharedRuntimeConfig = z.infer<typeof schema>
 export function parseSharedRuntimeConfig(value:unknown):SharedRuntimeConfig { return schema.parse(value) }
 export function assertNoSymlink(path:string) {

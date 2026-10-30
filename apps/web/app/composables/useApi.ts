@@ -1,6 +1,6 @@
 import type { ZodType } from 'zod'
 import { saveErrorMessage } from '../utils/formFeedback'
-import { ApiErrorSchema } from '@webvue/contracts'
+import { ApiErrorSchema } from '@liwan/contracts'
 import { contentDispositionFilename } from '../utils/contentDisposition'
 import { isTenantSuspended, reportTenantSuspension, TENANT_SUSPENDED } from '../utils/tenantSuspension'
 
@@ -68,10 +68,10 @@ export function useApi() {
   const headers = import.meta.server ? useRequestHeaders(['cookie']) : {}
   // Only middleware-validated server events may supply private hop identity.
   // This stays in the SSR closure, never in returned data or the client payload.
-  const trustedHeaders = import.meta.server && (useRequestEvent()?.context.tenant || useRequestEvent()?.context.webvueRelease)
-    ? useRequestHeaders(['host', 'x-webvue-proxy-token', 'x-webvue-tenant-revision',
-      'x-webvue-release-pool', 'x-webvue-release-revision', 'x-webvue-release-fence', 'x-webvue-release-admission',
-      'x-webvue-client-ip', 'x-webvue-client-host', 'x-webvue-client-proto'])
+  const trustedHeaders = import.meta.server && (useRequestEvent()?.context.tenant || useRequestEvent()?.context.liwanRelease)
+    ? useRequestHeaders(['host', 'x-liwan-proxy-token', 'x-liwan-tenant-revision',
+      'x-liwan-release-pool', 'x-liwan-release-revision', 'x-liwan-release-fence', 'x-liwan-release-admission',
+      'x-liwan-client-ip', 'x-liwan-client-host', 'x-liwan-client-proto'])
     : {}
 
   async function $api<T>(

@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
 
-const TEST_PASSWORD = 'WebVueAccess-Test-123!'
+const TEST_PASSWORD = 'LiwanAccess-Test-123!'
 
 type NotificationItem = {
   id: number

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { Invoice } from '@webvue/commercial-contracts'
-import { formatDate } from '@webvue/ui/app/utils/formatDate'
+import type { Invoice } from '@liwan/commercial-contracts'
+import { formatDate } from '@liwan/ui/app/utils/formatDate'
 import { csrfTokenFor, formatSubscriptionMoney, orderOutcome, refusalCode, refusalKey, sameQuoteEconomics, subscriptionInvoiceView, trialDaysRemaining } from '../subscription'
 
 const money = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })

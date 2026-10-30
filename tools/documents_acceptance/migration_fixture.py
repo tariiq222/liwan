@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Old-release -> actual target upgrade, failure rollback and byte-identity proof.
 
-Only creates fresh webvue_scratch_* databases and its own filestores. Never edits
+Only creates fresh liwan_scratch_* databases and its own filestores. Never edits
 an existing database or source checkout; logs contain synthetic fixture data.
 """
 from __future__ import annotations
@@ -22,35 +22,35 @@ SEED = r'''
 from odoo import Command
 from pathlib import Path
 import base64,json
-profile=env.ref('webvue_platform.tenant_profile')
-profile._webvue_initialize_legacy_policy(env['webvue.feature.registry']._webvue_installed_module_ids())
+profile=env.ref('liwan_platform.tenant_profile')
+profile._liwan_initialize_legacy_policy(env['liwan.feature.registry']._liwan_installed_module_ids())
 companies=[env.company,env['res.company'].create({'name':'Migration company B'})]
 env.ref('base.user_admin').write({'company_ids':[Command.link(companies[1].id)]})
-read=env.ref('webvue_hr.permission_hr_documents_read')
-manage=env.ref('webvue_hr.permission_hr_documents_manage')
+read=env.ref('liwan_hr.permission_hr_documents_read')
+manage=env.ref('liwan_hr.permission_hr_documents_manage')
 for index,company in enumerate(companies):
     department=env['hr.department'].create({'name':'Migration department '+str(index),'company_id':company.id})
-    document=env['webvue.hr.document'].create({'name':'Original '+str(index),'body':'<p>Original Arabic نص '+str(index)+'</p>' if index==0 else False,
+    document=env['liwan.hr.document'].create({'name':'Original '+str(index),'body':'<p>Original Arabic نص '+str(index)+'</p>' if index==0 else False,
         'department_id':department.id,'company_id':company.id,'expiry_date':'2030-01-01' if index==0 else False})
     for number in range(2):
         attachment=env['ir.attachment'].create({'name':str(number)+'.txt','raw':('original bytes '+str(index)+str(number)).encode(),
             'res_model':document._name,'res_id':document.id,'company_id':company.id})
         document.write({'attachment_ids':[Command.link(attachment.id)]})
     permissions=read|manage if index==0 else read
-    role=env['webvue.access.role'].with_company(company).create({'key':'docs_migration_'+str(index),'name_ar':'دور الترحيل','company_id':company.id,
+    role=env['liwan.access.role'].with_company(company).create({'key':'docs_migration_'+str(index),'name_ar':'دور الترحيل','company_id':company.id,
         'permission_ids':[Command.set(permissions.ids)]})
-    env['webvue.access.assignment'].create({'user_id':env.ref('base.user_admin').id,'role_id':role.id,'company_id':company.id})
+    env['liwan.access.assignment'].create({'user_id':env.ref('base.user_admin').id,'role_id':role.id,'company_id':company.id})
     env['ir.model.data'].create({'module':'docs_migration_fixture','name':'document_'+str(index),'model':document._name,'res_id':document.id,'noupdate':True})
 env.cr.commit()
 '''
 SNAPSHOT = r'''
 from pathlib import Path
 import json,hashlib,base64
-old='webvue.hr.document' in env
-model=env['webvue.hr.document' if old else 'webvue.document']
+old='liwan.hr.document' in env
+model=env['liwan.hr.document' if old else 'liwan.document']
 documents=model.with_context(active_test=False).search([],order='id')
 attachments=env['ir.attachment'].search([('res_model','=',model._name)],order='id')
-roles=env['webvue.access.role'].search([('key','=like','docs_migration_%')],order='id')
+roles=env['liwan.access.role'].search([('key','=like','docs_migration_%')],order='id')
 result={'documents':[{'id':d.id,'company_id':d.company_id.id,'department_id':d.department_id.id,
     'name':d.name,'body_sha256':hashlib.sha256((d.body or '').encode()).hexdigest(),
     'expiry_date':str(d.expiry_date) if d.expiry_date else None} for d in documents],
@@ -67,10 +67,10 @@ if not old:
     assert len(files)==len(attachments)
     assert sorted(files.mapped('attachment_id').ids)==attachments.ids
     assert all(f.directory_id.res_id==f.attachment_id.res_id for f in files)
-    assert not env['webvue.access.assignment'].search_count([('role_id','=',env.ref('webvue_documents.role_documents_manager').id)])
-    assert env.ref('webvue_platform.tenant_profile').features['documents.enabled'] is True
-    assert not env['ir.model'].search_count([('model','=','webvue.hr.document')])
-    env.cr.execute("SELECT to_regclass('webvue_hr_document')")
+    assert not env['liwan.access.assignment'].search_count([('role_id','=',env.ref('liwan_documents.role_documents_manager').id)])
+    assert env.ref('liwan_platform.tenant_profile').features['documents.enabled'] is True
+    assert not env['ir.model'].search_count([('model','=','liwan.hr.document')])
+    env.cr.execute("SELECT to_regclass('liwan_hr_document')")
     assert not env.cr.fetchone()[0]
 Path(OUTPUT).write_text(json.dumps(result,indent=2))
 '''
@@ -84,7 +84,7 @@ def main():
     parser.add_argument('--evidence-dir',type=Path,required=True)
     parser.add_argument('--mode',choices=('saas','non_saas'),default='saas')
     args=parser.parse_args()
-    if not re.fullmatch(r'webvue_scratch_[a-z0-9_]{1,30}',args.database_prefix):
+    if not re.fullmatch(r'liwan_scratch_[a-z0-9_]{1,30}',args.database_prefix):
         parser.error('fresh scratch prefix required')
     try:
         import psycopg2
@@ -99,7 +99,7 @@ def main():
         if cursor.fetchall():
             raise RuntimeError('refusing existing scratch target')
     args.evidence_dir.mkdir(parents=True,exist_ok=True)
-    runtime=Path(tempfile.mkdtemp(prefix='webvue-docs-migration-'))
+    runtime=Path(tempfile.mkdtemp(prefix='liwan-docs-migration-'))
     owned=[];results=[]
     target_addons=runtime/'target-addons'
     shutil.copytree(args.worktree/'odoo-addons',target_addons,ignore=shutil.ignore_patterns('__pycache__'))
@@ -116,7 +116,7 @@ def main():
             classification=source/'classification.json'
             subprocess.run([sys.executable,'-B',str(args.worktree/'deploy/classification.py'),'fixture','--database',database,
                 '--mode',args.mode,'--output',str(classification)],check=True,stdout=subprocess.DEVNULL)
-            environment=dict(os.environ,WEBVUE_COMMERCIAL_CONFIG=str(classification),PYTHONDONTWRITEBYTECODE='1')
+            environment=dict(os.environ,LIWAN_COMMERCIAL_CONFIG=str(classification),PYTHONDONTWRITEBYTECODE='1')
             def run(stage,extra=(),script=None,target=False,expect_failure=False):
                 addons=target_addons if target else runtime/'odoo-addons'
                 command=[str(PYTHON),'-B',str(ODOO/'odoo-bin')]
@@ -136,7 +136,7 @@ def main():
                 if failed!=expect_failure:
                     raise RuntimeError('unexpected stage outcome: '+str(logfile))
             owned.append(database)
-            first,second=('dms','webvue_hr') if order=='dms_before_hr' else ('webvue_hr','dms')
+            first,second=('dms','liwan_hr') if order=='dms_before_hr' else ('liwan_hr','dms')
             run('install-first',['-i',first,'--without-demo=all','--stop-after-init'])
             run('install-second',['-i',second,'--without-demo=all','--stop-after-init'])
             run('seed',script=SEED)
@@ -149,30 +149,30 @@ def main():
             before_store=args.evidence_dir/(order+'-before-filestore.tar')
             with tarfile.open(before_store,'w') as archive:
                 archive.add(source/'data/filestore'/database,arcname='filestore')
-            before_manifest={'kind':'webvue-documents-synthetic-fixture-v1','stage':'before','database':database,'mode':args.mode,'baseline':args.baseline,
+            before_manifest={'kind':'liwan-documents-synthetic-fixture-v1','stage':'before','database':database,'mode':args.mode,'baseline':args.baseline,
                 'snapshot':before.name,'dump':before_dump.name,'dump_sha256':hashlib.sha256(before_dump.read_bytes()).hexdigest(),
                 'filestore':before_store.name,'filestore_sha256':hashlib.sha256(before_store.read_bytes()).hexdigest()}
             (args.evidence_dir/(order+'-before-backup.json')).write_text(json.dumps(before_manifest,indent=2))
             before_dump.chmod(0o600);before_store.chmod(0o600)
             # Preflight is read-only in the old registry; every unsupported case
             # is rejected inside a savepoint without touching model identity.
-            helper=args.worktree/'odoo-addons/webvue_documents/migrations/19.0.1.0.0/pre-adopt_hr.py'
+            helper=args.worktree/'odoo-addons/liwan_documents/migrations/19.0.1.0.0/pre-adopt_hr.py'
             negative="from odoo.modules.module import load_script\nscript=load_script("+repr(str(helper))+",'odoo.upgrade.docs_fixture')\n"
             negative+="assert not script.preflight(env.cr)['issues']\n"
-            negative+="a=env['ir.attachment'].search([('res_model','=','webvue.hr.document')],limit=1)\n"
+            negative+="a=env['ir.attachment'].search([('res_model','=','liwan.hr.document')],limit=1)\n"
             negative+="original=(a.name,a.type,a.url,a.res_id)\n"
             negative+="a.write({'type':'url','url':'https://example.invalid/private'})\nenv.flush_all()\nassert any(i['code']=='external_attachment' for i in script.preflight(env.cr)['issues'])\nenv.cr.rollback()\n"
-            negative+="a=env['ir.attachment'].search([('res_model','=','webvue.hr.document')],limit=1)\nother=a.copy({'res_model':a.res_model,'res_id':a.res_id})\nenv['webvue.hr.document'].browse(a.res_id).write({'attachment_ids':[(4,other.id)]})\nenv.flush_all()\nassert any(i['code']=='duplicate_filename' for i in script.preflight(env.cr)['issues'])\nenv.cr.rollback()\n"
-            negative+="a=env['ir.attachment'].search([('res_model','=','webvue.hr.document')],limit=1)\nother=env['webvue.hr.document'].search([('id','!=',a.res_id)],limit=1)\nother.write({'attachment_ids':[(4,a.id)]})\nenv.flush_all()\nassert any(i['code']=='shared_attachment' for i in script.preflight(env.cr)['issues'])\nenv.cr.rollback()\n"
-            negative+="a=env['ir.attachment'].search([('res_model','=','webvue.hr.document')],limit=1)\na.write({'res_id':0})\nenv.flush_all()\nassert any(i['code']=='unexpected_attachment_parent' for i in script.preflight(env.cr)['issues'])\nenv.cr.rollback()\n"
+            negative+="a=env['ir.attachment'].search([('res_model','=','liwan.hr.document')],limit=1)\nother=a.copy({'res_model':a.res_model,'res_id':a.res_id})\nenv['liwan.hr.document'].browse(a.res_id).write({'attachment_ids':[(4,other.id)]})\nenv.flush_all()\nassert any(i['code']=='duplicate_filename' for i in script.preflight(env.cr)['issues'])\nenv.cr.rollback()\n"
+            negative+="a=env['ir.attachment'].search([('res_model','=','liwan.hr.document')],limit=1)\nother=env['liwan.hr.document'].search([('id','!=',a.res_id)],limit=1)\nother.write({'attachment_ids':[(4,a.id)]})\nenv.flush_all()\nassert any(i['code']=='shared_attachment' for i in script.preflight(env.cr)['issues'])\nenv.cr.rollback()\n"
+            negative+="a=env['ir.attachment'].search([('res_model','=','liwan.hr.document')],limit=1)\na.write({'res_id':0})\nenv.flush_all()\nassert any(i['code']=='unexpected_attachment_parent' for i in script.preflight(env.cr)['issues'])\nenv.cr.rollback()\n"
             negative+="env['dms.storage'].create({'name':'Unowned fixture storage'})\nenv.flush_all()\nassert any(i['code']=='unowned_dms' for i in script.preflight(env.cr)['issues'])\nenv.cr.rollback()\n"
-            negative+="from odoo.addons.webvue_platform.models.entitlement_service import OPERATOR_CONTEXT\np=env.ref('webvue_platform.tenant_profile')\np.with_context(**{OPERATOR_CONTEXT:True}).write({'commercial_revision_id':'synthetic-existing-revision','commercial_digest':'a'*64})\nenv.flush_all()\nassert any(i['code']=='trusted_entitlement_transition_required' for i in script.preflight(env.cr)['requirements'])\nenv.cr.rollback()\n"
+            negative+="from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT\np=env.ref('liwan_platform.tenant_profile')\np.with_context(**{OPERATOR_CONTEXT:True}).write({'commercial_revision_id':'synthetic-existing-revision','commercial_digest':'a'*64})\nenv.flush_all()\nassert any(i['code']=='trusted_entitlement_transition_required' for i in script.preflight(env.cr)['requirements'])\nenv.cr.rollback()\n"
             run('negative-preflight',script=negative)
             # Fail three real upgrade boundaries on the frozen candidate. HR
             # may have committed before a receiving addon fails: retain data,
             # require maintenance, and verify retry completes the durable marker.
-            hook=target_addons/'webvue_documents/hooks.py'
-            adoption=target_addons/'webvue_documents/migrations/19.0.1.0.0/pre-adopt_hr.py'
+            hook=target_addons/'liwan_documents/hooks.py'
+            adoption=target_addons/'liwan_documents/migrations/19.0.1.0.0/pre-adopt_hr.py'
             original_hook=hook.read_text();original_adoption=adoption.read_text()
             for phase in ('metadata','before_reparent','after_dms'):
                 try:
@@ -191,13 +191,13 @@ def main():
                             index+=1
                         lines.insert(index,"    raise RuntimeError('synthetic failure at "+phase+"')\n")
                         adoption.write_text(''.join(lines))
-                    run('injected-'+phase,['-i','webvue_documents,webvue_documents_hr','-u','webvue_hr','--without-demo=all','--stop-after-init'],target=True,expect_failure=True)
+                    run('injected-'+phase,['-i','liwan_documents,liwan_documents_hr','-u','liwan_hr','--without-demo=all','--stop-after-init'],target=True,expect_failure=True)
                     rolled=psycopg2.connect(host='127.0.0.1',user=os.environ.get('USER','tariq'),dbname=database)
                     try:
                         with rolled.cursor() as cursor:
                             cursor.execute('SELECT model FROM ir_model WHERE id=%s',[json.loads(before.read_text())['model_id']])
                             actual_model=cursor.fetchone()[0]
-                            assert actual_model in ('webvue.hr.document','webvue.document')
+                            assert actual_model in ('liwan.hr.document','liwan.document')
                             cursor.execute('SELECT id,res_id,name,checksum,store_fname FROM ir_attachment WHERE res_model=%s ORDER BY id',[actual_model])
                             expected=json.loads(before.read_text())['attachments']
                             assert cursor.fetchall()==[(a['id'],a['document_id'],a['name'],a['checksum'],a['store_fname']) for a in expected]
@@ -208,12 +208,12 @@ def main():
                         rolled.close()
                 finally:
                     hook.write_text(original_hook);adoption.write_text(original_adoption)
-            run('upgrade',['-i','webvue_documents,webvue_documents_hr','-u','webvue_hr','--without-demo=all','--stop-after-init'],target=True)
+            run('upgrade',['-i','liwan_documents,liwan_documents_hr','-u','liwan_hr','--without-demo=all','--stop-after-init'],target=True)
             after=args.evidence_dir/(order+'-after.json')
             run('after',script='OUTPUT='+repr(str(after))+'\n'+SNAPSHOT,target=True)
             subprocess.run([sys.executable,'-B',str(args.worktree/'tools/documents_acceptance/compare.py'),
                 '--before',str(before),'--after',str(after)],check=True)
-            run('repeat-upgrade',['-u','webvue_hr,webvue_documents,webvue_documents_hr','--without-demo=all','--stop-after-init'],target=True)
+            run('repeat-upgrade',['-u','liwan_hr,liwan_documents,liwan_documents_hr','--without-demo=all','--stop-after-init'],target=True)
             repeated=args.evidence_dir/(order+'-repeated.json')
             run('repeated',script='OUTPUT='+repr(str(repeated))+'\n'+SNAPSHOT,target=True)
             assert json.loads(after.read_text())==json.loads(repeated.read_text())
@@ -226,7 +226,7 @@ def main():
             store=args.evidence_dir/(order+'-filestore.tar')
             with tarfile.open(store,'w') as archive:
                 archive.add(source/'data/filestore'/database,arcname='filestore')
-            manifest={'kind':'webvue-documents-synthetic-fixture-v1','database':database,'mode':args.mode,'baseline':args.baseline,
+            manifest={'kind':'liwan-documents-synthetic-fixture-v1','database':database,'mode':args.mode,'baseline':args.baseline,
                 'snapshot':after.name,'dump':dump.name,'dump_sha256':hashlib.sha256(dump.read_bytes()).hexdigest(),
                 'filestore':store.name,'filestore_sha256':hashlib.sha256(store.read_bytes()).hexdigest()}
             (args.evidence_dir/(order+'-backup.json')).write_text(json.dumps(manifest,indent=2))

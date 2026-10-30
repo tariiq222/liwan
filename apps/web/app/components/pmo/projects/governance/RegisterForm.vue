@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProjectRegister, ProjectRegisterKind, ProjectRegisterPriority, ProjectRegisterStatus, ProjectRegisterWrite } from '@webvue/contracts'
+import type { ProjectRegister, ProjectRegisterKind, ProjectRegisterPriority, ProjectRegisterStatus, ProjectRegisterWrite } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { usePeople } from '@/composables/usePeople'
 import { useTasks, type TaskListParams } from '@/composables/useTasks'
@@ -116,11 +116,11 @@ async function submit() {
 </script>
 
 <template>
-  <form novalidate class="webvue-page-stack" @submit.prevent="submit">
+  <form novalidate class="liwan-page-stack" @submit.prevent="submit">
     <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error" />
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedFormSection panel :title="t('projects.refresh.workspace.registerDetailsTitle')" :description="t('projects.refresh.workspace.registerDetailsDescription')">
-      <div class="grid gap-(--webvue-gap-card)">
+      <div class="grid gap-(--liwan-gap-card)">
         <UFormField :label="t('projects.governance.register.kind')">
           <USelect id="register-kind" v-model="kind" :items="kindItems" class="w-full" :disabled="!hydrated || pending || !!item" />
         </UFormField>
@@ -137,7 +137,7 @@ async function submit() {
     </SharedFormSection>
 
     <SharedFormSection panel :title="t('projects.refresh.workspace.registerOwnershipTitle')" :description="t('projects.refresh.workspace.registerOwnershipDescription')">
-      <div class="grid gap-(--webvue-gap-card)">
+      <div class="grid gap-(--liwan-gap-card)">
         <UFormField :label="t('projects.governance.register.status')">
           <USelect id="register-status" v-model="status" :items="statusItems" class="w-full" :disabled="!hydrated || pending" />
         </UFormField>
@@ -187,7 +187,7 @@ async function submit() {
     </SharedFormSection>
 
     <SharedFormSection v-if="kind === 'risk'" panel :title="t('projects.refresh.workspace.registerRiskTitle')" :description="t('projects.refresh.workspace.registerRiskDescription')">
-      <div class="grid gap-(--webvue-gap-card)">
+      <div class="grid gap-(--liwan-gap-card)">
         <UFormField :label="t('projects.governance.register.probability')">
           <UInputNumber id="register-probability" v-model="probability" class="w-full" :min="1" :max="5" :disabled="!hydrated || pending" />
         </UFormField>

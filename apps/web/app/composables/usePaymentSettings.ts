@@ -1,6 +1,6 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { PaymentSettingsSchema, type PaymentSettingsUpdate } from '@webvue/contracts'
+import { PaymentSettingsSchema, type PaymentSettingsUpdate } from '@liwan/contracts'
 
 /** The settings belong to the current company (the expiry), so each company keeps its own cache entry. */
 export const paymentSettingsKeys = {

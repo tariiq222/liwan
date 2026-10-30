@@ -53,7 +53,7 @@ function onCancel() {
 <template>
   <SharedStandalonePage v-if="readonly" variant="print" width="list">
     <!-- The "Project charter" sub-tab already names this page (DESIGN 4): the state and the edit action live in the essentials panel header. -->
-    <SharedPageHeader class="webvue-print-hide" hide-title :title="t('projects.charter.title')" />
+    <SharedPageHeader class="liwan-print-hide" hide-title :title="t('projects.charter.title')" />
     <CharterApprovalPanel v-if="project" :project="project" />
     <p v-if="projectId === null" class="text-muted">{{ t('projects.invalidId') }}</p>
     <SharedPageState v-else :loading="isLoading && !project" :error="notFound ? null : error" :empty="notFound || (!isLoading && !error && !project)" :empty-text="notFound ? t('projects.notFound') : t('projects.empty')" @retry="refetch">
@@ -75,7 +75,7 @@ function onCancel() {
     </SharedPageHeader>
     <p v-if="projectId === null" class="text-muted">{{ t('projects.invalidId') }}</p>
     <SharedPageState v-else :loading="isLoading && !project" :error="notFound ? null : error" :empty="notFound || (!isLoading && !error && !project)" :empty-text="notFound ? t('projects.notFound') : t('projects.empty')" @retry="refetch">
-      <div class="grid gap-(--webvue-gap-card)">
+      <div class="grid gap-(--liwan-gap-card)">
         <UAlert v-if="project && charterState === 'draft' && project.charter.return_note" color="warning" variant="subtle" icon="i-lucide-undo-2" data-testid="charter-returned" :title="t('projects.charter.returned')" :description="project.charter.return_note" />
         <SharedFormSection panel>
           <ProjectCharterForm mode="edit" :project="project" :readonly="false" :milestones="milestones ?? []" :milestones-loading="milestonesLoading" :milestones-error="milestonesError" @saved="onSaved" @draft-saved="onDraftSaved" @cancel="onCancel" @retry-milestones="refetchMilestones" />

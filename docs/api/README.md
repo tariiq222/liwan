@@ -1,7 +1,7 @@
 # /api/v1 generated surface
 
 This directory contains a statically generated inventory of `/api/v1` routes
-in the WebVue Odoo addons. `--check` verifies freshness against source; it does
+in the LiwanOS Odoo addons. `--check` verifies freshness against source; it does
 not validate runtime authorization or deployment.
 
 - `openapi.json` — OpenAPI 3.1 document. **Generated; never edit by hand.**
@@ -33,16 +33,16 @@ No Odoo runtime is involved: routes are extracted statically (AST over
 
 - Every route with its real HTTP methods, path parameters (Odoo converters are
   translated, `<int:task_id>` → `{task_id}` integer), and controller identity.
-- `x-webvue` per operation: route `type` (`json2`/`http`), `auth`
+- `x-liwan` per operation: route `type` (`json2`/`http`), `auth`
   (`user`/`public`), `readonly`, whether `api_handler` wraps it, and the
   entitlement `requires_feature` keys with their operation. Operations without
   feature keys are the deliberate base routes (`/api/v1/me*`, `/api/v1/branding`,
   `/api/v1/auth/*`, `/api/v1/admin/*` — see
-  `webvue_api/tests/test_feature_route_coverage.py`).
-- The shared error envelope (`WebVueError`: `{code, message, field?, details?}`)
+  `liwan_api/tests/test_feature_route_coverage.py`).
+- The shared error envelope (`LiwanError`: `{code, message, field?, details?}`)
   with 403/404/422 responses on every authenticated JSON route, and the session
   cookie security scheme (browser traffic is same-origin; no bearer tokens).
-- All contract schemas from `@webvue/contracts` under
+- All contract schemas from `@liwan/contracts` under
   `components/schemas`, harvested live from the Zod sources.
 
 List paging is a separate contract: [pagination.md](pagination.md). The edge
@@ -53,6 +53,6 @@ abuse limits are documented in
 
 Per-operation request/response bodies are not yet bound to named schema
 components. Where route ownership can be inferred, each operation carries an
-`x-webvue.contract_namespace` hint; the full schema catalog is browsable in the
+`x-liwan.contract_namespace` hint; the full schema catalog is browsable in the
 document's Schemas section. Wiring route → symbol refs requires a curated
 route-to-contract map; namespace hints and `--check` make current drift visible.

@@ -3,7 +3,7 @@ import {
   MeetingSeriesDetailSchema,
   MeetingSeriesPatchSchema,
   type MeetingSeriesPatch,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { invalidateMeetingCaches } from './meetingKeys'
 
 export function usePatchMeetingSeriesSettings() {

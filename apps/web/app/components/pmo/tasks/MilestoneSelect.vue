@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { TaskDetail } from '@webvue/contracts'
+import type { TaskDetail } from '@liwan/contracts'
 import { useMilestones } from '@/composables/useMilestones'
 import { useUpdateTask } from '@/composables/useTasks'
 import { validateTaskDates } from '@/utils/projectDateBounds'

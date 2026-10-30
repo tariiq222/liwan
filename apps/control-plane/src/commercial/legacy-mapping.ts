@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { canonicalJson } from '@webvue/commercial-contracts'
+import { canonicalJson } from '@liwan/commercial-contracts'
 import { createRelease } from './catalog-releases.js'
 import { bundleContent } from './bundles.js'
 import { digestOf, type CommercialActor } from './lifecycle.js'

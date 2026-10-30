@@ -1,6 +1,6 @@
 # Personal tasks
 
-Pages: `/my-tasks` (`new`, `[id]`, `edit`). Owners: `webvue_tasks`, `webvue_tasks_pmo`.
+Pages: `/my-tasks` (`new`, `[id]`, `edit`). Owners: `liwan_tasks`, `liwan_tasks_pmo`.
 Personas and status values: [README](README.md).
 
 Notes: every employee holds `tasks.tasks.read`, `tasks.tasks.create` and `tasks.tasks.write`

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HrPayslip } from '@webvue/contracts'
+import type { HrPayslip } from '@liwan/contracts'
 import { formatPayrollAmount, formatPayrollMonth, payrollCurrencyLabel } from '@/utils/payrollFormat'
 
 // One payslip as a document: the company and employee heading, the earnings and deductions the payroll engine

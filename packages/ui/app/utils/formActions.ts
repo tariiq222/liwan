@@ -4,4 +4,4 @@ import type { InjectionKey, Ref } from 'vue'
 export const FORM_ACTIONS_HOST: InjectionKey<{
   target: Ref<HTMLElement | null>
   active: Ref<number>
-}> = Symbol('webvue-form-actions')
+}> = Symbol('liwan-form-actions')

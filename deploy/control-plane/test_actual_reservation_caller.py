@@ -39,14 +39,14 @@ if not PINNED.exists():  # pragma: no cover - pinned interpreter is the supporte
 
 class ActualReservationCaller(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory(prefix='webvue-actual-reservation-')
+        self.tmp = tempfile.TemporaryDirectory(prefix='liwan-actual-reservation-')
         self.home = Path(self.tmp.name)
         self.state = self.home / 'processes'; self.state.mkdir(mode=0o700)
         for name in ('control-db-password', 'control-service-key', 'control-database-url', 'inventory-v2.json', 'runtime.env'):
             (self.home / name).write_text('{}' if name.endswith('.json') else 'fake')
         (self.home / 'processes.lock').touch()
         self.bin = self.home / 'fake-bin'; self.bin.mkdir()
-        self._fake('docker', '#!/bin/sh\nprintf \'%s\\n\' "$*" >> "$WEBVUE_CONTROL_HOME/docker-calls"\n'
+        self._fake('docker', '#!/bin/sh\nprintf \'%s\\n\' "$*" >> "$LIWAN_CONTROL_HOME/docker-calls"\n'
                              'case "$1" in compose) exit 0;; *) exit 1;; esac\n')
         self._fake('lsof', '#!/bin/sh\nexit 1\n')
         # Fake node so no real node process (e.g. an unrelated live fixture started
@@ -82,11 +82,11 @@ class ActualReservationCaller(unittest.TestCase):
 
     def _env(self):
         env = {**os.environ,
-               'WEBVUE_CONTROL_HOME': str(self.home),
-               'WEBVUE_NODE_BIN': str(self.bin),
-               'WEBVUE_REPOSITORY_ROOT': str(ROOT),
+               'LIWAN_CONTROL_HOME': str(self.home),
+               'LIWAN_NODE_BIN': str(self.bin),
+               'LIWAN_REPOSITORY_ROOT': str(ROOT),
                'PATH': f'{self.bin}:{os.environ["PATH"]}'}
-        env.pop('WEBVUE_PROCESS_LOCK_FD', None)  # run-local.sh acquires the lock itself
+        env.pop('LIWAN_PROCESS_LOCK_FD', None)  # run-local.sh acquires the lock itself
         return env
 
     def _reserve(self):
@@ -144,12 +144,12 @@ class ActualReservationCaller(unittest.TestCase):
         holder = self._spawn([str(PINNED), '-c',
                               "import fcntl, os, time\n"
                               "from pathlib import Path\n"
-                              "home = Path(os.environ['WEBVUE_CONTROL_HOME'])\n"
+                              "home = Path(os.environ['LIWAN_CONTROL_HOME'])\n"
                               "fd = os.open(str(home / 'processes.lock'), os.O_RDWR)\n"
                               "fcntl.flock(fd, fcntl.LOCK_EX)\n"
                               "(home / 'holder-ready').touch()\n"
                               "time.sleep(60)\n"],
-                             env={**os.environ, 'WEBVUE_CONTROL_HOME': str(self.home)},
+                             env={**os.environ, 'LIWAN_CONTROL_HOME': str(self.home)},
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         deadline = time.monotonic() + 10
         while not (self.home / 'holder-ready').exists() and time.monotonic() < deadline:

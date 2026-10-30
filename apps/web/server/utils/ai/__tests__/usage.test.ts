@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { AiUsageBatchSchema } from '@webvue/contracts'
+import { AiUsageBatchSchema } from '@liwan/contracts'
 import { createUsageLedger } from '../usage'
 
 const odooJson = vi.hoisted(() => vi.fn())
@@ -60,7 +60,7 @@ describe('usage ledger', () => {
     ledger.endStream()
     await ledger.flush(event, 'r_1')
     expect(odooJson).not.toHaveBeenCalled()
-    expect(spy.mock.calls.map(call => call[0])).toEqual(['[webvue-ai] skipped a malformed model_call event: MalformedUsageEvent'])
+    expect(spy.mock.calls.map(call => call[0])).toEqual(['[liwan-ai] skipped a malformed model_call event: MalformedUsageEvent'])
   })
 
   it.each([
@@ -128,7 +128,7 @@ describe('usage ledger', () => {
     refused.endStream()
     await expect(refused.flush(event, 'r_1')).resolves.toBeUndefined()
     expect(spy.mock.calls.map(call => call[0])).toEqual([
-      '[webvue-ai] usage report of 1 rows failed: TypeError', '[webvue-ai] usage report of 1 rows failed: UsageRefused',
+      '[liwan-ai] usage report of 1 rows failed: TypeError', '[liwan-ai] usage report of 1 rows failed: UsageRefused',
     ])
     expect(JSON.stringify(spy.mock.calls)).not.toContain('secret detail')
   })

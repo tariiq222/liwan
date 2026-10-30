@@ -1,5 +1,5 @@
-import { MyTaskListPageSchema, type MyTaskListItem } from '@webvue/contracts'
-import { localIsoDay } from '@webvue/ui/app/utils/formatDate'
+import { MyTaskListPageSchema, type MyTaskListItem } from '@liwan/contracts'
+import { localIsoDay } from '@liwan/ui/app/utils/formatDate'
 import { ATTENTION_ROWS_PER_PROVIDER } from '../../composables/nav/attentionModel'
 import type { AppAttentionProvider, AppAttentionRow } from '../types'
 

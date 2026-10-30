@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxOrder, InboxOrderCreate, InboxOrderPatch } from '@webvue/contracts'
+import type { InboxOrder, InboxOrderCreate, InboxOrderPatch } from '@liwan/contracts'
 import InboxProductPicker from '@/components/inbox/InboxProductPicker.vue'
 import { COMMERCE_LIMITS } from '@/composables/inbox/inboxCommerce'
 import { useInboxPickItems } from '@/composables/inbox/useInboxCatalog'

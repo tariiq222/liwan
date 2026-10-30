@@ -1,9 +1,9 @@
-import type { AccessAuditSummary, AdminUserSummary, RoleSummary } from '@webvue/contracts'
+import type { AccessAuditSummary, AdminUserSummary, RoleSummary } from '@liwan/contracts'
 import { accessBadge } from '../components/access/accessBadge'
 import { builtinRoleDescription } from './labelFallback'
-import { formatWebVueDateTime } from '@webvue/ui/app/composables/calendarDate'
+import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
 import type { RouteLocationRaw } from 'vue-router'
-import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
+import type { StatusTone } from '@liwan/ui/app/utils/statusTone'
 import { joinList } from './listFormat'
 
 /** One row of a settings preview card: a chip (a person or an icon), a name, one muted line and at most one pill. */
@@ -40,5 +40,5 @@ export function rolePreview(role: RoleSummary, { t, te, locale }: Labels): Setti
 
 export function eventPreview(event: AccessAuditSummary, actionLabel: string, { t, locale }: Labels): SettingsPreviewItem {
   const actor = event.actor?.name ?? t('access.audit.system')
-  return { id: event.id, to: `/settings/team/access-log/${event.id}`, name: actionLabel, icon: 'i-lucide-history', secondary: [event.target.name, actor, formatWebVueDateTime(event.occurred_at, locale)].join(SEPARATOR), badge: { label: t('access.audit.succeeded'), tone: 'success' } }
+  return { id: event.id, to: `/settings/team/access-log/${event.id}`, name: actionLabel, icon: 'i-lucide-history', secondary: [event.target.name, actor, formatLiwanDateTime(event.occurred_at, locale)].join(SEPARATOR), badge: { label: t('access.audit.succeeded'), tone: 'success' } }
 }

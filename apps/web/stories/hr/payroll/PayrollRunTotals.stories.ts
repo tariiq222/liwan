@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import PayrollRunTotals from '../../../app/components/hr/payroll/PayrollRunTotals.vue'
-import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
+import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../../support/context'
 
 // The four figures above a run's register, drawn by SharedKpiStrip: net pay, gross, deductions and the employer's
@@ -20,7 +20,7 @@ const meta = {
   render: args => ({
     components: { PayrollRunTotals, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="webvue-shell-main"><PageContainer width="full"><PayrollRunTotals v-bind="args" /></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer width="full"><PayrollRunTotals v-bind="args" /></PageContainer></main>',
   }),
 } satisfies Meta<typeof PayrollRunTotals>
 

@@ -209,7 +209,7 @@ def native_login(state, tenant, credentials):
 
 def seal_sessions(state, tenant, sessions, runner):
     # The real exported guard codec performs signing. No local imitation of its signature algorithm.
-    code = "import { sessionCodec } from './deploy/shared/guard.mjs'; let data=''; for await (const chunk of process.stdin) data+=chunk; const input=JSON.parse(data); const codec=sessionCodec(JSON.parse(process.env.WEBVUE_SESSION_KEYS),process.env.WEBVUE_SESSION_ACTIVE_KID); process.stdout.write(JSON.stringify(Object.fromEntries(Object.entries(input.sessions).map(([actor,sid])=>[actor,codec.seal(sid,input.tenant)]))));"
+    code = "import { sessionCodec } from './deploy/shared/guard.mjs'; let data=''; for await (const chunk of process.stdin) data+=chunk; const input=JSON.parse(data); const codec=sessionCodec(JSON.parse(process.env.LIWAN_SESSION_KEYS),process.env.LIWAN_SESSION_ACTIVE_KID); process.stdout.write(JSON.stringify(Object.fromEntries(Object.entries(input.sessions).map(([actor,sid])=>[actor,codec.seal(sid,input.tenant)]))));"
     result = runner.run(
         compose(
             state, "exec", "-T", "guard", "node", "--input-type=module", "-e", code,
@@ -221,9 +221,9 @@ def seal_sessions(state, tenant, sessions, runner):
 
 def operator(state, tenant, fixture, runner, code):
     setup = (
-        "import json\nfrom odoo.addons.webvue_platform.models.entitlement_service import OPERATOR_CONTEXT\nfrom odoo import Command\nfixture="
+        "import json\nfrom odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT\nfrom odoo import Command\nfixture="
         + repr(fixture)
-        + "\nprofile=env.ref('webvue_platform.tenant_profile').with_context(**{OPERATOR_CONTEXT:True})\n"
+        + "\nprofile=env.ref('liwan_platform.tenant_profile').with_context(**{OPERATOR_CONTEXT:True})\n"
     )
     return shell(
         state,
@@ -254,7 +254,7 @@ def run_matrix(args):
                 "docker",
                 "inspect",
                 "--format",
-                '{{index .Config.Labels "sa.webvue.acceptance.owner"}}',
+                '{{index .Config.Labels "sa.liwan.acceptance.owner"}}',
                 container,
             ],
         ).stdout.strip()
@@ -503,7 +503,7 @@ def run_matrix(args):
             download,
             expected,
             forbidden=raw,
-            headers={"X-Odoo-Uid": "1", "X-WebVue-Proxy-Token": "not-the-owned-key"},
+            headers={"X-Odoo-Uid": "1", "X-Liwan-Proxy-Token": "not-the-owned-key"},
         )
         rpc = {
             "jsonrpc": "2.0",
@@ -594,7 +594,7 @@ def run_matrix(args):
             tenant,
             fixture,
             runner,
-            "role=env['webvue.access.role'].browse(fixture['editor_role_id'])\nrole.write({'permission_ids':[Command.set(env['webvue.access.permission'].search([('key','=','documents.items.read')]).ids)]})\nresult={'role_reduced':True}",
+            "role=env['liwan.access.role'].browse(fixture['editor_role_id'])\nrole.write({'permission_ids':[Command.set(env['liwan.access.permission'].search([('key','=','documents.items.read')]).ids)]})\nresult={'role_reduced':True}",
         )
         try:
             check(
@@ -612,7 +612,7 @@ def run_matrix(args):
                 tenant,
                 fixture,
                 runner,
-                "role=env['webvue.access.role'].browse(fixture['editor_role_id'])\nrole.write({'permission_ids':[Command.set(env['webvue.access.permission'].search([('key','in',['documents.items.read','documents.items.manage'])]).ids)]})\nresult={'role_restored':True}",
+                "role=env['liwan.access.role'].browse(fixture['editor_role_id'])\nrole.write({'permission_ids':[Command.set(env['liwan.access.permission'].search([('key','in',['documents.items.read','documents.items.manage'])]).ids)]})\nresult={'role_restored':True}",
             )
 
     def archived_matrix():
@@ -754,7 +754,7 @@ def run_matrix(args):
             )
 
     def quota_matrix():
-        snapshot = "from odoo.tools import config\nfrom pathlib import Path\nroot=Path(config.filestore(env.cr.dbname))\nresult={'attachments':env['ir.attachment'].search_count([]),'files':env['dms.file'].with_context(active_test=False).search_count([]),'revision':env['webvue.document'].browse(fixture['document_id']).revision,'filestore_files':sorted(str(path.relative_to(root)) for path in root.rglob('*') if path.is_file())}"
+        snapshot = "from odoo.tools import config\nfrom pathlib import Path\nroot=Path(config.filestore(env.cr.dbname))\nresult={'attachments':env['ir.attachment'].search_count([]),'files':env['dms.file'].with_context(active_test=False).search_count([]),'revision':env['liwan.document'].browse(fixture['document_id']).revision,'filestore_files':sorted(str(path.relative_to(root)) for path in root.rglob('*') if path.is_file())}"
         before = operator(state, tenant, fixture, runner, snapshot)
         try:
             set_profile({"features": {**original_features, "storage.limit_mb": 0}})
@@ -863,7 +863,7 @@ def main():
     parser.add_argument(
         "--transport", choices=["direct", "dedicated", "shared"], required=True,
     )
-    parser.add_argument("--database-prefix", default="webvue_scratch_docs_accept")
+    parser.add_argument("--database-prefix", default="liwan_scratch_docs_accept")
     parser.add_argument("--evidence-dir", type=Path, required=True)
     parser.add_argument("--stack-state", type=Path, required=True)
     args = parser.parse_args()

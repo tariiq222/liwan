@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinanceClosingLine } from '@webvue/contracts'
+import type { FinanceClosingLine } from '@liwan/contracts'
 import { useCloseFiscalYear, useFinanceClosingPreview } from '@/composables/finance/useFinanceClosing'
 import Money from '../invoices/Money.vue'
 import { blockerText, CLOSING_HASH, CLOSING_PATH, closingErrorMessage } from './closingPresentation'
@@ -43,7 +43,7 @@ const resultClass = computed(() => (preview.value?.result ?? 0) < 0 ? 'text-erro
 
 <template>
   <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!preview" @retry="query.refetch">
-    <div v-if="preview" class="grid gap-(--webvue-gap-card)" data-testid="finance-closing-preview">
+    <div v-if="preview" class="grid gap-(--liwan-gap-card)" data-testid="finance-closing-preview">
       <SharedRecordSection variant="panel" :title="t('financeGovernance.closing.preview.title', { year: preview.year })" :description="t('financeGovernance.closing.preview.hint')">
         <SharedPropertiesPanel>
           <SharedPropertyRow :label="t('financeGovernance.closing.preview.journal')" :value="preview.journal?.name" />
@@ -68,7 +68,7 @@ const resultClass = computed(() => (preview.value?.result ?? 0) < 0 ? 'text-erro
       </UAlert>
 
       <SharedRecordSection variant="list" :title="t('financeGovernance.closing.preview.linesTitle')">
-        <SharedEmptyState v-if="!preview.lines.length" class="m-(--webvue-card-pad-dense)" :title="t('financeGovernance.closing.preview.noLines')" />
+        <SharedEmptyState v-if="!preview.lines.length" class="m-(--liwan-card-pad-dense)" :title="t('financeGovernance.closing.preview.noLines')" />
         <template v-else>
           <SharedDataTable bare :rows="preview.lines" :columns="columns" :row-key="line => line.account.id" :caption="t('financeGovernance.closing.preview.linesTitle')">
             <template #code-cell="{ row }"><bdi dir="ltr" class="tabular-nums">{{ row.original.account.code }}</bdi></template>
@@ -87,7 +87,7 @@ const resultClass = computed(() => (preview.value?.result ?? 0) < 0 ? 'text-erro
               </div>
             </template>
           </SharedDataTable>
-          <div class="flex items-center justify-between gap-3 border-t border-default p-(--webvue-card-pad-dense) font-semibold" data-testid="finance-closing-totals">
+          <div class="flex items-center justify-between gap-3 border-t border-default p-(--liwan-card-pad-dense) font-semibold" data-testid="finance-closing-totals">
             <span>{{ t('financeGovernance.closing.preview.totals') }}</span>
             <span class="flex flex-wrap items-center gap-x-6 gap-y-1">
               <Money :amount="preview.total_debit" :currency="currency" />

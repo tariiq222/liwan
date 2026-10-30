@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://webvue.local/catalog/industry.schema.json",
-  "title": "webvue industry pack catalog",
+  "$id": "https://liwan.local/catalog/industry.schema.json",
+  "title": "liwan industry pack catalog",
   "description": "An industry pack is data only: terminology, stages, project types and templates. It must never ship Python logic.",
   "type": "object",
   "additionalProperties": false,

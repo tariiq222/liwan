@@ -1,6 +1,6 @@
-import { PACKAGE_LIMIT_MAX, packageInputSchema, type PackageInput } from '@webvue/commercial-contracts'
-import { humanizeId } from '@webvue/ui/app/utils/humanizeId'
-import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import { PACKAGE_LIMIT_MAX, packageInputSchema, type PackageInput } from '@liwan/commercial-contracts'
+import { humanizeId } from '@liwan/ui/app/utils/humanizeId'
+import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 export type PackageCatalog = { id: string; version: string; status: string; solution: { base_modules?: string[]; tiers?: PackageTier[] } }
 export type PackageTier = { id?: string; name?: string; modules?: string[]; features?: string[] }
 export type PackageLimitDraft = { mode: '' | 'limited' | 'unlimited'; value: string }
@@ -15,7 +15,7 @@ export function packageLimitKeys(tier?: PackageTier) {
 }
 const labelKeys: Record<string, Record<string, string>> = {
   tier: { core: 'core', projects: 'projects', people: 'people', messaging: 'messaging' },
-  module: { webvue_core: 'core', webvue_platform: 'platform', webvue_api: 'api', webvue_pmo: 'projects', webvue_meetings: 'meetings', webvue_hr: 'people', webvue_chat: 'messaging' },
+  module: { liwan_core: 'core', liwan_platform: 'platform', liwan_api: 'api', liwan_pmo: 'projects', liwan_meetings: 'meetings', liwan_hr: 'people', liwan_chat: 'messaging' },
   feature: { 'boolean:pmo.enabled': 'projects', 'boolean:meetings.enabled': 'meetings', 'boolean:hr.enabled': 'hr', 'boolean:chat.enabled': 'chat', 'limit:users.limit': 'users', 'limit:storage.limit_mb': 'storage', 'limit:projects.max_projects': 'projectLimit' },
   limit: { 'users.limit': 'users', 'storage.limit_mb': 'storage', 'projects.max_projects': 'projects' },
 }
@@ -23,11 +23,11 @@ export function packageLabel(kind: 'tier' | 'module' | 'feature' | 'limit', valu
   const key = labelKeys[kind]?.[value]
   if (key) return t(`vendor.packages.${kind === 'tier' ? 'tiers' : kind === 'module' ? 'apps' : kind === 'limit' ? 'limits' : 'features'}.${key}`)
   // A newer application's module id reads as its name; other unknown values stay as sent (Phase 3 catalog names).
-  return kind === 'module' && /^(?:webvue|customer)_[a-z0-9_]+$/.test(value) ? humanizeId(value) : value
+  return kind === 'module' && /^(?:liwan|customer)_[a-z0-9_]+$/.test(value) ? humanizeId(value) : value
 }
 export function packageListReturnTo(value: unknown): string {
   const safe = safeReturnTo(value, '/catalog', ['/catalog'])
-  return new URL(safe, 'http://webvue.local').pathname.replace(/\/$/, '') === '/catalog' ? safe : '/catalog'
+  return new URL(safe, 'http://liwan.local').pathname.replace(/\/$/, '') === '/catalog' ? safe : '/catalog'
 }
 export function packageFormInput(draft: Omit<PackageInput, 'limits'>, limits: Record<string, PackageLimitDraft>, keys: string[]): PackageInput {
   return packageInputSchema.parse({ ...draft, limits: Object.fromEntries(keys.map(key => { if (!limits[key]) throw new Error('invalid_limit'); return [key, packageLimitValue(limits[key])] })) })

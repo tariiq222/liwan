@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import EosCaseMapTable from '../../../app/components/hr/payroll/EosCaseMapTable.vue'
-import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
+import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../../support/context'
 
 // The end-of-service case of each departure reason in the payroll settings. A choice is saved at once; the row being
@@ -21,7 +21,7 @@ const meta = {
   render: args => ({
     components: { EosCaseMapTable, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="webvue-shell-main"><PageContainer width="list"><EosCaseMapTable v-bind="args" /></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer width="list"><EosCaseMapTable v-bind="args" /></PageContainer></main>',
   }),
 } satisfies Meta<typeof EosCaseMapTable>
 

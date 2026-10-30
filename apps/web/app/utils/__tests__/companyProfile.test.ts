@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import type { CompanyProfile } from '@webvue/contracts'
+import type { CompanyProfile } from '@liwan/contracts'
 import { companyPatch, profileToForm, sectionExtensions } from '../companyProfile'
 import { canReachPath, requiredCapabilityForPath } from '../accessPolicy'
 
 const PROFILE: CompanyProfile = {
   id: 1,
-  name: 'ويب فيو',
+  name: 'ليوان',
   logo_url: null,
   report_header: null,
   company_registry: '1010000000',
@@ -34,7 +34,7 @@ const profileExtensions = (section: 'profile' | 'address' | 'contact') => sectio
 describe('company profile form', () => {
   it('flattens the profile to the PATCH field names', () => {
     const form = profileToForm(PROFILE)
-    expect(form).toMatchObject({ name: 'ويب فيو', city: 'الرياض', state_id: 3, id_scheme: 'CRN', building_code: null })
+    expect(form).toMatchObject({ name: 'ليوان', city: 'الرياض', state_id: 3, id_scheme: 'CRN', building_code: null })
   })
 
   it('patches only the changed fields of the page, clearing a text with null', () => {

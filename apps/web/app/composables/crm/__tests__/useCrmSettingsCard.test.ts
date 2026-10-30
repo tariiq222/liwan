@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
-import type { CrmSettings } from '@webvue/contracts'
+import type { CrmSettings } from '@liwan/contracts'
 import { ApiError } from '../../useApi'
 
 // The shared settings query and the server stand-in: a save carries a revision and the server answers 409 when it is not its own.

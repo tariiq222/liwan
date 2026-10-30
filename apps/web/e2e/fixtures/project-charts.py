@@ -5,23 +5,23 @@ from odoo import Command, fields
 
 # Odoo shell supplies this environment; the exact database guard comes first.
 env = globals()['env']
-assert env.cr.dbname == 'webvue_charts_scratch_20260907'
+assert env.cr.dbname == 'liwan_charts_scratch_20260907'
 assert not env['res.users'].search_count([('login', '=', 'chart_manager')])
 env['res.lang']._activate_lang('ar_001')
 company = env.company
 company.currency_id = env.ref('base.SAR')
 users = []
-for login, name, role in [('chart_manager', 'مدير المشاريع', 'webvue_pmo.role_pmo_manager'), ('chart_other', 'مدير آخر', 'webvue_pmo.role_pmo_manager')]:
+for login, name, role in [('chart_manager', 'مدير المشاريع', 'liwan_pmo.role_pmo_manager'), ('chart_other', 'مدير آخر', 'liwan_pmo.role_pmo_manager')]:
     user = env['res.users'].with_context(no_reset_password=True).create({
         'name': name, 'login': login, 'password': 'chart_test_only_2026', 'lang': 'ar_001',
         'company_id': company.id, 'company_ids': [Command.set([company.id])],
         'group_ids': [Command.set([env.ref('base.group_user').id])],
     })
-    env['webvue.access.assignment']._webvue_access_create([{
+    env['liwan.access.assignment']._liwan_access_create([{
         'user_id': user.id, 'role_id': env.ref(role).id, 'company_id': company.id,
     }])
-    user.write({'webvue_access_managed': True})
-    user._webvue_sync_capability_groups()
+    user.write({'liwan_access_managed': True})
+    user._liwan_sync_capability_groups()
     users.append(user)
 
 names = [
@@ -34,15 +34,15 @@ projects = []
 now = fields.Datetime.now()
 for index, name in enumerate(names):
     owner = users[0] if index < 10 else users[1]
-    project = env['project.project']._webvue_create_from_policy(name, user_id=owner.id, date_end='2026-12-31')
+    project = env['project.project']._liwan_create_from_policy(name, user_id=owner.id, date_end='2026-12-31')
     if index != 11:
-        project._webvue_set_status(['on_track', 'at_risk', 'off_track', 'on_hold', 'done'][index % 5])
+        project._liwan_set_status(['on_track', 'at_risk', 'off_track', 'on_hold', 'done'][index % 5])
     if index not in (4, 11):
         budget = 40000 + index * 10000
-        env['webvue.project.finance.entry'].create({
+        env['liwan.project.finance.entry'].create({
             'project_id': project.id, 'kind': 'budget', 'title': 'الميزانية المعتمدة', 'amount': budget,
         })
-        env['webvue.project.finance.entry'].create({
+        env['liwan.project.finance.entry'].create({
             'project_id': project.id, 'kind': 'expense', 'title': 'مصروفات التنفيذ',
             'amount': int(budget * [0.35, 0.65, 1.15, 0.82][index % 4]), 'expense_date': '2026-09-07',
         })

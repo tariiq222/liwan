@@ -1,4 +1,4 @@
-import type { InboxCommerceProduct, InboxMessage, InboxOrder } from '@webvue/contracts'
+import type { InboxCommerceProduct, InboxMessage, InboxOrder } from '@liwan/contracts'
 
 // Fixtures of the WhatsApp commerce stories: catalog products, a thread message that carries a commerce block, and orders.
 export const coffee: InboxCommerceProduct = { catalog_item_id: 1, name: 'قهوة مختصة 250 غ', price: 51.75, currency: 'SAR', availability: 'in_stock', image_url: null }

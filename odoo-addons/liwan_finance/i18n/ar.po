@@ -1,0 +1,1163 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* liwan_finance
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 19.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-24 20:47+0000\n"
+"PO-Revision-Date: 2026-09-08 00:00+0000\n"
+"Last-Translator: LiwanOS\n"
+"Language-Team: Arabic\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 "
+"&& n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/controllers/finance_budgets.py:0
+#: code:addons/liwan_finance/models/zatca_service.py:0
+msgid "%(model)s %(id)s does not exist"
+msgstr "%(model)s %(id)s غير موجود"
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/models/budget_guard.py:0
+msgid "A %(state)s budget cannot be changed this way."
+msgstr "لا يمكن تغيير ميزانية بحالة %(state)s بهذه الطريقة."
+
+#. module: liwan_finance
+#: model:ir.model.constraint,message:liwan_finance.constraint_account_move_closing_year_unique
+msgid "A company has one year-end closing entry per fiscal year."
+msgstr "لكل شركة قيد إقفال سنة مالية واحد لكل سنة."
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__account_archived
+msgid "Account archived"
+msgstr "أُرشف الحساب"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__account_changed
+msgid "Account changed"
+msgstr "تغيّر الحساب"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__account_created
+msgid "Account created"
+msgstr "أُنشئ الحساب"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__account_unarchived
+msgid "Account unarchived"
+msgstr "أُلغيت أرشفة الحساب"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_audit_event__action
+msgid "Action"
+msgstr "الإجراء"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_zakat_adjustment__kind__add
+msgid "Added to the base"
+msgstr "أُضيف إلى الأساس"
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/models/res_company.py:0
+msgid "Additional identifier number"
+msgstr "رقم المعرّف الإضافي"
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/models/res_company.py:0
+msgid "Additional identifier type"
+msgstr "نوع المعرّف الإضافي"
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/models/res_company.py:0
+msgid "Additional number"
+msgstr "الرقم الإضافي"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_zk_kpi_adjusted_net_profit
+msgid "Adjusted net profit"
+msgstr "صافي الربح المعدّل"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat_adjustment__amount
+msgid "Amount"
+msgstr "المبلغ"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__asset_disposed
+msgid "Asset disposed of"
+msgstr "تم استبعاد الأصل"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__asset_profile_archived
+msgid "Asset profile archived"
+msgstr "أُرشف ملف الأصل"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__asset_profile_changed
+msgid "Asset profile changed"
+msgstr "تغيّر ملف الأصل"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__asset_profile_created
+msgid "Asset profile created"
+msgstr "أُنشئ ملف الأصل"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__asset_profile_unarchived
+msgid "Asset profile unarchived"
+msgstr "أُلغيت أرشفة ملف الأصل"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_bs_kpi_difference
+msgid "Assets less liabilities and equity (zero when balanced)"
+msgstr "الأصول ناقص الخصوم وحقوق الملكية (صفر عند التوازن)"
+
+#. module: liwan_finance
+#: model:mis.report,name:liwan_finance.mis_report_balance_sheet
+msgid "Balance sheet"
+msgstr "الميزانية العمومية"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_bs_kpi_cash
+msgid "Bank and cash"
+msgstr "البنوك والنقدية"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__bank_line_unreconciled
+msgid "Bank line unreconciled"
+msgstr "أُلغيت مطابقة سطر البنك"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__bank_statement_auto_reconciled
+msgid "Bank statement auto-reconciled"
+msgstr "رُوبط كشف البنك آليًا"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__bank_statement_changed
+msgid "Bank statement changed"
+msgstr "تغيّر كشف البنك"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__bank_statement_deleted
+msgid "Bank statement deleted"
+msgstr "حُذف كشف البنك"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__bank_statement_imported
+msgid "Bank statement imported"
+msgstr "استُورد كشف البنك"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat_review__base
+msgid "Base"
+msgstr "الأساس"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_idempotency__body
+msgid "Body"
+msgstr "المتن"
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/models/res_company.py:0
+msgid "Building number"
+msgstr "رقم المبنى"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_closing_manage
+msgid "Capability: close finance fiscal years"
+msgstr "صلاحية: إقفال السنوات المالية"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_accounts_manage
+msgid "Capability: manage finance accounts"
+msgstr "صلاحية: إدارة الحسابات"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_bank_manage
+msgid "Capability: manage finance bank statements"
+msgstr "صلاحية: إدارة كشوف البنك"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_budgets_manage
+msgid "Capability: manage finance budgets"
+msgstr "صلاحية: إدارة الميزانيات"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_analytic_manage
+msgid "Capability: manage finance cost centers"
+msgstr "صلاحية: إدارة مراكز التكلفة"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_assets_manage
+msgid "Capability: manage finance fixed assets"
+msgstr "صلاحية: إدارة الأصول الثابتة"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_invoices_manage
+msgid "Capability: manage finance invoices"
+msgstr "صلاحية: إدارة الفواتير"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_entries_manage
+msgid "Capability: manage finance journal entries"
+msgstr "صلاحية: إدارة قيود اليومية"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_journals_manage
+msgid "Capability: manage finance journals"
+msgstr "صلاحية: إدارة اليوميات"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_zakat_manage
+msgid "Capability: manage finance manage zakat adjustments"
+msgstr "صلاحية: إدارة تسويات الزكاة"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_partners_manage
+msgid "Capability: manage finance partners"
+msgstr "صلاحية: إدارة الشركاء"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_payment_terms_manage
+msgid "Capability: manage finance payment terms"
+msgstr "صلاحية: إدارة شروط الدفع"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_payments_manage
+msgid "Capability: manage finance payments"
+msgstr "صلاحية: إدارة الدفعات"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_setup_manage
+msgid "Capability: manage finance setup"
+msgstr "صلاحية: إدارة الإعداد"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_taxes_manage
+msgid "Capability: manage finance taxes"
+msgstr "صلاحية: إدارة الضرائب"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_zatca_manage
+msgid "Capability: onboard finance ZATCA journals"
+msgstr "صلاحية: ربط يوميات زاتكا"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_invoices_post
+msgid "Capability: post finance invoices"
+msgstr "صلاحية: ترحيل الفواتير"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_entries_post
+msgid "Capability: post finance journal entries"
+msgstr "صلاحية: ترحيل قيود اليومية"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_zatca_read
+msgid "Capability: read finance ZATCA status"
+msgstr "صلاحية: قراءة حالة زاتكا"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_accounts_read
+msgid "Capability: read finance accounts"
+msgstr "صلاحية: قراءة الحسابات"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_bank_read
+msgid "Capability: read finance bank statements"
+msgstr "صلاحية: قراءة كشوف البنك"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_budgets_read
+msgid "Capability: read finance budgets"
+msgstr "صلاحية: قراءة الميزانيات"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_analytic_read
+msgid "Capability: read finance cost centers"
+msgstr "صلاحية: قراءة مراكز التكلفة"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_assets_read
+msgid "Capability: read finance fixed assets"
+msgstr "صلاحية: قراءة الأصول الثابتة"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_invoices_read
+msgid "Capability: read finance invoices"
+msgstr "صلاحية: قراءة الفواتير"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_entries_read
+msgid "Capability: read finance journal entries"
+msgstr "صلاحية: قراءة قيود اليومية"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_journals_read
+msgid "Capability: read finance journals"
+msgstr "صلاحية: قراءة اليوميات"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_partners_read
+msgid "Capability: read finance partners"
+msgstr "صلاحية: قراءة الشركاء"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_payment_terms_read
+msgid "Capability: read finance payment terms"
+msgstr "صلاحية: قراءة شروط الدفع"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_payments_read
+msgid "Capability: read finance payments"
+msgstr "صلاحية: قراءة الدفعات"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_reports_read
+msgid "Capability: read finance reports"
+msgstr "صلاحية: قراءة التقارير"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_setup_read
+msgid "Capability: read finance setup"
+msgstr "صلاحية: قراءة الإعداد"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_statements_read
+msgid "Capability: read finance statements"
+msgstr "صلاحية: قراءة القوائم"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_taxes_read
+msgid "Capability: read finance taxes"
+msgstr "صلاحية: قراءة الضرائب"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_closing_read
+msgid "Capability: read finance year-end closing"
+msgstr "صلاحية: قراءة إقفال السنة المالية"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_zakat_read
+msgid "Capability: read the Zakat base"
+msgstr "صلاحية: قراءة أساس الزكاة"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_audit_read
+msgid "Capability: read the finance audit trail"
+msgstr "صلاحية: قراءة سجل التدقيق المالي"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_zakat_review
+msgid "Capability: review finance review the zakat computation"
+msgstr "صلاحية: مراجعة احتساب الزكاة"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_cap_finance_zatca_submit
+msgid "Capability: submit finance invoices to ZATCA"
+msgstr "صلاحية: إرسال الفواتير إلى زاتكا"
+
+#. module: liwan_finance
+#: model:ir.model,name:liwan_finance.model_res_company
+msgid "Companies"
+msgstr "الشركات"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_audit_event__company_id
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_idempotency__company_id
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat_adjustment__company_id
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat_review__company_id
+msgid "Company"
+msgstr "الشركة"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__company_written
+msgid "Company setup changed"
+msgstr "تغيّر إعداد الشركة"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_pl_kpi_cost_of_revenue
+msgid "Cost of revenue"
+msgstr "تكلفة الإيرادات"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_audit_event__create_uid
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_idempotency__create_uid
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat_adjustment__create_uid
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat_review__create_uid
+msgid "Created by"
+msgstr "أنشأه"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_audit_event__create_date
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_idempotency__create_date
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat_adjustment__create_date
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat_review__create_date
+msgid "Created on"
+msgstr "تاريخ الإنشاء"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat_review__credential
+msgid "Credential"
+msgstr "بيانات الاعتماد"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_bs_kpi_credit_cards
+msgid "Credit cards"
+msgstr "البطاقات الائتمانية"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_bs_kpi_current_assets
+msgid "Current assets"
+msgstr "الأصول المتداولة"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_bs_kpi_current_liabilities
+msgid "Current liabilities"
+msgstr "الخصوم المتداولة"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_bs_kpi_current_year_earnings
+msgid "Current year earnings"
+msgstr "أرباح السنة الحالية"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat_adjustment__date_to
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat_review__date_to
+msgid "Date To"
+msgstr "حتى تاريخ"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_zakat_adjustment__kind__deduct
+msgid "Deducted from the base"
+msgstr "خُصم من الأساس"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_pl_kpi_depreciation
+msgid "Depreciation"
+msgstr "الإهلاك"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_account_move__display_name
+#: model:ir.model.fields,field_description:liwan_finance.field_mis_budget_by_account__display_name
+#: model:ir.model.fields,field_description:liwan_finance.field_mis_budget_by_account_item__display_name
+#: model:ir.model.fields,field_description:liwan_finance.field_res_company__display_name
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_access_service__display_name
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_feature_registry__display_name
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_analytic_report__display_name
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_audit_event__display_name
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_budget__display_name
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_cash_flow__display_name
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_closing__display_name
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_idempotency__display_name
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_mis_report__display_name
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_setup__display_name
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_statement_report__display_name
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_vat_report__display_name
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_vat_return__display_name
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_withholding_report__display_name
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat__display_name
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat_adjustment__display_name
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat_review__display_name
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zatca__display_name
+msgid "Display Name"
+msgstr "الاسم المعروض"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_bs_kpi_equity
+msgid "Equity"
+msgstr "حقوق الملكية"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_zk_kpi_equity
+msgid "Equity (capital, reserves and other equity accounts)"
+msgstr "حقوق الملكية (رأس المال والاحتياطيات وحسابات الملكية الأخرى)"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_audit_event__fields_written
+msgid "Fields Written"
+msgstr "الحقول المكتوبة"
+
+#. module: liwan_finance
+#: model:res.groups,name:liwan_finance.group_finance_manager
+msgid "Finance Manager"
+msgstr "مدير المالية"
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/models/setup_service.py:0
+msgid "Finance setup cannot write the field %s."
+msgstr "إعداد المالية لا يمكنه الكتابة على الحقل %s."
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/models/setup_service.py:0
+msgid "Finance setup only acts on the current company."
+msgstr "إعداد المالية يعمل على الشركة الحالية فقط."
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat_review__fingerprint
+msgid "Fingerprint"
+msgstr "البصمة"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__fiscal_year_closed
+msgid "Fiscal year closed"
+msgstr "أُقفلت السنة المالية"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_bs_kpi_fixed_assets
+msgid "Fixed assets, net of depreciation"
+msgstr "الأصول الثابتة صافي الإهلاك"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_pl_kpi_gross_profit
+msgid "Gross profit"
+msgstr "الربح الإجمالي"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_account_move__id
+#: model:ir.model.fields,field_description:liwan_finance.field_mis_budget_by_account__id
+#: model:ir.model.fields,field_description:liwan_finance.field_mis_budget_by_account_item__id
+#: model:ir.model.fields,field_description:liwan_finance.field_res_company__id
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_access_service__id
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_feature_registry__id
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_analytic_report__id
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_audit_event__id
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_budget__id
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_cash_flow__id
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_closing__id
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_idempotency__id
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_mis_report__id
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_setup__id
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_statement_report__id
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_vat_report__id
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_vat_return__id
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_withholding_report__id
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat__id
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat_adjustment__id
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat_review__id
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zatca__id
+msgid "ID"
+msgstr "المعرّف"
+
+#. module: liwan_finance
+#: model:ir.model,name:liwan_finance.model_account_move
+msgid "Journal Entry"
+msgstr "قيد اليومية"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__journal_archived
+msgid "Journal archived"
+msgstr "أُرشفت اليومية"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__journal_changed
+msgid "Journal changed"
+msgstr "تغيّرت اليومية"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__journal_created
+msgid "Journal created"
+msgstr "أُنشئت اليومية"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__journal_unarchived
+msgid "Journal unarchived"
+msgstr "أُلغيت أرشفة اليومية"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_idempotency__key
+msgid "Key"
+msgstr "المفتاح"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat_adjustment__kind
+msgid "Kind"
+msgstr "النوع"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat_adjustment__label
+msgid "Label"
+msgstr "التسمية"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_audit_event__write_uid
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_idempotency__write_uid
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat_adjustment__write_uid
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat_review__write_uid
+msgid "Last Updated by"
+msgstr "آخر تعديل بواسطة"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_audit_event__write_date
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_idempotency__write_date
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat_adjustment__write_date
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat_review__write_date
+msgid "Last Updated on"
+msgstr "تاريخ آخر تعديل"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_zk_kpi_long_term_investments
+msgid "Long-term investments and non-current assets"
+msgstr "الاستثمارات طويلة الأجل والأصول غير المتداولة"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_zk_kpi_long_term_liabilities
+msgid "Long-term liabilities"
+msgstr "الخصوم غير المتداولة"
+
+#. module: liwan_finance
+#: model:ir.model,name:liwan_finance.model_mis_budget_by_account_item
+msgid "MIS Budget Item (by Account)"
+msgstr "بند ميزانية MIS (حسب الحساب)"
+
+#. module: liwan_finance
+#: model:ir.model,name:liwan_finance.model_mis_budget_by_account
+msgid "MIS Budget by Account"
+msgstr "ميزانية MIS حسب الحساب"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_idempotency__method
+msgid "Method"
+msgstr "الطريقة"
+
+#. module: liwan_finance
+#: model:ir.model.fields,help:liwan_finance.field_liwan_finance_audit_event__fields_written
+msgid "Names of the fields written, comma separated; never their values."
+msgstr "أسماء الحقول المكتوبة مفصولة بفواصل؛ لا قيمها أبدًا."
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_zk_kpi_net_fixed_assets
+msgid "Net fixed assets"
+msgstr "صافي الأصول الثابتة"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_pl_kpi_net_profit
+msgid "Net profit"
+msgstr "صافي الربح"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_zk_kpi_net_profit
+msgid "Net profit of the fiscal year to date"
+msgstr "صافي ربح السنة المالية حتى التاريخ"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_bs_kpi_non_current_assets
+msgid "Non-current assets"
+msgstr "الأصول غير المتداولة"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_bs_kpi_non_current_liabilities
+msgid "Non-current liabilities"
+msgstr "الخصوم غير المتداولة"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat_adjustment__note
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat_review__note
+msgid "Note"
+msgstr "الملاحظة"
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/models/res_company.py:0
+msgid ""
+"Only the ZATCA sandbox api mode is allowed until the simulation and "
+"production policy is approved."
+msgstr "لا يُسمح إلا بوضع واجهة زاتكا التجريبي حتى تُعتمد سياسة المحاكاة والإنتاج."
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_pl_kpi_operating_expenses
+msgid "Operating expenses"
+msgstr "مصروفات التشغيل"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_pl_kpi_operating_profit
+msgid "Operating profit"
+msgstr "الربح التشغيلي"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_pl_kpi_other_expenses
+msgid "Other expenses"
+msgstr "مصروفات أخرى"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_pl_kpi_other_income
+msgid "Other income"
+msgstr "إيرادات أخرى"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_audit_event__outcome
+msgid "Outcome"
+msgstr "النتيجة"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_idempotency__path
+msgid "Path"
+msgstr "المسار"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_bs_kpi_payables
+msgid "Payables"
+msgstr "الدائنون"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__payment_allocated
+msgid "Payment allocated"
+msgstr "وُزّعت الدفعة"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__payment_changed
+msgid "Payment changed"
+msgstr "تغيّرت الدفعة"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__payment_created
+msgid "Payment created"
+msgstr "أُنشئت الدفعة"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__payment_posted
+msgid "Payment posted"
+msgstr "رُحّلت الدفعة"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__payment_term_archived
+msgid "Payment term archived"
+msgstr "أُرشف شرط الدفع"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__payment_term_changed
+msgid "Payment term changed"
+msgstr "تغيّر شرط الدفع"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__payment_term_created
+msgid "Payment term created"
+msgstr "أُنشئ شرط الدفع"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__payment_term_unarchived
+msgid "Payment term unarchived"
+msgstr "أُلغيت أرشفة شرط الدفع"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__payment_unallocated
+msgid "Payment unallocated"
+msgstr "أُلغي توزيع الدفعة"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_bs_kpi_prepayments
+msgid "Prepayments"
+msgstr "الدفعات المقدمة"
+
+#. module: liwan_finance
+#: model:mis.report,name:liwan_finance.mis_report_profit_loss
+msgid "Profit and loss"
+msgstr "الأرباح والخسائر"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_zk_kpi_provisions
+msgid "Provisions (leave days and leave tickets)"
+msgstr "المخصصات (أرصدة الإجازات وتذاكرها)"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_bs_kpi_receivables
+msgid "Receivables"
+msgstr "المدينون"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_idempotency__request_hash
+msgid "Request Hash"
+msgstr "بصمة الطلب"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_audit_event__res_id
+msgid "Res"
+msgstr "السجل"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_audit_event__res_model
+msgid "Res Model"
+msgstr "نموذج السجل"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_bs_kpi_retained_earnings
+#: model:mis.report.kpi,description:liwan_finance.mis_zk_kpi_retained_earnings
+msgid "Retained earnings of previous years"
+msgstr "الأرباح المبقاة للسنوات السابقة"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_pl_kpi_revenue
+msgid "Revenue"
+msgstr "الإيرادات"
+
+#. module: liwan_finance
+#: model:mis.report,description:liwan_finance.mis_report_zakat_base
+msgid ""
+"Simplified Zakat base for management information only. The formula is not a "
+"ZATCA filing computation and must be reviewed by a Saudi certified public "
+"accountant (CPA) before it is relied on. The rate is 2.5% scaled by 365/354 "
+"for a Gregorian fiscal year."
+msgstr "أساس زكاة مبسّط لأغراض معلومات الإدارة فقط. الصيغة ليست احتساب إقرار لدى زاتكا ويلزم مراجعتها من محاسب قانوني سعودي معتمد."
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_idempotency__status
+msgid "Status"
+msgstr "الحالة"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__tax_archived
+msgid "Tax archived"
+msgstr "أُرشف الضريبة"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__tax_changed
+msgid "Tax changed"
+msgstr "تغيّرت الضريبة"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__tax_created
+msgid "Tax created"
+msgstr "أُنشئت الضريبة"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__tax_unarchived
+msgid "Tax unarchived"
+msgstr "أُلغيت أرشفة الضريبة"
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/models/vat_return.py:0
+msgid "The Saudi VAT return definition is not installed."
+msgstr "تعريف إقرار ضريبة القيمة المضافة السعودي غير مثبّت."
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/models/zakat.py:0
+msgid "The amount of an adjustment must be above zero."
+msgstr "يجب أن يكون مبلغ التسوية أكبر من صفر."
+
+#. module: liwan_finance
+#: model:ir.model.fields,help:liwan_finance.field_liwan_finance_zakat_adjustment__date_to
+msgid "The end of the fiscal year the adjustment is for."
+msgstr "نهاية السنة المالية التي تخصها التسوية."
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/models/mis_report.py:0
+msgid "The figure %(kpi)s cannot be computed: %(error)r"
+msgstr "تعذّر حساب المؤشر %(kpi)s: %(error)r"
+
+#. module: liwan_finance
+#: model:ir.model.constraint,message:liwan_finance.constraint_liwan_finance_idempotency_key_unique
+msgid "The idempotency key is already used."
+msgstr "مفتاح منع التكرار مستخدم بالفعل."
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/models/budget_guard.py:0
+msgid "The lines of a budget can only be changed while it is a draft."
+msgstr "لا يمكن تغيير بنود الميزانية إلا في حالة المسودة."
+
+#. module: liwan_finance
+#: model:ir.model.fields,help:liwan_finance.field_liwan_finance_audit_event__outcome
+msgid "The resulting state, for example the ZATCA submission state."
+msgstr "الحالة الناتجة، مثل حالة الإرسال إلى زاتكا."
+
+#. module: liwan_finance
+#: model:ir.model.fields,help:liwan_finance.field_liwan_finance_zakat_review__credential
+msgid ""
+"The reviewer's professional credential, as they state it (for example the "
+"SOCPA licence)."
+msgstr "الاعتماد المهني للمراجع كما يذكره (مثل ترخيص SOCPA)."
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_zk_kpi_total_additions
+msgid "Total additions"
+msgstr "مجموع الإضافات"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_bs_kpi_total_assets
+msgid "Total assets"
+msgstr "مجموع الأصول"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_zk_kpi_total_deductions
+msgid "Total deductions"
+msgstr "مجموع الاستقطاعات"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_bs_kpi_total_equity
+msgid "Total equity"
+msgstr "مجموع حقوق الملكية"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_bs_kpi_total_liabilities
+msgid "Total liabilities"
+msgstr "مجموع الخصوم"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_bs_kpi_total_liabilities_and_equity
+msgid "Total liabilities and equity"
+msgstr "مجموع الخصوم وحقوق الملكية"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_idempotency__user_id
+msgid "User"
+msgstr "المستخدم"
+
+#. module: liwan_finance
+#: model:ir.model,name:liwan_finance.model_liwan_access_service
+msgid "LiwanOS Access Service"
+msgstr "خدمة الوصول في ليوان"
+
+#. module: liwan_finance
+#: model:ir.model,name:liwan_finance.model_liwan_feature_registry
+msgid "LiwanOS feature and module registry"
+msgstr "سجل الميزات والوحدات في ليوان"
+
+#. module: liwan_finance
+#: model:ir.model,name:liwan_finance.model_liwan_finance_mis_report
+msgid "LiwanOS finance MIS report evaluation"
+msgstr "تقييم تقرير MIS المالي في ليوان"
+
+#. module: liwan_finance
+#: model:ir.model,name:liwan_finance.model_liwan_finance_vat_return
+msgid "LiwanOS finance VAT return"
+msgstr "إقرار ضريبة القيمة المضافة في ليوان"
+
+#. module: liwan_finance
+#: model:ir.model,name:liwan_finance.model_liwan_finance_vat_report
+msgid "LiwanOS finance VAT summary"
+msgstr "ملخص ضريبة القيمة المضافة في ليوان"
+
+#. module: liwan_finance
+#: model:ir.model,name:liwan_finance.model_liwan_finance_zatca
+msgid "LiwanOS finance ZATCA e-invoicing"
+msgstr "الفاتورة الإلكترونية (زاتكا) في ليوان"
+
+#. module: liwan_finance
+#: model:ir.model,name:liwan_finance.model_liwan_finance_zakat_adjustment
+msgid "LiwanOS finance Zakat base adjustment"
+msgstr "تسوية أساس الزكاة في ليوان"
+
+#. module: liwan_finance
+#: model:ir.model,name:liwan_finance.model_liwan_finance_zakat_review
+msgid "LiwanOS finance Zakat computation review"
+msgstr "مراجعة احتساب الزكاة في ليوان"
+
+#. module: liwan_finance
+#: model:ir.model,name:liwan_finance.model_liwan_finance_zakat
+msgid "LiwanOS finance Zakat workpaper"
+msgstr "مذكرة عمل الزكاة في ليوان"
+
+#. module: liwan_finance
+#: model:ir.model,name:liwan_finance.model_liwan_finance_analytic_report
+msgid "LiwanOS finance analytic (cost center) report"
+msgstr "تقرير التحليلية (مراكز التكلفة) في ليوان"
+
+#. module: liwan_finance
+#: model:ir.model,name:liwan_finance.model_liwan_finance_audit_event
+msgid "LiwanOS finance audit event"
+msgstr "حدث تدقيق مالي في ليوان"
+
+#. module: liwan_finance
+#: model:ir.model,name:liwan_finance.model_liwan_finance_budget
+msgid "LiwanOS finance budget evaluation"
+msgstr "تقييم الميزانية في ليوان"
+
+#. module: liwan_finance
+#: model:ir.model,name:liwan_finance.model_liwan_finance_cash_flow
+msgid "LiwanOS finance cash flow statement"
+msgstr "قائمة التدفقات النقدية في ليوان"
+
+#. module: liwan_finance
+#: model:ir.model,name:liwan_finance.model_liwan_finance_closing
+msgid "LiwanOS finance fiscal year closing"
+msgstr "إقفال السنة المالية في ليوان"
+
+#. module: liwan_finance
+#: model:ir.model,name:liwan_finance.model_liwan_finance_setup
+msgid "LiwanOS finance guided setup"
+msgstr "الإعداد الموجّه للمالية في ليوان"
+
+#. module: liwan_finance
+#: model:ir.model,name:liwan_finance.model_liwan_finance_idempotency
+msgid "LiwanOS finance idempotency key"
+msgstr "مفتاح منع التكرار المالي في ليوان"
+
+#. module: liwan_finance
+#: model:ir.model,name:liwan_finance.model_liwan_finance_statement_report
+msgid "LiwanOS finance statements over the OCA reports"
+msgstr "القوائم المالية فوق تقارير OCA في ليوان"
+
+#. module: liwan_finance
+#: model:ir.model,name:liwan_finance.model_liwan_finance_withholding_report
+msgid "LiwanOS finance withholding summary"
+msgstr "ملخص الاستقطاع في ليوان"
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/controllers/finance_closing.py:0
+msgid "Year-end closing %(year)s"
+msgstr "إقفال السنة المالية %(year)s"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_account_bank_statement_line__liwan_closing_year
+#: model:ir.model.fields,field_description:liwan_finance.field_account_move__liwan_closing_year
+msgid "Year-end closing of fiscal year"
+msgstr "إقفال السنة المالية"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__zatca_onboarded
+msgid "ZATCA journal onboarded"
+msgstr "رُوبطت يومية زاتكا"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__zatca_submitted
+msgid "ZATCA submission"
+msgstr "إرسال زاتكا"
+
+#. module: liwan_finance
+#: model:ir.model.fields,field_description:liwan_finance.field_liwan_finance_zakat_review__zakat_due
+msgid "Zakat Due"
+msgstr "الزكاة المستحقة"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__zakat_adjustment_added
+msgid "Zakat adjustment added"
+msgstr "أُضيفت تسوية زكاة"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__zakat_adjustment_removed
+msgid "Zakat adjustment removed"
+msgstr "أُزيلت تسوية زكاة"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_zk_kpi_profit_addbacks
+msgid "Zakat and income tax expense added back"
+msgstr "مصروف الزكاة وضريبة الدخل المُعاد إضافته"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_zk_kpi_zakat_base
+msgid "Zakat base"
+msgstr "أساس الزكاة"
+
+#. module: liwan_finance
+#: model:mis.report,name:liwan_finance.mis_report_zakat_base
+msgid "Zakat base (simplified)"
+msgstr "أساس الزكاة (مبسّط)"
+
+#. module: liwan_finance
+#: model:ir.model.fields.selection,name:liwan_finance.selection__liwan_finance_audit_event__action__zakat_reviewed
+msgid "Zakat computation reviewed"
+msgstr "رُوجع احتساب الزكاة"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_zk_kpi_zakat_due
+msgid "Zakat due on the positive base"
+msgstr "الزكاة المستحقة على الأساس الموجب"
+
+#. module: liwan_finance
+#: model:mis.report.kpi,description:liwan_finance.mis_zk_kpi_zakat_rate
+msgid ""
+"Zakat rate: 2.5% of the lunar year scaled to the Gregorian year (x 365/354)"
+msgstr "معدل الزكاة: 2.5% من السنة الهجرية مقيسة على السنة الميلادية (× 365/354)"
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/controllers/finance_accounts.py:0
+msgid "account.account %(id)s does not exist"
+msgstr "الحساب %(id)s غير موجود"
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/controllers/finance_analytic.py:0
+msgid "account.analytic.account %(id)s does not exist"
+msgstr "الحساب التحليلي %(id)s غير موجود"
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/controllers/finance_analytic.py:0
+msgid "account.analytic.plan %(id)s does not exist"
+msgstr "خطة التحليلية %(id)s غير موجود"
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/controllers/finance_assets.py:0
+msgid "account.asset %(id)s does not exist"
+msgstr "الأصل %(id)s غير موجود"
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/controllers/finance_asset_profiles.py:0
+msgid "account.asset.profile %(id)s does not exist"
+msgstr "ملف الأصل %(id)s غير موجود"
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/controllers/finance_bank.py:0
+msgid "account.bank.statement %(id)s does not exist"
+msgstr "كشف البنك %(id)s غير موجود"
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/controllers/finance_bank.py:0
+msgid "account.bank.statement.line %(id)s does not exist"
+msgstr "سطر كشف البنك %(id)s غير موجود"
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/controllers/finance_journals.py:0
+msgid "account.journal %(id)s does not exist"
+msgstr "اليومية %(id)s غير موجود"
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/controllers/finance_documents.py:0
+#: code:addons/liwan_finance/controllers/finance_entries.py:0
+#: code:addons/liwan_finance/controllers/finance_invoices.py:0
+msgid "account.move %(id)s does not exist"
+msgstr "القيد %(id)s غير موجود"
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/controllers/finance_payments.py:0
+msgid "account.payment %(id)s does not exist"
+msgstr "الدفعة %(id)s غير موجود"
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/controllers/finance_payment_terms.py:0
+msgid "account.payment.term %(id)s does not exist"
+msgstr "شرط الدفع %(id)s غير موجود"
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/controllers/finance_taxes.py:0
+msgid "account.tax %(id)s does not exist"
+msgstr "الضريبة %(id)s غير موجود"
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/controllers/finance_partners.py:0
+msgid "res.partner %(id)s does not exist"
+msgstr "الشريك %(id)s غير موجود"
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/controllers/finance_zakat.py:0
+msgid "liwan.finance.zakat.adjustment %(id)s does not exist"
+msgstr "تسوية الزكاة %(id)s غير موجود"

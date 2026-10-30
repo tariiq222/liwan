@@ -401,7 +401,7 @@ describe('InboxComposer', () => {
       expect(sendReply).toHaveBeenCalledWith({ template_id: 7, params: ['918273'] })
     })
 
-    it('does not offer a template WebVue cannot fill', async () => {
+    it('does not offer a template LiwanOS cannot fill', async () => {
       const { state } = mountComposer(null, new Map(), { ...TEMPLATE, supported: false })
       expect(state.templateItems.value).toEqual([])
       state.templateId.value = 7

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useTasks, type TaskListParams } from '@/composables/useTasks'
-import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 
 // "Needs your attention": the overdue open tasks of the project (first five). It is the page's call to action
 // only while there is something to act on and the phase gate (the page's one `action` block) is not shown;

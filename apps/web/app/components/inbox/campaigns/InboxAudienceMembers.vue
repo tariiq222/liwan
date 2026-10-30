@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { InboxAudienceMember } from '@webvue/contracts'
+import type { InboxAudienceMember } from '@liwan/contracts'
 import { CONSENT_STATES, CONSENT_TONE } from '@/composables/inbox/inboxCampaignPresentation'
 import { CAMPAIGN_PAGE_SIZE, campaignPageOffset, parseMemberRoute, serializeMemberRoute, type MemberRoute } from '@/composables/inbox/inboxCampaignRoute'
 import { useInboxAudienceMembers } from '@/composables/inbox/useInboxCampaigns'
@@ -54,7 +54,7 @@ const columns = computed<TableColumn<InboxAudienceMember>[]>(() => [
       </SharedFilterBar>
     </template>
     <SharedPageState :error="list.error.value" :keep-content="items.length > 0" @retry="list.refetch">
-      <SharedEmptyState v-if="!list.isLoading.value && !items.length" class="m-(--webvue-card-pad-dense)" :title="t('inbox.campaigns.audiences.noMembers')" />
+      <SharedEmptyState v-if="!list.isLoading.value && !items.length" class="m-(--liwan-card-pad-dense)" :title="t('inbox.campaigns.audiences.noMembers')" />
       <SharedDataTable v-else bare :rows="items" :columns="columns" row-key="id" :loading="list.isLoading.value" :caption="t('inbox.campaigns.audiences.members')">
         <template #name-cell="{ row }"><span class="font-medium text-highlighted">{{ row.original.name }}</span></template>
         <template #phone-cell="{ row }"><bdi v-if="row.original.phone" dir="ltr">{{ row.original.phone }}</bdi></template>

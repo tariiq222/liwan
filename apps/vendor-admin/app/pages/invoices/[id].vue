@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { invoiceStatusBadge } from '@webvue/commercial-ui/app/utils/commercialBadges'
+import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
 import { adjustmentStatusBadge, paymentAttemptBadge } from '@/utils/vendorBadges'
-import { formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercial'
+import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { invoicesReturnTo, isNotAvailable, refundErrorKey, validRefundDraft, vendorInvoiceLineViews } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
-import { formatWebVueDate, formatWebVueDateTime } from '@webvue/ui/app/composables/calendarDate'
+import { formatLiwanDate, formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
 definePageMeta({ capability: 'vendor.billing.manage' })
 const { t, locale } = useI18n(); const route = useRoute(); const api = useVendorSubscriptions()
 const { can } = useVendorContext()
@@ -18,10 +18,10 @@ const { data: attempts, error: attemptsError, pending: attemptsPending, refresh:
   () => `vendor:invoice-attempts:${id.value}:${orderId.value ?? 'none'}:${canBilling.value}`,
   () => orderId.value && canBilling.value ? api.paymentAttempts(orderId.value) : Promise.resolve(null),
 )
-const attemptTime = (value: string) => formatWebVueDateTime(value, locale.value)
+const attemptTime = (value: string) => formatLiwanDateTime(value, locale.value)
 const unavailable = computed(() => isNotAvailable(error.value) && !data.value)
 const money = (m: NonNullable<typeof data.value>['total']) => formatCommercialMoney(m, locale.value)
-const date = (v: string | null) => (v ? formatWebVueDate(v, locale.value) : null)
+const date = (v: string | null) => (v ? formatLiwanDate(v, locale.value) : null)
 const canRefund = computed(() => canBilling.value && !unavailable.value)
 const refundNoteId = ref<string | null>(null)
 const refundReference = ref('')

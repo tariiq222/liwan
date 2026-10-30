@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { http, HttpResponse, delay } from 'msw'
-import type { MeetingSettings } from '@webvue/contracts'
+import type { MeetingSettings } from '@liwan/contracts'
 import MeetingScheduleCard from '../../app/components/meetings/MeetingScheduleCard.vue'
 import { me } from '../fixtures/pmo'
 import { storyContext } from '../support/context'

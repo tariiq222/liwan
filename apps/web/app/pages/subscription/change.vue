@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { Quote } from '@webvue/commercial-contracts'
-import { cadenceLabel, formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercial'
+import type { Quote } from '@liwan/commercial-contracts'
+import { cadenceLabel, formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { QUOTE_IS_EXPIRED, refusalCode, refusalKey, safeIdemAction, safePaymentRedirect, sameQuoteEconomics } from '@/utils/subscription'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t, locale } = useI18n(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
@@ -148,8 +148,8 @@ definePageMeta({ middleware: 'customer-commercial' })
     <SharedPageHeader :title="t('subscription.change.title')" back-to="/subscription" />
     <SharedForbiddenState v-if="!allowed" />
     <SharedPageState v-else :loading="pending" :error="error" :empty="!pending && !error && !plans.length" :empty-text="t('subscription.change.empty')" @retry="refresh">
-      <form class="grid items-start gap-(--webvue-gap-card) lg:grid-cols-[minmax(0,1fr)_22rem]" @submit.prevent="accept">
-        <div class="grid gap-(--webvue-gap-card)">
+      <form class="grid items-start gap-(--liwan-gap-card) lg:grid-cols-[minmax(0,1fr)_22rem]" @submit.prevent="accept">
+        <div class="grid gap-(--liwan-gap-card)">
           <SharedFormSection panel :title="t('subscription.change.plan')">
             <div class="space-y-5">
               <UFormField :label="t('subscription.change.plan')"><USelect v-model="planId" :items="plans.map(p => ({ value: p.id, label: p.name }))" :disabled="!hydrated" class="w-full" /></UFormField>

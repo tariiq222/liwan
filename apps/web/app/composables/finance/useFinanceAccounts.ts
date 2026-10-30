@@ -1,7 +1,7 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { keepPreviousData, useQuery } from '@tanstack/vue-query'
-import { FinanceAccountListSchema } from '@webvue/contracts'
+import { FinanceAccountListSchema } from '@liwan/contracts'
 import type { AccountListParams } from '@/components/finance/accounting/accountListParams'
 
 export const financeAccountKeys = {

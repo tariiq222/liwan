@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FinanceAssetProfile } from '@webvue/contracts'
-import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import type { FinanceAssetProfile } from '@liwan/contracts'
+import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
 import { h } from 'vue'
 import { useArchiveSetupAssetProfile, useSetupAssetProfiles } from '@/composables/finance/useFinanceRecords'
 import AssetProfileEditor from './AssetProfileEditor.vue'
@@ -44,7 +44,7 @@ const actions = (profile: FinanceAssetProfile): RowAction[] => [
     <template v-if="canManage" #actions>
       <UButton color="primary" icon="i-lucide-plus" :disabled="!list.hydrated.value || panel !== null" :label="t('financeRecords.assetProfiles.new')" data-testid="finance-record-asset-profile-new" @click="panel = { kind: 'create' }" />
     </template>
-    <div class="grid gap-(--webvue-gap-card)">
+    <div class="grid gap-(--liwan-gap-card)">
       <template v-if="panel">
         <RecordArchiveConfirm v-if="panel.kind === 'archive'" :key="panelKey(panel)" scope="assetProfiles" :name="panel.profile.name" :active="panel.profile.active" :pending="archiving" :send="archive => send({ id: (panel as { profile: FinanceAssetProfile }).profile.id, archive })" @done="panel = null" @cancel="panel = null" />
         <AssetProfileEditor v-else :key="panelKey(panel)" :profile="panel.kind === 'edit' ? panel.profile : undefined" @done="panel = null" @cancel="panel = null" />

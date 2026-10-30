@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxRule } from '@webvue/contracts'
+import type { InboxRule } from '@liwan/contracts'
 import { moveRuleId, ruleActionKeys } from '@/composables/inbox/inboxAutomation'
 import { useDeleteInboxRule, useInboxRules, useReorderInboxRules, useSaveInboxRule } from '@/composables/inbox/useInboxAutomation'
 
@@ -43,9 +43,9 @@ const summary = (rule: InboxRule) => [
     </template>
     <SharedLoadingSkeleton v-if="isLoading" class="m-4" />
     <SharedPageState v-else-if="error" class="m-4" :error="error" @retry="refetch()" />
-    <p v-else-if="!items.length" class="px-(--webvue-card-pad) py-4 text-sm text-muted" data-testid="inbox-rules-empty">{{ t('inbox.automation.rules.empty') }}</p>
+    <p v-else-if="!items.length" class="px-(--liwan-card-pad) py-4 text-sm text-muted" data-testid="inbox-rules-empty">{{ t('inbox.automation.rules.empty') }}</p>
     <ol v-else class="divide-y divide-default" :aria-label="t('inbox.automation.rules.title')">
-      <li v-for="(rule, index) in items" :key="rule.id" class="flex flex-wrap items-center gap-3 px-(--webvue-card-pad) py-3" :data-testid="`inbox-rule-${rule.id}`">
+      <li v-for="(rule, index) in items" :key="rule.id" class="flex flex-wrap items-center gap-3 px-(--liwan-card-pad) py-3" :data-testid="`inbox-rule-${rule.id}`">
         <span class="flex w-6 shrink-0 justify-center text-xs text-muted" aria-hidden="true">{{ index + 1 }}</span>
         <NuxtLink :to="`/settings/apps/inbox/rules/${rule.id}`" class="min-w-0 flex-1 text-start focus-visible:outline-2 focus-visible:outline-primary">
           <span class="block truncate text-sm font-medium text-highlighted" :class="{ 'text-muted': !rule.active }">{{ rule.name }}</span>

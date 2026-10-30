@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { MilestonePatch } from '@webvue/contracts'
+import type { MilestonePatch } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
 import { useMilestones, useUpdateMilestone, useDeleteMilestone } from '@/composables/useMilestones'
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import { parsePositiveId } from '@/utils/routeParams'
-import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
+import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 
 const route = useRoute()
 const router = useRouter()

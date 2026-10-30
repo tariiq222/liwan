@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { planViewSchema, planCreateSchema, planEditSchema, lifecycleActionSchema, type PlanView, type PlanRevision, type Price } from '@webvue/commercial-contracts'
+import { planViewSchema, planCreateSchema, planEditSchema, lifecycleActionSchema, type PlanView, type PlanRevision, type Price } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { audit, CommercialHttpError, digestOf, iso, lockRevision, nextVersion, pageParams, referenceCount, requireStatus, statusSql, type CommercialActor, type Kind } from './lifecycle.js'
 import { priceIssues, bundleRevision, loadRelease } from './bundles.js'
-import { compileEntitlements, CommercialError } from '@webvue/commercial-contracts/server'
+import { compileEntitlements, CommercialError } from '@liwan/commercial-contracts/server'
 
 export const PLAN_KIND: Kind = { table: 'plan_revisions', parent: 'commercial_plans', parentCol: 'plan_id', label: 'plan' }
 type Row = Record<string, any>

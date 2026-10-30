@@ -1,8 +1,0 @@
-id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_document_reader,Document reader,model_webvue_document,group_cap_documents_items_read,1,0,0,0
-access_document_manager,Document manager,model_webvue_document,group_cap_documents_items_manage,1,1,1,0
-access_document_grant_reader,Own grant policy,model_webvue_document_grant,group_cap_documents_items_read,1,0,0,0
-access_document_grant_manager,Managed grant mutation,model_webvue_document_grant,group_cap_documents_items_manage,1,1,1,1
-access_document_employee,Employee document reader,model_webvue_document,webvue_core.group_employee,1,0,0,0
-access_document_policy_operator,Operator-only policy fence,model_webvue_document_policy,base.group_system,0,0,0,0
-access_document_tag_employee,Employee document tags,dms.model_dms_tag,webvue_core.group_employee,1,0,0,0

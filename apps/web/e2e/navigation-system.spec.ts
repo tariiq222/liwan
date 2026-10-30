@@ -93,7 +93,7 @@ test('chat retains full-height panel after shared navigation changes', async ({ 
   await expect(menu).toHaveAttribute('data-panel-width', 'wide')
   const box = (await menu.boundingBox())!
   expect(box.y + box.height).toBeCloseTo(888, 0)
-  await expect(menu.locator('.webvue-navigation-panel')).toBeVisible()
+  await expect(menu.locator('.liwan-navigation-panel')).toBeVisible()
 })
 
 for (const width of [360, 768, 1440]) {
@@ -101,7 +101,7 @@ for (const width of [360, 768, 1440]) {
     test(`nested settings guides fit at ${width}px in ${locale} with reduced motion`, async ({ page, baseURL }) => {
       await page.setViewportSize({ width, height: 900 })
       await page.emulateMedia({ reducedMotion: 'reduce' })
-      await page.context().addCookies([{ name: 'webvue-locale', value: locale, url: baseURL! }])
+      await page.context().addCookies([{ name: 'liwan-locale', value: locale, url: baseURL! }])
       expect((await page.request.patch('/api/v1/me/appearance', { data: { mode: 'dark', font_size: 'large' } })).status()).toBe(200)
       try {
         await open(page, '/settings/team/users?status=stopped')
@@ -118,12 +118,12 @@ for (const width of [360, 768, 1440]) {
         await expect(users).toHaveAttribute('aria-expanded', 'true')
         await expectAlignedGuide(parent)
         await expectAlignedGuide(users)
-        await expect(menu.locator('.webvue-navigation-submenu [data-active="true"] .webvue-quick-chip')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+        await expect(menu.locator('.liwan-navigation-submenu [data-active="true"] .liwan-quick-chip')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
         expect(await menu.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true)
-        expect(await menu.locator('.webvue-navigation-submenu [data-slot="label"]').evaluateAll(labels => labels.every(label => {
+        expect(await menu.locator('.liwan-navigation-submenu [data-slot="label"]').evaluateAll(labels => labels.every(label => {
           const text = label.getBoundingClientRect()
-          const row = label.closest('.webvue-quick-link')!.getBoundingClientRect()
+          const row = label.closest('.liwan-quick-link')!.getBoundingClientRect()
           return text.left >= row.left - 1 && text.right <= row.right + 1
         }))).toBe(true)
         await users.click()
@@ -146,14 +146,14 @@ test('meetings share the hierarchy and documents without archive access stay dir
       // This mock identity may read/manage documents, but may not archive them.
       await expect(menu.getByTestId('context-link-documents')).toHaveAttribute('href', path)
       await expect(menu.getByTestId('context-link-documents')).toHaveAttribute('data-active', 'true')
-      await expect(menu.locator('.webvue-submenu-trigger')).toHaveCount(0)
+      await expect(menu.locator('.liwan-submenu-trigger')).toHaveCount(0)
       continue
     }
-    const parentId = await menu.locator('.webvue-submenu-trigger[aria-expanded="true"]').first().getAttribute('data-testid')
+    const parentId = await menu.locator('.liwan-submenu-trigger[aria-expanded="true"]').first().getAttribute('data-testid')
     const parent = menu.getByTestId(parentId!)
     await expect(parent).toBeVisible()
     await expectAlignedGuide(parent)
-    await expect(menu.locator(`.webvue-navigation-submenu a[href="${path}"]`)).toBeVisible()
+    await expect(menu.locator(`.liwan-navigation-submenu a[href="${path}"]`)).toBeVisible()
     const originalUrl = page.url()
     await parent.click()
     await expect(parent).toHaveAttribute('aria-expanded', 'false')

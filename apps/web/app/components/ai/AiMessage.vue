@@ -26,7 +26,7 @@ const textClass = computed(() => (props.compact ? 'text-sm leading-6' : 'text-ba
   >
     <span class="sr-only">{{ props.role === 'user' ? t('ai.thread.you') : t('ai.thread.assistant') }}</span>
     <template v-if="props.role === 'user'">
-      <p dir="auto" :class="['whitespace-pre-wrap break-words rounded-card bg-(--webvue-nav-active) px-4 py-2.5 text-highlighted', textClass]">{{ props.text }}</p>
+      <p dir="auto" :class="['whitespace-pre-wrap break-words rounded-card bg-(--liwan-nav-active) px-4 py-2.5 text-highlighted', textClass]">{{ props.text }}</p>
     </template>
     <template v-else>
       <AiAvatar class="mt-0.5" />

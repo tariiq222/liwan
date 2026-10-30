@@ -3,7 +3,7 @@ import {readFile,stat,mkdir,writeFile,rename} from 'node:fs/promises'
 import {join} from 'node:path'
 import type {Pool} from 'pg'
 import {z} from 'zod'
-import {tenantBindingSchema,type SharedJob,type TenantBinding,sharedReceiptSchema} from '@webvue/commercial-contracts/shared'
+import {tenantBindingSchema,type SharedJob,type TenantBinding,sharedReceiptSchema} from '@liwan/commercial-contracts/shared'
 import {transaction} from '../db.js'
 import {requireJobAuthority} from './job-store.js'
 import {REGISTRY_ADVISORY_LOCK,resolveRegistryBinding,registryTargetSchema,type RegistryActor} from './registry-store.js'
@@ -89,7 +89,7 @@ export async function approveOdooRestore(pool:Pool,runtime:SharedRuntimeConfig,a
    AND j.receipt->>'payloadDigest'=j.payload_digest`,[request.backup_id,controlTenantId])
   if(rows.rowCount!==1 || rows.rows[0].manifest_sha256!==artifact.sha256)throw Error('shared_backup_unavailable')
   validateRealBackupManifest(artifact.value,{backupId:request.backup_id,controlTenantId,binding})
-  const approvalId=randomUUID(),target='webvue_scratch_'+randomUUID().replaceAll('-','')
+  const approvalId=randomUUID(),target='liwan_scratch_'+randomUUID().replaceAll('-','')
   const reserved=await client.query('SELECT 1 FROM shared_registry_bindings WHERE database_name=$1 OR filestore=$1',[target])
   if(reserved.rowCount)throw Error('restore_target_reserved')
   const result=await client.query(`INSERT INTO shared_restore_approvals(id,backup_id,control_tenant_id,target_database,reason,expires_at)

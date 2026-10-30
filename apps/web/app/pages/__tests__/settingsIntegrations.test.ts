@@ -2,10 +2,10 @@ import { resolve } from 'node:path'
 import * as Vue from 'vue'
 import { renderToString } from '@vue/server-renderer'
 import { describe, expect, it } from 'vitest'
-import { IntegrationConnectionListSchema } from '@webvue/contracts'
-import { formatDateTime } from '@webvue/ui/app/utils/formatDate'
-import { badgeLabel } from '@webvue/ui/app/utils/statusBadge'
-import { DEFAULT_STUBS, fakeT, loadShared } from '@webvue/ui/test/helpers/renderShared'
+import { IntegrationConnectionListSchema } from '@liwan/contracts'
+import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
+import { badgeLabel } from '@liwan/ui/app/utils/statusBadge'
+import { DEFAULT_STUBS, fakeT, loadShared } from '@liwan/ui/test/helpers/renderShared'
 import { canReachPath } from '../../utils/accessPolicy'
 import { integrationStateBadge } from '../../utils/integrationStateBadge'
 import { useNav } from '../../composables/nav/shellModules'
@@ -33,8 +33,8 @@ async function render(options: { items?: unknown[] }) {
   const component = loadShared(page, {
     messages,
     modules: {
-      '@webvue/ui/app/utils/formatDate': { formatDateTime },
-      '@webvue/ui/app/utils/statusBadge': { badgeLabel },
+      '@liwan/ui/app/utils/formatDate': { formatDateTime },
+      '@liwan/ui/app/utils/statusBadge': { badgeLabel },
       '@/composables/useIntegrationConnections': {
         useIntegrationConnections: () => ({ data: Vue.ref({ items: options.items ?? [], total: options.items?.length ?? 0 }), isLoading: Vue.ref(false), error: Vue.ref(null), refetch: () => undefined }),
       },

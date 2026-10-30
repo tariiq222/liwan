@@ -12,7 +12,7 @@ describe('StatusBadge', () => {
     expect(html).toContain(`data-tone="${tone}"`)
     expect(html).toContain('variant="subtle"')
     expect(html).toContain('>Label<')
-    expect(html).toContain('webvue-pill')
+    expect(html).toContain('liwan-pill')
   })
 
   it('takes the outline variant and a decorative icon', async () => {

@@ -79,12 +79,12 @@ suite('per-tenant payment return origins on PostgreSQL', () => {
   })
   it('keeps one configured origin in dedicated mode and refuses a wildcard there', async () => {
     const a = await customer(null), b = await customer('acme-@.saas.example')
-    const dedicated = returnOriginFromEnv(pool, { WEBVUE_PAYMENT_RETURN_ORIGINS: 'https://web.example.com, https://other.example.com' })!
+    const dedicated = returnOriginFromEnv(pool, { LIWAN_PAYMENT_RETURN_ORIGINS: 'https://web.example.com, https://other.example.com' })!
     expect(await dedicated(a.id)).toBe('https://web.example.com')
     expect(await dedicated(b.id)).toBe('https://web.example.com')
     await expect(fixedReturnOrigin('https://*.saas.example')(a.id)).rejects.toMatchObject({ status: 422, code: 'return_url_forbidden' })
     expect(returnOriginFromEnv(pool, {})).toBeNull()
-    const shared = returnOriginFromEnv(pool, { WEBVUE_TENANCY_MODE: 'shared', WEBVUE_PAYMENT_RETURN_ORIGINS: 'https://*.saas.example' })!
+    const shared = returnOriginFromEnv(pool, { LIWAN_TENANCY_MODE: 'shared', LIWAN_PAYMENT_RETURN_ORIGINS: 'https://*.saas.example' })!
     expect(await shared(b.id)).toBe(`https://${b.host}`)
     await expect(shared(a.id)).rejects.toMatchObject({ status: 422 })
   })

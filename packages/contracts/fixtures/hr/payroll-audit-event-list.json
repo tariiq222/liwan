@@ -16,7 +16,7 @@
       "created_at": "2026-01-01T00:00:00Z",
       "id": 1,
       "res_id": 1,
-      "res_model": "webvue.hr.payroll.settings"
+      "res_model": "liwan.hr.payroll.settings"
     },
     {
       "action": "gosi_rate_created",
@@ -64,7 +64,7 @@
       "created_at": "2026-01-01T00:00:00Z",
       "id": 3,
       "res_id": 14,
-      "res_model": "webvue.hr.gosi.rate"
+      "res_model": "liwan.hr.gosi.rate"
     }
   ],
   "total": 2

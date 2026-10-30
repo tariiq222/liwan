@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import EosSettlementSection from '../../../app/components/hr/payroll/EosSettlementSection.vue'
-import RecordPage from '@webvue/ui/app/components/shared/layout/RecordPage.vue'
+import RecordPage from '@liwan/ui/app/components/shared/layout/RecordPage.vue'
 import { storyContext } from '../../support/context'
 
 // The end-of-service settlement on the offboarding record: the server's estimate before anything is saved, a draft that

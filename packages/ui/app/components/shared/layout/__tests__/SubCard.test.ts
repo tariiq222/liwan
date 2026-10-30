@@ -7,7 +7,7 @@ describe('SharedSubCard', () => {
     const html = await renderShared('SubCard', {}, { default: () => h('p', 'BODY') })
     expect(html).toMatch(/^<div[^>]*data-slot="sub-card"/)
     expect(html).toContain('rounded-control')
-    expect(html).toContain('p-(--webvue-subcard-pad)')
+    expect(html).toContain('p-(--liwan-subcard-pad)')
     expect(html).toContain('ring ring-default')
     expect(html).toContain('BODY')
   })

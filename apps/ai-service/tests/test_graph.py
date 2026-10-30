@@ -7,8 +7,8 @@ from langgraph.types import Command
 
 from tests.fakes import IDENTITY, ScriptedChatModel, ai_text, ai_tool_call, new_id
 from tests.test_contracts import DRAFT_TOOL, READ_TOOL
-from webvue_ai_service.contracts import RunRequest, ToolResult
-from webvue_ai_service.graph import build_graph, initial_state, run_config, text_of
+from liwan_ai_service.contracts import RunRequest, ToolResult
+from liwan_ai_service.graph import build_graph, initial_state, run_config, text_of
 
 
 def make(responses):

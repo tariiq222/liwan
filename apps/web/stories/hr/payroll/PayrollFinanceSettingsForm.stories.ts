@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import PayrollFinanceSettingsForm from '../../../app/components/hr/payroll/PayrollFinanceSettingsForm.vue'
-import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
+import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../../support/context'
 
 // The accounting mapping of payroll in the settings: the journal, the entry's level of detail, the default cost center
@@ -36,7 +36,7 @@ const meta = {
   render: args => ({
     components: { PayrollFinanceSettingsForm, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="webvue-shell-main"><PageContainer width="list"><PayrollFinanceSettingsForm v-bind="args" /></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer width="list"><PayrollFinanceSettingsForm v-bind="args" /></PageContainer></main>',
   }),
 } satisfies Meta<typeof PayrollFinanceSettingsForm>
 

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import ChartPanel from '@webvue/ui/app/components/shared/data/ChartPanel.vue'
+import ChartPanel from '@liwan/ui/app/components/shared/data/ChartPanel.vue'
 import DashboardChart from '../../app/components/shared/data/DashboardChart.client.vue'
 import { dashboardCharts } from '../fixtures/projectReports'
 import { storyContext } from '../support/context'
@@ -39,7 +39,7 @@ export const Sizes: Story = {
   render: args => ({
     components: { ChartPanel },
     setup: () => ({ args }),
-    template: `<div class="grid max-w-xl gap-(--webvue-gap-card)"><ChartPanel v-bind="args" size="sm" title="sm" /><ChartPanel v-bind="args" size="md" title="md" /><ChartPanel v-bind="args" size="lg" title="lg" /></div>`,
+    template: `<div class="grid max-w-xl gap-(--liwan-gap-card)"><ChartPanel v-bind="args" size="sm" title="sm" /><ChartPanel v-bind="args" size="md" title="md" /><ChartPanel v-bind="args" size="lg" title="lg" /></div>`,
   }),
 }
 export const Loading: Story = { name: 'تحميل', args: { loading: true } }

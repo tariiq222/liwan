@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { CrmCallListSchema, CrmCallResultSchema, CrmOpportunityListSchema, CrmOpportunitySchema } from '@webvue/contracts'
+import { CrmCallListSchema, CrmCallResultSchema, CrmOpportunityListSchema, CrmOpportunitySchema } from '@liwan/contracts'
 import { MOCK_STACK_ONLY } from './support/mock-pages'
 
 // Runs against the isolated synthetic stack (MODULE_UI_PREVIEW=1): the CRM mock keeps state, reset before each test.

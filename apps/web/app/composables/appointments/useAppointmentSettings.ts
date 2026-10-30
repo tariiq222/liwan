@@ -1,6 +1,6 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { AppointmentSettingsSchema, type AppointmentSettingsPatch } from '@webvue/contracts'
+import { AppointmentSettingsSchema, type AppointmentSettingsPatch } from '@liwan/contracts'
 
 /** The settings belong to the current company, so each company keeps its own cache entry. */
 export const appointmentSettingsKeys = {

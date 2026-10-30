@@ -4,7 +4,7 @@ from datetime import timedelta
 import pytest
 
 from tests.fakes import new_id
-from webvue_ai_service.store import MemoryRunStore
+from liwan_ai_service.store import MemoryRunStore
 
 
 async def test_memory_store_round_trip_and_ownership():

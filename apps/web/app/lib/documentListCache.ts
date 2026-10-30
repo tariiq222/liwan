@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/vue-query'
-import type { DocumentDetail } from '@webvue/contracts'
+import type { DocumentDetail } from '@liwan/contracts'
 import { documentKeys } from './documentKeys'
 
 /** Equal revisions may carry refreshed permissions; only an older revision is rejected. */

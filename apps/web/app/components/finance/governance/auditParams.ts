@@ -1,4 +1,4 @@
-import { FinanceAuditActionSchema, type FinanceAuditEvent } from '@webvue/contracts'
+import { FinanceAuditActionSchema, type FinanceAuditEvent } from '@liwan/contracts'
 import { queryDay, queryPositiveInt, queryText } from '../../../utils/routeQuery'
 
 export const AUDIT_PAGE_SIZE = 25

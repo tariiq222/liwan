@@ -14,7 +14,7 @@ const items = computed(() => assignments.data.value?.items ?? [])
     </SharedPageState>
     <SharedListCard v-if="profile.data.value">
       <SharedPageState :loading="assignments.isLoading.value" :error="assignments.error.value" @retry="assignments.refetch">
-        <SharedEmptyState v-if="!items.length" class="m-(--webvue-card-pad-dense)" :title="t('hrShifts.emptyMine')" :description="t('hrShifts.emptyMineHint')" />
+        <SharedEmptyState v-if="!items.length" class="m-(--liwan-card-pad-dense)" :title="t('hrShifts.emptyMine')" :description="t('hrShifts.emptyMineHint')" />
         <ShiftAssignmentTable v-else :assignments="items" :caption="t('hr.self.schedule')" />
       </SharedPageState>
     </SharedListCard>

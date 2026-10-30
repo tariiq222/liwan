@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxFlow, InboxFlowCategory } from '@webvue/contracts'
+import type { InboxFlow, InboxFlowCategory } from '@liwan/contracts'
 import type { RouteLocationRaw } from 'vue-router'
 import {
   FLOW_CATEGORIES, FLOW_LIMITS, FLOW_STARTERS, STARTER_SPECS, blankFlowDraft, flowLanguageItems, formProblems, starterDraft, validateFlowDraft,
@@ -9,7 +9,7 @@ import { TEMPLATE_LANGUAGES } from '@/composables/inbox/inboxTemplate'
 import { useSaveInboxFlow } from '@/composables/inbox/useInboxFlows'
 
 // Creates a form as a draft: a name, a category and a language, starting from a blank form or a sector starter (a clinic
-// appointment request, a store order inquiry, a public service request). The draft is stored in WebVue and Meta, never
+// appointment request, a store order inquiry, a public service request). The draft is stored in LiwanOS and Meta, never
 // published here; the builder opens next to edit it.
 const props = defineProps<{ channelId: number; backTo: RouteLocationRaw }>()
 const emit = defineEmits<{ saved: [flow: InboxFlow] }>()

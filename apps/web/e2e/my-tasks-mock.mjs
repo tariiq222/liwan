@@ -29,7 +29,7 @@ function withTasks(me) {
   return {
     ...me,
     capabilities: [...new Set([...(me.capabilities ?? []), ...capabilities])],
-    modules: [...new Set([...(me.modules ?? []), 'webvue_tasks'])],
+    modules: [...new Set([...(me.modules ?? []), 'liwan_tasks'])],
     entitlements: { ...me.entitlements, 'tasks.enabled': true },
     platform: { ...me.platform, readable_features: features, writable_features: features },
   }

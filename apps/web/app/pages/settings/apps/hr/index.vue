@@ -10,7 +10,7 @@ import GosiRateTable from '@/components/hr/payroll/GosiRateTable.vue'
 import PayrollGeneralSettingsForm from '@/components/hr/payroll/PayrollGeneralSettingsForm.vue'
 import { ApiError } from '@/composables/useApi'
 import { isTruncated } from '@/utils/payrollFinanceSettings'
-import type { HrEosCase } from '@webvue/contracts'
+import type { HrEosCase } from '@liwan/contracts'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import { isPayrollConflict } from '@/utils/payrollErrors'
 
@@ -124,7 +124,7 @@ function retry() {
     <SharedPageHeader :title="t('nav.hr')" />
     <SharedForbiddenState v-if="!parts.length" :description="t('errors.forbidden')" />
     <template v-else>
-    <section v-if="shows('payroll')" id="payroll" class="webvue-settings-anchor grid gap-(--webvue-gap-card)">
+    <section v-if="shows('payroll')" id="payroll" class="liwan-settings-anchor grid gap-(--liwan-gap-card)">
     <SharedPageState :loading="settings.isLoading.value || rates.isLoading.value || bankProfiles.isLoading.value || eosCases.isLoading.value" :error="error" :empty="!settings.data.value" @retry="retry">
       <PayrollGeneralSettingsForm v-if="settings.data.value" :settings="settings.data.value" :leave-types="leaveTypeRefs" :can-edit="canConfig" :reload-settings="reloadPayrollSettings" />
       <BranchStrictCard scope="payroll" path="/api/v1/hr/payroll/branch-strictness" :can-read="can('hr.payroll.read')" :can-edit="canConfig" />
@@ -159,15 +159,15 @@ function retry() {
       </SharedFormSection>
     </SharedPageState>
     </section>
-    <section v-if="shows('branch-access')" id="branch-access" class="webvue-settings-anchor">
+    <section v-if="shows('branch-access')" id="branch-access" class="liwan-settings-anchor">
       <BranchStrictCard scope="hr" path="/api/v1/hr/branch-strictness" :can-read="can('hr.employees.manage')" :can-edit="can('hr.employees.manage')" />
     </section>
-    <section v-if="shows('leave')" id="leave" class="webvue-settings-anchor">
+    <section v-if="shows('leave')" id="leave" class="liwan-settings-anchor">
       <SharedPageState :loading="leaveSettings.isLoading.value" :error="leaveSettings.error.value" :empty="!leaveSettings.data.value" :keep-content="!!leaveSettings.data.value" @retry="leaveSettings.refetch">
         <LeaveSettingsForm v-if="leaveSettings.data.value" :settings="leaveSettings.data.value" :can-edit="canConfigLeave" :reload-settings="reloadLeaveSettings" />
       </SharedPageState>
     </section>
-    <section v-if="shows('shifts')" id="shifts" class="webvue-settings-anchor">
+    <section v-if="shows('shifts')" id="shifts" class="liwan-settings-anchor">
       <SharedPageState :loading="shiftSettings.isLoading.value" :error="shiftSettings.data.value ? null : shiftSettings.error.value" :empty="!shiftSettings.data.value" @retry="shiftSettings.refetch">
         <ShiftSettingsForm v-if="shiftSettings.data.value" :settings="shiftSettings.data.value" :can-edit="canManageShifts" :reload-settings="reloadShiftSettings" />
       </SharedPageState>

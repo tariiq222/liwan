@@ -1,12 +1,12 @@
 {
-  "local-process.sh": "34ca1ba9968164c28805db3313bc6ed86f39a5754b89f6c49d419212023ded23",
-  "run-local.sh": "20b115495e3614615143dcdd68ced6f2aab2f6a64d95446a6a56ae2d3beaa499",
-  "recover_generation.py": "acb408aa82ee3bd95709a03c9dc43b979f8479645ed94160c3c62874d938fb8d",
-  "process_lock.py": "d6644f5463db943550d09d0732d513081d9851ca96cb9b741c42072f804a5beb",
-  "begin_generation.py": "d8354d2982ac33f2ab69585d2d6a9c68b753121de328f597ef744607d329ed26",
-  "startup_handoff.py": "00d0ca343a0f5dd773ea06deb75996afa76696997d8c2e4b00a9a5358d178ec3",
-  "test_dead_recovery.py": "a8cc9c6894c2efc6d9c9c8647035ff76efab959146df9e6ad4761f90118eb672",
-  "test_startup_publication.py": "6a25fbe6b9ddcc937e4df54878376e630ebab0efe4647313858e53be06f4fc34",
-  "test_resource_guard.py": "9f891b79c177ea49bde9f801ef74de10666a4397ab8a1d3b6ca35f4d954e8135",
-  "OPERATIONS.md": "6513cf96535a341ea2318b98a1e8c2a87def15465aa98db0cb5ada0210c9187b"
+  "local-process.sh": "c557853e128313b9893852a7efdb84f25ba99880615da04df1860bc6a952e7fb",
+  "run-local.sh": "6f2ae889b96ade08efcd415e8fea6d99d630a6a29b3c738a6cd60387637808b1",
+  "recover_generation.py": "0dea0bea55f8042fe160e4ceee5d31d6f032c7ad8a5209531c0b0adab28fa93b",
+  "process_lock.py": "061071ca65593cca1eedcbb8ca13e826fef4ab396e91bd49d7c131dd3cb2489a",
+  "begin_generation.py": "eb184c7fb5a162929943b4b9c74598fab9a01a0efe2252d8ed060b5768d57d2e",
+  "startup_handoff.py": "178234d0e53d92602ddd7a0251fbf3961efb86cac93f45adfbafc8f8f6037175",
+  "test_dead_recovery.py": "da34ca0dfc7fb47207eeea831c403ffc275918261df538bf2b1ed1129fdaaa97",
+  "test_startup_publication.py": "ea3c2c45bf5735e2f6183f5fee6eccaf3a3f64b3438d638eb90698b220e08e42",
+  "test_resource_guard.py": "423c3264bbf35307b555a058f27b412e568960831bffe365a75f2897ce15339b",
+  "OPERATIONS.md": "f9b39389b61a5c355358d6681c6023ee809c79066cae18236ecd8e1cddae51c9"
 }

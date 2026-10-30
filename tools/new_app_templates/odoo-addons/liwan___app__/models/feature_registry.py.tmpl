@@ -1,0 +1,23 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo import api, models
+
+
+class Liwan{{App}}FeatureRegistry(models.AbstractModel):
+    _inherit = 'liwan.feature.registry'
+
+    @api.model
+    def _liwan_feature_definitions(self):
+        return super()._liwan_feature_definitions() + (
+            {
+                'key': '{{app}}.enabled',
+                'type': 'boolean',
+                'owner': 'liwan_{{app}}',
+                'module': 'liwan_{{app}}',
+            },
+        )
+
+    @api.model
+    def _liwan_module_definitions(self):
+        return super()._liwan_module_definitions() + (
+            {'id': 'liwan_{{app}}'},
+        )

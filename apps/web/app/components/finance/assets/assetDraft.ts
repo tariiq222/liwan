@@ -1,4 +1,4 @@
-import type { FinanceAssetCreate, FinanceAssetDetail, FinanceAssetUpdate } from '@webvue/contracts'
+import type { FinanceAssetCreate, FinanceAssetDetail, FinanceAssetUpdate } from '@liwan/contracts'
 
 const CODE_MAX = 32
 

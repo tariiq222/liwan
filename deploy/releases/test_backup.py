@@ -24,7 +24,7 @@ class BackupTests(unittest.TestCase):
             return subprocess.CompletedProcess(argv, 0, '', '')
         self.config = {'mode': 'local', 'outputDir': str(self.root / 'backup'), 'filestorePath': str(self.store),
                        'pgDump': '/usr/bin/true', 'createdb': '/usr/bin/true', 'pgRestore': '/usr/bin/true',
-                       'image': 'webvue/odoo@sha256:' + 'a' * 64, 'runner': runner,
+                       'image': 'liwan/odoo@sha256:' + 'a' * 64, 'runner': runner,
                        'pgEnv': {}, 'timeoutSeconds': 30}
 
     def test_capture_records_hashes_and_never_stops_shared_services(self):
@@ -52,29 +52,29 @@ class BackupTests(unittest.TestCase):
         self.assertFalse(validate_backup(self.root / 'backup')['valid'])
         before = len(self.commands)
         with self.assertRaises(ValueError):
-            restore_tenant(self.root / 'backup', {'tenantId':'tenant_a','database': 'webvue_scratch_restore','filestore':'webvue_scratch_restore'},
+            restore_tenant(self.root / 'backup', {'tenantId':'tenant_a','database': 'liwan_scratch_restore','filestore':'liwan_scratch_restore'},
                            {**self.config, 'restoreAllowed': True, 'writesResumed': False,
-                            'targetFilestore': str(self.root / 'webvue_scratch_restore'),'recoverySource':self.binding})
+                            'targetFilestore': str(self.root / 'liwan_scratch_restore'),'recoverySource':self.binding})
         self.assertEqual(len(self.commands), before)
 
     def test_restore_rejects_cross_tenant_or_unbound_recovery_before_commands(self):
         capture_tenant(self.binding,self.proof,self.config)
         before=len(self.commands)
         config={**self.config,'restoreAllowed':True,'writesResumed':False,'recoverySource':self.binding,
-                'targetFilestore':str(self.root/'webvue_scratch_other')}
-        for binding,patch in [({'tenantId':'tenant_b','database':'webvue_scratch_other','filestore':'webvue_scratch_other'},{}),
-                              ({'tenantId':'tenant_a','database':'webvue_scratch_other','filestore':'webvue_scratch_other'},{'recoverySource':{}})]:
+                'targetFilestore':str(self.root/'liwan_scratch_other')}
+        for binding,patch in [({'tenantId':'tenant_b','database':'liwan_scratch_other','filestore':'liwan_scratch_other'},{}),
+                              ({'tenantId':'tenant_a','database':'liwan_scratch_other','filestore':'liwan_scratch_other'},{'recoverySource':{}})]:
             with self.assertRaises(ValueError):restore_tenant(self.root/'backup',binding,{**config,**patch})
         self.assertEqual(len(self.commands),before)
 
     def test_restore_only_new_explicit_scratch_and_never_after_resumed_writes(self):
         capture_tenant(self.binding, self.proof, self.config)
         config = {**self.config, 'restoreAllowed': True, 'writesResumed': False,
-                  'targetFilestore': str(self.root / 'webvue_scratch_restore'),'recoverySource':self.binding}
-        result = restore_tenant(self.root / 'backup', {'tenantId':'tenant_a','database': 'webvue_scratch_restore','filestore':'webvue_scratch_restore'}, config)
+                  'targetFilestore': str(self.root / 'liwan_scratch_restore'),'recoverySource':self.binding}
+        result = restore_tenant(self.root / 'backup', {'tenantId':'tenant_a','database': 'liwan_scratch_restore','filestore':'liwan_scratch_restore'}, config)
         self.assertTrue(result['restored'])
-        self.assertEqual((self.root / 'webvue_scratch_restore' / 'attachment').read_bytes(), b'attachment-data')
-        for patch, db in [({'writesResumed': True}, 'webvue_scratch_again'), ({}, 'odoo19')]:
+        self.assertEqual((self.root / 'liwan_scratch_restore' / 'attachment').read_bytes(), b'attachment-data')
+        for patch, db in [({'writesResumed': True}, 'liwan_scratch_again'), ({}, 'odoo19')]:
             with self.subTest(db=db), self.assertRaises(ValueError):
                 restore_tenant(self.root / 'backup', {'database': db}, {**config, **patch})
 
@@ -106,7 +106,7 @@ class CaptureWindowTests(unittest.TestCase):
             return self.proof
         self.config = {'mode': 'local', 'outputDir': str(self.root / 'backup'), 'filestorePath': str(self.store),
                        'pgDump': '/usr/bin/true', 'createdb': '/usr/bin/true', 'pgRestore': '/usr/bin/true',
-                       'image': 'webvue/odoo@sha256:' + 'a' * 64, 'runner': runner, 'recheck': recheck,
+                       'image': 'liwan/odoo@sha256:' + 'a' * 64, 'runner': runner, 'recheck': recheck,
                        'pgEnv': {}, 'timeoutSeconds': 30}
 
     def capture(self, seconds=60, **config):
@@ -138,7 +138,7 @@ class CaptureWindowTests(unittest.TestCase):
         os.link(self.store / 'ab' / 'first', self.store / 'ab' / 'second')
         self.capture()
         self.assertTrue(validate_backup(self.root / 'backup')['valid'])
-        target = self.root / 'webvue_scratch_restore'
+        target = self.root / 'liwan_scratch_restore'
         restore_tenant(self.root / 'backup', {'tenantId': 'tenant_a', 'database': target.name, 'filestore': target.name},
                        {**self.config, 'restoreAllowed': True, 'writesResumed': False,
                         'targetFilestore': str(target), 'recoverySource': self.binding})

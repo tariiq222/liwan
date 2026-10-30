@@ -77,8 +77,8 @@ describe('patchProjectListRoute', () => {
 describe('design view state with paginated project filters', () => {
   it('preserves cards and sorting through search, status and pagination updates', () => {
     const initial = parseProjectListRoute({ view: 'cards', sort: 'progress', offset: '50' })
-    const searched = patchProjectListRoute(initial, { q: 'ويب فيو', status: 'on_track' })
-    expect(serializeProjectListRoute(searched)).toMatchObject({ q: 'ويب فيو', status: 'on_track', offset: undefined, view: 'cards', sort: 'progress' })
+    const searched = patchProjectListRoute(initial, { q: 'ليوان', status: 'on_track' })
+    expect(serializeProjectListRoute(searched)).toMatchObject({ q: 'ليوان', status: 'on_track', offset: undefined, view: 'cards', sort: 'progress' })
     const paged = patchProjectListRoute(searched, { offset: 50 })
     expect(serializeProjectListRoute(paged)).toMatchObject({ offset: 50, view: 'cards', sort: 'progress' })
   })
@@ -105,7 +105,7 @@ describe('mine project route state', () => {
 
   it('keeps mine through filter, sort, view, archive, page, and clear patches', () => {
     const initial = parseProjectListRoute({ mine: '1', q: 'portal', offset: '50', view: 'cards' })
-    const searched = patchProjectListRoute(initial, { q: 'ويب فيو' })
+    const searched = patchProjectListRoute(initial, { q: 'ليوان' })
     const sorted = patchProjectListRoute(searched, { sort: 'progress' })
     const archived = patchProjectListRoute(sorted, { archived: true })
     const paged = patchProjectListRoute(archived, { offset: 50 })
@@ -130,7 +130,7 @@ describe('global project ordering', () => {
     expect(projectListQuery(false, { sort: 'name' })).toMatchObject({ sort: 'name' })
   })
   it('returns to the first page when the order changes, preserving filters', () => {
-    const next = patchProjectListRoute(parseProjectListRoute({ q: 'ويب فيو', status: 'on_track', offset: '50' }), { sort: 'progress' })
-    expect(next).toMatchObject({ q: 'ويب فيو', status: 'on_track', sort: 'progress', offset: 0 })
+    const next = patchProjectListRoute(parseProjectListRoute({ q: 'ليوان', status: 'on_track', offset: '50' }), { sort: 'progress' })
+    expect(next).toMatchObject({ q: 'ليوان', status: 'on_track', sort: 'progress', offset: 0 })
   })
 })

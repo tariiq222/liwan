@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { RouteLocationRaw } from 'vue-router'
-import type { HrPayrollRunSummary } from '@webvue/contracts'
-import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
-import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
-import { formatDate } from '@webvue/ui/app/utils/formatDate'
+import type { HrPayrollRunSummary } from '@liwan/contracts'
+import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
+import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
+import { formatDate } from '@liwan/ui/app/utils/formatDate'
 import { formatPayrollAmount, formatPayrollMonth, payrollRunStateTone, payrollCurrencyLabel } from '@/utils/payrollFormat'
 
 // The runs table of /hr/payroll: one row per payroll month with its state pill and totals. It is a bare

@@ -1,6 +1,6 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { CrmSettingsSchema, type CrmSettingsPatch } from '@webvue/contracts'
+import { CrmSettingsSchema, type CrmSettingsPatch } from '@liwan/contracts'
 import { crmKeys } from './crmKeys'
 
 export function useCrmSettings(enabled: MaybeRefOrGetter<boolean> = true) {

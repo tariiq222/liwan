@@ -1,4 +1,4 @@
-import { operationListStatusSchema, type OperationListStatus } from '@webvue/commercial-contracts'
+import { operationListStatusSchema, type OperationListStatus } from '@liwan/commercial-contracts'
 
 /** The status choices of the operations list; any other valid status stays usable from a link (the overview, a tenant). */
 export const OPERATION_STATUS_FILTERS = ['all', 'pending', 'attention', 'succeeded', 'verified'] as const

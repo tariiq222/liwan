@@ -12,7 +12,7 @@ import {
   type HrEosCaseMapWrite,
   type HrSettlement,
   type HrSettlementWrite,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { ApiError } from './useApi'
 import { hrPayrollKeys } from './useHrPayrollCompensation'
 

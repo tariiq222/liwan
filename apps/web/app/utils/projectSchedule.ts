@@ -1,5 +1,5 @@
-import type { ScheduleMilestone, ScheduleTask } from '@webvue/contracts'
-import { isCalendarDate } from '@webvue/ui/app/composables/calendarDate'
+import type { ScheduleMilestone, ScheduleTask } from '@liwan/contracts'
+import { isCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 
 export type ScheduleScale = 'week' | 'month'
 export type ScheduleAxis = {

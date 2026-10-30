@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { readReleaseRoute, selectReleaseRoute, withReleaseLease, createReleaseLease, currentReleaseWrite } from '../../apps/web/server/utils/releaseRouting.ts'
 
 function fixture() {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), 'webvue-release-')))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'liwan-release-')))
   const tenant = { tenantId: 'tenant_a', registryRevision: 1 }
   const route = { schemaVersion: 1, tenantId: 'tenant_a', identityRevision: 1, routeRevision: 1, releaseId: 'r1', poolId: 'blue', fence: 1, state: 'serving' }
   const pools = { blue: { poolId: 'blue', releaseId: 'r1', odooUrl: 'http://odoo-blue:8069', webUrl: 'http://web-blue:3000', wsUrl: 'http://odoo-blue:8072', aiUrl: 'http://ai-blue:8600', aiStateVersion: '1' }, green: { poolId: 'green', releaseId: 'r2', odooUrl: 'http://odoo-green:8069', webUrl: 'http://web-green:3000', wsUrl: 'http://odoo-green:8072' } }

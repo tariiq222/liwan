@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Pool } from 'pg'
 import { randomUUID } from 'node:crypto'
-import { usageSnapshotSchema } from '@webvue/commercial-contracts'
+import { usageSnapshotSchema } from '@liwan/commercial-contracts'
 import { getUsage, recordUsage } from '../commercial/usage.js'
 import { migrate } from '../db.js'
 import { url } from './commercial-helpers.js'

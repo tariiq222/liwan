@@ -1,5 +1,5 @@
-import type { AttentionItem, AttentionKind } from '@webvue/commercial-contracts'
-import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
+import type { AttentionItem, AttentionKind } from '@liwan/commercial-contracts'
+import type { StatusTone } from '@liwan/ui/app/utils/statusTone'
 
 /** One count of the overview status strip; `to` opens the list it counts. */
 export type StatusStat = { id: string, label: string, value: number, to?: string }

@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 import pytest
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
-from webvue_ai_service.store import open_state
+from liwan_ai_service.store import open_state
 
 
 class Result:

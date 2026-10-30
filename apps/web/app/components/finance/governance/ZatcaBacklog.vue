@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FinanceZatcaBacklog } from '@webvue/contracts'
+import type { FinanceZatcaBacklog } from '@liwan/contracts'
 import { backlogTone } from './zatcaOnboarding'
 
 // The documents still waiting on ZATCA, as the server counts them.

@@ -16,6 +16,6 @@ export default defineConfig({
   workers: 1,
   reporter: 'list',
   // Keep run artifacts out of the repository root.
-  outputDir: '/tmp/webvue-accept-logs/playwright-output',
+  outputDir: '/tmp/liwan-accept-logs/playwright-output',
   use: { locale: 'ar-SA' },
 })

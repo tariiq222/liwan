@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { refDebounced } from '@vueuse/core'
-import type { DocumentContext, DocumentTag } from '@webvue/contracts'
+import type { DocumentContext, DocumentTag } from '@liwan/contracts'
 import { documentLookupItems } from '@/lib/documentLookup'
 import DocumentContextField from './DocumentContextField.vue'
 import { useDocumentTags, useCreateDocumentTag } from '@/composables/useDocuments'

@@ -6,18 +6,18 @@ const ID = '[0-9]+'
 // Explicit, anchored allowlist of Odoo routes known to be slow at production volume.
 // Every entry mirrors a controller route; there are no prefix matches.
 const HEAVY_ROUTES: ReadonlyArray<{ kind: HeavyKind; pattern: RegExp }> = [
-  // Finance reports (webvue_finance)
+  // Finance reports (liwan_finance)
   { kind: 'read', pattern: /^\/api\/v1\/finance\/reports\/(?:aged-partner-balance|analytic(?:\/lines)?|balance-sheet|budget-vs-actual|cash-flow|general-ledger|partner-statement|profit-loss|trial-balance|vat|vat-return(?:\/items)?|withholding|zakat-base)$/ },
-  // Finance bulk posting and depreciation (webvue_finance)
+  // Finance bulk posting and depreciation (liwan_finance)
   { kind: 'write', pattern: /^\/api\/v1\/finance\/assets\/compute-depreciation$/ },
   { kind: 'write', pattern: new RegExp(`^/api/v1/finance/(?:entries|invoices|payments)/${ID}/post$`) },
-  // Payroll compute/post (webvue_hr, webvue_hr_finance), its kept salary files (a POST) and its GOSI statement (webvue_hr)
+  // Payroll compute/post (liwan_hr, liwan_hr_finance), its kept salary files (a POST) and its GOSI statement (liwan_hr)
   { kind: 'write', pattern: new RegExp(`^/api/v1/hr/payroll/runs/${ID}/(?:compute|post)$`) },
   { kind: 'write', pattern: new RegExp(`^/api/v1/hr/payroll/runs/${ID}/(?:bank-file|wps-file)$`) },
   { kind: 'read', pattern: new RegExp(`^/api/v1/hr/payroll/runs/${ID}/gosi-statement$`) },
-  // Project portfolio reports (webvue_pmo)
+  // Project portfolio reports (liwan_pmo)
   { kind: 'read', pattern: /^\/api\/v1\/reports\/projects\/(?:summary|analytics)$/ },
-  // PDF documents (webvue_meetings, webvue_finance)
+  // PDF documents (liwan_meetings, liwan_finance)
   { kind: 'read', pattern: new RegExp(`^/api/v1/(?:meetings/${ID}/minutes\\.pdf|finance/invoices/${ID}/pdf)$`) },
 ]
 

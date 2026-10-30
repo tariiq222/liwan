@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HrShiftAttendance } from '@webvue/contracts'
+import type { HrShiftAttendance } from '@liwan/contracts'
 import { SHIFT_WEEK_ORDER, SHIFT_WEEK_START } from '@/utils/hrShiftWeek'
 
 // The work-time lines of a schedule form: one row per period. A line is

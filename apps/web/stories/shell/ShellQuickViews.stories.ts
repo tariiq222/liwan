@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import ShellQuickViews from '@webvue/ui/app/components/shell/ShellQuickViews.vue'
+import ShellQuickViews from '@liwan/ui/app/components/shell/ShellQuickViews.vue'
 import { quickActionItems, quickViewItems } from '../fixtures/shell'
 import { storyContext } from '../support/context'
 
@@ -15,7 +15,7 @@ type Story = StoryObj<typeof meta>
 export const Default: Story = {
   name: 'مهام: عروض وإجراءات',
   parameters: storyContext('packages/ui/app/components/shell/ShellNavigation.vue:88'),
-  render: args => ({ components: { ShellQuickViews }, setup: () => ({ args }), template: '<div class="webvue-shell min-h-svh"><div class="webvue-context-column"><ShellQuickViews v-bind="args" /></div></div>' }),
+  render: args => ({ components: { ShellQuickViews }, setup: () => ({ args }), template: '<div class="liwan-shell min-h-svh"><div class="liwan-context-column"><ShellQuickViews v-bind="args" /></div></div>' }),
 }
 
 export const ActionsOnly: Story = { ...Default, name: 'إجراءات فقط', args: { views: [] } }
@@ -25,5 +25,5 @@ export const Collapsed: Story = {
   ...Default,
   name: 'مطوية (أيقونات)',
   args: { collapsed: true },
-  render: args => ({ components: { ShellQuickViews }, setup: () => ({ args }), template: '<div class="webvue-shell min-h-svh" style="--context-sidebar-width: 64px"><div class="webvue-context-column"><ShellQuickViews v-bind="args" /></div></div>' }),
+  render: args => ({ components: { ShellQuickViews }, setup: () => ({ args }), template: '<div class="liwan-shell min-h-svh" style="--context-sidebar-width: 64px"><div class="liwan-context-column"><ShellQuickViews v-bind="args" /></div></div>' }),
 }

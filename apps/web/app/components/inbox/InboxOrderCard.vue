@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxOrder } from '@webvue/contracts'
+import type { InboxOrder } from '@liwan/contracts'
 import InboxOrderActions from '@/components/inbox/InboxOrderActions.vue'
 import InboxOrderLines from '@/components/inbox/InboxOrderLines.vue'
 import { expiryCountdown, formatInboxMoney, orderBadge, orderLineRows } from '@/composables/inbox/inboxCommerce'

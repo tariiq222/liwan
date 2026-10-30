@@ -1,5 +1,5 @@
-import type { MyTaskSummary } from '@webvue/contracts'
-import type { KpiTile } from '@webvue/ui/app/utils/kpiTile'
+import type { MyTaskSummary } from '@liwan/contracts'
+import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
 
 type Translate = (key: string, named?: Record<string, unknown>) => string
 

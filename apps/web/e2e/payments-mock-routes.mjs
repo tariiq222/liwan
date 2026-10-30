@@ -1,7 +1,7 @@
-// Part of the isolated UI mock stack: the payments routes of webvue_payments. One in-memory gateway that follows the
+// Part of the isolated UI mock stack: the payments routes of liwan_payments. One in-memory gateway that follows the
 // server's rules, so the settings page can be exercised end to end: keys are write-only, a gateway that is on is checked
 // inside every change, and a change the check refuses saves nothing. A secret key containing "reject" is refused by the
-// gateway; one containing "nomethods" leaves the gateway account without a payment method WebVue needs.
+// gateway; one containing "nomethods" leaves the gateway account without a payment method LiwanOS needs.
 // The orders settings (`/api/v1/payments/settings`, capability `payments.settings.manage`) are one in-memory record with
 // a revision: a save carries the revision it was made from and a stale one answers 409 `conflict`.
 // The payment link route and the public pay routes (no session) serve a fixed set of documents whose access token is
@@ -124,7 +124,7 @@ const BUSY_INVOICE = 10
 const accessToken = id => `tok-${id}`
 const payerInvoice = (id, status, extra = {}) => ({
   id,
-  merchant: 'ويب فيو',
+  merchant: 'ليوان',
   number: `INV/2026/${String(id).padStart(4, '0')}`,
   due_date: '2026-10-31',
   currency: 'SAR',
@@ -145,7 +145,7 @@ const PAYER_INVOICES = new Map([
 
 const payerOrder = (id, status, extra = {}) => ({
   id,
-  merchant: 'ويب فيو',
+  merchant: 'ليوان',
   number: `S${String(id).padStart(5, '0')}`,
   expires_at: '2026-10-31T12:30:00Z',
   currency: 'SAR',

@@ -2,7 +2,7 @@
 
 واجهة العميل: [DESIGN.md](../DESIGN.md). التقارير المؤرخة ليست تعليمات واجهة.
 
-WebVue uses temporary worktrees for bounded tasks. The canonical checkout is `/Users/tariq/code/webvue` on `main`; a task worktree is not a
+LiwanOS uses temporary worktrees for bounded tasks. The canonical checkout is `/Users/tariq/code/webvue` on `main`; a task worktree is not a
 permanent product pillar checkout. One writer owns each file. One orchestrator
 owns shared files, Git integration, runtime state, and final verification.
 
@@ -21,9 +21,9 @@ own institution identity. PMO collaboration preserves record and company guards.
 
 | Surface | Shared | PMO | HR |
 | --- | --- | --- | --- |
-| Odoo addon | `webvue_core` (access, system groups), `webvue_platform`, `webvue_api`, `webvue_notify` (bell), `webvue_directory` (people picker); each app owns its capability groups | `webvue_pmo`; meetings `webvue_meetings`; bridge `webvue_meetings_pmo` | `webvue_hr` |
-| Controllers and serializers | `webvue_api` common/auth/branding/me/attachment, `webvue_notify` bell routes, `webvue_directory` people route | `webvue_pmo/**`, `webvue_meetings/**`, `webvue_meetings_pmo/**` | `webvue_hr/**` |
-| Tests | shared fixture, `webvue_api`, `webvue_notify` and `webvue_directory` tests | `webvue_pmo/tests/**`, `webvue_meetings/tests/**`, `webvue_meetings_pmo/tests/**` | `webvue_hr/tests/**` |
+| Odoo addon | `liwan_core` (access, system groups), `liwan_platform`, `liwan_api`, `liwan_notify` (bell), `liwan_directory` (people picker); each app owns its capability groups | `liwan_pmo`; meetings `liwan_meetings`; bridge `liwan_meetings_pmo` | `liwan_hr` |
+| Controllers and serializers | `liwan_api` common/auth/branding/me/attachment, `liwan_notify` bell routes, `liwan_directory` people route | `liwan_pmo/**`, `liwan_meetings/**`, `liwan_meetings_pmo/**` | `liwan_hr/**` |
+| Tests | shared fixture, `liwan_api`, `liwan_notify` and `liwan_directory` tests | `liwan_pmo/tests/**`, `liwan_meetings/tests/**`, `liwan_meetings_pmo/tests/**` | `liwan_hr/tests/**` |
 | Contracts | `packages/contracts/src/common/**` | `packages/contracts/src/pmo/**` | `packages/contracts/src/hr/**` |
 | Locale namespace | `common.json` | `tasks.json`, `projects.json`, `settings.json` | `hr.json` |
 | Web surface | layout, UI primitives, `useApi`, `useMe`, `useBranding` | task/project pages and `components/pmo/**` | `/hr`, HR composables/components |
@@ -32,11 +32,11 @@ Vendor administration and the shared UI layers have their own owners; none of th
 
 | Surface | Owner | Notes |
 | --- | --- | --- |
-| `apps/vendor-admin` | vendor administration (git area `cp`) | Pages, BFF routes, e2e and `i18n` of the staff console. Imports only the shared UI layers and `@webvue/commercial-contracts` (rule `VA1`). |
+| `apps/vendor-admin` | vendor administration (git area `cp`) | Pages, BFF routes, e2e and `i18n` of the staff console. Imports only the shared UI layers and `@liwan/commercial-contracts` (rule `VA1`). |
 | `packages/ui` | shared design layer | Tokens, theme, shell, presentational components. Shared by `apps/web` and `apps/vendor-admin`; a change needs both apps' checks (rule `UI1`). |
-| `packages/commercial-ui` | shared billing presentation | Price breakdown and invoice components. Extends `@webvue/ui`; used by both apps (rule `UI1`). |
+| `packages/commercial-ui` | shared billing presentation | Price breakdown and invoice components. Extends `@liwan/ui`; used by both apps (rule `UI1`). |
 
-`webvue_directory` owns `/api/v1/people` (the user-id picker; its `id` is a
+`liwan_directory` owns `/api/v1/people` (the user-id picker; its `id` is a
 `res.users` id) and its feature keys are registered by the applications that
 pick people. HR owns `/api/v1/hr/*`, where employee records use `hr.employee`
 ids. Keep these contracts separate.
@@ -84,7 +84,7 @@ removed by it; its owner records a claim with `wt claim` or finishes and merges 
 
 1. **One location.** Task worktrees live only in `<main checkout>/.worktrees/<area>-<slug>` (git-ignored),
    where `wt new` creates them, also when run from another worktree. Never create one with a bare
-   `git worktree add`, under `../webvue-wt/`, or in a tool's own folder (the Claude app's `worktrees` folder under `.claude`); a
+   `git worktree add`, under `../liwan-wt/`, or in a tool's own folder (the Claude app's `worktrees` folder under `.claude`); a
    Claude subagent or session that needs isolation runs `wt new` instead of its built-in worktree option.
 2. **One name.** Any valid Git branch name is accepted; descriptive names are recommended.
    `wt new <suffix>` creates branch `codex/<suffix>` and folder `.worktrees/<suffix>`.
@@ -120,21 +120,21 @@ The Odoo checkout at `/Users/tariq/code/odoo` is upstream and its source,
 configuration, and Git state are read-only. Source inspection and read-only Git
 audits there are allowed. Authorized test or development commands may mutate an
 explicitly isolated scratch database; do not operate on arbitrary databases or
-run tests against the dev `odoo19` database. Start Odoo with the selected WebVue
+run tests against the dev `odoo19` database. Start Odoo with the selected LiwanOS
 worktree's addons path explicitly, an isolated scratch database, and a unique
 `--http-port`.
 
-For example, for a worktree at `/path/to/webvue-worktree`:
+For example, for a worktree at `/path/to/liwan-worktree`:
 
 ```sh
 cd /Users/tariq/code/odoo
 # Use a scratch-only config; data_dir and logfile stay outside this checkout.
 .venv/bin/python odoo-bin -c /absolute/path/to/scratch-only.conf \
-  --addons-path=/Users/tariq/code/odoo/addons,/path/to/webvue-worktree/odoo-addons,$(python3 -B /path/to/webvue-worktree/tools/oca_addons.py path) \
-  -d webvue_scratch_example --http-port=8171
+  --addons-path=/Users/tariq/code/odoo/addons,/path/to/liwan-worktree/odoo-addons,$(python3 -B /path/to/liwan-worktree/tools/oca_addons.py path) \
+  -d liwan_scratch_example --http-port=8171
 
 # Match Odoo's database and port above to the allocated .env.worktree profile.
-cd /path/to/webvue-worktree
+cd /path/to/liwan-worktree
 npm run dev
 ```
 
@@ -173,7 +173,7 @@ conflicts, and records the resulting branch and runtime state. A passing local
 test, health endpoint, or UI observation proves only the checked layer; it does
 not prove deployment, DNS, or release approval.
 
-The WebVue Git remote is `origin` (`https://github.com/tariiq222/webvue.git`),
+The LiwanOS Git remote is `origin` (`https://github.com/tariiq222/webvue.git`),
 tracked by `main`. Push only with explicit authorization, never force-push
 published history, and do not imply that a push occurred. Do not remove a
 branch or worktree until its content is preserved and no process is using it. A production deployment or DNS cutover

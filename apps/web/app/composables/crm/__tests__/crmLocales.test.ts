@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CrmImportFileReasonSchema, CrmImportInvalidReasonSchema } from '@webvue/contracts'
+import { CrmImportFileReasonSchema, CrmImportInvalidReasonSchema } from '@liwan/contracts'
 import arCrm from '../../../../i18n/locales/ar/crm.json'
 import enCrm from '../../../../i18n/locales/en/crm.json'
 

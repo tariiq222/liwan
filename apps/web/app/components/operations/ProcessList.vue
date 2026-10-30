@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { OperationProcess } from '@webvue/contracts'
-import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
+import type { OperationProcess } from '@liwan/contracts'
+import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import { useOperationProcesses } from '@/composables/operations/useOperations'
 import { operationListLocation, safeOperationReturnTo } from '@/composables/operations/forms'
 import { operationsStateTone } from '@/composables/operations/state'
@@ -55,7 +55,7 @@ const columns = computed<TableColumn<OperationProcess>[]>(() => [
       </SharedFilterBar>
     </template>
     <SharedPageState v-if="query.error.value" :error="query.error.value" @retry="query.refetch()" />
-    <SharedEmptyState v-else-if="!query.isPending.value && !items.length" class="m-(--webvue-card-pad-dense)" :title="t(committedSearch ? 'app.noResults' : 'operations.emptyProcesses')" />
+    <SharedEmptyState v-else-if="!query.isPending.value && !items.length" class="m-(--liwan-card-pad-dense)" :title="t(committedSearch ? 'app.noResults' : 'operations.emptyProcesses')" />
     <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,568px)] [&_table]:table-fixed">
       <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :row-to="processTo" :loading="query.isPending.value" :caption="t('operations.nav.processes')">
         <template #record_number-cell="{ row }"><SharedRecordNumber :value="row.original.id" /></template>

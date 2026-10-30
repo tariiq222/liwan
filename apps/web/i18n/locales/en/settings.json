@@ -16,7 +16,7 @@
       "colorPicker": "Choose document color",
       "presets": {
         "label": "Colour presets",
-        "default": "webvue default",
+        "default": "liwan default",
         "blue": "Blue",
         "teal": "Teal",
         "amber": "Amber"

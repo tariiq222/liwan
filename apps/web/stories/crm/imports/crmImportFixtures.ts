@@ -1,4 +1,4 @@
-import type { CrmImportMapping, CrmImportPreview, CrmSource } from '@webvue/contracts'
+import type { CrmImportMapping, CrmImportPreview, CrmSource } from '@liwan/contracts'
 
 export const columns = ['الاسم', 'الهاتف', 'البريد', 'ملاحظات']
 

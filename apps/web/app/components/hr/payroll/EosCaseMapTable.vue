@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import { HR_EOS_CASES, HrEosCaseSchema, type HrEosCase, type HrEosCaseMap } from '@webvue/contracts'
+import { HR_EOS_CASES, HrEosCaseSchema, type HrEosCase, type HrEosCaseMap } from '@liwan/contracts'
 
 // The end-of-service case each departure reason maps to. A choice is saved at once; only the row being saved waits.
 // A reason with no case yet is shown as such and must be mapped (or given a case on the settlement) before a leaver

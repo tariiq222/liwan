@@ -4,7 +4,7 @@ Status: draft for owner approval (2026-10-18). Nothing in this document is built
 
 ## Intent
 
-WebVue is a unified Arabic company-operations platform. Projects, tasks and a thin HR
+LiwanOS is a unified Arabic company-operations platform. Projects, tasks and a thin HR
 directory exist. This design adds two full applications: **Human Resources** and
 **Finance (accounting)**, both compliant with the Saudi market, for companies of any
 size, with a mid-size company (SAR 5M+ monthly sales, hundreds of employees) as the
@@ -35,9 +35,9 @@ Installed and smoke-tested on a throwaway database with Odoo 19 Community:
   ECOSIRE, build-to-order, depends on `hr_payroll`) are rejected: closed or unclear
   license and source delivery conflicts with the clean, owned-code rule.
 
-## HR fit test (verified 2026-10-18, scratch DB, Odoo 19 Community + webvue_hr)
+## HR fit test (verified 2026-10-18, scratch DB, Odoo 19 Community + liwan_hr)
 
-Install-only test (webvue_hr's own suite was not run with them loaded) plus a payroll smoke test.
+Install-only test (liwan_hr's own suite was not run with them loaded) plus a payroll smoke test.
 
 - Accepted as internal engines (no UI of their own is exposed): OCA `payroll` (LGPL-3; computes
   a payslip from `hr.version.wage`, no contract model needed), `hr_attendance_reason`,
@@ -45,12 +45,12 @@ Install-only test (webvue_hr's own suite was not run with them loaded) plus a pa
 - Rejected: OpenHRMS `hr_payroll_community` (hard-coded Indian allowance fields),
   `hr_employee_updation` and `hr_resignation` (duplicate core hr fields),
   `oh_employee_documents_expiry` and OCA `hr_employee_document` (duplicate
-  `webvue.hr.document`; the latter overrides `ir.rule._compute_domain`, breaking R9).
+  `liwan.hr.document`; the latter overrides `ir.rule._compute_domain`, breaking R9).
 - Blocked: OCA `hr_holidays_public` needs the python package `openupgradelib`. Saudi public
-  holidays ship as data in `webvue_hr` instead.
+  holidays ship as data in `liwan_hr` instead.
 - Risk: OCA `payroll` Officer group implies `hr.group_hr_manager`. Payroll access must be
-  granted only through `webvue_hr` capabilities, never by assigning that group.
-- Built directly in `webvue_hr` (not as third-party modules): warnings/disciplinary actions,
+  granted only through `liwan_hr` capabilities, never by assigning that group.
+- Built directly in `liwan_hr` (not as third-party modules): warnings/disciplinary actions,
   custody/assets, advances and loans, insurance, shifts, resignation and clearance, Saudi leave
   types and public holidays (data), iqama/ID expiry, Saudization report.
 
@@ -59,7 +59,7 @@ Install-only test (webvue_hr's own suite was not run with them loaded) plus a pa
 HR is one application with one web area, one API namespace (`/api/v1/hr/*`), one capability
 catalog (`hr.*`) and one data model per fact. Third-party modules are internal engines only:
 their menus, views and groups are never exposed, and no module is installed that duplicates a
-field or model already in core `hr`, `hr.version` or `webvue_hr`. The acceptance bar for any
+field or model already in core `hr`, `hr.version` or `liwan_hr`. The acceptance bar for any
 ready-made module: installs on Community 19 with no Enterprise dependency, open license, no
 duplicated fields, no core-security override.
 
@@ -89,20 +89,20 @@ duplicated fields, no core-security override.
 
 ## Architecture (rules R1–R10)
 
-- `webvue_finance` (rank 4, application): depends on `webvue_api`, `account`, `l10n_sa`.
+- `liwan_finance` (rank 4, application): depends on `liwan_api`, `account`, `l10n_sa`.
   Owns its capabilities, groups, roles, record rules (R2), registers `finance.enabled`
-  and sub-features in `webvue.feature.registry` (R10). `/api/v1/finance/*` routes use
+  and sub-features in `liwan.feature.registry` (R10). `/api/v1/finance/*` routes use
   `json2`, `auth='user'`, shared `api_handler`, serializer whitelists, 403/404/422.
-- `webvue_hr` (existing, rank 4) is extended: contracts model, expiry alerts, Saudization
+- `liwan_hr` (existing, rank 4) is extended: contracts model, expiry alerts, Saudization
   report. Stock `hr` source untouched (R9).
-- Payroll is a section of `webvue_hr`, not a separate addon (owner decision 2026-10-19: one
+- Payroll is a section of `liwan_hr`, not a separate addon (owner decision 2026-10-19: one
   addon per application). OCA `payroll` is its internal engine. Access through dedicated
   `hr.payroll.*` capabilities that no other HR capability implies, plus the `hr.payroll`
   sub-feature. Saudi rules (GOSI, end of service, WPS) are deferred to the last phase.
-- Bridge `webvue_hr_finance` (rank 5, `auto_install`): posts payroll and end-of-service
+- Bridge `liwan_hr_finance` (rank 5, `auto_install`): posts payroll and end-of-service
   accruals to accounting. HR and Finance never import each other (R3). Same rule in
   `apps/web`: finance pages do not use HR components.
-- `webvue_integrations_sa` (rank 3, shared service): holds ZATCA and bank connection
+- `liwan_integrations_sa` (rank 3, shared service): holds ZATCA and bank connection
   settings and credentials, exposes status to applications. The settings page
   `/settings/integrations` (new, under the existing settings area) is its only UI. Finance
   consumes it through the feature registry, not by import (R4, R8: hidden or inert in
@@ -127,20 +127,20 @@ duplicated fields, no core-security override.
 
 0. **Groundwork**: rename rail label key `nav.organization` (manifest, project breadcrumb,
    tests, locale); register addons in `arch_layers.json`; deploy manifest for OCA repos.
-1. **Finance core**: `webvue_finance`, API, pages (invoices, payments, journals, chart),
+1. **Finance core**: `liwan_finance`, API, pages (invoices, payments, journals, chart),
    VAT; install OCA reports.
 2. **Finance extended**: financial statements, assets, reconciliation, period lock,
    monthly VAT return, Zakat base via `mis_builder` (formula reviewed by a Saudi CPA).
-3. **HR core** (all inside `webvue_hr`, one API/UI): contract fields on `hr.version`, expiry
+3. **HR core** (all inside `liwan_hr`, one API/UI): contract fields on `hr.version`, expiry
    alerts and Saudization report (already built in worktree `hr-contracts`, uncommitted, pending
    review of the `hr.group_hr_manager` implication), leave with Saudi types and public holidays
    as data, attendance (`hr_attendance_reason`), relatives, recruitment (core `hr_recruitment`).
-3b. **HR extended** (built in `webvue_hr`): warnings, custody, advances/loans, insurance,
+3b. **HR extended** (built in `liwan_hr`): warnings, custody, advances/loans, insurance,
    shifts, resignation and clearance, onboarding checklist, appraisals.
-4. **Payroll** (last phase): OCA `payroll` as the engine behind the payroll section of `webvue_hr`
+4. **Payroll** (last phase): OCA `payroll` as the engine behind the payroll section of `liwan_hr`
    (GOSI, end of service, WPS deferred), payroll access only via `hr.payroll.*` capabilities,
    bridge to finance.
-5. **Integrations page**: `webvue_integrations_sa` and `/settings/integrations`; live
+5. **Integrations page**: `liwan_integrations_sa` and `/settings/integrations`; live
    ZATCA/bank work only with separate approval.
 
 Phase 5's page shell (status display, no live calls) may ship with phase 1 so ZATCA

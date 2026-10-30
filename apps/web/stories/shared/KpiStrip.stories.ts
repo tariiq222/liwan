@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import KpiStrip from '@webvue/ui/app/components/shared/layout/KpiStrip.vue'
+import KpiStrip from '@liwan/ui/app/components/shared/layout/KpiStrip.vue'
 import { storyContext } from '../support/context'
 
 const tiles = [
@@ -12,7 +12,7 @@ const tiles = [
 const meta = {
   title: 'Shared/KpiStrip',
   component: KpiStrip,
-  parameters: storyContext('apps/web/app/components/pmo/tasks/TaskKpiStrip.vue:28', 'شريط المؤشرات فوق الصفحات الرئيسية وصفحات القوائم: بطاقات `SharedMetricTile` مدمجة (أربع في الصف من `lg`، واثنتان على الجوال). القيم أرقام ينسّقها المستدعي. يختفي كله حين يطفئ المستخدم المؤشرات بزر واحد في ترويسة الصفحة (`kpi-toggle` على `SharedPageHeader`)، ويُحفظ الاختيار في الكوكي `webvue-kpis`.'),
+  parameters: storyContext('apps/web/app/components/pmo/tasks/TaskKpiStrip.vue:28', 'شريط المؤشرات فوق الصفحات الرئيسية وصفحات القوائم: بطاقات `SharedMetricTile` مدمجة (أربع في الصف من `lg`، واثنتان على الجوال). القيم أرقام ينسّقها المستدعي. يختفي كله حين يطفئ المستخدم المؤشرات بزر واحد في ترويسة الصفحة (`kpi-toggle` على `SharedPageHeader`)، ويُحفظ الاختيار في الكوكي `liwan-kpis`.'),
   args: { tiles: [...tiles] },
   render: args => ({
     components: { KpiStrip },
@@ -27,6 +27,6 @@ export const FourTiles: Story = { name: 'أربع بطاقات' }
 export const Loading: Story = { name: 'قيد التحميل', args: { tiles: [], loading: true } }
 export const Hidden: Story = {
   name: 'مخفي (المؤشرات مطفأة)',
-  parameters: { cookies: { 'webvue-kpis': 'hidden' } },
-  render: () => ({ template: '<p class="text-sm text-muted">لا يظهر الشريط حين يكون الكوكي <code>webvue-kpis=hidden</code>؛ تبقى الصفحة بلا مؤشرات.</p>' }),
+  parameters: { cookies: { 'liwan-kpis': 'hidden' } },
+  render: () => ({ template: '<p class="text-sm text-muted">لا يظهر الشريط حين يكون الكوكي <code>liwan-kpis=hidden</code>؛ تبقى الصفحة بلا مؤشرات.</p>' }),
 }

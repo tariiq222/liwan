@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="permission_payments_providers_manage" model="liwan.access.permission">
+        <field name="key">payments.providers.manage</field><field name="domain">payments</field>
+        <field name="resource">providers</field><field name="action">manage</field>
+        <field name="name_ar">إدارة بوابات الدفع</field><field name="name_en">Manage payment gateways</field>
+        <field name="description_ar">ربط حساب الشركة لدى بوابة الدفع وإدخال مفاتيحه وتفعيله</field><field name="description_en">Connect the company's own gateway account, enter its keys and switch it on</field>
+        <field name="group_xmlid">liwan_payments.group_cap_payments_providers_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_payments_links_manage" model="liwan.access.permission">
+        <field name="key">payments.links.manage</field><field name="domain">payments</field>
+        <field name="resource">links</field><field name="action">manage</field>
+        <field name="name_ar">إنشاء روابط الدفع</field><field name="name_en">Create payment links</field>
+        <field name="description_ar">إنشاء رابط دفع لفاتورة عميل يستطيع المستخدم قراءتها</field><field name="description_en">Create a payment link for a customer invoice the user can read</field>
+        <field name="group_xmlid">liwan_payments.group_cap_payments_links_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_payments_settings_manage" model="liwan.access.permission">
+        <field name="key">payments.settings.manage</field><field name="domain">payments</field>
+        <field name="resource">settings</field><field name="action">manage</field>
+        <field name="name_ar">إدارة إعدادات الدفع</field><field name="name_en">Manage payments settings</field>
+        <field name="description_ar">مدة بقاء الطلب غير المدفوع قبل إلغائه، وإصدار الفاتورة فور الدفع</field><field name="description_en">How long an unpaid order is kept before it is cancelled, and invoicing a paid order at once</field>
+        <field name="group_xmlid">liwan_payments.group_cap_payments_settings_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_payments_orders_read" model="liwan.access.permission">
+        <field name="key">payments.orders.read</field><field name="domain">payments</field>
+        <field name="resource">orders</field><field name="action">read</field>
+        <field name="name_ar">عرض الطلبات المدفوعة أونلاين</field><field name="name_en">View online orders</field>
+        <field name="description_ar">عرض طلبات الدفع الأونلاين للشركة ومدفوعاتها والمبالغ المستحقة للعملاء</field><field name="description_en">View the company's online orders, their payments and the money due back to customers</field>
+        <field name="group_xmlid">liwan_payments.group_cap_payments_orders_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_payments_refund" model="liwan.access.permission">
+        <field name="key">payments.refund</field><field name="domain">payments</field>
+        <field name="resource">refunds</field><field name="action">manage</field>
+        <field name="name_ar">تسجيل استرجاع المبالغ</field><field name="name_en">Record refunds</field>
+        <field name="description_ar">تسجيل مبلغ أرجعته الشركة للعميل من لوحة بوابة الدفع، مع الإشعار الدائن</field><field name="description_en">Record money the company gave back to a customer from its gateway dashboard, with the credit note</field>
+        <field name="group_xmlid">liwan_payments.group_cap_payments_refund</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <!-- Built-in roles are noupdate records: these hooks link this addon's grants and
+         dependencies on install and on every upgrade. -->
+    <function model="liwan.access.service" name="_liwan_configure_permission_dependencies"/>
+    <function model="liwan.access.service" name="_liwan_repair_builtin_role_grants"/>
+</odoo>

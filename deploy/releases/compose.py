@@ -106,23 +106,23 @@ def render_pool(manifest, operator_config):
             raise ValueError()
         if config['tenancyMode'] == 'dedicated' and list(databases) != [config['database']]:
             raise ValueError()
-        labels = {'webvue.pool': pool_id, 'webvue.release': manifest['releaseId']}
+        labels = {'liwan.pool': pool_id, 'liwan.release': manifest['releaseId']}
         volumes = {config[key]: {'external': True} for key in ('sessionStore', 'filestore', 'assetsStore')}
         mount = lambda source, target, read_only=False, kind='volume': {
             'type': kind, 'source': source, 'target': target, 'read_only': read_only}
         odoo_mounts = [mount(config['sessionStore'], '/var/lib/odoo/sessions'),
                        mount(config['filestore'], '/var/lib/odoo/filestore')]
-        route_mounts=[mount(config['releaseRoutesDir'],'/run/webvue/releases',True,'bind'),
-            mount(config['releaseRoutesDir']+'/leases','/run/webvue/releases/leases',False,'bind')]
+        route_mounts=[mount(config['releaseRoutesDir'],'/run/liwan/releases',True,'bind'),
+            mount(config['releaseRoutesDir']+'/leases','/run/liwan/releases/leases',False,'bind')]
         def odoo_service(config_key, command, database=None):
             return {'image': manifest['images']['odoo'], 'restart': 'unless-stopped',
-                    'labels': {**labels,'webvue.runtime':'http' if config_key=='httpConfig' else 'cron','webvue.db-config-sha256':config['httpConfigDigest' if config_key=='httpConfig' else 'cronConfigDigest']}, 'command': command,
+                    'labels': {**labels,'liwan.runtime':'http' if config_key=='httpConfig' else 'cron','liwan.db-config-sha256':config['httpConfigDigest' if config_key=='httpConfig' else 'cronConfigDigest']}, 'command': command,
                     'user':str(config['runtimeUid']),
-                    **({'entrypoint':['/opt/venv/bin/python','/opt/webvue/shared/launch_odoo.py']} if config['tenancyMode']=='shared' else {}),
-                    'environment': {'WEBVUE_TENANCY_MODE': config['tenancyMode'], 'WEBVUE_RELEASE_POOL_ID': pool_id,
-                        'WEBVUE_RELEASE_DB_USER':config['runtimeDbUser'],
-                        'WEBVUE_RELEASE_ROLE': 'http' if config_key == 'httpConfig' else 'cron',
-                        **({'WEBVUE_RELEASE_DATABASES': database} if config_key == 'cronConfig' else {})},
+                    **({'entrypoint':['/opt/venv/bin/python','/opt/liwan/shared/launch_odoo.py']} if config['tenancyMode']=='shared' else {}),
+                    'environment': {'LIWAN_TENANCY_MODE': config['tenancyMode'], 'LIWAN_RELEASE_POOL_ID': pool_id,
+                        'LIWAN_RELEASE_DB_USER':config['runtimeDbUser'],
+                        'LIWAN_RELEASE_ROLE': 'http' if config_key == 'httpConfig' else 'cron',
+                        **({'LIWAN_RELEASE_DATABASES': database} if config_key == 'cronConfig' else {})},
                     'volumes': [*odoo_mounts, mount(config[config_key], '/etc/odoo/odoo.conf', True, 'bind')],
                     'networks': [f'{pool_id}-internal',config['databaseNetwork'],config['guardOdooNetwork']]}
         services = {
@@ -131,15 +131,15 @@ def render_pool(manifest, operator_config):
                 'labels': dict(labels), 'user':str(config['runtimeUid']),'networks': [f'{pool_id}-internal',config['guardWebNetwork']],
                 'environment': {'NUXT_ODOO_URL': odoo_url,
                     'NUXT_ODOO_DB': config.get('database', ''),
-                    'WEBVUE_TENANCY_MODE': 'shared' if config['tenancyMode'] == 'shared' else 'dedicated',
-                    'WEBVUE_RELEASE_ID': manifest['releaseId'], 'WEBVUE_RELEASE_POOL_ID': pool_id,
-                    'WEBVUE_ASSETS_ID': manifest['assetsId'],'WEBVUE_RELEASE_ROUTES_DIR':'/run/webvue/releases'},
+                    'LIWAN_TENANCY_MODE': 'shared' if config['tenancyMode'] == 'shared' else 'dedicated',
+                    'LIWAN_RELEASE_ID': manifest['releaseId'], 'LIWAN_RELEASE_POOL_ID': pool_id,
+                    'LIWAN_ASSETS_ID': manifest['assetsId'],'LIWAN_RELEASE_ROUTES_DIR':'/run/liwan/releases'},
                 'env_file': [config['runtimeSecret']],
-                'volumes': [mount(config['assetsStore'], '/opt/webvue/release-assets', True),*route_mounts]},
+                'volumes': [mount(config['assetsStore'], '/opt/liwan/release-assets', True),*route_mounts]},
         }
         for database in sorted(databases):
             cron=odoo_service('cronConfig',['--no-http','--max-cron-threads=1','--database='+database],database)
-            cron['profiles']=['release-cron'];cron['labels']['webvue.database']=database
+            cron['profiles']=['release-cron'];cron['labels']['liwan.database']=database
             services[f'{pool_id}-cron-{database}']=cron
         services[f'{pool_id}-odoo']['expose'] = ['8069', '8072']
         services[f'{pool_id}-web']['expose'] = ['3000']
@@ -160,7 +160,7 @@ def render_pool(manifest, operator_config):
                     'restart': 'unless-stopped', 'networks': [f'{pool_id}-internal',config['databaseNetwork']],
                     'environment':{'AI_GENERATION_ID':'generation_'+hashlib.sha256((pool_id+':'+manifest_digest(manifest)).encode()).hexdigest()[:40],'AI_STATE_VERSION':manifest['aiStateVersion']},
                     'env_file': [_path(ai['config'])],
-                    'volumes': [mount(ai['stateStore'], '/var/lib/webvue-ai')]}
+                    'volumes': [mount(ai['stateStore'], '/var/lib/liwan-ai')]}
             elif set(ai) != {'mode', 'url'} or _endpoint(ai['url'], allowed) != upstreams['ai']:
                 raise ValueError()
         metadata = {'poolId': pool_id, 'releaseId': manifest['releaseId'], 'images': dict(manifest['images']),
@@ -169,6 +169,6 @@ def render_pool(manifest, operator_config):
                     'sessionStore': config['sessionStore'], 'filestore': config['filestore'],
                     'cronDatabases': sorted(databases), 'tenancyMode': config['tenancyMode']}
         return {'services': services, 'volumes': volumes,
-                'networks': {f'{pool_id}-internal': {'internal': True},**{config[key]:{'external':True} for key in ('guardWebNetwork','guardOdooNetwork','databaseNetwork')}}, 'x-webvue-pool': metadata}
+                'networks': {f'{pool_id}-internal': {'internal': True},**{config[key]:{'external':True} for key in ('guardWebNetwork','guardOdooNetwork','databaseNetwork')}}, 'x-liwan-pool': metadata}
     except (ValueError, TypeError, KeyError):
         raise ValueError('pool_config_rejected') from None

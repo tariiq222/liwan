@@ -1,13 +1,13 @@
 # Shared acceptance live harness
 
-Two-tenant shared-mode acceptance test for the WebVue platform. Provisions a complete
+Two-tenant shared-mode acceptance test for the LiwanOS platform. Provisions a complete
 stack (PostgreSQL → Odoo init → admin/role/employee seeding → guard → web → Caddy edge)
 and runs browser-level isolation proofs. **NOT deployment authorization.**
 
 ## Exact commands
 
 ```bash
-export WEBVUE_IMAGE_TAG=<short-sha of HEAD>          # e.g. 28b6c04
+export LIWAN_IMAGE_TAG=<short-sha of HEAD>          # e.g. 28b6c04
 bash tools/shared_acceptance_live/up.sh
 
 # Proofs 1–7 (reads the .state file written by up.sh); defer proof 9 until last.
@@ -37,25 +37,25 @@ gitignored.
 
 ## Image tags
 
-All four images use `${WEBVUE_IMAGE_TAG}` (the short HEAD sha); only Caddy has an
+All four images use `${LIWAN_IMAGE_TAG}` (the short HEAD sha); only Caddy has an
 `accept` image name. The base compose and `acceptance.override.yml` select the
-images below through `${WEBVUE_IMAGE_TAG}`, matching the names used by `up.sh`.
+images below through `${LIWAN_IMAGE_TAG}`, matching the names used by `up.sh`.
 
 | Service | Image | Dockerfile | Extra |
 |---|---|---|---|
-| odoo | `webvue-odoo` | `deploy/odoo/Dockerfile` | build arg `ODOO_COMMIT=$(cat deploy/odoo/ODOO_COMMIT)` |
-| web | `webvue-web` | `apps/web/Dockerfile` | build arg `WEBVUE_TENANCY_MODE=shared` (Never a dedicated build, per T6-F01) |
-| guard | `webvue-guard` | `deploy/shared/Dockerfile` | — |
-| caddy | `webvue-accept-caddy` | `deploy/proxy/Dockerfile` | must show `http.handlers.rate_limit` in `caddy list-modules` |
+| odoo | `liwan-odoo` | `deploy/odoo/Dockerfile` | build arg `ODOO_COMMIT=$(cat deploy/odoo/ODOO_COMMIT)` |
+| web | `liwan-web` | `apps/web/Dockerfile` | build arg `LIWAN_TENANCY_MODE=shared` (Never a dedicated build, per T6-F01) |
+| guard | `liwan-guard` | `deploy/shared/Dockerfile` | — |
+| caddy | `liwan-accept-caddy` | `deploy/proxy/Dockerfile` | must show `http.handlers.rate_limit` in `caddy list-modules` |
 
 Build all four from the repository root:
 
 ```bash
-export WEBVUE_IMAGE_TAG=$(git rev-parse --short HEAD)
-docker build -f deploy/odoo/Dockerfile --build-arg ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)" -t "webvue-odoo:$WEBVUE_IMAGE_TAG" .
-docker build -f apps/web/Dockerfile --build-arg WEBVUE_TENANCY_MODE=shared -t "webvue-web:$WEBVUE_IMAGE_TAG" .
-docker build -f deploy/shared/Dockerfile -t "webvue-guard:$WEBVUE_IMAGE_TAG" .
-docker build -f deploy/proxy/Dockerfile -t "webvue-accept-caddy:$WEBVUE_IMAGE_TAG" .
+export LIWAN_IMAGE_TAG=$(git rev-parse --short HEAD)
+docker build -f deploy/odoo/Dockerfile --build-arg ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)" -t "liwan-odoo:$LIWAN_IMAGE_TAG" .
+docker build -f apps/web/Dockerfile --build-arg LIWAN_TENANCY_MODE=shared -t "liwan-web:$LIWAN_IMAGE_TAG" .
+docker build -f deploy/shared/Dockerfile -t "liwan-guard:$LIWAN_IMAGE_TAG" .
+docker build -f deploy/proxy/Dockerfile -t "liwan-accept-caddy:$LIWAN_IMAGE_TAG" .
 ```
 
 Build context is always the repository root.
@@ -87,10 +87,10 @@ The edge proxy publishes on `127.0.0.1:443` and `127.0.0.1:80` (not 18443/18080)
 (`/^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/`)
 matches only lowercase alphanumeric dots and hyphens — it rejects any Host containing
 a colon/port. Caddy's `reverse_proxy` forwards the incoming `Host` header unchanged.
-If the browser connects to `a.accept.webvue.test:18443`, the Host header includes
+If the browser connects to `a.accept.liwan.test:18443`, the Host header includes
 `:18443`, the resolver throws `tenant_host_unavailable`, and guard returns 403.
 
-Using standard ports means the browser sends a port-less Host (`a.accept.webvue.test`),
+Using standard ports means the browser sends a port-less Host (`a.accept.liwan.test`),
 which matches the registry exactly. We bind to `127.0.0.1` only, so this does not
 conflict with other services on the host network interface.
 
@@ -142,8 +142,8 @@ rate-limit module, TLS and guard host resolution are all live.
 
 ## Tenant registry
 
-File: `registry.json` under `$WEBVUE_TENANT_REGISTRY_DIR` (mounted as `/etc/webvue/`).
-Guard reads it at `WEBVUE_TENANT_REGISTRY_PATH=/etc/webvue/registry.json`.
+File: `registry.json` under `$LIWAN_TENANT_REGISTRY_DIR` (mounted as `/etc/liwan/`).
+Guard reads it at `LIWAN_TENANT_REGISTRY_PATH=/etc/liwan/registry.json`.
 
 The temp base dir is mode 0755 so the unprivileged in-container users (`node` in
 guard/web, uid 10001 in odoo) can traverse to their bind mounts.
@@ -171,11 +171,11 @@ request. `probe.mjs` proves this for real: it rewrites B with `enabled=false` pl
 bumped `registryRevision`/`snapshotRevision`, confirms B fails closed with no container
 restart, then restores the original snapshot and confirms B works again.
 
-## Commercial classification (`WEBVUE_COMMERCIAL_CONFIG`) is required to install
+## Commercial classification (`LIWAN_COMMERCIAL_CONFIG`) is required to install
 
-`webvue_platform`'s tenant-profile `post_init_hook` calls
+`liwan_platform`'s tenant-profile `post_init_hook` calls
 `commercial_config.load_classification()`, which raises
-`ValueError: webvue commercial config: set WEBVUE_COMMERCIAL_CONFIG to an absolute local file`
+`ValueError: liwan commercial config: set LIWAN_COMMERCIAL_CONFIG to an absolute local file`
 when the variable is absent. A fresh install therefore cannot complete without it.
 
 The file is generated by the repository's own generator — the same call the CI
@@ -186,15 +186,15 @@ python3 deploy/classification.py fixture --database <db> --mode saas --output <p
 ```
 
 `fixture` is a disposable-input generator and refuses any database name that does
-not match `webvue_*scratch*`, so the acceptance databases are named
-**`webvue_accept_a_scratch` / `webvue_accept_b_scratch`**. They are disposable
+not match `liwan_*scratch*`, so the acceptance databases are named
+**`liwan_accept_a_scratch` / `liwan_accept_b_scratch`**. They are disposable
 loopback-only databases inside a project that is removed at the end.
 
 Mode is **`saas`** (the shared SaaS lane). No control plane or billing connection is
 made at classification time: `load_classification()` runs only inside
-`webvue.tenant.profile.create()`, and the profile is persisted in the database. The
-steady-state service therefore gets an **empty** `WEBVUE_COMMERCIAL_CONFIG`, matching
-the `unset WEBVUE_COMMERCIAL_CONFIG` precedent used before the service starts in CI.
+`liwan.tenant.profile.create()`, and the profile is persisted in the database. The
+steady-state service therefore gets an **empty** `LIWAN_COMMERCIAL_CONFIG`, matching
+the `unset LIWAN_COMMERCIAL_CONFIG` precedent used before the service starts in CI.
 
 ## Odoo config (operator-owned secret, never in Git)
 
@@ -207,29 +207,29 @@ host, then inside the image as the runtime uid. Required values:
 ## Seeding: capabilities are not `base.group_system`
 
 Membership in `base.group_system` does **not** grant PMO or HR access. Authorization
-goes through the `webvue_core` capability service, roles and company-scoped assignments.
+goes through the `liwan_core` capability service, roles and company-scoped assignments.
 `seed_tenant.py` therefore creates, per tenant:
 
 1. the tenant admin `res.users` (Arabic `lang`, `base.group_system`);
-2. `webvue.access.assignment` rows for the built-in roles
-   `webvue_core.role_system_admin`, `webvue_pmo.role_pmo_manager`,
-   `webvue_hr.role_hr_manager` through webvue_core's own model;
+2. `liwan.access.assignment` rows for the built-in roles
+   `liwan_core.role_system_admin`, `liwan_pmo.role_pmo_manager`,
+   `liwan_hr.role_hr_manager` through liwan_core's own model;
 3. the `ACCEPT-A-ONLY` / `ACCEPT-B-ONLY` project;
 4. the `ACCEPT-A-EMP` / `ACCEPT-B-EMP` HR employee.
 
 It then asserts the created admin actually resolves `pmo.projects.read` and
-`hr.employees.read` from `webvue.access.service._webvue_identity(user)` before committing.
+`hr.employees.read` from `liwan.access.service._liwan_identity(user)` before committing.
 No capability check is bypassed.
 
-The seed script travels in `WEBVUE_ACCEPT_SEED` (an env var) and is `exec`'d by a tiny
+The seed script travels in `LIWAN_ACCEPT_SEED` (an env var) and is `exec`'d by a tiny
 stdin stub, so no password ever reaches a command line and no TTY allocation is needed.
 
 Pinned Odoo 19 uses `group_ids` on `res.users`, not `groups_id`.
 
 ## Session keys
 
-`WEBVUE_SESSION_KEYS` is a JSON map of `kid → secret` where each secret is ≥32 bytes.
-`WEBVUE_SESSION_ACTIVE_KID` selects the signing key. The guard's `sessionCodec()` in
+`LIWAN_SESSION_KEYS` is a JSON map of `kid → secret` where each secret is ≥32 bytes.
+`LIWAN_SESSION_ACTIVE_KID` selects the signing key. The guard's `sessionCodec()` in
 `deploy/shared/guard.mjs` validates all keys are strings ≥32 bytes and that the
 active kid exists.
 
@@ -250,7 +250,7 @@ Caddy generates an internal CA (`local_certs`). `up.sh` exports the root certifi
 ## The asset-exhaustion variant (finding F4)
 
 `deploy/shared/Caddyfile` keys every non-API path — formerly including the application's own
-`/_nuxt/*` build output — to one `webvue_web` bucket of 600 events/minute per client IP.
+`/_nuxt/*` build output — to one `liwan_web` bucket of 600 events/minute per client IP.
 A single cold `/login` response references 127 `/_nuxt/*` files, so two tenants
 cold-loading inside a minute exhausted the bucket and the second tenant received `429`
 for its own `.js`/`.css`/font requests. The page then rendered an empty body (white
@@ -259,7 +259,7 @@ screen), not a degraded one. That was a production finding, recorded as F4 in
 
 F4 is now fixed directly in `deploy/shared/Caddyfile` by exempting immutable static
 asset prefixes (`/_nuxt/*`, `/_i18n/*`, `/i18n/*`, `/fonts/*`, `/favicon.ico`, `/robots.txt`)
-from `webvue_web`. The temporary harness-local variant files have been removed, and
+from `liwan_web`. The temporary harness-local variant files have been removed, and
 `acceptance.Caddyfile` imports the production Caddyfile directly for live reruns.
 
 ## Proof map
@@ -268,13 +268,13 @@ from `webvue_web`. The temporary harness-local variant files have been removed, 
 |---|---|---|
 | 1 | TLS chain + SAN | `probe.mjs` `rejectUnauthorized:true` against the exported root for A and B; reports subject/issuer/SAN |
 | 2 | Host routing / data isolation | `/api/v1/me` login differs per host and `/api/v1/projects` on A never contains B's project |
-| 3 | Private headers rejected | `X-WebVue-Proxy-Token` / `X-WebVue-Tenant-Revision` → 403 at the edge |
+| 3 | Private headers rejected | `X-Liwan-Proxy-Token` / `X-Liwan-Tenant-Revision` → 403 at the edge |
 | 4 | Port isolation | resolved compose `ps` publishers are only 127.0.0.1:443/80; TCP probes to 3000/8069/8072/8080/5432 from the host fail |
 | 5 | Session cookie flags | `Secure`, `HttpOnly`, `SameSite=Lax`, no `Domain` (secret redacted) |
 | 6 | Cross-tenant cookie | A's cookie on B → 403 and B's cookie on A → 403 |
 | 7 | Fail-closed | unknown host → 403; B with `enabled=false` → 403 with no restart, then restored |
 | 8 | Browser isolation | Playwright: Arabic login; `/`, `/projects`, `/hr` never show the other tenant's data; `/projects` shows the own project and `/hr` the own employee (`/` is the workspace launcher and lists no records), then logout |
-| 9 | Rate limit | >20 `webvue_auth` requests → 429 (runs last: it locks the auth zone) |
+| 9 | Rate limit | >20 `liwan_auth` requests → 429 (runs last: it locks the auth zone) |
 
 ## What it does NOT prove
 

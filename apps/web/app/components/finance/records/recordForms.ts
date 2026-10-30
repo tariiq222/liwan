@@ -14,7 +14,7 @@ import type {
   FinanceTax,
   FinanceTaxCreate,
   FinanceTaxPatch,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 
 // The drafts the setup editors fill in and the bodies they send. An edit sends only what changed (nothing when nothing did).
 const trim = (value: string) => value.trim()

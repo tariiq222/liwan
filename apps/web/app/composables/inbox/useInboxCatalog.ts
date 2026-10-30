@@ -14,7 +14,7 @@ import {
   type InboxCatalogPatch,
   type InboxCatalogPickItem,
   type InboxChannelCommercePatch,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { hasFeature } from '../../modules/registry'
 
 // Catalogs, their items, a channel's commerce settings and the product picker. Every key starts with 'inbox', so the
@@ -182,7 +182,7 @@ export function useInboxChannelCommerce(channelId: MaybeRefOrGetter<number | nul
   })
 }
 
-/** Meta first, then WebVue: a refusal changes nothing. The channel is a variable because a catalog card lists several numbers. */
+/** Meta first, then LiwanOS: a refusal changes nothing. The channel is a variable because a catalog card lists several numbers. */
 export function usePatchInboxChannelCommerce() {
   const { $api } = useApi()
   const qc = useQueryClient()

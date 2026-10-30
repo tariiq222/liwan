@@ -1,6 +1,6 @@
-import type { HrPayrollRunState } from '@webvue/contracts'
-import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
-import { isolateLtr } from '@webvue/ui/app/utils/formatDate'
+import type { HrPayrollRunState } from '@liwan/contracts'
+import type { StatusTone } from '@liwan/ui/app/utils/statusTone'
+import { isolateLtr } from '@liwan/ui/app/utils/formatDate'
 
 // Payroll figures and months as the payroll pages print them: Latin digits in every locale (like the app's dates),
 // two decimals for amounts, a left-to-right isolate so the numbers keep their order inside right-to-left text.

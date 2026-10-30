@@ -1,5 +1,5 @@
 import type { Pool } from 'pg'
-import { subscriptionViewSchema, subscriptionRevisionSchema, subscriptionDisplayState } from '@webvue/commercial-contracts'
+import { subscriptionViewSchema, subscriptionRevisionSchema, subscriptionDisplayState } from '@liwan/commercial-contracts'
 import { CommercialHttpError } from './lifecycle.js'
 import { orderView } from './orders.js'
 

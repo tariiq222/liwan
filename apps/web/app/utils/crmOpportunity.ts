@@ -1,4 +1,4 @@
-import type { CrmOpportunity, CrmOpportunityFilters, CrmStage } from '@webvue/contracts'
+import type { CrmOpportunity, CrmOpportunityFilters, CrmStage } from '@liwan/contracts'
 
 export const CRM_LIST_PATH = '/crm/opportunities'
 const LIST_QUERY_KEYS = ['q', 'stage_id', 'user_id', 'source_id', 'due', 'unassigned', 'needs_manager', 'status', 'view', 'page'] as const

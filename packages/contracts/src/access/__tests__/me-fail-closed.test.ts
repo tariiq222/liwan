@@ -30,10 +30,10 @@ describe('Me access extensions fail closed', () => {
     const parsed = MeSchema.parse({
       ...BASE_ME,
       capabilities: ['pmo.tasks.read', 'sales.orders.write'],
-      modules: ['webvue_pmo', 'webvue_sales'],
+      modules: ['liwan_pmo', 'liwan_sales'],
     })
     expect(parsed.capabilities).toEqual(['pmo.tasks.read', 'sales.orders.write'])
-    expect(parsed.modules).toEqual(['webvue_pmo', 'webvue_sales'])
+    expect(parsed.modules).toEqual(['liwan_pmo', 'liwan_sales'])
   })
 
   it('preserves exact sorted unique capability data from the server', () => {

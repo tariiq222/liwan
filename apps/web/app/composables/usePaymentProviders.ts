@@ -7,7 +7,7 @@ import {
   type PaymentProvider,
   type PaymentProviderList,
   type PaymentProviderUpdate,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { replaceProvider } from './paymentProviders'
 
 export const paymentProviderKeys = {

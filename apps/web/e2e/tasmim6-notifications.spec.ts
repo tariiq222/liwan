@@ -1,4 +1,4 @@
-import { NotificationListSchema } from '@webvue/contracts'
+import { NotificationListSchema } from '@liwan/contracts'
 import { expect, test, type Page } from '@playwright/test'
 import { fitsWidth, loginAdmin, openShell } from './support/tasmim6d'
 

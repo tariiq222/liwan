@@ -8,7 +8,7 @@ import {
   type InboxFlow,
   type InboxFlowCopy,
   type InboxFlowWrite,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 
 // Queries and mutations of the WhatsApp forms (flows). Every key starts with 'inbox', so the bus invalidation of
 // ['inbox'] refreshes them with everything else.

@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { AiAuditRequestSchema } from '@webvue/contracts'
+import { AiAuditRequestSchema } from '@liwan/contracts'
 import { aiApprovalAudit, charterDraftFromAi, clearAiDraft, clearAiSessionState, forgetCreatedId, mayFinalizeCreate, parseCreatedId, prepareDraftHandoff, readAiDraft, readCreatedId, rememberCreatedId, withCreatedProject, withoutCreated } from '../aiDraft'
 import { emptyCharterDraft } from '../projectCharter'
-import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 
 const handoff = { run_id: 'r_1', call_id: 'c_2', tool: 'projects.draft_project', payload: { name: 'بوابة' } }
 
@@ -46,7 +46,7 @@ describe('readAiDraft / clearAiDraft', () => {
   afterEach(() => vi.unstubAllGlobals())
 
   it('reads a valid handoff and drops it on clear', () => {
-    stubStorage({ 'webvue:ai-draft:r_1:c_2': JSON.stringify(handoff) })
+    stubStorage({ 'liwan:ai-draft:r_1:c_2': JSON.stringify(handoff) })
     expect(readAiDraft('r_1:c_2')?.payload.name).toBe('بوابة')
     clearAiDraft('r_1:c_2')
     expect(readAiDraft('r_1:c_2')).toBeNull()
@@ -54,16 +54,16 @@ describe('readAiDraft / clearAiDraft', () => {
 
   it('returns null for a missing, corrupt or invalid entry', () => {
     stubStorage({
-      'webvue:ai-draft:bad': '{not json',
-      'webvue:ai-draft:empty-name': JSON.stringify({ ...handoff, payload: { name: '   ' } }),
-      'webvue:ai-draft:no-name': JSON.stringify({ ...handoff, payload: { description: 'x' } }),
-      'webvue:ai-draft:extra': JSON.stringify({ ...handoff, evil: true }),
+      'liwan:ai-draft:bad': '{not json',
+      'liwan:ai-draft:empty-name': JSON.stringify({ ...handoff, payload: { name: '   ' } }),
+      'liwan:ai-draft:no-name': JSON.stringify({ ...handoff, payload: { description: 'x' } }),
+      'liwan:ai-draft:extra': JSON.stringify({ ...handoff, evil: true }),
     })
     for (const id of ['missing', 'bad', 'empty-name', 'no-name', 'extra']) expect(readAiDraft(id)).toBeNull()
   })
 
   it('ignores unknown payload keys', () => {
-    stubStorage({ 'webvue:ai-draft:k': JSON.stringify({ ...handoff, payload: { name: 'x', budget: 99, charter: { scope: 's', salary: 1 } } }) })
+    stubStorage({ 'liwan:ai-draft:k': JSON.stringify({ ...handoff, payload: { name: 'x', budget: 99, charter: { scope: 's', salary: 1 } } }) })
     expect(readAiDraft('k')?.payload).toEqual({ name: 'x', charter: { scope: 's' } })
   })
 
@@ -137,7 +137,7 @@ describe('created project memory', () => {
     expect(readCreatedId('r_1', 'c_2')).toBeNull()
   })
   it('reads a tampered value as no project and survives denied storage', () => {
-    stubStorage({ 'webvue:ai-created:r_1:c_2': '-5' })
+    stubStorage({ 'liwan:ai-created:r_1:c_2': '-5' })
     expect(readCreatedId('r_1', 'c_2')).toBeNull()
     const denied = () => { throw new Error('denied') }
     vi.stubGlobal('sessionStorage', { getItem: denied, setItem: denied, removeItem: denied, key: denied, get length() { return denied() } })
@@ -145,9 +145,9 @@ describe('created project memory', () => {
     expect(readCreatedId('r_1', 'c_2')).toBeNull()
   })
   it('sign-out clears every AI draft and created id and nothing else', () => {
-    const store = stubStorage({ 'webvue:ai-draft:r_1:c_2': '{}', 'webvue:ai-created:r_1:c_2': '41', 'webvue:ai-draft:r_3:c_1': '{}', 'webvue-nav:7': 'x' })
+    const store = stubStorage({ 'liwan:ai-draft:r_1:c_2': '{}', 'liwan:ai-created:r_1:c_2': '41', 'liwan:ai-draft:r_3:c_1': '{}', 'liwan-nav:7': 'x' })
     clearAiSessionState()
-    expect([...store.keys()]).toEqual(['webvue-nav:7'])
+    expect([...store.keys()]).toEqual(['liwan-nav:7'])
   })
 })
 
@@ -165,7 +165,7 @@ describe('prepareDraftHandoff', () => {
   it('still opens the form, empty, when the payload has no usable name', () => {
     const store = stubStorage()
     prepareDraftHandoff('r_1', { callId: 'c_2', tool: 'projects.draft_project', payload: {} })
-    expect(JSON.parse(store.get('webvue:ai-draft:r_1:c_2')!).payload).toEqual({})
+    expect(JSON.parse(store.get('liwan:ai-draft:r_1:c_2')!).payload).toEqual({})
   })
 
   it('opens the form even when storage is blocked', () => {

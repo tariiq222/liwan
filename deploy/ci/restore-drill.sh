@@ -2,14 +2,14 @@
 # CI stage: back up a scratch release database, restore it, boot Odoo on it, and prove a missing attachment is caught.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-# Pinned OCA repositories (deploy/oca-addons.json), fetched by the setup action; appended after the WebVue addons.
+# Pinned OCA repositories (deploy/oca-addons.json), fetched by the setup action; appended after the LiwanOS addons.
 OCA_PATH="$(python3 -B tools/oca_addons.py path --check)"
 : "${ODOO_ROOT:?}" "${ODOO_PYTHON:?}" "${ODOO_PORT:?}" "${PGHOST:?}" "${PGPORT:?}" "${PGUSER:?}" "${PGPASSWORD?}"
 W="$(mktemp -d)"
 mkdir -p "$W/data" "$W/restored" "$W/logs"
-SRC_DB="webvue_drill_src_scratch"
-RST_DB="webvue_drill_restored_scratch"
-RST2_DB="webvue_drill_restored2_scratch"
+SRC_DB="liwan_drill_src_scratch"
+RST_DB="liwan_drill_restored_scratch"
+RST2_DB="liwan_drill_restored2_scratch"
 MODULES="$(python3 -B tools/catalog_check.py --release-modules)"
 cleanup() {
   if [ -n "${SERVER_PID:-}" ]; then kill "$SERVER_PID" 2>/dev/null || true; wait "$SERVER_PID" 2>/dev/null || true; fi
@@ -21,8 +21,8 @@ for db in "$SRC_DB" "$RST_DB" "$RST2_DB"; do dropdb -h "$PGHOST" -p "$PGPORT" -U
 # The workflow points PG_BIN_DIR at the versioned client because Debian's pg_wrapper fails against the service container.
 B="${PG_BIN_DIR:-$(dirname "$(command -v pg_dump)")}"
 export PATH="$B:$PATH"
-export WEBVUE_COMMERCIAL_CONFIG="$W/restore-classification.json"
-python3 deploy/classification.py fixture --database "$SRC_DB" --mode non_saas --output "$WEBVUE_COMMERCIAL_CONFIG"
+export LIWAN_COMMERCIAL_CONFIG="$W/restore-classification.json"
+python3 deploy/classification.py fixture --database "$SRC_DB" --mode non_saas --output "$LIWAN_COMMERCIAL_CONFIG"
 "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
   --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$PWD/odoo-addons,$OCA_PATH" --data-dir="$W/data" \
   -d "$SRC_DB" -i "$MODULES" \
@@ -36,7 +36,7 @@ verify() { python3 deploy/restore_verify.py --backup-dir "$W/backup" --target-db
   --psql "$B/psql" --pg-host "$PGHOST" --pg-port "$PGPORT" --pg-user "$PGUSER"; }
 verify "$RST_DB"
 # Classified restored databases must start without a mapping or billing service.
-unset WEBVUE_COMMERCIAL_CONFIG
+unset LIWAN_COMMERCIAL_CONFIG
 "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
   --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$PWD/odoo-addons,$OCA_PATH" --data-dir="$W/restored" \
   -d "$RST_DB" --http-port="$ODOO_PORT" --workers=0 --max-cron-threads=0 > "$W/restored-odoo.log" 2>&1 &

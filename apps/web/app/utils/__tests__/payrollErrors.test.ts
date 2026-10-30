@@ -5,7 +5,7 @@ import { ApiError } from '../../composables/useApi'
 import { eosProvisionErrorMessage, payrollErrorMessage, payrollFieldError, payrollWarningText } from '../payrollErrors'
 
 // The real locale files the UI ships, so a code without a text fails instead of hiding behind the key itself:
-// the payroll namespace, the shared `errors.saveUncertain` and `app.listSeparator`, and `errors.generic` from the @webvue/ui layer that
+// the payroll namespace, the shared `errors.saveUncertain` and `app.listSeparator`, and `errors.generic` from the @liwan/ui layer that
 // Nuxt merges into the app's messages.
 const read = (relative: string) => JSON.parse(readFileSync(resolve(import.meta.dirname, relative), 'utf8'))
 const arPayroll = read('../../../i18n/locales/ar/hr-payroll.json').hrPayroll

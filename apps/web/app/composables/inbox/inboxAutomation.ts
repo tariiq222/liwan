@@ -1,7 +1,7 @@
 import {
   InboxAutoContentSchema, InboxChannelAutomationSchema, InboxRuleWriteSchema, InboxWorkingHoursSchema,
   type InboxAutoContent, type InboxChannelAutomation, type InboxPriority, type InboxRule, type InboxRuleMatchKind, type InboxRuleWrite, type InboxWorkingHours,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 import { buildCommerceContent, commerceToDraft, emptyCommerceDraft, type CommerceDraft } from './inboxCommerce'
 import { buildInteractive, emptyInteractiveDraft, interactiveToDraft, type InteractiveDraft } from './inboxInteractive'
 

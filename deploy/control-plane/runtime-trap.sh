@@ -2,7 +2,7 @@
 # Signal handler for run-local. Caller controls whether external stop owns cleanup.
 control_runtime_trap() {
   exec 3>&-
-  unset WEBVUE_PROCESS_LOCK_FD
+  unset LIWAN_PROCESS_LOCK_FD
   local runtime_pid generation handoff
   runtime_pid="$(<"$HOME_DIR/processes/runtime.pid")"
   generation="$(<"$HOME_DIR/processes/generation")"

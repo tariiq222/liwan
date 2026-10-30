@@ -1,4 +1,4 @@
-import type { FinanceInvoice } from '@webvue/contracts'
+import type { FinanceInvoice } from '@liwan/contracts'
 
 /** The four document types the Finance app edits; receipts have no page. */
 export type FinanceMoveType = 'out_invoice' | 'out_refund' | 'in_invoice' | 'in_refund'

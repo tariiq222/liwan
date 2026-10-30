@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import DocumentCreateForm from '../../app/components/documents/DocumentCreateForm.vue'
-import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
+import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 import { document, access, documentHandlers } from './fixtures'
 const meta = {
@@ -12,5 +12,5 @@ export default meta
 type Story = StoryObj<typeof meta>
 export const Default: Story = {
   parameters: storyContext('apps/web/app/pages/documents/new.vue:15'),
-  render: args => ({ components: { DocumentCreateForm, PageContainer }, setup: () => ({ args }), template: '<main class="webvue-shell-main"><PageContainer width="form"><DocumentCreateForm v-bind="args" /></PageContainer></main>' }),
+  render: args => ({ components: { DocumentCreateForm, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer width="form"><DocumentCreateForm v-bind="args" /></PageContainer></main>' }),
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { subscriptionDisplayState } from '@webvue/commercial-contracts'
+import { subscriptionDisplayState } from '@liwan/commercial-contracts'
 import { orderOutcome, safePaymentRedirect, subscriptionStateBadge } from '@/utils/subscription'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t } = useI18n(); const route = useRoute(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()

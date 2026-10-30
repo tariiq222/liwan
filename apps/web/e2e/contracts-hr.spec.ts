@@ -6,7 +6,7 @@ import {
   HrEmployeeListSchema,
   PersonRefSchema,
   MeSchema, RoleListSchema, AdminUserDetailSchema,
-} from '@webvue/contracts'
+} from '@liwan/contracts'
 
 const ADMIN_LOGIN = process.env.E2E_ADMIN_LOGIN ?? 'admin'
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'admin'

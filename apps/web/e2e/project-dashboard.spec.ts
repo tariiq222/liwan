@@ -23,7 +23,7 @@ for (const width of [390, 768, 1440]) {
     await page.getByTestId('module-rail').getByRole('link', { name: 'نظرة عامة', exact: true }).click()
     await expect(page).toHaveURL(/\/projects\/dashboard$/)
     await expect(page.getByTestId('application-navigation').getByRole('heading', { name: 'المشاريع', level: 2 })).toBeVisible()
-    await expect(page.getByTestId('application-navigation').locator('.webvue-sub-list .webvue-quick-link')).toHaveText(['نظرة عامة', 'عرض الكل', 'مهامي'])
+    await expect(page.getByTestId('application-navigation').locator('.liwan-sub-list .liwan-quick-link')).toHaveText(['نظرة عامة', 'عرض الكل', 'مهامي'])
     await expect(page.getByTestId('context-link-new-project')).toBeVisible()
     await expect(page.getByTestId('context-link-project-dashboard')).toHaveAttribute('aria-current', 'page')
     await charts(page)
@@ -77,7 +77,7 @@ for (const mode of ['dark', 'light'] as const) {
   test(`${mode} and large type on mobile`, async ({ page }, info) => {
     await page.setViewportSize({ width: 390, height: 1000 })
     await login(page)
-    await page.context().addCookies([{ name: 'webvue-appearance', value: encodeURIComponent(JSON.stringify({ mode, fontSize: 'large' })), url: new URL(page.url()).origin }])
+    await page.context().addCookies([{ name: 'liwan-appearance', value: encodeURIComponent(JSON.stringify({ mode, fontSize: 'large' })), url: new URL(page.url()).origin }])
     await page.goto('/projects/dashboard')
     await expect(page.locator('html')).toHaveAttribute('data-font-size', 'large')
     await charts(page)

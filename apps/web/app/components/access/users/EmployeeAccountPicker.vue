@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useEmployeeAccountCandidates, type EmployeeAccountCandidateParams } from '@/composables/useEmployeeAccounts'
-import type { EmployeeAccountCandidate } from '@webvue/contracts'
+import type { EmployeeAccountCandidate } from '@liwan/contracts'
 
 // The employee choice of the account form (the employee-account bridge): a search, one select over the current
 // page of candidates and the pager. An employee with an active account cannot be chosen; a stopped one is

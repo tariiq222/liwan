@@ -43,7 +43,7 @@ const APPLICANT = {
 }
 
 describe('HrRecruitmentJobSchema', () => {
-  it('accepts a job list with the WebVue applicant count', () => {
+  it('accepts a job list with the LiwanOS applicant count', () => {
     const parsed = HrRecruitmentJobListSchema.parse({ items: [JOB], total: 1 })
     expect(parsed.items[0]?.application_count).toBe(5)
     expect(HrRecruitmentJobSchema.parse(JOB).description).toBe('بناء المنصة')

@@ -2,7 +2,7 @@
 import { ApiError } from '@/composables/useApi'
 import { useProjectSchedule } from '@/composables/useProjectSchedule'
 import { useProject } from '@/composables/useProjects'
-import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
+import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 import ScheduleTaskForm from './ScheduleTaskForm.vue'
 
 const props = defineProps<{ projectId: number; taskId: number }>()

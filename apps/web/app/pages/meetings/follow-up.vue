@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { z } from 'zod'
-import type { MeetingPreviousResolutionSchema } from '@webvue/contracts'
-import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
-import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
-import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
+import type { MeetingPreviousResolutionSchema } from '@liwan/contracts'
+import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
+import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
+import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import { refDebounced } from '@vueuse/core'
 import { useMeetingFollowup, type MeetingFollowupParams } from '@/composables/useMeetingWorkspace'
 import { useMeetingFollowupKpis } from '@/composables/useMeetingKpis'
 import { formatMeetingDate } from '@/utils/meetingMinutesForm'
 import { resolutionStateBadgeProps } from '@/utils/meetingStatus'
 import { parseOffset, firstQuery } from '@/utils/routeQuery'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 
 type Row = z.infer<typeof MeetingPreviousResolutionSchema>
 const route = useRoute()

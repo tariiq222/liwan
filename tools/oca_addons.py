@@ -8,7 +8,7 @@
 ``deploy/oca-addons.json`` is the only list of OCA repositories and their commits. OCA code is
 never copied into this repository: ``fetch`` (https only) clones each repository to exactly its
 pinned commit under ``DIR/<repo name>`` and verifies HEAD; it is idempotent. ``path --check`` fails
-unless every clone is at its pin. The destination is ``--dest``, else ``$WEBVUE_OCA_DIR``, else
+unless every clone is at its pin. The destination is ``--dest``, else ``$LIWAN_OCA_DIR``, else
 ``oca-19.0`` beside the main checkout (shared by every worktree). See ``docs/oca-addons.md``.
 """
 from __future__ import annotations
@@ -27,7 +27,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 PINS = REPO / 'deploy' / 'oca-addons.json'
 DEFAULT_BASE_URL = 'https://github.com'
-DEST_ENV = 'WEBVUE_OCA_DIR'
+DEST_ENV = 'LIWAN_OCA_DIR'
 DEST_NAME = 'oca-19.0'
 IMAGE_DEST = '/opt/oca'  # where deploy/odoo/Dockerfile puts the repositories
 REPO_NAME = re.compile(r'OCA/[a-z0-9][a-z0-9_-]*')
@@ -215,7 +215,7 @@ def main(argv=None):
     parser.add_argument('--pins', default=str(PINS), help='pin file (default: deploy/oca-addons.json)')
     parser.add_argument('--check', action='store_true',
                         help='with path: fail unless every repository is fetched at its pin')
-    parser.add_argument('--base-url', default=os.environ.get('WEBVUE_OCA_BASE_URL', DEFAULT_BASE_URL),
+    parser.add_argument('--base-url', default=os.environ.get('LIWAN_OCA_BASE_URL', DEFAULT_BASE_URL),
                         help='git host the repositories are fetched from')
     args = parser.parse_args(argv)
     pins = load_pins(args.pins)

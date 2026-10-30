@@ -18,7 +18,7 @@ async function loginAsAdmin(page: Page, baseURL: string | undefined) {
     data: { login: ADMIN_LOGIN, password: ADMIN_PASSWORD },
   })
   expect(login.status()).toBe(200)
-  await page.context().addCookies([{ name: 'webvue-appearance', value: LIGHT_SMALL_APPEARANCE, url: baseURL! }])
+  await page.context().addCookies([{ name: 'liwan-appearance', value: LIGHT_SMALL_APPEARANCE, url: baseURL! }])
   await page.goto('/projects/dashboard')
   await expect(page).not.toHaveURL(/\/login/)
   await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
@@ -63,7 +63,7 @@ test('document colour draft cancels, resets, and saves explicitly without themin
   const savedColour = await colour.inputValue()
   const initialTitle = await page.title()
   const initialPrimary = await uiPrimary(page)
-  const shellBrand = page.getByTestId('shell-header').locator('.webvue-shell-brand')
+  const shellBrand = page.getByTestId('shell-header').locator('.liwan-shell-brand')
   await expect(shellBrand).toBeVisible()
   expect(await shellBrand.getAttribute('aria-label')).toContain(savedName)
 
@@ -111,10 +111,10 @@ test('document colour draft cancels, resets, and saves explicitly without themin
   expect(savedResponse.request().postDataJSON()).toEqual({ primary_color: '#123456' })
   await page.reload()
   await expect(page.getByTestId('branding-color')).toHaveValue('#123456')
-  await expect(page.getByTestId('shell-header').locator('.webvue-shell-brand')).toBeVisible()
-  expect(await page.getByTestId('shell-header').locator('.webvue-shell-brand').getAttribute('aria-label')).toContain(savedName)
+  await expect(page.getByTestId('shell-header').locator('.liwan-shell-brand')).toBeVisible()
+  expect(await page.getByTestId('shell-header').locator('.liwan-shell-brand').getAttribute('aria-label')).toContain(savedName)
   await expect(page).toHaveTitle(savedName)
-  // The saved colour is for documents; the interface keeps the fixed WebVue palette.
+  // The saved colour is for documents; the interface keeps the fixed LiwanOS palette.
   expect(await uiPrimary(page)).toBe(initialPrimary)
   await expect(page.getByTestId('branding-secondary-color')).toHaveCount(0)
   await expect(page.getByTestId('branding-suggest-secondary')).toHaveCount(0)

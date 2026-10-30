@@ -1,4 +1,4 @@
-import type { FinanceBudgetDistribute } from '@webvue/contracts'
+import type { FinanceBudgetDistribute } from '@liwan/contracts'
 
 /** One cost center's share as typed; the percent stays a string until it is validated. */
 export interface ShareDraft { analyticId: number | null; percent: string }

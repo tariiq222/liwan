@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { ProjectListSchema } from '@webvue/contracts'
+import { ProjectListSchema } from '@liwan/contracts'
 
 // Phase 3a admin screens: create/settings/stages/followers/milestones/updates
 // on the project, task archive, project archive/unarchive, the settings ›

@@ -1,6 +1,6 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { AiRunListSchema, AiRunSummarySchema, type AiRunList, type AiRunPatch, type AiRunSummary } from '@webvue/contracts'
+import { AiRunListSchema, AiRunSummarySchema, type AiRunList, type AiRunPatch, type AiRunSummary } from '@liwan/contracts'
 
 export const aiRunKeys = {
   all: ['ai', 'runs'] as const,

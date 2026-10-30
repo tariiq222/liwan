@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { HrShiftAssignment } from '@/composables/useHrShifts'
-import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
+import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
 import { ApiError } from '@/composables/useApi'
 import {
   HR_SHIFTS_PAGE_SIZE,
@@ -10,7 +10,7 @@ import {
 } from '@/composables/useHrShifts'
 import { useHrEmployees } from '@/composables/useHrEmployees'
 import ShiftAssignmentTable from '@/components/hr/shifts/ShiftAssignmentTable.vue'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 
 const ALL = '__all__'
 
@@ -150,7 +150,7 @@ async function confirmRemove() {
       />
     </template>
 
-    <div class="webvue-page-stack">
+    <div class="liwan-page-stack">
       <UAlert v-if="removeError" role="alert" color="error" variant="subtle" :title="removeError" data-testid="hr-shifts-remove-error" />
       <SharedInlineConfirm
         v-if="removing"
@@ -211,7 +211,7 @@ async function confirmRemove() {
         <SharedPageState :error="source.error.value" :keep-content="items.length > 0" @retry="source.refetch">
           <SharedEmptyState
             v-if="showEmpty"
-            class="m-(--webvue-card-pad-dense)"
+            class="m-(--liwan-card-pad-dense)"
             :title="t('hrShifts.empty')"
             :description="t('hrShifts.emptyHint')"
           />

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CrmLostReasonSchema, CrmSourceSchema, type CrmLostReason, type CrmSource } from '@webvue/contracts'
+import { CrmLostReasonSchema, CrmSourceSchema, type CrmLostReason, type CrmSource } from '@liwan/contracts'
 import { useCrmListEditor, useCrmLostReasons, useCrmSources } from '@/composables/crm/useCrmLists'
 
 // A list of names that can be added, renamed, archived and restored: the lost reasons and the sources.

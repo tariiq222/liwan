@@ -10,12 +10,12 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-if importlib.util.find_spec('webvue_cli.managed_credentials'):
-    from webvue_cli import managed_credentials as credentials
+if importlib.util.find_spec('liwan_cli.managed_credentials'):
+    from liwan_cli import managed_credentials as credentials
 else:
     credentials = None
 
-DB = 'webvue_scratch_credentials'
+DB = 'liwan_scratch_credentials'
 SECRET = 'synthetic_credential_secret_0123456789'
 
 
@@ -64,7 +64,7 @@ class Profile:
     def __len__(self):
         return 1
 
-    def _webvue_lock(self):
+    def _liwan_lock(self):
         return self
 
 
@@ -86,7 +86,7 @@ class Admin:
     def exists(self):
         return self
 
-    def _webvue_access_write(self, values, capability):
+    def _liwan_access_write(self, values, capability):
         self.writes.append((values, capability))
         self.cursor.pending = digest('wrong' if self.bad_hash else values['password'])
 
@@ -110,7 +110,7 @@ class Environment:
         self.refs = []
 
     def __getitem__(self, name):
-        assert name == 'webvue.tenant.profile'
+        assert name == 'liwan.tenant.profile'
         return SimpleNamespace(search=lambda domain, limit: self.profile)
 
     def ref(self, name, raise_if_not_found=False):
@@ -135,16 +135,16 @@ class CredentialsCase(unittest.TestCase):
         output = io.StringIO()
         with patch.dict(os.environ, {}, clear=True):
             if secret is not None:
-                os.environ['WEBVUE_ADMIN_PASSWORD'] = secret
+                os.environ['LIWAN_ADMIN_PASSWORD'] = secret
             with contextlib.redirect_stdout(output):
                 exec(compile(script, '<credentials-test>', 'exec'), {'env': self.env})
-            self.assertNotIn('WEBVUE_ADMIN_PASSWORD', os.environ)
+            self.assertNotIn('LIWAN_ADMIN_PASSWORD', os.environ)
         self.assertNotIn(SECRET, output.getvalue())
         return output.getvalue()
 
     def assert_refused(self, **kwargs):
         output = self.run_script(**kwargs)
-        self.assertEqual(output.strip(), 'WEBVUE_MANAGED_CREDENTIALS:{"error_code": "credentials_unverified"}')
+        self.assertEqual(output.strip(), 'LIWAN_MANAGED_CREDENTIALS:{"error_code": "credentials_unverified"}')
         with self.assertRaises(credentials.CredentialsError):
             credentials.parse_credentials(output, DB)
         self.assertEqual(self.env.cr.commits, 0)
@@ -219,7 +219,7 @@ class CredentialsCase(unittest.TestCase):
         self.env.cr.fail_commit = True
         self.assert_refused()
         self.env = Environment()
-        with patch.object(self.env.admin, '_webvue_access_write', side_effect=RuntimeError(SECRET)):
+        with patch.object(self.env.admin, '_liwan_access_write', side_effect=RuntimeError(SECRET)):
             self.assert_refused()
 
     def test_missing_profile_admin_or_hash_are_refused(self):
@@ -237,23 +237,23 @@ class CredentialsCase(unittest.TestCase):
             self.assert_refused()
 
     def test_parser_strict_bounds_types_and_json(self):
-        valid = 'WEBVUE_MANAGED_CREDENTIALS:' + json.dumps({'database': DB, 'changed': True, 'verified': True})
-        for output in ['WEBVUE_MANAGED_CREDENTIALS:[]', 'WEBVUE_MANAGED_CREDENTIALS:{',
+        valid = 'LIWAN_MANAGED_CREDENTIALS:' + json.dumps({'database': DB, 'changed': True, 'verified': True})
+        for output in ['LIWAN_MANAGED_CREDENTIALS:[]', 'LIWAN_MANAGED_CREDENTIALS:{',
                        '\ud800' + valid, 'ع' * 33000 + '\n' + valid,
-                       'WEBVUE_MANAGED_CREDENTIALS:' + '[' * 1100]:
+                       'LIWAN_MANAGED_CREDENTIALS:' + '[' * 1100]:
             with self.assertRaises(credentials.CredentialsError):
                 credentials.parse_credentials(output, DB)
         with self.assertRaises(credentials.CredentialsError):
             credentials.parse_credentials(valid, DB, expected_changed=1)
 
     def test_invalid_database_input(self):
-        for database in ['odoo19', 'webvue_scratch_prod', 'webvue_scratch_postgres',
-                         'webvue_scratch_a\n', "webvue_scratch_a';print(1)", None, True]:
+        for database in ['odoo19', 'liwan_scratch_prod', 'liwan_scratch_postgres',
+                         'liwan_scratch_a\n', "liwan_scratch_a';print(1)", None, True]:
             with self.subTest(database=database), self.assertRaises(credentials.CredentialsError):
                 credentials.build_credentials_script(database)
 
     def test_parser_rejects_non_authoritative_output(self):
-        valid = 'WEBVUE_MANAGED_CREDENTIALS:' + json.dumps({'database': DB, 'changed': True, 'verified': True})
+        valid = 'LIWAN_MANAGED_CREDENTIALS:' + json.dumps({'database': DB, 'changed': True, 'verified': True})
         bad = ['', valid + '\n' + valid, 'x' + valid, valid.replace(DB, 'odoo19'),
                valid.replace('true', '1'), valid.replace('true', 'false'),
                valid.replace('}', ', "secret": "hidden"}'),

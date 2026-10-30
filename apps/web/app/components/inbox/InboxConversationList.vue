@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { avatarProps } from '@webvue/ui/app/utils/avatarTone'
-import EmptyState from '@webvue/ui/app/components/shared/feedback/EmptyState.vue'
+import { avatarProps } from '@liwan/ui/app/utils/avatarTone'
+import EmptyState from '@liwan/ui/app/components/shared/feedback/EmptyState.vue'
 import { useInboxConversations } from '@/composables/inbox/useInbox'
 import { useInboxDepartments } from '@/composables/inbox/useInboxSettings'
 import { CONVERSATION_STATES, CONVERSATION_STATE_TONE, CSAT_SCORES, CSAT_TONE, inboxListTime } from '@/composables/inbox/inboxPresentation'

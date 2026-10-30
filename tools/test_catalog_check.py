@@ -33,17 +33,17 @@ from odoo import api, models
 
 
 class Demo(models.AbstractModel):
-    _inherit = 'webvue.feature.registry'
+    _inherit = 'liwan.feature.registry'
 
     @api.model
-    def _webvue_feature_definitions(self):
-        return super()._webvue_feature_definitions() + (
+    def _liwan_feature_definitions(self):
+        return super()._liwan_feature_definitions() + (
 %(features)s
         )
 
     @api.model
-    def _webvue_module_definitions(self):
-        return super()._webvue_module_definitions() + (
+    def _liwan_module_definitions(self):
+        return super()._liwan_module_definitions() + (
             {'id': 'demo_pmo'},
         )
 """
@@ -67,7 +67,7 @@ class CatalogFixture:
         self.manifest(addons, 'demo_core', [], 'Demo core')
         self.manifest(addons, 'demo_pmo', ['demo_core'], 'Demo project pillar')
         self.manifest(
-            addons, 'webvue_registry_probe', ['demo_core'], catalog_check.TEST_ONLY_MARKER,
+            addons, 'liwan_registry_probe', ['demo_core'], catalog_check.TEST_ONLY_MARKER,
         )
         (addons / 'demo_pmo' / 'models').mkdir()
         (addons / 'demo_pmo' / 'models' / 'feature_registry.py').write_text(
@@ -265,29 +265,29 @@ class CatalogCase(CatalogFixture, unittest.TestCase):
         self.data['tiers'][0]['addons'] = ['extra']
         self.assertEqual(self.errors(), [])
 
-    def test_missing_webvue_dependency_is_rejected(self):
+    def test_missing_liwan_dependency_is_rejected(self):
         addons = self.root / 'odoo-addons'
         (addons / 'demo_pmo' / '__manifest__.py').write_text(MANIFEST % {
-            'name': 'demo_pmo', 'summary': 'Demo', 'depends': ['demo_core', 'webvue_ghost'],
+            'name': 'demo_pmo', 'summary': 'Demo', 'depends': ['demo_core', 'liwan_ghost'],
         })
-        self.assert_rejected('webvue_ghost')
+        self.assert_rejected('liwan_ghost')
 
     def test_registry_declared_dependency_without_a_manifest_is_rejected(self):
         """A module the registry owns must also ship a manifest."""
         addons = self.root / 'odoo-addons'
         (addons / 'demo_pmo' / '__manifest__.py').write_text(MANIFEST % {
-            'name': 'demo_pmo', 'summary': 'Demo', 'depends': ['demo_core', 'webvue_shadow'],
+            'name': 'demo_pmo', 'summary': 'Demo', 'depends': ['demo_core', 'liwan_shadow'],
         })
         (addons / 'demo_pmo' / 'models' / 'module_registry.py').write_text(
             "# Part of Odoo. See LICENSE file for full copyright and licensing details.\n"
             "from odoo import api, models\n\n\n"
             "class Shadow(models.AbstractModel):\n"
-            "    _inherit = 'webvue.feature.registry'\n\n"
+            "    _inherit = 'liwan.feature.registry'\n\n"
             "    @api.model\n"
-            "    def _webvue_module_definitions(self):\n"
-            "        return ({'id': 'webvue_shadow'},)\n",
+            "    def _liwan_module_definitions(self):\n"
+            "        return ({'id': 'liwan_shadow'},)\n",
         )
-        self.assert_rejected("webvue_shadow' is missing")
+        self.assert_rejected("liwan_shadow' is missing")
 
     def test_schema_type_value_must_be_implemented(self):
         path = REAL_CATALOG / 'schema' / 'solution.schema.json'
@@ -326,11 +326,11 @@ class CatalogCase(CatalogFixture, unittest.TestCase):
         self.assert_rejected('is not a limit feature', self.data)
 
     def test_test_only_module_cannot_be_sold(self):
-        self.data['base_modules'] = ['demo_core', 'webvue_registry_probe']
+        self.data['base_modules'] = ['demo_core', 'liwan_registry_probe']
         self.assert_rejected('test-only', self.data)
 
     def test_test_only_marker_is_verified(self):
-        manifest = self.root / 'odoo-addons' / 'webvue_registry_probe' / '__manifest__.py'
+        manifest = self.root / 'odoo-addons' / 'liwan_registry_probe' / '__manifest__.py'
         manifest.write_text(MANIFEST % {
             'name': 'probe', 'summary': 'something else', 'depends': ['demo_core'],
         })
@@ -419,11 +419,11 @@ from odoo import api, models
 
 
 class DemoPlatform(models.AbstractModel):
-    _inherit = 'webvue.feature.registry'
+    _inherit = 'liwan.feature.registry'
 
     @api.model
-    def _webvue_feature_definitions(self):
-        return super()._webvue_feature_definitions() + (
+    def _liwan_feature_definitions(self):
+        return super()._liwan_feature_definitions() + (
 %(features)s
         )
 """
@@ -437,9 +437,9 @@ class ReleaseCatalogCase(CatalogFixture, unittest.TestCase):
         models = self.root / 'odoo-addons' / 'demo_core' / 'models'
         models.mkdir()
         (models / 'feature_registry.py').write_text(PLATFORM_REGISTRY % {'features': (
-            feature('users.limit', 'limit', 'webvue_platform', 'webvue_platform')
-            + feature('storage.limit_mb', 'limit', 'webvue_platform', 'webvue_platform')
-            + feature('branches.extra_limit', 'limit', 'webvue_platform', 'webvue_platform')
+            feature('users.limit', 'limit', 'liwan_platform', 'liwan_platform')
+            + feature('storage.limit_mb', 'limit', 'liwan_platform', 'liwan_platform')
+            + feature('branches.extra_limit', 'limit', 'liwan_platform', 'liwan_platform')
         )})
         self.data = {
             'schema_version': 3,
@@ -504,7 +504,7 @@ class ReleaseCatalogCase(CatalogFixture, unittest.TestCase):
         name, modules = catalog_check.current_release(ROOT)
         self.assertEqual(name, 'platform_v4.json')
         data = json.loads((ROOT / 'deploy/catalog/solutions' / name).read_text())
-        self.assertEqual(data['base_modules'], ['webvue_core', 'webvue_platform', 'webvue_api'])
+        self.assertEqual(data['base_modules'], ['liwan_core', 'liwan_platform', 'liwan_api'])
         order = catalog_check.release_install_order(ROOT, data)
         self.assertEqual(order[:3], data['base_modules'])
         self.assertEqual(sorted(order), modules)
@@ -566,7 +566,7 @@ class SyncReleaseCopiesTest(unittest.TestCase):
         self.operations = self.root / 'deploy' / 'OPERATIONS.md'
         self.operations.write_text('--modules demo_core,demo_api\n--test-tags /demo_core,/demo_api\nuntouched demo_hr,x\n')
         self.isolated = self.root / 'deploy' / 'check_isolated.py'
-        self.isolated.write_text("X = 1\nWEBVUE_ADDONS = (\n    'demo_core', 'demo_api',\n)\nY = 2\n")
+        self.isolated.write_text("X = 1\nLIWAN_ADDONS = (\n    'demo_core', 'demo_api',\n)\nY = 2\n")
 
     def test_rewrites_only_the_lists_and_keeps_foreign_modules(self):
         changed = catalog_check.sync_release_copies(self.root)
@@ -582,7 +582,7 @@ class SyncReleaseCopiesTest(unittest.TestCase):
         )
         self.assertEqual(
             self.isolated.read_text(),
-            "X = 1\nWEBVUE_ADDONS = (\n    'demo_core', 'demo_api', 'demo_pmo', 'demo_hr',\n)\nY = 2\n",
+            "X = 1\nLIWAN_ADDONS = (\n    'demo_core', 'demo_api', 'demo_pmo', 'demo_hr',\n)\nY = 2\n",
         )
 
     def test_is_idempotent(self):

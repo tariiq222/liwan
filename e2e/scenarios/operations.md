@@ -2,8 +2,8 @@
 
 Pages: `/operations`, `/operations/new`, `/operations/[id]`, `/operations/pending`,
 `/operations/monitoring`, `/operations/self/*` (served at `/account/requests`), settings
-`/settings/apps/operations/processes`. Owners: `webvue_operations` (approvals through OCA
-`base_tier_validation`, one sequential tier per stage), `webvue_operations_pmo`.
+`/settings/apps/operations/processes`. Owners: `liwan_operations` (approvals through OCA
+`base_tier_validation`, one sequential tier per stage), `liwan_operations_pmo`.
 Personas and status values: [README](README.md).
 
 Role note: `ops_manager` designs processes and monitors but cannot review; `pm` is a reviewer;
@@ -258,7 +258,7 @@ the UI shows its own Arabic text for them.
 | OPS-175 | Returned personal request raises attention | staff1 | Account summary shows «أُعيد إليك الطلب لاستكماله.» linking to the request | `page /operations/self` | manual 2026-10-28 | /account shows «أُعيد إليك الطلب لاستكماله.» for the returned personal request; `modules/operations/personal.ts` |
 | OPS-176 | Personal pages without create capability | custom role (operations.requests.read only) | No «طلب خدمة وظيفية» button; `/account/requests/new` and `/edit` forbidden | `page /operations/self/new` | manual 2026-10-28 | round 2: requests.read-only user: /account/requests has no «طلب خدمة وظيفية» button, /account/requests/new and /account/requests/21/edit show the 403 page |
 
-## PMO completion (webvue_operations_pmo)
+## PMO completion (liwan_operations_pmo)
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |

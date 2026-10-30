@@ -2,9 +2,9 @@
 set +x
 set +v
 set -euo pipefail
-HOME_DIR="${WEBVUE_CONTROL_HOME:-$HOME/.local/share/webvue-saas-control-local}"
-ROOT="${WEBVUE_REPOSITORY_ROOT:-$(cd "$(dirname "$0")/../.." && pwd -P)}"
-NODE_BIN="${WEBVUE_NODE_BIN:-/opt/homebrew/opt/node@22/bin}"
+HOME_DIR="${LIWAN_CONTROL_HOME:-$HOME/.local/share/liwan-saas-control-local}"
+ROOT="${LIWAN_REPOSITORY_ROOT:-$(cd "$(dirname "$0")/../.." && pwd -P)}"
+NODE_BIN="${LIWAN_NODE_BIN:-/opt/homebrew/opt/node@22/bin}"
 state="$HOME_DIR/processes"
 proc_start() { ps -p "$1" -o lstart= 2>/dev/null | xargs || true; }
 # The supervisor is exec'd through startup_handoff as /bin/bash, while a direct

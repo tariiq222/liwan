@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CrmOpportunity, CrmOpportunityCreate, CrmSource } from '@webvue/contracts'
+import type { CrmOpportunity, CrmOpportunityCreate, CrmSource } from '@liwan/contracts'
 import { crmErrorMessage } from '@/utils/crmErrors'
 
 // The create form of the route-backed panel. The agent is left out of the body unless the user may assign:
@@ -47,7 +47,7 @@ async function submit() {
 </script>
 
 <template>
-  <UForm novalidate :state="{}" class="webvue-form" data-testid="crm-opportunity-form" @submit="submit">
+  <UForm novalidate :state="{}" class="liwan-form" data-testid="crm-opportunity-form" @submit="submit">
     <SharedUnsavedChanges :dirty="dirty && !pending" />
     <SharedFormSection>
       <UFormField :label="t('crm.opportunities.form.contact')" name="contact-name" required :error="attempted && !contactName.trim() ? t('crm.opportunities.form.contactRequired') : undefined">

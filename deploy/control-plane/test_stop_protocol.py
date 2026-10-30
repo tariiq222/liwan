@@ -35,11 +35,11 @@ LOCK = HERE / 'process_lock.py'
 
 # Stand-in supervisor body: sources the REAL runtime-trap.sh, holds the lifecycle
 # lock only until the owner records are published, then releases it (mirrors
-# run-local.sh:43-55). WEBVUE_PROCESS_LOCK_FD stays in the environment after the
+# run-local.sh:43-55). LIWAN_PROCESS_LOCK_FD stays in the environment after the
 # descriptor is closed, exactly as production leaves it.
 RUNNER_BODY = '''#!/bin/bash
 set +x; set +v; set -euo pipefail
-HOME_DIR="$WEBVUE_CONTROL_HOME"; DEPLOY="$WEBVUE_TEST_DEPLOY"
+HOME_DIR="$LIWAN_CONTROL_HOME"; DEPLOY="$LIWAN_TEST_DEPLOY"
 source "$DEPLOY/runtime-trap.sh"
 trap 'control_runtime_trap || exit $?; exit 0' TERM INT
 printf ready > "$HOME_DIR/ready"
@@ -81,7 +81,7 @@ class StopProtocol(unittest.TestCase):
     def test_real_local_stop_orders_children_and_supervisor_no_lock_deadlock(self):
         children = []
         reapers = []
-        with tempfile.TemporaryDirectory(prefix='webvue-stop-protocol-canary-') as tmp:
+        with tempfile.TemporaryDirectory(prefix='liwan-stop-protocol-canary-') as tmp:
             home = Path(tmp)
             state = home / 'processes'
             state.mkdir(mode=0o700)
@@ -106,9 +106,9 @@ while (($#)); do
 done
 if [[ "$field" == "command=" ]]; then
   case "$pid" in
-    "${WEBVUE_TEST_RUNTIME_PID:-__none__}") printf '%s\\n' "bash $WEBVUE_REPOSITORY_ROOT/deploy/control-plane/run-local.sh"; exit 0;;
-    "${WEBVUE_TEST_API_PID:-__none__}") printf '%s\\n' "$WEBVUE_NODE_BIN/node $WEBVUE_REPOSITORY_ROOT/node_modules/tsx/dist/cli.mjs $WEBVUE_REPOSITORY_ROOT/apps/control-plane/src/main.ts"; exit 0;;
-    "${WEBVUE_TEST_WORKER_PID:-__none__}") printf '%s\\n' "$WEBVUE_NODE_BIN/node $WEBVUE_REPOSITORY_ROOT/node_modules/tsx/dist/cli.mjs $WEBVUE_REPOSITORY_ROOT/apps/control-plane/src/worker-main.ts"; exit 0;;
+    "${LIWAN_TEST_RUNTIME_PID:-__none__}") printf '%s\\n' "bash $LIWAN_REPOSITORY_ROOT/deploy/control-plane/run-local.sh"; exit 0;;
+    "${LIWAN_TEST_API_PID:-__none__}") printf '%s\\n' "$LIWAN_NODE_BIN/node $LIWAN_REPOSITORY_ROOT/node_modules/tsx/dist/cli.mjs $LIWAN_REPOSITORY_ROOT/apps/control-plane/src/main.ts"; exit 0;;
+    "${LIWAN_TEST_WORKER_PID:-__none__}") printf '%s\\n' "$LIWAN_NODE_BIN/node $LIWAN_REPOSITORY_ROOT/node_modules/tsx/dist/cli.mjs $LIWAN_REPOSITORY_ROOT/apps/control-plane/src/worker-main.ts"; exit 0;;
   esac
 fi
 exec /bin/ps "${original[@]}"
@@ -117,10 +117,10 @@ exec /bin/ps "${original[@]}"
 
             env = {
                 **os.environ,
-                'WEBVUE_CONTROL_HOME': str(home),
-                'WEBVUE_REPOSITORY_ROOT': str(HERE.parents[1]),
-                'WEBVUE_NODE_BIN': '/fake/node22/bin',
-                'WEBVUE_TEST_DEPLOY': str(HERE),
+                'LIWAN_CONTROL_HOME': str(home),
+                'LIWAN_REPOSITORY_ROOT': str(HERE.parents[1]),
+                'LIWAN_NODE_BIN': '/fake/node22/bin',
+                'LIWAN_TEST_DEPLOY': str(HERE),
                 'PATH': f'{tools}:{os.environ["PATH"]}',
             }
 
@@ -142,7 +142,7 @@ exec /bin/ps "${original[@]}"
             runner = home / 'run-local.sh'
             runner.write_text('''#!/bin/bash
 set +x; set +v; set -euo pipefail
-HOME_DIR="$WEBVUE_CONTROL_HOME"; DEPLOY="$WEBVUE_TEST_DEPLOY"
+HOME_DIR="$LIWAN_CONTROL_HOME"; DEPLOY="$LIWAN_TEST_DEPLOY"
 source "$DEPLOY/runtime-trap.sh"
 trap 'control_runtime_trap || exit $?; exit 0' TERM INT
 printf ready > "$HOME_DIR/ready"
@@ -177,9 +177,9 @@ while :; do /bin/sleep 0.05; done
                         (state / f'{name}.generation').write_text(generation + '\n')
 
                 env.update({
-                    'WEBVUE_TEST_RUNTIME_PID': str(owner.pid),
-                    'WEBVUE_TEST_API_PID': str(api.pid),
-                    'WEBVUE_TEST_WORKER_PID': str(worker.pid),
+                    'LIWAN_TEST_RUNTIME_PID': str(owner.pid),
+                    'LIWAN_TEST_API_PID': str(api.pid),
+                    'LIWAN_TEST_WORKER_PID': str(worker.pid),
                 })
                 stopped = subprocess.run(['/bin/bash', str(LOCAL), 'stop', 'runtime'],
                                          env=env, capture_output=True, text=True, timeout=45)
@@ -218,7 +218,7 @@ while :; do /bin/sleep 0.05; done
         """
         children = []
         reapers = []
-        with tempfile.TemporaryDirectory(prefix='webvue-direct-term-canary-') as tmp:
+        with tempfile.TemporaryDirectory(prefix='liwan-direct-term-canary-') as tmp:
             home = Path(tmp); root = home
             state = home / 'processes'; state.mkdir(mode=0o700)
             (home / 'processes.lock').touch(); (home / 'runtime.env').write_text(''); (home / 'logs').mkdir()
@@ -226,8 +226,8 @@ while :; do /bin/sleep 0.05; done
             runner = root / 'deploy' / 'control-plane' / 'run-local.sh'; runner.parent.mkdir(parents=True)
             runner.write_text(RUNNER_BODY); runner.chmod(0o700)
             trace = home / 'runtime-stderr.txt'; trace_handle = trace.open('w')
-            env = {**os.environ, 'WEBVUE_CONTROL_HOME': str(home), 'WEBVUE_REPOSITORY_ROOT': str(root),
-                   'WEBVUE_NODE_BIN': str(node_bin), 'WEBVUE_TEST_DEPLOY': str(HERE)}
+            env = {**os.environ, 'LIWAN_CONTROL_HOME': str(home), 'LIWAN_REPOSITORY_ROOT': str(root),
+                   'LIWAN_NODE_BIN': str(node_bin), 'LIWAN_TEST_DEPLOY': str(HERE)}
             owner = api = worker = None
             try:
                 owner = spawn(children, reapers, [sys.executable, str(LOCK), '--hold', 'bash', str(runner)],

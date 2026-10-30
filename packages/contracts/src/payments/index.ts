@@ -286,7 +286,7 @@ export type PaymentRefundCreate = z.infer<typeof PaymentRefundCreateSchema>
  * return lands on `/payment/<code>/return`, where the server reads it to send the payer to the
  * status page of that document.
  */
-export const PAY_RETURN_COOKIE = 'webvue_pay_return'
+export const PAY_RETURN_COOKIE = 'liwan_pay_return'
 export const PAY_RETURN_COOKIE_PATH = '/payment'
 export const PAY_RETURN_MAX_AGE_SECONDS = 3600
 const PAY_RETURN_VALUE = /^(invoice|order)\.(\d{1,12})\.([A-Za-z0-9_-]{1,128})$/

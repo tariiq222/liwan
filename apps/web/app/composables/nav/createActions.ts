@@ -3,7 +3,7 @@ import type { RouteLocationRaw } from 'vue-router'
 // plain `vitest run`, and this module is unit-tested directly.
 import { parseChatListRoute, serializeChatListRoute } from '../../utils/chatState'
 import { meetingCreateRoute } from '../../utils/meetingRoutes'
-import { returnToQuery, safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import { returnToQuery, safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 
 /** The route fields a create action reads; the shell passes `useRoute()`. */
 export interface CreateActionRoute {

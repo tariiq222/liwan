@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { InboxAudience } from '@webvue/contracts'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import type { InboxAudience } from '@liwan/contracts'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import InboxContactImport from '@/components/inbox/campaigns/InboxContactImport.vue'
 import { CAMPAIGN_PAGE_SIZE, campaignPageOffset, parseAudienceListRoute, serializeAudienceListRoute, type AudienceListRoute } from '@/composables/inbox/inboxCampaignRoute'
 import { useInboxAudienceList } from '@/composables/inbox/useInboxCampaigns'
@@ -49,7 +49,7 @@ const rowTo = (audience: InboxAudience) => ({ path: `/inbox/campaigns/audiences/
       </SharedFilterBar>
     </template>
     <SharedPageState :error="list.error.value" :keep-content="items.length > 0" @retry="list.refetch">
-      <SharedEmptyState v-if="showEmpty" class="m-(--webvue-card-pad-dense)" :title="t('inbox.campaigns.audiences.empty')" :description="t('inbox.campaigns.audiences.emptyHint')" data-testid="inbox-audiences-empty" />
+      <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('inbox.campaigns.audiences.empty')" :description="t('inbox.campaigns.audiences.emptyHint')" data-testid="inbox-audiences-empty" />
       <SharedDataTable v-else bare :rows="items" :columns="columns" row-key="id" :row-to="rowTo" :loading="list.isLoading.value" :caption="t('inbox.campaigns.audiences.title')">
         <template #name-cell="{ row }"><span class="font-semibold text-highlighted" :data-testid="`inbox-audience-row-${row.original.id}`">{{ row.original.name }}</span></template>
         <template #tags-cell="{ row }">
