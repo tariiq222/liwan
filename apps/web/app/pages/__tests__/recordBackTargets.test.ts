@@ -16,7 +16,7 @@ import { adminListQuery, adminPathWithQuery } from '../../composables/adminSetti
 import { parsePositiveId } from '../../utils/routeParams'
 import { parseFinanceKind } from '../../utils/projectFinance'
 import { governanceFilters, governanceMatrixFilters } from '../../composables/projectGovernanceKeys'
-import { useGovernancePaging } from '../../components/pmo/projects/governance/listPaging'
+import { useGovernanceListPage } from '../../components/pmo/projects/governance/listPage'
 
 const webRoot = resolve(import.meta.dirname, '../../../')
 
@@ -63,7 +63,7 @@ function loadSetupState(rel: string, router: Router) {
     parsePositiveId, parseFinanceKind, adminListQuery, adminPathWithQuery,
     financeWriteAllowed: () => true,
     shouldKeepFinanceFormMounted: () => false,
-    governanceFilters, governanceMatrixFilters, useGovernancePaging,
+    governanceFilters, governanceMatrixFilters, useGovernanceListPage,
     useQueryClient: () => ({}),
     useProjectRegister: () => ({ ...emptyQuery(), data: Vue.ref({ items: [], total: 1, can_manage: true }) }),
     useProjectStakeholders: () => ({ ...emptyQuery(), data: Vue.ref({ items: [], total: 1, can_manage: true }) }),

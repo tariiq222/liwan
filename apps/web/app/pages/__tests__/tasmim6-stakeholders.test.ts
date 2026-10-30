@@ -11,7 +11,8 @@ describe('stakeholders stays on its templates', () => {
     for (const gone of ['<UTable', 'md:hidden', '<SharedPageHeader']) expect(page).not.toContain(gone)
   })
   it('the delete confirmation follows the live list', () => {
-    expect(read('pages/projects/[id]/stakeholders.vue')).toContain('list.data.value?.items.find(item => item.id === confirmDeleteId.value)')
+    expect(read('components/pmo/projects/governance/listPage.ts')).toContain('list.data.value?.items.find(item => item.id === confirmDeleteId.value)')
+    expect(read('pages/projects/[id]/stakeholders.vue')).toContain('confirmItem')
   })
   it('the record is a record page and the edit page has no hand-built card', () => {
     const record = read('pages/projects/[id]/stakeholders/[stakeholderId].vue')
