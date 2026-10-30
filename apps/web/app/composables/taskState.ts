@@ -66,8 +66,8 @@ export function taskStateBadge(state: TaskState): StatusBadgeEntry {
   return statusBadgeEntry(TASK_STATE_BADGES, state)
 }
 
-/** The pill tone of each priority: urgent danger, very high warning, high info, normal neutral. */
-export const PRIORITY_TONE: Record<'0' | '1' | '2' | '3', StatusTone> = { '0': 'neutral', '1': 'info', '2': 'warning', '3': 'destructive' }
+/** The pill tone of each priority: urgent danger, very high and high warning, normal neutral. */
+export const PRIORITY_TONE: Record<'0' | '1' | '2' | '3', StatusTone> = { '0': 'neutral', '1': 'warning', '2': 'warning', '3': 'destructive' }
 
 /** The icon of each priority, so a priority never reads by colour alone. */
 export const PRIORITY_ICON: Record<'0' | '1' | '2' | '3', string> = { '0': 'i-lucide-minus', '1': 'i-lucide-chevron-up', '2': 'i-lucide-chevrons-up', '3': 'i-lucide-flame' }

@@ -124,7 +124,7 @@ const projectItems = computed(() => [
     <template #default>
       <USelect
         multiple
-        class="w-full md:w-44"
+        class="w-full md:w-32"
         data-testid="task-filter-state"
         :disabled="!hydrated"
         :items="stateItems"
@@ -139,7 +139,7 @@ const projectItems = computed(() => [
       <USelect
         v-if="!hideProjectFilter"
         id="task-filter-project"
-        class="w-full md:w-44"
+        class="w-full md:w-32"
         :disabled="!hydrated"
         :items="projectItems"
         :model-value="modelValue.project_id ? String(modelValue.project_id) : 'all'"
@@ -151,7 +151,7 @@ const projectItems = computed(() => [
       <USelect
         multiple
         icon="i-lucide-flag"
-        class="w-full md:w-40"
+        class="w-full md:w-32"
         data-testid="task-filter-priority"
         :disabled="!hydrated"
         :items="priorityItems"
@@ -165,7 +165,7 @@ const projectItems = computed(() => [
 
       <USelect
         icon="i-lucide-user"
-        class="w-full md:w-40"
+        class="w-full md:w-36"
         data-testid="task-filter-assignee"
         :disabled="!hydrated"
         :items="assigneeItems"
@@ -177,7 +177,7 @@ const projectItems = computed(() => [
 
       <USelect
         icon="i-lucide-calendar-clock"
-        class="w-full md:w-40"
+        class="w-full md:w-32"
         data-testid="task-filter-deadline"
         :disabled="!hydrated"
         :items="deadlineItems"
