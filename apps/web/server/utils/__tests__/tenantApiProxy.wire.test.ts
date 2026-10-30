@@ -58,7 +58,7 @@ afterAll(async () => {
 describe('API session preadmission on the wire', () => {
   it.each(['not_session_id=synthetic', 'other=session_id=synthetic', 'session_id=', 'other=ok; session_id='])('refuses %j without contacting Odoo', async (cookie) => {
     const response = await fetch(`${url}/api/v1/me`, { headers: { cookie } })
-    expect(response.status).toBe(403)
+    expect(response.status).toBe(401)
     expect(calls).toBe(0)
   })
   it.each(['POST', 'GET'])('refuses a browser %s to the server-only /api/v1/ai/usage even with a valid session, and never reaches Odoo', async (method) => {
@@ -69,7 +69,7 @@ describe('API session preadmission on the wire', () => {
   })
   it('rejects a forged exact cookie before forwarding the operation', async () => {
     const response = await fetch(`${url}/api/v1/tasks`, { method: 'POST', headers: { cookie: 'session_id=synthetic' }, body: '{}' })
-    expect(response.status).toBe(403)
+    expect(response.status).toBe(401)
     expect(workCalls).toBe(0)
   })
   it('rejects a forged slow upload without waiting for its body', async () => {
@@ -81,7 +81,7 @@ describe('API session preadmission on the wire', () => {
       req.setTimeout(1000, () => { req.destroy(); reject(new Error('waited for anonymous body')) })
       req.write('{')
     })
-    expect(status).toBe(403)
+    expect(status).toBe(401)
     expect(workCalls).toBe(0)
   })
   it('reports validation outages as unavailable rather than signing the user out', async () => {
@@ -147,7 +147,7 @@ describe('API session preadmission on the wire', () => {
       releaseChecks[0]!()
       await vi.waitFor(() => expect(releaseChecks).toHaveLength(2))
       releaseChecks[1]!()
-      expect((await Promise.all(pending)).map(response => response.status)).toEqual([403, 403])
+      expect((await Promise.all(pending)).map(response => response.status)).toEqual([401, 401])
     }
   })
   it('preserves public branding without a session', async () => {

@@ -105,10 +105,11 @@ export function useApi() {
     if (e?.name === 'ZodError' || e?.cause?.name === 'ZodError') return e
     const status: number = e?.statusCode ?? e?.response?.status ?? 0
     const parsed = structuredError(await errorBody(e?.data))
-    if (status === 403 && (parsed.data?.code === TENANT_SUSPENDED || isTenantSuspended())) {
-      // The suspension ended the session: every refusal that follows it reads as the suspension itself.
+    const sessionRefusal = status === 401 || status === 403
+    if ((status === 403 && parsed.data?.code === TENANT_SUSPENDED) || (sessionRefusal && isTenantSuspended())) {
+      // The suspension ended the session: every session refusal that follows it reads as the suspension itself.
       reportTenantSuspension()
-      return new ApiError(status, TENANT_SUSPENDED, t(`errors.codes.${TENANT_SUSPENDED}`))
+      return new ApiError(403, TENANT_SUSPENDED, t(`errors.codes.${TENANT_SUSPENDED}`))
     }
     if (parsed.success) {
       const { code, field, details, message } = parsed.data

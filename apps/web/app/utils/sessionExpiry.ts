@@ -1,18 +1,13 @@
 import { ApiError } from '../composables/useApi'
-import { TENANT_SUSPENDED } from './tenantSuspension'
 
-// Domain-level 403s: the request was understood, the *action* is not allowed
-// for this user. They must surface as a toast where they happen, never as a
-// logout — only an expired/absent session should send the tab to /login.
-// A read-only tenant (expired subscription, or a feature kept for reading only)
-// refuses writes with `tenant_read_only` / `feature_not_included` while the session stays valid.
-const AUTHORIZED_403_CODES = new Set(['transition_forbidden', 'status_forbidden', 'tenant_read_only', 'feature_not_included'])
+// A 403 is a domain-level refusal: the request was understood, the *action* is not allowed
+// for this user (forbidden, a read-only tenant, a feature kept for reading, a suspension).
+// It surfaces as a toast where it happens, never as a logout. Only a 401 (an expired or
+// absent session) sends the tab to /login.
 
-/** A 401, or a 403 that may mean the session ended, so `me` is worth re-checking; a suspension has its own path. */
+/** A 401: the session ended, so `me` is worth re-checking before routing to /login. */
 export function isPossibleSessionExpiry(error: unknown): boolean {
-  if (!(error instanceof ApiError)) return false
-  if (error.status === 401) return true
-  return error.status === 403 && !AUTHORIZED_403_CODES.has(error.code) && error.code !== TENANT_SUSPENDED
+  return error instanceof ApiError && error.status === 401
 }
 
 /** A signed-in user replaced by another one in the same tab: the first user's cached data must not be shown to the second. */

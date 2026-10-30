@@ -121,7 +121,7 @@ it.each(['shared', 'dedicated'] as const)('%s public API reaches actual Nuxt adm
   const wire = await fixture(mode)
   try {
     const missing = await wire.call('/api/v1/tasks')
-    expect(missing.status).toBe(403)
+    expect(missing.status).toBe(401)
     expect(ApiErrorSchema.parse(JSON.parse(missing.body.toString()).data).code).toBe('session_required')
     expect(wire.observed).toHaveLength(0)
     expect(wire.webHops).toHaveLength(1)
@@ -160,7 +160,7 @@ it.each(['shared', 'dedicated'] as const)('%s keeps nested API static paths behi
   const wire = await fixture(mode)
   try {
     const response = await wire.call('/api/v1/attachments/static/probe')
-    expect(response.status).toBe(403)
+    expect(response.status).toBe(401)
     expect(wire.observed).toHaveLength(0)
     expect(wire.webHops).toHaveLength(1)
   } finally { await wire.close() }
@@ -178,7 +178,7 @@ it.each(['shared', 'dedicated'] as const)('%s rejects a forged slow API upload b
       upload.setTimeout(700, () => upload!.destroy(Error('waited_for_forged_body')))
       upload.write('{')
     })
-    expect(response.status).toBe(403)
+    expect(response.status).toBe(401)
     expect(ApiErrorSchema.parse(JSON.parse(response.body).data).code).toBe('session_required')
     expect(wire.observed.map(item => item.path)).toEqual(['/api/v1/me'])
     expect(wire.webHops).toHaveLength(1)
@@ -203,10 +203,10 @@ it.each(['shared', 'dedicated'] as const)('%s edge keeps verified work on the se
     expect(wire.maxActive).toBe(2)
     expect(wire.waiting).toBe(0)
     wire.held[0]!()
-    expect((await first).status).toBe(403)
+    expect((await first).status).toBe(401)
     await vi.waitFor(() => expect(wire.held).toHaveLength(2))
     wire.held[1]!()
-    expect((await second).status).toBe(403)
+    expect((await second).status).toBe(401)
   } finally { await wire.close(); await Promise.allSettled(pending) }
 })
 

@@ -6,7 +6,7 @@ import { join } from 'node:path'
 const proxyMock = vi.hoisted(() => vi.fn().mockResolvedValue(new Response('{}')))
 const transport = vi.hoisted(() => vi.fn().mockResolvedValue(new Response('{}')))
 vi.mock('../tenantTransport', () => ({ tenantTransport: transport, legacyTenantResponse: proxyMock, MAX_PUBLIC_MFA_BODY: 1024, MAX_PUBLIC_HOOK_BODY: 1024 * 1024, boundedTenantBody: async () => undefined, withTenantBody: async (_event: unknown, _scope: unknown, run: () => unknown) => run(), withTenantResponse: async (_event: unknown, _scope: unknown, run: () => unknown) => run(), withUpstreamSlot: async (run: (signal: AbortSignal) => unknown) => run(new AbortController().signal) }))
-vi.mock('../apiSessionAdmission', () => ({ requireApiSession: async (event: { node: { req: { headers: { cookie?: string } } } }) => { if (!event.node.req.headers.cookie) { const error = Object.assign(new Error('session_required'), { statusCode: 403, data: { code: 'session_required' } }); throw error } } }))
+vi.mock('../apiSessionAdmission', () => ({ requireApiSession: async (event: { node: { req: { headers: { cookie?: string } } } }) => { if (!event.node.req.headers.cookie) { const error = Object.assign(new Error('session_required'), { statusCode: 401, data: { code: 'session_required' } }); throw error } } }))
 vi.mock('h3', async importOriginal => ({ ...await importOriginal<typeof import('h3')>(), sendWebResponse: vi.fn(), sendProxy: (...args: unknown[]) => proxyMock(...args), getProxyRequestHeaders: () => ({}) }))
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
@@ -63,8 +63,8 @@ describe('API proxy tenancy mode separation', () => {
     let caught: unknown
     try { await handler(event as never) } catch (error) { caught = error }
     expect(caught).toHaveProperty('data.code', 'session_required')
-    // The identity middleware recognizes 403 as logged out and must still render /login.
-    expect(caught).toHaveProperty('statusCode', 403)
+    // The identity middleware recognizes 401 as logged out and must still render /login.
+    expect(caught).toHaveProperty('statusCode', 401)
     expect(proxy).not.toHaveBeenCalled()
     expect(transport).not.toHaveBeenCalled()
   })
@@ -140,7 +140,7 @@ describe('public API namespace', () => {
   it('does not treat a lookalike prefix as public', async () => {
     transport.mockClear()
     const { handler } = await setup()
-    await expect(handler(sharedEvent('/api/v1/publicity', 'GET') as never)).rejects.toMatchObject({ statusCode: 403 })
+    await expect(handler(sharedEvent('/api/v1/publicity', 'GET') as never)).rejects.toMatchObject({ statusCode: 401 })
     expect(transport).not.toHaveBeenCalled()
   })
 })

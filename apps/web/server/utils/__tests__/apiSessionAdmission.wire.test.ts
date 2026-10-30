@@ -80,8 +80,8 @@ async function fixture() {
 
 // Omitting message from admission data breaks the same strict schema useApi consumes.
 it.each([
-  ['missing', 403, 'session_required', 'A valid session is required.'],
-  ['forged', 403, 'session_required', 'A valid session is required.'],
+  ['missing', 401, 'session_required', 'A valid session is required.'],
+  ['forged', 401, 'session_required', 'A valid session is required.'],
   // Odoo ends a suspended tenant's session; the reason must reach the browser.
   ['suspended', 403, 'tenant_suspended', 'This tenant is suspended.'],
   ['outage', 503, 'session_validation_unavailable', 'Session validation is temporarily unavailable.'],
@@ -119,17 +119,17 @@ it('reserves one of two HTTP workers for verified work while queueing an excess 
     expect(wire.maxActive).toBe(2)
     expect(wire.waiting).toBe(0)
     wire.held[0]!()
-    expect((await pending[0]!).status).toBe(403)
+    expect((await pending[0]!).status).toBe(401)
     // Releasing the lane hands it to the queued probe.
     await vi.waitFor(() => expect(wire.held).toHaveLength(2))
     wire.held[1]!()
-    expect((await excess).status).toBe(403)
+    expect((await excess).status).toBe(401)
     wire.held.length = 0
     const recovery = wire.call('forged-recovery')
     pending.push(recovery)
     await vi.waitFor(() => expect(wire.held).toHaveLength(1))
     wire.held[0]!()
-    expect((await recovery).status).toBe(403)
+    expect((await recovery).status).toBe(401)
   } finally { await wire.close(); await Promise.allSettled(pending) }
 })
 
@@ -165,7 +165,7 @@ it('rejects only the waiter beyond the bounded queue and leaks no lane state', a
     expect(overflow.status).toBe(429)
     expect(ApiErrorSchema.parse((await overflow.json()).data)).toEqual(busyBody)
     wire.release()
-    expect((await Promise.all(queued)).map(response => response.status)).toEqual(Array(33).fill(403))
+    expect((await Promise.all(queued)).map(response => response.status)).toEqual(Array(33).fill(401))
     expect(wire.probes).toHaveLength(33)
     // The lane is free again: a new identity check is probed at once.
     expect(await (await wire.call('verified-after')).text()).toBe('application')
@@ -190,7 +190,7 @@ it('answers 429 to a waiter whose wait expires and removes it from the queue', a
     expect(ApiErrorSchema.parse((await response.json()).data)).toEqual(busyBody)
     expect((await pending[0]!).status).toBe(503)
     wire.release()
-    expect((await pending[1]!).status).toBe(403)
+    expect((await pending[1]!).status).toBe(401)
     expect(wire.probes).toEqual(['session_id=forged-a', 'session_id=forged-b'])
     expect(await (await wire.call('verified-after')).text()).toBe('application')
   } finally { await wire.close(); await Promise.allSettled(pending) }
@@ -199,8 +199,8 @@ it('answers 429 to a waiter whose wait expires and removes it from the queue', a
 it('serves a definitively rejected session from the negative cache but never caches unavailable', async () => {
   const wire = await fixture()
   try {
-    expect((await wire.call('forged-x')).status).toBe(403)
-    expect((await wire.call('forged-x')).status).toBe(403)
+    expect((await wire.call('forged-x')).status).toBe(401)
+    expect((await wire.call('forged-x')).status).toBe(401)
     expect(wire.probes).toEqual(['session_id=forged-x'])
     wire.outage()
     expect((await wire.call('verified-flaky')).status).toBe(503)
@@ -246,7 +246,7 @@ it('validates a real session queued behind a flood of forged sessions', async ()
     wire.release()
     const response = await valid
     expect([response.status, await response.text()]).toEqual([200, 'application'])
-    expect((await Promise.all(flood)).map(item => item.status)).toEqual(Array(9).fill(403))
+    expect((await Promise.all(flood)).map(item => item.status)).toEqual(Array(9).fill(401))
   } finally { await wire.close(); await Promise.allSettled(flood) }
 })
 
@@ -255,7 +255,7 @@ const CONSUMERS_PER_PROBE = 16
 // The first request owns the probe; excess consumers of one key are refused before they can
 // retain a socket or buffered upload for the probe window, and a settled probe leaves no count.
 it.each([
-  ['rejects', 403, false],
+  ['rejects', 401, false],
   ['is unavailable', 503, true],
 ] as const)('caps requests attached to one probe and frees the count when the probe %s', async (_outcome, status, outage) => {
   const wire = await fixture()

@@ -3,13 +3,13 @@ import { ApiError } from '../../composables/useApi'
 import { isDifferentUser, isPossibleSessionExpiry } from '../sessionExpiry'
 
 describe('isPossibleSessionExpiry', () => {
-  it.each(['tenant_read_only', 'feature_not_included', 'transition_forbidden', 'status_forbidden', 'tenant_suspended'])(
+  it.each(['forbidden', 'tenant_read_only', 'feature_not_included', 'transition_forbidden', 'status_forbidden', 'tenant_suspended'])(
     'does not re-check the session for the %s refusal of a still valid session',
     code => expect(isPossibleSessionExpiry(new ApiError(403, code, 'x'))).toBe(false),
   )
 
-  it.each([['session_required', 403], ['forbidden', 403], ['session_required', 401], ['unauthorized', 401]] as const)('re-checks the session for %s', (code, status) => {
-    expect(isPossibleSessionExpiry(new ApiError(status, code, 'x'))).toBe(true)
+  it.each(['session_required', 'unauthorized'])('re-checks the session for the 401 %s', code => {
+    expect(isPossibleSessionExpiry(new ApiError(401, code, 'x'))).toBe(true)
   })
 
   it('ignores other statuses and errors that are not API errors', () => {

@@ -1,10 +1,11 @@
 import { MeSchema, type Me } from '@webvue/contracts'
 
-// Pure and Nuxt-import-free so it can be unit tested directly: 403 means "not
-// logged in" (redirect to /login); any other error is a genuine server failure
-// that must not be silently treated the same way.
+// Pure and Nuxt-import-free so it can be unit tested directly: 401 means "not
+// logged in" (redirect to /login), and 403 is the suspension that ended the session;
+// any other error is a genuine server failure that must not be silently treated the same way.
 export function isLoggedOutError(error: unknown): boolean {
-  return (error as { statusCode?: number } | null | undefined)?.statusCode === 403
+  const statusCode = (error as { statusCode?: number } | null | undefined)?.statusCode
+  return statusCode === 401 || statusCode === 403
 }
 
 // The tenant is suspended: the API ended this session, so the user is logged out and the
@@ -44,7 +45,7 @@ export function useMe() {
     headers,
     immediate: initialMe === undefined,
     dedupe: import.meta.server ? 'defer' : 'cancel',
-    // 403 = not logged in: the request still errors, and `me` resolves to null below.
+    // 401 = not logged in: the request still errors, and `me` resolves to null below.
     transform: (raw) => (raw ? MeSchema.parse(raw) : null),
   })
   const { data, refresh, error } = request

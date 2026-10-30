@@ -30,7 +30,7 @@ const MAX_CONSUMERS_PER_PROBE = 16
 let checking = 0
 const laneQueue: Array<() => void> = []
 const unavailable = () => createError({ statusCode: 503, data: { code: 'session_validation_unavailable', message: 'Session validation is temporarily unavailable.' } })
-const required = () => createError({ statusCode: 403, data: { code: 'session_required', message: 'A valid session is required.' } })
+const required = () => createError({ statusCode: 401, data: { code: 'session_required', message: 'A valid session is required.' } })
 // Odoo answers a suspended tenant's session with this code and ends that session; the browser
 // must see the reason, not the generic session_required that every later probe returns.
 const suspended = () => createError({ statusCode: 403, data: { code: 'tenant_suspended', message: 'This tenant is suspended.' } })

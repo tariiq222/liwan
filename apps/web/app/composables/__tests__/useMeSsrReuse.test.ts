@@ -119,7 +119,7 @@ describe('useMe with installed Nuxt SSR async-data behavior', () => {
     expect(second.me.value.id).toBe(6)
   })
 
-  it.each([403, 500])('failed refresh %s stays null despite an older successful payload', async statusCode => {
+  it.each([401, 403, 500])('failed refresh %s stays null despite an older successful payload', async statusCode => {
     let failure = false
     let requests = 0
     const app = runtime(true, () => {
@@ -138,7 +138,7 @@ describe('useMe with installed Nuxt SSR async-data behavior', () => {
     expect(first.me.value).toBeNull()
     expect(later.me.value).toBeNull()
     expect(later.error.value.statusCode).toBe(statusCode)
-    expect(api.isLoggedOutError(later.error.value)).toBe(statusCode === 403)
+    expect(api.isLoggedOutError(later.error.value)).toBe(statusCode !== 500)
     failure = false
     await later.refresh()
     expect(requests).toBe(3)
@@ -164,7 +164,7 @@ describe('useMe with installed Nuxt SSR async-data behavior', () => {
     expect(first.me.value.id).toBe(5)
   })
 
-  it.each([403, 500])('initial identity failure %s preserves its error classification', async statusCode => {
+  it.each([401, 403, 500])('initial identity failure %s preserves its error classification', async statusCode => {
     const app = runtime(true, () => { throw createError({ statusCode }) })
     const api = subject(true)
     const first = api.inApp(app, () => api.useMe())
@@ -172,7 +172,7 @@ describe('useMe with installed Nuxt SSR async-data behavior', () => {
     expect(first.me.value).toBeNull()
     expect(first.loggedIn.value).toBe(false)
     expect(first.error.value.statusCode).toBe(statusCode)
-    expect(api.isLoggedOutError(first.error.value)).toBe(statusCode === 403)
+    expect(api.isLoggedOutError(first.error.value)).toBe(statusCode !== 500)
   })
 
   it('reuses an explicitly null SSR result without treating it as signed in', async () => {
