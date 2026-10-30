@@ -23,6 +23,22 @@ class TestTaskRead(WebVuePmoCase):
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()['code'], 'unsupported_filter')
 
+    def test_filter_all_lists_readable_tasks_of_others(self):
+        task = self.env['project.task'].create({'name': 'Assigned elsewhere', 'project_id': self.project.id, 'user_ids': [(6, 0, self.manager.ids)]})
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        self.assertNotIn(task.id, [row['id'] for row in self.api('GET', '/api/v1/tasks?filter=mine&limit=200').json()['items']])
+        self.assertIn(task.id, [row['id'] for row in self.api('GET', '/api/v1/tasks?filter=all&limit=200').json()['items']])
+
+    def test_filter_all_keeps_record_rules(self):
+        hidden = self.env['project.project'].create({'name': 'Private elsewhere', 'privacy_visibility': 'followers'})
+        task = self.env['project.task'].create({'name': 'Hidden task', 'project_id': hidden.id})
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        self.assertNotIn(task.id, [row['id'] for row in self.api('GET', '/api/v1/tasks?filter=all&limit=200').json()['items']])
+
+    def test_unknown_filter_is_rejected(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        self.assertEqual(self.api('GET', '/api/v1/tasks?filter=everyone').json()['code'], 'unsupported_filter')
+
     def test_list_bad_pagination_is_422(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
         res = self.api('GET', '/api/v1/tasks?filter=mine&limit=abc')
