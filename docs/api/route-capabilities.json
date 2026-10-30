@@ -1524,6 +1524,20 @@
       "handler": "get_bank_statement",
       "no_capability_reason": null
     },
+    "GET /api/v1/finance/branch-strictness": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.setup.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "get_strictness",
+      "no_capability_reason": null
+    },
     "GET /api/v1/finance/budgets": {
       "addon": "webvue_finance",
       "auth": "user",
@@ -2154,6 +2168,20 @@
       "handler": "list_my_equipment",
       "no_capability_reason": null
     },
+    "GET /api/v1/hr/branch-strictness": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.employees.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "get_hr_strictness",
+      "no_capability_reason": null
+    },
     "GET /api/v1/hr/countries": {
       "addon": "webvue_hr",
       "auth": "user",
@@ -2542,6 +2570,21 @@
         "hr.payroll"
       ],
       "handler": "list_bank_profiles",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/payroll/branch-strictness": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "get_payroll_strictness",
       "no_capability_reason": null
     },
     "GET /api/v1/hr/payroll/compensation/{employee_id}": {
@@ -5065,6 +5108,20 @@
       "handler": "patch_bank_statement",
       "no_capability_reason": null
     },
+    "PATCH /api/v1/finance/branch-strictness": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.setup.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "patch_strictness",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/finance/budgets/{budget_id}": {
       "addon": "webvue_finance",
       "auth": "user",
@@ -5220,6 +5277,20 @@
       "handler": "patch_equipment",
       "no_capability_reason": null
     },
+    "PATCH /api/v1/hr/branch-strictness": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.employees.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "patch_hr_strictness",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/hr/departments/{department_id}": {
       "addon": "webvue_hr",
       "auth": "user",
@@ -5334,6 +5405,21 @@
         "hr.payroll"
       ],
       "handler": "patch_bank_profile",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/hr/payroll/branch-strictness": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.config"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "patch_payroll_strictness",
       "no_capability_reason": null
     },
     "PATCH /api/v1/hr/payroll/finance-settings": {

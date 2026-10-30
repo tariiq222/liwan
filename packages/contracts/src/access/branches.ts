@@ -22,6 +22,7 @@ export const BranchPolicySchema = z.object({
   version: Version,
   mode: Mode,
   preset: z.union([BranchPresetSchema, z.literal('custom')]),
+  strict_scopes: z.array(z.string()),
   branches: UniqueBranches(z.object({ id: Id, name: z.string(), inherit: z.boolean(), role_ids: RoleIds }).strict()),
   roles: z.array(Role),
 }).strict()
@@ -31,6 +32,9 @@ export const BranchPolicyInputSchema = z.object({
   branches: UniqueBranches(z.object({ id: Id, inherit: z.boolean(), role_ids: RoleIds }).strict()),
 }).strict()
 export const BranchPresetInputSchema = z.object({ expected_version: Version, preset: BranchPresetSchema }).strict()
+// «Stricter than the general policy»: one switch per sensitive application scope, narrow-only.
+export const BranchStrictnessSchema = z.object({ scope: z.string().min(1), enabled: z.boolean() }).strict()
+export const BranchStrictnessInputSchema = z.object({ enabled: z.boolean() }).strict()
 export const UserBranchAccessSchema = z.object({
   version: Version,
   branches: UniqueBranches(z.object({ id: Id, name: z.string(), role_ids: RoleIds }).strict()),
@@ -44,6 +48,8 @@ export const UserBranchAccessInputSchema = z.object({
 export type BranchPolicy = z.infer<typeof BranchPolicySchema>
 export type BranchPreset = z.infer<typeof BranchPresetSchema>
 export type BranchPresetInput = z.infer<typeof BranchPresetInputSchema>
+export type BranchStrictness = z.infer<typeof BranchStrictnessSchema>
+export type BranchStrictnessInput = z.infer<typeof BranchStrictnessInputSchema>
 export type BranchPolicyInput = z.infer<typeof BranchPolicyInputSchema>
 export type UserBranchAccess = z.infer<typeof UserBranchAccessSchema>
 export type UserBranchAccessInput = z.infer<typeof UserBranchAccessInputSchema>

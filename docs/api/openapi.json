@@ -6437,6 +6437,12 @@
             },
             "type": "array"
           },
+          "strict_scopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "version": {
             "minLength": 1,
             "type": "string"
@@ -6446,6 +6452,7 @@
           "version",
           "mode",
           "preset",
+          "strict_scopes",
           "branches",
           "roles"
         ],
@@ -6484,6 +6491,37 @@
           "group_of_companies"
         ],
         "type": "string"
+      },
+      "BranchStrictnessInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "type": "object"
+      },
+      "BranchStrictnessSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "scope": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "enabled"
+        ],
+        "type": "object"
       },
       "BrandingPatchSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -96922,6 +96960,84 @@
         }
       }
     },
+    "/api/v1/finance/branch-strictness": {
+      "get": {
+        "operationId": "webvue_finance.FinanceBranchStrictnessController.get_strictness.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_strictness",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceBranchStrictnessController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_strictness",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "webvue_finance.FinanceBranchStrictnessController.patch_strictness.patch",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "patch_strictness",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceBranchStrictnessController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "patch_strictness",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/finance/budgets": {
       "get": {
         "operationId": "webvue_finance.FinanceBudgetController.list_budgets.get",
@@ -101908,6 +102024,84 @@
         }
       }
     },
+    "/api/v1/hr/branch-strictness": {
+      "get": {
+        "operationId": "webvue_hr.HrBranchStrictnessController.get_hr_strictness.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_hr_strictness",
+        "tags": [
+          "webvue_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrBranchStrictnessController",
+          "feature_keys": [
+            "hr.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_hr_strictness",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "webvue_hr.HrBranchStrictnessController.patch_hr_strictness.patch",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "patch_hr_strictness",
+        "tags": [
+          "webvue_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrBranchStrictnessController",
+          "feature_keys": [
+            "hr.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "patch_hr_strictness",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/hr/countries": {
       "get": {
         "operationId": "webvue_hr.HrEmployeeController.list_countries.get",
@@ -104673,6 +104867,86 @@
           ],
           "feature_operation": "write",
           "handler": "patch_bank_profile",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/hr/payroll/branch-strictness": {
+      "get": {
+        "operationId": "webvue_hr.HrBranchStrictnessController.get_payroll_strictness.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_payroll_strictness",
+        "tags": [
+          "webvue_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrBranchStrictnessController",
+          "feature_keys": [
+            "hr.enabled",
+            "hr.payroll"
+          ],
+          "feature_operation": "read",
+          "handler": "get_payroll_strictness",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "webvue_hr.HrBranchStrictnessController.patch_payroll_strictness.patch",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "patch_payroll_strictness",
+        "tags": [
+          "webvue_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrBranchStrictnessController",
+          "feature_keys": [
+            "hr.enabled",
+            "hr.payroll"
+          ],
+          "feature_operation": "write",
+          "handler": "patch_payroll_strictness",
           "readonly": false,
           "route_type": "json2"
         }
