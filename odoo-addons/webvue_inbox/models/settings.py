@@ -2,6 +2,7 @@
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
+from .constants import DEFAULT_TIMEZONE
 from .presets import PRESETS
 
 VISIBILITY_POLICIES = [
@@ -9,8 +10,15 @@ VISIBILITY_POLICIES = [
     ('department', 'Own department and unassigned'),
     ('all', 'All conversations'),
 ]
+ASSIGNMENT_POLICIES = [
+    ('manual', 'Manual'),
+    ('round_robin', 'Round robin'),
+    ('least_open', 'Fewest open conversations'),
+]
 MAX_AUTO_CLOSE_HOURS = 720
+MAX_ALERT_MINUTES = 1440
 MAX_RETENTION_MONTHS = 120
+MIN_REPORT_RETENTION_MONTHS = 12
 
 
 class WebVueInboxSettings(models.Model):
@@ -26,16 +34,40 @@ class WebVueInboxSettings(models.Model):
     retention_months = fields.Integer(default=24)
     # The sector presets whose items were created here, comma separated: applying one again never re-creates them.
     applied_presets = fields.Char()
+    # Working hours: weekly ranges and holidays (local dates) in a timezone; no ranges means always open.
+    hours_timezone = fields.Char(required=True, default=DEFAULT_TIMEZONE)
+    hours_range_ids = fields.One2many('webvue.inbox.hours.range', 'settings_id')
+    holiday_ids = fields.One2many('webvue.inbox.hours.holiday', 'settings_id')
+    assignment_policy = fields.Selection(ASSIGNMENT_POLICIES, required=True, default='manual')
+    # The agent who got the last conversation of a company without departments (the round robin pointer).
+    round_robin_user_id = fields.Many2one('res.users', ondelete='set null')
+    # How long the daily report rows are kept, and the timezone they were built in (a change rebuilds them).
+    report_retention_months = fields.Integer(default=36)
+    reports_built_timezone = fields.Char()
+    first_response_alert_minutes = fields.Integer(default=0, help='Minutes a customer may wait for a first reply; 0 turns the alert off.')
 
     _company_unique = models.Constraint('UNIQUE(company_id)', 'A company has one inbox settings row.')
 
-    @api.constrains('auto_close_hours', 'retention_months')
+    @api.constrains('auto_close_hours', 'retention_months', 'first_response_alert_minutes')
     def _check_ranges(self):
         for settings in self:
+            if not 0 <= settings.first_response_alert_minutes <= MAX_ALERT_MINUTES:
+                raise ValidationError(self.env._(
+                    'first_response_alert_minutes must be between 0 and %(max)s', max=MAX_ALERT_MINUTES,
+                ))
             if not 0 <= settings.auto_close_hours <= MAX_AUTO_CLOSE_HOURS:
                 raise ValidationError(self.env._('auto_close_hours must be between 0 and %(max)s', max=MAX_AUTO_CLOSE_HOURS))
             if not 1 <= settings.retention_months <= MAX_RETENTION_MONTHS:
                 raise ValidationError(self.env._('retention_months must be between 1 and %(max)s', max=MAX_RETENTION_MONTHS))
+
+    @api.constrains('report_retention_months')
+    def _check_report_retention(self):
+        for settings in self:
+            if not MIN_REPORT_RETENTION_MONTHS <= settings.report_retention_months <= MAX_RETENTION_MONTHS:
+                raise ValidationError(self.env._(
+                    'report_retention_months must be between %(min)s and %(max)s',
+                    min=MIN_REPORT_RETENTION_MONTHS, max=MAX_RETENTION_MONTHS,
+                ))
 
     @api.model
     def _get_for_company(self, company=None):
@@ -43,17 +75,38 @@ class WebVueInboxSettings(models.Model):
         settings = self.search([('company_id', '=', company.id)], limit=1)
         return settings or self.create({'company_id': company.id})
 
-    def _webvue_apply_preset(self, key):
-        """Create the missing departments, tags and canned replies of a sector preset the first time, and set its policy.
+    def _webvue_is_open(self, at, department=None):
+        """Whether the UTC moment `at` is inside the working hours that apply (the department's, else the company's)."""
+        self.ensure_one()
+        owner = department if department and department.hours_own else self
+        return self.env['webvue.inbox.working.hours']._webvue_is_open(owner, at)
+
+    def _webvue_apply_preset(self, key, automation=True, flows=False):
+        """Create the missing departments, tags and canned replies of a sector preset the first time, set its policy and fill its
+        opt-out keywords and empty confirmation replies.
 
         The preset is recorded as applied, so a later application does not bring back items the company renamed or deleted.
+
+        `automation` also fills the channels' welcome and away messages and adds the menu rules, on the first application only;
+        `flows` adds the sector's missing starter forms to the channels as drafts, whenever it is asked for.
         """
         self.ensure_one()
         preset = PRESETS[key]
-        applied = set((self.applied_presets or '').split(','))
-        if key in applied:
-            self.write(preset.get('settings', {}))
-            return self
+        applied = set(filter(None, (self.applied_presets or '').split(',')))
+        first = key not in applied
+        if first:
+            self._webvue_seed_preset_items(preset)
+        self.write({**preset.get('settings', {}), 'applied_presets': ','.join(sorted(applied | {key}))})
+        if first:
+            self._webvue_fill_campaigns(preset.get('campaigns', {}))
+            if automation:
+                self._webvue_seed_automation(preset.get('automation', {}))
+        if flows:
+            self.env['webvue.inbox.flow']._webvue_seed_starters(self.company_id, key)
+        return self
+
+    def _webvue_seed_preset_items(self, preset):
+        """Create the departments, tags and canned replies of `preset` that the company lacks."""
         company_id = self.company_id.id
         for model, field, names in (
             ('webvue.inbox.department', 'name', preset['departments']),
@@ -68,5 +121,28 @@ class WebVueInboxSettings(models.Model):
             {'shortcut': shortcut, 'body': body, 'company_id': company_id}
             for shortcut, body in preset['canned_replies'] if shortcut not in existing
         ])
-        self.write({**preset.get('settings', {}), 'applied_presets': ','.join(sorted(applied - {''} | {key}))})
-        return self
+
+    def _webvue_seed_automation(self, automation):
+        """Fill the missing welcome and away messages of the company's channels and add the missing menu rules, switched off."""
+        company = self.company_id
+        channels = self.env['webvue.inbox.channel'].search([('owner_company_id', '=', company.id)])
+        for channel in channels:
+            channel._webvue_fill_automation(automation.get('welcome'), automation.get('away'))
+        Rule = self.env['webvue.inbox.rule'].with_context(active_test=False)
+        existing = set(Rule.search([('company_id', '=', company.id)]).mapped('name'))
+        sequence = max(Rule.search([('company_id', '=', company.id)]).mapped('sequence'), default=0)
+        for spec in automation.get('rules', []):
+            if spec['name'] in existing:
+                continue
+            sequence += 10
+            rule = Rule.create({
+                'company_id': company.id, 'sequence': sequence, 'name': spec['name'], 'match_kind': 'option', 'active': False,
+                'option_id': spec['option_id'],
+                'department_id': self._webvue_named('webvue.inbox.department', spec.get('department')),
+                'tag_ids': [(6, 0, [self._webvue_named('webvue.inbox.tag', name) for name in spec.get('tags', [])])],
+            })
+            rule._webvue_set_reply(spec['reply'])
+
+    def _webvue_named(self, model, name):
+        """The id of the company's department or tag called `name` (False without a name)."""
+        return self.env[model].search([('company_id', '=', self.company_id.id), ('name', '=', name)], limit=1).id if name else False

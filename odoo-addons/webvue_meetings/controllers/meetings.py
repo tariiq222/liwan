@@ -8,7 +8,6 @@ from odoo.http import request
 
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
-    _pin_current_company,
     api_handler,
     get_record,
     parse_nonneg_int,
@@ -16,6 +15,7 @@ from odoo.addons.webvue_api.controllers.common import (
     require_capabilities,
     requires_feature,
 )
+from odoo.addons.webvue_meetings.models.local_day import local_datetime
 from odoo.addons.webvue_meetings.serializers.meeting import (
     dump_meeting,
     dump_meetings,
@@ -24,6 +24,8 @@ from odoo.addons.webvue_meetings.serializers.meeting import (
 
 MAX_MEETINGS = 200
 MAX_MONTH = 2000
+# wkhtmltopdf states in which the PDF cannot be produced (the others are quality warnings).
+PDF_BROKEN_STATES = ('install', 'broken')
 STATES = {'draft', 'confirmed', 'done', 'cancelled'}
 
 
@@ -47,7 +49,8 @@ def _parse_dt_parts(value, field):
         parsed = datetime.fromisoformat(raw.replace('Z', '+00:00'))
     except ValueError:
         raise ApiError(422, 'invalid', '%s must be a valid ISO datetime' % field, field=field) from None
-    input_day = parsed.date().isoformat() if parsed.tzinfo else None
+    # An explicit numeric offset (even +00:00) names the caller's own calendar day; only a "Z" stamp says nothing about it, so the user's tz decides.
+    input_day = parsed.date().isoformat() if parsed.tzinfo and not raw.endswith(('Z', 'z')) else None
     if parsed.tzinfo:
         parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
     storage = parsed.strftime('%Y-%m-%d %H:%M:%S')
@@ -90,9 +93,22 @@ def _validate_internal_users(user_ids, field):
 
 
 def _user_calendar_day(value):
-    parsed = fields.Datetime.to_datetime(value)
-    localized = fields.Datetime.context_timestamp(request.env.user, parsed)
-    return localized.date().isoformat()
+    return local_datetime(request.env.user, request.env.company, value).date().isoformat()
+
+
+def _render_minutes_pdf(meeting):
+    """The minutes PDF bytes; a missing or failing wkhtmltopdf is the 503 ``pdf_unavailable``."""
+    reports = request.env['ir.actions.report']
+    unavailable = ApiError(503, 'pdf_unavailable', 'the PDF engine is not available, try again later')
+    try:
+        return reports._render_qweb_pdf('webvue_meetings.action_report_meeting_minutes', meeting.ids)[0]
+    except OSError:
+        raise unavailable from None
+    except UserError:
+        # Odoo raises a plain UserError both for a missing and for a failing wkhtmltopdf, so ask its state.
+        if reports.get_wkhtmltopdf_state() in PDF_BROKEN_STATES:
+            raise unavailable from None
+        raise
 
 
 def _validate_schedule_range(start, end):
@@ -357,6 +373,22 @@ class MeetingController(http.Controller):
                 meeting._webvue_set_minutes_form(payload['minutes_form'])
         return dump_meeting(meeting, detail=True)
 
+    @http.route('/api/v1/meetings/<int:meeting_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
+    @api_handler
+    @requires_feature('meetings.enabled', operation='write')
+    def delete_meeting(self, meeting_id, **_):
+        require_capabilities('meetings.read')
+        meeting = get_record('webvue.meeting.minute', meeting_id)
+        _require_manager(meeting)
+        if meeting.state != 'draft':
+            raise ApiError(409, 'conflict', 'only a draft meeting can be deleted; cancel a confirmed meeting instead')
+        try:
+            with request.env.cr.savepoint():
+                meeting.unlink()
+        except UserError as e:
+            raise ApiError(409, 'conflict', str(e)) from e
+        return request.make_json_response('', status=204)
+
     @http.route('/api/v1/meetings/<int:meeting_id>/cancel', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('meetings.enabled', operation='write')
@@ -406,7 +438,8 @@ class MeetingController(http.Controller):
                 raise ApiError(422, 'invalid', 'priority must be one of 0, 1, 2, or 3', field='priority')
             vals['priority'] = priority
         resolution = request.env['webvue.meeting.resolution'].create(vals)
-        if resolution.responsible_id:
+        # Assigning a recommendation to oneself tells the actor nothing new, like an invitation.
+        if resolution.responsible_id and resolution.responsible_id != request.env.user:
             meeting._webvue_notify_partners(
                 resolution.responsible_id.partner_id,
                 'meeting_resolution',
@@ -476,7 +509,9 @@ class MeetingController(http.Controller):
             vals['name'] = payload['name'].strip()
         if 'deadline' in payload:
             vals['deadline'] = _parse_deadline(payload['deadline']) if payload['deadline'] else False
-        if payload.get('responsible_id'):
+        if 'responsible_id' in payload:
+            if not payload['responsible_id']:
+                raise ApiError(422, 'invalid', 'responsible_id must not be empty', field='responsible_id')
             vals['responsible_id'] = parse_positive_int(payload['responsible_id'], 'responsible_id')
         if 'priority' in payload:
             if not isinstance(payload['priority'], str) or payload['priority'] not in {'0', '1', '2', '3'}:
@@ -523,15 +558,13 @@ class MeetingController(http.Controller):
         return dump_resolution(resolution)
 
     @http.route('/api/v1/meetings/<int:meeting_id>/minutes.pdf', type='http', auth='user', methods=['GET'], csrf=False)
+    @api_handler
     @requires_feature('meetings.enabled', operation='read')
     def minutes_pdf(self, meeting_id, **_):
-        # type='http' without api_handler: the pin still runs before any read.
-        _pin_current_company()
+        # A file download is not JSON, so the route is type='http'; api_handler still answers refusals as JSON.
         require_capabilities('meetings.read')
         meeting = get_record('webvue.meeting.minute', meeting_id)
-        pdf, _type = request.env['ir.actions.report']._render_qweb_pdf(
-            'webvue_meetings.action_report_meeting_minutes', meeting.ids,
-        )
+        pdf = _render_minutes_pdf(meeting)
         filename = '%s.pdf' % (meeting.reference or 'minutes')
         return request.make_response(pdf, headers=[
             ('Content-Type', 'application/pdf'),

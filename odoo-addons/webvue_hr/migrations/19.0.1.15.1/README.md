@@ -1,0 +1,1 @@
+HR now registers two bell notification kinds (leave approved, leave refused) in the webvue_notify registry and depends on webvue_notify. The kinds are selection values of the shared `mail.message` column; no table, column or business data changes.

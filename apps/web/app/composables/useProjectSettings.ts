@@ -1,4 +1,5 @@
 import type { QueryClient } from '@tanstack/vue-query'
+import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ProjectCreateDefaultsSchema, ProjectSettingsSchema, type ProjectSettings, type ProjectSettingsPatch } from '@webvue/contracts'
 
@@ -7,10 +8,11 @@ export const projectSettingsKeys = {
   createDefaults: ['project-settings', 'create-defaults'] as const,
 }
 
-export function useProjectSettings() {
+export function useProjectSettings(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   return useQuery({
     queryKey: projectSettingsKeys.all,
+    enabled: computed(() => toValue(enabled)),
     queryFn: () => $api('/api/v1/settings/projects', { schema: ProjectSettingsSchema }),
   })
 }

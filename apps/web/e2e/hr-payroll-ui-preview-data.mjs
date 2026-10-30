@@ -43,6 +43,7 @@ function seed(finance = true, previewError = false, ibansComplete = false) {
   }))
   state = {
     nextRunId: 4,
+    strict: { hr: false, payroll: false },
     runs: [
       { id: 3, month: '2026-12', state: 'draft', approvedAt: null, slips: [] },
       { id: 2, month: '2026-11', state: 'computed', approvedAt: null, slips: slips(2, 500) },
@@ -118,7 +119,7 @@ const provisionActions = run => state.finance && ['approved', 'posted', 'paid'].
 const actionsOf = run => [...(state.finance ? FINANCE_ACTIONS[run.state] ?? BASE_ACTIONS[run.state] : BASE_ACTIONS[run.state]), ...provisionActions(run)]
 
 function summary(run) {
-  return { id: run.id, month: run.month, state: run.state, employee_count: run.slips.length, totals: totals(run), approved_at: run.approvedAt }
+  return { id: run.id, month: run.month, state: run.state, employee_count: run.slips.length, totals: totals(run), approved_at: run.approvedAt, currency: 'SAR' }
 }
 function detail(run) {
   return {
@@ -145,7 +146,7 @@ function payslip(run, slip) {
     id: slip.id, number: `SLIP/${run.month.replace('-', '/')}/${slip.id}`, month: run.month, state: 'done',
     employee: slip.person.employee, department: slip.person.department, paid_days: 30, lines,
     gross: f.gross, deductions: f.deductions, net: f.net, gosi_employer: f.employer,
-    company: { name: 'شركة النماء للتقنية', vat: '300012345600003' },
+    company: { name: 'شركة النماء للتقنية', vat: '300012345600003' }, currency: 'SAR',
   }
 }
 
@@ -193,7 +194,7 @@ function caseOf(leaver, asked) {
 function eosFigures(leaver, awardCase, openDeductions = 0) {
   const award = awardCase === 'no_award' ? 0 : money(EOS_WAGE * 0.5 * EOS_YEARS * (awardCase === 'resignation' ? 1 / 3 : 1))
   const leaveAmount = money(EOS_WAGE / state.settings.day_divisor * EOS_LEAVE_DAYS)
-  return { service_years: EOS_YEARS, eos_wage: EOS_WAGE, case: awardCase, award, leave_days: EOS_LEAVE_DAYS, leave_amount: leaveAmount, open_deductions: openDeductions, total: money(award + leaveAmount - openDeductions) }
+  return { service_years: EOS_YEARS, eos_wage: EOS_WAGE, case: awardCase, award, leave_days: EOS_LEAVE_DAYS, leave_amount: leaveAmount, open_deductions: openDeductions, total: money(award + leaveAmount - openDeductions), currency: 'SAR' }
 }
 
 function eosEstimate(leaver, url) {
@@ -216,6 +217,8 @@ export function hrPayrollPreviewData(route, url) {
   if (route === '/api/v1/hr/payroll/eos-cases') return { items: state.eosCases.map(caseItem), total: state.eosCases.length }
   if (route === '/api/v1/hr/payroll/eos-provisions') return state.finance && { items: state.provisions, total: state.provisions.length }
   if (route === '/api/v1/hr/payroll/settings') return state.settings
+  if (route === '/api/v1/hr/payroll/branch-strictness') return { scope: 'payroll', enabled: state.strict.payroll }
+  if (route === '/api/v1/hr/branch-strictness') return { scope: 'hr', enabled: state.strict.hr }
   if (route === '/api/v1/hr/payroll/gosi-rates') return { items: state.rates, total: state.rates.length }
   if (route === '/api/v1/hr/payroll/bank-profiles') return { items: state.profiles, total: state.profiles.length }
   if (route === '/api/v1/hr/payroll/finance-settings') return state.finance?.settings
@@ -228,7 +231,7 @@ export function hrPayrollPreviewData(route, url) {
   const own = mineRoute.exec(route)
   if (own) {
     const entries = ownSlips().sort((a, b) => b.run.month.localeCompare(a.run.month))
-    if (!own[1]) return { items: entries.map(({ run, slip }) => ({ id: slip.id, number: payslip(run, slip).number, month: run.month, net: figures(slip).net })), total: entries.length }
+    if (!own[1]) return { items: entries.map(({ run, slip }) => ({ id: slip.id, number: payslip(run, slip).number, month: run.month, net: figures(slip).net, currency: 'SAR' })), total: entries.length }
     const entry = entries.find(({ slip }) => slip.id === Number(own[1]))
     return entry ? payslip(entry.run, entry.slip) : undefined
   }
@@ -299,6 +302,12 @@ function revised(record, revision, message, apply) {
 
 /** The writes: `{status, body}`, or undefined for a route this preview does not own. */
 export function hrPayrollPreviewWrite(method, route, body) {
+  const strict = /^\/api\/v1\/hr\/(payroll\/)?branch-strictness$/.exec(route)
+  if (method === 'PATCH' && strict) {
+    const scope = strict[1] ? 'payroll' : 'hr'
+    state.strict[scope] = body.enabled
+    return ok({ scope, enabled: body.enabled })
+  }
   if (method === 'POST' && route === '/api/v1/__mock/reset-payroll') { seed(body.finance !== false, body.previewError === true, body.ibansComplete === true); return ok({ ok: true }) }
   if (method === 'PATCH' && route === '/api/v1/hr/payroll/settings') {
     // Like the server: the revision read, then an empty patch, a divisor outside 28-31 and a null annual leave type are refused.

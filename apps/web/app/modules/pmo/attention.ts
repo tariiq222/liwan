@@ -25,6 +25,26 @@ export const overdueTasksAttention: AppAttentionProvider = {
   },
 }
 
+/** My other open project tasks, nearest deadline first; the overdue ones already come from the provider above (same recordKey). */
+export const openTasksAttention: AppAttentionProvider = {
+  id: 'pmo-tasks-open',
+  module: 'projects',
+  work: 'execute',
+  capability: 'pmo.tasks.read',
+  queryKey: ['tasks', 'attention', 'open'],
+  async load(api) {
+    const page = await api('/api/v1/tasks', { query: { filter: 'mine', sort: 'date_deadline', limit: ATTENTION_ROWS_PER_PROVIDER }, schema: TaskListSchema })
+    return page.items.slice(0, ATTENTION_ROWS_PER_PROVIDER).map(task => ({
+      id: `task-${task.id}`,
+      recordKey: `task:${task.id}`,
+      label: task.name,
+      to: `/tasks/${task.id}`,
+      caption: task.project?.name,
+      tone: 'normal' as const,
+    }))
+  },
+}
+
 /** Statuses that need a look, worst first; a project the user cannot read never comes back from the list. */
 const RISK_STATUSES = ['off_track', 'at_risk'] as const
 

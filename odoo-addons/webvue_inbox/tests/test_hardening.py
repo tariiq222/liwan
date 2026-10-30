@@ -122,7 +122,7 @@ class TestCronResilience(WebVueInboxCase):
 
         with patch.object(whatsapp, 'send_text', side_effect=send):
             self.env['webvue.inbox.message']._webvue_run_outbox()
-        self.assertEqual(self.commits.call_count, 6, 'once per batch (replies, reactions, receipts, typing) and once per item')
+        self.assertEqual(self.commits.call_count, 7, 'once per batch (replies, campaign messages, reactions, receipts, typing) and once per item')
         self.assertEqual((first.delivery_state, first.attempts, first.error), ('queued', 1, 'unexpected error: RuntimeError'))
         self.assertGreater(first.next_attempt_at, fields.Datetime.now())
         self.assertEqual((second.delivery_state, second.provider_message_id), ('sent', 'wamid.OK2'))
@@ -138,11 +138,11 @@ class TestCronResilience(WebVueInboxCase):
         real = whatsapp.parse_events
         calls = []
 
-        def parse(payload, phone_id, account_id):
+        def parse(payload, *scope):
             calls.append(payload)
             if len(calls) == 1:
                 raise RuntimeError
-            return real(payload, phone_id, account_id)
+            return real(payload, *scope)
 
         with patch.object(whatsapp, 'parse_events', side_effect=parse):
             self.env['webvue.inbox.event']._webvue_run_events()
@@ -392,7 +392,7 @@ class TestTemplateRemovalAndMediaStreams(WebVueInboxCase):
         message = self.queued_template_reply(template)
         message.template_params = []
         with patch.object(whatsapp, 'send_text') as send_text, \
-                patch.object(whatsapp, 'send_template', return_value='wamid.T9') as send_template:
+                patch.object(whatsapp, 'send_template', return_value=whatsapp.SendResult('wamid.T9', False)) as send_template:
             self.env['webvue.inbox.message']._webvue_run_outbox()
         self.assertEqual((send_text.call_count, send_template.call_args.args[2:]), (0, ('present', 'ar', [])))
         self.assertEqual(message.delivery_state, 'sent')

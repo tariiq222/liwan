@@ -89,7 +89,7 @@ class TestFinanceActions(WebVueFinanceOcaCase):
 
     def test_a_posted_unpaid_invoice_offers_the_transitions_and_the_follow_ups(self):
         allowed, blocked = self.actions(self.make_invoice('posted'))
-        self.assertEqual(allowed, {'reset_to_draft', 'cancel', 'pdf', 'debit_note', 'register_payment'})
+        self.assertEqual(allowed, {'reset_to_draft', 'cancel', 'pdf', 'debit_note', 'credit_note', 'register_payment'})
         self.assertLessEqual(set(blocked), {'zatca_submit', 'zatca_retry'})
 
     def test_payments_block_cancel_and_reset_exactly_as_the_routes_refuse_them(self):
@@ -227,7 +227,7 @@ class TestFinanceActions(WebVueFinanceOcaCase):
             allowed, blocked = self.served('_webvue_invoice_actions', 'account.move', posted['id'])
             self.assertEqual(allowed, {'pdf'})
             self.assertEqual({'tenant_read_only'}, set(blocked.values()))
-            self.assertLessEqual({'cancel', 'reset_to_draft', 'debit_note', 'register_payment'}, set(blocked))
+            self.assertLessEqual({'cancel', 'reset_to_draft', 'debit_note', 'credit_note', 'register_payment'}, set(blocked))
             for method, model, record in (
                 ('_webvue_entry_actions', 'account.move', entry), ('_webvue_asset_actions', 'account.asset', asset),
                 ('_webvue_budget_actions', 'mis.budget.by.account', budget),

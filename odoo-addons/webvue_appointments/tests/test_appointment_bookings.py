@@ -11,9 +11,10 @@ from odoo.addons.webvue_appointments.controllers.records import slot_conflicts
 BOOKINGS = '/api/v1/appointments/bookings'
 UTC_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 ROW_KEYS = {
-    'id', 'state', 'type_id', 'type_name', 'combination_id', 'start', 'stop', 'duration_minutes', 'requester_name',
+    'id', 'reference', 'state', 'attendance', 'walk_in', 'type_id', 'type_name', 'combination_id', 'start', 'stop',
+    'duration_minutes', 'requester_name',
 }
-DETAIL_KEYS = ROW_KEYS | {'requester', 'national_id', 'notes', 'is_modifiable'}
+DETAIL_KEYS = ROW_KEYS | {'requester', 'national_id', 'notes', 'visit_reason', 'cancel_reason', 'is_modifiable'}
 
 
 @tagged('post_install', '-at_install', 'webvue')

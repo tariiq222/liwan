@@ -15,6 +15,7 @@ from odoo.tools import mute_logger
 from .common import RUNS, VALID_IBAN, PayrollFinanceCase
 from odoo.addons.webvue_finance.controllers import write_support
 from odoo.addons.webvue_hr.rules import WebVueHrRule
+from odoo.addons.webvue_hr.tests.common import set_hr_feature
 from odoo.addons.webvue_hr_finance.models.account_move import AccountMove as PayrollMove
 
 MONTH = '2026-11'
@@ -224,6 +225,20 @@ class TestPayrollPosting(PayrollFinanceCase):
         self.assertEqual(self.api('GET', f"{RUNS}/{run['id']}").json()['state'], 'approved')
         self.assertFalse(self.env['account.move'].search_count([('webvue_payroll_origin', '=', 'run')]))
 
+    def test_posting_is_refused_for_a_company_outside_saudi_riyals(self):
+        run = self._approved_run([self.e1, self.e2], MONTH)
+        usd = self.env.ref('base.USD')
+        usd.active = True
+        # Odoo refuses this write once journal items exist, so the fixture changes the column the check reads.
+        self.env.cr.execute('UPDATE res_company SET currency_id = %s WHERE id = %s', (usd.id, self.company.id))
+        self.company.invalidate_recordset(['currency_id'])
+        self.login_as(self.poster)
+        preview = self.api('GET', f"{RUNS}/{run['id']}/posting-preview")
+        posted = self._post(run['id'])
+        for res in (preview, posted):
+            self.assertEqual((res.status_code, res.json()['code']), (422, 'currency_unsupported'), res.text)
+        self.assertEqual(self.api('GET', f"{RUNS}/{run['id']}").json()['currency'], 'USD')
+
     def test_posting_journal_must_be_in_the_company_currency(self):
         run = self._approved_run([self.e1, self.e2], MONTH)
         foreign = self.env['res.currency'].search([('id', '!=', self.company.currency_id.id)], limit=1)
@@ -290,6 +305,13 @@ class TestPayrollPosting(PayrollFinanceCase):
         self.assertEqual(self.api('GET', f'{RUNS}?state=posted').json()['total'], 1)
         self.assertEqual(self.api('GET', f'{RUNS}?state=approved').json()['total'], 0)
         self.assertEqual(self.api('GET', f"{RUNS}/{run['id']}").json()['allowed_actions'], ['eos_provision'])
+
+    def test_no_finance_action_is_offered_while_finance_is_off(self):
+        run = self._approved_run([self.e1, self.e2], MONTH)
+        self.login_as(self.poster)
+        self.assertEqual(self.api('GET', f"{RUNS}/{run['id']}").json()['allowed_actions'], ['post'])
+        set_hr_feature(self, 'finance.enabled', False)
+        self.assertEqual(self.api('GET', f"{RUNS}/{run['id']}").json()['allowed_actions'], [])
 
     def test_entry_name_needs_entries_read(self):
         run, move = self._posted()

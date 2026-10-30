@@ -90,7 +90,7 @@ describe('unified application navigation', () => {
   it('keeps all meeting destinations and presets inside their application', () => {
     const item = build().find(item => item.id === 'meetings')!
     expect(item).toBeDefined()
-    expect(item.sections.flatMap(section => section.items.map(row => row.to))).toEqual(['/meetings', '/meetings/follow-up', '/meetings/series'])
+    expect(item.sections.flatMap(section => section.items.map(row => row.to))).toEqual(['/meetings', '/meetings/follow-up', '/meetings/calendar', '/meetings/series'])
     expect(item.sections.flatMap(section => section.items).find(row => row.id === 'meetings')?.children?.map(view => view.to)).toContainEqual({ path: '/meetings', query: { state: 'done' } })
     expect(item.views).toEqual([])
     expect(item.actions.filter(action => typeof action.to === 'object' && action.to.path === '/meetings/new')).toHaveLength(1)

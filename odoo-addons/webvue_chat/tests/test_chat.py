@@ -255,6 +255,8 @@ class TestChat(WebVueApiCase):
         paged = self.api('GET', '/api/v1/chat/conversations?filter=unread&limit=1&offset=0').json()
         self.assertEqual(len(paged['items']), 1)
         self.assertEqual(paged['total'], len(unread.json()['items']))
+        zero = self.api('GET', '/api/v1/chat/conversations?filter=unread&limit=0&offset=0').json()
+        self.assertEqual(len(zero['items']), len(unread.json()['items']))
 
     def test_messages_page_by_stable_ids(self):
         self.authenticate('api_emp', 'api_emp_pass_123')

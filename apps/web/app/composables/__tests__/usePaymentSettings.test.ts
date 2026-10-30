@@ -11,7 +11,7 @@ vi.mock('@tanstack/vue-query', async original => ({
   useQueryClient: () => mocks.client,
 }))
 
-const SAVED: PaymentSettings = { unpaid_order_expiry_minutes: 60, invoice_when_paid: true, revision: 3 }
+const SAVED: PaymentSettings = { unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', revision: 3 }
 
 function setup(companyId: number | undefined = 5) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -54,7 +54,7 @@ describe('useSavePaymentSettings', () => {
   it('PATCHes the body with the revision and replaces the cached settings with the answer', async () => {
     const client = setup(5)
     client.setQueryData(paymentSettingsKeys.company(5), SAVED)
-    const saved = { unpaid_order_expiry_minutes: 90, invoice_when_paid: true, revision: 4 }
+    const saved = { unpaid_order_expiry_minutes: 90, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', revision: 4 }
     mocks.api.mockResolvedValue(saved)
     const body = { revision: 3, unpaid_order_expiry_minutes: 90 }
     const answer = await (useSavePaymentSettings() as unknown as Mutation).mutationFn(body)

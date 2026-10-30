@@ -125,6 +125,11 @@ describe('paletteGroups', () => {
     })
   })
 
+  it('shows a row caption (tax number, party name) as the option suffix', () => {
+    const groups = paletteGroups({ ...base, term: 'vat', search: [section({ rows: [{ id: 1, label: 'Acme', to: '/finance/partners/1', caption: '300000000000003' }] })] })
+    expect(groups[1]!.items[0]).toMatchObject({ label: 'Acme', suffix: '300000000000003' })
+  })
+
   it('renders waiting, failed, capped and paged sections as rows', () => {
     const term = 'fix'
     expect(paletteGroups({ ...base, term, search: [section({ waiting: true })] })[1]!.items)

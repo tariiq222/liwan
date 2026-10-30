@@ -1,11 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import re
 
-from werkzeug.exceptions import NotFound
+from werkzeug.exceptions import NotFound, Unauthorized
 
 from odoo import models
 from odoo.exceptions import AccessDenied
-from odoo.http import request
+from odoo.http import SessionExpiredException, request
 
 # Nobody uses Odoo's web client or its generic RPC: the Nuxt app talks to /api/v1
 # and to the few stock routes listed below. Stock endpoints such as
@@ -71,6 +71,23 @@ def _may_reach(httprequest):
 
 class WebVuePlatformIrHttp(models.AbstractModel):
     _inherit = 'ir.http'
+
+    @classmethod
+    def _auth_method_user(cls):
+        """Answer 401 ``session_required`` on /api/v1 without a session; stock Odoo answers 403.
+
+        The web app reads 401 as "sign in again" and 403 as "not allowed", so a visitor with
+        no (or an ended) session must never look like a refused signed-in user.
+        """
+        try:
+            super()._auth_method_user()
+        except SessionExpiredException:
+            if not request.httprequest.path.startswith(API_PREFIXES):
+                raise
+            response = request.make_json_response(
+                {'code': 'session_required', 'message': 'A valid session is required.'}, status=401,
+            )
+            raise Unauthorized(response=response) from None
 
     @classmethod
     def _authenticate_explicit(cls, auth):

@@ -111,6 +111,12 @@ limits describe implementation stages, not permanent product exclusions.
   type takes online payment (in full or a deposit) and the product that sells it; a booking of a paying
   type is held by an online order of `webvue.payments.service`, which the engine keeps `scheduled` until the
   order is paid, then `confirmed`; an unpaid order that expires cancels the booking and frees its slot.
+- `odoo-addons/webvue_inbox_payments` (bridge, rank 5, `auto_install` on `webvue_inbox` and the shared service
+  `webvue_payments`) owns the link to the tenant's Meta commerce catalog (one per WhatsApp business account), the
+  catalog items and their push to Meta by cron, the public product image route Meta fetches from, a minimal editor
+  of catalog-made products, the implementations of the neutral commerce hooks of `webvue_inbox`, and the carts that
+  become online orders of `webvue.payments.service` (checkout, pay link, paid and cancelled notes). Feature
+  `inbox.catalog`; capabilities `inbox.catalog.manage` and `inbox.orders.manage`.
 - `packages/contracts/src/common`, `src/access`, `src/pmo`, `src/hr`, `src/meetings`, `src/chat`,
   `src/tasks` and `src/operations` hold the Zod wire
   contracts; each namespace has a barrel re-exported from `src/index.ts`.

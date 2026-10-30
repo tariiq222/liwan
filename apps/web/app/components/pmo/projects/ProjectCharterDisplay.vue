@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { CharterDraft, CharterMilestone } from '@/utils/projectCharter'
-import { aggregateMilestoneOutputs } from '@/utils/projectCharter'
+import { aggregateMilestoneOutputs, formatCharterAmount } from '@/utils/projectCharter'
 import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
 
 const props = defineProps<{
@@ -17,8 +17,7 @@ const milestoneOutputs = computed(() => aggregateMilestoneOutputs(props.mileston
 const legacyDeliverables = computed(() => props.draft.deliverables.filter(row => row.name.trim() || row.description.trim() || row.acceptance.trim()))
 const visibleObjectives = computed(() => props.draft.objectives.filter(row => row.goal.trim() || row.metric.trim() || row.target.trim()))
 const hasLegacyDetails = computed(() => Boolean(
-  props.draft.typeName?.trim()
-  || props.draft.owningUnitName?.trim()
+  props.draft.owningUnitName?.trim()
   || props.draft.sponsorName?.trim()
   || props.draft.authority.trim()
   || props.draft.benefits.trim()
@@ -41,7 +40,7 @@ function date(value: string | null): string {
 }
 
 function budgetAmount(): string {
-  return props.draft.budgetState === 'estimate' ? props.draft.amountInput.trim() : ''
+  return props.draft.budgetState === 'estimate' ? formatCharterAmount(props.draft.amountInput, props.draft.currencyLabel) : ''
 }
 </script>
 
@@ -83,6 +82,7 @@ function budgetAmount(): string {
           <dl class="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
             <div data-testid="charter-display-name"><dt class="text-xs text-muted">{{ t('projects.charter.fields.name') }}</dt><dd class="mt-1 text-sm text-default">{{ draft.name }}</dd></div>
             <div v-if="draft.code" data-testid="charter-display-code"><dt class="text-xs text-muted">{{ t('projects.charter.fields.code') }}</dt><dd class="mt-1 text-sm text-default"><bdi dir="ltr" class="font-mono">{{ draft.code }}</bdi></dd></div>
+            <div v-if="draft.typeName?.trim()" data-testid="charter-display-type"><dt class="text-xs text-muted">{{ t('projects.charter.fields.type') }}</dt><dd class="mt-1 text-sm text-default">{{ draft.typeName }}</dd></div>
             <div v-if="draft.managerName?.trim()"><dt class="text-xs text-muted">{{ t('projects.charter.fields.manager') }}</dt><dd class="mt-1 text-sm text-default">{{ draft.managerName }}</dd></div>
             <div v-if="draft.dateStart"><dt class="text-xs text-muted">{{ t('projects.charter.fields.date_start') }}</dt><dd class="mt-1 text-sm text-default">{{ date(draft.dateStart) }}</dd></div>
             <div v-if="draft.dateEnd"><dt class="text-xs text-muted">{{ t('projects.charter.fields.date_end') }}</dt><dd class="mt-1 text-sm text-default">{{ date(draft.dateEnd) }}</dd></div>
@@ -138,7 +138,6 @@ function budgetAmount(): string {
           <template #content>
           <div class="grid gap-(--webvue-gap-card) p-(--webvue-card-pad) pt-0">
             <dl class="grid gap-4 sm:grid-cols-2">
-              <div v-if="draft.typeName?.trim()"><dt class="text-sm text-muted">{{ t('projects.charter.fields.type') }}</dt><dd class="mt-1 text-sm">{{ draft.typeName }}</dd></div>
               <div v-if="draft.owningUnitName?.trim()"><dt class="text-sm text-muted">{{ t('projects.charter.fields.owning_unit') }}</dt><dd class="mt-1 text-sm">{{ draft.owningUnitName }}</dd></div>
               <div v-if="draft.sponsorName?.trim()"><dt class="text-sm text-muted">{{ t('projects.charter.fields.sponsor') }}</dt><dd class="mt-1 text-sm">{{ draft.sponsorName }}</dd></div>
               <div v-if="draft.authority.trim()"><dt class="text-sm text-muted">{{ t('projects.charter.fields.authority') }}</dt><dd class="mt-1 whitespace-pre-wrap text-sm">{{ draft.authority }}</dd></div>
@@ -171,7 +170,7 @@ function budgetAmount(): string {
         <SharedRecordSection variant="panel" id="project-charter-budget" :title="t('projects.charter.sections.planning')">
           <dl class="grid gap-4">
             <div><dt class="text-xs text-muted">{{ t('projects.charter.fields.budget_state') }}</dt><dd class="mt-1 text-sm text-default">{{ t(`projects.charter.budget.${draft.budgetState}`) }}</dd></div>
-            <div v-if="budgetAmount()"><dt class="text-xs text-muted">{{ t('projects.charter.fields.amount') }}</dt><dd class="mt-1 text-sm text-default">{{ budgetAmount() }}<span v-if="draft.currencyLabel"> {{ draft.currencyLabel }}</span></dd></div>
+            <div v-if="budgetAmount()"><dt class="text-xs text-muted">{{ t('projects.charter.fields.amount') }}</dt><dd class="mt-1 text-sm text-default"><bdi dir="ltr" class="tabular-nums">{{ budgetAmount() }}</bdi></dd></div>
           </dl>
         </SharedRecordSection>
       </div>

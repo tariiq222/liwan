@@ -1,4 +1,5 @@
 {
+  "close_with_open_tasks": "block",
   "deadline_reminders_days_before": 1,
   "deadline_reminders_enabled": true,
   "default_completion_approval": "none",
@@ -69,6 +70,7 @@
   ],
   "overdue_digest_enabled": true,
   "project_creators": "managers",
+  "register_status_transitions": "sequence",
   "require_charter_approval": false,
   "require_end_date_on_create": true,
   "require_manager_on_create": true

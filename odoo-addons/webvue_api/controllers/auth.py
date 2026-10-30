@@ -24,8 +24,11 @@ class AuthController(http.Controller):
         except (TypeError, ValueError):
             raise ApiError(422, 'invalid_code_format', "Invalid authentication code format")
 
-        user = request.env['res.users'].browse(pre_uid)
-        service = request.env['webvue.entitlement.service']
+        # The password step already named this account, so its own environment may read its own
+        # flags; the public one cannot, and would answer a support account with a raw access error.
+        env = request.env(user=pre_uid)
+        user = env['res.users'].browse(pre_uid)
+        service = env['webvue.entitlement.service']
         try:
             service._webvue_assert_login_allowed(user)
         except WebVueTenantSuspended:

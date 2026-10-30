@@ -13,15 +13,25 @@ from odoo.addons.webvue_api.controllers.common import (
 from odoo.addons.webvue_inbox.controllers.helpers import (
     check_fields,
     find_ids,
+    holds,
     no_content,
     parse_ids,
     parse_text,
     reject,
     unique_as_invalid,
 )
-from odoo.addons.webvue_inbox.models.access_service import MANAGE_SETTINGS, READ
+from odoo.addons.webvue_inbox.models.access_service import (
+    CAMPAIGNS,
+    MANAGE_AUTOMATION,
+    MANAGE_FLOWS,
+    MANAGE_SETTINGS,
+    READ,
+)
+from odoo.addons.webvue_inbox.models.constants import FLOWS_FEATURE
 from odoo.addons.webvue_inbox.models.presets import PRESETS
 from odoo.addons.webvue_inbox.models.settings import (
+    ASSIGNMENT_POLICIES,
+    MAX_ALERT_MINUTES,
     MAX_AUTO_CLOSE_HOURS,
     MAX_RETENTION_MONTHS,
     VISIBILITY_POLICIES,
@@ -33,7 +43,9 @@ from odoo.addons.webvue_inbox.serializers.settings import (
     dump_tag,
 )
 
-SETTINGS_FIELDS = {'visibility_policy', 'auto_close_hours', 'retention_months'}
+SETTINGS_FIELDS = {
+    'visibility_policy', 'auto_close_hours', 'retention_months', 'assignment_policy', 'first_response_alert_minutes',
+}
 
 
 def list_page(model, dump):
@@ -48,7 +60,12 @@ def parse_settings(payload):
     policy = values.get('visibility_policy')
     if 'visibility_policy' in values and policy not in dict(VISIBILITY_POLICIES):
         reject(f'visibility_policy must be one of {[key for key, _ in VISIBILITY_POLICIES]}', 'visibility_policy')
-    for key, low, high in (('auto_close_hours', 0, MAX_AUTO_CLOSE_HOURS), ('retention_months', 1, MAX_RETENTION_MONTHS)):
+    if 'assignment_policy' in values and values['assignment_policy'] not in dict(ASSIGNMENT_POLICIES):
+        reject(f'assignment_policy must be one of {[key for key, _ in ASSIGNMENT_POLICIES]}', 'assignment_policy')
+    for key, low, high in (
+        ('auto_close_hours', 0, MAX_AUTO_CLOSE_HOURS), ('retention_months', 1, MAX_RETENTION_MONTHS),
+        ('first_response_alert_minutes', 0, MAX_ALERT_MINUTES),
+    ):
         if key in values and not (
             isinstance(values[key], int) and not isinstance(values[key], bool) and low <= values[key] <= high
         ):
@@ -94,14 +111,17 @@ class SettingsController(http.Controller):
     def apply_preset(self, key, **_):
         if key not in PRESETS:
             raise ApiError(404, 'not_found', 'preset does not exist')
-        return dump_settings(request.env['webvue.inbox.settings']._get_for_company()._webvue_apply_preset(key))
+        settings = request.env['webvue.inbox.settings']._get_for_company()
+        automation = holds(MANAGE_AUTOMATION, request.env.company)
+        flows = holds(MANAGE_FLOWS, request.env.company) and request.env['webvue.entitlement.service']._webvue_feature_write(FLOWS_FEATURE)
+        return dump_settings(settings._webvue_apply_preset(key, automation=automation, flows=flows))
 
     # departments
 
     @http.route('/api/v1/inbox/departments', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('inbox.enabled', operation='read')
-    @requires_capability(READ, MANAGE_SETTINGS, match='any')
+    @requires_capability(READ, MANAGE_SETTINGS, MANAGE_AUTOMATION, match='any')
     def list_departments(self, **_):
         return list_page('webvue.inbox.department', dump_department)
 
@@ -139,7 +159,7 @@ class SettingsController(http.Controller):
     @http.route('/api/v1/inbox/tags', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('inbox.enabled', operation='read')
-    @requires_capability(READ, MANAGE_SETTINGS, match='any')
+    @requires_capability(READ, MANAGE_SETTINGS, MANAGE_AUTOMATION, CAMPAIGNS, match='any')
     def list_tags(self, **_):
         return list_page('webvue.inbox.tag', dump_tag)
 

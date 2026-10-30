@@ -15,10 +15,6 @@
       "imports": "Imports"
     },
     "settings": {
-      "conflict": "The CRM settings changed since you opened the page. Reload, then repeat your change.",
-      "saveError": "The settings could not be saved",
-      "reload": "Reload",
-      "reloadError": "The current settings could not be loaded",
       "preset": {
         "title": "Preset",
         "hint": "A starting point that sets several options together. You can change any value afterwards.",
@@ -100,7 +96,12 @@
         "discountAllowed": "Allow a discount",
         "discountAllowedHint": "When off, a sale uses the plan price as it is.",
         "discountMax": "Highest discount (%)",
-        "discountMaxHint": "Above it, only someone with the discount approval capability can save."
+        "discountMaxHint": "Above it, only someone with the discount approval capability can save.",
+        "aboveList": "Selling above the plan price",
+        "aboveListHint": "Enforced by the server when a sale is recorded.",
+        "aboveForbid": "Not allowed",
+        "aboveManagers": "CRM manager only",
+        "aboveEveryone": "Allowed for everyone"
       },
       "packages": {
         "title": "Plans",
@@ -134,16 +135,6 @@
       "sources": {
         "title": "Sources",
         "hint": "Where an opportunity came from, used in reports."
-      },
-      "list": {
-        "saveError": "The change could not be saved",
-        "name": "Name",
-        "newName": "New name",
-        "add": "Add",
-        "archive": "Archive",
-        "restore": "Restore",
-        "archived": "Archived",
-        "protected": "Protected"
       }
     },
     "opportunities": {
@@ -424,6 +415,14 @@
         "agentsEmpty": "No agent has records.",
         "conversionHint": "Records created this month and how many of them were won."
       }
+    }
+  },
+  "errors": {
+    "reasons": {
+      "crm_agent_not_eligible": "This person cannot take opportunities. They need to work on opportunities in this company.",
+      "crm_lost_reason_system": "This reason is used by the system and cannot be picked manually.",
+      "crm_price_above_list_forbid": "Selling a plan above its price is not allowed in this company.",
+      "crm_price_above_list_managers": "Selling a plan above its price is allowed for the CRM manager only."
     }
   }
 }

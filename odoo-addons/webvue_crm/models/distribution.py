@@ -11,6 +11,14 @@ from odoo.addons.webvue_api.controllers.common import ApiError
 WORK_CAPABILITY = 'crm.leads.work'
 
 
+def agent_not_eligible():
+    """The 422 for an agent who cannot take opportunities; `reason` is the locale key the UI shows."""
+    return ApiError(
+        422, 'invalid', 'the chosen agent cannot take opportunities', field='user_id',
+        details={'reason': 'crm_agent_not_eligible'},
+    )
+
+
 class WebVueCrmDistribution(models.AbstractModel):
     """Who takes a new opportunity: round robin, the manual pool, or the agent chosen at import."""
 
@@ -65,7 +73,7 @@ class WebVueCrmDistribution(models.AbstractModel):
         if not agent:
             return
         if agent not in self._webvue_eligible_agents(company):
-            raise ApiError(422, 'invalid', 'the chosen agent cannot take opportunities', field='user_id')
+            raise agent_not_eligible()
         leads.write({'user_id': agent.id})
 
     @api.model

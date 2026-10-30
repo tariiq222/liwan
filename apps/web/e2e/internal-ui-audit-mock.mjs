@@ -301,6 +301,8 @@ const SETTINGS = {
   deadline_reminders_days_before: 3,
   overdue_digest_enabled: false,
   require_charter_approval: false,
+  close_with_open_tasks: 'block',
+  register_status_transitions: 'sequence',
   extensions: [],
 }
 
@@ -460,7 +462,7 @@ async function handle(req, res) {
     return json(res, 200, { items: rows, total: rows.length })
   }
 
-  if (process.env.MODULE_UI_PREVIEW === '1' && method !== 'GET' && /^\/api\/v1\/(hr\/payroll\/|__mock\/reset-payroll$)/.test(path)) {
+  if (process.env.MODULE_UI_PREVIEW === '1' && method !== 'GET' && /^\/api\/v1\/(hr\/(payroll\/|branch-strictness$)|__mock\/reset-payroll$)/.test(path)) {
     let body = {}
     try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
     const write = hrPayrollPreviewWrite(method, path, body)

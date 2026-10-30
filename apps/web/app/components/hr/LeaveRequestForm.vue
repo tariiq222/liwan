@@ -1,15 +1,29 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
 import { ApiError } from '@/composables/useApi'
+import { refDebounced } from '@vueuse/core'
 import { useCreateLeaveRequest, useHrLeaveTypes } from '@/composables/useHrLeave'
+import { useHrEmployees } from '@/composables/useHrEmployees'
 
 const props = defineProps<{ backTo: RouteLocationRaw }>()
 const emit = defineEmits<{ saved: [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
+const { can } = useAccess()
 const types = useHrLeaveTypes()
 const { mutateAsync: create, isPending } = useCreateLeaveRequest()
 
+// Leave managers may file a request for another employee; everyone else files their own.
+const canFileForOthers = computed(() => can('hr.leave.manage'))
+const employeeSearch = ref('')
+const debouncedSearch = refDebounced(employeeSearch, 250)
+const employees = useHrEmployees(computed(() => ({ q: debouncedSearch.value.trim() || undefined, limit: 50 })), canFileForOthers)
+const employeeId = ref<number | null>(null)
+const OWN = 'own'
+const employeeOptions = computed(() => [
+  { value: OWN, label: t('hr.leave.form.onBehalfSelf') },
+  ...(employees.data.value?.items ?? []).map(employee => ({ value: String(employee.id), label: employee.name })),
+])
 const leaveTypeId = ref<number | null>(null)
 const dateFrom = ref<string | null>(null)
 const dateTo = ref<string | null>(null)
@@ -21,7 +35,7 @@ const serverField = ref('')
 
 const typeOptions = computed(() => (types.data.value?.items ?? []).map(type => ({ value: String(type.id), label: type.name })))
 const selectedType = computed(() => types.data.value?.items.find(type => type.id === leaveTypeId.value) ?? null)
-const dirty = computed(() => !saved.value && Boolean(leaveTypeId.value || dateFrom.value || dateTo.value || notes.value.trim()))
+const dirty = computed(() => !saved.value && Boolean(employeeId.value || leaveTypeId.value || dateFrom.value || dateTo.value || notes.value.trim()))
 
 const typeError = computed(() => attempted.value && !leaveTypeId.value ? t('hr.leave.form.typeRequired') : fieldError('leave_type_id'))
 const fromError = computed(() => attempted.value && !dateFrom.value ? t('hr.leave.form.dateRequired') : fieldError('date_from'))
@@ -50,6 +64,7 @@ async function submit() {
   if (!leaveTypeId.value || !dateFrom.value || !dateTo.value || dateTo.value < dateFrom.value) return
   try {
     await create({
+      ...(employeeId.value ? { employee_id: employeeId.value } : {}),
       leave_type_id: leaveTypeId.value,
       date_from: dateFrom.value,
       date_to: dateTo.value,
@@ -59,7 +74,7 @@ async function submit() {
     await nextTick()
     emit('saved')
   } catch (cause) {
-    error.value = cause instanceof ApiError ? cause.message : t('errors.generic')
+    error.value = cause instanceof ApiError ? (cause.code === 'leave_overlap' ? t('hr.leave.form.overlap') : cause.message) : t('errors.generic')
     serverField.value = cause instanceof ApiError ? cause.field ?? '' : ''
   }
 }
@@ -68,10 +83,25 @@ async function submit() {
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
   <SharedPageState :loading="types.isLoading.value" :error="types.error.value" :empty="!types.isLoading.value && !typeOptions.length" :empty-text="t('hr.leave.form.noTypes')" @retry="types.refetch">
-    <UForm novalidate :state="{ leaveTypeId, dateFrom, dateTo, notes }" class="webvue-form" method="post" data-testid="hr-leave-request-form" @submit="submit">
+    <UForm novalidate :state="{ employeeId, leaveTypeId, dateFrom, dateTo, notes }" class="webvue-form" method="post" data-testid="hr-leave-request-form" @submit="submit">
       <UAlert v-if="error && !serverField" role="alert" color="error" variant="subtle" :title="error" />
       <SharedFormSection panel :title="t('hr.leave.form.details')">
         <div class="grid gap-4">
+          <UFormField v-if="canFileForOthers" :label="t('hr.leave.form.onBehalf')" name="hr-leave-employee" :error="fieldError('employee_id')">
+            <div class="grid gap-2">
+              <UInput id="hr-leave-employee-search" v-model="employeeSearch" class="w-full" icon="i-lucide-search" :placeholder="t('hr.leave.form.employeeSearch')" :aria-label="t('hr.leave.form.employeeSearch')" :disabled="!hydrated || isPending" />
+              <USelect
+                id="hr-leave-employee"
+                class="w-full"
+                :model-value="employeeId ? String(employeeId) : OWN"
+                :items="employeeOptions"
+                :aria-label="t('hr.leave.form.onBehalf')"
+                :disabled="!hydrated || isPending"
+                data-testid="hr-leave-employee"
+                @update:model-value="employeeId = $event && $event !== OWN ? Number($event) : null"
+              />
+            </div>
+          </UFormField>
           <UFormField :label="t('hr.leave.form.type')" name="hr-leave-type" required :error="typeError">
             <USelect
               id="hr-leave-type"

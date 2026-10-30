@@ -3,6 +3,7 @@ import type { Pool } from 'pg'
 import { catalogReleaseCreateSchema, type VendorCapability } from '@webvue/commercial-contracts'
 import { createRelease, listReleases } from './catalog-releases.js'
 import { createBundle, getBundle, listBundles, mutateBundle } from './bundles.js'
+import { seedDefaultBundles } from './default-bundles.js'
 import { CommercialHttpError } from './lifecycle.js'
 import { listPolicies } from './policies.js'
 import { getQuote, previewQuote } from './quotes.js'
@@ -53,6 +54,14 @@ export async function commercialHttp(pool: Pool, input: CommercialInput) {
       return { status: r.created ? 201 : 200, data: r.release }
     }
     throw new CommercialHttpError('not_found', 404)
+  }
+  const seed = /^\/catalog\/releases\/([^/]+)\/default-bundles$/.exec(path)
+  if (seed) {
+    if (m !== 'POST' || !z.uuid().safeParse(seed[1]).success) throw new CommercialHttpError('not_found', 404)
+    need(input, 'vendor.catalog.manage', 'vendor.pricing.manage')
+    needStepUp(input)
+    const body = parseBody(input.raw, z.strictObject({ reason: z.string().trim().min(3).max(1000) }))
+    return { status: 200, data: await seedDefaultBundles(pool, actor, { release_id: seed[1]!, reason: body.reason }) }
   }
   const b = /^\/bundles(?:\/([^/]+))?(?:\/(validate|publish|withdraw|restore|revisions))?$/.exec(path)
   if (b) {

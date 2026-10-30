@@ -1,4 +1,6 @@
+import { HrLeaveBellKindSchema } from '@webvue/contracts'
 import type { AppContextLink, AppManifest } from '../types'
+import { hrBellHref, hrBellTitleInApp } from './bell'
 import { hrPersonalEntries } from './personal'
 import { leaveApprovalAttention, leaveCancellationAttention } from './attention'
 import { hrSectionActive, hrSectionOf, hrSectionTarget, type HrSection } from './routes'
@@ -83,6 +85,7 @@ const manifest: AppManifest = {
       { id: 'leave', labelKey: 'hr.leaveSettings.title', icon: 'i-lucide-calendar-x', capability: 'hr.leave.config' },
       { id: 'payroll', labelKey: 'hrPayroll.settings.title', icon: 'i-lucide-settings-2', capability: 'hr.payroll.read' },
       { id: 'shifts', labelKey: 'hr.shiftSettings.title', icon: 'i-lucide-calendar-clock', capability: 'hr.shifts.manage' },
+      { id: 'branch-access', labelKey: 'access.branches.strict.hr.title', icon: 'i-lucide-git-branch', capability: 'hr.employees.manage' },
     ],
   },
   // The pinned create follows the open area. The four section links stay on screen in every page of the application;
@@ -100,6 +103,10 @@ const manifest: AppManifest = {
     { path: '/hr/payroll', capability: 'hr.payroll.read' },
   ],
   attention: [leaveApprovalAttention, leaveCancellationAttention],
+  bell: {
+    capabilities: ['hr.leave.read'],
+    kinds: HrLeaveBellKindSchema.options.map(kind => ({ kind, href: hrBellHref, title: hrBellTitleInApp })),
+  },
   personal: hrPersonalEntries,
   commands: [
     { id: 'hr.new-employee', labelKey: 'hr.directory.newEmployee', icon: 'i-lucide-users', to: '/hr/employees/new', capability: 'hr.employees.manage' },

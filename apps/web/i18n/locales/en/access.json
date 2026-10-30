@@ -1,6 +1,42 @@
 {
   "access": {
     "branches": {
+      "currentPreset": "Current company type: {preset}",
+      "presets": {
+        "title": "Company type",
+        "description": "Pick the description closest to your company. Branch access is set for you, and the details stay editable in the next card.",
+        "apply": "Apply type",
+        "single_company": "Single company",
+        "single_companyHint": "No branches. Available only while the company has no branches.",
+        "central_branches": "Centrally managed branches",
+        "central_branchesHint": "Management roles of the parent company extend to every branch: {roles}. Branch staff stay in their branch.",
+        "independent_branches": "Independent branches",
+        "independent_branchesHint": "The parent company sees a branch's data only through an explicit delegation.",
+        "group_of_companies": "Group of companies",
+        "group_of_companiesHint": "Each company is fully separate. Group-level access is delegated explicitly where you want it.",
+        "custom": "Current setup is custom",
+        "customHint": "The details were edited by hand and no longer match any of the four types.",
+        "customName": "Custom",
+        "confirm": "Saving replaces the current branch settings."
+      },
+      "strict": {
+        "description": "An optional switch that narrows the general policy for this application only.",
+        "label": "Stricter than the general policy",
+        "widens": "Turning this off lets this application's roles inherit into branches again, as the general policy says.",
+        "hr": {
+          "title": "Branch access to HR",
+          "hint": "When on, HR roles are not inherited into branches; each branch needs an explicit delegation."
+        },
+        "payroll": {
+          "title": "Branch access to payroll",
+          "hint": "When on, payroll roles are not inherited into branches; each branch needs an explicit delegation."
+        },
+        "finance": {
+          "title": "Branch access to finance",
+          "hint": "When on, finance roles are not inherited into branches; each branch needs an explicit delegation."
+        }
+      },
+      "create": {"purchaseDescription": "Branches are added through your subscription. The paid order creates the branch.", "purchase": "Buy a branch", "title": "Add a branch", "description": "Creates a new branch under your company. The number of branches is limited by your plan.", "name": "Branch name", "action": "Add branch", "done": "The branch was added."},
       "title": "Branch access",
       "description": "Choose how parent-company permissions apply to branches. Membership alone never grants data access.",
       "configure": "Configure branch access",
@@ -17,12 +53,7 @@
       "rolesEmpty": "No assignable roles.",
       "delegation": "User branch delegation",
       "delegationHint": "Select this user’s roles in each branch. Parent-company permissions remain independent.",
-      "saved": "Branch permissions saved.",
-      "reload": "Load latest version",
-      "reloadHint": "Loading the latest version discards your unsaved changes.",
-      "confirmReload": "Discard changes and load latest version",
       "policyLink": "View branch policy",
-      "noInheritance": "No inherited roles for this branch.",
       "roleWarning": "Selected roles may grant access to sensitive data. Review them before saving."
     },
     "title": "System administration",
@@ -32,7 +63,6 @@
     "disabled": "Disabled",
     "protected": "Protected",
     "readOnly": "Read only",
-    "save": "Save",
     "footer": { "results": "{shown} of 1 result | {shown} of {total} results" },
     "previousPage": "Previous",
     "pageOf": "Page {page} of {pages}",
@@ -130,6 +160,8 @@
       "descriptionLabel": "Role purpose",
       "permissions": "Permissions",
       "requires": "Requires",
+      "sensitive": "Sensitive",
+      "sensitiveNotice": "Permissions marked “Sensitive” grant access to sensitive data or actions such as payroll and administrative actions. Grant them only to those who need them.",
       "permissionChanges": "Permission changes",
       "added": "Added",
       "removed": "Removed",
@@ -138,7 +170,7 @@
       "companyScope": "Available for the company",
       "unknownPermission": "Unavailable permission",
       "domains": { "access": "Access administration", "hr": "People and HR", "pmo": "Projects", "meetings": "Meetings", "settings": "Settings" },
-      "descriptions": { "employee": "Basic access for signing in and using the platform.", "system_admin": "Manages login accounts, role assignments, the access audit and branding settings.", "vendor_support": "Vendor support access for operating the environment on request.", "pmo_manager": "Manages projects, tasks, approvals and project settings.", "hr_manager": "Manages the HR directory, departments and documents." },
+      "descriptions": { "employee": "Basic access for signing in and using the platform.", "system_admin": "Manages login accounts, role assignments, the access audit and branding settings.", "vendor_support": "Vendor support access for operating the environment on request.", "pmo_manager": "Manages projects, tasks, approvals and project settings.", "hr_manager": "Manages the HR directory, departments and documents.", "appointments_manager": "Manages appointment types, bookings and appointment settings.", "finance_manager": "Manages accounting, invoices, payments, banking and finance settings.", "finance_accountant": "Records entries, invoices and payments and performs daily accounting work.", "finance_auditor": "Read-only view of financial records and the audit log.", "documents_manager": "Manages documents, their folders and who can access them.", "operations_manager": "Manages operations, approvals and operations settings.", "operations_reviewer": "Reviews operations requests and approves or rejects them.", "inbox_agent": "Replies to the customer inbox conversations assigned to them.", "inbox_supervisor": "Monitors customer inbox conversations and distributes them to agents.", "inbox_manager": "Manages the customer inbox, its channels, templates and settings.", "crm_agent": "Follows up the leads assigned to them and logs their activity.", "crm_manager": "Manages leads: assignment, import, export and CRM settings.", "payroll_manager": "Manages payroll, salary structures and approves payroll runs." },
       "clone": "Clone",
       "rowActions": "Actions for role {name}",
       "confirm": {
@@ -185,6 +217,6 @@
         "legacyAdminPreserved": "Legacy administrator preserved"
       }
     },
-    "errors": { "weakPassword": "The password is too short.", "conflict": "The data changed. Reload the latest version and try again.", "custom_role_permission_forbidden": "Custom roles cannot grant access administration permissions.", "forbidden": "You do not have permission to perform this action.", "protected_user": "The support account is protected.", "protected_role": "Built-in roles are protected.", "last_access_admin": "The last access administrator cannot be removed.", "employee_archived": "Access cannot be granted to an archived employee.", "account_exists": "An account with this email already exists.", "work_email_required": "The employee needs a valid work email.", "employee_contact_required": "The employee has no contact record. Add their details first.", "unsupported_scope": "The selected scope is not supported.", "missing_dependency": "Add the required dependent permissions first.", "role_in_use": "A role assigned to users cannot be deleted." }
+    "errors": { "weakPassword": "The password is too short.", "conflict": "The data changed. Reload the latest version and try again.", "custom_role_permission_forbidden": "Custom roles cannot grant access administration permissions.", "forbidden": "You do not have permission to perform this action.", "protected_user": "The support account is protected.", "protected_role": "Built-in roles are protected.", "last_access_admin": "The last access administrator cannot be removed.", "employee_archived": "Access cannot be granted to an archived employee.", "account_exists": "An account with this email already exists.", "work_email_required": "The employee needs a valid work email.", "employee_contact_required": "The employee has no contact record. Add their details first.", "unsupported_scope": "The selected scope is not supported.", "missing_dependency": "Add the required dependent permissions first.", "role_in_use": "A role assigned to users cannot be deleted.", "self_access_change": "You cannot change or disable your own account access.", "role_disabled": "This role is disabled and cannot be assigned.", "duplicate_or_invalid_capability": "The selected permissions are duplicated or invalid.", "record_company_unknown": "The company of this record could not be determined.", "scope_kind_invalid": "The selected scope type is not valid.", "scope_role_invalid": "This role cannot be used for this scope.", "not_found": "The requested item does not exist." }
   }
 }

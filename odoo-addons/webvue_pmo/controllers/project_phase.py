@@ -18,7 +18,7 @@ from odoo.addons.webvue_pmo.serializers.project import (
     parse_write_token,
 )
 
-BODY_KEYS = {'phase', 'expected_updated_at'}
+BODY_KEYS = {'phase', 'expected_updated_at', 'acknowledge_warnings'}
 
 
 class ProjectPhaseController(http.Controller):
@@ -35,11 +35,14 @@ class ProjectPhaseController(http.Controller):
         target = payload.get('phase')
         if target not in PHASES:
             raise ApiError(422, 'invalid', "phase must be a lifecycle phase", field='phase')
+        acknowledge = payload.get('acknowledge_warnings', False)
+        if not isinstance(acknowledge, bool):
+            raise ApiError(422, 'invalid', "acknowledge_warnings must be a boolean", field='acknowledge_warnings')
         token = parse_write_token(payload.get('expected_updated_at'))
         project = get_record('project.project', project_id)
         try:
             project._webvue_lock_for_write(token)
-            project._webvue_move_phase(target)
+            project._webvue_move_phase(target, acknowledge_warnings=acknowledge)
         except WebVueStaleWrite as e:
             raise ApiError(409, 'stale_write', str(e), field='expected_updated_at') from e
         except WebVuePhaseGate as e:

@@ -443,7 +443,7 @@ export function moduleUiPreviewData(path, url) {
   const normalizedPath = String(path || '/').replace(/\/+$/, '') || '/'
   const parsedUrl = url instanceof URL ? url : new URL(String(url || 'http://preview.local'), 'http://preview.local')
 
-  if (normalizedPath === '/api/v1/people') return PEOPLE
+  if (normalizedPath === '/api/v1/people' || normalizedPath === '/api/v1/crm/agents') return PEOPLE
   if (normalizedPath === '/api/v1/meetings') return page(filterMeetings(parsedUrl), parsedUrl)
   if (normalizedPath === '/api/v1/meetings/resolutions') return page(filterResolutions(parsedUrl), parsedUrl)
   if (isId(normalizedPath, '/api/v1/meetings')) return meetingDetail
@@ -459,7 +459,7 @@ export function moduleUiPreviewData(path, url) {
 
   if (normalizedPath.startsWith('/api/v1/crm/')) return crmPreviewData(normalizedPath, parsedUrl)
   if (normalizedPath.startsWith('/api/v1/documents')) return documentsPreviewData(normalizedPath, parsedUrl)
-  if (normalizedPath.startsWith('/api/v1/hr/payroll/')) return hrPayrollPreviewData(normalizedPath, parsedUrl)
+  if (normalizedPath.startsWith('/api/v1/hr/payroll/') || normalizedPath === '/api/v1/hr/branch-strictness') return hrPayrollPreviewData(normalizedPath, parsedUrl)
   if (normalizedPath.startsWith('/api/v1/hr/')) return hrPreviewData(normalizedPath, parsedUrl)
   if (/^\/api\/v1\/finance\/(invoices|payments|journals)(\/|$)/.test(normalizedPath)) return financeDocumentsPreviewData(normalizedPath, parsedUrl)
   if (/^\/api\/v1\/finance\/(entries|accounts)(\/|$)/.test(normalizedPath)) return financeAccountingPreviewData(normalizedPath, parsedUrl)

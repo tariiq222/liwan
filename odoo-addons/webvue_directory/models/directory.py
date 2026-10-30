@@ -30,11 +30,11 @@ class WebVueDirectory(models.AbstractModel):
         ]
 
     @api.model
-    def _webvue_search_people(self, query=None, limit=20):
+    def _webvue_search_people(self, query=None, limit=20, offset=0):
         domain = self._webvue_people_domain()
         if query:
             domain.append(('name', 'ilike', query))
-        return self.env['res.users'].search(domain, order='name, id', limit=limit)
+        return self.env['res.users'].search(domain, order='name, id', limit=limit, offset=offset)
 
     @api.model
     def _webvue_people(self, user_ids):

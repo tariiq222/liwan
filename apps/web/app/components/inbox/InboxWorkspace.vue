@@ -3,18 +3,20 @@ import EmptyState from '@webvue/ui/app/components/shared/feedback/EmptyState.vue
 import { avatarProps } from '@webvue/ui/app/utils/avatarTone'
 import InboxComposer from '@/components/inbox/InboxComposer.vue'
 import InboxContactPanel from '@/components/inbox/InboxContactPanel.vue'
+import InboxOrderPanel from '@/components/inbox/InboxOrderPanel.vue'
 import InboxConversationList from '@/components/inbox/InboxConversationList.vue'
 import InboxThread from '@/components/inbox/InboxThread.vue'
 import { ApiError } from '@/composables/useApi'
 import { parseInboxListRoute, serializeInboxListRoute, type InboxListRoute } from '@/composables/inbox/inboxListRoute'
-import { CONVERSATION_STATE_TONE } from '@/composables/inbox/inboxPresentation'
+import { CONVERSATION_STATE_TONE, CSAT_TONE } from '@/composables/inbox/inboxPresentation'
 import { replyWindowOpen } from '@/composables/inbox/inboxWindow'
+import { useInboxCatalogEnabled, useInboxChannelCommerce } from '@/composables/inbox/useInboxCatalog'
 import { useInboxConversation, useInboxConversations, useMarkInboxConversationRead } from '@/composables/inbox/useInbox'
 
 // The inbox screen on SharedConversationLayout. From 768px the list is the shell's context-sidebar panel
 // (InboxSidebarPanel); below it the list, the thread and the contact panel replace one another. The contact panel is
 // the URL /inbox/<id>/info, so a direct link, a refresh and Back all work and the list filters stay in the query.
-const props = defineProps<{ conversationId?: number; infoOpen?: boolean }>()
+const props = defineProps<{ conversationId?: number; infoOpen?: boolean; ordersOpen?: boolean }>()
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
@@ -24,17 +26,24 @@ const { data, error, refetch } = useInboxConversation(() => props.conversationId
 const { data: conversations } = useInboxConversations(() => routeState.value)
 const { mutate: markRead } = useMarkInboxConversationRead()
 watch(() => data.value, conversation => { if (conversation?.unread) markRead(conversation.id) }, { immediate: true })
-const hasConversations = computed(() => (conversations.value?.total ?? 0) > 0 || !!routeState.value.q || routeState.value.assignee !== 'all' || !!routeState.value.state || !!routeState.value.departmentId)
+const hasConversations = computed(() => (conversations.value?.total ?? 0) > 0 || !!routeState.value.q || routeState.value.assignee !== 'all' || !!routeState.value.state || !!routeState.value.departmentId || !!routeState.value.csat)
 const hasSelection = computed(() => !!props.conversationId)
 const infoOpen = computed(() => !!props.infoOpen && hasSelection.value)
+// Products and orders exist only with the catalog feature: the channel's commerce answer says whether it has a catalog.
+const catalogOn = useInboxCatalogEnabled()
+const ordersOpen = computed(() => !!props.ordersOpen && hasSelection.value && catalogOn.value)
+const panelOpen = computed(() => infoOpen.value || ordersOpen.value)
+const commerce = useInboxChannelCommerce(() => data.value?.channel.id, () => catalogOn.value && !!data.value?.can_reply)
+const commerceReady = computed(() => !!commerce.data.value?.catalog)
 const threadTo = computed(() => ({ path: `/inbox/${props.conversationId}`, query: listQuery.value }))
 const infoTo = computed(() => ({ path: `/inbox/${props.conversationId}/info`, query: listQuery.value }))
+const ordersTo = computed(() => ({ path: `/inbox/${props.conversationId}/orders`, query: listQuery.value }))
 // The message the agent is answering; each conversation starts without one (the composer restores a stored draft's).
 const replyTo = ref<{ id: number; preview: string } | null>(null)
 watch(() => props.conversationId, () => { replyTo.value = null })
 const status = computed(() => error.value instanceof ApiError ? error.value.status : undefined)
 // Escape leaves the open contact panel for the thread, as it leaves a record page for its list.
-useEscapeBack(() => (infoOpen.value ? threadTo.value : undefined))
+useEscapeBack(() => (panelOpen.value ? threadTo.value : undefined))
 
 function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
   // A scope, state or page change is a step Back returns to; only a correction of the URL replaces its entry.
@@ -43,7 +52,7 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
 </script>
 
 <template>
-  <SharedConversationLayout :has-selection="hasSelection" :info-open="infoOpen">
+  <SharedConversationLayout :has-selection="hasSelection" :info-open="panelOpen">
     <template #list>
       <InboxConversationList page-heading :route-state="routeState" @update:route-state="updateRoute" />
     </template>
@@ -60,7 +69,13 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
           <h1 class="truncate text-lg font-semibold text-highlighted">{{ data?.contact.name || t('inbox.title') }}</h1>
           <p class="truncate text-xs text-muted"><bdi dir="ltr">{{ data?.contact.phone ?? '' }}</bdi></p>
         </div>
+        <SharedStatusBadge v-if="data?.csat" :tone="CSAT_TONE[data.csat.score]" icon="i-lucide-star" :label="t('inbox.csat.badge', { score: t(`inbox.csat.${data.csat.score}`) })" data-testid="inbox-csat-badge" />
         <SharedStatusBadge v-if="data" :tone="CONVERSATION_STATE_TONE[data.state]" :label="t(`inbox.states.${data.state}`)" />
+        <UTooltip v-if="catalogOn" :text="t('inbox.orders.title')">
+          <UButton color="neutral" :variant="ordersOpen ? 'soft' : 'ghost'" square :to="ordersOpen ? threadTo : ordersTo" :aria-pressed="ordersOpen" :aria-label="t('inbox.orders.title')" data-testid="inbox-orders-toggle">
+            <UIcon name="i-lucide-shopping-cart" class="size-5" aria-hidden="true" />
+          </UButton>
+        </UTooltip>
         <UTooltip :text="t('inbox.panel.title')">
           <UButton
             color="neutral"
@@ -80,7 +95,7 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
     <template #thread>
       <div class="flex min-h-0 flex-1 flex-col" data-testid="inbox-thread">
         <template v-if="props.conversationId && !error">
-          <InboxThread :conversation-id="props.conversationId" :can-reply="data?.can_reply ?? false" :window-open="!!data && replyWindowOpen(data)" @reply="replyTo = $event" />
+          <InboxThread :conversation-id="props.conversationId" :channel-id="data?.channel.id" :can-reply="data?.can_reply ?? false" :window-open="!!data && replyWindowOpen(data)" @reply="replyTo = $event" />
         </template>
         <template v-else>
           <!-- The one page heading when no thread header is shown. -->
@@ -93,7 +108,7 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
     </template>
 
     <template v-if="data" #composer>
-      <InboxComposer v-if="data.can_reply" :key="data.id" v-model:reply-to="replyTo" :conversation="data" />
+      <InboxComposer v-if="data.can_reply" :key="data.id" v-model:reply-to="replyTo" :conversation="data" :commerce-ready="commerceReady" />
       <UAlert v-else class="m-2" color="neutral" variant="subtle" icon="i-lucide-eye" data-testid="inbox-read-only" :title="t('inbox.composer.readOnly')" :description="t('inbox.composer.readOnlyDescription')" />
     </template>
 
@@ -104,10 +119,11 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
             <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
           </UButton>
         </UTooltip>
-        <component :is="headingLevel" class="min-w-0 flex-1 truncate text-base font-semibold text-highlighted">{{ t('inbox.panel.title') }}</component>
+        <component :is="headingLevel" class="min-w-0 flex-1 truncate text-base font-semibold text-highlighted">{{ ordersOpen ? t('inbox.orders.title') : t('inbox.panel.title') }}</component>
       </header>
       <div class="min-h-0 flex-1 overflow-y-auto">
-        <InboxContactPanel v-if="data" :conversation="data" />
+        <InboxOrderPanel v-if="data && ordersOpen" :conversation-id="data.id" :window-open="replyWindowOpen(data)" />
+        <InboxContactPanel v-else-if="data" :conversation="data" />
       </div>
     </template>
 

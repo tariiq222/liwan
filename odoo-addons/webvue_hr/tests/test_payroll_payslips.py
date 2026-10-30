@@ -8,10 +8,10 @@ from .payroll_common import PayrollCase
 
 PAYSLIP_KEYS = {
     'id', 'number', 'month', 'state', 'employee', 'department', 'paid_days', 'lines', 'gross',
-    'deductions', 'net', 'gosi_employer', 'company',
+    'deductions', 'net', 'gosi_employer', 'company', 'currency',
 }
 LINE_KEYS = {'code', 'name', 'category', 'amount'}
-SUMMARY_KEYS = {'id', 'number', 'month', 'net'}
+SUMMARY_KEYS = {'id', 'number', 'month', 'net', 'currency'}
 RUNS = '/api/v1/hr/payroll/runs'
 MINE = '/api/v1/hr/payroll/payslips/mine'
 APPROVED_MONTH = '2026-11'

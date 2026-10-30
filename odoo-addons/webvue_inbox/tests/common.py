@@ -20,7 +20,7 @@ APP_SECRET = 'app-secret-0123456789abcdef'
 # Every key of InboxMessageSchema (packages/contracts/src/inbox/index.ts).
 MESSAGE_KEYS = {
     'id', 'direction', 'kind', 'body', 'author', 'template', 'delivery_state', 'error', 'attachments', 'reply_to',
-    'reactions', 'location', 'interactive', 'selected_option', 'created_at',
+    'reactions', 'location', 'interactive', 'commerce', 'selected_option', 'flow_response', 'automated', 'campaign', 'created_at',
 }
 
 

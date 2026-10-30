@@ -161,7 +161,7 @@ async function submit() {
         @click="returning = true"
       />
       <UButton
-        v-if="equipment.active"
+        v-if="equipment.active && !equipment.employee"
         color="error"
         variant="outline"
         :disabled="!hydrated || writing"

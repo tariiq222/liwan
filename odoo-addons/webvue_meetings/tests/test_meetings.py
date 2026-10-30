@@ -129,6 +129,21 @@ class TestMeetingsApi(WebVueMeetingsCase):
         self.assertEqual(conflicting.status_code, 422, conflicting.text)
         self.assertEqual(conflicting.json()['field'], 'meeting_date')
 
+    def test_create_empty_user_tz_falls_back_to_company_then_riyadh_day(self):
+        self._grant_meeting_create()
+        self.employee.tz = False
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        payload = {'name': 'Empty tz', 'start_datetime': '2026-09-08T21:55:00Z', 'end_datetime': '2026-09-08T22:30:00Z'}
+        riyadh = self.api('POST', '/api/v1/meetings', payload)
+        self.assertEqual(riyadh.status_code, 201, riyadh.text)
+        self.assertEqual(riyadh.json()['meeting_date'], '2026-09-09')
+        self.env.company.sudo().partner_id.write({'tz': 'America/New_York'})
+        self.env.flush_all()
+        company = self.api('POST', '/api/v1/meetings', {'name': 'Company tz', 'start_datetime': '2026-09-08T22:45:00Z', 'end_datetime': '2026-09-08T23:15:00Z'})
+        self.assertEqual(company.status_code, 201, company.text)
+        # 22:45 UTC is 18:45 in New York but already 01:45 next day in Riyadh: the company zone, not Riyadh, decides.
+        self.assertEqual(company.json()['meeting_date'], '2026-09-08')
+
     def test_create_rejects_invalid_range_and_patch_rejects_invalid_url(self):
         self._grant_meeting_create()
         self.authenticate('api_emp', 'api_emp_pass_123')
@@ -655,3 +670,48 @@ class TestMeetingsApi(WebVueMeetingsCase):
         attended.invalidate_recordset()
         self.assertEqual(attended.name, 'Attended only')
         self.assertEqual(self.api('PATCH', f'/api/v1/meetings/{own.id}', {'name': 'Renamed by organizer'}).status_code, 200)
+
+    def test_plain_attendee_confirm_refusal_says_confirm(self):
+        self._grant_meeting_create()
+        meeting = self.env['webvue.meeting.minute'].create({
+            'name': 'Confirm refused', 'state': 'draft', 'organizer_id': self.manager.id,
+            'attendee_ids': [(6, 0, self.employee.ids)], 'meeting_date': '2026-09-08',
+        })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        response = self.api('POST', f'/api/v1/meetings/{meeting.id}/confirm', {})
+        self.assertEqual(response.status_code, 403, response.text)
+        self.assertIn('may confirm this meeting', response.json()['message'])
+
+    def test_utc_stamp_day_follows_the_user_timezone(self):
+        self._grant_meeting_create()
+        self.employee.tz = 'Asia/Riyadh'
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        created = self.api('POST', '/api/v1/meetings', {
+            'name': 'UTC stamp', 'start_datetime': '2026-10-28T21:55:00Z', 'end_datetime': '2026-10-28T22:55:00Z',
+        })
+        self.assertEqual(created.status_code, 201, created.text)
+        self.assertEqual(created.json()['meeting_date'], '2026-10-29')
+
+    def test_explicit_zero_offset_keeps_the_callers_calendar_day(self):
+        self._grant_meeting_create()
+        self.employee.tz = 'Asia/Riyadh'
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        created = self.api('POST', '/api/v1/meetings', {
+            'name': 'UTC browser', 'meeting_date': '2026-10-28',
+            'start_datetime': '2026-10-28T23:00:00+00:00', 'end_datetime': '2026-10-29T00:00:00+00:00',
+        })
+        self.assertEqual(created.status_code, 201, created.text)
+        self.assertEqual(created.json()['meeting_date'], '2026-10-28')
+
+    def test_minutes_pdf_engine_failure_is_a_503_pdf_unavailable(self):
+        self.employee.group_ids |= self.env.ref('webvue_meetings.group_cap_meetings_read')
+        meeting = self.env['webvue.meeting.minute'].create({
+            'state': 'draft', 'name': 'PDF down', 'organizer_id': self.employee.id,
+            'meeting_date': fields.Date.today(),
+        })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        reports = type(self.env['ir.actions.report'])
+        with patch.object(reports, '_render_qweb_pdf', side_effect=UserError('Unable to find Wkhtmltopdf')), \
+                patch.object(reports, 'get_wkhtmltopdf_state', return_value='install'):
+            response = self.url_open(f'/api/v1/meetings/{meeting.id}/minutes.pdf', method='GET')
+        self.assertEqual((response.status_code, response.json()['code']), (503, 'pdf_unavailable'))

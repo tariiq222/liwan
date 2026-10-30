@@ -17,6 +17,7 @@ async function fixture() {
   let maxActive = 0
   let hold = false
   let unavailable = false
+  let glitches = 0
   const upstream = http.createServer((req, res) => {
     req.resume()
     // Model the deployed two HTTP worker processes: a request retains one worker
@@ -36,6 +37,7 @@ async function fixture() {
       if (req.url !== '/api/v1/me') { res.end('application'); return }
       probes.push(req.headers.cookie ?? '')
       const respond = () => {
+        if (glitches > 0) { glitches--; res.statusCode = 503; res.end('{}'); return }
         if (unavailable) { res.statusCode = 503; res.end('{}'); return }
         if (req.headers.cookie?.startsWith('session_id=suspended')) { res.statusCode = 403; res.end(JSON.stringify({ code: 'tenant_suspended', message: 'this tenant is suspended' })); return }
         if (!req.headers.cookie?.startsWith('session_id=verified')) { res.statusCode = 403; res.end('{}'); return }
@@ -62,7 +64,7 @@ async function fixture() {
   return {
     probes, held,
     get entered() { return entered }, get active() { return active }, get maxActive() { return maxActive }, get waiting() { return waiting.length },
-    hold() { hold = true }, outage() { unavailable = true }, recover() { unavailable = false },
+    hold() { hold = true }, outage() { unavailable = true }, glitch(count: number) { glitches = count }, recover() { unavailable = false },
     release() { hold = false; for (const respond of held.splice(0)) respond() },
     call(session?: string) { return fetch(url, { headers: session ? { cookie: `session_id=${session}` } : {} }) },
     async close() {
@@ -205,7 +207,17 @@ it('serves a definitively rejected session from the negative cache but never cac
     expect((await wire.call('verified-flaky')).status).toBe(503)
     wire.recover()
     expect(await (await wire.call('verified-flaky')).text()).toBe('application')
-    expect(wire.probes.filter(probe => probe === 'session_id=verified-flaky')).toHaveLength(3)
+    expect(wire.probes.filter(probe => probe === 'session_id=verified-flaky')).toHaveLength(5)
+  } finally { await wire.close() }
+})
+
+it('repeats the probe once so one transient upstream failure does not fail a valid session', async () => {
+  const wire = await fixture()
+  try {
+    wire.glitch(1)
+    expect(await (await wire.call('verified-glitch')).text()).toBe('application')
+    wire.glitch(2)
+    expect((await wire.call('verified-glitch-2')).status).toBe(503)
   } finally { await wire.close() }
 })
 
@@ -271,6 +283,7 @@ it.each([
     await vi.waitFor(() => expect(wire.entered).toBe(CONSUMERS_PER_PROBE * 2 + 4))
     wire.release()
     expect((await Promise.all(again)).map(response => response.status)).toEqual(Array(CONSUMERS_PER_PROBE).fill(503))
-    expect(wire.probes).toEqual(['session_id=forged-same', 'session_id=forged-same'])
+    // Each unavailable burst probes twice (the one quick retry).
+    expect(wire.probes).toEqual(Array(4).fill('session_id=forged-same'))
   } finally { await wire.close(); await Promise.allSettled(attached) }
 })

@@ -8,6 +8,12 @@ describe('employee request boundary', () => {
     expect(operationRequestListParams('mine', false)).toEqual({ scope: 'mine', purpose: 'work' })
     expect(operationRequestListParams('pending', false)).toEqual({ scope: 'pending' })
   })
+  it('applies the selected request type only to the shared review and monitoring lists', () => {
+    expect(operationRequestListParams('pending', false, 'employee')).toEqual({ scope: 'pending', purpose: 'employee' })
+    expect(operationRequestListParams('monitoring', false, 'work')).toEqual({ scope: 'monitoring', purpose: 'work' })
+    expect(operationRequestListParams('mine', false, 'employee')).toEqual({ scope: 'mine', purpose: 'work' })
+    expect(operationRequestListParams('pending', true, 'work')).toEqual({ scope: 'mine', purpose: 'employee' })
+  })
   it('uses the strict own detail endpoint and isolates its cache by identity and company', async () => {
     const api = vi.fn().mockResolvedValue({ id: 9 })
     const identity = ref({ id: 7, company: { id: 1 } })

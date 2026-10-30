@@ -35,3 +35,14 @@ it('enforces personal readonly mode even when the employee has administrative fi
   view.state.upload({ target: { files: [{ name: 'blocked.txt', size: 1 }], value: '' } })
   expect(view.emit).not.toHaveBeenCalled(); view.stop()
 })
+it('offers rename or new-version choices for a duplicate name and uploads nothing until one is chosen', async () => {
+  const duplicate = { name: 'report.txt', size: 10 }
+  const view = await load('app/components/documents/DocumentFiles.vue', { document: documentFixture, files: [], duplicate })
+  expect(view.emit).not.toHaveBeenCalled()
+  expect(view.state.newNameValid.value).toBe(false)
+  view.state.newName.value = '  report-2.txt '
+  view.state.uploadRenamed(); expect(view.emit).toHaveBeenLastCalledWith('upload', duplicate, { name: 'report-2.txt' })
+  view.state.uploadAsVersion(); expect(view.emit).toHaveBeenLastCalledWith('upload', duplicate, { asVersion: true })
+  view.state.newName.value = 'a/b.txt'; view.emit.mockClear(); view.state.uploadRenamed()
+  expect(view.emit).not.toHaveBeenCalled(); view.stop()
+})

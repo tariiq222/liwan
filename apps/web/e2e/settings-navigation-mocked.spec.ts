@@ -46,6 +46,8 @@ const PROJECT_SETTINGS = {
   deadline_reminders_days_before: 1,
   overdue_digest_enabled: false,
   require_charter_approval: false,
+  close_with_open_tasks: 'block',
+  register_status_transitions: 'sequence',
   extensions: [],
 }
 const USERS = {
@@ -63,7 +65,7 @@ const BRANCH_ROLES = [
   { id: 4, key: 'finance_manager', active: true, name: { ar: 'Finance manager', en: 'Finance manager' }, company_id: null },
 ]
 const BRANCH_POLICY = {
-  version: 'b1-v1', mode: 'delegated',
+  version: 'b1-v1', mode: 'delegated', preset: 'independent_branches', strict_scopes: [] as string[],
   branches: [{ id: 2, name: 'Riyadh branch', inherit: false, role_ids: [] as number[] }, { id: 3, name: 'Jeddah branch', inherit: false, role_ids: [] as number[] }],
   roles: BRANCH_ROLES,
 }
@@ -77,7 +79,7 @@ const BRANCH_DELEGATION = {
 }
 
 function jsonFor(pathname: string): unknown {
-  if (pathname === '/api/v1/hr/shifts/settings') return { day_reference: 'company', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', today: '2026-10-23', revision: 0 }
+  if (pathname === '/api/v1/hr/shifts/settings') return { day_reference: 'company', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', today: '2026-10-23', default_schedule: { id: 7, name: 'دوام الأحد إلى الخميس' }, revision: 0 }
   if (pathname === '/api/v1/admin/access/branches') return BRANCH_POLICY
   if (pathname === '/api/v1/admin/users/18/branches') return BRANCH_DELEGATION
   if (pathname === '/api/v1/me') return ME
@@ -193,7 +195,7 @@ test('project settings open as a real page under Settings > Apps', async ({ page
   await expect(settingsProjects).toHaveAttribute('aria-expanded', 'true')
   await expect(page.getByTestId('application-navigation').locator('a[href="/settings/apps/projects"]')).toBeVisible()
   await expect(page.getByRole('region', { name: 'سياسة إنشاء المشاريع', exact: true }).getByRole('radiogroup')).toBeVisible()
-  await expect(page.locator('.webvue-settings-content [data-slot="record-section"]')).toHaveCount(4)
+  await expect(page.locator('.webvue-settings-content [data-slot="record-section"]')).toHaveCount(5)
   expect(new URL(page.url()).pathname).toBe('/settings/apps/projects')
   await page.screenshot({ path: testInfo.outputPath('submenu-projects-desktop-rtl.png'), fullPage: true })
 })
@@ -323,7 +325,7 @@ test('branch policy selects controlled inheritance and saves exact per-branch gr
     if (route.request().method() === 'PATCH') {
       submitted = route.request().postDataJSON()
       const body = submitted as unknown as { mode: string; branches: Array<{ id: number; inherit: boolean; role_ids: number[] }> }
-      policy = { ...policy, mode: body.mode, version: 'b1-v2', branches: policy.branches.map(branch => ({ ...branch, ...body.branches.find(row => row.id === branch.id) })) }
+      policy = { ...policy, mode: body.mode, preset: 'custom', version: 'b1-v2', branches: policy.branches.map(branch => ({ ...branch, ...body.branches.find(row => row.id === branch.id) })) }
     }
     await route.fulfill({ json: policy })
   })
@@ -335,9 +337,8 @@ test('branch policy selects controlled inheritance and saves exact per-branch gr
   await page.getByRole('checkbox').nth(0).check()
   await page.getByRole('checkbox', { name: 'Finance manager', exact: true }).first().check()
   await expect(page.getByRole('checkbox', { name: 'Finance manager', exact: true }).last()).toBeDisabled()
-  await page.getByRole('button', { name: 'حفظ', exact: true }).click()
-  await expect(page.getByText('حُفظت صلاحيات الفروع.', { exact: true })).toBeVisible()
-  expect(submitted).toMatchObject({ expected_version: 'b1-v1', mode: 'inherited', branches: [{ id: 2, inherit: true, role_ids: [4] }, { id: 3, inherit: false, role_ids: [] }] })
+  await page.getByRole('button', { name: 'حفظ التغييرات', exact: true }).click()
+  await expect.poll(() => submitted).toMatchObject({ expected_version: 'b1-v1', mode: 'inherited', branches: [{ id: 2, inherit: true, role_ids: [4] }, { id: 3, inherit: false, role_ids: [] }] })
   await page.setViewportSize({ width: 390, height: 844 })
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.screenshot({ path: testInfo.outputPath('branch-policy-mobile-rtl.png'), fullPage: true })
@@ -359,9 +360,8 @@ test('branch delegation keeps each custom role in its owning branch', async ({ p
   await expect(reader).toHaveCount(1)
   await expect(reader).toBeEnabled()
   await reader.check()
-  await page.getByRole('button', { name: 'حفظ', exact: true }).click()
-  await expect(page.getByText('حُفظت صلاحيات الفروع.', { exact: true })).toBeVisible()
-  expect(submitted).toMatchObject({ expected_version: BRANCH_DELEGATION.version, branches: [{ id: 2, role_ids: [8] }, { id: 3, role_ids: [] }] })
+  await page.getByRole('button', { name: 'حفظ التغييرات', exact: true }).click()
+  await expect.poll(() => submitted).toMatchObject({ expected_version: BRANCH_DELEGATION.version, branches: [{ id: 2, role_ids: [8] }, { id: 3, role_ids: [] }] })
   await page.screenshot({ path: testInfo.outputPath('branch-delegation-desktop-rtl.png'), fullPage: true })
 })
 
@@ -372,7 +372,7 @@ test('shift settings default to company timezone and save the user reference wit
   await page.route('**/api/v1/hr/shifts/settings', async route => {
     if (route.request().method() === 'PATCH') {
       submitted = route.request().postDataJSON()
-      await route.fulfill({ json: { day_reference: 'user', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', today: '2026-10-23', revision: 1 } })
+      await route.fulfill({ json: { day_reference: 'user', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', today: '2026-10-23', default_schedule: { id: 7, name: 'دوام الأحد إلى الخميس' }, revision: 1 } })
       return
     }
     if (submitted) { await route.abort('failed'); return }

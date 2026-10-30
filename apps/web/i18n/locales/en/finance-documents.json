@@ -125,6 +125,7 @@
       "journal": "Journal",
       "currency": "Currency",
       "debitOrigin": "Debit note of",
+      "creditOrigin": "Credit note of",
       "blockedByPayments": "It has registered payments",
       "blockedByPaymentsHint": "The document cannot be cancelled or reset to draft until its payments are cancelled or reset to draft.",
       "viewPayments": "View payments"
@@ -134,6 +135,7 @@
       "registerPayment": "Register payment",
       "pdf": "Download PDF",
       "debitNote": "Debit note",
+      "creditNote": "Credit note",
       "resetToDraft": "Reset to draft",
       "cancel": "Cancel document",
       "delete": "Delete draft",
@@ -150,7 +152,10 @@
       "resetHint": "Posting is undone and the lines can be edited again.",
       "debit": "Create a debit note for \"{name}\"?",
       "debitReason": "Reason (optional)",
-      "debitCopyLines": "Copy the lines to the note"
+      "debitCopyLines": "Copy the lines to the note",
+      "credit": "Create a credit note for \"{name}\"?",
+      "creditHint": "A draft credit note reversing all the lines is created; posting it lowers the invoice balance.",
+      "creditReason": "Reason (optional)"
     },
     "zatca": {
       "title": "ZATCA",

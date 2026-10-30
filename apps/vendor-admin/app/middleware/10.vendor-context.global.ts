@@ -7,4 +7,6 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const fetcher = useRequestFetch()
   await state.ensure(() => fetcher('/api/vendor/v1/context'))
   if (state.error.value?.statusCode === 401) return navigateTo({ path: '/login', query: { next: to.fullPath } })
+  // An account that holds no role is refused by the control plane: say so instead of showing a generic outage.
+  if (state.error.value?.statusCode === 403) throw createError({ statusCode: 403, statusMessage: 'forbidden', fatal: true })
 })

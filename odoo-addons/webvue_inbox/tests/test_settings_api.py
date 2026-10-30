@@ -11,11 +11,22 @@ class TestSettingsApi(WebVueInboxCase):
     def test_settings_read_and_patch(self):
         self.login(self.manager)
         body = self.get('/api/v1/settings/inbox').json()
-        self.assertEqual(set(body), {'visibility_policy', 'auto_close_hours', 'retention_months'})
-        self.assertEqual(body, {'visibility_policy': 'department', 'auto_close_hours': 72, 'retention_months': 24})
+        self.assertEqual(set(body), {
+            'visibility_policy', 'auto_close_hours', 'retention_months', 'assignment_policy', 'first_response_alert_minutes',
+        })
+        self.assertEqual(body, {
+            'visibility_policy': 'department', 'auto_close_hours': 72, 'retention_months': 24,
+            'assignment_policy': 'manual', 'first_response_alert_minutes': 0,
+        })
         patched = self.api('PATCH', '/api/v1/settings/inbox', {'visibility_policy': 'all', 'auto_close_hours': 0})
         self.assertEqual((patched.status_code, patched.json()['visibility_policy'], patched.json()['auto_close_hours']), (200, 'all', 0))
-        for bad in ({'visibility_policy': 'nobody'}, {'auto_close_hours': 721}, {'retention_months': 0}, {'retention_months': True}, {'x': 1}, {}):
+        both = self.api('PATCH', '/api/v1/settings/inbox', {'assignment_policy': 'least_open', 'first_response_alert_minutes': 15})
+        self.assertEqual((both.json()['assignment_policy'], both.json()['first_response_alert_minutes']), ('least_open', 15))
+        for bad in (
+            {'visibility_policy': 'nobody'}, {'auto_close_hours': 721}, {'retention_months': 0}, {'retention_months': True}, {'x': 1}, {},
+            {'assignment_policy': 'random'}, {'first_response_alert_minutes': 1441}, {'first_response_alert_minutes': -1},
+            {'first_response_alert_minutes': True},
+        ):
             self.assertError(self.api('PATCH', '/api/v1/settings/inbox', bad), 422, 'invalid')
 
     def test_settings_need_the_settings_capability(self):
@@ -46,7 +57,10 @@ class TestSettingsApi(WebVueInboxCase):
             counts.append(tuple(self.env[model].search_count([]) for model in (
                 'webvue.inbox.department', 'webvue.inbox.tag', 'webvue.inbox.canned.reply')))
         self.assertEqual(counts[0], counts[1])
-        self.assertEqual(result.json(), {'visibility_policy': 'assigned_only', 'auto_close_hours': 72, 'retention_months': 60})
+        self.assertEqual(result.json(), {
+            'visibility_policy': 'assigned_only', 'auto_close_hours': 72, 'retention_months': 60,
+            'assignment_policy': 'manual', 'first_response_alert_minutes': 0,
+        })
         names = set(self.env['webvue.inbox.department'].search([]).mapped('name'))
         self.assertTrue(set(PRESETS['public_service']['departments']) <= names)
         for key in ('clinic', 'store'):

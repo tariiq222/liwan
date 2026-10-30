@@ -63,6 +63,67 @@
           "body": "A temporary problem occurred. Try again shortly."
         }
       }
+    },
+    "settings": {
+      "title": "Appointment settings",
+      "saved": "Appointment settings saved",
+      "presets": {
+        "general": "General",
+        "clinic": "Clinic",
+        "services": "Services"
+      },
+      "preset": {
+        "title": "Sector preset",
+        "hint": "Sets the booking values and the requester fields together; adjust what you need in the next two cards.",
+        "label": "Preset",
+        "warning": "Applying replaces the values of the next two cards with the preset's own, even when it is the current preset.",
+      "apply": "Apply preset",
+      "applied": "Preset applied"
+      },
+      "booking": {
+        "title": "Booking times",
+        "hint": "The notice, horizon and length every booking route keeps.",
+        "invalid": "Enter a whole number from {min} to {max}.",
+        "default_slot_minutes": {
+          "label": "Default slot length (minutes)",
+          "hint": "New appointment types start with it."
+        },
+        "min_notice_hours": {
+          "label": "Minimum notice (hours)",
+          "hint": "A time closer than this cannot be booked."
+        },
+        "horizon_days": {
+          "label": "Furthest booking day (days)",
+          "hint": "A time further out than this cannot be booked."
+        },
+        "modification_deadline_hours": {
+          "label": "Modification deadline (hours)",
+          "hint": "This long before the start, the requester can no longer change or cancel."
+        }
+      },
+      "requester": {
+        "title": "Requester",
+        "hint": "What the requester is asked for and may do.",
+        "selfBooking": "Who can book",
+        "selfBookingHint": "Invite only is what is available now; open booking needs a public booking page that is not built yet.",
+        "policy": {
+          "invite_only": "Invite only",
+          "open": "Open to everyone"
+        },
+        "confirmation": "Requester confirmation",
+        "confirmationHint": "The appointment waits for the requester to confirm after booking.",
+        "fields": {
+          "phone_field": "Phone",
+          "email_field": "Email",
+          "national_id_field": "National ID",
+          "notes_field": "Notes"
+        },
+        "requirement": {
+          "required": "Required",
+          "optional": "Optional",
+          "hidden": "Hidden"
+        }
+      }
     }
   }
 }

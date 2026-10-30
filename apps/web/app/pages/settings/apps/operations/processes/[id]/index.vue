@@ -42,7 +42,7 @@ async function refresh() { if (disabled.value) return; selected.value = null; er
     @retry="hydrated && query.refetch()"
   >
     <template v-if="process && can('operations.processes.manage')" #actions>
-      <UButton color="neutral" variant="outline" :disabled="disabled" :to="recordChildTo(`/settings/apps/operations/processes/${process.id}/edit`, route.query, sourcePaths, route.hash)" :label="t('operations.edit')" />
+      <UButton v-if="process.state !== 'archived'" color="neutral" variant="outline" :disabled="disabled" :to="recordChildTo(`/settings/apps/operations/processes/${process.id}/edit`, route.query, sourcePaths, route.hash)" :label="t('operations.edit')" />
       <UButton v-if="process.state === 'draft'" :disabled="disabled" :label="t('operations.publish')" @click="choose('publish')" />
       <UButton v-if="process.state !== 'archived'" color="error" variant="outline" :disabled="disabled" :label="t('operations.archive')" @click="choose('archive')" />
     </template>
@@ -51,13 +51,14 @@ async function refresh() { if (disabled.value) return; selected.value = null; er
       <SharedInlineConfirm v-if="selected" :title="t(`operations.confirm.${selected}`)" :description="t(selected === 'archive' ? 'operations.archiveHelp' : 'operations.publishHelp')" :confirm-label="t(`operations.${selected}`)" :color="selected === 'archive' ? 'error' : 'primary'" :pending="pending" :disabled="disabled" @confirm="confirmDecision" @cancel="selected = null" />
       <SharedRecordSection variant="panel" :title="t('operations.description')"><p class="whitespace-pre-wrap text-sm leading-7">{{ process.description || t('operations.noDescription') }}</p></SharedRecordSection>
       <SharedRecordSection variant="panel" :title="t('operations.stages')">
-        <ol class="space-y-3"><OperationStepRow v-for="(step, index) in process.steps" :key="index" :number="index + 1" :name="step.name" :reviewers="step.reviewers" /></ol>
+        <ol class="space-y-3"><OperationStepRow v-for="(step, index) in process.steps" :key="index" :number="index + 1" :name="step.name" :reviewers="step.reviewers" :ineligible="step.reviewers.filter(person => step.ineligible_reviewer_ids.includes(person.user_id))" /></ol>
       </SharedRecordSection>
     </template>
     <template v-if="process" #aside>
       <SharedPropertiesPanel>
         <SharedPropertyRow :label="t('operations.result')" :value="t(`operations.executionKinds.${process.execution_kind === 'approval' || process.execution_kind === 'pmo_completion' ? process.execution_kind : 'other'}`)" />
         <SharedPropertyRow :label="t('operations.stages')" :value="t('operations.stageCount', { count: process.steps.length }, process.steps.length)" />
+        <SharedPropertyRow :label="t('operations.stageApprovalMode')" :value="t(`operations.stageApprovalModes.${process.stage_approval_mode}`)" />
       </SharedPropertiesPanel>
     </template>
   </SharedRecordPage>

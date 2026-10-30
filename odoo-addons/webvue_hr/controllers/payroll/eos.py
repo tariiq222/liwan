@@ -27,8 +27,9 @@ EOS_ROUTE = '/api/v1/hr/payroll/eos'
 CASE_CONFLICT = 'the end-of-service case of this reason changed; reload before saving'
 
 
-def _settlement(employee):
-    settlement = request.env['webvue.hr.payroll.eos.settlement']._webvue_current(employee)
+def _settlement(employee, *, shown=False):
+    Settlement = request.env['webvue.hr.payroll.eos.settlement']
+    settlement = Settlement._webvue_shown(employee) if shown else Settlement._webvue_current(employee)
     if not settlement:
         raise ApiError(404, 'not_found', 'the employee has no final settlement')
     return settlement
@@ -62,7 +63,7 @@ class HrPayrollEosController(http.Controller):
     @requires_feature('hr.enabled', 'hr.payroll', operation='read')
     @requires_capability('hr.payroll.read')
     def get_settlement(self, employee_id, **_):
-        return dump_settlement(_settlement(payroll_employee(employee_id)))
+        return dump_settlement(_settlement(payroll_employee(employee_id), shown=True))
 
     @http.route(f'{EOS_ROUTE}/<int:employee_id>/settlement', type='json2', auth='user', methods=['PUT'], readonly=False)
     @api_handler

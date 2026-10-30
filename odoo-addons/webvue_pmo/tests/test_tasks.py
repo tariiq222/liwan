@@ -505,10 +505,11 @@ class TestTaskListSort(WebVuePmoCase):
         self.assertEqual(self.ids('&sort=priority desc'), urgent + normal)
         self.assertEqual(self.ids('&sort=priority asc'), normal + urgent)
 
-    def test_unknown_sort_keys_are_ignored(self):
-        self.assertEqual(self.ids('&sort=nonsense desc'), self.by_id)
-        self.assertEqual(self.ids('&sort=state desc'), self.by_id)
-        self.assertEqual(self.ids('&sort=id;drop table'), self.by_id)
+    def test_unknown_sort_keys_and_directions_are_refused(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        for query in ('zzz', 'nonsense desc', 'state desc', 'id;drop table', 'id sideways'):
+            res = self.api('GET', f'/api/v1/tasks?filter=mine&sort={query}')
+            self.assertEqual((res.status_code, res.json()['code'], res.json()['field']), (422, 'invalid', 'sort'), query)
 
     def test_sort_is_applied_before_paging(self):
         self.assertEqual(self.ids('&sort=id desc&limit=2&offset=1'), self.by_id[::-1][1:3])

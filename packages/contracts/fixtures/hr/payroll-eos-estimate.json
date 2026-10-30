@@ -1,6 +1,7 @@
 {
   "award": 15750.0,
   "case": "termination",
+  "currency": "SAR",
   "employee": {
     "id": 1,
     "name": "Eos Leaver"

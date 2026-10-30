@@ -10,7 +10,7 @@ const group = (count: number, withPhotos = false) => names.slice(0, count).map((
 const meta = {
   title: 'Shared/PersonAvatar',
   component: PersonAvatar,
-  parameters: storyContext('apps/web/app/components/pmo/tasks/TaskTable.vue:129', 'أفاتارات بلا نص اسم: شخص واحد دائرة، وأكثر من شخص كومة متراكبة (حتى 3، الأول فوق، هامش منطقي سالب وحلقة بلون السطح) ثم دائرة `+N` واحدة. الصورة اختيارية (`src`) وإلا حروف الاسم بلون ناعم ثابت لكل شخص. المجموعة كلها تلميح واحد واسم مسموع.'),
+  parameters: storyContext('apps/web/app/components/pmo/tasks/TaskTable.vue:131', 'أفاتارات بلا نص اسم: شخص واحد دائرة، وأكثر من شخص كومة متراكبة (حتى 3، الأول فوق، هامش منطقي سالب وحلقة بلون السطح) ثم دائرة `+N` واحدة. الصورة اختيارية (`src`) وإلا حروف الاسم بلون ناعم ثابت لكل شخص. المجموعة كلها تلميح واحد واسم مسموع.'),
   args: { people: group(1) },
   render: args => ({
     components: { PersonAvatar },

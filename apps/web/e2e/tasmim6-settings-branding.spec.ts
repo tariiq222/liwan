@@ -42,19 +42,19 @@ test.describe('Plan 6d: branding', () => {
       await page.route('**/api/v1/admin/branding', async (route) => { await gate; await route.fallback() })
       await openShell(page, '/projects')
       await page.evaluate(() => (window as unknown as { useNuxtApp: () => { $router: { push: (to: string) => Promise<unknown> } } }).useNuxtApp().$router.push('/settings/company#branding'))
-      const skeleton = page.locator('#branding [data-slot="loading-skeleton"]')
-      await expect(skeleton).toBeVisible()
+      const skeleton = page.locator('[data-slot="loading-skeleton"]')
+      await expect(skeleton.first()).toBeVisible()
       release()
       await expect(skeleton).toHaveCount(0)
       await expect(page.getByTestId('branding-form')).toBeVisible()
     })
 
-    test('a failing load keeps its own alert with a retry', async ({ page }) => {
+    test('a failing load shows the shared error state with a retry', async ({ page }) => {
       await openShell(page, '/projects')
       await page.route('**/api/v1/admin/branding', route => route.fulfill({ status: 500, contentType: 'application/json', body: '{"code":"server_error","message":"boom"}' }))
       await page.evaluate(() => (window as unknown as { useNuxtApp: () => { $router: { push: (to: string) => Promise<unknown> } } }).useNuxtApp().$router.push('/settings/company#branding'))
-      await expect(page.getByTestId('branding-load-error')).toBeVisible()
-      await expect(page.getByTestId('branding-retry')).toBeEnabled()
+      await expect(page.locator('[data-slot="error-state"]')).toBeVisible()
+      await expect(page.locator('[data-slot="error-state"]').getByRole('button', { name: 'إعادة المحاولة' })).toBeEnabled()
     })
   })
 

@@ -9,6 +9,22 @@ from .protected_write import marked
 BRANCH_POLICY_MARKER = 'webvue_core.branch_policy'
 BRANCH_METADATA_MARKER = 'webvue_core.branch_metadata_company'
 BRANCH_MODES = ('isolated', 'delegated', 'inherited')
+# Layer 1 of the branch policy: one sentence a tenant picks, mapped onto the mode and the
+# per-branch inheritance rules. The stored policy stays the only source of truth; the preset
+# is derived from it and reads 'custom' as soon as the details no longer match any of them.
+BRANCH_PRESET_MODES = {
+    'single_company': 'delegated',
+    'central_branches': 'inherited',
+    'independent_branches': 'delegated',
+    'group_of_companies': 'isolated',
+}
+UNPRESET_ROLE_KEYS = ('employee',)
+
+
+def _require_branch_policy_marker(env):
+    if not env.is_superuser() and env.company.id not in env.cr.precommit.data.get(BRANCH_POLICY_MARKER, set()):
+        msg = 'use_protected_webvue_access_operation'
+        raise AccessError(msg)
 
 
 class WebVueAccessBranchRule(models.Model):
@@ -33,26 +49,51 @@ class WebVueAccessBranchRule(models.Model):
                 msg = 'invalid_branch_role'
                 raise ValidationError(msg)
 
-    def _require_protected(self):
-        if not self.env.is_superuser() and self.env.company.id not in self.env.cr.precommit.data.get(BRANCH_POLICY_MARKER, set()):
-            msg = 'use_protected_webvue_access_operation'
-            raise AccessError(msg)
-
     @api.model_create_multi
     def create(self, vals_list):
-        self._require_protected()
+        _require_branch_policy_marker(self.env)
         result = super().create(vals_list)
         self.env['webvue.access.service']._webvue_clear_branch_cache()
         return result
 
     def write(self, vals):
-        self._require_protected()
+        _require_branch_policy_marker(self.env)
         result = super().write(vals)
         self.env['webvue.access.service']._webvue_clear_branch_cache()
         return result
 
     def unlink(self):
-        self._require_protected()
+        _require_branch_policy_marker(self.env)
+        result = super().unlink()
+        self.env['webvue.access.service']._webvue_clear_branch_cache()
+        return result
+
+
+class WebVueAccessBranchStrict(models.Model):
+    """One row per application scope the tenant keeps out of branch inheritance."""
+    _name = 'webvue.access.branch.strict'
+    _description = 'WebVue Stricter Branch Scope'
+    _webvue_scope = 'company'
+
+    company_id = fields.Many2one('res.company', required=True, index=True, ondelete='cascade')
+    scope = fields.Char(required=True)
+    _scope_unique = models.Constraint('UNIQUE(company_id, scope)', 'strict scope must be unique')
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        _require_branch_policy_marker(self.env)
+        result = super().create(vals_list)
+        self.env['webvue.access.service']._webvue_clear_branch_cache()
+        return result
+
+    def write(self, vals):
+        _require_branch_policy_marker(self.env)
+        result = super().write(vals)
+        self.env['webvue.access.service']._webvue_clear_branch_cache()
+        return result
+
+    def unlink(self):
+        _require_branch_policy_marker(self.env)
         result = super().unlink()
         self.env['webvue.access.service']._webvue_clear_branch_cache()
         return result
@@ -127,7 +168,58 @@ class WebVueBranchAccessService(models.AbstractModel):
                AND role.active AND role.assignable AND role.type = 'built_in' AND role.company_id IS NULL
                AND assignment.user_id = %s AND assignment.company_id = %s
         ''', [root.id, company.id, user.id, root.id])
-        return {key for key, in self.env.cr.fetchall()}
+        return self._webvue_branch_strict_narrow({key for key, in self.env.cr.fetchall()})
+
+    @api.model
+    def _webvue_branch_strict_definitions(self):
+        """Scope key to (covered key prefix, prefixes left to another scope); each application adds its own."""
+        return {}
+
+    @api.model
+    def _webvue_branch_strict_enabled(self):
+        self.env['webvue.access.branch.strict'].flush_model(['company_id', 'scope'])
+        self.env.cr.execute('SELECT scope FROM webvue_access_branch_strict WHERE company_id = %s', [self.env.company.id])
+        return {scope for scope, in self.env.cr.fetchall()}
+
+    @api.model
+    def _webvue_branch_strict_narrow(self, keys):
+        """Drop the capabilities a stricter scope keeps out of inheritance; it only ever narrows."""
+        enabled = self._webvue_branch_strict_enabled()
+        blocked = tuple(prefixes for scope, prefixes in self._webvue_branch_strict_definitions().items() if scope in enabled)
+        return {key for key in keys
+                if not any(key.startswith(covered) and not key.startswith(left) for covered, left in blocked)}
+
+    @api.model
+    def _webvue_branch_strict_state(self, scope):
+        if scope not in self._webvue_branch_strict_definitions():
+            msg = 'invalid'
+            raise WebVueAccessRule(msg, field='scope')
+        return {'scope': scope, 'enabled': scope in self._webvue_branch_strict_enabled()}
+
+    @api.model
+    def _webvue_set_branch_strict(self, scope, enabled):
+        """Switch one scope; the calling route has already checked the owning application's settings capability."""
+        self._webvue_branch_strict_state(scope)
+        if type(enabled) is not bool:
+            msg = 'invalid'
+            raise WebVueAccessRule(msg, field='enabled')
+        root = self.env.company
+        self._webvue_lock_company(root)
+        before = sorted(self._webvue_branch_strict_enabled())
+        Strict = self.env['webvue.access.branch.strict']
+        with marked(self.env, {BRANCH_POLICY_MARKER: {root.id}}):
+            row = Strict.search([('company_id', '=', root.id), ('scope', '=', scope)])
+            if enabled and not row:
+                Strict.create({'company_id': root.id, 'scope': scope})
+            elif not enabled and row:
+                row.unlink()
+        after = sorted(self._webvue_branch_strict_enabled())
+        if after != before:
+            self._webvue_bump_policy(root)
+            self.env['webvue.access.audit']._webvue_log(
+                'branch.policy_changed', root, before={'strict_scopes': before}, after={'strict_scopes': after},
+                actor=self.env.user)
+        return self._webvue_branch_strict_state(scope)
 
     @api.model
     def _webvue_capability_company_ids(self, keys, match='all'):
@@ -285,12 +377,51 @@ class WebVueBranchAccessService(models.AbstractModel):
         by_branch = {rule.branch_id.id: rule for rule in rules}
         branches = self._webvue_descendant_memberships()
         selected = self._webvue_selected_branch_role_ids(branches)
-        return {'version': self._webvue_branch_policy_version(), 'mode': self.env.company.webvue_branch_access_mode,
-                'branches': [{'id': branch.id, 'name': branch.name,
-                              'inherit': bool(by_branch.get(branch.id) and by_branch[branch.id].inherit),
-                              'role_ids': selected[branch.id]}
-                             for branch in branches],
+        items = [{'id': branch.id, 'name': branch.name,
+                  'inherit': bool(by_branch.get(branch.id) and by_branch[branch.id].inherit),
+                  'role_ids': selected[branch.id]}
+                 for branch in branches]
+        mode = self.env.company.webvue_branch_access_mode
+        return {'version': self._webvue_branch_policy_version(), 'mode': mode,
+                'preset': self._webvue_derive_branch_preset(mode, items),
+                'strict_scopes': sorted(self._webvue_branch_strict_enabled()), 'branches': items,
                 'roles': self._webvue_branch_role_catalog(selected=selected)}
+
+    @api.model
+    def _webvue_preset_role_ids(self):
+        """The parent's management roles: every assignable built-in role except the plain employee."""
+        return self.env['webvue.access.role'].search([
+            ('type', '=', 'built_in'), ('company_id', '=', False), ('assignable', '=', True),
+            ('key', 'not in', UNPRESET_ROLE_KEYS),
+        ]).ids
+
+    @api.model
+    def _webvue_derive_branch_preset(self, mode, branches):
+        if mode == 'inherited':
+            managed = set(self._webvue_preset_role_ids())
+            matches = all(branch['inherit'] and set(branch['role_ids']) == managed for branch in branches)
+            return 'central_branches' if matches else 'custom'
+        if any(branch['inherit'] or branch['role_ids'] for branch in branches):
+            return 'custom'
+        if mode == 'isolated':
+            return 'group_of_companies'
+        return 'independent_branches' if branches else 'single_company'
+
+    @api.model
+    def _webvue_apply_branch_preset(self, expected, preset):
+        """Write a preset through the one protected policy operation; it never bypasses it."""
+        self._webvue_require_branch_admin()
+        if not isinstance(preset, str) or preset not in BRANCH_PRESET_MODES:
+            msg = 'invalid'
+            raise WebVueAccessRule(msg, field='preset')
+        branches = self._webvue_descendant_memberships()
+        if preset == 'single_company' and branches:
+            msg = 'invalid'
+            raise WebVueAccessRule(msg, 'a company with branches cannot use the single company preset', field='preset')
+        central = preset == 'central_branches'
+        role_ids = self._webvue_preset_role_ids() if central else []
+        changes = [{'id': branch.id, 'inherit': central, 'role_ids': role_ids} for branch in branches]
+        return self._webvue_update_branch_policy(expected, BRANCH_PRESET_MODES[preset], changes)
 
     @api.model
     def _webvue_check_branch_version(self, expected, user=None):

@@ -388,13 +388,25 @@ cross-addon links.
   online orders a selling application creates, cancels and reads after authorizing its own record (its
   user holds no sales rights): order and line create with server values only (no price or amount
   parameter), stock `_action_cancel`, the payment summary and the pay link of an authorized document,
-  every returned record unelevated; and in `models/payments_settings.py`, for the one whitelisted
+  every returned record unelevated, and for the company's payments staff: the online orders list and
+  detail of the current company after `payments.orders.read`, and a recorded refund after `payments.refund`
+  (refund children of the paid transactions, the outbound payment and the credit notes, the amount bounded
+  by the amount due); in `models/refund_policy.py`, for the refund rules of a product a selling application
+  sells, after it authorized its own record; and in `models/payments_settings.py`, for the one whitelisted
   tenant-wide stock parameter `sale.automatic_invoice`: read by the server when it decides, and written
   only after the `payments.settings.manage` check in the tenant's root company.
   `webvue_appointments_payments` uses it only in `models/resource_booking_type.py`, for the product
   that sells a paying booking type: its price (and its creation, named after the type and linked to it)
   after the `appointments.bookings.manage` check in the type's company, and the name sync after the
   caller's own rename of the type; appointments managers hold no product rights.
+  `webvue_inbox_payments` uses it only for four bounded reads and writes of the WhatsApp catalog bridge, each after
+  its own check: in `models/contact.py`, creating the `res.partner` of an inbox contact with server values only, after
+  the `inbox.orders.manage` check (stock gives employees read-only partners); in `models/sale_order.py`, looking up the
+  ids of the inbox order lines of a sale order that stock payment post-processing or the expiry cron confirms or
+  cancels (the order is browsed back unelevated); in `models/order.py`, writing the conversation note and the
+  automated paid-notice reply of that payment event, which the cron or payer identity cannot write; and in
+  `controllers/images.py`, reading the image of one listed catalog item for the public product image route, after a
+  constant-time token match (the public user holds no product read).
   `webvue_api` uses it in `controllers/common.py` only for the single company-ownership
   read in `get_record`, before any access check, so another company's record answers the
   same 404 not-found as a missing one instead of a 403 that leaks its existence; in

@@ -2,7 +2,7 @@
 {
     'name': 'webvue Meetings',
     'summary': 'webvue platform: meetings, series, minutes and recommendations — /api/v1/meetings, /api/v1/meeting-series',
-    'version': '19.0.1.3.0',
+    'version': '19.0.1.4.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi, Cyan',
     'license': 'LGPL-3',
@@ -12,8 +12,8 @@
     # webvue_directory: the population of meeting participants and the keys that open /api/v1/people.
     # calendar: the calendar events a meeting links to and the recurrences of a series.
     # mail: the meeting source column of a bell row.
-    # webvue_meetings owns the three meetings.* capabilities, their groups and the meeting
-    # record rules (spec R2). Links to projects and tasks are the bridge webvue_meetings_pmo's.
+    # webvue_meetings owns the four meetings.* capabilities (read, create, manage, settings.manage), their groups,
+    # the meeting organizer role and the meeting record rules (spec R2). Links to projects and tasks are the bridge webvue_meetings_pmo's.
     'depends': [
         'webvue_api', 'webvue_platform', 'webvue_notify', 'webvue_directory',
         'calendar', 'mail',
@@ -23,6 +23,7 @@
         'data/meeting_access_permissions.xml',
         'security/ir.model.access-meetings.csv',
         'security/meeting_series_rules.xml',
+        'security/meeting_settings_rules.xml',
         'security/meeting_access.xml',
         'data/meeting_sequence.xml',
         'data/meeting_reminder_cron.xml',

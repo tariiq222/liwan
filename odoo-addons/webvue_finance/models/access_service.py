@@ -73,6 +73,10 @@ class WebVueFinanceAccessService(models.AbstractModel):
     _inherit = 'webvue.access.service'
 
     @api.model
+    def _webvue_branch_strict_definitions(self):
+        return {**super()._webvue_branch_strict_definitions(), 'finance': ('finance.', ())}
+
+    @api.model
     def _webvue_capability_definitions(self):
         return super()._webvue_capability_definitions() + tuple(
             {'key': key, 'owner': 'webvue_finance'} for key in sorted(FINANCE_PERMISSIONS)

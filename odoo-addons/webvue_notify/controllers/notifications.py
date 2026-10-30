@@ -19,6 +19,7 @@ class NotificationController(http.Controller):
     @requires_registered_feature(
         'webvue.notify.registry', '_webvue_notify_feature_keys',
         keys=('registry:webvue.notify.registry',), operation='read', match='any',
+        open_method='_webvue_notify_has_platform_kind',
     )
     def list_notifications(self, **_):
         args = request.httprequest.args

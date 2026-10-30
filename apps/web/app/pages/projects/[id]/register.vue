@@ -4,6 +4,8 @@ import { useProjectRegister, useDeleteProjectRegister } from '@/composables/useP
 import { governanceFilters } from '@/composables/projectGovernanceKeys'
 import { REGISTER_PRIORITY_TONE, REGISTER_STATUS_TONE, registerScoreTone } from '@/components/pmo/projects/governance/state'
 import { ApiError } from '@/composables/useApi'
+import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState.vue'
+import { useProjectMissing } from '@/composables/useProjects'
 import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
 import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
@@ -18,6 +20,7 @@ const isListRoute = computed(() => {
   return rest === '' || rest === '/new'
 })
 const id = computed(() => Number(route.params.id))
+const notFound = useProjectMissing(id)
 const parsed = computed(() => governanceFilters(route.query))
 const filters = computed(() => (parsed.value))
 const list = useProjectRegister(computed(() => isListRoute.value ? id.value : null), filters)
@@ -139,8 +142,9 @@ function openLiveItem(event: MouseEvent, item: { id: number }) {
 </script>
 
 <template>
+  <ProjectNotFoundState v-if="isListRoute && notFound" />
   <SharedListPage
-    v-if="isListRoute"
+    v-else-if="isListRoute"
     hide-header
     :title="t('projects.refresh.workspace.registerTitle')"
     :create-to="createTo"

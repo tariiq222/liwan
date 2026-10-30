@@ -7,7 +7,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../../../composables/useApi'
 import { saveErrorMessage } from '../../../../utils/formFeedback'
 
-const initial = { day_reference: 'company', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', today: '2026-10-23', revision: 0 }
+const initial = { day_reference: 'company', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', today: '2026-10-23', default_schedule: { id: 7, name: 'Sun-Thu' }, revision: 0 }
+const schedules = { items: [{ id: 7, name: 'Sun-Thu' }, { id: 9, name: 'Every day' }] }
 function load(hydrated = true, canEdit = true) {
   const filename = resolve(import.meta.dirname, '../ShiftSettingsForm.vue')
   const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
@@ -20,6 +21,7 @@ function load(hydrated = true, canEdit = true) {
     _defineComponent: Vue.defineComponent, computed: Vue.computed, ref: Vue.ref, watch: Vue.watch,
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(hydrated),
     usePatchHrShiftSettings: () => ({ mutateAsync: save, isPending: Vue.ref(false) }),
+    useHrShiftSchedules: () => ({ data: Vue.ref(schedules) }),
     ApiError, saveErrorMessage,
   }
   const component = new Function(...Object.keys(bindings), code)(...Object.values(bindings))
@@ -47,6 +49,20 @@ describe('shift settings draft', () => {
     await state.submit()
     expect(save).toHaveBeenCalledWith({ day_reference: 'user', revision: 0 })
     expect(state.dirty.value).toBe(false)
+  })
+  it('offers the active schedules and always keeps the current default selectable', () => {
+    const { state, props } = load()
+    expect(state.scheduleItems.value).toEqual([{ value: 7, label: 'Sun-Thu' }, { value: 9, label: 'Every day' }])
+    props.settings = { ...initial, default_schedule: { id: 3, name: 'Archived week' } }
+    state.baseline.value = props.settings
+    expect(state.scheduleItems.value[0]).toEqual({ value: 3, label: 'Archived week' })
+  })
+  it('sends the default schedule only when it changed', async () => {
+    const { state, save } = load()
+    state.defaultSchedule.value = 9
+    expect(state.dirty.value).toBe(true)
+    await state.submit()
+    expect(save).toHaveBeenCalledWith({ day_reference: 'company', default_schedule_id: 9, revision: 0 })
   })
   it('refreshes a clean form from server state', async () => {
     const { state, props } = load()

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { refDebounced } from '@vueuse/core'
-import { usePeople } from '@/composables/usePeople'
+import { PEOPLE_ENDPOINT, usePeople } from '@/composables/usePeople'
 
 export interface PickedPerson { id: number; name: string }
 
@@ -9,7 +9,8 @@ export interface PickedPerson { id: number; name: string }
 // roles, `id` for task assignees. `known` supplies names for ids that are
 // selected but not in the current search results. `options` restricts the
 // choice to a fixed list (for example a meeting's participants) and searches
-// it locally instead of calling the people API.
+// it locally instead of calling the people API. `endpoint` swaps the search source for another route that answers the
+// same person list (`?q=`), for a role that only some people can take; the default stays /api/v1/people.
 const props = withDefaults(defineProps<{
   modelValue: number | number[] | null
   multiple?: boolean
@@ -19,10 +20,11 @@ const props = withDefaults(defineProps<{
   disabled?: boolean
   exclude?: number[]
   options?: PickedPerson[]
+  endpoint?: string
   id?: string
   ariaLabel?: string
   ariaLabelledby?: string
-}>(), { valueKey: 'id', multiple: false })
+}>(), { valueKey: 'id', multiple: false, endpoint: PEOPLE_ENDPOINT })
 const emit = defineEmits<{
   'update:modelValue': [value: number | number[] | null]
   resolve: [people: PickedPerson[]]
@@ -32,7 +34,7 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 const q = ref('')
 const search = refDebounced(q, 250)
-const { data: remotePeople } = usePeople(search, computed(() => !props.options))
+const { data: remotePeople } = usePeople(search, computed(() => !props.options), computed(() => props.endpoint))
 const people = computed(() => props.options
   ? props.options
     .filter(person => !q.value.trim() || person.name.toLowerCase().includes(q.value.trim().toLowerCase()))

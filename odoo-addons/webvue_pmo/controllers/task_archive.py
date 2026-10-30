@@ -6,6 +6,7 @@ from odoo.http import request
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
+    parse_nonneg_int,
     require_capabilities,
     requires_feature,
 )
@@ -50,6 +51,9 @@ class TaskArchiveController(http.Controller):
         unknown = set(args) - {'project_id', 'filter', 'q', 'limit', 'offset'}
         if unknown:
             raise ApiError(400, 'unsupported_filter', f"unsupported query parameter {sorted(unknown)[0]!r}")
+        # Paging is validated first, so a bad limit or offset is a 422 whatever scope was passed.
+        limit = parse_nonneg_int(args.get('limit', 50), 'limit')
+        offset = parse_nonneg_int(args.get('offset', 0), 'offset')
         filter_ = args.get('filter')
         if filter_ not in (None, 'mine'):
             raise ApiError(400, 'unsupported_filter', "filter must be 'mine'")
@@ -64,8 +68,6 @@ class TaskArchiveController(http.Controller):
         if project_id is None and filter_ != 'mine':
             raise ApiError(400, 'unsupported_filter', 'pass filter=mine and/or project_id')
 
-        limit = _parse_page(args.get('limit', 50), 'limit')
-        offset = _parse_page(args.get('offset', 0), 'offset')
         company_id = request.env.company.id
         Task = request.env['project.task'].with_context(active_test=False)
         # Restoration is impossible while the parent project is archived;
@@ -133,13 +135,3 @@ class TaskArchiveController(http.Controller):
         except AccessError as error:
             raise ApiError(403, 'forbidden', str(error)) from error
         return dump_task_detail(task)
-
-
-def _parse_page(value, field):
-    try:
-        value = int(value)
-    except (TypeError, ValueError):
-        raise ApiError(422, 'invalid', 'limit and offset must be non-negative integers', field=field) from None
-    if value < 0:
-        raise ApiError(422, 'invalid', 'limit and offset must be non-negative integers', field=field)
-    return value

@@ -151,9 +151,13 @@ class TestAppointmentGuest(WebVueAppointmentsCase):
 
     def test_slots_have_the_shape_and_the_notice_and_horizon_bounds(self):
         self._settings(min_notice_hours=72, horizon_days=6)
+        # The horizon counts calendar days in the type's timezone, which is a day ahead of UTC late in the UTC day.
+        booking = self._call('GET', self.invited).json()
+        first, last = booking['first_bookable_date'], booking['last_bookable_date']
         today = datetime.now(UTC).date()
-        window = {'from': today, 'to': today + timedelta(days=6)}
-        response = self._call('GET', self.invited, '/slots', **window)
+        self.assertIn(first, (str(today - timedelta(days=1)), str(today), str(today + timedelta(days=1))))
+        self.assertEqual(date.fromisoformat(last) - date.fromisoformat(first), timedelta(days=6))
+        response = self._call('GET', self.invited, '/slots', **{'from': first, 'to': last})
         self.assertEqual(response.status_code, 200, response.text)
         body = response.json()
         self.assertGreater(body['total'], 0)
@@ -163,16 +167,8 @@ class TestAppointmentGuest(WebVueAppointmentsCase):
             start = datetime.strptime(item['start'], UTC_FORMAT)
             self.assertGreaterEqual(start, now + timedelta(hours=72) - timedelta(minutes=1))
             self.assertLessEqual(start, now + timedelta(days=6))
-        beyond = {'from': today, 'to': today + timedelta(days=7)}
-        self._error(self._call('GET', self.invited, '/slots', **beyond), 422, 'invalid', 'to')
-        # The booking tells the page the type's calendar days it may ask for: from its today to the horizon, and a
-        # request for exactly the last of them is accepted.
-        booking = self._call('GET', self.invited).json()
-        first, last = booking['first_bookable_date'], booking['last_bookable_date']
-        self.assertIn(first, (str(today - timedelta(days=1)), str(today), str(today + timedelta(days=1))))
-        self.assertEqual(date.fromisoformat(last) - date.fromisoformat(first), timedelta(days=6))
-        self.assertEqual(self._call('GET', self.invited, '/slots', **{'from': today, 'to': last}).status_code, 200)
-        self._error(self._call('GET', self.invited, '/slots', **{'from': today, 'to': date.fromisoformat(last) + timedelta(days=1)}), 422, 'invalid', 'to')
+        # A request for exactly the last bookable day was accepted above; one day beyond it is refused.
+        self._error(self._call('GET', self.invited, '/slots', **{'from': first, 'to': date.fromisoformat(last) + timedelta(days=1)}), 422, 'invalid', 'to')
         self._error(self._call('GET', self.invited, '/slots', **{'from': 'x', 'to': 'y'}), 422, 'invalid', 'from')
 
     def test_slots_accept_no_choice_of_resources(self):
@@ -350,6 +346,11 @@ class TestAppointmentGuest(WebVueAppointmentsCase):
         self.assertEqual(self._invitation(fresh).json()['path'], path)
         self.logout()
         self.assertEqual(self._call('GET', fresh, token=path.split('=')[1]).status_code, 200)
+
+    def test_the_invitation_refuses_any_body_key(self):
+        self.authenticate('appointments_booker', 'appointments_booker_pass_123')
+        response = self.api('POST', '/api/v1/appointments/bookings/%d/invitation' % self.invited.id, {'x': 1})
+        self.assertEqual((response.status_code, response.json()['code'], response.json()['field']), (422, 'invalid', 'x'))
 
     def test_the_engine_portal_link_points_to_the_webvue_page(self):
         self.assertEqual(self.invited.access_url, '/book/%d' % self.invited.id)

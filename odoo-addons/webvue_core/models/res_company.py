@@ -39,6 +39,25 @@ class ResCompany(models.Model):
         ondelete={'IBM_Plex_Sans_Arabic': 'set default'},
     )
 
+    @api.model
+    def _webvue_marked_write_fields(self):
+        """Extension point: ``{marker: fields}`` an application's own guarded operation may write.
+
+        Each application owns its marker and writes through ``marked``; the core guard below lets
+        a marked write of exactly those fields through for a caller holding a settings capability.
+        """
+        return {}
+
+    @api.model
+    def _webvue_application_write_fields(self):
+        """The applications' marked fields, refused when one names a structural field."""
+        declared = self._webvue_marked_write_fields()
+        for marker, names in declared.items():
+            if EXTENSION_BLOCKED_FIELDS.intersection(names):
+                msg = 'company write marker %s names a structural field' % marker
+                raise ValueError(msg)
+        return declared
+
     @api.model_create_multi
     def create(self, vals_list):
         if not self.env.is_system():
@@ -60,17 +79,15 @@ class ResCompany(models.Model):
         ):
             raise AccessError(self.env._('Only Odoo system administrators can change institution name and logo.'))
         service = self.env['webvue.access.service']
-        if (
-            not self.env.is_superuser()
-            and not self.env.user.has_group('base.group_system')
-            and (
-                service._webvue_has_capability(self.env.user, 'settings.branding.manage')
-                or service._webvue_has_capability(self.env.user, 'settings.company.manage')
-                or service._webvue_has_capability(self.env.user, 'access.users.assign_roles')
-            )
-        ):
+        # Default deny: whichever group an addon grants the company write ACL to, a caller who is not
+        # an Odoo administrator writes only through one of the marked operations below.
+        if not self.env.is_superuser() and not self.env.user.has_group('base.group_system'):
             branding_allowed = is_marked_write(self, BRANDING_COMPANY_MARKER, BRANDING_COMPANY_FIELDS, vals)
-            if not (branding_allowed or profile_allowed or (
+            application_allowed = any(
+                is_marked_write(self, marker, fields, vals)
+                for marker, fields in self._webvue_application_write_fields().items()
+            )
+            if not (branding_allowed or profile_allowed or application_allowed or (
                 set(vals) == {'webvue_branch_access_mode'}
                 and self.id in self.env.cr.precommit.data.get('webvue_core.branch_policy', set())
             )):
@@ -99,7 +116,9 @@ class ResCompany(models.Model):
             msg = 'invalid_branding_fields'
             raise AccessError(msg)
         with marked(self.env, {BRANDING_COMPANY_MARKER: {self.id}, PARTNER_BRANDING_MARKER: {self.partner_id.id}}):
-            return super().write(vals)
+            result = super().write(vals)
+        self._webvue_log_company_change('company.branding_changed', vals)
+        return result
 
     def _webvue_write_company_profile(self, vals):
         """Write whitelisted identity, address and contact fields of the current company.
@@ -118,7 +137,16 @@ class ResCompany(models.Model):
             msg = 'invalid_company_profile_fields'
             raise AccessError(msg)
         with marked(self.env, {COMPANY_PROFILE_MARKER: {self.id}, PARTNER_COMPANY_MARKER: {self.partner_id.id}}):
-            return self.write(vals)
+            result = self.write(vals)
+        self._webvue_log_company_change('company.profile_changed', vals)
+        return result
+
+    def _webvue_log_company_change(self, action, vals):
+        """Record a profile or branding change in the access log: the names of the written fields, never their values.
+
+        A binary field (the logo) or a long text would bloat the log, and the values are readable on the company.
+        """
+        self.env['webvue.access.audit']._webvue_log(action, self, after={'fields': sorted(vals)})
 
     @api.model
     def _webvue_company_profile_extensions(self):

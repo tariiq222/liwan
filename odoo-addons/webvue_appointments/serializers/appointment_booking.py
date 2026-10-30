@@ -15,6 +15,9 @@ from datetime import UTC, datetime, timedelta
 from odoo.tools import email_normalize, html2plaintext, plaintext2html
 
 from odoo.addons.webvue_api.controllers.common import ApiError, parse_positive_int
+from odoo.addons.webvue_appointments.models.resource_booking import (
+    ATTENDANCE_OUTCOMES,
+)
 from odoo.addons.webvue_appointments.serializers.appointment_slot import (
     UTC_FORMAT,
     parse_iso_date,
@@ -34,7 +37,9 @@ UTC_TIMESTAMP = re.compile(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z')
 PHONE = re.compile(r'\+?[0-9 ()\-]+')
 PHONE_LENGTH = (5, 32)
 TRUE_FALSE = ('true', 'false')
-CREATE_FIELDS = ('type_id', 'combination_id', 'requester_id', 'requester', 'national_id', 'notes', 'start')
+CREATE_FIELDS = (
+    'type_id', 'combination_id', 'requester_id', 'requester', 'national_id', 'notes', 'start', 'walk_in', 'visit_reason_id',
+)
 REQUESTER_FIELDS = ('name', 'phone', 'email')
 
 
@@ -46,7 +51,10 @@ def dump_booking_row(booking):
     """The list row of a booking; the only requester data is the display name."""
     return {
         'id': booking.id,
+        'reference': booking.webvue_reference or None,
         'state': booking.state,
+        'attendance': booking.webvue_attendance or None,
+        'walk_in': booking.webvue_walk_in,
         'type_id': booking.type_id.id,
         'type_name': booking.type_id.name,
         'combination_id': booking.combination_id.id or None,
@@ -72,8 +80,12 @@ def within_deadline(booking, now):
     return now <= booking.start - timedelta(hours=booking.type_id.modifications_deadline)
 
 
+def dump_reason_ref(reason):
+    return {'id': reason.id, 'name': reason.name} if reason else None
+
+
 def dump_booking(booking, *, is_modifiable, sees_contact, national_id_hidden):
-    """The detail shape: the row plus the requester, national id, notes and whether the caller may modify it.
+    """The detail shape: the row plus the requester, national id, notes, reasons and whether the caller may modify it.
 
     The requester's phone, email and the national id are only for callers who book (``sees_contact``); the
     national id is also withheld while the company policy hides that field.
@@ -88,6 +100,8 @@ def dump_booking(booking, *, is_modifiable, sees_contact, national_id_hidden):
         },
         'national_id': (booking.webvue_requester_national_id or None) if sees_contact and not national_id_hidden else None,
         'notes': html2plaintext(booking.description).strip() or None if booking.description else None,
+        'visit_reason': dump_reason_ref(booking.webvue_visit_reason_id),
+        'cancel_reason': dump_reason_ref(booking.webvue_cancel_reason_id),
         'is_modifiable': is_modifiable,
     }
 
@@ -134,12 +148,14 @@ def parse_booking_create(payload, settings, now):
     """Validate a create body into the values the controller resolves inside the current company.
 
     Returns ``type_id``, ``combination_id`` (or None), ``requester_id`` or ``requester`` (the other is None),
-    ``national_id`` and ``notes`` (False when absent) and ``start`` (None for a pending invitation).
+    ``national_id``, ``notes`` and ``visit_reason_id`` (False when absent), ``start`` (None for a pending invitation)
+    and ``walk_in``. A walk-in starts now (to the minute) and skips the notice and horizon limits of ``start``.
     """
     reject_unknown(payload, CREATE_FIELDS)
     require_fields(payload, ('type_id',))
     if ('requester_id' in payload) == ('requester' in payload):
         raise ApiError(422, 'invalid', 'send exactly one of requester_id and requester', field='requester')
+    walk_in = _parse_walk_in(payload, settings)
     return {
         'type_id': parse_positive_int(payload['type_id'], 'type_id'),
         'combination_id': parse_positive_int(payload['combination_id'], 'combination_id') if 'combination_id' in payload else None,
@@ -147,8 +163,39 @@ def parse_booking_create(payload, settings, now):
         'requester': _parse_requester(payload['requester'], settings) if 'requester' in payload else None,
         'national_id': _policy_value(payload, 'national_id', settings, 'national_id', parse_national_id),
         'notes': _policy_value(payload, 'notes', settings, 'notes', parse_notes),
-        'start': parse_start(payload['start'], settings, now) if 'start' in payload else None,
+        'visit_reason_id': _parse_visit_reason(payload, settings),
+        'start': _walk_in_start(now) if walk_in else (parse_start(payload['start'], settings, now) if 'start' in payload else None),
+        'walk_in': walk_in,
     }
+
+
+def parse_booking_patch(payload, settings):
+    """Validate a PATCH body into ``{'visit_reason_id': id|False}``; the visit reason is the only editable field."""
+    reject_unknown(payload, ('visit_reason_id',))
+    require_fields(payload, ('visit_reason_id',))
+    return {
+        'visit_reason_id': _parse_visit_reason(payload, settings),
+    }
+
+
+def parse_booking_cancel(payload, settings):
+    """Validate a cancel body into ``{'reason_id': id|None}``; the reason is required while ``cancel_reason_required`` is on."""
+    reject_unknown(payload, ('reason_id',))
+    if payload.get('reason_id') is None:
+        if settings['cancel_reason_required']:
+            raise ApiError(422, 'invalid', 'field is required', field='reason_id')
+        return {'reason_id': None}
+    return {'reason_id': parse_positive_int(payload['reason_id'], 'reason_id')}
+
+
+def parse_attendance(payload):
+    """Validate an attendance body into the outcome to record."""
+    reject_unknown(payload, ('outcome',))
+    require_fields(payload, ('outcome',))
+    outcomes = tuple(value for value, _label in ATTENDANCE_OUTCOMES)
+    if payload['outcome'] not in outcomes:
+        raise ApiError(422, 'invalid', 'choose one of: %s' % ', '.join(outcomes), field='outcome')
+    return payload['outcome']
 
 
 def parse_booking_schedule(payload, settings, now):
@@ -221,14 +268,35 @@ def _parse_requester(value, settings):
     }
 
 
-def _policy_value(source, name, settings, field, parse):
-    """The parsed value of ``name`` under its company field policy, or False when optional and blank."""
+def _parse_walk_in(payload, settings):
+    walk_in = payload.get('walk_in', False)
+    if type(walk_in) is not bool:
+        raise ApiError(422, 'invalid', 'must be true or false', field='walk_in')
+    if walk_in and not settings['walk_in_allowed']:
+        raise ApiError(422, 'invalid', 'walk-ins are not allowed by the appointment settings', field='walk_in')
+    if walk_in and 'start' in payload:
+        raise ApiError(422, 'invalid', 'a walk-in starts now', field='start')
+    return walk_in
+
+
+def _parse_visit_reason(payload, settings):
+    return _policy_value(payload, 'visit_reason', settings, 'visit_reason_id', parse_positive_int, key='visit_reason_id')
+
+
+def _walk_in_start(now):
+    """``now`` as a naive UTC datetime rounded down to the minute."""
+    return now.astimezone(UTC).replace(second=0, microsecond=0, tzinfo=None)
+
+
+def _policy_value(source, name, settings, field, parse, *, key=None):
+    """The parsed value of ``key`` (default ``name``) under the company field policy of ``name``, or False when optional and blank."""
+    key = key or name
     policy = settings['%s_field' % name]
     if policy == 'hidden':
-        if name in source:
+        if key in source:
             raise ApiError(422, 'invalid', 'field is hidden by the appointment settings', field=field)
         return False
-    value = source.get(name)
+    value = source.get(key)
     if value is None or (isinstance(value, str) and not value.strip()):
         if policy == 'required':
             raise ApiError(422, 'invalid', 'field is required', field=field)

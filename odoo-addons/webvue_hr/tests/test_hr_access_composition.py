@@ -7,6 +7,7 @@ from odoo.addons.webvue_hr.models.access_service import (
     EMPLOYEE_HR_PERMISSIONS,
     HR_PERMISSION_DEPENDENCIES,
     HR_PERMISSIONS,
+    PAYROLL_OFFBOARDING_PERMISSIONS,
     PAYROLL_PERMISSIONS,
 )
 
@@ -102,6 +103,16 @@ class TestHrAccessComposition(TransactionCase):
         self.assertEqual(self._keys('webvue_hr.role_hr_manager') & HR_AREA_PERMISSIONS, HR_AREA_PERMISSIONS)
         self.assertEqual(self._keys('webvue_core.role_vendor_support') & HR_AREA_PERMISSIONS, HR_AREA_PERMISSIONS)
         self.assertFalse(self._keys('webvue_core.role_employee') & HR_AREA_PERMISSIONS)
+
+    def test_payroll_offboarding_officer_settles_a_leaver_and_nothing_wider(self):
+        role = self.env.ref('webvue_hr.role_payroll_offboarding_officer')
+        self.assertEqual((role.key, role.type, role.protected), ('payroll_offboarding_officer', 'built_in', True))
+        keys = self._keys('webvue_hr.role_payroll_offboarding_officer')
+        self.assertEqual(keys, set(PAYROLL_OFFBOARDING_PERMISSIONS))
+        # Both halves of the settlement page, and no configuration, audit, HR write or accounting right.
+        self.assertLessEqual({'hr.offboarding.read', 'hr.payroll.read', 'hr.payroll.manage', 'hr.payroll.approve'}, keys)
+        self.assertFalse(keys & {'hr.payroll.config', 'hr.payroll.audit.read', 'hr.employees.manage', 'hr.offboarding.manage'})
+        self.assertFalse({key for key in keys if key.startswith('finance.')})
 
     def test_employee_role_keeps_its_four_hr_capabilities(self):
         self.assertEqual(EMPLOYEE_HR_PERMISSIONS, EMPLOYEE_HR_KEYS)

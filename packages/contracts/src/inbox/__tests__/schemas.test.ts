@@ -6,7 +6,11 @@ import {
   InboxInteractiveSchema,
   InboxReplyCreateSchema,
   InboxSettingsPatchSchema,
+  InboxChannelAutomationSchema,
+  InboxRuleWriteSchema,
+  InboxSettingsSchema,
   InboxTemplateSchema,
+  InboxWorkingHoursSchema,
   InboxTemplateWriteSchema,
   templatePlaceholderCount,
 } from '../index'
@@ -24,6 +28,7 @@ const CONVERSATION = {
   last_message_preview: 'Hello',
   unread: true,
   reply_window_ends_at: '2026-10-29T09:00:00Z',
+  csat: null,
 }
 
 describe('InboxConversationListSchema', () => {
@@ -181,5 +186,47 @@ describe('InboxReplyCreateSchema template member', () => {
     const reply = { template_id: 3, params: ['سارة'], header_attachment_id: 9, button_params: [{ index: 2, value: '42' }] }
     expect(InboxReplyCreateSchema.parse(reply)).toEqual(reply)
     expect(() => InboxReplyCreateSchema.parse({ ...reply, reply_to_id: 4 })).toThrow()
+  })
+})
+
+describe('automation schemas', () => {
+  const RULE = {
+    channel_id: null, name: 'Hours', active: true, match_kind: 'contains', keywords: ['الدوام', 'hours'], option_id: null,
+    hours: 'any', stop: true, reply: { body: 'نعمل من 9 إلى 5' }, resolve: false, flow_id: null,
+    department_id: null, assignee_id: null, tag_ids: [], priority: null,
+  }
+
+  it('accepts a keyword rule and an option rule', () => {
+    expect(InboxRuleWriteSchema.parse(RULE)).toEqual(RULE)
+    const option = { ...RULE, match_kind: 'option', keywords: [], option_id: 'menu_booking', reply: null, department_id: 3 }
+    expect(InboxRuleWriteSchema.parse(option)).toEqual(option)
+  })
+
+  it('rejects mismatched match fields and rules without an action', () => {
+    expect(() => InboxRuleWriteSchema.parse({ ...RULE, keywords: [] })).toThrow()
+    expect(() => InboxRuleWriteSchema.parse({ ...RULE, match_kind: 'option', option_id: 'x' })).toThrow()
+    expect(() => InboxRuleWriteSchema.parse({ ...RULE, reply: null })).toThrow()
+  })
+
+  it('validates working hours ranges', () => {
+    const hours = { timezone: 'Asia/Riyadh', days: [{ weekday: 6, from: '09:00', to: '17:00' }], holidays: [{ name: 'العيد', date_from: '2027-03-20', date_to: '2027-03-23' }] }
+    expect(InboxWorkingHoursSchema.parse(hours)).toEqual(hours)
+    expect(() => InboxWorkingHoursSchema.parse({ ...hours, days: [{ weekday: 1, from: '17:00', to: '09:00' }] })).toThrow()
+  })
+
+  it('needs content for an enabled automatic message', () => {
+    const automation = {
+      welcome: { enabled: true, idle_days: 0, content: { body: 'أهلًا' } },
+      away: { enabled: true, repeat_hours: 12, content: null },
+      csat: { enabled: false, question: 'كيف كانت الخدمة؟', good: 'ممتازة', neutral: 'مقبولة', bad: 'سيئة' },
+    }
+    expect(() => InboxChannelAutomationSchema.parse(automation)).toThrow()
+    const fixed = { ...automation, away: { ...automation.away, content: { body: 'نحن خارج الدوام' } } }
+    expect(InboxChannelAutomationSchema.parse(fixed)).toEqual(fixed)
+  })
+
+  it('carries the assignment policy in settings', () => {
+    const settings = { visibility_policy: 'department', auto_close_hours: 72, retention_months: 24, assignment_policy: 'round_robin', first_response_alert_minutes: 15 }
+    expect(InboxSettingsSchema.parse(settings)).toEqual(settings)
   })
 })

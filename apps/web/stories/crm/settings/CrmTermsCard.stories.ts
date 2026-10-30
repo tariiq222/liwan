@@ -14,7 +14,7 @@ const meta = {
   title: 'CRM/CrmTermsCard',
   component: CrmTermsCard,
   parameters: {
-    ...storyContext('apps/web/app/pages/settings/apps/crm/index.vue:41', 'تسمية العميل والفرصة والباقة مع معاينة لتوافق الصفة مع الجنس النحوي.'),
+    ...storyContext('apps/web/app/pages/settings/apps/crm/index.vue:38', 'تسمية العميل والفرصة والباقة مع معاينة لتوافق الصفة مع الجنس النحوي.'),
     msw: { handlers: { api: [manage, http.patch('/api/v1/crm/settings', async ({ request }) => HttpResponse.json({ ...crmSettings, revision: 4, values: { ...crmSettings.values, ...(await request.json() as { values: object }).values } }))] } },
   },
   args: { settings: crmSettings, canEdit: true, reloadSettings: async () => renamed },

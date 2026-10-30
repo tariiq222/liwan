@@ -1,18 +1,19 @@
 <script setup lang="ts">
 import type { HrPayrollTotals } from '@webvue/contracts'
 import type { KpiTile } from '@webvue/ui/app/utils/kpiTile'
-import { formatPayrollAmount } from '@/utils/payrollFormat'
+import { formatPayrollAmount, payrollCurrencyLabel } from '@/utils/payrollFormat'
 
 // The four figures of one payroll run above its register: what the employees get, what is deducted
 // (the employees' GOSI share is part of it), and what the employer owes on top. Hidden on paper: the register prints its own totals row.
 const props = defineProps<{
   totals: HrPayrollTotals
   employeeCount: number
+  currency: string
   loading?: boolean
 }>()
 
 const { t, locale } = useI18n()
-const money = (value: number) => `${formatPayrollAmount(value, locale.value)} ${t('hrPayroll.currency')}`
+const money = (value: number) => `${formatPayrollAmount(value, locale.value)} ${payrollCurrencyLabel(props.currency, t('hrPayroll.currency'))}`
 
 const tiles = computed<KpiTile[]>(() => [
   { id: 'net', label: t('hrPayroll.totals.net'), value: money(props.totals.net), icon: 'i-lucide-banknote', tone: 'success', hint: t('hrPayroll.runs.employeeCount', { count: props.employeeCount }, props.employeeCount) },
