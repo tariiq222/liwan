@@ -178,5 +178,10 @@ for key, name, job_title, branch_name, role_keys in BRANCH_PERSONAS:
 for department_name, head_key in DEPARTMENT_HEADS.items():
     departments[department_name].manager_id = employees[head_key]
 
+# The self-service journeys sign in as `e2e_employee`, which needs an employee file of its own.
+self_service_user = env['res.users'].search([('login', '=', 'e2e_employee')])  # noqa: F821
+if not env['hr.employee'].with_context(active_test=False).search_count([('user_id', '=', self_service_user.id)]):  # noqa: F821
+    env['hr.employee'].create({'name': self_service_user.name, 'user_id': self_service_user.id, 'company_id': company.id})  # noqa: F821
+
 env.cr.commit()  # noqa: F821
 print('e2e seed done:', [account[0] for account in ACCOUNTS], [f'e2e_{key}' for key in employees])  # noqa: T201
