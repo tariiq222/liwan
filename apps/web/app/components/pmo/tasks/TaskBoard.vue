@@ -21,6 +21,7 @@ const props = withDefaults(defineProps<{
   params: TaskListParams
   stageSource?: StageSource
   // The create route for a column (the page adds its own return target); absent when the user cannot create tasks.
+  cardTo: (id: number) => RouteLocationRaw
   createTo?: (column: { state?: TaskState; stageId?: number }) => RouteLocationRaw
 }>(), {
   stageSource: () => ({ kind: 'personal' }),
@@ -294,6 +295,7 @@ function dropGroup(lane: Lane) {
               v-for="task in columns[lane.key]"
               :key="task.id"
               :task="task"
+              :to="cardTo(task.id)"
               :stages="sortedStages"
               :current-stage-id="stageOf(task, kind)?.id ?? null"
               :move-targets="moveTargets(task)"

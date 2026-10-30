@@ -6,7 +6,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Task/TaskKpiStrip',
   component: TaskKpiStrip,
-  parameters: storyContext('apps/web/app/pages/tasks.vue:94', 'أربع بطاقات مدمجة فوق جدول المهام: الإجمالي والمفتوحة والمتأخرة (الرقم والأيقونة بالأحمر فقط) والمنجزة. كل بطاقة بشريط تقدم رفيع بلون نبرتها (نسبة من الإجمالي، وبطاقة الإجمالي تعرض نسبة المنجز). ليست أزرارًا ولا تحمل اتجاهات.'),
+  parameters: storyContext('apps/web/app/pages/tasks.vue:92', 'أربع بطاقات مدمجة فوق جدول المهام: الإجمالي والمفتوحة والمتأخرة (الرقم والأيقونة بالأحمر فقط) والمنجزة. كل بطاقة بشريط تقدم رفيع بلون نبرتها (نسبة من الإجمالي، وبطاقة الإجمالي تعرض نسبة المنجز). ليست أزرارًا ولا تحمل اتجاهات.'),
   args: { params: { closed: false } },
   render: args => ({
     components: { TaskKpiStrip },
