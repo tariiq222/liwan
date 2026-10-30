@@ -42,7 +42,8 @@ onMounted(() => { today.value = new Date().toLocaleDateString(locale.value, { we
     </section>
     <HomeFocus />
     <HomeAssistantSuggestions />
-    <template v-if="!hasWork && !actions.length && !hasServices">
+    <!-- The personal services link is a standing shortcut, not something for today, so it never hides this state. -->
+    <template v-if="!hasWork && !actions.length">
       <SharedEmptyState v-if="hasApps" bordered :title="t('home.nothingToday')" data-testid="home-empty-today">
         <template #action><UButton to="/apps" color="neutral" variant="outline" class="rounded-full" :label="t('home.openApps')" /></template>
       </SharedEmptyState>

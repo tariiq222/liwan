@@ -60,6 +60,21 @@ export function canReach(identity: AccessIdentity, capability: string, path?: st
   if (!canUse(identity, capability, write)) return false
   return hasFeature(identity, path ? featureForPath(path) : null, write) && hasFeature(identity, feature ?? null, write)
 }
+/**
+ * Why a path the identity cannot open is closed: the plan, not the user's permissions. The tenant's
+ * feature gate (the application, an area sub-feature, or the route's capability feature) is closed
+ * at the level the path needs. Null means the closure is about permissions.
+ * `tenant_read_only` marks a write-only closure on a read-only tenant, `feature_not_included` any other.
+ */
+export function planDenialCode(identity: AccessIdentity, path: string): 'feature_not_included' | 'tenant_read_only' | null {
+  const capability = requiredCapabilityForPath(path)
+  const featuresClosed = (write: boolean) => [featureForPath(path), requiredFeatureForPath(path)].some(key => !hasFeature(identity, key ?? null, write))
+  if (featuresClosed(false)) return 'feature_not_included'
+  // A write capability or a write page is open only while the tenant allows writes of its features.
+  const writeClosed = (pathIsWrite(path) && featuresClosed(true)) || Boolean(capability && !canUse(identity, capability))
+  if (writeClosed) return identity?.platform?.read_only ? 'tenant_read_only' : 'feature_not_included'
+  return null
+}
 export function firstAllowedPath(identity: AccessIdentity): string {
   return destinations().find(([path, capability]) => canReach(identity, capability, path) && canReachPath(identity, path))?.[0] ?? '/account'
 }

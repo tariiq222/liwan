@@ -17,12 +17,14 @@ function loadGuard(client = true, suspended = false) {
   const callHook = vi.fn(() => notification.promise)
   const canReachPath = vi.fn(() => true)
   const appRootFallback = vi.fn((): string | null => null)
+  const planDenialCode = vi.fn((): string | null => null)
   const bindings = {
     defineNuxtRouteMiddleware: (handler: unknown) => handler,
     useNuxtApp: () => ({ $i18n: { t: (key: string) => key }, callHook }),
     useMe: () => ({ me, error: ref(suspended ? { statusCode: 403, data: { code: 'tenant_suspended' } } : null), ready: ready.promise, refresh }),
     canReachPath,
     appRootFallback,
+    planDenialCode,
     isLoggedOutError: () => suspended,
     isTenantSuspendedError: () => suspended,
     isSchemaError: () => false,
@@ -35,7 +37,7 @@ function loadGuard(client = true, suspended = false) {
     .replace('export default', 'return')
   const code = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
   const guard = new Function(...Object.keys(bindings), code)(...Object.values(bindings)) as (to: { path: string; fullPath: string; meta?: { access?: string } }) => Promise<unknown>
-  return { ...bindings, guard, ready, notification, refresh, callHook, canReachPath, appRootFallback }
+  return { ...bindings, guard, ready, notification, refresh, callHook, canReachPath, appRootFallback, planDenialCode }
 }
 
 it('publishes the actual client target before readiness and waits for listeners before refreshing identity', async () => {
@@ -60,6 +62,23 @@ it('still rejects a forbidden destination using the refreshed identity', async (
   await expect(view.guard({ path: '/hr', fullPath: '/hr' })).rejects.toMatchObject({ statusCode: 403 })
   expect(view.refresh).toHaveBeenCalledTimes(1)
   expect(view.canReachPath).toHaveBeenCalledWith({ id: 2 }, '/hr')
+})
+
+it('names the plan, not permissions, when the plan closes the page', async () => {
+  const view = loadGuard()
+  view.canReachPath.mockReturnValue(false)
+  view.planDenialCode.mockReturnValue('feature_not_included')
+  view.notification.resolve()
+  view.ready.resolve()
+  await expect(view.guard({ path: '/hr', fullPath: '/hr' })).rejects.toMatchObject({ statusCode: 403, data: { code: 'feature_not_included' } })
+})
+
+it('marks a permission closure as forbidden', async () => {
+  const view = loadGuard()
+  view.canReachPath.mockReturnValue(false)
+  view.notification.resolve()
+  view.ready.resolve()
+  await expect(view.guard({ path: '/hr', fullPath: '/hr' })).rejects.toMatchObject({ statusCode: 403, data: { code: 'forbidden' } })
 })
 
 it('does not publish a client navigation or refresh identity during SSR', async () => {

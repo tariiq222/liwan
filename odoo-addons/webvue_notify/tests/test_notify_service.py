@@ -4,7 +4,6 @@ from odoo.tests import TransactionCase, new_test_user, tagged
 from odoo.tools import mute_logger
 
 from odoo.addons.webvue_api.tests.common import PROBE_FEATURE, set_probe_feature
-from odoo.addons.webvue_core.models.access_service import WebVueAccessRule
 from odoo.addons.webvue_notify.tests.common import PROBE_TYPES, NotifyProbe
 
 
@@ -220,7 +219,7 @@ class TestNotifyService(NotifyProbe, TransactionCase):
         self.assertEqual(self.service.with_user(self.other)._webvue_mark_all_read(), 1)
         self.assertTrue(theirs.is_read)
 
-    def test_marking_read_is_idempotent_scoped_and_needs_the_owner_feature(self):
+    def test_marking_read_is_idempotent_scoped_and_needs_the_owner_feature_visible(self):
         row = self._deliver(self.sources[0], self.reader.partner_id).notification_ids
         service = self.service.with_user(self.reader)
         self.assertEqual(service._webvue_mark_read(row.id), 1)
@@ -230,12 +229,10 @@ class TestNotifyService(NotifyProbe, TransactionCase):
         unread = self._deliver(self.sources[1], self.reader.partner_id).notification_ids
         set_probe_feature(self, enabled=False, retained=True)
         self.assertEqual(service._webvue_list(50)['unread_count'], 1)
-        with self.assertRaises(WebVueAccessRule) as caught:
-            service._webvue_mark_read(unread.id)
-        self.assertEqual(caught.exception.code, 'feature_not_included')
-        self.assertEqual(service._webvue_mark_all_read(), 0)
+        # Marking read is not a business write: a retained-read feature still lets the bell clear.
+        self.assertEqual(service._webvue_mark_read(unread.id), 1)
         unread.invalidate_recordset(['is_read'])
-        self.assertFalse(unread.is_read)
+        self.assertTrue(unread.is_read)
 
     def test_rows_of_a_switched_off_feature_are_hidden_and_cannot_be_marked_read(self):
         row = self._deliver(self.sources[0], self.reader.partner_id).notification_ids

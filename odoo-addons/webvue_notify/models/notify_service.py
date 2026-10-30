@@ -221,14 +221,18 @@ class WebVueNotifyService(models.AbstractModel):
 
     @api.model
     def _webvue_require_row_feature(self, row):
-        """Writes need the owner's feature to allow them; a row of a featureless platform kind always passes."""
+        """Marking read needs the owner's feature visible, not writable: it is not a business write.
+
+        A read-only tenant or a retained-read feature still lets the recipient clear its bell.
+        A row of a featureless platform kind always passes.
+        """
         key = self.env['webvue.notify.registry']._webvue_notify_feature_key(row)
         if key:
-            self.env['webvue.entitlement.service'].require(key)
+            self.env['webvue.entitlement.service'].require_read(key)
 
     @api.model
     def _webvue_mark_read(self, notification_id):
-        """Mark one visible row read once its owner's feature allows writes; return 0 or 1."""
+        """Mark one visible row read once its owner's feature is visible; return 0 or 1."""
         row, _extra = self._webvue_find(notification_id)
         if row.is_read:
             return 0
@@ -239,7 +243,7 @@ class WebVueNotifyService(models.AbstractModel):
 
     @api.model
     def _webvue_mark_all_read(self):
-        """Mark every visible unread row read whose owner's feature allows writes; return the count."""
+        """Mark every visible unread row read whose owner's feature is visible; return the count."""
         writable = []
         for row, _extra in self._webvue_visible_rows(self._webvue_domain() & Domain('is_read', '=', False)):
             try:

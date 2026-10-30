@@ -197,7 +197,7 @@ describe('useApi tenant suspension', () => {
     onTenantSuspension(listener)
     ;(globalThis as any).$fetch = vi.fn()
       .mockRejectedValueOnce({ statusCode: 403, data: { code: 'tenant_suspended', message: 'this tenant is suspended' } })
-      .mockRejectedValueOnce({ statusCode: 403, data: { data: { code: 'session_required', message: 'A valid session is required.' } } })
+      .mockRejectedValueOnce({ statusCode: 401, data: { data: { code: 'session_required', message: 'A valid session is required.' } } })
       .mockRejectedValueOnce({ statusCode: 404, data: { code: 'not_found', message: 'x' } })
     const { $api } = freshUseApi()
     const first = await $api('/api/v1/projects').catch(value => value)

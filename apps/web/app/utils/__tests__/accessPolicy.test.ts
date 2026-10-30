@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { appRootFallback, canReach, canReachPath, hasCapability, firstAllowedPath, isNavPathActive, requiredCapabilityForPath, requiredFeatureForPath, postLoginPath } from '../accessPolicy'
+import { appRootFallback, canReach, canReachPath, hasCapability, firstAllowedPath, isNavPathActive, requiredCapabilityForPath, requiredFeatureForPath, postLoginPath, planDenialCode } from '../accessPolicy'
 
 describe('access policy navigation', () => {
   it('fails closed for legacy role names without server capabilities', () => {
@@ -197,5 +197,24 @@ describe('an application root an identity cannot open', () => {
     expect(appRootFallback({ capabilities: ['finance.invoices.read'] }, '/finance')).toBeNull()
     expect(appRootFallback({ capabilities: ['finance.payments.read'] }, '/finance/sales/invoices')).toBeNull()
     expect(appRootFallback({ capabilities: ['hr.employees.read'] }, '/finance')).toBeNull()
+  })
+})
+
+describe('why a closed page is closed', () => {
+  const hr = ['hr.employees.read', 'hr.leave.read', 'hr.leave.request']
+  it('names the plan when the application is off for the tenant, whatever the user holds', () => {
+    const off = { capabilities: hr, platform: { readable_features: [], writable_features: [] } }
+    expect(canReachPath(off, '/hr')).toBe(false)
+    expect(planDenialCode(off, '/hr')).toBe('feature_not_included')
+  })
+  it('names a read-only tenant when only the write page is closed', () => {
+    const readOnly = { capabilities: hr, platform: { readable_features: ['hr.enabled'], writable_features: [], read_only: true } }
+    expect(canReachPath(readOnly, '/account/leave/new')).toBe(false)
+    expect(planDenialCode(readOnly, '/account/leave/new')).toBe('tenant_read_only')
+  })
+  it('stays silent when the user simply lacks the permission', () => {
+    const on = { capabilities: ['hr.employees.read'], platform: { readable_features: ['hr.enabled'], writable_features: ['hr.enabled'] } }
+    expect(canReachPath(on, '/hr/leave')).toBe(false)
+    expect(planDenialCode(on, '/hr/leave')).toBeNull()
   })
 })

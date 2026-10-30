@@ -90,6 +90,12 @@ class TestTenantLifecycle(HttpCase):
         )
         self.assertEqual(password.status_code, 200)
 
+    def test_clearing_the_bell_is_not_a_business_write(self):
+        allowed = self.env['webvue.entitlement.service']._webvue_api_write_allowed
+        self.assertTrue(allowed('/api/v1/notifications/read-all'))
+        self.assertTrue(allowed('/api/v1/notifications/42/read'))
+        self.assertFalse(allowed('/api/v1/notifications/42/archive'))
+
     def test_support_can_login_while_suspended_until_disabled(self):
         self._operator().write({'status': 'suspended'})
         self.authenticate('admin', 'admin')
