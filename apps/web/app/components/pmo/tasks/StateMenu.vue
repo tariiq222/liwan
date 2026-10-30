@@ -21,6 +21,7 @@ function onSelect(state: TaskState) {
   mutate(
     { id: props.task.id, state },
     {
+      onSuccess: () => toast.add({ title: t('tasks.transition.changed', { state: t(STATE_LABEL_KEY[state]) }), color: 'success' }),
       onError: (err) => {
         if (err instanceof ApiError && err.code === 'transition_forbidden') toast.add({ title: t('tasks.transition.forbidden'), color: 'error' })
         else if (err instanceof ApiError) toast.add({ title: err.message, color: 'error' })

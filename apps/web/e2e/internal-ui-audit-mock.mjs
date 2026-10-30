@@ -552,6 +552,16 @@ async function handle(req, res) {
   if (method === 'GET' && path === '/api/v1/notifications') return json(res, 200, NOTIFICATIONS)
   if (method === 'POST' && match(path, '/api/v1/notifications/:id/read')) return json(res, 200, { updated: 1 })
   if (method === 'POST' && path === '/api/v1/notifications/read-all') return json(res, 200, { updated: 2 })
+  const taskTransition = path.match(/^\/api\/v1\/tasks\/(\d+)\/transition$/)
+  if (method === 'POST' && taskTransition) {
+    const item = TASKS.find(task => task.id === Number(taskTransition[1]))
+    if (!item) return fail(res, 404, 'not_found', 'task not found')
+    let body = {}
+    try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
+    item.state = body.state
+    item.is_closed = body.state === 'done' || body.state === 'cancelled'
+    return json(res, 200, projectsPreviewData(`/api/v1/tasks/${item.id}`, url, { PROJECTS, TASKS, projectDetail, reportRow, CURRENCY }))
+  }
   if (method === 'GET' && path === '/api/v1/tasks') return json(res, 200, { items: TASKS, total: TASKS.length })
   if (method === 'GET' && path === '/api/v1/tasks/summary') {
     const done = TASKS.filter(task => task.is_closed).length

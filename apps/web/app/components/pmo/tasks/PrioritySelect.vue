@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Task } from '@webvue/contracts'
 import { statusPillAttrs } from '@webvue/ui/app/utils/statusPill'
-import { PRIORITY_LABEL_KEY, PRIORITY_TONE } from '@/composables/taskState'
+import { PRIORITY_LABEL_KEY, PRIORITY_ICON, PRIORITY_TONE } from '@/composables/taskState'
 import { useUpdateTask } from '@/composables/useTasks'
 
 // Ruling: priority has four values, so this is a compact Select (not the
@@ -19,12 +19,6 @@ const { mutate, isPending } = useUpdateTask()
 const hydrated = useHydrated()
 
 const PRIORITIES = ['0', '1', '2', '3'] as const
-const BADGE = {
-  '0': { icon: 'i-lucide-minus', tone: PRIORITY_TONE['0'] },
-  '1': { icon: 'i-lucide-chevron-up', tone: PRIORITY_TONE['1'] },
-  '2': { icon: 'i-lucide-chevrons-up', tone: PRIORITY_TONE['2'] },
-  '3': { icon: 'i-lucide-flame', tone: PRIORITY_TONE['3'] },
-} as const
 
 const items = computed(() => PRIORITIES.map((p) => ({ label: t(PRIORITY_LABEL_KEY[p]), value: p })))
 
@@ -36,8 +30,8 @@ function onChange(value: unknown) {
 </script>
 
 <template>
-  <span v-if="!task.can_write && props.variant === 'badge'" v-bind="statusPillAttrs(BADGE[task.priority].tone)" class="min-w-25 justify-center" data-testid="priority-badge">
-    <UIcon :name="BADGE[task.priority].icon" class="size-3.5" aria-hidden="true" />{{ t(PRIORITY_LABEL_KEY[task.priority]) }}
+  <span v-if="!task.can_write && props.variant === 'badge'" v-bind="statusPillAttrs(PRIORITY_TONE[task.priority])" class="min-w-25 justify-center" data-testid="priority-badge">
+    <UIcon :name="PRIORITY_ICON[task.priority]" class="size-3.5" aria-hidden="true" />{{ t(PRIORITY_LABEL_KEY[task.priority]) }}
   </span>
   <span v-else-if="!task.can_write" class="text-sm font-medium text-highlighted">{{ t(PRIORITY_LABEL_KEY[task.priority]) }}</span>
   <USelect
@@ -45,9 +39,9 @@ function onChange(value: unknown) {
     size="xs"
     variant="none"
     class="w-fit"
-    :icon="BADGE[task.priority].icon"
+    :icon="PRIORITY_ICON[task.priority]"
     :ui="{ base: 'webvue-pill min-w-25 w-fit justify-center ps-2.5 pe-2.5 focus:outline-none', trailing: 'hidden', leading: 'static inset-auto flex items-center p-0', leadingIcon: 'size-3.5 text-current' }"
-    :data-tone="BADGE[task.priority].tone"
+    :data-tone="PRIORITY_TONE[task.priority]"
     data-interactive
     :items="items"
     :model-value="task.priority"

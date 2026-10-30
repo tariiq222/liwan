@@ -28,7 +28,7 @@
       "deadline": "الموعد",
       "priority": "الأولوية",
       "stage": "المرحلة",
-      "assignees": "المكلّفون"
+      "assignees": "المسؤولون"
     },
     "filters": {
       "open": "مفتوحة",
@@ -145,6 +145,7 @@
       "archived": "تمت أرشفة المهمة"
     },
     "transition": {
+      "changed": "تم تغيير الحالة إلى {state}",
       "forbidden": "هذا الانتقال يتطلب صلاحية مدير المشروع"
     },
     "completion": {

@@ -145,6 +145,7 @@
       "archived": "Task archived"
     },
     "transition": {
+      "changed": "Status changed to {state}",
       "forbidden": "This transition requires project manager permission"
     },
     "completion": {

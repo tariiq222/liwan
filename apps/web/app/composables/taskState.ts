@@ -69,19 +69,26 @@ export function taskStateBadge(state: TaskState): StatusBadgeEntry {
 /** The pill tone of each priority: urgent danger, very high warning, high info, normal neutral. */
 export const PRIORITY_TONE: Record<'0' | '1' | '2' | '3', StatusTone> = { '0': 'neutral', '1': 'info', '2': 'warning', '3': 'destructive' }
 
+/** The icon of each priority, so a priority never reads by colour alone. */
+export const PRIORITY_ICON: Record<'0' | '1' | '2' | '3', string> = { '0': 'i-lucide-minus', '1': 'i-lucide-chevron-up', '2': 'i-lucide-chevrons-up', '3': 'i-lucide-flame' }
+
 export interface DeadlineTag { tone: StatusTone; icon: string }
 
-/** The deadline tag: overdue is danger (time exceeded), today warning (alarm), a future date success (time remaining), a closed task neutral (calendar); no deadline has no tag. */
+/** How many days ahead an open task's deadline starts to warn. */
+const DEADLINE_WARNING_DAYS = 2
+
+/** The deadline tag: overdue is danger (time exceeded), today and the next two days warning, a later date info (open within time), a closed task neutral (calendar); no deadline has no tag. */
 export function deadlineTag(daysRemaining: number | null, isClosed: boolean): DeadlineTag | null {
   if (daysRemaining === null) return null
   if (isClosed) return { tone: 'neutral', icon: 'i-lucide-calendar-check' }
-  if (daysRemaining > 0) return { tone: 'success', icon: 'i-lucide-hourglass' }
-  return daysRemaining < 0 ? { tone: 'destructive', icon: 'i-lucide-timer-off' } : { tone: 'warning', icon: 'i-lucide-alarm-clock' }
+  if (daysRemaining < 0) return { tone: 'destructive', icon: 'i-lucide-timer-off' }
+  if (daysRemaining === 0) return { tone: 'warning', icon: 'i-lucide-alarm-clock' }
+  return { tone: daysRemaining <= DEADLINE_WARNING_DAYS ? 'warning' : 'info', icon: 'i-lucide-hourglass' }
 }
 
 /** A closed task is never urgent; otherwise overdue is destructive and the next two days warn. */
 export function deadlineTone(daysRemaining: number | null, isClosed: boolean): StatusTone {
   if (isClosed || daysRemaining === null) return 'neutral'
   if (daysRemaining < 0) return 'destructive'
-  return daysRemaining <= 2 ? 'warning' : 'neutral'
+  return daysRemaining <= DEADLINE_WARNING_DAYS ? 'warning' : 'neutral'
 }
