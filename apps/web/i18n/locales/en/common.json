@@ -137,6 +137,7 @@
     "goBack": "Back",
     "pageForbiddenTitle": "You do not have access to this page",
     "pageForbidden": "If you need this page, ask your system administrator for access.",
+    "pageUnavailableTitle": "This page is not available in your plan",
     "code": "Error code {code}",
     "goHome": "Back to home",
     "serverUnreachable": "Unable to reach the server",

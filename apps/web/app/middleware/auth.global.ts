@@ -1,4 +1,4 @@
-import { appRootFallback, canReachPath } from '@/utils/accessPolicy'
+import { appRootFallback, canReachPath, planDenialCode } from '@/utils/accessPolicy'
 export default defineNuxtRouteMiddleware(async (to) => {
   // A public page needs no identity at all, so it must not depend on /api/v1/me answering.
   if (to.meta?.access === 'public') return
@@ -25,5 +25,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (!me.value) return navigateTo({ path: '/login', query: to.fullPath === '/' ? {} : { next: to.fullPath } })
   const fallback = appRootFallback(me.value, to.path)
   if (fallback) return navigateTo(fallback, { replace: true })
-  if (!canReachPath(me.value, to.path)) throw createError({ statusCode: 403, statusMessage: $i18n.t('errors.forbidden') })
+  if (!canReachPath(me.value, to.path)) {
+    // A page closed by the plan says so; only a missing permission asks the user to talk to their administrator.
+    throw createError({ statusCode: 403, statusMessage: $i18n.t('errors.forbidden'), data: { code: planDenialCode(me.value, to.path) ?? 'forbidden' } })
+  }
 })

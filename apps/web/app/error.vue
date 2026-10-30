@@ -17,9 +17,14 @@ const { mode, fontSize } = useAppearance()
 const status = computed(() => props.error.statusCode)
 const forbidden = computed(() => status.value === 403)
 const notFound = computed(() => status.value === 404)
-const title = computed(() => t(forbidden.value ? 'errors.pageForbiddenTitle' : notFound.value ? 'errors.pageNotFoundTitle' : 'errors.pageErrorTitle'))
-const description = computed(() => t(forbidden.value ? 'errors.forbidden' : notFound.value ? 'errors.pageNotFound' : 'errors.pageError'))
-const hint = computed(() => (forbidden.value ? t('errors.pageForbidden') : undefined))
+// A page the plan closes (not included, or read-only) is not a permission problem: it names the plan.
+const planCode = computed(() => {
+  const code = (props.error.data as { code?: unknown } | undefined)?.code
+  return forbidden.value && (code === 'feature_not_included' || code === 'tenant_read_only') ? code : null
+})
+const title = computed(() => t(planCode.value ? 'errors.pageUnavailableTitle' : forbidden.value ? 'errors.pageForbiddenTitle' : notFound.value ? 'errors.pageNotFoundTitle' : 'errors.pageErrorTitle'))
+const description = computed(() => t(planCode.value ? `errors.codes.${planCode.value}` : forbidden.value ? 'errors.forbidden' : notFound.value ? 'errors.pageNotFound' : 'errors.pageError'))
+const hint = computed(() => (forbidden.value && !planCode.value ? t('errors.pageForbidden') : undefined))
 // Only an unexpected failure may pass on a second try; a missing or forbidden page stays the same.
 const canRetry = computed(() => !forbidden.value && !notFound.value)
 // A signed-in user keeps the rail, header and sidebar around the error; sign-in and outage errors have no identity to build them from.
