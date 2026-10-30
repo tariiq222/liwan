@@ -1,8 +1,8 @@
 // WebVue's own identity: lavender primary, sand borders, ink titles and brown secondary text on a warm
 // cream canvas (owner-approved 2026-10-30). Tenant colours replace the primary only.
-// WEBVUE_BLUE keeps its export name: it is the default company colour and the text-bearing primary
+// WEBVUE_PRIMARY is the default company colour and the text-bearing primary
 // (white text 8.29:1); dark mode paints the same role with DARK_PRIMARY_FILL.
-export const WEBVUE_BLUE = '#5b3f8c'
+export const WEBVUE_PRIMARY = '#5b3f8c'
 
 /** Text-bearing primary fill in dark mode (white label 5.02:1) and the lavender accent for icons, rings and text. */
 export const DARK_PRIMARY_FILL = '#7c5cc4'

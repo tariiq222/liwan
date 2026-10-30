@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { layerFile } from '@webvue/ui/test/helpers/layerFile'
 import {
   contrastRatio, DARK_PRIMARY_ACCENT, DARK_PRIMARY_FILL, DARK_SAND, DARK_SURFACES, DARK_TEXT, LIGHT_ACTIVE_TINT, LIGHT_BORDER,
-  LIGHT_CANVAS, LIGHT_INK, LIGHT_MUTED_TEXT, LIGHT_SAND, STATUS_TEXT, WEBVUE_BLUE,
+  LIGHT_CANVAS, LIGHT_INK, LIGHT_MUTED_TEXT, LIGHT_SAND, STATUS_TEXT, WEBVUE_PRIMARY,
 } from '../../../utils/webvuePalette'
 
 const sheet = (name: string) => readFileSync(layerFile(`app/assets/css/${name}`), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
@@ -67,8 +67,8 @@ describe('dark surfaces', () => {
 describe('solid primary', () => {
   it('tokens.css :root declares one text-bearing solid primary for both modes, deeper than the accent', () => {
     const found = declarations(ruleBodies(sheet('tokens.css'), ':root'))
-    expect(found.get('--primary')?.toLowerCase()).toBe(WEBVUE_BLUE)
-    const solid = { '--primary-solid': WEBVUE_BLUE, '--primary-solid-hover': '#4a3374', '--primary-solid-active': '#3e2b63' }
+    expect(found.get('--primary')?.toLowerCase()).toBe(WEBVUE_PRIMARY)
+    const solid = { '--primary-solid': WEBVUE_PRIMARY, '--primary-solid-hover': '#4a3374', '--primary-solid-active': '#3e2b63' }
     for (const [token, value] of Object.entries(solid)) {
       expect(found.get(token)?.toLowerCase(), token).toBe(value)
       expect(contrastRatio('#ffffff', value), `${token} under white text`).toBeGreaterThanOrEqual(4.5)
@@ -159,7 +159,7 @@ describe('approved lavender and sand palette', () => {
 
   it('paints links, titles, secondary text, sand and the active tint in light mode', () => {
     const found = light()
-    expect(hex(found.get('--brand-link'))).toBe(WEBVUE_BLUE)
+    expect(hex(found.get('--brand-link'))).toBe(WEBVUE_PRIMARY)
     expect(hex(found.get('--ui-text-highlighted'))).toBe(LIGHT_INK)
     expect(hex(found.get('--ui-text'))).toBe(LIGHT_INK)
     expect(hex(found.get('--ui-text-muted'))).toBe(LIGHT_MUTED_TEXT)
@@ -209,12 +209,12 @@ describe('approved lavender and sand palette', () => {
   }
 
   it('keeps the first chart colour led by the primary', () => {
-    expect(hex(light().get('--chart-1'))).toBe(WEBVUE_BLUE)
+    expect(hex(light().get('--chart-1'))).toBe(WEBVUE_PRIMARY)
     expect(hex(dark().get('--chart-1'))).toBe(DARK_PRIMARY_ACCENT)
   })
 
   it('keeps the violet tag hue distinct from the primary in both modes', () => {
-    expect(colourDistance(light().get('--accent-violet-fg')!, WEBVUE_BLUE)).toBeGreaterThan(60)
+    expect(colourDistance(light().get('--accent-violet-fg')!, WEBVUE_PRIMARY)).toBeGreaterThan(60)
     expect(colourDistance(dark().get('--accent-violet-fg')!, DARK_PRIMARY_ACCENT)).toBeGreaterThan(40)
   })
 

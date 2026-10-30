@@ -87,9 +87,6 @@
   /* WebVue identity and density, at the 14px root. Controls 32px. Tables: a row is 44px and cells use
      the card padding; the dense list variant (default) pads cells 16px, the comfortable variant (home and
      overview pages) 20px and a 52px row. Cards pad 20px. Cards sit 16px apart and page sections 32px apart. */
-  --webvue-midnight: #14102a;
-  --webvue-lime: var(--primary);
-  --webvue-lime-foreground: var(--primary-foreground);
   --webvue-control-h: 2.285714rem;
   --webvue-row-h: 3.142857rem;
   --webvue-row-h-comfortable: 3.714286rem;
@@ -291,9 +288,6 @@
    (text-muted-foreground, border-border, text-destructive, bg-card…) were
    retired: use Nuxt UI's text-muted, border-default, text-error, bg-default. */
 @theme inline {
-  --color-webvue-midnight: var(--webvue-midnight);
-  --color-webvue-lime: var(--webvue-lime);
-  --color-webvue-lime-foreground: var(--webvue-lime-foreground);
   --color-webvue-canvas: var(--webvue-canvas);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-hover: var(--primary-hover);

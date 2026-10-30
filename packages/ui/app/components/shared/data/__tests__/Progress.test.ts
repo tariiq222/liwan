@@ -35,7 +35,7 @@ describe('SharedProgress', () => {
     expect(await render({ tone: 'warning' })).toContain('data-color="warning"')
     expect(await render({ tone: 'neutral' })).toContain('data-color="neutral"')
     expect(await render({ tone: 'danger' })).toContain('data-[state=complete]:bg-error')
-    expect(await render({})).toContain('data-[state=complete]:bg-webvue-lime')
+    expect(await render({})).toContain('data-[state=complete]:bg-primary')
   })
 
   it('passes the md size and names the bar as a group when given a label', async () => {

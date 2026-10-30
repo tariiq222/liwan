@@ -96,7 +96,7 @@ defineExpose({ scrollPage, scrollToToday: scrollToFocus })
             >{{ formatScheduleDate(date, locale) }}</span>
             <span
               v-if="showToday"
-              class="pointer-events-none absolute bottom-0 z-10 size-2.5 -translate-x-1/2 translate-y-1/2 rounded-full bg-webvue-lime ring-2 ring-default rtl:translate-x-1/2"
+              class="pointer-events-none absolute bottom-0 z-10 size-2.5 -translate-x-1/2 translate-y-1/2 rounded-full bg-primary ring-2 ring-default rtl:translate-x-1/2"
               :style="datePosition(today)"
               data-testid="schedule-gantt-today-marker"
               aria-hidden="true"
@@ -106,7 +106,7 @@ defineExpose({ scrollPage, scrollToToday: scrollToFocus })
           <template v-if="datedMilestones.length">
             <div class="schedule-gantt-name">{{ t('projects.schedule.milestones') }}</div>
             <div class="schedule-gantt-track" :style="followPageDirection">
-              <span v-if="showToday" class="pointer-events-none absolute inset-y-0 w-0.5 -translate-x-1/2 bg-webvue-lime rtl:translate-x-1/2" :style="datePosition(today)" aria-hidden="true" />
+              <span v-if="showToday" class="pointer-events-none absolute inset-y-0 w-0.5 -translate-x-1/2 bg-primary rtl:translate-x-1/2" :style="datePosition(today)" aria-hidden="true" />
               <NuxtLink
                 v-for="milestone in datedMilestones"
                 :key="milestone.id"
@@ -130,7 +130,7 @@ defineExpose({ scrollPage, scrollToToday: scrollToFocus })
               </span>
             </NuxtLink>
             <div class="schedule-gantt-track" :style="followPageDirection">
-              <span v-if="showToday" class="pointer-events-none absolute inset-y-0 w-0.5 -translate-x-1/2 bg-webvue-lime rtl:translate-x-1/2" :style="datePosition(today)" aria-hidden="true" />
+              <span v-if="showToday" class="pointer-events-none absolute inset-y-0 w-0.5 -translate-x-1/2 bg-primary rtl:translate-x-1/2" :style="datePosition(today)" aria-hidden="true" />
               <div
                 v-if="task.start && task.end"
                 class="schedule-gantt-bar"
@@ -155,7 +155,7 @@ defineExpose({ scrollPage, scrollToToday: scrollToFocus })
         </div>
       </div>
       <ul v-if="legendStates.length" class="schedule-gantt-legend">
-        <li v-if="showToday"><span class="h-3 w-0.5 rounded-full bg-webvue-lime" aria-hidden="true" />{{ t('projects.schedule.today') }} · {{ formatScheduleDate(today, locale) }}</li>
+        <li v-if="showToday"><span class="h-3 w-0.5 rounded-full bg-primary" aria-hidden="true" />{{ t('projects.schedule.today') }} · {{ formatScheduleDate(today, locale) }}</li>
         <li v-for="state in legendStates" :key="state">
           <span class="schedule-gantt-swatch" :class="barClass(state)" aria-hidden="true" />
           {{ stateLabel(state) }}

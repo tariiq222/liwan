@@ -39,7 +39,7 @@ test('assistant uses the approved text scale without changing family, primary or
   await expect(page.locator('.webvue-assistant-button')).toHaveCSS('font-size', '13px')
   await expect(page.locator('.webvue-assistant-module')).toHaveCSS('font-size', '12px')
   expect(await sheet.evaluate(el => getComputedStyle(el).fontFamily)).toContain('IBM Plex Sans Arabic')
-  expect(await sheet.evaluate(el => getComputedStyle(el).getPropertyValue('--primary').trim())).toBe('#007ff8')
+  expect(await sheet.evaluate(el => getComputedStyle(el).getPropertyValue('--primary').trim())).toBe('#5b3f8c')
   await expect(page.locator('.webvue-assistant-body')).toHaveCSS('overscroll-behavior-y', 'contain')
 })
 
@@ -58,7 +58,7 @@ test('reduced transparency uses solid material without changing the brand', asyn
   expect(await page.locator('.webvue-shell').evaluate(el => getComputedStyle(el, '::before').backdropFilter)).toBe('none')
   await page.getByTestId('global-search-trigger').click()
   await expect(page.locator('.webvue-search-overlay')).toHaveCSS('backdrop-filter', 'none')
-  expect(await page.locator('.webvue-search-overlay').evaluate(el => getComputedStyle(el).getPropertyValue('--primary').trim())).toBe('#007ff8')
+  expect(await page.locator('.webvue-search-overlay').evaluate(el => getComputedStyle(el).getPropertyValue('--primary').trim())).toBe('#5b3f8c')
   await session.detach()
 })
 
@@ -175,7 +175,7 @@ for (const locale of ['ar', 'en']) {
         })
       })).toBe(true)
       expect(await sheet.evaluate(el => getComputedStyle(el).fontFamily)).toContain('IBM Plex Sans Arabic')
-      expect(await sheet.evaluate(el => getComputedStyle(el).getPropertyValue('--primary').trim())).toBe('#007ff8')
+      expect(await sheet.evaluate(el => getComputedStyle(el).getPropertyValue('--primary').trim())).toBe('#5b3f8c')
       if (locale === 'ar' && width !== 768) await page.screenshot({ path: testInfo.outputPath(`assistant-${locale}-${width}.png`) })
     })
   }

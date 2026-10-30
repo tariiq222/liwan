@@ -569,7 +569,7 @@ ALLOWED_RECIPE_KEYS = frozenset((
     'inputTags', 'inputDate', 'inputTime',
 ))
 BRAND_COLORS = re.compile(r"colors:\s*\{\s*primary:\s*'brand',\s*neutral:\s*'stone'\s*\}")
-REQUIRED_TOKENS = ('--color-brand-500', 'IBM Plex Sans Arabic', '--webvue-midnight', '--webvue-lime', '.dark')
+REQUIRED_TOKENS = ('--color-brand-500', 'IBM Plex Sans Arabic', '--webvue-sand', '.dark')
 RETIRED_TOKENS = ('--webvue-radius', '--elevation-1', '--content-shadow', '--radius:', ':root.cream')
 
 
