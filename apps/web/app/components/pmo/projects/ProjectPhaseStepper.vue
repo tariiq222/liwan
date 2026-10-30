@@ -26,7 +26,7 @@ const steps = computed(() => phaseSteps(props.current))
       >
         <span
           class="flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums"
-          :class="step.state === 'current' ? 'bg-(--primary-solid) text-inverted' : step.state === 'done' ? 'bg-primary/10 text-primary' : 'bg-elevated text-muted'"
+          :class="step.state === 'current' ? 'bg-(--primary-solid) text-(--primary-solid-foreground)' : step.state === 'done' ? 'bg-primary/10 text-primary' : 'bg-elevated text-muted'"
           aria-hidden="true"
         >
           <UIcon v-if="step.state === 'done'" name="i-lucide-check" class="size-3.5" />
