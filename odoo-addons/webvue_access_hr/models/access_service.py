@@ -267,6 +267,10 @@ class WebVueAccessHrService(models.AbstractModel):
         self._webvue_assert_user_scope(user)
         self._webvue_check_user_version(user, expected_user_version)
         self._webvue_assert_user_scope(user)
+        if not user.active:
+            # Archiving must still succeed for an account already disabled elsewhere;
+            # nothing changed, so there is no second audit event.
+            return
         if self._webvue_has_capability(
             user,
             'access.users.assign_roles',

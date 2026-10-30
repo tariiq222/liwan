@@ -132,6 +132,20 @@ class TestEmployeeAccountModel(TransactionCase):
         self.assertTrue(employee.active)
         self.assertFalse(user.active)
 
+    def test_archive_of_an_already_disabled_account_writes_no_second_audit_event(self):
+        employee = self._employee()
+        user = self._linked_user('archive_model_disabled_employee')
+        employee.write({'user_id': user.id})
+        make_archivable(self.env, employee)
+        user.write({'active': False})
+        audit = self.env['webvue.access.audit']
+        domain = [('action', '=', 'employee.archived_access_disabled'), ('target_id', '=', user.id)]
+        before = audit.search_count(domain)
+        employee.with_user(self.hr_manager)._webvue_archive()
+        employee.invalidate_recordset(['active'])
+        self.assertFalse(employee.active)
+        self.assertEqual(audit.search_count(domain), before)
+
     def test_archive_refuses_to_disable_the_acting_account(self):
         employee = self._employee()
         employee.write({'user_id': self.hr_manager.id})
