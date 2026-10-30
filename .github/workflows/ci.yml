@@ -5,6 +5,10 @@ on:
     branches: [main]
     # ready_for_review starts the first run of a PR that was opened as a draft (drafts run nothing).
     types: [opened, synchronize, reopened, ready_for_review]
+  # A merge-queue entry runs the same pull-request selection on the queued merge result, so the required
+  # ci-result check reports for it; GitHub sends no merge_group event while the queue is off.
+  merge_group:
+    types: [checks_requested]
   push:
     branches: [main]
   schedule:
@@ -22,7 +26,8 @@ permissions:
 
 # A newer push to a PR cancels its older run. On main a running run always finishes (cancelling it left
 # main with no completed run while merges kept coming); GitHub keeps only the newest pending main run, and
-# that commit contains every earlier merge. A manual (release) run has its own group.
+# that commit contains every earlier merge. A manual (release) run has its own group. Each merge-queue entry
+# has its own gh-readonly-queue ref, so its run is never cancelled by another entry.
 concurrency:
   group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -62,19 +67,21 @@ jobs:
           FULL: ${{ inputs.full || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
           EVENT_NAME: ${{ github.event_name }}
           PULL_REQUEST_BASE: ${{ github.event.pull_request.base.sha }}
+          MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
           PUSH_BEFORE: ${{ github.event.before }}
         run: |
           set -euo pipefail
-          base="${PULL_REQUEST_BASE:-$PUSH_BEFORE}"
+          base="${PULL_REQUEST_BASE:-${MERGE_GROUP_BASE:-$PUSH_BEFORE}}"
           if [ -z "$base" ] || [ -z "${base//0/}" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
             base=origin/main
           fi
-          # A pull request skips the slow stages and tests only the Odoo modules the change affects;
-          # every other event (push to main, nightly, dispatch) keeps the whole matrix. Empty modules = all.
+          # A pull request or merge-queue entry skips the slow stages and tests only the Odoo modules the
+          # change affects; every other event (push to main, nightly, dispatch) keeps the whole matrix.
+          # Empty modules = all.
           modules=""
           if [ "$FULL" = true ]; then
             stages="$(python3 -B tools/ci_scope.py --full --stages)"
-          elif [ "$EVENT_NAME" = pull_request ]; then
+          elif [ "$EVENT_NAME" = pull_request ] || [ "$EVENT_NAME" = merge_group ]; then
             stages="$(python3 -B tools/ci_scope.py --base "$base" --pull-request --stages)"
             modules="$(python3 -B tools/ci_scope.py --base "$base" --pull-request --modules)"
           else
