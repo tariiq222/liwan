@@ -112,7 +112,7 @@ function scheduleQueryWrite() {
     let writeTarget: typeof pendingOwnQuery = null
     try {
       const context = Object.fromEntries(
-        ['returnTo', 'taskContext', 'projectListReturnTo']
+        ['returnTo', 'taskContext', 'projectListReturnTo', 'linesOffset']
           .filter(key => typeof route.query[key] === 'string')
           .map(key => [key, route.query[key] as string]),
       )
