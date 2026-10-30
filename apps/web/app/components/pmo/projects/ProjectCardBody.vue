@@ -28,7 +28,7 @@ const taskLabel = computed(() => t('projects.progressOf', { closed: props.projec
       <span class="min-w-0 truncate text-xs text-muted" :title="`${t('projects.phase.title')}: ${t(PHASE_LABEL_KEY[project.phase])}`">{{ t(PHASE_LABEL_KEY[project.phase]) }}</span>
       <SharedStatusBadge v-if="awaitingCharter" tone="info" size="sm" icon="i-lucide-file-clock" :label="t('projects.charter.state.submitted')" class="shrink-0" />
       <RecordNumber :value="project.id" class="ms-auto shrink-0" />
-      <ProjectMenu v-if="project.can_manage" :project="project" hide-settings class="-me-1 -my-1 shrink-0" @archive="archive.request(project)" />
+      <ProjectMenu v-if="project.can_manage" :project="project" class="-me-1 -my-1 shrink-0" @archive="archive.request(project)" />
     </div>
     <h2 :id="`project-card-${project.id}`" class="min-w-0 truncate text-sm font-semibold text-highlighted" :title="project.name">
       <NuxtLink :to="toFor(project)" class="rounded hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ project.name }}</NuxtLink>

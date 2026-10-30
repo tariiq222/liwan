@@ -137,7 +137,6 @@
     "menu": {
       "label": "Project actions",
       "open": "View",
-      "settings": "Project settings",
       "archive": "Archive project",
       "unarchive": "Unarchive",
       "labelNamed": "Actions for {name}"

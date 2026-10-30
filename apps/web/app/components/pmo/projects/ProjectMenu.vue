@@ -5,10 +5,10 @@ import type { RouteLocationRaw } from 'vue-router'
 import { ApiError } from '@/composables/useApi'
 import { useUnarchiveProject } from '@/composables/useProjects'
 
-const props = withDefaults(defineProps<{ project: Project | ProjectDetail; hideSettings?: boolean; to?: RouteLocationRaw }>(), { hideSettings: false })
+const props = defineProps<{ project: Project | ProjectDetail; to?: RouteLocationRaw }>()
 // The archive confirmation is drawn by the list (a full-width block); the menu only asks for it.
 defineOptions({ inheritAttrs: false })
-const emit = defineEmits<{ settings: []; archive: [] }>()
+const emit = defineEmits<{ archive: [] }>()
 
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -17,7 +17,6 @@ const { mutateAsync: unarchiveMutate, isPending: unarchiving } = useUnarchivePro
 
 const items = computed<DropdownMenuItem[] | DropdownMenuItem[][]>(() => {
   const list: DropdownMenuItem[] = []
-  if (!props.hideSettings) list.push({ label: t('projects.menu.settings'), onSelect: () => emit('settings') })
   if (!props.project.active) list.push({ label: t('projects.menu.unarchive'), icon: 'i-lucide-archive-restore', disabled: unarchiving.value, onSelect: doUnarchive })
   // Same grouping as SharedRowActions: destructive items last, in the error colour, opening an inline confirmation in the list.
   if (props.project.active) return [list, [{ label: t('projects.menu.archive'), icon: 'i-lucide-archive', color: 'error', onSelect: () => emit('archive') }]]
