@@ -24,8 +24,10 @@ export interface TaskListParams {
   deadline?: TaskDeadline
   priority?: TaskPriority[]
   sort?: string
-  // undefined = true: مهامي. false = every task of `project_id` the user can read (project screen).
+  // undefined = true: the caller's tasks. false = every task of `project_id` the user can read (project screen).
   mine?: boolean
+  // Every task the user can read, across projects (the /tasks list).
+  all?: boolean
 }
 
 // Page size for both the infinite list and the offset math in getNextPageParam.
@@ -35,7 +37,7 @@ export const PAGE = 50
 export function summaryQuery(p: TaskListParams) {
   return {
     // An `assignee` filter names the people itself, so it replaces the "mine" scope instead of narrowing it.
-    filter: p.mine === false || p.assignee !== undefined ? undefined : 'mine',
+    filter: p.all ? 'all' : p.mine === false || p.assignee !== undefined ? undefined : 'mine',
     state: p.state?.join(','),
     project_id: p.project_id,
     q: p.q || undefined,

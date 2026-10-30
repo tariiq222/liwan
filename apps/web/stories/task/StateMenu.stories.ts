@@ -10,7 +10,7 @@ const meta = {
   title: 'Task/StateMenu',
   component: StateMenu,
   args: { task: makeTask() },
-  parameters: storyContext('apps/web/app/components/pmo/tasks/TaskTable.vue:133', 'صف المهمة على الجوال تحت 768px، فالغلاف بعرض 375px.'),
+  parameters: storyContext('apps/web/app/components/pmo/tasks/TaskTable.vue:132', 'صف المهمة على الجوال تحت 768px، فالغلاف بعرض 375px.'),
   render: args => ({
     components: { PrioritySelect, StateMenu },
     setup: () => ({ task: useStoryTask(() => args.task) }),

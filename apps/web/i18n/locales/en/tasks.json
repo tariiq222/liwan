@@ -8,8 +8,8 @@
       "urgent": "Urgent",
       "done": "Completed"
     },
-    "title": "Assigned project tasks",
-    "description": "Track assigned tasks, status, and deadlines in one place.",
+    "title": "Project tasks",
+    "description": "Track the tasks available to you, their status, and deadlines in one place.",
     "table": "Table",
     "board": "Board",
     "new": "New project task",
@@ -57,7 +57,7 @@
       "clear": "Clear filters"
     },
     "empty": {
-      "title": "No tasks assigned to you",
+      "title": "No tasks yet",
       "action": "Create task",
       "closedTitle": "No completed tasks yet"
     },

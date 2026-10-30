@@ -29,7 +29,7 @@
   },
   "nav": {
     "today": "Today",
-    "tasks": "Assigned project tasks",
+    "tasks": "Project tasks",
     "projects": "Projects",
     "toggleNavigation": "Toggle navigation",
     "header": "Application header",

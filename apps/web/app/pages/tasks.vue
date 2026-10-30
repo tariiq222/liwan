@@ -54,8 +54,8 @@ const filters = useTaskFilters()
 // header to "none" removes the key. The board has no columns to sort, so it queries without it.
 // A key present in the URL wins over the stored value and an absent one falls back to it; the open/closed scope lives in the URL alone.
 const params = computed<TaskListParams>({
-  get: () => ({ ...withTaskListFilters(filters.value, route.query), sort: normalizeTaskSort(route.query.sort) }),
-  set: ({ sort: _sort, ...rest }) => {
+  get: () => ({ ...withTaskListFilters(filters.value, route.query), all: true, sort: normalizeTaskSort(route.query.sort) }),
+  set: ({ sort: _sort, all: _all, ...rest }) => {
     filters.value = { ...rest, closed: false }
     void router.replace({ query: { ...route.query, ...taskListQuery(rest) } })
   },

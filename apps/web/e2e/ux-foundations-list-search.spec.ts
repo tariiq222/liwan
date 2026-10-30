@@ -9,7 +9,7 @@ test('dialog and page search expose the same task provider and record return kee
   await page.keyboard.press('Escape')
   await page.goto('/search?q=مهمة&provider=pmo-tasks')
   const search = page.getByTestId('search-page')
-  await expect(search.getByRole('heading', { name: 'مهام المشاريع المسندة إليّ', exact: true })).toBeVisible()
+  await expect(search.getByRole('heading', { name: 'مهام المشاريع', exact: true })).toBeVisible()
   await search.getByRole('link', { name: foundationTask.name, exact: true }).click()
   await expect(page).toHaveURL(/\/tasks\/101\?returnTo=/)
   await page.getByTestId('task-detail-back').click()

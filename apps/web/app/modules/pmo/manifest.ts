@@ -23,7 +23,7 @@ const manifest: AppManifest = {
     { id: 'new-project', labelKey: 'nav.newProject', icon: 'i-lucide-plus', to: '/projects/new', capability: 'pmo.projects.create', pinned: true },
     { id: 'project-dashboard', labelKey: 'projects.dashboard.title', icon: 'i-lucide-chart-no-axes-combined', to: '/projects/dashboard', capability: 'pmo.projects.read' },
     { id: 'projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', to: '/projects', capability: 'pmo.projects.read' },
-    { id: 'tasks', labelKey: 'nav.myTasks', icon: 'i-lucide-check-square', to: '/tasks', capability: 'pmo.tasks.read' },
+    { id: 'tasks', labelKey: 'nav.tasks', icon: 'i-lucide-check-square', to: '/tasks', capability: 'pmo.tasks.read' },
   ],
   landing: [
     { path: '/projects/dashboard', capability: 'pmo.projects.read' },
