@@ -236,7 +236,7 @@ test('register forms preserve risk metrics, filters and failed drafts through ne
   await page.unroute(endpoint)
   await page.getByRole('button', { name: 'حفظ', exact: true }).click()
   await expect(page).toHaveURL(url => url.pathname === `/projects/${p.id}/register` && url.searchParams.get('q') === name)
-  await expect(page.getByRole('row').filter({ hasText: name })).toContainText('قيد المعالجة')
+  await expect(page.getByRole('row').filter({ hasText: name })).toContainText('قيد التنفيذ')
   const item = await json(await page.request.get(`/api/v1/projects/${p.id}/register/${itemId}`))
   expect(item).toMatchObject({ probability: 4, impact: 5, score: 20, status: 'in_progress' })
   await page.setViewportSize({ width: 390, height: 844 })
