@@ -20,21 +20,11 @@ python3 -B tools/oca_addons.py fetch --dest "$LIWAN_OCA_DIR"
 python3 -B tools/oca_addons.py path --check
 python3 -B tools/documents_acceptance/attachment_spike.py --worktree "$PWD" --database liwan_scratch_docs_fit --http-port 8294 --evidence-dir /tmp/liwan-docs-fit
 python3 -B tools/documents_acceptance/attachment_spike.py --worktree "$PWD" --database liwan_scratch_docs_upstream --http-port 8294 --evidence-dir /tmp/liwan-docs-upstream --upstream
-python3 -B tools/documents_acceptance/migration_order.py --baseline dc39a8eb734da4557d341fbe24b2fc63d773fbb1 --worktree "$PWD" --database-prefix liwan_scratch_docs_order --evidence-dir /tmp/liwan-docs-order
 ```
 
 `attachment_spike --red` omits the disposable fixture adapter and proves the linked
 directory assertions fail. The fixture is generated outside the repository and is
 never installed into a customer database. It adds no `sudo` of its own.
-
-`migration_order` installs baseline HR and pinned DMS in both orders and characterizes
-a **pre-registry** table/model adoption before installing a disposable target model.
-It verifies the document and ir.model IDs, HTML, expiry date, XML reference, attachment
-ID/checksum/filestore object and repeat adoption. It rejects unrelated DMS resources.
-The fixture temporarily preserves the old attachment relation solely to prove
-identity transfer; the final product migration must replace that relation with DMS
-and test capability and commercial-policy migration separately (plan Task 5).
-The metadata SQL is confined to this scratch proof. It is not a release migration.
 
 A passing upstream suite is not acceptance of LiwanOS's grants, native routes, tokens,
 concurrency, quotas, or tenant lifecycle; those require the later application tests.
