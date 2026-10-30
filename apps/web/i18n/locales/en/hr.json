@@ -192,7 +192,18 @@
       "nationality": "Nationality",
       "nationalityHint": "Payroll reads the social insurance class from it.",
       "nationalityPlaceholder": "Choose a nationality",
-      "nationalitySearch": "Search for a country"
+      "nationalitySearch": "Search for a country",
+      "contract": {
+        "title": "Contract",
+        "hint": "Contract dates, probation end, identity expiry and notice period.",
+        "start": "Contract start",
+        "end": "Contract end",
+        "probationEnd": "Probation end",
+        "identityExpiry": "Identity expiry",
+        "noticeDays": "Notice period (days)",
+        "endBeforeStart": "The contract ends before it starts.",
+        "noticeInvalid": "The notice period is a whole number of days, zero or more."
+      }
     },
     "reports": {
       "title": "Reports",
@@ -299,6 +310,10 @@
         "type": "Leave type",
         "chooseType": "Choose a leave type",
         "typeRequired": "Leave type is required.",
+        "overlap": "This period overlaps existing leave. Choose another period.",
+        "onBehalf": "On behalf of another employee",
+        "employeeSearch": "Search for an employee…",
+        "onBehalfSelf": "Myself (my own request)",
         "from": "From",
         "to": "To",
         "dateRequired": "The date is required.",
@@ -402,6 +417,10 @@
       "saveError": "Unable to save leave policy",
       "reload": "Reload policy",
       "reloadError": "Unable to reload. Your draft and conflict were retained."
+    },
+    "bell": {
+      "leaveApproved": "Your leave request ({dates}) was approved",
+      "leaveRefused": "Your leave request ({dates}) was refused"
     }
   }
 }

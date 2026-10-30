@@ -4,8 +4,10 @@ import base64
 import csv
 import io
 import os
+from datetime import timedelta
 from unittest.mock import patch
 
+from odoo import fields
 from odoo.tests import new_test_user, tagged
 
 from odoo.addons.webvue_api.tests.common import (
@@ -13,11 +15,14 @@ from odoo.addons.webvue_api.tests.common import (
     assert_isolation_discovery,
     cover_isolation_routes,
 )
+from odoo.addons.webvue_inbox.adapters import whatsapp
 from odoo.addons.webvue_inbox.models.secret_box import KEY_ENV
 from odoo.addons.webvue_inbox.tests.common import ACCESS_TOKEN, APP_SECRET
 
-EXPECTED_GET_RECORD_ROUTES = 9
+EXPECTED_GET_RECORD_ROUTES = 27
 PASSWORD = 'iso_inbox_nocap_pass_123'
+PROFILE = {'about': 'About', 'address': None, 'description': None, 'email': None, 'websites': [], 'vertical': None}
+PREVIEW = {'url': 'https://business.facebook.com/wa/manage/flows/preview/abc', 'expires_at': fields.Datetime.now()}
 # Visible and hidden company tags per session company. iso_user holds the inbox manager role in the parent
 # and both branches, so a parent session reads its branches; a branch session never reads the parent or a
 # sibling, and the independent company C is hidden from every other session.
@@ -38,6 +43,11 @@ class TestInboxCompanyIsolation(CompanyIsolationCase):
         env_patch = patch.dict(os.environ, {KEY_ENV: base64.urlsafe_b64encode(os.urandom(32)).decode()})
         env_patch.start()
         cls.addClassCleanup(env_patch.stop)
+        # The two routes that read Meta live answer from these stubs; a hidden record must never reach them.
+        for name, value in (('get_business_profile', PROFILE), ('flow_preview', PREVIEW)):
+            meta_patch = patch.object(whatsapp, name, return_value=value)
+            setattr(cls, f'meta_{name}', meta_patch.start())
+            cls.addClassCleanup(meta_patch.stop)
         cls.by_tag = {'p': cls.company_p, 'p1': cls.company_p1, 'p2': cls.company_p2, 'c': cls.company_c}
         Assignment = cls.env['webvue.access.assignment'].sudo()
         manager = cls.env.ref('webvue_inbox.role_inbox_manager')
@@ -82,9 +92,37 @@ class TestInboxCompanyIsolation(CompanyIsolationCase):
             template = cls.env['webvue.inbox.template'].create({
                 'channel_id': channel.id, 'company_id': company.id, 'name': f'tpl_{tag}', 'language': 'ar', 'status': 'approved', 'body': 'x',
             })
+            flow = cls.env['webvue.inbox.flow'].create({
+                'channel_id': channel.id, 'name': f'Form {tag}', 'status': 'published', 'health': 'available',
+                'provider_flow_id': f'80000000{i:04d}',
+            })
+            answer = cls.env['webvue.inbox.message'].create({
+                'conversation_id': conversation.id, 'company_id': company.id, 'direction': 'in', 'kind': 'flow_response',
+                'body': f'Form answer {tag}', 'delivery_state': 'received',
+            })
+            cls.env['webvue.inbox.flow.submission'].create({
+                'conversation_id': conversation.id, 'flow_id': flow.id, 'message_id': answer.id, 'submitted_at': answer.date,
+            })
+            audience = cls.env['webvue.inbox.audience'].create({'name': f'Audience {tag}', 'company_id': company.id})
+            campaign = cls.env['webvue.inbox.campaign'].create({
+                'name': f'Campaign {tag}', 'company_id': company.id, 'channel_id': channel.id, 'template_id': template.id,
+                'audience_id': audience.id,
+            })
+            cls.env['webvue.inbox.campaign.recipient'].create({
+                'campaign_id': campaign.id, 'contact_id': contact.id, 'address': identity.address,
+            })
+            cls.env['webvue.inbox.channel.alert'].create({
+                'owner_company_id': company.id, 'channel_id': channel.id, 'kind': 'quality_changed', 'severity': 'info',
+            })
+            cls.env['webvue.inbox.report.day'].create({
+                'company_id': company.id, 'day': fields.Date.today(), 'channel_id': channel.id, 'messages_in': 1,
+                'computed_at': fields.Datetime.now(),
+            })
             cls.recs[tag] = {
                 'template': template, 'channel': channel, 'contact': contact, 'conversation': conversation, 'message': message,
-                'attachment': attachment,
+                'attachment': attachment, 'flow': flow, 'audience': audience, 'campaign': campaign,
+                'rule': cls.env['webvue.inbox.rule'].create({'name': f'Rule {tag}', 'company_id': company.id}),
+                'department': cls.env['webvue.inbox.department'].create({'name': f'Department {tag}', 'company_id': company.id}),
             }
 
     @staticmethod
@@ -98,12 +136,43 @@ class TestInboxCompanyIsolation(CompanyIsolationCase):
             'messages': f'/api/v1/inbox/conversations/{rec["conversation"].id}/messages',
             'contact': f'/api/v1/inbox/contacts/{rec["contact"].id}',
             'download': f'/api/v1/inbox/messages/{rec["message"].id}/attachments/{rec["attachment"].id}/download',
+            'audience': f'/api/v1/inbox/audiences/{rec["audience"].id}',
+            'members': f'/api/v1/inbox/audiences/{rec["audience"].id}/members',
+            'department_hours': f'/api/v1/inbox/departments/{rec["department"].id}/working-hours',
+            'automation': f'/api/v1/inbox/channels/{rec["channel"].id}/automation',
+            'rule': f'/api/v1/inbox/rules/{rec["rule"].id}',
+            'campaign': f'/api/v1/inbox/campaigns/{rec["campaign"].id}',
+            'recipients': f'/api/v1/inbox/campaigns/{rec["campaign"].id}/recipients',
+            'alerts': f'/api/v1/inbox/channels/{rec["channel"].id}/alerts',
+            'profile': f'/api/v1/inbox/channels/{rec["channel"].id}/profile',
+            'sending': f'/api/v1/inbox/channels/{rec["channel"].id}/sending',
+            'marketing': f'/api/v1/inbox/contacts/{rec["contact"].id}/marketing',
+            'flows': f'/api/v1/inbox/channels/{rec["channel"].id}/flows',
+            'flow': f'/api/v1/inbox/flows/{rec["flow"].id}',
+            'flow_preview': f'/api/v1/inbox/flows/{rec["flow"].id}/preview',
+            'flow_submissions': f'/api/v1/inbox/flows/{rec["flow"].id}/submissions',
+            'conversation_submissions': f'/api/v1/inbox/conversations/{rec["conversation"].id}/flow-submissions',
+        }
+
+    @staticmethod
+    def report_paths(rec):
+        """The report routes: they read the session's own company only, never its branches."""
+        today = fields.Date.today()
+        window = f'from={today - timedelta(days=6)}&to={today}'
+        return {
+            'report_template': f'/api/v1/inbox/reports/templates/{rec["template"].id}?{window}',
+            'report_export': f'/api/v1/inbox/reports/export?by=channel&{window}',
         }
 
     def hidden_ids(self, kind, rec):
         return {
             'channel': rec['channel'], 'ref': rec['channel'], 'templates': rec['channel'], 'template': rec['template'], 'conversation': rec['conversation'],
             'messages': rec['conversation'], 'contact': rec['contact'], 'download': rec['message'],
+            'audience': rec['audience'], 'members': rec['audience'], 'department_hours': rec['department'], 'automation': rec['channel'],
+            'rule': rec['rule'], 'campaign': rec['campaign'], 'recipients': rec['campaign'], 'alerts': rec['channel'],
+            'profile': rec['channel'], 'sending': rec['channel'], 'marketing': rec['contact'], 'flows': rec['channel'],
+            'flow': rec['flow'], 'flow_preview': rec['flow'], 'flow_submissions': rec['flow'],
+            'conversation_submissions': rec['conversation'], 'report_template': rec['template'],
         }[kind].id
 
     def test_record_matrix(self):
@@ -119,6 +188,43 @@ class TestInboxCompanyIsolation(CompanyIsolationCase):
                 for kind, path in self.paths(rec).items():
                     with self.subTest(current=current, hidden=tag, route=kind):
                         self.assertHiddenEveryWay('GET', path, self.hidden_ids(kind, rec))
+
+    def assertHiddenWithStrictQuery(self, path, hidden_id):
+        """Like assertHiddenEveryWay for a route that refuses unknown query parameters: the forged `cids` query is a 422."""
+        plain, by_query, by_body = self.api_forged('GET', path, hidden_id)
+        self.assertEqual((plain.status_code, by_query.status_code, by_body.status_code), (404, 422, 404), path)
+        self.assertHidden(path)
+
+    def test_report_routes_read_the_current_company_only(self):
+        """A report is the session company's own: a parent never reads a branch's template detail or export, and vice versa."""
+        for current, _visible, _hidden in MATRIX:
+            self.env_in(self.by_tag[current])
+            for tag, rec in self.recs.items():
+                for kind, path in self.report_paths(rec).items():
+                    if kind == 'report_export':
+                        continue
+                    with self.subTest(current=current, record=tag, route=kind):
+                        if tag == current:
+                            self.assertVisible(path)
+                        else:
+                            self.assertHiddenWithStrictQuery(path, self.hidden_ids(kind, rec))
+            text = self.assertVisible(self.report_paths(self.recs[current])['report_export']).content.decode('utf-8-sig')
+            subjects = {row[0] for row in csv.reader(io.StringIO(text))}
+            self.assertIn(f'Channel {current}', subjects)
+            for tag in self.by_tag:
+                if tag != current:
+                    self.assertNotIn(f'Channel {tag}', subjects, f'{tag} leaked into the {current} report export')
+
+    def test_hidden_records_never_reach_meta(self):
+        for current, _visible, hidden in MATRIX:
+            self.env_in(self.by_tag[current])
+            self.meta_get_business_profile.reset_mock()
+            self.meta_flow_preview.reset_mock()
+            for tag in hidden:
+                paths = self.paths(self.recs[tag])
+                self.assertHidden(paths['profile'])
+                self.assertHidden(paths['flow_preview'])
+            self.assertFalse(self.meta_get_business_profile.called or self.meta_flow_preview.called, f'a hidden record reached Meta from {current}')
 
     def test_lists_never_show_another_company(self):
         for current, visible, hidden in MATRIX:
@@ -144,7 +250,7 @@ class TestInboxCompanyIsolation(CompanyIsolationCase):
     def test_missing_capability_in_the_same_company_stays_forbidden(self):
         self.authenticate('iso_inbox_nocap', PASSWORD)
         rec = self.recs['p']
-        for path in (*self.paths(rec).values(), '/api/v1/inbox/conversations/export.csv'):
+        for path in (*self.paths(rec).values(), *self.report_paths(rec).values(), '/api/v1/inbox/conversations/export.csv'):
             self.assertEqual(self.api('GET', path).status_code, 403, path)
 
     def test_discovery_covers_every_get_record_route(self):
@@ -161,4 +267,22 @@ cover_isolation_routes((
     '/api/v1/inbox/contacts/<int:contact_id>',
     '/api/v1/inbox/messages/<int:message_id>/attachments/<int:attachment_id>/download',
     '/api/v1/inbox/conversations/export.csv',
+    '/api/v1/inbox/audiences/<int:audience_id>',
+    '/api/v1/inbox/audiences/<int:audience_id>/members',
+    '/api/v1/inbox/departments/<int:department_id>/working-hours',
+    '/api/v1/inbox/channels/<int:channel_id>/automation',
+    '/api/v1/inbox/rules/<int:rule_id>',
+    '/api/v1/inbox/campaigns/<int:campaign_id>',
+    '/api/v1/inbox/campaigns/<int:campaign_id>/recipients',
+    '/api/v1/inbox/channels/<int:channel_id>/alerts',
+    '/api/v1/inbox/channels/<int:channel_id>/profile',
+    '/api/v1/inbox/channels/<int:channel_id>/sending',
+    '/api/v1/inbox/contacts/<int:contact_id>/marketing',
+    '/api/v1/inbox/channels/<int:channel_id>/flows',
+    '/api/v1/inbox/flows/<int:flow_id>',
+    '/api/v1/inbox/flows/<int:flow_id>/preview',
+    '/api/v1/inbox/flows/<int:flow_id>/submissions',
+    '/api/v1/inbox/conversations/<int:conversation_id>/flow-submissions',
+    '/api/v1/inbox/reports/templates/<int:template_id>',
+    '/api/v1/inbox/reports/export',
 ), source='webvue_inbox/tests/test_company_isolation.py')

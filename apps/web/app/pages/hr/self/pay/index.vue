@@ -3,7 +3,7 @@ definePageMeta({ path: '/account/pay' })
 import type { TableColumn } from '@nuxt/ui'
 import type { HrMyPayslipSummary } from '@webvue/contracts'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
-import { formatPayrollAmount, formatPayrollMonth } from '@/utils/payrollFormat'
+import { formatPayrollAmount, formatPayrollMonth, payrollCurrencyLabel } from '@/utils/payrollFormat'
 
 // The caller's own approved payslips, newest first, one page at a time (`?offset=`):
 // a row opens the printable payslip document.
@@ -66,10 +66,10 @@ function payslipTo(row: HrMyPayslipSummary) {
             <NuxtLink :to="payslipTo(row.original)" class="font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" @click="!hydrated && $event.preventDefault()">{{ formatPayrollMonth(row.original.month, locale) }}</NuxtLink>
           </template>
           <template #number-cell="{ row }"><bdi>{{ row.original.number }}</bdi></template>
-          <template #net-cell="{ row }"><span class="font-semibold tabular-nums text-highlighted">{{ amount(row.original.net) }} {{ t('hrPayroll.currency') }}</span></template>
+          <template #net-cell="{ row }"><span class="font-semibold tabular-nums text-highlighted">{{ amount(row.original.net) }} {{ payrollCurrencyLabel(row.original.currency, t('hrPayroll.currency')) }}</span></template>
           <template #mobile-row="{ row }">
             <p class="font-semibold text-highlighted">{{ formatPayrollMonth(row.month, locale) }}</p>
-            <p class="mt-1 text-sm"><bdi>{{ row.number }}</bdi> · {{ amount(row.net) }} {{ t('hrPayroll.currency') }}</p>
+            <p class="mt-1 text-sm"><bdi>{{ row.number }}</bdi> · {{ amount(row.net) }} {{ payrollCurrencyLabel(row.currency, t('hrPayroll.currency')) }}</p>
           </template>
         </SharedDataTable>
       </SharedPageState>

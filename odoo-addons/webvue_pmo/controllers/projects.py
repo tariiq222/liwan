@@ -126,9 +126,9 @@ class ProjectController(http.Controller):
     @requires_feature('pmo.enabled', operation='write')
     def copy_project(self, project_id, **payload):
         source = get_record('project.project', project_id)
-        name, start_date = parse_project_copy(payload)
+        name, start_date, end_date = parse_project_copy(payload)
         try:
-            result = source._webvue_copy_structure(name, start_date, serialize=dump_project_detail)
+            result = source._webvue_copy_structure(name, start_date, end_date=end_date, serialize=dump_project_detail)
         except WebVueAccessRule:
             raise
         except AccessError as error:

@@ -42,10 +42,16 @@ export function taskAttributeFilters(raw: Record<string, unknown>): TaskAttribut
   return filters
 }
 
-/** Stored filters with the attribute filters re-validated, then the URL's own on top: the URL wins, an absent key falls back. */
+/** The search text of a URL query (`?q=`); undefined when absent or blank. */
+export function taskSearchText(query: Record<string, unknown>): string | undefined {
+  return typeof query.q === 'string' && query.q.trim() ? query.q.trim() : undefined
+}
+
+/** Stored filters with the attribute filters re-validated, then the URL's own on top: the URL wins, an absent key falls back. The search text (`?q=`) follows the same rule. */
 export function withTaskAttributeFilters<T extends TaskAttributeFilters>(stored: T, query: Record<string, unknown>): T {
   const { assignee: _a, deadline: _d, priority: _p, ...rest } = stored
-  return { ...rest, ...taskAttributeFilters(stored), ...taskAttributeFilters(query) } as T
+  const q = taskSearchText(query)
+  return { ...rest, ...taskAttributeFilters(stored), ...taskAttributeFilters(query), ...(q ? { q } : {}) } as T
 }
 
 /** The attribute filters as URL query values (undefined removes the key). */

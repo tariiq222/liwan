@@ -151,6 +151,13 @@ export function useProjectSummary(filters: MaybeRefOrGetter<ProjectSummaryFilter
   })
 }
 
+/** True once the project cannot be shown to this user: an unusable id, or a read answered 404 (missing) or 403 (hidden). Shares the cached read of `useProject`. */
+export function useProjectMissing(id: Ref<number | null>) {
+  const { error } = useProject(id)
+  return computed(() => id.value === null || !Number.isInteger(id.value) || id.value <= 0
+    || (error.value instanceof ApiError && (error.value.status === 404 || error.value.status === 403)))
+}
+
 export function useProject(id: Ref<number | null>) {
   const { $api } = useApi()
   return useQuery({
@@ -274,8 +281,8 @@ export function useMoveProjectPhase() {
   const qc = useQueryClient()
   const { $api } = useApi()
   return useMutation({
-    mutationFn: ({ id, phase, expected }: { id: number; phase: ProjectPhase; expected: string }) =>
-      $api(`/api/v1/projects/${id}/phase`, { method: 'POST', body: { phase, expected_updated_at: expected }, schema: ProjectDetailSchema }),
+    mutationFn: ({ id, phase, expected, acknowledgeWarnings }: { id: number; phase: ProjectPhase; expected: string; acknowledgeWarnings?: boolean }) =>
+      $api(`/api/v1/projects/${id}/phase`, { method: 'POST', body: { phase, expected_updated_at: expected, ...(acknowledgeWarnings ? { acknowledge_warnings: true } : {}) }, schema: ProjectDetailSchema }),
     onSuccess: (detail: ProjectDetail, { id }) => {
       qc.setQueryData(projectKeys.detail(id), detail)
       invalidateProjectCaches(qc)

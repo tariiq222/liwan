@@ -6,6 +6,7 @@ from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import new_test_user, tagged
 
 from .common import WebVuePmoCase
+from odoo.addons.webvue_api.controllers.common import ApiError
 from odoo.addons.webvue_platform.models.entitlement_service import OPERATOR_CONTEXT
 from odoo.addons.webvue_pmo.models import project_project
 from odoo.addons.webvue_pmo.models.project_task import PROJECT_COPY_MARKER
@@ -254,6 +255,27 @@ class TestProjectCopy(WebVuePmoCase):
         self.assertFalse(tasks.user_ids)
         self.assertFalse(tasks.message_follower_ids)
         self.assertFalse(tasks.filtered(lambda task: task.state == '1_done'))
+
+    def test_end_date_is_required_when_the_source_has_none(self):
+        bare = self.env['project.project'].create({
+            'name': 'No end', 'user_id': self.manager.id, 'company_id': self.env.company.id,
+            'privacy_visibility': 'employees', 'date': False,
+        })
+        with self.assertRaises(ApiError) as caught:
+            self._copy(source=bare, name='No end copy')
+        self.assertEqual((caught.exception.status, caught.exception.field), (422, 'end_date'))
+        copy = self.source.with_user(self.copier)._webvue_copy_structure('Chosen end', '2030-03-01', end_date=date(2030, 9, 1))
+        self.assertEqual(copy.date, date(2030, 9, 1))
+        with self.assertRaises(ValidationError):
+            self.source.with_user(self.copier)._webvue_copy_structure('Early end', '2030-03-01', end_date=date(2030, 2, 1))
+
+    def test_end_date_stays_optional_when_the_company_does_not_require_it(self):
+        self.env['webvue.pmo.settings'].set_values({'require_end_date_on_create': False})
+        bare = self.env['project.project'].create({
+            'name': 'No end', 'user_id': self.manager.id, 'company_id': self.env.company.id,
+            'privacy_visibility': 'employees',
+        })
+        self.assertFalse(self._copy(source=bare, name='Free copy').date)
 
     def test_forbidden_callers(self):
         before = self._counts()

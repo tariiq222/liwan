@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { PersonRefSchema } from '../common/person'
 
+export * from './bell'
+
 const Id = z.number().int().positive()
 const Revision = z.number().int().nonnegative()
 const Ref = z.object({ id: Id, name: z.string() }).strict()
@@ -18,6 +20,7 @@ export const OperationProcessSchema = z.object({
   execution_kind: z.string().min(1),
   steps: z.array(z.object({
     name: z.string(), reviewer_ids: z.array(Id), reviewers: z.array(PersonRefSchema),
+    ineligible_reviewer_ids: z.array(Id),
   }).strict()),
 }).strict()
 export const OperationActionsSchema = z.object({

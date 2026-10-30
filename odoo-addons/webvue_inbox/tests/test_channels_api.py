@@ -12,7 +12,7 @@ from odoo.addons.webvue_platform.models.entitlement_service import OPERATOR_CONT
 
 CHANNEL_KEYS = {
     'id', 'name', 'kind', 'state', 'department', 'phone_number_id', 'business_account_id', 'has_access_token',
-    'has_app_secret', 'app_id', 'verify_token', 'callback_url', 'last_error', 'last_event_at',
+    'has_app_secret', 'app_id', 'verify_token', 'callback_url', 'last_error', 'last_event_at', 'health',
 }
 NEW_CHANNEL = {
     'name': 'Branch line', 'kind': 'whatsapp', 'phone_number_id': '300000000001',
@@ -101,7 +101,9 @@ class TestChannelsApi(WebVueInboxCase):
     def test_connection_test_sets_connected_or_error(self):
         self.login(self.manager)
         path = f'/api/v1/inbox/channels/{self.channel.id}/test'
-        with patch.object(requests, 'request', MagicMock(return_value=MagicMock(status_code=200))) as mocked:
+        healthy = MagicMock(status_code=200)
+        healthy.json.return_value = {'display_phone_number': '+966 50 111 2222', 'verified_name': 'Acme'}
+        with patch.object(requests, 'request', MagicMock(return_value=healthy)) as mocked:
             result = self.api('POST', path)
         self.assertEqual((result.json()['state'], result.json()['last_error']), ('connected', None))
         self.assertEqual(mocked.call_args.kwargs['headers'], {'Authorization': f'Bearer {ACCESS_TOKEN}'})

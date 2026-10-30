@@ -122,6 +122,13 @@ class RealManifestClosureTest(unittest.TestCase):
             with self.subTest(alone=alone):
                 self.assertNotIn('webvue_appointments_payments', module_closure.install_closure([ADDONS], BASE + [alone]))
 
+    def test_the_real_inbox_payments_bridge_joins_only_with_inbox_and_payments(self):
+        both = module_closure.install_closure([ADDONS], BASE + ['webvue_inbox', 'webvue_payments'])
+        self.assertIn('webvue_inbox_payments', both)
+        for alone in ('webvue_inbox', 'webvue_payments'):
+            with self.subTest(alone=alone):
+                self.assertNotIn('webvue_inbox_payments', module_closure.install_closure([ADDONS], BASE + [alone]))
+
     def test_the_real_meetings_bridge_joins_only_with_both_applications(self):
         shared = {'webvue_core', 'webvue_platform', 'webvue_api', 'webvue_notify', 'webvue_directory'}
         self.assertEqual(

@@ -1,8 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from unittest.mock import patch
 
+from odoo import Command
 from odoo.exceptions import AccessError
-from odoo.tests import tagged
+from odoo.tests import new_test_user, tagged
 
 from .common import WebVuePmoCase
 from odoo.addons.webvue_pmo.models.project_phase import WebVuePhaseGate, WebVuePhaseStep
@@ -84,6 +85,21 @@ class TestProjectPhase(WebVuePmoCase):
         self.project.webvue_phase = 'closed'
         last = self._as_manager()._webvue_phase_state()
         self.assertEqual((last['previous'], last['next'], last['next_checks']), ('closing', None, []))
+
+    def test_closing_gate_counts_tasks_without_task_read_access(self):
+        reader = new_test_user(self.env, login='phase_reader', groups='base.group_user')
+        permission = self.env['webvue.access.permission'].search([('key', '=', 'pmo.projects.read')])
+        role = self.env['webvue.access.role'].create({
+            'name_ar': 'phase_reader', 'permission_ids': [Command.set(permission.ids)],
+        })
+        self.env['webvue.access.assignment'].create({
+            'user_id': reader.id, 'role_id': role.id, 'company_id': self.env.company.id,
+        })
+        self.project.webvue_phase = 'closing'
+        with self.assertRaises(AccessError):
+            self.env['project.task'].with_user(reader).search_count([('project_id', '=', self.project.id)])
+        checks = self.project.with_user(reader)._webvue_gate_checks('closed')
+        self.assertEqual(checks, [{'key': 'no_open_tasks', 'ok': False}])
 
     def test_route_moves_and_returns_detail(self):
         self._approve_charter()

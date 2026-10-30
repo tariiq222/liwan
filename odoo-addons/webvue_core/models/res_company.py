@@ -116,7 +116,9 @@ class ResCompany(models.Model):
             msg = 'invalid_branding_fields'
             raise AccessError(msg)
         with marked(self.env, {BRANDING_COMPANY_MARKER: {self.id}, PARTNER_BRANDING_MARKER: {self.partner_id.id}}):
-            return super().write(vals)
+            result = super().write(vals)
+        self._webvue_log_company_change('company.branding_changed', vals)
+        return result
 
     def _webvue_write_company_profile(self, vals):
         """Write whitelisted identity, address and contact fields of the current company.
@@ -135,7 +137,16 @@ class ResCompany(models.Model):
             msg = 'invalid_company_profile_fields'
             raise AccessError(msg)
         with marked(self.env, {COMPANY_PROFILE_MARKER: {self.id}, PARTNER_COMPANY_MARKER: {self.partner_id.id}}):
-            return self.write(vals)
+            result = self.write(vals)
+        self._webvue_log_company_change('company.profile_changed', vals)
+        return result
+
+    def _webvue_log_company_change(self, action, vals):
+        """Record a profile or branding change in the access log: the names of the written fields, never their values.
+
+        A binary field (the logo) or a long text would bloat the log, and the values are readable on the company.
+        """
+        self.env['webvue.access.audit']._webvue_log(action, self, after={'fields': sorted(vals)})
 
     @api.model
     def _webvue_company_profile_extensions(self):

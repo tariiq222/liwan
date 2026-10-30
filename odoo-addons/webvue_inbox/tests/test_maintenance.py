@@ -44,6 +44,7 @@ class TestMaintenance(WebVueInboxCase):
             'name': 'a.txt', 'raw': b'a', 'res_model': 'webvue.inbox.message', 'res_id': message.id,
         })
         contact = old.contact_id
+        contact.last_activity_at = fields.Datetime.now() - timedelta(days=40)
         self.run_maintenance()
         self.assertFalse(old.exists() or message.exists() or attachment.exists() or contact.exists())
         self.assertTrue(recent.exists() and recent.contact_id.exists())

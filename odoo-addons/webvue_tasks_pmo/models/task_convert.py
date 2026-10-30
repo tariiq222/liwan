@@ -36,7 +36,7 @@ class WebVueMyTaskConvert(models.AbstractModel):
     @api.model
     def _require(self, key):
         if not self._has_capability(key):
-            raise ApiError(403, 'forbidden', 'forbidden')
+            raise ApiError(403, 'forbidden', f'{key} capability is required')
 
     @api.model
     def _targets(self, q=None, limit=MAX_TARGETS):
@@ -71,7 +71,7 @@ class WebVueMyTaskConvert(models.AbstractModel):
             self._has_capability('pmo.tasks.create', record=project)
             and self._has_capability('pmo.tasks.write')
         ):
-            raise ApiError(403, 'forbidden', 'forbidden')
+            raise ApiError(403, 'forbidden', 'pmo.tasks.create capability is required on the target project')
         return project
 
     @api.model

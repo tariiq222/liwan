@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ProjectDetail, ProjectPhase } from '@webvue/contracts'
-import { PHASE_LABEL_KEY, canMoveForward, gateCheckRows, isGateAction, isGateCardVisible, phaseFailure } from '@/composables/projectPhase'
+import { PHASE_LABEL_KEY, canMoveForward, gateCheckRows, isGateAction, isGateCardVisible, isWarningGate, phaseFailure, unmetWarnings } from '@/composables/projectPhase'
 import { useMoveProjectPhase } from '@/composables/useProjects'
 
 // The gate into the next phase: what it asks, a fix link per unmet check, and the
@@ -17,18 +17,30 @@ const rows = computed(() => gateCheckRows(props.project.id, state.value.next_che
 const canManage = computed(() => props.project.can_manage)
 const canAdvance = computed(() => canMoveForward(state.value, canManage.value))
 const isClosed = computed(() => state.value.current === 'closed')
-const isVisible = computed(() => isGateCardVisible(state.value, canManage.value))
-const isAction = computed(() => isGateAction(state.value, canManage.value))
+const isVisible = computed(() => isGateCardVisible(state.value, canManage.value, props.project.active))
+const isAction = computed(() => isGateAction(state.value, canManage.value, props.project.active))
 const phaseLabel = (phase: ProjectPhase) => t(PHASE_LABEL_KEY[phase])
 const stepBack = ref(false)
+// Moving on with an unmet warning check (closing with open tasks) asks the manager to confirm first.
+const confirmWarning = ref(false)
+const warnings = computed(() => unmetWarnings(state.value.next_checks))
 
-async function run(phase: ProjectPhase) {
+function onMoveForward(phase: ProjectPhase) {
+  if (warnings.value.length) confirmWarning.value = true
+  else void run(phase)
+}
+
+async function run(phase: ProjectPhase, acknowledgeWarnings = false) {
   if (!hydrated.value || isPending.value) return
   try {
-    await move({ id: props.project.id, phase, expected: props.project.updated_at })
+    await move({ id: props.project.id, phase, expected: props.project.updated_at, acknowledgeWarnings })
     stepBack.value = false
+    confirmWarning.value = false
   } catch (error) {
     stepBack.value = false
+    // The server found warnings the cached card did not show: ask now, then resend acknowledged.
+    if (!acknowledgeWarnings && isWarningGate(error)) { confirmWarning.value = true; return }
+    confirmWarning.value = false
     const { key, color } = phaseFailure(error)
     toast.add({ title: t(key), color })
   }
@@ -63,8 +75,19 @@ async function run(phase: ProjectPhase) {
         @cancel="stepBack = false"
         @confirm="run(state.previous)"
       />
+      <SharedInlineConfirm
+        v-else-if="canManage && confirmWarning && state.next"
+        color="warning"
+        data-testid="project-phase-warning-confirm"
+        :title="t('projects.phase.warningConfirm', { phase: phaseLabel(state.next) })"
+        :description="warnings.map(check => t(gateCheckRows(project.id, [check])[0]!.labelKey)).join('، ') || t('projects.phase.warningFallback')"
+        :confirm-label="t('projects.phase.moveAnyway', { phase: phaseLabel(state.next) })"
+        :pending="isPending"
+        @cancel="confirmWarning = false"
+        @confirm="run(state.next, true)"
+      />
       <div v-else-if="canManage" class="flex flex-wrap gap-2">
-        <UButton v-if="state.next" type="button" data-testid="project-phase-move" :disabled="!hydrated || !canAdvance" :loading="isPending" :label="t('projects.phase.moveTo', { phase: phaseLabel(state.next) })" @click="run(state.next)" />
+        <UButton v-if="state.next" type="button" data-testid="project-phase-move" :disabled="!hydrated || !canAdvance" :loading="isPending" :label="t('projects.phase.moveTo', { phase: phaseLabel(state.next) })" @click="onMoveForward(state.next)" />
         <UButton v-if="state.previous" type="button" color="neutral" variant="outline" data-testid="project-phase-back" :disabled="!hydrated || isPending" :label="t('projects.phase.backTo', { phase: phaseLabel(state.previous) })" @click="stepBack = true" />
       </div>
     </div>

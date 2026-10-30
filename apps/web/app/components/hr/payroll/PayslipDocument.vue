@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { HrPayslip } from '@webvue/contracts'
-import { formatPayrollAmount, formatPayrollMonth } from '@/utils/payrollFormat'
+import { formatPayrollAmount, formatPayrollMonth, payrollCurrencyLabel } from '@/utils/payrollFormat'
 
 // One payslip as a document: the company and employee heading, the earnings and deductions the payroll engine
 // produced, and the net. It is the content of a print page (black on white on paper); the page owns the data and the
@@ -9,7 +9,7 @@ const props = defineProps<{ payslip: HrPayslip }>()
 
 const { t, locale } = useI18n()
 const amount = (value: number) => formatPayrollAmount(value, locale.value)
-const money = (value: number) => `${amount(value)} ${t('hrPayroll.currency')}`
+const money = (value: number) => `${amount(value)} ${payrollCurrencyLabel(props.payslip.currency, t('hrPayroll.currency'))}`
 
 // The engine signs its lines: an earning is positive, a deduction negative.
 const earnings = computed(() => props.payslip.lines.filter(line => line.amount > 0))

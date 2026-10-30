@@ -125,7 +125,7 @@ class TestRulesApi(AutomationCase):
         self.create(name='Everything', match_kind='any', keywords=[], stop=True)
         self.create(name='Never reached', match_kind='any', keywords=[])
         before = self.env['webvue.inbox.message'].search_count([])
-        body = {'channel_id': self.channel.id, 'text': 'كم السِّعر', 'option_id': None, 'at': None}
+        body = {'channel_id': self.channel.id, 'text': 'كم السِّعر', 'option_id': None, 'flow_id': None, 'at': None}
         result = self.api('POST', TEST, body)
         self.assertEqual(result.status_code, 200, result.text)
         data = result.json()
@@ -141,14 +141,14 @@ class TestRulesApi(AutomationCase):
         self.channel._webvue_set_auto_message('away', {'body': 'Closed'})
         self.channel.write({'welcome_enabled': True, 'away_enabled': True})
         self.set_company_hours(hours([{'weekday': 6, 'from': '09:00', 'to': '17:00'}], timezone='Asia/Riyadh'))
-        base = {'channel_id': self.channel.id, 'text': None, 'option_id': 'x'}
+        base = {'channel_id': self.channel.id, 'text': None, 'option_id': 'x', 'flow_id': None}
         inside = self.api('POST', TEST, {**base, 'at': '2026-01-04T10:00:00Z'}).json()
         self.assertEqual((inside['inside_hours'], inside['auto_message'], [rule['name'] for rule in inside['rules']]), (True, 'welcome', ['Menu']))
         outside = self.api('POST', TEST, {**base, 'option_id': 'z', 'at': '2026-01-04T03:00:00Z'}).json()
         self.assertEqual((outside['inside_hours'], outside['auto_message'], outside['rules']), (False, 'away', []))
 
     def test_invalid_dry_runs_are_rejected(self):
-        ok = {'channel_id': self.channel.id, 'text': 'x', 'option_id': None, 'at': None}
+        ok = {'channel_id': self.channel.id, 'text': 'x', 'option_id': None, 'flow_id': None, 'at': None}
         for bad in (
             {**ok, 'channel_id': 999999}, {**ok, 'at': '2026-01-04'}, {**ok, 'text': 'x' * 4097}, {**ok, 'option_id': ''},
             {key: value for key, value in ok.items() if key != 'at'}, {**ok, 'extra': 1}, {},
@@ -168,7 +168,7 @@ class TestRulesAccess(AutomationCase):
         return (
             ('GET', RULES, None), ('GET', path, None), ('PATCH', path, {'name': 'New'}),
             ('POST', f'{RULES}/reorder', {'ids': [self.rule.id]}),
-            ('POST', TEST, {'channel_id': self.channel.id, 'text': 'x', 'option_id': None, 'at': None}),
+            ('POST', TEST, {'channel_id': self.channel.id, 'text': 'x', 'option_id': None, 'flow_id': None, 'at': None}),
             ('POST', RULES, RULE_BODY), ('DELETE', path, None),
         )
 
@@ -228,7 +228,7 @@ class TestRulesCompanyScope(AutomationCase):
         child_tag = self.env['webvue.inbox.tag'].create({'name': 'Child tag', 'company_id': self.child.id})
         for bad in ({'channel_id': self.child_channel.id}, {'department_id': child_department.id}, {'tag_ids': [child_tag.id]}):
             self.assertError(self.api('POST', RULES, {**RULE_BODY, **bad}), 422, 'invalid')
-        body = {'channel_id': self.child_channel.id, 'text': 'x', 'option_id': None, 'at': None}
+        body = {'channel_id': self.child_channel.id, 'text': 'x', 'option_id': None, 'flow_id': None, 'at': None}
         self.assertError(self.api('POST', TEST, body), 422, 'invalid')
         self.assertError(self.api('PATCH', f'{RULES}/{self.parent_rule.id}', {'channel_id': self.child_channel.id}), 422, 'invalid')
         self.assertError(self.api('POST', f'{RULES}/reorder', {'ids': [self.parent_rule.id, self.child_rule.id]}), 422, 'invalid')

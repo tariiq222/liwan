@@ -136,3 +136,70 @@ class TestDocumentFiles(DocumentCase):
             )
         self.assertEqual(document.revision, 4)
         self.assertEqual(file.locked_by, self.manager)
+
+    def test_duplicate_name_is_a_conflict_without_a_revision_bump(self):
+        document = self.create_document()
+        existing = self.upload(document, name='report.txt')
+        with self.assertRaises(WebVueAccessRule) as caught:
+            self.upload(document, name='report.txt', revision=2)
+        self.assertEqual((caught.exception.status, caught.exception.code), (409, 'duplicate_name'))
+        self.assertEqual(caught.exception.details, {'file_id': existing.id})
+        self.assertEqual(document.revision, 2)
+        self.assertEqual(len(document.directory_id.file_ids), 1)
+
+    def test_upload_as_version_archives_the_previous_file_in_the_same_document(self):
+        document = self.create_document()
+        previous = self.upload(document, name='report.txt', raw=b'first')
+        file = self.files()._webvue_upload(
+            document,
+            {'name': 'report.txt', 'data': base64.b64encode(b'second').decode()},
+            2,
+            as_version=True,
+        )
+        self.assertEqual((previous.active, file.active), (False, True))
+        self.assertEqual(base64.b64decode(previous.with_context(active_test=False).content), b'first')
+        self.assertEqual(document.directory_id.file_ids.ids, [file.id])
+        self.assertEqual(document.revision, 4)
+
+    def test_archive_clears_the_lock_and_repeated_state_changes_are_rejected(self):
+        document = self.create_document()
+        file = self.upload(document)
+        service = self.files()
+        service._webvue_set_file_lock(document, file.id, True, 2)
+        service._webvue_set_file_active(document, file.id, False, 3)
+        self.assertEqual((file.active, file.locked_by.id, document.revision), (False, False, 4))
+        with self.assertRaises(WebVueAccessRule):
+            service._webvue_set_file_active(document, file.id, False, 4)
+        with self.assertRaisesRegex(AccessError, 'file is archived$'):
+            service._webvue_set_file_lock(document, file.id, False, 4)
+        service._webvue_set_file_active(document, file.id, True, 4)
+        with self.assertRaises(WebVueAccessRule):
+            service._webvue_set_file_active(document, file.id, True, 5)
+        self.assertEqual(document.revision, 5)
+
+    def test_unlock_by_another_editor_names_the_lock_not_the_archive(self):
+        document = self.create_document()
+        document._webvue_set_access(
+            'restricted',
+            [
+                {'user_id': self.manager.id, 'access': 'editor'},
+                {'user_id': self.other.id, 'access': 'editor'},
+            ],
+            1,
+        )
+        file = self.upload(document, revision=2)
+        self.files()._webvue_set_file_lock(document, file.id, True, 3)
+        with self.assertRaisesRegex(AccessError, 'file is locked by another editor$'):
+            self.files().with_user(self.other)._webvue_set_file_lock(
+                document.with_user(self.other), file.id, False, 4,
+            )
+
+    def test_archiving_an_archived_document_or_restoring_an_active_one_is_rejected(self):
+        document = self.create_document()
+        with self.assertRaises(WebVueAccessRule):
+            document._webvue_set_active(True, 1)
+        self.assertEqual(document.revision, 1)
+        document._webvue_set_active(False, 1)
+        with self.assertRaises(WebVueAccessRule):
+            document._webvue_set_active(False, 2)
+        self.assertEqual(document.revision, 2)

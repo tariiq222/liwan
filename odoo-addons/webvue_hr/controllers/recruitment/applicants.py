@@ -125,6 +125,8 @@ class HrRecruitmentApplicantController(http.Controller):
         reason = request.env['hr.applicant.refuse.reason'].search([('id', '=', reason_id)], limit=1)
         if not reason:
             raise ApiError(422, 'invalid', 'refuse_reason_id does not reference an existing record', field='refuse_reason_id')
+        if applicant.employee_id:
+            raise ApiError(422, 'invalid', 'a hired applicant cannot be refused', field='employee_id')
         applicant.check_access('write')
         # The stock wizard archives the applicant (active False) and records the reason;
         # no mail is sent from WebVue (`send_mail=False`).
@@ -145,7 +147,11 @@ class HrRecruitmentApplicantController(http.Controller):
         payload.pop('applicant_id', None)
         reject_unknown(payload, ())
         applicant.check_access('write')
-        applicant.reset_applicant()
+        # A refused applicant is archived: unarchiving restores it to the first stage and clears the reason.
+        if applicant.active:
+            applicant.reset_applicant()
+        else:
+            applicant.action_unarchive()
         return _dump(applicant)
 
     @http.route('/api/v1/hr/recruitment/applicants/<int:applicant_id>/hire', type='json2', auth='user', methods=['POST'], readonly=False)

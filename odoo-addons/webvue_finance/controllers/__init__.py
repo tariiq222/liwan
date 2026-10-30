@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from . import (
+    branch_strictness,
     finance_accounts,
     finance_analytic,
     finance_analytic_reports,

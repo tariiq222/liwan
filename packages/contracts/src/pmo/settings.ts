@@ -5,6 +5,11 @@ export const PROJECT_CREATORS = ProjectCreatorsSchema.options
 
 export const DefaultCompletionApprovalSchema = z.enum(['none', 'project_manager'])
 
+// Closing a project that still has open tasks: refuse it, or allow it once the manager confirms the warning.
+export const CloseWithOpenTasksSchema = z.enum(['block', 'allow_with_warning'])
+// Risk and issue status changes: one neighbouring step at a time, or any status.
+export const RegisterStatusTransitionsSchema = z.enum(['sequence', 'free'])
+
 export const DefaultStageSchema = z.object({ name: z.string().min(1), fold: z.boolean() }).strict()
 
 /**
@@ -32,6 +37,8 @@ export const ProjectSettingsSchema = z.object({
   deadline_reminders_days_before: z.number().int().min(0).max(30),
   overdue_digest_enabled: z.boolean(),
   require_charter_approval: z.boolean(),
+  close_with_open_tasks: CloseWithOpenTasksSchema,
+  register_status_transitions: RegisterStatusTransitionsSchema,
   extensions: z.array(ProjectSettingsExtensionSchema),
 }).strict()
 

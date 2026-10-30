@@ -184,7 +184,7 @@ describe('InboxReplyCreateSchema template member', () => {
 describe('automation schemas', () => {
   const RULE = {
     channel_id: null, name: 'Hours', active: true, match_kind: 'contains', keywords: ['الدوام', 'hours'], option_id: null,
-    hours: 'any', stop: true, reply: { body: 'نعمل من 9 إلى 5' }, resolve: false,
+    hours: 'any', stop: true, reply: { body: 'نعمل من 9 إلى 5' }, resolve: false, flow_id: null,
     department_id: null, assignee_id: null, tag_ids: [], priority: null,
   }
 

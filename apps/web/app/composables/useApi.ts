@@ -125,7 +125,8 @@ export function useApi() {
       const key = details.limit_key
       const quota = key === 'users.limit' ? 'users'
         : key === 'projects.max_projects' ? 'projects'
-          : key === 'storage.limit_mb' ? 'storage' : 'generic'
+          : key === 'storage.limit_mb' ? 'storage'
+            : key === 'branches.extra_limit' ? 'branches' : 'generic'
       return t(`errors.packageQuota.${quota}`)
     }
     // A business rule may name itself with `details.reason`, or a specific `code`; both are optional locale hooks.

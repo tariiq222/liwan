@@ -22,12 +22,14 @@
       "id": 9,
       "mimetype": "text/plain",
       "name": "one.txt",
+      "size": 14,
       "url": "/api/v1/tasks/1073/attachments/2687/download"
     },
     {
       "id": 10,
       "mimetype": "text/plain",
       "name": "two.txt",
+      "size": 14,
       "url": "/api/v1/tasks/1073/attachments/2688/download"
     }
   ],

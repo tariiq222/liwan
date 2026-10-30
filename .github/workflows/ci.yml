@@ -5,6 +5,10 @@ on:
     branches: [main]
     # ready_for_review starts the first run of a PR that was opened as a draft (drafts run nothing).
     types: [opened, synchronize, reopened, ready_for_review]
+  # A merge-queue entry runs the same pull-request selection on the queued merge result, so the required
+  # ci-result check reports for it; GitHub sends no merge_group event while the queue is off.
+  merge_group:
+    types: [checks_requested]
   push:
     branches: [main]
   schedule:
@@ -22,7 +26,8 @@ permissions:
 
 # A newer push to a PR cancels its older run. On main a running run always finishes (cancelling it left
 # main with no completed run while merges kept coming); GitHub keeps only the newest pending main run, and
-# that commit contains every earlier merge. A manual (release) run has its own group.
+# that commit contains every earlier merge. A manual (release) run has its own group. Each merge-queue entry
+# has its own gh-readonly-queue ref, so its run is never cancelled by another entry.
 concurrency:
   group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -48,6 +53,7 @@ jobs:
     outputs:
       stages: ${{ steps.select.outputs.stages }}
       base: ${{ steps.select.outputs.base }}
+      odoo-modules: ${{ steps.select.outputs.odoo-modules }}
       odoo-shards: ${{ steps.select.outputs.odoo-shards }}
       apps: ${{ steps.select.outputs.apps }}
       bridges: ${{ steps.select.outputs.bridges }}
@@ -59,24 +65,34 @@ jobs:
         id: select
         env:
           FULL: ${{ inputs.full || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+          EVENT_NAME: ${{ github.event_name }}
           PULL_REQUEST_BASE: ${{ github.event.pull_request.base.sha }}
+          MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
           PUSH_BEFORE: ${{ github.event.before }}
         run: |
           set -euo pipefail
-          base="${PULL_REQUEST_BASE:-$PUSH_BEFORE}"
+          base="${PULL_REQUEST_BASE:-${MERGE_GROUP_BASE:-$PUSH_BEFORE}}"
           if [ -z "$base" ] || [ -z "${base//0/}" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
             base=origin/main
           fi
+          # A pull request or merge-queue entry skips the slow stages and tests only the Odoo modules the
+          # change affects; every other event (push to main, nightly, dispatch) keeps the whole matrix.
+          # Empty modules = all.
+          modules=""
           if [ "$FULL" = true ]; then
             stages="$(python3 -B tools/ci_scope.py --full --stages)"
+          elif [ "$EVENT_NAME" = pull_request ] || [ "$EVENT_NAME" = merge_group ]; then
+            stages="$(python3 -B tools/ci_scope.py --base "$base" --pull-request --stages)"
+            modules="$(python3 -B tools/ci_scope.py --base "$base" --pull-request --modules)"
           else
             stages="$(python3 -B tools/ci_scope.py --base "$base" --stages)"
           fi
           echo "base=$base" >> "$GITHUB_OUTPUT"
           echo "stages=$stages" >> "$GITHUB_OUTPUT"
-          echo "odoo-shards=$(python3 -B tools/odoo_shards.py matrix)" >> "$GITHUB_OUTPUT"
-          echo "apps=$(python3 -B tools/app_isolation.py matrix apps)" >> "$GITHUB_OUTPUT"
-          echo "bridges=$(python3 -B tools/app_isolation.py matrix bridges)" >> "$GITHUB_OUTPUT"
+          echo "odoo-modules=$modules" >> "$GITHUB_OUTPUT"
+          echo "odoo-shards=$(python3 -B tools/odoo_shards.py matrix ${modules:+--modules "$modules"})" >> "$GITHUB_OUTPUT"
+          echo "apps=$(python3 -B tools/app_isolation.py matrix apps ${modules:+--modules "$modules"})" >> "$GITHUB_OUTPUT"
+          echo "bridges=$(python3 -B tools/app_isolation.py matrix bridges ${modules:+--modules "$modules"})" >> "$GITHUB_OUTPUT"
           echo "Base $base, stages $stages"
 
   static:
@@ -193,6 +209,8 @@ jobs:
           node: 'false'
           odoo: 'true'
       - run: deploy/ci/odoo.sh --shard ${{ matrix.shard }}/${{ strategy.job-total }}
+        env:
+          ODOO_TEST_MODULES: ${{ needs.scope.outputs.odoo-modules }}
 
   # The rank-4 applications and rank-5 bridges of tools/arch_layers.json, packed into a few jobs by
   # tools/app_isolation.py matrix: each run installs only its part of the product on a fresh scratch database.

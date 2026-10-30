@@ -4,6 +4,7 @@ import { ApiError } from '@/composables/useApi'
 import { useInboxCannedReplies, useInboxTemplates, useInboxTyping, useSendInboxNote, useSendInboxReply, useUploadInboxFile } from '@/composables/inbox/useInbox'
 import { INBOX_CAPTION_MAX, INBOX_UPLOAD_ACCEPT, inboxAcceptsCaption, inboxFileSize, inboxUploadProblem } from '@/composables/inbox/inboxAttachments'
 import { emptyInboxDraft, inboxDrafts } from '@/composables/inbox/inboxDrafts'
+import { buildCommerceContent, emptyCommerceDraft } from '@/composables/inbox/inboxCommerce'
 import { buildInteractive, emptyInteractiveDraft } from '@/composables/inbox/inboxInteractive'
 import { buildLocation, emptyLocationDraft } from '@/composables/inbox/inboxLocation'
 import { TEMPLATE_CATEGORY_TONE, templatePreview } from '@/composables/inbox/inboxTemplate'
@@ -14,7 +15,8 @@ import { cannedSuggestions, replyWindowOpen } from '@/composables/inbox/inboxWin
 // location or an interactive message and may quote one message, an approved template with its parameters (the only
 // reply after the window), and an internal note the customer never sees. Typing "/" at the start of a reply suggests
 // canned replies; typing tells the customer's phone the agent is writing.
-const props = defineProps<{ conversation: InboxConversationDetail; replyTo?: { id: number; preview: string } | null }>()
+// `commerceReady`: the conversation's channel has a catalog, so products can be sent from it.
+const props = defineProps<{ conversation: InboxConversationDetail; replyTo?: { id: number; preview: string } | null; commerceReady?: boolean }>()
 const emit = defineEmits<{ 'update:replyTo': [target: { id: number; preview: string } | null] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -36,9 +38,10 @@ const headerError = ref('')
 let headerSeq = 0
 const highlighted = ref(0)
 const suggestionsDismissed = ref(false)
-const panel = ref<'location' | 'interactive' | null>(null)
+const panel = ref<'location' | 'interactive' | 'products' | null>(null)
 const location = ref(emptyLocationDraft())
 const interactive = ref(emptyInteractiveDraft())
+const commerce = ref(emptyCommerceDraft())
 // The file being attached: sent after the upload finishes, with the draft text as its caption.
 const upload = ref<{ name: string; size: number; attachment: InboxAttachment | null } | null>(null)
 const uploadError = ref('')
@@ -98,6 +101,7 @@ const composing = computed(() => mode.value === 'reply' && !templateMode.value)
 const replyReady = computed(() => {
   if (panel.value === 'location') return !!buildLocation(location.value)
   if (panel.value === 'interactive') return !!buildInteractive(interactive.value)
+  if (panel.value === 'products') return !!buildCommerceContent(commerce.value)
   return !uploading.value && !captionTooLong.value && (!!upload.value || !!draft.value.trim())
 })
 const canSend = computed(() => hydrated.value && !sending.value && (templateMode.value ? templateReady.value : mode.value === 'note' ? !!draft.value.trim() : replyReady.value))
@@ -161,10 +165,11 @@ watch([() => texts.reply, () => texts.note, templateId, params, headerParam, but
 }, { deep: true })
 
 // Opening a panel starts it empty and closing it discards it, so no half-built message lingers in the draft.
-function togglePanel(next: 'location' | 'interactive') {
+function togglePanel(next: 'location' | 'interactive' | 'products') {
   const closing = panel.value === next
   panel.value = closing ? null : next
   if (next === 'location') location.value = emptyLocationDraft()
+  else if (next === 'products') commerce.value = emptyCommerceDraft(t('inbox.catalog.picker.defaultSection'))
   else interactive.value = emptyInteractiveDraft()
   if (!closing) discardUpload()
 }
@@ -263,6 +268,7 @@ type FreeFormReply = Exclude<InboxReplyCreate, { template_id: number }>
 function replyContent(): { content: FreeFormReply, usesText: boolean } {
   if (panel.value === 'location') return { content: { location: buildLocation(location.value)! }, usesText: false }
   if (panel.value === 'interactive') return { content: { interactive: buildInteractive(interactive.value)! }, usesText: false }
+  if (panel.value === 'products') return { content: { commerce: buildCommerceContent(commerce.value)! }, usesText: false }
   const caption = draft.value.trim()
   const attachment = upload.value?.attachment
   if (!attachment) return { content: { body: caption }, usesText: true }
@@ -360,6 +366,7 @@ async function submit() {
         <SharedFileField ref="fileField" :accept="INBOX_UPLOAD_ACCEPT" :label="t('inbox.composer.attach')" :show-file-name="false" :disabled="!hydrated || sending || uploading" data-testid="inbox-attach" @change="onFilePicked" />
         <UButton type="button" color="neutral" variant="outline" icon="i-lucide-map-pin" :label="t('inbox.composer.location.title')" :aria-pressed="panel === 'location'" :disabled="!hydrated || sending" data-testid="inbox-location-toggle" @click="togglePanel('location')" />
         <UButton type="button" color="neutral" variant="outline" icon="i-lucide-list-checks" :label="t('inbox.composer.interactive.title')" :aria-pressed="panel === 'interactive'" :disabled="!hydrated || sending" data-testid="inbox-interactive-toggle" @click="togglePanel('interactive')" />
+        <UButton v-if="props.commerceReady" type="button" color="neutral" variant="outline" icon="i-lucide-shopping-bag" :label="t('inbox.catalog.picker.title')" :aria-pressed="panel === 'products'" :disabled="!hydrated || sending" data-testid="inbox-products-toggle" @click="togglePanel('products')" />
       </div>
       <p v-if="uploadError" class="text-sm text-error" role="alert" data-testid="inbox-upload-error">{{ uploadError }}</p>
       <div v-if="upload" class="flex items-center gap-2 rounded-control bg-elevated/50 px-3 py-1.5 text-sm" data-testid="inbox-upload">
@@ -370,7 +377,8 @@ async function submit() {
         <UButton type="button" color="neutral" variant="ghost" size="sm" icon="i-lucide-x" :aria-label="t('inbox.composer.removeFile')" @click="discardUpload" />
       </div>
       <InboxLocationForm v-if="panel === 'location'" v-model="location" />
-      <InboxInteractiveBuilder v-else-if="panel === 'interactive'" v-model="interactive" />
+      <InboxInteractiveBuilder v-else-if="panel === 'interactive'" v-model="interactive" :channel-id="props.conversation.channel.id" />
+      <InboxCommerceContentEditor v-else-if="panel === 'products'" v-model="commerce" :source="{ conversationId: props.conversation.id }" />
       <p v-if="captionTooLong" class="text-xs text-error" role="alert" data-testid="inbox-caption-too-long">{{ t('inbox.composer.captionTooLong', { max: INBOX_CAPTION_MAX }) }}</p>
       <p v-else-if="!captionAllowed" class="text-xs text-muted" data-testid="inbox-audio-no-caption">{{ t('inbox.composer.audioNoCaption') }}</p>
       <ul v-if="suggestions.length" id="inbox-canned-list" role="listbox" :aria-label="t('inbox.composer.canned')" class="overflow-hidden rounded-control bg-default text-sm ring ring-default">

@@ -99,6 +99,7 @@ class OperationsController(http.Controller):
     @api_handler
     @requires_feature('operations.enabled')
     def create_process(self, **_):
+        require_capabilities('operations.processes.manage')
         payload = body({'name', 'description', 'execution_kind', 'purpose', 'stage_approval_mode', 'steps'})
         purpose = purpose_value(payload.get('purpose', 'work'))
         mode = stage_approval_mode_value(payload.get('stage_approval_mode', 'per_stage'))
@@ -179,6 +180,7 @@ class OperationsController(http.Controller):
     @api_handler
     @requires_feature('operations.enabled')
     def create_request(self, **_):
+        require_capabilities('operations.requests.create')
         payload = body({'name', 'description', 'process_id', 'target_id'})
         payload['process_id'] = parse_positive_int(payload.get('process_id'), 'process_id')
         if 'target_id' in payload:

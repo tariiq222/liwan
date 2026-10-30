@@ -10,6 +10,7 @@ const ATTACHMENT = {
   name: 'brief.pdf',
   mimetype: 'application/pdf',
   url: '/api/v1/tasks/7/attachments/42/download',
+  size: 1024,
 }
 
 describe('TaskAttachmentSchema', () => {

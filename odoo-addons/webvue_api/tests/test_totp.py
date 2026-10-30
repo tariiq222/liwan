@@ -8,7 +8,10 @@ from odoo.tests import get_db_name, tagged
 
 from .common import WebVueApiCase
 from odoo.addons.auth_totp.models.totp import TOTP as auth_TOTP
-from odoo.addons.webvue_platform.models.entitlement_service import WebVueTenantSuspended
+from odoo.addons.webvue_platform.models.entitlement_service import (
+    OPERATOR_CONTEXT,
+    WebVueTenantSuspended,
+)
 
 
 @tagged('post_install', '-at_install', 'webvue')
@@ -77,3 +80,18 @@ class TestTotp(WebVueApiCase):
                     res = self.api('POST', '/api/v1/auth/totp', {'code': '123456'})
                 self.assertEqual(res.status_code, 403)
                 self.assertEqual(res.json()['code'], code)
+
+    def test_totp_of_a_support_account_without_support_access_is_login_refused(self):
+        # ACC-67: the public environment of the route could not read the account's flags and answered
+        # with Odoo's raw access error instead of login_refused.
+        self.env.cr.execute(
+            'INSERT INTO res_groups_users_rel (gid, uid) VALUES (%s, %s)',
+            [self.env.ref('webvue_core.group_vendor_support').id, self.employee.id],
+        )
+        self._authenticate()
+        self.env['webvue.entitlement.service']._webvue_profile().with_context(**{OPERATOR_CONTEXT: True}).write(
+            {'support_access_enabled': False},
+        )
+        res = self.api('POST', '/api/v1/auth/totp', {'code': '123456'})
+        self.assertEqual(res.status_code, 403)
+        self.assertEqual(res.json()['code'], 'login_refused')

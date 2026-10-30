@@ -188,8 +188,10 @@ class ProjectFinanceController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='write')
     def patch_finance_entry(self, project_id, entry_id, **payload):
-        payload.pop('project_id', None)
-        payload.pop('entry_id', None)
+        # The path ids shadow same-named body keys, so a body that names them is read from the raw body.
+        for key in ('project_id', 'entry_id'):
+            if key in request.get_json_data():
+                raise ApiError(422, 'unknown_field', f"field {key!r} cannot be changed", field=key)
         expected = _parse_revision_token(payload.pop('expected_updated_at', None))
         project = _finance_project(project_id)
         entry = _entry_of(project, entry_id)

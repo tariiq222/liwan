@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import type { InboxMessage } from '@webvue/contracts'
+import InboxCommerceMessage from '@/components/inbox/InboxCommerceMessage.vue'
+import InboxFlowBubble from '@/components/inbox/InboxFlowBubble.vue'
+import InboxFlowSubmissionCard from '@/components/inbox/InboxFlowSubmissionCard.vue'
 import { inboxFileSize } from '@/composables/inbox/inboxAttachments'
 import { locationMapUrl } from '@/composables/inbox/inboxLocation'
 
 // What one message carries, by kind: inline image, sticker, video and audio players, document rows, a location card with
 // its map link, shared contacts as text, an interactive message as the card the customer saw, and the option a customer
 // chose. Text and captions come last.
-const props = defineProps<{ message: InboxMessage }>()
+const props = defineProps<{ message: InboxMessage; conversationId?: number; channelId?: number; windowOpen?: boolean }>()
 const { t } = useI18n()
 // A template's header file is a media of its own family, whatever the message kind says.
 const mediaKind = (mimetype: string) => {
@@ -16,7 +19,8 @@ const mediaKind = (mimetype: string) => {
 const kindOf = (attachment: { mimetype: string }) => props.message.kind === 'template' ? mediaKind(attachment.mimetype) : props.message.kind
 const attachmentUrl = (id: number) => `/api/v1/inbox/messages/${props.message.id}/attachments/${id}/download`
 // The option a customer chose already is the body of its reply; show it once, as the highlighted choice.
-const showBody = computed(() => !!props.message.body && !props.message.interactive && props.message.body !== props.message.selected_option?.title)
+// A product message or a cart is drawn by its commerce card, which carries its own texts; an inquiry keeps the customer's words.
+const showBody = computed(() => !!props.message.body && !props.message.interactive && !props.message.flow_response && (props.message.commerce === null || props.message.commerce.type === 'inquiry') && props.message.body !== props.message.selected_option?.title)
 </script>
 
 <template>
@@ -49,7 +53,10 @@ const showBody = computed(() => !!props.message.body && !props.message.interacti
       </a>
     </SharedSubCard>
 
-    <SharedSubCard v-if="props.message.interactive" class="flex flex-col gap-1.5" data-testid="inbox-interactive-card">
+    <SharedSubCard v-if="props.message.interactive?.type === 'flow'" data-testid="inbox-interactive-card">
+      <InboxFlowBubble :message="props.message.interactive" />
+    </SharedSubCard>
+    <SharedSubCard v-else-if="props.message.interactive" class="flex flex-col gap-1.5" data-testid="inbox-interactive-card">
       <p v-if="props.message.interactive.header" class="font-semibold">{{ props.message.interactive.header }}</p>
       <p class="whitespace-pre-wrap">{{ props.message.interactive.body }}</p>
       <p v-if="props.message.interactive.footer" class="text-xs text-muted">{{ props.message.interactive.footer }}</p>
@@ -70,6 +77,11 @@ const showBody = computed(() => !!props.message.body && !props.message.interacti
       </a>
     </SharedSubCard>
 
+    <SharedSubCard v-if="props.message.flow_response" data-testid="inbox-flow-response-card">
+      <InboxFlowSubmissionCard :submission="props.message.flow_response" />
+    </SharedSubCard>
+    <InboxCommerceMessage v-if="props.message.commerce" :message="props.message" :conversation-id="props.conversationId" :channel-id="props.channelId" :window-open="props.windowOpen" />
+
     <p v-if="props.message.selected_option" class="inline-flex items-center gap-1.5 self-start rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary" data-testid="inbox-selected-option">
       <UIcon name="i-lucide-circle-check" class="size-4" aria-hidden="true" />{{ t('inbox.thread.selected', { title: props.message.selected_option.title }) }}
     </p>
@@ -78,7 +90,7 @@ const showBody = computed(() => !!props.message.body && !props.message.interacti
     <p v-else-if="props.message.kind === 'unsupported' && !props.message.body" class="text-muted">{{ t('inbox.thread.unsupported') }}</p>
     <p v-if="props.message.template?.footer" dir="auto" class="text-xs text-muted" data-testid="inbox-template-footer">{{ props.message.template.footer }}</p>
     <ul v-if="props.message.template?.buttons.length" class="flex flex-wrap gap-1.5" :aria-label="t('inbox.thread.buttons')" data-testid="inbox-template-buttons">
-      <li v-for="(button, index) in props.message.template.buttons" :key="index" class="rounded-full px-3 py-1 text-sm text-primary ring ring-default">{{ button.text }}</li>
+      <li v-for="(button, index) in props.message.template.buttons" :key="index" class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm text-primary ring ring-default"><UIcon v-if="button.type === 'flow'" name="i-lucide-file-pen-line" class="size-4" aria-hidden="true" />{{ button.text }}</li>
     </ul>
   </div>
 </template>

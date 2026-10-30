@@ -1,6 +1,7 @@
 {
   "award": 6266.44,
   "case": "resignation",
+  "currency": "SAR",
   "departure_date": "2027-06-30",
   "departure_mismatch": false,
   "employee": {

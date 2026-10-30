@@ -46,6 +46,8 @@ const PROJECT_SETTINGS = {
   deadline_reminders_days_before: 1,
   overdue_digest_enabled: false,
   require_charter_approval: false,
+  close_with_open_tasks: 'block',
+  register_status_transitions: 'sequence',
   extensions: [],
 }
 const USERS = {
@@ -63,7 +65,7 @@ const BRANCH_ROLES = [
   { id: 4, key: 'finance_manager', active: true, name: { ar: 'Finance manager', en: 'Finance manager' }, company_id: null },
 ]
 const BRANCH_POLICY = {
-  version: 'b1-v1', mode: 'delegated', preset: 'independent_branches',
+  version: 'b1-v1', mode: 'delegated', preset: 'independent_branches', strict_scopes: [] as string[],
   branches: [{ id: 2, name: 'Riyadh branch', inherit: false, role_ids: [] as number[] }, { id: 3, name: 'Jeddah branch', inherit: false, role_ids: [] as number[] }],
   roles: BRANCH_ROLES,
 }

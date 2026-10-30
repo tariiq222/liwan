@@ -39,7 +39,7 @@ export function createOperationSubmitGuard() {
 }
 export function operationErrorKey(error: unknown) {
   const e = error as { status?: number; code?: string } | null
-  return e?.status === 409 ? 'conflict' : e?.code === 'execution_failed' ? 'executionFailed' : e?.status === 403 ? 'forbidden' : 'save'
+  return e?.status === 409 ? 'conflict' : e?.code === 'execution_failed' ? 'executionFailed' : e?.code === 'reviewer_not_eligible' ? 'reviewerNotEligible' : e?.status === 403 ? 'forbidden' : 'save'
 }
 export function operationId(value: unknown) {
   const id = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : NaN
