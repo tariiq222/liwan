@@ -1,4 +1,4 @@
-import type { Task } from '@webvue/contracts'
+import type { Task, TaskState } from '@webvue/contracts'
 import type { TaskListParams } from './useTasks'
 
 // The three attribute filters of the task list. The URL (`?assignee=`, `?deadline=`, `?priority=`) and the API
@@ -12,6 +12,10 @@ export type TaskPriority = (typeof TASK_PRIORITIES)[number]
 export type TaskAttributeFilters = Pick<TaskListParams, 'assignee' | 'deadline' | 'priority'>
 
 const FILTER_KEYS = ['assignee', 'deadline', 'priority'] as const
+
+// The open scope only holds unfinished tasks and the closed scope only done/cancelled ones (the API filters on is_closed).
+export const OPEN_TASK_STATES: TaskState[] = ['in_progress', 'waiting', 'changes_requested', 'approved']
+export const CLOSED_TASK_STATES: TaskState[] = ['done', 'cancelled']
 
 export function parseAssignee(value: unknown): TaskAssignee | undefined {
   if (value === 'me' || value === 'none') return value
@@ -52,6 +56,43 @@ export function withTaskAttributeFilters<T extends TaskAttributeFilters>(stored:
   const { assignee: _a, deadline: _d, priority: _p, ...rest } = stored
   const q = taskSearchText(query)
   return { ...rest, ...taskAttributeFilters(stored), ...taskAttributeFilters(query), ...(q ? { q } : {}) } as T
+}
+
+type TaskListFilters = TaskAttributeFilters & Pick<TaskListParams, 'closed' | 'state' | 'project_id' | 'q'>
+
+function parseProjectId(value: unknown): number | undefined {
+  return typeof value === 'string' && /^[1-9]\d*$/.test(value) ? Number(value) : undefined
+}
+
+function parseStates(value: unknown): TaskState[] | undefined {
+  if (typeof value !== 'string') return undefined
+  const known = [...OPEN_TASK_STATES, ...CLOSED_TASK_STATES]
+  const picked = known.filter(state => value.split(',').includes(state))
+  return picked.length ? picked : undefined
+}
+
+/**
+ * The whole filter state of the task list. The URL wins and an absent key falls back to the stored value, except the
+ * scope: `closed` lives in the URL alone, so the "all tasks" link (no key) always opens the open scope. A state the
+ * scope cannot contain is dropped, so a preset link never silently empties the list.
+ */
+export function withTaskListFilters<T extends TaskListFilters>(stored: T, query: Record<string, unknown>): T {
+  const closed = query.closed === '1'
+  const merged = withTaskAttributeFilters(stored, query)
+  const inScope = closed ? CLOSED_TASK_STATES : OPEN_TASK_STATES
+  const state = (parseStates(query.state) ?? merged.state)?.filter(value => inScope.includes(value))
+  return { ...merged, closed, state: state?.length ? state : undefined, project_id: parseProjectId(query.project_id) ?? merged.project_id }
+}
+
+/** The filter state as URL query values (undefined removes the key). */
+export function taskListQuery(params: TaskListFilters) {
+  return {
+    ...taskAttributeQuery(params),
+    closed: params.closed ? '1' : undefined,
+    state: params.state?.length ? params.state.join(',') : undefined,
+    project_id: params.project_id ? String(params.project_id) : undefined,
+    q: params.q?.trim() || undefined,
+  }
 }
 
 /** The attribute filters as URL query values (undefined removes the key). */

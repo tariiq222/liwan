@@ -4,7 +4,7 @@ import { taskDaysRemaining } from './taskDeadline'
 import type { RouteLocationRaw } from 'vue-router'
 import { statusTag, type PageHeaderTag } from '@webvue/ui/app/utils/pageHeaderTag'
 import { ApiError } from '@/composables/useApi'
-import { withTaskAttributeFilters } from '@/composables/taskFilterParams'
+import { withTaskListFilters } from '@/composables/taskFilterParams'
 import { normalizeTaskSort } from '@/composables/taskSort'
 import { useTaskFilters } from '@/composables/useTaskFilters'
 import { shortcutKey } from '@webvue/ui/app/composables/shortcuts/keymap'
@@ -39,14 +39,14 @@ const idRef = computed(() => props.taskId)
 const backTo = computed(() => props.backTo ?? { path: '/tasks', query: route.query })
 const { data: task, error, refetch } = useTask(idRef)
 // A host that keeps its filters in the URL (the project screen) passes them
-// in via siblingParams; مهامي's host passes nothing, so this falls back to
+// in via siblingParams; the /tasks host passes nothing, so this falls back to
 // the same localStorage-backed filters ref the table itself queries with,
 // meaning prev/next reads the cache entry for the filter actually visible
 // in the list rather than whichever list happened to be cached first.
 // Decided once per instance: the two branches are different composables.
 const localFilters = props.siblingParams ? null : useTaskFilters()
-// The list's sort and attribute filters travel in the URL, so prev/next follows the list as it was shown.
-const filterParams = computed<TaskListParams>(() => props.siblingParams ?? { ...withTaskAttributeFilters(localFilters!.value, route.query), sort: normalizeTaskSort(route.query.sort) })
+// The list's sort and filters travel in the URL, so prev/next follows the list as it was shown.
+const filterParams = computed<TaskListParams>(() => props.siblingParams ?? { ...withTaskListFilters(localFilters!.value, route.query), all: true, sort: normalizeTaskSort(route.query.sort) })
 const siblings = useTaskSiblings(idRef, filterParams)
 const hydrated = useHydrated()
 const toast = useToast()

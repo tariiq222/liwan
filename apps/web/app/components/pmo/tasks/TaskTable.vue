@@ -43,7 +43,6 @@ const hasActiveFilters = computed(
 const emptyTitleKey = computed(() => {
   if (hasActiveFilters.value) return 'app.noResults'
   if (props.params.closed) return 'tasks.empty.closedTitle'
-  // A project's list is not scoped to the viewer: "no tasks assigned to you" would be wrong there.
   return props.variant === 'project' ? 'projects.tasksEmpty' : 'tasks.empty.title'
 })
 const showCreateAction = computed(() => can('pmo.tasks.create') && !hasActiveFilters.value && !props.params.closed)
@@ -68,7 +67,7 @@ function column(id: string, header: TableColumn<Task>['header'], width: string, 
   return { id, header, meta: { sortable, class: { th: `text-start ${width}`, td: `${cell} ${width}` } } as TableColumn<Task>['meta'] }
 }
 // Reading order (first column first): the record number as a muted `#` reference, task, project (the stage in a project's own list), state, priority, deadline,
-// assignee, the secondary stage (hidden on narrow containers) and the record number last as a muted reference.
+// assignee and the secondary stage (hidden on narrow containers).
 const numberHeader = () => recordNumberHeader(t)
 const columns = computed<TableColumn<Task>[]>(() => props.variant === 'project'
   ? [

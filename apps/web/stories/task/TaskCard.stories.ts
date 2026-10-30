@@ -18,8 +18,8 @@ const noDeadline = makeTask({ id: 105, name: 'مهمة بلا موعد', priorit
 const meta = {
   title: 'Task/TaskCard',
   component: TaskCard,
-  args: { task: tasks[0]!, stages: boardStages, currentStageId: 11, showProject: true, onOpen: fn(), onMove: fn() },
-  parameters: storyContext('apps/web/app/components/pmo/tasks/TaskBoard.vue:292', 'عمود اللوحة `w-72 p-2 border` من `apps/web/app/components/pmo/tasks/TaskBoard.vue:292`؛ بطاقة لكل مهمة.'),
+  args: { task: tasks[0]!, to: '/tasks/1', stages: boardStages, currentStageId: 11, showProject: true, onOpen: fn(), onMove: fn() },
+  parameters: storyContext('apps/web/app/components/pmo/tasks/TaskBoard.vue:294', 'عمود اللوحة `w-72 p-2 border` من `apps/web/app/components/pmo/tasks/TaskBoard.vue:294`؛ بطاقة لكل مهمة.'),
 } satisfies Meta<typeof TaskCard>
 export default meta
 type Story = StoryObj<typeof meta>
@@ -29,7 +29,7 @@ export const InBoardColumn: Story = {
   render: args => ({
     components: { TaskCard },
     setup: () => ({ args, tasks, stageName: computed(() => args.stages.find(stage => stage.id === args.currentStageId)?.name ?? '') }),
-    template: `<div class="flex h-full w-72 shrink-0 flex-col gap-2 rounded-control border border-default bg-elevated/30 p-2"><div class="flex items-center justify-between px-1"><h3 class="text-sm font-medium text-muted">{{ stageName }}</h3><span class="text-xs text-muted">{{ tasks.length }}</span></div><div class="flex min-h-16 flex-1 flex-col gap-2 overflow-y-auto"><TaskCard v-for="task in tasks" :key="task.id" :task="task" :stages="args.stages" :current-stage-id="args.currentStageId" :show-project="args.showProject" @open="args.onOpen" @move="args.onMove" /></div></div>`,
+    template: `<div class="flex h-full w-72 shrink-0 flex-col gap-2 rounded-control border border-default bg-elevated/30 p-2"><div class="flex items-center justify-between px-1"><h3 class="text-sm font-medium text-muted">{{ stageName }}</h3><span class="text-xs text-muted">{{ tasks.length }}</span></div><div class="flex min-h-16 flex-1 flex-col gap-2 overflow-y-auto"><TaskCard v-for="task in tasks" :key="task.id" :task="task" :to="'/tasks/' + task.id" :stages="args.stages" :current-stage-id="args.currentStageId" :show-project="args.showProject" @open="args.onOpen" @move="args.onMove" /></div></div>`,
   }),
 }
 
@@ -40,6 +40,6 @@ export const RichCard: Story = {
   render: args => ({
     components: { TaskCard },
     setup: () => ({ args, richTask, noDeadline }),
-    template: '<div class="flex w-[21.4286rem] flex-col gap-2.5 rounded-card bg-muted p-2.5"><TaskCard :task="richTask" :stages="args.stages" :current-stage-id="args.currentStageId" /><TaskCard :task="noDeadline" :stages="args.stages" :show-project="false" /></div>',
+    template: '<div class="flex w-[21.4286rem] flex-col gap-2.5 rounded-card bg-muted p-2.5"><TaskCard :task="richTask" to="/tasks/1" :stages="args.stages" :current-stage-id="args.currentStageId" /><TaskCard :task="noDeadline" to="/tasks/2" :stages="args.stages" :show-project="false" /></div>',
   }),
 }

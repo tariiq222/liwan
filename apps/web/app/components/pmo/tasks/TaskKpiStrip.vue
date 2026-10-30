@@ -18,8 +18,8 @@ const share = (count: number) => { const value = percent(count); return value ==
 const done = computed(() => { const value = data.value && percent(data.value.done); return value === undefined ? undefined : { progress: value, hint: t('tasks.kpi.percentDone', { percent: value }) } })
 const tiles = computed<KpiTile[]>(() => data.value ? [
   { id: 'total', label: t('tasks.kpi.total'), icon: 'i-lucide-list-checks', tone: 'neutral', value: data.value.total, ...done.value },
-  { id: 'open', label: t('tasks.kpi.open'), icon: 'i-lucide-clock', tone: 'warning', value: data.value.open, ...share(data.value.open) },
-  { id: 'overdue', label: t('tasks.kpi.overdue'), icon: 'i-lucide-circle-alert', tone: 'danger', value: data.value.overdue, ...share(data.value.overdue) },
+  { id: 'open', label: t('tasks.kpi.open'), icon: 'i-lucide-clock', tone: 'neutral', value: data.value.open, ...share(data.value.open) },
+  { id: 'overdue', label: t('tasks.kpi.overdue'), icon: 'i-lucide-circle-alert', tone: data.value.overdue > 0 ? 'danger' : 'neutral', value: data.value.overdue, ...share(data.value.overdue) },
   { id: 'done', label: t('tasks.kpi.done'), icon: 'i-lucide-circle-check', tone: 'success', value: data.value.done, ...share(data.value.done) },
 ] : [])
 </script>

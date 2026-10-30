@@ -1,6 +1,7 @@
+import type { TaskListParams } from '../useTasks'
 import { describe, expect, it } from 'vitest'
 import { projectTaskParams, projectTaskQuery } from '../projectTaskParams'
-import { taskSearchText, parseAssignee, parsePriorities, taskAttributeFilterCount, taskAttributeFilters, taskAttributeQuery, withTaskAttributeFilters } from '../taskFilterParams'
+import { taskSearchText, parseAssignee, parsePriorities, taskAttributeFilterCount, taskAttributeFilters, taskAttributeQuery, taskListQuery, withTaskAttributeFilters, withTaskListFilters } from '../taskFilterParams'
 import { summaryQuery, taskKeys } from '../useTasks'
 
 describe('task attribute filters', () => {
@@ -55,5 +56,35 @@ describe('task attribute filters', () => {
     expect(taskKeys.summary(params)).toEqual(taskKeys.summary({ ...params, sort: undefined }))
     expect(taskKeys.summary(params)).not.toEqual(taskKeys.summary({ ...params, deadline: 'today' }))
     expect(summaryQuery({ closed: false, priority: ['3'] }).filter).toBe('mine')
+  })
+})
+
+describe('withTaskListFilters', () => {
+  it('reads the scope from the URL alone', () => {
+    expect(withTaskListFilters({ closed: true } as TaskListParams, {}).closed).toBe(false)
+    expect(withTaskListFilters({ closed: false } as TaskListParams, { closed: '1' }).closed).toBe(true)
+  })
+
+  it('lets the URL win for state and project and falls back to the stored values', () => {
+    const stored = { closed: false, state: ['waiting'], project_id: 3 } as TaskListParams
+    expect(withTaskListFilters(stored, {})).toMatchObject({ state: ['waiting'], project_id: 3 })
+    expect(withTaskListFilters(stored, { state: 'in_progress', project_id: '9' })).toMatchObject({ state: ['in_progress'], project_id: 9 })
+    expect(withTaskListFilters(stored, { state: 'bogus', project_id: 'x' })).toMatchObject({ state: ['waiting'], project_id: 3 })
+  })
+
+  it('drops a state the scope cannot contain', () => {
+    expect(withTaskListFilters({ closed: false, state: ['waiting'] } as TaskListParams, { closed: '1' }).state).toBeUndefined()
+    expect(withTaskListFilters({ closed: false, state: ['waiting', 'done'] } as TaskListParams, { closed: '1' }).state).toEqual(['done'])
+  })
+
+  it('round-trips through the URL query', () => {
+    const params = { closed: true, state: ['done' as const], project_id: 4, q: ' لوحة ', priority: ['3' as const] }
+    const query = taskListQuery(params)
+    expect(query).toMatchObject({ closed: '1', state: 'done', project_id: '4', q: 'لوحة', priority: '3' })
+    expect(withTaskListFilters({ closed: false } as TaskListParams, query)).toMatchObject({ closed: true, state: ['done'], project_id: 4, q: 'لوحة', priority: ['3'] })
+  })
+
+  it('removes the keys of an empty list state', () => {
+    expect(taskListQuery({ closed: false, state: [] })).toMatchObject({ closed: undefined, state: undefined, project_id: undefined, q: undefined })
   })
 })

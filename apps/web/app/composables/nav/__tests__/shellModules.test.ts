@@ -184,13 +184,13 @@ describe('projects dashboard navigation', () => {
     expect(modules.map(item => item.id as string)).not.toContain('reports')
     expect(activeShellModule('/projects/dashboard')).toBe('projects')
   })
-  it('orders creation, overview, all projects, and my tasks with real capability gates', () => {
+  it('orders creation, overview, all projects, and tasks with real capability gates', () => {
     const creator = { capabilities: ['pmo.projects.read', 'pmo.projects.create', 'pmo.tasks.read'] }
     expect(contextLinksForModule('projects', creator).map(link => link.id)).toEqual(['new-project', 'project-dashboard', 'projects', 'tasks'])
     expect(contextLinksForModule('home', creator)).toEqual([])
     expect(contextLinksForModule('projects', employee).map(link => link.id)).toEqual(['project-dashboard', 'projects', 'tasks'])
     expect(contextLinksForModule('projects', { capabilities: ['pmo.projects.read'] }).map(link => link.id)).toEqual(['project-dashboard', 'projects'])
-    expect(contextLinksForModule('projects', employee).map(link => link.labelKey)).toEqual(['projects.dashboard.title', 'nav.projects', 'nav.myTasks'])
+    expect(contextLinksForModule('projects', employee).map(link => link.labelKey)).toEqual(['projects.dashboard.title', 'nav.projects', 'nav.tasks'])
     expect(contextLinksForModule('projects', full).some(link => ['my-projects', 'archived-tasks', 'project-system-settings', 'summary', 'current-project-settings'].includes(link.id))).toBe(false)
     expect(contextLinksForModule('projects', undefined)).toEqual([])
   })

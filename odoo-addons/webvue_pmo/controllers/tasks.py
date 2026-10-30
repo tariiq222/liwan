@@ -100,6 +100,7 @@ def _priority_domain(value):
 def _filtered_task_domain(args):
     """The domain for the task filters shared by the list and the summary.
 
+    `filter=all` is every task the caller's ACLs and record rules can read; `filter=mine` narrows to the caller's.
     Reads `filter`, `project_id`, `state`, `q`, `assignee`, `deadline` and `priority` from the query string
     `args`; the open/closed split (`closed`) is left to the caller. All of them combine with AND, and
     `assignee` alone is a valid scope (so `assignee=none` lists every readable unassigned task). Returns
@@ -112,8 +113,8 @@ def _filtered_task_domain(args):
     assignee = args.get('assignee')
     deadline = args.get('deadline')
     priority = args.get('priority')
-    if filter_ not in (None, 'mine'):
-        raise ApiError(400, 'unsupported_filter', "filter must be 'mine'")
+    if filter_ not in (None, 'mine', 'all'):
+        raise ApiError(400, 'unsupported_filter', "filter must be 'mine' or 'all'")
     if project_id is not None:
         try:
             project_id = int(project_id)
@@ -121,8 +122,8 @@ def _filtered_task_domain(args):
             raise ApiError(422, 'invalid', "project_id must be an integer", field='project_id') from None
         if project_id <= 0:
             raise ApiError(422, 'invalid', "project_id must be a positive integer", field='project_id')
-    if filter_ != 'mine' and project_id is None and assignee is None:
-        raise ApiError(400, 'unsupported_filter', "pass filter=mine, project_id and/or assignee")
+    if filter_ is None and project_id is None and assignee is None:
+        raise ApiError(400, 'unsupported_filter', "pass filter, project_id and/or assignee")
     Task = request.env['project.task']
     # Validated before the project check so a bad value is a 422 whatever the project's visibility.
     filters = Domain.TRUE

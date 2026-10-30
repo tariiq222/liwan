@@ -54,50 +54,50 @@ const restoreActions = (task: Task): RowAction[] => [{ label: t('taskLifecycle.r
     :back-to="backTo"
     :back-label="t('taskLifecycle.back')"
   >
-    <template #filters>
-      <div class="w-full min-w-0" data-testid="archived-tasks-toolbar">
-        <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
-          <template #search>
-            <UInput v-model="q" :disabled="!hydrated" :placeholder="t('taskLifecycle.searchArchived')" :aria-label="t('taskLifecycle.searchArchived')" icon="i-lucide-search" class="min-w-56 max-w-sm" />
-          </template>
-          <template #actions>
-            <UBadge v-if="data" color="neutral" variant="subtle">{{ total }}</UBadge>
-          </template>
-          <template #active>
-            <div v-if="q.trim()" class="flex flex-wrap items-center gap-2">
-              <SharedFilterChip :label="t('tasks.filters.searchValue', { value: q.trim() })" @remove="clearFilters" />
-            </div>
-          </template>
-        </FilterBar>
-      </div>
-    </template>
-    <SharedDataTable
-      :rows="items"
-      :columns="columns"
-      row-key="id"
-      :loading="isLoading && !items.length"
-      :error="items.length ? null : error"
-      :empty-text="t('taskLifecycle.noArchivedTasks')"
-      :caption="t('taskLifecycle.archivedTasks')"
-      @retry="refetch"
-    >
-      <template #name-cell="{ row }"><span class="font-medium text-highlighted">{{ row.original.name }}</span></template>
-      <template #project-cell="{ row }">{{ row.original.project?.name ?? '—' }}</template>
-      <template #actions-cell="{ row }">
-        <SharedRowActions :label="row.original.name" :disabled="isPending" :actions="restoreActions(row.original)" />
-      </template>
-      <template #mobile-row="{ row: task }">
-        <div class="flex items-center justify-between gap-3">
-          <div class="min-w-0">
-            <p class="truncate font-medium text-highlighted">{{ task.name }}</p>
-            <p class="truncate text-sm text-muted">{{ task.project?.name ?? '—' }}</p>
-          </div>
-          <SharedRowActions :label="task.name" :disabled="isPending" :actions="restoreActions(task)" />
+    <SharedListCard>
+      <template #filters>
+        <div class="w-full min-w-0" data-testid="archived-tasks-toolbar">
+          <FilterBar class="w-full" embedded :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+            <template #search>
+              <UInput v-model="q" :disabled="!hydrated" :placeholder="t('taskLifecycle.searchArchived')" :aria-label="t('taskLifecycle.searchArchived')" icon="i-lucide-search" class="min-w-48 flex-1">
+                <template v-if="q" #trailing>
+                  <UButton type="button" color="neutral" variant="link" size="sm" icon="i-lucide-x" :aria-label="t('tasks.filters.clearSearch')" class="-me-1" @click="clearFilters" />
+                </template>
+              </UInput>
+            </template>
+          </FilterBar>
         </div>
       </template>
-    </SharedDataTable>
-    <div v-if="hasNextPage" class="text-center">
-      <UButton color="neutral" variant="outline" type="button" :loading="isFetchingNextPage" :disabled="isFetchingNextPage || !hydrated" @click="fetchNextPage()">{{ t('taskLifecycle.loadMore') }}</UButton>
-    </div>
+      <SharedDataTable
+        bare
+        :rows="items"
+        :columns="columns"
+        row-key="id"
+        :loading="isLoading && !items.length"
+        :error="items.length ? null : error"
+        :empty-text="t('taskLifecycle.noArchivedTasks')"
+        :caption="t('taskLifecycle.archivedTasks')"
+        @retry="refetch"
+      >
+        <template #footer>
+          <span class="tabular-nums" data-testid="archived-tasks-count">{{ t('tasks.footer.results', { shown: items.length, total }, total) }}</span>
+          <UButton v-if="hasNextPage" color="neutral" variant="outline" size="sm" :loading="isFetchingNextPage" :disabled="isFetchingNextPage || !hydrated" @click="fetchNextPage()">{{ t('taskLifecycle.loadMore') }}</UButton>
+        </template>
+        <template #name-cell="{ row }"><span class="font-medium text-highlighted">{{ row.original.name }}</span></template>
+        <template #project-cell="{ row }">{{ row.original.project?.name ?? '—' }}</template>
+        <template #actions-cell="{ row }">
+          <SharedRowActions :label="row.original.name" :disabled="isPending" :actions="restoreActions(row.original)" />
+        </template>
+        <template #mobile-row="{ row: task }">
+          <div class="flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <p class="truncate font-medium text-highlighted">{{ task.name }}</p>
+              <p class="truncate text-sm text-muted">{{ task.project?.name ?? '—' }}</p>
+            </div>
+            <SharedRowActions :label="task.name" :disabled="isPending" :actions="restoreActions(task)" />
+          </div>
+        </template>
+      </SharedDataTable>
+    </SharedListCard>
   </SharedListPage>
 </template>

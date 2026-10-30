@@ -5,7 +5,7 @@ import TaskBoard from '@/components/pmo/tasks/TaskBoard.vue'
 import TaskKpiStrip from '@/components/pmo/tasks/TaskKpiStrip.vue'
 import TaskTable from '@/components/pmo/tasks/TaskTable.vue'
 import TaskToolbar from '@/components/pmo/tasks/TaskToolbar.vue'
-import { taskAttributeQuery, withTaskAttributeFilters } from '@/composables/taskFilterParams'
+import { taskListQuery, withTaskListFilters } from '@/composables/taskFilterParams'
 import { normalizeTaskSort } from '@/composables/taskSort'
 import type { TaskListParams } from '@/composables/useTasks'
 import { useTaskFilters } from '@/composables/useTaskFilters'
@@ -48,18 +48,16 @@ function taskTo(id: number) {
   return { path: `/tasks/${id}`, query: { ...route.query } }
 }
 
-// Filters persist per browser; useTaskFilters centralizes the localStorage key/defaults so the
-// detail page's prev/next lookup reads the exact cache entry this table queries with.
+// Filters persist per browser (useTaskFilters) and are mirrored in the URL, so a shared link shows what it was made for.
 const filters = useTaskFilters()
 // The sort is not a stored filter: it lives in the URL (`?sort=`), so refresh, back and direct links keep it, and cycling a
 // header to "none" removes the key. The board has no columns to sort, so it queries without it.
-// `assignee`, `deadline` and `priority` are stored like the other filters and mirrored in the URL: a key present in the URL
-// wins over the stored value (a shared link shows what it was made for), an absent one falls back to it.
+// A key present in the URL wins over the stored value and an absent one falls back to it; the open/closed scope lives in the URL alone.
 const params = computed<TaskListParams>({
-  get: () => ({ ...withTaskAttributeFilters(filters.value, route.query), sort: normalizeTaskSort(route.query.sort) }),
-  set: ({ sort: _sort, ...rest }) => {
-    filters.value = rest
-    void router.replace({ query: { ...route.query, ...taskAttributeQuery(rest), q: rest.q?.trim() || undefined } })
+  get: () => ({ ...withTaskListFilters(filters.value, route.query), all: true, sort: normalizeTaskSort(route.query.sort) }),
+  set: ({ sort: _sort, all: _all, ...rest }) => {
+    filters.value = { ...rest, closed: false }
+    void router.replace({ query: { ...route.query, ...taskListQuery(rest) } })
   },
 })
 const boardParams = computed<TaskListParams>(() => ({ ...params.value, sort: undefined }))
@@ -95,8 +93,9 @@ function columnCreateTo(column: { state?: TaskState; stageId?: number }) {
     <SharedListCard v-if="hydrated" :fill="isBoard">
       <template #filters><TaskToolbar v-model="params" embedded /></template>
       <TaskTable v-if="!isBoard" :params="params" :row-to="task => taskTo(task.id)" @create="openCreate" @update:sort="onSort" />
-      <TaskBoard v-else :params="boardParams" :create-to="createTo ? columnCreateTo : undefined" @open="id => router.push(taskTo(id))" />
+      <TaskBoard v-else :params="boardParams" :card-to="taskTo" :create-to="createTo ? columnCreateTo : undefined" @open="id => router.push(taskTo(id))" />
     </SharedListCard>
+    <SharedLoadingSkeleton v-else />
   </SharedListPage>
   <NuxtPage />
 </template>

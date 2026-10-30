@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import type { Task } from '@webvue/contracts'
+import type { RouteLocationRaw } from 'vue-router'
 import { statusPillAttrs } from '@webvue/ui/app/utils/statusPill'
 import { deadlineTagView } from './taskDeadline'
 import type { BoardStage } from '@/composables/boardStages'
-import { PRIORITY_LABEL_KEY, PRIORITY_TONE } from '@/composables/taskState'
+import { PRIORITY_ICON, PRIORITY_LABEL_KEY, PRIORITY_TONE } from '@/composables/taskState'
 
 const props = withDefaults(defineProps<{
   task: Task
+  to: RouteLocationRaw
   stages?: BoardStage[]
   currentStageId?: number | null
   // Explicit "move to" menu entries (the board passes status transitions); without them the card lists `stages`.
@@ -44,15 +46,7 @@ const moveItems = computed(() => props.moveTargets ?? (props.task.can_write
 
 function onCardClick(event: MouseEvent) {
   const target = event.target as HTMLElement
-  if (target.closest('button, [role="menu"], [data-state]')) return
-  emit('open', props.task.id)
-}
-
-function onCardKeydown(event: KeyboardEvent) {
-  if (event.key !== 'Enter' && event.key !== ' ') return
-  const target = event.target as HTMLElement
-  if (target.closest('button, [role="menu"]')) return
-  event.preventDefault()
+  if (target.closest('a, button, [role="menu"], [data-state]')) return
   emit('open', props.task.id)
 }
 </script>
@@ -62,11 +56,8 @@ function onCardKeydown(event: KeyboardEvent) {
     :data-testid="`board-card-${task.id}`"
     :data-task-id="task.id"
     :data-readonly="!task.can_write"
-    role="button"
-    tabindex="0"
     class="group relative flex shrink-0 cursor-pointer flex-col gap-2 rounded-control border border-default bg-default p-3.5 transition duration-150 hover:-translate-y-px hover:shadow-md focus-visible:outline-2 focus-visible:outline-primary motion-reduce:transition-none motion-reduce:hover:translate-y-0"
     @click="onCardClick"
-    @keydown="onCardKeydown"
   >
     <div class="flex items-center gap-2">
       <span
@@ -77,7 +68,7 @@ function onCardKeydown(event: KeyboardEvent) {
         :aria-label="t(PRIORITY_LABEL_KEY[priority])"
         :title="t(PRIORITY_LABEL_KEY[priority])"
         data-testid="card-priority"
-      ><UIcon name="i-lucide-flag" class="size-3.5" aria-hidden="true" /></span>
+      ><UIcon :name="PRIORITY_ICON[priority]" class="size-3.5" aria-hidden="true" /></span>
       <SharedRecordNumber :value="`#${task.id}`" />
       <UDropdownMenu v-if="moveItems.length" :items="moveItems" :content="{ align: 'end' }">
         <UButton
@@ -94,7 +85,7 @@ function onCardKeydown(event: KeyboardEvent) {
       </UDropdownMenu>
     </div>
 
-    <p class="line-clamp-2 text-sm font-semibold text-highlighted" :title="task.name">{{ task.name }}</p>
+    <NuxtLink :to="to" class="line-clamp-2 text-sm font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :title="task.name">{{ task.name }}</NuxtLink>
     <p v-if="showProject && task.project" class="flex min-w-0 items-center gap-1 text-xs text-muted">
       <UIcon name="i-lucide-folder" class="size-3.5 shrink-0" aria-hidden="true" /><span class="truncate">{{ task.project.name }}</span>
     </p>

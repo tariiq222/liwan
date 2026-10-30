@@ -3,7 +3,7 @@ import type { TaskState } from '@webvue/contracts'
 import { refDebounced } from '@vueuse/core'
 import type { TaskListParams } from '@/composables/useTasks'
 import { PRIORITY_LABEL_KEY, STATE_LABEL_KEY } from '@/composables/taskState'
-import { parsePriorities, TASK_DEADLINES, TASK_PRIORITIES, taskAttributeFilterCount, type TaskPriority } from '@/composables/taskFilterParams'
+import { CLOSED_TASK_STATES, OPEN_TASK_STATES, parsePriorities, TASK_DEADLINES, TASK_PRIORITIES, taskAttributeFilterCount, type TaskPriority } from '@/composables/taskFilterParams'
 import { useProjects } from '@/composables/useProjects'
 import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 
@@ -14,11 +14,8 @@ const hydrated = useHydrated()
 
 const { data: projects } = useProjects()
 
-// The open scope only holds unfinished tasks and the closed scope only done/cancelled ones (the API
-// filters on is_closed), so each scope offers just the states it can contain.
-const OPEN_STATES: TaskState[] = ['in_progress', 'waiting', 'changes_requested', 'approved']
-const CLOSED_STATES: TaskState[] = ['done', 'cancelled']
-const ALL_STATES = computed(() => (props.modelValue.closed ? CLOSED_STATES : OPEN_STATES))
+// Each scope offers just the states it can contain.
+const ALL_STATES = computed(() => (props.modelValue.closed ? CLOSED_TASK_STATES : OPEN_TASK_STATES))
 
 function patch(changes: Partial<TaskListParams>) {
   emit('update:modelValue', { ...props.modelValue, ...changes })
@@ -127,7 +124,7 @@ const projectItems = computed(() => [
     <template #default>
       <USelect
         multiple
-        class="w-full md:w-44"
+        class="w-full md:w-32"
         data-testid="task-filter-state"
         :disabled="!hydrated"
         :items="stateItems"
@@ -142,7 +139,7 @@ const projectItems = computed(() => [
       <USelect
         v-if="!hideProjectFilter"
         id="task-filter-project"
-        class="w-full md:w-44"
+        class="w-full md:w-32"
         :disabled="!hydrated"
         :items="projectItems"
         :model-value="modelValue.project_id ? String(modelValue.project_id) : 'all'"
@@ -154,7 +151,7 @@ const projectItems = computed(() => [
       <USelect
         multiple
         icon="i-lucide-flag"
-        class="w-full md:w-40"
+        class="w-full md:w-32"
         data-testid="task-filter-priority"
         :disabled="!hydrated"
         :items="priorityItems"
@@ -168,7 +165,7 @@ const projectItems = computed(() => [
 
       <USelect
         icon="i-lucide-user"
-        class="w-full md:w-40"
+        class="w-full md:w-36"
         data-testid="task-filter-assignee"
         :disabled="!hydrated"
         :items="assigneeItems"
@@ -180,7 +177,7 @@ const projectItems = computed(() => [
 
       <USelect
         icon="i-lucide-calendar-clock"
-        class="w-full md:w-40"
+        class="w-full md:w-32"
         data-testid="task-filter-deadline"
         :disabled="!hydrated"
         :items="deadlineItems"
