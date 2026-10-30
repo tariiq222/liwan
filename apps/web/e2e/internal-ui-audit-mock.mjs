@@ -462,7 +462,7 @@ async function handle(req, res) {
     return json(res, 200, { items: rows, total: rows.length })
   }
 
-  if (process.env.MODULE_UI_PREVIEW === '1' && method !== 'GET' && /^\/api\/v1\/(hr\/payroll\/|__mock\/reset-payroll$)/.test(path)) {
+  if (process.env.MODULE_UI_PREVIEW === '1' && method !== 'GET' && /^\/api\/v1\/(hr\/(payroll\/|branch-strictness$)|__mock\/reset-payroll$)/.test(path)) {
     let body = {}
     try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
     const write = hrPayrollPreviewWrite(method, path, body)
