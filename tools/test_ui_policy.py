@@ -433,9 +433,9 @@ class StaticGateTest(unittest.TestCase):
         snapshot = {
             APP + "app.vue": "<template><NuxtPage /></template>",
             UI + "app.config.ts": "export default defineAppConfig({\n  ui: {\n"
-                                   "    colors: { primary: 'brand', neutral: 'slate' },\n  },\n})",
+                                   "    colors: { primary: 'brand', neutral: 'stone' },\n  },\n})",
             UI + "assets/css/tokens.css": ":root { --color-brand-500: #06c; --ui-radius: 0.428571rem;\n"
-                                           "  --webvue-midnight: #13234a; --webvue-lime: #c6f432;\n"
+                                           "  --webvue-sand: #eadfc8;\n"
                                            "  --status-success: green; --status-warning: amber; --status-info: blue;\n"
                                            "  --status-danger: red; --status-danger-foreground: white;\n"
                                            "  --unread-count-foreground: white;\n"
@@ -545,13 +545,19 @@ class StaticGateTest(unittest.TestCase):
 
     def test_theme_probes_tolerate_reformatting(self):
         spaced = self.whole(**{UI + "app.config.ts":
-                               "  ui: {\n    colors: {   primary: 'brand',\n      neutral: 'slate' },\n  }"})
+                               "  ui: {\n    colors: {   primary: 'brand',\n      neutral: 'stone' },\n  }"})
         self.assertEqual([e for e in policy.theme_errors(spaced) if "theme colors" in e], [])
 
     def test_retired_theme_token_is_reported(self):
         snapshot = self.whole()
         snapshot[UI + "assets/css/tokens.css"] += "\n--elevation-1: 0 1px 2px #0001;"
         self.assertTrue(any("--elevation-1" in error for error in policy.theme_errors(snapshot)))
+
+    def test_retired_identity_tokens_are_reported(self):
+        for token in ("--webvue-midnight", "--webvue-lime"):
+            snapshot = self.whole()
+            snapshot[UI + "assets/css/tokens.css"] += f"\n{token}: #000;"
+            self.assertTrue(any(token in error for error in policy.theme_errors(snapshot)))
 
     # --- page shell ------------------------------------------------------------
 

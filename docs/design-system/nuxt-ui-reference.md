@@ -18,14 +18,13 @@
 | الرسوم | `apps/web/app/components/shared/data/DashboardChart.client.vue` ومحولات `apps/web/app/components/charts/` باستخدام Unovis |
 | ملكية المكونات | [فهرس المكونات](components.md)؛ المسارات تشمل `apps/web/app/components/` و`packages/ui/app/components/` و`packages/commercial-ui/app/` |
 
-مدخلات الثيم (كما في DESIGN.md §1): لوحة ويب فيو الثابتة (أزرق ويب فيو
-`#007ff8` للتعبئات والأيقونات والحلقات بلا نص، و`#0066cc` لكل تعبئة ممتلئة بنص أبيض) تغذّي `primary`، والمحايد `slate`، وهوية ويب فيو: الأزرق الليلي
-والليموني `#c6f432` في `tokens.css`، وخط IBM Plex Sans Arabic بثلاثة أحجام،
+مدخلات الثيم (كما في DESIGN.md §1): لوحة ويب فيو الثابتة (لافندر `#5b3f8c`، يمرّ بنص أبيض بنسبة 8.29:1) تغذّي `primary`، والمحايد `stone`، وهوية ويب فيو: الرمل `#eadfc8`
+والحبر `#14102a` والبني `#6b4e2e` في `tokens.css`، وخط IBM Plex Sans Arabic بثلاثة أحجام،
 ومظهران فقط (فاتح وداكن؛ أي قيمة قديمة مخزنة تُقرأ فاتحًا). الكثافة من
 `--webvue-control-h` (32px) و`--webvue-row-h` (44px)، والزوايا من
 `--radius-card` (18px) و`--radius-control` (12px)، والظلال للطبقات العائمة فقط. الريل ثابت
 بـ `--webvue-rail`. هندسة الغلاف في قسم «الغلاف» أدناه.
-اللون الافتراضي للشركة (`primary_color`) هو `#0066cc`. الواجهة لا تتبع لون الشركة: عائلة `--primary*` و`--chart-*` وتوكنات النجاح
+اللون الافتراضي للشركة (`primary_color`) هو `#5b3f8c`. الواجهة لا تتبع لون الشركة: عائلة `--primary*` و`--chart-*` وتوكنات النجاح
 والتحذير والخطأ والمعلومة ثابتة في `tokens.css` لكل مظهر. الشعار المعتمد في
 `packages/ui/app/components/shared/layout/BrandWordmark.vue`. ولا تُنقل ملفات المصدر المقارن
 أو بياناته أو مساراته التجريبية إلى التشغيل.

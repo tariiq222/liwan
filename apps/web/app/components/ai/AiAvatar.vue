@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The assistant's mark: a solid primary circle with a white sparkles icon (icon only, never text on the accent blue).
+// The assistant's mark: a solid primary circle with a white sparkles icon (icon only, never text on the accent).
 const props = withDefaults(defineProps<{ size?: 'sm' | 'md' | 'lg' }>(), { size: 'sm' })
 const SIZES = { sm: ['size-7', 'size-4'], md: ['size-8', 'size-5'], lg: ['size-14', 'size-7'] } as const
 </script>

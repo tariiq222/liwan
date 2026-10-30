@@ -56,8 +56,8 @@ const ME = {
 
 const BRANDING = {
   name: 'ويب فيو',
-  logo_url: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="6" fill="#13234a"/></svg>'),
-  primary_color: process.env.PREVIEW_PRIMARY_COLOR || '#13234a',
+  logo_url: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="6" fill="#5b3f8c"/></svg>'),
+  primary_color: process.env.PREVIEW_PRIMARY_COLOR || '#5b3f8c',
   font: 'IBM Plex Sans Arabic',
 }
 

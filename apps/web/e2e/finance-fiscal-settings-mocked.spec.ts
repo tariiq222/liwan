@@ -61,7 +61,7 @@ function me() {
 function jsonFor(pathname: string): unknown {
   if (pathname === '/api/v1/me') return me()
   if (pathname === '/api/v1/finance/setup') return SETUP
-  if (pathname === '/api/v1/branding') return { name: 'ويب فيو', logo_url: null, primary_color: '#13234a', font: 'IBM_Plex_Sans_Arabic' }
+  if (pathname === '/api/v1/branding') return { name: 'ويب فيو', logo_url: null, primary_color: '#5b3f8c', font: 'IBM_Plex_Sans_Arabic' }
   // The other cards of the page are not this spec's subject; they answer an empty list.
   if (pathname.startsWith('/api/v1/')) return { items: [], total: 0 }
   return null

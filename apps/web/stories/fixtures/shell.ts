@@ -22,7 +22,7 @@ export const shellMe = MeSchema.parse({
 export const shellBranding = BrandingSchema.parse({
   name: 'شركة المثال',
   logo_url: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Crect width=%2224%22 height=%2224%22 rx=%226%22 fill=%22teal%22/%3E%3C/svg%3E',
-  primary_color: '#13234a',
+  primary_color: '#5b3f8c',
   font: 'IBM Plex Sans Arabic',
 })
 
