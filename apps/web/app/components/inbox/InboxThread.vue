@@ -173,6 +173,7 @@ const deliveryLabel = (item: InboxMessage) => t(`inbox.delivery.${item.delivery_
                 </template>
               </UPopover>
             </div>
+            <p v-if="row.item.direction === 'in' && row.item.error" class="text-xs text-error" role="alert" data-testid="inbox-inbound-error">{{ t('inbox.thread.mediaFailed') }}</p>
             <div v-if="row.item.direction === 'out' && row.item.delivery_state === 'failed'" class="flex flex-wrap items-center gap-2 text-xs text-error" role="alert">
               <span>{{ row.item.error || t('inbox.thread.failed') }}</span>
               <UButton

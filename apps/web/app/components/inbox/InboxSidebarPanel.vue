@@ -45,8 +45,9 @@ const campaignSections = computed<ShellSubListSection[]>(() => [{
   ],
 }])
 
-function updateRoute(next: InboxListRoute) {
-  void router.replace({ path: route.path, query: serializeInboxListRoute(next) })
+function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
+  // A scope, state or page change is a step Back returns to; only a correction of the URL replaces its entry.
+  void router[options?.replace ? 'replace' : 'push']({ path: route.path, query: serializeInboxListRoute(next) })
 }
 </script>
 

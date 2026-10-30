@@ -128,6 +128,7 @@ class TestConversationsApi(WebVueInboxCase):
         self.assertEqual([m['body'] for m in newest_two['items']], ['note 1', 'note 2'])
         older = self.get(self.path('/messages?limit=2&offset=2')).json()
         self.assertEqual([m['body'] for m in older['items']], [self.conversation.message_ids[0].body, 'note 0'])
+        self.assertError(self.get(self.path('/messages?limit=0')), 422, 'invalid')
 
     def test_free_text_reply_is_queued_inside_the_window(self):
         self.login(self.agent)
@@ -196,6 +197,13 @@ class TestConversationsApi(WebVueInboxCase):
         self.assertEqual((result.status_code, result.json()['name'], result.json()['email']), (200, 'Renamed', 'sara@example.com'))
         self.assertError(self.api('PATCH', f'/api/v1/inbox/contacts/{contact.id}', {'email': 'not-an-email'}), 422, 'invalid')
         self.assertError(self.get('/api/v1/inbox/contacts/999999999'), 404, 'not_found')
+
+    def test_only_a_file_kind_treats_its_name_in_brackets_as_a_placeholder(self):
+        message = self.conversation.message_ids[0]
+        message.write({'kind': 'text', 'body': '[text]'})
+        self.assertEqual(message._webvue_caption(), '[text]')
+        message.write({'kind': 'image', 'body': '[image]'})
+        self.assertFalse(message._webvue_caption())
 
     def test_canned_replies_and_templates_lists(self):
         self.env['webvue.inbox.canned.reply'].create({'shortcut': 'hi', 'body': 'Hello!'})

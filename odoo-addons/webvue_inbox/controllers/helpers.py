@@ -15,9 +15,9 @@ PROVIDER_ID = re.compile(r'^\d{5,32}$')
 CONVERSATION_STATES = ('open', 'pending', 'resolved', 'closed')
 
 
-def reject(message, field=None):
-    """Answer 422 `invalid` naming `field`."""
-    raise ApiError(422, 'invalid', message, field=field)
+def reject(message, field=None, reason=None):
+    """Answer 422 `invalid` naming `field`; `reason` is the locale key the UI shows instead of the English text."""
+    raise ApiError(422, 'invalid', message, field=field, details={'reason': reason} if reason else None)
 
 
 def check_fields(payload, allowed, required=()):
@@ -78,14 +78,14 @@ def not_found():
 
 
 @contextmanager
-def unique_as_invalid(field, message):
+def unique_as_invalid(field, message, reason):
     """Turn a unique-constraint violation raised by the writes inside the block into a 422."""
     try:
         with request.env.cr.savepoint():
             yield
             request.env.flush_all()
     except UniqueViolation:
-        reject(message, field)
+        reject(message, field, reason)
 
 
 def visible_conversation(conversation_id):

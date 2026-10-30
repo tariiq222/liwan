@@ -142,7 +142,7 @@ class FlowController(http.Controller):
         channel = get_channel(channel_id, MANAGE_FLOWS)
         parsed = parse_flow_write(channel, payload)
         try:
-            with unique_as_invalid('name', 'a form with this name already exists on the channel'):
+            with unique_as_invalid('name', 'a form with this name already exists on the channel', 'inbox_flow_name_taken'):
                 flow = request.env['webvue.inbox.flow']._webvue_create_remote(channel, parsed.values, parsed.screens)
         except whatsapp.ProviderError as error:
             provider_failure(error)
@@ -176,7 +176,7 @@ class FlowController(http.Controller):
         flow._webvue_require_editable()
         parsed = parse_flow_write(flow.channel_id, payload, flow)
         try:
-            with unique_as_invalid('name', 'a form with this name already exists on the channel'):
+            with unique_as_invalid('name', 'a form with this name already exists on the channel', 'inbox_flow_name_taken'):
                 flow._webvue_update_remote(parsed.values, parsed.screens)
         except whatsapp.ProviderError as error:
             provider_failure(error)
@@ -229,7 +229,7 @@ class FlowController(http.Controller):
         flow = get_flow(flow_id, MANAGE_FLOWS)
         name, replace = parse_copy(flow.channel_id, payload)
         try:
-            with unique_as_invalid('name', 'a form with this name already exists on the channel'):
+            with unique_as_invalid('name', 'a form with this name already exists on the channel', 'inbox_flow_name_taken'):
                 copy = flow._webvue_copy(name, replace)
         except whatsapp.ProviderError as error:
             provider_failure(error)

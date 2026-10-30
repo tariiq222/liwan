@@ -63,6 +63,9 @@ describe('notification contracts', () => {
     expect(list.items).toEqual([unknown, known])
     expect(UnknownNotificationSchema.parse({ id: 10, kind: 'sales_quote_expired', created_at: '2026-10-07T09:00:00Z', is_read: true }))
       .toEqual({ id: 10, kind: 'sales_quote_expired', created_at: '2026-10-07T09:00:00Z', is_read: true })
+    // An application's dotted kind (the inbox assignment) parses as a generic row and does not fail the list.
+    const dotted = { id: 11, kind: 'inbox.assigned', conversation_id: 3, title: 'Sara', body: '', created_at: '2026-10-29T09:00:00Z', is_read: false }
+    expect(NotificationListSchema.parse({ items: [dotted], total: 1, unread_count: 1 }).items).toEqual([dotted])
     expect(NotificationSchema.safeParse(unknown).success).toBe(false)
     // A known kind never falls back to the generic row: a malformed known row still fails the list.
     const { task_id: _taskId, ...withoutTask } = known

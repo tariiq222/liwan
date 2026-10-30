@@ -530,7 +530,7 @@ export const InboxChannelCreateSchema = z.object({
 export const InboxChannelPatchSchema = z.object({
   name: z.string().min(1).max(128).optional(),
   department_id: Id.nullable().optional(),
-  state: z.enum(['connected', 'disabled']).optional(),
+  state: z.literal('disabled').optional(),
   access_token: z.string().min(16).max(1024).optional(),
   app_secret: z.string().min(16).max(256).optional(),
   app_id: AppId.nullable().optional(),
