@@ -74,7 +74,7 @@ type (R6).
   images) in the conversation of 2026-10-28 by approving this design. Any other commit, module or
   version change of that source needs a new approval in the conversation.
 - The constitution is the AGENTS.md section "Configurable, sector-flexible applications — owner
-  constitution 2026-10-28" (merged by tariiq222/webvue#130).
+  constitution 2026-10-28" (merged by tariiq222/liwan#130).
 - No `sudo()` anywhere in `liwan_crm` (none is expected; document any case per R7 if one is truly
   needed).
 - Every route: `type='json2'`, `auth='user'`, `@api_handler`, `requires_feature('crm.enabled')`,

@@ -23,7 +23,7 @@
 | HEAD | هذه الوثيقة فوق دمج `origin/main` السادس؛ يُقرأ الرأس الفعلي بـ`git rev-parse HEAD` |
 | HEAD البعيد قبل الدفع | `6af23e9b9` |
 | مقارنة بـ`origin/main` | تُقرأ حيًا بالأمر في البند 6؛ الأرقام هنا لا تبقى صحيحة بعد أي مزامنة |
-| PR | [#66](https://github.com/tariiq222/webvue/pull/66) - `OPEN`، ليس Draft، الدمج التلقائي مفعّل (`MERGE`) |
+| PR | [#66](https://github.com/tariiq222/liwan/pull/66) - `OPEN`، ليس Draft، الدمج التلقائي مفعّل (`MERGE`) |
 | حالة الدمج | `BEHIND` حتى دفع المزامنة، ثم ينتظر CI أخضر على الرأس الجديد |
 | آخر CI على البعيد | 31/31 ناجح على `6af23e9b9` |
 | ملاحظات المراجعة على PR | 6/6 محلولة |
@@ -139,7 +139,7 @@
 | محرك ضريبة مكرر (البند 7) | اختلاف حساب بين الاشتراك والدفاتر | قرار المالك قبل المرحلة ٣ |
 | تحصيل 15% قبل التسجيل الضريبي | ليوان غير مسجلة ضريبيًا الآن (المالك 2026-10-26)، والبيع يبدأ قبل التسجيل المتوقع بعد نحو 4 أشهر؛ إضافة ضريبة على فاتورة جهة غير مسجلة قد يكون تحصيلًا غير نظامي | يُحسم ضمن القرار المعلّق في البند 7؛ لا يُفعَّل البيع المدفوع قبله. **غير مُتحقق قانونيًا** |
 | لا اختبار إنتاجي | لم تُثبت ترقية فعلية ولا دفع حقيقي | **غير مُتحقق**؛ يُسجَّل عند تنفيذه |
-| إعداد `allow_auto_merge` على المستودع | أي PR يستطيع تفعيل الدمج التلقائي | فُعِّل بطلب المالك؛ يُعطَّل بـ`gh api -X PATCH repos/tariiq222/webvue -F allow_auto_merge=false` |
+| إعداد `allow_auto_merge` على المستودع | أي PR يستطيع تفعيل الدمج التلقائي | فُعِّل بطلب المالك؛ يُعطَّل بـ`gh api -X PATCH repos/tariiq222/liwan -F allow_auto_merge=false` |
 
 ## 6. كيفية التشغيل والتحقق
 
@@ -147,8 +147,8 @@
 cd /Users/tariq/code/webvue/.worktrees/cp-self-service-pricing
 git status --short
 git fetch origin && git rev-list --left-right --count origin/main...HEAD
-gh pr view 66 --repo tariiq222/webvue --json state,mergeStateStatus,mergedAt
-gh pr checks 66 --repo tariiq222/webvue
+gh pr view 66 --repo tariiq222/liwan --json state,mergeStateStatus,mergedAt
+gh pr checks 66 --repo tariiq222/liwan
 ```
 
 ```bash
