@@ -3150,7 +3150,7 @@
       "addon": "liwan_inbox",
       "auth": "user",
       "capability_keys": [],
-      "capability_match": "all",
+      "capability_match": "any",
       "capability_source": "decorator",
       "feature_keys": [
         "inbox.enabled"

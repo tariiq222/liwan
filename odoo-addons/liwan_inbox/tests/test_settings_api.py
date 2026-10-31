@@ -121,3 +121,12 @@ class TestSettingsApi(LiwanInboxCase):
         self.assertFalse(read.id)
         self.assertEqual((read.visibility_policy, read.auto_close_hours), ('department', 72))
         self.assertFalse(Settings.search_count([('company_id', '=', self.env.company.id)]))
+
+    def test_a_settings_only_role_lists_canned_replies(self):
+        self.env['liwan.inbox.canned.reply'].create({'shortcut': 'hello', 'body': 'Hello'})
+        self.login(self._capability_user('inbox_settings_canned_only', 'inbox.settings.manage'))
+        result = self.api('GET', '/api/v1/inbox/canned-replies')
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual([r['shortcut'] for r in result.json()['items']], ['hello'])
+        self.login(self.outsider)
+        self.assertError(self.api('GET', '/api/v1/inbox/canned-replies'), 403, 'forbidden')

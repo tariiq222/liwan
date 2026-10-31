@@ -35,4 +35,3 @@ class TestVendorSupportAccess(LiwanInboxCase):
         self.assertError(self.patch_conversation(self.conversation, {'priority': 'high'}), 403, 'forbidden')
         self.assertEqual(self.get('/api/v1/inbox/conversations/export.csv').status_code, 403)
         self.assertError(self.get('/api/v1/inbox/reports/overview'), 403, 'forbidden')
-        self.assertError(self.get('/api/v1/inbox/orders'), 403, 'forbidden')

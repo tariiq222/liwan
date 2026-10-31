@@ -20,6 +20,12 @@ describe('access error messages', () => {
     expect(accessErrorMessage(new ApiError(422, 'self_access_change', 'self_access_change'), t)).toBe('self change text')
     expect(accessErrorMessage(new ApiError(422, 'role_disabled', 'role_disabled'), t)).toBe('role disabled text')
   })
+  it('builds the missing-dependency text from the named permissions in details', () => {
+    const named = (key: string, params?: Record<string, unknown>) => key === 'access.errors.missingDependencyNamed' ? `${params?.permission} needs ${params?.missing}` : key
+    const error = new ApiError(422, 'missing_dependency', 'x', 'permissions', { permission_name: 'A', missing_name: 'B' })
+    expect(accessErrorMessage(error, named)).toBe('A needs B')
+    expect(accessErrorMessage(new ApiError(422, 'missing_dependency', 'plain'), t)).toBe('plain')
+  })
   it('maps weak_password to its text', () => {
     expect(accessErrorMessage(new ApiError(422, 'weak_password', 'raw'), t)).toBe('weak')
   })
