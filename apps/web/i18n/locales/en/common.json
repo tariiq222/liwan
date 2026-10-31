@@ -15,6 +15,7 @@
     "empty": "No workspaces are currently available for your account.",
     "nothingToday": "Nothing for you today. Browse the applications to get started.",
     "openApps": "Applications",
+    "allApps": "All applications",
     "greeting": "Hello {name}",
     "indicators": "My indicators",
     "indicator": {

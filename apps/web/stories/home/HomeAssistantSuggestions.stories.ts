@@ -11,7 +11,7 @@ const meta = {
     layout: 'padded',
     a11y: { test: 'error' },
     msw: { handlers: { api: assistantShellHandlers } },
-    ...storyContext('apps/web/app/pages/index.vue:44', 'مقترحات مبنية بقواعد من مهام المستخدم واجتماعاته، بلا نموذج. لا تظهر إلا لمن يملك المساعد وعند وجود اقتراح.'),
+    ...storyContext('apps/web/app/pages/index.vue:50', 'مقترحات مبنية بقواعد من مهام المستخدم واجتماعاته، بلا نموذج. لا تظهر إلا لمن يملك المساعد وعند وجود اقتراح.'),
   },
   beforeEach: () => {
     const stopAssistant = declareStubAssistant()

@@ -8,7 +8,8 @@ test('foundation home is the personal day page: indicators and the top of my wor
   await expect(page.getByTestId('module-rail').locator('a[data-active="true"]')).toHaveAttribute('href', '/')
   await expect(page.getByTestId('application-navigation')).toHaveCount(0)
   await expect(page.getByTestId('foundation-home').locator('[data-slot="link-card"]')).toHaveCount(0)
-  // The shared mock identity has no Tasks capability, so the indicators (which open `/work`) are hidden here; their links are covered by the home page unit tests.
+  await expect(page.getByTestId('home-indicators')).toBeVisible()
+  await expect(page.getByTestId('home-focus')).toBeVisible()
   await expect(page.getByText('الوصول السريع')).toBeVisible()
 })
 
