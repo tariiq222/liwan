@@ -379,9 +379,12 @@ class TestFinanceBranchAccess(LiwanFinanceCase):
         self.branch_invoice.write({'journal_id': branch_journal.id})
         response = self.api('PATCH', route, json={'lines': [line]})
         self.assertEqual(response.status_code, 200, response.text)
-        # Compatibility is not a permission grant to parent-only chart data.
-        self._assert_invalid_reference('PATCH', route, {'lines': [{**line, 'account_id': parent_account.id}]},
-                                       'lines[0].account_id')
+        # The branch shares its parent's chart (owner decision 2026-10-31, #200): a parent account is usable without a parent grant.
+        response = self.api('PATCH', route, json={'lines': [{**line, 'account_id': parent_account.id}]})
+        self.assertEqual(response.status_code, 200, response.text)
+        # What stays protected: an account of a company that is neither the branch nor one of its ancestors.
+        stranger = self._owner_account(self.other_company, '987653', 'income')
+        self._assert_invalid_reference('PATCH', route, {'lines': [{**line, 'account_id': stranger.id}]}, 'lines[0].account_id')
         response = self.api('GET', f'/api/v1/finance/invoices/{self.invoice.id}')
         self.assertEqual(response.status_code, 404, response.text)
         parent_account.invalidate_recordset()

@@ -226,13 +226,6 @@ class FinanceInvoiceController(http.Controller):
         require_capability('finance.invoices.manage')
         parsed = parse_invoice_create(payload)
         values = _move_values(parsed, parsed['move_type'], request.env.company)
-        if 'journal_id' not in values:
-            # The company's own journal, never stock's pick: a branch can also match its parent's journals, which it cannot read,
-            # and a branch starts with none of its own.
-            default = _default_journal(parsed['move_type'])
-            if not default:
-                raise ApiError(422, 'no_journal', 'create a journal for this kind of document in the finance settings first', field='journal_id')
-            values['journal_id'] = default.id
         effective_currency = request.env['res.currency'].browse(
             values.get('currency_id', request.env.company.currency_id.id),
         )
@@ -241,9 +234,17 @@ class FinanceInvoiceController(http.Controller):
         )
         values['company_id'] = request.env.company.id
         written = tuple(values)  # account.move.create renames and adds keys in place
+        # The audit names what the caller wrote, so the journal chosen here stays out of it.
+        if 'journal_id' not in values:
+            # The company's own journal, never stock's pick: a branch can also match its parent's journals, which it cannot read,
+            # and a branch starts with none of its own.
+            default = _default_journal(parsed['move_type'])
+            if not default:
+                raise ApiError(422, 'no_journal', 'create a journal for this kind of document in the finance settings first', field='journal_id')
+            values['journal_id'] = default.id
         lock = {
             'day': values.get('invoice_date'),
-            'journal': request.env['account.journal'].browse(values['journal_id']) if 'journal_id' in values else _default_journal(parsed['move_type']),
+            'journal': request.env['account.journal'].browse(values['journal_id']),
             'has_tax': any(line.get('tax_ids') for line in parsed['lines']),
         }
         require_open_period(**lock, company=request.env.company, field='invoice_date')
