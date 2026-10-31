@@ -37,7 +37,7 @@ onMounted(() => { today.value = new Date().toLocaleDateString(locale.value, { we
     <section v-if="actions.length || hasServices" :aria-label="t('home.quick')" class="space-y-3" data-testid="home-quick-actions">
       <div class="flex items-center justify-between gap-3">
         <h2 class="text-sm font-semibold text-muted">{{ t('home.quick') }}</h2>
-        <UButton v-if="hasApps" to="/apps" color="neutral" variant="link" size="xs" :label="t('home.allApps')" data-testid="home-all-apps" />
+        <UButton v-if="hasApps" to="/apps" color="neutral" variant="link" size="sm" :label="t('home.allApps')" data-testid="home-all-apps" />
       </div>
       <div class="flex flex-wrap gap-2">
         <UButton v-if="hasServices" to="/account" color="neutral" variant="soft" size="sm" class="rounded-full" icon="i-lucide-concierge-bell" :label="t('nav.account')" data-testid="home-services" />
