@@ -138,7 +138,7 @@ function cookiesForBrowser(cookies, codec, tenant) {
     return `session_id=${deletion ? '' : codec.seal(sid, tenant)}; Path=/; HttpOnly; Secure; SameSite=Lax${deletion ? '; Max-Age=0' : '; Max-Age=3600'}`
   }).filter(Boolean)
 }
-export function createGuard({ registryPath, proxyToken, prospectHost, keys, activeKid, odooUrl, webUrl, wsUrl = odooUrl, releaseRoutesDir, releaseAssetsDir }) {
+export function createGuard({ registryPath, proxyToken, prospectHost = '', keys, activeKid, odooUrl, webUrl, wsUrl = odooUrl, releaseRoutesDir, releaseAssetsDir }) {
   if (releaseAssetsDir !== undefined) {
     if (!releaseRoutesDir) throw Error('release_assets_require_routes')
     validateAssetStore(releaseAssetsDir)
