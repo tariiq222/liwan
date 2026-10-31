@@ -19,7 +19,7 @@ from odoo.addons.liwan_finance.serializers.account import (
 
 
 def _company_accounts_domain():
-    return [('company_ids', 'in', request.env.companies.ids)]
+    return [('company_ids', 'parent_of', request.env.companies.ids)]
 
 
 def _account_types():
@@ -99,7 +99,9 @@ class FinanceAccountController(http.Controller):
     def create_account(self, **payload):
         require_capability('finance.accounts.manage')
         values = _values(parse_account_create(payload, _account_types()))
-        account = attempt(lambda: request.env['account.account'].create({**values, 'company_ids': [Command.set(request.env.company.ids)]}))
+        # The chart belongs to the root company and is shared by its branches, so an account made from a branch is the root's.
+        root = request.env.company.root_id
+        account = attempt(lambda: request.env['account.account'].create({**values, 'company_ids': [Command.set(root.ids)]}))
         request.env['liwan.finance.audit.event']._liwan_log('account_created', account, fields_written=values)
         return request.make_json_response(dump_account(account), status=201)
 
