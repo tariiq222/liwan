@@ -106,3 +106,15 @@ class LiwanPlatformIrHttp(models.AbstractModel):
                 raise AccessDenied()
         if not _may_reach(httprequest):
             raise NotFound()
+
+    @classmethod
+    def _serve_fallback(cls):
+        """Answer a path no /api/v1 route matches (for example a non-numeric id) with the JSON 404.
+
+        Stock Odoo renders its HTML error page when the ``<int:...>`` converter rejects an id, before
+        ``api_handler`` can run. The web app reads the body ``code``, so an API path never gets HTML.
+        """
+        response = super()._serve_fallback()
+        if response is None and request.httprequest.path.startswith(API_PREFIXES):
+            return request.make_json_response({'code': 'not_found', 'message': 'Record does not exist'}, status=404)
+        return response
