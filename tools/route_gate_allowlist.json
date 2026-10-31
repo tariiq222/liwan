@@ -40,10 +40,11 @@
       ]
     },
     {
-      "reason": "Chat has no capability keys by design: liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations.",
+      "reason": "The conversation routes of chat have no capability keys by design (only its settings do): liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations.",
       "routes": [
         "liwan_chat/controllers/chat.py:add_members",
         "liwan_chat/controllers/chat.py:create_conversation",
+        "liwan_chat/controllers/chat.py:delete_message",
         "liwan_chat/controllers/chat.py:download_attachment",
         "liwan_chat/controllers/chat.py:get_conversation",
         "liwan_chat/controllers/chat.py:leave_conversation",
