@@ -29,6 +29,7 @@ from odoo.addons.liwan_inbox.controllers.reply_parsing import MAX_BODY
 from odoo.addons.liwan_inbox.models.access_service import (
     ASSIGN,
     MANAGE_AUTOMATION,
+    MANAGE_SETTINGS,
     READ,
     REPLY,
 )
@@ -260,7 +261,7 @@ class ConversationController(http.Controller):
     @http.route('/api/v1/inbox/canned-replies', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('inbox.enabled', operation='read')
-    @requires_capability(READ)
+    @requires_capability(READ, MANAGE_SETTINGS, match='any')
     def list_canned_replies(self, **_):
         limit, offset = parse_page(request.httprequest.args)
         Canned = request.env['liwan.inbox.canned.reply']
