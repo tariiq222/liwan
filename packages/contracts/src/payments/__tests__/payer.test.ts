@@ -76,7 +76,7 @@ describe('PaymentLinkSchema', () => {
 
 describe('PaymentSettingsSchema', () => {
   it('bounds the expiry and accepts partial changes on a revision', () => {
-    const settings = { unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', tax_mode: 'included', revision: 0 }
+    const settings = { unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', tax_mode: 'included', system_admin_links: false, revision: 0 }
     expect(PaymentSettingsSchema.parse(settings)).toEqual(settings)
     expect(() => PaymentSettingsSchema.parse({ ...settings, unpaid_order_expiry_minutes: 4 })).toThrow()
     expect(() => PaymentSettingsSchema.parse({ ...settings, refund_policy: 'notice' })).toThrow()

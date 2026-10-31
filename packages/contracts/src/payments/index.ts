@@ -162,7 +162,8 @@ export type TaxMode = z.infer<typeof TaxModeSchema>
 /**
  * The payments settings. `tax_mode` belongs to the current company (default `included`). `unpaid_order_expiry_minutes` belongs to the current company (default 60);
  * `invoice_when_paid` is one choice for the whole tenant (default on): stock invoices and posts a
- * paid online order at once. `refund_policy` (default `full`) and `refund_amounts` (default `due`)
+ * paid online order at once. `system_admin_links` (company, default off) lets a system administrator without access to
+ * the company's invoices create their payment links. `refund_policy` (default `full`) and `refund_amounts` (default `due`)
  * are the refund rules of the company's products that keep the company default. `revision` is the
  * company's saved revision, 0 while it uses the defaults.
  */
@@ -172,6 +173,7 @@ export const PaymentSettingsSchema = z.object({
   refund_policy: CompanyRefundPolicySchema,
   refund_amounts: RefundAmountsSchema,
   tax_mode: TaxModeSchema,
+  system_admin_links: z.boolean(),
   revision: z.number().int().nonnegative(),
 }).strict()
 
@@ -183,6 +185,7 @@ export const PaymentSettingsUpdateSchema = z.object({
   refund_policy: CompanyRefundPolicySchema.optional(),
   refund_amounts: RefundAmountsSchema.optional(),
   tax_mode: TaxModeSchema.optional(),
+  system_admin_links: z.boolean().optional(),
 }).strict()
 
 export type RefundPolicy = z.infer<typeof RefundPolicySchema>

@@ -225,9 +225,9 @@ export async function handlePublicPayments(req, res, path, url, { json, readBody
 }
 
 const EXPIRY_MINUTES = { min: 5, max: 1440 }
-const SETTINGS_FIELDS = ['revision', 'unpaid_order_expiry_minutes', 'invoice_when_paid', 'refund_policy', 'refund_amounts', 'tax_mode']
+const SETTINGS_FIELDS = ['revision', 'unpaid_order_expiry_minutes', 'invoice_when_paid', 'refund_policy', 'refund_amounts', 'tax_mode', 'system_admin_links']
 const SETTINGS_CHOICES = { refund_policy: ['full', 'none'], refund_amounts: ['due', 'any'], tax_mode: ['included', 'added'] }
-const freshSettings = () => ({ unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', tax_mode: 'included', revision: 0 })
+const freshSettings = () => ({ unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', tax_mode: 'included', system_admin_links: false, revision: 0 })
 let settings = freshSettings()
 
 /** A PATCH of the orders settings: validated first, then refused as stale when its revision is not the saved one. */

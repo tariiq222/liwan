@@ -49,6 +49,8 @@ class LiwanPaymentsSettings(models.Model):
     refund_policy = fields.Selection(COMPANY_POLICIES, required=True, default=DEFAULT_POLICY)
     refund_amounts = fields.Selection(REFUND_AMOUNTS, required=True, default=DEFAULT_AMOUNTS)
     tax_mode = fields.Selection(TAX_MODES, required=True, default=DEFAULT_TAX_MODE)
+    # Whether a system administrator without access to the company's invoices may still create their payment links.
+    system_admin_links = fields.Boolean(required=True, default=False)
     revision = fields.Integer(required=True, default=1)
 
     _company_unique = models.Constraint('UNIQUE(company_id)', 'a company has one payments settings record')
@@ -73,6 +75,12 @@ class LiwanPaymentsSettings(models.Model):
         """Whether the prices ``company`` sells online include the tax or have it added: ``included`` or ``added``."""
         row = self._liwan_for(company)
         return row.tax_mode if row else DEFAULT_TAX_MODE
+
+    @api.model
+    def _liwan_system_admin_links(self, company):
+        """Whether a system administrator may create pay links for the invoices of ``company`` without invoice access."""
+        row = self._liwan_for(company)
+        return row.system_admin_links if row else False
 
     @api.model
     def _liwan_refund_defaults(self, company):

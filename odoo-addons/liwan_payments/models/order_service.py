@@ -2,7 +2,7 @@
 from odoo import Command, api, fields, models
 from odoo.exceptions import AccessError, LockError, UserError
 
-from .access_service import ORDERS_READ, REFUND
+from .access_service import ORDERS_READ, REFUND, SYSTEM_ADMIN
 from .payer_service import STUCK_AFTER, payment_stuck
 
 OPEN_STATES = ('draft', 'sent')
@@ -274,6 +274,23 @@ class LiwanPaymentsService(models.AbstractModel):
             'amount_to_refund': order.liwan_refund_due_amount,
             'expires_at': order.liwan_payment_deadline,
         }
+
+    @api.model
+    def _liwan_system_admin_invoice(self, invoice_id):
+        """The invoice a system administrator makes a pay link for without invoice access, or None.
+
+        Only when the current company allows it (``system_admin_links``, off by default), only for a
+        system administrator and only for an invoice of the companies the session is in; the record is
+        returned elevated so the caller can read what the link needs. An invoice that does not
+        exist there is an empty record.
+        """
+        if not self.env['liwan.payments.settings']._liwan_system_admin_links(self.env.company):
+            return None
+        if not self.env['liwan.access.service']._liwan_has_capability(self.env.user, SYSTEM_ADMIN):
+            return None
+        return self.env['account.move'].sudo().search([
+            ('id', '=', invoice_id), ('company_id', 'in', self.env.companies.ids),
+        ], limit=1)
 
     @api.model
     def _liwan_payment_path(self, document):

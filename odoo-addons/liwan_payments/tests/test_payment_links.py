@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo.tests import tagged
+from odoo import Command
+from odoo.tests import new_test_user, tagged
 
 from .common import LiwanPayerCase
 from odoo.addons.liwan_payments.controllers.links import PaymentLinkController
@@ -60,7 +61,41 @@ class TestPaymentLinks(LiwanPayerCase):
         reader.group_ids -= self.env.ref('base.group_system')
         self.login_admin()
         response = self.create_link(self.invoice.id)
-        self.assertEqual((response.status_code, response.json()['code']), (403, 'forbidden'))
+        body = response.json()
+        self.assertEqual((response.status_code, body['code']), (403, 'link_access_required'))
+        self.assertIn('finance.invoices.read', body['message'])
+        self.assertEqual(body['details'], {'capability': 'finance.invoices.read'})
+
+    def without_invoice_access(self, allow):
+        """The system administrator holds no invoice access; the company setting says whether that is enough."""
+        self.env['res.users'].browse(self.admin.id).group_ids -= self.env.ref('base.group_system') | self.env.ref('account.group_account_invoice')
+        self.env['liwan.payments.settings'].create({'company_id': self.env.company.id, 'system_admin_links': allow})
+        self.login_admin()
+
+    def test_a_system_administrator_creates_links_without_invoice_access_when_the_company_allows_it(self):
+        self.without_invoice_access(True)
+        response = self.create_link(self.invoice.id)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json(), {'path': f'/pay/invoice/{self.invoice.id}?access_token={self.invoice.access_token}'})
+        self.assertEqual(self.create_link(self.invoice.id + 100000).status_code, 404)
+
+    def test_the_company_setting_off_refuses_a_system_administrator_and_names_the_capability(self):
+        self.without_invoice_access(False)
+        response = self.create_link(self.invoice.id)
+        self.assertEqual((response.status_code, response.json()['code']), (403, 'link_access_required'))
+        self.assertIn('finance.invoices.read', response.json()['message'])
+
+    def test_the_setting_gives_nothing_to_a_user_who_is_not_a_system_administrator(self):
+        self.without_invoice_access(True)
+        user = new_test_user(self.env, login='links_only', password='links_only_pass_123', name='Links only', groups='liwan_core.group_employee')
+        role = self.env['liwan.access.role'].create({
+            'key': 'links_only', 'name_ar': 'links', 'name_en': 'links', 'type': 'custom',
+            'permission_ids': [Command.set(self.env['liwan.access.permission'].search([('key', '=', 'payments.links.manage')]).ids)],
+        })
+        self.env['liwan.access.service']._liwan_replace_assignments(user, [{'role_id': role.id, 'company_id': self.env.company.id}])
+        self.authenticate('links_only', 'links_only_pass_123')
+        response = self.create_link(self.invoice.id)
+        self.assertEqual((response.status_code, response.json()['code']), (403, 'link_access_required'), response.text)
 
     def test_the_capability_gate_is_declared_and_refuses_an_employee(self):
         self.assertEqual(PaymentLinkController.create_link._liwan_capability_keys, ('payments.links.manage',))

@@ -61,6 +61,9 @@ const submit = () => { if (validExpiry.value) return save() }
     <UFormField orientation="horizontal" :label="t('payments.orders.taxMode.label')" name="tax_mode" :description="t('payments.orders.taxMode.hint')">
       <USelect id="payments-order-tax-mode" v-model="draft.tax_mode" class="w-full" :items="taxModes" :disabled="locked" :aria-label="t('payments.orders.taxMode.label')" />
     </UFormField>
+    <UFormField orientation="horizontal" :label="t('payments.orders.systemAdminLinks.label')" :description="t('payments.orders.systemAdminLinks.hint')">
+      <USwitch id="payments-system-admin-links" v-model="draft.system_admin_links" :disabled="locked" :aria-label="t('payments.orders.systemAdminLinks.label')" />
+    </UFormField>
     <UFormField orientation="horizontal" :label="t('payments.orders.invoiceWhenPaid.label')" :description="t('payments.orders.invoiceWhenPaid.hint')">
       <USwitch id="payments-order-invoice-when-paid" v-model="draft.invoice_when_paid" :disabled="locked" :aria-label="t('payments.orders.invoiceWhenPaid.label')" />
     </UFormField>

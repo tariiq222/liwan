@@ -164,6 +164,10 @@
         "hint": "Whether the price you set already contains the tax (the customer pays that price) or the tax is added on top. The tax shows to the customer as its own line either way. Applies to new orders of the current company.",
         "included": "Price includes tax",
         "added": "Tax is added to the price"
+      },
+      "systemAdminLinks": {
+        "label": "Payment links for system administrators",
+        "hint": "Lets a system administrator create payment links for the company invoices even without the capability to read invoices. Off by default; when off the request is refused with a message that names the required capability."
       }
     },
     "status": {
@@ -191,7 +195,8 @@
       "failed": "The payment link could not be created",
       "errors": {
         "notPayable": "This invoice cannot be paid by link. Make sure it is posted and has an amount due.",
-        "noGateway": "Switch a payment gateway to live first."
+        "noGateway": "Switch a payment gateway to live first.",
+        "accessRequired": "Creating a payment link needs the capability to read invoices (finance.invoices.read), or the company setting that lets a system administrator create links."
       }
     }
   }
