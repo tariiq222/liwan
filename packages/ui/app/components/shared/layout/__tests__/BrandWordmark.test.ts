@@ -53,10 +53,12 @@ describe('BrandWordmark', () => {
       expect(html).toContain('stroke-width="7.5"')
       expect(html).toContain('viewBox="-2 -2 68 68"')
     }
-    const lg = await render({ size: 'lg' })
-    expect(lg).toContain('data-weight="regular"')
-    expect(lg).toContain('stroke-width="4.6"')
-    expect(lg).toContain('viewBox="0 0 64 64"')
+    for (const size of ['lg', 'xl']) {
+      const html = await render({ size })
+      expect(html).toContain('data-weight="regular"')
+      expect(html).toContain('stroke-width="4.6"')
+      expect(html).toContain('viewBox="0 0 64 64"')
+    }
   })
 
   it('draws the mark in the brand colour, and in white when inverted', async () => {
@@ -80,6 +82,7 @@ describe('BrandWordmark', () => {
     ['sm', 'text-sm', 'size-4'],
     ['md', 'text-base', 'size-5'],
     ['lg', 'text-xl', 'size-7'],
+    ['xl', 'text-3xl', 'size-10'],
   ])('sizes the %s wordmark and its mark together', async (size, text, mark) => {
     const html = await render({ size })
     expect(html.match(/<span class="([^"]*)"/)?.[1]).toContain(text)

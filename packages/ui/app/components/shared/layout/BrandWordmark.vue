@@ -2,11 +2,11 @@
 // LiwanOS logo: the approved mark (a stroked four-point star around a diamond) followed by the product
 // name in the interface font; `markOnly` keeps the mark alone. Below 24px the mark takes the heavier
 // stroke of liwan-mark-small.svg so it stays legible; the name is the `brand.name` key of the active locale.
-const props = withDefaults(defineProps<{ size?: 'sm' | 'md' | 'lg', inverted?: boolean, markOnly?: boolean }>(), { size: 'md', inverted: false, markOnly: false })
+const props = withDefaults(defineProps<{ size?: 'sm' | 'md' | 'lg' | 'xl', inverted?: boolean, markOnly?: boolean }>(), { size: 'md', inverted: false, markOnly: false })
 const { t } = useI18n()
-const text = { sm: 'text-sm', md: 'text-base', lg: 'text-xl' } as const
-const mark = { sm: 'size-4', md: 'size-5', lg: 'size-7' } as const
-const heavy = computed(() => props.size !== 'lg')
+const text = { sm: 'text-sm', md: 'text-base', lg: 'text-xl', xl: 'text-3xl' } as const
+const mark = { sm: 'size-4', md: 'size-5', lg: 'size-7', xl: 'size-10' } as const
+const heavy = computed(() => props.size === 'sm' || props.size === 'md')
 </script>
 
 <template>

@@ -108,7 +108,8 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   inset-inline: var(--shell-inset);
   z-index: 61;
   height: var(--liwan-sadu-height);
-  background: conic-gradient(from 135deg at 50% 0, var(--liwan-sand) 0 90deg, transparent 0) 0 0 / calc(var(--liwan-sadu-height) * 2) var(--liwan-sadu-height) repeat-x;
+  background: conic-gradient(from 135deg at 50% 0, var(--liwan-sand) 0 90deg, transparent 0) 0 0 / calc(var(--liwan-sadu-height) * 2) var(--liwan-sadu-height);
+  background-repeat: round no-repeat;
   pointer-events: none;
 }
 @media (min-width: 768px) {

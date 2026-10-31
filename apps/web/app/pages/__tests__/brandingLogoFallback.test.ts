@@ -12,7 +12,8 @@ describe('branding without a logo', () => {
     const source = read('pages/login.vue')
     expect(source).toContain('v-if="branding?.logo_url"')
     expect(source).toContain('surface="brand"')
-    expect(source).toContain('<SharedBrandWordmark size="lg" inverted')
+    expect(source).toContain('<SharedBrandWordmark size="xl" inverted')
+    expect(source).toContain("'sr-only': !branding?.name")
   })
 
   it.each(['components/shell/ShellHeader.vue', 'pages/meetings/[id]/print.vue'])('%s guards on logo_url', (file) => {

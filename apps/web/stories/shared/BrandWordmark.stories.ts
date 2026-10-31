@@ -14,6 +14,11 @@ export const Default: Story = {
   args: { size: 'md' },
 }
 
+export const Large: Story = {
+  parameters: storyContext('unused', 'الحجم xl لصفحة الدخول: العلامة 40px بالسُّمك العادي والاسم text-3xl.'),
+  args: { size: 'xl' },
+}
+
 export const OnRail: Story = {
   parameters: storyContext('unused', 'الشعار الأبيض فوق سطح لافندر، كما في صفحة الدخول؛ الحجم الكبير بالسُّمك العادي.'),
   args: { size: 'lg', inverted: true },

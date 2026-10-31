@@ -74,7 +74,7 @@ export const BrandSurface: Story = {
     components: { StandalonePage, BrandWordmark },
     setup: () => ({ t: useI18n().t }),
     template: `<StandalonePage surface="brand">
-      <template #brand><BrandWordmark size="lg" inverted /></template>
+      <template #brand><BrandWordmark size="xl" inverted /></template>
       <template #header>
         <div class="flex flex-col items-center text-center">
           <h1 class="text-2xl font-semibold text-highlighted">{{ t('app.productName') }}</h1>

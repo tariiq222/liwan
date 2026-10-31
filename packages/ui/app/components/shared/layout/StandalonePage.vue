@@ -28,7 +28,7 @@ const props = withDefaults(defineProps<{
     data-variant="card"
     :data-surface="props.surface"
     class="grid min-h-svh place-items-center p-4 md:p-10"
-    :class="props.surface === 'brand' ? 'bg-(--primary-solid)' : 'bg-default'"
+    :class="props.surface === 'brand' ? 'bg-(--primary-solid) dark:bg-(--primary-solid-active)' : 'bg-default'"
   >
     <div class="grid w-full max-w-md justify-items-center gap-6">
       <slot v-if="props.surface === 'brand'" name="brand" />

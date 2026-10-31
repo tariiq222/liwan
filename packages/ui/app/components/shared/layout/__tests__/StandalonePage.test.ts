@@ -19,6 +19,7 @@ describe('SharedStandalonePage', () => {
     const html = await renderShared('StandalonePage', { surface: 'brand' }, { ...body, brand: () => h('span', { 'data-logo': '' }) })
     expect(html).toContain('data-surface="brand"')
     expect(html).toContain('bg-(--primary-solid)')
+    expect(html).toContain('dark:bg-(--primary-solid-active)')
     expect(html).not.toContain('bg-default')
     expect(html.indexOf('data-logo')).toBeLessThan(html.indexOf('data-body'))
   })

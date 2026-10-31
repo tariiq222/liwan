@@ -47,6 +47,21 @@ describe('the print sheet', () => {
     expect(declarations(print, '.liwan-shell-workspace').get('padding-block-start')).toBe('0 !important')
   })
 
+  it('never prints the Sadu strip', () => {
+    expect(declarations(print, '.liwan-shell::after').get('display')).toBe('none !important')
+  })
+
+  it('draws the Sadu strip as a 6px sand triangle row in the shell, with whole teeth only', () => {
+    const shell = readFileSync(resolve(import.meta.dirname, '../shell.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const strip = declarations(shell, '.liwan-shell::after')
+    expect(shell).toContain('--liwan-sadu-height: 6px')
+    expect(strip.get('background')).toContain('var(--liwan-sand)')
+    expect(strip.get('background')).toContain('conic-gradient')
+    expect(strip.get('background-repeat')).toBe('round no-repeat')
+    expect(strip.get('pointer-events')).toBe('none')
+    expect(strip.get('height')).toBe('var(--liwan-sadu-height)')
+  })
+
   it('prints a .liwan-print page black on white through the tokens and their aliases', () => {
     const page = declarations(print, '.liwan-print')
     for (const token of ['--ui-bg', '--ui-bg-muted', '--ui-bg-elevated', '--ui-bg-accented', '--background', '--card', '--muted']) {
