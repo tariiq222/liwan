@@ -35,6 +35,7 @@ async function render(capabilities: string[], query = '', hydrated = true) {
   const html = await withManifests(manifests, () => renderShared(page, {}, {}, {
     messages, hydrated,
     stubs: {
+      HomeTabs: { template: '<nav />' },
       SharedPageContainer: Stub('div'),
       SharedPageHeader: Stub('h1', props => props.title ?? ''),
       SharedEmptyState: Stub('div', props => props.title ?? ''),

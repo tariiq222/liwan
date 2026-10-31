@@ -55,8 +55,8 @@ test('an internal account without application features can use Home without prot
   await enterFoundation(page, '/account')
   await page.getByTestId('module-rail').locator('.liwan-module-rail-brand').click()
   await expect(page.getByTestId('foundation-home')).toContainText('لا توجد مساحات عمل')
-  // Only Launcher and Today remain when the user cannot reach any applications.
-  await expect(page.getByTestId('module-rail').locator('.liwan-module-rail-link')).toHaveCount(2)
+  // Only Today remains when the user cannot reach any applications.
+  await expect(page.getByTestId('module-rail').locator('.liwan-module-rail-link')).toHaveCount(1)
   await expect(page.getByTestId('foundation-home').locator('a[href^="/projects"]')).toHaveCount(0)
 })
 

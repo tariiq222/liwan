@@ -102,7 +102,7 @@ test.describe('hidden application menu', () => {
     await expect.poll(async () => (await menu.boundingBox())!.width).toBe(230)
     await page.mouse.move(800, 500)
     await expect(menu).toBeVisible()
-    expect((await main.boundingBox())!.width).toBeLessThan(start.width)
+    await expect.poll(async () => (await main.boundingBox())!.width).toBeLessThan(start.width)
   })
 })
 

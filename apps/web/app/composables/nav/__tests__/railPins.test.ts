@@ -30,9 +30,10 @@ describe('rail pins', () => {
     expect(toggleRailPin(['tasks', 'hr'], 'tasks')).toEqual(['hr'])
     expect(toggleRailPin(apps.slice(0, MAX_RAIL_PINS), 'inbox')).toEqual(apps.slice(0, MAX_RAIL_PINS))
   })
-  it('shows pins in manifest order plus the open application, and leaves the drawer and breadcrumb sources whole', () => {
+  it('shows pins in manifest order plus the open application and the tools, and leaves the drawer and breadcrumb sources whole', () => {
     const model = pinnedRail(rail(), ['hr', 'tasks'], 'inbox')
-    expect(model.applications.map(entry => entry.id)).toEqual(['tasks', 'hr', 'inbox'])
+    expect(model.applications.map(entry => entry.id)).toEqual(['tasks', 'hr', 'inbox', 'settings'])
+    expect(model.utility).toEqual([])
     expect(model.drawer).toHaveLength(apps.length)
     expect(model.all).toHaveLength(apps.length)
   })

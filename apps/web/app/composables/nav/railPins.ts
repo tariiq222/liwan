@@ -29,8 +29,11 @@ export function toggleRailPin(pins: readonly string[], id: string): string[] {
   return pins.length < MAX_RAIL_PINS ? [...pins, id] : [...pins]
 }
 
-/** Manifest order is kept; the open application stays visible beside the pins so the rail always shows where you are. */
+/**
+ * Manifest order is kept; the open application stays visible beside the pins so the rail always shows where you are.
+ * The tools scroll with the applications, so only the first entry and the brand stay fixed.
+ */
 export function pinnedRail(rail: ShellRailModel, pins: readonly string[], activeId: string | null): ShellRailModel {
   const shown = (item: ShellRailItem) => pins.includes(item.id) || item.id === activeId
-  return { ...rail, applications: rail.applications.filter(shown) }
+  return { ...rail, applications: [...rail.applications.filter(shown), ...rail.utility], utility: [] }
 }
