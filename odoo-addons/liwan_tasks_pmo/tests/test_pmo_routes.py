@@ -29,6 +29,12 @@ class TestPersonalTaskThroughPmoRoutes(TasksRoutesCase):
         task.invalidate_recordset()
         return task
 
+    def test_a_personal_task_of_others_is_not_found_through_pmo_routes(self):
+        for method, path in (('GET', f'{PMO}/{self.task.id}'), ('GET', f'{PMO}/{self.task.id}/timeline'), ('POST', f'{PMO}/{self.task.id}/archive')):
+            with self.subTest(path=path, method=method):
+                status, payload = self.call('tasks_carol', method, path)
+                self.assertEqual((status, payload['code']), (404, 'not_found'))
+
     def test_pmo_transition_to_a_project_state_is_refused_and_leaves_the_task(self):
         for login in ('tasks_alice', 'tasks_bob'):
             for state in ('waiting', 'approved', 'changes_requested'):

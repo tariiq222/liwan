@@ -334,6 +334,20 @@ def get_record(model, rec_id):
     return record
 
 
+def get_visible_record(model, rec_id):
+    """``get_record`` where a record the caller's rules hide answers not-found, like a missing one.
+
+    ``get_record`` answers 403 for it and so confirms that the id exists; an application whose
+    records can be private (a followers-only project, another person's task) uses this one. The
+    capability gate of each route runs before it and keeps its own 403.
+    """
+    try:
+        return get_record(model, rec_id)
+    except AccessError as error:
+        _logger.info('api not_found (hidden): %s', error)
+        raise MissingError(request.env._("Record does not exist")) from error
+
+
 # Standard list envelope is {'items': [...], 'total': <int>}. A missing limit
 # means the route default, never an unlimited page. Explicit 0 keeps that
 # default because Odoo treats search(limit=0) as unlimited. Caps stay

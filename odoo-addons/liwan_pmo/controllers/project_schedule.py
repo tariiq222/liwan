@@ -9,7 +9,7 @@ from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
     declare_read_capability_scope,
-    get_record,
+    get_visible_record,
     requires_feature,
 )
 from odoo.addons.liwan_pmo.serializers.dates import parse_date
@@ -45,7 +45,7 @@ class ProjectScheduleController(http.Controller):
         declare_read_capability_scope('pmo.projects.read')
         # get_record answers the uniform not-found for a foreign-company
         # project and lets the pinned record rules decide the rest.
-        project = get_record('project.project', project_id)
+        project = get_visible_record('project.project', project_id)
         if not project.active:
             raise ApiError(404, 'not_found', 'Project does not exist.')
         tasks = _project_tasks(project)
@@ -67,7 +67,7 @@ class ProjectScheduleController(http.Controller):
     def patch_schedule_task(self, project_id, task_id, **payload):
         # get_record answers the uniform not-found for a foreign-company
         # project and lets the pinned record rules decide the rest.
-        project = get_record('project.project', project_id)
+        project = get_visible_record('project.project', project_id)
         if not project.active:
             raise ApiError(404, 'not_found', 'Project does not exist.')
         unknown = set(payload) - {'start', 'end'}

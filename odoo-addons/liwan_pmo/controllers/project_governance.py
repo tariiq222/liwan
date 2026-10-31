@@ -7,7 +7,7 @@ from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
     declare_read_capability_scope,
-    get_record,
+    get_visible_record,
     parse_nonneg_int,
     parse_positive_int,
     requires_feature,
@@ -70,7 +70,7 @@ def _project(project_id):
     # get_record answers the uniform not-found for a foreign-company project
     # and lets the pinned record rules decide the rest; no duplicate company
     # check here. Governance stays out of scope for archived projects.
-    project = get_record('project.project', project_id)
+    project = get_visible_record('project.project', project_id)
     if not project.active:
         raise ApiError(404, 'not_found', 'project not found')
     return project

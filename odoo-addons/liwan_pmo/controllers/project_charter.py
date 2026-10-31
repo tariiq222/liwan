@@ -5,7 +5,7 @@ from odoo.exceptions import ValidationError
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
-    get_record,
+    get_visible_record,
     requires_feature,
 )
 from odoo.addons.liwan_pmo.models.project_project import (
@@ -34,7 +34,7 @@ def _run(project_id, action, payload):
         field = sorted(unknown)[0]
         raise ApiError(422, 'unknown_field', f"field {field!r} is not writable", field=field)
     token = parse_write_token(payload.get('expected_updated_at'))
-    project = get_record('project.project', project_id)
+    project = get_visible_record('project.project', project_id)
     try:
         project._liwan_lock_for_write(token, require_manage=manage)
     except LiwanStaleWrite as e:

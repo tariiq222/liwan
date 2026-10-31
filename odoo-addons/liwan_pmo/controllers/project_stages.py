@@ -6,7 +6,7 @@ from odoo.http import request
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
-    get_record,
+    get_visible_record,
     requires_feature,
 )
 from odoo.addons.liwan_pmo.serializers.project import dump_stage
@@ -38,7 +38,7 @@ class ProjectStageController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='write')
     def add_stage(self, project_id, name=None, fold=None, **_):
-        project = get_record('project.project', project_id)
+        project = get_visible_record('project.project', project_id)
         vals = _parse_stage_body(name, fold)
         stage = project._liwan_add_stage(vals['name'], vals.get('fold', False))
         return request.make_json_response(dump_stage(project, stage), status=201)
@@ -47,7 +47,7 @@ class ProjectStageController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='write')
     def patch_stage(self, project_id, stage_id, name=None, fold=None, **_):
-        project = get_record('project.project', project_id)
+        project = get_visible_record('project.project', project_id)
         stage = _stage_of(project, stage_id)
         vals = _parse_stage_body(name, fold, require_name=False)
         if not vals:
@@ -58,7 +58,7 @@ class ProjectStageController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='write')
     def reorder_stages(self, project_id, ids=None, **_):
-        project = get_record('project.project', project_id)
+        project = get_visible_record('project.project', project_id)
         if not isinstance(ids, list) or not all(isinstance(i, int) for i in ids):
             raise ApiError(422, 'invalid', "ids must be a list of stage ids", field='ids')
         try:
@@ -71,7 +71,7 @@ class ProjectStageController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='write')
     def delete_stage(self, project_id, stage_id, **_):
-        project = get_record('project.project', project_id)
+        project = get_visible_record('project.project', project_id)
         stage = _stage_of(project, stage_id)
         try:
             project._liwan_delete_stage(stage)

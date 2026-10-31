@@ -4,7 +4,7 @@ from odoo import http
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
-    get_record,
+    get_visible_record,
     requires_feature,
 )
 from odoo.addons.liwan_pmo.models.project_phase import (
@@ -39,7 +39,7 @@ class ProjectPhaseController(http.Controller):
         if not isinstance(acknowledge, bool):
             raise ApiError(422, 'invalid', "acknowledge_warnings must be a boolean", field='acknowledge_warnings')
         token = parse_write_token(payload.get('expected_updated_at'))
-        project = get_record('project.project', project_id)
+        project = get_visible_record('project.project', project_id)
         try:
             project._liwan_lock_for_write(token)
             project._liwan_move_phase(target, acknowledge_warnings=acknowledge)

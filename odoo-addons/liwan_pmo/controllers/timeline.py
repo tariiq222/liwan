@@ -9,7 +9,7 @@ from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
     declare_read_capability_scope,
-    get_record,
+    get_visible_record,
     requires_feature,
 )
 from odoo.addons.liwan_pmo.serializers.timeline import dump_message
@@ -87,7 +87,7 @@ class TimelineController(http.Controller):
     @requires_feature('pmo.enabled', operation='read')
     def timeline(self, task_id):
         declare_read_capability_scope('pmo.tasks.read')
-        task = get_record('project.task', task_id)
+        task = get_visible_record('project.task', task_id)
         return [dump_message(m) for m in self._timeline_messages(task)]
 
     @http.route('/api/v1/tasks/<int:task_id>/thread-tasks', type='json2', auth='user', methods=['GET'], readonly=True)
@@ -96,7 +96,7 @@ class TimelineController(http.Controller):
     def thread_tasks(self, task_id):
         declare_read_capability_scope('pmo.tasks.read')
         """Tasks a comment on this task may reference with `/`: its family, minus itself."""
-        task = get_record('project.task', task_id)
+        task = get_visible_record('project.task', task_id)
         relatives = (self._thread_tasks(task) - task).sorted(key=lambda t: (t.name or '', t.id))
         return [{'id': relative.id, 'name': relative.name} for relative in relatives]
 
@@ -108,7 +108,7 @@ class TimelineController(http.Controller):
             raise ApiError(422, 'invalid', "body must not be empty", field='body')
         mention_ids = _parse_ids(mentions, 'mentions')
         ref_ids = _parse_ids(task_refs, 'task_refs')
-        task = get_record('project.task', task_id)
+        task = get_visible_record('project.task', task_id)
         users = self._mentioned_users(mention_ids)
         referenced = self._thread_tasks(task).filtered(lambda t: t.id in ref_ids)
         if len(referenced) != len(ref_ids):

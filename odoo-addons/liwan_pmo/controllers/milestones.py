@@ -7,7 +7,7 @@ from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
     declare_read_capability_scope,
-    get_record,
+    get_visible_record,
     requires_feature,
 )
 from odoo.addons.liwan_pmo.models.project_milestone import _validate_deliverables
@@ -53,7 +53,7 @@ class MilestoneController(http.Controller):
     @requires_feature('pmo.enabled', operation='read')
     def list_milestones(self, project_id):
         declare_read_capability_scope('pmo.projects.read')
-        project = get_record('project.project', project_id)
+        project = get_visible_record('project.project', project_id)
         project._liwan_check_archived_readable()
         return [dump_milestone(project, m) for m in _sorted(project.milestone_ids)]
 
@@ -61,7 +61,7 @@ class MilestoneController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='write')
     def create_milestone(self, project_id, name=None, deadline=None, start_date=None, deliverables=None, **_):
-        project = get_record('project.project', project_id)
+        project = get_visible_record('project.project', project_id)
         if not isinstance(name, str) or not name.strip():
             raise ApiError(422, 'invalid', "name must not be empty", field='name')
         day = parse_date(deadline, 'deadline')
@@ -78,7 +78,7 @@ class MilestoneController(http.Controller):
     def patch_milestone(self, project_id, mid, **payload):
         payload.pop('project_id', None)
         payload.pop('mid', None)
-        project = get_record('project.project', project_id)
+        project = get_visible_record('project.project', project_id)
         m = _milestone_of(project, mid)
         vals = {}
         for key, value in payload.items():
@@ -104,7 +104,7 @@ class MilestoneController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='write')
     def delete_milestone(self, project_id, mid, **_):
-        project = get_record('project.project', project_id)
+        project = get_visible_record('project.project', project_id)
         m = _milestone_of(project, mid)
         try:
             project._liwan_delete_milestone(m)

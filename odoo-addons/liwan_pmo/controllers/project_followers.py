@@ -6,7 +6,7 @@ from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
     declare_read_capability_scope,
-    get_record,
+    get_visible_record,
     requires_feature,
 )
 from odoo.addons.liwan_pmo.models.project_project import LiwanCharterState
@@ -31,20 +31,20 @@ class ProjectFollowerController(http.Controller):
     @requires_feature('pmo.enabled', operation='read')
     def list_followers(self, project_id):
         declare_read_capability_scope('pmo.projects.read')
-        return _dump_users(get_record('project.project', project_id)._liwan_followers())
+        return _dump_users(get_visible_record('project.project', project_id)._liwan_followers())
 
     @http.route('/api/v1/projects/<int:project_id>/followers', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('pmo.enabled', operation='write')
     def add_follower(self, project_id, user_id=None, **_):
-        project = get_record('project.project', project_id)
+        project = get_visible_record('project.project', project_id)
         return _dump_users(project._liwan_add_follower(_user(user_id)))
 
     @http.route('/api/v1/projects/<int:project_id>/followers/<int:user_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
     @api_handler
     @requires_feature('pmo.enabled', operation='write')
     def remove_follower(self, project_id, user_id, **_):
-        project = get_record('project.project', project_id)
+        project = get_visible_record('project.project', project_id)
         try:
             return _dump_users(project._liwan_remove_follower(_user(user_id)))
         except LiwanCharterState as e:
