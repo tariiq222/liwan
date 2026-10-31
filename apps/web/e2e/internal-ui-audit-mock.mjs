@@ -41,15 +41,15 @@ const ME = {
   company: { id: 1, name: 'LiwanOS' },
   modules: ['liwan_chat', 'liwan_hr', 'liwan_documents', 'liwan_pmo'],
   entitlements: {
-    'pmo.enabled': true, 'meetings.enabled': true, 'documents.enabled': true, 'hr.enabled': true, 'finance.enabled': true, 'chat.enabled': true, 'ai.enabled': true, 'payments.enabled': true,
+    'pmo.enabled': true, 'meetings.enabled': true, 'tasks.enabled': true, 'documents.enabled': true, 'hr.enabled': true, 'finance.enabled': true, 'chat.enabled': true, 'ai.enabled': true, 'payments.enabled': true,
     ...Object.fromEntries(INBOX_FEATURES.map(feature => [feature, true])),
     ...Object.fromEntries(HR_AREA_FEATURES.map(feature => [feature, true])),
     'users.limit': null, 'projects.max_projects': null, 'storage.limit_mb': null,
   },
   platform: {
     schema_version: 1, policy_revision: 1, state: 'active', valid_until: null, read_only: false,
-    readable_features: ['ai.enabled', 'chat.enabled', 'crm.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.enabled'],
-    writable_features: ['ai.enabled', 'chat.enabled', 'crm.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.enabled'],
+    readable_features: ['ai.enabled', 'chat.enabled', 'crm.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.enabled', 'tasks.enabled'],
+    writable_features: ['ai.enabled', 'chat.enabled', 'crm.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.enabled', 'tasks.enabled'],
   },
   terminology: { ar: {}, en: {} },
 }
@@ -561,6 +561,13 @@ async function handle(req, res) {
     item.state = body.state
     item.is_closed = body.state === 'done' || body.state === 'cancelled'
     return json(res, 200, projectsPreviewData(`/api/v1/tasks/${item.id}`, url, { PROJECTS, TASKS, projectDetail, reportRow, CURRENCY }))
+  }
+  // «مهامي»: the home indicators and focus need the tasks application (its capability and feature are granted above).
+  if (method === 'GET' && path === '/api/v1/my-tasks') {
+    const day = 24 * 60 * 60 * 1000
+    const task = (id, name, offset) => ({ id, name, state: 'open', priority: 'normal', date_deadline: new Date(Date.now() + offset).toISOString(), assignees: [{ id: 2, name: 'Admin', user_id: 2 }], source: 'personal', project: null, href: `/my-tasks/${id}` })
+    const items = [task(901, 'اشترِ الورق', -day), task(902, 'راجع عرض السعر', 0)]
+    return json(res, 200, { items, total: items.length })
   }
   if (method === 'GET' && path === '/api/v1/tasks') return json(res, 200, { items: TASKS, total: TASKS.length })
   if (method === 'GET' && path === '/api/v1/tasks/summary') {

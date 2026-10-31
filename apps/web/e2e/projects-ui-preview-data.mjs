@@ -9,6 +9,10 @@ export function projectsPreviewData(path, url, { PROJECTS, TASKS, projectDetail,
   if (path === '/api/v1/people') return [user]
   if (path === '/api/v1/currencies' || path === '/api/v1/project-charter/currencies') return [CURRENCY]
   if (/^\/api\/v1\/project-charter\/catalogs\/(types|owning-units)\/1$/.test(path)) return { id: 1, name: path.includes('types') ? 'داخلي' : 'مكتب المشاريع', sequence: 1, active: true }
+  if (path === '/api/v1/reports/projects/summary') {
+    const { projects: _projects, recent_projects: _recent, ...summary } = projectsPreviewData('/api/v1/reports/projects/analytics', url, { PROJECTS, TASKS, projectDetail, reportRow, CURRENCY })
+    return summary
+  }
   if (path === '/api/v1/reports/projects/analytics') {
     const rows = PROJECTS.map(reportRow)
     return { project_count: 3, attention_project_count: 2, overdue_task_count: 0, status_counts: PROJECTS.map(p => ({ status: p.status, count: 1 })), totals: [{ currency: CURRENCY, project_count: 3, budgeted_project_count: 3, planned: 3000, actual: 900, remaining: 2100, over_budget_count: 0 }], attention: rows.slice(1), projects: rows, recent_projects: rows.map(r => ({ ...r, updated_at: '2026-09-08T06:00:00Z' })) }
