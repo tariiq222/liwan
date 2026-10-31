@@ -124,8 +124,8 @@ class TestProjects(LiwanPmoCase):
         self.authenticate('api_emp', 'api_emp_pass_123')
         self.assertEqual(self.api('GET', '/api/v1/projects/999999').status_code, 404)
         res = self.api('GET', f'/api/v1/projects/{self.private.id}')
-        self.assertEqual(res.status_code, 403)
-        self.assertEqual(res.json()['code'], 'forbidden')
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()['code'], 'not_found')
 
     def test_status_manager_only(self):
         self.authenticate('api_emp', 'api_emp_pass_123')

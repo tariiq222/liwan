@@ -335,15 +335,20 @@ def get_record(model, rec_id):
 
 
 def get_visible_record(model, rec_id):
-    """``get_record`` where a record the caller's rules hide answers not-found, like a missing one.
+    """``get_record`` where a record the caller's record rules hide answers not-found, like a missing one.
 
     ``get_record`` answers 403 for it and so confirms that the id exists; an application whose
-    records can be private (a followers-only project, another person's task) uses this one. The
-    capability gate of each route runs before it and keeps its own 403.
+    records can be private (a followers-only project, another person's task) uses this one.
+    A refusal that does not come from the record rules (a missing capability or table access)
+    stays the 403 it was.
     """
     try:
         return get_record(model, rec_id)
     except AccessError as error:
+        # A search applies the record rules in the caller's own environment, with no elevation:
+        # a record it still finds was refused for another reason.
+        if request.env[model].with_context(active_test=False).search_count([('id', '=', int(rec_id))]):
+            raise
         _logger.info('api not_found (hidden): %s', error)
         raise MissingError(request.env._("Record does not exist")) from error
 
