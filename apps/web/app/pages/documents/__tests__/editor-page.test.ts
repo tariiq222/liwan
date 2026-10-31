@@ -58,7 +58,7 @@ it('adds the employee as a reader only when the explicit choice is made at link 
 it('lets the share-with-employee choice alone enable saving and shares without a metadata patch', async () => {
   const share = vi.fn(async (_value: unknown) => ({}))
   const view = await load('app/pages/documents/[documentId]/edit.vue', {}, true, { bindings: { useShareDocumentWithEmployee: () => ({ mutateAsync: share, isPending: Vue.ref(false) }) } })
-  view.data.value = { ...view.data.value, context: { kind: 'hr.employee', id: 4, label: 'Sara', href: '/hr/employees/4' } } as typeof view.data.value
+  view.data.value = { ...view.data.value, context: { kind: 'hr.employee', id: 4, label: 'Sara', href: '/hr/employees/4' } } as unknown as typeof view.data.value
   await Promise.resolve()
   expect(view.state.changed.value).toBe(false)
   view.state.shareWithEmployee.value = true
