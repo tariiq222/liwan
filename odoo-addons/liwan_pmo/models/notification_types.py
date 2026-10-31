@@ -14,7 +14,7 @@ from odoo.addons.liwan_pmo.serializers.notification import (
     dump_notification,
 )
 
-TASK_KINDS = ('assignment', 'comment', 'mention', 'deadline')
+TASK_KINDS = ('assignment', 'comment', 'mention', 'deadline', 'completion_requested', 'completion_accepted')
 DIGEST_KIND = 'overdue_digest'
 
 
