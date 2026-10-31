@@ -35,12 +35,12 @@ suite('per-tenant payment return origins on PostgreSQL', () => {
   afterAll(async () => { await pool.end() })
 
   /** A customer with a payable order; `host` null leaves its tenant without a registry binding. Registry hosts are permanent and unique, so `@` stands for a per-call token. */
-  async function customer(hostTemplate: string | null, enabled = true) {
+  async function customer(hostTemplate: string | null, enabled = true, withTenant = true) {
     const tenant = randomUUID(), id = randomUUID(), sub = randomUUID(), revision = randomUUID(), order = randomUUID(), invoice = randomUUID(), slug = `t${tenant.replaceAll('-', '').slice(0, 12)}`, host = hostTemplate?.replace('@', slug) ?? null
     await transaction(pool, async c => {
-      await c.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,$2,'saas','managed',$3,true)", [tenant, 'Return origin', `shared-${slug}`])
+      if (withTenant) await c.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,$2,'saas','managed',$3,true)", [tenant, 'Return origin', `shared-${slug}`])
       if (host) await c.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,$5,1)', [tenant, slug, host, `db_${slug}`, enabled])
-      await c.query('INSERT INTO customers(id,name,tenant_id) VALUES($1,$2,$3)', [id, 'Return origin', tenant])
+      await c.query('INSERT INTO customers(id,name,tenant_id) VALUES($1,$2,$3)', [id, 'Return origin', withTenant ? tenant : null])
       await c.query('INSERT INTO subscriptions(id,customer_id) VALUES($1,$2)', [sub, id])
       await c.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,1,$3,$4)', [revision, sub, '{}', randomUUID()])
       await c.query(`INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent)
@@ -87,5 +87,34 @@ suite('per-tenant payment return origins on PostgreSQL', () => {
     const shared = returnOriginFromEnv(pool, { LIWAN_TENANCY_MODE: 'shared', LIWAN_PAYMENT_RETURN_ORIGINS: 'https://*.saas.example' })!
     expect(await shared(b.id)).toBe(`https://${b.host}`)
     await expect(shared(a.id)).rejects.toMatchObject({ status: 422 })
+  })
+  describe('a prospect with no tenant yet', () => {
+    const prospectOrigin = 'https://app.liwan.example'
+    const listed = [...allowed, prospectOrigin]
+    it('returns to the LiwanOS public origin, and a tenant customer still returns to its own host', async () => {
+      const prospect = await customer(null, true, false), tenant = await customer('acme-@.saas.example')
+      const adapter = new SimulatorAdapter(), create = vi.spyOn(adapter, 'createAttempt'), returnOrigin = tenantReturnOrigin(pool, listed, prospectOrigin)
+      await createPaymentAttempt(pool, { order_id: prospect.order, customer_id: prospect.id, adapter, returnOrigin })
+      await createPaymentAttempt(pool, { order_id: tenant.order, customer_id: tenant.id, adapter, returnOrigin })
+      expect(create.mock.calls.map(([input]) => new URL(input.callback_url).origin)).toEqual([prospectOrigin, `https://${tenant.host}`])
+    })
+    it.each([
+      ['no prospect origin is configured', undefined, listed],
+      ['the prospect origin is outside the allowlist', prospectOrigin, allowed],
+      ['the prospect origin is a wildcard', 'https://*.liwan.example', listed],
+    ] as const)('refuses it before any write when %s', async (_label, origin, entries) => {
+      const prospect = await customer(null, true, false)
+      const adapter = new SimulatorAdapter(), create = vi.spyOn(adapter, 'createAttempt')
+      await expect(createPaymentAttempt(pool, { order_id: prospect.order, customer_id: prospect.id, adapter, returnOrigin: tenantReturnOrigin(pool, entries, origin) }))
+        .rejects.toMatchObject({ status: 422, code: 'return_url_forbidden' })
+      expect(await attemptRows()).toBe(0)
+      expect(create).not.toHaveBeenCalled()
+    })
+    it('reads the prospect origin from the environment in shared mode only', async () => {
+      const prospect = await customer(null, true, false)
+      const env = { LIWAN_PAYMENT_RETURN_ORIGINS: listed.join(','), LIWAN_PAYMENT_PROSPECT_ORIGIN: prospectOrigin }
+      expect(await returnOriginFromEnv(pool, { ...env, LIWAN_TENANCY_MODE: 'shared' })!(prospect.id)).toBe(prospectOrigin)
+      await expect(returnOriginFromEnv(pool, { LIWAN_TENANCY_MODE: 'shared', LIWAN_PAYMENT_RETURN_ORIGINS: listed.join(',') })!(prospect.id)).rejects.toMatchObject({ code: 'return_url_forbidden' })
+    })
   })
 })

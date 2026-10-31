@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
 import { daysBetween, riyadhDate, type Principal } from '@liwan/commercial-contracts'
 import { client, money, monthly, setup, url } from './commercial-helpers.js'
-import { convertTrial, extendTrial, startTrial } from '../commercial/trial.js'
+import { convertTrial, endTrial, extendTrial, startTrial } from '../commercial/trial.js'
 import { routesB } from '../commercial/routes-b.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { getSubscription } from '../commercial/subscriptions.js'
@@ -100,6 +100,17 @@ suite('commercial trial', () => {
     const after = await getSubscription(pool, c.id)
     expect(after.state).toBe('past_due')
     expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [c.id])).rows[0].n).toBe(1)
+  })
+  it('leaves a trial whose workspace is not active yet running instead of ending it with no invoice', async () => {
+    const c = await newCustomer()
+    await startTrial(pool, { customer_id: c.id, request: request(), principal: c.principal, now: new Date(now.getTime() - 20 * 86_400_000) })
+    const adapter = new SimulatorAdapter(), returnOrigin = fixedReturnOrigin('https://liwan.test')
+    const sub = await getSubscription(pool, c.id)
+    expect((await expireTrials(pool, { now, adapter, returnOrigin, subscription_id: sub.id })).expired).toEqual([])
+    await expect(endTrial(pool, { subscription_id: sub.id, reason: 'End now', actor: 'vendor', now, adapter, returnOrigin })).rejects.toMatchObject({ status: 409, code: 'trial_not_applied' })
+    await expect(convertTrial(pool, { customer_id: c.id, now, adapter, returnOrigin })).rejects.toMatchObject({ status: 409, code: 'trial_not_applied' })
+    expect((await getSubscription(pool, c.id)).state).toBe('trialing')
+    expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [c.id])).rows[0].n).toBe(0)
   })
   it('rejects an unusable return origin before ending any trial', async () => {
     const c = await trialAt(now, -1)

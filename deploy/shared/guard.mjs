@@ -36,6 +36,28 @@ export function sessionCodec(keys, activeKid, now = () => Math.floor(Date.now() 
     },
   }
 }
+/**
+ * The LiwanOS public host (the prospect origin) belongs to no tenant: a customer whose first order is paid there has
+ * no workspace yet. It is served by the web app only for the payment-done page, the payment return relay and the built
+ * assets they need; any other path or method on that host stays refused, and an unknown host never reaches this branch.
+ * Cookies and every identity header are dropped, the proxy token is injected here and never accepted from the client.
+ */
+const prospectRoutes = [[/^\/payment-done\/?$/, ['GET', 'HEAD']], [/^\/api\/commercial\/payment-callback$/, ['GET', 'POST']], [/^\/_nuxt\/[A-Za-z0-9._\-/]+$/, ['GET', 'HEAD']]]
+export function prospectPlan(req, prospectHost, token) {
+  if (!prospectHost || req.headers.host?.toLowerCase() !== prospectHost.toLowerCase()) return null
+  if (!token || token.length < 32) throw Error('invalid_proxy_token')
+  if (!req.url.startsWith('/') || req.url.startsWith('//') || /[\\\r\n]/.test(req.url) || req.url.includes('#')) throw Error('invalid_path')
+  const url = new URL(req.url, 'http://boundary.invalid')
+  const method = req.method ?? 'GET'
+  if (url.pathname.includes('..') || !prospectRoutes.some(([pattern, methods]) => pattern.test(url.pathname) && methods.includes(method))) throw Error('forbidden_route')
+  for (const key of url.searchParams.keys()) if (selectors.test(key)) throw Error('forbidden_selector')
+  const headers = { ...req.headers }
+  for (const key of Object.keys(headers)) if (forbidden.test(key)) delete headers[key]
+  delete headers.authorization
+  delete headers.cookie
+  headers['x-liwan-proxy-token'] = token
+  return { tenant: null, internal: false, odoo: false, prospect: true, headers, path: url.pathname + url.search, clearSession: false }
+}
 export function requestPlan(req, registry, token, codec) {
   const host = req.headers.host
   const tenant = resolveTenantHost(host, registry.targets)
@@ -116,7 +138,7 @@ function cookiesForBrowser(cookies, codec, tenant) {
     return `session_id=${deletion ? '' : codec.seal(sid, tenant)}; Path=/; HttpOnly; Secure; SameSite=Lax${deletion ? '; Max-Age=0' : '; Max-Age=3600'}`
   }).filter(Boolean)
 }
-export function createGuard({ registryPath, proxyToken, keys, activeKid, odooUrl, webUrl, wsUrl = odooUrl, releaseRoutesDir, releaseAssetsDir }) {
+export function createGuard({ registryPath, proxyToken, prospectHost = '', keys, activeKid, odooUrl, webUrl, wsUrl = odooUrl, releaseRoutesDir, releaseAssetsDir }) {
   if (releaseAssetsDir !== undefined) {
     if (!releaseRoutesDir) throw Error('release_assets_require_routes')
     validateAssetStore(releaseAssetsDir)
@@ -125,6 +147,8 @@ export function createGuard({ registryPath, proxyToken, keys, activeKid, odooUrl
   const upstreams = [odooUrl, webUrl, wsUrl].map(v => new URL(v))
   if (upstreams.some(u => u.protocol !== 'http:' || u.username || u.password)) throw Error('private_http_upstreams_required')
   const plan = req => {
+    const prospect = prospectPlan(req, prospectHost, proxyToken)
+    if (prospect) return prospect
     const registry = readTenantRegistry(registryPath)
     // Stock Odoo's filestore directory is named after its database.
     if (registry.targets.some(t => t.database !== t.filestore)) throw Error('filestore_binding_invalid')
