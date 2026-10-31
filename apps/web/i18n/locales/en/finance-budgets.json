@@ -104,7 +104,11 @@
     },
     "errors": {
       "notDraft": "Only a draft budget can be changed.",
-      "invalidState": "This action is not available in the current status."
+      "invalidState": "This action is not available in the current status.",
+      "invalidPeriod": "The line starts after it ends.",
+      "lineOutsideBudget": "The line period must lie inside the budget period.",
+      "lineOverlap": "Another line of this account already covers part of this period.",
+      "costCenterOverlap": "Lines of one account in the same period must each name a different cost center."
     },
     "distribute": {
       "open": "Split between cost centers",

@@ -52,7 +52,8 @@
         "hint": "The year is ready to close. The closing entry is posted and the year is locked at its end date.",
         "close": "Close the year",
         "confirmTitle": "Close {year}?",
-        "confirmDescription": "The closing entry is posted and the year is locked. This cannot be undone."
+        "confirmDescription": "The closing entry is posted and the year is locked. This cannot be undone.",
+        "blockedHint": "The year cannot be closed until the reasons above are resolved."
       }
     },
     "zatca": {
@@ -93,7 +94,8 @@
         "zatca_unauthorized": "ZATCA refused the journal certificate. Connect the journal again.",
         "zatca_mode_not_allowed": "This environment is not allowed for onboarding in this phase.",
         "zatca_not_onboarded": "The journal is not connected to ZATCA.",
-        "zatca_not_applicable": "This document is not a posted e-invoice."
+        "zatca_not_applicable": "This document is not a posted e-invoice.",
+        "company_profile_incomplete": "Complete the company tax number and address (street and city) in the company profile before linking to ZATCA."
       },
       "setupHint": "The company's full e-invoicing readiness is shown in",
       "setupLink": "Finance setup",

@@ -115,3 +115,12 @@ describe('asset profile drafts', () => {
     expect(assetProfilePatch({ ...profile, min_value_account: { id: 9, name: 'Loss' } }, { ...assetProfileDraft(profile), minAccountId: null })).toEqual({ min_value_account_id: null })
   })
 })
+
+describe('archive refusals', () => {
+  it('words the draft entries of a journal and leaves other codes to the server text', async () => {
+    const { archiveErrorKey } = await import('../recordForms')
+    expect(archiveErrorKey({ code: 'journal_has_drafts' })).toBe('financeRecords.errors.journal_has_drafts')
+    expect(archiveErrorKey({ code: 'invalid' })).toBeNull()
+    expect(archiveErrorKey(new Error('offline'))).toBeNull()
+  })
+})

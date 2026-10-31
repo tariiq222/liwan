@@ -66,7 +66,7 @@ export const FinanceZatcaWaitingDocumentListSchema = list(FinanceZatcaWaitingDoc
 
 export const FinanceZatcaErrorCodeSchema = z.enum([
   'zatca_unavailable', 'zatca_rejected', 'zatca_local_error', 'zatca_unauthorized', 'zatca_mode_not_allowed',
-  'zatca_not_onboarded', 'zatca_not_applicable',
+  'zatca_not_onboarded', 'zatca_not_applicable', 'company_profile_incomplete',
 ])
 
 export type FinanceZatcaMessage = z.infer<typeof FinanceZatcaMessageSchema>

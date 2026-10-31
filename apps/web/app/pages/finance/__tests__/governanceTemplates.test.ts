@@ -51,6 +51,14 @@ describe('the finance governance pages stay on their templates', () => {
     for (const needle of needles) expect(source, needle).toContain(needle)
   })
 
+  it('keeps the close button in view but disabled while something blocks the close, and shows no raw server text under a blocker', () => {
+    const source = read('components/finance/governance/ClosingPreview.vue')
+    expect(source).toContain('confirming || blocked')
+    expect(source).toContain('finance-closing-blocked-hint')
+    expect(source).not.toMatch(/blocker\.message/)
+    expect(source).not.toContain('blockers.value.length === 0')
+  })
+
   it('shows no KPI strip on a settings page', () => {
     for (const file of FILES) expect(read(file), file).not.toMatch(/SharedKpiStrip|kpiToggle/)
   })

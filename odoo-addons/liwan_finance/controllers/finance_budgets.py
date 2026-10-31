@@ -110,6 +110,26 @@ def _line_values(parsed, budget, line=None):
     return values
 
 
+def _require_line_period(budget, values, line=None):
+    """A line lies inside its budget's period and, unless the cost-center split is on, clear of the account's other lines.
+
+    OCA checks both after the write and answers with an English sentence that names the line by a label that may be
+    empty, so the request is refused up front with a stable code instead.
+    """
+    date_from = values.get('date_from', line.date_from if line else budget.date_from)
+    date_to = values.get('date_to', line.date_to if line else budget.date_to)
+    if date_from > date_to:
+        raise ApiError(422, 'invalid_period', 'the line starts after it ends', field='date_to')
+    if date_from < budget.date_from or date_to > budget.date_to:
+        raise ApiError(422, 'line_outside_budget', 'the line period must lie inside the budget period', field='date_from')
+    if budget.allow_items_overlap:
+        return
+    account_id = values.get('account_id', line.account_id.id if line else None)
+    for other in budget.item_ids - (line or budget.item_ids.browse()):
+        if other.account_id.id == account_id and other.date_from <= date_to and other.date_to >= date_from:
+            raise ApiError(422, 'budget_line_overlap', 'another line of this account already covers part of this period', field='date_from')
+
+
 def _analytic_id_of(values, line=None):
     """The cost center a line is limited to (0 for none), from the new values or the existing line."""
     distribution = values.get('analytic_distribution', line.analytic_distribution if line else None)
@@ -238,6 +258,7 @@ class FinanceBudgetController(http.Controller):
         parsed = parse_line_create(payload)
         _require_draft(budget)
         values = _line_values(parsed, budget)
+        _require_line_period(budget, values)
         _require_distinct_cost_centers(budget, values)
         line = attempt(lambda: request.env[ITEM_MODEL].create(values))
         request.env['liwan.finance.audit.event']._liwan_log('budget_line_created', budget, fields_written=values)
@@ -257,6 +278,7 @@ class FinanceBudgetController(http.Controller):
         require_nonempty(parsed)
         _require_draft(budget)
         values = _line_values(parsed, budget, line)
+        _require_line_period(budget, values, line)
         _require_distinct_cost_centers(budget, values, line)
         attempt(lambda: line.write(values))
         request.env['liwan.finance.audit.event']._liwan_log('budget_line_changed', budget, fields_written=values)
@@ -287,6 +309,7 @@ class FinanceBudgetController(http.Controller):
             lines = request.env[ITEM_MODEL]
             for share, amount in zip(shares, amounts, strict=True):
                 values = _line_values({**base, 'amount': amount, 'analytic_account_id': share['analytic_account_id']}, budget)
+                _require_line_period(budget, values)
                 _require_distinct_cost_centers(budget, values)
                 lines |= request.env[ITEM_MODEL].create(values)
             return lines
