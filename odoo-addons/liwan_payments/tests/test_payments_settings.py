@@ -57,6 +57,14 @@ class TestPaymentsSettings(LiwanOrderCase):
                 response = self.patch(**body)
                 self.assertEqual((response.status_code, response.json()['field']), (422, field))
 
+    def test_a_revision_alone_changes_nothing_and_is_refused(self):
+        self.login_admin()
+        before = self.api('GET', SETTINGS).json()['revision']
+        response = self.patch(revision=before)
+        self.assertEqual((response.status_code, response.json()['code']), (422, 'invalid'))
+        self.assertEqual(response.json()['message'], 'at least one field is required')
+        self.assertEqual(self.api('GET', SETTINGS).json()['revision'], before)
+
     def test_only_a_settings_manager_reads_or_changes_them(self):
         new_test_user(
             self.env, login='payments_employee', password='payments_employee_pass_123',

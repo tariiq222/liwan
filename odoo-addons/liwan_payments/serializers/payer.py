@@ -28,7 +28,8 @@ def _dump_document(document, status, options):
         'number': document.name,
         'currency': document.currency_id.name,
         'amount_total': document.amount_total,
-        'amount_due': document._liwan_pay_amount(),
+        # A document nobody can pay (cancelled, expired) owes nothing; the payer is told so, not shown a stale amount.
+        'amount_due': 0.0 if status == 'not_payable' else document._liwan_pay_amount(),
         'status': status,
         'options': [
             {

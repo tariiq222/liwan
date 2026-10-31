@@ -37,6 +37,8 @@ def parse_settings(payload):
     revision = payload.get('revision')
     if type(revision) is not int or revision < 0:
         raise ApiError(422, 'invalid', 'revision must be a nonnegative integer', field='revision')
+    if not set(payload) - {'revision'}:
+        raise ApiError(422, 'invalid', 'at least one field is required')
     parsed = {'revision': revision, 'values': {}}
     if 'unpaid_order_expiry_minutes' in payload:
         minutes = payload['unpaid_order_expiry_minutes']

@@ -14,7 +14,7 @@ const deadline = computed(() => (props.kind === 'order' && !hydrated.value ? nul
 
 <template>
   <div class="grid gap-4">
-    <SharedSubCard tone="tinted" class="grid gap-1 text-center">
+    <SharedSubCard v-if="payable.status !== 'not_payable'" tone="tinted" class="grid gap-1 text-center">
       <span class="text-sm text-muted">{{ t('payments.pay.amountDue') }}</span>
       <bdi dir="ltr" class="text-2xl font-semibold text-highlighted tabular-nums" data-testid="pay-amount-due">{{ formatPayAmount(payable.amount_due, payable.currency) }} <span class="text-base font-normal text-muted">{{ payable.currency }}</span></bdi>
     </SharedSubCard>

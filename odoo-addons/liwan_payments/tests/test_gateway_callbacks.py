@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import json
 
+from psycopg2 import errors as pg_errors
+
 from odoo import Command
 from odoo.tests import tagged
 from odoo.tools import mute_logger
@@ -108,3 +110,40 @@ class TestGatewayCallbacks(LiwanPayerCase):
         self.assertEqual(response.status_code, 204)
         self.env.invalidate_all()
         self.assertEqual(self.tx.state, 'done')
+
+    @mute_logger('odoo.addons.liwan_payments.controllers.hooks', 'odoo.http')
+    def test_a_body_that_is_not_a_json_object_is_refused_before_stock_reads_it(self):
+        for body in ('not json', '[1, 2]', '"text"'):
+            with self.subTest(body=body):
+                response = self.url_open(
+                    f'{HOOK % "webhook"}?hmac=x', data=body, headers={'Content-Type': 'application/json'},
+                )
+                self.assertEqual((response.status_code, response.json()['code']), (400, 'invalid'))
+        self.env.invalidate_all()
+        self.assertEqual(self.tx.state, 'draft')
+
+    @mute_logger('odoo.addons.payment_paymob.controllers.main', 'odoo.http')
+    def test_the_refusals_of_the_relay_are_json(self):
+        payload = self.payload()
+        bad = self.post_webhook(payload, 'wrong')
+        self.assertEqual((bad.status_code, bad.json()['code']), (403, 'forbidden'))
+        unknown = self.url_open('/api/v1/public/payments/hooks/stripe/webhook', data='{}', headers={'Content-Type': 'application/json'})
+        self.assertEqual((unknown.status_code, unknown.json()['code']), (404, 'not_found'))
+
+    @mute_logger('odoo.addons.liwan_payments.controllers.hooks')
+    def test_post_processing_gives_up_on_a_locked_row_and_the_gateway_still_gets_its_answer(self):
+        seen = []
+
+        def locked(transactions):
+            self.env.cr.execute('SHOW lock_timeout')
+            seen.append(self.env.cr.fetchone()[0])
+            message = 'canceling statement due to lock timeout'
+            raise pg_errors.LockNotAvailable(message)
+        self.patch(type(self.env['payment.transaction']), '_post_process', locked)
+        payload = self.payload()
+        self.assertEqual(self.post_webhook(payload, self.signature(payload)).status_code, 200)
+        self.assertEqual(seen, ['3s'])
+        self.env.invalidate_all()
+        self.assertEqual((self.tx.state, self.tx.is_post_processed), ('done', False))
+        cron = self.env.ref('payment.cron_post_process_payment_tx')
+        self.assertTrue(self.env['ir.cron.trigger'].search_count([('cron_id', '=', cron.id)]))
