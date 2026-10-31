@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { latestOnly } from '../../utils/subscription'
 
 const root = resolve(import.meta.dirname, '../../..')
 const read = (p: string) => readFileSync(resolve(root, p), 'utf8')
@@ -9,7 +10,7 @@ const locale = (name: 'ar' | 'en') => JSON.parse(read(`i18n/locales/${name}/subs
 describe('branch archive on the subscription branches page', () => {
   const list = read('app/pages/subscription/branches.vue'), row = read('app/components/subscription/BranchSummary.vue'), panel = list
   it('offers archive only to a branches manager, on active extra branches, never on the headquarters', () => {
-    expect(list).toContain(`:archivable="can('branches.manage') && hydrated"`)
+    expect(list).toContain(`:archivable="can('branches.manage') && hydrated && !archiveBusy"`)
     expect(row).toContain(`v-if="archivable && b.state === 'active'"`)
     expect(row).toContain("summary.items.filter(i => i.kind === 'extra')")
   })
@@ -53,5 +54,31 @@ describe('branch restore on the subscription branches page', () => {
       for (const key of ['failed', 'branch_name_taken', 'branch_limit_exceeded', 'branch_not_archived']) expect(strings.refusals[key], `${name}.${key}`).toBeTruthy()
       expect(strings.archive.description).not.toMatch(/support|الدعم/)
     }
+  })
+})
+
+describe('overlapping branch quotes', () => {
+  it('keeps only the newest answer, so a late quote for branch A never sits under branch B', async () => {
+    const guard = latestOnly()
+    const shown: string[] = []
+    const ask = async (branch: string, delay: number) => {
+      const ticket = guard.next()
+      await new Promise(resolve => setTimeout(resolve, delay))
+      if (guard.isCurrent(ticket)) shown.push(branch)
+    }
+    await Promise.all([ask('A', 20), ask('B', 1)])
+    expect(shown).toEqual(['B'])
+  })
+  it('drops an answer that arrives after the confirmation was closed', () => {
+    const guard = latestOnly(), ticket = guard.next()
+    guard.cancel()
+    expect(guard.isCurrent(ticket)).toBe(false)
+  })
+  it('the page checks the ticket after every await, shows the answer only from the newest request, and locks the rows while one is pending', () => {
+    const list = read('app/pages/subscription/branches.vue')
+    expect(list.match(/quoteTickets\.isCurrent\(ticket\)/g)?.length).toBeGreaterThanOrEqual(4)
+    expect(list).toContain('quoteSubscription.value = sub.id; quoteRevision.value = sub.revision; quote.value = answer')
+    expect(list).toContain('hydrated && !archiveBusy')
+    expect(list).toContain('function closeArchive() { quoteTickets.cancel();')
   })
 })

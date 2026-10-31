@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Branch, Quote } from '@liwan/commercial-contracts'
-import { QUOTE_IS_EXPIRED, safeIdemAction, safePaymentRedirect } from '@/utils/subscription'
+import { latestOnly, QUOTE_IS_EXPIRED, safeIdemAction, safePaymentRedirect } from '@/utils/subscription'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t } = useI18n(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
 const allowed = computed(() => can('subscription.read'))
@@ -20,15 +20,21 @@ function failureKey(cause: unknown): string {
   const code = e?.data?.code ?? e?.data?.data?.code
   return typeof code === 'string' && REFUSALS.includes(code) ? code : 'failed'
 }
+// Quotes are asked one after another as the customer picks branches: only the newest answer may fill the confirmation,
+// or a late quote for branch A would sit under a confirmation that names branch B.
+const quoteTickets = latestOnly()
 async function openChange(kind: BranchChange['kind'], branch: Branch) {
+  const ticket = quoteTickets.next()
   archiving.value = { kind, branch }; quote.value = null; archiveFailed.value = null; archiveBusy.value = true
   try {
     const sub = await api.subscription()
-    quoteSubscription.value = sub.id; quoteRevision.value = sub.revision
-    quote.value = await api.branchQuote({ subscription_id: sub.id, expected_subscription_revision: sub.revision, add: [], archive: kind === 'archive' ? [branch.id] : [], restore: kind === 'restore' ? [branch.id] : [] })
-  } catch (cause) { archiveFailed.value = failureKey(cause) } finally { archiveBusy.value = false }
+    if (!quoteTickets.isCurrent(ticket)) return
+    const answer = await api.branchQuote({ subscription_id: sub.id, expected_subscription_revision: sub.revision, add: [], archive: kind === 'archive' ? [branch.id] : [], restore: kind === 'restore' ? [branch.id] : [] })
+    if (!quoteTickets.isCurrent(ticket)) return
+    quoteSubscription.value = sub.id; quoteRevision.value = sub.revision; quote.value = answer
+  } catch (cause) { if (quoteTickets.isCurrent(ticket)) archiveFailed.value = failureKey(cause) } finally { if (quoteTickets.isCurrent(ticket)) archiveBusy.value = false }
 }
-function closeArchive() { archiving.value = null; quote.value = null; archiveFailed.value = null }
+function closeArchive() { quoteTickets.cancel(); archiveBusy.value = false; archiving.value = null; quote.value = null; archiveFailed.value = null }
 async function archiveBranch() {
   if (archiveBusy.value || !archiving.value || !quote.value) return
   if (QUOTE_IS_EXPIRED(quote.value)) { await openChange(archiving.value.kind, archiving.value.branch); return }
@@ -53,7 +59,7 @@ async function archiveBranch() {
     <SharedForbiddenState v-if="!allowed" />
     <template v-else>
       <p v-if="!can('branches.manage')" class="text-sm text-muted">{{ t('subscription.branches.readOnly') }}</p>
-      <SharedPageState :loading="pending" :error="error" @retry="refresh"><SharedRecordSection v-if="data" variant="list"><SubscriptionBranchSummary :summary="data" :archivable="can('branches.manage') && hydrated" @archive="openChange('archive', $event)" @restore="openChange('restore', $event)" /></SharedRecordSection></SharedPageState>
+      <SharedPageState :loading="pending" :error="error" @retry="refresh"><SharedRecordSection v-if="data" variant="list"><SubscriptionBranchSummary :summary="data" :archivable="can('branches.manage') && hydrated && !archiveBusy" @archive="openChange('archive', $event)" @restore="openChange('restore', $event)" /></SharedRecordSection></SharedPageState>
       <SharedInlineConfirm v-if="archiving" :title="t(`subscription.branches.${archiving.kind}.title`, { name: archiving.branch.name })" :description="t(`subscription.branches.${archiving.kind}.description`)" :confirm-label="t(`subscription.branches.${archiving.kind}.action`)" :color="archiving.kind === 'archive' ? 'error' : 'primary'" :pending="archiveBusy" :disabled="!quote" @confirm="archiveBranch" @cancel="closeArchive">
         <SharedCommercePriceBreakdown :quote="quote" :pending="archiveBusy" class="mt-3" />
         <div v-if="archiveFailed" class="mt-3 flex flex-wrap items-center gap-2">
