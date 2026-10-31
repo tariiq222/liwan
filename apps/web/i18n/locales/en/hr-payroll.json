@@ -9,6 +9,8 @@
       "formHint": "One run is created per month, covering the employees under an active contract in it.",
       "month": "Month",
       "monthRequired": "Choose a valid month.",
+      "confirmTitle": "Create the payroll run for {month}?",
+      "confirmHint": "A payroll run is created for this month with the employees on active contracts in it.",
       "requiredHint": "Fields marked * are required.",
       "anyYear": "All years",
       "anyState": "All states",

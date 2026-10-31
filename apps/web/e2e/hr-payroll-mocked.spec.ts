@@ -45,10 +45,13 @@ test.describe('payroll runs list', () => {
     // The refused request is logged by the browser; it is the behaviour under test.
     const withoutRefusals = trackRefusedRequests(page, '/api/v1/hr/payroll/runs')
     await page.getByTestId('hr-payroll-run-submit').click()
+    await expect(dialog(page).getByText('إنشاء مسير شهر نوفمبر 2026؟')).toBeVisible()
+    await page.getByTestId('inline-confirm-action').click()
     await expect(dialog(page).getByText('يوجد مسير لهذا الشهر بالفعل.')).toBeVisible()
     errors = withoutRefusals(errors)
     await page.getByTestId('hr-payroll-month').fill('2027-01')
     await page.getByTestId('hr-payroll-run-submit').click()
+    await page.getByTestId('inline-confirm-action').click()
     await expect(page).toHaveURL(/\/hr\/payroll\/4\?returnTo=/)
     await expect(page.getByTestId('hr-payroll-run-state')).toHaveText('مسودة')
   })
