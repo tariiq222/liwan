@@ -33,6 +33,10 @@ services:
     volumes:
       - ${LIWAN_TENANT_REGISTRY_DIR:?set LIWAN_TENANT_REGISTRY_DIR}:/etc/liwan:ro
     expose: ["8080"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp"]
     networks: [edge, guard_web, guard_odoo]
     healthcheck:
       test: ["CMD", "node", "deploy/shared/healthcheck.mjs"]

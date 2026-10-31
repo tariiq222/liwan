@@ -65,6 +65,18 @@ describe('shared tenant onboarding browser contract', () => {
     expect(form).toContain('creationRequestId.value ??= crypto.randomUUID()')
   })
 
+  it('stops the form before any write when the catalog has no release, so no empty customer is left behind', () => {
+    expect(form).toContain("commercial.releases()")
+    expect(form).toContain('const noRelease = computed(() => sharedEnabled.value && releases.value !== null && releases.value !== undefined && releases.value.length === 0)')
+    expect(form).toContain(`<UAlert v-if="noRelease" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('vendor.customers.newPage.noRelease')" :description="t('vendor.customers.newPage.noReleaseHint')" />`)
+    expect(form).toContain(':disabled="!hydrated || busy || noRelease ||')
+    for (const locale of ['ar', 'en']) {
+      const strings = JSON.parse(readFileSync(resolve(webRoot, `i18n/locales/${locale}/vendor.json`), 'utf8')).vendor.customers.newPage
+      expect(strings.noRelease).toBeTruthy()
+      expect(strings.noReleaseHint).toBeTruthy()
+    }
+  })
+
   it('does not publish a customer link for failed, stale, or partially activated progress', () => {
     expect(sharedTenantLoginUrl(ready)).toBe('https://tenant.liwan.test/login')
     expect(sharedTenantLoginUrl(null)).toBeNull()

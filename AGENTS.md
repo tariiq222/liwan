@@ -252,9 +252,9 @@ another application) needs the owner's approval, recorded by the owner as an
   Publish and merge only within the owner's explicit authorization. Missing services,
   stale checks or protected scope never authorize a bypass.
 - The `ci` workflow runs on PRs and pushes to `main`; selected stages must pass before
-  integration. `workflow_dispatch` with `full: true` runs all twelve stages. A scoped
+  integration. `workflow_dispatch` with `full: true` runs all thirteen stages. A scoped
   green run is not evidence of a full release run. A `release/19.0.X.Y.Z` tag requires
-  all twelve stages green in a full run on that exact `main` commit and the owner's
+  all thirteen stages green in a full run on that exact `main` commit and the owner's
   explicit authorization to publish the release. No workflow creates tags automatically;
   a tag is not deployment authorization.
 - Check actual GitHub rules before delivery. Branch protection, required reviews, required
@@ -507,7 +507,7 @@ Follow the focused-local / complete-CI verification policy in
 [`docs/testing.md`](docs/testing.md#fast-local-loop).
 
 The Odoo scratch-database command block is in `docs/agents/odoo-rules.md`. CI is the GitHub Actions `ci` workflow
-(`.github/workflows/ci.yml`, twelve stages, each a `deploy/ci/<stage>.sh` script runnable locally); see
+(`.github/workflows/ci.yml`, thirteen stages, each a `deploy/ci/<stage>.sh` script runnable locally); see
 `docs/testing.md`. Fast local loop: `npm run check:fast`, `npm run test:odoo`,
 `npm run wt -- new <area>-<slug>`, `npm run hooks:install` (see `docs/testing.md`).
 Web checks and general commands:

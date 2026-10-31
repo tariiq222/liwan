@@ -22,7 +22,7 @@ const props = withDefaults(defineProps<{
   description?: string
 }>(), { loading: false, total: 0, page: 1, pageSize: 25, title: undefined, description: undefined })
 const emit = defineEmits<{ retry: []; page: [page: number] }>()
-const { t, te, locale } = useI18n()
+const { t, te } = useI18n()
 const pages = computed(() => Math.max(1, Math.ceil((props.total ?? 0) / props.pageSize)))
 const genericSummaries = new Set([
   'meeting created',
@@ -45,7 +45,7 @@ function kindLabel(kind: string) {
   return te(key) ? t(key) : t('meetingMinutesForm.eventKinds.generic')
 }
 function occurredAt(value: string) {
-  return formatLiwanDateTime(value, locale.value)
+  return formatLiwanDateTime(value)
 }
 function hasInformativeSummary(event: MeetingEvent) {
   const summary = event.summary.trim()

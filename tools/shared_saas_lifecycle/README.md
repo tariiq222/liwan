@@ -10,6 +10,7 @@ and `apps/control-plane/src/shared/admin-password-runner.ts`.
 | `odoo_backup.py` | Back up and restore one tenant database and filestore. |
 | `subscription_effect.py` | Observe and reconfigure a tenant against its subscription (no module install). |
 | `admin_password_effect.py` | Set the tenant administrator password for one accepted invitation. |
+| `tenant_status_effect.py` | Set the tenant profile status (`active` or `suspended`) so a suspended subscription stops the tenant's users. |
 | `scratch_effect.py` | Scratch-only driver used by the packages acceptance test. |
 | `catalog_source.py` | Re-export of the registered catalog source resolver from `tools/liwan_cli`. |
 

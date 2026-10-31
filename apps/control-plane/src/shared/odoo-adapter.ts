@@ -17,6 +17,7 @@ import { requireJobAuthority } from './job-store.js'
 import { publishRegistryMutation, recoverRegistry } from './registry-store.js'
 import { lstat } from 'node:fs/promises'
 import { createAdminPasswordRunner } from './admin-password-runner.js'
+import { createTenantStatusRunner } from './tenant-status-runner.js'
 import { resolveOdooBackupAuthority,recordOdooBackup } from './odoo-backup.js'
 
 /** Non-secret refusal codes the provision effect may report; all others are opaque.
@@ -39,10 +40,11 @@ export const PROVISION_ERROR_CODES=new Set(['target_mismatch','profile_invalid',
 /** Non-reclaimable physical reservation + current durable claim per stage.
  * Losing the control connection cancels the owned child and cannot activate.
  * Unknown physical state always remains quarantined. */
-export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):SharedFencedAdapter & Required<import('../commercial/invitation-odoo.js').OdooPasswordAdapter> {
+export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):SharedFencedAdapter & Required<import('../commercial/invitation-odoo.js').OdooPasswordAdapter> & {setTenantStatus:import('../commercial/suspension.js').TenantStatusRunner} {
   if(!config.sharedRuntimeConfigPath || !config.tenantRegistryPath)throw Error('shared_adapter_unavailable')
   const runtime=loadSharedRuntimeConfig(config.sharedRuntimeConfigPath)
   const adminPasswordRunner=createAdminPasswordRunner(pool,config,runtime)
+  const tenantStatusRunner=createTenantStatusRunner(pool,config,runtime,signal)
   const execute=async(job:SharedJob,action:'observe'|'apply',claim?:{attemptId:string;fence:number;assertOwned:()=>Promise<void>})=>{
     const packageAuthority=job.operation==='provision'?await resolvePackageJobAuthority(pool,job):undefined
     const authority=job.operation==='provision'?null:await resolveOdooBackupAuthority(pool,runtime,job,{starting:action==='apply'})
@@ -186,6 +188,7 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
       if(input.job.operation==='backup')await recordOdooBackup(pool,runtime,input.job,input)
     },
     async setAdminPassword(input){return adminPasswordRunner(input,signal)},
+    async setTenantStatus(input){return tenantStatusRunner(input)},
   }
 }
 
@@ -238,6 +241,8 @@ export async function reconcileOdooOnboardings(pool:Pool,config:Config,adapter:S
       if(!verified.rowCount)throw Error('shared_verification_lost')
       const activated=await client.query("UPDATE shared_onboardings SET stage='active',error_code=NULL WHERE request_id=$1 AND stage='activating' AND job_id=$2 AND job_digest=$3 RETURNING request_id",[row.request_id,row.job_id,row.job_digest])
       if(activated.rowCount!==1)throw Error('shared_activation_state_changed')
+      // A provisioned database starts active: the worker asserts the subscription's status again.
+      await client.query('UPDATE subscriptions SET tenant_status_pushed=NULL,tenant_status_failures=0,tenant_status_next_at=NULL WHERE tenant_id=$1',[row.control_tenant_id])
       await client.query("UPDATE tenants SET status='active',policy_revision=1,desired_policy=$2,observed_policy=$2,health_checked_at=clock_timestamp() WHERE id=$1",[row.control_tenant_id,job.operation==='provision'?job.policy.features:null])
     })
   }

@@ -146,10 +146,10 @@ function loadMoreMeetings() {
 function localTime(value: string | null) {
   if (!value) return '—'
   const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? '—' : hydrated.value ? formatLiwanTime(parsed, locale.value) : ''
+  return Number.isNaN(parsed.getTime()) ? '—' : hydrated.value ? formatLiwanTime(parsed) : ''
 }
 function occurrenceLabel(meeting: { meeting_date: string | null; start_datetime: string | null }) {
-  const date = meeting.meeting_date ? formatCalendarDate(meeting.meeting_date, locale.value) : t('meetingTimeline.unknownDate')
+  const date = meeting.meeting_date ? formatCalendarDate(meeting.meeting_date) : t('meetingTimeline.unknownDate')
   const time = meeting.start_datetime ? localTime(meeting.start_datetime) : ''
   return time ? `${date} · ${time}` : date
 }
@@ -404,7 +404,7 @@ function setHistoryPage(page: number) {
             <div class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUi.recurrenceLabel') }}</dt><dd class="text-highlighted">{{ t(`meetingsUi.recurrence.${query.data.value.recurrence}`) }}</dd></div>
             <div v-if="query.data.value.meeting_url" class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUi.url') }}</dt><dd><UButton color="primary" variant="link" class="p-0 break-all whitespace-normal text-start" :to="query.data.value.meeting_url" external target="_blank" rel="noopener" dir="ltr">{{ query.data.value.meeting_url }}</UButton></dd></div>
             <div class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUx.attendees') }}</dt><dd class="text-highlighted">{{ joinList(query.data.value.attendees.map(person => person.name), t) || '—' }}</dd></div>
-            <div class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUx.termination') }}</dt><dd class="text-highlighted">{{ query.data.value.until_count ? t('meetingsUx.terminationCount', { count: query.data.value.until_count }, query.data.value.until_count) : query.data.value.until_date ? formatCalendarDate(query.data.value.until_date, locale) : t('meetingsUx.terminationOpen') }}</dd></div>
+            <div class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUx.termination') }}</dt><dd class="text-highlighted">{{ query.data.value.until_count ? t('meetingsUx.terminationCount', { count: query.data.value.until_count }, query.data.value.until_count) : query.data.value.until_date ? formatCalendarDate(query.data.value.until_date) : t('meetingsUx.terminationOpen') }}</dd></div>
           </dl>
         </SharedRecordSection>
       </section>

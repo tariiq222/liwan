@@ -98,13 +98,13 @@ export function normalizeMeetingMinutesText(value: string, maxLength = 50000) {
 
 import { formatLiwanDate, formatLiwanTime } from '@liwan/ui/app/composables/calendarDate'
 
-export function formatMeetingDate(value: string | null | undefined, locale: string) {
+export function formatMeetingDate(value: string | null | undefined) {
   if (!value) return '—'
-  return formatLiwanDate(`${value.slice(0, 10)}T00:00:00`, locale)
+  return formatLiwanDate(`${value.slice(0, 10)}T00:00:00`)
 }
 
-export function formatMeetingTime(value: string | null | undefined, locale: string) {
-  return formatLiwanTime(value, locale)
+export function formatMeetingTime(value: string | null | undefined) {
+  return formatLiwanTime(value)
 }
 
 export function validateMeetingMinutesForm(value: MeetingMinutesFormValue, recommendations: MeetingMinutesRecommendation[] = []) {

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { verifyServiceRequest } from '@liwan/commercial-contracts/server'
-import { assertCustomerMutationOrigin, assertNoForgedFields, csrfMatches, customerCommercialEnabled, customerRoute, allowPaymentReturn, forwardCustomerRequest, issueCsrfCookie, PAYMENT_RETURN_LIMITS, paymentReturnStoreSize, rateLimitMutation, relayPaymentReturn, resetRateLimitForTests, signedBodyFor } from '../customer-commercial'
+import { assertCustomerMutationOrigin, assertNoForgedFields, csrfMatches, customerCommercialEnabled, customerRoute, allowPaymentReturn, forwardCustomerRequest, issueCsrfCookie, PAYMENT_RETURN_LIMITS, paymentReturnStoreSize, rateLimitMutation, prospectLanding, relayPaymentReturn, resetRateLimitForTests, signedBodyFor } from '../customer-commercial'
 import { deriveCustomerCapabilities } from '../../../app/utils/customerCapabilities'
 
 vi.mock('../tenantRequest', async (orig) => {
@@ -181,6 +181,51 @@ describe('payment return relay', () => {
     expect(verify(KEY, 'tenant-acme')).toMatchObject({ actor: 'anonymous', issuer: 'customer-web' })
     expect(verify(KEY, 'tenant-other')).toBeNull()
     expect(verify('x'.repeat(48), 'tenant-acme')).toBeNull()
+  })
+  describe('on the LiwanOS public host', () => {
+    const TOKEN = 'p'.repeat(40)
+    const saved = { mode: process.env.LIWAN_TENANCY_MODE, token: process.env.LIWAN_SHARED_PROXY_TOKEN }
+    beforeEach(() => { process.env.LIWAN_TENANCY_MODE = 'shared'; process.env.LIWAN_SHARED_PROXY_TOKEN = TOKEN })
+    afterEach(() => { for (const [name, value] of [['LIWAN_TENANCY_MODE', saved.mode], ['LIWAN_SHARED_PROXY_TOKEN', saved.token]] as const) { if (value === undefined) delete process.env[name]; else process.env[name] = value } })
+    const publicReturn = (state = 'paid') => {
+      const ctx = returnSetup({ cfg: { customerCommercialPublicOrigin: 'https://app.liwan.example', customerCommercialTenantId: '' } })
+      vi.stubGlobal('getRequestURL', () => new URL(`https://app.liwan.example/api/commercial/payment-callback?attempt=${ATTEMPT}`))
+      vi.stubGlobal('getHeader', (_e: unknown, n: string) => ({ host: 'app.liwan.example', 'x-liwan-proxy-token': TOKEN }[n]))
+      ctx.raw.mockResolvedValue({ status: 200, _data: { order_id: ORDER, payment_state: state, fulfillment_state: 'not_started' } })
+      return ctx
+    }
+    it('signs the lookup for the public tenant, with no tenant host, and lands on the payment-done page', async () => {
+      vi.mocked(tenantRequest).mockClear()
+      const { raw, status, headers } = publicReturn()
+      await relayPaymentReturn({} as never)
+      expect(status).toHaveBeenLastCalledWith({}, 303)
+      expect(headers.location).toBe('/payment-done?result=paid')
+      const h = raw.mock.calls[0]![1].headers as Record<string, string>
+      expect(h['x-liwan-tenant']).toBe('public')
+      expect(verifyServiceRequest({ method: 'POST', path: `/v1/customer/payment-returns/${ATTEMPT}`, body: 'liwan-payment-return:public\n', key: KEY, headers: h, anonymous: true })).toMatchObject({ actor: 'anonymous' })
+      expect(tenantRequest).not.toHaveBeenCalled()
+    })
+    it.each([['failed', '/payment-done?result=failed'], ['refunded', '/payment-done?result=failed'], ['awaiting_payment', '/payment-done']])('lands a %s order on %s', async (state, location) => {
+      const { headers } = publicReturn(state)
+      await relayPaymentReturn({} as never)
+      expect(headers.location).toBe(location)
+    })
+    it('never claims a payment it could not verify, and answers a provider POST with 204', async () => {
+      const failed = publicReturn(); failed.raw.mockRejectedValue(Object.assign(new Error('down'), { statusCode: 503 }))
+      await relayPaymentReturn({} as never)
+      expect(failed.headers.location).toBe('/payment-done')
+      expect(prospectLanding(null)).toBe('/payment-done')
+      const post = publicReturn(); vi.stubGlobal('getMethod', () => 'POST')
+      await relayPaymentReturn({} as never)
+      expect(post.status).toHaveBeenLastCalledWith({}, 204)
+    })
+    it('treats a wrong proxy token as a tenant request, never a prospect one', async () => {
+      const { raw } = publicReturn()
+      vi.stubGlobal('getHeader', (_e: unknown, n: string) => ({ host: 'app.liwan.example', 'x-liwan-proxy-token': 'x'.repeat(40) }[n]))
+      vi.mocked(tenantRequest).mockImplementationOnce(() => { throw new Error('tenant_boundary_rejected') })
+      await relayPaymentReturn({} as never)
+      expect(raw).not.toHaveBeenCalled()
+    })
   })
   it.each(['not-a-uuid', '', '../x'])('makes no control-plane call for the attempt %j', async attempt => {
     const { raw, headers } = returnSetup({ attempt })

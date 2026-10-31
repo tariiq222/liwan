@@ -10,7 +10,7 @@ const props = defineProps<{
   milestonesError?: unknown
 }>()
 const emit = defineEmits<{ retryMilestones: [] }>()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const hydrated = useHydrated()
 
 const milestoneOutputs = computed(() => aggregateMilestoneOutputs(props.milestones ?? []))
@@ -36,7 +36,7 @@ function printCharter() {
 }
 
 function date(value: string | null): string {
-  return value ? formatCalendarDate(value, locale.value) || value : ''
+  return value ? formatCalendarDate(value) || value : ''
 }
 
 function budgetAmount(): string {

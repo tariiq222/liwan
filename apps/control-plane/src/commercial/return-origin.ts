@@ -19,12 +19,21 @@ export function fixedReturnOrigin(origin: string): ReturnOrigin {
  * Shared mode: a customer returns to its own tenant host, read from the enabled registry binding (never from
  * a request). The host must also fall under the configured allowlist (exact origins or `scheme://*.suffix`);
  * a customer with no enabled binding or an unlisted host is refused, never given another tenant's origin.
+ * The one exception is a prospect, a customer with no tenant yet (its first order is not paid, so no workspace
+ * exists): it returns to the LiwanOS public origin, which must be configured and fall under the allowlist.
  */
-export function tenantReturnOrigin(pool: Pool, allowed: readonly string[]): ReturnOrigin {
+export function tenantReturnOrigin(pool: Pool, allowed: readonly string[], prospectOrigin?: string): ReturnOrigin {
   const schemes = [...new Set(allowed.map(entry => /^https?:\/\//.exec(entry)?.[0]).filter((s): s is string => !!s))]
   return async customerId => {
-    const host = (await pool.query(`SELECT b.host FROM customers c JOIN shared_registry_bindings b ON b.control_tenant_id=c.tenant_id
-      WHERE c.id=$1 AND b.enabled`, [customerId])).rows[0]?.host as string | undefined
+    const row = (await pool.query(`SELECT c.tenant_id,b.host FROM customers c LEFT JOIN shared_registry_bindings b ON b.control_tenant_id=c.tenant_id AND b.enabled
+      WHERE c.id=$1`, [customerId])).rows[0] as { tenant_id: string | null; host: string | null } | undefined
+    if (row && row.tenant_id === null) {
+      if (!prospectOrigin) throw forbidden()
+      const origin = assertReturnOrigin(prospectOrigin)
+      if (!originAllowed(origin, allowed)) throw forbidden()
+      return origin
+    }
+    const host = row?.host
     if (!host) throw forbidden()
     for (const scheme of schemes) {
       let origin: string
@@ -35,9 +44,9 @@ export function tenantReturnOrigin(pool: Pool, allowed: readonly string[]): Retu
   }
 }
 
-/** The resolver for `LIWAN_PAYMENT_RETURN_ORIGINS` and the tenancy mode; null when no origin is configured. */
+/** The resolver for `LIWAN_PAYMENT_RETURN_ORIGINS`, `LIWAN_PAYMENT_PROSPECT_ORIGIN` and the tenancy mode; null when no origin is configured. */
 export function returnOriginFromEnv(pool: Pool, env: Record<string, string | undefined>): ReturnOrigin | null {
   const entries = (env.LIWAN_PAYMENT_RETURN_ORIGINS ?? '').split(',').map(s => s.trim()).filter(Boolean)
   if (!entries.length) return null
-  return env.LIWAN_TENANCY_MODE === 'shared' ? tenantReturnOrigin(pool, entries) : fixedReturnOrigin(entries[0]!)
+  return env.LIWAN_TENANCY_MODE === 'shared' ? tenantReturnOrigin(pool, entries, env.LIWAN_PAYMENT_PROSPECT_ORIGIN || undefined) : fixedReturnOrigin(entries[0]!)
 }

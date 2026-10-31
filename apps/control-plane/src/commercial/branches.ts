@@ -37,15 +37,23 @@ export async function listBranches(pool: Db, subscription_id: string): Promise<B
   }
 }
 
-export async function requestedExtraBranches(pool: Db, input: { subscription_id: string; add: number; archive: string[] }): Promise<number> {
+export async function requestedExtraBranches(pool: Db, input: { subscription_id: string; add: number; archive: string[]; restore?: string[] }): Promise<number> {
   const rows = await subscriptionBranches(pool, input.subscription_id)
+  const restoring = [...new Set(input.restore ?? [])]
+  for (const id of restoring) {
+    const b = rows.find(x => x.id === id)
+    if (!b || b.kind !== 'extra') throw new CommercialHttpError('branch_not_found', 404, 'restore')
+    if (b.state !== 'archived' || b.odoo_company_id === null) throw new CommercialHttpError('branch_not_archived', 409, 'restore')
+    // The name must still be free: a branch added since owns it.
+    if (rows.some(x => x.id !== id && x.state !== 'archived' && String(x.name).toLowerCase() === String(b.name).toLowerCase())) throw new CommercialHttpError('branch_name_taken', 409, 'restore')
+  }
   for (const id of new Set(input.archive)) {
     const b = rows.find(x => x.id === id)
     if (!b || b.kind !== 'extra') throw new CommercialHttpError('branch_not_found', 404, 'archive')
   }
   const archiving = rows.filter(b => b.kind === 'extra' && (b.state === 'active' || b.state === 'pending') && new Set(input.archive).has(b.id)).length
   const current = rows.filter(b => b.kind === 'extra' && (b.state === 'active' || b.state === 'pending')).length
-  return current + input.add - archiving
+  return current + input.add - archiving + restoring.length
 }
 
 export async function reserveBranchesForOrder(client: PoolClient, input: {
@@ -82,6 +90,35 @@ export async function archiveBranches(client: PoolClient, input: { subscription_
      WHERE subscription_id=$1 AND kind='extra' AND id=ANY($2::uuid[]) AND state<>'archived' RETURNING *`,
     [input.subscription_id, input.ids])
   return r.rows.map(toBranch)
+}
+
+/**
+ * Reserves archived branches for a restore order: they go back to pending (their Odoo company is kept) and count
+ * against capacity again, priced like added branches. The paid count must equal the quote's, else the quote is stale.
+ */
+export async function restoreBranchesForOrder(client: PoolClient, input: { order_id: string; subscription_id: string; ids: string[]; quoted_paid: number; operation_id: string }): Promise<Branch[]> {
+  await client.query('SELECT id FROM subscriptions WHERE id=$1 FOR UPDATE', [input.subscription_id])
+  const { free } = await allowances(client, input.subscription_id)
+  let used = branchBillingCounts(await subscriptionBranches(client, input.subscription_id), free).free_used
+  const restored: Branch[] = []
+  for (const id of input.ids) {
+    const billing = used < free ? 'free_extra' : 'paid'
+    if (billing === 'free_extra') used++
+    try {
+      const r = await client.query(
+        `UPDATE commercial_branches SET state='pending', archived_at=NULL, order_id=$3, operation_id=$4, billing=$5
+         WHERE id=$1 AND subscription_id=$2 AND kind='extra' AND state='archived' AND odoo_company_id IS NOT NULL RETURNING *`,
+        [id, input.subscription_id, input.order_id, input.operation_id, billing])
+      if (!r.rowCount) throw new CommercialHttpError('branch_not_archived', 409, 'restore')
+      restored.push(toBranch(r.rows[0]))
+    } catch (e: any) {
+      if (e?.code === '23505') throw new CommercialHttpError('branch_name_taken', 409, 'restore')
+      throw e
+    }
+  }
+  const after = branchBillingCounts(await subscriptionBranches(client, input.subscription_id), free)
+  if (after.paid !== input.quoted_paid) throw new CommercialHttpError('requote_required', 409)
+  return restored
 }
 
 export async function activateBranches(client: PoolClient, input: { order_id: string; bindings: { branch_id: string; odoo_company_id: number }[] }): Promise<Branch[]> {

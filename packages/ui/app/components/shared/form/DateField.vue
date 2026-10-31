@@ -8,7 +8,7 @@ defineOptions({ inheritAttrs: false })
 // input, and keeps the popover open after a day is picked.
 const props = defineProps<{ modelValue: string | null; disabled?: boolean; id?: string; name?: string; ariaLabel?: string; minValue?: string | null; maxValue?: string | null; label?: string }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string | null] }>()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const attrs = useAttrs()
 const slots = useSlots()
 const open = ref(false)
@@ -23,7 +23,7 @@ const date = computed({
     if (!slots.footer) open.value = false
   },
 })
-const text = computed(() => props.label || formatCalendarDate(props.modelValue, locale.value) || t('app.selectDate'))
+const text = computed(() => props.label || formatCalendarDate(props.modelValue) || t('app.selectDate'))
 const buttonAttrs = computed(() => {
   const formAttrs = ariaAttrs.value ?? {}
   const describedBy = [attrs['aria-describedby'], formAttrs['aria-describedby']].filter(Boolean).join(' ')
