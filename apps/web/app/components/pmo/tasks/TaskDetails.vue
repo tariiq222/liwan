@@ -13,7 +13,7 @@ const props = withDefaults(defineProps<{ task: TaskDetail; basePath?: string }>(
   basePath: '/tasks',
 })
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const hydrated = useHydrated()
 const tabs = computed(() => [
   { label: t('tasks.drawer.details'), value: 'details', slot: 'details', disabled: !hydrated.value },
@@ -26,7 +26,7 @@ const tabs = computed(() => [
 // The details tab stacks its sections as rows: title in the start column, content beside it.
 const rowClass = 'grid gap-x-8 gap-y-4 py-6 first:pt-2 last:pb-0 lg:grid-cols-[11rem_minmax(0,1fr)]'
 const rowTitleClass = 'text-sm font-semibold text-highlighted'
-const dateTimeFmt = computed(() => ({ format: (value: Date) => formatLiwanDateTime(value, locale.value) }))
+const dateTimeFmt = computed(() => ({ format: (value: Date) => formatLiwanDateTime(value) }))
 
 // --- metrics ---------------------------------------------------------------
 const createdLabel = computed(() => dateTimeFmt.value.format(new Date(props.task.created_at)))

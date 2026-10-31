@@ -20,7 +20,7 @@ function openLive(event: MouseEvent) {
   event.preventDefault()
   emit('open', event, props.task)
 }
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const STATE_TONE = { open: 'info', done: 'success', cancelled: 'destructive' } as const
 const day = computed(() => deadlineDay(props.task.date_deadline))
 const overdue = computed(() => props.today !== null && isOverdue(props.task.date_deadline, props.task.state, props.today))
@@ -32,7 +32,7 @@ const deadlinePill = computed(() => {
   if (props.today === null) return { tone: 'neutral', icon: 'i-lucide-calendar' } as const
   return day.value === props.today ? { tone: 'warning', icon: 'i-lucide-alarm-clock' } as const : { tone: 'success', icon: 'i-lucide-hourglass' } as const
 })
-const deadlineText = computed(() => formatCalendarDate(props.task.date_deadline, locale.value))
+const deadlineText = computed(() => formatCalendarDate(props.task.date_deadline))
 </script>
 
 <template>

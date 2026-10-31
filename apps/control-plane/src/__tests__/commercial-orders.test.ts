@@ -120,6 +120,20 @@ suite('commercial B1 atomic orders', () => {
     const fresh = await createQuoteForCustomer(pool, {customer_id:id,request:{...request(),subscription_id:view.id,expected_subscription_revision:view.revision}})
     expect((await acceptQuote(pool, accept(fresh), vendor)).replay).toBe(false)
   })
+  it('shows a never-applied subscription as order_cancelled once its only order is cancelled', async () => {
+    const id = await customer(), quote = await createQuoteForCustomer(pool, {customer_id:id,request:request()})
+    const first = await acceptQuote(pool, accept(quote), vendor)
+    expect(await getSubscription(pool, id)).toMatchObject({order_cancelled:false,pending_order:{id:first.order.id}})
+    await cancelOrder(pool, {order_id:first.order.id,principal:vendor,reason:'Customer changed selection'})
+    expect(await getSubscription(pool, id)).toMatchObject({order_cancelled:true,pending_order:null,applied:null})
+  })
+  it.each([[{}], [{reason:'ab'}], [{reason:'  '}]])('answers 422 reason_required for a missing or short cancellation reason %j', async body => {
+    const id = await customer(), quote = await createQuoteForCustomer(pool, {customer_id:id,request:request()})
+    const first = await acceptQuote(pool, accept(quote), vendor)
+    const pathname = `/v1/commercial/orders/${first.order.id}/cancel`
+    await expect(routesB(pool, { method:'POST',pathname,raw:JSON.stringify(body),issuer:'commercial-test',actor:7,capabilities:vendor.capabilities,stepUpFresh:true }, new URL(pathname, 'http://localhost')))
+      .rejects.toMatchObject({status:422,code:'reason_required'})
+  })
   it('releases only canceled-order pending extra branch reservations and permits the same names again', async () => {
     const id = await customer(), req = { ...request(), requested_extra_branches: 2 }
     const first = await acceptQuote(pool, accept(await createQuoteForCustomer(pool, {customer_id:id,request:req})), vendor)

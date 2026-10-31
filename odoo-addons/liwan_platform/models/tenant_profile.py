@@ -482,6 +482,28 @@ class LiwanTenantProfile(models.Model):
         branch.company_id.write({'active': False})
         return branch.company_id
 
+    def _liwan_restore_branch(self, operation_id, branch_uid):
+        """Bring an archived branch back: same company and data, active again.
+
+        Operator-only and idempotent; an active branch is left as it is, and the
+        extra-branch limit is checked before the company is reactivated.
+        """
+        self._liwan_require_operator()
+        self._liwan_lock()
+        branch = self.env['liwan.tenant.branch'].search([('branch_uid', '=', branch_uid)])
+        if not branch:
+            msg = 'branch_not_found'
+            raise ValidationError(msg)
+        if branch.state == 'active':
+            return branch.company_id
+        active_count = self.env['liwan.tenant.branch'].search_count([('state', '=', 'active')])
+        self.env['liwan.entitlement.service'].require_within_limit(
+            'branches.extra_limit', active_count + 1,
+        )
+        branch.company_id.write({'active': True})
+        branch.write({'state': 'active', 'operation_id': operation_id})
+        return branch.company_id
+
     def _liwan_bind_user_to_branch(self, user, branch_uid):
         self._liwan_require_operator()
         branch = self.env['liwan.tenant.branch'].search([

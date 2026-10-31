@@ -60,7 +60,6 @@ export function parseNotificationDate(value: string | null | undefined): Date | 
 
 export function formatNotificationTimestamp(
   value: string | null | undefined,
-  _locale: string,
   timeZone = 'UTC',
 ): { datetime: string; label: string } | null {
   const date = parseNotificationDate(value)

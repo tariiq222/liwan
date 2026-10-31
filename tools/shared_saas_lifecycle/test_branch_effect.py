@@ -30,6 +30,36 @@ class ScriptContentTests(unittest.TestCase):
         self.assertIn('_liwan_archive_branch(values', text)
         self.assertLess(text.index('_liwan_archive_branch'), text.index('_liwan_apply_branches('))
 
+    def test_restore_runs_after_archive_and_before_apply_and_is_bound_in_the_receipt(self):
+        request = make_request(branches={'apply': [], 'archive': [], 'restore': [B2]})
+        text = se.build_apply_script(request)
+        ast.parse(text)
+        self.assertIn('_liwan_restore_branch(values', text)
+        self.assertLess(text.index('_liwan_archive_branch'), text.index('_liwan_restore_branch'))
+        self.assertLess(text.index('_liwan_restore_branch'), text.index('_liwan_apply_branches('))
+        self.assertEqual(text.count('.write('), 1)
+
+    def test_restore_is_validated_like_apply_and_archive(self):
+        se.validate_reconfigure(make_request(branches={'apply': [], 'archive': [], 'restore': [B2]}))
+        se.validate_reconfigure(make_request(branches={'apply': [], 'archive': []}))
+        for branches, code in [({'apply': [], 'archive': [B2], 'restore': [B2]}, 'branches_duplicate'),
+                               ({'apply': [{'branch_id': B1, 'name': 'A'}], 'archive': [], 'restore': [B1]}, 'branches_duplicate'),
+                               ({'apply': [], 'archive': [], 'restore': [B2, B2]}, 'branches_duplicate'),
+                               ({'apply': [], 'archive': [], 'restore': ['not-a-uuid']}, 'branches_invalid'),
+                               ({'apply': [], 'archive': [], 'restore': 'x'}, 'branches_invalid'),
+                               ({'apply': [], 'archive': [], 'other': []}, 'branches_invalid')]:
+            with self.subTest(branches=branches), self.assertRaisesRegex(se.EffectError, '^' + code + '$'):
+                se.validate_reconfigure(make_request(branches=branches))
+
+    def test_verify_requires_the_restored_branch_to_be_active(self):
+        request = make_request(branches={'apply': [], 'archive': [], 'restore': [B2]})
+        observed = {'commercial_revision_id': request['target_revision_id'], 'commercial_digest': request['entitlement']['digest'],
+                    'features': dict(request['entitlement']['features']),
+                    'branches': [{'branch_id': B2, 'state': 'archived', 'odoo_company_id': 9, 'active': False, 'parent_is_root': True}]}
+        self.assertFalse(se.verify(request, observed))
+        observed['branches'][0].update(state='active', active=True)
+        self.assertTrue(se.verify(request, observed))
+
     def test_no_sudo_no_uninstall_no_delete(self):
         for text in (self.script(), se.build_observe_script(DB)):
             for forbidden in ('sudo(', 'with_user', 'button_uninstall', 'module_uninstall', 'unlink(', 'DELETE', 'DROP', 'TRUNCATE'):

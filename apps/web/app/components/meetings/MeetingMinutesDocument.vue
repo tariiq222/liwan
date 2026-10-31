@@ -36,7 +36,7 @@ const props = withDefaults(defineProps<{
   compact?: boolean
   title?: string
 }>(), { form: null, snapshot: null, recommendations: () => [], legacyAgenda: '', legacyMinutes: '', legacyRecommendations: () => [], title: '', compact: false })
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const displayMeeting = computed(() => {
   if (!props.snapshot) return props.meeting
   return {
@@ -74,8 +74,8 @@ const unassignedRecommendations = computed(() => props.recommendations.filter(it
       <dl :class="compact ? 'hidden print:grid' : 'grid'" class="min-w-0 gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
         <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.name') }}</dt><dd class="break-words">{{ displayMeeting.name || '—' }}</dd></div>
         <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.reference') }}</dt><dd dir="ltr">{{ displayMeeting.reference || '—' }}</dd></div>
-        <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.date') }}</dt><dd>{{ formatMeetingDate(displayMeeting.meeting_date, locale) }}</dd></div>
-        <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.time') }}</dt><dd dir="ltr"><bdi>{{ formatMeetingTime(displayMeeting.start_datetime, locale) }}</bdi><span v-if="displayMeeting.end_datetime"> – <bdi>{{ formatMeetingTime(displayMeeting.end_datetime, locale) }}</bdi></span></dd></div>
+        <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.date') }}</dt><dd>{{ formatMeetingDate(displayMeeting.meeting_date) }}</dd></div>
+        <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.time') }}</dt><dd dir="ltr"><bdi>{{ formatMeetingTime(displayMeeting.start_datetime) }}</bdi><span v-if="displayMeeting.end_datetime"> – <bdi>{{ formatMeetingTime(displayMeeting.end_datetime) }}</bdi></span></dd></div>
         <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.location') }}</dt><dd>{{ displayMeeting.location || '—' }}</dd></div>
         <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.secretary') }}</dt><dd>{{ displayMeeting.secretary?.name || '—' }}</dd></div>
       </dl>
@@ -95,12 +95,12 @@ const unassignedRecommendations = computed(() => props.recommendations.filter(it
               <p v-if="topic.project_id" class="text-xs text-muted">{{ t('meetingsUx.linkedProject') }}</p>
               <div v-for="resolutionId in topic.resolution_ids" :key="resolutionId" class="grid min-w-0 gap-1 border-t border-default pt-3 text-sm">
                 <h5 class="break-words font-medium">{{ recommendationFor(resolutionId)?.name || t('meetingMinutesForm.hiddenRecommendation') }}</h5>
-                <p v-if="recommendationFor(resolutionId)" class="break-words text-muted">{{ [recommendationFor(resolutionId)?.project?.name, recommendationFor(resolutionId)?.responsible?.name, recommendationFor(resolutionId)?.execution_period, recommendationFor(resolutionId)?.deadline ? formatMeetingDate(recommendationFor(resolutionId)?.deadline, locale) : ''].filter(Boolean).join(' · ') }}</p>
+                <p v-if="recommendationFor(resolutionId)" class="break-words text-muted">{{ [recommendationFor(resolutionId)?.project?.name, recommendationFor(resolutionId)?.responsible?.name, recommendationFor(resolutionId)?.execution_period, recommendationFor(resolutionId)?.deadline ? formatMeetingDate(recommendationFor(resolutionId)?.deadline) : ''].filter(Boolean).join(' · ') }}</p>
               </div>
             </SharedSubCard>
             <section v-if="unassignedRecommendations.length" class="grid gap-3">
               <h4 class="font-medium">{{ t('meetingMinutesForm.unassigned') }}</h4>
-              <SharedSubCard v-for="item in unassignedRecommendations" :key="item.id" as="article" class="grid gap-1 text-sm"><p class="break-words font-medium">{{ item.name }}</p><p class="text-muted">{{ [item.project?.name, item.responsible?.name, item.execution_period, item.deadline ? formatMeetingDate(item.deadline, locale) : ''].filter(Boolean).join(' · ') }}</p></SharedSubCard>
+              <SharedSubCard v-for="item in unassignedRecommendations" :key="item.id" as="article" class="grid gap-1 text-sm"><p class="break-words font-medium">{{ item.name }}</p><p class="text-muted">{{ [item.project?.name, item.responsible?.name, item.execution_period, item.deadline ? formatMeetingDate(item.deadline) : ''].filter(Boolean).join(' · ') }}</p></SharedSubCard>
             </section>
           </div>
           <div class="hidden print:block print:overflow-visible">
@@ -115,10 +115,10 @@ const unassignedRecommendations = computed(() => props.recommendations.filter(it
                   <td>{{ row.recommendation?.name || '—' }}</td>
                   <td>{{ row.recommendation?.responsible?.name || '—' }}</td>
                   <td>{{ row.recommendation?.execution_period || '—' }}</td>
-                  <td dir="ltr">{{ formatMeetingDate(row.recommendation?.deadline, locale) }}</td>
+                  <td dir="ltr">{{ formatMeetingDate(row.recommendation?.deadline) }}</td>
                 </tr>
                 <tr v-for="item in unassignedRecommendations" :key="`unassigned-${item.id}`" class="text-muted">
-                  <td>{{ t('meetingMinutesForm.unassigned') }}</td><td>—</td><td>{{ item.project?.name || '—' }}</td><td>{{ item.name }}</td><td>{{ item.responsible?.name || '—' }}</td><td>{{ item.execution_period || '—' }}</td><td dir="ltr">{{ formatMeetingDate(item.deadline, locale) }}</td>
+                  <td>{{ t('meetingMinutesForm.unassigned') }}</td><td>—</td><td>{{ item.project?.name || '—' }}</td><td>{{ item.name }}</td><td>{{ item.responsible?.name || '—' }}</td><td>{{ item.execution_period || '—' }}</td><td dir="ltr">{{ formatMeetingDate(item.deadline) }}</td>
                 </tr>
               </tbody>
             </table>
@@ -137,11 +137,11 @@ const unassignedRecommendations = computed(() => props.recommendations.filter(it
         <section class="grid gap-2"><h3 class="font-semibold text-highlighted">{{ t('meetingsUi.minutes') }}</h3><p class="whitespace-pre-wrap text-sm">{{ legacyMinutesText || '—' }}</p></section>
         <section class="grid gap-2">
           <h3 class="font-semibold text-highlighted">{{ t('meetingsUi.resolutions') }}</h3>
-          <div class="grid gap-3 print:hidden"><p v-if="!legacyRecommendations.length" class="text-sm text-muted">{{ t('meetingsUi.emptyResolutions') }}</p><SharedSubCard v-for="item in legacyRecommendations" :key="item.id" as="article" class="grid gap-1 text-sm"><p class="break-words font-medium">{{ item.name }}</p><p class="text-muted">{{ [item.responsible?.name, item.execution_period, item.deadline ? formatMeetingDate(item.deadline, locale) : ''].filter(Boolean).join(' · ') }}</p></SharedSubCard></div>
+          <div class="grid gap-3 print:hidden"><p v-if="!legacyRecommendations.length" class="text-sm text-muted">{{ t('meetingsUi.emptyResolutions') }}</p><SharedSubCard v-for="item in legacyRecommendations" :key="item.id" as="article" class="grid gap-1 text-sm"><p class="break-words font-medium">{{ item.name }}</p><p class="text-muted">{{ [item.responsible?.name, item.execution_period, item.deadline ? formatMeetingDate(item.deadline) : ''].filter(Boolean).join(' · ') }}</p></SharedSubCard></div>
           <div class="hidden print:block print:overflow-visible">
             <table class="meeting-minutes-topic-table min-w-[700px] w-full text-sm">
               <thead><tr><th>{{ t('meetingMinutesForm.recommendations') }}</th><th>{{ t('meetingsUi.responsible') }}</th><th>{{ t('meetingMinutesForm.executionPeriod') }}</th><th>{{ t('meetingsUi.deadline') }}</th></tr></thead>
-              <tbody><tr v-if="!legacyRecommendations.length"><td colspan="4" class="text-muted">{{ t('meetingsUi.emptyResolutions') }}</td></tr><tr v-for="item in legacyRecommendations" :key="item.id"><td>{{ item.name }}</td><td>{{ item.responsible?.name || '—' }}</td><td>{{ item.execution_period || '—' }}</td><td dir="ltr">{{ formatMeetingDate(item.deadline, locale) }}</td></tr></tbody>
+              <tbody><tr v-if="!legacyRecommendations.length"><td colspan="4" class="text-muted">{{ t('meetingsUi.emptyResolutions') }}</td></tr><tr v-for="item in legacyRecommendations" :key="item.id"><td>{{ item.name }}</td><td>{{ item.responsible?.name || '—' }}</td><td>{{ item.execution_period || '—' }}</td><td dir="ltr">{{ formatMeetingDate(item.deadline) }}</td></tr></tbody>
             </table>
           </div>
         </section>

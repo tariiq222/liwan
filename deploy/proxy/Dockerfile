@@ -16,4 +16,13 @@ FROM caddy:${CADDY_VERSION}@sha256:5e5286cb37d44086d651a5363f05f43a692ce4d649d88
 # The Alpine base of the official image lags security releases: take the fixed Brotli library.
 RUN apk upgrade --no-cache brotli-libs
 COPY --from=build /usr/bin/caddy /usr/bin/caddy
-RUN caddy list-modules | grep -q 'http.handlers.rate_limit'
+# Caddy runs as a non-root user that may bind ports 80/443 only through the NET_BIND_SERVICE file capability
+# (the copied binary lost the official image's capability, so it is set again). /data and /config are the
+# only writable paths; compose mounts a volume on /data and a tmpfs on /config.
+RUN addgroup -S -g 10002 caddy \
+    && adduser -S -u 10002 -G caddy -h /data -s /sbin/nologin caddy \
+    && mkdir -p /data /config \
+    && chown caddy:caddy /data /config \
+    && setcap cap_net_bind_service=+ep /usr/bin/caddy \
+    && caddy list-modules | grep -q 'http.handlers.rate_limit'
+USER caddy

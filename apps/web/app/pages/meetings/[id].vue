@@ -24,7 +24,7 @@ import { meetingTabFromRoute, meetingTabQuery, meetingHistoryViewFromRoute, type
 const route = useRoute()
 const router = useRouter()
 const sourcePaths = useRecordListPaths(MEETING_LIST_PATHS)
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const hydrated = useHydrated()
 const id = computed(() => parsePositiveId(route.params.id))
 const isCreateResolution = computed(() => route.path === `/meetings/${route.params.id}/resolutions/new`)
@@ -55,7 +55,7 @@ const meetingEndLabel = computed(() => {
   const meeting = query.data.value
   if (!meeting?.end_datetime) return '—'
   return formatDate(meeting.start_datetime) === formatDate(meeting.end_datetime)
-    ? formatMeetingTime(meeting.end_datetime, locale.value)
+    ? formatMeetingTime(meeting.end_datetime)
     : formatDateTime(meeting.end_datetime)
 })
 const attachmentCount = ref(0)
@@ -312,8 +312,8 @@ function displayValue(value: string | null | undefined) {
         <SharedRecordSection variant="panel">
           <div class="grid min-w-0 gap-3">
             <p class="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xl font-semibold text-highlighted">
-              <span>{{ formatMeetingDate(query.data.value.meeting_date, locale) }}</span>
-              <span v-if="query.data.value.start_datetime" dir="ltr" class="whitespace-nowrap tabular-nums">{{ hydrated ? displayValue(formatMeetingTime(query.data.value.start_datetime, locale)) : '—' }}<span v-if="query.data.value.end_datetime"> – {{ hydrated ? displayValue(meetingEndLabel) : '—' }}</span></span>
+              <span>{{ formatMeetingDate(query.data.value.meeting_date) }}</span>
+              <span v-if="query.data.value.start_datetime" dir="ltr" class="whitespace-nowrap tabular-nums">{{ hydrated ? displayValue(formatMeetingTime(query.data.value.start_datetime)) : '—' }}<span v-if="query.data.value.end_datetime"> – {{ hydrated ? displayValue(meetingEndLabel) : '—' }}</span></span>
             </p>
             <div class="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
               <span v-if="query.data.value.organizer" class="inline-flex min-w-0 items-center gap-2"><SharedPersonAvatar :people="[query.data.value.organizer]" /><span class="truncate">{{ t('meetingsUi.organizer') }}: {{ query.data.value.organizer.name }}</span></span>

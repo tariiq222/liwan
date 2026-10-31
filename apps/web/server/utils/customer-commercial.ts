@@ -5,6 +5,7 @@ import { MeSchema } from '@liwan/contracts'
 import { signServiceRequest } from '@liwan/commercial-contracts/server'
 import { tenantRequest } from './tenantRequest'
 import { tenantTransport } from './tenantTransport'
+import { isProspectRequest, PROSPECT_TENANT } from './prospectHost'
 import { deriveCustomerCapabilities, type CustomerCommercialCapability } from '../../app/utils/customerCapabilities'
 
 type CustomerConfig = {
@@ -260,25 +261,34 @@ export async function forwardCustomerRequest(event: H3Event): Promise<unknown> {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const PAYMENT_RETURN_BODY = (tenantId: string) => `liwan-payment-return:${tenantId}\n`
 
-/** Asks the control plane to verify one attempt with the provider; resolves the order id, or null on any failure. */
-async function verifyPaymentReturn(event: H3Event, config: CustomerConfig, attempt: string): Promise<string | null> {
+type PaymentReturn = { orderId: string; paymentState: string }
+
+/** Asks the control plane to verify one attempt with the provider; resolves its order, or null on any failure. */
+async function verifyPaymentReturn(event: H3Event, config: CustomerConfig, attempt: string, prospect: boolean): Promise<PaymentReturn | null> {
   try {
     if (!config.customerCommercialServiceKey || !config.customerCommercialIssuer) return null
-    const tenantId = boundTenantId(tenantRequest(event), config)
+    const tenantId = prospect ? PROSPECT_TENANT : boundTenantId(tenantRequest(event), config)
     if (!tenantId) return null
     if (!allowPaymentReturn(`${tenantId}|${paymentReturnClient(event)}`, `${tenantId}|${attempt}`)) { console.warn('[payment-return] rate limited'); return null }
     const target = new URL(`/v1/customer/payment-returns/${attempt}`, customerControlBase(config))
     // Anonymous signature: the return carries no user, so it proves only that this web server asked.
     const signed = signServiceRequest({ method: 'POST', path: target.pathname, body: PAYMENT_RETURN_BODY(tenantId), actor: 'anonymous', anonymous: true, issuer: config.customerCommercialIssuer, key: config.customerCommercialServiceKey })
     const response = await $fetch.raw(target.toString(), { method: 'POST', headers: { ...signed, 'x-liwan-tenant': tenantId, accept: 'application/json' }, redirect: 'error', signal: AbortSignal.timeout(8000) })
-    const orderId = (response._data as { order_id?: unknown } | null)?.order_id
-    return typeof orderId === 'string' && UUID.test(orderId) ? orderId : null
+    const data = response._data as { order_id?: unknown; payment_state?: unknown } | null
+    return typeof data?.order_id === 'string' && UUID.test(data.order_id) ? { orderId: data.order_id, paymentState: typeof data.payment_state === 'string' ? data.payment_state : '' } : null
   } catch (cause: any) {
     // Never the attempt id: it is the only secret-like value this route handles.
     const status = Number(cause?.statusCode ?? cause?.response?.status)
     console.warn(`[payment-return] lookup failed: ${status ? `http ${status}` : (cause?.name ?? 'error')}`)
     return null
   }
+}
+
+/** Where a prospect (a customer with no workspace yet) lands: it has no session, so no page behind a sign-in. */
+export function prospectLanding(result: PaymentReturn | null): string {
+  if (!result) return '/payment-done'
+  if (['paid', 'not_required'].includes(result.paymentState)) return '/payment-done?result=paid'
+  return ['failed', 'refund_pending', 'refunded'].includes(result.paymentState) ? '/payment-done?result=failed' : '/payment-done'
 }
 
 /**
@@ -292,10 +302,12 @@ export async function relayPaymentReturn(event: H3Event): Promise<string> {
   const method = getMethod(event).toUpperCase()
   setResponseHeader(event, 'cache-control', 'no-store')
   if (method !== 'GET' && method !== 'POST') { setResponseStatus(event, 405); setResponseHeader(event, 'allow', 'GET, POST'); return '' }
-  const attempt = getRequestURL(event).searchParams.get('attempt') ?? ''
-  const orderId = UUID.test(attempt) ? await verifyPaymentReturn(event, config, attempt) : null
+  const url = getRequestURL(event)
+  const prospect = isProspectRequest({ host: getHeader(event, 'host'), proxyToken: getHeader(event, 'x-liwan-proxy-token'), pathname: url.pathname }, config)
+  const attempt = url.searchParams.get('attempt') ?? ''
+  const result = UUID.test(attempt) ? await verifyPaymentReturn(event, config, attempt, prospect) : null
   if (method === 'POST') { setResponseStatus(event, 204); return '' }
   setResponseStatus(event, 303)
-  setResponseHeader(event, 'location', orderId ? `/subscription/status?order=${orderId}` : '/subscription')
+  setResponseHeader(event, 'location', prospect ? prospectLanding(result) : result ? `/subscription/status?order=${result.orderId}` : '/subscription')
   return ''
 }
