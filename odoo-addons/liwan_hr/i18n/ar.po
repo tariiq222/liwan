@@ -471,3 +471,21 @@ msgstr "لكل قسيمة راتب لقطة بيانات دفع واحدة"
 #: model:ir.model.constraint,message:liwan_hr.constraint_liwan_hr_payroll_file_run_content_unique
 msgid "the same salary file content is kept once per run"
 msgstr "يُحفظ محتوى ملف الرواتب نفسه مرة واحدة لكل مسيّر"
+
+#. module: liwan_hr
+#. odoo-python
+#: code:addons/liwan_hr/models/hr_payslip.py:0
+msgid "Dear %(name)s, your final payslip for %(month)s from %(company)s is below."
+msgstr "عزيزي %(name)s، تجد أدناه قسيمة راتبك الأخيرة لشهر %(month)s من %(company)s."
+
+#. module: liwan_hr
+#. odoo-python
+#: code:addons/liwan_hr/models/hr_payslip.py:0
+msgid "Net pay"
+msgstr "صافي الراتب"
+
+#. module: liwan_hr
+#. odoo-python
+#: code:addons/liwan_hr/models/hr_payslip.py:0
+msgid "Your final payslip for %(month)s"
+msgstr "قسيمة راتبك الأخيرة لشهر %(month)s"

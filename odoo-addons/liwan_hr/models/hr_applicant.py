@@ -11,7 +11,20 @@ class LiwanHrApplicant(models.Model):
     def _get_employee_create_vals(self):
         vals = super()._get_employee_create_vals()
         vals['company_id'] = self.company_id.id
+        manager = self._liwan_department_manager()
+        if manager:
+            vals['parent_id'] = manager.id
         return vals
+
+    def _liwan_department_manager(self):
+        """The manager of the applicant's department, who becomes the new employee's manager.
+
+        Read only for a recruiter who may read departments: recruitment does not imply that capability.
+        """
+        service = self.env['liwan.access.service']
+        if not service._liwan_has_capability(self.env.user, 'hr.departments.read', record=self):
+            return self.env['hr.employee']
+        return self.department_id.manager_id
 
     def _liwan_hire(self):
         """Run the native workflow with owner defaults and the original live policy root."""

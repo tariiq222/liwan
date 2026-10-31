@@ -421,6 +421,10 @@
     "bell": {
       "leaveApproved": "Your leave request ({dates}) was approved",
       "leaveRefused": "Your leave request ({dates}) was refused"
+    },
+    "lifecycleErrors": {
+      "manager_missing": "Set the employee's manager on the employee page first, then try again.",
+      "coach_missing": "Set the employee's coach on the employee page first, then try again."
     }
   }
 }

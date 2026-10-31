@@ -100,6 +100,15 @@ class TestHrOnboarding(LiwanHrCase):
         self.assertEqual(response.status_code, 201, response.text)
         self.assertEqual(response.json()['plan_date'], fields.Date.to_string(fields.Date.context_today(self.manager)))
 
+    def test_a_manager_step_needs_a_manager_on_the_employee(self):
+        self._as_manager()
+        self.employee_record.parent_id = False
+        response = self.api('POST', '/api/v1/hr/onboarding/runs', json={
+            'employee_id': self.employee_record.id, 'plan_id': self.plan.id,
+        })
+        self.assertEqual((response.status_code, response.json()['code'], response.json()['field']), (422, 'manager_missing', 'employee_id'))
+        self.assertFalse(self.env['liwan.hr.plan.run'].search_count([('employee_id', '=', self.employee_record.id)]))
+
     def test_an_inactive_plan_cannot_be_launched(self):
         self._as_manager()
         self.plan.sudo().active = False

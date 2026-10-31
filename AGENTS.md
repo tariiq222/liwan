@@ -320,7 +320,7 @@ cross-addon links.
   bearer token.
 - Keep `/api/v1/people?q=` and its user-id `PersonRef` contract unchanged.
   HR employee ids and user ids are distinct resources and must not be merged.
-- `liwan_tasks`, `liwan_operations` and their bridges have no `sudo()` path. `liwan_hr` and its bridges have none either, except the per-company copy of the shipped Saudi payroll structure that creating a company triggers (`models/res_company.py`: the structure's multi-company rule hides a company the system administrator has only just created, and its ACL row is read-only).
+- `liwan_tasks`, `liwan_operations` and their bridges have no `sudo()` path. `liwan_hr` and its bridges have none either, except the per-company copy of the shipped Saudi payroll structure that creating a company triggers (`models/res_company.py`: the structure's multi-company rule hides a company the system administrator has only just created, and its ACL row is read-only), and the final payslip mail of a leaver (`models/hr_payslip.py`: the private email field is for HR users only and the outgoing-mail ACL is administrator only), sent once when the run is approved.
   `liwan_pmo` uses it only for the documented manager-write,
   charter-approval (approval fields only, through `_liwan_write_sudo` with its own whitelist, after the manager or sponsor check), policy/config, display-lookup, integer-count, completion-status and notification
   candidate cases, each after the caller's authorization check: the project create and copy-create policy, the shared

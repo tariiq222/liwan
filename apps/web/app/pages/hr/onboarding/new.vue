@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useHrOnboardingPlans, useLaunchHrOnboardingRun } from '@/composables/useHrOnboarding'
 import { useHrEmployees } from '@/composables/useHrEmployees'
-import { saveErrorMessage } from '@/utils/formFeedback'
+import { lifecycleLaunchErrorMessage } from '@/utils/hrLifecycleErrors'
 import { owningListBack } from '@/utils/recordListOrigin'
 
 const NAMESPACE = 'hrOnboarding'
@@ -10,7 +10,7 @@ const { t } = useI18n()
 const { can } = useAccess()
 const hydrated = useHydrated()
 const formError = ref<unknown>(null)
-const errorMessage = computed(() => formError.value ? saveErrorMessage(formError.value, t(`${NAMESPACE}.form.saveError`), t('errors.saveUncertain')) : undefined)
+const errorMessage = computed(() => formError.value ? lifecycleLaunchErrorMessage(formError.value, t, t(`${NAMESPACE}.form.saveError`)) : undefined)
 const employees = useHrEmployees({ limit: 200, offset: 0 })
 const plans = useHrOnboardingPlans({ active: 'true', limit: 200, offset: 0 }, computed(() => can('hr.onboarding.read')))
 // «Start onboarding» after a hire arrives here with the new employee already chosen.

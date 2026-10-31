@@ -38,7 +38,7 @@ class TestPayrollSecondCompany(PayrollCase):
     def test_a_user_of_the_second_company_reads_its_structure_and_not_the_first(self):
         company = self.env['res.company'].create({'name': 'Reader Payroll Co'})
         user = new_test_user(
-            self.env, login='second_co_reader', groups='liwan_core.group_employee',
+            self.env, login='second_co_reader', groups='liwan_core.group_employee,liwan_hr.group_cap_hr_payroll_read',
             company_id=company.id, company_ids=[company.id],
         )
         structure = self._structure_of(company)
