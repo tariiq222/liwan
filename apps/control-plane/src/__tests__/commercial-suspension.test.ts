@@ -198,6 +198,43 @@ suite('subscription suspension reaches the tenant', () => {
       expect(await syncTenantStatus(pool, { runner, budgetMs: 0 })).toEqual({ pushed: [], failed: [] })
       expect(runner).not.toHaveBeenCalled()
     })
+    it('never runs the effect for one tenant in two workers at once: the second skips, and the final state is consistent', async () => {
+      const s = await subscription('suspended')
+      let release: () => void = () => {}
+      const gate = new Promise<void>(resolve => { release = resolve })
+      const calls: string[] = []
+      let running = 0, overlap = false
+      const slow = vi.fn(async (input: { status: string }) => { calls.push(`slow:${input.status}`); running++; overlap ||= running > 1; await gate; running-- })
+      const fast = vi.fn(async (input: { status: string }) => { calls.push(`fast:${input.status}`); running++; overlap ||= running > 1; running-- })
+      const first = syncTenantStatus(pool, { runner: slow })
+      await vi.waitFor(() => expect(slow).toHaveBeenCalled())
+      // The vendor resumes while the older push is still in flight; a second worker looks at the same tenant.
+      await resumeSubscription(pool, { subscription_id: s.id, reason, actor: '7' })
+      expect(await syncTenantStatus(pool, { runner: fast })).toEqual({ pushed: [], failed: [] })
+      expect(fast).not.toHaveBeenCalled()
+      release()
+      expect(await first).toEqual({ pushed: [s.id], failed: [] })
+      expect(overlap).toBe(false)
+      // The older push recorded what it wrote ('suspended'); the next run corrects Odoo to the current state, in order.
+      expect((await row(s.id)).tenant_status_pushed).toBe('suspended')
+      expect(await syncTenantStatus(pool, { runner: fast })).toEqual({ pushed: [s.id], failed: [] })
+      expect(calls).toEqual(['slow:suspended', 'fast:active'])
+      expect((await row(s.id)).tenant_status_pushed).toBe('active')
+    })
+    it('reads the desired state again once it holds the lock, and releases the lock after a failed push', async () => {
+      const s = await subscription('suspended')
+      const failing = vi.fn(async () => { throw new Error('script_failed') })
+      expect(await syncTenantStatus(pool, { runner: failing })).toEqual({ pushed: [], failed: [s.id] })
+      await pool.query('UPDATE subscriptions SET tenant_status_next_at=NULL WHERE id=$1', [s.id])
+      // Resumed between selection and the push: the effect gets the current state, not the selected one.
+      const runner = vi.fn(async (_input: { status: string }) => ({}))
+      const racing = syncTenantStatus(pool, { runner, busy: async () => { await resumeSubscription(pool, { subscription_id: s.id, reason, actor: '7' }); return false } })
+      expect(await racing).toEqual({ pushed: [], failed: [] })
+      expect(runner).not.toHaveBeenCalled()
+      // Nothing was left locked by the failed push or the skip.
+      const held = await pool.query("SELECT count(*)::int AS n FROM pg_locks WHERE locktype='advisory' AND granted AND pid IN (SELECT pid FROM pg_stat_activity WHERE datname=current_database())")
+      expect(held.rows[0].n).toBe(0)
+    })
     it('never pushes for a subscription without a tenant', async () => {
       await subscription('suspended', { tenant: false })
       const runner = vi.fn(async () => ({}))

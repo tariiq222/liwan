@@ -54,6 +54,34 @@ export async function resumeSubscription(pool: Pool, input: { subscription_id: s
   })
 }
 
+/**
+ * One tenant's push, from reading the desired state to recording the acknowledgement, under a session advisory lock on
+ * a dedicated connection, so two workers can never run the effect for the same tenant at once (a slower older push
+ * landing after a newer one would leave Odoo and `tenant_status_pushed` disagreeing). The lock is not a transaction:
+ * no transaction stays open while the effect runs. The desired state is read again after the lock is held, so a state
+ * that flipped since selection is pushed, not the stale one. A tenant another worker holds is skipped (`null`).
+ */
+async function pushUnderLock(pool: Pool, row: { id: string; tenant_id: string }, runner: TenantStatusRunner): Promise<'pushed' | 'skipped' | null> {
+  const client = await pool.connect()
+  let locked = false, broken = false
+  try {
+    locked = (await client.query('SELECT pg_try_advisory_lock(hashtextextended($1,0)) AS ok', [`tenant-status:${row.tenant_id}`])).rows[0].ok === true
+    if (!locked) return null
+    const current = (await client.query(`SELECT CASE WHEN state='suspended' THEN 'suspended' ELSE 'active' END AS wanted,tenant_status_pushed AS pushed
+      FROM subscriptions WHERE id=$1 AND tenant_id IS NOT NULL`, [row.id])).rows[0] as { wanted: TenantStatus; pushed: TenantStatus | null } | undefined
+    if (!current || current.pushed === current.wanted) return 'skipped'
+    await runner({ tenant_id: row.tenant_id, status: current.wanted })
+    await client.query('UPDATE subscriptions SET tenant_status_pushed=$2,tenant_status_failures=0,tenant_status_next_at=NULL WHERE id=$1', [row.id, current.wanted])
+    return 'pushed'
+  } finally {
+    if (locked) {
+      try { await client.query('SELECT pg_advisory_unlock(hashtextextended($1,0))', [`tenant-status:${row.tenant_id}`]) } catch { broken = true }
+    }
+    // A connection that may still hold the lock is closed, which releases it.
+    client.release(broken || undefined)
+  }
+}
+
 /** Backoff after a failed push: 1, 2, 4 ... 60 minutes. */
 const BACKOFF_SQL = "now() + LEAST(power(2, tenant_status_failures), 60) * interval '1 minute'"
 
@@ -74,15 +102,13 @@ export async function syncTenantStatus(pool: Pool, input: { runner: TenantStatus
   const pushed: string[] = [], failed: string[] = []
   for (const row of due) {
     if (Date.now() - started >= budget || await input.busy?.()) break
-    try {
-      await input.runner({ tenant_id: row.tenant_id, status: row.wanted })
-      await pool.query('UPDATE subscriptions SET tenant_status_pushed=$2,tenant_status_failures=0,tenant_status_next_at=NULL WHERE id=$1', [row.id, row.wanted])
-      pushed.push(row.id)
-    } catch (error) {
-      failed.push(row.id)
+    const outcome = await pushUnderLock(pool, row, input.runner).catch(async error => {
       await pool.query(`UPDATE subscriptions SET tenant_status_failures=tenant_status_failures+1,tenant_status_next_at=${BACKOFF_SQL} WHERE id=$1`, [row.id])
       input.log?.(`tenant status ${row.wanted} not pushed for subscription ${row.id}`, error)
-    }
+      return 'failed' as const
+    })
+    if (outcome === 'pushed') pushed.push(row.id)
+    else if (outcome === 'failed') failed.push(row.id)
   }
   return { pushed, failed }
 }
