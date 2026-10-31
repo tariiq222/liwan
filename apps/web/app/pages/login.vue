@@ -89,11 +89,13 @@ async function submitTotp() {
 </script>
 
 <template>
-  <SharedStandalonePage>
+  <SharedStandalonePage surface="brand">
+    <template #brand>
+      <SharedBrandWordmark size="lg" inverted data-testid="login-brand" />
+    </template>
     <template #header>
       <div class="flex flex-col items-center text-center">
         <img v-if="branding?.logo_url" :src="branding.logo_url" :alt="branding.name" class="mb-4 h-14 w-auto max-w-full object-contain" />
-        <SharedBrandWordmark v-else size="lg" class="mb-3" />
         <h1 class="text-2xl font-semibold text-highlighted">{{ productName }}</h1>
         <p class="text-sm text-muted">{{ $t('auth.signInToContinue') }}</p>
       </div>

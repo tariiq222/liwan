@@ -10,12 +10,12 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
-  parameters: storyContext('unused', 'شعار ليوان المعتمد: العلامة بلون العميل مع الاسم؛ يُستخدم في الشريط الجانبي وصفحة الدخول.'),
+  parameters: storyContext('unused', 'شعار LiwanOS المعتمد: علامة النجمة والمعين بلون ليوان مع «نظام ليوان»؛ بالسُّمك الأثقل لأنها دون 24px.'),
   args: { size: 'md' },
 }
 
 export const OnRail: Story = {
-  parameters: storyContext('unused', 'يعرض الشعار الأبيض فوق خلفية الشريط الجانبي الداكنة.'),
+  parameters: storyContext('unused', 'الشعار الأبيض فوق سطح لافندر، كما في صفحة الدخول؛ الحجم الكبير بالسُّمك العادي.'),
   args: { size: 'lg', inverted: true },
   render: args => ({
     components: { BrandWordmark },
