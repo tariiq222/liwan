@@ -1,7 +1,8 @@
 import { test, expect, type Page } from '@playwright/test'
 
 test.skip(process.env.E2E_PROJECT_POPUPS !== '1', 'Isolated project mock only')
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page, context, baseURL }) => {
+  await context.addCookies([{ name: 'liwan-context-sidebar', value: 'open', url: baseURL! }])
   await page.goto('/login')
   await page.getByLabel('اسم المستخدم').fill('admin')
   await page.getByLabel('كلمة المرور', { exact: true }).fill('admin')

@@ -24,8 +24,8 @@ test.describe('Tasmim context sidebar', () => {
   test.use({ viewport: { width: 1440, height: 900 } })
   test.beforeEach(async ({ page }) => { await login(page) })
 
-  test('collapse survives a reload and is server-rendered before hydration', async ({ page, context }) => {
-    await context.clearCookies({ name: 'liwan-context-sidebar' })
+  test('collapse survives a reload and is server-rendered before hydration', async ({ page, context, baseURL }) => {
+    await context.addCookies([{ name: 'liwan-context-sidebar', value: 'open', url: baseURL! }])
     await page.goto('/tasks')
     const sidebar = page.getByTestId('application-navigation')
     const toggle = page.getByTestId('context-sidebar-toggle')
@@ -33,15 +33,15 @@ test.describe('Tasmim context sidebar', () => {
     await expect(sidebar).toHaveAttribute('data-expanded', 'true')
     await toggle.click()
     await expect(sidebar).toHaveAttribute('data-expanded', 'false')
-    await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(64)
+    await expect(sidebar).toBeHidden()
     expect((await context.cookies()).find(cookie => cookie.name === 'liwan-context-sidebar')?.value).toBe('closed')
 
     const hydrate = await beforeHydration(page, '/tasks')
     await expect(sidebar).toHaveAttribute('data-expanded', 'false')
-    await expect(toggle).toBeDisabled()
+    await expect(sidebar).toBeHidden()
     hydrate()
-    await expect(toggle).toBeEnabled()
-    await toggle.click()
+    await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
+    await page.keyboard.press('BracketLeft')
     await expect(sidebar).toHaveAttribute('data-expanded', 'true')
     await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(230)
   })

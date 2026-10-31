@@ -10,7 +10,11 @@ async function open(page: Page, path: string) {
 // Run only against the isolated mock stack; this suite does not mutate business records.
 test.describe('unified application navigation', () => {
   test.use({ viewport: { width: 1440, height: 900 } })
-  test.beforeEach(async ({ page }) => { await login(page); await open(page, '/meetings') })
+  test.beforeEach(async ({ page, context, baseURL }) => {
+    await context.addCookies([{ name: 'liwan-context-sidebar', value: 'open', url: baseURL! }])
+    await login(page)
+    await open(page, '/meetings')
+  })
 
   test('keeps the main application rail and only the current internal menu', async ({ page }) => {
     const menu = page.getByTestId('application-navigation')
@@ -48,18 +52,6 @@ test.describe('unified application navigation', () => {
     expect(await fitsWidth(page)).toBe(true)
   })
 
-  test('collapsed navigation opens only one popup and keeps destinations reachable', async ({ page }) => {
-    await page.getByTestId('context-sidebar-toggle').click()
-    await expect(page.getByTestId('application-navigation')).toHaveAttribute('data-expanded', 'false')
-    await page.getByTestId('navigation-app-meetings').click()
-    await expect(page.getByTestId('navigation-submenu-meetings')).toBeVisible()
-    await page.getByTestId('module-rail').getByRole('link', { name: 'المشاريع', exact: true }).click()
-    await page.getByTestId('navigation-app-projects').click()
-    await expect(page.getByTestId('navigation-submenu-projects')).toBeVisible()
-    await expect(page.getByTestId('navigation-submenu-meetings')).toHaveCount(0)
-    await page.keyboard.press('Escape')
-    await expect(page.getByTestId('navigation-submenu-projects')).toHaveCount(0)
-  })
 })
 
 test.describe('unified mobile navigation', () => {
@@ -79,5 +71,59 @@ test.describe('unified mobile navigation', () => {
     await expect(page).toHaveURL(/\/meetings\?state=done$/)
     await expect(drawer).toBeHidden()
     expect(await fitsWidth(page)).toBe(true)
+  })
+})
+
+test.describe('hidden application menu', () => {
+  test.use({ viewport: { width: 1440, height: 900 } })
+
+  test('takes no room, opens over the page from the rail, and can be kept open', async ({ page, context }) => {
+    await context.clearCookies({ name: 'liwan-context-sidebar' })
+    await login(page)
+    await open(page, '/my-tasks')
+    const menu = page.getByTestId('application-navigation')
+    const main = page.locator('main').first()
+    await expect(menu).toBeHidden()
+    const start = (await main.boundingBox())!
+
+    await page.getByTestId('module-rail').getByRole('link', { name: 'مهامي', exact: true }).hover()
+    await expect(menu).toBeVisible()
+    await expect(menu).toHaveAttribute('data-overlay', 'true')
+    expect((await main.boundingBox())!.width).toBe(start.width)
+
+    await page.getByTestId('module-rail').getByRole('link', { name: 'الاجتماعات', exact: true }).hover()
+    await expect(menu).toHaveAttribute('aria-label', 'الاجتماعات')
+    await page.keyboard.press('Escape')
+
+    await page.getByTestId('module-rail').getByRole('link', { name: 'مهامي', exact: true }).hover()
+    await menu.hover()
+    await page.getByTestId('context-sidebar-toggle').click()
+    await expect(menu).not.toHaveAttribute('data-overlay', 'true')
+    await expect.poll(async () => (await menu.boundingBox())!.width).toBe(230)
+    await page.mouse.move(800, 500)
+    await expect(menu).toBeVisible()
+    expect((await main.boundingBox())!.width).toBeLessThan(start.width)
+  })
+})
+
+test.describe('folded card on a touch device', () => {
+  test.use({ viewport: { width: 1024, height: 900 }, isMobile: true, hasTouch: true })
+  test.beforeEach(async ({ page, context, baseURL }) => {
+    await context.addCookies([{ name: 'liwan-context-sidebar', value: 'open', url: baseURL! }])
+    await login(page)
+    await open(page, '/meetings')
+  })
+
+  test('collapsed navigation opens only one popup and keeps destinations reachable', async ({ page }) => {
+    await page.getByTestId('context-sidebar-toggle').click()
+    await expect(page.getByTestId('application-navigation')).toHaveAttribute('data-expanded', 'false')
+    await page.getByTestId('navigation-app-meetings').click()
+    await expect(page.getByTestId('navigation-submenu-meetings')).toBeVisible()
+    await page.getByTestId('module-rail').getByRole('link', { name: 'المشاريع', exact: true }).click()
+    await page.getByTestId('navigation-app-projects').click()
+    await expect(page.getByTestId('navigation-submenu-projects')).toBeVisible()
+    await expect(page.getByTestId('navigation-submenu-meetings')).toHaveCount(0)
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('navigation-submenu-projects')).toHaveCount(0)
   })
 })

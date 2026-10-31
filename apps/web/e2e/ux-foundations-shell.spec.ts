@@ -13,14 +13,14 @@ test('foundation home is the personal day page: indicators and the top of my wor
   await expect(page.getByText('الوصول السريع')).toBeVisible()
 })
 
-test('tablet defaults collapse before interaction and only explicit toggles persist across resize and refresh', async ({ page, context }) => {
+test('the menu starts hidden and only an explicit choice persists across resize and refresh', async ({ page, context }) => {
   await page.setViewportSize({ width: 768, height: 1000 })
   await enterFoundation(page, '/projects')
   const sidebar = page.getByTestId('application-navigation')
   await expect(sidebar).toHaveAttribute('data-expanded', 'false')
-  await expect.poll(async () => Math.round((await sidebar.boundingBox())!.width)).toBe(64)
+  await expect(sidebar).toBeHidden()
   expect((await context.cookies()).find(cookie => cookie.name === 'liwan-context-sidebar')).toBeUndefined()
-  await page.getByTestId('context-sidebar-toggle').click()
+  await page.keyboard.press('BracketLeft')
   await expect(sidebar).toHaveAttribute('data-expanded', 'true')
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.reload()
@@ -29,7 +29,7 @@ test('tablet defaults collapse before interaction and only explicit toggles pers
   await page.setViewportSize({ width: 1099, height: 1000 })
   await page.reload()
   await expect(sidebar).toHaveAttribute('data-expanded', 'false')
-  await expect.poll(async () => Math.round((await sidebar.boundingBox())!.width)).toBe(64)
+  await expect(sidebar).toBeHidden()
 })
 
 for (const width of [767, 1100]) {
@@ -41,7 +41,7 @@ for (const width of [767, 1100]) {
       const menu = page.getByRole('button', { name: /فتح القائمة|فتح التنقل|التنقل/ }).first()
       await expect(menu).toBeVisible()
     } else {
-      await expect(page.getByTestId('application-navigation')).toHaveAttribute('data-expanded', 'true')
+      await expect(page.getByTestId('application-navigation')).toHaveAttribute('data-expanded', 'false')
     }
   })
 }
@@ -60,10 +60,11 @@ test('an internal account without application features can use Home without prot
   await expect(page.getByTestId('foundation-home').locator('a[href^="/projects"]')).toHaveCount(0)
 })
 
-test('a deliberate shell visit starts at top even for the same list path or an active link', async ({ page }) => {
+test('a deliberate shell visit starts at top even for the same list path or an active link', async ({ page, context, baseURL }) => {
+  await context.addCookies([{ name: 'liwan-context-sidebar', value: 'open', url: baseURL! }])
   await enterFoundation(page, '/projects?q=مهمة')
-  await page.evaluate(() => { document.body.style.minHeight = '4000px'; window.scrollTo(0, 600) })
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(600)
+  await page.evaluate(() => { document.body.style.minHeight = '4000px'; window.scrollTo(0, 500) })
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(500)
   await page.evaluate(() => (document.querySelector('.liwan-navigation-children a[href="/projects"]') as HTMLElement).click())
   await expect(page).toHaveURL(/\/projects$/)
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
@@ -77,8 +78,8 @@ test.describe('mobile drawer entry', () => {
   test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } })
   test('an active drawer destination starts a fresh list visit', async ({ page }) => {
     await enterFoundation(page, '/projects')
-    await page.evaluate(() => { document.body.style.minHeight = '4000px'; window.scrollTo(0, 600) })
-    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(600)
+    await page.evaluate(() => { document.body.style.minHeight = '4000px'; window.scrollTo(0, 500) })
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(500)
     await page.getByTestId('mobile-navigation-trigger').click()
     const dialog = page.getByRole('dialog')
     const projects = dialog.getByTestId('mobile-application-navigation').getByRole('link', { name: 'عرض الكل', exact: true })

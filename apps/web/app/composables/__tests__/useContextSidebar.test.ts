@@ -10,19 +10,30 @@ vi.mock('@vueuse/core', () => ({
 const shown = ref(false)
 vi.mock('../useAssistantSheet', () => ({ useAssistantSheet: () => ({ shown }) }))
 const cookie = ref<'open' | 'closed' | null>(null)
+const path = ref('/chat')
 
 beforeEach(() => {
   desktop.value = true
   wide.value = true
   shown.value = false
   cookie.value = null
+  path.value = '/chat'
   vi.stubGlobal('computed', computed)
   vi.stubGlobal('useCookie', () => cookie)
   vi.stubGlobal('useHydrated', () => ref(true))
+  vi.stubGlobal('useRoute', () => ({ get path() { return path.value } }))
 })
 afterEach(() => vi.unstubAllGlobals())
 
 describe('useContextSidebar', () => {
+  it('opens by itself only for an application with a side panel', async () => {
+    const { useContextSidebar } = await import('../useShellNavigation')
+    const sidebar = useContextSidebar()
+    expect(sidebar.expanded.value).toBe(true)
+    path.value = '/my-tasks'
+    expect(sidebar.expanded.value).toBe(false)
+  })
+
   it('collapses while the assistant sheet is open on desktop, without writing the cookie', async () => {
     const { useContextSidebar } = await import('../useShellNavigation')
     const sidebar = useContextSidebar()
