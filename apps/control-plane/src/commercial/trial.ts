@@ -65,7 +65,7 @@ export async function startTrial(pool: Pool, input: { customer_id: string; reque
 }
 
 /** Push the trial's Odoo hard expiry on every trial-date mutation, not only at fulfilment. */
-async function pushCommercialExpiry(client: PoolClient, subscription_id: string, value: string | null) {
+export async function pushCommercialExpiry(client: PoolClient, subscription_id: string, value: string | null) {
   const row = (await client.query(`SELECT s.*,r.snapshot
     FROM subscriptions s JOIN subscription_revisions r ON r.id=s.applied_revision_id
     WHERE s.id=$1`, [subscription_id])).rows[0]

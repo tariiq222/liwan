@@ -72,6 +72,33 @@ suite('subscription suspension reaches the tenant', () => {
       expect(resumed.state).toBe('past_due')
       expect(new Date(resumed.grace_ends_at).getTime()).toBeGreaterThan(Date.now())
     })
+    it('publishes a revisioned commercial-expiry update when resume grants a fresh grace period to an expired trial', async () => {
+      const s = await subscription('past_due')
+      const revision = randomUUID(), order = randomUUID()
+      const entitlement = { modules: ['liwan_core'], features: { 'users.limit': 3 }, digest: 'a'.repeat(64), compiler_version: 1 }
+      await pool.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,1,$3,$4)', [revision, s.id, { entitlement }, randomUUID()])
+      await pool.query(`INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent)
+        VALUES($1,$2,$3,'new',$4,$5,'not_required','applied',$6,'fixture',0,'SAR',2)`, [order, s.customer, s.id, randomUUID(), revision, randomUUID()])
+      await pool.query("UPDATE subscriptions SET applied_revision_id=$2,trial_ends_at=now() - interval '30 days',commercial_expiry_revision=3,revision=revision+1 WHERE id=$1", [s.id, revision])
+      await pool.query(`INSERT INTO invoices(id,customer_id,subscription_id,kind,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,due_at,status)
+        VALUES($1,$2,$3,'renewal','SAR',2,100,15,115,'2026-10-01','2026-11-01',now() - interval '10 days','issued')`, [randomUUID(), s.customer, s.id])
+      await suspendSubscription(pool, { subscription_id: s.id, reason, actor: '7' })
+      await resumeSubscription(pool, { subscription_id: s.id, reason, actor: '7' })
+      const after = await row(s.id)
+      expect(after.state).toBe('past_due')
+      expect((await pool.query('SELECT commercial_expiry_revision FROM subscriptions WHERE id=$1', [s.id])).rows[0].commercial_expiry_revision).toBe(4)
+      const job = (await pool.query("SELECT payload FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'operation'='reconfigure'", [s.tenantId])).rows[0].payload
+      const graceDate = new Date(after.grace_ends_at)
+      graceDate.setUTCDate(graceDate.getUTCDate())
+      expect(job.authority).toMatchObject({ order_id: order, target_revision_id: revision, commercial_valid_until: graceDate.toISOString().slice(0, 10), commercial_valid_until_revision: 4,
+        branches: { apply: [], archive: [] } })
+    })
+    it('sends no expiry update for a paid subscription, which carries none in Odoo', async () => {
+      const s = await subscription('active')
+      await suspendSubscription(pool, { subscription_id: s.id, reason, actor: '7' })
+      await resumeSubscription(pool, { subscription_id: s.id, reason, actor: '7' })
+      expect((await pool.query('SELECT 1 FROM shared_jobs WHERE control_tenant_id=$1', [s.tenantId])).rowCount).toBe(0)
+    })
     it('is not lifted by a paid renewal; only the vendor resumes it', async () => {
       const s = await subscription('past_due')
       await suspendSubscription(pool, { subscription_id: s.id, reason, actor: '7' })

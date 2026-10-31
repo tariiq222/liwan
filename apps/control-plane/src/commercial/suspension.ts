@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto'
 import type { Pool } from 'pg'
 import { transaction } from '../db.js'
 import { CommercialHttpError } from './lifecycle.js'
+import { commercialExpiryDate } from './fulfillment.js'
+import { pushCommercialExpiry } from './trial.js'
 
 export type TenantStatus = 'active' | 'suspended'
 /** Writes the tenant's Odoo profile status (the shared worker's Odoo adapter); resolves once Odoo confirmed it. */
@@ -31,7 +33,7 @@ export async function suspendSubscription(pool: Pool, input: { subscription_id: 
  */
 export async function resumeSubscription(pool: Pool, input: { subscription_id: string; reason: string; actor: string }) {
   await transaction(pool, async client => {
-    const row = (await client.query(`SELECT s.id,p.grace_days,(s.trial_ends_at > now()) AS trial_running,EXISTS (SELECT 1 FROM invoices i WHERE i.subscription_id=s.id AND i.status='issued' AND i.due_at < now()) AS overdue
+    const row = (await client.query(`SELECT s.id,p.grace_days,(s.trial_ends_at > now()) AS trial_running,s.trial_ends_at IS NOT NULL AS has_expiry,EXISTS (SELECT 1 FROM invoices i WHERE i.subscription_id=s.id AND i.status='issued' AND i.due_at < now()) AS overdue
       FROM subscriptions s LEFT JOIN subscription_revisions sr ON sr.id=s.applied_revision_id
       LEFT JOIN plan_revisions p ON p.id=(sr.snapshot->>'plan_revision_id')::uuid
       WHERE s.id=$1 AND s.state='suspended' FOR UPDATE OF s`, [input.subscription_id])).rows[0]
@@ -42,6 +44,12 @@ export async function resumeSubscription(pool: Pool, input: { subscription_id: s
     await client.query(`UPDATE subscriptions SET state=$2,manual_suspension=false,
       grace_ends_at=CASE WHEN $2='past_due' THEN now() + make_interval(days => $3::int) ELSE NULL END,revision=revision+1 WHERE id=$1`,
     [input.subscription_id, next, graceDays])
+    // A trial's Odoo expiry (trial end plus grace) keeps the tenant read-only once it has passed, so the fresh grace period
+    // has to reach Odoo too, as an ordinary revisioned expiry update. A paid subscription carries no Odoo expiry.
+    if (next === 'past_due' && row.has_expiry) {
+      const grace = (await client.query('SELECT grace_ends_at FROM subscriptions WHERE id=$1', [input.subscription_id])).rows[0].grace_ends_at
+      await pushCommercialExpiry(client, input.subscription_id, commercialExpiryDate(grace, 0))
+    }
     await audited(client, { ...input, action: 'subscription.resumed' })
   })
 }
