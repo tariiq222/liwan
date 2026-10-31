@@ -125,6 +125,7 @@ class TaskArchiveController(http.Controller):
         project = request.env['project.project'].with_context(active_test=False).browse(task.project_id.id).exists()
         if not project:
             raise MissingError(request.env._('project not found'))
+        project._liwan_check_archived_readable()
         if not project.active:
             raise ApiError(422, 'archived_project', 'Tasks cannot be restored while the project is archived.')
         if not task._liwan_can_archive():

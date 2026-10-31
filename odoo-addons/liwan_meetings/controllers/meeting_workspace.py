@@ -5,7 +5,7 @@ from odoo.http import request
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
-    get_record,
+    get_visible_record,
     parse_nonneg_int,
     require_capabilities,
     requires_feature,
@@ -74,7 +74,7 @@ class MeetingWorkspaceController(http.Controller):
     @requires_feature('meetings.enabled', operation='read')
     def meeting_events(self, meeting_id, **_):
         self._read()
-        meeting = get_record('liwan.meeting.minute', meeting_id)
+        meeting = get_visible_record('liwan.meeting.minute', meeting_id)
         limit, offset = _page_args()
         Event = request.env['liwan.meeting.event']
         domain = [('meeting_id', '=', meeting.id), ('company_id', 'in', request.env.companies.ids)]
@@ -86,7 +86,7 @@ class MeetingWorkspaceController(http.Controller):
     @requires_feature('meetings.enabled', operation='read')
     def series_events(self, series_id, **_):
         self._read()
-        series = get_record('liwan.meeting.series', series_id)
+        series = get_visible_record('liwan.meeting.series', series_id)
         meeting_ids = _meeting_ids_for_series(series)
         limit, offset = _page_args()
         Event = request.env['liwan.meeting.event']
@@ -99,7 +99,7 @@ class MeetingWorkspaceController(http.Controller):
     @requires_feature('meetings.enabled', operation='read')
     def meeting_versions(self, meeting_id, **_):
         self._read()
-        meeting = get_record('liwan.meeting.minute', meeting_id)
+        meeting = get_visible_record('liwan.meeting.minute', meeting_id)
         limit, offset = _page_args()
         Version = request.env['liwan.meeting.minutes.version']
         domain = [('meeting_id', '=', meeting.id), ('company_id', 'in', request.env.companies.ids)]
@@ -111,8 +111,8 @@ class MeetingWorkspaceController(http.Controller):
     @requires_feature('meetings.enabled', operation='read')
     def meeting_version(self, meeting_id, version_id, **_):
         self._read()
-        meeting = get_record('liwan.meeting.minute', meeting_id)
-        version = get_record('liwan.meeting.minutes.version', version_id)
+        meeting = get_visible_record('liwan.meeting.minute', meeting_id)
+        version = get_visible_record('liwan.meeting.minutes.version', version_id)
         if version.company_id not in request.env.companies or version.meeting_id != meeting:
             raise ApiError(404, 'not_found', 'meeting version not found')
         return dump_version(version)
@@ -122,7 +122,7 @@ class MeetingWorkspaceController(http.Controller):
     @requires_feature('meetings.enabled', operation='read')
     def series_resolutions(self, series_id, **_):
         self._read()
-        series = get_record('liwan.meeting.series', series_id)
+        series = get_visible_record('liwan.meeting.series', series_id)
         domain = _resolution_filters([
             ('meeting_id.series_id', '=', series.id),
             ('meeting_id.company_id', 'in', request.env.companies.ids),

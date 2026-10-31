@@ -40,6 +40,15 @@ class TestOperationsCompletion(LiwanPmoCase):
         self.assertEqual((record.state, record.execution_count, task.state), ('done', 1, '1_done'))
         self.assertFalse(task.liwan_completion_pending)
 
+    def test_the_operations_path_adds_no_second_pmo_completion_row(self):
+        record, task = self._operation()
+        record.with_user(self.manager).action_approve(1)
+        pmo_rows = self.env['mail.message'].sudo().search([
+            ('liwan_task_id', '=', task.id),
+            ('liwan_notification_kind', 'in', ('completion_requested', 'completion_accepted')),
+        ])
+        self.assertFalse(pmo_rows, 'the operations bell already tells the reviewer and the requester')
+
     def test_an_independent_pmo_decision_makes_operation_stale(self):
         record, task = self._operation()
         task.with_user(self.manager)._liwan_accept_completion(task.liwan_completion_revision)

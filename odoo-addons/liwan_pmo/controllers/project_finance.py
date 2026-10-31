@@ -3,10 +3,10 @@ from odoo import http
 from odoo.exceptions import AccessError
 from odoo.http import request
 
+from .records import get_visible_record
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
-    get_record,
     parse_nonneg_int,
     require_capabilities,
     requires_feature,
@@ -31,7 +31,7 @@ def _finance_project(project_id):
     # get_record answers the uniform not-found for a foreign-company project
     # and lets the pinned record rules decide the rest; no duplicate company
     # check here. Finance stays out of scope for archived projects.
-    project = get_record('project.project', project_id)
+    project = get_visible_record('project.project', project_id, archived_write=True)
     if not project.active:
         raise ApiError(404, 'not_found', "project not found")
     return project
@@ -166,7 +166,8 @@ class ProjectFinanceController(http.Controller):
         if account_id is not None and (isinstance(account_id, bool) or not isinstance(account_id, int) or account_id <= 0):
             raise ApiError(422, 'invalid', "account_id must be a positive integer or null", field='account_id')
         project = _finance_project(project_id)
-        project._liwan_check_manage()
+        # Who may link a cost center is the actual source's rule (the finance bridge asks for
+        # finance.analytic.manage), not the project manager's: the finance owner links it.
         request.env['liwan.project.actual.source']._liwan_set_actual_account(project, account_id)
         return build_finance_summary(project)
 

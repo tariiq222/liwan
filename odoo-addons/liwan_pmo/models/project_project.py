@@ -2,7 +2,7 @@
 import math
 
 from odoo import api, fields, models
-from odoo.exceptions import AccessError, UserError, ValidationError
+from odoo.exceptions import AccessError, MissingError, UserError, ValidationError
 
 from .liwan_settings import CREATORS
 from .project_charter import LiwanCharterState
@@ -385,6 +385,22 @@ class ProjectProject(models.Model):
         return self.env['liwan.access.service']._liwan_has_capability(
             self.env.user, 'pmo.projects.manage', record=self,
         )
+
+    def _liwan_is_member(self):
+        """Whether the caller works on this project: manages or sponsors it, follows it or holds one of its tasks."""
+        self.ensure_one()
+        user = self.env.user
+        if self._liwan_can_manage() or user == self.liwan_sponsor_id or user in self._liwan_followers():
+            return True
+        return bool(self.env['project.task'].with_context(active_test=False).search_count(
+            [('project_id', '=', self.id), ('user_ids', 'in', user.id)], limit=1,
+        ))
+
+    def _liwan_check_archived_readable(self):
+        """An archived project is read from its link by its members; anyone else gets not-found."""
+        self.ensure_one()
+        if not self.active and not self._liwan_is_member():
+            raise MissingError(self.env._("Record does not exist"))
 
     def _liwan_check_manage(self):
         if not self._liwan_can_manage():

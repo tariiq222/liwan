@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { projectListReturnTo } from '../projectNavigation'
+import { archivedTags, projectListReturnTo } from '../projectNavigation'
 
 describe('project list origin', () => {
   it('recovers a filtered list through nested detail and edit routes', () => {
@@ -18,4 +18,12 @@ it('rejects a current-project self origin and removes it from a copied parent ch
   const paths = ['/projects', '/projects/2', '/projects/2/tasks']
   expect(projectRecordBack({ returnTo: '/projects/2' }, 2, paths)).toEqual({ path: '/projects', query: {} })
   expect(projectRecordBack({ returnTo: '/projects/1?returnTo=%2Fprojects%2F2' }, 2, paths)).toBe('/projects/1')
+})
+
+describe('archived project tag', () => {
+  const t = (key: string) => key
+  it('tags an archived project and leaves an active one untagged', () => {
+    expect(archivedTags({ active: false }, t)).toEqual([{ label: 'projects.archivedBadge', tone: 'neutral', testId: 'project-workspace-archived' }])
+    expect(archivedTags({ active: true }, t)).toEqual([])
+  })
 })

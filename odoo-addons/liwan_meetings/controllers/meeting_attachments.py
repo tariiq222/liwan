@@ -8,7 +8,7 @@ from odoo.addons.liwan_api.controllers.attachment_download import (
 )
 from odoo.addons.liwan_api.controllers.common import (
     api_handler,
-    get_record,
+    get_visible_record,
     require_capabilities,
     requires_feature,
 )
@@ -36,7 +36,7 @@ class MeetingAttachmentController(http.Controller):
     @requires_feature('meetings.enabled', operation='read')
     def list_meeting_attachments(self, meeting_id):
         require_capabilities('meetings.read')
-        meeting = get_record('liwan.meeting.minute', meeting_id)
+        meeting = get_visible_record('liwan.meeting.minute', meeting_id)
         attachments = self._attachments(meeting)
         for attachment in attachments:
             attachment.check_access('read')
@@ -50,7 +50,7 @@ class MeetingAttachmentController(http.Controller):
     @requires_feature('meetings.enabled', operation='read')
     def download_meeting_attachment(self, meeting_id, attachment_id, **_):
         require_capabilities('meetings.read')
-        meeting = get_record('liwan.meeting.minute', meeting_id)
+        meeting = get_visible_record('liwan.meeting.minute', meeting_id)
         return download_linked_attachment(self._attachments(meeting), attachment_id)
 
     @http.route('/api/v1/meetings/<int:meeting_id>/attachments', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -58,7 +58,7 @@ class MeetingAttachmentController(http.Controller):
     @requires_feature('meetings.enabled', operation='write')
     def upload_meeting_attachment(self, meeting_id, **payload):
         require_capabilities('meetings.read')
-        meeting = get_record('liwan.meeting.minute', meeting_id)
+        meeting = get_visible_record('liwan.meeting.minute', meeting_id)
         if not meeting.can_edit:
             raise AccessError(request.env._("You are not allowed to change this meeting."))
         payload.pop('meeting_id', None)
@@ -83,7 +83,7 @@ class MeetingAttachmentController(http.Controller):
     @requires_feature('meetings.enabled', operation='write')
     def delete_meeting_attachment(self, meeting_id, attachment_id):
         require_capabilities('meetings.read')
-        meeting = get_record('liwan.meeting.minute', meeting_id)
+        meeting = get_visible_record('liwan.meeting.minute', meeting_id)
         if not meeting.can_edit:
             raise AccessError(request.env._("You are not allowed to change this meeting."))
         attachment = self._attachments(meeting).filtered(lambda item: item.id == attachment_id)

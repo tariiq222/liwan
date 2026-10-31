@@ -15,7 +15,7 @@ CONVERSATION_KEYS = (
 )
 MESSAGE_KEYS = (
     'id', 'conversation_id', 'author', 'body', 'created_at', 'attachments',
-    'parent', 'edited', 'pinned', 'starred', 'reactions', 'notice',
+    'parent', 'edited', 'deleted', 'pinned', 'starred', 'reactions', 'notice',
 )
 MEMBER_KEYS = ('id', 'name', 'im_status')
 ATTACHMENT_KEYS = ('id', 'name', 'mimetype', 'url')
@@ -134,6 +134,12 @@ def _dump_reactions(message):
     return list(grouped.values())
 
 
+def message_deleted(message):
+    """A cleared message the company keeps as a «deleted» row: no text, no files, not a notice."""
+    attachments = message.attachment_ids.filtered(lambda attachment: attachment.type == 'binary' and not attachment.url)
+    return not message_notice(message) and not _plain_body(message.body) and not attachments
+
+
 def dump_message(message):
     author_user = _message_author_user(message)
     notice = message_notice(message)
@@ -149,6 +155,8 @@ def dump_message(message):
         'attachments': [dump_attachment(attachment, conversation_attachments_route(message.res_id)) for attachment in attachments],
         'parent': _dump_message_parent(message),
         'edited': 'o-mail-Message-edited' in (message.body or ''),
+        # A deleted message under the «placeholder» policy keeps its row with neither text nor files.
+        'deleted': message_deleted(message),
         'pinned': bool(message.pinned_at),
         'starred': bool(message.starred),
         'reactions': _dump_reactions(message),

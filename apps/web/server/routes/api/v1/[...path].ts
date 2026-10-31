@@ -1,5 +1,6 @@
 import { createError, getProxyRequestHeaders, sendWebResponse, setResponseHeader } from 'h3'
 import { boundedTenantBody, MAX_PUBLIC_HOOK_BODY, MAX_PUBLIC_MFA_BODY, tenantTransport, legacyTenantResponse, withTenantBody, withTenantResponse } from '../../../utils/tenantTransport'
+import { withUiLocale } from '../../../utils/uiLocale'
 import { tenantUpstreamHeaders } from '../../../utils/tenantRequest'
 import { requireApiSession } from '../../../utils/apiSessionAdmission'
 import { canonicalApiPath } from '../../../utils/apiPath'
@@ -54,6 +55,6 @@ export default defineEventHandler(async (event) => {
     if (publicNamespace) return withTenantResponse(event, scope, async () => sendWebResponse(event, await forwardPublicApi(event, odooUrl, path, { method: event.method, body })))
     return withTenantResponse(event, scope, async () => Object.keys(headers).length
       ? sendWebResponse(event, await tenantTransport(event, odooUrl, path, { method: event.method, body, heavy }))
-      : sendWebResponse(event, await legacyTenantResponse(event, odooUrl, path, { method: event.method, body, headers: getProxyRequestHeaders(event, { host: false }), heavy })))
+      : sendWebResponse(event, await legacyTenantResponse(event, odooUrl, path, { method: event.method, body, headers: withUiLocale(event, getProxyRequestHeaders(event, { host: false })), heavy })))
   })
 })

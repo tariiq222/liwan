@@ -11,12 +11,19 @@ ROLE_GRANTS = {
     'liwan_inbox.role_inbox_agent': frozenset({ORDERS_MANAGE}),
     'liwan_inbox.role_inbox_supervisor': frozenset({ORDERS_MANAGE}),
     'liwan_inbox.role_inbox_manager': PERMISSIONS,
-    'liwan_core.role_vendor_support': PERMISSIONS,
 }
 
 
 class LiwanInboxPaymentsAccessService(models.AbstractModel):
     _inherit = 'liwan.access.service'
+
+    @api.model
+    def _liwan_capability_keys(self, user=None, company=None):
+        user = user or self.env.user
+        keys = super()._liwan_capability_keys(user, company=company)
+        # Vendor support runs the channels and settings of the inbox and reads no customer content (INB-18): the
+        # foundation shortcut that grants the whole catalog must not reach the customers' orders and catalog.
+        return keys - PERMISSIONS if user.has_group('liwan_core.group_vendor_support') else keys
 
     @api.model
     def _liwan_capability_definitions(self):

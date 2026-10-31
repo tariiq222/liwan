@@ -5,8 +5,17 @@ from odoo.exceptions import AccessError, ValidationError
 from odoo.fields import Command
 from odoo.tests import new_test_user, tagged
 
-from odoo.addons.liwan_ai.tests.common import CREATE_CAP, READ_CAP, WRITE_CAP, AiProbe
-from odoo.addons.liwan_api.tests.common import LiwanApiCase, set_probe_feature
+from odoo.addons.liwan_ai.tests.common import (
+    CREATE_CAP,
+    PROBE_TOOLS,
+    READ_CAP,
+    WRITE_CAP,
+    AiProbe,
+)
+from odoo.addons.liwan_api.tests.common import (
+    LiwanApiCase,
+    set_probe_feature,
+)
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 MESSAGE = {
@@ -57,6 +66,13 @@ class TestAiAudit(AiProbe, LiwanApiCase):
         self.assertEqual(self.env['liwan.ai.audit'].search_count([('kind', '=', 'message')]), 1)
         tools = self.api('GET', '/api/v1/ai/tools').json()
         self.assertEqual(tools['limits']['messages_used'], 1)
+
+    def test_a_tool_whose_feature_is_off_is_refused_by_the_route_gate(self):
+        set_probe_feature(self, enabled=False)
+        response = self.api('POST', '/api/v1/ai/audit', READ)
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()['code'], 'feature_not_included')
+        self.assertFalse(self.env['liwan.ai.audit'].search([('kind', '=', 'read')]))
 
     def test_tool_audit_stores_a_scrubbed_input_as_the_user(self):
         body = self.api('POST', '/api/v1/ai/audit', READ).json()
@@ -301,15 +317,27 @@ class TestAiAuditHardening(AiProbe, LiwanApiCase):
         self.assertEqual(response.status_code, 403)
         self.assertFalse(self.env['liwan.ai.audit'].search([]))
 
-    def test_direct_create_enforces_capability_and_feature(self):
+    def test_direct_create_enforces_the_tool_capability(self):
         self.granted = set()
         with self.assertRaises(AccessError):
             self.audit_a.create(READ)
-        self.granted = {READ_CAP}
-        set_probe_feature(self, enabled=False)
-        with self.assertRaises(AccessError):
-            self.audit_a.create(READ)
         self.assertFalse(self.env['liwan.ai.audit'].search([]))
+
+    def test_a_disabled_tool_feature_is_refused_while_another_tool_feature_is_on(self):
+        second = 'test_probe_second.enabled'
+        tools = tuple({**tool, 'feature_key': second} if tool['name'] == 'probe.rename_thing' else tool for tool in PROBE_TOOLS)
+        self.patch(type(self.env['liwan.ai.tool.registry']), '_liwan_ai_tool_definitions', lambda model: tools)
+        registry = type(self.env['liwan.feature.registry'])
+        definitions = registry._liwan_feature_definitions
+        probe = {'key': second, 'type': 'boolean', 'owner': 'liwan_platform', 'module': 'liwan_platform'}
+        self.patch(registry, '_liwan_feature_definitions', lambda model: (*definitions(model), probe))
+        set_probe_feature(self, second, enabled=False)
+        self.granted = {READ_CAP, WRITE_CAP}
+        write = {**READ, 'kind': 'write_light', 'tool_name': 'probe.rename_thing'}
+        refused = self.api('POST', '/api/v1/ai/audit', write)
+        self.assertEqual(refused.status_code, 403, refused.text)
+        self.assertFalse(self.env['liwan.ai.audit'].search([('tool_name', '=', 'probe.rename_thing')]))
+        self.assertEqual(self.api('POST', '/api/v1/ai/audit', READ).status_code, 200)
 
     def test_direct_create_rejects_forged_or_undocumented_values(self):
         for change, field in (

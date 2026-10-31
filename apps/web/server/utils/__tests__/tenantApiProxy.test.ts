@@ -26,7 +26,7 @@ describe('API proxy tenancy mode separation', () => {
     const { proxy, handler } = await setup()
     const event = { path: '/api/v1/me', node: { req: { headers: { cookie: 'session_id=synthetic' } } } }
     await handler(event as never)
-    expect(proxy).toHaveBeenCalledExactlyOnceWith(event, 'http://guard:8080', '/api/v1/me', { method: undefined, body: undefined, headers: {} })
+    expect(proxy).toHaveBeenCalledExactlyOnceWith(event, 'http://guard:8080', '/api/v1/me', { method: undefined, body: undefined, headers: { 'x-liwan-ui-locale': 'ar' } })
   })
 
   it('shared explicitly forwards trusted host, token and per-tenant revision', async () => {
@@ -74,7 +74,7 @@ describe('API proxy tenancy mode separation', () => {
     const { proxy, handler } = await setup()
     const event = { path: '/api/v1/branding', method: 'GET', node: { req: { headers: {} } } }
     await handler(event as never)
-    expect(proxy).toHaveBeenCalledExactlyOnceWith(event, 'http://guard:8080', '/api/v1/branding', { method: 'GET', body: undefined, headers: {} })
+    expect(proxy).toHaveBeenCalledExactlyOnceWith(event, 'http://guard:8080', '/api/v1/branding', { method: 'GET', body: undefined, headers: { 'x-liwan-ui-locale': 'ar' } })
   })
 })
 

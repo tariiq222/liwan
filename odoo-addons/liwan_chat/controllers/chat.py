@@ -27,6 +27,7 @@ from odoo.addons.liwan_chat.serializers.chat import (
     dump_member,
     dump_message,
     dump_user_ref,
+    message_deleted,
     message_notice,
 )
 
@@ -194,6 +195,23 @@ class ChatController(http.Controller):
         self._service()._liwan_notify_channel(channel, 'message_created')
         return request.make_json_response(dump_message(message), status=201)
 
+    def _own_message(self, conversation_id, message_id):
+        """The channel and a message of it that the caller wrote and may change; a conversation notice is nobody's."""
+        service = self._service()
+        channel = service._liwan_member_channel(conversation_id)
+        message = service._liwan_channel_message(channel, message_id)
+        if message.author_id != request.env.user.partner_id:
+            raise ApiError(403, 'forbidden', 'only the message author can change it')
+        if message_notice(message):
+            raise ApiError(422, 'invalid', 'a conversation notice cannot be changed')
+        return channel, message
+
+    @staticmethod
+    def _live_message(message):
+        """A cleared message stays as a row only: it cannot be edited, pinned or reacted to again."""
+        if message_deleted(message):
+            raise ApiError(422, 'invalid', 'the message was deleted')
+
     @http.route(
         '/api/v1/chat/conversations/<int:conversation_id>/messages/<int:message_id>',
         type='json2', auth='user', methods=['PATCH'], readonly=False,
@@ -204,21 +222,33 @@ class ChatController(http.Controller):
         _reject_extra(payload, MESSAGE_PATCH_FIELDS)
         if 'body' not in payload or not isinstance(payload['body'], str):
             raise ApiError(422, 'invalid', 'body must be a string', field='body')
-        service = self._service()
-        channel = service._liwan_member_channel(conversation_id)
-        message = service._liwan_channel_message(channel, message_id)
-        if message.author_id != request.env.user.partner_id:
-            raise ApiError(403, 'forbidden', 'only the message author can edit it')
-        if message_notice(message):
-            raise ApiError(422, 'invalid', 'a conversation notice cannot be edited')
         body = payload['body']
-        # sudo: mail.message - the author check above is the access check; the stock edit route elevates the
-        # same way because emptying a message reads its link previews (base.group_erp_manager only).
-        channel._message_update_content(
-            message.sudo(), body=plaintext2html(body) if body.strip() else '',
-        )
-        service._liwan_notify_channel(channel, 'message_updated')
+        if not body.strip():
+            raise ApiError(422, 'invalid', 'body must not be empty; delete the message instead', field='body')
+        channel, message = self._own_message(conversation_id, message_id)
+        self._live_message(message)
+        channel._message_update_content(message, body=plaintext2html(body))
+        self._service()._liwan_notify_channel(channel, 'message_updated')
         return dump_message(message)
+
+    @http.route(
+        '/api/v1/chat/conversations/<int:conversation_id>/messages/<int:message_id>',
+        type='json2', auth='user', methods=['DELETE'], readonly=False,
+    )
+    @api_handler
+    @requires_feature('chat.enabled', operation='write')
+    def delete_message(self, conversation_id, message_id, **payload):
+        _reject_extra(payload, frozenset())
+        channel, message = self._own_message(conversation_id, message_id)
+        deleted_id = message.id
+        mode = self._service()._liwan_delete_message(channel, message)
+        if mode == 'permanent':
+            # An open history keeps the ids a refetch no longer returns, so the removed id travels with the event.
+            self._service()._liwan_notify_channel(channel, 'message_deleted', extra={'message_id': deleted_id})
+        else:
+            self._service()._liwan_notify_channel(channel, 'message_updated')
+        # A cleared message keeps its row, so the page gets it back; a removed one is gone.
+        return {'mode': mode, 'message': dump_message(message) if mode == 'placeholder' else None}
 
     @http.route(
         '/api/v1/chat/conversations/<int:conversation_id>/messages/<int:message_id>/reactions',
@@ -237,6 +267,7 @@ class ChatController(http.Controller):
         service = self._service()
         channel = service._liwan_member_channel(conversation_id)
         message = service._liwan_channel_message(channel, message_id)
+        self._live_message(message)
         # sudo: mail.message.reaction has no user ACL; stock /mail/message/reaction does the same
         # after the caller proved channel membership (see _liwan_member_channel above).
         message.sudo()._message_reaction(
@@ -258,6 +289,8 @@ class ChatController(http.Controller):
         service = self._service()
         channel = service._liwan_member_channel(conversation_id)
         message = service._liwan_channel_message(channel, message_id)
+        if payload['pinned']:
+            self._live_message(message)
         channel.set_message_pin(message.id, payload['pinned'])
         message.invalidate_recordset(['pinned_at'])
         service._liwan_notify_channel(channel, 'pin_updated')

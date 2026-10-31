@@ -11,6 +11,9 @@ import { join } from 'node:path'
 const forbidden = /^(x-odoo-|x-openerp-|x-liwan-|forwarded$|x-forwarded-)/i
 // The web's double-submit CSRF token (compared with its cookie, never trusted as identity); Nuxt hop only.
 const browserHeaders = new Set(['x-liwan-csrf'])
+// The UI language the web proxy forwards on its trusted hop; any other value, or any other sender, is refused.
+const UI_LOCALE_HEADER = 'x-liwan-ui-locale'
+const uiLocale = value => value === 'ar' || value === 'en'
 const selectors = /^(db|database|session_id|sid)$/i
 // Match the BFF's fixed public auth budgets before this edge buffers JSON.
 // Separate hop pools avoid a public BFF request deadlocking its internal continuation.
@@ -64,7 +67,7 @@ export function requestPlan(req, registry, token, codec) {
   const internal = equal(req.headers['x-liwan-proxy-token'], token)
   if (!token || token.length < 32) throw Error('invalid_proxy_token')
   for (const name of Object.keys(req.headers)) {
-    if (forbidden.test(name) && !browserHeaders.has(name) && !(internal && ['x-liwan-proxy-token', 'x-liwan-tenant-revision', 'x-liwan-release-pool', 'x-liwan-release-revision', 'x-liwan-release-fence', 'x-liwan-release-admission'].includes(name))) throw Error('forbidden_header')
+    if (forbidden.test(name) && !browserHeaders.has(name) && !(internal && name === UI_LOCALE_HEADER && uiLocale(req.headers[name])) && !(internal && ['x-liwan-proxy-token', 'x-liwan-tenant-revision', 'x-liwan-release-pool', 'x-liwan-release-revision', 'x-liwan-release-fence', 'x-liwan-release-admission'].includes(name))) throw Error('forbidden_header')
   }
   if (internal && req.headers['x-liwan-tenant-revision'] !== String(tenant.registryRevision)) throw Error('stale_binding')
   if (!req.url.startsWith('/') || req.url.startsWith('//') || /[\\\r\n]/.test(req.url)) throw Error('invalid_path')
@@ -101,6 +104,7 @@ export function requestPlan(req, registry, token, codec) {
   const headers = { ...req.headers }
   for (const key of Object.keys(headers)) if (forbidden.test(key) && (odoo || !browserHeaders.has(key))) delete headers[key]
   delete headers.authorization
+  if (internal && uiLocale(req.headers[UI_LOCALE_HEADER])) headers[UI_LOCALE_HEADER] = req.headers[UI_LOCALE_HEADER]
   const cookies = (headers.cookie ?? '').split(';').map(v => v.trim()).filter(Boolean)
   const sessions = cookies.filter(v => v.startsWith('session_id='))
   if (sessions.length > 1) throw Error('ambiguous_session')

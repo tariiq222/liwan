@@ -201,8 +201,8 @@ class TestProjectGovernance(LiwanPmoCase):
         hidden = self.env['project.project'].create({'name': 'Hidden company-less', 'company_id': False})
         for resource in ('stakeholders', 'raci', 'register'):
             denied = self.api('GET', f'/api/v1/projects/{hidden.id}/{resource}')
-            self.assertEqual(denied.status_code, 403)
-            self.assertEqual(denied.json()['code'], 'forbidden')
+            self.assertEqual(denied.status_code, 404)
+            self.assertEqual(denied.json()['code'], 'not_found')
 
     def test_all_models_reject_foreign_company_and_mismatched_parents(self):
         other_company = self.env['res.company'].create({'name': 'Foreign governance company'})

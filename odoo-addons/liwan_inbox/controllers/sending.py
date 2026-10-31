@@ -63,12 +63,12 @@ class SendingController(http.Controller):
             reject(str(error))
         return dump_sending(channel)
 
-    @http.route('/api/v1/settings/inbox/campaigns', type='json2', auth='user', methods=['GET'], readonly=False)
+    @http.route('/api/v1/settings/inbox/campaigns', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('inbox.enabled', CAMPAIGNS_FEATURE, operation='read')
     @requires_capability(CAMPAIGNS)
     def get_campaign_settings(self, **_):
-        return dump_campaign_settings(request.env['liwan.inbox.settings']._get_for_company())
+        return dump_campaign_settings(request.env['liwan.inbox.settings']._liwan_read_for_company())
 
     @http.route('/api/v1/settings/inbox/campaigns', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler

@@ -39,8 +39,8 @@ const tagItems = computed(() => tags.data.value?.items ?? props.conversation.tag
 const tagIds = computed(() => props.conversation.tags.map(tag => tag.id))
 const assigneeIds = computed(() => props.conversation.assignee ? [props.conversation.assignee.id] : [])
 
-function save(body: InboxConversationPatch) {
-  patch(body, { onError: e => toast.add({ title: e instanceof Error ? e.message : t('errors.generic'), color: 'error' }) })
+function save(body: Omit<InboxConversationPatch, 'revision'>) {
+  patch({ ...body, revision: props.conversation.revision }, { onError: e => toast.add({ title: e instanceof Error ? e.message : t('errors.generic'), color: 'error' }) })
 }
 function assign(value: number | number[] | null) {
   const next = Array.isArray(value) ? (value[0] ?? null) : value

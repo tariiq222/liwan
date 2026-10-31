@@ -9,7 +9,7 @@ from odoo.http import request
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
-    get_record,
+    get_visible_record,
     parse_nonneg_int,
     parse_positive_int,
     require_capabilities,
@@ -227,7 +227,7 @@ class MeetingController(http.Controller):
     @requires_feature('meetings.enabled', operation='read')
     def get_meeting(self, meeting_id, **_):
         require_capabilities('meetings.read')
-        meeting = get_record('liwan.meeting.minute', meeting_id)
+        meeting = get_visible_record('liwan.meeting.minute', meeting_id)
         return dump_meeting(meeting, detail=True)
 
     @http.route('/api/v1/meetings', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -295,7 +295,7 @@ class MeetingController(http.Controller):
     @requires_feature('meetings.enabled', operation='write')
     def patch_meeting(self, meeting_id, **payload):
         require_capabilities('meetings.read')
-        meeting = get_record('liwan.meeting.minute', meeting_id)
+        meeting = get_visible_record('liwan.meeting.minute', meeting_id)
         _require_editor(meeting)
         payload.pop('meeting_id', None)
         allowed = {
@@ -378,7 +378,7 @@ class MeetingController(http.Controller):
     @requires_feature('meetings.enabled', operation='write')
     def delete_meeting(self, meeting_id, **_):
         require_capabilities('meetings.read')
-        meeting = get_record('liwan.meeting.minute', meeting_id)
+        meeting = get_visible_record('liwan.meeting.minute', meeting_id)
         _require_manager(meeting)
         if meeting.state != 'draft':
             raise ApiError(409, 'conflict', 'only a draft meeting can be deleted; cancel a confirmed meeting instead')
@@ -394,7 +394,7 @@ class MeetingController(http.Controller):
     @requires_feature('meetings.enabled', operation='write')
     def cancel_meeting(self, meeting_id, scope='this', **_):
         require_capabilities('meetings.read')
-        meeting = get_record('liwan.meeting.minute', meeting_id)
+        meeting = get_visible_record('liwan.meeting.minute', meeting_id)
         _require_manager(meeting)
         if scope not in {'this', 'this_and_following'}:
             raise ApiError(422, 'invalid', 'invalid scope', field='scope')
@@ -411,7 +411,7 @@ class MeetingController(http.Controller):
         require_capabilities('meetings.read')
         if extra:
             raise ApiError(422, 'invalid', 'unsupported resolution fields: %s' % ', '.join(sorted(extra)))
-        meeting = get_record('liwan.meeting.minute', meeting_id)
+        meeting = get_visible_record('liwan.meeting.minute', meeting_id)
         if not isinstance(name, str) or not name.strip():
             raise ApiError(422, 'invalid', 'name must not be empty', field='name')
         if deadline is not None and (not isinstance(deadline, str) or not deadline.strip()):
@@ -449,8 +449,8 @@ class MeetingController(http.Controller):
         return request.make_json_response(dump_resolution(resolution), status=201)
 
     def _resolution(self, meeting_id, resolution_id):
-        meeting = get_record('liwan.meeting.minute', meeting_id)
-        resolution = get_record('liwan.meeting.resolution', resolution_id)
+        meeting = get_visible_record('liwan.meeting.minute', meeting_id)
+        resolution = get_visible_record('liwan.meeting.resolution', resolution_id)
         if resolution.meeting_id != meeting:
             raise ApiError(404, 'not_found', 'resolution not found')
         return meeting, resolution
@@ -460,7 +460,7 @@ class MeetingController(http.Controller):
     @requires_feature('meetings.enabled', operation='write')
     def confirm_meeting(self, meeting_id, **_):
         require_capabilities('meetings.read')
-        meeting = get_record('liwan.meeting.minute', meeting_id)
+        meeting = get_visible_record('liwan.meeting.minute', meeting_id)
         meeting.action_confirm()
         return dump_meeting(meeting, detail=True)
 
@@ -469,7 +469,7 @@ class MeetingController(http.Controller):
     @requires_feature('meetings.enabled', operation='write')
     def complete_meeting(self, meeting_id, **_):
         require_capabilities('meetings.read')
-        meeting = get_record('liwan.meeting.minute', meeting_id)
+        meeting = get_visible_record('liwan.meeting.minute', meeting_id)
         _require_manager(meeting)
         gap = meeting._liwan_completion_gap()
         if gap:
@@ -483,7 +483,7 @@ class MeetingController(http.Controller):
     @requires_feature('meetings.enabled', operation='write')
     def reopen_meeting(self, meeting_id, **_):
         require_capabilities('meetings.read')
-        meeting = get_record('liwan.meeting.minute', meeting_id)
+        meeting = get_visible_record('liwan.meeting.minute', meeting_id)
         _require_manager(meeting)
         meeting.action_reset_draft()
         return dump_meeting(meeting, detail=True)
@@ -563,7 +563,7 @@ class MeetingController(http.Controller):
     def minutes_pdf(self, meeting_id, **_):
         # A file download is not JSON, so the route is type='http'; api_handler still answers refusals as JSON.
         require_capabilities('meetings.read')
-        meeting = get_record('liwan.meeting.minute', meeting_id)
+        meeting = get_visible_record('liwan.meeting.minute', meeting_id)
         pdf = _render_minutes_pdf(meeting)
         filename = '%s.pdf' % (meeting.reference or 'minutes')
         return request.make_response(pdf, headers=[

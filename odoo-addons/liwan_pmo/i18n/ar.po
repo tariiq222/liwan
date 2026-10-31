@@ -1241,6 +1241,11 @@ msgstr "بوابة هذه المرحلة فيها شروط لم تُستوفَ."
 #. module: liwan_pmo
 #. odoo-python
 #: code:addons/liwan_pmo/models/project_status.py:0
+msgid "Status update"
+msgstr "تحديث الحالة"
+
+#. module: liwan_pmo
+#: code:addons/liwan_pmo/models/project_status.py:0
 msgid "The project has open tasks again"
 msgstr "عادت للمشروع مهام مفتوحة"
 

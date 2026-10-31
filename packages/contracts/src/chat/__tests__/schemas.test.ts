@@ -1,4 +1,7 @@
 import {
+  ChatMessageDeleteResultSchema,
+  ChatSettingsPatchSchema,
+  ChatSettingsSchema,
   ChatAttachmentListSchema,
   ChatConversationCreateSchema,
   ChatConversationListSchema,
@@ -41,6 +44,7 @@ const MESSAGE = {
   attachments: [],
   parent: null,
   edited: false,
+  deleted: false,
   pinned: false,
   starred: false,
   reactions: [],
@@ -95,5 +99,35 @@ describe('member and recipient envelopes', () => {
     expect(ChatMemberListSchema.parse(members).items[0].id).toBe(2)
     expect(ChatMemberSchema.parse(members.items[0]).im_status).toBeNull()
     expect(ChatAttachmentListSchema.parse({ items: [], total: 0 }).items).toEqual([])
+  })
+})
+
+describe('ChatSettingsSchema', () => {
+  const settings = {
+    values: { message_delete_mode: 'placeholder' },
+    defaults: { message_delete_mode: 'placeholder' },
+    options: { message_delete_mode: ['placeholder', 'permanent'] },
+    revision: 0,
+  }
+
+  it('carries the values, the stated defaults, the options and the revision', () => {
+    expect(ChatSettingsSchema.parse(settings)).toEqual(settings)
+    expect(() => ChatSettingsSchema.parse({ ...settings, values: { message_delete_mode: 'shred' } })).toThrow()
+    expect(() => ChatSettingsSchema.parse({ ...settings, extra: 1 })).toThrow()
+  })
+
+  it('patches with the revision it was made from', () => {
+    expect(ChatSettingsPatchSchema.parse({ revision: 2, values: { message_delete_mode: 'permanent' } }).revision).toBe(2)
+    expect(() => ChatSettingsPatchSchema.parse({ values: { message_delete_mode: 'permanent' } })).toThrow()
+    expect(() => ChatSettingsPatchSchema.parse({ revision: -1, values: { message_delete_mode: 'permanent' } })).toThrow()
+  })
+})
+
+describe('ChatMessageDeleteResultSchema', () => {
+  it('returns the cleared row, or nothing once the message is removed', () => {
+    expect(ChatMessageDeleteResultSchema.parse({ mode: 'placeholder', message: { ...MESSAGE, body: '', deleted: true } }).mode).toBe('placeholder')
+    expect(ChatMessageDeleteResultSchema.parse({ mode: 'permanent', message: null })).toEqual({ mode: 'permanent', message: null })
+    expect(() => ChatMessageDeleteResultSchema.parse({ mode: 'permanent', message: MESSAGE })).toThrow()
+    expect(() => ChatMessageDeleteResultSchema.parse({ mode: 'placeholder', message: null })).toThrow()
   })
 })

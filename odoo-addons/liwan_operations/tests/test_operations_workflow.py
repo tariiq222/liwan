@@ -201,6 +201,22 @@ class TestOperationsWorkflow(LiwanApiCase):
         self.assertEqual((record.state, record.revision, record.execution_count, record.description), ('pending', 2, 0, 'Original description'))
         self.assertEqual(record.review_ids.sorted('sequence').mapped('status'), ['approved', 'pending'])
 
+    def test_a_failed_execution_answers_a_fixed_message_without_the_engine_text(self):
+        record = self._pending()
+        record.with_user(self.reviewers[0]).action_approve(1)
+
+        def fail(_request):
+            message = 'There is no pending completion request.'
+            raise ValidationError(message)
+        self.patch(type(record), '_execute_approved', fail)
+        self.authenticate('ops_reviewer_2', 'ops_reviewer_2_test_123')
+        response = self.api('POST', f'/api/v1/operations/requests/{record.id}/approve', {'revision': 2})
+        self.assertEqual((response.status_code, response.json()['code']), (422, 'execution_failed'))
+        self.assertEqual(response.json()['message'], 'The request could not be completed; the last approval was not saved.')
+        failure = self.env['liwan.operation.event'].search([('request_id', '=', record.id), ('kind', '=', 'execution_failed')])
+        self.assertEqual(len(failure), 1)
+        self.assertFalse(failure.comment, 'the history row is worded by its kind, not by a stored sentence')
+
     def test_process_reconfiguration_does_not_change_submitted_reviewers(self):
         record = self._pending()
         snapshot = record.stage_snapshot
@@ -422,6 +438,29 @@ class TestOperationsWorkflow(LiwanApiCase):
         foreign.invalidate_recordset()
         self.authenticate('api_emp', 'api_emp_pass_123')
         self.assertEqual(self.api('GET', self._path(foreign, foreign_file)).status_code, 404)
+
+    def test_a_process_the_requester_cannot_see_is_refused_with_the_request_message(self):
+        draft = self.env['liwan.operation.process'].with_user(self.manager).create({'name': 'Still a draft'})
+        archived = self.env['liwan.operation.process'].with_user(self.manager).create({'name': 'Retired'})
+        archived.with_user(self.manager).action_configure(0, 'Retired', '', 'approval', [{'name': 'Review', 'reviewer_ids': [self.reviewers[0].id]}])
+        archived.with_user(self.manager).action_publish(1)
+        archived.with_user(self.manager).action_archive(1)
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        for process_id in (draft.id, archived.id, 999999):
+            response = self.api('POST', '/api/v1/operations/requests', {'name': 'Hidden', 'process_id': process_id})
+            self.assertEqual((response.status_code, response.json()['code'], response.json()['message']), (422, 'invalid', 'Choose a published process from the current company.'), process_id)
+
+    def test_submitting_after_the_process_went_back_to_draft_is_a_validation_error(self):
+        record = self._request()
+        self.process.with_user(self.manager).action_configure(1, 'Expense approval', 'Two stages', 'approval', [{'name': 'Review', 'reviewer_ids': [self.reviewers[0].id]}])
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        response = self.api('POST', f'/api/v1/operations/requests/{record.id}/submit', {'revision': 0})
+        self.assertEqual((response.status_code, response.json()['code'], response.json()['message']), (422, 'invalid', 'The process must be published before submission.'))
+
+    def test_a_process_without_a_name_key_answers_the_name_message(self):
+        self.authenticate('ops_manager', 'ops_manager_test_123')
+        response = self.api('POST', '/api/v1/operations/processes', {'steps': [{'name': 'a', 'reviewer_ids': [self.reviewers[0].id]}]})
+        self.assertEqual((response.status_code, response.json()['code'], response.json()['message']), (422, 'invalid', 'Invalid name.'))
 
     def test_stage_statuses_match_the_request_state_in_every_state(self):
         def statuses(record):

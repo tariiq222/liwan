@@ -219,7 +219,7 @@ class TestMeetingHistory(LiwanMeetingsCase):
         self.authenticate('api_emp', 'api_emp_pass_123')
 
         response = self.api('GET', f'/api/v1/meetings/{meeting.id}')
-        self.assertEqual(response.status_code, 403, response.text)
+        self.assertEqual(response.status_code, 404, response.text)
         self.assertNotIn('minutes_snapshot', response.text)
 
     def test_snapshot_hides_resolutions_of_occurrences_the_reader_cannot_open(self):

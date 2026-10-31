@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import logging
+
 from odoo import http
 from odoo.http import request
 
@@ -24,6 +26,8 @@ from odoo.addons.liwan_operations.serializers.operations import (
     dump_request,
     dump_summary,
 )
+
+_logger = logging.getLogger(__name__)
 
 
 def body(allowed):
@@ -213,7 +217,8 @@ class OperationsController(http.Controller):
         except OperationExecutionError as exc:
             # The transition rolled back its own decision+effect savepoint. Commit
             # only its failure audit, rather than pretending an approval succeeded.
-            return error_response(422, 'execution_failed', str(exc))
+            _logger.info('operation execution failed: %s', exc)
+            return error_response(422, 'execution_failed', request.env._('The request could not be completed; the last approval was not saved.'))
         return dump_request(record)
 
     @http.route('/api/v1/operations/requests/<int:request_id>/attachments/<int:attachment_id>/download', type='http', auth='user', methods=['GET'], readonly=True)

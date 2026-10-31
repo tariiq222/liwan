@@ -8,7 +8,8 @@ from pytz.exceptions import UnknownTimeZoneError
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError
-from odoo.tools import html2plaintext
+
+from odoo.addons.liwan_pmo.serializers.notification import notification_text
 
 SCAN_BATCH = 200
 
@@ -83,13 +84,52 @@ class ProjectTaskNotifications(models.Model):
         recipients = self._liwan_internal_users().filtered(
             lambda user: (not author or user.partner_id != author) and user not in mentioned,
         )
-        body = html2plaintext(message.body or '', include_references=False).strip()
+        body = notification_text(message.body)
         if not body:
             return
         for user in mentioned:
             self._liwan_create_notification(kind='mention', partner=user.partner_id, body=body)
         for user in recipients:
             self._liwan_create_notification(kind='comment', partner=user.partner_id, body=body)
+
+    def _liwan_request_completion(self):
+        result = super()._liwan_request_completion()
+        self._liwan_emit_completion_notice(
+            'completion_requested', self._liwan_completion_reviewer(),
+            f'{self.env.user.display_name} asked for completion of {self.display_name}',
+        )
+        return result
+
+    def _liwan_accept_completion(self, revision):
+        requester = self.liwan_completion_requested_by
+        result = super()._liwan_accept_completion(revision)
+        self._liwan_emit_completion_notice(
+            'completion_accepted', requester,
+            f'{self.env.user.display_name} accepted completion of {self.display_name}',
+        )
+        return result
+
+    def _liwan_emit_completion_notice(self, kind, user, body):
+        """One bell row for the other side of a completion request.
+
+        The operations bridge sets ``liwan_skip_completion_notice``: its own bell already
+        tells the stage reviewers and the requester, so a second PMO row would duplicate it.
+        """
+        self.ensure_one()
+        if self.env.context.get('liwan_skip_completion_notice'):
+            return
+        # The reviewer was proved eligible by the request and the requester by the accept, so only the account
+        # itself is checked here: the bell shows the row in whichever allowed company the person works in.
+        recipients = user.filtered(
+            lambda recipient: recipient.active and not recipient.share and recipient.partner_id and recipient != self.env.user,
+        )
+        for recipient in recipients:
+            self._liwan_create_notification(
+                kind=kind,
+                partner=recipient.partner_id,
+                body=body,
+                key=f'{kind}:{self.id}:{recipient.partner_id.id}:{self.liwan_completion_revision}',
+            )
 
     def _message_post_after_hook(self, message, msg_values):
         result = super()._message_post_after_hook(message, msg_values)

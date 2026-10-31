@@ -51,6 +51,21 @@ class TestAppointmentReasons(LiwanAppointmentsCase):
         self.assertEqual(([item['id'] for item in archived['items']], archived['total']), ([body['id']], 1))
         self.assertEqual(self.api('POST', path + '/unarchive').json()['active'], True)
 
+    def test_an_edit_from_either_ui_language_names_the_reason_for_everyone(self):
+        self.env['res.lang']._activate_lang('ar_001')
+        self.env['res.lang']._activate_lang('en_US')
+        self._login()
+        for locale, name in (('ar', 'متابعة'), ('en', 'Follow-up visit')):
+            created = self.url_open(REASONS, json={'kind': 'visit', 'name': name}, headers={'X-Liwan-Ui-Locale': locale})
+            self.assertEqual(created.status_code, 200, created.text)
+            reason = self.env['liwan.appointment.reason'].browse(created.json()['id'])
+            self.assertEqual((reason.with_context(lang='ar_001').name, reason.with_context(lang='en_US').name), (name, name))
+            other = 'en' if locale == 'ar' else 'ar'
+            edited = self.url_open('%s/%d' % (REASONS, reason.id), json={'name': name + ' 2'}, headers={'X-Liwan-Ui-Locale': other}, method='PATCH')
+            self.assertEqual(edited.status_code, 200, edited.text)
+            reason.invalidate_recordset()
+            self.assertEqual((reason.with_context(lang='ar_001').name, reason.with_context(lang='en_US').name), (name + ' 2',) * 2)
+
     def test_the_list_filters_by_kind_and_orders_by_sequence(self):
         later = self._reason('visit', 'Later', sequence=30)
         first = self._reason('visit', 'First', sequence=10)
