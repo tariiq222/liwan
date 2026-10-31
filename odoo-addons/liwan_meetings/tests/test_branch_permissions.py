@@ -69,7 +69,7 @@ class TestMeetingBranchPermissions(LiwanApiCase):
             for path in (f'/api/v1/meetings/{meeting.id}', f'/api/v1/meeting-series/{series.id}',
                          f'/api/v1/meeting-series/{series.id}/resolutions'):
                 result = self.api('GET', path)
-                self.assertEqual(result.status_code, 403 if company == self.branch else 404, result.text)
+                self.assertEqual(result.status_code, 404, result.text)
                 self.assertNotIn('Private owning company transcript', result.text)
             for record in (meeting, series, resolution):
                 scoped = self.scoped(record)
@@ -89,7 +89,7 @@ class TestMeetingBranchPermissions(LiwanApiCase):
             ('PATCH', f'/api/v1/meetings/{meeting.id}/resolutions/{resolution.id}', {'name': 'Borrowed parent edit'}),
         ):
             result = self.api(method, path, payload)
-            self.assertEqual(result.status_code, 403, result.text)
+            self.assertEqual(result.status_code, 404, result.text)
         for record in (meeting, series, resolution):
             with self.assertRaises(AccessError):
                 self.scoped(record).write({'name': 'Borrowed parent ORM edit'})
