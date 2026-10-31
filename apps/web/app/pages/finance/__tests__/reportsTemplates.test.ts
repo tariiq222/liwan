@@ -93,7 +93,7 @@ describe('the finance reports locale', () => {
   })
 
   it('has no unused key and no missing key', () => {
-    const source = [...FILES, 'composables/finance/useFinanceReports.ts', 'components/finance/reports/reportKpis.ts', 'components/finance/reports/reportTags.ts'].map(read).join('\n')
+    const source = [...FILES, 'composables/finance/useFinanceReports.ts', 'components/finance/reports/reportKpis.ts', 'components/finance/reports/reportTags.ts', 'components/finance/reports/reportExport.ts'].map(read).join('\n')
     const keys = leafKeys(locale('ar')).map(key => key.replace(/^financeReports\./, ''))
     // A key is used when its path is written out, or when an ancestor is followed by an interpolated part.
     const used = (key: string) => {

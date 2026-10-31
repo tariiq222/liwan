@@ -136,7 +136,11 @@
       "expense": "Expense",
       "net": "Net",
       "item": "Item",
-      "amount": "Amount"
+      "amount": "Amount",
+      "costCenter": "Cost center",
+      "budget": "Budget",
+      "actual": "Actual",
+      "variance": "Variance"
     },
     "buckets": {
       "current": "Current",
@@ -274,6 +278,11 @@
         "netChange": "Net change in cash",
         "opening": "Opening cash",
         "closing": "Closing cash"
+      },
+      "sections": {
+        "operating": "Operating activities",
+        "investing": "Investing activities",
+        "financing": "Financing activities"
       }
     },
     "vatReturn": {
@@ -308,6 +317,10 @@
         "sa_16": "Net VAT due or claim"
       },
       "close": "Close"
+    },
+    "export": {
+      "csv": "Export CSV",
+      "print": "Print"
     }
   }
 }

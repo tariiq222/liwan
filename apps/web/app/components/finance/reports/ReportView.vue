@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { localIsoDay } from '@liwan/ui/app/utils/formatDate'
+import { saveBlob } from '@/utils/saveBlob'
 import { analyticLineParams, ANALYTIC_LINE_PAGE_SIZE } from '../analytic/analyticParams'
 import { useFinanceAnalyticLines } from '@/composables/finance/useFinanceAnalytic'
 import { useFinanceReport } from '@/composables/finance/useFinanceReports'
@@ -22,11 +23,12 @@ import { LEDGER_PAGE_SIZE, reportActiveFilterCount, reportFiltersFromQuery, repo
 import { reportKpiTiles } from './reportKpis'
 import { selectedLedgerLines } from './reportRows'
 import { reportHeaderTags } from './reportTags'
+import { reportCsv, reportTable } from './reportExport'
 
 // One finance report: heading, the report's own server totals as tiles, and one card with its filters and table.
 // Every filter lives in the URL; the period defaults to this month and is written only once the user changes it.
 const props = defineProps<{ slug: ReportSlug }>()
-const { t, n } = useI18n()
+const { t, n, te } = useI18n()
 const { can } = useAccess()
 const { shown: kpisShown } = useKpiVisibility()
 const today = localIsoDay()
@@ -63,6 +65,16 @@ const lineFooter = computed(() => {
   return props.slug === 'analytic' && filters.value.accountId !== null && lines ? { shown: lines.items.length, total: lines.total, size: ANALYTIC_LINE_PAGE_SIZE, fetching: query.isFetching.value || analyticLines.isFetching.value } : null
 })
 
+// Export and print what the page shows. The CSV is built here from the loaded report, in the user's language.
+function exportCsv() {
+  if (!loaded.value) return
+  const table = reportTable(loaded.value, t(`financeReports.reports.${config.value.key}.title`), t, te)
+  saveBlob(new Blob([reportCsv(table)], { type: 'text/csv;charset=utf-8' }), `${props.slug}-${today}.csv`)
+}
+function printReport() {
+  if (import.meta.client) window.print()
+}
+
 function clearFilters() {
   void update({ date_from: undefined, date_to: undefined, target_move: undefined, kind: undefined, type: undefined, partner_id: undefined, account_id: undefined, plan_id: undefined, budget_id: undefined, page: undefined })
 }
@@ -77,6 +89,10 @@ function clearFilters() {
         <template #filters>
           <ReportFilters :slug="slug" :filters="filters" :active-count="activeCount" :disabled="!hydrated" @change="update" @clear="clearFilters" />
         </template>
+        <div v-if="loaded" class="flex flex-wrap justify-end gap-2 px-(--liwan-card-pad-dense) pt-(--liwan-card-pad-dense) print:hidden" data-testid="finance-report-actions">
+          <UButton type="button" color="neutral" variant="outline" size="sm" icon="i-lucide-download" :disabled="!hydrated" data-testid="finance-report-export-csv" @click="exportCsv">{{ t('financeReports.export.csv') }}</UButton>
+          <UButton type="button" color="neutral" variant="outline" size="sm" icon="i-lucide-printer" :disabled="!hydrated" data-testid="finance-report-print" @click="printReport">{{ t('financeReports.export.print') }}</UButton>
+        </div>
         <SharedEmptyState v-if="!ready" class="m-(--liwan-card-pad-dense)" :title="pickPrompt.title" :description="pickPrompt.description" />
         <SharedPageState v-else :loading="loading" :error="query.error.value" :keep-content="!!loaded" @retry="query.refetch">
           <template v-if="loaded">
