@@ -8,13 +8,13 @@ describe('uiLocaleHeaders', () => {
     expect(uiLocaleHeaders(eventWith('liwan-locale=ar'))).toEqual({ 'x-liwan-ui-locale': 'ar' })
     expect(uiLocaleHeaders(eventWith('a=1; liwan-locale=en'))).toEqual({ 'x-liwan-ui-locale': 'en' })
   })
-  it('sends nothing for a missing or unsupported value', () => {
+  it('falls back to Arabic, the UI default, for a missing or unsupported value', () => {
     for (const cookie of [undefined, 'liwan-locale=fr', 'liwan-locale=ar_001', 'liwan-locale=', 'other=ar']) {
-      expect(uiLocaleHeaders(eventWith(cookie))).toEqual({})
+      expect(uiLocaleHeaders(eventWith(cookie))).toEqual({ 'x-liwan-ui-locale': 'ar' })
     }
   })
   it('drops a browser-supplied header and rebuilds it from the cookie', () => {
-    expect(withUiLocale(eventWith(), { accept: 'x', 'x-liwan-ui-locale': 'ar' })).toEqual({ accept: 'x' })
+    expect(withUiLocale(eventWith(), { accept: 'x', 'x-liwan-ui-locale': 'en' })).toEqual({ accept: 'x', 'x-liwan-ui-locale': 'ar' })
     expect(withUiLocale(eventWith('liwan-locale=en'), { 'x-liwan-ui-locale': 'ar' })).toEqual({ 'x-liwan-ui-locale': 'en' })
   })
 })

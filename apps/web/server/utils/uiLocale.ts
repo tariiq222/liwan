@@ -6,11 +6,12 @@ import type { H3Event } from 'h3'
 export const UI_LOCALE_COOKIE = 'liwan-locale'
 export const UI_LOCALE_HEADER = 'x-liwan-ui-locale'
 const SUPPORTED = new Set(['ar', 'en'])
+const DEFAULT_LOCALE = 'ar'
 
-/** The upstream header for this request's UI language: only a supported cookie value, else nothing. */
+/** The upstream header for this request's UI language: a supported cookie value, else the UI default (Arabic). */
 export function uiLocaleHeaders(event: H3Event): Record<string, string> {
   const value = getCookie(event, UI_LOCALE_COOKIE)
-  return value && SUPPORTED.has(value) ? { [UI_LOCALE_HEADER]: value } : {}
+  return { [UI_LOCALE_HEADER]: value && SUPPORTED.has(value) ? value : DEFAULT_LOCALE }
 }
 
 /** The headers a request forwards without a tenant binding: the browser's own, with the UI language rebuilt from the cookie. */
