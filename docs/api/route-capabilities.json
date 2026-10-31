@@ -7184,6 +7184,7 @@
       "auth": "user",
       "capability_keys": [
         "action_cancel",
+        "budget_cancelled",
         "confirmed",
         "draft",
         "invalid_state"
@@ -7201,6 +7202,7 @@
       "auth": "user",
       "capability_keys": [
         "action_confirm",
+        "budget_confirmed",
         "draft",
         "not_draft"
       ],
@@ -7245,6 +7247,7 @@
       "auth": "user",
       "capability_keys": [
         "action_draft",
+        "budget_reset_to_draft",
         "cancelled",
         "confirmed",
         "invalid_state"

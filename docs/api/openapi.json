@@ -18391,6 +18391,30 @@
           "payment_posted",
           "payment_allocated",
           "payment_unallocated",
+          "payment_cancelled",
+          "payment_reset_to_draft",
+          "asset_created",
+          "asset_validated",
+          "asset_depreciation_computed",
+          "bank_statement_created",
+          "bank_line_reconciled",
+          "partner_created",
+          "partner_changed",
+          "partner_archived",
+          "partner_unarchived",
+          "analytic_plan_created",
+          "analytic_plan_changed",
+          "analytic_account_created",
+          "analytic_account_changed",
+          "budget_created",
+          "budget_changed",
+          "budget_confirmed",
+          "budget_cancelled",
+          "budget_reset_to_draft",
+          "budget_line_created",
+          "budget_line_changed",
+          "budget_line_deleted",
+          "budget_lines_distributed",
           "invoice_created",
           "invoice_changed",
           "invoice_deleted",
@@ -18458,6 +18482,30 @@
                     "payment_posted",
                     "payment_allocated",
                     "payment_unallocated",
+                    "payment_cancelled",
+                    "payment_reset_to_draft",
+                    "asset_created",
+                    "asset_validated",
+                    "asset_depreciation_computed",
+                    "bank_statement_created",
+                    "bank_line_reconciled",
+                    "partner_created",
+                    "partner_changed",
+                    "partner_archived",
+                    "partner_unarchived",
+                    "analytic_plan_created",
+                    "analytic_plan_changed",
+                    "analytic_account_created",
+                    "analytic_account_changed",
+                    "budget_created",
+                    "budget_changed",
+                    "budget_confirmed",
+                    "budget_cancelled",
+                    "budget_reset_to_draft",
+                    "budget_line_created",
+                    "budget_line_changed",
+                    "budget_line_deleted",
+                    "budget_lines_distributed",
                     "invoice_created",
                     "invoice_changed",
                     "invoice_deleted",
@@ -18596,6 +18644,30 @@
               "payment_posted",
               "payment_allocated",
               "payment_unallocated",
+              "payment_cancelled",
+              "payment_reset_to_draft",
+              "asset_created",
+              "asset_validated",
+              "asset_depreciation_computed",
+              "bank_statement_created",
+              "bank_line_reconciled",
+              "partner_created",
+              "partner_changed",
+              "partner_archived",
+              "partner_unarchived",
+              "analytic_plan_created",
+              "analytic_plan_changed",
+              "analytic_account_created",
+              "analytic_account_changed",
+              "budget_created",
+              "budget_changed",
+              "budget_confirmed",
+              "budget_cancelled",
+              "budget_reset_to_draft",
+              "budget_line_created",
+              "budget_line_changed",
+              "budget_line_deleted",
+              "budget_lines_distributed",
               "invoice_created",
               "invoice_changed",
               "invoice_deleted",
@@ -22537,6 +22609,18 @@
             "maximum": 9007199254740991,
             "type": "integer"
           },
+          "payment_term_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "ref": {
             "maxLength": 255,
             "type": "string"
@@ -22907,6 +22991,31 @@
             ],
             "type": "string"
           },
+          "payment_term": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "ref": {
             "type": "string"
           },
@@ -23056,6 +23165,7 @@
           "journal",
           "invoice_date",
           "invoice_date_due",
+          "payment_term",
           "currency",
           "amount_untaxed",
           "amount_tax",
@@ -23376,6 +23486,31 @@
                   ],
                   "type": "string"
                 },
+                "payment_term": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "state": {
                   "enum": [
                     "draft",
@@ -23395,6 +23530,7 @@
                 "journal",
                 "invoice_date",
                 "invoice_date_due",
+                "payment_term",
                 "currency",
                 "amount_untaxed",
                 "amount_tax",
@@ -23510,6 +23646,18 @@
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991,
             "type": "integer"
+          },
+          "payment_term_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "ref": {
             "maxLength": 255,
@@ -23637,6 +23785,31 @@
             ],
             "type": "string"
           },
+          "payment_term": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "state": {
             "enum": [
               "draft",
@@ -23656,6 +23829,7 @@
           "journal",
           "invoice_date",
           "invoice_date_due",
+          "payment_term",
           "currency",
           "amount_untaxed",
           "amount_tax",
@@ -28502,7 +28676,8 @@
           "zatca_unauthorized",
           "zatca_mode_not_allowed",
           "zatca_not_onboarded",
-          "zatca_not_applicable"
+          "zatca_not_applicable",
+          "company_profile_incomplete"
         ],
         "type": "string"
       },
@@ -76440,7 +76615,13 @@
           "amount_due": {
             "type": "number"
           },
+          "amount_tax": {
+            "type": "number"
+          },
           "amount_total": {
+            "type": "number"
+          },
+          "amount_untaxed": {
             "type": "number"
           },
           "currency": {
@@ -76520,6 +76701,8 @@
           "merchant",
           "number",
           "currency",
+          "amount_untaxed",
+          "amount_tax",
           "amount_total",
           "amount_due",
           "status",
@@ -76535,7 +76718,13 @@
           "amount_due": {
             "type": "number"
           },
+          "amount_tax": {
+            "type": "number"
+          },
           "amount_total": {
+            "type": "number"
+          },
+          "amount_untaxed": {
             "type": "number"
           },
           "currency": {
@@ -76621,6 +76810,8 @@
           "merchant",
           "number",
           "currency",
+          "amount_untaxed",
+          "amount_tax",
           "amount_total",
           "amount_due",
           "status",
@@ -77604,6 +77795,16 @@
             "minimum": 0,
             "type": "integer"
           },
+          "system_admin_links": {
+            "type": "boolean"
+          },
+          "tax_mode": {
+            "enum": [
+              "included",
+              "added"
+            ],
+            "type": "string"
+          },
           "unpaid_order_expiry_minutes": {
             "maximum": 1440,
             "minimum": 5,
@@ -77615,6 +77816,8 @@
           "invoice_when_paid",
           "refund_policy",
           "refund_amounts",
+          "tax_mode",
+          "system_admin_links",
           "revision"
         ],
         "type": "object"
@@ -77644,6 +77847,16 @@
             "maximum": 9007199254740991,
             "minimum": 0,
             "type": "integer"
+          },
+          "system_admin_links": {
+            "type": "boolean"
+          },
+          "tax_mode": {
+            "enum": [
+              "included",
+              "added"
+            ],
+            "type": "string"
           },
           "unpaid_order_expiry_minutes": {
             "maximum": 1440,
@@ -86712,6 +86925,14 @@
           "done"
         ],
         "type": "object"
+      },
+      "TaxModeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "included",
+          "added"
+        ],
+        "type": "string"
       },
       "TenantStateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
