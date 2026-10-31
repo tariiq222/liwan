@@ -11,7 +11,7 @@ import { parseBody } from './http.js'
 import { getSubscription } from './subscriptions.js'
 import { buildQuote, createQuoteForCustomer } from './quotes.js'
 import { convertTrial, startTrial } from './trial.js'
-import { acceptQuote, cancelOrder, customerOrderStatusView } from './orders.js'
+import { acceptQuote, cancelOrder, cancelOrderBodySchema, customerOrderStatusView } from './orders.js'
 import { listInvoices, getInvoice } from './invoices.js'
 import { planWire } from './plans.js'
 import { bundleWire } from './bundles.js'
@@ -34,17 +34,17 @@ export async function customerCatalog(pool: Pool, customerId: string) {
   const releaseId = bundles[0]?.catalog_release_id ?? (await pool.query('SELECT id FROM catalog_releases ORDER BY created_at DESC,id LIMIT 1')).rows[0]?.id
   return { plans: plans.map(r=>planWire(r)), bundles: bundles.map(r=>bundleWire(r)), release: releaseId ? await getRelease(pool,releaseId) : null }
 }
-const branchInput = z.strictObject({ add: z.array(z.strictObject({name:z.string().trim().min(1).max(200)})).default([]), archive: z.array(z.uuid()).default([]) })
+const branchInput = z.strictObject({ add: z.array(z.strictObject({name:z.string().trim().min(1).max(200)})).default([]), archive: z.array(z.uuid()).default([]), restore: z.array(z.uuid()).default([]) })
 export async function createBranchQuote(pool: Pool, customerId: string, raw: string) {
   const input = parseBody(raw,branchInput)
-  if (input.add.length && input.archive.length) throw new CommercialHttpError('mixed_branch_change_unsupported',422)
+  if ([input.add, input.archive, input.restore].filter(list => list.length).length > 1) throw new CommercialHttpError('mixed_branch_change_unsupported',422)
   const view = await getSubscription(pool,customerId)
   if (!view.applied) throw new CommercialHttpError('subscription_required',409)
   const current = view.applied
-  const count = await requestedExtraBranches(pool,{subscription_id:view.id,add:input.add.length,archive:input.archive})
+  const count = await requestedExtraBranches(pool,{subscription_id:view.id,add:input.add.length,archive:input.archive,restore:input.restore})
   const limits = current.entitlement.features
   const quote = await createQuoteForCustomer(pool,{customer_id:customerId,request:{kind:'change',plan_revision_id:current.plan_revision_id,bundle_revision_ids:current.bundle_revision_ids,terms_revision_id:current.terms_revision_id,cadence:current.cadence,requested_extra_branches:count,requested_users:Number(limits['users.limit'] ?? 0),requested_storage_mb:Number(limits['storage.limit_mb'] ?? 0),expected_subscription_revision:view.revision}})
-  await pool.query('INSERT INTO branch_quote_requests(quote_id,subscription_id,adds,archive,quoted_paid) VALUES($1,$2,$3,$4,$5)',[quote.id,view.id,JSON.stringify(input.add),JSON.stringify(input.archive),Math.max(0,count-current.included_extra_branches)])
+  await pool.query('INSERT INTO branch_quote_requests(quote_id,subscription_id,adds,archive,restore,quoted_paid) VALUES($1,$2,$3,$4,$5,$6)',[quote.id,view.id,JSON.stringify(input.add),JSON.stringify(input.archive),JSON.stringify(input.restore),Math.max(0,count-current.included_extra_branches)])
   return quote
 }
 /** A shared web signs the registry tenant id; the enabled binding maps it to the control tenant. */
@@ -55,6 +55,13 @@ async function customerForTenant(client: PoolClient, tenant: string) {
   const customer=await client.query('SELECT id FROM customers WHERE tenant_id=$1',[tenantId])
   if (!customer.rowCount) throw new CommercialHttpError('not_found',404)
   return {customerId:customer.rows[0].id as string,tenantId:tenantId as string}
+}
+/** The `x-liwan-tenant` value the public LiwanOS web sends for a payment return that belongs to no tenant host. */
+export const PROSPECT_TENANT='public'
+async function customerForAttempt(client: PoolClient, attemptId: string) {
+  const customer=await client.query('SELECT o.customer_id FROM payment_attempts a JOIN orders o ON o.id=a.order_id WHERE a.id=$1',[attemptId])
+  if (!customer.rowCount) throw new CommercialHttpError('not_found',404)
+  return {customerId:customer.rows[0].customer_id as string}
 }
 async function consumeNonce(client: PoolClient, signed: {issuer: string; nonce: string}) {
   await client.query('DELETE FROM service_nonces WHERE expires_at<now()')
@@ -70,8 +77,9 @@ async function paymentReturn(pool: Pool, service: {issuer: string; key: string},
   if (typeof tenant !== 'string' || !tenant || tenant.length > 128 || /[\r\n]/.test(tenant)) throw new CommercialHttpError('unauthorized',401)
   const signed=verifyServiceRequest({method:input.method,path:input.path,body:`liwan-payment-return:${tenant}\n`,headers:input.headers,key:service.key,anonymous:true})
   if (!signed || signed.issuer !== service.issuer) throw new CommercialHttpError('unauthorized',401)
-  const customer=await transaction(pool,async client=>{await consumeNonce(client,signed);return customerForTenant(client,tenant)})
   if (!z.uuid().safeParse(attemptId).success) throw new CommercialHttpError('not_found',404)
+  // The LiwanOS public host serves prospects, who have no tenant yet: the attempt id alone names the customer.
+  const customer=await transaction(pool,async client=>{await consumeNonce(client,signed);return tenant===PROSPECT_TENANT?customerForAttempt(client,attemptId):customerForTenant(client,tenant)})
   const payment=needPayment(runtime)
   return {status:200,data:await verifyReturnedAttempt(pool,{attempt_id:attemptId,customer_id:customer.customerId,adapter:payment.adapter})}
 }
@@ -135,7 +143,7 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
     const own=z.uuid().safeParse(cancel[1]).success?(await pool.query('SELECT kind FROM orders WHERE id=$1 AND customer_id=$2',[cancel[1],customerId])).rows[0]:undefined
     if(!own)throw new CommercialHttpError('not_found',404)
     if(own.kind!=='new')throw new CommercialHttpError('order_not_cancellable',409)
-    const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().min(3).max(1000)}))
+    const body=parseBody(input.raw,cancelOrderBodySchema)
     return {status:200,data:await cancelOrder(pool,{order_id:cancel[1]!,principal,reason:body.reason,adapter:runtime?.adapter ?? undefined})}
   }
   if(m==='GET'&&path==='/invoices'){requireCapability(principal,'billing.read');return {status:200,data:await listInvoices(pool,{customer_id:customerId})}}

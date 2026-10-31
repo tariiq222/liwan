@@ -175,11 +175,11 @@ function localTime(value: string | null) {
   if (!value) return ''
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return formatLocalDateTime(value)
-  return hydrated.value ? formatLiwanTime(parsed, locale.value) : ''
+  return hydrated.value ? formatLiwanTime(parsed) : ''
 }
 
 function localDate(value: string | null) {
-  return value ? formatCalendarDate(value, locale.value) : '—'
+  return value ? formatCalendarDate(value) : '—'
 }
 
 const cells = computed(() => {

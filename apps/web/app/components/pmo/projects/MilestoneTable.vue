@@ -12,7 +12,7 @@ import { isMilestoneOverdue, milestoneBadge } from './milestoneState'
 
 const props = defineProps<{ projectId: number; canManage: boolean }>()
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const hydrated = useHydrated()
 const toast = useToast()
 
@@ -53,10 +53,10 @@ function milestoneActions(m: Milestone): RowAction[] {
 // An open milestone past its deadline reads in the error colour, like its badge.
 const deadlineClass = (m: Milestone) => (isMilestoneOverdue(m) ? 'text-error' : '')
 function deadlineText(m: Milestone): string {
-  return m.deadline ? formatCalendarDate(m.deadline, locale.value) : '—'
+  return m.deadline ? formatCalendarDate(m.deadline) : '—'
 }
 function startText(m: Milestone): string {
-  return m.start_date ? formatCalendarDate(m.start_date, locale.value) : '—'
+  return m.start_date ? formatCalendarDate(m.start_date) : '—'
 }
 function taskProgress(m: Milestone): number {
   if (!m.task_count) return 0

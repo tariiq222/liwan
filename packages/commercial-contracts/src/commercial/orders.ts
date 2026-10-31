@@ -4,7 +4,7 @@ import { CommercialError } from './types.js'
 
 export const paymentStateSchema = z.enum(['not_required', 'awaiting_payment', 'paid', 'failed', 'refund_pending', 'refunded'])
 export const fulfillmentStateSchema = z.enum(['not_started', 'queued', 'applying', 'applied', 'failed', 'needs_intervention'])
-export const orderKindSchema = z.enum(['new', 'change', 'renewal', 'branch_add', 'branch_archive'])
+export const orderKindSchema = z.enum(['new', 'change', 'renewal', 'branch_add', 'branch_archive', 'branch_restore'])
 
 export const orderSchema = z.strictObject({
   id: z.string().min(1), customer_id: z.string().min(1), subscription_id: z.string().min(1),

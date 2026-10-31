@@ -16,7 +16,7 @@ const STATE_TONE: Record<PersonalTask['state'], StatusTone> = { open: 'info', do
 
 const route = useRoute()
 const router = useRouter()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const hydrated = useHydrated()
 
 const taskId = computed(() => {
@@ -143,7 +143,7 @@ async function run(action: MyTaskTransition) {
 }
 
 const title = computed(() => task.value?.name ?? t('myTasks.title'))
-const deadlineText = (value: string | null) => formatCalendarDate(deadlineDay(value), locale.value) || t('myTasks.detail.noDeadline')
+const deadlineText = (value: string | null) => formatCalendarDate(deadlineDay(value)) || t('myTasks.detail.noDeadline')
 </script>
 
 <template>
@@ -195,8 +195,8 @@ const deadlineText = (value: string | null) => formatCalendarDate(deadlineDay(va
       <SharedRecordSection variant="tinted" :title="t('myTasks.detail.info')">
         <SharedPropertiesPanel>
           <SharedPropertyRow :label="t('myTasks.detail.creator')" :value="task.creator.name" />
-          <SharedPropertyRow :label="t('myTasks.detail.createdAt')" :value="formatLiwanDateTime(task.created_at, locale)" />
-          <SharedPropertyRow :label="t('myTasks.detail.updatedAt')" :value="formatLiwanDateTime(task.updated_at, locale)" />
+          <SharedPropertyRow :label="t('myTasks.detail.createdAt')" :value="formatLiwanDateTime(task.created_at)" />
+          <SharedPropertyRow :label="t('myTasks.detail.updatedAt')" :value="formatLiwanDateTime(task.updated_at)" />
         </SharedPropertiesPanel>
       </SharedRecordSection>
     </template>

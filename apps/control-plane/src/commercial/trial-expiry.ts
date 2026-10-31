@@ -7,7 +7,8 @@ import type { ReturnOrigin } from './return-origin.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 
 /**
- * Ends every trial that reached its end date. The subscription moves to past_due first, then the
+ * Ends every trial that reached its end date and whose workspace is active (a trial still waiting for
+ * activation has no applied snapshot to invoice from, so it ends once that applies). The subscription moves to past_due first, then the
  * existing renewal path issues the first invoice and a hosted payment attempt; the renewals unique
  * key keeps a repeated run from issuing a second invoice.
  */
@@ -16,7 +17,7 @@ export async function expireTrials(pool: Pool, input: { now: Date; adapter: Paym
   let unusableOrigins = 0
   await transaction(pool, async client => {
     const due = (await client.query(`SELECT id,customer_id,trial_ends_at FROM subscriptions
-      WHERE state='trialing' AND trial_ends_at IS NOT NULL AND trial_ends_at <= $1
+      WHERE state='trialing' AND applied_revision_id IS NOT NULL AND trial_ends_at IS NOT NULL AND trial_ends_at <= $1
         AND ($2::uuid IS NULL OR id=$2)
       ORDER BY id FOR UPDATE SKIP LOCKED`, [input.now, input.subscription_id ?? null])).rows
     for (const row of due) {

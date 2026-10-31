@@ -21,7 +21,7 @@ const props = defineProps<{
   fields?: readonly CharterFieldKey[]
 }>()
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const { can } = useAccess()
 const route = useRoute()
 const hydrated = useHydrated()
@@ -114,8 +114,8 @@ function onUnitSelect(id: number | null) {
   selectUnit(id, unitMenuItems.value.find(item => item.id === id)?.name ?? null)
 }
 
-const startLabel = computed(() => formatCalendarDate(draft.value.dateStart, locale.value) || t('projects.settings.noDate'))
-const endLabel = computed(() => formatCalendarDate(draft.value.dateEnd, locale.value) || t('projects.settings.noDate'))
+const startLabel = computed(() => formatCalendarDate(draft.value.dateStart) || t('projects.settings.noDate'))
+const endLabel = computed(() => formatCalendarDate(draft.value.dateEnd) || t('projects.settings.noDate'))
 
 function onBudgetState(value: unknown) {
   if (value !== 'unknown' && value !== 'estimate') return
