@@ -1,5 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo.tools.mail import html_to_inner_content
+import lxml.html
+
+from odoo.tools.mail import is_html_empty
 
 from odoo.addons.liwan_api.serializers.common import iso
 
@@ -11,12 +13,20 @@ CHARTER_KINDS = (CHARTER_REVIEW_KIND, *CHARTER_DECISION_KINDS)
 
 
 def notification_text(html):
-    """Plain text of a message body.
+    """Plain text of a message body, with its line breaks and without markdown markers.
 
     ``html2plaintext`` writes bold as ``*text*`` (a mention token is bold), which a bell row
-    would show literally, so the markup is dropped without its markers.
+    would show literally. Paragraphs and ``<br>`` become line breaks.
     """
-    return html_to_inner_content(html or '')
+    if is_html_empty(html):
+        return ''
+    root = lxml.html.fragment_fromstring(str(html), create_parent='div')
+    for node in root.iter('br'):
+        node.tail = '\n' + (node.tail or '')
+    for node in root.iter('p', 'div'):
+        node.tail = '\n' + (node.tail or '')
+    lines = (' '.join(line.split()) for line in ''.join(root.itertext()).replace('\xa0', ' ').split('\n'))
+    return '\n'.join(line for line in lines if line)
 
 
 def dump_notification(notification, live_tasks=None):

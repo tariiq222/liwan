@@ -6,6 +6,7 @@ from odoo import fields
 from odoo.tests import new_test_user, tagged
 
 from odoo.addons.liwan_pmo.models.notification_types import readable_active_task_ids
+from odoo.addons.liwan_pmo.serializers.notification import notification_text
 from odoo.addons.liwan_pmo.tests.common import LiwanPmoCase
 
 
@@ -30,6 +31,10 @@ class TestTaskNotifications(LiwanPmoCase):
         cls.env['mail.notification'].sudo().search([
             ('mail_message_id.liwan_notification', '=', True),
         ]).unlink()
+
+    def test_notification_text_keeps_line_breaks_and_drops_markers(self):
+        self.assertEqual(notification_text('<p><strong>@Sara</strong> look</p><p>line 2<br/>line 3 &amp; more</p>'), '@Sara look\nline 2\nline 3 & more')
+        self.assertEqual(notification_text(''), '')
 
     def test_pmo_registers_its_notification_kinds(self):
         registry = self.env['liwan.notify.registry']
