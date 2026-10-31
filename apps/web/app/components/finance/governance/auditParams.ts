@@ -55,3 +55,40 @@ export function formatAuditTime(iso: string, locale: string): string {
   const formatter = new Intl.DateTimeFormat(`${locale}-u-nu-latn`, { dateStyle: 'medium', timeStyle: 'short' })
   return formatter.format(new Date(iso))
 }
+
+const MODEL_RECORDS = [
+  'account.account', 'account.analytic.account', 'account.analytic.plan', 'account.asset', 'account.asset.profile', 'account.bank.statement',
+  'account.bank.statement.line', 'account.journal', 'account.payment', 'account.payment.term', 'account.tax', 'liwan.finance.zakat.adjustment',
+  'liwan.finance.zakat.review', 'mis.budget.by.account', 'res.company', 'res.partner',
+] as const
+
+/** The locale key naming the kind of record an event is about; a journal entry and an invoice share one Odoo model. */
+export function auditRecordKey(event: Pick<FinanceAuditEvent, 'action' | 'res_model'>): string {
+  if (event.res_model === 'account.move') return event.action.startsWith('invoice_') ? 'invoice' : event.action.startsWith('entry_') ? 'entry' : 'move'
+  return (MODEL_RECORDS as readonly string[]).includes(event.res_model) ? event.res_model.replaceAll('.', '_') : 'other'
+}
+
+export interface AuditOutcome {
+  key: string
+  params: Record<string, string>
+}
+
+const OUTCOME_SHAPES: [RegExp, string, string[]][] = [
+  [/^(\d+) lines, (\d+) reconciled$/, 'linesReconciled', ['lines', 'reconciled']],
+  [/^(\d+) lines$/, 'lines', ['lines']],
+  [/^(\d+) entries$/, 'entries', ['count']],
+  [/^(add|deduct) (.+)$/, 'zakatAdjustment', ['kind', 'amount']],
+  [/^statement (\d+)$/, 'statement', ['id']],
+  [/^sold for (.+)$/, 'soldFor', ['amount']],
+  [/^base (.+)$/, 'zakatBase', ['amount']],
+  [/^(\d{4}):(\w+)$/, 'yearClosed', ['year', 'state']],
+]
+
+/** The outcome text the server stores, as a locale key with its figures; null when the text is a plain state word. */
+export function auditOutcome(outcome: string): AuditOutcome | null {
+  for (const [shape, key, names] of OUTCOME_SHAPES) {
+    const match = shape.exec(outcome)
+    if (match) return { key, params: Object.fromEntries(names.map((name, index) => [name, match[index + 1] ?? ''])) }
+  }
+  return null
+}

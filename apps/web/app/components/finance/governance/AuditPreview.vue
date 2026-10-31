@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import SettingsPreviewList from '@/components/settings/SettingsPreviewList.vue'
 import { useFinanceAuditEvents } from '@/composables/finance/useFinanceAudit'
-import { formatAuditTime } from './auditParams'
+import { auditRecordKey, formatAuditTime } from './auditParams'
 
 // The latest finance audit events as compact rows inside the preview card; filters and paging live on the full log page.
 const PREVIEW_ROWS = 5
@@ -13,7 +13,7 @@ const rows = computed(() => (query.data.value?.items ?? []).map(event => ({
   to: '/settings/apps/finance/audit',
   name: t(`financeGovernance.audit.actions.${event.action}`),
   icon: 'i-lucide-history',
-  secondary: [event.actor.name, `${event.res_model} #${event.res_id}`, formatAuditTime(event.created_at, locale.value)].join(' · '),
+  secondary: [event.actor.name, `${t(`financeGovernance.audit.records.${auditRecordKey(event)}`)} #${event.res_id}`, formatAuditTime(event.created_at, locale.value)].join(' · '),
 })))
 </script>
 

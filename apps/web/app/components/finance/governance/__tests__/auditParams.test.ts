@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import ar from '../../../../../i18n/locales/ar/finance-governance.json'
 import en from '../../../../../i18n/locales/en/finance-governance.json'
-import { AUDIT_ACTIONS, AUDIT_PAGE_SIZE, auditActiveFilterCount, auditFiltersFromQuery, auditListParams, formatAuditTime } from '../auditParams'
+import { FinanceAuditActionSchema } from '@liwan/contracts'
+import { AUDIT_ACTIONS, AUDIT_PAGE_SIZE, auditActiveFilterCount, auditFiltersFromQuery, auditListParams, auditOutcome, auditRecordKey, formatAuditTime } from '../auditParams'
 
 describe('audit list filters', () => {
   it('reads the action, the days and the page out of the query', () => {
@@ -16,7 +17,7 @@ describe('audit list filters', () => {
   })
 
   it('offers every action of the contract', () => {
-    expect(AUDIT_ACTIONS).toEqual(['account_created', 'account_changed', 'account_archived', 'account_unarchived', 'zakat_adjustment_added', 'zakat_adjustment_removed', 'zakat_reviewed', 'asset_profile_created', 'asset_profile_changed', 'asset_profile_archived', 'asset_profile_unarchived', 'asset_changed', 'asset_deleted', 'asset_disposed', 'bank_statement_imported', 'bank_statement_changed', 'bank_statement_deleted', 'bank_line_unreconciled', 'bank_statement_auto_reconciled', 'payment_created', 'payment_changed', 'payment_posted', 'payment_allocated', 'payment_unallocated', 'invoice_created', 'invoice_changed', 'invoice_deleted', 'invoice_debit_note_created', 'invoice_credit_note_created', 'invoice_posted', 'invoice_cancelled', 'invoice_reset_to_draft', 'entry_created', 'entry_changed', 'entry_deleted', 'entry_posted', 'entry_reset_to_draft', 'entry_unreconciled', 'journal_created', 'journal_changed', 'journal_archived', 'journal_unarchived', 'tax_created', 'tax_changed', 'tax_archived', 'tax_unarchived', 'payment_term_created', 'payment_term_changed', 'payment_term_archived', 'payment_term_unarchived', 'company_written', 'fiscal_year_closed', 'zatca_onboarded', 'zatca_submitted'])
+    expect(AUDIT_ACTIONS).toEqual(FinanceAuditActionSchema.options)
   })
 
   it('names every action of the contract in both locales', () => {
@@ -41,5 +42,30 @@ describe('audit time', () => {
   it('formats the moment with Latin digits in the locale of the user', () => {
     expect(formatAuditTime('2026-10-19T09:30:00Z', 'en')).toMatch(/2026/)
     expect(formatAuditTime('2026-10-19T09:30:00Z', 'ar')).toMatch(/2026/)
+  })
+})
+
+describe('audit record and outcome text', () => {
+  it('names the kind of record, telling an invoice from a journal entry', () => {
+    expect(auditRecordKey({ action: 'invoice_posted', res_model: 'account.move' })).toBe('invoice')
+    expect(auditRecordKey({ action: 'entry_posted', res_model: 'account.move' })).toBe('entry')
+    expect(auditRecordKey({ action: 'zakat_reviewed', res_model: 'liwan.finance.zakat.review' })).toBe('liwan_finance_zakat_review')
+    expect(auditRecordKey({ action: 'zakat_reviewed', res_model: 'something.else' })).toBe('other')
+  })
+
+  it('turns the stored outcome into a locale key with its figures', () => {
+    expect(auditOutcome('base 2416.0')).toEqual({ key: 'zakatBase', params: { amount: '2416.0' } })
+    expect(auditOutcome('12 lines, 3 reconciled')).toEqual({ key: 'linesReconciled', params: { lines: '12', reconciled: '3' } })
+    expect(auditOutcome('add 10.5')).toEqual({ key: 'zakatAdjustment', params: { kind: 'add', amount: '10.5' } })
+    expect(auditOutcome('2026:closed')).toEqual({ key: 'yearClosed', params: { year: '2026', state: 'closed' } })
+    expect(auditOutcome('posted')).toBeNull()
+  })
+
+  it('has a label for every kind of record and every outcome shape in both locales', () => {
+    for (const audit of [ar.financeGovernance.audit, en.financeGovernance.audit]) {
+      const keys = ['invoice', 'entry', 'move', 'other', 'res_partner', 'mis_budget_by_account', 'account_bank_statement']
+      for (const key of keys) expect(audit.records).toHaveProperty(key)
+      for (const key of ['linesReconciled', 'lines', 'entries', 'statement', 'soldFor', 'zakatBase', 'zakatAdjustment', 'yearClosed']) expect(audit.outcomeShapes).toHaveProperty(key)
+    }
   })
 })

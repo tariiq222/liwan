@@ -25,7 +25,7 @@ export function listPageNumber(value: unknown) {
  * The shared `q` / `page` URL state of a paged list: a debounced search box that writes `?q=`, `update()` for any other key,
  * and the page number read back from the query. Writes wait for hydration, like every control.
  */
-export function useRouteListFilters(options: { background?: () => boolean | undefined; fallbackPath: () => string; safeReturnTo: (value: unknown, fallback: string) => string }) {
+export function useRouteListFilters(options: { background?: () => boolean | undefined; fallbackPath: () => string; safeReturnTo: (value: unknown, fallback: string) => string; history?: 'push' | 'replace' }) {
   const route = useRoute()
   const router = useRouter()
   const hydrated = useHydrated()
@@ -37,7 +37,8 @@ export function useRouteListFilters(options: { background?: () => boolean | unde
   async function update(values: Record<string, string | undefined>) {
     if (!hydrated.value) return
     // The hash of the address bar: a settings page's scroll-spy rewrites it without telling the router.
-    await router.replace({ path: route.path, query: { ...route.query, ...values }, hash: liveHash(route.hash, import.meta.client ? location.hash : undefined) })
+    const navigate = options.history === 'push' ? router.push : router.replace
+    await navigate.call(router, { path: route.path, query: { ...route.query, ...values }, hash: liveHash(route.hash, import.meta.client ? location.hash : undefined) })
   }
   const debounced = refDebounced(search, SEARCH_DEBOUNCE_MS)
   watch(debounced, value => { if (value.trim() !== committedSearch.value.trim()) void update({ q: value.trim() || undefined, page: undefined }) })

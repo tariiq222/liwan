@@ -5,14 +5,14 @@ import { useFinanceAuditEvents } from '@/composables/finance/useFinanceAudit'
 import { useRouteListFilters } from '@/composables/useRouteListFilters'
 import { listReturnTo } from '../invoices/listLocation'
 import {
-  AUDIT_ACTIONS, AUDIT_PAGE_SIZE, AUDIT_PATH, auditActiveFilterCount, auditFiltersFromQuery, auditListParams, formatAuditTime,
+  AUDIT_ACTIONS, AUDIT_PAGE_SIZE, AUDIT_PATH, auditActiveFilterCount, auditFiltersFromQuery, auditListParams, auditOutcome, auditRecordKey, formatAuditTime,
 } from './auditParams'
 
 // The read-only card of the finance audit log. The page owns the settings shell and heading.
-const { t, locale } = useI18n()
+const { t, te, locale } = useI18n()
 const { can } = useAccess()
 const allowed = computed(() => can('finance.audit.read'))
-const { hydrated, filterQuery, update } = useRouteListFilters({ fallbackPath: () => AUDIT_PATH, safeReturnTo: listReturnTo(AUDIT_PATH) })
+const { hydrated, filterQuery, update } = useRouteListFilters({ fallbackPath: () => AUDIT_PATH, history: 'push', safeReturnTo: listReturnTo(AUDIT_PATH) })
 const filters = computed(() => auditFiltersFromQuery(filterQuery.value))
 const activeCount = computed(() => auditActiveFilterCount(filters.value))
 const query = useFinanceAuditEvents(() => auditListParams(filters.value), allowed)
@@ -45,6 +45,17 @@ const columns = computed<TableColumn<FinanceAuditEvent>[]>(() => [
 ])
 const dash = computed(() => t('app.notAvailable'))
 const time = (event: FinanceAuditEvent) => formatAuditTime(event.created_at, locale.value)
+const recordLabel = (event: FinanceAuditEvent) => t(`financeGovernance.audit.records.${auditRecordKey(event)}`)
+function outcomeLabel(outcome: string) {
+  const shaped = auditOutcome(outcome)
+  if (shaped) {
+    const params = { ...shaped.params }
+    if (params.kind) params.kind = t(`financeGovernance.audit.outcomes.${params.kind}`)
+    if (params.state) params.state = te(`financeGovernance.audit.outcomes.${params.state}`) ? t(`financeGovernance.audit.outcomes.${params.state}`) : params.state
+    return t(`financeGovernance.audit.outcomeShapes.${shaped.key}`, params)
+  }
+  return te(`financeGovernance.audit.outcomes.${outcome}`) ? t(`financeGovernance.audit.outcomes.${outcome}`) : outcome
+}
 </script>
 
 <template>
@@ -70,14 +81,14 @@ const time = (event: FinanceAuditEvent) => formatAuditTime(event.created_at, loc
           <template #created_at-cell="{ row }"><bdi class="whitespace-nowrap tabular-nums">{{ time(row.original) }}</bdi></template>
           <template #actor-cell="{ row }">{{ row.original.actor.name }}</template>
           <template #action-cell="{ row }"><SharedStatusBadge size="sm" tone="info" :label="t(`financeGovernance.audit.actions.${row.original.action}`)" /></template>
-          <template #record-cell="{ row }"><bdi dir="ltr" class="tabular-nums">{{ row.original.res_model }} #{{ row.original.res_id }}</bdi></template>
+          <template #record-cell="{ row }">{{ recordLabel(row.original) }} <bdi class="tabular-nums">#{{ row.original.res_id }}</bdi></template>
           <template #fields_written-cell="{ row }">
             <span v-if="row.original.fields_written.length" class="flex flex-wrap gap-1">
               <SharedStatusBadge v-for="field in row.original.fields_written" :key="field" size="sm" tone="neutral" variant="outline" :label="field" />
             </span>
             <span v-else class="text-muted">{{ dash }}</span>
           </template>
-          <template #outcome-cell="{ row }"><bdi v-if="row.original.outcome">{{ row.original.outcome }}</bdi><span v-else class="text-muted">{{ dash }}</span></template>
+          <template #outcome-cell="{ row }"><bdi v-if="row.original.outcome">{{ outcomeLabel(row.original.outcome) }}</bdi><span v-else class="text-muted">{{ dash }}</span></template>
           <template #mobile-row="{ row }">
             <div class="flex min-w-0 flex-col gap-2">
               <span class="flex items-center justify-between gap-2">
@@ -85,11 +96,11 @@ const time = (event: FinanceAuditEvent) => formatAuditTime(event.created_at, loc
                 <bdi class="text-sm tabular-nums text-muted">{{ time(row) }}</bdi>
               </span>
               <span class="truncate text-sm text-highlighted">{{ row.actor.name }}</span>
-              <bdi dir="ltr" class="text-sm tabular-nums text-muted">{{ row.res_model }} #{{ row.res_id }}</bdi>
+              <span class="text-sm text-muted">{{ recordLabel(row) }} <bdi class="tabular-nums">#{{ row.res_id }}</bdi></span>
               <span v-if="row.fields_written.length" class="flex flex-wrap gap-1">
                 <SharedStatusBadge v-for="field in row.fields_written" :key="field" size="sm" tone="neutral" variant="outline" :label="field" />
               </span>
-              <bdi v-if="row.outcome" class="text-sm text-muted">{{ row.outcome }}</bdi>
+              <bdi v-if="row.outcome" class="text-sm text-muted">{{ outcomeLabel(row.outcome) }}</bdi>
             </div>
           </template>
         </SharedDataTable>
