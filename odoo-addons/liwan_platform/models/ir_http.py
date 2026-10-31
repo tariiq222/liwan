@@ -46,6 +46,11 @@ OPEN_PREFIXES = (*API_PREFIXES, '/websocket', '/web/assets/', '/web/static/')
 # favicon (a version key only), as in the shared edge.
 AVATAR_PATH = re.compile(r'^/web/image/hr\.employee/[1-9][0-9]{0,9}/avatar_128$')
 FAVICON_PATH = re.compile(r'^/web/image/res\.company/[1-9][0-9]{0,9}/logo/32x32$')
+# The UI language (the web app's ``liwan-locale`` cookie, sent by the Nuxt proxy) selects the language of
+# the server text of one /api/v1 request. Only these two values are honoured; the stored user language
+# and the session are never written.
+UI_LOCALE_HEADER = 'X-Liwan-Ui-Locale'
+UI_LOCALES = {'ar': 'ar_001', 'en': 'en_US'}
 VERSION_VALUE = re.compile(r'^(?:0|[0-9]{20})-[a-f0-9]{12}$')
 # Attachments are never served by Odoo's /web/content: each owning application streams
 # its own files from /api/v1/.../attachments/<id>/download after its capability check.
@@ -118,3 +123,14 @@ class LiwanPlatformIrHttp(models.AbstractModel):
         if response is None and request.httprequest.path.startswith(API_PREFIXES):
             return request.make_json_response({'code': 'not_found', 'message': 'Record does not exist'}, status=404)
         return response
+
+    @classmethod
+    def _pre_dispatch(cls, rule, args):
+        super()._pre_dispatch(rule, args)
+        httprequest = request.httprequest
+        if not httprequest.path.startswith(API_PREFIXES):
+            return
+        code = UI_LOCALES.get((httprequest.headers.get(UI_LOCALE_HEADER) or '').strip().lower())
+        installed = {lang for lang, _name in request.env['res.lang'].get_installed()}
+        if code in installed:
+            request.update_context(lang=code)

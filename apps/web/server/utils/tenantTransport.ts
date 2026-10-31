@@ -3,6 +3,7 @@ import https from 'node:https'
 import { createError, getHeader, type H3Event } from 'h3'
 import { createBodyAdmission, createResponseAdmission, HEAVY_CREDITS, readBodyBytes } from './bufferAdmission.mjs'
 import { tenantUpstreamHeaders } from './tenantRequest'
+import { uiLocaleHeaders } from './uiLocale'
 import { HEAVY_TIMEOUT, UPSTREAM_TIMEOUT } from './upstreamDeadlines'
 
 const MAX_REQUEST = 16 * 1024 * 1024
@@ -206,6 +207,7 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
   if (signature) headers['x-hub-signature-256'] = signature
   const cookie = options.headers?.cookie ?? getHeader(event, 'cookie')
   if (cookie) headers.cookie = cookie
+  Object.assign(headers, uiLocaleHeaders(event))
   if (body) headers['content-length'] = String(Buffer.byteLength(body))
   const cancellation = clientCancellation(event, options)
   let releaseSlots: (() => void) | undefined
