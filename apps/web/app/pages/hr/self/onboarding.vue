@@ -2,6 +2,7 @@
 definePageMeta({ path: '/account/onboarding' })
 import type { TableColumn } from '@nuxt/ui'
 import type { HrOwnOnboardingStep } from '@liwan/contracts'
+import type { StatusTone } from '@liwan/ui/app/utils/statusTone'
 import { ApiError } from '@/composables/useApi'
 import { formatDate } from '@liwan/ui/app/utils/formatDate'
 
@@ -21,7 +22,7 @@ const columns = computed<TableColumn<HrOwnOnboardingStep>[]>(() => [
   { id: 'date_deadline', header: t('hr.self.onboardingColumns.deadline') },
   { id: 'action', header: '' },
 ])
-const stateTone = (state: HrOwnOnboardingStep['state']) => (state === 'overdue' ? 'error' : state === 'today' ? 'warning' : 'neutral')
+const stateTone = (state: HrOwnOnboardingStep['state']): StatusTone => (state === 'overdue' ? 'destructive' : state === 'today' ? 'warning' : 'neutral')
 
 async function finish(step: HrOwnOnboardingStep) {
   if (!hydrated.value || complete.isPending.value) return

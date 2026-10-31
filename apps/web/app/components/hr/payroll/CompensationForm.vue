@@ -140,9 +140,9 @@ async function submit() {
         </UFormField>
         <UFormField :label="t('hrPayroll.compensation.bank')" name="hr-compensation-bank" :error="fieldError('bank_id', t('errors.generic'))">
           <USelectMenu
-            id="hr-compensation-bank" v-model="bankId" class="w-full" value-key="value" :items="bankItems" :loading="banks.isFetching.value"
+            id="hr-compensation-bank" :model-value="bankId ?? undefined" class="w-full" value-key="value" :items="bankItems" :loading="banks.isFetching.value"
             :placeholder="t('hrPayroll.compensation.bankPlaceholder')" :search-input="{ placeholder: t('hrPayroll.compensation.bankSearch') }"
-            :disabled="!hydrated || isPending" data-testid="hr-compensation-bank"
+            :disabled="!hydrated || isPending" data-testid="hr-compensation-bank" @update:model-value="bankId = $event ?? null"
           />
         </UFormField>
       </div>
