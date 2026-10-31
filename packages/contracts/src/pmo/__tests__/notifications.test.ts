@@ -24,6 +24,18 @@ describe('notification contracts', () => {
     expect(() => NotificationSchema.parse({ ...row, project_id: undefined })).toThrow()
   })
 
+  it('accepts the completion bell rows as task rows', () => {
+    const row = {
+      id: 12, task_id: 3, task_name: 'Write brief', body: 'Mona asked for completion of Write brief',
+      created_at: '2026-10-31T10:00:00Z', is_read: false,
+    }
+    for (const kind of ['completion_requested', 'completion_accepted'] as const) {
+      expect(NotificationSchema.parse({ ...row, kind }).kind).toBe(kind)
+      expect(NotificationKindSchema.parse(kind)).toBe(kind)
+    }
+    expect(() => NotificationSchema.parse({ ...row, kind: 'completion_requested', project_id: 4 })).toThrow()
+  })
+
   it('accepts the list and read response wire shapes', () => {
     const notification = {
       id: 7, kind: 'comment', task_id: 12, task_name: 'Review brief',

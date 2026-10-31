@@ -4,6 +4,7 @@ import {
   ChatConversationListSchema,
   ChatConversationSchema,
   ChatMemberListSchema,
+  ChatMessageDeleteResultSchema,
   ChatMessageListSchema,
   ChatMessageSchema,
   ChatRecipientListSchema,
@@ -291,6 +292,21 @@ export function usePatchChatMessage(conversationId: MaybeRefOrGetter<number>) {
     mutationFn: ({ messageId, body }: ChatMessageUpdate & { messageId: number }) => $api(
       `/api/v1/chat/conversations/${toValue(conversationId)}/messages/${messageId}`,
       { method: 'PATCH', body: { body }, schema: ChatMessageSchema },
+    ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: chatKeys.root(userId.value) }),
+  })
+}
+
+/** Delete a message the caller wrote: the company decides whether its row stays cleared or goes (see the chat settings). */
+export function useDeleteChatMessage(conversationId: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  const qc = useQueryClient()
+  const userId = currentUserId()
+  return useMutation({
+    retry: false,
+    mutationFn: (messageId: number) => $api(
+      `/api/v1/chat/conversations/${toValue(conversationId)}/messages/${messageId}`,
+      { method: 'DELETE', schema: ChatMessageDeleteResultSchema },
     ),
     onSuccess: () => qc.invalidateQueries({ queryKey: chatKeys.root(userId.value) }),
   })

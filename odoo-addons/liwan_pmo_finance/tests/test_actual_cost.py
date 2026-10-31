@@ -75,6 +75,10 @@ class TestActualCost(PmoFinanceCase):
         self.login_as(self.owner)
         summary = self.get_ok(self.summary_url())
         self.assertEqual((summary['can_read_actual_lines'], summary['can_choose_actual_account']), (True, True))
+        # A finance owner who does not manage the project is offered the picker the API accepts.
+        self.login_as(self.finance_manager)
+        summary = self.get_ok(self.summary_url())
+        self.assertEqual((summary['can_read_actual_lines'], summary['can_choose_actual_account']), (True, True))
 
     def test_lines_need_the_finance_capability(self):
         self.login_as(self.reader)

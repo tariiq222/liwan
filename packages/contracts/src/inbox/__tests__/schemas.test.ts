@@ -24,8 +24,10 @@ const CONVERSATION = {
   state: 'open',
   priority: 'normal',
   tags: [],
+  revision: 3,
   last_message_at: '2026-10-28T09:00:00Z',
   last_message_preview: 'Hello',
+  last_message_kind: 'text',
   unread: true,
   reply_window_ends_at: '2026-10-29T09:00:00Z',
   csat: null,
@@ -53,8 +55,13 @@ describe('InboxReplyCreateSchema', () => {
 
 describe('InboxConversationPatchSchema', () => {
   it('allows clearing the assignee and rejects unknown fields', () => {
-    expect(InboxConversationPatchSchema.parse({ assignee_id: null })).toEqual({ assignee_id: null })
-    expect(() => InboxConversationPatchSchema.parse({ contact_id: 1 })).toThrow()
+    expect(InboxConversationPatchSchema.parse({ revision: 1, assignee_id: null })).toEqual({ revision: 1, assignee_id: null })
+    expect(() => InboxConversationPatchSchema.parse({ revision: 1, contact_id: 1 })).toThrow()
+  })
+
+  it('names the revision it was made from', () => {
+    expect(() => InboxConversationPatchSchema.parse({ priority: 'high' })).toThrow()
+    expect(() => InboxConversationPatchSchema.parse({ revision: 0, priority: 'high' })).toThrow()
   })
 })
 

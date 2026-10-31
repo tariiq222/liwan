@@ -219,6 +219,15 @@ class ProjectTask(models.Model):
             self.create_uid == self.env.user or self._liwan_can_approve()
         )
 
+    @api.model
+    def _get_default_personal_stage_create_vals(self, user_id):
+        """Odoo words the default personal stages in the acting user's language, also when assigning a task.
+
+        The tenant's language is the one every reader shares, so the stages are created in it.
+        """
+        lang = self.env.company.partner_id.lang or self.env.lang
+        return super(ProjectTask, self.with_context(lang=lang))._get_default_personal_stage_create_vals(user_id)
+
     def _liwan_archive(self):
         self.ensure_one()
         if not self._liwan_can_archive():

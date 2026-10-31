@@ -17,6 +17,9 @@ const acquireInternalBody = createBodyAdmission('session')
 const publicAuthBodyLimits = { '/api/auth/totp': 1024, '/api/auth/login': 64 * 1024 }
 const pinNames = ['x-liwan-release-pool', 'x-liwan-release-revision', 'x-liwan-release-fence']
 const internalNames = new Set(['x-liwan-proxy-token', 'x-liwan-tenant-revision', ...pinNames, 'x-liwan-release-admission'])
+// The UI language the web proxy forwards on its trusted hop: ar or en, nothing else.
+const UI_LOCALE_HEADER = 'x-liwan-ui-locale'
+const uiLocale = value => value === 'ar' || value === 'en'
 const edgeNames = new Set(['x-liwan-client-ip', 'x-liwan-client-host', 'x-liwan-client-proto'])
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b))
 const fail = (statusCode = 403) => Object.assign(Error('dedicated_boundary_rejected'), { statusCode })
@@ -102,7 +105,7 @@ export function createDedicatedGuard({ bindingPath, releaseRoutesDir, proxyToken
     const internal = equal(req.headers['x-liwan-proxy-token'], proxyToken)
     const peerTrusted = trustedEdgeAddresses.includes(req.socket.remoteAddress)
     for (const name of Object.keys(req.headers)) {
-      if (privateHeader.test(name) && name !== 'x-liwan-csrf' && !(internal && internalNames.has(name)) && !((peerTrusted || internal) && edgeNames.has(name))) throw fail()
+      if (privateHeader.test(name) && name !== 'x-liwan-csrf' && !(internal && internalNames.has(name)) && !(internal && name === UI_LOCALE_HEADER && uiLocale(req.headers[name])) && !((peerTrusted || internal) && edgeNames.has(name))) throw fail()
     }
     if (internal && req.headers['x-liwan-tenant-revision'] !== String(binding.identityRevision)) throw fail()
     const suppliedEdge = [...edgeNames].filter(name => req.headers[name] !== undefined)
@@ -125,6 +128,7 @@ export function createDedicatedGuard({ bindingPath, releaseRoutesDir, proxyToken
     // API admission wins even over legacy paths containing /static/.
     const odoo = url.pathname.startsWith('/api/v1/') ? internal : websocket || odooPath(url.pathname)
     const headers = cleanHeaders(req.headers)
+    if (internal && uiLocale(req.headers[UI_LOCALE_HEADER])) headers[UI_LOCALE_HEADER] = req.headers[UI_LOCALE_HEADER]
     headers.host = binding.host
     headers['x-forwarded-for'] = suppliedEdge.length ? req.headers['x-liwan-client-ip'] : req.socket.remoteAddress
     headers['x-forwarded-host'] = binding.host

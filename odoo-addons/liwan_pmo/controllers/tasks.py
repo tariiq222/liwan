@@ -6,10 +6,10 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.fields import Domain
 from odoo.http import request
 
+from .records import get_visible_record
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
-    get_record,
     parse_nonneg_int,
     parse_positive_int,
     require_capabilities,
@@ -235,7 +235,7 @@ class TaskController(http.Controller):
     @requires_feature('pmo.enabled', operation='read')
     def get_task(self, task_id):
         require_capabilities('pmo.tasks.read')
-        task = get_record('project.task', task_id)
+        task = get_visible_record('project.task', task_id)
         return dump_task_detail(task)
 
     @http.route('/api/v1/tasks', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -255,7 +255,7 @@ class TaskController(http.Controller):
         if project_id is None:
             raise ApiError(422, 'invalid', "project_id is required", field='project_id')
         project_id = parse_positive_int(project_id, 'project_id')
-        project = get_record('project.project', project_id)
+        project = get_visible_record('project.project', project_id)
         request.env['liwan.access.service']._liwan_require_capability('pmo.tasks.create', record=project)
         vals = {'name': name.strip(), 'project_id': project.id, 'user_ids': [(4, request.env.uid)]}
         if description is not _MISSING:
@@ -264,7 +264,7 @@ class TaskController(http.Controller):
             vals['liwan_deliverables'] = _parse_deliverables(deliverables)
         if parent_id is not None:
             parent_id = parse_positive_int(parent_id, 'parent_id')
-            vals['parent_id'] = get_record('project.task', parent_id).id
+            vals['parent_id'] = get_visible_record('project.task', parent_id).id
         if milestone_id is not None:
             milestone_id = parse_positive_int(milestone_id, 'milestone_id')
             milestone = request.env['project.milestone'].search([
@@ -297,7 +297,7 @@ class TaskController(http.Controller):
         payload.pop('task_id', None)
         if not payload:
             raise ApiError(422, 'invalid', "no fields to update")
-        task = get_record('project.task', task_id)
+        task = get_visible_record('project.task', task_id)
         if not task._liwan_can_write():
             raise AccessError(request.env._("You are not allowed to change this task."))
         vals = parse_task_vals(payload, can_manage=task._liwan_can_approve(), task=task)
@@ -310,7 +310,7 @@ class TaskController(http.Controller):
     def transition_task(self, task_id, state=None, **_):
         if state not in API_TO_STATE:
             raise ApiError(422, 'invalid_state', f"unknown state {state!r}", field='state')
-        task = get_record('project.task', task_id)
+        task = get_visible_record('project.task', task_id)
         try:
             task._liwan_transition(API_TO_STATE[state])
         except AccessError as e:
@@ -321,7 +321,7 @@ class TaskController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='write')
     def archive_task(self, task_id, **_):
-        task = get_record('project.task', task_id)
+        task = get_visible_record('project.task', task_id)
         task._liwan_archive()  # AccessError → 403 forbidden via api_handler
         return dump_task_detail(task)
 
@@ -332,7 +332,7 @@ class TaskController(http.Controller):
         if extra:
             field = sorted(extra)[0]
             raise ApiError(422, 'unknown_field', f"field {field!r} is not writable", field=field)
-        task = get_record('project.task', task_id)
+        task = get_visible_record('project.task', task_id)
         try:
             task._liwan_request_completion()
         except AccessError as e:
@@ -348,7 +348,7 @@ class TaskController(http.Controller):
         if extra:
             field = sorted(extra)[0]
             raise ApiError(422, 'unknown_field', f"field {field!r} is not writable", field=field)
-        task = get_record('project.task', task_id)
+        task = get_visible_record('project.task', task_id)
         try:
             task._liwan_accept_completion(revision)
         except AccessError as e:
@@ -364,7 +364,7 @@ class TaskController(http.Controller):
         if extra:
             field = sorted(extra)[0]
             raise ApiError(422, 'unknown_field', f"field {field!r} is not writable", field=field)
-        task = get_record('project.task', task_id)
+        task = get_visible_record('project.task', task_id)
         try:
             task._liwan_return_completion(revision, note)
         except AccessError as e:
@@ -381,7 +381,7 @@ class TaskController(http.Controller):
         if extra:
             field = sorted(extra)[0]
             raise ApiError(422, 'unknown_field', f"field {field!r} is not writable", field=field)
-        task = get_record('project.task', task_id)
+        task = get_visible_record('project.task', task_id)
         try:
             task._liwan_withdraw_completion(revision)
         except AccessError as e:

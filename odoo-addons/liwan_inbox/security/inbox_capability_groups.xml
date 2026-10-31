@@ -33,8 +33,8 @@
          (with their secrets) and creates raw events, nothing else; see security/ir.model.access.csv. -->
     <record id="group_inbox_hook" model="res.groups"><field name="name">Customer Inbox webhook</field></record>
 
-    <!-- liwan_core's support group reaches this application through this link. -->
+    <!-- liwan_core's support group reaches only the channels and the settings, never the conversations (INB-18). -->
     <record id="liwan_core.group_vendor_support" model="res.groups">
-        <field name="implied_ids" eval="[Command.link(ref('group_inbox_manager'))]"/>
+        <field name="implied_ids" eval="[Command.link(ref('group_cap_inbox_channels_manage')), Command.link(ref('group_cap_inbox_settings_manage'))]"/>
     </record>
 </odoo>

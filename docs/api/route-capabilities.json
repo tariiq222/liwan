@@ -21,7 +21,19 @@
         "chat.enabled"
       ],
       "handler": "remove_member",
-      "no_capability_reason": "Chat has no capability keys by design: liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
+      "no_capability_reason": "The conversation routes of chat have no capability keys by design (only its settings do): liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
+    },
+    "DELETE /api/v1/chat/conversations/{conversation_id}/messages/{message_id}": {
+      "addon": "liwan_chat",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": null,
+      "capability_source": "none",
+      "feature_keys": [
+        "chat.enabled"
+      ],
+      "handler": "delete_message",
+      "no_capability_reason": "The conversation routes of chat have no capability keys by design (only its settings do): liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
     },
     "DELETE /api/v1/crm/import-mappings/{profile_id}": {
       "addon": "liwan_crm",
@@ -906,7 +918,7 @@
         "chat.enabled"
       ],
       "handler": "list_conversations",
-      "no_capability_reason": "Chat has no capability keys by design: liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
+      "no_capability_reason": "The conversation routes of chat have no capability keys by design (only its settings do): liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
     },
     "GET /api/v1/chat/conversations/{conversation_id}": {
       "addon": "liwan_chat",
@@ -918,7 +930,7 @@
         "chat.enabled"
       ],
       "handler": "get_conversation",
-      "no_capability_reason": "Chat has no capability keys by design: liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
+      "no_capability_reason": "The conversation routes of chat have no capability keys by design (only its settings do): liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
     },
     "GET /api/v1/chat/conversations/{conversation_id}/attachments": {
       "addon": "liwan_chat",
@@ -930,7 +942,7 @@
         "chat.enabled"
       ],
       "handler": "list_attachments",
-      "no_capability_reason": "Chat has no capability keys by design: liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
+      "no_capability_reason": "The conversation routes of chat have no capability keys by design (only its settings do): liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
     },
     "GET /api/v1/chat/conversations/{conversation_id}/attachments/{attachment_id}/download": {
       "addon": "liwan_chat",
@@ -942,7 +954,7 @@
         "chat.enabled"
       ],
       "handler": "download_attachment",
-      "no_capability_reason": "Chat has no capability keys by design: liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
+      "no_capability_reason": "The conversation routes of chat have no capability keys by design (only its settings do): liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
     },
     "GET /api/v1/chat/conversations/{conversation_id}/members": {
       "addon": "liwan_chat",
@@ -954,7 +966,7 @@
         "chat.enabled"
       ],
       "handler": "list_members",
-      "no_capability_reason": "Chat has no capability keys by design: liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
+      "no_capability_reason": "The conversation routes of chat have no capability keys by design (only its settings do): liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
     },
     "GET /api/v1/chat/conversations/{conversation_id}/messages": {
       "addon": "liwan_chat",
@@ -966,7 +978,7 @@
         "chat.enabled"
       ],
       "handler": "list_messages",
-      "no_capability_reason": "Chat has no capability keys by design: liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
+      "no_capability_reason": "The conversation routes of chat have no capability keys by design (only its settings do): liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
     },
     "GET /api/v1/chat/recipients": {
       "addon": "liwan_chat",
@@ -978,7 +990,19 @@
         "chat.enabled"
       ],
       "handler": "list_recipients",
-      "no_capability_reason": "Chat has no capability keys by design: liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
+      "no_capability_reason": "The conversation routes of chat have no capability keys by design (only its settings do): liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
+    },
+    "GET /api/v1/chat/settings": {
+      "addon": "liwan_chat",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "chat.enabled"
+      ],
+      "handler": "get_settings",
+      "no_capability_reason": null
     },
     "GET /api/v1/crm/agents": {
       "addon": "liwan_crm",
@@ -3171,7 +3195,7 @@
       "addon": "liwan_inbox",
       "auth": "user",
       "capability_keys": [],
-      "capability_match": "all",
+      "capability_match": "any",
       "capability_source": "decorator",
       "feature_keys": [
         "inbox.enabled"
@@ -4943,7 +4967,7 @@
         "chat.enabled"
       ],
       "handler": "patch_conversation",
-      "no_capability_reason": "Chat has no capability keys by design: liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
+      "no_capability_reason": "The conversation routes of chat have no capability keys by design (only its settings do): liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
     },
     "PATCH /api/v1/chat/conversations/{conversation_id}/messages/{message_id}": {
       "addon": "liwan_chat",
@@ -4955,7 +4979,19 @@
         "chat.enabled"
       ],
       "handler": "patch_message",
-      "no_capability_reason": "Chat has no capability keys by design: liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
+      "no_capability_reason": "The conversation routes of chat have no capability keys by design (only its settings do): liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
+    },
+    "PATCH /api/v1/chat/settings": {
+      "addon": "liwan_chat",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "chat.enabled"
+      ],
+      "handler": "patch_settings",
+      "no_capability_reason": null
     },
     "PATCH /api/v1/crm/lost-reasons/{reason_id}": {
       "addon": "liwan_crm",
@@ -6533,7 +6569,7 @@
         "chat.enabled"
       ],
       "handler": "create_conversation",
-      "no_capability_reason": "Chat has no capability keys by design: liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
+      "no_capability_reason": "The conversation routes of chat have no capability keys by design (only its settings do): liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
     },
     "POST /api/v1/chat/conversations/{conversation_id}/leave": {
       "addon": "liwan_chat",
@@ -6545,7 +6581,7 @@
         "chat.enabled"
       ],
       "handler": "leave_conversation",
-      "no_capability_reason": "Chat has no capability keys by design: liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
+      "no_capability_reason": "The conversation routes of chat have no capability keys by design (only its settings do): liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
     },
     "POST /api/v1/chat/conversations/{conversation_id}/members": {
       "addon": "liwan_chat",
@@ -6557,7 +6593,7 @@
         "chat.enabled"
       ],
       "handler": "add_members",
-      "no_capability_reason": "Chat has no capability keys by design: liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
+      "no_capability_reason": "The conversation routes of chat have no capability keys by design (only its settings do): liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
     },
     "POST /api/v1/chat/conversations/{conversation_id}/messages": {
       "addon": "liwan_chat",
@@ -6569,7 +6605,7 @@
         "chat.enabled"
       ],
       "handler": "send_message",
-      "no_capability_reason": "Chat has no capability keys by design: liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
+      "no_capability_reason": "The conversation routes of chat have no capability keys by design (only its settings do): liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
     },
     "POST /api/v1/chat/conversations/{conversation_id}/messages/{message_id}/pin": {
       "addon": "liwan_chat",
@@ -6581,7 +6617,7 @@
         "chat.enabled"
       ],
       "handler": "pin_message",
-      "no_capability_reason": "Chat has no capability keys by design: liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
+      "no_capability_reason": "The conversation routes of chat have no capability keys by design (only its settings do): liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
     },
     "POST /api/v1/chat/conversations/{conversation_id}/messages/{message_id}/reactions": {
       "addon": "liwan_chat",
@@ -6593,7 +6629,7 @@
         "chat.enabled"
       ],
       "handler": "react_to_message",
-      "no_capability_reason": "Chat has no capability keys by design: liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
+      "no_capability_reason": "The conversation routes of chat have no capability keys by design (only its settings do): liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
     },
     "POST /api/v1/chat/conversations/{conversation_id}/messages/{message_id}/star": {
       "addon": "liwan_chat",
@@ -6605,7 +6641,7 @@
         "chat.enabled"
       ],
       "handler": "star_message",
-      "no_capability_reason": "Chat has no capability keys by design: liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
+      "no_capability_reason": "The conversation routes of chat have no capability keys by design (only its settings do): liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
     },
     "POST /api/v1/chat/conversations/{conversation_id}/read": {
       "addon": "liwan_chat",
@@ -6617,7 +6653,7 @@
         "chat.enabled"
       ],
       "handler": "mark_read",
-      "no_capability_reason": "Chat has no capability keys by design: liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
+      "no_capability_reason": "The conversation routes of chat have no capability keys by design (only its settings do): liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
     },
     "POST /api/v1/chat/conversations/{conversation_id}/typing": {
       "addon": "liwan_chat",
@@ -6629,7 +6665,7 @@
         "chat.enabled"
       ],
       "handler": "notify_typing",
-      "no_capability_reason": "Chat has no capability keys by design: liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
+      "no_capability_reason": "The conversation routes of chat have no capability keys by design (only its settings do): liwan.chat.service requires an active internal LiwanOS user and limits every row to the caller's conversations."
     },
     "POST /api/v1/crm/import-mappings": {
       "addon": "liwan_crm",

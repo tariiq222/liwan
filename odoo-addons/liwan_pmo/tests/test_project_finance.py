@@ -258,7 +258,7 @@ class TestProjectFinance(LiwanPmoCase):
         })
         self.authenticate('api_emp', 'api_emp_pass_123')
         res = self.api('GET', f'/api/v1/projects/{private.id}/finance')
-        self.assertEqual(res.status_code, 403)
+        self.assertEqual(res.status_code, 404)
 
     def test_cross_company_project_is_hidden(self):
         company_b = self.env['res.company'].create({'name': 'Finance company B'})
@@ -463,8 +463,8 @@ class TestProjectFinance(LiwanPmoCase):
             })
         self.authenticate('api_mgr', 'api_mgr_pass_123')
         res = self.api('GET', f'/api/v1/projects/{companyless.id}/finance')
-        self.assertEqual(res.status_code, 403)
-        self.assertEqual(res.json()['code'], 'forbidden')
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()['code'], 'not_found')
 
     def test_summary_currency_is_never_null(self):
         self.authenticate('api_mgr', 'api_mgr_pass_123')

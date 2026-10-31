@@ -349,8 +349,9 @@ cross-addon links.
   `liwan_chat` uses it for the two `mail.message.reaction` paths — the toggle after `_liwan_member_channel`
   proved the caller's membership, and the reaction aggregation of an already-authorized message — both blocked
   by `mail.message.reaction` being system-only in Odoo (owner decision 2026-10-25: authorized), and for the author's
-  message edit after the member and author checks, because emptying a message reads `message_link_preview_ids`,
-  a field Odoo limits to `base.group_erp_manager` (as stock Odoo's own edit controller does).
+  message clearing (the company's «deleted row» choice) after the member and author checks, because clearing a
+  message reads `message_link_preview_ids`, a field Odoo limits to `base.group_erp_manager`, and its reactions are
+  system-only (as stock Odoo's own thread controller does); removing a message for good is unelevated.
   `liwan_notify` uses it for bell delivery and recipient-owned bell reads. The `mail.message` environment in
   `_liwan_deliver` bypasses the stock create/unlink document-access gates: create may be allowed by following the
   source, while unlink requires source write/create access. The three recipient-owned reader helpers retain

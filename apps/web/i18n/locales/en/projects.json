@@ -143,6 +143,7 @@
     },
     "archiveConfirmTitle": "Archive this project?",
     "archiveConfirmText": "The project and its tasks leave the lists. You can unarchive it later from the Archived filter.",
+    "archivedBadge": "Archived",
     "archived": "Project archived",
     "unarchived": "Project unarchived",
     "toast": {

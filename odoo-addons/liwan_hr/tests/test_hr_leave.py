@@ -437,6 +437,18 @@ class TestHrLeave(LiwanHrCase):
             res = self.api('GET', path)
             self.assertEqual(res.status_code, 200, f'{path}: {res.text}')
 
+    def test_leave_type_names_follow_the_ui_language(self):
+        self.env['res.lang']._activate_lang('ar_001')
+        self.sick.with_context(lang='ar_001').name = 'إجازة مرضية'
+        self._as_manager()
+        names = {}
+        for locale in ('ar', 'en'):
+            response = self.url_open('/api/v1/hr/leave/types', headers={'X-Liwan-Ui-Locale': locale})
+            self.assertEqual(response.status_code, 200, response.text)
+            names[locale] = {item['id']: item['name'] for item in response.json()['items']}
+        self.assertEqual(names['ar'][self.sick.id], 'إجازة مرضية')
+        self.assertNotEqual(names['en'][self.sick.id], 'إجازة مرضية')
+
     def test_types_and_allocation_shapes(self):
         self._as_staff()
         types = self.api('GET', '/api/v1/hr/leave/types').json()['items']

@@ -3,11 +3,11 @@ from odoo import http
 from odoo.exceptions import AccessError, ValidationError
 from odoo.http import request
 
+from .records import get_visible_record
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
     declare_read_capability_scope,
-    get_record,
     parse_nonneg_int,
     requires_feature,
 )
@@ -21,7 +21,7 @@ class TaskDependencyController(http.Controller):
     @requires_feature('pmo.enabled', operation='read')
     def list_dependencies(self, task_id):
         declare_read_capability_scope('pmo.tasks.read')
-        task = get_record('project.task', task_id)
+        task = get_visible_record('project.task', task_id)
         if not task.project_id or not task.project_id.active \
                 or task.project_id.company_id not in request.env.companies:
             return {'items': [], 'total': 0, 'can_manage': False, 'enabled': False}
@@ -47,7 +47,7 @@ class TaskDependencyController(http.Controller):
     @requires_feature('pmo.enabled', operation='read')
     def list_candidates(self, task_id, **_):
         declare_read_capability_scope('pmo.tasks.read')
-        task = get_record('project.task', task_id)
+        task = get_visible_record('project.task', task_id)
         args = request.httprequest.args
         if not task.project_id:
             return {'items': [], 'total': 0}
@@ -82,7 +82,7 @@ class TaskDependencyController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='write')
     def set_dependencies(self, task_id, ids=None, **_):
-        task = get_record('project.task', task_id)
+        task = get_visible_record('project.task', task_id)
         if not isinstance(ids, list) or any(isinstance(value, bool) or not isinstance(value, int) or value <= 0 for value in ids):
             raise ApiError(422, 'invalid', 'ids must be a list of positive integers', field='ids')
         if len(ids) != len(set(ids)):

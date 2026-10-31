@@ -28,6 +28,14 @@ const ALLOWED_TYPES: Record<string, readonly string[]> = {
 }
 
 export type AttachmentProblem = 'empty' | 'tooLarge' | 'type'
+export type AttachmentSizeProblem = Exclude<AttachmentProblem, 'type'>
+
+/** The size rules alone, for an upload whose type rules the server owns. */
+export function attachmentSizeProblem(file: { size: number }): AttachmentSizeProblem | null {
+  if (file.size <= 0) return 'empty'
+  if (file.size > MAX_ATTACHMENT_BYTES) return 'tooLarge'
+  return null
+}
 
 export function attachmentProblem(file: { name: string; size: number; type: string }): AttachmentProblem | null {
   const extension = file.name.includes('.') ? file.name.slice(file.name.lastIndexOf('.') + 1).toLowerCase() : ''
@@ -35,7 +43,5 @@ export function attachmentProblem(file: { name: string; size: number; type: stri
   if (!allowed) return 'type'
   // A browser may report no type at all; a reported type must still match the extension.
   if (file.type && !allowed.includes(file.type.toLowerCase())) return 'type'
-  if (file.size <= 0) return 'empty'
-  if (file.size > MAX_ATTACHMENT_BYTES) return 'tooLarge'
-  return null
+  return attachmentSizeProblem(file)
 }

@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo.tests import TransactionCase, tagged
+from odoo.tests import TransactionCase, new_test_user, tagged
 
 from odoo.addons.liwan_inbox.models.access_service import (
     ASSIGN,
@@ -11,6 +11,7 @@ from odoo.addons.liwan_inbox.models.access_service import (
     READ,
     REPLY,
     REPORTS_READ,
+    VENDOR_SUPPORT_PERMISSIONS,
 )
 
 
@@ -25,7 +26,8 @@ class TestInboxAccessComposition(TransactionCase):
         cls.Permission = cls.env['liwan.access.permission']
 
     def _keys(self, role_xmlid):
-        return set(self.env.ref(role_xmlid).permission_ids.mapped('key'))
+        """The role's grants of this addon; the bridge liwan_inbox_payments (auto_install) adds its own to the same roles."""
+        return set(self.env.ref(role_xmlid).permission_ids.mapped('key')) & PERMISSIONS
 
     def test_owns_its_capabilities_and_their_groups(self):
         catalog = self.service._liwan_capability_map()
@@ -44,10 +46,19 @@ class TestInboxAccessComposition(TransactionCase):
         self.assertEqual(self._keys('liwan_inbox.role_inbox_agent'), {READ, REPLY})
         self.assertEqual(self._keys('liwan_inbox.role_inbox_supervisor'), {READ, REPLY, ASSIGN, EXPORT, REPORTS_READ})
         self.assertEqual(self._keys('liwan_inbox.role_inbox_manager'), set(PERMISSIONS))
-        self.assertTrue(self._keys('liwan_core.role_vendor_support') >= PERMISSIONS)
+        self.assertEqual(self._keys('liwan_core.role_vendor_support'), VENDOR_SUPPORT_PERMISSIONS)
+
+    def test_vendor_support_runs_channels_and_settings_and_reads_no_conversation(self):
+        vendor = new_test_user(self.env, login='inbox_vendor', groups='liwan_core.group_vendor_support')
+        self.assertEqual(self.service._liwan_capability_keys(vendor) & PERMISSIONS, VENDOR_SUPPORT_PERMISSIONS)
+        for group in ('group_cap_inbox_channels_manage', 'group_cap_inbox_settings_manage'):
+            self.assertTrue(vendor.has_group(f'liwan_inbox.{group}'), group)
+        for group in ('group_inbox_manager', 'group_cap_inbox_conversations_read', 'group_cap_inbox_conversations_reply'):
+            self.assertFalse(vendor.has_group(f'liwan_inbox.{group}'), group)
+        self.assertFalse(self.env['liwan.inbox.conversation'].with_user(vendor).has_access('read'))
 
     def test_the_employee_role_gets_nothing(self):
-        self.assertFalse(self._keys('liwan_core.role_employee') & PERMISSIONS)
+        self.assertFalse(self._keys('liwan_core.role_employee'))
 
     def test_dependencies_require_read(self):
         for key in (REPLY, ASSIGN, EXPORT):

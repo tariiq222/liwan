@@ -221,6 +221,10 @@ class LiwanMeetingMinute(models.Model):
     def _liwan_check_series_link(self, series):
         """Require an editor for every user-controlled series association."""
         series.ensure_one()
+        # A series the caller cannot see is told apart from one they merely cannot edit: reading its
+        # company would answer with the engine's access text and confirm that the series exists.
+        if not self.env.su and not series.has_access('read'):
+            raise ValidationError(self.env._('The meeting series does not exist.'))
         if series.company_id != self.env.company:
             raise AccessError(self.env._('The meeting series is outside the current company.'))
         if not self.env.su and not series._liwan_is_editor():

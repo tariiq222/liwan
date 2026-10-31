@@ -66,3 +66,16 @@ class TestDocumentContexts(DocumentHttpCase):
         self.assertEqual(selected, {'items': [{'id': departments[-1].id, 'name': departments[-1].name}], 'total': 1})
         self.assertEqual(self.api('GET', path + f'?id={foreign.id}').json(), {'items': [], 'total': 0})
         self.assertEqual(self.api('GET', path + '?id=bad').status_code, 422)
+
+    def test_context_labels_follow_the_ui_language_not_the_stored_user_language(self):
+        self.env['res.lang']._activate_lang('ar_001')
+        self.env['res.lang']._activate_lang('en_US')
+        self.linker.lang = 'en_US'
+        self.authenticate('context_linker', 'context_linker')
+        labels = {}
+        for locale in ('ar', 'en'):
+            response = self.url_open('/api/v1/documents/contexts', headers={'X-Liwan-Ui-Locale': locale})
+            self.assertEqual(response.status_code, 200, response.text)
+            labels[locale] = {item['kind']: item['label'] for item in response.json()['items']}
+        self.assertEqual((labels['ar']['hr.department'], labels['ar']['hr.employee']), ('القسم', 'الموظف'))
+        self.assertEqual((labels['en']['hr.department'], labels['en']['hr.employee']), ('Department', 'Employee'))

@@ -1,5 +1,5 @@
 import type { LocationQuery } from 'vue-router'
-import { InboxConversationStateSchema, type InboxConversationState } from '@liwan/contracts'
+import { InboxConversationStateSchema, InboxPrioritySchema, type InboxConversationState, type InboxPriority } from '@liwan/contracts'
 import { CSAT_SCORES, type CsatScore } from './inboxPresentation'
 
 /** Conversations per list page. */
@@ -11,13 +11,14 @@ export type InboxAssigneeScope = 'all' | 'me' | 'unassigned'
 export interface InboxListRoute {
   assignee: InboxAssigneeScope
   state: InboxConversationState | ''
+  priority: InboxPriority | ''
   departmentId: number | null
   csat: CsatScore | ''
   q: string
   offset: number
 }
 
-export const DEFAULT_INBOX_LIST_ROUTE: InboxListRoute = { assignee: 'all', state: '', departmentId: null, csat: '', q: '', offset: 0 }
+export const DEFAULT_INBOX_LIST_ROUTE: InboxListRoute = { assignee: 'all', state: '', priority: '', departmentId: null, csat: '', q: '', offset: 0 }
 
 function single(value: LocationQuery[string] | undefined): string {
   return (Array.isArray(value) ? value[0] : value) ?? ''
@@ -31,11 +32,13 @@ function positiveInt(value: string): number | null {
 export function parseInboxListRoute(query: LocationQuery): InboxListRoute {
   const assignee = single(query.assignee)
   const state = InboxConversationStateSchema.safeParse(single(query.state))
+  const priority = InboxPrioritySchema.safeParse(single(query.priority))
   const csat = CSAT_SCORES.find(score => score === single(query.csat))
   const offset = Number(single(query.offset))
   return {
     assignee: assignee === 'me' || assignee === 'unassigned' ? assignee : 'all',
     state: state.success ? state.data : '',
+    priority: priority.success ? priority.data : '',
     departmentId: positiveInt(single(query.department_id)),
     csat: csat ?? '',
     q: single(query.q).trim(),
@@ -48,6 +51,7 @@ export function serializeInboxListRoute(route: InboxListRoute): Record<string, s
   return {
     ...(route.assignee !== 'all' ? { assignee: route.assignee } : {}),
     ...(route.state ? { state: route.state } : {}),
+    ...(route.priority ? { priority: route.priority } : {}),
     ...(route.departmentId ? { department_id: String(route.departmentId) } : {}),
     ...(route.csat ? { csat: route.csat } : {}),
     ...(route.q ? { q: route.q } : {}),
@@ -60,6 +64,7 @@ export function inboxListQuery(route: InboxListRoute): Record<string, string | n
   return {
     ...(route.assignee !== 'all' ? { assignee: route.assignee } : {}),
     ...(route.state ? { state: route.state } : {}),
+    ...(route.priority ? { priority: route.priority } : {}),
     ...(route.departmentId ? { department_id: route.departmentId } : {}),
     ...(route.csat ? { csat: route.csat } : {}),
     ...(route.q ? { q: route.q } : {}),

@@ -127,8 +127,15 @@ describe('inbox audit mock', () => {
   })
 
   it('refuses an assignee who is not an agent', () => {
-    expect(call('PATCH', '/api/v1/inbox/conversations/4', { assignee_id: 999 }).status).toBe(422)
-    expect(InboxConversationDetailSchema.parse(call('PATCH', '/api/v1/inbox/conversations/4', { assignee_id: 5, state: 'pending', tag_ids: [1, 2] }).body).tags).toHaveLength(2)
+    expect(call('PATCH', '/api/v1/inbox/conversations/4', { revision: 1, assignee_id: 999 }).status).toBe(422)
+    expect(InboxConversationDetailSchema.parse(call('PATCH', '/api/v1/inbox/conversations/4', { revision: 1, assignee_id: 5, state: 'pending', tag_ids: [1, 2] }).body).tags).toHaveLength(2)
+  })
+
+  it('refuses a patch made from an older revision, like the server', () => {
+    const stale = call('PATCH', '/api/v1/inbox/conversations/4', { revision: 7, priority: 'low' })
+    expect([stale.status, (stale.body as { code: string }).code]).toEqual([409, 'stale_write'])
+    const saved = InboxConversationDetailSchema.parse(call('PATCH', '/api/v1/inbox/conversations/4', { revision: 1, priority: 'low' }).body)
+    expect([saved.priority, saved.revision]).toEqual(['low', 2])
   })
 
   describe('templates', () => {

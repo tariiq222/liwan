@@ -105,10 +105,11 @@ done
 docker run --rm --name "$(container_of proxy)" "$(tag_of proxy)" sh -c 'caddy list-modules | grep -q http.handlers.rate_limit'
 docker run --rm --name "$(container_of proxy)" --cap-drop ALL --cap-add NET_BIND_SERVICE "$(tag_of proxy)" \
   sh -c 'test "$(id -u)" != 0 && getcap /usr/bin/caddy | grep -q cap_net_bind_service'
-# The compose settings of the proxy (read-only root, no capability but NET_BIND_SERVICE, tmpfs on /config): it must serve.
+# The compose settings of the proxy (read-only root, no capability but NET_BIND_SERVICE, writable /config and /data as in
+# compose, where /data is the caddy_data volume): it must serve.
 PROXY_RUN="$(container_of proxy)-hardened"
 docker run -d --name "$PROXY_RUN" --read-only --cap-drop ALL --cap-add NET_BIND_SERVICE --tmpfs /tmp \
-  --tmpfs /config:uid=10002,gid=10002 -e DOMAIN=localhost -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" "$(tag_of proxy)" >/dev/null
+  --tmpfs /config:uid=10002,gid=10002 --tmpfs /data:uid=10002,gid=10002 -e DOMAIN=localhost -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" "$(tag_of proxy)" >/dev/null
 # wget exits non-zero on the expected 502 (no upstreams), so read its text instead of its status.
 proxy_answer() { docker exec "$PROXY_RUN" wget -q -S -O /dev/null --no-check-certificate https://localhost/ 2>&1 || true; }
 for _ in $(seq 1 15); do
@@ -117,7 +118,7 @@ for _ in $(seq 1 15); do
 done
 case "$(proxy_answer)" in
   *"Bad Gateway"*) ;;
-  *) echo "hardened proxy does not answer on 443" >&2; docker logs "$PROXY_RUN" >&2; exit 1 ;;
+  *) echo "hardened proxy does not answer on 443: $(proxy_answer)" >&2; docker ps -a --filter "name=$PROXY_RUN" >&2; docker logs "$PROXY_RUN" >&2; exit 1 ;;
 esac
 docker rm -fv "$PROXY_RUN" >/dev/null
 

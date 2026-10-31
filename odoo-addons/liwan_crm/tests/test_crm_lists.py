@@ -4,6 +4,7 @@ from odoo.tests import tagged
 from .common import LiwanCrmCase
 
 BASE = '/api/v1/crm'
+STARTER = ('واتساب', 'اتصال هاتفي', 'الموقع الإلكتروني', 'زيارة للفرع', 'توصية من عميل', 'إنستغرام', 'سناب شات')
 OUTCOME_EFFECTS = {
     'outcome_no_answer': 'follow_up',
     'outcome_thinking': 'follow_up',
@@ -31,6 +32,37 @@ class TestCrmLists(LiwanCrmCase):
         for name, effect in OUTCOME_EFFECTS.items():
             self.assertEqual(self._ref(name).effect, effect)
         self.assertTrue(self._ref('lost_reason_attempts_exhausted').active)
+
+    def test_the_source_list_starts_arabic_and_without_unsuitable_stock_sources(self):
+        Source = self.env['utm.source']
+        # A fresh install seeds through the file, an update through the migration: both call this.
+        Source._liwan_seed_sources()
+        names = Source.search([]).mapped('name')
+        for name in STARTER:
+            self.assertIn(name, names)
+        for stock in ('Search engine', 'Lead Recall', 'Newsletter', 'Monster', 'Glassdoor', 'Craigslist'):
+            self.assertNotIn(stock, names)
+            self.assertTrue(Source.with_context(active_test=False).search([('name', '=', stock)]))
+
+    def test_reseeding_keeps_what_the_tenant_changed(self):
+        Source = self.env['utm.source']
+        Source._liwan_seed_sources()
+        returned = self.env.ref('utm.utm_source_newsletter')
+        returned.active = True
+        renamed = self.env.ref('utm.utm_source_monster')
+        renamed.write({'name': 'Job board', 'active': True})
+        Source._liwan_seed_sources()
+        self.assertTrue(returned.active)
+        self.assertTrue(renamed.active)
+
+    def test_a_source_with_a_starter_name_is_adopted_not_duplicated(self):
+        Source = self.env['utm.source']
+        existing = self.env.ref('liwan_crm.source_phone')
+        # As if the tenant had made it by hand before the update: the record stays, its xml id is gone.
+        self.env['ir.model.data'].search([('module', '=', 'liwan_crm'), ('name', '=', 'source_phone')]).unlink()
+        Source._liwan_seed_sources()
+        self.assertEqual(self.env.ref('liwan_crm.source_phone'), existing)
+        self.assertEqual(Source.with_context(active_test=False).search_count([('name', '=', existing.name)]), 1)
 
     def test_seeded_names_are_translated_to_arabic(self):
         self.env['res.lang']._activate_lang('ar_001')

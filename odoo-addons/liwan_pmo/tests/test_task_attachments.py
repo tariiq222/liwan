@@ -156,7 +156,7 @@ class TestTaskAttachments(LiwanPmoCase):
         employee_task = self.env['project.task'].with_user(self.employee).browse(task.id)
         self.assertFalse(employee_task.has_access('read'))
         revoked = self.api('GET', item['url'])
-        self.assertEqual(revoked.status_code, 403)
+        self.assertEqual(revoked.status_code, 404)
         self.assertNotEqual(revoked.content, b'revocable bytes')
 
     def _assert_capability_revocation_blocks_attachment(self, record, api_path, capability, url_path):
@@ -281,7 +281,7 @@ class TestTaskAttachments(LiwanPmoCase):
             ('DELETE', f'/api/v1/tasks/{task.id}/attachments/{attachment.id}', None),
         ):
             response = self.api(method, path, payload)
-            self.assertEqual(response.status_code, 403)
+            self.assertEqual(response.status_code, 404)
         self.assertTrue(attachment.exists())
 
     def test_message_only_and_url_attachments_are_not_exposed_or_deletable(self):

@@ -26,7 +26,7 @@ class TestActualAccount(PmoFinanceCase):
         if field:
             self.assertEqual(response.json()['field'], field)
 
-    def test_choosing_needs_the_project_manager_and_the_cost_center_capability(self):
+    def test_choosing_needs_the_cost_center_capability_and_nothing_else(self):
         for user in (self.reader, self.line_reader, self.employee):
             self.login_as(user)
             self.assertRefusedWith(self._patch(self.riyadh.id), 403, 'forbidden')
@@ -35,6 +35,12 @@ class TestActualAccount(PmoFinanceCase):
         self.assertRefusedWith(refused, 403, 'forbidden')
         self.assertIn('finance.analytic.manage', refused.json()['message'])
         self.assertEqual(self.alpha.liwan_project_id, self.project)
+
+    def test_the_finance_manager_links_a_project_without_managing_it(self):
+        self.login_as(self.finance_manager)
+        self.assertNotEqual(self.project.user_id, self.finance_manager)
+        self.assertEqual(self._summary_after(self.riyadh.id)['actual_account']['id'], self.riyadh.id)
+        self.assertEqual(self.riyadh.liwan_project_id, self.project)
 
     def test_the_account_must_be_a_cost_center_of_the_current_company(self):
         self.login_as(self.owner)

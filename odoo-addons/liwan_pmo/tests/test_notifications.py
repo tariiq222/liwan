@@ -6,6 +6,7 @@ from odoo import fields
 from odoo.tests import new_test_user, tagged
 
 from odoo.addons.liwan_pmo.models.notification_types import readable_active_task_ids
+from odoo.addons.liwan_pmo.serializers.notification import notification_text
 from odoo.addons.liwan_pmo.tests.common import LiwanPmoCase
 
 
@@ -31,13 +32,17 @@ class TestTaskNotifications(LiwanPmoCase):
             ('mail_message_id.liwan_notification', '=', True),
         ]).unlink()
 
+    def test_notification_text_keeps_line_breaks_and_drops_markers(self):
+        self.assertEqual(notification_text('<p><strong>@Sara</strong> look</p><p>line 2<br/>line 3 &amp; more</p>'), '@Sara look\nline 2\nline 3 & more')
+        self.assertEqual(notification_text(''), '')
+
     def test_pmo_registers_its_notification_kinds(self):
         registry = self.env['liwan.notify.registry']
         types = registry._liwan_notification_type_map()
         pmo = [kind for kind, item in types.items() if item['owner'] == 'liwan_pmo']
-        self.assertEqual(pmo, ['assignment', 'comment', 'mention', 'deadline', 'overdue_digest', 'charter_review', 'charter_approved', 'charter_returned'])
+        self.assertEqual(pmo, ['assignment', 'comment', 'mention', 'deadline', 'completion_requested', 'completion_accepted', 'overdue_digest', 'charter_review', 'charter_approved', 'charter_returned'])
         self.assertEqual({types[kind]['feature_key'] for kind in pmo}, {'pmo.enabled'})
-        self.assertEqual({types[kind]['model'] for kind in pmo[:4]}, {'project.task'})
+        self.assertEqual({types[kind]['model'] for kind in pmo[:6]}, {'project.task'})
         self.assertEqual(types['overdue_digest']['model'], 'res.company')
         # Other installed applications may contribute too: pmo's own values are included.
         self.assertIn('overdue_digest', registry._liwan_notify_live_kinds())
@@ -116,7 +121,9 @@ class TestTaskNotifications(LiwanPmoCase):
         self.assertEqual(kinds(self.manager), ['mention'], 'a declared mention without its token notifies nobody')
         self.authenticate(self.manager.login, 'api_mgr_pass_123')
         items = self.api('GET', '/api/v1/notifications').json()['items']
-        self.assertTrue(any(item['kind'] == 'mention' and item['task_id'] == task.id for item in items))
+        mention = next(item for item in items if item['kind'] == 'mention' and item['task_id'] == task.id)
+        self.assertEqual(mention['body'], f'@{self.other.name} and @{self.manager.name} look', 'a mention token is shown without markdown markers')
+        self.assertNotIn('*', mention['body'])
 
     def test_read_is_idempotent_and_other_recipient_gets_404(self):
         task = self.env['project.task'].with_user(self.manager).create({

@@ -2,7 +2,7 @@
 {
     'name': 'liwan CRM',
     'summary': 'liwan platform: the CRM application — /api/v1/crm opportunities, calls and follow-up',
-    'version': '19.0.1.2.0',
+    'version': '19.0.1.2.1',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',

@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import type { InboxMessageKind } from '@liwan/contracts'
 import { avatarProps } from '@liwan/ui/app/utils/avatarTone'
 import EmptyState from '@liwan/ui/app/components/shared/feedback/EmptyState.vue'
 import { useInboxConversations } from '@/composables/inbox/useInbox'
 import { useInboxDepartments } from '@/composables/inbox/useInboxSettings'
-import { CONVERSATION_STATES, CONVERSATION_STATE_TONE, CSAT_SCORES, CSAT_TONE, inboxListTime } from '@/composables/inbox/inboxPresentation'
+import { CONVERSATION_STATES, CONVERSATION_STATE_TONE, CSAT_SCORES, CSAT_TONE, PRIORITIES, INBOX_PRIORITY_TONE, inboxFileKindKey, inboxListTime } from '@/composables/inbox/inboxPresentation'
 import { INBOX_PAGE_SIZE, inboxListQuery, inboxPageOffset, serializeInboxListRoute, type InboxListRoute } from '@/composables/inbox/inboxListRoute'
 
 // The conversation list: filters (assignee, state, department, search) are the URL query, owned by the page that hosts
@@ -17,7 +18,7 @@ const { data, isLoading, isError, isPlaceholderData, error, refetch } = useInbox
 const departments = useInboxDepartments()
 const items = computed(() => data.value?.items ?? [])
 const total = computed(() => data.value?.total ?? 0)
-const filtered = computed(() => props.routeState.assignee !== 'all' || !!props.routeState.state || !!props.routeState.departmentId || !!props.routeState.csat || !!props.routeState.q)
+const filtered = computed(() => props.routeState.assignee !== 'all' || !!props.routeState.state || !!props.routeState.priority || !!props.routeState.departmentId || !!props.routeState.csat || !!props.routeState.q)
 const q = ref(props.routeState.q)
 watch(() => props.routeState.q, (value) => { q.value = value })
 // Clearing the box resets the results; any other change waits for Enter.
@@ -34,6 +35,10 @@ const scopeItems = computed(() => [
 const stateItems = computed(() => [
   { value: ALL, label: t('inbox.list.anyState') },
   ...CONVERSATION_STATES.map(value => ({ value, label: t(`inbox.states.${value}`) })),
+])
+const priorityItems = computed(() => [
+  { value: ALL, label: t('inbox.list.anyPriority') },
+  ...PRIORITIES.map(value => ({ value, label: t(`inbox.priorities.${value}`) })),
 ])
 const departmentItems = computed(() => [
   { value: ALL, label: t('inbox.list.anyDepartment') },
@@ -69,6 +74,11 @@ const exportHref = computed(() => {
   const search = new URLSearchParams(Object.entries(filters).map(([key, value]) => [key, String(value)])).toString()
   return `/api/v1/inbox/conversations/export.csv${search ? `?${search}` : ''}`
 })
+// A file sent without a caption has no text; the row names the file kind instead.
+const fileLabel = (kind: InboxMessageKind | null) => {
+  const key = inboxFileKindKey(kind)
+  return key ? t(key) : ''
+}
 const empty = computed(() => hydrated.value && !isLoading.value && !isError.value && !items.value.length)
 </script>
 
@@ -120,15 +130,26 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
           @update:model-value="update({ departmentId: $event === ALL ? null : Number($event) })"
         />
       </div>
-      <USelect
-        :model-value="props.routeState.csat || ALL"
-        :items="csatItems"
-        class="w-full"
-        :aria-label="t('inbox.list.csat')"
-        :disabled="!hydrated"
-        data-testid="inbox-csat-filter"
-        @update:model-value="update({ csat: $event === ALL ? '' : ($event as InboxListRoute['csat']) })"
-      />
+      <div class="flex gap-2">
+        <USelect
+          :model-value="props.routeState.priority || ALL"
+          :items="priorityItems"
+          class="min-w-0 flex-1"
+          :aria-label="t('inbox.list.priority')"
+          :disabled="!hydrated"
+          data-testid="inbox-priority-filter"
+          @update:model-value="update({ priority: $event === ALL ? '' : ($event as InboxListRoute['priority']) })"
+        />
+        <USelect
+          :model-value="props.routeState.csat || ALL"
+          :items="csatItems"
+          class="min-w-0 flex-1"
+          :aria-label="t('inbox.list.csat')"
+          :disabled="!hydrated"
+          data-testid="inbox-csat-filter"
+          @update:model-value="update({ csat: $event === ALL ? '' : ($event as InboxListRoute['csat']) })"
+        />
+      </div>
     </div>
     <EmptyState v-if="empty && !filtered" class="m-4" :title="t('inbox.list.empty')" :description="t('inbox.list.emptyDescription')">
       <template #icon>
@@ -158,11 +179,12 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
                 <time v-if="item.last_message_at" class="shrink-0 text-xs text-muted" :class="{ 'text-brand-link': item.unread }">{{ inboxListTime(item.last_message_at, locale) }}</time>
               </span>
               <span class="flex items-center justify-between gap-2">
-                <span class="truncate text-sm text-muted">{{ item.last_message_preview || item.contact.phone || t('inbox.list.noMessages') }}</span>
+                <span class="truncate text-sm text-muted">{{ item.last_message_preview || fileLabel(item.last_message_kind) || item.contact.phone || t('inbox.list.noMessages') }}</span>
                 <span v-if="item.unread" class="size-2.5 shrink-0 rounded-full bg-primary" :title="t('inbox.list.unread')" role="img" :aria-label="t('inbox.list.unread')" />
               </span>
               <span class="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-muted">
                 <SharedStatusBadge size="sm" :tone="CONVERSATION_STATE_TONE[item.state]" :label="t(`inbox.states.${item.state}`)" />
+                <SharedStatusBadge v-if="INBOX_PRIORITY_TONE[item.priority]" size="sm" :tone="INBOX_PRIORITY_TONE[item.priority]!" :label="t(`inbox.priorities.${item.priority}`)" data-testid="inbox-priority-badge" />
                 <SharedStatusBadge v-if="item.csat" size="sm" :tone="CSAT_TONE[item.csat.score]" :label="t(`inbox.csat.${item.csat.score}`)" />
                 <span class="truncate">{{ item.assignee?.name ?? t('inbox.unassigned') }}</span>
               </span>

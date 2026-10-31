@@ -2,6 +2,7 @@
 import { AUDIT_ACTION_LABELS } from '@/components/access/audit/auditActionLabels'
 import { auditDiffLines } from '@/components/access/auditDiff'
 import { adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
+import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
 const route = useRoute()
 const { t } = useI18n()
 const { can } = useAccess()
@@ -39,7 +40,7 @@ const actionLabels = AUDIT_ACTION_LABELS
     </SharedPageState>
     <template v-if="event.data.value && !forbidden" #summary>
       <SharedPropertiesPanel id="event" :title="t('access.audit.detailTitle')">
-        <SharedPropertyRow :label="t('access.audit.columns.time')"><bdi dir="ltr">{{ event.data.value.occurred_at }}</bdi></SharedPropertyRow>
+        <SharedPropertyRow :label="t('access.audit.columns.time')"><bdi dir="ltr">{{ formatLiwanDateTime(event.data.value.occurred_at) }}</bdi></SharedPropertyRow>
         <SharedPropertyRow :label="t('access.audit.columns.actor')" :value="event.data.value.actor?.name ?? t('access.audit.system')" />
         <SharedPropertyRow :label="t('access.audit.columns.action')" :value="t(actionLabels[event.data.value.action])" />
         <SharedPropertyRow :label="t('access.audit.columns.target')" :value="event.data.value.target.name" />

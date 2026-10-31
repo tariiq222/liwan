@@ -60,12 +60,12 @@ class AutomationController(http.Controller):
 
     # working hours
 
-    @http.route(HOURS, type='json2', auth='user', methods=['GET'], readonly=False)
+    @http.route(HOURS, type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('inbox.enabled', AUTOMATION_FEATURE, operation='read')
     @requires_capability(MANAGE_AUTOMATION)
     def get_working_hours(self, **_):
-        return hours_service()._liwan_dump(request.env['liwan.inbox.settings']._get_for_company())
+        return hours_service()._liwan_dump(request.env['liwan.inbox.settings']._liwan_read_for_company())
 
     @http.route(HOURS, type='json2', auth='user', methods=['PUT'], readonly=False)
     @api_handler

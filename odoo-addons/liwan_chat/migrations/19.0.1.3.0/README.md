@@ -1,0 +1,1 @@
+The chat settings (`liwan.chat.settings`) and the `chat.settings.manage` capability are new; Odoo creates the table and the seed data links the grants on update. No existing row changes, and a company without a settings row works at the stated defaults.

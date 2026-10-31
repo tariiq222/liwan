@@ -117,7 +117,7 @@ def build_finance_summary(project, entries=None, externals=None):
         'actual_account': source._liwan_actual_account(project),
         'can_read_actual_lines': source._liwan_can_read_actual_lines(project),
         'can_choose_actual_account': (
-            source._liwan_can_choose_actual_account(project) and project._liwan_can_manage()
+            source._liwan_can_choose_actual_account(project)
         ),
     }
 

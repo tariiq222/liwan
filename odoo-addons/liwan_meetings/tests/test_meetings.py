@@ -234,7 +234,7 @@ class TestMeetingsApi(LiwanMeetingsCase):
             'meeting_date': fields.Date.today(),
         })
         denied = self.url_open(f'/api/v1/meetings/{hidden.id}/minutes.pdf', method='GET')
-        self.assertEqual(denied.status_code, 403)
+        self.assertEqual(denied.status_code, 404)
         self.assertNotEqual(denied.headers.get('Content-Type'), 'application/pdf')
 
     def test_http_patch_and_cancel_scopes_apply_and_follow_lifecycle(self):
@@ -419,8 +419,8 @@ class TestMeetingsApi(LiwanMeetingsCase):
         self.assertEqual(detail['name'], 'Ops Review')
         self.assertEqual(detail['organizer']['id'], self.employee.id)
         hidden_res = self.api('GET', f'/api/v1/meetings/{hidden.id}')
-        self.assertEqual(hidden_res.status_code, 403)
-        self.assertEqual(hidden_res.json()['code'], 'forbidden')
+        self.assertEqual(hidden_res.status_code, 404)
+        self.assertEqual(hidden_res.json()['code'], 'not_found')
 
     def test_meeting_search_by_location_preserves_ordinary_visibility(self):
         user_group = self.env.ref('liwan_meetings.group_cap_meetings_read')
@@ -505,9 +505,9 @@ class TestMeetingsApi(LiwanMeetingsCase):
         self.assertEqual(self.api('GET', '/api/v1/meetings').json(), {'items': [], 'total': 0})
         for endpoint in [f'/api/v1/meetings/{meeting.id}', f'/api/v1/meetings/{meeting.id}/attachments']:
             response = self.api('GET', endpoint)
-            self.assertEqual(response.status_code, 403)
-            self.assertEqual(response.json()['code'], 'forbidden')
-        self.assertEqual(self.api('PATCH', f'/api/v1/meetings/{meeting.id}', {'name': 'Illicit'}).status_code, 403)
+            self.assertEqual(response.status_code, 404)
+            self.assertEqual(response.json()['code'], 'not_found')
+        self.assertEqual(self.api('PATCH', f'/api/v1/meetings/{meeting.id}', {'name': 'Illicit'}).status_code, 404)
         self.assertEqual(self.api('GET', '/api/v1/notifications').json(), {'items': [], 'total': 0, 'unread_count': 0})
         self.assertEqual(self.api('POST', f'/api/v1/notifications/{row.id}/read', {}).status_code, 404)
         self.assertEqual(self.api('POST', '/api/v1/notifications/read-all', {}).json(), {'updated': 0})

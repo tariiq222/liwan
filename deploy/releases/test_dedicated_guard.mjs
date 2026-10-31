@@ -75,6 +75,16 @@ test('dedicated edge routes legacy Odoo paths and passes raw session cookie unch
   assert.equal(f.observed.at(-1).headers['x-liwan-proxy-token'], undefined)
 })
 
+test('dedicated edge takes the UI language header only from the trusted hop, as ar or en', async t => {
+  const f = await fixture(t)
+  for (const value of ['ar', 'en']) {
+    assert.equal((await call(f.url, '/api/v1/me', { ...internal, 'x-liwan-ui-locale': value })).status, 200)
+    assert.equal(f.observed.at(-1).headers['x-liwan-ui-locale'], value)
+  }
+  for (const value of ['fr', 'ar_001', '']) assert.equal((await call(f.url, '/api/v1/me', { ...internal, 'x-liwan-ui-locale': value })).status, 403)
+  assert.equal((await call(f.url, '/api/v1/me', { 'x-liwan-ui-locale': 'ar' })).status, 403)
+})
+
 test('dedicated Nuxt hop preserves browser CSRF while private and Odoo headers stay isolated', async t => {
   const f = await fixture(t)
   const csrf = 'synthetic-browser-csrf-value'
