@@ -19,14 +19,14 @@ describe('notification presentation', () => {
   })
 
   it('formats the instant in the requested locale and user timezone', () => {
-    expect(formatNotificationTimestamp('2026-09-07T21:28:05Z', 'en-US', 'Asia/Riyadh')).toEqual({
+    expect(formatNotificationTimestamp('2026-09-07T21:28:05Z', 'Asia/Riyadh')).toEqual({
       datetime: '2026-09-07T21:28:05.000Z',
       label: '\u206608/09/2026 00:28\u2069',
     })
   })
 
   it('uses the Gregorian calendar for Arabic output', () => {
-    const result = formatNotificationTimestamp('2026-09-07T21:28:05Z', 'ar', 'Asia/Riyadh')
+    const result = formatNotificationTimestamp('2026-09-07T21:28:05Z', 'Asia/Riyadh')
     expect(result?.datetime).toBe('2026-09-07T21:28:05.000Z')
     expect(result?.label).toMatch(/2026|٢٠٢٦/)
     expect(result?.label).not.toContain('١٤٤٨')
@@ -34,7 +34,7 @@ describe('notification presentation', () => {
 
   it('omits malformed timestamps instead of showing raw input or throwing', () => {
     expect(parseNotificationDate('2026-02-30T21:28:05Z')).toBeNull()
-    expect(formatNotificationTimestamp('not-a-date', 'en-US', 'Not/AZone')).toBeNull()
+    expect(formatNotificationTimestamp('not-a-date', 'Not/AZone')).toBeNull()
   })
 
   it('uses preview captions that do not interpolate the repeated record title', () => {

@@ -56,7 +56,7 @@ function printPage() {
 }
 
 const facts = computed(() => [
-  { key: 'date', label: t('meetingMinutesForm.date'), value: formatMeetingDate(printableDate.value, locale.value), ltr: true },
+  { key: 'date', label: t('meetingMinutesForm.date'), value: formatMeetingDate(printableDate.value), ltr: true },
   { key: 'weekday', label: t('meetingMinutesForm.weekday'), value: dateLabels.value.weekday || '—', ltr: false },
   { key: 'hijri', label: t('meetingMinutesForm.hijriDate'), value: dateLabels.value.hijri || '—', ltr: false },
   ...(versionId.value ? [{ key: 'version', label: t('meetingMinutesForm.version'), value: versionNumber.value ? t('meetingMinutesForm.versionNumber', { number: versionNumber.value }) : '—', ltr: false }] : []),

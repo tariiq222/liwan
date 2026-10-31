@@ -10,7 +10,7 @@ import { parseOffset } from '@/utils/routeQuery'
 // back keep the page (the ledger above owns `?offset=`). A line links to its record when an application declares where that
 // kind opens and the user may read it.
 const props = defineProps<{ projectId: number; summary: FinanceSummary }>()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const hydrated = useHydrated()
 const linkTo = useRecordLink()
 const route = useRoute()
@@ -30,7 +30,7 @@ const columns = computed<TableColumn<ActualLine>[]>(() => [
   { id: 'amount', header: t('projects.finance.columns.amount'), meta: { class: { th: 'text-end', td: 'text-end whitespace-nowrap' } } },
 ])
 const recordTo = (line: ActualLine) => line.record ? linkTo(line.record.kind, line.record.id) : null
-const dateLabel = (line: ActualLine) => formatCalendarDate(line.date, locale.value)
+const dateLabel = (line: ActualLine) => formatCalendarDate(line.date)
 const empty = computed(() => !lines.isLoading.value && !lines.error.value && !items.value.length)
 
 const offsetQuery = (value: number) => (value > 0 ? String(value) : undefined)

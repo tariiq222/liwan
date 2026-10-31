@@ -4,7 +4,7 @@ import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
 import type { StatusStat } from '@/utils/vendorAttention'
 import { isNotAvailable } from '@/utils/vendorSubscriptions'
 definePageMeta({ capability: 'vendor.read' })
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const { request } = useVendorApi()
 const { data, error, pending, refresh } = await useAsyncData('vendor:overview:all', () => request<{ tenants: number, active: number, pending_operations: number, failed_operations: number, last_health_at: string | null }>('overview', { query: { source: 'all' } }))
 const { data: attention, error: attentionError, pending: attentionPending, refresh: refreshAttention } = await useAsyncData('vendor:overview:attention', () => request<Attention>('commercial/attention'))
@@ -55,7 +55,7 @@ const stats = computed<StatusStat[]>(() => {
           <h2 id="today-status-title" class="text-lg font-semibold">{{ t('vendor.today.statusTitle') }}</h2>
           <VendorStatusStrip :stats="stats" :label="t('vendor.today.statusLabel')" />
           <p class="text-sm text-muted">{{ t('vendor.today.statusHint') }}</p>
-          <p v-if="data?.last_health_at" class="text-sm text-muted">{{ t('vendor.today.lastHealth') }}: <time :datetime="data.last_health_at">{{ formatLiwanDateTime(data.last_health_at, locale) }}</time></p>
+          <p v-if="data?.last_health_at" class="text-sm text-muted">{{ t('vendor.today.lastHealth') }}: <time :datetime="data.last_health_at">{{ formatLiwanDateTime(data.last_health_at) }}</time></p>
         </section>
       </SharedPageState>
     </div>

@@ -17,10 +17,10 @@ const props = defineProps<{
   emptyText?: string
 }>()
 defineEmits<{ retry: [] }>()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const actionLabel = (action: AccessAuditSummary['action']) => t(AUDIT_ACTION_LABELS[action])
 const eventTo = (event: AccessAuditSummary) => props.toFor(event.id)
-const when = (event: AccessAuditSummary) => formatLiwanDateTime(event.occurred_at, locale.value)
+const when = (event: AccessAuditSummary) => formatLiwanDateTime(event.occurred_at)
 const actionsFor = (event: AccessAuditSummary) => [{ label: t('access.view'), to: eventTo(event) }]
 const columns = computed<TableColumn<AccessAuditSummary>[]>(() => [
   { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },

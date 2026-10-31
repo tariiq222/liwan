@@ -14,7 +14,6 @@ const props = defineProps<{
 }>()
 defineEmits<{ retry: [] }>()
 
-const { locale } = useI18n()
 </script>
 
 <template>
@@ -24,7 +23,7 @@ const { locale } = useI18n()
         <li v-for="comment in props.comments" :key="comment.id" class="grid gap-1 py-3">
           <div class="flex flex-wrap items-baseline gap-x-2 text-xs text-muted">
             <span class="font-medium text-default">{{ comment.authorName ?? unknownAuthor }}</span>
-            <time :datetime="comment.createdAt">{{ formatLiwanDateTime(comment.createdAt, locale) }}</time>
+            <time :datetime="comment.createdAt">{{ formatLiwanDateTime(comment.createdAt) }}</time>
           </div>
           <p class="whitespace-pre-wrap break-words text-sm text-default">{{ comment.body }}</p>
         </li>

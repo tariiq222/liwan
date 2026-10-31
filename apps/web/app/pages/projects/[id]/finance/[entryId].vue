@@ -13,7 +13,7 @@ import { parsePositiveId } from '@/utils/routeParams'
 
 const route = useRoute()
 const router = useRouter()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const toast = useToast()
 const hydrated = useHydrated()
 const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
@@ -124,7 +124,7 @@ async function confirmRemoval() {
         <SharedPropertyRow :label="t('projects.finance.fields.kind')">
           <SharedStatusBadge tone="neutral" :icon="entry.kind === 'budget' ? 'i-lucide-wallet' : 'i-lucide-receipt'" :label="t(`projects.finance.kind.${entry.kind}`)" />
         </SharedPropertyRow>
-        <SharedPropertyRow v-if="entry.kind === 'expense'" :label="t('projects.finance.fields.expense_date')" :value="entry.expense_date ? formatCalendarDate(entry.expense_date, locale) : null" />
+        <SharedPropertyRow v-if="entry.kind === 'expense'" :label="t('projects.finance.fields.expense_date')" :value="entry.expense_date ? formatCalendarDate(entry.expense_date) : null" />
         <SharedPropertyRow :label="t('projects.finance.fields.reference')" :value="entry.reference" />
         <SharedPropertyRow v-if="entry.kind === 'expense'" :label="t('projects.finance.fields.budget_entry_id')">
           <NuxtLink v-if="entry.budget_entry_id" :to="`/projects/${projectId}/finance/${entry.budget_entry_id}`" class="text-primary hover:underline">{{ t('projects.finance.linkedBudget', { id: entry.budget_entry_id }) }}</NuxtLink>

@@ -9,7 +9,7 @@ const props = defineProps<{ subscription: SubscriptionView; planName?: string }>
 const { t, locale } = useI18n()
 const display = computed(() => subscriptionDisplayState(props.subscription))
 const status = computed(() => targetStatus(props.subscription))
-const date = (value: string | null | undefined) => (value ? formatLiwanDate(value, locale.value) : null)
+const date = (value: string | null | undefined) => (value ? formatLiwanDate(value) : null)
 const order = computed(() => props.subscription.pending_order)
 </script>
 <template>

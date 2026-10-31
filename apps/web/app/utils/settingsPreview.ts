@@ -40,5 +40,5 @@ export function rolePreview(role: RoleSummary, { t, te, locale }: Labels): Setti
 
 export function eventPreview(event: AccessAuditSummary, actionLabel: string, { t, locale }: Labels): SettingsPreviewItem {
   const actor = event.actor?.name ?? t('access.audit.system')
-  return { id: event.id, to: `/settings/team/access-log/${event.id}`, name: actionLabel, icon: 'i-lucide-history', secondary: [event.target.name, actor, formatLiwanDateTime(event.occurred_at, locale)].join(SEPARATOR), badge: { label: t('access.audit.succeeded'), tone: 'success' } }
+  return { id: event.id, to: `/settings/team/access-log/${event.id}`, name: actionLabel, icon: 'i-lucide-history', secondary: [event.target.name, actor, formatLiwanDateTime(event.occurred_at)].join(SEPARATOR), badge: { label: t('access.audit.succeeded'), tone: 'success' } }
 }

@@ -1,4 +1,4 @@
-"""Choose the CI stages a change can affect; a path without a rule runs all twelve.
+"""Choose the CI stages a change can affect; a path without a rule runs all thirteen.
 
     python3 -B tools/ci_scope.py --base <ref> [--commit <ref>] [--pull-request] [--stages | --modules]
     python3 -B tools/ci_scope.py --full [--stages]
@@ -28,11 +28,11 @@ import odoo_shards
 
 STAGES = ('static', 'ai-service', 'control-plane', 'vendor-admin', 'odoo',
           'odoo-app-standalone', 'odoo-bridge', 'upgrade',
-          'restore-drill', 'image', 'e2e-mock', 'rtl-stories')
+          'restore-drill', 'image', 'e2e-mock', 'e2e-odoo', 'rtl-stories')
 # Tools no non-static step runs and no application code executes (checked with rg across
 # `.github/`, deploy/, apps/, packages/ and odoo-addons/). Everything else under tools/,
 # including tools/liwan_cli/ and tools/shared_saas_lifecycle/ (run by the control-plane tests),
-# is unmapped on purpose, so a new tool runs all twelve stages until it is listed here.
+# is unmapped on purpose, so a new tool runs all thirteen stages until it is listed here.
 STATIC_ONLY_TOOLS = (
     'tools/test_*', 'tools/api_surface.py', 'tools/arch_baseline.json', 'tools/arch_documented_sudo.json',
     'tools/arch_policy.py', 'tools/check_fast.py', 'tools/contracts_jsonschema.mjs',
@@ -46,9 +46,9 @@ STATIC_ONLY_TOOLS = (
 ISOLATION_STAGES = ('odoo-app-standalone', 'odoo-bridge')
 ODOO_STAGES = ('odoo', *ISOLATION_STAGES)
 # Slow, and about the merged result rather than one change: a pull request leaves them to the push to main.
-DEFERRED_STAGES = ('upgrade', 'restore-drill', 'image')
+DEFERRED_STAGES = ('upgrade', 'restore-drill', 'image', 'e2e-odoo')
 # The web and vendor-admin images build from these packages, so `image` is selected with them.
-SHARED_PACKAGE_STAGES = ('control-plane', 'vendor-admin', 'image', 'e2e-mock', 'rtl-stories')
+SHARED_PACKAGE_STAGES = ('control-plane', 'vendor-admin', 'image', 'e2e-mock', 'e2e-odoo', 'rtl-stories')
 UNMAPPED = '(no rule: all stages)'
 
 # First match wins, so the paths that need every stage come first. `*` also crosses `/`, hence
@@ -81,7 +81,7 @@ RULES = (
     ('.claude/*', ()),                       # agent setup for local and cloud sessions; no CI step reads it
     ('ruff.toml', ('ai-service',)),          # the ai-service step lints with the nearest ruff config
     # Applications and the shared packages they build from.
-    ('apps/web/*', ('control-plane', 'image', 'e2e-mock', 'rtl-stories')),  # control-plane tests import apps/web server code
+    ('apps/web/*', ('control-plane', 'image', 'e2e-mock', 'e2e-odoo', 'rtl-stories')),  # control-plane tests import apps/web server code
     ('apps/vendor-admin/*', ('vendor-admin', 'image')),
     ('apps/control-plane/*', ('control-plane',)),
     ('apps/ai-service/*', ('ai-service', 'image')),

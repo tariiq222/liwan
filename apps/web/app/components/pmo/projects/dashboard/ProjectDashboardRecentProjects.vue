@@ -13,7 +13,7 @@ import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
 // The dashboard's actionable table: recently updated, late (overdue tasks) and at-risk projects.
 // `rows` is the recent list; `allRows` is every matching project, the source of the late and at-risk views.
 const props = defineProps<{ rows: readonly DashboardProject[]; allRows?: readonly DashboardProject[] }>()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const projectBadge = (status: ProjectStatus | null) => { const entry = projectStatusBadge(status); return { tone: entry.tone, label: badgeLabel(entry, status, t) } }
 const route = useRoute()
 const { entryTo } = useProjectWorkspaceMemory()
@@ -55,7 +55,7 @@ const columns = computed<TableColumn<DashboardProject>[]>(() => [
 function updatedAt(value: string | null | undefined) {
   if (!value) return t('projects.dashboard.unknown')
   const date = new Date(value)
-  return Number.isNaN(date.valueOf()) ? t('projects.dashboard.unknown') : formatLiwanDateTime(date, locale.value)
+  return Number.isNaN(date.valueOf()) ? t('projects.dashboard.unknown') : formatLiwanDateTime(date)
 }
 </script>
 

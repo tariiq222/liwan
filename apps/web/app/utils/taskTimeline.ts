@@ -35,7 +35,7 @@ export function timelineFieldLabel(field: string, serverLabel: string, t: Timeli
   return key ? t(key) : (serverLabel || t('tasks.activity.unknownField'))
 }
 
-function formatTimelineDate(value: string, _locale: string, t: TimelineTranslate): string {
+function formatTimelineDate(value: string, t: TimelineTranslate): string {
   const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
   if (dateOnly) {
     const year = Number(dateOnly[1]); const month = Number(dateOnly[2]); const day = Number(dateOnly[3])
@@ -81,7 +81,7 @@ function formatObject(value: Record<string, unknown>, t: TimelineTranslate): str
   }
 }
 
-export function formatTimelineValue(field: string, value: unknown, locale: string, t: TimelineTranslate): string {
+export function formatTimelineValue(field: string, value: unknown, t: TimelineTranslate): string {
   if (value === null || value === undefined || value === '') return unset(t)
   if (typeof value === 'boolean') {
     if (!BOOLEAN_FIELDS.has(field)) return unset(t)
@@ -89,19 +89,18 @@ export function formatTimelineValue(field: string, value: unknown, locale: strin
   }
   if (DATE_FIELDS.has(field)) {
     if (typeof value !== 'string') return t('tasks.activity.invalidValue')
-    return formatTimelineDate(value, locale, t)
+    return formatTimelineDate(value, t)
   }
   if (typeof value === 'string') return formatEnum(field, value, t) ?? value
   if (typeof value === 'number') return formatEnum(field, String(value), t) ?? String(value)
   if (typeof value === 'bigint') return String(value)
-  if (Array.isArray(value)) return value.map(item => formatTimelineValue(field, item, locale, t)).join(', ')
+  if (Array.isArray(value)) return value.map(item => formatTimelineValue(field, item, t)).join(', ')
   if (isRecord(value)) return formatObject(value, t)
   return String(value)
 }
 
 export function formatTimelineChange(
   change: { field: string; label: string; old: unknown; new: unknown },
-  locale: string,
   t: TimelineTranslate,
 ): string {
   const field = timelineFieldLabel(change.field, change.label, t)
@@ -109,8 +108,8 @@ export function formatTimelineChange(
   const hasNew = hasValue(change.new)
   const hasOld = hasValue(change.old)
   if (!hasNew) return t('tasks.activity.cleared', { field })
-  const next = formatTimelineValue(change.field, change.new, locale, t)
+  const next = formatTimelineValue(change.field, change.new, t)
   if (!hasOld) return t('tasks.activity.set', { field, new: next })
-  const previous = formatTimelineValue(change.field, change.old, locale, t)
+  const previous = formatTimelineValue(change.field, change.old, t)
   return t('tasks.activity.changed', { field, old: previous, new: next })
 }

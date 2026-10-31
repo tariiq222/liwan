@@ -14,10 +14,8 @@ export function toCalendarDate(iso: string | null): CalendarDate | undefined {
   }
 }
 
-// All display formats live in utils/formatDate.ts (dd/MM/yyyy, HH:mm). The
-// locale argument is kept for call-site compatibility; the format is the same
-// in every locale.
-export function formatCalendarDate(iso: string | null, _locale?: string): string {
+// All display formats live in utils/formatDate.ts (dd/MM/yyyy, HH:mm); the format is the same in every locale.
+export function formatCalendarDate(iso: string | null): string {
   const d = toCalendarDate(iso)
   return d ? formatDate(iso!.slice(0, 10)) : ''
 }
@@ -27,15 +25,15 @@ function orFallback(formatted: string, value: string | number | Date | null | un
   return typeof value === 'string' && value !== '' ? value : '—'
 }
 
-export function formatLiwanDate(value: string | number | Date | null | undefined, _locale?: string): string {
+export function formatLiwanDate(value: string | number | Date | null | undefined): string {
   return orFallback(formatDate(value), value)
 }
 
-export function formatLiwanDateTime(value: string | number | Date | null | undefined, _locale?: string): string {
+export function formatLiwanDateTime(value: string | number | Date | null | undefined): string {
   return orFallback(formatDateTime(value), value)
 }
 
-export function formatLiwanTime(value: string | number | Date | null | undefined, _locale?: string): string {
+export function formatLiwanTime(value: string | number | Date | null | undefined): string {
   return orFallback(formatTime(value), value)
 }
 

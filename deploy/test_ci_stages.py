@@ -60,6 +60,7 @@ joined = ' '.join(args)
 if args[:1] == ['inspect']: print('true')
 if args[:1] == ['exec'] and joined.endswith('id -u'): print(10001)
 if args[:1] == ['exec'] and 'unknown.invalid' in joined: print(403)
+if args[:1] == ['exec'] and 'wget' in joined: print('wget: server returned error: HTTP/1.1 502 Bad Gateway')  # the proxy answers; its upstreams are absent
 if args[:2] == ['image', 'inspect']: print('sha256:' + args[-1])
 if args[:1] == ['run'] and any(a.startswith('aquasec/trivy:') for a in args):
     # TRIVY_FAKE maps an image tag to {"exit": code, "report": trivy json}; an unlisted image is clean.
@@ -344,6 +345,7 @@ joined = ' '.join(args)
 if args[:1] == ['inspect']: print('true')
 if args[:1] == ['exec'] and joined.endswith('id -u'): print(10001)
 if args[:1] == ['exec'] and 'unknown.invalid' in joined: print(403)
+if args[:1] == ['exec'] and 'wget' in joined: print('HTTP/1.1 502 Bad Gateway')
 if args[:2] == ['image', 'inspect']: print('sha256:' + args[-1])
 if args[:1] == ['run'] and any(a.startswith('aquasec/trivy:') for a in args): print('not json')
 """)
@@ -362,7 +364,7 @@ class TestVendorAdminStage(unittest.TestCase):
     def test_every_script_is_executable_bash_and_run_by_the_workflow(self):
         workflow = (ROOT / '.github/workflows/ci.yml').read_text()
         scripts = sorted((ROOT / 'deploy/ci').glob('*.sh'))
-        self.assertEqual(len(scripts), 12)
+        self.assertEqual(len(scripts), 13)
         for script in scripts:
             with self.subTest(script=script.name):
                 self.assertTrue(os.access(script, os.X_OK))

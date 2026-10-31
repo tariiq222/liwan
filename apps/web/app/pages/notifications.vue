@@ -15,7 +15,7 @@ import { bellKindFor } from '@/modules/surfaces'
 import { declaredBellTitle } from '@/utils/bellTitle'
 import { formatNotificationTimestamp, genericNotificationText, isUserWrittenNotificationKind, notificationBody } from '@/utils/notificationPresentation'
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const toast = useToast()
 const hydrated = useHydrated()
 const { me } = useMe()
@@ -60,7 +60,7 @@ useRowNavigation(listEl)
 const unreadCount = computed(() => data.value?.pages[0]?.unread_count ?? 0)
 const notificationTimeZone = computed(() => me.value?.tz || 'UTC')
 const notificationTimestamps = computed(() => new Map(
-  items.value.map(item => [item.id, formatNotificationTimestamp(item.created_at, locale.value, notificationTimeZone.value)] as const),
+  items.value.map(item => [item.id, formatNotificationTimestamp(item.created_at, notificationTimeZone.value)] as const),
 ))
 const pendingReadId = ref<number | null>(null)
 const actionPending = computed(() => pendingReadId.value !== null || markingAll.value)
