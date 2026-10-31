@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import BranchSummary from '../../app/components/subscription/BranchSummary.vue'
 import { storyContext } from '../support/context'
 import { branches } from './fixtures'
-const meta = { title: 'Subscription/BranchSummary', component: BranchSummary, parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/subscription/branches.vue:16') }, args: { summary: branches } } satisfies Meta<typeof BranchSummary>
+const meta = { title: 'Subscription/BranchSummary', component: BranchSummary, parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/subscription/branches.vue:48') }, args: { summary: branches } } satisfies Meta<typeof BranchSummary>
 export default meta
 type Story = StoryObj<typeof meta>
 export const Mixed: Story = {}
