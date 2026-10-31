@@ -164,3 +164,13 @@ class TestChannelsApi(LiwanInboxCase):
             self.channel.access_token_enc = secret_values['access_token_enc']
             with self.assertRaisesRegex(Exception, 'cannot be decrypted'):
                 self.channel._liwan_credentials()
+
+    def test_a_channels_only_role_reads_a_channel_that_has_a_department(self):
+        self.channel.department_id = self.department
+        self.login(self._capability_user('inbox_channels_dept_only', 'inbox.channels.manage'))
+        listing = self.api('GET', '/api/v1/inbox/channels')
+        self.assertEqual(listing.status_code, 200, listing.text)
+        detail = self.api('GET', f'/api/v1/inbox/channels/{self.channel.id}')
+        self.assertEqual(detail.status_code, 200, detail.text)
+        self.assertEqual(detail.json()['department']['id'], self.department.id)
+        self.assertError(self.api('GET', '/api/v1/inbox/departments'), 403, 'forbidden')

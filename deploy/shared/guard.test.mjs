@@ -186,6 +186,16 @@ test('the web CSRF header passes to the Nuxt hop only; other x-liwan headers sta
   assert.equal(odoo.odoo, true); assert.equal(odoo.headers['x-liwan-csrf'], undefined)
   for (const header of ['x-liwan-principal', 'x-liwan-tenant-revision', 'x-liwan-csrf-other']) assert.throws(() => requestPlan(req(0, { [header]: 'forged' }, '/api/commercial/v1/branch-quotes'), registry, token, codec))
 })
+test('the UI language header passes only on the trusted hop with ar or en and reaches Odoo', () => {
+  const trusted = { 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1' }
+  for (const value of ['ar', 'en']) {
+    const plan = requestPlan(req(0, { ...trusted, 'x-liwan-ui-locale': value }, '/api/v1/me'), registry, token, codec)
+    assert.equal(plan.odoo, true)
+    assert.equal(plan.headers['x-liwan-ui-locale'], value)
+  }
+  for (const value of ['fr', 'ar_001', '', 'AR']) assert.throws(() => requestPlan(req(0, { ...trusted, 'x-liwan-ui-locale': value }, '/api/v1/me'), registry, token, codec), /forbidden_header/)
+  assert.throws(() => requestPlan(req(0, { 'x-liwan-ui-locale': 'ar' }, '/api/v1/me'), registry, token, codec), /forbidden_header/)
+})
 test('guard denies bootstrap hosts and serves the first publication without restart', async t => {
   const path = join(mkdtempSync(join(tmpdir(), 'liwan-guard-empty-')), 'registry.json')
   const bootstrap = { schemaVersion: 1, snapshotRevision: 0, targets: [] }
