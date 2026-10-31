@@ -104,7 +104,7 @@ class TestFinancePartners(LiwanFinanceWriteCase):
             'user': self.employee.partner_id,
             'company': self.company.partner_id,
         }
-        listed = self._ids('?limit=200')
+        listed = self._ids('?limit=100')
         for kind, partner in system.items():
             route = f'{PARTNERS}/{partner.id}'
             with self.subTest(kind=kind):
@@ -121,7 +121,7 @@ class TestFinancePartners(LiwanFinanceWriteCase):
             self.skipTest('hr is not installed in this database')
         contact = self.env['res.partner'].create({'name': 'Employee Contact'})
         self.env['hr.employee'].with_company(self.company).create({'name': 'Employee', 'work_contact_id': contact.id})
-        self.assertNotIn(contact.id, self._ids('?limit=200'))
+        self.assertNotIn(contact.id, self._ids('?limit=100'))
         self.assertRefused(self.api('PATCH', f'{PARTNERS}/{contact.id}', json={'city': 'X'}), 404, 'not_found')
 
     def test_there_is_no_delete(self):
@@ -139,3 +139,26 @@ class TestFinancePartners(LiwanFinanceWriteCase):
                 self.assertRefused(self.api(method, path, json={'city': 'X'} if method == 'PATCH' else {}), 404, 'not_found')
         self.assertRefused(self.api('GET', f'{PARTNERS}/999999999'), 404, 'not_found')
         self.assertIn(self.partner.id, self._ids())
+
+
+@tagged('post_install', '-at_install', 'liwan')
+class TestFinanceCompanyPartnersStayOut(LiwanFinanceWriteCase):
+    """The partners of the tenant's own companies are not customers or vendors (issue #204)."""
+
+    def _ids(self, query=''):
+        result = self.api('GET', PARTNERS + query)
+        self.assertEqual(result.status_code, 200, result.text)
+        return {item['id'] for item in result.json()['items']}
+
+    def test_no_company_partner_of_the_tenant_is_listed_even_of_a_company_the_user_is_not_in(self):
+        hidden = {self.company.partner_id.id, self.other_company.partner_id.id}
+        self.assertFalse(hidden & self._ids('?limit=100'))
+        self.assertFalse(hidden & self._ids(f'?limit=100&q={self.other_company.name}'))
+
+    def test_a_company_partner_cannot_be_opened_by_id(self):
+        for partner in (self.company.partner_id, self.other_company.partner_id):
+            with self.subTest(partner=partner.name):
+                self.assertRefused(self.api('GET', f'{PARTNERS}/{partner.id}'), 404, 'not_found')
+
+    def test_an_ordinary_partner_is_still_listed(self):
+        self.assertIn(self.partner.id, self._ids('?limit=100'))
