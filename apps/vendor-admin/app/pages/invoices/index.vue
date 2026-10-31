@@ -25,7 +25,7 @@ const customerItems = computed(() => [{ value: '', label: t('vendor.invoices.all
 const customerLabel = computed(() => customerItems.value.find(c => c.value === customerId.value)?.label ?? items.value[0]?.customer_name ?? t('vendor.invoices.customerFilter'))
 const to = (id: string) => ({ path: `/invoices/${encodeURIComponent(id)}`, query: { returnTo: route.fullPath } })
 const customerTo = (id: string) => ({ path: `/customers/${encodeURIComponent(id)}` })
-const date = (v: string | null) => (v ? formatLiwanDate(v, locale.value) : null)
+const date = (v: string | null) => (v ? formatLiwanDate(v) : null)
 const outstanding = computed(() => {
   const sums = data.value?.summary.outstanding ?? []
   return sums.length ? sums.map(m => formatCommercialMoney(m, locale.value)).join(' · ') : '0'

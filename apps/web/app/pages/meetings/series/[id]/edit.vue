@@ -11,7 +11,7 @@ import { ApiError } from '@/composables/useApi'
 
 const route = useRoute()
 const sourcePaths = useRecordListPaths(SERIES_LIST_PATHS)
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const hydrated = useHydrated()
 const id = computed(() => parsePositiveId(route.params.id))
 const query = useMeetingSeries(id)
@@ -69,7 +69,7 @@ const termination = computed(() => {
   const series = query.data.value
   if (!series) return '—'
   if (series.until_count) return t('meetingsUx.terminationCount', { count: series.until_count }, series.until_count)
-  if (series.until_date) return formatCalendarDate(series.until_date, locale.value)
+  if (series.until_date) return formatCalendarDate(series.until_date)
   return t('meetingsUx.terminationOpen')
 })
 

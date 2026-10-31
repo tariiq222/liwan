@@ -22,25 +22,25 @@ function t(key: string, params?: Record<string, unknown>): string {
 
 describe('task timeline value formatting', () => {
   it('treats a cleared date represented as false as unset when setting a date', () => {
-    const message = formatTimelineChange({ field: 'date_deadline', label: 'الموعد', old: false, new: '2030-09-01' }, 'en-US', t)
+    const message = formatTimelineChange({ field: 'date_deadline', label: 'الموعد', old: false, new: '2030-09-01' }, t)
     expect(message).toContain('Set Deadline')
     expect(message).toContain('01/09/2030')
     expect(message).not.toContain('false')
   })
 
   it('keeps false meaningful for known boolean fields', () => {
-    const message = formatTimelineChange({ field: 'active', label: 'الحالة', old: true, new: false }, 'en-US', t)
+    const message = formatTimelineChange({ field: 'active', label: 'الحالة', old: true, new: false }, t)
     expect(message).toBe('Changed Active from Yes to No')
   })
 
   it('handles invalid dates and unknown objects without raw technical output', () => {
-    expect(formatTimelineValue('date_deadline', '2030-02-31', 'en-US', t)).toBe('Invalid value')
-    const message = formatTimelineChange({ field: 'custom_field', label: 'حقل', old: null, new: { id: 7, name: 'External' } }, 'en-US', t)
+    expect(formatTimelineValue('date_deadline', '2030-02-31', t)).toBe('Invalid value')
+    const message = formatTimelineChange({ field: 'custom_field', label: 'حقل', old: null, new: { id: 7, name: 'External' } }, t)
     expect(message).not.toContain('[object Object]')
     expect(message).toContain('External')
   })
 
   it('uses local field labels instead of the server supplied label', () => {
-    expect(formatTimelineChange({ field: 'name', label: 'لقب', old: null, new: 'Launch' }, 'en-US', t)).toBe('Set Title: Launch')
+    expect(formatTimelineChange({ field: 'name', label: 'لقب', old: null, new: 'Launch' }, t)).toBe('Set Title: Launch')
   })
 })

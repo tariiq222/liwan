@@ -10,7 +10,7 @@ import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 
 const route = useRoute()
 const router = useRouter()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const hydrated = useHydrated()
 const toast = useToast()
 const projectId = computed(() => parsePositiveId(route.params.id))
@@ -89,9 +89,9 @@ async function deleteMilestone() {
         <SharedPropertyRow :label="t('projects.milestones.state')">
           <SharedStatusBadge :tone="milestoneBadge(milestone).tone" :label="t(milestoneBadge(milestone).labelKey)" />
         </SharedPropertyRow>
-        <SharedPropertyRow :label="t('projects.milestones.startDate')" :value="formatCalendarDate(milestone.start_date, locale)" />
-        <SharedPropertyRow :label="t('projects.milestones.deadline')" :value="formatCalendarDate(milestone.deadline, locale)" />
-        <SharedPropertyRow v-if="milestone.reached_date" :label="t('projects.milestones.reached')" :value="formatCalendarDate(milestone.reached_date, locale)" />
+        <SharedPropertyRow :label="t('projects.milestones.startDate')" :value="formatCalendarDate(milestone.start_date)" />
+        <SharedPropertyRow :label="t('projects.milestones.deadline')" :value="formatCalendarDate(milestone.deadline)" />
+        <SharedPropertyRow v-if="milestone.reached_date" :label="t('projects.milestones.reached')" :value="formatCalendarDate(milestone.reached_date)" />
       </SharedPropertiesPanel>
     </template>
   </SharedRecordPage>

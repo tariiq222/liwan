@@ -40,12 +40,12 @@ function phase(meeting: MeetingListItem) {
 function localTime(value: string) {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return t('meetingTimeline.unknownDate')
-  return hydrated.value ? formatLiwanTime(parsed, locale.value) : ''
+  return hydrated.value ? formatLiwanTime(parsed) : ''
 }
 
 function meetingDate(meeting: MeetingListItem) {
   if (meeting.meeting_date) {
-    const date = formatCalendarDate(meeting.meeting_date, locale.value)
+    const date = formatCalendarDate(meeting.meeting_date)
     const time = meeting.start_datetime ? localTime(meeting.start_datetime) : ''
     return time ? `${date} · ${time}` : date
   }

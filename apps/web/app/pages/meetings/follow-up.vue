@@ -16,7 +16,7 @@ import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 type Row = z.infer<typeof MeetingPreviousResolutionSchema>
 const route = useRoute()
 const router = useRouter()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const hydrated = useHydrated()
 const { shown: kpisShown } = useKpiVisibility()
 const states = ['all', 'active', 'overdue', 'open', 'in_progress', 'done', 'cancelled'] as const
@@ -94,10 +94,10 @@ function setPage(value: number) { if (value >= 1 && value <= pages.value) patch(
           <div v-if="row.original.responsible" class="flex min-w-0 items-center gap-2"><SharedPersonAvatar :people="[row.original.responsible]" /><span class="min-w-0 truncate text-muted">{{ row.original.responsible.name }}</span></div>
           <span v-else class="text-muted">—</span>
         </template>
-        <template #deadline-cell="{ row }"><span v-if="row.original.deadline" class="whitespace-nowrap">{{ formatMeetingDate(row.original.deadline, locale) }}</span><span v-else>{{ row.original.execution_period || '—' }}</span></template>
+        <template #deadline-cell="{ row }"><span v-if="row.original.deadline" class="whitespace-nowrap">{{ formatMeetingDate(row.original.deadline) }}</span><span v-else>{{ row.original.execution_period || '—' }}</span></template>
         <template #execution_state-cell="{ row }"><SharedStatusBadge v-bind="resolutionStateBadgeProps(row.original.execution_state ?? row.original.state, t)" /></template>
         <template #task-cell="{ row }"><UButton v-if="row.original.task_id" :to="`/tasks/${row.original.task_id}`" target="_blank" rel="noopener" color="neutral" variant="link" icon="i-lucide-external-link" :label="t('meetingsUx.openTaskNewTab')" /></template>
-        <template #mobile-row="{ row }"><div class="grid min-w-0 gap-2"><NuxtLink :to="meetingTo(row)" class="break-words font-semibold text-highlighted">{{ row.name }}</NuxtLink><p class="break-words text-xs text-muted">{{ row.meeting_name }}</p><div class="flex flex-wrap items-center gap-2 text-sm"><SharedStatusBadge v-bind="resolutionStateBadgeProps(row.execution_state ?? row.state, t)" /><span>{{ row.responsible?.name || '—' }}</span><span>{{ row.deadline ? formatMeetingDate(row.deadline, locale) : row.execution_period || '—' }}</span></div><UButton v-if="row.task_id" :to="`/tasks/${row.task_id}`" target="_blank" rel="noopener" variant="link" :label="t('meetingsUx.openTaskNewTab')" /></div></template>
+        <template #mobile-row="{ row }"><div class="grid min-w-0 gap-2"><NuxtLink :to="meetingTo(row)" class="break-words font-semibold text-highlighted">{{ row.name }}</NuxtLink><p class="break-words text-xs text-muted">{{ row.meeting_name }}</p><div class="flex flex-wrap items-center gap-2 text-sm"><SharedStatusBadge v-bind="resolutionStateBadgeProps(row.execution_state ?? row.state, t)" /><span>{{ row.responsible?.name || '—' }}</span><span>{{ row.deadline ? formatMeetingDate(row.deadline) : row.execution_period || '—' }}</span></div><UButton v-if="row.task_id" :to="`/tasks/${row.task_id}`" target="_blank" rel="noopener" variant="link" :label="t('meetingsUx.openTaskNewTab')" /></div></template>
       </SharedDataTable>
       <template v-if="!query.error.value && rows.length" #footer>
         <SharedListFooter :count-label="t('meetingsUi.footer.results', { shown: rows.length, total }, total)" count-test-id="meeting-followup-result-count" :page="page" :pages="pages" :disabled="query.isFetching.value || !hydrated" @update:page="setPage" />
