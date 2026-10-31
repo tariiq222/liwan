@@ -7207,6 +7207,254 @@
         ],
         "type": "object"
       },
+      "ChatMessageDeleteModeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "placeholder",
+          "permanent"
+        ],
+        "type": "string"
+      },
+      "ChatMessageDeleteResultSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "message": {
+                "additionalProperties": false,
+                "properties": {
+                  "attachments": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "mimetype": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "mimetype",
+                        "url"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "author": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name"
+                    ],
+                    "type": "object"
+                  },
+                  "body": {
+                    "type": "string"
+                  },
+                  "conversation_id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "created_at": {
+                    "type": "string"
+                  },
+                  "deleted": {
+                    "type": "boolean"
+                  },
+                  "edited": {
+                    "type": "boolean"
+                  },
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "notice": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "type": {
+                            "const": "member_removed",
+                            "type": "string"
+                          },
+                          "user": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "id": {
+                                "exclusiveMinimum": 0,
+                                "maximum": 9007199254740991,
+                                "type": "integer"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "type": "object"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "user"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "parent": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "author": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "id": {
+                                "exclusiveMinimum": 0,
+                                "maximum": 9007199254740991,
+                                "type": "integer"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "type": "object"
+                          },
+                          "body": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991,
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "author",
+                          "body"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "pinned": {
+                    "type": "boolean"
+                  },
+                  "reactions": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "content": {
+                          "type": "string"
+                        },
+                        "count": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "me": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "content",
+                        "count",
+                        "me"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "starred": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "id",
+                  "conversation_id",
+                  "author",
+                  "body",
+                  "created_at",
+                  "attachments",
+                  "parent",
+                  "edited",
+                  "deleted",
+                  "pinned",
+                  "starred",
+                  "reactions",
+                  "notice"
+                ],
+                "type": "object"
+              },
+              "mode": {
+                "const": "placeholder",
+                "type": "string"
+              }
+            },
+            "required": [
+              "mode",
+              "message"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "message": {
+                "type": "null"
+              },
+              "mode": {
+                "const": "permanent",
+                "type": "string"
+              }
+            },
+            "required": [
+              "mode",
+              "message"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "ChatMessageListSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -7272,6 +7520,9 @@
                 },
                 "created_at": {
                   "type": "string"
+                },
+                "deleted": {
+                  "type": "boolean"
                 },
                 "edited": {
                   "type": "boolean"
@@ -7405,6 +7656,7 @@
                 "attachments",
                 "parent",
                 "edited",
+                "deleted",
                 "pinned",
                 "starred",
                 "reactions",
@@ -7616,6 +7868,9 @@
           "created_at": {
             "type": "string"
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "edited": {
             "type": "boolean"
           },
@@ -7748,6 +8003,7 @@
           "attachments",
           "parent",
           "edited",
+          "deleted",
           "pinned",
           "starred",
           "reactions",
@@ -7876,6 +8132,107 @@
         "required": [
           "items",
           "total"
+        ],
+        "type": "object"
+      },
+      "ChatSettingsPatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "values": {
+            "additionalProperties": false,
+            "properties": {
+              "message_delete_mode": {
+                "enum": [
+                  "placeholder",
+                  "permanent"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "message_delete_mode"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "revision",
+          "values"
+        ],
+        "type": "object"
+      },
+      "ChatSettingsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "defaults": {
+            "additionalProperties": false,
+            "properties": {
+              "message_delete_mode": {
+                "enum": [
+                  "placeholder",
+                  "permanent"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "message_delete_mode"
+            ],
+            "type": "object"
+          },
+          "options": {
+            "additionalProperties": false,
+            "properties": {
+              "message_delete_mode": {
+                "items": {
+                  "enum": [
+                    "placeholder",
+                    "permanent"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "message_delete_mode"
+            ],
+            "type": "object"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "values": {
+            "additionalProperties": false,
+            "properties": {
+              "message_delete_mode": {
+                "enum": [
+                  "placeholder",
+                  "permanent"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "message_delete_mode"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "values",
+          "defaults",
+          "options",
+          "revision"
         ],
         "type": "object"
       },
@@ -48428,6 +48785,34 @@
               }
             ]
           },
+          "last_message_kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "text",
+                  "image",
+                  "video",
+                  "audio",
+                  "document",
+                  "sticker",
+                  "location",
+                  "contacts",
+                  "interactive",
+                  "template",
+                  "flow_response",
+                  "product",
+                  "product_list",
+                  "catalog_message",
+                  "order",
+                  "unsupported"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "last_message_preview": {
             "type": [
               "string",
@@ -48453,6 +48838,11 @@
                 "type": "null"
               }
             ]
+          },
+          "revision": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
           },
           "state": {
             "enum": [
@@ -48497,8 +48887,10 @@
           "state",
           "priority",
           "tags",
+          "revision",
           "last_message_at",
           "last_message_preview",
+          "last_message_kind",
           "unread",
           "reply_window_ends_at",
           "csat",
@@ -48667,6 +49059,34 @@
                     }
                   ]
                 },
+                "last_message_kind": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "text",
+                        "image",
+                        "video",
+                        "audio",
+                        "document",
+                        "sticker",
+                        "location",
+                        "contacts",
+                        "interactive",
+                        "template",
+                        "flow_response",
+                        "product",
+                        "product_list",
+                        "catalog_message",
+                        "order",
+                        "unsupported"
+                      ],
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "last_message_preview": {
                   "type": [
                     "string",
@@ -48692,6 +49112,11 @@
                       "type": "null"
                     }
                   ]
+                },
+                "revision": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
                 },
                 "state": {
                   "enum": [
@@ -48736,8 +49161,10 @@
                 "state",
                 "priority",
                 "tags",
+                "revision",
                 "last_message_at",
                 "last_message_preview",
+                "last_message_kind",
                 "unread",
                 "reply_window_ends_at",
                 "csat"
@@ -48795,6 +49222,11 @@
             ],
             "type": "string"
           },
+          "revision": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
           "state": {
             "enum": [
               "open",
@@ -48813,6 +49245,9 @@
             "type": "array"
           }
         },
+        "required": [
+          "revision"
+        ],
         "type": "object"
       },
       "InboxConversationSchema": {
@@ -48971,6 +49406,34 @@
               }
             ]
           },
+          "last_message_kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "text",
+                  "image",
+                  "video",
+                  "audio",
+                  "document",
+                  "sticker",
+                  "location",
+                  "contacts",
+                  "interactive",
+                  "template",
+                  "flow_response",
+                  "product",
+                  "product_list",
+                  "catalog_message",
+                  "order",
+                  "unsupported"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "last_message_preview": {
             "type": [
               "string",
@@ -48996,6 +49459,11 @@
                 "type": "null"
               }
             ]
+          },
+          "revision": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
           },
           "state": {
             "enum": [
@@ -49040,8 +49508,10 @@
           "state",
           "priority",
           "tags",
+          "revision",
           "last_message_at",
           "last_message_preview",
+          "last_message_kind",
           "unread",
           "reply_window_ends_at",
           "csat"
@@ -91569,6 +92039,65 @@
       }
     },
     "/api/v1/chat/conversations/{conversation_id}/messages/{message_id}": {
+      "delete": {
+        "operationId": "liwan_chat.ChatController.delete_message.delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "delete_message",
+        "tags": [
+          "liwan_chat"
+        ],
+        "x-liwan": {
+          "addon": "liwan_chat",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "chat",
+          "controller": "ChatController",
+          "feature_keys": [
+            "chat.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "delete_message",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      },
       "patch": {
         "operationId": "liwan_chat.ChatController.patch_message.patch",
         "parameters": [
@@ -91954,6 +92483,84 @@
           "feature_operation": "read",
           "handler": "list_recipients",
           "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/chat/settings": {
+      "get": {
+        "operationId": "liwan_chat.ChatSettingsController.get_settings.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_settings",
+        "tags": [
+          "liwan_chat"
+        ],
+        "x-liwan": {
+          "addon": "liwan_chat",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "chat",
+          "controller": "ChatSettingsController",
+          "feature_keys": [
+            "chat.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_settings",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "liwan_chat.ChatSettingsController.patch_settings.patch",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "patch_settings",
+        "tags": [
+          "liwan_chat"
+        ],
+        "x-liwan": {
+          "addon": "liwan_chat",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "chat",
+          "controller": "ChatSettingsController",
+          "feature_keys": [
+            "chat.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "patch_settings",
+          "readonly": false,
           "route_type": "json2"
         }
       }
@@ -114461,7 +115068,7 @@
           ],
           "feature_operation": "read",
           "handler": "get_working_hours",
-          "readonly": false,
+          "readonly": true,
           "route_type": "json2"
         }
       },
@@ -122315,7 +122922,7 @@
           ],
           "feature_operation": "read",
           "handler": "get_settings",
-          "readonly": false,
+          "readonly": true,
           "route_type": "json2"
         }
       },
@@ -122393,7 +123000,7 @@
           ],
           "feature_operation": "read",
           "handler": "get_campaign_settings",
-          "readonly": false,
+          "readonly": true,
           "route_type": "json2"
         }
       },
