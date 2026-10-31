@@ -138,13 +138,14 @@ html { caret-color: var(--brand-link); }
 *::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--foreground) 38%, transparent); }
 
 /* Print (Tasmim Plan 4). Paper never carries the app chrome: the header, the module
-   rail, the context sidebar, the mobile trigger and anything marked .liwan-print-hide are
+   rail, the context sidebar, the Sadu strip, the mobile trigger and anything marked .liwan-print-hide are
    dropped, and the workspace loses their offsets. A print page (SharedStandalonePage
    variant="print", .liwan-print) is black on white in either appearance: it resets the
    Nuxt UI tokens and the tokens.css aliases (resolved once on :root), so every utility
    inside follows. */
 @media print {
   .liwan-shell-header,
+  .liwan-shell::after,
   .liwan-module-rail,
   .liwan-context-sidebar,
   .liwan-mobile-menu-trigger,

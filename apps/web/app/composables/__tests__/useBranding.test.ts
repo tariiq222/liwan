@@ -32,10 +32,17 @@ describe('institution favicon', () => {
     }))
   })
 
-  it('does not keep an old institution icon when branding is unavailable', () => {
+  it('emits no static LiwanOS icon while the tenant has a logo', () => {
+    const { head } = setup()
+    expect(head().link).toHaveLength(1)
+    expect(head().link).not.toContainEqual(expect.objectContaining({ href: '/favicon.svg' }))
+    expect(head().link).not.toContainEqual(expect.objectContaining({ rel: 'apple-touch-icon' }))
+  })
+
+  it('falls back to the three LiwanOS icons, not an old institution icon, when branding is unavailable', () => {
     const { head, data } = setup()
     data.value = null
-    expect(head().link).toEqual([])
+    expect(head().link!.map(link => link.href)).toEqual(['/favicon.svg', '/favicon.ico', '/apple-touch-icon.png'])
   })
 
   it('keeps other logo sources usable without inventing a company id', () => {

@@ -3,6 +3,7 @@ import { useI18n } from 'vue-i18n'
 import AppSidebar from '../../app/components/shell/AppSidebar.vue'
 import ShellFrame from '@liwan/ui/app/components/shell/ShellFrame.vue'
 import ShellHeader from '../../app/components/shell/ShellHeader.vue'
+import BrandWordmark from '@liwan/ui/app/components/shared/layout/BrandWordmark.vue'
 import StandalonePage from '@liwan/ui/app/components/shared/layout/StandalonePage.vue'
 import { __getRouter } from '../../.storybook/nuxt-shims'
 import { shellHandlers } from '../handlers/shell'
@@ -62,6 +63,28 @@ export const WithBrandHeader: Story = {
         </div>
       </template>
       <p class="text-sm text-muted">{{ t('auth.username') }}</p>
+    </StandalonePage>`,
+  }),
+}
+
+export const BrandSurface: Story = {
+  name: 'بطاقة على سطح الهوية',
+  parameters: storyContext('unused', 'سطح لافندر كامل خارج التطبيق (صفحة الدخول)، الشعار الأبيض عليه فوق بطاقة بيضاء.'),
+  render: () => ({
+    components: { StandalonePage, BrandWordmark },
+    setup: () => ({ t: useI18n().t }),
+    template: `<StandalonePage surface="brand">
+      <template #brand><BrandWordmark size="xl" inverted /></template>
+      <template #header>
+        <div class="flex flex-col items-center text-center">
+          <h1 class="text-2xl font-semibold text-highlighted">{{ t('app.productName') }}</h1>
+          <p class="text-sm text-muted">{{ t('auth.signInToContinue') }}</p>
+        </div>
+      </template>
+      <form class="grid gap-4" @submit.prevent>
+        <UFormField :label="t('auth.username')" name="login"><UInput id="story-brand-login" class="w-full" dir="ltr" autocomplete="username" /></UFormField>
+        <UButton type="submit" class="w-full justify-center" :label="t('auth.signIn')" />
+      </form>
     </StandalonePage>`,
   }),
 }

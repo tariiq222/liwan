@@ -75,6 +75,7 @@ html[dir="rtl"] .schedule-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in
   --shell-ease: var(--liwan-motion-ease);
   --shell-inset: 12px;
   --shell-header-height: 56px;
+  --liwan-sadu-height: 6px;
   --shell-gap: 16px;
   --shell-top: calc(var(--shell-inset) + var(--shell-header-height) + var(--shell-gap));
   --module-rail-width: 76px;
@@ -96,6 +97,19 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   height: calc(var(--shell-top) - var(--shell-inset) / 2);
   background: color-mix(in srgb, var(--liwan-canvas) 82%, transparent);
   backdrop-filter: blur(12px);
+  pointer-events: none;
+}
+/* Sadu strip: a thin row of sand triangles in the gap under the floating header card, once per shell.
+   Decoration only (no element, no image), centred in the gap and aligned with the header's edges. */
+.liwan-shell::after {
+  content: '';
+  position: fixed;
+  inset-block-start: calc(var(--shell-inset) + var(--shell-header-height) + (var(--shell-gap) - var(--liwan-sadu-height)) / 2);
+  inset-inline: var(--shell-inset);
+  z-index: 61;
+  height: var(--liwan-sadu-height);
+  background: conic-gradient(from 135deg at 50% 0, var(--liwan-sand) 0 90deg, transparent 0) 0 0 / calc(var(--liwan-sadu-height) * 2) var(--liwan-sadu-height);
+  background-repeat: round no-repeat;
   pointer-events: none;
 }
 @media (min-width: 768px) {

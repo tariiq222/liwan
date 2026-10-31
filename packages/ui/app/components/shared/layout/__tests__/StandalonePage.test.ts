@@ -15,6 +15,22 @@ describe('SharedStandalonePage', () => {
     expect(html).not.toContain('liwan-print')
   })
 
+  it('brand surface fills the page with the lavender token and draws the brand slot above the card', async () => {
+    const html = await renderShared('StandalonePage', { surface: 'brand' }, { ...body, brand: () => h('span', { 'data-logo': '' }) })
+    expect(html).toContain('data-surface="brand"')
+    expect(html).toContain('bg-(--primary-solid)')
+    expect(html).toContain('dark:bg-(--primary-solid-active)')
+    expect(html).not.toContain('bg-default')
+    expect(html.indexOf('data-logo')).toBeLessThan(html.indexOf('data-body'))
+  })
+
+  it('default surface keeps the default background and ignores the brand slot', async () => {
+    const html = await renderShared('StandalonePage', {}, { ...body, brand: () => h('span', { 'data-logo': '' }) })
+    expect(html).toContain('data-surface="default"')
+    expect(html).toContain('bg-default')
+    expect(html).not.toContain('data-logo')
+  })
+
   it('print is an article inside the shell main, black-on-white class, footer not printed', async () => {
     const html = await renderShared('StandalonePage', { variant: 'print', title: 'Minutes' }, body)
     expect(html.startsWith('<article')).toBe(true)

@@ -19,7 +19,7 @@ function loadWordmark(): Vue.Component {
     if (path === 'vue') return Vue
     throw new Error(`Unhandled component dependency ${path}`)
   }
-  const useI18n = () => ({ t: (key: string) => ({ 'brand.name': 'ليوان' }[key] ?? key) })
+  const useI18n = () => ({ t: (key: string) => ({ 'brand.name': 'نظام ليوان' }[key] ?? key) })
   new Function('require', 'exports', 'ref', 'computed', 'useI18n', code)(require, exports, Vue.ref, Vue.computed, useI18n)
   return exports.default!
 }
@@ -30,12 +30,35 @@ async function render(props: Record<string, unknown> = {}) {
 }
 
 describe('BrandWordmark', () => {
-  it('renders the product name and a decorative logo mark of three paths', async () => {
+  it('renders the product name and a decorative mark of one path and a diamond', async () => {
     const html = await render()
-    expect(html.replace(/<svg[\s\S]*?<\/svg>/, '').replace(/<[^>]+>/g, '').trim()).toBe('ليوان')
+    expect(html.replace(/<svg[\s\S]*?<\/svg>/, '').replace(/<[^>]+>/g, '').trim()).toBe('نظام ليوان')
     const mark = html.match(/<svg[^>]*data-slot="mark"[^>]*>/)?.[0] ?? ''
     expect(mark).toContain('aria-hidden="true"')
-    expect(html.match(/<path /g)).toHaveLength(3)
+    expect(html.match(/<path /g)).toHaveLength(1)
+    expect(html.match(/<rect /g)).toHaveLength(1)
+  })
+
+  it('draws the mark with currentColor only, so no colour is fixed in the component', async () => {
+    const html = await render()
+    expect(html).toContain('stroke="currentColor"')
+    expect(html).toContain('fill="currentColor"')
+    expect(html).not.toMatch(/#[0-9a-f]{3,6}/i)
+  })
+
+  it('takes the heavier stroke below 24px and the regular stroke at lg', async () => {
+    for (const size of ['sm', 'md']) {
+      const html = await render({ size })
+      expect(html).toContain('data-weight="heavy"')
+      expect(html).toContain('stroke-width="7.5"')
+      expect(html).toContain('viewBox="-2 -2 68 68"')
+    }
+    for (const size of ['lg', 'xl']) {
+      const html = await render({ size })
+      expect(html).toContain('data-weight="regular"')
+      expect(html).toContain('stroke-width="4.6"')
+      expect(html).toContain('viewBox="0 0 64 64"')
+    }
   })
 
   it('draws the mark in the brand colour, and in white when inverted', async () => {
@@ -56,9 +79,10 @@ describe('BrandWordmark', () => {
   })
 
   it.each([
-    ['sm', 'text-sm', 'h-4'],
-    ['md', 'text-base', 'h-5'],
-    ['lg', 'text-xl', 'h-7'],
+    ['sm', 'text-sm', 'size-4'],
+    ['md', 'text-base', 'size-5'],
+    ['lg', 'text-xl', 'size-7'],
+    ['xl', 'text-3xl', 'size-10'],
   ])('sizes the %s wordmark and its mark together', async (size, text, mark) => {
     const html = await render({ size })
     expect(html.match(/<span class="([^"]*)"/)?.[1]).toContain(text)
@@ -68,6 +92,6 @@ describe('BrandWordmark', () => {
   it('renders the mark alone when markOnly is set', async () => {
     const html = await render({ markOnly: true })
     expect(html.replace(/<svg[\s\S]*?<\/svg>/, '').replace(/<[^>]+>/g, '').trim()).toBe('')
-    expect(html.match(/<path /g)).toHaveLength(3)
+    expect(html.match(/<path /g)).toHaveLength(1)
   })
 })
