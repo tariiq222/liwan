@@ -116,7 +116,9 @@ class TestTaskNotifications(LiwanPmoCase):
         self.assertEqual(kinds(self.manager), ['mention'], 'a declared mention without its token notifies nobody')
         self.authenticate(self.manager.login, 'api_mgr_pass_123')
         items = self.api('GET', '/api/v1/notifications').json()['items']
-        self.assertTrue(any(item['kind'] == 'mention' and item['task_id'] == task.id for item in items))
+        mention = next(item for item in items if item['kind'] == 'mention' and item['task_id'] == task.id)
+        self.assertEqual(mention['body'], f'@{self.other.name} and @{self.manager.name} look', 'a mention token is shown without markdown markers')
+        self.assertNotIn('*', mention['body'])
 
     def test_read_is_idempotent_and_other_recipient_gets_404(self):
         task = self.env['project.task'].with_user(self.manager).create({

@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo.tools import html2plaintext
+from odoo.tools.mail import html_to_inner_content
 
 from odoo.addons.liwan_api.serializers.common import iso
 
@@ -8,6 +8,15 @@ CHARTER_APPROVED_KIND = 'charter_approved'
 CHARTER_RETURNED_KIND = 'charter_returned'
 CHARTER_DECISION_KINDS = (CHARTER_APPROVED_KIND, CHARTER_RETURNED_KIND)
 CHARTER_KINDS = (CHARTER_REVIEW_KIND, *CHARTER_DECISION_KINDS)
+
+
+def notification_text(html):
+    """Plain text of a message body.
+
+    ``html2plaintext`` writes bold as ``*text*`` (a mention token is bold), which a bell row
+    would show literally, so the markup is dropped without its markers.
+    """
+    return html_to_inner_content(html or '')
 
 
 def dump_notification(notification, live_tasks=None):
@@ -36,7 +45,7 @@ def dump_notification(notification, live_tasks=None):
             'kind': message.liwan_notification_kind,
             'project_id': project.id,
             'project_name': project.display_name,
-            'body': html2plaintext(message.body or '', include_references=False).strip(),
+            'body': notification_text(message.body),
             'created_at': iso(message.date),
             'is_read': bool(notification.is_read),
         }
@@ -46,7 +55,7 @@ def dump_notification(notification, live_tasks=None):
         'kind': message.liwan_notification_kind,
         'task_id': task.id,
         'task_name': task.display_name,
-        'body': html2plaintext(message.body or '', include_references=False).strip(),
+        'body': notification_text(message.body),
         'created_at': iso(message.date),
         'is_read': bool(notification.is_read),
     }

@@ -8,7 +8,8 @@ from pytz.exceptions import UnknownTimeZoneError
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError
-from odoo.tools import html2plaintext
+
+from odoo.addons.liwan_pmo.serializers.notification import notification_text
 
 SCAN_BATCH = 200
 
@@ -83,7 +84,7 @@ class ProjectTaskNotifications(models.Model):
         recipients = self._liwan_internal_users().filtered(
             lambda user: (not author or user.partner_id != author) and user not in mentioned,
         )
-        body = html2plaintext(message.body or '', include_references=False).strip()
+        body = notification_text(message.body)
         if not body:
             return
         for user in mentioned:
