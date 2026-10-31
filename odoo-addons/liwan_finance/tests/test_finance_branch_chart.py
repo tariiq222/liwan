@@ -114,6 +114,29 @@ class TestFinanceBranchChart(LiwanFinanceWriteCase):
         self.assertNotIn(self.other_payment.id, [item['id'] for item in self.get(f'{PAYMENTS}?limit=100')['items']])
         self.assertEqual(self.api('POST', f'{PAYMENTS}/{self.other_payment.id}/cancel').status_code, 404)
 
+    def test_the_branch_reads_the_parent_chart_but_cannot_change_it(self):
+        root_account = self.env['account.account'].search([('company_ids', 'in', self.company.ids), ('account_type', '=', 'expense')], limit=1)
+        for method, path, body in (
+            ('PATCH', f'{ACCOUNTS}/{root_account.id}', {'name': 'Renamed by a branch'}),
+            ('POST', f'{ACCOUNTS}/{root_account.id}/archive', {}),
+            ('POST', f'{ACCOUNTS}/{root_account.id}/unarchive', {}),
+        ):
+            with self.subTest(path=path):
+                result = self.api(method, path, json=body)
+                self.assertEqual((result.status_code, result.json()['code']), (422, 'shared_record'), result.text)
+        root_account.invalidate_recordset()
+        self.assertTrue(root_account.active)
+        self.assertNotEqual(root_account.name, 'Renamed by a branch')
+        self.assertEqual(self.api('GET', f'{ACCOUNTS}/{root_account.id}').status_code, 200)
+
+    def test_a_branch_invoice_may_use_an_account_of_the_parent_chart(self):
+        income = self.env['account.account'].search([('company_ids', 'in', self.company.ids), ('account_type', '=', 'income')], limit=1)
+        result = self.api('POST', INVOICES, json={
+            'move_type': 'out_invoice', 'partner_id': self.partner.id, 'invoice_date': '2026-10-18',
+            'lines': [{'name': 'Parent account', 'quantity': 1, 'price_unit': 10, 'account_id': income.id, 'tax_ids': []}],
+        })
+        self.assertEqual(result.status_code, 201, result.text)
+
     def test_an_account_made_in_the_branch_belongs_to_the_branch_only(self):
         created = self.api('POST', ACCOUNTS, json={'code': '600977', 'name': 'Branch only', 'account_type': 'expense'})
         self.assertEqual(created.status_code, 201, created.text)
