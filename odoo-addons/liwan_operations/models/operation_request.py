@@ -65,6 +65,17 @@ class OperationRequest(models.Model):
     def _operations_prepare_submission(self, process):
         return True
 
+    @api.model
+    def _operations_published_process(self, process_id, company):
+        """The published process of ``company`` the caller can see, else an empty recordset.
+
+        A draft or archived process is hidden from an employee by record rule, so it is searched,
+        never read: reading it would answer with the engine's access refusal instead of this request's.
+        """
+        if isinstance(process_id, bool) or not isinstance(process_id, int):
+            return self.env['liwan.operation.process']
+        return self.env['liwan.operation.process'].search([('id', '=', process_id), ('company_id', '=', company.id), ('state', '=', 'published')], limit=1)
+
     def _operations_target(self):
         return None
 
@@ -76,10 +87,9 @@ class OperationRequest(models.Model):
             vals = dict(source)
             if set(vals) - {'name', 'description', 'process_id', 'company_id', 'target_id'}:
                 raise AccessError(self.env._('Request control fields cannot be supplied.'))
-            process = self.env['liwan.operation.process'].browse(vals.get('process_id')).exists()
-            if not process or process.company_id != self.env.company or process.state != 'published':
+            process = self._operations_published_process(vals.get('process_id'), self.env.company)
+            if not process:
                 raise ValidationError(self.env._('Choose a published process from the current company.'))
-            process.check_access('read')
             target = self._operations_target_values(process, vals.pop('target_id', None))
             if vals.get('company_id', self.env.company.id) != self.env.company.id:
                 raise AccessError(self.env._('Use the current company.'))
@@ -139,10 +149,12 @@ class OperationRequest(models.Model):
         with self.env.cr.savepoint():
             lock_or_conflict(self, 'write')
             check_revision(self, revision)
-            process = self.process_id
+            process = self._operations_published_process(self.process_id.id, self.company_id)
+            if not process:
+                raise ValidationError(self.env._('The process must be published before submission.'))
             process.lock_for_update()
             process.invalidate_recordset()
-            if process.state != 'published' or process.company_id != self.company_id:
+            if process.state != 'published':
                 raise ValidationError(self.env._('The process must be published before submission.'))
             self._operations_prepare_submission(process)
             definitions = self.env['tier.definition'].search([('operations_process_id', '=', process.id), ('operations_revision', '=', process.revision)], order='sequence desc')
@@ -245,7 +257,8 @@ class OperationRequest(models.Model):
                 self._ops_write({'revision': self.revision + 1})
         except OperationExecutionError:
             self.invalidate_recordset()
-            self._event('execution_failed', self.env._('Execution failed; the last approval was rolled back.'))
+            # The history row is worded by its kind; a stored sentence would be fixed in one language.
+            self._event('execution_failed')
             raise
         if self.state == 'pending':
             self._notify_current_reviewers()
