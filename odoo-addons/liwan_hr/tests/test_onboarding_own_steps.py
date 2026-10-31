@@ -90,3 +90,44 @@ class TestOnboardingOwnSteps(LiwanHrCase):
         self._login('own_steps_hr')
         manager_rows = [row for row in self.api('GET', '/api/v1/notifications').json()['items'] if row['kind'] == 'hr.onboarding_step']
         self.assertEqual(manager_rows, [])
+
+    def _plain_manager_run(self):
+        """A run whose manager step goes to a plain employee: no onboarding capability, not the new employee."""
+        boss = new_test_user(
+            self.env, login='own_steps_boss', password='own_steps_boss_pass_123', name='Steps Boss', groups='liwan_core.group_employee',
+        )
+        self.env['hr.employee'].create({'name': 'Steps Boss', 'company_id': self.env.company.id, 'user_id': boss.id})
+        other_user = new_test_user(
+            self.env, login='own_steps_other_new', password='own_steps_other_new_pass_123', name='Other New', groups='liwan_core.group_employee',
+        )
+        newcomer = self.env['hr.employee'].create({
+            'name': 'Other Newcomer', 'company_id': self.env.company.id, 'user_id': other_user.id,
+            'parent_id': self.env['hr.employee'].search([('user_id', '=', boss.id)]).id,
+        })
+        self._login('own_steps_hr')
+        res = self.api('POST', '/api/v1/hr/onboarding/runs', json={'employee_id': newcomer.id, 'plan_id': self.plan.id})
+        self.assertEqual(res.status_code, 201, res.text)
+        return boss, other_user, res.json()
+
+    def test_the_manager_assigned_a_step_sees_and_finishes_only_that_step(self):
+        boss, other_user, run = self._plain_manager_run()
+        self._login(boss.login)
+        listed = self.api('GET', STEPS).json()
+        self.assertEqual([(item['summary'], item['run_id']) for item in listed['items']], [('Prepare the desk', run['id'])])
+        self.assertEqual(set(listed['items'][0]), {'id', 'run_id', 'summary', 'date_deadline', 'state'})
+        # Nothing else of the file opens: no run detail, no run list, and the new employee's step is not theirs.
+        self.assertEqual(self.api('GET', f"/api/v1/hr/onboarding/runs/{run['id']}").status_code, 403)
+        self.assertEqual(self.api('GET', '/api/v1/hr/onboarding/runs').status_code, 403)
+        newcomer_step = self.env['mail.activity'].search([
+            ('res_model', '=', 'hr.employee'), ('res_id', '=', run['employee']['id']), ('user_id', '=', other_user.id),
+        ])
+        self.assertEqual(self.api('POST', f"{STEPS}/{newcomer_step.id}/done", json={}).status_code, 404)
+        done = self.api('POST', f"{STEPS}/{listed['items'][0]['id']}/done", json={})
+        self.assertEqual(done.status_code, 200, done.text)
+        self.assertEqual(self.api('GET', STEPS).json()['items'], [])
+
+    def test_the_manager_assigned_a_step_gets_a_bell_row(self):
+        boss, _other, run = self._plain_manager_run()
+        self._login(boss.login)
+        rows = [row for row in self.api('GET', '/api/v1/notifications').json()['items'] if row['kind'] == 'hr.onboarding_step']
+        self.assertEqual([(row['run_id'], row['title']) for row in rows], [(run['id'], 'Prepare the desk')])

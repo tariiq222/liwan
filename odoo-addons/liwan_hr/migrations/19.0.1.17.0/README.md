@@ -1,2 +1,2 @@
-The plan run gains two stored related columns (`hr_purpose`, `employee_user_id`) and an employee read rule on it.
-Odoo computes both columns for the existing rows when the module is updated, so no script is needed.
+The plan run gains stored columns (`hr_purpose`, `employee_user_id`, `assignee_ids`) and an employee read rule on it.
+Odoo computes them for the existing rows when the module is updated, so no script is needed.

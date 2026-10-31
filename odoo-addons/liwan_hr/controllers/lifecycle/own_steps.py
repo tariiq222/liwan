@@ -1,8 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """/api/v1/hr/self/onboarding-steps: the onboarding steps assigned to the caller, and finishing one.
 
-An employee has no onboarding capability, so these routes work on the caller's own record only: the runs
-launched on their employee record (a record rule scopes them) and the activities assigned to their user.
+Whoever a step is assigned to (the new employee, their manager or coach) has no onboarding capability, so these
+routes serve the caller's own steps only: the runs a record rule lets them read, and of those the activities
+assigned to their user. Nothing else of the run or the employee is returned.
 """
 from odoo import http
 from odoo.http import request
@@ -19,9 +20,10 @@ from odoo.addons.liwan_hr.serializers.lifecycle.run import parse_step_done
 
 
 def _own_steps():
-    """``(run, activity)`` pairs of the open steps assigned to the caller on an open onboarding run of their own."""
+    """``(run, activity)`` pairs of the open steps assigned to the caller on an open onboarding run: their own, or one they are assigned a step of."""
     runs = request.env['liwan.hr.plan.run'].search([
-        ('hr_purpose', '=', ONBOARDING), ('state', '=', 'open'), ('employee_user_id', '=', request.env.uid),
+        ('hr_purpose', '=', ONBOARDING), ('state', '=', 'open'),
+        '|', ('employee_user_id', '=', request.env.uid), ('assignee_ids', 'in', [request.env.uid]),
     ])
     pairs = [(run, activity) for run in runs for activity in run.activity_ids if activity.user_id == request.env.user]
     return sorted(pairs, key=lambda pair: (pair[1].date_deadline, pair[1].id))

@@ -32,8 +32,11 @@ class EmployeeDocumentAccess(http.Controller):
             raise ApiError(422, 'invalid', 'the document is not linked to an employee', field='context')
         if not employee.user_id:
             raise ApiError(422, 'employee_has_no_account', 'the employee has no account to share the document with', field='context')
+        if document.visibility == 'company':
+            # Everyone in the company already reads it: there is nothing to add, and no grant list to restate.
+            return dump_access(document)
         grants = [{'user_id': grant.user_id.id, 'access': grant.access} for grant in document.grant_ids]
         if employee.user_id.id not in {grant['user_id'] for grant in grants}:
             grants.append({'user_id': employee.user_id.id, 'access': 'reader'})
-        document._liwan_set_access('restricted', grants, revision)
+        document._liwan_set_access(document.visibility, grants, revision)
         return dump_access(request.env['liwan.document'].with_context(active_test=False).browse(document.id))

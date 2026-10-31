@@ -35,6 +35,11 @@ class LiwanHrPlanRun(models.Model):
     # the employee record, which an employee has no access to.
     hr_purpose = fields.Selection(related='plan_id.hr_purpose', store=True, index=True)
     employee_user_id = fields.Many2one(related='employee_id.user_id', store=True, index=True)
+    # Everyone a step of the run was ever assigned to (done steps included), so the person a step is handed to
+    # reads the run and finishes their own step without any onboarding capability.
+    assignee_ids = fields.Many2many(
+        'res.users', relation='liwan_hr_plan_run_assignee_rel', compute='_compute_assignee_ids', store=True,
+    )
     plan_date = fields.Date(required=True)
     launched_by_id = fields.Many2one(
         'res.users', required=True, default=lambda self: self.env.user,
@@ -49,6 +54,11 @@ class LiwanHrPlanRun(models.Model):
     cancelled_by_id = fields.Many2one('res.users', readonly=True)
     cancelled_on = fields.Datetime(readonly=True)
     cancel_reason = fields.Text(readonly=True)
+
+    @api.depends('activity_ids.user_id')
+    def _compute_assignee_ids(self):
+        for run in self:
+            run.assignee_ids = run.with_context(active_test=False).activity_ids.user_id
 
     @api.constrains('state', 'cancel_reason')
     def _check_cancel_reason(self):

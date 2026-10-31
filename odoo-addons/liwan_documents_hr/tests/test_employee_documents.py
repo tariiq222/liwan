@@ -248,6 +248,17 @@ class TestEmployeeDocumentSharing(TestEmployeeDocuments):
         no_user = self.api('POST', f'/api/v1/documents/{orphan.id}/employee-access', {'expected_revision': orphan.revision})
         self.assertEqual((no_user.status_code, no_user.json()['code']), (422, 'employee_has_no_account'))
 
+    def test_a_company_visible_document_is_left_as_it_is(self):
+        document = self.linked(self.own_employee)
+        # The employee policy keeps linked documents restricted; force the state the route must still handle.
+        self.env.cr.execute('UPDATE liwan_document SET visibility = %s WHERE id = %s', ('company', document.id))
+        document.invalidate_recordset()
+        self.authenticate('employee_docs_linker', 'employee_docs_linker')
+        res = self.api('POST', f'/api/v1/documents/{document.id}/employee-access', {'expected_revision': document.revision})
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertEqual(res.json()['visibility'], 'company')
+        self.assertEqual(self.env['liwan.document'].browse(document.id).revision, document.revision)
+
     def test_a_reader_without_access_management_cannot_share(self):
         document = self.linked(self.own_employee)
         self.authenticate('docs_reader', 'docs_reader')
