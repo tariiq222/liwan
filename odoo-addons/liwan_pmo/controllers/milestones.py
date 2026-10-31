@@ -3,11 +3,11 @@ from odoo import http
 from odoo.exceptions import UserError, ValidationError
 from odoo.http import request
 
+from .records import get_visible_record
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
     declare_read_capability_scope,
-    get_visible_record,
     requires_feature,
 )
 from odoo.addons.liwan_pmo.models.project_milestone import _validate_deliverables
@@ -54,7 +54,6 @@ class MilestoneController(http.Controller):
     def list_milestones(self, project_id):
         declare_read_capability_scope('pmo.projects.read')
         project = get_visible_record('project.project', project_id)
-        project._liwan_check_archived_readable()
         return [dump_milestone(project, m) for m in _sorted(project.milestone_ids)]
 
     @http.route('/api/v1/projects/<int:project_id>/milestones', type='json2', auth='user', methods=['POST'], readonly=False)

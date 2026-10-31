@@ -3,10 +3,10 @@ from odoo import http
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.http import request
 
+from .records import get_visible_record
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
-    get_visible_record,
     parse_nonneg_int,
     require_capabilities,
     requires_feature,
@@ -142,9 +142,7 @@ class ProjectController(http.Controller):
     @requires_feature('pmo.enabled', operation='read')
     def get_project(self, project_id):
         require_capabilities('pmo.projects.read')
-        project = get_visible_record('project.project', project_id)
-        project._liwan_check_archived_readable()
-        return dump_project_detail(project)
+        return dump_project_detail(get_visible_record('project.project', project_id))
 
     @http.route('/api/v1/projects/<int:project_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
@@ -188,10 +186,7 @@ class ProjectController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='write')
     def unarchive_project(self, project_id, **_):
-        project = request.env['project.project'].with_context(active_test=False).browse(int(project_id)).exists()
-        if not project:
-            raise ApiError(404, 'not_found', "project not found")
-        project.check_access('read')
+        project = get_visible_record('project.project', project_id, archived_write=True)
         return dump_project_detail(project._liwan_unarchive())
 
     @http.route('/api/v1/projects/<int:project_id>/status', type='json2', auth='user', methods=['POST'], readonly=False)

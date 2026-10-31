@@ -3,13 +3,13 @@ from odoo import http
 from odoo.exceptions import AccessError, MissingError
 from odoo.http import request
 
+from .records import get_visible_record
 from odoo.addons.liwan_api.controllers.attachment_download import (
     download_linked_attachment,
 )
 from odoo.addons.liwan_api.controllers.common import (
     api_handler,
     declare_read_capability_scope,
-    get_visible_record,
     requires_feature,
 )
 from odoo.addons.liwan_api.serializers.attachment import parse_attachment_upload

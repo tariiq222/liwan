@@ -270,7 +270,37 @@ class TestProjects(LiwanPmoCase):
         read = self.api('GET', url)
         self.assertEqual((read.status_code, read.json()['active']), (200, False))
         self.assertEqual(self.api('GET', f'{url}/milestones').status_code, 200)
-        self.assertEqual(self.api('PATCH', url, {'name': 'Renamed'}).status_code, 403)
+        refused = self.api('PATCH', url, {'name': 'Renamed'})
+        self.assertEqual((refused.status_code, refused.json()['code']), (422, 'archived_project'))
+
+    def test_an_archived_project_is_hidden_and_read_only_on_every_project_route(self):
+        project = self.env['project.project'].create({'name': 'Archived routes', 'company_id': self.env.company.id})
+        task = self.env['project.task'].create({'name': 'Archived task', 'project_id': project.id})
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        self.assertEqual(self.api('POST', f'/api/v1/projects/{project.id}/archive').status_code, 200)
+        base = f'/api/v1/projects/{project.id}'
+        # A member reads, but a write is refused.
+        for method, path, body in (
+            ('POST', '/api/v1/tasks', {'name': 'New', 'project_id': project.id}),
+            ('PATCH', f'/api/v1/tasks/{task.id}', {'name': 'Renamed'}),
+            ('POST', f'{base}/followers', {'user_id': self.employee.id}),
+        ):
+            refused = self.api(method, path, body)
+            self.assertEqual((refused.status_code, refused.json()['code']), (422, 'archived_project'), path)
+        self.assertEqual(self.api('GET', f'{base}/followers').status_code, 200)
+        self.assertEqual(self.api('GET', f'/api/v1/tasks/{task.id}').status_code, 200)
+        # A non-member gets 404 everywhere, the restore route included.
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        for method, path in (
+            ('GET', f'{base}/followers'), ('GET', f'{base}/updates'), ('GET', f'{base}/schedule'),
+            ('GET', f'{base}/stakeholders'), ('GET', f'/api/v1/tasks/{task.id}'),
+            ('GET', f'/api/v1/tasks/{task.id}/timeline'), ('POST', f'{base}/unarchive'),
+            ('POST', f'/api/v1/tasks/{task.id}/unarchive'),
+        ):
+            hidden = self.api(method, path, {} if method == 'POST' else None)
+            self.assertEqual((hidden.status_code, hidden.json()['code']), (404, 'not_found'), path)
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        self.assertEqual(self.api('POST', f'{base}/unarchive').status_code, 200)
 
     def test_patch_dependency_feature_requires_manager_and_boolean(self):
         self.authenticate('api_emp', 'api_emp_pass_123')

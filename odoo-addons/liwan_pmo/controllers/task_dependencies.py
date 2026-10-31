@@ -3,11 +3,11 @@ from odoo import http
 from odoo.exceptions import AccessError, ValidationError
 from odoo.http import request
 
+from .records import get_visible_record
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
     declare_read_capability_scope,
-    get_visible_record,
     parse_nonneg_int,
     requires_feature,
 )

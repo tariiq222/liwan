@@ -1,10 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import http
 
+from .records import get_visible_record
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
-    get_visible_record,
     requires_feature,
 )
 from odoo.addons.liwan_pmo.models.project_phase import (

@@ -2,10 +2,10 @@
 from odoo import http
 from odoo.exceptions import ValidationError
 
+from .records import get_visible_record
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
-    get_visible_record,
     requires_feature,
 )
 from odoo.addons.liwan_pmo.models.project_project import (

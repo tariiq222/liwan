@@ -6,10 +6,10 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.fields import Domain
 from odoo.http import request
 
+from .records import get_visible_record
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
-    get_visible_record,
     parse_nonneg_int,
     parse_positive_int,
     require_capabilities,

@@ -5,11 +5,11 @@ from odoo import http
 from odoo.exceptions import AccessError
 from odoo.http import request
 
+from .records import get_visible_record
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
     declare_read_capability_scope,
-    get_visible_record,
     requires_feature,
 )
 from odoo.addons.liwan_pmo.serializers.dates import parse_date

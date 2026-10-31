@@ -3,10 +3,10 @@ from odoo import http
 from odoo.exceptions import UserError
 from odoo.http import request
 
+from .records import get_visible_record
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
-    get_visible_record,
     requires_feature,
 )
 from odoo.addons.liwan_pmo.serializers.project import dump_stage
