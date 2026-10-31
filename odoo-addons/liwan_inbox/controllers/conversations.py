@@ -4,6 +4,7 @@ from odoo.http import request
 from odoo.tools.mail import email_normalize
 
 from odoo.addons.liwan_api.controllers.common import (
+    ApiError,
     api_handler,
     parse_page,
     parse_positive_int,
@@ -22,6 +23,7 @@ from odoo.addons.liwan_inbox.controllers.helpers import (
     parse_ids,
     parse_text,
     reject,
+    unique_as_invalid,
     visible_conversation,
     visible_message,
 )
@@ -43,13 +45,13 @@ from odoo.addons.liwan_inbox.serializers.settings import dump_canned_reply
 
 PRIORITIES = ('low', 'normal', 'high', 'urgent')
 CSAT_SCORES = ('good', 'neutral', 'bad')
-PATCH_FIELDS = {'state', 'priority', 'tag_ids', 'assignee_id', 'department_id'}
+PATCH_FIELDS = {'revision', 'state', 'priority', 'tag_ids', 'assignee_id', 'department_id'}
 REPLY_FIELDS = {'state', 'priority', 'tag_ids'}
 ASSIGN_FIELDS = {'assignee_id', 'department_id'}
 
 
 def conversation_domain(args):
-    """The list filters of the query string (state, assignee, department_id, channel_id, csat, q)."""
+    """The list filters of the query string (state, priority, assignee, department_id, channel_id, csat, q)."""
     domain = []
     if args.get('state'):
         if args['state'] not in CONVERSATION_STATES:
@@ -66,6 +68,10 @@ def conversation_domain(args):
         if args['csat'] not in CSAT_SCORES:
             reject(f'csat must be one of {CSAT_SCORES}', 'csat')
         domain.append(('csat_score', '=', args['csat']))
+    if args.get('priority'):
+        if args['priority'] not in PRIORITIES:
+            reject(f'priority must be one of {PRIORITIES}', 'priority')
+        domain.append(('priority', '=', args['priority']))
     for key in ('department_id', 'channel_id'):
         if args.get(key):
             domain.append((key, '=', parse_positive_int(args[key], key)))
@@ -99,8 +105,20 @@ def parse_assignment(conversation, payload):
     return values
 
 
+def check_revision(conversation, payload):
+    """A second editor of a conversation changed since the caller read it: 409, so the first edit is never overwritten."""
+    revision = payload.pop('revision')
+    if type(revision) is not int or revision < 1:
+        reject('revision must be a positive integer', 'revision')
+    if revision != conversation.revision:
+        raise ApiError(409, 'stale_write', 'the conversation changed; reload before saving', field='revision', details={'reason': 'inbox_conversation_stale'})
+
+
 def parse_patch(conversation, payload):
-    check_fields(payload, PATCH_FIELDS)
+    check_fields(payload, PATCH_FIELDS, required=('revision',))
+    check_revision(conversation, payload)
+    if not payload:
+        reject('no fields to update')
     if REPLY_FIELDS & set(payload):
         require_capabilities(REPLY)
     if ASSIGN_FIELDS & set(payload):
@@ -163,7 +181,8 @@ class ConversationController(http.Controller):
     def patch_conversation(self, conversation_id, **payload):
         conversation = visible_conversation(conversation_id)
         previous, was_resolved = conversation.assignee_id, conversation.state == 'resolved'
-        conversation.write(parse_patch(conversation, payload))
+        with unique_as_invalid('state', 'this customer already has an open conversation on the channel', 'inbox_customer_has_open_conversation'):
+            conversation.write(parse_patch(conversation, payload))
         if conversation.assignee_id != previous:
             conversation._liwan_notify_assigned(actor=request.env.user)
         if conversation.state == 'resolved' and not was_resolved:

@@ -20,6 +20,7 @@ import {
 import { inboxListQuery, type InboxListRoute } from './inboxListRoute'
 import { fileToBase64 } from '../../utils/attachmentFile'
 import { createTypingNotifier } from './inboxTyping'
+import { ApiError } from '../useApi'
 
 // Every key starts with 'inbox', so the bus handler's invalidation of ['inbox'] (type 'liwan/inbox') refreshes them all.
 export const inboxKeys = {
@@ -212,7 +213,10 @@ export function useRetryInboxMessage(conversationId: MaybeRefOrGetter<number>) {
   })
 }
 
-/** Assign, move, close, prioritise or tag a conversation; the response replaces the cached detail. */
+/**
+ * Assign, move, close, prioritise or tag a conversation; the response replaces the cached detail. The body names the
+ * revision the user saw: a conversation changed since answers 409, and the detail is read again so the user sees what won.
+ */
 export function usePatchInboxConversation(id: MaybeRefOrGetter<number>) {
   const { $api } = useApi()
   const qc = useQueryClient()
@@ -221,6 +225,9 @@ export function usePatchInboxConversation(id: MaybeRefOrGetter<number>) {
     onSuccess: async (detail) => {
       qc.setQueryData(inboxKeys.detail(detail.id), detail)
       await qc.invalidateQueries({ queryKey: ['inbox', 'conversations'] })
+    },
+    onError: async (error) => {
+      if (error instanceof ApiError && error.status === 409) await qc.invalidateQueries({ queryKey: inboxKeys.detail(toValue(id)) })
     },
   })
 }

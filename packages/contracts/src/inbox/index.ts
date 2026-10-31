@@ -30,6 +30,12 @@ export const InboxPresetKeySchema = z.enum(['clinic', 'store', 'public_service']
 
 // ---------------------------------------------------------------- conversations
 
+// What a message carries. Inbound media, location and contacts arrive from the customer; an agent may send
+// text, media, a location, an interactive message or a template.
+export const InboxMessageKindSchema = z.enum([
+  'text', 'image', 'video', 'audio', 'document', 'sticker', 'location', 'contacts', 'interactive', 'template', 'flow_response', 'product', 'product_list', 'catalog_message', 'order', 'unsupported',
+])
+
 export const InboxContactSchema = z.object({
   id: Id,
   name: z.string(),
@@ -46,8 +52,12 @@ export const InboxConversationSchema = z.object({
   state: InboxConversationStateSchema,
   priority: InboxPrioritySchema,
   tags: z.array(InboxRefSchema),
+  // Counts the changes of state, priority, tags, assignee and department; a PATCH names the one it was made from.
+  revision: z.number().int().positive(),
   last_message_at: UtcDateTime.nullable(),
   last_message_preview: z.string().nullable(),
+  // The kind of the last customer-visible message, so a list row of a file without a caption can name the file.
+  last_message_kind: InboxMessageKindSchema.nullable(),
   unread: z.boolean(),
   // WhatsApp customer-service window: a free-form reply is accepted until this time;
   // after it only an approved template may be sent. Null when no inbound message exists.
@@ -64,6 +74,7 @@ export const InboxConversationDetailSchema = InboxConversationSchema.extend({
 }).strict()
 
 export const InboxConversationPatchSchema = z.object({
+  revision: z.number().int().positive(),
   state: InboxConversationStateSchema.optional(),
   priority: InboxPrioritySchema.optional(),
   tag_ids: z.array(Id).optional(),
@@ -77,12 +88,6 @@ export const InboxAttachmentSchema = z.object({
   mimetype: z.string(),
   size: z.number().int().nonnegative(),
 }).strict()
-
-// What a message carries. Inbound media, location and contacts arrive from the customer; an agent may send
-// text, media, a location, an interactive message or a template.
-export const InboxMessageKindSchema = z.enum([
-  'text', 'image', 'video', 'audio', 'document', 'sticker', 'location', 'contacts', 'interactive', 'template', 'flow_response', 'product', 'product_list', 'catalog_message', 'order', 'unsupported',
-])
 
 export const InboxLocationSchema = z.object({
   latitude: z.number().min(-90).max(90),

@@ -141,6 +141,12 @@ class LiwanInboxCase(LiwanApiCase):
     def get(self, path):
         return self.api('GET', path)
 
+    def patch_conversation(self, conversation, payload, revision=None):
+        """PATCH a conversation with the revision its editor read: the current one unless `revision` is given."""
+        conversation.invalidate_recordset(['revision'])
+        body = {'revision': conversation.revision if revision is None else revision, **payload}
+        return self.api('PATCH', f'/api/v1/inbox/conversations/{conversation.id}', body)
+
     def assertError(self, response, status, code):
         self.assertEqual((response.status_code, response.json().get('code')), (status, code), response.text)
 
