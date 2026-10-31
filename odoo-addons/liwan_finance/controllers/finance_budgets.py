@@ -175,6 +175,7 @@ class FinanceBudgetController(http.Controller):
         require_capability('finance.budgets.manage')
         values = {**parse_budget_create(payload), 'company_id': request.env.company.id}
         budget = attempt(lambda: request.env[BUDGET_MODEL].create(values))
+        request.env['liwan.finance.audit.event']._liwan_log('budget_created', budget, fields_written=values, outcome=budget.state)
         return request.make_json_response(_dump_detail(budget), status=201)
 
     @http.route('/api/v1/finance/budgets/<int:budget_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
@@ -193,14 +194,16 @@ class FinanceBudgetController(http.Controller):
         check_period(date_from, date_to)
         _require_lines_within(budget, date_from, date_to)
         attempt(lambda: budget.write(parsed))
+        request.env['liwan.finance.audit.event']._liwan_log('budget_changed', budget, fields_written=parsed, outcome=budget.state)
         return _dump_detail(budget)
 
-    def _transition(self, budget_id, allowed, action, code):
+    def _transition(self, budget_id, allowed, action, code, audit_action):
         require_capability('finance.budgets.manage')
         budget = _find_budget(budget_id)
         if budget.state not in allowed:
             raise ApiError(422, code, f'a {budget.state} budget cannot be changed this way')
         getattr(budget, action)()
+        request.env['liwan.finance.audit.event']._liwan_log(audit_action, budget, fields_written=('state',), outcome=budget.state)
         return _dump_detail(budget)
 
     @http.route('/api/v1/finance/budgets/<int:budget_id>/confirm', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -208,21 +211,21 @@ class FinanceBudgetController(http.Controller):
     @requires_feature('finance.enabled', operation='write')
     def confirm_budget(self, budget_id, **_):
         """Draft to confirmed: the budget and its lines are frozen."""
-        return self._transition(budget_id, ('draft',), 'action_confirm', 'not_draft')
+        return self._transition(budget_id, ('draft',), 'action_confirm', 'not_draft', 'budget_confirmed')
 
     @http.route('/api/v1/finance/budgets/<int:budget_id>/cancel', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('finance.enabled', operation='write')
     def cancel_budget(self, budget_id, **_):
         """Draft or confirmed to cancelled (closed)."""
-        return self._transition(budget_id, ('draft', 'confirmed'), 'action_cancel', 'invalid_state')
+        return self._transition(budget_id, ('draft', 'confirmed'), 'action_cancel', 'invalid_state', 'budget_cancelled')
 
     @http.route('/api/v1/finance/budgets/<int:budget_id>/reset-to-draft', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('finance.enabled', operation='write')
     def reset_budget(self, budget_id, **_):
         """Confirmed or cancelled back to draft, to change the lines."""
-        return self._transition(budget_id, ('confirmed', 'cancelled'), 'action_draft', 'invalid_state')
+        return self._transition(budget_id, ('confirmed', 'cancelled'), 'action_draft', 'invalid_state', 'budget_reset_to_draft')
 
     @http.route('/api/v1/finance/budgets/<int:budget_id>/lines', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -237,6 +240,7 @@ class FinanceBudgetController(http.Controller):
         values = _line_values(parsed, budget)
         _require_distinct_cost_centers(budget, values)
         line = attempt(lambda: request.env[ITEM_MODEL].create(values))
+        request.env['liwan.finance.audit.event']._liwan_log('budget_line_created', budget, fields_written=values)
         return request.make_json_response(_dump_lines(line)[0], status=201)
 
     @http.route(
@@ -255,6 +259,7 @@ class FinanceBudgetController(http.Controller):
         values = _line_values(parsed, budget, line)
         _require_distinct_cost_centers(budget, values, line)
         attempt(lambda: line.write(values))
+        request.env['liwan.finance.audit.event']._liwan_log('budget_line_changed', budget, fields_written=values)
         return _dump_lines(line)[0]
 
     @http.route('/api/v1/finance/budgets/<int:budget_id>/lines/distribute', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -287,6 +292,7 @@ class FinanceBudgetController(http.Controller):
             return lines
 
         lines = attempt(distribute)
+        request.env['liwan.finance.audit.event']._liwan_log('budget_lines_distributed', budget, outcome=f'{len(lines)} lines')
         return request.make_json_response({'items': _dump_lines(lines), 'total': len(lines)}, status=201)
 
     @http.route(
@@ -300,6 +306,7 @@ class FinanceBudgetController(http.Controller):
         line = _find_line(budget, line_id)
         _require_draft(budget)
         line.unlink()
+        request.env['liwan.finance.audit.event']._liwan_log('budget_line_deleted', budget, fields_written=('unlink',), outcome='deleted')
         return request.make_json_response('', status=204)
 
     @http.route('/api/v1/finance/reports/budget-vs-actual', type='json2', auth='user', methods=['GET'], readonly=True)

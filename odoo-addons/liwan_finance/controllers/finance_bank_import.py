@@ -6,7 +6,7 @@ from odoo import http
 from odoo.http import request
 
 from .common import require_capability
-from .finance_bank import STATEMENT_JOURNAL_TYPES, _statement_values
+from .finance_bank import STATEMENT_JOURNAL_TYPES, _creation_outcome, _statement_values
 from .idempotency import idempotent
 from .write_support import attempt, company_records
 from odoo.addons.liwan_api.controllers.common import (
@@ -171,5 +171,5 @@ class FinanceBankImportController(http.Controller):
             parsed['name'] = parse_text(payload['name'], 'name', required=True)
         values = _statement_values(parsed)
         statement = attempt(lambda: request.env['account.bank.statement'].create(values))
-        request.env['liwan.finance.audit.event']._liwan_log('bank_statement_imported', statement, outcome=f'{len(kept)} lines')
+        request.env['liwan.finance.audit.event']._liwan_log('bank_statement_imported', statement, outcome=_creation_outcome(statement))
         return request.make_json_response(dump_bank_statement_detail(statement), status=201)

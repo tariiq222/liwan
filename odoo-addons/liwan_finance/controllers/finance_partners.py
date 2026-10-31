@@ -133,6 +133,7 @@ class FinancePartnerController(http.Controller):
         require_capability('finance.partners.manage')
         values = _partner_values(parse_partner_create(payload))
         partner = request.env['res.partner'].create(values)
+        request.env['liwan.finance.audit.event']._liwan_log('partner_created', partner, fields_written=values)
         return request.make_json_response(dump_partner(partner), status=201)
 
     @http.route('/api/v1/finance/partners/<int:partner_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
@@ -142,7 +143,9 @@ class FinancePartnerController(http.Controller):
         require_capability('finance.partners.manage')
         partner = _find_partner(partner_id)
         require_nonempty(payload)
-        partner.write(_partner_values(parse_partner_patch(payload), partner))
+        values = _partner_values(parse_partner_patch(payload), partner)
+        partner.write(values)
+        request.env['liwan.finance.audit.event']._liwan_log('partner_changed', partner, fields_written=values)
         return dump_partner(partner)
 
     @http.route('/api/v1/finance/partners/<int:partner_id>/archive', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -152,6 +155,7 @@ class FinancePartnerController(http.Controller):
         require_capability('finance.partners.manage')
         partner = _find_partner(partner_id)
         partner.action_archive()
+        request.env['liwan.finance.audit.event']._liwan_log('partner_archived', partner)
         return dump_partner(partner)
 
     @http.route('/api/v1/finance/partners/<int:partner_id>/unarchive', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -161,4 +165,5 @@ class FinancePartnerController(http.Controller):
         require_capability('finance.partners.manage')
         partner = _find_partner(partner_id)
         partner.action_unarchive()
+        request.env['liwan.finance.audit.event']._liwan_log('partner_unarchived', partner)
         return dump_partner(partner)

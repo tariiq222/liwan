@@ -16,8 +16,9 @@ describe('audit list filters', () => {
     expect(auditFiltersFromQuery({ date_from: '2026-10-20', date_to: '2026-10-01' }).dateTo).toBeNull()
   })
 
-  it('offers every action of the contract', () => {
+  it('offers every action of the contract, including the ones added for payments, assets, budgets and partners', () => {
     expect(AUDIT_ACTIONS).toEqual(FinanceAuditActionSchema.options)
+    expect(AUDIT_ACTIONS).toEqual(expect.arrayContaining(['payment_cancelled', 'asset_validated', 'budget_confirmed', 'partner_created', 'analytic_account_changed', 'bank_line_reconciled']))
   })
 
   it('names every action of the contract in both locales', () => {
