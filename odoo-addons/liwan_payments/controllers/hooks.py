@@ -42,7 +42,9 @@ class GatewayCallbackController(http.Controller):
         processed = Collector()
         request.update_context(**{PROCESSED: processed})
         try:
-            response = rule.endpoint(**args, **params)
+            # In a savepoint: what the stock endpoint wrote before it refused must not be committed with the refusal.
+            with request.env.cr.savepoint():
+                response = rule.endpoint(**args, **params)
         except HTTPException as error:
             # Stock refuses a bad signature with Forbidden; the gateway gets the same status as JSON, not an HTML page.
             return self._refusal(error.code, 'forbidden' if error.code == 403 else 'invalid', error.name)

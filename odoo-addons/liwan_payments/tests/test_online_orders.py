@@ -316,6 +316,30 @@ class TestOnlineOrderTaxMode(LiwanOrderCase):
         self.assertFalse(self.vat.price_include)
         self.assertEqual(self.service.taxes_id, self.vat)
 
+    def test_a_changed_tax_gets_a_new_included_copy_and_the_old_one_is_archived(self):
+        self.online_order()
+        first = self.env['account.tax'].search([('liwan_included_of_id', '=', self.vat.id)])
+        self.assertEqual(len(first), 1)
+        self.vat.amount = 10.0
+        order = self.online_order()
+        second = self.env['account.tax'].search([('liwan_included_of_id', '=', self.vat.id)])
+        self.assertEqual((len(second), second.amount, first.active), (1, 10.0, False))
+        self.assertEqual(order.amount_total, 115.0)
+
+    def test_a_group_tax_is_charged_through_its_children_inside_the_price(self):
+        other = self.env['account.tax'].create({
+            'name': 'Order second 5%', 'amount': 5.0, 'amount_type': 'percent', 'type_tax_use': 'sale', 'company_id': self.env.company.id,
+        })
+        group = self.env['account.tax'].create({
+            'name': 'Order group', 'amount_type': 'group', 'type_tax_use': 'sale', 'company_id': self.env.company.id,
+            'children_tax_ids': [Command.set((self.vat | other).ids)],
+        })
+        self.service.taxes_id = [Command.set(group.ids)]
+        order = self.online_order()
+        self.assertEqual(order.amount_total, 115.0)
+        self.assertEqual(order.order_line.tax_ids.mapped('amount_type'), ['percent', 'percent'])
+        self.assertTrue(all(tax.price_include for tax in order.order_line.tax_ids))
+
     def test_the_setting_is_read_and_changed_through_the_api(self):
         self.login_admin()
         self.assertEqual(self.api('GET', '/api/v1/payments/settings').json()['tax_mode'], 'included')

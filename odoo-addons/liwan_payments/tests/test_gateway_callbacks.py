@@ -147,3 +147,11 @@ class TestGatewayCallbacks(LiwanPayerCase):
         self.assertEqual((self.tx.state, self.tx.is_post_processed), ('done', False))
         cron = self.env.ref('payment.cron_post_process_payment_tx')
         self.assertTrue(self.env['ir.cron.trigger'].search_count([('cron_id', '=', cron.id)]))
+
+    @mute_logger('odoo.addons.payment_paymob.controllers.main', 'odoo.http')
+    def test_a_refused_notification_leaves_the_transaction_untouched(self):
+        payload = self.payload()
+        reference = self.tx.provider_reference
+        self.assertEqual(self.post_webhook(payload, 'wrong').status_code, 403)
+        self.env.invalidate_all()
+        self.assertEqual((self.tx.state, self.tx.provider_reference), ('draft', reference))

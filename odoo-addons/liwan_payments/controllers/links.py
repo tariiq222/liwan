@@ -59,7 +59,11 @@ class PaymentLinkController(http.Controller):
         try:
             return get_record('account.move', invoice_id)
         except AccessError:
-            invoice = request.env['liwan.payments.service']._liwan_system_admin_invoice(invoice_id)
+            try:
+                invoice = request.env['liwan.payments.service']._liwan_system_admin_invoice(invoice_id)
+            except AccessError:
+                # A caller who cannot even read the setting is refused like any other without invoice access.
+                invoice = None
             if invoice is None:
                 raise ApiError(
                     403, 'link_access_required',

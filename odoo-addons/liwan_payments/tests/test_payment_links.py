@@ -85,6 +85,36 @@ class TestPaymentLinks(LiwanPayerCase):
         self.assertEqual((response.status_code, response.json()['code']), (403, 'link_access_required'))
         self.assertIn('finance.invoices.read', response.json()['message'])
 
+    def test_the_invoice_company_decides_not_the_company_of_the_session(self):
+        # Company A allows system administrators to create links, company B does not; the session is in A and reaches both.
+        company_b = self.env['res.company'].create({'name': 'Links company B', 'parent_id': self.env.company.id})
+        income = self.env['account.account'].create({
+            'name': 'Income B', 'code': '400100', 'account_type': 'income', 'company_ids': [Command.set(company_b.ids)],
+        })
+        receivable = self.env['account.account'].create({
+            'name': 'Receivable B', 'code': '120100', 'account_type': 'asset_receivable', 'reconcile': True,
+            'company_ids': [Command.set(company_b.ids)],
+        })
+        self.customer.with_company(company_b).property_account_receivable_id = receivable
+        self.env['account.journal'].create({'name': 'Sales B', 'code': 'SLB', 'type': 'sale', 'company_id': company_b.id})
+        invoice_b = self.env['account.move'].with_company(company_b).create({
+            'move_type': 'out_invoice', 'partner_id': self.customer.id, 'invoice_date': '2026-10-28',
+            'invoice_line_ids': [Command.create({'name': 'Service', 'quantity': 1, 'price_unit': 10, 'account_id': income.id, 'tax_ids': []})],
+        })
+        self.without_invoice_access(True)
+        admin = self.env['res.users'].browse(self.admin.id)
+        admin.company_ids |= company_b
+        self.env['liwan.access.assignment']._liwan_access_create({
+            'user_id': admin.id, 'role_id': self.env.ref('liwan_core.role_system_admin').id, 'company_id': company_b.id,
+        })
+        self.login_admin()
+        refused = self.create_link(invoice_b.id)
+        self.assertEqual((refused.status_code, refused.json()['code']), (403, 'link_access_required'), refused.text)
+        self.env['liwan.payments.settings'].create({'company_id': company_b.id, 'system_admin_links': True})
+        allowed = self.create_link(invoice_b.id)
+        # Past the permission gate: a draft invoice has nothing to pay yet.
+        self.assertEqual((allowed.status_code, allowed.json()['code']), (409, 'not_payable'), allowed.text)
+
     def test_the_setting_gives_nothing_to_a_user_who_is_not_a_system_administrator(self):
         self.without_invoice_access(True)
         user = new_test_user(self.env, login='links_only', password='links_only_pass_123', name='Links only', groups='liwan_core.group_employee')
