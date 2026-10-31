@@ -489,8 +489,8 @@
     },
     "audit": {
       "title": "Payroll audit trail",
-      "countTag": "No events | 1 event | {count} events",
-      "footer": "No events | Showing {shown} of 1 event | Showing {shown} of {total} events",
+      "countTag": "{count} event | {count} events",
+      "footer": "Showing {shown} of {total} event | Showing {shown} of {total} events",
       "empty": "No events in the audit trail yet.",
       "forbidden": "The payroll audit trail is available to holders of its read permission only.",
       "filters": {
