@@ -1,9 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import http
-from odoo.exceptions import AccessError, MissingError
+from odoo.exceptions import MissingError
 from odoo.http import request
 
-from .common import hr_rule_handler, own_public_employee
+from .common import hr_rule_handler, own_public_employee, related_record
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
@@ -66,26 +66,13 @@ def _public_employee(employee_id, *, include_archived=False):
     return employee
 
 
-def _relation(model, record_id, field):
-    record = request.env[model].browse(int(record_id))
-    try:
-        if not record.exists():
-            raise ApiError(422, 'invalid', f'{field} does not reference an existing record', field=field)
-        if record.company_id not in request.env.companies:
-            raise ApiError(422, 'invalid', f'{field} is outside the current company', field=field)
-        record.check_access('read')
-    except AccessError:
-        raise ApiError(422, 'invalid', f'{field} is not available', field=field) from None
-    return record
-
-
 def _validate_employee_relations(vals, employee=None):
     if vals.get('department_id'):
-        _relation('hr.department', vals['department_id'], 'department_id')
+        related_record('hr.department', vals['department_id'], 'department_id')
     if vals.get('parent_id'):
         if employee and vals['parent_id'] == employee.id:
             raise ApiError(422, 'invalid', 'an employee cannot manage themselves', field='parent_id')
-        _relation('hr.employee', vals['parent_id'], 'parent_id')
+        related_record('hr.employee', vals['parent_id'], 'parent_id')
     if vals.get('country_id') and not request.env['res.country'].browse(vals['country_id']).exists():
         raise ApiError(422, 'invalid', 'nationality_id does not reference an existing country', field='nationality_id')
 
