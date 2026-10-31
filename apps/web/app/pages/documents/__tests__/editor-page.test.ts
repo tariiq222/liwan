@@ -1,4 +1,5 @@
-import { expect, it } from 'vitest'
+import * as Vue from 'vue'
+import { expect, it, vi } from 'vitest'
 import { ApiError } from '../../../composables/useApi'
 import { load } from './helpers'
 it('preserves unsaved content on 409 and refetch, then explicitly reloads the newer revision', async () => {
@@ -38,6 +39,20 @@ it('creates a restricted document without a department requirement and preserves
   await view.state.submit()
   expect(view.mutation.mock.calls[1]![0]).toEqual({ name: 'New policy', body: '<p>Draft</p>', expiry_date: null, context: null, tag_ids: [] })
   expect(view.emit).toHaveBeenCalledWith('saved', 8); expect(view.state.dirty.value).toBe(false); view.stop()
+})
+
+it('adds the employee as a reader only when the explicit choice is made at link time', async () => {
+  const share = vi.fn(async (_value: unknown) => ({}))
+  const bindings = { useShareDocumentWithEmployee: () => ({ mutateAsync: share, isPending: Vue.ref(false) }) }
+  const unticked = await load('app/components/documents/DocumentCreateForm.vue', { initialContext: { kind: 'hr.employee', id: 4 }, backTo: '/documents' }, true, { bindings })
+  unticked.state.name.value = 'Contract'
+  await unticked.state.submit()
+  expect(share).not.toHaveBeenCalled(); unticked.stop()
+  const ticked = await load('app/components/documents/DocumentCreateForm.vue', { initialContext: { kind: 'hr.employee', id: 4 }, backTo: '/documents' }, true, { bindings })
+  ticked.state.name.value = 'Contract'; ticked.state.shareWithEmployee.value = true
+  await ticked.state.submit()
+  expect(share).toHaveBeenCalledWith({ id: 8, expected_revision: 4 })
+  expect(ticked.emit).toHaveBeenCalledWith('saved', 8); ticked.stop()
 })
 
 it('shows title validation and clears it after correction without losing a failed-save draft', async () => {

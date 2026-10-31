@@ -5,6 +5,8 @@ import { useDocumentContexts, useDocumentContextOptions } from '@/composables/us
 import { documentLookupItems, type DocumentOption } from '@/lib/documentLookup'
 const props = defineProps<{ modelValue: { kind: string; id: number } | null; known?: DocumentContext | null; disabled?: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [value: { kind: string; id: number } | null] }>()
+// The explicit choice made when a document is linked to an employee: the link alone grants the employee nothing.
+const shareWithEmployee = defineModel<boolean>('shareWithEmployee', { default: false })
 const { t } = useI18n(); const { can } = useAccess(); const hydrated = useHydrated(); const { me } = useMe()
 const contexts = useDocumentContexts(computed(() => can('documents.items.manage')))
 const kind = ref(props.modelValue?.kind ?? '')
@@ -16,6 +18,7 @@ watch([debounced, selectedKind, () => me.value?.company.id], () => { offset.valu
 watch([selectedKind, () => me.value?.company.id], () => { search.value = '' })
 const options = useDocumentContextOptions(selectedKind, computed(() => ({ q: debounced.value.trim(), limit, offset: offset.value })))
 const selected = useDocumentContextOptions(computed(() => props.modelValue?.kind === selectedKind.value ? selectedKind.value : null), computed(() => ({ id: props.modelValue?.id, limit: 1 })))
+watch(() => props.modelValue, (value) => { if (value?.kind !== 'hr.employee') shareWithEmployee.value = false })
 const picked = ref<DocumentOption[]>([])
 watch([selectedKind, () => me.value?.company.id], () => { picked.value = [] }, { flush: 'sync' })
 const items = computed(() => documentLookupItems(props.modelValue ? [props.modelValue.id] : [], [...picked.value, ...(selected.data.value?.items ?? []), ...(props.known?.kind === selectedKind.value && props.known.label ? [{ id: props.known.id, name: props.known.label }] : [])], options.data.value?.items ?? []))
@@ -40,5 +43,9 @@ function selectOption(value: unknown) {
       <UAlert v-if="options.error.value || selected.error.value" class="mt-2" color="error" :title="t('errors.generic')"><template #actions><UButton type="button" :label="t('documents.reload')" @click="options.refetch(); selected.refetch()" /></template></UAlert>
       <SharedPagination class="mt-2" :page="Math.floor(offset / limit) + 1" :pages="pages" :disabled="disabled || options.isFetching.value" @update:page="offset = ($event - 1) * limit" />
     </UFormField>
+    <UCheckbox
+      v-if="selectedKind === 'hr.employee' && modelValue" v-model="shareWithEmployee" class="sm:col-span-2" :label="t('documents.shareWithEmployee')" :description="t('documents.shareWithEmployeeHelp')"
+      :disabled="disabled || !hydrated" data-testid="document-share-with-employee"
+    />
   </div>
 </template>

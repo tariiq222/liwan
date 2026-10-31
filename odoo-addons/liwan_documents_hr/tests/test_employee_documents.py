@@ -210,3 +210,46 @@ class TestEmployeeDocuments(DocumentHttpCase):
         self.assertEqual(result.json()['items'], [{'id': self.own_employee.id, 'name': self.own_employee.name}])
         self.authenticate('docs_reader', 'docs_reader')
         self.assertEqual(self.api('GET', '/api/v1/documents/contexts/hr.employee/options').status_code, 403)
+
+
+@tagged('post_install', '-at_install', 'liwan')
+class TestEmployeeDocumentSharing(TestEmployeeDocuments):
+    """Linking a document to an employee grants nothing; the explicit choice adds the employee as a reader."""
+
+    def test_a_linked_document_stays_hidden_from_the_employee_until_it_is_shared(self):
+        document = self.linked(self.own_employee)
+        self.authenticate('docs_reader', 'docs_reader')
+        self.assertEqual(self.api('GET', '/api/v1/documents/employee/me').json()['total'], 0)
+        self.authenticate('employee_docs_linker', 'employee_docs_linker')
+        shared = self.api('POST', f'/api/v1/documents/{document.id}/employee-access', {'expected_revision': document.revision})
+        self.assertEqual(shared.status_code, 200, shared.text)
+        grants = {grant['user']['id']: grant['access'] for grant in shared.json()['grants']}
+        self.assertEqual(grants, {self.linker.id: 'editor', self.reader.id: 'reader'})
+        self.authenticate('docs_reader', 'docs_reader')
+        listed = self.api('GET', '/api/v1/documents/employee/me').json()
+        self.assertEqual([item['id'] for item in listed['items']], [document.id])
+
+    def test_sharing_twice_keeps_one_reader_grant(self):
+        document = self.linked(self.own_employee)
+        self.authenticate('employee_docs_linker', 'employee_docs_linker')
+        first = self.api('POST', f'/api/v1/documents/{document.id}/employee-access', {'expected_revision': document.revision})
+        revision = first.json()['revision']
+        second = self.api('POST', f'/api/v1/documents/{document.id}/employee-access', {'expected_revision': revision})
+        self.assertEqual(second.status_code, 200, second.text)
+        self.assertEqual(sorted(grant['access'] for grant in second.json()['grants']), ['editor', 'reader'])
+
+    def test_a_document_without_an_employee_or_an_account_refuses(self):
+        plain = self.model(self.linker)._liwan_create_document({'name': 'Plain'})
+        no_account = self.env['hr.employee'].create({'name': 'No account'})
+        orphan = self.linked(no_account, name='No account document')
+        self.authenticate('employee_docs_linker', 'employee_docs_linker')
+        refused = self.api('POST', f'/api/v1/documents/{plain.id}/employee-access', {'expected_revision': plain.revision})
+        self.assertEqual((refused.status_code, refused.json()['field']), (422, 'context'))
+        no_user = self.api('POST', f'/api/v1/documents/{orphan.id}/employee-access', {'expected_revision': orphan.revision})
+        self.assertEqual((no_user.status_code, no_user.json()['code']), (422, 'employee_has_no_account'))
+
+    def test_a_reader_without_access_management_cannot_share(self):
+        document = self.linked(self.own_employee)
+        self.authenticate('docs_reader', 'docs_reader')
+        refused = self.api('POST', f'/api/v1/documents/{document.id}/employee-access', {'expected_revision': document.revision})
+        self.assertEqual(refused.status_code, 403, refused.text)
