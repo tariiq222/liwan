@@ -118,7 +118,11 @@ class ProjectTaskNotifications(models.Model):
         self.ensure_one()
         if self.env.context.get('liwan_skip_completion_notice'):
             return
-        recipients = self._liwan_internal_users(user).filtered(lambda recipient: recipient != self.env.user)
+        # The reviewer was proved eligible by the request and the requester by the accept, so only the account
+        # itself is checked here: the bell shows the row in whichever allowed company the person works in.
+        recipients = user.filtered(
+            lambda recipient: recipient.active and not recipient.share and recipient.partner_id and recipient != self.env.user,
+        )
         for recipient in recipients:
             self._liwan_create_notification(
                 kind=kind,

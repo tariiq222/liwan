@@ -35,6 +35,16 @@ class TestPersonalTaskThroughPmoRoutes(TasksRoutesCase):
                 status, payload = self.call('tasks_carol', method, path)
                 self.assertEqual((status, payload['code']), (404, 'not_found'))
 
+    def test_a_tasks_only_role_still_reaches_the_timeline_of_its_task(self):
+        role = self.env['liwan.access.role'].create({
+            'name_ar': 'مهام فقط',
+            'company_id': self.env.company.id,
+            'permission_ids': [(6, 0, self.env['liwan.access.permission'].search([('key', 'in', ['tasks.tasks.read', 'pmo.tasks.read'])]).ids)],
+        })
+        self.env['liwan.access.assignment'].create({'user_id': self.alice.id, 'role_id': role.id, 'company_id': self.env.company.id})
+        status, _payload = self.call('tasks_alice', 'GET', f'{PMO}/{self.task.id}/timeline')
+        self.assertNotEqual(status, 404)
+
     def test_pmo_transition_to_a_project_state_is_refused_and_leaves_the_task(self):
         for login in ('tasks_alice', 'tasks_bob'):
             for state in ('waiting', 'approved', 'changes_requested'):

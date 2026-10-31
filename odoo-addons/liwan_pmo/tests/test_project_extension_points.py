@@ -98,8 +98,8 @@ class TestProjectExtensionPoints(LiwanPmoCase):
             )
             self.authenticate('api_emp', 'api_emp_pass_123')
             employee = self.api('GET', self._url('/summary')).json()
-            # Choosing needs the project manager too, whatever the source says.
-            self.assertEqual((employee['actual_source'], employee['can_choose_actual_account']), ('external', False))
+            # The source alone decides who may choose; the project manager role is not asked.
+            self.assertEqual((employee['actual_source'], employee['can_choose_actual_account']), ('external', True))
 
     def test_the_report_rows_use_the_batch_of_the_source(self):
         manual = self.env['project.project'].create({'name': 'Manual project', 'company_id': self.env.company.id})

@@ -135,6 +135,14 @@ class TestCompletionApproval(LiwanPmoCase):
         bell = self.api('GET', '/api/v1/notifications').json()['items']
         self.assertTrue(any(item['kind'] == 'completion_accepted' and item['task_id'] == task.id for item in bell))
 
+    def test_the_requester_is_told_while_another_company_is_selected(self):
+        _project, task = self._project('project_manager')
+        company_b = self.env['res.company'].create({'name': 'Completion notice B'})
+        task.with_user(self.employee)._liwan_request_completion()
+        self.employee.write({'company_ids': [(4, company_b.id)], 'company_id': company_b.id})
+        task.with_user(self.manager)._liwan_accept_completion(task.liwan_completion_revision)
+        self.assertEqual(len(self._completion_rows(self.employee, task, 'completion_accepted')), 1)
+
     def test_a_returned_request_asked_again_notifies_the_reviewer_again(self):
         _project, task = self._project('project_manager')
         task.with_user(self.employee)._liwan_request_completion()
