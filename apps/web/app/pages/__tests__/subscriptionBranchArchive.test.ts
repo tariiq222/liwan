@@ -14,7 +14,7 @@ describe('branch archive on the subscription branches page', () => {
     expect(row).toContain("summary.items.filter(i => i.kind === 'extra')")
   })
   it('quotes the archive, confirms inline, then places the order and follows it to its status', () => {
-    expect(panel).toContain('add: [], archive: [branch.id]')
+    expect(panel).toContain("archive: kind === 'archive' ? [branch.id] : []")
     expect(panel).toContain('<SharedInlineConfirm')
     expect(panel).toContain('api.accept(archiveAction.value, { quote_id: quote.value.id, expected_subscription_revision: quoteRevision.value })')
     expect(panel).toContain("path: '/subscription/status', query: { order: order.id }")
@@ -27,8 +27,31 @@ describe('branch archive on the subscription branches page', () => {
   it('says in both languages that the data stays readable and the branch can be restored', () => {
     for (const name of ['ar', 'en'] as const) {
       const archive = locale(name).branches.archive
-      for (const key of ['open', 'title', 'description', 'action', 'failed', 'retry']) expect(archive[key], `${name}.${key}`).toBeTruthy()
+      for (const key of ['open', 'title', 'description', 'action', 'retry']) expect(archive[key], `${name}.${key}`).toBeTruthy()
       expect(archive.title).toContain('{name}')
+    }
+  })
+})
+
+describe('branch restore on the subscription branches page', () => {
+  const list = read('app/pages/subscription/branches.vue'), row = read('app/components/subscription/BranchSummary.vue')
+  it('offers restore only on an archived extra branch that still has its company, to a branches manager', () => {
+    expect(row).toContain(`v-if="archivable && b.state === 'archived' && b.odoo_company_id !== null"`)
+    expect(list).toContain(`@restore="openChange('restore', $event)"`)
+  })
+  it('quotes the restore like an added branch, confirms inline and places the order', () => {
+    expect(list).toContain("restore: kind === 'restore' ? [branch.id] : []")
+    expect(list).toContain('<SharedInlineConfirm v-if="archiving"')
+    expect(list).toContain('api.accept(archiveAction.value')
+    expect(list).toContain('QUOTE_IS_EXPIRED(quote.value)')
+  })
+  it('explains a refusal for a taken name or the extra-branch limit in both languages', () => {
+    expect(list).toContain("['branch_name_taken', 'branch_limit_exceeded', 'branch_not_archived']")
+    for (const name of ['ar', 'en'] as const) {
+      const strings = locale(name).branches
+      for (const key of ['open', 'title', 'description', 'action']) expect(strings.restore[key], `${name}.${key}`).toBeTruthy()
+      for (const key of ['failed', 'branch_name_taken', 'branch_limit_exceeded', 'branch_not_archived']) expect(strings.refusals[key], `${name}.${key}`).toBeTruthy()
+      expect(strings.archive.description).not.toMatch(/support|الدعم/)
     }
   })
 })

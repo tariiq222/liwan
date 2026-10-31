@@ -1047,7 +1047,8 @@
           "change": "تغيير",
           "renewal": "تجديد",
           "branch_add": "إضافة فرع",
-          "branch_archive": "أرشفة فرع"
+          "branch_archive": "أرشفة فرع",
+          "branch_restore": "استرجاع فرع"
         },
         "due": "المبلغ المستحق الآن",
         "created": "تاريخ الطلب"

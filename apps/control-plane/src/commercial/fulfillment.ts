@@ -36,7 +36,7 @@ export type FulfillmentAuthority = {
   previous_revision_id: string | null
   target_revision_id: string
   entitlement: { modules: string[]; features: Record<string, unknown>; digest: string; compiler_version: string }
-  branches: { apply: { branch_id: string; name: string }[]; archive: string[] }
+  branches: { apply: { branch_id: string; name: string }[]; archive: string[]; restore?: string[] }
   commercial_valid_until: string | null
   commercial_valid_until_revision: number
 }
@@ -258,12 +258,15 @@ export async function processFulfillmentOutbox(pool: Pool, options: { limit?: nu
         const effect=await client.query(`INSERT INTO fulfillment_effects(id,order_id,operation_id) VALUES($1,$2,$3)
           ON CONFLICT(order_id) DO UPDATE SET order_id=EXCLUDED.order_id RETURNING operation_id`,[randomUUID(),order.id,operation])
         const branches=await listBranches(client,order.subscription_id)
+        // A pending branch that already has an Odoo company is a restore: its company is reactivated, not created.
+        const ordered=branches.items.filter(x=>x.order_id===order.id && x.state==='pending')
         const expiryRevision = Number(order.commercial_expiry_revision) + 1
         await client.query('UPDATE subscriptions SET commercial_expiry_revision=$2,revision=revision+1 WHERE id=$1', [order.subscription_id, expiryRevision])
         const authority:FulfillmentAuthority={order_id:order.id,operation_id:effect.rows[0].operation_id,previous_revision_id:order.applied_revision_id,
           target_revision_id:order.target_revision_id,entitlement:{modules:order.snapshot.entitlement.modules,features:order.snapshot.entitlement.features,
             digest:order.snapshot.entitlement.digest,compiler_version:order.snapshot.entitlement.compiler_version},
-          branches:{apply:branches.items.filter(x=>x.order_id===order.id && x.state==='pending').map(x=>({branch_id:x.id,name:x.name})),archive:order.snapshot.branch_archive_ids??order.snapshot.branches?.archive??[]},
+          branches:{apply:ordered.filter(x=>x.odoo_company_id===null).map(x=>({branch_id:x.id,name:x.name})),archive:order.snapshot.branch_archive_ids??order.snapshot.branches?.archive??[],
+            ...(ordered.some(x=>x.odoo_company_id!==null)?{restore:ordered.filter(x=>x.odoo_company_id!==null).map(x=>x.id)}:{})},
           commercial_valid_until: await commercialValidUntil(client, order),
           commercial_valid_until_revision: expiryRevision}
         const job=await enqueueReconfigureJob(client,{schemaVersion:1,operation:'reconfigure',requestId:authority.operation_id,controlTenantId:order.tenant_id,

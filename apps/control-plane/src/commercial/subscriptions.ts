@@ -15,7 +15,7 @@ export async function getSubscription(pool: Pool, customerId: string) {
   const revision = (id: string | null) => {
     const r = revisions.rows.find(r => r.id === id)
     if (!r) return null
-    const { pricing: _pricing, branch_archive_ids: _archives, ...snapshot } = r.snapshot
+    const { pricing: _pricing, branch_archive_ids: _archives, branch_restore_ids: _restores, ...snapshot } = r.snapshot
     return subscriptionRevisionSchema.parse({ ...snapshot, id: r.id, subscription_id: r.subscription_id, revision: r.revision, quote_id: r.quote_id, created_at: iso(r.created_at) })
   }
   const pending = await pool.query("SELECT * FROM orders WHERE subscription_id=$1 AND NOT cancelled AND fulfillment_state<>'applied' ORDER BY created_at DESC,id DESC LIMIT 1", [row.id])

@@ -1047,7 +1047,8 @@
           "change": "Change",
           "renewal": "Renewal",
           "branch_add": "Branch added",
-          "branch_archive": "Branch archived"
+          "branch_archive": "Branch archived",
+          "branch_restore": "Branch restored"
         },
         "due": "Due now",
         "created": "Ordered on"

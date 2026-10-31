@@ -120,7 +120,7 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
   }
   if(m==='POST'&&path==='/branch-quotes'){
     need(input,'vendor.subscriptions.manage')
-    const body=parseBody(input.raw,z.strictObject({customer_id:z.uuid(),add:z.array(z.strictObject({name:z.string()})).default([]),archive:z.array(z.uuid()).default([])}));const {customer_id,...request}=body
+    const body=parseBody(input.raw,z.strictObject({customer_id:z.uuid(),add:z.array(z.strictObject({name:z.string()})).default([]),archive:z.array(z.uuid()).default([]),restore:z.array(z.uuid()).default([])}));const {customer_id,...request}=body
     return {status:201,data:await createBranchQuote(pool,customer_id,JSON.stringify(request))}
   }
   if(m==='POST'&&path==='/orders'){

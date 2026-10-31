@@ -10,7 +10,7 @@ import { loadQuoteSources, pricingBaseline } from './quotes.js'
 import { issueInvoiceFromQuote } from './invoices.js'
 import { enqueueOutbox } from './outbox.js'
 import { lookup } from './payments.js'
-import { reserveBranchesForOrder } from './branches.js'
+import { reserveBranchesForOrder, restoreBranchesForOrder } from './branches.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import { assertDowngradeFitsUsage } from './usage.js'
 
@@ -147,7 +147,7 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
   if (subscription.target_revision_id || pending.rowCount) throw new CommercialHttpError('subscription_change_pending', 409)
   if (new Date(quote.expires_at).getTime() <= now.getTime()) throw new CommercialHttpError('quote_expired', 422)
   const branchRequest = (await client.query('SELECT * FROM branch_quote_requests WHERE quote_id=$1', [quote.id])).rows[0]
-  const kind = branchRequest ? (branchRequest.adds.length ? 'branch_add' : 'branch_archive') : quote.subscription_id && subscription.applied_revision_id ? 'change' : 'new'
+  const kind = branchRequest ? (branchRequest.adds.length ? 'branch_add' : branchRequest.restore.length ? 'branch_restore' : 'branch_archive') : quote.subscription_id && subscription.applied_revision_id ? 'change' : 'new'
   const sources = await loadQuoteSources(client, customer.id, quote, kind === 'new')
   // Null terms in a persisted quote means no terms, not the newest later revision.
   if (!quote.terms_revision_id) sources.terms = null
@@ -170,7 +170,7 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
     term_end: previous?.term_end ?? addCadence(periodStart, { unit: 'month', count: sources.terms?.term_months ?? sources.plan.term_months }, 1),
     period_start: periodStart, period_end: periodEnd, included_extra_branches: included, extra_branch_count: quote.requested_extra_branches,
     entitlement, quote_id: quote.id, pricing: pricingBaseline(quote, { extra_branches: included, users: sources.plan.included_users, storage_mb: sources.plan.included_storage_mb }),
-    ...(branchRequest ? { branch_archive_ids: branchRequest.archive } : {}),
+    ...(branchRequest ? { branch_archive_ids: branchRequest.archive, ...(branchRequest.restore.length ? { branch_restore_ids: branchRequest.restore } : {}) } : {}),
   }
   await client.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,$3,$4,$5)', [revisionId, subscription.id, subscription.revision + 1, JSON.stringify(snapshot), quote.id])
   const updated = await client.query('UPDATE subscriptions SET target_revision_id=$1,revision=revision+1 WHERE id=$2 RETURNING *', [revisionId, subscription.id])
@@ -190,6 +190,10 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
     if (branchRequest.archive.length) throw new CommercialHttpError('mixed_branch_change_unsupported', 422)
     await reserveBranchesForOrder(client, { order_id: order.id, subscription_id: subscription.id, tenant_id: subscription.tenant_id,
       adds: branchRequest.adds, quoted_paid: branchRequest.quoted_paid, operation_id: order.id })
+  }
+  if (branchRequest?.restore.length) {
+    if (!subscription.tenant_id) throw new CommercialHttpError('tenant_required', 409)
+    await restoreBranchesForOrder(client, { order_id: order.id, subscription_id: subscription.id, ids: branchRequest.restore, quoted_paid: branchRequest.quoted_paid, operation_id: order.id })
   }
   if (states.payment_state === 'not_required') await enqueueOutbox(client, {kind:'fulfillment.enqueue',aggregate_id:order.id,dedupe_key:revisionId,payload:{ order_id: order.id, subscription_id: subscription.id, target_revision_id: revisionId }})
   await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)', [randomUUID(), principal.actor_id, 'order.accepted', order.id, 'Customer accepted immutable quote', JSON.stringify({ quote_id: quote.id, customer_id: customer.id, target_revision_id: revisionId })])
