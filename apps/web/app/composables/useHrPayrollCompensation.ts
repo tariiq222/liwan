@@ -1,7 +1,7 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
-import { HrCompensationSchema, type HrCompensation, type HrCompensationWrite, type HrPayrollRelationship } from '@liwan/contracts'
+import { HrCompensationSchema, HrPayrollBankListSchema, type HrCompensation, type HrCompensationWrite, type HrPayrollRelationship } from '@liwan/contracts'
 import { ApiError } from './useApi'
 
 type Api = ReturnType<typeof useApi>['$api']
@@ -27,6 +27,7 @@ export const hrPayrollKeys = {
   eosEstimate: (employeeId: number, params: object) => ['hr', 'payroll', 'eos-estimate', employeeId, params] as const,
   eosCases: ['hr', 'payroll', 'eos-cases'] as const,
   eosProvisions: ['hr', 'payroll', 'eos-provisions'] as const,
+  banks: ['hr', 'payroll', 'banks'] as const,
   financeLookup: (kind: string) => ['hr', 'payroll', 'finance-lookup', kind] as const,
 }
 
@@ -64,6 +65,18 @@ export function useSaveHrCompensation(employeeId: MaybeRefOrGetter<number>) {
   const qc = useQueryClient()
   const { $api } = useApi()
   return useMutation({ mutationFn: (body: HrCompensationWrite) => saveHrCompensation($api, qc, toValue(employeeId), body) })
+}
+
+/** The bank picker's list: every bank the compensation form can name (a short catalog, filtered in the picker). */
+export function useHrPayrollBanks() {
+  const { $api } = useApi()
+  const { can } = useAccess()
+  return useQuery({
+    queryKey: hrPayrollKeys.banks,
+    enabled: computed(() => can('hr.payroll.read')),
+    staleTime: 5 * 60_000,
+    queryFn: () => $api('/api/v1/hr/payroll/banks', { query: { limit: 100 }, schema: HrPayrollBankListSchema }),
+  })
 }
 
 /** The relationship types the customer may choose for a compensation, labelled in the active locale. */

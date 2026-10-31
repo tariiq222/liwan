@@ -6,6 +6,7 @@ import {
   HrBankProfileSchema,
   HrBankProfileWriteSchema,
   HrCompensationWriteSchema,
+  HrPayrollBankListSchema,
   HrEosCaseMapListSchema,
   HrEosCaseMapWriteSchema,
   HrEosCaseSchema,
@@ -83,6 +84,14 @@ describe('HrCompensationSchema', () => {
       expect(HrCompensationSchema.safeParse({ ...COMPENSATION, relationship_type }).success).toBe(true)
     }
     expect(HrCompensationWriteSchema.safeParse({ ...WRITE, relationship_type: 'intern' }).success).toBe(false)
+  })
+})
+
+describe('HrPayrollBankListSchema', () => {
+  it('accepts the bank picker list and refuses unknown keys', () => {
+    const list = { items: [{ id: 1, name: 'مصرف الراجحي', bic: 'RJHISARI' }, { id: 2, name: 'بنك', bic: null }], total: 2 }
+    expect(HrPayrollBankListSchema.parse(list)).toEqual(list)
+    expect(HrPayrollBankListSchema.safeParse({ ...list, items: [{ id: 1, name: 'x', bic: null, iban: 'x' }] }).success).toBe(false)
   })
 })
 

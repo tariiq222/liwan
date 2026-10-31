@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- The Saudi banks the compensation form offers. The SWIFT code is the bank code of the salary files. -->
+    <record id="bank_snb" model="res.bank">
+        <field name="name">البنك الأهلي السعودي</field>
+        <field name="bic">NCBKSAJE</field>
+        <field name="country" ref="base.sa"/>
+    </record>
+    <record id="bank_rajhi" model="res.bank">
+        <field name="name">مصرف الراجحي</field>
+        <field name="bic">RJHISARI</field>
+        <field name="country" ref="base.sa"/>
+    </record>
+    <record id="bank_riyad" model="res.bank">
+        <field name="name">بنك الرياض</field>
+        <field name="bic">RIBLSARI</field>
+        <field name="country" ref="base.sa"/>
+    </record>
+    <record id="bank_bsf" model="res.bank">
+        <field name="name">البنك السعودي الفرنسي</field>
+        <field name="bic">BSFRSARI</field>
+        <field name="country" ref="base.sa"/>
+    </record>
+    <record id="bank_sab" model="res.bank">
+        <field name="name">البنك السعودي الأول</field>
+        <field name="bic">SABBSARI</field>
+        <field name="country" ref="base.sa"/>
+    </record>
+    <record id="bank_anb" model="res.bank">
+        <field name="name">البنك العربي الوطني</field>
+        <field name="bic">ARNBSARI</field>
+        <field name="country" ref="base.sa"/>
+    </record>
+    <record id="bank_alinma" model="res.bank">
+        <field name="name">مصرف الإنماء</field>
+        <field name="bic">INMASARI</field>
+        <field name="country" ref="base.sa"/>
+    </record>
+    <record id="bank_albilad" model="res.bank">
+        <field name="name">بنك البلاد</field>
+        <field name="bic">ALBISARI</field>
+        <field name="country" ref="base.sa"/>
+    </record>
+    <record id="bank_jazira" model="res.bank">
+        <field name="name">بنك الجزيرة</field>
+        <field name="bic">BJAZSAJE</field>
+        <field name="country" ref="base.sa"/>
+    </record>
+    <record id="bank_sib" model="res.bank">
+        <field name="name">البنك السعودي للاستثمار</field>
+        <field name="bic">SIBCSARI</field>
+        <field name="country" ref="base.sa"/>
+    </record>
+</odoo>

@@ -2,7 +2,7 @@
 {
     'name': 'liwan HR',
     'summary': 'liwan platform: the HR pillar — /api/v1/hr departments, employees, leave, recruitment, shifts, onboarding, offboarding, assets',
-    'version': '19.0.1.15.1',
+    'version': '19.0.1.16.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -27,6 +27,7 @@
         'security/hr_payroll_rules.xml',
         'data/hr_access_permissions.xml',
         'data/hr_gosi_rate_data.xml',
+        'data/res_bank_data.xml',
         'data/hr_payroll_file_profile_data.xml',
         'data/hr_eos_case_data.xml',
         'data/hr_payroll_structure_data.xml',

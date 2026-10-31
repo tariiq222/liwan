@@ -31,6 +31,10 @@ export const HrCompensationSchema = z.object({
   currency: z.string().length(3),
 }).strict()
 
+// The bank picker of the compensation form (GET /api/v1/hr/payroll/banks?q=); the SWIFT code is the salary file's bank code.
+export const HrPayrollBankSchema = z.object({ id: z.number().int().positive(), name: z.string().min(1), bic: z.string().nullable() }).strict()
+export const HrPayrollBankListSchema = z.object({ items: z.array(HrPayrollBankSchema), total: z.number().int().nonnegative() }).strict()
+
 // A write sends every field; the fixed wage and the nationality are derived by the server.
 export const HrCompensationWriteSchema = z.object({
   basic_wage: amount.positive(),
@@ -45,6 +49,7 @@ export const HrCompensationWriteSchema = z.object({
 }).strict()
 
 export type HrPayrollRelationship = z.infer<typeof HrPayrollRelationshipSchema>
+export type HrPayrollBank = z.infer<typeof HrPayrollBankSchema>
 export type HrCompensation = z.infer<typeof HrCompensationSchema>
 export type HrCompensationWrite = z.infer<typeof HrCompensationWriteSchema>
 

@@ -6,8 +6,8 @@ import { saveErrorMessage } from '@/utils/formFeedback'
 import { parseMoneyInput } from '@/utils/moneyInput'
 import { payrollFieldError } from '@/utils/payrollErrors'
 
-// The compensation editor of one employee. The bank on record is kept as it is (there is no bank
-// catalog route), and the nationality is read-only: the server derives it from the employee record.
+// The compensation editor of one employee. The bank is picked from the bank catalog, and the nationality is
+// read-only: the server derives it from the employee record.
 const props = defineProps<{
   employeeId: number
   compensation: HrCompensation | null
@@ -29,13 +29,21 @@ const gosiNumber = ref('')
 const gosiRegistrationDate = ref<string | null>(null)
 const relationshipType = ref<HrPayrollRelationship>('employee')
 const relationshipItems = usePayrollRelationshipItems()
+const banks = useHrPayrollBanks()
+const bankId = ref<number | null>(null)
+// The bank on record is always an option, so the picker shows it before (or without) the catalog.
+const bankItems = computed(() => {
+  const items = (banks.data.value?.items ?? []).map(bank => ({ value: bank.id, label: bank.name }))
+  const current = props.compensation?.bank
+  return current && !items.some(item => item.value === current.id) ? [{ value: current.id, label: current.name }, ...items] : items
+})
 const savedState = ref('')
 const attempted = ref(false)
 const formError = ref<unknown>(null)
 
 const amountText = (value: number | undefined) => value === undefined ? '' : String(value)
 // A field may hold text or a number (a numeric input emits numbers), so the parse accepts both.
-const state = () => JSON.stringify([basicWage.value, housingAllowance.value, transportAllowance.value, otherAllowance.value, iban.value, gosiNumber.value, gosiRegistrationDate.value, relationshipType.value])
+const state = () => JSON.stringify([basicWage.value, housingAllowance.value, transportAllowance.value, otherAllowance.value, iban.value, bankId.value, gosiNumber.value, gosiRegistrationDate.value, relationshipType.value])
 const dirty = computed(() => savedState.value !== state())
 
 function seed(record: HrCompensation | null) {
@@ -44,6 +52,7 @@ function seed(record: HrCompensation | null) {
   transportAllowance.value = amountText(record?.transport_allowance ?? 0)
   otherAllowance.value = amountText(record?.other_allowance ?? 0)
   iban.value = record?.iban ?? ''
+  bankId.value = record?.bank?.id ?? null
   gosiNumber.value = record?.gosi_number ?? ''
   gosiRegistrationDate.value = record?.gosi_registration_date ?? null
   relationshipType.value = record?.relationship_type ?? 'employee'
@@ -66,7 +75,7 @@ const body = computed(() => ({
   transport_allowance: parseAmount(transportAllowance.value),
   other_allowance: parseAmount(otherAllowance.value),
   iban: compactIban() || null,
-  bank_id: props.compensation?.bank?.id ?? null,
+  bank_id: bankId.value,
   gosi_number: gosiNumber.value.trim() || null,
   gosi_registration_date: gosiRegistrationDate.value,
   relationship_type: relationshipType.value,
@@ -98,7 +107,7 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <UForm :state="{ relationshipType, basicWage, housingAllowance, transportAllowance, otherAllowance, iban, gosiNumber, gosiRegistrationDate }" class="liwan-form" method="post" novalidate data-testid="hr-compensation-form" @submit="submit">
+  <UForm :state="{ relationshipType, basicWage, housingAllowance, transportAllowance, otherAllowance, iban, bankId, gosiNumber, gosiRegistrationDate }" class="liwan-form" method="post" novalidate data-testid="hr-compensation-form" @submit="submit">
     <UAlert v-if="showAlert" role="alert" color="error" variant="subtle" :title="t('hrPayroll.compensation.saveError')" :description="errorMessage" />
     <SharedFormSection panel :title="t('hrPayroll.compensation.relationshipSection')" :description="t('hrPayroll.compensation.relationshipHint')">
       <div class="liwan-form-grid">
@@ -129,8 +138,12 @@ async function submit() {
         <UFormField :label="t('hrPayroll.compensation.iban')" name="hr-compensation-iban" :error="fieldError('iban', t('hrPayroll.compensation.ibanInvalid'))">
           <UInput id="hr-compensation-iban" v-model="iban" dir="ltr" class="w-full" :placeholder="t('hrPayroll.compensation.ibanPlaceholder')" :disabled="!hydrated || isPending" />
         </UFormField>
-        <UFormField :label="t('hrPayroll.compensation.bank')" name="hr-compensation-bank" :help="t('hrPayroll.compensation.bankKept')" :error="fieldError('bank_id', t('errors.generic'))">
-          <UInput id="hr-compensation-bank" class="w-full" :model-value="compensation?.bank?.name ?? ''" readonly disabled />
+        <UFormField :label="t('hrPayroll.compensation.bank')" name="hr-compensation-bank" :error="fieldError('bank_id', t('errors.generic'))">
+          <USelectMenu
+            id="hr-compensation-bank" v-model="bankId" class="w-full" value-key="value" :items="bankItems" :loading="banks.isFetching.value"
+            :placeholder="t('hrPayroll.compensation.bankPlaceholder')" :search-input="{ placeholder: t('hrPayroll.compensation.bankSearch') }"
+            :disabled="!hydrated || isPending" data-testid="hr-compensation-bank"
+          />
         </UFormField>
       </div>
     </SharedFormSection>
