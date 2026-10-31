@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo import models
+from odoo import fields, models
 from odoo.exceptions import AccessError, ValidationError
 
 HIRE_FRAME_ATTRIBUTE = '_liwan_hr_native_recruitment_hire'
@@ -41,6 +41,10 @@ class LiwanHrApplicant(models.Model):
                 if not employee or employee.company_id != company or self.company_id != company:
                     message = 'the hired employee must belong to the applicant company'
                     raise ValidationError(message)
+                # Stock links the employee but leaves the applicant open unless the stage is a
+                # hired stage; a hired applicant is closed, which is what `hired` status reads.
+                if not self.date_closed:
+                    self.date_closed = fields.Datetime.now()
                 return employee
         finally:
             if previous is None:
