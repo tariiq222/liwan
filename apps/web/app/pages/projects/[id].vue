@@ -8,7 +8,7 @@ import ProjectWorkspaceTabs from '@/components/pmo/projects/workspace/ProjectWor
 import { ApiError } from '@/composables/useApi'
 import { activeGovernanceSection, activeProjectSection, projectIdFromPath } from '@/modules/pmo/projectRoutes'
 import { useProject } from '@/composables/useProjects'
-import { projectRecordBack } from '@/utils/projectNavigation'
+import { archivedTags, projectRecordBack } from '@/utils/projectNavigation'
 import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 
 const sourcePaths = useRecordListPaths(['/projects', '/projects/dashboard'])
@@ -78,6 +78,7 @@ const tags = computed<PageHeaderTag[]>(() => {
   return [
     statusTag(projectBadge(value.status), 'project-status'),
     { label: phaseLabel.value, tone: 'info', testId: 'project-workspace-phase' },
+    ...archivedTags(value, t),
     ...(value.manager ? [{ label: value.manager.name, kind: 'person' as const, icon: 'i-lucide-user' }] : []),
     ...(dates ? [{ label: dates, kind: 'schedule' as const, icon: 'i-lucide-calendar-range', testId: 'project-workspace-dates' }] : []),
   ]

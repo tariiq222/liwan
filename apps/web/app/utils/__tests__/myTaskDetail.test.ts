@@ -3,7 +3,7 @@ import type { PersonalTask } from '@liwan/contracts'
 import {
   changedFields, commentProblem, draftFromTask, oldestFirst,
 } from '../myTaskDetail'
-import { MAX_ATTACHMENT_BYTES, attachmentProblem } from '../attachmentFile'
+import { MAX_ATTACHMENT_BYTES, attachmentProblem, attachmentSizeProblem } from '../attachmentFile'
 
 const task: PersonalTask = {
   id: 7, name: 'اشترِ الورق', description: 'ورق A4', state: 'open', priority: 'normal',
@@ -29,6 +29,14 @@ describe('changedFields', () => {
   it('clears and sets the deadline', () => {
     expect(changedFields(task, { ...draftFromTask(task), date_deadline: null })).toEqual({ date_deadline: null })
     expect(changedFields(task, { ...draftFromTask(task), date_deadline: '2026-10-21' })).toEqual({ date_deadline: '2026-10-21' })
+  })
+})
+
+describe('attachmentSizeProblem', () => {
+  it('names an empty and an oversized file, and leaves the type to the server', () => {
+    expect(attachmentSizeProblem({ size: 0 })).toBe('empty')
+    expect(attachmentSizeProblem({ size: MAX_ATTACHMENT_BYTES + 1 })).toBe('tooLarge')
+    expect(attachmentSizeProblem({ size: 1 })).toBeNull()
   })
 })
 

@@ -4,10 +4,10 @@ import { TaskSchema } from './task'
 // A registered kind: snake_case words, optionally dotted by application (`tasks.assigned`, `crm.assigned`).
 const NOTIFICATION_KIND_PATTERN = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$/
 
-export const TaskNotificationKindSchema = z.enum(['assignment', 'comment', 'mention', 'deadline', 'tasks.assigned'])
+export const TaskNotificationKindSchema = z.enum(['assignment', 'comment', 'mention', 'deadline', 'completion_requested', 'completion_accepted', 'tasks.assigned'])
 export const ProjectNotificationKindSchema = z.enum(['charter_review', 'charter_approved', 'charter_returned'])
 export const NotificationKindSchema = z.enum([
-  'assignment', 'comment', 'mention', 'deadline', 'overdue_digest',
+  'assignment', 'comment', 'mention', 'deadline', 'completion_requested', 'completion_accepted', 'overdue_digest',
   'charter_review', 'charter_approved', 'charter_returned',
   'meeting_invite', 'meeting_series_invite', 'meeting_resolution', 'meeting_converted',
   'meeting_changed', 'meeting_cancelled', 'meeting_reminder', 'meeting_resolution_overdue',
@@ -40,6 +40,16 @@ export const MentionNotificationSchema = z.object({
 
 export const DeadlineNotificationSchema = z.object({
   kind: z.literal('deadline'),
+  ...TaskNotificationBase,
+}).strict()
+
+export const CompletionRequestedNotificationSchema = z.object({
+  kind: z.literal('completion_requested'),
+  ...TaskNotificationBase,
+}).strict()
+
+export const CompletionAcceptedNotificationSchema = z.object({
+  kind: z.literal('completion_accepted'),
   ...TaskNotificationBase,
 }).strict()
 
@@ -92,6 +102,8 @@ export const NotificationSchema = z.discriminatedUnion('kind', [
   CommentNotificationSchema,
   MentionNotificationSchema,
   DeadlineNotificationSchema,
+  CompletionRequestedNotificationSchema,
+  CompletionAcceptedNotificationSchema,
   AssignedTaskNotificationSchema,
   DigestNotificationSchema,
   ProjectCharterNotificationSchema,

@@ -8,6 +8,9 @@
 
     <function model="crm.stage" name="_liwan_retire_stock_stages"/>
 
+    <!-- The Arabic starter sources and the retirement of the unsuitable stock ones (utm.source names are not translated). -->
+    <function model="utm.source" name="_liwan_seed_sources"/>
+
     <record id="lost_reason_attempts_exhausted" model="crm.lost.reason"><field name="name">Contact attempts exhausted</field></record>
 
     <record id="outcome_no_answer" model="liwan.crm.call.outcome"><field name="name">No answer</field><field name="sequence">10</field><field name="effect">follow_up</field></record>

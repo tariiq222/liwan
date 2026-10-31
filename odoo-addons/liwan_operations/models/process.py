@@ -57,6 +57,8 @@ class OperationProcess(models.Model):
                 raise AccessError(self.env._('Process control fields cannot be supplied.'))
             if vals.get('company_id', self.env.company.id) != self.env.company.id:
                 raise AccessError(self.env._('Use the current company.'))
+            if not trusted(self.env):
+                vals['name'] = text(self.env, vals.get('name'), 'name', 200, True)
             vals.update(state='draft', revision=0, company_id=self.env.company.id)
         return super().create(vals_list)
 

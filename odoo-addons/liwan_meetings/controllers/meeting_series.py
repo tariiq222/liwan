@@ -8,7 +8,7 @@ from .meetings import _parse_url, _validate_internal_user, _validate_internal_us
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
-    get_record,
+    get_visible_record,
     parse_nonneg_int,
     parse_positive_int,
     require_capabilities,
@@ -94,14 +94,14 @@ class MeetingSeriesController(http.Controller):
     @requires_feature('meetings.enabled', operation='read')
     def get_series(self, series_id, **_):
         require_capabilities('meetings.read')
-        return dump_series(get_record('liwan.meeting.series', series_id), detail=True)
+        return dump_series(get_visible_record('liwan.meeting.series', series_id), detail=True)
 
     @http.route('/api/v1/meeting-series/<int:series_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
     @requires_feature('meetings.enabled', operation='write')
     def patch_series(self, series_id, **payload):
         require_capabilities('meetings.read')
-        series = get_record('liwan.meeting.series', series_id)
+        series = get_visible_record('liwan.meeting.series', series_id)
         if not series._liwan_is_editor():
             raise ApiError(403, 'forbidden', 'Only the organizer, secretary or a meetings manager may edit this series.')
 
@@ -179,7 +179,7 @@ class MeetingSeriesController(http.Controller):
     @requires_feature('meetings.enabled', operation='write')
     def cancel_series(self, series_id, **_):
         require_capabilities('meetings.read')
-        series = get_record('liwan.meeting.series', series_id)
+        series = get_visible_record('liwan.meeting.series', series_id)
         series.action_cancel_series()
         return dump_series(series, detail=True)
 
@@ -188,7 +188,7 @@ class MeetingSeriesController(http.Controller):
     @requires_feature('meetings.enabled', operation='write')
     def add_occurrence(self, series_id, start_datetime=None, end_datetime=None, name=None, **_):
         require_capabilities('meetings.create')
-        series = get_record('liwan.meeting.series', series_id)
+        series = get_visible_record('liwan.meeting.series', series_id)
         start = _parse_series_datetime(start_datetime, 'start_datetime') if start_datetime is not None else None
         stop = _parse_series_datetime(end_datetime, 'end_datetime') if end_datetime is not None else None
         if (start is None) != (stop is None):

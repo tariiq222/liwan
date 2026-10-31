@@ -13,9 +13,14 @@ class TestProjectFollowers(LiwanPmoCase):
         self.api('PATCH', f'/api/v1/projects/{self.project.id}', {'privacy_visibility': 'followers'})
         before = {u['id'] for u in self.api('GET', url).json()}
         self.assertNotIn(self.employee.id, before)
-        # employee (assigned to a task but not a follower) cannot open the project
+        # employee (assigned to a task but not a follower) cannot open the project; a hidden project is not found,
+        # so the refusal does not confirm that the id exists
         self.authenticate('api_emp', 'api_emp_pass_123')
-        self.assertEqual(self.api('GET', f'/api/v1/projects/{self.project.id}').status_code, 403)
+        hidden = self.api('GET', f'/api/v1/projects/{self.project.id}')
+        self.assertEqual((hidden.status_code, hidden.json()['code']), (404, 'not_found'))
+        for path in ('/followers', '/milestones', '/register'):
+            refused = self.api('GET', f'/api/v1/projects/{self.project.id}{path}')
+            self.assertEqual((refused.status_code, refused.json()['code']), (404, 'not_found'), path)
         self.authenticate('api_mgr', 'api_mgr_pass_123')
         res = self.api('POST', url, {'user_id': self.employee.id})
         self.assertEqual(res.status_code, 200)
