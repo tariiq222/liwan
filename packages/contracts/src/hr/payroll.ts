@@ -49,6 +49,7 @@ export const HrCompensationWriteSchema = z.object({
 }).strict()
 
 export type HrPayrollRelationship = z.infer<typeof HrPayrollRelationshipSchema>
+export type HrPayrollStructure = z.infer<typeof HrPayrollStructureSchema>
 export type HrPayrollBank = z.infer<typeof HrPayrollBankSchema>
 export type HrCompensation = z.infer<typeof HrCompensationSchema>
 export type HrCompensationWrite = z.infer<typeof HrCompensationWriteSchema>
@@ -182,6 +183,10 @@ export const HrPayrollSettingsSchema = z.object({
   revision: baselineRevision,
 }).strict()
 
+// GET /api/v1/hr/payroll/structures: the payroll structures of the current company, for the settings picker.
+export const HrPayrollStructureSchema = z.object({ id: z.number().int().positive(), name: z.string().min(1), code: z.string().nullable() }).strict()
+export const HrPayrollStructureListSchema = z.object({ items: z.array(HrPayrollStructureSchema), total: z.number().int().nonnegative() }).strict()
+
 export const HrPayrollSettingsPatchSchema = z.object({
   day_divisor: dayDivisor,
   structure_id: z.number().int().positive(),
@@ -289,6 +294,8 @@ export const HR_PAYROLL_ACCOUNT_ROLES = [
   'basic_expense', 'allowance_expense', 'variable_expense', 'gosi_expense', 'gosi_payable',
   'salaries_payable', 'deduction', 'advance', 'eos_expense', 'eos_provision',
 ] as const
+// The roles whose account must allow reconciliation: the server refuses any other account (`account_not_reconcilable`).
+export const HR_PAYROLL_RECONCILING_ACCOUNT_ROLES = ['salaries_payable', 'advance'] as const
 export const HR_PAYROLL_ENTRY_DETAILS = ['aggregated', 'per_employee'] as const
 
 const accountRoleShape = <T extends z.ZodType>(value: T) => z.object(

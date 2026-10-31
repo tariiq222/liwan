@@ -5,6 +5,7 @@ import {
   HrGosiRateSchema,
   HrPayrollRevisionSchema,
   HrPayrollSettingsSchema,
+  HrPayrollStructureListSchema,
   type HrGosiRatePatch,
   type HrGosiRateWrite,
   type HrPayrollSettingsPatch,
@@ -76,4 +77,15 @@ export function useDeleteHrGosiRate() {
   const qc = useQueryClient()
   const { $api } = useApi()
   return useMutation({ mutationFn: (input: { id: number; revision: number }) => deleteHrGosiRate($api, qc, input) })
+}
+
+/** The payroll structures of the company, for the settings picker (a short list). */
+export function useHrPayrollStructures() {
+  const { $api } = useApi()
+  const { can } = useAccess()
+  return useQuery({
+    queryKey: hrPayrollKeys.structures,
+    enabled: computed(() => can('hr.payroll.read')),
+    queryFn: () => $api('/api/v1/hr/payroll/structures', { schema: HrPayrollStructureListSchema }),
+  })
 }

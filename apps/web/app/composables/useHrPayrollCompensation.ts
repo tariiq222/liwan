@@ -28,6 +28,7 @@ export const hrPayrollKeys = {
   eosCases: ['hr', 'payroll', 'eos-cases'] as const,
   eosProvisions: ['hr', 'payroll', 'eos-provisions'] as const,
   banks: ['hr', 'payroll', 'banks'] as const,
+  structures: ['hr', 'payroll', 'structures'] as const,
   financeLookup: (kind: string) => ['hr', 'payroll', 'finance-lookup', kind] as const,
 }
 

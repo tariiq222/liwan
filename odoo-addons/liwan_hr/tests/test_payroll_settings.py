@@ -41,6 +41,28 @@ class TestPayrollSettings(PayrollCase):
         self.assertEqual(body['annual_leave_type']['id'], self.env.ref('hr_holidays.leave_type_paid_time_off').id)
         self.assertFalse(self.env['liwan.hr.payroll.settings'].search_count([]))
 
+    def test_the_structure_picker_lists_the_company_structures_only(self):
+        other = self.env['res.company'].create({'name': 'Picker Other Co'})
+        foreign = self.env['hr.payroll.structure'].search([('company_id', '=', other.id)], limit=1)
+        own = self.env['hr.payroll.structure'].create({'name': 'Own extra', 'code': 'OWN', 'company_id': self.env.company.id})
+        self._login(self.reader)
+        listed = self.api('GET', '/api/v1/hr/payroll/structures')
+        self.assertEqual(listed.status_code, 200, listed.text)
+        body = listed.json()
+        ids = {item['id'] for item in body['items']}
+        self.assertIn(own.id, ids)
+        self.assertIn(self.env.ref('liwan_hr.structure_saudi').id, ids)
+        self.assertNotIn(foreign.id, ids)
+        self.assertEqual(set(body['items'][0]), {'id', 'name', 'code'})
+        self.assertEqual(body['total'], len(body['items']))
+        self._login(self.config)
+        revision = self.api('GET', '/api/v1/hr/payroll/settings').json()['revision']
+        picked = self.api('PATCH', '/api/v1/hr/payroll/settings', json={'structure_id': own.id, 'revision': revision})
+        self.assertEqual(picked.status_code, 200, picked.text)
+        self.assertEqual(picked.json()['structure']['id'], own.id)
+        refused = self.api('PATCH', '/api/v1/hr/payroll/settings', json={'structure_id': foreign.id, 'revision': picked.json()['revision']})
+        self.assertEqual((refused.status_code, refused.json()['field']), (422, 'structure_id'))
+
     def test_only_config_edits_settings_and_rates(self):
         path = '/api/v1/hr/payroll/settings'
         self._login(self.manager)

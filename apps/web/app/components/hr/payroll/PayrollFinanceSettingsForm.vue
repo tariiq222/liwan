@@ -7,7 +7,7 @@ import {
 } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { saveErrorMessage } from '@/utils/formFeedback'
-import { NO_RECORD, payrollFinanceDraft, payrollFinancePatch, withCurrent, type FinanceChoice } from '@/utils/payrollFinanceSettings'
+import { NO_RECORD, accountChoicesFor, payrollFinanceDraft, payrollFinancePatch, withCurrent, type FinanceChoice } from '@/utils/payrollFinanceSettings'
 import { payrollFieldError } from '@/utils/payrollErrors'
 
 // The accounting mapping of payroll: the journal the entry goes to, its level of detail, the default cost center and
@@ -91,7 +91,7 @@ async function submit() {
           :name="`hr-payroll-finance-account-${role}`"
           :error="fieldError(`accounts.${role}`)"
         >
-          <USelect v-if="props.accounts" :id="`hr-payroll-finance-account-${role}`" v-model="draft.accounts[role]" class="w-full" :items="items(props.accounts, props.settings.accounts[role])" :disabled="disabled" :data-testid="`hr-payroll-finance-account-${role}`" />
+          <USelect v-if="props.accounts" :id="`hr-payroll-finance-account-${role}`" v-model="draft.accounts[role]" class="w-full" :items="items(accountChoicesFor(role, props.accounts), props.settings.accounts[role])" :disabled="disabled" :data-testid="`hr-payroll-finance-account-${role}`" />
           <UInput v-else :id="`hr-payroll-finance-account-${role}`" class="w-full" :model-value="readOnly(props.settings.accounts[role])" readonly disabled />
         </UFormField>
       </div>

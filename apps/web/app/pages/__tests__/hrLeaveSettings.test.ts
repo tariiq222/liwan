@@ -4,7 +4,7 @@ import { compileScript, parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import { useHrPayrollSettings, useHrGosiRates } from '../../composables/useHrPayrollSettings'
+import { useHrPayrollSettings, useHrPayrollStructures, useHrGosiRates } from '../../composables/useHrPayrollSettings'
 import { useHrBankProfiles } from '../../composables/useHrPayrollFiles'
 import { useHrEosCases } from '../../composables/useHrPayrollEos'
 import { useHrPayrollFinanceSettings } from '../../composables/useHrPayrollFinance'
@@ -29,7 +29,7 @@ describe('leave settings permission isolation',()=>{
       LeaveSettingsForm:{},ShiftSettingsForm:{},EosCaseMapTable:{},PayrollCostCenterTable:{},PayrollFinanceSettingsForm:{},BankProfileForm:{},BranchStrictCard:{},GosiRateTable:{},PayrollGeneralSettingsForm:{},
       useI18n:()=>({t:String}),useAccess:()=>({can}),useSettingsPage:()=>({parts:Vue.ref([{id:'leave'}]),shows:(id:string)=>id==='leave'}),
       useHrLeaveSettings:(value:any)=>{enabled=value;return idle()},useHrShiftSettings:idle,
-      useHrPayrollSettings,useHrGosiRates,useHrBankProfiles,useHrEosCases,useHrPayrollFinanceSettings,useHrLeaveTypes,
+      useHrPayrollSettings,useHrPayrollStructures,useHrGosiRates,useHrBankProfiles,useHrEosCases,useHrPayrollFinanceSettings,useHrLeaveTypes,
       useHrPayrollFinanceLookups:()=>({accounts:idle(),journals:idle(),analyticAccounts:idle()}),useHrPayrollCostCenters:idle,
       useSetHrPayrollCostCenter:()=>({mutateAsync:vi.fn()}),useSaveHrEosCase:()=>({mutateAsync:vi.fn()}),
       ApiError:Error,isTruncated:()=>false,saveErrorMessage:String,usePayrollConflict,isPayrollConflict:()=>false,

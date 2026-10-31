@@ -143,7 +143,7 @@
       "dayDivisorHint": "The number of days the monthly wage is divided by to get a day's pay.",
       "structure": "Salary structure",
       "structureHint": "The Saudi salary structure approved for the company.",
-      "noStructure": "Not set",
+      "chooseStructure": "Choose the payroll structure",
       "annualLeaveType": "Annual leave type",
       "unpaidLeaveTypes": "Unpaid leave types",
       "unpaidLeaveTypesHint": "Days of these leaves are deducted from the month's pay.",
@@ -320,6 +320,7 @@
       "profile_in_use": "A generated salary file keeps this profile, so it cannot be deleted.",
       "profile_unavailable": "The salary file profile is no longer available. Refresh the page and choose another profile.",
       "currency_unsupported": "Payroll can be posted to accounting only for companies in Saudi riyals.",
+      "account_not_reconcilable": "This account does not allow reconciliation. Choose an account with reconciliation enabled.",
       "ownRecordForbidden": "You cannot approve a run that holds your own payslip. Someone else with the approval capability approves it."
     },
     "compensation": {

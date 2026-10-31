@@ -24,6 +24,10 @@ def dump_settings(settings):
     }
 
 
+def dump_structure(structure):
+    return {'id': structure.id, 'name': structure.name, 'code': structure.code or None}
+
+
 def parse_settings(payload, env):
     """The writable settings values; every id must name an existing record."""
     reject_unknown(payload, SETTINGS_FIELDS)
@@ -34,7 +38,7 @@ def parse_settings(payload, env):
             raise ApiError(422, 'invalid', 'day_divisor must be a whole number from 28 to 31', field='day_divisor')
         vals['day_divisor'] = divisor
     if 'structure_id' in payload:
-        vals['structure_id'] = _existing_id(env, 'hr.payroll.structure', payload['structure_id'], 'structure_id')
+        vals['structure_id'] = _company_structure(env, payload['structure_id'])
     if 'annual_leave_type_id' in payload:
         vals['annual_leave_type_id'] = _existing_id(
             env, 'hr.leave.type', payload['annual_leave_type_id'], 'annual_leave_type_id',
@@ -46,6 +50,14 @@ def parse_settings(payload, env):
         checked = [_existing_id(env, 'hr.leave.type', value, 'unpaid_leave_type_ids') for value in ids]
         vals['unpaid_leave_type_ids'] = [(6, 0, checked)]
     return vals
+
+
+def _company_structure(env, value):
+    """A payroll structure of the current company: another company's structure would compute against rules it cannot read."""
+    structure_id = parse_positive_int(value, 'structure_id')
+    if not env['hr.payroll.structure'].search_count([('id', '=', structure_id), ('company_id', '=', env.company.id)]):
+        raise ApiError(422, 'invalid', 'structure_id does not reference a structure of this company', field='structure_id')
+    return structure_id
 
 
 def _existing_id(env, model, value, field):
