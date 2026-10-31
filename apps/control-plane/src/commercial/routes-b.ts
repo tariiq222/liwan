@@ -9,7 +9,7 @@ import { CommercialHttpError, digestOf } from './lifecycle.js'
 import { createCustomerTerms } from './customer-terms.js'
 import { createQuoteForCustomer } from './quotes.js'
 import { getSubscription } from './subscriptions.js'
-import { acceptQuote, cancelOrder } from './orders.js'
+import { acceptQuote, cancelOrder, cancelOrderBodySchema } from './orders.js'
 import { listCustomers, customerView } from './customers.js'
 import { attention } from './attention.js'
 import { listClients } from './clients.js'
@@ -123,7 +123,7 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
   if(cancel&&m==='POST'){
     need(input,'vendor.subscriptions.manage')
     if(!z.uuid().safeParse(cancel[1]).success)throw new CommercialHttpError('not_found',404)
-    const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().min(3).max(1000)}))
+    const body=parseBody(input.raw,cancelOrderBodySchema)
     return {status:200,data:await cancelOrder(pool,{order_id:cancel[1]!,principal,reason:body.reason,adapter:runtime?.adapter ?? undefined})}
   }
   if(m==='GET'&&path==='/invoices'){need(input,'vendor.billing.manage');const customer=url.searchParams.get('customer_id');if(customer&&!z.uuid().safeParse(customer).success)throw new CommercialHttpError('invalid',422,'customer_id');const status=url.searchParams.get('status');if(status&&!invoiceStatusSchema.safeParse(status).success)throw new CommercialHttpError('invalid',422,'status');const page=(f:string,d:number,max:number)=>{const raw=url.searchParams.get(f);if(raw===null)return d;if(!/^\d+$/.test(raw)||Number(raw)>max)throw new CommercialHttpError('invalid',422,f);return Number(raw)};const limit=page('limit',50,200);if(limit<1)throw new CommercialHttpError('invalid',422,'limit');return {status:200,data:await listVendorInvoices(pool,{customer_id:customer??undefined,status:status??undefined,limit,offset:page('offset',0,Number.MAX_SAFE_INTEGER)})}}

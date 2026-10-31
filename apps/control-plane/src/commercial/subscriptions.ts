@@ -19,9 +19,10 @@ export async function getSubscription(pool: Pool, customerId: string) {
     return subscriptionRevisionSchema.parse({ ...snapshot, id: r.id, subscription_id: r.subscription_id, revision: r.revision, quote_id: r.quote_id, created_at: iso(r.created_at) })
   }
   const pending = await pool.query("SELECT * FROM orders WHERE subscription_id=$1 AND NOT cancelled AND fulfillment_state<>'applied' ORDER BY created_at DESC,id DESC LIMIT 1", [row.id])
+  const cancelled = row.applied_revision_id === null && (await pool.query('SELECT 1 FROM orders WHERE subscription_id=$1 AND cancelled LIMIT 1', [row.id])).rowCount === 1
   const view = subscriptionViewSchema.parse({
     id: row.id, customer_id: row.customer_id, tenant_id: row.tenant_id, state: row.state,
-    applied: revision(row.applied_revision_id), target: revision(row.target_revision_id), pending_order: pending.rows[0] ? orderView(pending.rows[0]) : null,
+    applied: revision(row.applied_revision_id), target: revision(row.target_revision_id), pending_order: pending.rows[0] ? orderView(pending.rows[0]) : null, order_cancelled: cancelled,
     revision: row.revision, renewal_at: date(row.renewal_at),
     auto_renew: { enabled: row.auto_renew_enabled, consent_at: iso(row.auto_renew_consent_at), token_ref_present: Boolean(row.provider_token_ref) },
     trial_ends_at: iso(row.trial_ends_at), grace_ends_at: iso(row.grace_ends_at),

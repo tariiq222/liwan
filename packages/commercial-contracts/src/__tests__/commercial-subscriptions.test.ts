@@ -8,7 +8,7 @@ const order = (p: Order['payment_state'], f: Order['fulfillment_state']): Order 
 const rev = { id: id(1), subscription_id: 's', revision: 1, customer_id: 'c', tenant_id: 't', plan_revision_id: id(2), bundle_revision_ids: [], terms_revision_id: null, policy_revision_id: id(3),
   cadence: { unit: 'month', count: 1 }, term_start: '2026-10-01', term_end: '2027-09-30', period_start: '2026-10-01', period_end: '2026-10-31', included_extra_branches: 1, extra_branch_count: 0,
   entitlement: { catalog_release_id: id(4), modules: [], features: {}, compiler_version: 'x', digest: 'a'.repeat(64) }, quote_id: 'q', created_at: 'x' }
-const view = (o: Partial<SubscriptionView> = {}): SubscriptionView => ({ id: 's', customer_id: 'c', tenant_id: null, state: 'pending', applied: null, target: null, pending_order: null, revision: 0,
+const view = (o: Partial<SubscriptionView> = {}): SubscriptionView => ({ id: 's', customer_id: 'c', tenant_id: null, state: 'pending', applied: null, target: null, pending_order: null, order_cancelled: false, revision: 0,
   renewal_at: null, auto_renew: { enabled: false, consent_at: null, token_ref_present: false }, trial_ends_at: null, grace_ends_at: null, ...o })
 
 describe('subscription view + display state', () => {
@@ -26,6 +26,10 @@ describe('subscription view + display state', () => {
     expect(subscriptionDisplayState(view({ state: 'active', applied: rev as never }))).toBe('active')
     expect(subscriptionDisplayState(view({ state: 'active', applied: null }))).toBe('activating')
     expect(subscriptionDisplayState(view({ state: 'suspended', applied: rev as never }))).toBe('inactive')
+  })
+  it('a never-applied subscription whose order was cancelled is inactive, not awaiting payment', () => {
+    expect(subscriptionDisplayState(view())).toBe('awaiting_payment')
+    expect(subscriptionDisplayState(view({ order_cancelled: true }))).toBe('inactive')
   })
 })
 describe('renewalKey', () => { it('is stable per period+kind', () => {

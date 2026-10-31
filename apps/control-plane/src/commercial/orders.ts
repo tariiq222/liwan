@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { z } from 'zod'
 import type { Pool, PoolClient } from 'pg'
 import { acceptQuoteRequestSchema, orderSchema, initialOrderStates, quoteSchema, addCadence, type AcceptQuoteRequest, type Principal, type Quote } from '@liwan/commercial-contracts'
 import { compileEntitlements } from '@liwan/commercial-contracts/server'
@@ -12,6 +13,9 @@ import { lookup } from './payments.js'
 import { reserveBranchesForOrder } from './branches.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import { assertDowngradeFitsUsage } from './usage.js'
+
+/** A missing or short reason reaches `cancelOrder`, which answers 422 `reason_required` for both. */
+export const cancelOrderBodySchema = z.strictObject({ reason: z.string().max(1000).default('') })
 
 const LIVE_ATTEMPT = ['created','redirected','pending','unknown']
 const cancellable = (order: Record<string, any>) => order.kind !== 'renewal' && !order.cancelled

@@ -11,7 +11,7 @@ import { parseBody } from './http.js'
 import { getSubscription } from './subscriptions.js'
 import { buildQuote, createQuoteForCustomer } from './quotes.js'
 import { convertTrial, startTrial } from './trial.js'
-import { acceptQuote, cancelOrder, customerOrderStatusView } from './orders.js'
+import { acceptQuote, cancelOrder, cancelOrderBodySchema, customerOrderStatusView } from './orders.js'
 import { listInvoices, getInvoice } from './invoices.js'
 import { planWire } from './plans.js'
 import { bundleWire } from './bundles.js'
@@ -135,7 +135,7 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
     const own=z.uuid().safeParse(cancel[1]).success?(await pool.query('SELECT kind FROM orders WHERE id=$1 AND customer_id=$2',[cancel[1],customerId])).rows[0]:undefined
     if(!own)throw new CommercialHttpError('not_found',404)
     if(own.kind!=='new')throw new CommercialHttpError('order_not_cancellable',409)
-    const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().min(3).max(1000)}))
+    const body=parseBody(input.raw,cancelOrderBodySchema)
     return {status:200,data:await cancelOrder(pool,{order_id:cancel[1]!,principal,reason:body.reason,adapter:runtime?.adapter ?? undefined})}
   }
   if(m==='GET'&&path==='/invoices'){requireCapability(principal,'billing.read');return {status:200,data:await listInvoices(pool,{customer_id:customerId})}}
