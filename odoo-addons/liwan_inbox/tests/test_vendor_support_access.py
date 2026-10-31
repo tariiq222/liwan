@@ -27,3 +27,12 @@ class TestVendorSupportAccess(LiwanInboxCase):
         self.assertError(self.get('/api/v1/inbox/conversations'), 403, 'forbidden')
         self.assertError(self.get(f'/api/v1/inbox/conversations/{self.conversation.id}'), 403, 'forbidden')
         self.assertError(self.get(f'/api/v1/inbox/conversations/{self.conversation.id}/messages'), 403, 'forbidden')
+
+    def test_every_other_inbox_action_is_refused(self):
+        self.login(self.vendor)
+        path = f'/api/v1/inbox/conversations/{self.conversation.id}'
+        self.assertError(self.api('POST', f'{path}/messages', {'body': 'hi'}), 403, 'forbidden')
+        self.assertError(self.patch_conversation(self.conversation, {'priority': 'high'}), 403, 'forbidden')
+        self.assertEqual(self.get('/api/v1/inbox/conversations/export.csv').status_code, 403)
+        self.assertError(self.get('/api/v1/inbox/reports/overview'), 403, 'forbidden')
+        self.assertError(self.get('/api/v1/inbox/orders'), 403, 'forbidden')

@@ -113,6 +113,8 @@ class TestConversationsApi(LiwanInboxCase):
         self.assertEqual(self.reload(self.conversation).revision, before)
         self.conversation.write({'state': 'pending'})
         self.assertEqual(self.reload(self.conversation).revision, before + 1)
+        self.conversation.write({'state': 'pending', 'tag_ids': [(6, 0, [])]})
+        self.assertEqual(self.reload(self.conversation).revision, before + 1, 'the same values are not a new revision')
         self.conversation.write({'assignee_id': self.agent.id})
         self.assertEqual(self.reload(self.conversation).revision, before + 2)
 

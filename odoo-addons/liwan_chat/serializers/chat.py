@@ -134,6 +134,12 @@ def _dump_reactions(message):
     return list(grouped.values())
 
 
+def message_deleted(message):
+    """A cleared message the company keeps as a «deleted» row: no text, no files, not a notice."""
+    attachments = message.attachment_ids.filtered(lambda attachment: attachment.type == 'binary' and not attachment.url)
+    return not message_notice(message) and not _plain_body(message.body) and not attachments
+
+
 def dump_message(message):
     author_user = _message_author_user(message)
     notice = message_notice(message)
@@ -150,7 +156,7 @@ def dump_message(message):
         'parent': _dump_message_parent(message),
         'edited': 'o-mail-Message-edited' in (message.body or ''),
         # A deleted message under the «placeholder» policy keeps its row with neither text nor files.
-        'deleted': not notice and not _plain_body(message.body) and not attachments,
+        'deleted': message_deleted(message),
         'pinned': bool(message.pinned_at),
         'starred': bool(message.starred),
         'reactions': _dump_reactions(message),

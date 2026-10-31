@@ -72,11 +72,23 @@ class LiwanInboxConversation(models.Model):
     )
 
     def write(self, vals):
+        watched = [name for name in REVISION_FIELDS if name in vals] if 'revision' not in vals else []
+        before = self._revision_values(watched)
         result = super().write(vals)
-        if REVISION_FIELDS & vals.keys() and 'revision' not in vals and self.ids:
-            self.env.cr.execute('UPDATE liwan_inbox_conversation SET revision = revision + 1 WHERE id IN %s', [tuple(self.ids)])
+        # Only a real change is a new revision: saving the values a conversation already has must not stale another editor.
+        changed = [record_id for record_id, values in before.items() if values != self._revision_values(watched, record_id)[record_id]]
+        if changed:
+            self.env.cr.execute('UPDATE liwan_inbox_conversation SET revision = revision + 1 WHERE id IN %s', [tuple(changed)])
             self.invalidate_recordset(['revision'])
         return result
+
+    def _revision_values(self, names, only=None):
+        """The watched values of each saved conversation (relations as sorted ids), to compare before and after a write."""
+        records = self.browse(only) if only else self
+        return {
+            record.id: {name: tuple(sorted(record[name].ids)) if record._fields[name].relational else record[name] for name in names}
+            for record in records if record.id
+        } if names else {}
 
     @api.depends('message_ids.direction', 'message_ids.date', 'message_ids.body', 'message_ids.kind')
     def _compute_last_message(self):
@@ -151,7 +163,7 @@ class LiwanInboxConversation(models.Model):
         service = self.env['liwan.access.service']
         if service._liwan_has_capability(user, ASSIGN):
             return Domain.TRUE
-        policy = self.env['liwan.inbox.settings']._get_for_company().visibility_policy
+        policy = self.env['liwan.inbox.settings']._liwan_read_for_company().visibility_policy
         if policy == 'all':
             return Domain.TRUE
         mine = Domain('assignee_id', '=', user.id)

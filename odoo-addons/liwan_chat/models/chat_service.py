@@ -115,12 +115,14 @@ class LiwanChatService(models.AbstractModel):
             raise MissingError(self.env._('Conversation %(id)s does not exist', id=channel_id))
         # The access check comes before any field is read: reading one of a channel the caller cannot see
         # raises Odoo's own refusal, which names the model and the user instead of the documented text.
+        # A channel of another type answers like an unreadable one, so the answer does not tell them apart.
+        not_member = AccessError(self.env._('You are not a member of this conversation.'))
         try:
             channel.check_access('read')
         except AccessError:
-            raise AccessError(self.env._('You are not a member of this conversation.')) from None
+            raise not_member from None
         if channel.channel_type not in CHAT_TYPES:
-            raise MissingError(self.env._('Conversation %(id)s does not exist', id=channel_id))
+            raise not_member
         member = self._liwan_self_member(channel)
         if not member:
             # Stock group_system can read every channel. LiwanOS still requires membership.
@@ -304,15 +306,19 @@ class LiwanChatService(models.AbstractModel):
         Returns the mode that applied.
         """
         mode = self.env['liwan.chat.settings']._liwan_effective()['message_delete_mode']
-        # sudo: mail.message - the caller proved membership and authorship; emptying a message reads its link previews
-        # (base.group_erp_manager only) and removing one has no user ACL, as in the stock edit and delete routes.
-        message = message.sudo()
         if mode == 'permanent':
             attachments = message.attachment_ids
             message.unlink()
             attachments.unlink()
-        else:
-            channel._message_update_content(message, body='', attachment_ids=[])
+            return mode
+        # sudo: mail.message - the caller proved membership and authorship; clearing a message reads its link previews
+        # (`message_link_preview_ids`, base.group_erp_manager only), as the stock thread controller does after its own
+        # author check. The same elevated record drops the message's reactions, whose model is system-only.
+        message = message.sudo()
+        channel._message_update_content(message, body='', attachment_ids=[])
+        message.reaction_ids.unlink()
+        if message.pinned_at:
+            channel.set_message_pin(message.id, False)
         return mode
 
     @api.model

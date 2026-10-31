@@ -27,6 +27,7 @@ from odoo.addons.liwan_chat.serializers.chat import (
     dump_member,
     dump_message,
     dump_user_ref,
+    message_deleted,
     message_notice,
 )
 
@@ -205,6 +206,12 @@ class ChatController(http.Controller):
             raise ApiError(422, 'invalid', 'a conversation notice cannot be changed')
         return channel, message
 
+    @staticmethod
+    def _live_message(message):
+        """A cleared message stays as a row only: it cannot be edited, pinned or reacted to again."""
+        if message_deleted(message):
+            raise ApiError(422, 'invalid', 'the message was deleted')
+
     @http.route(
         '/api/v1/chat/conversations/<int:conversation_id>/messages/<int:message_id>',
         type='json2', auth='user', methods=['PATCH'], readonly=False,
@@ -219,6 +226,7 @@ class ChatController(http.Controller):
         if not body.strip():
             raise ApiError(422, 'invalid', 'body must not be empty; delete the message instead', field='body')
         channel, message = self._own_message(conversation_id, message_id)
+        self._live_message(message)
         channel._message_update_content(message, body=plaintext2html(body))
         self._service()._liwan_notify_channel(channel, 'message_updated')
         return dump_message(message)
@@ -254,6 +262,7 @@ class ChatController(http.Controller):
         service = self._service()
         channel = service._liwan_member_channel(conversation_id)
         message = service._liwan_channel_message(channel, message_id)
+        self._live_message(message)
         # sudo: mail.message.reaction has no user ACL; stock /mail/message/reaction does the same
         # after the caller proved channel membership (see _liwan_member_channel above).
         message.sudo()._message_reaction(
@@ -275,6 +284,8 @@ class ChatController(http.Controller):
         service = self._service()
         channel = service._liwan_member_channel(conversation_id)
         message = service._liwan_channel_message(channel, message_id)
+        if payload['pinned']:
+            self._live_message(message)
         channel.set_message_pin(message.id, payload['pinned'])
         message.invalidate_recordset(['pinned_at'])
         service._liwan_notify_channel(channel, 'pin_updated')

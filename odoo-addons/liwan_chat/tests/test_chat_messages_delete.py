@@ -114,3 +114,16 @@ class TestChatSettingsAndMessageDelete(LiwanApiCase):
         refused = self.api('PATCH', f"{path}/messages/{message['id']}", {'body': '  '})
         self.assertEqual((refused.status_code, refused.json()['code'], refused.json()['field']), (422, 'invalid', 'body'))
         self.assertEqual(self._messages(path)[message['id']]['body'], 'mine')
+
+    def test_a_deleted_row_cannot_be_revived_pinned_or_reacted_to_and_loses_its_pin_and_reactions(self):
+        path = self._conversation()
+        message = self._send(path, body='secret')
+        url = f"{path}/messages/{message['id']}"
+        self.assertEqual(self.api('POST', f'{url}/pin', {'pinned': True}).status_code, 200)
+        self.assertEqual(self.api('POST', f'{url}/reactions', {'content': '👍', 'action': 'add'}).status_code, 200)
+        self.assertEqual(self.api('DELETE', url).status_code, 200)
+        row = self._messages(path)[message['id']]
+        self.assertEqual((row['deleted'], row['pinned'], row['reactions']), (True, False, []))
+        self.assertEqual(self.api('PATCH', url, {'body': 'back'}).status_code, 422)
+        self.assertEqual(self.api('POST', f'{url}/pin', {'pinned': True}).status_code, 422)
+        self.assertEqual(self.api('POST', f'{url}/reactions', {'content': '👍', 'action': 'add'}).status_code, 422)
