@@ -226,6 +226,13 @@ class FinanceInvoiceController(http.Controller):
         require_capability('finance.invoices.manage')
         parsed = parse_invoice_create(payload)
         values = _move_values(parsed, parsed['move_type'], request.env.company)
+        if 'journal_id' not in values:
+            # The company's own journal, never stock's pick: a branch can also match its parent's journals, which it cannot read,
+            # and a branch starts with none of its own.
+            default = _default_journal(parsed['move_type'])
+            if not default:
+                raise ApiError(422, 'no_journal', 'create a journal for this kind of document in the finance settings first', field='journal_id')
+            values['journal_id'] = default.id
         effective_currency = request.env['res.currency'].browse(
             values.get('currency_id', request.env.company.currency_id.id),
         )
