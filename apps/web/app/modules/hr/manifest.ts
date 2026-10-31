@@ -1,4 +1,4 @@
-import { HrLeaveBellKindSchema } from '@liwan/contracts'
+import { HrLeaveBellKindSchema, HrOnboardingStepBellKindSchema } from '@liwan/contracts'
 import type { AppContextLink, AppManifest } from '../types'
 import { hrBellHref, hrBellTitleInApp } from './bell'
 import { hrPersonalEntries } from './personal'
@@ -106,7 +106,7 @@ const manifest: AppManifest = {
   attention: [leaveApprovalAttention, leaveCancellationAttention],
   bell: {
     capabilities: ['hr.leave.read'],
-    kinds: HrLeaveBellKindSchema.options.map(kind => ({ kind, href: hrBellHref, title: hrBellTitleInApp })),
+    kinds: [...HrLeaveBellKindSchema.options, HrOnboardingStepBellKindSchema.value].map(kind => ({ kind, href: hrBellHref, title: hrBellTitleInApp })),
   },
   personal: hrPersonalEntries,
   commands: [
@@ -135,6 +135,7 @@ const manifest: AppManifest = {
     { pattern: /^\/account\/pay(?:\/[^/]+)?$/, capability: 'hr.employees.read', feature: 'hr.payroll' },
     { pattern: /^\/account\/assets$/, capability: 'hr.employees.read', feature: 'hr.assets' },
     { pattern: /^\/account\/schedule$/, capability: 'hr.employees.read', feature: 'hr.shifts' },
+    { pattern: /^\/account\/onboarding$/, capability: 'hr.employees.read', feature: 'hr.onboarding' },
     { pattern: /^\/hr\/recruitment\/(?:.+\/)?new$/, capability: 'hr.recruitment.manage' },
     { pattern: /^\/hr\/recruitment(?:\/|$)/, capability: 'hr.recruitment.read' },
     { pattern: /^\/hr\/shifts\/(?:.+\/)?new$/, capability: 'hr.shifts.manage' },

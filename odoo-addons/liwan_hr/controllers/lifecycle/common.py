@@ -134,13 +134,16 @@ def _launch_run(area, employee, plan, plan_date=None):
     })
     schedule.action_schedule_plan()
     created = Activity.search(domain).filtered(lambda activity: activity.id not in before)
-    return request.env['liwan.hr.plan.run'].create({
+    run = request.env['liwan.hr.plan.run'].create({
         'employee_id': employee.id,
         'plan_id': plan.id,
         'plan_date': plan_date,
         'launched_by_id': request.env.user.id,
         'activity_ids': [Command.set(created.ids)],
     })
+    if area == ONBOARDING:
+        run._liwan_notify_step_assignees()
+    return run
 
 
 def _clearance_runs():

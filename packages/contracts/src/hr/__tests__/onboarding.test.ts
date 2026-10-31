@@ -4,6 +4,8 @@ import {
   HrActivityPlanListSchema,
   HrActivityPlanPatchSchema,
   HrActivityPlanSchema,
+  HrOwnOnboardingStepDoneSchema,
+  HrOwnOnboardingStepListSchema,
   HrPlanRunCreateSchema,
   HrPlanRunDetailSchema,
   HrPlanRunListSchema,
@@ -134,5 +136,20 @@ describe('HrPlanRunSchema', () => {
     expect(HrPlanStepDoneSchema.parse({})).toEqual({})
     expect(HrPlanStepDoneSchema.parse({ feedback: 'تم' }).feedback).toBe('تم')
     expect(() => HrPlanStepDoneSchema.parse({ note: 'x' })).toThrow()
+  })
+})
+
+describe('the employee own onboarding steps', () => {
+  const step = { id: 7, run_id: 2, summary: 'Sign the contract', date_deadline: '2026-11-03', state: 'planned' }
+
+  it('accepts the list and the completion answer', () => {
+    expect(HrOwnOnboardingStepListSchema.parse({ items: [step], total: 1 }).items[0].run_id).toBe(2)
+    expect(HrOwnOnboardingStepDoneSchema.parse({ id: 7, run_id: 2, done: true }).done).toBe(true)
+  })
+
+  it('refuses an unknown key, a state outside the derived ones and a not-done answer', () => {
+    expect(HrOwnOnboardingStepListSchema.safeParse({ items: [{ ...step, assignee: null }], total: 1 }).success).toBe(false)
+    expect(HrOwnOnboardingStepListSchema.safeParse({ items: [{ ...step, state: 'blocked' }], total: 1 }).success).toBe(false)
+    expect(HrOwnOnboardingStepDoneSchema.safeParse({ id: 7, run_id: 2, done: false }).success).toBe(false)
   })
 })

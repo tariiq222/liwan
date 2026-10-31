@@ -4,6 +4,7 @@ import {
   HrLeaveBalanceListSchema,
   HrLeaveListSchema,
   HrMyPayslipListSchema,
+  HrOwnOnboardingStepListSchema,
   HrShiftAssignmentListSchema,
   HrShiftSettingsSchema,
 } from '@liwan/contracts'
@@ -24,6 +25,18 @@ export const hrPersonalEntries: AppPersonalEntry[] = [
       async load(api, t) {
         const employee = await profile(api)
         return employee ? { value: employee.name, caption: [employee.job_title, employee.department?.name].filter(Boolean).join(' · ') } : missingEmployee(t)
+      },
+    },
+  },
+  {
+    id: 'hr-onboarding', section: 'profile', labelKey: 'hr.self.onboarding', descriptionKey: 'hr.self.onboardingDesc', icon: 'i-lucide-list-checks',
+    to: '/account/onboarding', capability: 'hr.employees.read', feature: 'hr.onboarding',
+    summary: {
+      queryKey: ['hr', 'onboarding', 'personal'],
+      async load(api, t) {
+        if (!await profile(api)) return missingEmployee(t)
+        const steps = await api('/api/v1/hr/self/onboarding-steps', { schema: HrOwnOnboardingStepListSchema })
+        return { value: String(steps.total), caption: t('hr.self.openOnboardingSteps'), rows: steps.items.slice(0, 3).map(step => ({ id: step.id, label: step.summary, to: '/account/onboarding', caption: step.date_deadline })) }
       },
     },
   },

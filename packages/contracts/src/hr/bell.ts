@@ -12,5 +12,18 @@ export const HrLeaveBellRowSchema = z.looseObject({
   is_read: z.boolean(),
 })
 
+export const HrOnboardingStepBellKindSchema = z.literal('hr.onboarding_step')
+
+/** An onboarding-step bell row: it points at the plan run and its `title` is the step's summary. */
+export const HrOnboardingStepBellRowSchema = z.looseObject({
+  id: z.number().int().positive(),
+  kind: HrOnboardingStepBellKindSchema,
+  run_id: z.number().int().positive(),
+  title: z.string(),
+  created_at: z.string(),
+  is_read: z.boolean(),
+})
+
 export type HrLeaveBellKind = z.infer<typeof HrLeaveBellKindSchema>
 export type HrLeaveBellRow = z.infer<typeof HrLeaveBellRowSchema>
+export type HrOnboardingStepBellRow = z.infer<typeof HrOnboardingStepBellRowSchema>
