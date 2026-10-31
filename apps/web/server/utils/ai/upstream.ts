@@ -4,6 +4,7 @@ import { joinURL, withQuery, type QueryObject } from 'ufo'
 import { tenantTransport } from '../tenantTransport'
 import { tenantUpstreamHeaders } from '../tenantRequest'
 import { upstreamError } from './executor'
+import { uiLocaleHeaders } from '../uiLocale'
 
 export type Upstream = { status: number; body: unknown }
 export type Owner = { tenant: string; user: string }
@@ -81,7 +82,7 @@ export async function odooJson(event: H3Event, method: 'GET' | 'POST' | 'PATCH',
     const cookie = getHeader(event, 'cookie')
     if (!cookie) throw createError({ statusCode: 401, data: { code: 'unauthorized', message: 'no session' } })
     const target = withQuery(path, (options.query ?? {}) as QueryObject)
-    const headers: Record<string, string> = { cookie, accept: 'application/json', ...(options.body !== undefined ? { 'content-type': 'application/json' } : {}) }
+    const headers: Record<string, string> = { cookie, accept: 'application/json', ...uiLocaleHeaders(event), ...(options.body !== undefined ? { 'content-type': 'application/json' } : {}) }
     const body = options.body !== undefined ? JSON.stringify(options.body) : undefined
     const tenantHeaders = tenantUpstreamHeaders(event)
     const response = Object.keys(tenantHeaders).length

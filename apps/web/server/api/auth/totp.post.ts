@@ -1,6 +1,7 @@
 import { boundedTenantJson, MAX_PUBLIC_MFA_BODY, tenantTransport, withTenantBody, withUpstreamSlot } from '../../utils/tenantTransport'
 import { tenantRequest } from '../../utils/tenantRequest'
 import { authUpstreamHeaders } from '../../utils/authUpstreamHeaders'
+import { uiLocaleHeaders } from '../../utils/uiLocale'
 
 export default defineEventHandler(async (event) => {
   assertSameSiteJson(event)
@@ -12,7 +13,7 @@ export default defineEventHandler(async (event) => {
     const send = tenantRequest(event) || process.env.LIWAN_RELEASE_ROUTES_DIR ? (options: { method: string; headers: Record<string, string>; body: string }) => tenantTransport(event, odooUrl, '/api/v1/auth/totp', options) : (options: RequestInit) => withUpstreamSlot(signal => fetch(`${odooUrl}/api/v1/auth/totp`, { ...options, signal }), event)
     const upstream = await send({
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', cookie, ...authUpstreamHeaders(event, authProxyClientIpHeader) },
+      headers: { 'Content-Type': 'application/json', cookie, ...uiLocaleHeaders(event), ...authUpstreamHeaders(event, authProxyClientIpHeader) },
       body: JSON.stringify({ code }),
     })
 
