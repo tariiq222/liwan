@@ -284,9 +284,10 @@ class LiwanPaymentsService(models.AbstractModel):
         returned elevated so the caller can read what the link needs. An invoice that does not
         exist there is an empty record.
         """
-        if not self.env['liwan.payments.settings']._liwan_system_admin_links(self.env.company):
-            return None
+        # The capability first: the settings row is readable by settings managers only, and any other caller is refused here.
         if not self.env['liwan.access.service']._liwan_has_capability(self.env.user, SYSTEM_ADMIN):
+            return None
+        if not self.env['liwan.payments.settings']._liwan_system_admin_links(self.env.company):
             return None
         return self.env['account.move'].sudo().search([
             ('id', '=', invoice_id), ('company_id', 'in', self.env.companies.ids),

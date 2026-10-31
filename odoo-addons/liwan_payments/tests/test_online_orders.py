@@ -281,7 +281,7 @@ class TestOnlineOrderTaxMode(LiwanOrderCase):
         self.env['liwan.payments.settings'].create({'company_id': self.env.company.id, 'tax_mode': mode})
 
     def payable(self, order):
-        response = self.summary(order)
+        response = self.api('GET', f'/api/v1/public/payments/orders/{order.id}?access_token={order._portal_ensure_token()}')
         self.assertEqual(response.status_code, 200, response.text)
         return response.json()
 
