@@ -45,11 +45,12 @@ max_cron_threads = 0
 list_db = False
 CONF
 odoo() { "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" -c "$SCRATCH_ROOT/odoo.conf" -d "$SCRATCH_DB" "$@"; }
+odoo_shell() { "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" shell -c "$SCRATCH_ROOT/odoo.conf" -d "$SCRATCH_DB" --no-http; }
 dump_log() { tail -n 80 "$SCRATCH_ROOT/logs/odoo.log" >&2 || true; }
 trap 'dump_log' ERR
 odoo -i "$(python3 -B tools/catalog_check.py --release-modules)" --without-demo=all --stop-after-init
-odoo shell --no-http < tools/e2e_seed.py
-E2E_REAL_FIXTURE_OUTPUT="$FIXTURE_DIR/fixtures.json" odoo shell --no-http < apps/web/e2e/fixtures/real-odoo-acceptance.py
+odoo_shell < tools/e2e_seed.py
+E2E_REAL_FIXTURE_OUTPUT="$FIXTURE_DIR/fixtures.json" odoo_shell < apps/web/e2e/fixtures/real-odoo-acceptance.py
 test -s "$FIXTURE_DIR/fixtures.json"
 odoo > "$SCRATCH_ROOT/logs/odoo-stdout.log" 2>&1 &
 ODOO_PID=$!

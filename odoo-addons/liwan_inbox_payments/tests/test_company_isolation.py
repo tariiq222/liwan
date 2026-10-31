@@ -102,14 +102,6 @@ class TestInboxPaymentsCompanyIsolation(CompanyIsolationCase):
             'conversation_orders': f'/api/v1/inbox/conversations/{rec["conversation"].id}/orders',
         }
 
-    @staticmethod
-    def hidden_id(kind, rec):
-        return {
-            'catalog': rec['catalog'], 'items': rec['catalog'], 'products': rec['catalog'], 'item': rec['item'],
-            'pick': rec['conversation'], 'commerce': rec['channel'], 'order': rec['order'],
-            'conversation_orders': rec['conversation'],
-        }[kind].id
-
     def test_record_matrix(self):
         """Visible companies answer 200 on every record route; every other company answers the not-found."""
         for current, visible, hidden in MATRIX:
@@ -122,7 +114,7 @@ class TestInboxPaymentsCompanyIsolation(CompanyIsolationCase):
                 rec = self.recs[tag]
                 for kind, path in self.paths(rec).items():
                     with self.subTest(current=current, hidden=tag, route=kind):
-                        self.assertHiddenEveryWay('GET', path, self.hidden_id(kind, rec))
+                        self.assertHiddenEveryWay('GET', path, self.by_tag[tag].id)
 
     def test_lists_never_show_another_company(self):
         for current, visible, hidden in MATRIX:
