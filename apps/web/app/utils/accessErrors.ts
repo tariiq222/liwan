@@ -6,6 +6,8 @@ type Translate = (key: string) => string
 export function accessErrorMessage(error: unknown, t: Translate): string {
   if (!(error instanceof ApiError)) return t('errors.generic')
   if (error.code === 'weak_password') return t('access.errors.weakPassword')
+  // The server names both permissions of a missing dependency in Arabic; the locale text is the fallback.
+  if (error.code === 'missing_dependency' && error.message && error.message !== error.code) return error.message
   const key = `access.errors.${error.code}`
   if (error.code && t(key) !== key) return t(key)
   if (error.status === 409) return t('access.errors.conflict')

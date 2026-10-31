@@ -20,6 +20,9 @@ describe('access error messages', () => {
     expect(accessErrorMessage(new ApiError(422, 'self_access_change', 'self_access_change'), t)).toBe('self change text')
     expect(accessErrorMessage(new ApiError(422, 'role_disabled', 'role_disabled'), t)).toBe('role disabled text')
   })
+  it('shows the server message that names the missing permission', () => {
+    expect(accessErrorMessage(new ApiError(422, 'missing_dependency', 'names both'), t)).toBe('names both')
+  })
   it('maps weak_password to its text', () => {
     expect(accessErrorMessage(new ApiError(422, 'weak_password', 'raw'), t)).toBe('weak')
   })
