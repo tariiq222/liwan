@@ -6000,6 +6000,88 @@
               {
                 "additionalProperties": false,
                 "properties": {
+                  "body": {
+                    "type": "string"
+                  },
+                  "created_at": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "is_read": {
+                    "type": "boolean"
+                  },
+                  "kind": {
+                    "const": "completion_requested",
+                    "type": "string"
+                  },
+                  "task_id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "task_name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "id",
+                  "task_id",
+                  "task_name",
+                  "body",
+                  "created_at",
+                  "is_read"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "type": "string"
+                  },
+                  "created_at": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "is_read": {
+                    "type": "boolean"
+                  },
+                  "kind": {
+                    "const": "completion_accepted",
+                    "type": "string"
+                  },
+                  "task_id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "task_name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "id",
+                  "task_id",
+                  "task_name",
+                  "body",
+                  "created_at",
+                  "is_read"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
                   "created_at": {
                     "type": "string"
                   },
@@ -8582,6 +8664,90 @@
           "none"
         ],
         "type": "string"
+      },
+      "CompletionAcceptedNotificationSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "is_read": {
+            "type": "boolean"
+          },
+          "kind": {
+            "const": "completion_accepted",
+            "type": "string"
+          },
+          "task_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "task_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "task_id",
+          "task_name",
+          "body",
+          "created_at",
+          "is_read"
+        ],
+        "type": "object"
+      },
+      "CompletionRequestedNotificationSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "is_read": {
+            "type": "boolean"
+          },
+          "kind": {
+            "const": "completion_requested",
+            "type": "string"
+          },
+          "task_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "task_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "task_id",
+          "task_name",
+          "body",
+          "created_at",
+          "is_read"
+        ],
+        "type": "object"
       },
       "ConvertResultSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -74564,6 +74730,8 @@
           "comment",
           "mention",
           "deadline",
+          "completion_requested",
+          "completion_accepted",
           "overdue_digest",
           "charter_review",
           "charter_approved",
@@ -74731,6 +74899,88 @@
                         },
                         "kind": {
                           "const": "deadline",
+                          "type": "string"
+                        },
+                        "task_id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "task_name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "id",
+                        "task_id",
+                        "task_name",
+                        "body",
+                        "created_at",
+                        "is_read"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "body": {
+                          "type": "string"
+                        },
+                        "created_at": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "is_read": {
+                          "type": "boolean"
+                        },
+                        "kind": {
+                          "const": "completion_requested",
+                          "type": "string"
+                        },
+                        "task_id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "task_name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "id",
+                        "task_id",
+                        "task_name",
+                        "body",
+                        "created_at",
+                        "is_read"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "body": {
+                          "type": "string"
+                        },
+                        "created_at": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "is_read": {
+                          "type": "boolean"
+                        },
+                        "kind": {
+                          "const": "completion_accepted",
                           "type": "string"
                         },
                         "task_id": {
@@ -75162,6 +75412,88 @@
               },
               "kind": {
                 "const": "deadline",
+                "type": "string"
+              },
+              "task_id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "task_name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "id",
+              "task_id",
+              "task_name",
+              "body",
+              "created_at",
+              "is_read"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "body": {
+                "type": "string"
+              },
+              "created_at": {
+                "type": "string"
+              },
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "is_read": {
+                "type": "boolean"
+              },
+              "kind": {
+                "const": "completion_requested",
+                "type": "string"
+              },
+              "task_id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "task_name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "id",
+              "task_id",
+              "task_name",
+              "body",
+              "created_at",
+              "is_read"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "body": {
+                "type": "string"
+              },
+              "created_at": {
+                "type": "string"
+              },
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "is_read": {
+                "type": "boolean"
+              },
+              "kind": {
+                "const": "completion_accepted",
                 "type": "string"
               },
               "task_id": {
@@ -86322,6 +86654,8 @@
           "comment",
           "mention",
           "deadline",
+          "completion_requested",
+          "completion_accepted",
           "tasks.assigned"
         ],
         "type": "string"
