@@ -377,12 +377,13 @@ class AccessAdminRolesController(http.Controller):
                 missing = set(permission.dependency_ids.mapped('key')) - selected
                 if missing:
                     needed = request.env['liwan.access.permission'].search([('key', '=', sorted(missing)[0])], limit=1)
-                    message = 'تحتاج صلاحية «%s» إلى صلاحية «%s». أضفها أولًا.' % (permission.name_ar, needed.name_ar)
+                    english = (request.env.lang or '').startswith('en')
                     code = 'missing_dependency'
-                    raise LiwanAccessRule(
-                        code, message, field='permissions',
-                        details={'permission': permission.key, 'missing': needed.key},
-                    )
+                    raise LiwanAccessRule(code, field='permissions', details={
+                        'permission': permission.key, 'missing': needed.key,
+                        'permission_name': (english and permission.name_en) or permission.name_ar,
+                        'missing_name': (english and needed.name_en) or needed.name_ar,
+                    })
             vals['permission_ids'] = [(6, 0, records.ids)]
         if not partial:
             vals.setdefault('type', 'custom')

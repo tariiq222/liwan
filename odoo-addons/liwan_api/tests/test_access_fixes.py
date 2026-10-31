@@ -73,14 +73,18 @@ class TestAccessFixes(LiwanApiCase):
         self.assertEqual((twice.status_code, twice.json()['code']), (409, 'user_already_active'))
         self.assertEqual(len(self._events('user.reactivated')), 1)
 
-    def test_a_missing_dependency_names_the_missing_permission_in_arabic(self):
+    def test_a_missing_dependency_names_both_permissions_in_details(self):
         self._admin()
         response = self._role('دور ناقص', permissions=('access.users.read',))
         body = response.json()
         self.assertEqual((response.status_code, body['code']), (422, 'missing_dependency'))
-        names = {p.key: p.name_ar for p in self.env['liwan.access.permission'].search([('key', 'in', ['access.users.read', 'access.roles.read'])])}
-        self.assertEqual(body['message'], 'تحتاج صلاحية «%s» إلى صلاحية «%s». أضفها أولًا.' % (names['access.users.read'], names['access.roles.read']))
-        self.assertEqual(body['details'], {'permission': 'access.users.read', 'missing': 'access.roles.read'})
+        self.assertEqual(body['message'], 'أضف الصلاحيات التابعة أولًا.')
+        names = {p.key: p for p in self.env['liwan.access.permission'].search([('key', 'in', ['access.users.read', 'access.roles.read'])])}
+        details = body['details']
+        self.assertEqual((details['permission'], details['missing']), ('access.users.read', 'access.roles.read'))
+        for key, name in (('access.users.read', details['permission_name']), ('access.roles.read', details['missing_name'])):
+            permission = names[key]
+            self.assertIn(name, {permission.name_ar, permission.name_en or permission.name_ar})
 
     def test_the_user_version_ignores_unrelated_policy_changes(self):
         target = new_test_user(self.env, login='access_fix_version', groups='liwan_core.group_employee')
