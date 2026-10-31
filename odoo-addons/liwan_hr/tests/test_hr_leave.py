@@ -215,6 +215,21 @@ class TestHrLeave(LiwanHrCase):
         self.assertEqual((res.status_code, res.json()['field']), (422, 'state'))
         self.assertEqual(self.env['hr.leave'].browse(leave_id).state, 'refuse')
 
+    def test_a_refused_request_cannot_be_cancelled_or_refused_again(self):
+        self._as_staff()
+        leave_id = self._request(days=1).json()['id']
+        self._as_manager()
+        self.api('POST', f'/api/v1/hr/leave/requests/{leave_id}/refuse', json={})
+        again = self.api('POST', f'/api/v1/hr/leave/requests/{leave_id}/refuse', json={})
+        self.assertEqual((again.status_code, again.json()['field']), (422, 'state'))
+        self._as_staff()
+        own = self.api('POST', f'/api/v1/hr/leave/requests/{leave_id}/cancel', json={})
+        self.assertEqual((own.status_code, own.json()['field']), (422, 'state'))
+        self._as_manager()
+        direct = self.api('POST', f'/api/v1/hr/leave/requests/{leave_id}/cancel', json={})
+        self.assertEqual((direct.status_code, direct.json()['field']), (422, 'state'))
+        self.assertEqual(self.env['hr.leave'].browse(leave_id).state, 'refuse')
+
     def test_state_filter_takes_several_states(self):
         self._as_staff()
         pending = self._request(days=1).json()['id']
