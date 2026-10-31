@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ChatMessage } from '@liwan/contracts'
 import {
   applyDeleteResult,
+  dropMessage,
   CHAT_PAGE_SIZE,
   CHAT_POLL_MS,
   chatCacheScope,
@@ -123,5 +124,13 @@ describe('applyDeleteResult', () => {
 
   it('drops a message the company removes for good', () => {
     expect(applyDeleteResult(loaded, 2, { mode: 'permanent', message: null }).map(item => item.id)).toEqual([1, 3])
+  })
+})
+
+describe('dropMessage', () => {
+  it('removes the message another participant deleted and keeps the list when it is not loaded', () => {
+    const loaded = [msg(1), msg(2)]
+    expect(dropMessage(loaded, 2).map(item => item.id)).toEqual([1])
+    expect(dropMessage(loaded, 7)).toBe(loaded)
   })
 })

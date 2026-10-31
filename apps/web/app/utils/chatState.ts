@@ -54,6 +54,11 @@ export function applyDeleteResult(current: ChatMessage[], id: number, result: Ch
   return cleared ? current.map(item => item.id === id ? cleared : item) : current.filter(item => item.id !== id)
 }
 
+/** The loaded messages without one that another participant removed for good. */
+export function dropMessage(current: ChatMessage[], id: number): ChatMessage[] {
+  return current.some(item => item.id === id) ? current.filter(item => item.id !== id) : current
+}
+
 export function preserveFailedDraft(sent: string, failed: boolean, next = ''): string {
   return failed ? sent : next
 }

@@ -2,10 +2,12 @@
 import { ChatMessageListSchema, type ChatMessage } from '@liwan/contracts'
 import ChatAttachment from '@/components/chat/ChatAttachment.vue'
 import { ApiError } from '@/composables/useApi'
+import { chatDeletedEvent } from '@/composables/useBus'
 import { formatDate, formatTime } from '@liwan/ui/app/utils/formatDate'
 import { avatarProps } from '@liwan/ui/app/utils/avatarTone'
 import {
   applyDeleteResult,
+  dropMessage,
   CHAT_PAGE_SIZE,
   CHAT_POLL_MS,
   CHAT_REACTIONS,
@@ -33,6 +35,10 @@ const hydrated = useHydrated()
 const toast = useToast()
 const { $api } = useApi()
 const { connected } = useBus()
+// Another participant removed a message for good: the refetch cannot say so, the event does.
+watch(chatDeletedEvent, (event) => {
+  if (event && event.conversationId === props.conversationId) items.value = dropMessage(items.value, event.messageId)
+})
 const { data, isFetching, isError, error, refetch } = useChatMessages(() => props.conversationId, {}, () => props.q || '')
 const { mutateAsync: markRead } = useMarkChatRead(() => props.conversationId)
 const { mutateAsync: patchMessage } = usePatchChatMessage(() => props.conversationId)

@@ -240,8 +240,13 @@ class ChatController(http.Controller):
     def delete_message(self, conversation_id, message_id, **payload):
         _reject_extra(payload, frozenset())
         channel, message = self._own_message(conversation_id, message_id)
+        deleted_id = message.id
         mode = self._service()._liwan_delete_message(channel, message)
-        self._service()._liwan_notify_channel(channel, 'message_updated')
+        if mode == 'permanent':
+            # An open history keeps the ids a refetch no longer returns, so the removed id travels with the event.
+            self._service()._liwan_notify_channel(channel, 'message_deleted', extra={'message_id': deleted_id})
+        else:
+            self._service()._liwan_notify_channel(channel, 'message_updated')
         # A cleared message keeps its row, so the page gets it back; a removed one is gone.
         return {'mode': mode, 'message': dump_message(message) if mode == 'placeholder' else None}
 
