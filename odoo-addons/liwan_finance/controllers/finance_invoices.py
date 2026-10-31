@@ -157,6 +157,12 @@ def _move_values(parsed, move_type, company):
             'account.journal', [parsed['journal_id']], 'journal_id',
             [*request.env['account.journal']._check_company_domain(company), ('type', '=', _tax_use(move_type))],
         ).id
+    if 'payment_term_id' in parsed:
+        # The terms of the company and the shared ones that come with the chart; None clears the term.
+        values['invoice_payment_term_id'] = parsed['payment_term_id'] and company_records(
+            'account.payment.term', [parsed['payment_term_id']], 'payment_term_id',
+            ['|', ('company_id', '=', False), ('company_id', '=', company.id)],
+        ).id
     if 'currency' in parsed:
         currency = request.env['res.currency'].search([('name', '=', parsed['currency'])], limit=1)
         if not currency:

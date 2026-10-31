@@ -17,6 +17,7 @@ import PartnerPicker from './PartnerPicker.vue'
 import { financeErrorMessage } from '../financeErrors'
 import { financeErrorKey } from './invoiceErrors'
 import { useCreateFinanceInvoice, usePatchFinanceInvoice } from '@/composables/finance/useFinanceInvoices'
+import { useSetupPaymentTerms } from '@/composables/finance/useFinanceRecords'
 
 // The editor of a document: the create panel (a new draft) and the record page's edit mode (the draft's header and
 // lines; the lines sent replace the draft's lines). Numbers stay as typed until validated; taxes follow the account's
@@ -36,6 +37,19 @@ const kind = computed(() => INVOICE_KINDS[props.moveType])
 const create = useCreateFinanceInvoice()
 const patch = usePatchFinanceInvoice()
 const pending = computed(() => create.isPending.value || patch.isPending.value)
+
+const { can } = useAccess()
+const terms = useSetupPaymentTerms({ archived: 'false', limit: 100, offset: 0 }, () => can('finance.payment_terms.read'))
+const NO_TERM = 'none'
+const termItems = computed(() => [
+  { value: NO_TERM, label: t('financeDocuments.form.noPaymentTerm') },
+  ...(terms.data.value?.items ?? []).map(term => ({ value: String(term.id), label: term.name })),
+])
+// A chosen term derives the due date on the server unless a date is typed too, so picking one clears the typed date.
+function pickTerm(value: unknown) {
+  draft.paymentTermId = value === NO_TERM ? null : Number(value)
+  if (draft.paymentTermId) draft.invoiceDateDue = null
+}
 
 const baseline = props.initial ?? emptyInvoiceDraft()
 const draft = reactive<InvoiceFormDraft>(structuredClone(toRaw(baseline)))
@@ -85,12 +99,15 @@ async function submit() {
             :placeholder="t(`financeDocuments.kinds.${moveType}.partnerPlaceholder`)"
           />
         </UFormField>
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="grid gap-4 sm:grid-cols-3">
           <UFormField :label="t('financeDocuments.form.invoiceDate')" name="finance-invoice-date">
             <SharedDateField id="finance-invoice-date" v-model="draft.invoiceDate" :disabled="!hydrated || pending" />
           </UFormField>
+          <UFormField v-if="can('finance.payment_terms.read')" :label="t('financeDocuments.form.paymentTerm')" name="finance-invoice-term">
+            <USelect id="finance-invoice-term" class="w-full" :model-value="draft.paymentTermId ? String(draft.paymentTermId) : NO_TERM" :items="termItems" :disabled="!hydrated || pending" @update:model-value="pickTerm" />
+          </UFormField>
           <UFormField :label="t('financeDocuments.form.dueDate')" name="finance-invoice-due" :error="shown?.dueBeforeDate ? t('financeDocuments.form.dueBeforeDate') : undefined">
-            <SharedDateField id="finance-invoice-due" v-model="draft.invoiceDateDue" :min-value="draft.invoiceDate" :disabled="!hydrated || pending" />
+            <SharedDateField id="finance-invoice-due" v-model="draft.invoiceDateDue" :min-value="draft.invoiceDate" :disabled="!hydrated || pending || !!draft.paymentTermId" />
           </UFormField>
         </div>
         <UFormField :label="t('financeDocuments.form.ref')" name="finance-invoice-ref">

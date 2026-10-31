@@ -113,7 +113,9 @@
       "subtotal": "Subtotal before tax",
       "taxAtSave": "Tax appears after saving",
       "requiredHint": "Fields marked with a star are required.",
-      "createDraft": "Create draft"
+      "createDraft": "Create draft",
+      "paymentTerm": "Payment term",
+      "noPaymentTerm": "No payment term"
     },
     "record": {
       "taxes": "Taxes",

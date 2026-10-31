@@ -90,3 +90,17 @@ describe('editor state', () => {
     expect(lineSubtotal({ quantity: '', priceUnit: '150', discount: '0' })).toBe(0)
   })
 })
+
+describe('payment term in the editor', () => {
+  it('sends the term and leaves the due date to the server', () => {
+    const draft = Object.assign(filled(), { invoiceDate: '2026-04-01', invoiceDateDue: '2026-05-01', paymentTermId: 7 })
+    const body = buildInvoicePatch(draft)
+    expect(body.payment_term_id).toBe(7)
+    expect(body).not.toHaveProperty('invoice_date_due')
+  })
+
+  it('sends a typed due date and no term otherwise', () => {
+    const body = buildInvoicePatch(Object.assign(filled(), { invoiceDateDue: '2026-05-01' }))
+    expect(body).toMatchObject({ invoice_date_due: '2026-05-01', payment_term_id: null })
+  })
+})

@@ -113,7 +113,9 @@
       "subtotal": "المجموع قبل الضريبة",
       "taxAtSave": "تظهر الضريبة بعد الحفظ",
       "requiredHint": "الحقول التي عليها نجمة مطلوبة.",
-      "createDraft": "إنشاء مسودة"
+      "createDraft": "إنشاء مسودة",
+      "paymentTerm": "شرط الدفع",
+      "noPaymentTerm": "بدون شرط دفع"
     },
     "record": {
       "taxes": "الضرائب",

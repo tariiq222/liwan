@@ -18,6 +18,7 @@ export interface InvoiceFormDraft {
   partnerId: number | null
   invoiceDate: string | null
   invoiceDateDue: string | null
+  paymentTermId: number | null
   ref: string
   lines: InvoiceLineDraft[]
 }
@@ -31,7 +32,7 @@ export function newLine(): InvoiceLineDraft {
 }
 
 export function emptyInvoiceDraft(): InvoiceFormDraft {
-  return { partnerId: null, invoiceDate: null, invoiceDateDue: null, ref: '', lines: [newLine()] }
+  return { partnerId: null, invoiceDate: null, invoiceDateDue: null, paymentTermId: null, ref: '', lines: [newLine()] }
 }
 
 function lineFromRecord(line: FinanceInvoiceLine): InvoiceLineDraft {
@@ -53,6 +54,7 @@ export function invoiceDraftFromRecord(invoice: FinanceInvoiceDetail): InvoiceFo
     partnerId: invoice.partner?.id ?? null,
     invoiceDate: invoice.invoice_date,
     invoiceDateDue: invoice.invoice_date_due,
+    paymentTermId: invoice.payment_term?.id ?? null,
     ref: invoice.ref,
     lines: invoice.lines.length ? invoice.lines.map(lineFromRecord) : [newLine()],
   }
@@ -101,7 +103,9 @@ function headerPayload(draft: InvoiceFormDraft) {
   return {
     partner_id: draft.partnerId!,
     invoice_date: draft.invoiceDate,
-    invoice_date_due: draft.invoiceDateDue,
+    // With a payment term the server derives the due date from the invoice date; a typed date is sent only without one.
+    ...(draft.paymentTermId ? {} : { invoice_date_due: draft.invoiceDateDue }),
+    payment_term_id: draft.paymentTermId,
     ref: draft.ref.trim(),
     lines: draft.lines.map(buildLinePayload),
   }
