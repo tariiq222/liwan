@@ -214,7 +214,8 @@
       "reviewHint": "You are recording that you reviewed this computation as it stands now. The record is permanent and any later change makes it out of date.",
       "credential": "Your credential",
       "credentialHelp": "For example your SOCPA licence number. LiwanOS does not verify it.",
-      "confirmReview": "Record the review"
+      "confirmReview": "Record the review",
+      "disclaimerBody": "A simplified Zakat base for management information only. The formula is not a ZATCA filing computation and must be reviewed by a Saudi certified public accountant (CPA) before it is relied on. The rate is 2.5% scaled by 365/354 for a Gregorian fiscal year."
     },
     "mis": {
       "profitLoss": {

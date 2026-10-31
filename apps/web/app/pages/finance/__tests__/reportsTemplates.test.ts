@@ -28,7 +28,8 @@ describe('the finance report pages stay on their templates', () => {
 
   it('draws the Zakat base with its disclaimer always shown above the table', () => {
     const source = read('components/finance/reports/ZakatBaseTable.vue')
-    for (const needle of ['<UAlert', 'color="warning"', 'variant="subtle"', 'report.disclaimer', '<MisLinesTable']) expect(source, needle).toContain(needle)
+    for (const needle of ['<UAlert', 'color="warning"', 'variant="subtle"', 'financeReports.zakat.disclaimerBody', '<MisLinesTable']) expect(source, needle).toContain(needle)
+    expect(source).not.toContain('report.disclaimer')
     expect(source).not.toMatch(/v-if=/)
     expect(source.indexOf('<UAlert')).toBeLessThan(source.indexOf('<MisLinesTable'))
   })
