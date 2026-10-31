@@ -7,6 +7,11 @@ services:
     restart: unless-stopped
     ports: ["80:80", "443:443"]
     environment: { DOMAIN: "${DOMAIN}" }
+    # Non-root image user; the binary's file capability is the only way it binds 80/443.
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    read_only: true
+    tmpfs: ["/tmp", "/config:uid=10002,gid=10002"]
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -24,6 +29,10 @@ services:
       NUXT_AI_SERVICE_URL: "${NUXT_AI_SERVICE_URL:-}"
       NUXT_AI_SERVICE_TOKEN: "${AI_SERVICE_TOKEN:-}"
     expose: ["3000"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp"]
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/login').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
       interval: 5s
@@ -50,6 +59,8 @@ services:
       - ./data/odoo.conf:/etc/odoo/odoo.conf:ro
       - odoo_data:/var/lib/odoo
     expose: ["8069", "8072"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
     healthcheck:
       test: ["CMD", "/opt/venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8069/web/health', timeout=2)"]
       interval: 5s
@@ -73,6 +84,10 @@ services:
       AI_SERVICE_TOKEN: "${AI_SERVICE_TOKEN:-}"
       AI_RUN_RETENTION_DAYS: "${AI_RUN_RETENTION_DAYS:-30}"
     expose: ["8600"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8600/healthz', timeout=2)"]
       interval: 5s
@@ -84,6 +99,12 @@ services:
   db:
     image: postgres:16@sha256:1beaa3084eee2676f20a9cd9928f0bf2c5bf674f8e49f81017912183d377c61c
     restart: unless-stopped
+    # The postgres user owns the data directory in the image, so the entrypoint never needs root.
+    user: postgres
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp", "/var/run/postgresql:uid=999,gid=999"]
     environment:
       POSTGRES_DB: postgres
       POSTGRES_USER: odoo

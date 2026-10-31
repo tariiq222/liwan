@@ -40,7 +40,7 @@ const renewal = computed(() => {
   if (!at || ['cancelled', 'suspended'].includes(sub.value?.state ?? '')) return null
   const days = daysUntilDate(at, new Date())
   const hint = days > 0 ? t('vendor.customers.glance.renewalIn', { days }) : days === 0 ? t('vendor.customers.glance.renewalToday') : t('vendor.customers.glance.renewalLate', { days: -days })
-  return { date: formatLiwanDate(at, locale.value), hint: `${hint} · ${t(sub.value?.auto_renew.enabled ? 'vendor.customers.glance.autoRenewOn' : 'vendor.customers.glance.autoRenewOff')}` }
+  return { date: formatLiwanDate(at), hint: `${hint} · ${t(sub.value?.auto_renew.enabled ? 'vendor.customers.glance.autoRenewOn' : 'vendor.customers.glance.autoRenewOff')}` }
 })
 const lastInvoice = computed(() => props.invoices?.[0] ?? null)
 

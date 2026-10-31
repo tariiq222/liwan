@@ -114,6 +114,7 @@
           "pending_order": null,
           "revision": 1,
           "renewal_at": "2026-12-01",
+          "order_cancelled": false,
           "auto_renew": {
             "enabled": false,
             "consent_at": null,
@@ -195,6 +196,7 @@
           },
           "revision": 0,
           "renewal_at": null,
+          "order_cancelled": false,
           "auto_renew": {
             "enabled": false,
             "consent_at": null,
@@ -1585,6 +1587,7 @@
       "pending_order": null,
       "revision": 1,
       "renewal_at": "2026-12-01",
+      "order_cancelled": false,
       "auto_renew": {
         "enabled": false,
         "consent_at": null,
@@ -1660,6 +1663,7 @@
       },
       "revision": 0,
       "renewal_at": null,
+      "order_cancelled": false,
       "auto_renew": {
         "enabled": false,
         "consent_at": null,

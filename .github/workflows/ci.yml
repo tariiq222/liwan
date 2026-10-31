@@ -12,12 +12,12 @@ on:
   push:
     branches: [main]
   schedule:
-    # Nightly full run of all twelve stages on main (00:17 UTC = 03:17 Asia/Riyadh, off the top of the hour).
+    # Nightly full run of all thirteen stages on main (00:17 UTC = 03:17 Asia/Riyadh, off the top of the hour).
     - cron: '17 0 * * *'
   workflow_dispatch:
     inputs:
       full:
-        description: Run all twelve stages instead of the ones the change can affect
+        description: Run all thirteen stages instead of the ones the change can affect
         type: boolean
         default: false
 
@@ -382,6 +382,44 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  # The real-Odoo Playwright specs on a scratch database seeded through Odoo (deploy/ci/e2e-odoo.sh). Slow, so a pull
+  # request leaves it to the push to main, the nightly run and a full dispatch (tools/ci_scope.py DEFERRED_STAGES).
+  e2e-odoo:
+    needs: scope
+    if: contains(fromJSON(needs.scope.outputs.stages), 'e2e-odoo')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: odoo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U odoo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          playwright: 'true'
+          odoo: 'true'
+      - run: deploy/ci/e2e-odoo.sh
+      - name: Upload the e2e-odoo diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-odoo-diagnostics
+          path: |
+            apps/web/test-results/
+            apps/web/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+
   rtl-stories:
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'rtl-stories')
@@ -397,7 +435,7 @@ jobs:
   ci-result:
     # Runs for a draft too and fails there (scope did not run), so a skipped check never reads as a pass.
     if: always()
-    needs: [scope, static, ai-service, control-plane, vendor-admin, odoo, odoo-app-standalone, odoo-bridge, upgrade, restore-drill, image, e2e-mock, rtl-stories]
+    needs: [scope, static, ai-service, control-plane, vendor-admin, odoo, odoo-app-standalone, odoo-bridge, upgrade, restore-drill, image, e2e-mock, e2e-odoo, rtl-stories]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

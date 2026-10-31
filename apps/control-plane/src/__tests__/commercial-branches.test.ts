@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Pool } from 'pg'
 import { randomUUID } from 'node:crypto'
 import { migrate } from '../db.js'
-import { listBranches, requestedExtraBranches, reserveBranchesForOrder, archiveBranches, activateBranches } from '../commercial/branches.js'
+import { listBranches, requestedExtraBranches, reserveBranchesForOrder, archiveBranches, activateBranches, restoreBranchesForOrder } from '../commercial/branches.js'
 import { getUsage, recordUsage } from '../commercial/usage.js'
 import { setup, client, monthly, money } from './commercial-helpers.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
@@ -90,6 +90,39 @@ suite('commercial branches & usage (B4)', () => {
     expect(sum.items.find(b => b.id === b2.id)).toMatchObject({ state: 'archived' })
     expect(sum.items.find(b => b.id === b2.id)!.archived_at).not.toBeNull()
     expect(sum.paid).toBe(0)
+  })
+
+  describe('restore', () => {
+    async function archived() {
+      const { s, t } = await newSub(1); const o = randomUUID()
+      const [b1, b2] = await tx(c => reserveBranchesForOrder(c, { order_id: o, subscription_id: s, tenant_id: t, adds: [{ name: 'k' }, { name: 'l' }], quoted_paid: 1, operation_id: 'o' }))
+      await tx(c => activateBranches(c, { order_id: o, bindings: [{ branch_id: b1.id, odoo_company_id: 5 }, { branch_id: b2.id, odoo_company_id: 6 }] }))
+      await tx(c => archiveBranches(c, { subscription_id: s, ids: [b2.id] }))
+      return { s, t, b1, b2 }
+    }
+    it('counts a restored branch against capacity again, keeps its Odoo company, and binds it on the receipt', async () => {
+      const { s, b2 } = await archived()
+      expect(await requestedExtraBranches(pool, { subscription_id: s, add: 0, archive: [], restore: [b2.id] })).toBe(2)
+      const o = randomUUID()
+      const [restored] = await tx(c => restoreBranchesForOrder(c, { order_id: o, subscription_id: s, ids: [b2.id], quoted_paid: 1, operation_id: o }))
+      expect(restored).toMatchObject({ state: 'pending', odoo_company_id: 6, archived_at: null, order_id: o, billing: 'paid' })
+      const [active] = await tx(c => activateBranches(c, { order_id: o, bindings: [{ branch_id: b2.id, odoo_company_id: 6 }] }))
+      expect(active).toMatchObject({ state: 'active', odoo_company_id: 6 })
+    })
+    it('refuses a branch that is not archived, an unknown one, and a name a newer branch took', async () => {
+      const { s, t, b1, b2 } = await archived()
+      await expect(requestedExtraBranches(pool, { subscription_id: s, add: 0, archive: [], restore: [b1.id] })).rejects.toMatchObject({ status: 409, code: 'branch_not_archived' })
+      await expect(requestedExtraBranches(pool, { subscription_id: s, add: 0, archive: [], restore: [randomUUID()] })).rejects.toMatchObject({ status: 404, code: 'branch_not_found' })
+      await tx(c => reserveBranchesForOrder(c, { order_id: randomUUID(), subscription_id: s, tenant_id: t, adds: [{ name: 'L' }], quoted_paid: 1, operation_id: 'n' }))
+      await expect(requestedExtraBranches(pool, { subscription_id: s, add: 0, archive: [], restore: [b2.id] })).rejects.toMatchObject({ status: 409, code: 'branch_name_taken' })
+      // The database also refuses it if the name is taken between the quote and the order.
+      await expect(tx(c => restoreBranchesForOrder(c, { order_id: randomUUID(), subscription_id: s, ids: [b2.id], quoted_paid: 2, operation_id: 'r' }))).rejects.toMatchObject({ code: 'branch_name_taken' })
+    })
+    it('answers requote_required when the paid count moved since the quote, and rolls back', async () => {
+      const { s, b2 } = await archived()
+      await expect(tx(c => restoreBranchesForOrder(c, { order_id: randomUUID(), subscription_id: s, ids: [b2.id], quoted_paid: 0, operation_id: 'r' }))).rejects.toMatchObject({ status: 409, code: 'requote_required' })
+      expect((await listBranches(pool, s)).items.find(b => b.id === b2.id)).toMatchObject({ state: 'archived' })
+    })
   })
 
   it('new order reserves pending extras using target allowances, excluding HQ from paid count', async () => {

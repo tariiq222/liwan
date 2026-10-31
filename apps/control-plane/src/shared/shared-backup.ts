@@ -124,6 +124,9 @@ export async function finalizeVerifiedRestore(client: PoolClient, job: SharedJob
   if (job.operation !== 'restore') return
   const consumed = await client.query('UPDATE shared_restore_approvals SET consumed_at=clock_timestamp() WHERE id=$1 AND consumed_at IS NULL RETURNING id,target_database', [job.approvalId])
   if (!consumed.rowCount) return
+  // The restored database carries whatever status it was saved with: the worker asserts the subscription's again.
+  await client.query(`UPDATE subscriptions s SET tenant_status_pushed=NULL,tenant_status_failures=0,tenant_status_next_at=NULL
+    FROM shared_registry_bindings b WHERE b.control_tenant_id=s.tenant_id AND b.database_name=$1`, [job.binding.database])
   await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
     [randomUUID(), actorLabel(actor), 'shared_restore.completed', job.approvalId,
       'Verified restore finalized from the job receipt after the effect stage lost its control transaction',

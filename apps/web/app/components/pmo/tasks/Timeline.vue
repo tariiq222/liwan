@@ -28,7 +28,7 @@ function initials(name: string): string {
 }
 
 function changeMessage(change: { field: string; label: string; old: unknown; new: unknown }): string {
-  return formatTimelineChange(change, locale.value, t)
+  return formatTimelineChange(change, t)
 }
 </script>
 

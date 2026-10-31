@@ -7,8 +7,8 @@ import { orderFulfillmentBadge, orderPaymentBadge } from '@/utils/vendorSubscrip
 
 // What changed on the subscription, newest first, from the revisions the control plane returns.
 const props = defineProps<{ subscription: SubscriptionView; planName: (revisionId: string) => string | undefined }>()
-const { t, locale } = useI18n()
-const when = (value: string) => formatLiwanDateTime(value, locale.value)
+const { t } = useI18n()
+const when = (value: string) => formatLiwanDateTime(value)
 const events = computed(() => {
   const { applied, target, pending_order: order } = props.subscription
   const list: { key: string; at: string; icon: string; title: string; detail: string; badges?: { tone: StatusTone; label: string }[] }[] = []

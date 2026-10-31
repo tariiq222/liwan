@@ -6,7 +6,7 @@ import { bellKindFor } from '@/modules/surfaces'
 import { declaredBellTitle } from '@/utils/bellTitle'
 import { formatNotificationTimestamp, genericNotificationText, isUserWrittenNotificationKind, notificationBody, notificationPreviewCaptionKey } from '@/utils/notificationPresentation'
 
-const { t, locale, localeProperties } = useI18n()
+const { t, localeProperties } = useI18n()
 const toast = useToast()
 const hydrated = useHydrated()
 const open = ref(false)
@@ -18,7 +18,7 @@ const { mutateAsync: markRead, isPending } = useMarkNotificationRead()
 const items = computed(() => data.value?.items.slice(0, 5) ?? [])
 const notificationTimeZone = computed(() => me.value?.tz || 'UTC')
 const notificationTimestamps = computed(() => new Map(
-  items.value.map(item => [item.id, formatNotificationTimestamp(item.created_at, locale.value, notificationTimeZone.value)] as const),
+  items.value.map(item => [item.id, formatNotificationTimestamp(item.created_at, notificationTimeZone.value)] as const),
 ))
 watch(() => route.fullPath, () => { open.value = false })
 

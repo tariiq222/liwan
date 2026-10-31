@@ -167,3 +167,12 @@ export function orderOutcome(order: Pick<Order, 'payment_state' | 'fulfillment_s
 export function trialDaysRemaining(endsAt: string | null | undefined, now: Date = new Date()): number | null {
   return endsAt ? Math.max(0, daysBetween(riyadhDate(now), riyadhDate(endsAt))) : null
 }
+
+/**
+ * Keeps only the answer to the newest request: every `next()` supersedes the earlier tickets, so a slow response for an
+ * earlier selection is dropped instead of replacing the one the customer is looking at.
+ */
+export function latestOnly() {
+  let latest = 0
+  return { next: () => ++latest, isCurrent: (ticket: number) => ticket === latest, cancel: () => { latest++ } }
+}

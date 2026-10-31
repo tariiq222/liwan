@@ -2,6 +2,7 @@
 import { formatLiwanDate } from '@liwan/ui/app/composables/calendarDate'
 import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
+import { commercialErrorKey } from '@/utils/vendorCommercial'
 import { cancellationErrorKey, branchSummaryText, customersReturnTo, isNotAvailable, subscriptionDisplayState } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
@@ -112,6 +113,26 @@ async function createPayLink() {
     payLinkFailed.value = !attempt.redirect_url
   } catch { payLink.value = null; payLinkFailed.value = true } finally { payLinkBusy.value = false }
 }
+// Suspending stops the workspace's users now; resuming lets them back in. Both need a reason and a fresh passkey confirmation (the API asks).
+const suspensionAction = ref<'suspend' | 'resume' | null>(null)
+const suspensionReason = ref('')
+const suspensionBusy = ref(false)
+const suspensionFailure = ref<string | undefined>()
+const canSuspend = computed(() => can('vendor.subscriptions.manage') && !error.value && ['active', 'past_due', 'trialing'].includes(view.value?.state ?? ''))
+const canResume = computed(() => can('vendor.subscriptions.manage') && !error.value && view.value?.state === 'suspended')
+const validSuspensionReason = computed(() => suspensionReason.value.trim().length >= 3 && suspensionReason.value.trim().length <= 1000)
+function closeSuspension() { suspensionAction.value = null; suspensionReason.value = ''; suspensionFailure.value = undefined }
+async function changeSuspension() {
+  const action = suspensionAction.value
+  if (!hydrated.value || suspensionBusy.value || !action || !view.value || !validSuspensionReason.value) return
+  suspensionBusy.value = true; suspensionFailure.value = undefined
+  try {
+    if (action === 'suspend') await api.suspendSubscription(view.value.id, suspensionReason.value)
+    else await api.resumeSubscription(view.value.id, suspensionReason.value)
+    closeSuspension()
+    await refreshCancellationState()
+  } catch (cause) { suspensionFailure.value = t(commercialErrorKey(cause)) } finally { suspensionBusy.value = false }
+}
 async function refreshCancellationState() {
   await refresh()
   await refreshExtra()
@@ -187,6 +208,15 @@ async function cancelPendingOrder() {
               </template>
             </VendorSubscriptionSummary>
             <VendorTrialStartPanel v-if="canStartTrial" :customer-id="id" :plans="extra?.plans.value?.items ?? []" class="mt-4" @done="async () => { await refresh(); await refreshExtra() }" />
+            <div v-if="canSuspend || canResume" class="mt-4 space-y-3" data-testid="suspension-actions">
+              <UAlert v-if="view?.state === 'suspended'" color="warning" variant="subtle" icon="i-lucide-pause-circle" :title="t('vendor.customers.suspension.suspendedNotice')" />
+              <UAlert v-if="suspensionFailure" color="error" variant="subtle" role="alert" :title="suspensionFailure" />
+              <SharedInlineConfirm v-if="suspensionAction" :title="t(`vendor.customers.suspension.${suspensionAction}Title`)" :description="t(`vendor.customers.suspension.${suspensionAction}Hint`)" :confirm-label="t(`vendor.customers.suspension.${suspensionAction}`)" :color="suspensionAction === 'suspend' ? 'error' : 'primary'" :pending="suspensionBusy" :disabled="!hydrated || suspensionBusy || !validSuspensionReason" @confirm="changeSuspension" @cancel="closeSuspension">
+                <UFormField :label="t('vendor.customers.suspension.reason')" required class="mt-3"><UTextarea v-model="suspensionReason" :maxlength="1000" :disabled="!hydrated || suspensionBusy" class="w-full" /></UFormField>
+              </SharedInlineConfirm>
+              <UButton v-else-if="canSuspend" color="error" variant="outline" size="sm" icon="i-lucide-pause" :disabled="!hydrated" data-testid="suspend-subscription" @click="suspensionAction = 'suspend'">{{ t('vendor.customers.suspension.suspend') }}</UButton>
+              <UButton v-else color="neutral" variant="outline" size="sm" icon="i-lucide-play" :disabled="!hydrated" data-testid="resume-subscription" @click="suspensionAction = 'resume'">{{ t('vendor.customers.suspension.resume') }}</UButton>
+            </div>
             <VendorTrialPanel v-if="view?.state === 'trialing'" :subscription="view" class="mt-4" @done="async () => { await refresh(); await refreshExtra() }" />
             <p v-if="view?.pending_order && can('vendor.subscriptions.manage')" class="mt-3 text-sm text-muted">{{ t('vendor.customers.changeBlocked') }}</p>
             <UAlert v-if="cancelFailure" class="mt-3" color="error" variant="subtle" :title="cancelFailure" />
@@ -224,7 +254,7 @@ async function cancelPendingOrder() {
             <li v-for="i in invoices" :key="i.id" class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-3" data-testid="customer-invoice">
               <div class="min-w-0">
                 <NuxtLink :to="{ path: `/invoices/${encodeURIComponent(i.id)}`, query: { returnTo: route.fullPath } }" class="font-medium hover:underline">{{ i.number ?? t('vendor.invoices.draftNumber') }}</NuxtLink>
-                <p class="text-xs text-muted">{{ t(`vendor.invoices.kind.${i.kind}`) }} · <bdi dir="ltr" class="tabular-nums">{{ formatLiwanDate(i.period_start, locale) }} → {{ formatLiwanDate(i.period_end, locale) }}</bdi></p>
+                <p class="text-xs text-muted">{{ t(`vendor.invoices.kind.${i.kind}`) }} · <bdi dir="ltr" class="tabular-nums">{{ formatLiwanDate(i.period_start) }} → {{ formatLiwanDate(i.period_end) }}</bdi></p>
               </div>
               <div class="flex items-center gap-3">
                 <bdi dir="ltr" class="font-semibold tabular-nums">{{ formatCommercialMoney(i.total, locale) }}</bdi>
@@ -267,5 +297,5 @@ async function cancelPendingOrder() {
         </template>
       </div>
 </SharedRecordPage>
-  <SharedUnsavedChanges v-if="!isChild" :dirty="Boolean(cancelReason.trim()) || operationsDirty" guard-route-updates />
+  <SharedUnsavedChanges v-if="!isChild" :dirty="Boolean(cancelReason.trim()) || Boolean(suspensionReason.trim()) || operationsDirty" guard-route-updates />
 </template>

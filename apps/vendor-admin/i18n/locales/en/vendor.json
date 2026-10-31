@@ -809,7 +809,7 @@
         "payload_too_large": "The request is too large.",
         "unauthorized": "Session expired. Sign in again.",
         "vendor_unavailable": "Vendor service is temporarily unavailable. Try later.",
-        "method_not_allowed": "Method not allowed.", "tenant_upgrade_required": "This tenant has not been upgraded and cannot store the commercial expiry. Upgrade the Odoo image, then repeat the action.", "tenant_binding_unavailable": "No enabled tenant binding exists for this subscription, so the trial date cannot be pushed. Fix the binding and repeat.", "trial_order_unavailable": "No applied order is available to attach the date change to. Wait for fulfilment, then repeat.", "trial_required_first": "A paid first order cannot be placed for a customer with no workspace yet. Start the trial instead; the customer pays from inside their workspace.", "trial_already_used": "This customer has already used their trial.", "trial_not_available": "A trial can only start before the customer has an active subscription.", "trial_disabled": "The selected plan does not offer a trial."
+        "method_not_allowed": "Method not allowed.", "tenant_upgrade_required": "This tenant has not been upgraded and cannot store the commercial expiry. Upgrade the Odoo image, then repeat the action.", "tenant_binding_unavailable": "No enabled tenant binding exists for this subscription, so the trial date cannot be pushed. Fix the binding and repeat.", "trial_not_applied": "This trial's workspace is not active yet, so there is no invoice to issue. Wait for activation, then repeat.", "subscription_not_suspendable": "This subscription cannot be suspended in its current state.", "subscription_not_suspended": "This subscription is not suspended.", "trial_order_unavailable": "No applied order is available to attach the date change to. Wait for fulfilment, then repeat.", "trial_required_first": "A paid first order cannot be placed for a customer with no workspace yet. Start the trial instead; the customer pays from inside their workspace.", "trial_already_used": "This customer has already used their trial.", "trial_not_available": "A trial can only start before the customer has an active subscription.", "trial_disabled": "The selected plan does not offer a trial."
       },
       "keys": {
         "users_limit": "Users",
@@ -982,6 +982,16 @@
         "cadence": "Billing cadence",
         "pendingOrder": "This subscription has a pending order. Review its status on the customer page before placing another order."
       },
+      "suspension": {
+        "suspend": "Suspend subscription",
+        "resume": "Resume subscription",
+        "suspendTitle": "Suspend this subscription now?",
+        "suspendHint": "Every user of the workspace is refused at sign-in with the suspension message. Data is kept, and a payment does not lift a suspension ordered here; only resuming from here does.",
+        "resumeTitle": "Resume this subscription?",
+        "resumeHint": "The workspace users can work again. If an invoice is overdue, a fresh grace period starts before collection can stop it again.",
+        "reason": "Reason (3-1000 characters)",
+        "suspendedNotice": "The subscription is suspended: workspace users cannot sign in."
+      },
       "cancelOrder": {
         "action": "Cancel pending order",
         "title": "Cancel this unpaid order?",
@@ -1037,7 +1047,8 @@
           "change": "Change",
           "renewal": "Renewal",
           "branch_add": "Branch added",
-          "branch_archive": "Branch archived"
+          "branch_archive": "Branch archived",
+          "branch_restore": "Branch restored"
         },
         "due": "Due now",
         "created": "Ordered on"

@@ -10,6 +10,8 @@ const server = createGuard({
   releaseRoutesDir: process.env.LIWAN_RELEASE_ROUTES_DIR,
   releaseAssetsDir: process.env.LIWAN_RELEASE_ASSETS_DIR,
   proxyToken: process.env.LIWAN_SHARED_PROXY_TOKEN,
+  // The LiwanOS public host (host only, no scheme) that serves the payment-done return for customers with no tenant yet.
+  prospectHost: process.env.LIWAN_PROSPECT_HOST || undefined,
   keys: JSON.parse(process.env.LIWAN_SESSION_KEYS ?? '{}'),
   activeKid: process.env.LIWAN_SESSION_ACTIVE_KID,
   odooUrl: process.env.LIWAN_GUARD_ODOO_URL,
