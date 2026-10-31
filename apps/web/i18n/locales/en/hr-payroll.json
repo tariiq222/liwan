@@ -484,6 +484,44 @@
       "conflict": "Someone else changed these settings while you were editing. Your draft is kept; reload to review the latest values before saving.",
       "reload": "Reload",
       "reloadError": "The latest values could not be reloaded. Try again."
+    },
+    "audit": {
+      "title": "Payroll audit trail",
+      "countTag": "No events | 1 event | {count} events",
+      "footer": "No events | Showing {shown} of 1 event | Showing {shown} of {total} events",
+      "empty": "No events in the audit trail yet.",
+      "forbidden": "The payroll audit trail is available to holders of its read permission only.",
+      "filters": {
+        "action": "Action",
+        "allActions": "All actions",
+        "dateFrom": "From date",
+        "dateTo": "To date"
+      },
+      "columns": {
+        "time": "Time",
+        "actor": "Performed by",
+        "action": "Action",
+        "record": "Record",
+        "changes": "Changes"
+      },
+      "change": "{field}: {from} → {to}",
+      "actions": {
+        "payroll_settings_changed": "Payroll settings changed",
+        "gosi_rate_created": "GOSI rate added",
+        "gosi_rate_changed": "GOSI rate changed",
+        "gosi_rate_deleted": "GOSI rate deleted",
+        "bank_profile_created": "Salary file profile created",
+        "bank_profile_changed": "Salary file profile changed",
+        "bank_profile_deleted": "Salary file profile deleted",
+        "eos_case_changed": "End-of-service case changed",
+        "settlement_saved": "Settlement saved",
+        "settlement_confirmed": "Settlement confirmed",
+        "compensation_changed": "Compensation changed",
+        "run_inputs_changed": "Run inputs changed",
+        "run_approved": "Run approved",
+        "run_cancelled": "Run cancelled",
+        "payment_file_generated": "Payment file generated"
+      }
     }
   }
 }

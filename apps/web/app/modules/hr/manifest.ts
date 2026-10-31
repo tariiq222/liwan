@@ -84,6 +84,7 @@ const manifest: AppManifest = {
     parts: [
       { id: 'leave', labelKey: 'hr.leaveSettings.title', icon: 'i-lucide-calendar-x', capability: 'hr.leave.config' },
       { id: 'payroll', labelKey: 'hrPayroll.settings.title', icon: 'i-lucide-settings-2', capability: 'hr.payroll.read' },
+      { id: 'audit', labelKey: 'hrPayroll.audit.title', icon: 'i-lucide-history', capability: 'hr.payroll.audit.read', to: '/settings/apps/hr/audit' },
       { id: 'shifts', labelKey: 'hr.shiftSettings.title', icon: 'i-lucide-calendar-clock', capability: 'hr.shifts.manage' },
       { id: 'branch-access', labelKey: 'access.branches.strict.hr.title', icon: 'i-lucide-git-branch', capability: 'hr.employees.manage' },
     ],

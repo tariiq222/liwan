@@ -484,6 +484,44 @@
       "conflict": "غيّر مستخدم آخر هذه الإعدادات أثناء تعديلك. احتُفظ بمسودتك؛ أعد التحميل لمراجعة أحدث قيمة قبل الحفظ.",
       "reload": "إعادة التحميل",
       "reloadError": "تعذّرت إعادة تحميل أحدث قيمة. حاول مرة أخرى."
+    },
+    "audit": {
+      "title": "سجل تدقيق الرواتب",
+      "countTag": "لا أحداث | حدث واحد | حدثان | {count} أحداث | {count} حدثًا | {count} حدث",
+      "footer": "لا أحداث | عرض {shown} من حدث واحد | عرض {shown} من حدثين | عرض {shown} من {total} أحداث | عرض {shown} من {total} حدثًا | عرض {shown} من {total} حدث",
+      "empty": "لا توجد أحداث في السجل بعد.",
+      "forbidden": "سجل تدقيق الرواتب متاح لمن يملك صلاحية قراءته فقط.",
+      "filters": {
+        "action": "العملية",
+        "allActions": "كل العمليات",
+        "dateFrom": "من تاريخ",
+        "dateTo": "إلى تاريخ"
+      },
+      "columns": {
+        "time": "الوقت",
+        "actor": "المنفّذ",
+        "action": "العملية",
+        "record": "السجل",
+        "changes": "التغييرات"
+      },
+      "change": "{field}: {from} ← {to}",
+      "actions": {
+        "payroll_settings_changed": "تغيير إعدادات الرواتب",
+        "gosi_rate_created": "إضافة نسبة تأمينات",
+        "gosi_rate_changed": "تعديل نسبة تأمينات",
+        "gosi_rate_deleted": "حذف نسبة تأمينات",
+        "bank_profile_created": "إنشاء ملف راتب بنكي",
+        "bank_profile_changed": "تعديل ملف راتب بنكي",
+        "bank_profile_deleted": "حذف ملف راتب بنكي",
+        "eos_case_changed": "تغيير حالة نهاية الخدمة",
+        "settlement_saved": "حفظ تسوية",
+        "settlement_confirmed": "تأكيد تسوية",
+        "compensation_changed": "تعديل تعويضات",
+        "run_inputs_changed": "تعديل مدخلات مسير",
+        "run_approved": "اعتماد مسير",
+        "run_cancelled": "إلغاء مسير",
+        "payment_file_generated": "إنشاء ملف رواتب"
+      }
     }
   }
 }
