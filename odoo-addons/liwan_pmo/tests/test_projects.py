@@ -253,10 +253,11 @@ class TestProjects(LiwanPmoCase):
         self.assertEqual((res.status_code, res.json()['code']), (403, 'forbidden'))
 
     def test_archived_project_is_read_from_its_link_by_members_only(self):
+        # The shared project already holds tasks of api_emp, so a project of its own has no member but api_mgr.
+        project = self.env['project.project'].create({'name': 'Archived alone', 'company_id': self.env.company.id})
         self.authenticate('api_mgr', 'api_mgr_pass_123')
-        self.assertEqual(self.api('POST', f'/api/v1/projects/{self.project.id}/archive').status_code, 200)
-        url = f'/api/v1/projects/{self.project.id}'
-        # api_mgr manages the PMO; api_emp holds none of the project's tasks until one is assigned.
+        self.assertEqual(self.api('POST', f'/api/v1/projects/{project.id}/archive').status_code, 200)
+        url = f'/api/v1/projects/{project.id}'
         for path in (url, f'{url}/milestones'):
             self.assertEqual(self.api('GET', path).status_code, 200, path)
         self.authenticate('api_emp', 'api_emp_pass_123')
@@ -264,7 +265,7 @@ class TestProjects(LiwanPmoCase):
             refused = self.api('GET', path)
             self.assertEqual((refused.status_code, refused.json()['code']), (404, 'not_found'), path)
         self.env['project.task'].create({
-            'name': 'Held by Sara', 'project_id': self.project.id, 'user_ids': [(4, self.employee.id)],
+            'name': 'Held by Sara', 'project_id': project.id, 'user_ids': [(4, self.employee.id)],
         })
         read = self.api('GET', url)
         self.assertEqual((read.status_code, read.json()['active']), (200, False))

@@ -200,9 +200,6 @@ class TestOperationsWorkflow(LiwanApiCase):
         record.invalidate_recordset()
         self.assertEqual((record.state, record.revision, record.execution_count, record.description), ('pending', 2, 0, 'Original description'))
         self.assertEqual(record.review_ids.sorted('sequence').mapped('status'), ['approved', 'pending'])
-        failure = record.event_ids.filtered(lambda event: event.kind == 'execution_failed')
-        self.assertEqual(len(failure), 1)
-        self.assertFalse(failure.comment, 'the history row is worded by its kind, not by a stored sentence')
 
     def test_a_failed_execution_answers_a_fixed_message_without_the_engine_text(self):
         record = self._pending()
@@ -216,6 +213,9 @@ class TestOperationsWorkflow(LiwanApiCase):
         response = self.api('POST', f'/api/v1/operations/requests/{record.id}/approve', {'revision': 2})
         self.assertEqual((response.status_code, response.json()['code']), (422, 'execution_failed'))
         self.assertEqual(response.json()['message'], 'The request could not be completed; the last approval was not saved.')
+        failure = self.env['liwan.operation.event'].search([('request_id', '=', record.id), ('kind', '=', 'execution_failed')])
+        self.assertEqual(len(failure), 1)
+        self.assertFalse(failure.comment, 'the history row is worded by its kind, not by a stored sentence')
 
     def test_process_reconfiguration_does_not_change_submitted_reviewers(self):
         record = self._pending()

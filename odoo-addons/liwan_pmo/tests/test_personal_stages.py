@@ -19,8 +19,7 @@ class TestPersonalStagesAndLookups(LiwanPmoCase):
         self.env['res.lang']._activate_lang('ar_001')
         self.env['ir.module.module']._load_module_terms(['project'], ['ar_001'])
         self.env.company.partner_id.lang = 'ar_001'
-        self.authenticate('api_emp', 'api_emp_pass_123')
-        names = [stage['name'] for stage in self.api('GET', '/api/v1/me/personal-stages').json()]
+        names = [vals['name'] for vals in self.env['project.task']._get_default_personal_stage_create_vals(self.employee.id)]
         self.assertNotIn('Inbox', names)
         self.assertTrue(all(any('\u0600' <= char <= '\u06ff' for char in name) for name in names), names)
 

@@ -17,9 +17,7 @@ class PersonalStageController(http.Controller):
             service = request.env['liwan.entitlement.service']
             if not service._liwan_feature_write('pmo.enabled'):
                 return []
-            # Odoo words the defaults in the caller's language; the tenant's language is the one every reader shares.
-            lang = request.env.company.partner_id.lang or request.env.lang
-            vals = request.env['project.task'].with_context(lang=lang)._get_default_personal_stage_create_vals(request.env.uid)
+            vals = request.env['project.task']._get_default_personal_stage_create_vals(request.env.uid)
             # `liwan_core.group_employee` implies `project.group_project_user`, whose ACL
             # owns create on `project.task.type`, so the caller's own environment is enough.
             stages = Stage.with_context(default_project_ids=False).create(vals)

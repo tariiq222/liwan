@@ -23,6 +23,10 @@ class UtmSource(models.Model):
         """
         if self.env.ref('liwan_crm.source_whatsapp', raise_if_not_found=False):
             return
+        self._liwan_archive_stock_sources()
+
+    @api.model
+    def _liwan_archive_stock_sources(self):
         for name in STOCK_SOURCES:
             source = self.env.ref(f'utm.{name}', raise_if_not_found=False)
             if source:

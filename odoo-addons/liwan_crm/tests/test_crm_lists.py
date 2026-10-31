@@ -33,6 +33,8 @@ class TestCrmLists(LiwanCrmCase):
         self.assertTrue(self._ref('lost_reason_attempts_exhausted').active)
 
     def test_the_source_list_starts_arabic_and_without_unsuitable_stock_sources(self):
+        # A fresh install archives them through the seed; an update through the migration step.
+        self.env['utm.source']._liwan_archive_stock_sources()
         sources = self.env['utm.source'].search([])
         for name in ('واتساب', 'اتصال هاتفي', 'الموقع الإلكتروني', 'زيارة للفرع', 'توصية من عميل', 'إنستغرام', 'سناب شات'):
             self.assertIn(name, sources.mapped('name'))
