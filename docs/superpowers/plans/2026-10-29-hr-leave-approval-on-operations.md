@@ -1,6 +1,6 @@
 # Implementation plan: HR-60 leave approval on the operations workflow engine (new bridge `liwan_hr_operations`)
 
-Status: plan, 2026-10-29. Owner decision: tariiq222/webvue#165 (HR-60), comments «قرارات المالك 2026-10-29» and
+Status: plan, 2026-10-29. Owner decision: tariiq222/liwan#165 (HR-60), comments «قرارات المالك 2026-10-29» and
 «تكملة قرار المالك 2026-10-29». No code exists yet. Task 1 starts after the #163 operations change merges,
 because both edit `liwan_operations/models/process.py` and `operation_request.py`.
 

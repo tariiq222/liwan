@@ -141,7 +141,7 @@ No production deployment or DNS cutover is implied by this repository.
 
 The detailed one-writer ownership and isolation workflow is in
 [`docs/parallel-work.md`](docs/parallel-work.md). The Git remote is
-`origin` (`https://github.com/tariiq222/webvue.git`), tracked by `main`. Pushes
+`origin` (`https://github.com/tariiq222/liwan.git`), tracked by `main`. Pushes
 need explicit authorization; do not imply that a push occurred.
 
 ## Documentation

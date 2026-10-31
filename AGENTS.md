@@ -462,7 +462,7 @@ tests against the production-style `odoo19` database. Temporary integration
 databases, ports, and logs are disposable and must not be described as
 production evidence.
 
-The LiwanOS Git remote is `origin` (`https://github.com/tariiq222/webvue.git`),
+The LiwanOS Git remote is `origin` (`https://github.com/tariiq222/liwan.git`),
 tracked by `main`. Fetch and compare `main` with `origin/main` before
 integration work. Push only when the user authorizes that push, and do not
 force-push or rewrite published history. Do not imply a push, merge,
