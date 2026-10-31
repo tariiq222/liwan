@@ -35,14 +35,16 @@ const canSeeAccess = computed(() => can('hr.employees.access_status.read'))
 const pendingArchiveId = ref<number | null>(null)
 const { mutateAsync: archiveEmployee, isPending: archiving } = useArchiveHrEmployee()
 const { mutateAsync: unarchiveEmployee, isPending: unarchiving } = useUnarchiveHrEmployee()
-const EXIT_BLOCKERS = new Set(['departure_missing', 'custody_open', 'settlement_missing'])
+const EXIT_BLOCKERS = new Set(['departure_missing', 'departure_future', 'custody_open', 'settlement_missing'])
 const exitBlocker = ref<string | null>(null)
+const exitBlockerDate = ref('')
 const archivePending = computed(() => archiving.value || unarchiving.value)
 const pendingEmployee = computed(() => items.value.find(item => item.id === pendingArchiveId.value) ?? null)
 async function confirmPendingArchive() {
   const employee = pendingEmployee.value
   if (!employee || !hydrated.value) return
   exitBlocker.value = null
+  exitBlockerDate.value = ''
   try {
     if (employee.active) await archiveEmployee(employee.id)
     else await unarchiveEmployee(employee.id)
@@ -50,6 +52,7 @@ async function confirmPendingArchive() {
     // The server names the first exit blocker; show it inline like the record page, never as a generic toast.
     if (!(error instanceof ApiError) || !EXIT_BLOCKERS.has(error.code)) throw error
     exitBlocker.value = error.code
+    exitBlockerDate.value = typeof error.details?.departure_date === 'string' ? error.details.departure_date : ''
   }
   pendingArchiveId.value = null
 }
@@ -206,7 +209,7 @@ function clearFilters() {
       color="warning"
       variant="subtle"
       :title="t('hr.employee.exitBlocked.title')"
-      :description="t(`hr.employee.exitBlocked.${exitBlocker}`)"
+      :description="t(`hr.employee.exitBlocked.${exitBlocker}`, { date: exitBlockerDate })"
       data-testid="hr-directory-exit-blocker"
     />
     <SharedInlineConfirm

@@ -183,7 +183,8 @@
         "title": "This employee cannot be archived yet",
         "departure_missing": "Record the departure date first.",
         "custody_open": "Equipment is still assigned to this employee. Return it first.",
-        "settlement_missing": "The final settlement is not confirmed. Confirm it in payroll first."
+        "settlement_missing": "The final settlement is not confirmed. Confirm it in payroll first.",
+        "departure_future": "The employee leaves on {date}; archive them on or after that date."
       },
       "archiveVendorReadOnly": "Vendor linked employees cannot be archived here.",
       "edit": "Edit employee",
