@@ -39,7 +39,8 @@
 | `MOYASAR_SECRET_KEY` | مفتاح API (سر) |
 | `MOYASAR_WEBHOOK_SECRET` | سر الـwebhook (`secret_token`) (سر) |
 | `MOYASAR_ACCOUNT_NAME` | اسم حساب التاجر؛ أي webhook بحساب آخر يُرفض (`merchant_mismatch`) |
-| `LIWAN_PAYMENT_RETURN_ORIGINS` | قائمة مسموحة لعودة الدفع مفصولة بفواصل. كل عنصر origin كامل (`https://app.example.com`) أو نمط `https://*.example.com` (مضيف واحد أو أكثر تحت اللاحقة، وللّاحقة تسمية واحدة على الأقل قبل النطاق الأعلى). في وضع dedicated يُستخدم أول عنصر فقط ولا يقبل النمط. في وضع shared (`LIWAN_TENANCY_MODE=shared`) تُبنى روابط عودة كل عميل من مضيف ربطه المفعّل في سجل المستأجرين، ويجب أن يطابق القائمة؛ عميل بلا ربط مفعّل أو بمضيف خارج القائمة يُرفض بـ`return_url_forbidden` (422) قبل أي كتابة |
+| `LIWAN_PAYMENT_RETURN_ORIGINS` | قائمة مسموحة لعودة الدفع مفصولة بفواصل. كل عنصر origin كامل (`https://app.example.com`) أو نمط `https://*.example.com` (مضيف واحد أو أكثر تحت اللاحقة، وللّاحقة تسمية واحدة على الأقل قبل النطاق الأعلى). في وضع dedicated يُستخدم أول عنصر فقط ولا يقبل النمط. في وضع shared (`LIWAN_TENANCY_MODE=shared`) تُبنى روابط عودة كل عميل من مضيف ربطه المفعّل في سجل المستأجرين، ويجب أن يطابق القائمة؛ عميل له مستأجر بلا ربط مفعّل أو بمضيف خارج القائمة يُرفض بـ`return_url_forbidden` (422) قبل أي كتابة |
+| `LIWAN_PAYMENT_PROSPECT_ORIGIN` | وضع shared فقط: origin كامل بلا نمط (`https://app.example.com`) لنطاق ليوان العام، ويجب أن يكون ضمن `LIWAN_PAYMENT_RETURN_ORIGINS`. إليه تعود دفعة عميل لا مستأجر له بعد (أول طلب غير مدفوع)، وتعرض الويب هناك صفحة `/payment-done` فقط (مع ترحيل نداء الدفع وملفات البناء) بعد التحقق من رمز الوكيل المشترك، ويجب أن يطابق `NUXT_CUSTOMER_COMMERCIAL_PUBLIC_ORIGIN` مضيفه. غير مضبوط: يُرفض هذا العميل بـ`return_url_forbidden` (422) |
 | `LIWAN_MAIL_MODE` | الافتراضي `smtp`؛ غيره يرفض |
 | `LIWAN_MAIL_SMTP_HOST`, `LIWAN_MAIL_SMTP_PORT`, `LIWAN_MAIL_FROM` | وجهة الإرسال والمرسِل |
 | `LIWAN_MAIL_REQUIRE_TLS` | إلزام TLS |

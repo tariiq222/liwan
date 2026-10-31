@@ -56,6 +56,13 @@ async function customerForTenant(client: PoolClient, tenant: string) {
   if (!customer.rowCount) throw new CommercialHttpError('not_found',404)
   return {customerId:customer.rows[0].id as string,tenantId:tenantId as string}
 }
+/** The `x-liwan-tenant` value the public LiwanOS web sends for a payment return that belongs to no tenant host. */
+export const PROSPECT_TENANT='public'
+async function customerForAttempt(client: PoolClient, attemptId: string) {
+  const customer=await client.query('SELECT o.customer_id FROM payment_attempts a JOIN orders o ON o.id=a.order_id WHERE a.id=$1',[attemptId])
+  if (!customer.rowCount) throw new CommercialHttpError('not_found',404)
+  return {customerId:customer.rows[0].customer_id as string}
+}
 async function consumeNonce(client: PoolClient, signed: {issuer: string; nonce: string}) {
   await client.query('DELETE FROM service_nonces WHERE expires_at<now()')
   const nonce=await client.query("INSERT INTO service_nonces(issuer,nonce,expires_at) VALUES($1,$2,now()+interval '60 seconds') ON CONFLICT DO NOTHING RETURNING nonce",[signed.issuer,signed.nonce])
@@ -70,8 +77,9 @@ async function paymentReturn(pool: Pool, service: {issuer: string; key: string},
   if (typeof tenant !== 'string' || !tenant || tenant.length > 128 || /[\r\n]/.test(tenant)) throw new CommercialHttpError('unauthorized',401)
   const signed=verifyServiceRequest({method:input.method,path:input.path,body:`liwan-payment-return:${tenant}\n`,headers:input.headers,key:service.key,anonymous:true})
   if (!signed || signed.issuer !== service.issuer) throw new CommercialHttpError('unauthorized',401)
-  const customer=await transaction(pool,async client=>{await consumeNonce(client,signed);return customerForTenant(client,tenant)})
   if (!z.uuid().safeParse(attemptId).success) throw new CommercialHttpError('not_found',404)
+  // The LiwanOS public host serves prospects, who have no tenant yet: the attempt id alone names the customer.
+  const customer=await transaction(pool,async client=>{await consumeNonce(client,signed);return tenant===PROSPECT_TENANT?customerForAttempt(client,attemptId):customerForTenant(client,tenant)})
   const payment=needPayment(runtime)
   return {status:200,data:await verifyReturnedAttempt(pool,{attempt_id:attemptId,customer_id:customer.customerId,adapter:payment.adapter})}
 }
