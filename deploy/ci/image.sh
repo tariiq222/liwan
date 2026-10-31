@@ -96,12 +96,14 @@ smoke_started guard -v "$IMAGE_ROOT/registry.json:/etc/liwan/registry.json:ro" \
 # The guard denies an unknown host with 403 (a 5xx or no answer would be a broken guard).
 [ "$(docker exec "$(container_of guard)" node -e "fetch('http://127.0.0.1:8080/',{headers:{host:'unknown.invalid'}}).then(r => console.log(r.status))")" = 403 ]
 # proxy: both Caddyfiles validate against the image's Caddy, which has the rate-limit module compiled in.
-# The official Caddy image has no USER and Caddy binds ports 80/443, so root is the image's documented base.
+# Caddy runs as an unprivileged user; ports 80/443 are bound through its NET_BIND_SERVICE file capability.
 for caddyfile in deploy/Caddyfile deploy/shared/Caddyfile; do
   docker run --rm --name "$(container_of proxy)" -e DOMAIN=ci.invalid -v "$PWD/$caddyfile:/etc/caddy/Caddyfile:ro" \
     "$(tag_of proxy)" caddy validate --config /etc/caddy/Caddyfile
 done
 docker run --rm --name "$(container_of proxy)" "$(tag_of proxy)" sh -c 'caddy list-modules | grep -q http.handlers.rate_limit'
+docker run --rm --name "$(container_of proxy)" --cap-drop ALL --cap-add NET_BIND_SERVICE "$(tag_of proxy)" \
+  sh -c 'test "$(id -u)" != 0 && getcap /usr/bin/caddy | grep -q cap_net_bind_service'
 
 ALL_IMAGES=("$IMAGE" "$(tag_of web)" "$(tag_of vendor-admin)" "$(tag_of ai-service)" "$(tag_of proxy)" "$(tag_of guard)")
 
