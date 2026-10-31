@@ -362,7 +362,7 @@ class TestVendorAdminStage(unittest.TestCase):
     def test_every_script_is_executable_bash_and_run_by_the_workflow(self):
         workflow = (ROOT / '.github/workflows/ci.yml').read_text()
         scripts = sorted((ROOT / 'deploy/ci').glob('*.sh'))
-        self.assertEqual(len(scripts), 12)
+        self.assertEqual(len(scripts), 13)
         for script in scripts:
             with self.subTest(script=script.name):
                 self.assertTrue(os.access(script, os.X_OK))

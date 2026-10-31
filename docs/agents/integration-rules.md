@@ -133,7 +133,7 @@ required context whose producer no longer exists or bypass a stale gate.
 ## Release numbers
 
 Publishing a `release/19.0.X.Y.Z` tag requires explicit owner authorization and
-all twelve `ci` stage groups, every matrix job and `ci-result`, green in a full
+all thirteen `ci` stage groups, every matrix job and `ci-result`, green in a full
 run on that exact `main` commit, with no skipped groups. Inspect the existing
 immutable tags before choosing the next final numeric component. Scoped PR CI
 does not prove a full release run. Release tags do not alter addon schema

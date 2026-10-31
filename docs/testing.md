@@ -7,6 +7,7 @@ liwan has four test layers. Pick the cheapest one that proves the change.
 | 1. Odoo `TransactionCase` / `HttpCase` | Models, access rules, API routes, migrations | Odoo test run on a fresh scratch DB (see `docs/agents/odoo-rules.md` "Check commands"; `npm run test:odoo` wraps it) |
 | 2. Contracts + web unit tests | Zod contracts, composables, pure UI logic | `npm test`, `npm -w apps/web run lint` |
 | 3. Playwright mock specs | Page behaviour against the mock API, no model needed | `cd apps/web && npm run test:e2e` (CI step `e2e-mock`) |
+| 3b. Playwright real-Odoo specs | Journeys that write real data through a production build on a scratch Odoo | `deploy/ci/e2e-odoo.sh` (CI stage `e2e-odoo`) |
 | 4. Agentic e2e | Whole user journeys through the real UI | `npm run e2e` / `npm run e2e:smoke` |
 
 ## Finance close race drill
@@ -133,8 +134,8 @@ findings/conversations before an explicitly authorized protected merge. Recheck 
 source policy alone does not establish remote protection settings. CI does not
 repair code, merge PRs, create tags or deploy.
 
-The twelve stages are `static`, `ai-service`, `control-plane`, `vendor-admin`, `odoo`,
-`odoo-app-standalone`, `odoo-bridge`, `upgrade`, `restore-drill`, `image`, `e2e-mock` and
+The thirteen stages are `static`, `ai-service`, `control-plane`, `vendor-admin`, `odoo`,
+`odoo-app-standalone`, `odoo-bridge`, `upgrade`, `restore-drill`, `image`, `e2e-mock`, `e2e-odoo` and
 `rtl-stories`.
 
 ### Review evidence
@@ -147,9 +148,9 @@ remain separate from a review report.
 
 ### Change-scoped stages
 
-The twelve stages take about 33 minutes, so a pull request runs only the stages its changed files can
+The first twelve stages take about 33 minutes (`e2e-odoo`, added later, is not timed yet), so a pull request runs only the stages its changed files can
 affect. The path-to-stage map is `RULES` in `tools/ci_scope.py`: the first matching rule wins, `static`
-always runs, and **a path with no rule runs all twelve stages** (that includes any `tools/` file not
+always runs, and **a path with no rule runs all thirteen stages** (that includes any `tools/` file not
 listed in `STATIC_ONLY_TOOLS`). Preview a selection, with the rule behind each changed path:
 
 ```sh
@@ -176,13 +177,13 @@ and `merge_group` events; a merge-queue entry is selected from the queue base to
   (a bridge is affected through either side); with none, the stage is not selected, and `ci-result` does not
   expect it.
 
-Push to `main`, the nightly schedule and `workflow_dispatch` with `full: true` run all twelve stages with all
+Push to `main`, the nightly schedule and `workflow_dispatch` with `full: true` run all thirteen stages with all
 three shards and every isolation group, so a cross-module regression the narrowed pull request could not see is
 caught on `main`.
 
-A manual `workflow_dispatch` run with `full: true` runs all twelve stages whatever the change. A
+A manual `workflow_dispatch` run with `full: true` runs all thirteen stages whatever the change. A
 `release/19.0.X.Y.Z` tag is cut only from a `main` commit whose `ci` run was such a full run with all
-twelve stages green, including every matrix job and aggregate on the exact main
+thirteen stages green, including every matrix job and aggregate on the exact main
 commit. Publishing that immutable tag requires explicit owner authorization; no
 workflow creates it automatically.
 
@@ -194,7 +195,7 @@ Removing the merged task's worktree, branch and scratch database is `python3 -B 
 ### Stage notes
 
 The `odoo` stage covers the release modules and is a matrix of three shards (a job still named `odoo` to
-`ci-result`, so it stays one of the twelve stages). Every shard installs the whole release module list on
+`ci-result`, so it stays one of the thirteen stages). Every shard installs the whole release module list on
 its own Postgres service and runs only its share of the module tests (`--test-tags`), so cross-module
 behaviour is exercised in each. `tools/odoo_shards.py` splits the release modules by their `def test_`
 counts times `COST_FACTOR` for a module measured slower per test (`liwan_finance`: 3) (greedy, heaviest first; revisit the factors when the shard times drift apart); `python3 -B tools/odoo_shards.py plan` shows the split. Run one shard
@@ -313,6 +314,16 @@ parsed with their strict schema by `src/fixtures.test.ts`, which runs in `npm te
 Specs live in `apps/web/e2e` and talk to `internal-ui-audit-mock.mjs`. They are
 deterministic and free, and CI runs the list in `ci-mock-specs.txt`. Use them for page
 states, navigation and regressions that need no judgement.
+
+### Real-Odoo specs (`e2e-odoo` stage)
+
+`deploy/ci/e2e-odoo.sh` installs every release module on the scratch database `liwan_scratch_e2e`, seeds it through Odoo
+(`tools/e2e_seed.py`, then `apps/web/e2e/fixtures/real-odoo-acceptance.py`, which writes the fixture ids to
+`.superpowers/real-odoo/fixtures.json`), starts Odoo and a production Nuxt build on port 44300 and runs
+`e2e/real-odoo-acceptance.spec.ts` and `e2e/real-odoo-services.spec.ts` with `E2E_REAL_ODOO=1`. No model call or API key is
+involved, unlike `npm run e2e:odoo` (the agentic runner of "Isolated agentic e2e"), which stays the local exploration path. The stage
+is deferred for pull requests (`DEFERRED_STAGES` in `tools/ci_scope.py`): it runs on the push to `main`, the nightly run and a full
+dispatch. It has not run on GitHub yet; the first full run is its first proof.
 
 ### LiwanOS AI spec
 
@@ -447,7 +458,7 @@ Local evidence only; it does not establish deployment readiness.
 
 ## Continuous release verification
 
-The twelve-stage pipeline remains unchanged in scope; the `ci` workflow selects from it as described under "Change-scoped stages". The static stage
+The thirteen-stage pipeline remains unchanged in scope; the `ci` workflow selects from it as described under "Change-scoped stages". The static stage
 runs canonical release unit discovery after dependency installation (the real H3
 handler probes load jiti), and shared/dedicated guard regressions. Root deployment
 tests run separately with `PYTHONPATH=deploy` for their existing top-level helper imports, to avoid importing the same package as `releases.*` instead
