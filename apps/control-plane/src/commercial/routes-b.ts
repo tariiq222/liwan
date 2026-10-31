@@ -19,6 +19,7 @@ import { listBranches } from './branches.js'
 import { getUsage } from './usage.js'
 import { createBranchQuote, needPayment, type PaymentRuntime } from './customer-http.js'
 import { endTrial, extendTrial, startTrial } from './trial.js'
+import { resumeSubscription, suspendSubscription } from './suspension.js'
 import { createPaymentAttempt, handleProviderEvent, paymentAttemptView } from './payments.js'
 import { generateRenewals, applyDunning } from './renewals.js'
 import { SimulatorAdapter } from './payment-simulator.js'
@@ -93,6 +94,17 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().min(3).max(1000)}))
     const payment=needPayment(runtime)
     return {status:200,data:await endTrial(pool,{subscription_id:trial[1],reason:body.reason,actor:principal.actor_id,now:new Date(),adapter:payment.adapter,returnOrigin:payment.returnOrigin})}
+  }
+  const suspension=/^\/subscriptions\/([^/]+)\/(suspend|resume)$/.exec(path)
+  if(m==='POST'&&suspension){
+    need(input,'vendor.subscriptions.manage')
+    if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
+    if(!z.uuid().safeParse(suspension[1]).success)throw new CommercialHttpError('not_found',404)
+    const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().min(3).max(1000)}))
+    const act=suspension[2]==='suspend'?suspendSubscription:resumeSubscription
+    await act(pool,{subscription_id:suspension[1],reason:body.reason,actor:principal.actor_id})
+    const owner=(await pool.query('SELECT customer_id FROM subscriptions WHERE id=$1',[suspension[1]])).rows[0]
+    return {status:200,data:await getSubscription(pool,owner.customer_id)}
   }
   if(m==='POST'&&path==='/customer-terms'){need(input,'vendor.pricing.manage','vendor.subscriptions.manage');return {status:201,data:await createCustomerTerms(pool,parseBody(input.raw,z.unknown()),principal)}}
   if(m==='POST'&&path==='/customer-quotes'){

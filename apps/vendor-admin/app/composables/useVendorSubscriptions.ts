@@ -38,6 +38,9 @@ export function useVendorSubscriptions() {
     /** Starts the customer's trial; for a customer with no workspace yet its order provisions one. */
     startTrial: (customerId: string, body: Record<string, unknown>) => request<{ order: Order; subscription: SubscriptionView }>(`commercial/customers/${seg(customerId)}/trial`, { method: 'POST', body }),
     extendTrial: (id: string, body: { days: number; reason: string }) => request<{ customer_id: string; trial_ends_at: string }>(`commercial/trials/${seg(id)}/extend`, { method: 'POST', body }),
+    /** Stops the workspace now (users are refused at sign-in); a payment does not lift it, only `resumeSubscription` does. */
+    suspendSubscription: (id: string, reason: string) => request<SubscriptionView>(`commercial/subscriptions/${seg(id)}/suspend`, { method: 'POST', body: { reason: reason.trim() } }),
+    resumeSubscription: (id: string, reason: string) => request<SubscriptionView>(`commercial/subscriptions/${seg(id)}/resume`, { method: 'POST', body: { reason: reason.trim() } }),
     endTrial: (id: string, body: { reason: string }) => request<{ customer_id: string }>(`commercial/trials/${seg(id)}/end`, { method: 'POST', body }),
   }
 }

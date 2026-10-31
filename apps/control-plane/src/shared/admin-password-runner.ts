@@ -19,6 +19,59 @@ export const KILL_GRACE_MS = 5000
 
 const allowed = new Set(['user_missing', 'user_inactive', 'password_policy', 'database_invalid', 'script_failed'])
 
+/**
+ * Runs one tools/shared_saas_lifecycle effect module as a child process: the request goes in through stdin only,
+ * one JSON line comes back. Only an `allowedCodes` refusal reaches the caller by name; anything else is `script_failed`.
+ * SIGTERM first; a child that ignores it is SIGKILLed after the grace period and the request is failed regardless.
+ */
+export function runEffectChild(input: { config: Config; spawnChild: typeof spawn; module: string; request: unknown; signal: AbortSignal; allowedCodes: ReadonlySet<string>; timeoutMs?: number; killGraceMs?: number }): Promise<unknown> {
+  const { config, spawnChild, signal, allowedCodes } = input
+  return new Promise<unknown>((resolve, reject) => {
+    const child = spawnChild(config.python, ['-B', '-m', input.module],
+      { cwd: config.repositoryRoot, stdio: ['pipe', 'pipe', 'ignore'], env: buildEffectEnv() })
+    let buffer = '', bytes = 0, errorCode: string | undefined, settled = false
+    let killTimer: NodeJS.Timeout | undefined
+    const finish = (fn: () => void) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer); clearTimeout(killTimer); signal.removeEventListener('abort', abort)
+      try { fn() } finally { buffer = '' }
+    }
+    const fail = (code = 'script_failed') => {
+      errorCode ??= code
+      if (settled) return
+      child.kill('SIGTERM')
+      killTimer ??= setTimeout(() => { child.kill('SIGKILL'); finish(() => reject(Error(errorCode))) }, input.killGraceMs ?? KILL_GRACE_MS)
+    }
+    const abort = () => fail()
+    signal.addEventListener('abort', abort, { once: true })
+    const timer = setTimeout(() => fail(), input.timeoutMs ?? WORKER_EFFECT_TIMEOUT_MS)
+    child.on('error', () => fail()); child.stdin.on('error', () => fail())
+    child.stdout.on('data', chunk => {
+      bytes += Buffer.byteLength(chunk)
+      if (bytes > 65536) { buffer = ''; fail(); return }
+      if (!errorCode) buffer += String(chunk)
+    })
+    child.on('close', code => {
+      finish(() => {
+        try {
+          if (errorCode) throw Error(errorCode)
+          const message = JSON.parse(buffer)
+          if (message && Object.keys(message).length === 1 && typeof message.error_code === 'string')
+            throw Error(allowedCodes.has(message.error_code) ? message.error_code : 'script_failed')
+          if (code !== 0 || !message || Object.keys(message).length !== 1 || !Object.hasOwn(message, 'result')) throw Error('script_failed')
+          resolve(message.result)
+        } catch (e) {
+          reject(Error(e instanceof Error && allowedCodes.has(e.message) ? e.message : 'script_failed'))
+        }
+      })
+    })
+    // Neither spawn argv/environment nor logs contain the request.
+    child.stdin.end(JSON.stringify(input.request) + '\n')
+    if (signal.aborted) fail()
+  })
+}
+
 /** Runs tools/shared_saas_lifecycle/admin_password_effect.py for one accepted invitation.
  * The password reaches the child through stdin only; argv, environment and logs never carry it.
  * Authority is the provisioned onboarding/active route AND a still-open invitation for the same
@@ -37,51 +90,8 @@ export function createAdminPasswordRunner(pool: Pool, config: Config, runtime: u
       AND consumed_at IS NULL AND revoked_at IS NULL AND expires_at>now()`, [hashToken(input.token), input.tenant_id, input.admin_login])
     if (invitation.rowCount !== 1) throw Error('user_missing')
     if (signal.aborted) throw Error('script_failed')
-    return new Promise<unknown>((resolve, reject) => {
-      const child = spawnChild(config.python, ['-B', '-m', 'tools.shared_saas_lifecycle.admin_password_effect'],
-        { cwd: config.repositoryRoot, stdio: ['pipe', 'pipe', 'ignore'], env: buildEffectEnv() })
-      let buffer = '', bytes = 0, errorCode: string | undefined, settled = false
-      let killTimer: NodeJS.Timeout | undefined
-      const finish = (fn: () => void) => {
-        if (settled) return
-        settled = true
-        clearTimeout(timer); clearTimeout(killTimer); signal.removeEventListener('abort', abort)
-        try { fn() } finally { buffer = '' }
-      }
-      // SIGTERM first; if the child still has not closed, SIGKILL it and settle from here so the caller's lock is freed.
-      const fail = (code = 'script_failed') => {
-        errorCode ??= code
-        if (settled) return
-        child.kill('SIGTERM')
-        killTimer ??= setTimeout(() => { child.kill('SIGKILL'); finish(() => reject(Error(errorCode))) }, opts.killGraceMs ?? KILL_GRACE_MS)
-      }
-      const abort = () => fail()
-      signal.addEventListener('abort', abort, { once: true })
-      const timer = setTimeout(() => fail(), opts.timeoutMs ?? WORKER_EFFECT_TIMEOUT_MS)
-      child.on('error', () => fail()); child.stdin.on('error', () => fail())
-      child.stdout.on('data', chunk => {
-        bytes += Buffer.byteLength(chunk)
-        if (bytes > 65536) { buffer = ''; fail(); return }
-        if (!errorCode) buffer += String(chunk)
-      })
-      child.on('close', code => {
-        finish(() => {
-          try {
-            if (errorCode) throw Error(errorCode)
-            const message = JSON.parse(buffer)
-            if (message && Object.keys(message).length === 1 && typeof message.error_code === 'string')
-              throw Error(allowed.has(message.error_code) ? message.error_code : 'script_failed')
-            if (code !== 0 || !message || Object.keys(message).length !== 1 || !Object.hasOwn(message, 'result')) throw Error('script_failed')
-            resolve(message.result)
-          } catch (e) {
-            reject(Error(e instanceof Error && allowed.has(e.message) ? e.message : 'script_failed'))
-          }
-        })
-      })
-      // Neither spawn argv/environment nor logs contain the caller password.
-      child.stdin.end(JSON.stringify({ action: 'set_admin_password', tenant: { database: rows.rows[0].database_name, host: rows.rows[0].host },
-        releaseBinding: { tenantId: rows.rows[0].tenantId, database: rows.rows[0].database_name, filestore: rows.rows[0].filestore, registryRevision: rows.rows[0].registryRevision }, login: input.admin_login, password: input.password, config: runtime }) + '\n')
-      if (signal.aborted) fail()
-    })
+    return runEffectChild({ config, spawnChild, module: 'tools.shared_saas_lifecycle.admin_password_effect', signal, allowedCodes: allowed, ...opts,
+      request: { action: 'set_admin_password', tenant: { database: rows.rows[0].database_name, host: rows.rows[0].host },
+        releaseBinding: { tenantId: rows.rows[0].tenantId, database: rows.rows[0].database_name, filestore: rows.rows[0].filestore, registryRevision: rows.rows[0].registryRevision }, login: input.admin_login, password: input.password, config: runtime } })
   }
 }
