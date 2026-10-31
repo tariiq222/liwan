@@ -11,8 +11,8 @@ from pathlib import Path
 import ci_scope
 
 ALL = ci_scope.STAGES
-SHARED = ('static', 'control-plane', 'vendor-admin', 'image', 'e2e-mock', 'rtl-stories')
-WEB = ('static', 'control-plane', 'image', 'e2e-mock', 'rtl-stories')
+SHARED = ('static', 'control-plane', 'vendor-admin', 'image', 'e2e-mock', 'e2e-odoo', 'rtl-stories')
+WEB = ('static', 'control-plane', 'image', 'e2e-mock', 'e2e-odoo', 'rtl-stories')
 
 
 class StagesForTest(unittest.TestCase):
@@ -50,7 +50,7 @@ class StagesForTest(unittest.TestCase):
             self.assert_stages(pattern.replace('*', 'x'), ('static',))
         self.assert_stages('tools/test_ci_scope.py', ('static',))
 
-    def test_tools_that_steps_or_apps_run_select_all_twelve(self):
+    def test_tools_that_steps_or_apps_run_select_all_thirteen(self):
         for path in ('tools/liwan_cli/module_closure.py', 'tools/liwan_cli/managed_policy.py',
                      'tools/shared_saas_lifecycle/run.py', 'tools/shared_saas_lifecycle/test_run.py',
                      'tools/brand_new_tool.py', 'tools/vendor_admin_local_check.mjs'):
@@ -62,7 +62,7 @@ class StagesForTest(unittest.TestCase):
         self.assert_stages('apps/web/.npmrc', WEB)
         self.assert_stages('apps/web/.gitignore', WEB)
 
-    def test_unmapped_path_runs_all_twelve(self):
+    def test_unmapped_path_runs_all_thirteen(self):
         for path in ('plans/roadmap.txt', 'scripts/verify.py', 'packages/new-pkg/a.ts',
                      'something-new.cfg'):
             self.assert_stages(path, ALL)
@@ -95,7 +95,7 @@ class StagesForTest(unittest.TestCase):
 
 class PullRequestTest(unittest.TestCase):
     """Deferred stages, the affected modules and the Odoo stages a pull request still runs."""
-    DEFERRED = ('upgrade', 'restore-drill', 'image')
+    DEFERRED = ('upgrade', 'restore-drill', 'image', 'e2e-odoo')
     ODOO = ('odoo', 'odoo-app-standalone', 'odoo-bridge')
     RELEASE = ['base_mod', 'app_a', 'app_b', 'a_b', 'solo']
     DEPENDS = {'base_mod': [], 'app_a': ['base_mod'], 'app_b': ['base_mod'], 'a_b': ['app_a', 'app_b'], 'solo': ['mail']}
@@ -236,7 +236,7 @@ class ChangedPathsTest(unittest.TestCase):
         text = out.getvalue()
         self.assertIn('docs/keep.md  <-  *.md', text)
         self.assertIn('apps/ai-service/a.py  <-  apps/ai-service/*', text)
-        self.assertIn('3 of 12 stages: static, ai-service, image', text)
+        self.assertIn('3 of 13 stages: static, ai-service, image', text)
 
     def test_preview_ignores_changes_base_made_after_the_branch_left_it(self):
         self.git('switch', '-qc', 'task')
@@ -253,7 +253,7 @@ class ChangedPathsTest(unittest.TestCase):
                 self.assertEqual(ci_scope.main(['--base', main, '--commit', task]), 0)
         finally:
             os.chdir(previous)
-        self.assertIn('1 of 12 stages: static', out.getvalue())
+        self.assertIn('1 of 13 stages: static', out.getvalue())
         self.assertNotIn('odoo-addons', out.getvalue())
 
     def test_stages_mode_prints_only_the_json_array(self):
@@ -264,7 +264,7 @@ class ChangedPathsTest(unittest.TestCase):
 
     def test_full_selects_every_stage_without_a_base(self):
         self.assertEqual(json.loads(self.run_main('--full', '--stages')), list(ALL))
-        self.assertIn('12 of 12 stages', self.run_main('--full'))
+        self.assertIn('13 of 13 stages', self.run_main('--full'))
 
     def test_pull_request_defers_stages_and_narrows_the_odoo_stages(self):
         self.write('odoo-addons/liwan_hr/a.py', 'x\n')

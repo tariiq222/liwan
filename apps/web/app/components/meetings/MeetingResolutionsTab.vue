@@ -19,7 +19,7 @@ const emit = defineEmits<{ 'update:busy': [busy: boolean] }>()
 
 const route = useRoute()
 const sourcePaths = useRecordListPaths(MEETING_LIST_PATHS)
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const hydrated = useHydrated()
 const projectPicker = useRecordPicker('project', { forTasks: true, enabled: () => props.meeting.can_edit })
 const canConvert = computed(() => props.meeting.can_edit && projectPicker.available.value)
@@ -172,7 +172,7 @@ async function confirmResolutionAction() {
         </div>
         <dl class="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <div class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUi.responsible') }}</dt><dd class="break-words text-highlighted">{{ item.responsible?.name || '—' }}</dd></div>
-          <div class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUi.deadline') }}</dt><dd class="text-highlighted">{{ formatMeetingDate(item.deadline, locale) }}</dd></div>
+          <div class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUi.deadline') }}</dt><dd class="text-highlighted">{{ formatMeetingDate(item.deadline) }}</dd></div>
           <div v-if="item.execution_period" class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingMinutesForm.executionPeriod') }}</dt><dd class="break-words text-highlighted">{{ item.execution_period }}</dd></div>
           <div v-if="item.project" class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingMinutesForm.project') }}</dt><dd class="break-words text-highlighted">{{ item.project.name }}</dd></div>
         </dl>
@@ -222,7 +222,7 @@ async function confirmResolutionAction() {
       <div class="flex min-w-0 flex-wrap items-center gap-2 text-sm">
         <span class="text-highlighted">{{ item.name }}</span>
         <SharedStatusBadge v-bind="resolutionStateBadgeProps(item.state, t)" />
-        <span class="text-muted">{{ formatMeetingDate(item.deadline, locale) }}</span>
+        <span class="text-muted">{{ formatMeetingDate(item.deadline) }}</span>
       </div>
       <SharedRichText v-if="richTextHasContent(item.result)" :html="item.result" size="sm" />
       <UButton v-if="item.task_id" color="primary" variant="link" size="sm" class="w-fit p-0" :to="`/tasks/${item.task_id}`" target="_blank" rel="noopener" :label="t('meetingsUx.openTaskNewTab')" />

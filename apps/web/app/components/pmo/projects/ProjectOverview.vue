@@ -12,7 +12,7 @@ import ProjectOverviewTasks from './ProjectOverviewTasks.vue'
 // attention, the latest update. Status and manager are shown once, by the
 // workspace frame, and are changed only in project settings.
 const props = defineProps<{ project: ProjectDetail }>()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const projectBadge = (status: ProjectStatus | null) => { const entry = projectStatusBadge(status); return { tone: entry.tone, label: badgeLabel(entry, status, t) } }
 const route = useRoute()
 const { can } = useAccess()
@@ -32,7 +32,7 @@ const latestUpdate = computed(() => [...(updates.data.value ?? [])].sort((a, b) 
 const openTaskCount = computed(() => Math.max(0, props.project.task_count - props.project.closed_task_count))
 
 function dateLabel(value: string | null) {
-  return value ? formatCalendarDate(value, locale.value) : '—'
+  return value ? formatCalendarDate(value) : '—'
 }
 </script>
 

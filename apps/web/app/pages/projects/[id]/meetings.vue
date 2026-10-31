@@ -14,7 +14,7 @@ import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
 const projectId = computed(() => parsePositiveId(route.params.id))
@@ -46,7 +46,7 @@ function meetingTo(meeting: MeetingListItem) {
   return { path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }
 }
 function dateLabel(value: string | null) {
-  return value ? formatCalendarDate(value, locale.value) : '—'
+  return value ? formatCalendarDate(value) : '—'
 }
 const createTo = computed(() => canCreate.value && projectId.value ? { path: '/meetings/new', query: { project_id: String(projectId.value), project_name: project.value?.name, ...returnToQuery(route.fullPath) } } : undefined)
 function setPage(next: number) {

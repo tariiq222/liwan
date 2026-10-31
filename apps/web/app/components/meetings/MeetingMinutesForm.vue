@@ -36,7 +36,7 @@ const emit = defineEmits<{
   'save-and-create-resolution': [topicKey?: string]
 }>()
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const hydrated = useHydrated()
 
 function update(patch: Partial<MeetingMinutesFormValue>) {
@@ -78,7 +78,7 @@ function recommendationFor(id: number) {
   return props.recommendations.find(item => item.id === id)
 }
 function formatRecommendationMeta(item: MeetingMinutesRecommendation) {
-  return [item.responsible?.name, item.execution_period, item.deadline ? formatMeetingDate(item.deadline, locale.value) : ''].filter(Boolean).join(' · ')
+  return [item.responsible?.name, item.execution_period, item.deadline ? formatMeetingDate(item.deadline) : ''].filter(Boolean).join(' · ')
 }
 function readAgenda() {
   if (props.readonly || props.modelValue.opening.trim() || !props.legacyAgenda) return
@@ -92,8 +92,8 @@ function readAgenda() {
       <dl class="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.name') }}</dt><dd class="break-words">{{ meeting.name || '—' }}</dd></div>
         <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.reference') }}</dt><dd dir="ltr">{{ meeting.reference || '—' }}</dd></div>
-        <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.date') }}</dt><dd>{{ formatMeetingDate(meeting.meeting_date, locale) }}</dd></div>
-        <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.time') }}</dt><dd dir="ltr"><bdi>{{ formatMeetingTime(meeting.start_datetime, locale) }}</bdi><span v-if="meeting.end_datetime"> – <bdi>{{ formatMeetingTime(meeting.end_datetime, locale) }}</bdi></span></dd></div>
+        <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.date') }}</dt><dd>{{ formatMeetingDate(meeting.meeting_date) }}</dd></div>
+        <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.time') }}</dt><dd dir="ltr"><bdi>{{ formatMeetingTime(meeting.start_datetime) }}</bdi><span v-if="meeting.end_datetime"> – <bdi>{{ formatMeetingTime(meeting.end_datetime) }}</bdi></span></dd></div>
         <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.location') }}</dt><dd>{{ meeting.location || '—' }}</dd></div>
         <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.secretary') }}</dt><dd>{{ meeting.secretary?.name || '—' }}</dd></div>
       </dl>
