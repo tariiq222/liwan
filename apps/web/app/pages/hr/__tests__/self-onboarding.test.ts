@@ -25,6 +25,14 @@ describe('the employee own onboarding page', () => {
     expect(composable).toContain('/api/v1/hr/self/onboarding-steps')
   })
 
+  it('loads the steps without an employee record of the caller', () => {
+    const page = read('pages/hr/self/onboarding.vue')
+    expect(page).not.toContain('useMyHrProfile')
+    expect(page).not.toContain('hr.self.noEmployee')
+    expect(page).toContain('useMyHrOnboardingSteps()')
+    expect(read('modules/hr/personal.ts')).not.toMatch(/if \(!await profile\(api\)\) return missingEmployee\(t\)\s*const steps/)
+  })
+
   it('words the page in both languages', () => {
     for (const messages of [arHr, enHr]) {
       for (const key of ['onboarding', 'onboardingDesc', 'onboardingEmptyTitle', 'onboardingEmptyHint', 'onboardingDone', 'openOnboardingSteps']) expect(messages.hr.self[key as keyof typeof messages.hr.self], key).toBeTruthy()

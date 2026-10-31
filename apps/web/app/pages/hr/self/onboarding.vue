@@ -9,8 +9,8 @@ import { formatDate } from '@liwan/ui/app/utils/formatDate'
 // The onboarding steps assigned to the caller: the employee sees their own tasks and marks each one done.
 const { t } = useI18n()
 const hydrated = useHydrated()
-const profile = useMyHrProfile()
-const steps = useMyHrOnboardingSteps(computed(() => !!profile.data.value))
+// Anyone a step is assigned to (the new employee, their manager or coach) sees it; no employee record is needed.
+const steps = useMyHrOnboardingSteps()
 const complete = useCompleteMyHrOnboardingStep()
 const items = computed(() => steps.data.value?.items ?? [])
 const showEmpty = computed(() => !steps.isLoading.value && !steps.error.value && items.value.length === 0)
@@ -38,11 +38,8 @@ async function finish(step: HrOwnOnboardingStep) {
 
 <template>
   <SharedListPage :title="t('hr.self.onboarding')">
-    <SharedPageState :loading="profile.isLoading.value" :error="profile.error.value" @retry="profile.refetch">
-      <SharedEmptyState v-if="profile.data.value === null" bordered :title="t('hr.self.noEmployee')" :description="t('hr.self.noEmployeeHint')" />
-    </SharedPageState>
     <UAlert v-if="actionError" role="alert" color="error" variant="subtle" :title="actionError" data-testid="hr-onboarding-mine-error" />
-    <SharedListCard v-if="profile.data.value">
+    <SharedListCard>
       <SharedPageState :error="steps.error.value" :keep-content="items.length > 0" @retry="steps.refetch">
         <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hr.self.onboardingEmptyTitle')" :description="t('hr.self.onboardingEmptyHint')" />
         <SharedDataTable v-else bare :rows="items" :columns="columns" row-key="id" :loading="steps.isLoading.value" :caption="t('hr.self.onboarding')" data-testid="hr-onboarding-mine-table">

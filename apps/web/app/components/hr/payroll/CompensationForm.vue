@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
 import { HrCompensationWriteSchema, type HrCompensation, type HrPayrollRelationship } from '@liwan/contracts'
+import { refDebounced } from '@vueuse/core'
 import { ApiError } from '@/composables/useApi'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import { parseMoneyInput } from '@/utils/moneyInput'
@@ -29,7 +30,9 @@ const gosiNumber = ref('')
 const gosiRegistrationDate = ref<string | null>(null)
 const relationshipType = ref<HrPayrollRelationship>('employee')
 const relationshipItems = usePayrollRelationshipItems()
-const banks = useHrPayrollBanks()
+const bankSearch = ref('')
+// The server filters the catalog by the typed text, so the picker never holds only a first page.
+const banks = useHrPayrollBanks(refDebounced(bankSearch, 250))
 const bankId = ref<number | null>(null)
 // The bank on record is always an option, so the picker shows it before (or without) the catalog.
 const bankItems = computed(() => {
@@ -140,7 +143,7 @@ async function submit() {
         </UFormField>
         <UFormField :label="t('hrPayroll.compensation.bank')" name="hr-compensation-bank" :error="fieldError('bank_id', t('errors.generic'))">
           <USelectMenu
-            id="hr-compensation-bank" :model-value="bankId ?? undefined" class="w-full" value-key="value" :items="bankItems" :loading="banks.isFetching.value"
+            id="hr-compensation-bank" v-model:search-term="bankSearch" :model-value="bankId ?? undefined" class="w-full" value-key="value" ignore-filter :items="bankItems" :loading="banks.isFetching.value"
             :placeholder="t('hrPayroll.compensation.bankPlaceholder')" :search-input="{ placeholder: t('hrPayroll.compensation.bankSearch') }"
             :disabled="!hydrated || isPending" data-testid="hr-compensation-bank" @update:model-value="bankId = $event ?? null"
           />

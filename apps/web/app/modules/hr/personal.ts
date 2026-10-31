@@ -34,7 +34,6 @@ export const hrPersonalEntries: AppPersonalEntry[] = [
     summary: {
       queryKey: ['hr', 'onboarding', 'personal'],
       async load(api, t) {
-        if (!await profile(api)) return missingEmployee(t)
         const steps = await api('/api/v1/hr/self/onboarding-steps', { schema: HrOwnOnboardingStepListSchema })
         return { value: String(steps.total), caption: t('hr.self.openOnboardingSteps'), rows: steps.items.slice(0, 3).map(step => ({ id: step.id, label: step.summary, to: '/account/onboarding', caption: step.date_deadline })) }
       },
