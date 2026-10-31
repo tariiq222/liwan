@@ -58,6 +58,13 @@ class TestAiAudit(AiProbe, LiwanApiCase):
         tools = self.api('GET', '/api/v1/ai/tools').json()
         self.assertEqual(tools['limits']['messages_used'], 1)
 
+    def test_a_tool_whose_feature_is_off_is_refused_by_the_route_gate(self):
+        set_probe_feature(self, enabled=False)
+        response = self.api('POST', '/api/v1/ai/audit', READ)
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()['code'], 'feature_not_included')
+        self.assertFalse(self.env['liwan.ai.audit'].search([('kind', '=', 'read')]))
+
     def test_tool_audit_stores_a_scrubbed_input_as_the_user(self):
         body = self.api('POST', '/api/v1/ai/audit', READ).json()
         row = self.env['liwan.ai.audit'].browse(body['id'])
@@ -301,12 +308,8 @@ class TestAiAuditHardening(AiProbe, LiwanApiCase):
         self.assertEqual(response.status_code, 403)
         self.assertFalse(self.env['liwan.ai.audit'].search([]))
 
-    def test_direct_create_enforces_capability_and_feature(self):
+    def test_direct_create_enforces_the_tool_capability(self):
         self.granted = set()
-        with self.assertRaises(AccessError):
-            self.audit_a.create(READ)
-        self.granted = {READ_CAP}
-        set_probe_feature(self, enabled=False)
         with self.assertRaises(AccessError):
             self.audit_a.create(READ)
         self.assertFalse(self.env['liwan.ai.audit'].search([]))
