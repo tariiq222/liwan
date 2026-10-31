@@ -318,13 +318,30 @@ class TestOnlineOrderTaxMode(LiwanOrderCase):
 
     def test_a_changed_tax_gets_a_new_included_copy_and_the_old_one_is_archived(self):
         self.online_order()
-        first = self.env['account.tax'].search([('liwan_included_of_id', '=', self.vat.id)])
+        first = self.env['account.tax'].search([('liwan_copy_of_id', '=', self.vat.id)])
         self.assertEqual(len(first), 1)
         self.vat.amount = 10.0
         order = self.online_order()
-        second = self.env['account.tax'].search([('liwan_included_of_id', '=', self.vat.id)])
+        second = self.env['account.tax'].search([('liwan_copy_of_id', '=', self.vat.id)])
         self.assertEqual((len(second), second.amount, first.active), (1, 10.0, False))
         self.assertEqual(order.amount_total, 115.0)
+
+    def test_a_price_included_product_tax_is_added_on_top_when_the_company_adds_tax(self):
+        included = self.env['account.tax'].create({
+            'name': 'Order VAT included 15%', 'amount': 15.0, 'amount_type': 'percent', 'type_tax_use': 'sale',
+            'company_id': self.env.company.id, 'price_include_override': 'tax_included',
+        })
+        self.service.taxes_id = [Command.set(included.ids)]
+        self.set_mode('added')
+        order = self.online_order()
+        self.assertEqual((order.amount_untaxed, order.amount_tax, order.amount_total), (115.0, 17.25, 132.25))
+        copies = self.env['account.tax'].search([('liwan_copy_of_id', '=', included.id)])
+        self.assertEqual((len(copies), copies.price_include_override), (1, 'tax_excluded'))
+        # The original tax is what every other document keeps using.
+        self.assertTrue(included.price_include)
+        self.assertEqual(self.service.taxes_id, included)
+        self.set_mode('included')
+        self.assertEqual(self.online_order().amount_total, 115.0)
 
     def test_a_group_tax_is_charged_through_its_children_inside_the_price(self):
         other = self.env['account.tax'].create({

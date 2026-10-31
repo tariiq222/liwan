@@ -77,7 +77,8 @@ function lineProblems(line: InvoiceLineDraft): Partial<Record<InvoiceLineField, 
 export function validateInvoiceDraft(draft: InvoiceFormDraft): InvoiceFormErrors {
   return {
     partner: !draft.partnerId,
-    dueBeforeDate: !!draft.invoiceDate && !!draft.invoiceDateDue && draft.invoiceDateDue < draft.invoiceDate,
+    // With a payment term the server derives the due date, so a stale typed one is neither sent nor validated.
+    dueBeforeDate: !draft.paymentTermId && !!draft.invoiceDate && !!draft.invoiceDateDue && draft.invoiceDateDue < draft.invoiceDate,
     lines: draft.lines.map(lineProblems),
   }
 }

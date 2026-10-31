@@ -92,6 +92,13 @@ describe('editor state', () => {
 })
 
 describe('payment term in the editor', () => {
+  it('does not fail a stale due date while a term is chosen, and still does without one', () => {
+    const draft = Object.assign(filled(), { invoiceDate: '2026-04-10', invoiceDateDue: '2026-04-01', paymentTermId: 7 })
+    expect(validateInvoiceDraft(draft).dueBeforeDate).toBe(false)
+    expect(hasInvoiceErrors(validateInvoiceDraft(draft))).toBe(false)
+    expect(validateInvoiceDraft({ ...draft, paymentTermId: null }).dueBeforeDate).toBe(true)
+  })
+
   it('sends the term and leaves the due date to the server', () => {
     const draft = Object.assign(filled(), { invoiceDate: '2026-04-01', invoiceDateDue: '2026-05-01', paymentTermId: 7 })
     const body = buildInvoicePatch(draft)

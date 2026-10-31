@@ -74,48 +74,49 @@ class LiwanPaymentsService(models.AbstractModel):
             'product_id': product.id,
             'product_uom_qty': quantity,
         })
-        if order.env['liwan.payments.settings']._liwan_tax_mode(order.company_id) == 'included':
-            # The price the seller set is what the customer pays: its taxes are the price-included twins of the product's.
-            line.tax_ids = [Command.set(self._liwan_included_taxes(line.tax_ids).ids)]
+        # Whatever the product's taxes are, the order charges as the company decides: its prices contain the tax or have it added.
+        mode = order.env['liwan.payments.settings']._liwan_tax_mode(order.company_id)
+        line.tax_ids = [Command.set(self._liwan_priced_taxes(line.tax_ids, included=mode == 'included').ids)]
         return self.env['sale.order.line'].browse(line.id)
 
     @api.model
-    def _liwan_included_taxes(self, taxes):
-        """``taxes`` as price-included taxes, so a price that already contains its tax is charged to the cent.
+    def _liwan_priced_taxes(self, taxes, included):
+        """``taxes`` as taxes that are (``included``) or are not included in the price, so the order charges as the company decides.
 
-        Rounding the net price to cents cannot give back the exact gross price, hence a tax set to 'included in price'.
-        Each tax has one active copy (``liwan_included_of_id``), made on first use and replaced when the tax it copies
-        has changed since (rate, group or repartition lines); a group tax is replaced by the copies of its children, so
-        nothing is ever added on top of the price. A tax that is already price-included is kept. ``taxes`` must come
-        from an elevated environment. Two requests that make the first copy together: one fails on the unique index and
-        is retried, finding the copy the other committed.
+        Rounding the net price to cents cannot give back the exact gross price, hence a tax set to 'included in price'
+        for a price that contains its tax, and one set to 'excluded' where the tax is added to a price whose product tax
+        is included. The original tax stays as it is for every other document: each tax has one active linked copy per
+        kind (``liwan_copy_of_id``), made on first use and replaced when the tax it copies has changed since (rate,
+        group or repartition lines). A group tax is replaced by the copies of its children, so the price is never taxed
+        twice. A tax that already behaves as asked is kept. ``taxes`` must come from an elevated environment. Two
+        requests that make the first copy together: one fails on the unique index and is retried, finding the copy the
+        other committed.
         """
-        included = taxes.env['account.tax']
+        result = taxes.env['account.tax']
         for tax in taxes:
             if tax.amount_type == 'group':
-                included |= self._liwan_included_taxes(tax.children_tax_ids)
-            elif tax.price_include:
-                included |= tax
+                result |= self._liwan_priced_taxes(tax.children_tax_ids, included)
+            elif tax.price_include == included:
+                result |= tax
             else:
-                included |= self._liwan_included_copy(tax)
-        return included
+                result |= self._liwan_priced_copy(tax, included)
+        return result
 
     @api.model
-    def _liwan_included_copy(self, tax):
-        copy = tax.env['account.tax'].search([('liwan_included_of_id', '=', tax.id)], limit=1)
+    def _liwan_priced_copy(self, tax, included):
+        override = 'tax_included' if included else 'tax_excluded'
+        copy = tax.env['account.tax'].search([('liwan_copy_of_id', '=', tax.id), ('price_include_override', '=', override)], limit=1)
         if copy and self._liwan_tax_signature(copy) == self._liwan_tax_signature(tax):
             return copy
         if copy:
             # Out of date: archived, not edited, because posted documents may use it.
             copy.active = False
+        name = self.env._("%(name)s (price included)", name=tax.name) if included else self.env._("%(name)s (price excluded)", name=tax.name)
         try:
             with self.env.cr.savepoint():
-                return tax.copy({
-                    'name': self.env._("%(name)s (price included)", name=tax.name),
-                    'price_include_override': 'tax_included', 'liwan_included_of_id': tax.id,
-                })
+                return tax.copy({'name': name, 'price_include_override': override, 'liwan_copy_of_id': tax.id})
         except UniqueViolation as error:
-            raise ConcurrencyError(f'the price-included copy of tax {tax.id} was made by another request') from error
+            raise ConcurrencyError(f'the {override} copy of tax {tax.id} was made by another request') from error
 
     @staticmethod
     def _liwan_tax_signature(tax):

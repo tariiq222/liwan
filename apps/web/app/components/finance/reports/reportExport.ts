@@ -1,4 +1,5 @@
 import type { LoadedReport } from './reportConfig'
+import { cashFlowRows, ZAKAT_RESULT_CODES } from './reportRows'
 
 type Translate = (key: string) => string
 type Cell = string | number | null
@@ -91,33 +92,38 @@ export function reportTable(loaded: LoadedReport, title: string, t: Translate, h
       }
     case 'profit-loss': return lines('profitLoss', loaded.data.lines)
     case 'balance-sheet': return lines('balanceSheet', loaded.data.lines)
-    case 'zakat-base': return lines('zakatBase', loaded.data.lines)
+    case 'zakat-base': {
+      // What the page shows: the template lines without its own result lines, then the company's adjustments and the final figures.
+      const zakat = loaded.data
+      const own = lines('zakatBase', zakat.lines.filter(line => !(ZAKAT_RESULT_CODES as readonly string[]).includes(line.code)))
+      return {
+        ...own,
+        rows: [
+          ...own.rows,
+          ...zakat.adjustments.map(item => [`${t(`financeReports.zakat.kinds.${item.kind}`)}: ${item.label}`, item.kind === 'deduct' ? -item.amount : item.amount]),
+          [t('financeReports.zakat.base'), zakat.base],
+          [t('financeReports.zakat.rate'), zakat.rate],
+          [t('financeReports.zakat.due'), zakat.zakat_due],
+        ],
+      }
+    }
     case 'budget-vs-actual':
       return {
         title,
         columns: [col('account'), col('label'), col('costCenter'), col('budget'), col('actual'), col('variance')],
         rows: loaded.data.lines.map(line => [`${line.account.name}`, line.label, line.analytic_account?.name ?? null, line.budget, line.actual, line.variance]),
       }
-    case 'cash-flow': {
-      const { operating, investing, financing } = loaded.data
-      const section = (key: string, items: { account: { name: string }; amount: number }[], total: number): Cell[][] => [
-        ...items.map(item => [t(`financeReports.cashFlow.sections.${key}`), item.account.name, item.amount]),
-        [t(`financeReports.cashFlow.rows.${key}`), null, total],
-      ]
+    case 'cash-flow':
       return {
         title,
         columns: [col('section'), col('item'), col('amount')],
-        rows: [
-          [t('financeReports.cashFlow.rows.opening'), null, loaded.data.opening_cash],
-          [t('financeReports.cashFlow.rows.netIncome'), null, operating.net_income],
-          ...section('operating', operating.items, operating.total),
-          ...section('investing', investing.items, investing.total),
-          ...section('financing', financing.items, financing.total),
-          [t('financeReports.cashFlow.rows.netChange'), null, loaded.data.net_change],
-          [t('financeReports.cashFlow.rows.closing'), null, loaded.data.closing_cash],
-        ],
+        // The rows of the page, so every detail adds up to its subtotal: adjustments and the depreciation reclass included.
+        rows: cashFlowRows(loaded.data).map((row) => {
+          const section = cashFlowSection(row.key)
+          const label = 'label' in row ? row.label : t(`financeReports.cashFlow.rows.${row.labelKey}`)
+          return [section ? t(`financeReports.cashFlow.sections.${section}`) : null, label, row.amount]
+        }),
       }
-    }
     case 'vat-return':
       return {
         title,
@@ -125,6 +131,13 @@ export function reportTable(loaded: LoadedReport, title: string, t: Translate, h
         rows: loaded.data.boxes.map(box => [box.number, has(`financeReports.vatReturn.boxes.${box.code}`) ? t(`financeReports.vatReturn.boxes.${box.code}`) : box.name, box.base, box.tax]),
       }
   }
+}
+
+/** The activity a cash-flow row belongs to; the opening, net change and closing rows belong to none. */
+function cashFlowSection(key: string): 'operating' | 'investing' | 'financing' | null {
+  if (key === 'net-income' || key.startsWith('adjustment-') || key.startsWith('operating')) return 'operating'
+  if (key === 'reclass' || key.startsWith('investing')) return 'investing'
+  return key.startsWith('financing') ? 'financing' : null
 }
 
 /** A cell as a CSV field; text that a spreadsheet would run as a formula is kept as text. */

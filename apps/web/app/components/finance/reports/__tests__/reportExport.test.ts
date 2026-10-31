@@ -39,6 +39,29 @@ describe('report export', () => {
   })
 })
 
+describe('report export keeps the page figures', () => {
+  it('exports the adjusted zakat base and amount due after the adjustments, not only the template lines', () => {
+    const loaded = load('zakat-base')
+    if (loaded.slug !== 'zakat-base') throw new Error('fixture')
+    const data = { ...loaded.data, adjustments: [{ id: 1, date_to: loaded.data.date_to, kind: 'add' as const, label: 'Disallowed', amount: 100, note: '' }, { id: 2, date_to: loaded.data.date_to, kind: 'deduct' as const, label: 'Allowed', amount: 40, note: '' }], base: 12345, zakat_due: 308.63 }
+    const rows = reportTable({ slug: 'zakat-base', data }, 'T', t, has).rows
+    const labels = rows.map(row => row[0])
+    expect(labels).toContain(`${ar.financeReports.zakat.kinds.add}: Disallowed`)
+    expect(rows.find(row => String(row[0]).includes('Allowed') && String(row[0]).startsWith(ar.financeReports.zakat.kinds.deduct))?.[1]).toBe(-40)
+    expect(rows.slice(-3)).toEqual([[ar.financeReports.zakat.base, 12345], [ar.financeReports.zakat.rate, data.rate], [ar.financeReports.zakat.due, 308.63]])
+  })
+
+  it('exports every cash-flow row of the page so the details add up to their subtotals', () => {
+    const loaded = load('cash-flow')
+    if (loaded.slug !== 'cash-flow') throw new Error('fixture')
+    const data = { ...loaded.data, operating: { ...loaded.data.operating, adjustments: [{ key: 'depreciation' as const, amount: 700 }] }, investing: { ...loaded.data.investing, depreciation_reclass: 400 } }
+    const rows = reportTable({ slug: 'cash-flow', data }, 'T', t, has).rows
+    expect(rows.map(row => row[1])).toEqual(expect.arrayContaining([ar.financeReports.cashFlow.rows.depreciation, ar.financeReports.cashFlow.rows.depreciationReclass]))
+    expect(rows.find(row => row[1] === ar.financeReports.cashFlow.rows.depreciation)?.[2]).toBe(700)
+    expect(rows.find(row => row[1] === ar.financeReports.cashFlow.rows.depreciationReclass)?.[2]).toBe(400)
+  })
+})
+
 describe('report csv', () => {
   const table = { title: 'T', columns: ['Name', 'Amount'], rows: [['Plain', 1.5], ['Has, comma "and quote"', -2], ['=SUM(A1)', null], ['line\nbreak', 0]] as (string | number | null)[][] }
 
