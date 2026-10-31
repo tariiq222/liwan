@@ -61,7 +61,7 @@ test('finance budget create, record edit and list return use real stored values'
     await open(page, `/projects/${p.id}/finance/${entry.id}/edit?returnTo=${encodeURIComponent(origin)}`);
     await page.locator('#finance-amount').fill('1500');
     const saved = page.waitForResponse(r => new URL(r.url()).pathname === `/api/v1/projects/${p.id}/finance/${entry.id}` && r.request().method() === 'PATCH');
-    await page.getByRole('button', { name: 'حفظ التغييرات', exact: true }).click();
+    await page.getByRole('button', { name: 'حفظ', exact: true }).click();
     await body(await saved);
     const list = await body(await page.request.get(`/api/v1/projects/${p.id}/finance`));
     expect(list.items.find((e: any) => e.id === entry.id).amount).toBe(1500);

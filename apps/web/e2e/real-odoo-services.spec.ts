@@ -116,7 +116,7 @@ test('real direct chat selects a user ID, sends and reloads the stored message f
   const conversation = await body(await created, 201)
   await expect.poll(() => new URL(page.url()).pathname).toBe(`/chat/${conversation.id}`)
   const message = `رسالة أودو محفوظة ${Date.now()}`
-  await page.getByRole('textbox', { name: 'اكتب رسالة', exact: true }).fill(message)
+  await page.getByPlaceholder('اكتب رسالة').fill(message)  // the composer is a mention combobox, not a plain textbox
   const sent = responseFor(page, `/api/v1/chat/conversations/${conversation.id}/messages`, 'POST')
   await page.getByRole('button', { name: 'إرسال', exact: true }).click()
   const sentMessage = await body(await sent, 201)
