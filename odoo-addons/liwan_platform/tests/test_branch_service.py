@@ -81,6 +81,24 @@ class TestBranchService(TransactionCase):
         self.assertTrue(company.exists())
         self.assertFalse(company.active)
 
+    def test_restore_brings_the_archived_branch_back_with_its_company(self):
+        company_id = self._apply(['b1'])[0]['odoo_company_id']
+        self._op()._liwan_archive_branch('op-2', 'b1')
+        self._op()._liwan_restore_branch('op-3', 'b1')
+        branch = self.env['liwan.tenant.branch'].search([('branch_uid', '=', 'b1')])
+        self.assertEqual(branch.state, 'active')
+        self.assertEqual(branch.company_id.id, company_id)
+        self.assertTrue(branch.company_id.active)
+        # Idempotent: an active branch is left as it is.
+        self._op()._liwan_restore_branch('op-3', 'b1')
+        self.assertEqual(branch.state, 'active')
+
+    def test_restore_of_unknown_branch_and_non_operator_refused(self):
+        with self.assertRaisesRegex(ValidationError, 'branch_not_found'):
+            self._op()._liwan_restore_branch('op', 'missing')
+        with self.assertRaises(AccessError):
+            self.profile._liwan_restore_branch('op', 'b1')
+
     def test_bind_outside_root_rejected(self):
         self._apply(['b1'])
         user = self.env['res.users'].with_context(no_reset_password=True).create({

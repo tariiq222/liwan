@@ -30,7 +30,7 @@ git tag -l 'archive/*'
 
 ## CI — GitHub Actions
 
-CI is the `ci` workflow in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): twelve stages,
+CI is the `ci` workflow in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): thirteen stages,
 selected per change by `tools/ci_scope.py`, each runnable through `deploy/ci`.
 Keep a PR draft during local preparation; ready requests deterministic CI and
 review of the actual diff. The required status-check policy is current-head

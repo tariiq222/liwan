@@ -13,7 +13,7 @@ import MilestoneSelect from './MilestoneSelect.vue'
 import PrioritySelect from './PrioritySelect.vue'
 import TagPicker from '@/components/shared/form/TagPicker.vue'
 const props = defineProps<{ task: TaskDetail }>()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const hydrated = useHydrated()
 const { mutate: updateTask } = useUpdateTask()
 const { data: stages } = usePersonalStages()
@@ -65,7 +65,7 @@ function onTagsChange({ ids, resolved }: { ids: number[]; resolved: TaskDetail['
 // *both* locales by accident. `calendar: 'gregory'` pins the calendar system
 // explicitly so an Arabic locale still gets Gregorian dates (with
 // Arabic-Indic digits). Timeline.vue already follows this pattern.
-const dateFmt = computed(() => ({ format: (value: Date) => formatLiwanDate(value, locale.value) }))
+const dateFmt = computed(() => ({ format: (value: Date) => formatLiwanDate(value) }))
 
 // --- deadline ------------------------------------------------------------
 // Contract: a deadline is a UTC *instant* (the API stores/returns an ISO

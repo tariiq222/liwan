@@ -20,7 +20,7 @@ const props = defineProps<{
   rowTo: (item: FinanceEntry) => RouteLocationRaw
   canManage?: boolean
 }>()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const router = useRouter()
 function openLiveEntry(event: MouseEvent, item: FinanceEntry) {
   if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
@@ -46,7 +46,7 @@ function budgetLabel(item: FinanceEntry) {
   if (!item.budget_entry_id) return '—'
   return budgets.value.get(item.budget_entry_id) ?? t('projects.finance.linkedBudget', { id: item.budget_entry_id })
 }
-const dateLabel = (item: FinanceEntry) => (item.expense_date ? formatCalendarDate(item.expense_date, locale.value) : '—')
+const dateLabel = (item: FinanceEntry) => (item.expense_date ? formatCalendarDate(item.expense_date) : '—')
 </script>
 
 <template>

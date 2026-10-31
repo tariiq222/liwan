@@ -14,10 +14,10 @@ import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 const sourcePaths = useRecordListPaths(['/projects', '/projects/dashboard'])
 const route = useRoute()
 const router = useRouter()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const projectBadge = (status: ProjectStatus | null) => { const entry = projectStatusBadge(status); return { tone: entry.tone, label: badgeLabel(entry, status, t) } }
 const hydrated = useHydrated()
-const formatDate = (value: string) => formatCalendarDate(value, locale.value) || value
+const formatDate = (value: string) => formatCalendarDate(value) || value
 const projectId = computed(() => projectIdFromPath(route.path))
 const { data: projectData, isLoading, error } = useProject(projectId)
 // Queries may finish after server rendering but before payload dehydration.

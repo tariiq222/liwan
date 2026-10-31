@@ -11,14 +11,14 @@ const taskParams = computed<TaskListParams>(() => ({ mine: false, project_id: pr
 const { data, isLoading, isError, error, refetch } = useTasks(taskParams)
 const tasks = computed(() => data.value?.pages.flatMap(page => page.items) ?? [])
 const attention = computed(() => tasks.value.filter(task => task.is_overdue).slice(0, 5))
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const variant = computed(() => attention.value.length && !props.gateAction ? 'action' : 'tinted')
 
 function taskQuery() {
   return returnToQuery(props.returnTo)
 }
 function deadlineLabel(value: string | null) {
-  return value ? formatCalendarDate(value, locale.value) : '—'
+  return value ? formatCalendarDate(value) : '—'
 }
 </script>
 

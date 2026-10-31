@@ -89,10 +89,11 @@ def validate_reconfigure(request):
     if revision is not None and (type(revision) is not int or revision < 0):
         raise EffectError('commercial_valid_until_invalid')
     branches = request['branches']
-    if not isinstance(branches, dict) or set(branches) != {'apply', 'archive'}:
+    if not isinstance(branches, dict) or set(branches) not in ({'apply', 'archive'}, {'apply', 'archive', 'restore'}):
         raise EffectError('branches_invalid')
-    apply, archive = branches['apply'], branches['archive']
-    if not isinstance(apply, list) or not isinstance(archive, list) or len(apply) > 256 or len(archive) > 256:
+    apply, archive, restore = branches['apply'], branches['archive'], branches.get('restore', [])
+    if (not isinstance(apply, list) or not isinstance(archive, list) or not isinstance(restore, list)
+            or len(apply) > 256 or len(archive) > 256 or len(restore) > 256):
         raise EffectError('branches_invalid')
     ids = []
     for item in apply:
@@ -102,7 +103,9 @@ def validate_reconfigure(request):
             raise EffectError('branches_invalid')
         ids.append(_uuid(item['branch_id'], 'branches_invalid'))
     archived = [_uuid(item, 'branches_invalid') for item in archive]
-    if len(set(ids)) != len(ids) or len(set(archived)) != len(archived) or set(ids) & set(archived):
+    restored = [_uuid(item, 'branches_invalid') for item in restore]
+    if (len(set(ids)) != len(ids) or len(set(archived)) != len(archived) or set(ids) & set(archived)
+            or len(set(restored)) != len(restored) or set(restored) & (set(ids) | set(archived))):
         raise EffectError('branches_duplicate')
     return request
 
@@ -233,6 +236,8 @@ try:
         branch = env['liwan.tenant.branch'].search([('branch_uid', '=', uid)])
         if branch and branch.state == 'active':
             operator._liwan_archive_branch(values['operation_id'], uid)
+    for uid in values['restore']:
+        operator._liwan_restore_branch(values['operation_id'], uid)
     if values['apply']:
         operator._liwan_apply_branches(values['operation_id'], values['target_revision_id'], values['apply'])
     result = {'applied': True}
@@ -266,7 +271,7 @@ def build_apply_script(request):
     values = {'database': request['tenant']['database'], 'operation_id': request['operation_id'],
               'previous_revision_id': request['previous_revision_id'],
               'target_revision_id': request['target_revision_id'], 'digest': ent['digest'],
-              'features': ent['features'], 'apply': br['apply'], 'archive': br['archive'],
+              'features': ent['features'], 'apply': br['apply'], 'archive': br['archive'], 'restore': br.get('restore', []),
               'admin_login': request.get('admin_login')}
     if 'commercial_valid_until' in request:
         values['commercial_valid_until'] = request['commercial_valid_until']
@@ -371,7 +376,7 @@ def check_downgrade(request, observed):
     limit = features.get(BRANCH_LIMIT)
     if limit is not None and not isinstance(limit, bool):
         active = {b['branch_id'] for b in observed['branches'] if b['state'] == 'active'}
-        projected = (active - set(br['archive'])) | {b['branch_id'] for b in br['apply']}
+        projected = (active - set(br['archive'])) | {b['branch_id'] for b in br['apply']} | set(br.get('restore', []))
         if len(projected) > limit:
             raise EffectError('downgrade_below_usage')
 
@@ -395,6 +400,10 @@ def verify(request, observed):
             return False
     for uid in br['archive']:
         if uid in by_id and by_id[uid]['state'] != 'archived':
+            return False
+    for uid in br.get('restore', []):
+        b = by_id.get(uid)
+        if not b or b['state'] != 'active' or not b['active'] or not b['parent_is_root']:
             return False
     return True
 
@@ -456,7 +465,9 @@ class SubscriptionEffect:
                 'observed_entitlement_digest': observed['commercial_digest'],
                 'observed_at': self.clock(),
                 'branch_bindings': [{'branch_id': b['branch_id'], 'odoo_company_id': by_id[b['branch_id']]['odoo_company_id']}
-                                    for b in request['branches']['apply']],
+                                    for b in request['branches']['apply']]
+                                   + [{'branch_id': uid, 'odoo_company_id': by_id[uid]['odoo_company_id']}
+                                      for uid in request['branches'].get('restore', [])],
                 'modules_installed': installed}
 
     def reconfigure(self, request):

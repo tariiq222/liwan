@@ -19,12 +19,12 @@ const props = withDefaults(defineProps<{
   selectedId?: number | null
 }>(), { loading: false, total: 0, page: 1, pageSize: 25, selectedId: null })
 const emit = defineEmits<{ retry: []; page: [page: number]; select: [version: MeetingVersion] }>()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const hydrated = useHydrated()
 const pages = computed(() => Math.max(1, Math.ceil((props.total ?? 0) / props.pageSize)))
 
 function capturedAt(value: string) {
-  return formatLiwanDateTime(value, locale.value)
+  return formatLiwanDateTime(value)
 }
 </script>
 
