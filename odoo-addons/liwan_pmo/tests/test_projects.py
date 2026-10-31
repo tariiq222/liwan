@@ -252,6 +252,25 @@ class TestProjects(LiwanPmoCase):
         res = self.api('GET', '/api/v1/projects?archived=1')
         self.assertEqual((res.status_code, res.json()['code']), (403, 'forbidden'))
 
+    def test_archived_project_is_read_from_its_link_by_members_only(self):
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        self.assertEqual(self.api('POST', f'/api/v1/projects/{self.project.id}/archive').status_code, 200)
+        url = f'/api/v1/projects/{self.project.id}'
+        # api_mgr manages the PMO; api_emp holds none of the project's tasks until one is assigned.
+        for path in (url, f'{url}/milestones'):
+            self.assertEqual(self.api('GET', path).status_code, 200, path)
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        for path in (url, f'{url}/milestones'):
+            refused = self.api('GET', path)
+            self.assertEqual((refused.status_code, refused.json()['code']), (404, 'not_found'), path)
+        self.env['project.task'].create({
+            'name': 'Held by Sara', 'project_id': self.project.id, 'user_ids': [(4, self.employee.id)],
+        })
+        read = self.api('GET', url)
+        self.assertEqual((read.status_code, read.json()['active']), (200, False))
+        self.assertEqual(self.api('GET', f'{url}/milestones').status_code, 200)
+        self.assertEqual(self.api('PATCH', url, {'name': 'Renamed'}).status_code, 403)
+
     def test_patch_dependency_feature_requires_manager_and_boolean(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
         res = self.api('PATCH', f'/api/v1/projects/{self.project.id}', {'allow_task_dependencies': True})

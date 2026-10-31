@@ -142,7 +142,9 @@ class ProjectController(http.Controller):
     @requires_feature('pmo.enabled', operation='read')
     def get_project(self, project_id):
         require_capabilities('pmo.projects.read')
-        return dump_project_detail(get_record('project.project', project_id))
+        project = get_record('project.project', project_id)
+        project._liwan_check_archived_readable()
+        return dump_project_detail(project)
 
     @http.route('/api/v1/projects/<int:project_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler

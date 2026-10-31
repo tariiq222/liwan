@@ -169,8 +169,10 @@ class TestProjectExtensionPoints(LiwanPmoCase):
                 self.assertEqual(response.status_code, 200, response.text)
                 self.assertEqual(response.json()['actual_account'], ACCOUNT)
                 self.assertEqual(mocks['_liwan_set_actual_account'].call_args.args, (self.project, account_id))
+            # The project manager is not a gate: the source decides who may link a cost center.
             self.authenticate('api_emp', 'api_emp_pass_123')
-            self.assertEqual(self.api('PATCH', url, {'account_id': 7}).status_code, 403)
+            self.assertEqual(self.api('PATCH', url, {'account_id': 7}).status_code, 200)
+            self.assertEqual(mocks['_liwan_set_actual_account'].call_args.args, (self.project, 7))
 
     def test_settings_extension_is_returned_and_written_generically(self):
         self.authenticate('api_ext_admin', 'api_ext_admin_pass_123')

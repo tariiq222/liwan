@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ApiError } from '@/composables/useApi'
 import { useDeleteTaskAttachment, useTaskAttachments, useUploadTaskAttachment } from '@/composables/useTaskAttachments'
-import { ATTACHMENT_ACCEPT, MAX_ATTACHMENT_BYTES, fileToBase64 } from '@/utils/attachmentFile'
+import { ATTACHMENT_ACCEPT, attachmentSizeProblem, fileToBase64 } from '@/utils/attachmentFile'
 
 // The project task's wiring of `SharedAttachmentList`.
 const props = defineProps<{ taskId: number; canWrite: boolean }>()
@@ -30,7 +30,8 @@ function fail(e: unknown) {
 async function uploadFile(file: File) {
   error.value = ''
   try {
-    if (file.size > MAX_ATTACHMENT_BYTES) throw new Error(t('attachments.errors.tooLarge'))
+    const problem = attachmentSizeProblem(file)
+    if (problem) throw new Error(t(`attachments.errors.${problem}`))
     await upload({ taskId: props.taskId, name: file.name, mimetype: file.type || undefined, data: await fileToBase64(file) })
     toast.add({ title: t('attachments.uploaded'), color: 'success' })
   } catch (e) {

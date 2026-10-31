@@ -166,7 +166,8 @@ class ProjectFinanceController(http.Controller):
         if account_id is not None and (isinstance(account_id, bool) or not isinstance(account_id, int) or account_id <= 0):
             raise ApiError(422, 'invalid', "account_id must be a positive integer or null", field='account_id')
         project = _finance_project(project_id)
-        project._liwan_check_manage()
+        # Who may link a cost center is the actual source's rule (the finance bridge asks for
+        # finance.analytic.manage), not the project manager's: the finance owner links it.
         request.env['liwan.project.actual.source']._liwan_set_actual_account(project, account_id)
         return build_finance_summary(project)
 

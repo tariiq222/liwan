@@ -54,6 +54,7 @@ class MilestoneController(http.Controller):
     def list_milestones(self, project_id):
         declare_read_capability_scope('pmo.projects.read')
         project = get_record('project.project', project_id)
+        project._liwan_check_archived_readable()
         return [dump_milestone(project, m) for m in _sorted(project.milestone_ids)]
 
     @http.route('/api/v1/projects/<int:project_id>/milestones', type='json2', auth='user', methods=['POST'], readonly=False)
