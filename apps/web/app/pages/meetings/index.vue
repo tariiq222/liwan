@@ -20,7 +20,7 @@ import { parseOffset } from '@/utils/routeQuery'
 
 const route = useRoute()
 const router = useRouter()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const hydrated = useHydrated()
 const { shown: kpisShown } = useKpiVisibility()
 const { can } = useAccess()
@@ -153,7 +153,7 @@ function localTime(value: string | null) {
   if (!value) return ''
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return formatLocalDateTime(value)
-  return hydrated.value ? formatLiwanTime(parsed, locale.value) : ''
+  return hydrated.value ? formatLiwanTime(parsed) : ''
 }
 
 function meetingRecordNumber(meeting: { reference: string; id: number }) {
@@ -337,7 +337,7 @@ function setPage(next: number) {
             class="block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >{{ row.original.name }}</NuxtLink>
         </template>
-        <template #meeting_date-cell="{ row }"><div class="grid gap-0.5 whitespace-nowrap"><span>{{ row.original.meeting_date ? formatCalendarDate(row.original.meeting_date, locale) : '—' }}</span><span class="text-xs text-muted">{{ row.original.start_datetime ? localTime(row.original.start_datetime) : t('meetingsUx.timeUnavailable') }}</span></div></template>
+        <template #meeting_date-cell="{ row }"><div class="grid gap-0.5 whitespace-nowrap"><span>{{ row.original.meeting_date ? formatCalendarDate(row.original.meeting_date) : '—' }}</span><span class="text-xs text-muted">{{ row.original.start_datetime ? localTime(row.original.start_datetime) : t('meetingsUx.timeUnavailable') }}</span></div></template>
         <template #organizer-cell="{ row }">
           <div v-if="row.original.organizer" class="flex min-w-0 items-center gap-2"><SharedPersonAvatar :people="[row.original.organizer]" /><span class="min-w-0 truncate text-muted">{{ row.original.organizer.name }}</span></div>
           <span v-else class="text-muted">—</span>
@@ -352,7 +352,7 @@ function setPage(next: number) {
             </div>
             <div class="flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-sm text-muted">
               <RecordNumber :value="meetingRecordNumber(row)" />
-              <span>{{ row.meeting_date ? formatCalendarDate(row.meeting_date, locale) : '—' }}</span>
+              <span>{{ row.meeting_date ? formatCalendarDate(row.meeting_date) : '—' }}</span>
               <span v-if="row.start_datetime">{{ localTime(row.start_datetime) }}</span>
               <span v-else>{{ t('meetingsUx.timeUnavailable') }}</span>
             </div>

@@ -18,10 +18,10 @@ const { data: attempts, error: attemptsError, pending: attemptsPending, refresh:
   () => `vendor:invoice-attempts:${id.value}:${orderId.value ?? 'none'}:${canBilling.value}`,
   () => orderId.value && canBilling.value ? api.paymentAttempts(orderId.value) : Promise.resolve(null),
 )
-const attemptTime = (value: string) => formatLiwanDateTime(value, locale.value)
+const attemptTime = (value: string) => formatLiwanDateTime(value)
 const unavailable = computed(() => isNotAvailable(error.value) && !data.value)
 const money = (m: NonNullable<typeof data.value>['total']) => formatCommercialMoney(m, locale.value)
-const date = (v: string | null) => (v ? formatLiwanDate(v, locale.value) : null)
+const date = (v: string | null) => (v ? formatLiwanDate(v) : null)
 const canRefund = computed(() => canBilling.value && !unavailable.value)
 const refundNoteId = ref<string | null>(null)
 const refundReference = ref('')

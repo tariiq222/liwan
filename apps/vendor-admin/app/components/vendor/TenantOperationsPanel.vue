@@ -10,7 +10,7 @@ type Catalog = { version: string; status: string; solution: { tiers?: { id: stri
 const props = defineProps<{ tenantId: string }>()
 /** True while a typed reason or limit change has not been sent; the page guards leaving with it. */
 const dirtyModel = defineModel<boolean>('dirty', { default: false })
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const { request } = useVendorApi()
 const { can: canVendor } = useVendorContext()
 const tenantId = toRef(props, 'tenantId')
@@ -117,7 +117,7 @@ const canEnqueue = computed(() => Boolean(reason.value.trim()) && !(actionType.v
 // Anything the confirmation names (type, reason, limits, switches) closes it when it changes.
 watch([actionType, reason, edits], () => { confirmEnqueue.value = false }, { deep: true })
 const operationsNeedEnabling = computed(() => Boolean(data.value && !data.value.operations_enabled))
-const operationTime = (op: OperationFeed) => formatLiwanDateTime(op.source === 'shared' ? (op.last_event_at ?? op.created_at) : op.updated_at, locale.value)
+const operationTime = (op: OperationFeed) => formatLiwanDateTime(op.source === 'shared' ? (op.last_event_at ?? op.created_at) : op.updated_at)
 </script>
 
 <template>

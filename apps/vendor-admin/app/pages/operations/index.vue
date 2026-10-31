@@ -5,7 +5,7 @@ import { operationStatusBadge } from '@/utils/vendorBadges'
 import type { OperationFeed } from '@liwan/commercial-contracts'
 import { OPERATION_STATUS_FILTERS, operationFilterLabelKey, operationStatusFilter, operationTargetTo } from '@/utils/vendorOperations'
 definePageMeta({ capability: 'vendor.read' })
-const { t, locale } = useI18n(); const route = useRoute(); const router = useRouter(); const hydrated = useHydrated(); const { request } = useVendorApi()
+const { t } = useI18n(); const route = useRoute(); const router = useRouter(); const hydrated = useHydrated(); const { request } = useVendorApi()
 const TENANT_PAGE = 25
 const MAX_TENANT_PAGES = 8
 const tenantId = computed(() => (typeof route.query.tenant_id === 'string' ? route.query.tenant_id : ''))
@@ -41,7 +41,7 @@ const operationTo = (op: OperationFeed) => ({ path: `/operations/${op.id}`, quer
 function operationTime(op: OperationFeed) {
  const value = op.source === 'shared' ? (op.last_event_at ?? op.created_at) : op.updated_at
  const time = new Date(value ?? '')
- return `${t(op.source === 'shared' ? (op.last_event_at ? 'vendor.operations.lastEvent' : 'vendor.operations.created') : 'vendor.operations.updated')}: ${Number.isNaN(time.getTime()) ? t('app.notAvailable') : formatLiwanDateTime(time, locale.value)}`
+ return `${t(op.source === 'shared' ? (op.last_event_at ? 'vendor.operations.lastEvent' : 'vendor.operations.created') : 'vendor.operations.updated')}: ${Number.isNaN(time.getTime()) ? t('app.notAvailable') : formatLiwanDateTime(time)}`
 }
 
 const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [

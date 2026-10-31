@@ -9,7 +9,7 @@ import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 
 const props = defineProps<{ projectId: number; canManage: boolean }>()
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const projectBadge = (status: ProjectStatus | null) => { const entry = projectStatusBadge(status); return { tone: entry.tone, label: badgeLabel(entry, status, t) } }
 const hydrated = useHydrated()
 
@@ -22,7 +22,7 @@ const route = useRoute()
 // u.date is a YYYY-MM-DD calendar date, not an instant — new Date(iso) parses
 // it as UTC midnight and renders a day early west of Greenwich.
 function dateLabel(iso: string): string {
-  return formatCalendarDate(iso, locale.value)
+  return formatCalendarDate(iso)
 }
 
 const expanded = ref(new Set<number>())

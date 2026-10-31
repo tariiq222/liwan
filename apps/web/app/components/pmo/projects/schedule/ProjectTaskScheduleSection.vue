@@ -6,7 +6,7 @@ import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 import ScheduleTaskForm from './ScheduleTaskForm.vue'
 
 const props = defineProps<{ projectId: number; taskId: number }>()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const hydrated = useHydrated()
 const projectId = computed(() => props.projectId)
 const schedule = useProjectSchedule(projectId)
@@ -26,8 +26,8 @@ const canManage = computed(() => !denied.value && schedule.data.value?.can_manag
     </template>
     <SharedPageState :loading="!task && (schedule.isLoading.value || project.isLoading.value)" :error="schedule.error.value || project.error.value" :empty="!task && !schedule.isLoading.value && !schedule.error.value" :empty-text="t('projects.schedule.unavailable')" @retry="() => { schedule.refetch(); project.refetch() }">
       <dl v-if="task && !editing" class="grid gap-4 sm:grid-cols-2">
-        <div><dt class="text-sm text-muted">{{ t('projects.schedule.start') }}</dt><dd class="mt-1"><bdi>{{ formatCalendarDate(task.start, locale) || '—' }}</bdi></dd></div>
-        <div><dt class="text-sm text-muted">{{ t('projects.schedule.end') }}</dt><dd class="mt-1"><bdi>{{ formatCalendarDate(task.end, locale) || '—' }}</bdi></dd></div>
+        <div><dt class="text-sm text-muted">{{ t('projects.schedule.start') }}</dt><dd class="mt-1"><bdi>{{ formatCalendarDate(task.start) || '—' }}</bdi></dd></div>
+        <div><dt class="text-sm text-muted">{{ t('projects.schedule.end') }}</dt><dd class="mt-1"><bdi>{{ formatCalendarDate(task.end) || '—' }}</bdi></dd></div>
       </dl>
     </SharedPageState>
     <ScheduleTaskForm v-if="editing && task" :key="`${projectId}:${task.id}`" :project-id="projectId" :task="task" :can-write="canManage" :milestone="milestone" :project-start="project.data.value?.date_start" :project-end="project.data.value?.date_end" @saved="editing = false" @cancel="editing = false" />
