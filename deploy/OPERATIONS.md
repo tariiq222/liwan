@@ -66,6 +66,13 @@ the writable state stays in the named volumes. `db` starts as the `postgres` use
 filesystem until its read-only boot has a recorded check. `deploy/test_container_hardening.py` guards the pins,
 the non-root users and these settings.
 
+Upgrading a deployment whose `caddy_data` volume was created by the earlier root proxy: the volume holds the issued
+certificates and is owned by root, so the non-root proxy cannot write it and would request new certificates (Let's
+Encrypt rate limits apply). Before starting the new proxy, once, hand the volume to uid 10002 using the pinned proxy image:
+`docker compose run --rm --no-deps --user root --cap-add CHOWN --entrypoint chown proxy -R 10002:10002 /data`
+(the compose file already mounts `caddy_data` on `/data`; the shared overlay uses the same volume, so the same command applies).
+A fresh volume needs nothing: it is initialised from the image directory, already owned by `caddy`.
+
 `deploy/odoo.conf` uses `data_dir = /var/lib/odoo`, `db_host = db`, `dbfilter = ^${DB_NAME}$`. Provisioning (`deploy/provision.sh`) validates all three secrets, selects the pinned baked image, then installs and seeds through its guarded entrypoint. The manual backup wrappers do not invoke provisioning.
 
 The install makes the root company Saudi (country SA, currency SAR) before `account`, so stock loads the `sa` chart and VAT 15 % and creates any later pricelist in SAR; there is no chart step afterwards. Provisioning then pins the public origin: `web.base.url` = `https://$DOMAIN` with `web.base.url.freeze` (`deploy/seed_public_origin.py`), because stock builds payment return/webhook URLs and mail links from it and would otherwise rewrite it at an administrator's sign-in. After a domain change, set `DOMAIN` in `deploy/.env`, recreate the proxy (`docker compose up -d proxy`) and pin the origin again with the running image tag (the running Odoo is signalled and rereads it): `LIWAN_IMAGE_TAG=<tag> deploy/provision.sh --public-origin <domain> <db name>`.

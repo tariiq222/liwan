@@ -7,9 +7,12 @@ cd "$(dirname "$0")/../.."
 ROOT="$PWD"
 OCA_PATH="$(python3 -B tools/oca_addons.py path --check)"
 : "${ODOO_ROOT:?}" "${ODOO_PYTHON:?}" "${ODOO_PORT:?}" "${PGHOST:?}" "${PGPORT:?}" "${PGUSER:?}" "${PGPASSWORD?}"
+# The daily dev stack owns 8069 and 3000; test traffic never goes there (as tools/e2e_isolated.mjs).
+[ "$ODOO_PORT" != 8069 ] || { echo "e2e-odoo: refusing ODOO_PORT 8069, the daily dev stack" >&2; exit 2; }
 # The specs pin the origin (localhost:44300) and tools/e2e_seed.py and the fixture refuse any other database name.
 SCRATCH_DB="liwan_scratch_e2e"
 WEB_PORT=44300
+[ "$WEB_PORT" != 3000 ] || { echo "e2e-odoo: refusing web port 3000" >&2; exit 2; }
 SCRATCH_ROOT="$(mktemp -d)"
 mkdir -p "$SCRATCH_ROOT/data" "$SCRATCH_ROOT/logs"
 FIXTURE_DIR="$ROOT/.superpowers/real-odoo"
