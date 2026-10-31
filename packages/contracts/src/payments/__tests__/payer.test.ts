@@ -16,6 +16,8 @@ const INVOICE = {
   number: 'INV/2026/00001',
   due_date: '2026-11-27',
   currency: 'SAR',
+  amount_untaxed: 100,
+  amount_tax: 15,
   amount_total: 115,
   amount_due: 115,
   status: 'payable',
@@ -26,7 +28,7 @@ describe('PayableInvoiceSchema', () => {
   it('is strict and carries no partner data', () => {
     expect(PayableInvoiceSchema.parse(INVOICE)).toEqual(INVOICE)
     expect(Object.keys(PayableInvoiceSchema.shape).sort()).toEqual(
-      ['amount_due', 'amount_total', 'currency', 'due_date', 'id', 'merchant', 'number', 'options', 'status'],
+      ['amount_due', 'amount_tax', 'amount_total', 'amount_untaxed', 'currency', 'due_date', 'id', 'merchant', 'number', 'options', 'status'],
     )
     expect(() => PayableInvoiceSchema.parse({ ...INVOICE, partner: 'Payer' })).toThrow()
     expect(() => PayableInvoiceSchema.parse({ ...INVOICE, status: 'refunded' })).toThrow()
@@ -74,12 +76,14 @@ describe('PaymentLinkSchema', () => {
 
 describe('PaymentSettingsSchema', () => {
   it('bounds the expiry and accepts partial changes on a revision', () => {
-    const settings = { unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', revision: 0 }
+    const settings = { unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', tax_mode: 'included', revision: 0 }
     expect(PaymentSettingsSchema.parse(settings)).toEqual(settings)
     expect(() => PaymentSettingsSchema.parse({ ...settings, unpaid_order_expiry_minutes: 4 })).toThrow()
     expect(() => PaymentSettingsSchema.parse({ ...settings, refund_policy: 'notice' })).toThrow()
     expect(PaymentSettingsUpdateSchema.parse({ revision: 1, refund_amounts: 'any' })).toEqual({ revision: 1, refund_amounts: 'any' })
     expect(PaymentSettingsUpdateSchema.parse({ revision: 1, invoice_when_paid: false })).toEqual({ revision: 1, invoice_when_paid: false })
+    expect(PaymentSettingsUpdateSchema.parse({ revision: 1, tax_mode: 'added' })).toEqual({ revision: 1, tax_mode: 'added' })
+    expect(() => PaymentSettingsUpdateSchema.parse({ revision: 1, tax_mode: 'both' })).toThrow()
     expect(() => PaymentSettingsUpdateSchema.parse({ invoice_when_paid: false })).toThrow()
     expect(() => PaymentSettingsUpdateSchema.parse({ revision: 1, unpaid_order_expiry_minutes: 1441 })).toThrow()
   })

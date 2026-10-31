@@ -72,7 +72,33 @@ class LiwanPaymentsService(models.AbstractModel):
             'product_id': product.id,
             'product_uom_qty': quantity,
         })
+        if order.env['liwan.payments.settings']._liwan_tax_mode(order.company_id) == 'included':
+            # The price the seller set is what the customer pays: its taxes are the price-included twins of the product's.
+            line.tax_ids = [Command.set(self._liwan_included_taxes(line.tax_ids).ids)]
         return self.env['sale.order.line'].browse(line.id)
+
+    @api.model
+    def _liwan_included_taxes(self, taxes):
+        """``taxes`` as price-included taxes: the same tax set to 'included in price', created once per tax when missing.
+
+        Rounding the net price to cents cannot give back the exact gross price, so a price that already
+        contains its tax needs a price-included tax. ``taxes`` must come from an elevated environment.
+        """
+        Tax = taxes.env['account.tax']
+        included = Tax
+        for tax in taxes:
+            if tax.price_include or tax.amount_type == 'group':
+                included |= tax
+                continue
+            twin = Tax.with_context(active_test=False).search([
+                ('company_id', '=', tax.company_id.id), ('type_tax_use', '=', tax.type_tax_use),
+                ('amount_type', '=', tax.amount_type), ('amount', '=', tax.amount),
+                ('tax_group_id', '=', tax.tax_group_id.id), ('price_include_override', '=', 'tax_included'),
+            ], limit=1)
+            included |= twin or tax.copy({
+                'name': self.env._("%(name)s (price included)", name=tax.name), 'price_include_override': 'tax_included',
+            })
+        return included
 
     @api.model
     def _liwan_orders_of(self, lines):

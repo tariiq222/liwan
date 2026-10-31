@@ -4,7 +4,7 @@ from odoo.tests import tagged
 from .common import LiwanPayerCase
 from odoo.addons.liwan_api.tests.common import set_probe_feature
 
-INVOICE_KEYS = {'id', 'merchant', 'number', 'due_date', 'currency', 'amount_total', 'amount_due', 'status', 'options'}
+INVOICE_KEYS = {'id', 'merchant', 'number', 'due_date', 'currency', 'amount_untaxed', 'amount_tax', 'amount_total', 'amount_due', 'status', 'options'}
 OPTION_KEYS = {'provider_id', 'provider', 'method_id', 'method', 'method_name'}
 CHECKOUT = 'https://ksa.paymob.com/unifiedcheckout/'
 

@@ -2,7 +2,9 @@
 from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_payments.models.payments_settings import (
     DEFAULT_EXPIRY_MINUTES,
+    DEFAULT_TAX_MODE,
     EXPIRY_RANGE,
+    TAX_MODES,
 )
 from odoo.addons.liwan_payments.models.refund_policy import (
     COMPANY_POLICIES,
@@ -11,10 +13,11 @@ from odoo.addons.liwan_payments.models.refund_policy import (
     REFUND_AMOUNTS,
 )
 
-WRITABLE = {'revision', 'unpaid_order_expiry_minutes', 'invoice_when_paid', 'refund_policy', 'refund_amounts'}
+WRITABLE = {'revision', 'unpaid_order_expiry_minutes', 'invoice_when_paid', 'refund_policy', 'refund_amounts', 'tax_mode'}
 CHOICES = {
     'refund_policy': {value for value, _label in COMPANY_POLICIES},
     'refund_amounts': {value for value, _label in REFUND_AMOUNTS},
+    'tax_mode': {value for value, _label in TAX_MODES},
 }
 
 
@@ -25,6 +28,7 @@ def dump_settings(row, invoice_when_paid):
         'invoice_when_paid': invoice_when_paid,
         'refund_policy': row.refund_policy if row else DEFAULT_POLICY,
         'refund_amounts': row.refund_amounts if row else DEFAULT_AMOUNTS,
+        'tax_mode': row.tax_mode if row else DEFAULT_TAX_MODE,
         'revision': row.revision if row else 0,
     }
 

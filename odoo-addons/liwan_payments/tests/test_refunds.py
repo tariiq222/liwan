@@ -241,6 +241,8 @@ class TestRecordedRefunds(LiwanRefundCase):
             'name': 'Fixed tax service', 'type': 'service', 'list_price': 100.0, 'taxes_id': [Command.set(fixed.ids)],
         })
         self.rules(product=product, refund_amounts='any')
+        # A fixed tax is added to the price here; the company default (price includes tax) is covered in test_online_orders.
+        self.env['liwan.payments.settings'].create({'company_id': self.env.company.id, 'tax_mode': 'added'})
         order = self.service_api._liwan_new_order(self.env.company, self.customer)
         self.service_api._liwan_add_line(order, product)
         self.pay(order, order.amount_total)

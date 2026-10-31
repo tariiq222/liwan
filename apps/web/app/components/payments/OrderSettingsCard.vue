@@ -42,6 +42,7 @@ const validExpiry = computed(() => isValidExpiry(draft.value.unpaid_order_expiry
 const expiryError = computed(() => expiryRefusal.value ?? (validExpiry.value ? undefined : t('payments.orders.expiry.invalid', PAYMENT_ORDER_EXPIRY_MINUTES)))
 // A refusal belongs to the value that was sent; typing another value clears it.
 watch(() => draft.value.unpaid_order_expiry_minutes, () => { expiryRefusal.value = null })
+const taxModes = computed(() => (['included', 'added'] as const).map(value => ({ value, label: t(`payments.orders.taxMode.${value}`) })))
 const submit = () => { if (validExpiry.value) return save() }
 </script>
 
@@ -56,6 +57,9 @@ const submit = () => { if (validExpiry.value) return save() }
         :max="PAYMENT_ORDER_EXPIRY_MINUTES.max"
         :disabled="locked"
       />
+    </UFormField>
+    <UFormField orientation="horizontal" :label="t('payments.orders.taxMode.label')" name="tax_mode" :description="t('payments.orders.taxMode.hint')">
+      <USelect id="payments-order-tax-mode" v-model="draft.tax_mode" class="w-full" :items="taxModes" :disabled="locked" :aria-label="t('payments.orders.taxMode.label')" />
     </UFormField>
     <UFormField orientation="horizontal" :label="t('payments.orders.invoiceWhenPaid.label')" :description="t('payments.orders.invoiceWhenPaid.hint')">
       <USwitch id="payments-order-invoice-when-paid" v-model="draft.invoice_when_paid" :disabled="locked" :aria-label="t('payments.orders.invoiceWhenPaid.label')" />

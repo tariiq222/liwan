@@ -15,7 +15,7 @@ from odoo.addons.liwan_payments.models.order_service import (
     NotPayable,
 )
 
-ORDER_KEYS = {'id', 'merchant', 'number', 'expires_at', 'currency', 'amount_total', 'amount_due', 'status', 'options'}
+ORDER_KEYS = {'id', 'merchant', 'number', 'expires_at', 'currency', 'amount_untaxed', 'amount_tax', 'amount_total', 'amount_due', 'status', 'options'}
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -261,3 +261,66 @@ class TestOnlineOrderMoney(LiwanOrderCase):
         for order in (staff_order, paid):
             with self.subTest(order=order.name), self.assertRaises(UserError):
                 service._liwan_add_line(order, self.service)
+
+
+@tagged('post_install', '-at_install', 'liwan')
+class TestOnlineOrderTaxMode(LiwanOrderCase):
+    """The company decides whether the price of a product contains its tax (the default) or has it added (issue #288)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.vat = cls.env['account.tax'].create({
+            'name': 'Order VAT 15%', 'amount': 15.0, 'amount_type': 'percent', 'type_tax_use': 'sale',
+            'company_id': cls.env.company.id,
+        })
+        cls.service.taxes_id = [Command.set(cls.vat.ids)]
+
+    def set_mode(self, mode):
+        self.env['liwan.payments.settings'].search([('company_id', '=', self.env.company.id)]).unlink()
+        self.env['liwan.payments.settings'].create({'company_id': self.env.company.id, 'tax_mode': mode})
+
+    def payable(self, order):
+        response = self.summary(order)
+        self.assertEqual(response.status_code, 200, response.text)
+        return response.json()
+
+    def test_the_default_is_a_price_that_contains_its_tax_and_the_tax_is_a_line(self):
+        order = self.online_order()
+        self.assertEqual((order.amount_total, order.amount_untaxed, order.amount_tax), (115.0, 100.0, 15.0))
+        body = self.payable(order)
+        self.assertEqual((body['amount_total'], body['amount_untaxed'], body['amount_tax'], body['amount_due']), (115.0, 100.0, 15.0, 115.0))
+
+    def test_an_odd_price_is_charged_to_the_cent(self):
+        self.service.list_price = 150.0
+        self.customer.property_product_pricelist.item_ids.fixed_price = 150.0
+        order = self.online_order()
+        self.assertEqual(order.amount_total, 150.0)
+        self.assertEqual(order.amount_untaxed + order.amount_tax, 150.0)
+
+    def test_a_tax_added_company_charges_the_price_plus_the_tax(self):
+        self.set_mode('added')
+        order = self.online_order()
+        self.assertEqual((order.amount_total, order.amount_untaxed, order.amount_tax), (132.25, 115.0, 17.25))
+        body = self.payable(order)
+        self.assertEqual((body['amount_total'], body['amount_tax'], body['amount_due']), (132.25, 17.25, 132.25))
+
+    def test_the_price_included_twin_is_made_once_and_the_original_tax_is_untouched(self):
+        self.online_order()
+        self.online_order()
+        twins = self.env['account.tax'].with_context(active_test=False).search([
+            ('company_id', '=', self.env.company.id), ('type_tax_use', '=', 'sale'), ('amount', '=', 15.0),
+            ('price_include_override', '=', 'tax_included'),
+        ])
+        self.assertEqual(len(twins), 1)
+        self.assertFalse(self.vat.price_include)
+        self.assertEqual(self.service.taxes_id, self.vat)
+
+    def test_the_setting_is_read_and_changed_through_the_api(self):
+        self.login_admin()
+        self.assertEqual(self.api('GET', '/api/v1/payments/settings').json()['tax_mode'], 'included')
+        changed = self.api('PATCH', '/api/v1/payments/settings', json={'revision': 0, 'tax_mode': 'added'})
+        self.assertEqual((changed.status_code, changed.json()['tax_mode']), (200, 'added'))
+        self.assertEqual(self.env['liwan.payments.settings']._liwan_tax_mode(self.env.company), 'added')
+        refused = self.api('PATCH', '/api/v1/payments/settings', json={'revision': 1, 'tax_mode': 'maybe'})
+        self.assertEqual((refused.status_code, refused.json()['field']), (422, 'tax_mode'))

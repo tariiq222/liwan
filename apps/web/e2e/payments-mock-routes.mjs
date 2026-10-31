@@ -128,6 +128,8 @@ const payerInvoice = (id, status, extra = {}) => ({
   number: `INV/2026/${String(id).padStart(4, '0')}`,
   due_date: '2026-10-31',
   currency: 'SAR',
+  amount_untaxed: 14700,
+  amount_tax: 2205,
   amount_total: 16905,
   amount_due: 16905,
   status,
@@ -149,6 +151,8 @@ const payerOrder = (id, status, extra = {}) => ({
   number: `S${String(id).padStart(5, '0')}`,
   expires_at: '2026-10-31T12:30:00Z',
   currency: 'SAR',
+  amount_untaxed: 14700,
+  amount_tax: 2205,
   amount_total: 16905,
   amount_due: 16905,
   status,
@@ -221,9 +225,9 @@ export async function handlePublicPayments(req, res, path, url, { json, readBody
 }
 
 const EXPIRY_MINUTES = { min: 5, max: 1440 }
-const SETTINGS_FIELDS = ['revision', 'unpaid_order_expiry_minutes', 'invoice_when_paid', 'refund_policy', 'refund_amounts']
-const SETTINGS_CHOICES = { refund_policy: ['full', 'none'], refund_amounts: ['due', 'any'] }
-const freshSettings = () => ({ unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', revision: 0 })
+const SETTINGS_FIELDS = ['revision', 'unpaid_order_expiry_minutes', 'invoice_when_paid', 'refund_policy', 'refund_amounts', 'tax_mode']
+const SETTINGS_CHOICES = { refund_policy: ['full', 'none'], refund_amounts: ['due', 'any'], tax_mode: ['included', 'added'] }
+const freshSettings = () => ({ unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', tax_mode: 'included', revision: 0 })
 let settings = freshSettings()
 
 /** A PATCH of the orders settings: validated first, then refused as stale when its revision is not the saved one. */

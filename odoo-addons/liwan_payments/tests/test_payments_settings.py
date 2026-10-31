@@ -22,7 +22,7 @@ class TestPaymentsSettings(LiwanOrderCase):
         self.login_admin()
         self.assertEqual(self.api('GET', SETTINGS).json(), {
             'unpaid_order_expiry_minutes': 60, 'invoice_when_paid': True, 'refund_policy': 'full', 'refund_amounts': 'due',
-            'revision': 0,
+            'tax_mode': 'included', 'revision': 0,
         })
         saved = self.patch(
             revision=0, unpaid_order_expiry_minutes=30, invoice_when_paid=False, refund_policy='none', refund_amounts='any',
@@ -30,7 +30,7 @@ class TestPaymentsSettings(LiwanOrderCase):
         self.assertEqual(saved.status_code, 200)
         self.assertEqual(saved.json(), {
             'unpaid_order_expiry_minutes': 30, 'invoice_when_paid': False, 'refund_policy': 'none', 'refund_amounts': 'any',
-            'revision': 1,
+            'tax_mode': 'included', 'revision': 1,
         })
         self.assertEqual(self.env['ir.config_parameter'].sudo().get_param(AUTOMATIC_INVOICE), 'False')
         before = fields.Datetime.now()

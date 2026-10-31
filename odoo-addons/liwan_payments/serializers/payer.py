@@ -27,6 +27,8 @@ def _dump_document(document, status, options):
         'merchant': document.company_id.name,
         'number': document.name,
         'currency': document.currency_id.name,
+        'amount_untaxed': document.amount_untaxed,
+        'amount_tax': document.amount_tax,
         'amount_total': document.amount_total,
         # A document nobody can pay (cancelled, expired) owes nothing; the payer is told so, not shown a stale amount.
         'amount_due': 0.0 if status == 'not_payable' else document._liwan_pay_amount(),

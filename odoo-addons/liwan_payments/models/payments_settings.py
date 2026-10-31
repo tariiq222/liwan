@@ -16,6 +16,9 @@ from .refund_policy import (
 # Inclusive (min, max) minutes an unpaid online order may hold what it sells; the CHECK and the API parser read it.
 EXPIRY_RANGE = (5, 1440)
 DEFAULT_EXPIRY_MINUTES = 60
+# Whether the price a seller sets already contains the tax (the customer pays that price) or the tax is added on top.
+TAX_MODES = [('included', 'Price includes tax'), ('added', 'Tax added to the price')]
+DEFAULT_TAX_MODE = 'included'
 # Stock parameters, one value per database. Invoicing a paid order is a tenant setting (D4, on by default);
 # asynchronous customer emails are fixed: the confirmation email renders a PDF, which must never run inside
 # payment post-processing (spike F7).
@@ -45,6 +48,7 @@ class LiwanPaymentsSettings(models.Model):
     # The refund rules of the company's products that keep the company default (refund_policy.py).
     refund_policy = fields.Selection(COMPANY_POLICIES, required=True, default=DEFAULT_POLICY)
     refund_amounts = fields.Selection(REFUND_AMOUNTS, required=True, default=DEFAULT_AMOUNTS)
+    tax_mode = fields.Selection(TAX_MODES, required=True, default=DEFAULT_TAX_MODE)
     revision = fields.Integer(required=True, default=1)
 
     _company_unique = models.Constraint('UNIQUE(company_id)', 'a company has one payments settings record')
@@ -63,6 +67,12 @@ class LiwanPaymentsSettings(models.Model):
         """How long an unpaid online order of ``company`` holds what it sells."""
         row = self._liwan_for(company)
         return timedelta(minutes=row.unpaid_order_expiry_minutes if row else DEFAULT_EXPIRY_MINUTES)
+
+    @api.model
+    def _liwan_tax_mode(self, company):
+        """Whether the prices ``company`` sells online include the tax or have it added: ``included`` or ``added``."""
+        row = self._liwan_for(company)
+        return row.tax_mode if row else DEFAULT_TAX_MODE
 
     @api.model
     def _liwan_refund_defaults(self, company):
