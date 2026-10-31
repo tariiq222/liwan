@@ -23,8 +23,6 @@ class TestFinanceBranchChart(LiwanFinanceWriteCase):
             'name': 'Chart Branch', 'parent_id': cls.company.id, 'country_id': cls.company.country_id.id,
             'currency_id': cls.company.currency_id.id,
         })
-        # Stock loads the root's chart into a new branch: the branch gets its own journals and taxes over the shared accounts.
-        cls.env['account.chart.template'].try_loading('sa', cls.branch)
         zatca = cls.env.ref('l10n_sa_edi.edi_sa_zatca')
         cls.env['account.journal'].search([('company_id', '=', cls.branch.id)]).edi_format_ids = [Command.unlink(zatca.id)]
         cls.branch_manager = new_test_user(
@@ -48,6 +46,8 @@ class TestFinanceBranchChart(LiwanFinanceWriteCase):
         accounts = self.get(f'{ACCOUNTS}?limit=100')
         parent = self.env['account.account'].search_count([('company_ids', 'in', self.company.ids)])
         self.assertGreater(parent, 0)
+        # The shared chart plus the liquidity account of the branch's own bank journal.
+        parent += self.env['account.account'].search_count([('company_ids', 'in', self.branch.ids)])
         self.assertEqual(accounts['total'], parent)
         self.assertEqual(self.get(SETUP)['chart']['accounts_count'], parent)
         opened = self.api('GET', f'{ACCOUNTS}/{accounts["items"][0]["id"]}')
@@ -58,9 +58,30 @@ class TestFinanceBranchChart(LiwanFinanceWriteCase):
         self.assertEqual(created.status_code, 201, created.text)
         self.assertEqual(self.api('GET', f'{JOURNALS}/{created.json()["id"]}').status_code, 200)
 
-    def test_the_branch_invoices_and_reports_on_the_shared_chart(self):
-        journal = self.api('POST', JOURNALS, json={'name': 'Branch sales', 'code': 'BRS', 'type': 'sale'})
-        self.assertEqual(journal.status_code, 201, journal.text)
+    def test_a_new_branch_gets_its_own_journals_over_the_shared_chart(self):
+        journals = self.env['account.journal'].search([('company_id', '=', self.branch.id)])
+        root_types = set(self.env['account.journal'].search([('company_id', '=', self.company.id)]).mapped('type'))
+        self.assertEqual(set(journals.mapped('type')), root_types & {'sale', 'purchase', 'general', 'bank', 'cash'})
+        self.assertIn('bank', root_types)
+        bank = journals.filtered(lambda journal: journal.type == 'bank')
+        self.assertNotIn(bank.default_account_id, self.env['account.journal'].search([('company_id', '=', self.company.id)]).default_account_id)
+        receipts = self.env.ref(f'account.{self.company.id}_account_journal_payment_debit_account_id')
+        self.assertEqual(bank.inbound_payment_method_line_ids.payment_account_id, receipts)
+        listed = self.get(JOURNALS)['items']
+        self.assertEqual({item['id'] for item in listed}, set(journals.ids))
+
+    def test_an_existing_branch_without_journals_is_provisioned_once_by_the_migration_step(self):
+        # The upgrade step calls exactly this method on every branch (migrations/19.0.1.4.5).
+        journals = self.env['account.journal'].search([('company_id', '=', self.branch.id)])
+        types = set(journals.mapped('type'))
+        journals.unlink()
+        self.branch._liwan_provision_branch_journals()
+        again = self.env['account.journal'].search([('company_id', '=', self.branch.id)])
+        self.assertEqual(set(again.mapped('type')), types)
+        self.branch._liwan_provision_branch_journals()
+        self.assertEqual(self.env['account.journal'].search([('company_id', '=', self.branch.id)]), again)
+
+    def test_the_branch_invoices_pays_and_reports_on_the_shared_chart(self):
         partner = self.api('POST', PARTNERS, json={'name': 'Branch customer', 'customer': True})
         self.assertEqual(partner.status_code, 201, partner.text)
         invoice = self.api('POST', INVOICES, json={
@@ -68,11 +89,18 @@ class TestFinanceBranchChart(LiwanFinanceWriteCase):
             'lines': [{'name': 'Branch service', 'quantity': 1, 'price_unit': 200, 'tax_ids': []}],
         })
         self.assertEqual(invoice.status_code, 201, invoice.text)
-        # Posting a Saudi sale document needs the branch's ZATCA onboarding, and a payment needs outstanding accounts a new branch
-        # does not have yet (stock reads them for the root company): neither is the shared chart this test is about.
+        self.assertEqual(self.env['account.move'].browse(invoice.json()['id']).journal_id.company_id, self.branch)
+        # Posting a Saudi sale document needs the branch's ZATCA onboarding, which is not what this test is about.
+        bank = self.env['account.journal'].search([('company_id', '=', self.branch.id), ('type', '=', 'bank')], limit=1)
+        payment = self.api('POST', f'{PAYMENTS}/standalone', json={
+            'payment_type': 'inbound', 'partner_id': partner.json()['id'], 'amount': 50, 'payment_date': '2026-10-19',
+            'journal_id': bank.id,
+        })
+        self.assertEqual(payment.status_code, 201, payment.text)
         self.assertEqual(self.api('GET', TRIAL_BALANCE).status_code, 200)
 
-    def test_a_branch_without_a_journal_is_told_to_create_one_not_refused_with_odoo_text(self):
+    def test_a_branch_whose_journals_are_gone_is_told_to_create_one_not_refused_with_odoo_text(self):
+        self.env['account.journal'].search([('company_id', '=', self.branch.id), ('type', '=', 'sale')]).unlink()
         result = self.api('POST', INVOICES, json={
             'move_type': 'out_invoice', 'partner_id': self.partner.id, 'invoice_date': '2026-10-18',
             'lines': [{'name': 'Service', 'quantity': 1, 'price_unit': 10, 'tax_ids': []}],
