@@ -2,7 +2,7 @@
 {
     'name': 'liwan Chat',
     'summary': 'liwan platform: member-private chat over native discuss.channel',
-    'version': '19.0.1.2.0',
+    'version': '19.0.1.3.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -13,6 +13,10 @@
     'depends': ['liwan_api', 'liwan_platform', 'mail'],
     'data': [
         'security/chat_rules.xml',
+        'security/chat_capability_groups.xml',
+        'data/chat_access_permissions.xml',
+        'security/ir.model.access.csv',
+        'security/chat_settings_rules.xml',
     ],
     'post_init_hook': 'post_init_hook',
     'installable': True,

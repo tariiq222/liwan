@@ -23,17 +23,26 @@ PERMISSION_DEPENDENCIES = {
     ASSIGN: {READ},
     EXPORT: {READ},
 }
+# Vendor support runs the channels and the settings, and never reads the customers' conversations (owner decision 2026-10-29, INB-18).
+VENDOR_SUPPORT_PERMISSIONS = frozenset({MANAGE_CHANNELS, MANAGE_SETTINGS})
 # Customer messages are sensitive: the base employee role gets none of them.
 ROLE_GRANTS = {
     'liwan_inbox.role_inbox_agent': frozenset({READ, REPLY}),
     'liwan_inbox.role_inbox_supervisor': frozenset({READ, REPLY, ASSIGN, EXPORT, REPORTS_READ}),
     'liwan_inbox.role_inbox_manager': PERMISSIONS,
-    'liwan_core.role_vendor_support': PERMISSIONS,
+    'liwan_core.role_vendor_support': VENDOR_SUPPORT_PERMISSIONS,
 }
 
 
 class LiwanInboxAccessService(models.AbstractModel):
     _inherit = 'liwan.access.service'
+
+    @api.model
+    def _liwan_capability_keys(self, user=None, company=None):
+        user = user or self.env.user
+        keys = super()._liwan_capability_keys(user, company=company)
+        # Support's foundation shortcut grants the whole catalog; the conversations are not part of what it runs.
+        return keys - (PERMISSIONS - VENDOR_SUPPORT_PERMISSIONS) if user.has_group('liwan_core.group_vendor_support') else keys
 
     @api.model
     def _liwan_capability_definitions(self):

@@ -1,8 +1,16 @@
-import type { InboxChannelState, InboxConversation, InboxConversationState, InboxDeliveryState, InboxPriority } from '@liwan/contracts'
+import type { InboxChannelState, InboxConversation, InboxConversationState, InboxDeliveryState, InboxMessageKind, InboxPriority } from '@liwan/contracts'
 import type { StatusTone } from '@liwan/ui/app/utils/statusTone'
 
 export const CONVERSATION_STATES: readonly InboxConversationState[] = ['open', 'pending', 'resolved', 'closed']
 export const PRIORITIES: readonly InboxPriority[] = ['low', 'normal', 'high', 'urgent']
+
+/** The priority badge of a list row; a normal priority is the default and shows nothing. */
+export const INBOX_PRIORITY_TONE: Partial<Record<InboxPriority, StatusTone>> = { low: 'neutral', high: 'warning', urgent: 'destructive' }
+
+/** The locale key naming the file of a message without a caption (a list row shows it instead of text); null for plain text. */
+export function inboxFileKindKey(kind: InboxMessageKind | null): string | null {
+  return kind && kind !== 'text' ? `inbox.kinds.${kind}` : null
+}
 
 export const CONVERSATION_STATE_TONE: Record<InboxConversationState, StatusTone> = {
   open: 'info', pending: 'warning', resolved: 'success', closed: 'neutral',

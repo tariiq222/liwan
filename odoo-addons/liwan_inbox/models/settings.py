@@ -74,6 +74,12 @@ class LiwanInboxSettings(models.Model):
         settings = self.search([('company_id', '=', company.id)], limit=1)
         return settings or self.create({'company_id': company.id})
 
+    @api.model
+    def _liwan_read_for_company(self, company=None):
+        """The company's row, or an unsaved one at the stated defaults when it has none yet. Never writes."""
+        company = company or self.env.company
+        return self.search([('company_id', '=', company.id)], limit=1) or self.new({'company_id': company.id})
+
     def _liwan_is_open(self, at, department=None):
         """Whether the UTC moment `at` is inside the working hours that apply (the department's, else the company's)."""
         self.ensure_one()

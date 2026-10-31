@@ -47,6 +47,8 @@
       "scopeUnassigned": "Unassigned",
       "state": "Status",
       "anyState": "Any status",
+      "priority": "Priority",
+      "anyPriority": "Any priority",
       "department": "Department",
       "anyDepartment": "Any department",
       "empty": "No conversations yet",
@@ -2117,6 +2119,8 @@
       "inbox_template_name_taken": "A template with this name and language already exists on the channel.",
       "inbox_phone_number_taken": "This phone number id is already connected to a channel.",
       "inbox_conversation_closed": "The conversation is closed. Reopen it first.",
+      "inbox_conversation_stale": "This conversation was changed by someone else. Refresh the page.",
+      "inbox_customer_has_open_conversation": "This customer already has an open conversation on the channel. Close it first, then reopen this one.",
       "inbox_channel_disabled": "The channel is disabled.",
       "inbox_window_closed": "The 24-hour reply window is closed. Send an approved template.",
       "inbox_channel_has_conversations": "A channel with conversations cannot be deleted. Disable it instead."

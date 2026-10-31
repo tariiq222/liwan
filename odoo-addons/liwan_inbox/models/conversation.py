@@ -8,6 +8,7 @@ from odoo.fields import Domain
 from .access_service import ASSIGN, READ
 from .constants import (
     CSAT_SCORES,
+    MESSAGE_KINDS,
     PREVIEW_LENGTH,
     REPLY_WINDOW,
     STALE_UPLOAD_AGE,
@@ -16,6 +17,8 @@ from .constants import (
 from .notification_types import KINDS
 
 BUS_CHANNEL = 'liwan/inbox'
+# What an agent edits on a conversation; a change to any of them is a new revision (INB-114).
+REVISION_FIELDS = frozenset({'state', 'priority', 'tag_ids', 'assignee_id', 'department_id'})
 
 
 class LiwanInboxConversation(models.Model):
@@ -40,11 +43,15 @@ class LiwanInboxConversation(models.Model):
         required=True, default='normal',
     )
     tag_ids = fields.Many2many('liwan.inbox.tag', 'liwan_inbox_conversation_tag_rel', 'conversation_id', 'tag_id')
+    # Counts the changes of REVISION_FIELDS; a PATCH names the revision it was made from, so a second editor never overwrites the first.
+    revision = fields.Integer(required=True, default=1, copy=False)
     unread = fields.Boolean(default=False)
     message_ids = fields.One2many('liwan.inbox.message', 'conversation_id')
     # Notes are internal, so they never count as the last message or as activity.
     last_message_at = fields.Datetime(compute='_compute_last_message', store=True, index=True)
     last_message_preview = fields.Char(compute='_compute_last_message', store=True)
+    # What the last message is (a file without a caption has no preview text, so the list names the file by its kind).
+    last_message_kind = fields.Selection(MESSAGE_KINDS, compute='_compute_last_message', store=True)
     last_inbound_at = fields.Datetime(compute='_compute_last_inbound', store=True)
     reply_window_ends_at = fields.Datetime(compute='_compute_last_inbound', store=True)
     # The last typing request (the throttle marker) and whether the outbox still has to send it.
@@ -64,13 +71,33 @@ class LiwanInboxConversation(models.Model):
         'A customer has one open conversation per channel.',
     )
 
-    @api.depends('message_ids.direction', 'message_ids.date', 'message_ids.body')
+    def write(self, vals):
+        watched = [name for name in REVISION_FIELDS if name in vals] if 'revision' not in vals else []
+        before = self._revision_values(watched)
+        result = super().write(vals)
+        # Only a real change is a new revision: saving the values a conversation already has must not stale another editor.
+        changed = [record_id for record_id, values in before.items() if values != self._revision_values(watched, record_id)[record_id]]
+        if changed:
+            self.env.cr.execute('UPDATE liwan_inbox_conversation SET revision = revision + 1 WHERE id IN %s', [tuple(changed)])
+            self.invalidate_recordset(['revision'])
+        return result
+
+    def _revision_values(self, names, only=None):
+        """The watched values of each saved conversation (relations as sorted ids), to compare before and after a write."""
+        records = self.browse(only) if only else self
+        return {
+            record.id: {name: tuple(sorted(record[name].ids)) if record._fields[name].relational else record[name] for name in names}
+            for record in records if record.id
+        } if names else {}
+
+    @api.depends('message_ids.direction', 'message_ids.date', 'message_ids.body', 'message_ids.kind')
     def _compute_last_message(self):
         for conversation in self:
             customer_visible = conversation.message_ids.filtered(lambda message: message.direction != 'note')
             last = customer_visible.sorted(lambda message: (message.date, message.id))[-1:]
             conversation.last_message_at = last.date
             conversation.last_message_preview = ' '.join((last._liwan_caption() or '').split())[:PREVIEW_LENGTH] if last else False
+            conversation.last_message_kind = last.kind if last else False
 
     @api.depends('message_ids.direction', 'message_ids.date')
     def _compute_last_inbound(self):
@@ -136,7 +163,7 @@ class LiwanInboxConversation(models.Model):
         service = self.env['liwan.access.service']
         if service._liwan_has_capability(user, ASSIGN):
             return Domain.TRUE
-        policy = self.env['liwan.inbox.settings']._get_for_company().visibility_policy
+        policy = self.env['liwan.inbox.settings']._liwan_read_for_company().visibility_policy
         if policy == 'all':
             return Domain.TRUE
         mine = Domain('assignee_id', '=', user.id)

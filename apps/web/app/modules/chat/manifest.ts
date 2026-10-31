@@ -4,6 +4,13 @@ const manifest: AppManifest = {
   id: 'chat',
   feature: 'chat.enabled',
   routePrefixes: ['/chat'],
+  // The application's settings are one page under Settings > Applications; what deleting a message does is its first card.
+  settings: {
+    id: 'chat', labelKey: 'nav.chat', icon: 'i-lucide-message-circle', to: '/settings/apps/chat',
+    parts: [
+      { id: 'messages', labelKey: 'chatSettings.delete.title', icon: 'i-lucide-message-square-x', capability: 'chat.settings.manage' },
+    ],
+  },
   rail: [{ id: 'chat', labelKey: 'nav.chat', icon: 'i-lucide-message-circle', to: '/chat', order: 40 }],
   nav: [
     { to: '/chat', labelKey: 'nav.chat', icon: 'i-lucide-message-circle', shortcut: 'n', goKey: 'c', capability: 'liwan.internal' },

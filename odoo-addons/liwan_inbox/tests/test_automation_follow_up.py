@@ -205,7 +205,7 @@ class TestSatisfactionSurvey(AutomationCase):
         self.login(self.agent)
 
     def resolve(self):
-        return self.api('PATCH', f'/api/v1/inbox/conversations/{self.conversation.id}', {'state': 'resolved'})
+        return self.patch_conversation(self.conversation, {'state': 'resolved'})
 
     def survey(self):
         return self.automated(self.conversation)
@@ -252,7 +252,7 @@ class TestSatisfactionSurvey(AutomationCase):
         self.assertFalse(self.survey())
         self.channel.csat_enabled = True
         old = self.make_conversation(minutes_ago=25 * 60, assignee_id=self.agent.id)
-        self.assertEqual(self.api('PATCH', f'/api/v1/inbox/conversations/{old.id}', {'state': 'resolved'}).status_code, 200)
+        self.assertEqual(self.patch_conversation(old, {'state': 'resolved'}).status_code, 200)
         self.assertFalse(self.automated(old))
         self.make_rule(match_kind='any', reply=None, resolve=True)
         message, _event = self.deliver('done', wa_id='966500003001')

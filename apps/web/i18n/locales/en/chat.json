@@ -61,6 +61,7 @@
   "deleteConfirmTitle": "Delete this message?",
   "save": "Save",
   "edited": "Edited",
+  "deletedMessage": "This message was deleted",
   "pinned": "Pinned",
   "searchMessages": "Search messages",
   "muted": "Muted",
@@ -102,5 +103,20 @@
     "empty": "The file is empty.",
     "tooLarge": "The file exceeds 10 MiB."
   }
+  },
+  "chatSettings": {
+    "saved": "Chat settings saved.",
+    "saveFailed": "The settings could not be saved.",
+    "conflict": "The settings changed in another session. The saved values are shown; review them and save again.",
+    "reloadFailed": "The settings could not be refreshed. Reload the page.",
+    "delete": {
+      "title": "Deleting messages",
+      "hint": "The company chooses what happens when someone deletes a message they wrote. The choice applies to the current company only.",
+      "label": "When a message is deleted",
+      "placeholder": "Keep a “this message was deleted” line",
+      "placeholderHint": "The text and files are cleared and the message keeps its place, so replies, pins and the order of messages stay as they are.",
+      "permanent": "Delete for good",
+      "permanentHint": "The message and its files are removed for everyone and leave no trace in the conversation."
+    }
   }
 }

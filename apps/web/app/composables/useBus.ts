@@ -93,6 +93,16 @@ let generation = 0
 const connected = ref(false)
 export type ChatTypingEvent = { conversationId: number; userId: number; userName: string; isTyping: boolean }
 export const chatTypingEvent = ref<ChatTypingEvent | null>(null)
+/** A message removed for good (the company's «permanent» delete): open histories drop it, a refetch cannot tell them to. */
+export type ChatDeletedEvent = { conversationId: number; messageId: number }
+export const chatDeletedEvent = ref<ChatDeletedEvent | null>(null)
+export function applyChatDeleted(notification: { message?: { type?: string; payload?: Record<string, unknown> } }): void {
+  const payload = notification.message?.payload
+  if (notification.message?.type === 'liwan/chat' && payload?.event === 'message_deleted'
+    && typeof payload.id === 'number' && typeof payload.message_id === 'number') {
+    chatDeletedEvent.value = { conversationId: payload.id, messageId: payload.message_id }
+  }
+}
 let typingTimer: ReturnType<typeof setTimeout> | null = null
 
 export function applyChatTyping(event: ChatTypingEvent): void {
@@ -210,6 +220,7 @@ function handleMessage(event: MessageEvent) {
   if (newLast !== undefined) lastId = newLast
   for (const notification of notifications) {
     const payload = notification.message?.payload
+    applyChatDeleted(notification)
     if (notification.message?.type !== 'liwan/chat' || payload?.event !== 'typing') continue
     if (typeof payload.id !== 'number' || typeof payload.user_id !== 'number') continue
     applyChatTyping({

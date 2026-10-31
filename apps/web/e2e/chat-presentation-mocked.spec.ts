@@ -4,7 +4,7 @@ test.skip(process.env.E2E_PROJECT_POPUPS !== '1', 'Isolated synthetic API only')
 test.setTimeout(90_000)
 
 const conversation = { id: 42, type: 'direct', name: 'محادثة تجريبية', unread_count: 0, last_message_at: '2026-09-09T10:00:00Z', last_message_preview: 'رسالة ثانية', member_count: 2, muted: true, notifications: null, peer_seen_message_id: null, im_status: 'online', can_manage: true, can_remove_members: false }
-const messages = ['رسالة أولى', 'رسالة ثانية'].map((body, index) => ({ id: index + 1, conversation_id: 42, author: { id: 7, name: 'سارة' }, body, created_at: '2026-09-09T10:00:00Z', attachments: [], parent: null, edited: false, pinned: false, starred: false, reactions: [], notice: null }))
+const messages = ['رسالة أولى', 'رسالة ثانية'].map((body, index) => ({ id: index + 1, conversation_id: 42, author: { id: 7, name: 'سارة' }, body, created_at: '2026-09-09T10:00:00Z', attachments: [], parent: null, edited: false, deleted: false, pinned: false, starred: false, reactions: [], notice: null }))
 
 async function setup(page: Page) {
   const creates: unknown[] = []
