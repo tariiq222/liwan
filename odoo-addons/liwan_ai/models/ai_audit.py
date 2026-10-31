@@ -129,7 +129,7 @@ class LiwanAiAudit(models.Model):
         Single choke point: ``create`` runs it for every row, so the route and a
         direct ORM create enforce the same rules. Raises ``ValidationError``
         with ``liwan_field`` for a bad value and ``AccessError`` when the user
-        lacks the tool's capability.
+        lacks the tool's capability or its feature is off.
         """
         invalid = self._liwan_ai_invalid
         unknown = set(values) - WIRE_KEYS
@@ -181,6 +181,8 @@ class LiwanAiAudit(models.Model):
         if tool is not None:
             if not self.env['liwan.access.service']._liwan_has_capability(self.env.user, tool['capability']):
                 raise AccessError(self.env._('You do not have access to the tool %(tool)s.', tool=tool_name))
+            if not self.env['liwan.entitlement.service']._liwan_feature_read(tool['feature_key']):
+                raise AccessError(self.env._('The feature of the tool %(tool)s is not available.', tool=tool_name))
         return {
             'company_id': self.env.company.id,
             'user_id': self.env.user.id,
