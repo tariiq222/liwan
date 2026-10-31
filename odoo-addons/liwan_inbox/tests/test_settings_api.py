@@ -2,6 +2,7 @@
 from odoo.tests import tagged
 
 from .common import LiwanInboxCase
+from odoo.addons.liwan_inbox import hooks
 from odoo.addons.liwan_inbox.models.presets import PRESETS
 
 
@@ -103,3 +104,20 @@ class TestSettingsApi(LiwanInboxCase):
         path = f'/api/v1/inbox/canned-replies/{reply["id"]}'
         self.assertEqual(self.api('PATCH', path, {'body': 'Cheers'}).json()['body'], 'Cheers')
         self.assertEqual(self.api('DELETE', path).status_code, 204)
+
+    def test_every_company_starts_with_its_settings_row(self):
+        """INB-201: the install creates the rows at the stated defaults, so a read finds one."""
+        Settings = self.env['liwan.inbox.settings']
+        Settings.search([]).unlink()
+        hooks.post_init_hook(self.env)
+        companies = self.env['res.company'].search([])
+        self.assertEqual(Settings.search([]).company_id, companies)
+        self.assertEqual({row.visibility_policy for row in Settings.search([])}, {'department'})
+
+    def test_reading_the_settings_of_a_company_without_a_row_writes_nothing(self):
+        Settings = self.env['liwan.inbox.settings']
+        Settings.search([('company_id', '=', self.env.company.id)]).unlink()
+        read = Settings._liwan_read_for_company(self.env.company)
+        self.assertFalse(read.id)
+        self.assertEqual((read.visibility_policy, read.auto_close_hours), ('department', 72))
+        self.assertFalse(Settings.search_count([('company_id', '=', self.env.company.id)]))

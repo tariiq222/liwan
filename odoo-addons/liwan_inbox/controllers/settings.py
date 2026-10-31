@@ -88,12 +88,12 @@ def parse_department(payload, partial=False):
 
 class SettingsController(http.Controller):
 
-    @http.route('/api/v1/settings/inbox', type='json2', auth='user', methods=['GET'], readonly=False)
+    @http.route('/api/v1/settings/inbox', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('inbox.enabled', operation='read')
     @requires_capability(MANAGE_SETTINGS)
     def get_settings(self, **_):
-        return dump_settings(request.env['liwan.inbox.settings']._get_for_company())
+        return dump_settings(request.env['liwan.inbox.settings']._liwan_read_for_company())
 
     @http.route('/api/v1/settings/inbox', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
