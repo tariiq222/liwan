@@ -241,6 +241,8 @@ export async function reconcileOdooOnboardings(pool:Pool,config:Config,adapter:S
       if(!verified.rowCount)throw Error('shared_verification_lost')
       const activated=await client.query("UPDATE shared_onboardings SET stage='active',error_code=NULL WHERE request_id=$1 AND stage='activating' AND job_id=$2 AND job_digest=$3 RETURNING request_id",[row.request_id,row.job_id,row.job_digest])
       if(activated.rowCount!==1)throw Error('shared_activation_state_changed')
+      // A provisioned database starts active: the worker asserts the subscription's status again.
+      await client.query('UPDATE subscriptions SET tenant_status_pushed=NULL,tenant_status_failures=0,tenant_status_next_at=NULL WHERE tenant_id=$1',[row.control_tenant_id])
       await client.query("UPDATE tenants SET status='active',policy_revision=1,desired_policy=$2,observed_policy=$2,health_checked_at=clock_timestamp() WHERE id=$1",[row.control_tenant_id,job.operation==='provision'?job.policy.features:null])
     })
   }

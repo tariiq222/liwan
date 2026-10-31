@@ -116,8 +116,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
       const statusRunner = o.tenantStatusRunner
       // A suspension is pushed on the next tick, not the next hourly billing pass; shared runtime jobs (backup, restore) go first.
       if (statusRunner) await job('tenant-status', async () => {
-        if (await sharedRuntimeBusy(pool, config, log)()) return
-        const { failed } = await syncTenantStatus(pool, { runner: statusRunner, log })
+        const { failed } = await syncTenantStatus(pool, { runner: statusRunner, log, busy: sharedRuntimeBusy(pool, config, log) })
         if (failed.length) throw new Error(`tenant_status_push_incomplete ${failed.length}`)
       })
       const now = clock()

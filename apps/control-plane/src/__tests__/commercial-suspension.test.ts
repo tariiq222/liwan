@@ -15,14 +15,18 @@ suite('subscription suspension reaches the tenant', () => {
   beforeEach(async () => { await pool.query('TRUNCATE customers CASCADE') })
   afterAll(async () => { await pool.end() })
 
-  async function subscription(state: string, { tenant = true }: { tenant?: boolean } = {}) {
+  async function subscription(state: string, { tenant = true, binding = true }: { tenant?: boolean; binding?: boolean } = {}) {
     const tenantId = randomUUID(), customer = randomUUID(), id = randomUUID()
     if (tenant) await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Suspension','saas','managed',$2,true)", [tenantId, `suspension-${tenantId}`])
+    if (tenant && binding) {
+      const slug = `t${tenantId.replaceAll('-', '')}`
+      await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,true,1)', [tenantId, slug, `${slug}.susp.test`, `liwan_scratch_${slug.slice(1)}`])
+    }
     await pool.query('INSERT INTO customers(id,name,tenant_id) VALUES($1,$2,$3)', [customer, 'Suspension customer', tenant ? tenantId : null])
     await pool.query('INSERT INTO subscriptions(id,customer_id,tenant_id,state) VALUES($1,$2,$3,$4)', [id, customer, tenant ? tenantId : null, state])
     return { id, customer, tenantId }
   }
-  const row = async (id: string) => (await pool.query('SELECT state,manual_suspension,tenant_status_pushed,grace_ends_at,revision FROM subscriptions WHERE id=$1', [id])).rows[0]
+  const row = async (id: string) => (await pool.query('SELECT state,manual_suspension,tenant_status_pushed,tenant_status_failures,tenant_status_next_at,grace_ends_at,revision FROM subscriptions WHERE id=$1', [id])).rows[0]
   const call = (path: string, body: unknown, over: Record<string, unknown> = {}) => {
     const pathname = `/v1/commercial${path}`
     return routesB(pool, { method: 'POST', pathname, raw: JSON.stringify(body), issuer: 'test', actor: 7, capabilities: ['vendor.subscriptions.manage'], stepUpFresh: true, ...over } as never, new URL(pathname, 'http://localhost'))
@@ -46,6 +50,17 @@ suite('subscription suspension reaches the tenant', () => {
       await resumeSubscription(pool, { subscription_id: s.id, reason, actor: '7' })
       expect(await row(s.id)).toMatchObject({ state: 'active', manual_suspension: false, grace_ends_at: null })
       expect((await pool.query("SELECT 1 FROM audit_events WHERE action='subscription.resumed' AND subject=$1", [s.id])).rowCount).toBe(1)
+    })
+    it('resumes a running trial as a trial, and an ended one as active', async () => {
+      const running = await subscription('trialing'), ended = await subscription('trialing')
+      await pool.query("UPDATE subscriptions SET trial_ends_at=now() + interval '5 days',revision=revision+1 WHERE id=$1", [running.id])
+      await pool.query("UPDATE subscriptions SET trial_ends_at=now() - interval '1 day',revision=revision+1 WHERE id=$1", [ended.id])
+      for (const s of [running, ended]) {
+        await suspendSubscription(pool, { subscription_id: s.id, reason, actor: '7' })
+        await resumeSubscription(pool, { subscription_id: s.id, reason, actor: '7' })
+      }
+      expect((await row(running.id)).state).toBe('trialing')
+      expect((await row(ended.id)).state).toBe('active')
     })
     it('resumes to past due with a fresh grace period while an invoice is overdue, so dunning does not stop it again at once', async () => {
       const s = await subscription('active')
@@ -110,8 +125,12 @@ suite('subscription suspension reaches the tenant', () => {
       const failing = vi.fn(async () => { throw new Error('script_failed') })
       expect(await syncTenantStatus(pool, { runner: failing, log })).toEqual({ pushed: [], failed: [s.id] })
       expect(log).toHaveBeenCalledWith(expect.stringContaining(s.id), expect.any(Error))
-      expect((await row(s.id)).tenant_status_pushed).toBe('active')
+      expect(await row(s.id)).toMatchObject({ tenant_status_pushed: 'active', tenant_status_failures: 1 })
+      // Backed off: the next run leaves it alone until its time comes.
+      expect(await syncTenantStatus(pool, { runner: async () => ({}) })).toEqual({ pushed: [], failed: [] })
+      await pool.query('UPDATE subscriptions SET tenant_status_next_at=now() - interval \'1 second\' WHERE id=$1', [s.id])
       expect(await syncTenantStatus(pool, { runner: async () => ({}) })).toEqual({ pushed: [s.id], failed: [] })
+      expect(await row(s.id)).toMatchObject({ tenant_status_failures: 0, tenant_status_next_at: null })
     })
     it('pushes the suspension dunning ordered, and treats past due as active', async () => {
       const s = await subscription('past_due'), late = await subscription('suspended')
@@ -119,6 +138,38 @@ suite('subscription suspension reaches the tenant', () => {
       await syncTenantStatus(pool, { runner })
       expect(runner.mock.calls.map(c => c[0].tenant_id)).toEqual([late.tenantId])
       expect((await row(s.id)).tenant_status_pushed).toBe('active')
+    })
+    it('does not move the revision a quote was priced against, and asserts an unknown status again', async () => {
+      const s = await subscription('active')
+      const before = (await row(s.id)).revision
+      await pool.query('UPDATE subscriptions SET tenant_status_pushed=NULL WHERE id=$1', [s.id])
+      const runner = vi.fn(async () => ({}))
+      expect(await syncTenantStatus(pool, { runner })).toEqual({ pushed: [s.id], failed: [] })
+      expect(runner).toHaveBeenCalledWith({ tenant_id: s.tenantId, status: 'active' })
+      expect(await row(s.id)).toMatchObject({ revision: before, tenant_status_pushed: 'active' })
+    })
+    it('backs a failing tenant off so it does not starve the others, and skips one with no enabled binding without an error', async () => {
+      const bad = await subscription('suspended'), good = await subscription('suspended'), unbound = await subscription('suspended', { binding: false })
+      const runner = vi.fn(async (input: { tenant_id: string }) => { if (input.tenant_id === bad.tenantId) throw new Error('script_failed') })
+      const first = await syncTenantStatus(pool, { runner, limit: 1 })
+      const second = await syncTenantStatus(pool, { runner, limit: 1 })
+      const rows = [...first.pushed, ...second.pushed, ...first.failed, ...second.failed]
+      expect(rows).toContain(good.id)
+      expect(rows).not.toContain(unbound.id)
+      const failedRow = await row(bad.id)
+      if (rows.includes(bad.id)) expect(failedRow.tenant_status_failures).toBe(1)
+      await syncTenantStatus(pool, { runner })
+      const after = await syncTenantStatus(pool, { runner })
+      expect(after.failed).toEqual([])
+      expect(runner.mock.calls.filter(c => c[0].tenant_id === unbound.tenantId)).toEqual([])
+      expect((await row(bad.id)).tenant_status_next_at ?? new Date(Date.now() + 1)).toBeInstanceOf(Date)
+    })
+    it('stops a run when a shared runtime job is running or the time budget is spent', async () => {
+      await subscription('suspended'); await subscription('suspended')
+      const runner = vi.fn(async () => ({}))
+      expect(await syncTenantStatus(pool, { runner, busy: async () => true })).toEqual({ pushed: [], failed: [] })
+      expect(await syncTenantStatus(pool, { runner, budgetMs: 0 })).toEqual({ pushed: [], failed: [] })
+      expect(runner).not.toHaveBeenCalled()
     })
     it('never pushes for a subscription without a tenant', async () => {
       await subscription('suspended', { tenant: false })

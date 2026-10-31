@@ -31,36 +31,48 @@ export async function suspendSubscription(pool: Pool, input: { subscription_id: 
  */
 export async function resumeSubscription(pool: Pool, input: { subscription_id: string; reason: string; actor: string }) {
   await transaction(pool, async client => {
-    const row = (await client.query(`SELECT s.id,p.grace_days,EXISTS (SELECT 1 FROM invoices i WHERE i.subscription_id=s.id AND i.status='issued' AND i.due_at < now()) AS overdue
+    const row = (await client.query(`SELECT s.id,p.grace_days,(s.trial_ends_at > now()) AS trial_running,EXISTS (SELECT 1 FROM invoices i WHERE i.subscription_id=s.id AND i.status='issued' AND i.due_at < now()) AS overdue
       FROM subscriptions s LEFT JOIN subscription_revisions sr ON sr.id=s.applied_revision_id
       LEFT JOIN plan_revisions p ON p.id=(sr.snapshot->>'plan_revision_id')::uuid
       WHERE s.id=$1 AND s.state='suspended' FOR UPDATE OF s`, [input.subscription_id])).rows[0]
     if (!row) throw new CommercialHttpError('subscription_not_suspended', 409)
     const graceDays = Math.max(1, Number(row.grace_days ?? 0))
+    // A trial that is still running resumes as a trial, so ending or converting it keeps working.
+    const next = row.overdue ? 'past_due' : row.trial_running ? 'trialing' : 'active'
     await client.query(`UPDATE subscriptions SET state=$2,manual_suspension=false,
       grace_ends_at=CASE WHEN $2='past_due' THEN now() + make_interval(days => $3::int) ELSE NULL END,revision=revision+1 WHERE id=$1`,
-    [input.subscription_id, row.overdue ? 'past_due' : 'active', graceDays])
+    [input.subscription_id, next, graceDays])
     await audited(client, { ...input, action: 'subscription.resumed' })
   })
 }
 
+/** Backoff after a failed push: 1, 2, 4 ... 60 minutes. */
+const BACKOFF_SQL = "now() + LEAST(power(2, tenant_status_failures), 60) * interval '1 minute'"
+
 /**
  * Converges every tenant's Odoo status to its subscription: suspended stops its users, anything else lets them in.
- * `tenant_status_pushed` moves only after Odoo confirmed the write, so a failed push is retried on the next run and a
- * state that flips while a push is in flight is corrected by the run after it. Returns what was pushed and what failed.
+ * `tenant_status_pushed` moves only after Odoo confirmed the write, so a failed push is retried (with backoff, so one
+ * broken tenant cannot starve the others) and a state that flips while a push is in flight is corrected by the run after
+ * it. A tenant with no enabled binding is not selected. Each run is bounded: `limit` rows and `budgetMs` of wall time, and
+ * `busy` (a shared backup or restore running) is checked before every row.
  */
-export async function syncTenantStatus(pool: Pool, input: { runner: TenantStatusRunner; limit?: number; log?: (message: string, error?: unknown) => void }) {
-  const due = (await pool.query(`SELECT id,tenant_id,CASE WHEN state='suspended' THEN 'suspended' ELSE 'active' END AS wanted FROM subscriptions
-    WHERE tenant_id IS NOT NULL AND tenant_status_pushed <> CASE WHEN state='suspended' THEN 'suspended' ELSE 'active' END
-    ORDER BY id LIMIT $1`, [input.limit ?? 20])).rows as { id: string; tenant_id: string; wanted: TenantStatus }[]
+export async function syncTenantStatus(pool: Pool, input: { runner: TenantStatusRunner; limit?: number; budgetMs?: number; busy?: () => Promise<boolean>; log?: (message: string, error?: unknown) => void }) {
+  const started = Date.now(), budget = input.budgetMs ?? 90_000
+  const due = (await pool.query(`SELECT s.id,s.tenant_id,CASE WHEN s.state='suspended' THEN 'suspended' ELSE 'active' END AS wanted FROM subscriptions s
+    JOIN shared_registry_bindings b ON b.control_tenant_id=s.tenant_id AND b.enabled=true
+    WHERE s.tenant_status_pushed IS DISTINCT FROM CASE WHEN s.state='suspended' THEN 'suspended' ELSE 'active' END
+      AND (s.tenant_status_next_at IS NULL OR s.tenant_status_next_at <= now())
+    ORDER BY s.tenant_status_next_at NULLS FIRST, s.id LIMIT $1`, [input.limit ?? 5])).rows as { id: string; tenant_id: string; wanted: TenantStatus }[]
   const pushed: string[] = [], failed: string[] = []
   for (const row of due) {
+    if (Date.now() - started >= budget || await input.busy?.()) break
     try {
       await input.runner({ tenant_id: row.tenant_id, status: row.wanted })
-      await pool.query('UPDATE subscriptions SET tenant_status_pushed=$2,revision=revision+1 WHERE id=$1', [row.id, row.wanted])
+      await pool.query('UPDATE subscriptions SET tenant_status_pushed=$2,tenant_status_failures=0,tenant_status_next_at=NULL WHERE id=$1', [row.id, row.wanted])
       pushed.push(row.id)
     } catch (error) {
       failed.push(row.id)
+      await pool.query(`UPDATE subscriptions SET tenant_status_failures=tenant_status_failures+1,tenant_status_next_at=${BACKOFF_SQL} WHERE id=$1`, [row.id])
       input.log?.(`tenant status ${row.wanted} not pushed for subscription ${row.id}`, error)
     }
   }
