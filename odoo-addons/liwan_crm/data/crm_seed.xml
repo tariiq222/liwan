@@ -8,6 +8,16 @@
 
     <function model="crm.stage" name="_liwan_retire_stock_stages"/>
 
+    <!-- Sources are plain names, not translations (UTM keeps them unique), so the starter list is Arabic. -->
+    <function model="utm.source" name="_liwan_retire_stock_sources"/>
+    <record id="source_whatsapp" model="utm.source"><field name="name">واتساب</field></record>
+    <record id="source_phone" model="utm.source"><field name="name">اتصال هاتفي</field></record>
+    <record id="source_website" model="utm.source"><field name="name">الموقع الإلكتروني</field></record>
+    <record id="source_walk_in" model="utm.source"><field name="name">زيارة للفرع</field></record>
+    <record id="source_customer_referral" model="utm.source"><field name="name">توصية من عميل</field></record>
+    <record id="source_instagram" model="utm.source"><field name="name">إنستغرام</field></record>
+    <record id="source_snapchat" model="utm.source"><field name="name">سناب شات</field></record>
+
     <record id="lost_reason_attempts_exhausted" model="crm.lost.reason"><field name="name">Contact attempts exhausted</field></record>
 
     <record id="outcome_no_answer" model="liwan.crm.call.outcome"><field name="name">No answer</field><field name="sequence">10</field><field name="effect">follow_up</field></record>

@@ -32,6 +32,19 @@ class TestCrmLists(LiwanCrmCase):
             self.assertEqual(self._ref(name).effect, effect)
         self.assertTrue(self._ref('lost_reason_attempts_exhausted').active)
 
+    def test_the_source_list_starts_arabic_and_without_unsuitable_stock_sources(self):
+        sources = self.env['utm.source'].search([])
+        for name in ('واتساب', 'اتصال هاتفي', 'الموقع الإلكتروني', 'زيارة للفرع', 'توصية من عميل', 'إنستغرام', 'سناب شات'):
+            self.assertIn(name, sources.mapped('name'))
+        for stock in ('Search engine', 'Lead Recall', 'Newsletter', 'Monster', 'Glassdoor', 'Craigslist'):
+            self.assertNotIn(stock, sources.mapped('name'))
+            self.assertTrue(self.env['utm.source'].with_context(active_test=False).search([('name', '=', stock)]))
+        # Run again as a later update would: a stock source the tenant brought back stays.
+        returned = self.env.ref('utm.utm_source_newsletter')
+        returned.active = True
+        self.env['utm.source']._liwan_retire_stock_sources()
+        self.assertTrue(returned.active)
+
     def test_seeded_names_are_translated_to_arabic(self):
         self.env['res.lang']._activate_lang('ar_001')
         self.env['ir.module.module']._load_module_terms(['liwan_crm'], ['ar_001'])
