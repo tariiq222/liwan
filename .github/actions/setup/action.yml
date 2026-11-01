@@ -48,8 +48,8 @@ runs:
       if: inputs.odoo == 'true'
       shell: bash
       run: |
-        sudo apt-get update -q
-        sudo apt-get install -y -q --no-install-recommends build-essential libpq-dev libldap2-dev libsasl2-dev postgresql-client-16
+        sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update -q
+        sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y -q --no-install-recommends build-essential libpq-dev libldap2-dev libsasl2-dev postgresql-client-16
     - name: Odoo source cache
       id: odoo-source
       if: inputs.odoo == 'true'
