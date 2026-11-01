@@ -108,16 +108,25 @@ class LiwanHrInsuranceEnrollment(models.Model):
             plan = row.plan_id
             if plan.company_id != row.company_id:
                 raise ValidationError(self.env._('The insurance plan belongs to another company.'))
-            if row.date_to and row.date_to < row.date_from:
+            # The start is checked against the effective end, so an open-ended enrollment starting after its plan ends fails too.
+            if row.date_from > row.date_end_effective:
                 raise ValidationError(self.env._('The enrollment cannot end before it starts.'))
             if row.date_from < plan.valid_from or row.date_end_effective > plan.valid_to:
                 raise ValidationError(self.env._('The enrollment dates must lie inside the plan validity.'))
-            overlap = self.search_count([
-                ('employee_id', '=', row.employee_id.id), ('id', '!=', row.id), ('state', '!=', 'cancelled'),
-                ('date_from', '<=', row.date_end_effective), ('date_end_effective', '>=', row.date_from),
-            ])
-            if overlap:
-                raise ValidationError(self.env._('The employee already has an insurance enrollment in these dates.'))
+            row._liwan_assert_no_overlap()
+
+    def _liwan_assert_no_overlap(self):
+        """Refuse an enrollment that shares days with another live enrollment of the same employee, naming it."""
+        self.ensure_one()
+        other = self.search([
+            ('employee_id', '=', self.employee_id.id), ('id', '!=', self.id), ('state', '!=', 'cancelled'),
+            ('date_from', '<=', self.date_end_effective), ('date_end_effective', '>=', self.date_from),
+        ], limit=1)
+        if other:
+            raise ValidationError(self.env._(
+                '%(employee)s already has an insurance enrollment in %(plan)s in these dates.',
+                employee=self.employee_id.name, plan=other.plan_id.name,
+            ))
 
     # --- the write gate ----------------------------------------------------------------------------------
 

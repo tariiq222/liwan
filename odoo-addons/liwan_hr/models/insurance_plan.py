@@ -79,6 +79,8 @@ class LiwanHrInsurancePlan(models.Model):
             for enrollment in plan.enrollment_ids.filtered(lambda row: row.state != 'cancelled'):
                 if enrollment.date_from < plan.valid_from or enrollment.date_end_effective > plan.valid_to:
                     raise ValidationError(self.env._('The plan dates must keep every enrollment inside them.'))
+                # A longer plan stretches its open-ended enrollments: they must not now overlap another one.
+                enrollment._liwan_assert_no_overlap()
                 # An open-ended enrollment now ends with the plan: a dependent must not start after that or outlast it.
                 for dependent in enrollment.dependent_ids.filtered(lambda item: item.state != 'cancelled'):
                     if dependent.date_from > enrollment.date_end_effective or (

@@ -594,6 +594,43 @@ class TestHrInsurance(LiwanHrCase):
         self.assert_status(self.call(self.hr, 'POST', f'{ENROLLMENTS}/{enrollment.id}/dependents', self.dependent_body()), 404, 'not_found')
         self.assert_status(self.call(self.hr, 'POST', f'{ENROLLMENTS}/{enrollment.id}/end', {'revision': 1}), 404, 'not_found')
 
+    # --- second review fixes ---------------------------------------------------------------------------
+
+    def test_extending_a_plan_cannot_overlap_a_later_enrollment(self):
+        first = self.plan(start=-100, end=20, name='Short plan')
+        second = self.plan(start=-100, end=300, name='Long plan')
+        self.enroll(first, start=-50)
+        self.assert_status(self.call(self.hr, 'POST', ENROLLMENTS, {
+            'employee_id': self.emp.id, 'plan_id': second['id'], 'date_from': self.day(30),
+        }), 201)
+        res = self.assert_status(self.call(self.hr, 'PATCH', f"{PLANS}/{first['id']}", {
+            'revision': first['revision'], 'valid_to': self.day(100),
+        }), 422, 'invalid')
+        self.assertIn('Long plan', res.json()['message'])
+        self.assertIn('Ins Employee', res.json()['message'])
+        self.assert_status(self.call(self.hr, 'PATCH', f"{PLANS}/{first['id']}", {
+            'revision': first['revision'], 'valid_to': self.day(25),
+        }), 200)
+
+    def test_a_start_after_the_effective_end_is_refused_without_an_end_date(self):
+        plan = self.plan(start=-100, end=20)
+        self.assert_status(self.call(self.hr, 'POST', ENROLLMENTS, {
+            'employee_id': self.emp.id, 'plan_id': plan['id'], 'date_from': self.day(30),
+        }), 422, 'invalid')
+        row = self.enroll(plan, start=-10)
+        self.assert_status(self.call(self.hr, 'POST', f"{ENROLLMENTS}/{row['id']}/dependents", self.dependent_body(date_from=self.day(30))), 422, 'invalid')
+
+    def test_a_patch_can_clear_the_optional_dependent_fields(self):
+        row = self.enroll(self.plan())
+        dependent = self.call(self.hr, 'POST', f"{ENROLLMENTS}/{row['id']}/dependents", self.dependent_body(date_to=self.day(100))).json()
+        self.assertEqual(dependent['date_to'], self.day(100))
+        cleared = self.assert_status(self.call(self.hr, 'PATCH', f"{BASE}/dependents/{dependent['id']}", {
+            'revision': dependent['revision'], 'date_to': None, 'birth_date': None, 'national_id': None,
+        }), 200).json()
+        self.assertEqual((cleared['date_to'], cleared['birth_date'], cleared['national_id'], cleared['national_id_masked']), (None, None, None, None))
+        again = self.call(self.hr, 'GET', f"{ENROLLMENTS}/{row['id']}").json()['dependents'][0]
+        self.assertEqual((again['date_to'], again['birth_date'], again['national_id']), (None, None, None))
+
     # --- bell and cron -----------------------------------------------------------------------------------
 
     def bell(self, user):

@@ -44,7 +44,7 @@ class LiwanHrInsuranceDependent(models.Model):
         for row in self.filtered(lambda item: item.state != 'cancelled' and item.enrollment_id.state != 'cancelled'):
             enrollment = row.enrollment_id
             end = row.date_to or enrollment.date_end_effective
-            if row.date_to and row.date_to < row.date_from:
+            if row.date_from > end:
                 raise ValidationError(self.env._('The coverage cannot end before it starts.'))
             if row.date_from < enrollment.date_from or end > enrollment.date_end_effective:
                 raise ValidationError(self.env._('The dependent dates must lie inside the enrollment.'))
