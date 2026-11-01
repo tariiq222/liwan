@@ -19,6 +19,8 @@ class TestCharterApproval(LiwanPmoCase):
         cls.project.write({'user_id': cls.manager.id, 'liwan_sponsor_id': cls.sponsor.id})
 
     def _policy(self, required):
+        # Change control replaces the reopening of an approved charter; it applies while change control is off.
+        self.env['ir.config_parameter'].sudo().set_param(f'liwan_pmo.change_control_mode.{self.env.company.id}', 'off')
         key = f'liwan_pmo.require_charter_approval.{self.env.company.id}'
         self.env['ir.config_parameter'].sudo().set_param(key, 'true' if required else 'false')
 

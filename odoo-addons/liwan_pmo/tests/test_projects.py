@@ -8,7 +8,7 @@ PROJECT_KEYS = {'id', 'name', 'status', 'progress', 'task_count', 'closed_task_c
 DETAIL_KEYS = PROJECT_KEYS | {
     'stages', 'description_html', 'privacy_visibility', 'date_start', 'tags',
     'followers_count', 'milestone_count', 'allow_task_dependencies',
-    'completion_approval', 'completion_approver', 'updated_at', 'charter', 'phase_state',
+    'completion_approval', 'completion_approver', 'updated_at', 'charter', 'phase_state', 'change_control_mode',
 }
 
 

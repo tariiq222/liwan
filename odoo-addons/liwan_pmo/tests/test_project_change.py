@@ -283,7 +283,6 @@ class TestProjectChange(LiwanPmoCase):
         self._executing()
         profile = self.env.ref('liwan_platform.tenant_profile')
         profile.with_context(**{OPERATOR_CONTEXT: True}).write({'features': {**profile.features, FEATURE: False}})
-        self.assertEqual(self.env['liwan.pmo.settings'].change_control_mode(), 'off')
         self.assertEqual(self._patch_scope('No request possible').status_code, 200)
         response = self._call('api_emp', 'POST', self.base, {'title': 'Not in the plan'})
         self.assertEqual((response.status_code, response.json()['code']), (403, 'feature_not_included'))

@@ -106,6 +106,7 @@ class ProjectChangeController(http.Controller):
     @api_handler
     @requires_feature(*FEATURES, operation='read')
     def list_changes(self, project_id):
+        require_capabilities('pmo.projects.read')
         declare_read_capability_scope('pmo.projects.read')
         project = _project(project_id)
         args = request.httprequest.args
@@ -131,6 +132,7 @@ class ProjectChangeController(http.Controller):
     @api_handler
     @requires_feature(*FEATURES, operation='read')
     def get_change(self, project_id, change_id):
+        require_capabilities('pmo.projects.read')
         declare_read_capability_scope('pmo.projects.read')
         return dump_change(_change(_project(project_id), change_id))
 
@@ -138,6 +140,7 @@ class ProjectChangeController(http.Controller):
     @api_handler
     @requires_feature(*FEATURES, operation='write')
     def create_change(self, project_id, **payload):
+        require_capabilities('pmo.projects.read')
         project = _project(project_id)
         vals = parse_change_vals(payload, partial=False)
         try:
@@ -150,6 +153,7 @@ class ProjectChangeController(http.Controller):
     @api_handler
     @requires_feature(*FEATURES, operation='write')
     def patch_change(self, project_id, change_id, **payload):
+        require_capabilities('pmo.projects.read')
         change = _change(_project(project_id), change_id)
         _locked(change, payload, token_required=True)
         vals = parse_change_vals(payload, partial=True)
@@ -165,30 +169,35 @@ class ProjectChangeController(http.Controller):
     @api_handler
     @requires_feature(*FEATURES, operation='write')
     def submit_change(self, project_id, change_id, **payload):
+        require_capabilities('pmo.projects.read')
         return _run(project_id, change_id, payload, 'submit')
 
     @http.route('/api/v1/projects/<int:project_id>/changes/<int:change_id>/withdraw', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature(*FEATURES, operation='write')
     def withdraw_change(self, project_id, change_id, **payload):
+        require_capabilities('pmo.projects.read')
         return _run(project_id, change_id, payload, 'withdraw')
 
     @http.route('/api/v1/projects/<int:project_id>/changes/<int:change_id>/approve', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature(*FEATURES, operation='write')
     def approve_change(self, project_id, change_id, **payload):
+        require_capabilities('pmo.projects.read')
         return _run(project_id, change_id, payload, 'approve')
 
     @http.route('/api/v1/projects/<int:project_id>/changes/<int:change_id>/reject', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature(*FEATURES, operation='write')
     def reject_change(self, project_id, change_id, **payload):
+        require_capabilities('pmo.projects.read')
         return _run(project_id, change_id, payload, 'reject')
 
     @http.route('/api/v1/projects/<int:project_id>/changes/<int:change_id>/implement', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature(*FEATURES, operation='write')
     def implement_change(self, project_id, change_id, **payload):
+        require_capabilities('pmo.projects.read')
         return _run(project_id, change_id, payload, 'implement')
 
 
@@ -219,6 +228,7 @@ class ChangeCategoryController(http.Controller):
     @api_handler
     @requires_feature(*FEATURES, operation='write')
     def create_change_category(self, **payload):
+        require_capabilities('pmo.settings.manage')
         record = request.env['liwan.project.change.category'].create(parse_catalog_create(payload))
         return request.make_json_response(dump_catalog_item(record), status=201)
 
@@ -226,6 +236,7 @@ class ChangeCategoryController(http.Controller):
     @api_handler
     @requires_feature(*FEATURES, operation='write')
     def patch_change_category(self, category_id, **payload):
+        require_capabilities('pmo.settings.manage')
         Category = request.env['liwan.project.change.category']
         record = Category.with_context(active_test=False).search([
             ('id', '=', category_id), ('company_id', 'in', request.env.companies.ids),
