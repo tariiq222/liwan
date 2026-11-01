@@ -40,3 +40,8 @@ tasmim6-6c-meetings-list.spec.ts
 tasmim6-6c-series-list.spec.ts
 tasmim6-6c-series-record.spec.ts
 tasmim6-updates-meetings.spec.ts
+project-clarity.spec.ts
+project-layout-unified.spec.ts
+project-smooth-navigation.spec.ts
+project-workspace-continuity.spec.ts
+project-theme.spec.ts

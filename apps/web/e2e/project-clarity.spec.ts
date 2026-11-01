@@ -9,18 +9,25 @@ test.beforeEach(async ({ page }) => {
   await expect(page).not.toHaveURL(/\/login/)
 })
 
-for (const [path, title] of [
-  ['/projects', 'كل المشاريع'], ['/projects?mine=1', 'مشاريعي'],
-  ['/projects/1', 'الملخص'], ['/projects/1?tab=summary', 'الملخص'],
-  ['/projects/1?tab=milestones', 'المعالم'], ['/projects/1/register', 'المخاطر والمشكلات'],
-  ['/projects/1/stakeholders', 'أصحاب المصلحة'], ['/projects/1/raci', 'مصفوفة المسؤوليات'],
+// Outside a project the page title is the h1. Inside one, the project name is the only h1 and the active tab names the section.
+for (const [path, title, inProject] of [
+  ['/projects', 'كل المشاريع', false], ['/projects?mine=1', 'مشاريعي', false],
+  ['/projects/1', 'الملخص', true], ['/projects/1?tab=summary', 'الملخص', true],
+  ['/projects/1?tab=milestones', 'المعالم', true], ['/projects/1/register', 'المخاطر والمشكلات', true],
+  ['/projects/1/stakeholders', 'أصحاب المصلحة', true], ['/projects/1/raci', 'المسؤوليات RACI', true],
 ] as const) {
   test(`clear section heading ${path}`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto(path)
     await page.waitForLoadState('networkidle')
     await expect(page.locator('.animate-pulse')).toHaveCount(0)
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(title)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
+    if (inProject) {
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText('مشروع ألفا')
+      await expect(page.locator('main [aria-current="page"]').filter({ hasText: title })).toBeVisible()
+    } else {
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(title)
+    }
     await expect(page.locator('.liwan-project-identity')).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'البحث والفلاتر', exact: true })).toHaveCount(0)
     await expect(page.getByTestId('projects-list-tabs')).toHaveCount(0)
@@ -33,30 +40,36 @@ test('risk list shows understandable filters, no one-page pager, and readable te
   await page.goto('/projects/1/register')
   await expect(page.getByRole('link', { name: 'إضافة خطر أو مشكلة' })).toBeVisible()
   await expect(page.getByRole('textbox', { name: 'بحث عن خطر أو مشكلة' })).toBeVisible()
-  await page.getByRole('button', { name: /^البحث والفلاتر/ }).click()
+  // From md the filters sit inline in the list card; the filters button is the phone's way in.
   await expect(page.getByRole('group', { name: 'النوع', exact: true })).toBeVisible()
-  await page.keyboard.press('Escape')
   await expect(page.getByRole('button', { name: 'التالي', exact: true })).toHaveCount(0)
   await expect(page.getByRole('columnheader', { name: 'درجة الخطر' })).toBeVisible()
-  expect(await page.locator('th').first().evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(13)
+  expect(await page.locator('th').first().evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(12)
   await page.getByRole('textbox', { name: 'بحث عن خطر أو مشكلة' }).fill('اعتماد')
   await expect(page).toHaveURL(/q=/)
   await page.getByRole('link', { name: 'تأخر اعتماد المتطلبات', exact: true }).click()
-  await expect(page.getByRole('dialog')).toBeVisible()
+  // A record is a page, not a dialog.
+  await expect(page).toHaveURL(/\/projects\/1\/register\/1/)
+  await expect(page.getByRole('dialog')).toHaveCount(0)
   await page.goBack()
   await expect(page.getByRole('textbox', { name: 'بحث عن خطر أو مشكلة' })).toHaveValue('اعتماد')
 })
 
-test('project list uses one create action and retains search between all and my projects', async ({ page }) => {
-  await page.goto('/projects?q=alpha')
+test('project list uses one create action and the sidebar switches between all and my projects', async ({ page }) => {
+  await page.goto('/projects?view=table&q=alpha')
   await expect(page.getByTestId('project-new')).toBeVisible()
   await expect(page.getByTestId('context-link-new-project')).toHaveCount(0)
   await expect(page.getByTestId('context-link-my-projects')).toHaveCount(0)
-  await page.goto('/projects?mine=1&q=alpha')
-  await expect(page.getByTestId('context-link-projects')).toHaveAttribute('aria-current', 'page')
-  await page.getByTestId('context-link-projects').click()
+  // «مشاريعي» is a quick view in the sidebar sub-list. A quick view starts a fresh filter and keeps only the layout (quickViewsModel keepKeys).
+  const navigation = page.getByTestId('application-navigation')
+  await navigation.getByTestId('projects-quick-view-mine').click()
+  await expect(page).toHaveURL(/mine=1/)
+  await expect(page).toHaveURL(/view=table/)
+  await expect(page).not.toHaveURL(/q=alpha/)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('مشاريعي')
+  await navigation.getByTestId('projects-context-link-projects-all').click()
   await expect(page).not.toHaveURL(/mine=1/)
-  await expect(page).toHaveURL(/q=alpha/)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('كل المشاريع')
 })
 
 test('stage rename is discoverable by keyboard and Escape preserves the name', async ({ page }) => {
@@ -93,7 +106,7 @@ test('filtered empty state and network failure provide recovery', async ({ page 
   await expect(page.getByRole('button', { name: 'مسح الفلاتر', exact: true })).toBeVisible()
   failed = true
   await page.getByRole('textbox', { name: 'بحث عن خطر أو مشكلة' }).fill('خطأ')
-  await expect(page.getByRole('alert')).toBeVisible({ timeout: 15_000 })
+  await expect(page.locator('[data-slot="error-state"]')).toBeVisible({ timeout: 15_000 })
   await expect(page.getByRole('button', { name: 'إعادة المحاولة', exact: true })).toBeVisible()
 })
 

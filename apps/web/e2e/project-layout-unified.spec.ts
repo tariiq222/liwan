@@ -5,7 +5,7 @@ test.skip(process.env.E2E_PROJECT_POPUPS !== '1', 'Isolated synthetic project AP
 async function ready(page: Page) {
   await expect(page.getByTestId('project-workspace-settings')).toBeVisible()
   await expect(page.getByTestId('project-workspace-tabs')).toBeVisible()
-  await expect(page.getByRole('complementary', { name: 'التنقل السياقي' })).toContainText('مشروع ألفا')
+  await expect(page.getByTestId('project-workspace-name')).toHaveText('مشروع ألفا')
   await expect(page.locator('main h1')).toHaveCount(1)
   await expect(page.locator('main [role="alert"]')).toHaveCount(0)
 }
@@ -42,34 +42,38 @@ for (const width of [1440, 1024]) {
     for (const [name, path] of sections) {
       await page.goto(path)
       await ready(page)
-      // The workspace frame (title row + tabs) sits in its own container above the section.
+      // The workspace frame (title row + tabs) and every container under it share one column.
       const frame = page.getByTestId('project-workspace-frame')
       await expect(frame).toHaveAttribute('data-layout-width', 'list')
-      const container = page.locator('[data-slot="page-container"][data-page-record="true"]').filter({ has: page.locator('[data-slot="page-header"]') }).first()
-      await expect(container).toHaveAttribute('data-layout-width', 'list')
-      const heading = container.locator('[data-slot="page-header"]')
-      await expect(heading).toBeVisible()
-      const box = (await container.boundingBox())!
       const frameBox = (await frame.boundingBox())!
-      const header = (await heading.boundingBox())!
-      baseline ??= box
-      expect(Math.abs(box.x - baseline.x), name).toBeLessThanOrEqual(1)
-      expect(Math.abs(box.width - baseline.width), name).toBeLessThanOrEqual(1)
-      expect(Math.abs(frameBox.x - box.x), name).toBeLessThanOrEqual(1)
-      expect(Math.abs(frameBox.width - box.width), name).toBeLessThanOrEqual(1)
-      expect(frameBox.y + frameBox.height, name).toBeLessThanOrEqual(header.y + 1)
-      expect(Math.abs(header.y - box.y), name).toBeLessThanOrEqual(1)
-      expect(Math.abs(header.width - box.width), name).toBeLessThanOrEqual(1)
+      baseline ??= frameBox
+      expect(Math.abs(frameBox.x - baseline.x), name).toBeLessThanOrEqual(1)
+      expect(Math.abs(frameBox.width - baseline.width), name).toBeLessThanOrEqual(1)
+      const boxes = await page.locator('[data-slot="page-container"][data-page-record="true"]').evaluateAll(nodes => nodes.map((node) => {
+        const rect = node.getBoundingClientRect()
+        return { x: rect.x, width: rect.width }
+      }))
+      expect(boxes.length, name).toBeGreaterThan(0)
+      for (const box of boxes) {
+        expect(Math.abs(box.x - frameBox.x), name).toBeLessThanOrEqual(1)
+        expect(Math.abs(box.width - frameBox.width), name).toBeLessThanOrEqual(1)
+      }
+      // A section that has its own page header places it below the frame, on the same column.
+      const heading = page.locator('main [data-slot="page-header"]')
+      if (await heading.count()) {
+        const header = (await heading.first().boundingBox())!
+        expect(frameBox.y + frameBox.height, name).toBeLessThanOrEqual(header.y + 1)
+        expect(Math.abs(header.width - frameBox.width), name).toBeLessThanOrEqual(1)
+      }
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), name).toBe(true)
       if (['tasks', 'board', 'stakeholders', 'raci', 'register', 'finance'].includes(name)) {
-        const disclosure = container.getByRole('button', { name: 'البحث والفلاتر', exact: true })
-        await expect(disclosure).toHaveAttribute('aria-expanded', 'false')
-        expect((await disclosure.boundingBox())!.y).toBeGreaterThan(header.y)
-        await expect(container.locator('[data-slot="inline-filter-bar"]')).toHaveCount(0)
+        // From md the filters sit inline in the list card; the filters button belongs to the phone.
+        await expect(page.locator('main [data-slot="filter-root"] [data-slot="search"]')).toBeVisible()
+        await expect(page.getByRole('button', { name: 'البحث والفلاتر', exact: true })).toBeHidden()
       }
       if (['tasks', 'board', 'milestones', 'summary', 'stakeholders', 'register', 'finance', 'schedule'].includes(name)) {
         // Header create actions may be route links (UButton :to) or buttons.
-        await expect(heading.locator('button, a').first()).toBeEnabled()
+        await expect(heading.first().locator('button, a').first()).toBeEnabled()
       }
       if (name === 'charter') await expect(page.getByTestId('project-charter-print')).toBeEnabled()
       await page.screenshot({ path: info.outputPath(`${name}-${width}.png`), fullPage: true })
@@ -77,35 +81,33 @@ for (const width of [1440, 1024]) {
   })
 }
 
-test('project task filters survive collapsing, view changes and reload; create stays in the header', async ({ page }) => {
+test('project task filters survive view changes and reload; create stays in the header', async ({ page }) => {
   await page.goto('/projects/1?tab=tasks')
   await ready(page)
   const header = page.locator('main [data-slot="page-header"]')
   await expect(header.getByTestId('project-header-create')).toBeEnabled()
-  const disclosure = page.getByRole('button', { name: /^البحث والفلاتر/ })
-  await disclosure.click()
-  const search = page.locator('main input').first()
+  const search = page.locator('main [data-shortcut-search] input')
+  await expect(search).toBeEnabled()
   await search.fill('جارية')
   await expect(page).toHaveURL(/q=/)
-  await disclosure.click()
-  await expect(search).toBeHidden()
   await page.getByRole('button', { name: 'لوحة', exact: true }).click()
   expect(new URL(page.url()).searchParams.get('q')).toBe('جارية')
   await page.reload()
   await ready(page)
-  await disclosure.click()
   await expect(search).toHaveValue('جارية')
   await header.getByTestId('project-header-create').click()
   await expect(page.getByRole('dialog')).toBeVisible()
-  expect(new URL(page.url()).searchParams.get('returnTo')).toContain('q=')
+  // The create panel opens over the list and the route keeps its filters.
+  expect(new URL(page.url()).pathname).toBe('/projects/1/tasks/new')
+  expect(new URL(page.url()).searchParams.get('q')).toBe('جارية')
 })
 
 test('schedule toolbar changes scale and retains it after reload', async ({ page }) => {
   await page.goto('/projects/1/schedule')
   await ready(page)
-  await page.locator('.liwan-ui-segment').getByRole('button', { name: 'شهري', exact: true }).click()
+  await page.getByRole('group', { name: 'مقياس العرض' }).getByRole('button', { name: 'شهري', exact: true }).click()
   await expect(page).toHaveURL(/scale=month/)
   await page.reload()
   await ready(page)
-  await expect(page.locator('.liwan-ui-segment').getByRole('button', { name: 'شهري', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('group', { name: 'مقياس العرض' }).getByRole('button', { name: 'شهري', exact: true })).toHaveAttribute('aria-pressed', 'true')
 })

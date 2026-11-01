@@ -51,7 +51,7 @@ test.describe('Plan 6b: the HR forms', () => {
       const headings = await page.locator('main h2').allTextContents()
       expect(headings.map(text => text.trim())).toEqual(['عام', 'التبعية التنظيمية'])
       // Each section is its own panel: two card headers, no card around them.
-      await expect(page.locator('main [data-slot="header"]')).toHaveCount(2)
+      await expect(page.locator('main [data-slot="record-section"] > header')).toHaveCount(2)
       await expect(page.locator('#hr-employee-name')).toHaveValue('سارة محمد')
       await expect(page.getByRole('button', { name: 'حفظ' })).toBeEnabled()
       const { width, rootFontSize } = await page.locator('[data-layout-width="form"]').evaluate(node => ({
@@ -67,20 +67,22 @@ test.describe('Plan 6b: the HR forms', () => {
       await open(page, '/hr/departments/2/edit')
       await expect(page.getByRole('heading', { level: 1 })).toHaveText('تعديل القسم')
       await expect(page.locator('#hr-dept-name')).toHaveValue('الموارد البشرية')
-      await expect(page.locator('main [data-slot="header"]')).toHaveCount(1)
+      await expect(page.locator('main [data-slot="record-section"] > header')).toHaveCount(2)
       await expect(page.getByRole('link', { name: 'رجوع', exact: true })).toHaveAttribute('href', /\/hr\/departments\/2/)
     })
 
-    test('the document edit page keeps its labels, ids and file field in two panel sections', async ({ page }) => {
+    test('the document edit page keeps its labels and ids in two panel sections and sends files to the record page', async ({ page }) => {
       await open(page, '/documents/1/edit')
       await expect(page.getByRole('heading', { level: 1 })).toHaveText('تعديل المستند')
-      await expect(page.locator('#hr-doc-title')).toHaveValue('دليل إجراءات التشغيل')
-      await expect(page.getByLabel('رفع ملف')).toBeVisible()
-      await expect(page.getByRole('link', { name: 'دليل التشغيل.pdf' })).toBeVisible()
+      await expect(page.locator('#document-name')).toHaveValue('دليل إجراءات التشغيل')
+      await expect(page.getByText('ارفع الملفات وأدرها من صفحة المستند')).toBeVisible()
       const headings = await page.locator('main h2').allTextContents()
-      expect(headings.map(text => text.trim())).toEqual(['تعديل المستند', 'المرفقات'])
-      await expect(page.locator('main [data-slot="header"]')).toHaveCount(2)
-      await expect(page.getByRole('button', { name: 'حفظ', exact: true })).toBeEnabled()
+      expect(headings.map(text => text.trim())).toEqual(['بيانات المستند', 'تفاصيل إضافية'])
+      await expect(page.locator('main [data-slot="record-section"] > header')).toHaveCount(2)
+      const save = page.getByRole('button', { name: 'حفظ التغييرات', exact: true })
+      await expect(save).toBeDisabled()
+      await page.locator('#document-name').fill('دليل معدل')
+      await expect(save).toBeEnabled()
     })
 
     test('typing in an edit form then leaving asks before dropping the draft', async ({ page }) => {

@@ -57,25 +57,21 @@ async function readability(page: Page) {
 for (const mode of ['light', 'dark']) {
   test(`project status and notification text stays readable in ${mode}`, async ({ page }, info) => {
     await page.setViewportSize({ width: 1440, height: 1000 })
-    await page.route('**/api/v1/notifications?*', route => route.fulfill({ json: {
-      items: [{ id: 501, kind: 'comment', task_id: 101, task_name: 'مهمة جارية', body: 'تعليق لاختبار التباين', created_at: '2026-09-07T10:00:00', is_read: false }],
-      total: 1, unread_count: 1,
-    } }))
     await appearance(page, mode)
     await page.getByTestId('notification-bell').click()
     await expect(page.getByTestId('notification-preview')).toBeVisible()
     // Trigger an actual failure toast through the notification workflow, with
     // the request intercepted so no synthetic or real record is mutated.
     await page.route('**/api/v1/notifications/*/read', route => route.fulfill({ status: 500, json: { code: 'server_error', message: 'تعذر تحديث الإشعار' } }))
-    await page.getByTestId('notification-preview-501').click()
+    await page.getByTestId('notification-preview-1').click()
     await expect(page.getByText('تعذر تحديث الإشعار', { exact: true })).toBeVisible()
     const measurements = [
       ...await readability(page),
       ...await page.getByText('تعذر تحديث الإشعار', { exact: true }).evaluateAll(measureReadability),
     ]
     expect(measurements.some(item => item.text === 'تعذر تحديث الإشعار')).toBe(true)
-    expect(measurements.some(item => item.text === 'تعليق جديد على مهمة')).toBe(true)
-    expect(measurements.some(item => item.text === 'تعليق لاختبار التباين')).toBe(true)
+    expect(measurements.some(item => item.text === 'تذكير باجتماع قادم')).toBe(true)
+    expect(measurements.some(item => item.text === 'اجتماع متابعة التحول الرقمي')).toBe(true)
     expect(measurements.some(item => item.tag === 'time' && !!item.text)).toBe(true)
     expect(measurements.length).toBeGreaterThan(15)
     for (const item of measurements) {
@@ -90,10 +86,6 @@ for (const mode of ['light', 'dark']) {
 
 test('project typography scales with preference and releases its scope on client navigation', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 1000 })
-  await page.route('**/api/v1/notifications?*', route => route.fulfill({ json: {
-    items: [{ id: 501, kind: 'comment', task_id: 101, task_name: 'مهمة جارية', body: 'تعليق', created_at: '2026-09-07T10:00:00', is_read: false }],
-    total: 1, unread_count: 1,
-  } }))
   await appearance(page, 'light', 'small')
   for (const [size, root, label] of [['small', 14, 'صغير'], ['medium', 16, 'وسط'], ['large', 18, 'كبير']] as const) {
     if (size !== 'small') {
@@ -109,7 +101,8 @@ test('project typography scales with preference and releases its scope on client
     }
     await expect(page.locator('html')).toHaveCSS('font-size', `${root}px`)
     const title = page.locator('main h1')
-    expect(await title.evaluate(e => parseFloat(getComputedStyle(e).fontSize))).toBeCloseTo(root * 20 / 14, 1)
+    // The project name is the h1 and uses --text-lg (16px at the 14px root).
+    expect(await title.evaluate(e => parseFloat(getComputedStyle(e).fontSize))).toBeCloseTo(root * 16 / 14, 1)
     expect(await page.locator('main td').first().evaluate(e => parseFloat(getComputedStyle(e).fontSize))).toBeCloseTo(root * 13 / 14, 1)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   }

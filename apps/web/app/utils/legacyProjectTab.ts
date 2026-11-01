@@ -42,7 +42,7 @@ export function legacyProjectTabTarget(
   let segment: string | null = null
   let nextView: string | undefined
 
-  if (tab === 'tasks') segment = '/tasks'
+  if (tab === 'tasks') { segment = '/tasks'; if (view === 'board') nextView = 'board' }
   else if (tab === 'board' || tab === 'list') { segment = '/tasks'; nextView = tab }
   else if (tab === 'milestones') segment = '/milestones'
   else if (tab === 'summary') segment = ''
