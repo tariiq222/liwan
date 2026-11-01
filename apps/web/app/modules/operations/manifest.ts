@@ -8,7 +8,7 @@ const manifest: AppManifest = {
   rail: [{ id: 'operations', labelKey: 'operations.title', icon: 'i-lucide-workflow', to: '/operations', order: 60 }],
   nav: [
     { to: '/operations', labelKey: 'operations.nav.mine', icon: 'i-lucide-files', shortcut: 'o', capability: 'operations.requests.read' },
-    { to: '/operations/pending', labelKey: 'operations.nav.pending', icon: 'i-lucide-list-checks', shortcut: 'p', capability: 'operations.requests.review' },
+    { to: '/operations/pending', labelKey: 'operations.nav.pending', icon: 'i-lucide-list-checks', shortcut: 'p', capability: 'operations.requests.read' },
     { to: '/operations/monitoring', labelKey: 'operations.nav.monitoring', icon: 'i-lucide-eye', shortcut: 'v', capability: 'operations.monitoring.read' },
   ],
   settings: {
@@ -18,12 +18,12 @@ const manifest: AppManifest = {
   contextLinks: () => [
     { id: 'new-operation', labelKey: 'operations.newRequest', icon: 'i-lucide-plus', to: '/operations/new', capability: 'operations.requests.create', pinned: true },
     { id: 'operation-mine', labelKey: 'operations.nav.mine', icon: 'i-lucide-files', to: '/operations', capability: 'operations.requests.read' },
-    { id: 'operation-pending', labelKey: 'operations.nav.pending', icon: 'i-lucide-list-checks', to: '/operations/pending', capability: 'operations.requests.review' },
+    { id: 'operation-pending', labelKey: 'operations.nav.pending', icon: 'i-lucide-list-checks', to: '/operations/pending', capability: 'operations.requests.read' },
     { id: 'operation-monitoring', labelKey: 'operations.nav.monitoring', icon: 'i-lucide-eye', to: '/operations/monitoring', capability: 'operations.monitoring.read' },
   ],
   landing: [
     { path: '/operations', capability: 'operations.requests.read' },
-    { path: '/operations/pending', capability: 'operations.requests.review' },
+    { path: '/operations/pending', capability: 'operations.requests.read' },
     { path: '/operations/monitoring', capability: 'operations.monitoring.read' },
   ],
   routeCapabilities: [
@@ -32,7 +32,7 @@ const manifest: AppManifest = {
     { pattern: /^\/account\/requests(?:\/|$)/, capability: 'operations.requests.read' },
     { pattern: /^\/operations\/new$/, capability: 'operations.requests.create' },
     { pattern: /^\/operations\/[^/]+\/edit$/, capability: 'operations.requests.create' },
-    { pattern: /^\/operations\/pending$/, capability: 'operations.requests.review' },
+    { pattern: /^\/operations\/pending$/, capability: 'operations.requests.read' },
     { pattern: /^\/operations\/monitoring$/, capability: 'operations.monitoring.read' },
     { pattern: /^\/operations(?:\/|$)/, capability: 'operations.requests.read' },
   ],

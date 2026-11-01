@@ -3,9 +3,9 @@ import { joinList } from '@/utils/listFormat'
 import type { PersonRef } from '@liwan/contracts'
 import { operationsStateTone } from '@/composables/operations/state'
 
-// One approval stage as a read-only row: its number and name, who reviews it and, on a request, where it stands.
+// One approval stage as a read-only row: its number and name, who reviews it (the people, or the resolver's label when a rule names them) and, on a request, where it stands.
 // The stage editor of ProcessForm is a different surface (inputs) and builds on SharedSubCard directly.
-defineProps<{ number: number; name: string; reviewers: PersonRef[]; ineligible?: PersonRef[]; status?: string }>()
+defineProps<{ number: number; name: string; reviewers: PersonRef[]; ineligible?: PersonRef[]; status?: string; resolverLabel?: string | null }>()
 const { t } = useI18n()
 </script>
 
@@ -13,7 +13,7 @@ const { t } = useI18n()
   <SharedSubCard as="li" class="flex flex-wrap items-center justify-between gap-3">
     <div class="min-w-0 flex-1">
       <h3 class="text-sm font-semibold text-highlighted">{{ number }}. {{ name }}</h3>
-      <p class="mt-1 flex min-w-0 items-center gap-2 text-sm text-muted"><SharedPersonAvatar :people="reviewers" /><span class="min-w-0 truncate">{{ joinList(reviewers.map(person => person.name), t) }}</span></p>
+      <p class="mt-1 flex min-w-0 items-center gap-2 text-sm text-muted"><SharedPersonAvatar :people="reviewers" /><span class="min-w-0 truncate">{{ resolverLabel && !reviewers.length ? resolverLabel : joinList(reviewers.map(person => person.name), t) }}</span></p>
       <p v-if="ineligible?.length" class="mt-1 text-sm text-warning">{{ t('operations.ineligibleReviewers', { names: joinList(ineligible.map(person => person.name), t) }) }}</p>
     </div>
     <SharedStatusBadge v-if="status" :tone="operationsStateTone(status)" :label="t(`operations.states.${status}`)" />

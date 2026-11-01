@@ -1,7 +1,17 @@
 {
   "items": [
-    "approval",
-    "pmo_completion"
+    {
+      "key": "approval",
+      "label": "Approve request"
+    },
+    {
+      "key": "pmo_completion",
+      "label": "Complete a project task"
+    },
+    {
+      "key": "hr_leave",
+      "label": "Leave request"
+    }
   ],
-  "total": 2
+  "total": 3
 }

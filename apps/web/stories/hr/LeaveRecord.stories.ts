@@ -45,3 +45,22 @@ export const StaleConflict: Story = { ...CancellationDecision, parameters: { msw
   ...hrSelfServiceHandlers,
 ] } } } }
 export const Forbidden: Story = { parameters: { msw: { handlers: { api: [http.get('/api/v1/hr/leave/me/:id', () => HttpResponse.json({ code: 'forbidden', message: 'ليس لديك صلاحية' }, { status: 403 })), ...hrSelfServiceHandlers] } } } }
+
+const reviewer = (id: number, name: string) => ({ id, user_id: id, name })
+const approval = { request_id: 15, state: 'pending' as const, href: '/operations/15', steps: [
+  { sequence: 1, name: 'المدير المباشر', reviewers: [reviewer(3, 'نورة العتيبي')], status: 'approved' as const },
+  { sequence: 2, name: 'الموارد البشرية', reviewers: [reviewer(9, 'خالد الدوسري'), reviewer(10, 'ريم الحربي')], status: 'pending' as const },
+] }
+export const ApprovalStages: Story = { name: 'مراحل اعتماد الإجازة', args: { personal: false }, parameters: { msw: { handlers: { api: [
+  http.get('/api/v1/hr/leave/requests/:id/approval', () => HttpResponse.json(approval)),
+  http.get('/api/v1/hr/leave/requests/:id', () => HttpResponse.json({ ...leave, can_approve: false, can_refuse: false })),
+  ...hrSelfServiceHandlers,
+] } } } }
+export const ApprovalRefused: Story = { name: 'رُفض في مرحلة المدير', args: { personal: true }, parameters: { msw: { handlers: { api: [
+  http.get('/api/v1/hr/leave/requests/:id/approval', () => HttpResponse.json({ ...approval, state: 'rejected', steps: [{ ...approval.steps[0]!, status: 'rejected' }, { ...approval.steps[1]!, status: 'cancel' }] })),
+  ...hrSelfServiceHandlers,
+] } } } }
+export const ApprovalLoadError: Story = { name: 'تعذر تحميل المراحل', args: { personal: true }, parameters: { msw: { handlers: { api: [
+  http.get('/api/v1/hr/leave/requests/:id/approval', () => HttpResponse.json({ code: 'unavailable', message: 'تعذر التحميل' }, { status: 503 })),
+  ...hrSelfServiceHandlers,
+] } } } }

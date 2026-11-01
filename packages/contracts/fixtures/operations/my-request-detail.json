@@ -16,7 +16,7 @@
       "actor": {
         "id": 3,
         "name": "Sara",
-        "user_id": 251
+        "user_id": 286
       },
       "comment": "",
       "created_at": "2026-01-01T00:00:00Z",
@@ -37,18 +37,20 @@
   "requester": {
     "id": 3,
     "name": "Sara",
-    "user_id": 251
+    "user_id": 286
   },
   "revision": 1,
   "state": "pending",
   "steps": [
     {
       "name": "Review",
+      "resolver": null,
+      "resolver_label": null,
       "reviewers": [
         {
           "id": 4,
           "name": "ops_reviewer_1 (liwan_core.group_employee)",
-          "user_id": 253
+          "user_id": 288
         }
       ],
       "sequence": 1,

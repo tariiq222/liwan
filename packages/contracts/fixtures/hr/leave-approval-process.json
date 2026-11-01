@@ -1,0 +1,23 @@
+{
+  "can_manage": false,
+  "href": "/settings/apps/operations/processes/2",
+  "process": {
+    "id": 1,
+    "name": "Leave approval",
+    "revision": 1,
+    "steps": [
+      {
+        "name": "Direct manager",
+        "resolver": "hr_leave_approver",
+        "resolver_label": "Direct manager (time-off approver)",
+        "reviewers": []
+      },
+      {
+        "name": "HR",
+        "resolver": "hr_leave_officers",
+        "resolver_label": "HR leave officers",
+        "reviewers": []
+      }
+    ]
+  }
+}

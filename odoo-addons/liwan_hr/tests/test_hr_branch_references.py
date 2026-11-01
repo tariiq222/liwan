@@ -5,6 +5,7 @@ from datetime import date, timedelta
 from odoo.tests import tagged
 
 from odoo.addons.liwan_api.tests.common import CompanyIsolationCase
+from odoo.addons.liwan_hr.tests.common import use_hr_decision_path
 
 
 @tagged('post_install', '-at_install', 'liwan', 'liwan_access')
@@ -13,6 +14,7 @@ class TestHrBranchReferences(CompanyIsolationCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        use_hr_decision_path(cls)
         cls.company_p.country_id = cls.env.ref('base.sa')
         cls.company_p1.country_id = cls.env.ref('base.be')
         cls.manager_assignments = cls.env['liwan.access.assignment'].create([

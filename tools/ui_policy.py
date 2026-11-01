@@ -82,7 +82,7 @@ LOCALE_ROOTS = ('apps/web/i18n/locales/', 'apps/vendor-admin/i18n/locales/')
 STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'access/branches/BranchRoleAssignments.vue',
     'hr/shifts/ShiftSettingsForm.vue',
-    'hr/LeaveSettingsForm.vue',
+    'hr/LeaveSettingsForm.vue', 'hr/LeaveApprovalCard.vue',
     'documents/DocumentEditor.vue',
     'hr/payroll/PayslipDocument.vue',
     'documents/DocumentReader.vue',

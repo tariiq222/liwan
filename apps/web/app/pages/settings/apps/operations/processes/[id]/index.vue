@@ -3,8 +3,8 @@ import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import OperationStepRow from '@/components/operations/OperationStepRow.vue'
 import { operationsStateTone } from '@/composables/operations/state'
 import { statusTag } from '@liwan/ui/app/utils/pageHeaderTag'
-import { useOperationProcess, useOperationProcessMutation } from '@/composables/operations/useOperations'
-import { createOperationSubmitGuard, operationErrorKey, operationId } from '@/composables/operations/forms'
+import { useOperationExecutionKinds, useOperationProcess, useOperationProcessMutation } from '@/composables/operations/useOperations'
+import { createOperationSubmitGuard, executionKindLabel, operationErrorKey, operationId } from '@/composables/operations/forms'
 const route = useRoute()
 const router = useRouter()
 const sourcePaths = useRecordListPaths(['/settings/apps/operations/processes'])
@@ -13,6 +13,7 @@ const { can } = useAccess()
 const hydrated = useHydrated()
 const id = computed(() => operationId(route.params.id))
 const query = useOperationProcess(id)
+const kinds = useOperationExecutionKinds()
 const process = query.data
 const mutation = useOperationProcessMutation()
 const gate = createOperationSubmitGuard()
@@ -51,12 +52,12 @@ async function refresh() { if (disabled.value) return; selected.value = null; er
       <SharedInlineConfirm v-if="selected" :title="t(`operations.confirm.${selected}`)" :description="t(selected === 'archive' ? 'operations.archiveHelp' : 'operations.publishHelp')" :confirm-label="t(`operations.${selected}`)" :color="selected === 'archive' ? 'error' : 'primary'" :pending="pending" :disabled="disabled" @confirm="confirmDecision" @cancel="selected = null" />
       <SharedRecordSection variant="panel" :title="t('operations.description')"><p class="whitespace-pre-wrap text-sm leading-7">{{ process.description || t('operations.noDescription') }}</p></SharedRecordSection>
       <SharedRecordSection variant="panel" :title="t('operations.stages')">
-        <ol class="space-y-3"><OperationStepRow v-for="(step, index) in process.steps" :key="index" :number="index + 1" :name="step.name" :reviewers="step.reviewers" :ineligible="step.reviewers.filter(person => step.ineligible_reviewer_ids.includes(person.user_id))" /></ol>
+        <ol class="space-y-3"><OperationStepRow v-for="(step, index) in process.steps" :key="index" :number="index + 1" :name="step.name" :reviewers="step.reviewers" :resolver-label="step.resolver_label" :ineligible="step.reviewers.filter(person => step.ineligible_reviewer_ids.includes(person.user_id))" /></ol>
       </SharedRecordSection>
     </template>
     <template v-if="process" #aside>
       <SharedPropertiesPanel>
-        <SharedPropertyRow :label="t('operations.result')" :value="t(`operations.executionKinds.${process.execution_kind === 'approval' || process.execution_kind === 'pmo_completion' ? process.execution_kind : 'other'}`)" />
+        <SharedPropertyRow :label="t('operations.result')" :value="executionKindLabel(kinds.data.value?.items, process.execution_kind)" />
         <SharedPropertyRow :label="t('operations.stages')" :value="t('operations.stageCount', { count: process.steps.length }, process.steps.length)" />
         <SharedPropertyRow :label="t('operations.stageApprovalMode')" :value="t(`operations.stageApprovalModes.${process.stage_approval_mode}`)" />
       </SharedPropertiesPanel>

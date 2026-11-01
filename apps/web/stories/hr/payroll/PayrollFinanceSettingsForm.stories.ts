@@ -23,7 +23,7 @@ const meta = {
   component: PayrollFinanceSettingsForm,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/settings/apps/hr/index.vue:135', 'قسم ربط الرواتب بالمحاسبة في إعدادات الرواتب: الدفتر ومستوى تفصيل القيد ومركز التكلفة الافتراضي وحساب كل دور.'),
+    ...storyContext('apps/web/app/pages/settings/apps/hr/index.vue:148', 'قسم ربط الرواتب بالمحاسبة في إعدادات الرواتب: الدفتر ومستوى تفصيل القيد ومركز التكلفة الافتراضي وحساب كل دور.'),
   },
   args: {
     settings,

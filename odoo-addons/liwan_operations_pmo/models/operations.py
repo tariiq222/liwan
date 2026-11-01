@@ -10,7 +10,7 @@ class OperationsPmoProcess(models.Model):
     def _operations_execution_kinds(self):
         kinds = super()._operations_execution_kinds()
         if self.env['liwan.entitlement.service']._liwan_feature_write('pmo.enabled'):
-            return (*kinds, 'pmo_completion')
+            return (*kinds, {'key': 'pmo_completion', 'label': self.env._('Complete a project task')})
         return kinds
 
     def _operations_targets(self, q):

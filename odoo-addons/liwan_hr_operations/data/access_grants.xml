@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+<function model="liwan.access.service" name="_liwan_repair_builtin_role_grants"/>
+</odoo>

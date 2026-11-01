@@ -7,7 +7,7 @@ const settings = { cancellation_policy: 'manager_approval' as const, revision: 0
 const configOnly = http.get('/api/v1/me', () => HttpResponse.json({ ...me, capabilities: ['hr.leave.config'] }))
 const meta = {
   title: 'HR/LeaveSettingsForm', component: LeaveSettingsForm,
-  parameters: { ...storyContext('apps/web/app/pages/settings/apps/hr/index.vue:159', 'سياسة إلغاء الإجازة المعتمدة للشركة؛ صلاحية إعداد مستقلة عن الرواتب والموظفين.'), msw: { handlers: { api: [configOnly, http.patch('/api/v1/hr/leave/settings', async ({ request }) => HttpResponse.json({ ...await request.json() as object, revision: 1 }))] } } },
+  parameters: { ...storyContext('apps/web/app/pages/settings/apps/hr/index.vue:175', 'سياسة إلغاء الإجازة المعتمدة للشركة؛ صلاحية إعداد مستقلة عن الرواتب والموظفين.'), msw: { handlers: { api: [configOnly, http.patch('/api/v1/hr/leave/settings', async ({ request }) => HttpResponse.json({ ...await request.json() as object, revision: 1 }))] } } },
   args: { settings, canEdit: true, reloadSettings: async () => ({ cancellation_policy: 'manager_only', revision: 2 }) },
 } satisfies Meta<typeof LeaveSettingsForm>
 export default meta

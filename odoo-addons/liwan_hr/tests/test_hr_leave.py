@@ -5,6 +5,7 @@ from odoo.exceptions import AccessError
 from odoo.tests import new_test_user, tagged
 
 from .common import LiwanHrCase, set_hr_feature
+from odoo.addons.liwan_hr.models.ir_rule import LiwanHrIrRule
 
 LEAVE_KEYS = {
     'id', 'employee', 'leave_type', 'date_from', 'date_to', 'number_of_days',
@@ -474,3 +475,41 @@ class TestHrLeave(LiwanHrCase):
         res = self.api('POST', f'/api/v1/hr/leave/requests/{leave_id}/cancel', json={'state': 'validate'})
         self.assertEqual(res.status_code, 422)
         self.assertEqual(res.json()['field'], 'state')
+
+    def test_approval_hooks_are_neutral_without_a_workflow_bridge(self):
+        self._as_staff()
+        created = self._request(days=1)
+        self.assertEqual(created.status_code, 201, created.text)
+        leave = self.env['hr.leave'].browse(created.json()['id'])
+        self.assertIsNone(leave._liwan_request_approval())
+        self.assertFalse(leave._liwan_approval_governed())
+        self.assertIsNone(leave._liwan_withdraw_approval())
+        # HR's own definition: an installed bridge widens the fence, which its tests cover.
+        self.assertTrue(LiwanHrIrRule._liwan_leave_extra_read_domain(self.env['ir.rule']).is_false())
+        self._as_manager()
+        approved = self.api('POST', f'/api/v1/hr/leave/requests/{leave.id}/approve', json={})
+        self.assertEqual((approved.status_code, approved.json()['state']), (200, 'validate'))
+
+    def test_request_and_withdraw_call_the_approval_hooks(self):
+        calls = []
+        leave_cls = type(self.env['hr.leave'])
+        self.patch(leave_cls, '_liwan_request_approval', lambda this: calls.append(('request', this.state)))
+        self.patch(leave_cls, '_liwan_withdraw_approval', lambda this: calls.append(('withdraw', this.exists() and this.state)))
+        self._as_staff()
+        leave_id = self._request(days=1).json()['id']
+        self.assertEqual(calls, [('request', 'confirm')])
+        self.assertEqual(self.api('POST', f'/api/v1/hr/leave/requests/{leave_id}/cancel', json={}).status_code, 200)
+        self.assertEqual(calls[1:], [('withdraw', 'confirm')])
+
+    def test_a_governed_leave_is_decided_elsewhere(self):
+        self._as_staff()
+        leave_id = self._request(days=1).json()['id']
+        self.patch(type(self.env['hr.leave']), '_liwan_approval_governed', lambda this: True)
+        self._as_manager()
+        detail = self.api('GET', f'/api/v1/hr/leave/requests/{leave_id}').json()
+        self.assertFalse(detail['can_approve'])
+        self.assertFalse(detail['can_refuse'])
+        for decision in ('approve', 'refuse'):
+            res = self.api('POST', f'/api/v1/hr/leave/requests/{leave_id}/{decision}', json={})
+            self.assertEqual((res.status_code, res.json()['code']), (409, 'approval_governed'), decision)
+        self.assertEqual(self.env['hr.leave'].browse(leave_id).state, 'confirm')

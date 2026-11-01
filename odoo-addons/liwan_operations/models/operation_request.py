@@ -3,6 +3,7 @@ from odoo import Command, api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 from .common import (
+    EXTERNAL_CLOSE,
     STAGE_APPROVAL_MODES,
     TOKEN,
     check_revision,
@@ -79,9 +80,29 @@ class OperationRequest(models.Model):
     def _operations_target(self):
         return None
 
+    def _operations_subject_users(self):
+        """Users the request is about; they never review it, whatever stage names them. Bridges override it."""
+        return self.env['res.users']
+
+    @api.model
+    def _operations_creation_capability(self, execution_kind):
+        """The capability that lets a user file, submit and withdraw a request of ``execution_kind``; bridges override it."""
+        return 'operations.requests.create'
+
+    def _operations_resolve_reviewers(self, key):
+        """The users a resolver ``key`` names for this request; bridges override it."""
+        raise ValidationError(self.env._('This reviewer resolver is not available.'))
+
+    def _execute_rejected(self):
+        """Effect of a rejection, run inside the decision savepoint; bridges override it."""
+        return True
+
+    def _operations_stage_capability(self, sequence):
+        stages = self.stage_snapshot or []
+        return stages[sequence - 1]['capability'] if 0 < sequence <= len(stages) else 'operations.requests.review'
+
     @api.model_create_multi
     def create(self, vals_list):
-        require(self.env, 'operations.requests.create')
         prepared = []
         for source in vals_list:
             vals = dict(source)
@@ -90,10 +111,11 @@ class OperationRequest(models.Model):
             process = self._operations_published_process(vals.get('process_id'), self.env.company)
             if not process:
                 raise ValidationError(self.env._('Choose a published process from the current company.'))
+            require(self.env, self._operations_creation_capability(process.execution_kind))
             target = self._operations_target_values(process, vals.pop('target_id', None))
             if vals.get('company_id', self.env.company.id) != self.env.company.id:
                 raise AccessError(self.env._('Use the current company.'))
-            vals.update(name=text(self.env, vals.get('name'), 'name', 200, True), description=text(self.env, vals.get('description', ''), 'description', 20000), company_id=self.env.company.id, state='draft', requester_id=self.env.uid, revision=0, cycle=0, process_revision=0, participant_ids=[], stage_snapshot=[], stage_approval_mode='per_stage', execution_count=0, execution_kind='approval', process_name=process.name, event_ids=[])
+            vals.update(name=text(self.env, vals.get('name'), 'name', 200, True), description=text(self.env, vals.get('description', ''), 'description', 20000), company_id=self.env.company.id, state='draft', requester_id=self.env.uid, revision=0, cycle=0, process_revision=0, participant_ids=[], stage_snapshot=[], stage_approval_mode='per_stage', execution_count=0, execution_kind=process.execution_kind, process_name=process.name, event_ids=[])
             # Classification belongs to this request, including returned/resubmitted
             # cycles; later process edits must never move its historical purpose.
             vals.update(target, purpose=process.purpose)
@@ -120,7 +142,7 @@ class OperationRequest(models.Model):
     def _ops_write(self, vals):
         return self.with_context(_operations_write=TOKEN, skip_validation_check=_DOCUMENT_WRITE_TOKEN).write(vals)
 
-    def _guard(self, key):
+    def _guard(self, key=None):
         self.ensure_one()
         require(self.env, key)
         self.check_access('read')
@@ -128,7 +150,7 @@ class OperationRequest(models.Model):
             raise AccessError(self.env._('Use an active account in the current company.'))
 
     def _editable(self):
-        self._guard('operations.requests.create')
+        self._guard(self._operations_creation_capability(self.execution_kind))
         if self.requester_id != self.env.user or self.state not in ('draft', 'returned'):
             raise AccessError(self.env._('Only the requester can edit an open draft.'))
 
@@ -162,13 +184,26 @@ class OperationRequest(models.Model):
                 raise ValidationError(self.env._('The process has no approval stages.'))
             snapshot = []
             participants = self.requester_id
+            subjects = self._operations_subject_users()
             for sequence, definition in enumerate(definitions, 1):
-                users = definition.operations_reviewer_ids.filtered(lambda u: u.active and not u.share and self.company_id in u.company_ids and u != self.requester_id)
-                users = users.filtered(lambda u: self.env['liwan.access.service']._liwan_has_capability(u, 'operations.requests.review', company=self.company_id))
-                if not users:
-                    raise ValidationError(self.env._('A stage has no eligible reviewer other than the requester.'))
+                resolver = definition.operations_reviewer_resolver or None
+                entry = None
+                if resolver:
+                    entry = process._operations_reviewer_resolver(process.execution_kind, resolver)
+                    if not entry:
+                        raise ValidationError(self.env._('This reviewer resolver is not available.'))
+                    capability, candidates = entry['capability'], self._operations_resolve_reviewers(resolver)
+                else:
+                    capability, candidates = 'operations.requests.review', definition.operations_reviewer_ids
+                users = candidates.filtered(lambda u: u.active and not u.share and self.company_id in u.company_ids and u != self.requester_id and u not in subjects)
+                users = users.filtered(lambda u: self.env['liwan.access.service']._liwan_has_capability(u, capability, company=self.company_id))
+                skipped = not users and bool(entry and entry.get('skip_when_empty'))
+                if not users and not skipped:
+                    raise ValidationError(self.env._('The stage "%(stage)s" has no eligible reviewer other than the requester.', stage=definition.name))
                 participants |= users
-                snapshot.append({'sequence': sequence, 'name': definition.name, 'reviewer_ids': users.ids})
+                snapshot.append({'sequence': sequence, 'name': definition.name, 'reviewer_ids': users.ids, 'resolver': resolver, 'capability': capability, 'skipped': skipped})
+            if all(stage['skipped'] for stage in snapshot):
+                raise ValidationError(self.env._('Every stage of the process has no eligible reviewer.'))
             if self.review_ids:
                 super().restart_validation()
             self._ops_write({'process_revision': process.revision, 'process_name': process.name, 'execution_kind': process.execution_kind, 'participant_ids': [Command.set(participants.ids)], 'stage_snapshot': snapshot, 'stage_approval_mode': process.stage_approval_mode, 'cycle': self.cycle + 1})
@@ -177,8 +212,18 @@ class OperationRequest(models.Model):
                 raise ValidationError(self.env._('The configured approval stages could not be created.'))
             self._ops_write({'state': 'pending', 'revision': self.revision + 1})
             self._event('submitted')
+            for stage in snapshot:
+                if stage['skipped']:
+                    self._event('stage_skipped', stage['name'])
         self._notify_current_reviewers()
         return self
+
+    def _prepare_tier_review_vals(self, definition, sequence):
+        vals = super()._prepare_tier_review_vals(definition, sequence)
+        if self.stage_snapshot[sequence - 1]['skipped']:
+            # A skipped stage is recorded as already approved, by nobody, so it never blocks the next stage.
+            vals.update(status='approved', reviewed_date=fields.Datetime.now())
+        return vals
 
     def _notify_current_reviewers(self):
         """Bell row for the reviewers of the stage the request now waits at.
@@ -215,15 +260,37 @@ class OperationRequest(models.Model):
             values={'subject': self.name},
         )
 
+    def _decidable_reviews(self):
+        """The open reviews the current user may decide, from the current stage on.
+
+        Snapshot membership and the stage's own capability are both necessary. A later stage counts
+        only while every stage before it, from the current one, is authorized too.
+        """
+        service = self.env['liwan.access.service']
+        decidable = self.env['tier.review']
+        for review in self._tier_eligible_reviews(self.review_ids).sorted('sequence'):
+            in_snapshot = 0 < review.sequence <= len(self.stage_snapshot) and self.env.uid in self.stage_snapshot[review.sequence - 1]['reviewer_ids']
+            if not (in_snapshot and service._liwan_has_capability(self.env.user, self._operations_stage_capability(review.sequence), record=self)):
+                break
+            decidable |= review
+        return decidable
+
+    def _is_stage_reviewer(self):
+        """Whether the current user is a snapshot reviewer of a stage and holds that stage's capability."""
+        service = self.env['liwan.access.service']
+        return any(
+            self.env.uid in stage['reviewer_ids'] and service._liwan_has_capability(self.env.user, stage['capability'], record=self)
+            for stage in self.stage_snapshot or []
+        )
+
     def _decision_guard(self, revision):
-        self._guard('operations.requests.review')
+        # The stage's own capability authorizes the decision; no generic read capability is demanded on top.
+        self._guard()
         lock_or_conflict(self)
         check_revision(self, revision)
         if self.state != 'pending' or self.requester_id == self.env.user:
             raise AccessError(self.env._('This request is not available for your decision.'))
-        # Snapshot membership is necessary; current capability/company/active checks are above.
-        eligible = self._tier_eligible_reviews(self.review_ids)
-        eligible = eligible.filtered(lambda r: self.env.uid in (self.stage_snapshot[r.sequence - 1]['reviewer_ids'] if 0 < r.sequence <= len(self.stage_snapshot) else []))
+        eligible = self._decidable_reviews()
         if not eligible:
             raise AccessError(self.env._('Only the current stage reviewer can decide this request.'))
         return eligible
@@ -235,7 +302,7 @@ class OperationRequest(models.Model):
 
     def action_approve(self, revision, comment=''):
         self.ensure_one()
-        require(self.env, 'operations.requests.review')
+        require(self.env)
         try:
             with self.env.cr.savepoint():
                 reviews = self._decision_guard(revision)
@@ -243,6 +310,8 @@ class OperationRequest(models.Model):
                     # Only the current stage; a reviewer of the next stage decides it separately.
                     reviews = reviews.sorted('sequence')[:1]
                 super()._validate_tier(reviews)
+                if not reviews.filtered(lambda review: review.status == 'approved'):
+                    raise AccessError(self.env._('Only the current stage reviewer can decide this request.'))
                 self.review_ids._update_review_status()
                 self._event('approved', text(self.env, comment, 'comment', 4000))
                 if self.validation_status == 'validated':
@@ -267,12 +336,24 @@ class OperationRequest(models.Model):
         return self
 
     def _negative_decision(self, revision, comment, state):
-        with self.env.cr.savepoint():
-            reviews = self._decision_guard(revision)
-            note = text(self.env, comment, 'comment', 4000, True)
-            super()._rejected_tier(reviews)
-            self._ops_write({'state': state, 'revision': self.revision + 1})
-            self._event(state, note)
+        try:
+            with self.env.cr.savepoint():
+                reviews = self._decision_guard(revision)
+                note = text(self.env, comment, 'comment', 4000, True)
+                super()._rejected_tier(reviews)
+                if not reviews.filtered(lambda review: review.status == 'rejected'):
+                    raise AccessError(self.env._('Only the current stage reviewer can decide this request.'))
+                self._ops_write({'state': state, 'revision': self.revision + 1})
+                self._event(state, note)
+                if state == 'rejected':
+                    try:
+                        self._execute_rejected()
+                    except (UserError, ValidationError, AccessError) as exc:
+                        raise OperationExecutionError(str(exc)) from exc
+        except OperationExecutionError:
+            self.invalidate_recordset()
+            self._event('execution_failed')
+            raise
         self._notify_requester()
         return self
 
@@ -283,7 +364,7 @@ class OperationRequest(models.Model):
         return self._negative_decision(revision, comment, 'returned')
 
     def action_withdraw(self, revision, comment=''):
-        self._guard('operations.requests.create')
+        self._guard(self._operations_creation_capability(self.execution_kind))
         with self.env.cr.savepoint():
             lock_or_conflict(self, 'write')
             check_revision(self, revision)
@@ -291,6 +372,21 @@ class OperationRequest(models.Model):
                 raise AccessError(self.env._('Only the requester can withdraw an open request.'))
             self._ops_write({'state': 'withdrawn', 'revision': self.revision + 1})
             self._event('withdrawn', text(self.env, comment, 'comment', 4000))
+        return self
+
+    def _operations_close_externally(self, reason):
+        """Close an open request because its subject was decided outside the workflow.
+
+        Terminal like a withdrawal but run by the bridge that owns the subject, with its context token;
+        it executes nothing and leaves an audit event naming the outside decision.
+        """
+        self.ensure_one()
+        if self.env.context.get('operations_external_close') is not EXTERNAL_CLOSE:
+            raise AccessError(self.env._('Only the owning application can close a request externally.'))
+        if self.state not in ('draft', 'pending', 'returned'):
+            return self
+        self._ops_write({'state': 'withdrawn', 'revision': self.revision + 1})
+        self._event('closed_externally', text(self.env, reason, 'reason', 4000))
         return self
 
     # The generic engine RPC buttons cannot bypass the LiwanOS capability/revision flow.
@@ -322,8 +418,8 @@ class OperationRequest(models.Model):
         self.ensure_one()
         service = self.env['liwan.access.service']
         writable = self.company_id == self.env.company and self.env['liwan.entitlement.service']._liwan_feature_write('operations.enabled') and self.env.user.active
-        creator = writable and self.requester_id == self.env.user and service._liwan_has_capability(self.env.user, 'operations.requests.create', record=self)
-        reviewer = writable and self.state == 'pending' and self.requester_id != self.env.user and service._liwan_has_capability(self.env.user, 'operations.requests.review', record=self) and bool(self._tier_eligible_reviews(self.review_ids))
+        creator = writable and self.requester_id == self.env.user and service._liwan_has_capability(self.env.user, self._operations_creation_capability(self.execution_kind), record=self)
+        reviewer = writable and self.state == 'pending' and self.requester_id != self.env.user and bool(self._decidable_reviews())
         editable = creator and self.state in ('draft', 'returned')
         return {'edit': bool(editable), 'submit': bool(editable), 'approve': bool(reviewer), 'reject': bool(reviewer), 'return': bool(reviewer), 'withdraw': bool(creator and self.state in ('draft', 'returned', 'pending'))}
 
