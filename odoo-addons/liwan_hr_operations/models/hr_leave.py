@@ -19,7 +19,7 @@ class HrLeave(models.Model):
         if not process:
             return
         requests = self.env['liwan.operation.request'].with_company(self.company_id).with_context(**{BRIDGE_CONTEXT: BRIDGE})
-        record = requests.create({'name': self._hr_leave_summary(), 'description': self.notes or '', 'process_id': process.id, 'target_id': self.id})
+        record = requests.create({'name': self._hr_leave_summary(), 'process_id': process.id, 'target_id': self.id})
         record.action_submit(record.revision)
         subject = self.employee_id.user_id
         if subject and subject not in record.participant_ids:
@@ -29,8 +29,8 @@ class HrLeave(models.Model):
     def _hr_leave_summary(self):
         self.ensure_one()
         return self.env._(
-            '%(type)s: %(employee)s, %(date_from)s - %(date_to)s',
-            type=self.holiday_status_id.name, employee=self.employee_id.name,
+            'Leave request: %(employee)s, %(date_from)s - %(date_to)s',
+            employee=self.employee_id.name,
             date_from=self.request_date_from, date_to=self.request_date_to,
         )[:200]
 

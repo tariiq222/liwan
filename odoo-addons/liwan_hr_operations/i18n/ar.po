@@ -19,8 +19,8 @@ msgstr ""
 #. module: liwan_hr_operations
 #. odoo-python
 #: code:addons/liwan_hr_operations/models/hr_leave.py:0
-msgid "%(type)s: %(employee)s, %(date_from)s - %(date_to)s"
-msgstr "%(type)s: %(employee)s، %(date_from)s - %(date_to)s"
+msgid "Leave request: %(employee)s, %(date_from)s - %(date_to)s"
+msgstr "طلب إجازة: %(employee)s، %(date_from)s - %(date_to)s"
 
 #. module: liwan_hr_operations
 #. odoo-python

@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import date
+
 from odoo.exceptions import AccessError, UserError
 from odoo.tests import tagged
 
@@ -18,10 +20,35 @@ class TestLeaveApproval(LeaveApprovalCase):
         process = self.process
         self.assertEqual((process.state, process.purpose, process.execution_kind), ('published', 'employee', 'hr_leave'))
         self.assertEqual([step.reviewer_resolver for step in process.step_ids.sorted('sequence')], [APPROVER, OFFICERS])
-        self.annual.leave_validation_type = 'hr'
+        self.annual._write({'leave_validation_type': 'hr'})
+        self.annual.invalidate_recordset()
         post_init_hook(self.env)
         self.assertEqual(self.annual.leave_validation_type, 'both')
         self.assertEqual(self.process, process, 'the hook seeds a process only for a company that has none')
+
+    def _late_type(self, **vals):
+        return self.env['hr.leave.type'].create({'name': 'Late type', **vals})
+
+    def test_a_type_created_after_install_keeps_the_stage_one_refusal(self):
+        late = self._late_type()
+        self.assertEqual(late.leave_validation_type, 'both')
+        self.assertEqual(self._late_type(leave_validation_type='manager').leave_validation_type, 'both')
+        late.leave_validation_type = 'hr'
+        self.assertEqual(late.leave_validation_type, 'both')
+        self.env['hr.leave.allocation'].create({
+            'employee_id': self.staff.id, 'holiday_status_id': late.id, 'number_of_days': 10,
+            'date_from': date.today().replace(month=1, day=1),
+        }).action_approve()
+        leave = self.file_leave(leave_type_id=late.id)
+        self.reject(self.approval_request(leave), self.manager_user, 'Busy week')
+        leave.invalidate_recordset()
+        self.assertEqual(leave.state, 'refuse')
+
+    def test_types_without_validation_stay_as_they_are(self):
+        free = self._late_type(leave_validation_type='no_validation')
+        self.assertEqual(free.leave_validation_type, 'no_validation')
+        free.leave_validation_type = 'both'
+        self.assertEqual(free.leave_validation_type, 'both')
 
     def test_manager_then_officer_validate_the_leave(self):
         leave = self.file_leave()
@@ -29,8 +56,8 @@ class TestLeaveApproval(LeaveApprovalCase):
         self.assertEqual((leave.state, record.state, record.execution_kind), ('confirm', 'pending', 'hr_leave'))
         self.assertEqual(record.stage_snapshot[0]['reviewer_ids'], [self.manager_user.id])
         self.assertEqual(sorted(record.stage_snapshot[1]['reviewer_ids']), sorted([self.officer.id, self.officer_two.id]))
-        self.assertIn('Sara', record.name)
-        self.assertEqual(record.description, 'Family trip')
+        self.assertEqual(record.name, f'Leave request: Sara, {leave.request_date_from} - {leave.request_date_to}')
+        self.assertFalse(record.description)
         self.approve(record, self.manager_user)
         leave.invalidate_recordset()
         self.assertEqual((leave.state, record.state), ('confirm', 'pending'))

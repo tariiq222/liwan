@@ -27,10 +27,11 @@ class HrOperationsIrRule(models.Model):
     @api.model
     def _liwan_fresh_company_domain(self, model_name, mode):
         domain = super()._liwan_fresh_company_domain(model_name, mode)
-        if model_name != 'liwan.operation.request' or self.env.su:
+        if model_name != 'liwan.operation.request' or mode != 'read' or self.env.su:
             return domain
         # Leave staff read the company's leave approval requests, as they read its leaves, so the
-        # governed check sees the open request of a leave they are not a reviewer of.
+        # governed check sees the open request of a leave they are not a reviewer of. Read only: the
+        # widening grants no write on a request, whose decisions the engine's own guard authorizes.
         service = self.env['liwan.access.service']
         staff_ids = set()
         for key in STAFF_CAPABILITIES:
