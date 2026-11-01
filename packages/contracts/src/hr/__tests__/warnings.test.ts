@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   HrWarningBellRowSchema,
+  HrWarningCandidateListSchema,
   HrWarningContestSchema,
   HrWarningCreateSchema,
   HrWarningListSchema,
@@ -94,12 +95,15 @@ describe('warning types', () => {
 describe('warning settings and standing', () => {
   const settings = {
     warnings_issued_by: 'hr_only', warnings_employee_acknowledgement: 'optional',
-    warnings_escalation_window_months: 12, revision: 0,
+    warnings_escalation_window_months: 12, can_issue: false, revision: 0,
   }
 
   it('accepts the defaults before the first save and bounds the window', () => {
     expect(HrWarningSettingsSchema.parse(settings).revision).toBe(0)
-    expect(HrWarningSettingsPatchSchema.parse({ ...settings, warnings_issued_by: 'manager_and_hr' }).warnings_issued_by).toBe('manager_and_hr')
+    const { can_issue: _canIssue, ...policy } = settings
+    expect(HrWarningSettingsPatchSchema.parse({ ...policy, warnings_issued_by: 'manager_and_hr' }).warnings_issued_by).toBe('manager_and_hr')
+    expect(() => HrWarningSettingsPatchSchema.parse(settings)).toThrow()
+    expect(() => HrWarningSettingsSchema.parse(policy)).toThrow()
     expect(() => HrWarningSettingsSchema.parse({ ...settings, warnings_escalation_window_months: 61 })).toThrow()
     expect(() => HrWarningSettingsSchema.parse({ ...settings, warnings_issued_by: 'anyone' })).toThrow()
   })
@@ -108,6 +112,13 @@ describe('warning settings and standing', () => {
     const standing = { employee_id: 10, window_months: 12, active_count: 0, highest_severity: null }
     expect(HrWarningStandingSchema.parse(standing).highest_severity).toBeNull()
     expect(HrWarningStandingSchema.parse({ ...standing, active_count: 2, highest_severity: 30 }).active_count).toBe(2)
+  })
+})
+
+describe('HrWarningCandidateListSchema', () => {
+  it('lists the employees the caller may warn', () => {
+    expect(HrWarningCandidateListSchema.parse({ items: [{ id: 10, name: 'Noura' }], total: 1 }).total).toBe(1)
+    expect(() => HrWarningCandidateListSchema.parse({ items: [{ id: 10 }], total: 1 })).toThrow()
   })
 })
 

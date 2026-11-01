@@ -14,7 +14,7 @@
   "issued_at": "2026-01-01T00:00:00Z",
   "issued_by": {
     "id": 4,
-    "name": "warn_hr"
+    "name": "warn_mgr"
   },
   "reason": "Late three times",
   "revision": 2,

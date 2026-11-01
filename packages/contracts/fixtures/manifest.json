@@ -1097,6 +1097,14 @@
       "schema": "HrWarningSettingsSchema"
     },
     {
+      "name": "hr/warning-candidate-list",
+      "addon": "liwan_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/warnings/candidates",
+      "status": 200,
+      "schema": "HrWarningCandidateListSchema"
+    },
+    {
       "name": "meetings/meeting-version-detail",
       "addon": "liwan_meetings",
       "method": "GET",

@@ -1,0 +1,25 @@
+{
+  "items": [
+    {
+      "id": 1,
+      "name": "Administrator"
+    },
+    {
+      "id": 2,
+      "name": "Warn Manager"
+    },
+    {
+      "id": 3,
+      "name": "Warn No Account"
+    },
+    {
+      "id": 4,
+      "name": "Warn Other"
+    },
+    {
+      "id": 5,
+      "name": "Warn Report"
+    }
+  ],
+  "total": 5
+}

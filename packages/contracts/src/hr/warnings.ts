@@ -82,15 +82,25 @@ export const HrWarningRevisionSchema = z.object({ revision }).strict()
 export const HrWarningWithdrawSchema = z.object({ revision, reason: trimmed }).strict()
 export const HrWarningContestSchema = z.object({ revision, note: trimmed }).strict()
 
-export const HrWarningSettingsSchema = z.object({
+const warningPolicy = {
   warnings_issued_by: HrWarningIssuedBySchema,
   warnings_employee_acknowledgement: HrWarningAcknowledgementSchema,
   /** How many months back a warning still counts toward escalation. */
   warnings_escalation_window_months: z.number().int().min(1).max(60),
   /** 0 until the company saves its first policy. */
   revision: z.number().int().nonnegative(),
+}
+
+/** What a PATCH sends: the whole policy and the revision it was read at. */
+export const HrWarningSettingsPatchSchema = z.object(warningPolicy).strict()
+/** What the routes answer: the policy, and whether the caller may issue warnings (HR, or a direct manager under the manager policy). */
+export const HrWarningSettingsSchema = z.object({ ...warningPolicy, can_issue: z.boolean() }).strict()
+
+/** The employees the caller may warn (the create panel's picker); 403 when the caller may warn nobody. */
+export const HrWarningCandidateListSchema = z.object({
+  items: z.array(HrRefSchema),
+  total: z.number().int().nonnegative(),
 }).strict()
-export const HrWarningSettingsPatchSchema = HrWarningSettingsSchema
 
 /** The escalation figure shown to issuers: counted warnings inside the window and the highest severity among them. */
 export const HrWarningStandingSchema = z.object({
@@ -114,5 +124,6 @@ export type HrWarningRevision = z.infer<typeof HrWarningRevisionSchema>
 export type HrWarningWithdraw = z.infer<typeof HrWarningWithdrawSchema>
 export type HrWarningContest = z.infer<typeof HrWarningContestSchema>
 export type HrWarningSettings = z.infer<typeof HrWarningSettingsSchema>
+export type HrWarningCandidateList = z.infer<typeof HrWarningCandidateListSchema>
 export type HrWarningSettingsPatch = z.infer<typeof HrWarningSettingsPatchSchema>
 export type HrWarningStanding = z.infer<typeof HrWarningStandingSchema>
