@@ -51,6 +51,7 @@
         "boolean:hr.offboarding",
         "boolean:hr.assets",
         "boolean:hr.warnings",
+        "boolean:hr.insurance",
         "boolean:hr.payroll"
       ]
     },

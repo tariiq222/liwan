@@ -143,11 +143,11 @@ describe('commercial catalog and entitlement compiler', () => {
     core.features.push({ ...core.features[0]!, key: 'core.always', kind: 'boolean', selectable: false, ceiling: undefined })
     expect(compileEntitlements(input).features['core.always']).toBe(true)
   })
-  it('compiles the real v3 catalog into exactly the sixteen policy keys', () => {
+  it('compiles the real v3 catalog into exactly the seventeen policy keys', () => {
     const v3 = JSON.parse(readFileSync(new URL('../../../../deploy/catalog/solutions/platform_v3.json', import.meta.url), 'utf8'))
     const input = fixture()
     input.release.applications = catalogApplicationsFromSolution(v3, 'v3')
-    expect(compileEntitlements(input).features).toEqual({ 'branches.extra_limit': 8, 'chat.enabled': false, 'hr.assets': true, 'hr.enabled': true, 'hr.offboarding': true, 'hr.onboarding': true, 'hr.payroll': true, 'hr.recruitment': true, 'hr.shifts': true, 'hr.warnings': true, 'meetings.enabled': true, 'pmo.enabled': true, 'projects.max_projects': 0, 'storage.limit_mb': 0, 'tasks.enabled': false, 'users.limit': 20 })
+    expect(compileEntitlements(input).features).toEqual({ 'branches.extra_limit': 8, 'chat.enabled': false, 'hr.assets': true, 'hr.enabled': true, 'hr.offboarding': true, 'hr.onboarding': true, 'hr.payroll': true, 'hr.recruitment': true, 'hr.shifts': true, 'hr.insurance': true, 'hr.warnings': true, 'meetings.enabled': true, 'pmo.enabled': true, 'projects.max_projects': 0, 'storage.limit_mb': 0, 'tasks.enabled': false, 'users.limit': 20 })
   })
   it('names an application unknown to the platform from its catalog tier', () => {
     const v3 = JSON.parse(readFileSync(new URL('../../../../deploy/catalog/solutions/platform_v3.json', import.meta.url), 'utf8'))
@@ -163,9 +163,9 @@ describe('application is the grant unit', () => {
   const release: CatalogRelease = { id: id(1), version: 'v3', source_digest: 'a'.repeat(64), artifact_digest: 'b'.repeat(64), applications: catalogApplicationsFromSolution(v3, 'v3') }
   const bundle = (n: number, app: string): BundleRevision => ({ id: id(n), bundle_id: id(n + 20), version: 1, edit_revision: 1, name: app, description: app, audience: { kind: 'public' }, status: 'published', available: true, catalog_release_id: release.id, selections: [{ app_id: app, feature_keys: [] }], domain_limits: {}, prices: [] })
   const plan: PlanRevision = { id: id(4), plan_id: id(5), version: 1, edit_revision: 1, name: 'Plan', status: 'published', available: true, audience: { kind: 'public' }, term_months: 12, prices: [], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: [id(2), id(3)], included_extra_branches: 1, extra_branch_prices: [], extra_branches_limit: 8, included_users: 20, included_storage_mb: 0, user_prices: [], storage_prices: [], policy_revision_id: id(6), currency: 'SAR', trial_days: 0, grace_days: 0, auto_suspend: false, auto_renew_allowed: false }
-  it('grants all eight HR features when the people application is selected', () => {
+  it('grants all nine HR features when the people application is selected', () => {
     const snap = compileEntitlements({ release, plan, bundles: [bundle(3, 'people')], terms: null, quantities: { users: 20, storage_mb: 0 } })
-    for (const k of ['hr.enabled', 'hr.recruitment', 'hr.shifts', 'hr.onboarding', 'hr.offboarding', 'hr.assets', 'hr.warnings', 'hr.payroll'])
+    for (const k of ['hr.enabled', 'hr.recruitment', 'hr.shifts', 'hr.onboarding', 'hr.offboarding', 'hr.assets', 'hr.warnings', 'hr.insurance', 'hr.payroll'])
       expect(snap.features[k]).toBe(true)
   })
   it('does not grant a feature of an application that was not selected', () => {

@@ -28,6 +28,8 @@ HR_AREA_GROUPS = {
     'hr.assets.manage': ('group_cap_hr_assets_manage', 'maintenance.group_equipment_manager'),
     'hr.warnings.read': ('group_cap_hr_warnings_read', None),
     'hr.warnings.manage': ('group_cap_hr_warnings_manage', None),
+    'hr.insurance.read': ('group_cap_hr_insurance_read', None),
+    'hr.insurance.manage': ('group_cap_hr_insurance_manage', None),
 }
 HR_AREA_PERMISSIONS = frozenset(HR_AREA_GROUPS)
 HR_AREA_DEPENDENCIES = {
@@ -43,6 +45,8 @@ HR_AREA_DEPENDENCIES = {
     'hr.assets.manage': frozenset({'hr.assets.read'}),
     'hr.warnings.read': frozenset({'hr.employees.read'}),
     'hr.warnings.manage': frozenset({'hr.warnings.read'}),
+    'hr.insurance.read': frozenset({'hr.employees.read'}),
+    'hr.insurance.manage': frozenset({'hr.insurance.read'}),
 }
 # The three area capabilities whose engine writes hr.version or the employee record (a shift
 # assignment, the plan launch follower write, the departure wizard). They require
@@ -50,7 +54,7 @@ HR_AREA_DEPENDENCIES = {
 # must imply nothing at all.
 EMPLOYEES_MANAGE_AREAS = frozenset({'hr.shifts.manage', 'hr.onboarding.manage', 'hr.offboarding.manage'})
 HR_AREA_FEATURES = (
-    'hr.recruitment', 'hr.shifts', 'hr.onboarding', 'hr.offboarding', 'hr.assets', 'hr.warnings',
+    'hr.recruitment', 'hr.shifts', 'hr.onboarding', 'hr.offboarding', 'hr.assets', 'hr.warnings', 'hr.insurance',
 )
 # No capability group may open these, in this version or through a future engine link.
 FORBIDDEN_IMPLICATIONS = (
@@ -80,13 +84,13 @@ class TestHrAccessComposition(TransactionCase):
     def _group(self, key):
         return self.env.ref(f'liwan_hr.{HR_AREA_GROUPS[key][0]}')
 
-    def test_hr_owns_its_twenty_three_capabilities_and_their_groups(self):
+    def test_hr_owns_its_twenty_five_capabilities_and_their_groups(self):
         catalog = self.service._liwan_capability_map()
-        self.assertEqual(len(HR_PERMISSIONS), 23)
+        self.assertEqual(len(HR_PERMISSIONS), 25)
         self.assertLessEqual(HR_AREA_PERMISSIONS, HR_PERMISSIONS)
         self.assertEqual({key for key, item in catalog.items() if item['owner'] == 'liwan_hr'}, set(HR_PERMISSIONS) | PAYROLL_PERMISSIONS)
         permissions = self.Permission.search([('key', 'in', sorted(HR_PERMISSIONS))])
-        self.assertEqual(len(permissions), 23)
+        self.assertEqual(len(permissions), 25)
         xmlids = permissions.get_external_id()
         for permission in permissions:
             self.assertTrue(xmlids[permission.id].startswith('liwan_hr.permission_hr_'), permission.key)

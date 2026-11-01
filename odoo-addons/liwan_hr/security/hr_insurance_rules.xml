@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Insurance data is private to the employee it covers. Every row is company-scoped for everyone (a rule
+         without groups is global); on top of that the insurance read group sees every row of its companies, and
+         an employee sees only the plan, provider, enrollment and dependents of their own enrollment. What an
+         employee sees of their dependents is also fenced by the company's visibility policy (models/ir_rule.py). -->
+    <record id="rule_liwan_hr_insurance_provider_company" model="ir.rule">
+        <field name="name">liwan insurance provider: multi company</field>
+        <field name="model_id" ref="model_liwan_hr_insurance_provider"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_liwan_hr_insurance_plan_company" model="ir.rule">
+        <field name="name">liwan insurance plan: multi company</field>
+        <field name="model_id" ref="model_liwan_hr_insurance_plan"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_liwan_hr_insurance_enrollment_company" model="ir.rule">
+        <field name="name">liwan insurance enrollment: multi company</field>
+        <field name="model_id" ref="model_liwan_hr_insurance_enrollment"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_liwan_hr_insurance_dependent_company" model="ir.rule">
+        <field name="name">liwan insurance dependent: multi company</field>
+        <field name="model_id" ref="model_liwan_hr_insurance_dependent"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_liwan_hr_insurance_settings_company" model="ir.rule">
+        <field name="name">liwan insurance settings: current company</field>
+        <field name="model_id" ref="model_liwan_hr_insurance_settings"/>
+        <field name="domain_force">[('company_id', '=', company_id)]</field>
+    </record>
+
+    <record id="rule_liwan_hr_insurance_provider_reader" model="ir.rule">
+        <field name="name">liwan insurance provider: readers see all</field>
+        <field name="model_id" ref="model_liwan_hr_insurance_provider"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_hr_insurance_read'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <record id="rule_liwan_hr_insurance_provider_self" model="ir.rule">
+        <field name="name">liwan insurance provider: the employee's own plan provider</field>
+        <field name="model_id" ref="model_liwan_hr_insurance_provider"/>
+        <field name="groups" eval="[Command.link(ref('liwan_core.group_employee'))]"/>
+        <field name="domain_force">[('plan_ids.enrollment_ids.employee_user_id', '=', user.id)]</field>
+    </record>
+    <record id="rule_liwan_hr_insurance_plan_reader" model="ir.rule">
+        <field name="name">liwan insurance plan: readers see all</field>
+        <field name="model_id" ref="model_liwan_hr_insurance_plan"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_hr_insurance_read'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <record id="rule_liwan_hr_insurance_plan_self" model="ir.rule">
+        <field name="name">liwan insurance plan: the employee's own plan</field>
+        <field name="model_id" ref="model_liwan_hr_insurance_plan"/>
+        <field name="groups" eval="[Command.link(ref('liwan_core.group_employee'))]"/>
+        <field name="domain_force">[('enrollment_ids.employee_user_id', '=', user.id)]</field>
+    </record>
+    <record id="rule_liwan_hr_insurance_enrollment_reader" model="ir.rule">
+        <field name="name">liwan insurance enrollment: readers see all</field>
+        <field name="model_id" ref="model_liwan_hr_insurance_enrollment"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_hr_insurance_read'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <record id="rule_liwan_hr_insurance_enrollment_self" model="ir.rule">
+        <field name="name">liwan insurance enrollment: the employee's own</field>
+        <field name="model_id" ref="model_liwan_hr_insurance_enrollment"/>
+        <field name="groups" eval="[Command.link(ref('liwan_core.group_employee'))]"/>
+        <field name="domain_force">[('employee_user_id', '=', user.id)]</field>
+    </record>
+    <record id="rule_liwan_hr_insurance_dependent_reader" model="ir.rule">
+        <field name="name">liwan insurance dependent: readers see all</field>
+        <field name="model_id" ref="model_liwan_hr_insurance_dependent"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_hr_insurance_read'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <record id="rule_liwan_hr_insurance_dependent_self" model="ir.rule">
+        <field name="name">liwan insurance dependent: the employee's own</field>
+        <field name="model_id" ref="model_liwan_hr_insurance_dependent"/>
+        <field name="groups" eval="[Command.link(ref('liwan_core.group_employee'))]"/>
+        <field name="domain_force">[('employee_user_id', '=', user.id)]</field>
+    </record>
+</odoo>

@@ -12,6 +12,8 @@ RUN_MODEL = 'liwan.hr.plan.run'
 STEP_KIND = 'hr.onboarding_step'
 WARNING_MODEL = 'liwan.hr.warning'
 WARNING_KIND = 'hr.warning_issued'
+INSURANCE_MODEL = 'liwan.hr.insurance.plan'
+INSURANCE_KIND = 'hr.insurance_plan_expiring'
 
 
 class LiwanHrNotificationTypes(models.AbstractModel):
@@ -24,6 +26,7 @@ class LiwanHrNotificationTypes(models.AbstractModel):
             *({'kind': kind, 'owner': 'liwan_hr', 'model': LEAVE_MODEL, 'feature_key': 'hr.enabled'} for kind in KINDS),
             {'kind': STEP_KIND, 'owner': 'liwan_hr', 'model': RUN_MODEL, 'feature_key': 'hr.enabled'},
             {'kind': WARNING_KIND, 'owner': 'liwan_hr', 'model': WARNING_MODEL, 'feature_key': 'hr.warnings'},
+            {'kind': INSURANCE_KIND, 'owner': 'liwan_hr', 'model': INSURANCE_MODEL, 'feature_key': 'hr.insurance'},
         )
 
     @api.model
@@ -41,6 +44,9 @@ class LiwanHrNotificationTypes(models.AbstractModel):
         # A warning row is the employee's own: only warnings issued to their own record, in the caller's record rules.
         Warning = self.env[WARNING_MODEL]
         warning_ids = Warning._search([('employee_user_id', '=', self.env.uid)]) if Warning.has_access('read') else []
+        # An expiry row is anchored on the plan: the caller's own record rules decide which plans they read.
+        Plan = self.env[INSURANCE_MODEL]
+        plan_ids = Plan.with_context(active_test=False)._search([]) if Plan.has_access('read') else []
         return [
             *super()._liwan_notify_visible_domain(),
             [
@@ -57,6 +63,11 @@ class LiwanHrNotificationTypes(models.AbstractModel):
                 ('mail_message_id.liwan_notification_kind', '=', WARNING_KIND),
                 ('mail_message_id.model', '=', WARNING_MODEL),
                 ('mail_message_id.res_id', 'in', warning_ids),
+            ],
+            [
+                ('mail_message_id.liwan_notification_kind', '=', INSURANCE_KIND),
+                ('mail_message_id.model', '=', INSURANCE_MODEL),
+                ('mail_message_id.res_id', 'in', plan_ids),
             ],
         ]
 
@@ -86,6 +97,15 @@ class LiwanHrNotificationTypes(models.AbstractModel):
                 'id': row.id,
                 'kind': WARNING_KIND,
                 'warning_id': message.res_id,
+                'title': message.subject or '',
+                'created_at': iso(message.date),
+                'is_read': bool(row.is_read),
+            }
+        if message.liwan_notification_kind == INSURANCE_KIND:
+            return {
+                'id': row.id,
+                'kind': INSURANCE_KIND,
+                'plan_id': message.res_id,
                 'title': message.subject or '',
                 'created_at': iso(message.date),
                 'is_read': bool(row.is_read),

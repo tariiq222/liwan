@@ -45,11 +45,27 @@ TRACKED_FIELDS = {
     'liwan.hr.warning.settings': ((
         'warnings_issued_by', 'warnings_employee_acknowledgement', 'warnings_escalation_window_months',
     ), ()),
+    # Insurance: who is covered by which plan and for how long are recorded; member numbers, identity numbers,
+    # names, shares, premiums and notes are insurance data and are named, never copied into the trail.
+    'liwan.hr.insurance.provider': (('name', 'active'), ()),
+    'liwan.hr.insurance.plan': (('provider_id', 'name', 'tier', 'valid_from', 'valid_to', 'active'), (
+        'policy_number', 'annual_premium',
+    )),
+    'liwan.hr.insurance.enrollment': (('employee_id', 'plan_id', 'date_from', 'date_to', 'state'), (
+        'member_number', 'employee_share', 'company_share', 'notes',
+    )),
+    'liwan.hr.insurance.dependent': (('relation', 'date_from', 'date_to', 'state'), (
+        'name', 'birth_date', 'national_id',
+    )),
+    'liwan.hr.insurance.settings': ((
+        'insurance_visibility', 'insurance_expiry_alert_days', 'insurance_require_dependent_id',
+    ), ()),
 }
 
 # Warning actions are authorized by the warning itself (`_liwan_audit_authorized`): the HR officer who issues or
 # withdraws, the direct manager who issues when the company allows it, and the employee who answers their own
-# warning hold no single capability in common.
+# warning hold no single capability in common. Insurance enrollment and dependent actions use the same hook, since
+# the record carries the company its manager is checked in.
 SELF_AUTHORIZED = None
 # action -> (audited model, capability the caller holds in the record's company)
 ACTIONS = {
@@ -76,9 +92,27 @@ ACTIONS = {
     'warning_type_created': ('liwan.hr.warning.type', 'hr.warnings.manage'),
     'warning_type_changed': ('liwan.hr.warning.type', 'hr.warnings.manage'),
     'warning_settings_changed': ('liwan.hr.warning.settings', 'hr.warnings.manage'),
+    'provider_created': ('liwan.hr.insurance.provider', 'hr.insurance.manage'),
+    'provider_changed': ('liwan.hr.insurance.provider', 'hr.insurance.manage'),
+    'plan_created': ('liwan.hr.insurance.plan', 'hr.insurance.manage'),
+    'plan_changed': ('liwan.hr.insurance.plan', 'hr.insurance.manage'),
+    'enrollment_created': ('liwan.hr.insurance.enrollment', SELF_AUTHORIZED),
+    'enrollment_changed': ('liwan.hr.insurance.enrollment', SELF_AUTHORIZED),
+    'enrollment_ended': ('liwan.hr.insurance.enrollment', SELF_AUTHORIZED),
+    'enrollment_cancelled': ('liwan.hr.insurance.enrollment', SELF_AUTHORIZED),
+    'dependent_added': ('liwan.hr.insurance.dependent', SELF_AUTHORIZED),
+    'dependent_changed': ('liwan.hr.insurance.dependent', SELF_AUTHORIZED),
+    'dependent_ended': ('liwan.hr.insurance.dependent', SELF_AUTHORIZED),
+    'insurance_settings_changed': ('liwan.hr.insurance.settings', 'hr.insurance.manage'),
 }
 # The warning trail is never listed with the payroll audit: it is confidential to the warnings capabilities.
 WARNING_MODELS = ('liwan.hr.warning', 'liwan.hr.warning.type', 'liwan.hr.warning.settings')
+# Nor is the insurance trail: it belongs to the insurance capabilities.
+INSURANCE_MODELS = (
+    'liwan.hr.insurance.provider', 'liwan.hr.insurance.plan', 'liwan.hr.insurance.enrollment',
+    'liwan.hr.insurance.dependent', 'liwan.hr.insurance.settings',
+)
+NON_PAYROLL_MODELS = WARNING_MODELS + INSURANCE_MODELS
 # Actions logged ahead of the record's unlink, inside the caller's savepoint: the old side keeps the values.
 DELETE_ACTIONS = frozenset({'gosi_rate_deleted', 'bank_profile_deleted', 'run_cancelled'})
 PAYROLL_ACTION_SELECTION = [
@@ -108,7 +142,21 @@ WARNING_ACTION_SELECTION = [
     ('warning_type_changed', 'Warning type changed'),
     ('warning_settings_changed', 'Warning settings changed'),
 ]
-ACTION_SELECTION = PAYROLL_ACTION_SELECTION + WARNING_ACTION_SELECTION
+INSURANCE_ACTION_SELECTION = [
+    ('provider_created', 'Insurance provider created'),
+    ('provider_changed', 'Insurance provider changed'),
+    ('plan_created', 'Insurance plan created'),
+    ('plan_changed', 'Insurance plan changed'),
+    ('enrollment_created', 'Insurance enrollment created'),
+    ('enrollment_changed', 'Insurance enrollment changed'),
+    ('enrollment_ended', 'Insurance enrollment ended'),
+    ('enrollment_cancelled', 'Insurance enrollment cancelled'),
+    ('dependent_added', 'Insurance dependent added'),
+    ('dependent_changed', 'Insurance dependent changed'),
+    ('dependent_ended', 'Insurance dependent ended'),
+    ('insurance_settings_changed', 'Insurance settings changed'),
+]
+ACTION_SELECTION = PAYROLL_ACTION_SELECTION + WARNING_ACTION_SELECTION + INSURANCE_ACTION_SELECTION
 
 
 def _render(record, name):
