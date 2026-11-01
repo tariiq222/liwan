@@ -1,4 +1,5 @@
 import type { FinanceJournal, FinancePaymentTransfer } from '@liwan/contracts'
+import { ApiError } from '../../../composables/useApi'
 import { financeErrorKey } from '../invoices/invoiceErrors'
 
 /** Money moves between the company's own bank and cash journals only; the server refuses any other type. */
@@ -51,3 +52,8 @@ export function transferErrorKey(code: string): string | null {
 
 /** Where the missing transfer account is chosen: the fiscal card of the finance setup. */
 export const TRANSFER_ACCOUNT_SETUP_PATH = '/settings/apps/finance#setup-fiscal'
+
+/** The one refusal with a way out: the company has no transfer account yet, and the fiscal setup chooses it. */
+export function isTransferAccountMissing(cause: unknown): boolean {
+  return cause instanceof ApiError && cause.code === 'transfer_account_missing'
+}

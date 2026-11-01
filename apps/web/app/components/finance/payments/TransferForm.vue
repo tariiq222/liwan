@@ -2,13 +2,13 @@
 import type { RouteLocationRaw } from 'vue-router'
 import type { FinancePaymentTransferResult } from '@liwan/contracts'
 import { useCreateFinanceTransfer, useFinancePaymentJournals } from '@/composables/finance/useFinancePayments'
-import { ApiError } from '@/composables/useApi'
 import { financeErrorMessage } from '../financeErrors'
 import Money from '../invoices/Money.vue'
 import { PAYMENT_STATE_TONE } from './paymentModel'
 import {
   TRANSFER_ACCOUNT_SETUP_PATH,
   buildTransfer,
+  isTransferAccountMissing,
   transferErrorKey,
   transferJournals,
   validateTransferDraft,
@@ -55,7 +55,7 @@ async function submit() {
     result.value = await create.mutateAsync(buildTransfer(draft))
   } catch (cause) {
     error.value = financeErrorMessage(cause, transferErrorKey, t)
-    accountMissing.value = cause instanceof ApiError && cause.code === 'transfer_account_missing'
+    accountMissing.value = isTransferAccountMissing(cause)
   }
 }
 
@@ -76,7 +76,7 @@ const legs = computed(() => result.value
         <li v-for="leg in legs" :key="leg.key" class="flex flex-wrap items-center justify-between gap-3 rounded-card bg-elevated p-3" :data-testid="`finance-transfer-${leg.key}`">
           <div class="min-w-0">
             <p class="font-semibold text-highlighted"><bdi>{{ leg.payment.name || `${t('financeDocuments.payments.draftNumber')} #${leg.payment.id}` }}</bdi></p>
-            <p class="text-sm text-muted">{{ t(`financeDocuments.payments.transfer.legs.${leg.key}`) }} · {{ leg.payment.journal.name }} · <bdi class="tabular-nums">{{ leg.payment.date }}</bdi></p>
+            <p class="text-sm text-muted">{{ t(`financeDocuments.payments.transfer.legs.${leg.key}`) }} · {{ leg.payment.journal.name }} · <bdi class="tabular-nums" dir="ltr">{{ leg.payment.date }}</bdi></p>
           </div>
           <div class="flex items-center gap-3">
             <Money :amount="leg.payment.amount" :currency="leg.payment.currency" />

@@ -1,8 +1,12 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { FinancePaymentTransferSchema, type FinanceJournal } from '@liwan/contracts'
 import { exchangeOutcome, transferPaymentLink } from '../paymentModel'
+import { ApiError } from '../../../../composables/useApi'
 import {
   buildTransfer,
+  isTransferAccountMissing,
   transferErrorKey,
   transferJournals,
   validateTransferDraft,
@@ -50,6 +54,21 @@ describe('the refusals of a transfer', () => {
     expect(transferErrorKey('journal_currency_mismatch')).toBe('financeDocuments.payments.transfer.errors.journalCurrencyMismatch')
     expect(transferErrorKey('period_locked')).toBe('financeDocuments.errors.periodLocked')
     expect(transferErrorKey('something_else')).toBeNull()
+  })
+
+  it('offers the way out to the finance setup for the missing transfer account only', () => {
+    expect(isTransferAccountMissing(new ApiError(422, 'transfer_account_missing', 'x'))).toBe(true)
+    expect(isTransferAccountMissing(new ApiError(422, 'period_locked', 'x'))).toBe(false)
+    expect(isTransferAccountMissing(new Error('offline'))).toBe(false)
+  })
+
+  it('has an Arabic and an English message for every key it can return', () => {
+    for (const locale of ['ar', 'en']) {
+      const documents = JSON.parse(readFileSync(resolve(import.meta.dirname, `../../../../../i18n/locales/${locale}/finance-documents.json`), 'utf8')).financeDocuments
+      expect(documents.payments.transfer.errors.transferAccountMissing, locale).toBeTruthy()
+      expect(documents.payments.transfer.errors.journalCurrencyMismatch, locale).toBeTruthy()
+      expect(documents.errors.periodLocked, locale).toBeTruthy()
+    }
   })
 })
 
