@@ -364,6 +364,19 @@
       "refuseCancellationConfirm": "Refuse cancellation of {type} for {employee} ({period})?",
       "managerCancelConfirm": "Cancel {type} for {employee} ({period}) as manager?",
       "reasonRequired": "Reason (required)",
+      "approval": {
+        "title": "Approval stages",
+        "loadError": "Unable to load the approval stages",
+        "open": "Review this request",
+        "status": {
+          "waiting": "Waiting",
+          "pending": "Awaiting decision",
+          "approved": "Approved",
+          "rejected": "Refused",
+          "cancel": "Not needed",
+          "skipped": "Skipped, no reviewer"
+        }
+      },
       "cancellationTitle": "Cancellation request",
       "cancellationInitiator": "Initiated by {name}",
       "cancellationReviewer": "Reviewed by {name}",
@@ -412,6 +425,19 @@
         "deadline": "Due"
       },
       "openOnboardingSteps": "open steps"
+    },
+    "leaveApproval": {
+      "title": "Leave approval stages",
+      "hint": "New leave requests go through these stages in order. Requests already submitted keep the stages they started with.",
+      "empty": "This company has no leave approval process yet. Until one exists, HR approves leave directly.",
+      "default": "Use default process",
+      "defaultConfirm": "Create the default process: direct manager, then HR?",
+      "defaultHint": "The default has two stages: the employee's direct manager, then HR leave officers.",
+      "confirm": "Create",
+      "cancel": "Cancel",
+      "edit": "Edit stages",
+      "saveError": "Unable to create the process",
+      "stage": "Stage {number}"
     },
     "leaveSettings": {
       "title": "Leave cancellation policy",

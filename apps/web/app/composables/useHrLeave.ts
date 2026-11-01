@@ -1,9 +1,12 @@
+import { ApiError } from './useApi'
 import { useHrOwnIdentity } from './useHrOwnIdentity'
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
 import {
   HrLeaveAllocationListSchema,
+  HrLeaveApprovalProcessSchema,
+  HrLeaveApprovalSchema,
   HrLeaveAllocationSchema,
   HrLeaveBalanceListSchema,
   HrLeaveListSchema,
@@ -42,6 +45,8 @@ export const hrLeaveKeys = {
   requests: (params: HrLeaveListParams) => ['hr', 'leave', 'requests', params] as const,
   ownRequest: (id: number) => ['hr', 'leave', 'me', id] as const,
   request: (id: number) => ['hr', 'leave', 'request', id] as const,
+  approval: (id: number) => ['hr', 'leave', 'approval', id] as const,
+  approvalProcess: ['hr', 'leave', 'approval-process'] as const,
   allocations: (params: HrLeaveAllocationListParams) => ['hr', 'leave', 'allocations', params] as const,
   allocation: (id: number) => ['hr', 'leave', 'allocation', id] as const,
 }
@@ -106,6 +111,39 @@ export function useHrLeaveRequest(id: MaybeRefOrGetter<number | null>) {
     queryKey: computed(() => hrLeaveKeys.request(toValue(id) ?? 0)),
     enabled: computed(() => !!toValue(id)),
     queryFn: () => $api(`/api/v1/hr/leave/requests/${toValue(id)}`, { schema: HrLeaveSchema }),
+  })
+}
+
+/** The approval stages of a leave the operations workflow governs; a 404 means it is not governed, so the page shows nothing. */
+export function useHrLeaveApproval(id: MaybeRefOrGetter<number | null>) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: computed(() => hrLeaveKeys.approval(toValue(id) ?? 0)),
+    enabled: computed(() => !!toValue(id)),
+    retry: (count, error) => !(error instanceof ApiError && error.status === 404) && count < 2,
+    queryFn: () => $api(`/api/v1/hr/leave/requests/${toValue(id)}/approval`, { schema: HrLeaveApprovalSchema }),
+  })
+}
+
+/** The company's leave approval process; a 404 (no bridge) or 403 means the settings page shows no card. */
+export function useHrLeaveApprovalProcess(enabled: MaybeRefOrGetter<boolean> = true) {
+  const { $api } = useApi()
+  const { me } = useMe()
+  return useQuery({
+    queryKey: computed(() => [...hrLeaveKeys.approvalProcess, { companyId: me.value?.company?.id, userId: me.value?.id }]),
+    enabled: computed(() => toValue(enabled) && !!me.value),
+    retry: (count, error) => !(error instanceof ApiError && (error.status === 404 || error.status === 403)) && count < 2,
+    queryFn: () => $api('/api/v1/hr/leave/approval-process', { schema: HrLeaveApprovalProcessSchema }),
+  })
+}
+
+/** Create the default process (manager, then HR) when the company has none. */
+export function useCreateDefaultLeaveApprovalProcess() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: () => $api('/api/v1/hr/leave/approval-process/default', { method: 'POST', body: {}, schema: HrLeaveApprovalProcessSchema }),
+    onSuccess: () => refreshLeave(qc),
   })
 }
 

@@ -13,6 +13,19 @@ class HrLeave(models.Model):
             raise AccessError(self.env._('Use the policy checked cancellation wizard.'))
         return super().write(vals)
 
+    def _liwan_request_approval(self):
+        """Hook called once after a request is created; an approval workflow bridge overrides it."""
+        self.ensure_one()
+
+    def _liwan_approval_governed(self):
+        """Whether another workflow owns this leave's approval, so HR's own decision routes refuse it."""
+        self.ensure_one()
+        return False
+
+    def _liwan_withdraw_approval(self):
+        """Hook called before a pending request is withdrawn; an approval workflow bridge overrides it."""
+        self.ensure_one()
+
     def _liwan_notify_decision(self):
         """Bell row for the employee once the request is approved or refused, never for the decider."""
         self.ensure_one()

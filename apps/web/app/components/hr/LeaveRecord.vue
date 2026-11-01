@@ -2,7 +2,8 @@
 import { owningListBack } from '@/utils/recordListOrigin'
 import { ApiError } from '@/composables/useApi'
 import { useHrLeaveFormat } from '@/composables/useHrLeaveFormat'
-import { useHrLeaveRequest, useMyHrLeaveRequest, useLeaveDecision, useCancellationDecision, useWithdrawLeaveRequest, type HrLeaveDecision } from '@/composables/useHrLeave'
+import { joinList } from '@/utils/listFormat'
+import { useHrLeaveApproval, useHrLeaveRequest, useMyHrLeaveRequest, useLeaveDecision, useCancellationDecision, useWithdrawLeaveRequest, type HrLeaveDecision } from '@/composables/useHrLeave'
 import type { LeaveConfirmKind } from '@/components/hr/LeaveDecisionConfirm.vue'
 import { hrLeaveBadge } from '@/utils/hrLeaveBadge'
 import { statusTag } from '@liwan/ui/app/utils/pageHeaderTag'
@@ -10,6 +11,7 @@ import { statusTag } from '@liwan/ui/app/utils/pageHeaderTag'
 const props = defineProps<{ personal?: boolean }>()
 const route = useRoute()
 const { t } = useI18n()
+const { me } = useMe()
 const { can } = useAccess()
 const hydrated = useHydrated()
 const { period, days } = useHrLeaveFormat()
@@ -22,10 +24,18 @@ const ownQuery = useMyHrLeaveRequest(ownId)
 const managementQuery = useHrLeaveRequest(managementId)
 const query = computed(() => props.personal ? ownQuery : managementQuery)
 const leave = computed(() => query.value.data.value)
+const approvalQuery = useHrLeaveApproval(computed(() => leave.value ? id.value : null))
 // Invalid ids have no record to load and use the same not-found state as an unknown positive id.
 const pageError = computed(() => query.value.error.value ?? (validId.value ? null : new ApiError(404, 'not_found', t('errors.generic'))))
 const sourcePaths = computed(() => props.personal ? ['/account/leave'] : ['/hr/leave'])
 const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
+
+// The stages of the workflow that decides this leave. The route answers 404 when no workflow governs it, and the section stays out.
+const approval = computed(() => approvalQuery.data.value)
+const approvalFailed = computed(() => approvalQuery.error.value instanceof ApiError && approvalQuery.error.value.status !== 404)
+const APPROVAL_TONE = { approved: 'success', pending: 'info', rejected: 'destructive', waiting: 'neutral', cancel: 'neutral', skipped: 'neutral' } as const
+// Only a reviewer of the stage awaiting a decision is offered the workflow page, where the decision is taken.
+const canReview = computed(() => !!me.value && approval.value?.state === 'pending' && approval.value.steps.some(step => step.status === 'pending' && step.reviewers.some(person => person.user_id === me.value?.id)))
 
 const headerTags = computed(() => leave.value
   ? [statusTag({ tone: hrLeaveBadge(leave.value.state).tone, label: t(hrLeaveBadge(leave.value.state).labelKey) }, 'hr-leave-state')]
@@ -132,6 +142,21 @@ async function withdraw() {
         <p v-if="leave.cancellation.review_reason" class="whitespace-pre-line text-sm">{{ leave.cancellation.review_reason }}</p>
       </SharedRecordSection>
       <SharedIdentityCard :id="leave.id" :name="leave.leave_type.name" :subtitle="leave.employee.name" />
+      <SharedRecordSection v-if="approval || approvalFailed" :title="t('hr.leave.approval.title')" data-testid="hr-leave-approval">
+        <UAlert v-if="approvalFailed" role="alert" color="error" variant="subtle" :title="t('hr.leave.approval.loadError')" />
+        <template v-if="approval">
+          <ol class="space-y-3">
+            <SharedSubCard v-for="step in approval.steps" :key="step.sequence" as="li" class="flex flex-wrap items-center justify-between gap-3">
+              <div class="min-w-0 flex-1">
+                <h3 class="text-sm font-semibold text-highlighted">{{ step.sequence }}. {{ step.name }}</h3>
+                <p class="mt-1 flex min-w-0 items-center gap-2 text-sm text-muted"><SharedPersonAvatar :people="step.reviewers" /><span class="min-w-0 truncate">{{ joinList(step.reviewers.map(person => person.name), t) }}</span></p>
+              </div>
+              <SharedStatusBadge :tone="APPROVAL_TONE[step.status]" :label="t(`hr.leave.approval.status.${step.status}`)" />
+            </SharedSubCard>
+          </ol>
+          <UButton v-if="canReview" class="mt-3" color="primary" variant="outline" icon="i-lucide-external-link" :to="approval.href" :label="t('hr.leave.approval.open')" data-testid="hr-leave-approval-open" />
+        </template>
+      </SharedRecordSection>
       <SharedRecordSection v-if="leave.notes" :title="t('hr.leave.form.notes')">
         <p class="whitespace-pre-line text-sm">{{ leave.notes }}</p>
       </SharedRecordSection>

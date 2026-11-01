@@ -2,7 +2,7 @@
 import type { RouteLocationRaw } from 'vue-router'
 import type { FinanceBankImportColumns, FinanceBankImportPreview } from '@liwan/contracts'
 import {
-  useFinanceBankImportColumns,
+  useFinanceBankImportRead,
   useFinanceBankImportPreview,
   useFinanceBankJournals,
   useImportFinanceBankStatement,
@@ -18,28 +18,36 @@ import {
   IMPORT_MAX_BYTES,
   applySuggestedMapping,
   closingMatches,
+  csvOptionsChosen,
+  detectionBody,
+  decodeStatementFile,
   emptyImportDraft,
   expectedClosing,
   importBody,
   importFileBody,
   importMapping,
+  isStatementFile,
+  readFoundLines,
+  suggestedBalances,
   type BankImportDraft,
 } from './bankImportModel'
 
-// Imports a CSV statement in three steps that write nothing until the last: read the file's columns, map them and
-// preview every line the import would create (duplicates and unreadable rows are shown), then give the balances the
-// bank printed. The server refuses the import unless opening balance + lines = closing balance.
+// Imports a CSV, OFX or CAMT statement in steps that write nothing until the last. The server reads the file and says
+// which format it is: a CSV file answers its columns, to map and preview; an OFX or CAMT file answers every line the
+// import would create (duplicates and unreadable rows are shown) and the balances it suggests. Then give the balances
+// the bank printed. The server refuses the import unless opening balance + lines = closing balance.
 defineProps<{ backTo: RouteLocationRaw }>()
 const emit = defineEmits<{ saved: [id: number] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const journals = useFinanceBankJournals()
-const columnsCall = useFinanceBankImportColumns()
+const readCall = useFinanceBankImportRead()
 const previewCall = useFinanceBankImportPreview()
 const importCall = useImportFinanceBankStatement()
 
 const draft = reactive<BankImportDraft>(emptyImportDraft())
 const columns = ref<FinanceBankImportColumns | null>(null)
+const balancesFromFile = ref(false)
 const preview = ref<FinanceBankImportPreview | null>(null)
 const error = ref('')
 const saved = ref(false)
@@ -54,27 +62,46 @@ const mappingReady = computed(() => !!importMapping(draft))
 const body = computed(() => importBody(draft))
 const matches = computed(() => !!preview.value && closingMatches(draft, preview.value))
 const expected = computed(() => preview.value ? expectedClosing(draft.balanceStart, preview.value) : null)
-const pending = computed(() => columnsCall.isPending.value || previewCall.isPending.value || importCall.isPending.value)
+const pending = computed(() => readCall.isPending.value || previewCall.isPending.value || importCall.isPending.value)
 const dirty = computed(() => !saved.value && !!draft.content)
 
-// Changing how the file is read invalidates what was previewed from it.
-function reset() { columns.value = null; preview.value = null }
+const statementFile = computed(() => isStatementFile(draft.format))
+
+// Changing how the file is read invalidates what was previewed from it, and the balances the file suggested.
+function reset() {
+  columns.value = null
+  preview.value = null
+  draft.format = ''
+  if (balancesFromFile.value) Object.assign(draft, { balanceStart: '', balanceEnd: '' })
+  balancesFromFile.value = false
+}
 async function chooseFile(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0]
   error.value = ''
   reset()
   if (!file) return
   if (file.size > IMPORT_MAX_BYTES) { error.value = t('financeBank.import.tooLarge'); return }
+  const decoded = decodeStatementFile(await file.arrayBuffer())
+  if (decoded.lossy) { draft.content = ''; error.value = t('financeBank.import.unreadableText'); return }
   draft.fileName = file.name
-  draft.content = await file.text()
+  draft.content = decoded.text
 }
-async function readColumns() {
+async function readFile() {
   if (!hydrated.value || pending.value || !draft.content || !draft.journalId) return
   error.value = ''
-  preview.value = null
+  reset()
   try {
-    columns.value = await columnsCall.mutateAsync(importFileBody(draft))
-    applySuggestedMapping(draft, columns.value.suggested_mapping)
+    let read = await readCall.mutateAsync(detectionBody(draft))
+    draft.format = read.format
+    if (read.format === 'csv' && csvOptionsChosen(draft)) read = await readCall.mutateAsync(importFileBody(draft))
+    if (readFoundLines(read)) {
+      preview.value = read
+      Object.assign(draft, suggestedBalances(read))
+      balancesFromFile.value = true
+    } else {
+      columns.value = read
+      applySuggestedMapping(draft, read.suggested_mapping)
+    }
   } catch (cause) {
     error.value = financeErrorMessage(cause, bankErrorKey, t)
   }
@@ -116,22 +143,25 @@ async function submit() {
           </SharedPageState>
         </UFormField>
         <UFormField :label="t('financeBank.import.file')" name="finance-bank-import-file" required :hint="t('financeBank.import.fileHint')" class="sm:col-span-2">
-          <input id="finance-bank-import-file" type="file" accept=".csv,.txt,text/csv" class="block w-full text-sm" :disabled="!hydrated || pending" data-testid="finance-bank-import-file" @change="chooseFile">
+          <input id="finance-bank-import-file" type="file" accept=".csv,.txt,.ofx,.qfx,.xml,.camt,text/csv" class="block w-full text-sm" :disabled="!hydrated || pending" data-testid="finance-bank-import-file" @change="chooseFile">
         </UFormField>
-        <UFormField :label="t('financeBank.import.delimiter')" name="finance-bank-import-delimiter">
-          <USelect id="finance-bank-import-delimiter" v-model="draft.delimiter" :items="delimiterItems" class="w-full" :disabled="!hydrated || pending" @update:model-value="reset" />
-        </UFormField>
-        <UFormField :label="t('financeBank.import.dateFormat')" name="finance-bank-import-date-format">
-          <USelect id="finance-bank-import-date-format" v-model="draft.dateFormat" :items="dateItems" class="w-full" :disabled="!hydrated || pending" @update:model-value="preview = null" />
-        </UFormField>
-        <UFormField :label="t('financeBank.import.decimal')" name="finance-bank-import-decimal">
-          <USelect id="finance-bank-import-decimal" v-model="draft.decimalSeparator" :items="decimalItems" class="w-full" :disabled="!hydrated || pending" @update:model-value="preview = null" />
-        </UFormField>
-        <UFormField name="finance-bank-import-header">
-          <UCheckbox v-model="draft.hasHeader" :label="t('financeBank.import.hasHeader')" :disabled="!hydrated || pending" @update:model-value="reset" />
-        </UFormField>
+        <template v-if="!statementFile">
+          <UFormField :label="t('financeBank.import.delimiter')" name="finance-bank-import-delimiter">
+            <USelect id="finance-bank-import-delimiter" v-model="draft.delimiter" :items="delimiterItems" class="w-full" :disabled="!hydrated || pending" @update:model-value="reset" />
+          </UFormField>
+          <UFormField :label="t('financeBank.import.dateFormat')" name="finance-bank-import-date-format">
+            <USelect id="finance-bank-import-date-format" v-model="draft.dateFormat" :items="dateItems" class="w-full" :disabled="!hydrated || pending" @update:model-value="preview = null" />
+          </UFormField>
+          <UFormField :label="t('financeBank.import.decimal')" name="finance-bank-import-decimal">
+            <USelect id="finance-bank-import-decimal" v-model="draft.decimalSeparator" :items="decimalItems" class="w-full" :disabled="!hydrated || pending" @update:model-value="preview = null" />
+          </UFormField>
+          <UFormField name="finance-bank-import-header">
+            <UCheckbox v-model="draft.hasHeader" :label="t('financeBank.import.hasHeader')" :disabled="!hydrated || pending" @update:model-value="reset" />
+          </UFormField>
+        </template>
         <div class="sm:col-span-2">
-          <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated || !draft.content || !draft.journalId" :loading="columnsCall.isPending.value" :label="t('financeBank.import.readColumns')" data-testid="finance-bank-import-read" @click="readColumns" />
+          <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated || !draft.content || !draft.journalId" :loading="readCall.isPending.value" :label="t('financeBank.import.readFile')" data-testid="finance-bank-import-read" @click="readFile" />
+          <p v-if="draft.format" class="mt-2 text-sm text-muted" data-testid="finance-bank-import-format">{{ t('financeBank.import.detected', { format: t(`financeBank.import.formats.${draft.format}`) }) }}</p>
         </div>
       </div>
     </SharedFormSection>

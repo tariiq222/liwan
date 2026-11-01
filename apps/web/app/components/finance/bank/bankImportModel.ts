@@ -1,4 +1,4 @@
-import type { FinanceBankImport, FinanceBankImportMapping, FinanceBankImportPreview } from '@liwan/contracts'
+import type { FinanceBankImport, FinanceBankImportFormat, FinanceBankImportMapping, FinanceBankImportPreview, FinanceBankImportRead } from '@liwan/contracts'
 import { roundMoney, sameMoney } from './bankModel'
 
 /** The server refuses larger files (2 MiB); the screen says so before reading one. */
@@ -8,10 +8,42 @@ export const IMPORT_DATE_FORMATS = ['YYYY-MM-DD', 'DD/MM/YYYY', 'DD-MM-YYYY', 'M
 export const IMPORT_MAPPING_FIELDS = ['date', 'payment_ref', 'amount', 'debit', 'credit'] as const
 export type ImportMappingField = typeof IMPORT_MAPPING_FIELDS[number]
 
+const SNIFFED_BYTES = 1024
+const BYTE_ORDER_MARKS = [
+  { bytes: [0xEF, 0xBB, 0xBF], label: 'utf-8' },
+  { bytes: [0xFF, 0xFE], label: 'utf-16le' },
+  { bytes: [0xFE, 0xFF], label: 'utf-16be' },
+]
+
+/** The charset a statement file declares: a byte order mark, an XML declaration, or the OFX 1 header (`CHARSET:1252`); UTF-8 when it declares none (`ENCODING:UTF-8` and `USASCII` are UTF-8 too). */
+export function declaredCharset(bytes: Uint8Array): string {
+  const mark = BYTE_ORDER_MARKS.find(({ bytes: prefix }) => prefix.every((byte, index) => bytes[index] === byte))
+  if (mark) return mark.label
+  const head = new TextDecoder('latin1').decode(bytes.subarray(0, SNIFFED_BYTES))
+  const xml = /^\s*<\?xml[^>]*encoding\s*=\s*["']([^"']+)["']/i.exec(head)
+  if (xml) return xml[1]!.trim()
+  const code = /^CHARSET:\s*(\d+)/im.exec(head)
+  if (code) return `windows-${code[1]}`
+  return 'utf-8'
+}
+
+/** The text of an uploaded statement file in its declared charset; `lossy` when a byte had no character (or the charset is unknown), so the text cannot be trusted. */
+export function decodeStatementFile(buffer: ArrayBuffer): { text: string, lossy: boolean } {
+  const bytes = new Uint8Array(buffer)
+  try {
+    const text = new TextDecoder(declaredCharset(bytes)).decode(bytes)
+    return { text, lossy: text.includes('\uFFFD') }
+  } catch {
+    return { text: '', lossy: true }
+  }
+}
+
 export interface BankImportDraft {
   journalId: number | null
   fileName: string
   content: string
+  /** What the server found the file to be when it read it; empty until then. */
+  format: FinanceBankImportFormat | ''
   /** Empty lets the server detect it. */
   delimiter: string
   hasHeader: boolean
@@ -27,21 +59,39 @@ export interface BankImportDraft {
 
 export function emptyImportDraft(): BankImportDraft {
   return {
-    journalId: null, fileName: '', content: '', delimiter: '', hasHeader: true, dateFormat: 'YYYY-MM-DD', decimalSeparator: '.',
+    journalId: null, fileName: '', content: '', format: '', delimiter: '', hasHeader: true, dateFormat: 'YYYY-MM-DD', decimalSeparator: '.',
     mapping: { date: '', payment_ref: '', amount: '', debit: '', credit: '' }, name: '', balanceStart: '', balanceEnd: '', skipDuplicates: true,
   }
 }
 
-/** What describes how to read the file, shared by the preview and the import. */
-export function importFileBody(draft: BankImportDraft) {
+/** OFX and CAMT files carry their own layout: no delimiter, header, date format or mapping applies to them. */
+export const isStatementFile = (format: BankImportDraft['format']): format is 'ofx' | 'camt' => format === 'ofx' || format === 'camt'
+
+/** The answer to a read without a mapping is the lines of an OFX or CAMT file, or the columns of a CSV one. */
+export const readFoundLines = (read: FinanceBankImportRead): read is FinanceBankImportPreview => 'lines' in read
+
+const fileBody = (draft: BankImportDraft) => ({ journal_id: draft.journalId!, content: draft.content })
+
+function csvFileBody(draft: BankImportDraft) {
   return {
-    journal_id: draft.journalId!,
-    content: draft.content,
+    ...fileBody(draft),
+    ...(draft.format === 'csv' ? { format: 'csv' as const } : {}),
     ...(draft.delimiter ? { delimiter: draft.delimiter as typeof IMPORT_DELIMITERS[number] } : {}),
     has_header: draft.hasHeader,
     date_format: draft.dateFormat,
     decimal_separator: draft.decimalSeparator,
   }
+}
+
+/** The first read of a file: only the journal and the text, so the server finds the format and no CSV-only option can be refused for an OFX or CAMT file. */
+export const detectionBody = fileBody
+
+/** Whether the user chose CSV options that the detecting read did not carry, so a CSV file has to be read again with them. */
+export const csvOptionsChosen = (draft: Pick<BankImportDraft, 'delimiter' | 'hasHeader'>) => draft.delimiter !== '' || !draft.hasHeader
+
+/** What describes how to read the file once its format is known, shared by the preview and the import. */
+export function importFileBody(draft: BankImportDraft) {
+  return isStatementFile(draft.format) ? { ...fileBody(draft), format: draft.format } : csvFileBody(draft)
 }
 
 const columnRef = (value: string, hasHeader: boolean) => hasHeader ? value : Number(value)
@@ -67,12 +117,22 @@ export function applySuggestedMapping(draft: BankImportDraft, suggested: Record<
   for (const field of IMPORT_MAPPING_FIELDS) if (!draft.mapping[field] && suggested[field]) draft.mapping[field] = suggested[field]
 }
 
+/** The balances an OFX or CAMT file suggests, as the text the balance fields hold; empty where the file does not say. */
+export function suggestedBalances(preview: Pick<FinanceBankImportPreview, 'balance_start' | 'balance_end_real'>) {
+  return {
+    balanceStart: preview.balance_start === null ? '' : String(preview.balance_start),
+    balanceEnd: preview.balance_end_real === null ? '' : String(preview.balance_end_real),
+  }
+}
+
 export function importBody(draft: BankImportDraft): FinanceBankImport | null {
-  const mapping = importMapping(draft)
   const start = draft.balanceStart.trim() === '' ? Number.NaN : Number(draft.balanceStart)
   const end = draft.balanceEnd.trim() === '' ? Number.NaN : Number(draft.balanceEnd)
-  if (!mapping || !draft.journalId || !draft.content || !Number.isFinite(start) || !Number.isFinite(end)) return null
-  return { ...importFileBody(draft), mapping, balance_start: start, balance_end_real: end, skip_duplicates: draft.skipDuplicates, ...(draft.name.trim() ? { name: draft.name.trim() } : {}) }
+  if (!draft.journalId || !draft.content || !Number.isFinite(start) || !Number.isFinite(end)) return null
+  const options = { balance_start: start, balance_end_real: end, skip_duplicates: draft.skipDuplicates, ...(draft.name.trim() ? { name: draft.name.trim() } : {}) }
+  if (isStatementFile(draft.format)) return { ...fileBody(draft), format: draft.format, ...options }
+  const mapping = importMapping(draft)
+  return mapping ? { ...csvFileBody(draft), mapping, ...options } : null
 }
 
 /** The closing balance the file's new lines lead to; the bank's printed one must equal it. */

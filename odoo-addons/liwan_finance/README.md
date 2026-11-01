@@ -223,27 +223,52 @@ its reconciliations).
   `docs/finance/finance-completion-gaps.md`).
 - Every create, edit, post, allocation and unallocation leaves an audit event.
 
-## Bank statement import (CSV)
+## Bank statement import (CSV, OFX, CAMT)
 
-Banks export their own layouts, so the import is two steps over the same body `{journal_id, content, delimiter?,
-has_header?, date_format?, decimal_separator?, mapping?}` (`content` is the file text, at most 2 MiB and 5000 rows):
+Both routes take `{journal_id, content}` (the file text, at most 2 MiB; a CSV at most 5000 rows) and an optional `format`
+(`csv`, `ofx`, `camt`). Without it the format is detected from the start of the file (`OFXHEADER` or `<OFX>`; a
+`urn:iso:std:iso:20022:tech:xsd:camt.` namespace; anything else is CSV). One route family serves all three:
 
-1. `POST /bank-statements/import/preview` writes nothing. Without `mapping` it answers the header, a sample and the
-   columns the header names suggest (`suggested_mapping`, English and Arabic words). With a `mapping` (`date`,
-   `payment_ref`, and `amount` or `debit` with `credit`; columns by header name, or by position when `has_header` is false)
-   it answers every line the import would create (flagged `duplicate` when the journal already holds it), every unreadable
-   row with its row number, and the totals.
-2. `POST /bank-statements/import` adds `balance_start` and `balance_end_real` (both required) and creates one statement, whole
-   or not at all: an unreadable row is 422 `invalid_rows`; lines the journal already holds are 422 `duplicate_lines`
-   (`details.rows`) unless `skip_duplicates` is true; opening balance plus the new lines that is not the closing balance is
-   422 `balance_mismatch` (`details.expected`, `details.given`). The import is audited (`bank_statement_imported`).
+1. `POST /bank-statements/import/preview` writes nothing. An OFX or CAMT file answers at once with every line the
+   import would create (flagged `duplicate` when the journal already holds it), every unreadable row with its number, the
+   totals and the balances the file suggests (`balance_start`, `balance_end_real`, for the lines that are not duplicates,
+   `null` where the file does not say). A CSV file also takes `delimiter?`, `has_header?`, `date_format?`,
+   `decimal_separator?`, `mapping?` (refused for OFX and CAMT, 422 `invalid` on that field): without `mapping` it
+   answers the header, a sample and the columns the header names suggest (`suggested_mapping`, English and Arabic words);
+   with a `mapping` (`date`, `payment_ref`, and `amount` or `debit` with `credit`; columns by header name, or by position
+   when `has_header` is false) it answers the same lines, errors and totals.
+2. `POST /bank-statements/import` creates one statement, whole or not at all: an unreadable row is 422 `invalid_rows`;
+   lines the journal already holds are 422 `duplicate_lines` (`details.rows`) unless `skip_duplicates` is true; opening
+   balance plus the new lines that is not the closing balance is 422 `balance_mismatch` (`details.expected`,
+   `details.given`). A CSV import takes `balance_start` and `balance_end_real` (both required). An OFX or CAMT import
+   takes them from the file when omitted. The import is audited (`bank_statement_imported`, the outcome names the format).
 
-Numbers accept thousands separators, parentheses or a sign for negatives, `decimal_separator` `.` or `,`, and Arabic-Indic
-digits; dates use one of the listed formats (`DD/MM/YYYY` is not guessed, it is chosen). A line is a duplicate when the
-journal already holds at least as many lines with the same day, amount and reference as the file has shown so far, so two
-identical coffees in one file are both kept. Statements and imports work on bank and cash journals. OFX and CAMT files are
-not read: the pinned OCA set (`deploy/oca-addons.json`) has no statement-import repository, and adding
-`OCA/bank-statement-import` needs the owner's decision.
+A file that is not a readable statement of its format, holds more than one statement, has a document type declaration
+(CAMT), nests OFX elements more than 12 deep or is in another currency than the journal is 422 `invalid` (`field`
+`content` or `journal_id`). When the file and the journal's bank account both have a number and the numbers differ
+(compared without spaces, in capitals; a local number matches the IBAN that ends with it) the answer is 422
+`account_mismatch` (`field` `journal_id`); a file with no number, or a journal with no bank account, is accepted.
+
+- **OFX** (version 1 SGML and version 2 XML, bank and credit-card statements) is read by `serializers/statement_ofx.py`,
+  a small pure reader (no XML parser, so a file cannot declare entities). A line is `DTPOSTED`, `TRNAMT` and `NAME`/`MEMO`;
+  the closing balance is `LEDGERBAL`, else `AVAILBAL`. OFX states no opening balance: the suggested one is where the
+  journal's latest statement ended (`null` when it has none, then the caller gives it). The `FITID` of each transaction
+  is stored on the line as `unique_import_id` (`<journal id>-ofx-<FITID>`, the OCA field with a database unique
+  constraint). A line with an id is a duplicate when the journal holds that id, whatever its text and whatever manual
+  line looks like it; only lines without an id use the content rule below. A FITID repeated inside one file keeps its
+  first use and the next ones become `FITID#2`, `FITID#3` in file order, so the same file imported again is caught.
+- **CAMT** (camt.052/053/054) is parsed by the OCA `account_statement_import_camt` engine
+  (`account.statement.import.camt.parser.parse`, no wizard); `serializers/statement_camt.py` maps its answer. The file's
+  opening and closing balances are used; the opening one moves by the lines the journal already holds, so skipping
+  duplicates keeps the check meaningful. A balance the file does not state (camt.052 and camt.054 usually state none) is
+  `null`, never 0, and the import asks the caller for it. The engine gives no transaction ids, so CAMT duplicates use the content rule below.
+
+Numbers in a CSV accept thousands separators, parentheses or a sign for negatives, `decimal_separator` `.` or `,`, and
+Arabic-Indic digits; dates use one of the listed formats (`DD/MM/YYYY` is not guessed, it is chosen). A line is a duplicate
+when the journal already holds at least as many lines with the same day, amount and reference as the file has shown so
+far, so two identical coffees in one file are both kept. Statements and imports work on bank and cash journals.
+The API takes text; the screen decodes the file by its declared charset (byte order mark, XML declaration, OFX 1 `CHARSET`)
+and refuses a file with bytes that have no character in it.
 
 ## Asset profiles
 
@@ -655,7 +680,8 @@ summary. A customer withholding from a sale is not reported.
 ## OCA-backed reports, assets and bank
 
 `liwan_finance` depends on `account_financial_report`, `partner_statement`, `account_asset_management`,
-`account_reconcile_oca` (which pulls `account_statement_base`), `mis_builder` and `mis_builder_budget` from the pinned repositories of
+`account_reconcile_oca` (which pulls `account_statement_base`), `account_statement_import_camt` (with `_file` and `_base`: the CAMT
+parser and the `unique_import_id` line field), `mis_builder` and `mis_builder_budget` from the pinned repositories of
 `deploy/oca-addons.json` (see [docs/oca-addons.md](../../docs/oca-addons.md)); they are AGPL-3 and used unmodified
 through their models, in the caller's own environment (no `sudo()`). `account_tax_balance` and
 `account_fiscal_year` are not used and not declared. All amounts are in the company currency (the partner statement
@@ -747,7 +773,7 @@ answer is 422 `not_balanced`; a reconciled line is 422 `invalid_state`.
 The reconcile and proposal routes call private methods of account_reconcile_oca (`_default_reconcile_data`,
 `_add_account_move_line`, `_recompute_suspense_line`): **a pin bump of `account_reconcile_oca` must re-run
 `test_finance_bank`.**
-Not covered: OFX and CAMT import, reconcile models and automatic rules, foreign-currency exchange
+Not covered: reconcile models and automatic rules, foreign-currency exchange
 differences, unreconciling, cash journals and editing a statement.
 
 ## Budgets (`finance.budgets.*`)

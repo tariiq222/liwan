@@ -18,15 +18,23 @@ export function requestFormErrors(form: { name: string; process_id: number | nul
   if (!edit && (!Number.isInteger(form.process_id) || Number(form.process_id) < 1)) errors.process_id = 'required'
   return errors
 }
-export function processFormErrors(form: { name: string; steps: { name: string; reviewer_ids: number[] }[] }) {
+export function processFormErrors(form: { name: string; steps: { name: string; reviewer_ids: number[]; resolver?: string | null }[] }) {
   const errors: Record<string, string> = {}
   if (!form.name.trim()) errors.name = 'required'
   if (!form.steps.length) errors.steps = 'stepsRequired'
   form.steps.forEach((step, index) => {
     if (!step.name.trim()) errors[`steps.${index}.name`] = 'required'
-    if (!step.reviewer_ids.length || step.reviewer_ids.some(id => !Number.isInteger(id) || id < 1)) errors[`steps.${index}.reviewer_ids`] = 'reviewersRequired'
+    if (!step.resolver && (!step.reviewer_ids.length || step.reviewer_ids.some(id => !Number.isInteger(id) || id < 1))) errors[`steps.${index}.reviewer_ids`] = 'reviewersRequired'
   })
   return errors
+}
+// Named reviewers for a stage that has no resolver; a resolver stage sends none, because the server refuses both on one stage.
+export function processStepBody(step: { name: string; reviewer_ids: number[]; resolver?: string | null }) {
+  return { name: step.name.trim(), reviewer_ids: step.resolver ? [] : [...new Set(step.reviewer_ids)], resolver: step.resolver ?? null }
+}
+// The server names each kind; a kind the tenant can no longer use (its application is off) keeps its key.
+export function executionKindLabel(kinds: readonly { key: string; label: string }[] | undefined, kind: string) {
+  return kinds?.find(item => item.key === kind)?.label ?? kind
 }
 export function createOperationSubmitGuard() {
   const pending = ref(false)

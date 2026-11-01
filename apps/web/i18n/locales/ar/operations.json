@@ -34,6 +34,8 @@
     "stageNumber": "المرحلة {number}",
     "stageCount": "لا مراحل | مرحلة واحدة | مرحلتان | {count} مراحل | {count} مرحلة | {count} مرحلة",
     "stageName": "اسم المرحلة",
+    "namedReviewers": "مراجعون محددون بالاسم",
+    "reviewerSource": "من يراجع المرحلة",
     "reviewers": "المراجعون",
     "addStage": "إضافة مرحلة",
     "removeStage": "إزالة المرحلة",
@@ -42,11 +44,6 @@
     "stageOrderHelp": "تُراجع المراحل حسب ترتيبها. يكفي اعتماد أحد المراجعين المحددين لكل مرحلة، ويُستثنى مقدم الطلب من مراجعة طلبه.",
     "stagesAfterSubmit": "تظهر مراحل الموافقة عند إرسال الطلب.",
     "result": "نتيجة الاعتماد",
-    "executionKinds": {
-      "approval": "اعتماد الطلب",
-      "pmo_completion": "إكمال مهمة مشروع",
-      "other": "إجراء مرتبط"
-    },
     "editPublishedNotice": "حفظ التعديل يعيد الإجراء إلى مسودة تحتاج النشر. تحتفظ الطلبات المرسلة بمراحلها ومراجعيها الحاليين.",
     "cancel": "إلغاء",
     "create": "إنشاء",
@@ -90,7 +87,8 @@
       "approved": "معتمد",
       "published": "منشور",
       "archived": "مؤرشف",
-      "cancel": "ملغاة"
+      "cancel": "ملغاة",
+      "skipped": "تم تخطيها، لا يوجد معتمد"
     },
     "attachments": "المرفقات",
     "addAttachment": "إضافة مرفق",
@@ -106,6 +104,7 @@
       "withdrawn": "سحب الطلب",
       "executed": "اكتمل الطلب",
       "execution_failed": "تعذر إكمال الطلب",
+      "stage_skipped": "تخطى مرحلة بلا معتمد",
       "updated": "حدّث الطلب"
     },
     "errors": {

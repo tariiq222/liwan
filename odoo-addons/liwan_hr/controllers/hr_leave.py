@@ -81,6 +81,12 @@ def _reject_self_decision(leave):
         raise ApiError(403, 'forbidden', 'a request cannot be approved or refused by its own requester')
 
 
+def _reject_governed(leave):
+    """A leave whose approval another workflow owns is decided there, not by the HR routes."""
+    if leave._liwan_approval_governed():
+        raise ApiError(409, 'approval_governed', 'this request is decided by its approval workflow')
+
+
 def _own_employee():
     employee = request.env.user.employee_ids.filtered(
         lambda record: record.company_id == request.env.company,
@@ -269,6 +275,7 @@ class HrLeaveController(http.Controller):
             'request_date_to': vals['date_to'],
             'notes': vals['notes'],
         })
+        leave._liwan_request_approval()
         return request.make_json_response(dump_leave(leave), status=201)
 
     @http.route('/api/v1/hr/leave/requests/<int:leave_id>/approve', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -278,6 +285,7 @@ class HrLeaveController(http.Controller):
         _require('hr.leave.approve')
         _require_no_fields(payload)
         leave = _current_leave(leave_id)
+        _reject_governed(leave)
         _reject_self_decision(leave)
         if leave.state not in ('confirm', 'validate1'):
             raise ApiError(422, 'invalid', 'only a request waiting for a decision can be approved', field='state')
@@ -293,6 +301,7 @@ class HrLeaveController(http.Controller):
         _require_no_fields(payload)
         reason = parse_cancel_reason(reason)
         leave = _current_leave(leave_id)
+        _reject_governed(leave)
         _reject_self_decision(leave)
         if leave.state not in ('confirm', 'validate1', 'validate'):
             raise ApiError(422, 'invalid', 'only a pending or approved request can be refused', field='state')
@@ -316,6 +325,7 @@ class HrLeaveController(http.Controller):
             _require('hr.leave.request')
             if not _is_own(leave):
                 raise ApiError(403, 'forbidden', 'only the requester can withdraw a request')
+            leave._liwan_withdraw_approval()
             leave.unlink()
             return {'id': leave_id, 'withdrawn': True}
         model = request.env['liwan.hr.leave.cancellation']

@@ -1,6 +1,6 @@
 import { computed, onServerPrefetch, toValue, type MaybeRefOrGetter } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { OperationExecutionKindsSchema, OperationTargetsSchema, OperationProcessListSchema, OperationProcessSchema, OperationRequestListSchema, OperationRequestSchema, type OperationPurpose } from '@liwan/contracts'
+import { OperationExecutionKindsSchema, OperationReviewerResolversSchema, OperationTargetsSchema, OperationProcessListSchema, OperationProcessSchema, OperationRequestListSchema, OperationRequestSchema, type OperationPurpose } from '@liwan/contracts'
 import { useApi } from '../useApi'
 import { operationProcessMutationOptions, operationRequestMutationOptions, type OperationApi } from './mutations'
 
@@ -24,7 +24,7 @@ export function useOperationRequests(params: MaybeRefOrGetter<{ scope: Operation
   prefetch(query, enabled)
   return query
 }
-export function useOperationProcesses(params: MaybeRefOrGetter<{ published?: number; purpose?: 'work' | 'employee'; q?: string; limit?: number; offset?: number }> = {}, enabled: MaybeRefOrGetter<boolean> = true) {
+export function useOperationProcesses(params: MaybeRefOrGetter<{ published?: number; requestable?: number; purpose?: 'work' | 'employee'; q?: string; limit?: number; offset?: number }> = {}, enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   const query = useQuery({
     queryKey: computed(() => ['operations', 'processes', 'list', toValue(params)]), enabled: computed(() => toValue(enabled)),
@@ -67,6 +67,13 @@ export function useOperationProcessMutation() {
 export function useOperationExecutionKinds() {
   const { $api } = useApi()
   return useQuery({ queryKey: ['operations', 'execution-kinds'], queryFn: () => $api('/api/v1/operations/execution-kinds', { schema: OperationExecutionKindsSchema }) })
+}
+export function useOperationReviewerResolvers(executionKind: MaybeRefOrGetter<string>) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: computed(() => ['operations', 'reviewer-resolvers', toValue(executionKind)]),
+    queryFn: () => $api('/api/v1/operations/processes/reviewer-resolvers', { query: { execution_kind: toValue(executionKind) }, schema: OperationReviewerResolversSchema }),
+  })
 }
 export function operationTargetQueryOptions(api: OperationApi, id: MaybeRefOrGetter<number | null>, enabled: MaybeRefOrGetter<boolean>, q: MaybeRefOrGetter<string> = '') {
   return {

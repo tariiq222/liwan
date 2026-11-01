@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { operationListLocation, safeOperationReturnTo, requestFormErrors, processFormErrors, createOperationSubmitGuard, operationAttachmentBody, operationErrorKey, operationPurposeChoices, operationPurposeFromSelection } from '../forms'
+import { operationListLocation, safeOperationReturnTo, requestFormErrors, processFormErrors, createOperationSubmitGuard, operationAttachmentBody, operationErrorKey, operationPurposeChoices, operationPurposeFromSelection, processStepBody, executionKindLabel } from '../forms'
 
 describe('operation form and route behavior', () => {
   it('preserves list filters/hash without nesting return links', () => {
@@ -27,6 +27,15 @@ describe('operation form and route behavior', () => {
     expect(processFormErrors({ name: '', steps: [] })).toEqual({ name: 'required', steps: 'stepsRequired' })
     expect(processFormErrors({ name: 'اعتماد', steps: [{ name: '', reviewer_ids: [0] }] })).toEqual({ 'steps.0.name': 'required', 'steps.0.reviewer_ids': 'reviewersRequired' })
     expect(processFormErrors({ name: 'اعتماد', steps: [{ name: 'مدير', reviewer_ids: [7] }] })).toEqual({})
+    expect(processFormErrors({ name: 'اعتماد', steps: [{ name: 'مدير', reviewer_ids: [], resolver: 'hr_leave_approver' }] })).toEqual({})
+    expect(processFormErrors({ name: 'اعتماد', steps: [{ name: 'مدير', reviewer_ids: [], resolver: null }] })).toEqual({ 'steps.0.reviewer_ids': 'reviewersRequired' })
+  })
+  it('sends a resolver stage with no named users and labels a kind from the server list', () => {
+    expect(processStepBody({ name: ' مدير ', reviewer_ids: [7, 7], resolver: null })).toEqual({ name: 'مدير', reviewer_ids: [7], resolver: null })
+    expect(processStepBody({ name: 'مدير', reviewer_ids: [7] })).toEqual({ name: 'مدير', reviewer_ids: [7], resolver: null })
+    expect(processStepBody({ name: 'مدير', reviewer_ids: [7], resolver: 'hr_leave_approver' })).toEqual({ name: 'مدير', reviewer_ids: [], resolver: 'hr_leave_approver' })
+    const kinds = [{ key: 'approval', label: 'اعتماد طلب' }]
+    expect([executionKindLabel(kinds, 'approval'), executionKindLabel(kinds, 'hr_leave'), executionKindLabel(undefined, 'approval')]).toEqual(['اعتماد طلب', 'hr_leave', 'approval'])
   })
   it('blocks simultaneous submits and permits explicit retry after failure', async () => {
     const gate = createOperationSubmitGuard()

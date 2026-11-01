@@ -230,7 +230,7 @@ for DBT in "${TENANT_DATABASES[@]}"; do
     --entrypoint /usr/local/bin/liwan-odoo odoo \
     server -c /etc/odoo/odoo.conf \
     -d "$DBT" --db-filter="^${DBT}\$" \
-    -i liwan_core,liwan_platform,liwan_api,liwan_directory,liwan_notify,liwan_pmo,liwan_meetings,liwan_meetings_pmo,liwan_hr,liwan_access_hr,liwan_integrations_sa,liwan_finance,liwan_hr_finance,liwan_pmo_finance,liwan_payments,liwan_chat,liwan_tasks,liwan_tasks_pmo,liwan_operations,liwan_operations_pmo,liwan_ai,liwan_pmo_ai,liwan_documents,liwan_documents_hr,liwan_crm,liwan_appointments,liwan_appointments_payments,liwan_inbox,liwan_inbox_payments \
+    -i liwan_core,liwan_platform,liwan_api,liwan_directory,liwan_notify,liwan_pmo,liwan_meetings,liwan_meetings_pmo,liwan_hr,liwan_access_hr,liwan_integrations_sa,liwan_finance,liwan_hr_finance,liwan_pmo_finance,liwan_payments,liwan_chat,liwan_tasks,liwan_tasks_pmo,liwan_operations,liwan_operations_pmo,liwan_hr_operations,liwan_ai,liwan_pmo_ai,liwan_documents,liwan_documents_hr,liwan_crm,liwan_appointments,liwan_appointments_payments,liwan_inbox,liwan_inbox_payments \
     --stop-after-init --no-http
 done
 echo "Addons installed."
