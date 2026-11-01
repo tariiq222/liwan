@@ -115,7 +115,10 @@
       "requiredHint": "Fields marked with a star are required.",
       "createDraft": "Create draft",
       "paymentTerm": "Payment term",
-      "noPaymentTerm": "No payment term"
+      "noPaymentTerm": "No payment term",
+      "assetProfile": "Asset profile",
+      "noAssetProfile": "No fixed asset",
+      "assetProfileHint": "Posting the bill creates a fixed asset from this line with the profile settings."
     },
     "record": {
       "taxes": "Taxes",
@@ -130,7 +133,9 @@
       "creditOrigin": "Credit note of",
       "blockedByPayments": "It has registered payments",
       "blockedByPaymentsHint": "The document cannot be cancelled or reset to draft until its payments are cancelled or reset to draft.",
-      "viewPayments": "View payments"
+      "viewPayments": "View payments",
+      "asset": "Asset: {name}",
+      "assetProfile": "Asset profile: {name}"
     },
     "actions": {
       "post": "Post",

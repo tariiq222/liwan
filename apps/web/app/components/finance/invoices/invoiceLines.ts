@@ -1,6 +1,11 @@
 import type { FinanceInvoiceCreate, FinanceInvoiceDetail, FinanceInvoiceLine, FinanceInvoiceLineInput, FinanceInvoicePatch } from '@liwan/contracts'
 import type { FinanceMoveType } from './invoiceKinds'
 
+/** Only a vendor bill line can capitalise into an asset, and only for a caller who manages fixed assets. */
+export function offersAssetProfile(moveType: FinanceMoveType, canManageAssets: boolean): boolean {
+  return moveType === 'in_invoice' && canManageAssets
+}
+
 /** One line of the editor as typed: numbers stay strings until they are validated. */
 export interface InvoiceLineDraft {
   key: number

@@ -115,7 +115,10 @@
       "requiredHint": "الحقول التي عليها نجمة مطلوبة.",
       "createDraft": "إنشاء مسودة",
       "paymentTerm": "شرط الدفع",
-      "noPaymentTerm": "بدون شرط دفع"
+      "noPaymentTerm": "بدون شرط دفع",
+      "assetProfile": "ملف الأصل",
+      "noAssetProfile": "بدون أصل ثابت",
+      "assetProfileHint": "عند ترحيل الفاتورة يُنشأ أصل ثابت من هذا البند بإعدادات الملف."
     },
     "record": {
       "taxes": "الضرائب",
@@ -130,7 +133,9 @@
       "creditOrigin": "إشعار دائن على",
       "blockedByPayments": "عليه دفعات مسجّلة",
       "blockedByPaymentsHint": "لا يمكن إلغاء المستند أو إعادته إلى مسودة قبل إلغاء دفعاته أو إعادتها إلى مسودة.",
-      "viewPayments": "عرض الدفعات"
+      "viewPayments": "عرض الدفعات",
+      "asset": "الأصل: {name}",
+      "assetProfile": "ملف الأصل: {name}"
     },
     "actions": {
       "post": "ترحيل",
