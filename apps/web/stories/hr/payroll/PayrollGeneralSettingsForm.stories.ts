@@ -13,7 +13,7 @@ const meta = {
   component: PayrollGeneralSettingsForm,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/settings/apps/hr/index.vue:125', 'نموذج الإعدادات العامة للرواتب: قاسم الأيام، وهيكل الراتب، ونوع الإجازة السنوية، وأنواع الإجازة بدون راتب.'),
+    ...storyContext('apps/web/app/pages/settings/apps/hr/index.vue:137', 'نموذج الإعدادات العامة للرواتب: قاسم الأيام، وهيكل الراتب، ونوع الإجازة السنوية، وأنواع الإجازة بدون راتب.'),
   },
   args: {
     settings,

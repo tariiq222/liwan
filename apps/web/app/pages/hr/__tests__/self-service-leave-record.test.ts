@@ -6,7 +6,13 @@ import ts from 'typescript'
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 
-async function render(personal: boolean, cancellationState?: 'approved' | 'refused', canCancel = false) {
+const person = (id: number, name: string) => ({ id, user_id: id, name })
+const approval = { request_id: 15, state: 'pending' as 'pending' | 'done', href: '/operations/15', steps: [
+  { sequence: 1, name: 'Direct manager', reviewers: [person(3, 'Manager')], status: 'approved' as const },
+  { sequence: 2, name: 'HR', reviewers: [person(9, 'Officer')], status: 'pending' as const },
+] as { sequence: number; name: string; reviewers: ReturnType<typeof person>[]; status: 'waiting' | 'pending' | 'approved' | 'rejected' | 'cancel' }[] }
+
+async function render(personal: boolean, cancellationState?: 'approved' | 'refused', canCancel = false, stages: { data?: typeof approval; error?: unknown; viewer?: number } = {}) {
   const filename = resolve(import.meta.dirname, '../../../components/hr/LeaveRecord.vue')
   const descriptor = parse(readFileSync(filename,'utf8'),{filename}).descriptor
   const script = compileScript(descriptor,{id:'own-leave-record'}).content.replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm,'').replace('export default','return')
@@ -17,7 +23,8 @@ async function render(personal: boolean, cancellationState?: 'approved' | 'refus
   const bindings = {
     _defineComponent:Vue.defineComponent,ref:Vue.ref,computed:Vue.computed,watch:Vue.watch,
     useRoute:() => ({params:{leaveId:'7'},query:{},hash:''}),useI18n:() => ({t:(key:string) => key}),
-    useAccess:() => ({can:() => true}),useHydrated:() => Vue.ref(true),useHrLeaveFormat:() => ({period:() => '',days:String}),
+    useAccess:() => ({can:() => true}),useMe:() => ({me:Vue.ref({id:stages.viewer ?? 2})}),joinList:(items:string[]) => items.join(', '),
+    useHrLeaveApproval:() => ({data:Vue.ref(stages.data),error:Vue.ref(stages.error ?? null)}),useHydrated:() => Vue.ref(true),useHrLeaveFormat:() => ({period:() => '',days:String}),
     useMyHrLeaveRequest:query,useHrLeaveRequest:query,useCancellationDecision:() => ({isPending:Vue.ref(false),mutateAsync:vi.fn()}),useLeaveDecision:() => ({isPending:Vue.ref(false),mutateAsync:vi.fn()}),useWithdrawLeaveRequest:() => ({isPending:Vue.ref(false),mutateAsync:vi.fn()}),
     owningListBack:() => '/account/leave',hrLeaveBadge:() => ({tone:'success',labelKey:'approved'}),statusTag:() => ({}),ApiError:Error,
   }
@@ -27,8 +34,8 @@ async function render(personal: boolean, cancellationState?: 'approved' | 'refus
   if(template.errors.length) throw template.errors[0]
   const render = new Function('Vue',transpile(template.code))(Vue)
   const app = Vue.createSSRApp(Vue.defineComponent({setup:() => ({...state}),render}))
-  for(const name of ['SharedRecordPage','SharedIdentityCard','SharedRecordSection','SharedPropertiesPanel','SharedPropertyRow','HrLeaveDecisionConfirm','UAlert']) app.component(name,Vue.defineComponent({setup(_, {slots}) {return () => Vue.h('div',[slots.actions?.(),slots.default?.(),slots.aside?.()])}}))
-  app.component('UButton',Vue.defineComponent({inheritAttrs:false,setup(_,{attrs}) {return () => Vue.h('button',{'data-testid':attrs['data-testid']},String(attrs.label))}}))
+  for(const name of ['SharedRecordPage','SharedIdentityCard','SharedRecordSection','SharedPropertiesPanel','SharedPropertyRow','HrLeaveDecisionConfirm','UAlert','SharedSubCard','SharedPersonAvatar']) app.component(name,Vue.defineComponent({setup(_, {slots}) {return () => Vue.h('div',[slots.actions?.(),slots.default?.(),slots.aside?.()])}}))
+  app.component('UButton',Vue.defineComponent({inheritAttrs:false,setup(_,{attrs}) {return () => Vue.h('button',{'data-testid':attrs['data-testid'],'data-to':attrs.to},String(attrs.label))}}))
   app.component('SharedStatusBadge',Vue.defineComponent({props:['tone','label'],setup(props){return ()=>Vue.h('span',{'data-tone':props.tone},props.label)}}))
   return renderToString(app)
 }
@@ -64,4 +71,27 @@ describe('own leave record actions',() => {
 
 it.each([['refused','destructive'],['approved','success']] as const)('renders %s cancellation with the shared %s tone',async(state,tone)=>{
   expect(await render(true,state)).toContain(`data-tone="${tone}"`)
+})
+
+
+describe('leave approval stages', () => {
+  it('shows the workflow stages with their reviewers and status when the route answers', async () => {
+    const html = await render(true, undefined, false, { data: approval })
+    expect(html).toContain('hr-leave-approval')
+    expect(html).toContain('1. Direct manager')
+    expect(html).toContain('2. HR')
+    expect(html).toContain('data-tone="success"')
+    expect(html).toContain('hr.leave.approval.status.pending')
+  })
+  it('offers the workflow page only to a reviewer of the stage awaiting a decision', async () => {
+    expect(await render(false, undefined, false, { data: approval, viewer: 9 })).toContain('data-to="/operations/15"')
+    expect(await render(false, undefined, false, { data: approval, viewer: 3 })).not.toContain('hr-leave-approval-open')
+    expect(await render(false, undefined, false, { data: { ...approval, state: 'done' }, viewer: 9 })).not.toContain('hr-leave-approval-open')
+  })
+  it('hides the section on a 404 and says so on any other failure', async () => {
+    const missing = Object.assign(new Error('not found'), { status: 404 })
+    expect(await render(true, undefined, false, { error: missing })).not.toContain('hr-leave-approval')
+    const failed = Object.assign(new Error('boom'), { status: 500 })
+    expect(await render(true, undefined, false, { error: failed })).toContain('hr.leave.approval.loadError')
+  })
 })
