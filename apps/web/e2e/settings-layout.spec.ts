@@ -1,6 +1,8 @@
 import { expect, test, type Page } from '@playwright/test'
 
 async function login(page: Page) {
+  // The context menu starts folded; these checks read the pinned menu.
+  await page.context().addCookies([{ name: 'liwan-context-sidebar', value: 'open', url: new URL(process.env.E2E_BASE_URL ?? 'http://localhost:3000').origin }])
   await page.goto('/login')
   await page.getByLabel('اسم المستخدم').fill('admin')
   await page.getByLabel('كلمة المرور', { exact: true }).fill('admin')
@@ -15,7 +17,7 @@ for (const width of [1440, 390]) {
     await page.goto('/settings/company#branding')
     await expect(page).toHaveURL(/\/settings\/company#branding$/)
     await expect(page.getByTestId('branding-color')).toBeVisible()
-    await expect(page.getByTestId('settings-branding-tab')).toBeAttached()
+    await expect(page.getByTestId('settings-settings-branding-tab')).toBeAttached()
     await expect(page.locator('.liwan-settings-nav a[href="/settings/company#branding"]')).toHaveCount(0)
     await page.request.patch('/api/v1/me/appearance', { data: { mode: 'dark', font_size: 'large' } })
 

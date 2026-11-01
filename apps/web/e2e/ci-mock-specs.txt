@@ -63,3 +63,13 @@ internal-pages.spec.ts
 shell-tasmim.spec.ts
 hydration.spec.ts
 unsaved-changes.spec.ts
+settings-layout.spec.ts
+settings-onepage.spec.ts
+appearance.spec.ts
+tasmim6-account.spec.ts
+tasmim6-settings-users.spec.ts
+tasmim6-settings-role-record.spec.ts
+tasmim6-invite.spec.ts
+tasmim6-notifications.spec.ts
+tasmim6-subscription-invoices.spec.ts
+tasmim6-subscription-settings.spec.ts

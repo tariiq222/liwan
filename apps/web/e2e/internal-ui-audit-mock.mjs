@@ -534,6 +534,12 @@ async function handle(req, res) {
     return json(res, 200, { ...ME, appearance })
   }
   if (method === 'GET' && path === '/api/v1/admin/branding') return json(res, 200, BRANDING)
+  if (method === 'PATCH' && path === '/api/v1/admin/branding') {
+    let body = {}
+    try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
+    if (typeof body.primary_color === 'string' && /^#[0-9a-fA-F]{6}$/.test(body.primary_color)) BRANDING.primary_color = body.primary_color
+    return json(res, 200, BRANDING)
+  }
   if (method === 'GET' && path === '/api/v1/admin/company') return json(res, 200, companyProfile())
   if (method === 'PATCH' && path === '/api/v1/admin/company') {
     let patch = {}
