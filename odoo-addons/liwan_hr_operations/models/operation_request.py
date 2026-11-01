@@ -34,13 +34,13 @@ class HrOperationsRequest(models.Model):
         if self.env.context.get(BRIDGE_CONTEXT) is not BRIDGE:
             raise AccessError(self.env._('Leave requests are submitted from the leave form.'))
         leave = self._operations_leave(target_id)
-        return {'hr_leave_id': leave.id, 'target_ref': {'id': leave.id, 'write_date': fields.Datetime.to_string(leave.write_date)}}
+        return {'hr_leave_id': leave.id, 'target_ref': {'write_date': fields.Datetime.to_string(leave.write_date)}}
 
     def _operations_prepare_submission(self, process):
         if process.execution_kind != KIND:
             return super()._operations_prepare_submission(process)
         self.env['liwan.entitlement.service'].require('hr.enabled')
-        leave = self._operations_leave((self.target_ref or {}).get('id'))
+        leave = self._operations_leave(self.hr_leave_id.id)
         if leave.state != 'confirm':
             raise ValidationError(self.env._('Only a pending leave request can be submitted for approval.'))
         approver = leave.employee_id.leave_manager_id
@@ -51,7 +51,7 @@ class HrOperationsRequest(models.Model):
     def _operations_resolve_reviewers(self, key):
         if self.process_id.execution_kind != KIND or key not in (APPROVER, OFFICERS):
             return super()._operations_resolve_reviewers(key)
-        employee = self._operations_leave((self.target_ref or {}).get('id')).employee_id
+        employee = self._operations_leave(self.hr_leave_id.id).employee_id
         if key == APPROVER:
             users = employee.leave_manager_id
         else:
@@ -63,7 +63,7 @@ class HrOperationsRequest(models.Model):
         self.env['liwan.entitlement.service'].require('hr.enabled')
         target = self.target_ref or {}
         env_self = self.with_context(**{REJECTING_CONTEXT: (BRIDGE, self.id)}) if rejecting else self
-        leave = env_self._operations_leave(target.get('id'))
+        leave = env_self._operations_leave(self.hr_leave_id.id)
         if leave.state != 'confirm' or fields.Datetime.to_string(leave.write_date) != target.get('write_date'):
             raise ValidationError(self.env._('The leave request changed after it was submitted. Withdraw it and submit a new one.'))
         if leave.employee_id.user_id == self.env.user:
