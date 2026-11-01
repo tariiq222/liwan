@@ -12,7 +12,7 @@
       "id": 6,
       "mimetype": "text/plain",
       "name": "private.txt",
-      "url": "/api/v1/operations/requests/39/attachments/1953/download"
+      "url": "/api/v1/operations/requests/61/attachments/2389/download"
     }
   ],
   "created_at": "2026-01-01T00:00:00Z",
@@ -23,7 +23,7 @@
       "actor": {
         "id": 3,
         "name": "ops_branch_requester (base.group_user,base.group_allow_export)",
-        "user_id": 224
+        "user_id": 300
       },
       "comment": "",
       "created_at": "2026-01-01T00:00:00Z",
@@ -34,17 +34,17 @@
   ],
   "execution_count": 0,
   "id": 1,
-  "name": "Private request 36",
+  "name": "Private request 39",
   "process": {
     "id": 2,
-    "name": "Published 36"
+    "name": "Published 39"
   },
   "process_revision": 1,
   "purpose": "work",
   "requester": {
     "id": 3,
     "name": "ops_branch_requester (base.group_user,base.group_allow_export)",
-    "user_id": 224
+    "user_id": 300
   },
   "revision": 1,
   "state": "pending",
@@ -52,11 +52,12 @@
     {
       "name": "Confidential stage",
       "resolver": null,
+      "resolver_label": null,
       "reviewers": [
         {
           "id": 4,
           "name": "ops_branch_reviewer (base.group_user,base.group_allow_export)",
-          "user_id": 225
+          "user_id": 301
         }
       ],
       "sequence": 1,
