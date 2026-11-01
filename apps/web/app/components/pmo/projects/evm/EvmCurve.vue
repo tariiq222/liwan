@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ProjectEvm } from '@liwan/contracts'
 import { useMutationObserver } from '@vueuse/core'
+import { CurveType } from '@unovis/ts'
 import { VisAxis, VisLine, VisScatter, VisXYContainer } from '@unovis/vue'
 import { formatMoney } from '@/utils/projectFinance'
 import { curveSeries } from './evm'
@@ -26,10 +27,9 @@ const colors = computed(() => ({
   ac: tokens.value['--chart-status-warning'] || '#d97706',
 }))
 const series = computed(() => curveSeries(props.evm.planned_curve, props.evm.as_of))
-const marks = computed(() => [
-  { day: series.value.today, value: props.evm.ev, color: colors.value.ev },
-  { day: series.value.today, value: props.evm.ac, color: colors.value.ac },
-])
+// One data set for the container: the weekly curve points carry `pv`, the single row for today carries `ev` and `ac`.
+interface Row { day: number; pv?: number; ev?: number; ac?: number }
+const rows = computed<Row[]>(() => [...series.value.points, { day: series.value.today, ev: props.evm.ev, ac: props.evm.ac }])
 const top = computed(() => Math.max(props.evm.bac, props.evm.ev, props.evm.ac, 1) * 1.08)
 const dayFormat = computed(() => new Intl.DateTimeFormat(locale.value, { month: 'short', day: 'numeric', timeZone: 'UTC' }))
 const compact = computed(() => new Intl.NumberFormat(locale.value, { notation: 'compact', maximumFractionDigits: 1 }))
@@ -39,10 +39,11 @@ const legend = computed(() => (['pv', 'ev', 'ac'] as const).map(key => ({ key, l
 
 <template>
   <div data-testid="evm-curve" class="space-y-3">
-    <div role="img" :aria-label="t('projects.evm.curveLabel')" class="h-64 w-full overflow-hidden" dir="ltr">
-      <VisXYContainer :data="series.points" :height="256" :x-domain="[series.first, series.last]" :y-domain="[0, top]">
-        <VisLine :x="(d: { day: number }) => d.day" :y="(d: { pv: number }) => d.pv" :color="colors.pv" :line-width="3" />
-        <VisScatter :data="marks" :x="(d: { day: number }) => d.day" :y="(d: { value: number }) => d.value" :color="(d: { color: string }) => d.color" :size="14" :stroke-width="2" />
+    <div role="img" :aria-label="t('projects.evm.curveLabel')" class="h-64 w-full overflow-hidden" dir="ltr" style="--vis-axis-grid-color: var(--border); --vis-axis-tick-label-color: var(--muted-foreground)">
+      <VisXYContainer :data="rows" :height="256" :x-domain="[series.first, series.last]" :y-domain="[0, top]">
+        <VisLine :x="(d: Row) => d.day" :y="(d: Row) => d.pv" :color="colors.pv" :line-width="3" :curve-type="CurveType.Linear" />
+        <VisScatter :x="(d: Row) => d.day" :y="(d: Row) => d.ev" :color="colors.ev" :size="16" :stroke-width="3" />
+        <VisScatter :x="(d: Row) => d.day" :y="(d: Row) => d.ac" :color="colors.ac" :size="16" :stroke-width="3" />
         <VisAxis type="x" :num-ticks="5" :tick-format="(day: number) => dayFormat.format(day * 86_400_000)" :grid-line="false" :domain-line="false" />
         <VisAxis type="y" :num-ticks="4" :tick-format="(value: number) => compact.format(value)" :grid-line="true" :domain-line="false" :tick-line="false" />
       </VisXYContainer>

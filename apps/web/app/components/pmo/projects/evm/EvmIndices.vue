@@ -31,7 +31,7 @@ const isIndex = (key: string) => key === 'tcpi'
         :data-testid="`evm-${key}`"
         :data-band="indexTone(value)"
       >
-        <SharedStatusBadge v-if="value !== null" class="mt-1" size="sm" :tone="indexBadgeTone(value)" :label="t(`projects.evm.bands.${indexTone(value)}`)" />
+        <SharedStatusBadge v-if="value !== null" class="mt-1 w-fit" size="sm" :tone="indexBadgeTone(value)" :label="t(`projects.evm.bands.${indexTone(value)}`)" />
       </SharedMetricTile>
     </div>
     <SharedPropertiesPanel data-testid="evm-figures">

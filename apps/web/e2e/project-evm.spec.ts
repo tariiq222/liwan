@@ -16,12 +16,19 @@ test('the earned value tab shows the indices, the method note and the planned va
   await open(page, '/projects/2/evm')
   await expect(page.getByTestId('governance-tab-evm')).toHaveAttribute('aria-current', 'page')
   await expect(page.getByTestId('evm-spi')).toHaveAttribute('data-band', 'danger')
-  await expect(page.getByTestId('evm-cpi')).toHaveAttribute('data-band', 'warning')
+  await expect(page.getByTestId('evm-cpi')).toHaveAttribute('data-band', 'danger')
   await expect(page.getByTestId('evm-spi')).toContainText('0.70')
   await expect(page.getByTestId('evm-cpi')).toContainText('0.88')
   await expect(page.getByTestId('evm-method')).toContainText('100%')
   await expect(page.getByTestId('evm-curve')).toBeVisible()
   await expect(page.getByTestId('evm-curve-legend')).toBeVisible()
+})
+
+test('an index between 0.9 and 1 reads as a warning', async ({ page }) => {
+  await variant(page, 'warning')
+  await open(page, '/projects/2/evm')
+  await expect(page.getByTestId('evm-spi')).toHaveAttribute('data-band', 'warning')
+  await expect(page.getByTestId('evm-cpi')).toHaveAttribute('data-band', 'warning')
 })
 
 test('a healthy project reads green', async ({ page }) => {
