@@ -86,7 +86,9 @@ class TestPaymentProviders(LiwanPaymentsCase):
         self.assertEqual(set(item), PROVIDER_KEYS)
         self.assertEqual((item['id'], item['state'], item['configured']), (self.paymob.id, 'disabled', False))
         self.assertEqual([entry['field'] for entry in item['credentials']], list(PAYMOB_CREDENTIALS))
-        self.assertEqual(item['account_country_options'], ['AE', 'EG', 'OM', 'SA'])
+        # Saudi Arabia opens the list and is the country shown until the tenant chooses another.
+        self.assertEqual(item['account_country_options'], ['SA', 'AE', 'EG', 'OM'])
+        self.assertEqual(item['account_country'], 'SA')
 
     def test_other_companies_and_providers_liwan_does_not_offer_are_the_same_404(self):
         other = self.env['res.company'].create({'name': 'Payments company B'})

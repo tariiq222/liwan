@@ -294,6 +294,8 @@ class HrLeaveController(http.Controller):
         reason = parse_cancel_reason(reason)
         leave = _current_leave(leave_id)
         _reject_self_decision(leave)
+        if leave.state not in ('confirm', 'validate1', 'validate'):
+            raise ApiError(422, 'invalid', 'only a pending or approved request can be refused', field='state')
         leave.action_refuse()
         if reason:
             leave.message_post(body=reason)
@@ -308,6 +310,8 @@ class HrLeaveController(http.Controller):
         vals = parse_cancellation_action(payload)
         leave = _current_leave(leave_id)
         reason = vals['reason']
+        if leave.state in ('draft', 'refuse', 'cancel'):
+            raise ApiError(422, 'invalid', 'only a pending or approved request can be cancelled', field='state')
         if leave.state == 'confirm':
             _require('hr.leave.request')
             if not _is_own(leave):

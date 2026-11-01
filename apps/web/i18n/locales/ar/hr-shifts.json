@@ -101,6 +101,18 @@
       "openStartHint": "اتركه فارغًا إذا لم يكن للإسناد تاريخ بداية."
     },
     "editAssignment": "تعديل الإسناد",
-    "assignmentTitle": "إسناد وردية"
+    "assignmentTitle": "إسناد وردية",
+    "week": "الجدول الأسبوعي",
+    "weekTitle": "جدول الورديات الأسبوعي",
+    "prevWeek": "الأسبوع السابق",
+    "nextWeek": "الأسبوع التالي",
+    "thisWeek": "هذا الأسبوع",
+    "weekOf": "أسبوع يبدأ في {date}",
+    "dayOff": "إجازة",
+    "setWeek": "ضبط جدول الأسبوع",
+    "setWeekFor": "جدول عمل أسبوع {name}",
+    "weekSaved": "تم تحديث الأسبوع",
+    "myWeek": "أسبوعي",
+    "weekEmpty": "لا يوجد موظفون للتخطيط بعد"
   }
 }

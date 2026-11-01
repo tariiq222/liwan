@@ -17,10 +17,10 @@ import * as fiscalRules from '../../../../../composables/finance/financeFiscalSe
 const cardFile = resolve(import.meta.dirname, '../../../../../components/finance/FiscalSetupCard.vue')
 
 type Fiscal = { fiscalyear_last_day: number; fiscalyear_last_month: number; fiscalyear_lock_date: string | null
-  tax_lock_date: null; sale_lock_date: null; purchase_lock_date: null; hard_lock_date: null }
+  tax_lock_date: null; sale_lock_date: null; purchase_lock_date: null; hard_lock_date: null; transfer_account: { id: number; name: string } | null }
 const fiscal = (day: number, lock: string | null = null): Fiscal => ({
   fiscalyear_last_day: day, fiscalyear_last_month: 12, fiscalyear_lock_date: lock,
-  tax_lock_date: null, sale_lock_date: null, purchase_lock_date: null, hard_lock_date: null,
+  tax_lock_date: null, sale_lock_date: null, purchase_lock_date: null, hard_lock_date: null, transfer_account: null,
 })
 type Call = { url: string; method: string; body: unknown; resolve: (value: unknown) => void; reject: (cause: unknown) => void }
 

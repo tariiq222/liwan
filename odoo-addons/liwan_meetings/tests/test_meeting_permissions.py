@@ -148,6 +148,33 @@ class TestMeetingPermissions(LiwanMeetingsCase):
         self.assertEqual(direct.status_code, 403, direct.text)
         self.assertEqual(linked.status_code, 403, linked.text)
 
+    def test_http_a_meeting_or_series_the_caller_takes_no_part_in_is_not_found(self):
+        stranger = new_test_user(
+            self.env, login='meeting_permissions_stranger', password='meeting_permissions_pass_123',
+            groups='base.group_user', company_id=self.company_a.id, company_ids=[self.company_a.id],
+        )
+        self.env['liwan.access.assignment'].create({
+            'user_id': stranger.id,
+            'role_id': self.env['liwan.access.role'].search([('key', '=', 'meeting_permissions_create')]).id,
+            'company_id': self.company_a.id,
+        })
+        self.authenticate(stranger.login, 'meeting_permissions_pass_123')
+        # Not 403: a refusal would confirm that a hidden meeting or series exists.
+        for method, path in (
+            ('GET', f'/api/v1/meetings/{self.meeting.id}'),
+            ('GET', f'/api/v1/meeting-series/{self.series.id}'),
+            ('PATCH', f'/api/v1/meeting-series/{self.series.id}'),
+        ):
+            hidden = self.api(method, path, {'name': 'x'} if method == 'PATCH' else None)
+            self.assertEqual((hidden.status_code, hidden.json()['code']), (404, 'not_found'), path)
+        linked = self.api('POST', '/api/v1/meetings', {
+            'name': 'Linked to a hidden series',
+            'meeting_date': fields.Date.to_string(fields.Date.today()),
+            'series_id': self.series.id,
+        })
+        self.assertEqual((linked.status_code, linked.json()['code']), (422, 'invalid'), linked.text)
+        self.assertEqual(linked.json()['message'], 'The meeting series does not exist.')
+
     def test_http_secretary_with_create_can_add_to_series(self):
         self._authenticate('secretary')
         response = self.api('POST', f'/api/v1/meeting-series/{self.series.id}/occurrences', {

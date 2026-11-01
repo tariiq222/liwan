@@ -10,6 +10,7 @@
     "deleted": "Attachment deleted",
     "deleteConfirm": "Delete this attachment?",
     "errors": {
+      "empty": "The file is empty.",
       "tooLarge": "The file exceeds the 10 MB limit"
     },
     "confirm": "Confirm delete",

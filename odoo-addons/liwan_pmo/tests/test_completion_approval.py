@@ -108,6 +108,48 @@ class TestCompletionApproval(LiwanPmoCase):
         self.assertEqual(reopened.json()['state'], 'in_progress')
         self.assertFalse(reopened.json()['completion_pending'])
 
+    def _completion_rows(self, user, task, kind):
+        return self.env['mail.message'].sudo().search([
+            ('liwan_notification_kind', '=', kind),
+            ('liwan_task_id', '=', task.id),
+            ('notification_ids.res_partner_id', '=', user.partner_id.id),
+        ])
+
+    def test_request_and_accept_reach_the_bell_of_the_other_side(self):
+        _project, task = self._project('project_manager')
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        requested = self.api('POST', f'/api/v1/tasks/{task.id}/completion/request', {})
+        self.assertEqual(requested.status_code, 200)
+        self.assertEqual(len(self._completion_rows(self.manager, task, 'completion_requested')), 1)
+        self.assertFalse(self._completion_rows(self.employee, task, 'completion_requested'), 'the requester is not told about their own request')
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        bell = self.api('GET', '/api/v1/notifications').json()['items']
+        self.assertTrue(any(item['kind'] == 'completion_requested' and item['task_id'] == task.id for item in bell))
+        accepted = self.api('POST', f'/api/v1/tasks/{task.id}/completion/accept', {
+            'revision': requested.json()['completion_revision'],
+        })
+        self.assertEqual(accepted.status_code, 200)
+        self.assertEqual(len(self._completion_rows(self.employee, task, 'completion_accepted')), 1)
+        self.assertFalse(self._completion_rows(self.manager, task, 'completion_accepted'), 'the reviewer is not told about their own decision')
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        bell = self.api('GET', '/api/v1/notifications').json()['items']
+        self.assertTrue(any(item['kind'] == 'completion_accepted' and item['task_id'] == task.id for item in bell))
+
+    def test_the_requester_is_told_while_another_company_is_selected(self):
+        _project, task = self._project('project_manager')
+        company_b = self.env['res.company'].create({'name': 'Completion notice B'})
+        task.with_user(self.employee)._liwan_request_completion()
+        self.employee.write({'company_ids': [(4, company_b.id)], 'company_id': company_b.id})
+        task.with_user(self.manager)._liwan_accept_completion(task.liwan_completion_revision)
+        self.assertEqual(len(self._completion_rows(self.employee, task, 'completion_accepted')), 1)
+
+    def test_a_returned_request_asked_again_notifies_the_reviewer_again(self):
+        _project, task = self._project('project_manager')
+        task.with_user(self.employee)._liwan_request_completion()
+        task.with_user(self.manager)._liwan_return_completion(task.liwan_completion_revision, 'More evidence')
+        task.with_user(self.employee)._liwan_request_completion()
+        self.assertEqual(len(self._completion_rows(self.manager, task, 'completion_requested')), 2)
+
     def test_self_approval_allowed_for_designated_assignee(self):
         project = self.env['project.project'].create({
             'name': 'Self approval',

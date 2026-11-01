@@ -16,7 +16,7 @@ def _dump_chart(company):
     return {
         'loaded': bool(company.chart_template),
         'template': company.chart_template or None,
-        'accounts_count': env['account.account'].search_count([('company_ids', 'in', company.ids)]),
+        'accounts_count': env['account.account'].search_count([('company_ids', 'parent_of', company.ids)]),
     }
 
 
@@ -42,6 +42,7 @@ def _dump_fiscal(company):
         'fiscalyear_last_day': company.fiscalyear_last_day,
         'fiscalyear_last_month': int(company.fiscalyear_last_month),
         **{field: dump_day(company[field]) for field in LOCK_DATE_FIELDS},
+        'transfer_account': dump_ref(company.transfer_account_id),
     }
 
 

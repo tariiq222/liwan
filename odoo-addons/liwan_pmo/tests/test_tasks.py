@@ -110,15 +110,16 @@ class TestTaskRead(LiwanPmoCase):
                                                    'completion_pending', 'completion_revision', 'completion_return_note',
                                                    'completion_policy', 'completion_approver', 'completion_blocked_reason'})
 
-    def test_get_task_in_private_project_is_forbidden(self):
+    def test_get_task_in_private_project_is_not_found(self):
         # employees may read tasks in projects they can see; a private project's
-        # record rule hides the task inside get_record, so the API answers 403.
+        # record rule hides the task inside get_visible_record, so the API answers 404
+        # and does not confirm that the task exists.
         private = self.env['project.project'].create({'name': 'Private', 'privacy_visibility': 'followers'})
         task = self.env['project.task'].create({'name': 'Secret', 'project_id': private.id})
         self.authenticate('api_emp', 'api_emp_pass_123')
         res = self.api('GET', f'/api/v1/tasks/{task.id}')
-        self.assertEqual(res.status_code, 403)
-        self.assertEqual(res.json()['code'], 'forbidden')
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()['code'], 'not_found')
 
     def test_get_unknown_is_404(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
@@ -347,15 +348,15 @@ class TestTaskWrite(LiwanPmoCase):
             'name': 'Secret parent', 'project_id': private.id,
         })
         res = self.api('POST', '/api/v1/tasks', {'name': 'Into private', 'project_id': private.id})
-        self.assertEqual(res.status_code, 403)
-        self.assertEqual(res.json()['code'], 'forbidden')
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()['code'], 'not_found')
         self.assertFalse(self.env['project.task'].search([('name', '=', 'Into private')]))
 
         res = self.api('POST', '/api/v1/tasks', {
             'name': 'Child of secret', 'project_id': self.project.id, 'parent_id': secret.id,
         })
-        self.assertEqual(res.status_code, 403)
-        self.assertEqual(res.json()['code'], 'forbidden')
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()['code'], 'not_found')
         self.assertFalse(self.env['project.task'].search([('name', '=', 'Child of secret')]))
 
     def test_patch_whitelist(self):

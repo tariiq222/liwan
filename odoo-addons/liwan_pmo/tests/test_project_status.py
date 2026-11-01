@@ -23,6 +23,16 @@ class TestProjectStatus(TransactionCase):
         self.assertEqual(len(update), 1)
         self.assertEqual(update.status, 'at_risk')
 
+    def test_the_update_titles_are_worded_in_the_company_language(self):
+        self.env['res.lang']._activate_lang('ar_001')
+        self.env['ir.module.module']._load_module_terms(['liwan_pmo'], ['ar_001'])
+        self.project.company_id.partner_id.lang = 'ar_001'
+        project = self.project.with_user(self.manager)
+        project._liwan_set_status('at_risk')
+        self.env['project.task'].create({'name': 'Only task', 'project_id': self.project.id, 'state': '1_done'})
+        titles = self.env['project.update'].search([('project_id', '=', self.project.id)], order='id').mapped('name')
+        self.assertEqual(titles, ['تحديث الحالة', 'اكتملت جميع المهام'])
+
     def test_employee_cannot_set_status(self):
         with self.assertRaises(AccessError):
             self.project.with_user(self.employee)._liwan_set_status('on_track')

@@ -183,7 +183,8 @@
         "title": "لا يمكن أرشفة الموظف بعد",
         "departure_missing": "سجّل تاريخ الخروج أولًا.",
         "custody_open": "ما زالت عهدة مسلّمة للموظف. أعدها أولًا.",
-        "settlement_missing": "لم تُعتمد التسوية النهائية. اعتمدها في الرواتب أولًا."
+        "settlement_missing": "لم تُعتمد التسوية النهائية. اعتمدها في الرواتب أولًا.",
+        "departure_future": "لا يمكن أرشفة الموظف قبل تاريخ خروجه ({date}). أرشفه في هذا التاريخ أو بعده."
       },
       "archiveVendorReadOnly": "لا يمكن أرشفة الموظف المرتبط بمورّد من هنا.",
       "edit": "تعديل الموظف",
@@ -400,7 +401,17 @@
       "noEmployee": "لا يوجد ملف موظف مرتبط بحسابك",
       "noEmployeeHint": "تحتاج إلى ربط حسابك بملف موظف في الشركة الحالية للاستفادة من الخدمات الوظيفية.",
       "balance": "{name}: {days} يوم متبقٍ",
-      "approvedPayslips": "قسائم راتب معتمدة"
+      "approvedPayslips": "قسائم راتب معتمدة",
+      "onboarding": "مهام التهيئة",
+      "onboardingDesc": "الخطوات المسندة إليك في تهيئتك للعمل",
+      "onboardingEmptyTitle": "لا توجد خطوات مسندة إليك",
+      "onboardingEmptyHint": "تظهر هنا خطوات التهيئة المسندة إليك فور إطلاق خطة التهيئة.",
+      "onboardingDone": "تم الإنجاز",
+      "onboardingColumns": {
+        "summary": "الخطوة",
+        "deadline": "الموعد"
+      },
+      "openOnboardingSteps": "خطوات مفتوحة"
     },
     "leaveSettings": {
       "title": "سياسة إلغاء الإجازات",
@@ -420,7 +431,12 @@
     },
     "bell": {
       "leaveApproved": "تم اعتماد طلب إجازتك ({dates})",
-      "leaveRefused": "تم رفض طلب إجازتك ({dates})"
+      "leaveRefused": "تم رفض طلب إجازتك ({dates})",
+      "onboardingStep": "تم إسناد خطوة تهيئة إليك: {step}"
+    },
+    "lifecycleErrors": {
+      "manager_missing": "عيّن مدير الموظف أولًا من صفحة الموظف ثم أعد المحاولة.",
+      "coach_missing": "سجّل مرشد الموظف أولًا من صفحة الموظف ثم أعد المحاولة."
     }
   }
 }

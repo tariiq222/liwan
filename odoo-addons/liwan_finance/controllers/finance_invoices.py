@@ -69,6 +69,16 @@ def _require_no_payments(invoice):
         )
 
 
+def _asset_profile(profile_id, index, tax_use, company):
+    """The asset profile a vendor-bill line capitalises into; creating the asset is the fixed-assets capability."""
+    if tax_use != 'purchase':
+        raise ApiError(422, 'invalid', 'only a vendor bill line can create an asset', field=f'lines[{index}].asset_profile_id')
+    require_capability('finance.assets.manage')
+    return company_records(
+        'account.asset.profile', [profile_id], f'lines[{index}].asset_profile_id', [('company_id', '=', company.id)],
+    )
+
+
 def _line_command(line, index, tax_use, company):
     values = {key: line[key] for key in ('name', 'quantity', 'price_unit', 'discount')}
     if 'tax_ids' in line:
@@ -83,6 +93,8 @@ def _line_command(line, index, tax_use, company):
             request.env['account.account']._check_company_domain(company),
         )
         values['account_id'] = account.id
+    if 'asset_profile_id' in line:
+        values['asset_profile_id'] = _asset_profile(line['asset_profile_id'], index, tax_use, company).id
     if 'analytic_distribution' in line:
         values['analytic_distribution'] = distribution_values(
             line['analytic_distribution'], f'lines[{index}].analytic_distribution', company=company,
@@ -157,6 +169,12 @@ def _move_values(parsed, move_type, company):
             'account.journal', [parsed['journal_id']], 'journal_id',
             [*request.env['account.journal']._check_company_domain(company), ('type', '=', _tax_use(move_type))],
         ).id
+    if 'payment_term_id' in parsed:
+        # The terms of the company and the shared ones that come with the chart; None clears the term.
+        values['invoice_payment_term_id'] = parsed['payment_term_id'] and company_records(
+            'account.payment.term', [parsed['payment_term_id']], 'payment_term_id',
+            ['|', ('company_id', '=', False), ('company_id', '=', company.id)],
+        ).id
     if 'currency' in parsed:
         currency = request.env['res.currency'].search([('name', '=', parsed['currency'])], limit=1)
         if not currency:
@@ -228,9 +246,17 @@ class FinanceInvoiceController(http.Controller):
         )
         values['company_id'] = request.env.company.id
         written = tuple(values)  # account.move.create renames and adds keys in place
+        # The audit names what the caller wrote, so the journal chosen here stays out of it.
+        if 'journal_id' not in values:
+            # The company's own journal, never stock's pick: a branch can also match its parent's journals, which it cannot read,
+            # and a branch starts with none of its own.
+            default = _default_journal(parsed['move_type'])
+            if not default:
+                raise ApiError(422, 'no_journal', 'create a journal for this kind of document in the finance settings first', field='journal_id')
+            values['journal_id'] = default.id
         lock = {
             'day': values.get('invoice_date'),
-            'journal': request.env['account.journal'].browse(values['journal_id']) if 'journal_id' in values else _default_journal(parsed['move_type']),
+            'journal': request.env['account.journal'].browse(values['journal_id']),
             'has_tax': any(line.get('tax_ids') for line in parsed['lines']),
         }
         require_open_period(**lock, company=request.env.company, field='invoice_date')
@@ -251,6 +277,9 @@ class FinanceInvoiceController(http.Controller):
         parsed = parse_invoice_patch(payload)
         if 'lines' in parsed:
             require_plain_distributions(invoice.invoice_line_ids)
+            if invoice.invoice_line_ids.asset_profile_id:
+                # Replacing the lines would drop their asset profiles, which only fixed-assets managers can resend.
+                require_capability('finance.assets.manage')
         _effective_invoice_conversion(invoice, parsed, invoice.company_id)
         values = _move_values(parsed, invoice.move_type, invoice.company_id)
         written = tuple(values)  # account.move.write adds is_manually_modified in place
@@ -292,6 +321,9 @@ class FinanceInvoiceController(http.Controller):
         # configuration errors in the same refusal, all of them in details.detail.
         lock = _lock_context(invoice)
         require_open_period(**lock, field='invoice_date')
+        if invoice.invoice_line_ids.filtered(lambda line: line.asset_profile_id and not line.asset_id):
+            # Posting creates the assets of the capitalised lines.
+            require_capability('finance.assets.manage')
         attempt(invoice.action_post, move=invoice, **lock)
         request.env['liwan.finance.audit.event']._liwan_log(
             'invoice_posted', invoice, fields_written=('state',), outcome=invoice.state,

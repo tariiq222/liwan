@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { ChatMessage } from '@liwan/contracts'
 import {
+  applyDeleteResult,
+  dropMessage,
   CHAT_PAGE_SIZE,
   CHAT_POLL_MS,
   chatCacheScope,
@@ -28,6 +30,7 @@ function msg(id: number): ChatMessage {
     attachments: [],
     parent: null,
     edited: false,
+    deleted: false,
     pinned: false,
     starred: false,
     reactions: [],
@@ -106,5 +109,28 @@ describe('visible read and polling fail-closed', () => {
     expect(nextListOffset(50, 120, CHAT_PAGE_SIZE)).toBe(100)
     expect(nextListOffset(100, 120, CHAT_PAGE_SIZE)).toBe(100)
     expect(messageDayKey('2026-09-07T10:00:00Z')).toBe('2026-09-07')
+  })
+})
+
+describe('applyDeleteResult', () => {
+  const loaded = [msg(1), msg(2), msg(3)]
+
+  it('swaps in the deleted row a company keeps and leaves the others alone', () => {
+    const cleared = { ...msg(2), body: '', deleted: true }
+    const next = applyDeleteResult(loaded, 2, { mode: 'placeholder', message: cleared })
+    expect(next.map(item => [item.id, item.deleted])).toEqual([[1, false], [2, true], [3, false]])
+    expect(next[0]).toBe(loaded[0])
+  })
+
+  it('drops a message the company removes for good', () => {
+    expect(applyDeleteResult(loaded, 2, { mode: 'permanent', message: null }).map(item => item.id)).toEqual([1, 3])
+  })
+})
+
+describe('dropMessage', () => {
+  it('removes the message another participant deleted and keeps the list when it is not loaded', () => {
+    const loaded = [msg(1), msg(2)]
+    expect(dropMessage(loaded, 2).map(item => item.id)).toEqual([1])
+    expect(dropMessage(loaded, 7)).toBe(loaded)
   })
 })

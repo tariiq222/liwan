@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import SetupChecklist from '@/components/finance/SetupChecklist.vue'
 import DraftDocumentList from '@/components/finance/DraftDocumentList.vue'
-import { financeOverviewTiles } from '@/composables/finance/financeKpis'
+import { agedOwed, financeOverviewTiles } from '@/composables/finance/financeKpis'
 import { financeSetupProgress } from '@/composables/finance/financeSetupSteps'
 import { useFinancePartners } from '@/composables/finance/useFinancePartners'
 import { useFinanceAging, useFinanceDrafts } from '@/composables/finance/useFinanceOverview'
@@ -25,8 +25,8 @@ const partners = useFinancePartners({ limit: 1 }, computed(() => kpisShown.value
 const setup = useFinanceSetup(canSetup)
 
 const tiles = computed(() => financeOverviewTiles({
-  receivable: canStatements.value ? (receivable.data.value ? { total: receivable.data.value.totals.total, currency: receivable.data.value.currency } : null) : undefined,
-  payable: canStatements.value ? (payable.data.value ? { total: payable.data.value.totals.total, currency: payable.data.value.currency } : null) : undefined,
+  receivable: canStatements.value ? (receivable.data.value ? agedOwed(receivable.data.value) : null) : undefined,
+  payable: canStatements.value ? (payable.data.value ? agedOwed(payable.data.value) : null) : undefined,
   drafts: canInvoices.value ? drafts.data.value?.total ?? null : undefined,
   partners: canPartners.value ? partners.data.value?.total ?? null : undefined,
 }, t, n))

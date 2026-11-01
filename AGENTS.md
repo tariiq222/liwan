@@ -320,7 +320,7 @@ cross-addon links.
   bearer token.
 - Keep `/api/v1/people?q=` and its user-id `PersonRef` contract unchanged.
   HR employee ids and user ids are distinct resources and must not be merged.
-- `liwan_hr`, `liwan_tasks`, `liwan_operations` and their bridges have no `sudo()` path.
+- `liwan_tasks`, `liwan_operations` and their bridges have no `sudo()` path. `liwan_hr` and its bridges have none either, except the per-company copy of the shipped Saudi payroll structure that creating a company triggers (`models/res_company.py`: the structure's multi-company rule hides a company the system administrator has only just created, and its ACL row is read-only), and the final payslip mail of a leaver (`models/hr_payslip.py`: the private email field is for HR users only and the outgoing-mail ACL is administrator only), sent once when the run is approved.
   `liwan_pmo` uses it only for the documented manager-write,
   charter-approval (approval fields only, through `_liwan_write_sudo` with its own whitelist, after the manager or sponsor check), policy/config, display-lookup, integer-count, completion-status and notification
   candidate cases, each after the caller's authorization check: the project create and copy-create policy, the shared
@@ -349,8 +349,9 @@ cross-addon links.
   `liwan_chat` uses it for the two `mail.message.reaction` paths — the toggle after `_liwan_member_channel`
   proved the caller's membership, and the reaction aggregation of an already-authorized message — both blocked
   by `mail.message.reaction` being system-only in Odoo (owner decision 2026-10-25: authorized), and for the author's
-  message edit after the member and author checks, because emptying a message reads `message_link_preview_ids`,
-  a field Odoo limits to `base.group_erp_manager` (as stock Odoo's own edit controller does).
+  message clearing (the company's «deleted row» choice) after the member and author checks, because clearing a
+  message reads `message_link_preview_ids`, a field Odoo limits to `base.group_erp_manager`, and its reactions are
+  system-only (as stock Odoo's own thread controller does); removing a message for good is unelevated.
   `liwan_notify` uses it for bell delivery and recipient-owned bell reads. The `mail.message` environment in
   `_liwan_deliver` bypasses the stock create/unlink document-access gates: create may be allowed by following the
   source, while unlink requires source write/create access. The three recipient-owned reader helpers retain

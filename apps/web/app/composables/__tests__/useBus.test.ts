@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { applyChatTyping, chatTypingEvent, collectChatIds, collectInboxIds, collectTaskIds, nextBackoffDelay, parseBusFrame } from '../useBus'
+import { applyChatDeleted, applyChatTyping, chatDeletedEvent, chatTypingEvent, collectChatIds, collectInboxIds, collectTaskIds, nextBackoffDelay, parseBusFrame } from '../useBus'
 import { CHAT_TYPING_MS } from '../../utils/chatState'
 
 describe('parseBusFrame', () => {
@@ -150,5 +150,16 @@ describe('nextBackoffDelay', () => {
     for (const r of [0, 0.1, 0.25, 0.5, 0.75, 0.99]) {
       expect(nextBackoffDelay(0, () => r)).toBeGreaterThan(0)
     }
+  })
+})
+
+describe('applyChatDeleted', () => {
+  it('announces the id of a message removed for good, and ignores every other event', () => {
+    chatDeletedEvent.value = null
+    applyChatDeleted({ message: { type: 'liwan/chat', payload: { id: 5, event: 'message_updated', message_id: 9 } } })
+    applyChatDeleted({ message: { type: 'liwan/task', payload: { id: 5, event: 'message_deleted', message_id: 9 } } })
+    expect(chatDeletedEvent.value).toBeNull()
+    applyChatDeleted({ message: { type: 'liwan/chat', payload: { id: 5, event: 'message_deleted', message_id: 9 } } })
+    expect(chatDeletedEvent.value).toEqual({ conversationId: 5, messageId: 9 })
   })
 })

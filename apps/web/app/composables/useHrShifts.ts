@@ -5,6 +5,8 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 import {
   HrShiftAssignmentListSchema,
   HrShiftAssignmentSchema,
+  HrShiftMyWeekSchema,
+  HrShiftRosterSchema,
   HrShiftScheduleListSchema,
   HrShiftScheduleSchema,
   HrShiftSettingsSchema,
@@ -13,11 +15,13 @@ import {
   type HrShiftAssignmentCreate,
   type HrShiftAssignmentPatch,
   type HrShiftSchedule,
+  type HrShiftWeek,
+  type HrShiftWeekSet,
   type HrShiftScheduleCreate,
   type HrShiftSchedulePatch,
 } from '@liwan/contracts'
 
-export type { HrShiftAssignment, HrShiftSchedule }
+export type { HrShiftAssignment, HrShiftSchedule, HrShiftWeek }
 
 /** One page of a list route; the pages own the actual size. */
 export const HR_SHIFTS_PAGE_SIZE = 25
@@ -46,6 +50,8 @@ export const hrShiftKeys = {
   assignments: (params: HrShiftAssignmentListParams) => ['hr', 'shifts', 'assignments', params] as const,
   assignment: (id: number) => ['hr', 'shifts', 'assignment', id] as const,
   mine: ['hr', 'shifts', 'me'] as const,
+  roster: (weekStart: string, offset: number) => ['hr', 'shifts', 'roster', weekStart, offset] as const,
+  myWeek: ['hr', 'shifts', 'me', 'week'] as const,
   settings: ['hr', 'shifts', 'settings'] as const,
 }
 
@@ -242,5 +248,45 @@ export function usePatchHrShiftSettings() {
       // without making this successful save depend on another network request.
       await qc.invalidateQueries({ queryKey: hrShiftKeys.all, refetchType: 'none' })
     },
+  })
+}
+
+/** The weekly table of the company's employees; `weekStart` is the first of the seven days. */
+export function useHrShiftRoster(weekStart: MaybeRefOrGetter<string>, offset: MaybeRefOrGetter<number> = 0) {
+  const { $api } = useApi()
+  const { can } = useAccess()
+  return useQuery({
+    queryKey: computed(() => hrShiftKeys.roster(toValue(weekStart), toValue(offset))),
+    enabled: computed(() => !!toValue(weekStart) && can('hr.shifts.read')),
+    queryFn: () => $api('/api/v1/hr/shifts/roster', {
+      query: { week_start: toValue(weekStart), limit: HR_SHIFTS_PAGE_SIZE, offset: toValue(offset) },
+      schema: HrShiftRosterSchema,
+    }),
+  })
+}
+
+/** The caller's own week. */
+export function useMyHrShiftWeek(weekStart: MaybeRefOrGetter<string>, enabled: MaybeRefOrGetter<boolean> = true) {
+  const { $api } = useApi()
+  const identity = useHrOwnIdentity()
+  const { can } = useAccess()
+  return useQuery({
+    queryKey: computed(() => [...hrShiftKeys.myWeek, toValue(weekStart), identity.scope.value]),
+    enabled: computed(() => identity.ready.value && !!toValue(weekStart) && toValue(enabled) && can('hr.employees.read')),
+    queryFn: () => $api('/api/v1/hr/shifts/me/week', {
+      query: { week_start: toValue(weekStart) },
+      schema: HrShiftMyWeekSchema,
+    }),
+  })
+}
+
+/** A manager gives one employee a work schedule for the whole week. */
+export function useSetHrShiftWeek() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: (body: HrShiftWeekSet) =>
+      $api('/api/v1/hr/shifts/roster/week', { method: 'POST', body, schema: HrShiftAssignmentSchema }),
+    onSuccess: () => refreshShifts(qc),
   })
 }

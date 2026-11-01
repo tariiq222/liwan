@@ -120,6 +120,15 @@
       "noEmployee": "Your account is not linked to an employee record",
       "noEmployeeHelp": "Contact HR to link your account to your employee record so your employment documents can appear."
     },
-    "employeeContextHelp": "Linking an employee does not grant read access automatically. Also grant read access through Manage access; this document remains restricted."
+    "employeeContextHelp": "Linking an employee does not grant read access automatically. Choose below whether the employee should see it.",
+    "shareWithEmployee": "Let the employee read this document",
+    "shareWithEmployeeHelp": "The employee sees it only if you choose so here. The document stays restricted, and you can change access later in Manage access.",
+    "shareWithEmployeeFailed": "The document was saved, but the employee could not be given read access. Grant it through Manage access.",
+    "contextKinds": {
+      "hr": {
+        "department": "Department",
+        "employee": "Employee"
+      }
+    }
   }
 }

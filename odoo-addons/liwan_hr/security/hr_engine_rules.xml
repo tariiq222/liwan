@@ -58,6 +58,16 @@
         <field name="groups" eval="[Command.link(ref('group_cap_hr_onboarding_read'))]"/>
         <field name="domain_force">[('plan_id.hr_purpose', '=', 'onboarding')]</field>
     </record>
+    <!-- An employee reads the onboarding runs launched on their own record, and anyone a step is assigned to
+         (a manager or coach included) reads that run, which is how they see and complete their steps. The
+         stored purpose, user and assignees keep the rule from reading the plan or the employee, neither of which
+         an employee may open. The own-steps routes return nothing of the run beyond the caller's own steps. -->
+    <record id="rule_hr_plan_run_self" model="ir.rule">
+        <field name="name">liwan plan run: onboarding runs of the employee or of an assignee</field>
+        <field name="model_id" ref="model_liwan_hr_plan_run"/>
+        <field name="groups" eval="[Command.link(ref('liwan_core.group_employee'))]"/>
+        <field name="domain_force">[('hr_purpose', '=', 'onboarding'), '|', ('employee_user_id', '=', user.id), ('assignee_ids', 'in', [user.id])]</field>
+    </record>
     <record id="rule_hr_plan_run_offboarding" model="ir.rule">
         <field name="name">liwan plan run: offboarding runs</field>
         <field name="model_id" ref="model_liwan_hr_plan_run"/>

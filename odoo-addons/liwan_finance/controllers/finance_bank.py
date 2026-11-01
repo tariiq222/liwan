@@ -83,6 +83,12 @@ def _statement_values(parsed):
     return {**values, 'line_ids': lines}
 
 
+def _creation_outcome(statement):
+    """What an audit row says about a new statement: its lines and how many Odoo matched on their payment reference."""
+    reconciled = len(statement.line_ids.filtered('is_reconciled'))
+    return f'{len(statement.line_ids)} lines, {reconciled} reconciled'
+
+
 def _suspense_to_account(line, account, label):
     """Books what the matched items leave over (the suspense line, when there is one) on ``account``."""
     data = line.reconcile_data_info
@@ -167,6 +173,7 @@ class FinanceBankController(http.Controller):
         require_capability('finance.bank.manage')
         values = _statement_values(parse_statement_create(payload))
         statement = attempt(lambda: request.env['account.bank.statement'].create(values))
+        request.env['liwan.finance.audit.event']._liwan_log('bank_statement_created', statement, outcome=_creation_outcome(statement))
         return request.make_json_response(dump_bank_statement_detail(statement), status=201)
 
     @http.route(
@@ -215,6 +222,7 @@ class FinanceBankController(http.Controller):
             )
 
         attempt(lambda: _reconcile_line(line, items, account, parsed.get('label')), day=line.date, journal=line.journal_id, company=line.company_id)
+        request.env['liwan.finance.audit.event']._liwan_log('bank_line_reconciled', line)
         return dump_bank_line(line)
 
     @http.route('/api/v1/finance/bank-statements/<int:statement_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)

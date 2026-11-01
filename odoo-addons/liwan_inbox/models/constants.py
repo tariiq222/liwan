@@ -51,3 +51,11 @@ ROLLING_DAY = timedelta(hours=24)
 REPLY_ATTRIBUTION = timedelta(hours=72)
 UNSUBSCRIBE_ATTRIBUTION = timedelta(days=7)
 FREQUENCY_RETRY_AFTER = timedelta(hours=24)
+
+# What a message carries; the kind of a conversation's last message uses the same list.
+MESSAGE_KINDS = [
+    ('text', 'Text'), ('image', 'Image'), ('video', 'Video'), ('audio', 'Audio'), ('document', 'Document'),
+    ('sticker', 'Sticker'), ('location', 'Location'), ('contacts', 'Contacts'), ('interactive', 'Interactive'),
+    ('template', 'Template'), ('flow_response', 'Form answer'), ('product', 'Product'), ('product_list', 'Product list'),
+    ('catalog_message', 'Catalog'), ('order', 'Order'), ('unsupported', 'Unsupported'),
+]

@@ -65,7 +65,7 @@ export async function startTrial(pool: Pool, input: { customer_id: string; reque
 }
 
 /** Push the trial's Odoo hard expiry on every trial-date mutation, not only at fulfilment. */
-async function pushCommercialExpiry(client: PoolClient, subscription_id: string, value: string | null) {
+export async function pushCommercialExpiry(client: PoolClient, subscription_id: string, value: string | null) {
   const row = (await client.query(`SELECT s.*,r.snapshot
     FROM subscriptions s JOIN subscription_revisions r ON r.id=s.applied_revision_id
     WHERE s.id=$1`, [subscription_id])).rows[0]
@@ -95,6 +95,7 @@ export async function convertTrial(pool: Pool, input: { customer_id: string; now
   await input.returnOrigin(input.customer_id) // an unusable origin refuses before any write
   const sub = (await pool.query('SELECT * FROM subscriptions WHERE customer_id=$1', [input.customer_id])).rows[0]
   if (!sub || sub.state !== 'trialing') throw new CommercialHttpError('trial_not_active', 409)
+  if (!sub.applied_revision_id) throw new CommercialHttpError('trial_not_applied', 409)
   await transaction(pool, async client => {
     const updated = await client.query("UPDATE subscriptions SET trial_ends_at=$2,revision=revision+1 WHERE id=$1 AND state='trialing' RETURNING id", [sub.id, input.now])
     if (!updated.rowCount) throw new CommercialHttpError('trial_not_active', 409)
@@ -127,8 +128,10 @@ export async function extendTrial(pool: Pool, input: { subscription_id: string; 
 }
 
 export async function endTrial(pool: Pool, input: { subscription_id: string; reason: string; actor: string; now: Date; adapter: Parameters<typeof expireTrials>[1]['adapter']; returnOrigin: ReturnOrigin }) {
-  const owner = (await pool.query('SELECT customer_id FROM subscriptions WHERE id=$1', [input.subscription_id])).rows[0]
-  if (!owner) throw new CommercialHttpError('trial_not_active', 409)
+  const owner = (await pool.query('SELECT customer_id,state,applied_revision_id FROM subscriptions WHERE id=$1', [input.subscription_id])).rows[0]
+  if (!owner || owner.state !== 'trialing') throw new CommercialHttpError('trial_not_active', 409)
+  // The first invoice is built from the applied snapshot: ending a trial whose workspace is not active yet would leave a past-due subscription with nothing to pay.
+  if (!owner.applied_revision_id) throw new CommercialHttpError('trial_not_applied', 409)
   await input.returnOrigin(owner.customer_id) // an unusable origin refuses before any write
   const ended = await transaction(pool, async client => {
     const updated = await client.query("UPDATE subscriptions SET trial_ends_at=$2,revision=revision+1 WHERE id=$1 AND state='trialing' RETURNING customer_id", [input.subscription_id, input.now])

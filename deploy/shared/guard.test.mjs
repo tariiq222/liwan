@@ -4,7 +4,7 @@ import http from 'node:http'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { sessionCodec, requestPlan, createGuard } from './guard.mjs'
+import { sessionCodec, requestPlan, prospectPlan, createGuard } from './guard.mjs'
 import { validateRegistry, mutateRegistry } from '../../apps/web/server/utils/tenantRegistry.ts'
 const targets = Array.from({ length: 10 }, (_, i) => ({ host: `t${i}.example.test`, tenantId: `tenant_${i}`, database: `db_${i}`, filestore: `db_${i}`, enabled: true, registryRevision: 1 }))
 const registry = { schemaVersion: 1, snapshotRevision: 1, targets }
@@ -186,6 +186,16 @@ test('the web CSRF header passes to the Nuxt hop only; other x-liwan headers sta
   assert.equal(odoo.odoo, true); assert.equal(odoo.headers['x-liwan-csrf'], undefined)
   for (const header of ['x-liwan-principal', 'x-liwan-tenant-revision', 'x-liwan-csrf-other']) assert.throws(() => requestPlan(req(0, { [header]: 'forged' }, '/api/commercial/v1/branch-quotes'), registry, token, codec))
 })
+test('the UI language header passes only on the trusted hop with ar or en and reaches Odoo', () => {
+  const trusted = { 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1' }
+  for (const value of ['ar', 'en']) {
+    const plan = requestPlan(req(0, { ...trusted, 'x-liwan-ui-locale': value }, '/api/v1/me'), registry, token, codec)
+    assert.equal(plan.odoo, true)
+    assert.equal(plan.headers['x-liwan-ui-locale'], value)
+  }
+  for (const value of ['fr', 'ar_001', '', 'AR']) assert.throws(() => requestPlan(req(0, { ...trusted, 'x-liwan-ui-locale': value }, '/api/v1/me'), registry, token, codec), /forbidden_header/)
+  assert.throws(() => requestPlan(req(0, { 'x-liwan-ui-locale': 'ar' }, '/api/v1/me'), registry, token, codec), /forbidden_header/)
+})
 test('guard denies bootstrap hosts and serves the first publication without restart', async t => {
   const path = join(mkdtempSync(join(tmpdir(), 'liwan-guard-empty-')), 'registry.json')
   const bootstrap = { schemaVersion: 1, snapshotRevision: 0, targets: [] }
@@ -268,4 +278,27 @@ test('a write whose caller stays connected is not cancelled', async t => {
   const replies = clients.map(client => new Promise(resolve => client.once('response', reply => { reply.resume(); resolve(reply.statusCode) })))
   for (const { res } of hung) res.end('late')
   assert.deepEqual(await Promise.all(replies), Array(BODY_CREDITS).fill(200))
+})
+
+const prospect = (url, headers = {}, method = 'GET', host = 'app.liwan.test') => ({ headers: { host, ...headers }, url, method })
+test('the LiwanOS public host serves only the payment-done page, the payment relay and assets, with the token injected', () => {
+  for (const [url, method] of [['/payment-done', 'GET'], ['/payment-done?result=paid', 'HEAD'], ['/api/commercial/payment-callback?attempt=x', 'GET'], ['/api/commercial/payment-callback?attempt=x', 'POST'], ['/_nuxt/entry.abc.js', 'GET']]) {
+    const plan = prospectPlan(prospect(url, { cookie: 'session_id=raw', authorization: 'Bearer x', 'x-liwan-proxy-token': 'forged', 'x-forwarded-host': 'evil', 'x-liwan-csrf': 'c' }, method), 'app.liwan.test', token)
+    assert.equal(plan.prospect, true); assert.equal(plan.tenant, null); assert.equal(plan.odoo, false); assert.equal(plan.internal, false)
+    assert.equal(plan.headers['x-liwan-proxy-token'], token)
+    for (const name of ['cookie', 'authorization', 'x-forwarded-host', 'x-liwan-csrf']) assert.equal(plan.headers[name], undefined)
+    assert.equal(plan.headers.host, 'app.liwan.test'); assert.equal(plan.path, url)
+  }
+  assert.equal(prospectPlan(prospect('/payment-done', {}, 'GET', 'APP.liwan.test'), 'app.liwan.test', token).prospect, true)
+})
+test('the public host refuses everything else, and other hosts never take the prospect route', () => {
+  for (const [url, method] of [['/api/v1/me', 'GET'], ['/login', 'GET'], ['/api/commercial/v1/subscription', 'GET'], ['/payment-done', 'POST'], ['/api/commercial/payment-callback', 'PUT'], ['/_nuxt/', 'GET'], ['/_nuxt/../api/v1/me', 'GET'], ['/payment-done/../login', 'GET'], ['/payment-done?db=x', 'GET'], ['//evil.test/payment-done', 'GET'], ['/websocket', 'GET']]) {
+    assert.throws(() => prospectPlan(prospect(url, {}, method), 'app.liwan.test', token), undefined, `${method} ${url}`)
+  }
+  assert.throws(() => prospectPlan(prospect('/payment-done'), 'app.liwan.test', 'short'), /invalid_proxy_token/)
+  // Not the prospect host: null, so the tenant boundary decides (an unknown host is refused there).
+  assert.equal(prospectPlan(prospect('/payment-done', {}, 'GET', 'acme.liwan.test'), 'app.liwan.test', token), null)
+  assert.equal(prospectPlan(prospect('/payment-done'), undefined, token), null)
+  assert.throws(() => requestPlan(prospect('/payment-done', {}, 'GET', 'unknown.test'), registry, token, codec))
+  assert.throws(() => requestPlan(prospect('/payment-done'), registry, token, codec))
 })

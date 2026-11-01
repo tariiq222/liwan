@@ -74,11 +74,17 @@ const USER_NAMES = { 2: 'Admin', 3: 'ليلى الحربي', 4: 'خالد الش
 // Opportunities and their calls. Times are relative to the moment the mock starts (or resets), in the contract's UTC format.
 const HOUR = 3_600_000
 const iso = offsetHours => new Date(Math.round((Date.now() + offsetHours * HOUR) / 1000) * 1000).toISOString().replace('.000Z', 'Z')
+// Seeded records fall on the last ten days, kept inside the current month so the month figures hold on its first days.
+const seededCreatedAt = (id) => {
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime()
+  const at = Math.max(Date.now() - 24 * (10 - id) * HOUR, monthStart)
+  return new Date(Math.round(at / 1000) * 1000).toISOString().replace('.000Z', 'Z')
+}
 const ref = (rows, id) => { const row = rows.find(item => item.id === id); return row ? { id: row.id, name: row.name } : null }
 const mockUserRef = id => (id ? { id, name: USER_NAMES[id] ?? `#${id}` } : null)
 const seedOpportunities = () => {
   const base = { email: '', lost_reason: null, package: null, list_price: 0, discount_percent: 0, final_price: 0, expected_revenue: 0, attempt_count: 0, next_call_at: null, cycle: 0, recycle_at: null, needs_manager: false, active: true, status: 'pending' }
-  const row = (id, contact_name, phone, stageId, userId, sourceId, extra = {}) => ({ ...base, id, contact_name, phone, stage: ref(seedLists().stages, stageId), user: mockUserRef(userId), source: ref(seedLists().sources, sourceId), created_at: iso(-24 * (10 - id)), ...extra })
+  const row = (id, contact_name, phone, stageId, userId, sourceId, extra = {}) => ({ ...base, id, contact_name, phone, stage: ref(seedLists().stages, stageId), user: mockUserRef(userId), source: ref(seedLists().sources, sourceId), created_at: seededCreatedAt(id), ...extra })
   return [
     row(1, 'أحمد العتيبي', '0501234567', 1, 2, 1, { attempt_count: 1, next_call_at: iso(-3), email: 'ahmad@example.com' }),
     row(2, 'سارة القحطاني', '0507654321', 2, 2, 2, { attempt_count: 1, next_call_at: iso(20) }),
@@ -103,8 +109,8 @@ let opportunities = seedOpportunities()
 let calls = seedCalls()
 let batches = []
 let mappings = []
-// When a won record was closed (the contract's opportunity has no such field); the seeded sale closed yesterday.
-const seedClosedAt = () => new Map([[5, iso(-24)]])
+// When a won record was closed (the contract's opportunity has no such field); the seeded sale closed today, so the month figures hold on the first of a month.
+const seedClosedAt = () => new Map([[5, iso(0)]])
 let closedAt = seedClosedAt()
 
 const dumpSettings = () => ({

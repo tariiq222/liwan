@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo import models
+from odoo import fields, models
 from odoo.exceptions import AccessError, ValidationError
 
 HIRE_FRAME_ATTRIBUTE = '_liwan_hr_native_recruitment_hire'
@@ -11,7 +11,20 @@ class LiwanHrApplicant(models.Model):
     def _get_employee_create_vals(self):
         vals = super()._get_employee_create_vals()
         vals['company_id'] = self.company_id.id
+        manager = self._liwan_department_manager()
+        if manager:
+            vals['parent_id'] = manager.id
         return vals
+
+    def _liwan_department_manager(self):
+        """The manager of the applicant's department, who becomes the new employee's manager.
+
+        Read only for a recruiter who may read departments: recruitment does not imply that capability.
+        """
+        service = self.env['liwan.access.service']
+        if not service._liwan_has_capability(self.env.user, 'hr.departments.read', record=self):
+            return self.env['hr.employee']
+        return self.department_id.manager_id
 
     def _liwan_hire(self):
         """Run the native workflow with owner defaults and the original live policy root."""
@@ -41,6 +54,10 @@ class LiwanHrApplicant(models.Model):
                 if not employee or employee.company_id != company or self.company_id != company:
                     message = 'the hired employee must belong to the applicant company'
                     raise ValidationError(message)
+                # Stock links the employee but leaves the applicant open unless the stage is a
+                # hired stage; a hired applicant is closed, which is what `hired` status reads.
+                if not self.date_closed:
+                    self.date_closed = fields.Datetime.now()
                 return employee
         finally:
             if previous is None:

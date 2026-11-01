@@ -2,9 +2,12 @@
 import { ChatMessageListSchema, type ChatMessage } from '@liwan/contracts'
 import ChatAttachment from '@/components/chat/ChatAttachment.vue'
 import { ApiError } from '@/composables/useApi'
+import { chatDeletedEvent } from '@/composables/useBus'
 import { formatDate, formatTime } from '@liwan/ui/app/utils/formatDate'
 import { avatarProps } from '@liwan/ui/app/utils/avatarTone'
 import {
+  applyDeleteResult,
+  dropMessage,
   CHAT_PAGE_SIZE,
   CHAT_POLL_MS,
   CHAT_REACTIONS,
@@ -32,9 +35,14 @@ const hydrated = useHydrated()
 const toast = useToast()
 const { $api } = useApi()
 const { connected } = useBus()
+// Another participant removed a message for good: the refetch cannot say so, the event does.
+watch(chatDeletedEvent, (event) => {
+  if (event && event.conversationId === props.conversationId) items.value = dropMessage(items.value, event.messageId)
+})
 const { data, isFetching, isError, error, refetch } = useChatMessages(() => props.conversationId, {}, () => props.q || '')
 const { mutateAsync: markRead } = useMarkChatRead(() => props.conversationId)
 const { mutateAsync: patchMessage } = usePatchChatMessage(() => props.conversationId)
+const { mutateAsync: removeMessage } = useDeleteChatMessage(() => props.conversationId)
 const { mutateAsync: reactMessage } = useReactChatMessage(() => props.conversationId)
 const { mutateAsync: pinMessage } = usePinChatMessage(() => props.conversationId)
 const { mutateAsync: starMessage } = useStarChatMessage(() => props.conversationId)
@@ -237,9 +245,20 @@ async function saveEdit(item: ChatMessage) {
   }
 }
 
+// The company decides what a delete leaves: a cleared row comes back with the answer, a removed message is dropped here.
 async function deleteMessage(item: ChatMessage) {
-  await runMessageAction(item, () => patchMessage({ messageId: item.id, body: '' }))
-  confirmingDelete.value = null
+  if (busyId.value) return
+  busyId.value = item.id
+  try {
+    const result = await removeMessage(item.id)
+    items.value = applyDeleteResult(items.value, item.id, result)
+    confirmingDelete.value = null
+  } catch (value) {
+    if (value instanceof ApiError && isFatalChatStatus(value.status)) seal()
+    else toast.add({ title: value instanceof ApiError ? value.message : t('chat.actionFailed'), color: 'error' })
+  } finally {
+    busyId.value = null
+  }
 }
 
 function stopPoll() {
@@ -302,6 +321,7 @@ watch(() => props.denied, (value) => { if (value) seal() })
                   <UButton type="button" size="sm" color="neutral" variant="ghost" :label="t('app.cancel')" @click="editingId = null" />
                 </div>
               </template>
+              <p v-else-if="row.item.deleted" class="italic opacity-70" data-testid="chat-message-deleted">{{ t('chat.deletedMessage') }}</p>
               <template v-else>
                 {{ row.item.body }}
                 <span v-if="row.item.edited" class="ms-1 text-xs opacity-70">{{ t('chat.edited') }}</span>
@@ -342,7 +362,7 @@ watch(() => props.denied, (value) => { if (value) seal() })
               />
               <UButton type="button" color="neutral" variant="ghost" size="xs" :disabled="busyId === row.item.id" :label="t('chat.star')" @click="runMessageAction(row.item, () => starMessage(row.item.id))" />
               <UButton type="button" color="neutral" variant="ghost" size="xs" :disabled="busyId === row.item.id" :label="row.item.pinned ? t('chat.unpin') : t('chat.pin')" @click="runMessageAction(row.item, () => pinMessage({ messageId: row.item.id, pinned: !row.item.pinned }))" />
-              <template v-if="row.item.author.id === me?.id">
+              <template v-if="row.item.author.id === me?.id && !row.item.deleted">
                 <UButton type="button" color="neutral" variant="ghost" size="xs" :disabled="busyId === row.item.id" :label="t('chat.edit')" @click="editingId = row.item.id; editDraft = row.item.body" />
                 <UButton type="button" color="error" variant="ghost" size="xs" :disabled="busyId === row.item.id || confirmingDelete === row.item.id" :label="t('chat.delete')" @click="confirmingDelete = row.item.id" />
               </template>

@@ -40,6 +40,7 @@ const REFERENCE_YEAR = 2000
 const FISCAL_ERROR_KEYS: Record<string, string> = {
   fiscal_year_has_posted_entries: 'finance.setup.fiscal.errors.fiscal_year_has_posted_entries',
   lock_date_loosening: 'finance.setup.fiscal.errors.lock_date_loosening',
+  unreconciled_bank_lines: 'finance.setup.fiscal.errors.unreconciled_bank_lines',
   invalid_request_context: 'finance.setup.fiscal.errors.invalid_request_context',
   request_context_changed: 'finance.setup.fiscal.errors.request_context_changed',
 }

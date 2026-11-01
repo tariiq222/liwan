@@ -21,6 +21,8 @@ export const subscriptionViewSchema = z.strictObject({
   state: subscriptionStateSchema,
   applied: subscriptionRevisionSchema.nullable(), target: subscriptionRevisionSchema.nullable(),
   pending_order: orderSchema.nullable(),
+  /** A never-applied subscription whose order was cancelled: nothing is owed and nothing will be activated. */
+  order_cancelled: z.boolean(),
   revision: z.number().int().min(0), // aggregate version used for optimistic locking
   renewal_at: isoDate.nullable(),
   auto_renew: z.strictObject({ enabled: z.boolean(), consent_at: z.string().nullable(), token_ref_present: z.boolean() }),
@@ -37,7 +39,7 @@ export const SUBSCRIPTION_DISPLAY_LABELS_AR: Record<SubscriptionDisplayState, st
   awaiting_payment: 'بانتظار الدفع', activating: 'جارٍ التفعيل', active: 'مفعّل', failed: 'تعذر التنفيذ', inactive: 'متوقف',
 }
 
-type DisplayInput = Pick<SubscriptionView, 'state' | 'applied' | 'pending_order'>
+type DisplayInput = Pick<SubscriptionView, 'state' | 'applied' | 'pending_order'> & Partial<Pick<SubscriptionView, 'order_cancelled'>>
 
 /** Never 'active' because payment succeeded or a job was queued: applied needs a receipt-verified applied revision. */
 export function subscriptionDisplayState(view: DisplayInput): SubscriptionDisplayState {
@@ -51,7 +53,7 @@ export function subscriptionDisplayState(view: DisplayInput): SubscriptionDispla
   }
   switch (view.state) {
     case 'suspended': case 'cancelled': return 'inactive'
-    case 'pending': return view.applied ? 'activating' : 'awaiting_payment'
+    case 'pending': return view.applied ? 'activating' : view.order_cancelled ? 'inactive' : 'awaiting_payment'
     default: return view.applied ? 'active' : 'activating'
   }
 }

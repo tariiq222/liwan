@@ -3,13 +3,13 @@ from odoo import http
 from odoo.exceptions import AccessError, MissingError
 from odoo.http import request
 
+from .records import get_visible_record
 from odoo.addons.liwan_api.controllers.attachment_download import (
     download_linked_attachment,
 )
 from odoo.addons.liwan_api.controllers.common import (
     api_handler,
     declare_read_capability_scope,
-    get_record,
     requires_feature,
 )
 from odoo.addons.liwan_api.serializers.attachment import parse_attachment_upload
@@ -26,7 +26,7 @@ class TaskAttachmentController(http.Controller):
     @requires_feature('pmo.enabled', operation='read')
     def list_task_attachments(self, task_id):
         declare_read_capability_scope('pmo.tasks.read')
-        task = get_record('project.task', task_id)
+        task = get_visible_record('project.task', task_id)
         attachments = task._liwan_task_attachments()
         for attachment in attachments:
             attachment.check_access('read')
@@ -44,7 +44,7 @@ class TaskAttachmentController(http.Controller):
     def download_task_attachment(self, task_id, attachment_id, **_):
         declare_read_capability_scope('pmo.tasks.read')
         """The file of one direct task attachment, for a caller who can see the task."""
-        task = get_record('project.task', task_id)
+        task = get_visible_record('project.task', task_id)
         return download_linked_attachment(task._liwan_task_attachments(), attachment_id)
 
     @http.route(
@@ -54,7 +54,7 @@ class TaskAttachmentController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='write')
     def upload_task_attachment(self, task_id, **payload):
-        task = get_record('project.task', task_id)
+        task = get_visible_record('project.task', task_id)
         if not task._liwan_can_write():
             raise AccessError(request.env._("You are not allowed to change this task."))
         task.check_access('write')
@@ -79,7 +79,7 @@ class TaskAttachmentController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='write')
     def delete_task_attachment(self, task_id, attachment_id):
-        task = get_record('project.task', task_id)
+        task = get_visible_record('project.task', task_id)
         if not task._liwan_can_write():
             raise AccessError(request.env._("You are not allowed to change this task."))
         task.check_access('write')

@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import date
+from unittest.mock import patch
 
 from odoo.tests import tagged
 
@@ -48,7 +49,23 @@ class TestHrExitControls(PayrollCase):
 
     def _archive(self, employee, user=None):
         self.authenticate((user or self.hr).login, f'{(user or self.hr).login}_pass_123')
-        return self.api('POST', ARCHIVE.format(employee.id), json={})
+        # Archiving waits for the departure date; the fixtures leave on DEPARTURE, so that is the day the check sees.
+        with patch('odoo.fields.Date.context_today', return_value=DEPARTURE):
+            return self.api('POST', ARCHIVE.format(employee.id), json={})
+
+    def test_archive_before_the_departure_date_is_refused_with_the_date(self):
+        employee = self._leaver('Leaves Later')
+        self._settle(employee)
+        self.authenticate(self.hr.login, f'{self.hr.login}_pass_123')
+        with patch('odoo.fields.Date.context_today', return_value=date(2026, 11, 29)):
+            res = self.api('POST', ARCHIVE.format(employee.id), json={})
+        self._assert_refused(res, employee, 'departure_future')
+        self.assertEqual(res.json()['details']['departure_date'], '2026-11-30')
+        self.assertIn('2026-11-30', res.json()['message'])
+
+    def _blockers(self, employee):
+        with patch('odoo.fields.Date.context_today', return_value=DEPARTURE):
+            return employee._liwan_exit_blockers()
 
     def _assert_refused(self, res, employee, code):
         self.assertEqual((res.status_code, res.json()['code']), (422, code))
@@ -77,7 +94,7 @@ class TestHrExitControls(PayrollCase):
         self.env['liwan.hr.payroll.eos.settlement']._liwan_save_draft(employee, 'resignation', 0)
         self._assert_refused(self._archive(employee), employee, 'settlement_missing')
         self.env['liwan.hr.payroll.eos.settlement']._liwan_current(employee)._liwan_confirm()
-        employee.write({'departure_date': date(2026, 12, 15)})
+        employee.write({'departure_date': date(2026, 11, 15)})
         self._assert_refused(self._archive(employee), employee, 'settlement_missing')
 
     def test_first_blocker_wins_in_the_documented_order(self):
@@ -104,7 +121,7 @@ class TestHrExitControls(PayrollCase):
         equipment = self._custody(employee)
         equipment.write({'active': False})
         self._settle(employee)
-        self.assertEqual(employee._liwan_exit_blockers(), [])
+        self.assertEqual(self._blockers(employee), [])
         self.assertEqual(self._archive(employee).status_code, 200)
         self.assertFalse(employee.active)
 
@@ -132,7 +149,7 @@ class TestHrExitControls(PayrollCase):
     def test_open_clearance_alone_does_not_block(self):
         employee = self._leaver('Clearance Open')
         self._settle(employee)
-        self.assertEqual(employee._liwan_exit_blockers(), [])
+        self.assertEqual(self._blockers(employee), [])
         self.assertEqual(self._archive(employee).status_code, 200)
 
     def test_archive_still_disables_the_linked_account(self):
@@ -194,14 +211,14 @@ class TestHrExitControls(PayrollCase):
         self._custody(employee)
         for key in ('hr.offboarding', 'hr.assets', 'hr.payroll'):
             set_hr_feature(self, key, False)
-        self.assertEqual(employee._liwan_exit_blockers(), [])
+        self.assertEqual(self._blockers(employee), [])
         self.assertEqual(self._archive(employee).status_code, 200)
 
     def test_all_features_enabled_keeps_the_documented_order(self):
         employee = self._leaver('All On', departure=None)
         self._custody(employee)
         self.assertEqual(
-            [blocker['code'] for blocker in employee._liwan_exit_blockers()], ['departure_missing', 'custody_open'])
+            [blocker['code'] for blocker in self._blockers(employee)], ['departure_missing', 'custody_open'])
         employee.write({'departure_date': DEPARTURE})
         self.assertEqual(
-            [blocker['code'] for blocker in employee._liwan_exit_blockers()], ['custody_open', 'settlement_missing'])
+            [blocker['code'] for blocker in self._blockers(employee)], ['custody_open', 'settlement_missing'])

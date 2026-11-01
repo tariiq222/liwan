@@ -11,8 +11,8 @@
   "amount_total": 1150.0,
   "amount_untaxed": 1000.0,
   "blocked_actions": [],
-  "currency": "SAR",
   "credit_origin": null,
+  "currency": "SAR",
   "debit_origin": null,
   "id": 1,
   "invoice_date": "2026-10-18",
@@ -45,6 +45,8 @@
           "percent": 40.0
         }
       ],
+      "asset": null,
+      "asset_profile": null,
       "discount": 0.0,
       "id": 4,
       "name": "Consulting",
@@ -67,6 +69,7 @@
     "name": "Al Noor Trading"
   },
   "payment_state": "not_paid",
+  "payment_term": null,
   "ref": "",
   "state": "posted",
   "zatca": {

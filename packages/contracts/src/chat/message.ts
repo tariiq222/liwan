@@ -39,6 +39,8 @@ export const ChatMessageSchema = z.object({
   attachments: z.array(ChatAttachmentSchema),
   parent: ChatMessageParentSchema.nullable(),
   edited: z.boolean(),
+  // A message the author deleted while the company keeps a «message deleted» row: no text and no files.
+  deleted: z.boolean(),
   pinned: z.boolean(),
   starred: z.boolean(),
   reactions: z.array(ChatMessageReactionSchema),
@@ -64,6 +66,14 @@ export const ChatMessageSendSchema = z.object({
 export const ChatMessageUpdateSchema = z.object({
   body: z.string(),
 }).strict()
+
+/** `DELETE .../messages/{id}`: the mode that applied and, when the row stays (a cleared message), its new shape. */
+export const ChatMessageDeleteResultSchema = z.discriminatedUnion('mode', [
+  z.object({ mode: z.literal('placeholder'), message: ChatMessageSchema }).strict(),
+  z.object({ mode: z.literal('permanent'), message: z.null() }).strict(),
+])
+
+export type ChatMessageDeleteResult = z.infer<typeof ChatMessageDeleteResultSchema>
 
 export const ChatReactionActionSchema = z.enum(['add', 'remove'])
 

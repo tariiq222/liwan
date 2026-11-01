@@ -471,3 +471,161 @@ msgstr "لكل قسيمة راتب لقطة بيانات دفع واحدة"
 #: model:ir.model.constraint,message:liwan_hr.constraint_liwan_hr_payroll_file_run_content_unique
 msgid "the same salary file content is kept once per run"
 msgstr "يُحفظ محتوى ملف الرواتب نفسه مرة واحدة لكل مسيّر"
+
+#. module: liwan_hr
+#. odoo-python
+#: code:addons/liwan_hr/models/hr_payslip.py:0
+msgid "Dear %(name)s, your final payslip for %(month)s from %(company)s is below."
+msgstr "عزيزي %(name)s، تجد أدناه قسيمة راتبك الأخيرة لشهر %(month)s من %(company)s."
+
+#. module: liwan_hr
+#. odoo-python
+#: code:addons/liwan_hr/models/hr_payslip.py:0
+msgid "Net pay"
+msgstr "صافي الراتب"
+
+#. module: liwan_hr
+#. odoo-python
+#: code:addons/liwan_hr/models/hr_payslip.py:0
+msgid "Your final payslip for %(month)s"
+msgstr "قسيمة راتبك الأخيرة لشهر %(month)s"
+
+#. module: liwan_hr
+#: model:hr.salary.rule.category,name:liwan_hr.category_basic
+msgid "Basic"
+msgstr "الأساسي"
+
+#. module: liwan_hr
+#: model:hr.salary.rule.category,name:liwan_hr.category_allowance
+msgid "Allowances"
+msgstr "البدلات"
+
+#. module: liwan_hr
+#: model:hr.salary.rule.category,name:liwan_hr.category_variable
+msgid "Variable pay"
+msgstr "الأجر المتغير"
+
+#. module: liwan_hr
+#: model:hr.salary.rule.category,name:liwan_hr.category_deduction
+msgid "Deductions"
+msgstr "الاستقطاعات"
+
+#. module: liwan_hr
+#: model:hr.salary.rule.category,name:liwan_hr.category_gosi
+msgid "GOSI employee share"
+msgstr "حصة الموظف في التأمينات"
+
+#. module: liwan_hr
+#: model:hr.salary.rule.category,name:liwan_hr.category_company
+msgid "Employer contributions"
+msgstr "مساهمات صاحب العمل"
+
+#. module: liwan_hr
+#: model:hr.salary.rule.category,name:liwan_hr.category_net
+msgid "Net"
+msgstr "الصافي"
+
+#. module: liwan_hr
+#: model:hr.salary.rule.category,name:liwan_hr.category_base
+msgid "Statistical bases"
+msgstr "أسس إحصائية"
+
+#. module: liwan_hr
+#: model:hr.salary.rule,name:liwan_hr.rule_basic
+msgid "Basic wage"
+msgstr "الراتب الأساسي"
+
+#. module: liwan_hr
+#: model:hr.salary.rule,name:liwan_hr.rule_housing
+msgid "Housing allowance"
+msgstr "بدل السكن"
+
+#. module: liwan_hr
+#: model:hr.salary.rule,name:liwan_hr.rule_transport
+msgid "Transport allowance"
+msgstr "بدل النقل"
+
+#. module: liwan_hr
+#: model:hr.salary.rule,name:liwan_hr.rule_other
+msgid "Other allowance"
+msgstr "بدلات أخرى"
+
+#. module: liwan_hr
+#: model:hr.salary.rule,name:liwan_hr.rule_overtime
+msgid "Overtime"
+msgstr "العمل الإضافي"
+
+#. module: liwan_hr
+#: model:hr.salary.rule,name:liwan_hr.rule_bonus
+msgid "Bonus"
+msgstr "المكافأة"
+
+#. module: liwan_hr
+#: model:hr.salary.rule,name:liwan_hr.rule_eos
+msgid "End of service award"
+msgstr "مكافأة نهاية الخدمة"
+
+#. module: liwan_hr
+#: model:hr.salary.rule,name:liwan_hr.rule_leave_enc
+msgid "Leave encashment"
+msgstr "تعويض الإجازة"
+
+#. module: liwan_hr
+#: model:hr.salary.rule,name:liwan_hr.rule_absence
+msgid "Absence"
+msgstr "الغياب"
+
+#. module: liwan_hr
+#: model:hr.salary.rule,name:liwan_hr.rule_unpaid
+msgid "Unpaid leave"
+msgstr "إجازة بدون راتب"
+
+#. module: liwan_hr
+#: model:hr.salary.rule,name:liwan_hr.rule_deduction
+msgid "Deduction"
+msgstr "خصم"
+
+#. module: liwan_hr
+#: model:hr.salary.rule,name:liwan_hr.rule_advance
+msgid "Advance repayment"
+msgstr "سداد سلفة"
+
+#. module: liwan_hr
+#: model:hr.salary.rule,name:liwan_hr.rule_settlement_ded
+msgid "Settlement deduction"
+msgstr "خصم التسوية"
+
+#. module: liwan_hr
+#: model:hr.salary.rule,name:liwan_hr.rule_gosi_ee_ann
+msgid "GOSI annuities (employee)"
+msgstr "التأمينات: المعاشات (الموظف)"
+
+#. module: liwan_hr
+#: model:hr.salary.rule,name:liwan_hr.rule_gosi_ee_saned
+msgid "GOSI SANED (employee)"
+msgstr "التأمينات: ساند (الموظف)"
+
+#. module: liwan_hr
+#: model:hr.salary.rule,name:liwan_hr.rule_gosi_er_ann
+msgid "GOSI annuities (employer)"
+msgstr "التأمينات: المعاشات (صاحب العمل)"
+
+#. module: liwan_hr
+#: model:hr.salary.rule,name:liwan_hr.rule_gosi_er_saned
+msgid "GOSI SANED (employer)"
+msgstr "التأمينات: ساند (صاحب العمل)"
+
+#. module: liwan_hr
+#: model:hr.salary.rule,name:liwan_hr.rule_gosi_er_oh
+msgid "GOSI occupational hazards (employer)"
+msgstr "التأمينات: الأخطار المهنية (صاحب العمل)"
+
+#. module: liwan_hr
+#: model:hr.salary.rule,name:liwan_hr.rule_gosi_wage
+msgid "GOSI contributory wage"
+msgstr "الأجر الخاضع للتأمينات"
+
+#. module: liwan_hr
+#: model:hr.salary.rule,name:liwan_hr.rule_net
+msgid "Net"
+msgstr "الصافي"

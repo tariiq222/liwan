@@ -54,6 +54,8 @@ export const FinanceSetupSchema = z.object({
     sale_lock_date: day.nullable(),
     purchase_lock_date: day.nullable(),
     hard_lock_date: day.nullable(),
+    /** The account internal transfers pass through; the Saudi chart sets "Liquidity Transfer". */
+    transfer_account: ref.nullable(),
   }).strict(),
   journals: z.object({ sale: count, purchase: count, bank: count, cash: count }).strict(),
   taxes: z.object({ sale_count: count, purchase_count: count, vat_15_present: z.boolean() }).strict(),
@@ -70,6 +72,7 @@ export const FinanceSetupFiscalInputSchema = z.object({
   tax_lock_date: day.nullable(),
   sale_lock_date: day.nullable(),
   purchase_lock_date: day.nullable(),
+  transfer_account_id: z.number().int().positive(),
 }).partial().strict()
 
 export type FinanceSetupBlocker = z.infer<typeof FinanceSetupBlockerSchema>

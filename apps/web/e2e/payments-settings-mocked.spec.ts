@@ -195,7 +195,7 @@ test.describe('payments orders settings', () => {
     await expect(page.getByTestId('payments-orders')).toContainText('يسري هذا الخيار على الحساب كله')
     await expect(save(page)).toBeDisabled()
     expect(await readSettings(page)).toEqual({
-      unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', revision: 0,
+      unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', tax_mode: 'included', system_admin_links: false, revision: 0,
     })
   })
 
@@ -280,7 +280,7 @@ test.describe('payments orders settings', () => {
     await expect(save(page)).toBeDisabled()
     expect(bodies).toEqual([{ revision: 0, unpaid_order_expiry_minutes: 30 }])
     expect(await readSettings(page)).toEqual({
-      unpaid_order_expiry_minutes: 120, invoice_when_paid: false, refund_policy: 'full', refund_amounts: 'due', revision: 1,
+      unpaid_order_expiry_minutes: 120, invoice_when_paid: false, refund_policy: 'full', refund_amounts: 'due', tax_mode: 'included', system_admin_links: false, revision: 1,
     })
     errors = withoutRefusals(errors)
 
@@ -292,7 +292,7 @@ test.describe('payments orders settings', () => {
     await expect(orders(page).getByRole('alert')).toHaveCount(0)
     expect(bodies.at(-1)).toEqual({ revision: 1, unpaid_order_expiry_minutes: 30 })
     expect(await readSettings(page)).toEqual({
-      unpaid_order_expiry_minutes: 30, invoice_when_paid: false, refund_policy: 'full', refund_amounts: 'due', revision: 2,
+      unpaid_order_expiry_minutes: 30, invoice_when_paid: false, refund_policy: 'full', refund_amounts: 'due', tax_mode: 'included', system_admin_links: false, revision: 2,
     })
   })
 

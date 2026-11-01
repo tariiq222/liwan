@@ -15,6 +15,7 @@ test.describe('Plan 6d: an access-log event', () => {
       await expect(page.getByTestId('settings-layout')).toBeVisible()
       const facts = page.locator('#event')
       await expect(facts).toContainText('Admin')
+      await expect(facts).not.toContainText(/\d{4}-\d{2}-\d{2}T/)
       await expect(facts).toContainText('سارة محمد')
       await expect(page.locator('#before pre')).toContainText('null')
       await expect(page.locator('#after pre')).toContainText('"active": true')

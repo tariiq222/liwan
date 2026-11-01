@@ -151,6 +151,20 @@ class TestHrDocumentLinks(DocumentCase):
         })
         self.assertEqual(report._liwan_additional_expiring(30), [])
 
+    def test_an_expiring_employee_document_names_its_employee(self):
+        employee = self.env['hr.employee'].create({'name': 'Document Owner', 'company_id': self.env.company.id})
+        due = fields.Date.today() + timedelta(days=5)
+        own = self.model(self.linker)._liwan_create_document(
+            {'name': 'Owner contract', 'expiry_date': due}, {'kind': 'hr.employee', 'id': employee.id},
+        )
+        company_wide = self.model(self.linker)._liwan_create_document({'name': 'Company policy', 'expiry_date': due})
+        items = {
+            item['document']['id']: item
+            for item in self.env['liwan.hr.report'].with_user(self.linker)._liwan_additional_expiring(30)
+        }
+        self.assertEqual(items[own.id]['employee'], {'id': employee.id, 'name': 'Document Owner'})
+        self.assertIsNone(items[company_wide.id]['employee'])
+
     def test_hr_role_has_only_document_read_and_manage(self):
         keys = set(self.env.ref('liwan_hr.role_hr_manager').permission_ids.mapped('key'))
         self.assertEqual({key for key in keys if key.startswith('documents.')},

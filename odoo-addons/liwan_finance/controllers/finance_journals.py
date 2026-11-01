@@ -104,6 +104,10 @@ class FinanceJournalController(http.Controller):
     def archive_journal(self, journal_id, **_):
         require_capability('finance.journals.manage')
         journal = _find_journal(journal_id)
+        # Stock refuses with an English walkthrough of Odoo's own menus, which LiwanOS does not have.
+        drafts = request.env['account.move'].search_count([('journal_id', '=', journal.id), ('state', '=', 'draft')])
+        if drafts:
+            raise ApiError(422, 'journal_has_drafts', 'the journal still has draft entries: post or delete them first', details={'count': drafts})
         attempt(journal.action_archive)
         request.env['liwan.finance.audit.event']._liwan_log('journal_archived', journal)
         return dump_journal(journal)

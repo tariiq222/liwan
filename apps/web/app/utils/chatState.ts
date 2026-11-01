@@ -1,4 +1,4 @@
-import type { ChatMessage } from '@liwan/contracts'
+import type { ChatMessage, ChatMessageDeleteResult } from '@liwan/contracts'
 
 export const CHAT_POLL_MS = 5_000
 export const CHAT_TYPING_MS = 6_000
@@ -46,6 +46,17 @@ export function mergeMessages(current: ChatMessage[], incoming: ChatMessage[], m
   }
   const appended = incoming.filter(item => !seen.has(item.id))
   return [...refreshed, ...appended]
+}
+
+/** The loaded messages after a delete: a cleared message comes back as its deleted row, a removed one is dropped. */
+export function applyDeleteResult(current: ChatMessage[], id: number, result: ChatMessageDeleteResult): ChatMessage[] {
+  const cleared = result.message
+  return cleared ? current.map(item => item.id === id ? cleared : item) : current.filter(item => item.id !== id)
+}
+
+/** The loaded messages without one that another participant removed for good. */
+export function dropMessage(current: ChatMessage[], id: number): ChatMessage[] {
+  return current.some(item => item.id === id) ? current.filter(item => item.id !== id) : current
 }
 
 export function preserveFailedDraft(sent: string, failed: boolean, next = ''): string {

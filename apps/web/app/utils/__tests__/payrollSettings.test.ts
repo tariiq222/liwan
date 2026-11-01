@@ -18,6 +18,13 @@ describe('payrollSettingsPatch', () => {
     expect(HrPayrollSettingsPatchSchema.safeParse({ ...patch, revision: settings.revision }).success).toBe(true)
   })
 
+  it('sends the structure only once it is changed, and never an empty one', () => {
+    expect(payrollSettingsPatch(settings, { ...same, structure: '1' })).toEqual({})
+    expect(payrollSettingsPatch(settings, { ...same, structure: '7' })).toEqual({ structure_id: 7 })
+    expect(payrollSettingsPatch({ ...settings, structure: null }, { ...same, structure: undefined })).toEqual({})
+    expect(payrollSettingsPatch({ ...settings, structure: null }, { ...same, structure: '4' })).toEqual({ structure_id: 4 })
+  })
+
   it('never sends a null annual leave type, and sends none while none is chosen', () => {
     const patch = payrollSettingsPatch({ ...settings, annual_leave_type: null }, { ...same, annualLeaveType: undefined })
     expect(patch).toEqual({})

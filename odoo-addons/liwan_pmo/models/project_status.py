@@ -44,7 +44,7 @@ class ProjectProject(models.Model):
 
     def _liwan_do_set_status(self, status):
         """The *do* step: no manage-rule check (see _liwan_check_status_allowed)."""
-        self._liwan_write_sudo({'last_update_status': status})
+        self._liwan_record_status(status, "Status update")
         if self.liwan_status_auto_done:
             self.sudo().write({'liwan_status_auto_done': False, 'liwan_status_before_auto_done': False})
 
@@ -73,12 +73,12 @@ class ProjectProject(models.Model):
                     'liwan_status_auto_done': True,
                     'liwan_status_before_auto_done': previous if previous in STATUS_VALUES else False,
                 })
-                project._liwan_record_status('done', self.env._("All tasks are complete"))
+                project._liwan_record_status('done', "All tasks are complete")
             elif not complete and project.liwan_status_auto_done:
                 restore = project.liwan_status_before_auto_done or 'on_track'
                 project.write({'liwan_status_auto_done': False, 'liwan_status_before_auto_done': False})
                 if project.last_update_status == 'done':
-                    project._liwan_record_status(restore, self.env._("The project has open tasks again"))
+                    project._liwan_record_status(restore, "The project has open tasks again")
 
     @api.model
     def _liwan_backfill_completion_status(self):
@@ -101,11 +101,18 @@ class ProjectProject(models.Model):
         params.set_param(COMPLETION_BACKFILL_PARAM, '1')
         return True
 
-    def _liwan_record_status(self, status, name):
-        # Odoo derives last_update_status from the latest project.update, so a
-        # status change is recorded as one, named for why it happened.
+    def _liwan_record_status(self, status, title):
+        """Record a status change as a project.update titled ``title`` in the company's language.
+
+        Odoo derives last_update_status from the latest project.update. The title is stored text, so
+        it is worded in the company's language: the acting user's language is not the readers'.
+        ``title`` is a msgid of this addon's translations.
+        """
         self.ensure_one()
-        self.env['project.update'].sudo().create({'project_id': self.id, 'status': status, 'name': name})
+        project = self.sudo()
+        lang = project.company_id.partner_id.lang or self.env.lang
+        name = project.with_context(lang=lang).env._(title)
+        project.env['project.update'].create({'project_id': self.id, 'status': status, 'name': name})
 
     def _liwan_post_status_hook(self, status):
         """Extension point; nothing in core."""

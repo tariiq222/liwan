@@ -27,6 +27,7 @@ const INVOICE = {
   journal: { id: 1, name: 'Customer Invoices' },
   invoice_date: '2026-10-18',
   invoice_date_due: null,
+  payment_term: null,
   currency: 'SAR',
   amount_untaxed: 1000,
   amount_tax: 150,
@@ -44,6 +45,8 @@ const LINE = {
   price_subtotal: 1000,
   price_total: 1150,
   analytic_distribution: [],
+  asset_profile: null,
+  asset: null,
 }
 const PAYMENT = {
   id: 5,
@@ -58,6 +61,7 @@ const PAYMENT = {
   currency: 'SAR',
   amount: 1150,
   unallocated: 0,
+  exchange_difference: 0,
   invoices: [],
   allowed_actions: ['cancel'],
   blocked_actions: [],

@@ -113,7 +113,9 @@
       "subtotal": "المجموع قبل الضريبة",
       "taxAtSave": "تظهر الضريبة بعد الحفظ",
       "requiredHint": "الحقول التي عليها نجمة مطلوبة.",
-      "createDraft": "إنشاء مسودة"
+      "createDraft": "إنشاء مسودة",
+      "paymentTerm": "شرط الدفع",
+      "noPaymentTerm": "بدون شرط دفع"
     },
     "record": {
       "taxes": "الضرائب",
@@ -190,7 +192,8 @@
       "zatcaUnauthorized": "رفضت الهيئة شهادة اليومية. فعّل اليومية من جديد.",
       "zatcaModeNotAllowed": "نوع الإرسال غير مسموح لهذه الفاتورة.",
       "amountExceedsResidual": "المبلغ أكبر من الرصيد المتبقي.",
-      "journalCurrencyMismatch": "عملة اليومية تختلف عن عملة المستندات."
+      "journalCurrencyMismatch": "عملة اليومية تختلف عن عملة المستندات.",
+      "noJournal": "لا توجد يومية لهذا النوع من المستندات في هذه الشركة. أنشئ يومية من إعدادات المالية أولًا."
     },
     "payments": {
       "title": "المدفوعات",

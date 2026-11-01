@@ -1,4 +1,4 @@
-import { projectRecordBack } from '../../utils/projectNavigation'
+import { archivedTags, projectRecordBack } from '../../utils/projectNavigation'
 import * as recordNavigation from './helpers/recordNavigation'
 import * as hrNavigation from '../../utils/hrReturnTo'
 import { readFileSync } from 'node:fs'
@@ -41,7 +41,7 @@ async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<s
     useI18n: () => ({ t: (key: string) => key }),
     useAccess: () => ({ can: () => true }), useHydrated: () => Vue.ref(true), useKpiVisibility: () => ({ shown: Vue.ref(true) }),
     useToast: () => ({ add: vi.fn() }), usePageHeader: () => undefined,
-    projectRecordBack, safeReturnTo, projectIdFromPath, activeProjectSection, activeGovernanceSection,
+    projectRecordBack, archivedTags, safeReturnTo, projectIdFromPath, activeProjectSection, activeGovernanceSection,
     provideFrameOwnsHeading: () => undefined,
     useEscapeBack: (target: unknown) => { escapeTargets.push(target) },
     projectTaskParams: () => ({}), projectTaskQuery: () => ({}),

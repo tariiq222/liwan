@@ -7,6 +7,7 @@ import { reconcileUnknownAttempts } from './payments.js'
 import { recoverInterrupted } from '../shared/subscription-reconcile.js'
 import { generateRenewals, applyDunning } from './renewals.js'
 import { expireTrials } from './trial-expiry.js'
+import { syncTenantStatus, type TenantStatusRunner } from './suspension.js'
 import { returnOriginFromEnv, unusableReturnOrigin } from './return-origin.js'
 import { sendTrialNotices } from './trial-notices.js'
 import * as settlements from './settlements.js'
@@ -23,6 +24,8 @@ export type CommercialSchedulerOptions = {
   paymentAdapter?: PaymentAdapter; mailAdapter?: MailAdapter
   subscriptionRunner?: Parameters<typeof recoverInterrupted>[1] extends infer O ? (O extends { runner?: infer R } ? R : never) : never
   usageRunner?: UsageObserveRunner
+  /** Pushes a tenant's suspended or active status to Odoo; without it a suspension changes the control plane only. */
+  tenantStatusRunner?: TenantStatusRunner
   /** Worker shutdown: stops the background usage run before its next target. */
   signal?: AbortSignal
   log?: (message: string, err?: unknown) => void
@@ -110,6 +113,12 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
         }
         await job('recover-interrupted', () => recoverInterrupted(pool, { runner: o.subscriptionRunner }))
       }
+      const statusRunner = o.tenantStatusRunner
+      // A suspension is pushed on the next tick, not the next hourly billing pass; shared runtime jobs (backup, restore) go first.
+      if (statusRunner) await job('tenant-status', async () => {
+        const { failed } = await syncTenantStatus(pool, { runner: statusRunner, log, busy: sharedRuntimeBusy(pool, config, log) })
+        if (failed.length) throw new Error(`tenant_status_push_incomplete ${failed.length}`)
+      })
       const now = clock()
       // Usage collection talks to Odoo, so it runs in the background (single flight) and never holds a tick.
       if (o.usageRunner && !usageRun && now >= nextUsage && !o.signal?.aborted) {

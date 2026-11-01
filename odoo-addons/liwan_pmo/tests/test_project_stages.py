@@ -35,6 +35,24 @@ class TestProjectStages(LiwanPmoCase):
         self.assertEqual((res.json()['name'], res.json()['fold']), ('A2', True))
         self.assertEqual(self.api('POST', self._url(), {'name': ''}).status_code, 422)
 
+    def test_a_stage_name_edited_in_either_ui_language_is_stored_for_both(self):
+        self.env['res.lang']._activate_lang('ar_001')
+        self.env['res.lang']._activate_lang('en_US')
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+
+        def names(stage_id):
+            stage = self.env['project.task.type'].browse(stage_id)
+            stage.invalidate_recordset()
+            return stage.with_context(lang='ar_001').name, stage.with_context(lang='en_US').name
+
+        created = self.url_open(self._url(), json={'name': 'مراجعة'}, headers={'X-Liwan-Ui-Locale': 'ar'})
+        self.assertEqual(created.status_code, 201, created.text)
+        stage_id = created.json()['id']
+        self.assertEqual(names(stage_id), ('مراجعة', 'مراجعة'))
+        edited = self.url_open(self._url(f'/{stage_id}'), json={'name': 'Review'}, headers={'X-Liwan-Ui-Locale': 'en'}, method='PATCH')
+        self.assertEqual(edited.status_code, 200, edited.text)
+        self.assertEqual(names(stage_id), ('Review', 'Review'))
+
     def test_delete_rules(self):
         self.authenticate('api_mgr', 'api_mgr_pass_123')
         s = self.api('POST', self._url(), {'name': 'S'}).json()

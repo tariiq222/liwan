@@ -4,15 +4,15 @@ import { HrPayrollRunCreateSchema, type HrPayrollRun } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import { normalizeDigits } from '@/utils/moneyInput'
-import { currentPayrollMonth } from '@/utils/payrollFormat'
+import { currentPayrollMonth, formatPayrollMonth } from '@/utils/payrollFormat'
 
 // The create form of one payroll run, inside the /hr/payroll/new SharedCreatePanel. It only asks for the month,
-// posts it, shows the server's refusal (a month that already has a run) and reports the created run; the page owns
+// asks to confirm the month by name, posts it, shows the server's refusal (a month that already has a run) and reports the created run; the page owns
 // the navigation.
 const props = defineProps<{ backTo: RouteLocationRaw }>()
 const emit = defineEmits<{ saved: [run: HrPayrollRun] }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const { mutateAsync: createRun, isPending } = useCreateHrPayrollRun()
 
@@ -25,6 +25,8 @@ onMounted(() => {
   month.value ||= initialMonth.value
 })
 const attempted = ref(false)
+// The month is prefilled with the current one, so a run is never created before the month is named back to the user.
+const confirming = ref(false)
 const saved = ref(false)
 const failure = ref<unknown>(null)
 const dirty = computed(() => !saved.value && month.value !== initialMonth.value)
@@ -41,11 +43,17 @@ const formError = computed(() => failure.value && !serverMonth.value
   ? saveErrorMessage(failure.value, t('errors.generic'), t('errors.saveUncertain'))
   : undefined)
 
-async function submit() {
+const monthLabel = computed(() => parsed.value.success ? formatPayrollMonth(parsed.value.data.month, locale.value) : '')
+
+function submit() {
   if (!hydrated.value || isPending.value) return
   attempted.value = true
   failure.value = null
-  if (!parsed.value.success) return
+  confirming.value = parsed.value.success
+}
+async function confirmCreate() {
+  if (!hydrated.value || isPending.value || !parsed.value.success) return
+  confirming.value = false
   try {
     const run = await createRun(parsed.value.data)
     saved.value = true
@@ -59,9 +67,19 @@ async function submit() {
   <UForm novalidate :state="{ month }" class="liwan-form" method="post" data-testid="hr-payroll-run-form" @submit="submit">
     <SharedUnsavedChanges :dirty="dirty" />
     <UAlert v-if="formError" role="alert" color="error" variant="subtle" :title="formError" data-testid="hr-payroll-run-error" />
+    <SharedInlineConfirm
+      v-if="confirming"
+      color="primary"
+      :title="t('hrPayroll.runs.confirmTitle', { month: monthLabel })"
+      :description="t('hrPayroll.runs.confirmHint')"
+      :confirm-label="t('hrPayroll.runs.create')"
+      :pending="isPending"
+      @confirm="confirmCreate"
+      @cancel="confirming = false"
+    />
     <SharedFormSection panel :title="t('hrPayroll.runs.formTitle')" :description="t('hrPayroll.runs.formHint')">
       <UFormField :label="t('hrPayroll.runs.month')" name="hr-payroll-month" required :error="monthError">
-        <UInput id="hr-payroll-month" v-model="month" type="month" class="w-full" :disabled="!hydrated || isPending" data-testid="hr-payroll-month" />
+        <UInput id="hr-payroll-month" v-model="month" type="month" class="w-full" :disabled="!hydrated || isPending" @update:model-value="confirming = false" data-testid="hr-payroll-month" />
       </UFormField>
     </SharedFormSection>
     <SharedFormActions>

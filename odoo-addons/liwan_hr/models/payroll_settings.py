@@ -1,8 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, fields, models
 
+SAUDI_STRUCTURE_CODE = 'SA_MONTHLY'
 DEFAULT_REFS = {
-    'structure_id': 'liwan_hr.structure_saudi',
     'unpaid_leave_type_ids': 'hr_holidays.leave_type_unpaid',
     'annual_leave_type_id': 'hr_holidays.leave_type_paid_time_off',
 }
@@ -33,9 +33,13 @@ class LiwanHrPayrollSettings(models.Model):
     _revision_positive = models.Constraint('CHECK(revision > 0)', 'a saved revision must be positive')
 
     @api.model
-    def _liwan_defaults(self):
-        """The default records of the stock references that exist in this database."""
+    def _liwan_defaults(self, company):
+        """The default records of the stock references that exist in this database. The structure is the
+        company's own copy of the shipped one (see ``res.company._liwan_ensure_payroll_structure``)."""
         records = {field: self.env.ref(xmlid, raise_if_not_found=False) for field, xmlid in DEFAULT_REFS.items()}
+        records['structure_id'] = self.env['hr.payroll.structure'].search([
+            ('company_id', '=', company.id), ('code', '=', SAUDI_STRUCTURE_CODE),
+        ], limit=1)
         return {field: record for field, record in records.items() if record}
 
     @api.model
@@ -44,7 +48,7 @@ class LiwanHrPayrollSettings(models.Model):
         stored = self.search([('company_id', '=', company.id)], limit=1)
         if stored:
             return stored
-        return self.new({'company_id': company.id, 'day_divisor': 30, **self._liwan_defaults()})
+        return self.new({'company_id': company.id, 'day_divisor': 30, **self._liwan_defaults(company)})
 
     @api.model
     def _liwan_save(self, company, vals):

@@ -6,6 +6,7 @@ from odoo.exceptions import AccessError, MissingError, UserError, ValidationErro
 from odoo.http import request
 
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
+from odoo.addons.liwan_platform.models.base import MIRROR_CONTEXT
 
 _logger = logging.getLogger(__name__)
 MIN_PASSWORD_LENGTH = 8
@@ -271,6 +272,15 @@ def _reject_foreign_company_payload(kwargs):
         raise MissingError(request.env._("Record does not exist"))
 
 
+def _mirror_sent_texts(payload):
+    """Tell the ORM which texts the caller sent, so a translated field they fill is stored for every language."""
+    if request.httprequest.method in ('GET', 'HEAD', 'OPTIONS'):
+        return
+    texts = tuple(value.strip() for value in payload.values() if isinstance(value, str) and value.strip())
+    if texts:
+        request.update_context(**{MIRROR_CONTEXT: texts})
+
+
 def api_handler(func):
     """Map exceptions raised by an /api/v1 controller to the contract error shape."""
     @functools.wraps(func)
@@ -283,6 +293,7 @@ def api_handler(func):
                 keys = getattr(func, '_liwan_capability_keys', None)
                 scope = ((keys, getattr(func, '_liwan_capability_match', 'all')),) if keys else None
                 _pin_current_company(scope)
+                _mirror_sent_texts(kwargs)
                 _reject_foreign_company_payload(kwargs)
                 request.env['liwan.entitlement.service']._liwan_guard_api()
                 return func(*args, **kwargs)
@@ -332,6 +343,25 @@ def get_record(model, rec_id):
             raise MissingError(request.env._("Record does not exist"))
     record.check_access('read')
     return record
+
+
+def get_visible_record(model, rec_id):
+    """``get_record`` where a record the caller's record rules hide answers not-found, like a missing one.
+
+    ``get_record`` answers 403 for it and so confirms that the id exists; an application whose
+    records can be private (a followers-only project, another person's task) uses this one.
+    A refusal that does not come from the record rules (a missing capability or table access)
+    stays the 403 it was.
+    """
+    try:
+        return get_record(model, rec_id)
+    except AccessError as error:
+        # A search applies the record rules in the caller's own environment, with no elevation:
+        # a record it still finds was refused for another reason.
+        if request.env[model].with_context(active_test=False).search_count([('id', '=', int(rec_id))]):
+            raise
+        _logger.info('api not_found (hidden): %s', error)
+        raise MissingError(request.env._("Record does not exist")) from error
 
 
 # Standard list envelope is {'items': [...], 'total': <int>}. A missing limit

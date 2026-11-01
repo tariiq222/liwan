@@ -136,17 +136,17 @@ class TestProjectSchedule(LiwanPmoCase):
         target = next(item for item in body['tasks'] if item['id'] == task.id)
         self.assertIn(visible.id, target['dependency_ids'])
         self.assertNotIn(hidden.id, target['dependency_ids'])
+        # A project the caller cannot see is not-found, like another company's: 403 would confirm it exists.
         response = self.api('GET', f'/api/v1/projects/{hidden_project.id}/schedule')
-        self.assertEqual(response.status_code, 403, response.text)
+        self.assertEqual(response.status_code, 404, response.text)
         foreign = self.env['project.project'].create({'name': 'Foreign', 'company_id': False})
         response = self.api('GET', f'/api/v1/projects/{foreign.id}/schedule')
-        self.assertEqual(response.status_code, 403, response.text)
+        self.assertEqual(response.status_code, 404, response.text)
         company_b = self.env['res.company'].create({'name': 'Schedule foreign company'})
         foreign_company = self.env['project.project'].create({
             'name': 'Foreign company schedule', 'company_id': company_b.id,
         })
         response = self.api('GET', f'/api/v1/projects/{foreign_company.id}/schedule')
-        # Another company's project is not-found, not forbidden.
         self.assertEqual(response.status_code, 404, response.text)
 
     def test_generic_deadline_write_cannot_invert_existing_schedule(self):

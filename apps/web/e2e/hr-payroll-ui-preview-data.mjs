@@ -217,6 +217,16 @@ export function hrPayrollPreviewData(route, url) {
   if (route === '/api/v1/hr/payroll/eos-cases') return { items: state.eosCases.map(caseItem), total: state.eosCases.length }
   if (route === '/api/v1/hr/payroll/eos-provisions') return state.finance && { items: state.provisions, total: state.provisions.length }
   if (route === '/api/v1/hr/payroll/settings') return state.settings
+  if (route === '/api/v1/hr/payroll/structures') {
+    const structure = state.settings.structure
+    return { items: structure ? [{ id: structure.id, name: structure.name, code: 'SA_MONTHLY' }] : [], total: structure ? 1 : 0 }
+  }
+  if (route === '/api/v1/hr/payroll/banks') {
+    const q = (url.searchParams.get('q') ?? '').trim().toLowerCase()
+    const banks = [{ id: 31, name: 'مصرف الراجحي', bic: 'RJHISARI' }, { id: 32, name: 'البنك الأهلي السعودي', bic: 'NCBKSAJE' }]
+    const items = banks.filter(bank => !q || bank.name.toLowerCase().includes(q) || bank.bic.toLowerCase().includes(q))
+    return { items, total: items.length }
+  }
   if (route === '/api/v1/hr/payroll/branch-strictness') return { scope: 'payroll', enabled: state.strict.payroll }
   if (route === '/api/v1/hr/branch-strictness') return { scope: 'hr', enabled: state.strict.hr }
   if (route === '/api/v1/hr/payroll/gosi-rates') return { items: state.rates, total: state.rates.length }

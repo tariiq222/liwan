@@ -9,6 +9,7 @@
       "id": 1,
       "invoice_date": "2026-10-18",
       "invoice_date_due": "2026-10-18",
+      "payment_term": null,
       "journal": {
         "id": 3,
         "name": "Sales"
@@ -31,6 +32,7 @@
       "id": 4,
       "invoice_date": "2026-09-01",
       "invoice_date_due": "2026-10-19",
+      "payment_term": null,
       "journal": {
         "id": 6,
         "name": "Purchases"

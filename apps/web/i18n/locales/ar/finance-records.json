@@ -230,6 +230,9 @@
         "unarchiveTitle": "استعادة الملف «{name}»؟",
         "unarchiveDescription": "يعود إلى نموذج الأصل."
       }
+    },
+    "errors": {
+      "journal_has_drafts": "في هذه اليومية قيود مسودة. رحّلها أو احذفها قبل أرشفة اليومية."
     }
   }
 }

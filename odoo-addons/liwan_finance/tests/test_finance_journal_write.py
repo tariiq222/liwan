@@ -82,7 +82,10 @@ class TestFinanceJournalWrite(LiwanFinanceWriteCase):
     def test_a_journal_with_draft_entries_cannot_be_archived(self):
         journal = self.env['account.journal'].browse(self.create_journal(name='Misc 2', code='MS2', type='general')['id'])
         self.env['account.move'].create({'move_type': 'entry', 'journal_id': journal.id, 'date': '2026-10-05'})
-        self.assertRefused(self.api('POST', f'{JOURNALS}/{journal.id}/archive'), 422, 'invalid')
+        result = self.api('POST', f'{JOURNALS}/{journal.id}/archive')
+        self.assertRefused(result, 422, 'journal_has_drafts')
+        self.assertEqual(result.json()['details'], {'count': 1})
+        self.assertNotIn('Accounting >', result.text)
         self.assertTrue(journal.active)
 
     def test_another_company_journal_is_not_found(self):

@@ -1,4 +1,4 @@
-import { HrLeaveBellRowSchema, type HrLeaveBellRow } from '@liwan/contracts'
+import { HrLeaveBellRowSchema, HrOnboardingStepBellRowSchema, type HrLeaveBellRow } from '@liwan/contracts'
 
 type Translate = (key: string, named?: Record<string, unknown>) => string
 
@@ -8,17 +8,20 @@ const TITLE_KEYS: Record<HrLeaveBellRow['kind'], string> = {
 }
 
 /**
- * The title of a leave-decision bell row. The server sends the leave's date range; the sentence is worded here,
- * in the UI language. A row that does not match the contract shows its plain title instead of breaking the bell.
+ * The title of an HR bell row. The server sends the leave's date range or the step's summary; the sentence is worded
+ * here, in the UI language. A row that does not match its contract shows its plain title instead of breaking the bell.
  */
 export function hrBellTitle(row: Record<string, unknown>, t: Translate): string {
+  const step = HrOnboardingStepBellRowSchema.safeParse(row)
+  if (step.success) return t('hr.bell.onboardingStep', { step: step.data.title })
   const parsed = HrLeaveBellRowSchema.safeParse(row)
   if (!parsed.success) return typeof row.title === 'string' ? row.title : ''
   return t(TITLE_KEYS[parsed.data.kind], { dates: parsed.data.title })
 }
 
-/** The employee's own leave page of a decision row (the row goes to the requester), or null for a row without one. */
+/** The page a bell row opens: the employee's own leave of a decision row, or their onboarding tasks for a step row. */
 export function hrBellHref(row: Record<string, unknown>): string | null {
+  if (row.kind === 'hr.onboarding_step') return '/account/onboarding'
   return typeof row.leave_id === 'number' ? `/account/leave/${row.leave_id}` : null
 }
 

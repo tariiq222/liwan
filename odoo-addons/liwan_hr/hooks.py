@@ -2,5 +2,7 @@
 
 
 def post_init_hook(env):
-    """Existing Saudi companies get the Sunday to Thursday default schedule once HR is installed."""
-    env['res.company'].with_context(active_test=False).search([])._liwan_ensure_saudi_schedule()
+    """Existing companies get the Sunday to Thursday schedule (Saudi ones) and their payroll structure once HR is installed."""
+    companies = env['res.company'].with_context(active_test=False).search([])
+    companies._liwan_ensure_saudi_schedule()
+    companies._liwan_ensure_payroll_structure()

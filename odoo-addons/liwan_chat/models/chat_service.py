@@ -111,12 +111,18 @@ class LiwanChatService(models.AbstractModel):
         """Load a native chat/group only when the caller is an explicit member."""
         self._liwan_require_chat_access()
         channel = self.env['discuss.channel'].browse(int(channel_id))
-        if not channel.exists() or channel.channel_type not in CHAT_TYPES:
+        if not channel.exists():
             raise MissingError(self.env._('Conversation %(id)s does not exist', id=channel_id))
+        # The access check comes before any field is read: reading one of a channel the caller cannot see
+        # raises Odoo's own refusal, which names the model and the user instead of the documented text.
+        # A channel of another type answers like an unreadable one, so the answer does not tell them apart.
+        not_member = AccessError(self.env._('You are not a member of this conversation.'))
         try:
             channel.check_access('read')
         except AccessError:
-            raise AccessError(self.env._('You are not a member of this conversation.')) from None
+            raise not_member from None
+        if channel.channel_type not in CHAT_TYPES:
+            raise not_member
         member = self._liwan_self_member(channel)
         if not member:
             # Stock group_system can read every channel. LiwanOS still requires membership.
@@ -292,6 +298,28 @@ class LiwanChatService(models.AbstractModel):
         bus = self.env['bus.bus']
         for partner in partners:
             bus._sendone(partner, 'liwan/chat', payload)
+
+    @api.model
+    def _liwan_delete_message(self, channel, message):
+        """Delete a message its author wrote, the way the company chose: clear it to a «deleted» row or remove it for everyone.
+
+        Returns the mode that applied.
+        """
+        mode = self.env['liwan.chat.settings']._liwan_effective()['message_delete_mode']
+        if mode == 'permanent':
+            attachments = message.attachment_ids
+            message.unlink()
+            attachments.unlink()
+            return mode
+        # sudo: mail.message - the caller proved membership and authorship; clearing a message reads its link previews
+        # (`message_link_preview_ids`, base.group_erp_manager only), as the stock thread controller does after its own
+        # author check. The same elevated record drops the message's reactions, whose model is system-only.
+        message = message.sudo()
+        channel._message_update_content(message, body='', attachment_ids=[])
+        message.reaction_ids.unlink()
+        if message.pinned_at:
+            channel.set_message_pin(message.id, False)
+        return mode
 
     @api.model
     def _liwan_mark_read(self, channel, message_id):

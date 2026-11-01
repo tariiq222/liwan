@@ -142,7 +142,9 @@
           "notPayable": "This order cannot be paid now. Reload the page to see its status.",
           "inProgress": "A payment of this order was started a moment ago on another page. Finish it there, or try again in a quarter of an hour."
         }
-      }
+      },
+      "untaxed": "Before tax",
+      "tax": "Tax"
     },
     "orders": {
       "title": "Online orders",
@@ -156,7 +158,17 @@
         "label": "Invoice when paid",
         "hint": "The order's invoice is created and posted as soon as its payment is confirmed. This choice applies to the whole account, not only to the current company."
       },
-      "saved": "The order settings were saved"
+      "saved": "The order settings were saved",
+      "taxMode": {
+        "label": "Tax in the price",
+        "hint": "Whether the price you set already contains the tax (the customer pays that price) or the tax is added on top. The tax shows to the customer as its own line either way. Applies to new orders of the current company.",
+        "included": "Price includes tax",
+        "added": "Tax is added to the price"
+      },
+      "systemAdminLinks": {
+        "label": "Payment links for system administrators",
+        "hint": "Lets a system administrator create payment links for the company invoices even without the capability to read invoices. Off by default; when off the request is refused with a message that names the required capability."
+      }
     },
     "status": {
       "confirming": {
@@ -183,7 +195,8 @@
       "failed": "The payment link could not be created",
       "errors": {
         "notPayable": "This invoice cannot be paid by link. Make sure it is posted and has an amount due.",
-        "noGateway": "Switch a payment gateway to live first."
+        "noGateway": "Switch a payment gateway to live first.",
+        "accessRequired": "Creating a payment link needs the capability to read invoices (finance.invoices.read), or the company setting that lets a system administrator create links."
       }
     }
   }

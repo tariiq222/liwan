@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { PaymentSettingsUpdateSchema, type PaymentSettings } from '@liwan/contracts'
 import { draftOfSettings, isValidExpiry, refusesExpiry, settingsUpdate } from '../paymentSettings'
 
-const SAVED: PaymentSettings = { unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', revision: 3 }
+const SAVED: PaymentSettings = { unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', tax_mode: 'included', system_admin_links: false, revision: 3 }
 
 describe('the orders draft', () => {
   it('starts from the saved settings', () => {
-    expect(draftOfSettings(SAVED)).toEqual({ unpaid_order_expiry_minutes: 60, invoice_when_paid: true })
+    expect(draftOfSettings(SAVED)).toEqual({ unpaid_order_expiry_minutes: 60, invoice_when_paid: true, tax_mode: 'included', system_admin_links: false })
   })
 })
 
@@ -22,17 +22,25 @@ describe('isValidExpiry', () => {
 
 describe('settingsUpdate', () => {
   it('carries the saved revision and only the settings that changed', () => {
-    expect(settingsUpdate(SAVED, { unpaid_order_expiry_minutes: 90, invoice_when_paid: true })).toEqual({ revision: 3, unpaid_order_expiry_minutes: 90 })
-    expect(settingsUpdate(SAVED, { unpaid_order_expiry_minutes: 60, invoice_when_paid: false })).toEqual({ revision: 3, invoice_when_paid: false })
-    expect(settingsUpdate(SAVED, { unpaid_order_expiry_minutes: 15, invoice_when_paid: false })).toEqual({ revision: 3, unpaid_order_expiry_minutes: 15, invoice_when_paid: false })
+    expect(settingsUpdate(SAVED, { unpaid_order_expiry_minutes: 90, invoice_when_paid: true, tax_mode: 'included', system_admin_links: false })).toEqual({ revision: 3, unpaid_order_expiry_minutes: 90 })
+    expect(settingsUpdate(SAVED, { unpaid_order_expiry_minutes: 60, invoice_when_paid: false, tax_mode: 'included', system_admin_links: false })).toEqual({ revision: 3, invoice_when_paid: false })
+    expect(settingsUpdate(SAVED, { unpaid_order_expiry_minutes: 15, invoice_when_paid: false, tax_mode: 'included', system_admin_links: false })).toEqual({ revision: 3, unpaid_order_expiry_minutes: 15, invoice_when_paid: false })
+  })
+
+  it('sends the tax mode only when it changed', () => {
+    expect(settingsUpdate(SAVED, { unpaid_order_expiry_minutes: 60, invoice_when_paid: true, tax_mode: 'added', system_admin_links: false })).toEqual({ revision: 3, tax_mode: 'added' })
+  })
+
+  it('sends the system administrator link switch only when it changed', () => {
+    expect(settingsUpdate(SAVED, { unpaid_order_expiry_minutes: 60, invoice_when_paid: true, tax_mode: 'included', system_admin_links: true })).toEqual({ revision: 3, system_admin_links: true })
   })
 
   it('never sends an empty expiry', () => {
-    expect(settingsUpdate(SAVED, { unpaid_order_expiry_minutes: null, invoice_when_paid: false })).toEqual({ revision: 3, invoice_when_paid: false })
+    expect(settingsUpdate(SAVED, { unpaid_order_expiry_minutes: null, invoice_when_paid: false, tax_mode: 'included', system_admin_links: false })).toEqual({ revision: 3, invoice_when_paid: false })
   })
 
   it('builds a body the contract accepts', () => {
-    expect(PaymentSettingsUpdateSchema.safeParse(settingsUpdate(SAVED, { unpaid_order_expiry_minutes: 90, invoice_when_paid: false })).success).toBe(true)
+    expect(PaymentSettingsUpdateSchema.safeParse(settingsUpdate(SAVED, { unpaid_order_expiry_minutes: 90, invoice_when_paid: false, tax_mode: 'added', system_admin_links: true })).success).toBe(true)
   })
 })
 

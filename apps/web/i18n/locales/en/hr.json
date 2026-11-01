@@ -183,7 +183,8 @@
         "title": "This employee cannot be archived yet",
         "departure_missing": "Record the departure date first.",
         "custody_open": "Equipment is still assigned to this employee. Return it first.",
-        "settlement_missing": "The final settlement is not confirmed. Confirm it in payroll first."
+        "settlement_missing": "The final settlement is not confirmed. Confirm it in payroll first.",
+        "departure_future": "The employee leaves on {date}; archive them on or after that date."
       },
       "archiveVendorReadOnly": "Vendor linked employees cannot be archived here.",
       "edit": "Edit employee",
@@ -400,7 +401,17 @@
       "noEmployee": "No employee profile linked to your account",
       "noEmployeeHint": "Your account needs an employee profile in the current company to use employment services.",
       "balance": "{name}: {days} days remaining",
-      "approvedPayslips": "Approved payslips"
+      "approvedPayslips": "Approved payslips",
+      "onboarding": "Onboarding tasks",
+      "onboardingDesc": "The steps assigned to you in your onboarding",
+      "onboardingEmptyTitle": "No steps are assigned to you",
+      "onboardingEmptyHint": "Your onboarding steps appear here as soon as the onboarding plan is launched.",
+      "onboardingDone": "Mark done",
+      "onboardingColumns": {
+        "summary": "Step",
+        "deadline": "Due"
+      },
+      "openOnboardingSteps": "open steps"
     },
     "leaveSettings": {
       "title": "Leave cancellation policy",
@@ -420,7 +431,12 @@
     },
     "bell": {
       "leaveApproved": "Your leave request ({dates}) was approved",
-      "leaveRefused": "Your leave request ({dates}) was refused"
+      "leaveRefused": "Your leave request ({dates}) was refused",
+      "onboardingStep": "An onboarding step was assigned to you: {step}"
+    },
+    "lifecycleErrors": {
+      "manager_missing": "Set the employee's manager on the employee page first, then try again.",
+      "coach_missing": "Set the employee's coach on the employee page first, then try again."
     }
   }
 }

@@ -179,3 +179,14 @@ export function assetProfilePatch(profile: FinanceAssetProfile, draft: AssetProf
     ...(draft.minAccountId !== (profile.min_value_account?.id ?? null) ? { min_value_account_id: draft.minAccountId } : {}),
   })
 }
+
+/** The refusals an archive can get that this app words itself; any other code shows the server's own text. */
+const ARCHIVE_ERROR_KEYS: Readonly<Record<string, string>> = {
+  journal_has_drafts: 'financeRecords.errors.journal_has_drafts',
+}
+
+/** The locale key of a refused archive, or null when the app has no wording for its code. */
+export function archiveErrorKey(error: unknown): string | null {
+  const code = error && typeof error === 'object' && 'code' in error ? (error as { code: unknown }).code : undefined
+  return typeof code === 'string' && Object.hasOwn(ARCHIVE_ERROR_KEYS, code) ? ARCHIVE_ERROR_KEYS[code]! : null
+}

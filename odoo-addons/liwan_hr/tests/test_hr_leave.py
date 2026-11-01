@@ -215,6 +215,21 @@ class TestHrLeave(LiwanHrCase):
         self.assertEqual((res.status_code, res.json()['field']), (422, 'state'))
         self.assertEqual(self.env['hr.leave'].browse(leave_id).state, 'refuse')
 
+    def test_a_refused_request_cannot_be_cancelled_or_refused_again(self):
+        self._as_staff()
+        leave_id = self._request(days=1).json()['id']
+        self._as_manager()
+        self.api('POST', f'/api/v1/hr/leave/requests/{leave_id}/refuse', json={})
+        again = self.api('POST', f'/api/v1/hr/leave/requests/{leave_id}/refuse', json={})
+        self.assertEqual((again.status_code, again.json()['field']), (422, 'state'))
+        self._as_staff()
+        own = self.api('POST', f'/api/v1/hr/leave/requests/{leave_id}/cancel', json={})
+        self.assertEqual((own.status_code, own.json()['field']), (422, 'state'))
+        self._as_manager()
+        direct = self.api('POST', f'/api/v1/hr/leave/requests/{leave_id}/cancel', json={})
+        self.assertEqual((direct.status_code, direct.json()['field']), (422, 'state'))
+        self.assertEqual(self.env['hr.leave'].browse(leave_id).state, 'refuse')
+
     def test_state_filter_takes_several_states(self):
         self._as_staff()
         pending = self._request(days=1).json()['id']
@@ -421,6 +436,18 @@ class TestHrLeave(LiwanHrCase):
         for path in ('/api/v1/hr/leave/types', '/api/v1/hr/leave/balances', '/api/v1/hr/leave/requests'):
             res = self.api('GET', path)
             self.assertEqual(res.status_code, 200, f'{path}: {res.text}')
+
+    def test_leave_type_names_follow_the_ui_language(self):
+        self.env['res.lang']._activate_lang('ar_001')
+        self.sick.with_context(lang='ar_001').name = 'إجازة مرضية'
+        self._as_manager()
+        names = {}
+        for locale in ('ar', 'en'):
+            response = self.url_open('/api/v1/hr/leave/types', headers={'X-Liwan-Ui-Locale': locale})
+            self.assertEqual(response.status_code, 200, response.text)
+            names[locale] = {item['id']: item['name'] for item in response.json()['items']}
+        self.assertEqual(names['ar'][self.sick.id], 'إجازة مرضية')
+        self.assertNotEqual(names['en'][self.sick.id], 'إجازة مرضية')
 
     def test_types_and_allocation_shapes(self):
         self._as_staff()

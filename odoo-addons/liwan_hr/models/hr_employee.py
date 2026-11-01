@@ -245,7 +245,7 @@ class LiwanHrEmployee(models.Model):
     def _liwan_exit_blockers(self):
         """What keeps these employees from leaving the company, as ``{code, message, details}`` dicts.
 
-        ``departure_missing`` (no departure date), ``custody_open`` (active equipment still assigned) and
+        ``departure_missing`` (no departure date), ``departure_future`` (the date has not come), ``custody_open`` (active equipment still assigned) and
         ``settlement_missing`` (no confirmed final settlement for the current departure). ``details`` names
         the employees (and equipment) concerned. The clearance checklist is deliberately not a blocker.
 
@@ -259,6 +259,16 @@ class LiwanHrEmployee(models.Model):
         if undeparted and self._liwan_exit_feature('hr.offboarding'):
             blockers.append(self._liwan_exit_blocker(
                 'departure_missing', self.env._('Record the departure date of the employee first.'), undeparted,
+            ))
+        today = fields.Date.context_today(self)
+        upcoming = departed.filtered(lambda employee: employee.departure_date > today)
+        if upcoming:
+            # The employee still works until that day: archiving closes the account, so it waits for the date.
+            blockers.append(self._liwan_exit_blocker(
+                'departure_future',
+                self.env._('The employee leaves on %(date)s; archive them on or after that date.',
+                           date=fields.Date.to_string(min(upcoming.mapped('departure_date')))),
+                upcoming, departure_date=fields.Date.to_string(min(upcoming.mapped('departure_date'))),
             ))
         # Explicit ``active``: the archive path searches with ``active_test=False``, which must not turn
         # archived equipment that still names the employee into an open custody.

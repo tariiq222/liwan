@@ -101,7 +101,9 @@ class FinanceAnalyticController(http.Controller):
         values = {'name': parsed['name']}
         if 'parent_id' in parsed:
             values['parent_id'] = _plan_of(parsed['parent_id'], 'parent_id').id
-        return request.make_json_response(dump_analytic_plan(request.env['account.analytic.plan'].create(values)), status=201)
+        plan = request.env['account.analytic.plan'].create(values)
+        request.env['liwan.finance.audit.event']._liwan_log('analytic_plan_created', plan, fields_written=values)
+        return request.make_json_response(dump_analytic_plan(plan), status=201)
 
     @http.route('/api/v1/finance/analytic-plans/<int:plan_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
@@ -113,7 +115,9 @@ class FinanceAnalyticController(http.Controller):
         if not plan.parent_id:
             require_capability('finance.setup.manage')
         require_nonempty(payload)
-        plan.write(parse_plan_patch(payload))
+        values = parse_plan_patch(payload)
+        plan.write(values)
+        request.env['liwan.finance.audit.event']._liwan_log('analytic_plan_changed', plan, fields_written=values)
         return dump_analytic_plan(plan)
 
     @http.route('/api/v1/finance/analytic-accounts', type='json2', auth='user', methods=['GET'], readonly=True)
@@ -145,7 +149,9 @@ class FinanceAnalyticController(http.Controller):
         require_capability('finance.analytic.manage')
         values = _account_values(parse_account_create(payload))
         values['company_id'] = request.env.company.id
-        return request.make_json_response(dump_analytic_account(request.env['account.analytic.account'].create(values)), status=201)
+        account = request.env['account.analytic.account'].create(values)
+        request.env['liwan.finance.audit.event']._liwan_log('analytic_account_created', account, fields_written=values)
+        return request.make_json_response(dump_analytic_account(account), status=201)
 
     @http.route('/api/v1/finance/analytic-accounts/<int:account_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
@@ -162,4 +168,5 @@ class FinanceAnalyticController(http.Controller):
             account.write(values)
         except RedirectWarning:
             raise ApiError(422, 'analytic_account_in_use', 'the account has analytic items in another plan column', field='plan_id') from None
+        request.env['liwan.finance.audit.event']._liwan_log('analytic_account_changed', account, fields_written=values)
         return dump_analytic_account(account)

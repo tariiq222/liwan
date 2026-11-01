@@ -1,8 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo import Command, api, fields, models
-from odoo.exceptions import AccessError, LockError, UserError
+from psycopg2.errors import UniqueViolation
 
-from .access_service import ORDERS_READ, REFUND
+from odoo import Command, api, fields, models
+from odoo.exceptions import AccessError, ConcurrencyError, LockError, UserError
+
+from .access_service import ORDERS_READ, REFUND, SYSTEM_ADMIN
 from .payer_service import STUCK_AFTER, payment_stuck
 
 OPEN_STATES = ('draft', 'sent')
@@ -72,7 +74,58 @@ class LiwanPaymentsService(models.AbstractModel):
             'product_id': product.id,
             'product_uom_qty': quantity,
         })
+        # Whatever the product's taxes are, the order charges as the company decides: its prices contain the tax or have it added.
+        mode = order.env['liwan.payments.settings']._liwan_tax_mode(order.company_id)
+        line.tax_ids = [Command.set(self._liwan_priced_taxes(line.tax_ids, included=mode == 'included').ids)]
         return self.env['sale.order.line'].browse(line.id)
+
+    @api.model
+    def _liwan_priced_taxes(self, taxes, included):
+        """``taxes`` as taxes that are (``included``) or are not included in the price, so the order charges as the company decides.
+
+        Rounding the net price to cents cannot give back the exact gross price, hence a tax set to 'included in price'
+        for a price that contains its tax, and one set to 'excluded' where the tax is added to a price whose product tax
+        is included. The original tax stays as it is for every other document: each tax has one active linked copy per
+        kind (``liwan_copy_of_id``), made on first use and replaced when the tax it copies has changed since (rate,
+        group or repartition lines). A group tax is replaced by the copies of its children, so the price is never taxed
+        twice. A tax that already behaves as asked is kept. ``taxes`` must come from an elevated environment. Two
+        requests that make the first copy together: one fails on the unique index and is retried, finding the copy the
+        other committed.
+        """
+        result = taxes.env['account.tax']
+        for tax in taxes:
+            if tax.amount_type == 'group':
+                result |= self._liwan_priced_taxes(tax.children_tax_ids, included)
+            elif tax.price_include == included:
+                result |= tax
+            else:
+                result |= self._liwan_priced_copy(tax, included)
+        return result
+
+    @api.model
+    def _liwan_priced_copy(self, tax, included):
+        override = 'tax_included' if included else 'tax_excluded'
+        copy = tax.env['account.tax'].search([('liwan_copy_of_id', '=', tax.id), ('price_include_override', '=', override)], limit=1)
+        if copy and self._liwan_tax_signature(copy) == self._liwan_tax_signature(tax):
+            return copy
+        if copy:
+            # Out of date: archived, not edited, because posted documents may use it.
+            copy.active = False
+        name = self.env._("%(name)s (price included)", name=tax.name) if included else self.env._("%(name)s (price excluded)", name=tax.name)
+        try:
+            with self.env.cr.savepoint():
+                return tax.copy({'name': name, 'price_include_override': override, 'liwan_copy_of_id': tax.id})
+        except UniqueViolation as error:
+            raise ConcurrencyError(f'the {override} copy of tax {tax.id} was made by another request') from error
+
+    @staticmethod
+    def _liwan_tax_signature(tax):
+        """What makes two taxes charge the same amounts and report them the same way."""
+        lines = tuple(sorted(
+            (line.document_type, line.repartition_type, line.factor_percent, line.account_id.id, tuple(sorted(line.tag_ids.ids)))
+            for line in tax.repartition_line_ids
+        ))
+        return (tax.amount_type, tax.amount, tax.tax_group_id.id, tax.type_tax_use, tax.tax_scope, tax.include_base_amount, lines)
 
     @api.model
     def _liwan_orders_of(self, lines):
@@ -248,6 +301,31 @@ class LiwanPaymentsService(models.AbstractModel):
             'amount_to_refund': order.liwan_refund_due_amount,
             'expires_at': order.liwan_payment_deadline,
         }
+
+    @api.model
+    def _liwan_system_admin_invoice(self, invoice_id):
+        """The invoice a system administrator makes a pay link for without invoice access, or None.
+
+        Only when the invoice's company allows it (``system_admin_links``, off by default), only for a
+        system administrator of that company and only for an invoice of the companies the session is in; the record is
+        returned elevated so the caller can read what the link needs. An invoice that does not
+        exist there is an empty record.
+        """
+        access = self.env['liwan.access.service']
+        # The capability first: the settings row is readable by settings managers only, and any other caller is refused here.
+        if not access._liwan_has_capability(self.env.user, SYSTEM_ADMIN):
+            return None
+        invoice = self.env['account.move'].sudo().search([
+            ('id', '=', invoice_id), ('company_id', 'in', self.env.companies.ids),
+        ], limit=1)
+        # The invoice's own company decides, not the company the session happens to be in.
+        company = invoice.company_id
+        if invoice and not (
+            access._liwan_has_capability(self.env.user, SYSTEM_ADMIN, company=company)
+            and self.env['liwan.payments.settings']._liwan_system_admin_links(company)
+        ):
+            return None
+        return invoice
 
     @api.model
     def _liwan_payment_path(self, document):

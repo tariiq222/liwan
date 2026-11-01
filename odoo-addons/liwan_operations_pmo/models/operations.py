@@ -54,7 +54,7 @@ class OperationsPmoRequest(models.Model):
         if not reviewer or final.reviewer_ids != reviewer:
             raise ValidationError(self.env._('The final stage must use the designated PMO completion reviewer.'))
         if not task.liwan_completion_pending:
-            task._liwan_request_completion()
+            task.with_context(liwan_skip_completion_notice=True)._liwan_request_completion()
         elif task.liwan_completion_requested_by != self.env.user:
             raise AccessError(self.env._('Only the original completion requester can submit this operation.'))
         self._ops_write({'target_ref': {'id': task.id, 'revision': task.liwan_completion_revision}})
@@ -68,7 +68,7 @@ class OperationsPmoRequest(models.Model):
         task = self._operations_task(target.get('id'))
         # The native method locks and rechecks revision, current designated
         # reviewer and original PMO capability, in this caller's real identity.
-        task._liwan_accept_completion(target.get('revision'))
+        task.with_context(liwan_skip_completion_notice=True)._liwan_accept_completion(target.get('revision'))
         return True
 
     def _operations_target(self):

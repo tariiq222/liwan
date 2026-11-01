@@ -11,6 +11,8 @@ export interface InvoiceLineDraft {
   /** The taxes the line already has when it was loaded; null for a new line (the account's default taxes apply). */
   taxIds: number[] | null
   accountId: number | null
+  /** The asset profile a vendor-bill line capitalises into; kept as loaded so an edit never drops it. */
+  assetProfileId: number | null
   noTax: boolean
 }
 
@@ -18,6 +20,7 @@ export interface InvoiceFormDraft {
   partnerId: number | null
   invoiceDate: string | null
   invoiceDateDue: string | null
+  paymentTermId: number | null
   ref: string
   lines: InvoiceLineDraft[]
 }
@@ -27,11 +30,11 @@ export type InvoiceFormErrors = { partner: boolean; dueBeforeDate: boolean; line
 
 let nextKey = 1
 export function newLine(): InvoiceLineDraft {
-  return { key: nextKey++, name: '', quantity: '1', priceUnit: '', discount: '0', taxIds: null, accountId: null, noTax: false }
+  return { key: nextKey++, name: '', quantity: '1', priceUnit: '', discount: '0', taxIds: null, accountId: null, assetProfileId: null, noTax: false }
 }
 
 export function emptyInvoiceDraft(): InvoiceFormDraft {
-  return { partnerId: null, invoiceDate: null, invoiceDateDue: null, ref: '', lines: [newLine()] }
+  return { partnerId: null, invoiceDate: null, invoiceDateDue: null, paymentTermId: null, ref: '', lines: [newLine()] }
 }
 
 function lineFromRecord(line: FinanceInvoiceLine): InvoiceLineDraft {
@@ -43,6 +46,7 @@ function lineFromRecord(line: FinanceInvoiceLine): InvoiceLineDraft {
     discount: String(line.discount),
     taxIds: line.taxes.map(tax => tax.id),
     accountId: line.account?.id ?? null,
+    assetProfileId: line.asset_profile?.id ?? null,
     noTax: line.taxes.length === 0,
   }
 }
@@ -53,6 +57,7 @@ export function invoiceDraftFromRecord(invoice: FinanceInvoiceDetail): InvoiceFo
     partnerId: invoice.partner?.id ?? null,
     invoiceDate: invoice.invoice_date,
     invoiceDateDue: invoice.invoice_date_due,
+    paymentTermId: invoice.payment_term?.id ?? null,
     ref: invoice.ref,
     lines: invoice.lines.length ? invoice.lines.map(lineFromRecord) : [newLine()],
   }
@@ -75,7 +80,8 @@ function lineProblems(line: InvoiceLineDraft): Partial<Record<InvoiceLineField, 
 export function validateInvoiceDraft(draft: InvoiceFormDraft): InvoiceFormErrors {
   return {
     partner: !draft.partnerId,
-    dueBeforeDate: !!draft.invoiceDate && !!draft.invoiceDateDue && draft.invoiceDateDue < draft.invoiceDate,
+    // With a payment term the server derives the due date, so a stale typed one is neither sent nor validated.
+    dueBeforeDate: !draft.paymentTermId && !!draft.invoiceDate && !!draft.invoiceDateDue && draft.invoiceDateDue < draft.invoiceDate,
     lines: draft.lines.map(lineProblems),
   }
 }
@@ -94,6 +100,7 @@ export function buildLinePayload(line: InvoiceLineDraft): FinanceInvoiceLineInpu
     discount: decimal(line.discount),
     ...(taxIds ? { tax_ids: taxIds } : {}),
     ...(line.accountId ? { account_id: line.accountId } : {}),
+    ...(line.assetProfileId ? { asset_profile_id: line.assetProfileId } : {}),
   }
 }
 
@@ -101,7 +108,9 @@ function headerPayload(draft: InvoiceFormDraft) {
   return {
     partner_id: draft.partnerId!,
     invoice_date: draft.invoiceDate,
-    invoice_date_due: draft.invoiceDateDue,
+    // With a payment term the server derives the due date from the invoice date; a typed date is sent only without one.
+    ...(draft.paymentTermId ? {} : { invoice_date_due: draft.invoiceDateDue }),
+    payment_term_id: draft.paymentTermId,
     ref: draft.ref.trim(),
     lines: draft.lines.map(buildLinePayload),
   }

@@ -25,9 +25,9 @@ export async function onRenewalPaid(client: PoolClient, order_id: string) {
     WHERE r.order_id=$1 AND o.payment_state IN ('paid','not_required') AND NOT o.cancelled FOR UPDATE OF r`, [order_id])).rows[0]
   if (!renewal || renewal.status === 'paid') return
   await client.query("UPDATE renewals SET status='paid' WHERE id=$1", [renewal.id])
-  // Fulfillment receipt, not payment, advances the applied subscription period.
+  // Fulfillment receipt, not payment, advances the applied subscription period. A suspension the vendor ordered stays until the vendor resumes.
   await client.query(`UPDATE subscriptions SET state='active',grace_ends_at=NULL,revision=revision+1
-    WHERE id=$1 AND state IN ('active','past_due','suspended') AND (state<>'active' OR grace_ends_at IS NOT NULL)`, [renewal.subscription_id])
+    WHERE id=$1 AND state IN ('active','past_due','suspended') AND (state<>'active' OR grace_ends_at IS NOT NULL) AND NOT manual_suspension`, [renewal.subscription_id])
 }
 
 /**

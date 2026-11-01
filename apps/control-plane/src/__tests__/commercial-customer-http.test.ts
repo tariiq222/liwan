@@ -132,6 +132,17 @@ suite('signed customer commercial HTTP boundary on PostgreSQL', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({order_id:order,payment_state:'awaiting_payment',fulfillment_state:'not_started'})
   })
+  it('resolves a prospect payment return from the attempt alone when the public web signs it for tenant "public"',async()=>{
+    const order=await awaitingOrder()
+    const created=await (await call(`/v1/customer/orders/${order}/payment-attempts`,{body:{idempotency_key:randomUUID()},capabilities:['subscription.manage']})).json() as {id:string}
+    const returned=await paymentReturn(created.id,{tenantId:'public'})
+    expect(returned.response.status).toBe(200)
+    expect(await returned.response.json()).toEqual({order_id:order,payment_state:'awaiting_payment',fulfillment_state:'not_started'})
+    expect((await paymentReturn(randomUUID(),{tenantId:'public'})).response.status).toBe(404)
+    expect((await paymentReturn('not-a-uuid',{tenantId:'public'})).response.status).toBe(404)
+    // The public signature binds the sentinel too: it cannot be replayed as a tenant return.
+    expect((await paymentReturn(created.id,{tenantId:'public',headerTenant:tenant})).response.status).toBe(401)
+  })
   it('refuses a payment return signed with the vendor key, a replayed nonce, or a principal signature',async()=>{
     const order=await awaitingOrder()
     const created=await (await call(`/v1/customer/orders/${order}/payment-attempts`,{body:{idempotency_key:randomUUID()},capabilities:['subscription.manage']})).json() as {id:string}

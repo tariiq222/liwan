@@ -18,7 +18,8 @@ export const branchQuoteRequestSchema = z.strictObject({
   subscription_id: z.string().min(1), expected_subscription_revision: z.number().int().min(0),
   add: z.array(z.strictObject({ name: z.string().trim().min(1).max(200) })).max(100),
   archive: z.array(z.uuid()).max(100),
-}).refine(r => r.add.length + r.archive.length > 0, { path: ['add'], message: 'Nothing requested' })
+  restore: z.array(z.uuid()).max(100).default([]),
+}).refine(r => r.add.length + r.archive.length + r.restore.length > 0, { path: ['add'], message: 'Nothing requested' })
 
 export type Branch = z.infer<typeof branchSchema>
 export type BranchSummary = z.infer<typeof branchSummarySchema>

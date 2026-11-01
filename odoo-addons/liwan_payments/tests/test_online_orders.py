@@ -15,7 +15,7 @@ from odoo.addons.liwan_payments.models.order_service import (
     NotPayable,
 )
 
-ORDER_KEYS = {'id', 'merchant', 'number', 'expires_at', 'currency', 'amount_total', 'amount_due', 'status', 'options'}
+ORDER_KEYS = {'id', 'merchant', 'number', 'expires_at', 'currency', 'amount_untaxed', 'amount_tax', 'amount_total', 'amount_due', 'status', 'options'}
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -108,7 +108,8 @@ class TestOnlineOrders(LiwanOrderCase):
         order = self.online_order()
         order.liwan_payment_deadline = fields.Datetime.now() - timedelta(minutes=1)
         body = self.summary(order).json()
-        self.assertEqual((body['status'], body['options']), ('not_payable', []))
+        self.assertEqual((body['status'], body['options'], body['amount_due']), ('not_payable', [], 0.0))
+        self.assertEqual(body['amount_total'], 115.0)
         refused = self.start(order)
         self.assertEqual((refused.status_code, refused.json()['code']), (409, 'not_payable'))
         fresh = self.online_order()
@@ -260,3 +261,107 @@ class TestOnlineOrderMoney(LiwanOrderCase):
         for order in (staff_order, paid):
             with self.subTest(order=order.name), self.assertRaises(UserError):
                 service._liwan_add_line(order, self.service)
+
+
+@tagged('post_install', '-at_install', 'liwan')
+class TestOnlineOrderTaxMode(LiwanOrderCase):
+    """The company decides whether the price of a product contains its tax (the default) or has it added (issue #288)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.vat = cls.env['account.tax'].create({
+            'name': 'Order VAT 15%', 'amount': 15.0, 'amount_type': 'percent', 'type_tax_use': 'sale',
+            'company_id': cls.env.company.id,
+        })
+        cls.service.taxes_id = [Command.set(cls.vat.ids)]
+
+    def set_mode(self, mode):
+        self.env['liwan.payments.settings'].search([('company_id', '=', self.env.company.id)]).unlink()
+        self.env['liwan.payments.settings'].create({'company_id': self.env.company.id, 'tax_mode': mode})
+
+    def payable(self, order):
+        response = self.api('GET', f'/api/v1/public/payments/orders/{order.id}?access_token={order._portal_ensure_token()}')
+        self.assertEqual(response.status_code, 200, response.text)
+        return response.json()
+
+    def test_the_default_is_a_price_that_contains_its_tax_and_the_tax_is_a_line(self):
+        order = self.online_order()
+        self.assertEqual((order.amount_total, order.amount_untaxed, order.amount_tax), (115.0, 100.0, 15.0))
+        body = self.payable(order)
+        self.assertEqual((body['amount_total'], body['amount_untaxed'], body['amount_tax'], body['amount_due']), (115.0, 100.0, 15.0, 115.0))
+
+    def test_an_odd_price_is_charged_to_the_cent(self):
+        self.service.list_price = 150.0
+        self.customer.property_product_pricelist.item_ids.fixed_price = 150.0
+        order = self.online_order()
+        self.assertEqual(order.amount_total, 150.0)
+        self.assertEqual(order.amount_untaxed + order.amount_tax, 150.0)
+
+    def test_a_tax_added_company_charges_the_price_plus_the_tax(self):
+        self.set_mode('added')
+        order = self.online_order()
+        self.assertEqual((order.amount_total, order.amount_untaxed, order.amount_tax), (132.25, 115.0, 17.25))
+        body = self.payable(order)
+        self.assertEqual((body['amount_total'], body['amount_tax'], body['amount_due']), (132.25, 17.25, 132.25))
+
+    def test_the_price_included_twin_is_made_once_and_the_original_tax_is_untouched(self):
+        self.online_order()
+        self.online_order()
+        twins = self.env['account.tax'].with_context(active_test=False).search([
+            ('company_id', '=', self.env.company.id), ('type_tax_use', '=', 'sale'), ('amount', '=', 15.0),
+            ('price_include_override', '=', 'tax_included'),
+        ])
+        self.assertEqual(len(twins), 1)
+        self.assertFalse(self.vat.price_include)
+        self.assertEqual(self.service.taxes_id, self.vat)
+
+    def test_a_changed_tax_gets_a_new_included_copy_and_the_old_one_is_archived(self):
+        self.online_order()
+        first = self.env['account.tax'].search([('liwan_copy_of_id', '=', self.vat.id)])
+        self.assertEqual(len(first), 1)
+        self.vat.amount = 10.0
+        order = self.online_order()
+        second = self.env['account.tax'].search([('liwan_copy_of_id', '=', self.vat.id)])
+        self.assertEqual((len(second), second.amount, first.active), (1, 10.0, False))
+        self.assertEqual(order.amount_total, 115.0)
+
+    def test_a_price_included_product_tax_is_added_on_top_when_the_company_adds_tax(self):
+        included = self.env['account.tax'].create({
+            'name': 'Order VAT included 15%', 'amount': 15.0, 'amount_type': 'percent', 'type_tax_use': 'sale',
+            'company_id': self.env.company.id, 'price_include_override': 'tax_included',
+        })
+        self.service.taxes_id = [Command.set(included.ids)]
+        self.set_mode('added')
+        order = self.online_order()
+        self.assertEqual((order.amount_untaxed, order.amount_tax, order.amount_total), (115.0, 17.25, 132.25))
+        copies = self.env['account.tax'].search([('liwan_copy_of_id', '=', included.id)])
+        self.assertEqual((len(copies), copies.price_include_override), (1, 'tax_excluded'))
+        # The original tax is what every other document keeps using.
+        self.assertTrue(included.price_include)
+        self.assertEqual(self.service.taxes_id, included)
+        self.set_mode('included')
+        self.assertEqual(self.online_order().amount_total, 115.0)
+
+    def test_a_group_tax_is_charged_through_its_children_inside_the_price(self):
+        other = self.env['account.tax'].create({
+            'name': 'Order second 5%', 'amount': 5.0, 'amount_type': 'percent', 'type_tax_use': 'sale', 'company_id': self.env.company.id,
+        })
+        group = self.env['account.tax'].create({
+            'name': 'Order group', 'amount_type': 'group', 'type_tax_use': 'sale', 'company_id': self.env.company.id,
+            'children_tax_ids': [Command.set((self.vat | other).ids)],
+        })
+        self.service.taxes_id = [Command.set(group.ids)]
+        order = self.online_order()
+        self.assertEqual(order.amount_total, 115.0)
+        self.assertEqual(order.order_line.tax_ids.mapped('amount_type'), ['percent', 'percent'])
+        self.assertTrue(all(tax.price_include for tax in order.order_line.tax_ids))
+
+    def test_the_setting_is_read_and_changed_through_the_api(self):
+        self.login_admin()
+        self.assertEqual(self.api('GET', '/api/v1/payments/settings').json()['tax_mode'], 'included')
+        changed = self.api('PATCH', '/api/v1/payments/settings', json={'revision': 0, 'tax_mode': 'added'})
+        self.assertEqual((changed.status_code, changed.json()['tax_mode']), (200, 'added'))
+        self.assertEqual(self.env['liwan.payments.settings']._liwan_tax_mode(self.env.company), 'added')
+        refused = self.api('PATCH', '/api/v1/payments/settings', json={'revision': 1, 'tax_mode': 'maybe'})
+        self.assertEqual((refused.status_code, refused.json()['field']), (422, 'tax_mode'))

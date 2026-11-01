@@ -2,6 +2,7 @@ import type { H3Event } from 'h3'
 import { getProxyRequestHeaders } from 'h3'
 import { legacyTenantResponse, tenantTransport } from './tenantTransport'
 import { tenantUpstreamHeaders } from './tenantRequest'
+import { withUiLocale } from './uiLocale'
 
 /**
  * The one public namespace of the Odoo API: every route under it is `auth='public'`, answers
@@ -22,7 +23,7 @@ export function isPublicApiPath(apiPath: string): boolean {
 export async function forwardPublicApi(event: H3Event, odooUrl: string, path: string, options: { method: string; body?: Buffer }): Promise<Response> {
   const response = Object.keys(tenantUpstreamHeaders(event)).length
     ? await tenantTransport(event, odooUrl, path, { method: options.method, body: options.body, headers: { cookie: '' } })
-    : await legacyTenantResponse(event, odooUrl, path, { method: options.method, body: options.body, headers: withoutCookie(getProxyRequestHeaders(event, { host: false })) })
+    : await legacyTenantResponse(event, odooUrl, path, { method: options.method, body: options.body, headers: withUiLocale(event, withoutCookie(getProxyRequestHeaders(event, { host: false }))) })
   response.headers.delete('set-cookie')
   return response
 }

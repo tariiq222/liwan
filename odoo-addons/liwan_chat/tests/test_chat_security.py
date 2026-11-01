@@ -52,6 +52,16 @@ class TestChatSecurity(LiwanApiCase):
         self.assertEqual(self.api('GET', path).status_code, 403)
         self.assertEqual(self.api('GET', f'{path}/messages').status_code, 403)
         self.assertEqual(self.api('POST', f'{path}/messages', {'body': 'nope'}).status_code, 403)
+        # CHT-9, CHT-72, CHT-117: every route answers the documented sentence, never Odoo's text naming the model and the user.
+        for method, suffix, body in (
+            ('GET', '', None), ('GET', '/messages', None), ('POST', '/messages', {'body': 'nope'}),
+            ('GET', '/members', None), ('GET', '/attachments', None), ('POST', '/read', {}),
+        ):
+            refused = self.api(method, path + suffix, body)
+            self.assertEqual(
+                (refused.status_code, refused.json()['code'], refused.json()['message']),
+                (403, 'forbidden', 'You are not a member of this conversation.'), f'{method} {suffix}',
+            )
         self.authenticate('sec_admin', 'sec_admin_pass_123')
         denied = self.api('GET', path)
         self.assertEqual(denied.status_code, 403)
@@ -162,7 +172,7 @@ class TestChatSecurity(LiwanApiCase):
         sent = self.api('POST', f'/api/v1/chat/conversations/{channel.id}/messages', {'body': 'first'})
         self.assertEqual(sent.status_code, 201, sent.text)
 
-    def test_managed_author_empties_own_message_and_others_cannot_edit(self):
+    def test_managed_author_deletes_own_message_and_others_cannot_edit_or_delete(self):
         channel = self.env['discuss.channel'].with_user(self.employee)._get_or_create_chat(
             [self.managed_empty.partner_id.id],
         )
@@ -172,12 +182,13 @@ class TestChatSecurity(LiwanApiCase):
         self.assertEqual(message.status_code, 201, message.text)
         message_id = message.json()['id']
         self.authenticate('api_emp', 'api_emp_pass_123')
-        foreign = self.api('PATCH', f'{path}/{message_id}', {'body': 'hijacked'})
-        self.assertEqual(foreign.status_code, 403)
+        self.assertEqual(self.api('PATCH', f'{path}/{message_id}', {'body': 'hijacked'}).status_code, 403)
+        self.assertEqual(self.api('DELETE', f'{path}/{message_id}').status_code, 403)
         self.authenticate('sec_managed_empty', 'sec_managed_empty_pass_123')
-        emptied = self.api('PATCH', f'{path}/{message_id}', {'body': ''})
-        self.assertEqual(emptied.status_code, 200, emptied.text)
-        self.assertEqual(emptied.json()['body'], '')
+        # A message with a link preview is the case that needs the documented elevation: clearing it reads the previews.
+        deleted = self.api('DELETE', f'{path}/{message_id}')
+        self.assertEqual(deleted.status_code, 200, deleted.text)
+        self.assertEqual((deleted.json()['mode'], deleted.json()['message']['body'], deleted.json()['message']['deleted']), ('placeholder', '', True))
 
     def test_member_cannot_read_channel_after_switching_company(self):
         conversation = self._direct()

@@ -14,6 +14,8 @@ class LiwanMailMessage(models.Model):
         ('comment', 'Comment'),
         ('mention', 'Mention'),
         ('deadline', 'Deadline'),
+        ('completion_requested', 'Completion requested'),
+        ('completion_accepted', 'Completion accepted'),
         ('overdue_digest', 'Overdue digest'),
         ('charter_review', 'Charter review'),
         ('charter_approved', 'Charter approved'),

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="permission_chat_settings_manage" model="liwan.access.permission">
+        <field name="key">chat.settings.manage</field><field name="domain">chat</field>
+        <field name="resource">settings</field><field name="action">manage</field>
+        <field name="name_ar">إدارة إعدادات المحادثات</field><field name="name_en">Manage chat settings</field>
+        <field name="description_ar">قراءة إعدادات المحادثات للشركة الحالية وتغييرها، ومنها ما يحدث عند حذف رسالة</field><field name="description_en">Read and change the chat settings of the current company, including what deleting a message does</field>
+        <field name="group_xmlid">liwan_chat.group_cap_chat_settings_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
+    </record>
+    <!-- Built-in roles are noupdate records: this hook links this addon's grants on install and on every upgrade. -->
+    <function model="liwan.access.service" name="_liwan_repair_builtin_role_grants"/>
+</odoo>

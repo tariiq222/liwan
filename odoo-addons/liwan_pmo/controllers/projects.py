@@ -3,10 +3,10 @@ from odoo import http
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.http import request
 
+from .records import get_visible_record
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
-    get_record,
     parse_nonneg_int,
     require_capabilities,
     requires_feature,
@@ -125,7 +125,7 @@ class ProjectController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='write')
     def copy_project(self, project_id, **payload):
-        source = get_record('project.project', project_id)
+        source = get_visible_record('project.project', project_id)
         name, start_date, end_date = parse_project_copy(payload)
         try:
             result = source._liwan_copy_structure(name, start_date, end_date=end_date, serialize=dump_project_detail)
@@ -142,7 +142,7 @@ class ProjectController(http.Controller):
     @requires_feature('pmo.enabled', operation='read')
     def get_project(self, project_id):
         require_capabilities('pmo.projects.read')
-        return dump_project_detail(get_record('project.project', project_id))
+        return dump_project_detail(get_visible_record('project.project', project_id))
 
     @http.route('/api/v1/projects/<int:project_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
@@ -153,7 +153,7 @@ class ProjectController(http.Controller):
         expected = payload.pop('expected_updated_at', _ABSENT)
         if not payload and charter is _ABSENT:
             raise ApiError(422, 'invalid', "no fields to update")
-        project = get_record('project.project', project_id)
+        project = get_visible_record('project.project', project_id)
         if charter is not _ABSENT and expected is _ABSENT:
             raise ApiError(422, 'invalid', "expected_updated_at is required when charter is present", field='expected_updated_at')
         if expected is not _ABSENT:
@@ -179,17 +179,14 @@ class ProjectController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='write')
     def archive_project(self, project_id, **_):
-        project = get_record('project.project', project_id)
+        project = get_visible_record('project.project', project_id)
         return dump_project_detail(project._liwan_archive())
 
     @http.route('/api/v1/projects/<int:project_id>/unarchive', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('pmo.enabled', operation='write')
     def unarchive_project(self, project_id, **_):
-        project = request.env['project.project'].with_context(active_test=False).browse(int(project_id)).exists()
-        if not project:
-            raise ApiError(404, 'not_found', "project not found")
-        project.check_access('read')
+        project = get_visible_record('project.project', project_id, archived_write=True)
         return dump_project_detail(project._liwan_unarchive())
 
     @http.route('/api/v1/projects/<int:project_id>/status', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -198,7 +195,7 @@ class ProjectController(http.Controller):
     def set_status(self, project_id, status=None, **_):
         if not isinstance(status, str) or status not in STATUS_VALUES:
             raise ApiError(422, 'invalid_status', f"status must be one of {sorted(STATUS_VALUES)}", field='status')
-        project = get_record('project.project', project_id)
+        project = get_visible_record('project.project', project_id)
         try:
             project._liwan_set_status(status)
         except AccessError as e:

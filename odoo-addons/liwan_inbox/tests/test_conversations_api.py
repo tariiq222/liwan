@@ -8,8 +8,8 @@ from .common import MESSAGE_KEYS, TEMPLATE_KEYS, LiwanInboxCase
 from odoo.addons.liwan_api.tests.common import set_probe_feature
 
 CONVERSATION_KEYS = {
-    'id', 'contact', 'channel', 'department', 'assignee', 'state', 'priority', 'tags', 'last_message_at',
-    'last_message_preview', 'unread', 'reply_window_ends_at', 'csat',
+    'id', 'contact', 'channel', 'department', 'assignee', 'state', 'priority', 'tags', 'revision', 'last_message_at',
+    'last_message_preview', 'last_message_kind', 'unread', 'reply_window_ends_at', 'csat',
 }
 
 
@@ -84,20 +84,75 @@ class TestConversationsApi(LiwanInboxCase):
     def test_patch_by_capability(self):
         tag = self.env['liwan.inbox.tag'].create({'name': 'VIP'})
         self.login(self.agent)
-        result = self.api('PATCH', self.path(), {'state': 'pending', 'priority': 'high', 'tag_ids': [tag.id]})
+        result = self.patch_conversation(self.conversation, {'state': 'pending', 'priority': 'high', 'tag_ids': [tag.id]})
         self.assertEqual(result.status_code, 200, result.text)
         self.assertEqual((result.json()['state'], result.json()['priority']), ('pending', 'high'))
         self.assertEqual(result.json()['tags'], [{'id': tag.id, 'name': 'VIP'}])
-        self.assertError(self.api('PATCH', self.path(), {'assignee_id': self.agent.id}), 403, 'forbidden')
-        self.assertError(self.api('PATCH', self.path(), {'state': 'nope'}), 422, 'invalid')
-        self.assertError(self.api('PATCH', self.path(), {'tag_ids': [999999]}), 422, 'invalid')
-        self.assertError(self.api('PATCH', self.path(), {'bogus': 1}), 422, 'invalid')
-        self.assertError(self.api('PATCH', self.path(), {}), 422, 'invalid')
+        self.assertError(self.patch_conversation(self.conversation, {'assignee_id': self.agent.id}), 403, 'forbidden')
+        self.assertError(self.patch_conversation(self.conversation, {'state': 'nope'}), 422, 'invalid')
+        self.assertError(self.patch_conversation(self.conversation, {'tag_ids': [999999]}), 422, 'invalid')
+        self.assertError(self.patch_conversation(self.conversation, {'bogus': 1}), 422, 'invalid')
+        self.assertError(self.patch_conversation(self.conversation, {}), 422, 'invalid')
+
+    def test_a_patch_names_the_revision_it_was_made_from(self):
+        """INB-114: the second editor is told the conversation changed, and the first edit stays."""
+        self.login(self.supervisor)
+        first = self.conversation.revision
+        self.assertEqual(self.patch_conversation(self.conversation, {'priority': 'high'}).json()['revision'], first + 1)
+        stale = self.patch_conversation(self.conversation, {'priority': 'low'}, revision=first)
+        self.assertError(stale, 409, 'stale_write')
+        self.assertEqual((stale.json()['field'], stale.json()['details']), ('revision', {'reason': 'inbox_conversation_stale'}))
+        self.assertEqual(self.reload(self.conversation).priority, 'high')
+        self.assertError(self.api('PATCH', self.path(), {'priority': 'low'}), 422, 'invalid')
+        self.assertError(self.patch_conversation(self.conversation, {'priority': 'low'}, revision='1'), 422, 'invalid')
+        self.assertError(self.patch_conversation(self.conversation, {'priority': 'low'}, revision=0), 422, 'invalid')
+
+    def test_every_change_of_an_edited_field_is_a_revision_and_nothing_else_is(self):
+        before = self.conversation.revision
+        self.conversation.unread = False
+        self.assertEqual(self.reload(self.conversation).revision, before)
+        self.conversation.write({'state': 'pending'})
+        self.assertEqual(self.reload(self.conversation).revision, before + 1)
+        self.conversation.write({'state': 'pending', 'tag_ids': [(6, 0, [])]})
+        self.assertEqual(self.reload(self.conversation).revision, before + 1, 'the same values are not a new revision')
+        self.conversation.write({'assignee_id': self.agent.id})
+        self.assertEqual(self.reload(self.conversation).revision, before + 2)
+
+    def test_priority_filter(self):
+        urgent = self.make_conversation(priority='urgent')
+        self.login(self.agent)
+        ids = {row['id'] for row in self.get('/api/v1/inbox/conversations?priority=urgent').json()['items']}
+        self.assertIn(urgent.id, ids)
+        self.assertNotIn(self.conversation.id, ids)
+        self.assertError(self.get('/api/v1/inbox/conversations?priority=critical'), 422, 'invalid')
+
+    def test_reopening_beside_a_newer_open_conversation_is_a_clear_refusal(self):
+        """INB-113: the one-open-conversation-per-customer rule answers with a code the page maps, not SQL text."""
+        closed = self.make_conversation(state='closed')
+        self.env['liwan.inbox.conversation'].create({
+            'channel_id': closed.channel_id.id, 'contact_id': closed.contact_id.id, 'identity_id': closed.identity_id.id,
+            'company_id': closed.company_id.id, 'state': 'open',
+        })
+        self.login(self.supervisor)
+        refused = self.patch_conversation(closed, {'state': 'open'})
+        self.assertError(refused, 422, 'invalid')
+        self.assertEqual((refused.json()['field'], refused.json()['details']), ('state', {'reason': 'inbox_customer_has_open_conversation'}))
+        self.assertEqual(self.reload(closed).state, 'closed')
+
+    def test_a_file_without_a_caption_has_no_preview_text_and_names_its_kind(self):
+        message = self.conversation.message_ids[0]
+        message.write({'kind': 'image', 'body': '[image]'})
+        self.login(self.agent)
+        item = next(row for row in self.get('/api/v1/inbox/conversations').json()['items'] if row['id'] == self.conversation.id)
+        self.assertEqual((item['last_message_preview'], item['last_message_kind']), (None, 'image'))
+        message.write({'body': 'the scan'})
+        item = next(row for row in self.get('/api/v1/inbox/conversations').json()['items'] if row['id'] == self.conversation.id)
+        self.assertEqual((item['last_message_preview'], item['last_message_kind']), ('the scan', 'image'))
 
     def test_assignment_needs_an_agent_and_sends_one_bell_row(self):
         self.login(self.supervisor)
-        self.assertError(self.api('PATCH', self.path(), {'assignee_id': self.outsider.id}), 422, 'invalid')
-        result = self.api('PATCH', self.path(), {'assignee_id': self.agent.id, 'department_id': self.department.id})
+        self.assertError(self.patch_conversation(self.conversation, {'assignee_id': self.outsider.id}), 422, 'invalid')
+        result = self.patch_conversation(self.conversation, {'assignee_id': self.agent.id, 'department_id': self.department.id})
         self.assertEqual(result.status_code, 200, result.text)
         self.assertEqual(result.json()['assignee']['id'], self.agent.id)
         self.assertEqual(result.json()['department']['id'], self.department.id)
@@ -109,9 +164,9 @@ class TestConversationsApi(LiwanInboxCase):
         rows = self.get('/api/v1/notifications').json()['items']
         self.assertEqual([r['conversation_id'] for r in rows if r['kind'] == 'inbox.assigned'], [self.conversation.id])
         self.login(self.supervisor)
-        self.api('PATCH', self.path(), {'assignee_id': self.supervisor.id})
+        self.patch_conversation(self.conversation, {'assignee_id': self.supervisor.id})
         self.assertEqual(self.env['mail.message'].search_count([('liwan_notification_kind', '=', 'inbox.assigned')]), 1)
-        self.assertError(self.api('PATCH', self.path(), {'department_id': 999999}), 422, 'invalid')
+        self.assertError(self.patch_conversation(self.conversation, {'department_id': 999999}), 422, 'invalid')
 
     def test_messages_are_chronological_and_paged_from_the_newest(self):
         for index in range(3):
@@ -168,7 +223,7 @@ class TestConversationsApi(LiwanInboxCase):
         self.login(self.outsider)
         self.assertError(self.api('POST', self.path('/messages'), {'body': 'x'}), 403, 'forbidden')
         self.assertError(self.api('POST', self.path('/notes'), {'body': 'x'}), 403, 'forbidden')
-        self.assertError(self.api('PATCH', self.path(), {'state': 'pending'}), 403, 'forbidden')
+        self.assertError(self.patch_conversation(self.conversation, {'state': 'pending'}), 403, 'forbidden')
 
     def test_closed_conversation_refuses_a_reply(self):
         closed = self.make_conversation(state='closed')

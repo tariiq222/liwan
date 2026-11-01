@@ -197,7 +197,7 @@ describe('formatPayDateTime', () => {
 })
 
 describe('payDeadline', () => {
-  const shared = { id: 2, merchant: 'M', number: 'N/1', currency: 'SAR', amount_total: 10, amount_due: 10, status: 'payable' as const, options: [] }
+  const shared = { id: 2, merchant: 'M', number: 'N/1', currency: 'SAR', amount_untaxed: 8.7, amount_tax: 1.3, amount_total: 10, amount_due: 10, status: 'payable' as const, options: [] }
   const invoice: PayableInvoice = { ...shared, due_date: '2026-10-31' }
   const order: PayableOrder = { ...shared, expires_at: '2026-10-31T12:30:00Z' }
 

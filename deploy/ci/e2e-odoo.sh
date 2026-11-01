@@ -18,10 +18,16 @@ mkdir -p "$SCRATCH_ROOT/data" "$SCRATCH_ROOT/logs"
 FIXTURE_DIR="$ROOT/.superpowers/real-odoo"
 mkdir -p "$FIXTURE_DIR"
 cleanup() {
+  # Stop the servers first (Nuxt, then Odoo) so no connection holds the scratch database, then drop it.
   for pid in "${WEB_PID:-}" "${ODOO_PID:-}"; do
-    if [ -n "$pid" ]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi
+    if [ -n "$pid" ]; then
+      kill "$pid" 2>/dev/null || true
+      for _ in $(seq 1 20); do kill -0 "$pid" 2>/dev/null || break; sleep 0.5; done
+      kill -9 "$pid" 2>/dev/null || true
+      wait "$pid" 2>/dev/null || true
+    fi
   done
-  dropdb -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" --if-exists "$SCRATCH_DB" 2>/dev/null || true
+  dropdb -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" --if-exists --force "$SCRATCH_DB" 2>/dev/null || true
   rm -rf "$SCRATCH_ROOT"; rm -f "$FIXTURE_DIR/fixtures.json"
 }
 trap cleanup EXIT

@@ -17,6 +17,9 @@ access_finance_audit_payments_manage_event,finance audit payments manage: liwan.
 access_finance_audit_invoices_manage_event,finance audit invoices manage: liwan.finance.audit.event,model_liwan_finance_audit_event,group_cap_finance_invoices_manage,0,0,1,0
 access_finance_audit_entries_manage_event,finance audit entries manage: liwan.finance.audit.event,model_liwan_finance_audit_event,group_cap_finance_entries_manage,0,0,1,0
 access_finance_audit_bank_manage_event,finance audit bank manage: liwan.finance.audit.event,model_liwan_finance_audit_event,group_cap_finance_bank_manage,0,0,1,0
+access_finance_audit_budgets_manage_event,finance audit budgets manage: liwan.finance.audit.event,model_liwan_finance_audit_event,group_cap_finance_budgets_manage,0,0,1,0
+access_finance_audit_analytic_manage_event,finance audit analytic manage: liwan.finance.audit.event,model_liwan_finance_audit_event,group_cap_finance_analytic_manage,0,0,1,0
+access_finance_audit_partners_manage_event,finance audit partners manage: liwan.finance.audit.event,model_liwan_finance_audit_event,group_cap_finance_partners_manage,0,0,1,0
 access_finance_assets_manage_asset_remove,finance assets manage: account.asset.remove,account_asset_management.model_account_asset_remove,group_cap_finance_assets_manage,1,1,1,1
 access_finance_audit_assets_manage_event,finance audit assets manage: liwan.finance.audit.event,model_liwan_finance_audit_event,group_cap_finance_assets_manage,0,0,1,0
 access_finance_idempotency_invoices,finance idempotency invoices: liwan.finance.idempotency,model_liwan_finance_idempotency,group_cap_finance_invoices_manage,1,1,1,1

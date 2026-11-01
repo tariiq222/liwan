@@ -13,6 +13,8 @@ export const FinanceInvoiceLineInputSchema = z.object({
   tax_ids: z.array(id).optional(),
   account_id: id.optional(),
   analytic_distribution: FinanceAnalyticDistributionInputSchema.optional(),
+  // Vendor bills only: posting the bill creates a draft asset on this profile.
+  asset_profile_id: id.optional(),
 }).strict()
 
 // A body that carries `lines` replaces every line of the draft; one without keeps them.
@@ -26,6 +28,8 @@ export const FinanceInvoiceCreateSchema = z.object({
   lines,
   invoice_date: day.nullable().optional(),
   invoice_date_due: day.nullable().optional(),
+  /** Derives the due date from the invoice date unless `invoice_date_due` is also sent; null clears the term. */
+  payment_term_id: id.nullable().optional(),
   currency: z.string().min(1).optional(),
   ref: text.optional(),
 }).strict()
@@ -55,6 +59,15 @@ export const FinancePaymentStandaloneSchema = z.object({
   memo: text.optional(),
 }).strict()
 
+/** Money moved between two bank or cash journals through the company's transfer account. */
+export const FinancePaymentTransferSchema = z.object({
+  from_journal_id: id,
+  to_journal_id: id,
+  amount: money.positive(),
+  payment_date: day,
+  memo: text.optional(),
+}).strict()
+
 /** Only a draft payment is edited (for example after a reset to draft). */
 export const FinancePaymentPatchSchema = FinancePaymentStandaloneSchema.omit({ payment_type: true, partner_type: true, partner_id: true }).partial().strict()
   .refine(requirePatchField, PATCH_MESSAGE)
@@ -69,6 +82,7 @@ export type FinanceInvoiceLineInput = z.infer<typeof FinanceInvoiceLineInputSche
 export type FinanceInvoiceCreate = z.infer<typeof FinanceInvoiceCreateSchema>
 export type FinanceInvoicePatch = z.infer<typeof FinanceInvoicePatchSchema>
 export type FinancePaymentRegister = z.infer<typeof FinancePaymentRegisterSchema>
+export type FinancePaymentTransfer = z.infer<typeof FinancePaymentTransferSchema>
 export type FinancePaymentStandalone = z.infer<typeof FinancePaymentStandaloneSchema>
 export type FinancePaymentPatch = z.infer<typeof FinancePaymentPatchSchema>
 export type FinancePaymentAllocate = z.infer<typeof FinancePaymentAllocateSchema>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { financeOverviewTiles } from '../financeKpis'
+import { agedOwed, financeOverviewTiles } from '../financeKpis'
 import { financeSetupProgress, financeSetupSteps } from '../financeSetupSteps'
 
 const t = (key: string) => key
@@ -35,3 +35,21 @@ describe('finance setup steps', () => {
   })
 })
 
+
+describe('what is owed', () => {
+  const row = (name: string | null, total: number) => ({ partner: name ? { id: 1, name } : null, total })
+  const report = (kind: 'receivable' | 'payable', partners: ReturnType<typeof row>[]) =>
+    ({ kind, currency: 'SAR', accounts: [{ partners }] }) as unknown as Parameters<typeof agedOwed>[0]
+
+  it('shows vendor balances as a positive amount and leaves out rows without a partner', () => {
+    expect(agedOwed(report('payable', [row('Gulf Supplies', -460), row(null, 30223.33)]))).toEqual({ total: 460, currency: 'SAR' })
+  })
+
+  it('keeps the sign of what customers owe', () => {
+    expect(agedOwed(report('receivable', [row('Al Noor', 750), row('Riyadh', 345)]))).toEqual({ total: 1095, currency: 'SAR' })
+  })
+
+  it('is zero, not minus zero, when nothing is open', () => {
+    expect(Object.is(agedOwed(report('payable', [])).total, 0)).toBe(true)
+  })
+})

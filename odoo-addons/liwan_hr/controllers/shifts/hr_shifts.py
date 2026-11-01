@@ -55,7 +55,7 @@ def _timezones():
     return dict(calendar._fields['tz']._description_selection(calendar.env))
 
 
-def _attendance_lines(calendars):
+def attendance_lines(calendars):
     """The work-time lines of these schedules, keyed by schedule id, in the engine's own order.
 
     The lines are read explicitly with the contract's fields: hr_work_entry guards
@@ -75,7 +75,7 @@ def _attendance_lines(calendars):
 
 def _schedule_body(schedule):
     """One schedule and the work-time lines the contract publishes for it."""
-    return dump_schedule(schedule, _attendance_lines(schedule).get(schedule.id, ()))
+    return dump_schedule(schedule, attendance_lines(schedule).get(schedule.id, ()))
 
 
 def _missing(model, record_id):
@@ -94,7 +94,7 @@ def _current_schedule(schedule_id):
     return schedule
 
 
-def _assignable_schedule(schedule_id):
+def assignable_schedule(schedule_id):
     """The schedule an assignment points at: current-company and not auto-generated."""
     schedule = request.env['resource.calendar'].search([
         ('id', '=', schedule_id),
@@ -108,7 +108,7 @@ def _assignable_schedule(schedule_id):
     return schedule
 
 
-def _current_employee(employee_id):
+def current_employee(employee_id):
     """The employee an assignment points at: current-company and active."""
     employee = request.env['hr.employee'].search([
         ('id', '=', employee_id),
@@ -134,7 +134,7 @@ def _current_assignment(assignment_id):
     return row
 
 
-def _own_employee():
+def own_employee():
     employee = request.env.user.employee_ids.filtered(
         lambda record: record.company_id == request.env.company,
     )[:1]
@@ -143,7 +143,7 @@ def _own_employee():
     return employee
 
 
-def _reject_self_assignment(employee):
+def reject_self_assignment(employee):
     """Self-decision: nobody plans their own shifts."""
     if employee in request.env.user.employee_ids:
         raise ApiError(403, 'forbidden', 'an assignment of the caller cannot be planned by the caller')
@@ -209,7 +209,7 @@ class HrShiftController(http.Controller):
             domain.append(('active', '=', active))
         total = schedules.search_count(domain)
         records = schedules.search(domain, limit=limit, offset=offset, order='name, id')
-        lines = _attendance_lines(records)
+        lines = attendance_lines(records)
         return {
             'items': [dump_schedule(record, lines.get(record.id, ())) for record in records],
             'total': total,
@@ -282,9 +282,9 @@ class HrShiftController(http.Controller):
     @requires_capability('hr.shifts.manage')
     def create_assignment(self, **payload):
         vals = parse_assignment_create(payload, today=fields.Date.context_today(request.env.user))
-        employee = _current_employee(vals['employee_id'])
-        schedule = _assignable_schedule(vals['schedule_id'])
-        _reject_self_assignment(employee)
+        employee = current_employee(vals['employee_id'])
+        schedule = assignable_schedule(vals['schedule_id'])
+        reject_self_assignment(employee)
         # A refused period leaves the cut rows as they were.
         with request.env.cr.savepoint():
             _make_room_for(employee, vals['date_start'], vals['date_end'])
@@ -310,10 +310,10 @@ class HrShiftController(http.Controller):
     @requires_capability('hr.shifts.manage')
     def update_assignment(self, assignment_id, **payload):
         row = _current_assignment(assignment_id)
-        _reject_self_assignment(row.employee_id)
+        reject_self_assignment(row.employee_id)
         vals = parse_assignment_patch(payload, row)
         if 'calendar_id' in vals:
-            vals['calendar_id'] = _assignable_schedule(vals['calendar_id']).id
+            vals['calendar_id'] = assignable_schedule(vals['calendar_id']).id
         _reject_overlap(
             row.employee_id, vals.get('date_start', row.date_start), vals.get('date_end', row.date_end), exclude=row,
         )
@@ -326,7 +326,7 @@ class HrShiftController(http.Controller):
     @requires_capability('hr.shifts.manage')
     def delete_assignment(self, assignment_id, **_):
         row = _current_assignment(assignment_id)
-        _reject_self_assignment(row.employee_id)
+        reject_self_assignment(row.employee_id)
         row.unlink()
         return {'id': int(assignment_id)}
 
@@ -336,7 +336,7 @@ class HrShiftController(http.Controller):
     @requires_capability('hr.employees.read')
     def my_assignments(self, **_):
         """The caller's own planning rows in the current company."""
-        employee = _own_employee()
+        employee = own_employee()
         limit, offset = parse_page(request.httprequest.args)
         domain = [
             ('company_id', '=', request.env.company.id),

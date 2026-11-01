@@ -38,8 +38,8 @@ function seed() {
     { id: 4, name: 'خالد الشمري', phone: '+966500000004', email: null },
   ]
   const conversation = (id, contact, rest) => ({
-    id, contact, channel: { id: 1, name: channels[0].name, kind: 'whatsapp' }, department: null, assignee: null, state: 'open', priority: 'normal', tags: [],
-    last_message_at: null, last_message_preview: null, unread: false, reply_window_ends_at: null, csat: null, ...rest,
+    id, contact, channel: { id: 1, name: channels[0].name, kind: 'whatsapp' }, department: null, assignee: null, state: 'open', priority: 'normal', tags: [], revision: 1,
+    last_message_at: null, last_message_preview: null, last_message_kind: null, unread: false, reply_window_ends_at: null, csat: null, ...rest,
   })
   const conversations = [
     conversation(1, contacts[0], { assignee: ME, department: { id: 1, name: 'الاستقبال' }, tags: [tags[1]], unread: true, reply_window_ends_at: iso(Date.now() + 20 * HOUR) }),
@@ -176,7 +176,8 @@ function seed() {
   for (const c of conversations) {
     const last = messages[c.id].at(-1)
     c.last_message_at = last.created_at
-    c.last_message_preview = last.body.slice(0, 140)
+    c.last_message_preview = last.body.slice(0, 140) || null
+    c.last_message_kind = last.kind
   }
   const sample = { id: 7, name: 'عينة-العيادة.jpg', mimetype: 'image/jpeg', size: 90000 }
   const template = (id, name, rest) => ({
@@ -274,11 +275,13 @@ function conversationList(url) {
   const assignee = url.searchParams.get('assignee')
   const wanted = {
     state: url.searchParams.get('state'),
+    priority: url.searchParams.get('priority'),
     department: Number(url.searchParams.get('department_id')) || null,
     csat: url.searchParams.get('csat'),
   }
   const items = state.conversations
     .filter(c => !wanted.state || c.state === wanted.state)
+    .filter(c => !wanted.priority || c.priority === wanted.priority)
     .filter(c => !wanted.department || c.department?.id === wanted.department)
     .filter(c => !wanted.csat || c.csat?.score === wanted.csat)
     .filter(c => !assignee || (assignee === 'me' ? c.assignee?.id === ME.id : assignee === 'unassigned' ? !c.assignee : c.assignee?.id === Number(assignee)))
@@ -288,6 +291,7 @@ function conversationList(url) {
 }
 
 function patchConversation(conv, body) {
+  if (body.revision !== conv.revision) return fail(409, 'stale_write', 'المحادثة تغيّرت، حدّث الصفحة قبل الحفظ', 'revision')
   if ('assignee_id' in body) {
     if (body.assignee_id === null) conv.assignee = null
     else {
@@ -303,6 +307,7 @@ function patchConversation(conv, body) {
   if (body.state) conv.state = body.state
   if (body.priority) conv.priority = body.priority
   if (body.tag_ids) conv.tags = state.tags.filter(tag => body.tag_ids.includes(tag.id))
+  conv.revision += 1
   return ok(detail(conv))
 }
 
@@ -314,7 +319,8 @@ function appendMessage(conv, fields) {
   state.messages[conv.id].push(created)
   if (created.direction === 'out') {
     conv.last_message_at = created.created_at
-    conv.last_message_preview = (created.body || created.kind).slice(0, 140)
+    conv.last_message_preview = created.body.slice(0, 140) || null
+    conv.last_message_kind = created.kind
     state.statuses.set(created.id, Date.now())
   }
   return created
@@ -324,7 +330,8 @@ function appendMessage(conv, fields) {
 function appendInbound(conv, fields) {
   const created = appendMessage(conv, { direction: 'in', author: null, delivery_state: 'received', ...fields })
   conv.last_message_at = created.created_at
-  conv.last_message_preview = (created.body || created.kind).slice(0, 140)
+  conv.last_message_preview = created.body.slice(0, 140) || null
+  conv.last_message_kind = created.kind
   conv.unread = true
   conv.reply_window_ends_at = iso(Date.now() + 24 * HOUR)
   return created
@@ -957,6 +964,7 @@ function answerFlow(body) {
   state.submissions.push(submission)
   conv.last_message_at = created.created_at
   conv.last_message_preview = flow.name
+  conv.last_message_kind = created.kind
   return { status: 201, body: created }
 }
 

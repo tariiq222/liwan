@@ -53,6 +53,28 @@ class TestPayrollCompensation(PayrollCase):
     def _login(self, user):
         self.authenticate(user.login, f'{user.login}_pass_123')
 
+    def test_the_bank_picker_lists_and_searches_the_banks(self):
+        self._login(self.reader)
+        listed = self.api('GET', '/api/v1/hr/payroll/banks')
+        self.assertEqual(listed.status_code, 200, listed.text)
+        body = listed.json()
+        self.assertEqual(set(body), {'items', 'total'})
+        rajhi = self.env.ref('liwan_hr.bank_rajhi')
+        row = next(item for item in body['items'] if item['id'] == rajhi.id)
+        self.assertEqual(row, {'id': rajhi.id, 'name': rajhi.name, 'bic': 'RJHISARI'})
+        found = self.api('GET', '/api/v1/hr/payroll/banks?q=RJHI').json()
+        self.assertEqual([item['id'] for item in found['items']], [rajhi.id])
+        self.assertEqual(self.api('GET', '/api/v1/hr/payroll/banks?q=no-such-bank').json(), {'items': [], 'total': 0})
+        self._login(self.hr_manager)
+        self.assertEqual(self.api('GET', '/api/v1/hr/payroll/banks').status_code, 403)
+
+    def test_a_picked_bank_is_saved_with_the_compensation(self):
+        self._login(self.manager)
+        rajhi = self.env.ref('liwan_hr.bank_rajhi')
+        res = self._put({**PUT_BODY, 'bank_id': rajhi.id})
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertEqual(res.json()['bank'], {'id': rajhi.id, 'name': rajhi.name})
+
     def _get(self, employee=None):
         return self.api('GET', f'/api/v1/hr/payroll/compensation/{(employee or self.target).id}')
 

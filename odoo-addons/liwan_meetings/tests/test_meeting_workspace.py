@@ -145,7 +145,7 @@ class TestMeetingWorkspace(LiwanMeetingsCase):
         meeting = self._meeting()
         self.authenticate('meeting_workspace_outsider', 'meeting_workspace_outsider_pass')
         response = self.api('GET', f'/api/v1/meetings/{meeting.id}/events')
-        self.assertEqual(response.status_code, 403, response.text)
+        self.assertEqual(response.status_code, 404, response.text)
         self.assertFalse(self.env['liwan.meeting.event'].with_user(self.outsider).search([('meeting_id', '=', meeting.id)]))
         meeting.write({'state': 'confirmed'})
         meeting.write({'state': 'done'})

@@ -151,7 +151,7 @@ class TestFinanceStandalonePayments(LiwanFinanceWriteCase):
         self.api('PATCH', f'{PAYMENTS}/{payment["id"]}', json={'amount': 120})
         self.api('POST', f'{PAYMENTS}/{payment["id"]}/post')
         actions = self.env['liwan.finance.audit.event'].search([('res_model', '=', 'account.payment'), ('res_id', '=', payment['id'])]).mapped('action')
-        self.assertEqual(set(actions), {'payment_created', 'payment_changed', 'payment_posted'})
+        self.assertEqual(set(actions), {'payment_created', 'payment_changed', 'payment_posted', 'payment_cancelled', 'payment_reset_to_draft'})
         self.user_with('payments_reader', ['finance.payments.read'])
         self.authenticate('payments_reader', PASSWORD)
         body = {'payment_type': 'inbound', 'partner_id': self.partner.id, 'amount': 10, 'payment_date': '2026-10-19', 'journal_id': self.bank.id}

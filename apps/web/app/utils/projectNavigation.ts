@@ -1,6 +1,7 @@
 import { owningListBack, recordEntryOrigin } from './recordListOrigin'
 import type { LocationQuery } from 'vue-router'
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
+import type { PageHeaderTag } from '@liwan/ui/app/utils/pageHeaderTag'
 
 /** Recover the list origin even after opening a nested project form. */
 export function projectListReturnTo(query: Record<string, unknown>): string {
@@ -26,4 +27,9 @@ export function projectRecordBack(query: LocationQuery, currentId: number | null
     if (origin) return origin
   }
   return owningListBack(query, origins, hash)
+}
+
+/** The «archived» tag of the project header: an archived project is read-only, and its readers are told so. */
+export function archivedTags(project: { active: boolean }, t: (key: string) => string): PageHeaderTag[] {
+  return project.active ? [] : [{ label: t('projects.archivedBadge'), tone: 'neutral', testId: 'project-workspace-archived' }]
 }

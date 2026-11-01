@@ -47,6 +47,8 @@
       "scopeUnassigned": "غير مسندة",
       "state": "الحالة",
       "anyState": "كل الحالات",
+      "priority": "الأولوية",
+      "anyPriority": "كل الأولويات",
       "department": "القسم",
       "anyDepartment": "كل الأقسام",
       "empty": "لا توجد محادثات بعد",
@@ -2117,6 +2119,8 @@
       "inbox_template_name_taken": "يوجد قالب بهذا الاسم واللغة في هذه القناة.",
       "inbox_phone_number_taken": "معرّف رقم الهاتف هذا مربوط بقناة أخرى.",
       "inbox_conversation_closed": "المحادثة مغلقة. أعد فتحها أولًا.",
+      "inbox_conversation_stale": "فيه تعديل أحدث على هذه المحادثة، حدّث الصفحة.",
+      "inbox_customer_has_open_conversation": "للعميل محادثة مفتوحة أخرى على هذه القناة. أغلقها أولًا ثم أعد فتح هذه.",
       "inbox_channel_disabled": "القناة معطّلة.",
       "inbox_window_closed": "انتهت نافذة الرد (24 ساعة). أرسل قالبًا معتمدًا.",
       "inbox_channel_has_conversations": "لا يمكن حذف قناة فيها محادثات. عطّلها بدل ذلك."

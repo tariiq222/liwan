@@ -1,6 +1,7 @@
 import { boundedTenantJson, tenantTransport, withTenantBody, withUpstreamSlot } from '../../utils/tenantTransport'
 import { tenantRequest } from '../../utils/tenantRequest'
 import { authUpstreamHeaders } from '../../utils/authUpstreamHeaders'
+import { uiLocaleHeaders } from '../../utils/uiLocale'
 
 // Credential JSON is small; 64KiB leaves generous room for long credentials and encoding.
 const MAX_LOGIN_BODY = 64 * 1024
@@ -18,7 +19,7 @@ export default defineEventHandler(async (event) => {
     const send = tenant || process.env.LIWAN_RELEASE_ROUTES_DIR ? (options: { method: string; headers: Record<string, string>; body: string }) => tenantTransport(event, odooUrl, '/web/session/authenticate', options) : (options: RequestInit) => withUpstreamSlot(signal => fetch(`${odooUrl}/web/session/authenticate`, { ...options, signal }), event)
     const upstream = await send({
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authUpstreamHeaders(event, authProxyClientIpHeader) },
+      headers: { 'Content-Type': 'application/json', ...uiLocaleHeaders(event), ...authUpstreamHeaders(event, authProxyClientIpHeader) },
       body: JSON.stringify({ jsonrpc: '2.0', method: 'call', params: { db: tenant?.database ?? odooDb, login, password } }),
     })
     const body = await upstream.json() as { result?: { uid?: number | null }; error?: { data?: { name?: unknown } } }

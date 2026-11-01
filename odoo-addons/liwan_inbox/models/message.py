@@ -6,7 +6,12 @@ from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
 from .abstract_interactive import COMMERCE_TYPES
-from .constants import MESSAGES_OUT_LIMIT, OUTBOX_CRON, REPLY_PREVIEW_LENGTH
+from .constants import (
+    MESSAGE_KINDS,
+    MESSAGES_OUT_LIMIT,
+    OUTBOX_CRON,
+    REPLY_PREVIEW_LENGTH,
+)
 from .template import APPROVED, HEADER_TYPES, MEDIA_HEADERS, PLACEHOLDER
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_inbox.adapters import media_rules
@@ -16,12 +21,6 @@ from odoo.addons.liwan_inbox.adapters.whatsapp import MEDIA_KINDS
 # and any other status (deleted, warning, ...) is ignored.
 STATE_RANK = {'queued': 0, 'sent': 1, 'delivered': 2, 'read': 3}
 ERROR_TEXT_LENGTH = 200
-KINDS = [
-    ('text', 'Text'), ('image', 'Image'), ('video', 'Video'), ('audio', 'Audio'), ('document', 'Document'),
-    ('sticker', 'Sticker'), ('location', 'Location'), ('contacts', 'Contacts'), ('interactive', 'Interactive'),
-    ('template', 'Template'), ('flow_response', 'Form answer'), ('product', 'Product'), ('product_list', 'Product list'),
-    ('catalog_message', 'Catalog'), ('order', 'Order'), ('unsupported', 'Unsupported'),
-]
 
 
 INVALID = 'invalid'
@@ -39,7 +38,7 @@ class LiwanInboxMessage(models.Model):
                                  default=lambda self: self.env.company)
     conversation_id = fields.Many2one('liwan.inbox.conversation', required=True, index=True, ondelete='cascade')
     direction = fields.Selection([('in', 'Inbound'), ('out', 'Outbound'), ('note', 'Internal note')], required=True)
-    kind = fields.Selection(KINDS, required=True, default='text')
+    kind = fields.Selection(MESSAGE_KINDS, required=True, default='text')
     # For an outbound file, a caption or, without one, the placeholder `[<kind>]` (see _liwan_caption).
     body = fields.Text(required=True)
     date = fields.Datetime(required=True, default=fields.Datetime.now, index=True)

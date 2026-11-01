@@ -21,10 +21,16 @@ from odoo.addons.liwan_finance.serializers.partner import (
 PARTNER_KINDS = {'customer': 'customer_rank', 'vendor': 'supplier_rank'}
 
 
+def tenant_company_partner_ids():
+    """The partners of every company of the database, whichever of them the caller belongs to (ids only)."""
+    return request.env['res.company'].sudo().with_context(active_test=False).search([]).partner_id.ids
+
+
 def company_partners_domain(company=None):
     """The customers and vendors of the pinned companies.
 
-    Odoo partners that are system records stay out: users, the company's own partners and
+    Odoo partners that are system records stay out: users, the partners of every company of the
+    tenant (also the ones the caller does not belong to, such as the parent of a branch) and
     employee work contacts. They belong to access, settings and HR, not to Finance.
     ``employee`` is the stored flag hr adds to res.partner; it only exists when hr is installed,
     which Finance does not depend on.
@@ -34,8 +40,7 @@ def company_partners_domain(company=None):
         # a branch session only its own, and the shared (company-less) ones.
         '|', ('company_id', '=', False), ('company_id', 'in', request.env.companies.ids),
         ('user_ids', '=', False),
-        # Not the raw membership list: the company partners themselves stay out.
-        ('id', 'not in', request.env.companies.partner_id.ids),
+        ('id', 'not in', tenant_company_partner_ids()),
     ]
     if company is not None:
         domain += request.env['res.partner']._check_company_domain(company)
@@ -44,7 +49,7 @@ def company_partners_domain(company=None):
     return domain
 
 
-def _find_partner(partner_id):
+def find_partner(partner_id):
     partner = request.env['res.partner'].with_context(active_test=False).search(
         [('id', '=', partner_id), *company_partners_domain()], limit=1,
     )
@@ -124,7 +129,7 @@ class FinancePartnerController(http.Controller):
     @requires_feature('finance.enabled', operation='read')
     def get_partner(self, partner_id):
         require_capability('finance.partners.read')
-        return dump_partner(_find_partner(partner_id))
+        return dump_partner(find_partner(partner_id))
 
     @http.route('/api/v1/finance/partners', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -133,6 +138,7 @@ class FinancePartnerController(http.Controller):
         require_capability('finance.partners.manage')
         values = _partner_values(parse_partner_create(payload))
         partner = request.env['res.partner'].create(values)
+        request.env['liwan.finance.audit.event']._liwan_log('partner_created', partner, fields_written=values)
         return request.make_json_response(dump_partner(partner), status=201)
 
     @http.route('/api/v1/finance/partners/<int:partner_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
@@ -140,9 +146,11 @@ class FinancePartnerController(http.Controller):
     @requires_feature('finance.enabled', operation='write')
     def patch_partner(self, partner_id, **payload):
         require_capability('finance.partners.manage')
-        partner = _find_partner(partner_id)
+        partner = find_partner(partner_id)
         require_nonempty(payload)
-        partner.write(_partner_values(parse_partner_patch(payload), partner))
+        values = _partner_values(parse_partner_patch(payload), partner)
+        partner.write(values)
+        request.env['liwan.finance.audit.event']._liwan_log('partner_changed', partner, fields_written=values)
         return dump_partner(partner)
 
     @http.route('/api/v1/finance/partners/<int:partner_id>/archive', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -150,8 +158,9 @@ class FinancePartnerController(http.Controller):
     @requires_feature('finance.enabled', operation='write')
     def archive_partner(self, partner_id, **_):
         require_capability('finance.partners.manage')
-        partner = _find_partner(partner_id)
+        partner = find_partner(partner_id)
         partner.action_archive()
+        request.env['liwan.finance.audit.event']._liwan_log('partner_archived', partner)
         return dump_partner(partner)
 
     @http.route('/api/v1/finance/partners/<int:partner_id>/unarchive', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -159,6 +168,7 @@ class FinancePartnerController(http.Controller):
     @requires_feature('finance.enabled', operation='write')
     def unarchive_partner(self, partner_id, **_):
         require_capability('finance.partners.manage')
-        partner = _find_partner(partner_id)
+        partner = find_partner(partner_id)
         partner.action_unarchive()
+        request.env['liwan.finance.audit.event']._liwan_log('partner_unarchived', partner)
         return dump_partner(partner)

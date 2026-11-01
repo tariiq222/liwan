@@ -63,6 +63,16 @@ class TestSessionOdooSurface(HttpCase):
         )
         self.assertEqual(by_session.status_code, 404)
 
+    def test_an_unmatched_api_path_answers_the_json_404_never_html(self):
+        self.authenticate('surface_emp', 'surface_emp_pass_123')
+        for path in ('/api/v1/people/abc', '/api/v1/no-such-area/7'):
+            with self.subTest(path=path):
+                response = self.url_open(path)
+                self.assertEqual(response.status_code, 404)
+                self.assertEqual(response.headers['Content-Type'].split(';')[0], 'application/json')
+                self.assertEqual(response.json()['code'], 'not_found')
+        self.assertNotIn('json', self.url_open('/web/nothing-here').headers['Content-Type'])
+
     def test_system_admin_session_is_closed_too(self):
         self.authenticate('surface_admin', 'surface_admin_pass_123')
         for path in ('/odoo', '/odoo/action-1', '/web', '/web/webclient/load_menus', '/doc/index.json'):

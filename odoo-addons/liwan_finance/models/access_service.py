@@ -77,6 +77,21 @@ class LiwanFinanceAccessService(models.AbstractModel):
         return {**super()._liwan_branch_strict_definitions(), 'finance': ('finance.', ())}
 
     @api.model
+    def _liwan_model_company_ids(self, model_name, operation):
+        """A branch shares the chart of accounts of its ancestors: their accounts are inside the fence of its users.
+
+        The core fence admits a record whose ``company_ids`` meets the companies the user holds a capability in, so
+        the chart the branch shares (owned by its root company) was hidden from the branch's own finance staff, with
+        native ``parent_of`` rules and domains all agreeing it should be visible. Only reading the accounts is widened:
+        a branch uses its parent's chart and never changes it, and entries, journals and taxes belong to one company.
+        """
+        companies = super()._liwan_model_company_ids(model_name, operation)
+        if model_name != 'account.account' or operation != 'read' or not companies:
+            return companies
+        ancestors = {int(part) for company in self.env['res.company'].browse(companies) for part in company.parent_path.split('/') if part}
+        return sorted(ancestors | set(companies))
+
+    @api.model
     def _liwan_capability_definitions(self):
         return super()._liwan_capability_definitions() + tuple(
             {'key': key, 'owner': 'liwan_finance'} for key in sorted(FINANCE_PERMISSIONS)

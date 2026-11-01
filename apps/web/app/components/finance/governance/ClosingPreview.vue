@@ -16,7 +16,9 @@ const canClose = computed(() => can('finance.closing.manage') && can('finance.se
 const query = useFinanceClosingPreview(() => props.year)
 const preview = computed(() => query.data.value)
 const blockers = computed(() => preview.value?.blockers ?? [])
-const showAction = computed(() => canClose.value && !!preview.value && blockers.value.length === 0)
+// The action stays in view while something blocks the close: its button is disabled and says why, instead of vanishing.
+const showAction = computed(() => canClose.value && !!preview.value)
+const blocked = computed(() => blockers.value.length > 0)
 
 const confirming = ref(false)
 const failure = ref<unknown>(null)
@@ -24,7 +26,7 @@ const { mutateAsync: closeYear, isPending: closing } = useCloseFiscalYear()
 watch(() => props.year, () => { confirming.value = false; failure.value = null })
 const failureMessage = computed(() => failure.value ? closingErrorMessage(failure.value, t) : '')
 async function confirmClose() {
-  if (!hydrated.value || closing.value || !canClose.value) return
+  if (!hydrated.value || closing.value || !canClose.value || blocked.value) return
   try {
     await closeYear(props.year)
     await router.replace({ path: CLOSING_PATH, hash: CLOSING_HASH })
@@ -61,7 +63,6 @@ const resultClass = computed(() => (preview.value?.result ?? 0) < 0 ? 'text-erro
           <ul class="grid gap-1.5">
             <li v-for="blocker in blockers" :key="blocker.code">
               <span class="block font-medium">{{ blockerText(blocker, t) }}</span>
-              <span class="block text-sm text-muted">{{ blocker.message }}</span>
             </li>
           </ul>
         </template>
@@ -99,11 +100,12 @@ const resultClass = computed(() => (preview.value?.result ?? 0) < 0 ? 'text-erro
 
       <SharedRecordSection v-if="showAction" variant="action" :title="t('financeGovernance.closing.action.title')" :description="t('financeGovernance.closing.action.hint')" data-testid="finance-closing-action">
         <template #actions>
-          <UButton color="primary" icon="i-lucide-lock" :disabled="!hydrated || confirming" :label="t('financeGovernance.closing.action.close')" data-testid="finance-closing-close" @click="confirming = true" />
+          <UButton color="primary" icon="i-lucide-lock" :disabled="!hydrated || confirming || blocked" :label="t('financeGovernance.closing.action.close')" data-testid="finance-closing-close" @click="confirming = true" />
         </template>
+        <p v-if="blocked" class="mb-3 text-sm text-muted" data-testid="finance-closing-blocked-hint">{{ t('financeGovernance.closing.action.blockedHint') }}</p>
         <UAlert v-if="failureMessage" class="mb-3" color="error" variant="subtle" :title="failureMessage" data-testid="finance-closing-error" />
         <SharedInlineConfirm
-          v-if="confirming"
+          v-if="confirming && !blocked"
           color="warning"
           :title="t('financeGovernance.closing.action.confirmTitle', { year: preview.year })"
           :description="t('financeGovernance.closing.action.confirmDescription')"
