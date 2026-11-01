@@ -4,6 +4,7 @@ import { projectsPreviewData } from './projects-ui-preview-data.mjs'
 import { pmoPreviewData } from './pmo-ui-preview-data.mjs'
 import { moduleUiCapabilities, moduleUiPreviewData } from './module-ui-preview-data.mjs'
 import { hrPayrollPreviewWrite } from './hr-payroll-ui-preview-data.mjs'
+import { financeGapsPreview } from './finance-documents-ui-preview-data.mjs'
 import { capabilitiesForRequest } from './mock-capabilities.mjs'
 import { hrWarningsPreviewWrite } from './hr-areas-ui-preview-data.mjs'
 import { crmPreviewWrite } from './crm-ui-preview-data.mjs'
@@ -487,6 +488,16 @@ async function handle(req, res) {
     try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
     const write = crmPreviewWrite(method, path, body)
     if (write) return json(res, write.status, write.body)
+  }
+
+  // Finance: internal transfer, partner bank accounts and the fiscal transfer account (finance-documents-ui-preview-data.mjs).
+  if (process.env.MODULE_UI_PREVIEW === '1' && /^\/api\/v1\/finance\/(setup(\/fiscal)?|accounts|payments\/transfer|partners\/\d+\/bank-accounts)/.test(path)) {
+    let body = {}
+    if (method !== 'GET') {
+      try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
+    }
+    const answer = financeGapsPreview(method, path, url, body)
+    if (answer) return json(res, answer.status, answer.body)
   }
 
   if (process.env.MODULE_UI_PREVIEW === '1' && method === 'GET') {

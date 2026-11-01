@@ -10,6 +10,7 @@ import {
   invoiceDraftFromRecord,
   lineSubtotal,
   newLine,
+  offersAssetProfile,
   validateInvoiceDraft,
 } from '../invoiceLines'
 
@@ -120,5 +121,19 @@ describe('payment term in the editor', () => {
   it('sends a typed due date and no term otherwise', () => {
     const body = buildInvoicePatch(Object.assign(filled(), { invoiceDateDue: '2026-05-01' }))
     expect(body).toMatchObject({ invoice_date_due: '2026-05-01', payment_term_id: null })
+  })
+})
+
+describe('the asset profile of a line', () => {
+  it('is offered on vendor bills to fixed-asset managers only', () => {
+    expect(offersAssetProfile('in_invoice', true)).toBe(true)
+    expect(offersAssetProfile('in_invoice', false)).toBe(false)
+    for (const moveType of ['out_invoice', 'out_refund', 'in_refund'] as const) expect(offersAssetProfile(moveType, true)).toBe(false)
+  })
+
+  it('is sent only when chosen, and a line loaded without one sends none', () => {
+    const line = { ...newLine(), name: 'Laptop', priceUnit: '4000' }
+    expect(buildLinePayload(line)).not.toHaveProperty('asset_profile_id')
+    expect(buildLinePayload({ ...line, assetProfileId: 9 })).toMatchObject({ asset_profile_id: 9 })
   })
 })

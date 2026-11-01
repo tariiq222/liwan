@@ -39,7 +39,7 @@ const scope = (overrides: Partial<FinanceSetupScope> = {}): FinanceSetupScope =>
 describe('the fiscal draft and its delta', () => {
   it('starts from the saved values, without the hard lock', () => {
     expect(baseline()).toEqual({
-      fiscalyear_last_day: '31', fiscalyear_last_month: '12',
+      fiscalyear_last_day: '31', fiscalyear_last_month: '12', transfer_account_id: null,
       fiscalyear_lock_date: '2026-06-30', tax_lock_date: null, sale_lock_date: null, purchase_lock_date: null,
     })
     expect(financeFiscalDelta(baseline(), baseline())).toBeNull()
@@ -53,6 +53,29 @@ describe('the fiscal draft and its delta', () => {
       .toEqual({ fiscalyear_lock_date: '2026-07-31' })
     expect(financeFiscalDelta(draftWith({ fiscalyear_last_day: '30', tax_lock_date: '2026-07-31' }), baseline()))
       .toEqual({ fiscalyear_last_day: 30, tax_lock_date: '2026-07-31' })
+  })
+})
+
+describe('the transfer account', () => {
+  const withAccount = () => financeFiscalDraftFromValues({ ...VALUES, transfer_account: { id: 7, name: '100001 Liquidity Transfer' } })
+
+  it('is read from the saved setting and sent only when it changed', () => {
+    expect(withAccount().transfer_account_id).toBe(7)
+    expect(financeFiscalDelta(withAccount(), withAccount())).toBeNull()
+    expect(financeFiscalDelta({ ...baseline(), transfer_account_id: 9 }, baseline())).toEqual({ transfer_account_id: 9 })
+    expect(financeFiscalDelta({ ...withAccount(), transfer_account_id: 9 }, withAccount())).toEqual({ transfer_account_id: 9 })
+  })
+
+  it('travels with the other changed fields', () => {
+    expect(financeFiscalDelta({ ...baseline(), transfer_account_id: 9, tax_lock_date: '2026-07-31' }, baseline()))
+      .toEqual({ tax_lock_date: '2026-07-31', transfer_account_id: 9 })
+  })
+
+  it('cannot be cleared once set, because the server takes a replacement and never none', () => {
+    const cleared = { ...withAccount(), transfer_account_id: null }
+    expect(financeFiscalIssues(cleared, withAccount())).toEqual([{ field: 'transfer_account_id', code: 'transferAccountCannotClear' }])
+    expect(financeFiscalDelta(cleared, withAccount())).toBeNull()
+    expect(financeFiscalIssues(baseline(), baseline())).toEqual([])
   })
 })
 
