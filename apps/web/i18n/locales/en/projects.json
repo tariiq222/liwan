@@ -967,6 +967,85 @@
       }
     },
     "listTabsLabel": "Project list",
+    "changes": {
+      "title": "Change requests",
+      "empty": "No change requests",
+      "emptyHint": "Every change to the project's scope, schedule or cost is recorded here with its impact and the sponsor's decision.",
+      "create": "New change request",
+      "edit": "Edit change request",
+      "allStates": "All states",
+      "allCategories": "All categories",
+      "noCategory": "No category",
+      "membersOnly": "Only members of the project can raise change requests.",
+      "readOnly": "This request can no longer be edited.",
+      "titleRequired": "Enter a title for the request",
+      "daysInvalid": "Enter a whole number of days; it may be negative",
+      "costInvalid": "Enter a number; it may be negative",
+      "stale": "Someone else changed this request. Reload the page and try again.",
+      "stateChanged": "The request changed state. Refresh the page to see the new state.",
+      "awaitingYou": "This request waits for your decision as the project sponsor",
+      "waiting": "The request waits for the project sponsor's decision",
+      "draftBanner": "This request is a draft. Send it to the sponsor when it is complete.",
+      "withdrawnBanner": "The requester withdrew this request before it was decided",
+      "implementedAt": "The change was implemented on {date}",
+      "noteRequired": "Reason for rejecting",
+      "noteOptional": "Note (optional)",
+      "fields": {
+        "title": "Title",
+        "category": "Category",
+        "description": "Description",
+        "reason": "Reason for the change",
+        "scheduleDays": "Schedule impact (days)",
+        "cost": "Cost impact",
+        "impactScope": "Scope impact",
+        "state": "State",
+        "requester": "Requested by",
+        "createdAt": "Requested on",
+        "decidedBy": "Decided by"
+      },
+      "form": {
+        "detailsTitle": "The change",
+        "detailsDescription": "Describe what changes and why.",
+        "impactTitle": "Impact",
+        "impactDescription": "Estimate the effect on schedule, cost and scope so the sponsor can decide.",
+        "scheduleHelp": "Days the change adds to the schedule. Use a negative number to shorten it.",
+        "costHelp": "Cost the change adds, in the project currency. Use a negative number for savings."
+      },
+      "state": {
+        "draft": "Draft",
+        "submitted": "Awaiting decision",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "withdrawn": "Withdrawn",
+        "implemented": "Implemented"
+      },
+      "actions": {
+        "submit": "Send to sponsor",
+        "withdraw": "Withdraw request",
+        "approve": "Approve",
+        "reject": "Reject",
+        "implement": "Confirm implemented"
+      },
+      "confirm": {
+        "withdraw": "Withdraw this request? It will not be considered any more.",
+        "approve": "Approve this change request? The project manager may then make the change.",
+        "reject": "Reject this change request? Write a reason the requester will see.",
+        "implement": "Confirm that the change was made in the project?"
+      },
+      "decidedBy": {
+        "approved": "Approved by {name} on {date}",
+        "rejected": "Rejected by {name} on {date}"
+      },
+      "toast": {
+        "created": "Change request created",
+        "updated": "Change request saved",
+        "submitted": "Request sent to the sponsor",
+        "withdrawn": "Request withdrawn",
+        "approved": "Request approved",
+        "rejected": "Request rejected",
+        "implemented": "Implementation recorded"
+      }
+    },
     "clarity": {
       "addRegister": "Add risk or issue",
       "registerSearch": "Search risks or issues",

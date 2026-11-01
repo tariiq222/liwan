@@ -26,7 +26,10 @@
       "charter_review": "Charter awaiting your approval",
       "charter_approved": "Charter approved",
       "charter_returned": "Charter returned for changes",
-      "other": "Notification"
+      "other": "Notification",
+      "change_review": "Change request awaiting your decision",
+      "change_approved": "Change request approved",
+      "change_rejected": "Change request rejected"
     },
     "openTask": "Open task",
     "close": "Close notifications",

@@ -9,6 +9,7 @@ import { crmPreviewWrite } from './crm-ui-preview-data.mjs'
 import { INBOX_CAPABILITIES, INBOX_FEATURES, inboxPreviewData, resetInboxPreview } from './inbox-ui-preview-data.mjs'
 import { handleCommercial } from './commercial-mock-routes.mjs'
 import { handlePublicAppointments } from './appointments-mock-routes.mjs'
+import { handleChanges } from './pmo-change-mock-routes.mjs'
 import { handlePayments, handlePublicPayments, PAYMENTS_LINKS_MANAGE, PAYMENTS_MANAGE, PAYMENTS_SETTINGS_MANAGE } from './payments-mock-routes.mjs'
 import crypto from 'node:crypto'
 import { URL } from 'node:url'
@@ -207,6 +208,7 @@ function projectDetail(p) {
     updated_at: stateOf(p).updated_at,
     charter: stateOf(p).charter,
     phase_state: phaseState(p),
+    change_control_mode: SETTINGS.change_control_mode,
   }
 }
 
@@ -303,6 +305,7 @@ const SETTINGS = {
   require_charter_approval: false,
   close_with_open_tasks: 'block',
   register_status_transitions: 'sequence',
+  change_control_mode: 'optional',
   extensions: [],
 }
 
@@ -396,6 +399,7 @@ async function handle(req, res) {
   if (!hasSession(req)) return fail(res, 403, 'forbidden', 'not logged in')
 
   if (await handlePayments(req, res, path, { json, readBody })) return
+  if (process.env.PROJECTS_UI_PREVIEW === '1' && await handleChanges(req, res, path, url, { json, readBody })) return
   // Customer Inbox: conversations, settings and channels (inbox-ui-preview-data.mjs). The state lives for the process;
   // POST /api/v1/__mock/reset-inbox restores the seed so a spec starts from a known inbox.
   if (method === 'POST' && path === '/api/v1/__mock/reset-inbox') {

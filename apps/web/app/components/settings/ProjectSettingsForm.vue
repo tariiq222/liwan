@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ProjectSettings, ProjectSettingsPatch } from '@liwan/contracts'
 import StageListEditor from '@/components/pmo/projects/StageListEditor.vue'
+import ChangeCategoriesPanel from '@/components/pmo/projects/settings/ChangeCategoriesPanel.vue'
 import { ApiError } from '@/composables/useApi'
 import { useSettingsForm } from '@/composables/settings/useSettingsForm'
 import { saveErrorMessage } from '@/utils/formFeedback'
@@ -41,8 +42,8 @@ function useCard<Draft extends Fields>(read: (settings: ProjectSettings) => Draf
 const creation = useCard(({ project_creators, require_manager_on_create, require_end_date_on_create }) => (
   { project_creators, require_manager_on_create, require_end_date_on_create }
 ))
-const approval = useCard(({ default_completion_approval, require_charter_approval, close_with_open_tasks, register_status_transitions }) => (
-  { default_completion_approval, require_charter_approval, close_with_open_tasks, register_status_transitions }
+const approval = useCard(({ default_completion_approval, require_charter_approval, close_with_open_tasks, register_status_transitions, change_control_mode }) => (
+  { default_completion_approval, require_charter_approval, close_with_open_tasks, register_status_transitions, change_control_mode }
 ))
 const daysError = ref('')
 const reminders = useCard(({ deadline_reminders_enabled, deadline_reminders_days_before, overdue_digest_enabled }) => (
@@ -178,7 +179,21 @@ function onDeleteStage(id: number | string) {
         :disabled="approvalLocked"
       />
     </UFormField>
+    <UFormField id="project-change-control" orientation="horizontal" :label="t('settings.projects.changeControl.label')" :description="t('settings.projects.changeControl.hint')">
+      <URadioGroup
+        v-model="approval.draft.value.change_control_mode"
+        data-testid="settings-change-control-mode"
+        :items="[
+          { value: 'off', label: t('settings.projects.changeControl.off'), description: t('settings.projects.changeControl.offHint') },
+          { value: 'optional', label: t('settings.projects.changeControl.optional'), description: t('settings.projects.changeControl.optionalHint') },
+          { value: 'required', label: t('settings.projects.changeControl.required'), description: t('settings.projects.changeControl.requiredHint') },
+        ]"
+        :disabled="approvalLocked"
+      />
+    </UFormField>
   </SharedSettingsCard>
+
+  <ChangeCategoriesPanel :can-edit="canEdit" />
 
   <SharedSettingsCard id="project-reminders" v-bind="reminders.state.value" :title="t('settings.projects.reminders.label')" :description="t('settings.projects.reminders.hint')" :can-edit="canEdit" @save="reminders.save" @revert="reminders.revert" @reload="reminders.reload">
     <UFormField orientation="horizontal" :label="t('settings.projects.reminders.enabled')">
