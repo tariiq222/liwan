@@ -45,6 +45,12 @@ class LiwanHrFeatureRegistry(models.AbstractModel):
                 'module': 'liwan_hr',
             },
             {
+                'key': 'hr.warnings',
+                'type': 'boolean',
+                'owner': 'liwan_hr',
+                'module': 'liwan_hr',
+            },
+            {
                 'key': 'hr.payroll',
                 'type': 'boolean',
                 'owner': 'liwan_hr',

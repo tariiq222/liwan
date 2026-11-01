@@ -1,6 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, fields, models
-from odoo.exceptions import AccessError, UserError
+from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.fields import Domain
 from odoo.tools import SQL
 
@@ -202,7 +202,20 @@ class LiwanHrEmployee(models.Model):
                     'user access is managed by the access actions',
                     field='user_id',
                 )
+        if 'company_id' in vals:
+            self._liwan_refuse_company_move_with_warnings(vals['company_id'])
         return super().write(vals)
+
+    def _liwan_refuse_company_move_with_warnings(self, company_id):
+        """A warning belongs to the employee's company and to a type of that company: moving the employee would orphan it."""
+        moving = self.filtered(lambda employee: employee.company_id.id != company_id)
+        if not moving:
+            return
+        self.env.cr.execute('SELECT 1 FROM liwan_hr_warning WHERE employee_id IN %s LIMIT 1', (tuple(moving.ids),))
+        if self.env.cr.fetchone():
+            raise ValidationError(self.env._(
+                'An employee with administrative warning records cannot move to another company.',
+            ))
 
     @api.model_create_multi
     def create(self, vals_list):

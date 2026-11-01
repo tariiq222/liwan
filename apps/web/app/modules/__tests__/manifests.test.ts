@@ -73,6 +73,7 @@ describe('app manifests', () => {
     ['/hr/onboarding/9', 'hr.onboarding.read'], ['/hr/onboarding/plans/new', 'hr.onboarding.manage'],
     ['/hr/offboarding', 'hr.offboarding.read'], ['/hr/offboarding/new', 'hr.offboarding.manage'],
     ['/hr/assets/4', 'hr.assets.read'], ['/account/assets', 'hr.employees.read'], ['/hr/assets/categories/new', 'hr.assets.manage'],
+    ['/hr/warnings', 'hr.warnings.read'], ['/hr/warnings/new', 'hr.employees.read'], ['/hr/warnings/4', 'hr.employees.read'], ['/hr/warnings/4/extra', 'hr.warnings.read'], ['/account/warnings', 'hr.employees.read'],
     ['/hr/payroll', 'hr.payroll.read'], ['/hr/payroll/4', 'hr.payroll.read'], ['/hr/payroll/4/payslips/9', 'hr.payroll.read'],
     ['/hr/payroll/new', 'hr.payroll.manage'],
     ['/account/pay', 'hr.employees.read'], ['/account/pay/7', 'hr.employees.read'],
@@ -90,6 +91,7 @@ describe('app manifests', () => {
     ['/meetings/series/3', '/meetings/series', true], ['/hr/employees/7/edit', '/hr', true], ['/hr/documents', '/hr', false],
     ['/documents/2', '/documents', true],
     ['/account/assets', '/account/assets', true], ['/account/assets', '/hr/assets', false], ['/hr/assets/4', '/hr/assets', true],
+    ['/account/warnings', '/account/warnings', true], ['/account/warnings', '/hr/warnings', false], ['/hr/warnings/4', '/hr/warnings', true],
     ['/account/pay', '/account/pay', true], ['/account/pay/7', '/account/pay', true], ['/account/pay', '/hr/payroll', false],
     ['/account/pay/7', '/hr/payroll', false], ['/hr/payroll', '/hr/payroll', true], ['/hr/payroll/new', '/hr/payroll', true],
     ['/hr/payroll/4/payslips/9', '/hr/payroll', true]
@@ -111,7 +113,8 @@ describe('app manifests', () => {
   it('aliases chat access and shared notifications through the manifests', () => {
     expect(featureForCapability('liwan.internal')).toBe('chat.enabled')
     expect(canUse({ platform: { readable_features: ['chat.enabled'], writable_features: [] } }, 'liwan.internal')).toBe(true)
-    expect(hasCapability({ capabilities: ['hr.employees.read'] }, 'liwan.notifications')).toBe(false)
+    expect(hasCapability({ capabilities: ['hr.employees.read'] }, 'liwan.notifications')).toBe(true)
+    expect(hasCapability({ capabilities: ['documents.items.read'] }, 'liwan.notifications')).toBe(false)
     expect(hasCapability({ capabilities: ['meetings.read'] }, 'liwan.notifications')).toBe(true)
     const onlyHr = { capabilities: ['meetings.read'], platform: { readable_features: ['hr.enabled'], writable_features: [] } }
     expect(canReach(onlyHr, 'liwan.notifications')).toBe(false)
@@ -241,6 +244,11 @@ describe('palette declarations', () => {
       expect(pinned[0]).toMatchObject({ to, capability, labelKey: command.labelKey })
     })
 
+    it('pins the HR create link on the warnings area, and offers no palette command the server flag cannot gate', () => {
+      expect(links('/hr/warnings/4').filter(link => link.pinned)).toMatchObject([{ id: 'new-warning', to: '/hr/warnings/new', capability: 'hr.warnings.manage' }])
+      expect(hr.commands!.some(entry => entry.to === '/hr/warnings/new')).toBe(false)
+    })
+
     it('keeps the four section links fixed and lists only the open section\'s pages under its heading', () => {
       const sectionIds = ['section-hiring', 'section-people', 'section-time', 'section-pay']
       const subIds = (path: string) => links(path).filter(link => link.section).map(link => link.id)
@@ -248,7 +256,7 @@ describe('palette declarations', () => {
         expect(links(path).filter(link => link.id.startsWith('section-')).map(link => link.id), path).toEqual(sectionIds)
       }
       expect(subIds('/hr/recruitment/12')).toEqual(['recruitment', 'recruitment-jobs'])
-      expect(subIds('/hr/employees/7')).toEqual(['employees', 'departments', 'onboarding', 'offboarding', 'assets', 'reports'])
+      expect(subIds('/hr/employees/7')).toEqual(['employees', 'departments', 'onboarding', 'offboarding', 'assets', 'warnings', 'reports'])
       expect(subIds('/hr/shifts/schedules')).toEqual(['leave', 'shifts'])
       expect(subIds('/hr/payroll/4/gosi')).toEqual(['payroll'])
     })

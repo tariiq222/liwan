@@ -21,11 +21,11 @@ function setupPayroll(failing: Name, unloaded = false) {
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
   const bindings = {
     _defineComponent: Vue.defineComponent, ref: Vue.ref, computed: Vue.computed,
-    LeaveSettingsForm: {}, LeaveApprovalCard: {}, ShiftSettingsForm: {}, EosCaseMapTable: {}, PayrollCostCenterTable: {}, PayrollFinanceSettingsForm: {},
+    LeaveSettingsForm: {}, LeaveApprovalCard: {}, ShiftSettingsForm: {}, WarningSettingsForm: {}, WarningTypesCard: {}, EosCaseMapTable: {}, PayrollCostCenterTable: {}, PayrollFinanceSettingsForm: {},
     BankProfileForm: {}, BranchStrictCard: {}, GosiRateTable: {}, PayrollGeneralSettingsForm: {},
     useI18n: () => ({ t: String }), useAccess: () => ({ can: () => true }),
     useSettingsPage: () => ({ parts: Vue.ref([{ id: 'payroll' }]), shows: (id: string) => id === 'payroll' }),
-    useHrLeaveSettings: idle, useHrShiftSettings: idle, useHrLeaveApprovalProcess: idle,
+    useHrLeaveSettings: idle, useHrShiftSettings: idle, useHrWarningSettings: idle, useHrWarningTypes: idle, useHrLeaveApprovalProcess: idle,
     useHrPayrollSettings: () => queries.settings, useHrPayrollStructures: idle, useHrGosiRates: () => queries.rates,
     useHrBankProfiles: () => queries.profiles, useHrEosCases: () => queries.cases,
     useHrPayrollFinanceSettings: idle, useHrLeaveTypes: idle,

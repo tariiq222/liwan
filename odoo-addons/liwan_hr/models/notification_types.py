@@ -10,6 +10,8 @@ DECISION_KINDS = {'validate': 'hr.leave_approved', 'refuse': 'hr.leave_refused'}
 KINDS = tuple(DECISION_KINDS.values())
 RUN_MODEL = 'liwan.hr.plan.run'
 STEP_KIND = 'hr.onboarding_step'
+WARNING_MODEL = 'liwan.hr.warning'
+WARNING_KIND = 'hr.warning_issued'
 
 
 class LiwanHrNotificationTypes(models.AbstractModel):
@@ -21,6 +23,7 @@ class LiwanHrNotificationTypes(models.AbstractModel):
             *super()._liwan_notification_types(),
             *({'kind': kind, 'owner': 'liwan_hr', 'model': LEAVE_MODEL, 'feature_key': 'hr.enabled'} for kind in KINDS),
             {'kind': STEP_KIND, 'owner': 'liwan_hr', 'model': RUN_MODEL, 'feature_key': 'hr.enabled'},
+            {'kind': WARNING_KIND, 'owner': 'liwan_hr', 'model': WARNING_MODEL, 'feature_key': 'hr.warnings'},
         )
 
     @api.model
@@ -35,6 +38,9 @@ class LiwanHrNotificationTypes(models.AbstractModel):
         # A step row is anchored on the onboarding run: the caller's own record rules decide which runs they read.
         Run = self.env[RUN_MODEL]
         run_ids = Run._search([('hr_purpose', '=', 'onboarding')]) if Run.has_access('read') else []
+        # A warning row is the employee's own: only warnings issued to their own record, in the caller's record rules.
+        Warning = self.env[WARNING_MODEL]
+        warning_ids = Warning._search([('employee_user_id', '=', self.env.uid)]) if Warning.has_access('read') else []
         return [
             *super()._liwan_notify_visible_domain(),
             [
@@ -46,6 +52,11 @@ class LiwanHrNotificationTypes(models.AbstractModel):
                 ('mail_message_id.liwan_notification_kind', '=', STEP_KIND),
                 ('mail_message_id.model', '=', RUN_MODEL),
                 ('mail_message_id.res_id', 'in', run_ids),
+            ],
+            [
+                ('mail_message_id.liwan_notification_kind', '=', WARNING_KIND),
+                ('mail_message_id.model', '=', WARNING_MODEL),
+                ('mail_message_id.res_id', 'in', warning_ids),
             ],
         ]
 
@@ -66,6 +77,15 @@ class LiwanHrNotificationTypes(models.AbstractModel):
                 'id': row.id,
                 'kind': STEP_KIND,
                 'run_id': message.res_id,
+                'title': message.subject or '',
+                'created_at': iso(message.date),
+                'is_read': bool(row.is_read),
+            }
+        if message.liwan_notification_kind == WARNING_KIND:
+            return {
+                'id': row.id,
+                'kind': WARNING_KIND,
+                'warning_id': message.res_id,
                 'title': message.subject or '',
                 'created_at': iso(message.date),
                 'is_read': bool(row.is_read),

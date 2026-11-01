@@ -1,0 +1,40 @@
+{
+  "items": [
+    {
+      "active": true,
+      "id": 1,
+      "name": "إنذار شفهي",
+      "revision": 1,
+      "severity": 10
+    },
+    {
+      "active": true,
+      "id": 2,
+      "name": "إنذار كتابي",
+      "revision": 1,
+      "severity": 20
+    },
+    {
+      "active": false,
+      "id": 3,
+      "name": "Safety violation",
+      "revision": 3,
+      "severity": 26
+    },
+    {
+      "active": true,
+      "id": 4,
+      "name": "إنذار نهائي",
+      "revision": 1,
+      "severity": 30
+    },
+    {
+      "active": true,
+      "id": 5,
+      "name": "إشعار إيقاف",
+      "revision": 1,
+      "severity": 40
+    }
+  ],
+  "total": 5
+}

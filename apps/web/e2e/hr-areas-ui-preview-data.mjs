@@ -1,6 +1,6 @@
 // Synthetic rows for the five employee-lifecycle HR areas (shifts, assets, recruitment, onboarding,
 // offboarding) of the isolated mock (MODULE_UI_PREVIEW=1). Shapes follow packages/contracts/src/hr.
-// Reads only: the mock has no HR write routes. Row 1 of each list is the row the specs open.
+// Reads only, except the administrative warnings (below), which keep state like the payroll preview. Row 1 of each list is the row the specs open.
 const OPS = { id: 1, name: 'إدارة العمليات' }
 const PEOPLE = { id: 2, name: 'الموارد البشرية' }
 const SARA = { id: 1, name: 'سارة محمد' }
@@ -212,9 +212,138 @@ function offboardingData(route, url) {
   return lifecycleData('offboarding', offboardingPlans, offboardingRuns, route, url)
 }
 
+
+// ---- Administrative warnings ----
+// Stateful, like the payroll preview: hrWarningsPreviewWrite() changes these rows and POST /api/v1/__mock/reset-warnings
+// restores the seeds. The signed-in employee is SARA (the `/me` rows); the mock admin is the issuer (HR), so `can_issue` is true.
+const ADMIN = { id: 2, name: 'Admin' }
+const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+const daysAgo = days => new Date(Date.now() - days * 86400000).toISOString()
+const dayOf = iso => iso.slice(0, 10)
+const WARNING_COUNTED = ['issued', 'acknowledged', 'contested']
+let warnings
+let warningTypes
+let warningSettings
+let nextWarningId
+let nextTypeId
+
+function seedWarnings() {
+  warningTypes = [
+    { id: 1, name: 'إنذار شفهي', severity: 1, active: true, revision: 1 },
+    { id: 2, name: 'إنذار كتابي', severity: 2, active: true, revision: 1 },
+    { id: 3, name: 'إنذار نهائي', severity: 3, active: true, revision: 1 },
+    { id: 4, name: 'لفت نظر', severity: 1, active: false, revision: 2 },
+  ]
+  const typeOf = id => { const { name, severity } = warningTypes.find(row => row.id === id); return { id, name, severity } }
+  const base = (id, employee, typeId, state, over = {}) => ({
+    id, employee, type: typeOf(typeId), date_issued: dayOf(daysAgo(10 + id)), reason: 'تأخر عن الدوام ثلاث مرات خلال أسبوع واحد دون إشعار مسبق.',
+    corrective_action: null, state, acknowledgement: 'required', ack_pending: false, issued_by: ADMIN, issued_at: daysAgo(10 + id),
+    acknowledged_at: null, contested_at: null, contest_note: null, withdrawn_by: null, withdrawn_at: null, withdraw_reason: null, revision: 2, ...over,
+  })
+  warnings = [
+    base(1, SARA, 2, 'issued', { ack_pending: true, corrective_action: 'الالتزام بساعات الدوام وإشعار المدير قبل أي تأخر.' }),
+    base(2, KHALID, 1, 'acknowledged', { acknowledged_at: daysAgo(8) }),
+    base(3, MONA, 2, 'contested', { contested_at: daysAgo(5), contest_note: 'لم أتلقَّ إشعارًا بتغيير ساعات الدوام.' }),
+    base(4, SARA, 1, 'withdrawn', { withdrawn_by: ADMIN, withdrawn_at: daysAgo(20), withdraw_reason: 'صدر بالخطأ.' }),
+    base(5, LAILA, 1, 'draft', { issued_by: null, issued_at: null, revision: 1 }),
+    base(6, KHALID, 3, 'issued', { acknowledgement: 'off', date_issued: dayOf(daysAgo(2)), issued_at: daysAgo(2) }),
+  ]
+  warningSettings = { warnings_issued_by: 'hr_only', warnings_employee_acknowledgement: 'required', warnings_escalation_window_months: 12, revision: 1 }
+  nextWarningId = 7
+  nextTypeId = 5
+}
+seedWarnings()
+
+const warningRefusal = (status, code, message, field) => ({ status, body: field ? { code, message, field } : { code, message } })
+const warningStanding = employeeId => {
+  const counted = warnings.filter(row => row.employee.id === employeeId && WARNING_COUNTED.includes(row.state))
+  return { employee_id: employeeId, window_months: warningSettings.warnings_escalation_window_months, active_count: counted.length, highest_severity: counted.length ? Math.max(...counted.map(row => row.type.severity)) : null }
+}
+const warningSettingsView = () => ({ ...warningSettings, can_issue: true })
+
+function warningsData(route, url) {
+  if (route === '/api/v1/hr/warning-types') {
+    const all = url.searchParams.get('active') === 'all'
+    return page([...warningTypes].filter(row => all || row.active), url)
+  }
+  if (route === '/api/v1/hr/warnings/settings') return warningSettingsView()
+  if (route === '/api/v1/hr/warnings/candidates') return page([SARA, KHALID, MONA, LAILA], url)
+  if (route === '/api/v1/hr/warnings/me') return page(warnings.filter(row => row.employee.id === SARA.id && WARNING_COUNTED.includes(row.state)), url)
+  const standing = /^\/api\/v1\/hr\/warnings\/standing\/(\d+)$/.exec(route)
+  if (standing) return warningStanding(Number(standing[1]))
+  if (route === '/api/v1/hr/warnings') {
+    const employee = numberParam(url, 'employee_id')
+    const type = numberParam(url, 'type_id')
+    const state = url.searchParams.get('state')
+    return page(warnings.filter(row => (!employee || row.employee.id === employee) && (!type || row.type.id === type) && (!state || row.state === state)), url)
+  }
+  return rowOf(warnings, route, '/api/v1/hr/warnings')
+}
+
+/** The write routes of the warnings preview: `{status, body}`, or undefined for a route this preview does not own. */
+export function hrWarningsPreviewWrite(method, route, body) {
+  if (method === 'POST' && route === '/api/v1/__mock/reset-warnings') { seedWarnings(); return { status: 200, body: { ok: true } } }
+  const stale = (row, revision) => revision !== row.revision && warningRefusal(409, 'conflict', 'تغيّر السجل؛ أعد التحميل قبل الحفظ.')
+  if (method === 'PATCH' && route === '/api/v1/hr/warnings/settings') {
+    if (body.revision !== warningSettings.revision) return warningRefusal(409, 'conflict', 'تغيّرت الإعدادات؛ أعد التحميل قبل الحفظ.')
+    const months = body.warnings_escalation_window_months
+    if (!Number.isInteger(months) || months < 1 || months > 60) return warningRefusal(422, 'invalid', 'مدة التصعيد من شهر إلى 60 شهرًا.', 'warnings_escalation_window_months')
+    warningSettings = { warnings_issued_by: body.warnings_issued_by, warnings_employee_acknowledgement: body.warnings_employee_acknowledgement, warnings_escalation_window_months: months, revision: warningSettings.revision + 1 }
+    return { status: 200, body: warningSettingsView() }
+  }
+  if (method === 'POST' && route === '/api/v1/hr/warning-types') {
+    if (!String(body.name ?? '').trim()) return warningRefusal(422, 'invalid', 'اسم النوع مطلوب.', 'name')
+    const type = { id: nextTypeId++, name: body.name.trim(), severity: body.severity, active: true, revision: 1 }
+    warningTypes.push(type)
+    return { status: 201, body: type }
+  }
+  const typeRoute = /^\/api\/v1\/hr\/warning-types\/(\d+)$/.exec(route)
+  if (method === 'PATCH' && typeRoute) {
+    const type = warningTypes.find(row => row.id === Number(typeRoute[1]))
+    if (!type) return warningRefusal(404, 'not_found', 'النوع غير موجود.')
+    const refusal = stale(type, body.revision)
+    if (refusal) return refusal
+    Object.assign(type, { ...(body.name !== undefined && { name: body.name.trim() }), ...(body.severity !== undefined && { severity: body.severity }), ...(body.active !== undefined && { active: body.active }), revision: type.revision + 1 })
+    return { status: 200, body: type }
+  }
+  if (method === 'POST' && route === '/api/v1/hr/warnings') {
+    const employee = [SARA, KHALID, MONA, LAILA].find(row => row.id === body.employee_id)
+    const type = warningTypes.find(row => row.id === body.type_id && row.active)
+    if (!employee) return warningRefusal(422, 'invalid', 'اختر موظفًا.', 'employee_id')
+    if (!type) return warningRefusal(422, 'invalid', 'اختر نوع إنذار فعّالًا.', 'type_id')
+    if (!String(body.reason ?? '').trim()) return warningRefusal(422, 'invalid', 'السبب مطلوب.', 'reason')
+    const row = {
+      id: nextWarningId++, employee, type: { id: type.id, name: type.name, severity: type.severity }, date_issued: body.date_issued ?? today, reason: body.reason.trim(),
+      corrective_action: body.corrective_action?.trim() || null, state: 'draft', acknowledgement: warningSettings.warnings_employee_acknowledgement, ack_pending: false,
+      issued_by: null, issued_at: null, acknowledged_at: null, contested_at: null, contest_note: null, withdrawn_by: null, withdrawn_at: null, withdraw_reason: null, revision: 1,
+    }
+    warnings.push(row)
+    return { status: 201, body: row }
+  }
+  const action = /^\/api\/v1\/hr\/warnings\/(me\/)?(\d+)\/(issue|withdraw|acknowledge|contest)$/.exec(route)
+  if (method !== 'POST' || !action) return undefined
+  const row = warnings.find(item => item.id === Number(action[2]) && (!action[1] || item.employee.id === SARA.id))
+  if (!row) return warningRefusal(404, 'not_found', 'الإنذار غير موجود.')
+  const refusal = stale(row, body.revision)
+  if (refusal) return refusal
+  const wrongState = () => warningRefusal(409, 'conflict', 'لا يمكن تنفيذ هذا الإجراء في حالة الإنذار الحالية.')
+  const now = new Date().toISOString()
+  const step = {
+    issue: () => row.state === 'draft' && Object.assign(row, { state: 'issued', issued_by: ADMIN, issued_at: now, acknowledgement: warningSettings.warnings_employee_acknowledgement, ack_pending: warningSettings.warnings_employee_acknowledgement === 'required' }),
+    withdraw: () => row.state !== 'withdrawn' && (String(body.reason ?? '').trim() ? Object.assign(row, { state: 'withdrawn', ack_pending: false, withdrawn_by: ADMIN, withdrawn_at: now, withdraw_reason: body.reason.trim() }) : 'invalid'),
+    acknowledge: () => row.state === 'issued' && row.acknowledgement !== 'off' && Object.assign(row, { state: 'acknowledged', ack_pending: false, acknowledged_at: now }),
+    contest: () => row.state === 'issued' && row.acknowledgement !== 'off' && (String(body.note ?? '').trim() ? Object.assign(row, { state: 'contested', ack_pending: false, contested_at: now, contest_note: body.note.trim() }) : 'invalid'),
+  }[action[3]]()
+  if (step === 'invalid') return warningRefusal(422, 'invalid', 'الحقل المطلوب فارغ.', action[3] === 'withdraw' ? 'reason' : 'note')
+  if (!step) return wrongState()
+  row.revision += 1
+  return { status: 200, body: row }
+}
+
 export function hrAreasPreviewData(route, url) {
   if (route.startsWith('/api/v1/hr/shifts')) return shiftsData(route, url)
   if (route.startsWith('/api/v1/hr/assets')) return assetsData(route, url)
+  if (route.startsWith('/api/v1/hr/warning')) return warningsData(route, url)
   if (route.startsWith('/api/v1/hr/recruitment')) return recruitmentData(route, url)
   if (route.startsWith('/api/v1/hr/onboarding')) return lifecycleData('onboarding', onboardingPlans, onboardingRuns, route, url)
   if (route.startsWith('/api/v1/hr/offboarding')) return offboardingData(route, url)

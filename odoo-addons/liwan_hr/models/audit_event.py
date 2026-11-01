@@ -36,8 +36,21 @@ TRACKED_FIELDS = {
     # A handed-out salary file: what kind, under which name, for which value date. Its content (IBANs, amounts)
     # and checksum are never recorded.
     'liwan.hr.payroll.file': (('kind', 'filename', 'value_date'), ()),
+    # Warnings: the lifecycle and who it concerns are recorded; the reason, corrective action, contest note and
+    # withdrawal reason are disciplinary text and are named, never copied into the trail.
+    'liwan.hr.warning': (('employee_id', 'type_id', 'date_issued', 'state'), (
+        'reason', 'corrective_action', 'contest_note', 'withdraw_reason',
+    )),
+    'liwan.hr.warning.type': (('name', 'severity', 'active'), ()),
+    'liwan.hr.warning.settings': ((
+        'warnings_issued_by', 'warnings_employee_acknowledgement', 'warnings_escalation_window_months',
+    ), ()),
 }
 
+# Warning actions are authorized by the warning itself (`_liwan_audit_authorized`): the HR officer who issues or
+# withdraws, the direct manager who issues when the company allows it, and the employee who answers their own
+# warning hold no single capability in common.
+SELF_AUTHORIZED = None
 # action -> (audited model, capability the caller holds in the record's company)
 ACTIONS = {
     'payroll_settings_changed': ('liwan.hr.payroll.settings', 'hr.payroll.config'),
@@ -55,10 +68,20 @@ ACTIONS = {
     'run_approved': ('hr.payslip.run', 'hr.payroll.approve'),
     'run_cancelled': ('hr.payslip.run', 'hr.payroll.manage'),
     'payment_file_generated': ('liwan.hr.payroll.file', 'hr.payroll.read'),
+    'warning_created': ('liwan.hr.warning', SELF_AUTHORIZED),
+    'warning_issued': ('liwan.hr.warning', SELF_AUTHORIZED),
+    'warning_acknowledged': ('liwan.hr.warning', SELF_AUTHORIZED),
+    'warning_contested': ('liwan.hr.warning', SELF_AUTHORIZED),
+    'warning_withdrawn': ('liwan.hr.warning', SELF_AUTHORIZED),
+    'warning_type_created': ('liwan.hr.warning.type', 'hr.warnings.manage'),
+    'warning_type_changed': ('liwan.hr.warning.type', 'hr.warnings.manage'),
+    'warning_settings_changed': ('liwan.hr.warning.settings', 'hr.warnings.manage'),
 }
+# The warning trail is never listed with the payroll audit: it is confidential to the warnings capabilities.
+WARNING_MODELS = ('liwan.hr.warning', 'liwan.hr.warning.type', 'liwan.hr.warning.settings')
 # Actions logged ahead of the record's unlink, inside the caller's savepoint: the old side keeps the values.
 DELETE_ACTIONS = frozenset({'gosi_rate_deleted', 'bank_profile_deleted', 'run_cancelled'})
-ACTION_SELECTION = [
+PAYROLL_ACTION_SELECTION = [
     ('payroll_settings_changed', 'Payroll settings changed'),
     ('gosi_rate_created', 'GOSI rate created'),
     ('gosi_rate_changed', 'GOSI rate changed'),
@@ -75,6 +98,17 @@ ACTION_SELECTION = [
     ('run_cancelled', 'Payroll run cancelled'),
     ('payment_file_generated', 'Salary file generated'),
 ]
+WARNING_ACTION_SELECTION = [
+    ('warning_created', 'Warning drafted'),
+    ('warning_issued', 'Warning issued'),
+    ('warning_acknowledged', 'Warning acknowledged'),
+    ('warning_contested', 'Warning contested'),
+    ('warning_withdrawn', 'Warning withdrawn'),
+    ('warning_type_created', 'Warning type created'),
+    ('warning_type_changed', 'Warning type changed'),
+    ('warning_settings_changed', 'Warning settings changed'),
+]
+ACTION_SELECTION = PAYROLL_ACTION_SELECTION + WARNING_ACTION_SELECTION
 
 
 def _render(record, name):
@@ -157,7 +191,11 @@ class LiwanHrAuditEvent(models.Model):
         if not company or company not in self.env.companies:
             msg = 'audit_company_out_of_scope'
             raise AccessError(msg)
-        if not self.env['liwan.access.service']._liwan_has_capability(self.env.user, capability, company=company):
+        if capability is SELF_AUTHORIZED:
+            allowed = record._liwan_audit_authorized(action)
+        else:
+            allowed = self.env['liwan.access.service']._liwan_has_capability(self.env.user, capability, company=company)
+        if not allowed:
             msg = 'audit_capability_missing'
             raise AccessError(msg)
         deleting = action in DELETE_ACTIONS

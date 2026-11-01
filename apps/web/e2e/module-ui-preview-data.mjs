@@ -45,6 +45,8 @@ export const moduleUiCapabilities = [
   'hr.shifts.manage',
   'hr.assets.read',
   'hr.assets.manage',
+  'hr.warnings.read',
+  'hr.warnings.manage',
   'hr.recruitment.read',
   'hr.recruitment.manage',
   'hr.onboarding.read',

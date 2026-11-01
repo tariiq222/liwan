@@ -8,6 +8,7 @@ from odoo.tests import tagged
 
 from .common import set_hr_feature
 from .payroll_common import PayrollCase
+from odoo.addons.liwan_hr.models.audit_event import PAYROLL_ACTION_SELECTION
 
 AUDIT = '/api/v1/hr/payroll/audit-events'
 RATES = '/api/v1/hr/payroll/gosi-rates'
@@ -245,7 +246,7 @@ class TestPayrollAudit(PayrollCase):
         self.assertFalse(self.Event.search_count([]))
 
     def test_the_action_selection_matches_the_contract(self):
-        selection = dict(self.Event._fields['action'].selection)
+        selection = dict(PAYROLL_ACTION_SELECTION)
         self.assertEqual(set(selection), set(json.loads(ACTIONS_GOLDEN.read_text())))
 
     # --- the read route ----------------------------------------------------------------------------

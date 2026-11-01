@@ -5,7 +5,7 @@ from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
 HR_AREA_FEATURES = (
-    'hr.recruitment', 'hr.shifts', 'hr.onboarding', 'hr.offboarding', 'hr.assets',
+    'hr.recruitment', 'hr.shifts', 'hr.onboarding', 'hr.offboarding', 'hr.assets', 'hr.warnings',
 )
 # The stock employee plans this release labels, and the purpose each one gets.
 STOCK_EMPLOYEE_PLANS = {

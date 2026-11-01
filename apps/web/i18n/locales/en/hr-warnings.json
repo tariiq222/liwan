@@ -1,0 +1,140 @@
+{
+  "hrWarnings": {
+    "title": "Administrative warnings",
+    "new": "New warning",
+    "anyEmployee": "All employees",
+    "anyType": "All types",
+    "allStates": "All",
+    "emptyTitle": "No warnings",
+    "emptyHint": "Warnings you create appear here.",
+    "footer": "{shown} of 1 warning | {shown} of {total} warnings",
+    "filter": {
+      "state": "Warning state"
+    },
+    "columns": {
+      "employee": "Employee",
+      "type": "Type",
+      "date": "Date issued",
+      "state": "Status"
+    },
+    "state": {
+      "draft": "Draft",
+      "issued": "Issued",
+      "acknowledged": "Acknowledged",
+      "contested": "Contested",
+      "withdrawn": "Withdrawn"
+    },
+    "pendingAnswer": "Awaiting the employee's answer",
+    "severity": "Level {severity}",
+    "form": {
+      "details": "Warning details",
+      "employee": "Employee",
+      "chooseEmployee": "Choose an employee",
+      "type": "Warning type",
+      "chooseType": "Choose a type",
+      "noTypes": "No warning types yet. Add one in the HR settings first.",
+      "date": "Date issued",
+      "dateHint": "Today when left empty.",
+      "reason": "Reason",
+      "reasonPlaceholder": "What happened and why this warning is issued",
+      "corrective": "Corrective action",
+      "correctiveHint": "What the employee is expected to change. Optional.",
+      "employeeRequired": "Choose an employee.",
+      "typeRequired": "Choose a warning type.",
+      "reasonRequired": "The reason is required.",
+      "requiredHint": "Fields marked * are required. The warning is saved as a draft until you issue it.",
+      "submit": "Save as draft"
+    },
+    "standing": {
+      "note": "{count} active warning in the last {months} months | {count} active warnings in the last {months} months",
+      "highest": "Highest severity level: {severity}",
+      "rule": "Issued, acknowledged and contested warnings count. Drafts and withdrawn warnings do not. A contested warning keeps counting until HR withdraws it."
+    },
+    "detail": {
+      "employee": "Employee",
+      "type": "Warning type",
+      "date": "Date issued",
+      "reason": "Reason",
+      "corrective": "Corrective action",
+      "answerMode": "Employee answer",
+      "contestNote": "Employee's objection",
+      "withdrawReason": "Withdrawal reason",
+      "history": "History",
+      "noHistory": "Nothing has happened yet. The warning is a draft."
+    },
+    "answerMode": {
+      "required": "Required",
+      "optional": "Optional",
+      "off": "Not requested"
+    },
+    "event": {
+      "issued": "Issued",
+      "acknowledged": "Acknowledged",
+      "contested": "Contested",
+      "withdrawn": "Withdrawn",
+      "by": "by {name}"
+    },
+    "actions": {
+      "issue": "Issue warning",
+      "withdraw": "Withdraw warning",
+      "withdrawTitle": "Withdraw this warning?",
+      "withdrawHint": "It stops counting toward escalation. The record and its history stay.",
+      "discard": "Discard draft",
+      "discardTitle": "Discard this draft?",
+      "discardHint": "The draft is withdrawn and never reaches the employee.",
+      "withdrawReasonRequired": "Withdrawal reason (required)",
+      "error": "Could not complete the action",
+      "conflict": "This warning changed while you were looking at it. The latest version is loaded, check it and try again."
+    },
+    "mine": {
+      "emptyTitle": "You have no warnings",
+      "emptyHint": "Administrative warnings issued to you appear here.",
+      "pending": "Needs your answer",
+      "acknowledge": "Acknowledge",
+      "contest": "Contest",
+      "contestTitle": "Contest this warning?",
+      "contestNote": "Why you object (required)",
+      "contestSubmit": "Send objection",
+      "yourNote": "Your objection",
+      "error": "Could not send your answer"
+    },
+    "settings": {
+      "title": "Administrative warnings",
+      "hint": "Choose who issues warnings, whether employees must answer them, and how long a warning counts toward escalation.",
+      "issuedBy": "Who can issue warnings",
+      "issuedByOption": {
+        "hr_only": "HR only",
+        "manager_and_hr": "HR and the employee's direct manager"
+      },
+      "acknowledgement": "Employee answer",
+      "acknowledgementOption": {
+        "required": "Required: the warning waits for the employee",
+        "optional": "Optional: the employee may answer",
+        "off": "Off: read-only for the employee"
+      },
+      "window": "Escalation window (months)",
+      "windowHint": "A warning older than this no longer counts. Between 1 and 60 months.",
+      "conflict": "These settings changed while you were editing. Reload to review the latest value before saving.",
+      "reload": "Discard draft and reload",
+      "saveError": "Could not save the warning settings"
+    },
+    "types": {
+      "title": "Warning types",
+      "hint": "A higher severity number means a more serious warning. Archived types stay on past warnings and cannot be chosen for new ones.",
+      "emptyTitle": "No warning types",
+      "emptyHint": "Add the first type, for example a verbal warning with severity 1.",
+      "name": "Name",
+      "namePlaceholder": "For example: Written warning",
+      "severity": "Severity",
+      "add": "Add type",
+      "save": "Save",
+      "archive": "Archive",
+      "restore": "Restore",
+      "archived": "Archived",
+      "nameRequired": "The type name is required.",
+      "conflict": "This type changed while you were editing. Reload to see the latest list.",
+      "reload": "Reload types",
+      "saveError": "Could not save the warning type"
+    }
+  }
+}

@@ -8,7 +8,8 @@ describe('access policy navigation', () => {
   })
   it('opens the bell for a project reader without tasks.read (charter rows are delivered on projects.read)', () => {
     expect(hasCapability({ capabilities: ['pmo.projects.read'] }, 'liwan.notifications')).toBe(true)
-    expect(hasCapability({ capabilities: ['hr.employees.read'] }, 'liwan.notifications')).toBe(false)
+    expect(hasCapability({ capabilities: ['hr.employees.read'] }, 'liwan.notifications')).toBe(true)
+    expect(hasCapability({ capabilities: ['documents.items.read'] }, 'liwan.notifications')).toBe(false)
   })
   it('checks the named capability without elevating other domains', () => {
     const hr = { capabilities: ['hr.employees.read', 'hr.employees.manage'] }
@@ -158,6 +159,12 @@ describe('access policy navigation', () => {
       expect(canReachPath(hrTenant(['hr.enabled', 'hr.assets']), '/account/assets')).toBe(true)
       expect(requiredFeatureForPath('/hr')).toBeUndefined()
       expect(canReachPath(hrTenant(['hr.enabled']), '/hr')).toBe(true)
+    })
+    it('gates /account/warnings by hr.employees.read and the hr.warnings sub-feature', () => {
+      expect(requiredCapabilityForPath('/account/warnings')).toBe('hr.employees.read')
+      expect(requiredFeatureForPath('/account/warnings')).toBe('hr.warnings')
+      expect(canReachPath(hrTenant(['hr.enabled']), '/account/warnings')).toBe(false)
+      expect(canReachPath(hrTenant(['hr.enabled', 'hr.warnings']), '/account/warnings')).toBe(true)
     })
     it('canReach adds the explicit feature to the capability gates only when given', () => {
       const off = hrTenant(['hr.enabled'])

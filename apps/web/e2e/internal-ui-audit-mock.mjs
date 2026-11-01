@@ -6,6 +6,7 @@ import { moduleUiCapabilities, moduleUiPreviewData } from './module-ui-preview-d
 import { hrPayrollPreviewWrite } from './hr-payroll-ui-preview-data.mjs'
 import { financeGapsPreview } from './finance-documents-ui-preview-data.mjs'
 import { capabilitiesForRequest } from './mock-capabilities.mjs'
+import { hrWarningsPreviewWrite } from './hr-areas-ui-preview-data.mjs'
 import { crmPreviewWrite } from './crm-ui-preview-data.mjs'
 import { INBOX_CAPABILITIES, INBOX_FEATURES, inboxPreviewData, resetInboxPreview } from './inbox-ui-preview-data.mjs'
 import { handleCommercial } from './commercial-mock-routes.mjs'
@@ -31,8 +32,8 @@ const CAPABILITIES = [
   ...INBOX_CAPABILITIES,
 ]
 
-// The HR area sub-features (`hr.<area>`) gate the recruitment, shifts, onboarding, offboarding and assets pages on top of their capabilities.
-const HR_AREA_FEATURES = ['hr.assets', 'hr.offboarding', 'hr.onboarding', 'hr.payroll', 'hr.recruitment', 'hr.shifts']
+// The HR area sub-features (`hr.<area>`) gate the recruitment, shifts, onboarding, offboarding, assets and warnings pages on top of their capabilities.
+const HR_AREA_FEATURES = ['hr.assets', 'hr.offboarding', 'hr.onboarding', 'hr.payroll', 'hr.recruitment', 'hr.shifts', 'hr.warnings']
 
 const ME = {
   id: 2, name: 'Admin', login: 'admin', email: 'admin@example.com', lang: 'ar_001', tz: 'Asia/Riyadh',
@@ -472,6 +473,13 @@ async function handle(req, res) {
       res.writeHead(200, { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="${write.file.filename}"` })
       return res.end(write.file.body)
     }
+    if (write) return json(res, write.status, write.body)
+  }
+
+  if (process.env.MODULE_UI_PREVIEW === '1' && method !== 'GET' && /^\/api\/v1\/(hr\/warning|__mock\/reset-warnings$)/.test(path)) {
+    let body = {}
+    try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
+    const write = hrWarningsPreviewWrite(method, path, body)
     if (write) return json(res, write.status, write.body)
   }
 

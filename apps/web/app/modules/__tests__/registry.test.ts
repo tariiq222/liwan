@@ -69,6 +69,7 @@ const TODAY: ReadonlyArray<readonly [string, string | null, boolean]> = [
   ['hr.onboarding.read', 'hr.enabled', false], ['hr.onboarding.manage', 'hr.enabled', true],
   ['hr.offboarding.read', 'hr.enabled', false], ['hr.offboarding.manage', 'hr.enabled', true],
   ['hr.assets.read', 'hr.enabled', false], ['hr.assets.manage', 'hr.enabled', true],
+  ['hr.warnings.read', 'hr.enabled', false], ['hr.warnings.manage', 'hr.enabled', true],
   ['hr.payroll.read', 'hr.enabled', false], ['hr.payroll.manage', 'hr.enabled', true],
   ['hr.payroll.approve', 'hr.enabled', true], ['hr.payroll.config', 'hr.enabled', true],
   ['hr.payroll.audit.read', 'hr.enabled', false], ['hr.payroll.finance.manage', 'hr.enabled', true],

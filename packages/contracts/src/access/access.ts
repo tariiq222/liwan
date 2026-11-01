@@ -41,6 +41,8 @@ export const KNOWN_CAPABILITIES = [
   'hr.offboarding.manage',
   'hr.assets.read',
   'hr.assets.manage',
+  'hr.warnings.read',
+  'hr.warnings.manage',
   'hr.payroll.read',
   'hr.payroll.manage',
   'hr.payroll.approve',

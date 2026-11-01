@@ -1049,6 +1049,62 @@
       "schema": "HrShiftSettingsSchema"
     },
     {
+      "name": "hr/warning-list",
+      "addon": "liwan_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/warnings",
+      "status": 200,
+      "schema": "HrWarningListSchema"
+    },
+    {
+      "name": "hr/warning-detail",
+      "addon": "liwan_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/warnings/{id}",
+      "status": 200,
+      "schema": "HrWarningSchema"
+    },
+    {
+      "name": "hr/my-warning-list",
+      "addon": "liwan_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/warnings/me",
+      "status": 200,
+      "schema": "HrWarningListSchema"
+    },
+    {
+      "name": "hr/warning-standing",
+      "addon": "liwan_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/warnings/standing/{id}",
+      "status": 200,
+      "schema": "HrWarningStandingSchema"
+    },
+    {
+      "name": "hr/warning-type-list",
+      "addon": "liwan_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/warning-types",
+      "status": 200,
+      "schema": "HrWarningTypeListSchema"
+    },
+    {
+      "name": "hr/warning-settings",
+      "addon": "liwan_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/warnings/settings",
+      "status": 200,
+      "schema": "HrWarningSettingsSchema"
+    },
+    {
+      "name": "hr/warning-candidate-list",
+      "addon": "liwan_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/warnings/candidates",
+      "status": 200,
+      "schema": "HrWarningCandidateListSchema"
+    },
+    {
       "name": "meetings/meeting-version-detail",
       "addon": "liwan_meetings",
       "method": "GET",

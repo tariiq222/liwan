@@ -13,6 +13,10 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
+from odoo.addons.liwan_hr.models.audit_event import (
+    PAYROLL_ACTION_SELECTION,
+    WARNING_MODELS,
+)
 from odoo.addons.liwan_hr.serializers.dates import parse_optional_date
 from odoo.addons.liwan_hr.serializers.payroll.audit import dump_audit_event
 
@@ -24,10 +28,11 @@ def _utc_start_of(day):
 
 
 def _audit_domain(args):
-    domain = [('company_id', '=', request.env.company.id)]
+    # The warning trail belongs to the warnings capabilities, never to the payroll auditor.
+    domain = [('company_id', '=', request.env.company.id), ('res_model', 'not in', WARNING_MODELS)]
     action = args.get('action')
     if action:
-        actions = dict(request.env['liwan.hr.audit.event']._fields['action'].selection)
+        actions = dict(PAYROLL_ACTION_SELECTION)
         if action not in actions:
             raise ApiError(422, 'invalid', f"action must be one of {', '.join(sorted(actions))}", field='action')
         domain.append(('action', '=', action))

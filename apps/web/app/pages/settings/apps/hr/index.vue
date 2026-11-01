@@ -2,6 +2,8 @@
 import LeaveApprovalCard from '@/components/hr/LeaveApprovalCard.vue'
 import LeaveSettingsForm from '@/components/hr/LeaveSettingsForm.vue'
 import ShiftSettingsForm from '@/components/hr/shifts/ShiftSettingsForm.vue'
+import WarningSettingsForm from '@/components/hr/warnings/WarningSettingsForm.vue'
+import WarningTypesCard from '@/components/hr/warnings/WarningTypesCard.vue'
 import EosCaseMapTable from '@/components/hr/payroll/EosCaseMapTable.vue'
 import BranchStrictCard from '@/components/access/branches/BranchStrictCard.vue'
 import PayrollCostCenterTable from '@/components/hr/payroll/PayrollCostCenterTable.vue'
@@ -43,6 +45,19 @@ async function reloadShiftSettings() {
   return result.data
 }
 const canManageShifts = computed(() => can('hr.shifts.manage'))
+const warningSettings = useHrWarningSettings(() => shows('warnings'))
+const warningTypes = useHrWarningTypes('all', () => shows('warnings'))
+async function reloadWarningSettings() {
+  const result = await warningSettings.refetch()
+  if (result.isError) throw result.error
+  if (!result.data) throw new Error(t('errors.generic'))
+  return result.data
+}
+async function reloadWarningTypes() {
+  const result = await warningTypes.refetch()
+  if (result.isError) throw result.error
+}
+const canManageWarnings = computed(() => can('hr.warnings.manage'))
 const canConfig = computed(() => can('hr.payroll.config'))
 const settings = useHrPayrollSettings()
 const structures = useHrPayrollStructures()
@@ -180,6 +195,14 @@ function retry() {
     <section v-if="shows('shifts')" id="shifts" class="liwan-settings-anchor">
       <SharedPageState :loading="shiftSettings.isLoading.value" :error="shiftSettings.data.value ? null : shiftSettings.error.value" :empty="!shiftSettings.data.value" @retry="shiftSettings.refetch">
         <ShiftSettingsForm v-if="shiftSettings.data.value" :settings="shiftSettings.data.value" :can-edit="canManageShifts" :reload-settings="reloadShiftSettings" />
+      </SharedPageState>
+    </section>
+    <section v-if="shows('warnings')" id="warnings" class="liwan-settings-anchor grid gap-(--liwan-gap-card)">
+      <SharedPageState :loading="warningSettings.isLoading.value" :error="warningSettings.data.value ? null : warningSettings.error.value" :empty="!warningSettings.data.value" @retry="warningSettings.refetch">
+        <WarningSettingsForm v-if="warningSettings.data.value" :settings="warningSettings.data.value" :can-edit="canManageWarnings" :reload-settings="reloadWarningSettings" />
+      </SharedPageState>
+      <SharedPageState :loading="warningTypes.isLoading.value" :error="warningTypes.data.value ? null : warningTypes.error.value" :empty="!warningTypes.data.value" @retry="warningTypes.refetch">
+        <WarningTypesCard v-if="warningTypes.data.value" :types="warningTypes.data.value.items" :can-edit="canManageWarnings" :reload-types="reloadWarningTypes" />
       </SharedPageState>
     </section>
     </template>

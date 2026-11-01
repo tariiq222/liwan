@@ -1,0 +1,7 @@
+{
+  "can_issue": false,
+  "revision": 1,
+  "warnings_employee_acknowledgement": "optional",
+  "warnings_escalation_window_months": 12,
+  "warnings_issued_by": "manager_and_hr"
+}
