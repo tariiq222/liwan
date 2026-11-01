@@ -73,8 +73,9 @@ test.describe('Plan 6b: the departments list', () => {
       await expect(chart).toBeVisible()
       await expect(page.getByTestId('hr-org-zoom-in')).toBeEnabled()
       await expect(page.getByTestId('hr-org-fullscreen')).toBeEnabled()
-      const bottom = await chart.evaluate(node => node.getBoundingClientRect().bottom)
-      expect(bottom).toBeLessThanOrEqual(900 + 1)
+      // The list card is sticky and fills the screen once the page header has scrolled away (DESIGN.md, fill cards).
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+      await expect.poll(() => chart.evaluate(node => node.getBoundingClientRect().bottom)).toBeLessThanOrEqual(900 + 1)
     })
 
     test('a department opened from each view returns to that view with its filters', async ({ page }) => {

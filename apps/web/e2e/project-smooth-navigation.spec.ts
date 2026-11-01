@@ -16,9 +16,11 @@ test('project sidebar changes content without replaying the whole page entrance'
       if (e.target === main) main.setAttribute('data-test-animation-count', String(Number(main.getAttribute('data-test-animation-count')) + 1))
     })
   })
-  for (const [id, heading] of [['tab-governance', 'ملف المشروع'], ['subtab-stakeholders', 'أصحاب المصلحة'], ['subtab-risks', 'المخاطر والمشكلات'], ['tab-execution', 'المهام']] as const) {
-    await page.getByTestId(`project-${id}`).click()
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(heading)
+  // The project name stays the page's only h1; the active tab names the section.
+  for (const id of ['project-tab-governance', 'governance-tab-stakeholders', 'governance-tab-register', 'project-tab-tasks'] as const) {
+    await page.getByTestId(id).click()
+    await expect(page.getByTestId(id)).toHaveAttribute('aria-current', 'page')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('مشروع ألفا')
   }
   expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin)
   await expect(page.getByTestId('shell-main')).toHaveAttribute('data-test-animation-count', '0')

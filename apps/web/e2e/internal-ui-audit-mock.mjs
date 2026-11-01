@@ -545,6 +545,12 @@ async function handle(req, res) {
     return json(res, 200, { ...ME, appearance })
   }
   if (method === 'GET' && path === '/api/v1/admin/branding') return json(res, 200, BRANDING)
+  if (method === 'PATCH' && path === '/api/v1/admin/branding') {
+    let body = {}
+    try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
+    if (typeof body.primary_color === 'string' && /^#[0-9a-fA-F]{6}$/.test(body.primary_color)) BRANDING.primary_color = body.primary_color
+    return json(res, 200, BRANDING)
+  }
   if (method === 'GET' && path === '/api/v1/admin/company') return json(res, 200, companyProfile())
   if (method === 'PATCH' && path === '/api/v1/admin/company') {
     let patch = {}
@@ -574,13 +580,27 @@ async function handle(req, res) {
     return json(res, 200, projectsPreviewData(`/api/v1/tasks/${item.id}`, url, { PROJECTS, TASKS, projectDetail, reportRow, CURRENCY }))
   }
   // «مهامي»: the home indicators and focus need the tasks application (its capability and feature are granted above).
-  if (method === 'GET' && path === '/api/v1/my-tasks') {
+  if (method === 'GET' && (path === '/api/v1/my-tasks' || path === '/api/v1/my-tasks/summary')) {
     const day = 24 * 60 * 60 * 1000
-    const task = (id, name, offset) => ({ id, name, state: 'open', priority: 'normal', date_deadline: new Date(Date.now() + offset).toISOString(), assignees: [{ id: 2, name: 'Admin', user_id: 2 }], source: 'personal', project: null, href: `/my-tasks/${id}` })
-    const items = [task(901, 'اشترِ الورق', -day), task(902, 'راجع عرض السعر', 0)]
+    // The wire format is UTC at second precision (UtcDateTimeSchema).
+    const utc = offset => new Date(Date.now() + offset).toISOString().replace(/\.\d{3}Z$/, 'Z')
+    const me = { id: 2, name: 'Admin', user_id: 2 }
+    const personal = (id, name, offset) => ({ id, name, state: 'open', priority: 'normal', date_deadline: utc(offset), assignees: [me], source: 'personal', project: null, href: `/my-tasks/${id}` })
+    const projectTask = TASKS.find(task => task.id === 101)
+    const all = [
+      personal(901, 'اشترِ الورق', -day), personal(902, 'راجع عرض السعر', 0),
+      ...(projectTask ? [{ id: projectTask.id, name: projectTask.name, state: 'open', priority: 'normal', date_deadline: null, assignees: [me], source: 'project', project: { id: projectTask.project.id, name: projectTask.project.name }, href: `/projects/${projectTask.project.id}/tasks/${projectTask.id}` }] : []),
+    ]
+    const q = (url.searchParams.get('q') ?? '').trim().toLowerCase()
+    const items = all.filter(task => (!q || task.name.toLowerCase().includes(q)) && (url.searchParams.get('scope') !== 'created' || task.source === 'personal'))
+    if (path.endsWith('/summary')) return json(res, 200, { total: items.length, open: items.length, overdue: items.filter(task => task.date_deadline && Date.parse(task.date_deadline) < Date.now()).length, done: 0 })
     return json(res, 200, { items, total: items.length })
   }
-  if (method === 'GET' && path === '/api/v1/tasks') return json(res, 200, { items: TASKS, total: TASKS.length })
+  if (method === 'GET' && path === '/api/v1/tasks') {
+    const q = (url.searchParams.get('q') ?? '').trim().toLowerCase()
+    const items = q ? TASKS.filter(task => task.name.toLowerCase().includes(q)) : TASKS
+    return json(res, 200, { items, total: items.length })
+  }
   if (method === 'GET' && path === '/api/v1/tasks/summary') {
     const done = TASKS.filter(task => task.is_closed).length
     return json(res, 200, { total: TASKS.length, open: TASKS.length - done, overdue: TASKS.filter(task => !task.is_closed && task.is_overdue).length, done })

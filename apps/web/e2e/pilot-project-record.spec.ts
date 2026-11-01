@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
 // Plan 5 pilot: the project overview (/projects/1) on SharedRecordPage inside the workspace frame
-// (isolated mock stack). Project 1 is «مشروع ألفا» with start 2026-01-01 and one follower.
+// (isolated mock stack). Project 1 is «مشروع ألفا» (2026-01-01 to 2035-12-31) with two open tasks, one follower and the milestone «اعتماد الخطة».
 const ADMIN_LOGIN = process.env.E2E_ADMIN_LOGIN ?? 'admin'
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'admin'
 const fontSizes = ['small', 'medium', 'large'] as const
@@ -34,29 +34,33 @@ test.describe('Plan 5 pilot: the project overview', () => {
   test.describe('desktop', () => {
     test.use({ viewport: { width: 1440, height: 900 } })
 
-    test('the frame keeps the only h1 and the overview adds exactly its two section headings', async ({ page }) => {
+    test('the frame keeps the only h1 and the overview adds exactly its section headings', async ({ page }) => {
       await open(page, '/projects/1')
       await expect(page.getByTestId('project-overview')).toBeVisible()
       await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
       await expect(page.getByRole('heading', { level: 1 })).toHaveText('مشروع ألفا')
       const headings = await page.locator('main h2').allTextContents()
-      expect(headings.map(text => text.trim())).toEqual(['يحتاج انتباهك', 'آخر تحديث'])
+      expect(headings.map(text => text.trim())).toEqual(['الانتقال إلى مرحلة التنفيذ', 'يحتاج انتباهك', 'آخر تحديث'])
       await expect(page.locator('[data-template="record"]')).toHaveCount(1)
-      await expect(page.locator('[data-template="record"] [data-slot="page-header"]')).toHaveCount(0)
+      // The overview's own page header carries actions only; the name is the frame's.
+      await expect(page.locator('[data-template="record"] [data-slot="page-header"]').getByRole('heading')).toHaveCount(0)
       await expect(page.getByTestId('project-workspace-name')).toHaveText('مشروع ألفا')
     })
 
-    test('metrics, sections and the properties aside show the project facts once', async ({ page }) => {
+    test('metrics and sections show the project facts once', async ({ page }) => {
       await open(page, '/projects/1')
-      await expect(page.getByTestId('metric-tile')).toHaveCount(3)
+      const tiles = page.getByTestId('metric-tile')
+      await expect(tiles).toHaveCount(4)
+      await expect(tiles.nth(0)).toContainText('المهام المفتوحة')
+      await expect(tiles.nth(1)).toContainText('أقرب معلم')
+      await expect(tiles.nth(1)).toContainText('اعتماد الخطة')
+      await expect(tiles.nth(2)).toContainText('المعالم')
+      await expect(tiles.nth(3)).toContainText('المتابعون')
       await expect(page.getByTestId('project-active-tasks')).toBeVisible()
+      await expect(page.getByTestId('project-overview-progress')).toBeVisible()
       await expect(page.getByTestId('project-overview-latest-update')).toBeVisible()
-      const aside = page.getByRole('complementary', { name: 'الخصائص' })
-      await expect(aside).toBeVisible()
-      await expect(aside.locator('[data-slot="property-row"]')).toHaveCount(5)
-      await expect(aside.getByText('تاريخ البدء')).toBeVisible()
-      await expect(aside.getByText('المعالم')).toBeVisible()
-      await expect(aside.getByText('المتابعون')).toBeVisible()
+      // The overview has no properties panel: the facts live in the frame and the tiles.
+      await expect(page.getByRole('complementary', { name: 'الخصائص' })).toHaveCount(0)
       // Status and manager live in the frame only: one project-status on the page.
       await expect(page.getByTestId('project-status')).toHaveCount(1)
       await expect(page.getByTestId('project-overview').getByTestId('project-status-select')).toHaveCount(0)
@@ -64,20 +68,22 @@ test.describe('Plan 5 pilot: the project overview', () => {
 
     for (const fontSize of fontSizes) {
       const suffix = fontSize === 'small' ? '' : ` with ${fontSize} text`
-      test(`the three metric tiles sit in one row beside the aside${suffix}`, async ({ page, baseURL }) => {
+      test(`the milestone, count and follower tiles sit in one row${suffix}`, async ({ page, baseURL }) => {
         await setAppearance(page, baseURL, fontSize)
         await open(page, '/projects/1')
         await expect(page.locator('html')).toHaveAttribute('data-font-size', fontSize)
-        await expect(page.getByTestId('metric-tile')).toHaveCount(3)
-        const dateValue = page.getByTestId('metric-tile').last().locator('p.text-highlighted')
+        await expect(page.getByTestId('metric-tile')).toHaveCount(4)
+        // The open-tasks tile has its own row under the progress card; the other three share one.
+        const rowTiles = page.getByTestId('metric-tile').filter({ hasNotText: 'المهام المفتوحة' })
+        const dateValue = page.getByTestId('metric-tile').nth(1).locator('p.text-highlighted')
         await expect(dateValue).toContainText('2026')
         await expect.poll(async () => {
-          const tops = await page.getByTestId('metric-tile').evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().y))
+          const tops = await rowTiles.evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().y))
           return Math.max(...tops) - Math.min(...tops)
         }).toBeLessThanOrEqual(1)
         // Painted value glyphs must stay inside their column. Document width
         // alone misses text clipped by the card when the font is enlarged.
-        const clippedValues = await page.getByTestId('metric-tile').evaluateAll(tiles => tiles.flatMap(tile => {
+        const clippedValues = await rowTiles.evaluateAll(tiles => tiles.flatMap(tile => {
           const value = tile.querySelector<HTMLElement>('p.text-highlighted')!
           const box = value.parentElement!.getBoundingClientRect()
           const card = tile.getBoundingClientRect()
@@ -107,14 +113,14 @@ test.describe('Plan 5 pilot: the project overview', () => {
           }
           return { day: rect('01'), month: rect('10'), year: rect('2026') }
         })
-        // The localized Arabic date is read from the right: day, month, year.
-        expect(dateParts.year.right).toBeLessThanOrEqual(dateParts.month.left + 1)
-        expect(dateParts.month.right).toBeLessThanOrEqual(dateParts.day.left + 1)
+        // Dates are dd/MM/yyyy in every locale (utils/formatDate.ts), isolated left to right: day, month, year.
+        expect(dateParts.day.right).toBeLessThanOrEqual(dateParts.month.left + 1)
+        expect(dateParts.month.right).toBeLessThanOrEqual(dateParts.year.left + 1)
         expect(await fitsWidth(page)).toBe(true)
       })
     }
 
-    test('a project without dates shows dashes with a spoken «لا قيمة»', async ({ page }) => {
+    test('a project without dates shows no date tag', async ({ page }) => {
       await open(page, '/projects?view=table')
       // Opened from the list, the project is fetched by the browser, so the response can be replaced.
       await page.route('**/api/v1/projects/1', async route => {
@@ -124,16 +130,14 @@ test.describe('Plan 5 pilot: the project overview', () => {
       })
       await page.getByTestId('project-row').first().click()
       await expect(page).toHaveURL(/\/projects\/1(?:\?|$)/)
-      const aside = page.getByRole('complementary', { name: 'الخصائص' })
-      const start = aside.locator('[data-slot="property-row"]').filter({ hasText: 'تاريخ البدء' })
-      await expect(start.locator('dd')).toContainText('—')
-      await expect(start.locator('dd .sr-only')).toHaveText('لا قيمة')
+      await expect(page.getByTestId('project-workspace-name')).toHaveText('مشروع ألفا')
+      await expect(page.getByTestId('project-workspace-dates')).toHaveCount(0)
     })
 
     test('a project that cannot be read keeps the not-found text and its way back', async ({ page }) => {
       await page.goto('/projects/999')
       await expect(page.getByText('المشروع غير موجود أو لا تملك صلاحية عرضه')).toBeVisible()
-      await expect(page.getByRole('button', { name: 'العودة إلى المشاريع' })).toBeVisible()
+      await expect(page.getByRole('link', { name: 'العودة إلى المشاريع' })).toBeVisible()
       await expect(page.locator('[data-template="record"]')).toHaveCount(0)
     })
   })
@@ -143,13 +147,13 @@ test.describe('Plan 5 pilot: the project overview', () => {
 
     for (const fontSize of fontSizes) {
       const suffix = fontSize === 'small' ? '' : ` with ${fontSize} text`
-      test(`on a 390px phone the properties follow the sections and nothing overflows${suffix}`, async ({ page, baseURL }) => {
+      test(`on a 390px phone the sections stack and nothing overflows${suffix}`, async ({ page, baseURL }) => {
         await setAppearance(page, baseURL, fontSize)
         await open(page, '/projects/1')
         await expect(page.locator('html')).toHaveAttribute('data-font-size', fontSize)
-        const section = await page.getByTestId('project-overview-latest-update').boundingBox()
-        const aside = await page.getByRole('complementary', { name: 'الخصائص' }).boundingBox()
-        expect(aside!.y).toBeGreaterThanOrEqual(section!.y + section!.height - 1)
+        const progress = await page.getByTestId('project-overview-progress').boundingBox()
+        const latest = await page.getByTestId('project-overview-latest-update').boundingBox()
+        expect(latest!.y).toBeGreaterThanOrEqual(progress!.y + progress!.height - 1)
         expect(await fitsWidth(page)).toBe(true)
         await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
       })

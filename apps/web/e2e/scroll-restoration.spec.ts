@@ -8,6 +8,7 @@ import { test, expect, type Page } from '@playwright/test'
 //     NUXT_ODOO_DB=liwan_ui_mock_only NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4512/websocket \
 //     npx nuxt dev --port 4111
 //   E2E_BASE_URL=http://localhost:4111 npx playwright test e2e/scroll-restoration.spec.ts
+// CI runs it on that second stack: see ci-mock-long-list-specs.txt and deploy/ci/e2e-mock.sh.
 
 const LEAVE_AT = 2000
 
@@ -27,16 +28,16 @@ async function leaveListAtOffset(page: Page) {
   await page.evaluate(top => window.scrollTo(0, top), LEAVE_AT)
   await expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBe(LEAVE_AT)
 
-  // Open a row that is already on screen: clicking one that is not would make
+  // Open a row that is already on screen and clear of the sticky headers: clicking one that is not would make
   // Playwright scroll it into view first, moving the offset under test.
   const onScreen = await page.evaluate(() => [...document.querySelectorAll('tbody tr')]
     .findIndex((row) => {
       const box = row.getBoundingClientRect()
-      return box.top > 80 && box.bottom < window.innerHeight - 20
+      return box.top > 200 && box.bottom < window.innerHeight - 20
     }))
   expect(onScreen, 'a row should be on screen at the offset under test').toBeGreaterThan(-1)
   const left = await page.evaluate(() => Math.round(window.scrollY))
-  await page.locator('tbody tr').nth(onScreen).click()
+  await page.locator('tbody tr').nth(onScreen).locator('td').nth(1).click()
   await page.waitForURL(/\/tasks\/\d+/)
   return left
 }

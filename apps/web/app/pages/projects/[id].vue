@@ -9,6 +9,7 @@ import { ApiError } from '@/composables/useApi'
 import { activeGovernanceSection, activeProjectSection, projectIdFromPath } from '@/modules/pmo/projectRoutes'
 import { useProject } from '@/composables/useProjects'
 import { archivedTags, projectRecordBack } from '@/utils/projectNavigation'
+import { projectSectionLocation } from '@/utils/projectWorkspaceMemory'
 import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 
 const sourcePaths = useRecordListPaths(['/projects', '/projects/dashboard'])
@@ -30,13 +31,15 @@ watch([() => route.fullPath, project, me, hydrated], () => {
   if (project.value?.id === projectId.value && !error.value) remember(route.path, route.query)
 }, { immediate: true })
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && (error.value.status === 404 || error.value.status === 403)))
-const settingsTo = computed(() => `/projects/${projectId.value}/settings`)
+const settingsPath = computed(() => `/projects/${projectId.value}/settings`)
+// Like a section tab, the settings link keeps the task list's view and filters available for the way back.
+const settingsTo = computed(() => projectSectionLocation(settingsPath.value, route.path, route.query))
 // Settings is deliberately not one of the project sections (activeProjectSection
 // returns null for it, and the tab strip must not grow an extra tab), but it
 // is still a page of this workspace: without the frame it would lose the
 // project identity and every route back to the project.
 const isProjectSettings = computed(() => projectId.value !== null
-  && (route.path.replace(/\/+$/, '') || '/') === settingsTo.value)
+  && (route.path.replace(/\/+$/, '') || '/') === settingsPath.value)
 // The frame belongs to the project sections and their records, plus settings. A
 // failed load with nothing cached has no identity to show, so the child page's
 // error state stands alone. `projectData` rather than `project` here: gating on

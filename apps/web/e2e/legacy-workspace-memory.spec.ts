@@ -54,7 +54,7 @@ test('opening and cancelling task creation keeps the last readable project secti
 
 test('dirty project task creation keeps its draft through Escape and browser back until discard', async ({ page }) => {
   await ready(page, '/projects/1/tasks?q=مهمة&view=board')
-  await page.getByRole('link', { name: 'مهمة جديدة', exact: true }).click()
+  await page.getByTestId('project-header-create').click()
   const input = page.getByRole('textbox', { name: /^عنوان المهمة/ })
   await input.fill('مسودة لا تحفظ')
   await page.keyboard.press('Escape')

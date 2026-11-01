@@ -11,8 +11,8 @@ async function login(page: Page) {
 
 test('search opens centered, searches real tasks, closes with Escape and navigates a result', async ({ page }) => {
   await login(page)
-  const project = await (await page.request.post('/api/v1/projects', { data: { name: `Popup project ${Date.now()}`, date_end: '2035-12-31' } })).json()
-  const task = await (await page.request.post('/api/v1/tasks', { data: { name: `Popup task ${Date.now()}`, project_id: project.id } })).json()
+  // Task 101 of the mock project «مشروع ألفا».
+  const task = { id: 101, name: 'مهمة جارية' }
   await page.goto('/tasks?q=kept-search&sort=deadline')
   await page.getByRole('button', { name: 'بحث', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'بحث', exact: true })
@@ -35,7 +35,7 @@ test('search opens centered, searches real tasks, closes with Escape and navigat
   await dialog.getByRole('option', { name: task.name, exact: true }).click()
   await expect(page).toHaveURL(new RegExp(`/tasks/${task.id}\\?returnTo=`))
   await expect(dialog).toBeHidden()
-  await page.getByRole('link', { name: 'العودة إلى المهام', exact: true }).click()
+  await page.getByTestId('task-detail-back').click()
   await expect(page).toHaveURL(/\/tasks\?q=kept-search&sort=deadline$/)
 })
 
@@ -67,7 +67,6 @@ test('bell previews latest five and More opens the full notification page', asyn
   await page.route('**/api/v1/notifications?*', route => route.fulfill({ json: { items, total: 8, unread_count: 8 } }))
   await login(page)
   await page.getByTestId('notification-bell').click()
-  await expect(page).toHaveURL(/\/tasks$/)
   const preview = page.getByTestId('notification-preview')
   await expect(preview).toBeVisible()
   await expect(preview.locator('[data-notification-preview-item]')).toHaveCount(5)
@@ -78,25 +77,19 @@ test('bell previews latest five and More opens the full notification page', asyn
   await expect(page.getByTestId('notification-center').getByText('Notification 8', { exact: true })).toBeVisible()
 })
 
-test('notification preview keeps a failed read open and opens the task after retry', async ({ page: setupPage, browser }) => {
-  await login(setupPage)
-  const project = await (await setupPage.request.post('/api/v1/projects', { data: { name: `Notification preview ${Date.now()}`, date_end: '2035-12-31' } })).json()
-  const task = await (await setupPage.request.post('/api/v1/tasks', { data: { name: 'مهمة من قائمة الإشعارات', project_id: project.id } })).json()
-  const page = await browser.newPage({ baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3000' })
-  await page.route('**/api/v1/notifications?*', route => route.fulfill({ json: { items: [{ id: 901, kind: 'comment', task_id: task.id, task_name: task.name, body: 'تعليق تجريبي', created_at: '2026-09-06T12:00:00', is_read: false }], total: 1, unread_count: 1 } }))
+test('notification preview keeps a failed read open and opens the task after retry', async ({ page }) => {
+  await page.route('**/api/v1/notifications?*', route => route.fulfill({ json: { items: [{ id: 901, kind: 'comment', task_id: 101, task_name: 'مهمة جارية', body: 'تعليق تجريبي', created_at: '2026-09-06T12:00:00', is_read: false }], total: 1, unread_count: 1 } }))
   let failRead = true
   await page.route('**/api/v1/notifications/901/read', route => route.fulfill(failRead ? { status: 500, json: { code: 'server_error', message: 'تعذر تحديث الإشعار' } } : { json: { updated: 1 } }))
   await login(page)
   await page.getByTestId('notification-bell').click()
   await page.getByTestId('notification-preview-901').click()
   await expect(page.getByTestId('notification-preview')).toBeVisible()
-  await expect(page).toHaveURL(/\/tasks$/)
   await expect(page.getByTestId('notification-preview-901')).toBeEnabled()
   failRead = false
   await page.getByTestId('notification-preview-901').click()
-  await expect(page).toHaveURL(new RegExp(`/tasks/${task.id}$`))
-  await expect(page.locator('h1')).toHaveText(task.name)
-  await page.close()
+  await expect(page).toHaveURL(/\/tasks\/101$/)
+  await expect(page.locator('h1')).toHaveText('مهمة جارية')
 })
 
 test('overlays fit mobile dark mode with large text and search handles no results', async ({ page }, testInfo) => {

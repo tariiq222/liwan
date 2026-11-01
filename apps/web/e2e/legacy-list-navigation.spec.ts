@@ -40,7 +40,7 @@ for (const list of lists) {
       expect(origin.pathname).toBe(list.path)
       expect(origin.searchParams.get('q')).toBe(list.search)
       expect(origin.hash).toBe('#list')
-      await page.getByRole('link', { name: 'رجوع', exact: true }).first().click()
+      await page.getByRole('link', { name: /^(رجوع|العودة إلى المستندات)$/ }).first().click()
       await expect.poll(() => new URL(page.url()).pathname).toBe(list.path)
       expect(new URL(page.url()).searchParams.get('q')).toBe(list.search)
       expect(new URL(page.url()).hash).toBe('#list')

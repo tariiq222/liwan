@@ -1,6 +1,10 @@
 import { test, expect } from '@playwright/test'
 import { AdminUserDetailSchema, HrEmployeeSchema, MeSchema, RoleListSchema } from '@liwan/contracts'
 
+// Needs a real Odoo: it logs in as admin and writes data, which the mock answers with 404. It is in no CI list until it has run on a
+// scratch Odoo (see docs/testing.md, section 3).
+test.skip(process.env.E2E_REAL_ODOO !== '1', 'Explicit isolated real Odoo acceptance only')
+
 test('HR archival disables linked access and unarchival requires explicit account reactivation', async ({ page, browser }) => {
   expect((await page.request.post('/api/auth/login', { data: { login: 'admin', password: 'admin' } })).status()).toBe(200)
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`

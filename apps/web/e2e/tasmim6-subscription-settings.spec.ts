@@ -4,16 +4,16 @@ test.beforeEach(async ({ page }) => { await login(page) })
 
 test('subscription settings keep plan usage branches invoices and explicit auto renew consent', async ({ page }) => {
  await open(page,'/subscription'); await expectNoSecondH1(page)
- await expect(page.locator('[data-slot="record-section"]')).toHaveCount(6)
+ await expect(page.locator('[data-slot="record-section"]')).toHaveCount(7)
  await expect(page.getByTestId('usage-metric')).toHaveCount(2); await expect(page.getByTestId('usage-metric').filter({has:page.locator('[data-known="false"]')})).toHaveCount(0)
  await expect(page.locator('[data-testid="usage-metric"][data-known="false"]')).toHaveCount(1)
  await expect(page.getByTestId('branch-row')).toHaveCount(1); await expect(page.locator('a[href^="/subscription/invoices/inv-"]')).toHaveCount(2)
  const control=page.locator('[data-slot="auto-renew"]'); await expect(control.getByRole('button')).toBeDisabled()
  await control.getByRole('checkbox').check(); await expect(control.getByRole('button')).toBeEnabled()
 })
-test('a missing status order shows its note and never posts an order', async ({ page }) => {
+test('an order that is no longer pending shows its note and never posts an order', async ({ page }) => {
  const orders:string[]=[]; page.on('request',r=>{if(r.method()==='POST'&&r.url().includes('/api/commercial/v1/orders'))orders.push(r.url())})
- await open(page,'/subscription/status?order=order-x'); await expect(page.getByRole('main')).toContainText('لم يُعثر على هذا الطلب ضمن اشتراكك.'); expect(orders).toEqual([])
+ await open(page,'/subscription/status?order=order-x'); await expect(page.getByRole('main')).toContainText('هذا الطلب لم يعد معلّقًا.'); expect(orders).toEqual([])
 })
 test('branches are read only without branches.manage', async ({ page }) => {
  await open(page,'/subscription'); let intercepted=0

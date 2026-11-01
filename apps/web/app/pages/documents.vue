@@ -171,7 +171,8 @@ const liveListQuery = computed(() => {
   const { returnTo: _referrer, ...context } = route.query
   return { ...context, q: search.value.trim() || undefined, context_id: contextId.value ?? undefined, context_kind: contextKind.value || undefined, offset: !hasPendingSearch.value && offset.value > 0 ? offset.value : undefined }
 })
-const liveListPath = computed(() => router.resolve({ path: '/documents', query: liveListQuery.value, hash: route.hash }).fullPath)
+// A record link is built at the moment of the click, so a search typed a moment ago (before its debounce wrote the URL) travels with it.
+const liveListPath = () => router.resolve({ path: '/documents', query: liveListQuery.value, hash: route.hash }).fullPath
 // The create panel (documents/new.vue) returns to this list with the state it was showing and drops a
 // referrer's returnTo, so the link carries the list state only (context_id preselects its department).
 const createTo = computed(() => {

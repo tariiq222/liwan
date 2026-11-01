@@ -1,6 +1,10 @@
 import { expect, test, type Page } from '@playwright/test'
 import { FinanceEntrySchema, FinanceEntryListSchema, FinanceSummarySchema, ProjectDashboardAnalyticsSchema } from '@liwan/contracts'
 
+// Needs a real Odoo: it logs in as admin and writes data, which the mock answers with 404. It is in no CI list until it has run on a
+// scratch Odoo (see docs/testing.md, section 3).
+test.skip(process.env.E2E_REAL_ODOO !== '1', 'Explicit isolated real Odoo acceptance only')
+
 const LOGIN = process.env.E2E_PHASE2_LOGIN ?? 'phase2_manager'
 const PASSWORD = process.env.E2E_PHASE2_PASSWORD ?? 'phase2_test_only_2026'
 

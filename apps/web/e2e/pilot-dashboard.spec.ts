@@ -78,7 +78,6 @@ test.describe('Plan 5 pilot: the project dashboard', () => {
 
     test('a filter lands in the URL and survives a reload', async ({ page }) => {
       await open(page)
-      await page.getByRole('button', { name: 'البحث والفلاتر', exact: true }).click()
       await page.getByTestId('project-dashboard-status-filter').getByRole('button', { name: 'خارج المسار', exact: true }).click()
       await expect(page).toHaveURL(/status=off_track/)
       await page.reload()

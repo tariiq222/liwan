@@ -71,7 +71,8 @@ test.describe('Plan 6a: finance', () => {
       await expect(page.getByRole('heading', { level: 2, name: 'تجهيز بيئة العمل' })).toBeVisible()
       await expect(page.getByTestId('finance-entry-detail')).toBeVisible()
       await expect(page.locator('[data-slot="properties-panel"]')).toBeVisible()
-      await page.getByRole('button', { name: 'حذف', exact: true }).first().click()
+      await page.getByTestId('row-actions-menu').click()
+      await page.getByRole('menuitem', { name: 'حذف', exact: true }).click()
       await expect(page.getByTestId('finance-delete-confirm')).toBeVisible()
       await expect(page.getByRole('dialog')).toHaveCount(0)
     })
@@ -104,7 +105,9 @@ test.describe('Plan 6a: finance', () => {
     test('a budget create panel returns to an expense list with its original search and offset', async ({ page }) => {
       const intercepted = await validOffsetFixture(page)
       const origin = '/projects/2/finance?q=رخص&kind=expense&offset=50'
-      await open(page, `/projects/2/finance/new?kind=budget&returnTo=${encodeURIComponent(origin)}`)
+      // A client-side visit: the first load is rendered on the server, where a browser route cannot answer the list.
+      await open(page, '/projects/2/finance')
+      await page.evaluate(target => (window as unknown as { useNuxtApp: () => { $router: { push: (to: string) => Promise<unknown> } } }).useNuxtApp().$router.push(target), `/projects/2/finance/new?kind=budget&returnTo=${encodeURIComponent(origin)}`)
       await expect(page.getByRole('dialog')).toBeVisible()
       await expect(page.getByRole('dialog').locator('#finance-kind')).toContainText('ميزانية')
       await page.keyboard.press('Escape')

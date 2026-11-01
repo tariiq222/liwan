@@ -1,5 +1,9 @@
 import { test, expect, type Page, type APIRequestContext } from '@playwright/test'
 
+// Needs a real Odoo: it logs in as admin and writes data, which the mock answers with 404. It is in no CI list until it has run on a
+// scratch Odoo (see docs/testing.md, section 3).
+test.skip(process.env.E2E_REAL_ODOO !== '1', 'Explicit isolated real Odoo acceptance only')
+
 const TEST_PASSWORD = 'LiwanAccess-Test-123!'
 async function login(page: Page, login = 'admin', password = 'admin') {
   await page.goto('/login')

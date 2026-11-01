@@ -1,7 +1,12 @@
 import { expect, test } from '@playwright/test'
 import { login, open } from './support/tasmim6'
 
-test.beforeEach(async ({ page }) => { await login(page); await open(page, '/projects') })
+test.beforeEach(async ({ page, context, baseURL }) => {
+  // The context menu starts folded; these checks click its dashboard link.
+  await context.addCookies([{ name: 'liwan-context-sidebar', value: 'open', url: baseURL! }])
+  await login(page)
+  await open(page, '/projects')
+})
 
 for (const state of ['empty', 'error'] as const) {
   test(`pending charter decisions remain visible with ${state} analytics`, async ({ page }) => {
@@ -14,7 +19,8 @@ for (const state of ['empty', 'error'] as const) {
     }))
     await page.getByTestId('context-link-project-dashboard').click()
     await expect(page.getByTestId('pending-charters')).toBeVisible()
-    await expect(page.getByRole('link', { name: 'ميثاق بانتظار الاعتماد', exact: true })).toBeVisible()
+    await expect(page.getByTestId('pending-charters')).toContainText('ميثاق بانتظار الاعتماد')
+    await expect(page.getByTestId('pending-charters').getByRole('link', { name: 'مراجعة الميثاق', exact: true })).toHaveAttribute('href', '/projects/8001/charter')
     await expect(page.getByTestId(state === 'error' ? 'project-dashboard-analytics-error' : 'project-dashboard-empty')).toBeVisible()
   })
 }

@@ -1,13 +1,14 @@
 import { expect, test, type Page } from '@playwright/test'
 
-async function moduleLink(page: Page, width: number, label: string) {
+// «يومي» is a destination in both navigation surfaces: the rail on desktop and the drawer on a phone.
+async function goToday(page: Page, width: number) {
   if (width < 768) {
-    await page.getByTestId('mobile-navigation-trigger').click()
-    return page.getByRole('dialog', { name: 'القائمة', exact: true })
-      .getByRole('navigation', { name: 'الموديولات', exact: true })
-      .getByRole('link', { name: label, exact: true })
+    // The drawer stays open under the guard, so open it only when it is closed.
+    if (!await page.locator('#mobile-navigation').isVisible()) await page.getByTestId('mobile-navigation-trigger').click()
+    await page.locator('#mobile-navigation').getByRole('link', { name: 'يومي', exact: true }).click()
+    return
   }
-  return page.getByTestId('module-rail').getByRole('link', { name: label, exact: true })
+  await page.getByTestId('module-rail').getByRole('link', { name: 'يومي', exact: true }).click()
 }
 
 for (const width of [1440, 390]) {
@@ -25,8 +26,7 @@ for (const width of [1440, 390]) {
     const saved = await color.inputValue()
     const draft = saved === '#abcdef' ? '#123456' : '#abcdef'
     await color.fill(draft)
-    const projects = await moduleLink(page, width, 'المشاريع')
-    await projects.click()
+    await goToday(page, width)
     const dialog = page.getByRole('dialog', { name: 'تغييرات غير محفوظة', exact: true })
     await expect(dialog).toBeVisible()
     const box = await dialog.boundingBox()
@@ -35,15 +35,15 @@ for (const width of [1440, 390]) {
     await expect(dialog.getByRole('button', { name: 'البقاء في الصفحة' })).toBeFocused()
     await page.keyboard.press('Escape')
     await expect(dialog).toHaveCount(0)
-    await expect(projects).toBeFocused()
+    if (width >= 768) await expect(page.getByTestId('module-rail').getByRole('link', { name: 'يومي', exact: true })).toBeFocused()
     await expect(color).toHaveValue(draft)
-    await projects.click()
+    await goToday(page, width)
     await dialog.getByRole('button', { name: 'البقاء في الصفحة' }).click()
     await expect(page).toHaveURL(/\/settings\/company#branding$/)
     await expect(color).toHaveValue(draft)
-    await projects.click()
+    await goToday(page, width)
     await dialog.getByRole('button', { name: 'المغادرة بدون حفظ' }).click()
-    await expect(page).toHaveURL(/\/projects$/)
+    await expect(page).toHaveURL(/\/$/)
     await page.goto('/settings/company#branding')
     await expect(color).toHaveValue(saved)
 

@@ -289,7 +289,7 @@ const events = [{
   summary: 'حُفظ محضر الاجتماع.',
 }]
 
-const attachments = [{ id: 1, name: 'محضر الاجتماع.pdf', mimetype: 'application/pdf', url: '/api/v1/attachments/1' }]
+const attachments = [{ id: 1, name: 'محضر الاجتماع.pdf', mimetype: 'application/pdf', url: '/api/v1/attachments/1', size: 18432 }]
 const versions = [{ id: 1, number: 1, captured_at: snapshot.captured_at, actor: PERSON, snapshot }]
 
 const employee = {
@@ -468,11 +468,11 @@ export function moduleUiPreviewData(path, url) {
   if (/^\/api\/v1\/finance\/(invoices|payments|journals)(\/|$)/.test(normalizedPath)) return financeDocumentsPreviewData(normalizedPath, parsedUrl)
   if (/^\/api\/v1\/finance\/(entries|accounts)(\/|$)/.test(normalizedPath)) return financeAccountingPreviewData(normalizedPath, parsedUrl)
   if (/^\/api\/v1\/finance\/bank-statement(s|-lines)(\/|$)/.test(normalizedPath)) return financeBankPreviewData(normalizedPath, parsedUrl)
-  if (/^\/api\/v1\/finance\/reports\/(trial-balance|general-ledger|partner-statement|vat|withholding|profit-loss|balance-sheet|zakat-base)$/.test(normalizedPath)) return financeReportsPreviewData(normalizedPath, parsedUrl)
+  if (/^\/api\/v1\/finance\/reports\/(trial-balance|general-ledger|partner-statement|vat|withholding|profit-loss|balance-sheet|zakat-base|cash-flow)$/.test(normalizedPath)) return financeReportsPreviewData(normalizedPath, parsedUrl)
   if (/^\/api\/v1\/finance\/(budgets(\/|$)|reports\/budget-vs-actual$)/.test(normalizedPath)) return financeBudgetsPreviewData(normalizedPath, parsedUrl)
   if (/^\/api\/v1\/finance\/(assets|asset-profiles)(\/|$)/.test(normalizedPath)) return financeAssetsPreviewData(normalizedPath, parsedUrl)
   if (/^\/api\/v1\/finance\/(analytic-plans|analytic-accounts|reports\/analytic)(\/|$)/.test(normalizedPath)) return financeAnalyticPreviewData(normalizedPath, parsedUrl)
-  if (/^\/api\/v1\/finance\/(fiscal-years|zatca\/status|audit-events)(\/|$)/.test(normalizedPath)) return financeGovernancePreviewData(normalizedPath, parsedUrl)
+  if (/^\/api\/v1\/finance\/(fiscal-years|zatca\/(status|documents)|audit-events)(\/|$)/.test(normalizedPath)) return financeGovernancePreviewData(normalizedPath, parsedUrl)
   if (normalizedPath.startsWith('/api/v1/finance/')) return financePreviewData(normalizedPath, parsedUrl)
 
   if (normalizedPath === '/api/v1/admin/users') return page([adminUser], parsedUrl)

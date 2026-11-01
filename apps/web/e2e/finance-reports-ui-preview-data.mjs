@@ -226,7 +226,34 @@ function zakatBase(url) {
   }
 }
 
+// The statement of cash flows by the indirect method. Net change 15000 = operating 21000 - investing 4000 - financing 2000; the cash
+// accounts moved by the same amount, so the check difference is zero.
+function cashFlow(url) {
+  const period = periodOf(url)
+  return {
+    date_from: period.date_from,
+    date_to: period.date_to,
+    currency: CURRENCY,
+    basis: 'indirect',
+    statutory: false,
+    opening_cash: 50000,
+    closing_cash: 65000,
+    net_change: 15000,
+    operating: {
+      net_income: 18000,
+      adjustments: [{ key: 'depreciation', amount: 1500 }],
+      items: [{ account: accounts[1], amount: 2000 }, { account: accounts[2], amount: -500 }],
+      total: 21000,
+    },
+    investing: { items: [{ account: accounts[4], amount: -3000 }], depreciation_reclass: -1000, total: -4000 },
+    financing: { items: [{ account: accounts[3], amount: -2000 }], total: -2000 },
+    total_change: 15000,
+    difference: 0,
+  }
+}
+
 const reports = {
+  'cash-flow': cashFlow,
   'trial-balance': trialBalance,
   'general-ledger': generalLedger,
   'partner-statement': partnerStatement,

@@ -3,6 +3,8 @@ import { expect, test, type Page } from '@playwright/test'
 // A settings page is one page of cards: the sidebar sub-list scrolls to a card in place, follows the reader while
 // scrolling, and a direct link with a hash lands on its card. Isolated mock stack (admin / admin).
 async function login(page: Page) {
+  // The context menu starts folded; these checks read the pinned menu.
+  await page.context().addCookies([{ name: 'liwan-context-sidebar', value: 'open', url: new URL(process.env.E2E_BASE_URL ?? 'http://localhost:3000').origin }])
   await page.goto('/login')
   await page.getByLabel('اسم المستخدم').fill('admin')
   await page.getByLabel('كلمة المرور', { exact: true }).fill('admin')
@@ -106,7 +108,9 @@ test.describe('settings page of cards', () => {
 
     test('cold client navigation from the overview: the spy follows the cards that render after the data arrives', async ({ page }) => {
       await open(page, '/settings')
+      // The sidebar entry opens its sub-list; the page itself is the sub-list's first link.
       await page.getByTestId('settings-projects-tab').click()
+      await page.locator('.liwan-sub-list a[href="/settings/apps/projects"]').first().click()
       await expect(page).toHaveURL(/\/settings\/apps\/projects/)
       await expect(page.locator('#project-defaults')).toBeVisible({ timeout: 15_000 })
       await page.evaluate(() => window.scrollTo({ top: document.getElementById('project-defaults')!.getBoundingClientRect().top + scrollY - 80, behavior: 'instant' }))
@@ -140,7 +144,7 @@ test.describe('settings page of cards', () => {
     await expect(page.locator('#address')).toBeVisible()
     await expect(page.getByTestId('mobile-navigation-trigger')).toBeEnabled()
     await page.getByTestId('mobile-navigation-trigger').click()
-    const tap = page.getByTestId('mobile-context-link-address')
+    const tap = page.locator('#mobile-navigation a[href="/settings/company#address"]')
     await expect(tap).toBeVisible()
     await tap.click()
     await expect(page.locator('#mobile-navigation')).toHaveCount(0)
