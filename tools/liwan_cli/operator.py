@@ -46,7 +46,7 @@ CREATE_MODULES = (
     'liwan_pmo', 'liwan_meetings', 'liwan_meetings_pmo', 'liwan_hr', 'liwan_access_hr',
     'liwan_integrations_sa', 'liwan_finance', 'liwan_hr_finance', 'liwan_pmo_finance',
     'liwan_payments', 'liwan_chat', 'liwan_tasks', 'liwan_tasks_pmo', 'liwan_operations',
-    'liwan_operations_pmo', 'liwan_ai', 'liwan_pmo_ai', 'liwan_documents',
+    'liwan_operations_pmo', 'liwan_hr_operations', 'liwan_ai', 'liwan_pmo_ai', 'liwan_documents',
     'liwan_documents_hr', 'liwan_crm', 'liwan_appointments', 'liwan_appointments_payments',
     'liwan_inbox', 'liwan_inbox_payments',
 )

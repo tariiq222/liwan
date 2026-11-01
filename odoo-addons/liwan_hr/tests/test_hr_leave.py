@@ -5,6 +5,7 @@ from odoo.exceptions import AccessError
 from odoo.tests import new_test_user, tagged
 
 from .common import LiwanHrCase, set_hr_feature
+from odoo.addons.liwan_hr.models.ir_rule import LiwanHrIrRule
 
 LEAVE_KEYS = {
     'id', 'employee', 'leave_type', 'date_from', 'date_to', 'number_of_days',
@@ -483,7 +484,8 @@ class TestHrLeave(LiwanHrCase):
         self.assertIsNone(leave._liwan_request_approval())
         self.assertFalse(leave._liwan_approval_governed())
         self.assertIsNone(leave._liwan_withdraw_approval())
-        self.assertTrue(self.env['ir.rule']._liwan_leave_extra_read_domain().is_false())
+        # HR's own definition: an installed bridge widens the fence, which its tests cover.
+        self.assertTrue(LiwanHrIrRule._liwan_leave_extra_read_domain(self.env['ir.rule']).is_false())
         self._as_manager()
         approved = self.api('POST', f'/api/v1/hr/leave/requests/{leave.id}/approve', json={})
         self.assertEqual((approved.status_code, approved.json()['state']), (200, 'validate'))

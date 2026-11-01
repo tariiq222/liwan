@@ -130,7 +130,7 @@ docker compose exec -T db pg_isready -U odoo >/dev/null 2>&1 || { echo "db not r
 # Every pillar must be listed explicitly: pillars depend on liwan_api, not the other way round.
 docker compose -f docker-compose.yml -f docker-compose.classification.yml run --rm \
   -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" odoo \
-  -d "$DB_NAME" -i liwan_core,liwan_platform,liwan_api,liwan_directory,liwan_notify,liwan_pmo,liwan_meetings,liwan_meetings_pmo,liwan_hr,liwan_access_hr,liwan_integrations_sa,liwan_finance,liwan_hr_finance,liwan_pmo_finance,liwan_payments,liwan_chat,liwan_tasks,liwan_tasks_pmo,liwan_operations,liwan_operations_pmo,liwan_ai,liwan_pmo_ai,liwan_documents,liwan_documents_hr,liwan_crm,liwan_appointments,liwan_appointments_payments,liwan_inbox,liwan_inbox_payments --stop-after-init
+  -d "$DB_NAME" -i liwan_core,liwan_platform,liwan_api,liwan_directory,liwan_notify,liwan_pmo,liwan_meetings,liwan_meetings_pmo,liwan_hr,liwan_access_hr,liwan_integrations_sa,liwan_finance,liwan_hr_finance,liwan_pmo_finance,liwan_payments,liwan_chat,liwan_tasks,liwan_tasks_pmo,liwan_operations,liwan_operations_pmo,liwan_hr_operations,liwan_ai,liwan_pmo_ai,liwan_documents,liwan_documents_hr,liwan_crm,liwan_appointments,liwan_appointments_payments,liwan_inbox,liwan_inbox_payments --stop-after-init
 docker compose run --rm -T -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
   shell -d "$DB_NAME" --no-http < data/seed/seed_legacy_policy.py
 docker compose run --rm -T -e VENDOR_PASSWORD -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \

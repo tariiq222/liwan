@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_liwan_operation_request_hr_leave_read,liwan.operation.request hr leave read,liwan_operations.model_liwan_operation_request,liwan_hr.group_cap_hr_leave_read,1,0,0,0
+access_liwan_operation_request_hr_leave_request,liwan.operation.request hr leave request,liwan_operations.model_liwan_operation_request,liwan_hr.group_cap_hr_leave_request,1,0,0,0
+access_liwan_operation_request_hr_leave_approve,liwan.operation.request hr leave approve,liwan_operations.model_liwan_operation_request,liwan_hr.group_cap_hr_leave_approve,1,0,0,0
+access_liwan_operation_request_hr_leave_manage,liwan.operation.request hr leave manage,liwan_operations.model_liwan_operation_request,liwan_hr.group_cap_hr_leave_manage,1,0,0,0
+access_liwan_operation_process_hr_leave_config,liwan.operation.process hr leave config,liwan_operations.model_liwan_operation_process,liwan_hr.group_cap_hr_leave_config,1,0,0,0
+access_liwan_operation_process_step_hr_leave_config,liwan.operation.process.step hr leave config,liwan_operations.model_liwan_operation_process_step,liwan_hr.group_cap_hr_leave_config,1,0,0,0

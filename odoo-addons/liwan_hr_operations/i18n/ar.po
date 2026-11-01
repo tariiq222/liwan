@@ -1,0 +1,155 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* liwan_hr_operations
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 19.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-01 00:00+0000\n"
+"PO-Revision-Date: 2026-11-01 00:00+0000\n"
+"Last-Translator: LiwanOS\n"
+"Language-Team: Arabic\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
+
+#. module: liwan_hr_operations
+#. odoo-python
+#: code:addons/liwan_hr_operations/models/hr_leave.py:0
+msgid "%(type)s: %(employee)s, %(date_from)s - %(date_to)s"
+msgstr "%(type)s: %(employee)s، %(date_from)s - %(date_to)s"
+
+#. module: liwan_hr_operations
+#. odoo-python
+#: code:addons/liwan_hr_operations/models/hr_leave.py:0
+msgid "The leave request was decided outside the approval workflow."
+msgstr "تم البت في طلب الإجازة خارج مسار الاعتماد."
+
+#. module: liwan_hr_operations
+#. odoo-python
+#: code:addons/liwan_hr_operations/models/hr_leave.py:0
+msgid "This request is decided by its approval workflow."
+msgstr "يُبتّ في هذا الطلب عبر مسار الاعتماد الخاص به."
+
+#. module: liwan_hr_operations
+#. odoo-python
+#: code:addons/liwan_hr_operations/models/operation_request.py:0
+msgid "Choose a valid leave request."
+msgstr "اختر طلب إجازة صالحاً."
+
+#. module: liwan_hr_operations
+#. odoo-python
+#: code:addons/liwan_hr_operations/models/operation_request.py:0
+msgid "The leave request is not available."
+msgstr "طلب الإجازة غير متاح."
+
+#. module: liwan_hr_operations
+#. odoo-python
+#: code:addons/liwan_hr_operations/models/operation_request.py:0
+msgid "Leave requests are submitted from the leave form."
+msgstr "تُرسل طلبات الإجازة من نموذج الإجازة."
+
+#. module: liwan_hr_operations
+#. odoo-python
+#: code:addons/liwan_hr_operations/models/operation_request.py:0
+msgid "Only a pending leave request can be submitted for approval."
+msgstr "لا يمكن إرسال للاعتماد إلا طلب إجازة قيد الانتظار."
+
+#. module: liwan_hr_operations
+#. odoo-python
+#: code:addons/liwan_hr_operations/models/operation_request.py:0
+msgid "The employee has no time-off approver other than the requester. Set one in the employee record."
+msgstr "لا يوجد للموظف معتمد إجازات غير مقدّم الطلب. حدّد معتمداً في سجل الموظف."
+
+#. module: liwan_hr_operations
+#. odoo-python
+#: code:addons/liwan_hr_operations/models/operation_request.py:0
+msgid "The leave request changed after it was submitted. Withdraw it and submit a new one."
+msgstr "تغيّر طلب الإجازة بعد إرساله. اسحبه وأرسل طلباً جديداً."
+
+#. module: liwan_hr_operations
+#. odoo-python
+#: code:addons/liwan_hr_operations/models/operation_request.py:0
+msgid "A leave request cannot be decided by its own employee."
+msgstr "لا يمكن للموظف أن يبتّ في طلب إجازته بنفسه."
+
+#. module: liwan_hr_operations
+#. odoo-python
+#: code:addons/liwan_hr_operations/models/operation_request.py:0
+msgid "A leave request cannot be edited."
+msgstr "لا يمكن تعديل طلب الإجازة."
+
+#. module: liwan_hr_operations
+#. odoo-python
+#: code:addons/liwan_hr_operations/models/operation_request.py:0
+msgid "A leave request cannot be returned for editing."
+msgstr "لا يمكن إعادة طلب الإجازة للتعديل."
+
+#. module: liwan_hr_operations
+#. odoo-python
+#: code:addons/liwan_hr_operations/models/operation_request.py:0
+msgid "Withdraw a leave request from the leave form."
+msgstr "اسحب طلب الإجازة من نموذج الإجازة."
+
+#. module: liwan_hr_operations
+#. odoo-python
+#: code:addons/liwan_hr_operations/models/process.py:0
+msgid "Leave approval"
+msgstr "اعتماد الإجازات"
+
+#. module: liwan_hr_operations
+#. odoo-python
+#: code:addons/liwan_hr_operations/models/process.py:0
+msgid "Direct manager (time-off approver)"
+msgstr "المدير المباشر (معتمد الإجازات)"
+
+#. module: liwan_hr_operations
+#. odoo-python
+#: code:addons/liwan_hr_operations/models/process.py:0
+msgid "HR leave officers"
+msgstr "مسؤولو الإجازات في الموارد البشرية"
+
+#. module: liwan_hr_operations
+#. odoo-python
+#: code:addons/liwan_hr_operations/models/process.py:0
+msgid "Direct manager"
+msgstr "المدير المباشر"
+
+#. module: liwan_hr_operations
+#. odoo-python
+#: code:addons/liwan_hr_operations/models/process.py:0
+msgid "HR"
+msgstr "الموارد البشرية"
+
+#. module: liwan_hr_operations
+#. odoo-python
+#: code:addons/liwan_hr_operations/models/process.py:0
+msgid "A leave approval process is an employee affairs process."
+msgstr "مسار اعتماد الإجازات هو مسار شؤون موظفين."
+
+#. module: liwan_hr_operations
+#. odoo-python
+#: code:addons/liwan_hr_operations/models/process.py:0
+msgid "The company already has a published leave approval process. Archive it first."
+msgstr "لدى الشركة مسار اعتماد إجازات منشور بالفعل. أرشفه أولاً."
+
+#. module: liwan_hr_operations
+#. odoo-python
+#: code:addons/liwan_hr_operations/models/process.py:0
+msgid "Named reviewers of a leave approval stage must be able to approve leave."
+msgstr "يجب أن يملك المراجعون المسمّون في مرحلة اعتماد الإجازات صلاحية اعتماد الإجازات."
+
+#. module: liwan_hr_operations
+#. odoo-python
+#: code:addons/liwan_hr_operations/models/process.py:0
+msgid "The last stage must be the HR leave officers or named users who can approve leave."
+msgstr "يجب أن تكون المرحلة الأخيرة مسؤولي الإجازات في الموارد البشرية أو مستخدمين مسمّين يملكون صلاحية اعتماد الإجازات."
+
+#. module: liwan_hr_operations
+#. odoo-python
+#: code:addons/liwan_hr_operations/models/process.py:0
+msgid "This reviewer resolver is not available."
+msgstr "محدّد المراجعين هذا غير متاح."

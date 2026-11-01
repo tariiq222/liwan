@@ -91,6 +91,10 @@ limits describe implementation stages, not permanent product exclusions.
 - `odoo-addons/liwan_operations_pmo` (bridge, rank 5, `auto_install`) is installed whenever
   `liwan_operations` and `liwan_pmo` both are. It executes task completion through the original
   designated-reviewer policy.
+- `odoo-addons/liwan_hr_operations` (bridge, rank 5, `auto_install`) is installed whenever `liwan_hr`
+  and `liwan_operations` both are. It runs leave approval through the company's `hr_leave` operations
+  process (direct manager, then HR) and answers the neutral `hr.leave` approval hooks; routes under
+  `/api/v1/hr/leave/approval-process` and `/api/v1/hr/leave/requests/<id>/approval`. No `sudo()`.
 - `odoo-addons/liwan_pmo_finance` (bridge, rank 5, `auto_install`) is installed whenever `liwan_pmo`
   and `liwan_finance` both are. While `finance.enabled` is on, a project's actual cost is the posted
   expense of its cost center (an analytic account linked by `liwan_project_id`) instead of manual
