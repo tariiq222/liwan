@@ -272,7 +272,7 @@ outcome is not evidence of an upgrade having been exercised. Migration rules are
 | `createdb -T` clone of the installed template | about 1.2 s |
 | `npm run test:odoo -- --addons liwan_hr` (80 tests), warm / cold template | 30 s / 43 s |
 | Full Odoo run (install and tests of all release modules, 658 tests) | 234 s |
-| CI `e2e-mock` locally (`nuxt build` 28.8 s, 7 Playwright tests 4.9 s) | about 35 s |
+| CI `e2e-mock` locally on a busy machine (production build, then 109 spec files with 903 tests in 14 min, then 22 long-list tests in 25 s) | about 16 min |
 | `npm run test:rtl` (Storybook build 7.6 s, 184 stories x 2 viewports, 4 workers) | about 2.4 min |
 | Semgrep gate on a few changed files | about 7 s |
 
