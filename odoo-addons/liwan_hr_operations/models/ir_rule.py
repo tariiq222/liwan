@@ -2,7 +2,7 @@
 from odoo import api, models
 from odoo.fields import Domain
 
-from .common import BRIDGE, KIND, REJECTING_CONTEXT
+from .common import BRIDGE, KIND, LEAVE_REQUEST, REJECTING_CONTEXT
 
 STAFF_CAPABILITIES = ('hr.leave.approve', 'hr.leave.manage')
 
@@ -33,7 +33,7 @@ class HrOperationsIrRule(models.Model):
             # Whoever may request leave sees the company's leave process in any state, so a leave filed while it
             # is being edited is refused instead of silently skipping the workflow. Read only.
             service = self.env['liwan.access.service']
-            requesters = sorted(set(service._liwan_operation_capability_company_ids('hr.leave.request')) & set(service._liwan_scoped_company_ids()))
+            requesters = sorted(set(service._liwan_operation_capability_company_ids(LEAVE_REQUEST)) & set(service._liwan_scoped_company_ids()))
             return domain | (Domain('execution_kind', '=', KIND) & Domain('company_id', 'in', requesters))
         if model_name != 'liwan.operation.request':
             return domain

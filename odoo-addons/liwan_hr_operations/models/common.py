@@ -3,6 +3,7 @@ KIND = 'hr_leave'
 APPROVER = 'hr_leave_approver'
 OFFICERS = 'hr_leave_officers'
 LEAVE_APPROVE = 'hr.leave.approve'
+LEAVE_REQUEST = 'hr.leave.request'
 # Bridge-private context value: the leave form creates and withdraws its request, and a decision
 # of the workflow reaches the stock approve and refuse, only while this token is in the context.
 BRIDGE_CONTEXT = 'hr_leave_operations'

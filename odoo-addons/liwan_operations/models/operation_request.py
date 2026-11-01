@@ -80,6 +80,11 @@ class OperationRequest(models.Model):
     def _operations_target(self):
         return None
 
+    @api.model
+    def _operations_creation_capability(self, execution_kind):
+        """The capability that lets a user file, submit and withdraw a request of ``execution_kind``; bridges override it."""
+        return 'operations.requests.create'
+
     def _operations_resolve_reviewers(self, key):
         """The users a resolver ``key`` names for this request; bridges override it."""
         raise ValidationError(self.env._('This reviewer resolver is not available.'))
@@ -94,7 +99,6 @@ class OperationRequest(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        require(self.env, 'operations.requests.create')
         prepared = []
         for source in vals_list:
             vals = dict(source)
@@ -103,10 +107,11 @@ class OperationRequest(models.Model):
             process = self._operations_published_process(vals.get('process_id'), self.env.company)
             if not process:
                 raise ValidationError(self.env._('Choose a published process from the current company.'))
+            require(self.env, self._operations_creation_capability(process.execution_kind))
             target = self._operations_target_values(process, vals.pop('target_id', None))
             if vals.get('company_id', self.env.company.id) != self.env.company.id:
                 raise AccessError(self.env._('Use the current company.'))
-            vals.update(name=text(self.env, vals.get('name'), 'name', 200, True), description=text(self.env, vals.get('description', ''), 'description', 20000), company_id=self.env.company.id, state='draft', requester_id=self.env.uid, revision=0, cycle=0, process_revision=0, participant_ids=[], stage_snapshot=[], stage_approval_mode='per_stage', execution_count=0, execution_kind='approval', process_name=process.name, event_ids=[])
+            vals.update(name=text(self.env, vals.get('name'), 'name', 200, True), description=text(self.env, vals.get('description', ''), 'description', 20000), company_id=self.env.company.id, state='draft', requester_id=self.env.uid, revision=0, cycle=0, process_revision=0, participant_ids=[], stage_snapshot=[], stage_approval_mode='per_stage', execution_count=0, execution_kind=process.execution_kind, process_name=process.name, event_ids=[])
             # Classification belongs to this request, including returned/resubmitted
             # cycles; later process edits must never move its historical purpose.
             vals.update(target, purpose=process.purpose)
@@ -141,7 +146,7 @@ class OperationRequest(models.Model):
             raise AccessError(self.env._('Use an active account in the current company.'))
 
     def _editable(self):
-        self._guard('operations.requests.create')
+        self._guard(self._operations_creation_capability(self.execution_kind))
         if self.requester_id != self.env.user or self.state not in ('draft', 'returned'):
             raise AccessError(self.env._('Only the requester can edit an open draft.'))
 
@@ -250,21 +255,28 @@ class OperationRequest(models.Model):
             values={'subject': self.name},
         )
 
+    def _decidable_reviews(self):
+        """The open reviews the current user may decide, from the current stage on.
+
+        Snapshot membership and the stage's own capability are both necessary. A later stage counts
+        only while every stage before it, from the current one, is authorized too.
+        """
+        service = self.env['liwan.access.service']
+        decidable = self.env['tier.review']
+        for review in self._tier_eligible_reviews(self.review_ids).sorted('sequence'):
+            in_snapshot = 0 < review.sequence <= len(self.stage_snapshot) and self.env.uid in self.stage_snapshot[review.sequence - 1]['reviewer_ids']
+            if not (in_snapshot and service._liwan_has_capability(self.env.user, self._operations_stage_capability(review.sequence), record=self)):
+                break
+            decidable |= review
+        return decidable
+
     def _decision_guard(self, revision):
         self._guard('operations.requests.read')
         lock_or_conflict(self)
         check_revision(self, revision)
         if self.state != 'pending' or self.requester_id == self.env.user:
             raise AccessError(self.env._('This request is not available for your decision.'))
-        # Snapshot membership and the stage's own capability are both necessary; company/active checks are above.
-        # A later stage counts only while every stage before it, from the current one on, is authorized too.
-        service = self.env['liwan.access.service']
-        eligible = self.env['tier.review']
-        for review in self._tier_eligible_reviews(self.review_ids).sorted('sequence'):
-            in_snapshot = 0 < review.sequence <= len(self.stage_snapshot) and self.env.uid in self.stage_snapshot[review.sequence - 1]['reviewer_ids']
-            if not (in_snapshot and service._liwan_has_capability(self.env.user, self._operations_stage_capability(review.sequence), record=self)):
-                break
-            eligible |= review
+        eligible = self._decidable_reviews()
         if not eligible:
             raise AccessError(self.env._('Only the current stage reviewer can decide this request.'))
         return eligible
@@ -338,7 +350,7 @@ class OperationRequest(models.Model):
         return self._negative_decision(revision, comment, 'returned')
 
     def action_withdraw(self, revision, comment=''):
-        self._guard('operations.requests.create')
+        self._guard(self._operations_creation_capability(self.execution_kind))
         with self.env.cr.savepoint():
             lock_or_conflict(self, 'write')
             check_revision(self, revision)
@@ -392,11 +404,8 @@ class OperationRequest(models.Model):
         self.ensure_one()
         service = self.env['liwan.access.service']
         writable = self.company_id == self.env.company and self.env['liwan.entitlement.service']._liwan_feature_write('operations.enabled') and self.env.user.active
-        creator = writable and self.requester_id == self.env.user and service._liwan_has_capability(self.env.user, 'operations.requests.create', record=self)
-        reviewer = writable and self.state == 'pending' and self.requester_id != self.env.user and any(
-            self.env.uid in self.stage_snapshot[review.sequence - 1]['reviewer_ids'] and service._liwan_has_capability(self.env.user, self._operations_stage_capability(review.sequence), record=self)
-            for review in self._tier_eligible_reviews(self.review_ids) if 0 < review.sequence <= len(self.stage_snapshot)
-        )
+        creator = writable and self.requester_id == self.env.user and service._liwan_has_capability(self.env.user, self._operations_creation_capability(self.execution_kind), record=self)
+        reviewer = writable and self.state == 'pending' and self.requester_id != self.env.user and bool(self._decidable_reviews())
         editable = creator and self.state in ('draft', 'returned')
         return {'edit': bool(editable), 'submit': bool(editable), 'approve': bool(reviewer), 'reject': bool(reviewer), 'return': bool(reviewer), 'withdraw': bool(creator and self.state in ('draft', 'returned', 'pending'))}
 

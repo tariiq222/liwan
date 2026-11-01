@@ -304,12 +304,11 @@ class TestLeaveApproval(LeaveApprovalCase):
         self.assertEqual(record.stage_snapshot[0]['reviewer_ids'], [self.manager_user.id])
 
     def test_a_custom_role_with_leave_request_can_file_a_leave(self):
-        permissions = self.env['liwan.access.permission'].search([('key', 'in', ['hr.leave.request'])])
+        permissions = self.env['liwan.access.permission'].search([('key', 'in', ['hr.leave.request', 'hr.leave.read', 'hr.employees.read'])])
         role = self.env['liwan.access.role'].create({
             'name_ar': 'مقدم إجازات', 'type': 'custom', 'company_id': self.env.company.id,
             'permission_ids': [(6, 0, permissions.ids)],
         })
-        self.assertTrue({'operations.requests.read', 'operations.requests.create'} <= set(role.permission_ids.mapped('key')))
         user = new_test_user(self.env, login='lao_custom', password='lao_custom_pass_123', name='Custom Requester', groups='liwan_core.group_employee')
         self.service._liwan_replace_assignments(user, [{'role_id': role.id, 'company_id': self.env.company.id}])
         employee = self.env['hr.employee'].create({'name': 'Custom Requester', 'user_id': user.id, 'company_id': self.env.company.id})

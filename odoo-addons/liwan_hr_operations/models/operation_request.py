@@ -7,6 +7,7 @@ from .common import (
     BRIDGE,
     BRIDGE_CONTEXT,
     KIND,
+    LEAVE_REQUEST,
     OFFICERS,
     REJECTING_CONTEXT,
 )
@@ -35,6 +36,11 @@ class HrOperationsRequest(models.Model):
             raise AccessError(self.env._('Leave requests are submitted from the leave form.'))
         leave = self._operations_leave(target_id)
         return {'hr_leave_id': leave.id, 'target_ref': {'write_date': fields.Datetime.to_string(leave.write_date)}}
+
+    @api.model
+    def _operations_creation_capability(self, execution_kind):
+        # Whoever may request leave files its approval request; the operations create permission is not needed.
+        return LEAVE_REQUEST if execution_kind == KIND else super()._operations_creation_capability(execution_kind)
 
     def _operations_prepare_submission(self, process):
         if process.execution_kind != KIND:
