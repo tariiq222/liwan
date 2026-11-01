@@ -90,22 +90,22 @@ async function reload() {
     <UAlert v-if="message" role="alert" color="error" variant="subtle" :title="t('hrWarnings.types.saveError')" :description="message" data-testid="hr-warning-types-error" />
     <UButton v-if="conflict" color="neutral" variant="outline" :label="t('hrWarnings.types.reload')" :loading="reloading" :disabled="reloading" data-testid="hr-warning-types-reload" @click="reload" />
     <SharedEmptyState v-if="!rows.length" :title="t('hrWarnings.types.emptyTitle')" :description="t('hrWarnings.types.emptyHint')" />
-    <ul v-else class="grid gap-3" data-testid="hr-warning-types">
-      <li v-for="type in rows" :key="type.id" class="grid items-end gap-3 sm:grid-cols-[1fr_8rem_auto]" :data-testid="`hr-warning-type-${type.id}`">
+    <ul v-else class="grid gap-4" data-testid="hr-warning-types">
+      <li v-for="type in rows" :key="type.id" class="grid items-end gap-3 sm:grid-cols-[1fr_8rem_13rem]" :data-testid="`hr-warning-type-${type.id}`">
         <UFormField :label="t('hrWarnings.types.name')" :name="`hr-warning-type-name-${type.id}`">
           <UInput :id="`hr-warning-type-name-${type.id}`" class="w-full" :model-value="draft(type).name" :disabled="!hydrated || busy" @update:model-value="setDraft(type, { name: String($event ?? '') })" />
         </UFormField>
         <UFormField :label="t('hrWarnings.types.severity')" :name="`hr-warning-type-severity-${type.id}`">
           <UInputNumber :id="`hr-warning-type-severity-${type.id}`" class="w-full" :model-value="draft(type).severity" :min="1" :max="1000" :step="1" :disabled="!hydrated || busy" @update:model-value="setDraft(type, { severity: $event ?? undefined })" />
         </UFormField>
-        <div class="flex flex-wrap items-center gap-2">
+        <div class="flex flex-wrap items-center justify-end gap-2">
           <SharedStatusBadge v-if="!type.active" size="sm" tone="neutral" :label="t('hrWarnings.types.archived')" />
           <UButton v-if="changed(type)" color="primary" :disabled="!hydrated || busy || !savable(type)" :loading="savingId === type.id" :label="t('hrWarnings.types.save')" data-testid="hr-warning-type-save" @click="saveType(type)" />
           <UButton v-if="props.canEdit" color="neutral" variant="outline" :disabled="!hydrated || busy" :label="type.active ? t('hrWarnings.types.archive') : t('hrWarnings.types.restore')" data-testid="hr-warning-type-toggle" @click="setActive(type, !type.active)" />
         </div>
       </li>
     </ul>
-    <form v-if="props.canEdit" class="grid items-end gap-3 sm:grid-cols-[1fr_8rem_auto]" data-testid="hr-warning-type-add" @submit.prevent="addType">
+    <form v-if="props.canEdit" class="mt-3 grid items-end gap-3 border-t border-default pt-4 sm:grid-cols-[1fr_8rem_13rem]" data-testid="hr-warning-type-add" @submit.prevent="addType">
       <UFormField :label="t('hrWarnings.types.name')" name="hr-warning-type-new-name" :error="nameError">
         <UInput id="hr-warning-type-new-name" v-model="newName" class="w-full" :placeholder="t('hrWarnings.types.namePlaceholder')" :disabled="!hydrated || busy" />
       </UFormField>

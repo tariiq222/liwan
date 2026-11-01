@@ -18,9 +18,10 @@ const validId = computed(() => Number.isSafeInteger(id.value) && id.value > 0)
 const query = useHrWarning(computed(() => (validId.value ? id.value : null)))
 const warning = computed(() => query.data.value)
 const pageError = computed(() => query.error.value ?? (validId.value ? null : new ApiError(404, 'not_found', t('errors.generic'))))
-const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
+const backTo = computed(() => can('hr.warnings.read') ? owningListBack(route.query, sourcePaths.value, route.hash) : '/account/warnings')
 
 const canManage = computed(() => can('hr.warnings.manage'))
+const { canIssue } = useHrWarningIssuer()
 const standing = useHrWarningStanding(computed(() => warning.value?.employee.id ?? null))
 const issue = useIssueHrWarning()
 const withdraw = useWithdrawHrWarning()
@@ -30,8 +31,8 @@ const actionError = ref('')
 
 const badge = computed(() => (warning.value ? hrWarningBadge(warning.value.state) : null))
 const events = computed(() => (warning.value ? hrWarningEvents(warning.value) : []))
-const showIssue = computed(() => !!warning.value && canIssueHrWarning(warning.value, canManage.value))
-const showWithdraw = computed(() => !!warning.value && canWithdrawHrWarning(warning.value, canManage.value))
+const showIssue = computed(() => !!warning.value && canIssueHrWarning(warning.value, canIssue.value))
+const showWithdraw = computed(() => !!warning.value && canWithdrawHrWarning(warning.value, { canManage: canManage.value, canIssue: canIssue.value }))
 
 async function run(action: () => Promise<unknown>) {
   if (!hydrated.value || writing.value) return
@@ -83,7 +84,7 @@ async function confirmWithdraw(reason: string) {
         color="error"
         variant="outline"
         :disabled="!hydrated || writing"
-        :label="t('hrWarnings.actions.withdraw')"
+        :label="t(warning.state === 'draft' ? 'hrWarnings.actions.discard' : 'hrWarnings.actions.withdraw')"
         data-testid="hr-warning-withdraw"
         @click="withdrawing = true"
       />
@@ -91,7 +92,7 @@ async function confirmWithdraw(reason: string) {
 
     <UAlert v-if="actionError" role="alert" color="error" variant="subtle" :title="t('hrWarnings.actions.error')" :description="actionError" data-testid="hr-warning-action-error" />
 
-    <WarningWithdrawConfirm v-if="withdrawing" :pending="withdraw.isPending.value" @confirm="confirmWithdraw" @cancel="withdrawing = false" />
+    <WarningWithdrawConfirm v-if="withdrawing" :draft="warning?.state === 'draft'" :pending="withdraw.isPending.value" @confirm="confirmWithdraw" @cancel="withdrawing = false" />
 
     <SharedIdentityCard
       v-if="warning"

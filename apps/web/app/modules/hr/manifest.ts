@@ -110,7 +110,7 @@ const manifest: AppManifest = {
   ],
   attention: [leaveApprovalAttention, leaveCancellationAttention],
   bell: {
-    capabilities: ['hr.leave.read'],
+    capabilities: ['hr.employees.read'],
     kinds: [...HrLeaveBellKindSchema.options, HrOnboardingStepBellKindSchema.value, HrWarningBellKindSchema.value].map(kind => ({ kind, href: hrBellHref, title: hrBellTitleInApp })),
   },
   personal: hrPersonalEntries,
@@ -123,7 +123,6 @@ const manifest: AppManifest = {
     { id: 'hr.new-onboarding', labelKey: 'hrOnboarding.runs.new', icon: 'i-lucide-user-plus', to: '/hr/onboarding/new', capability: 'hr.onboarding.manage' },
     { id: 'hr.new-departure', labelKey: 'hrOffboarding.departures.new', icon: 'i-lucide-user-minus', to: '/hr/offboarding/new', capability: 'hr.offboarding.manage' },
     { id: 'hr.new-asset', labelKey: 'hrAssets.new', icon: 'i-lucide-laptop', to: '/hr/assets/new', capability: 'hr.assets.manage' },
-    { id: 'hr.new-warning', labelKey: 'hrWarnings.new', icon: 'i-lucide-triangle-alert', to: '/hr/warnings/new', capability: 'hr.warnings.manage' },
     { id: 'hr.new-payroll-run', labelKey: 'hrPayroll.runs.new', icon: 'i-lucide-banknote', to: '/hr/payroll/new', capability: 'hr.payroll.manage' },
   ],
   subFeatures: {
@@ -154,7 +153,10 @@ const manifest: AppManifest = {
     { pattern: /^\/hr\/offboarding(?:\/|$)/, capability: 'hr.offboarding.read' },
     { pattern: /^\/hr\/assets\/(?:.+\/)?new$/, capability: 'hr.assets.manage' },
     { pattern: /^\/hr\/assets(?:\/|$)/, capability: 'hr.assets.read' },
-    { pattern: /^\/hr\/warnings\/(?:.+\/)?new$/, capability: 'hr.warnings.manage' },
+    // A direct manager issues and opens his own drafts without hr.warnings.*: the create panel gates on the server's
+    // `can_issue` and the record answers 403/404 to anyone else, so any employee reader may reach both routes; only the list needs hr.warnings.read.
+    { pattern: /^\/hr\/warnings\/new$/, capability: 'hr.employees.read', feature: 'hr.warnings' },
+    { pattern: /^\/hr\/warnings\/\d+$/, capability: 'hr.employees.read', feature: 'hr.warnings' },
     { pattern: /^\/hr\/warnings(?:\/|$)/, capability: 'hr.warnings.read' },
     { pattern: /^\/hr\/leave\/allocations(?:\/|$)/, capability: 'hr.leave.manage' },
     { pattern: /^\/hr\/leave(?:\/|$)/, capability: 'hr.leave.read', anyCapabilities: ['hr.leave.approve', 'hr.leave.manage'] },

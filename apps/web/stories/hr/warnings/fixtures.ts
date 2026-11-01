@@ -33,5 +33,6 @@ export const warningSettingsFixture = {
   warnings_issued_by: 'hr_only' as const,
   warnings_employee_acknowledgement: 'required' as const,
   warnings_escalation_window_months: 12,
+  can_issue: true,
   revision: 1,
 }

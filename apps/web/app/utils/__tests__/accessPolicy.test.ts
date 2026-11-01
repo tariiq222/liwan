@@ -8,7 +8,8 @@ describe('access policy navigation', () => {
   })
   it('opens the bell for a project reader without tasks.read (charter rows are delivered on projects.read)', () => {
     expect(hasCapability({ capabilities: ['pmo.projects.read'] }, 'liwan.notifications')).toBe(true)
-    expect(hasCapability({ capabilities: ['hr.employees.read'] }, 'liwan.notifications')).toBe(false)
+    expect(hasCapability({ capabilities: ['hr.employees.read'] }, 'liwan.notifications')).toBe(true)
+    expect(hasCapability({ capabilities: ['documents.items.read'] }, 'liwan.notifications')).toBe(false)
   })
   it('checks the named capability without elevating other domains', () => {
     const hr = { capabilities: ['hr.employees.read', 'hr.employees.manage'] }

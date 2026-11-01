@@ -12,7 +12,7 @@ const meta = {
   component: WarningForm,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/hr/warnings/new.vue:29', 'نموذج الإنذار داخل `SharedCreatePanel`: الموظف ورقم تصعيده، ونوع الإنذار بترتيب خطورته، والتاريخ والسبب والإجراء التصحيحي، وتذييل واحد `SharedFormActions`.'),
+    ...storyContext('apps/web/app/pages/hr/warnings/new.vue:32', 'نموذج الإنذار داخل `SharedCreatePanel`: الموظف ورقم تصعيده، ونوع الإنذار بترتيب خطورته، والتاريخ والسبب والإجراء التصحيحي، وتذييل واحد `SharedFormActions`.'),
   },
   args: {
     employees: [{ id: 7, name: 'ليلى الحربي' }, { id: 8, name: 'سارة القحطاني' }],

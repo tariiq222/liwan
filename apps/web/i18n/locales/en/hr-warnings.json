@@ -79,6 +79,9 @@
       "withdraw": "Withdraw warning",
       "withdrawTitle": "Withdraw this warning?",
       "withdrawHint": "It stops counting toward escalation. The record and its history stay.",
+      "discard": "Discard draft",
+      "discardTitle": "Discard this draft?",
+      "discardHint": "The draft is withdrawn and never reaches the employee.",
       "withdrawReasonRequired": "Withdrawal reason (required)",
       "error": "Could not complete the action",
       "conflict": "This warning changed while you were looking at it. The latest version is loaded, check it and try again."

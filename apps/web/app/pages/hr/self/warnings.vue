@@ -8,6 +8,8 @@ import { isHrWarningConflict } from '@/composables/useHrWarnings'
 const { t } = useI18n()
 
 const profile = useMyHrProfile()
+// Issuing starts here: HR and a direct manager (when the company allows it) get the button, everyone else does not.
+const { canIssue } = useHrWarningIssuer()
 const mine = useMyHrWarnings(computed(() => !!profile.data.value))
 const acknowledge = useAcknowledgeHrWarning()
 const contest = useContestHrWarning()
@@ -34,7 +36,7 @@ async function answer(id: number, action: () => Promise<unknown>) {
 </script>
 
 <template>
-  <SharedListPage :title="t('nav.myWarnings')">
+  <SharedListPage :title="t('nav.myWarnings')" :create-to="canIssue ? '/hr/warnings/new' : undefined" :create-label="t('hrWarnings.new')" create-test-id="hr-warning-new">
     <SharedPageState :loading="profile.isLoading.value" :error="profile.error.value" @retry="profile.refetch">
       <SharedEmptyState v-if="profile.data.value === null" bordered :title="t('hr.self.noEmployee')" :description="t('hr.self.noEmployeeHint')" />
     </SharedPageState>

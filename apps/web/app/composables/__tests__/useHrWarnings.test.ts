@@ -29,6 +29,7 @@ describe('hrWarningKeys', () => {
   it('keeps one stable root per resource under hr/warnings', () => {
     expect(hrWarningKeys.all).toEqual(['hr', 'warnings'])
     expect(hrWarningKeys.detail(5)).toEqual(['hr', 'warnings', 'detail', 5])
+    expect(hrWarningKeys.candidates).toEqual(['hr', 'warnings', 'candidates'])
     expect(hrWarningKeys.standing(7)).toEqual(['hr', 'warnings', 'standing', 7])
     expect(hrWarningKeys.list({ limit: 25, offset: 0 })).toEqual(['hr', 'warnings', 'list', { limit: 25, offset: 0 }])
   })

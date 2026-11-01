@@ -9,10 +9,12 @@ const { t } = useI18n()
 const { can } = useAccess()
 
 const sourcePaths = useRecordListPaths(['/hr/warnings'])
-const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
-const canManage = computed(() => can('hr.warnings.manage'))
+// A direct manager cannot open the list (no hr.warnings.read): cancel returns to his own warnings page.
+const backTo = computed(() => can('hr.warnings.read') ? owningListBack(route.query, sourcePaths.value, route.hash) : '/account/warnings')
+// The server decides who may issue: HR, or a direct manager when the company lets managers issue.
+const issuer = useHrWarningIssuer()
 const types = useHrWarningTypes('true')
-const employees = useHrEmployees(computed(() => ({ limit: 100 })))
+const candidates = useHrWarningCandidates(issuer.canIssue)
 
 function saved(warning: HrWarning) {
   void navigateTo({
@@ -24,14 +26,11 @@ function saved(warning: HrWarning) {
 
 <template>
   <SharedCreatePanel :title="t('hrWarnings.new')" :back-to="backTo">
-    <SharedForbiddenState v-if="!canManage" />
-    <SharedPageState v-else :loading="types.isLoading.value || employees.isLoading.value" :error="types.error.value ?? employees.error.value" @retry="types.refetch(); employees.refetch()">
-      <WarningForm
-        :employees="(employees.data.value?.items ?? []).map(employee => ({ id: employee.id, name: employee.name }))"
-        :types="types.data.value?.items ?? []"
-        :back-to="backTo"
-        @saved="saved"
-      />
+    <SharedPageState :loading="issuer.isLoading.value" :error="issuer.error.value" @retry="issuer.refetch">
+      <SharedForbiddenState v-if="!issuer.canIssue.value" />
+      <SharedPageState v-else :loading="types.isLoading.value || candidates.isLoading.value" :error="types.error.value ?? candidates.error.value" @retry="types.refetch(); candidates.refetch()">
+        <WarningForm :employees="candidates.data.value?.items ?? []" :types="types.data.value?.items ?? []" :back-to="backTo" @saved="saved" />
+      </SharedPageState>
     </SharedPageState>
   </SharedCreatePanel>
 </template>

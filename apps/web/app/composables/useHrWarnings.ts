@@ -4,6 +4,7 @@ import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
 import {
+  HrWarningCandidateListSchema,
   HrWarningListSchema,
   HrWarningSchema,
   HrWarningSettingsSchema,
@@ -30,6 +31,7 @@ export const hrWarningKeys = {
   list: (query: HrWarningQuery) => ['hr', 'warnings', 'list', query] as const,
   detail: (id: number) => ['hr', 'warnings', 'detail', id] as const,
   mine: ['hr', 'warnings', 'me'] as const,
+  candidates: ['hr', 'warnings', 'candidates'] as const,
   standing: (employeeId: number) => ['hr', 'warnings', 'standing', employeeId] as const,
   types: ['hr', 'warnings', 'types'] as const,
   settings: ['hr', 'warnings', 'settings'] as const,
@@ -140,7 +142,8 @@ export function useHrWarning(id: MaybeRefOrGetter<number | null>) {
   const { can } = useAccess()
   return useQuery({
     queryKey: computed(() => hrWarningKeys.detail(toValue(id) ?? 0)),
-    enabled: computed(() => can('hr.warnings.read') && !!toValue(id)),
+    // A direct manager reads the warnings he drafted without hr.warnings.read: the server decides who may open a record.
+    enabled: computed(() => can('hr.employees.read') && !!toValue(id)),
     queryFn: () => $api(`/api/v1/hr/warnings/${toValue(id)}`, { schema: HrWarningSchema }),
   })
 }
@@ -157,13 +160,14 @@ export function useMyHrWarnings(enabled: MaybeRefOrGetter<boolean> = true) {
   })
 }
 
-/** The escalation figure of one employee, shown to issuers. */
+/** The escalation figure of one employee, shown to issuers (HR, or a direct manager for his reports; the server answers 403 otherwise and the note stays hidden). */
 export function useHrWarningStanding(employeeId: MaybeRefOrGetter<number | null>) {
   const { $api } = useApi()
   const { can } = useAccess()
+  const { canIssue } = useHrWarningIssuer()
   return useQuery({
     queryKey: computed(() => hrWarningKeys.standing(toValue(employeeId) ?? 0)),
-    enabled: computed(() => can('hr.warnings.read') && !!toValue(employeeId)),
+    enabled: computed(() => (can('hr.warnings.read') || canIssue.value) && !!toValue(employeeId)),
     queryFn: () => $api(`/api/v1/hr/warnings/standing/${toValue(employeeId)}`, { schema: HrWarningStandingSchema }),
   })
 }
@@ -191,6 +195,27 @@ export function useHrWarningSettings(enabled: MaybeRefOrGetter<boolean> = true) 
     queryKey: computed(() => [...hrWarningKeys.settings, identity.scope.value]),
     enabled: computed(() => identity.ready.value && toValue(enabled) && (can('hr.employees.read') || can('hr.warnings.manage'))),
     queryFn: () => $api('/api/v1/hr/warnings/settings', { schema: HrWarningSettingsSchema }),
+  })
+}
+
+/** Whether the caller may issue warnings (HR, or a direct manager under the manager policy): the server's answer, not a capability. */
+export function useHrWarningIssuer() {
+  const settings = useHrWarningSettings()
+  return {
+    canIssue: computed(() => settings.data.value?.can_issue === true),
+    isLoading: settings.isLoading,
+    error: computed(() => (settings.data.value ? null : settings.error.value)),
+    refetch: settings.refetch,
+  }
+}
+
+/** The employees the caller may warn: every employee for HR, the direct reports for a manager. */
+export function useHrWarningCandidates(enabled: MaybeRefOrGetter<boolean> = true) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: hrWarningKeys.candidates,
+    enabled: computed(() => toValue(enabled)),
+    queryFn: () => $api('/api/v1/hr/warnings/candidates', { schema: HrWarningCandidateListSchema }),
   })
 }
 

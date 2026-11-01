@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// The inline confirmation that withdraws a warning. The reason is required: the server keeps it on the record.
-const props = defineProps<{ pending?: boolean }>()
+// The inline confirmation that withdraws a warning, or discards a draft. The reason is required: the server keeps it on the record.
+const props = defineProps<{ draft?: boolean; pending?: boolean }>()
 const emit = defineEmits<{ confirm: [reason: string]; cancel: [] }>()
 const { t } = useI18n()
 const reason = ref('')
@@ -9,9 +9,9 @@ const missing = computed(() => !reason.value.trim())
 
 <template>
   <SharedInlineConfirm
-    :title="t('hrWarnings.actions.withdrawTitle')"
-    :description="t('hrWarnings.actions.withdrawHint')"
-    :confirm-label="t('hrWarnings.actions.withdraw')"
+    :title="t(props.draft ? 'hrWarnings.actions.discardTitle' : 'hrWarnings.actions.withdrawTitle')"
+    :description="t(props.draft ? 'hrWarnings.actions.discardHint' : 'hrWarnings.actions.withdrawHint')"
+    :confirm-label="t(props.draft ? 'hrWarnings.actions.discard' : 'hrWarnings.actions.withdraw')"
     :cancel-label="t('app.back')"
     :pending="props.pending"
     :disabled="missing"

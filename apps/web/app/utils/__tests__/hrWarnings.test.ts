@@ -24,17 +24,23 @@ describe('hrWarningBadge', () => {
 })
 
 describe('who can act', () => {
-  it('lets HR issue only a draft', () => {
+  it('lets an issuer issue only a draft', () => {
     expect(canIssueHrWarning({ state: 'draft' }, true)).toBe(true)
     expect(canIssueHrWarning({ state: 'issued' }, true)).toBe(false)
     expect(canIssueHrWarning({ state: 'draft' }, false)).toBe(false)
   })
 
-  it('lets HR withdraw an open warning only', () => {
-    for (const state of ['issued', 'acknowledged', 'contested'] as const) expect(canWithdrawHrWarning({ state }, true)).toBe(true)
-    expect(canWithdrawHrWarning({ state: 'draft' }, true)).toBe(false)
-    expect(canWithdrawHrWarning({ state: 'withdrawn' }, true)).toBe(false)
-    expect(canWithdrawHrWarning({ state: 'issued' }, false)).toBe(false)
+  it('lets HR withdraw an open warning and an issuer discard a draft', () => {
+    const hr = { canManage: true, canIssue: true }
+    const manager = { canManage: false, canIssue: true }
+    for (const state of ['issued', 'acknowledged', 'contested'] as const) {
+      expect(canWithdrawHrWarning({ state }, hr)).toBe(true)
+      expect(canWithdrawHrWarning({ state }, manager)).toBe(false)
+    }
+    expect(canWithdrawHrWarning({ state: 'draft' }, hr)).toBe(true)
+    expect(canWithdrawHrWarning({ state: 'draft' }, manager)).toBe(true)
+    expect(canWithdrawHrWarning({ state: 'draft' }, { canManage: false, canIssue: false })).toBe(false)
+    expect(canWithdrawHrWarning({ state: 'withdrawn' }, hr)).toBe(false)
   })
 
   it('lets the employee answer an issued warning unless answers are off', () => {

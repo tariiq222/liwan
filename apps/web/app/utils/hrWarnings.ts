@@ -17,14 +17,14 @@ export function hrWarningBadge(state: HrWarningState): StatusBadgeEntry {
 /** The states in which a warning counts and HR may still withdraw it. */
 const OPEN_STATES: readonly HrWarningState[] = ['issued', 'acknowledged', 'contested']
 
-/** HR issues a draft; nobody else does. */
-export function canIssueHrWarning(warning: Pick<HrWarning, 'state'>, canManage: boolean): boolean {
-  return canManage && warning.state === 'draft'
+/** An issuer (the server's `can_issue`) issues a draft; nobody else does. */
+export function canIssueHrWarning(warning: Pick<HrWarning, 'state'>, canIssue: boolean): boolean {
+  return canIssue && warning.state === 'draft'
 }
 
-/** HR withdraws an issued, acknowledged or contested warning, with a reason. */
-export function canWithdrawHrWarning(warning: Pick<HrWarning, 'state'>, canManage: boolean): boolean {
-  return canManage && OPEN_STATES.includes(warning.state)
+/** An issuer discards a draft; only HR withdraws an issued, acknowledged or contested warning. Both need a reason. */
+export function canWithdrawHrWarning(warning: Pick<HrWarning, 'state'>, who: { canManage: boolean; canIssue: boolean }): boolean {
+  return warning.state === 'draft' ? who.canIssue : who.canManage && OPEN_STATES.includes(warning.state)
 }
 
 /** What the employee may do with an own warning: nothing when the company switched answers off. */

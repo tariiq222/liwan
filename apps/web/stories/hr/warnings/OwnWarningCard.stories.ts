@@ -7,7 +7,7 @@ import { warningFixture } from './fixtures'
 const meta = {
   title: 'HR/Warnings/OwnWarningCard',
   component: OwnWarningCard,
-  parameters: storyContext('apps/web/app/pages/hr/self/warnings.vue:44', 'قائمة بطاقات إنذارات الموظف نفسه، والبطاقة التي تنتظر ردّه تأخذ تمييز الصفحة الوحيد.'),
+  parameters: storyContext('apps/web/app/pages/hr/self/warnings.vue:46', 'قائمة بطاقات إنذارات الموظف نفسه، والبطاقة التي تنتظر ردّه تأخذ تمييز الصفحة الوحيد.'),
   args: { warning: warningFixture(), pending: false },
 } satisfies Meta<typeof OwnWarningCard>
 

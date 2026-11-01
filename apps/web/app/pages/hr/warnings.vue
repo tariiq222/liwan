@@ -12,11 +12,13 @@ const { can } = useAccess()
 
 const LIMIT = HR_WARNINGS_PAGE_SIZE
 // The warning list is this page's own screen and stays behind its create panel; a warning record is a full page.
+// A direct manager reaches the create panel over this route without reading the list: the list shows only for readers.
+const canRead = computed(() => can('hr.warnings.read'))
 const isListRoute = computed(() => {
   const path = route.path.replace(/\/+$/, '') || '/'
-  return path === '/hr/warnings' || path === '/hr/warnings/new'
+  return canRead.value && (path === '/hr/warnings' || path === '/hr/warnings/new')
 })
-const canManage = computed(() => can('hr.warnings.manage'))
+const { canIssue } = useHrWarningIssuer()
 
 function positiveParam(value: unknown) {
   const raw = Array.isArray(value) ? value[0] : value
@@ -85,7 +87,7 @@ const listQuery = computed(() => {
   const { returnTo: _referrer, ...context } = route.query
   return context
 })
-const createTo = computed(() => canManage.value ? { path: '/hr/warnings/new', query: listQuery.value } : undefined)
+const createTo = computed(() => canIssue.value ? { path: '/hr/warnings/new', query: listQuery.value } : undefined)
 function warningTo(row: HrWarning) {
   return { path: `/hr/warnings/${row.id}`, query: returnToQuery(route.fullPath) }
 }

@@ -6,7 +6,7 @@ import { storyContext } from '../../support/context'
 const meta = {
   title: 'HR/Warnings/WarningWithdrawConfirm',
   component: WarningWithdrawConfirm,
-  parameters: storyContext('apps/web/app/pages/hr/warnings/[warningId].vue:94', 'تحت شريط الأخطاء وفوق بطاقة هوية الإنذار في صفحة السجل.'),
+  parameters: storyContext('apps/web/app/pages/hr/warnings/[warningId].vue:95', 'تحت شريط الأخطاء وفوق بطاقة هوية الإنذار في صفحة السجل.'),
   args: { pending: false },
 } satisfies Meta<typeof WarningWithdrawConfirm>
 

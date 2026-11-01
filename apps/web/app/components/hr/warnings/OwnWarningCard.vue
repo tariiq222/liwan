@@ -43,7 +43,7 @@ function sendContest() {
         v-if="contesting"
         :title="t('hrWarnings.mine.contestTitle')"
         :confirm-label="t('hrWarnings.mine.contestSubmit')"
-        color="warning"
+        color="primary"
         :pending="props.pending"
         :disabled="missing"
         @confirm="sendContest"

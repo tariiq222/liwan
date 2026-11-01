@@ -5,6 +5,7 @@ import { pmoPreviewData } from './pmo-ui-preview-data.mjs'
 import { moduleUiCapabilities, moduleUiPreviewData } from './module-ui-preview-data.mjs'
 import { hrPayrollPreviewWrite } from './hr-payroll-ui-preview-data.mjs'
 import { capabilitiesForRequest } from './mock-capabilities.mjs'
+import { hrWarningsPreviewWrite } from './hr-areas-ui-preview-data.mjs'
 import { crmPreviewWrite } from './crm-ui-preview-data.mjs'
 import { INBOX_CAPABILITIES, INBOX_FEATURES, inboxPreviewData, resetInboxPreview } from './inbox-ui-preview-data.mjs'
 import { handleCommercial } from './commercial-mock-routes.mjs'
@@ -471,6 +472,13 @@ async function handle(req, res) {
       res.writeHead(200, { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="${write.file.filename}"` })
       return res.end(write.file.body)
     }
+    if (write) return json(res, write.status, write.body)
+  }
+
+  if (process.env.MODULE_UI_PREVIEW === '1' && method !== 'GET' && /^\/api\/v1\/(hr\/warning|__mock\/reset-warnings$)/.test(path)) {
+    let body = {}
+    try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
+    const write = hrWarningsPreviewWrite(method, path, body)
     if (write) return json(res, write.status, write.body)
   }
 
