@@ -18,6 +18,11 @@ describe('earned value contract', () => {
     expect(ProjectEvmSchema.safeParse(empty).success).toBe(true)
   })
 
+  it('accepts the hidden-lines answer: bac and ac only', () => {
+    const hidden = { ...evm, hidden_count: 2, pv: null, ev: null, sv: null, cv: null, spi: null, cpi: null, eac: null, etc: null, vac: null, tcpi: null, planned_curve: [] }
+    expect(ProjectEvmSchema.safeParse(hidden).success).toBe(true)
+  })
+
   it('stays strict', () => {
     expect(ProjectEvmSchema.safeParse({ ...evm, extra: 1 }).success).toBe(false)
     expect(ProjectEvmSchema.safeParse({ ...evm, method: 'guess' }).success).toBe(false)

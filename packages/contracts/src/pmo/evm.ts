@@ -6,8 +6,10 @@ import { CalendarDateSchema } from './schedule'
 export const EvmProgressMethodSchema = z.enum(['binary', 'manual'])
 export const EVM_PROGRESS_METHODS = EvmProgressMethodSchema.options
 
-// Amounts are in the baseline's currency. An index or forecast is null where its divisor is not positive ("not enough data");
-// a project without a budget (bac 0) has a schedule index only.
+// Amounts are in the baseline's currency. A figure is null where its divisor is not positive ("not enough data"). Three cases
+// leave less: a baseline without budget (bac 0) keeps the schedule index only; with undated lines (`undated_count`) PV, EV, SV and SPI
+// cover the dated lines and every cost index is null; with lines the caller cannot read (`hidden_count`) every plan-based figure is
+// null and the curve is empty, leaving `bac` and `ac`.
 const nullableAmount = z.number().nullable()
 
 export const EvmCurvePointSchema = z.object({ date: CalendarDateSchema, pv: z.number() }).strict()
@@ -24,10 +26,10 @@ export const ProjectEvmSchema = z.object({
   hidden_count: z.number().int().nonnegative(),
   undated_count: z.number().int().nonnegative(),
   bac: z.number(),
-  pv: z.number(),
-  ev: z.number(),
+  pv: nullableAmount,
+  ev: nullableAmount,
   ac: z.number(),
-  sv: z.number(),
+  sv: nullableAmount,
   cv: nullableAmount,
   spi: nullableAmount,
   cpi: nullableAmount,
