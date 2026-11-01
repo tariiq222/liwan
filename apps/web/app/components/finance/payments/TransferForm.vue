@@ -8,6 +8,7 @@ import { PAYMENT_STATE_TONE } from './paymentModel'
 import {
   TRANSFER_ACCOUNT_SETUP_PATH,
   buildTransfer,
+  firstInvalidTransferControl,
   isTransferAccountMissing,
   transferErrorKey,
   transferJournals,
@@ -43,6 +44,8 @@ const errors = computed(() => validateTransferDraft(draft))
 const shown = computed(() => attempted.value ? errors.value : {})
 const dirty = computed(() => !result.value && (!!draft.fromJournalId || !!draft.toJournalId || !!draft.amount || !!draft.memo.trim()))
 const pending = computed(() => create.isPending.value)
+// A transfer needs two journals to choose between; with fewer the form says so and cannot be sent.
+const tooFewJournals = computed(() => !journals.isLoading.value && !journals.error.value && journalItems.value.length < 2)
 const locked = computed(() => !hydrated.value || pending.value)
 
 async function submit() {
@@ -50,7 +53,12 @@ async function submit() {
   attempted.value = true
   error.value = ''
   accountMissing.value = false
-  if (Object.keys(errors.value).length) return
+  const invalid = firstInvalidTransferControl(errors.value)
+  if (invalid) {
+    await nextTick()
+    document.getElementById(invalid)?.focus()
+    return
+  }
   try {
     result.value = await create.mutateAsync(buildTransfer(draft))
   } catch (cause) {
@@ -99,7 +107,7 @@ const legs = computed(() => result.value
       </template>
     </UAlert>
     <SharedFormSection panel :title="t('financeDocuments.payments.transfer.accounts')" :description="t('financeDocuments.payments.transfer.accountsHint')">
-      <SharedPageState :loading="journals.isLoading.value" :error="journals.error.value" :empty="!journals.isLoading.value && journalItems.length < 2" :empty-text="t('financeDocuments.payments.transfer.fewJournals')" @retry="journals.refetch">
+      <SharedPageState :loading="journals.isLoading.value" :error="journals.error.value" :empty="tooFewJournals" :empty-text="t('financeDocuments.payments.transfer.fewJournals')" @retry="journals.refetch">
         <div class="grid gap-4 sm:grid-cols-2">
           <UFormField :label="t('financeDocuments.payments.transfer.from')" name="finance-transfer-from" required :error="shown.fromJournalId ? t('financeDocuments.payments.form.journalRequired') : undefined">
             <USelect id="finance-transfer-from" :model-value="draft.fromJournalId ?? undefined" :items="journalItems" class="w-full" :placeholder="t('financeDocuments.payments.transfer.choose')" :disabled="locked" @update:model-value="value => { draft.fromJournalId = Number(value) }" />
@@ -131,7 +139,7 @@ const legs = computed(() => result.value
       <span class="text-xs text-muted">{{ t('financeDocuments.form.requiredHint') }}</span>
       <div class="ms-auto flex flex-wrap items-center gap-2">
         <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
-        <UButton type="submit" color="primary" :disabled="locked" :loading="pending" :label="t('financeDocuments.payments.transfer.submit')" data-testid="finance-transfer-submit" />
+        <UButton type="submit" color="primary" :disabled="locked || tooFewJournals" :loading="pending" :label="t('financeDocuments.payments.transfer.submit')" data-testid="finance-transfer-submit" />
       </div>
     </SharedFormActions>
   </UForm>

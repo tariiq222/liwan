@@ -39,7 +39,7 @@ async function toggleArchive() {
 }
 const archiveDescription = computed(() => archiveFailure.value
   ? t(bankFailure(archiveFailure.value).key)
-  : t('finance.partners.banks.archiveHint'))
+  : t(confirming.value?.active === false ? 'finance.partners.banks.unarchiveHint' : 'finance.partners.banks.archiveHint'))
 const title = (account: FinancePartnerBank) => account.bank_name || t('finance.partners.banks.unnamedBank')
 </script>
 
@@ -69,7 +69,7 @@ const title = (account: FinancePartnerBank) => account.bank_name || t('finance.p
             </div>
             <div v-if="canManage" class="flex flex-wrap items-center gap-2">
               <UButton v-if="account.active" color="neutral" variant="ghost" size="sm" icon="i-lucide-pencil" :disabled="!hydrated" :label="t('app.edit')" :aria-label="t('finance.partners.banks.editAria', { name: title(account) })" @click="startEdit(account.id)" />
-              <UButton color="neutral" variant="ghost" size="sm" :icon="account.active ? 'i-lucide-archive' : 'i-lucide-archive-restore'" :disabled="!hydrated" :label="t(account.active ? 'finance.partners.banks.archive' : 'finance.partners.banks.unarchive')" @click="startArchive(account)" />
+              <UButton color="neutral" variant="ghost" size="sm" :icon="account.active ? 'i-lucide-archive' : 'i-lucide-archive-restore'" :disabled="!hydrated" :label="t(account.active ? 'finance.partners.banks.archive' : 'finance.partners.banks.unarchive')" :aria-label="t(account.active ? 'finance.partners.banks.archiveAria' : 'finance.partners.banks.unarchiveAria', { name: title(account) })" @click="startArchive(account)" />
             </div>
           </div>
           <SharedInlineConfirm

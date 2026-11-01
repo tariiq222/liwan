@@ -16,6 +16,19 @@ export interface TransferDraft {
 export type TransferField = 'fromJournalId' | 'toJournalId' | 'amount' | 'paymentDate'
 export type TransferErrors = Partial<Record<TransferField, 'required' | 'same'>>
 
+/** The fields in the order the form shows them, with the id of the control of each. */
+const FIELD_CONTROLS: ReadonlyArray<readonly [TransferField, string]> = [
+  ['fromJournalId', 'finance-transfer-from'],
+  ['toJournalId', 'finance-transfer-to'],
+  ['amount', 'finance-transfer-amount'],
+  ['paymentDate', 'finance-transfer-date'],
+]
+
+/** The control a failed validation should put the cursor in: the first invalid field in form order, or null. */
+export function firstInvalidTransferControl(errors: TransferErrors): string | null {
+  return FIELD_CONTROLS.find(([field]) => errors[field])?.[1] ?? null
+}
+
 export function transferJournals(journals: readonly FinanceJournal[]): FinanceJournal[] {
   return journals.filter(journal => TRANSFER_JOURNAL_TYPES.includes(journal.type))
 }

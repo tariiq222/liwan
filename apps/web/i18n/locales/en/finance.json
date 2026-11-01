@@ -178,7 +178,10 @@
           "duplicate": "This partner already has this account.",
           "accNumberInvalid": "The account number is not valid. It is at most 34 characters, and a Saudi IBAN starts with SA, has 24 characters and passes the check digits.",
           "fieldInvalid": "The value entered is not valid."
-        }
+        },
+        "unarchiveHint": "The account returns to new choices and can be used in payments again.",
+        "archiveAria": "Archive account {name}",
+        "unarchiveAria": "Restore account {name}"
       }
     },
     "setup": {
@@ -234,7 +237,8 @@
         },
         "transfer_account_id": "Internal transfer account",
         "transferAccountHint": "The account transfers between banks and cash boxes pass through. It must be a reconcilable current asset.",
-        "transferAccountPlaceholder": "Choose an account"
+        "transferAccountPlaceholder": "Choose an account",
+        "transferAccountReadOnly": "Reading the chart of accounts is needed to change this account."
       },
       "chart": {
         "title": "Chart of accounts",

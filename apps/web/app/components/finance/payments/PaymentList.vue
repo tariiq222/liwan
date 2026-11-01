@@ -2,6 +2,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { FinancePayment } from '@liwan/contracts'
 import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
+import { useFinanceSetup } from '@/composables/finance/useFinanceSetup'
 import { useFinancePartner } from '@/composables/finance/useFinancePartners'
 import { useFinancePaymentPost, useFinancePaymentTransition, useFinancePaymentUnallocate, useFinancePayments } from '@/composables/finance/useFinancePayments'
 import { useRouteListFilters } from '@/composables/useRouteListFilters'
@@ -45,6 +46,9 @@ const { hydrated, filterQuery, search, update } = useRouteListFilters({
 const filters = computed(() => paymentFiltersFromQuery(filterQuery.value))
 const activeCount = computed(() => paymentActiveFilterCount(filters.value))
 const query = useFinancePayments(() => paymentListParams(filters.value), allowed)
+// An exchange difference is in the company currency; the setup names it for the callers who may read it.
+const setup = useFinanceSetup(() => can('finance.setup.read'))
+const companyCurrency = computed(() => setup.data.value?.company.currency)
 const partner = useFinancePartner(() => filters.value.partnerId)
 const items = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.total ?? 0)
@@ -182,7 +186,7 @@ const dash = computed(() => t('app.notAvailable'))
             <template #date-cell="{ row }"><bdi class="tabular-nums">{{ row.original.date }}</bdi></template>
             <template #amount-cell="{ row }">
               <Money :amount="row.original.amount" :currency="row.original.currency" />
-              <PaymentExchangeDifference :payment="row.original" />
+              <PaymentExchangeDifference :payment="row.original" :currency="companyCurrency" />
             </template>
             <template #state-cell="{ row }"><SharedStatusBadge size="sm" :tone="PAYMENT_STATE_TONE[row.original.state]" :label="t(`financeDocuments.payments.states.${row.original.state}`)" /></template>
             <template #actions-cell="{ row }"><SharedRowActions :actions="rowActions(row.original)" :label="t('financeDocuments.payments.actionsFor', { name: label(row.original) })" :disabled="busy" /></template>
@@ -194,7 +198,7 @@ const dash = computed(() => t('app.notAvailable'))
                 </span>
                 <span class="truncate text-sm text-muted">{{ row.partner?.name ?? dash }} · {{ t(`financeDocuments.payments.types.${row.payment_type}`) }}</span>
                 <span class="flex items-center justify-between gap-2 text-sm">
-                  <span class="flex flex-col"><Money :amount="row.amount" :currency="row.currency" /><PaymentExchangeDifference :payment="row" /></span>
+                  <span class="flex flex-col"><Money :amount="row.amount" :currency="row.currency" /><PaymentExchangeDifference :payment="row" :currency="companyCurrency" /></span>
                   <SharedRowActions :actions="rowActions(row)" :label="t('financeDocuments.payments.actionsFor', { name: label(row) })" :disabled="busy" />
                 </span>
               </div>

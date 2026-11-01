@@ -6,6 +6,7 @@ import { exchangeOutcome, transferPaymentLink } from '../paymentModel'
 import { ApiError } from '../../../../composables/useApi'
 import {
   buildTransfer,
+  firstInvalidTransferControl,
   isTransferAccountMissing,
   transferErrorKey,
   transferJournals,
@@ -39,6 +40,16 @@ describe('the transfer draft', () => {
     expect(body).toEqual({ from_journal_id: 1, to_journal_id: 2, amount: 250.5, payment_date: '2026-11-01', memo: 'Cash to bank' })
     expect(FinancePaymentTransferSchema.parse(body)).toEqual(body)
     expect(buildTransfer(draft())).not.toHaveProperty('memo')
+  })
+})
+
+describe('where a failed validation puts the cursor', () => {
+  it('goes to the first invalid field in form order', () => {
+    expect(firstInvalidTransferControl(validateTransferDraft(draft({ fromJournalId: null, amount: '' })))).toBe('finance-transfer-from')
+    expect(firstInvalidTransferControl(validateTransferDraft(draft({ toJournalId: 1, paymentDate: null })))).toBe('finance-transfer-to')
+    expect(firstInvalidTransferControl(validateTransferDraft(draft({ amount: '0', paymentDate: null })))).toBe('finance-transfer-amount')
+    expect(firstInvalidTransferControl(validateTransferDraft(draft({ paymentDate: null })))).toBe('finance-transfer-date')
+    expect(firstInvalidTransferControl(validateTransferDraft(draft()))).toBeNull()
   })
 })
 

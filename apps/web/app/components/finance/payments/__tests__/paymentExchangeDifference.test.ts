@@ -7,10 +7,10 @@ import PaymentExchangeDifference from '../PaymentExchangeDifference.vue'
 // The component is rendered for real: the Nuxt auto-imports it relies on are the only things stubbed.
 afterEach(() => vi.unstubAllGlobals())
 
-async function render(exchange_difference: number) {
+async function render(exchange_difference: number, currency?: string) {
   vi.stubGlobal('computed', Vue.computed)
   vi.stubGlobal('useI18n', () => ({ t: (key: string) => key }))
-  return renderToString(Vue.createSSRApp({ render: () => Vue.h(PaymentExchangeDifference, { payment: { id: 7, exchange_difference } }) }))
+  return renderToString(Vue.createSSRApp({ render: () => Vue.h(PaymentExchangeDifference, { payment: { id: 7, exchange_difference }, currency }) }))
 }
 
 describe('the exchange difference line of a payment', () => {
@@ -20,6 +20,11 @@ describe('the exchange difference line of a payment', () => {
     expect(html).toContain('text-success')
     expect(html).toContain('37.50')
     expect(html).toContain('data-testid="finance-payment-exchange-7"')
+  })
+
+  it('names the company currency next to the amount when the caller may read it', async () => {
+    expect(await render(37.5, 'SAR')).toMatch(/37\.50.*SAR/s)
+    expect(await render(37.5)).not.toContain('SAR')
   })
 
   it('names a loss in the error colour, without a minus sign', async () => {
