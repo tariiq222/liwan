@@ -254,13 +254,54 @@ class TestProjectChange(LiwanPmoCase):
         self.project.with_user(self.manager).write({'name': 'Renamed', 'liwan_scope': 'Planned scope'})
         self.assertEqual(self.project.name, 'Renamed')
 
-    def test_optional_mode_blocks_nothing_and_keeps_an_approved_charter(self):
+    def _approved_charter_under_policy(self):
         self.env['ir.config_parameter'].sudo().set_param(f'liwan_pmo.require_charter_approval.{self.env.company.id}', 'true')
         self.project.sudo()._liwan_write_charter_approval({'liwan_charter_state': 'approved'})
+
+    def test_optional_mode_blocks_nothing_and_keeps_the_phase_1_reopening(self):
+        self._approved_charter_under_policy()
         self._executing()
         self._mode('optional')
-        self.assertEqual(self._patch_scope('Changed freely').status_code, 200)
+        self.assertEqual(self._patch_scope('Changed without a request').status_code, 200)
+        self.assertEqual(self.project.liwan_charter_state, 'draft')
+
+    def test_optional_mode_with_an_approved_request_does_not_reopen_a_covered_edit(self):
+        self._approved_charter_under_policy()
+        self._executing()
+        self._mode('optional')
+        self._in_state('approved')
+        self.assertEqual(self._patch_scope('Covered by the request').status_code, 200)
         self.assertEqual(self.project.liwan_charter_state, 'approved')
+        # An edit outside the controlled fields is not covered: the old rule still reopens the charter.
+        self.project.with_user(self.manager).write({'name': 'Renamed after approval'})
+        self.assertEqual(self.project.liwan_charter_state, 'draft')
+
+    def test_required_mode_retires_the_reopening(self):
+        self._approved_charter_under_policy()
+        self._mode('required')
+        self.project.with_user(self.manager).write({'name': 'Renamed after approval'})
+        self.assertEqual(self.project.liwan_charter_state, 'approved')
+
+    def test_required_mode_blocks_leaving_execution_to_edit_and_return(self):
+        self._mode('required')
+        self._executing()
+        manager = self.project.with_user(self.manager)
+        with self.assertRaises(LiwanChangeRequired):
+            manager._liwan_move_phase('planning')
+        self.assertEqual(self.project.liwan_phase, 'executing')
+        refused = self._call('api_mgr', 'POST', f'/api/v1/projects/{self.project.id}/phase', {
+            'phase': 'planning', 'expected_updated_at': self.project._liwan_updated_at(),
+        })
+        self.assertEqual((refused.status_code, refused.json()['code']), (409, 'change_required'))
+        self.assertEqual(self._patch_scope('Still blocked while executing').status_code, 409)
+        # An approved request lets the manager move back, but the scope stays unlocked only until it is implemented.
+        change_id = self._in_state('approved')
+        self.project.invalidate_recordset()
+        moved = self._call('api_mgr', 'POST', f'/api/v1/projects/{self.project.id}/phase', {
+            'phase': 'planning', 'expected_updated_at': self.project._liwan_updated_at(),
+        })
+        self.assertEqual(moved.status_code, 200, moved.text)
+        self.assertEqual(self._act(change_id, 'implement').status_code, 200)
 
     def test_off_mode_keeps_the_charter_reopening(self):
         self.env['ir.config_parameter'].sudo().set_param(f'liwan_pmo.require_charter_approval.{self.env.company.id}', 'true')
@@ -296,6 +337,44 @@ class TestProjectChange(LiwanPmoCase):
         self.assertEqual(manager_saved.json()['change_control_mode'], 'required')
         invalid = self._call('api_mgr', 'PATCH', '/api/v1/settings/projects', {'change_control_mode': 'sometimes'})
         self.assertEqual((invalid.status_code, invalid.json()['field']), (422, 'change_control_mode'))
+
+    def test_a_caller_without_authority_is_refused_before_the_token_or_the_lock(self):
+        change = self._create()
+        self._act(change['id'], 'submit')
+        for login in ('api_emp', 'api_chg_outsider'):
+            stale = self._act(change['id'], 'approve', login=login, body={'expected_updated_at': 'v99'})
+            self.assertEqual(stale.status_code, 403, login)
+        patched = self._call('api_chg_sponsor', 'PATCH', f'{self.base}/{change["id"]}', {'expected_updated_at': 'v99', 'title': 'x'})
+        self.assertEqual(patched.status_code, 403)
+        self.assertEqual(self._act(change['id'], 'approve').status_code, 200)
+
+    def test_a_note_must_be_a_string(self):
+        change_id = self._in_state('submitted')
+        for note in (7, None, ['x'], {'a': 1}):
+            for action in ('approve', 'reject'):
+                response = self._act(change_id, action, body={'note': note})
+                self.assertEqual((response.status_code, response.json()['field']), (422, 'note'), (action, note))
+        self.assertEqual(self.env['liwan.project.change'].browse(change_id).state, 'submitted')
+
+    def test_submit_subscribes_the_sponsor_of_a_private_project(self):
+        self.project.privacy_visibility = 'followers'
+        self.project.message_subscribe(partner_ids=[self.employee.partner_id.id, self.manager.partner_id.id])
+        self.project.message_unsubscribe(partner_ids=[self.sponsor.partner_id.id])
+        self.assertNotIn(self.sponsor, self.project._liwan_followers())
+        self._in_state('submitted')
+        self.assertIn(self.sponsor, self.project._liwan_followers())
+
+    def test_the_category_belongs_to_the_company_of_the_project_on_every_write(self):
+        other = self.env['res.company'].create({'name': 'Elsewhere again'})
+        foreign = self.env['liwan.project.change.category'].search([('company_id', '=', other.id)], limit=1)
+        own = self.env['liwan.project.change.category'].search([('seed_key', '=', 'cost')], limit=1)
+        change = self._create(category_id=own.id)
+        patched = self._call('api_emp', 'PATCH', f'{self.base}/{change["id"]}', {
+            'expected_updated_at': change['updated_at'], 'category_id': foreign.id,
+        })
+        self.assertEqual(patched.status_code, 422)
+        with self.assertRaises(ValidationError):
+            self.env['liwan.project.change'].browse(change['id']).with_user(self.employee).write({'category_id': foreign.id})
 
     # --- notifications -----------------------------------------------------------------------
     def _bell(self, login):

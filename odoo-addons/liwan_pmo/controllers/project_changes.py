@@ -83,8 +83,12 @@ def _run(project_id, change_id, payload, action):
     project = _project(project_id)
     change = _change(project, change_id)
     note = payload.get('note')
-    if action == 'reject' and (not isinstance(note, str) or not note.strip()):
+    if 'note' in payload and not isinstance(note, str):
+        raise ApiError(422, 'invalid', "note must be a string", field='note')
+    if action == 'reject' and not (note or '').strip():
         raise ApiError(422, 'invalid', "note is required", field='note')
+    # The actor first: a caller who may not take the action must not be able to make the lock or the token refuse it.
+    change._liwan_require_actor(action)
     _locked(change, payload, token_required=False)
     try:
         if action == 'approve':
@@ -155,6 +159,7 @@ class ProjectChangeController(http.Controller):
     def patch_change(self, project_id, change_id, **payload):
         require_capabilities('pmo.projects.read')
         change = _change(_project(project_id), change_id)
+        change._liwan_require_requester()
         _locked(change, payload, token_required=True)
         vals = parse_change_vals(payload, partial=True)
         try:

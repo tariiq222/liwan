@@ -1,2 +1,3 @@
 Change control adds two new tables (`liwan_project_change`, `liwan_project_change_category`), a bell column on `mail_message` (`liwan_change_id`) and the company setting `change_control_mode`, which has no stored value and reads `optional`.
 No existing row changes: a project starts with no change requests, and the model's `init` seeds the five categories of every existing company, so no script is needed.
+The default mode `optional` changes no behaviour of existing tenants: the phase 1 rule that reopens an approved charter on edit stays, unless an approved change request that is not yet implemented covers the edit; only `required` retires it.

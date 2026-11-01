@@ -59,15 +59,33 @@ class ProjectProject(models.Model):
         changed = self.filtered(lambda project: project._liwan_charter_differs(vals, names))
         if any(project.liwan_charter_state == 'submitted' for project in changed):
             raise LiwanCharterState(self.env._("The charter is waiting for approval; withdraw it to edit."))
-        # Change control replaces the reopening of an approved charter: the sponsor's approval of a
-        # change request, not a second charter approval, authorizes the edit.
+        # Change control only retires the reopening of an approved charter where a change request covers the edit:
+        # `required` replaces it for good, `optional` keeps it unless an approved request is waiting to be implemented,
+        # and `off` is the phase 1 rule exactly.
         mode = self.env['liwan.pmo.settings'].change_control_mode()
         if mode == 'required':
             for project in changed:
                 project._liwan_check_change_request(vals)
-        if mode != 'off' or not self.env['liwan.pmo.settings']._core_values()['require_charter_approval']:
             return self.browse()
-        return changed.filtered(lambda project: project.liwan_charter_state == 'approved')
+        if not self.env['liwan.pmo.settings']._core_values()['require_charter_approval']:
+            return self.browse()
+        reopening = changed.filtered(lambda project: project.liwan_charter_state == 'approved')
+        if mode == 'optional':
+            reopening = reopening.filtered(lambda project: not project._liwan_edit_covered_by_change(vals))
+        return reopening
+
+    def _liwan_has_approved_change(self):
+        """Whether an approved request is waiting to be implemented: it unlocks the controlled fields of the project."""
+        self.ensure_one()
+        return bool(self.env['liwan.project.change'].search_count([
+            ('project_id', '=', self.id), ('state', '=', 'approved'),
+        ]))
+
+    def _liwan_edit_covered_by_change(self, vals):
+        """An edit only of controlled fields while an approved request is waiting to be implemented."""
+        self.ensure_one()
+        names = {name for name in set(vals) & CHARTER_CONTENT_FIELDS if self._liwan_charter_differs(vals, {name})}
+        return names <= CHANGE_CONTROLLED_FIELDS and self._liwan_has_approved_change()
 
     def _liwan_check_change_request(self, vals):
         """Refuse an edit of the approved scope or budget of an executing project that no approved request covers."""
@@ -75,9 +93,7 @@ class ProjectProject(models.Model):
         names = set(vals) & CHANGE_CONTROLLED_FIELDS
         if self.liwan_phase != 'executing' or not names or not self._liwan_charter_differs(vals, names):
             return
-        if not self.env['liwan.project.change'].search_count([
-            ('project_id', '=', self.id), ('state', '=', 'approved'),
-        ]):
+        if not self._liwan_has_approved_change():
             raise LiwanChangeRequired(self.env._("This change needs an approved change request."))
 
     def _liwan_charter_approval_required(self):

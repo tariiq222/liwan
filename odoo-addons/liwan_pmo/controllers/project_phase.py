@@ -12,7 +12,10 @@ from odoo.addons.liwan_pmo.models.project_phase import (
     LiwanPhaseGate,
     LiwanPhaseStep,
 )
-from odoo.addons.liwan_pmo.models.project_project import LiwanStaleWrite
+from odoo.addons.liwan_pmo.models.project_project import (
+    LiwanChangeRequired,
+    LiwanStaleWrite,
+)
 from odoo.addons.liwan_pmo.serializers.project import (
     dump_project_detail,
     parse_write_token,
@@ -47,6 +50,8 @@ class ProjectPhaseController(http.Controller):
             raise ApiError(409, 'stale_write', str(e), field='expected_updated_at') from e
         except LiwanPhaseGate as e:
             raise ApiError(409, 'phase_gate', str(e), details={'checks': e.liwan_checks}) from e
+        except LiwanChangeRequired as e:
+            raise ApiError(409, 'change_required', str(e)) from e
         except LiwanPhaseStep as e:
             raise ApiError(409, 'phase_step', str(e)) from e
         return dump_project_detail(project)

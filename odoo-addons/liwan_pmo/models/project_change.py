@@ -138,7 +138,7 @@ class LiwanProjectChange(models.Model):
             project = _check_project(self.env['project.project'].browse(vals.get('project_id')))
             if not project._liwan_is_member():
                 raise AccessError(self.env._("Only a member of the project can raise a change request."))
-            self._liwan_clean_content(vals, partial=False)
+            self._liwan_clean_content(vals, partial=False, project=project)
             vals.update(
                 number=self._liwan_next_number(project), requester_id=self.env.uid,
                 state='draft', liwan_revision=1,
@@ -146,7 +146,7 @@ class LiwanProjectChange(models.Model):
         return super().create(vals_list)
 
     @api.model
-    def _liwan_clean_content(self, vals, *, partial):
+    def _liwan_clean_content(self, vals, *, partial, project):
         if not partial or 'title' in vals:
             title = vals.get('title')
             if not isinstance(title, str) or not title.strip():
@@ -162,7 +162,7 @@ class LiwanProjectChange(models.Model):
                 raise ValidationError(self.env._("The cost impact must be a number."))
         if vals.get('category_id'):
             category = self.env['liwan.project.change.category'].search([
-                ('id', '=', vals['category_id']), ('active', '=', True),
+                ('id', '=', vals['category_id']), ('active', '=', True), ('company_id', '=', project.company_id.id),
             ], limit=1)
             if not category:
                 raise ValidationError(self.env._("Choose an active category of this company."))
@@ -178,9 +178,9 @@ class LiwanProjectChange(models.Model):
                 raise AccessError(self.env._("Use the change request actions to decide or implement it."))
             return super().write(vals)
         result = True
-        content = self._liwan_clean_content(dict(vals), partial=True)
         for record in self:
             record._liwan_check_editable()
+            content = self._liwan_clean_content(dict(vals), partial=True, project=record.project_id)
             result = super(LiwanProjectChange, record).write({**content, 'liwan_revision': record.liwan_revision + 1}) and result
         return result
 
@@ -250,10 +250,24 @@ class LiwanProjectChange(models.Model):
         service = self.env['liwan.access.service']
         if not sponsor or not sponsor.active or not service._liwan_has_capability(sponsor, 'pmo.projects.read'):
             raise ValidationError(self.env._("The project needs a sponsor who can open projects before a change is submitted."))
+        project = self.project_id
+        if project.privacy_visibility == 'followers' and sponsor not in project._liwan_followers():
+            # The sponsor must be able to open a private project to decide; as with the charter, submitting subscribes them.
+            project._liwan_subscribe_follower(sponsor)
         try:
-            self.project_id.with_user(sponsor).with_company(self.project_id.company_id)._liwan_check_visible_current()
+            project.with_user(sponsor).with_company(project.company_id)._liwan_check_visible_current()
         except AccessError as error:
             raise ValidationError(self.env._("The project needs a sponsor who can open projects before a change is submitted.")) from error
+
+    def _liwan_require_actor(self, action):
+        """Refuse a caller who may not take ``action`` at all, before any lock or state is looked at."""
+        self.ensure_one()
+        if action in ('submit', 'withdraw'):
+            self._liwan_require_requester()
+        elif action in ('approve', 'reject'):
+            self._liwan_require_sponsor()
+        else:
+            self.project_id._liwan_check_manage()
 
     # --- transitions --------------------------------------------------------------
     def _liwan_submit(self):

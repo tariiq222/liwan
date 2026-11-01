@@ -67,7 +67,6 @@ class TestProjectPhase(LiwanPmoCase):
         self._as_manager()._liwan_move_phase('planning')
         key = f'liwan_pmo.require_charter_approval.{self.env.company.id}'
         self.env['ir.config_parameter'].sudo().set_param(key, 'true')
-        self.env['ir.config_parameter'].sudo().set_param(f'liwan_pmo.change_control_mode.{self.env.company.id}', 'off')
         self.project.with_user(self.manager).write({'name': 'Renamed after approval'})
         self.assertEqual(self.project.liwan_charter_state, 'draft')
         self.assertEqual(self.project.liwan_phase, 'planning')
