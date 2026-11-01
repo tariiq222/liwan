@@ -12,8 +12,17 @@ start and end, and the task's percent complete now. With BAC the baseline budget
   TCPI = (BAC - EV) / (BAC - AC).
 
 A ratio whose divisor is not positive is ``None`` ("not enough data"), never 0 or infinity. SPI is the ratio
-of the two fractions, so it does not depend on BAC and still exists for a project without a budget; every
-cost index is ``None`` when BAC is 0.
+of the two fractions, so it does not depend on BAC and still exists for a project without a budget.
+
+Three cases leave only what is honest:
+* BAC is 0: every cost index is ``None``;
+* some lines have no end date (``undated_count``): PV, EV, SV and SPI cover the dated lines only, and every cost
+  index (CV, CPI, EAC, ETC, VAC, TCPI) is ``None`` because AC covers all the work and cannot be split;
+* the caller cannot read some lines (``hidden``): every figure that depends on the plan (PV, EV, SV, SPI, the
+  cost indices and the curve) is ``None`` or empty, since a partial plan would pass for the whole one.
+
+Rounding is half-up: money to the currency decimals, indices to two decimals. A line whose task was cancelled,
+deleted or moved keeps its share in PV and earns nothing, so EV cannot reach BAC until a new baseline is taken.
 """
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -99,12 +108,19 @@ def planned_curve(lines, bac, decimals):
     ]
 
 
-def compute_evm(bac, actual, lines, today, decimals=2):
+def compute_evm(bac, actual, lines, today, decimals=2, hidden=0):
     """The earned value reading of a plan at ``today``; amounts are rounded to ``decimals``, indices to two decimals.
 
     ``bac`` is the baseline budget, ``actual`` the actual cost to date and ``lines`` the baseline lines.
-    ``undated_count`` is the number of lines left out of PV and EV because they have no end date.
+    ``undated_count`` is the number of lines left out of PV and EV because they have no end date, ``hidden`` the
+    number of baseline lines the caller cannot read.
     """
+    undated = sum(1 for line in lines if line.end is None)
+    if hidden:
+        return {
+            'bac': _money(bac, decimals), 'ac': _money(actual, decimals), 'undated_count': undated, 'planned_curve': [],
+            **dict.fromkeys(('pv', 'ev', 'sv', 'cv', 'spi', 'cpi', 'eac', 'etc', 'vac', 'tcpi')),
+        }
     pv_fraction = planned_fractions(lines, today)
     ev_fraction = earned_fraction(lines)
     pv = _money(bac * pv_fraction, decimals)
@@ -115,7 +131,7 @@ def compute_evm(bac, actual, lines, today, decimals=2):
         'sv': _money(ev - pv, decimals), 'spi': _index(_ratio(ev_fraction, pv_fraction)),
         'cv': None, 'cpi': None, 'eac': None, 'etc': None, 'vac': None, 'tcpi': None,
     }
-    if bac > 0:
+    if bac > 0 and not undated:
         raw_ev = bac * ev_fraction
         cpi = _ratio(raw_ev, actual)
         eac = bac / cpi if cpi else None
@@ -125,6 +141,6 @@ def compute_evm(bac, actual, lines, today, decimals=2):
             'vac': None if eac is None else _money(bac - _money(eac, decimals), decimals),
             'tcpi': _index(_ratio(bac - raw_ev, bac - actual)),
         })
-    result['undated_count'] = sum(1 for line in lines if line.end is None)
+    result['undated_count'] = undated
     result['planned_curve'] = planned_curve(lines, bac, decimals)
     return result

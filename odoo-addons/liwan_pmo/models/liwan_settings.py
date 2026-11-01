@@ -188,8 +188,11 @@ class LiwanPmoSettings(models.AbstractModel):
         return self._get_choice(PARAM_BASELINE_GATE, BASELINE_GATES, 'warning')
 
     def evm_progress_method(self):
-        """How earned value counts a task's progress; `binary` while the tenant's plan lacks the `pmo.evm` sub-feature."""
-        if not self.env['liwan.entitlement.service']._liwan_feature_write('pmo.evm'):
+        """How earned value counts a task's progress; `binary` while the tenant's plan lacks the `pmo.evm` sub-feature.
+
+        The retained-read check keeps the figures on the chosen method while the tenant is expired or suspended;
+        writing the percent complete asks for the writable feature separately."""
+        if not self.env['liwan.entitlement.service']._liwan_feature_read('pmo.evm'):
             return 'binary'
         return self._get_choice(PARAM_EVM_PROGRESS_METHOD, EVM_PROGRESS_METHODS, 'binary')
 

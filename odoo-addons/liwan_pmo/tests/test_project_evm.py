@@ -128,7 +128,7 @@ class TestProjectEvm(LiwanPmoCase):
         self.assertEqual(self._get('api_evm_outsider').status_code, 403)
         self.assertEqual(self._get('api_mgr').status_code, 200)
 
-    def test_a_reader_without_task_access_gets_a_partial_figure(self):
+    def test_a_reader_without_task_access_gets_no_plan_figures(self):
         reader = new_test_user(self.env, login='api_evm_reader', password='api_evm_reader_pass_123', name='Reader', groups='base.group_user')
         role = self.env['liwan.access.role'].create({
             'name_ar': 'قارئ المشاريع للقيمة المكتسبة', 'company_id': self.env.company.id,
@@ -136,14 +136,31 @@ class TestProjectEvm(LiwanPmoCase):
         })
         self.env['liwan.access.assignment'].create({'user_id': reader.id, 'role_id': role.id, 'company_id': self.env.company.id})
         body = self._get('api_evm_reader').json()
-        self.assertEqual((body['bac'], body['ac'], body['hidden_count'], body['pv'], body['spi']), (120000, 48000, 4, 0, None))
+        self.assertEqual((body['bac'], body['ac'], body['hidden_count'], body['pv'], body['ev'], body['spi'], body['cpi'], body['planned_curve']), (120000, 48000, 4, None, None, None, None, []))
 
-    def test_a_plan_without_the_feature_keeps_reads_open_and_counts_binary(self):
+    def test_some_hidden_tasks_blank_the_plan_figures_but_not_the_cost(self):
+        visible = self.baseline.task_ids[:3]
+        with patch('odoo.addons.liwan_pmo.serializers.project_baseline.readable_lines', return_value=visible):
+            evm = self._build()
+        self.assertEqual((evm['hidden_count'], evm['bac'], evm['ac']), (1, 120000, 48000))
+        for key in ('pv', 'ev', 'sv', 'cv', 'spi', 'cpi', 'eac', 'etc', 'vac', 'tcpi'):
+            self.assertIsNone(evm[key], key)
+        self.assertEqual(evm['planned_curve'], [])
+
+    def test_an_undated_task_blanks_the_cost_indices_only(self):
+        self.Task.create({'name': 'Undated done', 'project_id': self.project.id, 'state': '1_done'})
+        baseline = self.env['liwan.project.baseline'].with_user(self.manager).create({'project_id': self.project.id})
+        evm = build_evm(self.project.with_user(self.manager), baseline, TODAY)
+        self.assertEqual((evm['undated_count'], evm['spi'] is not None, evm['bac'], evm['ac']), (1, True, 120000, 48000))
+        for key in ('cv', 'cpi', 'eac', 'etc', 'vac', 'tcpi'):
+            self.assertIsNone(evm[key], key)
+
+    def test_a_withdrawn_feature_keeps_reads_open_and_the_chosen_method_but_refuses_writes(self):
         self._method('manual')
         profile = self.env.ref('liwan_platform.tenant_profile')
         profile.with_context(**{OPERATOR_CONTEXT: True}).write({'features': {**profile.features, FEATURE: False}})
         self.assertEqual(self._get().status_code, 200, 'a withdrawn sub-feature keeps reads open')
-        self.assertEqual(self.env['liwan.pmo.settings'].evm_progress_method(), 'binary')
+        self.assertEqual(self.env['liwan.pmo.settings'].evm_progress_method(), 'manual', 'a retained read keeps the method')
         refused = self._patch_task('api_mgr', self.t_half, {'percent_complete': 40})
         self.assertEqual((refused.status_code, refused.json()['field']), (422, 'percent_complete'))
 
@@ -164,13 +181,20 @@ class TestProjectEvm(LiwanPmoCase):
             response = self._patch_task('api_mgr', self.t_half, {'percent_complete': bad})
             self.assertEqual((response.status_code, response.json()['field']), (422, 'percent_complete'), bad)
 
+    def test_the_percent_of_a_closed_task_is_fixed(self):
+        self._method('manual')
+        refused = self._patch_task('api_mgr', self.t_done, {'percent_complete': 10})
+        self.assertEqual((refused.status_code, refused.json()['field']), (422, 'percent_complete'))
+        self.t_half.write({'state': '1_canceled'})
+        self.assertEqual(self._patch_task('api_mgr', self.t_half, {'percent_complete': 10}).status_code, 422)
+
     def test_an_assignee_edits_their_own_percent_and_a_done_task_reads_100(self):
         self._method('manual')
         mine = self.Task.create({'name': 'Mine', 'project_id': self.project.id, 'user_ids': [(4, self.employee.id)]})
         self.assertEqual(self._patch_task('api_emp', mine, {'percent_complete': 25}).status_code, 200)
         self.assertEqual(mine.liwan_percent_complete, 25)
-        detail = self._patch_task('api_mgr', self.t_done, {'percent_complete': 10}).json()
-        self.assertEqual(detail['percent_complete'], 100)
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        self.assertEqual(self.api('GET', f'/api/v1/tasks/{self.t_done.id}').json()['percent_complete'], 100)
 
     def test_the_binary_detail_reads_zero_or_100(self):
         self.authenticate('api_mgr', 'api_mgr_pass_123')

@@ -84,12 +84,27 @@ class TestProjectEvmMath(BaseCase):
         for key in ('cv', 'cpi', 'eac', 'etc', 'vac', 'tcpi'):
             self.assertIsNone(result[key], key)
 
-    def test_undated_lines_leave_pv_and_ev_and_are_counted(self):
+    def test_undated_lines_leave_the_schedule_figures_alone_and_blank_the_cost_ones(self):
         lines = [*worked_example_lines(), EvmLine(0.0, None, None, 100)]
         result = compute_evm(120000, 48000, lines, TODAY)
-        self.assertEqual((result['pv'], result['ev'], result['undated_count']), (60000.0, 42000.0, 1))
+        self.assertEqual((result['pv'], result['ev'], result['sv'], result['spi'], result['undated_count']), (60000.0, 42000.0, -18000.0, 0.7, 1))
+        for key in ('cv', 'cpi', 'eac', 'etc', 'vac', 'tcpi'):
+            self.assertIsNone(result[key], key)
+        self.assertEqual((result['bac'], result['ac']), (120000.0, 48000.0))
         done_without_dates = compute_evm(1000, 100, [EvmLine(1.0, None, None, 100)], TODAY)
-        self.assertEqual((done_without_dates['ev'], done_without_dates['spi'], done_without_dates['undated_count']), (0.0, None, 1))
+        self.assertEqual((done_without_dates['ev'], done_without_dates['spi'], done_without_dates['cpi'], done_without_dates['undated_count']), (0.0, None, None, 1))
+
+    def test_a_done_undated_task_does_not_lift_the_figures(self):
+        shares = [EvmLine(0.5, D(2026, 3, 1), D(2026, 3, 11), 0), EvmLine(0.5, None, None, 100)]
+        result = compute_evm(1000, 400, shares, TODAY)
+        self.assertEqual((result['ev'], result['pv'], result['spi'], result['cpi']), (0.0, 500.0, 0.0, None))
+
+    def test_hidden_lines_blank_every_plan_figure(self):
+        result = compute_evm(120000, 48000, worked_example_lines()[:3], TODAY, hidden=1)
+        self.assertEqual((result['bac'], result['ac']), (120000.0, 48000.0))
+        for key in ('pv', 'ev', 'sv', 'cv', 'spi', 'cpi', 'eac', 'etc', 'vac', 'tcpi'):
+            self.assertIsNone(result[key], key)
+        self.assertEqual(result['planned_curve'], [])
 
     def test_a_removed_task_keeps_its_planned_value_and_earns_nothing(self):
         lines = worked_example_lines()

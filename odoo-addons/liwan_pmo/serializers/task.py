@@ -317,10 +317,12 @@ def _parse_milestone(task, value, key):
     return milestone.id
 
 
-def _parse_percent_complete(value, key):
-    """A whole percent 0..100, accepted only while the company counts progress `manual`."""
-    if request.env['liwan.pmo.settings'].evm_progress_method() != 'manual':
+def _parse_percent_complete(value, key, task):
+    """A whole percent 0..100 of an open task, accepted only while the company counts progress `manual` and the feature is writable."""
+    if request.env['liwan.pmo.settings'].evm_progress_method() != 'manual' or not request.env['liwan.entitlement.service']._liwan_feature_write('pmo.evm'):
         raise ApiError(422, 'invalid', "percent_complete is only editable when the company's progress method is manual", field=key)
+    if task.is_closed:
+        raise ApiError(422, 'invalid', "percent_complete of a closed task is fixed: done counts 100% and cancelled 0%", field=key)
     if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 100:
         raise ApiError(422, 'invalid', "percent_complete must be a whole number between 0 and 100", field=key)
     return value
@@ -372,7 +374,7 @@ def parse_task_vals(payload, can_manage, task):
                 raise ApiError(422, 'invalid', "description must be a string", field=key)
             vals[key] = value
         elif key == 'percent_complete':
-            vals['liwan_percent_complete'] = _parse_percent_complete(value, key)
+            vals['liwan_percent_complete'] = _parse_percent_complete(value, key, task)
         elif key == 'deliverables':
             if not isinstance(value, list):
                 raise ApiError(422, 'invalid', "deliverables must be a list", field=key)

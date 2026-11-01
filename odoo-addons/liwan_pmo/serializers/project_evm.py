@@ -22,8 +22,8 @@ def _line_percent(line, project, method):
 def build_evm(project, baseline, today=None):
     """Earned value of ``project`` against ``baseline`` as of ``today`` (the caller's calendar day); computed on read.
 
-    The maths are ``compute_evm``. The lines are the ones the caller may read, so a reader who cannot see some
-    tasks gets a partial figure and ``hidden_count`` says how many lines are missing. The actual cost is the
+    The maths are ``compute_evm``. The lines are the ones the caller may read; when some are hidden the plan-based
+    figures are null and ``hidden_count`` says how many lines are missing. The actual cost is the
     finance summary's, the same figure ``GET /projects/{id}/finance`` shows.
     """
     method = project.env['liwan.pmo.settings'].evm_progress_method()
@@ -33,7 +33,7 @@ def build_evm(project, baseline, today=None):
         for line in readable_lines(baseline)
     ]
     day = today or fields.Date.context_today(project)
-    result = compute_evm(baseline.budget_total, build_finance_summary(project)['actual'], lines, day, currency.decimal_places)
+    result = compute_evm(baseline.budget_total, build_finance_summary(project)['actual'], lines, day, currency.decimal_places, hidden_count(baseline))
     return {
         'project_id': project.id,
         'baseline_number': baseline.number,
