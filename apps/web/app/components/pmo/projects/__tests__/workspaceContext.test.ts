@@ -21,6 +21,7 @@ async function links(path: string, level = 'sections') {
       '@/modules/pmo/projectSections': projectNavigation,
       '@/modules/pmo/governanceSections': governanceNavigation,
       '@/modules/pmo/projectRoutes': activeRoute,
+      '@/modules/registry': { hasFeature: () => true },
       '@/composables/useProjects': { useProject: () => ({ data: ref({ active: true }) }) },
       '@/utils/projectWorkspaceMemory': workspaceMemory,
     },
@@ -62,6 +63,7 @@ describe('project section navigation context', () => {
       expect(url.searchParams.get('projectListReturnTo')).toBe('/projects?mine=1')
       expect(JSON.parse(url.searchParams.get('taskContext') ?? '{}')).toEqual({ view: 'board', q: 'review' })
     }
-    expect(Object.keys(hrefs)).toHaveLength(4)
+    // The changes tab follows the project's change control (off in this fixture); the baselines tab follows the plan.
+    expect(Object.keys(hrefs)).toHaveLength(5)
   })
 })
