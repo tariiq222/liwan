@@ -1,0 +1,6 @@
+{
+  "insurance_expiry_alert_days": 60,
+  "insurance_require_dependent_id": false,
+  "insurance_visibility": "own_enrollment_and_dependents",
+  "revision": 0
+}

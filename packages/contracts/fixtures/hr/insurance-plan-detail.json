@@ -1,0 +1,17 @@
+{
+  "active": false,
+  "annual_premium": 1500.0,
+  "expires_in_days": null,
+  "id": 1,
+  "name": "Active plan",
+  "policy_number": "POL-1",
+  "provider": {
+    "id": 2,
+    "name": "Plan insurer"
+  },
+  "revision": 3,
+  "state": "archived",
+  "tier": "Platinum",
+  "valid_from": "2026-07-24",
+  "valid_to": "2027-12-06"
+}

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="ir_cron_liwan_hr_insurance_expiry" model="ir.cron">
+        <field name="name">liwan HR: insurance plan expiry alerts</field>
+        <field name="model_id" ref="model_liwan_hr_insurance_plan"/>
+        <field name="state">code</field>
+        <field name="code">model._liwan_run_expiry_alerts()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

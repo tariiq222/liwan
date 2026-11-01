@@ -1129,6 +1129,70 @@
       "schema": "HrWarningCandidateListSchema"
     },
     {
+      "name": "hr/insurance-provider-list",
+      "addon": "liwan_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/insurance/providers",
+      "status": 200,
+      "schema": "HrInsuranceProviderListSchema"
+    },
+    {
+      "name": "hr/insurance-plan-list",
+      "addon": "liwan_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/insurance/plans",
+      "status": 200,
+      "schema": "HrInsurancePlanListSchema"
+    },
+    {
+      "name": "hr/insurance-plan-detail",
+      "addon": "liwan_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/insurance/plans/{id}",
+      "status": 200,
+      "schema": "HrInsurancePlanSchema"
+    },
+    {
+      "name": "hr/insurance-enrollment-list",
+      "addon": "liwan_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/insurance/enrollments",
+      "status": 200,
+      "schema": "HrInsuranceEnrollmentListSchema"
+    },
+    {
+      "name": "hr/insurance-enrollment-detail",
+      "addon": "liwan_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/insurance/enrollments/{id}",
+      "status": 200,
+      "schema": "HrInsuranceEnrollmentDetailSchema"
+    },
+    {
+      "name": "hr/my-insurance-list",
+      "addon": "liwan_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/insurance/me",
+      "status": 200,
+      "schema": "HrInsuranceOwnListSchema"
+    },
+    {
+      "name": "hr/insurance-settings",
+      "addon": "liwan_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/insurance/settings",
+      "status": 200,
+      "schema": "HrInsuranceSettingsSchema"
+    },
+    {
+      "name": "hr/insurance-summary",
+      "addon": "liwan_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/insurance/summary",
+      "status": 200,
+      "schema": "HrInsuranceSummarySchema"
+    },
+    {
       "name": "meetings/meeting-version-detail",
       "addon": "liwan_meetings",
       "method": "GET",

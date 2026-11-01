@@ -47,10 +47,13 @@ CURRENT_COMPANY_ROUTES = {
     'assignment': '/api/v1/hr/shifts/assignments/{}',
     # Keyed by the employee id: the figure counts that employee's warnings in the current company only.
     'standing': '/api/v1/hr/warnings/standing/{}',
+    # Insurance is private to the current company: a branch or a parent never reads it.
+    'insurance_plan': '/api/v1/hr/insurance/plans/{}',
+    'insurance_enrollment': '/api/v1/hr/insurance/enrollments/{}',
 }
 
 # Every GET /api/v1 record, export or file route of liwan_hr, counted by the discovery test.
-EXPECTED_GET_RECORD_ROUTES = 25
+EXPECTED_GET_RECORD_ROUTES = 27
 
 # The lists the pillar serves, with the fixture key whose id must be the only one.
 LISTS = (
@@ -113,8 +116,19 @@ class TestHrCompanyIsolation(CompanyIsolationCase):
                     'name': '08 - 12', 'dayofweek': '0', 'day_period': 'morning', 'hour_from': 8, 'hour_to': 12,
                 })],
             })
+            insurance_provider = cls.env['liwan.hr.insurance.provider'].create({
+                'company_id': company.id, 'name': f'Isolation Insurer {tag.upper()}',
+            })
+            insurance_plan = cls.env['liwan.hr.insurance.plan'].create({
+                'company_id': company.id, 'provider_id': insurance_provider.id, 'name': f'Isolation Plan {tag.upper()}',
+                'valid_from': '2026-01-01', 'valid_to': '2026-12-31',
+            })
             cls.recs[tag] = {
                 'employee': employee,
+                'insurance_plan': insurance_plan,
+                'insurance_enrollment': cls.env['liwan.hr.insurance.enrollment'].create({
+                    'employee_id': employee.id, 'plan_id': insurance_plan.id, 'date_from': '2026-02-01',
+                }),
                 'compensated': employee,
                 'standing': employee,
                 'warning': cls.env['liwan.hr.warning'].create({
@@ -521,7 +535,7 @@ class TestHrCompanyIsolation(CompanyIsolationCase):
         self.assert_matrix('compensated')
 
     def test_current_company_only_records_hide_branches_and_parents(self):
-        """Shift schedules, planning rows and the warning figure belong to one company: a branch or parent is hidden too."""
+        """Shift schedules, planning rows, the warning figure and insurance records belong to one company: a branch or parent is hidden too."""
         for current in self.by_tag:
             self.env_in(self.by_tag[current])
             for kind, template in CURRENT_COMPANY_ROUTES.items():
@@ -569,4 +583,6 @@ cover_isolation_routes((
     '/api/v1/hr/shifts/assignments/<int:assignment_id>',
     '/api/v1/hr/warnings/<int:warning_id>',
     '/api/v1/hr/warnings/standing/<int:employee_id>',
+    '/api/v1/hr/insurance/plans/<int:plan_id>',
+    '/api/v1/hr/insurance/enrollments/<int:enrollment_id>',
 ), source='liwan_hr/tests/test_company_isolation.py')

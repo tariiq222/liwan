@@ -1,0 +1,39 @@
+{
+  "items": [
+    {
+      "active": true,
+      "annual_premium": 1500.0,
+      "expires_in_days": 200,
+      "id": 1,
+      "name": "Active plan",
+      "policy_number": "POL-1",
+      "provider": {
+        "id": 2,
+        "name": "Plan insurer"
+      },
+      "revision": 1,
+      "state": "active",
+      "tier": "Gold",
+      "valid_from": "2026-07-24",
+      "valid_to": "2027-05-20"
+    },
+    {
+      "active": true,
+      "annual_premium": 1500.0,
+      "expires_in_days": -10,
+      "id": 2,
+      "name": "Expired plan",
+      "policy_number": "POL-1",
+      "provider": {
+        "id": 2,
+        "name": "Plan insurer"
+      },
+      "revision": 1,
+      "state": "expired",
+      "tier": "Gold",
+      "valid_from": "2026-01-05",
+      "valid_to": "2026-10-22"
+    }
+  ],
+  "total": 2
+}
