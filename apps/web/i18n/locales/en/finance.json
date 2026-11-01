@@ -154,6 +154,34 @@
         "none": "Not set",
         "retry": "Retry",
         "hint": "The partner appears on invoices and payments according to its type."
+      },
+      "banks": {
+        "title": "Bank accounts",
+        "hint": "Accounts payments to or from this partner go through.",
+        "add": "Add bank account",
+        "empty": "No bank accounts for this partner yet",
+        "unnamedBank": "Bank account",
+        "accNumber": "Account number or IBAN",
+        "accNumberHint": "A Saudi IBAN starts with SA and is checked when you save. Spaces are ignored.",
+        "holderName": "Account holder",
+        "bankName": "Bank name",
+        "bic": "Bank code (BIC)",
+        "editAria": "Edit account {name}",
+        "archive": "Archive",
+        "unarchive": "Restore",
+        "archiveConfirm": "Archive the account at {name}?",
+        "unarchiveConfirm": "Restore the account at {name}?",
+        "archiveHint": "Past payments stay as they are, and the account no longer appears in new choices.",
+        "errors": {
+          "accNumberRequired": "Enter the account number or IBAN.",
+          "bankNameForBic": "Enter the bank name along with its code.",
+          "duplicate": "This partner already has this account.",
+          "accNumberInvalid": "The account number is not valid. It is at most 34 characters, and a Saudi IBAN starts with SA, has 24 characters and passes the check digits.",
+          "fieldInvalid": "The value entered is not valid."
+        },
+        "unarchiveHint": "The account returns to new choices and can be used in payments again.",
+        "archiveAria": "Archive account {name}",
+        "unarchiveAria": "Restore account {name}"
       }
     },
     "setup": {
@@ -204,8 +232,13 @@
           "lock_date_loosening": "This lock cannot be removed or moved to an earlier date.",
           "invalid_request_context": "This request could not be checked against the signed-in identity. Reload the page and try again.",
           "request_context_changed": "The company or sign-in identity changed since this screen was opened, so this request's result was not applied. Reload the current company's settings to verify.",
-          "unreconciled_bank_lines": "Some bank statement lines up to this date are not reconciled. Reconcile or delete them before locking the fiscal year."
-        }
+          "unreconciled_bank_lines": "Some bank statement lines up to this date are not reconciled. Reconcile or delete them before locking the fiscal year.",
+          "transferAccountCannotClear": "The transfer account cannot be removed, only replaced by another account."
+        },
+        "transfer_account_id": "Internal transfer account",
+        "transferAccountHint": "The account transfers between banks and cash boxes pass through. It must be a reconcilable current asset.",
+        "transferAccountPlaceholder": "Choose an account",
+        "transferAccountReadOnly": "Reading the chart of accounts is needed to change this account."
       },
       "chart": {
         "title": "Chart of accounts",

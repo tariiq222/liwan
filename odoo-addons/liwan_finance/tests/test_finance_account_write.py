@@ -40,6 +40,20 @@ class TestFinanceAccountWrite(LiwanFinanceWriteCase):
         self.assertEqual(changed.status_code, 200, changed.text)
         self.assertEqual((changed.json()['name'], changed.json()['code'], changed.json()['reconcile']), ('Advisory costs', '777009', True))
 
+    def test_list_filters_by_reconcile(self):
+        reconcilable = self.create_account(code='777101', name='Filter reconcilable', reconcile=True)
+        plain = self.create_account(code='777102', name='Filter plain')
+
+        def listed(query):
+            result = self.api('GET', f'{ACCOUNTS}?q=Filter{query}')
+            self.assertEqual(result.status_code, 200, result.text)
+            return {item['id'] for item in result.json()['items']}
+
+        self.assertEqual(listed('&reconcile=true'), {reconcilable['id']})
+        self.assertEqual(listed('&reconcile=false'), {plain['id']})
+        self.assertEqual(listed(''), {reconcilable['id'], plain['id']})
+        self.assertRefused(self.api('GET', f'{ACCOUNTS}?reconcile=maybe'), 422, 'invalid', 'reconcile')
+
     def test_refusals(self):
         for body, field in (
             ({'name': 'x', 'account_type': 'expense'}, 'code'),

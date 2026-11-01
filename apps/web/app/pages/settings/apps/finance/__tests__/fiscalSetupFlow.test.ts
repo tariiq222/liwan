@@ -57,6 +57,8 @@ function mountCard() {
     onBeforeRouteLeave: () => undefined,
     useToast: () => ({ add: (toast: unknown) => toasts.push(toast) }),
     useSettingsForm, ApiError,
+    // The template is not rendered here; the script only names the picker it imports.
+    AccountPicker: {}, useAccess: () => ({ can: () => true }),
     ...setupComposables, ...fiscalRules,
   }
   const component = new Function(...Object.keys(bindings), js)(...Object.values(bindings))
@@ -164,6 +166,35 @@ describe('several broken rules', () => {
     h.draft().value.fiscalyear_last_day = '40'
     await h.submit()
     expect(h.value<unknown[]>('summary')).toEqual([])
+  })
+})
+
+describe('the transfer account of the card', () => {
+  it('is sent alone when it is the only change', async () => {
+    const h = mountCard()
+    await h.open(7, 3, 31)
+    ;(h.draft().value as Record<string, unknown>).transfer_account_id = 102
+    const saving = h.submit()
+    await h.settle()
+    const [call] = h.pending(FISCAL_URL, 'PATCH')
+    expect(call?.body).toEqual({ transfer_account_id: 102 })
+    call!.resolve({ fiscal: { ...fiscal(31), transfer_account: { id: 102, name: '100002 Suspense' } } })
+    await saving
+    await h.settle()
+    expect(h.toasts).toHaveLength(1)
+  })
+
+  it('shows the message under its own field when the server refuses the account, and keeps the draft', async () => {
+    const h = mountCard()
+    await h.open(7, 3, 31)
+    ;(h.draft().value as Record<string, unknown>).transfer_account_id = 5
+    const saving = h.submit()
+    await h.settle()
+    h.pending(FISCAL_URL, 'PATCH')[0]!.reject(new ApiError(422, 'invalid', 'transfer_account_id is not a reconcilable current asset', 'transfer_account_id'))
+    await saving
+    await h.settle()
+    expect((h.draft().value as Record<string, unknown>).transfer_account_id).toBe(5)
+    expect((h.card().fieldMessage as (field: string) => string | undefined)('transfer_account_id')).toBe('transfer_account_id is not a reconcilable current asset')
   })
 })
 

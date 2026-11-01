@@ -161,3 +161,14 @@ export function buildStandalonePayment(draft: StandalonePaymentDraft): FinancePa
 export function standalonePaymentLink(returnTo?: string) {
   return { path: `${PAYMENTS_PATH}/new`, query: { kind: 'standalone', ...(returnTo ? { returnTo } : {}) } }
 }
+
+export function transferPaymentLink(returnTo?: string) {
+  return { path: `${PAYMENTS_PATH}/transfer/new`, query: { ...(returnTo ? { returnTo } : {}) } }
+}
+
+/** The exchange gain or loss a settled payment produced, or null when it produced none. */
+export function exchangeOutcome(payment: Pick<FinancePayment, 'exchange_difference'>): { kind: 'gain' | 'loss'; amount: number } | null {
+  const difference = payment.exchange_difference
+  if (difference === 0) return null
+  return { kind: difference > 0 ? 'gain' : 'loss', amount: Math.abs(difference) }
+}

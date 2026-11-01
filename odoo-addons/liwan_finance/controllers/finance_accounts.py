@@ -89,6 +89,8 @@ class FinanceAccountController(http.Controller):
         account_type = parse_choice(args.get('account_type'), _account_types(), 'account_type')
         if account_type:
             domain.append(('account_type', '=', account_type))
+        if parse_choice(args.get('reconcile'), {'true', 'false'}, 'reconcile'):
+            domain.append(('reconcile', '=', args.get('reconcile') == 'true'))
         query = (args.get('q') or '').strip()
         if query:
             domain += ['|', ('code', 'ilike', query), ('name', 'ilike', query)]
