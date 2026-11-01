@@ -14,7 +14,8 @@ for (const state of ['empty', 'error'] as const) {
     }))
     await page.getByTestId('context-link-project-dashboard').click()
     await expect(page.getByTestId('pending-charters')).toBeVisible()
-    await expect(page.getByRole('link', { name: 'ميثاق بانتظار الاعتماد', exact: true })).toBeVisible()
+    await expect(page.getByTestId('pending-charters')).toContainText('ميثاق بانتظار الاعتماد')
+    await expect(page.getByTestId('pending-charters').getByRole('link', { name: 'مراجعة الميثاق', exact: true })).toHaveAttribute('href', '/projects/8001/charter')
     await expect(page.getByTestId(state === 'error' ? 'project-dashboard-analytics-error' : 'project-dashboard-empty')).toBeVisible()
   })
 }
