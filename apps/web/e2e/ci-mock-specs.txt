@@ -45,3 +45,4 @@ project-layout-unified.spec.ts
 project-smooth-navigation.spec.ts
 project-workspace-continuity.spec.ts
 project-theme.spec.ts
+project-pages.spec.ts
