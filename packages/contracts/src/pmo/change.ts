@@ -58,8 +58,12 @@ export const ProjectChangeWriteSchema = z.object({
 }).strict()
 export const ProjectChangePatchSchema = ProjectChangeWriteSchema.extend({ expected_updated_at: z.string().regex(/^v\d+$/) }).strict()
 
-// Body of the submit, withdraw, approve, reject and implement actions; a rejection must carry its note.
-export const ProjectChangeActionSchema = z.object({ expected_updated_at: z.string().regex(/^v\d+$/).optional(), note: z.string().max(CHANGE_NOTE_MAX).optional() }).strict()
+// Bodies of the actions. The token is optional on every one; only the sponsor's decisions take a note: an approval may carry
+// one, a rejection must. Submit, withdraw and implement take the token alone, as the server refuses any other key.
+const WriteToken = z.string().regex(/^v\d+$/)
+export const ProjectChangeTransitionSchema = z.object({ expected_updated_at: WriteToken.optional() }).strict()
+export const ProjectChangeApproveSchema = z.object({ expected_updated_at: WriteToken.optional(), note: z.string().max(CHANGE_NOTE_MAX).optional() }).strict()
+export const ProjectChangeRejectSchema = z.object({ expected_updated_at: WriteToken.optional(), note: z.string().trim().min(1).max(CHANGE_NOTE_MAX) }).strict()
 
 export const ChangeCategorySchema = CatalogRefSchema.extend({ sequence: z.number().int(), active: z.boolean() }).strict()
 export const ChangeCategoryListSchema = z.object({ items: z.array(ChangeCategorySchema), total: z.number().int().nonnegative() }).strict()
@@ -70,7 +74,9 @@ export type ChangeControlMode = z.infer<typeof ChangeControlModeSchema>
 export type ProjectChange = z.infer<typeof ProjectChangeSchema>
 export type ProjectChangeList = z.infer<typeof ProjectChangeListSchema>
 export type ProjectChangeWrite = z.infer<typeof ProjectChangeWriteSchema>
-export type ProjectChangeAction = z.infer<typeof ProjectChangeActionSchema>
+export type ProjectChangeTransition = z.infer<typeof ProjectChangeTransitionSchema>
+export type ProjectChangeApprove = z.infer<typeof ProjectChangeApproveSchema>
+export type ProjectChangeReject = z.infer<typeof ProjectChangeRejectSchema>
 export type ChangeCategory = z.infer<typeof ChangeCategorySchema>
 export type ChangeCategoryList = z.infer<typeof ChangeCategoryListSchema>
 export type ChangeCategoryWrite = z.infer<typeof ChangeCategoryWriteSchema>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  ChangeCategoryListSchema, ChangeCategoryWriteSchema, ChangeControlModeSchema, ProjectChangeActionSchema,
+  ChangeCategoryListSchema, ChangeCategoryWriteSchema, ChangeControlModeSchema, ProjectChangeApproveSchema, ProjectChangeRejectSchema, ProjectChangeTransitionSchema,
   ProjectChangeListSchema, ProjectChangePatchSchema, ProjectChangeSchema, ProjectChangeWriteSchema,
 } from '../change'
 import { NotificationSchema } from '../notification'
@@ -38,9 +38,16 @@ describe('change request contracts', () => {
     expect(ProjectChangePatchSchema.safeParse({ title: 'x', expected_updated_at: 'v2' }).success).toBe(true)
   })
 
-  it('limits a decision note to 2000 characters', () => {
-    expect(ProjectChangeActionSchema.safeParse({ note: 'x'.repeat(2000) }).success).toBe(true)
-    expect(ProjectChangeActionSchema.safeParse({ note: 'x'.repeat(2001) }).success).toBe(false)
+  it('takes a note only on a decision, and requires it on a rejection', () => {
+    expect(ProjectChangeApproveSchema.safeParse({ note: 'x'.repeat(2000) }).success).toBe(true)
+    expect(ProjectChangeApproveSchema.safeParse({ note: 'x'.repeat(2001) }).success).toBe(false)
+    expect(ProjectChangeApproveSchema.safeParse({}).success).toBe(true)
+    expect(ProjectChangeRejectSchema.safeParse({}).success).toBe(false)
+    expect(ProjectChangeRejectSchema.safeParse({ note: '   ' }).success).toBe(false)
+    expect(ProjectChangeRejectSchema.safeParse({ note: 'No budget', expected_updated_at: 'v2' }).success).toBe(true)
+    expect(ProjectChangeTransitionSchema.safeParse({ expected_updated_at: 'v2' }).success).toBe(true)
+    expect(ProjectChangeTransitionSchema.safeParse({ note: 'x' }).success).toBe(false)
+    expect(ProjectChangeTransitionSchema.safeParse({ expected_updated_at: '2' }).success).toBe(false)
   })
 
   it('knows the three modes only', () => {
