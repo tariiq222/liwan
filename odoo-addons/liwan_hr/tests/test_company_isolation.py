@@ -11,6 +11,7 @@ from odoo.tests import new_test_user, tagged
 
 from odoo.addons.liwan_api.tests.common import (
     CompanyIsolationCase,
+    assert_isolation_discovery,
     cover_isolation_routes,
 )
 
@@ -34,7 +35,19 @@ RECORD_ROUTES = {
     'offboarding_run': '/api/v1/hr/offboarding/runs/{}',
     'payroll_run': '/api/v1/hr/payroll/runs/{}',
     'equipment': '/api/v1/hr/assets/equipment/{}',
+    'allocation': '/api/v1/hr/leave/allocations/{}',
+    # Keyed by the employee id: the compensation record is the employee's own single row.
+    'compensated': '/api/v1/hr/payroll/compensation/{}',
 }
+
+# The shifts routes read only the current company (never its branches), so they have their own matrix.
+SHIFT_ROUTES = {
+    'schedule': '/api/v1/hr/shifts/schedules/{}',
+    'assignment': '/api/v1/hr/shifts/assignments/{}',
+}
+
+# Every GET /api/v1 record, export or file route of liwan_hr, counted by the discovery test.
+EXPECTED_GET_RECORD_ROUTES = 23
 
 # The lists the pillar serves, with the fixture key whose id must be the only one.
 LISTS = (
@@ -87,8 +100,27 @@ class TestHrCompanyIsolation(CompanyIsolationCase):
                 'name': f'Offboarding {tag.upper()}', 'res_model': 'hr.employee',
                 'hr_purpose': 'offboarding', 'company_id': company.id,
             })
+            allocation_type = cls.env['hr.leave.type'].create({
+                'name': f'Isolation Allocated {tag.upper()}', 'requires_allocation': True, 'company_id': company.id,
+            })
+            cls.env['liwan.hr.compensation'].create({'employee_id': employee.id, 'basic_wage': 5000})
+            schedule = cls.env['resource.calendar'].create({
+                'name': f'Isolation Shift {tag.upper()}', 'company_id': company.id, 'tz': 'UTC',
+                'attendance_ids': [(0, 0, {
+                    'name': '08 - 12', 'dayofweek': '0', 'day_period': 'morning', 'hour_from': 8, 'hour_to': 12,
+                })],
+            })
             cls.recs[tag] = {
                 'employee': employee,
+                'compensated': employee,
+                'allocation': cls.env['hr.leave.allocation'].create({
+                    'employee_id': employee.id, 'holiday_status_id': allocation_type.id,
+                    'number_of_days': 5, 'date_from': '2026-01-01',
+                }),
+                'schedule': schedule,
+                'assignment': cls.env['hr.employee.calendar'].create({
+                    'employee_id': employee.id, 'calendar_id': schedule.id, 'date_start': '2026-11-01',
+                }),
                 # The departure register is keyed by the employee id itself.
                 'departure': employee,
                 'department': cls.env['hr.department'].create(
@@ -470,6 +502,26 @@ class TestHrCompanyIsolation(CompanyIsolationCase):
         self.assertEqual(response.json()['code'], 'not_found')
         self.assertFalse(self.env['hr.employee'].search([('name', '=', 'Foreign Employee')]))
 
+    def test_allocation_matrix(self):
+        self.assert_matrix('allocation')
+
+    def test_compensation_matrix(self):
+        self.assert_matrix('compensated')
+
+    def test_shift_records_are_scoped_to_the_current_company_only(self):
+        """Shift schedules and planning rows belong to one company: a branch or parent is hidden too."""
+        for current in self.by_tag:
+            self.env_in(self.by_tag[current])
+            for kind, template in SHIFT_ROUTES.items():
+                self.assertVisible(template.format(self.recs[current][kind].id))
+                for tag in self.by_tag:
+                    if tag != current:
+                        record = self.recs[tag][kind]
+                        self.assert_hidden_every_way(template.format(record.id), self.by_tag[tag].id)
+
+    def test_discovery_covers_every_get_record_route(self):
+        assert_isolation_discovery(self, 'liwan_hr', EXPECTED_GET_RECORD_ROUTES)
+
     def test_lists_are_scoped_to_the_current_company(self):
         """From P1 every HR list carries only the P1 records."""
         self.env_in(self.company_p1)
@@ -499,4 +551,8 @@ cover_isolation_routes((
     '/api/v1/hr/payroll/runs/<int:run_id>',
     '/api/v1/hr/payroll/runs/<int:run_id>/payslips',
     '/api/v1/hr/assets/equipment/<int:equipment_id>',
+    '/api/v1/hr/leave/allocations/<int:allocation_id>',
+    '/api/v1/hr/payroll/compensation/<int:employee_id>',
+    '/api/v1/hr/shifts/schedules/<int:schedule_id>',
+    '/api/v1/hr/shifts/assignments/<int:assignment_id>',
 ), source='liwan_hr/tests/test_company_isolation.py')

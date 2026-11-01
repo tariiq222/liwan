@@ -9,8 +9,12 @@ from odoo.tests.common import HOST
 
 from odoo.addons.liwan_api.tests.common import (
     CompanyIsolationCase,
+    assert_isolation_discovery,
     cover_isolation_routes,
 )
+
+# The discovery test pins this count: a new GET record route must come with a case or an exemption.
+EXPECTED_GET_RECORD_ROUTES = 5
 
 # Every GET /api/v1 route with an <int:...> id that this addon owns, spelled
 # exactly as the controllers declare them.
@@ -19,6 +23,7 @@ COVERED = (
     '/api/v1/operations/processes/<int:process_id>/targets',
     '/api/v1/operations/requests/<int:request_id>',
     '/api/v1/operations/requests/<int:request_id>/attachments/<int:attachment_id>/download',
+    '/api/v1/operations/requests/employee/me/<int:request_id>',
 )
 
 
@@ -35,7 +40,7 @@ class LiwanOperationsIsolationCase(CompanyIsolationCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.process_of, cls.request_of, cls.attachment_of = {}, {}, {}
+        cls.process_of, cls.request_of, cls.attachment_of, cls.employee_request_of = {}, {}, {}, {}
         for company in (cls.company_p, cls.company_p1, cls.company_p2, cls.company_c):
             process = cls.env['liwan.operation.process'].sudo().with_company(company).create({
                 'name': f'Process {company.name}',
@@ -46,6 +51,15 @@ class LiwanOperationsIsolationCase(CompanyIsolationCase):
             request = cls.env['liwan.operation.request'].with_user(cls.iso_user).with_company(company).create({
                 'name': f'Request {company.name}', 'process_id': process.id,
             })
+            # The employee-purpose process behind the own-request route.
+            employee_process = cls.env['liwan.operation.process'].sudo().with_company(company).create({
+                'name': f'Employee process {company.name}', 'purpose': 'employee',
+            })
+            employee_process.sudo().write({'state': 'published'})
+            cls.employee_request_of[company.id] = cls.env['liwan.operation.request'].with_user(
+                cls.iso_user).with_company(company).create({
+                    'name': f'Employee request {company.name}', 'process_id': employee_process.id,
+                })
             cls.process_of[company.id] = process
             cls.request_of[company.id] = request
             # Created as the request owner in the request's company: the company
@@ -104,6 +118,15 @@ class LiwanOperationsIsolationCase(CompanyIsolationCase):
         self.assert_subtree_matrix(path_of)
         self.assert_subtree_matrix(lambda company: (
             f"{path_of(company)}/attachments/{self.attachment_of[company.id].id}/download"))
+
+    def test_own_employee_request_matrix(self):
+        # The route reads the caller's own employee-purpose requests: the current company subtree answers.
+        self.assert_subtree_matrix(
+            lambda company: f'/api/v1/operations/requests/employee/me/{self.employee_request_of[company.id].id}',
+        )
+
+    def test_discovery_covers_every_get_record_route(self):
+        assert_isolation_discovery(self, 'liwan_operations', EXPECTED_GET_RECORD_ROUTES)
 
     def test_operations_lists_exclude_other_companies(self):
         self.env_in(self.company_p1)
