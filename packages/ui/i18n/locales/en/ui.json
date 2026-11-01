@@ -66,6 +66,7 @@
     "apps": "Applications",
     "collapseContext": "Collapse sidebar",
     "expandContext": "Expand sidebar",
+    "keepContextOpen": "Keep sidebar open",
     "quickActionsList": "Page actions",
     "quickViews": "Quick views and actions",
     "quickViewsList": "Quick views"

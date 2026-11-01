@@ -27,7 +27,7 @@ async function render(capabilities: string[], query = '', hydrated = true) {
   const messages = {
     ...names, 'launcher.title': 'التطبيقات', 'launcher.description': 'تطبيقاتك وأهم إجراءاتك في مكان واحد', 'launcher.search': 'ابحث في التطبيقات',
     'launcher.noResults': 'لا يوجد تطبيق بهذا الاسم.', 'launcher.empty': 'لا توجد تطبيقات',
-    'launcher.open': 'فتح التطبيق', 'launcher.actions': 'إجراءات سريعة',
+    'launcher.open': 'فتح التطبيق', 'launcher.pin': 'تثبيت', 'launcher.unpin': 'إزالة', 'launcher.pinLimit': 'الحد', 'launcher.actions': 'إجراءات سريعة',
     'launcher.apps.tasks.description': 'مهامك الشخصية',
   }
   const me = Vue.ref(identity(capabilities))
@@ -35,6 +35,7 @@ async function render(capabilities: string[], query = '', hydrated = true) {
   const html = await withManifests(manifests, () => renderShared(page, {}, {}, {
     messages, hydrated,
     stubs: {
+      HomeTabs: { template: '<nav />' },
       SharedPageContainer: Stub('div'),
       SharedPageHeader: Stub('h1', props => props.title ?? ''),
       SharedEmptyState: Stub('div', props => props.title ?? ''),
@@ -43,6 +44,7 @@ async function render(capabilities: string[], query = '', hydrated = true) {
     globals: {
       useI18n: () => ({ t: (key: string) => (messages as Record<string, string>)[key] ?? key, te: (key: string) => key in messages }),
       useMe: () => ({ me, ready: Promise.resolve() }),
+      useShellModel: () => ({ railPins: { pins: Vue.ref(['tasks']), atLimit: Vue.ref(false), toggle: () => undefined } }),
       ref: (value: unknown) => (typeof value === 'string' && query ? Vue.ref(query) : Vue.ref(value)),
     },
     modules: {
@@ -70,7 +72,7 @@ describe('launcher page', () => {
     expect(html).toContain('تطبيقاتك وأهم إجراءاتك في مكان واحد')
     expect(cards(html)).toEqual(['tasks', 'finance', 'chat', 'ai'])
     expect(html).toContain('data-testid="launcher-search"')
-    expect(html).not.toContain('launcher-pin')
+    expect(html.match(/data-testid="launcher-pin"/g)).toHaveLength(3)
     expect(html).not.toContain('launcher-move')
   })
   it('keeps applications permission-scoped', async () => {

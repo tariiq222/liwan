@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test'
-import { expectAlignedGuide } from './helpers/navigationGeometry'
+import { expectAlignedGuide, keepContextMenuOpen } from './helpers/navigationGeometry'
 
 test.setTimeout(90_000)
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page, context, baseURL }) => {
+  await keepContextMenuOpen(context, baseURL)
   expect((await page.request.post('/api/auth/login', { data: { login: process.env.E2E_ADMIN_LOGIN ?? 'admin', password: process.env.E2E_ADMIN_PASSWORD ?? 'admin' } })).status()).toBe(200)
   await page.goto('/tasks?view=board')
   await expect(page.getByTestId('global-search-trigger')).toBeEnabled({ timeout: 30_000 })
@@ -66,22 +67,29 @@ test('parent and child levels have distinct labels and visual hierarchy in RTL',
   await expect(all.locator('.liwan-quick-chip')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
 })
 
-test('English hierarchy mirrors the guide and reduced motion reaches collapsed popups', async ({ page, baseURL }) => {
+test('English hierarchy mirrors the guide', async ({ page, baseURL }) => {
   await page.context().addCookies([{ name: 'liwan-locale', value: 'en', url: baseURL! }])
   await page.goto('/projects')
   await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')
   const menu = page.getByTestId('application-navigation')
   await expect(menu.getByTestId('context-link-projects')).toHaveAccessibleName('Projects list')
-  const children = menu.getByTestId('projects-submenu-projects')
   await expectAlignedGuide(menu.getByTestId('context-link-projects'))
-  await page.emulateMedia({ reducedMotion: 'reduce' })
-  await page.getByTestId('context-sidebar-toggle').click()
-  await page.getByTestId('navigation-app-projects').click()
-  const popup = page.locator('.liwan-navigation-popup')
-  await popup.getByTestId('context-link-projects').click()
-  await expect(popup.getByTestId('projects-submenu-projects')).toBeVisible()
-  await expectAlignedGuide(popup.getByTestId('context-link-projects'))
-  await expect(popup.locator('[data-slot="content"]').last()).toHaveCSS('animation-name', 'none')
+})
+
+test.describe('a touch device, which cannot hover', () => {
+  test.use({ viewport: { width: 1024, height: 900 }, isMobile: true, hasTouch: true })
+
+  test('reduced motion reaches the folded card popups', async ({ page }) => {
+    await page.goto('/projects')
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.getByTestId('context-sidebar-toggle').click()
+    await page.getByTestId('navigation-app-projects').click()
+    const popup = page.locator('.liwan-navigation-popup')
+    await popup.getByTestId('context-link-projects').click()
+    await expect(popup.getByTestId('projects-submenu-projects')).toBeVisible()
+    await expectAlignedGuide(popup.getByTestId('context-link-projects'))
+    await expect(popup.locator('[data-slot="content"]').last()).toHaveCSS('animation-name', 'none')
+  })
 })
 
 const responsiveCases = [

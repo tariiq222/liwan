@@ -20,6 +20,7 @@ async function render({ apps = true, services = false, work = true, commands = [
   return renderShared(file, {}, {}, {
     messages,
     stubs: {
+      HomeTabs: { template: '<nav />' },
       ...DEFAULT_STUBS, UButton, SharedPageContainer: section('main'), SharedPageHeader, SharedEmptyState,
       HomeAssistantSuggestions: Marker('suggestions'),
     },

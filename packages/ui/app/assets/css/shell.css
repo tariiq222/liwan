@@ -116,6 +116,12 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   .liwan-shell:has(.liwan-context-sidebar[data-panel-width="wide"][data-expanded="true"]) { --context-sidebar-width: 400px; }
   .liwan-shell:has(.liwan-context-sidebar[data-expanded="false"]) { --context-sidebar-width: 64px; }
 }
+/* A folded menu takes no room at all for a pointer that can hover: the rail opens it over the page.
+   Touch has no hover, so it keeps the 64px card; a side panel (chat) keeps its card too. */
+@media (min-width: 768px) and (hover: hover) {
+  .liwan-shell:has(.liwan-context-sidebar[data-expanded="false"]:not([data-panel]), .liwan-context-sidebar[data-overlay="true"]) { --context-sidebar-width: 0px; --context-sidebar-gap: 0px; }
+  .liwan-context-sidebar[data-expanded="false"]:not([data-panel]) { display: none; }
+}
 @media (min-width: 768px) and (max-width: 1099px) {
   .liwan-shell:has(.liwan-context-sidebar[data-panel-width="wide"][data-expanded="true"]) { --context-sidebar-width: 320px; }
 }
@@ -246,6 +252,9 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   transition: width var(--shell-duration) var(--shell-ease);
 }
 .liwan-context-column::-webkit-scrollbar { display: none; }
+/* Opened over the page: the page keeps its margin, and only this state may cast a shadow because nothing clips it. */
+.liwan-context-column:has(> .liwan-context-sidebar[data-overlay="true"]) { width: 230px; overflow: visible; }
+.liwan-context-sidebar[data-overlay="true"] { max-height: 100%; overflow-y: auto; box-shadow: var(--liwan-shell-shadow); scrollbar-width: none; }
 .liwan-context-column > :is(.liwan-context-sidebar:not([data-panel="true"]), .liwan-quick-views) { flex: none; }
 /* Context sidebar: a white floating card beside the rail. The column's cards carry no shadow: the column scrolls, so it
    would clip a shadow into a grey band behind the cards. The border alone outlines each card. */
@@ -550,15 +559,15 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   [data-slot="record-summary"] [data-slot="properties-panel"] dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
 }
 
-/* Match the automatic narrow-desktop width before hydration without writing a preference. */
+/* Match the automatic narrow-desktop width before hydration without writing a preference. A hover overlay is exempt: its destinations must stay usable. */
 @media (min-width: 768px) and (max-width: 1099px) {
-  .liwan-shell:has(.liwan-context-sidebar[data-preference="auto"]) { --context-sidebar-width: 64px; }
-  .liwan-navigation[data-preference="auto"] :is(.liwan-navigation-children, .liwan-navigation-chevron) { display: none; }
-  .liwan-context-sidebar[data-preference="auto"] :is(.liwan-context-heading h2, .liwan-context-count) { display: none; }
-  .liwan-context-sidebar[data-preference="auto"] .liwan-context-heading { justify-content: center; padding-inline: 0; }
-  .liwan-context-sidebar[data-preference="auto"] .liwan-context-link { justify-content: center; padding-inline: 0; }
-  .liwan-shell:has(.liwan-context-sidebar[data-preference="auto"]) .liwan-quick-views[data-surface="card"] :is(.liwan-quick-count, .liwan-sub-list-title) { display: none; }
-  .liwan-shell:has(.liwan-context-sidebar[data-preference="auto"]) .liwan-quick-views[data-surface="card"] .liwan-quick-link { justify-content: center; padding-inline: 0; }
-  .liwan-shell:has(.liwan-context-sidebar[data-preference="auto"]) .liwan-quick-views[data-surface="card"] .liwan-quick-link [data-slot="label"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .liwan-context-sidebar[data-preference="auto"] .liwan-context-link [data-slot="label"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .liwan-shell:has(.liwan-context-sidebar[data-preference="auto"]:not([data-overlay="true"])) { --context-sidebar-width: 64px; }
+  .liwan-navigation[data-preference="auto"]:not([data-overlay="true"]) :is(.liwan-navigation-children, .liwan-navigation-chevron) { display: none; }
+  .liwan-context-sidebar[data-preference="auto"]:not([data-overlay="true"]) :is(.liwan-context-heading h2, .liwan-context-count) { display: none; }
+  .liwan-context-sidebar[data-preference="auto"]:not([data-overlay="true"]) .liwan-context-heading { justify-content: center; padding-inline: 0; }
+  .liwan-context-sidebar[data-preference="auto"]:not([data-overlay="true"]) .liwan-context-link { justify-content: center; padding-inline: 0; }
+  .liwan-shell:has(.liwan-context-sidebar[data-preference="auto"]:not([data-overlay="true"])) .liwan-quick-views[data-surface="card"] :is(.liwan-quick-count, .liwan-sub-list-title) { display: none; }
+  .liwan-shell:has(.liwan-context-sidebar[data-preference="auto"]:not([data-overlay="true"])) .liwan-quick-views[data-surface="card"] .liwan-quick-link { justify-content: center; padding-inline: 0; }
+  .liwan-shell:has(.liwan-context-sidebar[data-preference="auto"]:not([data-overlay="true"])) .liwan-quick-views[data-surface="card"] .liwan-quick-link [data-slot="label"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .liwan-context-sidebar[data-preference="auto"]:not([data-overlay="true"]) .liwan-context-link [data-slot="label"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }

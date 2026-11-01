@@ -246,6 +246,9 @@
     "description": "Your applications and everyday actions in one place",
     "search": "Search applications",
     "open": "Open application",
+    "pin": "Pin to the rail",
+    "unpin": "Remove from the rail",
+    "pinLimit": "You can pin up to 6 applications",
     "noResults": "No application has that name.",
     "empty": "No applications are available for your account yet.",
     "apps": {

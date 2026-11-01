@@ -10,12 +10,14 @@ await ready
 const hydrated = useHydrated()
 const query = ref('')
 const entries = computed(() => launcherEntries(me.value, query.value, t))
+const { pins, atLimit, toggle } = useShellModel().railPins
 const descriptionOf = (id: string) => (te(`launcher.apps.${id}.description`) ? t(`launcher.apps.${id}.description`) : undefined)
 </script>
 
 <template>
   <SharedPageContainer width="list" data-testid="launcher-page">
-    <SharedPageHeader :title="t('launcher.title')" />
+    <SharedPageHeader :title="t('nav.home')" />
+    <HomeTabs />
     <p class="-mt-2 text-sm text-muted">{{ t('launcher.description') }}</p>
     <FilterBar embedded :active-count="query.trim() ? 1 : 0" :disabled="!hydrated" @clear="query = ''">
       <template #search>
@@ -28,6 +30,9 @@ const descriptionOf = (id: string) => (te(`launcher.apps.${id}.description`) ? t
         :key="entry.id"
         :entry="entry"
         :description="descriptionOf(entry.id)"
+        :pinned="pins.includes(entry.id)"
+        :pin-disabled="!hydrated || (atLimit && !pins.includes(entry.id))"
+        @toggle-pin="toggle(entry.id)"
       />
     </section>
     <SharedEmptyState v-else bordered :title="query.trim() ? t('launcher.noResults') : t('launcher.empty')" />
