@@ -120,6 +120,7 @@
       "file": "Statement file (CSV, OFX or CAMT)",
       "fileHint": "Up to 2 MB",
       "tooLarge": "The file is larger than 2 MB.",
+      "unreadableText": "The file text cannot be read in its encoding. Save it as UTF-8 and try again.",
       "detected": "File type: {format}",
       "formats": {
         "csv": "CSV",
@@ -179,7 +180,8 @@
       "invalidRows": "The file has rows that cannot be read. Preview it to see which.",
       "duplicateLines": "The journal already holds some of these lines. Skip them or remove them from the file.",
       "balanceMismatch": "The opening balance plus the lines is not the closing balance.",
-      "hasReconciliations": "Some lines are reconciled. Undo their matches first, then delete the statement."
+      "hasReconciliations": "Some lines are reconciled. Undo their matches first, then delete the statement.",
+      "accountMismatch": "The bank account in the file is not the journal's account."
     },
     "edit": {
       "action": "Correct",

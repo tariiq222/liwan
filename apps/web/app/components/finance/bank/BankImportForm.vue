@@ -18,6 +18,7 @@ import {
   IMPORT_MAX_BYTES,
   applySuggestedMapping,
   closingMatches,
+  decodeStatementFile,
   emptyImportDraft,
   expectedClosing,
   importBody,
@@ -78,8 +79,10 @@ async function chooseFile(event: Event) {
   reset()
   if (!file) return
   if (file.size > IMPORT_MAX_BYTES) { error.value = t('financeBank.import.tooLarge'); return }
+  const decoded = decodeStatementFile(await file.arrayBuffer())
+  if (decoded.lossy) { draft.content = ''; error.value = t('financeBank.import.unreadableText'); return }
   draft.fileName = file.name
-  draft.content = await file.text()
+  draft.content = decoded.text
 }
 async function readFile() {
   if (!hydrated.value || pending.value || !draft.content || !draft.journalId) return

@@ -6,6 +6,7 @@ const CODE_KEYS = {
   invalid_rows: 'invalidRows',
   duplicate_lines: 'duplicateLines',
   balance_mismatch: 'balanceMismatch',
+  account_mismatch: 'accountMismatch',
   has_reconciliations: 'hasReconciliations',
 } as const
 

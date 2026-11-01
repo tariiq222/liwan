@@ -8,6 +8,36 @@ export const IMPORT_DATE_FORMATS = ['YYYY-MM-DD', 'DD/MM/YYYY', 'DD-MM-YYYY', 'M
 export const IMPORT_MAPPING_FIELDS = ['date', 'payment_ref', 'amount', 'debit', 'credit'] as const
 export type ImportMappingField = typeof IMPORT_MAPPING_FIELDS[number]
 
+const SNIFFED_BYTES = 1024
+const BYTE_ORDER_MARKS = [
+  { bytes: [0xEF, 0xBB, 0xBF], label: 'utf-8' },
+  { bytes: [0xFF, 0xFE], label: 'utf-16le' },
+  { bytes: [0xFE, 0xFF], label: 'utf-16be' },
+]
+
+/** The charset a statement file declares: a byte order mark, an XML declaration, or the OFX 1 header (`CHARSET:1252`); UTF-8 when it declares none (`ENCODING:UTF-8` and `USASCII` are UTF-8 too). */
+export function declaredCharset(bytes: Uint8Array): string {
+  const mark = BYTE_ORDER_MARKS.find(({ bytes: prefix }) => prefix.every((byte, index) => bytes[index] === byte))
+  if (mark) return mark.label
+  const head = new TextDecoder('latin1').decode(bytes.subarray(0, SNIFFED_BYTES))
+  const xml = /^\s*<\?xml[^>]*encoding\s*=\s*["']([^"']+)["']/i.exec(head)
+  if (xml) return xml[1]!.trim()
+  const code = /^CHARSET:\s*(\d+)/im.exec(head)
+  if (code) return `windows-${code[1]}`
+  return 'utf-8'
+}
+
+/** The text of an uploaded statement file in its declared charset; `lossy` when a byte had no character (or the charset is unknown), so the text cannot be trusted. */
+export function decodeStatementFile(buffer: ArrayBuffer): { text: string, lossy: boolean } {
+  const bytes = new Uint8Array(buffer)
+  try {
+    const text = new TextDecoder(declaredCharset(bytes)).decode(bytes)
+    return { text, lossy: text.includes('\uFFFD') }
+  } catch {
+    return { text: '', lossy: true }
+  }
+}
+
 export interface BankImportDraft {
   journalId: number | null
   fileName: string

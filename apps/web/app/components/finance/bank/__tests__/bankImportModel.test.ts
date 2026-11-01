@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { FinanceBankImportPreviewRequestSchema, FinanceBankImportReadSchema, FinanceBankImportSchema } from '@liwan/contracts'
 import {
-  applySuggestedMapping, closingMatches, emptyImportDraft, expectedClosing, importBody, importFileBody, importMapping, isStatementFile, readFoundLines, suggestedBalances,
+  applySuggestedMapping, closingMatches, emptyImportDraft, expectedClosing, decodeStatementFile, declaredCharset, importBody, importFileBody, importMapping, isStatementFile, readFoundLines, suggestedBalances,
 } from '../bankImportModel'
 
 const ready = () => {
@@ -50,6 +50,35 @@ describe('bank import model', () => {
     expect(closingMatches({ balanceStart: '1000', balanceEnd: '1250.50' }, preview)).toBe(true)
     expect(closingMatches({ balanceStart: '1000', balanceEnd: '1250' }, preview)).toBe(false)
     expect(closingMatches({ balanceStart: '', balanceEnd: '1250.5' }, preview)).toBe(false)
+  })
+
+  describe('reading a statement file in its own charset', () => {
+    const bytes = (...values: number[]) => new Uint8Array(values).buffer
+    const ascii = (text: string) => [...text].map(char => char.charCodeAt(0))
+
+    it('reads UTF-8, with or without a byte order mark', () => {
+      expect(decodeStatementFile(new TextEncoder().encode('<OFX>مرحبا</OFX>').buffer)).toEqual({ text: '<OFX>مرحبا</OFX>', lossy: false })
+      expect(decodeStatementFile(bytes(0xEF, 0xBB, 0xBF, ...ascii('abc'))).text).toBe('abc')
+    })
+
+    it('reads UTF-16 by its byte order mark', () => {
+      expect(decodeStatementFile(bytes(0xFF, 0xFE, 0x61, 0x00, 0x23, 0x06)).text).toBe('aأ')
+      expect(decodeStatementFile(bytes(0xFE, 0xFF, 0x00, 0x61, 0x06, 0x23)).text).toBe('aأ')
+    })
+
+    it('reads the OFX 1 header charset and the XML declaration encoding', () => {
+      const v1 = bytes(...ascii('OFXHEADER:100\nCHARSET:1256\n\n<NAME>'), 0xDA, ...ascii('</NAME>'))
+      expect(declaredCharset(new Uint8Array(v1))).toBe('windows-1256')
+      expect(decodeStatementFile(v1)).toEqual({ text: 'OFXHEADER:100\nCHARSET:1256\n\n<NAME>ع</NAME>', lossy: false })
+      const xml = bytes(...ascii('<?xml version="1.0" encoding="ISO-8859-1"?><N>'), 0xE9, ...ascii('</N>'))
+      expect(decodeStatementFile(xml).text).toContain('é')
+      expect(declaredCharset(new Uint8Array(bytes(...ascii('CHARSET:NONE\n<OFX>'))))).toBe('utf-8')
+    })
+
+    it('flags text that has a byte with no character, or a charset it does not know', () => {
+      expect(decodeStatementFile(bytes(...ascii('<N>'), 0xDA, ...ascii('</N>'))).lossy).toBe(true)
+      expect(decodeStatementFile(bytes(...ascii('<?xml version="1.0" encoding="no-such-charset"?>'))).lossy).toBe(true)
+    })
   })
 
   describe('OFX and CAMT files', () => {
