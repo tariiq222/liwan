@@ -154,6 +154,29 @@
         "none": "Not set",
         "retry": "Retry",
         "hint": "The partner appears on invoices and payments according to its type."
+      },
+      "banks": {
+        "title": "Bank accounts",
+        "hint": "Accounts payments to or from this partner go through.",
+        "add": "Add bank account",
+        "empty": "No bank accounts for this partner yet",
+        "unnamedBank": "Bank account",
+        "accNumber": "Account number or IBAN",
+        "accNumberHint": "A Saudi IBAN starts with SA and is checked when you save. Spaces are ignored.",
+        "holderName": "Account holder",
+        "bankName": "Bank name",
+        "bic": "Bank code (BIC)",
+        "editAria": "Edit account {name}",
+        "archive": "Archive",
+        "unarchive": "Restore",
+        "archiveConfirm": "Archive the account at {name}?",
+        "unarchiveConfirm": "Restore the account at {name}?",
+        "archiveHint": "Past payments stay as they are, and the account no longer appears in new choices.",
+        "errors": {
+          "accNumberRequired": "Enter the account number or IBAN.",
+          "bankNameForBic": "Enter the bank name along with its code.",
+          "duplicate": "This partner already has this account."
+        }
       }
     },
     "setup": {
