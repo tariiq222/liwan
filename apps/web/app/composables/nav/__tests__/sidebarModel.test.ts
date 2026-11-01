@@ -14,10 +14,10 @@ describe('rail model', () => {
 
   it('shows every reachable app in manifest order with fixed entries and utilities', () => {
     const rail = railModel(modules)
-    expect(rail.top.map(item => item.id)).toEqual(['apps', 'home'])
+    expect(rail.top.map(item => item.id)).toEqual(['home'])
     expect(rail.applications.map(item => item.id)).toEqual(['tasks', 'projects', 'chat'])
     expect(rail.utility.map(item => item.id)).toEqual(['assistant', 'settings'])
-    expect(rail.drawer.map(item => item.id)).toEqual(['apps', 'home', 'tasks', 'projects', 'chat', 'assistant', 'settings'])
+    expect(rail.drawer.map(item => item.id)).toEqual(['home', 'tasks', 'projects', 'chat', 'assistant', 'settings'])
     expect(rail.all).toEqual(rail.drawer)
   })
 
@@ -29,7 +29,8 @@ describe('rail model', () => {
 
   it('lights the actual application and keeps home optional', () => {
     const rail = railModel(modules)
-    for (const id of ['tasks', 'projects', 'chat', 'home', 'apps', 'settings']) expect(railActiveId(rail, id)).toBe(id)
+    for (const id of ['tasks', 'projects', 'chat', 'home', 'settings']) expect(railActiveId(rail, id)).toBe(id)
+    expect(railActiveId(rail, 'apps')).toBe('home')
     expect(railActiveId(rail, null)).toBeNull()
     expect(railModel(modules.filter(item => item.id !== 'home')).top.map(item => item.id)).toEqual(['apps'])
   })

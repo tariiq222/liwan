@@ -11,6 +11,7 @@ export interface LauncherEntry {
   icon: AppIcon
   to: string
   actions: StartCard[]
+  pinnable: boolean
 }
 
 export function reachableApplications(modules: readonly ShellModuleDefinition[]): ShellModuleDefinition[] {
@@ -33,6 +34,6 @@ export function launcherEntries(identity: AccessIdentity, query: string, transla
         seen.add(action.to)
         return true
       }).slice(0, 3)
-      return { id: module.id, labelKey: module.labelKey, icon: module.icon, to: module.to, actions }
+      return { id: module.id, labelKey: module.labelKey, icon: module.icon, to: module.to, actions, pinnable: !module.utility }
     })
 }
