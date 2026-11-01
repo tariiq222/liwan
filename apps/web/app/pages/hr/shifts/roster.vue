@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ApiError } from '@/composables/useApi'
-import { HR_SHIFTS_PAGE_SIZE, useHrShiftRoster, useHrShiftSchedules, useSetHrShiftWeek } from '@/composables/useHrShifts'
+import { HR_SHIFTS_PAGE_SIZE, useHrShiftRoster, useHrShiftSettings, useHrShiftSchedules, useSetHrShiftWeek } from '@/composables/useHrShifts'
 import ShiftWeekGrid from '@/components/hr/shifts/ShiftWeekGrid.vue'
 import { addWeeks, isIsoDate, weekStartOf } from '@/components/hr/shifts/shiftWeek'
 
@@ -11,10 +11,12 @@ const { can } = useAccess()
 const hydrated = useHydrated()
 const canManage = computed(() => can('hr.shifts.manage'))
 
-const todayWeek = weekStartOf(new Date().toISOString().slice(0, 10))
+// "Today" is the company's calendar day (the shift settings), not the browser's or UTC's.
+const settings = useHrShiftSettings()
+const todayWeek = computed(() => (settings.data.value ? weekStartOf(settings.data.value.today) : ''))
 const weekStart = computed(() => {
   const asked = Array.isArray(route.query.week_start) ? route.query.week_start[0] : route.query.week_start
-  return isIsoDate(asked) ? asked : todayWeek
+  return isIsoDate(asked) ? asked : todayWeek.value
 })
 const offset = computed(() => Math.max(0, Number(route.query.offset ?? 0) || 0))
 
@@ -30,17 +32,18 @@ function go(query: Record<string, string | undefined>) {
   if (!hydrated.value) return
   void router.replace({ query: { ...route.query, ...query }, hash: route.hash })
 }
-const goWeek = (weeks: number) => go({ week_start: addWeeks(weekStart.value, weeks), offset: undefined })
+function goWeek(weeks: number) {
+  if (weekStart.value) go({ week_start: addWeeks(weekStart.value, weeks), offset: undefined })
+}
 const goToday = () => go({ week_start: undefined, offset: undefined })
 const setPage = (next: number) => {
   if (roster.isFetching.value || next < 1 || next > pages.value) return
   go({ offset: next > 1 ? String((next - 1) * HR_SHIFTS_PAGE_SIZE) : undefined })
 }
 
-const { mutateAsync: setWeek, variables, isPending } = useSetHrShiftWeek()
+const { mutateAsync: setWeek, isPending } = useSetHrShiftWeek()
 const saved = ref(false)
 const error = ref('')
-const pendingEmployeeId = computed(() => (isPending.value ? variables.value?.employee_id ?? null : null))
 
 async function applyWeek(employeeId: number, scheduleId: number) {
   if (!hydrated.value || isPending.value) return
@@ -74,7 +77,7 @@ async function applyWeek(employeeId: number, scheduleId: number) {
             :weeks="weeks"
             :caption="t('hrShifts.weekTitle')"
             :schedules="scheduleList"
-            :pending-employee-id="pendingEmployeeId"
+            :busy="isPending"
             @set="applyWeek"
           />
         </SharedPageState>

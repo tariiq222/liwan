@@ -23,8 +23,8 @@ const schedules = [
 const meta = {
   title: 'HR/ShiftWeekGrid',
   component: ShiftWeekGrid,
-  parameters: storyContext('apps/web/app/pages/hr/shifts/roster.vue:72', 'داخل بطاقة القائمة في `/hr/shifts/roster`؛ المدير يرى قائمة ضبط الأسبوع.'),
-  args: { weeks, caption: 'جدول الورديات الأسبوعي', schedules, pendingEmployeeId: null },
+  parameters: storyContext('apps/web/app/pages/hr/shifts/roster.vue:75', 'داخل بطاقة القائمة في `/hr/shifts/roster`؛ المدير يرى قائمة ضبط الأسبوع.'),
+  args: { weeks, caption: 'جدول الورديات الأسبوعي', schedules, busy: false },
   render: args => ({
     components: { ShiftWeekGrid },
     setup: () => ({ args }),

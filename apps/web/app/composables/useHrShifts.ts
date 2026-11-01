@@ -257,7 +257,7 @@ export function useHrShiftRoster(weekStart: MaybeRefOrGetter<string>, offset: Ma
   const { can } = useAccess()
   return useQuery({
     queryKey: computed(() => hrShiftKeys.roster(toValue(weekStart), toValue(offset))),
-    enabled: computed(() => can('hr.shifts.read')),
+    enabled: computed(() => !!toValue(weekStart) && can('hr.shifts.read')),
     queryFn: () => $api('/api/v1/hr/shifts/roster', {
       query: { week_start: toValue(weekStart), limit: HR_SHIFTS_PAGE_SIZE, offset: toValue(offset) },
       schema: HrShiftRosterSchema,
@@ -272,7 +272,7 @@ export function useMyHrShiftWeek(weekStart: MaybeRefOrGetter<string>, enabled: M
   const { can } = useAccess()
   return useQuery({
     queryKey: computed(() => [...hrShiftKeys.myWeek, toValue(weekStart), identity.scope.value]),
-    enabled: computed(() => identity.ready.value && toValue(enabled) && can('hr.employees.read')),
+    enabled: computed(() => identity.ready.value && !!toValue(weekStart) && toValue(enabled) && can('hr.employees.read')),
     queryFn: () => $api('/api/v1/hr/shifts/me/week', {
       query: { week_start: toValue(weekStart) },
       schema: HrShiftMyWeekSchema,

@@ -7,7 +7,8 @@ const props = defineProps<{
   weeks: HrShiftWeek[]
   caption: string
   schedules?: HrShiftSchedule[]
-  pendingEmployeeId?: number | null
+  /** A week is being saved: every selector waits, so no choice is dropped silently. */
+  busy?: boolean
   showEmployee?: boolean
 }>()
 const emit = defineEmits<{ set: [employeeId: number, scheduleId: number] }>()
@@ -47,7 +48,16 @@ function hours(value: number): string {
           <td v-for="day in week.days" :key="day.date" class="px-3 py-2">
             <template v-if="day.shifts.length">
               <p class="text-xs text-muted">{{ day.schedule?.name }}</p>
-              <p v-for="(shift, index) in day.shifts" :key="index" class="tabular-nums" dir="ltr">{{ hours(shift.hour_from) }}–{{ hours(shift.hour_to) }}</p>
+              <p
+                v-for="(shift, index) in day.shifts"
+                :key="index"
+                class="tabular-nums"
+                :class="shift.day_period === 'lunch' ? 'text-muted' : ''"
+                dir="ltr"
+              >
+                {{ hours(shift.hour_from) }}–{{ hours(shift.hour_to) }}
+                <span v-if="shift.day_period === 'lunch'" dir="auto">({{ t('hrShifts.periods.lunch') }})</span>
+              </p>
             </template>
             <span v-else class="text-muted">{{ t('hrShifts.dayOff') }}</span>
           </td>
@@ -56,7 +66,7 @@ function hours(value: number): string {
               :items="scheduleItems"
               :placeholder="t('hrShifts.setWeek')"
               :aria-label="t('hrShifts.setWeekFor', { name: week.employee.name })"
-              :disabled="pendingEmployeeId === week.employee.id"
+              :disabled="busy"
               class="min-w-40"
               @update:model-value="(value: number) => emit('set', week.employee.id, value)"
             />
