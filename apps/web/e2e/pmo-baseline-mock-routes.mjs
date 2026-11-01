@@ -4,11 +4,11 @@
 const ME = { id: 2, name: 'مدير المشروع' }
 const CURRENCY = { id: 1, name: 'SAR', symbol: 'ر.س', decimal_places: 2 }
 const PLAN = [
-  { task_id: 11, name: 'تحليل المتطلبات', start: '2026-03-01', end: '2026-03-15', now_start: '2026-03-01', now_end: '2026-03-15' },
-  { task_id: 12, name: 'تصميم الواجهات', start: '2026-03-16', end: '2026-04-05', now_start: '2026-03-20', now_end: '2026-04-12' },
-  { task_id: 13, name: 'التطوير', start: '2026-04-06', end: '2026-06-15', now_start: '2026-04-13', now_end: '2026-06-08' },
-  { task_id: 14, name: 'الاختبار والاعتماد', start: '2026-06-16', end: '2026-06-30', now_start: '2026-06-09', now_end: '2026-06-30' },
-  { task_id: 15, name: 'التدريب (دون تاريخ)', start: null, end: null, now_start: null, now_end: null },
+  { task_id: 101, name: 'مهمة جارية', start: '2026-09-08', end: '2026-09-15', now_start: '2026-09-08', now_end: '2026-09-15' },
+  { task_id: 102, name: 'مهمة تحتاج تعديلاً', start: '2026-09-10', end: '2026-09-20', now_start: '2026-09-14', now_end: '2026-09-28' },
+  { task_id: 103, name: 'مهمة ملغاة', start: '2026-09-16', end: '2026-10-01', now_start: '2026-09-16', now_end: '2026-09-27' },
+  { task_id: 104, name: 'مهمة مكتملة', start: '2026-09-20', end: '2026-10-01', now_start: '2026-09-20', now_end: '2026-10-01' },
+  { task_id: 105, name: 'التدريب (دون تاريخ)', start: null, end: null, now_start: null, now_end: null },
 ]
 const days = (current, planned) => current && planned ? Math.round((Date.parse(current) - Date.parse(planned)) / 86400000) : null
 const row = (start, end, nowStart, nowEnd) => ({
@@ -19,7 +19,7 @@ const row = (start, end, nowStart, nowEnd) => ({
 function seed() {
   const take = (id, number, taken_at, note, budget) => ({
     id, project_id: 2, number, taken_by: ME, taken_at, note, change: null, budget_total: budget, currency: CURRENCY,
-    planned_start: '2026-03-01', planned_end: '2026-06-30', task_count: PLAN.length,
+    planned_start: '2026-09-08', planned_end: '2026-10-01', task_count: PLAN.length,
     tasks: PLAN.map((line, index) => ({ id: id * 10 + index, task_id: line.task_id, name: line.name, planned_start: line.start, planned_end: line.end, planned_value_share: 1 / PLAN.length })),
   })
   return [take(31, 1, '2026-10-02T09:00:00Z', 'خطة الانطلاق المعتمدة', 120000), take(32, 2, '2026-10-20T09:00:00Z', 'بعد اعتماد طلب تغيير النطاق', 138000)]
@@ -40,7 +40,7 @@ function variance(projectId) {
     project_id: projectId,
     baseline: { number: latest.number, taken_at: latest.taken_at },
     schedule: {
-      project: row('2026-03-01', '2026-06-30', '2026-03-01', '2026-07-05'),
+      project: row('2026-09-08', '2026-10-01', '2026-09-08', '2026-10-06'),
       tasks,
       late_count: tasks.filter(task => (task.end_variance_days ?? 0) > 0).length,
       early_count: tasks.filter(task => (task.end_variance_days ?? 0) < 0).length,
@@ -77,7 +77,7 @@ export async function handleBaselines(req, res, path, url, { json, readBody }) {
       const created = {
         id: nextId += 1, project_id: projectId, number, taken_by: ME, taken_at: new Date().toISOString(), note: (body.note ?? '').trim(),
         change: body.change_id ? { id: body.change_id, number: 3, title: 'رفع ميزانية بيئة الاختبار' } : null, budget_total: 146000, currency: CURRENCY,
-        planned_start: '2026-03-01', planned_end: '2026-07-05', task_count: PLAN.length,
+        planned_start: '2026-09-08', planned_end: '2026-10-06', task_count: PLAN.length,
         tasks: PLAN.map((line, index) => ({ id: nextId * 10 + index, task_id: line.task_id, name: line.name, planned_start: line.now_start, planned_end: line.now_end, planned_value_share: 1 / PLAN.length })),
       }
       BASELINES.push(created)

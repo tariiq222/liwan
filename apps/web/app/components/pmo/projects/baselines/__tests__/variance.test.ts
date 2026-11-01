@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { varianceLabel, varianceTone } from '../variance'
+import { isolateLtr, varianceLabel, varianceTone } from '../variance'
 
 describe('baseline variance presentation', () => {
   it('signs late and early days and leaves a missing date empty', () => {
-    expect(varianceLabel(3)).toBe('+3')
-    expect(varianceLabel(-2)).toBe('−2')
-    expect(varianceLabel(0)).toBe('0')
+    expect(varianceLabel(3)).toBe(isolateLtr('+3'))
+    expect(varianceLabel(-2)).toBe(isolateLtr('−2'))
+    expect(varianceLabel(0)).toBe(isolateLtr('0'))
     expect(varianceLabel(null)).toBeNull()
   })
 

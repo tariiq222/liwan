@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { BaselineVariance } from '@liwan/contracts'
 import { formatMoney } from '@/utils/projectFinance'
-import { varianceLabel, varianceTone } from './variance'
+import { isolateLtr, varianceLabel, varianceTone } from './variance'
 
 // The project-level reading of the latest baseline: how far the end date moved and what the budget and the actual cost do against it.
 const props = defineProps<{ variance: BaselineVariance }>()
@@ -9,7 +9,7 @@ const { t } = useI18n()
 const schedule = computed(() => props.variance.schedule)
 const cost = computed(() => props.variance.cost)
 const money = (value: number) => cost.value?.currency ? formatMoney(value, cost.value.currency) : String(value)
-const signedMoney = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${money(Math.abs(value))}`
+const signedMoney = (value: number) => isolateLtr(`${value > 0 ? '+' : '−'}${money(Math.abs(value))}`)
 </script>
 
 <template>
