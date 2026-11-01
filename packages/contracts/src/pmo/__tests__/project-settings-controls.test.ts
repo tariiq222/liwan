@@ -107,7 +107,7 @@ describe('project settings controls contracts', () => {
       ...task,
       completion_pending: true, completion_revision: 1, completion_return_note: null,
       completion_policy: 'project_manager', completion_approver: { id: 2, name: 'Mgr' },
-      completion_blocked_reason: 'reviewer_ineligible',
+      completion_blocked_reason: 'reviewer_ineligible', progress_method: 'binary', percent_complete: 0,
       allowed_actions: ['read', 'write', 'withdraw_completion'],
     }).allowed_actions).toContain('withdraw_completion')
   })
