@@ -103,8 +103,8 @@ let opportunities = seedOpportunities()
 let calls = seedCalls()
 let batches = []
 let mappings = []
-// When a won record was closed (the contract's opportunity has no such field); the seeded sale closed yesterday.
-const seedClosedAt = () => new Map([[5, iso(-24)]])
+// When a won record was closed (the contract's opportunity has no such field); the seeded sale closed today, so the month figures hold on the first of a month.
+const seedClosedAt = () => new Map([[5, iso(0)]])
 let closedAt = seedClosedAt()
 
 const dumpSettings = () => ({
