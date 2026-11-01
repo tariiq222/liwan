@@ -37,14 +37,22 @@ def body(allowed):
     return payload
 
 
+def stage_capabilities():
+    """Whoever may decide a stage holds any capability a stage can name; the record check narrows it."""
+    return request.env['liwan.operation.process']._operations_stage_capabilities()
+
+
 def require_stage_capability():
-    """Gate for whoever may decide a stage: any capability a stage can name; the record check narrows it."""
-    require_capabilities(*request.env['liwan.operation.process']._operations_stage_capabilities(), match='any')
+    require_capabilities(*stage_capabilities(), match='any')
 
 
 def find(model, record_id, capability, *, domain=()):
-    if capability:
-        require_capabilities(capability)
+    require_capabilities(capability)
+    return find_record(model, record_id, domain=domain)
+
+
+def find_record(model, record_id, *, domain=()):
+    """The lookup alone, for a route that gated on its own capabilities first."""
     # The pinned company subtree (current company + its own branches); a
     # foreign-company record is not-found like a missing one.
     record = request.env[model].search([('id', '=', record_id), ('company_id', 'in', request.env.companies.ids), *domain], limit=1)
@@ -165,11 +173,9 @@ class OperationsController(http.Controller):
         scope = args.get('scope', 'mine')
         if scope not in ('mine', 'pending', 'monitoring'):
             raise ApiError(422, 'invalid', 'Invalid request scope.', field='scope')
-        if scope == 'pending':
-            # The pending queue is scoped by the stages the caller reviews, each authorized by its own capability.
-            require_stage_capability()
-        else:
-            require_capabilities('operations.monitoring.read' if scope == 'monitoring' else 'operations.requests.read')
+        # The pending queue is scoped by the stages the caller reviews, each authorized by its own capability.
+        scope_capabilities = {'pending': stage_capabilities(), 'monitoring': ['operations.monitoring.read'], 'mine': ['operations.requests.read']}
+        require_capabilities(*scope_capabilities[scope], match='any')
         limit, offset = parse_page(args)
         domain = [('company_id', 'in', request.env.companies.ids)]
         if 'purpose' in args:
@@ -192,7 +198,7 @@ class OperationsController(http.Controller):
     @requires_feature('operations.enabled', operation='read')
     def get_request(self, request_id, **_):
         require_stage_capability()
-        record = find('liwan.operation.request', request_id, None)
+        record = find_record('liwan.operation.request', request_id)
         if not (request.env['liwan.access.service']._liwan_has_capability(request.env.user, 'operations.requests.read') or record._is_stage_reviewer()):
             raise ApiError(403, 'forbidden', 'forbidden')
         return dump_request(record)
@@ -231,9 +237,8 @@ class OperationsController(http.Controller):
     @requires_feature('operations.enabled')
     def transition_request(self, request_id, action, **_):
         deciding = action in ('approve', 'reject', 'return')
-        if deciding:
-            require_stage_capability()
-        record = find('liwan.operation.request', request_id, None if deciding else 'operations.requests.read')
+        require_capabilities(*(stage_capabilities() if deciding else ['operations.requests.read']), match='any')
+        record = find_record('liwan.operation.request', request_id)
         payload = body({'revision', 'comment'})
         actions = {'submit': record.action_submit, 'approve': record.action_approve, 'reject': record.action_reject, 'return': record.action_return, 'withdraw': record.action_withdraw}
         if action not in actions:
