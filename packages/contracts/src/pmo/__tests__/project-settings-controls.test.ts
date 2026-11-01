@@ -29,7 +29,7 @@ describe('project settings controls contracts', () => {
       deadline_reminders_enabled: true,
       deadline_reminders_days_before: 3,
       overdue_digest_enabled: false,
-      require_charter_approval: false, close_with_open_tasks: 'block', register_status_transitions: 'sequence',
+      require_charter_approval: false, close_with_open_tasks: 'block', register_status_transitions: 'sequence', change_control_mode: 'optional',
       extensions: [],
     })
     expect(parsed.require_end_date_on_create).toBe(true)
@@ -51,7 +51,7 @@ describe('project settings controls contracts', () => {
       deadline_reminders_enabled: true,
       deadline_reminders_days_before: 1,
       overdue_digest_enabled: true,
-      require_charter_approval: false, close_with_open_tasks: 'block', register_status_transitions: 'sequence',
+      require_charter_approval: false, close_with_open_tasks: 'block', register_status_transitions: 'sequence', change_control_mode: 'optional',
       extensions: [],
     }
     expect(ProjectSettingsSchema.safeParse(full).success).toBe(true)
@@ -63,7 +63,7 @@ describe('project settings controls contracts', () => {
     const base = {
       project_creators: 'managers', default_stages: [{ name: 'A', fold: false }], require_manager_on_create: true,
       require_end_date_on_create: true, default_completion_approval: 'none', deadline_reminders_enabled: true,
-      deadline_reminders_days_before: 1, overdue_digest_enabled: true, require_charter_approval: false, close_with_open_tasks: 'block', register_status_transitions: 'sequence',
+      deadline_reminders_days_before: 1, overdue_digest_enabled: true, require_charter_approval: false, close_with_open_tasks: 'block', register_status_transitions: 'sequence', change_control_mode: 'optional',
     }
     const selection = { name: 'mode', kind: 'selection', label: 'Mode', help: null, value: 'auto', options: [{ value: 'auto', label: 'Auto' }] }
     const flag = { name: 'flag', kind: 'boolean', label: 'Flag', help: 'Hint', value: true }
@@ -88,7 +88,7 @@ describe('project settings controls contracts', () => {
       id: 4, name: 'Project', status: null, progress: 0, task_count: 0, closed_task_count: 0, charter_state: 'draft', phase: 'initiating',
       active: true, can_manage: true, stages: [], description_html: '', manager: null,
       privacy_visibility: 'employees', date_start: null, date_end: null, tags: [], followers_count: 0,
-      milestone_count: 0, updated_at: 'v1', charter: EMPTY_CHARTER, phase_state: { current: 'initiating', next: 'planning', previous: null, next_checks: [] },
+      milestone_count: 0, updated_at: 'v1', charter: EMPTY_CHARTER, phase_state: { current: 'initiating', next: 'planning', previous: null, next_checks: [] }, change_control_mode: 'optional',
     }
     expect(() => ProjectDetailSchema.parse(project)).toThrow()
     expect(ProjectDetailSchema.parse({
