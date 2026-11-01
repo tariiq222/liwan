@@ -22,7 +22,7 @@ WEEK_TYPES = ('0', '1')
 MAX_HOUR = 24
 
 
-def _ref(record):
+def ref(record):
     return {'id': record.id, 'name': record.name} if record else None
 
 
@@ -82,8 +82,8 @@ def dump_schedule(calendar, attendances):
 def dump_assignment(row):
     return {
         'id': row.id,
-        'employee': _ref(row.employee_id),
-        'schedule': _ref(row.calendar_id),
+        'employee': ref(row.employee_id),
+        'schedule': ref(row.calendar_id),
         'date_start': fields.Date.to_string(row.date_start) or None,
         'date_end': fields.Date.to_string(row.date_end) or None,
     }

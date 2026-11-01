@@ -9,7 +9,7 @@ from datetime import date, timedelta
 from odoo import fields
 
 from odoo.addons.liwan_api.controllers.common import ApiError
-from odoo.addons.liwan_hr.serializers.shifts.hr_shift import _ref
+from odoo.addons.liwan_hr.serializers.shifts.hr_shift import ref
 
 WEEK_DAYS = 7
 WEEK_PATCH_FIELDS = {'employee_id', 'schedule_id', 'week_start'}
@@ -78,7 +78,7 @@ def dump_roster_employee(employee, rows, week_start, lines_by_calendar):
         row = _covering_row(rows, day)
         days.append({
             'date': fields.Date.to_string(day),
-            'schedule': _ref(row.calendar_id) if row else None,
+            'schedule': ref(row.calendar_id) if row else None,
             'shifts': _shifts_of(row, day, lines_by_calendar),
         })
-    return {'employee': _ref(employee), 'days': days}
+    return {'employee': ref(employee), 'days': days}

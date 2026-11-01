@@ -16,13 +16,11 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_feature,
 )
 from odoo.addons.liwan_hr.controllers.shifts.hr_shifts import (
-    _assignable_schedule,
-    _attendance_lines,
-    _current_employee,
-    _make_room_for,
-    _own_employee,
-    _reject_overlap,
-    _reject_self_assignment,
+    assignable_schedule,
+    attendance_lines,
+    current_employee,
+    own_employee,
+    reject_self_assignment,
 )
 from odoo.addons.liwan_hr.serializers.shifts.hr_roster import (
     WEEK_DAYS,
@@ -57,12 +55,54 @@ def _week_rows(employees, week_start):
 
 def _dump_week(employees, week_start):
     rows, grouped = _week_rows(employees, week_start)
-    lines = _attendance_lines(rows.calendar_id)
+    lines = attendance_lines(rows.calendar_id)
     empty = request.env['hr.employee.calendar']
     return [
         dump_roster_employee(employee, grouped.get(employee.id, empty), week_start, lines)
         for employee in employees
     ]
+
+
+def _plan_week(employee, schedule, week_start, week_end):
+    """Give the employee ``schedule`` for exactly the week, whatever planning rows meet it.
+
+    A row inside the week goes; a row that starts before it ends the day before; a row that ends
+    after it starts the day after; a row that spans the whole week is split around it, the
+    remainder keeping the row's calendar. Only then is the week's own row created, so planning
+    consecutive weeks (or the week before a planned one) never meets the engine's overlap refusal.
+    """
+    planning = request.env['hr.employee.calendar']
+    meeting = planning.search([
+        ('employee_id', '=', employee.id),
+        '|', ('date_start', '=', False), ('date_start', '<=', week_end),
+        '|', ('date_end', '=', False), ('date_end', '>=', week_start),
+    ])
+    day_before = week_start - timedelta(days=1)
+    day_after = week_end + timedelta(days=1)
+    for row in meeting:
+        starts_before = not row.date_start or row.date_start < week_start
+        ends_after = not row.date_end or row.date_end > week_end
+        if starts_before and ends_after:
+            remainder = {
+                'employee_id': employee.id,
+                'calendar_id': row.calendar_id.id,
+                'date_start': day_after,
+                'date_end': row.date_end or False,
+            }
+            row.date_end = day_before
+            planning.create(remainder)
+        elif starts_before:
+            row.date_end = day_before
+        elif ends_after:
+            row.date_start = day_after
+        else:
+            row.unlink()
+    return planning.create({
+        'employee_id': employee.id,
+        'calendar_id': schedule.id,
+        'date_start': week_start,
+        'date_end': week_end,
+    })
 
 
 class HrShiftRosterController(http.Controller):
@@ -90,7 +130,7 @@ class HrShiftRosterController(http.Controller):
     @requires_capability('hr.employees.read')
     def my_week(self, **_):
         week_start = _week_start_arg()
-        employee = _own_employee()
+        employee = own_employee()
         return {
             'week_start': fields.Date.to_string(week_start),
             **_dump_week(employee, week_start)[0],
@@ -102,28 +142,11 @@ class HrShiftRosterController(http.Controller):
     @requires_capability('hr.shifts.manage')
     def set_week(self, **payload):
         values = parse_week_set(payload)
-        employee = _current_employee(values['employee_id'])
-        schedule = _assignable_schedule(values['schedule_id'])
-        _reject_self_assignment(employee)
+        employee = current_employee(values['employee_id'])
+        schedule = assignable_schedule(values['schedule_id'])
+        reject_self_assignment(employee)
         week_start = values['week_start']
         week_end = week_start + timedelta(days=WEEK_DAYS - 1)
-        planning = request.env['hr.employee.calendar']
         with request.env.cr.savepoint():
-            same_week = planning.search([
-                ('employee_id', '=', employee.id),
-                ('date_start', '=', week_start),
-                ('date_end', '=', week_end),
-            ], limit=1)
-            if same_week:
-                same_week.calendar_id = schedule
-                row = same_week
-            else:
-                _make_room_for(employee, week_start, week_end)
-                _reject_overlap(employee, week_start, week_end)
-                row = planning.create({
-                    'employee_id': employee.id,
-                    'calendar_id': schedule.id,
-                    'date_start': week_start,
-                    'date_end': week_end,
-                })
+            row = _plan_week(employee, schedule, week_start, week_end)
         return dump_assignment(row)

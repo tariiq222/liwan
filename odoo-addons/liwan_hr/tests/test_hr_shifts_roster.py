@@ -92,11 +92,48 @@ class TestHrShiftsRoster(LiwanHrCase):
         first = self._set_week(self.monday_schedule).json()
         second = self._set_week(self.tuesday_schedule)
         self.assertEqual(second.status_code, 200, second.text)
-        self.assertEqual(second.json()['id'], first['id'])
+        self.assertEqual(first['date_start'], second.json()['date_start'])
+        self.assertEqual(self.env['hr.employee.calendar'].search_count([
+            ('employee_id', '=', self.worker.id), ('date_start', '=', MONDAY),
+        ]), 1)
         _, row = self._row()
         self.assertEqual({day['schedule']['id'] for day in row['days']}, {self.tuesday_schedule.id})
         self.assertEqual(len(row['days'][1]['shifts']), 1)
         self.assertEqual(row['days'][0]['shifts'], [])
+
+    def test_consecutive_and_earlier_weeks_can_be_planned(self):
+        self._as_manager()
+        for week_start, schedule in (
+            ('2026-11-02', self.monday_schedule),
+            ('2026-11-09', self.tuesday_schedule),
+            ('2026-10-26', self.tuesday_schedule),
+        ):
+            res = self._set_week(schedule, week_start=week_start)
+            self.assertEqual(res.status_code, 200, (week_start, res.text))
+        for week_start, schedule in (
+            ('2026-10-26', self.tuesday_schedule),
+            ('2026-11-02', self.monday_schedule),
+            ('2026-11-09', self.tuesday_schedule),
+        ):
+            _, row = self._row(week_start)
+            self.assertEqual({day['schedule']['id'] for day in row['days']}, {schedule.id}, week_start)
+
+    def test_a_longer_period_is_split_around_the_week(self):
+        self.env['hr.employee.calendar'].search([('employee_id', '=', self.worker.id)]).unlink()
+        self.env['hr.employee.calendar'].create({
+            'employee_id': self.worker.id, 'calendar_id': self.tuesday_schedule.id,
+            'date_start': date(2026, 10, 1), 'date_end': date(2026, 12, 31),
+        })
+        self._as_manager()
+        self.assertEqual(self._set_week(self.monday_schedule).status_code, 200)
+        _, inside = self._row('2026-11-02')
+        _, before = self._row('2026-10-26')
+        _, after = self._row('2026-11-09')
+        rows = self.env['hr.employee.calendar'].search([('employee_id', '=', self.worker.id)], order='date_start')
+        detail = [(r.calendar_id.name, str(r.date_start), str(r.date_end)) for r in rows]
+        self.assertEqual({day['schedule']['id'] if day['schedule'] else None for day in inside['days']}, {self.monday_schedule.id}, detail)
+        self.assertEqual({day['schedule']['id'] if day['schedule'] else None for day in before['days']}, {self.tuesday_schedule.id}, detail)
+        self.assertEqual({day['schedule']['id'] if day['schedule'] else None for day in after['days']}, {self.tuesday_schedule.id}, detail)
 
     def test_the_manager_cannot_plan_their_own_week(self):
         self._as_manager()
