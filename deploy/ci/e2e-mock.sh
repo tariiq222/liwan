@@ -22,7 +22,11 @@ cleanup() {
 trap cleanup EXIT
 # Built WITHOUT NUXT_AI_SERVICE_URL on purpose: /ai must follow the runtime value, not the build environment.
 npx nuxt build
-NUXT_AI_SERVICE_URL="http://127.0.0.1:$AI_MOCK_PORT" PORT="$WEB_PORT" node .output/server/index.mjs > nuxt.log 2>&1 &
+# The customer commercial pages (/subscription, /invite/accept) are switched on at runtime and read the mock's stub control plane.
+NUXT_CUSTOMER_COMMERCIAL_ENABLED=true NUXT_PUBLIC_CUSTOMER_COMMERCIAL_ENABLED=true \
+  NUXT_CUSTOMER_COMMERCIAL_CONTROL_URL="http://127.0.0.1:$MOCK_PORT" NUXT_CUSTOMER_COMMERCIAL_SERVICE_KEY="mock-commercial-service-key-0123456789abcdef" \
+  NUXT_CUSTOMER_COMMERCIAL_ISSUER=liwan-e2e-mock NUXT_CUSTOMER_COMMERCIAL_PUBLIC_ORIGIN="$E2E_BASE_URL" NUXT_CUSTOMER_COMMERCIAL_TENANT_ID=tenant-e2e \
+  NUXT_AI_SERVICE_URL="http://127.0.0.1:$AI_MOCK_PORT" PORT="$WEB_PORT" node .output/server/index.mjs > nuxt.log 2>&1 &
 SERVER_PID=$!
 for _ in $(seq 1 60); do
   kill -0 "$MOCK_PID" "$AI_MOCK_PID" "$SERVER_PID"
