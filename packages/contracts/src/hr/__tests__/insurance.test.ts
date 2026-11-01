@@ -124,6 +124,8 @@ describe('enrollments and dependents', () => {
     expect(HrInsuranceDependentCreateSchema.parse({ ...create, national_id: '1098765432' }).national_id).toBe('1098765432')
     expect(() => HrInsuranceDependentCreateSchema.parse({ ...create, relation: 'cousin' })).toThrow()
     expect(HrInsuranceDependentPatchSchema.parse({ revision: 1, name: 'Sarah' }).name).toBe('Sarah')
+    expect(HrInsuranceDependentPatchSchema.parse({ revision: 1, date_to: null, birth_date: null, national_id: null }).date_to).toBeNull()
+    expect(() => HrInsuranceDependentPatchSchema.parse({ revision: 1, date_from: null })).toThrow()
     expect(() => HrInsuranceDependentPatchSchema.parse({ revision: 1 })).toThrow()
   })
 })

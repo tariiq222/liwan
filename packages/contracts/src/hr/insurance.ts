@@ -184,10 +184,11 @@ export const HrInsuranceDependentCreateSchema = z.object({
 export const HrInsuranceDependentPatchSchema = z.object({
   name: trimmed.max(100).optional(),
   relation: HrInsuranceRelationSchema.optional(),
-  birth_date: isoDate.optional(),
-  national_id: z.string().trim().max(20).optional(),
+  /** `null` clears the optional fields; an absent field is left as it is. */
+  birth_date: isoDate.nullable().optional(),
+  national_id: z.string().trim().max(20).nullable().optional(),
   date_from: isoDate.optional(),
-  date_to: isoDate.optional(),
+  date_to: isoDate.nullable().optional(),
   revision,
 }).strict().refine(value => Object.keys(value).length > 1, { message: 'At least one field is required' })
 

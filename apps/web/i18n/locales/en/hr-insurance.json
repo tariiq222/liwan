@@ -99,7 +99,9 @@
       "datesOrder": "The end date cannot be before the start date.",
       "policyNumber": "Policy number",
       "premium": "Annual premium per member",
-      "premiumHint": "Optional."
+      "premiumHint": "Optional.",
+      "employeeSearch": "Search employees by name",
+      "employeeMore": "Showing the first matches. Type to narrow the list."
     },
     "detail": {
       "cover": "Coverage",
@@ -208,6 +210,7 @@
       "saveError": "The settings were not saved",
       "conflict": "The settings changed meanwhile. Reload them, then repeat the edit.",
       "reload": "Reload the settings"
-    }
+    },
+    "reload": "Reload"
   }
 }

@@ -28,6 +28,9 @@ const patch = usePatchHrInsuranceEnrollment()
 const confirming = ref<'end' | 'cancel' | null>(null)
 const endDate = ref<string | null>(null)
 const actionError = ref('')
+const conflict = ref(false)
+// The revision an editor or a confirmation opened at: a background refetch never advances it, so a concurrent edit answers 409.
+const openedRevision = ref(0)
 
 const badge = computed(() => (enrollment.value ? hrInsuranceEnrollmentBadge(enrollment.value.state) : null))
 const planBadge = computed(() => (enrollment.value ? hrInsurancePlanBadge(enrollment.value.plan.state) : null))
@@ -45,9 +48,26 @@ function startEdit() {
   companyShare.value = current.company_share ?? undefined
   notes.value = current.notes ?? ''
   actionError.value = ''
+  conflict.value = false
+  openedRevision.value = current.revision
   editing.value = true
 }
+function openConfirm(kind: 'end' | 'cancel') {
+  if (!enrollment.value) return
+  actionError.value = ''
+  conflict.value = false
+  openedRevision.value = enrollment.value.revision
+  confirming.value = kind
+}
+async function reload() {
+  actionError.value = ''
+  conflict.value = false
+  editing.value = false
+  confirming.value = null
+  await query.refetch()
+}
 function failed(cause: unknown) {
+  conflict.value = isHrInsuranceConflict(cause)
   actionError.value = isHrInsuranceConflict(cause) ? t('hrInsurance.conflict') : cause instanceof ApiError ? cause.message : t('errors.generic')
   confirming.value = null
 }
@@ -56,7 +76,7 @@ async function saveEdit() {
   if (!current || !hydrated.value || patch.isPending.value) return
   actionError.value = ''
   try {
-    await patch.mutateAsync({ id: current.id, body: { revision: current.revision, employee_share: employeeShare.value ?? 0, company_share: companyShare.value ?? 0, notes: notes.value.trim() } })
+    await patch.mutateAsync({ id: current.id, body: { revision: openedRevision.value, employee_share: employeeShare.value ?? 0, company_share: companyShare.value ?? 0, notes: notes.value.trim() } })
     editing.value = false
   } catch (cause) { failed(cause) }
 }
@@ -66,7 +86,7 @@ async function confirmStep() {
   if (!current || !kind || !hydrated.value || step.isPending.value) return
   actionError.value = ''
   try {
-    await step.mutateAsync({ id: current.id, step: kind, revision: current.revision, dateEnd: endDate.value ?? undefined })
+    await step.mutateAsync({ id: current.id, step: kind, revision: openedRevision.value, dateEnd: endDate.value ?? undefined })
     confirming.value = null
     endDate.value = null
   } catch (cause) { failed(cause) }
@@ -84,11 +104,13 @@ async function confirmStep() {
   >
     <template v-if="changeable && !confirming && !editing" #actions>
       <UButton color="neutral" variant="outline" :disabled="!hydrated" :label="t('hrInsurance.actions.edit')" data-testid="hr-insurance-edit" @click="startEdit" />
-      <UButton color="error" variant="outline" :disabled="!hydrated" :label="t('hrInsurance.actions.end')" data-testid="hr-insurance-end" @click="confirming = 'end'" />
-      <UButton color="neutral" variant="ghost" :disabled="!hydrated" :label="t('hrInsurance.actions.cancel')" data-testid="hr-insurance-cancel" @click="confirming = 'cancel'" />
+      <UButton color="error" variant="outline" :disabled="!hydrated" :label="t('hrInsurance.actions.end')" data-testid="hr-insurance-end" @click="openConfirm('end')" />
+      <UButton color="neutral" variant="ghost" :disabled="!hydrated" :label="t('hrInsurance.actions.cancel')" data-testid="hr-insurance-cancel" @click="openConfirm('cancel')" />
     </template>
 
-    <UAlert v-if="actionError" role="alert" color="error" variant="subtle" :title="t('hrInsurance.actions.error')" :description="actionError" data-testid="hr-insurance-action-error" />
+    <UAlert v-if="actionError" role="alert" color="error" variant="subtle" :title="t('hrInsurance.actions.error')" :description="actionError" data-testid="hr-insurance-action-error">
+      <template v-if="conflict" #actions><UButton type="button" color="neutral" variant="outline" size="sm" :label="t('hrInsurance.reload')" data-testid="hr-insurance-reload" @click="reload" /></template>
+    </UAlert>
 
     <SharedInlineConfirm
       v-if="confirming"

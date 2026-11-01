@@ -14,7 +14,6 @@ const meta = {
     ...storyContext('apps/web/app/pages/hr/insurance/enrollments/new.vue:27', 'نموذج تسجيل موظف في خطة تأمين داخل `SharedCreatePanel`: الموظف والخطة وتواريخ التغطية ورقم العضوية والحصص الشهرية، وتذييل واحد `SharedFormActions`.'),
   },
   args: {
-    employees: [{ id: 7, name: 'ليلى الحربي' }, { id: 8, name: 'سارة القحطاني' }],
     plans: [planFixture(), planFixture({ id: 4, name: 'الباقة الفضية 2026', tier: 'فضية' })],
     backTo: '/hr/insurance',
   },

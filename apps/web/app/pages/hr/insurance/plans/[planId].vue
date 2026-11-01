@@ -24,12 +24,20 @@ const badge = computed(() => (plan.value ? hrInsurancePlanBadge(plan.value.state
 const patch = usePatchHrInsurancePlan()
 const archiving = ref(false)
 const actionError = ref('')
+// The revision the archive confirmation opened at: a background refetch never advances it.
+const archiveRevision = ref(0)
+function openArchive() {
+  if (!plan.value) return
+  actionError.value = ''
+  archiveRevision.value = plan.value.revision
+  archiving.value = true
+}
 async function toggleArchive() {
   const current = plan.value
   if (!current || !hydrated.value || patch.isPending.value) return
   actionError.value = ''
   try {
-    await patch.mutateAsync({ id: current.id, body: { revision: current.revision, active: !current.active } })
+    await patch.mutateAsync({ id: current.id, body: { revision: archiveRevision.value, active: !current.active } })
     archiving.value = false
   } catch (cause) {
     actionError.value = isHrInsuranceConflict(cause) ? t('hrInsurance.conflict') : cause instanceof ApiError ? cause.message : t('errors.generic')
@@ -48,10 +56,12 @@ async function toggleArchive() {
     @retry="query.refetch"
   >
     <template v-if="plan && canManage && !archiving" #actions>
-      <UButton color="neutral" variant="outline" :disabled="!hydrated || patch.isPending.value" :label="t(plan.active ? 'hrInsurance.plan.archive' : 'hrInsurance.plan.restore')" data-testid="hr-insurance-plan-archive" @click="archiving = true" />
+      <UButton color="neutral" variant="outline" :disabled="!hydrated || patch.isPending.value" :label="t(plan.active ? 'hrInsurance.plan.archive' : 'hrInsurance.plan.restore')" data-testid="hr-insurance-plan-archive" @click="openArchive" />
     </template>
 
-    <UAlert v-if="actionError" role="alert" color="error" variant="subtle" :title="t('hrInsurance.actions.error')" :description="actionError" />
+    <UAlert v-if="actionError" role="alert" color="error" variant="subtle" :title="t('hrInsurance.actions.error')" :description="actionError">
+      <template #actions><UButton type="button" color="neutral" variant="outline" size="sm" :label="t('hrInsurance.reload')" data-testid="hr-insurance-plan-reload" @click="query.refetch()" /></template>
+    </UAlert>
 
     <SharedInlineConfirm
       v-if="archiving && plan"
@@ -71,7 +81,7 @@ async function toggleArchive() {
       </template>
     </SharedIdentityCard>
 
-    <PlanForm v-if="plan && canManage" :key="plan.revision" :plan="plan" :providers="providers.data.value?.items ?? []" :back-to="backTo" />
+    <PlanForm v-if="plan && canManage" :plan="plan" :providers="providers.data.value?.items ?? []" :back-to="backTo" />
     <SharedRecordSection v-else-if="plan" variant="panel" :title="t('hrInsurance.form.planDetails')">
       <dl class="grid gap-x-6 sm:grid-cols-2">
         <SharedPropertyRow :label="t('hrInsurance.form.tier')" :value="plan.tier" />

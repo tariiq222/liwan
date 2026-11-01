@@ -3,7 +3,8 @@ import type { HrInsuranceDependent, HrInsuranceRelation } from '@liwan/contracts
 import { HR_INSURANCE_RELATIONS } from '@liwan/contracts'
 import { formatDate } from '@liwan/ui/app/utils/formatDate'
 import { ApiError } from '@/composables/useApi'
-import { isHrInsuranceConflict } from '@/composables/useHrInsurance'
+import { useQueryClient } from '@tanstack/vue-query'
+import { hrInsuranceKeys, isHrInsuranceConflict } from '@/composables/useHrInsurance'
 
 // The dependents of one enrollment, on its record page: add, edit and end happen inline, and ending asks for
 // an inline confirmation. A dependent's identity number shows masked until the manager opens its edit row.
@@ -24,15 +25,19 @@ const patch = usePatchHrInsuranceDependent()
 const end = useEndHrInsuranceDependent()
 const busy = computed(() => add.isPending.value || patch.isPending.value || end.isPending.value)
 
-type Draft = { name: string; relation: HrInsuranceRelation | undefined; birthDate: string | null; nationalId: string; dateFrom: string | null; dateTo: string | null }
-const empty = (): Draft => ({ name: '', relation: undefined, birthDate: null, nationalId: '', dateFrom: props.from, dateTo: null })
+type Draft = { revision: number; name: string; relation: HrInsuranceRelation | undefined; birthDate: string | null; nationalId: string; dateFrom: string | null; dateTo: string | null }
+const empty = (): Draft => ({ revision: 0, name: '', relation: undefined, birthDate: null, nationalId: '', dateFrom: props.from, dateTo: null })
 const draft = ref<Draft>(empty())
 // null: nothing open; 0: the add row; an id: that dependent's edit row.
 const editing = ref<number | null>(null)
 const ending = ref<number | null>(null)
+// The revision the editor or the end confirmation opened at: a background refetch never advances it, so a concurrent edit answers 409.
+const endRevision = ref(0)
 const endDate = ref<string | null>(null)
 const attempted = ref(false)
 const error = ref('')
+const conflict = ref(false)
+const qc = useQueryClient()
 const serverField = ref('')
 
 const relationItems = computed(() => HR_INSURANCE_RELATIONS.map(value => ({ value, label: t(`hrInsurance.relation.${value}`) })))
@@ -50,6 +55,7 @@ function reset() {
   ending.value = null
   attempted.value = false
   error.value = ''
+  conflict.value = false
   serverField.value = ''
   draft.value = empty()
 }
@@ -60,14 +66,20 @@ function openAdd() {
 function openEdit(row: HrInsuranceDependent) {
   reset()
   editing.value = row.id
-  draft.value = { name: row.name, relation: row.relation, birthDate: row.birth_date, nationalId: row.national_id ?? '', dateFrom: row.date_from, dateTo: row.date_to }
+  draft.value = { revision: row.revision, name: row.name, relation: row.relation, birthDate: row.birth_date, nationalId: row.national_id ?? '', dateFrom: row.date_from, dateTo: row.date_to }
 }
 function openEnd(row: HrInsuranceDependent) {
   reset()
   ending.value = row.id
+  endRevision.value = row.revision
   endDate.value = null
 }
+function reload() {
+  reset()
+  void qc.invalidateQueries({ queryKey: hrInsuranceKeys.all })
+}
 function failed(cause: unknown) {
+  conflict.value = isHrInsuranceConflict(cause)
   error.value = isHrInsuranceConflict(cause) ? t('hrInsurance.conflict') : cause instanceof ApiError ? cause.message : t('errors.generic')
   serverField.value = cause instanceof ApiError && !isHrInsuranceConflict(cause) ? cause.field ?? '' : ''
 }
@@ -79,17 +91,14 @@ async function save(row?: HrInsuranceDependent) {
   serverField.value = ''
   const value = draft.value
   if (!value.name.trim() || !value.relation || !value.dateFrom || (props.requireId && !value.nationalId.trim())) return
-  const body = {
-    name: value.name.trim(),
-    relation: value.relation,
-    birth_date: value.birthDate ?? undefined,
-    national_id: value.nationalId.trim() || undefined,
-    date_from: value.dateFrom,
-    date_to: value.dateTo ?? undefined,
-  }
+  const common = { name: value.name.trim(), relation: value.relation, date_from: value.dateFrom }
   try {
-    if (row) await patch.mutateAsync({ id: row.id, body: { ...body, revision: row.revision } })
-    else await add.mutateAsync({ enrollmentId: props.enrollmentId, body })
+    // A cleared optional field is sent as an explicit null on an edit, so the server clears it; a new row just leaves it out.
+    if (row) {
+      await patch.mutateAsync({ id: row.id, body: { ...common, birth_date: value.birthDate, national_id: value.nationalId.trim() || null, date_to: value.dateTo, revision: value.revision } })
+    } else {
+      await add.mutateAsync({ enrollmentId: props.enrollmentId, body: { ...common, birth_date: value.birthDate ?? undefined, national_id: value.nationalId.trim() || undefined, date_to: value.dateTo ?? undefined } })
+    }
     reset()
   } catch (cause) { failed(cause) }
 }
@@ -97,7 +106,7 @@ async function confirmEnd(row: HrInsuranceDependent) {
   if (!hydrated.value || busy.value) return
   error.value = ''
   try {
-    await end.mutateAsync({ id: row.id, revision: row.revision, dateEnd: endDate.value ?? undefined })
+    await end.mutateAsync({ id: row.id, revision: endRevision.value, dateEnd: endDate.value ?? undefined })
     reset()
   } catch (cause) { failed(cause) }
 }
@@ -109,7 +118,9 @@ async function confirmEnd(row: HrInsuranceDependent) {
       <UButton color="neutral" variant="outline" icon="i-lucide-plus" :disabled="!hydrated" :label="t('hrInsurance.dependents.add')" data-testid="hr-insurance-dependent-add" @click="openAdd" />
     </template>
     <div class="grid gap-4">
-      <UAlert v-if="error && !serverField" role="alert" color="error" variant="subtle" :title="error" data-testid="hr-insurance-dependents-error" />
+      <UAlert v-if="error && !serverField" role="alert" color="error" variant="subtle" :title="error" data-testid="hr-insurance-dependents-error">
+        <template v-if="conflict" #actions><UButton type="button" color="neutral" variant="outline" size="sm" :label="t('hrInsurance.reload')" data-testid="hr-insurance-dependents-reload" @click="reload" /></template>
+      </UAlert>
       <p v-if="!props.dependents.length && editing !== 0" class="text-sm text-muted" data-testid="hr-insurance-dependents-empty">{{ t('hrInsurance.dependents.empty') }}</p>
       <ul v-else class="grid gap-3" data-testid="hr-insurance-dependents">
         <li v-for="row in props.dependents" :key="row.id" class="grid gap-3 rounded-card p-3 ring ring-default" :data-testid="`hr-insurance-dependent-${row.id}`">

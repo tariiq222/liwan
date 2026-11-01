@@ -19,6 +19,9 @@ const create = useCreateHrInsurancePlan()
 const patch = usePatchHrInsurancePlan()
 const pending = computed(() => create.isPending.value || patch.isPending.value)
 
+// The plan as the form opened on: its revision and values stay until a save succeeds, so a background refetch
+// can neither advance the revision nor replace what is being typed (a concurrent edit then answers 409).
+const baseline = ref(props.plan)
 const providerId = ref<number | null>(props.plan?.provider.id ?? null)
 const name = ref(props.plan?.name ?? '')
 const tier = ref(props.plan?.tier ?? '')
@@ -34,11 +37,29 @@ const serverField = ref('')
 const providerOptions = computed(() => props.providers.map(provider => ({ value: String(provider.id), label: provider.name })))
 const orderError = computed(() => validFrom.value && validTo.value && validTo.value < validFrom.value ? t('hrInsurance.form.datesOrder') : undefined)
 const dirty = computed(() => {
+  const base = baseline.value
   if (saved.value) return false
-  if (!props.plan) return Boolean(providerId.value || name.value || tier.value || policyNumber.value || validFrom.value || validTo.value || premium.value !== undefined)
-  return name.value !== props.plan.name || tier.value !== (props.plan.tier ?? '') || policyNumber.value !== (props.plan.policy_number ?? '')
-    || validFrom.value !== props.plan.valid_from || validTo.value !== props.plan.valid_to || premium.value !== (props.plan.annual_premium ?? undefined)
+  if (!base) return Boolean(providerId.value || name.value || tier.value || policyNumber.value || validFrom.value || validTo.value || premium.value !== undefined)
+  return name.value !== base.name || tier.value !== (base.tier ?? '') || policyNumber.value !== (base.policy_number ?? '')
+    || validFrom.value !== base.valid_from || validTo.value !== base.valid_to || premium.value !== (base.annual_premium ?? undefined)
 })
+const conflict = ref(false)
+
+function fill(plan: HrInsurancePlan) {
+  baseline.value = plan
+  name.value = plan.name
+  tier.value = plan.tier ?? ''
+  policyNumber.value = plan.policy_number ?? ''
+  validFrom.value = plan.valid_from
+  validTo.value = plan.valid_to
+  premium.value = plan.annual_premium ?? undefined
+}
+// After a conflict the form takes the latest plan the page loaded, then the manager repeats the edit.
+function reload() {
+  if (props.plan) fill(props.plan)
+  conflict.value = false
+  error.value = ''
+}
 
 function fieldError(field: string) {
   return serverField.value === field ? error.value : undefined
@@ -52,7 +73,7 @@ async function submit() {
   attempted.value = true
   error.value = ''
   serverField.value = ''
-  if (!name.value.trim() || !validFrom.value || !validTo.value || orderError.value || (!props.plan && !providerId.value)) return
+  if (!name.value.trim() || !validFrom.value || !validTo.value || orderError.value || (!baseline.value && !providerId.value)) return
   try {
     const body = {
       name: name.value.trim(),
@@ -62,13 +83,16 @@ async function submit() {
       valid_to: validTo.value,
       annual_premium: premium.value ?? 0,
     }
-    const plan = props.plan
-      ? await patch.mutateAsync({ id: props.plan.id, body: { ...body, revision: props.plan.revision } })
+    const base = baseline.value
+    const plan = base
+      ? await patch.mutateAsync({ id: base.id, body: { ...body, revision: base.revision } })
       : await create.mutateAsync({ ...body, provider_id: providerId.value! })
-    saved.value = true
+    if (base) fill(plan)
+    else saved.value = true
     await nextTick()
     emit('saved', plan)
   } catch (cause) {
+    conflict.value = isHrInsuranceConflict(cause)
     error.value = isHrInsuranceConflict(cause) ? t('hrInsurance.conflict') : cause instanceof ApiError ? cause.message : t('errors.generic')
     serverField.value = cause instanceof ApiError && !isHrInsuranceConflict(cause) ? cause.field ?? '' : ''
   }
@@ -78,7 +102,9 @@ async function submit() {
 <template>
   <UForm novalidate :state="{ providerId, name, tier, policyNumber, validFrom, validTo, premium }" class="liwan-form" method="post" data-testid="hr-insurance-plan-form" @submit="submit">
     <SharedUnsavedChanges :dirty="dirty" />
-    <UAlert v-if="error && !serverField" role="alert" color="error" variant="subtle" :title="error" />
+    <UAlert v-if="error && !serverField" role="alert" color="error" variant="subtle" :title="error">
+      <template v-if="conflict" #actions><UButton type="button" color="neutral" variant="outline" size="sm" :label="t('hrInsurance.reload')" data-testid="hr-insurance-plan-form-reload" @click="reload" /></template>
+    </UAlert>
     <SharedFormSection panel :title="t('hrInsurance.form.planDetails')">
       <div class="grid gap-4">
         <UFormField :label="t('hrInsurance.form.provider')" name="hr-insurance-provider" required :error="providerError" :hint="providerOptions.length ? undefined : t('hrInsurance.form.noProviders')">
