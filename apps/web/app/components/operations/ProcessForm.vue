@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { OperationStageApprovalModeSchema, type OperationProcess, type OperationProcessBody, type PersonRef } from '@liwan/contracts'
 import { joinList } from '@/utils/listFormat'
-import { createOperationSubmitGuard, executionKindLabel, operationErrorKey, processFormErrors, processStepBody } from '@/composables/operations/forms'
+import { createOperationSubmitGuard, operationErrorKey, processFormErrors, processStepBody } from '@/composables/operations/forms'
 import { useOperationExecutionKinds, useOperationReviewerResolvers } from '@/composables/operations/useOperations'
 
 const props = defineProps<{ process?: OperationProcess; disabled?: boolean; backTo: string; refresh?: () => Promise<OperationProcess>; save: (body: OperationProcessBody) => Promise<OperationProcess> }>()
 const emit = defineEmits<{ saved: [process: OperationProcess] }>()
-const { t, te } = useI18n()
+const { t } = useI18n()
 const hydrated = useHydrated()
 const name = ref(props.process?.name ?? '')
 const description = ref(props.process?.description ?? '')
@@ -51,7 +51,7 @@ function fieldError(field: string) {
   return client ? t(`operations.errors.${client}`) : server?.field === field ? server.message : undefined
 }
 const disabled = computed(() => !hydrated.value || pending.value || props.disabled)
-const kindItems = computed(() => (kinds.data.value?.items ?? []).map(value => ({ value, label: executionKindLabel(value, t, te) })))
+const kindItems = computed(() => (kinds.data.value?.items ?? []).map(kind => ({ value: kind.key, label: kind.label })))
 function move(index: number, delta: number) {
   if (disabled.value) return
   const next = index + delta

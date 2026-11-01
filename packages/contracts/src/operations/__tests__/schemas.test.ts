@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { OperationProcessSchema, OperationRequestSchema } from '../index'
 const person = { id: 7, user_id: 7, name: 'Reviewer' }
 const process = { id: 1, name: 'Approval', purpose: 'work', stage_approval_mode: 'per_stage', description: '', state: 'published', revision: 1, execution_kind: 'approval', steps: [{ name: 'Review', reviewer_ids: [7], reviewers: [person], ineligible_reviewer_ids: [], resolver: null, resolver_label: null }] }
-const request = { id: 2, name: 'Request', purpose: 'work', description: '', target: null, process: { id: 1, name: 'Approval' }, process_revision: 1, state: 'pending', revision: 1, cycle: 1, requester: person, created_at: '2026-10-14T00:00:00Z', execution_count: 0, steps: [{ sequence: 1, name: 'Review', resolver: null, reviewers: [person], status: 'pending' }], events: [], attachments: [], allowed_actions: { edit: false, submit: false, approve: true, reject: true, return: true, withdraw: false } }
+const request = { id: 2, name: 'Request', purpose: 'work', description: '', target: null, process: { id: 1, name: 'Approval' }, process_revision: 1, state: 'pending', revision: 1, cycle: 1, requester: person, created_at: '2026-10-14T00:00:00Z', execution_count: 0, steps: [{ sequence: 1, name: 'Review', resolver: null, resolver_label: null, reviewers: [person], status: 'pending' }], events: [], attachments: [], allowed_actions: { edit: false, submit: false, approve: true, reject: true, return: true, withdraw: false } }
 describe('operation wire contracts', () => {
   it('requires explicit purpose on process and request responses', () => {
     for (const purpose of ['work', 'employee']) {

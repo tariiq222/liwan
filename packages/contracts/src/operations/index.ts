@@ -8,7 +8,7 @@ const Revision = z.number().int().nonnegative()
 const Ref = z.object({ id: Id, name: z.string() }).strict()
 export const OperationTargetSchema = Ref.extend({ href: z.string() }).strict()
 export const OperationTargetsSchema = z.object({ items: z.array(OperationTargetSchema), total: Revision }).strict()
-export const OperationExecutionKindsSchema = z.object({ items: z.array(z.string()), total: Revision }).strict()
+export const OperationExecutionKindsSchema = z.object({ items: z.array(z.object({ key: z.string(), label: z.string() }).strict()), total: Revision }).strict()
 export const OperationReviewerResolversSchema = z.object({ items: z.array(z.object({ key: z.string().min(1), label: z.string() }).strict()), total: Revision }).strict()
 export const OperationStateSchema = z.enum(['draft', 'pending', 'returned', 'rejected', 'withdrawn', 'done'])
 export const OperationPurposeSchema = z.enum(['work', 'employee'])
@@ -38,7 +38,7 @@ export const OperationRequestSummarySchema = z.object({
 export const OperationRequestSchema = OperationRequestSummarySchema.extend({
   description: z.string(),
   target: OperationTargetSchema.nullable(),
-  steps: z.array(z.object({ sequence: Id, name: z.string(), resolver: z.string().nullable(), reviewers: z.array(PersonRefSchema), status: z.enum(['waiting', 'pending', 'approved', 'rejected', 'cancel', 'skipped']) }).strict()),
+  steps: z.array(z.object({ sequence: Id, name: z.string(), resolver: z.string().nullable(), resolver_label: z.string().nullable(), reviewers: z.array(PersonRefSchema), status: z.enum(['waiting', 'pending', 'approved', 'rejected', 'cancel', 'skipped']) }).strict()),
   events: z.array(z.object({ id: Id, kind: z.string(), actor: PersonRefSchema, comment: z.string(), cycle: Revision, created_at: z.string() }).strict()),
   attachments: z.array(z.object({ id: Id, name: z.string(), mimetype: z.string(), url: z.string() }).strict()),
   allowed_actions: OperationActionsSchema,

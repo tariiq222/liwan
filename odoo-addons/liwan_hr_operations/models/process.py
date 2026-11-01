@@ -13,7 +13,7 @@ class HrOperationsProcess(models.Model):
         kinds = super()._operations_execution_kinds()
         service = self.env['liwan.entitlement.service']
         if service._liwan_feature_write('hr.enabled') and service._liwan_feature_write('operations.enabled'):
-            return (*kinds, KIND)
+            return (*kinds, {'key': KIND, 'label': self.env._('Leave request')})
         return kinds
 
     @api.model

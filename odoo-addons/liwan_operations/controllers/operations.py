@@ -65,7 +65,7 @@ class OperationsController(http.Controller):
     @requires_feature('operations.enabled', operation='read')
     def execution_kinds(self, **_):
         require_capabilities('operations.processes.manage')
-        items = list(request.env['liwan.operation.process']._operations_execution_kinds())
+        items = [{'key': kind['key'], 'label': kind['label']} for kind in request.env['liwan.operation.process']._operations_execution_kinds()]
         return {'items': items, 'total': len(items)}
 
     @http.route('/api/v1/operations/processes/reviewer-resolvers', type='json2', auth='user', methods=['GET'], readonly=True)
@@ -74,7 +74,7 @@ class OperationsController(http.Controller):
     def reviewer_resolvers(self, **_):
         require_capabilities('operations.processes.manage')
         kind = request.httprequest.args.get('execution_kind', '')
-        if kind not in request.env['liwan.operation.process']._operations_execution_kinds():
+        if kind not in request.env['liwan.operation.process']._operations_execution_kind_keys():
             raise ApiError(422, 'invalid', 'Invalid execution kind.', field='execution_kind')
         items = [{'key': entry['key'], 'label': entry['label']} for entry in request.env['liwan.operation.process']._operations_reviewer_resolvers(kind)]
         return {'items': items, 'total': len(items)}

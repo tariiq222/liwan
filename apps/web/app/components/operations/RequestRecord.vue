@@ -96,7 +96,7 @@ const eventKinds = ['submitted', 'approved', 'rejected', 'returned', 'withdrawn'
       </SharedRecordSection>
       <SharedRecordSection variant="panel" :title="t('operations.stages')">
         <p v-if="!record.steps.length" class="text-sm text-muted">{{ t('operations.stagesAfterSubmit') }}</p>
-        <ol v-else class="space-y-3"><OperationStepRow v-for="step in record.steps" :key="step.sequence" :number="step.sequence" :name="step.name" :reviewers="step.reviewers" :status="step.status" /></ol>
+        <ol v-else class="space-y-3"><OperationStepRow v-for="step in record.steps" :key="step.sequence" :number="step.sequence" :name="step.name" :reviewers="step.reviewers" :status="step.status" :resolver-label="step.resolver_label" /></ol>
       </SharedRecordSection>
       <SharedRecordSection variant="panel" :title="t('operations.attachments')">
         <div class="space-y-3">

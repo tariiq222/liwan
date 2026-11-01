@@ -38,7 +38,12 @@ class OperationProcess(models.Model):
 
     @api.model
     def _operations_execution_kinds(self):
-        return ('approval',)
+        """The execution kinds a process may have, as ``{'key', 'label'}`` entries; bridges extend it through super()."""
+        return ({'key': 'approval', 'label': self.env._('Approve request')},)
+
+    @api.model
+    def _operations_execution_kind_keys(self):
+        return tuple(kind['key'] for kind in self._operations_execution_kinds())
 
     def _operations_targets(self, q):
         return []
@@ -122,7 +127,7 @@ class OperationProcess(models.Model):
         stage_approval_mode = self.stage_approval_mode if stage_approval_mode is None else stage_approval_mode
         if stage_approval_mode not in dict(STAGE_APPROVAL_MODES):
             raise ValidationError(self.env._('Choose a valid stage approval mode.'))
-        if execution_kind not in self._operations_execution_kinds():
+        if execution_kind not in self._operations_execution_kind_keys():
             raise ValidationError(self.env._('This execution action is not available.'))
         if not isinstance(steps, list) or not 1 <= len(steps) <= 20:
             raise ValidationError(self.env._('Add between one and twenty approval stages.'))

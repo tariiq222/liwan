@@ -44,12 +44,6 @@
     "stageOrderHelp": "Stages are reviewed in order. One assigned reviewer approves each stage; the requester cannot review their own request.",
     "stagesAfterSubmit": "Approval stages appear when the request is submitted.",
     "result": "Approval outcome",
-    "executionKinds": {
-      "approval": "Approve request",
-      "hr_leave": "Leave request",
-      "pmo_completion": "Complete a project task",
-      "other": "Related procedure"
-    },
     "editPublishedNotice": "Saving changes returns the procedure to draft for publication. Submitted requests keep their existing stages and reviewers.",
     "cancel": "Cancel",
     "create": "Create",

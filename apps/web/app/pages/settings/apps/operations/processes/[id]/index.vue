@@ -3,16 +3,17 @@ import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import OperationStepRow from '@/components/operations/OperationStepRow.vue'
 import { operationsStateTone } from '@/composables/operations/state'
 import { statusTag } from '@liwan/ui/app/utils/pageHeaderTag'
-import { useOperationProcess, useOperationProcessMutation } from '@/composables/operations/useOperations'
+import { useOperationExecutionKinds, useOperationProcess, useOperationProcessMutation } from '@/composables/operations/useOperations'
 import { createOperationSubmitGuard, executionKindLabel, operationErrorKey, operationId } from '@/composables/operations/forms'
 const route = useRoute()
 const router = useRouter()
 const sourcePaths = useRecordListPaths(['/settings/apps/operations/processes'])
-const { t, te } = useI18n()
+const { t } = useI18n()
 const { can } = useAccess()
 const hydrated = useHydrated()
 const id = computed(() => operationId(route.params.id))
 const query = useOperationProcess(id)
+const kinds = useOperationExecutionKinds()
 const process = query.data
 const mutation = useOperationProcessMutation()
 const gate = createOperationSubmitGuard()
@@ -56,7 +57,7 @@ async function refresh() { if (disabled.value) return; selected.value = null; er
     </template>
     <template v-if="process" #aside>
       <SharedPropertiesPanel>
-        <SharedPropertyRow :label="t('operations.result')" :value="executionKindLabel(process.execution_kind, t, te)" />
+        <SharedPropertyRow :label="t('operations.result')" :value="executionKindLabel(kinds.data.value?.items, process.execution_kind)" />
         <SharedPropertyRow :label="t('operations.stages')" :value="t('operations.stageCount', { count: process.steps.length }, process.steps.length)" />
         <SharedPropertyRow :label="t('operations.stageApprovalMode')" :value="t(`operations.stageApprovalModes.${process.stage_approval_mode}`)" />
       </SharedPropertiesPanel>

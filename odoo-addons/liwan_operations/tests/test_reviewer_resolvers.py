@@ -44,7 +44,7 @@ class TestReviewerResolvers(LiwanApiCase):
         test = self
 
         def kinds(this):
-            return ('approval', KIND)
+            return ({'key': 'approval', 'label': 'Approve'}, {'key': KIND, 'label': 'Test kind'})
 
         def resolvers(this, execution_kind):
             return ({'key': RESOLVER, 'label': 'Test approver', 'capability': test.capability, **({'skip_when_empty': True} if test.skippable else {})},) if execution_kind == KIND else ()
@@ -201,7 +201,8 @@ class TestReviewerResolvers(LiwanApiCase):
             process.action_configure(0, 'Invalid', '', 'approval', [{'name': 'A', 'resolver': RESOLVER}])
         dumped = dump_process(self._process())['steps']
         self.assertEqual([(s['resolver'], s['resolver_label'], s['reviewer_ids']) for s in dumped], [(RESOLVER, 'Test approver', []), (None, None, [self.reviewer.id])])
-        self.assertEqual(dump_request(self._pending(self._process()))['steps'][0]['resolver'], RESOLVER)
+        steps = dump_request(self._pending(self._process()))['steps']
+        self.assertEqual((steps[0]['resolver'], steps[0]['resolver_label'], steps[1]['resolver_label']), (RESOLVER, 'Test approver', None))
 
     def test_step_needs_named_reviewers_or_a_resolver(self):
         process = self._process()

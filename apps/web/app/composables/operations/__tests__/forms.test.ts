@@ -30,13 +30,12 @@ describe('operation form and route behavior', () => {
     expect(processFormErrors({ name: 'اعتماد', steps: [{ name: 'مدير', reviewer_ids: [], resolver: 'hr_leave_approver' }] })).toEqual({})
     expect(processFormErrors({ name: 'اعتماد', steps: [{ name: 'مدير', reviewer_ids: [], resolver: null }] })).toEqual({ 'steps.0.reviewer_ids': 'reviewersRequired' })
   })
-  it('sends a resolver stage with no named users and labels only the kinds the locale knows', () => {
+  it('sends a resolver stage with no named users and labels a kind from the server list', () => {
     expect(processStepBody({ name: ' مدير ', reviewer_ids: [7, 7], resolver: null })).toEqual({ name: 'مدير', reviewer_ids: [7], resolver: null })
     expect(processStepBody({ name: 'مدير', reviewer_ids: [7] })).toEqual({ name: 'مدير', reviewer_ids: [7], resolver: null })
     expect(processStepBody({ name: 'مدير', reviewer_ids: [7], resolver: 'hr_leave_approver' })).toEqual({ name: 'مدير', reviewer_ids: [], resolver: 'hr_leave_approver' })
-    const known = new Set(['operations.executionKinds.approval'])
-    const label = (kind: string) => executionKindLabel(kind, key => key, key => known.has(key))
-    expect([label('approval'), label('hr_leave')]).toEqual(['operations.executionKinds.approval', 'operations.executionKinds.other'])
+    const kinds = [{ key: 'approval', label: 'اعتماد طلب' }]
+    expect([executionKindLabel(kinds, 'approval'), executionKindLabel(kinds, 'hr_leave'), executionKindLabel(undefined, 'approval')]).toEqual(['اعتماد طلب', 'hr_leave', 'approval'])
   })
   it('blocks simultaneous submits and permits explicit retry after failure', async () => {
     const gate = createOperationSubmitGuard()

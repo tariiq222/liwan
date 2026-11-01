@@ -32,8 +32,9 @@ export function processFormErrors(form: { name: string; steps: { name: string; r
 export function processStepBody(step: { name: string; reviewer_ids: number[]; resolver?: string | null }) {
   return { name: step.name.trim(), reviewer_ids: step.resolver ? [] : [...new Set(step.reviewer_ids)], resolver: step.resolver ?? null }
 }
-export function executionKindLabel(kind: string, t: (key: string) => string, te: (key: string) => boolean) {
-  return t(`operations.executionKinds.${te(`operations.executionKinds.${kind}`) ? kind : 'other'}`)
+// The server names each kind; a kind the tenant can no longer use (its application is off) keeps its key.
+export function executionKindLabel(kinds: readonly { key: string; label: string }[] | undefined, kind: string) {
+  return kinds?.find(item => item.key === kind)?.label ?? kind
 }
 export function createOperationSubmitGuard() {
   const pending = ref(false)
