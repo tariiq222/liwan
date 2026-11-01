@@ -29,6 +29,8 @@ export const FinanceInvoiceSchema = z.object({
   journal: FinanceRefSchema,
   invoice_date: day.nullable(),
   invoice_date_due: day.nullable(),
+  /** The term that derives the due date; null when the due date was typed. */
+  payment_term: FinanceRefSchema.nullable(),
   currency,
   amount_untaxed: z.number(),
   amount_tax: z.number(),

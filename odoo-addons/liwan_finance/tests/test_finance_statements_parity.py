@@ -20,7 +20,8 @@ LEDGER_PERIODS = (
 AGED_DATES = (date(2026, 7, 15), date(2026, 10, 18), date(2026, 10, 20), date(2026, 11, 30), date(2027, 6, 30))
 RECEIVABLE, PAYABLE = 'asset_receivable', 'liability_payable'
 QUERIES_OF_A_LEDGER_PAGE = 6
-QUERIES_OF_AN_AGED_BALANCE = 14
+# 14 plus the read of the company's ancestors, whose chart a branch shares (#200).
+QUERIES_OF_AN_AGED_BALANCE = 15
 
 
 @tagged('post_install', '-at_install', 'liwan')

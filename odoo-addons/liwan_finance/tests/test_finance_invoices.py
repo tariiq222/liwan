@@ -9,7 +9,7 @@ from .common import MANAGER_LOGIN, MANAGER_PASSWORD, LiwanFinanceCase
 INVOICES = '/api/v1/finance/invoices'
 INVOICE_KEYS = {
     'id', 'name', 'move_type', 'state', 'payment_state', 'partner', 'journal', 'invoice_date',
-    'invoice_date_due', 'currency', 'amount_untaxed', 'amount_tax', 'amount_total', 'amount_residual',
+    'invoice_date_due', 'payment_term', 'currency', 'amount_untaxed', 'amount_tax', 'amount_total', 'amount_residual',
 }
 LINE_KEYS = {
     'id', 'name', 'account', 'quantity', 'price_unit', 'discount', 'taxes', 'price_subtotal', 'price_total',

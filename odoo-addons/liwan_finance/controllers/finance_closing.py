@@ -78,7 +78,7 @@ def _plan(company, year):
     balances = _pnl_balances(company, year_lines)
     lock = company.fiscalyear_lock_date
     retained_earnings = request.env['account.account'].search([
-        ('company_ids', 'in', company.id), ('account_type', '=', 'equity_unaffected'),
+        ('company_ids', 'parent_of', company.id), ('account_type', '=', 'equity_unaffected'),
     ], limit=1)
     locked = bool(lock) and lock >= dates['date_to']
     return {

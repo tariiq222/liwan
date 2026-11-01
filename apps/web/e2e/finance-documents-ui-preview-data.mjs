@@ -46,6 +46,7 @@ function document(id, moveType, state, paymentState, partner, lines, extra = {})
     journal: sale ? SALES : PURCHASES,
     invoice_date: '2026-09-15',
     invoice_date_due: '2026-10-15',
+    payment_term: null,
     currency: CURRENCY,
     amount_untaxed: untaxed,
     amount_tax: total - untaxed,

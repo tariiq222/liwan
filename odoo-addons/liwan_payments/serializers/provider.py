@@ -1,6 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 
 
+def _default_first(country):
+    """The allowed country codes with the default one first, so the merchant's own country opens the list."""
+    return [country['default'], *(code for code in country['codes'] if code != country['default'])]
+
+
 def dump_provider(provider):
     """Whitelist the wire shape. Credential values never leave the database: only their presence."""
     country = provider._liwan_payments_definition().get('account_country')
@@ -15,6 +20,6 @@ def dump_provider(provider):
         ],
         'configured': provider._liwan_payments_configured(),
         'methods': provider.payment_method_ids.filtered('active').mapped('code'),
-        'account_country': provider._liwan_payments_account_country(),
-        'account_country_options': list(country['codes']) if country else [],
+        'account_country': provider._liwan_payments_account_country() or (country['default'] if country else None),
+        'account_country_options': _default_first(country) if country else [],
     }

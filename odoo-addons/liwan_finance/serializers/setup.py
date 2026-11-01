@@ -16,7 +16,7 @@ def _dump_chart(company):
     return {
         'loaded': bool(company.chart_template),
         'template': company.chart_template or None,
-        'accounts_count': env['account.account'].search_count([('company_ids', 'in', company.ids)]),
+        'accounts_count': env['account.account'].search_count([('company_ids', 'parent_of', company.ids)]),
     }
 
 

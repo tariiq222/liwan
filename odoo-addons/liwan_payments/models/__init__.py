@@ -2,6 +2,7 @@
 from . import (
     access_service,
     account_move,
+    account_tax,
     feature_registry,
     order_service,
     payer_service,

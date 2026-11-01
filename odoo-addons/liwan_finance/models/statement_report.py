@@ -109,7 +109,7 @@ class LiwanFinanceStatementReport(models.AbstractModel):
         company's unaffected earnings account, which is listed even when it has no item of its own. Asking for
         that account alone gives the same row as the full ledger (the OCA engine leaves the add-back out then)."""
         earnings = account or self.env['account.account'].search([
-            ('company_ids', 'in', company.ids), ('account_type', '=', 'equity_unaffected'),
+            ('company_ids', 'parent_of', company.ids), ('account_type', '=', 'equity_unaffected'),
         ], limit=1)
         if not earnings:
             return
@@ -159,7 +159,7 @@ class LiwanFinanceStatementReport(models.AbstractModel):
         ``date_at`` still counts the amount as open, so the few items it touched are aged one by one.
         """
         accounts = self.env['account.account'].search([
-            ('account_type', '=', account_type), ('company_ids', 'in', company.ids),
+            ('account_type', '=', account_type), ('company_ids', 'parent_of', company.ids),
         ])
         base = self._liwan_ledger_domain(company, only_posted, partner) + [
             ('account_id', 'in', accounts.ids), ('date', '<=', date_at),

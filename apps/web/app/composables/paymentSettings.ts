@@ -1,13 +1,15 @@
-import { PAYMENT_ORDER_EXPIRY_MINUTES, type PaymentSettings, type PaymentSettingsUpdate } from '@liwan/contracts'
+import { PAYMENT_ORDER_EXPIRY_MINUTES, type PaymentSettings, type PaymentSettingsUpdate, type TaxMode } from '@liwan/contracts'
 
 /** What the orders card edits. The expiry is null while its input is empty. */
 export interface OrderSettingsDraft {
   unpaid_order_expiry_minutes: number | null
   invoice_when_paid: boolean
+  tax_mode: TaxMode
+  system_admin_links: boolean
 }
 
 export function draftOfSettings(settings: PaymentSettings): OrderSettingsDraft {
-  return { unpaid_order_expiry_minutes: settings.unpaid_order_expiry_minutes, invoice_when_paid: settings.invoice_when_paid }
+  return { unpaid_order_expiry_minutes: settings.unpaid_order_expiry_minutes, invoice_when_paid: settings.invoice_when_paid, tax_mode: settings.tax_mode, system_admin_links: settings.system_admin_links }
 }
 
 /** Whether an expiry is a whole number of minutes the server accepts. */
@@ -26,6 +28,8 @@ export function settingsUpdate(saved: PaymentSettings, draft: OrderSettingsDraft
     update.unpaid_order_expiry_minutes = draft.unpaid_order_expiry_minutes
   }
   if (draft.invoice_when_paid !== saved.invoice_when_paid) update.invoice_when_paid = draft.invoice_when_paid
+  if (draft.tax_mode !== saved.tax_mode) update.tax_mode = draft.tax_mode
+  if (draft.system_admin_links !== saved.system_admin_links) update.system_admin_links = draft.system_admin_links
   return update
 }
 

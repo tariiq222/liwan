@@ -119,6 +119,15 @@ class TestFinanceZatcaOnboarding(LiwanZatcaCase):
         connection = self._connection()
         self.assertEqual((connection.state, connection.status_message), ('pending', 'ZATCA sandbox: 1 of 2 sales journals onboarded'))
 
+    def test_a_company_without_its_address_is_refused_before_zatca_is_asked(self):
+        self.company.write({'street': False, 'city': False})
+        result = self.onboard()
+        self.assertRefused(result, 422, 'company_profile_incomplete')
+        self.assertEqual(result.json()['details']['missing'], ['street', 'city'])
+        self.assertNotIn('Please set', result.json()['message'])
+        self.assertEqual(self.zatca.endpoints(), [])
+        self.assertFalse(self.sale_journal._l10n_sa_ready_to_submit_einvoices())
+
     def test_a_rejected_otp_is_422_zatca_rejected_and_changes_nothing(self):
         self.zatca.answers['compliance'] = answer(400, {'errors': [{'code': 'Invalid-OTP', 'message': 'Invalid OTP'}]})
         result = self.onboard()

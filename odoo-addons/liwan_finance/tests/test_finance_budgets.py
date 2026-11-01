@@ -313,15 +313,15 @@ class TestFinanceBudgets(LiwanFinanceOcaCase):
             ({**base, 'account_id': self.other_expense.id}, 'account_id'),
             ({**base, 'account_id': 999999999}, 'account_id'),
             ({**base, 'analytic_account_id': self.other_analytic.id}, 'analytic_account_id'),
-            ({**base, 'date_from': '2025-12-31'}, None),
-            ({**base, 'date_from': '2026-05-01', 'date_to': '2026-04-01'}, None),
+            ({**base, 'date_from': '2025-12-31'}, 'date_from', 'line_outside_budget'),
+            ({**base, 'date_from': '2026-05-01', 'date_to': '2026-04-01'}, 'date_to', 'invalid_period'),
             ({**base, 'debit': 5}, 'debit'),
         )
-        for body, field in cases:
+        for body, field, *code in cases:
             with self.subTest(body=body):
                 result = self.api('POST', url, json=body)
                 self.assertEqual(result.status_code, 422, result.text)
-                self.assertEqual(result.json()['code'], 'invalid')
+                self.assertEqual(result.json()['code'], code[0] if code else 'invalid')
                 if field:
                     self.assertEqual(result.json().get('field'), field)
         self.assertEqual(self.api('GET', f'{BUDGETS}/{budget["id"]}').json()['line_count'], 0)
@@ -332,7 +332,8 @@ class TestFinanceBudgets(LiwanFinanceOcaCase):
         result = self.api('POST', f'{BUDGETS}/{budget["id"]}/lines', json={
             'account_id': self.expense.id, 'amount': 10, 'date_from': '2026-06-30', 'date_to': '2026-12-31',
         })
-        self.assertRefused(result, 422, 'invalid')
+        self.assertRefused(result, 422, 'budget_line_overlap', 'date_from')
+        self.assertNotIn('overlaps', result.text)
         self.add_line(budget, self.expense, 10, date_from='2026-07-01', date_to='2026-12-31')
 
     # --- states ----------------------------------------------------------------------------------------

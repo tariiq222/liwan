@@ -115,7 +115,24 @@ def parse_fiscal_vals(payload, company):
             422, 'fiscal_year_has_posted_entries',
             'the fiscal year end cannot be changed after journal entries have been posted',
         )
+    _require_no_unreconciled_lines(vals, company)
     return vals
+
+
+def _require_no_unreconciled_lines(vals, company):
+    """A fiscal-year lock needs every bank statement line up to it reconciled; stock refuses with an English sentence, this names the count."""
+    lock = vals.get('fiscalyear_lock_date')
+    if not lock:
+        return
+    count = request.env['account.bank.statement.line'].search_count([
+        ('company_id', 'child_of', company.ids), ('is_reconciled', '=', False), ('date', '<=', lock),
+        ('move_id.state', 'in', ('draft', 'posted')),
+    ])
+    if count:
+        raise ApiError(
+            422, 'unreconciled_bank_lines', 'bank statement lines up to the lock date are not reconciled',
+            field='fiscalyear_lock_date', details={'count': count},
+        )
 
 
 class FinanceSetupController(http.Controller):

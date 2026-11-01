@@ -22,7 +22,7 @@ class TestPaymentsSettings(LiwanOrderCase):
         self.login_admin()
         self.assertEqual(self.api('GET', SETTINGS).json(), {
             'unpaid_order_expiry_minutes': 60, 'invoice_when_paid': True, 'refund_policy': 'full', 'refund_amounts': 'due',
-            'revision': 0,
+            'tax_mode': 'included', 'system_admin_links': False, 'revision': 0,
         })
         saved = self.patch(
             revision=0, unpaid_order_expiry_minutes=30, invoice_when_paid=False, refund_policy='none', refund_amounts='any',
@@ -30,7 +30,7 @@ class TestPaymentsSettings(LiwanOrderCase):
         self.assertEqual(saved.status_code, 200)
         self.assertEqual(saved.json(), {
             'unpaid_order_expiry_minutes': 30, 'invoice_when_paid': False, 'refund_policy': 'none', 'refund_amounts': 'any',
-            'revision': 1,
+            'tax_mode': 'included', 'system_admin_links': False, 'revision': 1,
         })
         self.assertEqual(self.env['ir.config_parameter'].sudo().get_param(AUTOMATIC_INVOICE), 'False')
         before = fields.Datetime.now()
@@ -56,6 +56,14 @@ class TestPaymentsSettings(LiwanOrderCase):
             with self.subTest(field=field):
                 response = self.patch(**body)
                 self.assertEqual((response.status_code, response.json()['field']), (422, field))
+
+    def test_a_revision_alone_changes_nothing_and_is_refused(self):
+        self.login_admin()
+        before = self.api('GET', SETTINGS).json()['revision']
+        response = self.patch(revision=before)
+        self.assertEqual((response.status_code, response.json()['code']), (422, 'invalid'))
+        self.assertEqual(response.json()['message'], 'at least one field is required')
+        self.assertEqual(self.api('GET', SETTINGS).json()['revision'], before)
 
     def test_only_a_settings_manager_reads_or_changes_them(self):
         new_test_user(

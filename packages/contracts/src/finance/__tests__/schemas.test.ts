@@ -27,6 +27,7 @@ const INVOICE = {
   journal: { id: 1, name: 'Customer Invoices' },
   invoice_date: '2026-10-18',
   invoice_date_due: null,
+  payment_term: null,
   currency: 'SAR',
   amount_untaxed: 1000,
   amount_tax: 150,

@@ -48,6 +48,17 @@ class TestFinanceLookups(LiwanFinanceWriteCase):
         english = self.api('GET', COUNTRIES + '?q=SA').json()['items']
         self.assertIn('Saudi Arabia', [item['name'] for item in english])
 
+    def test_the_screen_language_wins_over_the_stored_one(self):
+        self.env['res.lang']._activate_lang('ar_001')
+        self.env.ref('base.sa').with_context(lang='ar_001').name = 'المملكة العربية السعودية'
+        arabic = self.api('GET', COUNTRIES + '?q=SA&lang=ar').json()['items']
+        self.assertIn('المملكة العربية السعودية', [item['name'] for item in arabic])
+        english = self.api('GET', COUNTRIES + '?q=SA&lang=en').json()['items']
+        self.assertIn('Saudi Arabia', [item['name'] for item in english])
+        self.assertRefused(self.api('GET', COUNTRIES + '?lang=fr'), 422, 'invalid', 'lang')
+        us = self.env.ref('base.us')
+        self.assertEqual(self.api('GET', f'{COUNTRIES}/{us.id}/states?lang=ar&limit=1').status_code, 200)
+
     def test_either_partners_read_or_setup_read_opens_the_lookups(self):
         for login, keys, allowed in (
             ('finance_lookup_partners', ['finance.partners.read'], True),

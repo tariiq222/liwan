@@ -5,6 +5,11 @@ from odoo.exceptions import ValidationError
 SANDBOX_API_MODE = 'sandbox'
 SAUDI_COUNTRY_CODE = 'SA'
 GLOBAL_TAX_ROUNDING = 'round_globally'
+# A branch shares the chart of accounts of its root and owns its journals: one of each of these kinds, like the root's first.
+BRANCH_JOURNAL_TYPES = ('sale', 'purchase', 'general', 'bank', 'cash')
+# Stock names the outstanding receipts and payments accounts of a chart by these xml ids, prefixed by the root company id.
+OUTSTANDING_RECEIPTS = 'account_journal_payment_debit_account_id'
+OUTSTANDING_PAYMENTS = 'account_journal_payment_credit_account_id'
 
 
 class ResCompany(models.Model):
@@ -20,7 +25,37 @@ class ResCompany(models.Model):
             )
             if country.code == SAUDI_COUNTRY_CODE:
                 vals['tax_calculation_rounding_method'] = GLOBAL_TAX_ROUNDING
-        return super().create(vals_list)
+        companies = super().create(vals_list)
+        companies._liwan_provision_branch_journals()
+        return companies
+
+    def _liwan_provision_branch_journals(self):
+        """Give each branch without journals its own, modelled on its root's, over the root's shared chart.
+
+        Stock loads only the company record into a branch and leaves it to use its parent's journals, which the
+        branch's own finance staff cannot read, so a branch-only user could not invoice or pay. The sale and purchase
+        journals keep the root's default account; bank and cash journals get a liquidity account of their own, as
+        stock makes for any new bank journal, and their payment method lines point at the root's outstanding accounts.
+        """
+        Journal = self.env['account.journal']
+        for branch in self.filtered('parent_id'):
+            root = branch.root_id
+            if Journal.with_context(active_test=False).search_count([('company_id', '=', branch.id)], limit=1):
+                continue
+            receipts = self.env.ref(f'account.{root.id}_{OUTSTANDING_RECEIPTS}', raise_if_not_found=False)
+            payments = self.env.ref(f'account.{root.id}_{OUTSTANDING_PAYMENTS}', raise_if_not_found=False)
+            for journal_type in BRANCH_JOURNAL_TYPES:
+                source = Journal.search([('company_id', '=', root.id), ('type', '=', journal_type)], order='sequence, id', limit=1)
+                if not source:
+                    continue
+                values = {'name': source.name, 'code': source.code, 'type': journal_type, 'company_id': branch.id}
+                if journal_type in ('sale', 'purchase'):
+                    values['default_account_id'] = source.default_account_id.id
+                journal = Journal.with_company(branch).create(values)
+                for line in journal.inbound_payment_method_line_ids.filtered(lambda line: not line.payment_account_id and receipts):
+                    line.payment_account_id = receipts
+                for line in journal.outbound_payment_method_line_ids.filtered(lambda line: not line.payment_account_id and payments):
+                    line.payment_account_id = payments
 
     @api.model
     def _liwan_company_profile_extensions(self):

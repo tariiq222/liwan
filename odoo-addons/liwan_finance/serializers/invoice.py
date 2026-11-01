@@ -16,7 +16,7 @@ from odoo.addons.liwan_api.serializers.common import iso
 
 WRITABLE_MOVE_TYPES = ('out_invoice', 'in_invoice', 'out_refund', 'in_refund')
 LINE_FIELDS = frozenset({'name', 'quantity', 'price_unit', 'discount', 'tax_ids', 'account_id', 'analytic_distribution'})
-EDITABLE_FIELDS = frozenset({'partner_id', 'invoice_date', 'invoice_date_due', 'currency', 'ref', 'lines'})
+EDITABLE_FIELDS = frozenset({'partner_id', 'invoice_date', 'invoice_date_due', 'payment_term_id', 'currency', 'ref', 'lines'})
 # The journal is chosen when the document is created; moving a draft to another journal would renumber it.
 CREATE_FIELDS = EDITABLE_FIELDS | {'move_type', 'journal_id'}
 
@@ -32,6 +32,7 @@ def dump_invoice(move):
         'journal': dump_ref(move.journal_id),
         'invoice_date': dump_day(move.invoice_date),
         'invoice_date_due': dump_day(move.invoice_date_due),
+        'payment_term': dump_ref(move.invoice_payment_term_id),
         'currency': move.currency_id.name,
         'amount_untaxed': move.amount_untaxed,
         'amount_tax': move.amount_tax,
@@ -122,6 +123,8 @@ def _parse_editable(payload):
     for field in ('invoice_date', 'invoice_date_due'):
         if field in payload:
             parsed[field] = None if payload[field] is None else parse_day(payload[field], field)
+    if 'payment_term_id' in payload:
+        parsed['payment_term_id'] = None if payload['payment_term_id'] is None else parse_id(payload['payment_term_id'], 'payment_term_id')
     if 'currency' in payload:
         parsed['currency'] = parse_text(payload['currency'], 'currency', required=True).upper()
     if 'ref' in payload:

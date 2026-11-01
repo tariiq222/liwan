@@ -2,7 +2,9 @@
 from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_payments.models.payments_settings import (
     DEFAULT_EXPIRY_MINUTES,
+    DEFAULT_TAX_MODE,
     EXPIRY_RANGE,
+    TAX_MODES,
 )
 from odoo.addons.liwan_payments.models.refund_policy import (
     COMPANY_POLICIES,
@@ -11,10 +13,11 @@ from odoo.addons.liwan_payments.models.refund_policy import (
     REFUND_AMOUNTS,
 )
 
-WRITABLE = {'revision', 'unpaid_order_expiry_minutes', 'invoice_when_paid', 'refund_policy', 'refund_amounts'}
+WRITABLE = {'revision', 'unpaid_order_expiry_minutes', 'invoice_when_paid', 'refund_policy', 'refund_amounts', 'tax_mode', 'system_admin_links'}
 CHOICES = {
     'refund_policy': {value for value, _label in COMPANY_POLICIES},
     'refund_amounts': {value for value, _label in REFUND_AMOUNTS},
+    'tax_mode': {value for value, _label in TAX_MODES},
 }
 
 
@@ -25,6 +28,8 @@ def dump_settings(row, invoice_when_paid):
         'invoice_when_paid': invoice_when_paid,
         'refund_policy': row.refund_policy if row else DEFAULT_POLICY,
         'refund_amounts': row.refund_amounts if row else DEFAULT_AMOUNTS,
+        'tax_mode': row.tax_mode if row else DEFAULT_TAX_MODE,
+        'system_admin_links': row.system_admin_links if row else False,
         'revision': row.revision if row else 0,
     }
 
@@ -37,6 +42,8 @@ def parse_settings(payload):
     revision = payload.get('revision')
     if type(revision) is not int or revision < 0:
         raise ApiError(422, 'invalid', 'revision must be a nonnegative integer', field='revision')
+    if not set(payload) - {'revision'}:
+        raise ApiError(422, 'invalid', 'at least one field is required')
     parsed = {'revision': revision, 'values': {}}
     if 'unpaid_order_expiry_minutes' in payload:
         minutes = payload['unpaid_order_expiry_minutes']
@@ -50,7 +57,13 @@ def parse_settings(payload):
                 raise ApiError(422, 'invalid', 'must be one of %s' % ', '.join(sorted(choices)), field=field)
             parsed['values'][field] = payload[field]
     if 'invoice_when_paid' in payload:
-        if type(payload['invoice_when_paid']) is not bool:
-            raise ApiError(422, 'invalid', 'must be true or false', field='invoice_when_paid')
-        parsed['invoice_when_paid'] = payload['invoice_when_paid']
+        parsed['invoice_when_paid'] = _boolean(payload, 'invoice_when_paid')
+    if 'system_admin_links' in payload:
+        parsed['values']['system_admin_links'] = _boolean(payload, 'system_admin_links')
     return parsed
+
+
+def _boolean(payload, field):
+    if type(payload[field]) is not bool:
+        raise ApiError(422, 'invalid', 'must be true or false', field=field)
+    return payload[field]

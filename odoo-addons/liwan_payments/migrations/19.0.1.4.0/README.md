@@ -1,0 +1,1 @@
+Adds account.tax.liwan_copy_of_id (nullable, with a unique index on active rows per copy kind). Existing price-included copies made by an earlier build have no link and are not reused: a new linked copy is made on first use.
