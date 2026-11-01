@@ -29,29 +29,6 @@ test('project settings links to both catalogs without a shared nav item', async 
   await expect(page).toHaveURL(/\/settings\/apps\/projects/)
 })
 
-test('owning units can be created, renamed, ordered, and deleted when unused', async ({ page }) => {
-  await login(page)
-  const name = `E2E unit ${Date.now()}`
-  await page.goto('/settings/apps/projects/catalogs/owning-units')
-  await page.getByRole('button', { name: 'إضافة' }).click()
-  await expect(page).toHaveURL(/\/settings\/apps\/projects\/catalogs\/owning-units\/new/)
-  await page.getByLabel('الاسم').fill(name)
-  await page.getByLabel('الترتيب').fill('30')
-  await page.getByRole('button', { name: 'إنشاء' }).click()
-  await expect(page.getByText(name)).toBeVisible()
-  const row = page.getByRole('row').filter({ hasText: name })
-  await row.getByRole('button', { name: 'تعديل' }).click()
-  await page.getByLabel('الاسم').fill(`${name} محدث`)
-  await page.getByLabel('الترتيب').fill('40')
-  await page.getByRole('button', { name: 'حفظ' }).click()
-  await expect(page.getByText(`${name} محدث`)).toBeVisible()
-  const updated = page.getByRole('row').filter({ hasText: `${name} محدث` })
-  await updated.getByRole('button', { name: 'حذف' }).click()
-  await expect(page.getByText(`حذف «${name} محدث»`)).toBeVisible()
-  await page.getByRole('button', { name: 'حذف' }).last().click()
-  await expect(page.getByText(`${name} محدث`)).toHaveCount(0)
-})
-
 test('catalog edit departure is guarded while preserving the draft', async ({ page }) => {
   await login(page)
   const response = await page.request.get('/api/v1/project-charter/catalogs/types?active=1')

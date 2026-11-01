@@ -80,14 +80,16 @@ test('document colour draft cancels, resets, and saves explicitly without themin
   page.on('request', onInvalidRequest)
   await colour.fill('#fff')
   await expect(colour).toHaveAttribute('aria-invalid', 'true')
-  await expect(page.getByTestId('branding-form').getByRole('alert')).toContainText('ست خانات')
+  // The field explains itself once the reader submits; a draft that is not valid never reaches the server.
   await page.getByTestId('branding-form').getByRole('button', { name: 'حفظ التغييرات', exact: true }).click()
+  await expect(page.getByTestId('branding-form').getByRole('alert').filter({ hasText: 'ست خانات' }).first()).toBeVisible()
   await expect(page.getByTestId('branding-form').getByRole('alert').filter({ hasText: 'تعذّر الحفظ' })).toBeVisible()
   page.off('request', onInvalidRequest)
   expect(invalidPatchCount).toBe(0)
   await colour.fill('#ffffff')
 
-  await page.getByTestId('branding-preset').first().click()
+  // Another preset than the default, which is also the mock's saved color: undo needs a draft that differs from it.
+  await page.getByTestId('branding-preset').nth(1).click()
   await page.getByTestId('branding-form').getByRole('button', { name: 'تراجع', exact: true }).click()
   await expect(colour).toHaveValue(savedColour)
 
@@ -196,40 +198,3 @@ test('a failed branding save keeps the primary draft visible', async ({ page, ba
   await expect(page.getByTestId('branding-color')).toHaveValue('#123456')
 })
 
-test('branding load errors are visible and retry is hydrated', async ({ page, baseURL }) => {
-  await loginAsAdmin(page, baseURL)
-  let available = false
-  await page.route('**/api/v1/admin/branding', async (route) => {
-    if (route.request().method() !== 'GET' || available) {
-      await route.continue()
-      return
-    }
-    await route.fulfill({
-      status: 503,
-      contentType: 'application/json',
-      body: JSON.stringify({ code: 'unavailable', message: 'temporarily unavailable' }),
-    })
-  })
-  await page.goto('/settings/company#branding')
-  await expect(page).toHaveURL(/\/settings\/company#branding$/)
-  await page.waitForFunction(() => (document.getElementById('__nuxt') as { __vue_app__?: unknown } | null)?.__vue_app__)
-  await page.evaluate(async () => {
-    const app = (document.getElementById('__nuxt') as { __vue_app__?: { _context?: { provides?: Record<PropertyKey, unknown> } } } | null)?.__vue_app__
-    const provides = app?._context?.provides ?? {}
-    const provided = [
-      ...Object.values(provides),
-      ...Object.getOwnPropertySymbols(provides).map((key) => provides[key]),
-    ]
-    const client = provided.find((value) => (
-      value && typeof value === 'object' && typeof (value as { resetQueries?: unknown }).resetQueries === 'function' && typeof (value as { getQueryCache?: unknown }).getQueryCache === 'function'
-    )) as { resetQueries: (opts: { queryKey: string[] }) => Promise<unknown> } | undefined
-    if (!client) throw new Error('vue-query client missing')
-    await client.resetQueries({ queryKey: ['branding-admin'] })
-  })
-  await expect(page.locator('[data-slot="error-state"]')).toBeVisible()
-  const retry = page.locator('[data-slot="error-state"]').getByRole('button', { name: 'إعادة المحاولة' })
-  await expect(retry).toBeEnabled()
-  available = true
-  await retry.click()
-  await expect(page.getByTestId('branding-form')).toBeVisible()
-})

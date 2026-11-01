@@ -80,3 +80,6 @@ tasmim6-6c-chat-info-panel.spec.ts
 tasmim6-6c-chat-layout.spec.ts
 legacy-workspace-memory.spec.ts
 tasmim6-finance.spec.ts
+branding.spec.ts
+project-charter.spec.ts
+project-charter-catalogs.spec.ts
