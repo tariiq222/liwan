@@ -145,7 +145,7 @@ test.describe('the pay page', () => {
     await page.route('**/api/v1/public/payments/invoices/2?*', route => route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ id: 2, merchant: 'ليوان', number: 'INV/2026/0002', due_date: '2026-10-31', currency: 'SAR', amount_total: 16905, amount_due: 0, status: 'paid', options: [] }),
+      body: JSON.stringify({ id: 2, merchant: 'ليوان', number: 'INV/2026/0002', due_date: '2026-10-31', currency: 'SAR', amount_untaxed: 14700, amount_tax: 2205, amount_total: 16905, amount_due: 0, status: 'paid', options: [] }),
     }))
     await payButton(page).click()
     await expect.poll(() => started).toBe(true)
@@ -251,7 +251,7 @@ test.describe('the status page', () => {
     let reads = 0
     await page.route('**/api/v1/public/payments/invoices/2?*', async (route) => {
       const status = answers[Math.min(reads++, answers.length - 1)]
-      const body = { id: 2, merchant: 'ليوان', number: 'INV/2026/0002', due_date: '2026-10-31', currency: 'SAR', amount_total: 16905, amount_due: status === 'paid' ? 0 : 16905, status, options: [] }
+      const body = { id: 2, merchant: 'ليوان', number: 'INV/2026/0002', due_date: '2026-10-31', currency: 'SAR', amount_untaxed: 14700, amount_tax: 2205, amount_total: 16905, amount_due: status === 'paid' ? 0 : 16905, status, options: [] }
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(PayableInvoiceSchema.parse(body)) })
     })
     await page.goto(STATUS(2))

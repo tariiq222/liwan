@@ -26,7 +26,7 @@ def make_archivable(env, employees):
     The settlement row is written directly: these tests are about the archive, not the settlement figures.
     """
     for employee in employees:
-        departure = employee.departure_date or date(2026, 11, 30)
+        departure = employee.departure_date or date.today()
         employee.write({'departure_date': departure})
         env['liwan.hr.payroll.eos.settlement'].create({
             'employee_id': employee.id, 'departure_date': departure, 'case': 'resignation', 'state': 'confirmed',

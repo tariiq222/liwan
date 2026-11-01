@@ -17,6 +17,7 @@
   "id": 1,
   "invoice_date": "2026-10-18",
   "invoice_date_due": "2026-10-28",
+  "payment_term": null,
   "journal": {
     "id": 3,
     "name": "Sales"

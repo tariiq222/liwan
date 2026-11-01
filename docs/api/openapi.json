@@ -18914,6 +18914,30 @@
           "payment_posted",
           "payment_allocated",
           "payment_unallocated",
+          "payment_cancelled",
+          "payment_reset_to_draft",
+          "asset_created",
+          "asset_validated",
+          "asset_depreciation_computed",
+          "bank_statement_created",
+          "bank_line_reconciled",
+          "partner_created",
+          "partner_changed",
+          "partner_archived",
+          "partner_unarchived",
+          "analytic_plan_created",
+          "analytic_plan_changed",
+          "analytic_account_created",
+          "analytic_account_changed",
+          "budget_created",
+          "budget_changed",
+          "budget_confirmed",
+          "budget_cancelled",
+          "budget_reset_to_draft",
+          "budget_line_created",
+          "budget_line_changed",
+          "budget_line_deleted",
+          "budget_lines_distributed",
           "invoice_created",
           "invoice_changed",
           "invoice_deleted",
@@ -18981,6 +19005,30 @@
                     "payment_posted",
                     "payment_allocated",
                     "payment_unallocated",
+                    "payment_cancelled",
+                    "payment_reset_to_draft",
+                    "asset_created",
+                    "asset_validated",
+                    "asset_depreciation_computed",
+                    "bank_statement_created",
+                    "bank_line_reconciled",
+                    "partner_created",
+                    "partner_changed",
+                    "partner_archived",
+                    "partner_unarchived",
+                    "analytic_plan_created",
+                    "analytic_plan_changed",
+                    "analytic_account_created",
+                    "analytic_account_changed",
+                    "budget_created",
+                    "budget_changed",
+                    "budget_confirmed",
+                    "budget_cancelled",
+                    "budget_reset_to_draft",
+                    "budget_line_created",
+                    "budget_line_changed",
+                    "budget_line_deleted",
+                    "budget_lines_distributed",
                     "invoice_created",
                     "invoice_changed",
                     "invoice_deleted",
@@ -19119,6 +19167,30 @@
               "payment_posted",
               "payment_allocated",
               "payment_unallocated",
+              "payment_cancelled",
+              "payment_reset_to_draft",
+              "asset_created",
+              "asset_validated",
+              "asset_depreciation_computed",
+              "bank_statement_created",
+              "bank_line_reconciled",
+              "partner_created",
+              "partner_changed",
+              "partner_archived",
+              "partner_unarchived",
+              "analytic_plan_created",
+              "analytic_plan_changed",
+              "analytic_account_created",
+              "analytic_account_changed",
+              "budget_created",
+              "budget_changed",
+              "budget_confirmed",
+              "budget_cancelled",
+              "budget_reset_to_draft",
+              "budget_line_created",
+              "budget_line_changed",
+              "budget_line_deleted",
+              "budget_lines_distributed",
               "invoice_created",
               "invoice_changed",
               "invoice_deleted",
@@ -23060,6 +23132,18 @@
             "maximum": 9007199254740991,
             "type": "integer"
           },
+          "payment_term_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "ref": {
             "maxLength": 255,
             "type": "string"
@@ -23430,6 +23514,31 @@
             ],
             "type": "string"
           },
+          "payment_term": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "ref": {
             "type": "string"
           },
@@ -23579,6 +23688,7 @@
           "journal",
           "invoice_date",
           "invoice_date_due",
+          "payment_term",
           "currency",
           "amount_untaxed",
           "amount_tax",
@@ -23899,6 +24009,31 @@
                   ],
                   "type": "string"
                 },
+                "payment_term": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "state": {
                   "enum": [
                     "draft",
@@ -23918,6 +24053,7 @@
                 "journal",
                 "invoice_date",
                 "invoice_date_due",
+                "payment_term",
                 "currency",
                 "amount_untaxed",
                 "amount_tax",
@@ -24033,6 +24169,18 @@
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991,
             "type": "integer"
+          },
+          "payment_term_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "ref": {
             "maxLength": 255,
@@ -24160,6 +24308,31 @@
             ],
             "type": "string"
           },
+          "payment_term": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "state": {
             "enum": [
               "draft",
@@ -24179,6 +24352,7 @@
           "journal",
           "invoice_date",
           "invoice_date_due",
+          "payment_term",
           "currency",
           "amount_untaxed",
           "amount_tax",
@@ -29025,7 +29199,8 @@
           "zatca_unauthorized",
           "zatca_mode_not_allowed",
           "zatca_not_onboarded",
-          "zatca_not_applicable"
+          "zatca_not_applicable",
+          "company_profile_incomplete"
         ],
         "type": "string"
       },
@@ -36169,6 +36344,175 @@
         ],
         "type": "object"
       },
+      "HrOnboardingStepBellKindSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "const": "hr.onboarding_step",
+        "type": "string"
+      },
+      "HrOnboardingStepBellRowSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": {},
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "is_read": {
+            "type": "boolean"
+          },
+          "kind": {
+            "const": "hr.onboarding_step",
+            "type": "string"
+          },
+          "run_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "run_id",
+          "title",
+          "created_at",
+          "is_read"
+        ],
+        "type": "object"
+      },
+      "HrOwnOnboardingStepDoneSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "done": {
+            "const": true,
+            "type": "boolean"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "run_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "run_id",
+          "done"
+        ],
+        "type": "object"
+      },
+      "HrOwnOnboardingStepListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "date_deadline": {
+                  "format": "date",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "run_id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "state": {
+                  "enum": [
+                    "planned",
+                    "today",
+                    "overdue",
+                    "done"
+                  ],
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "run_id",
+                "summary",
+                "date_deadline",
+                "state"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "HrOwnOnboardingStepSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "date_deadline": {
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "run_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "planned",
+              "today",
+              "overdue",
+              "done"
+            ],
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "run_id",
+          "summary",
+          "date_deadline",
+          "state"
+        ],
+        "type": "object"
+      },
       "HrPayrollAuditChangeSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -36416,6 +36760,78 @@
           "res_model",
           "res_id",
           "changes"
+        ],
+        "type": "object"
+      },
+      "HrPayrollBankListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "bic": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "bic"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "HrPayrollBankSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "bic": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "bic"
         ],
         "type": "object"
       },
@@ -37974,6 +38390,78 @@
           "unpaid_leave_types",
           "annual_leave_type",
           "revision"
+        ],
+        "type": "object"
+      },
+      "HrPayrollStructureListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "code"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "HrPayrollStructureSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "code"
         ],
         "type": "object"
       },
@@ -77242,7 +77730,13 @@
           "amount_due": {
             "type": "number"
           },
+          "amount_tax": {
+            "type": "number"
+          },
           "amount_total": {
+            "type": "number"
+          },
+          "amount_untaxed": {
             "type": "number"
           },
           "currency": {
@@ -77322,6 +77816,8 @@
           "merchant",
           "number",
           "currency",
+          "amount_untaxed",
+          "amount_tax",
           "amount_total",
           "amount_due",
           "status",
@@ -77337,7 +77833,13 @@
           "amount_due": {
             "type": "number"
           },
+          "amount_tax": {
+            "type": "number"
+          },
           "amount_total": {
+            "type": "number"
+          },
+          "amount_untaxed": {
             "type": "number"
           },
           "currency": {
@@ -77423,6 +77925,8 @@
           "merchant",
           "number",
           "currency",
+          "amount_untaxed",
+          "amount_tax",
           "amount_total",
           "amount_due",
           "status",
@@ -78406,6 +78910,16 @@
             "minimum": 0,
             "type": "integer"
           },
+          "system_admin_links": {
+            "type": "boolean"
+          },
+          "tax_mode": {
+            "enum": [
+              "included",
+              "added"
+            ],
+            "type": "string"
+          },
           "unpaid_order_expiry_minutes": {
             "maximum": 1440,
             "minimum": 5,
@@ -78417,6 +78931,8 @@
           "invoice_when_paid",
           "refund_policy",
           "refund_amounts",
+          "tax_mode",
+          "system_admin_links",
           "revision"
         ],
         "type": "object"
@@ -78446,6 +78962,16 @@
             "maximum": 9007199254740991,
             "minimum": 0,
             "type": "integer"
+          },
+          "system_admin_links": {
+            "type": "boolean"
+          },
+          "tax_mode": {
+            "enum": [
+              "included",
+              "added"
+            ],
+            "type": "string"
           },
           "unpaid_order_expiry_minutes": {
             "maximum": 1440,
@@ -87517,6 +88043,14 @@
         ],
         "type": "object"
       },
+      "TaxModeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "included",
+          "added"
+        ],
+        "type": "string"
+      },
       "TenantStateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
@@ -95498,6 +96032,60 @@
           ],
           "feature_operation": "write",
           "handler": "set_document_active",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/employee-access": {
+      "post": {
+        "operationId": "liwan_documents_hr.EmployeeDocumentAccess.share_with_employee.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The explicit choice made when a document is linked to an employee: let the employee read it.",
+        "tags": [
+          "liwan_documents_hr"
+        ],
+        "x-liwan": {
+          "addon": "liwan_documents_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "documents",
+          "controller": "EmployeeDocumentAccess",
+          "feature_keys": [
+            "documents.enabled",
+            "hr.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "share_with_employee",
           "readonly": false,
           "route_type": "json2"
         }
@@ -105818,6 +106406,47 @@
         }
       }
     },
+    "/api/v1/hr/payroll/banks": {
+      "get": {
+        "operationId": "liwan_hr.HrPayrollBankController.list_banks.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The banks the compensation form can pick: a name or SWIFT code search over ``res.bank``.",
+        "tags": [
+          "liwan_hr"
+        ],
+        "x-liwan": {
+          "addon": "liwan_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrPayrollBankController",
+          "feature_keys": [
+            "hr.enabled",
+            "hr.payroll"
+          ],
+          "feature_operation": "read",
+          "handler": "list_banks",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/hr/payroll/branch-strictness": {
       "get": {
         "operationId": "liwan_hr.HrBranchStrictnessController.get_payroll_strictness.get",
@@ -107683,6 +108312,47 @@
         }
       }
     },
+    "/api/v1/hr/payroll/structures": {
+      "get": {
+        "operationId": "liwan_hr.HrPayrollSettingsController.list_structures.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The payroll structures of the current company: what the settings can name as the company's structure.",
+        "tags": [
+          "liwan_hr"
+        ],
+        "x-liwan": {
+          "addon": "liwan_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrPayrollSettingsController",
+          "feature_keys": [
+            "hr.enabled",
+            "hr.payroll"
+          ],
+          "feature_operation": "read",
+          "handler": "list_structures",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/hr/recruitment/applicants": {
       "get": {
         "operationId": "liwan_hr.HrRecruitmentApplicantController.list_applicants.get",
@@ -108335,6 +109005,101 @@
           "feature_operation": "read",
           "handler": "get_saudization",
           "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/hr/self/onboarding-steps": {
+      "get": {
+        "operationId": "liwan_hr.HrOwnOnboardingStepController.list_own_steps.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_own_steps",
+        "tags": [
+          "liwan_hr"
+        ],
+        "x-liwan": {
+          "addon": "liwan_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrOwnOnboardingStepController",
+          "feature_keys": [
+            "hr.enabled",
+            "hr.onboarding"
+          ],
+          "feature_operation": "read",
+          "handler": "list_own_steps",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/hr/self/onboarding-steps/{activity_id}/done": {
+      "post": {
+        "operationId": "liwan_hr.HrOwnOnboardingStepController.complete_own_step.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "activity_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "complete_own_step",
+        "tags": [
+          "liwan_hr"
+        ],
+        "x-liwan": {
+          "addon": "liwan_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrOwnOnboardingStepController",
+          "feature_keys": [
+            "hr.enabled",
+            "hr.onboarding"
+          ],
+          "feature_operation": "write",
+          "handler": "complete_own_step",
+          "readonly": false,
           "route_type": "json2"
         }
       }

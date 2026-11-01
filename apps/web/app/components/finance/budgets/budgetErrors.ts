@@ -2,6 +2,10 @@
 const CODE_KEYS = {
   not_draft: 'notDraft',
   invalid_state: 'invalidState',
+  invalid_period: 'invalidPeriod',
+  line_outside_budget: 'lineOutsideBudget',
+  budget_line_overlap: 'lineOverlap',
+  cost_center_overlap: 'costCenterOverlap',
 } as const
 
 export function budgetErrorKey(code: string): string | null {

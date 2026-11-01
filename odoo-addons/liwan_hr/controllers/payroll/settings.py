@@ -20,6 +20,7 @@ from odoo.addons.liwan_hr.serializers.payroll.revision import (
 from odoo.addons.liwan_hr.serializers.payroll.settings import (
     dump_rate,
     dump_settings,
+    dump_structure,
     parse_rate,
     parse_settings,
 )
@@ -102,6 +103,15 @@ class HrPayrollSettingsController(http.Controller):
             settings = Settings._liwan_save(current_company(), vals)
             _audit()._liwan_log('payroll_settings_changed', settings, before)
         return dump_settings(settings)
+
+    @http.route('/api/v1/hr/payroll/structures', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('hr.enabled', 'hr.payroll', operation='read')
+    @requires_capability('hr.payroll.read')
+    def list_structures(self, **_):
+        """The payroll structures of the current company: what the settings can name as the company's structure."""
+        structures = request.env['hr.payroll.structure'].search([('company_id', '=', current_company().id)], order='name, id')
+        return {'items': [dump_structure(structure) for structure in structures], 'total': len(structures)}
 
     @http.route('/api/v1/hr/payroll/gosi-rates', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

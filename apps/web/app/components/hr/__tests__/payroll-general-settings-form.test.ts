@@ -27,6 +27,7 @@ const stateCode = transpile(false)
 
 const SETTINGS = { day_divisor: 30, structure: { id: 1, name: 'Saudi' }, unpaid_leave_types: [{ id: 4, name: 'Unpaid' }], annual_leave_type: { id: 3, name: 'Annual' }, revision: 2 }
 const LEAVE_TYPES = [{ id: 3, name: 'Annual' }, { id: 4, name: 'Unpaid' }]
+const STRUCTURES = [{ id: 1, name: 'Saudi', code: 'SA_MONTHLY' }, { id: 9, name: 'Own copy', code: 'SA_MONTHLY' }]
 
 const MODULES: Record<string, unknown> = {
   'vue': Vue,
@@ -61,7 +62,7 @@ const wrapper = Vue.defineComponent({ inheritAttrs: false, setup(_, { slots }) {
 
 async function render(canEdit: boolean) {
   const save = vi.fn(async (body: unknown) => ({ ...SETTINGS, ...(body as object) }))
-  const app = Vue.createSSRApp({ render: () => Vue.h(load(save), { settings: SETTINGS, leaveTypes: LEAVE_TYPES, canEdit, reloadSettings: vi.fn() }) })
+  const app = Vue.createSSRApp({ render: () => Vue.h(load(save), { settings: SETTINGS, leaveTypes: LEAVE_TYPES, structures: STRUCTURES, canEdit, reloadSettings: vi.fn() }) })
   app.config.globalProperties.$t = fakeT() as never
   for (const [tag, stub] of Object.entries({
     ...DEFAULT_STUBS, UForm: wrapper, UFormField: wrapper, SharedFormSection: wrapper, SharedFormActions: wrapper, SharedUnsavedChanges: wrapper,
@@ -75,25 +76,34 @@ const disabled = (html: string, testId: string) => new RegExp(`<\\w+[^>]*data-te
 describe('PayrollGeneralSettingsForm follows canEdit', () => {
   it('a payroll reader without config sees every field disabled and no save button', async () => {
     const html = await render(false)
-    for (const testId of ['hr-payroll-divisor', 'hr-payroll-annual', 'hr-payroll-unpaid']) expect(disabled(html, testId), testId).toBe(true)
+    for (const testId of ['hr-payroll-divisor', 'hr-payroll-structure', 'hr-payroll-annual', 'hr-payroll-unpaid']) expect(disabled(html, testId), testId).toBe(true)
     expect(html).not.toContain('data-testid="hr-payroll-settings-submit"')
   })
 
   it('a payroll configurator gets enabled fields and the save button', async () => {
     const html = await render(true)
-    for (const testId of ['hr-payroll-divisor', 'hr-payroll-annual', 'hr-payroll-unpaid']) expect(disabled(html, testId), testId).toBe(false)
+    for (const testId of ['hr-payroll-divisor', 'hr-payroll-structure', 'hr-payroll-annual', 'hr-payroll-unpaid']) expect(disabled(html, testId), testId).toBe(false)
     expect(html).toContain('data-testid="hr-payroll-settings-submit"')
   })
 })
 
 // The draft and the conflict state, read straight from the component's setup (no rendering needed).
 function setup(save: (body: unknown) => Promise<unknown>, reloadSettings: () => Promise<unknown>) {
-  const props = Vue.reactive({ settings: SETTINGS, leaveTypes: LEAVE_TYPES, canEdit: true, reloadSettings })
+  const props = Vue.reactive({ settings: SETTINGS, leaveTypes: LEAVE_TYPES, structures: STRUCTURES, canEdit: true, reloadSettings })
   const component = load(save, stateCode) as { setup: (props: unknown, context: unknown) => Record<string, any> }
   return { props, state: component.setup(props, { expose: () => {}, emit: () => {}, attrs: {}, slots: {} }) }
 }
 
 describe('PayrollGeneralSettingsForm sends its baseline revision', () => {
+  it('sends the structure the user picked', async () => {
+    const save = vi.fn(async (body: unknown) => ({ ...SETTINGS, structure: { id: 9, name: 'Own copy' }, revision: 3, ...(body as object) }))
+    const { state } = setup(save, vi.fn())
+    state.structure.value = '9'
+    await state.submit()
+    expect(save).toHaveBeenCalledWith({ structure_id: 9, revision: 2 })
+  })
+
+
   it('saves only the changed fields with the revision the draft started from', async () => {
     const save = vi.fn(async (body: unknown) => ({ ...SETTINGS, day_divisor: 28, revision: 3, ...(body as object) }))
     const { state } = setup(save, vi.fn())

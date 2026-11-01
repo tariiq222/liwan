@@ -7,6 +7,7 @@ import { useDocumentTags, useCreateDocumentTag } from '@/composables/useDocument
 const expiry = defineModel<string | null>('expiry', { required: true })
 const context = defineModel<{ kind: string; id: number } | null>('context', { required: true })
 const tags = defineModel<number[]>('tags', { required: true })
+const shareWithEmployee = defineModel<boolean>('shareWithEmployee', { default: false })
 const props = defineProps<{ disabled?: boolean; knownTags?: DocumentTag[]; knownContext?: DocumentContext | null }>()
 const { t } = useI18n(); const { can } = useAccess(); const hydrated = useHydrated(); const { me } = useMe()
 const search = ref(''); const debounced = refDebounced(search, 250); const offset = ref(0); const limit = 50
@@ -31,7 +32,7 @@ async function addTag() {
 </script>
 <template>
   <UFormField :label="t('documents.expiry')" name="document-expiry"><SharedDateField id="document-expiry" v-model="expiry" :aria-label="t('documents.expiry')" class="w-full" :disabled="disabled || !hydrated" /></UFormField>
-  <DocumentContextField v-model="context" :known="knownContext" :disabled="disabled" />
+  <DocumentContextField v-model="context" v-model:share-with-employee="shareWithEmployee" :known="knownContext" :disabled="disabled" />
   <UFormField :label="t('documents.tags')" name="document-tags">
     <USelectMenu id="document-tags" :model-value="tags" v-model:search-term="search" multiple value-key="value" :items="tagItems" ignore-filter :aria-label="t('documents.tags')" :search-input="{ placeholder: t('documents.tags') }" :loading="tagQuery.isFetching.value" @update:model-value="selectTags" :disabled="disabled || !hydrated" class="w-full" />
     <UAlert v-if="tagQuery.error.value" class="mt-2" color="error" :title="t('errors.generic')"><template #actions><UButton type="button" :label="t('documents.reload')" @click="tagQuery.refetch()" /></template></UAlert>

@@ -309,12 +309,34 @@ class TestHrRecruitment(LiwanHrCase):
         self.assertEqual(set(body['employee']), REF_KEYS)
         self.assertEqual(set(body['applicant']), APPLICANT_KEYS)
         self.assertEqual(body['applicant']['employee'], body['employee'])
+        self.assertEqual(body['applicant']['status'], 'hired')
+        hired = self.api('GET', '/api/v1/hr/recruitment/applicants?status=hired').json()
+        self.assertIn(applicant.id, {entry['id'] for entry in hired['items']})
+        ongoing = self.api('GET', '/api/v1/hr/recruitment/applicants?status=ongoing').json()
+        self.assertNotIn(applicant.id, {entry['id'] for entry in ongoing['items']})
         employee = self.env['hr.employee'].browse(body['employee']['id'])
         self.assertTrue(employee.exists())
         self.assertEqual((employee.name, employee.job_id, employee.department_id), ('Hana', self.job, self.department))
         self.assertEqual(employee.company_id, self.env.company)
         again = self.api('POST', f'/api/v1/hr/recruitment/applicants/{applicant.id}/hire', json={})
         self.assertEqual((again.status_code, again.json()['field']), (422, 'employee_id'))
+
+    def test_a_hired_applicant_gets_the_department_manager_as_manager(self):
+        head = self.env['hr.employee'].create({'name': 'Engineering Head', 'company_id': self.env.company.id})
+        self.department.manager_id = head
+        applicant = self._applicant('Tala')
+        self._as_recruiter()
+        res = self.api('POST', f'/api/v1/hr/recruitment/applicants/{applicant.id}/hire', json={})
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertEqual(self.env['hr.employee'].browse(res.json()['employee']['id']).parent_id, head)
+
+    def test_a_department_without_a_manager_leaves_the_hired_employee_without_one(self):
+        self.department.manager_id = False
+        applicant = self._applicant('Reem')
+        self._as_recruiter()
+        res = self.api('POST', f'/api/v1/hr/recruitment/applicants/{applicant.id}/hire', json={})
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertFalse(self.env['hr.employee'].browse(res.json()['employee']['id']).parent_id)
 
     def test_payload_errors_are_422_with_their_field(self):
         self._as_recruiter()

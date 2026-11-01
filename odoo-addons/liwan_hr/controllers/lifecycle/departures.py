@@ -76,6 +76,9 @@ def _register_departure(payload):
         'departure_description': vals['description'],
         'set_date_end': vals['set_contract_end'],
         'remove_related_user': False,
+        # The custody stays with the employee until the clearance step returns it; the wizard would free it at
+        # once, even for a departure months ahead.
+        'unassign_equipment': False,
     })
     wizard.action_register_departure()
     if vals['plan_id']:

@@ -29,6 +29,8 @@ CONNECTION_PROVIDER = 'ZATCA'
 SANDBOX = 'sandbox'
 ONBOARDING_UNAVAILABLE = 'ZATCA could not be reached; try again later'
 ONBOARDING_FAILED = 'ZATCA refused the onboarding'
+# What the certificate request needs from the company (stock asks for these and names them in English when one is missing).
+CSR_COMPANY_FIELDS = ('vat', 'street', 'city', 'state_id')
 # Stock turns every onboarding failure into one text (English: the wizard runs with lang en_US). A "[NNN]"
 # marker other than 400 is an HTTP answer stock did not interpret (its text may hold the raw body), and a
 # requests exception shows as its own text; both are "ZATCA unavailable". Only the 400 answer, which carries
@@ -69,6 +71,16 @@ class LiwanFinanceZatca(models.AbstractModel):
         return record
 
     @api.model
+    def _liwan_require_company_profile(self, company):
+        """The certificate request names the company: its tax number and address must be set before ZATCA is asked."""
+        missing = [field for field in CSR_COMPANY_FIELDS if not company[field]]
+        if missing:
+            raise ApiError(
+                422, 'company_profile_incomplete', 'set the tax number and the address of the company first',
+                field=missing[0], details={'missing': missing},
+            )
+
+    @api.model
     def _liwan_onboard(self, journal_id, otp):
         """Onboard one sales journal of the current company with the OTP (sandbox only).
 
@@ -79,6 +91,7 @@ class LiwanFinanceZatca(models.AbstractModel):
         self.env['liwan.access.service']._liwan_require_capability('finance.zatca.manage')
         journal = self._liwan_find('account.journal', journal_id, [('type', '=', 'sale')])
         self._liwan_require_sandbox()
+        self._liwan_require_company_profile(journal.company_id)
         elevated = self.sudo().with_context(lang='en_US')
         elevated.env['l10n_sa_edi.otp.wizard'].create({'journal_id': journal.id, 'l10n_sa_otp': otp}).validate()
         if not journal._l10n_sa_ready_to_submit_einvoices():

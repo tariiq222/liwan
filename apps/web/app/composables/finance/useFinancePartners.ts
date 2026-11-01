@@ -60,19 +60,21 @@ export function useFinancePartner(id: MaybeRefOrGetter<number | null>) {
 /** Countries matching `q` (name or code), for the address field; the selected one is added by the form. */
 export function useFinanceCountries(q: MaybeRefOrGetter<string>) {
   const { $api } = useApi()
+  const { locale } = useI18n()
   return useQuery({
-    queryKey: computed(() => financePartnerKeys.countries(toValue(q))),
-    queryFn: () => $api('/api/v1/finance/countries', { query: { q: toValue(q) || undefined, limit: 50 }, schema: LookupListSchema }),
+    queryKey: computed(() => [...financePartnerKeys.countries(toValue(q)), locale.value] as const),
+    queryFn: () => $api('/api/v1/finance/countries', { query: { q: toValue(q) || undefined, limit: 50, lang: locale.value }, schema: LookupListSchema }),
     staleTime: 5 * 60 * 1000,
   })
 }
 
 export function useFinanceStates(countryId: MaybeRefOrGetter<number | null>) {
   const { $api } = useApi()
+  const { locale } = useI18n()
   return useQuery({
-    queryKey: computed(() => financePartnerKeys.states(toValue(countryId) ?? 0)),
+    queryKey: computed(() => [...financePartnerKeys.states(toValue(countryId) ?? 0), locale.value] as const),
     enabled: computed(() => !!toValue(countryId)),
-    queryFn: () => $api(`/api/v1/finance/countries/${toValue(countryId)}/states`, { query: { limit: 200 }, schema: LookupListSchema }),
+    queryFn: () => $api(`/api/v1/finance/countries/${toValue(countryId)}/states`, { query: { limit: 200, lang: locale.value }, schema: LookupListSchema }),
     staleTime: 5 * 60 * 1000,
   })
 }

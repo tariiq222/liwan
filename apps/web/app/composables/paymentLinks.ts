@@ -17,6 +17,7 @@ export function paymentLinkUrl(origin: string, path: string): string {
 const LINK_ERROR_KEYS: Readonly<Record<string, string>> = {
   not_payable: 'payments.link.errors.notPayable',
   no_gateway: 'payments.link.errors.noGateway',
+  link_access_required: 'payments.link.errors.accessRequired',
 }
 
 /** The locale key of a refused link this page words itself, or null to show the API's own text. */

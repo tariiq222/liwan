@@ -293,6 +293,7 @@ class HrPayslipRun(models.Model):
             'liwan_approved_at': fields.Datetime.now(),
         })
         Audit._liwan_log('run_approved', self, before)
+        self.slip_ids._liwan_mail_final_payslips()
 
     def _liwan_cancel(self):
         """Drop a run that is not approved, with its payslips, so its month is free again."""

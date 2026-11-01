@@ -198,6 +198,7 @@ class FinancePaymentController(http.Controller):
         ))
         if len(payments) != 1:
             raise ApiError(422, 'invalid', 'these invoices cannot be paid with a single payment', field='invoice_ids')
+        request.env['liwan.finance.audit.event']._liwan_log('payment_created', payments, outcome=payments.state)
         return request.make_json_response(dump_payment(payments), status=201)
 
     @http.route('/api/v1/finance/payments/<int:payment_id>/cancel', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -209,6 +210,7 @@ class FinancePaymentController(http.Controller):
         if payment.state in REVIVABLE_STATES:
             raise ApiError(422, 'invalid_state', f'the payment is already {payment.state}')
         attempt(payment.action_cancel, day=payment.date, journal=payment.journal_id, company=payment.company_id)
+        request.env['liwan.finance.audit.event']._liwan_log('payment_cancelled', payment, fields_written=('state',), outcome=payment.state)
         return dump_payment(payment)
 
     @http.route('/api/v1/finance/payments/<int:payment_id>/reset-to-draft', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -222,6 +224,7 @@ class FinancePaymentController(http.Controller):
         if is_period_locked(payment.date, payment.journal_id, company=payment.company_id):
             raise period_locked(field='date')
         attempt(payment.action_draft, day=payment.date, journal=payment.journal_id, company=payment.company_id)
+        request.env['liwan.finance.audit.event']._liwan_log('payment_reset_to_draft', payment, fields_written=('state',), outcome=payment.state)
         return dump_payment(payment)
 
     @http.route('/api/v1/finance/payments/standalone', type='json2', auth='user', methods=['POST'], readonly=False)

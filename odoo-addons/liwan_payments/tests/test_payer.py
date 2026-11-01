@@ -4,7 +4,7 @@ from odoo.tests import tagged
 from .common import LiwanPayerCase
 from odoo.addons.liwan_api.tests.common import set_probe_feature
 
-INVOICE_KEYS = {'id', 'merchant', 'number', 'due_date', 'currency', 'amount_total', 'amount_due', 'status', 'options'}
+INVOICE_KEYS = {'id', 'merchant', 'number', 'due_date', 'currency', 'amount_untaxed', 'amount_tax', 'amount_total', 'amount_due', 'status', 'options'}
 OPTION_KEYS = {'provider_id', 'provider', 'method_id', 'method', 'method_name'}
 CHECKOUT = 'https://ksa.paymob.com/unifiedcheckout/'
 
@@ -113,6 +113,15 @@ class TestPayer(LiwanPayerCase):
         self.stub_checkout(fail=True)
         response = self.start()
         self.assertEqual((response.status_code, response.json()['code']), (422, 'payment_unavailable'))
+
+    def test_a_cancelled_invoice_owes_nothing(self):
+        before = self.api('GET', self.summary_url()).json()
+        self.assertGreater(before['amount_due'], 0)
+        self.invoice.button_draft()
+        self.invoice.button_cancel()
+        summary = self.api('GET', self.summary_url()).json()
+        self.assertEqual((summary['status'], summary['options'], summary['amount_due']), ('not_payable', [], 0.0))
+        self.assertEqual(summary['amount_total'], before['amount_total'])
 
     def test_a_paid_invoice_is_not_payable_again(self):
         self.invoice.payment_state = 'paid'

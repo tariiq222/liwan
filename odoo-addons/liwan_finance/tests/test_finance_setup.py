@@ -164,14 +164,16 @@ class TestFinanceSetup(LiwanFinanceCase):
                 self.assertEqual(result.json()['field'], 'sale_lock_date')
         self.assertEqual(self._get()['fiscal']['sale_lock_date'], '2026-06-30')
 
-    def test_a_stock_redirect_warning_is_a_422_without_the_action(self):
+    def test_unreconciled_bank_lines_block_the_fiscal_lock_with_a_stable_code(self):
         self.authenticate(MANAGER_LOGIN, MANAGER_PASSWORD)
         journal = self.env['account.journal'].search([('company_id', '=', self.company.id), ('type', '=', 'bank')], limit=1)
         self.env['account.bank.statement.line'].with_company(self.company).create({
             'journal_id': journal.id, 'amount': 100, 'date': '2026-01-10', 'payment_ref': 'unreconciled',
         })
         result = self._write('PATCH', 'fiscal', {'fiscalyear_lock_date': '2026-06-30'})
-        self.assertEqual((result.status_code, result.json()['code']), (422, 'invalid'), result.text)
+        self.assertEqual((result.status_code, result.json()['code']), (422, 'unreconciled_bank_lines'), result.text)
+        self.assertEqual((result.json()['field'], result.json()['details']), ('fiscalyear_lock_date', {'count': 1}))
+        self.assertNotIn('Odoo', result.json()['message'])
         self.assertNotIn('action', result.text.lower().replace('unreconciled', ''))
         self.assertFalse(self.company.fiscalyear_lock_date)
 

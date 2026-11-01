@@ -18,6 +18,7 @@ const CODE_KEYS = {
   zatca_mode_not_allowed: 'zatcaModeNotAllowed',
   amount_exceeds_residual: 'amountExceedsResidual',
   journal_currency_mismatch: 'journalCurrencyMismatch',
+  no_journal: 'noJournal',
 } as const
 
 export function financeErrorKey(code: string): string | null {

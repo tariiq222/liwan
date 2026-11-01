@@ -58,7 +58,7 @@ def _settings_values(parsed, company):
         field = f'accounts.{key}'
         account = _optional_record('account.account', account_id, field, [('company_ids', 'in', [company.id])])
         if account and key in RECONCILING_KEYS and not account.reconcile:
-            raise ApiError(422, 'invalid', f'{field} must allow reconciliation', field=field)
+            raise ApiError(422, 'account_not_reconcilable', f'{field} must allow reconciliation', field=field)
         values[account_field(key)] = account.id
     if 'entry_detail' in parsed:
         values['entry_detail'] = parsed['entry_detail']

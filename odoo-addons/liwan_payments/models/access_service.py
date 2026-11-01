@@ -3,6 +3,10 @@ from odoo import api, models
 
 PROVIDERS_MANAGE = 'payments.providers.manage'
 LINKS_MANAGE = 'payments.links.manage'
+# What a pay link needs besides LINKS_MANAGE: reading the invoice it names (a finance capability, named here only as the key
+# the refusal tells), and the capability that marks a system administrator.
+INVOICES_READ = 'finance.invoices.read'
+SYSTEM_ADMIN = 'access.roles.manage'
 SETTINGS_MANAGE = 'payments.settings.manage'
 ORDERS_READ = 'payments.orders.read'
 # Recording a refund moves the tenant's money: no other capability implies it and no built-in role

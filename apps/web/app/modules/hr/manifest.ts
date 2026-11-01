@@ -1,4 +1,4 @@
-import { HrLeaveBellKindSchema } from '@liwan/contracts'
+import { HrLeaveBellKindSchema, HrOnboardingStepBellKindSchema } from '@liwan/contracts'
 import type { AppContextLink, AppManifest } from '../types'
 import { hrBellHref, hrBellTitleInApp } from './bell'
 import { hrPersonalEntries } from './personal'
@@ -84,6 +84,7 @@ const manifest: AppManifest = {
     parts: [
       { id: 'leave', labelKey: 'hr.leaveSettings.title', icon: 'i-lucide-calendar-x', capability: 'hr.leave.config' },
       { id: 'payroll', labelKey: 'hrPayroll.settings.title', icon: 'i-lucide-settings-2', capability: 'hr.payroll.read' },
+      { id: 'audit', labelKey: 'hrPayroll.audit.title', icon: 'i-lucide-history', capability: 'hr.payroll.audit.read', to: '/settings/apps/hr/audit' },
       { id: 'shifts', labelKey: 'hr.shiftSettings.title', icon: 'i-lucide-calendar-clock', capability: 'hr.shifts.manage' },
       { id: 'branch-access', labelKey: 'access.branches.strict.hr.title', icon: 'i-lucide-git-branch', capability: 'hr.employees.manage' },
     ],
@@ -105,7 +106,7 @@ const manifest: AppManifest = {
   attention: [leaveApprovalAttention, leaveCancellationAttention],
   bell: {
     capabilities: ['hr.leave.read'],
-    kinds: HrLeaveBellKindSchema.options.map(kind => ({ kind, href: hrBellHref, title: hrBellTitleInApp })),
+    kinds: [...HrLeaveBellKindSchema.options, HrOnboardingStepBellKindSchema.value].map(kind => ({ kind, href: hrBellHref, title: hrBellTitleInApp })),
   },
   personal: hrPersonalEntries,
   commands: [
@@ -134,6 +135,7 @@ const manifest: AppManifest = {
     { pattern: /^\/account\/pay(?:\/[^/]+)?$/, capability: 'hr.employees.read', feature: 'hr.payroll' },
     { pattern: /^\/account\/assets$/, capability: 'hr.employees.read', feature: 'hr.assets' },
     { pattern: /^\/account\/schedule$/, capability: 'hr.employees.read', feature: 'hr.shifts' },
+    { pattern: /^\/account\/onboarding$/, capability: 'hr.employees.read', feature: 'hr.onboarding' },
     { pattern: /^\/hr\/recruitment\/(?:.+\/)?new$/, capability: 'hr.recruitment.manage' },
     { pattern: /^\/hr\/recruitment(?:\/|$)/, capability: 'hr.recruitment.read' },
     { pattern: /^\/hr\/shifts\/(?:.+\/)?new$/, capability: 'hr.shifts.manage' },
@@ -146,7 +148,8 @@ const manifest: AppManifest = {
     { pattern: /^\/hr\/assets(?:\/|$)/, capability: 'hr.assets.read' },
     { pattern: /^\/hr\/leave\/allocations(?:\/|$)/, capability: 'hr.leave.manage' },
     { pattern: /^\/hr\/leave(?:\/|$)/, capability: 'hr.leave.read', anyCapabilities: ['hr.leave.approve', 'hr.leave.manage'] },
-    { pattern: /^\/hr\/reports$/, capability: 'hr.employees.manage' },
+    // The page renders its own managers-only message (SharedForbiddenState) instead of the generic 403 page.
+    { pattern: /^\/hr\/reports$/, capability: 'hr.employees.read' },
     { pattern: /^\/hr\/employees\/[^/]+\/compensation$/, capability: 'hr.payroll.manage', feature: 'hr.payroll' },
     { pattern: /^\/hr\/payroll\/new$/, capability: 'hr.payroll.manage', feature: 'hr.payroll' },
     { pattern: /^\/hr\/payroll(?:\/|$)/, capability: 'hr.payroll.read', feature: 'hr.payroll' },

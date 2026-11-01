@@ -19,7 +19,7 @@ from odoo.addons.liwan_finance.serializers.account import (
 
 
 def _company_accounts_domain():
-    return [('company_ids', 'in', request.env.companies.ids)]
+    return [('company_ids', 'parent_of', request.env.companies.ids)]
 
 
 def _account_types():
@@ -32,6 +32,14 @@ def _find_account(account_id):
     )
     if not account:
         raise MissingError(request.env._('account.account %(id)s does not exist', id=account_id))
+    return account
+
+
+def _find_own_account(account_id):
+    """An account of the current company, for a change: a branch reads the chart it shares with its parent and never edits it."""
+    account = _find_account(account_id)
+    if request.env.company not in account.company_ids:
+        raise ApiError(422, 'shared_record', 'an account of the parent company chart cannot be changed from here')
     return account
 
 
@@ -108,7 +116,7 @@ class FinanceAccountController(http.Controller):
     @requires_feature('finance.enabled', operation='write')
     def patch_account(self, account_id, **payload):
         require_capability('finance.accounts.manage')
-        account = _find_account(account_id)
+        account = _find_own_account(account_id)
         values = _values(parse_account_patch(payload, _account_types()))
         _require_unused_for(account, values)
         attempt(lambda: account.write(values))
@@ -120,7 +128,7 @@ class FinanceAccountController(http.Controller):
     @requires_feature('finance.enabled', operation='write')
     def archive_account(self, account_id, **_):
         require_capability('finance.accounts.manage')
-        account = _find_account(account_id)
+        account = _find_own_account(account_id)
         blocker = _archive_blocker(account)
         if blocker:
             raise ApiError(422, 'account_in_use', blocker)
@@ -133,7 +141,7 @@ class FinanceAccountController(http.Controller):
     @requires_feature('finance.enabled', operation='write')
     def unarchive_account(self, account_id, **_):
         require_capability('finance.accounts.manage')
-        account = _find_account(account_id)
+        account = _find_own_account(account_id)
         attempt(account.action_unarchive)
         request.env['liwan.finance.audit.event']._liwan_log('account_unarchived', account)
         return dump_account(account)

@@ -37,7 +37,7 @@ def _optional_account():
         return request.env['account.account']
     return company_records(
         'account.account', [parse_positive_int(value, 'account_id')], 'account_id',
-        [('company_ids', 'in', [request.env.company.id])],
+        [('company_ids', 'parent_of', [request.env.company.id])],
     )
 
 

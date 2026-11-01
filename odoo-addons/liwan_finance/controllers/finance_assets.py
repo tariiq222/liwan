@@ -101,6 +101,7 @@ class FinanceAssetController(http.Controller):
         require_capability('finance.assets.manage')
         values = _asset_values(parse_asset_create(payload))
         asset = attempt(lambda: request.env['account.asset'].create(values), day=values['date_start'])
+        request.env['liwan.finance.audit.event']._liwan_log('asset_created', asset, fields_written=tuple(values), outcome=asset.state)
         return request.make_json_response(dump_asset_detail(asset), status=201)
 
     @http.route('/api/v1/finance/assets/<int:asset_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
@@ -160,6 +161,7 @@ class FinanceAssetController(http.Controller):
         if asset.state != 'draft':
             raise ApiError(422, 'not_draft', f'only a draft asset can be validated, it is {asset.state}')
         attempt(asset.validate)
+        request.env['liwan.finance.audit.event']._liwan_log('asset_validated', asset, fields_written=('state',), outcome=asset.state)
         return dump_asset_detail(asset)
 
     @http.route('/api/v1/finance/assets/compute-depreciation', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -181,6 +183,10 @@ class FinanceAssetController(http.Controller):
         if error_log:
             raise ApiError(422, 'invalid', error_log.strip())
         moves = request.env['account.move'].browse(move_ids)
+        for company in assets.company_id:
+            request.env['liwan.finance.audit.event']._liwan_log(
+                'asset_depreciation_computed', company, outcome=f'{len(moves.filtered(lambda move: move.company_id == company))} entries',
+            )
         return {'date': dump_day(day), 'entries': [dump_ref(move) for move in moves]}
 
     @http.route('/api/v1/finance/assets/<int:asset_id>/dispose', type='json2', auth='user', methods=['POST'], readonly=False)

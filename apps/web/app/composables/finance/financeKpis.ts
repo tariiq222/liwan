@@ -1,3 +1,4 @@
+import type { FinanceAgedPartnerBalance } from '@liwan/contracts'
 import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
 
 type Translate = (key: string, named?: Record<string, unknown>, plural?: number) => string
@@ -31,4 +32,15 @@ export function financeOverviewTiles(figures: FinanceOverviewFigures, t: Transla
     figures.partners === undefined ? null : { id: 'partners', label: t('finance.kpi.partners'), icon: 'i-lucide-contact', tone: 'neutral', value: figures.partners, to: '/finance/partners' },
   ]
   return tiles.filter((tile): tile is KpiTile => tile !== null)
+}
+
+/**
+ * What customers owe (`receivable`) or what the company owes vendors (`payable`), from the aged balance report: only
+ * the rows of a named partner count, so payroll and tax liabilities booked on a payable account without a partner stay
+ * out. Payable balances are credits (negative in the report) and are shown as a positive amount owed.
+ */
+export function agedOwed(report: Pick<FinanceAgedPartnerBalance, 'kind' | 'currency' | 'accounts'>): { total: number; currency: string } {
+  const open = report.accounts.flatMap(account => account.partners).filter(row => row.partner !== null).reduce((sum, row) => sum + row.total, 0)
+  const total = (report.kind === 'payable' ? -open : open) + 0
+  return { total: Math.round(total * 100) / 100, currency: report.currency }
 }

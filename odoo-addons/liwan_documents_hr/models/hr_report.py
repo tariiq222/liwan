@@ -23,10 +23,12 @@ class HrReport(models.AbstractModel):
                 ('expiry_date', '<=', today + timedelta(days=within_days)),
             ],
         ):
+            # A document linked to an employee names its owner, so the manager knows whose document expires.
+            owner = document.employee_id
             items.append(
                 {
                     'kind': 'document',
-                    'employee': None,
+                    'employee': {'id': owner.id, 'name': owner.name} if owner else None,
                     'document': {'id': document.id, 'name': document.name},
                     'due_date': document.expiry_date,
                     'days_left': (document.expiry_date - today).days,

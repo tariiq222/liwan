@@ -113,7 +113,9 @@
       "subtotal": "Subtotal before tax",
       "taxAtSave": "Tax appears after saving",
       "requiredHint": "Fields marked with a star are required.",
-      "createDraft": "Create draft"
+      "createDraft": "Create draft",
+      "paymentTerm": "Payment term",
+      "noPaymentTerm": "No payment term"
     },
     "record": {
       "taxes": "Taxes",
@@ -190,7 +192,8 @@
       "zatcaUnauthorized": "ZATCA refused the journal certificate. Onboard the journal again.",
       "zatcaModeNotAllowed": "This submission type is not allowed for this invoice.",
       "amountExceedsResidual": "The amount is greater than the open balance.",
-      "journalCurrencyMismatch": "The journal currency differs from the documents currency."
+      "journalCurrencyMismatch": "The journal currency differs from the documents currency.",
+      "noJournal": "This company has no journal for this kind of document. Create one in the finance settings first."
     },
     "payments": {
       "title": "Payments",

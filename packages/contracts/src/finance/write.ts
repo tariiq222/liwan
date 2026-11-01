@@ -26,6 +26,8 @@ export const FinanceInvoiceCreateSchema = z.object({
   lines,
   invoice_date: day.nullable().optional(),
   invoice_date_due: day.nullable().optional(),
+  /** Derives the due date from the invoice date unless `invoice_date_due` is also sent; null clears the term. */
+  payment_term_id: id.nullable().optional(),
   currency: z.string().min(1).optional(),
   ref: text.optional(),
 }).strict()

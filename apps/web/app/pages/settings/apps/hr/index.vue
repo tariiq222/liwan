@@ -38,6 +38,7 @@ async function reloadShiftSettings() {
 const canManageShifts = computed(() => can('hr.shifts.manage'))
 const canConfig = computed(() => can('hr.payroll.config'))
 const settings = useHrPayrollSettings()
+const structures = useHrPayrollStructures()
 const rates = useHrGosiRates()
 const bankProfiles = useHrBankProfiles(() => shows('payroll') && can('hr.payroll.read'))
 // The explicit reload after a 409: the form gets the latest rows or the refetch's failure, never stale cached data.
@@ -126,7 +127,7 @@ function retry() {
     <template v-else>
     <section v-if="shows('payroll')" id="payroll" class="liwan-settings-anchor grid gap-(--liwan-gap-card)">
     <SharedPageState :loading="settings.isLoading.value || rates.isLoading.value || bankProfiles.isLoading.value || eosCases.isLoading.value" :error="error" :empty="!settings.data.value" @retry="retry">
-      <PayrollGeneralSettingsForm v-if="settings.data.value" :settings="settings.data.value" :leave-types="leaveTypeRefs" :can-edit="canConfig" :reload-settings="reloadPayrollSettings" />
+      <PayrollGeneralSettingsForm v-if="settings.data.value" :settings="settings.data.value" :leave-types="leaveTypeRefs" :structures="structures.data.value?.items ?? []" :can-edit="canConfig" :reload-settings="reloadPayrollSettings" />
       <BranchStrictCard scope="payroll" path="/api/v1/hr/payroll/branch-strictness" :can-read="can('hr.payroll.read')" :can-edit="canConfig" />
       <GosiRateTable :rates="rates.data.value?.items ?? []" :can-edit="canConfig" :reload-rates="reloadRates" />
       <BankProfileForm :profiles="bankProfiles.data.value?.items ?? []" :can-edit="canConfig" :reload-profiles="reloadBankProfiles" />

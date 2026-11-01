@@ -22,7 +22,7 @@ const states = [{ id: 1, name: RIYADH.name, code: 'RD' }, { id: 2, name: MAKKAH.
 
 const SALES_JOURNAL = { id: 1, name: 'مبيعات العملاء' }
 const draft = (id, move_type, partner, total) => ({
-  id, name: null, move_type, state: 'draft', payment_state: 'not_paid', partner, journal: SALES_JOURNAL, invoice_date: null, invoice_date_due: null,
+  id, name: null, move_type, state: 'draft', payment_state: 'not_paid', partner, journal: SALES_JOURNAL, invoice_date: null, invoice_date_due: null, payment_term: null,
   currency: 'SAR', amount_untaxed: total / 1.15, amount_tax: total - total / 1.15, amount_total: total, amount_residual: total,
 })
 const invoices = [

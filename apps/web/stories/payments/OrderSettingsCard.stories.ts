@@ -5,8 +5,8 @@ import OrderSettingsCard from '../../app/components/payments/OrderSettingsCard.v
 import { me } from '../fixtures/pmo'
 import { storyContext } from '../support/context'
 
-const settings: PaymentSettings = { unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', revision: 3 }
-const changedElsewhere: PaymentSettings = { unpaid_order_expiry_minutes: 120, invoice_when_paid: false, refund_policy: 'full', refund_amounts: 'due', revision: 4 }
+const settings: PaymentSettings = { unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', tax_mode: 'included', system_admin_links: false, revision: 3 }
+const changedElsewhere: PaymentSettings = { unpaid_order_expiry_minutes: 120, invoice_when_paid: false, refund_policy: 'full', refund_amounts: 'due', tax_mode: 'included', system_admin_links: false, revision: 4 }
 const manage = http.get('/api/v1/me', () => HttpResponse.json({ ...me, capabilities: ['payments.settings.manage'] }))
 const save = http.patch('/api/v1/payments/settings', async ({ request }) => HttpResponse.json({ ...settings, ...await request.json() as object, revision: 4 }))
 const refuse = (status: number, body: object) => ({ parameters: { msw: { handlers: { api: [manage, http.patch('/api/v1/payments/settings', () => HttpResponse.json(body, { status }))] } } } })
