@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { LauncherEntry } from '@/composables/nav/launcherModel'
-const props = defineProps<{ entry: LauncherEntry; description?: string }>()
+const props = defineProps<{ entry: LauncherEntry; description?: string; pinned?: boolean; pinDisabled?: boolean }>()
+const emit = defineEmits<{ togglePin: [] }>()
 const { t } = useI18n()
 const id = useId()
 </script>
@@ -13,6 +14,9 @@ const id = useId()
         <h2 :id="`${id}-title`" class="text-sm font-semibold text-highlighted">{{ t(props.entry.labelKey) }}</h2>
         <p v-if="props.description" class="text-xs leading-relaxed text-muted">{{ props.description }}</p>
       </div>
+      <UTooltip v-if="props.entry.pinnable" :text="t(props.pinDisabled && !props.pinned ? 'launcher.pinLimit' : props.pinned ? 'launcher.unpin' : 'launcher.pin')">
+        <UButton type="button" square size="sm" color="neutral" :variant="props.pinned ? 'soft' : 'ghost'" class="shrink-0 rounded-full" :icon="props.pinned ? 'i-lucide-pin-off' : 'i-lucide-pin'" :disabled="props.pinDisabled" data-testid="launcher-pin" :aria-pressed="props.pinned" :aria-label="`${t(props.pinned ? 'launcher.unpin' : 'launcher.pin')}: ${t(props.entry.labelKey)}`" @click="emit('togglePin')" />
+      </UTooltip>
     </div>
     <div v-if="props.entry.actions.length" class="flex flex-wrap gap-2 border-t border-default pt-3" :aria-label="t('launcher.actions')" data-testid="launcher-actions">
       <UButton v-for="action in props.entry.actions" :key="action.id" :to="{ path: action.to, query: { returnTo: '/apps' } }" :icon="action.icon" size="sm" color="neutral" variant="soft" class="rounded-full" data-testid="launcher-action">{{ t(action.labelKey) }}</UButton>

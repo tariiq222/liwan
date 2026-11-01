@@ -5,6 +5,7 @@ import { useScrollEdges } from '../../composables/useScrollEdges'
 import type { ShellRailGroups } from '../../types/shell'
 
 const props = defineProps<{ rail: ShellRailGroups; activeId: string | null; homeTo: string }>()
+const emit = defineEmits<{ peek: [id: string]; release: [] }>()
 const { t } = useI18n()
 const scroller = ref<HTMLElement | null>(null)
 const content = ref<HTMLElement | null>(null)
@@ -14,6 +15,8 @@ const groups = computed(() => [
   { key: 'applications', items: props.rail.applications, label: t('nav.railApps'), class: 'liwan-module-rail-links' },
   { key: 'utility', items: props.rail.utility, label: t('nav.railTools'), class: 'liwan-module-rail-utility' },
 ].filter(group => group.items.length || group.key === 'applications'))
+const fromMouse = (event: PointerEvent) => event.pointerType === 'mouse'
+const fromKeyboard = (event: FocusEvent) => (event.target as HTMLElement).matches(':focus-visible')
 function capture(group: string, target: 'container' | 'content', element: unknown) {
   if (group !== 'applications') return
   const destination = target === 'container' ? scroller : content
@@ -41,6 +44,10 @@ function capture(group: string, target: 'container' | 'content', element: unknow
             :data-active="item.id === props.activeId"
             :aria-current="item.id === props.activeId ? 'page' : undefined"
             :title="t(item.labelKey)"
+            @pointerenter="fromMouse($event) && emit('peek', item.id)"
+            @pointerleave="fromMouse($event) && emit('release')"
+            @focus="fromKeyboard($event) && emit('peek', item.id)"
+            @blur="emit('release')"
           >
             <span data-slot="icon" class="liwan-module-rail-icon" aria-hidden="true"><UIcon :name="item.icon" class="liwan-shell-icon" /></span>
             <span data-slot="label">{{ t(item.shortLabelKey ?? item.labelKey) }}</span>

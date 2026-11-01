@@ -437,6 +437,7 @@ Meetings use SharedListPage/DataTable/RecordPage/TimelineFrame/StandalonePage. C
 | `apps/web/app/components/apps/AppsStartContent.vue` | بداية التطبيق من مساهمات الـmanifest؛ القصة `apps/web/stories/apps/AppsStartContent.stories.ts` | SharedLinkCard، NuxtLink؛ بطاقات وروابط من الثيم المشترك |
 | `apps/web/app/components/home/HomeAssistantSuggestions.vue` | اقتراحات قواعد من أعمال المستخدم؛ القصة `apps/web/stories/home/HomeAssistantSuggestions.stories.ts` | UButton، NuxtLink؛ سطح rounded-card وحدّ ring-default |
 | `apps/web/app/components/home/HomeFocus.vue` | أهم ثلاثة أعمال؛ القصة `apps/web/stories/home/HomeToday.stories.ts` | WorkRow، UButton، SharedLoadingSkeleton، SharedErrorState؛ سطح rounded-card |
+| `apps/web/app/components/home/HomeTabs.vue` | تبويبا «يومي» و«التطبيقات» فوق الصفحتين `/` و`/apps`؛ بلا قصة خاصة | SharedRouteTabs بنمط pill |
 | `apps/web/app/components/home/HomeIndicators.vue` | مؤشرات التنفيذ والقرار والمتابعة؛ القصة `apps/web/stories/home/HomeToday.stories.ts` | SharedMetricTile density=compact؛ التوكنات المشتركة |
 | `apps/web/app/components/launcher/LauncherCard.vue` | بطاقة التطبيق وإجراءاته المسموحة؛ القصة `apps/web/stories/launcher/LauncherCard.stories.ts` | UIcon، UButton؛ rounded-card وliwan-card-pad |
 | `apps/web/app/components/work/WorkRow.vue` | صف عمل يفتح سجله ويذكر مصدره؛ القصة `apps/web/stories/work/WorkRow.stories.ts` | UBadge، NuxtLink؛ نبرة الاستعجال وشارات الثيم |

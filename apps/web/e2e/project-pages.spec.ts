@@ -15,7 +15,10 @@ async function login(page: Page) {
   await expect(page).not.toHaveURL(/\/login/)
 }
 
-test.beforeEach(async ({ page }) => { await login(page) })
+test.beforeEach(async ({ page, context, baseURL }) => {
+  await context.addCookies([{ name: 'liwan-context-sidebar', value: 'open', url: baseURL! }])
+  await login(page)
+})
 
 test('project settings opens as an ordinary page and keeps sidebar navigation', async ({ page }) => {
   await page.goto('/projects/1/tasks?q=تصميم')

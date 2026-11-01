@@ -11,6 +11,8 @@ const props = defineProps<{
   activeId: string | null
   routeKey: string
   expanded: boolean
+  /** The folded card is open over the page for now; the toggle then keeps it open. */
+  overlay?: boolean
   hydrated: boolean
   homeTo: string
   title?: string
@@ -26,6 +28,7 @@ defineSlots<{ panel?: (props: { item: ShellNavigationItem }) => unknown }>()
 const { t, localeProperties } = useI18n()
 const menuId = `navigation-${useId()}`
 const collapsed = computed(() => props.surface !== 'drawer' && !props.expanded)
+const toggleLabel = computed(() => props.overlay ? 'nav.keepContextOpen' : collapsed.value ? 'nav.expandContext' : 'nav.collapseContext')
 const hasChildren = (item: ShellNavigationItem) => !!(item.sections.length || item.views.length || item.actions.length || item.panel)
 const ids = computed(() => props.items.filter(hasChildren).map(item => item.id))
 const { openId, setOpen } = useNavigationDisclosure(toRef(props, 'activeId'), toRef(props, 'routeKey'), collapsed, ids)
@@ -90,12 +93,12 @@ function navigate(item: ShellQuickItem) {
     </div>
   </DefineContent>
 
-  <aside class="liwan-context-sidebar liwan-navigation" :data-testid="`${prefix}application-navigation`" :data-expanded="!collapsed" :data-preference="props.preference" :data-surface="props.surface ?? 'sidebar'" :data-panel="panel ? 'true' : undefined" :data-panel-width="panel ? props.panelWidth : undefined" :aria-label="props.title ?? t('nav.modules')">
+  <aside class="liwan-context-sidebar liwan-navigation" :data-testid="`${prefix}application-navigation`" :data-expanded="!collapsed" :data-overlay="props.overlay ? 'true' : undefined" :data-preference="props.preference" :data-surface="props.surface ?? 'sidebar'" :data-panel="panel ? 'true' : undefined" :data-panel-width="panel ? props.panelWidth : undefined" :aria-label="props.title ?? t('nav.modules')">
     <div v-if="props.surface !== 'drawer'" class="liwan-context-heading">
       <h2>{{ props.title ?? t('nav.apps') }}</h2>
-      <UTooltip :text="t(collapsed ? 'nav.expandContext' : 'nav.collapseContext')" :kbds="['[']">
-        <UButton type="button" color="neutral" variant="ghost" square size="sm" class="liwan-context-toggle" data-testid="context-sidebar-toggle" :disabled="!props.hydrated || props.locked" :aria-expanded="!collapsed" :aria-label="t(collapsed ? 'nav.expandContext' : 'nav.collapseContext')" aria-keyshortcuts="[" @click="emit('toggle')">
-          <UIcon :name="collapsed ? 'i-lucide-chevron-right' : 'i-lucide-chevron-left'" class="liwan-shell-icon rtl:-scale-x-100" aria-hidden="true" />
+      <UTooltip :text="t(toggleLabel)" :kbds="['[']">
+        <UButton type="button" color="neutral" variant="ghost" square size="sm" class="liwan-context-toggle" data-testid="context-sidebar-toggle" :disabled="!props.hydrated || props.locked" :aria-expanded="!collapsed" :aria-label="t(toggleLabel)" aria-keyshortcuts="[" @click="emit('toggle')">
+          <UIcon :name="props.overlay ? 'i-lucide-pin' : collapsed ? 'i-lucide-chevron-right' : 'i-lucide-chevron-left'" class="liwan-shell-icon" :class="{ 'rtl:-scale-x-100': !props.overlay }" aria-hidden="true" />
         </UButton>
       </UTooltip>
     </div>

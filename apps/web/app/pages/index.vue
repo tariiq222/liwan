@@ -28,6 +28,7 @@ onMounted(() => { today.value = new Date().toLocaleDateString(locale.value, { we
 <template>
   <SharedPageContainer width="list" data-testid="foundation-home">
     <SharedPageHeader :title="t('nav.home')" />
+    <HomeTabs />
     <p class="-mt-2 text-sm text-muted" data-testid="home-greeting">
       <span v-if="firstName" class="font-medium text-highlighted">{{ t('home.greeting', { name: firstName }) }}</span>
       <span v-if="today"> · {{ today }}</span>
