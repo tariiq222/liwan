@@ -92,14 +92,13 @@ class TestProjectBaseline(LiwanPmoCase):
 
     def test_the_snapshot_keeps_the_plan_not_the_live_task(self):
         self._approve_charter()
+        extra = self._task('Temporary', D(2026, 3, 2), D(2026, 3, 9))
         self._taken()
-        self.t_late.write({'name': 'Renamed'})
-        self.t_late.unlink()
+        extra.write({'name': 'Renamed'})
+        extra.unlink()
         lines = {line['name']: line for line in self._lines()}
-        self.assertEqual((lines['Late']['task_id'], lines['Late']['planned_end']), (None, '2026-03-10'))
+        self.assertEqual((lines['Temporary']['task_id'], lines['Temporary']['planned_end']), (None, '2026-03-09'))
         self.assertNotIn('Renamed', lines)
-        # restore the fixture for the other tests of this class
-        type(self).t_late = self._task('Late', D(2026, 3, 1), D(2026, 3, 10))
 
     def test_numbers_run_on_and_the_lock_is_taken_per_baseline(self):
         self._approve_charter()
@@ -121,12 +120,13 @@ class TestProjectBaseline(LiwanPmoCase):
     def test_two_baselines_never_share_a_number(self):
         self._approve_charter()
         first = self.env['liwan.project.baseline'].with_user(self.manager).create({'project_id': self.project.id})
-        values = {
-            'project_id': self.project.id, 'currency_id': self.project.currency_id.id, 'number': first.number,
-            'taken_by_id': self.manager.id, 'taken_at': fields.Datetime.now(), 'budget_total': 0,
-        }
+        self.env.cr.execute('SELECT 1')  # flush happens in the savepoint below
         with mute_logger('odoo.sql_db'), self.assertRaises(IntegrityError), self.env.cr.savepoint():
-            self.env['liwan.project.baseline'].sudo().create(values)
+            self.env.cr.execute(
+                'INSERT INTO liwan_project_baseline (project_id, currency_id, number, taken_by_id, taken_at, budget_total) '
+                'VALUES (%s, %s, %s, %s, now(), 0)',
+                [self.project.id, self.project.currency_id.id, first.number, self.manager.id],
+            )
 
     def test_only_the_project_manager_takes_one(self):
         self._approve_charter()
@@ -188,7 +188,7 @@ class TestProjectBaseline(LiwanPmoCase):
         refused = self._take()
         self.assertEqual((refused.status_code, refused.json()['code']), (409, 'change_required'))
         draft = self.env['liwan.project.change'].with_user(self.employee).create({'project_id': self.project.id, 'title': 'Draft'})
-        self.assertEqual(self._take(body={'change_id': draft.id}).status_code, 422)
+        self.assertEqual(self._take(body={'change_id': draft.id}).json()['code'], 'change_required', 'a draft covers nothing')
         change = self._approved_change()
         listed = self._call('api_mgr', 'GET', self.base).json()
         self.assertTrue(listed['change_required'])
@@ -287,7 +287,7 @@ class TestProjectBaseline(LiwanPmoCase):
         self.assertEqual(self._checks(), [])
         response = self._take()
         self.assertEqual((response.status_code, response.json()['code']), (403, 'feature_not_included'))
-        self.assertEqual(self._call('api_mgr', 'GET', self.base).status_code, 403)
+        self.assertEqual(self._call('api_mgr', 'GET', self.base).status_code, 200, 'a withdrawn sub-feature keeps reads open')
 
     # --- variance --------------------------------------------------------------------------
     def _variance(self, login='api_mgr'):
@@ -301,32 +301,36 @@ class TestProjectBaseline(LiwanPmoCase):
         self.assertEqual((listed['items'], listed['total'], listed['can_take']), ([], 0, True))
         self.assertFalse(self._call('api_emp', 'GET', self.base).json()['can_take'])
 
+    def _reschedule(self, task, start, end):
+        task.with_user(self.manager)._liwan_set_schedule(start, end)
+
     def test_schedule_variance_counts_late_early_on_time_and_undated(self):
         self._approve_charter()
         self.project.sudo().write({'date_start': D(2026, 3, 1), 'date': D(2026, 4, 30)})
+        extra = self._task('Temporary', D(2026, 3, 2), D(2026, 3, 9))
         self._taken()
-        self.t_late.write({'liwan_planned_start': D(2026, 3, 4), 'date_deadline': fields.Datetime.to_datetime(D(2026, 3, 13))})
-        self.t_early.write({'date_deadline': fields.Datetime.to_datetime(D(2026, 3, 18))})
-        self.t_undated.write({'date_deadline': fields.Datetime.to_datetime(D(2026, 3, 25))})
+        self._reschedule(self.t_late, D(2026, 3, 4), D(2026, 3, 13))
+        self._reschedule(self.t_early, D(2026, 3, 5), D(2026, 3, 18))
+        self._reschedule(self.t_undated, D(2026, 3, 25), D(2026, 3, 25))
         self.project.sudo().write({'date': D(2026, 5, 5)})
         schedule = self._variance()['schedule']
         rows = {row['name']: row for row in schedule['tasks']}
         self.assertEqual((rows['Late']['start_variance_days'], rows['Late']['end_variance_days']), (3, 3))
         self.assertEqual((rows['Early']['start_variance_days'], rows['Early']['end_variance_days']), (0, -2))
+        self.assertEqual((rows['Temporary']['start_variance_days'], rows['Temporary']['end_variance_days']), (0, 0))
         self.assertEqual((rows['Undated']['start_variance_days'], rows['Undated']['end_variance_days']), (None, None))
         self.assertEqual(rows['Undated']['current_end'], '2026-03-25')
         self.assertEqual((schedule['late_count'], schedule['early_count'], schedule['undated_count']), (1, 1, 1))
         self.assertEqual((schedule['project']['start_variance_days'], schedule['project']['end_variance_days']), (0, 5))
         # a task that left the project shows as removed, with no variance
-        self.t_early.unlink()
-        removed = {row['name']: row for row in self._variance()['schedule']['tasks']}['Early']
+        extra.unlink()
+        removed = {row['name']: row for row in self._variance()['schedule']['tasks']}['Temporary']
         self.assertEqual((removed['removed'], removed['end_variance_days'], removed['task_id']), (True, None, None))
-        type(self).t_early = self._task('Early', D(2026, 3, 5), D(2026, 3, 20))
 
     def test_variance_is_measured_against_the_latest_baseline(self):
         self._approve_charter()
         self._taken()
-        self.t_late.write({'date_deadline': fields.Datetime.to_datetime(D(2026, 3, 15))})
+        self._reschedule(self.t_late, D(2026, 3, 1), D(2026, 3, 15))
         self.assertEqual(self._variance()['baseline']['number'], 1)
         self._taken()
         schedule = self._variance()
