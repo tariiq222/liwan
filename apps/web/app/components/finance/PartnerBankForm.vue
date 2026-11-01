@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { FinancePartnerBank } from '@liwan/contracts'
-import { saveErrorMessage } from '@/utils/formFeedback'
 import { useCreateFinancePartnerBank, useUpdateFinancePartnerBank } from '@/composables/finance/useFinancePartnerBanks'
 import {
   bankDraftFromRecord,
@@ -30,21 +29,17 @@ const failure = ref<unknown>(null)
 const pending = computed(() => create.isPending.value || update.isPending.value)
 const locked = computed(() => !hydrated.value || pending.value)
 const errors = computed(() => validateBankDraft(draft))
-const refusal = computed<PartnerBankFailure | null>(() => bankFailure(failure.value))
+const refusal = computed<PartnerBankFailure | null>(() => failure.value ? bankFailure(failure.value) : null)
 
 function fieldError(field: keyof PartnerBankDraft): string | undefined {
-  if (refusal.value?.field === field) return refusal.value.key ? t(refusal.value.key) : refusal.value.message
+  if (refusal.value?.field === field) return t(refusal.value.key)
   if (!attempted.value) return undefined
   if (field === 'accNumber' && errors.value.accNumber) return t('finance.partners.banks.errors.accNumberRequired')
   if (field === 'bankName' && errors.value.bankName) return t('finance.partners.banks.errors.bankNameForBic')
   return undefined
 }
-// A refusal that names no field (or one this editor does not show) is said once above the fields.
-const generalError = computed(() => {
-  if (!failure.value) return ''
-  if (refusal.value?.field) return ''
-  return refusal.value?.key ? t(refusal.value.key) : saveErrorMessage(failure.value, t('errors.generic'), t('errors.saveUncertain'))
-})
+// A refusal that names no field is said once above the fields.
+const generalError = computed(() => refusal.value && !refusal.value.field ? t(refusal.value.key) : '')
 
 async function submit() {
   if (locked.value) return
@@ -72,7 +67,7 @@ async function submit() {
     <UFormField :label="t('finance.partners.banks.accNumber')" name="finance-bank-acc-number" required :description="t('finance.partners.banks.accNumberHint')" :error="fieldError('accNumber')">
       <UInput id="finance-bank-acc-number" v-model="draft.accNumber" class="w-full" dir="ltr" autocomplete="off" maxlength="40" :disabled="locked" />
     </UFormField>
-    <div class="grid gap-4 sm:grid-cols-2">
+    <div class="grid gap-4 sm:grid-cols-3">
       <UFormField :label="t('finance.partners.banks.holderName')" name="finance-bank-holder" :error="fieldError('holderName')">
         <UInput id="finance-bank-holder" v-model="draft.holderName" class="w-full" maxlength="255" :disabled="locked" />
       </UFormField>

@@ -175,7 +175,9 @@
         "errors": {
           "accNumberRequired": "Enter the account number or IBAN.",
           "bankNameForBic": "Enter the bank name along with its code.",
-          "duplicate": "This partner already has this account."
+          "duplicate": "This partner already has this account.",
+          "accNumberInvalid": "The account number is not valid. It is at most 34 characters, and a Saudi IBAN starts with SA, has 24 characters and passes the check digits.",
+          "fieldInvalid": "The value entered is not valid."
         }
       }
     },

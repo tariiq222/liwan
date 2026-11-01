@@ -58,17 +58,25 @@ export function buildBankPatch(draft: PartnerBankDraft, initial: PartnerBankDraf
 export interface PartnerBankFailure {
   /** The editor field the server named, if any. */
   field: keyof PartnerBankDraft | null
-  /** An i18n key for a code the screen explains, else null and the server's own text. */
-  key: string | null
-  message: string
+  /** The i18n key of the message to show: never the server's English text. */
+  key: string
 }
 
-/** What a refused bank-account write means for the editor: the field it names, the user's-language key for a known code, else the server's text. */
-export function bankFailure(cause: unknown): PartnerBankFailure | null {
-  if (!(cause instanceof ApiError)) return null
-  return {
-    field: cause.field ? SERVER_FIELDS[cause.field] ?? null : null,
-    key: cause.code === 'duplicate' ? 'finance.partners.banks.errors.duplicate' : null,
-    message: cause.message,
-  }
+const ERRORS = 'finance.partners.banks.errors'
+
+/** The user's-language message of a refused bank-account write, chosen by the server's code and field. */
+function failureKey(cause: ApiError, field: keyof PartnerBankDraft | null): string {
+  if (cause.status === 0) return 'errors.saveUncertain'
+  if (cause.code === 'duplicate') return `${ERRORS}.duplicate`
+  if (cause.code === 'invalid' && field === 'accNumber') return `${ERRORS}.accNumberInvalid`
+  if (cause.code === 'invalid' && field === 'bankName') return `${ERRORS}.bankNameForBic`
+  if (cause.code === 'invalid' && field) return `${ERRORS}.fieldInvalid`
+  return 'errors.generic'
+}
+
+/** What a failed bank-account call means for the editor: the field it names and the message key, whatever the cause. */
+export function bankFailure(cause: unknown): PartnerBankFailure {
+  if (!(cause instanceof ApiError)) return { field: null, key: 'errors.generic' }
+  const field = cause.field ? SERVER_FIELDS[cause.field] ?? null : null
+  return { field, key: failureKey(cause, field) }
 }

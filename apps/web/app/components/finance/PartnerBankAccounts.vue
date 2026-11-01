@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { FinancePartnerBank } from '@liwan/contracts'
-import { saveErrorMessage } from '@/utils/formFeedback'
+import { bankFailure } from './partnerBanks'
 import { useArchiveFinancePartnerBank, useFinancePartnerBanks } from '@/composables/finance/useFinancePartnerBanks'
 import PartnerBankForm from './PartnerBankForm.vue'
 
@@ -38,7 +38,7 @@ async function toggleArchive() {
   } catch (cause) { archiveFailure.value = cause }
 }
 const archiveDescription = computed(() => archiveFailure.value
-  ? saveErrorMessage(archiveFailure.value, t('errors.generic'), t('errors.saveUncertain'))
+  ? t(bankFailure(archiveFailure.value).key)
   : t('finance.partners.banks.archiveHint'))
 const title = (account: FinancePartnerBank) => account.bank_name || t('finance.partners.banks.unnamedBank')
 </script>

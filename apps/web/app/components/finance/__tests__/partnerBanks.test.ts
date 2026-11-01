@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { FinancePartnerBankCreateSchema } from '@liwan/contracts'
 import { ApiError } from '../../../composables/useApi'
@@ -33,15 +35,26 @@ describe('the bank account draft', () => {
 })
 
 describe('what a refused write means for the editor', () => {
-  it('maps the field the server named and explains a duplicate in the user language', () => {
-    expect(bankFailure(new ApiError(422, 'duplicate', 'the partner already has this bank account', 'acc_number')))
-      .toEqual({ field: 'accNumber', key: 'finance.partners.banks.errors.duplicate', message: 'the partner already has this bank account' })
-    expect(bankFailure(new ApiError(422, 'invalid', 'acc_number is not a valid Saudi IBAN', 'acc_number')))
-      .toEqual({ field: 'accNumber', key: null, message: 'acc_number is not a valid Saudi IBAN' })
-    expect(bankFailure(new ApiError(422, 'invalid', 'bic needs a bank_name', 'bank_name'))?.field).toBe('bankName')
+  const refusal = (status: number, code: string, field?: string) => bankFailure(new ApiError(status, code, 'English server text', field))
+
+  it('chooses the user-language message by the server code and field', () => {
+    expect(refusal(422, 'duplicate', 'acc_number')).toEqual({ field: 'accNumber', key: 'finance.partners.banks.errors.duplicate' })
+    expect(refusal(422, 'invalid', 'acc_number')).toEqual({ field: 'accNumber', key: 'finance.partners.banks.errors.accNumberInvalid' })
+    expect(refusal(422, 'invalid', 'bank_name')).toEqual({ field: 'bankName', key: 'finance.partners.banks.errors.bankNameForBic' })
+    expect(refusal(422, 'invalid', 'holder_name')).toEqual({ field: 'holderName', key: 'finance.partners.banks.errors.fieldInvalid' })
   })
 
-  it('has nothing to say about a failure that is not an API answer', () => {
-    expect(bankFailure(new Error('offline'))).toBeNull()
+  it('never lets the server text through: other answers are generic, a lost answer is uncertain', () => {
+    expect(refusal(404, 'not_found')).toEqual({ field: null, key: 'errors.generic' })
+    expect(refusal(403, 'forbidden')).toEqual({ field: null, key: 'errors.generic' })
+    expect(refusal(0, 'network')).toEqual({ field: null, key: 'errors.saveUncertain' })
+    expect(bankFailure(new Error('offline'))).toEqual({ field: null, key: 'errors.generic' })
+  })
+
+  it('has an Arabic and an English message for every key it can return', () => {
+    for (const locale of ['ar', 'en']) {
+      const banks = JSON.parse(readFileSync(resolve(import.meta.dirname, `../../../../i18n/locales/${locale}/finance.json`), 'utf8')).finance.partners.banks.errors
+      for (const key of ['duplicate', 'accNumberInvalid', 'bankNameForBic', 'fieldInvalid', 'accNumberRequired']) expect(banks[key], `${locale}.${key}`).toBeTruthy()
+    }
   })
 })
