@@ -25,6 +25,7 @@ export const phaseNumber = (phase: ProjectPhase): number => PROJECT_PHASES.index
 const GATE_CHECKS: Record<string, { labelKey: string; fixPath: (projectId: number) => string }> = {
   charter_approved: { labelKey: 'projects.phase.checks.charter_approved', fixPath: id => `/projects/${id}/charter` },
   no_open_tasks: { labelKey: 'projects.phase.checks.no_open_tasks', fixPath: id => `/projects/${id}/tasks` },
+  baseline_set: { labelKey: 'projects.phase.checks.baseline_set', fixPath: id => `/projects/${id}/baselines` },
 }
 export const UNKNOWN_CHECK_KEY = 'projects.phase.checks.unknown'
 

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { BaselineGateSchema } from './baseline'
 import { ChangeControlModeSchema } from './change'
 
 export const ProjectCreatorsSchema = z.enum(['managers', 'employees'])
@@ -41,6 +42,7 @@ export const ProjectSettingsSchema = z.object({
   close_with_open_tasks: CloseWithOpenTasksSchema,
   register_status_transitions: RegisterStatusTransitionsSchema,
   change_control_mode: ChangeControlModeSchema,
+  baseline_gate: BaselineGateSchema,
   extensions: z.array(ProjectSettingsExtensionSchema),
 }).strict()
 

@@ -26,4 +26,14 @@
         <field name="model_id" ref="model_liwan_project_change"/>
         <field name="domain_force">[('project_id', 'any', [('active', '=', True), ('company_id', 'in', company_ids)])]</field>
     </record>
+    <record id="rule_liwan_project_baseline_visible" model="ir.rule">
+        <field name="name">Baselines follow project access</field>
+        <field name="model_id" ref="model_liwan_project_baseline"/>
+        <field name="domain_force">[('project_id', 'any', [('active', '=', True), ('company_id', 'in', company_ids)])]</field>
+    </record>
+    <record id="rule_liwan_project_baseline_task_visible" model="ir.rule">
+        <field name="name">Baseline task lines follow project access</field>
+        <field name="model_id" ref="model_liwan_project_baseline_task"/>
+        <field name="domain_force">[('project_id', 'any', [('active', '=', True), ('company_id', 'in', company_ids)])]</field>
+    </record>
 </odoo>

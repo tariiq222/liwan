@@ -102,12 +102,15 @@ export function buildScheduleAxis(
   milestones: ScheduleMilestone[],
   scale: ScheduleScale = 'week',
   project?: { start?: string | null; end?: string | null },
+  /** Further dates the axis must cover, such as the planned dates of a baseline drawn under the live bars. */
+  extraDates: readonly string[] = [],
 ): ScheduleAxis {
   const dated = [
     ...tasks.flatMap(task => [task.start, task.end].filter((value): value is string => !!value)),
     ...milestones.flatMap(milestone => milestone.deadline ? [milestone.deadline] : []),
     project?.start,
     project?.end,
+    ...extraDates,
   ].filter((value): value is string => !!value).sort()
   if (scale === 'month') return buildMonthAxis(dated)
   const base = 7

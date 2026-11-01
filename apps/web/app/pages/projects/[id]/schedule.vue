@@ -2,6 +2,7 @@
 import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState.vue'
 import { useProject, useProjectMissing } from '@/composables/useProjects'
 import { useProjectSchedule } from '@/composables/useProjectSchedule'
+import { useBaselineVariance } from '@/composables/useProjectBaselines'
 import ScheduleGantt from '@/components/pmo/projects/schedule/ScheduleGantt.vue'
 import { MONTH_DAYS, buildScheduleAxis, scheduleColumnSpan, type ScheduleScale } from '@/utils/projectSchedule'
 import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
@@ -17,6 +18,15 @@ const { data: projectData, error: projectError, refetch: refetchProject } = useP
 const notFound = useProjectMissing(projectId)
 const project = computed(() => hydrated.value ? projectData.value : undefined)
 const { data: schedule, isLoading, error, refetch } = useProjectSchedule(projectId)
+// The latest baseline, when the plan has one and the caller may read it: a failed read just leaves the bars unmarked.
+const baselineVariance = useBaselineVariance(projectId, isBaseRoute)
+const baseline = computed(() => {
+  const data = baselineVariance.data.value
+  if (!data?.baseline || !data.schedule) return undefined
+  const tasks: Record<number, { start: string; end: string }> = {}
+  for (const row of data.schedule.tasks) if (row.task_id && row.baseline_start && row.baseline_end) tasks[row.task_id] = { start: row.baseline_start, end: row.baseline_end }
+  return { number: data.baseline.number, tasks }
+})
 const scale = computed<ScheduleScale>({
   get: () => route.query.scale === 'month' ? 'month' : 'week',
   set: value => { void router.replace({ query: { ...route.query, scale: value } }) },
@@ -64,7 +74,7 @@ const createTo = computed(() => ({ path: `/projects/${projectId.value}/tasks/new
       :empty-text="t('projects.schedule.empty')"
       @retry="retry"
     >
-      <ScheduleGantt v-if="schedule" ref="gantt" :schedule="schedule" :scale="scale" :project-start="project?.date_start" :project-end="project?.date_end" />
+      <ScheduleGantt v-if="schedule" ref="gantt" :schedule="schedule" :scale="scale" :baseline="baseline" :project-start="project?.date_start" :project-end="project?.date_end" />
     </SharedPageState>
   </SharedTimelineFrame>
   <NuxtPage />

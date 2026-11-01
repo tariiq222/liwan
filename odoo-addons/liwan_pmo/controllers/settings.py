@@ -22,6 +22,7 @@ ALLOWED = {
     'close_with_open_tasks',
     'register_status_transitions',
     'change_control_mode',
+    'baseline_gate',
 }
 
 

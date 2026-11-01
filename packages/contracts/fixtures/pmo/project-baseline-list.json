@@ -1,0 +1,74 @@
+{
+  "can_take": true,
+  "change_required": false,
+  "coverable_changes": [],
+  "items": [
+    {
+      "budget_total": 0.0,
+      "change": null,
+      "currency": {
+        "decimal_places": 2,
+        "id": 3,
+        "name": "SAR",
+        "symbol": "SR"
+      },
+      "id": 1,
+      "note": "",
+      "number": 3,
+      "planned_end": null,
+      "planned_start": null,
+      "project_id": 289,
+      "taken_at": "2026-01-01T00:00:00Z",
+      "taken_by": {
+        "id": 2,
+        "name": "Mona"
+      },
+      "task_count": 3
+    },
+    {
+      "budget_total": 0.0,
+      "change": null,
+      "currency": {
+        "decimal_places": 2,
+        "id": 3,
+        "name": "SAR",
+        "symbol": "SR"
+      },
+      "id": 4,
+      "note": "",
+      "number": 2,
+      "planned_end": null,
+      "planned_start": null,
+      "project_id": 289,
+      "taken_at": "2026-01-01T00:00:00Z",
+      "taken_by": {
+        "id": 2,
+        "name": "Mona"
+      },
+      "task_count": 3
+    },
+    {
+      "budget_total": 0.0,
+      "change": null,
+      "currency": {
+        "decimal_places": 2,
+        "id": 3,
+        "name": "SAR",
+        "symbol": "SR"
+      },
+      "id": 5,
+      "note": "",
+      "number": 1,
+      "planned_end": null,
+      "planned_start": null,
+      "project_id": 289,
+      "taken_at": "2026-01-01T00:00:00Z",
+      "taken_by": {
+        "id": 2,
+        "name": "Mona"
+      },
+      "task_count": 3
+    }
+  ],
+  "total": 3
+}

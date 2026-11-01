@@ -15,6 +15,8 @@ PRIORITY_VALUES = ('low', 'normal', 'high', 'critical')
 CHARTER_STATES = ('draft', 'submitted', 'approved')
 CHARTER_RETURN_NOTE_MAX = 2000
 CHANGE_NOTE_MAX = 2000
+BASELINE_NOTE_MAX = 2000
+TASK_CANCELED_STATE = '1_canceled'
 CHARTER_TEXT_FIELDS = (
     'liwan_authority', 'liwan_rationale', 'liwan_benefits', 'liwan_scope',
     'liwan_exclusions', 'liwan_high_level_requirements', 'liwan_success',

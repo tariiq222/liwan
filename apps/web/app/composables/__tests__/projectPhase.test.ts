@@ -19,6 +19,15 @@ describe('gateCheckRows', () => {
       { key: 'charter_approved', ok: false, labelKey: 'projects.phase.checks.charter_approved', fixTo: '/projects/7/charter' },
     ])
   })
+  it('links the baseline check to the baselines page, where it only warns when the company says so', () => {
+    expect(gateCheckRows(7, [{ key: 'baseline_set', ok: false, warning: true }])).toEqual([
+      { key: 'baseline_set', ok: false, labelKey: 'projects.phase.checks.baseline_set', fixTo: '/projects/7/baselines' },
+    ])
+    const planning: ProjectPhaseState = { current: 'planning', next: 'executing', previous: 'initiating', next_checks: [{ key: 'baseline_set', ok: false, warning: true }] }
+    expect(canMoveForward(planning, true)).toBe(true)
+    expect(unmetWarnings(planning.next_checks)).toHaveLength(1)
+    expect(canMoveForward({ ...planning, next_checks: [{ key: 'baseline_set', ok: false }] }, true)).toBe(false)
+  })
   it('maps an unknown key to the generic label without a link', () => {
     expect(gateCheckRows(7, [{ key: 'something_new', ok: false }])[0]).toMatchObject({ labelKey: UNKNOWN_CHECK_KEY, fixTo: null })
   })

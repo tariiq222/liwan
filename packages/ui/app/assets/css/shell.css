@@ -42,6 +42,8 @@ html[dir="rtl"] .schedule-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in
 .schedule-gantt-bar-warning { background: var(--status-warning); }
 .schedule-gantt-bar-danger { background: var(--status-danger); }
 .schedule-gantt-bar-muted { background: color-mix(in srgb, var(--muted-foreground) 45%, var(--card)); }
+.schedule-gantt-baseline { position: absolute; top: calc(50% + 14px); height: 5px; min-width: 6px; border-radius: 999px; background: color-mix(in srgb, var(--foreground) 55%, transparent); }
+.schedule-gantt-baseline-key { width: 16px; height: 5px; flex: none; border-radius: 999px; background: color-mix(in srgb, var(--foreground) 55%, transparent); }
 .schedule-gantt-mark { position: absolute; top: 50%; width: 10px; height: 10px; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg); }
 .schedule-gantt-empty { grid-column: 1 / -1; padding: 32px 16px; text-align: center; font-size: 0.875rem; color: var(--muted-foreground); }
 .schedule-gantt-legend { display: flex; flex-wrap: wrap; gap: 10px 18px; margin: 0; padding: 14px 16px; border-block-start: 1px solid var(--border); list-style: none; font-size: 0.75rem; color: var(--muted-foreground); }

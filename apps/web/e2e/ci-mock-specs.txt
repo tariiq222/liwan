@@ -108,3 +108,4 @@ ux-foundations-list-search.spec.ts
 ux-foundations-save.spec.ts
 ux-foundations-shell.spec.ts
 project-entry-regressions.spec.ts
+project-baselines.spec.ts

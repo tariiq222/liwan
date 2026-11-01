@@ -1,0 +1,65 @@
+{
+  "budget_total": 0.0,
+  "change": null,
+  "currency": {
+    "decimal_places": 2,
+    "id": 3,
+    "name": "SAR",
+    "symbol": "SR"
+  },
+  "hidden_count": 0,
+  "id": 1,
+  "note": "",
+  "number": 1,
+  "planned_end": null,
+  "planned_start": null,
+  "project_id": 289,
+  "taken_at": "2026-01-01T00:00:00Z",
+  "taken_by": {
+    "id": 2,
+    "name": "Mona"
+  },
+  "task_count": 5,
+  "tasks": [
+    {
+      "id": 4,
+      "name": "Late",
+      "planned_end": "2026-03-10",
+      "planned_start": "2026-03-01",
+      "planned_value_share": 0.2,
+      "task_id": 784
+    },
+    {
+      "id": 5,
+      "name": "Moved",
+      "planned_end": "2026-03-08",
+      "planned_start": "2026-03-03",
+      "planned_value_share": 0.2,
+      "task_id": 790
+    },
+    {
+      "id": 6,
+      "name": "Archived",
+      "planned_end": "2026-03-09",
+      "planned_start": "2026-03-04",
+      "planned_value_share": 0.2,
+      "task_id": 791
+    },
+    {
+      "id": 7,
+      "name": "Early",
+      "planned_end": "2026-03-20",
+      "planned_start": "2026-03-05",
+      "planned_value_share": 0.2,
+      "task_id": 785
+    },
+    {
+      "id": 8,
+      "name": "Undated",
+      "planned_end": null,
+      "planned_start": null,
+      "planned_value_share": 0.2,
+      "task_id": 786
+    }
+  ]
+}

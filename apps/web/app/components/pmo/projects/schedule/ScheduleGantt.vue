@@ -26,15 +26,19 @@ const props = defineProps<{
   scale: ScheduleScale
   projectStart?: string | null
   projectEnd?: string | null
+  /** The latest baseline's planned dates by task id, drawn as a thin bar under the live one. */
+  baseline?: { number: number; tasks: Record<number, { start: string; end: string }> }
 }>()
 const { t, locale, localeProperties } = useI18n()
 const isRtl = computed(() => localeProperties.value.dir === 'rtl')
 const route = useRoute()
 const hydrated = useHydrated()
+// The baseline bars share the axis: work that moved outside the baseline range must not clamp or collapse them.
+const baselineDates = computed(() => Object.values(props.baseline?.tasks ?? {}).flatMap(task => [task.start, task.end]))
 const axis = computed(() => buildScheduleAxis(props.schedule.tasks, props.schedule.milestones, props.scale, {
   start: props.projectStart,
   end: props.projectEnd,
-}))
+}, baselineDates.value))
 const datedMilestones = computed(() => props.schedule.milestones.filter(item => item.deadline))
 const today = computed(() => hydrated.value ? new Date().toISOString().slice(0, 10) : '')
 const showToday = computed(() => !!today.value && today.value >= axis.value.start && today.value < axis.value.end)
@@ -154,6 +158,14 @@ defineExpose({ scrollPage, scrollToToday: scrollToFocus })
                 :style="markerPosition(task.end)"
                 :title="t('projects.schedule.endOnly', { date: task.end })"
               />
+              <div
+                v-if="baseline?.tasks[task.id]"
+                class="schedule-gantt-baseline"
+                :style="scheduleBarStyle(baseline.tasks[task.id]!, axis)"
+                :title="t('projects.schedule.baselineBar', { start: baseline.tasks[task.id]!.start, end: baseline.tasks[task.id]!.end })"
+                data-testid="schedule-gantt-baseline"
+                aria-hidden="true"
+              />
               <span class="schedule-gantt-dates">
                 <template v-if="task.start && task.end">{{ formatScheduleDate(task.start, locale) }} – {{ formatScheduleDate(task.end, locale) }}</template>
                 <template v-else-if="task.end">{{ t('projects.schedule.endOnly', { date: formatScheduleDate(task.end, locale) }) }}</template>
@@ -169,6 +181,9 @@ defineExpose({ scrollPage, scrollToToday: scrollToFocus })
           <span class="schedule-gantt-swatch" :class="barClass(state)" aria-hidden="true" />
           {{ stateLabel(state) }}
         </li>
+      </ul>
+      <ul v-if="baseline" class="schedule-gantt-legend" data-testid="schedule-gantt-baseline-legend">
+        <li><span class="schedule-gantt-baseline-key" aria-hidden="true" />{{ t('projects.schedule.baselineLegend', { number: baseline.number }) }}</li>
       </ul>
       <p v-if="groupedColumns" class="schedule-gantt-legend" data-testid="schedule-gantt-grouped-note">{{ t('projects.schedule.groupedColumns') }}</p>
       <ul v-if="datedMilestones.length" class="schedule-gantt-legend" :aria-label="t('projects.schedule.milestones')">

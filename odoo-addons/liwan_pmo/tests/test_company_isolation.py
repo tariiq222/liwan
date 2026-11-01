@@ -32,6 +32,9 @@ COVERED = (
     '/api/v1/projects/<int:project_id>/register/<int:item_id>',
     '/api/v1/projects/<int:project_id>/changes',
     '/api/v1/projects/<int:project_id>/changes/<int:change_id>',
+    '/api/v1/projects/<int:project_id>/baselines',
+    '/api/v1/projects/<int:project_id>/baselines/variance',
+    '/api/v1/projects/<int:project_id>/baselines/<int:number>',
     '/api/v1/projects/<int:project_id>/schedule',
     '/api/v1/projects/<int:project_id>/followers',
     '/api/v1/tasks/<int:task_id>',
@@ -47,7 +50,7 @@ COVERED = (
 )
 
 
-EXPECTED_GET_RECORD_ROUTES = 26
+EXPECTED_GET_RECORD_ROUTES = 29
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -69,6 +72,7 @@ class LiwanPmoIsolationCase(CompanyIsolationCase):
         now = datetime(2026, 1, 2, 10, 0, 0)
         cls.project_of, cls.task_of, cls.stakeholder_of = {}, {}, {}
         cls.register_of, cls.entry_of, cls.attachment_of, cls.catalog_of, cls.change_of = {}, {}, {}, {}, {}
+        cls.baseline_of = {}
         for company in (cls.company_p, cls.company_p1, cls.company_p2, cls.company_c):
             # Every fixture is written in its own company: the governance create
             # checks compare the parent project with the active company.
@@ -98,6 +102,8 @@ class LiwanPmoIsolationCase(CompanyIsolationCase):
             cls.change_of[company.id] = env(user=cls.iso_user.id)['liwan.project.change'].create({
                 'project_id': project.id, 'title': f'Change {company.name}',
             })
+            project.sudo().liwan_charter_state = 'approved'
+            cls.baseline_of[company.id] = env(user=cls.iso_user.id)['liwan.project.baseline'].create({'project_id': project.id})
             cls.entry_of[company.id] = env['liwan.project.finance.entry'].sudo().create({
                 'project_id': project.id, 'kind': 'budget', 'title': f'Budget {company.name}', 'amount': 100,
             })
@@ -202,6 +208,13 @@ class LiwanPmoIsolationCase(CompanyIsolationCase):
         self.assert_subtree_matrix(path_of)
         self.assert_subtree_matrix(
             lambda company: f"{path_of(company)}/{self.change_of[company.id].id}")
+
+    def test_project_baselines_matrix(self):
+        def path_of(company):
+            return f'/api/v1/projects/{self.project_of[company.id].id}/baselines'
+        self.assert_subtree_matrix(path_of)
+        self.assert_subtree_matrix(lambda company: f'{path_of(company)}/{self.baseline_of[company.id].number}')
+        self.assert_subtree_matrix(lambda company: f'{path_of(company)}/variance')
 
     def test_change_category_list_is_pinned_to_the_current_company(self):
         categories = self.env['liwan.project.change.category'].sudo()

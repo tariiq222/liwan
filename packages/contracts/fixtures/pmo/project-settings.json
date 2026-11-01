@@ -1,4 +1,5 @@
 {
+  "baseline_gate": "warning",
   "change_control_mode": "optional",
   "close_with_open_tasks": "block",
   "deadline_reminders_days_before": 1,
@@ -24,49 +25,21 @@
   ],
   "extensions": [
     {
-      "help": "The report font.",
+      "help": "التلقائي ينشئ مركز تكلفة لكل مشروع جديد، وتصبح مصروفاته المرحّلة هي التكلفة الفعلية للمشروع. اليدوي يترك لكل مشروع اختيار مركز تكلفته.",
       "kind": "selection",
-      "label": "Font",
-      "name": "font",
+      "label": "مراكز تكلفة المشاريع",
+      "name": "liwan_pmo_finance_cost_center_mode",
       "options": [
         {
-          "label": "Lato",
-          "value": "Lato"
+          "label": "تلقائي",
+          "value": "auto"
         },
         {
-          "label": "Roboto",
-          "value": "Roboto"
-        },
-        {
-          "label": "Open Sans",
-          "value": "Open_Sans"
-        },
-        {
-          "label": "Montserrat",
-          "value": "Montserrat"
-        },
-        {
-          "label": "Oswald",
-          "value": "Oswald"
-        },
-        {
-          "label": "Raleway",
-          "value": "Raleway"
-        },
-        {
-          "label": "Tajawal",
-          "value": "Tajawal"
-        },
-        {
-          "label": "Fira Mono",
-          "value": "Fira_Mono"
-        },
-        {
-          "label": "IBM Plex Sans Arabic",
-          "value": "IBM_Plex_Sans_Arabic"
+          "label": "يدوي",
+          "value": "manual"
         }
       ],
-      "value": "IBM_Plex_Sans_Arabic"
+      "value": "manual"
     }
   ],
   "overdue_digest_enabled": true,

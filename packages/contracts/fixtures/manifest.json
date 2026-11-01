@@ -249,6 +249,30 @@
       "schema": "ChangeCategoryListSchema"
     },
     {
+      "name": "pmo/project-baseline-list",
+      "addon": "liwan_pmo",
+      "method": "GET",
+      "route": "/api/v1/projects/{id}/baselines",
+      "status": 200,
+      "schema": "ProjectBaselineListSchema"
+    },
+    {
+      "name": "pmo/project-baseline-detail",
+      "addon": "liwan_pmo",
+      "method": "GET",
+      "route": "/api/v1/projects/{id}/baselines/{id}",
+      "status": 200,
+      "schema": "ProjectBaselineDetailSchema"
+    },
+    {
+      "name": "pmo/project-baseline-variance",
+      "addon": "liwan_pmo",
+      "method": "GET",
+      "route": "/api/v1/projects/{id}/baselines/variance",
+      "status": 200,
+      "schema": "BaselineVarianceSchema"
+    },
+    {
       "name": "pmo/task-list",
       "addon": "liwan_pmo",
       "method": "GET",

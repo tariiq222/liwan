@@ -100,6 +100,7 @@ class TestProjectAdminModel(TransactionCase):
                 'close_with_open_tasks': 'block',
                 'register_status_transitions': 'sequence',
                 'change_control_mode': 'optional',
+                'baseline_gate': 'warning',
                 'extensions': [],
             },
         )
