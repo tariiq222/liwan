@@ -56,7 +56,7 @@ describe('appStartFor', () => {
     const start = appStartFor('operations', identity(['operations.requests.read', 'operations.requests.create']))
     if (start.kind !== 'ready') throw new Error('expected a ready start page')
     expect(start.openTo).toBe('/operations')
-    expect(start.cards.map(card => card.to)).toEqual(['/operations'])
+    expect(start.cards.map(card => card.to)).toEqual(['/operations', '/operations/pending'])
     expect(start.creates.map(card => card.to)).toEqual(['/operations/new'])
   })
 })
