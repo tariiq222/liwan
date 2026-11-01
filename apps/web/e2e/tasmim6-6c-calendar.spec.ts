@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
 // Plan 6c: /meetings/calendar on SharedTimelineFrame (isolated mock stack).
-// The mock has one meeting on 2026-09-15 (confirmed, 09:00).
+// The calendar is a view of the meetings page (h1 «الاجتماعات»). The mock has five meetings; meeting 1 is on 2026-09-15 (confirmed, 09:00).
 import { login, open, fitsWidth } from './support/tasmim6'
 test.skip(process.env.E2E_PROJECT_POPUPS !== '1', 'Isolated synthetic API only')
 const monthParams = (url: string) => { const params = new URL(url).searchParams; return { year: params.get('year'), month: params.get('month') } }
@@ -15,7 +15,7 @@ test.describe('Plan 6c: the meetings calendar', () => {
     test('is the timeline frame with one h1, the toolbar and the month grid', async ({ page }) => {
       await open(page, '/meetings/calendar?year=2026&month=9')
       await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
-      await expect(page.getByRole('heading', { level: 1 })).toHaveText('التقويم')
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText('الاجتماعات')
       await expect(page.locator('[data-template="timeline-frame"]')).toHaveCount(1)
       await expect(page.getByTestId('timeline-range')).toContainText(/2026|٢٠٢٦/)
       for (const id of ['timeline-prev', 'timeline-today', 'timeline-next']) await expect(page.getByTestId(id)).toBeEnabled()

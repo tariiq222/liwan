@@ -27,7 +27,7 @@ test.describe('Plan 6c: meeting history and version lists', () => {
     await open(page, '/meetings/1?tab=history')
     const list = page.getByTestId('meeting-event-list')
     await expect(list).toBeVisible()
-    await expect(list.getByRole('heading', { level: 2, name: 'السجل التاريخي' })).toBeVisible()
+    await expect(list.getByRole('heading', { level: 2, name: 'النشاط' })).toBeVisible()
     await expect(list.locator('ol > li')).toHaveCount(1)
     await expect(list).toContainText('أحمد العتيبي')
     await expect(list.getByTestId('shared-pagination')).toHaveCount(0)

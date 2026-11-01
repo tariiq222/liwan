@@ -289,7 +289,7 @@ const events = [{
   summary: 'حُفظ محضر الاجتماع.',
 }]
 
-const attachments = [{ id: 1, name: 'محضر الاجتماع.pdf', mimetype: 'application/pdf', url: '/api/v1/attachments/1' }]
+const attachments = [{ id: 1, name: 'محضر الاجتماع.pdf', mimetype: 'application/pdf', url: '/api/v1/attachments/1', size: 18432 }]
 const versions = [{ id: 1, number: 1, captured_at: snapshot.captured_at, actor: PERSON, snapshot }]
 
 const employee = {

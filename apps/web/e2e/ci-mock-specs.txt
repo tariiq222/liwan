@@ -33,3 +33,10 @@ tasmim6-notification-digest.spec.ts
 tasmim7-pmo-hydration.spec.ts
 my-tasks-journey.spec.ts
 pilot-tasks.spec.ts
+tasmim6-6c-meeting-record.spec.ts
+tasmim6-6c-calendar.spec.ts
+tasmim6-6c-history-lists.spec.ts
+tasmim6-6c-meetings-list.spec.ts
+tasmim6-6c-series-list.spec.ts
+tasmim6-6c-series-record.spec.ts
+tasmim6-updates-meetings.spec.ts

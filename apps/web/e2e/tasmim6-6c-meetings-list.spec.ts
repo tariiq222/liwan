@@ -50,7 +50,7 @@ test.describe('Plan 6c: the meetings list', () => {
       await open(page, '/meetings')
       await page.locator('#meeting-search').fill('اجتماع')
       await expect(page).toHaveURL(/q=/)
-      await page.getByTestId('meeting-row').click()
+      await page.getByTestId('meeting-row').first().click()
       await expect(page).toHaveURL(/\/meetings\/1/)
       await page.getByRole('link', { name: 'رجوع' }).click()
       await expect(page).toHaveURL(/\/meetings\?(?=.*q=)/)
