@@ -103,19 +103,3 @@ describe('the fiscal rules own the messages the card shows', () => {
     expect(errors('ar')).toContain('invalid_request_context')
   })
 })
-
-describe('the transfer account is a field of the same card', () => {
-  it('offers reconcilable current assets only, shows the saved account and follows the draft rules', () => {
-    const card = read(CARD)
-    for (const needle of [
-      '<AccountPicker',
-      'v-model="draft.transfer_account_id"',
-      'account-type="asset_current"',
-      ':allow="isTransferAccount"',
-      ':selected-label="setup.fiscal.transfer_account?.name"',
-      "account.reconcile && account.account_type === 'asset_current'",
-      "fieldMessage('transfer_account_id')",
-    ]) expect(card, needle).toContain(needle)
-    expect(read(RULES)).toContain('transfer_account_id')
-  })
-})

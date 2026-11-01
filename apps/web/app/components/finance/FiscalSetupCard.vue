@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FinanceAccount, FinanceSetup } from '@liwan/contracts'
+import type { FinanceSetup } from '@liwan/contracts'
 import AccountPicker from '@/components/finance/AccountPicker.vue'
 import { ApiError } from '@/composables/useApi'
 import { useFinanceSetupScope, useSaveFinanceFiscal } from '@/composables/finance/useFinanceSetup'
@@ -72,9 +72,6 @@ function fieldMessage(field: FinanceFiscalField) {
   const code = issuesByField.value.get(field)
   return code ? t(`finance.setup.fiscal.errors.${code}`) : undefined
 }
-
-// Internal transfers pass through a reconcilable current asset, the only kind the server accepts.
-const isTransferAccount = (account: FinanceAccount) => account.reconcile && account.account_type === 'asset_current'
 
 const FIELD_LABELS: Partial<Record<FinanceFiscalField, string>> = { fiscalyear_last_day: 'yearEndDay', fiscalyear_last_month: 'yearEndMonth' }
 const fieldLabel = (field: FinanceFiscalField) => t(`finance.setup.fiscal.${FIELD_LABELS[field] ?? field}`)
@@ -171,7 +168,7 @@ const monthOptions = computed(() => Array.from({ length: 12 }, (_, index) => ({
         id="finance-fiscal-transfer_account_id"
         v-model="draft.transfer_account_id"
         account-type="asset_current"
-        :allow="isTransferAccount"
+        reconcile
         :selected-label="setup.fiscal.transfer_account?.name"
         :placeholder="t('finance.setup.fiscal.transferAccountPlaceholder')"
         :invalid="!!fieldMessage('transfer_account_id')"
