@@ -55,6 +55,14 @@ def _change(project, change_id):
     return change
 
 
+def _can_create(project):
+    """Whether the caller may raise a request; a flag, so it answers False instead of raising."""
+    try:
+        return project._liwan_is_member() and request.env['liwan.pmo.settings'].change_control_mode() != 'off'
+    except AccessError:
+        return False
+
+
 def _locked(change, payload, *, token_required):
     """Lock the request's row and check the write token the body carries."""
     expected = payload.pop('expected_updated_at', None)
@@ -129,7 +137,7 @@ class ProjectChangeController(http.Controller):
         return {
             'items': [dump_change(change) for change in Change.search(domain, limit=limit, offset=offset)],
             'total': Change.search_count(domain),
-            'can_create': project._liwan_is_member() and request.env['liwan.pmo.settings'].change_control_mode() != 'off',
+            'can_create': _can_create(project),
         }
 
     @http.route('/api/v1/projects/<int:project_id>/changes/<int:change_id>', type='json2', auth='user', methods=['GET'], readonly=True)

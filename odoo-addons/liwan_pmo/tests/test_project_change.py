@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo import Command
 from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import new_test_user, tagged
 
@@ -167,6 +168,27 @@ class TestProjectChange(LiwanPmoCase):
         self.assertEqual(response.status_code, 403)
         listed = self._call('api_chg_outsider', 'GET', self.base).json()
         self.assertFalse(listed['can_create'])
+
+    def test_a_role_that_reads_projects_but_not_tasks_reads_requests_and_cannot_raise_them(self):
+        reader = new_test_user(self.env, login='api_chg_reader', password='api_chg_reader_pass_123', name='Reader', groups='base.group_user')
+        permission = self.env['liwan.access.permission'].search([('key', '=', 'pmo.projects.read')])
+        role = self.env['liwan.access.role'].create({
+            'name_ar': 'chg_reader', 'permission_ids': [Command.set(permission.ids)],
+        })
+        self.env['liwan.access.assignment'].create({
+            'user_id': reader.id, 'role_id': role.id, 'company_id': self.env.company.id,
+        })
+        with self.assertRaises(AccessError):
+            self.env['project.task'].with_user(reader).search_count([('project_id', '=', self.project.id)])
+        self.assertFalse(self.project.with_user(reader)._liwan_is_member())
+        change_id = self._in_state('submitted')
+        listed = self._call('api_chg_reader', 'GET', self.base)
+        self.assertEqual(listed.status_code, 200, listed.text)
+        self.assertEqual((listed.json()['total'], listed.json()['can_create']), (1, False))
+        detail = self._call('api_chg_reader', 'GET', f'{self.base}/{change_id}')
+        self.assertEqual(detail.status_code, 200, detail.text)
+        self.assertFalse(detail.json()['can_decide'])
+        self.assertEqual(self._call('api_chg_reader', 'POST', self.base, {'title': 'Not a member'}).status_code, 403)
 
     def test_submit_needs_a_reachable_sponsor(self):
         change = self._create()

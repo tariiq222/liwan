@@ -393,6 +393,10 @@ class ProjectProject(models.Model):
         user = self.env.user
         if self._liwan_can_manage() or user == self.liwan_sponsor_id or user in self._liwan_followers():
             return True
+        # A role that reads projects but not tasks holds no task, so there is nothing to look up (and the search would refuse it).
+        Task = self.env['project.task']
+        if not self.env['liwan.access.service']._liwan_has_capability(user, 'pmo.tasks.read') or not Task.has_access('read'):
+            return False
         return bool(self.env['project.task'].with_context(active_test=False).search_count(
             [('project_id', '=', self.id), ('user_ids', 'in', user.id)], limit=1,
         ))
