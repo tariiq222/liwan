@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { curveSeries, dayNumber, formatIndex, indexBadgeTone, indexTone } from '../evm'
+import type { ProjectEvm } from '@liwan/contracts'
+import { evmLineChart, formatIndex, indexBadgeTone, indexTone } from '../evm'
 
 describe('earned value presentation', () => {
   it('colours the index bands: below 0.9 danger, 0.9 to under 1 warning, 1 or more success', () => {
@@ -19,13 +20,22 @@ describe('earned value presentation', () => {
     expect(formatIndex(null, 'n/a')).toBe('n/a')
   })
 
-  it('plots the curve on a day axis and keeps today inside the plotted span', () => {
-    const curve = [{ date: '2026-03-01', pv: 0 }, { date: '2026-03-30', pv: 120000 }]
-    const series = curveSeries(curve, '2026-03-15')
-    expect(series.last - series.first).toBe(29)
-    expect(series.today - series.first).toBe(14)
-    expect(curveSeries(curve, '2026-01-01').today).toBe(series.first)
-    expect(curveSeries(curve, '2027-01-01').today).toBe(series.last)
-    expect(curveSeries([], '2026-03-15')).toMatchObject({ points: [], today: dayNumber('2026-03-15') })
+  it('builds a line chart with today\'s earned value and actual cost as markers, clamped into the plotted span', () => {
+    const evm = {
+      as_of: '2026-03-15', pv: 60000, ev: 42000, ac: 48000, planned_curve: [{ date: '2026-03-01', pv: 0 }, { date: '2026-03-30', pv: 120000 }],
+    } as ProjectEvm
+    const labels = { pv: 'PV', ev: 'EV', ac: 'AC' }
+    const chart = evmLineChart(evm, labels, value => `${value} SAR`)!
+    expect(chart.data.at(-1)!.x - chart.data[0]!.x).toBe(29)
+    expect(chart.markers.map(marker => [marker.key, marker.y, marker.display])).toEqual([['ev', 42000, '42000 SAR'], ['ac', 48000, '48000 SAR']])
+    expect(chart.markers[0]!.x - chart.data[0]!.x).toBe(14)
+    expect(evmLineChart({ ...evm, as_of: '2026-01-01' }, labels, String)!.markers[0]!.x).toBe(chart.data[0]!.x)
+    expect(evmLineChart({ ...evm, as_of: '2027-01-01' }, labels, String)!.markers[0]!.x).toBe(chart.data.at(-1)!.x)
+  })
+
+  it('draws nothing without a curve or without plan figures', () => {
+    const labels = { pv: 'PV', ev: 'EV', ac: 'AC' }
+    expect(evmLineChart({ as_of: '2026-03-15', pv: 0, ev: 0, ac: 0, planned_curve: [] } as unknown as ProjectEvm, labels, String)).toBeNull()
+    expect(evmLineChart({ as_of: '2026-03-15', pv: null, ev: null, ac: 5, planned_curve: [] } as unknown as ProjectEvm, labels, String)).toBeNull()
   })
 })

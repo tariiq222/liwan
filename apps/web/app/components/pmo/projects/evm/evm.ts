@@ -1,5 +1,6 @@
 // Presentation of earned value indices. Pure, see __tests__/evm.test.ts.
-import type { EvmCurvePoint } from '@liwan/contracts'
+import type { ProjectEvm } from '@liwan/contracts'
+import type { DashboardLineChart } from '@/utils/projectChartData'
 import type { StateTone } from '@/composables/taskState'
 
 export type IndexTone = 'neutral' | 'success' | 'warning' | 'danger'
@@ -22,10 +23,22 @@ export function formatIndex(value: number | null, unknown: string, locale = 'en'
 /** Whole days since the epoch for an ISO calendar date, so the time axis is linear and free of time zones. */
 export const dayNumber = (date: string): number => Math.round(Date.parse(`${date}T00:00:00Z`) / 86_400_000)
 
-/** The curve's points as numbers on the day axis; today is clamped into the plotted span so its marks stay in view. */
-export function curveSeries(curve: EvmCurvePoint[], asOf: string) {
-  const points = curve.map(point => ({ day: dayNumber(point.date), pv: point.pv }))
-  const first = points[0]?.day ?? dayNumber(asOf)
-  const last = points.at(-1)?.day ?? first
-  return { points, today: Math.min(Math.max(dayNumber(asOf), first), last), first, last }
+/**
+ * The planned value curve as a line chart with today's earned value and actual cost as markers. Today is clamped into the
+ * plotted span so the marks stay in view. `money` formats an amount for the legend.
+ */
+export function evmLineChart(evm: ProjectEvm, labels: { pv: string; ev: string; ac: string }, money: (value: number) => string): DashboardLineChart | null {
+  const points = evm.planned_curve.map(point => ({ x: dayNumber(point.date), y: point.pv }))
+  if (!points.length || evm.pv === null || evm.ev === null) return null
+  const today = Math.min(Math.max(dayNumber(evm.as_of), points[0]!.x), points.at(-1)!.x)
+  return {
+    kind: 'line',
+    series: { key: 'pv', label: labels.pv },
+    seriesDisplay: money(evm.pv),
+    data: points,
+    markers: [
+      { key: 'ev', label: labels.ev, display: money(evm.ev), x: today, y: evm.ev, tone: 'success' },
+      { key: 'ac', label: labels.ac, display: money(evm.ac), x: today, y: evm.ac, tone: 'warning' },
+    ],
+  }
 }

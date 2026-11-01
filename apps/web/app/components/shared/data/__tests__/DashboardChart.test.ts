@@ -61,7 +61,7 @@ describe('DashboardChart donut path drawing', () => {
           donut: { data: [{ name: 'أ', value: 1 }] }, donutData: [{ name: 'أ', value: 1 }],
           donutColors: ['#06c'], donutPlotHeight: 200, motionEpoch: 0, chartConfig: {},
           fontSize: 'medium', height: '240px', accessibleLabel: 'donut',
-          donutTooltipTriggers: {}, bars: null, chart: { kind: 'donut' },
+          donutTooltipTriggers: {}, bars: null, line: null, chart: { kind: 'donut' },
         } as Record<string | symbol, unknown>, {
           has: (target, key) => key in target || (typeof key === 'string' && !internal(key)),
           // Vue asks hasOwnProperty, not `in`, before exposing a binding.

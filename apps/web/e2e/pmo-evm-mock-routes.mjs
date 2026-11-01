@@ -15,7 +15,7 @@ const WORKED = {
 const VARIANTS = {
   healthy: { ev: 66000, sv: 6000, cv: 18000, spi: 1.1, cpi: 1.38, eac: 86956.52, etc: 38956.52, vac: 33043.48, tcpi: 0.55 },
   warning: { ev: 57000, sv: -3000, cv: 9000, spi: 0.95, cpi: 0.97, eac: 123711.34, etc: 75711.34, vac: -3711.34, tcpi: 1.04 },
-  empty: { bac: 0, pv: 0, ev: 0, sv: 0, cv: null, spi: null, cpi: null, eac: null, etc: null, vac: null, tcpi: null, ac: 0, hidden_count: 2, undated_count: 1 },
+  empty: { bac: 0, pv: null, ev: null, sv: null, planned_curve: [], cv: null, spi: null, cpi: null, eac: null, etc: null, vac: null, tcpi: null, ac: 0, hidden_count: 2, undated_count: 1 },
 }
 
 let variant = ''

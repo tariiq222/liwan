@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { ChartConfig } from '@/components/charts'
-import type { ChartPalette, ChartTone, DashboardBarChart, DashboardChart, DashboardDonutChart } from '@/utils/projectChartData'
+import type { ChartPalette, ChartTone, DashboardBarChart, DashboardChart, DashboardDonutChart, DashboardLineChart } from '@/utils/projectChartData'
 import { useMediaQuery, useMutationObserver } from '@vueuse/core'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { Position } from '@unovis/ts'
-import { VisAxis, VisDonut, VisGroupedBar, VisTooltip, VisXYContainer, VisSingleContainer, VisDonutSelectors, VisGroupedBarSelectors } from '@unovis/vue'
+import { CurveType, Position } from '@unovis/ts'
+import { VisAxis, VisDonut, VisGroupedBar, VisLine, VisScatter, VisTooltip, VisXYContainer, VisSingleContainer, VisDonutSelectors, VisGroupedBarSelectors } from '@unovis/vue'
 import { ChartContainer, ChartLegendContent, ChartTooltipContent, componentToString } from '@/components/charts'
 
 const props = withDefaults(defineProps<{
@@ -88,6 +88,12 @@ const chartConfig = computed<ChartConfig>(() => {
     const colors = donutColors.value
     return Object.fromEntries(chart.data.map((item, index) => [String(index), { label: item.name, color: colors[index] }]))
   }
+  if (chart.kind === 'line') {
+    return Object.fromEntries([
+      [chart.series.key, { label: chart.series.label, color: lineColor.value }],
+      ...chart.markers.map(marker => [marker.key, { label: marker.label, color: toneColor(marker.tone) }]),
+    ])
+  }
   const colors = barColors.value
   return Object.fromEntries(chart.series.map((item, index) => [item.key, { label: item.label, color: colors[index] }]))
 })
@@ -101,6 +107,21 @@ const donutColors = computed(() => {
   const fallback = colorsFor('donut', donutPalette.value, donutLength.value)
   return (donut.value?.data ?? []).map((item, index) => item.tone ? toneColor(item.tone) : fallback[index]!)
 })
+const line = computed<DashboardLineChart | null>(() => props.chart.kind === 'line' ? props.chart : null)
+const lineKey = computed(() => line.value?.series.key ?? '')
+const lineColor = computed(() => chartColors.value[0]!)
+type LineRow = Record<string, number | undefined> & { x: number }
+// One data set for the container: the line's points carry the series key, each marker row carries its own key.
+const lineRows = computed<LineRow[]>(() => line.value
+  ? [...line.value.data.map(point => ({ x: point.x, [line.value!.series.key]: point.y })), ...line.value.markers.map(marker => ({ x: marker.x, [marker.key]: marker.y }))]
+  : [])
+const lineXDomain = computed<[number, number]>(() => {
+  const xs = lineRows.value.map(row => row.x)
+  return [Math.min(...xs), Math.max(...xs)]
+})
+const lineTop = computed(() => Math.max(1, ...lineRows.value.flatMap(row => Object.entries(row).filter(([key]) => key !== 'x').map(([, value]) => value ?? 0))) * 1.08)
+const dayFormatter = computed(() => new Intl.DateTimeFormat(locale.value, { month: 'short', day: 'numeric', timeZone: 'UTC' }))
+const compactFormatter = computed(() => new Intl.NumberFormat(locale.value, { notation: 'compact', maximumFractionDigits: 1 }))
 const barPalette = computed(() => bars.value?.palette ?? 'primary' as ChartPalette)
 const barColors = computed(() => colorsFor('bar', barPalette.value, bars.value?.series.length ?? 0))
 const barData = computed(() => bars.value?.data ?? [])
@@ -222,7 +243,44 @@ watch([mode, fontSize], () => { void nextTick(readTokens) }, { flush: 'post' })
     :style="{ height: donut ? 'auto' : height, minHeight: donut ? height : undefined }"
   >
     <ChartContainer
-      v-if="donut"
+      v-if="line"
+      class="chart-line-container h-full !aspect-auto gap-2"
+      :config="chartConfig"
+      :style="{ '--vis-axis-tick-label-font-size': `var(--project-type-caption, ${fontSize === 'large' ? '16px' : '12px'})` }"
+    >
+      <div class="chart-line-plot min-w-0" dir="ltr" :style="{ height: `${Math.max(160, panelHeight - 56)}px` }">
+        <VisXYContainer :key="`${motionEpoch}-${isRtl}`" :data="lineRows" :height="Math.max(160, panelHeight - 56)" :x-domain="lineXDomain" :y-domain="[0, lineTop]" :duration="0">
+          <VisLine :x="(row: LineRow) => row.x" :y="(row: LineRow) => row[lineKey]" :color="lineColor" :line-width="3" :curve-type="CurveType.Linear" :duration="0" />
+          <VisScatter
+            v-for="marker in line.markers"
+            :key="marker.key"
+            :x="(row: LineRow) => row.x"
+            :y="(row: LineRow) => row[marker.key]"
+            :color="toneColor(marker.tone)"
+            :size="16"
+            :stroke-width="3"
+            :duration="0"
+          />
+          <VisAxis type="x" :num-ticks="5" :tick-format="(day: number) => dayFormatter.format(day * 86_400_000)" :grid-line="false" :domain-line="false" :duration="0" />
+          <VisAxis type="y" :num-ticks="4" :tick-format="(value: number) => compactFormatter.format(value)" :grid-line="true" :domain-line="false" :tick-line="false" :duration="0" />
+        </VisXYContainer>
+      </div>
+      <ul class="chart-donut-legend" :aria-label="accessibleLabel">
+        <li class="chart-donut-legend-item">
+          <span class="chart-donut-legend-swatch" :style="{ backgroundColor: lineColor }" aria-hidden="true" />
+          <span class="min-w-0 truncate">{{ line.series.label }}</span>
+          <bdi dir="ltr" class="shrink-0 tabular-nums text-highlighted">{{ line.seriesDisplay }}</bdi>
+        </li>
+        <li v-for="marker in line.markers" :key="marker.key" class="chart-donut-legend-item">
+          <span class="chart-donut-legend-swatch" :style="{ backgroundColor: toneColor(marker.tone) }" aria-hidden="true" />
+          <span class="min-w-0 truncate">{{ marker.label }}</span>
+          <bdi dir="ltr" class="shrink-0 tabular-nums text-highlighted">{{ marker.display }}</bdi>
+        </li>
+      </ul>
+    </ChartContainer>
+
+    <ChartContainer
+      v-else-if="donut"
       class="chart-donut-container h-full !aspect-auto gap-2"
       :config="chartConfig"
       :style="{

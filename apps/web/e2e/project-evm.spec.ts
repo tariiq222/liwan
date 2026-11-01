@@ -21,7 +21,8 @@ test('the earned value tab shows the indices, the method note and the planned va
   await expect(page.getByTestId('evm-cpi')).toContainText('0.88')
   await expect(page.getByTestId('evm-method')).toContainText('100%')
   await expect(page.getByTestId('evm-curve')).toBeVisible()
-  await expect(page.getByTestId('evm-curve-legend')).toBeVisible()
+  await expect(page.getByTestId('chart-canvas')).toBeVisible()
+  await expect(page.getByTestId('evm-notes')).toBeVisible()
 })
 
 test('an index between 0.9 and 1 reads as a warning', async ({ page }) => {

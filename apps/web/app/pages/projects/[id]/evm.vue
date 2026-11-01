@@ -2,7 +2,9 @@
 import { ApiError } from '@/composables/useApi'
 import { useProjectEvm } from '@/composables/useProjectEvm'
 import { useProjectMissing } from '@/composables/useProjects'
-import EvmCurve from '@/components/pmo/projects/evm/EvmCurve.vue'
+import DashboardChart from '@/components/shared/data/DashboardChart.client.vue'
+import { evmLineChart } from '@/components/pmo/projects/evm/evm'
+import { formatMoney } from '@/utils/projectFinance'
 import EvmIndices from '@/components/pmo/projects/evm/EvmIndices.vue'
 import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState.vue'
 import { formatLiwanDate } from '@liwan/ui/app/composables/calendarDate'
@@ -15,6 +17,12 @@ const evm = useProjectEvm(id)
 const notFound = useProjectMissing(id)
 const noBaseline = computed(() => evm.error.value instanceof ApiError && evm.error.value.code === 'no_baseline')
 const data = computed(() => evm.data.value)
+const money = (value: number) => data.value?.currency ? formatMoney(value, data.value.currency) : String(value)
+const chart = computed(() => data.value ? evmLineChart(data.value, { pv: t('projects.evm.series.pv'), ev: t('projects.evm.series.ev'), ac: t('projects.evm.series.ac') }, money) : null)
+// The figure's accessible name carries what the plot shows: the day and the three values.
+const chartLabel = computed(() => data.value && data.value.pv !== null && data.value.ev !== null
+  ? t('projects.evm.curveLabel', { date: formatLiwanDate(data.value.as_of), pv: money(data.value.pv), ev: money(data.value.ev), ac: money(data.value.ac) })
+  : t('projects.evm.noCurve'))
 </script>
 
 <template>
@@ -33,12 +41,14 @@ const data = computed(() => evm.data.value)
       <UAlert v-if="data.undated_count" color="neutral" variant="subtle" data-testid="evm-undated" :description="t('projects.evm.undated', { count: data.undated_count }, data.undated_count)" />
       <UAlert v-if="data.bac === 0" color="neutral" variant="subtle" data-testid="evm-no-budget" :description="t('projects.evm.noBudget')" />
       <EvmIndices :evm="data" />
-      <SharedRecordSection variant="panel" :title="t('projects.evm.curveTitle')" :description="t('projects.evm.curveHint')">
-        <SharedEmptyState v-if="!data.planned_curve.length" :title="t('projects.evm.noCurve')" />
-        <ClientOnly v-else>
-          <EvmCurve :evm="data" />
-        </ClientOnly>
-      </SharedRecordSection>
+      <p class="text-xs text-muted" data-testid="evm-notes">{{ t('projects.evm.notes') }}</p>
+      <SharedChartPanel :title="t('projects.evm.curveTitle')" :description="t('projects.evm.curveHint')" :empty="!chart" :empty-text="t('projects.evm.noCurve')" data-testid="evm-curve">
+        <template #default="{ height }">
+          <ClientOnly>
+            <DashboardChart v-if="chart" :chart="chart" :accessible-label="chartLabel" :height="height" />
+          </ClientOnly>
+        </template>
+      </SharedChartPanel>
     </template>
     <SharedPageState v-else :loading="evm.isLoading.value" />
   </SharedListPage>
