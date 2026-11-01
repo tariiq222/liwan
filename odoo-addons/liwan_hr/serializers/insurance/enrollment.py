@@ -13,7 +13,7 @@ from odoo.addons.liwan_hr.serializers.insurance.common import (
 from odoo.addons.liwan_hr.serializers.insurance.dependent import dump_dependent
 from odoo.addons.liwan_hr.serializers.insurance.plan import dump_plan, ref_plan
 
-STATES = ('active', 'ended', 'cancelled')
+STATES = ('active', 'lapsed', 'ended', 'cancelled')
 
 
 def _core(row):
@@ -24,23 +24,26 @@ def _core(row):
         'date_from': row.date_from.isoformat(),
         'date_to': row.date_to.isoformat() if row.date_to else None,
         'date_end': row.date_end_effective.isoformat(),
-        'state': row.state,
+        'state': row.state_effective,
         'employee_share': row.employee_share or None,
         'company_share': row.company_share or None,
         'revision': row.revision,
     }
 
 
-def dump_enrollment(row, detail=False):
-    """An enrollment for the insurance readers; the detail adds the notes and the dependents."""
+def dump_enrollment(row, detail=False, full=False):
+    """An enrollment for the insurance readers; the detail adds the notes and the dependents.
+
+    The dependents' identity numbers come whole only with ``full`` (the caller manages insurance).
+    """
     data = {
         **_core(row),
         'plan': dump_plan(row.plan_id) if detail else ref_plan(row.plan_id),
-        'dependents_count': len(row.dependent_ids.filtered(lambda item: item.state == 'active')),
+        'dependents_count': len(row._liwan_active_dependents()),
     }
     if detail:
         data['notes'] = row.notes or None
-        data['dependents'] = [dump_dependent(item, full=True) for item in row.dependent_ids]
+        data['dependents'] = [dump_dependent(item, full=full) for item in row.dependent_ids]
     return data
 
 

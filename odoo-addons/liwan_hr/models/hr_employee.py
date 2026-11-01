@@ -212,7 +212,7 @@ class LiwanHrEmployee(models.Model):
         if not moving:
             return
         for table in ('liwan_hr_warning', 'liwan_hr_insurance_enrollment'):
-            self.env.cr.execute(f'SELECT 1 FROM {table} WHERE employee_id IN %s LIMIT 1', (tuple(moving.ids),))  # noqa: S608
+            self.env.cr.execute(SQL('SELECT 1 FROM %s WHERE employee_id IN %s LIMIT 1', SQL.identifier(table), tuple(moving.ids)))
             if self.env.cr.fetchone():
                 raise ValidationError(self.env._(
                     'An employee with administrative warning or insurance records cannot move to another company.',

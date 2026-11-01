@@ -408,7 +408,7 @@ const insDependentView = (row, full) => ({
 })
 const insEnd = row => row.date_to ?? insPlans.find(plan => plan.id === row.plan_id).valid_to
 const insCore = row => ({
-  id: row.id, employee: row.employee, member_number: row.member_number, date_from: row.date_from, date_to: row.date_to, date_end: insEnd(row), state: row.state,
+  id: row.id, employee: row.employee, member_number: row.member_number, date_from: row.date_from, date_to: row.date_to, date_end: insEnd(row), state: row.state === 'active' && insEnd(row) < dayFromToday(0) ? 'lapsed' : row.state,
   employee_share: row.employee_share || null, company_share: row.company_share || null, revision: row.revision,
 })
 const insEnrollmentView = (row, detail) => {

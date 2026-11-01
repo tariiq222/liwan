@@ -10,7 +10,8 @@ const amount = z.number().min(0).max(1_000_000_000)
 
 export const HR_INSURANCE_PLAN_STATES = ['active', 'expired', 'archived'] as const
 export const HrInsurancePlanStateSchema = z.enum(HR_INSURANCE_PLAN_STATES)
-export const HR_INSURANCE_ENROLLMENT_STATES = ['active', 'ended', 'cancelled'] as const
+/** `lapsed` is derived: an active enrollment whose end date has passed. */
+export const HR_INSURANCE_ENROLLMENT_STATES = ['active', 'lapsed', 'ended', 'cancelled'] as const
 export const HrInsuranceEnrollmentStateSchema = z.enum(HR_INSURANCE_ENROLLMENT_STATES)
 export const HR_INSURANCE_RELATIONS = ['spouse', 'child', 'parent', 'other'] as const
 export const HrInsuranceRelationSchema = z.enum(HR_INSURANCE_RELATIONS)
@@ -105,7 +106,7 @@ export const HrInsuranceDependentSchema = z.object({
   national_id: z.string().nullable(),
   date_from: isoDate,
   date_to: isoDate.nullable(),
-  state: z.enum(['active', 'ended']),
+  state: z.enum(['active', 'ended', 'cancelled']),
   revision,
 }).strict()
 

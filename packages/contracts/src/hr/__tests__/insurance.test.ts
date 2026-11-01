@@ -94,6 +94,11 @@ describe('enrollments and dependents', () => {
     expect(detail.dependents[0]?.national_id_masked).toBe('******5432')
   })
 
+  it('accepts a lapsed enrollment and a cancelled dependent', () => {
+    expect(HrInsuranceEnrollmentListSchema.parse({ items: [{ ...ENROLLMENT_CORE, state: 'lapsed', plan: PLAN_REF, dependents_count: 0 }], total: 1 }).items[0]?.state).toBe('lapsed')
+    expect(HrInsuranceDependentSchema.parse({ ...DEPENDENT, state: 'cancelled' }).state).toBe('cancelled')
+  })
+
   it('rejects a list row that carries a notes field or a dependent with an unknown relation', () => {
     expect(() => HrInsuranceEnrollmentListSchema.parse({ items: [{ ...ENROLLMENT_CORE, plan: PLAN_REF, dependents_count: 0, notes: 'x' }], total: 1 })).toThrow()
     expect(() => HrInsuranceDependentSchema.parse({ ...DEPENDENT, relation: 'cousin' })).toThrow()

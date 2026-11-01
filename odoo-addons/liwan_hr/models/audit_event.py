@@ -103,6 +103,7 @@ ACTIONS = {
     'dependent_added': ('liwan.hr.insurance.dependent', SELF_AUTHORIZED),
     'dependent_changed': ('liwan.hr.insurance.dependent', SELF_AUTHORIZED),
     'dependent_ended': ('liwan.hr.insurance.dependent', SELF_AUTHORIZED),
+    'dependent_cancelled': ('liwan.hr.insurance.dependent', SELF_AUTHORIZED),
     'insurance_settings_changed': ('liwan.hr.insurance.settings', 'hr.insurance.manage'),
 }
 # The warning trail is never listed with the payroll audit: it is confidential to the warnings capabilities.
@@ -154,6 +155,7 @@ INSURANCE_ACTION_SELECTION = [
     ('dependent_added', 'Insurance dependent added'),
     ('dependent_changed', 'Insurance dependent changed'),
     ('dependent_ended', 'Insurance dependent ended'),
+    ('dependent_cancelled', 'Insurance dependent cancelled'),
     ('insurance_settings_changed', 'Insurance settings changed'),
 ]
 ACTION_SELECTION = PAYROLL_ACTION_SELECTION + WARNING_ACTION_SELECTION + INSURANCE_ACTION_SELECTION

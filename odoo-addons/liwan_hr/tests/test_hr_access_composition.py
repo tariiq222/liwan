@@ -9,6 +9,7 @@ from odoo.addons.liwan_hr.models.access_service import (
     HR_PERMISSIONS,
     PAYROLL_OFFBOARDING_PERMISSIONS,
     PAYROLL_PERMISSIONS,
+    PRIVATE_HR_PERMISSIONS,
 )
 
 # The five HR areas added over ready-made engines: capability -> (group xmlid suffix
@@ -86,10 +87,11 @@ class TestHrAccessComposition(TransactionCase):
 
     def test_hr_owns_its_twenty_five_capabilities_and_their_groups(self):
         catalog = self.service._liwan_capability_map()
-        self.assertEqual(len(HR_PERMISSIONS), 25)
-        self.assertLessEqual(HR_AREA_PERMISSIONS, HR_PERMISSIONS)
-        self.assertEqual({key for key, item in catalog.items() if item['owner'] == 'liwan_hr'}, set(HR_PERMISSIONS) | PAYROLL_PERMISSIONS)
-        permissions = self.Permission.search([('key', 'in', sorted(HR_PERMISSIONS))])
+        owned = HR_PERMISSIONS | PRIVATE_HR_PERMISSIONS
+        self.assertEqual((len(HR_PERMISSIONS), len(PRIVATE_HR_PERMISSIONS), len(owned)), (21, 4, 25))
+        self.assertLessEqual(HR_AREA_PERMISSIONS, owned)
+        self.assertEqual({key for key, item in catalog.items() if item['owner'] == 'liwan_hr'}, set(owned) | PAYROLL_PERMISSIONS)
+        permissions = self.Permission.search([('key', 'in', sorted(owned))])
         self.assertEqual(len(permissions), 25)
         xmlids = permissions.get_external_id()
         for permission in permissions:
@@ -103,13 +105,17 @@ class TestHrAccessComposition(TransactionCase):
         self.assertEqual(self.env['liwan.access.role'].search_count([('key', '=', 'hr_manager')]), 1)
         self.assertFalse(self.env.ref('liwan_core.role_hr_manager', raise_if_not_found=False))
         self.assertFalse(self.env.ref('liwan_core.group_hr_manager', raise_if_not_found=False))
-        self.assertEqual(self._keys('liwan_hr.role_hr_manager') & set(HR_PERMISSIONS), set(HR_PERMISSIONS))
+        self.assertEqual(self._keys('liwan_hr.role_hr_manager') & set(HR_PERMISSIONS | PRIVATE_HR_PERMISSIONS), set(HR_PERMISSIONS | PRIVATE_HR_PERMISSIONS))
         self.assertTrue(self._keys('liwan_core.role_employee') >= EMPLOYEE_HR_PERMISSIONS)
         self.assertTrue(self._keys('liwan_core.role_vendor_support') >= HR_PERMISSIONS)
 
     def test_hr_area_capabilities_reach_only_the_hr_manager_and_vendor_support(self):
         self.assertEqual(self._keys('liwan_hr.role_hr_manager') & HR_AREA_PERMISSIONS, HR_AREA_PERMISSIONS)
-        self.assertEqual(self._keys('liwan_core.role_vendor_support') & HR_AREA_PERMISSIONS, HR_AREA_PERMISSIONS)
+        # Vendor support holds every area except the private ones (warnings, insurance), which only the HR manager role grants.
+        self.assertEqual(
+            self._keys('liwan_core.role_vendor_support') & HR_AREA_PERMISSIONS, HR_AREA_PERMISSIONS - PRIVATE_HR_PERMISSIONS,
+        )
+        self.assertFalse(self._keys('liwan_core.role_vendor_support') & PRIVATE_HR_PERMISSIONS)
         self.assertFalse(self._keys('liwan_core.role_employee') & HR_AREA_PERMISSIONS)
 
     def test_payroll_offboarding_officer_settles_a_leaver_and_nothing_wider(self):
@@ -205,6 +211,9 @@ class TestHrAccessComposition(TransactionCase):
         self.assertTrue(self.service._liwan_capability_keys(odoo_group) >= HR_PERMISSIONS - {'hr.leave.config'})
         self.assertNotIn('hr.leave.config', self.service._liwan_capability_keys(odoo_group))
         self.assertTrue(self.service._liwan_capability_keys(employee) >= EMPLOYEE_HR_PERMISSIONS)
+        # Warnings and insurance are private: no legacy group opens them, only the HR manager role does.
+        for user in (liwan_group, odoo_group):
+            self.assertFalse(self.service._liwan_capability_keys(user) & PRIVATE_HR_PERMISSIONS)
 
     def test_repair_relinks_a_missing_hr_grant(self):
         role = self.env.ref('liwan_hr.role_hr_manager')

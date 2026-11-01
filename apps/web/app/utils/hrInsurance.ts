@@ -8,6 +8,7 @@ const PLAN_TONE: Record<HrInsurancePlanState, StatusBadgeEntry['tone']> = {
 }
 const ENROLLMENT_TONE: Record<HrInsuranceEnrollmentState, StatusBadgeEntry['tone']> = {
   active: 'success',
+  lapsed: 'warning',
   ended: 'neutral',
   cancelled: 'neutral',
 }

@@ -34,14 +34,14 @@ class LiwanHrInsuranceDependent(models.Model):
     national_id = fields.Char()
     date_from = fields.Date(required=True)
     date_to = fields.Date()
-    state = fields.Selection([('active', 'Active'), ('ended', 'Ended')], required=True, default='active', index=True)
+    state = fields.Selection([('active', 'Active'), ('ended', 'Ended'), ('cancelled', 'Cancelled')], required=True, default='active', index=True)
     revision = fields.Integer(required=True, default=1)
 
     _revision_positive = models.Constraint('CHECK(revision > 0)', 'a saved revision must be positive')
 
     @api.constrains('enrollment_id', 'date_from', 'date_to')
     def _check_dates(self):
-        for row in self.filtered(lambda item: item.enrollment_id.state != 'cancelled'):
+        for row in self.filtered(lambda item: item.state != 'cancelled' and item.enrollment_id.state != 'cancelled'):
             enrollment = row.enrollment_id
             end = row.date_to or enrollment.date_end_effective
             if row.date_to and row.date_to < row.date_from:
@@ -160,8 +160,18 @@ class LiwanHrInsuranceDependent(models.Model):
         self._liwan_log('dependent_ended', before)
         return self
 
-    def _liwan_end_with(self, date_end):
-        """End the still active dependents together with their enrollment (audited with it, not one by one)."""
-        for row in self.filtered(lambda item: item.state == 'active'):
-            end = max(min(row.date_to or date_end, date_end), row.date_from)
-            row._liwan_step({'state': 'ended', 'date_to': end})
+    def _liwan_end_with(self, date_end, cancel_all=False):
+        """Bring the dependents in line with their enrollment ending on ``date_end`` (or being cancelled).
+
+        A dependent that would start after the end date never took effect: it is cancelled and audited. The others
+        end with the enrollment, or are capped at its end date. The enrollment's own event covers the ended ones.
+        """
+        for row in self.filtered(lambda item: item.state in ('active', 'ended')):
+            if cancel_all or row.date_from > date_end:
+                if row.state == 'active':
+                    before = self.env['liwan.hr.audit.event']._liwan_policy_snapshot(row)
+                    row._liwan_step({'state': 'cancelled', 'date_to': False})
+                    row._liwan_log('dependent_cancelled', before)
+                continue
+            if row.state == 'active' or (row.date_to and row.date_to > date_end):
+                row._liwan_step({'state': 'ended', 'date_to': min(row.date_to or date_end, date_end)})

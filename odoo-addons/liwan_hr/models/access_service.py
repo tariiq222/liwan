@@ -27,6 +27,13 @@ HR_PERMISSIONS = frozenset(
         'hr.offboarding.manage',
         'hr.assets.read',
         'hr.assets.manage',
+    },
+)
+# Disciplinary warnings and employee-private insurance data (member numbers, dependents' identity numbers) sit behind
+# their own keys, like payroll: vendor support and the legacy stock HR group never hold them. Only the HR manager role
+# and custom roles an administrator builds do.
+PRIVATE_HR_PERMISSIONS = frozenset(
+    {
         'hr.warnings.read',
         'hr.warnings.manage',
         'hr.insurance.read',
@@ -200,7 +207,7 @@ class LiwanHrAccessService(models.AbstractModel):
     @api.model
     def _liwan_capability_definitions(self):
         return super()._liwan_capability_definitions() + tuple(
-            {'key': key, 'owner': 'liwan_hr'} for key in sorted(HR_PERMISSIONS | PAYROLL_PERMISSIONS)
+            {'key': key, 'owner': 'liwan_hr'} for key in sorted(HR_PERMISSIONS | PRIVATE_HR_PERMISSIONS | PAYROLL_PERMISSIONS)
         )
 
     @api.model
@@ -222,7 +229,7 @@ class LiwanHrAccessService(models.AbstractModel):
     def _liwan_builtin_role_grants(self):
         grants = super()._liwan_builtin_role_grants()
         for role_xmlid, keys in (
-            ('liwan_hr.role_hr_manager', HR_PERMISSIONS),
+            ('liwan_hr.role_hr_manager', HR_PERMISSIONS | PRIVATE_HR_PERMISSIONS),
             ('liwan_core.role_employee', EMPLOYEE_HR_PERMISSIONS),
             ('liwan_core.role_vendor_support', HR_PERMISSIONS),
             ('liwan_hr.role_payroll_manager', PAYROLL_PERMISSIONS),

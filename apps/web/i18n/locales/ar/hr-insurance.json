@@ -42,6 +42,7 @@
     },
     "enrollmentState": {
       "active": "ساري",
+      "lapsed": "منقضي",
       "ended": "منتهي",
       "cancelled": "ملغى"
     },
@@ -161,7 +162,8 @@
       "endDateHint": "اتركه فارغًا للإنهاء اليوم.",
       "state": {
         "active": "مغطّى",
-        "ended": "منتهي"
+        "ended": "منتهي",
+        "cancelled": "ملغى"
       }
     },
     "own": {

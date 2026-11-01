@@ -19,6 +19,7 @@ describe('hrInsurance badges', () => {
     expect(hrInsuranceEnrollmentBadge('active').tone).toBe('success')
     expect(hrInsuranceEnrollmentBadge('ended').labelKey).toBe('hrInsurance.enrollmentState.ended')
     expect(hrInsuranceEnrollmentBadge('cancelled').tone).toBe('neutral')
+    expect(hrInsuranceEnrollmentBadge('lapsed')).toEqual({ tone: 'warning', labelKey: 'hrInsurance.enrollmentState.lapsed' })
   })
 })
 
@@ -34,6 +35,7 @@ describe('hrInsurance rules', () => {
     expect(canChangeHrInsuranceEnrollment({ state: 'active' }, true)).toBe(true)
     expect(canChangeHrInsuranceEnrollment({ state: 'active' }, false)).toBe(false)
     expect(canChangeHrInsuranceEnrollment({ state: 'ended' }, true)).toBe(false)
+    expect(canChangeHrInsuranceEnrollment({ state: 'lapsed' }, true)).toBe(false)
   })
 
   it('reads the coverage end from the plan while the enrollment is open', () => {

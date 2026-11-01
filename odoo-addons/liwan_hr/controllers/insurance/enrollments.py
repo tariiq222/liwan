@@ -9,6 +9,7 @@ from datetime import timedelta
 
 from odoo import fields, http
 from odoo.exceptions import MissingError
+from odoo.fields import Domain
 from odoo.http import request
 
 from odoo.addons.liwan_api.controllers.common import (
@@ -76,6 +77,7 @@ class HrInsuranceEnrollmentController(http.Controller):
     def list_enrollments(self, **_):
         args = request.httprequest.args
         limit, offset = parse_page(args)
+        Enrollment = request.env[ENROLLMENT]
         domain = [('company_id', '=', request.env.company.id)]
         if args.get('employee_id'):
             domain.append(('employee_id', '=', parse_positive_int(args['employee_id'], 'employee_id')))
@@ -83,10 +85,9 @@ class HrInsuranceEnrollmentController(http.Controller):
             domain.append(('plan_id', '=', parse_positive_int(args['plan_id'], 'plan_id')))
         state = parse_enrollment_state(args.get('state'))
         if state:
-            domain.append(('state', '=', state))
+            domain = Domain(domain) & Enrollment._liwan_state_domain(state)
         if args.get('expiring') == 'true':
-            domain += _expiring_domain()
-        Enrollment = request.env[ENROLLMENT].with_context(active_test=False)
+            domain = Domain(domain) & Domain(_expiring_domain())
         rows = Enrollment.search(domain, limit=limit, offset=offset)
         return {'items': [dump_enrollment(row) for row in rows], 'total': Enrollment.search_count(domain)}
 
@@ -96,14 +97,16 @@ class HrInsuranceEnrollmentController(http.Controller):
     @requires_capability('hr.insurance.manage')
     def create_enrollment(self, **payload):
         row = request.env[ENROLLMENT].action_create(parse_enrollment_create(payload))
-        return request.make_json_response(dump_enrollment(row, detail=True), status=201)
+        return request.make_json_response(dump_enrollment(row, detail=True, full=True), status=201)
 
     @http.route('/api/v1/hr/insurance/enrollments/<int:enrollment_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('hr.enabled', 'hr.insurance', operation='read')
     @requires_capability('hr.insurance.read')
     def get_enrollment(self, enrollment_id, **_):
-        return dump_enrollment(_enrollment(enrollment_id), detail=True)
+        row = _enrollment(enrollment_id)
+        # Readers see the dependents' identity numbers masked; whole ones are for the insurance managers.
+        return dump_enrollment(row, detail=True, full=request.env[ENROLLMENT]._liwan_can_manage(row.company_id))
 
     @http.route('/api/v1/hr/insurance/enrollments/<int:enrollment_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
@@ -111,7 +114,7 @@ class HrInsuranceEnrollmentController(http.Controller):
     @requires_capability('hr.insurance.manage')
     def patch_enrollment(self, enrollment_id, **payload):
         revision, vals = parse_enrollment_patch(payload)
-        return dump_enrollment(_enrollment(enrollment_id).action_update(revision, vals), detail=True)
+        return dump_enrollment(_enrollment(enrollment_id).action_update(revision, vals), detail=True, full=True)
 
     @http.route('/api/v1/hr/insurance/enrollments/<int:enrollment_id>/end', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -119,7 +122,7 @@ class HrInsuranceEnrollmentController(http.Controller):
     @requires_capability('hr.insurance.manage')
     def end_enrollment(self, enrollment_id, **payload):
         revision, date_end = parse_end(payload)
-        return dump_enrollment(_enrollment(enrollment_id).action_end(revision, date_end), detail=True)
+        return dump_enrollment(_enrollment(enrollment_id).action_end(revision, date_end), detail=True, full=True)
 
     @http.route('/api/v1/hr/insurance/enrollments/<int:enrollment_id>/cancel', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -127,7 +130,7 @@ class HrInsuranceEnrollmentController(http.Controller):
     @requires_capability('hr.insurance.manage')
     def cancel_enrollment(self, enrollment_id, **payload):
         revision = parse_revision_only(payload)
-        return dump_enrollment(_enrollment(enrollment_id).action_cancel(revision), detail=True)
+        return dump_enrollment(_enrollment(enrollment_id).action_cancel(revision), detail=True, full=True)
 
     @http.route('/api/v1/hr/insurance/enrollments/<int:enrollment_id>/dependents', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

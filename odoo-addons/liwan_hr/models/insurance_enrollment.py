@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, fields, models
-from odoo.exceptions import AccessError, ValidationError
+from odoo.exceptions import AccessError, LockError, ValidationError
+from odoo.fields import Domain
 
 from odoo.addons.liwan_api.controllers.common import ApiError
 
@@ -51,6 +52,11 @@ class LiwanHrInsuranceEnrollment(models.Model):
     employee_share = fields.Monetary(currency_field='currency_id')
     company_share = fields.Monetary(currency_field='currency_id')
     notes = fields.Text()
+    # What readers see: an active enrollment whose end date has passed is lapsed, derived from the dates.
+    state_effective = fields.Selection(
+        [('active', 'Active'), ('lapsed', 'Lapsed'), ('ended', 'Ended'), ('cancelled', 'Cancelled')],
+        compute='_compute_state_effective',
+    )
     revision = fields.Integer(required=True, default=1)
     dependent_ids = fields.One2many('liwan.hr.insurance.dependent', 'enrollment_id')
 
@@ -64,6 +70,32 @@ class LiwanHrInsuranceEnrollment(models.Model):
     def _compute_date_end_effective(self):
         for row in self:
             row.date_end_effective = row.date_to or row.plan_id.valid_to
+
+    @api.depends('state', 'date_end_effective')
+    @api.depends_context('tz')
+    def _compute_state_effective(self):
+        today = fields.Date.context_today(self)
+        for row in self:
+            lapsed = row.state == 'active' and row.date_end_effective and row.date_end_effective < today
+            row.state_effective = 'lapsed' if lapsed else row.state
+
+    @api.model
+    def _liwan_state_domain(self, state):
+        """The domain of one derived state: lapsed is an active enrollment past its end date."""
+        today = fields.Date.context_today(self)
+        if state == 'active':
+            return Domain('state', '=', 'active') & Domain('date_end_effective', '>=', today)
+        if state == 'lapsed':
+            return Domain('state', '=', 'active') & Domain('date_end_effective', '<', today)
+        return Domain('state', '=', state)
+
+    def _liwan_active_dependents(self):
+        """The dependents still covered: none once the enrollment lapsed, ended or was cancelled."""
+        self.ensure_one()
+        if self.state_effective != 'active':
+            return self.dependent_ids.browse()
+        today = fields.Date.context_today(self)
+        return self.dependent_ids.filtered(lambda item: item.state == 'active' and (not item.date_to or item.date_to >= today))
 
     @api.depends('employee_id', 'plan_id')
     def _compute_display_name(self):
@@ -135,8 +167,16 @@ class LiwanHrInsuranceEnrollment(models.Model):
             raise ApiError(409, 'conflict', 'the enrollment changed; reload before saving')
 
     def _liwan_expect_active(self):
-        if self.state != 'active':
-            raise ApiError(409, 'conflict', f'the enrollment is {self.state}; this step is not available')
+        if self.state_effective != 'active':
+            raise ApiError(409, 'conflict', f'the enrollment is {self.state_effective}; this step is not available')
+
+    @api.model
+    def _liwan_lock_employees(self, employees):
+        """Serialize the changes to one employee's coverage, so two requests cannot both pass the overlap check."""
+        try:
+            employees.lock_for_update(allow_referencing=True)
+        except LockError:
+            raise ApiError(409, 'conflict', "another change to this employee's insurance is in progress; try again") from None
 
     def _liwan_step(self, vals):
         """One lifecycle write: the revision moves with it, so a concurrent step answers 409."""
@@ -161,6 +201,7 @@ class LiwanHrInsuranceEnrollment(models.Model):
             raise ApiError(
                 422, 'invalid', 'plan_id does not reference an active plan of the current company', field='plan_id',
             )
+        self._liwan_lock_employees(employee)
         row = self.with_context(**{WRITE_CONTEXT: WRITE_TOKEN}).create({
             'employee_id': employee.id,
             'plan_id': plan.id,
@@ -210,6 +251,6 @@ class LiwanHrInsuranceEnrollment(models.Model):
             raise AccessError(self.env._('forbidden'))
         before = self.env['liwan.hr.audit.event']._liwan_policy_snapshot(self)
         self._liwan_step({'state': 'cancelled'})
-        self.dependent_ids._liwan_end_with(self.date_from)
+        self.dependent_ids._liwan_end_with(self.date_from, cancel_all=True)
         self._liwan_log('enrollment_cancelled', before)
         return self

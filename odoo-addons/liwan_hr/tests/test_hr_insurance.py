@@ -1,8 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import timedelta
+from unittest.mock import patch
 
 from odoo import fields
-from odoo.exceptions import ValidationError
+from odoo.exceptions import LockError, ValidationError
 from odoo.tests import new_test_user, tagged
 
 from .common import LiwanHrCase, set_hr_feature
@@ -483,6 +484,116 @@ class TestHrInsurance(LiwanHrCase):
         self.assertEqual(len(event), 1)
         self.assertEqual({row.field_name for row in event.change_ids}, set(SETTINGS_KEYS) - {'revision'})
 
+    # --- review fixes ------------------------------------------------------------------------------------
+
+    def test_a_reader_never_gets_a_whole_identity_number_from_the_record(self):
+        row = self.enroll(self.plan())
+        self.call(self.hr, 'POST', f"{ENROLLMENTS}/{row['id']}/dependents", self.dependent_body())
+        manager = self.call(self.hr, 'GET', f"{ENROLLMENTS}/{row['id']}").json()
+        self.assertEqual(manager['dependents'][0]['national_id'], NATIONAL_ID)
+        res = self.assert_status(self.call(self.reader, 'GET', f"{ENROLLMENTS}/{row['id']}"), 200)
+        self.assertNotIn(NATIONAL_ID, res.text)
+        dependent = res.json()['dependents'][0]
+        self.assertEqual((dependent['national_id'], dependent['national_id_masked']), (None, '******5432'))
+
+    def test_enrolling_and_changing_plan_dates_lock_the_employee_first(self):
+        locked = []
+        original = type(self.env['hr.employee']).lock_for_update
+
+        def record(records, **kwargs):
+            locked.append(records.ids)
+            return original(records, **kwargs)
+        plan = self.plan()
+        with patch.object(type(self.env['hr.employee']), 'lock_for_update', record):
+            row = self.enroll(plan)
+            self.assertIn([self.emp.id], locked)
+            locked.clear()
+            self.assert_status(self.call(self.hr, 'PATCH', f"{PLANS}/{plan['id']}", {
+                'revision': plan['revision'], 'valid_to': self.day(300),
+            }), 200)
+            self.assertIn([self.emp.id], locked)
+        self.assertEqual(row['employee']['id'], self.emp.id)
+
+    def test_a_lost_lock_answers_409_not_a_second_enrollment(self):
+        plan = self.plan()
+        with patch.object(type(self.env['hr.employee']), 'lock_for_update', side_effect=LockError('busy')):
+            res = self.call(self.hr, 'POST', ENROLLMENTS, {
+                'employee_id': self.emp.id, 'plan_id': plan['id'], 'date_from': self.day(0),
+            })
+        self.assert_status(res, 409, 'conflict')
+        self.assertFalse(self.env['liwan.hr.insurance.enrollment'].search_count([('employee_id', '=', self.emp.id)]))
+
+    def test_ending_before_a_dependent_starts_cancels_that_dependent(self):
+        row = self.enroll(self.plan())
+        path = f"{ENROLLMENTS}/{row['id']}/dependents"
+        later = self.assert_status(self.call(self.hr, 'POST', path, self.dependent_body(name='Starts Later', date_from=self.day(60))), 201).json()
+        early = self.assert_status(self.call(self.hr, 'POST', path, self.dependent_body(name='Starts Now', date_from=self.day(-40))), 201).json()
+        ended = self.assert_status(self.call(self.hr, 'POST', f"{ENROLLMENTS}/{row['id']}/end", {
+            'revision': row['revision'], 'date_end': self.day(-5),
+        }), 200).json()
+        states = {item['id']: (item['state'], item['date_to']) for item in ended['dependents']}
+        self.assertEqual(states[later['id']], ('cancelled', None))
+        self.assertEqual(states[early['id']], ('ended', self.day(-5)))
+        actions = self.env['liwan.hr.audit.event'].search([('res_model', '=', 'liwan.hr.insurance.dependent')]).mapped('action')
+        self.assertIn('dependent_cancelled', actions)
+        # Cancelling the enrollment cancels what is still active, however it was dated.
+        other = self.enroll(self.plan(name='Cancel plan'), self.other)
+        dependent = self.call(self.hr, 'POST', f"{ENROLLMENTS}/{other['id']}/dependents", self.dependent_body(date_from=self.day(-10))).json()
+        cancelled = self.assert_status(self.call(self.hr, 'POST', f"{ENROLLMENTS}/{other['id']}/cancel", {'revision': other['revision']}), 200).json()
+        self.assertEqual([(item['id'], item['state']) for item in cancelled['dependents']], [(dependent['id'], 'cancelled')])
+
+    def test_shortening_a_plan_below_a_dependent_is_refused(self):
+        plan = self.plan(start=-100, end=200)
+        row = self.enroll(plan)
+        self.call(self.hr, 'POST', f"{ENROLLMENTS}/{row['id']}/dependents", self.dependent_body(date_from=self.day(-40), date_to=self.day(150)))
+        res = self.assert_status(self.call(self.hr, 'PATCH', f"{PLANS}/{plan['id']}", {
+            'revision': plan['revision'], 'valid_to': self.day(100),
+        }), 422, 'invalid')
+        self.assertIn('dependent', res.json()['message'])
+        self.assert_status(self.call(self.hr, 'PATCH', f"{PLANS}/{plan['id']}", {
+            'revision': plan['revision'], 'valid_to': self.day(160),
+        }), 200)
+
+    def test_a_past_end_date_reads_lapsed_everywhere(self):
+        plan = self.plan(start=-300, end=-10, name='Lapsed plan')
+        row = self.enroll(plan, start=-250)
+        self.env['liwan.hr.insurance.dependent'].create({
+            'enrollment_id': row['id'], 'name': 'Lapsed Child', 'relation': 'child', 'date_from': self.day(-200),
+        })
+        detail = self.call(self.reader, 'GET', f"{ENROLLMENTS}/{row['id']}").json()
+        self.assertEqual((detail['state'], detail['dependents_count']), ('lapsed', 0))
+        active = self.call(self.reader, 'GET', f'{ENROLLMENTS}?state=active').json()
+        self.assertNotIn(row['id'], [item['id'] for item in active['items']])
+        lapsed = self.call(self.reader, 'GET', f'{ENROLLMENTS}?state=lapsed').json()
+        self.assertEqual([item['id'] for item in lapsed['items']], [row['id']])
+        self.assertEqual(self.call(self.emp_user, 'GET', f'{BASE}/me').json()['items'][0]['state'], 'lapsed')
+        self.assert_status(self.call(self.hr, 'POST', f"{ENROLLMENTS}/{row['id']}/dependents", self.dependent_body(date_from=self.day(-100))), 409, 'conflict')
+        self.assertEqual(self.call(self.reader, 'GET', f'{BASE}/summary').json()['active_enrollments'], 0)
+
+    def test_a_plan_nobody_is_covered_by_rings_no_bell(self):
+        self.plan(name='Empty plan', end=20)
+        self.env['liwan.hr.insurance.plan']._liwan_run_expiry_alerts()
+        self.assertEqual(self.bell(self.hr), [])
+
+    def test_dependent_routes_hide_another_company(self):
+        other = self.env['res.company'].create({'name': 'Insurance Dependent Co'})
+        employee = self.env['hr.employee'].create({'name': 'Elsewhere Dep', 'company_id': other.id})
+        provider = self.env['liwan.hr.insurance.provider'].create({'company_id': other.id, 'name': 'Dep insurer'})
+        plan = self.env['liwan.hr.insurance.plan'].create({
+            'company_id': other.id, 'provider_id': provider.id, 'name': 'Dep plan',
+            'valid_from': self.day(-10), 'valid_to': self.day(10),
+        })
+        enrollment = self.env['liwan.hr.insurance.enrollment'].create({
+            'employee_id': employee.id, 'plan_id': plan.id, 'date_from': self.day(-5),
+        })
+        dependent = self.env['liwan.hr.insurance.dependent'].create({
+            'enrollment_id': enrollment.id, 'name': 'Foreign', 'relation': 'child', 'date_from': self.day(-5),
+        })
+        self.assert_status(self.call(self.hr, 'PATCH', f'{BASE}/dependents/{dependent.id}', {'revision': 1, 'name': 'x'}), 404, 'not_found')
+        self.assert_status(self.call(self.hr, 'POST', f'{BASE}/dependents/{dependent.id}/end', {'revision': 1}), 404, 'not_found')
+        self.assert_status(self.call(self.hr, 'POST', f'{ENROLLMENTS}/{enrollment.id}/dependents', self.dependent_body()), 404, 'not_found')
+        self.assert_status(self.call(self.hr, 'POST', f'{ENROLLMENTS}/{enrollment.id}/end', {'revision': 1}), 404, 'not_found')
+
     # --- bell and cron -----------------------------------------------------------------------------------
 
     def bell(self, user):
@@ -510,7 +621,7 @@ class TestHrInsurance(LiwanHrCase):
         self.assertEqual(len(self.bell(self.hr)), 2)
 
     def test_the_alert_window_is_a_setting(self):
-        self.plan(name='Mid plan', end=45)
+        self.enroll(self.plan(name='Mid plan', end=45))
         Plan = self.env['liwan.hr.insurance.plan']
         self.policy(days=30)
         Plan._liwan_run_expiry_alerts()

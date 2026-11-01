@@ -79,6 +79,14 @@ class LiwanHrInsurancePlan(models.Model):
             for enrollment in plan.enrollment_ids.filtered(lambda row: row.state != 'cancelled'):
                 if enrollment.date_from < plan.valid_from or enrollment.date_end_effective > plan.valid_to:
                     raise ValidationError(self.env._('The plan dates must keep every enrollment inside them.'))
+                # An open-ended enrollment now ends with the plan: a dependent must not start after that or outlast it.
+                for dependent in enrollment.dependent_ids.filtered(lambda item: item.state != 'cancelled'):
+                    if dependent.date_from > enrollment.date_end_effective or (
+                        dependent.date_to and dependent.date_to > enrollment.date_end_effective
+                    ):
+                        raise ValidationError(self.env._(
+                            'A dependent would be covered beyond the new plan end; end or shorten the dependent first.',
+                        ))
 
     @api.model
     def _liwan_require_manage(self):
@@ -114,6 +122,10 @@ class LiwanHrInsurancePlan(models.Model):
         self.invalidate_recordset()
         if revision != self.revision:
             raise ApiError(409, 'conflict', 'the insurance plan changed; reload before saving')
+        # New dates move the end of every open-ended enrollment: serialize with the requests enrolling those employees.
+        self.env['liwan.hr.insurance.enrollment']._liwan_lock_employees(
+            self.enrollment_ids.filtered(lambda row: row.state != 'cancelled').employee_id,
+        )
         self.write({**vals, 'revision': revision + 1})
         return self
 
@@ -149,6 +161,11 @@ class LiwanHrInsurancePlan(models.Model):
             ('company_id', '=', company.id), ('active', '=', True),
             ('valid_to', '>=', today), ('valid_to', '<=', today + timedelta(days=days)),
         ])
+        # A plan nobody is covered by needs no manager's attention.
+        Enrollment = self.env['liwan.hr.insurance.enrollment']
+        plans = plans.filtered(lambda plan: Enrollment.search_count([
+            ('plan_id', '=', plan.id), ('state', '=', 'active'), ('date_end_effective', '>=', today),
+        ], limit=1))
         if not plans:
             return
         partners = self._liwan_alert_recipients(company).partner_id

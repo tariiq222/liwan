@@ -42,6 +42,7 @@
     },
     "enrollmentState": {
       "active": "Active",
+      "lapsed": "Lapsed",
       "ended": "Ended",
       "cancelled": "Cancelled"
     },
@@ -161,7 +162,8 @@
       "endDateHint": "Leave empty to end today.",
       "state": {
         "active": "Covered",
-        "ended": "Ended"
+        "ended": "Ended",
+        "cancelled": "Cancelled"
       }
     },
     "own": {
