@@ -17,6 +17,7 @@ from odoo.tests import tagged
 
 from odoo.addons.liwan_api.tests.common import (
     CompanyIsolationCase,
+    assert_isolation_discovery,
     cover_isolation_routes,
     exempt_isolation_route,
 )
@@ -48,6 +49,9 @@ RECORD_ROUTES = {
     'journal': '/api/v1/finance/journals/{}',
     'account': '/api/v1/finance/accounts/{}',
 }
+
+
+EXPECTED_GET_RECORD_ROUTES = 19
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -286,6 +290,39 @@ class TestFinanceCompanyIsolation(CompanyIsolationCase):
         self.env_in(self.company_p2)
         self.assert_hidden_every_way(f'/api/v1/finance/partners/{partner.id}', partner.id)
 
+    # --- the sub-routes of a record: the same pin, a different path ---------------------------------
+
+    def test_reconcile_proposals_follow_the_statement_line_company(self):
+        for current, _visible, hidden in MATRIX:
+            self.env_in(self.by_tag[current])
+            own = self.recs[current]['statement'].line_ids[0]
+            self.assertVisible(f'/api/v1/finance/bank-statement-lines/{own.id}/reconcile-proposals')
+            for tag in hidden:
+                line = self.recs[tag]['statement'].line_ids[0]
+                self.assert_hidden_every_way(
+                    f'/api/v1/finance/bank-statement-lines/{line.id}/reconcile-proposals', line.id)
+
+    def test_invoice_pdf_of_another_company_is_not_found(self):
+        """The PDF route looks the invoice up with the company domain before it renders anything."""
+        for current, _visible, hidden in MATRIX:
+            self.env_in(self.by_tag[current])
+            for tag in hidden:
+                invoice = self.recs[tag]['invoice']
+                self.assert_hidden_every_way(f'/api/v1/finance/invoices/{invoice.id}/pdf', invoice.id)
+
+    def test_partner_bank_accounts_follow_the_pinned_set(self):
+        for current, visible, hidden in PARTNER_MATRIX:
+            self.env_in(self.by_tag[current])
+            for tag in visible:
+                partner = self.shared_partner if tag == 'shared' else self.recs[tag]['partner']
+                self.assertVisible(f'/api/v1/finance/partners/{partner.id}/bank-accounts')
+            for tag in hidden:
+                partner = self.recs[tag]['partner']
+                self.assert_hidden_every_way(f'/api/v1/finance/partners/{partner.id}/bank-accounts', partner.id)
+
+    def test_discovery_covers_every_get_record_route(self):
+        assert_isolation_discovery(self, 'liwan_finance', EXPECTED_GET_RECORD_ROUTES)
+
 
 cover_isolation_routes((
     '/api/v1/finance/invoices/<int:invoice_id>',
@@ -301,6 +338,9 @@ cover_isolation_routes((
     '/api/v1/finance/journals/<int:journal_id>',
     '/api/v1/finance/accounts/<int:account_id>',
     '/api/v1/finance/partners/<int:partner_id>',
+    '/api/v1/finance/partners/<int:partner_id>/bank-accounts',
+    '/api/v1/finance/bank-statement-lines/<int:line_id>/reconcile-proposals',
+    '/api/v1/finance/invoices/<int:invoice_id>/pdf',
 ), source='liwan_finance/tests/test_company_isolation.py')
 exempt_isolation_route(
     '/api/v1/finance/countries/<int:country_id>/states',
@@ -309,4 +349,8 @@ exempt_isolation_route(
 exempt_isolation_route(
     '/api/v1/finance/analytic-plans/<int:plan_id>',
     'analytic plans are shared by every company: the stock model has no company field',
+)
+exempt_isolation_route(
+    '/api/v1/finance/fiscal-years/<int:year>/closing-preview',
+    'the path carries a calendar year, not a record id: the plan is built from the request company alone',
 )
