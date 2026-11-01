@@ -1,3 +1,4 @@
+import type { BrowserContext } from '@playwright/test'
 import { expect, type Locator } from '@playwright/test'
 
 export async function expectAlignedGuide(parent: Locator) {
@@ -39,4 +40,9 @@ export async function expectAlignedGuide(parent: Locator) {
   expect(geometry.guideBottom).toBeGreaterThanOrEqual(geometry.lastChildBottom)
   expect(geometry.childIndent).toBeCloseTo(20, 0)
   if (geometry.dotCenter !== null) expect(Math.abs(geometry.dotCenter - geometry.guideCenter), 'selected dot must sit on the guide').toBeLessThanOrEqual(1)
+}
+
+/** The internal menu is hidden by default; specs about its contents start from the kept-open state. */
+export async function keepContextMenuOpen(context: BrowserContext, baseURL: string | undefined) {
+  await context.addCookies([{ name: 'liwan-context-sidebar', value: 'open', url: baseURL! }])
 }

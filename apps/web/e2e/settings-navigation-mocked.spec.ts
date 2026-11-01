@@ -176,7 +176,11 @@ test.afterAll(async () => {
 })
 
 async function openApp(page: Page, path: string) {
-  await page.context().addCookies([{ name: 'session_id', value: 'settings_mock', url: origin, httpOnly: true, sameSite: 'Lax' }])
+  // The context menu starts folded and opens over the page on hover; these checks read the pinned menu.
+  await page.context().addCookies([
+    { name: 'session_id', value: 'settings_mock', url: origin, httpOnly: true, sameSite: 'Lax' },
+    { name: 'liwan-context-sidebar', value: 'open', url: origin, sameSite: 'Lax' },
+  ])
   await page.route('**/api/v1/**', fulfillApi)
   await page.route('**/api/auth/**', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' })

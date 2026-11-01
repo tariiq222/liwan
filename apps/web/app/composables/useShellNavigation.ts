@@ -11,6 +11,7 @@ import {
 import { activeShellModule, contextModuleFor } from './nav/activeRoute'
 import { CONTEXT_SIDEBAR_COOKIE, contextSidebarState, type ContextSidebarCookie } from './nav/contextSidebarState'
 import { useAssistantSheet } from './useAssistantSheet'
+import { sidebarPanelFor } from '../modules/surfaces'
 import { effectiveActivePart, anchorOf } from './nav/settingsScroll'
 import { canReachPath, isNavPathActive, type AccessIdentity } from '../utils/accessPolicy'
 import { personalContextLinks } from './nav/personalModel'
@@ -26,7 +27,11 @@ export function useContextSidebar() {
   const desktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
   const { shown } = useAssistantSheet()
   const forced = computed(() => shown.value && desktop.value)
-  return contextSidebarState(cookie, useHydrated(), useMediaQuery('(min-width: 1100px)', { ssrWidth: 1100 }), forced)
+  const route = useRoute()
+  const wide = useMediaQuery('(min-width: 1100px)', { ssrWidth: 1100 })
+  // Only a side panel (chat) opens by itself; a list of links stays folded and opens over the page.
+  const autoOpen = computed(() => wide.value && !!sidebarPanelFor(contextModuleFor(activeShellModule(route.path))))
+  return contextSidebarState(cookie, useHydrated(), autoOpen, forced)
 }
 
 export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {
