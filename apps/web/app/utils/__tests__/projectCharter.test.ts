@@ -50,7 +50,7 @@ function project(overrides: Partial<ProjectDetail> = {}): ProjectDetail {
     allowed_actions: ['read', 'write', 'archive'],
     charter_state: 'draft',
     phase: 'initiating',
-    phase_state: { current: 'initiating', next: 'planning', previous: null, next_checks: [] },
+    phase_state: { current: 'initiating', next: 'planning', previous: null, next_checks: [] }, change_control_mode: 'optional',
     stages: [],
     description_html: '<p>desc</p>',
     manager: { id: 2, name: 'Sara' },

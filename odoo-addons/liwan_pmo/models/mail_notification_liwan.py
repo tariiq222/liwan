@@ -20,9 +20,13 @@ class LiwanMailMessage(models.Model):
         ('charter_review', 'Charter review'),
         ('charter_approved', 'Charter approved'),
         ('charter_returned', 'Charter returned'),
+        ('change_review', 'Change request review'),
+        ('change_approved', 'Change request approved'),
+        ('change_rejected', 'Change request rejected'),
     ])
     liwan_task_id = fields.Many2one('project.task', string='liwan Task', index=True, copy=False, ondelete='cascade')
     liwan_project_id = fields.Many2one('project.project', string='liwan Project', index=True, copy=False, ondelete='cascade')
+    liwan_change_id = fields.Many2one('liwan.project.change', string='liwan Change request', index=True, copy=False, ondelete='cascade')
     liwan_digest_count = fields.Integer('liwan Digest Count', copy=False)
     liwan_digest_date = fields.Date('liwan Digest Date', copy=False)
     liwan_digest_task_ids = fields.Char('liwan Digest Task Ids', copy=False)

@@ -1,0 +1,41 @@
+{
+  "items": [
+    {
+      "active": true,
+      "id": 1,
+      "name": "النطاق",
+      "sequence": 10
+    },
+    {
+      "active": true,
+      "id": 2,
+      "name": "الجدول الزمني",
+      "sequence": 20
+    },
+    {
+      "active": true,
+      "id": 3,
+      "name": "التكلفة",
+      "sequence": 30
+    },
+    {
+      "active": true,
+      "id": 4,
+      "name": "الجودة",
+      "sequence": 40
+    },
+    {
+      "active": true,
+      "id": 5,
+      "name": "أخرى",
+      "sequence": 50
+    },
+    {
+      "active": false,
+      "id": 6,
+      "name": "Legal",
+      "sequence": 60
+    }
+  ],
+  "total": 6
+}

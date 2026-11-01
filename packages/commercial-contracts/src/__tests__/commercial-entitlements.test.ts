@@ -147,7 +147,7 @@ describe('commercial catalog and entitlement compiler', () => {
     const v3 = JSON.parse(readFileSync(new URL('../../../../deploy/catalog/solutions/platform_v3.json', import.meta.url), 'utf8'))
     const input = fixture()
     input.release.applications = catalogApplicationsFromSolution(v3, 'v3')
-    expect(compileEntitlements(input).features).toEqual({ 'branches.extra_limit': 8, 'chat.enabled': false, 'hr.assets': true, 'hr.enabled': true, 'hr.offboarding': true, 'hr.onboarding': true, 'hr.payroll': true, 'hr.recruitment': true, 'hr.shifts': true, 'hr.warnings': true, 'meetings.enabled': true, 'pmo.enabled': true, 'projects.max_projects': 0, 'storage.limit_mb': 0, 'tasks.enabled': false, 'users.limit': 20 })
+    expect(compileEntitlements(input).features).toEqual({ 'branches.extra_limit': 8, 'chat.enabled': false, 'hr.assets': true, 'hr.enabled': true, 'hr.offboarding': true, 'hr.onboarding': true, 'hr.payroll': true, 'hr.recruitment': true, 'hr.shifts': true, 'hr.warnings': true, 'meetings.enabled': true, 'pmo.change_control': true, 'pmo.enabled': true, 'projects.max_projects': 0, 'storage.limit_mb': 0, 'tasks.enabled': false, 'users.limit': 20 })
   })
   it('names an application unknown to the platform from its catalog tier', () => {
     const v3 = JSON.parse(readFileSync(new URL('../../../../deploy/catalog/solutions/platform_v3.json', import.meta.url), 'utf8'))

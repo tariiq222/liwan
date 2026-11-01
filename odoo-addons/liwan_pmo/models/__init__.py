@@ -8,6 +8,8 @@ from . import (
     mail_notification_liwan,
     notification_types,
     project_actual_source,
+    project_change,
+    project_change_notifications,
     project_charter,
     project_charter_reference,
     project_constants,

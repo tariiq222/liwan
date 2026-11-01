@@ -1,0 +1,77 @@
+{
+  "can_create": true,
+  "items": [
+    {
+      "can_decide": false,
+      "can_edit": false,
+      "can_implement": false,
+      "can_submit": false,
+      "can_withdraw": false,
+      "category": null,
+      "created_at": "2026-01-01T00:00:00Z",
+      "currency": {
+        "decimal_places": 2,
+        "id": 3,
+        "name": "SAR",
+        "symbol": "SR"
+      },
+      "decided_at": "2026-01-01T00:00:00Z",
+      "decided_by": {
+        "id": 4,
+        "name": "Sponsor"
+      },
+      "decision_note": "",
+      "description": "",
+      "id": 1,
+      "impact_cost": 0.0,
+      "impact_schedule_days": 0,
+      "impact_scope": "",
+      "implemented_at": null,
+      "number": 2,
+      "project_id": 287,
+      "reason": "",
+      "requester": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "state": "approved",
+      "title": "Add a reporting module",
+      "updated_at": "v3"
+    },
+    {
+      "can_decide": false,
+      "can_edit": true,
+      "can_implement": false,
+      "can_submit": true,
+      "can_withdraw": true,
+      "category": null,
+      "created_at": "2026-01-01T00:00:00Z",
+      "currency": {
+        "decimal_places": 2,
+        "id": 3,
+        "name": "SAR",
+        "symbol": "SR"
+      },
+      "decided_at": null,
+      "decided_by": null,
+      "decision_note": "",
+      "description": "",
+      "id": 5,
+      "impact_cost": 0.0,
+      "impact_schedule_days": 0,
+      "impact_scope": "",
+      "implemented_at": null,
+      "number": 1,
+      "project_id": 287,
+      "reason": "",
+      "requester": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "state": "draft",
+      "title": "Add a reporting module",
+      "updated_at": "v1"
+    }
+  ],
+  "total": 2
+}

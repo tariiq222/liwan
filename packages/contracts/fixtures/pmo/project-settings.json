@@ -1,4 +1,5 @@
 {
+  "change_control_mode": "optional",
   "close_with_open_tasks": "block",
   "deadline_reminders_days_before": 1,
   "deadline_reminders_enabled": true,

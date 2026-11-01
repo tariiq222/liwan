@@ -26,7 +26,10 @@
       "charter_review": "ميثاق بانتظار اعتمادك",
       "charter_approved": "اعتُمد الميثاق",
       "charter_returned": "أُعيد الميثاق للتعديل",
-      "other": "إشعار"
+      "other": "إشعار",
+      "change_review": "طلب تغيير بانتظار قرارك",
+      "change_approved": "اعتُمد طلب التغيير",
+      "change_rejected": "رُفض طلب التغيير"
     },
     "openTask": "فتح المهمة",
     "close": "إغلاق الإشعارات",

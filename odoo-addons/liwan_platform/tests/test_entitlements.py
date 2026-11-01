@@ -34,7 +34,7 @@ class TestEntitlements(TransactionCase):
     # Fixed per-app literals; the installed apps come from ir.module.module,
     # never from the registry under test.
     APP_BOOLEANS = {
-        'liwan_pmo': {'pmo.enabled'},
+        'liwan_pmo': {'pmo.enabled', 'pmo.change_control'},
         'liwan_meetings': {'meetings.enabled'},
         'liwan_hr': {
             'hr.enabled', 'hr.recruitment', 'hr.shifts', 'hr.onboarding', 'hr.offboarding', 'hr.assets', 'hr.warnings', 'hr.payroll',

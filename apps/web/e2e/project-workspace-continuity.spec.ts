@@ -67,7 +67,7 @@ test('project sections are in-page tabs while the sidebar keeps the projects mod
   await expect(page.getByTestId('project-governance-tabs')).toBeVisible()
   await expect(page.getByTestId('governance-tab-charter')).toHaveAttribute('aria-current', 'page')
   const governance = await page.getByTestId('project-governance-tabs').getByRole('link').allTextContents()
-  expect(governance.map(s => s.trim())).toEqual(['ملف المشروع', 'أصحاب المصلحة', 'المسؤوليات RACI', 'المخاطر والمشكلات'])
+  expect(governance.map(s => s.trim())).toEqual(['ملف المشروع', 'أصحاب المصلحة', 'المسؤوليات RACI', 'المخاطر والمشكلات', 'طلبات التغيير'])
   await expect(page.locator('main h1')).toHaveCount(1)
 })
 test('project task uses tabs instead of stacked cards', async ({ page }, testInfo) => {

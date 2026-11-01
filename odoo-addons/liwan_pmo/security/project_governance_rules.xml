@@ -21,4 +21,9 @@
             '|', ('task_id', '=', False), ('task_id', 'any', [('active', '=', True)])
         ]</field>
     </record>
+    <record id="rule_liwan_project_change_visible" model="ir.rule">
+        <field name="name">Change requests follow project access</field>
+        <field name="model_id" ref="model_liwan_project_change"/>
+        <field name="domain_force">[('project_id', 'any', [('active', '=', True), ('company_id', 'in', company_ids)])]</field>
+    </record>
 </odoo>

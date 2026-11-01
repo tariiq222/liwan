@@ -30,6 +30,8 @@ COVERED = (
     '/api/v1/projects/<int:project_id>/raci',
     '/api/v1/projects/<int:project_id>/register',
     '/api/v1/projects/<int:project_id>/register/<int:item_id>',
+    '/api/v1/projects/<int:project_id>/changes',
+    '/api/v1/projects/<int:project_id>/changes/<int:change_id>',
     '/api/v1/projects/<int:project_id>/schedule',
     '/api/v1/projects/<int:project_id>/followers',
     '/api/v1/tasks/<int:task_id>',
@@ -45,7 +47,7 @@ COVERED = (
 )
 
 
-EXPECTED_GET_RECORD_ROUTES = 24
+EXPECTED_GET_RECORD_ROUTES = 26
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -66,7 +68,7 @@ class LiwanPmoIsolationCase(CompanyIsolationCase):
         cls.classPatch(source, '_liwan_actual_lines', lambda _model, *_args, **_kwargs: ([], 0))
         now = datetime(2026, 1, 2, 10, 0, 0)
         cls.project_of, cls.task_of, cls.stakeholder_of = {}, {}, {}
-        cls.register_of, cls.entry_of, cls.attachment_of, cls.catalog_of = {}, {}, {}, {}
+        cls.register_of, cls.entry_of, cls.attachment_of, cls.catalog_of, cls.change_of = {}, {}, {}, {}, {}
         for company in (cls.company_p, cls.company_p1, cls.company_p2, cls.company_c):
             # Every fixture is written in its own company: the governance create
             # checks compare the parent project with the active company.
@@ -92,6 +94,9 @@ class LiwanPmoIsolationCase(CompanyIsolationCase):
             cls.register_of[company.id] = env['liwan.project.register'].sudo().create({
                 'project_id': project.id, 'kind': 'risk', 'title': f'Risk {company.name}',
                 'probability': 2, 'impact': 2,
+            })
+            cls.change_of[company.id] = env(user=cls.iso_user.id)['liwan.project.change'].create({
+                'project_id': project.id, 'title': f'Change {company.name}',
             })
             cls.entry_of[company.id] = env['liwan.project.finance.entry'].sudo().create({
                 'project_id': project.id, 'kind': 'budget', 'title': f'Budget {company.name}', 'amount': 100,
@@ -190,6 +195,23 @@ class LiwanPmoIsolationCase(CompanyIsolationCase):
         self.assert_subtree_matrix(path_of)
         self.assert_subtree_matrix(
             lambda company: f"{path_of(company)}/{self.register_of[company.id].id}")
+
+    def test_project_changes_matrix(self):
+        def path_of(company):
+            return f'/api/v1/projects/{self.project_of[company.id].id}/changes'
+        self.assert_subtree_matrix(path_of)
+        self.assert_subtree_matrix(
+            lambda company: f"{path_of(company)}/{self.change_of[company.id].id}")
+
+    def test_change_category_list_is_pinned_to_the_current_company(self):
+        categories = self.env['liwan.project.change.category'].sudo()
+        own = categories.search([('company_id', '=', self.company_p1.id)])
+        self.env_in(self.company_p1)
+        ids = {item['id'] for item in self.assertVisible('/api/v1/pmo/change-categories').json()['items']}
+        self.assertEqual(ids, set(own.ids))
+        forged = self.forged_get('/api/v1/pmo/change-categories')
+        self.assertEqual(forged.status_code, 200, forged.text[:200])
+        self.assertEqual({item['id'] for item in forged.json()['items']}, set(own.ids))
 
     def test_project_schedule_matrix(self):
         self.assert_subtree_matrix(lambda company: f'/api/v1/projects/{self.project_of[company.id].id}/schedule')

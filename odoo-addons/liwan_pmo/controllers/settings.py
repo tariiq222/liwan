@@ -21,6 +21,7 @@ ALLOWED = {
     'require_charter_approval',
     'close_with_open_tasks',
     'register_status_transitions',
+    'change_control_mode',
 }
 
 

@@ -127,7 +127,7 @@ describe('ProjectDetailSchema', () => {
       description_html: '', manager: null, privacy_visibility: 'employees',
       date_start: null, date_end: null, tags: [], followers_count: 0, milestone_count: 0,
       completion_approval: 'none', completion_approver: null,
-      updated_at: 'v1', charter: EMPTY_CHARTER, phase_state: { current: 'initiating', next: 'planning', previous: null, next_checks: [] },
+      updated_at: 'v1', charter: EMPTY_CHARTER, phase_state: { current: 'initiating', next: 'planning', previous: null, next_checks: [] }, change_control_mode: 'optional',
     })
     expect(parsed.stages[0]!.fold).toBe(true)
   })
@@ -137,7 +137,7 @@ describe('ProjectDetailSchema', () => {
       stages: [{ id: 1, name: 'A', sequence: 10, fold: true, task_count: 0 }],
       description_html: '', manager: null, privacy_visibility: 'employees',
       date_start: null, date_end: null, tags: [], followers_count: 0, milestone_count: 0,
-      updated_at: 'v1', charter: EMPTY_CHARTER, phase_state: { current: 'initiating', next: 'planning', previous: null, next_checks: [] },
+      updated_at: 'v1', charter: EMPTY_CHARTER, phase_state: { current: 'initiating', next: 'planning', previous: null, next_checks: [] }, change_control_mode: 'optional',
     }
     expect(() => ProjectDetailSchema.parse(base)).toThrow()
     expect(() => ProjectDetailSchema.parse({ ...base, completion_approval: 'none' })).toThrow()
@@ -178,7 +178,7 @@ describe('ProjectDetailSchema (3a)', () => {
       ...PROJECT, stages: [STAGE], description_html: '', manager: { id: 2, name: 'M' }, privacy_visibility: 'followers',
       date_start: '2030-01-01', date_end: null, tags: [], followers_count: 1, milestone_count: 0,
       completion_approval: 'none', completion_approver: null,
-      updated_at: 'v2', charter: EMPTY_CHARTER, phase_state: { current: 'initiating', next: 'planning', previous: null, next_checks: [] },
+      updated_at: 'v2', charter: EMPTY_CHARTER, phase_state: { current: 'initiating', next: 'planning', previous: null, next_checks: [] }, change_control_mode: 'optional',
     })
     expect(d.stages[0]!.task_count).toBe(2)
   })
@@ -214,7 +214,7 @@ describe('Milestone / ProjectUpdate / Settings', () => {
       require_manager_on_create: true, require_end_date_on_create: true,
       default_completion_approval: 'none', deadline_reminders_enabled: true,
       deadline_reminders_days_before: 1, overdue_digest_enabled: true,
-      require_charter_approval: false, close_with_open_tasks: 'block', register_status_transitions: 'sequence',
+      require_charter_approval: false, close_with_open_tasks: 'block', register_status_transitions: 'sequence', change_control_mode: 'optional',
       extensions: [],
     }).default_stages).toHaveLength(1)
     expect(() => ProjectSettingsSchema.parse({ project_creators: 'anyone', default_stages: [] })).toThrow()

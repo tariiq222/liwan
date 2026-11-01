@@ -101,6 +101,10 @@ class ProjectProject(models.Model):
 
     def _liwan_add_follower(self, user):
         self._liwan_check_manage()
+        return self._liwan_subscribe_follower(user)
+
+    def _liwan_subscribe_follower(self, user):
+        """Subscribe ``user``; the caller already proved the right to (a manager, or a request's own sponsor)."""
         # sudo(): mail.thread.message_subscribe checks 'write' on the project
         # itself, which Odoo's ACL grants only to the project-manager group —
         # same rationale as _liwan_write_as_manager, for the assigned-user-as-
