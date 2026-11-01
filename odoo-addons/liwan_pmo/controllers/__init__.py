@@ -3,6 +3,7 @@ from . import (
     milestones,
     notifications,
     personal_stages,
+    project_baselines,
     project_changes,
     project_charter,
     project_charter_catalogs,
