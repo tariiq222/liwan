@@ -75,6 +75,13 @@ class LiwanHrIrRule(models.Model):
         readers = self.env['liwan.access.service']._liwan_operation_capability_company_ids('hr.warnings.read')
         fence = Domain('company_id', 'in', sorted(readers)) | Domain('employee_user_id', '=', self.env.uid)
         company = self.env.company
+        # The policy is readable by whoever reads employees in the current company; anyone else (a user with
+        # rights only in another company, the notification service answering for another app) is no drafter,
+        # and this rule must never raise for them.
+        if not self.env['liwan.access.service']._liwan_has_capability(
+            self.env.user, 'hr.employees.read', company=company,
+        ):
+            return fence
         policy = self.env['liwan.hr.warning.settings']._liwan_effective(company)
         if policy['warnings_issued_by'] == 'manager_and_hr':
             fence |= (Domain('create_uid', '=', self.env.uid) & Domain('company_id', '=', company.id)

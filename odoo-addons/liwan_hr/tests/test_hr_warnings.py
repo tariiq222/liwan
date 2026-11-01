@@ -671,3 +671,25 @@ class TestHrWarnings(LiwanHrCase):
         self.report_emp.parent_id = self.other_emp
         self.assert_status(self.call(self.manager, 'GET', path), 404, 'not_found')
         self.assert_status(self.call(self.manager, 'POST', f'{path}/issue', {'revision': draft['revision']}), 404)
+
+    def test_notifications_work_for_a_user_with_rights_only_in_another_company(self):
+        other = self.env['res.company'].create({'name': 'Warnings notify other'})
+        user = new_test_user(
+            self.env, login='warn_elsewhere', password='warn_elsewhere_pass_123', name='elsewhere',
+            groups='liwan_core.group_employee', company_id=self.company.id, company_ids=[self.company.id, other.id],
+        )
+        # The only role is in the other company; the current company grants this user nothing.
+        self.env['liwan.access.assignment'].sudo().create({
+            'user_id': user.id, 'role_id': self.env.ref('liwan_core.role_employee').id, 'company_id': other.id,
+        })
+        for method, path in (
+            ('GET', '/api/v1/notifications'), ('POST', '/api/v1/notifications/read-all'),
+        ):
+            res = self.call(user, method, path, {} if method == 'POST' else None)
+            self.assertNotEqual(res.status_code, 500, (path, res.text))
+            self.assertEqual(res.status_code, 200, (path, res.text))
+        res = self.call(user, 'GET', '/api/v1/notifications')
+        self.assertEqual(res.status_code, 200, res.text)
+        # Even with warnings switched off the shared service answers.
+        set_hr_feature(self, 'hr.warnings', False)
+        self.assert_status(self.call(user, 'GET', '/api/v1/notifications'), 200)
