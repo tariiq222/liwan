@@ -7,7 +7,9 @@
     "search": "بحث",
     "save": "حفظ",
     "settingsConflict": "غيّر شخص آخر هذه الإعدادات بعد فتحك الصفحة. حمّل القيم الحالية ثم أعد تعديلك.",
-    "list": { "newName": "اسم جديد" },
+    "list": {
+      "newName": "اسم جديد"
+    },
     "loadMore": "تحميل المزيد",
     "listSeparator": "، "
   },
@@ -73,6 +75,8 @@
     "myAssets": "عهدي",
     "warnings": "الإنذارات الإدارية",
     "myWarnings": "إنذاراتي",
+    "insurance": "التأمين الطبي",
+    "myInsurance": "تأميني",
     "payroll": "المسيّرات",
     "myPayslips": "قسائمي",
     "users": "المستخدمون",

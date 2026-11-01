@@ -14,8 +14,8 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_feature,
 )
 from odoo.addons.liwan_hr.models.audit_event import (
+    NON_PAYROLL_MODELS,
     PAYROLL_ACTION_SELECTION,
-    WARNING_MODELS,
 )
 from odoo.addons.liwan_hr.serializers.dates import parse_optional_date
 from odoo.addons.liwan_hr.serializers.payroll.audit import dump_audit_event
@@ -28,8 +28,8 @@ def _utc_start_of(day):
 
 
 def _audit_domain(args):
-    # The warning trail belongs to the warnings capabilities, never to the payroll auditor.
-    domain = [('company_id', '=', request.env.company.id), ('res_model', 'not in', WARNING_MODELS)]
+    # The warning and insurance trails belong to their own capabilities, never to the payroll auditor.
+    domain = [('company_id', '=', request.env.company.id), ('res_model', 'not in', NON_PAYROLL_MODELS)]
     action = args.get('action')
     if action:
         actions = dict(PAYROLL_ACTION_SELECTION)

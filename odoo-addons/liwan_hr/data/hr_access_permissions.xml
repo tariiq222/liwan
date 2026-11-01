@@ -176,6 +176,22 @@
         <field name="group_xmlid">liwan_hr.group_cap_hr_warnings_manage</field>
         <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
+    <record id="permission_hr_insurance_read" model="liwan.access.permission">
+        <field name="key">hr.insurance.read</field><field name="domain">hr</field>
+        <field name="resource">insurance</field><field name="action">read</field>
+        <field name="name_ar">قراءة التأمين الطبي</field><field name="name_en">Read medical insurance</field>
+        <field name="description_ar">قراءة مزودي التأمين الطبي وخططه وتسجيلات الموظفين وتابعيهم</field><field name="description_en">Read insurance providers, plans, employee enrollments and their dependents</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_insurance_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <record id="permission_hr_insurance_manage" model="liwan.access.permission">
+        <field name="key">hr.insurance.manage</field><field name="domain">hr</field>
+        <field name="resource">insurance</field><field name="action">manage</field>
+        <field name="name_ar">إدارة التأمين الطبي</field><field name="name_en">Manage medical insurance</field>
+        <field name="description_ar">ضبط المزودين والخطط وتسجيل الموظفين وتابعيهم وإنهاء التغطية وسياسة التأمين</field><field name="description_en">Manage providers, plans, enrollments, dependents, ending coverage and the insurance policy</field>
+        <field name="group_xmlid">liwan_hr.group_cap_hr_insurance_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
     <record id="permission_hr_payroll_read" model="liwan.access.permission">
         <field name="key">hr.payroll.read</field><field name="domain">hr</field>
         <field name="resource">payroll</field><field name="action">read</field>
@@ -236,7 +252,7 @@
         <record id="role_hr_manager" model="liwan.access.role">
             <field name="key">hr_manager</field><field name="name_ar">مدير الموارد البشرية</field><field name="name_en">HR manager</field>
             <field name="description">HR manager</field><field name="type">built_in</field><field name="protected" eval="True"/><field name="assignable" eval="True"/>
-            <field name="permission_ids" eval="[Command.set([ref('permission_hr_employees_read'),ref('permission_hr_employees_manage'),ref('permission_hr_employees_archive'),ref('permission_hr_employees_access_status_read'),ref('permission_hr_departments_read'),ref('permission_hr_departments_manage'),ref('permission_hr_leave_read'),ref('permission_hr_leave_request'),ref('permission_hr_leave_approve'),ref('permission_hr_leave_manage'),ref('permission_hr_leave_config'),ref('permission_hr_recruitment_read'),ref('permission_hr_recruitment_manage'),ref('permission_hr_shifts_read'),ref('permission_hr_shifts_manage'),ref('permission_hr_onboarding_read'),ref('permission_hr_onboarding_manage'),ref('permission_hr_offboarding_read'),ref('permission_hr_offboarding_manage'),ref('permission_hr_assets_read'),ref('permission_hr_assets_manage'),ref('permission_hr_warnings_read'),ref('permission_hr_warnings_manage')])]"/>
+            <field name="permission_ids" eval="[Command.set([ref('permission_hr_employees_read'),ref('permission_hr_employees_manage'),ref('permission_hr_employees_archive'),ref('permission_hr_employees_access_status_read'),ref('permission_hr_departments_read'),ref('permission_hr_departments_manage'),ref('permission_hr_leave_read'),ref('permission_hr_leave_request'),ref('permission_hr_leave_approve'),ref('permission_hr_leave_manage'),ref('permission_hr_leave_config'),ref('permission_hr_recruitment_read'),ref('permission_hr_recruitment_manage'),ref('permission_hr_shifts_read'),ref('permission_hr_shifts_manage'),ref('permission_hr_onboarding_read'),ref('permission_hr_onboarding_manage'),ref('permission_hr_offboarding_read'),ref('permission_hr_offboarding_manage'),ref('permission_hr_assets_read'),ref('permission_hr_assets_manage'),ref('permission_hr_warnings_read'),ref('permission_hr_warnings_manage'),ref('permission_hr_insurance_read'),ref('permission_hr_insurance_manage')])]"/>
         </record>
         <record id="role_payroll_manager" model="liwan.access.role">
             <field name="key">payroll_manager</field><field name="name_ar">مسؤول الرواتب</field><field name="name_en">Payroll manager</field>

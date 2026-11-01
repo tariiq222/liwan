@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import EmployeeSearchSelect from '@/components/hr/EmployeeSearchSelect.vue'
 import WarningTable from '@/components/hr/warnings/WarningTable.vue'
 import { HR_WARNING_STATES, type HrWarningState } from '@liwan/contracts'
 import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
@@ -43,8 +44,6 @@ const warnings = useHrWarningList(computed(() => ({
   offset: offset.value,
 })))
 const types = useHrWarningTypes('all')
-// The employee filter lists the directory; the warnings roles carry hr.employees.read through the catalog dependency.
-const employees = useHrEmployees(computed(() => ({ limit: 100 })))
 
 const items = computed(() => warnings.data.value?.items ?? [])
 const total = computed(() => warnings.data.value?.total ?? 0)
@@ -54,7 +53,6 @@ const showEmpty = computed(() => !warnings.isLoading.value && !warnings.error.va
 const activeFilterCount = computed(() => [employeeId.value, typeId.value, state.value === 'all' ? null : state.value].filter(Boolean).length)
 
 const typeOptions = computed(() => (types.data.value?.items ?? []).map(type => ({ value: String(type.id), label: type.name })))
-const employeeOptions = computed(() => (employees.data.value?.items ?? []).map(employee => ({ value: String(employee.id), label: employee.name })))
 const stateOptions = computed(() => (['all', ...HR_WARNING_STATES] as const).map(value => ({
   value,
   label: value === 'all' ? t('hrWarnings.allStates') : t(`hrWarnings.state.${value}`),
@@ -113,16 +111,7 @@ function warningTo(row: HrWarning) {
           />
           <SharedFilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
             <SharedFilterField :label="t('hrWarnings.columns.employee')" for="hr-warnings-employee">
-              <USelect
-                id="hr-warnings-employee"
-                class="w-full"
-                :model-value="employeeId ? String(employeeId) : undefined"
-                :items="employeeOptions"
-                :placeholder="t('hrWarnings.anyEmployee')"
-                :disabled="!hydrated || employees.isLoading.value"
-                data-testid="hr-warnings-employee"
-                @update:model-value="writeQuery({ employee: $event ? Number($event) : null, offset: 0 })"
-              />
+              <EmployeeSearchSelect id="hr-warnings-employee" :model-value="employeeId" :any-label="t('hrWarnings.anyEmployee')" :placeholder="t('hrWarnings.anyEmployee')" :disabled="!hydrated" test-id="hr-warnings-employee" @update:model-value="writeQuery({ employee: $event, offset: 0 })" />
             </SharedFilterField>
             <SharedFilterField :label="t('hrWarnings.columns.type')" for="hr-warnings-type">
               <USelect

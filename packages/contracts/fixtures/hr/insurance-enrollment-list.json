@@ -1,0 +1,59 @@
+{
+  "items": [
+    {
+      "company_share": 300.0,
+      "date_end": "2027-05-20",
+      "date_from": "2026-10-28",
+      "date_to": null,
+      "dependents_count": 0,
+      "employee": {
+        "id": 2,
+        "name": "Ins Employee"
+      },
+      "employee_share": 100.0,
+      "id": 1,
+      "member_number": "MBR-7770001",
+      "plan": {
+        "id": 3,
+        "name": "Gold 2026",
+        "provider": {
+          "id": 3,
+          "name": "Insurer Gold 2026"
+        },
+        "tier": "Gold",
+        "valid_from": "2026-07-24",
+        "valid_to": "2027-05-20"
+      },
+      "revision": 1,
+      "state": "active"
+    },
+    {
+      "company_share": 300.0,
+      "date_end": "2026-10-27",
+      "date_from": "2026-09-12",
+      "date_to": "2026-10-27",
+      "dependents_count": 0,
+      "employee": {
+        "id": 2,
+        "name": "Ins Employee"
+      },
+      "employee_share": 100.0,
+      "id": 4,
+      "member_number": "MBR-7770001",
+      "plan": {
+        "id": 3,
+        "name": "Gold 2026",
+        "provider": {
+          "id": 3,
+          "name": "Insurer Gold 2026"
+        },
+        "tier": "Gold",
+        "valid_from": "2026-07-24",
+        "valid_to": "2027-05-20"
+      },
+      "revision": 2,
+      "state": "ended"
+    }
+  ],
+  "total": 2
+}

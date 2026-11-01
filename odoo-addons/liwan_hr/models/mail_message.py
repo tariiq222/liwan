@@ -14,4 +14,5 @@ class LiwanHrMailMessage(models.Model):
         ('hr.leave_refused', 'Leave request refused'),
         ('hr.onboarding_step', 'Onboarding step assigned'),
         ('hr.warning_issued', 'Warning issued'),
+        ('hr.insurance_plan_expiring', 'Insurance plan about to expire'),
     ])

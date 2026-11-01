@@ -37,7 +37,7 @@ class TestEntitlements(TransactionCase):
         'liwan_pmo': {'pmo.enabled', 'pmo.change_control', 'pmo.baselines'},
         'liwan_meetings': {'meetings.enabled'},
         'liwan_hr': {
-            'hr.enabled', 'hr.recruitment', 'hr.shifts', 'hr.onboarding', 'hr.offboarding', 'hr.assets', 'hr.warnings', 'hr.payroll',
+            'hr.enabled', 'hr.recruitment', 'hr.shifts', 'hr.onboarding', 'hr.offboarding', 'hr.assets', 'hr.warnings', 'hr.insurance', 'hr.payroll',
         },
         'liwan_chat': {'chat.enabled'},
         'liwan_inbox': {'inbox.enabled', 'inbox.whatsapp', 'inbox.templates', 'inbox.automation', 'inbox.flows', 'inbox.reports', 'inbox.campaigns'},
@@ -250,13 +250,13 @@ class TestEntitlements(TransactionCase):
             if key not in release_map:
                 self.assertIn(value['owner'], installed_owners, key)
         self.assertEqual(capability_map['settings.maintenance.manage']['owner'], 'liwan_platform')
-        # 11 core capabilities, plus 29 for HR (23, and 6 payroll: its four keys, the audit reader
-        # of owner decision D-7 and the finance mapping), 8 for PMO and 4 for meetings (52), the
+        # 11 core capabilities, plus 31 for HR (25, and 6 payroll: its four keys, the audit reader
+        # of owner decision D-7 and the finance mapping), 8 for PMO and 4 for meetings (54), the
         # fourth being meetings.settings.manage (#162). Document permissions belong to the documents app.
-        expected = 11 + 29 * ('liwan_hr' in apps) + 8 * ('liwan_pmo' in apps) + 4 * ('liwan_meetings' in apps)
+        expected = 11 + 31 * ('liwan_hr' in apps) + 8 * ('liwan_pmo' in apps) + 4 * ('liwan_meetings' in apps)
         self.assertEqual(len(release_map), expected)
         if apps == set(self.APP_BOOLEANS):
-            self.assertEqual(len(release_map), 52)
+            self.assertEqual(len(release_map), 54)
         self.assertNotIn('probe.inspect', capability_map)
         self.assertNotIn('probe.enabled', self.features._liwan_feature_map())
 

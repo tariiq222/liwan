@@ -7,7 +7,9 @@
     "search": "Search",
     "save": "Save",
     "settingsConflict": "Someone else changed these settings after you opened the page. Load the current values, then make your change again.",
-    "list": { "newName": "New name" },
+    "list": {
+      "newName": "New name"
+    },
     "loadMore": "Load more",
     "listSeparator": ", "
   },
@@ -73,6 +75,8 @@
     "myAssets": "My assets",
     "warnings": "Warnings",
     "myWarnings": "My warnings",
+    "insurance": "Medical insurance",
+    "myInsurance": "My insurance",
     "payroll": "Payroll runs",
     "myPayslips": "My payslips",
     "users": "Users",
