@@ -83,7 +83,13 @@ function csvFileBody(draft: BankImportDraft) {
   }
 }
 
-/** What describes how to read the file, shared by the read, the preview and the import. */
+/** The first read of a file: only the journal and the text, so the server finds the format and no CSV-only option can be refused for an OFX or CAMT file. */
+export const detectionBody = fileBody
+
+/** Whether the user chose CSV options that the detecting read did not carry, so a CSV file has to be read again with them. */
+export const csvOptionsChosen = (draft: Pick<BankImportDraft, 'delimiter' | 'hasHeader'>) => draft.delimiter !== '' || !draft.hasHeader
+
+/** What describes how to read the file once its format is known, shared by the preview and the import. */
 export function importFileBody(draft: BankImportDraft) {
   return isStatementFile(draft.format) ? { ...fileBody(draft), format: draft.format } : csvFileBody(draft)
 }

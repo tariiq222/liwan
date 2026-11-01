@@ -18,6 +18,8 @@ import {
   IMPORT_MAX_BYTES,
   applySuggestedMapping,
   closingMatches,
+  csvOptionsChosen,
+  detectionBody,
   decodeStatementFile,
   emptyImportDraft,
   expectedClosing,
@@ -89,8 +91,9 @@ async function readFile() {
   error.value = ''
   reset()
   try {
-    const read = await readCall.mutateAsync(importFileBody(draft))
+    let read = await readCall.mutateAsync(detectionBody(draft))
     draft.format = read.format
+    if (read.format === 'csv' && csvOptionsChosen(draft)) read = await readCall.mutateAsync(importFileBody(draft))
     if (readFoundLines(read)) {
       preview.value = read
       Object.assign(draft, suggestedBalances(read))

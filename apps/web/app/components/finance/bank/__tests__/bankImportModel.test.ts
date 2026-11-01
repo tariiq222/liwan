@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { FinanceBankImportPreviewRequestSchema, FinanceBankImportReadSchema, FinanceBankImportSchema } from '@liwan/contracts'
 import {
-  applySuggestedMapping, closingMatches, emptyImportDraft, expectedClosing, decodeStatementFile, declaredCharset, importBody, importFileBody, importMapping, isStatementFile, readFoundLines, suggestedBalances,
+  applySuggestedMapping, closingMatches, emptyImportDraft, expectedClosing, csvOptionsChosen, decodeStatementFile, declaredCharset, detectionBody, importBody, importFileBody, importMapping, isStatementFile, readFoundLines, suggestedBalances,
 } from '../bankImportModel'
 
 const ready = () => {
@@ -94,6 +94,22 @@ describe('bank import model', () => {
         expect(body).toEqual({ journal_id: 4, content: 'a,b\n1,2', format })
         expect(FinanceBankImportPreviewRequestSchema.parse(body)).toEqual(body)
       }
+    })
+
+    it('detects the format with the journal and the text alone, whatever CSV options are chosen', () => {
+      const draft = ready()
+      Object.assign(draft, { delimiter: ';', hasHeader: false, dateFormat: 'DD/MM/YYYY', decimalSeparator: ',' })
+      expect(detectionBody(draft)).toEqual({ journal_id: 4, content: 'a,b\n1,2' })
+      expect(FinanceBankImportPreviewRequestSchema.parse(detectionBody(draft))).toEqual({ journal_id: 4, content: 'a,b\n1,2' })
+    })
+
+    it('reads a CSV file again only when options beyond the defaults were chosen, and then sends them with the format', () => {
+      const draft = ready()
+      expect(csvOptionsChosen(draft)).toBe(false)
+      Object.assign(draft, { format: 'csv', delimiter: ';' })
+      expect(csvOptionsChosen(draft)).toBe(true)
+      expect(csvOptionsChosen({ delimiter: '', hasHeader: false })).toBe(true)
+      expect(importFileBody(draft)).toMatchObject({ format: 'csv', delimiter: ';', has_header: true })
     })
 
     it('lets the server detect the format of a file it has not read yet and sends it once it has', () => {
