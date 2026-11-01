@@ -123,7 +123,7 @@ const manifest: AppManifest = {
     { pattern: /^\/finance\/sales\/(invoices|credit-notes)\/(new|[^/]+\/edit)$/, capability: 'finance.invoices.manage' },
     { pattern: /^\/finance\/purchases\/(bills|refunds)\/(new|[^/]+\/edit)$/, capability: 'finance.invoices.manage' },
     { pattern: /^\/finance\/(sales|purchases)(?:\/|$)/, capability: 'finance.invoices.read' },
-    { pattern: /^\/finance\/payments\/(new|[^/]+\/edit)$/, capability: 'finance.payments.manage' },
+    { pattern: /^\/finance\/payments\/(new|transfer\/new|[^/]+\/edit)$/, capability: 'finance.payments.manage' },
     { pattern: /^\/finance\/payments(?:\/|$)/, capability: 'finance.payments.read' },
     { pattern: /^\/finance\/accounting\/entries\/new$/, capability: 'finance.entries.manage' },
     { pattern: /^\/finance\/accounting\/entries(?:\/|$)/, capability: 'finance.entries.read' },

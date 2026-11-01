@@ -278,6 +278,38 @@
       "edit": {
         "action": "Edit",
         "title": "Edit the draft payment \"{name}\""
+      },
+      "exchange": {
+        "gain": "Exchange gain",
+        "loss": "Exchange loss"
+      },
+      "transfer": {
+        "link": "Transfer between accounts",
+        "title": "Transfer between accounts",
+        "accounts": "Accounts",
+        "accountsHint": "From one bank or cash journal to another. Entries pass through the company transfer account.",
+        "from": "From journal",
+        "to": "To journal",
+        "choose": "Choose a journal",
+        "sameJournal": "Choose a different journal from the one you transfer from.",
+        "fewJournals": "At least two bank or cash journals are needed.",
+        "details": "Transfer details",
+        "date": "Transfer date",
+        "submit": "Make the transfer",
+        "done": "Transfer made",
+        "doneHint": "Both payments are posted and the transfer account is settled between them.",
+        "resulting": "Resulting payments",
+        "legs": {
+          "outbound": "Out of the journal",
+          "inbound": "Into the journal"
+        },
+        "back": "Back to payments",
+        "openSetup": "Open finance setup",
+        "askAdmin": "Ask an administrator to choose the transfer account in the finance setup.",
+        "errors": {
+          "transferAccountMissing": "The company has no internal transfer account. Choose one in the finance setup, then try again.",
+          "journalCurrencyMismatch": "The journals use different currencies. A transfer needs two journals in the same currency."
+        }
       }
     }
   }

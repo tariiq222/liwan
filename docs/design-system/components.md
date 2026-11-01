@@ -283,6 +283,8 @@ Meetings use SharedListPage/DataTable/RecordPage/TimelineFrame/StandalonePage. C
 | `apps/web/app/components/finance/payments/StandalonePaymentForm.vue` | سند قبض أو دفعة بلا مستند (سلفة): النوع والطرف والمبلغ والتاريخ واليومية، بمفتاح تكرار يحمي من تسجيل مزدوج | — | `SharedFormSection`, `SharedFormActions`, `SharedUnsavedChanges`, `SharedDateField`, `SharedPageState`, `UForm`, `UFormField`, `UInput`, `USelect` |
 | `apps/web/app/components/finance/payments/PaymentAllocate.vue` | تخصيص الجزء غير المخصص من دفعة مرحّلة على مستندات مفتوحة لنفس الطرف والعملة، داخل الصفحة | — | `UCard`, `UAlert`, `USelectMenu`, `UButton` |
 | `apps/web/app/components/finance/payments/PaymentEditPanel.vue` | تعديل دفعة مسودة داخل القائمة: المبلغ والتاريخ واليومية والبيان، ويرسل المتغير فقط | — | `UForm`, `UFormField`, `UInput`, `USelect`, `SharedDateField`, `UAlert` |
+| `apps/web/app/components/finance/payments/TransferForm.vue` | تحويل بين يوميتين بنك أو صندوق داخل لوحة الإنشاء `/finance/payments/transfer/new`: من يومية وإلى يومية والمبلغ والتاريخ والبيان بمفتاح تكرار، ثم عرض الدفعتين الناتجتين؛ يشرح غياب حساب التحويلات برابط إلى إعداد المالية | — | `SharedFormSection`, `SharedFormActions`, `SharedUnsavedChanges`, `SharedDateField`, `SharedPageState`, `SharedStatusBadge`, `UForm`, `UFormField`, `UInput`, `USelect`, `UAlert` |
+| `apps/web/app/components/finance/payments/PaymentExchangeDifference.vue` | سطر ربح أو خسارة الصرف تحت مبلغ الدفعة في القائمة، ولا يظهر عند الصفر | — | — |
 
 ## مكونات المالية — المحاسبة والبنك والتقارير
 

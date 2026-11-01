@@ -14,6 +14,7 @@ import Money from '../invoices/Money.vue'
 import PartnerPicker from '../invoices/PartnerPicker.vue'
 import PaymentAllocate from './PaymentAllocate.vue'
 import PaymentEditPanel from './PaymentEditPanel.vue'
+import PaymentExchangeDifference from './PaymentExchangeDifference.vue'
 import {
   PAYMENT_PAGE_SIZE,
   PAYMENTS_PATH,
@@ -24,6 +25,7 @@ import {
   paymentFiltersFromQuery,
   paymentListParams,
   standalonePaymentLink,
+  transferPaymentLink,
 } from './paymentModel'
 
 // The card of the payments list. A payment is created from the documents it pays (the create panel), and a live one
@@ -92,6 +94,7 @@ const CONFIRM_KEYS = {
   unallocate: { title: 'financeDocuments.payments.unallocate.confirm', hint: 'financeDocuments.payments.unallocate.hint', label: 'financeDocuments.payments.unallocate.action' },
 } as const
 const standaloneTo = computed(() => can('finance.payments.manage') && !props.background ? standalonePaymentLink(route.fullPath) : undefined)
+const transferTo = computed(() => can('finance.payments.manage') && !props.background ? transferPaymentLink(route.fullPath) : undefined)
 const label = (payment: FinancePayment) => payment.name || `${t('financeDocuments.payments.draftNumber')} #${payment.id}`
 function rowActions(payment: FinancePayment) {
   return offeredMenuItems(readFinanceActions(payment), [
@@ -138,8 +141,9 @@ const dash = computed(() => t('app.notAvailable'))
     />
     <PaymentEditPanel v-if="editing" :key="editing.id" :payment="editing" @done="editing = null" @cancel="editing = null" />
     <PaymentAllocate v-if="allocating" :payment="allocating" @done="allocating = null" @cancel="allocating = null" />
-    <div v-if="standaloneTo" class="flex justify-end">
-      <UButton color="neutral" variant="outline" icon="i-lucide-banknote" :to="standaloneTo" :label="t('financeDocuments.payments.standalone.link')" data-testid="finance-payment-standalone-new" />
+    <div v-if="standaloneTo || transferTo" class="flex flex-wrap justify-end gap-2">
+      <UButton v-if="transferTo" color="neutral" variant="outline" icon="i-lucide-arrow-left-right" :to="transferTo" :label="t('financeDocuments.payments.transfer.link')" data-testid="finance-payment-transfer-new" />
+      <UButton v-if="standaloneTo" color="neutral" variant="outline" icon="i-lucide-banknote" :to="standaloneTo" :label="t('financeDocuments.payments.standalone.link')" data-testid="finance-payment-standalone-new" />
     </div>
     <SharedListCard>
       <template #filters>
@@ -176,7 +180,10 @@ const dash = computed(() => t('app.notAvailable'))
             <template #payment_type-cell="{ row }">{{ t(`financeDocuments.payments.types.${row.original.payment_type}`) }}</template>
             <template #journal-cell="{ row }">{{ row.original.journal.name }}</template>
             <template #date-cell="{ row }"><bdi class="tabular-nums">{{ row.original.date }}</bdi></template>
-            <template #amount-cell="{ row }"><Money :amount="row.original.amount" :currency="row.original.currency" /></template>
+            <template #amount-cell="{ row }">
+              <Money :amount="row.original.amount" :currency="row.original.currency" />
+              <PaymentExchangeDifference :payment="row.original" />
+            </template>
             <template #state-cell="{ row }"><SharedStatusBadge size="sm" :tone="PAYMENT_STATE_TONE[row.original.state]" :label="t(`financeDocuments.payments.states.${row.original.state}`)" /></template>
             <template #actions-cell="{ row }"><SharedRowActions :actions="rowActions(row.original)" :label="t('financeDocuments.payments.actionsFor', { name: label(row.original) })" :disabled="busy" /></template>
             <template #mobile-row="{ row }">
@@ -187,7 +194,7 @@ const dash = computed(() => t('app.notAvailable'))
                 </span>
                 <span class="truncate text-sm text-muted">{{ row.partner?.name ?? dash }} · {{ t(`financeDocuments.payments.types.${row.payment_type}`) }}</span>
                 <span class="flex items-center justify-between gap-2 text-sm">
-                  <Money :amount="row.amount" :currency="row.currency" />
+                  <span class="flex flex-col"><Money :amount="row.amount" :currency="row.currency" /><PaymentExchangeDifference :payment="row" /></span>
                   <SharedRowActions :actions="rowActions(row)" :label="t('financeDocuments.payments.actionsFor', { name: label(row) })" :disabled="busy" />
                 </span>
               </div>
