@@ -52,7 +52,7 @@ export const FinancePartnerBankSchema = z.object({
 export const FinancePartnerBankListSchema = list(FinancePartnerBankSchema)
 
 export const FinancePartnerBankCreateSchema = z.object({
-  acc_number: text.trim().min(1).max(40),
+  acc_number: text.trim().min(1).max(34),
   holder_name: text.optional(),
   bank_name: text.optional(),
   bic: text.optional(),

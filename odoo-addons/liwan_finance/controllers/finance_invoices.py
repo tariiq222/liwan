@@ -277,6 +277,9 @@ class FinanceInvoiceController(http.Controller):
         parsed = parse_invoice_patch(payload)
         if 'lines' in parsed:
             require_plain_distributions(invoice.invoice_line_ids)
+            if invoice.invoice_line_ids.asset_profile_id:
+                # Replacing the lines would drop their asset profiles, which only fixed-assets managers can resend.
+                require_capability('finance.assets.manage')
         _effective_invoice_conversion(invoice, parsed, invoice.company_id)
         values = _move_values(parsed, invoice.move_type, invoice.company_id)
         written = tuple(values)  # account.move.write adds is_manually_modified in place

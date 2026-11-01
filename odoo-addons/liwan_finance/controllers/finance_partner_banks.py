@@ -34,6 +34,8 @@ def _bank_of(parsed, current=None):
     name = parsed.get('bank_name', current.bank_id.name if current else '')
     bic = parsed.get('bic', current.bank_id.bic if current else '')
     if not name:
+        if bic:
+            raise ApiError(422, 'invalid', 'bic needs a bank_name', field='bank_name')
         return False
     Bank = request.env['res.bank']
     domain = [('bic', '=', bic)] if bic else [('name', '=', name)]

@@ -62,3 +62,9 @@ class TestFinanceInvoiceAssets(LiwanFinanceOcaCase):
         self.authenticate('bill_assets_read', 'finance_write_pass_123')
         line = self.api('GET', f'{INVOICES}/{posted["id"]}').json()['lines'][0]
         self.assertIsNotNone(line['asset'])
+
+    def test_replacing_the_lines_of_a_capitalised_bill_needs_the_fixed_assets_capability(self):
+        draft = self.create_invoice(self.capital_bill())
+        self.authenticate('bill_no_assets', 'finance_write_pass_123')
+        result = self.api('PATCH', f'{INVOICES}/{draft["id"]}', json={'lines': [{'name': 'Table', 'price_unit': 1}]})
+        self.assertRefused(result, 403, 'forbidden')

@@ -46,6 +46,11 @@ class TestFinancePartnerBanks(LiwanFinanceWriteCase):
             self.assertRefused(result, 422, 'invalid')
             self.assertEqual(result.json()['field'], 'acc_number', number)
 
+    def test_a_bic_without_a_bank_name_is_refused(self):
+        result = self.api('POST', self.route(), json={'acc_number': VALID_IBAN, 'bic': 'ZZZZSARI'})
+        self.assertRefused(result, 422, 'invalid')
+        self.assertEqual(result.json()['field'], 'bank_name')
+
     def test_the_same_account_twice_is_a_duplicate(self):
         self.add()
         result = self.api('POST', self.route(), json={'acc_number': 'SA03 8000 0000 6080 1016 7519'})
