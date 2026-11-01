@@ -11,7 +11,7 @@ test.describe('Plan 6a: archived tasks and the task create routes', () => {
       await expect(page.locator('[data-template="list"]')).toHaveCount(1)
       await expect(page.getByTestId('archived-tasks-toolbar')).toBeVisible()
       await expect(rows(page)).toHaveCount(3)
-      await expect(page.locator('[data-slot="page-header"] a').first()).toHaveAttribute('href', '/tasks')
+      await expect(page.locator('[data-slot="page-header"]').getByRole('link', { name: 'عودة', exact: true })).toHaveAttribute('href', '/tasks')
       await expect(page.locator('[data-shortcut-create]')).toHaveCount(0)
     })
     test('the search lives in the URL and J / K move between rows', async ({ page }) => {
@@ -27,7 +27,7 @@ test.describe('Plan 6a: archived tasks and the task create routes', () => {
     })
     test('a project archive keeps its project and return path in the back link', async ({ page }) => {
       await open(page, '/tasks?scope=archived&project_id=1&returnTo=%2Fprojects%2F1%2Ftasks')
-      await expect(page.locator('[data-slot="page-header"] a').first()).toHaveAttribute('href', '/projects/1/tasks')
+      await expect(page.locator('[data-slot="page-header"]').getByRole('link', { name: 'عودة', exact: true })).toHaveAttribute('href', '/projects/1/tasks')
     })
     test('the task create routes open their panels over the lists', async ({ page }) => {
       await open(page, '/tasks/new')

@@ -63,17 +63,18 @@ test('copy cancel returns to the source project and a copied record accepts that
 })
 
 test('RACI task and stakeholder links return to their matrix source', async ({ page }) => {
-  const source = '/projects/2/raci?closed=1#matrix'
+  // Project 1 owns task 101 in the mock, so the matrix links resolve inside the same project.
+  const source = '/projects/1/raci?closed=1#matrix'
   await enterFoundation(page, source)
   const matrix = page.getByTestId('raci-matrix')
   await expect(matrix).toBeVisible()
   const task = matrix.locator('a[href*="/tasks/"]').first()
   await task.click()
   await page.getByTestId('task-detail-back').click()
-  await expect.poll(() => new URL(page.url()).pathname).toBe('/projects/2/raci')
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/projects/1/raci')
   expect(new URL(page.url()).searchParams.get('closed')).toBe('1')
   await matrix.locator('a[href*="/stakeholders/"]').first().click()
   await page.locator('[data-template="record"] [data-slot="page-header"] a').first().click()
-  await expect.poll(() => new URL(page.url()).pathname).toBe('/projects/2/raci')
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/projects/1/raci')
   expect(new URL(page.url()).searchParams.get('closed')).toBe('1')
 })
