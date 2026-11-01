@@ -168,8 +168,8 @@ class LiwanPmoSettings(models.AbstractModel):
         return value
 
     def change_control_mode(self):
-        """The company's change control mode; `off` while the tenant's plan lacks the sub-feature."""
-        if not self.env['liwan.entitlement.service']._liwan_feature_read('pmo.change_control'):
+        """The company's change control mode; `off` while the tenant's plan lacks the sub-feature (a retained read does not count)."""
+        if not self.env['liwan.entitlement.service']._liwan_feature_write('pmo.change_control'):
             return 'off'
         return self._get_choice(PARAM_CHANGE_CONTROL_MODE, CHANGE_CONTROL_MODES, 'optional')
 

@@ -45,8 +45,8 @@ function flags(change) {
   }
 }
 function dump(change) {
-  const { revision, ...rest } = change
-  return { ...rest, updated_at: `v${revision}`, ...flags(change) }
+  const { revision, category, ...rest } = change
+  return { ...rest, category: category && { id: category.id, name: category.name }, updated_at: `v${revision}`, ...flags(change) }
 }
 const bump = change => { change.revision += 1; return change }
 
