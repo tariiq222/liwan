@@ -8,7 +8,7 @@ describe('operations navigation boundaries', () => {
     ['/operations/7', 'operations.requests.read'],
     ['/operations/new', 'operations.requests.create'],
     ['/operations/7/edit', 'operations.requests.create'],
-    ['/operations/pending', 'operations.requests.review'],
+    ['/operations/pending', 'operations.requests.read'],
     ['/operations/monitoring', 'operations.monitoring.read'],
     ['/settings/apps/operations/processes/3/edit', 'operations.processes.manage'],
   ])('requires the owning capability for %s', (path, capability) => {
