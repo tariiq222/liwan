@@ -1,7 +1,7 @@
 # Pinned OCA addons
 
 LiwanOS's Odoo runs with a few OCA 19.0 repositories on its addons path (finance reporting,
-reconciliation, assets, MIS reports, document management, payroll, shifts, appointments and paid bookings). They are separate, pinned dependencies fetched at run or build
+reconciliation, bank statement files, assets, MIS reports, document management, payroll, shifts, appointments and paid bookings). They are separate, pinned dependencies fetched at run or build
 time. The fetched repositories stay outside this checkout. The separately maintained
 `odoo-addons/base_tier_validation` is the documented vendored OCA exception.
 
@@ -55,6 +55,7 @@ reports, assets and bank"). Only modules a route uses are declared:
 | `partner_statement` (account-financial-reporting) | partner activity and outstanding statements |
 | `account_asset_management` (account-financial-tools) | fixed assets and their depreciation board |
 | `account_reconcile_oca` (account-reconcile), with `account_statement_base` | bank statement line reconciliation |
+| `account_statement_import_camt` (bank-statement-import), with `account_statement_import_file` and `account_statement_import_base` | the CAMT parser (`account.statement.import.camt.parser`) and the `unique_import_id` line field behind the bank statement import; the OCA wizard and its menus are never used (OFX is read by `liwan_finance` itself, no OCA 19.0 module reads it) |
 | `mis_builder` (mis-builder) | profit and loss, balance sheet, Zakat base (templates shipped as data) |
 
 `date_range` and `report_xlsx` (server-ux, reporting-engine) come in as their dependencies. `account_tax_balance` and
@@ -116,7 +117,7 @@ pins must keep that file satisfying `python_requirements`.
 
 ## Licensing (owner decision 2026-10-18)
 
-Most OCA modules are AGPL-3 (some, such as `date_range` and `account_statement_base`, LGPL-3). They are
+Most OCA modules are AGPL-3 (some, such as `date_range`, `account_statement_base`, `account_statement_import_base` and `account_statement_import_file`, LGPL-3; `account_statement_import_camt` is AGPL-3). They are
 used unmodified, as separate dependencies, and fetched from OCA rather than copied here. LiwanOS's own
 addons are LGPL-3. The owner accepted AGPL-3 OCA dependencies for LiwanOS on 2026-10-18. Keep the OCA
 modules unmodified; if one ever has to be changed, the change is published with its source as AGPL-3
