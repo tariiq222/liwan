@@ -49,7 +49,7 @@ def company_partners_domain(company=None):
     return domain
 
 
-def _find_partner(partner_id):
+def find_partner(partner_id):
     partner = request.env['res.partner'].with_context(active_test=False).search(
         [('id', '=', partner_id), *company_partners_domain()], limit=1,
     )
@@ -129,7 +129,7 @@ class FinancePartnerController(http.Controller):
     @requires_feature('finance.enabled', operation='read')
     def get_partner(self, partner_id):
         require_capability('finance.partners.read')
-        return dump_partner(_find_partner(partner_id))
+        return dump_partner(find_partner(partner_id))
 
     @http.route('/api/v1/finance/partners', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -146,7 +146,7 @@ class FinancePartnerController(http.Controller):
     @requires_feature('finance.enabled', operation='write')
     def patch_partner(self, partner_id, **payload):
         require_capability('finance.partners.manage')
-        partner = _find_partner(partner_id)
+        partner = find_partner(partner_id)
         require_nonempty(payload)
         values = _partner_values(parse_partner_patch(payload), partner)
         partner.write(values)
@@ -158,7 +158,7 @@ class FinancePartnerController(http.Controller):
     @requires_feature('finance.enabled', operation='write')
     def archive_partner(self, partner_id, **_):
         require_capability('finance.partners.manage')
-        partner = _find_partner(partner_id)
+        partner = find_partner(partner_id)
         partner.action_archive()
         request.env['liwan.finance.audit.event']._liwan_log('partner_archived', partner)
         return dump_partner(partner)
@@ -168,7 +168,7 @@ class FinancePartnerController(http.Controller):
     @requires_feature('finance.enabled', operation='write')
     def unarchive_partner(self, partner_id, **_):
         require_capability('finance.partners.manage')
-        partner = _find_partner(partner_id)
+        partner = find_partner(partner_id)
         partner.action_unarchive()
         request.env['liwan.finance.audit.event']._liwan_log('partner_unarchived', partner)
         return dump_partner(partner)

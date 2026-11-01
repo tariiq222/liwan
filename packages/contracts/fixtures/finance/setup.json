@@ -37,7 +37,8 @@
     "hard_lock_date": null,
     "purchase_lock_date": null,
     "sale_lock_date": null,
-    "tax_lock_date": null
+    "tax_lock_date": null,
+    "transfer_account": null
   },
   "journals": {
     "bank": 1,

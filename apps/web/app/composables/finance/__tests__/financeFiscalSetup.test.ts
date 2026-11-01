@@ -26,6 +26,7 @@ const VALUES = {
   sale_lock_date: null as string | null,
   purchase_lock_date: null as string | null,
   hard_lock_date: '2026-01-01' as string | null,
+  transfer_account: null as { id: number; name: string } | null,
 }
 
 const baseline = () => financeFiscalDraftFromValues(VALUES)

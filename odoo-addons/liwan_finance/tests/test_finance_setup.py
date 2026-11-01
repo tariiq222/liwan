@@ -24,7 +24,7 @@ COMPANY_KEYS = {
 }
 FISCAL_KEYS = {
     'fiscalyear_last_day', 'fiscalyear_last_month', 'fiscalyear_lock_date', 'tax_lock_date',
-    'sale_lock_date', 'purchase_lock_date', 'hard_lock_date',
+    'sale_lock_date', 'purchase_lock_date', 'hard_lock_date', 'transfer_account',
 }
 VALID_VAT = '300000000000003'
 PASSWORD = 'finance_setup_pass_123'
@@ -163,6 +163,25 @@ class TestFinanceSetup(LiwanFinanceCase):
                 self.assertEqual((result.status_code, result.json()['code']), (422, 'lock_date_loosening'), result.text)
                 self.assertEqual(result.json()['field'], 'sale_lock_date')
         self.assertEqual(self._get()['fiscal']['sale_lock_date'], '2026-06-30')
+
+    def test_the_transfer_account_comes_from_the_chart_and_can_be_changed(self):
+        self.env['account.chart.template'].try_loading('sa', self.fresh)
+        self.authenticate(ADMIN_LOGIN, PASSWORD)
+        default = self._get()['fiscal']['transfer_account']
+        self.assertEqual(default['id'], self.fresh.transfer_account_id.id)
+        other = self.env['account.account'].with_company(self.fresh).create({
+            'name': 'Cash in transit', 'code': '100099', 'account_type': 'asset_current', 'reconcile': True,
+        })
+        changed = self._write('PATCH', 'fiscal', {'transfer_account_id': other.id})
+        self.assertEqual(changed.status_code, 200, changed.text)
+        self.assertEqual(changed.json()['fiscal']['transfer_account']['id'], other.id)
+        receivable = self.env['account.account'].search([
+            ('account_type', '=', 'asset_receivable'), ('company_ids', 'in', self.company.ids),
+        ], limit=1)
+        for value in (receivable.id, 0, 'x'):
+            with self.subTest(value=value):
+                result = self._write('PATCH', 'fiscal', {'transfer_account_id': value})
+                self.assertEqual((result.status_code, result.json()['field']), (422, 'transfer_account_id'), result.text)
 
     def test_unreconciled_bank_lines_block_the_fiscal_lock_with_a_stable_code(self):
         self.authenticate(MANAGER_LOGIN, MANAGER_PASSWORD)

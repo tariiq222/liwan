@@ -45,6 +45,8 @@ const LINE = {
   price_subtotal: 1000,
   price_total: 1150,
   analytic_distribution: [],
+  asset_profile: null,
+  asset: null,
 }
 const PAYMENT = {
   id: 5,
@@ -59,6 +61,7 @@ const PAYMENT = {
   currency: 'SAR',
   amount: 1150,
   unallocated: 0,
+  exchange_difference: 0,
   invoices: [],
   allowed_actions: ['cancel'],
   blocked_actions: [],

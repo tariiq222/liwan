@@ -5,6 +5,7 @@ from odoo import http
 from odoo.http import request
 
 from .common import parse_day, require_capability
+from .write_support import company_records
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
@@ -90,14 +91,26 @@ def _require_not_loosened(field, new_value, current):
         )
 
 
+def _transfer_account(value, company):
+    """The reconcilable current-asset account that internal transfers pass through."""
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise ApiError(422, 'invalid', 'transfer_account_id must be an account id', field='transfer_account_id')
+    return company_records(
+        'account.account', [value], 'transfer_account_id',
+        [*request.env['account.account']._check_company_domain(company), ('reconcile', '=', True), ('account_type', '=', 'asset_current')],
+    )
+
+
 def parse_fiscal_vals(payload, company):
-    _require_payload(payload, ('fiscalyear_last_day', 'fiscalyear_last_month', *LOCK_DATE_FIELDS))
+    _require_payload(payload, ('fiscalyear_last_day', 'fiscalyear_last_month', 'transfer_account_id', *LOCK_DATE_FIELDS))
     vals = {}
     for field, value in payload.items():
         if field == 'fiscalyear_last_day':
             vals[field] = _parse_int_in(value, field, FISCAL_DAYS)
         elif field == 'fiscalyear_last_month':
             vals[field] = str(_parse_int_in(value, field, FISCAL_MONTHS))
+        elif field == 'transfer_account_id':
+            vals[field] = _transfer_account(value, company).id
         else:
             vals[field] = _parse_lock_date(value, field)
             _require_not_loosened(field, vals[field], company[field])

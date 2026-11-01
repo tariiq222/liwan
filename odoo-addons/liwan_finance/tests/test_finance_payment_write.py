@@ -6,7 +6,7 @@ from odoo.addons.liwan_finance.serializers.common import dump_number
 
 PAYMENT_KEYS = {
     'id', 'name', 'payment_type', 'partner_type', 'state', 'partner', 'journal', 'date', 'memo',
-    'currency', 'amount', 'unallocated', 'invoices', 'allowed_actions', 'blocked_actions',
+    'currency', 'amount', 'unallocated', 'exchange_difference', 'invoices', 'allowed_actions', 'blocked_actions',
 }
 
 
