@@ -18,6 +18,7 @@ from . import (
     hr_plan_run,
     hr_report,
     hr_version,
+    hr_warning,
     ir_rule,
     leave_cancellation,
     leave_settings,
@@ -32,4 +33,6 @@ from . import (
     payslip_payment,
     res_company,
     shift_settings,
+    warning_settings,
+    warning_type,
 )

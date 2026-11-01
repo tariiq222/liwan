@@ -50,6 +50,7 @@
         "boolean:hr.onboarding",
         "boolean:hr.offboarding",
         "boolean:hr.assets",
+        "boolean:hr.warnings",
         "boolean:hr.payroll"
       ]
     },

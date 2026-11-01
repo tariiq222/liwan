@@ -81,3 +81,16 @@ access_liwan_hr_audit_event_log,liwan.hr.audit.event.log,model_liwan_hr_audit_ev
 access_liwan_hr_audit_change_log,liwan.hr.audit.change.log,model_liwan_hr_audit_change,group_cap_hr_payroll_read,0,0,1,0
 access_liwan_hr_payroll_file_read,liwan.hr.payroll.file.read,model_liwan_hr_payroll_file,group_cap_hr_payroll_read,1,0,1,0
 access_liwan_hr_company_shifts_manager,liwan.hr.company.shifts.manager,base.model_res_company,group_cap_hr_shifts_manage,1,1,0,0
+access_liwan_hr_warning_reader,liwan.hr.warning.reader,model_liwan_hr_warning,group_cap_hr_warnings_read,1,0,0,0
+access_liwan_hr_warning_manager,liwan.hr.warning.manager,model_liwan_hr_warning,group_cap_hr_warnings_manage,1,1,1,0
+access_liwan_hr_warning_type_manager,liwan.hr.warning.type.manager,model_liwan_hr_warning_type,group_cap_hr_warnings_manage,1,1,1,0
+access_liwan_hr_warning_settings_manager,liwan.hr.warning.settings.manager,model_liwan_hr_warning_settings,group_cap_hr_warnings_manage,1,1,1,0
+access_liwan_hr_audit_event_warning_manage,liwan.hr.audit.event.warning_manage,model_liwan_hr_audit_event,group_cap_hr_warnings_manage,0,0,1,0
+access_liwan_hr_audit_change_warning_manage,liwan.hr.audit.change.warning_manage,model_liwan_hr_audit_change,group_cap_hr_warnings_manage,0,0,1,0
+access_liwan_hr_warning_employee,liwan.hr.warning.employee,model_liwan_hr_warning,group_cap_hr_employees_read,1,1,1,0
+access_liwan_hr_warning_type_reader,liwan.hr.warning.type.reader,model_liwan_hr_warning_type,group_cap_hr_warnings_read,1,0,0,0
+access_liwan_hr_warning_type_employee,liwan.hr.warning.type.employee,model_liwan_hr_warning_type,group_cap_hr_employees_read,1,0,0,0
+access_liwan_hr_warning_settings_reader,liwan.hr.warning.settings.reader,model_liwan_hr_warning_settings,group_cap_hr_warnings_read,1,0,0,0
+access_liwan_hr_warning_settings_employee,liwan.hr.warning.settings.employee,model_liwan_hr_warning_settings,group_cap_hr_employees_read,1,0,0,0
+access_liwan_hr_audit_event_warning_employee,liwan.hr.audit.event.warning_employee,model_liwan_hr_audit_event,group_cap_hr_employees_read,0,0,1,0
+access_liwan_hr_audit_change_warning_employee,liwan.hr.audit.change.warning_employee,model_liwan_hr_audit_change,group_cap_hr_employees_read,0,0,1,0

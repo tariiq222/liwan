@@ -27,6 +27,8 @@ HR_PERMISSIONS = frozenset(
         'hr.offboarding.manage',
         'hr.assets.read',
         'hr.assets.manage',
+        'hr.warnings.read',
+        'hr.warnings.manage',
     },
 )
 # Payroll is a section of this addon behind its own keys: no HR capability, role or
@@ -89,6 +91,8 @@ HR_PERMISSION_DEPENDENCIES = {
     'hr.offboarding.manage': {'hr.offboarding.read', 'hr.employees.manage'},
     'hr.assets.read': {'hr.employees.read'},
     'hr.assets.manage': {'hr.assets.read'},
+    'hr.warnings.read': {'hr.employees.read'},
+    'hr.warnings.manage': {'hr.warnings.read'},
 }
 PAYROLL_PERMISSION_DEPENDENCIES = {
     'hr.payroll.read': {'hr.employees.read'},

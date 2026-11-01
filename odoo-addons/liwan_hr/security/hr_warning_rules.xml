@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Warnings are disciplinary records. Every row is company-scoped for everyone (a rule without groups is
+         global); on top of that the warnings read group sees every warning of its companies, and anyone else
+         sees only what concerns them: the employee reads the warnings issued to their own record (a draft never
+         reaches them), and a manager reads the drafts and warnings they created themselves. -->
+    <record id="rule_liwan_hr_warning_company" model="ir.rule">
+        <field name="name">liwan warning: multi company</field>
+        <field name="model_id" ref="model_liwan_hr_warning"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_liwan_hr_warning_reader" model="ir.rule">
+        <field name="name">liwan warning: warnings readers see all</field>
+        <field name="model_id" ref="model_liwan_hr_warning"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_hr_warnings_read'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <record id="rule_liwan_hr_warning_self" model="ir.rule">
+        <field name="name">liwan warning: the employee's own issued warnings and the caller's own drafts</field>
+        <field name="model_id" ref="model_liwan_hr_warning"/>
+        <field name="groups" eval="[Command.link(ref('liwan_core.group_employee'))]"/>
+        <field name="domain_force">['|', '&amp;', ('employee_user_id', '=', user.id), ('issued_at', '!=', False), ('create_uid', '=', user.id)]</field>
+    </record>
+
+    <record id="rule_liwan_hr_warning_type_company" model="ir.rule">
+        <field name="name">liwan warning type: multi company</field>
+        <field name="model_id" ref="model_liwan_hr_warning_type"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_liwan_hr_warning_settings_company" model="ir.rule">
+        <field name="name">liwan warning settings: current company</field>
+        <field name="model_id" ref="model_liwan_hr_warning_settings"/>
+        <field name="domain_force">[('company_id', '=', company_id)]</field>
+    </record>
+</odoo>

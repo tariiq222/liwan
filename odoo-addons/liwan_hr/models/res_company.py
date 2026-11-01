@@ -2,6 +2,7 @@
 from odoo import Command, api, models
 from odoo.exceptions import AccessError
 
+from .warning_type import SEEDED_TYPES
 from odoo.addons.liwan_core.models.protected_write import is_marked_write, marked
 
 SAUDI_COUNTRY_CODE = 'SA'
@@ -25,6 +26,10 @@ class ResCompany(models.Model):
         # A new company's stock schedule was made for it a moment ago and nothing uses it yet.
         companies._liwan_ensure_saudi_schedule(drop_replaced=True)
         companies._liwan_ensure_payroll_structure()
+        # Only provisioning (the superuser environment) seeds; a company made interactively adds its own
+        # types from the warnings settings.
+        if self.env.su:
+            companies._liwan_ensure_warning_types()
         return companies
 
     def write(self, vals):
@@ -84,6 +89,19 @@ class ResCompany(models.Model):
                 company.write({'resource_calendar_id': calendar.id})
             if drop_replaced and replaced.company_id == company:
                 replaced.unlink()
+
+    def _liwan_ensure_warning_types(self):
+        """Give each company the seeded warning types it does not have yet, matched by code.
+
+        A type the tenant renamed or archived keeps its code, so a second run adds nothing.
+        """
+        Type = self.env['liwan.hr.warning.type'].with_context(active_test=False)
+        for company in self:
+            have = set(Type.search([('company_id', '=', company.id)]).mapped('code'))
+            Type.create([
+                {'company_id': company.id, 'code': code, 'name': name, 'severity': severity}
+                for code, name, severity in SEEDED_TYPES if code not in have
+            ])
 
     def _liwan_ensure_payroll_structure(self):
         """Give every company its own copy of the shipped Saudi payroll structure, once.

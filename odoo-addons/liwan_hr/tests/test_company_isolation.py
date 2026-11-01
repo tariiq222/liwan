@@ -38,16 +38,19 @@ RECORD_ROUTES = {
     'allocation': '/api/v1/hr/leave/allocations/{}',
     # Keyed by the employee id: the compensation record is the employee's own single row.
     'compensated': '/api/v1/hr/payroll/compensation/{}',
+    'warning': '/api/v1/hr/warnings/{}',
 }
 
-# The shifts routes read only the current company (never its branches), so they have their own matrix.
-SHIFT_ROUTES = {
+# The shifts and warning-standing routes read only the current company (never its branches or parent), so they have their own matrix.
+CURRENT_COMPANY_ROUTES = {
     'schedule': '/api/v1/hr/shifts/schedules/{}',
     'assignment': '/api/v1/hr/shifts/assignments/{}',
+    # Keyed by the employee id: the figure counts that employee's warnings in the current company only.
+    'standing': '/api/v1/hr/warnings/standing/{}',
 }
 
 # Every GET /api/v1 record, export or file route of liwan_hr, counted by the discovery test.
-EXPECTED_GET_RECORD_ROUTES = 23
+EXPECTED_GET_RECORD_ROUTES = 25
 
 # The lists the pillar serves, with the fixture key whose id must be the only one.
 LISTS = (
@@ -113,6 +116,12 @@ class TestHrCompanyIsolation(CompanyIsolationCase):
             cls.recs[tag] = {
                 'employee': employee,
                 'compensated': employee,
+                'standing': employee,
+                'warning': cls.env['liwan.hr.warning'].create({
+                    'employee_id': employee.id, 'reason': 'Isolation', 'state': 'issued',
+                    'issued_at': '2026-05-01 08:00:00',
+                    'type_id': cls.env['liwan.hr.warning.type'].search([('company_id', '=', company.id)], limit=1).id,
+                }),
                 'allocation': cls.env['hr.leave.allocation'].create({
                     'employee_id': employee.id, 'holiday_status_id': allocation_type.id,
                     'number_of_days': 5, 'date_from': '2026-01-01',
@@ -505,14 +514,17 @@ class TestHrCompanyIsolation(CompanyIsolationCase):
     def test_allocation_matrix(self):
         self.assert_matrix('allocation')
 
+    def test_warning_matrix(self):
+        self.assert_matrix('warning')
+
     def test_compensation_matrix(self):
         self.assert_matrix('compensated')
 
-    def test_shift_records_are_scoped_to_the_current_company_only(self):
-        """Shift schedules and planning rows belong to one company: a branch or parent is hidden too."""
+    def test_current_company_only_records_hide_branches_and_parents(self):
+        """Shift schedules, planning rows and the warning figure belong to one company: a branch or parent is hidden too."""
         for current in self.by_tag:
             self.env_in(self.by_tag[current])
-            for kind, template in SHIFT_ROUTES.items():
+            for kind, template in CURRENT_COMPANY_ROUTES.items():
                 self.assertVisible(template.format(self.recs[current][kind].id))
                 for tag in self.by_tag:
                     if tag != current:
@@ -555,4 +567,6 @@ cover_isolation_routes((
     '/api/v1/hr/payroll/compensation/<int:employee_id>',
     '/api/v1/hr/shifts/schedules/<int:schedule_id>',
     '/api/v1/hr/shifts/assignments/<int:assignment_id>',
+    '/api/v1/hr/warnings/<int:warning_id>',
+    '/api/v1/hr/warnings/standing/<int:employee_id>',
 ), source='liwan_hr/tests/test_company_isolation.py')
