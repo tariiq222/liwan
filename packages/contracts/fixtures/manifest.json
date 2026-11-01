@@ -1073,6 +1073,14 @@
       "schema": "OperationExecutionKindsSchema"
     },
     {
+      "name": "operations/reviewer-resolver-list",
+      "addon": "liwan_operations",
+      "method": "GET",
+      "route": "/api/v1/operations/processes/reviewer-resolvers",
+      "status": 200,
+      "schema": "OperationReviewerResolversSchema"
+    },
+    {
       "name": "operations/process-target-list",
       "addon": "liwan_operations",
       "method": "GET",

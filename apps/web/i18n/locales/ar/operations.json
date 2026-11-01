@@ -34,6 +34,8 @@
     "stageNumber": "المرحلة {number}",
     "stageCount": "لا مراحل | مرحلة واحدة | مرحلتان | {count} مراحل | {count} مرحلة | {count} مرحلة",
     "stageName": "اسم المرحلة",
+    "namedReviewers": "مراجعون محددون بالاسم",
+    "reviewerSource": "من يراجع المرحلة",
     "reviewers": "المراجعون",
     "addStage": "إضافة مرحلة",
     "removeStage": "إزالة المرحلة",
@@ -44,6 +46,7 @@
     "result": "نتيجة الاعتماد",
     "executionKinds": {
       "approval": "اعتماد الطلب",
+      "hr_leave": "طلب إجازة",
       "pmo_completion": "إكمال مهمة مشروع",
       "other": "إجراء مرتبط"
     },

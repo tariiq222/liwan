@@ -34,6 +34,8 @@
     "stageNumber": "Stage {number}",
     "stageCount": "{count} stage | {count} stages",
     "stageName": "Stage name",
+    "namedReviewers": "Named reviewers",
+    "reviewerSource": "Who reviews",
     "reviewers": "Reviewers",
     "addStage": "Add stage",
     "removeStage": "Remove stage",
@@ -44,6 +46,7 @@
     "result": "Approval outcome",
     "executionKinds": {
       "approval": "Approve request",
+      "hr_leave": "Leave request",
       "pmo_completion": "Complete a project task",
       "other": "Related procedure"
     },
