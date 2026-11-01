@@ -29,7 +29,7 @@ const chosen = ref<{ label: string; value: number } | null>(null)
 
 const items = computed(() => {
   const rows = (accounts.data.value?.items ?? []).filter(account => props.allow?.(account) ?? true).map(account => ({ label: `${account.code} ${account.name}`, value: account.id }))
-  const known = chosen.value ?? (props.modelValue !== null && props.selectedLabel ? { label: props.selectedLabel, value: props.modelValue } : null)
+  const known = chosen.value?.value === props.modelValue ? chosen.value : (props.modelValue !== null && props.selectedLabel ? { label: props.selectedLabel, value: props.modelValue } : null)
   const kept = known && known.value === props.modelValue && !rows.some(row => row.value === known.value) ? [known] : []
   return [...kept, ...rows]
 })

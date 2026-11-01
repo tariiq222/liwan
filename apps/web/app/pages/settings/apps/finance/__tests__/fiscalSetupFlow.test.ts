@@ -58,7 +58,7 @@ function mountCard() {
     useToast: () => ({ add: (toast: unknown) => toasts.push(toast) }),
     useSettingsForm, ApiError,
     // The template is not rendered here; the script only names the picker it imports.
-    AccountPicker: {},
+    AccountPicker: {}, useAccess: () => ({ can: () => true }),
     ...setupComposables, ...fiscalRules,
   }
   const component = new Function(...Object.keys(bindings), js)(...Object.values(bindings))
