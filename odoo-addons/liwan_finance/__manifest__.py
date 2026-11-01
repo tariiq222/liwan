@@ -2,7 +2,7 @@
 {
     'name': 'liwan Finance',
     'summary': 'liwan platform: the Finance application — /api/v1/finance over account and l10n_sa',
-    'version': '19.0.1.4.5',
+    'version': '19.0.1.4.6',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -17,11 +17,13 @@
     # their public models: account_financial_report (trial balance, general ledger, aged partner
     # balance), partner_statement, account_asset_management (fixed assets), account_reconcile_oca
     # (bank reconciliation, which pulls account_statement_base) and mis_builder (profit and loss,
-    # balance sheet, Zakat base) and mis_builder_budget (budgets by account).
+    # balance sheet, Zakat base), mis_builder_budget (budgets by account) and account_statement_import_camt (the CAMT
+    # parser behind the bank statement import, with account_statement_import_file and _base; no wizard is used).
     'depends': [
         'liwan_api', 'liwan_integrations_sa', 'analytic', 'account', 'account_debit_note', 'base_vat', 'l10n_sa', 'l10n_sa_edi',
         'account_financial_report', 'partner_statement', 'account_asset_management',
         'account_reconcile_oca', 'mis_builder', 'mis_builder_budget',
+        'account_statement_import_base', 'account_statement_import_file', 'account_statement_import_camt',
     ],
     'data': [
         'security/finance_capability_groups.xml',

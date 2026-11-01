@@ -6,6 +6,7 @@ import {
   FinanceInvoiceSchema,
   FinanceJournalListSchema,
   FinanceBankImportPreviewRequestSchema,
+  FinanceBankImportReadSchema,
   FinanceBankImportSchema,
   FinanceCashFlowSchema,
   FinanceJournalSchema,
@@ -215,6 +216,29 @@ describe('bank statement import bodies', () => {
     expect(FinanceBankImportPreviewRequestSchema.parse({ ...file, mapping })).toEqual({ ...file, mapping })
     const body = { ...file, mapping, balance_start: 0, balance_end_real: 100 }
     expect(FinanceBankImportSchema.parse(body)).toEqual(body)
+  })
+
+  it('accepts an OFX or CAMT import with or without balances and refuses CSV options on it', () => {
+    const ofx = { journal_id: 3, content: '<OFX></OFX>', format: 'ofx' }
+    expect(FinanceBankImportPreviewRequestSchema.parse(ofx)).toEqual(ofx)
+    expect(FinanceBankImportSchema.parse(ofx)).toEqual(ofx)
+    const camt = { ...ofx, format: 'camt', balance_start: 10, balance_end_real: 20, skip_duplicates: true }
+    expect(FinanceBankImportSchema.parse(camt)).toEqual(camt)
+    expect(() => FinanceBankImportSchema.parse({ ...ofx, mapping })).toThrow()
+    expect(() => FinanceBankImportSchema.parse({ ...ofx, delimiter: ';' })).toThrow()
+    expect(() => FinanceBankImportSchema.parse({ ...ofx, format: 'pdf' })).toThrow()
+  })
+
+  it('tells the columns of a CSV file from the lines of an OFX one', () => {
+    const summary = { lines: 1, duplicates: 0, total: 5, date_from: '2026-10-25', date_to: '2026-10-25' }
+    const columns = { format: 'csv', delimiter: ',', columns: ['a'], sample: [['1']], suggested_mapping: {}, row_count: 1 }
+    const preview = {
+      format: 'ofx', delimiter: null, columns: [], errors: [], summary, balance_start: null, balance_end_real: 5,
+      lines: [{ row: 1, date: '2026-10-25', payment_ref: 'Deposit', amount: 5, duplicate: false }],
+    }
+    expect(FinanceBankImportReadSchema.parse(columns)).toEqual(columns)
+    expect(FinanceBankImportReadSchema.parse(preview)).toEqual(preview)
+    expect(() => FinanceBankImportReadSchema.parse({ ...preview, balance_end_real: undefined })).toThrow()
   })
 
   it('refuses an import with no balances, a missing mapping or an unknown key', () => {
