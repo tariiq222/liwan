@@ -28,16 +28,16 @@ async function leaveListAtOffset(page: Page) {
   await page.evaluate(top => window.scrollTo(0, top), LEAVE_AT)
   await expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBe(LEAVE_AT)
 
-  // Open a row that is already on screen: clicking one that is not would make
+  // Open a row that is already on screen and clear of the sticky headers: clicking one that is not would make
   // Playwright scroll it into view first, moving the offset under test.
   const onScreen = await page.evaluate(() => [...document.querySelectorAll('tbody tr')]
     .findIndex((row) => {
       const box = row.getBoundingClientRect()
-      return box.top > 80 && box.bottom < window.innerHeight - 20
+      return box.top > 200 && box.bottom < window.innerHeight - 20
     }))
   expect(onScreen, 'a row should be on screen at the offset under test').toBeGreaterThan(-1)
   const left = await page.evaluate(() => Math.round(window.scrollY))
-  await page.locator('tbody tr').nth(onScreen).locator('td').nth(1).click({ position: { x: 4, y: 4 } })
+  await page.locator('tbody tr').nth(onScreen).locator('td').nth(1).click()
   await page.waitForURL(/\/tasks\/\d+/)
   return left
 }

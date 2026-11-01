@@ -86,7 +86,8 @@ test('project priority controls fit their cells on a 1024px desktop', async ({ p
     return { contained: control.x >= cell.x && control.right <= cell.right, width: control.width }
   })
   expect(geometry.contained).toBe(true)
-  expect(geometry.width).toBeGreaterThanOrEqual(96)
+  // The pill's own minimum (min-w-25) is 87.5px at the 14px root.
+  expect(geometry.width).toBeGreaterThanOrEqual(87)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })
 
@@ -155,7 +156,8 @@ test('desktop sidebar keeps project navigation and collapses independently of th
   await toggle.click()
   await expect(toggle).toHaveAttribute('aria-expanded', 'false')
   await expect(rail).toHaveCSS('width', '76px')
-  await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(64)
+  // Folded, the context menu takes no space at all (DESIGN.md, the inner menu); the module rail keeps its width.
+  await expect(sidebar).toBeHidden()
   await expect(page.getByTestId('module-rail-toggle')).toHaveCount(0)
   await expect(sidebar).toHaveAttribute('data-expanded', 'false')
   await page.getByTestId('project-workspace-settings').click()
@@ -167,7 +169,9 @@ test('desktop sidebar keeps project navigation and collapses independently of th
   await expect(page.locator('main [data-shortcut-search] input')).toHaveValue('مهمة')
   await expect(sidebar).toHaveAttribute('data-expanded', 'false')
   await page.screenshot({ path: testInfo.outputPath('project-sidebar-collapsed.png'), fullPage: true })
-  await toggle.click()
+  // Folded, the toggle lives inside the hidden menu; the «[» key pins it open again (the rail's hover menu is the other way in).
+  await page.getByRole('heading', { level: 1 }).click()
+  await page.keyboard.press('[')
   await expect(sidebar).toHaveAttribute('data-expanded', 'true')
   await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(230)
 })

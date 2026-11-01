@@ -34,7 +34,8 @@ for (const width of [1440, 390]) {
     for (const path of paths) {
       await page.goto(path)
       await expect(page.getByTestId('settings-layout')).toBeVisible()
-      await expect(page.locator('h1')).not.toBeEmpty()
+      // A create route shows its panel (its own title) over the list, so there can be two headings.
+      await expect(page.locator('h1').first()).not.toBeEmpty()
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)
       expect(overflow, `${path} must not scroll horizontally as a page`).toBe(false)
       const filters = page.locator('.liwan-settings-filters')

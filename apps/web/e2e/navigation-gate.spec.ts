@@ -27,7 +27,7 @@ test.beforeEach(async ({ page }) => { await login(page) })
 // retry until the hydrated table navigates instead of racing it once.
 async function openFirstTask(page: Page) {
   await expect(async () => {
-    await page.locator('tbody tr').first().locator('td').nth(1).click({ position: { x: 4, y: 4 } })
+    await page.locator('tbody tr').first().locator('td').nth(1).click()
     await expect(page).toHaveURL(/\/tasks\/\d+/, { timeout: 2_000 })
   }).toPass({ timeout: 20_000 })
 }
@@ -43,10 +43,10 @@ test.describe('a list returns to where the reader left it', () => {
 
     const onScreen = await page.evaluate(() => [...document.querySelectorAll('tbody tr')].findIndex((row) => {
       const box = row.getBoundingClientRect()
-      return box.top > 80 && box.bottom < window.innerHeight - 20
+      return box.top > 200 && box.bottom < window.innerHeight - 20
     }))
     expect(onScreen, 'a row should be on screen at the offset under test').toBeGreaterThan(-1)
-    await page.locator('tbody tr').nth(onScreen).locator('td').nth(1).click({ position: { x: 4, y: 4 } })
+    await page.locator('tbody tr').nth(onScreen).locator('td').nth(1).click()
     await page.waitForURL(/\/tasks\/\d+/)
 
     // Make the return genuinely cold: no cached rows, and a real delay on the
