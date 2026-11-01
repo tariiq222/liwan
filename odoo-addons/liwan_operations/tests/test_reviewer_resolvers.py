@@ -37,6 +37,7 @@ class TestReviewerResolvers(LiwanApiCase):
         super().setUp()
         self.resolved = self.approver
         self.capability = 'operations.requests.read'
+        self.skippable = False
         self.executed = []
         process_cls = type(self.env['liwan.operation.process'])
         request_cls = type(self.env['liwan.operation.request'])
@@ -46,7 +47,7 @@ class TestReviewerResolvers(LiwanApiCase):
             return ('approval', KIND)
 
         def resolvers(this, execution_kind):
-            return ({'key': RESOLVER, 'label': 'Test approver', 'capability': test.capability},) if execution_kind == KIND else ()
+            return ({'key': RESOLVER, 'label': 'Test approver', 'capability': test.capability, **({'skip_when_empty': True} if test.skippable else {})},) if execution_kind == KIND else ()
 
         def application_kinds(this):
             return (KIND,)
@@ -99,6 +100,45 @@ class TestReviewerResolvers(LiwanApiCase):
         self.capability = 'operations.requests.read'
         self.resolved = self.employee
         with self.assertRaises(ValidationError):
+            request.action_submit(0)
+
+    def test_a_skippable_stage_without_reviewer_is_skipped_and_audited(self):
+        self.skippable = True
+        self.resolved = self.employee
+        record = self._pending(self._process())
+        first, second = record.stage_snapshot
+        self.assertEqual((first['skipped'], first['reviewer_ids'], second['skipped'], second['reviewer_ids']), (True, [], False, [self.reviewer.id]))
+        self.assertEqual([(r.sequence, r.status) for r in record.review_ids.sorted('sequence')], [(1, 'approved'), (2, 'pending')])
+        self.assertEqual([step['status'] for step in dump_request(record)['steps']], ['skipped', 'pending'])
+        events = record.event_ids
+        skip = events.filtered(lambda e: e.kind == 'stage_skipped')
+        self.assertEqual((len(skip), skip.comment), (1, 'Resolved'))
+        self.assertEqual(record.review_ids.filtered(lambda r: r.sequence == 1).done_by.id, False)
+        self.assertTrue(record.with_user(self.reviewer)._operations_allowed_actions()['approve'])
+        self.assertFalse(record.with_user(self.approver)._operations_allowed_actions()['approve'])
+        record.with_user(self.reviewer).action_approve(record.revision)
+        self.assertEqual(record.state, 'done')
+
+    def test_a_skippable_stage_with_a_reviewer_is_not_skipped(self):
+        self.skippable = True
+        record = self._pending(self._process())
+        self.assertEqual([stage['skipped'] for stage in record.stage_snapshot], [False, False])
+        self.assertFalse(record.event_ids.filtered(lambda e: e.kind == 'stage_skipped'))
+
+    def test_a_process_whose_every_stage_is_skipped_is_refused(self):
+        self.skippable = True
+        self.resolved = self.employee
+        process = self._process([{'name': 'Only', 'reviewer_ids': [], 'resolver': RESOLVER}])
+        request = self.env['liwan.operation.request'].with_user(self.employee).create({'name': 'Nobody', 'process_id': process.id})
+        with self.assertRaises(ValidationError):
+            request.action_submit(0)
+
+    def test_an_unskippable_stage_without_reviewer_names_the_stage(self):
+        self.skippable = True
+        process = self._process()
+        self.reviewer.active = False
+        request = self.env['liwan.operation.request'].with_user(self.employee).create({'name': 'Stuck', 'process_id': process.id})
+        with self.assertRaisesRegex(ValidationError, 'Fixed'):
             request.action_submit(0)
 
     def test_stage_capability_is_checked_when_deciding(self):

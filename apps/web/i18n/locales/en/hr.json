@@ -373,7 +373,8 @@
           "pending": "Awaiting decision",
           "approved": "Approved",
           "rejected": "Refused",
-          "cancel": "Not needed"
+          "cancel": "Not needed",
+          "skipped": "Skipped, no reviewer"
         }
       },
       "cancellationTitle": "Cancellation request",

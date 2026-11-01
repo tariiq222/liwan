@@ -281,7 +281,7 @@ export const HrLeaveApprovalSchema = z.object({
     sequence: z.number().int().positive(),
     name: z.string(),
     reviewers: z.array(PersonRefSchema),
-    status: z.enum(['waiting', 'pending', 'approved', 'rejected', 'cancel']),
+    status: z.enum(['waiting', 'pending', 'approved', 'rejected', 'cancel', 'skipped']),
   }).strict()),
 }).strict()
 export const HrLeaveApprovalProcessSchema = z.object({

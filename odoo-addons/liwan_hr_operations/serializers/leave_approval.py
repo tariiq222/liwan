@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.addons.liwan_operations.serializers.operations import (
-    STAGES_IN_EFFECT,
     person,
+    step_status,
 )
 
 
@@ -13,7 +13,7 @@ def dump_approval(record):
         users = record.env['res.users'].browse(step['reviewer_ids'])
         steps.append({
             'sequence': step['sequence'], 'name': step['name'], 'reviewers': [person(user) for user in users],
-            'status': review.status if review and record.state in STAGES_IN_EFFECT else 'waiting',
+            'status': step_status(record, step, review),
         })
     return {'request_id': record.id, 'state': record.state, 'href': f'/operations/{record.id}', 'steps': steps}
 

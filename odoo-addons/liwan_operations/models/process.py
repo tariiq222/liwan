@@ -49,6 +49,8 @@ class OperationProcess(models.Model):
 
         Each entry is ``{'key', 'label', 'capability'}``; ``capability`` is what the resolved
         reviewers must hold in the request's company, because the resolver itself is the authorization.
+        An entry may add ``'skip_when_empty': True``: a stage with no eligible reviewer is then skipped
+        at submission instead of refusing it.
         """
         return ()
 

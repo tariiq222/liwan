@@ -4,7 +4,7 @@ from datetime import date
 from odoo.exceptions import AccessError, UserError
 from odoo.tests import tagged
 
-from .common import LEAVES, LeaveApprovalCase
+from .common import LEAVES, LeaveApprovalCase, next_monday
 from odoo.addons.liwan_hr.tests.common import set_hr_feature
 from odoo.addons.liwan_hr_operations.hooks import post_init_hook
 from odoo.addons.liwan_hr_operations.models.common import APPROVER, OFFICERS
@@ -166,12 +166,105 @@ class TestLeaveApproval(LeaveApprovalCase):
         self.assertEqual(record.state, 'withdrawn')
         self.assertIn('withdrawn', record.event_ids.mapped('kind'))
 
-    def test_a_leave_without_another_approver_is_refused_with_422(self):
+    def _stage_states(self, record):
+        return [(stage['skipped'], next(review.status for review in record.review_ids if review.sequence == stage['sequence'])) for stage in record.stage_snapshot]
+
+    def _assert_manager_stage_skipped(self, leave):
+        record = self.approval_request(leave)
+        self.assertEqual((leave.state, record.state), ('confirm', 'pending'))
+        self.assertEqual([stage['skipped'] for stage in record.stage_snapshot], [True, False])
+        self.assertEqual(record.stage_snapshot[0]['reviewer_ids'], [])
+        self.assertEqual(self._stage_states(record), [(True, 'approved'), (False, 'pending')])
+        self.assertEqual(record.event_ids.filtered(lambda event: event.kind == 'stage_skipped').comment, 'Direct manager')
+        self.assertNotIn(self.manager_user.id, record.stage_snapshot[1]['reviewer_ids'])
+        return record
+
+    def test_a_leave_without_a_manager_skips_the_manager_stage(self):
         self.staff.leave_manager_id = False
+        leave = self.file_leave()
+        record = self._assert_manager_stage_skipped(leave)
+        self.assertFalse(record.with_user(self.manager_user)._operations_allowed_actions()['approve'])
+        self.assertTrue(record.with_user(self.officer)._operations_allowed_actions()['approve'])
+        self.assertFalse(record.description)
         self.login_as(self.employee)
+        steps = self.api('GET', f'{LEAVES}/{leave.id}/approval').json()['steps']
+        self.assertEqual([step['status'] for step in steps], ['skipped', 'pending'])
+        self.approve(record, self.officer)
+        leave.invalidate_recordset()
+        record.invalidate_recordset()
+        self.assertEqual((leave.state, record.state), ('validate', 'done'))
+
+    def test_a_leave_whose_manager_is_the_employee_skips_the_manager_stage(self):
+        self.staff.leave_manager_id = self.employee
+        leave = self.file_leave()
+        self._assert_manager_stage_skipped(leave)
+
+    def test_a_manager_who_cannot_read_requests_is_skipped(self):
+        self.service._liwan_replace_assignments(self.manager_user, [])
+        self._assert_manager_stage_skipped(self.file_leave())
+
+    def test_an_officer_can_refuse_and_the_requester_can_withdraw_after_a_skipped_stage(self):
+        self.staff.leave_manager_id = False
+        refused = self.file_leave()
+        record = self._assert_manager_stage_skipped(refused)
+        self.reject(record, self.officer, 'No cover')
+        refused.invalidate_recordset()
+        self.assertEqual((refused.state, record.state), ('refuse', 'rejected'))
+        withdrawn = self.file_leave(weeks=2)
+        pending = self._assert_manager_stage_skipped(withdrawn)
+        self.login_as(self.employee)
+        self.assertEqual(self.api('POST', f'{LEAVES}/{withdrawn.id}/cancel', json={}).status_code, 200)
+        pending.invalidate_recordset()
+        self.assertEqual(pending.state, 'withdrawn')
+
+    def _officer_employee(self, login):
+        """An employee who is also an HR leave officer, with no time-off approver and a leave balance."""
+        user = self._user(login, 'Officer Employee', ['liwan_core.role_employee', 'liwan_hr.role_hr_manager'])
+        employee = self.env['hr.employee'].create({'name': 'Officer Employee', 'user_id': user.id, 'company_id': self.env.company.id})
+        self.env['hr.leave.allocation'].create({
+            'employee_id': employee.id, 'holiday_status_id': self.annual.id, 'number_of_days': 30,
+            'date_from': date.today().replace(month=1, day=1),
+        }).action_approve()
+        return user
+
+    def test_an_officer_never_decides_their_own_leave(self):
+        own = self._officer_employee('lao_self')
+        leave = self.file_leave(own)
+        record = self._assert_manager_stage_skipped(leave)
+        self.assertEqual(sorted(record.stage_snapshot[1]['reviewer_ids']), sorted([self.officer.id, self.officer_two.id]))
+        self.assertFalse(record.with_user(own)._operations_allowed_actions()['approve'])
+        with self.assertRaises(AccessError):
+            self.approve(record, own)
+        with self.assertRaises(AccessError):
+            self.reject(record, own)
+        self.login_as(own)
+        for action, payload in (('approve', {}), ('refuse', {'reason': 'x'})):
+            response = self.api('POST', f'{LEAVES}/{leave.id}/{action}', json=payload)
+            self.assertEqual((response.status_code, response.json()['code']), (409, 'approval_governed'), response.text)
+        for action in ('approve', 'reject'):
+            response = self.api('POST', f'/api/v1/operations/requests/{record.id}/{action}', json={'revision': record.revision, 'comment': 'x'})
+            self.assertEqual(response.status_code, 403, response.text)
+        with self.assertRaises(UserError):
+            leave.with_user(own).action_approve()
+        with self.assertRaises(UserError):
+            leave.with_user(own).action_refuse()
+        leave.invalidate_recordset()
+        self.assertEqual(leave.state, 'confirm')
+        self.approve(record, self.officer)
+        leave.invalidate_recordset()
+        self.assertEqual(leave.state, 'validate')
+
+    def test_a_leave_whose_only_officer_is_the_employee_is_refused_at_submission(self):
+        own = self._officer_employee('lao_alone')
+        group = self.env.ref('liwan_hr.group_cap_hr_leave_approve')
+        for other in group.user_ids - own:
+            self.service._liwan_replace_assignments(other, [{'role_id': self.env.ref('liwan_core.role_employee').id, 'company_id': self.env.company.id}])
+        self.assertEqual(group.user_ids, own)
+        self.login_as(own)
         before = self.env['hr.leave'].search_count([])
+        start = next_monday(0)
         response = self.api('POST', LEAVES, json={
-            'leave_type_id': self.annual.id, 'date_from': '2030-01-07', 'date_to': '2030-01-08', 'notes': '',
+            'leave_type_id': self.annual.id, 'date_from': start.isoformat(), 'date_to': start.isoformat(), 'notes': '',
         })
         self.assertEqual(response.status_code, 422, response.text)
         self.assertEqual(self.env['hr.leave'].search_count([]), before)

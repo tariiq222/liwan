@@ -93,7 +93,8 @@
       "approved": "معتمد",
       "published": "منشور",
       "archived": "مؤرشف",
-      "cancel": "ملغاة"
+      "cancel": "ملغاة",
+      "skipped": "تم تخطيها، لا يوجد معتمد"
     },
     "attachments": "المرفقات",
     "addAttachment": "إضافة مرفق",
@@ -109,6 +110,7 @@
       "withdrawn": "سحب الطلب",
       "executed": "اكتمل الطلب",
       "execution_failed": "تعذر إكمال الطلب",
+      "stage_skipped": "تخطى مرحلة بلا معتمد",
       "updated": "حدّث الطلب"
     },
     "errors": {

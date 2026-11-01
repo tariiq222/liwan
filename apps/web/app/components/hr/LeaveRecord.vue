@@ -33,7 +33,7 @@ const backTo = computed(() => owningListBack(route.query, sourcePaths.value, rou
 // The stages of the workflow that decides this leave. The route answers 404 when no workflow governs it, and the section stays out.
 const approval = computed(() => approvalQuery.data.value)
 const approvalFailed = computed(() => approvalQuery.error.value instanceof ApiError && approvalQuery.error.value.status !== 404)
-const APPROVAL_TONE = { approved: 'success', pending: 'info', rejected: 'destructive', waiting: 'neutral', cancel: 'neutral' } as const
+const APPROVAL_TONE = { approved: 'success', pending: 'info', rejected: 'destructive', waiting: 'neutral', cancel: 'neutral', skipped: 'neutral' } as const
 // Only a reviewer of the stage awaiting a decision is offered the workflow page, where the decision is taken.
 const canReview = computed(() => !!me.value && approval.value?.state === 'pending' && approval.value.steps.some(step => step.status === 'pending' && step.reviewers.some(person => person.user_id === me.value?.id)))
 

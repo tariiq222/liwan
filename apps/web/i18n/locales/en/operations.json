@@ -93,7 +93,8 @@
       "approved": "Approved",
       "published": "Published",
       "archived": "Archived",
-      "cancel": "Cancelled"
+      "cancel": "Cancelled",
+      "skipped": "Skipped, no reviewer"
     },
     "attachments": "Attachments",
     "addAttachment": "Add attachment",
@@ -109,6 +110,7 @@
       "withdrawn": "Withdrew request",
       "executed": "Completed request",
       "execution_failed": "Could not complete request",
+      "stage_skipped": "Skipped a stage with no reviewer",
       "updated": "Updated request"
     },
     "errors": {

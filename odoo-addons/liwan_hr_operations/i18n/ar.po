@@ -61,12 +61,6 @@ msgstr "لا يمكن إرسال للاعتماد إلا طلب إجازة قي�
 #. module: liwan_hr_operations
 #. odoo-python
 #: code:addons/liwan_hr_operations/models/operation_request.py:0
-msgid "The employee has no time-off approver other than the requester. Set one in the employee record."
-msgstr "لا يوجد للموظف معتمد إجازات غير مقدّم الطلب. حدّد معتمداً في سجل الموظف."
-
-#. module: liwan_hr_operations
-#. odoo-python
-#: code:addons/liwan_hr_operations/models/operation_request.py:0
 msgid "The leave request changed after it was submitted. Withdraw it and submit a new one."
 msgstr "تغيّر طلب الإجازة بعد إرساله. اسحبه وأرسل طلباً جديداً."
 

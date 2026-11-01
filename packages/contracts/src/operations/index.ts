@@ -38,7 +38,7 @@ export const OperationRequestSummarySchema = z.object({
 export const OperationRequestSchema = OperationRequestSummarySchema.extend({
   description: z.string(),
   target: OperationTargetSchema.nullable(),
-  steps: z.array(z.object({ sequence: Id, name: z.string(), resolver: z.string().nullable(), reviewers: z.array(PersonRefSchema), status: z.enum(['waiting', 'pending', 'approved', 'rejected', 'cancel']) }).strict()),
+  steps: z.array(z.object({ sequence: Id, name: z.string(), resolver: z.string().nullable(), reviewers: z.array(PersonRefSchema), status: z.enum(['waiting', 'pending', 'approved', 'rejected', 'cancel', 'skipped']) }).strict()),
   events: z.array(z.object({ id: Id, kind: z.string(), actor: PersonRefSchema, comment: z.string(), cycle: Revision, created_at: z.string() }).strict()),
   attachments: z.array(z.object({ id: Id, name: z.string(), mimetype: z.string(), url: z.string() }).strict()),
   allowed_actions: OperationActionsSchema,

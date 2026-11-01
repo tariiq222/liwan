@@ -26,12 +26,19 @@ def dump_summary(record):
 STAGES_IN_EFFECT = ('pending', 'rejected', 'done')
 
 
+def step_status(record, step, review):
+    """A skipped stage always reads skipped; any other shows its review only while the stages are in effect."""
+    if step['skipped']:
+        return 'skipped'
+    return review.status if review and record.state in STAGES_IN_EFFECT else 'waiting'
+
+
 def dump_request(record):
     reviews = {r.sequence: r for r in record.review_ids}
     steps = []
     for step in record.stage_snapshot or []:
         review = reviews.get(step['sequence'])
         users = record.env['res.users'].browse(step['reviewer_ids'])
-        steps.append({'sequence': step['sequence'], 'name': step['name'], 'resolver': step['resolver'], 'reviewers': [person(user) for user in users], 'status': review.status if review and record.state in STAGES_IN_EFFECT else 'waiting'})
+        steps.append({'sequence': step['sequence'], 'name': step['name'], 'resolver': step['resolver'], 'reviewers': [person(user) for user in users], 'status': step_status(record, step, review)})
     attachments = record.env['ir.attachment'].search([('res_model', '=', record._name), ('res_id', '=', record.id), ('type', '=', 'binary')], order='id')
     return {**dump_summary(record), 'description': record.description or '', 'target': record._operations_target(), 'steps': steps, 'events': [{'id': event.id, 'kind': event.kind, 'actor': person(event.actor_id), 'comment': event.comment or '', 'cycle': event.cycle, 'created_at': iso(event.create_date)} for event in record.event_ids], 'attachments': [dump_attachment(a, f'/api/v1/operations/requests/{record.id}/attachments') for a in attachments], 'allowed_actions': record._operations_allowed_actions()}

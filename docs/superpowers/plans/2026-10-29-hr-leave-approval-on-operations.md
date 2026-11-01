@@ -197,8 +197,17 @@ decision; each is recorded here so review can judge it.
    approves stage 1 and, separately, refuses at stage 1; both succeed, and the same manager still
    cannot read the leave once the request is closed or of an employee they do not approve.
 2. **"Direct manager" is stock `leave_manager_id`**, which Odoo fills from the manager's user and HR may edit.
-3. **No resolvable approver** (no manager, or the manager is the requester): submission fails with 422 and a
-   clear message; no stage is skipped silently.
+3. **No resolvable approver** (owner decision 2026-11-01, replacing the earlier 422): an employee with no
+   time-off approver (no `leave_manager_id`, the manager is the employee or the requester, or the manager
+   is not an eligible reviewer) files the leave normally. The "Direct manager" stage is skipped and the
+   request goes straight to the HR officers stage. The engine stays generic: a reviewer-resolver entry may
+   carry `skip_when_empty`, and `action_submit` then records that stage in the snapshot with `skipped: True`
+   and no reviewers, creates its review already approved by nobody (so it never blocks the next stage),
+   audits it with a `stage_skipped` event and serialises it with status `skipped`. The bridge marks the
+   approver resolver `skip_when_empty`; the final officers stage is never skippable. If every stage is
+   skipped, or a stage that cannot be skipped has no eligible reviewer (for example the only officer is
+   the employee), submission fails with a specific 422 naming the stage. An officer who is also the
+   employee is never a reviewer of their own leave.
 4. **Who edits the leave process:** holders of `operations.processes.manage`. Employees submit through the
    bridge with `operations.requests.create`, which the built-in employee role already holds.
 5. **No published process, or operations disabled:** new leaves use today's HR-role path. A leave whose

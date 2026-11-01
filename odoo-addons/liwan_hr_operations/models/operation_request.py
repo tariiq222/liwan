@@ -43,9 +43,6 @@ class HrOperationsRequest(models.Model):
         leave = self._operations_leave(self.hr_leave_id.id)
         if leave.state != 'confirm':
             raise ValidationError(self.env._('Only a pending leave request can be submitted for approval.'))
-        approver = leave.employee_id.leave_manager_id
-        if any(step.reviewer_resolver == APPROVER for step in process.step_ids) and (not approver or approver == self.requester_id):
-            raise ValidationError(self.env._('The employee has no time-off approver other than the requester. Set one in the employee record.'))
         return super()._operations_prepare_submission(process)
 
     def _operations_resolve_reviewers(self, key):

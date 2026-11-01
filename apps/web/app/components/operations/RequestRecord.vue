@@ -66,7 +66,7 @@ async function removeAttachment() {
 async function refresh() { if (disabled.value) return; cancel(); error.value = null; await query.refetch() }
 function date(value: string) { const parsed = new Date(value); return Number.isNaN(parsed.getTime()) ? value : formatDateTime(parsed) }
 const reviewing = computed(() => !!record.value && (record.value.allowed_actions.approve || record.value.allowed_actions.reject || record.value.allowed_actions.return))
-const eventKinds = ['submitted', 'approved', 'rejected', 'returned', 'withdrawn', 'executed', 'execution_failed']
+const eventKinds = ['submitted', 'approved', 'rejected', 'returned', 'withdrawn', 'executed', 'execution_failed', 'stage_skipped']
 </script>
 <template>
   <SharedRecordPage

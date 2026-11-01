@@ -60,12 +60,6 @@ msgstr ""
 #. module: liwan_hr_operations
 #. odoo-python
 #: code:addons/liwan_hr_operations/models/operation_request.py:0
-msgid "The employee has no time-off approver other than the requester. Set one in the employee record."
-msgstr ""
-
-#. module: liwan_hr_operations
-#. odoo-python
-#: code:addons/liwan_hr_operations/models/operation_request.py:0
 msgid "The leave request changed after it was submitted. Withdraw it and submit a new one."
 msgstr ""
 

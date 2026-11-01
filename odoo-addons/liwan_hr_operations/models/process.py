@@ -27,7 +27,7 @@ class HrOperationsProcess(models.Model):
             return resolvers
         return (
             *resolvers,
-            {'key': APPROVER, 'label': self.env._('Direct manager (time-off approver)'), 'capability': 'operations.requests.read'},
+            {'key': APPROVER, 'label': self.env._('Direct manager (time-off approver)'), 'capability': 'operations.requests.read', 'skip_when_empty': True},
             {'key': OFFICERS, 'label': self.env._('HR leave officers'), 'capability': LEAVE_APPROVE},
         )
 

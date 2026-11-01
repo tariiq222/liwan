@@ -17,6 +17,19 @@ describe('HrLeaveApprovalSchema', () => {
     expect(parsed.steps.map(step => step.status)).toEqual(['approved', 'pending'])
   })
 
+  it('accepts a skipped stage', () => {
+    const parsed = HrLeaveApprovalSchema.parse({
+      request_id: 9,
+      state: 'pending',
+      href: '/operations/9',
+      steps: [
+        { sequence: 1, name: 'Direct manager', reviewers: [], status: 'skipped' },
+        { sequence: 2, name: 'HR', reviewers: [REVIEWER], status: 'pending' },
+      ],
+    })
+    expect(parsed.steps.map(step => step.status)).toEqual(['skipped', 'pending'])
+  })
+
   it('rejects an unknown request state', () => {
     expect(() => HrLeaveApprovalSchema.parse({ request_id: 9, state: 'open', href: '/operations/9', steps: [] })).toThrow()
   })

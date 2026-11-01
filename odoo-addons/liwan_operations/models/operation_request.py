@@ -177,6 +177,7 @@ class OperationRequest(models.Model):
             participants = self.requester_id
             for sequence, definition in enumerate(definitions, 1):
                 resolver = definition.operations_reviewer_resolver or None
+                entry = None
                 if resolver:
                     entry = process._operations_reviewer_resolver(process.execution_kind, resolver)
                     if not entry:
@@ -186,10 +187,13 @@ class OperationRequest(models.Model):
                     capability, candidates = 'operations.requests.review', definition.operations_reviewer_ids
                 users = candidates.filtered(lambda u: u.active and not u.share and self.company_id in u.company_ids and u != self.requester_id)
                 users = users.filtered(lambda u: self.env['liwan.access.service']._liwan_has_capability(u, capability, company=self.company_id))
-                if not users:
-                    raise ValidationError(self.env._('A stage has no eligible reviewer other than the requester.'))
+                skipped = not users and bool(entry and entry.get('skip_when_empty'))
+                if not users and not skipped:
+                    raise ValidationError(self.env._('The stage "%(stage)s" has no eligible reviewer other than the requester.', stage=definition.name))
                 participants |= users
-                snapshot.append({'sequence': sequence, 'name': definition.name, 'reviewer_ids': users.ids, 'resolver': resolver, 'capability': capability})
+                snapshot.append({'sequence': sequence, 'name': definition.name, 'reviewer_ids': users.ids, 'resolver': resolver, 'capability': capability, 'skipped': skipped})
+            if all(stage['skipped'] for stage in snapshot):
+                raise ValidationError(self.env._('Every stage of the process has no eligible reviewer.'))
             if self.review_ids:
                 super().restart_validation()
             self._ops_write({'process_revision': process.revision, 'process_name': process.name, 'execution_kind': process.execution_kind, 'participant_ids': [Command.set(participants.ids)], 'stage_snapshot': snapshot, 'stage_approval_mode': process.stage_approval_mode, 'cycle': self.cycle + 1})
@@ -198,8 +202,18 @@ class OperationRequest(models.Model):
                 raise ValidationError(self.env._('The configured approval stages could not be created.'))
             self._ops_write({'state': 'pending', 'revision': self.revision + 1})
             self._event('submitted')
+            for stage in snapshot:
+                if stage['skipped']:
+                    self._event('stage_skipped', stage['name'])
         self._notify_current_reviewers()
         return self
+
+    def _prepare_tier_review_vals(self, definition, sequence):
+        vals = super()._prepare_tier_review_vals(definition, sequence)
+        if self.stage_snapshot[sequence - 1]['skipped']:
+            # A skipped stage is recorded as already approved, by nobody, so it never blocks the next stage.
+            vals.update(status='approved', reviewed_date=fields.Datetime.now())
+        return vals
 
     def _notify_current_reviewers(self):
         """Bell row for the reviewers of the stage the request now waits at.
