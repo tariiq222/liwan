@@ -56,6 +56,27 @@ const zatcaStatus = {
   backlog: { to_send: 4, retry: 2, rejected: 1, blocked: 0 },
 }
 
+// The e-invoices ZATCA has not accepted, oldest first, one per waiting state; the backlog counts above are the page's headline numbers.
+const waitingStates = [['pending', null], ['retry', 'reporting'], ['rejected', 'clearance'], ['blocked', null]]
+const waiting = waitingStates.map(([state, mode], index) => ({
+  invoice: { id: 300 + index, name: `INV/2026/${String(index + 1).padStart(4, '0')}` },
+  partner: { id: 1 + (index % 2), name: index % 2 ? 'مؤسسة الأفق للتوريدات' : 'شركة النخبة للتجارة' },
+  date: `2026-09-${String(10 + index).padStart(2, '0')}`,
+  amount_total: 1150 * (index + 1),
+  move_type: 'out_invoice',
+  submission: {
+    state,
+    mode,
+    errors: state === 'rejected' ? [{ code: 'BR-KSA-17', message: 'the buyer name is missing' }] : [],
+    warnings: state === 'retry' ? [{ code: 'W-01', message: 'ZATCA did not answer; it is retried' }] : [],
+    qr_present: false,
+  },
+}))
+function waitingDocuments(url) {
+  const state = url.searchParams.get('state')
+  return state ? waiting.filter(row => row.submission.state === state) : waiting
+}
+
 const ACTORS = [{ id: 2, name: 'سارة القحطاني' }, { id: 3, name: 'خالد العتيبي' }, { id: 4, name: 'نورة الشمري' }]
 const AUDIT_KINDS = [
   ['payment_posted', 'account.payment', 14, [], null],
@@ -105,6 +126,7 @@ export function financeGovernancePreviewData(path, url) {
   const preview = route.match(/^\/api\/v1\/finance\/fiscal-years\/(\d+)\/closing-preview$/)
   if (preview) return previews[Number(preview[1])]
   if (route === '/api/v1/finance/zatca/status') return zatcaStatus
+  if (route === '/api/v1/finance/zatca/documents') return page(waitingDocuments(url), url)
   if (route === '/api/v1/finance/audit-events') return page(filterAudit(url), url)
   return undefined
 }

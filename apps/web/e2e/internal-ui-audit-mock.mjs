@@ -4,7 +4,9 @@ import { projectsPreviewData } from './projects-ui-preview-data.mjs'
 import { pmoPreviewData } from './pmo-ui-preview-data.mjs'
 import { moduleUiCapabilities, moduleUiPreviewData } from './module-ui-preview-data.mjs'
 import { hrPayrollPreviewWrite } from './hr-payroll-ui-preview-data.mjs'
+import { financeGapsPreview } from './finance-documents-ui-preview-data.mjs'
 import { capabilitiesForRequest } from './mock-capabilities.mjs'
+import { hrWarningsPreviewWrite } from './hr-areas-ui-preview-data.mjs'
 import { crmPreviewWrite } from './crm-ui-preview-data.mjs'
 import { INBOX_CAPABILITIES, INBOX_FEATURES, inboxPreviewData, resetInboxPreview } from './inbox-ui-preview-data.mjs'
 import { handleCommercial } from './commercial-mock-routes.mjs'
@@ -31,8 +33,8 @@ const CAPABILITIES = [
   ...INBOX_CAPABILITIES,
 ]
 
-// The HR area sub-features (`hr.<area>`) gate the recruitment, shifts, onboarding, offboarding and assets pages on top of their capabilities.
-const HR_AREA_FEATURES = ['hr.assets', 'hr.offboarding', 'hr.onboarding', 'hr.payroll', 'hr.recruitment', 'hr.shifts']
+// The HR area sub-features (`hr.<area>`) gate the recruitment, shifts, onboarding, offboarding, assets and warnings pages on top of their capabilities.
+const HR_AREA_FEATURES = ['hr.assets', 'hr.offboarding', 'hr.onboarding', 'hr.payroll', 'hr.recruitment', 'hr.shifts', 'hr.warnings']
 
 const ME = {
   id: 2, name: 'Admin', login: 'admin', email: 'admin@example.com', lang: 'ar_001', tz: 'Asia/Riyadh',
@@ -478,11 +480,28 @@ async function handle(req, res) {
     if (write) return json(res, write.status, write.body)
   }
 
+  if (process.env.MODULE_UI_PREVIEW === '1' && method !== 'GET' && /^\/api\/v1\/(hr\/warning|__mock\/reset-warnings$)/.test(path)) {
+    let body = {}
+    try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
+    const write = hrWarningsPreviewWrite(method, path, body)
+    if (write) return json(res, write.status, write.body)
+  }
+
   if (process.env.MODULE_UI_PREVIEW === '1' && method !== 'GET' && /^\/api\/v1\/(crm\/|__mock\/reset-crm$)/.test(path)) {
     let body = {}
     try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
     const write = crmPreviewWrite(method, path, body)
     if (write) return json(res, write.status, write.body)
+  }
+
+  // Finance: internal transfer, partner bank accounts and the fiscal transfer account (finance-documents-ui-preview-data.mjs).
+  if (process.env.MODULE_UI_PREVIEW === '1' && /^\/api\/v1\/finance\/(setup(\/fiscal)?|accounts|payments\/transfer|partners\/\d+\/bank-accounts)/.test(path)) {
+    let body = {}
+    if (method !== 'GET') {
+      try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
+    }
+    const answer = financeGapsPreview(method, path, url, body)
+    if (answer) return json(res, answer.status, answer.body)
   }
 
   if (process.env.MODULE_UI_PREVIEW === '1' && method === 'GET') {
@@ -538,6 +557,12 @@ async function handle(req, res) {
     return json(res, 200, { ...ME, appearance })
   }
   if (method === 'GET' && path === '/api/v1/admin/branding') return json(res, 200, BRANDING)
+  if (method === 'PATCH' && path === '/api/v1/admin/branding') {
+    let body = {}
+    try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
+    if (typeof body.primary_color === 'string' && /^#[0-9a-fA-F]{6}$/.test(body.primary_color)) BRANDING.primary_color = body.primary_color
+    return json(res, 200, BRANDING)
+  }
   if (method === 'GET' && path === '/api/v1/admin/company') return json(res, 200, companyProfile())
   if (method === 'PATCH' && path === '/api/v1/admin/company') {
     let patch = {}
@@ -567,13 +592,27 @@ async function handle(req, res) {
     return json(res, 200, projectsPreviewData(`/api/v1/tasks/${item.id}`, url, { PROJECTS, TASKS, projectDetail, reportRow, CURRENCY }))
   }
   // «مهامي»: the home indicators and focus need the tasks application (its capability and feature are granted above).
-  if (method === 'GET' && path === '/api/v1/my-tasks') {
+  if (method === 'GET' && (path === '/api/v1/my-tasks' || path === '/api/v1/my-tasks/summary')) {
     const day = 24 * 60 * 60 * 1000
-    const task = (id, name, offset) => ({ id, name, state: 'open', priority: 'normal', date_deadline: new Date(Date.now() + offset).toISOString(), assignees: [{ id: 2, name: 'Admin', user_id: 2 }], source: 'personal', project: null, href: `/my-tasks/${id}` })
-    const items = [task(901, 'اشترِ الورق', -day), task(902, 'راجع عرض السعر', 0)]
+    // The wire format is UTC at second precision (UtcDateTimeSchema).
+    const utc = offset => new Date(Date.now() + offset).toISOString().replace(/\.\d{3}Z$/, 'Z')
+    const me = { id: 2, name: 'Admin', user_id: 2 }
+    const personal = (id, name, offset) => ({ id, name, state: 'open', priority: 'normal', date_deadline: utc(offset), assignees: [me], source: 'personal', project: null, href: `/my-tasks/${id}` })
+    const projectTask = TASKS.find(task => task.id === 101)
+    const all = [
+      personal(901, 'اشترِ الورق', -day), personal(902, 'راجع عرض السعر', 0),
+      ...(projectTask ? [{ id: projectTask.id, name: projectTask.name, state: 'open', priority: 'normal', date_deadline: null, assignees: [me], source: 'project', project: { id: projectTask.project.id, name: projectTask.project.name }, href: `/projects/${projectTask.project.id}/tasks/${projectTask.id}` }] : []),
+    ]
+    const q = (url.searchParams.get('q') ?? '').trim().toLowerCase()
+    const items = all.filter(task => (!q || task.name.toLowerCase().includes(q)) && (url.searchParams.get('scope') !== 'created' || task.source === 'personal'))
+    if (path.endsWith('/summary')) return json(res, 200, { total: items.length, open: items.length, overdue: items.filter(task => task.date_deadline && Date.parse(task.date_deadline) < Date.now()).length, done: 0 })
     return json(res, 200, { items, total: items.length })
   }
-  if (method === 'GET' && path === '/api/v1/tasks') return json(res, 200, { items: TASKS, total: TASKS.length })
+  if (method === 'GET' && path === '/api/v1/tasks') {
+    const q = (url.searchParams.get('q') ?? '').trim().toLowerCase()
+    const items = q ? TASKS.filter(task => task.name.toLowerCase().includes(q)) : TASKS
+    return json(res, 200, { items, total: items.length })
+  }
   if (method === 'GET' && path === '/api/v1/tasks/summary') {
     const done = TASKS.filter(task => task.is_closed).length
     return json(res, 200, { total: TASKS.length, open: TASKS.length - done, overdue: TASKS.filter(task => !task.is_closed && task.is_overdue).length, done })

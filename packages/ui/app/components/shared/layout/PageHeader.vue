@@ -92,7 +92,8 @@ const trail = computed<HeaderTrailStep[]>(() => {
           </slot>
         </div>
         <div v-if="trail.length || $slots.back" class="mt-0.5 flex min-w-0 items-center gap-x-2 text-xs/5 text-muted">
-          <nav data-testid="page-header-trail" :aria-label="$t('nav.breadcrumb')" class="flex shrink-0 items-center gap-1.5">
+          <!-- A long trail at the large text size wraps instead of widening the page. -->
+          <nav data-testid="page-header-trail" :aria-label="$t('nav.breadcrumb')" class="flex min-w-0 flex-wrap items-center gap-x-1.5">
             <slot name="back">
               <template v-for="(step, index) in trail" :key="step.label">
                 <UIcon v-if="index" name="i-lucide-chevron-left" aria-hidden="true" class="size-3.5 text-dimmed ltr:rotate-180" />

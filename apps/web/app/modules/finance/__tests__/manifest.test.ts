@@ -43,6 +43,7 @@ describe('finance manifest', () => {
     ['/finance/payments', 'finance.payments.read'],
     ['/finance/payments/7', 'finance.payments.read'],
     ['/finance/payments/new', 'finance.payments.manage'],
+    ['/finance/payments/transfer/new', 'finance.payments.manage'],
     ['/finance/partners', 'finance.partners.read'],
     ['/finance/partners/3', 'finance.partners.read'],
     ['/finance/partners/new', 'finance.partners.manage'],

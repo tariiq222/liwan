@@ -1,4 +1,5 @@
 import { archivedTags, projectRecordBack } from '../../utils/projectNavigation'
+import { projectSectionLocation } from '../../utils/projectWorkspaceMemory'
 import * as recordNavigation from './helpers/recordNavigation'
 import * as hrNavigation from '../../utils/hrReturnTo'
 import { readFileSync } from 'node:fs'
@@ -41,7 +42,7 @@ async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<s
     useI18n: () => ({ t: (key: string) => key }),
     useAccess: () => ({ can: () => true }), useHydrated: () => Vue.ref(true), useKpiVisibility: () => ({ shown: Vue.ref(true) }),
     useToast: () => ({ add: vi.fn() }), usePageHeader: () => undefined,
-    projectRecordBack, archivedTags, safeReturnTo, projectIdFromPath, activeProjectSection, activeGovernanceSection,
+    projectRecordBack, archivedTags, safeReturnTo, projectIdFromPath, activeProjectSection, activeGovernanceSection, projectSectionLocation,
     provideFrameOwnsHeading: () => undefined,
     useEscapeBack: (target: unknown) => { escapeTargets.push(target) },
     projectTaskParams: () => ({}), projectTaskQuery: () => ({}),
@@ -127,7 +128,7 @@ describe('reviewed page navigation and form feedback', () => {
     expect(back).toMatchObject({ to: '/projects', color: 'neutral', variant: 'link' })
     const nodes = await page.rendered()
     expect(nodes.filter(node => node.name === 'ProjectWorkspaceTabs')).toHaveLength(1)
-    expect(nodes.find(node => node.props['data-testid'] === 'project-workspace-settings')?.props.to).toBe('/projects/7/settings')
+    expect(nodes.find(node => node.props['data-testid'] === 'project-workspace-settings')?.props.to).toMatchObject({ path: '/projects/7/settings' })
     expect(page.html.match(/<h1\b/g)).toHaveLength(1)
     expect(page.html).toContain('Example project')
     page.stop()

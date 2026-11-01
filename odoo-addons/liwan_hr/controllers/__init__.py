@@ -10,4 +10,5 @@ from . import (
     payroll,
     recruitment,
     shifts,
+    warnings,
 )

@@ -1,5 +1,9 @@
 import { test, expect } from '@playwright/test'
 
+// Needs a real Odoo: it logs in as admin and writes data, which the mock answers with 404. It is in no CI list until it has run on a
+// scratch Odoo (see docs/testing.md, section 3).
+test.skip(process.env.E2E_REAL_ODOO !== '1', 'Explicit isolated real Odoo acceptance only')
+
 async function login(page) {
   await page.goto('/login')
   await page.getByLabel('اسم المستخدم').fill('admin')

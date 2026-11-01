@@ -25,6 +25,10 @@ class ResCompany(models.Model):
         # A new company's stock schedule was made for it a moment ago and nothing uses it yet.
         companies._liwan_ensure_saudi_schedule(drop_replaced=True)
         companies._liwan_ensure_payroll_structure()
+        # Provisioning (the superuser environment) seeds at once; a company made interactively is seeded by
+        # its warnings manager's first visit (`_liwan_ensure_for_caller`).
+        if self.env.su:
+            companies._liwan_ensure_warning_types()
         return companies
 
     def write(self, vals):
@@ -84,6 +88,11 @@ class ResCompany(models.Model):
                 company.write({'resource_calendar_id': calendar.id})
             if drop_replaced and replaced.company_id == company:
                 replaced.unlink()
+
+    def _liwan_ensure_warning_types(self):
+        """Give each company the seeded warning types it does not have yet (install, migration, provisioning)."""
+        for company in self:
+            self.env['liwan.hr.warning.type']._liwan_seed(company)
 
     def _liwan_ensure_payroll_structure(self):
         """Give every company its own copy of the shipped Saudi payroll structure, once.

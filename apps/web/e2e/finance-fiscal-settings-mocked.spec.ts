@@ -32,6 +32,7 @@ const SETUP = {
   fiscal: {
     fiscalyear_last_day: 31, fiscalyear_last_month: 12, fiscalyear_lock_date: '2025-12-31',
     tax_lock_date: null, sale_lock_date: null, purchase_lock_date: null, hard_lock_date: null,
+    transfer_account: { id: 7, name: '100001 Liquidity Transfer' },
   },
   journals: { sale: 1, purchase: 1, bank: 1, cash: 1 },
   taxes: { sale_count: 4, purchase_count: 4, vat_15_present: true },
@@ -152,6 +153,8 @@ test.beforeEach(() => { mode = 'manager'; fiscalPatches = []; rejectNextPatch = 
 async function routeFiscal(page: Page, cookies: Array<{ name: string; value: string }> = []) {
   await page.context().addCookies([
     { name: 'session_id', value: 'fiscal_mock', url: origin, httpOnly: true, sameSite: 'Lax' },
+    // The context menu starts folded; the hash check reads its pinned sub-list.
+    { name: 'liwan-context-sidebar', value: 'open', url: origin, sameSite: 'Lax' },
     ...cookies.map(cookie => ({ ...cookie, url: origin })),
   ])
   await page.route('**/api/v1/**', fulfillApi)

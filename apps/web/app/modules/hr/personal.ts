@@ -7,6 +7,7 @@ import {
   HrOwnOnboardingStepListSchema,
   HrShiftAssignmentListSchema,
   HrShiftSettingsSchema,
+  HrWarningListSchema,
 } from '@liwan/contracts'
 import type { AppPersonalEntry, AppPersonalSummary, AppSearchApi } from '../types'
 
@@ -78,6 +79,18 @@ export const hrPersonalEntries: AppPersonalEntry[] = [
         if (!await profile(api)) return missingEmployee(t)
         const assets = await api('/api/v1/hr/assets/me', { schema: HrEquipmentListSchema })
         return { value: String(assets.total), caption: t('hr.self.assetsDesc'), rows: assets.items.slice(0, 3).map(asset => ({ id: asset.id, label: asset.name, to: '/account/assets', caption: asset.serial_no || undefined })) }
+      },
+    },
+  },
+  {
+    id: 'hr-warnings', section: 'profile', labelKey: 'hr.self.warnings', descriptionKey: 'hr.self.warningsDesc', icon: 'i-lucide-triangle-alert',
+    to: '/account/warnings', capability: 'hr.employees.read', feature: 'hr.warnings',
+    summary: {
+      queryKey: ['hr', 'warnings', 'personal'],
+      async load(api, t) {
+        if (!await profile(api)) return missingEmployee(t)
+        const warnings = await api('/api/v1/hr/warnings/me', { query: { limit: 3 }, schema: HrWarningListSchema })
+        return { value: String(warnings.total), caption: t('hr.self.warningsDesc'), rows: warnings.items.map(warning => ({ id: warning.id, label: warning.type.name, to: '/account/warnings', caption: t(`hrWarnings.state.${warning.state}`) })) }
       },
     },
   },

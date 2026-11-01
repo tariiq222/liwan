@@ -19,6 +19,7 @@ HR = frozenset({
     'hr.onboarding.read', 'hr.onboarding.manage',
     'hr.offboarding.read', 'hr.offboarding.manage',
     'hr.assets.read', 'hr.assets.manage',
+    'hr.warnings.read', 'hr.warnings.manage',
 })
 # Payroll is a section of liwan_hr behind its own keys: no HR role or group grants them.
 PAYROLL = frozenset({
@@ -68,6 +69,8 @@ DEPENDENCIES = {
     'hr.offboarding.manage': {'hr.offboarding.read', 'hr.employees.manage'},
     'hr.assets.read': {'hr.employees.read'},
     'hr.assets.manage': {'hr.assets.read'},
+    'hr.warnings.read': {'hr.employees.read'},
+    'hr.warnings.manage': {'hr.warnings.read'},
     'hr.payroll.read': {'hr.employees.read'},
     'hr.payroll.manage': {'hr.payroll.read'},
     'hr.payroll.approve': {'hr.payroll.read'},
@@ -117,10 +120,10 @@ class TestAccessComposition(TransactionCase):
     def _group(self, key):
         return self.env.ref(self.Permission.search([('key', '=', key)]).group_xmlid)
 
-    def test_catalog_has_the_approved_50_keys_each_owned_by_one_addon(self):
+    def test_catalog_has_the_approved_52_keys_each_owned_by_one_addon(self):
         catalog = self.service._liwan_capability_map()
         self.assertEqual(self._release(catalog), CATALOG)
-        self.assertEqual(len(self._release(catalog)), 50)
+        self.assertEqual(len(self._release(catalog)), 52)
         permissions = self.Permission.search([])
         self.assertEqual(sorted(permissions.mapped('key')), sorted(catalog))
         installed = set(self.env['ir.module.module'].search([('state', '=', 'installed')]).mapped('name'))

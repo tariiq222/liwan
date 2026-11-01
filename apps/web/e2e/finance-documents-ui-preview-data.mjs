@@ -1,9 +1,13 @@
 // Finance documents for the isolated mock (MODULE_UI_PREVIEW=1): invoices, credit notes, vendor bills and
-// refunds in every state, their payments and the payment journals (partners come from finance-ui-preview-data.mjs). Reads only:
-// the mock has no finance write routes. Lists honour the filters the Odoo controller supports (move_type, state,
+// refunds in every state, their payments and the payment journals (partners come from finance-ui-preview-data.mjs). Reads
+// only, except the internal transfer, a partner's bank accounts and the fiscal transfer account (`financeGapsPreview`
+// at the end of this file). Lists honour the filters the Odoo controller supports (move_type, state,
 // partner_id, q, date_from, date_to, limit, offset), and `total` is the filtered count, so the KPI strip's
 // limit=1 requests report real totals. A record carries the actions the server would allow its caller (an administrator
 // who holds every capability, on a tenant that can write), so the pages draw the same buttons.
+import { financeAccounts } from './finance-accounting-ui-preview-data.mjs'
+import { financePreviewData } from './finance-ui-preview-data.mjs'
+
 const CURRENCY = 'SAR'
 const ACME = { id: 1, name: 'شركة الأفق للتجارة' }
 const NOOR = { id: 2, name: 'مؤسسة نور للخدمات' }
@@ -82,6 +86,9 @@ export const financeDocuments = [
 // A draft debit note shows the origin link on its record page.
 financeDocuments.push(document(17, 'out_invoice', 'draft', 'not_paid', ACME, [line(18, 'إشعار مدين على الفاتورة', 1, 400)], { debit_origin: { id: 2, name: financeDocuments[1].name } }))
 
+// A posted vendor bill that capitalised its line into an asset shows the asset link on its record page.
+Object.assign(financeDocuments[10].lines[0], { asset_profile: { id: 1, name: 'أجهزة حاسب - 3 سنوات' }, asset: { id: 1, name: 'أجهزة حاسب - الدفعة الأولى' } })
+
 financeDocuments.push(document(18, 'in_invoice', 'cancel', 'not_paid', PRINT, [line(19, 'فاتورة موردة ملغاة', 1, 600)]))
 
 const summary = ({ lines: _lines, ref: _ref, debit_origin: _origin, credit_origin: _creditOrigin, zatca: _zatca, allowed_actions: _allowed, blocked_actions: _blocked, ...rest }) => rest
@@ -129,9 +136,9 @@ function withPaymentActions(payment) {
 }
 
 export const financePayments = [
-  { id: 1, name: 'BNK1/2026/0001', payment_type: 'inbound', partner_type: 'customer', state: 'paid', partner: NOOR, journal: BANK, date: '2026-08-10', memo: 'دفعة أولى', currency: CURRENCY, amount: 4600, unallocated: 0, exchange_difference: 0, invoices: [] },
+  { id: 1, name: 'BNK1/2026/0001', payment_type: 'inbound', partner_type: 'customer', state: 'paid', partner: NOOR, journal: BANK, date: '2026-08-10', memo: 'دفعة أولى', currency: CURRENCY, amount: 4600, unallocated: 0, exchange_difference: 37.5, invoices: [] },
   { id: 2, name: 'BNK1/2026/0002', payment_type: 'inbound', partner_type: 'customer', state: 'paid', partner: NOOR, journal: BANK, date: '2026-07-20', memo: 'سداد كامل', currency: CURRENCY, amount: 3450, unallocated: 0, exchange_difference: 0, invoices: [] },
-  { id: 3, name: 'CSH1/2026/0001', payment_type: 'outbound', partner_type: 'supplier', state: 'paid', partner: PRINT, journal: CASH, date: '2026-09-01', memo: 'مطبوعات', currency: CURRENCY, amount: 2300, unallocated: 0, exchange_difference: 0, invoices: [] },
+  { id: 3, name: 'CSH1/2026/0001', payment_type: 'outbound', partner_type: 'supplier', state: 'paid', partner: PRINT, journal: CASH, date: '2026-09-01', memo: 'مطبوعات', currency: CURRENCY, amount: 2300, unallocated: 0, exchange_difference: -12.4, invoices: [] },
   { id: 4, name: 'BNK1/2026/0003', payment_type: 'outbound', partner_type: 'supplier', state: 'in_process', partner: PRINT, journal: BANK, date: '2026-09-18', memo: '', currency: CURRENCY, amount: 3105, unallocated: 0, exchange_difference: 0, invoices: [] },
   { id: 5, name: null, payment_type: 'inbound', partner_type: 'customer', state: 'draft', partner: ACME, journal: BANK, date: '2026-10-01', memo: '', currency: CURRENCY, amount: 1000, unallocated: 0, exchange_difference: 0, invoices: [] },
   { id: 6, name: 'BNK1/2026/0004', payment_type: 'inbound', partner_type: 'customer', state: 'canceled', partner: ACME, journal: BANK, date: '2026-09-05', memo: 'أُلغيت', currency: CURRENCY, amount: 500, unallocated: 0, exchange_difference: 0, invoices: [] },
@@ -178,6 +185,110 @@ function filterPayments(url) {
 const recordId = (route, base) => {
   const rest = route.slice(base.length + 1)
   return /^\d+$/.test(rest) ? Number(rest) : NaN
+}
+
+// ---- Writes and reads of the finance gap screens (internal transfer, partner bank accounts, fiscal transfer account) ----
+
+const TRANSFER_ACCOUNTS = [
+  { id: 101, code: '100001', name: 'Liquidity Transfer', account_type: 'asset_current', reconcile: true, currency: null, active: true },
+  { id: 102, code: '100002', name: 'حساب تسوية مؤقت', account_type: 'asset_current', reconcile: true, currency: null, active: true },
+]
+let transferAccount = { id: 101, name: '100001 Liquidity Transfer' }
+let nextPaymentId = 100
+let nextBankId = 100
+
+const bankAccounts = () => [
+  { id: 1, partner_id: 2, acc_number: 'SA0380000000608010167519', holder_name: 'مؤسسة الأفق للتوريدات', bank_name: 'مصرف الراجحي', bic: 'RJHISARI', active: true },
+  { id: 2, partner_id: 2, acc_number: 'SA4420000001234567891234', holder_name: 'مؤسسة الأفق للتوريدات', bank_name: 'البنك الأهلي السعودي', bic: 'NCBKSAJE', active: false },
+  { id: 3, partner_id: 3, acc_number: '1234567890', holder_name: '', bank_name: '', bic: '', active: true },
+]
+const banks = bankAccounts()
+const bankOut = ({ partner_id: _partner, ...rest }) => rest
+const refuse = (status, code, message, field) => ({ status, body: { code, message, ...(field ? { field } : {}) } })
+
+function saveBank(account, body) {
+  if ('acc_number' in body) {
+    const number = String(body.acc_number).toUpperCase().replace(/[^A-Z0-9]/g, '')
+    if (!number) return refuse(422, 'invalid', 'acc_number is required', 'acc_number')
+    if (number.startsWith('SA') && number.length !== 24) return refuse(422, 'invalid', 'acc_number is not a valid Saudi IBAN', 'acc_number')
+    if (banks.some(other => other.partner_id === account.partner_id && other.id !== account.id && other.acc_number === number)) {
+      return refuse(422, 'duplicate', 'the partner already has this bank account', 'acc_number')
+    }
+    account.acc_number = number
+  }
+  for (const field of ['holder_name', 'bank_name', 'bic']) if (field in body) account[field] = String(body[field])
+  if (account.bic && !account.bank_name) return refuse(422, 'invalid', 'bic needs a bank_name', 'bank_name')
+  return null
+}
+
+function transferLeg(kind, journal, body) {
+  const id = nextPaymentId++
+  return withPaymentActions({
+    id, name: `${journal.code}/2026/${String(id).padStart(4, '0')}`, payment_type: kind, partner_type: 'customer', state: 'paid',
+    partner: null, journal: { id: journal.id, name: journal.name }, date: body.payment_date, memo: body.memo ?? '', currency: CURRENCY, amount: body.amount,
+    unallocated: 0, exchange_difference: 0, invoices: [],
+  })
+}
+
+function transfer(body) {
+  const from = journals.find(item => item.id === body.from_journal_id && ['bank', 'cash'].includes(item.type))
+  const to = journals.find(item => item.id === body.to_journal_id && ['bank', 'cash'].includes(item.type))
+  if (!from) return refuse(422, 'invalid', 'from_journal_id is not a bank or cash journal', 'from_journal_id')
+  if (!to) return refuse(422, 'invalid', 'to_journal_id is not a bank or cash journal', 'to_journal_id')
+  // The mock's stand-ins for the server's refusals: a magic amount or a date in a closed year.
+  if (body.payment_date < '2026-01-01') return refuse(422, 'period_locked', 'the accounting period is locked', 'payment_date')
+  if (body.amount === 998) return refuse(422, 'journal_currency_mismatch', 'both journals must use the same currency', 'to_journal_id')
+  if (body.amount === 999) return refuse(422, 'transfer_account_missing', 'the company has no transfer account: choose one in the finance setup')
+  return { status: 201, body: { outbound: transferLeg('outbound', from, body), inbound: transferLeg('inbound', to, body) } }
+}
+
+/**
+ * The routes of the finance gap screens that the other preview files do not serve: the answer is `{status, body}`, or
+ * undefined for any other request. The fiscal setup keeps its transfer account for the life of the mock process.
+ */
+export function financeGapsPreview(method, path, url, body = {}) {
+  const route = String(path || '/').replace(/\/+$/, '') || '/'
+  const setup = financePreviewData('/api/v1/finance/setup', url)
+  if (method === 'GET' && route === '/api/v1/finance/setup') return { status: 200, body: { ...setup, fiscal: { ...setup.fiscal, transfer_account: transferAccount } } }
+  if (method === 'PATCH' && route === '/api/v1/finance/setup/fiscal') {
+    if ('transfer_account_id' in body) {
+      const account = TRANSFER_ACCOUNTS.find(item => item.id === body.transfer_account_id)
+      if (!account) return refuse(422, 'invalid', 'transfer_account_id is not a reconcilable current asset', 'transfer_account_id')
+      transferAccount = { id: account.id, name: `${account.code} ${account.name}` }
+    }
+    const { transfer_account_id: _account, ...rest } = body
+    return { status: 200, body: { ...setup, fiscal: { ...setup.fiscal, ...rest, transfer_account: transferAccount } } }
+  }
+  if (method === 'GET' && route === '/api/v1/finance/accounts' && url.searchParams.get('reconcile') === 'true') {
+    const type = url.searchParams.get('account_type')
+    const q = url.searchParams.get('q')
+    const rows = [...financeAccounts, ...TRANSFER_ACCOUNTS].filter(item => item.reconcile && (!type || item.account_type === type) && (matches(item.code, q) || matches(item.name, q)))
+    return { status: 200, body: page(rows, url) }
+  }
+  if (method === 'POST' && route === '/api/v1/finance/payments/transfer') return transfer(body)
+  const bank = /^\/api\/v1\/finance\/partners\/(\d+)\/bank-accounts(?:\/(\d+)(?:\/(archive|unarchive))?)?$/.exec(route)
+  if (!bank) return undefined
+  const partnerId = Number(bank[1])
+  const rows = banks.filter(item => item.partner_id === partnerId)
+  if (!bank[2]) {
+    if (method === 'GET') return { status: 200, body: { items: rows.map(bankOut), total: rows.length } }
+    if (method !== 'POST') return undefined
+    const created = { id: nextBankId++, partner_id: partnerId, acc_number: '', holder_name: '', bank_name: '', bic: '', active: true }
+    if (typeof body.acc_number !== 'string' || !body.acc_number.trim()) return refuse(422, 'invalid', 'acc_number is required', 'acc_number')
+    const refusal = saveBank(created, body)
+    if (refusal) return refusal
+    banks.push(created)
+    return { status: 201, body: bankOut(created) }
+  }
+  const account = rows.find(item => item.id === Number(bank[2]))
+  if (!account) return refuse(404, 'not_found', 'bank account not found')
+  if (bank[3]) {
+    account.active = bank[3] === 'unarchive'
+    return { status: 200, body: bankOut(account) }
+  }
+  if (method !== 'PATCH') return undefined
+  const refusal = saveBank(account, body)
+  return refusal ?? { status: 200, body: bankOut(account) }
 }
 
 export function financeDocumentsPreviewData(path, url) {

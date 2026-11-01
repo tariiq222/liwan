@@ -68,23 +68,19 @@ test.describe('Tasmim context sidebar', () => {
   })
 })
 
-test.describe('Tasmim header breadcrumb', () => {
+test.describe('Tasmim header hydration', () => {
   test.use({ viewport: { width: 1440, height: 900 } })
   test.beforeEach(async ({ page }) => { await login(page) })
 
   for (const path of ['/tasks', '/projects/1']) {
-    test(`${path} hydrates without a mismatch and shows the title crumb after hydration`, async ({ page }) => {
+    test(`${path} hydrates without a mismatch, the header search goes live and the trail shows`, async ({ page }) => {
       const messages: string[] = []
       page.on('console', message => messages.push(message.text()))
       await page.goto(path)
       await expect(page.getByTestId('shell-header').getByRole('button', { name: 'بحث', exact: true })).toBeEnabled()
-      const trail = page.getByTestId('shell-breadcrumb')
-      await expect(trail.locator('[aria-current="page"]')).toBeVisible()
-      // The last crumb is the title the page registered, not a stale server value: the page <h1> on
-      // /tasks, and the summary section title inside the project frame (whose <h1> is the project name).
-      const title = path === '/tasks' ? (await page.locator('main h1').innerText()).trim() : 'الملخص'
-      expect(title).not.toBe('')
-      await expect(trail.locator('[aria-current="page"]')).toHaveText(title)
+      await expect(page.locator('main h1')).toHaveCount(1)
+      // The trail sits under the page title and is published by the shell after hydration (the project frame has its own).
+      if (path === '/tasks') await expect(page.getByTestId('page-header-trail')).toHaveText('المشاريع')
       expect(messages.filter(text => /hydration/i.test(text))).toEqual([])
     })
   }
@@ -107,8 +103,8 @@ test.describe('Tasmim mobile drawer', () => {
     await expect(drawer).toBeVisible()
     const area = (await drawer.boundingBox())!
     expect(Math.abs(area.x + area.width - 390)).toBeLessThanOrEqual(1)
-    await drawer.getByRole('link', { name: 'عرض الكل', exact: true }).click()
-    await expect(page).toHaveURL(/\/projects$/)
+    await drawer.getByRole('link', { name: 'يومي', exact: true }).click()
+    await expect(page).toHaveURL(/\/$/)
     await expect(drawer).toBeHidden()
     await expect(trigger).toHaveAttribute('aria-expanded', 'false')
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)

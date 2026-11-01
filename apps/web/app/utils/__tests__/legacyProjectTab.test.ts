@@ -13,6 +13,11 @@ describe('legacyProjectTabTarget', () => {
     expect(legacyProjectTabTarget('/projects/7', { tab: 'milestones' })).toEqual({ path: '/projects/7/milestones', query: {} })
     expect(legacyProjectTabTarget('/projects/7', { tab: 'summary' })).toEqual({ path: '/projects/7', query: {} })
   })
+  it('keeps the board view of tab=tasks', () => {
+    expect(legacyProjectTabTarget('/projects/7', { tab: 'tasks', view: 'board', q: 'عقد' })).toEqual({ path: '/projects/7/tasks', query: { q: 'عقد', view: 'board' } })
+    expect(legacyProjectTabTarget('/projects/7', { tab: 'tasks' })).toEqual({ path: '/projects/7/tasks', query: {} })
+  })
+
   it('treats a bare view=board as the tasks section', () => {
     expect(legacyProjectTabTarget('/projects/7', { view: 'board' })).toEqual({ path: '/projects/7/tasks', query: { view: 'board' } })
   })

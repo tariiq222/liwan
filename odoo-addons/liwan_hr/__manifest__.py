@@ -1,8 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 {
     'name': 'liwan HR',
-    'summary': 'liwan platform: the HR pillar — /api/v1/hr departments, employees, leave, recruitment, shifts, onboarding, offboarding, assets',
-    'version': '19.0.1.17.0',
+    'summary': 'liwan platform: the HR pillar — /api/v1/hr departments, employees, leave, recruitment, shifts, onboarding, offboarding, assets, warnings',
+    'version': '19.0.1.18.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -23,6 +23,7 @@
         'security/ir.model.access.csv',
         'security/hr_engine_rules.xml',
         'security/hr_shift_rules.xml',
+        'security/hr_warning_rules.xml',
         'security/hr_leave_rules.xml',
         'security/hr_payroll_rules.xml',
         'data/hr_access_permissions.xml',

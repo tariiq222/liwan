@@ -146,8 +146,8 @@ const headerTags = computed<PageHeaderTag[]>(() => {
     <template v-if="task">
       <SharedInlineConfirm v-if="archiveConfirmOpen" data-testid="task-archive-confirm" :title="t('tasks.drawer.archive')" :description="t('tasks.drawer.archiveConfirm')" :confirm-label="t('tasks.drawer.archive')" :pending="archiving" @confirm="doArchive" @cancel="archiveConfirmOpen = false" />
 
-      <div data-testid="task-detail-grid" class="space-y-6">
-        <div data-testid="task-details-card" class="space-y-6">
+      <div data-testid="task-detail-grid" class="min-w-0 space-y-6">
+        <div data-testid="task-details-card" class="min-w-0 space-y-6">
           <div class="flex flex-wrap items-center gap-2">
             <StateMenu :task="task" :can-approve="task.can_approve" />
           </div>

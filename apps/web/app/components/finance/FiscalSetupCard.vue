@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { FinanceSetup } from '@liwan/contracts'
+import AccountPicker from '@/components/finance/AccountPicker.vue'
 import { ApiError } from '@/composables/useApi'
 import { useFinanceSetupScope, useSaveFinanceFiscal } from '@/composables/finance/useFinanceSetup'
 import { useSettingsForm } from '@/composables/settings/useSettingsForm'
@@ -26,6 +27,9 @@ const props = defineProps<{ setup: FinanceSetup; scope: FinanceSetupScope; canEd
 const emit = defineEmits<{ contextChanged: []; saved: [] }>()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
+const { can } = useAccess()
+// The picker searches the chart of accounts; without that read the saved account is shown, not editable.
+const canPickAccount = computed(() => can('finance.accounts.read'))
 const toast = useToast()
 const { mutateAsync: saveFiscal } = useSaveFinanceFiscal()
 const { read: readScope } = useFinanceSetupScope()
@@ -160,6 +164,21 @@ const monthOptions = computed(() => Array.from({ length: 12 }, (_, index) => ({
         :min-value="baseline[field]"
         :disabled="locked"
         :aria-label="t(`finance.setup.fiscal.${field}`)"
+      />
+    </UFormField>
+    <UFormField orientation="horizontal" :label="t('finance.setup.fiscal.transfer_account_id')" name="finance-fiscal-transfer_account_id" :description="t(canPickAccount ? 'finance.setup.fiscal.transferAccountHint' : 'finance.setup.fiscal.transferAccountReadOnly')" :error="fieldMessage('transfer_account_id')">
+      <UInput v-if="!canPickAccount" id="finance-fiscal-transfer_account_id" class="w-full" disabled :model-value="setup.fiscal.transfer_account?.name ?? ''" :aria-label="t('finance.setup.fiscal.transfer_account_id')" />
+      <AccountPicker
+        v-else
+        id="finance-fiscal-transfer_account_id"
+        v-model="draft.transfer_account_id"
+        account-type="asset_current"
+        reconcile
+        :selected-label="setup.fiscal.transfer_account?.name"
+        :placeholder="t('finance.setup.fiscal.transferAccountPlaceholder')"
+        :invalid="!!fieldMessage('transfer_account_id')"
+        :disabled="locked"
+        :aria-label="t('finance.setup.fiscal.transfer_account_id')"
       />
     </UFormField>
     <UFormField orientation="horizontal" :label="t('finance.setup.fiscal.hard_lock_date')" :description="t('finance.setup.fiscal.hardLockHint')">
