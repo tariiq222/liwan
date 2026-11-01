@@ -25,6 +25,9 @@ const signedMoney = (value: number) => isolateLtr(`${value > 0 ? '+' : '−'}${m
         <SharedPropertyRow :label="t('projects.baselines.variance.late')" :value="String(schedule.late_count)" />
         <SharedPropertyRow :label="t('projects.baselines.variance.early')" :value="String(schedule.early_count)" />
         <SharedPropertyRow :label="t('projects.baselines.variance.undated')" :value="String(schedule.undated_count)" />
+        <SharedPropertyRow :label="t('projects.baselines.variance.removed')" :value="String(schedule.removed_count)" />
+        <SharedPropertyRow :label="t('projects.baselines.variance.added')" :value="String(schedule.added_count)" />
+        <SharedPropertyRow v-if="schedule.hidden_count" :label="t('projects.baselines.variance.hidden')" :value="String(schedule.hidden_count)" />
       </SharedPropertiesPanel>
     </SharedRecordSection>
     <SharedRecordSection variant="panel" :title="t('projects.baselines.variance.costTitle')">

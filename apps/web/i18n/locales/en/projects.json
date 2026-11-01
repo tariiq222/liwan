@@ -1068,6 +1068,9 @@
       "noTasks": "The project had no tasks when this baseline was taken",
       "undated": "No dates",
       "removed": "removed from the project",
+      "added": "added after the baseline",
+      "archived": "archived",
+      "snapshotHint": "A baseline records the tasks its manager could read when it was taken; tasks hidden from them are not part of it.",
       "errors": {
         "charterState": "The first baseline needs an approved charter.",
         "changeRequired": "A new baseline of an executing project needs an approved change request.",
@@ -1085,6 +1088,7 @@
         "budget": "Budget",
         "tasks": "Tasks",
         "note": "Note",
+        "hidden": "Lines you cannot read",
         "change": "Change request"
       },
       "variance": {
@@ -1097,6 +1101,9 @@
         "late": "Tasks later than the baseline",
         "early": "Tasks earlier than the baseline",
         "undated": "Tasks without a comparable date",
+        "removed": "Tasks removed from the project",
+        "added": "Tasks added after the baseline",
+        "hidden": "Baseline tasks you cannot read",
         "baselineBudget": "Baseline budget",
         "currentBudget": "Budget now",
         "actual": "Actual cost",

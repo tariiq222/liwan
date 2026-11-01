@@ -20,6 +20,7 @@ function seed() {
   const take = (id, number, taken_at, note, budget) => ({
     id, project_id: 2, number, taken_by: ME, taken_at, note, change: null, budget_total: budget, currency: CURRENCY,
     planned_start: '2026-09-08', planned_end: '2026-10-01', task_count: PLAN.length,
+    hidden_count: 0,
     tasks: PLAN.map((line, index) => ({ id: id * 10 + index, task_id: line.task_id, name: line.name, planned_start: line.start, planned_end: line.end, planned_value_share: 1 / PLAN.length })),
   })
   return [take(31, 1, '2026-10-02T09:00:00Z', 'خطة الانطلاق المعتمدة', 120000), take(32, 2, '2026-10-20T09:00:00Z', 'بعد اعتماد طلب تغيير النطاق', 138000)]
@@ -30,21 +31,24 @@ let nextId = 100
 // The gate check of the planning -> executing phase card: the mock mirrors the default `warning` mode.
 export const baselineGateCheck = projectId => ({ key: 'baseline_set', ok: BASELINES.some(item => item.project_id === projectId), warning: true })
 
-const dumpList = ({ tasks: _tasks, ...rest }) => rest
+const dumpList = ({ tasks: _tasks, hidden_count: _hidden, ...rest }) => rest
 
 function variance(projectId) {
   const latest = BASELINES.filter(item => item.project_id === projectId).sort((a, b) => b.number - a.number)[0]
   if (!latest) return { project_id: projectId, baseline: null, schedule: null, cost: null }
-  const tasks = PLAN.map(line => ({ task_id: line.task_id, name: line.name, removed: false, ...row(line.start, line.end, line.now_start, line.now_end) }))
+  const tasks = PLAN.map(line => ({ task_id: line.task_id, name: line.name, status: 'tracked', archived: false, ...row(line.start, line.end, line.now_start, line.now_end) }))
   return {
     project_id: projectId,
     baseline: { number: latest.number, taken_at: latest.taken_at },
     schedule: {
       project: row('2026-09-08', '2026-10-01', '2026-09-08', '2026-10-06'),
-      tasks,
+      tasks: [...tasks, { task_id: 106, name: 'مهمة أُضيفت بعد خط الأساس', status: 'added', archived: false, ...row(null, null, '2026-09-22', '2026-09-25') }, { task_id: null, name: 'مهمة نُقلت إلى مشروع آخر', status: 'removed', archived: false, ...row(null, null, null, null) }],
+      hidden_count: 0,
       late_count: tasks.filter(task => (task.end_variance_days ?? 0) > 0).length,
       early_count: tasks.filter(task => (task.end_variance_days ?? 0) < 0).length,
       undated_count: tasks.filter(task => task.end_variance_days === null).length,
+      removed_count: 1,
+      added_count: 1,
     },
     cost: { currency: CURRENCY, baseline_budget: latest.budget_total, current_budget: 146000, budget_variance: 146000 - latest.budget_total, actual: 61500, remaining_against_baseline: latest.budget_total - 61500, over_baseline: false },
   }
@@ -78,6 +82,7 @@ export async function handleBaselines(req, res, path, url, { json, readBody }) {
         id: nextId += 1, project_id: projectId, number, taken_by: ME, taken_at: new Date().toISOString(), note: (body.note ?? '').trim(),
         change: body.change_id ? { id: body.change_id, number: 3, title: 'رفع ميزانية بيئة الاختبار' } : null, budget_total: 146000, currency: CURRENCY,
         planned_start: '2026-09-08', planned_end: '2026-10-06', task_count: PLAN.length,
+        hidden_count: 0,
         tasks: PLAN.map((line, index) => ({ id: nextId * 10 + index, task_id: line.task_id, name: line.name, planned_start: line.now_start, planned_end: line.now_end, planned_value_share: 1 / PLAN.length })),
       }
       BASELINES.push(created)

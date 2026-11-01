@@ -14,8 +14,8 @@ const variance = {
   project_id: 2, baseline: { number: 2, taken_at: '2026-11-01T10:00:00Z' },
   schedule: {
     project: row,
-    tasks: [{ task_id: 7, name: 'Design', removed: false, ...row }, { task_id: null, name: 'Gone', removed: true, baseline_start: null, baseline_end: null, current_start: null, current_end: null, start_variance_days: null, end_variance_days: null }],
-    late_count: 0, early_count: 1, undated_count: 1,
+    tasks: [{ task_id: 7, name: 'Design', status: 'tracked', archived: false, ...row }, { task_id: null, name: 'Added', status: 'added', archived: false, baseline_start: null, baseline_end: null, current_start: '2026-03-06', current_end: '2026-03-07', start_variance_days: null, end_variance_days: null }, { task_id: null, name: 'Gone', status: 'removed', archived: false, baseline_start: null, baseline_end: null, current_start: null, current_end: null, start_variance_days: null, end_variance_days: null }],
+    hidden_count: 0, late_count: 0, early_count: 1, undated_count: 0, removed_count: 1, added_count: 1,
   },
   cost: { currency: baseline.currency, baseline_budget: 1000, current_budget: 1500, budget_variance: 500, actual: 700, remaining_against_baseline: 300, over_baseline: false },
 }
@@ -27,9 +27,9 @@ describe('baseline contracts', () => {
   })
 
   it('keeps the detail strict, with task lines of a deleted task', () => {
-    expect(ProjectBaselineDetailSchema.safeParse({ ...baseline, tasks: [line, { ...line, id: 2, task_id: null, planned_end: null }] }).success).toBe(true)
-    expect(ProjectBaselineDetailSchema.safeParse({ ...baseline, tasks: [{ ...line, planned_value_share: 1.5 }] }).success).toBe(false)
-    expect(ProjectBaselineDetailSchema.safeParse({ ...baseline, tasks: [], extra: 1 }).success).toBe(false)
+    expect(ProjectBaselineDetailSchema.safeParse({ ...baseline, hidden_count: 1, tasks: [line, { ...line, id: 2, task_id: null, planned_end: null }] }).success).toBe(true)
+    expect(ProjectBaselineDetailSchema.safeParse({ ...baseline, hidden_count: 0, tasks: [{ ...line, planned_value_share: 1.5 }] }).success).toBe(false)
+    expect(ProjectBaselineDetailSchema.safeParse({ ...baseline, hidden_count: 0, tasks: [], extra: 1 }).success).toBe(false)
     expect(ProjectBaselineSchema.safeParse({ ...baseline, planned_end: '2026-02-30' }).success).toBe(false)
   })
 

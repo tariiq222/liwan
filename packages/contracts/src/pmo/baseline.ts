@@ -34,7 +34,8 @@ export const ProjectBaselineTaskSchema = z.object({
   planned_value_share: z.number().min(0).max(1),
 }).strict()
 
-export const ProjectBaselineDetailSchema = ProjectBaselineSchema.extend({ tasks: z.array(ProjectBaselineTaskSchema) }).strict()
+// `task_count` is the size of the snapshot; `hidden_count` the lines the caller may not read (no names are sent for them).
+export const ProjectBaselineDetailSchema = ProjectBaselineSchema.extend({ hidden_count: z.number().int().nonnegative(), tasks: z.array(ProjectBaselineTaskSchema) }).strict()
 
 const CoverableChangeSchema = z.object({ id: z.number().int().positive(), number: z.number().int().positive(), title: z.string() }).strict()
 
@@ -62,10 +63,13 @@ const ScheduleRowSchema = z.object({
   end_variance_days: z.number().int().nullable(),
 }).strict()
 
+// tracked: in the baseline and still in the project; removed: deleted or moved to another project; added: in the project, not in the baseline.
+export const BaselineTaskStatusSchema = z.enum(['tracked', 'removed', 'added'])
 export const BaselineTaskVarianceSchema = ScheduleRowSchema.extend({
   task_id: z.number().int().positive().nullable(),
   name: z.string(),
-  removed: z.boolean(),
+  status: BaselineTaskStatusSchema,
+  archived: z.boolean(),
 }).strict()
 
 export const BaselineVarianceSchema = z.object({
@@ -74,9 +78,12 @@ export const BaselineVarianceSchema = z.object({
   schedule: z.object({
     project: ScheduleRowSchema,
     tasks: z.array(BaselineTaskVarianceSchema),
+    hidden_count: z.number().int().nonnegative(),
     late_count: z.number().int().nonnegative(),
     early_count: z.number().int().nonnegative(),
     undated_count: z.number().int().nonnegative(),
+    removed_count: z.number().int().nonnegative(),
+    added_count: z.number().int().nonnegative(),
   }).strict().nullable(),
   cost: z.object({
     currency: CurrencyRefSchema.nullable(),
