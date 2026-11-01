@@ -27,7 +27,15 @@ class HrOperationsIrRule(models.Model):
     @api.model
     def _liwan_fresh_company_domain(self, model_name, mode):
         domain = super()._liwan_fresh_company_domain(model_name, mode)
-        if model_name != 'liwan.operation.request' or mode != 'read' or self.env.su:
+        if mode != 'read' or self.env.su:
+            return domain
+        if model_name == 'liwan.operation.process':
+            # Whoever may request leave sees the company's leave process in any state, so a leave filed while it
+            # is being edited is refused instead of silently skipping the workflow. Read only.
+            service = self.env['liwan.access.service']
+            requesters = sorted(set(service._liwan_operation_capability_company_ids('hr.leave.request')) & set(service._liwan_scoped_company_ids()))
+            return domain | (Domain('execution_kind', '=', KIND) & Domain('company_id', 'in', requesters))
+        if model_name != 'liwan.operation.request':
             return domain
         # Leave staff read the company's leave approval requests, as they read its leaves, so the
         # governed check sees the open request of a leave they are not a reviewer of. Read only: the

@@ -46,8 +46,16 @@ class HrOperationsProcess(models.Model):
         ]
         return values, steps
 
+    @api.model
+    def _hr_leave_is_being_edited(self, company):
+        """Whether the company has a leave approval process in draft and none published."""
+        return not self._hr_leave_governing_process(company) and bool(self.search_count([('company_id', '=', company.id), ('execution_kind', '=', KIND), ('state', '=', 'draft')]))
+
     def _publish(self, revision):
         if self.execution_kind == KIND and self.step_ids:
+            # One published leave process per company even when two publishes race: the second waits for the
+            # company row, then sees the first in the count below.
+            self.company_id.lock_for_update()
             self._hr_leave_check_publishable()
         return super()._publish(revision)
 

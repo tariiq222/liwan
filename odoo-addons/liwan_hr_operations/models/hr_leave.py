@@ -1,6 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import Command, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 
 from .common import BRIDGE, BRIDGE_CONTEXT, operations_enabled
 from odoo.addons.liwan_operations.models.common import EXTERNAL_CLOSE
@@ -15,8 +15,11 @@ class HrLeave(models.Model):
         super()._liwan_request_approval()
         if self.state != 'confirm' or not operations_enabled(self.env):
             return
-        process = self.env['liwan.operation.process']._hr_leave_governing_process(self.company_id)
+        processes = self.env['liwan.operation.process']
+        process = processes._hr_leave_governing_process(self.company_id)
         if not process:
+            if processes._hr_leave_is_being_edited(self.company_id):
+                raise ValidationError(self.env._('The leave approval process is being edited. Request leave again once it is published.'))
             return
         requests = self.env['liwan.operation.request'].with_company(self.company_id).with_context(**{BRIDGE_CONTEXT: BRIDGE})
         record = requests.create({'name': self._hr_leave_summary(), 'process_id': process.id, 'target_id': self.id})

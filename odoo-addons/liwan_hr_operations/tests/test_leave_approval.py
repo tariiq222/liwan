@@ -2,7 +2,7 @@
 from datetime import date
 
 from odoo.exceptions import AccessError, UserError
-from odoo.tests import tagged
+from odoo.tests import new_test_user, tagged
 
 from .common import LEAVES, LeaveApprovalCase, next_monday
 from odoo.addons.liwan_hr.tests.common import set_hr_feature
@@ -217,9 +217,9 @@ class TestLeaveApproval(LeaveApprovalCase):
         pending.invalidate_recordset()
         self.assertEqual(pending.state, 'withdrawn')
 
-    def _officer_employee(self, login):
+    def _officer_employee(self, login, roles=('liwan_core.role_employee', 'liwan_hr.role_hr_manager')):
         """An employee who is also an HR leave officer, with no time-off approver and a leave balance."""
-        user = self._user(login, 'Officer Employee', ['liwan_core.role_employee', 'liwan_hr.role_hr_manager'])
+        user = self._user(login, 'Officer Employee', list(roles))
         employee = self.env['hr.employee'].create({'name': 'Officer Employee', 'user_id': user.id, 'company_id': self.env.company.id})
         self.env['hr.leave.allocation'].create({
             'employee_id': employee.id, 'holiday_status_id': self.annual.id, 'number_of_days': 30,
@@ -295,3 +295,27 @@ class TestLeaveApproval(LeaveApprovalCase):
     def decide_return(self, record):
         record = record.with_user(self.manager_user)
         return record.action_return(record.revision, 'Please fix')
+
+    def test_an_hr_manager_without_the_employee_role_can_file_a_leave(self):
+        hr_only = self._user('lao_hronly', 'HR Only', ['liwan_hr.role_hr_manager'])
+        leave = self.file_leave(hr_only, employee_id=self.staff.id)
+        record = self.approval_request(leave)
+        self.assertEqual((record.state, record.requester_id), ('pending', hr_only))
+        self.assertEqual(record.stage_snapshot[0]['reviewer_ids'], [self.manager_user.id])
+
+    def test_a_custom_role_with_leave_request_can_file_a_leave(self):
+        permissions = self.env['liwan.access.permission'].search([('key', 'in', ['hr.leave.request'])])
+        role = self.env['liwan.access.role'].create({
+            'name_ar': 'مقدم إجازات', 'type': 'custom', 'company_id': self.env.company.id,
+            'permission_ids': [(6, 0, permissions.ids)],
+        })
+        self.assertTrue({'operations.requests.read', 'operations.requests.create'} <= set(role.permission_ids.mapped('key')))
+        user = new_test_user(self.env, login='lao_custom', password='lao_custom_pass_123', name='Custom Requester', groups='liwan_core.group_employee')
+        self.service._liwan_replace_assignments(user, [{'role_id': role.id, 'company_id': self.env.company.id}])
+        employee = self.env['hr.employee'].create({'name': 'Custom Requester', 'user_id': user.id, 'company_id': self.env.company.id})
+        self.env['hr.leave.allocation'].create({
+            'employee_id': employee.id, 'holiday_status_id': self.annual.id, 'number_of_days': 30,
+            'date_from': date.today().replace(month=1, day=1),
+        }).action_approve()
+        leave = self.file_leave(user)
+        self.assertEqual(self.approval_request(leave).state, 'pending')
