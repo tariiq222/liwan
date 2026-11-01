@@ -579,7 +579,11 @@ async function handle(req, res) {
     if (path.endsWith('/summary')) return json(res, 200, { total: items.length, open: items.length, overdue: items.filter(task => task.date_deadline && Date.parse(task.date_deadline) < Date.now()).length, done: 0 })
     return json(res, 200, { items, total: items.length })
   }
-  if (method === 'GET' && path === '/api/v1/tasks') return json(res, 200, { items: TASKS, total: TASKS.length })
+  if (method === 'GET' && path === '/api/v1/tasks') {
+    const q = (url.searchParams.get('q') ?? '').trim().toLowerCase()
+    const items = q ? TASKS.filter(task => task.name.toLowerCase().includes(q)) : TASKS
+    return json(res, 200, { items, total: items.length })
+  }
   if (method === 'GET' && path === '/api/v1/tasks/summary') {
     const done = TASKS.filter(task => task.is_closed).length
     return json(res, 200, { total: TASKS.length, open: TASKS.length - done, overdue: TASKS.filter(task => !task.is_closed && task.is_overdue).length, done })

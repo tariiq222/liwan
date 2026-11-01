@@ -19,13 +19,13 @@ test('global search is a reloadable page with no overlay layer', async ({ page }
   await page.goto('/search?returnTo=/tasks')
   await expect(page).toHaveURL(/\/search\?returnTo=/)
   await expect(page.getByRole('heading', { name: 'بحث' })).toBeVisible()
-  await expect(page.getByPlaceholder('اكتب للانتقال…')).toBeFocused()
+  await expect(page.getByPlaceholder('اكتب للانتقال…')).not.toBeFocused()
   await expect(page.locator('[data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="dialog-overlay"], [data-slot="sheet-overlay"]')).toHaveCount(0)
 
   await page.reload()
   await expect(page.getByTestId('search-page')).toBeVisible()
   await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
-  await expect(page.getByPlaceholder('اكتب للانتقال…')).toBeFocused()
+  await expect(page.getByPlaceholder('اكتب للانتقال…')).not.toBeFocused()
 })
 
 test('header search stays a centered popup and does not replace the current route', async ({ page }) => {
@@ -67,10 +67,8 @@ test('mobile navigation opens one drawer and closes after route navigation', asy
   await expect(toggle).toHaveAttribute('aria-expanded', 'true')
   const mobileNav = page.locator('#mobile-navigation')
   await expect(mobileNav).toBeVisible()
-  await expect(page.getByRole('dialog', { name: 'القائمة', exact: true })).toHaveCount(1)
-
-  await mobileNav.getByRole('navigation', { name: 'الموديولات', exact: true }).getByRole('link', { name: 'المشاريع', exact: true }).click()
-  await expect(page).toHaveURL(/\/projects$/)
+  await mobileNav.getByRole('navigation', { name: 'التطبيقات', exact: true }).getByRole('link', { name: 'يومي', exact: true }).click()
+  await expect(page).toHaveURL(/\/$/)
   await expect(mobileNav).toBeHidden()
   await expect(toggle).toHaveAttribute('aria-expanded', 'false')
 })

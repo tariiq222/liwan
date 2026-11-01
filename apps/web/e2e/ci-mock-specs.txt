@@ -55,3 +55,11 @@ pilot-project-record.spec.ts
 pilot-dashboard.spec.ts
 project-ux-overview.spec.ts
 tasmim6-tasks-misc.spec.ts
+command-menu.spec.ts
+header-overlays.spec.ts
+tasmim6-search.spec.ts
+shortcuts-tasmim.spec.ts
+internal-pages.spec.ts
+shell-tasmim.spec.ts
+hydration.spec.ts
+unsaved-changes.spec.ts

@@ -54,7 +54,10 @@ useEventListener('keydown', (event: KeyboardEvent) => {
     <div v-else ref="resultsEl">
     <SharedListCard>
       <template v-if="providerItems.length > 1" #filters>
-        <SharedSegmentedControl :model-value="selectedProvider ?? ''" :items="providerItems" :label="t('search.providerFilter')" data-testid="search-providers" @update:model-value="setProvider" />
+        <!-- Many providers do not fit a phone: the control scrolls inside the card instead of widening the page. -->
+        <div class="w-0 min-w-full overflow-x-auto">
+          <SharedSegmentedControl :model-value="selectedProvider ?? ''" :items="providerItems" :label="t('search.providerFilter')" data-testid="search-providers" @update:model-value="setProvider" />
+        </div>
       </template>
       <!-- Results first: what the user searched for, then the shortcut list of pages. -->
       <template v-for="section in sections" :key="section.provider.id">

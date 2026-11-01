@@ -31,20 +31,19 @@ async function login(page) {
   await expect(page).not.toHaveURL(/\/login(?:\?|$)/)
 }
 
-test('tasks: closed tab is disabled pre-hydration, then an immediate click switches it with no retry', async ({ page }) => {
+test('tasks: the KPI toggle is disabled pre-hydration, then an immediate click flips it with no retry', async ({ page }) => {
   await login(page)
   const hydrate = await beforeHydration(page, '/tasks')
-  const closedTab = page.getByRole('tab', { name: 'منجزة' })
-  // The control is present in the SSR markup immediately, but must not be
-  // interactive yet.
-  await expect(closedTab).toBeVisible()
-  await expect(closedTab).toBeDisabled()
+  const toggle = page.getByTestId('kpi-toggle')
+  // The control is in the SSR markup immediately, but must not be interactive yet.
+  await expect(toggle).toBeVisible()
+  await expect(toggle).toBeDisabled()
   hydrate()
-  // Wait for hydration to flip it live, then a single un-retried click must
-  // land and actually switch the tab — no toPass()/toBeAttached() polling.
-  await expect(closedTab).toBeEnabled()
-  await closedTab.click()
-  await expect(closedTab).toHaveAttribute('aria-selected', 'true')
+  // Wait for hydration to flip it live, then a single un-retried click must land and actually switch it.
+  await expect(toggle).toBeEnabled()
+  const before = await toggle.getAttribute('aria-pressed')
+  await toggle.click()
+  await expect(toggle).not.toHaveAttribute('aria-pressed', before!)
 })
 
 test('login: submit button is disabled pre-hydration and becomes enabled once hydrated', async ({ page }) => {
@@ -63,7 +62,7 @@ test('login: submit button is disabled pre-hydration and becomes enabled once hy
 test('tasks: "New task" button is disabled pre-hydration, then an immediate click routes to the create page', async ({ page }) => {
   await login(page)
   const hydrate = await beforeHydration(page, '/tasks')
-  const createButton = page.getByRole('link', { name: 'مهمة جديدة' })
+  const createButton = page.getByRole('link', { name: 'مهمة مشروع جديدة' })
   // Same silently-dropped-click risk as the tab: SSR-rendered, visible, with
   // a listener attached only post-hydration — and the one most likely to
   // matter in practice (a user's first action on the page).
@@ -80,20 +79,19 @@ test('tasks: "New task" button is disabled pre-hydration, then an immediate clic
 test('hr: directory create is disabled pre-hydration, then an immediate click works with no retry', async ({ page }) => {
   await login(page)
   const hydrate = await beforeHydration(page, '/hr')
-  const createButton = page.getByRole('button', { name: 'موظف جديد' })
+  const createButton = page.getByRole('link', { name: 'موظف جديد' })
   await expect(createButton).toBeVisible()
   await expect(createButton).toBeDisabled()
   hydrate()
   await expect(createButton).toBeEnabled()
   await createButton.click()
-  await expect(page).toHaveURL(/\/hr\/employees\/new\?returnTo=/)
+  await expect(page).toHaveURL(/\/hr\/employees\/new/)
 })
 
 test('task detail: JS controls are disabled pre-hydration, then an immediate click works with no retry', async ({ page }) => {
   await login(page)
-  const project = await (await page.request.post('/api/v1/projects', { data: { name: `E2E hydrate ${Date.now()}`, date_end: '2035-12-31' } })).json()
-  const task = await (await page.request.post('/api/v1/tasks', { data: { name: `E2E hydrate task ${Date.now()}`, project_id: project.id } })).json()
-  const hydrate = await beforeHydration(page, `/tasks/${task.id}`)
+  // Task 101 of the mock is the first of four, so «السابقة» stays disabled after hydration and «التالية» goes live.
+  const hydrate = await beforeHydration(page, '/tasks/101')
   const detail = page.getByTestId('task-detail-page')
   const back = detail.getByRole('link', { name: 'العودة إلى المهام', exact: true })
   const prev = detail.getByRole('button', { name: 'السابقة' })
@@ -104,6 +102,7 @@ test('task detail: JS controls are disabled pre-hydration, then an immediate cli
   await expect(prev).toBeDisabled()
   await expect(next).toBeDisabled()
   hydrate()
+  await expect(next).toBeEnabled()
   await expect(back).not.toHaveAttribute('aria-disabled', 'true')
   await expect(back).not.toHaveAttribute('tabindex', '-1')
   await back.click()

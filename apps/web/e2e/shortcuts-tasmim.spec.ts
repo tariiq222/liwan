@@ -131,7 +131,9 @@ test.describe('Tasmim palette and shortcuts', () => {
     await page.getByTestId('notification-bell').click()
     await expect(page.getByTestId('notification-preview')).toBeVisible()
     await page.keyboard.press('ControlOrMeta+k')
-    await expect(page.getByRole('dialog')).toHaveCount(0)
+    // The notification popover is itself a dialog; the palette must not open over it.
+    await expect(page.getByTestId('command-palette')).toHaveCount(0)
+    await expect(page.getByTestId('notification-preview')).toBeVisible()
   })
   test('a palette navigation the draft guard blocks returns focus to the palette trigger', async ({ page }) => {
     // The branding form is a full page with the draft guard; a create panel would itself block Cmd+K.
