@@ -244,24 +244,31 @@ Both routes take `{journal_id, content}` (the file text, at most 2 MiB; a CSV at
    takes them from the file when omitted. The import is audited (`bank_statement_imported`, the outcome names the format).
 
 A file that is not a readable statement of its format, holds more than one statement, has a document type declaration
-(CAMT) or is in another currency than the journal is 422 `invalid` (`field` `content` or `journal_id`).
+(CAMT), nests OFX elements more than 12 deep or is in another currency than the journal is 422 `invalid` (`field`
+`content` or `journal_id`). When the file and the journal's bank account both have a number and the numbers differ
+(compared without spaces, in capitals; a local number matches the IBAN that ends with it) the answer is 422
+`account_mismatch` (`field` `journal_id`); a file with no number, or a journal with no bank account, is accepted.
 
 - **OFX** (version 1 SGML and version 2 XML, bank and credit-card statements) is read by `serializers/statement_ofx.py`,
   a small pure reader (no XML parser, so a file cannot declare entities). A line is `DTPOSTED`, `TRNAMT` and `NAME`/`MEMO`;
   the closing balance is `LEDGERBAL`, else `AVAILBAL`. OFX states no opening balance: the suggested one is where the
   journal's latest statement ended (`null` when it has none, then the caller gives it). The `FITID` of each transaction
   is stored on the line as `unique_import_id` (`<journal id>-ofx-<FITID>`, the OCA field with a database unique
-  constraint), and a line whose id the journal holds is a duplicate whatever its text.
+  constraint). A line with an id is a duplicate when the journal holds that id, whatever its text and whatever manual
+  line looks like it; only lines without an id use the content rule below. A FITID repeated inside one file keeps its
+  first use and the next ones become `FITID#2`, `FITID#3` in file order, so the same file imported again is caught.
 - **CAMT** (camt.052/053/054) is parsed by the OCA `account_statement_import_camt` engine
   (`account.statement.import.camt.parser.parse`, no wizard); `serializers/statement_camt.py` maps its answer. The file's
   opening and closing balances are used; the opening one moves by the lines the journal already holds, so skipping
-  duplicates keeps the check meaningful. The engine gives no transaction ids, so CAMT duplicates use the content rule below.
+  duplicates keeps the check meaningful. A balance the file does not state (camt.052 and camt.054 usually state none) is
+  `null`, never 0, and the import asks the caller for it. The engine gives no transaction ids, so CAMT duplicates use the content rule below.
 
 Numbers in a CSV accept thousands separators, parentheses or a sign for negatives, `decimal_separator` `.` or `,`, and
 Arabic-Indic digits; dates use one of the listed formats (`DD/MM/YYYY` is not guessed, it is chosen). A line is a duplicate
 when the journal already holds at least as many lines with the same day, amount and reference as the file has shown so
 far, so two identical coffees in one file are both kept. Statements and imports work on bank and cash journals.
-The files are read as UTF-8 text (the screen decodes them); a legacy-encoded OFX with Arabic text must be saved as UTF-8.
+The API takes text; the screen decodes the file by its declared charset (byte order mark, XML declaration, OFX 1 `CHARSET`)
+and refuses a file with bytes that have no character in it.
 
 ## Asset profiles
 

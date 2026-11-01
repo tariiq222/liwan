@@ -9,6 +9,9 @@ from datetime import date
 
 DECLARATION = re.compile(r'^\s*(<\?xml[^>]*?)\s+encoding\s*=\s*(["\'])[^"\']*\2')
 DOCTYPE = re.compile(r'<!(DOCTYPE|ENTITY)', re.IGNORECASE)
+BALANCE_CODE = re.compile(r'<(?:\w+:)?Cd>\s*(OPBD|PRCD|CLBD|ITBD)\s*</', re.IGNORECASE)
+OPENING_CODES = frozenset({'OPBD', 'PRCD', 'ITBD'})
+CLOSING_CODES = frozenset({'CLBD', 'ITBD'})
 MAX_REFERENCE = 255
 
 
@@ -41,19 +44,24 @@ def _lines(transactions):
     return lines, errors
 
 
-def normalize_camt(currency, account_number, statements):
-    """The statements the OCA parser read as ``{currency, account_number, balance_start, balance_end, lines, errors}`` each."""
+def normalize_camt(text, currency, account_number, statements):
+    """The statements the OCA parser read as ``{currency, account_number, balance_start, balance_end, lines, errors}`` each.
+
+    The parser answers 0.0 for a balance the file does not state (camt.052 and camt.054 often state none), so the file
+    ``text`` says which balances exist; a missing one is ``None`` and the import asks the caller for it.
+    """
     if not statements:
         message = 'the file has no statement with entries'
         raise CamtError(message)
+    codes = {code.upper() for code in BALANCE_CODE.findall(text)}
     normalized = []
     for statement in statements:
         lines, errors = _lines(statement['transactions'])
         normalized.append({
             'currency': currency,
             'account_number': account_number,
-            'balance_start': round(statement['balance_start'], 2),
-            'balance_end': round(statement['balance_end_real'], 2),
+            'balance_start': round(statement['balance_start'], 2) if codes & OPENING_CODES else None,
+            'balance_end': round(statement['balance_end_real'], 2) if codes & CLOSING_CODES else None,
             'lines': lines,
             'errors': errors,
         })

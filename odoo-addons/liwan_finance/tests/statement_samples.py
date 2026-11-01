@@ -123,13 +123,13 @@ def camt_balance(code, amount, sign='CRDT', day='2026-10-27'):
       </Bal>'''
 
 
-def camt_file(entries, *, opening='1000.00', closing='1279.50', statements=1):
-    """A camt.053.001.02 document: ``statements`` copies of one statement, each with the given balances and entries."""
+def camt_file(entries, *, opening='1000.00', closing='1279.50', statements=1, account='SA0380000000608010167519'):
+    """A camt.053.001.02 document: ``statements`` copies of one statement, each with the given balances (``None`` states none) and entries."""
     statement = f'''
     <Stmt>
       <Id>STMT-2026-10-27</Id>
       <CreDtTm>2026-10-28T08:00:00</CreDtTm>
-      <Acct><Id><IBAN>SA0380000000608010167519</IBAN></Id><Ccy>SAR</Ccy></Acct>{camt_balance('OPBD', opening, day='2026-10-24')}{camt_balance('CLBD', closing)}{''.join(entries)}
+      <Acct><Id><IBAN>{account}</IBAN></Id><Ccy>SAR</Ccy></Acct>{camt_balance('OPBD', opening, day='2026-10-24') if opening else ''}{camt_balance('CLBD', closing) if closing else ''}{''.join(entries)}
     </Stmt>'''
     return f'''<?xml version="1.0" encoding="UTF-8"?>
 <Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">

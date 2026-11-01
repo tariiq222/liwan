@@ -9,6 +9,7 @@ from .common import require_capability
 from .finance_bank import STATEMENT_JOURNAL_TYPES, _creation_outcome, _statement_values
 from .idempotency import idempotent
 from .write_support import attempt, company_records
+from odoo.addons.base.models.res_bank import sanitize_account_number
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
@@ -72,8 +73,8 @@ def _mark_duplicates(journal, lines):
     """Flag the lines the journal already holds: same day, amount and reference, counted occurrence by occurrence.
 
     Two identical lines in one file are both legitimate (two coffees, one day) as long as the journal holds fewer
-    copies than the file has seen so far. A line that carries the bank's own transaction id (OFX ``FITID``) is also
-    a duplicate when the journal holds that id.
+    copies than the file has seen so far. A line that carries the bank's own transaction id (OFX ``FITID``) is judged by
+    that id alone: a manual line with the same day, amount and text must not hide it.
     """
     if not lines:
         return
@@ -88,9 +89,12 @@ def _mark_duplicates(journal, lines):
     ]).mapped('unique_import_id'))
     seen = Counter()
     for line in lines:
+        if 'unique_import_id' in line:
+            line['duplicate'] = line['unique_import_id'] in known_ids
+            continue
         key = (line['date'], line['amount'], line['payment_ref'])
         seen[key] += 1
-        line['duplicate'] = existing[key] >= seen[key] or line.get('unique_import_id') in known_ids
+        line['duplicate'] = existing[key] >= seen[key]
 
 
 def _camt_statements(text):
@@ -100,7 +104,7 @@ def _camt_statements(text):
     except (ValueError, LookupError, TypeError, AttributeError):
         message = 'the file is not a readable CAMT statement'
         raise CamtError(message) from None
-    return normalize_camt(*parsed)
+    return normalize_camt(text, *parsed)
 
 
 def _statement(journal, fmt, content):
@@ -116,10 +120,23 @@ def _statement(journal, fmt, content):
     currency = journal.currency_id or journal.company_id.currency_id
     if statement['currency'] and statement['currency'].upper() != currency.name:
         refuse(f'the file is in {statement["currency"]} but the journal is in {currency.name}', 'journal_id')
+    _check_account(journal, statement['account_number'])
     for line in statement['lines']:
         if line.get('fitid'):
             line['unique_import_id'] = f'{journal.id}-{fmt}-{line["fitid"]}'
     return statement
+
+
+def _check_account(journal, file_account):
+    """422 ``account_mismatch`` when the file's account and the journal's bank account are both known and differ.
+
+    The numbers are compared without spaces and in capitals; a local account number matches the IBAN that ends with it.
+    A file with no account number, or a journal with no bank account, is accepted.
+    """
+    journal_account = sanitize_account_number(journal.bank_account_id.acc_number or '')
+    file_account = sanitize_account_number(file_account or '')
+    if journal_account and file_account and not (journal_account.endswith(file_account) or file_account.endswith(journal_account)):
+        raise ApiError(422, 'account_mismatch', 'the file belongs to another bank account than the journal', field='journal_id')
 
 
 def _file_balances(journal, fmt, statement, lines):
@@ -133,7 +150,8 @@ def _file_balances(journal, fmt, statement, lines):
     currency = journal.currency_id or journal.company_id.currency_id
     if fmt == 'camt':
         skipped = sum(line['amount'] for line in lines if line['duplicate'])
-        return currency.round(statement['balance_start'] + skipped), statement['balance_end']
+        opening = statement['balance_start']
+        return (None if opening is None else currency.round(opening + skipped)), statement['balance_end']
     latest = request.env['account.bank.statement'].search([('journal_id', '=', journal.id)], order='date desc, id desc', limit=1)
     return (currency.round(latest.balance_end_real) if latest else None), statement['balance_end']
 

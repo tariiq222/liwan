@@ -164,6 +164,48 @@ class TestFinanceBankStatementFiles(LiwanFinanceOcaCase):
             with self.subTest(change=change):
                 self.assertRefused(self.api('POST', PREVIEW, json=self.body(OFX_V2, **change)), 422, 'invalid', field)
 
+    def test_a_line_with_a_bank_id_is_not_hidden_by_a_manual_line_with_the_same_text(self):
+        manual = self.api('POST', BANK, json={'journal_id': self.bank.id, 'date': '2026-10-25', 'lines': [
+            {'date': '2026-10-25', 'payment_ref': 'Transfer from Al Noor - Invoice INV/2026/0001', 'amount': 750},
+        ]})
+        self.assertEqual(manual.status_code, 201, manual.text)
+        preview = self.api('POST', PREVIEW, json=self.body(OFX_V2)).json()
+        self.assertEqual([line['duplicate'] for line in preview['lines']], [False, False, False])
+        no_ids = self.api('POST', PREVIEW, json=self.body(OFX_V2.replace('<FITID>2026102500001</FITID>', ''))).json()
+        self.assertEqual([line['duplicate'] for line in no_ids['lines']], [True, False, False])
+        self.assertEqual(self.api('POST', IMPORT, json=self.body(OFX_V2, balance_start=0)).status_code, 201)
+
+    def test_repeated_bank_ids_in_one_file_are_kept_and_the_file_is_still_caught_on_re_import(self):
+        repeated = OFX_V2.replace('2026102600002', '2026102500001').replace('2026102700003', '2026102500001')
+        self.assertEqual(self.api('POST', IMPORT, json=self.body(repeated, balance_start=0)).status_code, 201)
+        refused = self.api('POST', IMPORT, json=self.body(repeated, balance_start=0))
+        self.assertRefused(refused, 422, 'duplicate_lines')
+        self.assertEqual(refused.json()['details'], {'rows': [1, 2, 3]})
+
+    def test_the_account_in_the_file_must_be_the_journals_when_both_are_known(self):
+        camt = camt_file([CAMT_ENTRY.format(amount='5.00', sign='CRDT', day='2026-10-25', ref='R1', text='One')], opening='0.00', closing='5.00')
+        no_account_ofx = OFX_V2.replace('<ACCTID>SA0380000000608010167519</ACCTID>', '')
+        self.assertEqual(self.api('POST', PREVIEW, json=self.body(OFX_V2)).status_code, 200)
+        partner_bank = self.env['res.partner.bank'].create({'acc_number': 'SA99 0000 0000 0000 0000 0001', 'partner_id': self.company.partner_id.id})
+        self.bank.bank_account_id = partner_bank
+        for content in (OFX_V2, camt):
+            with self.subTest(content=content[:20]):
+                self.assertRefused(self.api('POST', PREVIEW, json=self.body(content)), 422, 'account_mismatch', 'journal_id')
+                self.assertRefused(self.api('POST', IMPORT, json=self.body(content, balance_start=0, balance_end_real=0)), 422, 'account_mismatch', 'journal_id')
+        self.assertEqual(self.api('POST', PREVIEW, json=self.body(no_account_ofx)).status_code, 200)
+        partner_bank.acc_number = 'sa03 8000 0000 6080 1016 7519'
+        self.assertEqual(self.api('POST', PREVIEW, json=self.body(OFX_V2)).status_code, 200)
+        self.assertEqual(self.api('POST', PREVIEW, json=self.body(OFX_V2.replace('SA0380000000608010167519', '608010167519'))).status_code, 200)
+        self.assertEqual(self.api('POST', PREVIEW, json=self.body(camt)).status_code, 200)
+
+    def test_a_camt_file_with_no_balances_asks_the_caller_for_them(self):
+        entries = [CAMT_ENTRY.format(amount='5.00', sign='CRDT', day='2026-10-25', ref='R1', text='One')]
+        bare = camt_file(entries, opening=None, closing=None)
+        preview = self.api('POST', PREVIEW, json=self.body(bare)).json()
+        self.assertEqual((preview['balance_start'], preview['balance_end_real']), (None, None))
+        self.assertRefused(self.api('POST', IMPORT, json=self.body(bare)), 422, 'invalid', 'balance_start')
+        self.assertEqual(self.api('POST', IMPORT, json=self.body(bare, balance_start=10, balance_end_real=15)).status_code, 201)
+
     def test_capability(self):
         self.user_with('bank_reader', ['finance.bank.read'])
         self.authenticate('bank_reader', PASSWORD)

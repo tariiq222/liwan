@@ -58,11 +58,25 @@ class TestOfxReader(BaseCase):
         self.assertEqual([(error['row'], error['field']) for error in statement['errors']], [(2, 'date'), (3, 'amount')])
         self.assertEqual([line['row'] for line in statement['lines']], [1])
 
-    def test_a_transaction_without_an_id_is_kept_and_a_repeated_id_is_refused(self):
+    def test_a_transaction_without_an_id_is_kept_and_a_repeated_id_gets_a_stable_suffix(self):
         statement = single(OFX_V2.replace('<FITID>2026102600002</FITID>', ''))
         self.assertIsNone(statement['lines'][1]['fitid'])
-        with self.assertRaisesRegex(OfxError, 'appears twice'):
-            parse_ofx(OFX_V2.replace('2026102600002', '2026102500001'))
+        repeated = OFX_V2.replace('2026102600002', '2026102500001').replace('2026102700003', '2026102500001')
+        ids = [line['fitid'] for line in single(repeated)['lines']]
+        self.assertEqual(ids, ['2026102500001', '2026102500001#2', '2026102500001#3'])
+        self.assertEqual([line['fitid'] for line in single(repeated)['lines']], ids)
+
+    def test_a_self_closed_element_does_not_swallow_the_next_ones_and_cdata_is_read(self):
+        text = OFX_V2.replace('<STMTTRN><TRNTYPE>DEBIT', '<STMTTRN/><STMTTRN><TRNTYPE>DEBIT', 1)
+        statement = single(text)
+        self.assertEqual([(error['row'], error['field']) for error in statement['errors']], [(2, 'date')])
+        self.assertEqual([line['row'] for line in statement['lines']], [1, 3, 4])
+        cdata = OFX_V2.replace('<NAME>Gulf Supplies &amp; Co</NAME>', '<NAME><![CDATA[Gulf <Supplies> & Co]]></NAME>')
+        self.assertEqual(single(cdata)['lines'][1]['payment_ref'], 'Gulf <Supplies> & Co')
+
+    def test_a_file_nested_too_deeply_is_refused(self):
+        with self.assertRaisesRegex(OfxError, 'levels deep'):
+            parse_ofx('<OFX><STMTRS>' + '<PAYEE>' * 5000)
 
     def test_a_file_that_is_not_a_statement_is_refused(self):
         for text in ('Date,Amount\n2026-10-25,100\n', '<OFX></OFX>', '<OFX><BANKMSGSRSV1></BANKMSGSRSV1></OFX>'):
@@ -96,7 +110,8 @@ class TestCamtMapping(BaseCase):
                 {'amount': 5.0, 'payment_ref': 'No date'},
             ],
         }]
-        [statement] = normalize_camt('SAR', 'SA03', statements)
+        text = '<Bal><Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp></Bal><Bal><Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp></Bal>'
+        [statement] = normalize_camt(text, 'SAR', 'SA03', statements)
         self.assertEqual((statement['currency'], statement['balance_start'], statement['balance_end']), ('SAR', 1000.0, 1279.5))
         self.assertEqual(
             [(line['row'], line['date'], line['payment_ref']) for line in statement['lines']],
@@ -104,4 +119,12 @@ class TestCamtMapping(BaseCase):
         )
         self.assertEqual([(error['row'], error['field']) for error in statement['errors']], [(3, 'amount'), (4, 'date')])
         with self.assertRaises(CamtError):
-            normalize_camt('SAR', None, [])
+            normalize_camt(text, 'SAR', None, [])
+
+    def test_a_balance_the_file_does_not_state_is_none_not_zero(self):
+        statements = [{'balance_start': 0.0, 'balance_end_real': 0.0, 'transactions': [{'date': '2026-10-25', 'amount': 5.0, 'payment_ref': 'x'}]}]
+        [none] = normalize_camt('<Document/>', 'SAR', None, statements)
+        self.assertEqual((none['balance_start'], none['balance_end']), (None, None))
+        closing_only = '<ns:Bal><ns:Tp><ns:CdOrPrtry><ns:Cd>CLBD</ns:Cd></ns:CdOrPrtry></ns:Tp></ns:Bal>'
+        [closing] = normalize_camt(closing_only, 'SAR', None, statements)
+        self.assertEqual((closing['balance_start'], closing['balance_end']), (None, 0.0))

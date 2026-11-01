@@ -8,6 +8,7 @@ and takes the account, the currency, the closing balance and every ``STMTTRN``. 
 """
 import html
 import re
+from collections import Counter
 from datetime import date
 
 AGGREGATES = frozenset({
@@ -17,7 +18,9 @@ AGGREGATES = frozenset({
 STATEMENTS = ('STMTRS', 'CCSTMTRS')
 ACCOUNTS = ('BANKACCTFROM', 'CCACCTFROM')
 ROOT = re.compile(r'<OFX\s*>', re.IGNORECASE)
-TAG = re.compile(r'<(/?)([A-Za-z][A-Za-z0-9.]*)\s*/?>([^<]*)')
+TAG = re.compile(r'<(/?)([A-Za-z][A-Za-z0-9.]*)\s*(/?)>([^<]*)')
+CDATA = re.compile(r'<!\[CDATA\[(.*?)\]\]>', re.DOTALL)
+MAX_DEPTH = 12  # a statement nests about six deep; a deeper file is refused instead of walked
 OFX_DATE = re.compile(r'(\d{4})(\d{2})(\d{2})')
 OFX_NUMBER = re.compile(r'[+-]?(\d+([.,]\d+)?|[.,]\d+)')
 MAX_REFERENCE = 255
@@ -44,6 +47,7 @@ class _Node:
 
 
 def _tree(text):
+    text = CDATA.sub(lambda section: html.escape(section.group(1)), text)
     root_tag = ROOT.search(text)
     if not root_tag:
         message = 'the file has no <OFX> element'
@@ -51,7 +55,7 @@ def _tree(text):
     root = _Node('OFX')
     stack = [root]
     for tag in TAG.finditer(text, root_tag.end()):
-        closing, name, value = tag.group(1), tag.group(2).upper(), tag.group(3).strip()
+        closing, name, selfclosed, value = tag.group(1), tag.group(2).upper(), tag.group(3), tag.group(4).strip()
         if closing:
             if any(node.name == name for node in stack[1:]):
                 while stack.pop().name != name:
@@ -59,7 +63,10 @@ def _tree(text):
             continue
         node = _Node(name, html.unescape(value) or None)
         stack[-1].children.append(node)
-        if not value and name in AGGREGATES:
+        if not value and not selfclosed and name in AGGREGATES:
+            if len(stack) >= MAX_DEPTH:
+                message = f'the file nests elements more than {MAX_DEPTH} levels deep'
+                raise OfxError(message)
             stack.append(node)
     return root
 
@@ -85,8 +92,17 @@ def _reference(transaction):
     return ' '.join(text.split())[:MAX_REFERENCE] if parts else '-'
 
 
+def _unique_id(fitid, seen):
+    """The id a transaction is remembered by. Some banks repeat a FITID inside one file; the first keeps it and the next
+    ones get ``#2``, ``#3``... in file order, so importing the same file again yields the same ids and is caught as duplicates."""
+    if not fitid:
+        return None
+    seen[fitid] += 1
+    return fitid if seen[fitid] == 1 else f'{fitid}#{seen[fitid]}'
+
+
 def _lines(statement):
-    lines, errors, seen = [], [], set()
+    lines, errors, seen = [], [], Counter()
     for number, transaction in enumerate(statement.all('STMTTRN'), start=1):
         try:
             day = _day(transaction.leaf('DTPOSTED') or '')
@@ -101,12 +117,7 @@ def _lines(statement):
         if not amount:
             errors.append({'row': number, 'field': 'amount', 'message': 'the amount is zero'})
             continue
-        fitid = transaction.leaf('FITID')
-        if fitid:
-            if fitid in seen:
-                message = f'the transaction id {fitid} appears twice in the statement'
-                raise OfxError(message)
-            seen.add(fitid)
+        fitid = _unique_id(transaction.leaf('FITID'), seen)
         lines.append({'row': number, 'date': day, 'payment_ref': _reference(transaction), 'amount': amount, 'fitid': fitid})
     return lines, errors
 
