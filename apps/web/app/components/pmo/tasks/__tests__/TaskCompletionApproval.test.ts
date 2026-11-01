@@ -76,7 +76,7 @@ const base: TaskDetail = {
   allowed_transitions: ['waiting', 'cancelled'], allowed_actions: ['read', 'write'],
   completion_pending: false, completion_revision: 1, completion_return_note: null,
   completion_policy: 'project_manager', completion_approver: { id: 4, name: 'Manager' },
-  completion_blocked_reason: null, can_manage_dependencies: false,
+  completion_blocked_reason: null, progress_method: 'binary', percent_complete: 0, can_manage_dependencies: false,
 }
 
 async function renderApproval(task: TaskDetail) {

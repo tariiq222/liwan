@@ -172,6 +172,20 @@ function onHoursChange() {
   patch({ allocated_hours: n })
 }
 
+// --- percent complete (earned value, manual method only) ----------------
+const percentDraft = ref(String(props.task.percent_complete))
+watch(() => props.task.percent_complete, (v) => { percentDraft.value = String(v) })
+const percentEditable = computed(() => props.task.progress_method === 'manual' && props.task.can_write && !props.task.is_closed)
+function onPercentChange() {
+  const n = Number(percentDraft.value)
+  // A whole number 0..100: anything else puts the saved value back instead of staying on screen unsaved.
+  if (!Number.isInteger(n) || n < 0 || n > 100 || percentDraft.value.trim() === '') {
+    percentDraft.value = String(props.task.percent_complete)
+    return
+  }
+  if (n !== props.task.percent_complete) patch({ percent_complete: n })
+}
+
 </script>
 
 <template>
@@ -237,6 +251,24 @@ function onHoursChange() {
     </SharedPropertyRow>
     <SharedPropertyRow v-if="task.can_write && task.can_approve" :label="t('tasks.drawer.allocatedHours')">
       <UInput id="allocated-hours" :disabled="!hydrated" v-model="hoursDraft" type="number" min="0" step="0.5" size="sm" class="w-full" :aria-label="t('tasks.drawer.allocatedHours')" @change="onHoursChange" />
+    </SharedPropertyRow>
+    <SharedPropertyRow v-if="task.progress_method === 'manual'" :label="t('tasks.drawer.percentComplete')">
+      <UInput
+        v-if="percentEditable"
+        id="percent-complete"
+        v-model="percentDraft"
+        data-testid="task-percent-complete"
+        :disabled="!hydrated"
+        type="number"
+        min="0"
+        max="100"
+        step="1"
+        size="sm"
+        class="w-full"
+        :aria-label="t('tasks.drawer.percentComplete')"
+        @change="onPercentChange"
+      />
+      <span v-else dir="ltr" class="tabular-nums" data-testid="task-percent-complete">{{ task.percent_complete }}%</span>
     </SharedPropertyRow>
     <SharedPropertyRow :label="t('tasks.drawer.tags')">
       <span id="task-tags-label" class="sr-only">{{ t('tasks.drawer.tags') }}</span>

@@ -117,6 +117,14 @@
         "required": "Required",
         "requiredHint": "The project cannot move to executing until a baseline is taken."
       },
+      "evmProgress": {
+        "label": "Progress for earned value",
+        "hint": "Sets how a task's percent complete is counted when the project's earned value is measured.",
+        "binary": "Done or not",
+        "binaryHint": "A done task is 100% and any other task 0%. No extra data entry.",
+        "manual": "Percent entered by the assignee",
+        "manualHint": "The task assignee enters a percent complete from 0 to 100; a done task stays 100%."
+      },
       "changeCategories": {
         "title": "Change request categories",
         "hint": "The categories a requester picks from. Archiving keeps the category on the requests that carry it.",

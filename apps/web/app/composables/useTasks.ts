@@ -96,6 +96,7 @@ export function applyPatchToTask<T extends Task>(task: T, patch: TaskPatch, reso
   // built with all keys present - doesn't clear the field.
   if (patch.description !== undefined && 'description_html' in next) next.description_html = patch.description ?? ''
   if (patch.allocated_hours !== undefined && 'allocated_hours' in next) next.allocated_hours = patch.allocated_hours
+  if (patch.percent_complete !== undefined && 'percent_complete' in next) next.percent_complete = patch.percent_complete
   return next
 }
 

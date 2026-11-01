@@ -37,7 +37,7 @@ export function taskDetail(overrides: Record<string, unknown> = {}) {
     can_manage_dependencies: false, milestone: null, created_at: '2026-09-01 08:00:00', updated_at: '2026-09-10 08:00:00',
     planned_start: null, deliverables: [], allowed_actions: ['read', 'write'],
     completion_pending: false, completion_revision: 0, completion_return_note: null, completion_policy: 'none',
-    completion_approver: null, completion_blocked_reason: null,
+    completion_approver: null, completion_blocked_reason: null, progress_method: 'binary', percent_complete: 0,
     ...overrides,
   })
 }

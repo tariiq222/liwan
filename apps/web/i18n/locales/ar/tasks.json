@@ -123,6 +123,7 @@
       "tags": "الوسوم",
       "stage": "المرحلة الشخصية",
       "allocatedHours": "الساعات المخصَّصة",
+      "percentComplete": "نسبة الإنجاز (%)",
       "description": "الوصف",
       "subtasks": "المهام الفرعية",
       "addSubtask": "إضافة مهمة فرعية",

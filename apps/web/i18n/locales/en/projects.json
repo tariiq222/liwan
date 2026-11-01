@@ -1111,6 +1111,44 @@
         "overBaseline": "Over the baseline budget"
       }
     },
+    "evm": {
+      "title": "Earned value",
+      "noBaseline": "There is no baseline to measure earned value against",
+      "noBaselineHint": "Earned value is measured against the latest baseline. Take a baseline first.",
+      "asOf": "Measured today, {date}, against baseline {number}.",
+      "method": {
+        "binary": "Progress: a done task counts 100% and any other task 0%.",
+        "manual": "Progress: a done task counts 100% and an open task the percent complete its assignee entered."
+      },
+      "notEnough": "Not enough data",
+      "hidden": "You cannot read {count} baseline task, so the figures are partial. | You cannot read {count} baseline tasks, so the figures are partial.",
+      "undated": "{count} task without an end date is left out. | {count} tasks without an end date are left out.",
+      "noBudget": "The baseline has no budget, so only the schedule index is shown and the cost indices stay empty.",
+      "indices": {
+        "spi": "Schedule index (SPI)",
+        "spiHint": "Earned to planned",
+        "cpi": "Cost index (CPI)",
+        "cpiHint": "Earned to actual"
+      },
+      "bands": { "success": "On plan", "warning": "Needs attention", "danger": "Behind" },
+      "figures": {
+        "bac": "Budget at completion (BAC)",
+        "pv": "Planned value (PV)",
+        "ev": "Earned value (EV)",
+        "ac": "Actual cost (AC)",
+        "sv": "Schedule variance (SV)",
+        "cv": "Cost variance (CV)",
+        "eac": "Estimate at completion (EAC)",
+        "etc": "Estimate to complete (ETC)",
+        "vac": "Variance at completion (VAC)",
+        "tcpi": "To-complete performance index (TCPI)"
+      },
+      "curveTitle": "Planned value over time",
+      "curveHint": "The line is the planned value from the baseline. The two points are today's earned value and actual cost.",
+      "curveLabel": "Planned value chart with today's earned value and actual cost marked",
+      "noCurve": "No baseline task has dates, so there is no curve to draw",
+      "series": { "pv": "Planned", "ev": "Earned", "ac": "Actual" }
+    },
     "clarity": {
       "addRegister": "Add risk or issue",
       "registerSearch": "Search risks or issues",
