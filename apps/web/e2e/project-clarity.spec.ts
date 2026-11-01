@@ -149,9 +149,10 @@ for (const path of ['/projects', '/projects/1/register', '/projects/1/stakeholde
     await page.waitForLoadState('networkidle')
     await expect(page.locator('.animate-pulse')).toHaveCount(0)
     await expect(page.getByTestId('context-sidebar-toggle')).toBeEnabled()
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true)
+    // A panel route slides in and the zoom reflows the page: wait for each layout to settle before judging it.
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true)
     await page.evaluate(() => { document.documentElement.style.zoom = '2' })
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true)
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true)
     await page.screenshot({ path: testInfo.outputPath('zoom-200.png'), fullPage: true })
   })
 }
