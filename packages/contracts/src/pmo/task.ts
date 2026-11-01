@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { TaskStateSchema } from './state'
 import { CalendarDateSchema } from './schedule'
+import { EvmProgressMethodSchema } from './evm'
 
 export const RefSchema = z.object({ id: z.number().int().positive(), name: z.string() }).strict()
 export const TagSchema = z.object({ id: z.number().int().positive(), name: z.string(), color: z.number().int() }).strict()
@@ -39,6 +40,9 @@ export const TaskDetailSchema = TaskSchema.extend({
   completion_policy: z.enum(['none', 'project_manager', 'specific_user']),
   completion_approver: RefSchema.nullable(),
   completion_blocked_reason: z.enum(['no_reviewer', 'reviewer_ineligible']).nullable(),
+  // The company's earned value progress method and the task's percent complete under it (a done task is 100).
+  progress_method: EvmProgressMethodSchema,
+  percent_complete: z.number().int().min(0).max(100),
 }).strict()
 
 export const DependencySchema = z.object({ id: z.number().int().positive(), name: z.string(), state: TaskStateSchema }).strict()
@@ -58,6 +62,7 @@ export const TaskPatchSchema = z.object({
   priority: z.enum(['0', '1', '2', '3']).optional(), user_ids: z.array(z.number().int()).optional(), tag_ids: z.array(z.number().int()).optional(),
   personal_stage_type_id: z.number().int().nullable().optional(), allocated_hours: z.number().optional(), stage_id: z.number().int().optional(),
   milestone_id: z.number().int().nullable().optional(), deliverables: z.array(TaskDeliverableSchema).optional(),
+  percent_complete: z.number().int().min(0).max(100).optional(),
 }).strict()
 
 export const TaskCreateSchema = z.object({

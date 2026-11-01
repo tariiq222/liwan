@@ -22,15 +22,15 @@
       "id": 9,
       "mimetype": "text/plain",
       "name": "one.txt",
-      "size": 14,
-      "url": "/api/v1/tasks/1073/attachments/2687/download"
+      "size": 7,
+      "url": "/api/v1/tasks/1030/attachments/2376/download"
     },
     {
       "id": 10,
       "mimetype": "text/plain",
       "name": "two.txt",
-      "size": 14,
-      "url": "/api/v1/tasks/1073/attachments/2688/download"
+      "size": 7,
+      "url": "/api/v1/tasks/1030/attachments/2377/download"
     }
   ],
   "can_approve": false,
@@ -55,12 +55,14 @@
   "is_overdue": false,
   "milestone": null,
   "name": "Parent",
+  "percent_complete": 0,
   "personal_stage": {
     "id": 3,
     "name": "Inbox"
   },
   "planned_start": null,
   "priority": "0",
+  "progress_method": "binary",
   "project": {
     "id": 2,
     "name": "Erada Portal"

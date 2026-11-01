@@ -35,7 +35,7 @@ const task = {
   completion_return_note: null,
   completion_policy: 'none' as const,
   completion_approver: null,
-  completion_blocked_reason: null,
+  completion_blocked_reason: null, progress_method: 'binary', percent_complete: 0,
 }
 
 describe('task content contracts', () => {

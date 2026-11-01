@@ -9,7 +9,7 @@ const task = {
   cycle_days: null, subtasks: [], depends_on: [], attachments: [], can_approve: false,
   created_at: '2030-01-01T00:00:00Z', updated_at: '2030-01-01T00:00:00Z', milestone: null,
   completion_pending: false, completion_revision: 0, completion_return_note: null,
-  completion_policy: 'none', completion_approver: null, completion_blocked_reason: null,
+  completion_policy: 'none', completion_approver: null, completion_blocked_reason: null, progress_method: 'binary', percent_complete: 0,
 }
 
 describe('task lifecycle contracts', () => {
