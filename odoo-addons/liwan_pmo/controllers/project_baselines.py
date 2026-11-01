@@ -49,10 +49,16 @@ def _baseline(project, number):
 
 
 def _coverable_changes(project):
-    """The approved requests a manager may link to a new baseline; empty while the caller cannot take one."""
+    """The approved requests a manager may link to a new baseline; empty while the caller cannot take one.
+
+    A request that already covers a baseline is left out: the server answers 409 ``change_already_used`` for it.
+    """
     if not project._liwan_can_manage():
         return []
-    changes = request.env['liwan.project.change'].search([('project_id', '=', project.id), ('state', '=', 'approved')])
+    used = request.env['liwan.project.baseline'].search([('project_id', '=', project.id), ('change_id', '!=', False)]).change_id
+    changes = request.env['liwan.project.change'].search([
+        ('project_id', '=', project.id), ('state', '=', 'approved'), ('id', 'not in', used.ids),
+    ])
     return [{'id': change.id, 'number': change.number, 'title': change.title} for change in changes]
 
 

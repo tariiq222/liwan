@@ -58,7 +58,8 @@ async function run() {
       @confirm="run"
     >
       <div class="mt-2 grid gap-3">
-        <UFormField v-if="list.change_required || changeItems.length" :label="t('projects.baselines.change')" :required="list.change_required" :description="list.change_required ? t('projects.baselines.changeRequired') : t('projects.baselines.changeOptional')">
+        <UAlert v-if="list.change_required && !changeItems.length" color="warning" variant="subtle" icon="i-lucide-triangle-alert" data-testid="baseline-no-coverable" :title="t('projects.baselines.noCoverable')" />
+        <UFormField v-else-if="list.change_required || changeItems.length" :label="t('projects.baselines.change')" :required="list.change_required" :description="list.change_required ? t('projects.baselines.changeRequired') : t('projects.baselines.changeOptional')">
           <USelect v-model="changeId" class="w-full" data-testid="baseline-change" :items="changeItems" :placeholder="t('projects.baselines.changePlaceholder')" :disabled="isPending" />
         </UFormField>
         <UFormField :label="t('projects.baselines.noteLabel')">
