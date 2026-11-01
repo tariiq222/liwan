@@ -2,6 +2,8 @@
 import LeaveApprovalCard from '@/components/hr/LeaveApprovalCard.vue'
 import LeaveSettingsForm from '@/components/hr/LeaveSettingsForm.vue'
 import ShiftSettingsForm from '@/components/hr/shifts/ShiftSettingsForm.vue'
+import InsuranceProvidersCard from '@/components/hr/insurance/InsuranceProvidersCard.vue'
+import InsuranceSettingsForm from '@/components/hr/insurance/InsuranceSettingsForm.vue'
 import WarningSettingsForm from '@/components/hr/warnings/WarningSettingsForm.vue'
 import WarningTypesCard from '@/components/hr/warnings/WarningTypesCard.vue'
 import EosCaseMapTable from '@/components/hr/payroll/EosCaseMapTable.vue'
@@ -58,6 +60,19 @@ async function reloadWarningTypes() {
   if (result.isError) throw result.error
 }
 const canManageWarnings = computed(() => can('hr.warnings.manage'))
+const insuranceSettings = useHrInsuranceSettings(() => shows('insurance'))
+const insuranceProviders = useHrInsuranceProviders('all', () => shows('insurance'))
+async function reloadInsuranceSettings() {
+  const result = await insuranceSettings.refetch()
+  if (result.isError) throw result.error
+  if (!result.data) throw new Error(t('errors.generic'))
+  return result.data
+}
+async function reloadInsuranceProviders() {
+  const result = await insuranceProviders.refetch()
+  if (result.isError) throw result.error
+}
+const canManageInsurance = computed(() => can('hr.insurance.manage'))
 const canConfig = computed(() => can('hr.payroll.config'))
 const settings = useHrPayrollSettings()
 const structures = useHrPayrollStructures()
@@ -203,6 +218,14 @@ function retry() {
       </SharedPageState>
       <SharedPageState :loading="warningTypes.isLoading.value" :error="warningTypes.data.value ? null : warningTypes.error.value" :empty="!warningTypes.data.value" @retry="warningTypes.refetch">
         <WarningTypesCard v-if="warningTypes.data.value" :types="warningTypes.data.value.items" :can-edit="canManageWarnings" :reload-types="reloadWarningTypes" />
+      </SharedPageState>
+    </section>
+    <section v-if="shows('insurance')" id="insurance" class="liwan-settings-anchor grid gap-(--liwan-gap-card)">
+      <SharedPageState :loading="insuranceSettings.isLoading.value" :error="insuranceSettings.data.value ? null : insuranceSettings.error.value" :empty="!insuranceSettings.data.value" @retry="insuranceSettings.refetch">
+        <InsuranceSettingsForm v-if="insuranceSettings.data.value" :settings="insuranceSettings.data.value" :can-edit="canManageInsurance" :reload-settings="reloadInsuranceSettings" />
+      </SharedPageState>
+      <SharedPageState :loading="insuranceProviders.isLoading.value" :error="insuranceProviders.data.value ? null : insuranceProviders.error.value" :empty="!insuranceProviders.data.value" @retry="insuranceProviders.refetch">
+        <InsuranceProvidersCard v-if="insuranceProviders.data.value" :providers="insuranceProviders.data.value.items" :can-edit="canManageInsurance" :reload-providers="reloadInsuranceProviders" />
       </SharedPageState>
     </section>
     </template>

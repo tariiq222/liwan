@@ -6,7 +6,7 @@ import { moduleUiCapabilities, moduleUiPreviewData } from './module-ui-preview-d
 import { hrPayrollPreviewWrite } from './hr-payroll-ui-preview-data.mjs'
 import { financeGapsPreview } from './finance-documents-ui-preview-data.mjs'
 import { capabilitiesForRequest } from './mock-capabilities.mjs'
-import { hrWarningsPreviewWrite } from './hr-areas-ui-preview-data.mjs'
+import { hrInsurancePreviewWrite, hrWarningsPreviewWrite } from './hr-areas-ui-preview-data.mjs'
 import { crmPreviewWrite } from './crm-ui-preview-data.mjs'
 import { INBOX_CAPABILITIES, INBOX_FEATURES, inboxPreviewData, resetInboxPreview } from './inbox-ui-preview-data.mjs'
 import { handleCommercial } from './commercial-mock-routes.mjs'
@@ -33,7 +33,7 @@ const CAPABILITIES = [
 ]
 
 // The HR area sub-features (`hr.<area>`) gate the recruitment, shifts, onboarding, offboarding, assets and warnings pages on top of their capabilities.
-const HR_AREA_FEATURES = ['hr.assets', 'hr.offboarding', 'hr.onboarding', 'hr.payroll', 'hr.recruitment', 'hr.shifts', 'hr.warnings']
+const HR_AREA_FEATURES = ['hr.assets', 'hr.offboarding', 'hr.onboarding', 'hr.payroll', 'hr.recruitment', 'hr.shifts', 'hr.warnings', 'hr.insurance']
 
 const ME = {
   id: 2, name: 'Admin', login: 'admin', email: 'admin@example.com', lang: 'ar_001', tz: 'Asia/Riyadh',
@@ -480,6 +480,13 @@ async function handle(req, res) {
     let body = {}
     try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
     const write = hrWarningsPreviewWrite(method, path, body)
+    if (write) return json(res, write.status, write.body)
+  }
+
+  if (process.env.MODULE_UI_PREVIEW === '1' && method !== 'GET' && /^\/api\/v1\/(hr\/insurance|__mock\/reset-insurance$)/.test(path)) {
+    let body = {}
+    try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
+    const write = hrInsurancePreviewWrite(method, path, body)
     if (write) return json(res, write.status, write.body)
   }
 

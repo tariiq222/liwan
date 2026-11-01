@@ -411,6 +411,8 @@
       "assetsDesc": "الأصول المسلّمة إليك",
       "warnings": "إنذاراتي",
       "warningsDesc": "الإنذارات الإدارية الصادرة بحقك",
+      "insurance": "تأميني",
+      "insuranceDesc": "تغطيتك التأمينية الطبية",
       "schedule": "جدول عملي",
       "scheduleDesc": "تكليفات وجداول عملك الحالية والقادمة",
       "noEmployee": "لا يوجد ملف موظف مرتبط بحسابك",
@@ -461,7 +463,8 @@
       "leaveApproved": "تم اعتماد طلب إجازتك ({dates})",
       "leaveRefused": "تم رفض طلب إجازتك ({dates})",
       "onboardingStep": "تم إسناد خطوة تهيئة إليك: {step}",
-      "warningIssued": "صدر بحقك إنذار إداري: {type}"
+      "warningIssued": "صدر بحقك إنذار إداري: {type}",
+      "insurancePlanExpiring": "خطة التأمين «{plan}» توشك على الانتهاء"
     },
     "lifecycleErrors": {
       "manager_missing": "عيّن مدير الموظف أولًا من صفحة الموظف ثم أعد المحاولة.",

@@ -1,6 +1,7 @@
 import {
   HrEmployeeSchema,
   HrEquipmentListSchema,
+  HrInsuranceOwnListSchema,
   HrLeaveBalanceListSchema,
   HrLeaveListSchema,
   HrMyPayslipListSchema,
@@ -91,6 +92,18 @@ export const hrPersonalEntries: AppPersonalEntry[] = [
         if (!await profile(api)) return missingEmployee(t)
         const warnings = await api('/api/v1/hr/warnings/me', { query: { limit: 3 }, schema: HrWarningListSchema })
         return { value: String(warnings.total), caption: t('hr.self.warningsDesc'), rows: warnings.items.map(warning => ({ id: warning.id, label: warning.type.name, to: '/account/warnings', caption: t(`hrWarnings.state.${warning.state}`) })) }
+      },
+    },
+  },
+  {
+    id: 'hr-insurance', section: 'profile', labelKey: 'hr.self.insurance', descriptionKey: 'hr.self.insuranceDesc', icon: 'i-lucide-heart-pulse',
+    to: '/account/insurance', capability: 'hr.employees.read', feature: 'hr.insurance',
+    summary: {
+      queryKey: ['hr', 'insurance', 'personal'],
+      async load(api, t) {
+        if (!await profile(api)) return missingEmployee(t)
+        const cover = await api('/api/v1/hr/insurance/me', { query: { limit: 3 }, schema: HrInsuranceOwnListSchema })
+        return { value: String(cover.total), caption: t('hr.self.insuranceDesc'), rows: cover.items.map(enrollment => ({ id: enrollment.id, label: enrollment.plan.name, to: '/account/insurance', caption: t(`hrInsurance.enrollmentState.${enrollment.state}`) })) }
       },
     },
   },
