@@ -69,6 +69,16 @@ def _require_no_payments(invoice):
         )
 
 
+def _asset_profile(profile_id, index, tax_use, company):
+    """The asset profile a vendor-bill line capitalises into; creating the asset is the fixed-assets capability."""
+    if tax_use != 'purchase':
+        raise ApiError(422, 'invalid', 'only a vendor bill line can create an asset', field=f'lines[{index}].asset_profile_id')
+    require_capability('finance.assets.manage')
+    return company_records(
+        'account.asset.profile', [profile_id], f'lines[{index}].asset_profile_id', [('company_id', '=', company.id)],
+    )
+
+
 def _line_command(line, index, tax_use, company):
     values = {key: line[key] for key in ('name', 'quantity', 'price_unit', 'discount')}
     if 'tax_ids' in line:
@@ -83,6 +93,8 @@ def _line_command(line, index, tax_use, company):
             request.env['account.account']._check_company_domain(company),
         )
         values['account_id'] = account.id
+    if 'asset_profile_id' in line:
+        values['asset_profile_id'] = _asset_profile(line['asset_profile_id'], index, tax_use, company).id
     if 'analytic_distribution' in line:
         values['analytic_distribution'] = distribution_values(
             line['analytic_distribution'], f'lines[{index}].analytic_distribution', company=company,
@@ -306,6 +318,9 @@ class FinanceInvoiceController(http.Controller):
         # configuration errors in the same refusal, all of them in details.detail.
         lock = _lock_context(invoice)
         require_open_period(**lock, field='invoice_date')
+        if invoice.invoice_line_ids.filtered(lambda line: line.asset_profile_id and not line.asset_id):
+            # Posting creates the assets of the capitalised lines.
+            require_capability('finance.assets.manage')
         attempt(invoice.action_post, move=invoice, **lock)
         request.env['liwan.finance.audit.event']._liwan_log(
             'invoice_posted', invoice, fields_written=('state',), outcome=invoice.state,

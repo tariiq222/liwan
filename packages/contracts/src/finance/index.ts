@@ -49,6 +49,9 @@ export const FinanceInvoiceLineSchema = z.object({
   price_subtotal: z.number(),
   price_total: z.number(),
   analytic_distribution: z.array(FinanceAnalyticShareSchema),
+  /** The asset profile and the asset a vendor-bill line capitalises into; null for a caller who cannot read fixed assets. */
+  asset_profile: FinanceRefSchema.nullable(),
+  asset: FinanceRefSchema.nullable(),
 }).strict()
 
 /** ZATCA facts of a Saudi sale document; the QR payload is base64 TLV, null until the document is posted. */
@@ -83,6 +86,8 @@ export const FinancePaymentSchema = z.object({
   amount: z.number(),
   /** What a posted payment still holds open on the partner's account (an advance, an overpayment); zero otherwise. */
   unallocated: z.number(),
+  /** The exchange gain (positive) or loss (negative) in the company currency that settling foreign-currency items produced. */
+  exchange_difference: z.number(),
   /** The invoices it is set against now. */
   invoices: z.array(FinanceRefSchema),
   ...financeActions(FinancePaymentActionSchema),
@@ -268,3 +273,10 @@ export * from './setup'
 export * from './statements'
 export * from './write'
 export * from './zatca'
+
+/** POST /finance/payments/transfer: the two posted payments of one transfer. */
+export const FinancePaymentTransferResultSchema = z.object({
+  outbound: FinancePaymentSchema,
+  inbound: FinancePaymentSchema,
+}).strict()
+export type FinancePaymentTransferResult = z.infer<typeof FinancePaymentTransferResultSchema>

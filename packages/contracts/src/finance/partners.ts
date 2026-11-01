@@ -38,3 +38,30 @@ export type FinancePartner = z.infer<typeof FinancePartnerSchema>
 export type FinancePartnerList = z.infer<typeof FinancePartnerListSchema>
 export type FinancePartnerCreate = z.infer<typeof FinancePartnerCreateSchema>
 export type FinancePartnerPatch = z.infer<typeof FinancePartnerPatchSchema>
+
+/** A bank account of a customer or vendor: the sanitized number (an IBAN for Saudi banks) and its bank. */
+export const FinancePartnerBankSchema = z.object({
+  id,
+  acc_number: z.string(),
+  holder_name: z.string(),
+  bank_name: z.string(),
+  bic: z.string(),
+  active: z.boolean(),
+}).strict()
+
+export const FinancePartnerBankListSchema = list(FinancePartnerBankSchema)
+
+export const FinancePartnerBankCreateSchema = z.object({
+  acc_number: text.trim().min(1).max(40),
+  holder_name: text.optional(),
+  bank_name: text.optional(),
+  bic: text.optional(),
+}).strict()
+
+export const FinancePartnerBankPatchSchema = FinancePartnerBankCreateSchema.partial().strict()
+  .refine(requirePatchField, PATCH_MESSAGE)
+
+export type FinancePartnerBank = z.infer<typeof FinancePartnerBankSchema>
+export type FinancePartnerBankList = z.infer<typeof FinancePartnerBankListSchema>
+export type FinancePartnerBankCreate = z.infer<typeof FinancePartnerBankCreateSchema>
+export type FinancePartnerBankPatch = z.infer<typeof FinancePartnerBankPatchSchema>

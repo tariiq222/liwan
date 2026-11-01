@@ -68,7 +68,7 @@ describe('draft validation', () => {
 describe('editor state', () => {
   const record = {
     partner: { id: 5, name: 'Acme' }, invoice_date: '2026-04-01', invoice_date_due: null, ref: 'R1',
-    lines: [{ id: 1, name: 'Item', account: { id: 40, name: 'Sales' }, quantity: 3, price_unit: 10, discount: 0, taxes: [{ id: 2, name: 'VAT' }], price_subtotal: 30, price_total: 34.5, analytic_distribution: [] }],
+    lines: [{ id: 1, name: 'Item', account: { id: 40, name: 'Sales' }, quantity: 3, price_unit: 10, discount: 0, taxes: [{ id: 2, name: 'VAT' }], price_subtotal: 30, price_total: 34.5, analytic_distribution: [], asset_profile: null, asset: null }],
   } as unknown as FinanceInvoiceDetail
 
   it('loads a record with its taxes and account so a patch keeps them', () => {

@@ -21,9 +21,11 @@ from odoo.addons.liwan_finance.serializers.payment import (
     parse_payment_patch,
     parse_payment_register,
     parse_payment_standalone,
+    parse_payment_transfer,
 )
 
 PAYMENT_JOURNAL_TYPES = ('bank', 'cash', 'credit')
+TRANSFER_JOURNAL_TYPES = ('bank', 'cash')
 # Cancelled and rejected payments are final; only they can be reset to draft.
 REVIVABLE_STATES = ('canceled', 'rejected')
 
@@ -132,6 +134,27 @@ def _payment_values(parsed, journal, company):
         # Odoo does not refuse a payment in a closed period: it silently moves the payment date.
         raise period_locked(field='payment_date')
     return values
+
+
+def _transfer_journal(journal_id, field, company):
+    return company_records(
+        'account.journal', [journal_id], field,
+        [*request.env['account.journal']._check_company_domain(company), ('type', 'in', TRANSFER_JOURNAL_TYPES)],
+    )
+
+
+def _transfer_leg(payment_type, journal, transfer_account, parsed):
+    """One posted payment of a transfer: money leaves or enters ``journal`` against the company's transfer account."""
+    payment = request.env['account.payment'].create({
+        'payment_type': payment_type,
+        'journal_id': journal.id,
+        'amount': parsed['amount'],
+        'date': parsed['payment_date'],
+        'memo': parsed.get('memo') or False,
+        'destination_account_id': transfer_account.id,
+    })
+    payment.action_post()
+    return payment
 
 
 def _open_counterpart(payment):
@@ -251,6 +274,40 @@ class FinancePaymentController(http.Controller):
         payment = attempt(create, day=parsed['payment_date'], journal=journal)
         request.env['liwan.finance.audit.event']._liwan_log('payment_created', payment, outcome=payment.state)
         return request.make_json_response(dump_payment(payment), status=201)
+
+    @http.route('/api/v1/finance/payments/transfer', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature('finance.enabled', operation='write')
+    @idempotent
+    def create_transfer(self, **payload):
+        """Moves money between two bank or cash journals through the company's transfer account.
+
+        Two posted payments (out of one journal, into the other) are paired and their transfer-account items
+        are reconciled, so the transfer account nets to zero.
+        """
+        require_capability('finance.payments.manage')
+        parsed = parse_payment_transfer(payload)
+        company = request.env.company
+        source = _transfer_journal(parsed['from_journal_id'], 'from_journal_id', company)
+        target = _transfer_journal(parsed['to_journal_id'], 'to_journal_id', company)
+        if (source.currency_id or company.currency_id) != (target.currency_id or company.currency_id):
+            raise ApiError(422, 'journal_currency_mismatch', 'both journals must use the same currency', field='to_journal_id')
+        transfer_account = company.transfer_account_id
+        if not transfer_account:
+            raise ApiError(422, 'transfer_account_missing', 'the company has no transfer account: choose one in the finance setup')
+
+        def create():
+            outbound = _transfer_leg('outbound', source, transfer_account, parsed)
+            inbound = _transfer_leg('inbound', target, transfer_account, parsed)
+            outbound.paired_internal_transfer_payment_id = inbound
+            inbound.paired_internal_transfer_payment_id = outbound
+            (outbound | inbound).move_id.line_ids.filtered(lambda line: line.account_id == transfer_account).reconcile()
+            return outbound, inbound
+
+        outbound, inbound = attempt(create, day=parsed['payment_date'], journal=source)
+        for payment in (outbound, inbound):
+            request.env['liwan.finance.audit.event']._liwan_log('transfer_created', payment, outcome=payment.state)
+        return request.make_json_response({'outbound': dump_payment(outbound), 'inbound': dump_payment(inbound)}, status=201)
 
     @http.route('/api/v1/finance/payments/<int:payment_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler

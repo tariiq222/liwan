@@ -72,7 +72,7 @@ describe('finance analytic schemas', () => {
       amount_untaxed: 1000, amount_tax: 150, amount_total: 1150, amount_residual: 0, ref: '', debit_origin: null, credit_origin: null, zatca: null, allowed_actions: [], blocked_actions: [],
       lines: [{
         id: 1, name: 'x', account: null, quantity: 1, price_unit: 1000, discount: 0, taxes: [],
-        price_subtotal: 1000, price_total: 1150, analytic_distribution: [share],
+        price_subtotal: 1000, price_total: 1150, analytic_distribution: [share], asset_profile: null, asset: null,
       }],
     }
     expect(FinanceInvoiceDetailSchema.parse(detail)).toEqual(detail)

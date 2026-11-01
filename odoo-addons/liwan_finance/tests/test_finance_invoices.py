@@ -13,7 +13,7 @@ INVOICE_KEYS = {
 }
 LINE_KEYS = {
     'id', 'name', 'account', 'quantity', 'price_unit', 'discount', 'taxes', 'price_subtotal', 'price_total',
-    'analytic_distribution',
+    'analytic_distribution', 'asset_profile', 'asset',
 }
 
 

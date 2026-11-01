@@ -20,6 +20,7 @@ from . import (
     finance_journals,
     finance_lookups,
     finance_mis_reports,
+    finance_partner_banks,
     finance_partners,
     finance_payment_terms,
     finance_payments,

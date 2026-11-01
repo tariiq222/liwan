@@ -15,7 +15,7 @@ from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_api.serializers.common import iso
 
 WRITABLE_MOVE_TYPES = ('out_invoice', 'in_invoice', 'out_refund', 'in_refund')
-LINE_FIELDS = frozenset({'name', 'quantity', 'price_unit', 'discount', 'tax_ids', 'account_id', 'analytic_distribution'})
+LINE_FIELDS = frozenset({'name', 'quantity', 'price_unit', 'discount', 'tax_ids', 'account_id', 'analytic_distribution', 'asset_profile_id'})
 EDITABLE_FIELDS = frozenset({'partner_id', 'invoice_date', 'invoice_date_due', 'payment_term_id', 'currency', 'ref', 'lines'})
 # The journal is chosen when the document is created; moving a draft to another journal would renumber it.
 CREATE_FIELDS = EDITABLE_FIELDS | {'move_type', 'journal_id'}
@@ -41,7 +41,15 @@ def dump_invoice(move):
     }
 
 
+def _can_read_assets(line):
+    """Whether the caller reads fixed assets: only then do the asset profile and the asset of a bill line show."""
+    return line.env['liwan.access.service']._liwan_has_capability(
+        line.env.user, 'finance.assets.read', company=line.company_id,
+    )
+
+
 def dump_invoice_line(line, shares):
+    assets = _can_read_assets(line)
     return {
         'id': line.id,
         'name': line.name or '',
@@ -53,6 +61,8 @@ def dump_invoice_line(line, shares):
         'price_subtotal': line.price_subtotal,
         'price_total': line.price_total,
         'analytic_distribution': shares[line],
+        'asset_profile': dump_ref(line.asset_profile_id) if assets else None,
+        'asset': dump_ref(line.asset_id) if assets else None,
     }
 
 
@@ -106,6 +116,8 @@ def _parse_line(raw, index):
         line['account_id'] = parse_id(raw['account_id'], f'{prefix}.account_id')
     if 'analytic_distribution' in raw:
         line['analytic_distribution'] = parse_distribution(raw['analytic_distribution'], f'{prefix}.analytic_distribution')
+    if raw.get('asset_profile_id') is not None:
+        line['asset_profile_id'] = parse_id(raw['asset_profile_id'], f'{prefix}.asset_profile_id')
     return line
 
 

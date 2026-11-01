@@ -13,7 +13,7 @@ SETUP_MANAGE = 'finance.setup.manage'
 COMPANY_FISCAL_FIELDS = frozenset({
     'fiscalyear_last_day', 'fiscalyear_last_month',
     'fiscalyear_lock_date', 'tax_lock_date', 'sale_lock_date', 'purchase_lock_date',
-    'tax_calculation_rounding_method',
+    'tax_calculation_rounding_method', 'transfer_account_id',
 })
 
 

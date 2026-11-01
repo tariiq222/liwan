@@ -14,6 +14,7 @@ from odoo.addons.liwan_api.controllers.common import ApiError
 REGISTER_FIELDS = frozenset({'invoice_ids', 'amount', 'payment_date', 'journal_id', 'payment_method_line_id', 'memo'})
 STANDALONE_FIELDS = frozenset({'payment_type', 'partner_type', 'partner_id', 'amount', 'payment_date', 'journal_id', 'payment_method_line_id', 'memo'})
 PAYMENT_PATCH_FIELDS = frozenset({'amount', 'payment_date', 'journal_id', 'payment_method_line_id', 'memo'})
+TRANSFER_FIELDS = frozenset({'from_journal_id', 'to_journal_id', 'amount', 'payment_date', 'memo'})
 ALLOCATE_FIELDS = frozenset({'invoice_ids', 'payment_ids'})
 PAYMENT_TYPES = ('inbound', 'outbound')
 PARTNER_TYPES = ('customer', 'supplier')
@@ -40,6 +41,21 @@ def unallocated_amount(payment):
     return abs(sum(counterpart_lines(payment).mapped('amount_residual_currency')))
 
 
+def exchange_difference(payment):
+    """The exchange gain (positive) or loss (negative), in the company currency, its settlements produced.
+
+    Odoo books it when items in a foreign currency are reconciled at another rate; the entries sit on the
+    company's two exchange difference accounts.
+    """
+    lines = counterpart_lines(payment)
+    moves = (lines.matched_debit_ids | lines.matched_credit_ids).exchange_move_id
+    company = payment.company_id
+    accounts = company.income_currency_exchange_account_id | company.expense_currency_exchange_account_id
+    # Credits on the gain account and debits on the loss account are results for and against the company.
+    total = sum(line.credit - line.debit for line in moves.line_ids if line.account_id in accounts)
+    return company.currency_id.round(total)
+
+
 def dump_payment(payment, write_block=UNSET):
     """``write_block`` is the tenant's write refusal when the caller already knows it (a list asks once)."""
     unallocated = payment.currency_id.round(unallocated_amount(payment))
@@ -57,6 +73,7 @@ def dump_payment(payment, write_block=UNSET):
         'currency': payment.currency_id.name,
         'amount': payment.amount,
         'unallocated': unallocated,
+        'exchange_difference': exchange_difference(payment),
         'invoices': [dump_ref(invoice) for invoice in invoices],
         **payment.env['liwan.finance.actions']._liwan_payment_actions(payment, unallocated, invoices, write_block),
     }
@@ -118,6 +135,23 @@ def parse_payment_patch(payload):
     if not payload:
         raise ApiError(422, 'invalid', 'no fields to update')
     return _parse_fields(payload)
+
+
+def parse_payment_transfer(payload):
+    """A transfer of money between two of the company's bank or cash journals."""
+    reject_unknown(payload, TRANSFER_FIELDS)
+    require_keys(payload, ('from_journal_id', 'to_journal_id', 'amount', 'payment_date'))
+    parsed = {
+        'from_journal_id': parse_id(payload['from_journal_id'], 'from_journal_id'),
+        'to_journal_id': parse_id(payload['to_journal_id'], 'to_journal_id'),
+        'amount': parse_number(payload['amount'], 'amount', minimum=0, exclusive_minimum=True),
+        'payment_date': parse_day(payload['payment_date'], 'payment_date'),
+    }
+    if 'memo' in payload:
+        parsed['memo'] = parse_text(payload['memo'], 'memo')
+    if parsed['from_journal_id'] == parsed['to_journal_id']:
+        raise ApiError(422, 'invalid', 'a transfer needs two different journals', field='to_journal_id')
+    return parsed
 
 
 def parse_payment_allocation(payload):

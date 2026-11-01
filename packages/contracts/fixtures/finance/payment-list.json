@@ -13,6 +13,7 @@
       ],
       "currency": "SAR",
       "date": "2026-10-19",
+      "exchange_difference": 0.0,
       "id": 1,
       "invoices": [
         {
@@ -48,6 +49,7 @@
       ],
       "currency": "SAR",
       "date": "2026-10-19",
+      "exchange_difference": 0.0,
       "id": 5,
       "invoices": [
         {
