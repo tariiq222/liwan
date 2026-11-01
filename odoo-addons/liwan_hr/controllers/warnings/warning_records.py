@@ -13,11 +13,13 @@ from odoo.http import request
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
+    declare_read_capability_scope,
     parse_page,
     parse_positive_int,
     requires_capability,
     requires_feature,
 )
+from odoo.addons.liwan_hr.serializers.assets.common import ref
 from odoo.addons.liwan_hr.serializers.warnings.warning import (
     dump_standing,
     dump_warning,
@@ -101,6 +103,15 @@ class HrWarningController(http.Controller):
         return request.make_json_response(dump_warning(warning), status=201)
 
     # The caller's own warnings come before the id routes; `me` is not an id, so the order is for the reader.
+    @http.route('/api/v1/hr/warnings/candidates', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('hr.enabled', 'hr.warnings', operation='read')
+    def list_candidates(self, **_):
+        if not request.env[WARNING]._liwan_can_issue_any(request.env.company):
+            raise ApiError(403, 'forbidden', 'you may not issue warnings')
+        employees = request.env[WARNING]._liwan_candidates(request.env.company)
+        return {'items': [ref(employee) for employee in employees], 'total': len(employees)}
+
     @http.route('/api/v1/hr/warnings/me', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('hr.enabled', 'hr.warnings', operation='read')
@@ -141,9 +152,13 @@ class HrWarningController(http.Controller):
     @http.route('/api/v1/hr/warnings/<int:warning_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('hr.enabled', 'hr.warnings', operation='read')
-    @requires_capability('hr.warnings.read')
     def get_warning(self, warning_id, **_):
-        return dump_warning(_warning(warning_id))
+        # Readers see their companies; a manager sees what he drafted. The record rules decide the rows.
+        declare_read_capability_scope('hr.warnings.read')
+        warning = _warning(warning_id)
+        if not warning._liwan_can_read_detail():
+            raise ApiError(403, 'forbidden', FORBIDDEN)
+        return dump_warning(warning)
 
     @http.route('/api/v1/hr/warnings/<int:warning_id>/issue', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

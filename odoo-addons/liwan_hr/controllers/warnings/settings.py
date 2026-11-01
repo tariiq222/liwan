@@ -16,6 +16,10 @@ from odoo.addons.liwan_hr.serializers.warnings.settings import (
 SETTINGS = 'liwan.hr.warning.settings'
 
 
+def _can_issue():
+    return request.env['liwan.hr.warning']._liwan_can_issue_any(request.env.company)
+
+
 class HrWarningSettingsController(http.Controller):
 
     @http.route('/api/v1/hr/warnings/settings', type='json2', auth='user', methods=['GET'], readonly=True)
@@ -23,7 +27,7 @@ class HrWarningSettingsController(http.Controller):
     @requires_feature('hr.enabled', 'hr.warnings', operation='read')
     @requires_capability('hr.employees.read', 'hr.warnings.manage', match='any')
     def get_settings(self, **_):
-        return dump_settings(request.env[SETTINGS]._liwan_current())
+        return dump_settings(request.env[SETTINGS]._liwan_current(), _can_issue())
 
     @http.route('/api/v1/hr/warnings/settings', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
@@ -35,4 +39,4 @@ class HrWarningSettingsController(http.Controller):
         before = request.env['liwan.hr.audit.event']._liwan_policy_snapshot(model._liwan_current())
         row = model.action_save(vals, revision)
         request.env['liwan.hr.audit.event']._liwan_log('warning_settings_changed', row, before)
-        return dump_settings(row)
+        return dump_settings(row, _can_issue())

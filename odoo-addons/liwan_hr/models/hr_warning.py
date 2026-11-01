@@ -148,6 +148,33 @@ class LiwanHrWarning(models.Model):
         )
 
     @api.model
+    def _liwan_can_issue_any(self, company):
+        """Whether the caller may warn someone in ``company``: HR, or a direct manager under the manager policy."""
+        if self.env.is_superuser() or self._liwan_is_hr(company):
+            return True
+        policy = self.env['liwan.hr.warning.settings']._liwan_effective(company)
+        if policy['warnings_issued_by'] != 'manager_and_hr':
+            return False
+        return bool(self.env['hr.employee'].search_count([
+            ('parent_id.user_id', '=', self.env.uid), ('company_id', '=', company.id),
+        ]))
+
+    @api.model
+    def _liwan_candidates(self, company):
+        """The active employees of ``company`` the caller may warn, by name."""
+        employees = self.env['hr.employee'].search([('company_id', '=', company.id)], order='name, id')
+        return employees.filtered(self._liwan_can_issue)
+
+    def _liwan_can_read_detail(self):
+        """The warnings readers read any warning of their companies; a manager reads the ones he drafted."""
+        self.ensure_one()
+        return self.env.is_superuser() or self._liwan_is_hr(self.company_id) or self.env[
+            'liwan.access.service'
+        ]._liwan_has_capability(self.env.user, 'hr.warnings.read', company=self.company_id) or (
+            self.create_uid == self.env.user
+        )
+
+    @api.model
     def _liwan_can_read_standing(self, employee):
         """The escalation figure is shown to whoever may warn the employee and to the warnings readers."""
         return self._liwan_can_issue(employee) or self.env['liwan.access.service']._liwan_has_capability(

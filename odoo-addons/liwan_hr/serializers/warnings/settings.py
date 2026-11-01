@@ -11,7 +11,8 @@ from odoo.addons.liwan_hr.models.warning_settings import (
 from odoo.addons.liwan_hr.serializers.assets.common import reject_unknown
 
 
-def dump_settings(row):
+def dump_settings(row, can_issue):
+    """The policy, plus whether the caller may issue warnings in this company (HR, or a manager under the policy)."""
     return {
         'warnings_issued_by': row.warnings_issued_by if row else DEFAULT_ISSUED_BY,
         'warnings_employee_acknowledgement': (
@@ -20,6 +21,7 @@ def dump_settings(row):
         'warnings_escalation_window_months': (
             row.warnings_escalation_window_months if row else DEFAULT_WINDOW_MONTHS
         ),
+        'can_issue': can_issue,
         'revision': row.revision if row else 0,
     }
 

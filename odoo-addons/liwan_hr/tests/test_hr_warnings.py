@@ -17,7 +17,8 @@ WARNING_KEYS = {
 }
 TYPE_KEYS = {'id', 'name', 'severity', 'active', 'revision'}
 SETTINGS_KEYS = {
-    'warnings_issued_by', 'warnings_employee_acknowledgement', 'warnings_escalation_window_months', 'revision',
+    'warnings_issued_by', 'warnings_employee_acknowledgement', 'warnings_escalation_window_months', 'can_issue',
+    'revision',
 }
 STANDING_KEYS = {'employee_id', 'window_months', 'active_count', 'highest_severity'}
 
@@ -175,7 +176,7 @@ class TestHrWarnings(LiwanHrCase):
         self.assertEqual(
             body,
             {'warnings_issued_by': 'hr_only', 'warnings_employee_acknowledgement': 'optional',
-             'warnings_escalation_window_months': 12, 'revision': 0},
+             'warnings_escalation_window_months': 12, 'can_issue': False, 'revision': 0},
         )
         change = {
             'warnings_issued_by': 'manager_and_hr', 'warnings_employee_acknowledgement': 'required',
@@ -262,7 +263,10 @@ class TestHrWarnings(LiwanHrCase):
         )
         # A manager reads no warning list and cannot withdraw an issued warning.
         self.assert_status(self.call(self.manager, 'GET', WARNINGS), 403, 'forbidden')
-        self.assert_status(self.call(self.manager, 'GET', f"{WARNINGS}/{issued['id']}"), 403, 'forbidden')
+        # He reads the warning he drafted, never one HR drafted.
+        self.assert_status(self.call(self.manager, 'GET', f"{WARNINGS}/{issued['id']}"), 200)
+        self.assert_status(self.call(self.manager, 'GET', f"{WARNINGS}/{hr_draft['id']}"), 404, 'not_found')
+        self.assert_status(self.call(self.report_user, 'GET', f"{WARNINGS}/{issued['id']}"), 403, 'forbidden')
         res = self.call(self.manager, 'POST', f"{WARNINGS}/{issued['id']}/withdraw", {
             'revision': issued['revision'], 'reason': 'Changed my mind',
         })
@@ -273,6 +277,29 @@ class TestHrWarnings(LiwanHrCase):
             'revision': 1, 'reason': 'Drafted by mistake',
         })
         self.assertEqual(self.assert_status(res, 200).json()['state'], 'withdrawn')
+
+    def test_settings_tell_the_caller_whether_they_may_issue(self):
+        self.policy(issued_by='hr_only')
+        expected = {self.hr: True, self.manager: False, self.other_user: False, self.report_user: False}
+        for user, can in expected.items():
+            self.assertEqual(self.call(user, 'GET', SETTINGS).json()['can_issue'], can, user.login)
+        self.policy(issued_by='manager_and_hr')
+        # Under the manager policy only a user with reports gains the right; HR keeps it.
+        expected[self.manager] = True
+        for user, can in expected.items():
+            self.assertEqual(self.call(user, 'GET', SETTINGS).json()['can_issue'], can, user.login)
+
+    def test_candidates_are_the_employees_the_caller_may_warn(self):
+        self.policy(issued_by='manager_and_hr')
+        mine = self.assert_status(self.call(self.manager, 'GET', f'{WARNINGS}/candidates'), 200).json()
+        self.assertEqual(set(mine), {'items', 'total'})
+        self.assertEqual({item['id'] for item in mine['items']}, {self.report_emp.id, self.no_account.id})
+        everyone = {item['id'] for item in self.call(self.hr, 'GET', f'{WARNINGS}/candidates').json()['items']}
+        self.assertIn(self.other_emp.id, everyone)
+        self.assertNotIn(self.hr_emp.id, everyone)
+        self.assert_status(self.call(self.other_user, 'GET', f'{WARNINGS}/candidates'), 403, 'forbidden')
+        self.policy(issued_by='hr_only')
+        self.assert_status(self.call(self.manager, 'GET', f'{WARNINGS}/candidates'), 403, 'forbidden')
 
     def test_nobody_warns_their_own_employee_record(self):
         self.policy(issued_by='manager_and_hr')
@@ -419,6 +446,21 @@ class TestHrWarnings(LiwanHrCase):
         self.issued(self.no_account)
         self.assertEqual(self.bell(self.other_user), [])
 
+    def test_a_role_with_only_employee_read_still_gets_the_bell(self):
+        plain = self._user('warn_plain', [])
+        role = self.env['liwan.access.role'].create({
+            'key': 'warn_plain_role', 'name_ar': 'plain', 'name_en': 'plain', 'type': 'custom', 'assignable': True,
+            'permission_ids': [(6, 0, self.env['liwan.access.permission'].search([('key', '=', 'hr.employees.read')]).ids)],
+        })
+        self.env['liwan.access.service']._liwan_replace_assignments(plain, [{
+            'role_id': role.id, 'company_id': self.company.id,
+        }])
+        employee = self.env['hr.employee'].create({'name': 'Warn Plain', 'user_id': plain.id, 'company_id': self.company.id})
+        issued = self.issued(employee)
+        self.assertEqual([row['warning_id'] for row in self.bell(plain)], [issued['id']])
+        own = self.call(plain, 'GET', f'{WARNINGS}/me').json()
+        self.assertEqual([item['id'] for item in own['items']], [issued['id']])
+
     def test_every_step_is_audited_without_the_disciplinary_text(self):
         self.policy(acknowledgement='optional')
         draft = self.draft(self.hr, self.report_emp)
@@ -453,6 +495,12 @@ class TestHrWarnings(LiwanHrCase):
         }])
         body = self.assert_status(self.call(auditor, 'GET', '/api/v1/hr/payroll/audit-events'), 200).json()
         self.assertFalse([item for item in body['items'] if item['res_model'].startswith('liwan.hr.warning')])
+        # The warning events exist, and the route's total counts none of them.
+        Event = self.env['liwan.hr.audit.event']
+        self.assertTrue(Event.search_count([('res_model', '=', 'liwan.hr.warning')]))
+        self.assertEqual(body['total'], Event.search_count([
+            ('company_id', '=', self.company.id), ('res_model', 'not like', 'liwan.hr.warning%'),
+        ]))
         self.assert_status(self.call(auditor, 'GET', '/api/v1/hr/payroll/audit-events?action=warning_issued'), 422)
 
     # --- escalation figure ------------------------------------------------------------------------------
