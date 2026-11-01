@@ -29,7 +29,7 @@ describe('project settings controls contracts', () => {
       deadline_reminders_enabled: true,
       deadline_reminders_days_before: 3,
       overdue_digest_enabled: false,
-      require_charter_approval: false, close_with_open_tasks: 'block', register_status_transitions: 'sequence', change_control_mode: 'optional',
+      require_charter_approval: false, close_with_open_tasks: 'block', register_status_transitions: 'sequence', change_control_mode: 'optional', baseline_gate: 'warning',
       extensions: [],
     })
     expect(parsed.require_end_date_on_create).toBe(true)
@@ -51,7 +51,7 @@ describe('project settings controls contracts', () => {
       deadline_reminders_enabled: true,
       deadline_reminders_days_before: 1,
       overdue_digest_enabled: true,
-      require_charter_approval: false, close_with_open_tasks: 'block', register_status_transitions: 'sequence', change_control_mode: 'optional',
+      require_charter_approval: false, close_with_open_tasks: 'block', register_status_transitions: 'sequence', change_control_mode: 'optional', baseline_gate: 'warning',
       extensions: [],
     }
     expect(ProjectSettingsSchema.safeParse(full).success).toBe(true)
@@ -63,7 +63,7 @@ describe('project settings controls contracts', () => {
     const base = {
       project_creators: 'managers', default_stages: [{ name: 'A', fold: false }], require_manager_on_create: true,
       require_end_date_on_create: true, default_completion_approval: 'none', deadline_reminders_enabled: true,
-      deadline_reminders_days_before: 1, overdue_digest_enabled: true, require_charter_approval: false, close_with_open_tasks: 'block', register_status_transitions: 'sequence', change_control_mode: 'optional',
+      deadline_reminders_days_before: 1, overdue_digest_enabled: true, require_charter_approval: false, close_with_open_tasks: 'block', register_status_transitions: 'sequence', change_control_mode: 'optional', baseline_gate: 'warning',
     }
     const selection = { name: 'mode', kind: 'selection', label: 'Mode', help: null, value: 'auto', options: [{ value: 'auto', label: 'Auto' }] }
     const flag = { name: 'flag', kind: 'boolean', label: 'Flag', help: 'Hint', value: true }

@@ -1,0 +1,56 @@
+{
+  "budget_total": 0.0,
+  "change": null,
+  "currency": {
+    "decimal_places": 2,
+    "id": 3,
+    "name": "SAR",
+    "symbol": "SR"
+  },
+  "id": 1,
+  "note": "",
+  "number": 1,
+  "planned_end": null,
+  "planned_start": null,
+  "project_id": 289,
+  "taken_at": "2026-01-01T00:00:00Z",
+  "taken_by": {
+    "id": 2,
+    "name": "Mona"
+  },
+  "task_count": 4,
+  "tasks": [
+    {
+      "id": 4,
+      "name": "Late",
+      "planned_end": "2026-03-10",
+      "planned_start": "2026-03-01",
+      "planned_value_share": 0.25,
+      "task_id": 784
+    },
+    {
+      "id": 5,
+      "name": "Temporary",
+      "planned_end": "2026-03-09",
+      "planned_start": "2026-03-02",
+      "planned_value_share": 0.25,
+      "task_id": null
+    },
+    {
+      "id": 6,
+      "name": "Early",
+      "planned_end": "2026-03-20",
+      "planned_start": "2026-03-05",
+      "planned_value_share": 0.25,
+      "task_id": 785
+    },
+    {
+      "id": 7,
+      "name": "Undated",
+      "planned_end": null,
+      "planned_start": null,
+      "planned_value_share": 0.25,
+      "task_id": 786
+    }
+  ]
+}

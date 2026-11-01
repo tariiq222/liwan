@@ -14,6 +14,7 @@ export * from './notification'
 export * from './schedule'
 export * from './governance'
 export * from './change'
+export * from './baseline'
 
 export * from './project-finance'
 export * from './project-reports'
