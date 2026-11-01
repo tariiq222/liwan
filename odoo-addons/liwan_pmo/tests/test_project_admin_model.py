@@ -101,6 +101,7 @@ class TestProjectAdminModel(TransactionCase):
                 'register_status_transitions': 'sequence',
                 'change_control_mode': 'optional',
                 'baseline_gate': 'warning',
+                'evm_progress_method': 'binary',
                 'extensions': [],
             },
         )

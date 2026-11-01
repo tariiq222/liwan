@@ -42,7 +42,7 @@ def dump_baseline(baseline):
     }
 
 
-def _readable_lines(baseline):
+def readable_lines(baseline):
     """The task lines the caller may read: a task they cannot open stays out (an archived one is still read).
 
     A line of a deleted task has no live task to hide, so it stays. Without ``pmo.tasks.read`` no line is readable.
@@ -55,14 +55,14 @@ def _readable_lines(baseline):
     return lines.filtered(lambda line: not line.task_id or line.task_id.id in visible)
 
 
-def _hidden_count(baseline):
-    return baseline.task_count - len(_readable_lines(baseline))
+def hidden_count(baseline):
+    return baseline.task_count - len(readable_lines(baseline))
 
 
 def dump_baseline_detail(baseline):
     return {
         **dump_baseline(baseline),
-        'hidden_count': _hidden_count(baseline),
+        'hidden_count': hidden_count(baseline),
         'tasks': [{
             'id': line.id,
             'task_id': line.task_id.id or None,
@@ -70,7 +70,7 @@ def dump_baseline_detail(baseline):
             'planned_start': _date(line.planned_start),
             'planned_end': _date(line.planned_end),
             'planned_value_share': line.planned_value_share,
-        } for line in _readable_lines(baseline)],
+        } for line in readable_lines(baseline)],
     }
 
 
@@ -113,7 +113,7 @@ def build_variance(project):
     baseline = env['liwan.project.baseline'].search([('project_id', '=', project.id)], order='number desc', limit=1)
     if not baseline:
         return {'project_id': project.id, 'baseline': None, 'schedule': None, 'cost': None}
-    lines = _readable_lines(baseline)
+    lines = readable_lines(baseline)
     can_read_tasks = env['liwan.access.service']._liwan_has_capability(env.user, 'pmo.tasks.read')
     tasks = []
     for line in lines:
@@ -139,7 +139,7 @@ def build_variance(project):
         'schedule': {
             'project': _schedule_row(project.date_start, project.date, baseline.planned_start, baseline.planned_end),
             'tasks': tasks,
-            'hidden_count': _hidden_count(baseline),
+            'hidden_count': hidden_count(baseline),
             'late_count': sum(1 for row in tracked if (row['end_variance_days'] or 0) > 0),
             'early_count': sum(1 for row in tracked if (row['end_variance_days'] or 0) < 0),
             'undated_count': sum(1 for row in tracked if row['end_variance_days'] is None),

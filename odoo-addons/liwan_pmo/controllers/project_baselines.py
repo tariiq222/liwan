@@ -31,7 +31,7 @@ FEATURES = ('pmo.enabled', 'pmo.baselines')
 LIST_QUERY = {'limit', 'offset'}
 
 
-def _project(project_id):
+def active_project(project_id):
     # Like the other governance registers, baselines stay out of reach of an archived project.
     project = get_visible_record('project.project', project_id)
     if not project.active:
@@ -64,7 +64,7 @@ class ProjectBaselineController(http.Controller):
     def list_baselines(self, project_id):
         require_capabilities('pmo.projects.read')
         declare_read_capability_scope('pmo.projects.read')
-        project = _project(project_id)
+        project = active_project(project_id)
         args = request.httprequest.args
         unknown = set(args) - LIST_QUERY
         if unknown:
@@ -87,7 +87,7 @@ class ProjectBaselineController(http.Controller):
     def get_variance(self, project_id):
         require_capabilities('pmo.projects.read')
         declare_read_capability_scope('pmo.projects.read')
-        return build_variance(_project(project_id))
+        return build_variance(active_project(project_id))
 
     @http.route('/api/v1/projects/<int:project_id>/baselines/<int:number>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
@@ -95,7 +95,7 @@ class ProjectBaselineController(http.Controller):
     def get_baseline(self, project_id, number):
         require_capabilities('pmo.projects.read')
         declare_read_capability_scope('pmo.projects.read')
-        return dump_baseline_detail(_baseline(_project(project_id), number))
+        return dump_baseline_detail(_baseline(active_project(project_id), number))
 
     @http.route('/api/v1/projects/<int:project_id>/baselines', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -103,7 +103,7 @@ class ProjectBaselineController(http.Controller):
     def take_baseline(self, project_id, **payload):
         require_capabilities('pmo.projects.read')
         payload.pop('project_id', None)
-        project = _project(project_id)
+        project = active_project(project_id)
         vals = parse_baseline_vals(payload)
         try:
             baseline = request.env['liwan.project.baseline'].create({**vals, 'project_id': project.id})
