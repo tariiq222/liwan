@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import type { ProjectChange, ProjectChangeWrite } from '@liwan/contracts'
+import type { ProjectChange } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
-import { useChangeCategories, useCreateProjectChange, useUpdateProjectChange } from '@/composables/useProjectChanges'
+import { useChangeCategories, useCreateProjectChange, useProjectChange, useUpdateProjectChange } from '@/composables/useProjectChanges'
+import { NO_CATEGORY, useChangeDraft } from './changeDraft'
 
 // Raising a change request and editing its draft. The server owns the number, the requester and the state.
 const props = defineProps<{ projectId: number; item?: ProjectChange }>()
@@ -10,15 +11,9 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 const toast = useToast()
 const categories = useChangeCategories()
-const NO_CATEGORY = 'none'
-
-const title = ref(props.item?.title ?? '')
-const description = ref(props.item?.description ?? '')
-const reason = ref(props.item?.reason ?? '')
-const categoryId = ref<string>(props.item?.category ? String(props.item.category.id) : NO_CATEGORY)
-const scheduleDays = ref<number | undefined>(props.item?.impact_schedule_days ?? 0)
-const costInput = ref(props.item ? String(props.item.impact_cost) : '0')
-const impactScope = ref(props.item?.impact_scope ?? '')
+const draft = useChangeDraft(props.item)
+const { title, description, reason, categoryId, scheduleDays, costInput, impactScope, cost } = draft
+const live = useProjectChange(() => props.projectId, () => props.item?.id ?? null)
 
 const categoryItems = computed(() => {
   const current = props.item?.category
@@ -27,17 +22,15 @@ const categoryItems = computed(() => {
   return [{ value: NO_CATEGORY, label: t('projects.changes.noCategory') }, ...options]
 })
 const currencySymbol = computed(() => props.item?.currency?.symbol ?? '')
-const cost = computed(() => costInput.value.trim() === '' ? NaN : Number(costInput.value))
 const costError = computed(() => attempted.value && !Number.isFinite(cost.value) ? t('projects.changes.costInvalid') : undefined)
 const daysError = computed(() => attempted.value && !Number.isInteger(scheduleDays.value) ? t('projects.changes.daysInvalid') : undefined)
 const titleError = computed(() => attempted.value && !title.value.trim() ? t('projects.changes.titleRequired') : undefined)
 
-const snapshot = () => JSON.stringify([title.value, description.value, reason.value, categoryId.value, scheduleDays.value, costInput.value, impactScope.value])
-const baseline = snapshot()
 const submitted = ref(false)
 const attempted = ref(false)
 const error = ref<string | null>(null)
-const dirty = computed(() => !submitted.value && snapshot() !== baseline)
+const stale = ref(false)
+const dirty = computed(() => !submitted.value && draft.dirty.value)
 const create = useCreateProjectChange()
 const update = useUpdateProjectChange()
 const pending = computed(() => create.isPending.value || update.isPending.value)
@@ -46,19 +39,12 @@ async function submit() {
   if (!hydrated.value || pending.value) return
   attempted.value = true
   error.value = null
+  stale.value = false
   if (!title.value.trim() || !Number.isFinite(cost.value) || !Number.isInteger(scheduleDays.value)) return
-  const body: ProjectChangeWrite = {
-    title: title.value.trim(),
-    description: description.value,
-    reason: reason.value,
-    category_id: categoryId.value === NO_CATEGORY ? null : Number(categoryId.value),
-    impact_schedule_days: scheduleDays.value,
-    impact_cost: cost.value,
-    impact_scope: impactScope.value,
-  }
+  const body = draft.body()
   try {
     const item = props.item
-      ? await update.mutateAsync({ projectId: props.projectId, id: props.item.id, expected: props.item.updated_at, body })
+      ? await update.mutateAsync({ projectId: props.projectId, id: props.item.id, expected: draft.token.value!, body })
       : await create.mutateAsync({ projectId: props.projectId, body })
     submitted.value = true
     toast.add({ title: t(props.item ? 'projects.changes.toast.updated' : 'projects.changes.toast.created'), color: 'success' })
@@ -66,14 +52,29 @@ async function submit() {
     emit('saved', item)
   }
   catch (e) {
-    error.value = e instanceof ApiError && e.code === 'stale_write' ? t('projects.changes.stale') : e instanceof ApiError ? e.message : t('errors.generic')
+    stale.value = e instanceof ApiError && e.code === 'stale_write'
+    error.value = stale.value ? t('projects.changes.stale') : e instanceof ApiError ? e.message : t('errors.generic')
   }
+}
+
+// The user's explicit choice: drop the typed values and take the request as the server holds it now.
+async function reload() {
+  const result = await live.refetch()
+  if (!result.data) return
+  draft.reload(result.data)
+  error.value = null
+  stale.value = false
+  attempted.value = false
 }
 </script>
 
 <template>
   <form novalidate class="liwan-page-stack" data-testid="change-form" @submit.prevent="submit">
-    <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error" />
+    <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error">
+      <template v-if="stale" #actions>
+        <UButton type="button" color="neutral" variant="outline" data-testid="change-form-reload" :disabled="!hydrated || live.isFetching.value" :loading="live.isFetching.value" :label="t('projects.changes.reload')" @click="reload" />
+      </template>
+    </UAlert>
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedFormSection panel :title="t('projects.changes.form.detailsTitle')" :description="t('projects.changes.form.detailsDescription')">
       <div class="grid gap-(--liwan-gap-card)">

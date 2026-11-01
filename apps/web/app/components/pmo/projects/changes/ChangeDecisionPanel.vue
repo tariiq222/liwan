@@ -17,6 +17,12 @@ const { mutateAsync: act, isPending } = useProjectChangeAction()
 
 type Confirming = 'approve' | 'reject' | 'withdraw' | 'implement' | null
 const confirming = ref<Confirming>(null)
+// The token of the request as the user saw it when the confirmation opened: a refetch must not advance it.
+const seenToken = ref(props.item.updated_at)
+function ask(kind: Exclude<Confirming, null>) {
+  seenToken.value = props.item.updated_at
+  confirming.value = kind
+}
 const note = ref('')
 const noteMissing = computed(() => confirming.value === 'reject' && !note.value.trim())
 const askForNote = computed(() => confirming.value === 'approve' || confirming.value === 'reject')
@@ -37,7 +43,7 @@ function close() {
 async function run(action: ChangeAction) {
   if (!hydrated.value || isPending.value) return
   try {
-    await act({ projectId: props.item.project_id, id: props.item.id, action, expected: props.item.updated_at, note: note.value.trim() || undefined })
+    await act({ projectId: props.item.project_id, id: props.item.id, action, expected: confirming.value ? seenToken.value : props.item.updated_at, note: note.value.trim() || undefined })
     close()
     toast.add({ title: t(TOAST[action]), color: 'success' })
   }
@@ -79,8 +85,8 @@ const decidedLabel = computed(() => {
     <UAlert v-else-if="item.state === 'submitted' && item.can_decide" color="info" variant="subtle" icon="i-lucide-hourglass" data-testid="change-awaiting-you" :title="t('projects.changes.awaitingYou')">
       <template #actions>
         <div class="flex w-full flex-wrap justify-end gap-2">
-          <UButton type="button" color="neutral" variant="outline" data-testid="change-reject" :disabled="!hydrated" :label="t('projects.changes.actions.reject')" @click="confirming = 'reject'" />
-          <UButton type="button" data-testid="change-approve" :disabled="!hydrated" :label="t('projects.changes.actions.approve')" @click="confirming = 'approve'" />
+          <UButton type="button" color="neutral" variant="outline" data-testid="change-reject" :disabled="!hydrated" :label="t('projects.changes.actions.reject')" @click="ask('reject')" />
+          <UButton type="button" data-testid="change-approve" :disabled="!hydrated" :label="t('projects.changes.actions.approve')" @click="ask('approve')" />
         </div>
       </template>
     </UAlert>
@@ -92,9 +98,9 @@ const decidedLabel = computed(() => {
     <UAlert v-else-if="item.state === 'withdrawn'" color="neutral" variant="subtle" icon="i-lucide-undo-2" data-testid="change-withdrawn" :title="t('projects.changes.withdrawnBanner')" />
 
     <div v-if="!confirming && (item.can_submit || item.can_withdraw || item.can_implement)" class="flex flex-wrap justify-end gap-2">
-      <UButton v-if="item.can_withdraw" type="button" color="neutral" variant="outline" data-testid="change-withdraw" :disabled="!hydrated || isPending" :label="t('projects.changes.actions.withdraw')" @click="confirming = 'withdraw'" />
+      <UButton v-if="item.can_withdraw" type="button" color="neutral" variant="outline" data-testid="change-withdraw" :disabled="!hydrated || isPending" :label="t('projects.changes.actions.withdraw')" @click="ask('withdraw')" />
       <UButton v-if="item.can_submit" type="button" data-testid="change-submit" :disabled="!hydrated" :loading="isPending" :label="t('projects.changes.actions.submit')" @click="run('submit')" />
-      <UButton v-if="item.can_implement" type="button" data-testid="change-implement" :disabled="!hydrated" :label="t('projects.changes.actions.implement')" @click="confirming = 'implement'" />
+      <UButton v-if="item.can_implement" type="button" data-testid="change-implement" :disabled="!hydrated" :label="t('projects.changes.actions.implement')" @click="ask('implement')" />
     </div>
   </div>
 </template>
