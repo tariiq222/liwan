@@ -761,6 +761,22 @@
       "schema": "HrLeaveSchema"
     },
     {
+      "name": "hr/leave-approval",
+      "addon": "liwan_hr_operations",
+      "method": "GET",
+      "route": "/api/v1/hr/leave/requests/{id}/approval",
+      "status": 200,
+      "schema": "HrLeaveApprovalSchema"
+    },
+    {
+      "name": "hr/leave-approval-process",
+      "addon": "liwan_hr_operations",
+      "method": "GET",
+      "route": "/api/v1/hr/leave/approval-process",
+      "status": 200,
+      "schema": "HrLeaveApprovalProcessSchema"
+    },
+    {
       "name": "hr/leave-settings",
       "addon": "liwan_hr",
       "method": "GET",

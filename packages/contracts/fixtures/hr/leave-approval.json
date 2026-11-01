@@ -1,0 +1,36 @@
+{
+  "href": "/operations/15",
+  "request_id": 15,
+  "state": "pending",
+  "steps": [
+    {
+      "name": "Direct manager",
+      "reviewers": [
+        {
+          "id": 1,
+          "name": "Direct Manager",
+          "user_id": 13
+        }
+      ],
+      "sequence": 1,
+      "status": "approved"
+    },
+    {
+      "name": "HR",
+      "reviewers": [
+        {
+          "id": 2,
+          "name": "HR Officer",
+          "user_id": 14
+        },
+        {
+          "id": 3,
+          "name": "HR Officer Two",
+          "user_id": 15
+        }
+      ],
+      "sequence": 2,
+      "status": "pending"
+    }
+  ]
+}

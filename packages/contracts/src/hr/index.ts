@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { MIN_PASSWORD_LENGTH } from '../common/password'
+import { PersonRefSchema } from '../common/person'
 import { HrRefSchema } from './ref'
 
 // The five HR areas: each area keeps its own schema module (one source of truth per
@@ -271,6 +272,34 @@ export const HrLeaveListSchema = z.object({ items: z.array(HrLeaveSchema), total
 export const HrLeaveBalanceListSchema = z.object({ items: z.array(HrLeaveBalanceSchema), total: z.number().int().nonnegative() }).strict()
 export const HrLeaveAllocationListSchema = z.object({ items: z.array(HrLeaveAllocationSchema), total: z.number().int().nonnegative() }).strict()
 
+// Leave approval runs on the operations workflow engine (bridge liwan_hr_operations); these are its HR-side shapes.
+export const HrLeaveApprovalSchema = z.object({
+  request_id: z.number().int().positive(),
+  state: z.enum(['draft', 'pending', 'returned', 'rejected', 'withdrawn', 'done']),
+  href: z.string(),
+  steps: z.array(z.object({
+    sequence: z.number().int().positive(),
+    name: z.string(),
+    reviewers: z.array(PersonRefSchema),
+    status: z.enum(['waiting', 'pending', 'approved', 'rejected', 'cancel']),
+  }).strict()),
+}).strict()
+export const HrLeaveApprovalProcessSchema = z.object({
+  process: z.object({
+    id: z.number().int().positive(),
+    name: z.string(),
+    revision: z.number().int().nonnegative(),
+    steps: z.array(z.object({
+      name: z.string(),
+      resolver: z.string().nullable(),
+      resolver_label: z.string().nullable(),
+      reviewers: z.array(PersonRefSchema),
+    }).strict()),
+  }).strict().nullable(),
+  href: z.string(),
+  can_manage: z.boolean(),
+}).strict()
+
 export type HrEmployeeAccess = z.infer<typeof HrEmployeeAccessSchema>
 export type HrEmployeeCreate = z.infer<typeof HrEmployeeCreateSchema>
 export type HrEmployeePatch = z.infer<typeof HrEmployeePatchSchema>
@@ -298,6 +327,8 @@ export type HrLeaveAllocationCreate = z.infer<typeof HrLeaveAllocationCreateSche
 export type HrLeaveAllocationPatch = z.infer<typeof HrLeaveAllocationPatchSchema>
 export type HrLeaveAllocationList = z.infer<typeof HrLeaveAllocationListSchema>
 export type HrLeaveWithdrawal = z.infer<typeof HrLeaveWithdrawalSchema>
+export type HrLeaveApproval = z.infer<typeof HrLeaveApprovalSchema>
+export type HrLeaveApprovalProcess = z.infer<typeof HrLeaveApprovalProcessSchema>
 export type HrLeaveTypeList = z.infer<typeof HrLeaveTypeListSchema>
 export type HrLeaveList = z.infer<typeof HrLeaveListSchema>
 export type HrLeaveBalanceList = z.infer<typeof HrLeaveBalanceListSchema>
