@@ -40,10 +40,12 @@ class LiwanHrIrRule(models.Model):
             # projection never adds that internal baseline to a branch company, so the
             # staff gate alone would hide an inherited branch owner's own leave.
             memberships = service._liwan_membership_company_ids()
+            extra = self._liwan_leave_extra_read_domain() if model_name == 'hr.leave' else Domain.FALSE
             domain &= ((Domain('employee_id.user_id', '=', self.env.uid)
                         & Domain(owner_field, 'in', memberships))
                        | (Domain(owner_field, 'in', companies)
-                          & Domain(owner_field, 'in', sorted(staff_ids))))
+                          & Domain(owner_field, 'in', sorted(staff_ids)))
+                       | extra)
         if (model_name in PAYSLIP_PATHS and mode == 'read' and not self.env.su
                 and not self.env.user.has_group('base.group_system')):
             domain &= self._liwan_payslip_read_fence(PAYSLIP_PATHS[model_name])
@@ -59,6 +61,11 @@ class LiwanHrIrRule(models.Model):
             domain &= (self.env['liwan.hr.leave.cancellation']._liwan_visibility_domain()
                        & Domain('leave_id', 'in', self.env['hr.leave']._search([])))
         return domain
+
+    @api.model
+    def _liwan_leave_extra_read_domain(self):
+        """Leaves readable beyond the actor's own and their staff scope; a bridge may widen it narrowly."""
+        return Domain.FALSE
 
     @api.model
     def _liwan_payslip_read_fence(self, slip):
