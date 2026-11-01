@@ -315,6 +315,22 @@ Specs live in `apps/web/e2e` and talk to `internal-ui-audit-mock.mjs`. They are
 deterministic and free, and CI runs the list in `ci-mock-specs.txt`. Use them for page
 states, navigation and regressions that need no judgement.
 
+How the stage runs (`deploy/ci/e2e-mock.sh`):
+
+- One production build, one worker, the mock on `MOCK_PORT`. The context menu starts folded, so a spec that reads the
+  sidebar sets the `liwan-context-sidebar=open` cookie itself.
+- The customer commercial flag is on for this server (`NUXT_CUSTOMER_COMMERCIAL_ENABLED` and its public twin), with the
+  mock acting as the stub control plane for `/subscription` and `/invite/accept`.
+- `ci-mock-long-list-specs.txt` runs on a second mock padded to 60 tasks (`MOCK_TASK_COUNT=60`, port `MOCK_PORT + 10`) and a
+  second server from the same build (`WEB_PORT + 10`): the scroll-restoration and navigation specs need a list taller than a
+  viewport, and every other spec keeps the four-task fixture its counts assume.
+- A spec belongs in `ci-mock-specs.txt` only if it passes in that run. The gate is never edited to hide a failure.
+
+A spec that logs in as `admin` and writes real data cannot run on the mock (it answers 404 to a write). Such a journey
+either runs in the `e2e-odoo` stage below or is covered by an addon test plus a mock spec, in which case it is deleted.
+The journeys that have not been run on a scratch Odoo yet (login, access boundaries, realtime, task lifecycle) are kept and
+guarded by `E2E_REAL_ODOO=1`; they are not in any CI list until one scratch run proves them.
+
 ### Real-Odoo specs (`e2e-odoo` stage)
 
 `deploy/ci/e2e-odoo.sh` installs every release module on the scratch database `liwan_scratch_e2e`, seeds it through Odoo
