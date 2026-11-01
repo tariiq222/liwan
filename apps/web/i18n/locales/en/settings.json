@@ -99,13 +99,13 @@
       },
       "changeControl": {
         "label": "Project change control",
-        "hint": "Decides whether editing the scope and budget of a project in execution needs a change request approved by the sponsor.",
+        "hint": "Decides whether editing the scope and budget of a project in execution needs a change request approved by the sponsor. Any approved request that is not yet implemented unlocks the scope and budget fields until its implementation is recorded.",
         "off": "Off",
         "offHint": "No change requests. An approved charter reopens when edited, if charter approval is on.",
         "optional": "Optional",
-        "optionalHint": "Requests can be raised and decided, and nothing is blocked.",
+        "optionalHint": "Requests can be raised and decided, and nothing is blocked. An approved charter still returns to draft when edited, if charter approval is on, unless an approved request that is not yet implemented covers the edit.",
         "required": "Required",
-        "requiredHint": "While executing, the charter scope and budget change only through an approved change request."
+        "requiredHint": "While executing, the charter scope and budget stay locked and the project cannot move back a phase, unless an approved change request that is not yet implemented exists."
       },
       "changeCategories": {
         "title": "Change request categories",

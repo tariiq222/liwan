@@ -58,7 +58,7 @@ export function useProjectChangeAction() {
   return useMutation({
     mutationFn: ({ projectId, id, action, expected, note }: { projectId: number; id: number; action: ChangeAction; expected: string; note?: string }) =>
       $api(`/api/v1/projects/${projectId}/changes/${id}/${action}`, {
-        method: 'POST', body: { expected_updated_at: expected, ...(note ? { note } : {}) }, schema: ProjectChangeSchema,
+        method: 'POST', body: { expected_updated_at: expected, ...(note && (action === 'approve' || action === 'reject') ? { note } : {}) }, schema: ProjectChangeSchema,
       }),
     onSuccess: (item, { projectId }) => writeItem(qc, projectId, item),
   })
