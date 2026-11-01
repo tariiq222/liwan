@@ -24,7 +24,8 @@ export interface ShellRailModel extends ShellRailGroups {
 /** Every reachable application stays in manifest order; the same destinations appear in the mobile drawer. */
 export function railModel(modules: readonly ShellModuleDefinition[]): ShellRailModel {
   const home = modules.find(module => module.id === HOME_MODULE_ID)
-  const top = [toRailItem(LAUNCHER_MODULE), ...(home ? [toRailItem(home)] : [])]
+  // One entry opens the page that holds both «يومي» and «التطبيقات» as tabs.
+  const top = [toRailItem(home ?? LAUNCHER_MODULE)]
   const applications = modules.filter(module => !module.utility && module.id !== HOME_MODULE_ID && module.id !== SETTINGS_MODULE_ID).map(toRailItem)
   const utilities = modules.filter(module => module.utility).map(toRailItem)
   const utility = [...utilities.filter(item => item.id !== SETTINGS_MODULE_ID), ...utilities.filter(item => item.id === SETTINGS_MODULE_ID)]
@@ -34,7 +35,7 @@ export function railModel(modules: readonly ShellModuleDefinition[]): ShellRailM
 
 export function railActiveId(rail: Pick<ShellRailModel, 'top' | 'applications' | 'utility'>, activeId: string | null): string | null {
   if (activeId === null) return null
-  return [...rail.top, ...rail.applications, ...rail.utility].some(item => item.id === activeId) ? activeId : LAUNCHER_MODULE.id
+  return [...rail.top, ...rail.applications, ...rail.utility].some(item => item.id === activeId) ? activeId : rail.top[0]?.id ?? null
 }
 
 /** Consecutive links that share a heading key (`section` by default) form one section, in manifest order. */

@@ -3,7 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { AiUsageBatchSchema } from '@liwan/contracts'
 import { appendResponseHeader, createApp, createError, createEventStream, defineEventHandler, getCookie, getHeader, getQuery, getRequestHeader, getRouterParam, readBody, setResponseHeader, toNodeListener } from 'h3'
 
-let odoo: http.Server, service: http.Server, app: http.Server
+let odoo: http.Server, service: http.Server, deadService: http.Server, app: http.Server
 let odooUrl: string, serviceUrl: string, url: string
 let odooCalls: { method: string; url: string; cookie?: string; body?: string }[] = []
 let serviceCalls: { method: string; url: string; headers: http.IncomingHttpHeaders; body: string; at: number }[] = []
@@ -176,10 +176,10 @@ beforeAll(async () => {
   await new Promise<void>(r => service.listen(0, '127.0.0.1', r))
   odooUrl = `http://127.0.0.1:${(odoo.address() as any).port}`
   serviceUrl = `http://127.0.0.1:${(service.address() as any).port}`
-  const dead = http.createServer()
-  await new Promise<void>(r => dead.listen(0, '127.0.0.1', r))
-  deadServiceUrl = `http://127.0.0.1:${(dead.address() as any).port}`
-  await new Promise<void>(r => dead.close(() => r()))
+  // Stays bound for the whole file: a freed port can be reused by a parallel test file, which would then answer.
+  deadService = http.createServer(req => req.socket.destroy())
+  await new Promise<void>(r => deadService.listen(0, '127.0.0.1', r))
+  deadServiceUrl = `http://127.0.0.1:${(deadService.address() as any).port}`
   vi.stubGlobal('useRuntimeConfig', () => ({ odooUrl, aiServiceUrl: serviceDown ? deadServiceUrl : serviceUrl, aiServiceToken: serviceToken, odooDb: 'x', authProxyClientIpHeader: '' }))
   const { assertSameSiteJson } = await import('../../same-site')
   vi.stubGlobal('assertSameSiteJson', assertSameSiteJson)
@@ -199,7 +199,7 @@ beforeAll(async () => {
   await new Promise<void>(r => app.listen(0, '127.0.0.1', r))
   url = `http://127.0.0.1:${(app.address() as any).port}`
 })
-afterAll(() => { odoo.close(); service.close(); app.close() })
+afterAll(() => { odoo.close(); service.close(); deadService.close(); app.close() })
 const DRAFT_PENDING = { call_id: 'c_2', tool: 'pmo.draft_project', kind: 'draft', input: { name: 'بوابة' } }
 const WRITE_PENDING = { call_id: 'c_3', tool: 'pmo.update_task_state', kind: 'write_light', input: { task_id: 7, state: 'done' } }
 beforeEach(() => { odooCalls = []; serviceCalls = []; scenario = 'read'; serviceDown = false; odooToolsStatus = 200; pending = DRAFT_PENDING; serviceToken = ''; claimMode = 'atomic'; claimed = false; doneSentAt = 0; odooMode = 'normal'; auditFailKind = null; runStatus = 'waiting_user'; resumeMode = 'ok'; resumeStreamFinished = false; resumeStreamCancelled = false; runList = RUN_LIST; patchStatus = 200; runId = 'r_1'; usageStatus = 200; usageDelayMs = 0; usageAnsweredAt = 0; usageBatches = []; usageInvalid = [] })

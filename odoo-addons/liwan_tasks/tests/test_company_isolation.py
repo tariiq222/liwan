@@ -9,6 +9,7 @@ from odoo.tests.common import HOST
 
 from odoo.addons.liwan_api.tests.common import (
     CompanyIsolationCase,
+    assert_isolation_discovery,
     cover_isolation_routes,
 )
 
@@ -20,6 +21,9 @@ COVERED = (
     '/api/v1/my-tasks/<int:task_id>/attachments',
     '/api/v1/my-tasks/<int:task_id>/attachments/<int:att_id>/download',
 )
+
+
+EXPECTED_GET_RECORD_ROUTES = 4
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -143,6 +147,9 @@ class LiwanTasksIsolationCase(CompanyIsolationCase):
             self.assertEqual(response.json()['code'], 'not_found')
         self.assertEqual(
             self.env['project.task'].sudo().browse(c_task.id).name, f'Personal {self.company_c.name}')
+
+    def test_discovery_covers_every_get_record_route(self):
+        assert_isolation_discovery(self, 'liwan_tasks', EXPECTED_GET_RECORD_ROUTES)
 
 
 def register_tasks_isolation_coverage():

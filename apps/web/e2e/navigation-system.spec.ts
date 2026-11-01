@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { expectAlignedGuide } from './helpers/navigationGeometry'
+import { expectAlignedGuide, keepContextMenuOpen } from './helpers/navigationGeometry'
 
 test.setTimeout(90_000)
 async function open(page: Page, path: string) {
@@ -8,7 +8,8 @@ async function open(page: Page, path: string) {
   await expect(page.getByTestId('global-search-trigger')).toBeEnabled({ timeout: 30_000 })
 }
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page, context, baseURL }) => {
+  await keepContextMenuOpen(context, baseURL)
   expect((await page.request.post('/api/auth/login', { data: { login: process.env.E2E_ADMIN_LOGIN ?? 'admin', password: process.env.E2E_ADMIN_PASSWORD ?? 'admin' } })).status()).toBe(200)
 })
 
