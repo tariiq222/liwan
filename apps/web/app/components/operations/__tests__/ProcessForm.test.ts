@@ -13,8 +13,8 @@ const filename = resolve(import.meta.dirname, '../ProcessForm.vue')
 const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
 const script = compileScript(descriptor, { id: 'operation-process-form' }).content.replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
 const js = ts.transpileModule(script, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText
-const original = OperationProcessSchema.parse({ id: 3, purpose: 'work', stage_approval_mode: 'per_stage', name: 'Original', description: '', execution_kind: 'approval', state: 'draft', revision: 4, steps: [{ name: 'Manager review', reviewer_ids: [7], reviewers: [{ id: 7, user_id: 7, name: 'Manager' }], ineligible_reviewer_ids: [] }] })
-const latest = OperationProcessSchema.parse({ ...original, purpose: 'employee', stage_approval_mode: 'single', name: 'Server changed', description: 'Latest description', revision: 9, steps: [{ name: 'New review', reviewer_ids: [8], reviewers: [{ id: 8, user_id: 8, name: 'Reviewer' }], ineligible_reviewer_ids: [] }] })
+const original = OperationProcessSchema.parse({ id: 3, purpose: 'work', stage_approval_mode: 'per_stage', name: 'Original', description: '', execution_kind: 'approval', state: 'draft', revision: 4, steps: [{ name: 'Manager review', reviewer_ids: [7], reviewers: [{ id: 7, user_id: 7, name: 'Manager' }], ineligible_reviewer_ids: [], resolver: null, resolver_label: null }] })
+const latest = OperationProcessSchema.parse({ ...original, purpose: 'employee', stage_approval_mode: 'single', name: 'Server changed', description: 'Latest description', revision: 9, steps: [{ name: 'New review', reviewer_ids: [8], reviewers: [{ id: 8, user_id: 8, name: 'Reviewer' }], ineligible_reviewer_ids: [], resolver: null, resolver_label: null }] })
 
 function form(conflict = true) {
   const scope = Vue.effectScope()

@@ -4,6 +4,8 @@ from odoo.exceptions import AccessError, LockError, ValidationError
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
 TOKEN = object()
+# Context value an owning application passes to close a request whose subject was decided outside the workflow.
+EXTERNAL_CLOSE = object()
 # How a reviewer who sits on several consecutive stages decides them (owner decision 2026-10-29, #163).
 STAGE_APPROVAL_MODES = [('per_stage', 'Each stage needs its own approval'), ('single', 'One approval covers the reviewer\'s consecutive stages')]
 

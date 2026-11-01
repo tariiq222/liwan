@@ -11,7 +11,10 @@
       "state": "published",
       "steps": [
         {
+          "ineligible_reviewer_ids": [],
           "name": "Confidential stage",
+          "resolver": null,
+          "resolver_label": null,
           "reviewer_ids": [
             225
           ],
@@ -21,8 +24,7 @@
               "name": "ops_branch_reviewer (base.group_user,base.group_allow_export)",
               "user_id": 225
             }
-          ],
-          "ineligible_reviewer_ids": []
+          ]
         }
       ]
     },
@@ -37,7 +39,10 @@
       "state": "published",
       "steps": [
         {
+          "ineligible_reviewer_ids": [],
           "name": "Confidential stage",
+          "resolver": null,
+          "resolver_label": null,
           "reviewer_ids": [
             225
           ],
@@ -47,8 +52,7 @@
               "name": "ops_branch_reviewer (base.group_user,base.group_allow_export)",
               "user_id": 225
             }
-          ],
-          "ineligible_reviewer_ids": []
+          ]
         }
       ]
     },
@@ -63,7 +67,10 @@
       "state": "draft",
       "steps": [
         {
+          "ineligible_reviewer_ids": [],
           "name": "Unpublished stage",
+          "resolver": null,
+          "resolver_label": null,
           "reviewer_ids": [
             225
           ],
@@ -73,8 +80,7 @@
               "name": "ops_branch_reviewer (base.group_user,base.group_allow_export)",
               "user_id": 225
             }
-          ],
-          "ineligible_reviewer_ids": []
+          ]
         }
       ]
     }

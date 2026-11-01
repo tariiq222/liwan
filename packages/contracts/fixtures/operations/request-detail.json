@@ -51,6 +51,7 @@
   "steps": [
     {
       "name": "Confidential stage",
+      "resolver": null,
       "reviewers": [
         {
           "id": 4,

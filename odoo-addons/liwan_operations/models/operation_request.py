@@ -3,6 +3,7 @@ from odoo import Command, api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 from .common import (
+    EXTERNAL_CLOSE,
     STAGE_APPROVAL_MODES,
     TOKEN,
     check_revision,
@@ -78,6 +79,18 @@ class OperationRequest(models.Model):
 
     def _operations_target(self):
         return None
+
+    def _operations_resolve_reviewers(self, key):
+        """The users a resolver ``key`` names for this request; bridges override it."""
+        raise ValidationError(self.env._('This reviewer resolver is not available.'))
+
+    def _execute_rejected(self):
+        """Effect of a rejection, run inside the decision savepoint; bridges override it."""
+        return True
+
+    def _operations_stage_capability(self, sequence):
+        stages = self.stage_snapshot or []
+        return stages[sequence - 1]['capability'] if 0 < sequence <= len(stages) else 'operations.requests.review'
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -163,12 +176,20 @@ class OperationRequest(models.Model):
             snapshot = []
             participants = self.requester_id
             for sequence, definition in enumerate(definitions, 1):
-                users = definition.operations_reviewer_ids.filtered(lambda u: u.active and not u.share and self.company_id in u.company_ids and u != self.requester_id)
-                users = users.filtered(lambda u: self.env['liwan.access.service']._liwan_has_capability(u, 'operations.requests.review', company=self.company_id))
+                resolver = definition.operations_reviewer_resolver or None
+                if resolver:
+                    entry = process._operations_reviewer_resolver(process.execution_kind, resolver)
+                    if not entry:
+                        raise ValidationError(self.env._('This reviewer resolver is not available.'))
+                    capability, candidates = entry['capability'], self._operations_resolve_reviewers(resolver)
+                else:
+                    capability, candidates = 'operations.requests.review', definition.operations_reviewer_ids
+                users = candidates.filtered(lambda u: u.active and not u.share and self.company_id in u.company_ids and u != self.requester_id)
+                users = users.filtered(lambda u: self.env['liwan.access.service']._liwan_has_capability(u, capability, company=self.company_id))
                 if not users:
                     raise ValidationError(self.env._('A stage has no eligible reviewer other than the requester.'))
                 participants |= users
-                snapshot.append({'sequence': sequence, 'name': definition.name, 'reviewer_ids': users.ids})
+                snapshot.append({'sequence': sequence, 'name': definition.name, 'reviewer_ids': users.ids, 'resolver': resolver, 'capability': capability})
             if self.review_ids:
                 super().restart_validation()
             self._ops_write({'process_revision': process.revision, 'process_name': process.name, 'execution_kind': process.execution_kind, 'participant_ids': [Command.set(participants.ids)], 'stage_snapshot': snapshot, 'stage_approval_mode': process.stage_approval_mode, 'cycle': self.cycle + 1})
@@ -216,14 +237,15 @@ class OperationRequest(models.Model):
         )
 
     def _decision_guard(self, revision):
-        self._guard('operations.requests.review')
+        self._guard('operations.requests.read')
         lock_or_conflict(self)
         check_revision(self, revision)
         if self.state != 'pending' or self.requester_id == self.env.user:
             raise AccessError(self.env._('This request is not available for your decision.'))
-        # Snapshot membership is necessary; current capability/company/active checks are above.
+        # Snapshot membership and the stage's own capability are both necessary; company/active checks are above.
+        service = self.env['liwan.access.service']
         eligible = self._tier_eligible_reviews(self.review_ids)
-        eligible = eligible.filtered(lambda r: self.env.uid in (self.stage_snapshot[r.sequence - 1]['reviewer_ids'] if 0 < r.sequence <= len(self.stage_snapshot) else []))
+        eligible = eligible.filtered(lambda r: self.env.uid in (self.stage_snapshot[r.sequence - 1]['reviewer_ids'] if 0 < r.sequence <= len(self.stage_snapshot) else []) and service._liwan_has_capability(self.env.user, self._operations_stage_capability(r.sequence), record=self))
         if not eligible:
             raise AccessError(self.env._('Only the current stage reviewer can decide this request.'))
         return eligible
@@ -235,7 +257,7 @@ class OperationRequest(models.Model):
 
     def action_approve(self, revision, comment=''):
         self.ensure_one()
-        require(self.env, 'operations.requests.review')
+        require(self.env, 'operations.requests.read')
         try:
             with self.env.cr.savepoint():
                 reviews = self._decision_guard(revision)
@@ -267,12 +289,22 @@ class OperationRequest(models.Model):
         return self
 
     def _negative_decision(self, revision, comment, state):
-        with self.env.cr.savepoint():
-            reviews = self._decision_guard(revision)
-            note = text(self.env, comment, 'comment', 4000, True)
-            super()._rejected_tier(reviews)
-            self._ops_write({'state': state, 'revision': self.revision + 1})
-            self._event(state, note)
+        try:
+            with self.env.cr.savepoint():
+                reviews = self._decision_guard(revision)
+                note = text(self.env, comment, 'comment', 4000, True)
+                super()._rejected_tier(reviews)
+                self._ops_write({'state': state, 'revision': self.revision + 1})
+                self._event(state, note)
+                if state == 'rejected':
+                    try:
+                        self._execute_rejected()
+                    except (UserError, ValidationError, AccessError) as exc:
+                        raise OperationExecutionError(str(exc)) from exc
+        except OperationExecutionError:
+            self.invalidate_recordset()
+            self._event('execution_failed')
+            raise
         self._notify_requester()
         return self
 
@@ -291,6 +323,21 @@ class OperationRequest(models.Model):
                 raise AccessError(self.env._('Only the requester can withdraw an open request.'))
             self._ops_write({'state': 'withdrawn', 'revision': self.revision + 1})
             self._event('withdrawn', text(self.env, comment, 'comment', 4000))
+        return self
+
+    def _operations_close_externally(self, reason):
+        """Close an open request because its subject was decided outside the workflow.
+
+        Terminal like a withdrawal but run by the bridge that owns the subject, with its context token;
+        it executes nothing and leaves an audit event naming the outside decision.
+        """
+        self.ensure_one()
+        if self.env.context.get('operations_external_close') is not EXTERNAL_CLOSE:
+            raise AccessError(self.env._('Only the owning application can close a request externally.'))
+        if self.state not in ('draft', 'pending', 'returned'):
+            return self
+        self._ops_write({'state': 'withdrawn', 'revision': self.revision + 1})
+        self._event('closed_externally', text(self.env, reason, 'reason', 4000))
         return self
 
     # The generic engine RPC buttons cannot bypass the LiwanOS capability/revision flow.
@@ -323,7 +370,10 @@ class OperationRequest(models.Model):
         service = self.env['liwan.access.service']
         writable = self.company_id == self.env.company and self.env['liwan.entitlement.service']._liwan_feature_write('operations.enabled') and self.env.user.active
         creator = writable and self.requester_id == self.env.user and service._liwan_has_capability(self.env.user, 'operations.requests.create', record=self)
-        reviewer = writable and self.state == 'pending' and self.requester_id != self.env.user and service._liwan_has_capability(self.env.user, 'operations.requests.review', record=self) and bool(self._tier_eligible_reviews(self.review_ids))
+        reviewer = writable and self.state == 'pending' and self.requester_id != self.env.user and any(
+            self.env.uid in self.stage_snapshot[review.sequence - 1]['reviewer_ids'] and service._liwan_has_capability(self.env.user, self._operations_stage_capability(review.sequence), record=self)
+            for review in self._tier_eligible_reviews(self.review_ids) if 0 < review.sequence <= len(self.stage_snapshot)
+        )
         editable = creator and self.state in ('draft', 'returned')
         return {'edit': bool(editable), 'submit': bool(editable), 'approve': bool(reviewer), 'reject': bool(reviewer), 'return': bool(reviewer), 'withdraw': bool(creator and self.state in ('draft', 'returned', 'pending'))}
 
