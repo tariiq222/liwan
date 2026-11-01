@@ -26,12 +26,13 @@ def _audit(action, row, before=None):
 
 class HrWarningTypeController(http.Controller):
 
-    @http.route('/api/v1/hr/warning-types', type='json2', auth='user', methods=['GET'], readonly=True)
+    @http.route('/api/v1/hr/warning-types', type='json2', auth='user', methods=['GET'], readonly=False)
     @api_handler
     @requires_feature('hr.enabled', 'hr.warnings', operation='read')
     @requires_capability('hr.employees.read')
     def list_types(self, **_):
         # Archived types stay selectable on the settings card, hidden everywhere else.
+        request.env[TYPE]._liwan_ensure_for_caller()
         archived = request.httprequest.args.get('active') == 'all'
         types = request.env[TYPE].with_context(active_test=not archived).search(
             [('company_id', '=', request.env.company.id)],
@@ -44,6 +45,7 @@ class HrWarningTypeController(http.Controller):
     @requires_capability('hr.warnings.manage')
     def create_type(self, **payload):
         vals = parse_type_create(payload)
+        request.env[TYPE]._liwan_ensure_for_caller()
         with unique_conflict(DUPLICATE):
             row = request.env[TYPE].create({**vals, 'company_id': request.env.company.id})
         _audit('warning_type_created', row)

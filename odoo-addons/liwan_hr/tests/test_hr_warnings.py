@@ -2,7 +2,7 @@
 from datetime import timedelta
 
 from odoo import fields
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import new_test_user, tagged
 
 from .common import LiwanHrCase, set_hr_feature
@@ -573,3 +573,101 @@ class TestHrWarnings(LiwanHrCase):
         # A type of another company cannot warn this company's employee.
         res = self.call(self.hr, 'POST', WARNINGS, self.payload(self.report_emp, kind))
         self.assert_status(res, 422, 'invalid')
+
+    # --- review follow-ups -------------------------------------------------------------------------------
+
+    def _fresh_company_hr(self, login):
+        """An interactively made company (no seeded types) with an HR manager who belongs only to it."""
+        company = self.env['res.company'].create({'name': f'Warnings fresh {login}'})
+        self.env['liwan.hr.warning.type'].with_context(active_test=False).search([('company_id', '=', company.id)]).unlink()
+        user = new_test_user(
+            self.env, login=login, password=f'{login}_pass_123', name=login, groups='liwan_core.group_employee',
+            company_id=company.id, company_ids=[company.id],
+        )
+        self.env['liwan.access.service']._liwan_replace_assignments(user, [
+            {'role_id': self.env.ref(role).id, 'company_id': company.id}
+            for role in ('liwan_core.role_employee', 'liwan_hr.role_hr_manager')
+        ])
+        employee = self.env['hr.employee'].create({'name': f'{login} staff', 'company_id': company.id})
+        return company, user, employee
+
+    def test_a_company_without_types_is_seeded_by_its_hr_managers_first_visit(self):
+        company, user, employee = self._fresh_company_hr('warn_fresh_a')
+        Type = self.env['liwan.hr.warning.type'].with_context(active_test=False)
+        self.assertFalse(Type.search([('company_id', '=', company.id)]))
+        listed = self.assert_status(self.call(user, 'GET', TYPES), 200).json()
+        self.assertEqual([item['severity'] for item in listed['items']], [10, 20, 30, 40])
+        # A second touch adds nothing, and drafting works at once.
+        self.assert_status(self.call(user, 'GET', SETTINGS), 200)
+        self.assertEqual(Type.search_count([('company_id', '=', company.id)]), 4)
+        res = self.call(user, 'POST', WARNINGS, {
+            'employee_id': employee.id, 'type_id': listed['items'][1]['id'], 'reason': 'Late',
+        })
+        self.assert_status(res, 201)
+
+    def test_the_first_create_seeds_and_a_plain_employee_never_does(self):
+        company, user, _employee = self._fresh_company_hr('warn_fresh_b')
+        Type = self.env['liwan.hr.warning.type'].with_context(active_test=False)
+        plain = new_test_user(
+            self.env, login='warn_fresh_plain', password='warn_fresh_plain_pass_123', name='plain',
+            groups='liwan_core.group_employee', company_id=company.id, company_ids=[company.id],
+        )
+        self.env['liwan.access.service']._liwan_replace_assignments(plain, [{
+            'role_id': self.env.ref('liwan_core.role_employee').id, 'company_id': company.id,
+        }])
+        self.call(plain, 'GET', TYPES)
+        self.assertFalse(Type.search([('company_id', '=', company.id)]))
+        res = self.call(user, 'POST', TYPES, {'name': 'Custom', 'severity': 5})
+        self.assert_status(res, 201)
+        self.assertEqual(Type.search_count([('company_id', '=', company.id)]), 5)
+
+    def test_the_seed_survives_a_concurrent_first_touch(self):
+        company, _user, _employee = self._fresh_company_hr('warn_fresh_c')
+        Type = self.env['liwan.hr.warning.type'].with_context(active_test=False)
+        # Another request already inserted one seeded code: the repeat adds the rest and does not fail.
+        Type.create({'company_id': company.id, 'code': 'verbal', 'name': 'Taken first', 'severity': 10})
+        company._liwan_ensure_warning_types()
+        company._liwan_ensure_warning_types()
+        rows = Type.search([('company_id', '=', company.id)])
+        self.assertEqual(sorted(rows.mapped('code')), ['final', 'suspension_notice', 'verbal', 'written'])
+        self.assertEqual(rows.filtered(lambda row: row.code == 'verbal').name, 'Taken first')
+
+    def test_a_subject_who_is_hr_never_reads_a_draft_about_themself(self):
+        # HR cannot draft for themself, so the draft is made directly; the rule alone must hide it.
+        draft = self.env['liwan.hr.warning'].create({
+            'employee_id': self.hr_emp.id, 'type_id': self.written.id, 'reason': 'About HR',
+        })
+        listed = self.call(self.hr, 'GET', WARNINGS).json()
+        self.assertNotIn(draft.id, [item['id'] for item in listed['items']])
+        self.assert_status(self.call(self.hr, 'GET', f'{WARNINGS}/{draft.id}'), 404, 'not_found')
+        self.assertEqual(self.call(self.hr, 'GET', f'{WARNINGS}/me').json()['items'], [])
+        with self.assertRaises(AccessError):
+            draft.with_user(self.hr).read(['reason'])
+        # Once issued it is theirs to read, in the list and on /me.
+        draft.write({'state': 'issued', 'issued_at': fields.Datetime.now()})
+        self.assertIn(draft.id, [item['id'] for item in self.call(self.hr, 'GET', WARNINGS).json()['items']])
+        self.assertEqual([item['id'] for item in self.call(self.hr, 'GET', f'{WARNINGS}/me').json()['items']], [draft.id])
+
+    def test_an_employee_with_warnings_cannot_move_company(self):
+        self.issued(self.report_emp)
+        other = self.env['res.company'].create({'name': 'Warnings move target'})
+        with self.assertRaises(ValidationError):
+            self.report_emp.write({'company_id': other.id})
+        self.assertEqual(self.report_emp.company_id, self.company)
+        # An employee with none moves freely.
+        self.no_account.write({'company_id': self.company.id})
+
+    def test_the_drafters_read_ends_with_his_authority(self):
+        self.policy(issued_by='manager_and_hr')
+        draft = self.draft(self.manager, self.report_emp)
+        path = f"{WARNINGS}/{draft['id']}"
+        self.assert_status(self.call(self.manager, 'GET', path), 200)
+        # The company flips to HR only: the manager no longer reads what he drafted.
+        self.policy(issued_by='hr_only')
+        self.assert_status(self.call(self.manager, 'GET', path), 404, 'not_found')
+        # Back on, and then the employee is moved under another manager.
+        self.policy(issued_by='manager_and_hr')
+        self.assert_status(self.call(self.manager, 'GET', path), 200)
+        self.report_emp.parent_id = self.other_emp
+        self.assert_status(self.call(self.manager, 'GET', path), 404, 'not_found')
+        self.assert_status(self.call(self.manager, 'POST', f'{path}/issue', {'revision': draft['revision']}), 404)

@@ -22,11 +22,12 @@ def _can_issue():
 
 class HrWarningSettingsController(http.Controller):
 
-    @http.route('/api/v1/hr/warnings/settings', type='json2', auth='user', methods=['GET'], readonly=True)
+    @http.route('/api/v1/hr/warnings/settings', type='json2', auth='user', methods=['GET'], readonly=False)
     @api_handler
     @requires_feature('hr.enabled', 'hr.warnings', operation='read')
     @requires_capability('hr.employees.read', 'hr.warnings.manage', match='any')
     def get_settings(self, **_):
+        request.env['liwan.hr.warning.type']._liwan_ensure_for_caller()
         return dump_settings(request.env[SETTINGS]._liwan_current(), _can_issue())
 
     @http.route('/api/v1/hr/warnings/settings', type='json2', auth='user', methods=['PATCH'], readonly=False)

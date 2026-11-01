@@ -38,10 +38,16 @@ def _warning(warning_id):
     """A warning of the pinned companies the caller's record rules show → 404 otherwise (never a 403)."""
     warning = request.env[WARNING].search([
         ('id', '=', int(warning_id)), ('company_id', 'in', request.env.companies.ids),
+        *_not_a_draft_about_the_caller(),
     ], limit=1)
     if not warning:
         raise MissingError(request.env._('liwan.hr.warning %(id)s does not exist', id=warning_id))
     return warning
+
+
+def _not_a_draft_about_the_caller():
+    """A subject never reads a warning about themself before it is issued, whatever else they hold."""
+    return ['|', ('employee_user_id', '!=', request.env.uid), ('issued_at', '!=', False)]
 
 
 def _own_warning(warning_id):
@@ -50,6 +56,7 @@ def _own_warning(warning_id):
         ('id', '=', int(warning_id)),
         ('employee_user_id', '=', request.env.uid),
         ('company_id', '=', request.env.company.id),
+        ('issued_at', '!=', False),
     ], limit=1)
     if not warning:
         raise MissingError(request.env._('liwan.hr.warning %(id)s does not exist', id=warning_id))
@@ -96,6 +103,7 @@ class HrWarningController(http.Controller):
     @requires_feature('hr.enabled', 'hr.warnings', operation='write')
     def create_warning(self, **payload):
         vals = parse_create(payload)
+        request.env['liwan.hr.warning.type']._liwan_ensure_for_caller()
         employee = _employee(vals['employee_id'])
         if not request.env[WARNING]._liwan_can_issue(employee):
             raise ApiError(403, 'forbidden', 'you may not issue a warning to this employee')
@@ -103,12 +111,13 @@ class HrWarningController(http.Controller):
         return request.make_json_response(dump_warning(warning), status=201)
 
     # The caller's own warnings come before the id routes; `me` is not an id, so the order is for the reader.
-    @http.route('/api/v1/hr/warnings/candidates', type='json2', auth='user', methods=['GET'], readonly=True)
+    @http.route('/api/v1/hr/warnings/candidates', type='json2', auth='user', methods=['GET'], readonly=False)
     @api_handler
     @requires_feature('hr.enabled', 'hr.warnings', operation='read')
     def list_candidates(self, **_):
         if not request.env[WARNING]._liwan_can_issue_any(request.env.company):
             raise ApiError(403, 'forbidden', 'you may not issue warnings')
+        request.env['liwan.hr.warning.type']._liwan_ensure_for_caller()
         employees = request.env[WARNING]._liwan_candidates(request.env.company)
         return {'items': [ref(employee) for employee in employees], 'total': len(employees)}
 
@@ -117,7 +126,10 @@ class HrWarningController(http.Controller):
     @requires_feature('hr.enabled', 'hr.warnings', operation='read')
     @requires_capability('hr.employees.read')
     def list_own_warnings(self, **_):
-        domain = [('employee_user_id', '=', request.env.uid), ('company_id', '=', request.env.company.id)]
+        domain = [
+            ('employee_user_id', '=', request.env.uid), ('company_id', '=', request.env.company.id),
+            ('issued_at', '!=', False),
+        ]
         return _list(domain, request.httprequest.args)
 
     @http.route('/api/v1/hr/warnings/me/<int:warning_id>/acknowledge', type='json2', auth='user', methods=['POST'], readonly=False)

@@ -49,6 +49,9 @@ class LiwanHrIrRule(models.Model):
         if (model_name in PAYSLIP_PATHS and mode == 'read' and not self.env.su
                 and not self.env.user.has_group('base.group_system')):
             domain &= self._liwan_payslip_read_fence(PAYSLIP_PATHS[model_name])
+        if model_name == 'liwan.hr.warning' and mode == 'read' and not self.env.su \
+                and not self.env.user.has_group('base.group_system'):
+            domain &= self._liwan_warning_read_fence()
         if model_name == 'liwan.hr.leave.settings' and not self.env.su:
             service = self.env['liwan.access.service']
             companies = set()
@@ -61,6 +64,22 @@ class LiwanHrIrRule(models.Model):
             domain &= (self.env['liwan.hr.leave.cancellation']._liwan_visibility_domain()
                        & Domain('leave_id', 'in', self.env['hr.leave']._search([])))
         return domain
+
+    @api.model
+    def _liwan_warning_read_fence(self):
+        """Warnings are read by the readers of their company, by their subject, and by the manager who drafted them.
+
+        The drafter's right ends with his authority: it needs the company's manager policy now and his being the
+        employee's direct manager now, so flipping the policy or moving the employee takes the warning back.
+        """
+        readers = self.env['liwan.access.service']._liwan_operation_capability_company_ids('hr.warnings.read')
+        fence = Domain('company_id', 'in', sorted(readers)) | Domain('employee_user_id', '=', self.env.uid)
+        company = self.env.company
+        policy = self.env['liwan.hr.warning.settings']._liwan_effective(company)
+        if policy['warnings_issued_by'] == 'manager_and_hr':
+            fence |= (Domain('create_uid', '=', self.env.uid) & Domain('company_id', '=', company.id)
+                      & Domain('employee_id.parent_id.user_id', '=', self.env.uid))
+        return fence
 
     @api.model
     def _liwan_leave_extra_read_domain(self):

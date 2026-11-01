@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from psycopg2.errors import UniqueViolation
+
 from odoo import api, fields, models
 from odoo.exceptions import AccessError
 
@@ -12,6 +14,11 @@ SEEDED_TYPES = (
     ('final', 'إنذار نهائي', 30),
     ('suspension_notice', 'إشعار إيقاف', 40),
 )
+
+
+# Opens the readonly `code` for the seed only; a request cannot forge this object.
+SEED_TOKEN = object()
+SEED_CONTEXT = 'liwan_hr_warning_type_seed'
 
 
 class LiwanHrWarningType(models.Model):
@@ -48,8 +55,9 @@ class LiwanHrWarningType(models.Model):
     def create(self, vals_list):
         if not self.env.is_superuser():
             self._liwan_require_manage()
-            if any(vals.get('company_id', self.env.company.id) != self.env.company.id or 'code' in vals
-                   for vals in vals_list):
+            seeding = self.env.context.get(SEED_CONTEXT) is SEED_TOKEN
+            if any(vals.get('company_id', self.env.company.id) != self.env.company.id
+                   or ('code' in vals and not seeding) for vals in vals_list):
                 raise AccessError(self.env._('warning types belong to the current company'))
         return super().create(vals_list)
 
@@ -64,6 +72,40 @@ class LiwanHrWarningType(models.Model):
         if not self.env.is_superuser():
             raise AccessError(self.env._('warning types are archived, never deleted'))
         return super().unlink()
+
+    @api.model
+    def _liwan_seed(self, company):
+        """Give ``company`` the seeded types it does not have yet, matched by code; safe to repeat and to race.
+
+        Runs in the caller's identity: the manage capability already lets that caller create types, and the
+        UNIQUE(company_id, code) key makes a concurrent first touch lose quietly instead of duplicating.
+        """
+        Type = self.with_context(active_test=False, **{SEED_CONTEXT: SEED_TOKEN})
+        have = set(Type.search([('company_id', '=', company.id)]).mapped('code'))
+        for code, name, severity in SEEDED_TYPES:
+            if code in have:
+                continue
+            try:
+                with self.env.cr.savepoint():
+                    Type.create({'company_id': company.id, 'code': code, 'name': name, 'severity': severity})
+            except UniqueViolation:
+                continue
+
+    @api.model
+    def _liwan_ensure_for_caller(self):
+        """Seed the current company's types the first time a warnings manager touches them.
+
+        A company made interactively is not seeded at creation; its HR manager's first visit does it. A company
+        that already has any type, archived ones included, is left alone, so a tenant that archived or renamed
+        the seeded types never gets them back.
+        """
+        company = self.env.company
+        if self.env.is_superuser() or not self.env['liwan.access.service']._liwan_has_capability(
+            self.env.user, 'hr.warnings.manage', company=company,
+        ):
+            return
+        if not self.with_context(active_test=False).search_count([('company_id', '=', company.id)]):
+            self._liwan_seed(company)
 
     def _liwan_save(self, revision, vals):
         """Write ``vals`` at ``revision`` and bump it; a stale revision is a 409."""

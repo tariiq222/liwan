@@ -69,7 +69,7 @@ class LiwanHrWarning(models.Model):
 
     _revision_positive = models.Constraint('CHECK(revision > 0)', 'a saved revision must be positive')
 
-    @api.constrains('type_id', 'employee_id')
+    @api.constrains('type_id', 'employee_id', 'company_id')
     def _check_type_company(self):
         for row in self:
             if row.type_id.company_id != row.company_id:
