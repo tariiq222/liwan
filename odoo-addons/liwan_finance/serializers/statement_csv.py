@@ -11,9 +11,8 @@ import re
 from datetime import datetime
 
 from .parsing import parse_text
-from odoo.addons.liwan_api.controllers.common import ApiError
+from .statement_file import read_text, refuse
 
-MAX_BYTES = 2 * 1024 * 1024
 MAX_ROWS = 5000
 DELIMITERS = (',', ';', '\t', '|')
 DATE_FORMATS = {
@@ -34,28 +33,18 @@ EASTERN_DIGITS = str.maketrans('٠١٢٣٤٥٦٧٨٩٫٬', '0123456789.,')
 NUMBER = re.compile(r'[+-]?\d+(\.\d+)?')
 
 
-def _refuse(message, field):
-    raise ApiError(422, 'invalid', message, field=field)
-
-
 def read_table(content, delimiter=None):
     """``(delimiter, rows)`` of the file: lists of cell strings, empty lines dropped."""
-    if not isinstance(content, str) or not content.strip():
-        _refuse('content must be the text of a CSV file', 'content')
-    if len(content.encode()) > MAX_BYTES:
-        _refuse(f'the file is larger than {MAX_BYTES // (1024 * 1024)} MiB', 'content')
-    text = content.lstrip('﻿')
-    if any(ord(char) < 32 and char not in '\t\r\n' for char in text):
-        _refuse('the file is not readable text', 'content')
+    text = read_text(content)
     if delimiter is None:
         delimiter = _detect_delimiter(text)
     elif delimiter not in DELIMITERS:
-        _refuse(f'delimiter must be one of {", ".join(repr(item) for item in DELIMITERS)}', 'delimiter')
+        refuse(f'delimiter must be one of {", ".join(repr(item) for item in DELIMITERS)}', 'delimiter')
     rows = [[cell.strip() for cell in row] for row in csv.reader(io.StringIO(text), delimiter=delimiter) if any(cell.strip() for cell in row)]
     if not rows:
-        _refuse('the file has no rows', 'content')
+        refuse('the file has no rows', 'content')
     if len(rows) > MAX_ROWS + 1:
-        _refuse(f'the file has more than {MAX_ROWS} rows', 'content')
+        refuse(f'the file has more than {MAX_ROWS} rows', 'content')
     return delimiter, rows
 
 
@@ -79,40 +68,40 @@ def _column_index(spec, header, field):
     """The index of a mapped column: a header name, or a zero-based position when the file has no header."""
     if header is not None and isinstance(spec, str):
         if spec not in header:
-            _refuse(f'mapping.{field} names a column that is not in the header', f'mapping.{field}')
+            refuse(f'mapping.{field} names a column that is not in the header', f'mapping.{field}')
         return header.index(spec)
     if not isinstance(spec, int) or isinstance(spec, bool) or spec < 0:
-        _refuse(f'mapping.{field} must name a column', f'mapping.{field}')
+        refuse(f'mapping.{field} must name a column', f'mapping.{field}')
     return spec
 
 
 def parse_mapping(mapping, header):
     """``{field: column index}`` once the mapping is checked: date, a reference, and an amount or debit and credit."""
     if not isinstance(mapping, dict):
-        _refuse('mapping must be an object', 'mapping')
+        refuse('mapping must be an object', 'mapping')
     unknown = sorted(set(mapping) - set(MAPPING_KEYS))
     if unknown:
-        _refuse(f'unknown mapping key: {unknown[0]}', f'mapping.{unknown[0]}')
+        refuse(f'unknown mapping key: {unknown[0]}', f'mapping.{unknown[0]}')
     for field in ('date', 'payment_ref'):
         if field not in mapping:
-            _refuse(f'mapping.{field} is required', f'mapping.{field}')
+            refuse(f'mapping.{field} is required', f'mapping.{field}')
     if ('amount' in mapping) == ('debit' in mapping or 'credit' in mapping):
-        _refuse('map either amount or debit and credit', 'mapping.amount')
+        refuse('map either amount or debit and credit', 'mapping.amount')
     if 'amount' not in mapping and ('debit' not in mapping or 'credit' not in mapping):
-        _refuse('debit and credit must be mapped together', 'mapping.debit')
+        refuse('debit and credit must be mapped together', 'mapping.debit')
     return {field: _column_index(spec, header, field) for field, spec in mapping.items()}
 
 
 def parse_options(payload):
     date_format = payload.get('date_format', 'YYYY-MM-DD')
     if date_format not in DATE_FORMATS:
-        _refuse(f'date_format must be one of {", ".join(DATE_FORMATS)}', 'date_format')
+        refuse(f'date_format must be one of {", ".join(DATE_FORMATS)}', 'date_format')
     decimal = payload.get('decimal_separator', '.')
     if decimal not in DECIMAL_SEPARATORS:
-        _refuse('decimal_separator must be "." or ","', 'decimal_separator')
+        refuse('decimal_separator must be "." or ","', 'decimal_separator')
     has_header = payload.get('has_header', True)
     if not isinstance(has_header, bool):
-        _refuse('has_header must be a boolean', 'has_header')
+        refuse('has_header must be a boolean', 'has_header')
     return DATE_FORMATS[date_format], decimal, has_header
 
 

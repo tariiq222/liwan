@@ -16,6 +16,11 @@
       "commit": "8fc48a4beff3203241c0f61c4d3bc15631f75a4d"
     },
     {
+      "repo": "OCA/bank-statement-import",
+      "branch": "19.0",
+      "commit": "aa647ee5ea71187b81d3f52241b9f948908e6dd2"
+    },
+    {
       "repo": "OCA/mis-builder",
       "branch": "19.0",
       "commit": "7d519f31e1a553d7a5499571a9146f7e3ea49ea4"

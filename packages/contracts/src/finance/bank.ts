@@ -73,10 +73,17 @@ export const FinanceBankReconcileSchema = z.object({
   { message: 'label needs account_id' },
 )
 
-const importFile = {
+/** The statement file formats the import reads; a request that names none gets the one the file shows (CSV when it shows none). */
+export const FinanceBankImportFormatSchema = z.enum(['csv', 'ofx', 'camt'])
+
+const statementFile = {
   journal_id: id,
-  /** The text of the CSV file (at most 2 MiB, 5000 rows). */
+  /** The text of the file (at most 2 MiB; CSV at most 5000 rows). */
   content: z.string().min(1),
+}
+
+/** How a CSV file is read: banks export their own layouts, so the columns are named by the caller. */
+const csvOptions = {
   delimiter: z.enum([',', ';', '\t', '|']).optional(),
   has_header: z.boolean().optional(),
   date_format: z.enum(['YYYY-MM-DD', 'DD/MM/YYYY', 'DD-MM-YYYY', 'MM/DD/YYYY', 'YYYY/MM/DD', 'DD.MM.YYYY']).optional(),
@@ -92,22 +99,42 @@ export const FinanceBankImportMappingSchema = z.object({
   credit: z.union([z.string(), z.number().int().nonnegative()]).optional(),
 }).strict()
 
-/** POST /bank-statements/import/preview without `mapping`: the header, a sample and the columns it suggests. */
+/**
+ * POST /bank-statements/import/preview. An OFX or CAMT file answers with its lines at once; a CSV file without `mapping`
+ * answers the header, a sample and the columns it suggests (the CSV options and `mapping` are refused for OFX and CAMT).
+ */
 export const FinanceBankImportPreviewRequestSchema = z.object({
-  ...importFile, mapping: FinanceBankImportMappingSchema.optional(),
+  ...statementFile, format: FinanceBankImportFormatSchema.optional(), ...csvOptions, mapping: FinanceBankImportMappingSchema.optional(),
 }).strict()
 
-/** POST /bank-statements/import: the opening balance plus the lines must be the closing balance. */
-export const FinanceBankImportSchema = z.object({
-  ...importFile,
-  mapping: FinanceBankImportMappingSchema,
+const importOptions = {
   name: text.min(1).optional(),
+  skip_duplicates: z.boolean().optional(),
+}
+
+/** A CSV import: the opening balance plus the lines must be the closing balance, both given by the caller. */
+const FinanceBankCsvImportSchema = z.object({
+  ...statementFile, format: z.literal('csv').optional(), ...csvOptions, ...importOptions,
+  mapping: FinanceBankImportMappingSchema,
   balance_start: money,
   balance_end_real: money,
-  skip_duplicates: z.boolean().optional(),
 }).strict()
 
+/** An OFX or CAMT import: the balances the caller omits come from the file (OFX: closing balance, and the journal's last statement for the opening one). */
+const FinanceBankFileImportSchema = z.object({
+  ...statementFile, format: z.enum(['ofx', 'camt']), ...importOptions,
+  balance_start: money.optional(),
+  balance_end_real: money.optional(),
+}).strict()
+
+/** POST /bank-statements/import. */
+export const FinanceBankImportSchema = z.union([FinanceBankCsvImportSchema, FinanceBankFileImportSchema])
+
+const importRowErrors = z.array(z.object({ row: z.number().int().positive(), field: z.enum(['date', 'amount']), message: z.string() }).strict())
+
+/** A CSV file read without a mapping. */
 export const FinanceBankImportColumnsSchema = z.object({
+  format: z.literal('csv'),
   delimiter: z.string(),
   columns: z.array(z.string()),
   sample: z.array(z.array(z.string())),
@@ -116,19 +143,27 @@ export const FinanceBankImportColumnsSchema = z.object({
 }).strict()
 
 export const FinanceBankImportPreviewSchema = z.object({
-  delimiter: z.string(),
+  format: FinanceBankImportFormatSchema,
+  /** CSV only. */
+  delimiter: z.string().nullable(),
   columns: z.array(z.string()),
   lines: z.array(z.object({
     row: z.number().int().positive(), date: day, payment_ref: z.string(), amount: z.number(),
-    /** The journal already holds this line (same day, amount and reference). */
+    /** The journal already holds this line (same day, amount and reference, or the bank's own transaction id). */
     duplicate: z.boolean(),
   }).strict()),
-  errors: z.array(z.object({ row: z.number().int().positive(), field: z.enum(['date', 'amount']), message: z.string() }).strict()),
+  errors: importRowErrors,
+  /** The balances of the lines that would be created, as far as the file lets us know them (always null for CSV). */
+  balance_start: money.nullable(),
+  balance_end_real: money.nullable(),
   summary: z.object({
     lines: z.number().int().nonnegative(), duplicates: z.number().int().nonnegative(), total: z.number(),
     date_from: day.nullable(), date_to: day.nullable(),
   }).strict(),
 }).strict()
+
+/** The answer to a preview without a mapping: the columns of a CSV file, or the lines of an OFX or CAMT one. */
+export const FinanceBankImportReadSchema = z.union([FinanceBankImportColumnsSchema, FinanceBankImportPreviewSchema])
 
 /** PATCH /bank-statements/{id}: correct the name and the balances. */
 export const FinanceBankStatementPatchSchema = z.object({
@@ -162,5 +197,7 @@ export type FinanceBankImportMapping = z.infer<typeof FinanceBankImportMappingSc
 export type FinanceBankStatementPatch = z.infer<typeof FinanceBankStatementPatchSchema>
 export type FinanceBankImport = z.infer<typeof FinanceBankImportSchema>
 export type FinanceBankImportPreview = z.infer<typeof FinanceBankImportPreviewSchema>
+export type FinanceBankImportFormat = z.infer<typeof FinanceBankImportFormatSchema>
+export type FinanceBankImportRead = z.infer<typeof FinanceBankImportReadSchema>
 export type FinanceBankImportColumns = z.infer<typeof FinanceBankImportColumnsSchema>
 export type FinanceBankAutoReconcile = z.infer<typeof FinanceBankAutoReconcileSchema>

@@ -74,6 +74,8 @@ def _statement_values(parsed):
     for index, item in enumerate(parsed['lines']):
         require_open_period(item['date'], journal, company=request.env.company, field=f'lines[{index}].date')
         values = {'journal_id': journal.id, 'date': item['date'], 'payment_ref': item['payment_ref'], 'amount': item['amount']}
+        if 'unique_import_id' in item:
+            values['unique_import_id'] = item['unique_import_id']
         if 'partner_id' in item:
             values['partner_id'] = company_records(
                 'res.partner', [item['partner_id']], f'lines[{index}].partner_id', company_partners_domain(request.env.company),
@@ -140,7 +142,7 @@ def _certain_matches(line):
 class FinanceBankController(http.Controller):
     """Bank statements and their reconciliation over stock statements and OCA account_reconcile_oca.
 
-    CSV files are imported by ``finance_bank_import``. Not covered: OFX and CAMT files, reconcile models and rules, matching a line
+    CSV, OFX and CAMT files are imported by ``finance_bank_import``. Not covered: reconcile models and rules, matching a line
     with several partners, foreign-currency exchange differences and undoing a reconciliation.
     """
 
