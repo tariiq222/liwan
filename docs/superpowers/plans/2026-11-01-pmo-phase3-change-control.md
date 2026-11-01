@@ -12,22 +12,22 @@ charter reopens it") with change requests.
 ## Decisions for owner review
 
 1. **States:** `draft -> submitted -> approved | rejected`, plus `withdrawn` (requester, before decision) and `implemented` (manager, after approval). Terminal states are read-only.
-2. **Who decides:** the project sponsor (`liwan_sponsor_id`), like the charter. A manager who is also the sponsor decides directly. Admins change the sponsor instead of deciding. The decision write uses the existing `_liwan_write_sudo` with its own whitelist (decision fields only), no new `sudo()` site.
+2. **Who decides:** the project sponsor (`liwan_sponsor_id`), like the charter. A manager who is also the sponsor decides directly. Admins change the sponsor instead of deciding. The decision fields are written on the new model itself, without `sudo()`: the PMO user group gets create/write ACL rows on `liwan.project.change`, and the model's `write()` refuses decision fields unless they come through the decision methods, which check the sponsor (or manager-sponsor) first. The project helper `_liwan_write_sudo` is specific to `project.project` and is not reused.
 3. **Company setting `change_control_mode`** (scope: company; default `optional`; changed by `pmo.settings.manage`):
    - `off`: no change requests; today's behaviour (charter reopens on change when charter approval is required).
    - `optional`: requests can be raised and decided; nothing is blocked.
    - `required`: once the project is `executing`, edits to charter scope, budget and baseline are refused with `409 change_required` unless an approved, not yet implemented request covers them.
    Existing data keeps working because the default does not block.
-4. **Categories** (value list, not free text): `scope`, `schedule`, `cost`, `quality`, `other`. Company-extendable value list is deferred; a fixed list is enough for Launch 1.
+4. **Categories** are a company value list (owner constitution 2026-10-28), not a fixed selection: model `liwan.project.change.category` (company, `name`, `sequence`, `active`) seeded with `scope`, `schedule`, `cost`, `quality`, `other`; the tenant adds, renames and archives its own from the PMO settings section. Routes `GET/POST/PATCH /api/v1/pmo/change-categories` (`pmo.settings.manage`).
 
 ## Schema (`liwan_pmo`, version bump + migration directory in the same commit)
 
 `liwan.project.change` (company scope, ordered by `number desc`):
 `project_id` (cascade), `company_id` (related stored), `number` (per project, set under a project row lock), `title`, `description`,
-`reason`, `category`, `state`, `requester_id`, `impact_schedule_days` (int, may be negative), `impact_cost` (monetary, project currency),
+`reason`, `category_id` (many2one, set null), `state`, `requester_id`, `impact_schedule_days` (int, may be negative), `impact_cost` (monetary, project currency),
 `impact_scope` (text), `decided_by_id`, `decided_at`, `decision_note`, `implemented_at`, `liwan_revision` (as the charter does).
 Constraints: `UNIQUE(project_id, number)`; `CHECK(state in ...)`; a decision requires `decided_by_id`.
-Nothing else is added to `project.project`.
+Nothing else is added to `project.project`. New `liwan.project.change.category` as in decision 4.
 
 ## API (`type='json2'`, `api_handler`, list envelope `{items, total}`)
 
@@ -39,7 +39,7 @@ Approve/reject require a note on reject. Notifications: sponsor bell on submit, 
 
 ## Capabilities and features (R2, R10)
 
-Reuse `pmo.projects.read` for reading, project membership (contextual) for raising, `pmo.projects.manage` for implement. Register the sub-feature
+Categories use `pmo.settings.manage`. Reuse `pmo.projects.read` for reading, project membership (contextual) for raising, `pmo.projects.manage` for implement. Register the sub-feature
 `pmo.change_control` in `feature_registry.py` with owner `liwan_pmo`; every route checks it. `change_control_mode = off` hides the page.
 
 ## Web (`apps/web`, pages are records, no new overlay)
@@ -59,7 +59,7 @@ revision conflict, notification recipients. Contracts: zod round trip. Web: list
 
 `odoo-addons/liwan_pmo/{models/project_change.py,controllers/project_changes.py,serializers/project_change.py,security/*,tests/test_project_change.py,migrations/*,__manifest__.py}`,
 `packages/contracts/src/pmo/change.ts` (+ index export), `apps/web/app/pages/projects/[id]/changes*`, `apps/web/app/components/projects/changes/**`, PMO locale files.
-Shared files edited by the orchestrator only: `models/project_charter.py` (retire the reopen rule when mode is not `off`), `tools/arch_documented_sudo.json` only if a new elevated case appears (none planned).
+Shared files edited by the orchestrator only: `models/project_charter.py` (retire the reopen rule when mode is not `off`). No documented `sudo()` case is added.
 
 ## Verification
 

@@ -32,7 +32,7 @@ Errors: 403, 404, 409 `closure_locked`, 409 `stale_revision`, 422 `invalid`.
 
 ## Capabilities and features
 
-Read `pmo.projects.read`; edit and accept `pmo.projects.manage`; sign by the sponsor through the existing `_liwan_write_sudo` whitelist for the two signature fields (same pattern as charter approval), no new `sudo()`. Sub-feature `pmo.closure`.
+Read `pmo.projects.read`; edit and accept `pmo.projects.manage`; sign by the sponsor (or manager-sponsor) through a model method on `liwan.project.closure` that checks the sponsor first and writes the two signature fields; the PMO user group holds write ACL on the model and `write()` refuses the signature fields outside that method. No `sudo()`; the project helper `_liwan_write_sudo` is specific to `project.project` and is not reused. Sub-feature `pmo.closure`.
 
 ## Web
 
