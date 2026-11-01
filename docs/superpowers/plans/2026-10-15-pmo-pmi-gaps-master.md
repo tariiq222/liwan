@@ -12,8 +12,8 @@ the owner's priority order:
 5. Gantt dependencies and milestones, then critical path.
 6. Risk heat map and response strategy.
 
-Each phase below gets its own detailed plan, written when the previous phase has merged, so every
-plan argues from the code as it is when that phase starts. Phase 1 (charter approval) and the phase gates are implemented in `liwan_pmo`; the remaining phases have no detailed plan yet.
+Owner decision 2026-10-29 (issue #24): phases 3, 4, 5, 6 and 8 are in Launch 1; phase 7 (Gantt dependency lines and critical path) is deferred.
+Phases 1 and 2 are implemented in `liwan_pmo`. Phases 3, 4, 5, 6 and 8 each have a detailed plan (linked in the table); re-check each against the code when its phase starts. Dependency order: 4 before 5.
 
 ## Phases
 
@@ -25,12 +25,13 @@ plan argues from the code as it is when that phase starts. Phase 1 (charter appr
 | 4 | Schedule and cost baselines, variance | `codex/pmo-baselines` | 2, 3 | yes |
 | 5 | Earned value (PV/EV/AC, CPI/SPI, EAC) | `codex/pmo-evm` | 4 | maybe |
 | 6 | Formal closure | `codex/pmo-closure` | 2 | yes |
-| 7 | Gantt dependency lines and milestones, then critical path | `codex/pmo-gantt-cpm` | nothing (CPM after 4) | no |
+| 7 | **Deferred (owner 2026-10-29)**: Gantt dependency lines and milestones, then critical path | `codex/pmo-gantt-cpm` | nothing (CPM after 4) | no |
 | 8 | Risk heat map, category, response strategy | `codex/pmo-risk-matrix` | nothing | yes |
 
-Phases 7 and 8 do not touch the files of phases 1–6 except `serializers/project_schedule.py`
-(7) and `models/project_governance.py` (8), so they can run in parallel worktrees. Writers never
+Phase 7 is deferred. Phase 8 does not touch the files of phases 1–6 except `models/project_governance.py`. Writers never
 share a file: phase 3 and phase 8 both touch governance, so they run one after the other.
+
+Detailed plans: [3 change control](2026-11-01-pmo-phase3-change-control.md), [4 baselines](2026-11-01-pmo-phase4-baselines.md), [5 EVM](2026-11-01-pmo-phase5-evm.md), [6 closure](2026-11-01-pmo-phase6-closure.md), [8 risk matrix](2026-11-01-pmo-phase8-risk-matrix.md).
 
 ## Design decisions, fixed for every phase
 
