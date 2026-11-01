@@ -148,6 +148,15 @@ async function confirmRemove() {
         :label="t('hrShifts.schedules')"
         data-testid="hr-shifts-schedules-link"
       />
+      <UButton
+        color="neutral"
+        variant="outline"
+        icon="i-lucide-calendar-days"
+        :to="{ path: '/hr/shifts/roster' }"
+        :disabled="!hydrated"
+        :label="t('hrShifts.week')"
+        data-testid="hr-shifts-roster-link"
+      />
     </template>
 
     <div class="liwan-page-stack">
