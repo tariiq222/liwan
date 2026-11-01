@@ -13,7 +13,7 @@ test('the ⌘K search dialog navigates with the shortcut it advertises', async (
   await page.goto('/tasks')
   await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
   // Focus a non-interactive heading; fixed coordinates can click a task row.
-  await page.getByRole('heading', { name: 'مهامي' }).click()
+  await page.getByRole('heading', { level: 1 }).click()
 
   await page.keyboard.press('ControlOrMeta+k')
   await expect(page).toHaveURL(/\/tasks$/)
@@ -41,7 +41,7 @@ test('the search dialog receives shortcut characters once it has a query and clo
   await page.goto('/tasks')
   await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
   // Focus a non-interactive heading; fixed coordinates can click a task row.
-  await page.getByRole('heading', { name: 'مهامي' }).click()
+  await page.getByRole('heading', { level: 1 }).click()
 
   await page.keyboard.press('ControlOrMeta+k')
   const dialog = page.getByRole('dialog', { name: 'بحث', exact: true })

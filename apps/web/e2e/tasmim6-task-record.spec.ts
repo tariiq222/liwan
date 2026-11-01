@@ -68,11 +68,12 @@ test.describe('Plan 6a: the task record', () => {
   })
   test.describe('phone', () => {
     test.use({ viewport: PHONE })
-    test('the aside follows the main column and nothing overflows', async ({ page }) => {
+    test('the summary comes before the sections and nothing overflows', async ({ page }) => {
       await open(page, '/tasks/101')
+      // The summary (properties) comes first on a phone, then the sections.
+      const summary = await page.locator('[data-slot="record-summary"]').boundingBox()
       const main = await page.locator('[data-slot="record-main"]').boundingBox()
-      const aside = await page.locator('[data-slot="record-aside"]').boundingBox()
-      expect(aside!.y).toBeGreaterThan(main!.y)
+      expect(main!.y).toBeGreaterThan(summary!.y)
       expect(await fitsWidth(page)).toBe(true)
     })
   })

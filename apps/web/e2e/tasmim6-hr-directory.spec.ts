@@ -55,10 +55,10 @@ test.describe('Plan 6b: the employee directory', () => {
     test('the scope tabs and the department filter write the URL and keep each other', async ({ page }) => {
       await open(page, '/hr?department_id=2')
       await expect(rows(page)).toHaveCount(1)
-      await page.getByTestId('hr-directory-scope').getByRole('tab', { name: 'المؤرشفون' }).click()
+      await page.getByTestId('hr-directory-scope').getByRole('button', { name: 'المؤرشفون' }).click()
       await expect.poll(() => new URL(page.url()).searchParams.get('archived')).toBe('1')
       expect(new URL(page.url()).searchParams.get('department_id')).toBe('2')
-      await page.getByTestId('hr-directory-scope').getByRole('tab', { name: 'النشطون' }).click()
+      await page.getByTestId('hr-directory-scope').getByRole('button', { name: 'النشطون' }).click()
       await expect.poll(() => new URL(page.url()).searchParams.has('archived')).toBe(false)
     })
 
@@ -160,7 +160,7 @@ test.describe('Plan 6b: the employee directory', () => {
       await expect(first).toContainText('أحمد العتيبي')
       await expect(first.getByTestId('hr-access-badge')).toBeVisible()
       await expect(first.getByTestId('row-actions-menu')).toBeVisible()
-      await expect(mobileRows(page).nth(2)).toContainText('—')
+      await expect(mobileRows(page).nth(2)).toContainText('بدون حساب')
       expect(await fitsWidth(page)).toBe(true)
       await page.getByRole('heading', { level: 1 }).click()
       await page.keyboard.press('j')

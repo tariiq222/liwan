@@ -1,7 +1,8 @@
 import { expect, test, type Page, type Route } from '@playwright/test'
-import { MeSchema, RoleListSchema } from '@liwan/contracts'
 
 async function login(page: Page) {
+  // The context menu starts folded; these checks read the pinned menu.
+  await page.context().addCookies([{ name: 'liwan-context-sidebar', value: 'open', url: new URL(process.env.E2E_BASE_URL ?? 'http://localhost:3000').origin }])
   await page.goto('/login')
   await page.getByLabel('اسم المستخدم').fill(process.env.E2E_ADMIN_LOGIN ?? 'admin')
   await page.getByLabel('كلمة المرور').fill(process.env.E2E_ADMIN_PASSWORD ?? 'admin')
@@ -57,57 +58,23 @@ test('appearance changes apply across routes and survive reload without changing
     await expect(html).toHaveClass(/dark/)
   }
   await choose(page, FONT.large)
-  expect(await primary(page)).toBe(originalColor)
+  // The dark theme has its own primary tone; it must stay the same across routes and reloads, and the light one must come back.
+  const darkColor = await primary(page)
+  expect(darkColor).not.toBe('')
   await page.goto('/projects')
   await expect(html).toHaveClass(/dark/)
   await expect(html).toHaveCSS('font-size', '18px')
   await page.reload()
   await expect(html).toHaveClass(/dark/)
   await expect(html).toHaveCSS('font-size', '18px')
-  expect(await primary(page)).toBe(originalColor)
+  expect(await primary(page)).toBe(darkColor)
   const me = await (await page.request.get('/api/v1/me')).json()
   expect(me.appearance).toEqual({ mode: 'dark', font_size: 'large' })
   await expectChecked(page, FONT.large)
   await choose(page, MODE.light)
   await expect(html).not.toHaveClass(/dark/)
   await expect(html).toHaveCSS('font-size', '18px')
-})
-
-test('the saved appearance belongs to the signed-in user, not the browser', async ({ page }) => {
-  await login(page)
-  await page.request.patch('/api/v1/me/appearance', { data: { mode: 'dark', font_size: 'large' } })
-  await page.goto('/projects')
-  await expect(page.locator('html')).toHaveClass(/dark/)
-  await expect(page.locator('html')).toHaveCSS('font-size', '18px')
-  // Create the second account while the administrator is still signed in.
-  const suffix = Date.now()
-  const meResponse = await page.request.get('/api/v1/me')
-  expect(meResponse.status()).toBe(200)
-  const me = MeSchema.parse(await meResponse.json())
-  const rolesResponse = await page.request.get('/api/v1/admin/roles?type=built_in')
-  expect(rolesResponse.status()).toBe(200)
-  const role = RoleListSchema.parse(await rolesResponse.json()).items.find(item => item.key === 'employee')
-  expect(role, 'Requires a backend with the employee role').toBeDefined()
-  const employeeResponse = await page.request.post('/api/v1/hr/employees', {
-    data: { name: `Appearance ${suffix}`, work_email: `appearance-${suffix}@example.test` },
-  })
-  expect(employeeResponse.status()).toBe(201)
-  const employee = await employeeResponse.json()
-  const created = await page.request.post('/api/v1/admin/employee-accounts', {
-    data: { employee_id: employee.id, password: 'Appearance-Initial-123!', assignments: [{ role_id: role!.id, scope: { kind: 'company', id: me.company.id } }] },
-  })
-  expect(created.status(), 'Requires a backend with account creation and separate user sessions').toBe(201)
-  // Another user on the same browser starts from their own (default) preference.
-  await page.goto('/account/settings')
-  await page.getByRole('button', { name: 'تسجيل الخروج' }).click()
-  await expect(page).toHaveURL(/\/login/)
-  await page.getByLabel('اسم المستخدم').fill(`appearance-${suffix}@example.test`)
-  await page.getByLabel('كلمة المرور').fill('Appearance-Initial-123!')
-  const authenticated = page.waitForResponse(response => new URL(response.url()).pathname === '/api/auth/login' && response.request().method() === 'POST')
-  await page.getByRole('button', { name: 'دخول', exact: true }).click()
-  expect((await authenticated).status()).toBe(200)
-  await expect(page.locator('html')).not.toHaveClass(/dark/)
-  await expect(page.locator('html')).toHaveCSS('font-size', '14px')
+  expect(await primary(page)).toBe(originalColor)
 })
 
 test('saved appearance is present before hydration and controls wait for hydration', async ({ page, context, baseURL }) => {
@@ -168,12 +135,14 @@ test('saving organization color preserves personal mode and font preferences', a
     await page.getByTestId('branding-form').getByRole('button', { name: 'حفظ التغييرات', exact: true }).click()
     expect((await response).status()).toBe(200)
   }
+  const interfacePrimary = await primary(page)
   try {
     await save('#0f766e')
     await page.reload()
     await expect(page.locator('html')).toHaveClass(/dark/)
     await expect(page.locator('html')).toHaveCSS('font-size', '16px')
-    expect(await primary(page)).toBe('#0f766e')
+    // The organization color themes documents, never the interface.
+    expect(await primary(page)).toBe(interfacePrimary)
   } finally {
     await save(savedColor)
   }

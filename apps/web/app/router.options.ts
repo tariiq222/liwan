@@ -44,8 +44,19 @@ export default <RouterConfig>{
     // scroll never happened at all. Wait on the document instead: it is what
     // the restore actually depends on, and it can only be measured.
     await nextFrame()
-    const card = to.hash ? await whenElement(() => hashElement(to.hash), nextFrame) : null
-    if (card) return hashPosition(card, 'instant')
+    let card = to.hash ? await whenElement(() => hashElement(to.hash), nextFrame) : null
+    if (card) {
+      // The card can exist before it is laid out, or be replaced while its page's data arrives, on a page still too
+      // short to scroll to it. Follow the element behind the hash until it has a box and the page is tall enough, up to
+      // a second; the last cards of a page never reach the top and land where they can.
+      for (let frame = 0; frame < 60 && (!card.isConnected || card.getBoundingClientRect().height === 0); frame += 1) {
+        await nextFrame()
+        card = hashElement(to.hash) ?? card
+      }
+      const margin = Number.parseFloat(getComputedStyle(card).scrollMarginTop) || 0
+      await whenScrollTopReachable(card.getBoundingClientRect().top + window.scrollY - margin, viewport, nextFrame, 60)
+      return hashPosition(hashElement(to.hash) ?? card, 'instant')
+    }
     const restingAt = window.scrollY
     await whenScrollTopReachable(target.top, viewport, nextFrame)
     // That wait spans a cold list's request. Someone who scrolled while it ran

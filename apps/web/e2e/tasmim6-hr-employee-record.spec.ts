@@ -24,31 +24,32 @@ test.describe('Plan 6b: the employee record', () => {
   test.describe('desktop', () => {
     test.use({ viewport: { width: 1440, height: 900 } })
 
-    test('is the record template: one h1 with the job line, two sections, the properties aside', async ({ page }) => {
+    test('is the record template: one h1 with the job line in the identity card, two sections, the properties aside', async ({ page }) => {
       await open(page, '/hr/employees/1')
       await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
       await expect(page.getByRole('heading', { level: 1 })).toHaveText('سارة محمد')
       await expect(page.locator('[data-template="record"]')).toHaveCount(1)
-      await expect(page.locator('[data-slot="page-header"]')).toContainText('مديرة العمليات')
+      await expect(page.locator('main')).toContainText('مديرة العمليات · إدارة العمليات')
       const headings = await page.locator('main h2').allTextContents()
-      expect(headings.map(text => text.trim())).toEqual(['نظرة عامة', 'الحساب'])
+      expect(headings.map(text => text.trim())).toEqual(['الحساب', 'التعويضات'])
       const aside = page.getByRole('complementary', { name: 'الخصائص' })
       await expect(aside.locator('[data-slot="property-row"]')).toHaveCount(5)
       await expect(aside.getByText('sara@example.test')).toBeVisible()
       await expect(aside.getByText('أحمد العتيبي')).toBeVisible()
       await expect(page.getByTestId('hr-access-badge')).toBeVisible()
-      await expect(page.getByRole('img', { name: 'سارة محمد' })).toBeVisible()
+      await expect(page.locator('[data-slot="identity-card"]')).toContainText('سارة محمد')
     })
 
     test('the actions are edit, manage account and archive, and archive confirms inline', async ({ page }) => {
       await open(page, '/hr/employees/1')
       await expect(page.getByRole('link', { name: 'تعديل', exact: true })).toHaveAttribute('href', /\/hr\/employees\/1\/edit/)
-      await expect(page.getByRole('link', { name: 'إدارة الحساب' })).toHaveAttribute('href', /\/settings\/team\/users\/1/)
-      await page.getByRole('button', { name: 'أرشفة الموظف' }).click()
-      await expect(page.getByText('هل تريد تغيير حالة نشاط هذا الموظف؟')).toBeVisible()
+      await page.getByTestId('row-actions-menu').click()
+      await expect(page.getByRole('menuitem', { name: 'إدارة الحساب' })).toHaveAttribute('href', /\/settings\/team\/users\/1/)
+      await page.getByRole('menuitem', { name: 'أرشفة الموظف' }).click()
+      await expect(page.getByText(/^أرشفة سارة محمد؟/)).toBeVisible()
       await expect(page.getByRole('dialog')).toHaveCount(0)
       await page.getByRole('button', { name: 'إلغاء' }).click()
-      await expect(page.getByText('هل تريد تغيير حالة نشاط هذا الموظف؟')).toHaveCount(0)
+      await expect(page.getByText(/^أرشفة سارة محمد؟/)).toHaveCount(0)
     })
 
     test('an employee without facts shows dashes with a spoken «لا قيمة»', async ({ page }) => {
@@ -73,6 +74,8 @@ test.describe('Plan 6b: the employee record', () => {
       await open(page, '/hr/employees/1')
       await expect(page.getByRole('heading', { level: 1 })).toHaveText('سارة محمد')
       await expect(page.getByRole('link', { name: 'تعديل', exact: true })).toHaveCount(0)
+      // With a single action left the row-actions control shows it directly instead of a menu.
+      await expect(page.getByTestId('row-actions-menu')).toHaveCount(0)
       await expect(page.getByRole('button', { name: 'أرشفة الموظف' })).toHaveCount(0)
       await expect(page.getByRole('link', { name: 'إدارة الحساب' })).toBeVisible()
     })
@@ -99,7 +102,7 @@ test.describe('Plan 6b: the employee record', () => {
     test('on a 390px phone the properties follow the sections and the page fits', async ({ page }) => {
       await open(page, '/hr/employees/1')
       expect(await fitsWidth(page)).toBe(true)
-      const sectionTop = await page.getByRole('heading', { level: 2, name: 'نظرة عامة' }).evaluate(node => node.getBoundingClientRect().top)
+      const sectionTop = await page.getByRole('heading', { level: 2, name: 'الحساب' }).evaluate(node => node.getBoundingClientRect().top)
       const asideTop = await page.getByRole('complementary', { name: 'الخصائص' }).evaluate(node => node.getBoundingClientRect().top)
       expect(asideTop).toBeGreaterThan(sectionTop)
     })

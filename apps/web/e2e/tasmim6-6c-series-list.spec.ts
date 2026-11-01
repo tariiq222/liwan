@@ -20,7 +20,7 @@ test.describe('Plan 6c: the series list', () => {
       const create = page.locator('[data-shortcut-create]')
       await expect(create).toHaveAttribute('data-testid', 'meeting-series-new')
       await expect(create).toContainText('اجتماع دوري جديد')
-      await expect(page.getByRole('status').filter({ hasText: 'عدد الاجتماعات الدورية: 1' })).toBeVisible()
+      await expect(page.getByTestId('meeting-series-result-count')).toContainText('نتيجة واحدة')
       await expect(rows(page)).toHaveCount(1)
       await expect(rows(page).first()).toContainText('شهري')
       await expect(rows(page).first()).toContainText('أحمد العتيبي')

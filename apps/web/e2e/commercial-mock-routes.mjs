@@ -17,6 +17,8 @@ function customer(res, path) {
   if (rest === 'invoices') return json(res, 200, { items: fixtures.invoices.items, total: fixtures.invoices.total })
   const invoice = /^invoices\/(.+)$/.exec(rest)
   if (invoice) return byId(fixtures.invoices, decodeURIComponent(invoice[1])) ? json(res, 200, byId(fixtures.invoices, decodeURIComponent(invoice[1]))) : notFound(res)
+  // The stub keeps no orders: a status read answers like an order that is not the subscription's pending one.
+  if (/^orders\/.+/.test(rest)) return notFound(res)
   return json(res, 501, { code: 'not_implemented', message: 'The stub control plane is read-only' })
 }
 

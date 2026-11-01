@@ -14,17 +14,17 @@ test.describe('Plan 6c: the meeting record', () => {
   test.describe('desktop', () => {
     test.use({ viewport: { width: 1440, height: 900 } })
 
-    test('is the record template: one h1 with the name, seven tab links, and the properties aside', async ({ page }) => {
+    test('is the record template: one h1 with the name, five tab links, and the properties aside', async ({ page }) => {
       await open(page, '/meetings/1')
       await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
       await expect(page.getByRole('heading', { level: 1 })).toHaveText(NAME)
       await expect(page.locator('[data-template="record"]')).toHaveCount(1)
       await expect(page.getByRole('navigation', { name: 'أقسام الاجتماع', exact: true })).toBeVisible()
-      await expect(page.getByTestId('meeting-tabs').getByRole('link')).toHaveCount(7)
+      await expect(page.getByTestId('meeting-tabs').getByRole('link')).toHaveCount(5)
       await expect(tab(page, 'summary')).toHaveAttribute('aria-current', 'page')
       await expect(page.locator('#meeting-summary')).toBeVisible()
       const aside = page.getByRole('complementary', { name: 'الخصائص' })
-      await expect(aside.locator('[data-slot="property-row"]')).toHaveCount(5)
+      await expect(aside.locator('[data-slot="property-row"]')).toHaveCount(3)
       await expect(page.getByTestId('meeting-state-badge')).toHaveText('مؤكد')
       await expect(aside).toContainText('MTG-001')
       await expect(aside.getByRole('link', { name: 'اجتماعات متابعة التحول الرقمي' })).toHaveAttribute('href', '/meetings/series/1')
@@ -33,7 +33,9 @@ test.describe('Plan 6c: the meeting record', () => {
 
     test('the header actions keep their targets', async ({ page }) => {
       await open(page, '/meetings/1')
-      await expect(page.getByRole('link', { name: 'معاينة وطباعة', exact: true })).toHaveAttribute('href', /\/meetings\/1\/print/)
+      await page.getByTestId('meeting-more-actions').click()
+      await expect(page.getByRole('menuitem', { name: 'معاينة وطباعة', exact: true })).toHaveAttribute('href', /\/meetings\/1\/print/)
+      await page.keyboard.press('Escape')
       await expect(page.getByRole('link', { name: 'تعديل', exact: true })).toHaveAttribute('href', /\/meetings\/1\/edit/)
       await expect(page.getByRole('button', { name: 'إنهاء', exact: true })).toBeEnabled()
     })
@@ -54,8 +56,8 @@ test.describe('Plan 6c: the meeting record', () => {
     test('every tab renders its own section', async ({ page }) => {
       await open(page, '/meetings/1')
       for (const [name, selector] of [
-        ['agenda', '#meeting-agenda'], ['minutes', '[data-testid="meeting-minutes-document"]'], ['resolutions', '#meeting-resolutions'],
-        ['attachments', '#meeting-attachments'], ['history', '[data-testid="meeting-event-list"]'], ['versions', '[data-testid="meeting-version-list"]'],
+        ['minutes', '[data-testid="meeting-minutes-document"]'], ['resolutions', '#meeting-resolutions'],
+        ['attachments', '#meeting-attachments'], ['history', '[data-testid="meeting-event-list"]'],
       ] as const) {
         await tab(page, name).click()
         await expect(tab(page, name)).toHaveAttribute('aria-current', 'page')
@@ -75,7 +77,7 @@ test.describe('Plan 6c: the meeting record', () => {
 
     test('a tab link keeps returnTo, so Back still returns to the filtered list', async ({ page }) => {
       await open(page, '/meetings?q=%D8%A7%D8%AC%D8%AA%D9%85%D8%A7%D8%B9')
-      await page.getByTestId('meeting-row').click()
+      await page.getByTestId('meeting-row').first().click()
       await expect(page).toHaveURL(/\/meetings\/1/)
       await tab(page, 'minutes').click()
       expect(new URL(page.url()).searchParams.get('returnTo')).toContain('/meetings')
@@ -130,11 +132,11 @@ test.describe('Plan 6c: the meeting record', () => {
       const strip = page.getByTestId('meeting-tabs')
       expect(await strip.evaluate(node => node.scrollWidth > node.clientWidth)).toBe(true)
       expect(await fitsWidth(page)).toBe(true)
-      await tab(page, 'versions').click()
-      await expect(tab(page, 'versions')).toHaveAttribute('aria-current', 'page')
+      await tab(page, 'history').click()
+      await expect(tab(page, 'history')).toHaveAttribute('aria-current', 'page')
       await expect.poll(() => page.evaluate(() => {
         const nav = document.querySelector('[data-testid="meeting-tabs"]')!.getBoundingClientRect()
-        const active = document.querySelector('[data-testid="meeting-tab-versions"]')!.getBoundingClientRect()
+        const active = document.querySelector('[data-testid="meeting-tab-history"]')!.getBoundingClientRect()
         return active.left >= nav.left - 1 && active.right <= nav.right + 1
       })).toBe(true)
       expect(await fitsWidth(page)).toBe(true)

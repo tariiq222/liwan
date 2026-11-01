@@ -153,6 +153,8 @@ test.beforeEach(() => { mode = 'manager'; fiscalPatches = []; rejectNextPatch = 
 async function routeFiscal(page: Page, cookies: Array<{ name: string; value: string }> = []) {
   await page.context().addCookies([
     { name: 'session_id', value: 'fiscal_mock', url: origin, httpOnly: true, sameSite: 'Lax' },
+    // The context menu starts folded; the hash check reads its pinned sub-list.
+    { name: 'liwan-context-sidebar', value: 'open', url: origin, sameSite: 'Lax' },
     ...cookies.map(cookie => ({ ...cookie, url: origin })),
   ])
   await page.route('**/api/v1/**', fulfillApi)

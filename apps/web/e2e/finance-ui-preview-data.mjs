@@ -91,6 +91,7 @@ export function financePreviewData(path, url) {
   if (route === '/api/v1/finance/countries') return page(countries.filter(row => matches(`${row.name} ${row.code}`, q)), url)
   if (/^\/api\/v1\/finance\/countries\/\d+\/states$/.test(route)) return page(states, url)
   if (route === '/api/v1/finance/setup') return setup
+  if (route === '/api/v1/finance/branch-strictness') return { scope: 'finance', enabled: false }
   if (route === '/api/v1/finance/invoices') {
     const state = url.searchParams.get('state')
     return page(invoices.filter(row => (!state || row.state === state) && matches(`${row.name ?? ''} ${row.partner?.name ?? ''}`, q)), url)

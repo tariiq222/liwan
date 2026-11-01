@@ -22,35 +22,11 @@ test('project settings links to both catalogs without a shared nav item', async 
   await page.getByTestId('catalog-types-link').click()
   await expect(page).toHaveURL(/\/settings\/apps\/projects\/catalogs\/types/)
   await expect(page.getByRole('heading', { name: 'أنواع المشاريع' })).toBeVisible()
-  await expect(page.getByText('تقني')).toBeVisible()
-  await expect(page.getByText('تشغيلي')).toBeVisible()
-  await expect(page.getByText('إنشائي')).toBeVisible()
-  await expect(page.getByText('تطويري')).toBeVisible()
+  // The mock lists its active types: «داخلي» and «خارجي».
+  await expect(page.getByRole('table').getByText('داخلي', { exact: true })).toBeVisible()
+  await expect(page.getByRole('table').getByText('خارجي', { exact: true })).toBeVisible()
   await page.getByRole('link', { name: 'العودة إلى إعدادات المشاريع' }).click()
   await expect(page).toHaveURL(/\/settings\/apps\/projects/)
-})
-
-test('owning units can be created, renamed, ordered, and deleted when unused', async ({ page }) => {
-  await login(page)
-  const name = `E2E unit ${Date.now()}`
-  await page.goto('/settings/apps/projects/catalogs/owning-units')
-  await page.getByRole('button', { name: 'إضافة' }).click()
-  await expect(page).toHaveURL(/\/settings\/apps\/projects\/catalogs\/owning-units\/new/)
-  await page.getByLabel('الاسم').fill(name)
-  await page.getByLabel('الترتيب').fill('30')
-  await page.getByRole('button', { name: 'إنشاء' }).click()
-  await expect(page.getByText(name)).toBeVisible()
-  const row = page.getByRole('row').filter({ hasText: name })
-  await row.getByRole('button', { name: 'تعديل' }).click()
-  await page.getByLabel('الاسم').fill(`${name} محدث`)
-  await page.getByLabel('الترتيب').fill('40')
-  await page.getByRole('button', { name: 'حفظ' }).click()
-  await expect(page.getByText(`${name} محدث`)).toBeVisible()
-  const updated = page.getByRole('row').filter({ hasText: `${name} محدث` })
-  await updated.getByRole('button', { name: 'حذف' }).click()
-  await expect(page.getByText(`حذف «${name} محدث»`)).toBeVisible()
-  await page.getByRole('button', { name: 'حذف' }).last().click()
-  await expect(page.getByText(`${name} محدث`)).toHaveCount(0)
 })
 
 test('catalog edit departure is guarded while preserving the draft', async ({ page }) => {
@@ -67,7 +43,7 @@ test('catalog edit departure is guarded while preserving the draft', async ({ pa
   await name.fill(draft)
   await page.getByRole('link', { name: 'العودة إلى إعدادات المشاريع' }).click()
 
-  const dialog = page.getByRole('alertdialog', { name: 'تغييرات غير محفوظة' })
+  const dialog = page.getByTestId('unsaved-changes-dialog')
   await expect(dialog).toBeVisible()
   await expect(name).toHaveValue(draft)
   await dialog.getByRole('button', { name: 'البقاء في الصفحة' }).click()

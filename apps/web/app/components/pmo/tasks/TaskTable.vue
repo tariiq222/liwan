@@ -49,7 +49,7 @@ const emptyTitleKey = computed(() => {
 })
 const showCreateAction = computed(() => props.canCreate && can('pmo.tasks.create') && !hasActiveFilters.value && !props.params.closed)
 
-// One width scale for both variants. Narrow columns are fixed px (a pill or tag never clips or wraps), Project takes 16%
+// One width scale for both variants. Narrow columns are fixed px, wide enough for the pill plus the tight cell padding (a pill or tag never clips, wraps or spills into the next column), Project takes 16%
 // with a floor, and the title absorbs the rest. A width sits on the header and the cell alike. Text columns truncate with an
 // ellipsis; a column holding a badge or a menu trigger (`fit`) never clips. Only the record number, priority and deadline
 // sort (the server cannot order by state or by the text columns): their server keys are TASK_SORT_KEYS.
@@ -57,9 +57,9 @@ const WIDTH = {
   number: 'w-[48px] min-w-[48px] px-2',
   title: 'min-w-[280px]',
   project: 'w-[16%] min-w-[140px]',
-  state: 'w-[120px] min-w-[120px]',
-  priority: 'w-[112px] min-w-[112px]',
-  deadline: 'w-[152px] min-w-[152px]',
+  state: 'w-[136px] min-w-[136px] px-2',
+  priority: 'w-[132px] min-w-[132px] px-2',
+  deadline: 'w-[176px] min-w-[176px] px-2',
   assignees: 'w-[104px] min-w-[104px]',
   stage: 'w-[96px] min-w-[96px]',
 }
