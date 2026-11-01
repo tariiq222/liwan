@@ -2,7 +2,7 @@ import { useHrOwnIdentity } from './useHrOwnIdentity'
 import { ApiError } from './useApi'
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
 import {
   HrWarningCandidateListSchema,
   HrWarningListSchema,
@@ -21,6 +21,7 @@ import {
 } from '@liwan/contracts'
 
 type Api = ReturnType<typeof useApi>['$api']
+type HrWarningListPage = { items: HrWarning[]; total: number }
 
 /** The page size the warning lists ask for; the server caps it at 200. */
 export const HR_WARNINGS_PAGE_SIZE = 25
@@ -148,15 +149,29 @@ export function useHrWarning(id: MaybeRefOrGetter<number | null>) {
   })
 }
 
-/** The caller's own issued warnings (`/me`): gated by the employee read capability, not by the warnings one. */
+/** The offset of the next own-warnings page: the count loaded so far, or none once the total is reached. */
+export function nextOwnHrWarningsOffset(pages: readonly HrWarningListPage[]): number | undefined {
+  const loaded = pages.reduce((count, page) => count + page.items.length, 0)
+  const total = pages.at(-1)?.total ?? 0
+  return loaded < total ? loaded : undefined
+}
+
+/** The loaded own-warnings pages as one list, with the total the last page reported. */
+export function ownHrWarningsView(pages: readonly HrWarningListPage[] | undefined): { items: HrWarning[]; total: number } {
+  return { items: (pages ?? []).flatMap(page => page.items), total: pages?.at(-1)?.total ?? 0 }
+}
+
+/** The caller's own issued warnings (`/me`), a page at a time: gated by the employee read capability, not by the warnings one. */
 export function useMyHrWarnings(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   const identity = useHrOwnIdentity()
   const { can } = useAccess()
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: computed(() => [...hrWarningKeys.mine, identity.scope.value]),
     enabled: computed(() => identity.ready.value && toValue(enabled) && can('hr.employees.read')),
-    queryFn: () => $api('/api/v1/hr/warnings/me', { query: { limit: MAX_LIMIT }, schema: HrWarningListSchema }),
+    queryFn: ({ pageParam }) => $api('/api/v1/hr/warnings/me', { query: { limit: HR_WARNINGS_PAGE_SIZE, offset: pageParam }, schema: HrWarningListSchema }),
+    initialPageParam: 0,
+    getNextPageParam: (_last, pages) => nextOwnHrWarningsOffset(pages),
   })
 }
 

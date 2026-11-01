@@ -5,14 +5,16 @@ import { saveErrorMessage } from '@/utils/formFeedback'
 import { sortHrWarningTypes } from '@/utils/hrWarnings'
 
 // The warning types manager of the HR settings: rename, change the severity rank, archive and restore,
-// and add a type. Each row saves with its own revision; a 409 locks the card until the list is reloaded.
+// and add a type. A row edit saves with the revision it started from, so a concurrent change answers 409
+// even after a background refetch; a 409 locks the card until the list is reloaded.
 const props = defineProps<{ types: HrWarningType[]; canEdit: boolean; reloadTypes: () => Promise<unknown> }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const create = useCreateHrWarningType()
 const patch = usePatchHrWarningType()
 
-const drafts = ref<Record<number, { name: string; severity: number | undefined }>>({})
+type Draft = { name: string; severity: number | undefined; revision: number }
+const drafts = ref<Record<number, Draft>>({})
 const newName = ref('')
 const newSeverity = ref<number | undefined>(1)
 const attempted = ref(false)
@@ -27,9 +29,9 @@ const message = computed(() => failure.value ? (conflict.value ? t('hrWarnings.t
 const nameError = computed(() => attempted.value && !newName.value.trim() ? t('hrWarnings.types.nameRequired') : undefined)
 
 function draft(type: HrWarningType) {
-  return drafts.value[type.id] ?? { name: type.name, severity: type.severity }
+  return drafts.value[type.id] ?? { name: type.name, severity: type.severity, revision: type.revision }
 }
-function setDraft(type: HrWarningType, change: Partial<{ name: string; severity: number | undefined }>) {
+function setDraft(type: HrWarningType, change: Partial<Pick<Draft, 'name' | 'severity'>>) {
   drafts.value = { ...drafts.value, [type.id]: { ...draft(type), ...change } }
 }
 function validSeverity(value: number | undefined): value is number {
@@ -56,7 +58,7 @@ async function saveType(type: HrWarningType) {
   const current = draft(type)
   if (!savable(type)) return
   await run(type.id, async () => {
-    await patch.mutateAsync({ id: type.id, body: { revision: type.revision, name: current.name.trim(), severity: current.severity } })
+    await patch.mutateAsync({ id: type.id, body: { revision: current.revision, name: current.name.trim(), severity: current.severity } })
     const { [type.id]: _saved, ...rest } = drafts.value
     drafts.value = rest
   })

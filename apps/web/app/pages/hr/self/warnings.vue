@@ -2,7 +2,7 @@
 definePageMeta({ path: '/account/warnings' })
 import OwnWarningCard from '@/components/hr/warnings/OwnWarningCard.vue'
 import { ApiError } from '@/composables/useApi'
-import { isHrWarningConflict } from '@/composables/useHrWarnings'
+import { isHrWarningConflict, ownHrWarningsView } from '@/composables/useHrWarnings'
 
 // The employee's own issued warnings. Answering happens here, inline; administrative records are never linked.
 const { t } = useI18n()
@@ -13,8 +13,10 @@ const { canIssue } = useHrWarningIssuer()
 const mine = useMyHrWarnings(computed(() => !!profile.data.value))
 const acknowledge = useAcknowledgeHrWarning()
 const contest = useContestHrWarning()
-const items = computed(() => mine.data.value?.items ?? [])
+const view = computed(() => ownHrWarningsView(mine.data.value?.pages))
+const items = computed(() => view.value.items)
 const showEmpty = computed(() => !mine.isLoading.value && !mine.error.value && items.value.length === 0)
+const hydrated = useHydrated()
 const answering = ref<number | null>(null)
 const failure = ref<{ id: number; message: string } | null>(null)
 
@@ -52,6 +54,10 @@ async function answer(id: number, action: () => Promise<unknown>) {
           @acknowledge="answer(warning.id, () => acknowledge.mutateAsync({ id: warning.id, revision: warning.revision }))"
           @contest="note => answer(warning.id, () => contest.mutateAsync({ id: warning.id, revision: warning.revision, note }))"
         />
+        <div class="flex flex-col items-center gap-2">
+          <p class="text-sm text-muted" data-testid="hr-my-warnings-count">{{ t('hrWarnings.footer', { shown: items.length, total: view.total }, view.total) }}</p>
+          <UButton v-if="mine.hasNextPage.value" color="neutral" variant="outline" :disabled="!hydrated || mine.isFetchingNextPage.value" :loading="mine.isFetchingNextPage.value" :label="t('app.loadMore')" data-testid="hr-my-warnings-more" @click="mine.fetchNextPage()" />
+        </div>
       </div>
     </SharedPageState>
   </SharedListPage>

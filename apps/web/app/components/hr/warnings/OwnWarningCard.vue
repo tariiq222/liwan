@@ -15,8 +15,15 @@ const actions = computed(() => ownHrWarningActions(props.warning))
 const badge = computed(() => hrWarningBadge(props.warning.state))
 const missing = computed(() => !note.value.trim())
 
+// A refresh that leaves the warning unanswerable (answered elsewhere, withdrawn, answers switched off) closes the editor and drops the text.
+watch(() => actions.value.contest, answerable => {
+  if (answerable) return
+  contesting.value = false
+  note.value = ''
+})
+
 function sendContest() {
-  if (missing.value) return
+  if (missing.value || !actions.value.contest) return
   emit('contest', note.value.trim())
 }
 </script>
@@ -40,7 +47,7 @@ function sendContest() {
       </div>
       <UAlert v-if="props.error" role="alert" color="error" variant="subtle" :title="t('hrWarnings.mine.error')" :description="props.error" />
       <SharedInlineConfirm
-        v-if="contesting"
+        v-if="contesting && actions.contest"
         :title="t('hrWarnings.mine.contestTitle')"
         :confirm-label="t('hrWarnings.mine.contestSubmit')"
         color="primary"

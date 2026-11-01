@@ -10,6 +10,8 @@ import {
   hrWarningKeys,
   hrWarningQuery,
   isHrWarningConflict,
+  nextOwnHrWarningsOffset,
+  ownHrWarningsView,
   issueHrWarning,
   patchHrWarningType,
   withdrawHrWarning,
@@ -111,5 +113,23 @@ describe('the warning writes', () => {
     await patchHrWarningType(api, qc, { id: 3, body: { revision: 1, active: false } })
     expect(api).toHaveBeenLastCalledWith('/api/v1/hr/warning-types/3', { method: 'PATCH', body: { revision: 1, active: false }, schema: expect.anything() })
     expect(spy).toHaveBeenCalledWith({ queryKey: hrWarningKeys.types })
+  })
+})
+
+describe('own warnings paging', () => {
+  const page = (ids: number[], total: number) => ({ items: ids.map(id => warning({ id })), total })
+
+  it('asks for the next page at the loaded count until the total is reached', () => {
+    expect(nextOwnHrWarningsOffset([page([1, 2], 5)])).toBe(2)
+    expect(nextOwnHrWarningsOffset([page([1, 2], 5), page([3, 4], 5)])).toBe(4)
+    expect(nextOwnHrWarningsOffset([page([1, 2], 5), page([3, 4], 5), page([5], 5)])).toBeUndefined()
+    expect(nextOwnHrWarningsOffset([page([], 0)])).toBeUndefined()
+  })
+
+  it('appends the pages in order and reports the last total', () => {
+    const view = ownHrWarningsView([page([1, 2], 5), page([3, 4], 6)])
+    expect(view.items.map(item => item.id)).toEqual([1, 2, 3, 4])
+    expect(view.total).toBe(6)
+    expect(ownHrWarningsView(undefined)).toEqual({ items: [], total: 0 })
   })
 })
