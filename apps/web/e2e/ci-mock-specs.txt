@@ -3,6 +3,7 @@ chat-presentation-mocked.spec.ts
 totp.spec.ts
 ai-mocked.spec.ts
 hr-areas-mocked.spec.ts
+hr-insurance-mocked.spec.ts
 finance-phase3-mocked.spec.ts
 hr-payroll-mocked.spec.ts
 settings-navigation-mocked.spec.ts
