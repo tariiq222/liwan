@@ -559,15 +559,15 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   [data-slot="record-summary"] [data-slot="properties-panel"] dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
 }
 
-/* Match the automatic narrow-desktop width before hydration without writing a preference. */
+/* Match the automatic narrow-desktop width before hydration without writing a preference. A hover overlay is exempt: its destinations must stay usable. */
 @media (min-width: 768px) and (max-width: 1099px) {
-  .liwan-shell:has(.liwan-context-sidebar[data-preference="auto"]) { --context-sidebar-width: 64px; }
-  .liwan-navigation[data-preference="auto"] :is(.liwan-navigation-children, .liwan-navigation-chevron) { display: none; }
-  .liwan-context-sidebar[data-preference="auto"] :is(.liwan-context-heading h2, .liwan-context-count) { display: none; }
-  .liwan-context-sidebar[data-preference="auto"] .liwan-context-heading { justify-content: center; padding-inline: 0; }
-  .liwan-context-sidebar[data-preference="auto"] .liwan-context-link { justify-content: center; padding-inline: 0; }
-  .liwan-shell:has(.liwan-context-sidebar[data-preference="auto"]) .liwan-quick-views[data-surface="card"] :is(.liwan-quick-count, .liwan-sub-list-title) { display: none; }
-  .liwan-shell:has(.liwan-context-sidebar[data-preference="auto"]) .liwan-quick-views[data-surface="card"] .liwan-quick-link { justify-content: center; padding-inline: 0; }
-  .liwan-shell:has(.liwan-context-sidebar[data-preference="auto"]) .liwan-quick-views[data-surface="card"] .liwan-quick-link [data-slot="label"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .liwan-context-sidebar[data-preference="auto"] .liwan-context-link [data-slot="label"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .liwan-shell:has(.liwan-context-sidebar[data-preference="auto"]:not([data-overlay="true"])) { --context-sidebar-width: 64px; }
+  .liwan-navigation[data-preference="auto"]:not([data-overlay="true"]) :is(.liwan-navigation-children, .liwan-navigation-chevron) { display: none; }
+  .liwan-context-sidebar[data-preference="auto"]:not([data-overlay="true"]) :is(.liwan-context-heading h2, .liwan-context-count) { display: none; }
+  .liwan-context-sidebar[data-preference="auto"]:not([data-overlay="true"]) .liwan-context-heading { justify-content: center; padding-inline: 0; }
+  .liwan-context-sidebar[data-preference="auto"]:not([data-overlay="true"]) .liwan-context-link { justify-content: center; padding-inline: 0; }
+  .liwan-shell:has(.liwan-context-sidebar[data-preference="auto"]:not([data-overlay="true"])) .liwan-quick-views[data-surface="card"] :is(.liwan-quick-count, .liwan-sub-list-title) { display: none; }
+  .liwan-shell:has(.liwan-context-sidebar[data-preference="auto"]:not([data-overlay="true"])) .liwan-quick-views[data-surface="card"] .liwan-quick-link { justify-content: center; padding-inline: 0; }
+  .liwan-shell:has(.liwan-context-sidebar[data-preference="auto"]:not([data-overlay="true"])) .liwan-quick-views[data-surface="card"] .liwan-quick-link [data-slot="label"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .liwan-context-sidebar[data-preference="auto"]:not([data-overlay="true"]) .liwan-context-link [data-slot="label"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }
