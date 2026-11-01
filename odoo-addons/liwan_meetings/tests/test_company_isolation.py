@@ -14,6 +14,7 @@ from odoo.tests.common import HOST
 
 from odoo.addons.liwan_api.tests.common import (
     CompanyIsolationCase,
+    assert_isolation_discovery,
     cover_isolation_routes,
 )
 
@@ -33,6 +34,9 @@ COVERED = (
     '/api/v1/meeting-series/<int:series_id>/events',
     '/api/v1/meeting-series/<int:series_id>/resolutions',
 )
+
+
+EXPECTED_GET_RECORD_ROUTES = 10
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -190,6 +194,9 @@ class MeetingsCompanyIsolationCase(CompanyIsolationCase):
             self.meetings[self.company_c.id].id,
             [item['id'] for item in forged.json()['items']],
         )
+
+    def test_discovery_covers_every_get_record_route(self):
+        assert_isolation_discovery(self, 'liwan_meetings', EXPECTED_GET_RECORD_ROUTES)
 
 
 cover_isolation_routes(COVERED, 'liwan_meetings/tests/test_company_isolation.py')

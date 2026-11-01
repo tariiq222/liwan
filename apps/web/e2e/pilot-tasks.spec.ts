@@ -29,7 +29,7 @@ test.describe('Plan 5 pilot: the task lists', () => {
       await expect(rows(page)).toHaveCount(4)
       const create = page.locator('[data-shortcut-create]')
       await expect(create).toHaveCount(1)
-      await expect(create).toContainText('مهمة جديدة')
+      await expect(create).toContainText('مهمة مشروع جديدة')
       await expect(page.getByTestId('deadline-badge').first()).toBeVisible()
       await expect(rows(page).first().getByRole('link').first()).toHaveAttribute('href', /\/tasks\/\d+/)
       await expect(rows(page).first().getByRole('button').first()).toBeVisible()

@@ -5,7 +5,7 @@ test.beforeEach(async ({ page }) => { await login(page); await page.request.post
 
 test('the wizard announces one localized step position and protects an edited draft', async ({ page }) => {
   await open(page, '/projects')
-  await page.getByRole('link', { name: 'مشروع جديد', exact: true }).click()
+  await page.getByTestId('project-new').click()
   await expect(page.getByTestId('charter-step-position')).toHaveText('الخطوة 1 من 7: الأساسيات')
   await expect(page.getByRole('status').filter({ hasText: 'Step 0 of 7' })).toHaveCount(0)
   await page.getByTestId('project-create-name').fill('مسودة مراجعة المشاريع')

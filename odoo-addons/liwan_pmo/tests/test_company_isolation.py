@@ -11,6 +11,7 @@ from odoo.tests.common import HOST
 
 from odoo.addons.liwan_api.tests.common import (
     CompanyIsolationCase,
+    assert_isolation_discovery,
     cover_isolation_routes,
 )
 
@@ -39,8 +40,12 @@ COVERED = (
     '/api/v1/tasks/<int:task_id>/dependencies',
     '/api/v1/tasks/<int:task_id>/dependencies/candidates',
     '/api/v1/notification-digests/<int:notification_id>',
+    '/api/v1/project-charter/catalogs/<string:resource>',
     '/api/v1/project-charter/catalogs/<string:resource>/<int:item_id>',
 )
+
+
+EXPECTED_GET_RECORD_ROUTES = 24
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -196,6 +201,17 @@ class LiwanPmoIsolationCase(CompanyIsolationCase):
         self.assert_subtree_matrix(
             lambda company: f"/api/v1/project-charter/catalogs/types/{self.catalog_of[company.id].id}")
 
+    def test_charter_catalog_list_is_pinned_to_the_current_company(self):
+        self.env_in(self.company_p1)
+        path = '/api/v1/project-charter/catalogs/types'
+        ids = {item['id'] for item in self.assertVisible(path).json()['items']}
+        self.assertIn(self.catalog_of[self.company_p1.id].id, ids)
+        for company in (self.company_p, self.company_p2, self.company_c):
+            self.assertNotIn(self.catalog_of[company.id].id, ids)
+        forged = self.forged_get(path)
+        self.assertEqual(forged.status_code, 200, forged.text[:200])
+        self.assertNotIn(self.catalog_of[self.company_c.id].id, {item['id'] for item in forged.json()['items']})
+
     def test_task_detail_matrix(self):
         self.assert_subtree_matrix(lambda company: f'/api/v1/tasks/{self.task_of[company.id].id}')
 
@@ -281,6 +297,9 @@ class LiwanPmoIsolationCase(CompanyIsolationCase):
         self.assertEqual(response.json()['code'], 'not_found')
         self.assertFalse(self.env['project.task'].sudo().search([
             ('project_id', '=', p_project.id), ('name', '=', 'Foreign parent')]))
+
+    def test_discovery_covers_every_get_record_route(self):
+        assert_isolation_discovery(self, 'liwan_pmo', EXPECTED_GET_RECORD_ROUTES)
 
 
 def register_pmo_isolation_coverage():

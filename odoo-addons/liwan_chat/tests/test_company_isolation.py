@@ -14,6 +14,7 @@ from odoo.tests.common import HOST
 
 from odoo.addons.liwan_api.tests.common import (
     CompanyIsolationCase,
+    assert_isolation_discovery,
     cover_isolation_routes,
 )
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
@@ -28,6 +29,9 @@ COVERED = (
     '/api/v1/chat/conversations/<int:conversation_id>/attachments',
     '/api/v1/chat/conversations/<int:conversation_id>/attachments/<int:attachment_id>/download',
 )
+
+
+EXPECTED_GET_RECORD_ROUTES = 5
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -130,6 +134,9 @@ class ChatCompanyIsolationCase(CompanyIsolationCase):
             self.conversations[self.company_c.id].id,
             [item['id'] for item in forged.json()['items']],
         )
+
+    def test_discovery_covers_every_get_record_route(self):
+        assert_isolation_discovery(self, 'liwan_chat', EXPECTED_GET_RECORD_ROUTES)
 
 
 cover_isolation_routes(COVERED, 'liwan_chat/tests/test_company_isolation.py')
