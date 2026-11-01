@@ -1,4 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import date
+from unittest.mock import patch
+
 from odoo.tests import tagged
 
 from .oca_common import BANK, LiwanFinanceOcaCase
@@ -181,6 +184,32 @@ class TestFinanceBankStatementFiles(LiwanFinanceOcaCase):
         refused = self.api('POST', IMPORT, json=self.body(repeated, balance_start=0))
         self.assertRefused(refused, 422, 'duplicate_lines')
         self.assertEqual(refused.json()['details'], {'rows': [1, 2, 3]})
+
+    def test_a_literal_id_with_a_hash_is_not_the_suffix_of_a_repeated_one(self):
+        first = OFX_V2.replace('2026102500001', 'BANK-ID').replace('2026102600002', 'BANK-ID#2').replace('2026102700003', 'OTHER')
+        self.assertEqual(self.api('POST', IMPORT, json=self.body(first, balance_start=0)).status_code, 201)
+        repeated = OFX_V2.replace('2026102500001', 'BANK-ID').replace('2026102600002', 'BANK-ID').replace('2026102700003', 'NEW')
+        preview = self.api('POST', PREVIEW, json=self.body(repeated)).json()
+        self.assertEqual([line['duplicate'] for line in preview['lines']], [True, False, False])
+
+    def test_two_transactions_with_one_stored_id_are_refused_with_a_422(self):
+        clash = [{'currency': 'SAR', 'account_number': None, 'balance_end': 5.0, 'errors': [], 'lines': [
+            {'row': row, 'date': date(2026, 10, 25), 'payment_ref': f'Line {row}', 'amount': 5.0, 'fitid': 'SAME'} for row in (1, 2)]}]
+        with patch('odoo.addons.liwan_finance.controllers.finance_bank_import.parse_ofx', return_value=clash):
+            refused = self.api('POST', PREVIEW, json=self.body(OFX_V2))
+        self.assertRefused(refused, 422, 'invalid', 'content')
+
+    def test_an_existing_payment_matched_by_id_is_not_counted_again_for_a_line_without_one(self):
+        coffee = ('<STMTTRN><DTPOSTED>20261025</DTPOSTED><TRNAMT>-5.00</TRNAMT>{fitid}<NAME>Coffee</NAME></STMTTRN>')
+        with_id, without_id = coffee.format(fitid='<FITID>A</FITID>'), coffee.format(fitid='')
+        self.env['account.bank.statement.line'].create({
+            'journal_id': self.bank.id, 'date': '2026-10-25', 'payment_ref': 'Coffee', 'amount': -5, 'unique_import_id': f'{self.bank.id}-ofx-A',
+        })
+        for order in ((with_id, without_id), (without_id, with_id)):
+            body = OFX_V2.split('<BANKTRANLIST>')[0] + '<BANKTRANLIST>' + ''.join(order) + '</BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>'
+            lines = self.api('POST', PREVIEW, json=self.body(body)).json()['lines']
+            self.assertEqual(sorted(line['duplicate'] for line in lines), [False, True])
+            self.assertEqual(lines[0]['duplicate'], order[0] == with_id)
 
     def test_the_account_in_the_file_must_be_the_journals_when_both_are_known(self):
         camt = camt_file([CAMT_ENTRY.format(amount='5.00', sign='CRDT', day='2026-10-25', ref='R1', text='One')], opening='0.00', closing='5.00')

@@ -74,19 +74,22 @@ def _mark_duplicates(journal, lines):
 
     Two identical lines in one file are both legitimate (two coffees, one day) as long as the journal holds fewer
     copies than the file has seen so far. A line that carries the bank's own transaction id (OFX ``FITID``) is judged by
-    that id alone: a manual line with the same day, amount and text must not hide it.
+    that id alone: a manual line with the same day, amount and text must not hide it. A journal line that an id of the file
+    matches is reserved for that id and is not counted again for the lines without one, whatever their order in the file.
     """
     if not lines:
         return
+    file_ids = [line['unique_import_id'] for line in lines if 'unique_import_id' in line]
+    if len(set(file_ids)) != len(file_ids):
+        refuse('the file has two transactions with the same id', 'content')
     existing = Counter()
     for line in request.env['account.bank.statement.line'].search([
         ('journal_id', '=', journal.id),
         ('date', '>=', min(line['date'] for line in lines)), ('date', '<=', max(line['date'] for line in lines)),
     ]):
-        existing[line.date, round(line.amount, 2), line.payment_ref or '-'] += 1
-    known_ids = set(request.env['account.bank.statement.line'].search([
-        ('unique_import_id', 'in', [line['unique_import_id'] for line in lines if 'unique_import_id' in line]),
-    ]).mapped('unique_import_id'))
+        if line.unique_import_id not in file_ids:
+            existing[line.date, round(line.amount, 2), line.payment_ref or '-'] += 1
+    known_ids = set(request.env['account.bank.statement.line'].search([('unique_import_id', 'in', file_ids)]).mapped('unique_import_id'))
     seen = Counter()
     for line in lines:
         if 'unique_import_id' in line:

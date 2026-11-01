@@ -66,6 +66,14 @@ class TestOfxReader(BaseCase):
         self.assertEqual(ids, ['2026102500001', '2026102500001#2', '2026102500001#3'])
         self.assertEqual([line['fitid'] for line in single(repeated)['lines']], ids)
 
+    def test_generated_suffixes_cannot_meet_a_literal_bank_id(self):
+        text = OFX_V2.replace('2026102500001', 'BANK-ID').replace('2026102600002', 'BANK-ID').replace('2026102700003', 'BANK-ID#2')
+        ids = [line['fitid'] for line in single(text)['lines']]
+        self.assertEqual(ids, ['BANK-ID', 'BANK-ID#2', 'BANK-ID%232'])
+        self.assertEqual(len(set(ids)), 3)
+        percent = OFX_V2.replace('2026102500001', 'A%23').replace('2026102600002', 'A#')
+        self.assertEqual([line['fitid'] for line in single(percent)['lines']][:2], ['A%2523', 'A%23'])
+
     def test_a_self_closed_element_does_not_swallow_the_next_ones_and_cdata_is_read(self):
         text = OFX_V2.replace('<STMTTRN><TRNTYPE>DEBIT', '<STMTTRN/><STMTTRN><TRNTYPE>DEBIT', 1)
         statement = single(text)

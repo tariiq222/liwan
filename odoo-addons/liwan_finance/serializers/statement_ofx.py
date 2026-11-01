@@ -93,12 +93,17 @@ def _reference(transaction):
 
 
 def _unique_id(fitid, seen):
-    """The id a transaction is remembered by. Some banks repeat a FITID inside one file; the first keeps it and the next
-    ones get ``#2``, ``#3``... in file order, so importing the same file again yields the same ids and is caught as duplicates."""
+    """The id a transaction is remembered by, unique within the file by construction.
+
+    The FITID is escaped (``%`` as ``%25``, ``#`` as ``%23``), so the escaped text never holds ``#``. Some banks repeat a
+    FITID inside one file: the first use keeps the escaped id and the next ones get ``#2``, ``#3``... in file order. A
+    literal ``BANK-ID#2`` is ``BANK-ID%232`` and cannot meet the second ``BANK-ID`` (``BANK-ID#2``). Importing the same
+    file again yields the same ids, so it is caught as duplicates."""
     if not fitid:
         return None
-    seen[fitid] += 1
-    return fitid if seen[fitid] == 1 else f'{fitid}#{seen[fitid]}'
+    escaped = fitid.replace('%', '%25').replace('#', '%23')
+    seen[escaped] += 1
+    return escaped if seen[escaped] == 1 else f'{escaped}#{seen[escaped]}'
 
 
 def _lines(statement):
