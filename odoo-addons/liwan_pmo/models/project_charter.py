@@ -4,6 +4,7 @@ from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 from .project_constants import (
+    CHANGE_CONTROLLED_FIELDS,
     CHARTER_CONTENT_FIELDS,
     CHARTER_RESET_VALS,
     CHARTER_RETURN_NOTE_MAX,
@@ -12,6 +13,10 @@ from .project_constants import (
 
 class LiwanCharterState(UserError):
     """The charter is not in a state that allows this action or edit."""
+
+
+class LiwanChangeRequired(UserError):
+    """The company requires an approved change request for this edit."""
 
 
 class ProjectProject(models.Model):
@@ -54,9 +59,26 @@ class ProjectProject(models.Model):
         changed = self.filtered(lambda project: project._liwan_charter_differs(vals, names))
         if any(project.liwan_charter_state == 'submitted' for project in changed):
             raise LiwanCharterState(self.env._("The charter is waiting for approval; withdraw it to edit."))
-        if not self.env['liwan.pmo.settings']._core_values()['require_charter_approval']:
+        # Change control replaces the reopening of an approved charter: the sponsor's approval of a
+        # change request, not a second charter approval, authorizes the edit.
+        mode = self.env['liwan.pmo.settings'].change_control_mode()
+        if mode == 'required':
+            for project in changed:
+                project._liwan_check_change_request(vals)
+        if mode != 'off' or not self.env['liwan.pmo.settings']._core_values()['require_charter_approval']:
             return self.browse()
         return changed.filtered(lambda project: project.liwan_charter_state == 'approved')
+
+    def _liwan_check_change_request(self, vals):
+        """Refuse an edit of the approved scope or budget of an executing project that no approved request covers."""
+        self.ensure_one()
+        names = set(vals) & CHANGE_CONTROLLED_FIELDS
+        if self.liwan_phase != 'executing' or not names or not self._liwan_charter_differs(vals, names):
+            return
+        if not self.env['liwan.project.change'].search_count([
+            ('project_id', '=', self.id), ('state', '=', 'approved'),
+        ]):
+            raise LiwanChangeRequired(self.env._("This change needs an approved change request."))
 
     def _liwan_charter_approval_required(self):
         return self.env['liwan.pmo.settings']._core_values()['require_charter_approval']

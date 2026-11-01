@@ -5,7 +5,7 @@ from odoo import api, fields, models
 from odoo.exceptions import AccessError, MissingError, UserError, ValidationError
 
 from .liwan_settings import CREATORS
-from .project_charter import LiwanCharterState
+from .project_charter import LiwanChangeRequired, LiwanCharterState
 from .project_constants import (
     ACCESS_USER_CREATE_MARKER,
     BUDGET_STATES,
@@ -37,6 +37,7 @@ __all__ = [
     'PROJECT_CREATORS',
     'STATUS_VALUES',
     'VISIBILITY_VALUES',
+    'LiwanChangeRequired',
     'LiwanCharterState',
     'LiwanStaleWrite',
 ]

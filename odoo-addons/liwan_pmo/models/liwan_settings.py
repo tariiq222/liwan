@@ -15,13 +15,16 @@ PARAM_DIGEST_ENABLED = 'liwan_pmo.overdue_digest_enabled'
 PARAM_REQUIRE_CHARTER_APPROVAL = 'liwan_pmo.require_charter_approval'
 PARAM_CLOSE_WITH_OPEN_TASKS = 'liwan_pmo.close_with_open_tasks'
 PARAM_REGISTER_TRANSITIONS = 'liwan_pmo.register_status_transitions'
+PARAM_CHANGE_CONTROL_MODE = 'liwan_pmo.change_control_mode'
 CREATORS = ('managers', 'employees')
 CLOSE_WITH_OPEN_TASKS = ('block', 'allow_with_warning')
 REGISTER_TRANSITIONS = ('sequence', 'free')
+CHANGE_CONTROL_MODES = ('off', 'optional', 'required')
 # Choice settings kept as company-suffixed parameters: API key -> (parameter, allowed values, default).
 PSC_CHOICES = {
     'close_with_open_tasks': (PARAM_CLOSE_WITH_OPEN_TASKS, CLOSE_WITH_OPEN_TASKS, 'block'),
     'register_status_transitions': (PARAM_REGISTER_TRANSITIONS, REGISTER_TRANSITIONS, 'sequence'),
+    'change_control_mode': (PARAM_CHANGE_CONTROL_MODE, CHANGE_CONTROL_MODES, 'optional'),
 }
 APPROVAL_DEFAULTS = ('none', 'project_manager')
 MAX_STAGES = 20
@@ -50,6 +53,7 @@ PSC_DEFAULTS = {
     'require_charter_approval': False,
     'close_with_open_tasks': 'block',
     'register_status_transitions': 'sequence',
+    'change_control_mode': 'optional',
 }
 
 
@@ -162,6 +166,12 @@ class LiwanPmoSettings(models.AbstractModel):
         if value < minimum or value > maximum:
             return default
         return value
+
+    def change_control_mode(self):
+        """The company's change control mode; `off` while the tenant's plan lacks the sub-feature."""
+        if not self.env['liwan.entitlement.service']._liwan_feature_read('pmo.change_control'):
+            return 'off'
+        return self._get_choice(PARAM_CHANGE_CONTROL_MODE, CHANGE_CONTROL_MODES, 'optional')
 
     def _company_psc_values(self):
         approval = self._params().get_param(self._company_key(PARAM_DEFAULT_APPROVAL), 'none')

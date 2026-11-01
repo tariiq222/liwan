@@ -10,6 +10,11 @@ CHARTER_APPROVED_KIND = 'charter_approved'
 CHARTER_RETURNED_KIND = 'charter_returned'
 CHARTER_DECISION_KINDS = (CHARTER_APPROVED_KIND, CHARTER_RETURNED_KIND)
 CHARTER_KINDS = (CHARTER_REVIEW_KIND, *CHARTER_DECISION_KINDS)
+CHANGE_REVIEW_KIND = 'change_review'
+CHANGE_APPROVED_KIND = 'change_approved'
+CHANGE_REJECTED_KIND = 'change_rejected'
+CHANGE_DECISION_KINDS = (CHANGE_APPROVED_KIND, CHANGE_REJECTED_KIND)
+CHANGE_KINDS = (CHANGE_REVIEW_KIND, *CHANGE_DECISION_KINDS)
 
 
 def notification_text(html):
@@ -55,6 +60,18 @@ def dump_notification(notification, live_tasks=None):
             'kind': message.liwan_notification_kind,
             'project_id': project.id,
             'project_name': project.display_name,
+            'body': notification_text(message.body),
+            'created_at': iso(message.date),
+            'is_read': bool(notification.is_read),
+        }
+    if message.liwan_notification_kind in CHANGE_KINDS:
+        project = message.liwan_project_id
+        return {
+            'id': notification.id,
+            'kind': message.liwan_notification_kind,
+            'project_id': project.id,
+            'project_name': project.display_name,
+            'change_id': message.liwan_change_id.id,
             'body': notification_text(message.body),
             'created_at': iso(message.date),
             'is_read': bool(notification.is_read),
