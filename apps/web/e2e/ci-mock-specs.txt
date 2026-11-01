@@ -46,3 +46,12 @@ project-smooth-navigation.spec.ts
 project-workspace-continuity.spec.ts
 project-theme.spec.ts
 project-pages.spec.ts
+tasmim6-hr-directory.spec.ts
+tasmim6-hr-forms.spec.ts
+tasmim6-hr-employee-record.spec.ts
+tasmim6-hr-departments.spec.ts
+tasmim6-hr-department-record.spec.ts
+pilot-project-record.spec.ts
+pilot-dashboard.spec.ts
+project-ux-overview.spec.ts
+tasmim6-tasks-misc.spec.ts
