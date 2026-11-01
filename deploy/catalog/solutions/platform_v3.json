@@ -32,6 +32,7 @@
       ],
       "features": [
         "boolean:pmo.enabled",
+        "boolean:pmo.change_control",
         "boolean:meetings.enabled",
         "limit:projects.max_projects"
       ]

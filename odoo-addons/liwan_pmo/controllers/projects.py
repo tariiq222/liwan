@@ -14,6 +14,7 @@ from odoo.addons.liwan_api.controllers.common import (
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_pmo.models.project_project import (
     STATUS_VALUES,
+    LiwanChangeRequired,
     LiwanCharterState,
     LiwanStaleWrite,
 )
@@ -173,6 +174,8 @@ class ProjectController(http.Controller):
             project._liwan_write_as_manager(vals)
         except LiwanCharterState as e:
             raise ApiError(409, 'charter_state', str(e)) from e
+        except LiwanChangeRequired as e:
+            raise ApiError(409, 'change_required', str(e)) from e
         return dump_project_detail(project)
 
     @http.route('/api/v1/projects/<int:project_id>/archive', type='json2', auth='user', methods=['POST'], readonly=False)

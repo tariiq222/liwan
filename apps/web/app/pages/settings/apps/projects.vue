@@ -9,7 +9,7 @@ const { can } = useAccess()
 const { parts, shows } = useSettingsPage('projects')
 const { data: settings, isLoading, error, refetch } = useProjectSettings(() => shows('project-creation'))
 // Each card of the form carries its own anchor; until it renders (loading or a failed load) an empty target keeps the sub-list links working.
-const CARD_IDS = ['project-creation', 'project-defaults', 'project-approval', 'project-reminders', 'project-extensions']
+const CARD_IDS = ['project-creation', 'project-defaults', 'project-approval', 'project-change-categories', 'project-reminders', 'project-extensions']
 const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
 const isBaseRoute = computed(() => normalizedPath.value === '/settings/apps/projects')
 const catalogs = computed(() => [

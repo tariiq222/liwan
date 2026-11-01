@@ -225,6 +225,30 @@
       "schema": "ProjectRegisterListSchema"
     },
     {
+      "name": "pmo/project-change-list",
+      "addon": "liwan_pmo",
+      "method": "GET",
+      "route": "/api/v1/projects/{id}/changes",
+      "status": 200,
+      "schema": "ProjectChangeListSchema"
+    },
+    {
+      "name": "pmo/project-change-detail",
+      "addon": "liwan_pmo",
+      "method": "GET",
+      "route": "/api/v1/projects/{id}/changes/{id}",
+      "status": 200,
+      "schema": "ProjectChangeSchema"
+    },
+    {
+      "name": "pmo/change-category-list",
+      "addon": "liwan_pmo",
+      "method": "GET",
+      "route": "/api/v1/pmo/change-categories",
+      "status": 200,
+      "schema": "ChangeCategoryListSchema"
+    },
+    {
       "name": "pmo/task-list",
       "addon": "liwan_pmo",
       "method": "GET",

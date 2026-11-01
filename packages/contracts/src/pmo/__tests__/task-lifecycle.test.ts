@@ -29,7 +29,7 @@ describe('task lifecycle contracts', () => {
       privacy_visibility: 'employees', date_start: null, date_end: null, tags: [], followers_count: 0,
       milestone_count: 0, completion_approval: 'none', completion_approver: null,
       updated_at: 'v1',
-      phase_state: { current: 'initiating', next: 'planning', previous: null, next_checks: [] },
+      phase_state: { current: 'initiating', next: 'planning', previous: null, next_checks: [] }, change_control_mode: 'optional',
       charter: {
         code: null, type: null, owning_unit: null, sponsor: null, authority: '', rationale: '',
         objectives: [], benefits: '', scope: '', exclusions: '', high_level_requirements: '',

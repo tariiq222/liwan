@@ -40,8 +40,8 @@ class TestTaskNotifications(LiwanPmoCase):
         registry = self.env['liwan.notify.registry']
         types = registry._liwan_notification_type_map()
         pmo = [kind for kind, item in types.items() if item['owner'] == 'liwan_pmo']
-        self.assertEqual(pmo, ['assignment', 'comment', 'mention', 'deadline', 'completion_requested', 'completion_accepted', 'overdue_digest', 'charter_review', 'charter_approved', 'charter_returned'])
-        self.assertEqual({types[kind]['feature_key'] for kind in pmo}, {'pmo.enabled'})
+        self.assertEqual(pmo, ['assignment', 'comment', 'mention', 'deadline', 'completion_requested', 'completion_accepted', 'overdue_digest', 'charter_review', 'charter_approved', 'charter_returned', 'change_review', 'change_approved', 'change_rejected'])
+        self.assertEqual({types[kind]['feature_key'] for kind in pmo}, {'pmo.enabled', 'pmo.change_control'})
         self.assertEqual({types[kind]['model'] for kind in pmo[:6]}, {'project.task'})
         self.assertEqual(types['overdue_digest']['model'], 'res.company')
         # Other installed applications may contribute too: pmo's own values are included.

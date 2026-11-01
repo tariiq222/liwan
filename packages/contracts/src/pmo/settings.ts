@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ChangeControlModeSchema } from './change'
 
 export const ProjectCreatorsSchema = z.enum(['managers', 'employees'])
 export const PROJECT_CREATORS = ProjectCreatorsSchema.options
@@ -39,6 +40,7 @@ export const ProjectSettingsSchema = z.object({
   require_charter_approval: z.boolean(),
   close_with_open_tasks: CloseWithOpenTasksSchema,
   register_status_transitions: RegisterStatusTransitionsSchema,
+  change_control_mode: ChangeControlModeSchema,
   extensions: z.array(ProjectSettingsExtensionSchema),
 }).strict()
 

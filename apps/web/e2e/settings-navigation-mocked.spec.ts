@@ -48,6 +48,7 @@ const PROJECT_SETTINGS = {
   require_charter_approval: false,
   close_with_open_tasks: 'block',
   register_status_transitions: 'sequence',
+  change_control_mode: 'optional',
   extensions: [],
 }
 const USERS = {
@@ -199,7 +200,7 @@ test('project settings open as a real page under Settings > Apps', async ({ page
   await expect(settingsProjects).toHaveAttribute('aria-expanded', 'true')
   await expect(page.getByTestId('application-navigation').locator('a[href="/settings/apps/projects"]')).toBeVisible()
   await expect(page.getByRole('region', { name: 'سياسة إنشاء المشاريع', exact: true }).getByRole('radiogroup')).toBeVisible()
-  await expect(page.locator('.liwan-settings-content [data-slot="record-section"]')).toHaveCount(5)
+  await expect(page.locator('.liwan-settings-content [data-slot="record-section"]')).toHaveCount(6)
   expect(new URL(page.url()).pathname).toBe('/settings/apps/projects')
   await page.screenshot({ path: testInfo.outputPath('submenu-projects-desktop-rtl.png'), fullPage: true })
 })

@@ -7,6 +7,7 @@
     "archive"
   ],
   "can_manage": true,
+  "change_control_mode": "optional",
   "charter": {
     "amount": null,
     "approval_required": false,
@@ -22,9 +23,9 @@
     "constraints": "",
     "currency": {
       "decimal_places": 2,
-      "id": 7,
-      "name": "USD",
-      "symbol": "$"
+      "id": 9,
+      "name": "SAR",
+      "symbol": "SR"
     },
     "deliverables": [],
     "exclusions": "",

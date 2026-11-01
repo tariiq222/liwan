@@ -1,4 +1,4 @@
-import { ProjectNotificationKindSchema, TaskNotificationKindSchema } from '@liwan/contracts'
+import { ProjectChangeNotificationKindSchema, ProjectNotificationKindSchema, TaskNotificationKindSchema } from '@liwan/contracts'
 import type { AppManifest } from '../types'
 import { projectIdFromPath } from './projectRoutes'
 import { projectPicker } from './recordPicker'
@@ -52,6 +52,7 @@ const manifest: AppManifest = {
     kinds: [
       ...TaskNotificationKindSchema.options.map(kind => ({ kind, href: (row: Record<string, unknown>) => `/tasks/${row.task_id}`, title: (row: Record<string, unknown>) => String(row.task_name) })),
       ...ProjectNotificationKindSchema.options.map(kind => ({ kind, href: (row: Record<string, unknown>) => `/projects/${row.project_id}/charter`, title: (row: Record<string, unknown>) => String(row.project_name) })),
+      ...ProjectChangeNotificationKindSchema.options.map(kind => ({ kind, href: (row: Record<string, unknown>) => `/projects/${row.project_id}/changes/${row.change_id}`, title: (row: Record<string, unknown>) => String(row.project_name) })),
       {
         kind: 'overdue_digest',
         href: row => `/notification-digests/${row.digest_id}`,

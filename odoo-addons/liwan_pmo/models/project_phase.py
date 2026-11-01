@@ -2,6 +2,8 @@
 from odoo import fields, models
 from odoo.exceptions import UserError
 
+from .project_charter import LiwanChangeRequired
+
 PHASES = ('initiating', 'planning', 'executing', 'closing', 'closed')
 PHASE_FIELDS = {'liwan_phase'}
 
@@ -68,6 +70,10 @@ class ProjectPhase(models.Model):
         previous, following = self._liwan_phase_neighbours()
         if target not in (previous, following):
             raise LiwanPhaseStep(self.env._("A project moves one phase at a time."))
+        if target == previous and self.liwan_phase == 'executing' and self.env['liwan.pmo.settings'].change_control_mode() == 'required':
+            # Leaving execution backwards would reopen the controlled fields for free and let the project come forward again.
+            if not self._liwan_has_approved_change():
+                raise LiwanChangeRequired(self.env._("Moving an executing project back needs an approved change request."))
         if target == following:
             checks = self._liwan_gate_checks(target)
             unmet = [check for check in checks if not check['ok']]

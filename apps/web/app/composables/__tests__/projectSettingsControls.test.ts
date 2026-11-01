@@ -33,6 +33,7 @@ describe('project settings controls client contracts', () => {
       require_charter_approval: false,
       close_with_open_tasks: 'block',
       register_status_transitions: 'sequence',
+      change_control_mode: 'optional',
       extensions: [],
     }).require_manager_on_create).toBe(true)
   })

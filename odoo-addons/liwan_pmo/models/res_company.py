@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, models
 
+from .project_change import CHANGE_CATEGORY_SEEDS
 from .project_charter_reference import (
     CHARTER_SEED_MARKER,
     CHARTER_STEP_KEYS,
@@ -17,7 +18,12 @@ class ResCompany(models.Model):
     def create(self, vals_list):
         companies = super().create(vals_list)
         companies._liwan_seed_project_types()
+        companies._liwan_seed_change_categories()
         return companies
+
+    def _liwan_provisioning_env(self):
+        """The elevated environment of the per-company seeds, which also sees archived seed rows."""
+        return self.sudo().with_context(active_test=False).env
 
     def _liwan_seed_project_types(self):
         """Idempotent per-company type seeds. Provisioning only; identity is seed_key."""
@@ -27,7 +33,7 @@ class ResCompany(models.Model):
         previous = marker.get(CHARTER_SEED_MARKER)
         marker[CHARTER_SEED_MARKER] = True
         try:
-            Type = self.env['liwan.project.type'].sudo().with_context(active_test=False)
+            Type = self._liwan_provisioning_env()['liwan.project.type']
             for company in self:
                 for index, (seed_key, name) in enumerate(TYPE_SEEDS):
                     existing = Type.search([
@@ -54,4 +60,16 @@ class ResCompany(models.Model):
                 marker.pop(CHARTER_SEED_MARKER, None)
             else:
                 marker[CHARTER_SEED_MARKER] = previous
+        return self
+
+    def _liwan_seed_change_categories(self):
+        """Idempotent per-company change category seeds. Provisioning only; identity is seed_key."""
+        Category = self._liwan_provisioning_env()['liwan.project.change.category']
+        for company in self:
+            for index, (seed_key, name) in enumerate(CHANGE_CATEGORY_SEEDS):
+                if Category.search_count([('company_id', '=', company.id), ('seed_key', '=', seed_key)]):
+                    continue
+                Category.create({
+                    'name': name, 'seed_key': seed_key, 'sequence': (index + 1) * 10, 'company_id': company.id,
+                })
         return self

@@ -6,9 +6,11 @@ const NOTIFICATION_KIND_PATTERN = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$/
 
 export const TaskNotificationKindSchema = z.enum(['assignment', 'comment', 'mention', 'deadline', 'completion_requested', 'completion_accepted', 'tasks.assigned'])
 export const ProjectNotificationKindSchema = z.enum(['charter_review', 'charter_approved', 'charter_returned'])
+export const ProjectChangeNotificationKindSchema = z.enum(['change_review', 'change_approved', 'change_rejected'])
 export const NotificationKindSchema = z.enum([
   'assignment', 'comment', 'mention', 'deadline', 'completion_requested', 'completion_accepted', 'overdue_digest',
   'charter_review', 'charter_approved', 'charter_returned',
+  'change_review', 'change_approved', 'change_rejected',
   'meeting_invite', 'meeting_series_invite', 'meeting_resolution', 'meeting_converted',
   'meeting_changed', 'meeting_cancelled', 'meeting_reminder', 'meeting_resolution_overdue',
   'tasks.assigned',
@@ -86,6 +88,17 @@ export const ProjectCharterNotificationSchema = z.object({
   is_read: z.boolean(),
 }).strict()
 
+export const ProjectChangeNotificationSchema = z.object({
+  id: z.number().int().positive(),
+  kind: ProjectChangeNotificationKindSchema,
+  project_id: z.number().int().positive(),
+  project_name: z.string(),
+  change_id: z.number().int().positive(),
+  body: z.string(),
+  created_at: z.string(),
+  is_read: z.boolean(),
+}).strict()
+
 export const DigestNotificationSchema = z.object({
   id: z.number().int().positive(),
   kind: z.literal('overdue_digest'),
@@ -107,6 +120,7 @@ export const NotificationSchema = z.discriminatedUnion('kind', [
   AssignedTaskNotificationSchema,
   DigestNotificationSchema,
   ProjectCharterNotificationSchema,
+  ProjectChangeNotificationSchema,
   MeetingNotificationSchema,
 ])
 

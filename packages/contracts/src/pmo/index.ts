@@ -13,6 +13,7 @@ export * from './attachment'
 export * from './notification'
 export * from './schedule'
 export * from './governance'
+export * from './change'
 
 export * from './project-finance'
 export * from './project-reports'

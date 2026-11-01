@@ -15,6 +15,12 @@ class LiwanPmoFeatureRegistry(models.AbstractModel):
                 'module': 'liwan_pmo',
             },
             {
+                'key': 'pmo.change_control',
+                'type': 'boolean',
+                'owner': 'liwan_pmo',
+                'module': 'liwan_pmo',
+            },
+            {
                 'key': 'projects.max_projects',
                 'type': 'limit',
                 'owner': 'liwan_pmo',

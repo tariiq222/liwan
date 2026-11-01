@@ -2,7 +2,7 @@
 {
     'name': 'liwan PMO',
     'summary': 'liwan platform: the project pillar — /api/v1 tasks, timeline, projects (status, stages)',
-    'version': '19.0.1.8.1',
+    'version': '19.0.1.9.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',

@@ -14,6 +14,7 @@ BUDGET_STATES = ('unknown', 'estimate')
 PRIORITY_VALUES = ('low', 'normal', 'high', 'critical')
 CHARTER_STATES = ('draft', 'submitted', 'approved')
 CHARTER_RETURN_NOTE_MAX = 2000
+CHANGE_NOTE_MAX = 2000
 CHARTER_TEXT_FIELDS = (
     'liwan_authority', 'liwan_rationale', 'liwan_benefits', 'liwan_scope',
     'liwan_exclusions', 'liwan_high_level_requirements', 'liwan_success',
@@ -36,6 +37,12 @@ CHARTER_APPROVAL_FIELDS = {
 # withdraws first), so a manager cannot swap in themself to self-approve.
 CHARTER_CONTENT_FIELDS = CHARTER_MANAGER_FIELDS | {
     'name', 'description', 'user_id', 'date_start', 'date',
+}
+# Charter content a project in execution may change only through an approved change request
+# when the company's change control is `required` (the budget and scope the sponsor approved).
+CHANGE_CONTROLLED_FIELDS = {
+    'liwan_scope', 'liwan_exclusions', 'liwan_high_level_requirements', 'liwan_deliverables',
+    'liwan_budget_state', 'liwan_budget_amount',
 }
 CHARTER_RESET_VALS = {
     'liwan_charter_state': 'draft',

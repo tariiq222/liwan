@@ -8,6 +8,9 @@ readable is decided by an ordinary search in the caller's environment.
 from odoo import api, models
 
 from odoo.addons.liwan_pmo.serializers.notification import (
+    CHANGE_DECISION_KINDS,
+    CHANGE_KINDS,
+    CHANGE_REVIEW_KIND,
     CHARTER_DECISION_KINDS,
     CHARTER_KINDS,
     CHARTER_REVIEW_KIND,
@@ -105,6 +108,10 @@ class LiwanPmoNotificationTypes(models.AbstractModel):
                 {'kind': kind, 'owner': 'liwan_pmo', 'model': 'project.project', 'feature_key': 'pmo.enabled'}
                 for kind in CHARTER_KINDS
             ),
+            *(
+                {'kind': kind, 'owner': 'liwan_pmo', 'model': 'project.project', 'feature_key': 'pmo.change_control'}
+                for kind in CHANGE_KINDS
+            ),
         )
 
     @api.model
@@ -118,6 +125,15 @@ class LiwanPmoNotificationTypes(models.AbstractModel):
             ('liwan_charter_state', '=', 'submitted'),
             ('liwan_sponsor_id', '=', self.env.user.id),
         ]).ids if project_ids else []
+        changes = self.env['liwan.project.change']
+        # A review row lives while its request still waits for this sponsor; a decision row while the
+        # caller can still read the request. Both searches run in the caller's environment.
+        candidate_change_ids = recipient_candidate_ids(self.env, 'project.project', 'liwan_change_id') if project_ids else []
+        review_change_ids = changes.search([
+            ('id', 'in', candidate_change_ids), ('state', '=', 'submitted'),
+            ('project_id.liwan_sponsor_id', '=', self.env.user.id),
+        ]).ids if candidate_change_ids else []
+        decision_change_ids = changes.search([('id', 'in', candidate_change_ids)]).ids if candidate_change_ids else []
         return [
             *super()._liwan_notify_visible_domain(),
             [
@@ -140,6 +156,16 @@ class LiwanPmoNotificationTypes(models.AbstractModel):
                 ('mail_message_id.model', '=', 'project.project'),
                 ('mail_message_id.liwan_project_id', 'in', project_ids),
             ],
+            [
+                ('mail_message_id.liwan_notification_kind', '=', CHANGE_REVIEW_KIND),
+                ('mail_message_id.model', '=', 'project.project'),
+                ('mail_message_id.liwan_change_id', 'in', review_change_ids),
+            ],
+            [
+                ('mail_message_id.liwan_notification_kind', 'in', list(CHANGE_DECISION_KINDS)),
+                ('mail_message_id.model', '=', 'project.project'),
+                ('mail_message_id.liwan_change_id', 'in', decision_change_ids),
+            ],
         ]
 
     @api.model
@@ -151,6 +177,6 @@ class LiwanPmoNotificationTypes(models.AbstractModel):
 
     @api.model
     def _liwan_notify_dump(self, row, extra):
-        if row.mail_message_id.liwan_notification_kind in (*TASK_KINDS, DIGEST_KIND, *CHARTER_KINDS):
+        if row.mail_message_id.liwan_notification_kind in (*TASK_KINDS, DIGEST_KIND, *CHARTER_KINDS, *CHANGE_KINDS):
             return dump_notification(row, extra)
         return super()._liwan_notify_dump(row, extra)

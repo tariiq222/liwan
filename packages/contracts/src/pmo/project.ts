@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ChangeControlModeSchema } from './change'
 import { ProjectCharterSchema, ProjectCharterStateSchema, ProjectCharterWriteSchema } from './project-charter'
 import { CalendarDateSchema } from './schedule'
 import { TagSchema } from './task'
@@ -49,6 +50,7 @@ export const ProjectDetailSchema = ProjectSchema.extend({
   updated_at: z.string().regex(/^v\d+$/),
   charter: ProjectCharterSchema,
   phase_state: ProjectPhaseStateSchema,
+  change_control_mode: ChangeControlModeSchema,
 }).strict()
 
 export const ProjectListSchema = z.object({ items: z.array(ProjectSchema), total: z.number().int().nonnegative(), can_create: z.boolean(), can_list_archived: z.boolean() }).strict()

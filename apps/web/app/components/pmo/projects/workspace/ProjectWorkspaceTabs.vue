@@ -30,7 +30,7 @@ const sectionItems = computed(() => {
 })
 const governanceItems = computed(() => {
   const current = activeGovernanceSection(route.path)
-  return governanceSections(props.projectId).map(section => ({
+  return governanceSections(props.projectId, { changeControl: (projectData.value?.change_control_mode ?? 'off') !== 'off' }).map(section => ({
     key: `governance-tab-${section.id}`, label: t(section.labelKey), to: projectSectionLocation(section.to, route.path, route.query), active: current === section.id, icon: section.icon,
   }))
 })

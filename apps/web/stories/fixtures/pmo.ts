@@ -53,6 +53,7 @@ export const projectDetail = ProjectDetailSchema.parse({
   tags: [], followers_count: 0, milestone_count: 1, allow_task_dependencies: false,
   completion_approval: 'none', completion_approver: null, updated_at: 'v1',
   phase_state: { current: 'initiating', next: 'planning', previous: null, next_checks: [{ key: 'charter_approved', ok: false }] },
+  change_control_mode: 'optional',
   charter: {
     code: 'P-1', type: null, owning_unit: null, sponsor: null,
     authority: '', rationale: '', objectives: [], benefits: '', scope: '', exclusions: '',

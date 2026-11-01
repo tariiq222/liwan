@@ -87,6 +87,7 @@ def dump_project_detail(project):
         'updated_at': project._liwan_updated_at(),
         'charter': dump_charter(project),
         'phase_state': project._liwan_phase_state(),
+        'change_control_mode': project.env['liwan.pmo.settings'].change_control_mode(),
     })
     return data
 
