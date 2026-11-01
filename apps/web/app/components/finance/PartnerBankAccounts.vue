@@ -19,12 +19,14 @@ const confirming = ref<FinancePartnerBank | null>(null)
 const archiveFailure = ref<unknown>(null)
 const { mutateAsync: sendArchive, isPending: archiving } = useArchiveFinancePartnerBank(() => props.partnerId)
 
+// An open form holds an unsaved draft the route guard cannot see, so the other actions wait until it is saved or cancelled.
+const actionsReady = computed(() => hydrated.value && editing.value === null)
+
 function startEdit(target: 'new' | number) {
   confirming.value = null
   editing.value = target
 }
 function startArchive(account: FinancePartnerBank) {
-  editing.value = null
   archiveFailure.value = null
   confirming.value = account
 }
@@ -46,7 +48,7 @@ const title = (account: FinancePartnerBank) => account.bank_name || t('finance.p
 <template>
   <SharedRecordSection id="bank-accounts" variant="list" :title="t('finance.partners.banks.title')" :description="t('finance.partners.banks.hint')" data-testid="finance-partner-banks">
     <template v-if="canManage" #actions>
-      <UButton v-if="editing !== 'new'" color="neutral" variant="outline" size="sm" icon="i-lucide-plus" :disabled="!hydrated" :label="t('finance.partners.banks.add')" data-testid="finance-partner-bank-add" @click="startEdit('new')" />
+      <UButton v-if="editing !== 'new'" color="neutral" variant="outline" size="sm" icon="i-lucide-plus" :disabled="!actionsReady" :label="t('finance.partners.banks.add')" data-testid="finance-partner-bank-add" @click="startEdit('new')" />
     </template>
     <PartnerBankForm v-if="editing === 'new'" :partner-id="partnerId" @done="editing = null" @cancel="editing = null" />
     <SharedPageState :loading="banks.isLoading.value" :error="banks.error.value" :keep-content="items.length > 0" @retry="banks.refetch">
@@ -68,8 +70,8 @@ const title = (account: FinancePartnerBank) => account.bank_name || t('finance.p
               </p>
             </div>
             <div v-if="canManage" class="flex flex-wrap items-center gap-2">
-              <UButton v-if="account.active" color="neutral" variant="ghost" size="sm" icon="i-lucide-pencil" :disabled="!hydrated" :label="t('app.edit')" :aria-label="t('finance.partners.banks.editAria', { name: title(account) })" @click="startEdit(account.id)" />
-              <UButton color="neutral" variant="ghost" size="sm" :icon="account.active ? 'i-lucide-archive' : 'i-lucide-archive-restore'" :disabled="!hydrated" :label="t(account.active ? 'finance.partners.banks.archive' : 'finance.partners.banks.unarchive')" :aria-label="t(account.active ? 'finance.partners.banks.archiveAria' : 'finance.partners.banks.unarchiveAria', { name: title(account) })" @click="startArchive(account)" />
+              <UButton v-if="account.active" color="neutral" variant="ghost" size="sm" icon="i-lucide-pencil" :disabled="!actionsReady" :label="t('app.edit')" :aria-label="t('finance.partners.banks.editAria', { name: title(account) })" @click="startEdit(account.id)" />
+              <UButton color="neutral" variant="ghost" size="sm" :icon="account.active ? 'i-lucide-archive' : 'i-lucide-archive-restore'" :disabled="!actionsReady" :label="t(account.active ? 'finance.partners.banks.archive' : 'finance.partners.banks.unarchive')" :aria-label="t(account.active ? 'finance.partners.banks.archiveAria' : 'finance.partners.banks.unarchiveAria', { name: title(account) })" @click="startArchive(account)" />
             </div>
           </div>
           <SharedInlineConfirm
