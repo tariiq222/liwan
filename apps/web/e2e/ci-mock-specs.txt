@@ -76,3 +76,7 @@ tasmim6-subscription-settings.spec.ts
 tasmim6-task-record.spec.ts
 legacy-list-navigation.spec.ts
 ux-foundations-journey.spec.ts
+tasmim6-6c-chat-info-panel.spec.ts
+tasmim6-6c-chat-layout.spec.ts
+legacy-workspace-memory.spec.ts
+tasmim6-finance.spec.ts
