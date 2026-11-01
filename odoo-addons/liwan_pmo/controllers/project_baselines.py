@@ -12,7 +12,10 @@ from odoo.addons.liwan_api.controllers.common import (
     require_capabilities,
     requires_feature,
 )
-from odoo.addons.liwan_pmo.models.project_baseline import LiwanBaselineBusy
+from odoo.addons.liwan_pmo.models.project_baseline import (
+    LiwanBaselineBusy,
+    LiwanChangeUsed,
+)
 from odoo.addons.liwan_pmo.models.project_project import (
     LiwanChangeRequired,
     LiwanCharterState,
@@ -108,6 +111,8 @@ class ProjectBaselineController(http.Controller):
             raise ApiError(409, 'charter_state', str(error)) from error
         except LiwanChangeRequired as error:
             raise ApiError(409, 'change_required', str(error)) from error
+        except LiwanChangeUsed as error:
+            raise ApiError(409, 'change_already_used', str(error)) from error
         except LiwanBaselineBusy as error:
             raise ApiError(409, 'baseline_busy', str(error)) from error
         return request.make_json_response(dump_baseline_detail(baseline), status=201)

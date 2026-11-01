@@ -7,6 +7,8 @@ the current baseline of a project is its highest number. The rows are written in
 environment, without ``sudo()``: ``create`` builds every value on the server and the task lines accept
 only the baseline that is creating them.
 """
+from psycopg2 import IntegrityError
+
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, LockError, UserError, ValidationError
 
@@ -22,6 +24,10 @@ CHANGE_COVERING_STATES = ('approved', 'implemented')
 
 class LiwanBaselineBusy(UserError):
     """Another baseline is being taken on the project."""
+
+
+class LiwanChangeUsed(UserError):
+    """The change request already covers a baseline: one approved request authorises one new baseline."""
 
 
 class LiwanProjectBaseline(models.Model):
@@ -49,6 +55,10 @@ class LiwanProjectBaseline(models.Model):
     _liwan_baseline_number_uniq = models.Constraint(
         'UNIQUE(project_id, number)',
         'A baseline number is unique per project.',
+    )
+    _liwan_baseline_change_once = models.Constraint(
+        'UNIQUE(change_id)',
+        'A change request covers at most one baseline.',
     )
     _liwan_baseline_number_positive = models.Constraint(
         'CHECK(number > 0)',
@@ -102,13 +112,22 @@ class LiwanProjectBaseline(models.Model):
     # --- creation -----------------------------------------------------------------------
     @api.model
     def _liwan_next_number(self, project):
-        """The next number of the project, under a lock on the project row so two managers never share one."""
-        try:
-            project.lock_for_update()
-        except LockError as error:
-            raise LiwanBaselineBusy(self.env._("Another baseline is being taken on this project; try again.")) from error
-        last = self.search([('project_id', '=', project.id)], order='number desc', limit=1)
-        return last.number + 1
+        """The next number of the project, under a lock on the project row so two managers never share one.
+
+        ``lock_for_update`` skips a locked row, and a concurrent insert that only references the project can hold
+        a key-share lock for an instant, so the lock is tried once more before the project counts as busy. The
+        last number is read from the table itself after the lock: the ORM cache may predate the other writer.
+        """
+        for attempt in range(2):
+            try:
+                project.lock_for_update()
+                break
+            except LockError as error:
+                if attempt:
+                    raise LiwanBaselineBusy(self.env._("Another baseline is being taken on this project; try again.")) from error
+        self.env.flush_all()
+        self.env.cr.execute('SELECT COALESCE(MAX(number), 0) FROM liwan_project_baseline WHERE project_id = %s', [project.id])
+        return self.env.cr.fetchone()[0] + 1
 
     def _liwan_check_taking(self, project, change, has_previous):
         """The rules of taking a baseline: the caller manages the project, the plan is approved, a change covers a controlled project."""
@@ -121,6 +140,11 @@ class LiwanProjectBaseline(models.Model):
             raise LiwanChangeRequired(self.env._("A new baseline of an executing project needs an approved change request."))
         if change and (change.project_id != project or change.state not in CHANGE_COVERING_STATES):
             raise ValidationError(self.env._("Choose an approved change request of this project."))
+        # Read from the table, after the project lock: one approved request authorises exactly one new baseline.
+        if change:
+            self.env.cr.execute('SELECT 1 FROM liwan_project_baseline WHERE change_id = %s', [change.id])
+            if self.env.cr.fetchone():
+                raise LiwanChangeUsed(self.env._("This change request already covers a baseline; ask for another request."))
 
     @api.model
     def _liwan_clean_note(self, note):
@@ -133,10 +157,13 @@ class LiwanProjectBaseline(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         vals_list = _create_values(self, vals_list, BASELINE_CREATE_FIELDS)
+        if len({vals.get('project_id') for vals in vals_list}) != len(vals_list):
+            raise ValidationError(self.env._("Take one baseline of a project at a time."))
         prepared = []
         for vals in vals_list:
             project = _check_project(self.env['project.project'].browse(vals.get('project_id')), manage=True)
-            change = self.env['liwan.project.change'].browse(vals.get('change_id') or []).exists()
+            # Looked up as the caller: a request hidden from them answers like a missing one.
+            change = self.env['liwan.project.change'].search([('id', '=', vals.get('change_id') or 0)], limit=1)
             if vals.get('change_id') and not change:
                 raise ValidationError(self.env._("Choose an approved change request of this project."))
             number = self._liwan_next_number(project)
@@ -149,7 +176,12 @@ class LiwanProjectBaseline(models.Model):
                 'budget_total': self._liwan_current_budget(project),
                 'planned_start': project.date_start, 'planned_end': project.date,
             }))
-        baselines = super().create([values for _tasks, values in prepared])
+        try:
+            with self.env.cr.savepoint():
+                baselines = super().create([values for _tasks, values in prepared])
+        except IntegrityError as error:
+            # A concurrent writer got the number or the change request first: the loser asks again.
+            raise LiwanBaselineBusy(self.env._("Another baseline is being taken on this project; try again.")) from error
         marker = self.env.cr.precommit.data
         previous = marker.get(BASELINE_LINE_MARKER)
         marker[BASELINE_LINE_MARKER] = True
@@ -160,7 +192,7 @@ class LiwanProjectBaseline(models.Model):
                 self.env['liwan.project.baseline.task'].create([{
                     'baseline_id': baseline.id, 'task_id': task.id, 'task_name': task.name,
                     'planned_start': task.liwan_planned_start,
-                    'planned_end': fields.Date.to_date(task.date_deadline),
+                    'planned_end': fields.Date.context_today(task, task.date_deadline) if task.date_deadline else False,
                     'planned_value_share': share,
                 } for task in tasks])
         finally:

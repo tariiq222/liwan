@@ -165,6 +165,7 @@ class TestProjectBaseline(LiwanPmoCase):
             })
         self.assertEqual(baseline.note, '')
         self.assertEqual(baseline.task_count, 3)
+        self.assertEqual(self._call('api_mgr', 'GET', f'{self.base}/{baseline.number}').json()['hidden_count'], 0)
 
     def _other_project(self):
         other = self.env['project.project'].create({
@@ -223,6 +224,79 @@ class TestProjectBaseline(LiwanPmoCase):
         self._param('change_control_mode', 'off')
         self.assertEqual(self._take(body={'change_id': change.id}).status_code, 422)
         self.assertEqual(self._taken()['number'], 1)
+
+    def test_one_approved_change_authorises_one_baseline(self):
+        self._approve_charter()
+        self._param('change_control_mode', 'required')
+        self.project.sudo().write({'liwan_phase': 'executing'})
+        change = self._approved_change()
+        self.assertEqual(self._taken(change_id=change.id)['change']['id'], change.id)
+        reused = self._take(body={'change_id': change.id})
+        self.assertEqual((reused.status_code, reused.json()['code']), (409, 'change_already_used'))
+        self._param('change_control_mode', 'optional')
+        reused = self._take(body={'change_id': change.id})
+        self.assertEqual((reused.status_code, reused.json()['code']), (409, 'change_already_used'))
+        self.assertEqual(self._taken()['number'], 2, 'a baseline without a request is still free in optional mode')
+        with mute_logger('odoo.sql_db'), self.assertRaises(IntegrityError), self.env.cr.savepoint():
+            self.env.cr.execute(
+                'INSERT INTO liwan_project_baseline (project_id, currency_id, number, taken_by_id, taken_at, budget_total, change_id) '
+                'VALUES (%s, %s, 9, %s, now(), 0, %s)',
+                [self.project.id, self.project.currency_id.id, self.manager.id, change.id],
+            )
+
+    def test_the_number_is_read_from_the_table_after_the_lock(self):
+        self._approve_charter()
+        Baseline = self.env['liwan.project.baseline']
+        Baseline.with_user(self.manager).create({'project_id': self.project.id})
+        Baseline.search([('project_id', '=', self.project.id)])  # the ORM has seen number 1 only
+        self.env.cr.execute(
+            'INSERT INTO liwan_project_baseline (project_id, currency_id, number, taken_by_id, taken_at, budget_total) '
+            'VALUES (%s, %s, 2, %s, now(), 0)',
+            [self.project.id, self.project.currency_id.id, self.manager.id],
+        )
+        self.assertEqual(Baseline.with_user(self.manager).create({'project_id': self.project.id}).number, 3)
+
+    def test_a_skipped_lock_is_tried_once_more(self):
+        self._approve_charter()
+        real = type(self.project).lock_for_update
+        calls = []
+
+        def flaky(project, **kwargs):
+            calls.append(1)
+            if len(calls) == 1:
+                message = 'a key share for an instant'
+                raise LockError(message)
+            return real(project, **kwargs)
+
+        with patch.object(type(self.project), 'lock_for_update', autospec=True, side_effect=flaky):
+            self.assertEqual(self._taken()['number'], 1)
+        self.assertEqual(len(calls), 2)
+
+    def test_a_number_taken_meanwhile_answers_busy(self):
+        self._approve_charter()
+        first = self.env['liwan.project.baseline'].with_user(self.manager).create({'project_id': self.project.id})
+        with patch.object(type(self.env['liwan.project.baseline']), '_liwan_next_number', return_value=first.number):
+            response = self._take()
+        self.assertEqual((response.status_code, response.json()['code']), (409, 'baseline_busy'))
+
+    def test_one_create_takes_one_baseline_per_project(self):
+        self._approve_charter()
+        with self.assertRaises(ValidationError):
+            self.env['liwan.project.baseline'].with_user(self.manager).create([
+                {'project_id': self.project.id}, {'project_id': self.project.id},
+            ])
+        self.assertEqual(self.env['liwan.project.baseline'].search_count([('project_id', '=', self.project.id)]), 0)
+
+    def test_a_change_the_caller_cannot_read_answers_like_a_missing_one(self):
+        self._approve_charter()
+        other = self._other_project()
+        hidden = self.env['liwan.project.change'].with_user(self.manager).create({'project_id': other.id, 'title': 'Hidden'})
+        hidden._liwan_submit()
+        other.sudo().write({'active': False})
+        missing = self._take(body={'change_id': 987654})
+        refused = self._take(body={'change_id': hidden.id})
+        self.assertEqual((refused.status_code, refused.json()['message']), (missing.status_code, missing.json()['message']))
+        self.assertEqual(refused.status_code, 422)
 
     # --- the gate ---------------------------------------------------------------------------
     def _planning(self):
@@ -325,7 +399,39 @@ class TestProjectBaseline(LiwanPmoCase):
         # a task that left the project shows as removed, with no variance
         extra.unlink()
         removed = {row['name']: row for row in self._variance()['schedule']['tasks']}['Temporary']
-        self.assertEqual((removed['removed'], removed['end_variance_days'], removed['task_id']), (True, None, None))
+        self.assertEqual((removed['status'], removed['end_variance_days'], removed['task_id']), ('removed', None, None))
+        self.assertEqual((self._variance()['schedule']['removed_count'], self._variance()['schedule']['undated_count']), (1, 1), 'a removed task is not undated')
+
+    def test_added_archived_and_moved_tasks_are_reported_apart(self):
+        self._approve_charter()
+        other = self._other_project()
+        moved = self._task('Moved', D(2026, 3, 3), D(2026, 3, 8))
+        archived = self._task('Archived', D(2026, 3, 4), D(2026, 3, 9))
+        self._taken()
+        moved.write({'project_id': other.id})
+        archived.write({'active': False})
+        added = self._task('Added', D(2026, 3, 6), D(2026, 3, 7))
+        schedule = self._variance()['schedule']
+        rows = {row['name']: row for row in schedule['tasks']}
+        self.assertEqual((rows['Moved']['status'], rows['Moved']['end_variance_days'], rows['Moved']['current_end']), ('removed', None, None))
+        self.assertEqual((rows['Archived']['status'], rows['Archived']['archived']), ('tracked', True))
+        self.assertEqual((rows['Added']['status'], rows['Added']['task_id']), ('added', added.id))
+        self.assertEqual((rows['Added']['baseline_end'], rows['Added']['end_variance_days']), (None, None))
+        self.assertEqual((schedule['removed_count'], schedule['added_count'], schedule['undated_count']), (1, 1, 1))
+        lines = {line['name'] for line in self._lines()}
+        self.assertIn('Archived', lines, 'an archived task keeps its line')
+
+    def test_deadlines_are_the_callers_calendar_day(self):
+        self._approve_charter()
+        self.manager.tz = 'Asia/Riyadh'
+        # 21:30 UTC is 00:30 the next day in Riyadh
+        late_night = self._task('Late night', False, False, date_deadline=fields.Datetime.to_datetime('2026-03-09 21:30:00'))
+        baseline = self.env['liwan.project.baseline'].with_user(self.manager).create({'project_id': self.project.id})
+        self.assertEqual(
+            baseline.task_ids.filtered(lambda line: line.task_id == late_night).planned_end, D(2026, 3, 10),
+        )
+        row = {row['name']: row for row in self._variance()['schedule']['tasks']}['Late night']
+        self.assertEqual((row['baseline_end'], row['current_end']), ('2026-03-10', '2026-03-10'))
 
     def test_variance_is_measured_against_the_latest_baseline(self):
         self._approve_charter()
@@ -383,8 +489,10 @@ class TestProjectBaseline(LiwanPmoCase):
         detail = self._call('api_bl_reader', 'GET', f'{self.base}/1')
         self.assertEqual(detail.status_code, 200, detail.text)
         self.assertEqual((detail.json()['budget_total'], detail.json()['tasks']), (1000, []))
+        self.assertEqual((detail.json()['task_count'], detail.json()['hidden_count']), (3, 3), 'the snapshot size stays, the lines are counted as hidden')
         variance = self._variance('api_bl_reader')
         self.assertEqual((variance['cost']['baseline_budget'], variance['schedule']['tasks']), (1000, []))
+        self.assertEqual(variance['schedule']['hidden_count'], 3)
         self.assertEqual(self._call('api_bl_reader', 'POST', self.base, {}).status_code, 403)
 
     def test_a_user_without_project_access_reads_no_cost(self):
