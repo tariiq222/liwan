@@ -83,6 +83,42 @@ export type HrShiftAssignmentList = z.infer<typeof HrShiftAssignmentListSchema>
 export type HrShiftAssignmentCreate = z.infer<typeof HrShiftAssignmentCreateSchema>
 export type HrShiftAssignmentPatch = z.infer<typeof HrShiftAssignmentPatchSchema>
 
+/** The weekly shift table: seven days from `week_start`, per employee. */
+export const HrShiftRosterDaySchema = z.object({
+  date: isoDate,
+  schedule: HrRefSchema.nullable(),
+  shifts: z.array(z.object({
+    hour_from: hour,
+    hour_to: hour,
+    day_period: z.enum(['morning', 'lunch', 'afternoon', 'full_day']),
+  }).strict()),
+}).strict()
+
+export const HrShiftWeekSchema = z.object({
+  employee: HrRefSchema,
+  days: z.array(HrShiftRosterDaySchema).length(7),
+}).strict()
+
+export const HrShiftRosterSchema = z.object({
+  week_start: isoDate,
+  items: z.array(HrShiftWeekSchema),
+  total: z.number().int().nonnegative(),
+}).strict()
+
+export const HrShiftMyWeekSchema = HrShiftWeekSchema.extend({ week_start: isoDate }).strict()
+
+export const HrShiftWeekSetSchema = z.object({
+  employee_id: z.number().int().positive(),
+  schedule_id: z.number().int().positive(),
+  week_start: isoDate,
+}).strict()
+
+export type HrShiftRosterDay = z.infer<typeof HrShiftRosterDaySchema>
+export type HrShiftWeek = z.infer<typeof HrShiftWeekSchema>
+export type HrShiftRoster = z.infer<typeof HrShiftRosterSchema>
+export type HrShiftMyWeek = z.infer<typeof HrShiftMyWeekSchema>
+export type HrShiftWeekSet = z.infer<typeof HrShiftWeekSetSchema>
+
 /** Calendar-day reference of the current company. `today` is resolved by the server. */
 export const HrShiftSettingsSchema = z.object({
   day_reference: z.enum(['company', 'user']),

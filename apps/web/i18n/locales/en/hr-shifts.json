@@ -101,6 +101,18 @@
       "openStartHint": "Leave empty when the assignment has no start date."
     },
     "editAssignment": "Edit assignment",
-    "assignmentTitle": "Shift assignment"
+    "assignmentTitle": "Shift assignment",
+    "week": "Weekly table",
+    "weekTitle": "Weekly shift table",
+    "prevWeek": "Previous week",
+    "nextWeek": "Next week",
+    "thisWeek": "This week",
+    "weekOf": "Week starting {date}",
+    "dayOff": "Off",
+    "setWeek": "Set week schedule",
+    "setWeekFor": "Work schedule for {name}'s week",
+    "weekSaved": "Week updated",
+    "myWeek": "My week",
+    "weekEmpty": "No employees to plan yet"
   }
 }
