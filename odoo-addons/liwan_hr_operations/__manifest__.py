@@ -12,7 +12,7 @@
     # execution kind, its two reviewer resolvers, the company's governing process, the read access that
     # lets leave staff see the requests of leaves they handle, and the routes that read them. It uses no sudo(): every read and write runs in the acting user's environment.
     'depends': ['liwan_hr', 'liwan_operations'],
-    'data': ['security/ir.model.access.csv'],
+    'data': ['security/ir.model.access.csv', 'data/access_grants.xml'],
     'post_init_hook': 'post_init_hook',
     'auto_install': True,
     'installable': True,

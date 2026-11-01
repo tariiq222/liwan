@@ -51,15 +51,17 @@ class HrOperationsRequest(models.Model):
             raise ValidationError(self.env._('Only a pending leave request can be submitted for approval.'))
         return super()._operations_prepare_submission(process)
 
+    def _operations_subject_users(self):
+        if self.execution_kind != KIND:
+            return super()._operations_subject_users()
+        return self._operations_leave(self.hr_leave_id.id).employee_id.user_id
+
     def _operations_resolve_reviewers(self, key):
         if self.process_id.execution_kind != KIND or key not in (APPROVER, OFFICERS):
             return super()._operations_resolve_reviewers(key)
-        employee = self._operations_leave(self.hr_leave_id.id).employee_id
         if key == APPROVER:
-            users = employee.leave_manager_id
-        else:
-            users = self.env.ref('liwan_hr.group_cap_hr_leave_approve').user_ids
-        return users - employee.user_id
+            return self._operations_leave(self.hr_leave_id.id).employee_id.leave_manager_id
+        return self.env.ref('liwan_hr.group_cap_hr_leave_approve').user_ids
 
     def _hr_leave_for_decision(self, *, rejecting=False):
         """The leave, still waiting and unchanged since it was requested, in the decider's identity."""

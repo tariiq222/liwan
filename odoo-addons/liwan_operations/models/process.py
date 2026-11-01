@@ -60,6 +60,12 @@ class OperationProcess(models.Model):
         return ()
 
     @api.model
+    def _operations_stage_capabilities(self):
+        """Every capability that can authorize a stage: the generic ones and those of the registered resolvers."""
+        resolvers = (entry for kind in self._operations_execution_kind_keys() for entry in self._operations_reviewer_resolvers(kind))
+        return ('operations.requests.read', 'operations.requests.review', *sorted({entry['capability'] for entry in resolvers}))
+
+    @api.model
     def _operations_reviewer_resolver(self, execution_kind, key):
         return next((entry for entry in self._operations_reviewer_resolvers(execution_kind) if entry['key'] == key), None)
 

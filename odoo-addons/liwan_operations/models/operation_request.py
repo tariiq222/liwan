@@ -80,6 +80,10 @@ class OperationRequest(models.Model):
     def _operations_target(self):
         return None
 
+    def _operations_subject_users(self):
+        """Users the request is about; they never review it, whatever stage names them. Bridges override it."""
+        return self.env['res.users']
+
     @api.model
     def _operations_creation_capability(self, execution_kind):
         """The capability that lets a user file, submit and withdraw a request of ``execution_kind``; bridges override it."""
@@ -138,7 +142,7 @@ class OperationRequest(models.Model):
     def _ops_write(self, vals):
         return self.with_context(_operations_write=TOKEN, skip_validation_check=_DOCUMENT_WRITE_TOKEN).write(vals)
 
-    def _guard(self, key):
+    def _guard(self, key=None):
         self.ensure_one()
         require(self.env, key)
         self.check_access('read')
@@ -180,6 +184,7 @@ class OperationRequest(models.Model):
                 raise ValidationError(self.env._('The process has no approval stages.'))
             snapshot = []
             participants = self.requester_id
+            subjects = self._operations_subject_users()
             for sequence, definition in enumerate(definitions, 1):
                 resolver = definition.operations_reviewer_resolver or None
                 entry = None
@@ -190,7 +195,7 @@ class OperationRequest(models.Model):
                     capability, candidates = entry['capability'], self._operations_resolve_reviewers(resolver)
                 else:
                     capability, candidates = 'operations.requests.review', definition.operations_reviewer_ids
-                users = candidates.filtered(lambda u: u.active and not u.share and self.company_id in u.company_ids and u != self.requester_id)
+                users = candidates.filtered(lambda u: u.active and not u.share and self.company_id in u.company_ids and u != self.requester_id and u not in subjects)
                 users = users.filtered(lambda u: self.env['liwan.access.service']._liwan_has_capability(u, capability, company=self.company_id))
                 skipped = not users and bool(entry and entry.get('skip_when_empty'))
                 if not users and not skipped:
@@ -270,8 +275,17 @@ class OperationRequest(models.Model):
             decidable |= review
         return decidable
 
+    def _is_stage_reviewer(self):
+        """Whether the current user is a snapshot reviewer of a stage and holds that stage's capability."""
+        service = self.env['liwan.access.service']
+        return any(
+            self.env.uid in stage['reviewer_ids'] and service._liwan_has_capability(self.env.user, stage['capability'], record=self)
+            for stage in self.stage_snapshot or []
+        )
+
     def _decision_guard(self, revision):
-        self._guard('operations.requests.read')
+        # The stage's own capability authorizes the decision; no generic read capability is demanded on top.
+        self._guard()
         lock_or_conflict(self)
         check_revision(self, revision)
         if self.state != 'pending' or self.requester_id == self.env.user:
@@ -288,7 +302,7 @@ class OperationRequest(models.Model):
 
     def action_approve(self, revision, comment=''):
         self.ensure_one()
-        require(self.env, 'operations.requests.read')
+        require(self.env)
         try:
             with self.env.cr.savepoint():
                 reviews = self._decision_guard(revision)

@@ -206,8 +206,13 @@ decision; each is recorded here so review can judge it.
    audits it with a `stage_skipped` event and serialises it with status `skipped`. The bridge marks the
    approver resolver `skip_when_empty`; the final officers stage is never skippable. If every stage is
    skipped, or a stage that cannot be skipped has no eligible reviewer (for example the only officer is
-   the employee), submission fails with a specific 422 naming the stage. An officer who is also the
-   employee is never a reviewer of their own leave.
+   the employee), submission fails with a specific 422 naming the stage. The employee is never a
+   reviewer of their own leave at any stage, named or resolved: the engine asks each request kind for
+   its subject users (`_operations_subject_users`, the employee's user for a leave) and removes them,
+   with the requester, from every stage's candidates. A stage's decision is authorized by that stage's
+   snapshot capability alone (for the officers stage `hr.leave.approve`), without the generic
+   `operations.requests.read`; the transition, detail and pending routes follow, and the bridge's ACL
+   rows let leave approvers read and write the requests they decide.
 4. **Who edits the leave process:** holders of `operations.processes.manage`. Employees submit through the
    bridge with `operations.requests.create`, which the built-in employee role already holds.
 5. **No published process, or operations disabled:** new leaves use today's HR-role path. A leave whose
