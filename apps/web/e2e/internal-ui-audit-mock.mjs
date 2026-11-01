@@ -30,8 +30,8 @@ const CAPABILITIES = [
   ...INBOX_CAPABILITIES,
 ]
 
-// The HR area sub-features (`hr.<area>`) gate the recruitment, shifts, onboarding, offboarding and assets pages on top of their capabilities.
-const HR_AREA_FEATURES = ['hr.assets', 'hr.offboarding', 'hr.onboarding', 'hr.payroll', 'hr.recruitment', 'hr.shifts']
+// The HR area sub-features (`hr.<area>`) gate the recruitment, shifts, onboarding, offboarding, assets and warnings pages on top of their capabilities.
+const HR_AREA_FEATURES = ['hr.assets', 'hr.offboarding', 'hr.onboarding', 'hr.payroll', 'hr.recruitment', 'hr.shifts', 'hr.warnings']
 
 const ME = {
   id: 2, name: 'Admin', login: 'admin', email: 'admin@example.com', lang: 'ar_001', tz: 'Asia/Riyadh',

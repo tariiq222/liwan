@@ -1,4 +1,4 @@
-import { HrLeaveBellKindSchema, HrOnboardingStepBellKindSchema } from '@liwan/contracts'
+import { HrLeaveBellKindSchema, HrOnboardingStepBellKindSchema, HrWarningBellKindSchema } from '@liwan/contracts'
 import type { AppContextLink, AppManifest } from '../types'
 import { hrBellHref, hrBellTitleInApp } from './bell'
 import { hrPersonalEntries } from './personal'
@@ -15,6 +15,7 @@ const AREA_CREATE: Array<[prefix: string, link: AppContextLink]> = [
   ['/hr/onboarding', { id: 'new-onboarding', labelKey: 'hrOnboarding.runs.new', icon: plus, to: '/hr/onboarding/new', capability: 'hr.onboarding.manage', pinned: true }],
   ['/hr/offboarding', { id: 'new-departure', labelKey: 'hrOffboarding.departures.new', icon: plus, to: '/hr/offboarding/new', capability: 'hr.offboarding.manage', pinned: true }],
   ['/hr/assets', { id: 'new-asset', labelKey: 'hrAssets.new', icon: plus, to: '/hr/assets/new', capability: 'hr.assets.manage', pinned: true }],
+  ['/hr/warnings', { id: 'new-warning', labelKey: 'hrWarnings.new', icon: plus, to: '/hr/warnings/new', capability: 'hr.warnings.manage', pinned: true }],
   ['/hr/payroll', { id: 'new-payroll-run', labelKey: 'hrPayroll.runs.new', icon: plus, to: '/hr/payroll/new', capability: 'hr.payroll.manage', pinned: true }],
 ]
 const NEW_EMPLOYEE: AppContextLink = { id: 'new-employee', labelKey: 'hr.directory.newEmployee', icon: plus, to: '/hr/employees/new', capability: 'hr.employees.manage', pinned: true }
@@ -23,7 +24,7 @@ function createLink(path?: string): AppContextLink {
   return AREA_CREATE.find(([prefix]) => path?.startsWith(prefix))?.[1] ?? NEW_EMPLOYEE
 }
 
-const areaTargets = ['/hr/recruitment', '/hr/shifts', '/hr/onboarding', '/hr/offboarding', '/hr/assets']
+const areaTargets = ['/hr/recruitment', '/hr/shifts', '/hr/onboarding', '/hr/offboarding', '/hr/assets', '/hr/warnings']
 
 const section = (id: HrSection, labelKey: string, icon: AppContextLink['icon'], to: string, capability: string, feature?: string): AppContextLink =>
   ({ id: `section-${id}`, labelKey, icon, to, capability, within: hrSectionTarget(id), ...(feature ? { feature } : {}) })
@@ -50,6 +51,7 @@ const SUB_LISTS: Record<HrSection, AppContextLink[]> = {
     page('onboarding', 'nav.onboarding', 'i-lucide-user-plus', '/hr/onboarding', 'hr.onboarding.read', 'people'),
     page('offboarding', 'nav.offboarding', 'i-lucide-user-minus', '/hr/offboarding', 'hr.offboarding.read', 'people'),
     page('assets', 'nav.assets', 'i-lucide-laptop', '/hr/assets', 'hr.assets.read', 'people'),
+    page('warnings', 'nav.warnings', 'i-lucide-triangle-alert', '/hr/warnings', 'hr.warnings.read', 'people'),
     page('reports', 'hr.reports.title', 'i-lucide-chart-pie', '/hr/reports', 'hr.employees.manage', 'people'),
   ],
   time: [
@@ -64,7 +66,7 @@ const SUB_LISTS: Record<HrSection, AppContextLink[]> = {
 const manifest: AppManifest = {
   id: 'hr',
   feature: 'hr.enabled',
-  routePrefixes: ['/hr', '/account/profile', '/account/leave', '/account/pay', '/account/assets', '/account/schedule'],
+  routePrefixes: ['/hr', '/account/profile', '/account/leave', '/account/pay', '/account/assets', '/account/schedule', '/account/warnings'],
   rail: [{ id: 'hr', labelKey: 'nav.hr', shortLabelKey: 'nav.rail.hr', icon: 'i-lucide-users', to: '/hr', order: 50 }],
   nav: [
     { to: '/hr', labelKey: 'nav.employees', icon: 'i-lucide-users', shortcut: '3', goKey: 'e', capability: 'hr.employees.read' },
@@ -75,6 +77,7 @@ const manifest: AppManifest = {
     { to: '/hr/leave', labelKey: 'nav.leave', icon: 'i-lucide-calendar-days', shortcut: 's', goKey: 'l', capability: 'hr.leave.read' },
     { to: '/hr/shifts', labelKey: 'nav.shifts', icon: 'i-lucide-calendar-clock', shortcut: '', capability: 'hr.shifts.read' },
     { to: '/hr/assets', labelKey: 'nav.assets', icon: 'i-lucide-laptop', shortcut: '', capability: 'hr.assets.read' },
+    { to: '/hr/warnings', labelKey: 'nav.warnings', icon: 'i-lucide-triangle-alert', shortcut: '', capability: 'hr.warnings.read' },
     { to: '/hr/payroll', labelKey: 'nav.payroll', icon: 'i-lucide-banknote', shortcut: '', capability: 'hr.payroll.read' },
     { to: '/hr/reports', labelKey: 'hr.reports.title', icon: 'i-lucide-chart-pie', shortcut: 'r', capability: 'hr.employees.manage' },
   ],
@@ -86,6 +89,7 @@ const manifest: AppManifest = {
       { id: 'payroll', labelKey: 'hrPayroll.settings.title', icon: 'i-lucide-settings-2', capability: 'hr.payroll.read' },
       { id: 'audit', labelKey: 'hrPayroll.audit.title', icon: 'i-lucide-history', capability: 'hr.payroll.audit.read', to: '/settings/apps/hr/audit' },
       { id: 'shifts', labelKey: 'hr.shiftSettings.title', icon: 'i-lucide-calendar-clock', capability: 'hr.shifts.manage' },
+      { id: 'warnings', labelKey: 'hrWarnings.settings.title', icon: 'i-lucide-triangle-alert', capability: 'hr.warnings.manage' },
       { id: 'branch-access', labelKey: 'access.branches.strict.hr.title', icon: 'i-lucide-git-branch', capability: 'hr.employees.manage' },
     ],
   },
@@ -101,12 +105,13 @@ const manifest: AppManifest = {
     { path: '/hr/onboarding', capability: 'hr.onboarding.read' },
     { path: '/hr/offboarding', capability: 'hr.offboarding.read' },
     { path: '/hr/assets', capability: 'hr.assets.read' },
+    { path: '/hr/warnings', capability: 'hr.warnings.read' },
     { path: '/hr/payroll', capability: 'hr.payroll.read' },
   ],
   attention: [leaveApprovalAttention, leaveCancellationAttention],
   bell: {
     capabilities: ['hr.leave.read'],
-    kinds: [...HrLeaveBellKindSchema.options, HrOnboardingStepBellKindSchema.value].map(kind => ({ kind, href: hrBellHref, title: hrBellTitleInApp })),
+    kinds: [...HrLeaveBellKindSchema.options, HrOnboardingStepBellKindSchema.value, HrWarningBellKindSchema.value].map(kind => ({ kind, href: hrBellHref, title: hrBellTitleInApp })),
   },
   personal: hrPersonalEntries,
   commands: [
@@ -118,6 +123,7 @@ const manifest: AppManifest = {
     { id: 'hr.new-onboarding', labelKey: 'hrOnboarding.runs.new', icon: 'i-lucide-user-plus', to: '/hr/onboarding/new', capability: 'hr.onboarding.manage' },
     { id: 'hr.new-departure', labelKey: 'hrOffboarding.departures.new', icon: 'i-lucide-user-minus', to: '/hr/offboarding/new', capability: 'hr.offboarding.manage' },
     { id: 'hr.new-asset', labelKey: 'hrAssets.new', icon: 'i-lucide-laptop', to: '/hr/assets/new', capability: 'hr.assets.manage' },
+    { id: 'hr.new-warning', labelKey: 'hrWarnings.new', icon: 'i-lucide-triangle-alert', to: '/hr/warnings/new', capability: 'hr.warnings.manage' },
     { id: 'hr.new-payroll-run', labelKey: 'hrPayroll.runs.new', icon: 'i-lucide-banknote', to: '/hr/payroll/new', capability: 'hr.payroll.manage' },
   ],
   subFeatures: {
@@ -126,6 +132,7 @@ const manifest: AppManifest = {
     'hr.onboarding.': 'hr.onboarding',
     'hr.offboarding.': 'hr.offboarding',
     'hr.assets.': 'hr.assets',
+    'hr.warnings.': 'hr.warnings',
     'hr.payroll.': 'hr.payroll',
   },
   routeCapabilities: [
@@ -135,6 +142,7 @@ const manifest: AppManifest = {
     { pattern: /^\/account\/pay(?:\/[^/]+)?$/, capability: 'hr.employees.read', feature: 'hr.payroll' },
     { pattern: /^\/account\/assets$/, capability: 'hr.employees.read', feature: 'hr.assets' },
     { pattern: /^\/account\/schedule$/, capability: 'hr.employees.read', feature: 'hr.shifts' },
+    { pattern: /^\/account\/warnings$/, capability: 'hr.employees.read', feature: 'hr.warnings' },
     { pattern: /^\/account\/onboarding$/, capability: 'hr.employees.read', feature: 'hr.onboarding' },
     { pattern: /^\/hr\/recruitment\/(?:.+\/)?new$/, capability: 'hr.recruitment.manage' },
     { pattern: /^\/hr\/recruitment(?:\/|$)/, capability: 'hr.recruitment.read' },
@@ -146,6 +154,8 @@ const manifest: AppManifest = {
     { pattern: /^\/hr\/offboarding(?:\/|$)/, capability: 'hr.offboarding.read' },
     { pattern: /^\/hr\/assets\/(?:.+\/)?new$/, capability: 'hr.assets.manage' },
     { pattern: /^\/hr\/assets(?:\/|$)/, capability: 'hr.assets.read' },
+    { pattern: /^\/hr\/warnings\/(?:.+\/)?new$/, capability: 'hr.warnings.manage' },
+    { pattern: /^\/hr\/warnings(?:\/|$)/, capability: 'hr.warnings.read' },
     { pattern: /^\/hr\/leave\/allocations(?:\/|$)/, capability: 'hr.leave.manage' },
     { pattern: /^\/hr\/leave(?:\/|$)/, capability: 'hr.leave.read', anyCapabilities: ['hr.leave.approve', 'hr.leave.manage'] },
     // The page renders its own managers-only message (SharedForbiddenState) instead of the generic 403 page.

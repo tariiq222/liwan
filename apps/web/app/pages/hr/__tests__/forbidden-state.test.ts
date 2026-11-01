@@ -36,6 +36,7 @@ const PAGES: [file: string, capability: string, description?: string][] = [
   ['self/leave/new.vue', 'hr.leave.request'],
   ['shifts/new.vue', 'hr.shifts.manage'],
   ['shifts/schedules/new.vue', 'hr.shifts.manage'],
+  ['warnings/new.vue', 'hr.warnings.manage'],
 ]
 
 const Stub = (name: string) => Vue.defineComponent({
@@ -53,6 +54,7 @@ const MODULES: Record<string, unknown> = {
   '@/components/hr/lifecycle/DepartureForm.vue': component('DepartureForm'),
   '@/components/hr/EmployeeGeneralForm.vue': component('EmployeeGeneralForm'),
   '@/components/hr/assets/EquipmentForm.vue': component('EquipmentForm'),
+  '@/components/hr/warnings/WarningForm.vue': component('WarningForm'),
   '@/components/hr/LeaveAllocationForm.vue': component('LeaveAllocationForm'),
   '@/components/hr/LeaveRequestForm.vue': component('LeaveRequestForm'),
   '@/components/hr/payroll/PayrollRunCreateForm.vue': component('PayrollRunCreateForm'),
@@ -90,6 +92,8 @@ function autoImports(can: (capability: string) => boolean, file: string): Record
     definePageMeta: () => undefined,
     useMyHrProfile: query,
     useHrAssetCategories: query,
+    useHrWarningTypes: query,
+    useHrEmployees: query,
     useHrRecruitmentJobList: query,
     useHrDepartments: query,
     useCreateHrApplicant: mutation,

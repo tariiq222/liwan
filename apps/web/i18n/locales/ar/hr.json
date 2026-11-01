@@ -409,6 +409,8 @@
       "payDesc": "قسائم راتبك المعتمدة",
       "assets": "عهدي",
       "assetsDesc": "الأصول المسلّمة إليك",
+      "warnings": "إنذاراتي",
+      "warningsDesc": "الإنذارات الإدارية الصادرة بحقك",
       "schedule": "جدول عملي",
       "scheduleDesc": "تكليفات وجداول عملك الحالية والقادمة",
       "noEmployee": "لا يوجد ملف موظف مرتبط بحسابك",
@@ -458,7 +460,8 @@
     "bell": {
       "leaveApproved": "تم اعتماد طلب إجازتك ({dates})",
       "leaveRefused": "تم رفض طلب إجازتك ({dates})",
-      "onboardingStep": "تم إسناد خطوة تهيئة إليك: {step}"
+      "onboardingStep": "تم إسناد خطوة تهيئة إليك: {step}",
+      "warningIssued": "صدر بحقك إنذار إداري: {type}"
     },
     "lifecycleErrors": {
       "manager_missing": "عيّن مدير الموظف أولًا من صفحة الموظف ثم أعد المحاولة.",

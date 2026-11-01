@@ -10,13 +10,14 @@ describe('HR personal contributions', () => {
     expect(canReachPath({ ...identity, capabilities: ['hr.employees.read'] }, '/settings/apps/hr')).toBe(false)
   })
   it('contributes every own HR destination without a mine administration section', () => {
-    expect(manifest.personal?.map(entry => entry.to)).toEqual(['/account/profile','/account/onboarding','/account/leave','/account/pay','/account/assets','/account/schedule'])
+    expect(manifest.personal?.map(entry => entry.to)).toEqual(['/account/profile','/account/onboarding','/account/leave','/account/pay','/account/assets','/account/warnings','/account/schedule'])
     expect(manifest.contextLinks?.('/hr').some(link => link.id === 'section-mine')).toBe(false)
   })
   it('preserves independent feature gates for own assets, payroll and shifts', () => {
     expect(manifest.personal?.find(entry => entry.section === 'pay')?.feature).toBe('hr.payroll')
     expect(manifest.personal?.find(entry => entry.section === 'assets')?.feature).toBe('hr.assets')
     expect(manifest.personal?.find(entry => entry.section === 'schedule')?.feature).toBe('hr.shifts')
+    expect(manifest.personal?.find(entry => entry.id === 'hr-warnings')?.feature).toBe('hr.warnings')
     expect(manifest.personal?.find(entry => entry.section === 'leave')?.primaryAction).toMatchObject({to:'/account/leave/new', capability:'hr.leave.request'})
   })
   it('requires either leave management or approval authority on the administrative list', () => {

@@ -30,6 +30,15 @@ describe('hr leave bell rows', () => {
     expect(canReachPath({ capabilities: ['hr.employees.read', 'hr.leave.read'], platform: { readable_features: ['hr.enabled', 'hr.onboarding'], writable_features: [] } }, '/account/onboarding')).toBe(true)
   })
 
+  it('words a warning with its type only, never the reason, and opens the own warnings page', () => {
+    const issued = { id: 3, kind: 'hr.warning_issued', warning_id: 9, title: 'Written warning', created_at: '2026-11-01T09:00:00Z', is_read: false }
+    expect(hrBellTitle(issued, translator(arHr))).toBe('صدر بحقك إنذار إداري: Written warning')
+    expect(hrBellTitle(issued, translator(enHr))).toBe('An administrative warning was issued to you: Written warning')
+    expect(hrBellHref(issued)).toBe('/account/warnings')
+    expect(canReachPath({ capabilities: ['hr.employees.read'], platform: { readable_features: ['hr.enabled', 'hr.warnings'], writable_features: [] } }, '/account/warnings')).toBe(true)
+    expect(canReachPath({ capabilities: ['hr.employees.read'], platform: { readable_features: ['hr.enabled'], writable_features: [] } }, '/account/warnings')).toBe(false)
+  })
+
   it('falls back to the plain title for a row that breaks the contract', () => {
     expect(hrBellTitle({ ...row('hr.leave_approved'), leave_id: 'x' }, translator(enHr))).toBe('2026-11-02 - 2026-11-03')
   })
@@ -40,6 +49,6 @@ describe('hr leave bell rows', () => {
     expect(canReachPath({ capabilities: ['hr.employees.read', 'hr.leave.read', 'hr.leave.request'] }, '/account/leave/7')).toBe(true)
     expect(canReachPath({ capabilities: ['hr.employees.read', 'hr.leave.read', 'hr.leave.request'] }, '/hr/leave/7')).toBe(false)
     expect(hrBellHref({ kind: 'hr.leave_approved' })).toBeNull()
-    expect(manifest.bell?.kinds?.map(kind => kind.kind)).toEqual(['hr.leave_approved', 'hr.leave_refused', 'hr.onboarding_step'])
+    expect(manifest.bell?.kinds?.map(kind => kind.kind)).toEqual(['hr.leave_approved', 'hr.leave_refused', 'hr.onboarding_step', 'hr.warning_issued'])
   })
 })

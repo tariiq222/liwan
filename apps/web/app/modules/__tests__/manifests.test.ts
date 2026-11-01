@@ -73,6 +73,7 @@ describe('app manifests', () => {
     ['/hr/onboarding/9', 'hr.onboarding.read'], ['/hr/onboarding/plans/new', 'hr.onboarding.manage'],
     ['/hr/offboarding', 'hr.offboarding.read'], ['/hr/offboarding/new', 'hr.offboarding.manage'],
     ['/hr/assets/4', 'hr.assets.read'], ['/account/assets', 'hr.employees.read'], ['/hr/assets/categories/new', 'hr.assets.manage'],
+    ['/hr/warnings', 'hr.warnings.read'], ['/hr/warnings/4', 'hr.warnings.read'], ['/hr/warnings/new', 'hr.warnings.manage'], ['/account/warnings', 'hr.employees.read'],
     ['/hr/payroll', 'hr.payroll.read'], ['/hr/payroll/4', 'hr.payroll.read'], ['/hr/payroll/4/payslips/9', 'hr.payroll.read'],
     ['/hr/payroll/new', 'hr.payroll.manage'],
     ['/account/pay', 'hr.employees.read'], ['/account/pay/7', 'hr.employees.read'],
@@ -90,6 +91,7 @@ describe('app manifests', () => {
     ['/meetings/series/3', '/meetings/series', true], ['/hr/employees/7/edit', '/hr', true], ['/hr/documents', '/hr', false],
     ['/documents/2', '/documents', true],
     ['/account/assets', '/account/assets', true], ['/account/assets', '/hr/assets', false], ['/hr/assets/4', '/hr/assets', true],
+    ['/account/warnings', '/account/warnings', true], ['/account/warnings', '/hr/warnings', false], ['/hr/warnings/4', '/hr/warnings', true],
     ['/account/pay', '/account/pay', true], ['/account/pay/7', '/account/pay', true], ['/account/pay', '/hr/payroll', false],
     ['/account/pay/7', '/hr/payroll', false], ['/hr/payroll', '/hr/payroll', true], ['/hr/payroll/new', '/hr/payroll', true],
     ['/hr/payroll/4/payslips/9', '/hr/payroll', true]
@@ -232,6 +234,7 @@ describe('palette declarations', () => {
       ['/hr/onboarding', 'hr.new-onboarding', '/hr/onboarding/new', 'hr.onboarding.manage'],
       ['/hr/offboarding', 'hr.new-departure', '/hr/offboarding/new', 'hr.offboarding.manage'],
       ['/hr/assets', 'hr.new-asset', '/hr/assets/new', 'hr.assets.manage'],
+      ['/hr/warnings/4', 'hr.new-warning', '/hr/warnings/new', 'hr.warnings.manage'],
       ['/hr/payroll/4', 'hr.new-payroll-run', '/hr/payroll/new', 'hr.payroll.manage'],
       ['/hr', 'hr.new-employee', '/hr/employees/new', 'hr.employees.manage'],
     ])('pins the own create action on %s', (path, commandId, to, capability) => {
@@ -248,7 +251,7 @@ describe('palette declarations', () => {
         expect(links(path).filter(link => link.id.startsWith('section-')).map(link => link.id), path).toEqual(sectionIds)
       }
       expect(subIds('/hr/recruitment/12')).toEqual(['recruitment', 'recruitment-jobs'])
-      expect(subIds('/hr/employees/7')).toEqual(['employees', 'departments', 'onboarding', 'offboarding', 'assets', 'reports'])
+      expect(subIds('/hr/employees/7')).toEqual(['employees', 'departments', 'onboarding', 'offboarding', 'assets', 'warnings', 'reports'])
       expect(subIds('/hr/shifts/schedules')).toEqual(['leave', 'shifts'])
       expect(subIds('/hr/payroll/4/gosi')).toEqual(['payroll'])
     })
