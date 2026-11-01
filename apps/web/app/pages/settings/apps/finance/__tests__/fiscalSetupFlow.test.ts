@@ -57,6 +57,8 @@ function mountCard() {
     onBeforeRouteLeave: () => undefined,
     useToast: () => ({ add: (toast: unknown) => toasts.push(toast) }),
     useSettingsForm, ApiError,
+    // The template is not rendered here; the script only names the picker it imports.
+    AccountPicker: {},
     ...setupComposables, ...fiscalRules,
   }
   const component = new Function(...Object.keys(bindings), js)(...Object.values(bindings))

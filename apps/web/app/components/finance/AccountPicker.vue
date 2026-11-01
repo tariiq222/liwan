@@ -5,7 +5,8 @@ import { useFinanceAccountOptions } from '@/composables/finance/useFinanceAccoun
 
 // One account chosen from the chart of accounts, found by the typed code or name; `allow` leaves out the accounts the
 // caller's endpoint refuses. The chosen account stays in the list while the search text changes, so the trigger never
-// shows a bare number.
+// shows a bare number. `accountType` narrows the search to one account type on the server; `selectedLabel` names the account
+// the model already holds before anything was chosen here (a saved setting), so it never shows as a bare number either.
 const props = defineProps<{
   modelValue: number | null
   id?: string
@@ -14,18 +15,21 @@ const props = defineProps<{
   ariaLabel?: string
   placeholder?: string
   allow?: (account: FinanceAccount) => boolean
+  accountType?: FinanceAccount['account_type']
+  selectedLabel?: string
 }>()
 const emit = defineEmits<{ 'update:modelValue': [value: number | null] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const q = ref('')
 const search = refDebounced(q, 250)
-const accounts = useFinanceAccountOptions(search)
+const accounts = useFinanceAccountOptions(search, () => props.accountType)
 const chosen = ref<{ label: string; value: number } | null>(null)
 
 const items = computed(() => {
   const rows = (accounts.data.value?.items ?? []).filter(account => props.allow?.(account) ?? true).map(account => ({ label: `${account.code} ${account.name}`, value: account.id }))
-  const kept = chosen.value && chosen.value.value === props.modelValue && !rows.some(row => row.value === chosen.value!.value) ? [chosen.value] : []
+  const known = chosen.value ?? (props.modelValue !== null && props.selectedLabel ? { label: props.selectedLabel, value: props.modelValue } : null)
+  const kept = known && known.value === props.modelValue && !rows.some(row => row.value === known.value) ? [known] : []
   return [...kept, ...rows]
 })
 function choose(value: number | undefined) {

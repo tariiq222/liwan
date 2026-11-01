@@ -290,7 +290,7 @@ Meetings use SharedListPage/DataTable/RecordPage/TimelineFrame/StandalonePage. C
 
 | المكوّن | الوظيفة | القصة | مكونات الأساس |
 | --- | --- | --- | --- |
-| `apps/web/app/components/finance/AccountPicker.vue` | اختيار حساب من دليل الحسابات بالرمز أو الاسم، مع `allow` لاستبعاد ما يرفضه الخادم | — | `USelectMenu` |
+| `apps/web/app/components/finance/AccountPicker.vue` | اختيار حساب من دليل الحسابات بالرمز أو الاسم، مع `allow` لاستبعاد ما يرفضه الخادم و`accountType` لحصر البحث في نوع واحد و`selectedLabel` لاسم الحساب المحفوظ قبل أي اختيار | — | `USelectMenu` |
 | `apps/web/app/components/finance/accounting/EntryList.vue` | بطاقة قائمة القيود: بحث وحالة ويومية وفترة في الرابط، جدول وعدّاد وترقيم ومؤشرات الأعداد فوقها | — | `SharedListCard`, `SharedFilterBar`, `SharedFilterField`, `SharedDateField`, `SharedPageState`, `SharedEmptyState`, `SharedDataTable`, `SharedRecordNumber`, `SharedStatusBadge`, `SharedListFooter`, `SharedForbiddenState`, `UInput`, `USelect` |
 | `apps/web/app/components/finance/accounting/EntryKpiStrip.vue` | أعداد القيود الكلية والمسودة والمرحّلة والملغاة من إجمالي الخادم بفلاتر القائمة | — | `SharedKpiStrip` |
 | `apps/web/app/components/finance/accounting/EntryForm.vue` | إنشاء قيد: اليومية والتاريخ والمرجع وبنود مدين/دائن متوازنة بمجاميع حيّة | — | `SharedFormSection`, `SharedFormActions`, `SharedUnsavedChanges`, `SharedDateField`, `UForm`, `UFormField`, `UInput`, `USelect`, `UAlert`, `UButton` |

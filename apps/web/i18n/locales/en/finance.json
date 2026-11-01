@@ -204,8 +204,12 @@
           "lock_date_loosening": "This lock cannot be removed or moved to an earlier date.",
           "invalid_request_context": "This request could not be checked against the signed-in identity. Reload the page and try again.",
           "request_context_changed": "The company or sign-in identity changed since this screen was opened, so this request's result was not applied. Reload the current company's settings to verify.",
-          "unreconciled_bank_lines": "Some bank statement lines up to this date are not reconciled. Reconcile or delete them before locking the fiscal year."
-        }
+          "unreconciled_bank_lines": "Some bank statement lines up to this date are not reconciled. Reconcile or delete them before locking the fiscal year.",
+          "transferAccountCannotClear": "The transfer account cannot be removed, only replaced by another account."
+        },
+        "transfer_account_id": "Internal transfer account",
+        "transferAccountHint": "The account transfers between banks and cash boxes pass through. It must be a reconcilable current asset.",
+        "transferAccountPlaceholder": "Choose an account"
       },
       "chart": {
         "title": "Chart of accounts",

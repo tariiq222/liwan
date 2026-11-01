@@ -1,12 +1,14 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { keepPreviousData, useQuery } from '@tanstack/vue-query'
-import { FinanceAccountListSchema } from '@liwan/contracts'
+import { FinanceAccountListSchema, type FinanceAccount } from '@liwan/contracts'
 import type { AccountListParams } from '@/components/finance/accounting/accountListParams'
+
+type AccountType = FinanceAccount['account_type']
 
 export const financeAccountKeys = {
   list: (params: AccountListParams) => ['finance', 'accounts', 'list', params] as const,
-  picker: (q: string) => ['finance', 'accounts', 'picker', q] as const,
+  picker: (q: string, accountType?: AccountType) => ['finance', 'accounts', 'picker', q, accountType ?? null] as const,
 }
 
 /** One page of the chart of accounts. */
@@ -20,12 +22,12 @@ export function useFinanceAccountList(params: MaybeRefOrGetter<AccountListParams
   })
 }
 
-/** Accounts for a picker, matched by the typed code or name. */
-export function useFinanceAccountOptions(q: MaybeRefOrGetter<string>) {
+/** Accounts for a picker, matched by the typed code or name and, when given, of one account type. */
+export function useFinanceAccountOptions(q: MaybeRefOrGetter<string>, accountType?: MaybeRefOrGetter<AccountType | undefined>) {
   const { $api } = useApi()
   return useQuery({
-    queryKey: computed(() => financeAccountKeys.picker(toValue(q).trim())),
+    queryKey: computed(() => financeAccountKeys.picker(toValue(q).trim(), toValue(accountType))),
     placeholderData: keepPreviousData,
-    queryFn: () => $api('/api/v1/finance/accounts', { query: { q: toValue(q).trim() || undefined, limit: 50 }, schema: FinanceAccountListSchema }),
+    queryFn: () => $api('/api/v1/finance/accounts', { query: { q: toValue(q).trim() || undefined, account_type: toValue(accountType), limit: 50 }, schema: FinanceAccountListSchema }),
   })
 }
