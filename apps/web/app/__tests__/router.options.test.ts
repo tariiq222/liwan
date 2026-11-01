@@ -5,7 +5,8 @@ import routerOptions from '../router.options'
 // The scroll behaviour of hash navigation on a settings page, with a stand-in document.
 type Scroll = (to: unknown, from: unknown, saved: unknown) => Promise<unknown>
 const scrollBehavior = (routerOptions as unknown as { scrollBehavior: Scroll }).scrollBehavior
-const card = { id: 'contact' }
+// The card has a box and is attached; the page is tall enough to scroll it to the top.
+const card = { id: 'contact', isConnected: true, getBoundingClientRect: () => ({ top: 400, height: 200 }) }
 const route = (path: string, hash = '') => ({ path, hash, fullPath: `${path}${hash}`, meta: {} })
 
 beforeEach(() => {
