@@ -35,10 +35,25 @@ class TestFinancePartnerBanks(LiwanFinanceWriteCase):
         self.assertEqual((listed['total'], listed['items'][0]['id']), (1, account['id']))
         self.assertEqual(self.env['res.partner.bank'].browse(account['id']).partner_id, self.vendor)
 
-    def test_a_second_account_reuses_the_bank_by_bic(self):
+    def test_a_second_account_reuses_the_bank_of_the_same_name_and_bic(self):
         self.add(bank_name='Test Bank', bic='ZZZZSARI')
-        self.add(acc_number='SA0910000000000000000001', bank_name='Test Bank (renamed)', bic='ZZZZSARI')
+        self.add(acc_number='SA0910000000000000000001', bank_name='Test Bank', bic='ZZZZSARI')
         self.assertEqual(self.env['res.bank'].search_count([('bic', '=', 'ZZZZSARI')]), 1)
+
+    def test_a_bank_name_only_edit_takes_effect_without_renaming_the_shared_bank(self):
+        first = self.add(bank_name='Test Bank', bic='ZZZZSARI')
+        second = self.add(acc_number='SA0910000000000000000001', bank_name='Test Bank', bic='ZZZZSARI')
+        patched = self.api('PATCH', self.route(suffix=f'/{second["id"]}'), json={'bank_name': 'Test Bank Jeddah'})
+        self.assertEqual(patched.status_code, 200, patched.text)
+        self.assertEqual((patched.json()['bank_name'], patched.json()['bic']), ('Test Bank Jeddah', 'ZZZZSARI'))
+        untouched = self.api('GET', self.route()).json()['items']
+        self.assertEqual({item['id']: item['bank_name'] for item in untouched}, {first['id']: 'Test Bank', second['id']: 'Test Bank Jeddah'})
+
+    def test_clearing_the_bic_of_an_account_detaches_it_from_the_bank_with_a_bic(self):
+        account = self.add(bank_name='Test Bank', bic='ZZZZSARI')
+        patched = self.api('PATCH', self.route(suffix=f'/{account["id"]}'), json={'bic': ''})
+        self.assertEqual(patched.status_code, 200, patched.text)
+        self.assertEqual((patched.json()['bank_name'], patched.json()['bic']), ('Test Bank', ''))
 
     def test_invalid_numbers_are_refused(self):
         for number in ('SA0380000000608010167518', 'SA03800000006080101675', '', 'X' * 35):
