@@ -74,7 +74,8 @@ test('RACI task and stakeholder links return to their matrix source', async ({ p
   await expect.poll(() => new URL(page.url()).pathname).toBe('/projects/1/raci')
   expect(new URL(page.url()).searchParams.get('closed')).toBe('1')
   await matrix.locator('a[href*="/stakeholders/"]').first().click()
-  await page.locator('[data-template="record"] [data-slot="page-header"] a').first().click()
+  // The back link is named for the record's own list but leads to the page the reader came from.
+  await page.locator('[data-template="record"] [data-slot="page-header"]').getByRole('link', { name: 'أصحاب المصلحة', exact: true }).click()
   await expect.poll(() => new URL(page.url()).pathname).toBe('/projects/1/raci')
   expect(new URL(page.url()).searchParams.get('closed')).toBe('1')
 })

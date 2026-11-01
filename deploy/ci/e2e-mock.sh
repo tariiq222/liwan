@@ -16,8 +16,10 @@ MOCK_PID=$!
 node e2e/ai-service-mock.mjs > ai-mock.log 2>&1 &
 AI_MOCK_PID=$!
 cleanup() {
-  if [ -n "${SERVER_PID:-}" ]; then kill "$SERVER_PID" 2>/dev/null || true; wait "$SERVER_PID" 2>/dev/null || true; fi
-  kill "$MOCK_PID" "$AI_MOCK_PID" 2>/dev/null || true; wait "$MOCK_PID" "$AI_MOCK_PID" 2>/dev/null || true
+  for pid in "${LONG_SERVER_PID:-}" "${SERVER_PID:-}"; do
+    if [ -n "$pid" ]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi
+  done
+  kill "$MOCK_PID" "$AI_MOCK_PID" "${LONG_MOCK_PID:-}" 2>/dev/null || true; wait "$MOCK_PID" "$AI_MOCK_PID" ${LONG_MOCK_PID:-} 2>/dev/null || true
 }
 trap cleanup EXIT
 # Built WITHOUT NUXT_AI_SERVICE_URL on purpose: /ai must follow the runtime value, not the build environment.
@@ -36,3 +38,22 @@ done
 curl -fs "$E2E_BASE_URL/login" >/dev/null
 mapfile -t SPECS < <(sed 's#^#e2e/#' e2e/ci-mock-specs.txt)
 npx playwright test "${SPECS[@]}"
+
+# The scroll and navigation specs need lists taller than a viewport: a second mock pads the task fixture to 60 rows and a
+# second server from the same build serves it. The default fixture keeps its four tasks for every other spec.
+LONG_MOCK_PORT=$((MOCK_PORT + 10))
+LONG_WEB_PORT=$((WEB_PORT + 10))
+MOCK_PORT="$LONG_MOCK_PORT" MOCK_TASK_COUNT=60 node e2e/internal-ui-audit-mock.mjs > mock-long.log 2>&1 &
+LONG_MOCK_PID=$!
+NUXT_ODOO_URL="http://127.0.0.1:$LONG_MOCK_PORT" NUXT_PUBLIC_WS_URL="ws://127.0.0.1:$LONG_MOCK_PORT/websocket" \
+  PORT="$LONG_WEB_PORT" node .output/server/index.mjs > nuxt-long.log 2>&1 &
+LONG_SERVER_PID=$!
+for _ in $(seq 1 60); do
+  kill -0 "$LONG_MOCK_PID" "$LONG_SERVER_PID"
+  if curl -fs "http://localhost:$LONG_WEB_PORT/login" >/dev/null; then break; fi
+  sleep 2
+done
+curl -fs "http://localhost:$LONG_WEB_PORT/login" >/dev/null
+test -s e2e/ci-mock-long-list-specs.txt
+mapfile -t LONG_SPECS < <(sed 's#^#e2e/#' e2e/ci-mock-long-list-specs.txt)
+E2E_BASE_URL="http://localhost:$LONG_WEB_PORT" npx playwright test "${LONG_SPECS[@]}"

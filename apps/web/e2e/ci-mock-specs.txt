@@ -73,3 +73,6 @@ tasmim6-invite.spec.ts
 tasmim6-notifications.spec.ts
 tasmim6-subscription-invoices.spec.ts
 tasmim6-subscription-settings.spec.ts
+tasmim6-task-record.spec.ts
+legacy-list-navigation.spec.ts
+ux-foundations-journey.spec.ts
