@@ -14,19 +14,21 @@ export const FINANCE_FISCAL_LOCK_FIELDS = [
   'fiscalyear_lock_date', 'tax_lock_date', 'sale_lock_date', 'purchase_lock_date',
 ] as const
 export type FinanceFiscalLockField = typeof FINANCE_FISCAL_LOCK_FIELDS[number]
-export type FinanceFiscalField = 'fiscalyear_last_day' | 'fiscalyear_last_month' | FinanceFiscalLockField
+export type FinanceFiscalField = 'fiscalyear_last_day' | 'fiscalyear_last_month' | FinanceFiscalLockField | 'transfer_account_id'
 
 /**
  * The draft holds the year end as the text the user typed, so an empty or half-typed value is visible
- * instead of being silently coerced, and the locks as calendar dates or null when the field was cleared.
+ * instead of being silently coerced, the locks as calendar dates or null when the field was cleared, and the transfer
+ * account as the chosen account id or null while none is set.
  */
 export type FinanceFiscalDraft = {
   fiscalyear_last_day: string
   fiscalyear_last_month: string
+  transfer_account_id: number | null
 } & Record<FinanceFiscalLockField, string | null>
 
 export type FinanceFiscalIssueCode =
-  | 'invalidDay' | 'invalidMonth' | 'invalidYearEnd' | 'invalidLockDate' | 'lockCannotClear' | 'lockCannotMoveEarlier'
+  | 'invalidDay' | 'invalidMonth' | 'invalidYearEnd' | 'invalidLockDate' | 'lockCannotClear' | 'lockCannotMoveEarlier' | 'transferAccountCannotClear'
 export type FinanceFiscalIssue = { field: FinanceFiscalField; code: FinanceFiscalIssueCode }
 
 /** The identity a setup screen was read for: the signed-in user, their current company and the observed identity generation. */
@@ -65,6 +67,7 @@ export function financeFiscalDraftFromValues(values: FinanceFiscalValues): Finan
   const draft = {
     fiscalyear_last_day: String(values.fiscalyear_last_day),
     fiscalyear_last_month: String(values.fiscalyear_last_month),
+    transfer_account_id: values.transfer_account?.id ?? null,
   } as FinanceFiscalDraft
   for (const field of FINANCE_FISCAL_LOCK_FIELDS) draft[field] = values[field]
   return draft
@@ -75,8 +78,9 @@ function readNumber(value: string): number | null {
   return Number(value)
 }
 
-/** Every reason the draft cannot be sent: a malformed day or month, an impossible year end, or a lock that
- * was cleared or moved earlier than the saved one. The locks can only be tightened from here. */
+/** Every reason the draft cannot be sent: a malformed day or month, an impossible year end, a lock that
+ * was cleared or moved earlier than the saved one, or a saved transfer account that was cleared (the server
+ * takes a replacement, never none). The locks can only be tightened from here. */
 export function financeFiscalIssues(draft: FinanceFiscalDraft, baseline: FinanceFiscalDraft): FinanceFiscalIssue[] {
   const issues: FinanceFiscalIssue[] = []
   const day = readNumber(draft.fiscalyear_last_day)
@@ -93,6 +97,9 @@ export function financeFiscalIssues(draft: FinanceFiscalDraft, baseline: Finance
     if (current && value === null) { issues.push({ field, code: 'lockCannotClear' }); continue }
     if (current && value !== null && value < current) issues.push({ field, code: 'lockCannotMoveEarlier' })
   }
+  if (baseline.transfer_account_id !== null && draft.transfer_account_id === null) {
+    issues.push({ field: 'transfer_account_id', code: 'transferAccountCannotClear' })
+  }
   return issues
 }
 
@@ -107,6 +114,8 @@ export function financeFiscalDelta(draft: FinanceFiscalDraft, baseline: FinanceF
   for (const field of FINANCE_FISCAL_LOCK_FIELDS) {
     if (draft[field] !== baseline[field]) delta[field] = draft[field]
   }
+  // `financeFiscalIssues` refused a cleared account above, so a changed one is always an id.
+  if (draft.transfer_account_id !== baseline.transfer_account_id) delta.transfer_account_id = draft.transfer_account_id!
   return Object.keys(delta).length ? delta : null
 }
 

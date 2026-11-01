@@ -7,6 +7,7 @@ import {
   emptyInvoiceDraft,
   hasInvoiceErrors,
   invoiceDraftDirty,
+  offersAssetProfile,
   lineSubtotal,
   newLine,
   validateInvoiceDraft,
@@ -18,6 +19,7 @@ import { financeErrorMessage } from '../financeErrors'
 import { financeErrorKey } from './invoiceErrors'
 import { useCreateFinanceInvoice, usePatchFinanceInvoice } from '@/composables/finance/useFinanceInvoices'
 import { useSetupPaymentTerms } from '@/composables/finance/useFinanceRecords'
+import { useFinanceAssetProfiles } from '@/composables/finance/useFinanceAssets'
 
 // The editor of a document: the create panel (a new draft) and the record page's edit mode (the draft's header and
 // lines; the lines sent replace the draft's lines). Numbers stay as typed until validated; taxes follow the account's
@@ -49,6 +51,18 @@ const termItems = computed(() => [
 function pickTerm(value: unknown) {
   draft.paymentTermId = value === NO_TERM ? null : Number(value)
   if (draft.paymentTermId) draft.invoiceDateDue = null
+}
+
+// A vendor-bill line may capitalise into an asset: the select is for fixed-asset managers, who may also read the profiles.
+const showAssetProfile = computed(() => offersAssetProfile(props.moveType, can('finance.assets.manage')))
+const profiles = useFinanceAssetProfiles(showAssetProfile)
+const NO_PROFILE = 'none'
+const profileItems = computed(() => [
+  { value: NO_PROFILE, label: t('financeDocuments.form.noAssetProfile') },
+  ...(profiles.data.value?.items ?? []).map(profile => ({ value: String(profile.id), label: profile.name })),
+])
+function pickProfile(line: InvoiceFormDraft['lines'][number], value: unknown) {
+  line.assetProfileId = value === NO_PROFILE ? null : Number(value)
 }
 
 const baseline = props.initial ?? emptyInvoiceDraft()
@@ -130,6 +144,9 @@ async function submit() {
           </UFormField>
           <UFormField :label="t('financeDocuments.form.discount')" :name="`finance-line-discount-${index}`" :error="shown?.lines[index]?.discount ? t('financeDocuments.form.discountInvalid') : undefined">
             <UInput v-model="line.discount" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" :aria-label="t('financeDocuments.form.lineAria', { number: index + 1, field: t('financeDocuments.form.discount') })" />
+          </UFormField>
+          <UFormField v-if="showAssetProfile" class="md:col-span-4" :label="t('financeDocuments.form.assetProfile')" :name="`finance-line-asset-profile-${index}`" :description="t('financeDocuments.form.assetProfileHint')">
+            <USelect :model-value="line.assetProfileId ? String(line.assetProfileId) : NO_PROFILE" :items="profileItems" class="w-full" :loading="profiles.isLoading.value" :disabled="!hydrated || pending" :aria-label="t('financeDocuments.form.lineAria', { number: index + 1, field: t('financeDocuments.form.assetProfile') })" :data-testid="`finance-line-asset-profile-${index}`" @update:model-value="value => pickProfile(line, value)" />
           </UFormField>
           <div class="flex flex-wrap items-center justify-between gap-3 md:col-span-4">
             <USwitch v-model="line.noTax" :label="t('financeDocuments.form.noTax')" :disabled="!hydrated || pending" />

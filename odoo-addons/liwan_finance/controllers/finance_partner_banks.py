@@ -30,7 +30,11 @@ def _find_bank_account(partner, bank_account_id):
 
 
 def _bank_of(parsed, current=None):
-    """The ``res.bank`` named by the body: found by BIC, else by name, else created."""
+    """The ``res.bank`` named by the body: found by its (name, BIC) pair, else created.
+
+    A shared bank record is never renamed: a new name with the same BIC is another bank record, so a name-only edit
+    of one account takes effect without touching the other accounts that use the bank.
+    """
     name = parsed.get('bank_name', current.bank_id.name if current else '')
     bic = parsed.get('bic', current.bank_id.bic if current else '')
     if not name:
@@ -38,7 +42,7 @@ def _bank_of(parsed, current=None):
             raise ApiError(422, 'invalid', 'bic needs a bank_name', field='bank_name')
         return request.env['res.bank']
     Bank = request.env['res.bank']
-    domain = [('bic', '=', bic)] if bic else [('name', '=', name)]
+    domain = [('name', '=', name), ('bic', '=', bic)] if bic else [('name', '=', name), ('bic', 'in', [False, ''])]
     return Bank.search(domain, limit=1) or Bank.create({'name': name, 'bic': bic or False})
 
 

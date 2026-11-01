@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
+import PartnerBankAccounts from '@/components/finance/PartnerBankAccounts.vue'
 import PartnerProperties from '@/components/finance/PartnerProperties.vue'
 import type { PageHeaderTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
@@ -80,6 +81,7 @@ const menuActions = computed<RowAction[]>(() => {
       @cancel="confirmArchive = false; archiveError = null"
     />
     <SharedIdentityCard v-if="partner" :id="partner.id" :name="partner.name" :subtitle="t(partner.is_company ? 'finance.partners.form.company' : 'finance.partners.form.individual')" />
+    <PartnerBankAccounts v-if="partner && can('finance.partners.read')" :partner-id="partner.id" :can-manage="can('finance.partners.manage')" />
     <template v-if="partner" #aside>
       <PartnerProperties :partner="partner" />
     </template>

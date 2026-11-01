@@ -32,6 +32,7 @@ const SETUP = {
   fiscal: {
     fiscalyear_last_day: 31, fiscalyear_last_month: 12, fiscalyear_lock_date: '2025-12-31',
     tax_lock_date: null, sale_lock_date: null, purchase_lock_date: null, hard_lock_date: null,
+    transfer_account: { id: 7, name: '100001 Liquidity Transfer' },
   },
   journals: { sale: 1, purchase: 1, bank: 1, cash: 1 },
   taxes: { sale_count: 4, purchase_count: 4, vat_15_present: true },

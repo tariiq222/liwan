@@ -5,10 +5,12 @@ import {
   FinanceJournalListSchema,
   FinancePaymentListSchema,
   FinancePaymentSchema,
+  FinancePaymentTransferResultSchema,
   type FinancePaymentAllocate,
   type FinancePaymentPatch,
   type FinancePaymentRegister,
   type FinancePaymentStandalone,
+  type FinancePaymentTransfer,
 } from '@liwan/contracts'
 import { financeInvoiceKeys } from './useFinanceInvoices'
 
@@ -72,6 +74,14 @@ export function useCreateStandalonePayment() {
   const key = crypto.randomUUID()
   return usePaymentWrite((body: FinancePaymentStandalone) =>
     $api('/api/v1/finance/payments/standalone', { method: 'POST', body, headers: { 'Idempotency-Key': key }, schema: FinancePaymentSchema }))
+}
+
+/** Money between two bank or cash journals: the answer holds both posted payments. The key stays with the form, like the standalone payment's. */
+export function useCreateFinanceTransfer() {
+  const { $api } = useApi()
+  const key = crypto.randomUUID()
+  return usePaymentWrite((body: FinancePaymentTransfer) =>
+    $api('/api/v1/finance/payments/transfer', { method: 'POST', body, headers: { 'Idempotency-Key': key }, schema: FinancePaymentTransferResultSchema }))
 }
 
 export function useFinancePaymentPost() {
