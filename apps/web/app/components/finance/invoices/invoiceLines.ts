@@ -11,6 +11,8 @@ export interface InvoiceLineDraft {
   /** The taxes the line already has when it was loaded; null for a new line (the account's default taxes apply). */
   taxIds: number[] | null
   accountId: number | null
+  /** The asset profile a vendor-bill line capitalises into; kept as loaded so an edit never drops it. */
+  assetProfileId: number | null
   noTax: boolean
 }
 
@@ -28,7 +30,7 @@ export type InvoiceFormErrors = { partner: boolean; dueBeforeDate: boolean; line
 
 let nextKey = 1
 export function newLine(): InvoiceLineDraft {
-  return { key: nextKey++, name: '', quantity: '1', priceUnit: '', discount: '0', taxIds: null, accountId: null, noTax: false }
+  return { key: nextKey++, name: '', quantity: '1', priceUnit: '', discount: '0', taxIds: null, accountId: null, assetProfileId: null, noTax: false }
 }
 
 export function emptyInvoiceDraft(): InvoiceFormDraft {
@@ -44,6 +46,7 @@ function lineFromRecord(line: FinanceInvoiceLine): InvoiceLineDraft {
     discount: String(line.discount),
     taxIds: line.taxes.map(tax => tax.id),
     accountId: line.account?.id ?? null,
+    assetProfileId: line.asset_profile?.id ?? null,
     noTax: line.taxes.length === 0,
   }
 }
@@ -97,6 +100,7 @@ export function buildLinePayload(line: InvoiceLineDraft): FinanceInvoiceLineInpu
     discount: decimal(line.discount),
     ...(taxIds ? { tax_ids: taxIds } : {}),
     ...(line.accountId ? { account_id: line.accountId } : {}),
+    ...(line.assetProfileId ? { asset_profile_id: line.assetProfileId } : {}),
   }
 }
 

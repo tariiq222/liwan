@@ -36,7 +36,7 @@ def _bank_of(parsed, current=None):
     if not name:
         if bic:
             raise ApiError(422, 'invalid', 'bic needs a bank_name', field='bank_name')
-        return False
+        return request.env['res.bank']
     Bank = request.env['res.bank']
     domain = [('bic', '=', bic)] if bic else [('name', '=', name)]
     return Bank.search(domain, limit=1) or Bank.create({'name': name, 'bic': bic or False})

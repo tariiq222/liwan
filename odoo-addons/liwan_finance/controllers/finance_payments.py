@@ -290,6 +290,10 @@ class FinancePaymentController(http.Controller):
         company = request.env.company
         source = _transfer_journal(parsed['from_journal_id'], 'from_journal_id', company)
         target = _transfer_journal(parsed['to_journal_id'], 'to_journal_id', company)
+        for journal in (source, target):
+            # Odoo does not refuse a posting in a closed period: it silently moves the date.
+            if is_period_locked(parsed['payment_date'], journal, company=company):
+                raise period_locked(field='payment_date')
         if (source.currency_id or company.currency_id) != (target.currency_id or company.currency_id):
             raise ApiError(422, 'journal_currency_mismatch', 'both journals must use the same currency', field='to_journal_id')
         transfer_account = company.transfer_account_id

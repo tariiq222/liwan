@@ -66,3 +66,10 @@ class TestFinanceTransfers(LiwanFinanceWriteCase):
         self.move()
         new = events.search([('id', 'not in', list(before))])
         self.assertEqual(new.mapped('action'), ['transfer_created'] * 2)
+
+    def test_a_locked_period_is_refused_before_either_leg_is_posted(self):
+        self.company.fiscalyear_lock_date = '2026-10-31'
+        before = self.env['account.payment'].search_count([])
+        result = self.api('POST', TRANSFERS, json=self.body())
+        self.assertRefused(result, 422, 'period_locked')
+        self.assertEqual(self.env['account.payment'].search_count([]), before)

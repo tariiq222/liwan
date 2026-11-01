@@ -77,6 +77,17 @@ describe('editor state', () => {
     expect(buildLinePayload(draft.lines[0]!)).toEqual({ name: 'Item', quantity: 3, price_unit: 10, discount: 0, tax_ids: [2], account_id: 40 })
   })
 
+  it('keeps the asset profile of a bill line through the load and save round trip', () => {
+    const withProfile = {
+      ...record,
+      lines: record.lines.map(line => ({ ...line, asset_profile: { id: 9, name: 'Furniture' } })),
+    } as unknown as FinanceInvoiceDetail
+    const draft = invoiceDraftFromRecord(withProfile)
+    expect(draft.lines[0]!.assetProfileId).toBe(9)
+    expect(buildInvoicePatch(draft).lines![0]).toMatchObject({ asset_profile_id: 9 })
+    expect(buildLinePayload({ ...newLine(), name: 'x', priceUnit: '1' })).not.toHaveProperty('asset_profile_id')
+  })
+
   it('knows when nothing changed, ignoring line keys', () => {
     const initial = invoiceDraftFromRecord(record)
     const copy = invoiceDraftFromRecord(record)
