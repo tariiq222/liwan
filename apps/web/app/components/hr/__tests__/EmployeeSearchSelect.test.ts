@@ -10,7 +10,7 @@ import { hrManagerOptions } from '../../../composables/useHrEmployees'
 // so an employee beyond the first page can be searched, chosen and kept in the list.
 const FILE = resolve(import.meta.dirname, '../EmployeeSearchSelect.vue')
 
-function mount(modelValue: number | null) {
+function mount(modelValue: number | null, anyLabel: string | null = 'All employees') {
   const descriptor = parse(readFileSync(FILE, 'utf8'), { filename: FILE }).descriptor
   const script = compileScript(descriptor, { id: 'employee-search-select' }).content
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
@@ -25,7 +25,7 @@ function mount(modelValue: number | null) {
     useHrEmployee: () => ({ data: selected }),
   }
   const component = new Function(...Object.keys(bindings), ts.transpileModule(script, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText)(...Object.values(bindings))
-  const props = Vue.reactive({ modelValue, anyLabel: 'All employees', id: 'x' })
+  const props = Vue.reactive({ modelValue, anyLabel: anyLabel ?? undefined, placeholder: 'All employees', id: 'x' })
   return { state: component.setup(props, { expose: () => {}, emit }), asked, selected, props, emit }
 }
 
@@ -38,6 +38,10 @@ describe('EmployeeSearchSelect', () => {
     state.search.value = ' Zainab '
     state.items.value
     expect(asked.at(-1)).toEqual({ q: 'Zainab', limit: 50 })
+  })
+
+  it('leaves the no-filter item out for a required field', () => {
+    expect(mount(null, null).state.items.value).toEqual([{ value: '1', label: 'Amal' }])
   })
 
   it('keeps a chosen employee beyond the first page in the options', () => {

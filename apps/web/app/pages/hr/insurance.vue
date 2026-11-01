@@ -154,7 +154,7 @@ async function reloadProviders() {
           />
           <SharedFilterBar v-if="section === 'enrollments'" embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
             <SharedFilterField :label="t('hrInsurance.columns.employee')" for="hr-insurance-filter-employee">
-              <EmployeeSearchSelect id="hr-insurance-filter-employee" :model-value="employeeId" :any-label="t('hrInsurance.anyEmployee')" :disabled="!hydrated" test-id="hr-insurance-filter-employee" @update:model-value="writeQuery({ employee: $event, offset: 0 })" />
+              <EmployeeSearchSelect id="hr-insurance-filter-employee" :model-value="employeeId" :any-label="t('hrInsurance.anyEmployee')" :placeholder="t('hrInsurance.anyEmployee')" :disabled="!hydrated" test-id="hr-insurance-filter-employee" @update:model-value="writeQuery({ employee: $event, offset: 0 })" />
             </SharedFilterField>
             <SharedFilterField :label="t('hrInsurance.columns.plan')" for="hr-insurance-filter-plan">
               <USelect id="hr-insurance-filter-plan" class="w-full" :model-value="planId ? String(planId) : undefined" :items="planOptions" :placeholder="t('hrInsurance.anyPlan')" :disabled="!hydrated || planChoices.isLoading.value" data-testid="hr-insurance-filter-plan" @update:model-value="writeQuery({ plan: $event ? Number($event) : null, offset: 0 })" />

@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
 import type { HrInsuranceEnrollmentDetail, HrInsurancePlan } from '@liwan/contracts'
-import { refDebounced } from '@vueuse/core'
 import { ApiError } from '@/composables/useApi'
-import { hrManagerOptions, useHrEmployee, useHrEmployees } from '@/composables/useHrEmployees'
+import EmployeeSearchSelect from '@/components/hr/EmployeeSearchSelect.vue'
 
 // The create form of one enrollment, inside the /hr/insurance/enrollments/new SharedCreatePanel. It posts the exact
 // request body and reports the created record; the page owns the navigation. An empty end date runs to the end of the plan.
@@ -30,19 +29,6 @@ const saved = ref(false)
 const error = ref('')
 const serverField = ref('')
 
-// The employee is found by name, a page at a time: the picker asks the server for matches (`q`) instead of holding
-// the whole directory, and looks the chosen employee up by id so the choice never disappears from the list.
-const PICKER_PAGE = 50
-const employeeSearch = ref('')
-const debouncedEmployeeSearch = refDebounced(employeeSearch, 250)
-const employeesQuery = useHrEmployees(computed(() => ({ q: debouncedEmployeeSearch.value.trim() || undefined, limit: PICKER_PAGE })))
-const selectedEmployeeQuery = useHrEmployee(employeeId)
-const employeeOptions = computed(() => {
-  const found = employeesQuery.data.value?.items ?? []
-  return hrManagerOptions({ employees: found, searchResults: found, selected: selectedEmployeeQuery.data.value, search: debouncedEmployeeSearch.value })
-    .map(employee => ({ value: String(employee.id), label: employee.name }))
-})
-const moreEmployees = computed(() => (employeesQuery.data.value?.total ?? 0) > (employeesQuery.data.value?.items.length ?? 0))
 const planOptions = computed(() => props.plans.map(plan => ({ value: String(plan.id), label: `${plan.name} · ${plan.provider.name}` })))
 const chosenPlan = computed(() => props.plans.find(plan => plan.id === planId.value))
 const dirty = computed(() => !saved.value && Boolean(employeeId.value || planId.value || memberNumber.value || dateFrom.value || dateTo.value || employeeShare.value !== undefined || companyShare.value !== undefined || notes.value))
@@ -87,9 +73,8 @@ async function submit() {
     <UAlert v-if="error && !serverField" role="alert" color="error" variant="subtle" :title="error" />
     <SharedFormSection panel :title="t('hrInsurance.form.coverage')">
       <div class="grid gap-4">
-        <UFormField :label="t('hrInsurance.form.employee')" name="hr-insurance-employee" required :error="employeeError" :hint="moreEmployees ? t('hrInsurance.form.employeeMore') : undefined">
-          <UInput id="hr-insurance-employee-search" v-model="employeeSearch" class="mb-2 w-full" icon="i-lucide-search" :placeholder="t('hrInsurance.form.employeeSearch')" :aria-label="t('hrInsurance.form.employeeSearch')" :disabled="!hydrated || isPending" data-testid="hr-insurance-employee-search" />
-          <USelect id="hr-insurance-employee" class="w-full" :model-value="employeeId ? String(employeeId) : undefined" :items="employeeOptions" :placeholder="t('hrInsurance.form.chooseEmployee')" :disabled="!hydrated || isPending" data-testid="hr-insurance-employee" @update:model-value="employeeId = $event ? Number($event) : null" />
+        <UFormField :label="t('hrInsurance.form.employee')" name="hr-insurance-employee" required :error="employeeError">
+          <EmployeeSearchSelect id="hr-insurance-employee" v-model="employeeId" :placeholder="t('hrInsurance.form.chooseEmployee')" :disabled="!hydrated || isPending" test-id="hr-insurance-employee" />
         </UFormField>
         <UFormField :label="t('hrInsurance.form.plan')" name="hr-insurance-plan" required :error="planError" :hint="planOptions.length ? undefined : t('hrInsurance.form.noPlans')">
           <USelect id="hr-insurance-plan" class="w-full" :model-value="planId ? String(planId) : undefined" :items="planOptions" :placeholder="t('hrInsurance.form.choosePlan')" :disabled="!hydrated || isPending" data-testid="hr-insurance-plan" @update:model-value="planId = $event ? Number($event) : null" />

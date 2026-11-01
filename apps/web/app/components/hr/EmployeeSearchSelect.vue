@@ -6,8 +6,10 @@ import { hrManagerOptions, useHrEmployee, useHrEmployees } from '@/composables/u
 // (`q`, debounced) and looks the chosen employee up by id, so a choice beyond the first page stays in the list.
 const props = defineProps<{
   modelValue: number | null
-  /** The label of the "no filter" item and the placeholder while nothing is chosen. */
-  anyLabel: string
+  /** The shown text while nothing is chosen. */
+  placeholder: string
+  /** A filter offers this "no filter" item first; a required field leaves it out. */
+  anyLabel?: string
   id: string
   testId?: string
   disabled?: boolean
@@ -24,7 +26,8 @@ const selected = useHrEmployee(computed(() => props.modelValue))
 const items = computed(() => {
   const found = results.data.value?.items ?? []
   const options = hrManagerOptions({ employees: found, searchResults: found, selected: selected.data.value, search: debounced.value })
-  return [{ value: ALL, label: props.anyLabel }, ...options.map(employee => ({ value: String(employee.id), label: employee.name }))]
+  const named = options.map(employee => ({ value: String(employee.id), label: employee.name }))
+  return props.anyLabel ? [{ value: ALL, label: props.anyLabel }, ...named] : named
 })
 const more = computed(() => (results.data.value?.total ?? 0) > (results.data.value?.items.length ?? 0))
 </script>
@@ -37,7 +40,7 @@ const more = computed(() => (results.data.value?.total ?? 0) > (results.data.val
       class="w-full"
       :model-value="props.modelValue ? String(props.modelValue) : undefined"
       :items="items"
-      :placeholder="props.anyLabel"
+      :placeholder="props.placeholder"
       :disabled="props.disabled"
       :data-testid="props.testId"
       @update:model-value="emit('update:modelValue', $event && $event !== ALL ? Number($event) : null)"

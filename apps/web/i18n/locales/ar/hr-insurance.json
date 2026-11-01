@@ -99,9 +99,7 @@
       "datesOrder": "لا يجوز أن تسبق النهاية البداية.",
       "policyNumber": "رقم الوثيقة",
       "premium": "القسط السنوي للعضو",
-      "premiumHint": "اختياري.",
-      "employeeSearch": "ابحث عن موظف بالاسم",
-      "employeeMore": "تظهر أول النتائج. اكتب لتضييق القائمة."
+      "premiumHint": "اختياري."
     },
     "detail": {
       "cover": "التغطية",

@@ -111,7 +111,7 @@ function warningTo(row: HrWarning) {
           />
           <SharedFilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
             <SharedFilterField :label="t('hrWarnings.columns.employee')" for="hr-warnings-employee">
-              <EmployeeSearchSelect id="hr-warnings-employee" :model-value="employeeId" :any-label="t('hrWarnings.anyEmployee')" :disabled="!hydrated" test-id="hr-warnings-employee" @update:model-value="writeQuery({ employee: $event, offset: 0 })" />
+              <EmployeeSearchSelect id="hr-warnings-employee" :model-value="employeeId" :any-label="t('hrWarnings.anyEmployee')" :placeholder="t('hrWarnings.anyEmployee')" :disabled="!hydrated" test-id="hr-warnings-employee" @update:model-value="writeQuery({ employee: $event, offset: 0 })" />
             </SharedFilterField>
             <SharedFilterField :label="t('hrWarnings.columns.type')" for="hr-warnings-type">
               <USelect

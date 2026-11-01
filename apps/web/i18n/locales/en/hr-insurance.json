@@ -99,9 +99,7 @@
       "datesOrder": "The end date cannot be before the start date.",
       "policyNumber": "Policy number",
       "premium": "Annual premium per member",
-      "premiumHint": "Optional.",
-      "employeeSearch": "Search employees by name",
-      "employeeMore": "Showing the first matches. Type to narrow the list."
+      "premiumHint": "Optional."
     },
     "detail": {
       "cover": "Coverage",
