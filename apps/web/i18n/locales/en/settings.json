@@ -105,7 +105,17 @@
         "optional": "Optional",
         "optionalHint": "Requests can be raised and decided, and nothing is blocked. An approved charter still returns to draft when edited, if charter approval is on, unless an approved request that is not yet implemented covers the edit.",
         "required": "Required",
-        "requiredHint": "While executing, the charter scope and budget stay locked and the project cannot move back a phase, unless an approved change request that is not yet implemented exists."
+        "requiredHint": "While executing, the charter scope and budget stay locked and the project cannot move back a phase and a new baseline cannot be taken, unless an approved change request that is not yet implemented exists."
+      },
+      "baselineGate": {
+        "label": "Baseline before execution",
+        "hint": "Decides whether a project needs a baseline (the frozen plan) before it moves from planning to executing.",
+        "off": "Not asked",
+        "offHint": "The gate does not mention baselines.",
+        "warning": "Warning",
+        "warningHint": "The gate shows that no baseline was taken; the manager can confirm and move on.",
+        "required": "Required",
+        "requiredHint": "The project cannot move to executing until a baseline is taken."
       },
       "changeCategories": {
         "title": "Change request categories",

@@ -11,6 +11,7 @@ import { crmPreviewWrite } from './crm-ui-preview-data.mjs'
 import { INBOX_CAPABILITIES, INBOX_FEATURES, inboxPreviewData, resetInboxPreview } from './inbox-ui-preview-data.mjs'
 import { handleCommercial } from './commercial-mock-routes.mjs'
 import { handlePublicAppointments } from './appointments-mock-routes.mjs'
+import { baselineGateCheck, handleBaselines } from './pmo-baseline-mock-routes.mjs'
 import { handleChanges } from './pmo-change-mock-routes.mjs'
 import { handlePayments, handlePublicPayments, PAYMENTS_LINKS_MANAGE, PAYMENTS_MANAGE, PAYMENTS_SETTINGS_MANAGE } from './payments-mock-routes.mjs'
 import crypto from 'node:crypto'
@@ -185,11 +186,11 @@ const PHASE_OF = new Map()
 const phaseOf = p => PHASE_OF.get(p.id) ?? (PROJECTS.includes(p) ? 'planning' : 'initiating')
 const listItem = p => ({ ...p, charter_state: stateOf(p).charter.state, phase: phaseOf(p) })
 
-// Mirrors Project._liwan_phase_state: only the gate into planning has a check today.
+// Mirrors Project._liwan_phase_state: the gate into planning asks for the charter, the gate into executing for a baseline (warning).
 function phaseState(p) {
   const index = PHASES.indexOf(phaseOf(p))
   const next = PHASES[index + 1] ?? null
-  const nextChecks = next === 'planning' ? [{ key: 'charter_approved', ok: stateOf(p).charter.state === 'approved' }] : []
+  const nextChecks = next === 'planning' ? [{ key: 'charter_approved', ok: stateOf(p).charter.state === 'approved' }] : next === 'executing' ? [baselineGateCheck(p.id)] : []
   return { current: PHASES[index], next, previous: PHASES[index - 1] ?? null, next_checks: nextChecks }
 }
 
@@ -308,6 +309,7 @@ const SETTINGS = {
   close_with_open_tasks: 'block',
   register_status_transitions: 'sequence',
   change_control_mode: 'optional',
+  baseline_gate: 'warning',
   extensions: [],
 }
 
@@ -402,6 +404,7 @@ async function handle(req, res) {
 
   if (await handlePayments(req, res, path, { json, readBody })) return
   if (process.env.PROJECTS_UI_PREVIEW === '1' && await handleChanges(req, res, path, url, { json, readBody })) return
+  if (process.env.PROJECTS_UI_PREVIEW === '1' && await handleBaselines(req, res, path, url, { json, readBody })) return
   // Customer Inbox: conversations, settings and channels (inbox-ui-preview-data.mjs). The state lives for the process;
   // POST /api/v1/__mock/reset-inbox restores the seed so a spec starts from a known inbox.
   if (method === 'POST' && path === '/api/v1/__mock/reset-inbox') {

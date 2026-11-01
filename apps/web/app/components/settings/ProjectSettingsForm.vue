@@ -42,8 +42,8 @@ function useCard<Draft extends Fields>(read: (settings: ProjectSettings) => Draf
 const creation = useCard(({ project_creators, require_manager_on_create, require_end_date_on_create }) => (
   { project_creators, require_manager_on_create, require_end_date_on_create }
 ))
-const approval = useCard(({ default_completion_approval, require_charter_approval, close_with_open_tasks, register_status_transitions, change_control_mode }) => (
-  { default_completion_approval, require_charter_approval, close_with_open_tasks, register_status_transitions, change_control_mode }
+const approval = useCard(({ default_completion_approval, require_charter_approval, close_with_open_tasks, register_status_transitions, change_control_mode, baseline_gate }) => (
+  { default_completion_approval, require_charter_approval, close_with_open_tasks, register_status_transitions, change_control_mode, baseline_gate }
 ))
 const daysError = ref('')
 const reminders = useCard(({ deadline_reminders_enabled, deadline_reminders_days_before, overdue_digest_enabled }) => (
@@ -187,6 +187,18 @@ function onDeleteStage(id: number | string) {
           { value: 'off', label: t('settings.projects.changeControl.off'), description: t('settings.projects.changeControl.offHint') },
           { value: 'optional', label: t('settings.projects.changeControl.optional'), description: t('settings.projects.changeControl.optionalHint') },
           { value: 'required', label: t('settings.projects.changeControl.required'), description: t('settings.projects.changeControl.requiredHint') },
+        ]"
+        :disabled="approvalLocked"
+      />
+    </UFormField>
+    <UFormField id="project-baseline-gate" orientation="horizontal" :label="t('settings.projects.baselineGate.label')" :description="t('settings.projects.baselineGate.hint')">
+      <URadioGroup
+        v-model="approval.draft.value.baseline_gate"
+        data-testid="settings-baseline-gate"
+        :items="[
+          { value: 'off', label: t('settings.projects.baselineGate.off'), description: t('settings.projects.baselineGate.offHint') },
+          { value: 'warning', label: t('settings.projects.baselineGate.warning'), description: t('settings.projects.baselineGate.warningHint') },
+          { value: 'required', label: t('settings.projects.baselineGate.required'), description: t('settings.projects.baselineGate.requiredHint') },
         ]"
         :disabled="approvalLocked"
       />
