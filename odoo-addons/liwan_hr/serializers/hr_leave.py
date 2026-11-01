@@ -59,6 +59,7 @@ def dump_leave(leave, cancellation=None):
     if not pending and can_request and eligible and policy == 'direct_employee':
         with model._liwan_owner_authorization(leave) as owned:
             pending_owner_request = owned.env['liwan.hr.leave.cancellation']._liwan_has_pending_owner_cancellation(owned)
+    governed = leave._liwan_approval_governed()
     return {
         'id': leave.id,
         'employee': _ref(leave.employee_id),
@@ -68,8 +69,8 @@ def dump_leave(leave, cancellation=None):
         'number_of_days': leave.number_of_days,
         'state': leave.state,
         'notes': leave.notes or '',
-        'can_approve': leave.state in ('confirm', 'validate1') and bool(leave.can_approve or leave.can_validate) and not own,
-        'can_refuse': bool(leave.can_refuse) and not own,
+        'can_approve': leave.state in ('confirm', 'validate1') and bool(leave.can_approve or leave.can_validate) and not own and not governed,
+        'can_refuse': bool(leave.can_refuse) and not own and not governed,
         'can_cancel': owner_matches and not pending_owner_request and ((eligible and ((can_request and policy == 'direct_employee') or can_manage)) or (can_request and leave.state not in ('draft', 'validate', 'refuse', 'cancel') and bool(leave.can_cancel))),
         'cancellation_policy': policy,
         'cancellation': dump_cancellation(cancellation),

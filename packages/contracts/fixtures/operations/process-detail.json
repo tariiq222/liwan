@@ -9,7 +9,10 @@
   "state": "published",
   "steps": [
     {
+      "ineligible_reviewer_ids": [],
       "name": "Confidential stage",
+      "resolver": null,
+      "resolver_label": null,
       "reviewer_ids": [
         265
       ],
@@ -19,8 +22,7 @@
           "name": "ops_branch_reviewer (base.group_user,base.group_allow_export)",
           "user_id": 265
         }
-      ],
-      "ineligible_reviewer_ids": []
+      ]
     }
   ]
 }

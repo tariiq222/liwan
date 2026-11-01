@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LeaveApprovalCard from '@/components/hr/LeaveApprovalCard.vue'
 import LeaveSettingsForm from '@/components/hr/LeaveSettingsForm.vue'
 import ShiftSettingsForm from '@/components/hr/shifts/ShiftSettingsForm.vue'
 import EosCaseMapTable from '@/components/hr/payroll/EosCaseMapTable.vue'
@@ -28,6 +29,12 @@ async function reloadLeaveSettings() {
   return response.data
 }
 const canConfigLeave = computed(() => can('hr.leave.config'))
+// The approval-stages card exists only when the HR-operations bridge answers: a 404 or 403 hides it, like the finance part below.
+const leaveApproval = useHrLeaveApprovalProcess(() => shows('leave') && canConfigLeave.value)
+const leaveApprovalError = computed(() => {
+  const failure = leaveApproval.error.value
+  return failure instanceof ApiError && (failure.status === 403 || failure.status === 404) ? null : failure
+})
 const shiftSettings = useHrShiftSettings(() => shows('shifts'))
 async function reloadShiftSettings() {
   const result = await shiftSettings.refetch()
@@ -167,6 +174,8 @@ function retry() {
       <SharedPageState :loading="leaveSettings.isLoading.value" :error="leaveSettings.error.value" :empty="!leaveSettings.data.value" :keep-content="!!leaveSettings.data.value" @retry="leaveSettings.refetch">
         <LeaveSettingsForm v-if="leaveSettings.data.value" :settings="leaveSettings.data.value" :can-edit="canConfigLeave" :reload-settings="reloadLeaveSettings" />
       </SharedPageState>
+      <SharedPageState v-if="leaveApprovalError" :error="leaveApprovalError" @retry="leaveApproval.refetch" />
+      <LeaveApprovalCard v-if="leaveApproval.data.value" :approval="leaveApproval.data.value" />
     </section>
     <section v-if="shows('shifts')" id="shifts" class="liwan-settings-anchor">
       <SharedPageState :loading="shiftSettings.isLoading.value" :error="shiftSettings.data.value ? null : shiftSettings.error.value" :empty="!shiftSettings.data.value" @retry="shiftSettings.refetch">

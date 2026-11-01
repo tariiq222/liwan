@@ -4,6 +4,8 @@ from odoo.exceptions import AccessError, LockError, ValidationError
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
 TOKEN = object()
+# Context value an owning application passes to close a request whose subject was decided outside the workflow.
+EXTERNAL_CLOSE = object()
 # How a reviewer who sits on several consecutive stages decides them (owner decision 2026-10-29, #163).
 STAGE_APPROVAL_MODES = [('per_stage', 'Each stage needs its own approval'), ('single', 'One approval covers the reviewer\'s consecutive stages')]
 
@@ -12,7 +14,8 @@ def trusted(env):
     return env.su or env.context.get('_operations_write') is TOKEN
 
 
-def require(env, key, write=True):
+def require(env, key=None, write=True):
+    """The operations feature must be on; ``key`` (when given) is the capability the caller must hold too."""
     service = env['liwan.entitlement.service']
     if write:
         service.require('operations.enabled')
@@ -20,7 +23,8 @@ def require(env, key, write=True):
         service._liwan_assert_lifecycle()
         if not service._liwan_feature_read('operations.enabled'):
             raise AccessError(env._('Operations is not enabled.'))
-    env['liwan.access.service']._liwan_require_capability(key)
+    if key:
+        env['liwan.access.service']._liwan_require_capability(key)
 
 
 def check_revision(record, revision):

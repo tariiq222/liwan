@@ -16,7 +16,7 @@ const meta = {
   component: GosiRateTable,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/settings/apps/hr/index.vue:126', 'قسم نسب التأمينات الاجتماعية في إعدادات الرواتب: جدول النسب بحسب الفرع والفئة وتاريخ السريان، والنسب المشتركة للقراءة فقط.'),
+    ...storyContext('apps/web/app/pages/settings/apps/hr/index.vue:139', 'قسم نسب التأمينات الاجتماعية في إعدادات الرواتب: جدول النسب بحسب الفرع والفئة وتاريخ السريان، والنسب المشتركة للقراءة فقط.'),
   },
   args: { rates, canEdit: true, reloadRates: async () => rates },
   render: args => ({

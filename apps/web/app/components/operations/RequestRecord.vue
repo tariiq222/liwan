@@ -66,7 +66,7 @@ async function removeAttachment() {
 async function refresh() { if (disabled.value) return; cancel(); error.value = null; await query.refetch() }
 function date(value: string) { const parsed = new Date(value); return Number.isNaN(parsed.getTime()) ? value : formatDateTime(parsed) }
 const reviewing = computed(() => !!record.value && (record.value.allowed_actions.approve || record.value.allowed_actions.reject || record.value.allowed_actions.return))
-const eventKinds = ['submitted', 'approved', 'rejected', 'returned', 'withdrawn', 'executed', 'execution_failed']
+const eventKinds = ['submitted', 'approved', 'rejected', 'returned', 'withdrawn', 'executed', 'execution_failed', 'stage_skipped']
 </script>
 <template>
   <SharedRecordPage
@@ -96,7 +96,7 @@ const eventKinds = ['submitted', 'approved', 'rejected', 'returned', 'withdrawn'
       </SharedRecordSection>
       <SharedRecordSection variant="panel" :title="t('operations.stages')">
         <p v-if="!record.steps.length" class="text-sm text-muted">{{ t('operations.stagesAfterSubmit') }}</p>
-        <ol v-else class="space-y-3"><OperationStepRow v-for="step in record.steps" :key="step.sequence" :number="step.sequence" :name="step.name" :reviewers="step.reviewers" :status="step.status" /></ol>
+        <ol v-else class="space-y-3"><OperationStepRow v-for="step in record.steps" :key="step.sequence" :number="step.sequence" :name="step.name" :reviewers="step.reviewers" :status="step.status" :resolver-label="step.resolver_label" /></ol>
       </SharedRecordSection>
       <SharedRecordSection variant="panel" :title="t('operations.attachments')">
         <div class="space-y-3">

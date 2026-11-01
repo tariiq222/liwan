@@ -1,9 +1,37 @@
 {
   "items": [
     {
+      "description": "",
+      "execution_kind": "hr_leave",
+      "id": 1,
+      "name": "Leave approval",
+      "purpose": "employee",
+      "revision": 1,
+      "stage_approval_mode": "per_stage",
+      "state": "published",
+      "steps": [
+        {
+          "ineligible_reviewer_ids": [],
+          "name": "Direct manager",
+          "resolver": "hr_leave_approver",
+          "resolver_label": "Direct manager (time-off approver)",
+          "reviewer_ids": [],
+          "reviewers": []
+        },
+        {
+          "ineligible_reviewer_ids": [],
+          "name": "HR",
+          "resolver": "hr_leave_officers",
+          "resolver_label": "HR leave officers",
+          "reviewer_ids": [],
+          "reviewers": []
+        }
+      ]
+    },
+    {
       "description": "Process private description",
       "execution_kind": "approval",
-      "id": 1,
+      "id": 2,
       "name": "Published 1",
       "purpose": "work",
       "revision": 1,
@@ -11,51 +39,55 @@
       "state": "published",
       "steps": [
         {
+          "ineligible_reviewer_ids": [],
           "name": "Confidential stage",
+          "resolver": null,
+          "resolver_label": null,
           "reviewer_ids": [
-            225
+            301
           ],
           "reviewers": [
             {
-              "id": 2,
+              "id": 3,
               "name": "ops_branch_reviewer (base.group_user,base.group_allow_export)",
-              "user_id": 225
+              "user_id": 301
             }
-          ],
-          "ineligible_reviewer_ids": []
+          ]
         }
       ]
     },
     {
       "description": "Process private description",
       "execution_kind": "approval",
-      "id": 3,
-      "name": "Published 36",
+      "id": 4,
+      "name": "Published 39",
       "purpose": "work",
       "revision": 1,
       "stage_approval_mode": "per_stage",
       "state": "published",
       "steps": [
         {
+          "ineligible_reviewer_ids": [],
           "name": "Confidential stage",
+          "resolver": null,
+          "resolver_label": null,
           "reviewer_ids": [
-            225
+            301
           ],
           "reviewers": [
             {
-              "id": 2,
+              "id": 3,
               "name": "ops_branch_reviewer (base.group_user,base.group_allow_export)",
-              "user_id": 225
+              "user_id": 301
             }
-          ],
-          "ineligible_reviewer_ids": []
+          ]
         }
       ]
     },
     {
       "description": "Unpublished description",
       "execution_kind": "approval",
-      "id": 4,
+      "id": 5,
       "name": "Unpublished 1",
       "purpose": "work",
       "revision": 1,
@@ -63,21 +95,23 @@
       "state": "draft",
       "steps": [
         {
+          "ineligible_reviewer_ids": [],
           "name": "Unpublished stage",
+          "resolver": null,
+          "resolver_label": null,
           "reviewer_ids": [
-            225
+            301
           ],
           "reviewers": [
             {
-              "id": 2,
+              "id": 3,
               "name": "ops_branch_reviewer (base.group_user,base.group_allow_export)",
-              "user_id": 225
+              "user_id": 301
             }
-          ],
-          "ineligible_reviewer_ids": []
+          ]
         }
       ]
     }
   ],
-  "total": 3
+  "total": 4
 }

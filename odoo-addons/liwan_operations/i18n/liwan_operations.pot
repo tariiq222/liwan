@@ -18,7 +18,12 @@ msgstr ""
 #. module: liwan_operations
 #. odoo-python
 #: code:addons/liwan_operations/models/operation_request.py:0
-msgid "A stage has no eligible reviewer other than the requester."
+msgid "Every stage of the process has no eligible reviewer."
+msgstr ""
+
+#. odoo-python
+#: code:addons/liwan_operations/models/operation_request.py:0
+msgid "The stage \"%(stage)s\" has no eligible reviewer other than the requester."
 msgstr ""
 
 #. module: liwan_operations

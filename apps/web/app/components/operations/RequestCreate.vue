@@ -12,7 +12,7 @@ const { t } = useI18n()
 const { can } = useAccess()
 const backTo = computed(() => router.resolve(owningListBack(route.query, sourcePaths.value, route.hash)).fullPath)
 const backgroundScope = computed(() => backTo.value.startsWith('/operations/pending') ? 'pending' : backTo.value.startsWith('/operations/monitoring') ? 'monitoring' : 'mine')
-const processes = useOperationProcesses(() => ({ published: 1, purpose: props.personal ? 'employee' : 'work', limit: 200 }), computed(() => can('operations.requests.create')))
+const processes = useOperationProcesses(() => ({ published: 1, requestable: 1, purpose: props.personal ? 'employee' : 'work', limit: 200 }), computed(() => can('operations.requests.create')))
 const mutation = useOperationRequestMutation()
 async function save(body: RequestFormPayload) {
   return mutation.mutateAsync({ action: 'create', body: { name: body.name, description: body.description, process_id: body.process_id!, ...(body.target_id ? { target_id: body.target_id } : {}) } })

@@ -18,7 +18,7 @@ function record(){
   const data=Vue.ref(structuredClone(leave)),mutate=vi.fn(),refetch=vi.fn()
   const query=()=>({data,error:Vue.ref(null),isLoading:Vue.ref(false),refetch})
   const mutation=()=>({isPending:Vue.ref(false),mutateAsync:vi.fn()})
-  const bindings={_defineComponent:Vue.defineComponent,ref:Vue.ref,computed:Vue.computed,watch:Vue.watch,useRoute:()=>({params:{leaveId:'7'},query:{},hash:''}),useI18n:()=>({t:String}),useAccess:()=>({can:()=>true}),useHydrated:()=>Vue.ref(true),useHrLeaveFormat:()=>({period:String,days:String}),useMyHrLeaveRequest:query,useHrLeaveRequest:query,useLeaveDecision:mutation,useWithdrawLeaveRequest:mutation,useCancellationDecision:()=>({isPending:Vue.ref(false),mutateAsync:mutate}),owningListBack:()=>'/hr/leave',hrLeaveBadge:()=>({tone:'success',labelKey:'approved'}),statusTag:()=>({}),ApiError:Error}
+  const bindings={_defineComponent:Vue.defineComponent,ref:Vue.ref,computed:Vue.computed,watch:Vue.watch,useRoute:()=>({params:{leaveId:'7'},query:{},hash:''}),useI18n:()=>({t:String}),useAccess:()=>({can:()=>true}),useMe:()=>({me:Vue.ref(null)}),joinList:String,useHrLeaveApproval:()=>({data:Vue.ref(undefined),error:Vue.ref(null)}),useHydrated:()=>Vue.ref(true),useHrLeaveFormat:()=>({period:String,days:String}),useMyHrLeaveRequest:query,useHrLeaveRequest:query,useLeaveDecision:mutation,useWithdrawLeaveRequest:mutation,useCancellationDecision:()=>({isPending:Vue.ref(false),mutateAsync:mutate}),owningListBack:()=>'/hr/leave',hrLeaveBadge:()=>({tone:'success',labelKey:'approved'}),statusTag:()=>({}),ApiError:Error}
   const {loaded}=component('LeaveRecord.vue',bindings)
   return {state:loaded.setup({personal:false},{expose:()=>{}}),data,mutate,refetch}
 }

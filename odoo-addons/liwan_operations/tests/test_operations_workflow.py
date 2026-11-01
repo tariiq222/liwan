@@ -108,6 +108,8 @@ class TestOperationsWorkflow(LiwanApiCase):
         kinds = self.api('GET', '/api/v1/operations/execution-kinds')
         self.assertEqual(kinds.status_code, 200, kinds.text)
         self.assertEqual(kinds.json()['total'], len(kinds.json()['items']))
+        self.assertTrue(all(set(item) == {'key', 'label'} and item['label'] for item in kinds.json()['items']))
+        self.assertIn('approval', [item['key'] for item in kinds.json()['items']])
         self.assertEqual(self.api('POST', '/api/v1/operations/processes', {
             **payload, 'purpose': 'personal',
         }).status_code, 422)

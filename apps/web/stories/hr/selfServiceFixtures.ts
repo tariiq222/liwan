@@ -19,4 +19,6 @@ export const hrSelfServiceHandlers = [
   http.get('/api/v1/hr/leave/requests', () => HttpResponse.json({ items: [leave], total: 1 })),
   http.get('/api/v1/hr/leave/me/:id', () => HttpResponse.json(leave)),
   http.get('/api/v1/hr/leave/requests/:id', () => HttpResponse.json({ ...leave, can_approve: true, can_refuse: true })),
+  // No workflow governs the story's leave unless a story says so: the approval section stays out.
+  http.get('/api/v1/hr/leave/requests/:id/approval', () => HttpResponse.json({ code: 'not_found', message: 'لا يوجد مسار اعتماد لهذا الطلب' }, { status: 404 })),
 ]

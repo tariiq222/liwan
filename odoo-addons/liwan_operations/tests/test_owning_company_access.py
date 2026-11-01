@@ -145,7 +145,8 @@ class TestOperationsOwningCompanyAccess(LiwanApiCase):
         self.login(self.child_only)
         response = self.api('GET', '/api/v1/operations/processes')
         self.assertEqual(response.status_code, 200, response.text)
-        self.assertEqual({item['id'] for item in response.json()['items']}, {self.published[self.child.id].id})
+        # A bridge may seed its own application's process in a new company; this test owns the generic ones.
+        self.assertEqual({item['id'] for item in response.json()['items'] if item['execution_kind'] == 'approval'}, {self.published[self.child.id].id})
         response = self.api('GET', f'/api/v1/operations/processes/{self.published[self.child.id].id}')
         self.assertEqual(response.status_code, 200, response.text)
         for company in (self.parent, self.member, self.foreign):
