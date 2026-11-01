@@ -97,6 +97,18 @@ def _require_step_decision(area, run, activity):
         raise ApiError(403, 'forbidden', 'an HR manager or the step assignee must complete a step')
 
 
+def _require_step_owners(plan, employee):
+    """A step handed to the employee's manager or coach needs that person recorded on the employee.
+
+    Stock refuses a launch without them in raw English; this names the missing person in a coded 422 the page words.
+    """
+    for template in plan.template_ids:
+        if template.responsible_type == 'manager' and not employee.parent_id:
+            raise ApiError(422, 'manager_missing', 'the employee has no manager recorded', field='employee_id')
+        if template.responsible_type == 'coach' and not employee.coach_id:
+            raise ApiError(422, 'coach_missing', 'the employee has no coach recorded', field='employee_id')
+
+
 def _launch_run(area, employee, plan, plan_date=None):
     """Launch a stock employee plan and record the run with the activities it added.
 
@@ -105,6 +117,7 @@ def _launch_run(area, employee, plan, plan_date=None):
     """
     if not plan.active:
         raise ApiError(422, 'invalid', 'the plan is inactive and cannot be launched', field='plan_id')
+    _require_step_owners(plan, employee)
     plan_date = plan_date or fields.Date.context_today(employee)
     Activity = request.env['mail.activity'].with_context(active_test=False)
     domain = [('res_model', '=', EMPLOYEE_MODEL), ('res_id', '=', employee.id)]
@@ -121,13 +134,16 @@ def _launch_run(area, employee, plan, plan_date=None):
     })
     schedule.action_schedule_plan()
     created = Activity.search(domain).filtered(lambda activity: activity.id not in before)
-    return request.env['liwan.hr.plan.run'].create({
+    run = request.env['liwan.hr.plan.run'].create({
         'employee_id': employee.id,
         'plan_id': plan.id,
         'plan_date': plan_date,
         'launched_by_id': request.env.user.id,
         'activity_ids': [Command.set(created.ids)],
     })
+    if area == ONBOARDING:
+        run._liwan_notify_step_assignees()
+    return run
 
 
 def _clearance_runs():

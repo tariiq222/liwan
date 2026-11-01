@@ -125,6 +125,16 @@ class TestHrOffboarding(LiwanHrCase):
         self.assertEqual(run.employee_id, employee)
         self.assertEqual(len(run.activity_ids), len(self.plan.template_ids))
 
+    def test_a_departure_keeps_the_custody_until_it_is_returned(self):
+        category = self.env['maintenance.equipment.category'].create({'name': 'Laptops'})
+        laptop = self.env['maintenance.equipment'].create({
+            'name': 'Departing laptop', 'category_id': category.id, 'employee_id': self.employee_record.id,
+        })
+        self._as_manager()
+        self.assertEqual(self._register(departure_date='2027-04-10').status_code, 201)
+        laptop.invalidate_recordset()
+        self.assertEqual(laptop.employee_id, self.employee_record)
+
     def test_clearance_step_completion_advances_the_departure(self):
         self._as_manager()
         body = self._register().json()

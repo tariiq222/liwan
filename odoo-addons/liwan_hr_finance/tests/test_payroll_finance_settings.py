@@ -114,7 +114,7 @@ class TestPayrollFinanceSettings(PayrollFinanceCase):
         ], limit=1)
         for role in ('salaries_payable', 'advance'):
             res = self.api('PATCH', SETTINGS, json={'accounts': {role: not_reconcilable.id}})
-            self.assertRefused(res, 422, 'invalid', field=f'accounts.{role}')
+            self.assertRefused(res, 422, 'account_not_reconcilable', field=f'accounts.{role}')
 
     def test_entry_detail_values(self):
         self.authenticate('finance_manager', 'finance_manager_pass_123')

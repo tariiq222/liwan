@@ -30,7 +30,7 @@ export async function load(file: string, props: Record<string, unknown> = {}, al
     _defineComponent: Vue.defineComponent, computed: Vue.computed, reactive: Vue.reactive, ref: Vue.ref, watch: Vue.watch, nextTick: Vue.nextTick,
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => hydrated, useToast: () => ({ add: vi.fn() }), useAccess: () => ({ can: () => allowed }),
     useRoute: () => router.currentRoute.value, useRouter: () => router, navigateTo: navigate, useSsrQuerySeed: () => {},
-    definePageMeta: () => {}, useEmployeeDocumentLink: () => ({ ...query, data: Vue.ref({ id: 3 }) }), useEmployeeDocument: () => query, useEmployeeDocuments: () => query, useDocumentFiles: () => ({ ...query, isRecovering: Vue.ref(false) }), useDocument: () => query, useUpdateDocument: () => ({ mutateAsync: mutation, isPending: pending }), useCreateDocument: () => ({ mutateAsync: mutation, isPending: pending }),
+    definePageMeta: () => {}, useEmployeeDocumentLink: () => ({ ...query, data: Vue.ref({ id: 3 }) }), useEmployeeDocument: () => query, useEmployeeDocuments: () => query, useDocumentFiles: () => ({ ...query, isRecovering: Vue.ref(false) }), useDocument: () => query, useUpdateDocument: () => ({ mutateAsync: mutation, isPending: pending }), useShareDocumentWithEmployee: () => ({ mutateAsync: vi.fn(), isPending: Vue.ref(false) }), useCreateDocument: () => ({ mutateAsync: mutation, isPending: pending }),
     createDocumentDraft, documentAccessPayload, ApiError, returnToQuery, joinList, ...navigation, ...documentNavigation,
     DocumentEditor: {}, DocumentMetadataFields: {}, DocumentReader: {}, DocumentFiles: {}, DocumentList: {}, ...options.bindings,
   }

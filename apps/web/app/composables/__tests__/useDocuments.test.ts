@@ -12,7 +12,7 @@ afterEach(() => { scopes.splice(0).forEach(scope => scope.stop()); clients.splic
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done }); return { promise, resolve } }
 function harness(api: (path: string, options?: any) => Promise<any>) {
   const me = ref<{ id: number; company: { id: number; name: string } } | null>({ id: 7, company: { id: 1, name: 'First company' } })
-  vi.stubGlobal('useMe', () => ({ me })); vi.stubGlobal('useApi', () => ({ $api: api }))
+  vi.stubGlobal('useMe', () => ({ me })); vi.stubGlobal('useApi', () => ({ $api: api })); vi.stubGlobal('useI18n', () => ({ t: (key: string) => `t:${key}`, te: (key: string) => key.startsWith('documents.contextKinds.hr.') }))
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } }); clients.push(client)
   const app = createSSRApp({ render: () => null }); app.use(VueQueryPlugin, { queryClient: client })
   function use<T>(fn: () => T): T { const scope = effectScope(); scopes.push(scope); return app.runWithContext(() => scope.run(fn)!) }
@@ -262,4 +262,10 @@ it('checks the caller employee link through the nullable own HR contract and iso
   expect(view.client.getQueryCache().getAll().map(query => query.queryKey)).toEqual([
     ['documents', 1, 'employee', 7, 'link'], ['documents', 1, 'employee', 9, 'link'],
   ])
+})
+
+it('words the HR context kinds in the interface language and keeps the server label of any other kind', async () => {
+  const view = harness(async () => ({ items: [{ kind: 'hr.department', label: 'Department' }, { kind: 'hr.employee', label: 'Employee' }, { kind: 'crm.deal', label: 'Deal' }], total: 3 }))
+  const query = view.use(() => useDocumentContexts())
+  await expect.poll(() => query.data.value?.items.map(item => item.label)).toEqual(['t:documents.contextKinds.hr.department', 't:documents.contextKinds.hr.employee', 'Deal'])
 })

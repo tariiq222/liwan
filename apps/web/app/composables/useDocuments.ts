@@ -171,9 +171,30 @@ export function useUpdateDocumentAccess() {
     },
   )
 }
+/** The explicit choice made when a document is linked to an employee: add the employee as a reader (the link grants nothing). */
+export function useShareDocumentWithEmployee() {
+  return useCompanyDocumentMutation(
+    (api, value: { id: number; expected_revision: number }) => api(`/api/v1/documents/${value.id}/employee-access`, { method: 'POST', body: { expected_revision: value.expected_revision }, schema: DocumentAccessSchema }),
+    async (companyId, client, access, value) => {
+      client.setQueryData<DocumentAccess>(documentKeys.access(companyId, value.id), previous => preferNewerDocumentRevision(previous, access))
+      await Promise.all([client.invalidateQueries({ queryKey: documentKeys.detail(companyId, value.id) }), invalidateDocumentLists(client, companyId)])
+    },
+  )
+}
 export function useDocumentContexts(allowed: MaybeRefOrGetter<boolean> = true) {
-  const { $api } = useApi(); const companyId = useDocumentCompany()
-  return useQuery({ queryKey: computed(() => documentKeys.contexts(companyId.value ?? 0)), enabled: computed(() => !!companyId.value && toValue(allowed)), queryFn: ({ queryKey, signal }) => { assertDocumentCompany(companyId.value, queryKey[1]); return $api('/api/v1/documents/contexts', { signal, schema: DocumentContextListSchema }) } })
+  const { $api } = useApi(); const companyId = useDocumentCompany(); const { t, te } = useI18n()
+  // The server names a kind in the user's Odoo language, which can differ from the interface language: a kind this
+  // build words itself (`documents.contextKinds.<kind>`) is shown in the interface language, any other keeps the server label.
+  const kindLabel = (kind: string, fallback: string) => te(`documents.contextKinds.${kind}`) ? t(`documents.contextKinds.${kind}`) : fallback
+  return useQuery({
+    queryKey: computed(() => documentKeys.contexts(companyId.value ?? 0)),
+    enabled: computed(() => !!companyId.value && toValue(allowed)),
+    queryFn: async ({ queryKey, signal }) => {
+      assertDocumentCompany(companyId.value, queryKey[1])
+      const contexts = await $api('/api/v1/documents/contexts', { signal, schema: DocumentContextListSchema })
+      return { ...contexts, items: contexts.items.map(item => ({ ...item, label: kindLabel(item.kind, item.label) })) }
+    },
+  })
 }
 export function useDocumentContextOptions(kind: MaybeRefOrGetter<string | null>, params: MaybeRefOrGetter<DocumentLookupParams> = {}) {
   const { $api } = useApi(); const companyId = useDocumentCompany()

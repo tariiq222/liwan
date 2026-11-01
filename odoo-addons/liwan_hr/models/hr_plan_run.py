@@ -2,6 +2,8 @@
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
+ONBOARDING_STEP_KIND = 'hr.onboarding_step'
+
 
 class LiwanHrPlanRun(models.Model):
     """One launch of an employee activity plan (onboarding or offboarding).
@@ -29,6 +31,15 @@ class LiwanHrPlanRun(models.Model):
     company_id = fields.Many2one(
         related='employee_id.company_id', store=True, index=True,
     )
+    # Stored so a record rule can scope an employee to their own onboarding runs without reading the plan or
+    # the employee record, which an employee has no access to.
+    hr_purpose = fields.Selection(related='plan_id.hr_purpose', store=True, index=True)
+    employee_user_id = fields.Many2one(related='employee_id.user_id', store=True, index=True)
+    # Everyone a step of the run was ever assigned to (done steps included), so the person a step is handed to
+    # reads the run and finishes their own step without any onboarding capability.
+    assignee_ids = fields.Many2many(
+        'res.users', relation='liwan_hr_plan_run_assignee_rel', compute='_compute_assignee_ids', store=True,
+    )
     plan_date = fields.Date(required=True)
     launched_by_id = fields.Many2one(
         'res.users', required=True, default=lambda self: self.env.user,
@@ -44,6 +55,11 @@ class LiwanHrPlanRun(models.Model):
     cancelled_on = fields.Datetime(readonly=True)
     cancel_reason = fields.Text(readonly=True)
 
+    @api.depends('activity_ids.user_id')
+    def _compute_assignee_ids(self):
+        for run in self:
+            run.assignee_ids = run.with_context(active_test=False).activity_ids.user_id
+
     @api.constrains('state', 'cancel_reason')
     def _check_cancel_reason(self):
         for run in self:
@@ -53,6 +69,20 @@ class LiwanHrPlanRun(models.Model):
     def _liwan_activities(self):
         """The run's checklist activities, archived (done) ones included."""
         return self.with_context(active_test=False).activity_ids
+
+    def _liwan_notify_step_assignees(self):
+        """A bell row for each person a step of this run is assigned to, never for the launcher."""
+        self.ensure_one()
+        for activity in self.activity_ids:
+            user = activity.user_id
+            if not user or user == self.env.user:
+                continue
+            self.env['liwan.notify.service']._liwan_deliver(
+                self._name, self.id, ONBOARDING_STEP_KIND, user.partner_id,
+                self.env._('%(actor)s assigned you an onboarding step', actor=self.env.user.name),
+                key=f'{ONBOARDING_STEP_KIND}:{activity.id}:{user.partner_id.id}',
+                values={'subject': activity.summary or ''},
+            )
 
     def _liwan_is_done(self):
         activities = self._liwan_activities()

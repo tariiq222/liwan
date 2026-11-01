@@ -22,6 +22,14 @@ describe('hr leave bell rows', () => {
     expect(hrBellTitle(row('hr.leave_refused'), translator(enHr))).toBe('Your leave request (2026-11-02 - 2026-11-03) was refused')
   })
 
+  it('words an onboarding step with its summary and opens the own tasks page', () => {
+    const step = { id: 2, kind: 'hr.onboarding_step', run_id: 5, title: 'Sign the contract', created_at: '2026-10-31T09:00:00Z', is_read: false }
+    expect(hrBellTitle(step, translator(arHr))).toBe('تم إسناد خطوة تهيئة إليك: Sign the contract')
+    expect(hrBellTitle(step, translator(enHr))).toBe('An onboarding step was assigned to you: Sign the contract')
+    expect(hrBellHref(step)).toBe('/account/onboarding')
+    expect(canReachPath({ capabilities: ['hr.employees.read', 'hr.leave.read'], platform: { readable_features: ['hr.enabled', 'hr.onboarding'], writable_features: [] } }, '/account/onboarding')).toBe(true)
+  })
+
   it('falls back to the plain title for a row that breaks the contract', () => {
     expect(hrBellTitle({ ...row('hr.leave_approved'), leave_id: 'x' }, translator(enHr))).toBe('2026-11-02 - 2026-11-03')
   })
@@ -32,6 +40,6 @@ describe('hr leave bell rows', () => {
     expect(canReachPath({ capabilities: ['hr.employees.read', 'hr.leave.read', 'hr.leave.request'] }, '/account/leave/7')).toBe(true)
     expect(canReachPath({ capabilities: ['hr.employees.read', 'hr.leave.read', 'hr.leave.request'] }, '/hr/leave/7')).toBe(false)
     expect(hrBellHref({ kind: 'hr.leave_approved' })).toBeNull()
-    expect(manifest.bell?.kinds?.map(kind => kind.kind)).toEqual(['hr.leave_approved', 'hr.leave_refused'])
+    expect(manifest.bell?.kinds?.map(kind => kind.kind)).toEqual(['hr.leave_approved', 'hr.leave_refused', 'hr.onboarding_step'])
   })
 })

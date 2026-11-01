@@ -111,6 +111,17 @@ class TestHrDepartments(LiwanHrCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()['name'], 'Legal Affairs')
 
+    def test_a_parent_or_manager_of_another_company_is_a_422_on_its_field(self):
+        other = self.env['res.company'].create({'name': 'Link Foreign Co'})
+        foreign_dept = self.env['hr.department'].create({'name': 'Foreign Parent', 'company_id': other.id})
+        foreign_employee = self.env['hr.employee'].create({'name': 'Foreign Head', 'company_id': other.id})
+        self.authenticate('hr_dept_admin', 'hr_dept_admin_pass_123')
+        for field, value in (('parent_id', foreign_dept.id), ('manager_id', foreign_employee.id), ('parent_id', 999999)):
+            created = self.api('POST', '/api/v1/hr/departments', {'name': 'Cross link', field: value})
+            self.assertEqual((created.status_code, created.json()['code'], created.json()['field']), (422, 'invalid', field), (field, value))
+            patched = self.api('PATCH', f'/api/v1/hr/departments/{self.dept_a.id}', {field: value})
+            self.assertEqual((patched.status_code, patched.json()['field']), (422, field), (field, value))
+
     def test_patch_parent_cycle_rolls_back(self):
         self.authenticate('hr_dept_admin', 'hr_dept_admin_pass_123')
         res = self.api(

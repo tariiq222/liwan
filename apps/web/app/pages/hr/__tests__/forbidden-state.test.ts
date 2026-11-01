@@ -64,6 +64,7 @@ const MODULES: Record<string, unknown> = {
   '@/utils/hrReturnTo': { hrDepartmentContext: () => ({}) },
   '@/utils/recordListOrigin': { owningListBack: () => '/hr', recordParentTo: () => '/hr' },
   '@/utils/formFeedback': { saveErrorMessage: () => 'error' },
+  '@/utils/hrLifecycleErrors': { lifecycleLaunchErrorMessage: () => 'error' },
   '@/composables/useHrPayrollCompensation': { useHrCompensation: query },
   '@/composables/useHrDepartments': { useHrDepartment: query, useHrDepartments: query },
   '@/composables/useHrEmployees': { useHrEmployee: query, useHrEmployees: query },

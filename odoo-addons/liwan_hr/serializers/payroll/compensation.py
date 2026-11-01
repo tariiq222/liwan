@@ -32,6 +32,10 @@ def dump_compensation(record):
     }
 
 
+def dump_bank(bank):
+    return {'id': bank.id, 'name': bank.name, 'bic': bank.bic or None}
+
+
 def _amount(value, field, *, minimum_exclusive):
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ApiError(422, 'invalid', f'{field} must be a number', field=field)

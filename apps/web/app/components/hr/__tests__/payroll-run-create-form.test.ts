@@ -8,7 +8,7 @@ import { HrPayrollRunCreateSchema } from '@liwan/contracts'
 import { ApiError } from '../../../composables/useApi'
 import { saveErrorMessage } from '../../../utils/formFeedback'
 import { normalizeDigits } from '../../../utils/moneyInput'
-import { currentPayrollMonth } from '../../../utils/payrollFormat'
+import { currentPayrollMonth, formatPayrollMonth } from '../../../utils/payrollFormat'
 
 // Runs the form's real <script setup> without the DOM (the same harness idea as compensation-form.test.ts); the
 // mounted hook is captured instead of run so the test can tell the server render from the first client render.
@@ -25,9 +25,9 @@ function load() {
   const bindings = {
     _defineComponent: Vue.defineComponent, computed: Vue.computed, ref: Vue.ref, nextTick: Vue.nextTick,
     onMounted: (hook: () => void) => { mounted.push(hook) },
-    useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true),
+    useI18n: () => ({ t: (key: string, params?: { month?: string }) => params?.month ? `${key}:${params.month}` : key, locale: Vue.ref('en') }), useHydrated: () => Vue.ref(true),
     useCreateHrPayrollRun: () => ({ mutateAsync: createRun, isPending: Vue.ref(false) }),
-    HrPayrollRunCreateSchema, ApiError, saveErrorMessage, normalizeDigits, currentPayrollMonth,
+    HrPayrollRunCreateSchema, ApiError, saveErrorMessage, normalizeDigits, currentPayrollMonth, formatPayrollMonth,
   }
   const component = new Function(...Object.keys(bindings), code)(...Object.values(bindings))
   const state = component.setup(Vue.reactive({ backTo: '/hr/payroll' }), { expose: () => {}, emit })
@@ -71,11 +71,30 @@ describe('PayrollRunCreateForm default month', () => {
     expect(state.dirty.value).toBe(false)
   })
 
-  it('submits the chosen month', async () => {
+  it('names the month and asks to confirm before it creates anything', async () => {
+    const { state, mounted, createRun } = load()
+    mounted.forEach(hook => hook())
+    state.submit()
+    expect(state.confirming.value).toBe(true)
+    expect(state.monthLabel.value).toBe(formatPayrollMonth(currentPayrollMonth(), 'en'))
+    expect(createRun).not.toHaveBeenCalled()
+    state.confirming.value = false
+    expect(createRun).not.toHaveBeenCalled()
+  })
+
+  it('asks for no confirmation while the month is empty or invalid', () => {
+    const { state } = load()
+    state.submit()
+    expect(state.confirming.value).toBe(false)
+    expect(state.monthError.value).toBe('hrPayroll.runs.monthRequired')
+  })
+
+  it('submits the confirmed month', async () => {
     const { state, mounted, createRun } = load()
     mounted.forEach(hook => hook())
     state.month.value = '2026-05'
-    await state.submit()
+    state.submit()
+    await state.confirmCreate()
     expect(createRun).toHaveBeenCalledWith({ month: '2026-05' })
   })
 })

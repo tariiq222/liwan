@@ -4,6 +4,7 @@ import functools
 
 from psycopg2.errors import UniqueViolation
 
+from odoo.exceptions import AccessError
 from odoo.http import request
 
 from odoo.addons.liwan_api.controllers.common import ApiError
@@ -16,6 +17,24 @@ def own_public_employee():
         ('user_id', '=', request.env.uid),
         ('company_id', '=', request.env.company.id),
     ], limit=1)
+
+
+def related_record(model, record_id, field):
+    """A record a payload names (a manager, a department) among the current companies the caller may read.
+
+    A target that is missing, in another company or hidden by access answers a 422 on ``field``, not an opaque
+    403 or 404 with Odoo's own wording.
+    """
+    record = request.env[model].browse(int(record_id))
+    try:
+        if not record.exists():
+            raise ApiError(422, 'invalid', f'{field} does not reference an existing record', field=field)
+        if record.company_id not in request.env.companies:
+            raise ApiError(422, 'invalid', f'{field} is outside the current company', field=field)
+        record.check_access('read')
+    except AccessError:
+        raise ApiError(422, 'invalid', f'{field} is not available', field=field) from None
+    return record
 
 
 def hr_rule_handler(func):

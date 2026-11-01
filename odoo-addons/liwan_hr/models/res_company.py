@@ -13,6 +13,7 @@ SAUDI_WORK_DAYS = ('6', '0', '1', '2', '3')
 SAUDI_WORK_HOURS = (('morning', 8.0, 12.0), ('afternoon', 13.0, 17.0))
 DEFAULT_CALENDAR_MARKER = 'liwan_hr.default_calendar_company_ids'
 DEFAULT_CALENDAR_FIELDS = frozenset({'resource_calendar_id'})
+SAUDI_STRUCTURE_XMLID = 'liwan_hr.structure_saudi'
 
 
 class ResCompany(models.Model):
@@ -23,6 +24,7 @@ class ResCompany(models.Model):
         companies = super().create(vals_list)
         # A new company's stock schedule was made for it a moment ago and nothing uses it yet.
         companies._liwan_ensure_saudi_schedule(drop_replaced=True)
+        companies._liwan_ensure_payroll_structure()
         return companies
 
     def write(self, vals):
@@ -82,3 +84,23 @@ class ResCompany(models.Model):
                 company.write({'resource_calendar_id': calendar.id})
             if drop_replaced and replaced.company_id == company:
                 replaced.unlink()
+
+    def _liwan_ensure_payroll_structure(self):
+        """Give every company its own copy of the shipped Saudi payroll structure, once.
+
+        ``hr.payroll.structure`` requires a company and is hidden from the others by its multi-company
+        rule, so the shipped structure (owned by the main company) is no use to a second company. The copy
+        shares the shipped salary rules, which belong to no company, and is what the company's payroll
+        settings point at.
+        """
+        Structure = self.env['hr.payroll.structure'].sudo().with_context(active_test=False)
+        shipped = Structure.browse(self.env.ref(SAUDI_STRUCTURE_XMLID).id)
+        for company in self - shipped.company_id:
+            if Structure.search_count([('company_id', '=', company.id), ('code', '=', shipped.code)]):
+                continue
+            Structure.create({
+                'name': shipped.name,
+                'code': shipped.code,
+                'company_id': company.id,
+                'rule_ids': [Command.set(shipped.rule_ids.ids)],
+            })

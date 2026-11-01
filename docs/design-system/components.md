@@ -382,6 +382,7 @@ Meetings use SharedListPage/DataTable/RecordPage/TimelineFrame/StandalonePage. C
 | `apps/web/app/components/finance/governance/ZatcaJournals.vue` | يوميات المبيعات وحالة ربطها بزاتكا وبدء الربط | — | `SharedRecordSection`, `SharedEmptyState`, `SharedStatusBadge`, `UButton` |
 | `apps/web/app/components/finance/governance/ZatcaOnboardForm.vue` | رمز التحقق لربط يومية بزاتكا بتأكيد مضمّن | — | `UFormField`, `UInput`, `UAlert`, `SharedInlineConfirm`, `UButton` |
 | `apps/web/app/components/finance/governance/AuditList.vue` | قائمة سجل تدقيق المالية بالفلاتر في الرابط والترقيم | — | `SharedForbiddenState`, `SharedListCard`, `SharedFilterBar`, `SharedFilterField`, `USelect`, `SharedDateField`, `SharedPageState`, `SharedEmptyState`, `SharedDataTable`, `SharedStatusBadge`, `SharedListFooter` |
+| `apps/web/app/components/hr/payroll/PayrollAuditList.vue` | قائمة سجل تدقيق الرواتب بالفلاتر في الرابط والترقيم | — | `SharedForbiddenState`, `SharedListCard`, `SharedFilterBar`, `SharedFilterField`, `USelect`, `SharedDateField`, `SharedPageState`, `SharedEmptyState`, `SharedDataTable`, `SharedStatusBadge`, `SharedListFooter` |
 
 | `apps/web/app/components/hr/shifts/ShiftSettingsForm.vue` | Company/user reference for the shift calendar day, defaulting to company timezone; story `apps/web/stories/hr/shifts/ShiftSettingsForm.stories.ts` | SharedFormSection panel, SharedFormActions, SharedUnsavedChanges, UForm, UFormField, USelect, UAlert, UButton |
 

@@ -1,5 +1,6 @@
 import {
   HR_PAYROLL_ACCOUNT_ROLES,
+  HR_PAYROLL_RECONCILING_ACCOUNT_ROLES,
   type HrPayrollAccountRole,
   type HrPayrollEntryDetail,
   type HrPayrollFinanceSettings,
@@ -45,7 +46,7 @@ export function payrollFinancePatch(settings: HrPayrollFinanceSettings, draft: P
 }
 
 /** The record a picker offers, as `{id, name, code?}`. */
-export interface FinanceChoice { id: number; name: string; code?: string }
+export interface FinanceChoice { id: number; name: string; code?: string; reconcile?: boolean }
 
 /** The choices with the record the field holds now added when the lookup page does not contain it (archived, beyond the page). */
 export function withCurrent(choices: FinanceChoice[], current: { id: number; name: string } | null): FinanceChoice[] {
@@ -54,3 +55,9 @@ export function withCurrent(choices: FinanceChoice[], current: { id: number; nam
 
 /** True when a lookup holds more records than the page that was read. */
 export const isTruncated = (list: { items: unknown[]; total: number } | undefined): boolean => !!list && list.total > list.items.length
+
+/** The accounts a role may name: the roles the server settles through reconciliation accept only reconcilable accounts. */
+export function accountChoicesFor(role: HrPayrollAccountRole, accounts: FinanceChoice[]): FinanceChoice[] {
+  const reconciling = (HR_PAYROLL_RECONCILING_ACCOUNT_ROLES as readonly string[]).includes(role)
+  return reconciling ? accounts.filter(account => account.reconcile !== false) : accounts
+}

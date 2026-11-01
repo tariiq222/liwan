@@ -23,7 +23,8 @@ const compensation = useHrCompensation(computed(() => isDetail.value && validId.
 const confirmArchive = ref(false)
 const { mutateAsync: archive, isPending: archiving, error: archiveError, reset: resetArchive } = useArchiveHrEmployee()
 // The server names the first exit blocker (departure, custody, settlement); show it inline, never in a dialog.
-const EXIT_BLOCKERS = new Set(['departure_missing', 'custody_open', 'settlement_missing'])
+const EXIT_BLOCKERS = new Set(['departure_missing', 'departure_future', 'custody_open', 'settlement_missing'])
+const exitBlockerDate = computed(() => archiveError.value instanceof ApiError && typeof archiveError.value.details?.departure_date === 'string' ? archiveError.value.details.departure_date : '')
 const exitBlocker = computed(() => archiveError.value instanceof ApiError && EXIT_BLOCKERS.has(archiveError.value.code) ? archiveError.value.code : null)
 const { mutateAsync: unarchive, isPending: unarchiving } = useUnarchiveHrEmployee()
 const archivePending = computed(() => archiving.value || unarchiving.value)
@@ -77,7 +78,7 @@ const menuActions = computed<RowAction[]>(() => {
       color="warning"
       variant="subtle"
       :title="t('hr.employee.exitBlocked.title')"
-      :description="t(`hr.employee.exitBlocked.${exitBlocker}`)"
+      :description="t(`hr.employee.exitBlocked.${exitBlocker}`, { date: exitBlockerDate })"
       data-testid="hr-employee-exit-blocker"
     />
     <SharedInlineConfirm

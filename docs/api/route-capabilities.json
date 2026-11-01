@@ -2596,6 +2596,21 @@
       "handler": "list_bank_profiles",
       "no_capability_reason": null
     },
+    "GET /api/v1/hr/payroll/banks": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "list_banks",
+      "no_capability_reason": null
+    },
     "GET /api/v1/hr/payroll/branch-strictness": {
       "addon": "liwan_hr",
       "auth": "user",
@@ -2855,6 +2870,21 @@
       "handler": "get_settings",
       "no_capability_reason": null
     },
+    "GET /api/v1/hr/payroll/structures": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "list_structures",
+      "no_capability_reason": null
+    },
     "GET /api/v1/hr/recruitment/applicants": {
       "addon": "liwan_hr",
       "auth": "user",
@@ -2957,6 +2987,21 @@
         "hr.enabled"
       ],
       "handler": "get_saudization",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/self/onboarding-steps": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.employees.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.onboarding"
+      ],
+      "handler": "list_own_steps",
       "no_capability_reason": null
     },
     "GET /api/v1/hr/shifts/assignments": {
@@ -6873,6 +6918,22 @@
       "handler": "set_document_active",
       "no_capability_reason": null
     },
+    "POST /api/v1/documents/{document_id}/employee-access": {
+      "addon": "liwan_documents_hr",
+      "auth": "user",
+      "capability_keys": [
+        "documents.access.manage",
+        "hr.employees.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "documents.enabled",
+        "hr.enabled"
+      ],
+      "handler": "share_with_employee",
+      "no_capability_reason": null
+    },
     "POST /api/v1/documents/{document_id}/files": {
       "addon": "liwan_documents",
       "auth": "user",
@@ -8392,6 +8453,21 @@
         "hr.recruitment"
       ],
       "handler": "create_job",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/self/onboarding-steps/{activity_id}/done": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.employees.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.onboarding"
+      ],
+      "handler": "complete_own_step",
       "no_capability_reason": null
     },
     "POST /api/v1/hr/shifts/assignments": {

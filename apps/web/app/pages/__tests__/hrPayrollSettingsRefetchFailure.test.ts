@@ -26,7 +26,7 @@ function setupPayroll(failing: Name, unloaded = false) {
     useI18n: () => ({ t: String }), useAccess: () => ({ can: () => true }),
     useSettingsPage: () => ({ parts: Vue.ref([{ id: 'payroll' }]), shows: (id: string) => id === 'payroll' }),
     useHrLeaveSettings: idle, useHrShiftSettings: idle,
-    useHrPayrollSettings: () => queries.settings, useHrGosiRates: () => queries.rates,
+    useHrPayrollSettings: () => queries.settings, useHrPayrollStructures: idle, useHrGosiRates: () => queries.rates,
     useHrBankProfiles: () => queries.profiles, useHrEosCases: () => queries.cases,
     useHrPayrollFinanceSettings: idle, useHrLeaveTypes: idle,
     useHrPayrollFinanceLookups: () => ({ accounts: idle(), journals: idle(), analyticAccounts: idle() }), useHrPayrollCostCenters: idle,

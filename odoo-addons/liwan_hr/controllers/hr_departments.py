@@ -1,9 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import http
-from odoo.exceptions import AccessError, MissingError
+from odoo.exceptions import MissingError
 from odoo.http import request
 
-from .common import hr_rule_handler
+from .common import hr_rule_handler, related_record
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
@@ -39,21 +39,11 @@ def _admin_department(department_id):
     return department
 
 
-def _relation(model, record_id, field):
-    record = request.env[model].browse(int(record_id))
-    if not record.exists():
-        raise MissingError(request.env._('%(model)s %(id)s does not exist', model=model, id=record_id))
-    if record.company_id not in request.env.companies:
-        raise AccessError('%s is outside the current company' % field)
-    record.check_access('read')
-    return record
-
-
 def _validate_relations(vals):
     if vals.get('parent_id'):
-        _relation('hr.department', vals['parent_id'], 'parent_id')
+        related_record('hr.department', vals['parent_id'], 'parent_id')
     if vals.get('manager_id'):
-        _relation('hr.employee', vals['manager_id'], 'manager_id')
+        related_record('hr.employee', vals['manager_id'], 'manager_id')
 
 
 class HrDepartmentController(http.Controller):

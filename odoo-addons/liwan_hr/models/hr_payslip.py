@@ -1,7 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from decimal import Decimal
 
+from markupsafe import Markup
+
 from odoo import fields, models
+from odoo.tools.misc import format_amount
 
 from .payroll_math import money
 from odoo.addons.liwan_hr.rules import LiwanHrRule
@@ -105,6 +108,46 @@ class HrPayslip(models.Model):
         versions = self.env['hr.version'].search([('employee_id', '=', self.employee_id.id)], order='date_version')
         in_force = versions.filtered(lambda version: version.date_version <= last_day)
         return in_force[-1:] or versions[:1]
+
+    def _liwan_mail_final_payslips(self):
+        """Mail the payslip of an employee whose service ended with this month to the personal email on record.
+
+        A leaver's account is closed when the employee is archived, so the last payslip would otherwise never
+        reach them. Called once, when the run is approved.
+        """
+        for slip in self:
+            employee = slip.employee_id
+            if not employee.departure_date or employee.departure_date > slip.date_to:
+                continue
+            # `private_email` is readable by HR users only, which a payroll approver is not.
+            address = (employee.sudo().private_email or '').strip()
+            if address:
+                slip._liwan_queue_payslip_mail(address)
+
+    def _liwan_queue_payslip_mail(self, address):
+        self.ensure_one()
+        amounts = self._liwan_amounts()[self.id]
+        currency = self.company_id.currency_id
+        lines = self.line_ids.filtered(
+            lambda line: line.appears_on_payslip and line.code not in (NET_CODE, *GOSI_EMPLOYER_CODES) and line.total,
+        ).sorted('sequence')
+        rows = Markup('').join(
+            Markup('<tr><td>{}</td><td>{}</td></tr>').format(line.name, format_amount(self.env, line.total, currency))
+            for line in lines
+        )
+        body = Markup('<p>{greeting}</p><table>{rows}<tr><th>{net_label}</th><th>{net}</th></tr></table>').format(
+            greeting=self.env._('Dear %(name)s, your final payslip for %(month)s from %(company)s is below.',
+                                name=self.employee_id.name, month=self.date_from.strftime('%Y-%m'), company=self.company_id.name),
+            rows=rows, net_label=self.env._('Net pay'), net=format_amount(self.env, amounts['net'], currency),
+        )
+        # Mailing needs the outgoing-mail right, which no payroll capability carries.
+        self.env['mail.mail'].sudo().create({
+            'subject': self.env._('Your final payslip for %(month)s', month=self.date_from.strftime('%Y-%m')),
+            'body_html': body,
+            'email_to': address,
+            'author_id': self.env.user.partner_id.id,
+            'auto_delete': True,
+        })
 
     def _liwan_amounts(self):
         """``{payslip_id: {gross, deductions, gosi_employee, gosi_employer, net}}`` from the computed lines.

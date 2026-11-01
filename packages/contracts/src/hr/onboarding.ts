@@ -114,6 +114,27 @@ export const HrPlanRunStepSchema = z.object({
   can_complete: z.boolean(),
 }).strict()
 
+// GET /api/v1/hr/self/onboarding-steps: the open steps assigned to the caller on their own onboarding runs.
+export const HrOwnOnboardingStepSchema = z.object({
+  id: z.number().int().positive(),
+  run_id: z.number().int().positive(),
+  summary: z.string(),
+  date_deadline: isoDate,
+  state: HrPlanRunStepStateSchema,
+}).strict()
+
+export const HrOwnOnboardingStepListSchema = z.object({
+  items: z.array(HrOwnOnboardingStepSchema),
+  total: z.number().int().nonnegative(),
+}).strict()
+
+// POST .../{id}/done answers with the finished step's id and its run.
+export const HrOwnOnboardingStepDoneSchema = z.object({
+  id: z.number().int().positive(),
+  run_id: z.number().int().positive(),
+  done: z.literal(true),
+}).strict()
+
 export const HrPlanRunDetailSchema = HrPlanRunSchema.extend({
   steps: z.array(HrPlanRunStepSchema),
   can_cancel: z.boolean(),
@@ -146,6 +167,8 @@ export type HrPlanRunState = z.infer<typeof HrPlanRunStateSchema>
 export type HrPlanRun = z.infer<typeof HrPlanRunSchema>
 export type HrPlanRunList = z.infer<typeof HrPlanRunListSchema>
 export type HrPlanRunStep = z.infer<typeof HrPlanRunStepSchema>
+export type HrOwnOnboardingStep = z.infer<typeof HrOwnOnboardingStepSchema>
+export type HrOwnOnboardingStepList = z.infer<typeof HrOwnOnboardingStepListSchema>
 export type HrPlanRunDetail = z.infer<typeof HrPlanRunDetailSchema>
 export type HrPlanRunCreate = z.infer<typeof HrPlanRunCreateSchema>
 export type HrPlanStepDone = z.infer<typeof HrPlanStepDoneSchema>

@@ -10,7 +10,7 @@ describe('HR personal contributions', () => {
     expect(canReachPath({ ...identity, capabilities: ['hr.employees.read'] }, '/settings/apps/hr')).toBe(false)
   })
   it('contributes every own HR destination without a mine administration section', () => {
-    expect(manifest.personal?.map(entry => entry.to)).toEqual(['/account/profile','/account/leave','/account/pay','/account/assets','/account/schedule'])
+    expect(manifest.personal?.map(entry => entry.to)).toEqual(['/account/profile','/account/onboarding','/account/leave','/account/pay','/account/assets','/account/schedule'])
     expect(manifest.contextLinks?.('/hr').some(link => link.id === 'section-mine')).toBe(false)
   })
   it('preserves independent feature gates for own assets, payroll and shifts', () => {
@@ -40,12 +40,20 @@ describe('HR overview privacy and ownership', () => {
     expect(JSON.stringify(summary)).not.toContain('12345')
   })
   it('explains missing employee linkage without querying leave, assets, pay or shifts', async () => {
-    for (const entry of manifest.personal!) {
+    // The onboarding steps belong to whoever a step is assigned to, so that entry never asks for the employee record.
+    for (const entry of manifest.personal!.filter(item => item.id !== 'hr-onboarding')) {
       const calls: string[] = []
       const api = (async (path: string, options: any) => {calls.push(path); return options.schema.parse(null)}) as import('../../types').AppSearchApi
       expect(await entry.summary!.load(api,translate)).toEqual({caption:'hr.self.noEmployeeHint'})
       expect(calls).toEqual(['/api/v1/hr/me'])
     }
+  })
+  it('lists the onboarding steps of an assignee who has no employee record', async () => {
+    const calls: string[] = []
+    const api = (async (path: string, options: any) => { calls.push(path); return options.schema.parse({ items: [{ id: 3, run_id: 2, summary: 'Prepare the desk', date_deadline: '2026-11-03', state: 'planned' }], total: 1 }) }) as import('../../types').AppSearchApi
+    const summary = await manifest.personal!.find(entry => entry.id === 'hr-onboarding')!.summary!.load(api, translate)
+    expect(calls).toEqual(['/api/v1/hr/self/onboarding-steps'])
+    expect(summary.value).toBe('1')
   })
   it('queries only own leave and links to the own detail endpoint destination', async () => {
     const leave = {id:9,employee:{id:4,name:'Sara'},leave_type:{id:2,name:'Annual'},date_from:'2026-11-01',date_to:'2026-11-02',number_of_days:2,state:'confirm',notes:'',can_approve:false,can_refuse:false,can_withdraw:true, cancellation_policy: 'manager_approval', cancellation: null, can_request_cancellation: false, can_approve_cancellation: false, can_refuse_cancellation: false,can_cancel:false}

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
 import type { HrDeparture } from '@liwan/contracts'
-import { saveErrorMessage } from '@/utils/formFeedback'
+import { lifecycleLaunchErrorMessage } from '@/utils/hrLifecycleErrors'
 import { ApiError } from '@/composables/useApi'
 import { useHrEmployees } from '@/composables/useHrEmployees'
 import {
@@ -25,7 +25,7 @@ const hydrated = useHydrated()
 const { can } = useAccess()
 const formError = ref<unknown>(null)
 const errorMessage = computed(() => formError.value
-  ? saveErrorMessage(formError.value, t(`${props.namespace}.form.saveError`), t('errors.saveUncertain'))
+  ? lifecycleLaunchErrorMessage(formError.value, t, t(`${props.namespace}.form.saveError`))
   : undefined)
 const canManage = computed(() => can('hr.offboarding.manage'))
 const employees = useHrEmployees({ limit: 200, offset: 0 })
