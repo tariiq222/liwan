@@ -114,12 +114,18 @@
       "selectProposal": "Select entry {entry}"
     },
     "import": {
-      "link": "Import CSV",
+      "link": "Import a file",
       "title": "Import a bank statement",
       "fileSection": "File",
-      "file": "CSV file",
+      "file": "Statement file (CSV, OFX or CAMT)",
       "fileHint": "Up to 2 MB",
       "tooLarge": "The file is larger than 2 MB.",
+      "detected": "File type: {format}",
+      "formats": {
+        "csv": "CSV",
+        "ofx": "OFX",
+        "camt": "CAMT"
+      },
       "delimiter": "Delimiter",
       "autoDelimiter": "Detect automatically",
       "delimiters": {
@@ -131,7 +137,7 @@
       "dateFormat": "Date format",
       "decimal": "Decimal separator",
       "hasHeader": "The first row is a header",
-      "readColumns": "Read columns",
+      "readFile": "Read the file",
       "mappingSection": "Columns",
       "rowCount": "{count} row in the file | {count} rows in the file",
       "notMapped": "Not used",

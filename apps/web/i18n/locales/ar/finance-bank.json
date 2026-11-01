@@ -114,12 +114,18 @@
       "selectProposal": "تحديد القيد {entry}"
     },
     "import": {
-      "link": "استيراد CSV",
+      "link": "استيراد ملف",
       "title": "استيراد كشف حساب بنكي",
       "fileSection": "الملف",
-      "file": "ملف CSV",
+      "file": "ملف الكشف (CSV أو OFX أو CAMT)",
       "fileHint": "حتى 2 ميغابايت",
       "tooLarge": "حجم الملف أكبر من 2 ميغابايت.",
+      "detected": "نوع الملف: {format}",
+      "formats": {
+        "csv": "CSV",
+        "ofx": "OFX",
+        "camt": "CAMT"
+      },
       "delimiter": "الفاصل",
       "autoDelimiter": "اكتشاف تلقائي",
       "delimiters": {
@@ -131,7 +137,7 @@
       "dateFormat": "صيغة التاريخ",
       "decimal": "الفاصل العشري",
       "hasHeader": "الصف الأول عناوين",
-      "readColumns": "قراءة الأعمدة",
+      "readFile": "قراءة الملف",
       "mappingSection": "الأعمدة",
       "rowCount": "لا صفوف في الملف | صف واحد في الملف | صفان في الملف | {count} صفوف في الملف | {count} صفًا في الملف | {count} صف في الملف",
       "notMapped": "غير مستخدم",

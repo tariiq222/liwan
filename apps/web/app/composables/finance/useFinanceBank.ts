@@ -3,8 +3,8 @@ import { computed, toValue } from 'vue'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   FinanceBankAutoReconcileSchema,
-  FinanceBankImportColumnsSchema,
   FinanceBankImportPreviewSchema,
+  FinanceBankImportReadSchema,
   FinanceBankLineSchema,
   FinanceBankStatementDetailSchema,
   FinanceBankStatementListSchema,
@@ -92,12 +92,13 @@ export function useReconcileFinanceBankLine() {
     $api(`/api/v1/finance/bank-statement-lines/${lineId}/reconcile`, { method: 'POST', body, schema: FinanceBankLineSchema }))
 }
 
-/** Reads the file and writes nothing: without a mapping the answer is the columns, with one the lines the import would create. */
-export function useFinanceBankImportColumns() {
+/** Reads the file and writes nothing: a CSV file answers its columns, an OFX or CAMT file the lines the import would create. */
+export function useFinanceBankImportRead() {
   const { $api } = useApi()
-  return useMutation({ mutationFn: (body: Record<string, unknown>) => $api('/api/v1/finance/bank-statements/import/preview', { method: 'POST', body, schema: FinanceBankImportColumnsSchema }) })
+  return useMutation({ mutationFn: (body: Record<string, unknown>) => $api('/api/v1/finance/bank-statements/import/preview', { method: 'POST', body, schema: FinanceBankImportReadSchema }) })
 }
 
+/** The lines a mapped CSV file would create. */
 export function useFinanceBankImportPreview() {
   const { $api } = useApi()
   return useMutation({ mutationFn: (body: Record<string, unknown>) => $api('/api/v1/finance/bank-statements/import/preview', { method: 'POST', body, schema: FinanceBankImportPreviewSchema }) })
