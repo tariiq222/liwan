@@ -1,0 +1,49 @@
+{
+  "company_share": 300.0,
+  "date_end": "2027-05-20",
+  "date_from": "2026-09-12",
+  "date_to": null,
+  "dependents": [
+    {
+      "birth_date": "1990-04-01",
+      "date_from": "2026-09-22",
+      "date_to": null,
+      "enrollment_id": 17,
+      "id": 4,
+      "name": "Spouse One",
+      "national_id": "1098765432",
+      "national_id_masked": "******5432",
+      "relation": "spouse",
+      "revision": 1,
+      "state": "active"
+    }
+  ],
+  "dependents_count": 1,
+  "employee": {
+    "id": 2,
+    "name": "Ins Employee"
+  },
+  "employee_share": 100.0,
+  "id": 1,
+  "member_number": "MBR-7770001",
+  "notes": "Internal remark",
+  "plan": {
+    "active": true,
+    "annual_premium": 1500.0,
+    "expires_in_days": 200,
+    "id": 3,
+    "name": "Gold 2026",
+    "policy_number": "POL-1",
+    "provider": {
+      "id": 3,
+      "name": "Insurer Gold 2026"
+    },
+    "revision": 1,
+    "state": "active",
+    "tier": "Gold",
+    "valid_from": "2026-07-24",
+    "valid_to": "2027-05-20"
+  },
+  "revision": 1,
+  "state": "active"
+}
