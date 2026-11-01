@@ -257,9 +257,14 @@ class OperationRequest(models.Model):
         if self.state != 'pending' or self.requester_id == self.env.user:
             raise AccessError(self.env._('This request is not available for your decision.'))
         # Snapshot membership and the stage's own capability are both necessary; company/active checks are above.
+        # A later stage counts only while every stage before it, from the current one on, is authorized too.
         service = self.env['liwan.access.service']
-        eligible = self._tier_eligible_reviews(self.review_ids)
-        eligible = eligible.filtered(lambda r: self.env.uid in (self.stage_snapshot[r.sequence - 1]['reviewer_ids'] if 0 < r.sequence <= len(self.stage_snapshot) else []) and service._liwan_has_capability(self.env.user, self._operations_stage_capability(r.sequence), record=self))
+        eligible = self.env['tier.review']
+        for review in self._tier_eligible_reviews(self.review_ids).sorted('sequence'):
+            in_snapshot = 0 < review.sequence <= len(self.stage_snapshot) and self.env.uid in self.stage_snapshot[review.sequence - 1]['reviewer_ids']
+            if not (in_snapshot and service._liwan_has_capability(self.env.user, self._operations_stage_capability(review.sequence), record=self)):
+                break
+            eligible |= review
         if not eligible:
             raise AccessError(self.env._('Only the current stage reviewer can decide this request.'))
         return eligible
@@ -279,6 +284,8 @@ class OperationRequest(models.Model):
                     # Only the current stage; a reviewer of the next stage decides it separately.
                     reviews = reviews.sorted('sequence')[:1]
                 super()._validate_tier(reviews)
+                if not reviews.filtered(lambda review: review.status == 'approved'):
+                    raise AccessError(self.env._('Only the current stage reviewer can decide this request.'))
                 self.review_ids._update_review_status()
                 self._event('approved', text(self.env, comment, 'comment', 4000))
                 if self.validation_status == 'validated':
@@ -308,6 +315,8 @@ class OperationRequest(models.Model):
                 reviews = self._decision_guard(revision)
                 note = text(self.env, comment, 'comment', 4000, True)
                 super()._rejected_tier(reviews)
+                if not reviews.filtered(lambda review: review.status == 'rejected'):
+                    raise AccessError(self.env._('Only the current stage reviewer can decide this request.'))
                 self._ops_write({'state': state, 'revision': self.revision + 1})
                 self._event(state, note)
                 if state == 'rejected':

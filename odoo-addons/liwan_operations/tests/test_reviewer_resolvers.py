@@ -141,6 +141,28 @@ class TestReviewerResolvers(LiwanApiCase):
         with self.assertRaisesRegex(ValidationError, 'Fixed'):
             request.action_submit(0)
 
+    def test_losing_the_current_stage_capability_does_not_let_a_later_stage_be_decided(self):
+        self.capability = 'operations.processes.manage'
+        company = self.env.company.id
+        roles = [{'role_id': self.env.ref(role).id, 'company_id': company} for role in ('liwan_operations.role_operations_manager', 'liwan_operations.role_operations_reviewer')]
+        self.service._liwan_replace_assignments(self.approver, roles)
+        for mode in ('per_stage', 'single'):
+            steps = [{'name': 'Resolved', 'reviewer_ids': [], 'resolver': RESOLVER}, {'name': 'Fixed', 'reviewer_ids': [self.approver.id]}]
+            process = self.env['liwan.operation.process'].with_user(self.manager).create({'name': f'Skip {mode}'})
+            process.action_configure(0, f'Skip {mode}', '', KIND, steps, purpose='employee', stage_approval_mode=mode)
+            process.action_publish(process.revision)
+            record = self._pending(process)
+            self.service._liwan_replace_assignments(self.approver, roles[1:])
+            revision = record.revision
+            with self.assertRaises(AccessError):
+                record.with_user(self.approver).action_approve(revision)
+            with self.assertRaises(AccessError):
+                record.with_user(self.approver).action_reject(revision, 'No')
+            record.invalidate_recordset()
+            self.assertEqual((record.state, [r.status for r in record.review_ids.sorted('sequence')], self.executed), ('pending', ['pending', 'waiting'], []))
+            self.assertFalse(record.with_user(self.approver)._operations_allowed_actions()['approve'])
+            self.service._liwan_replace_assignments(self.approver, roles)
+
     def test_stage_capability_is_checked_when_deciding(self):
         record = self._pending(self._process())
         self.service._liwan_replace_assignments(self.approver, [])
