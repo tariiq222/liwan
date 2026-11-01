@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import EmployeeSearchSelect from '@/components/hr/EmployeeSearchSelect.vue'
 import EnrollmentTable from '@/components/hr/insurance/EnrollmentTable.vue'
 import InsuranceProvidersCard from '@/components/hr/insurance/InsuranceProvidersCard.vue'
 import InsuranceSummaryStrip from '@/components/hr/insurance/InsuranceSummaryStrip.vue'
@@ -50,7 +51,6 @@ const plans = useHrInsurancePlans(computed(() => ({ state: planState.value, limi
 const planChoices = useHrInsurancePlans({ limit: 100 })
 const providers = useHrInsuranceProviders('all', () => section.value === 'providers')
 const settings = useHrInsuranceSettings()
-const employees = useHrEmployees(computed(() => ({ limit: 100 })))
 
 const active = computed(() => section.value === 'plans' ? plans : enrollments)
 const items = computed(() => active.value.data.value?.items ?? [])
@@ -62,7 +62,6 @@ const activeFilterCount = computed(() => section.value === 'plans'
   ? [planState.value === 'all' ? null : planState.value].filter(Boolean).length
   : [employeeId.value, planId.value, enrollmentState.value === 'all' ? null : enrollmentState.value, expiring.value || null].filter(Boolean).length)
 
-const employeeOptions = computed(() => (employees.data.value?.items ?? []).map(employee => ({ value: String(employee.id), label: employee.name })))
 const planOptions = computed(() => (planChoices.data.value?.items ?? []).map(plan => ({ value: String(plan.id), label: plan.name })))
 const sectionItems = computed(() => SECTIONS.map(value => ({ value, label: t(`hrInsurance.section.${value}`), testId: `hr-insurance-section-${value}` })))
 const enrollmentStateItems = computed(() => (['all', ...HR_INSURANCE_ENROLLMENT_STATES] as const).map(value => ({
@@ -155,7 +154,7 @@ async function reloadProviders() {
           />
           <SharedFilterBar v-if="section === 'enrollments'" embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
             <SharedFilterField :label="t('hrInsurance.columns.employee')" for="hr-insurance-filter-employee">
-              <USelect id="hr-insurance-filter-employee" class="w-full" :model-value="employeeId ? String(employeeId) : undefined" :items="employeeOptions" :placeholder="t('hrInsurance.anyEmployee')" :disabled="!hydrated || employees.isLoading.value" data-testid="hr-insurance-filter-employee" @update:model-value="writeQuery({ employee: $event ? Number($event) : null, offset: 0 })" />
+              <EmployeeSearchSelect id="hr-insurance-filter-employee" :model-value="employeeId" :any-label="t('hrInsurance.anyEmployee')" :disabled="!hydrated" test-id="hr-insurance-filter-employee" @update:model-value="writeQuery({ employee: $event, offset: 0 })" />
             </SharedFilterField>
             <SharedFilterField :label="t('hrInsurance.columns.plan')" for="hr-insurance-filter-plan">
               <USelect id="hr-insurance-filter-plan" class="w-full" :model-value="planId ? String(planId) : undefined" :items="planOptions" :placeholder="t('hrInsurance.anyPlan')" :disabled="!hydrated || planChoices.isLoading.value" data-testid="hr-insurance-filter-plan" @update:model-value="writeQuery({ plan: $event ? Number($event) : null, offset: 0 })" />
