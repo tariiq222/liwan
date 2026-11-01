@@ -1,0 +1,30 @@
+{
+  "ack_pending": false,
+  "acknowledged_at": null,
+  "acknowledgement": "optional",
+  "contest_note": null,
+  "contested_at": null,
+  "corrective_action": "Arrive on time",
+  "date_issued": "2026-11-01",
+  "employee": {
+    "id": 2,
+    "name": "Warn Report"
+  },
+  "id": 1,
+  "issued_at": "2026-01-01T00:00:00Z",
+  "issued_by": {
+    "id": 4,
+    "name": "warn_hr"
+  },
+  "reason": "Late three times",
+  "revision": 2,
+  "state": "issued",
+  "type": {
+    "id": 3,
+    "name": "إنذار كتابي",
+    "severity": 20
+  },
+  "withdraw_reason": null,
+  "withdrawn_at": null,
+  "withdrawn_by": null
+}

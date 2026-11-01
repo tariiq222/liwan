@@ -1,0 +1,6 @@
+{
+  "revision": 0,
+  "warnings_employee_acknowledgement": "optional",
+  "warnings_escalation_window_months": 12,
+  "warnings_issued_by": "hr_only"
+}
