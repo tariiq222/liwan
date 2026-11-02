@@ -292,6 +292,11 @@ work, with explicit scopes and isolated mutable resources. Model selection does
 not authorize commit, push, merge, deployment or cleanup. Never retry exhausted
 quota or use paid API credentials as a hidden fallback.
 
+Implementation is delegated by default (owner decision 2026-11-02): the coordinator plans, writes the brief with
+explicit file ownership and checks, reviews the returned patch and re-runs the checks, while OpenCode (the
+`opencode-executor` skill) writes the bulk of the change. This does not relax any rule above or in
+`docs/parallel-work.md`: one writer per file, no commit, push, merge or cleanup without authorization.
+
 ## Repository layout and product state
 
 The addon-by-addon layout, the unified checkout state and the English product background are in
@@ -445,7 +450,11 @@ cross-addon links.
 Create every task worktree with `npm run wt -- new <area>-<slug> --owner <who> --task <what> --scope <path>`:
 it lives only in `<main checkout>/.worktrees/<area>-<slug>`, branches from `main` (or the task's
 integration branch) and records its owner and scopes. Never use a bare `git worktree add` or a tool's own
-worktree folder (the Claude app's `worktrees` folder under `.claude`). Overlapping another active claim needs `--allow-overlap
+worktree folder (the Claude app's `worktrees` folder under `.claude`). The one exception is the disposable
+detached worktree that the personal `opencode-executor` runner creates for a single delegated job (owner decision
+2026-11-02): it is never a task worktree, holds no branch, is never committed or pushed from, and is removed once its
+reviewed patch is applied or discarded; its patch is applied only to a registered task worktree or the main checkout
+under the usual ownership rules. Overlapping another active claim needs `--allow-overlap
 "<reason>"` agreed with its owner. `npm run wt -- check` reports violations and changes nothing; the full
 rules are in `docs/parallel-work.md` ("Worktree rules").
 
