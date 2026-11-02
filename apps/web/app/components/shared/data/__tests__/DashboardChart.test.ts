@@ -33,6 +33,20 @@ function loadProductionBarTooltip() {
   }) as (raw: unknown) => Record<string, unknown> | undefined
 }
 
+function loadProductionLineYDomain(rows: Array<Record<string, number | null>>) {
+  const ast = ts.createSourceFile('DashboardChart.ts', script, ts.ScriptTarget.Latest, true)
+  const declaration = ast.statements.find(statement =>
+    ts.isVariableStatement(statement) && statement.declarationList.declarations.some(item => ts.isIdentifier(item.name) && item.name.text === 'lineYDomain'),
+  )
+  if (!declaration) throw new Error('DashboardChart lineYDomain was not found')
+
+  const code = ts.transpileModule(`const lineRows = { value: rows }\n${declaration.getText(ast)}`, {
+    compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 },
+  }).outputText
+
+  return new Function('computed', 'rows', `${code}; return lineYDomain.value`)(computed, rows) as [number, number]
+}
+
 // Vue probes `then` to detect a promise and `__isScriptSetup` to decide
 // whether bindings may reach _ctx; answering either would hide the template.
 const INTERNAL_PROBES = new Set(['then', 'catch', 'finally'])
@@ -126,5 +140,24 @@ describe('DashboardChart production tooltip behavior', () => {
         values: { progress: 7 },
       },
     })).toEqual({ progress: 7 })
+  })
+})
+
+describe('DashboardChart line plot domain', () => {
+  it('starts at zero for non-negative values and keeps headroom above the highest', () => {
+    const [low, high] = loadProductionLineYDomain([{ x: 1, planned: 0 }, { x: 2, planned: 100, earned: 40 }])
+    expect(low).toBe(0)
+    expect(high).toBeCloseTo(108)
+  })
+
+  it('reaches below zero so a negative marker (a net refund) stays inside the plot', () => {
+    const [low, high] = loadProductionLineYDomain([{ x: 1, planned: 50 }, { x: 2, actual: -200 }])
+    expect(low).toBeCloseTo(-216)
+    expect(high).toBeCloseTo(54)
+  })
+
+  it('never collapses to an empty domain when every value is zero', () => {
+    const [low, high] = loadProductionLineYDomain([{ x: 1, planned: 0 }])
+    expect([low, high]).toEqual([0, 1.08])
   })
 })

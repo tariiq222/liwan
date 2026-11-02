@@ -163,6 +163,9 @@ class TestProjectEvm(LiwanPmoCase):
         self.assertEqual(self.env['liwan.pmo.settings'].evm_progress_method(), 'manual', 'a retained read keeps the method')
         refused = self._patch_task('api_mgr', self.t_half, {'percent_complete': 40})
         self.assertEqual((refused.status_code, refused.json()['field']), (422, 'percent_complete'))
+        detail = self.api('GET', f'/api/v1/tasks/{self.t_half.id}').json()
+        self.assertEqual(detail['progress_method'], 'manual')
+        self.assertNotIn('write_percent', detail['allowed_actions'], 'a downgraded tenant is not offered an edit that cannot save')
 
     # --- percent complete -----------------------------------------------------------------------------
     def _patch_task(self, login, task, body):
@@ -180,6 +183,17 @@ class TestProjectEvm(LiwanPmoCase):
         for bad in (101, -1, 'x', True, 4.5):
             response = self._patch_task('api_mgr', self.t_half, {'percent_complete': bad})
             self.assertEqual((response.status_code, response.json()['field']), (422, 'percent_complete'), bad)
+
+    def test_write_percent_is_offered_only_for_an_open_task_a_writer_edits_under_manual(self):
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+
+        def actions(task):
+            return self.api('GET', f'/api/v1/tasks/{task.id}').json()['allowed_actions']
+
+        self.assertNotIn('write_percent', actions(self.t_half), 'binary method')
+        self._method('manual')
+        self.assertIn('write_percent', actions(self.t_half))
+        self.assertNotIn('write_percent', actions(self.t_done), 'a closed task is fixed')
 
     def test_the_percent_of_a_closed_task_is_fixed(self):
         self._method('manual')

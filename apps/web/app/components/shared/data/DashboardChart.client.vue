@@ -119,7 +119,11 @@ const lineXDomain = computed<[number, number]>(() => {
   const xs = lineRows.value.map(row => row.x)
   return [Math.min(...xs), Math.max(...xs)]
 })
-const lineTop = computed(() => Math.max(1, ...lineRows.value.flatMap(row => Object.entries(row).filter(([key]) => key !== 'x').map(([, value]) => value ?? 0))) * 1.08)
+// The plot spans zero, the highest value and, for a net refund, the lowest (negative) marker, each with 8% headroom.
+const lineYDomain = computed<[number, number]>(() => {
+  const values = lineRows.value.flatMap(row => Object.entries(row).filter(([key]) => key !== 'x').map(([, value]) => value ?? 0))
+  return [Math.min(0, ...values) * 1.08, Math.max(1, ...values) * 1.08]
+})
 const dayFormatter = computed(() => new Intl.DateTimeFormat(locale.value, { month: 'short', day: 'numeric', timeZone: 'UTC' }))
 const compactFormatter = computed(() => new Intl.NumberFormat(locale.value, { notation: 'compact', maximumFractionDigits: 1 }))
 const barPalette = computed(() => bars.value?.palette ?? 'primary' as ChartPalette)
@@ -249,7 +253,7 @@ watch([mode, fontSize], () => { void nextTick(readTokens) }, { flush: 'post' })
       :style="{ '--vis-axis-tick-label-font-size': `var(--project-type-caption, ${fontSize === 'large' ? '16px' : '12px'})` }"
     >
       <div class="chart-line-plot min-w-0" dir="ltr" :style="{ height: `${Math.max(160, panelHeight - 56)}px` }">
-        <VisXYContainer :key="`${motionEpoch}-${isRtl}`" :data="lineRows" :height="Math.max(160, panelHeight - 56)" :x-domain="lineXDomain" :y-domain="[0, lineTop]" :duration="0">
+        <VisXYContainer :key="`${motionEpoch}-${isRtl}`" :data="lineRows" :height="Math.max(160, panelHeight - 56)" :x-domain="lineXDomain" :y-domain="lineYDomain" :duration="0">
           <VisLine :x="(row: LineRow) => row.x" :y="(row: LineRow) => row[lineKey]" :color="lineColor" :line-width="3" :curve-type="CurveType.Linear" :duration="0" />
           <VisScatter
             v-for="marker in line.markers"

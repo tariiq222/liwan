@@ -175,7 +175,7 @@ function onHoursChange() {
 // --- percent complete (earned value, manual method only) ----------------
 const percentDraft = ref(String(props.task.percent_complete))
 watch(() => props.task.percent_complete, (v) => { percentDraft.value = String(v) })
-const percentEditable = computed(() => props.task.progress_method === 'manual' && props.task.can_write && !props.task.is_closed)
+const percentEditable = computed(() => props.task.allowed_actions.includes('write_percent'))
 function onPercentChange() {
   const n = Number(percentDraft.value)
   // A whole number 0..100: anything else puts the saved value back instead of staying on screen unsaved.

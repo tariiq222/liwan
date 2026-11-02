@@ -177,6 +177,16 @@ def dump_task_attachment(attachment, task_id):
     return {**dump_attachment(attachment, task_attachments_route(task_id)), 'size': attachment.file_size}
 
 
+def _can_write_percent(task, method):
+    """The percent complete is editable on an open task the caller may write while the company counts progress `manual` and `pmo.evm` is writable."""
+    return (
+        method == 'manual'
+        and not task.is_closed
+        and bool(task._liwan_can_write())
+        and task.env['liwan.entitlement.service']._liwan_feature_write('pmo.evm')
+    )
+
+
 def dump_task_detail(task, today=None):
     today = _today(task, today)
     counts = task_counts(task | task.child_ids)
@@ -208,6 +218,7 @@ def dump_task_detail(task, today=None):
             *(['request_completion'] if task._liwan_can_request_completion() else []),
             *(['accept_completion', 'return_completion'] if task._liwan_can_decide_completion() else []),
             *(['withdraw_completion'] if task._liwan_can_withdraw_completion() else []),
+            *(['write_percent'] if _can_write_percent(task, method) else []),
         ],
         'can_manage_dependencies': bool(task._liwan_can_manage_dependencies()),
         'created_at': iso(task.create_date),

@@ -33,6 +33,7 @@ export const TaskDetailSchema = TaskSchema.extend({
   planned_start: CalendarDateSchema.nullable().default(null), deliverables: z.array(TaskDeliverableSchema).default([]),
   allowed_actions: z.array(z.enum([
     'read', 'write', 'archive', 'approve', 'request_completion', 'accept_completion', 'return_completion', 'withdraw_completion',
+    'write_percent',
   ])).optional().default([]),
   completion_pending: z.boolean(),
   completion_revision: z.number().int().nonnegative(),
