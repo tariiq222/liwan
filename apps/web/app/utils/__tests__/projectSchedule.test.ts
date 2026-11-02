@@ -111,3 +111,39 @@ describe('calendar-month schedule columns', () => {
     expect(axis.dates.slice(0, 2)).toEqual(['2026-01-01', '2026-04-01'])
   })
 })
+
+describe('baseline bars on the schedule axis', () => {
+  // The live work sits in January 2030; the baseline lies before it, after it, or across its start.
+  const cases = {
+    before: { start: '2029-11-05', end: '2029-11-20' },
+    after: { start: '2030-03-04', end: '2030-03-18' },
+    overlapping: { start: '2029-12-28', end: '2030-01-08' },
+  }
+  for (const scale of ['week', 'month'] as const) {
+    for (const [name, baseline] of Object.entries(cases)) {
+      it(`keeps a ${name} baseline whole inside the ${scale} axis`, () => {
+        const axis = buildScheduleAxis([task], [], scale, undefined, [baseline.start, baseline.end])
+        expect(axis.start <= baseline.start && axis.end > baseline.end).toBe(true)
+        const style = scheduleBarStyle(baseline, axis)
+        const from = Number.parseFloat(String(style.insetInlineStart))
+        const width = Number.parseFloat(String(style.width))
+        expect(from).toBeGreaterThanOrEqual(0)
+        expect(width).toBeGreaterThan(0)
+        expect(from + width).toBeLessThanOrEqual(100.0001)
+        // the live bar still fits too
+        const live = scheduleBarStyle(task, axis)
+        expect(Number.parseFloat(String(live.insetInlineStart)) + Number.parseFloat(String(live.width))).toBeLessThanOrEqual(100.0001)
+      })
+    }
+  }
+
+  it('would clamp a baseline before the live range without the extra dates (the defect being fixed)', () => {
+    const axis = buildScheduleAxis([task], [], 'week')
+    const style = scheduleBarStyle(cases.before, axis)
+    expect(Number.parseFloat(String(style.insetInlineStart))).toBe(0)
+  })
+
+  it('leaves an axis without extra dates unchanged', () => {
+    expect(buildScheduleAxis([task], [], 'week', undefined, [])).toEqual(buildScheduleAxis([task], [], 'week'))
+  })
+})

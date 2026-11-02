@@ -411,6 +411,8 @@
       "assetsDesc": "Assets assigned to you",
       "warnings": "My warnings",
       "warningsDesc": "Administrative warnings issued to you",
+      "insurance": "My insurance",
+      "insuranceDesc": "Your medical insurance cover",
       "schedule": "My schedule",
       "scheduleDesc": "Your current and upcoming work assignments",
       "noEmployee": "No employee profile linked to your account",
@@ -461,11 +463,16 @@
       "leaveApproved": "Your leave request ({dates}) was approved",
       "leaveRefused": "Your leave request ({dates}) was refused",
       "onboardingStep": "An onboarding step was assigned to you: {step}",
-      "warningIssued": "An administrative warning was issued to you: {type}"
+      "warningIssued": "An administrative warning was issued to you: {type}",
+      "insurancePlanExpiring": "The insurance plan \"{plan}\" is about to expire"
     },
     "lifecycleErrors": {
       "manager_missing": "Set the employee's manager on the employee page first, then try again.",
       "coach_missing": "Set the employee's coach on the employee page first, then try again."
+    },
+    "employeePicker": {
+      "search": "Search employees by name",
+      "more": "Showing the first matches. Type to narrow the list."
     }
   }
 }

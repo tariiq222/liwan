@@ -1,4 +1,4 @@
-import { HrLeaveBellRowSchema, HrOnboardingStepBellRowSchema, HrWarningBellRowSchema, type HrLeaveBellRow } from '@liwan/contracts'
+import { HrLeaveBellRowSchema, HrOnboardingStepBellRowSchema, HrInsuranceBellRowSchema, HrWarningBellRowSchema, type HrLeaveBellRow } from '@liwan/contracts'
 
 type Translate = (key: string, named?: Record<string, unknown>) => string
 
@@ -15,6 +15,8 @@ const TITLE_KEYS: Record<HrLeaveBellRow['kind'], string> = {
 export function hrBellTitle(row: Record<string, unknown>, t: Translate): string {
   const step = HrOnboardingStepBellRowSchema.safeParse(row)
   if (step.success) return t('hr.bell.onboardingStep', { step: step.data.title })
+  const insurance = HrInsuranceBellRowSchema.safeParse(row)
+  if (insurance.success) return t('hr.bell.insurancePlanExpiring', { plan: insurance.data.title })
   const warning = HrWarningBellRowSchema.safeParse(row)
   if (warning.success) return t('hr.bell.warningIssued', { type: warning.data.title })
   const parsed = HrLeaveBellRowSchema.safeParse(row)
@@ -25,6 +27,7 @@ export function hrBellTitle(row: Record<string, unknown>, t: Translate): string 
 /** The page a bell row opens: the employee's own leave of a decision row, their onboarding tasks for a step row, or their warnings. */
 export function hrBellHref(row: Record<string, unknown>): string | null {
   if (row.kind === 'hr.warning_issued') return '/account/warnings'
+  if (row.kind === 'hr.insurance_plan_expiring') return typeof row.plan_id === 'number' ? `/hr/insurance/plans/${row.plan_id}` : '/hr/insurance'
   if (row.kind === 'hr.onboarding_step') return '/account/onboarding'
   return typeof row.leave_id === 'number' ? `/account/leave/${row.leave_id}` : null
 }

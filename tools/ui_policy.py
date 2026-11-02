@@ -83,6 +83,7 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'access/branches/BranchRoleAssignments.vue',
     'hr/shifts/ShiftSettingsForm.vue',
     'hr/warnings/WarningSettingsForm.vue', 'hr/warnings/WarningTypesCard.vue',
+    'hr/insurance/InsuranceSettingsForm.vue', 'hr/insurance/InsuranceProvidersCard.vue',
     'hr/LeaveSettingsForm.vue', 'hr/LeaveApprovalCard.vue',
     'documents/DocumentEditor.vue',
     'hr/payroll/PayslipDocument.vue',

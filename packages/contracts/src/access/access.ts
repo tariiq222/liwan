@@ -43,6 +43,8 @@ export const KNOWN_CAPABILITIES = [
   'hr.assets.manage',
   'hr.warnings.read',
   'hr.warnings.manage',
+  'hr.insurance.read',
+  'hr.insurance.manage',
   'hr.payroll.read',
   'hr.payroll.manage',
   'hr.payroll.approve',

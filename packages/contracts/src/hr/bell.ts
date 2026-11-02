@@ -36,7 +36,20 @@ export const HrWarningBellRowSchema = z.looseObject({
   is_read: z.boolean(),
 })
 
+export const HrInsuranceBellKindSchema = z.literal('hr.insurance_plan_expiring')
+
+/** An expiry bell row for the insurance managers: it points at the plan and its `title` is the plan name, never a member. */
+export const HrInsuranceBellRowSchema = z.looseObject({
+  id: z.number().int().positive(),
+  kind: HrInsuranceBellKindSchema,
+  plan_id: z.number().int().positive(),
+  title: z.string(),
+  created_at: z.string(),
+  is_read: z.boolean(),
+})
+
 export type HrLeaveBellKind = z.infer<typeof HrLeaveBellKindSchema>
 export type HrLeaveBellRow = z.infer<typeof HrLeaveBellRowSchema>
 export type HrOnboardingStepBellRow = z.infer<typeof HrOnboardingStepBellRowSchema>
 export type HrWarningBellRow = z.infer<typeof HrWarningBellRowSchema>
+export type HrInsuranceBellRow = z.infer<typeof HrInsuranceBellRowSchema>

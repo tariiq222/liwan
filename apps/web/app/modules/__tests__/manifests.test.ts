@@ -74,6 +74,7 @@ describe('app manifests', () => {
     ['/hr/offboarding', 'hr.offboarding.read'], ['/hr/offboarding/new', 'hr.offboarding.manage'],
     ['/hr/assets/4', 'hr.assets.read'], ['/account/assets', 'hr.employees.read'], ['/hr/assets/categories/new', 'hr.assets.manage'],
     ['/hr/warnings', 'hr.warnings.read'], ['/hr/warnings/new', 'hr.employees.read'], ['/hr/warnings/4', 'hr.employees.read'], ['/hr/warnings/4/extra', 'hr.warnings.read'], ['/account/warnings', 'hr.employees.read'],
+    ['/hr/insurance', 'hr.insurance.read'], ['/hr/insurance/enrollments/4', 'hr.insurance.read'], ['/hr/insurance/enrollments/new', 'hr.insurance.manage'], ['/hr/insurance/plans/new', 'hr.insurance.manage'], ['/hr/insurance/plans/3', 'hr.insurance.read'], ['/account/insurance', 'hr.employees.read'],
     ['/hr/payroll', 'hr.payroll.read'], ['/hr/payroll/4', 'hr.payroll.read'], ['/hr/payroll/4/payslips/9', 'hr.payroll.read'],
     ['/hr/payroll/new', 'hr.payroll.manage'],
     ['/account/pay', 'hr.employees.read'], ['/account/pay/7', 'hr.employees.read'],
@@ -92,6 +93,7 @@ describe('app manifests', () => {
     ['/documents/2', '/documents', true],
     ['/account/assets', '/account/assets', true], ['/account/assets', '/hr/assets', false], ['/hr/assets/4', '/hr/assets', true],
     ['/account/warnings', '/account/warnings', true], ['/account/warnings', '/hr/warnings', false], ['/hr/warnings/4', '/hr/warnings', true],
+    ['/account/insurance', '/account/insurance', true], ['/account/insurance', '/hr/insurance', false], ['/hr/insurance/enrollments/4', '/hr/insurance', true],
     ['/account/pay', '/account/pay', true], ['/account/pay/7', '/account/pay', true], ['/account/pay', '/hr/payroll', false],
     ['/account/pay/7', '/hr/payroll', false], ['/hr/payroll', '/hr/payroll', true], ['/hr/payroll/new', '/hr/payroll', true],
     ['/hr/payroll/4/payslips/9', '/hr/payroll', true]
@@ -244,6 +246,10 @@ describe('palette declarations', () => {
       expect(pinned[0]).toMatchObject({ to, capability, labelKey: command.labelKey })
     })
 
+    it('pins the HR create link on the insurance area, and the plans and enrollments panels need the manage capability', () => {
+      expect(links('/hr/insurance/enrollments/4').filter(link => link.pinned)).toMatchObject([{ id: 'new-insurance-enrollment', to: '/hr/insurance/enrollments/new', capability: 'hr.insurance.manage' }])
+    })
+
     it('pins the HR create link on the warnings area, and offers no palette command the server flag cannot gate', () => {
       expect(links('/hr/warnings/4').filter(link => link.pinned)).toMatchObject([{ id: 'new-warning', to: '/hr/warnings/new', capability: 'hr.warnings.manage' }])
       expect(hr.commands!.some(entry => entry.to === '/hr/warnings/new')).toBe(false)
@@ -256,7 +262,7 @@ describe('palette declarations', () => {
         expect(links(path).filter(link => link.id.startsWith('section-')).map(link => link.id), path).toEqual(sectionIds)
       }
       expect(subIds('/hr/recruitment/12')).toEqual(['recruitment', 'recruitment-jobs'])
-      expect(subIds('/hr/employees/7')).toEqual(['employees', 'departments', 'onboarding', 'offboarding', 'assets', 'warnings', 'reports'])
+      expect(subIds('/hr/employees/7')).toEqual(['employees', 'departments', 'onboarding', 'offboarding', 'assets', 'warnings', 'insurance', 'reports'])
       expect(subIds('/hr/shifts/schedules')).toEqual(['leave', 'shifts'])
       expect(subIds('/hr/payroll/4/gosi')).toEqual(['payroll'])
     })

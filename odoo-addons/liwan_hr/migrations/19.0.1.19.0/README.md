@@ -1,0 +1,1 @@
+The insurance tables (providers, plans, enrollments, dependents, settings) are new and start empty, and the expiry cron is new data. Odoo creates both when the module is updated, so no script is needed.

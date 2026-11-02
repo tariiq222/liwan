@@ -33,10 +33,12 @@ const { t, locale, localeProperties } = useI18n()
 const isRtl = computed(() => localeProperties.value.dir === 'rtl')
 const route = useRoute()
 const hydrated = useHydrated()
+// The baseline bars share the axis: work that moved outside the baseline range must not clamp or collapse them.
+const baselineDates = computed(() => Object.values(props.baseline?.tasks ?? {}).flatMap(task => [task.start, task.end]))
 const axis = computed(() => buildScheduleAxis(props.schedule.tasks, props.schedule.milestones, props.scale, {
   start: props.projectStart,
   end: props.projectEnd,
-}))
+}, baselineDates.value))
 const datedMilestones = computed(() => props.schedule.milestones.filter(item => item.deadline))
 const today = computed(() => hydrated.value ? new Date().toISOString().slice(0, 10) : '')
 const showToday = computed(() => !!today.value && today.value >= axis.value.start && today.value < axis.value.end)

@@ -166,6 +166,12 @@ describe('access policy navigation', () => {
       expect(canReachPath(hrTenant(['hr.enabled']), '/account/warnings')).toBe(false)
       expect(canReachPath(hrTenant(['hr.enabled', 'hr.warnings']), '/account/warnings')).toBe(true)
     })
+    it('gates /account/insurance by hr.employees.read and the hr.insurance sub-feature', () => {
+      expect(requiredCapabilityForPath('/account/insurance')).toBe('hr.employees.read')
+      expect(requiredFeatureForPath('/account/insurance')).toBe('hr.insurance')
+      expect(canReachPath(hrTenant(['hr.enabled']), '/account/insurance')).toBe(false)
+      expect(canReachPath(hrTenant(['hr.enabled', 'hr.insurance']), '/account/insurance')).toBe(true)
+    })
     it('canReach adds the explicit feature to the capability gates only when given', () => {
       const off = hrTenant(['hr.enabled'])
       expect(canReach(off, 'hr.employees.read', '/account/assets')).toBe(true)

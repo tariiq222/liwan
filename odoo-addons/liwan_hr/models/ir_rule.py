@@ -52,6 +52,9 @@ class LiwanHrIrRule(models.Model):
         if model_name == 'liwan.hr.warning' and mode == 'read' and not self.env.su \
                 and not self.env.user.has_group('base.group_system'):
             domain &= self._liwan_warning_read_fence()
+        if model_name == 'liwan.hr.insurance.dependent' and mode == 'read' and not self.env.su \
+                and not self.env.user.has_group('base.group_system'):
+            domain &= self._liwan_insurance_dependent_read_fence()
         if model_name == 'liwan.hr.leave.settings' and not self.env.su:
             service = self.env['liwan.access.service']
             companies = set()
@@ -87,6 +90,22 @@ class LiwanHrIrRule(models.Model):
             fence |= (Domain('create_uid', '=', self.env.uid) & Domain('company_id', '=', company.id)
                       & Domain('employee_id.parent_id.user_id', '=', self.env.uid))
         return fence
+
+    @api.model
+    def _liwan_insurance_dependent_read_fence(self):
+        """An employee reads their dependents only when the company's visibility policy shows them.
+
+        The insurance readers of the current company always read them. For everyone else the policy decides, so a
+        company on `own_enrollment_only` shows an employee their enrollment and never the dependents under it.
+        """
+        company = self.env.company
+        service = self.env['liwan.access.service']
+        if service._liwan_has_capability(self.env.user, 'hr.insurance.read', company=company):
+            return Domain.TRUE
+        if not service._liwan_has_capability(self.env.user, 'hr.employees.read', company=company):
+            return Domain.FALSE
+        policy = self.env['liwan.hr.insurance.settings']._liwan_effective(company)
+        return Domain.TRUE if policy['insurance_visibility'] == 'own_enrollment_and_dependents' else Domain.FALSE
 
     @api.model
     def _liwan_leave_extra_read_domain(self):

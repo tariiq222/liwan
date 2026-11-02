@@ -244,6 +244,19 @@ class TestProjectBaseline(LiwanPmoCase):
                 [self.project.id, self.project.currency_id.id, self.manager.id, change.id],
             )
 
+    def test_a_change_that_covers_a_baseline_is_no_longer_offered(self):
+        self._approve_charter()
+        self._param('change_control_mode', 'required')
+        self.project.sudo().write({'liwan_phase': 'executing'})
+        first, second = self._approved_change(), self._approved_change()
+        offered = lambda: [item['id'] for item in self._call('api_mgr', 'GET', self.base).json()['coverable_changes']]  # noqa: E731
+        self.assertEqual(sorted(offered()), sorted([first.id, second.id]))
+        self._taken(change_id=first.id)
+        self.assertEqual(offered(), [second.id])
+        self._taken(change_id=second.id)
+        listed = self._call('api_mgr', 'GET', self.base).json()
+        self.assertEqual((listed['coverable_changes'], listed['change_required']), ([], True), 'nothing left to cover a new baseline')
+
     def test_the_number_is_read_from_the_table_after_the_lock(self):
         self._approve_charter()
         Baseline = self.env['liwan.project.baseline']

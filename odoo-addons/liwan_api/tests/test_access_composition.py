@@ -19,7 +19,11 @@ HR = frozenset({
     'hr.onboarding.read', 'hr.onboarding.manage',
     'hr.offboarding.read', 'hr.offboarding.manage',
     'hr.assets.read', 'hr.assets.manage',
-    'hr.warnings.read', 'hr.warnings.manage',
+})
+# Warnings and insurance hold employee-private data behind their own keys: only the HR manager role grants them,
+# never vendor support or the legacy stock HR group.
+PRIVATE_HR = frozenset({
+    'hr.warnings.read', 'hr.warnings.manage', 'hr.insurance.read', 'hr.insurance.manage',
 })
 # Payroll is a section of liwan_hr behind its own keys: no HR role or group grants them.
 PAYROLL = frozenset({
@@ -38,7 +42,7 @@ EMPLOYEE = frozenset({
     'pmo.projects.read', 'pmo.tasks.read', 'pmo.tasks.create', 'pmo.tasks.write',
     'meetings.read',
 })
-CATALOG = SYSTEM | HR | PAYROLL | PMO | MEETINGS
+CATALOG = SYSTEM | HR | PRIVATE_HR | PAYROLL | PMO | MEETINGS
 # These tests pin today's applications. An application added later extends the
 # composition with its own keys, roles and groups; those are checked only for
 # what every application must satisfy (an installed owner, one domain per key).
@@ -71,6 +75,8 @@ DEPENDENCIES = {
     'hr.assets.manage': {'hr.assets.read'},
     'hr.warnings.read': {'hr.employees.read'},
     'hr.warnings.manage': {'hr.warnings.read'},
+    'hr.insurance.read': {'hr.employees.read'},
+    'hr.insurance.manage': {'hr.insurance.read'},
     'hr.payroll.read': {'hr.employees.read'},
     'hr.payroll.manage': {'hr.payroll.read'},
     'hr.payroll.approve': {'hr.payroll.read'},
@@ -120,10 +126,10 @@ class TestAccessComposition(TransactionCase):
     def _group(self, key):
         return self.env.ref(self.Permission.search([('key', '=', key)]).group_xmlid)
 
-    def test_catalog_has_the_approved_52_keys_each_owned_by_one_addon(self):
+    def test_catalog_has_the_approved_54_keys_each_owned_by_one_addon(self):
         catalog = self.service._liwan_capability_map()
         self.assertEqual(self._release(catalog), CATALOG)
-        self.assertEqual(len(self._release(catalog)), 52)
+        self.assertEqual(len(self._release(catalog)), 54)
         permissions = self.Permission.search([])
         self.assertEqual(sorted(permissions.mapped('key')), sorted(catalog))
         installed = set(self.env['ir.module.module'].search([('state', '=', 'installed')]).mapped('name'))
@@ -138,10 +144,10 @@ class TestAccessComposition(TransactionCase):
 
     def test_builtin_roles_hold_the_approved_grants(self):
         self.assertEqual(self._role_keys('employee'), EMPLOYEE)
-        self.assertEqual(self._role_keys('hr_manager'), HR)
+        self.assertEqual(self._role_keys('hr_manager'), HR | PRIVATE_HR)
         self.assertEqual(self._role_keys('pmo_manager'), PMO)
         self.assertEqual(self._role_keys('system_admin'), SYSTEM | MEETINGS)
-        self.assertEqual(self._role_keys('vendor_support'), CATALOG - PAYROLL)
+        self.assertEqual(self._role_keys('vendor_support'), CATALOG - PAYROLL - PRIVATE_HR)
         self.assertEqual(self._role_keys('payroll_manager'), PAYROLL)
         self.assertLessEqual(
             BUILT_IN_ROLES,
@@ -169,7 +175,7 @@ class TestAccessComposition(TransactionCase):
             permission.key for permission in self.Permission.search([])
             if self.env.ref(permission.group_xmlid) in vendor.all_implied_ids
         }
-        self.assertEqual(self._release(implied_keys), CATALOG - PAYROLL - {'meetings.read', 'meetings.create'})
+        self.assertEqual(self._release(implied_keys), CATALOG - PAYROLL - PRIVATE_HR - {'meetings.read', 'meetings.create'})
         access_admin = self.env.ref('liwan_core.group_access_admin')
         self.assertIn(self._group('meetings.manage'), access_admin.all_implied_ids)
         legacy_admin = self.env.ref('liwan_core.group_customer_admin')

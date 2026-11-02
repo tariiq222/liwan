@@ -39,6 +39,14 @@ describe('hr leave bell rows', () => {
     expect(canReachPath({ capabilities: ['hr.employees.read'], platform: { readable_features: ['hr.enabled'], writable_features: [] } }, '/account/warnings')).toBe(false)
   })
 
+  it('words an expiring plan with its name only and opens the plan record', () => {
+    const expiring = { id: 4, kind: 'hr.insurance_plan_expiring', plan_id: 3, title: 'Gold 2026', created_at: '2026-11-01T09:00:00Z', is_read: false }
+    expect(hrBellTitle(expiring, translator(arHr))).toBe('خطة التأمين «Gold 2026» توشك على الانتهاء')
+    expect(hrBellTitle(expiring, translator(enHr))).toBe('The insurance plan "Gold 2026" is about to expire')
+    expect(hrBellHref(expiring)).toBe('/hr/insurance/plans/3')
+    expect(hrBellHref({ kind: 'hr.insurance_plan_expiring' })).toBe('/hr/insurance')
+  })
+
   it('falls back to the plain title for a row that breaks the contract', () => {
     expect(hrBellTitle({ ...row('hr.leave_approved'), leave_id: 'x' }, translator(enHr))).toBe('2026-11-02 - 2026-11-03')
   })
@@ -51,6 +59,6 @@ describe('hr leave bell rows', () => {
     expect(hrBellHref({ kind: 'hr.leave_approved' })).toBeNull()
     // A custom role with only hr.employees.read still gets the bell for its own warnings.
     expect(manifest.bell?.capabilities).toEqual(['hr.employees.read'])
-    expect(manifest.bell?.kinds?.map(kind => kind.kind)).toEqual(['hr.leave_approved', 'hr.leave_refused', 'hr.onboarding_step', 'hr.warning_issued'])
+    expect(manifest.bell?.kinds?.map(kind => kind.kind)).toEqual(['hr.leave_approved', 'hr.leave_refused', 'hr.onboarding_step', 'hr.warning_issued', 'hr.insurance_plan_expiring'])
   })
 })

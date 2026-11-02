@@ -1,6 +1,6 @@
 // Synthetic rows for the five employee-lifecycle HR areas (shifts, assets, recruitment, onboarding,
 // offboarding) of the isolated mock (MODULE_UI_PREVIEW=1). Shapes follow packages/contracts/src/hr.
-// Reads only, except the administrative warnings (below), which keep state like the payroll preview. Row 1 of each list is the row the specs open.
+// Reads only, except the administrative warnings and the medical insurance (below), which keep state like the payroll preview. Row 1 of each list is the row the specs open.
 const OPS = { id: 1, name: 'إدارة العمليات' }
 const PEOPLE = { id: 2, name: 'الموارد البشرية' }
 const SARA = { id: 1, name: 'سارة محمد' }
@@ -340,10 +340,249 @@ export function hrWarningsPreviewWrite(method, route, body) {
   return { status: 200, body: row }
 }
 
+// ---- Medical insurance ----
+// Stateful like the warnings preview: hrInsurancePreviewWrite() changes these rows and POST /api/v1/__mock/reset-insurance
+// restores the seeds. The signed-in employee is SARA (the `/me` rows); the mock admin manages insurance.
+const INSURANCE_PEOPLE = [SARA, KHALID, MONA, LAILA]
+const dayFromToday = days => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10)
+let insProviders
+let insPlans
+let insEnrollments
+let insDependents
+let insSettings
+let insNext
+
+function seedInsurance() {
+  insProviders = [
+    { id: 1, name: 'بوبا العربية', active: true, revision: 1 },
+    { id: 2, name: 'التعاونية', active: true, revision: 1 },
+    { id: 3, name: 'مزوّد سابق', active: false, revision: 2 },
+  ]
+  const plan = (id, providerId, name, tier, from, to, over = {}) => ({
+    id, provider_id: providerId, name, tier, policy_number: `POL-${2000 + id}`, valid_from: dayFromToday(from), valid_to: dayFromToday(to),
+    annual_premium: 4800, active: true, revision: 1, ...over,
+  })
+  insPlans = [
+    plan(1, 1, 'الباقة الذهبية 2026', 'ذهبية', -200, 160),
+    plan(2, 2, 'الباقة الفضية 2026', 'فضية', -300, 25, { annual_premium: 3200 }),
+    plan(3, 1, 'باقة 2025', 'قياسية', -600, -40),
+    plan(4, 2, 'باقة قديمة', null, -900, -500, { active: false, annual_premium: null }),
+  ]
+  const enrollment = (id, employee, planId, over = {}) => ({
+    id, employee, plan_id: planId, member_number: `MBR-77700${id}`, date_from: dayFromToday(-120), date_to: null, state: 'active',
+    employee_share: 120, company_share: 380, notes: id === 1 ? 'تأمين شامل للأسنان.' : null, revision: 1, ...over,
+  })
+  insEnrollments = [
+    enrollment(1, SARA, 1),
+    enrollment(2, KHALID, 1, { employee_share: null, company_share: 500 }),
+    enrollment(3, MONA, 2, { date_from: dayFromToday(-250) }),
+    enrollment(4, LAILA, 3, { date_from: dayFromToday(-500), date_to: dayFromToday(-100), state: 'ended' }),
+  ]
+  const dependent = (id, enrollmentId, name, relation, nationalId, over = {}) => ({
+    id, enrollment_id: enrollmentId, name, relation, birth_date: '2017-04-12', national_id: nationalId, date_from: dayFromToday(-120), date_to: null, state: 'active', revision: 1, ...over,
+  })
+  insDependents = [
+    dependent(1, 1, 'عمر محمد', 'child', '1098765432'),
+    dependent(2, 1, 'نورة العلي', 'spouse', '1098765999', { birth_date: '1990-03-02' }),
+    dependent(3, 2, 'ريم الشمري', 'child', null),
+  ]
+  insSettings = { insurance_visibility: 'own_enrollment_and_dependents', insurance_expiry_alert_days: 60, insurance_require_dependent_id: false, revision: 1 }
+  insNext = { provider: 4, plan: 5, enrollment: 5, dependent: 4 }
+}
+seedInsurance()
+
+const insRefusal = warningRefusal
+const insProvider = id => insProviders.find(row => row.id === id)
+const planState = row => (!row.active ? 'archived' : row.valid_to < dayFromToday(0) ? 'expired' : 'active')
+const daysLeft = row => Math.round((Date.parse(row.valid_to) - Date.parse(dayFromToday(0))) / 86400000)
+const insPlanView = row => ({
+  id: row.id, provider: { id: row.provider_id, name: insProvider(row.provider_id).name }, name: row.name, tier: row.tier, policy_number: row.policy_number,
+  valid_from: row.valid_from, valid_to: row.valid_to, annual_premium: row.annual_premium, state: planState(row),
+  expires_in_days: row.active ? daysLeft(row) : null, active: row.active, revision: row.revision,
+})
+const insPlanRef = row => { const { id, provider, name, tier, valid_from, valid_to } = insPlanView(row); return { id, provider, name, tier, valid_from, valid_to } }
+const insDependentView = (row, full) => ({
+  id: row.id, enrollment_id: row.enrollment_id, name: row.name, relation: row.relation, birth_date: row.birth_date,
+  national_id_masked: row.national_id ? `******${row.national_id.slice(-4)}` : null, national_id: full ? row.national_id : null,
+  date_from: row.date_from, date_to: row.date_to, state: row.state, revision: row.revision,
+})
+const insEnd = row => row.date_to ?? insPlans.find(plan => plan.id === row.plan_id).valid_to
+const insCore = row => ({
+  id: row.id, employee: row.employee, member_number: row.member_number, date_from: row.date_from, date_to: row.date_to, date_end: insEnd(row), state: row.state === 'active' && insEnd(row) < dayFromToday(0) ? 'lapsed' : row.state,
+  employee_share: row.employee_share || null, company_share: row.company_share || null, revision: row.revision,
+})
+const insEnrollmentView = (row, detail) => {
+  const own = insDependents.filter(item => item.enrollment_id === row.id)
+  const plan = insPlans.find(item => item.id === row.plan_id)
+  return detail
+    ? { ...insCore(row), plan: insPlanView(plan), dependents_count: own.filter(item => item.state === 'active').length, notes: row.notes, dependents: own.map(item => insDependentView(item, true)) }
+    : { ...insCore(row), plan: insPlanRef(plan), dependents_count: own.filter(item => item.state === 'active').length }
+}
+const insOwnView = row => {
+  const shown = insSettings.insurance_visibility === 'own_enrollment_and_dependents'
+  return { ...insCore(row), plan: insPlanRef(insPlans.find(item => item.id === row.plan_id)), dependents_visible: shown, dependents: shown ? insDependents.filter(item => item.enrollment_id === row.id).map(item => insDependentView(item, false)) : [] }
+}
+const insCovering = () => insEnrollments.filter(row => row.state === 'active' && row.date_from <= dayFromToday(0) && insEnd(row) >= dayFromToday(0))
+const insSummary = () => {
+  const covering = insCovering()
+  const dependents = insDependents.filter(item => item.state === 'active' && covering.some(row => row.id === item.enrollment_id)).length
+  const horizon = dayFromToday(insSettings.insurance_expiry_alert_days)
+  return {
+    active_members: covering.length + dependents, active_enrollments: covering.length, active_dependents: dependents,
+    expiring_plans: insPlans.filter(row => row.active && row.valid_to >= dayFromToday(0) && row.valid_to <= horizon).length,
+    employees_without_insurance: INSURANCE_PEOPLE.length - new Set(covering.map(row => row.employee.id)).size,
+    expiry_alert_days: insSettings.insurance_expiry_alert_days,
+  }
+}
+
+function insuranceData(route, url) {
+  if (route === '/api/v1/hr/insurance/settings') return insSettings
+  if (route === '/api/v1/hr/insurance/summary') return insSummary()
+  if (route === '/api/v1/hr/insurance/providers') {
+    const all = url.searchParams.get('active') === 'all'
+    return page(insProviders.filter(row => all || row.active), url)
+  }
+  if (route === '/api/v1/hr/insurance/me') return page(insEnrollments.filter(row => row.employee.id === SARA.id && row.state !== 'cancelled').map(insOwnView), url)
+  if (route === '/api/v1/hr/insurance/plans') {
+    const state = url.searchParams.get('state')
+    const provider = numberParam(url, 'provider_id')
+    return page(insPlans.filter(row => (state ? planState(row) === state : row.active) && (!provider || row.provider_id === provider)).map(insPlanView), url)
+  }
+  const planRoute = /^\/api\/v1\/hr\/insurance\/plans\/(\d+)$/.exec(route)
+  if (planRoute) { const row = insPlans.find(item => item.id === Number(planRoute[1])); return row && insPlanView(row) }
+  if (route === '/api/v1/hr/insurance/enrollments') {
+    const employee = numberParam(url, 'employee_id')
+    const plan = numberParam(url, 'plan_id')
+    const state = url.searchParams.get('state')
+    const horizon = dayFromToday(insSettings.insurance_expiry_alert_days)
+    const expiring = url.searchParams.get('expiring') === 'true'
+    return page(insEnrollments.filter(row => (!employee || row.employee.id === employee) && (!plan || row.plan_id === plan) && (!state || row.state === state)
+      && (!expiring || (row.state === 'active' && insEnd(row) >= dayFromToday(0) && insEnd(row) <= horizon))).map(row => insEnrollmentView(row, false)), url)
+  }
+  const enrollmentRoute = /^\/api\/v1\/hr\/insurance\/enrollments\/(\d+)$/.exec(route)
+  if (enrollmentRoute) { const row = insEnrollments.find(item => item.id === Number(enrollmentRoute[1])); return row && insEnrollmentView(row, true) }
+  return undefined
+}
+
+/** The write routes of the insurance preview: `{status, body}`, or undefined for a route this preview does not own. */
+export function hrInsurancePreviewWrite(method, route, body) {
+  if (method === 'POST' && route === '/api/v1/__mock/reset-insurance') { seedInsurance(); return { status: 200, body: { ok: true } } }
+  const stale = (row, revision) => revision !== row.revision && insRefusal(409, 'conflict', 'تغيّر السجل؛ أعد التحميل قبل الحفظ.')
+  const text = value => String(value ?? '').trim()
+  if (method === 'PATCH' && route === '/api/v1/hr/insurance/settings') {
+    if (body.revision !== insSettings.revision) return insRefusal(409, 'conflict', 'تغيّرت الإعدادات؛ أعد التحميل قبل الحفظ.')
+    const days = body.insurance_expiry_alert_days
+    if (!Number.isInteger(days) || days < 1 || days > 365) return insRefusal(422, 'invalid', 'مدة التنبيه من يوم إلى 365 يومًا.', 'insurance_expiry_alert_days')
+    insSettings = { insurance_visibility: body.insurance_visibility, insurance_expiry_alert_days: days, insurance_require_dependent_id: body.insurance_require_dependent_id === true, revision: insSettings.revision + 1 }
+    return { status: 200, body: insSettings }
+  }
+  if (method === 'POST' && route === '/api/v1/hr/insurance/providers') {
+    if (!text(body.name)) return insRefusal(422, 'invalid', 'اسم المزوّد مطلوب.', 'name')
+    if (insProviders.some(row => row.name === text(body.name))) return insRefusal(409, 'conflict', 'يوجد مزوّد بهذا الاسم.')
+    const row = { id: insNext.provider++, name: text(body.name), active: true, revision: 1 }
+    insProviders.push(row)
+    return { status: 201, body: row }
+  }
+  const providerRoute = /^\/api\/v1\/hr\/insurance\/providers\/(\d+)$/.exec(route)
+  if (method === 'PATCH' && providerRoute) {
+    const row = insProvider(Number(providerRoute[1]))
+    if (!row) return insRefusal(404, 'not_found', 'المزوّد غير موجود.')
+    const refusal = stale(row, body.revision)
+    if (refusal) return refusal
+    Object.assign(row, { ...(body.name !== undefined && { name: text(body.name) }), ...(body.active !== undefined && { active: body.active }), revision: row.revision + 1 })
+    return { status: 200, body: row }
+  }
+  if (method === 'POST' && route === '/api/v1/hr/insurance/plans') {
+    if (!insProviders.some(row => row.id === body.provider_id && row.active)) return insRefusal(422, 'invalid', 'اختر مزوّدًا فعّالًا.', 'provider_id')
+    if (!text(body.name)) return insRefusal(422, 'invalid', 'اسم الخطة مطلوب.', 'name')
+    if (body.valid_to < body.valid_from) return insRefusal(422, 'invalid', 'لا يجوز أن تسبق النهاية البداية.', 'valid_to')
+    const row = { id: insNext.plan++, provider_id: body.provider_id, name: text(body.name), tier: text(body.tier) || null, policy_number: text(body.policy_number) || null, valid_from: body.valid_from, valid_to: body.valid_to, annual_premium: body.annual_premium || null, active: true, revision: 1 }
+    insPlans.push(row)
+    return { status: 201, body: insPlanView(row) }
+  }
+  const planRoute = /^\/api\/v1\/hr\/insurance\/plans\/(\d+)$/.exec(route)
+  if (method === 'PATCH' && planRoute) {
+    const row = insPlans.find(item => item.id === Number(planRoute[1]))
+    if (!row) return insRefusal(404, 'not_found', 'الخطة غير موجودة.')
+    const refusal = stale(row, body.revision)
+    if (refusal) return refusal
+    const next = { ...row, ...Object.fromEntries(Object.entries(body).filter(([key]) => key !== 'revision')) }
+    if (next.valid_to < next.valid_from) return insRefusal(422, 'invalid', 'لا يجوز أن تسبق النهاية البداية.', 'valid_to')
+    const outside = insEnrollments.some(item => item.plan_id === row.id && item.state !== 'cancelled' && (item.date_from < next.valid_from || (item.date_to ?? next.valid_to) > next.valid_to))
+    if (outside) return insRefusal(422, 'invalid', 'يجب أن تبقي تواريخ الخطة كل تسجيل داخلها.', 'valid_to')
+    Object.assign(row, { ...next, tier: text(next.tier) || null, policy_number: text(next.policy_number) || null, annual_premium: next.annual_premium || null, revision: row.revision + 1 })
+    return { status: 200, body: insPlanView(row) }
+  }
+  if (method === 'POST' && route === '/api/v1/hr/insurance/enrollments') {
+    const employee = INSURANCE_PEOPLE.find(row => row.id === body.employee_id)
+    const plan = insPlans.find(row => row.id === body.plan_id && row.active)
+    if (!employee) return insRefusal(422, 'invalid', 'اختر موظفًا.', 'employee_id')
+    if (!plan) return insRefusal(422, 'invalid', 'اختر خطة فعّالة.', 'plan_id')
+    if (body.date_from < plan.valid_from || (body.date_to ?? plan.valid_to) > plan.valid_to) return insRefusal(422, 'invalid', 'يجب أن تقع تواريخ التسجيل داخل صلاحية الخطة.', 'date_from')
+    const end = body.date_to ?? plan.valid_to
+    if (insEnrollments.some(row => row.employee.id === employee.id && row.state !== 'cancelled' && row.date_from <= end && insEnd(row) >= body.date_from)) return insRefusal(422, 'invalid', 'للموظف تسجيل تأميني آخر في هذه الفترة.', 'date_from')
+    const row = { id: insNext.enrollment++, employee, plan_id: plan.id, member_number: text(body.member_number) || null, date_from: body.date_from, date_to: body.date_to ?? null, state: 'active', employee_share: body.employee_share ?? 0, company_share: body.company_share ?? 0, notes: text(body.notes) || null, revision: 1 }
+    insEnrollments.push(row)
+    return { status: 201, body: insEnrollmentView(row, true) }
+  }
+  const enrollmentRoute = /^\/api\/v1\/hr\/insurance\/enrollments\/(\d+)(?:\/(end|cancel|dependents))?$/.exec(route)
+  if (enrollmentRoute) {
+    const row = insEnrollments.find(item => item.id === Number(enrollmentRoute[1]))
+    if (!row) return insRefusal(404, 'not_found', 'التسجيل غير موجود.')
+    const [, , action] = enrollmentRoute
+    const inactive = () => row.state !== 'active' && insRefusal(409, 'conflict', 'لا يمكن تنفيذ هذه الخطوة في حالة التسجيل الحالية.')
+    if (method === 'PATCH' && !action) {
+      const refusal = stale(row, body.revision) || inactive()
+      if (refusal) return refusal
+      Object.assign(row, { ...(body.employee_share !== undefined && { employee_share: body.employee_share }), ...(body.company_share !== undefined && { company_share: body.company_share }), ...(body.notes !== undefined && { notes: text(body.notes) || null }), revision: row.revision + 1 })
+      return { status: 200, body: insEnrollmentView(row, true) }
+    }
+    if (method === 'POST' && (action === 'end' || action === 'cancel')) {
+      const refusal = stale(row, body.revision) || inactive()
+      if (refusal) return refusal
+      const date = body.date_end ?? dayFromToday(0)
+      if (action === 'end' && (date < row.date_from || date > insEnd(row))) return insRefusal(422, 'invalid', 'يجب أن يقع تاريخ الإنهاء بين بداية التسجيل ونهاية الخطة.', 'date_end')
+      Object.assign(row, action === 'end' ? { state: 'ended', date_to: date } : { state: 'cancelled' }, { revision: row.revision + 1 })
+      insDependents.filter(item => item.enrollment_id === row.id && item.state === 'active').forEach(item => Object.assign(item, { state: 'ended', date_to: action === 'end' ? date : row.date_from }))
+      return { status: 200, body: insEnrollmentView(row, true) }
+    }
+    if (method === 'POST' && action === 'dependents') {
+      const refusal = inactive()
+      if (refusal) return refusal
+      if (!text(body.name)) return insRefusal(422, 'invalid', 'الاسم مطلوب.', 'name')
+      if (insSettings.insurance_require_dependent_id && !text(body.national_id)) return insRefusal(422, 'invalid', 'تشترط الشركة رقم الهوية.', 'national_id')
+      if (body.date_from < row.date_from || (body.date_to ?? insEnd(row)) > insEnd(row)) return insRefusal(422, 'invalid', 'يجب أن تقع تواريخ التابع داخل التسجيل.', 'date_from')
+      const dependent = { id: insNext.dependent++, enrollment_id: row.id, name: text(body.name), relation: body.relation, birth_date: body.birth_date ?? null, national_id: text(body.national_id) || null, date_from: body.date_from, date_to: body.date_to ?? null, state: 'active', revision: 1 }
+      insDependents.push(dependent)
+      return { status: 201, body: insDependentView(dependent, true) }
+    }
+    return undefined
+  }
+  const dependentRoute = /^\/api\/v1\/hr\/insurance\/dependents\/(\d+)(\/end)?$/.exec(route)
+  if (dependentRoute) {
+    const row = insDependents.find(item => item.id === Number(dependentRoute[1]))
+    if (!row) return insRefusal(404, 'not_found', 'التابع غير موجود.')
+    const refusal = stale(row, body.revision) || (row.state !== 'active' && insRefusal(409, 'conflict', 'انتهت تغطية هذا التابع.'))
+    if (refusal) return refusal
+    if (method === 'PATCH' && !dependentRoute[2]) {
+      if (insSettings.insurance_require_dependent_id && body.national_id !== undefined && !text(body.national_id)) return insRefusal(422, 'invalid', 'تشترط الشركة رقم الهوية.', 'national_id')
+      const { revision: _revision, ...fields } = body
+      Object.assign(row, { ...fields, national_id: fields.national_id !== undefined ? text(fields.national_id) || null : row.national_id, revision: row.revision + 1 })
+      return { status: 200, body: insDependentView(row, true) }
+    }
+    if (method === 'POST' && dependentRoute[2]) {
+      Object.assign(row, { state: 'ended', date_to: body.date_end ?? dayFromToday(0), revision: row.revision + 1 })
+      return { status: 200, body: insDependentView(row, true) }
+    }
+  }
+  return undefined
+}
+
 export function hrAreasPreviewData(route, url) {
   if (route.startsWith('/api/v1/hr/shifts')) return shiftsData(route, url)
   if (route.startsWith('/api/v1/hr/assets')) return assetsData(route, url)
   if (route.startsWith('/api/v1/hr/warning')) return warningsData(route, url)
+  if (route.startsWith('/api/v1/hr/insurance')) return insuranceData(route, url)
   if (route.startsWith('/api/v1/hr/recruitment')) return recruitmentData(route, url)
   if (route.startsWith('/api/v1/hr/onboarding')) return lifecycleData('onboarding', onboardingPlans, onboardingRuns, route, url)
   if (route.startsWith('/api/v1/hr/offboarding')) return offboardingData(route, url)

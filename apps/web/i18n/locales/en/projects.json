@@ -1061,6 +1061,7 @@
       "changeRequired": "This project is executing under required change control: choose the approved change request that covers the new baseline.",
       "changeOptional": "Optionally link an approved change request.",
       "changePlaceholder": "Choose a change request",
+      "noCoverable": "No approved change request is free: each one covers a single baseline. Ask for a new change request first.",
       "noteLabel": "Note (optional)",
       "openBaseline": "Baseline {number}",
       "detailTitle": "Baseline {number}",
