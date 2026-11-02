@@ -23,6 +23,7 @@ ALLOWED = {
     'register_status_transitions',
     'change_control_mode',
     'baseline_gate',
+    'evm_progress_method',
 }
 
 

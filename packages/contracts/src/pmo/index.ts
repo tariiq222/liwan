@@ -15,6 +15,7 @@ export * from './schedule'
 export * from './governance'
 export * from './change'
 export * from './baseline'
+export * from './evm'
 
 export * from './project-finance'
 export * from './project-reports'

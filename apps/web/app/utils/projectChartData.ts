@@ -93,7 +93,30 @@ export type DashboardBarChart = {
   valueFormat?: 'number' | 'percent'
 }
 
-export type DashboardChart = DashboardDonutChart | DashboardBarChart
+export type DashboardLineMarker = {
+  key: string
+  label: string
+  /** The formatted value shown in the legend beside the mark. */
+  display: string
+  x: number
+  y: number
+  tone: ChartTone
+}
+
+/**
+ * One line with single-point markers on a time axis (for example a planned value curve with today's earned value and actual
+ * cost). `x` is a whole day number since the epoch, `y` a plain number; the line is drawn straight between points.
+ */
+export type DashboardLineChart = {
+  kind: 'line'
+  series: DashboardBarSeries
+  /** The line's value as shown in the legend. */
+  seriesDisplay: string
+  data: readonly { x: number; y: number }[]
+  markers: readonly DashboardLineMarker[]
+}
+
+export type DashboardChart = DashboardDonutChart | DashboardBarChart | DashboardLineChart
 
 export function projectChartLabels(t: (key: string) => string): ChartLabels {
   return {

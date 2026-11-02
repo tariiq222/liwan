@@ -7,6 +7,7 @@ from . import (
     project_changes,
     project_charter,
     project_charter_catalogs,
+    project_evm,
     project_finance,
     project_followers,
     project_governance,

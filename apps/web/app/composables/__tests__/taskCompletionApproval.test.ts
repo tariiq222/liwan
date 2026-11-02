@@ -20,7 +20,7 @@ describe('task completion approval client shape', () => {
       completion_return_note: null,
       completion_policy: 'project_manager',
       completion_approver: { id: 4, name: 'Manager' },
-      completion_blocked_reason: null,
+      completion_blocked_reason: null, progress_method: 'binary', percent_complete: 0,
     })
     expect(detail.can_approve).toBe(false)
     expect(detail.allowed_actions).toContain('request_completion')

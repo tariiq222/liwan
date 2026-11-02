@@ -42,8 +42,8 @@ function useCard<Draft extends Fields>(read: (settings: ProjectSettings) => Draf
 const creation = useCard(({ project_creators, require_manager_on_create, require_end_date_on_create }) => (
   { project_creators, require_manager_on_create, require_end_date_on_create }
 ))
-const approval = useCard(({ default_completion_approval, require_charter_approval, close_with_open_tasks, register_status_transitions, change_control_mode, baseline_gate }) => (
-  { default_completion_approval, require_charter_approval, close_with_open_tasks, register_status_transitions, change_control_mode, baseline_gate }
+const approval = useCard(({ default_completion_approval, require_charter_approval, close_with_open_tasks, register_status_transitions, change_control_mode, baseline_gate, evm_progress_method }) => (
+  { default_completion_approval, require_charter_approval, close_with_open_tasks, register_status_transitions, change_control_mode, baseline_gate, evm_progress_method }
 ))
 const daysError = ref('')
 const reminders = useCard(({ deadline_reminders_enabled, deadline_reminders_days_before, overdue_digest_enabled }) => (
@@ -199,6 +199,17 @@ function onDeleteStage(id: number | string) {
           { value: 'off', label: t('settings.projects.baselineGate.off'), description: t('settings.projects.baselineGate.offHint') },
           { value: 'warning', label: t('settings.projects.baselineGate.warning'), description: t('settings.projects.baselineGate.warningHint') },
           { value: 'required', label: t('settings.projects.baselineGate.required'), description: t('settings.projects.baselineGate.requiredHint') },
+        ]"
+        :disabled="approvalLocked"
+      />
+    </UFormField>
+    <UFormField id="project-evm-progress" orientation="horizontal" :label="t('settings.projects.evmProgress.label')" :description="t('settings.projects.evmProgress.hint')">
+      <URadioGroup
+        v-model="approval.draft.value.evm_progress_method"
+        data-testid="settings-evm-progress"
+        :items="[
+          { value: 'binary', label: t('settings.projects.evmProgress.binary'), description: t('settings.projects.evmProgress.binaryHint') },
+          { value: 'manual', label: t('settings.projects.evmProgress.manual'), description: t('settings.projects.evmProgress.manualHint') },
         ]"
         :disabled="approvalLocked"
       />

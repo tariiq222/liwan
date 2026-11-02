@@ -1112,6 +1112,45 @@
         "overBaseline": "Over the baseline budget"
       }
     },
+    "evm": {
+      "title": "Earned value",
+      "noBaseline": "There is no baseline to measure earned value against",
+      "noBaselineHint": "Earned value is measured against the latest baseline. Take a baseline first.",
+      "asOf": "Measured today, {date}, against baseline {number}.",
+      "method": {
+        "binary": "Progress: a done task counts 100% and any other task 0%.",
+        "manual": "Progress: a done task counts 100% and an open task the percent complete its assignee entered."
+      },
+      "notEnough": "Not enough data",
+      "hidden": "{count} baseline task is hidden from you, so the plan indices are not calculated and no curve is drawn. The budget and the actual cost remain. | {count} baseline tasks are hidden from you, so the plan indices are not calculated and no curve is drawn. The budget and the actual cost remain.",
+      "undated": "{count} baseline task has no end date. The schedule index covers the dated tasks only and the cost indices stay empty because the actual cost cannot be split. | {count} baseline tasks have no end date. The schedule index covers the dated tasks only and the cost indices stay empty because the actual cost cannot be split.",
+      "noBudget": "The baseline has no budget, so only the schedule index is shown and the cost indices stay empty.",
+      "indices": {
+        "spi": "Schedule index (SPI)",
+        "spiHint": "Earned to planned",
+        "cpi": "Cost index (CPI)",
+        "cpiHint": "Earned to actual"
+      },
+      "bands": { "success": "On plan", "warning": "Needs attention", "danger": "Behind" },
+      "figures": {
+        "bac": "Budget at completion (BAC)",
+        "pv": "Planned value (PV)",
+        "ev": "Earned value (EV)",
+        "ac": "Actual cost (AC)",
+        "sv": "Schedule variance (SV)",
+        "cv": "Cost variance (CV)",
+        "eac": "Estimate at completion (EAC)",
+        "etc": "Estimate to complete (ETC)",
+        "vac": "Variance at completion (VAC)",
+        "tcpi": "To-complete performance index (TCPI)"
+      },
+      "curveTitle": "Planned value over time",
+      "curveHint": "The line is the planned value from the baseline. The two points are today's earned value and actual cost.",
+      "curveLabel": "Planned value chart. On {date}: planned value {pv}, earned value {ev}, actual cost {ac}.",
+      "noCurve": "There is no curve to draw: no baseline task has dates, or some are hidden from you.",
+      "notes": "Money is rounded to the currency decimals and indices to two decimals (half up). A cancelled, deleted or moved task keeps its baseline share and earns nothing, so earned value cannot reach the full budget until a new baseline is taken. The percent complete of a done or cancelled task is fixed: 100% and 0%.",
+      "series": { "pv": "Planned", "ev": "Earned", "ac": "Actual" }
+    },
     "clarity": {
       "addRegister": "Add risk or issue",
       "registerSearch": "Search risks or issues",

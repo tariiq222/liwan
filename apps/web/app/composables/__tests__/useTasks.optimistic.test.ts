@@ -39,7 +39,7 @@ const baseDetail: TaskDetail = {
   completion_return_note: null,
   completion_policy: 'none',
   completion_approver: null,
-  completion_blocked_reason: null,
+  completion_blocked_reason: null, progress_method: 'binary', percent_complete: 0,
 }
 
 describe('applyPatchToTask on a list item', () => {
@@ -130,9 +130,18 @@ describe('applyPatchToTask on a list item', () => {
     const next: any = applyPatchToTask(baseTask, { allocated_hours: 8 })
     expect(next.allocated_hours).toBeUndefined()
   })
+
+  it('does not touch percent_complete on a plain list Task (it has none)', () => {
+    const next: any = applyPatchToTask(baseTask, { percent_complete: 40 })
+    expect(next.percent_complete).toBeUndefined()
+  })
 })
 
 describe('applyPatchToTask on a detail object', () => {
+  it('sets the percent complete of a detail', () => {
+    expect(applyPatchToTask(baseDetail, { percent_complete: 40 }).percent_complete).toBe(40)
+  })
+
   it('sets description_html from patch.description when description is present in the patch', () => {
     const next = applyPatchToTask(baseDetail, { description: '<p>new</p>' })
     expect(next.description_html).toBe('<p>new</p>')

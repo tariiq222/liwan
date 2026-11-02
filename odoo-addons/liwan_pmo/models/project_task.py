@@ -3,6 +3,7 @@ from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
 from odoo.fields import Domain
 
+from .project_constants import TASK_CANCELED_STATE
 from odoo.addons.project.models.project_task import CLOSED_STATES
 
 MANAGER_STATES = {'03_approved', '02_changes_requested'}
@@ -33,7 +34,7 @@ COMPLETION_PRISTINE = {
 TASK_WRITABLE_FIELDS = {
     'active', 'allocated_hours', 'date_deadline', 'date_end', 'date_last_stage_update',
     'description', 'milestone_id', 'name', 'liwan_deliverables', 'personal_stage_type_id', 'priority',
-    'stage_id', 'state', 'tag_ids', 'user_ids',
+    'stage_id', 'state', 'tag_ids', 'user_ids', 'liwan_percent_complete',
 }
 TASK_CREATE_FIELDS = TASK_WRITABLE_FIELDS | {'parent_id', 'project_id'}
 
@@ -69,6 +70,26 @@ class ProjectTask(models.Model):
     liwan_completion_return_note = fields.Text(copy=False)
     liwan_planned_start = fields.Date(copy=False, index=True)
     liwan_deliverables = fields.Json(default=lambda self: [], copy=True)
+    # Read only when the company's earned value progress method is `manual`; see `_liwan_percent`.
+    liwan_percent_complete = fields.Integer(copy=False)
+
+    _liwan_percent_complete_range = models.Constraint(
+        'CHECK(liwan_percent_complete >= 0 AND liwan_percent_complete <= 100)',
+        'The percent complete is between 0 and 100.',
+    )
+
+    def _liwan_percent(self, method):
+        """The task's percent complete (0..100) under the earned value progress ``method``.
+
+        A done task is 100 and a cancelled one 0 under both methods; an open task is 0 under `binary` and its
+        own value under `manual`.
+        """
+        self.ensure_one()
+        if self.state == DONE_STATE:
+            return 100
+        if self.state == TASK_CANCELED_STATE or method != 'manual':
+            return 0
+        return self.liwan_percent_complete
 
     @api.model
     def _liwan_extra_create_fields(self):

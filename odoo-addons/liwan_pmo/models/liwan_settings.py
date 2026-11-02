@@ -17,17 +17,20 @@ PARAM_CLOSE_WITH_OPEN_TASKS = 'liwan_pmo.close_with_open_tasks'
 PARAM_REGISTER_TRANSITIONS = 'liwan_pmo.register_status_transitions'
 PARAM_CHANGE_CONTROL_MODE = 'liwan_pmo.change_control_mode'
 PARAM_BASELINE_GATE = 'liwan_pmo.baseline_gate'
+PARAM_EVM_PROGRESS_METHOD = 'liwan_pmo.evm_progress_method'
 CREATORS = ('managers', 'employees')
 CLOSE_WITH_OPEN_TASKS = ('block', 'allow_with_warning')
 REGISTER_TRANSITIONS = ('sequence', 'free')
 CHANGE_CONTROL_MODES = ('off', 'optional', 'required')
 BASELINE_GATES = ('off', 'warning', 'required')
+EVM_PROGRESS_METHODS = ('binary', 'manual')
 # Choice settings kept as company-suffixed parameters: API key -> (parameter, allowed values, default).
 PSC_CHOICES = {
     'close_with_open_tasks': (PARAM_CLOSE_WITH_OPEN_TASKS, CLOSE_WITH_OPEN_TASKS, 'block'),
     'register_status_transitions': (PARAM_REGISTER_TRANSITIONS, REGISTER_TRANSITIONS, 'sequence'),
     'change_control_mode': (PARAM_CHANGE_CONTROL_MODE, CHANGE_CONTROL_MODES, 'optional'),
     'baseline_gate': (PARAM_BASELINE_GATE, BASELINE_GATES, 'warning'),
+    'evm_progress_method': (PARAM_EVM_PROGRESS_METHOD, EVM_PROGRESS_METHODS, 'binary'),
 }
 APPROVAL_DEFAULTS = ('none', 'project_manager')
 MAX_STAGES = 20
@@ -58,6 +61,7 @@ PSC_DEFAULTS = {
     'register_status_transitions': 'sequence',
     'change_control_mode': 'optional',
     'baseline_gate': 'warning',
+    'evm_progress_method': 'binary',
 }
 
 
@@ -182,6 +186,15 @@ class LiwanPmoSettings(models.AbstractModel):
         if not self.env['liwan.entitlement.service']._liwan_feature_write('pmo.baselines'):
             return 'off'
         return self._get_choice(PARAM_BASELINE_GATE, BASELINE_GATES, 'warning')
+
+    def evm_progress_method(self):
+        """How earned value counts a task's progress; `binary` while the tenant's plan lacks the `pmo.evm` sub-feature.
+
+        The retained-read check keeps the figures on the chosen method while the tenant is expired or suspended;
+        writing the percent complete asks for the writable feature separately."""
+        if not self.env['liwan.entitlement.service']._liwan_feature_read('pmo.evm'):
+            return 'binary'
+        return self._get_choice(PARAM_EVM_PROGRESS_METHOD, EVM_PROGRESS_METHODS, 'binary')
 
     def _company_psc_values(self):
         approval = self._params().get_param(self._company_key(PARAM_DEFAULT_APPROVAL), 'none')

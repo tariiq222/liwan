@@ -106,7 +106,7 @@ class TestTaskRead(LiwanPmoCase):
         self.assertEqual(set(body), TASK_KEYS | {'description_html', 'allocated_hours', 'age_days',
                                                    'cycle_days', 'subtasks', 'depends_on', 'attachments',
                                                    'can_manage_dependencies', 'created_at', 'updated_at', 'milestone', 'allowed_actions',
-                                                   'planned_start', 'deliverables',
+                                                   'planned_start', 'deliverables', 'progress_method', 'percent_complete',
                                                    'completion_pending', 'completion_revision', 'completion_return_note',
                                                    'completion_policy', 'completion_approver', 'completion_blocked_reason'})
 

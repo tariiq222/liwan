@@ -34,6 +34,7 @@
         "boolean:pmo.enabled",
         "boolean:pmo.change_control",
         "boolean:pmo.baselines",
+        "boolean:pmo.evm",
         "boolean:meetings.enabled",
         "limit:projects.max_projects"
       ]

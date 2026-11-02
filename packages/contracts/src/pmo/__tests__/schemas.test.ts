@@ -31,7 +31,7 @@ describe('TaskDetailSchema', () => {
       subtasks: [], depends_on: [], attachments: [], can_approve: false,
       created_at: '2026-08-01T09:00:00Z', updated_at: '2026-08-01T09:00:00Z',
       milestone: null, completion_pending: false, completion_revision: 0, completion_return_note: null,
-      completion_policy: 'none', completion_approver: null, completion_blocked_reason: null,
+      completion_policy: 'none', completion_approver: null, completion_blocked_reason: null, progress_method: 'binary', percent_complete: 0,
     })
     expect(parsed.cycle_days).toBeNull()
   })
@@ -214,7 +214,7 @@ describe('Milestone / ProjectUpdate / Settings', () => {
       require_manager_on_create: true, require_end_date_on_create: true,
       default_completion_approval: 'none', deadline_reminders_enabled: true,
       deadline_reminders_days_before: 1, overdue_digest_enabled: true,
-      require_charter_approval: false, close_with_open_tasks: 'block', register_status_transitions: 'sequence', change_control_mode: 'optional', baseline_gate: 'warning',
+      require_charter_approval: false, close_with_open_tasks: 'block', register_status_transitions: 'sequence', change_control_mode: 'optional', baseline_gate: 'warning', evm_progress_method: 'binary',
       extensions: [],
     }).default_stages).toHaveLength(1)
     expect(() => ProjectSettingsSchema.parse({ project_creators: 'anyone', default_stages: [] })).toThrow()
@@ -258,7 +258,7 @@ describe('Task milestone', () => {
       age_days: 0, cycle_days: null, subtasks: [], depends_on: [], attachments: [],
       can_approve: false, created_at: '2026-08-01T09:00:00Z', updated_at: '2026-08-01T09:00:00Z',
       milestone: null, completion_pending: false, completion_revision: 0, completion_return_note: null,
-      completion_policy: 'none', completion_approver: null, completion_blocked_reason: null,
+      completion_policy: 'none', completion_approver: null, completion_blocked_reason: null, progress_method: 'binary', percent_complete: 0,
     }).planned_start).toBe('2026-10-05')
   })
 })

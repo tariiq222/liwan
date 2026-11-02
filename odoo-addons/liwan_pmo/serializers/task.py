@@ -27,7 +27,7 @@ API_TO_STATE = {v: k for k, v in STATE_TO_API.items()}
 EXCERPT_MAX = 140
 
 EMPLOYEE_FIELDS = {'name', 'description', 'date_deadline', 'priority', 'user_ids', 'tag_ids',
-                   'personal_stage_type_id', 'stage_id', 'milestone_id', 'deliverables'}
+                   'personal_stage_type_id', 'stage_id', 'milestone_id', 'deliverables', 'percent_complete'}
 MANAGER_FIELDS = EMPLOYEE_FIELDS | {'allocated_hours'}
 
 
@@ -177,10 +177,21 @@ def dump_task_attachment(attachment, task_id):
     return {**dump_attachment(attachment, task_attachments_route(task_id)), 'size': attachment.file_size}
 
 
+def _can_write_percent(task, method):
+    """The percent complete is editable on an open task the caller may write while the company counts progress `manual` and `pmo.evm` is writable."""
+    return (
+        method == 'manual'
+        and not task.is_closed
+        and bool(task._liwan_can_write())
+        and task.env['liwan.entitlement.service']._liwan_feature_write('pmo.evm')
+    )
+
+
 def dump_task_detail(task, today=None):
     today = _today(task, today)
     counts = task_counts(task | task.child_ids)
     data = dump_task(task, today, counts)
+    method = task.env['liwan.pmo.settings'].evm_progress_method()
     start = task.date_assign or task.create_date
     cycle = (task.date_end - start).days if task.is_closed and task.date_end and start else None
     dependencies = task.env['project.task'].search([
@@ -207,6 +218,7 @@ def dump_task_detail(task, today=None):
             *(['request_completion'] if task._liwan_can_request_completion() else []),
             *(['accept_completion', 'return_completion'] if task._liwan_can_decide_completion() else []),
             *(['withdraw_completion'] if task._liwan_can_withdraw_completion() else []),
+            *(['write_percent'] if _can_write_percent(task, method) else []),
         ],
         'can_manage_dependencies': bool(task._liwan_can_manage_dependencies()),
         'created_at': iso(task.create_date),
@@ -219,6 +231,8 @@ def dump_task_detail(task, today=None):
         'completion_policy': task.project_id.liwan_completion_approval if task.project_id else 'none',
         'completion_approver': _ref(task._liwan_completion_reviewer()) if task._liwan_completion_reviewer() else None,
         'completion_blocked_reason': task._liwan_completion_blocked_reason(),
+        'progress_method': method,
+        'percent_complete': task._liwan_percent(method),
     })
     return data
 
@@ -314,6 +328,17 @@ def _parse_milestone(task, value, key):
     return milestone.id
 
 
+def _parse_percent_complete(value, key, task):
+    """A whole percent 0..100 of an open task, accepted only while the company counts progress `manual` and the feature is writable."""
+    if request.env['liwan.pmo.settings'].evm_progress_method() != 'manual' or not request.env['liwan.entitlement.service']._liwan_feature_write('pmo.evm'):
+        raise ApiError(422, 'invalid', "percent_complete is only editable when the company's progress method is manual", field=key)
+    if task.is_closed:
+        raise ApiError(422, 'invalid', "percent_complete of a closed task is fixed: done counts 100% and cancelled 0%", field=key)
+    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 100:
+        raise ApiError(422, 'invalid', "percent_complete must be a whole number between 0 and 100", field=key)
+    return value
+
+
 def parse_task_vals(payload, can_manage, task):
     """Whitelist + coerce a PATCH payload for ``task`` into ORM vals. Raises ApiError(422)."""
     allowed = MANAGER_FIELDS if can_manage else EMPLOYEE_FIELDS
@@ -359,6 +384,8 @@ def parse_task_vals(payload, can_manage, task):
             if not isinstance(value, str):
                 raise ApiError(422, 'invalid', "description must be a string", field=key)
             vals[key] = value
+        elif key == 'percent_complete':
+            vals['liwan_percent_complete'] = _parse_percent_complete(value, key, task)
         elif key == 'deliverables':
             if not isinstance(value, list):
                 raise ApiError(422, 'invalid', "deliverables must be a list", field=key)

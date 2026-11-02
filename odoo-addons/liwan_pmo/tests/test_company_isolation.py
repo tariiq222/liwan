@@ -35,6 +35,7 @@ COVERED = (
     '/api/v1/projects/<int:project_id>/baselines',
     '/api/v1/projects/<int:project_id>/baselines/variance',
     '/api/v1/projects/<int:project_id>/baselines/<int:number>',
+    '/api/v1/projects/<int:project_id>/evm',
     '/api/v1/projects/<int:project_id>/schedule',
     '/api/v1/projects/<int:project_id>/followers',
     '/api/v1/tasks/<int:task_id>',
@@ -50,7 +51,7 @@ COVERED = (
 )
 
 
-EXPECTED_GET_RECORD_ROUTES = 29
+EXPECTED_GET_RECORD_ROUTES = 30
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -215,6 +216,9 @@ class LiwanPmoIsolationCase(CompanyIsolationCase):
         self.assert_subtree_matrix(path_of)
         self.assert_subtree_matrix(lambda company: f'{path_of(company)}/{self.baseline_of[company.id].number}')
         self.assert_subtree_matrix(lambda company: f'{path_of(company)}/variance')
+
+    def test_project_evm_matrix(self):
+        self.assert_subtree_matrix(lambda company: f'/api/v1/projects/{self.project_of[company.id].id}/evm')
 
     def test_change_category_list_is_pinned_to_the_current_company(self):
         categories = self.env['liwan.project.change.category'].sudo()

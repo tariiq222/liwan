@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { BaselineGateSchema } from './baseline'
 import { ChangeControlModeSchema } from './change'
+import { EvmProgressMethodSchema } from './evm'
 
 export const ProjectCreatorsSchema = z.enum(['managers', 'employees'])
 export const PROJECT_CREATORS = ProjectCreatorsSchema.options
@@ -43,6 +44,7 @@ export const ProjectSettingsSchema = z.object({
   register_status_transitions: RegisterStatusTransitionsSchema,
   change_control_mode: ChangeControlModeSchema,
   baseline_gate: BaselineGateSchema,
+  evm_progress_method: EvmProgressMethodSchema,
   extensions: z.array(ProjectSettingsExtensionSchema),
 }).strict()
 

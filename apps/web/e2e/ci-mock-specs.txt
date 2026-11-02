@@ -109,3 +109,4 @@ ux-foundations-save.spec.ts
 ux-foundations-shell.spec.ts
 project-entry-regressions.spec.ts
 project-baselines.spec.ts
+project-evm.spec.ts

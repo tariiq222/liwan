@@ -13,6 +13,7 @@ import { handleCommercial } from './commercial-mock-routes.mjs'
 import { handlePublicAppointments } from './appointments-mock-routes.mjs'
 import { baselineGateCheck, handleBaselines } from './pmo-baseline-mock-routes.mjs'
 import { handleChanges } from './pmo-change-mock-routes.mjs'
+import { handleEvm } from './pmo-evm-mock-routes.mjs'
 import { handlePayments, handlePublicPayments, PAYMENTS_LINKS_MANAGE, PAYMENTS_MANAGE, PAYMENTS_SETTINGS_MANAGE } from './payments-mock-routes.mjs'
 import crypto from 'node:crypto'
 import { URL } from 'node:url'
@@ -45,15 +46,15 @@ const ME = {
   company: { id: 1, name: 'LiwanOS' },
   modules: ['liwan_chat', 'liwan_hr', 'liwan_documents', 'liwan_pmo'],
   entitlements: {
-    'pmo.enabled': true, 'pmo.baselines': true, 'pmo.change_control': true, 'meetings.enabled': true, 'tasks.enabled': true, 'documents.enabled': true, 'hr.enabled': true, 'finance.enabled': true, 'chat.enabled': true, 'ai.enabled': true, 'payments.enabled': true,
+    'pmo.enabled': true, 'pmo.baselines': true, 'pmo.evm': true, 'pmo.change_control': true, 'meetings.enabled': true, 'tasks.enabled': true, 'documents.enabled': true, 'hr.enabled': true, 'finance.enabled': true, 'chat.enabled': true, 'ai.enabled': true, 'payments.enabled': true,
     ...Object.fromEntries(INBOX_FEATURES.map(feature => [feature, true])),
     ...Object.fromEntries(HR_AREA_FEATURES.map(feature => [feature, true])),
     'users.limit': null, 'projects.max_projects': null, 'storage.limit_mb': null,
   },
   platform: {
     schema_version: 1, policy_revision: 1, state: 'active', valid_until: null, read_only: false,
-    readable_features: ['ai.enabled', 'chat.enabled', 'crm.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.baselines', 'pmo.change_control', 'pmo.enabled', 'tasks.enabled'],
-    writable_features: ['ai.enabled', 'chat.enabled', 'crm.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.baselines', 'pmo.change_control', 'pmo.enabled', 'tasks.enabled'],
+    readable_features: ['ai.enabled', 'chat.enabled', 'crm.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.baselines', 'pmo.change_control', 'pmo.enabled', 'pmo.evm', 'tasks.enabled'],
+    writable_features: ['ai.enabled', 'chat.enabled', 'crm.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, ...INBOX_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.baselines', 'pmo.change_control', 'pmo.enabled', 'pmo.evm', 'tasks.enabled'],
   },
   terminology: { ar: {}, en: {} },
 }
@@ -309,7 +310,7 @@ const SETTINGS = {
   close_with_open_tasks: 'block',
   register_status_transitions: 'sequence',
   change_control_mode: 'optional',
-  baseline_gate: 'warning',
+  baseline_gate: 'warning', evm_progress_method: 'binary',
   extensions: [],
 }
 
@@ -405,6 +406,7 @@ async function handle(req, res) {
   if (await handlePayments(req, res, path, { json, readBody })) return
   if (process.env.PROJECTS_UI_PREVIEW === '1' && await handleChanges(req, res, path, url, { json, readBody })) return
   if (process.env.PROJECTS_UI_PREVIEW === '1' && await handleBaselines(req, res, path, url, { json, readBody })) return
+  if (process.env.PROJECTS_UI_PREVIEW === '1' && await handleEvm(req, res, path, url, { json, readBody })) return
   // Customer Inbox: conversations, settings and channels (inbox-ui-preview-data.mjs). The state lives for the process;
   // POST /api/v1/__mock/reset-inbox restores the seed so a spec starts from a known inbox.
   if (method === 'POST' && path === '/api/v1/__mock/reset-inbox') {

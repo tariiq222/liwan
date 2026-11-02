@@ -123,6 +123,7 @@
       "tags": "Tags",
       "stage": "Personal stage",
       "allocatedHours": "Allocated hours",
+      "percentComplete": "Percent complete (%)",
       "description": "Description",
       "subtasks": "Subtasks",
       "addSubtask": "Add subtask",
