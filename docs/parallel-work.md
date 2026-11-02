@@ -86,6 +86,7 @@ removed by it; its owner records a claim with `wt claim` or finishes and merges 
    where `wt new` creates them, also when run from another worktree. Never create one with a bare
    `git worktree add`, under `../liwan-wt/`, or in a tool's own folder (the Claude app's `worktrees` folder under `.claude`); a
    Claude subagent or session that needs isolation runs `wt new` instead of its built-in worktree option.
+   The disposable detached worktree of one `opencode-executor` job is not a task worktree: `AGENTS.md` owns that exception.
 2. **One name.** Any valid Git branch name is accepted; descriptive names are recommended.
    `wt new <suffix>` creates branch `codex/<suffix>` and folder `.worktrees/<suffix>`.
    Other valid task branch names may be claimed; `wt check` checks their folder suffix and claim.
