@@ -60,11 +60,14 @@ const panel = ref<Panel>(null)
 const saleDraft = ref<CrmSaleDraft>({ package_id: null, final_price: null })
 const saleAttempted = ref(false)
 const callFormKey = ref(0)
-// An unsent call, sale or lost reason is a draft: leaving the page asks first. Each form reports what is entered.
+// An unsent call, sale, lost reason or probability is a draft: leaving the page asks first. Each form reports what is entered.
+const probability = ref<number>(0)
+watch(() => record.value?.probability, value => { probability.value = value ?? 0 }, { immediate: true })
+const probabilityDirty = computed(() => Boolean(record.value) && probability.value !== record.value?.probability)
 const callDirty = ref(false)
 const lostDirty = ref(false)
 const saleDirty = computed(() => panel.value === 'sale' && (Boolean(saleDraft.value.package_id) || saleDraft.value.final_price !== null))
-const unsent = computed(() => callDirty.value || lostDirty.value || saleDirty.value)
+const unsent = computed(() => callDirty.value || lostDirty.value || saleDirty.value || probabilityDirty.value)
 // A refusal belongs to the form that sent it and shows there only; one from a page action, or whose form went away
 // (a 409 refreshed the record and the form with it), shows at the top of the page.
 type Origin = 'page' | 'call' | 'sale' | 'lost'
@@ -143,9 +146,6 @@ async function changeStage(value: unknown) {
   const done = await run('page', () => actions.patch.mutateAsync({ id: id.value, body: { stage_id: stageId } }))
   if (done) toast.add({ title: t('crm.opportunities.record.stageSaved'), color: 'success' })
 }
-
-const probability = ref<number>(0)
-watch(() => record.value?.probability, value => { probability.value = value ?? 0 }, { immediate: true })
 
 async function saveProbability() {
   if (probability.value === record.value?.probability) return

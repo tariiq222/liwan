@@ -47,3 +47,20 @@ test('the list shows the probability of every row, and the mock refuses a value 
     expect(await refused.json()).toMatchObject({ field: 'probability' })
   }
 })
+
+test('an unsaved probability asks before leaving and is dropped after it is saved', async ({ page }) => {
+  await page.goto('/crm/opportunities/1')
+  const guard = page.getByTestId('unsaved-changes-dialog')
+  const input = page.getByTestId('crm-probability-input')
+  await input.fill('60')
+  await input.blur()
+  await page.getByRole('link', { name: 'رجوع إلى القائمة' }).click()
+  await expect(guard).toBeVisible()
+  await guard.getByRole('button', { name: 'البقاء في الصفحة', exact: true }).click()
+  await expect(input).toHaveValue('60')
+  await page.getByTestId('crm-probability-save').click()
+  await expect(page.getByTestId('crm-probability-save')).toBeDisabled()
+  await page.getByRole('link', { name: 'رجوع إلى القائمة' }).click()
+  await expect(page).toHaveURL(/\/crm\/opportunities(\?|$)/)
+  await expect(guard).toHaveCount(0)
+})
