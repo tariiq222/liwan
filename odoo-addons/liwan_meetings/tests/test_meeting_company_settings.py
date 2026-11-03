@@ -163,7 +163,7 @@ class TestMeetingCompanySettings(LiwanMeetingsCase):
             cron._liwan_run_meeting_reminders()
             messages = Message.search(domain)
             self.assertTrue(messages, 'The cron must deliver at the exact one-hour cutoff')
-            self.assertEqual(messages.mapped('liwan_meeting_id').ids, boundary.ids)
+            self.assertEqual(set(messages.mapped('liwan_meeting_id')), set(boundary.ids))
             cron._liwan_run_meeting_reminders()
             self.assertEqual(Message.search(domain).ids, messages.ids)
 
