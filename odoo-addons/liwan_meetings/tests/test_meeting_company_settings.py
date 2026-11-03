@@ -5,6 +5,7 @@ The meetings settings row keeps its one-row-per-company contract; the PATCH carr
 form changed and every setting is validated with its own field name.
 """
 from datetime import timedelta
+from unittest.mock import patch
 
 from odoo import fields
 from odoo.tests import new_test_user, tagged
@@ -137,6 +138,30 @@ class TestMeetingCompanySettings(LiwanMeetingsCase):
         # A company that never saved the settings keeps the 24-hour default.
         spare = self.env['res.company'].create({'name': 'Default Reminder Co'})
         self.assertEqual(spare.liwan_meeting_reminder_hours, 24)
+
+    def test_the_reminder_window_includes_its_exact_boundary(self):
+        now = fields.Datetime.to_datetime('2027-06-01 09:00:00')
+        self.Settings.create({'company_id': self.env.company.id, 'reminder_hours': 1})
+        Meeting = self.env['liwan.meeting.minute']
+        boundary = Meeting.create({
+            'name': 'Exactly one hour ahead', 'organizer_id': self.planner.id,
+            'start_datetime': now + timedelta(hours=1), 'end_datetime': now + timedelta(hours=2),
+        })
+        outside = Meeting.create({
+            'name': 'Outside the reminder window', 'organizer_id': self.manager.id,
+            'start_datetime': now + timedelta(hours=1, seconds=1), 'end_datetime': now + timedelta(hours=2, seconds=1),
+        })
+        domain = [
+            ('liwan_notification_kind', '=', 'meeting_reminder'),
+            ('liwan_meeting_id', 'in', (boundary | outside).ids),
+        ]
+        with patch.object(fields.Datetime, 'now', return_value=now):
+            Meeting._liwan_run_meeting_reminders()
+            messages = self.env['mail.message'].search(domain)
+            self.assertTrue(messages)
+            self.assertEqual(messages.mapped('liwan_meeting_id'), boundary)
+            Meeting._liwan_run_meeting_reminders()
+            self.assertEqual(self.env['mail.message'].search(domain), messages)
 
     def test_a_new_meeting_carries_the_company_prefix_and_the_year(self):
         Meeting = self.env['liwan.meeting.minute'].sudo()

@@ -30,7 +30,7 @@ class LiwanMeetingMinuteReminders(models.Model):
             # Each company sets how early its participants are told; a wider window only reaches
             # further ahead, and a meeting keeps one reminder per start time however often the cron runs.
             window = meeting.company_id.liwan_meeting_reminder_hours
-            if meeting.start_datetime < now + timedelta(hours=window):
+            if meeting.start_datetime <= now + timedelta(hours=window):
                 meeting._liwan_notify_partners(
                     meeting._liwan_participant_users().mapped('partner_id'),
                     'meeting_reminder', meeting.name,
