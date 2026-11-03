@@ -10295,6 +10295,11 @@
               "phone": {
                 "type": "string"
               },
+              "probability": {
+                "maximum": 100,
+                "minimum": 0,
+                "type": "number"
+              },
               "recycle_at": {
                 "anyOf": [
                   {
@@ -10405,6 +10410,7 @@
               "discount_percent",
               "final_price",
               "expected_revenue",
+              "probability",
               "attempt_count",
               "next_call_at",
               "cycle",
@@ -12042,6 +12048,11 @@
                 "phone": {
                   "type": "string"
                 },
+                "probability": {
+                  "maximum": 100,
+                  "minimum": 0,
+                  "type": "number"
+                },
                 "recycle_at": {
                   "anyOf": [
                     {
@@ -12152,6 +12163,7 @@
                 "discount_percent",
                 "final_price",
                 "expected_revenue",
+                "probability",
                 "attempt_count",
                 "next_call_at",
                 "cycle",
@@ -12220,6 +12232,11 @@
             "maxLength": 200,
             "minLength": 1,
             "type": "string"
+          },
+          "probability": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "number"
           },
           "source_id": {
             "anyOf": [
@@ -12357,6 +12374,11 @@
           "phone": {
             "type": "string"
           },
+          "probability": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "number"
+          },
           "recycle_at": {
             "anyOf": [
               {
@@ -12467,6 +12489,7 @@
           "discount_percent",
           "final_price",
           "expected_revenue",
+          "probability",
           "attempt_count",
           "next_call_at",
           "cycle",
@@ -12825,7 +12848,10 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
           "general",
-          "phone_packages"
+          "phone_packages",
+          "professional_services",
+          "projects_contracts",
+          "education"
         ],
         "type": "string"
       },
@@ -12960,7 +12986,10 @@
             "items": {
               "enum": [
                 "general",
-                "phone_packages"
+                "phone_packages",
+                "professional_services",
+                "projects_contracts",
+                "education"
               ],
               "type": "string"
             },
@@ -13031,7 +13060,6 @@
             "items": {
               "enum": [
                 "own",
-                "team",
                 "all"
               ],
               "type": "string"
@@ -13277,7 +13305,6 @@
                   "visibility": {
                     "enum": [
                       "own",
-                      "team",
                       "all"
                     ],
                     "type": "string"
@@ -13298,7 +13325,10 @@
               "preset": {
                 "enum": [
                   "general",
-                  "phone_packages"
+                  "phone_packages",
+                  "professional_services",
+                  "projects_contracts",
+                  "education"
                 ],
                 "type": "string"
               },
@@ -13429,7 +13459,10 @@
                 "items": {
                   "enum": [
                     "general",
-                    "phone_packages"
+                    "phone_packages",
+                    "professional_services",
+                    "projects_contracts",
+                    "education"
                   ],
                   "type": "string"
                 },
@@ -13500,7 +13533,6 @@
                 "items": {
                   "enum": [
                     "own",
-                    "team",
                     "all"
                   ],
                   "type": "string"
@@ -13575,7 +13607,10 @@
               "preset": {
                 "enum": [
                   "general",
-                  "phone_packages"
+                  "phone_packages",
+                  "professional_services",
+                  "projects_contracts",
+                  "education"
                 ],
                 "type": "string"
               },
@@ -13791,7 +13826,6 @@
               "visibility": {
                 "enum": [
                   "own",
-                  "team",
                   "all"
                 ],
                 "type": "string"
@@ -14224,7 +14258,6 @@
           "visibility": {
             "enum": [
               "own",
-              "team",
               "all"
             ],
             "type": "string"
@@ -14280,7 +14313,10 @@
           "preset": {
             "enum": [
               "general",
-              "phone_packages"
+              "phone_packages",
+              "professional_services",
+              "projects_contracts",
+              "education"
             ],
             "type": "string"
           },
@@ -14496,7 +14532,6 @@
           "visibility": {
             "enum": [
               "own",
-              "team",
               "all"
             ],
             "type": "string"
@@ -14915,7 +14950,6 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
           "own",
-          "team",
           "all"
         ],
         "type": "string"

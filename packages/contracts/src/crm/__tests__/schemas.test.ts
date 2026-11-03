@@ -1,6 +1,8 @@
 import {
   CrmCapabilityKeySchema,
   CrmLostReasonListSchema,
+  CrmOpportunityPatchSchema,
+  CrmOpportunitySchema,
   CrmOutcomeCreateSchema,
   CrmOutcomeSchema,
   CrmPackageCreateSchema,
@@ -62,10 +64,10 @@ const settings = {
   },
   distribution_users: [{ id: 3, name: 'Agent' }],
   options: {
-    preset: ['general', 'phone_packages'],
+    preset: ['general', 'phone_packages', 'professional_services', 'projects_contracts', 'education'],
     after_attempts: ['lost', 'manager'],
     distribution_mode: ['round_robin', 'manual', 'on_import'],
-    visibility: ['own', 'team', 'all'],
+    visibility: ['own', 'all'],
     price_above_list: ['forbid', 'managers', 'everyone'],
     term_gender: ['m', 'f'],
     followup_attempts: { min: 0, max: 10 },
@@ -102,7 +104,7 @@ describe('CrmSettingsSchema', () => {
 
 describe('CrmSettingsPatchSchema', () => {
   it('accepts a partial values patch with partial terms', () => {
-    const patch = { revision: 1, values: { visibility: 'team', terms: { package: { en: { plural: 'plans' } } } } }
+    const patch = { revision: 1, values: { visibility: 'all', terms: { package: { en: { plural: 'plans' } } } } }
     expect(CrmSettingsPatchSchema.parse(patch)).toEqual(patch)
   })
 
@@ -118,6 +120,46 @@ describe('CrmSettingsPatchSchema', () => {
     expect(() => CrmSettingsPatchSchema.parse({ revision: 0, values: {} })).toThrow()
     expect(() => CrmSettingsPatchSchema.parse({ revision: 0, values: { preset: 'general' } })).toThrow()
     expect(() => CrmSettingsPatchSchema.parse({ revision: 0, values: { followup_attempts: 11 } })).toThrow()
+  })
+})
+
+describe('CRM opportunity probability', () => {
+  const opportunity = {
+    id: 7,
+    contact_name: 'Customer',
+    phone: '+966501234567',
+    email: '',
+    stage: { id: 1, name: 'New' },
+    user: null,
+    source: null,
+    package: null,
+    lost_reason: null,
+    status: 'pending',
+    list_price: 0,
+    discount_percent: 0,
+    final_price: 0,
+    expected_revenue: 0,
+    probability: 0,
+    attempt_count: 0,
+    next_call_at: null,
+    cycle: 0,
+    recycle_at: null,
+    needs_manager: false,
+    active: true,
+    created_at: '2026-10-28T09:00:00Z',
+  }
+
+  it('carries the chance to win as a percentage from 0 to 100', () => {
+    expect(CrmOpportunitySchema.parse(opportunity).probability).toBe(0)
+    expect(CrmOpportunitySchema.parse({ ...opportunity, probability: 100 }).probability).toBe(100)
+    expect(() => CrmOpportunitySchema.parse({ ...opportunity, probability: 101 })).toThrow()
+    expect(() => CrmOpportunitySchema.parse({ ...opportunity, probability: -1 })).toThrow()
+  })
+
+  it('accepts a probability patch and refuses one outside 0 to 100', () => {
+    expect(CrmOpportunityPatchSchema.parse({ probability: 50 })).toEqual({ probability: 50 })
+    expect(() => CrmOpportunityPatchSchema.parse({ probability: 101 })).toThrow()
+    expect(() => CrmOpportunityPatchSchema.parse({ probability: -1 })).toThrow()
   })
 })
 

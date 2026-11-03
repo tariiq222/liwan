@@ -9,7 +9,7 @@ URL = '/api/v1/crm/opportunities'
 
 
 class CrmVisibilityCase(LiwanCrmCase):
-    """Fixture shared by the three mode classes: one team (agent, agent2), an agent outside it.
+    """Fixture shared by the mode classes: two agents, an agent outside them, a pool lead.
 
     Each mode class proves read list, read detail, PATCH, attachment and message reads through
     the ORM, and the export domain helper, for the same five opportunities.
@@ -21,10 +21,6 @@ class CrmVisibilityCase(LiwanCrmCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.agent3 = cls._user('crm_agent3', 'CRM Agent Three', 'liwan_crm.role_crm_agent')
-        cls.team_a = cls.env['crm.team'].create({
-            'name': 'Team A', 'company_id': cls.company.id,
-            'crm_team_member_ids': [Command.create({'user_id': cls.agent.id}), Command.create({'user_id': cls.agent2.id})],
-        })
         cls.own = cls.make_lead(cls.agent, contact_name='Own customer')
         cls.mate = cls.make_lead(cls.agent2, contact_name='Teammate customer')
         cls.outside = cls.make_lead(cls.agent3, contact_name='Outside customer')
@@ -133,49 +129,6 @@ class TestCrmVisibilityOwn(CrmVisibilityCase):
 
 
 @tagged('post_install', '-at_install', 'liwan')
-class TestCrmVisibilityTeam(CrmVisibilityCase):
-    MODE = 'team'
-
-    def test_teammates_read_each_other_but_write_own(self):
-        self.assertReads(self.agent, self.own | self.mate)
-        self.assertReads(self.agent2, self.own | self.mate)
-        self.assertEqual(self.detail_status(self.agent, self.mate), 200)
-        self.assertEqual(self.patch_status(self.agent, self.mate), 403)
-        self.assertEqual(self.mate.contact_name, 'Teammate customer')
-        self.check_agent_writes_own()
-        self.check_unassigned_is_hidden_from_agents()
-
-    def test_agent_outside_the_team_reads_own_only(self):
-        self.assertReads(self.agent3, self.outside)
-        self.assertEqual(self.detail_status(self.agent3, self.own), 404)
-
-    def test_archived_membership_no_longer_shares(self):
-        self.env['crm.team.member'].search([('user_id', '=', self.agent2.id)]).write({'active': False})
-        self.assertReads(self.agent, self.own)
-
-    def test_archived_team_no_longer_shares(self):
-        self.team_a.active = False
-        self.assertReads(self.agent, self.own)
-
-    def test_team_of_another_company_does_not_share(self):
-        self.env['ir.config_parameter'].set_param('sales_team.membership_multi', True)
-        for user in (self.agent, self.agent3):
-            user.write({'company_ids': [Command.link(self.other_company.id)]})
-        self.env['crm.team'].create({
-            'name': 'Team B', 'company_id': self.other_company.id,
-            'crm_team_member_ids': [Command.create({'user_id': self.agent.id}), Command.create({'user_id': self.agent3.id})],
-        })
-        self.assertReads(self.agent, self.own | self.mate)
-        self.assertEqual(self.detail_status(self.agent, self.outside), 404)
-
-    def test_manager_reads_all(self):
-        self.check_managers_read_every_company_opportunity()
-
-    def test_other_company(self):
-        self.check_other_company_is_not_found_for_everyone()
-
-
-@tagged('post_install', '-at_install', 'liwan')
 class TestCrmVisibilityAll(CrmVisibilityCase):
     MODE = 'all'
 
@@ -237,7 +190,7 @@ class TestCrmVisibilityCompanyMembership(LiwanCrmCase):
     """A CRM role in company A grants nothing in company B, where the user is only a member.
 
     Capability groups are the union over every company of the user, so the record rules must
-    scope each branch (own, all, team, assign) to the companies where the user holds
+    scope each branch (own, all, assign) to the companies where the user holds
     crm.leads.read. An own opportunity in such a company is hidden as well: no CRM capability
     there means no CRM data there.
     """
@@ -245,7 +198,6 @@ class TestCrmVisibilityCompanyMembership(LiwanCrmCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.env['ir.config_parameter'].set_param('sales_team.membership_multi', True)
         cls.company_b = cls.other_company
         # agent and agent2 hold the agent role in A only; agent3 holds it in A and B.
         cls.agent3 = cls._user('crm_agent3', 'CRM Agent Three', 'liwan_crm.role_crm_agent')
@@ -254,10 +206,6 @@ class TestCrmVisibilityCompanyMembership(LiwanCrmCase):
         cls.env['liwan.access.assignment'].create({
             'user_id': cls.agent3.id, 'role_id': cls.env.ref('liwan_crm.role_crm_agent').id,
             'company_id': cls.company_b.id,
-        })
-        cls.env['crm.team'].create({
-            'name': 'Team B', 'company_id': cls.company_b.id,
-            'crm_team_member_ids': [Command.create({'user_id': user.id}) for user in (cls.agent, cls.agent2, cls.agent3)],
         })
         cls.own_b = cls.make_lead(cls.agent, company=cls.company_b, contact_name='Own in B')
         cls.mate_b = cls.make_lead(cls.agent2, company=cls.company_b, contact_name='Teammate in B')
@@ -286,7 +234,7 @@ class TestCrmVisibilityCompanyMembership(LiwanCrmCase):
         return leads, attachments, messages
 
     def test_every_mode_hides_company_b_from_a_user_without_a_role_there(self):
-        for mode in ('own', 'team', 'all'):
+        for mode in ('own', 'all'):
             with self.subTest(mode=mode):
                 self.set_visibility(mode, company=self.company_b)
                 for user in (self.agent, self.manager):
@@ -299,9 +247,9 @@ class TestCrmVisibilityCompanyMembership(LiwanCrmCase):
                 self.assertFalse(self.env['crm.lead'].search(domain))
 
     def test_a_role_in_company_b_applies_the_mode_there(self):
-        # agent3 owns nothing in B; Team B holds agent, agent2 and agent3.
+        # agent3 owns nothing in B, so `own` reads nothing there; `all` adds every assigned one.
         assigned = {self.own_b.id, self.mate_b.id}
-        expected = {'own': set(), 'team': assigned, 'all': assigned}
+        expected = {'own': set(), 'all': assigned}
         for mode, ids in expected.items():
             with self.subTest(mode=mode):
                 self.set_visibility(mode, company=self.company_b)

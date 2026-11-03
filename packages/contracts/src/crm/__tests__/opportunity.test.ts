@@ -23,6 +23,7 @@ const opportunity = {
   discount_percent: 0,
   final_price: 0,
   expected_revenue: 0,
+  probability: 0,
   attempt_count: 0,
   next_call_at: null,
   cycle: 0,

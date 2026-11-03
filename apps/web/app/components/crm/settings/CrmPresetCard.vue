@@ -18,6 +18,9 @@ const locked = computed(() => !hydrated.value || !props.canEdit || state.value.s
 const labels = computed<Record<CrmPreset, { label: string; hint: string }>>(() => ({
   general: { label: t('crm.settings.preset.general'), hint: t('crm.settings.preset.generalHint') },
   phone_packages: { label: t('crm.settings.preset.phonePackages'), hint: t('crm.settings.preset.phonePackagesHint') },
+  professional_services: { label: t('crm.settings.preset.professionalServices'), hint: t('crm.settings.preset.professionalServicesHint') },
+  projects_contracts: { label: t('crm.settings.preset.projectsContracts'), hint: t('crm.settings.preset.projectsContractsHint') },
+  education: { label: t('crm.settings.preset.education'), hint: t('crm.settings.preset.educationHint') },
 }))
 const items = computed(() => props.settings.options.preset.map(value => ({ value, label: labels.value[value].label })))
 async function apply() {

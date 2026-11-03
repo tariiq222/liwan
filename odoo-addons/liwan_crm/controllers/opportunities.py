@@ -135,7 +135,7 @@ def _vals(parsed):
         vals['contact_name'] = vals['name'] = parsed['contact_name']
     if 'email' in parsed:
         vals['email_from'] = parsed['email']
-    for name in ('source_id', 'stage_id'):
+    for name in ('source_id', 'stage_id', 'probability'):
         if name in parsed:
             vals[name] = parsed[name]
     return vals

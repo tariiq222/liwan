@@ -265,6 +265,47 @@ class TestCrmSale(LiwanCrmCase):
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()['opportunity']['status'], 'won')
 
+    def test_a_sold_call_derives_the_discount_from_the_prices(self):
+        self.set_settings(discount_allowed=True, discount_max_percent=50)
+        lead = self.make_lead(self.agent)
+        sold = self.env.ref('liwan_crm.outcome_sold')
+        response = self.post(self.agent, lead, 'calls', outcome_id=sold.id, package_id=self.package.id, final_price=900)
+        self.assertEqual(response.status_code, 200, response.text)
+        opportunity = response.json()['opportunity']
+        self.assertEqual(
+            (opportunity['status'], opportunity['discount_percent'], opportunity['final_price']),
+            ('won', 10, 900),
+        )
+
+    def test_a_sold_call_refuses_a_declared_discount_that_does_not_match(self):
+        self.set_settings(discount_allowed=True, discount_max_percent=50)
+        lead = self.make_lead(self.agent)
+        sold = self.env.ref('liwan_crm.outcome_sold')
+        response = self.post(self.agent, lead, 'calls', outcome_id=sold.id, package_id=self.package.id,
+                             final_price=900, discount_percent=7)
+        self.assertEqual((response.status_code, response.json()['field']), (422, 'discount_percent'))
+        self.assertEqual(self.env['crm.phonecall'].search_count([('opportunity_id', '=', lead.id)]), 0)
+        self.assertEqual(lead.won_status, 'pending')
+
+    def test_a_sold_call_above_the_package_follows_the_price_policy(self):
+        lead = self.make_lead(self.agent)
+        sold = self.env.ref('liwan_crm.outcome_sold')
+        refused = self.post(self.agent, lead, 'calls', outcome_id=sold.id, package_id=self.package.id, final_price=1200)
+        self.assertEqual((refused.status_code, refused.json()['field']), (422, 'final_price'))
+        self.assertEqual(refused.json()['details'], {'reason': 'crm_price_above_list_managers'})
+        self.assertEqual(self.env['crm.phonecall'].search_count([('opportunity_id', '=', lead.id)]), 0)
+        self.set_settings(price_above_list='everyone')
+        accepted = self.post(self.agent, lead, 'calls', outcome_id=sold.id, package_id=self.package.id, final_price=1200)
+        self.assertEqual((accepted.status_code, accepted.json()['opportunity']['status']), (200, 'won'))
+
+    def test_a_sale_needs_a_sold_outcome(self):
+        lead = self.make_lead(self.agent)
+        follow_up = self.env.ref('liwan_crm.outcome_no_answer')
+        response = self.post(self.agent, lead, 'calls', outcome_id=follow_up.id, package_id=self.package.id,
+                             final_price=900)
+        self.assertEqual((response.status_code, response.json()['field']), (422, 'package_id'))
+        self.assertEqual(self.env['crm.phonecall'].search_count([('opportunity_id', '=', lead.id)]), 0)
+
     def test_a_lost_outcome_closes_the_opportunity(self):
         lead = self.make_lead(self.agent)
         outcome = self.env.ref('liwan_crm.outcome_not_interested')

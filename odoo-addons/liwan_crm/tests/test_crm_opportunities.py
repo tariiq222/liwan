@@ -7,13 +7,14 @@ from odoo.tools import mute_logger
 
 from .common import LiwanCrmCase
 from odoo.addons.liwan_api.tests.common import set_probe_feature
+from odoo.addons.liwan_crm.controllers.opportunities import MAX_AGENTS
 
 URL = '/api/v1/crm/opportunities'
 AUDIT_URL = '/api/v1/crm/audit/views'
 OPPORTUNITY_KEYS = {
     'id', 'contact_name', 'phone', 'email', 'stage', 'user', 'source', 'package', 'lost_reason', 'status',
-    'list_price', 'discount_percent', 'final_price', 'expected_revenue', 'attempt_count', 'next_call_at',
-    'cycle', 'recycle_at', 'needs_manager', 'active', 'created_at',
+    'list_price', 'discount_percent', 'final_price', 'expected_revenue', 'probability', 'attempt_count',
+    'next_call_at', 'cycle', 'recycle_at', 'needs_manager', 'active', 'created_at',
 }
 TRACKED = (
     'stage_id', 'user_id', 'contact_name', 'phone', 'email_from', 'liwan_package_id',
@@ -59,6 +60,16 @@ class TestCrmOpportunities(LiwanCrmCase):
         found = self.as_user(self.manager).api('GET', '/api/v1/crm/agents?q=two').json()
         self.assertEqual([person['id'] for person in found], [self.agent2.id])
         self.assertEqual(self.as_user(self.agent).api('GET', '/api/v1/crm/agents').status_code, 403)
+
+    def test_the_agent_picker_returns_at_most_fifty_people(self):
+        self.assertEqual(MAX_AGENTS, 50)
+        for index in range(MAX_AGENTS):
+            self._user(f'crm_extra_agent_{index}', f'CRM Extra Agent {index}', 'liwan_crm.role_crm_agent')
+        eligible = self.env['liwan.crm.distribution']._liwan_eligible_agents(self.company)
+        self.assertGreater(len(eligible), MAX_AGENTS)
+        listed = self.as_user(self.manager).api('GET', '/api/v1/crm/agents')
+        self.assertEqual(listed.status_code, 200, listed.text)
+        self.assertEqual(len(listed.json()), MAX_AGENTS)
 
     def test_creating_for_another_agent_tells_that_agent_only(self):
         response = self.create(self.manager, user_id=self.agent2.id)
@@ -197,6 +208,27 @@ class TestCrmOpportunities(LiwanCrmCase):
         self.assertEqual((response.status_code, response.json()['field']), (422, 'stage_id'))
         response = self.as_agent().api('PATCH', f'{URL}/{lead.id}', json={'user_id': self.agent2.id})
         self.assertEqual((response.status_code, response.json()['field']), (422, 'user_id'))
+
+    def test_patch_probability_sets_the_chance_to_win(self):
+        lead = self.make_lead(self.agent)
+        for probability in (0, 50, 100):
+            with self.subTest(probability=probability):
+                response = self.as_agent().api('PATCH', f'{URL}/{lead.id}', json={'probability': probability})
+                self.assertEqual(response.status_code, 200, response.text)
+                self.assertEqual(response.json()['probability'], probability)
+                detail = self.as_agent().api('GET', f'{URL}/{lead.id}').json()
+                self.assertEqual(detail['probability'], probability)
+                listed = self.as_agent().api('GET', URL).json()['items']
+                self.assertEqual({item['id']: item['probability'] for item in listed}[lead.id], probability)
+
+    def test_patch_refuses_a_probability_that_is_not_a_number_from_zero_to_one_hundred(self):
+        lead = self.make_lead(self.agent)
+        before = lead.probability
+        for probability in (-1, 101, '50', True):
+            with self.subTest(probability=probability):
+                response = self.as_agent().api('PATCH', f'{URL}/{lead.id}', json={'probability': probability})
+                self.assertEqual((response.status_code, response.json()['field']), (422, 'probability'))
+        self.assertEqual(lead.probability, before)
 
     def test_list_filters(self):
         mine = self.make_lead(self.agent, contact_name='Alpha', liwan_needs_manager=True)

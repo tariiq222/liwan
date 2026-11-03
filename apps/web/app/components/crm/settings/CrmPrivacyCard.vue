@@ -14,12 +14,10 @@ const { draft, state, save, revert, reload } = useCrmSettingsCard({
 const locked = computed(() => !hydrated.value || !props.canEdit || state.value.saving || state.value.reloading)
 const visibilityItems = computed(() => [
   { value: 'own', label: t('crm.settings.privacy.own') },
-  { value: 'team', label: t('crm.settings.privacy.team') },
   { value: 'all', label: t('crm.settings.privacy.all') },
 ])
 const visibilityHint = computed(() => ({
   own: t('crm.settings.privacy.ownHint'),
-  team: t('crm.settings.privacy.teamHint'),
   all: t('crm.settings.privacy.allHint'),
 })[draft.value.visibility])
 </script>
