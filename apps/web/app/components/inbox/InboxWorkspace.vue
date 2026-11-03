@@ -137,7 +137,7 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
           :description="hasConversations ? t('inbox.selectDescription') : t('inbox.list.emptyDescription')"
         >
           <template #icon>
-            <UIcon name="i-lucide-inbox" class="size-8" />
+            <UIcon name="i-liwan-whatsapp" class="size-8" />
           </template>
         </EmptyState>
       </div>

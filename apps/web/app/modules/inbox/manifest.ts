@@ -4,9 +4,9 @@ const manifest: AppManifest = {
   id: 'inbox',
   feature: 'inbox.enabled',
   routePrefixes: ['/inbox'],
-  rail: [{ id: 'inbox', labelKey: 'inbox.title', shortLabelKey: 'inbox.railLabel', icon: 'i-lucide-inbox', to: '/inbox', order: 90 }],
+  rail: [{ id: 'inbox', labelKey: 'inbox.title', shortLabelKey: 'inbox.railLabel', icon: 'i-liwan-whatsapp', to: '/inbox', order: 90 }],
   nav: [
-    { to: '/inbox', labelKey: 'inbox.nav.conversations', icon: 'i-lucide-inbox', shortcut: 't', capability: 'inbox.conversations.read' },
+    { to: '/inbox', labelKey: 'inbox.nav.conversations', icon: 'i-liwan-whatsapp', shortcut: 't', capability: 'inbox.conversations.read' },
     { to: '/inbox/campaigns', labelKey: 'inbox.nav.campaigns', icon: 'i-lucide-megaphone', shortcut: '', capability: 'inbox.campaigns.manage', feature: 'inbox.campaigns' },
     { to: '/inbox/reports', labelKey: 'inbox.nav.reports', icon: 'i-lucide-chart-column', shortcut: '', capability: 'inbox.reports.read', feature: 'inbox.reports' },
     { to: '/inbox/orders', labelKey: 'inbox.nav.orders', icon: 'i-lucide-shopping-cart', shortcut: '', capability: 'inbox.conversations.read', feature: 'inbox.catalog' },
@@ -14,7 +14,7 @@ const manifest: AppManifest = {
   // The catalog and its orders are the `inbox.catalog` sub-feature: their capabilities need it besides `inbox.enabled`.
   subFeatures: { 'inbox.catalog.': 'inbox.catalog', 'inbox.orders.': 'inbox.catalog' },
   settings: {
-    id: 'inbox', labelKey: 'inbox.title', icon: 'i-lucide-inbox', to: '/settings/apps/inbox',
+    id: 'inbox', labelKey: 'inbox.title', icon: 'i-liwan-whatsapp', to: '/settings/apps/inbox',
     parts: [
       { id: 'policy', labelKey: 'inbox.settings.policy.title', icon: 'i-lucide-shield-check', capability: 'inbox.settings.manage' },
       { id: 'presets', labelKey: 'inbox.settings.presets.title', icon: 'i-lucide-wand-sparkles', capability: 'inbox.settings.manage' },
@@ -31,7 +31,7 @@ const manifest: AppManifest = {
   },
   sidebarPanel: { module: 'inbox', width: 'wide', load: () => import('../../components/inbox/InboxSidebarPanel.vue') },
   contextLinks: () => [
-    { id: 'inbox-conversations', labelKey: 'inbox.nav.conversations', icon: 'i-lucide-inbox', to: '/inbox', capability: 'inbox.conversations.read' },
+    { id: 'inbox-conversations', labelKey: 'inbox.nav.conversations', icon: 'i-liwan-whatsapp', to: '/inbox', capability: 'inbox.conversations.read' },
     { id: 'inbox-campaigns', labelKey: 'inbox.nav.campaigns', icon: 'i-lucide-megaphone', to: '/inbox/campaigns', capability: 'inbox.campaigns.manage', feature: 'inbox.campaigns' },
     { id: 'inbox-reports', labelKey: 'inbox.nav.reports', icon: 'i-lucide-chart-column', to: '/inbox/reports', capability: 'inbox.reports.read', feature: 'inbox.reports' },
     { id: 'inbox-orders', labelKey: 'inbox.nav.orders', icon: 'i-lucide-shopping-cart', to: '/inbox/orders', capability: 'inbox.conversations.read', feature: 'inbox.catalog' },

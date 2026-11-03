@@ -13,7 +13,7 @@ const TONE_CHIP = {
 } as const
 const props = withDefaults(defineProps<{
   to: RouteLocationRaw
-  icon: `i-lucide-${string}`
+  icon: `i-${string}`
   title: string
   description?: string
   tone?: keyof typeof TONE_CHIP
