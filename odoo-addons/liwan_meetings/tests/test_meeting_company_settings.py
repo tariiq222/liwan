@@ -155,13 +155,17 @@ class TestMeetingCompanySettings(LiwanMeetingsCase):
             ('liwan_notification_kind', '=', 'meeting_reminder'),
             ('liwan_meeting_id', 'in', (boundary | outside).ids),
         ]
+        # The shipped cron runs as base.user_root, not as an API fixture's user.
+        root = self.env.ref('base.user_root')
+        cron = Meeting.with_user(root)
+        Message = self.env['mail.message'].with_user(root)
         with patch.object(fields.Datetime, 'now', return_value=now):
-            Meeting._liwan_run_meeting_reminders()
-            messages = self.env['mail.message'].search(domain)
-            self.assertTrue(messages)
-            self.assertEqual(messages.mapped('liwan_meeting_id'), boundary)
-            Meeting._liwan_run_meeting_reminders()
-            self.assertEqual(self.env['mail.message'].search(domain), messages)
+            cron._liwan_run_meeting_reminders()
+            messages = Message.search(domain)
+            self.assertTrue(messages, 'The cron must deliver at the exact one-hour cutoff')
+            self.assertEqual(messages.mapped('liwan_meeting_id').ids, boundary.ids)
+            cron._liwan_run_meeting_reminders()
+            self.assertEqual(Message.search(domain).ids, messages.ids)
 
     def test_a_new_meeting_carries_the_company_prefix_and_the_year(self):
         Meeting = self.env['liwan.meeting.minute'].sudo()
