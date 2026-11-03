@@ -25,10 +25,10 @@ export const crmSettings: CrmSettings = {
   },
   distribution_users: [{ id: 3, name: 'ليلى الحربي' }, { id: 4, name: 'خالد الشمري' }],
   options: {
-    preset: ['general', 'phone_packages'],
+    preset: ['general', 'phone_packages', 'professional_services', 'projects_contracts', 'education'],
     after_attempts: ['lost', 'manager'],
     distribution_mode: ['round_robin', 'manual', 'on_import'],
-    visibility: ['own', 'team', 'all'],
+    visibility: ['own', 'all'],
     price_above_list: ['forbid', 'managers', 'everyone'],
     term_gender: ['m', 'f'],
     followup_attempts: { min: 0, max: 10 },

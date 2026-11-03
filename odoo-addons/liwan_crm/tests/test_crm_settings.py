@@ -53,10 +53,10 @@ class TestCrmSettings(LiwanCrmCase):
 
     def test_options_describe_every_enum_and_range(self):
         options = self.as_manager().api('GET', URL).json()['options']
-        self.assertEqual(options['preset'], ['general', 'phone_packages'])
+        self.assertEqual(options['preset'], ['general', 'phone_packages', 'professional_services', 'projects_contracts', 'education'])
         self.assertEqual(options['after_attempts'], ['lost', 'manager'])
         self.assertEqual(options['distribution_mode'], ['round_robin', 'manual', 'on_import'])
-        self.assertEqual(options['visibility'], ['own', 'team', 'all'])
+        self.assertEqual(options['visibility'], ['own', 'all'])
         self.assertEqual(options['term_gender'], ['m', 'f'])
         self.assertEqual(options['followup_attempts'], {'min': 0, 'max': 10})
         self.assertEqual(options['followup_interval_hours'], {'min': 1, 'max': 720})
@@ -88,24 +88,24 @@ class TestCrmSettings(LiwanCrmCase):
 
     def test_patch_creates_the_row_and_bumps_revision(self):
         response = self.as_manager().api('PATCH', URL, {
-            'revision': 0, 'values': {'visibility': 'team', 'followup_attempts': 4},
+            'revision': 0, 'values': {'visibility': 'all', 'followup_attempts': 4},
         })
         self.assertEqual(response.status_code, 200, response.text)
         body = response.json()
         self.assertEqual(body['revision'], 1)
-        self.assertEqual(body['values']['visibility'], 'team')
+        self.assertEqual(body['values']['visibility'], 'all')
         self.assertEqual(body['values']['followup_attempts'], 4)
         self.assertEqual(body['values']['followup_interval_hours'], 24)
         again = self.api('PATCH', URL, {'revision': 1, 'values': {'view_log_enabled': True}}).json()
         self.assertEqual(again['revision'], 2)
-        self.assertEqual(again['values']['visibility'], 'team')
+        self.assertEqual(again['values']['visibility'], 'all')
         self.assertTrue(self.api('GET', URL).json()['values']['view_log_enabled'])
 
     def test_patch_with_stale_revision_is_409(self):
         self.as_manager()
         first = self.api('PATCH', URL, {'revision': 0, 'values': {'visibility': 'all'}})
         self.assertEqual(first.status_code, 200, first.text)
-        stale = self.api('PATCH', URL, {'revision': 0, 'values': {'visibility': 'team'}})
+        stale = self.api('PATCH', URL, {'revision': 0, 'values': {'visibility': 'own'}})
         self.assertEqual(stale.status_code, 409)
         self.assertEqual(stale.json()['code'], 'conflict')
         self.assertEqual(self._rows().visibility, 'all')
@@ -216,6 +216,78 @@ class TestCrmSettings(LiwanCrmCase):
         self.assertEqual(body['values']['followup_attempts'], 0)
         self.assertEqual(body['values']['distribution_mode'], 'manual')
 
+    def test_preset_professional_services_sets_its_values(self):
+        self.as_manager()
+        self.api('PATCH', URL, {'revision': 0, 'values': {
+            'followup_attempts': 9, 'distribution_mode': 'round_robin', 'visibility': 'all',
+        }})
+        response = self.api('PATCH', URL, {'revision': 1, 'preset': 'professional_services'})
+        self.assertEqual(response.status_code, 200, response.text)
+        body = response.json()
+        self.assertEqual(body['revision'], 2)
+        values = body['values']
+        self.assertEqual(values['preset'], 'professional_services')
+        self.assertEqual(values['followup_attempts'], 3)
+        self.assertEqual(values['followup_interval_hours'], 48)
+        self.assertEqual(values['after_attempts'], 'manager')
+        self.assertTrue(values['recycle_enabled'])
+        self.assertEqual(values['recycle_after_days'], 30)
+        self.assertEqual(values['recycle_cycles'], 1)
+        self.assertEqual(values['distribution_mode'], 'manual')
+        self.assertEqual(values['visibility'], 'own')
+        self.assertFalse(values['view_log_enabled'])
+        self.assertTrue(values['discount_allowed'])
+        self.assertEqual(values['discount_max_percent'], 10)
+        self.assertEqual(values['price_above_list'], 'managers')
+
+    def test_preset_projects_contracts_sets_its_values(self):
+        self.as_manager()
+        self.api('PATCH', URL, {'revision': 0, 'values': {
+            'followup_attempts': 9, 'visibility': 'own', 'discount_max_percent': 40,
+        }})
+        response = self.api('PATCH', URL, {'revision': 1, 'preset': 'projects_contracts'})
+        self.assertEqual(response.status_code, 200, response.text)
+        body = response.json()
+        self.assertEqual(body['revision'], 2)
+        values = body['values']
+        self.assertEqual(values['preset'], 'projects_contracts')
+        self.assertEqual(values['followup_attempts'], 2)
+        self.assertEqual(values['followup_interval_hours'], 72)
+        self.assertEqual(values['after_attempts'], 'manager')
+        self.assertTrue(values['recycle_enabled'])
+        self.assertEqual(values['recycle_after_days'], 30)
+        self.assertEqual(values['recycle_cycles'], 1)
+        self.assertEqual(values['distribution_mode'], 'manual')
+        self.assertEqual(values['visibility'], 'all')
+        self.assertFalse(values['view_log_enabled'])
+        self.assertTrue(values['discount_allowed'])
+        self.assertEqual(values['discount_max_percent'], 5)
+        self.assertEqual(values['price_above_list'], 'forbid')
+
+    def test_preset_education_sets_its_values(self):
+        self.as_manager()
+        self.api('PATCH', URL, {'revision': 0, 'values': {
+            'followup_attempts': 0, 'distribution_mode': 'manual', 'after_attempts': 'manager',
+        }})
+        response = self.api('PATCH', URL, {'revision': 1, 'preset': 'education'})
+        self.assertEqual(response.status_code, 200, response.text)
+        body = response.json()
+        self.assertEqual(body['revision'], 2)
+        values = body['values']
+        self.assertEqual(values['preset'], 'education')
+        self.assertEqual(values['followup_attempts'], 4)
+        self.assertEqual(values['followup_interval_hours'], 24)
+        self.assertEqual(values['after_attempts'], 'lost')
+        self.assertTrue(values['recycle_enabled'])
+        self.assertEqual(values['recycle_after_days'], 30)
+        self.assertEqual(values['recycle_cycles'], 1)
+        self.assertEqual(values['distribution_mode'], 'round_robin')
+        self.assertEqual(values['visibility'], 'own')
+        self.assertFalse(values['view_log_enabled'])
+        self.assertTrue(values['discount_allowed'])
+        self.assertEqual(values['discount_max_percent'], 15)
+        self.assertEqual(values['price_above_list'], 'forbid')
+
     def test_preset_keeps_terms_and_distribution_users(self):
         self.as_manager()
         self.api('PATCH', URL, {'revision': 0, 'values': {
@@ -245,13 +317,13 @@ class TestCrmSettings(LiwanCrmCase):
         body = self.as_manager().api('GET', URL).json()
         self.assertEqual(body['revision'], 0)
         self.assertEqual(body['values']['visibility'], 'own')
-        response = self.api('PATCH', URL, {'revision': 0, 'values': {'visibility': 'team'}})
+        response = self.api('PATCH', URL, {'revision': 0, 'values': {'visibility': 'own'}})
         self.assertEqual(response.status_code, 200, response.text)
         other.invalidate_recordset()
         self.assertEqual(other.visibility, 'all')
         self.assertEqual(other.followup_attempts, 9)
         self.assertEqual(other.revision, 1)
-        self.assertEqual(self._rows().visibility, 'team')
+        self.assertEqual(self._rows().visibility, 'own')
 
     def test_one_row_per_company(self):
         self.env['liwan.crm.settings'].create({'company_id': self.company.id})

@@ -7,21 +7,6 @@ ASSIGN_CAPABILITY = 'crm.leads.assign'
 NOTHING = [('id', 'in', [])]
 
 
-def teammate_domain(user_id, company_ids):
-    """Opportunities whose agent shares an active sales team with ``user_id``.
-
-    The team must be active and belong to one of ``company_ids`` (or to no company), and both
-    memberships must be active. Spelled with explicit ``active`` terms because record rules are
-    evaluated with ``active_test=False``; security/crm_rules.xml repeats it verbatim.
-    """
-    return [('user_id.crm_team_member_ids', 'any', [
-        ('active', '=', True),
-        ('crm_team_id.active', '=', True),
-        ('crm_team_id.company_id', 'in', [*company_ids, False]),
-        ('crm_team_id.crm_team_member_ids', 'any', [('active', '=', True), ('user_id', '=', user_id)]),
-    ])]
-
-
 class LiwanCrmVisibility(models.AbstractModel):
     """Who reads and writes which opportunity (spec "Visibility, enforced on the server").
 
@@ -59,8 +44,6 @@ class LiwanCrmVisibility(models.AbstractModel):
         mode = self.env['liwan.crm.settings']._liwan_effective()['visibility']
         if mode == 'all':
             return [*scope, ('user_id', '!=', False)]
-        if mode == 'team':
-            return [*scope, '|', *own, *teammate_domain(user.id, self.env.companies.ids)]
         return [*scope, *own]
 
     @api.model

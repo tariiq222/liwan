@@ -144,6 +144,15 @@ async function changeStage(value: unknown) {
   if (done) toast.add({ title: t('crm.opportunities.record.stageSaved'), color: 'success' })
 }
 
+const probability = ref<number>(0)
+watch(() => record.value?.probability, value => { probability.value = value ?? 0 }, { immediate: true })
+
+async function saveProbability() {
+  if (probability.value === record.value?.probability) return
+  const done = await run('page', () => actions.patch.mutateAsync({ id: id.value, body: { probability: probability.value } }))
+  if (done) toast.add({ title: t('crm.opportunities.record.probabilitySaved'), color: 'success' })
+}
+
 const assignee = ref<number | null>(null)
 async function assign() {
   if (!assignee.value) return
@@ -203,6 +212,13 @@ const stageItems = computed(() => movableStages(stages.data.value?.items ?? []).
         <SharedPropertyRow :label="t('crm.opportunities.record.stage')">
           <USelect v-if="canWork" class="w-full" :model-value="record.stage?.id" :items="stageItems" :aria-label="t('crm.opportunities.record.stageChange')" :disabled="busy" data-testid="crm-stage-select" @update:model-value="changeStage" />
           <template v-else>{{ record.stage?.name }}</template>
+        </SharedPropertyRow>
+        <SharedPropertyRow :label="t('crm.opportunities.record.probability')">
+          <div v-if="canWork" class="flex items-center gap-2">
+            <UInputNumber class="w-24" :model-value="probability" :min="0" :max="100" :step="5" :disabled="busy" data-testid="crm-probability-input" @update:model-value="value => (probability = value ?? 0)" />
+            <UButton size="xs" variant="outline" :label="t('crm.opportunities.record.probabilitySave')" :disabled="busy || probability === record.probability" :loading="actions.patch.isPending.value" data-testid="crm-probability-save" @click="saveProbability" />
+          </div>
+          <template v-else>{{ record.probability }}%</template>
         </SharedPropertyRow>
         <SharedPropertyRow :label="t('crm.opportunities.record.agent')" :value="record.user?.name ?? t('crm.opportunities.tag.pool')" />
         <SharedPropertyRow :label="t('crm.opportunities.record.source')" :value="record.source?.name" />

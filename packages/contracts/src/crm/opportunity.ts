@@ -28,6 +28,7 @@ export const CrmOpportunitySchema = z.strictObject({
   discount_percent: z.number().min(0).max(100),
   final_price: z.number().min(0),
   expected_revenue: z.number().min(0),
+  probability: z.number().min(0).max(100),
   attempt_count: z.number().int().min(0),
   next_call_at: IsoDateTimeSchema.nullable(),
   cycle: z.number().int().min(0),
@@ -58,6 +59,7 @@ export const CrmOpportunityPatchSchema = z
     email: EmailSchema.nullable(),
     source_id: z.number().int().positive().nullable(),
     stage_id: z.number().int().positive(),
+    probability: z.number().min(0).max(100),
   })
   .partial()
   .refine((body) => Object.keys(body).length > 0, 'nothing to change')

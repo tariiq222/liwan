@@ -26,10 +26,10 @@ const seedSettings = () => ({
   },
 })
 const OPTIONS = {
-  preset: ['general', 'phone_packages'],
+  preset: ['general', 'phone_packages', 'professional_services', 'projects_contracts', 'education'],
   after_attempts: ['lost', 'manager'],
   distribution_mode: ['round_robin', 'manual', 'on_import'],
-  visibility: ['own', 'team', 'all'],
+  visibility: ['own', 'all'],
   price_above_list: ['forbid', 'managers', 'everyone'],
   term_gender: ['m', 'f'],
   followup_attempts: { min: 0, max: 10 },
@@ -41,6 +41,9 @@ const OPTIONS = {
 const PRESETS = {
   general: { followup_attempts: 0, distribution_mode: 'manual' },
   phone_packages: { followup_attempts: 2, followup_interval_hours: 24, after_attempts: 'lost', distribution_mode: 'round_robin', visibility: 'own', discount_allowed: true, discount_max_percent: 10 },
+  professional_services: { followup_attempts: 3, followup_interval_hours: 48, after_attempts: 'manager', distribution_mode: 'manual', visibility: 'own', discount_allowed: true, discount_max_percent: 10, price_above_list: 'managers' },
+  projects_contracts: { followup_attempts: 2, followup_interval_hours: 72, after_attempts: 'manager', distribution_mode: 'manual', visibility: 'all', discount_allowed: true, discount_max_percent: 5, price_above_list: 'forbid' },
+  education: { followup_attempts: 4, followup_interval_hours: 24, after_attempts: 'lost', distribution_mode: 'round_robin', visibility: 'own', discount_allowed: true, discount_max_percent: 15, price_above_list: 'forbid' },
 }
 const seedLists = () => ({
   stages: [
@@ -83,12 +86,12 @@ const seededCreatedAt = (id) => {
 const ref = (rows, id) => { const row = rows.find(item => item.id === id); return row ? { id: row.id, name: row.name } : null }
 const mockUserRef = id => (id ? { id, name: USER_NAMES[id] ?? `#${id}` } : null)
 const seedOpportunities = () => {
-  const base = { email: '', lost_reason: null, package: null, list_price: 0, discount_percent: 0, final_price: 0, expected_revenue: 0, attempt_count: 0, next_call_at: null, cycle: 0, recycle_at: null, needs_manager: false, active: true, status: 'pending' }
+  const base = { email: '', lost_reason: null, package: null, list_price: 0, discount_percent: 0, final_price: 0, expected_revenue: 0, probability: 0, attempt_count: 0, next_call_at: null, cycle: 0, recycle_at: null, needs_manager: false, active: true, status: 'pending' }
   const row = (id, contact_name, phone, stageId, userId, sourceId, extra = {}) => ({ ...base, id, contact_name, phone, stage: ref(seedLists().stages, stageId), user: mockUserRef(userId), source: ref(seedLists().sources, sourceId), created_at: seededCreatedAt(id), ...extra })
   return [
-    row(1, 'أحمد العتيبي', '0501234567', 1, 2, 1, { attempt_count: 1, next_call_at: iso(-3), email: 'ahmad@example.com' }),
-    row(2, 'سارة القحطاني', '0507654321', 2, 2, 2, { attempt_count: 1, next_call_at: iso(20) }),
-    row(3, 'محمد الدوسري', '0551112233', 3, 3, 1, { next_call_at: iso(48) }),
+    row(1, 'أحمد العتيبي', '0501234567', 1, 2, 1, { attempt_count: 1, next_call_at: iso(-3), email: 'ahmad@example.com', probability: 25 }),
+    row(2, 'سارة القحطاني', '0507654321', 2, 2, 2, { attempt_count: 1, next_call_at: iso(20), probability: 50 }),
+    row(3, 'محمد الدوسري', '0551112233', 3, 3, 1, { next_call_at: iso(48), probability: 75 }),
     row(4, 'نورة الزهراني', '0559988776', 1, null, 2),
     row(5, 'فهد الحربي', '0533344556', 4, 2, 1, { status: 'won', package: { id: 1, name: 'باقة أساسية' }, list_price: 120, discount_percent: 10, final_price: 108, expected_revenue: 108 }),
     row(6, 'ريم السبيعي', '0544455667', 1, 3, 1, { status: 'lost', active: false, lost_reason: { id: 1, name: 'غير مهتم' }, attempt_count: 1 }),
@@ -247,7 +250,7 @@ function crmOpportunityWrite(method, path, body) {
     const created = {
       id: Math.max(0, ...opportunities.map(item => item.id)) + 1, contact_name: body.contact_name, phone: body.phone, email: body.email ?? '',
       stage: ref(lists.stages, firstStage().id), user: mockUserRef('user_id' in body ? body.user_id : 2), source: ref(lists.sources, body.source_id),
-      package: null, lost_reason: null, status: 'pending', list_price: 0, discount_percent: 0, final_price: 0, expected_revenue: 0, attempt_count: 0,
+      package: null, lost_reason: null, status: 'pending', list_price: 0, discount_percent: 0, final_price: 0, expected_revenue: 0, probability: 0, attempt_count: 0,
       next_call_at: null, cycle: 0, recycle_at: null, needs_manager: false, active: true, created_at: iso(0),
     }
     opportunities.unshift(created)
@@ -262,6 +265,7 @@ function crmOpportunityWrite(method, path, body) {
     if (lead.status !== 'pending') return closed
     if (body.phone && opportunities.some(item => item.id !== lead.id && item.phone === body.phone)) return invalid('phone', 'duplicate phone', 'duplicate_phone')
     const { stage_id: stageId, source_id: sourceId, ...plain } = body
+    if (body.probability !== undefined && (typeof body.probability !== 'number' || !(body.probability >= 0 && body.probability <= 100))) return invalid('probability', 'must be a number from 0 to 100')
     if (stageId && !lists.stages.some(stage => stage.id === stageId)) return invalid('stage_id', 'stage does not exist')
     if (stageId && lists.stages.find(stage => stage.id === stageId).is_won) return invalid('stage_id', 'an opportunity is won through the sale action')
     Object.assign(lead, plain)
@@ -406,7 +410,7 @@ function commitImport(body, checked) {
     opportunities.unshift({
       id: nextId, contact_name: item.name, phone: item.phone, email: item.email, stage: ref(lists.stages, firstStage().id), user: mockUserRef(agentId),
       source: ref(lists.sources, body.source_id), package: null, lost_reason: null, status: 'pending', list_price: 0, discount_percent: 0, final_price: 0,
-      expected_revenue: 0, attempt_count: 0, next_call_at: null, cycle: 0, recycle_at: null, needs_manager: false, active: true, created_at: iso(0),
+      expected_revenue: 0, probability: 0, attempt_count: 0, next_call_at: null, cycle: 0, recycle_at: null, needs_manager: false, active: true, created_at: iso(0),
     })
   }
   const batch = {

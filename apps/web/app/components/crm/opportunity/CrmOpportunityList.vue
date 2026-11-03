@@ -60,6 +60,7 @@ const columns = computed<TableColumn<CrmOpportunity>[]>(() => [
   { id: 'contact', header: t('crm.opportunities.form.contact'), meta: { class: { th: 'text-start min-w-[200px]', td: 'max-w-0' } } as TableColumn<CrmOpportunity>['meta'] },
   { id: 'phone', header: t('crm.opportunities.cols.phone'), meta: { class: { th: 'text-start w-[150px]', td: 'whitespace-nowrap' } } as TableColumn<CrmOpportunity>['meta'] },
   { id: 'stage', header: t('crm.opportunities.cols.stage'), meta: { class: { th: 'text-start w-[140px]', td: 'whitespace-nowrap' } } as TableColumn<CrmOpportunity>['meta'] },
+  { id: 'probability', header: t('crm.opportunities.cols.probability'), meta: { class: { th: 'text-start w-[110px]', td: 'whitespace-nowrap' } } as TableColumn<CrmOpportunity>['meta'] },
   { id: 'agent', header: t('crm.opportunities.cols.agent'), meta: { class: { th: 'text-start w-[160px]', td: 'whitespace-nowrap' } } as TableColumn<CrmOpportunity>['meta'] },
   { id: 'next_call', header: t('crm.opportunities.cols.nextCall'), meta: { class: { th: 'text-start w-[200px]', td: 'whitespace-nowrap' } } as TableColumn<CrmOpportunity>['meta'] },
 ])
@@ -100,6 +101,7 @@ const statusTone = (item: CrmOpportunity) => (item.status === 'won' ? 'success' 
         </template>
         <template #phone-cell="{ row }"><a :href="`tel:${row.original.phone}`" class="text-sm hover:underline" @click.stop><bdi>{{ row.original.phone }}</bdi></a></template>
         <template #stage-cell="{ row }"><span class="text-sm">{{ row.original.stage?.name }}</span></template>
+        <template #probability-cell="{ row }"><span class="text-sm">{{ row.original.probability }}%</span></template>
         <template #agent-cell="{ row }"><span class="text-sm" :class="{ 'text-muted': !row.original.user }">{{ row.original.user?.name ?? t('crm.opportunities.tag.pool') }}</span></template>
         <template #next_call-cell="{ row }">
           <span v-if="row.original.next_call_at" class="text-sm" :class="{ 'text-warning': isCallDue(row.original, now) }">
@@ -112,7 +114,7 @@ const statusTone = (item: CrmOpportunity) => (item.status === 'won' ? 'success' 
             <NuxtLink :to="recordTo(row)" class="flex min-w-0 flex-1 flex-col gap-1">
               <span class="flex min-w-0 items-center gap-2"><span class="min-w-0 truncate font-semibold text-highlighted">{{ row.contact_name }}</span><SharedStatusBadge v-if="row.status !== 'pending'" :tone="statusTone(row)" :label="statusLabel(row)" size="sm" /></span>
               <span class="truncate text-sm text-muted"><bdi>{{ row.phone }}</bdi></span>
-              <span class="truncate text-sm text-muted">{{ row.stage?.name }} · {{ row.user?.name ?? t('crm.opportunities.tag.pool') }}</span>
+              <span class="truncate text-sm text-muted">{{ row.stage?.name }} · {{ row.probability }}% · {{ row.user?.name ?? t('crm.opportunities.tag.pool') }}</span>
               <time v-if="row.next_call_at" class="text-sm" :class="isCallDue(row, now) ? 'text-warning' : 'text-muted'" :datetime="row.next_call_at">{{ relativeTime(row.next_call_at, now, locale) }}</time>
             </NuxtLink>
             <CrmCallButton :phone="row.phone" :name="row.contact_name" />

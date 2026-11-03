@@ -233,3 +233,14 @@ test('the mock answers in the contract shapes and refuses like the server', asyn
   const taken = await api.post('/api/v1/crm/opportunities', { data: { contact_name: 'x', phone: '0501234567' } })
   expect(await taken.json()).toMatchObject({ field: 'phone', details: { reason: 'duplicate_phone' } })
 })
+
+test('recording a call without an outcome shows the required message instead of sending', async ({ page }) => {
+  await page.goto('/crm/opportunities')
+  await page.getByRole('link', { name: 'أحمد العتيبي' }).click()
+  await expect(page.locator('main h1')).toHaveText('أحمد العتيبي')
+  const callsBefore = await page.request.get('/api/v1/crm/opportunities/1/calls').then(r => r.json())
+  await page.getByTestId('crm-call-submit').click()
+  await expect(page.getByText('اختر نتيجة الاتصال')).toBeVisible()
+  const callsAfter = await page.request.get('/api/v1/crm/opportunities/1/calls').then(r => r.json())
+  expect(callsAfter.total).toBe(callsBefore.total)
+})

@@ -5,10 +5,10 @@ TERM_KEYS = ('customer', 'opportunity', 'package')
 TERM_LANGUAGES = ('ar', 'en')
 TERM_FORMS = ('singular', 'plural')
 TERM_GENDERS = ('m', 'f')
-PRESET_KEYS = ('general', 'phone_packages')
+PRESET_KEYS = ('general', 'phone_packages', 'professional_services', 'projects_contracts', 'education')
 AFTER_ATTEMPTS = ('lost', 'manager')
 DISTRIBUTION_MODES = ('round_robin', 'manual', 'on_import')
-VISIBILITIES = ('own', 'team', 'all')
+VISIBILITIES = ('own', 'all')
 # Who may sell a package above its list price: nobody, the holders of crm.discount.approve, or every agent.
 PRICE_ABOVE_LIST = ('forbid', 'managers', 'everyone')
 
@@ -74,6 +74,48 @@ PRESETS = {
         **{name: DEFAULTS[name] for name in _PRESET_FIELDS},
         'followup_attempts': 0,
         'distribution_mode': 'manual',
+    },
+    'professional_services': {
+        'followup_attempts': 3,
+        'followup_interval_hours': 48,
+        'after_attempts': 'manager',
+        'recycle_enabled': True,
+        'recycle_after_days': 30,
+        'recycle_cycles': 1,
+        'distribution_mode': 'manual',
+        'visibility': 'own',
+        'view_log_enabled': False,
+        'discount_allowed': True,
+        'discount_max_percent': 10,
+        'price_above_list': 'managers',
+    },
+    'projects_contracts': {
+        'followup_attempts': 2,
+        'followup_interval_hours': 72,
+        'after_attempts': 'manager',
+        'recycle_enabled': True,
+        'recycle_after_days': 30,
+        'recycle_cycles': 1,
+        'distribution_mode': 'manual',
+        'visibility': 'all',
+        'view_log_enabled': False,
+        'discount_allowed': True,
+        'discount_max_percent': 5,
+        'price_above_list': 'forbid',
+    },
+    'education': {
+        'followup_attempts': 4,
+        'followup_interval_hours': 24,
+        'after_attempts': 'lost',
+        'recycle_enabled': True,
+        'recycle_after_days': 30,
+        'recycle_cycles': 1,
+        'distribution_mode': 'round_robin',
+        'visibility': 'own',
+        'view_log_enabled': False,
+        'discount_allowed': True,
+        'discount_max_percent': 15,
+        'price_above_list': 'forbid',
     },
 }
 

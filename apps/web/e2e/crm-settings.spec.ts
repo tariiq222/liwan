@@ -1,0 +1,57 @@
+import { test, expect, type Page } from '@playwright/test'
+
+// Runs against the isolated synthetic stack (MODULE_UI_PREVIEW=1): the CRM mock keeps state, reset before each test.
+test.skip(process.env.E2E_PROJECT_POPUPS !== '1', 'the CRM settings checks run on the isolated mock stack (npm run e2e:mock)')
+
+async function login(page: Page) {
+  await page.goto('/login')
+  await expect(page.getByRole('button', { name: 'دخول', exact: true })).toBeEnabled()
+  await page.getByLabel('اسم المستخدم').fill('admin')
+  await page.getByLabel('كلمة المرور', { exact: true }).fill('admin')
+  await page.getByRole('button', { name: 'دخول', exact: true }).click()
+  await expect(page).not.toHaveURL(/\/login/)
+}
+
+test.beforeEach(async ({ page }) => {
+  await login(page)
+  const reset = await page.request.post('/api/v1/__mock/reset-crm', { data: {} })
+  expect(reset.ok()).toBe(true)
+  await page.goto('/settings/apps/crm')
+})
+
+test('the preset card offers the two existing and the three sector presets', async ({ page }) => {
+  await page.locator('#crm-preset').click()
+  for (const name of ['عام', 'اتصال وباقات', 'خدمات احترافية', 'مشاريع وعقود', 'تعليم وتدريب']) {
+    await expect(page.getByRole('option', { name, exact: true })).toBeVisible()
+  }
+})
+
+test('the privacy card offers own and everyone, never the removed team mode', async ({ page }) => {
+  await page.locator('#visibility').click()
+  await expect(page.getByRole('option', { name: 'فرصه فقط', exact: true })).toBeVisible()
+  await expect(page.getByRole('option', { name: 'الجميع', exact: true })).toBeVisible()
+  await expect(page.getByRole('option', { name: 'فريقه', exact: true })).toHaveCount(0)
+})
+
+test('the privacy card saves the view log switch', async ({ page }) => {
+  const card = page.locator('#privacy')
+  const log = card.getByRole('switch', { name: 'سجل الاطلاع' })
+  await expect(log).not.toBeChecked()
+  await log.click()
+  await page.locator('button:not([disabled])', { hasText: 'حفظ التغييرات' }).click()
+  await page.reload()
+  await expect(page.locator('#privacy').getByRole('switch', { name: 'سجل الاطلاع' })).toBeChecked()
+})
+
+test('the pricing card saves the discount ceiling and the above-list policy', async ({ page }) => {
+  const card = page.locator('#pricing')
+  const allowed = card.getByRole('switch', { name: 'السماح بالخصم' })
+  if (!(await allowed.isChecked())) await allowed.click()
+  await card.locator('#discount-max').fill('25')
+  await card.locator('#price-above-list').click()
+  await page.getByRole('option', { name: 'ممنوع', exact: true }).click()
+  await page.locator('button:not([disabled])', { hasText: 'حفظ التغييرات' }).click()
+  await page.reload()
+  await expect(page.locator('#pricing #discount-max')).toHaveValue('25')
+  await expect(page.locator('#pricing #price-above-list')).toContainText('ممنوع')
+})

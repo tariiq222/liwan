@@ -11,7 +11,7 @@ INVALID_PHONE_REASON = 'invalid_phone'
 DUPLICATE_PHONE_REASON = 'duplicate_phone'
 INVALID_EMAIL_REASON = 'invalid_email'
 CREATE_FIELDS = ('contact_name', 'phone', 'email', 'source_id', 'user_id')
-PATCH_FIELDS = ('contact_name', 'phone', 'email', 'source_id', 'stage_id')
+PATCH_FIELDS = ('contact_name', 'phone', 'email', 'source_id', 'stage_id', 'probability')
 REQUIRED_ON_CREATE = ('contact_name', 'phone')
 BOOLEAN_FILTERS = ('due', 'unassigned', 'needs_manager')
 ID_FILTERS = ('stage_id', 'user_id', 'source_id')
@@ -38,6 +38,7 @@ def dump_opportunity(lead):
         'discount_percent': lead.liwan_discount_percent,
         'final_price': lead.liwan_final_price,
         'expected_revenue': lead.expected_revenue,
+        'probability': lead.probability,
         'attempt_count': lead.liwan_attempt_count,
         'next_call_at': iso(lead.liwan_next_call_at),
         'cycle': lead.liwan_cycle,
@@ -74,6 +75,13 @@ def parse_id_or_null(value, field):
     return False if value is None else parse_id(value, field)
 
 
+def parse_probability(value, field):
+    """A chance-to-win percentage: a real number from 0 to 100, booleans refused."""
+    if type(value) not in (int, float) or not 0 <= value <= 100:
+        raise ApiError(422, 'invalid', 'must be a number from 0 to 100', field=field)
+    return value
+
+
 def _email(value, field):
     if value in (None, ''):
         return False
@@ -106,6 +114,8 @@ def parse_opportunity_body(payload, creating):
             parsed[name] = _email(value, name)
         elif name == 'stage_id':
             parsed[name] = parse_id(value, name)
+        elif name == 'probability':
+            parsed[name] = parse_probability(value, name)
         else:
             parsed[name] = parse_id_or_null(value, name)
     return parsed

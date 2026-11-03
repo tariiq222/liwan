@@ -23,6 +23,12 @@
         "generalHint": "No automatic follow-up, and manual distribution.",
         "phonePackages": "Calls and plans",
         "phonePackagesHint": "Automatic follow-up after unanswered calls, round-robin distribution and a capped discount.",
+        "professionalServices": "Professional services",
+        "professionalServicesHint": "Longer follow-up, the manager decides when attempts run out, discount up to 10%, and only managers may sell above the plan price.",
+        "projectsContracts": "Projects and contracts",
+        "projectsContractsHint": "Slower follow-up, the manager decides when attempts run out, everyone sees the opportunities, discount up to 5%, and no selling above the plan price.",
+        "education": "Education and training",
+        "educationHint": "Fast follow-up, round-robin distribution, automatic loss after the attempts, discount up to 15%, and no selling above the plan price.",
         "apply": "Apply preset",
         "confirmTitle": "Apply the \"{name}\" preset?",
         "confirmBody": "This replaces the current follow-up, distribution, privacy and discount values. It does not change the terms or the lists."
@@ -83,8 +89,6 @@
         "visibility": "Who sees opportunities",
         "own": "Own only",
         "ownHint": "An agent sees only their own opportunities; managers see all.",
-        "team": "Their team",
-        "teamHint": "An agent sees the opportunities of the sales team they belong to.",
         "all": "Everyone",
         "allHint": "Every CRM agent sees all opportunities; editing stays with the owner.",
         "viewLog": "View log",
@@ -149,7 +153,12 @@
         "agent": "Agent",
         "agentPicker": "Choose an agent",
         "statusFilter": "Status",
-        "status": { "open": "Open", "won": "Won", "lost": "Lost", "all": "All" },
+        "status": {
+          "open": "Open",
+          "won": "Won",
+          "lost": "Lost",
+          "all": "All"
+        },
         "due": "Follow-up due",
         "unassigned": "No agent",
         "needsManager": "Needs a manager",
@@ -161,6 +170,7 @@
       "cols": {
         "phone": "Phone",
         "stage": "Stage",
+        "probability": "Probability",
         "agent": "Agent",
         "nextCall": "Next call"
       },
@@ -184,6 +194,8 @@
         "phone": "Phone",
         "email": "Email",
         "stage": "Stage",
+        "probability": "Probability",
+        "probabilitySave": "Save probability",
         "agent": "Agent",
         "source": "Source",
         "listPrice": "{term} price",
@@ -207,7 +219,8 @@
         "reopened": "Reopened",
         "managerBanner": "The call attempts are used up and a manager has to decide: assign again or reopen.",
         "closedWon": "Closed as sold.",
-        "closedLost": "Closed as lost."
+        "closedLost": "Closed as lost.",
+        "probabilitySaved": "Probability saved"
       },
       "call": {
         "title": "Record a call",

@@ -17,10 +17,16 @@ export const CrmSettingsTermsSchema = z.strictObject({
   package: CrmTermSchema,
 })
 
-export const CrmPresetSchema = z.enum(['general', 'phone_packages'])
+export const CrmPresetSchema = z.enum([
+  'general',
+  'phone_packages',
+  'professional_services',
+  'projects_contracts',
+  'education',
+])
 export const CrmAfterAttemptsSchema = z.enum(['lost', 'manager'])
 export const CrmDistributionModeSchema = z.enum(['round_robin', 'manual', 'on_import'])
-export const CrmVisibilitySchema = z.enum(['own', 'team', 'all'])
+export const CrmVisibilitySchema = z.enum(['own', 'all'])
 export const CrmPriceAboveListSchema = z.enum(['forbid', 'managers', 'everyone'])
 
 const RangeSchema = z.strictObject({ min: z.number().int(), max: z.number().int() })

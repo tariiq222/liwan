@@ -14,17 +14,10 @@
         <field name="model_id" ref="crm.model_crm_lead"/>
         <field name="domain_force">[
             ('company_id', 'in', user.liwan_crm_read_company_ids.ids),
-            '|', '|', '|',
+            '|', '|',
             ('user_id', '=', user.id),
             ('company_id', 'in', user.liwan_crm_assign_company_ids.ids),
             '&amp;', ('user_id', '!=', False), ('company_id.liwan_crm_settings_ids.visibility', '=', 'all'),
-            '&amp;', ('company_id.liwan_crm_settings_ids.visibility', '=', 'team'),
-            ('user_id.crm_team_member_ids', 'any', [
-                ('active', '=', True),
-                ('crm_team_id.active', '=', True),
-                ('crm_team_id.company_id', 'in', company_ids + [False]),
-                ('crm_team_id.crm_team_member_ids', 'any', [('active', '=', True), ('user_id', '=', user.id)]),
-            ]),
         ]</field>
         <field name="perm_read" eval="True"/>
         <field name="perm_write" eval="False"/>
@@ -68,17 +61,10 @@
             ('company_id', 'in', company_ids),
             ('opportunity_id', 'any', [
                 ('company_id', 'in', user.liwan_crm_read_company_ids.ids),
-                '|', '|', '|',
+                '|', '|',
                 ('user_id', '=', user.id),
                 ('company_id', 'in', user.liwan_crm_assign_company_ids.ids),
                 '&amp;', ('user_id', '!=', False), ('company_id.liwan_crm_settings_ids.visibility', '=', 'all'),
-                '&amp;', ('company_id.liwan_crm_settings_ids.visibility', '=', 'team'),
-                ('user_id.crm_team_member_ids', 'any', [
-                    ('active', '=', True),
-                    ('crm_team_id.active', '=', True),
-                    ('crm_team_id.company_id', 'in', company_ids + [False]),
-                    ('crm_team_id.crm_team_member_ids', 'any', [('active', '=', True), ('user_id', '=', user.id)]),
-                ]),
             ]),
         ]</field>
         <field name="perm_read" eval="True"/>

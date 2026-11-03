@@ -20,10 +20,6 @@ class TestCrmExport(LiwanCrmCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.exporter = cls._exporter()
-        cls.team = cls.env['crm.team'].create({
-            'name': 'Export team', 'company_id': cls.company.id,
-            'crm_team_member_ids': [Command.create({'user_id': cls.exporter.id}), Command.create({'user_id': cls.agent2.id})],
-        })
         cls.source = cls.env['utm.source'].create({'name': 'Export source'})
         cls.package = cls.make_package(price=500.0, name='Gold')
         cls.own = cls.make_lead(
@@ -95,10 +91,6 @@ class TestCrmExport(LiwanCrmCase):
     def test_own_mode_exports_only_own(self):
         self.set_visibility('own')
         self.assertEqual(self.names(self.exporter), {'Own customer'})
-
-    def test_team_mode_adds_teammates(self):
-        self.set_visibility('team')
-        self.assertEqual(self.names(self.exporter), {'Own customer', 'Teammate customer'})
 
     def test_all_mode_adds_every_assigned_opportunity_but_not_the_pool(self):
         self.set_visibility('all')
