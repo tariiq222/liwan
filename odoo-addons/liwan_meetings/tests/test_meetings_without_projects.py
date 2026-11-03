@@ -80,7 +80,11 @@ class TestMeetingsWithoutProjects(LiwanMeetingsCase):
 
     def test_project_links_are_refused_and_clearing_is_a_no_op(self):
         self._assert_unsupported(self.api('POST', '/api/v1/meetings', {'name': 'With project', 'project_id': 5}))
+        # Both routes validate before writing: the refused create leaves no meeting behind.
+        self._assert_unsupported(self.api('POST', '/api/v1/meetings', {'name': 'With project', 'project_id': 999999}))
+        self.assertFalse(self.env['liwan.meeting.minute'].search([('name', '=', 'With project')]))
         self._assert_unsupported(self.api('PATCH', f'/api/v1/meetings/{self.meeting.id}', {'project_id': 5}))
+        self._assert_unsupported(self.api('PATCH', f'/api/v1/meetings/{self.meeting.id}', {'project_id': 999999}))
         self._assert_unsupported(self.api('POST', f'/api/v1/meetings/{self.meeting.id}/resolutions', {
             'name': 'With project', 'responsible_id': self.employee.id, 'deadline': '2026-09-30', 'project_id': 5,
         }))

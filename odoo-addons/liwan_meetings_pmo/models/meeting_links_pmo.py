@@ -8,7 +8,7 @@ even when the caller cannot read its task. It returns ids only. Every other
 hook reads projects and tasks in the caller's environment.
 """
 from odoo import api, models
-from odoo.exceptions import AccessError, ValidationError
+from odoo.exceptions import AccessError, MissingError, ValidationError
 from odoo.fields import Domain
 
 from odoo.addons.liwan_api.controllers.common import ApiError, get_record
@@ -64,11 +64,23 @@ class LiwanMeetingProjectLinks(models.AbstractModel):
     @api.model
     def _liwan_check_project(self, project_id):
         self.env['liwan.entitlement.service'].require(PMO_FEATURE)
-        project = get_record('project.project', project_id)
+        try:
+            project = get_record('project.project', project_id)
+        except MissingError:
+            # The fixed wording every missing record gets, so an unknown project leaks nothing; a project
+            # the caller cannot see gets that 404 only when the caller may open projects at all.
+            self._liwan_require_projects_read()
+            raise ApiError(404, 'not_found', self.env._('Record does not exist'), field='project_id') from None
         if project.company_id != self.env.company:
             raise ApiError(422, 'invalid', 'project_id must belong to the current company', field='project_id')
         project.check_access('read')
         return project.id
+
+    @api.model
+    def _liwan_require_projects_read(self):
+        """A genuine 422 for a caller who cannot read projects at all; a reader's hidden project is not-found."""
+        if not self.env['liwan.access.service']._liwan_has_capability(self.env.user, 'pmo.projects.read'):
+            raise ApiError(422, 'invalid', 'project_id must be a project you can read', field='project_id')
 
     @api.model
     def _liwan_project_vals(self, project_id):

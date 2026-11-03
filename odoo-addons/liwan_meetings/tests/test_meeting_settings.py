@@ -43,9 +43,13 @@ class TestMeetingScheduleSetting(LiwanMeetingsCase):
         self.authenticate('api_mgr', 'api_mgr_pass_123')
         body = self.api('GET', SETTINGS).json()
         self.assertEqual(body, {
-            'values': {'schedule_policy': 'organizers_only'},
-            'defaults': {'schedule_policy': 'organizers_only'},
-            'options': {'schedule_policy': ['all_employees', 'organizers_only']},
+            'values': {'schedule_policy': 'organizers_only', 'reminder_hours': 24, 'reference_prefix': 'MIN'},
+            'defaults': {'schedule_policy': 'organizers_only', 'reminder_hours': 24, 'reference_prefix': 'MIN'},
+            'options': {
+                'schedule_policy': ['all_employees', 'organizers_only'],
+                'reminder_hours': {'min': 1, 'max': 168},
+                'reference_prefix': {'pattern': '[A-Z0-9]{1,10}', 'max_length': 10},
+            },
             'revision': 0,
         })
         self.assertFalse(self.Settings.search([]))

@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo noupdate="1">
+    <!-- The one meeting-minute counter of the system: every company draws its number here, so a
+         number is never reused, and the meeting reference builds the company prefix and the year
+         itself around it. The prefix stays empty so this record yields the number alone. Existing
+         references are never rewritten, and ``company_id`` stays empty so no company owns this row. -->
     <record id="sequence_meeting_minute" model="ir.sequence">
         <field name="name">Meeting Minutes</field>
         <field name="code">liwan.meeting.minute</field>
-        <field name="prefix">MIN/%(year)s/</field>
+        <field name="prefix"></field>
         <field name="padding">4</field>
         <field name="company_id" eval="False"/>
     </record>

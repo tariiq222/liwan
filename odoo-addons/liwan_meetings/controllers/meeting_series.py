@@ -14,7 +14,10 @@ from odoo.addons.liwan_api.controllers.common import (
     require_capabilities,
     requires_feature,
 )
-from odoo.addons.liwan_meetings.models.meeting_series import MAX_OCCURRENCES
+from odoo.addons.liwan_meetings.models.meeting_series import (
+    MAX_OCCURRENCES,
+    RECURRENCES,
+)
 from odoo.addons.liwan_meetings.serializers.meeting import (
     dump_meeting,
     dump_series,
@@ -22,7 +25,7 @@ from odoo.addons.liwan_meetings.serializers.meeting import (
 )
 
 MAX_SERIES = 200
-RECURRENCE = {'none', 'weekly', 'biweekly', 'monthly'}
+RECURRENCE = set(RECURRENCES)
 
 
 def _parse_series_datetime(value, field):
@@ -148,8 +151,9 @@ class MeetingSeriesController(http.Controller):
             'organizer_id': request.env.uid,
         }
         if project_id:
-            vals.update(request.env['liwan.meeting.links']._liwan_project_vals(
-                parse_positive_int(project_id, 'project_id'),
+            links = request.env['liwan.meeting.links']
+            vals.update(links._liwan_project_vals(
+                links._liwan_check_project(parse_positive_int(project_id, 'project_id')),
             ))
         if secretary_id:
             vals['secretary_id'] = _validate_internal_user(secretary_id, 'secretary_id')

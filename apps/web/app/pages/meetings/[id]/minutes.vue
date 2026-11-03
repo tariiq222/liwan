@@ -73,11 +73,17 @@ const { fieldErrors: serverErrors, submitError } = useMeetingSubmitError({
 })
 const canEdit = computed(() => query.data.value?.can_edit === true)
 const lifecycleLocked = computed(() => query.data.value?.state === 'done' || query.data.value?.state === 'cancelled')
+// One page serves reading and editing: a locked or non-editable meeting reads the minutes, and only
+// an editable one is titled and framed as the editor.
+const editableMinutes = computed(() => canEdit.value && !lifecycleLocked.value)
 const structuredValidationErrors = computed(() => validateMeetingMinutesForm(minutesForm.value, query.data.value?.resolutions ?? []))
 const canPersist = computed(() => canEdit.value && !lifecycleLocked.value && !structuredValidationErrors.value.length)
 const readonlySnapshot = computed(() => (query.data.value?.state === 'done' ? (query.data.value as typeof query.data.value & { minutes_snapshot?: MeetingMinutesSnapshotLike | null })?.minutes_snapshot ?? null : null))
 const readonlyForm = computed(() => readonlySnapshot.value ? readonlySnapshot.value.minutes_form ?? null : hasStructuredForm.value ? minutesForm.value : null)
 const readonlyRecommendations = computed(() => readonlySnapshot.value?.resolutions ?? query.data.value?.resolutions ?? [])
+const minutesDocumentVisible = computed(() => Boolean(readonlySnapshot.value || hasStructuredForm.value) && !editableMinutes.value)
+// The structured document already prints the agenda; the standalone agenda card below would repeat it.
+const documentShowsAgenda = computed(() => minutesDocumentVisible.value && Boolean(readonlySnapshot.value?.agenda ?? agenda.value))
 
 async function save(navigateToRecommendation = false, topicKey?: string) {
   attemptedSubmit.value = true
@@ -109,16 +115,16 @@ function createRecommendation(topicKey?: string) {
 
 <template>
   <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('meetingsUx.minutesEditorTitle')" :back-to="backTo" />
+    <SharedPageHeader :title="t(editableMinutes ? 'meetingsUx.minutesEditorTitle' : 'meetingsUx.minutesLabel')" :back-to="backTo" />
     <SharedPageState :loading="query.isLoading.value" :error="pageError" :empty="!query.isLoading.value && !pageError && !query.data.value" @retry="query.refetch">
       <form novalidate v-if="query.data.value" class="grid gap-(--liwan-gap-card)" @submit.prevent="save(false)">
         <SharedUnsavedChanges :dirty="dirty" />
-        <UAlert color="neutral" variant="subtle" icon="i-lucide-info" :title="t('meetingsUx.minutesEditorContext', { name: query.data.value.name })" />
+        <UAlert v-if="editableMinutes" color="neutral" variant="subtle" icon="i-lucide-info" :title="t('meetingsUx.minutesEditorContext', { name: query.data.value.name })" />
         <UAlert v-if="recommendationReturn" :color="recommendationReturn === 'unavailable' ? 'warning' : 'info'" variant="subtle" :title="t(`meetingsUx.recommendationReturn.${recommendationReturn}`)" />
         <p v-if="lifecycleLocked && query.data.value.can_manage" role="alert" class="text-sm text-muted">{{ t('meetingsUx.minutesEditorReopen') }} <UButton color="primary" variant="link" class="p-0" :to="backTo" :label="t('meetingsUx.openMeetingForReopen')" /></p>
         <UAlert v-else-if="!canEdit" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.minutesEditorForbidden')" />
         <MeetingMinutesDocument
-          v-if="(readonlySnapshot || hasStructuredForm) && (lifecycleLocked || !canEdit)"
+          v-if="minutesDocumentVisible"
           :meeting="query.data.value"
           :snapshot="readonlySnapshot"
           :form="readonlyForm"
@@ -128,7 +134,7 @@ function createRecommendation(topicKey?: string) {
           :legacy-recommendations="readonlyRecommendations"
           :title="t('meetingMinutesForm.documentTitle')"
         />
-        <UFormField v-else-if="!lifecycleLocked && canEdit" name="minutesForm" :error="serverErrors.minutesForm">
+        <UFormField v-else-if="editableMinutes" name="minutesForm" :error="serverErrors.minutesForm">
           <MeetingMinutesForm
             v-model="minutesForm"
             :meeting="query.data.value"
@@ -136,10 +142,11 @@ function createRecommendation(topicKey?: string) {
             :legacy-agenda="agenda"
             :readonly="lifecycleLocked || !canEdit"
             :pending="isPending"
+            :can-save="dirty"
             @save-and-create-resolution="createRecommendation"
           />
         </UFormField>
-        <SharedRecordSection :title="t('meetingsUi.agenda')" variant="panel">
+        <SharedRecordSection v-if="!documentShowsAgenda" :title="t('meetingsUi.agenda')" variant="panel">
           <template v-if="canEdit && !lifecycleLocked" #actions><UButton color="neutral" variant="outline" size="sm" :to="recordSiblingTo(`/meetings/${id}/edit`, { ...cleanMeetingEditorQuery(route.query), tab: 'summary' }, sourcePaths)" :label="t('app.edit')" /></template>
           <SharedRichText v-if="agenda" :html="agenda" size="sm" />
           <p v-else class="text-sm text-muted">{{ t('meetingsUi.emptyAgenda') }}</p>

@@ -34,6 +34,8 @@ function page(file: string, pmo = false, routeOverride: Record<string, unknown> 
   const meetingData = ref({ id: 7, can_edit: true, can_manage: true, state: 'draft', series_id: null,
     resolutions: [{ id: 9, can_update_execution: true, can_edit_decision: false, task_id: null, state: 'open', allowed_actions: ['start', 'complete', 'cancel'] }] })
   const resolutionMutation = vi.fn(async () => undefined)
+  const queryClient = { refetchQueries: vi.fn(async () => {}), getQueryData: vi.fn(() => undefined) }
+  const ApiError = class ApiError extends Error {}
   const scope = {
     ...recordNavigation, onBeforeUnmount: () => {},
     defineProps: () => reactive({ meeting: meetingData.value, meetingId: 7 }), defineEmits: () => vi.fn(),
@@ -50,7 +52,8 @@ function page(file: string, pmo = false, routeOverride: Record<string, unknown> 
     clearMeetingListFilters, parseMeetingListFilters, patchMeetingListQuery, parseOffset,
     useConvertResolution: () => ({ mutateAsync, isPending: ref(false) }),
     useResolutionAction: () => ({ mutateAsync: resolutionMutation }), resolutionActions, filterMeetingResolutions,
-    safeReturnTo: (_: unknown, fallback: string) => fallback, ApiError: class ApiError extends Error {},
+    useQueryClient: () => queryClient, meetingKeys: { detail: (id: number | null) => ['meetings', id] as const },
+    safeReturnTo: (_: unknown, fallback: string) => fallback, ApiError,
     navigateTo: vi.fn(), useToast: () => ({ add: vi.fn() }) }
   const ast = ts.createSourceFile('page.ts', source, ts.ScriptTarget.Latest, true)
   const script = ast.statements.filter(statement => !ts.isImportDeclaration(statement)).map(statement => statement.getText(ast)).join('\n').replaceAll('import.meta.client', 'false')
@@ -60,7 +63,7 @@ function page(file: string, pmo = false, routeOverride: Record<string, unknown> 
     : file === resolutionsTab
       ? '{ convertResolution, projectByResolution, resolutionCanReopen, requestResolutionAction, confirmResolutionAction, pendingResolutionAction, error: () => conversionError.value }'
       : '{ search, offset, pages, params }'
-  return { ...new Function(...Object.keys(scope), `${js};return ${exposed}`)(...Object.values(scope)), route, meeting: meetingData, picker, projects, seriesList, replace, resolutionMutation }
+  return { ...new Function(...Object.keys(scope), `${js};return ${exposed}`)(...Object.values(scope)), route, meeting: meetingData, picker, projects, seriesList, replace, resolutionMutation, mutateAsync, queryClient, ApiError }
 }
 
 const listScopes: Array<() => void> = []
@@ -93,6 +96,25 @@ describe('meeting route and conversion behavior', () => {
   it('shows a localized inline conversion failure', async () => {
     const detail = page(resolutionsTab, true)
     detail.projectByResolution.value[9] = 3
+    await expect(detail.convertResolution(9)).resolves.toBeUndefined()
+    expect(detail.error()).toBe('meetingsUi.convertError')
+  })
+
+  it('answers a recommendation converted elsewhere from the refreshed projection, not the raw text', async () => {
+    const detail = page(resolutionsTab, true)
+    detail.projectByResolution.value[9] = 3
+    detail.queryClient.getQueryData.mockReturnValue({ resolutions: [{ id: 9, task_id: 5 }] })
+    detail.mutateAsync.mockRejectedValue(Object.assign(new detail.ApiError('already converted'), { status: 422 }))
+    await expect(detail.convertResolution(9)).resolves.toBeUndefined()
+    expect(detail.queryClient.refetchQueries).toHaveBeenCalledWith({ queryKey: ['meetings', 7] })
+    expect(detail.error()).toBe('meetingsUi.alreadyConverted')
+  })
+
+  it('keeps the generic conversion failure when the refreshed projection shows no task', async () => {
+    const detail = page(resolutionsTab, true)
+    detail.projectByResolution.value[9] = 3
+    detail.queryClient.getQueryData.mockReturnValue({ resolutions: [{ id: 9, task_id: null }] })
+    detail.mutateAsync.mockRejectedValue(Object.assign(new detail.ApiError('invalid'), { status: 422 }))
     await expect(detail.convertResolution(9)).resolves.toBeUndefined()
     expect(detail.error()).toBe('meetingsUi.convertError')
   })

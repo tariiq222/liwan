@@ -6,9 +6,13 @@ import { me } from '../fixtures/pmo'
 import { storyContext } from '../support/context'
 
 const settings: MeetingSettings = {
-  values: { schedule_policy: 'organizers_only' },
-  defaults: { schedule_policy: 'organizers_only' },
-  options: { schedule_policy: ['all_employees', 'organizers_only'] },
+  values: { schedule_policy: 'organizers_only', reminder_hours: 24, reference_prefix: 'MIN' },
+  defaults: { schedule_policy: 'organizers_only', reminder_hours: 24, reference_prefix: 'MIN' },
+  options: {
+    schedule_policy: ['all_employees', 'organizers_only'],
+    reminder_hours: { min: 1, max: 168 },
+    reference_prefix: { pattern: '[A-Z0-9]{1,10}', max_length: 10 },
+  },
   revision: 3,
 }
 const changedElsewhere: MeetingSettings = { ...settings, values: { schedule_policy: 'all_employees' }, revision: 4 }

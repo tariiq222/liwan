@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import re
+
 from psycopg2.errors import UniqueViolation
 
 from odoo import http
@@ -12,6 +14,8 @@ from odoo.addons.liwan_api.controllers.common import (
 )
 from odoo.addons.liwan_meetings.models.meeting_settings import (
     DEFAULTS,
+    INTEGER_RANGES,
+    REFERENCE_PREFIX_PATTERN,
     SCHEDULE_POLICIES,
 )
 
@@ -61,10 +65,22 @@ def _parse_patch(payload):
     unknown = sorted(set(values) - set(DEFAULTS))
     if unknown:
         raise ApiError(422, 'invalid', 'field is not writable', field=unknown[0])
-    policy = values.get('schedule_policy')
-    if policy not in SCHEDULE_POLICIES:
+    if 'schedule_policy' in values and values['schedule_policy'] not in SCHEDULE_POLICIES:
         raise ApiError(422, 'invalid', 'schedule_policy must be one of: %s' % ', '.join(SCHEDULE_POLICIES), field='schedule_policy')
-    return revision, {'schedule_policy': policy}
+    for name in INTEGER_RANGES:
+        if name in values and not _in_range(name, values[name]):
+            low, high = INTEGER_RANGES[name]
+            raise ApiError(422, 'invalid', 'must be a whole number from %d to %d' % (low, high), field=name)
+    prefix = values.get('reference_prefix')
+    if 'reference_prefix' in values and not (isinstance(prefix, str) and re.fullmatch(REFERENCE_PREFIX_PATTERN, prefix)):
+        raise ApiError(422, 'invalid', 'reference_prefix must be 1 to 10 of A-Z and 0-9', field='reference_prefix')
+    # An omitted setting keeps its saved value: the patch only carries what the form changed.
+    return revision, {name: values[name] for name in DEFAULTS if name in values}
+
+
+def _in_range(name, value):
+    low, high = INTEGER_RANGES[name]
+    return type(value) is int and low <= value <= high
 
 
 def _dump_current():
@@ -73,6 +89,10 @@ def _dump_current():
     return {
         'values': model._liwan_effective(),
         'defaults': dict(DEFAULTS),
-        'options': {'schedule_policy': list(SCHEDULE_POLICIES)},
+        'options': {
+            'schedule_policy': list(SCHEDULE_POLICIES),
+            'reminder_hours': {'min': INTEGER_RANGES['reminder_hours'][0], 'max': INTEGER_RANGES['reminder_hours'][1]},
+            'reference_prefix': {'pattern': REFERENCE_PREFIX_PATTERN, 'max_length': 10},
+        },
         'revision': row.revision if row else 0,
     }

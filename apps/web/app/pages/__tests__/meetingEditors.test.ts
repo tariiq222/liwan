@@ -54,6 +54,8 @@ function evaluatedDetailPage() {
     useAccess: () => ({ can: () => true }), useRecordPickerAvailable: () => computed(() => true),
     useResolutionAction: () => ({ mutateAsync: runResolution }),
     useConvertResolution: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
+    useQueryClient: () => ({ refetchQueries: vi.fn(async () => {}), getQueryData: vi.fn(() => undefined) }),
+    meetingKeys: { detail: (id: number | null) => ['meetings', id] as const },
     useRecordPicker: () => ({ available: computed(() => true), query: { data: ref([]), isLoading: ref(false), isFetching: ref(false), error: ref(null) } }),
     safeReturnTo: (_value: unknown, fallback: string) => fallback,
     returnToQuery: () => ({}),

@@ -790,6 +790,11 @@ msgid "Occurrence count must be between 1 and %s."
 msgstr "يجب أن يكون عدد التكرارات بين 1 و%s."
 
 #. module: liwan_meetings
+#: model:ir.model.fields.selection,name:liwan_meetings.selection__liwan_meeting_series__recurrence__daily
+msgid "Daily"
+msgstr "يوميًا"
+
+#. module: liwan_meetings
 #: model:ir.model.fields.selection,name:liwan_meetings.selection__liwan_meeting_series__recurrence__none
 msgid "On demand"
 msgstr "عند الطلب"
@@ -1596,3 +1601,13 @@ msgstr ""
 #: model_terms:ir.ui.view,arch_db:liwan_meetings.report_meeting_minutes_document
 msgid "وقت الحفظ"
 msgstr ""
+
+#. module: liwan_meetings
+#: model:ir.model.constraint,message:liwan_meetings.constraint_liwan_meeting_settings_prefix_format
+msgid "the reference prefix is 1 to 10 of A-Z and 0-9"
+msgstr "بادئة المرجع من 1 إلى 10 من الأحرف اللاتينية الكبيرة A-Z والأرقام 0-9."
+
+#. module: liwan_meetings
+#: model:ir.model.constraint,message:liwan_meetings.constraint_liwan_meeting_settings_reminder_range
+msgid "reminder_hours must be between 1 and 168"
+msgstr "نافذة التذكير بالساعات يجب أن تكون بين 1 و168."

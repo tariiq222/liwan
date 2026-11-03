@@ -47,7 +47,11 @@ class LiwanMeetingLinks(models.AbstractModel):
 
     @api.model
     def _liwan_check_project(self, project_id):
-        """Validate the project requested for a recommendation and return its id."""
+        """Validate the project a meeting, a series or a recommendation links to and return its id.
+
+        Without a bridge every project id is refused, so linking fails before an unknown
+        ``project_id`` reaches the ORM; clearing the link stays open (``_liwan_project_vals``).
+        """
         raise ApiError(422, 'invalid', UNSUPPORTED_PROJECT, field='project_id')
 
     @api.model

@@ -13,6 +13,7 @@ from .meeting_context import (
     _SNAPSHOT_FIELDS,
     _SNAPSHOT_WRITE,
 )
+from .meeting_settings import MINUTE_SEQUENCE_CODE
 from .meeting_workspace import _WORKSPACE_WRITE
 
 
@@ -157,12 +158,17 @@ class LiwanMeetingMinute(models.Model):
             raise AccessError(self.env._('Historical meeting snapshots are server generated.'))
         for vals in vals_list:
             self._liwan_apply_series_defaults(vals)
-        sequence = self.env['ir.sequence']
+        # As before, '' and 'New' were numbered and any other value was kept; the number now uses
+        # the company's own prefix instead of the sequence prefix.
+        numbered = [not vals.get('reference') or vals.get('reference') == _('New') for vals in vals_list]
+        settings = self.env['liwan.meeting.settings']
         prepared = []
-        for vals in vals_list:
+        for index, vals in enumerate(vals_list):
+            company = self.env['res.company'].browse(vals.get('company_id')) if vals.get('company_id') else self.env.company
             vals = dict(vals)
             if not self.env.su:
-                company = self.env['res.company'].browse(vals.get('company_id')) if vals.get('company_id') else self.env.company
+                # The meeting's own company: a manager of this company keeps the requested organizer
+                # even while current_company differs (a scheduled job or a company selector).
                 if not self.env['liwan.access.service']._liwan_has_capability(self.env.user, 'meetings.create', company=company):
                     msg = 'forbidden'
                     raise AccessError(msg)
@@ -178,8 +184,8 @@ class LiwanMeetingMinute(models.Model):
                 if not self._liwan_is_manager(company=company):
                     vals['organizer_id'] = self.env.user.id
             vals.setdefault('state', 'draft')
-            if vals.get('reference', _('New')) == _('New'):
-                vals['reference'] = sequence.next_by_code('liwan.meeting.minute') or _('New')
+            if numbered[index]:
+                vals['reference'] = self._liwan_next_reference(settings, company)
             prepared.append(vals)
         records = super().create(prepared)
         records._liwan_sync_followers()
@@ -194,6 +200,24 @@ class LiwanMeetingMinute(models.Model):
             for record in records:
                 record._liwan_event('meeting_created', self.env._('Meeting created.'))
         return records
+
+    @api.model
+    def _liwan_next_reference(self, settings, company):
+        """The next reference of COMPANY, e.g. ``MIN/2026/000123``: its prefix, the year and the number.
+
+        The number comes from the one system-wide ``liwan.meeting.minute`` counter, so a number is
+        never reused and two companies with the same prefix still differ. Only the first segment
+        follows the company setting; a meeting created before the prefix changed keeps its reference.
+        """
+        number = self.env['ir.sequence'].next_by_code(MINUTE_SEQUENCE_CODE)
+        if not number:
+            return _('New')
+        # A database loaded before the counter's prefix was emptied keeps ``MIN/<year>/`` on the
+        # ``noupdate`` data record, and an upgrade does not rewrite it. The reference builds the
+        # prefix and the year itself, so only the counter after the last separator is the number.
+        number = number.rsplit('/', 1)[-1]
+        prefix = settings._liwan_reference_prefix(company)
+        return f'{prefix}/{fields.Date.context_today(self).year}/{number}'
 
     def _liwan_apply_series_defaults(self, vals):
         series = self.env['liwan.meeting.series'].browse(vals.get('series_id')) if vals.get('series_id') else self.env['liwan.meeting.series']

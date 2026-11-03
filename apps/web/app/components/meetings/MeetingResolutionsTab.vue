@@ -3,7 +3,9 @@ import type { MeetingDetail } from '@liwan/contracts'
 import { recordChildTo } from '@/utils/recordListOrigin'
 import { MEETING_LIST_PATHS } from '@/modules/meetings/navigation'
 import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
+import { useQueryClient } from '@tanstack/vue-query'
 import { ApiError } from '@/composables/useApi'
+import { meetingKeys } from '@/composables/meetingKeys'
 import { useConvertResolution, useResolutionAction } from '@/composables/useMeetings'
 import { formatMeetingDate } from '@/utils/meetingMinutesForm'
 import { resolutionStateBadgeProps } from '@/utils/meetingStatus'
@@ -27,6 +29,7 @@ const projectQuery = projectPicker.query
 const { data: projects } = projectQuery
 const { mutateAsync: convert, isPending: converting } = useConvertResolution()
 const { mutateAsync: runResolution } = useResolutionAction()
+const queryClient = useQueryClient()
 const conversionError = ref('')
 const convertedResolutions = ref(new Set<number>())
 // A successful conversion blocks another submit only until the next server projection.
@@ -89,6 +92,17 @@ function setResolutionPending(resolutionId: number, pending: boolean) {
   pendingResolutionIds.value = next
 }
 
+// A refused conversion never shows the raw server text: the generic failure says so, and a 422
+// refreshes the stale projection first — a recommendation that now carries a task was converted
+// elsewhere, and that is a different message from any other refusal.
+async function conversionFailureMessage(error: unknown, resolutionId: number) {
+  if (!(error instanceof ApiError) || error.status !== 422) return ''
+  await queryClient.refetchQueries({ queryKey: meetingKeys.detail(props.meetingId) })
+  const fresh = queryClient.getQueryData<MeetingDetail>(meetingKeys.detail(props.meetingId))
+  const resolution = fresh?.resolutions.find(item => item.id === resolutionId)
+  return resolution?.task_id || resolution?.task_linked ? t('meetingsUi.alreadyConverted') : ''
+}
+
 async function convertResolution(resolutionId: number) {
   const projectId = projectByResolution.value[resolutionId]
   if (!hydrated.value || !canConvert.value || !projectId || pendingResolutionIds.value.has(resolutionId) || convertedResolutions.value.has(resolutionId)) return
@@ -105,7 +119,7 @@ async function convertResolution(resolutionId: number) {
       convertedResolutions.value = new Set([...convertedResolutions.value, resolutionId])
     }
   } catch (error) {
-    conversionError.value = error instanceof ApiError ? error.message : t('meetingsUi.convertError')
+    conversionError.value = await conversionFailureMessage(error, resolutionId) || t('meetingsUi.convertError')
   } finally {
     setResolutionPending(resolutionId, false)
   }

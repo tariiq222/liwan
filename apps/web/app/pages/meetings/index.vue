@@ -295,7 +295,14 @@ function setPage(next: number) {
                 :aria-label="t('meetingsFilters.organizer')"
                 @update:model-value="setOrganizer($event === 'all' ? '' : $event)"
               >
-                <template #empty>{{ t('meetingsFilters.noOrganizers') }}</template>
+                <!-- A failed list answers inside the open menu, so retrying there reloads it without closing the picker. -->
+                <template #empty>
+                  <div v-if="organizerQuery.error.value" class="flex items-center gap-2 text-xs text-error" role="alert">
+                    <span>{{ t('meetingsFilters.organizersError') }}</span>
+                    <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated || organizerQuery.isLoading.value" :label="t('meetingsFilters.retry')" data-testid="meeting-organizer-retry" @click="organizerQuery.refetch()" />
+                  </div>
+                  <template v-else>{{ t('meetingsFilters.noOrganizers') }}</template>
+                </template>
               </USelectMenu>
               <p v-if="organizerQuery.isLoading.value" class="text-xs text-muted" role="status">{{ t('meetingsFilters.organizersLoading') }}</p>
               <div v-else-if="organizerQuery.error.value" class="flex items-center gap-2 text-xs text-error" role="alert"><span>{{ t('meetingsFilters.organizersError') }}</span><UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingsFilters.retry')" @click="organizerQuery.refetch()" /></div>
@@ -343,7 +350,7 @@ function setPage(next: number) {
           <span v-else class="text-muted">—</span>
         </template>
         <template #state-cell="{ row }"><SharedStatusBadge v-bind="meetingStateBadgeProps(row.original.state, t)" data-testid="meeting-row-state" /></template>
-        <template #open_resolution_count-cell="{ row }"><span class="text-muted">{{ t('meetingsUi.openCount', { count: row.original.open_resolution_count }, row.original.open_resolution_count) }}</span></template>
+        <template #open_resolution_count-cell="{ row }"><span class="text-muted">{{ row.original.open_resolution_count ? t('meetingsUi.openCount', { count: row.original.open_resolution_count }, row.original.open_resolution_count) : '—' }}</span></template>
         <template #mobile-row="{ row }">
           <NuxtLink :to="meetingTo(row)" @click.capture="openRecord($event, row)" class="grid min-w-0 gap-2 focus-visible:outline-none">
             <div class="flex min-w-0 items-start justify-between gap-2">

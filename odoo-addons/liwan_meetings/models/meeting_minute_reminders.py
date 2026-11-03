@@ -23,17 +23,19 @@ class LiwanMeetingMinuteReminders(models.Model):
     @api.model
     def _liwan_run_meeting_reminders(self):
         now = fields.Datetime.now()
-        soon = now + timedelta(hours=24)
         for meeting in self.search([
             ('state', 'in', ('draft', 'confirmed')),
             ('start_datetime', '>=', now),
-            ('start_datetime', '<=', soon),
         ]):
-            meeting._liwan_notify_partners(
-                meeting._liwan_participant_users().mapped('partner_id'),
-                'meeting_reminder', meeting.name,
-                key=f'meeting-reminder:{meeting.id}:{fields.Datetime.to_string(meeting.start_datetime)}',
-            )
+            # Each company sets how early its participants are told; a wider window only reaches
+            # further ahead, and a meeting keeps one reminder per start time however often the cron runs.
+            window = meeting.company_id.liwan_meeting_reminder_hours
+            if meeting.start_datetime <= now + timedelta(hours=window):
+                meeting._liwan_notify_partners(
+                    meeting._liwan_participant_users().mapped('partner_id'),
+                    'meeting_reminder', meeting.name,
+                    key=f'meeting-reminder:{meeting.id}:{fields.Datetime.to_string(meeting.start_datetime)}',
+                )
         today = fields.Date.context_today(self)
         Resolution = self.env['liwan.meeting.resolution']
         resolutions = Resolution.search([

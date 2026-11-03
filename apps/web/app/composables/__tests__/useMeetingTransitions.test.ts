@@ -30,11 +30,24 @@ describe('useMeetingTransitions', () => {
     globals.useToast = () => ({ add: toastAdd })
   })
 
-  it('confirms at once without asking', async () => {
+  it('asks inline before confirming, then runs on confirmation', async () => {
     const transitions = await setup()
     transitions.requestMeetingAction('confirm')
-    await vi.waitFor(() => expect(meetingAction.mutateAsync).toHaveBeenCalledWith({ id: 7, action: 'confirm', body: undefined }))
+    expect(meetingAction.mutateAsync).not.toHaveBeenCalled()
+    expect(transitions.pendingMeetingAction.value).toEqual({ action: 'confirm' })
+    expect(transitions.meetingActionConfirm.value).toEqual({ color: 'warning', title: 'meetingsUx.confirmConfirm', label: 'meetingsUi.confirm' })
+    await transitions.confirmMeetingAction()
+    expect(meetingAction.mutateAsync).toHaveBeenCalledWith({ id: 7, action: 'confirm', body: undefined })
     expect(transitions.pendingMeetingAction.value).toBeNull()
+  })
+
+  it('keeps a refused confirm on the page as a draft with the inline error', async () => {
+    meetingAction.mutateAsync.mockRejectedValue(new ApiError(422, 'invalid', 'لا يمكن التأكيد'))
+    const transitions = await setup()
+    transitions.requestMeetingAction('confirm')
+    await transitions.confirmMeetingAction()
+    expect(transitions.actionError.value).toBe('لا يمكن التأكيد')
+    expect(transitions.pendingMeetingAction.value).toEqual({ action: 'confirm' })
   })
 
   it.each([

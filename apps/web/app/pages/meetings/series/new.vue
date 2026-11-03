@@ -10,7 +10,7 @@ const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const name = ref('')
-const recurrence = ref<'none' | 'weekly' | 'biweekly' | 'monthly'>('none')
+const recurrence = ref<'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly'>('none')
 const untilCount = ref('4')
 const untilDate = ref('')
 const untilDateField = computed({ get: () => untilDate.value || null, set: value => { untilDate.value = value || '' } })
@@ -135,7 +135,7 @@ function save() {
             v-model="recurrence"
             class="w-full"
             :disabled="!hydrated || isPending"
-            :items="['none', 'weekly', 'biweekly', 'monthly'].map(code => ({ label: t(`meetingsUi.recurrence.${code}`), value: code }))"
+            :items="['none', 'daily', 'weekly', 'biweekly', 'monthly'].map(code => ({ label: t(`meetingsUi.recurrence.${code}`), value: code }))"
           />
         </UFormField>
         <template v-if="recurrence !== 'none'">
