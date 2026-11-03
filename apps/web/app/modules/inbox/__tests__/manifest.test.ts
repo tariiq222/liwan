@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { appRootFallback, canReachPath } from '../../../utils/accessPolicy'
 import manifest from '../manifest'
+import ar from '../../../../i18n/locales/ar/inbox.json'
+import en from '../../../../i18n/locales/en/inbox.json'
+
+it('presents customer WhatsApp consistently without changing inbox routes', () => {
+  expect(ar.inbox.title).toBe('واتساب العملاء')
+  expect(ar.inbox.railLabel).toBe('واتساب')
+  expect(en.inbox.title).toBe('Customer WhatsApp')
+  expect(en.inbox.railLabel).toBe('WhatsApp')
+  expect(manifest.rail[0]).toMatchObject({ icon: 'i-liwan-whatsapp', to: '/inbox' })
+  expect(manifest.nav.find(item => item.to === '/inbox')?.icon).toBe('i-liwan-whatsapp')
+  expect(manifest.settings).toMatchObject({ icon: 'i-liwan-whatsapp', to: '/settings/apps/inbox' })
+})
 
 const CHANNEL = '/settings/apps/inbox/channels/4'
 const TEMPLATES = `${CHANNEL}/templates`

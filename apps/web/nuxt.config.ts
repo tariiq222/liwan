@@ -30,6 +30,7 @@ export default defineNuxtConfig({
   icon: {
     provider: 'none',
     fallbackToApi: false,
+    customCollections: [{ prefix: 'liwan', dir: './app/assets/icons' }],
     clientBundle: {
       scan: {
         // Keep Nuxt Icon's default source patterns and include composable

@@ -6,8 +6,8 @@ import type { ZodType } from 'zod'
  * Data only: manifests import no components, except the lazy `sidebarPanel.load`
  * (a dynamic import of the application's own panel). Icons are Iconify strings.
  */
-/** Iconify name from the local Lucide collection. */
-export type AppIcon = `i-lucide-${string}`
+/** Local Lucide icons and the approved customer WhatsApp brand icon. */
+export type AppIcon = `i-lucide-${string}` | 'i-liwan-whatsapp'
 /**
  * `feature` on a nav item, context link or route rule: an extra sub-feature key (e.g. 'hr.assets') the
  * entry needs on top of its capability and the feature derived from it, at the same read/write level.
