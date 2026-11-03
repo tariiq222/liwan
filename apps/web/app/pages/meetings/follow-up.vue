@@ -51,13 +51,16 @@ function clearFilters() {
   patch({ q: undefined, mine: undefined, state: undefined })
 }
 const total = computed(() => query.data.value?.total ?? 0)
+// The task column only earns its place when at least one visible row carries a task; an all-empty
+// action column under an action heading reads as a broken table.
+const hasTaskColumn = computed(() => rows.value.some(row => row.task_id))
 const columns = computed<TableColumn<Row>[]>(() => [
   { id: 'record_number', header: () => recordNumberHeader(t), meta: { class: { th: 'w-12 px-2 text-start', td: 'w-12 px-2 whitespace-nowrap' } } },
   { accessorKey: 'name', header: t('meetingsUi.resolutionTitle'), meta: { class: { th: 'w-2/5', td: 'max-w-0' } } },
   { accessorKey: 'responsible', header: t('meetingsUi.responsible') },
   { accessorKey: 'deadline', header: t('meetingsUi.deadline') },
   { accessorKey: 'execution_state', header: t('meetingsUi.stateLabel') },
-  { id: 'task', header: t('meetingsUx.openTaskNewTab') },
+  ...(hasTaskColumn.value ? [{ id: 'task', header: t('meetingsUx.openTaskNewTab') }] : []),
 ])
 function meetingTo(row: Row) {
   const origin = router.resolve({ path: '/meetings/follow-up', query: { ...route.query, q: search.value.trim() || undefined } }).fullPath

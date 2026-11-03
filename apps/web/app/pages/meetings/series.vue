@@ -163,7 +163,7 @@ function setPage(next: number) {
         <template #project-cell="{ row }"><span class="text-muted">{{ row.original.project?.name || '—' }}</span></template>
         <template #open_resolution_count-cell="{ row }">
           <div class="flex flex-wrap items-center gap-2">
-            <span class="text-muted">{{ t('meetingsUi.openCount', { count: row.original.open_resolution_count }, row.original.open_resolution_count) }}</span>
+            <span class="text-muted">{{ row.original.open_resolution_count ? t('meetingsUi.openCount', { count: row.original.open_resolution_count }, row.original.open_resolution_count) : '—' }}</span>
             <SharedStatusBadge v-if="row.original.overdue_resolution_count" tone="destructive" :label="t('meetingsUi.overdueCount', { count: row.original.overdue_resolution_count })" />
           </div>
         </template>
@@ -176,7 +176,7 @@ function setPage(next: number) {
               <span v-if="series.organizer && series.project"> · </span>
               <span v-if="series.project">{{ t('meetingsUi.project') }}: {{ series.project.name }}</span>
               <span v-if="series.organizer || series.project"> · </span>
-              <span>{{ t('meetingsUi.openCount', { count: series.open_resolution_count }, series.open_resolution_count) }}</span>
+              <span>{{ series.open_resolution_count ? t('meetingsUi.openCount', { count: series.open_resolution_count }, series.open_resolution_count) : '—' }}</span>
               <span> · {{ t('meetingsUi.overdueCount', { count: series.overdue_resolution_count }) }}</span>
             </span>
           </NuxtLink>

@@ -3,7 +3,7 @@ from datetime import datetime, time
 from itertools import islice
 
 import pytz
-from dateutil.rrule import MONTHLY, WEEKLY, rrule
+from dateutil.rrule import DAILY, MONTHLY, WEEKLY, rrule
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
@@ -12,6 +12,10 @@ from .meeting_context import _CALENDAR_IMPORT, _SERIES_GENERATION
 from odoo.addons.calendar.models.calendar_recurrence import weekday_to_field
 
 MAX_OCCURRENCES = 60
+RECURRENCES = ('none', 'daily', 'weekly', 'biweekly', 'monthly')
+# The rrule period and week interval of each recurring value; a daily rule repeats every day.
+FREQUENCIES = {'daily': DAILY, 'weekly': WEEKLY, 'biweekly': WEEKLY, 'monthly': MONTHLY}
+INTERVALS = {'daily': 1, 'weekly': 1, 'biweekly': 2, 'monthly': 1}
 
 
 class LiwanMeetingSeries(models.Model):
@@ -40,7 +44,10 @@ class LiwanMeetingSeries(models.Model):
         domain="[('share', '=', False)]", check_company=True,
     )
     recurrence = fields.Selection(
-        [('none', 'On demand'), ('weekly', 'Weekly'), ('biweekly', 'Every two weeks'), ('monthly', 'Monthly')],
+        [
+            ('none', 'On demand'), ('daily', 'Daily'), ('weekly', 'Weekly'),
+            ('biweekly', 'Every two weeks'), ('monthly', 'Monthly'),
+        ],
         default='none', required=True,
     )
     until_date = fields.Date()
@@ -215,17 +222,15 @@ class LiwanMeetingSeries(models.Model):
         if self.until_date:
             if self.until_date < local_start.date():
                 raise ValidationError(self.env._("The recurrence end date must be on or after the first meeting."))
-            frequency = MONTHLY if self.recurrence == 'monthly' else WEEKLY
-            recurrence = rrule(
-                frequency, dtstart=local_start,
+            recurring = rrule(
+                FREQUENCIES[self.recurrence], dtstart=local_start,
                 until=timezone.localize(datetime.combine(self.until_date, time.max)),
-                interval=2 if self.recurrence == 'biweekly' else 1,
+                interval=INTERVALS[self.recurrence],
             )
-            if len(list(islice(recurrence, MAX_OCCURRENCES + 1))) > MAX_OCCURRENCES:
+            if len(list(islice(recurring, MAX_OCCURRENCES + 1))) > MAX_OCCURRENCES:
                 raise ValidationError(self.env._(
                     "A recurrence may contain at most %s meetings.", MAX_OCCURRENCES,
                 ))
-        weekday = weekday_to_field(local_start.weekday())
         event_vals = {
             'name': self.name,
             'start': start,
@@ -236,11 +241,14 @@ class LiwanMeetingSeries(models.Model):
             'privacy': 'confidential',
             'recurrency': True,
             'follow_recurrence': True,
-            'rrule_type': 'monthly' if self.recurrence == 'monthly' else 'weekly',
-            'interval': 2 if self.recurrence == 'biweekly' else 1,
+            # The calendar names a weekly rule every two weeks by its interval, not by a value of its own.
+            'rrule_type': 'weekly' if self.recurrence == 'biweekly' else self.recurrence,
+            'interval': INTERVALS[self.recurrence],
             'event_tz': timezone.zone,
-            weekday: True,
         }
+        if self.recurrence != 'monthly':
+            # The calendar days: the first meeting's weekday (every two weeks repeats it on that day).
+            event_vals[weekday_to_field(local_start.weekday())] = True
         if self.until_date:
             event_vals.update(end_type='end_date', until=self.until_date)
         else:

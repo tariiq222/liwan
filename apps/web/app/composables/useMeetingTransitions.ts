@@ -8,7 +8,7 @@ type MeetingActionScope = 'this' | 'this_and_following'
 type PendingMeetingAction = { action: MeetingAction; scope?: MeetingActionScope }
 
 /**
- * Meeting state transitions: confirm runs at once, the others ask inline first, and cancelling a
+ * Meeting state transitions: every action, confirming included, asks inline first, and cancelling a
  * series meeting asks which occurrences it applies to. Deleting (a draft only) asks too and then calls
  * `onDeleted`. The server confirms every transition.
  */
@@ -28,6 +28,7 @@ export function useMeetingTransitions({ meetingId, meeting, hydrated, onDeleted 
   const meetingActionConfirm = computed(() => {
     const pending = pendingMeetingAction.value
     if (!pending || !meeting.value) return null
+    if (pending.action === 'confirm') return { color: 'warning' as const, title: t('meetingsUx.confirmConfirm'), label: t('meetingsUi.confirm') }
     if (pending.action === 'complete') return { color: 'warning' as const, title: t('meetingsUx.confirmComplete'), label: t('meetingsUi.complete') }
     if (pending.action === 'reopen') return { color: 'warning' as const, title: t('meetingsUx.confirmReopen'), label: t('meetingsUi.reopen') }
     if (pending.action === 'delete') return { color: 'error' as const, title: t('meetingsUx.confirmDeleteMeeting', { name: meeting.value.name }), label: t('meetingsUx.deleteMeetingConfirmLabel') }
@@ -40,8 +41,7 @@ export function useMeetingTransitions({ meetingId, meeting, hydrated, onDeleted 
 
   function requestMeetingAction(action: MeetingAction) {
     if (!hydrated.value || transitioning.value) return
-    if (action === 'confirm') void executeMeetingAction({ action })
-    else pendingMeetingAction.value = action === 'cancel' && meeting.value?.series_id
+    pendingMeetingAction.value = action === 'cancel' && meeting.value?.series_id
       ? { action, scope: 'this' }
       : { action }
   }

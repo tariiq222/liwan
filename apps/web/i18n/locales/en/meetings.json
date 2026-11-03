@@ -27,6 +27,7 @@
     "url": "Meeting link",
     "secretary": "Secretary",
     "resolutions": "Recommendations",
+    "openResolutions": "Open recommendations",
     "emptyResolutions": "This meeting has no recommendations.",
     "newResolution": "New recommendation",
     "editResolution": "Edit recommendation",
@@ -65,6 +66,7 @@
       "cancelled": "Cancelled"
     },
     "convertError": "Could not convert the recommendation to a task. Please try again.",
+    "alreadyConverted": "This recommendation has already been converted to a task.",
     "searchPeople": "Search attendees",
     "selected": "Selected",
     "sectionSchedule": "Schedule",
@@ -96,6 +98,7 @@
     "seriesDefaultsError": "Could not load the series defaults. Refresh and try again.",
     "recurrence": {
       "none": "On demand",
+      "daily": "Daily",
       "weekly": "Weekly",
       "biweekly": "Every two weeks",
       "monthly": "Monthly"
@@ -115,6 +118,7 @@
     "editForbidden": "You do not have permission to edit this meeting.",
     "confirmComplete": "Complete this meeting? Once completed, the minutes are locked.",
     "confirmReopen": "Reopen this meeting?",
+    "confirmConfirm": "Confirm this meeting?",
     "context": {
       "series": "Series: {name}",
       "project": "Project: {name}"
@@ -135,7 +139,8 @@
       "before_start": "End time must be after the start time.",
       "before_date": "End date cannot be before the meeting date.",
       "unsafe_url": "Use a complete http:// or https:// link.",
-      "save": "Could not save this meeting. Check the highlighted fields and try again."
+      "save": "Could not save this meeting. Check the highlighted fields and try again.",
+      "out_of_range": "The number of meetings must be between 1 and 60."
     },
     "projectFilter": "Project filter: {id}",
     "seriesFilter": "Series filter: {id}",
@@ -237,11 +242,10 @@
       "empty": "The file is empty.",
       "tooLarge": "The file exceeds 10 MiB."
     },
-    "unchangedDraft": "No changes to save.",
+    "unchangedDraft": "You haven't changed anything yet; saving turns on after your first edit.",
     "recommendationCreated": "The recommendation was created and saved.",
     "returnAfterRecommendation": "Continue back to the meeting",
-    "requiredHint": "Fields marked with a star are required.",
-    "openOnly": "Open only"
+    "requiredHint": "Fields marked with a star are required."
   },
   "meetingsFilters": {
     "searchMeetings": "Search title, reference, or location",
@@ -432,6 +436,16 @@
       "all_employeesHint": "Any employee who can see meetings may schedule one.",
       "organizers_only": "Only holders of the meeting organizer role",
       "organizers_onlyHint": "Only holders of the “Meeting organizer” role and system administrators schedule. Assign the role under Team, then Roles."
+    },
+    "reminders": {
+      "title": "Reminder window and reference prefix",
+      "hint": "Applies to the current company: when the upcoming-meeting reminder is sent, and the prefix every new meeting is numbered with.",
+      "hoursLabel": "Remind before the meeting starts (hours)",
+      "hoursHelp": "The reminder is sent this many hours before the meeting starts.",
+      "hoursRange": "Enter a whole number of hours between {min} and {max}.",
+      "prefixLabel": "Meeting reference prefix",
+      "prefixHelp": "The first segment of every new meeting reference, like MIN in MIN/2026/0001.",
+      "prefixInvalid": "Use capital Latin letters and digits only, up to 10 characters."
     }
   }
 }

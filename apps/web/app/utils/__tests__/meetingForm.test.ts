@@ -46,6 +46,18 @@ describe('meeting series termination', () => {
     expect(isSafeMeetingUrl('')).toBe(true)
   })
 
+  it('reports an occurrence count outside 1..60 as out of range, not as missing', () => {
+    const errorsFor = (untilCount: string) => getMeetingFormErrors({
+      name: 'Series', start: '2026-09-08T09:00', end: '2026-09-08T10:00', meetingUrl: '',
+      recurrence: 'weekly', untilMode: 'count', untilCount, untilDate: '',
+    }).untilCount
+    expect(errorsFor('0')).toBe('out_of_range')
+    expect(errorsFor('61')).toBe('out_of_range')
+    expect(errorsFor('2.5')).toBe('out_of_range')
+    expect(errorsFor('')).toBe('required')
+    expect(errorsFor('60')).toBeUndefined()
+  })
+
   it('keeps an explicitly empty required date invalid', () => {
     expect(getMeetingFormErrors({
       name: 'Missing date', date: '', start: '', end: '', meetingUrl: '',
@@ -81,6 +93,16 @@ describe('meeting series termination', () => {
     ])
   })
 
+  it('previews a daily schedule day by day', () => {
+    expect(buildRecurrencePreview({
+      recurrence: 'daily', start: '2026-09-08T09:00', end: '2026-09-08T10:00', untilCount: 3,
+    })).toEqual([
+      { start: '2026-09-08T09:00', end: '2026-09-08T10:00' },
+      { start: '2026-09-09T09:00', end: '2026-09-09T10:00' },
+      { start: '2026-09-10T09:00', end: '2026-09-10T10:00' },
+    ])
+  })
+
   it('rejects a date termination that would exceed the backend occurrence cap', () => {
     expect(getMeetingFormErrors({
       name: 'Long series', start: '2026-09-08T09:00', end: '2026-09-08T10:00', meetingUrl: '',
@@ -90,6 +112,22 @@ describe('meeting series termination', () => {
       name: 'Midnight series', start: '2026-09-08T00:30', end: '2026-09-08T01:30', meetingUrl: '',
       recurrence: 'weekly', untilMode: 'date', untilCount: '', untilDate: '2026-09-07',
     }).untilDate).toBeUndefined()
+  })
+
+  // UInput type="number" emits a number (looseToNumber), not the string the count field used to assume.
+  it('validates the numeric count a number input actually emits', () => {
+    const errorsFor = (untilCount: number) => getMeetingFormErrors({
+      name: 'Series', start: '2026-09-08T09:00', end: '2026-09-08T10:00', meetingUrl: '',
+      recurrence: 'weekly', untilMode: 'count', untilCount, untilDate: '',
+    }).untilCount
+    expect(errorsFor(61)).toBe('out_of_range')
+    expect(errorsFor(0)).toBe('out_of_range')
+    expect(errorsFor(60)).toBeUndefined()
+    expect(getMeetingFormErrors({
+      name: 'Series', start: '2026-09-08T09:00', end: '2026-09-08T10:00', meetingUrl: '',
+      recurrence: 'weekly', untilMode: 'count', untilCount: 61, untilDate: '',
+    })).toEqual({ untilCount: 'out_of_range' })
+    expect(normalizeRecurrenceEnd({ mode: 'count', count: 6, date: '' })).toEqual({ until_count: 6, until_date: undefined })
   })
 
   it('rejects malformed datetime-local calendar values', () => {

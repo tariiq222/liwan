@@ -2,7 +2,10 @@ import { fromUtcDateTimeInput, toUtcDateTime, validateMeetingSchedule } from './
 
 export type RecurrenceEndMode = 'count' | 'date'
 
-export type MeetingFormErrors = Partial<Record<'name' | 'date' | 'start' | 'end' | 'endDate' | 'meetingUrl' | 'untilCount' | 'untilDate', 'required' | 'invalid' | 'unsafe_url' | 'before_start' | 'before_date'>>
+// UInput type="number" emits a number, and an untouched string input still sends ''; the count contract accepts both.
+export type RecurrenceCount = string | number
+
+export type MeetingFormErrors = Partial<Record<'name' | 'date' | 'start' | 'end' | 'endDate' | 'meetingUrl' | 'untilCount' | 'untilDate', 'required' | 'invalid' | 'out_of_range' | 'unsafe_url' | 'before_start' | 'before_date'>>
 
 export function isSafeMeetingUrl(value: string) {
   if (!value.trim()) return true
@@ -28,6 +31,14 @@ function datePart(value: string) {
   return /^\d{4}-\d{2}-\d{2}T/.test(value) ? value.slice(0, 10) : ''
 }
 
+// The two callers sit on either side of the send boundary: the form treats blank as unanswered, the payload refuses any non-number.
+function occurrenceCount(value: RecurrenceCount | undefined, options: { trim: boolean }) {
+  if (typeof value === 'number') return value
+  if (!value) return undefined
+  if (!options.trim) return Number(value)
+  return value.trim() ? Number(value) : undefined
+}
+
 export function getMeetingFormErrors(input: {
   name: string
   date?: string
@@ -35,9 +46,9 @@ export function getMeetingFormErrors(input: {
   end: string
   endDate?: string
   meetingUrl: string
-  recurrence?: 'none' | 'weekly' | 'biweekly' | 'monthly'
+  recurrence?: 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly'
   untilMode?: RecurrenceEndMode
-  untilCount?: string
+  untilCount?: RecurrenceCount
   untilDate?: string
 }): MeetingFormErrors {
   const errors: MeetingFormErrors = {}
@@ -63,8 +74,10 @@ export function getMeetingFormErrors(input: {
     if (!input.start) errors.start = 'required'
     if (!input.end) errors.end = 'required'
     if (input.untilMode === 'count') {
-      const count = Number(input.untilCount)
-      if (!Number.isInteger(count) || count < 1 || count > 60) errors.untilCount = 'required'
+      // An empty field stays "required"; a filled one outside 1..60 says so instead of pretending it is missing.
+      const count = occurrenceCount(input.untilCount, { trim: true })
+      if (count === undefined) errors.untilCount = 'required'
+      else if (!Number.isInteger(count) || count < 1 || count > 60) errors.untilCount = 'out_of_range'
     } else if (input.untilMode === 'date' && (!input.untilDate || !validDate(input.untilDate))) {
       errors.untilDate = 'required'
     } else if (input.untilMode === 'date' && input.untilDate && input.start && input.untilDate < (recurrenceStartDate || input.start.slice(0, 10))) {
@@ -84,12 +97,12 @@ export function getMeetingFormErrors(input: {
 
 export function normalizeRecurrenceEnd(input: {
   mode: RecurrenceEndMode
-  count: string
+  count: RecurrenceCount
   date: string
 }): { until_count: number | undefined; until_date: string | undefined } {
   if (input.mode === 'count') {
-    const count = Number(input.count)
-    return { until_count: Number.isInteger(count) && count >= 1 && count <= 60 ? count : undefined, until_date: undefined }
+    const count = occurrenceCount(input.count, { trim: false })
+    return { until_count: count !== undefined && Number.isInteger(count) && count >= 1 && count <= 60 ? count : undefined, until_date: undefined }
   }
   const validDate = /^\d{4}-\d{2}-\d{2}$/.test(input.date) ? input.date : undefined
   return { until_count: undefined, until_date: validDate }
@@ -114,7 +127,7 @@ function formatLocal(value: Date) {
 function addOccurrence(value: Date, recurrence: Exclude<NonNullable<RecurrencePreviewInput['recurrence']>, 'none'>, index: number, day: number) {
   if (recurrence !== 'monthly') {
     const next = new Date(value)
-    next.setUTCDate(next.getUTCDate() + index * (recurrence === 'biweekly' ? 14 : 7))
+    next.setUTCDate(next.getUTCDate() + index * (recurrence === 'daily' ? 1 : recurrence === 'biweekly' ? 14 : 7))
     return next
   }
   const month = new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth() + index, 1, value.getUTCHours(), value.getUTCMinutes()))
@@ -123,7 +136,7 @@ function addOccurrence(value: Date, recurrence: Exclude<NonNullable<RecurrencePr
 }
 
 type RecurrencePreviewInput = {
-  recurrence: 'none' | 'weekly' | 'biweekly' | 'monthly'
+  recurrence: 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly'
   start: string
   end: string
   untilCount?: number

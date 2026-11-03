@@ -2,7 +2,7 @@
 {
     'name': 'liwan Meetings',
     'summary': 'liwan platform: meetings, series, minutes and recommendations — /api/v1/meetings, /api/v1/meeting-series',
-    'version': '19.0.1.4.0',
+    'version': '19.0.1.5.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi, Cyan',
     'license': 'LGPL-3',

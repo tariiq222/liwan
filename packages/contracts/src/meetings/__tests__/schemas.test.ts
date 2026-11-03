@@ -120,8 +120,19 @@ describe('meeting series boundaries', () => {
     expect(MeetingSeriesCreateSchema.parse({ name: 'Committee' })).toEqual({ name: 'Committee' })
   })
 
-  it.each(['weekly', 'biweekly', 'monthly'])('accepts %s with a bounded schedule', (recurrence) => {
+  it.each(['daily', 'weekly', 'biweekly', 'monthly'])('accepts %s with a bounded schedule', (recurrence) => {
     expect(MeetingSeriesCreateSchema.safeParse({ ...recurring, recurrence }).success).toBe(true)
+  })
+
+  it('carries a daily series through the list and detail responses', () => {
+    expect(MeetingSeriesCreateSchema.parse({ ...recurring, recurrence: 'daily' }).recurrence).toBe('daily')
+    const row = {
+      id: 1, name: 'Standup', recurrence: 'daily', active: true, until_count: 5, until_date: null,
+      organizer: { id: 2, name: 'Organizer' }, project: null,
+      open_resolution_count: 0, overdue_resolution_count: 0,
+    }
+    expect(MeetingSeriesListSchema.parse({ items: [row], total: 1 }).items[0]?.recurrence).toBe('daily')
+    expect(() => MeetingSeriesListSchema.parse({ items: [{ ...row, recurrence: 'hourly' }], total: 1 })).toThrow()
   })
 
   it.each([0, -1, 61, 1.5])('rejects invalid occurrence count %s', (until_count) => {

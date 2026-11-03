@@ -281,8 +281,9 @@ class MeetingController(http.Controller):
         if series_id:
             vals['series_id'] = parse_positive_int(series_id, 'series_id')
         if project_id:
-            vals.update(request.env['liwan.meeting.links']._liwan_project_vals(
-                parse_positive_int(project_id, 'project_id'),
+            links = request.env['liwan.meeting.links']
+            vals.update(links._liwan_project_vals(
+                links._liwan_check_project(parse_positive_int(project_id, 'project_id')),
             ))
         with request.env.cr.savepoint():
             meeting = request.env['liwan.meeting.minute'].create(vals)
@@ -354,8 +355,12 @@ class MeetingController(http.Controller):
                 if payload['series_id'] is not None else False
             )
         if 'project_id' in payload:
-            project_id = parse_positive_int(payload['project_id'], 'project_id') if payload['project_id'] else False
-            vals.update(request.env['liwan.meeting.links']._liwan_project_vals(project_id))
+            links = request.env['liwan.meeting.links']
+            project_id = (
+                links._liwan_check_project(parse_positive_int(payload['project_id'], 'project_id'))
+                if payload['project_id'] else False
+            )
+            vals.update(links._liwan_project_vals(project_id))
         has_minutes_form = 'minutes_form' in payload
         if has_minutes_form:
             meeting._liwan_validate_minutes_form(payload['minutes_form'])

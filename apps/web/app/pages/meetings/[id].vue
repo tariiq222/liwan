@@ -323,7 +323,7 @@ function displayValue(value: string | null | undefined) {
           </div>
         </SharedRecordSection>
         <SharedMetricTile density="compact" icon="i-lucide-users" :label="t('meetingsUi.attendees')" :value="query.data.value.attendees.length" />
-        <SharedMetricTile density="compact" icon="i-lucide-list-checks" :label="t('meetingsUi.resolutions')" :value="query.data.value.open_resolution_count" :hint="t('meetingsUx.openOnly')" :to="resolutionsTabLink" />
+        <SharedMetricTile density="compact" icon="i-lucide-list-checks" :label="t('meetingsUi.openResolutions')" :value="query.data.value.open_resolution_count" :to="resolutionsTabLink" />
       </div>
     </template>
     <template v-if="query.data.value" #aside>

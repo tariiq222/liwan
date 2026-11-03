@@ -197,7 +197,7 @@ export const MeetingSeriesResolutionListSchema = z.object({
 export const MeetingSeriesListItemSchema = z.object({
   id: z.number().int(),
   name: z.string(),
-  recurrence: z.enum(['none', 'weekly', 'biweekly', 'monthly']),
+  recurrence: z.enum(['none', 'daily', 'weekly', 'biweekly', 'monthly']),
   // False once the series is ended: it stays listed, takes no new meeting.
   active: z.boolean(),
   until_date: z.string().nullable(),
@@ -229,7 +229,7 @@ export const MeetingSeriesCreateSchema = z.object({
   project_id: z.number().int().optional(),
   secretary_id: z.number().int().optional(),
   attendee_ids: z.array(z.number().int()).optional(),
-  recurrence: z.enum(['none', 'weekly', 'biweekly', 'monthly']).optional(),
+  recurrence: z.enum(['none', 'daily', 'weekly', 'biweekly', 'monthly']).optional(),
   until_date: z.iso.date().optional(),
   until_count: z.number().int().min(1).max(60).optional(),
   location: z.string().optional(),

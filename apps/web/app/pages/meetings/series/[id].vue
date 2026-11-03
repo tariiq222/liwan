@@ -5,6 +5,7 @@ import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import { SERIES_LIST_PATHS } from '@/modules/meetings/navigation'
 import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
 import MeetingEventList from '@/components/meetings/MeetingEventList.vue'
+import MeetingTimeField from '@/components/meetings/MeetingTimeField.vue'
 import MeetingTimeline from '@/components/meetings/MeetingTimeline.vue'
 import { useAddSeriesOccurrence, useCancelMeetingSeries, useMeetingSeries } from '@/composables/useMeetings'
 import { useMeetingFormFeedback } from '@/composables/useMeetingFormFeedback'
@@ -296,10 +297,10 @@ function setHistoryPage(page: number) {
               <SharedDateField id="occurrence-date" v-model="occurrenceDateField" class="w-full" :disabled="!hydrated || addOccurrence.isPending.value" :aria-invalid="!!occurrenceVisibleErrors.date" />
             </UFormField>
             <UFormField :label="t('meetingsUi.start')" name="start" :error="occurrenceServerErrors.start || (occurrenceVisibleErrors.start ? t(`meetingsUx.errors.${occurrenceVisibleErrors.start}`) : undefined)">
-              <UInput id="occurrence-start" v-model="occurrenceStart" type="time" class="w-full" :disabled="!hydrated || addOccurrence.isPending.value" :aria-invalid="!!occurrenceVisibleErrors.start" />
+              <MeetingTimeField id="occurrence-start" v-model="occurrenceStart" :disabled="!hydrated || addOccurrence.isPending.value" :aria-invalid="!!occurrenceVisibleErrors.start" />
             </UFormField>
             <UFormField :label="t('meetingsUi.end')" name="end" :error="occurrenceServerErrors.end || (occurrenceVisibleErrors.end ? t(`meetingsUx.errors.${occurrenceVisibleErrors.end}`) : undefined)">
-              <UInput id="occurrence-end" v-model="occurrenceEnd" type="time" class="w-full" :disabled="!hydrated || addOccurrence.isPending.value" :aria-invalid="!!occurrenceVisibleErrors.end" />
+              <MeetingTimeField id="occurrence-end" v-model="occurrenceEnd" :disabled="!hydrated || addOccurrence.isPending.value" :aria-invalid="!!occurrenceVisibleErrors.end" />
             </UFormField>
           </div>
         </SharedFormSection>
@@ -404,7 +405,8 @@ function setHistoryPage(page: number) {
             <div class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUi.recurrenceLabel') }}</dt><dd class="text-highlighted">{{ t(`meetingsUi.recurrence.${query.data.value.recurrence}`) }}</dd></div>
             <div v-if="query.data.value.meeting_url" class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUi.url') }}</dt><dd><UButton color="primary" variant="link" class="p-0 break-all whitespace-normal text-start" :to="query.data.value.meeting_url" external target="_blank" rel="noopener" dir="ltr">{{ query.data.value.meeting_url }}</UButton></dd></div>
             <div class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUx.attendees') }}</dt><dd class="text-highlighted">{{ joinList(query.data.value.attendees.map(person => person.name), t) || '—' }}</dd></div>
-            <div class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUx.termination') }}</dt><dd class="text-highlighted">{{ query.data.value.until_count ? t('meetingsUx.terminationCount', { count: query.data.value.until_count }, query.data.value.until_count) : query.data.value.until_date ? formatCalendarDate(query.data.value.until_date) : t('meetingsUx.terminationOpen') }}</dd></div>
+            <!-- A count answers "how many", a date answers "when": each gets its own label. -->
+            <div class="min-w-0"><dt class="text-xs text-muted">{{ query.data.value.until_count ? t('meetingsUi.untilCount') : t('meetingsUx.termination') }}</dt><dd class="text-highlighted">{{ query.data.value.until_count ? t('meetingsUx.terminationCount', { count: query.data.value.until_count }, query.data.value.until_count) : query.data.value.until_date ? formatCalendarDate(query.data.value.until_date) : t('meetingsUx.terminationOpen') }}</dd></div>
           </dl>
         </SharedRecordSection>
       </section>

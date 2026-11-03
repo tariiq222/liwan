@@ -3,6 +3,7 @@ import { owningListBack, recordParentTo } from '@/utils/recordListOrigin'
 import { MEETING_LIST_PATHS } from '@/modules/meetings/navigation'
 import DescriptionEditor from '@/components/shared/form/DescriptionEditor.vue'
 import MeetingPeopleFields from '@/components/meetings/MeetingPeopleFields.vue'
+import MeetingTimeField from '@/components/meetings/MeetingTimeField.vue'
 import type { MeetingPatch } from '@liwan/contracts'
 import { useMeeting, usePatchMeeting } from '@/composables/useMeetings'
 import { buildMeetingSchedulePayload, localDateFromUtc, localTimeFromUtc } from '@/utils/meetingDateTime'
@@ -153,10 +154,10 @@ async function save() {
             <SharedDateField id="edit-date" v-model="meetingDateField" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!visibleErrors.date" aria-required="true" />
           </UFormField>
           <UFormField :label="t('meetingsUi.start')" name="start" :error="serverErrors.start || (visibleErrors.start ? t(`meetingsUx.errors.${visibleErrors.start}`) : undefined)">
-            <UInput id="edit-start" v-model="start" type="time" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!visibleErrors.start" />
+            <MeetingTimeField id="edit-start" v-model="start" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!visibleErrors.start" />
           </UFormField>
           <UFormField :label="t('meetingsUi.end')" name="end" :error="serverErrors.end || (visibleErrors.end ? t(`meetingsUx.errors.${visibleErrors.end}`) : undefined)">
-            <UInput id="edit-end" v-model="end" type="time" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!visibleErrors.end" />
+            <MeetingTimeField id="edit-end" v-model="end" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!visibleErrors.end" />
           </UFormField>
           <UFormField v-if="end" :label="t('meetingsUx.endDate')" name="endDate" :error="visibleErrors.endDate ? t(`meetingsUx.errors.${visibleErrors.endDate}`) : undefined">
             <SharedDateField id="edit-end-date" v-model="endDateField" :min-value="meetingDate || null" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!visibleErrors.endDate" />
@@ -188,10 +189,11 @@ async function save() {
       </SharedFormSection>
       <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="submitError" />
       <SharedFormActions>
-        <p class="me-auto text-xs text-muted">{{ t('meetingsUx.requiredHint') }}</p>
+        <p v-if="!loaded || dirty" class="me-auto text-xs text-muted">{{ t('meetingsUx.requiredHint') }}</p>
+        <p v-if="loaded && !dirty" class="me-auto text-xs text-muted">{{ t('meetingsUx.unchangedDraft') }}</p>
         <div class="flex flex-wrap items-center gap-2">
           <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
-          <UButton type="submit" :disabled="!hydrated || isPending || !canEdit" :loading="isPending" :label="t('meetingsUx.saveChanges')" />
+          <UButton type="submit" :disabled="!hydrated || isPending || !canEdit || !dirty" :loading="isPending" :label="t('meetingsUx.saveChanges')" />
         </div>
       </SharedFormActions>
     </form>

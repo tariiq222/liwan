@@ -30,7 +30,9 @@ const props = withDefaults(defineProps<{
   legacyAgenda?: string | null
   readonly?: boolean
   pending?: boolean
-}>(), { recommendations: () => [], legacyAgenda: '', readonly: false, pending: false })
+  /** Mirrors the primary save button: "save and create recommendation" saves too, so it waits for a change as well. */
+  canSave?: boolean
+}>(), { recommendations: () => [], legacyAgenda: '', readonly: false, pending: false, canSave: true })
 const emit = defineEmits<{
   'update:modelValue': [value: MeetingMinutesFormValue]
   'save-and-create-resolution': [topicKey?: string]
@@ -135,7 +137,7 @@ function readAgenda() {
         <UFormField :label="t('meetingMinutesForm.project')" class="grid gap-1">
           <MeetingProjectFilter :id="`minutes-topic-project-${topic.key}`" hide-label :model-value="topic.project_id ?? undefined" :disabled="readonly || pending || !hydrated" @update:model-value="updateTopic(index, { project_id: $event ?? null })" />
         </UFormField>
-        <UButton v-if="!readonly" type="button" color="neutral" variant="outline" size="sm" icon="i-lucide-plus" :disabled="pending || !hydrated" :label="t('meetingMinutesForm.saveAndCreateRecommendation')" @click="emit('save-and-create-resolution', topic.key)" />
+        <UButton v-if="!readonly" type="button" color="neutral" variant="outline" size="sm" icon="i-lucide-plus" :disabled="pending || !hydrated || !canSave" :label="t('meetingMinutesForm.saveAndCreateRecommendation')" @click="emit('save-and-create-resolution', topic.key)" />
         <div class="grid gap-1">
           <span :id="`minutes-topic-resolutions-${topic.key}`" class="text-sm font-medium text-highlighted">{{ t('meetingMinutesForm.recommendations') }}</span>
           <SharedSubCard as="fieldset" :aria-labelledby="`minutes-topic-resolutions-${topic.key}`" class="grid gap-2">
@@ -178,7 +180,7 @@ function readAgenda() {
 
     <SharedSubCard v-if="!readonly" tone="tinted" class="flex flex-wrap items-center justify-between gap-2">
       <span class="text-sm text-muted">{{ t('meetingMinutesForm.addRecommendationHint') }}</span>
-      <UButton type="button" color="neutral" variant="outline" :disabled="pending || !hydrated" :label="t('meetingMinutesForm.saveAndCreateRecommendation')" @click="emit('save-and-create-resolution')" />
+      <UButton type="button" color="neutral" variant="outline" :disabled="pending || !hydrated || !canSave" :label="t('meetingMinutesForm.saveAndCreateRecommendation')" @click="emit('save-and-create-resolution')" />
     </SharedSubCard>
   </div>
 </template>
