@@ -1782,6 +1782,20 @@
       "handler": "get_partner",
       "no_capability_reason": null
     },
+    "GET /api/v1/finance/partners/{partner_id}/bank-accounts": {
+      "addon": "liwan_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.partners.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "list_bank_accounts",
+      "no_capability_reason": null
+    },
     "GET /api/v1/finance/payment-terms": {
       "addon": "liwan_finance",
       "auth": "user",
@@ -2290,6 +2304,127 @@
       "handler": "list_expiring",
       "no_capability_reason": null
     },
+    "GET /api/v1/hr/insurance/enrollments": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.insurance.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.insurance"
+      ],
+      "handler": "list_enrollments",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/insurance/enrollments/{enrollment_id}": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.insurance.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.insurance"
+      ],
+      "handler": "get_enrollment",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/insurance/me": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.employees.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.insurance"
+      ],
+      "handler": "list_own_enrollments",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/insurance/plans": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.insurance.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.insurance"
+      ],
+      "handler": "list_plans",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/insurance/plans/{plan_id}": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.insurance.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.insurance"
+      ],
+      "handler": "get_plan",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/insurance/providers": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.insurance.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.insurance"
+      ],
+      "handler": "list_providers",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/insurance/settings": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.employees.read",
+        "hr.insurance.manage"
+      ],
+      "capability_match": "any",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.insurance"
+      ],
+      "handler": "get_settings",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/insurance/summary": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.insurance.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.insurance"
+      ],
+      "handler": "get_summary",
+      "no_capability_reason": null
+    },
     "GET /api/v1/hr/leave/allocations": {
       "addon": "liwan_hr",
       "auth": "user",
@@ -2316,6 +2451,18 @@
         "hr.enabled"
       ],
       "handler": "get_allocation",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/leave/approval-process": {
+      "addon": "liwan_hr_operations",
+      "auth": "user",
+      "capability_keys": [
+        "hr.leave.config"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "get_approval_process",
       "no_capability_reason": null
     },
     "GET /api/v1/hr/leave/balances": {
@@ -2372,6 +2519,18 @@
         "hr.enabled"
       ],
       "handler": "get_request",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/leave/requests/{leave_id}/approval": {
+      "addon": "liwan_hr_operations",
+      "auth": "user",
+      "capability_keys": [
+        "hr.leave.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "get_approval",
       "no_capability_reason": null
     },
     "GET /api/v1/hr/leave/settings": {
@@ -3049,6 +3208,36 @@
       "handler": "my_assignments",
       "no_capability_reason": null
     },
+    "GET /api/v1/hr/shifts/me/week": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.employees.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.shifts"
+      ],
+      "handler": "my_week",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/shifts/roster": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.shifts.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.shifts"
+      ],
+      "handler": "roster",
+      "no_capability_reason": null
+    },
     "GET /api/v1/hr/shifts/schedules": {
       "addon": "liwan_hr",
       "auth": "user",
@@ -3093,6 +3282,106 @@
         "hr.shifts"
       ],
       "handler": "get_settings",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/warning-types": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.employees.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.warnings"
+      ],
+      "handler": "list_types",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/warnings": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.warnings.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.warnings"
+      ],
+      "handler": "list_warnings",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/warnings/candidates": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.warnings"
+      ],
+      "handler": "list_candidates",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/warnings/me": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.employees.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.warnings"
+      ],
+      "handler": "list_own_warnings",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/warnings/settings": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.employees.read",
+        "hr.warnings.manage"
+      ],
+      "capability_match": "any",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.warnings"
+      ],
+      "handler": "get_settings",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/warnings/standing/{employee_id}": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.warnings"
+      ],
+      "handler": "get_standing",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/warnings/{warning_id}": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.warnings"
+      ],
+      "handler": "get_warning",
       "no_capability_reason": null
     },
     "GET /api/v1/inbox/agents": {
@@ -4102,6 +4391,20 @@
       "handler": "list_processes",
       "no_capability_reason": null
     },
+    "GET /api/v1/operations/processes/reviewer-resolvers": {
+      "addon": "liwan_operations",
+      "auth": "user",
+      "capability_keys": [
+        "operations.processes.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "operations.enabled"
+      ],
+      "handler": "reviewer_resolvers",
+      "no_capability_reason": null
+    },
     "GET /api/v1/operations/processes/{process_id}": {
       "addon": "liwan_operations",
       "auth": "user",
@@ -4136,7 +4439,7 @@
       "addon": "liwan_operations",
       "auth": "user",
       "capability_keys": [],
-      "capability_match": "all",
+      "capability_match": "any",
       "capability_source": "body",
       "feature_keys": [
         "operations.enabled"
@@ -4162,10 +4465,7 @@
     "GET /api/v1/operations/requests/{request_id}": {
       "addon": "liwan_operations",
       "auth": "user",
-      "capability_keys": [
-        "liwan.operation.request",
-        "operations.requests.read"
-      ],
+      "capability_keys": [],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -4241,6 +4541,19 @@
       "handler": "list_people",
       "no_capability_reason": "User-id picker open to any internal user; gated by the registered directory feature and returns id and name only."
     },
+    "GET /api/v1/pmo/change-categories": {
+      "addon": "liwan_pmo",
+      "auth": "user",
+      "capability_keys": [
+        "pmo.projects.read",
+        "pmo.settings.manage"
+      ],
+      "capability_match": "any",
+      "capability_source": "body",
+      "feature_keys": [],
+      "handler": "list_change_categories",
+      "no_capability_reason": null
+    },
     "GET /api/v1/project-charter/catalogs/{resource}": {
       "addon": "liwan_pmo",
       "auth": "user",
@@ -4315,6 +4628,78 @@
         "pmo.enabled"
       ],
       "handler": "get_project",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/projects/{project_id}/baselines": {
+      "addon": "liwan_pmo",
+      "auth": "user",
+      "capability_keys": [
+        "pmo.projects.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [],
+      "handler": "list_baselines",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/projects/{project_id}/baselines/variance": {
+      "addon": "liwan_pmo",
+      "auth": "user",
+      "capability_keys": [
+        "pmo.projects.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [],
+      "handler": "get_variance",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/projects/{project_id}/baselines/{number}": {
+      "addon": "liwan_pmo",
+      "auth": "user",
+      "capability_keys": [
+        "pmo.projects.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [],
+      "handler": "get_baseline",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/projects/{project_id}/changes": {
+      "addon": "liwan_pmo",
+      "auth": "user",
+      "capability_keys": [
+        "pmo.projects.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [],
+      "handler": "list_changes",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/projects/{project_id}/changes/{change_id}": {
+      "addon": "liwan_pmo",
+      "auth": "user",
+      "capability_keys": [
+        "pmo.projects.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [],
+      "handler": "get_change",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/projects/{project_id}/evm": {
+      "addon": "liwan_pmo",
+      "auth": "user",
+      "capability_keys": [
+        "pmo.projects.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [],
+      "handler": "get_evm",
       "no_capability_reason": null
     },
     "GET /api/v1/projects/{project_id}/finance": {
@@ -5287,6 +5672,20 @@
       "handler": "patch_partner",
       "no_capability_reason": null
     },
+    "PATCH /api/v1/finance/partners/{partner_id}/bank-accounts/{bank_account_id}": {
+      "addon": "liwan_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.partners.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "patch_bank_account",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/finance/payment-terms/{term_id}": {
       "addon": "liwan_finance",
       "auth": "user",
@@ -5398,6 +5797,81 @@
         "hr.enabled"
       ],
       "handler": "patch_employee",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/hr/insurance/dependents/{dependent_id}": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.insurance.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.insurance"
+      ],
+      "handler": "patch_dependent",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/hr/insurance/enrollments/{enrollment_id}": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.insurance.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.insurance"
+      ],
+      "handler": "patch_enrollment",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/hr/insurance/plans/{plan_id}": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.insurance.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.insurance"
+      ],
+      "handler": "patch_plan",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/hr/insurance/providers/{provider_id}": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.insurance.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.insurance"
+      ],
+      "handler": "patch_provider",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/hr/insurance/settings": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.insurance.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.insurance"
+      ],
+      "handler": "patch_settings",
       "no_capability_reason": null
     },
     "PATCH /api/v1/hr/leave/allocations/{allocation_id}": {
@@ -5632,6 +6106,36 @@
       "feature_keys": [
         "hr.enabled",
         "hr.shifts"
+      ],
+      "handler": "patch_settings",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/hr/warning-types/{type_id}": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.warnings.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.warnings"
+      ],
+      "handler": "patch_type",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/hr/warnings/settings": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.warnings.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.warnings"
       ],
       "handler": "patch_settings",
       "no_capability_reason": null
@@ -5994,6 +6498,18 @@
       "handler": "patch_settings",
       "no_capability_reason": null
     },
+    "PATCH /api/v1/pmo/change-categories/{category_id}": {
+      "addon": "liwan_pmo",
+      "auth": "user",
+      "capability_keys": [
+        "pmo.settings.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [],
+      "handler": "patch_change_category",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/project-charter/catalogs/{resource}/{item_id}": {
       "addon": "liwan_pmo",
       "auth": "user",
@@ -6016,6 +6532,18 @@
         "pmo.enabled"
       ],
       "handler": "patch_project",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/projects/{project_id}/changes/{change_id}": {
+      "addon": "liwan_pmo",
+      "auth": "user",
+      "capability_keys": [
+        "pmo.projects.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [],
+      "handler": "patch_change",
       "no_capability_reason": null
     },
     "PATCH /api/v1/projects/{project_id}/finance/actual-account": {
@@ -7609,6 +8137,48 @@
       "handler": "archive_partner",
       "no_capability_reason": null
     },
+    "POST /api/v1/finance/partners/{partner_id}/bank-accounts": {
+      "addon": "liwan_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.partners.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "create_bank_account",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/partners/{partner_id}/bank-accounts/{bank_account_id}/archive": {
+      "addon": "liwan_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.partners.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "archive_bank_account",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/partners/{partner_id}/bank-accounts/{bank_account_id}/unarchive": {
+      "addon": "liwan_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.partners.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "unarchive_bank_account",
+      "no_capability_reason": null
+    },
     "POST /api/v1/finance/partners/{partner_id}/unarchive": {
       "addon": "liwan_finance",
       "auth": "user",
@@ -7691,6 +8261,20 @@
         "finance.enabled"
       ],
       "handler": "create_standalone_payment",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/payments/transfer": {
+      "addon": "liwan_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.payments.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "create_transfer",
       "no_capability_reason": null
     },
     "POST /api/v1/finance/payments/{payment_id}/allocate": {
@@ -7978,6 +8562,111 @@
       "handler": "unarchive_employee",
       "no_capability_reason": null
     },
+    "POST /api/v1/hr/insurance/dependents/{dependent_id}/end": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.insurance.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.insurance"
+      ],
+      "handler": "end_dependent",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/insurance/enrollments": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.insurance.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.insurance"
+      ],
+      "handler": "create_enrollment",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/insurance/enrollments/{enrollment_id}/cancel": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.insurance.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.insurance"
+      ],
+      "handler": "cancel_enrollment",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/insurance/enrollments/{enrollment_id}/dependents": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.insurance.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.insurance"
+      ],
+      "handler": "add_dependent",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/insurance/enrollments/{enrollment_id}/end": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.insurance.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.insurance"
+      ],
+      "handler": "end_enrollment",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/insurance/plans": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.insurance.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.insurance"
+      ],
+      "handler": "create_plan",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/insurance/providers": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.insurance.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.insurance"
+      ],
+      "handler": "create_provider",
+      "no_capability_reason": null
+    },
     "POST /api/v1/hr/leave/allocations": {
       "addon": "liwan_hr",
       "auth": "user",
@@ -8004,6 +8693,18 @@
         "hr.enabled"
       ],
       "handler": "revoke_allocation",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/leave/approval-process/default": {
+      "addon": "liwan_hr_operations",
+      "auth": "user",
+      "capability_keys": [
+        "operations.processes.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "create_default_process",
       "no_capability_reason": null
     },
     "POST /api/v1/hr/leave/requests": {
@@ -8485,6 +9186,21 @@
       "handler": "create_assignment",
       "no_capability_reason": null
     },
+    "POST /api/v1/hr/shifts/roster/week": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.shifts.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.shifts"
+      ],
+      "handler": "set_week",
+      "no_capability_reason": null
+    },
     "POST /api/v1/hr/shifts/schedules": {
       "addon": "liwan_hr",
       "auth": "user",
@@ -8513,6 +9229,90 @@
         "hr.shifts"
       ],
       "handler": "archive_schedule",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/warning-types": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.warnings.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.warnings"
+      ],
+      "handler": "create_type",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/warnings": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.warnings"
+      ],
+      "handler": "create_warning",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/warnings/me/{warning_id}/acknowledge": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.employees.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.warnings"
+      ],
+      "handler": "acknowledge_warning",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/warnings/me/{warning_id}/contest": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.employees.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.warnings"
+      ],
+      "handler": "contest_warning",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/warnings/{warning_id}/issue": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.warnings"
+      ],
+      "handler": "issue_warning",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/warnings/{warning_id}/withdraw": {
+      "addon": "liwan_hr",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.warnings"
+      ],
+      "handler": "withdraw_warning",
       "no_capability_reason": null
     },
     "POST /api/v1/inbox/audiences": {
@@ -9460,11 +10260,8 @@
     "POST /api/v1/operations/requests/{request_id}/{action}": {
       "addon": "liwan_operations",
       "auth": "user",
-      "capability_keys": [
-        "liwan.operation.request",
-        "operations.requests.read"
-      ],
-      "capability_match": "all",
+      "capability_keys": [],
+      "capability_match": "any",
       "capability_source": "body",
       "feature_keys": [
         "operations.enabled"
@@ -9502,6 +10299,18 @@
       "handler": "sync_provider",
       "no_capability_reason": null
     },
+    "POST /api/v1/pmo/change-categories": {
+      "addon": "liwan_pmo",
+      "auth": "user",
+      "capability_keys": [
+        "pmo.settings.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [],
+      "handler": "create_change_category",
+      "no_capability_reason": null
+    },
     "POST /api/v1/project-charter/catalogs/{resource}": {
       "addon": "liwan_pmo",
       "auth": "user",
@@ -9536,6 +10345,90 @@
         "pmo.enabled"
       ],
       "handler": "archive_project",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/projects/{project_id}/baselines": {
+      "addon": "liwan_pmo",
+      "auth": "user",
+      "capability_keys": [
+        "pmo.projects.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [],
+      "handler": "take_baseline",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/projects/{project_id}/changes": {
+      "addon": "liwan_pmo",
+      "auth": "user",
+      "capability_keys": [
+        "pmo.projects.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [],
+      "handler": "create_change",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/projects/{project_id}/changes/{change_id}/approve": {
+      "addon": "liwan_pmo",
+      "auth": "user",
+      "capability_keys": [
+        "pmo.projects.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [],
+      "handler": "approve_change",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/projects/{project_id}/changes/{change_id}/implement": {
+      "addon": "liwan_pmo",
+      "auth": "user",
+      "capability_keys": [
+        "pmo.projects.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [],
+      "handler": "implement_change",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/projects/{project_id}/changes/{change_id}/reject": {
+      "addon": "liwan_pmo",
+      "auth": "user",
+      "capability_keys": [
+        "pmo.projects.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [],
+      "handler": "reject_change",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/projects/{project_id}/changes/{change_id}/submit": {
+      "addon": "liwan_pmo",
+      "auth": "user",
+      "capability_keys": [
+        "pmo.projects.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [],
+      "handler": "submit_change",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/projects/{project_id}/changes/{change_id}/withdraw": {
+      "addon": "liwan_pmo",
+      "auth": "user",
+      "capability_keys": [
+        "pmo.projects.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [],
+      "handler": "withdraw_change",
       "no_capability_reason": null
     },
     "POST /api/v1/projects/{project_id}/charter/approve": {
