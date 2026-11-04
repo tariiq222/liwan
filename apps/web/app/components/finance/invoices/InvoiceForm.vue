@@ -113,7 +113,7 @@ async function submit() {
             :placeholder="t(`financeDocuments.kinds.${moveType}.partnerPlaceholder`)"
           />
         </UFormField>
-        <div class="grid gap-4 sm:grid-cols-3">
+        <div class="liwan-auto-grid gap-4">
           <UFormField :label="t('financeDocuments.form.invoiceDate')" name="finance-invoice-date">
             <SharedDateField id="finance-invoice-date" v-model="draft.invoiceDate" :disabled="!hydrated || pending" />
           </UFormField>

@@ -626,7 +626,7 @@ PAGE_SHELL_EXEMPT = frozenset(PAGES + name for name in (
 ))
 AD_HOC_WIDTH = re.compile(r'liwan-page-stack[^"\n]*(?:max-w-\[1440px\]|max-w-\[940px\]|max-w-(?:2xl|3xl|4xl|5xl|7xl))'
                           r'|class="[^"]*max-w-(?:3xl|4xl|5xl|7xl)[^"]*"')
-AUTO_GRID = re.compile(r'\.liwan-auto-grid\b[^{]*\{[^}]*repeat\(auto-fill')
+AUTO_GRID = re.compile(r'\.liwan-auto-grid\b[^{]*\{[^}]*repeat\((?:var\(--liwan-auto-grid-fill,\s*)?auto-fill')
 STATUS_TOKENS = ('--status-success', '--status-warning', '--status-info', '--status-danger',
                  '--status-danger-foreground', '--unread-count-foreground', '.liwan-status-text-warning',
                  '.liwan-unread-count')

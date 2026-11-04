@@ -9,9 +9,11 @@
 
 /* Equal-weight content tiles by its own width: one column on a phone, two on a narrow screen, up to four on a wide one.
    An item that owns the row (a long editor, a table, a nested grid) spans it. */
-.liwan-auto-grid, .liwan-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(max(min(100%, var(--liwan-auto-grid-min, 15rem)), calc((100% - 4.5rem) / 4)), 1fr)); }
+.liwan-auto-grid, .liwan-card-grid, .liwan-form { display: grid; grid-template-columns: repeat(var(--liwan-auto-grid-fill, auto-fill), minmax(max(min(100%, var(--liwan-auto-grid-min, 15rem)), calc((100% - 4.5rem) / 4)), 1fr)); }
 .liwan-auto-grid { gap: var(--liwan-auto-grid-gap, 1.25rem 1rem); }
-:is(.liwan-auto-grid, .liwan-form) > :is(.liwan-span-full, [data-span="full"]) { grid-column: 1 / -1; }
+/* Cards and tiles: the same grid with a wider minimum track and the card gap; the cards stretch over the whole row, leaving no empty tracks. */
+.liwan-card-grid { --liwan-auto-grid-fill: auto-fit; --liwan-auto-grid-min: 18rem; gap: var(--liwan-gap-card); }
+:is(.liwan-auto-grid, .liwan-card-grid, .liwan-form) > :is(.liwan-span-full, [data-span="full"]) { grid-column: 1 / -1; }
 :is(.liwan-auto-grid, .liwan-form) > :has(textarea, [contenteditable="true"], table, .liwan-auto-grid) { grid-column: 1 / -1; }
 /* In a form and a form section only stacked fields tile; a section, a hint, an alert, a list, the footer or a horizontal switch row owns its row. */
 :is(.liwan-field-grid, .liwan-form) > :not([data-slot="root"][data-orientation="vertical"]) { grid-column: 1 / -1; }

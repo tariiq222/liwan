@@ -122,7 +122,7 @@ async function submit() {
           <UButton type="button" color="neutral" variant="outline" icon="i-lucide-plus" :disabled="!hydrated || pending" :label="t('financeAccounting.form.addLine')" data-testid="finance-entry-add-line" @click="addLine" />
         </div>
         <UFormField name="finance-entry-balance" :error="shown && (shown.unbalanced || shown.tooFewLines) ? t(shown.tooFewLines ? 'financeAccounting.form.tooFewLines' : 'financeAccounting.form.unbalanced') : undefined">
-          <dl class="grid gap-2 text-sm sm:grid-cols-3" data-testid="finance-entry-totals">
+          <dl class="liwan-auto-grid gap-2 text-sm" data-testid="finance-entry-totals">
             <div class="flex items-center justify-between gap-3 sm:block">
               <dt class="text-muted">{{ t('financeAccounting.form.totalDebit') }}</dt>
               <dd class="font-semibold text-highlighted"><Money :amount="totals.debit" :currency="currency" /></dd>

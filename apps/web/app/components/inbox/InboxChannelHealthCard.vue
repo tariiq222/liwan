@@ -32,7 +32,7 @@ const nameHint = computed(() => {
 <template>
   <div class="flex min-w-0 flex-col gap-(--liwan-gap-card)" data-testid="inbox-health-card">
     <SharedRecordSection v-if="accountBanner" variant="action" :title="t(`inbox.health.account.${accountBanner}`)" :description="bannerDescription" data-testid="inbox-health-banner" :data-state="accountBanner" />
-    <section class="grid grid-cols-1 gap-(--liwan-gap-card) sm:grid-cols-2 xl:grid-cols-3" :aria-label="t('inbox.health.tilesLabel')">
+    <section class="liwan-card-grid" :aria-label="t('inbox.health.tilesLabel')">
       <SharedMetricTile
         density="compact" icon="i-lucide-gauge" :label="t('inbox.health.tiles.quality')" :value="t(`inbox.health.quality.${health.quality_rating}`)"
         :tone="QUALITY_TONE[health.quality_rating]" data-testid="inbox-health-quality"

@@ -209,7 +209,7 @@ function displayValue(value: string | null | undefined) {
 
       <template v-if="activeTab === 'summary'">
         <SharedRecordSection id="meeting-summary" :title="t('meetingsUi.sectionPeople')" variant="panel">
-          <div class="grid gap-4 sm:grid-cols-2">
+          <div class="liwan-auto-grid gap-4">
             <div><p class="text-sm text-muted">{{ t('meetingsUi.secretary') }}</p><p class="text-highlighted">{{ displayValue(query.data.value.secretary?.name) }}</p></div>
             <div><p class="mb-2 text-sm text-muted">{{ t('meetingsUi.attendees') }}</p>
               <ul v-if="query.data.value.attendees.length" class="flex min-w-0 flex-wrap gap-2"><li v-for="person in query.data.value.attendees" :key="person.id"><UBadge color="neutral" variant="subtle" class="whitespace-normal text-start">{{ person.name }}</UBadge></li></ul>

@@ -91,7 +91,7 @@ function readAgenda() {
 <template>
   <div class="grid gap-(--liwan-gap-card)" data-testid="meeting-minutes-form">
     <SharedRecordSection variant="tinted" :title="t('meetingMinutesForm.metadata')">
-      <dl class="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <dl class="liwan-auto-grid min-w-0 gap-3">
         <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.name') }}</dt><dd class="break-words">{{ meeting.name || '—' }}</dd></div>
         <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.reference') }}</dt><dd dir="ltr">{{ meeting.reference || '—' }}</dd></div>
         <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.date') }}</dt><dd>{{ formatMeetingDate(meeting.meeting_date) }}</dd></div>
@@ -165,7 +165,7 @@ function readAgenda() {
     </SharedFormSection>
 
     <SharedFormSection panel :title="t('meetingMinutesForm.signoff')" :description="t('meetingMinutesForm.missingOnly')">
-      <div class="grid gap-(--liwan-gap-card) sm:grid-cols-2">
+      <div class="liwan-auto-grid gap-(--liwan-gap-card)">
         <UFormField :label="t('meetingMinutesForm.chairperson')" class="grid gap-1">
           <UInput id="minutes-chairperson" :model-value="modelValue.chairperson" class="w-full" maxlength="500" :disabled="readonly || pending || !hydrated" @update:model-value="update({ chairperson: String($event) })" />
         </UFormField>

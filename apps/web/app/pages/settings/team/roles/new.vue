@@ -127,7 +127,7 @@ async function submit() {
           <UAlert v-if="availablePermissions.some((permission) => permission.sensitive)" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('access.roles.sensitiveNotice')" />
           <SharedSubCard v-for="[domain, domainPermissions] in groupedPermissions" :key="domain" tone="tinted" as="section" class="grid gap-3">
             <h3 class="text-sm font-semibold text-highlighted">{{ domainLabel(domain) }}</h3>
-            <div class="grid gap-3 md:grid-cols-2">
+            <div class="liwan-auto-grid gap-3">
               <UCheckbox
                 v-for="permission in domainPermissions"
                 :key="permission.key"

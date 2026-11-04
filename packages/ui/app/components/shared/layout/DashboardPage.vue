@@ -1,9 +1,9 @@
 <script setup lang="ts">
 // The dashboard template (Tasmim Plan 4): the page header and its actions, the page's
 // filters, the page's one call to action in `primary` (full width, a SharedRecordSection `action`), a row of
-// SharedMetricTile in `metrics`, then the SharedChartPanel grid. Gaps are the card gap token; sections are the section gap. The grid
-// goes two-up when its own width reaches 768px: a container query, so a wide context
-// sidebar narrows it the way a phone does. Loading and errors stay with the page.
+// SharedMetricTile in `metrics`, then the SharedChartPanel grid. Gaps are the card gap token; sections are the section gap. The charts
+// sit on the shared card grid with a 24rem track, so they tile by the workspace's own width (a wide context
+// sidebar narrows it the way a phone does) up to four across; a `full` panel spans the row. Loading and errors stay with the page.
 // `hideHeader` is for a page inside a frame that owns the heading.
 import type { PageHeaderTag } from '../../../utils/pageHeaderTag'
 
@@ -30,10 +30,8 @@ const { shown: kpisShown } = useKpiVisibility()
     <section v-if="$slots.metrics && (!props.kpiToggle || kpisShown)" :aria-label="t('states.metrics')" data-template="dashboard-metrics" class="grid gap-(--liwan-gap-card) sm:grid-cols-2 xl:grid-cols-4">
       <slot name="metrics" />
     </section>
-    <div class="@container min-w-0">
-      <div data-template="dashboard-charts" class="grid min-w-0 gap-(--liwan-gap-card) @min-[768px]:grid-cols-2">
-        <slot />
-      </div>
+    <div data-template="dashboard-charts" class="liwan-card-grid min-w-0 [--liwan-auto-grid-min:24rem]">
+      <slot />
     </div>
   </SharedPageContainer>
 </template>
