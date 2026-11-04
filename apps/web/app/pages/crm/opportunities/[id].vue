@@ -255,7 +255,7 @@ const stageItems = computed(() => movableStages(stages.data.value?.items ?? []).
         <SharedPropertyRow v-if="record.recycle_at" :label="t('crm.opportunities.record.recycleAt')" :value="formatDate(record.recycle_at)" />
         <SharedPropertyRow :label="t('crm.opportunities.record.created')" :value="formatDate(record.created_at)" />
         <template v-if="record.properties.length">
-          <SharedCustomFieldRows v-model:dirty="customDirty" :fields="record.properties" :editable="canWork" :errors="customErrors" @change="changeCustomFields" />
+          <SharedCustomFieldRows v-model:dirty="customDirty" :fields="record.properties" :editable="canWork" :disabled="busy" :errors="customErrors" @change="changeCustomFields" />
           <div v-if="canWork" class="flex justify-end pt-2">
             <UButton size="xs" variant="outline" :label="t('crm.opportunities.record.customFieldsSave')" :disabled="busy || !customDirty" :loading="actions.patch.isPending.value" data-testid="crm-custom-fields-save" @click="saveCustomFields" />
           </div>

@@ -55,7 +55,7 @@ const STUBS = { SharedPropertyRow: PropertyRow, UInput: Control, UTextarea: Cont
 
 interface FakeNode { type: string; props: Record<string, unknown>; children: FakeNode[] }
 
-function mountRows(initial: { fields: CustomFieldWithValue[]; editable: boolean }) {
+function mountRows(initial: { fields: CustomFieldWithValue[]; editable: boolean; disabled?: boolean }) {
   const state = reactive({ ...initial })
   const emitted = { dirty: [] as boolean[], change: [] as CustomFieldValues[] }
   const { createApp } = createRenderer<FakeNode, FakeNode>({
@@ -79,6 +79,7 @@ function mountRows(initial: { fields: CustomFieldWithValue[]; editable: boolean 
     render: () => h(CustomFieldRows, {
       fields: state.fields,
       editable: state.editable,
+      disabled: state.disabled,
       'onUpdate:dirty': (dirty: boolean) => emitted.dirty.push(dirty),
       onChange: (values: CustomFieldValues) => emitted.change.push(values),
     }),
@@ -169,5 +170,19 @@ describe('CustomFieldRows edit mode', () => {
     await nextTick()
     expect(emitted.dirty.at(-1)).toBe(false)
     expect(control('Seats').props['model-value']).toBe(9)
+  })
+
+  it('keeps a value the reader cleared empty instead of showing the saved one', async () => {
+    const { update, control } = mountRows({ fields, editable: true })
+    update('Tier', '__none__')
+    update('Seats', null)
+    await nextTick()
+    expect(control('Tier').props['model-value']).toBe('__none__')
+    expect(control('Seats').props['model-value']).toBeNull()
+  })
+
+  it('holds every control still while disabled', () => {
+    const { control } = mountRows({ fields, editable: true, disabled: true })
+    for (const label of ['Note', 'Tier', 'Interests', 'VIP', 'Seats', 'Since']) expect(control(label).props.disabled).toBe(true)
   })
 })

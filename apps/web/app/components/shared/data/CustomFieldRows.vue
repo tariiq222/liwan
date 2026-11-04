@@ -10,9 +10,11 @@ import { joinList } from '@/utils/listFormat'
 const props = withDefaults(defineProps<{
   fields: CustomFieldWithValue[]
   editable: boolean
+  /** Holds the controls still, for instance while the draft is being saved, so no edit is lost to the response. */
+  disabled?: boolean
   /** A server refusal per field key, shown under that field's control. */
   errors?: Record<string, string>
-}>(), { errors: () => ({}) })
+}>(), { disabled: false, errors: () => ({}) })
 const emit = defineEmits<{
   'update:dirty': [dirty: boolean]
   change: [values: CustomFieldValues]
@@ -59,7 +61,8 @@ function display(field: CustomFieldWithValue): string | null {
   return String(value)
 }
 
-const current = (field: CustomFieldWithValue) => draft.value[field.key] ?? field.value
+// The draft holds every field's key, so a value the reader cleared stays empty instead of showing the saved one.
+const current = (field: CustomFieldWithValue) => (field.key in draft.value ? draft.value[field.key] ?? null : field.value)
 const text = (value: CustomFieldValue) => (typeof value === 'string' ? value : '')
 const number = (value: CustomFieldValue) => (typeof value === 'number' ? value : null)
 const selected = (value: CustomFieldValue) => (typeof value === 'string' ? value : undefined)
@@ -101,6 +104,7 @@ function selectOption(key: string, value: string) {
           class="w-full"
           :maxlength="255"
           :aria-label="field.label"
+          :disabled="disabled"
           @update:model-value="value => setValue(field.key, String(value ?? '') || null)"
         />
         <UTextarea
@@ -110,6 +114,7 @@ function selectOption(key: string, value: string) {
           :maxlength="5000"
           :rows="3"
           :aria-label="field.label"
+          :disabled="disabled"
           @update:model-value="value => setValue(field.key, String(value ?? '') || null)"
         />
         <UInputNumber
@@ -118,12 +123,14 @@ function selectOption(key: string, value: string) {
           class="w-full"
           :step="field.type === 'integer' ? 1 : undefined"
           :aria-label="field.label"
+          :disabled="disabled"
           @update:model-value="value => setNumber(field.key, field.type, value)"
         />
         <USwitch
           v-else-if="field.type === 'boolean'"
           :model-value="!!current(field)"
           :aria-label="field.label"
+          :disabled="disabled"
           @update:model-value="value => setValue(field.key, !!value)"
         />
         <SharedDateField
@@ -131,6 +138,7 @@ function selectOption(key: string, value: string) {
           :id="`custom-field-${field.key}`"
           :model-value="typeof current(field) === 'string' ? (current(field) as string) : null"
           :aria-label="field.label"
+          :disabled="disabled"
           @update:model-value="value => setValue(field.key, value)"
         />
         <UInput
@@ -141,6 +149,7 @@ function selectOption(key: string, value: string) {
           dir="ltr"
           class="w-full"
           :aria-label="field.label"
+          :disabled="disabled"
           @update:model-value="value => setValue(field.key, toUtcInstant(String(value ?? '')))"
         />
         <USelect
@@ -150,6 +159,7 @@ function selectOption(key: string, value: string) {
           class="w-full"
           :items="clearableOptions(field)"
           :aria-label="field.label"
+          :disabled="disabled"
           @update:model-value="value => selectOption(field.key, String(value ?? NO_OPTION))"
         />
         <USelectMenu
@@ -162,6 +172,7 @@ function selectOption(key: string, value: string) {
           :items="optionItems(field)"
           :placeholder="t('customFields.chooseOptions')"
           :aria-label="field.label"
+          :disabled="disabled"
           @update:model-value="value => setValue(field.key, (value as string[]) ?? [])"
         />
         <p v-if="errors[field.key]" role="alert" class="text-sm text-error">{{ errors[field.key] }}</p>
