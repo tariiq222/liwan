@@ -271,6 +271,19 @@ class TestCrmProperties(LiwanCrmCase):
         values = {item['key']: item['value'] for item in cleared.json()['properties']}
         self.assertEqual(values, {'note': None, 'score': 3, 'tier': 'silver', 'topics': [], 'vip': True})
 
+    def test_date_and_datetime_values_round_trip(self):
+        self.define([
+            {'name': 'due', 'string': 'Due', 'type': 'date'},
+            {'name': 'meet', 'string': 'Meet', 'type': 'datetime'},
+        ])
+        lead = self.lead_with(self.agent, {})
+        self.as_agent()
+        patched = self.patch_lead(lead, {'due': '2030-01-15', 'meet': '2030-01-15T10:00:00+03:00'})
+        self.assertEqual(patched.status_code, 200, patched.text)
+        values = {item['key']: item['value'] for item in self.detail(lead)['properties']}
+        self.assertEqual(values['due'], '2030-01-15')
+        self.assertTrue(values['meet'].startswith('2030-01-15T07:00:00'), values['meet'])
+
     def test_agent_property_errors_are_422_at_the_property_field(self):
         self.define()
         lead = self.lead_with(self.agent, {'note': 'keep', 'tier': 'gold'})
@@ -379,7 +392,7 @@ class TestCrmProperties(LiwanCrmCase):
             {'name': 'score', 'string': 'Score', 'type': 'integer'},
         ])
         full = self.lead_with(self.agent, {
-            'note': '=HYPERLINK("http://x")', 'tier': 'gold', 'topics': ['a', 'b'], 'vip': True, 'score': 5,
+            'note': '=HYPERLINK("http://x")', 'tier': 'gold', 'topics': ['a', 'b'], 'vip': True, 'score': -5,
         }, contact_name='Exported full')
         self.lead_with(self.agent, {'tier': 'silver'}, contact_name='Exported sparse')
         self.assertTrue(full.lead_properties)
@@ -392,7 +405,7 @@ class TestCrmProperties(LiwanCrmCase):
         self.assertFalse(header[9].startswith('='))
         by_name = {row[0]: row[9:] for row in rows[1:]}
         full_cells = by_name['Exported full']
-        self.assertEqual(full_cells, [_safe('=HYPERLINK("http://x")'), 'Gold', 'Alpha, Beta', 'true', '5'])
+        self.assertEqual(full_cells, [_safe('=HYPERLINK("http://x")'), 'Gold', 'Alpha, Beta', 'true', '-5'])
         self.assertFalse(full_cells[0].startswith('='))
         self.assertEqual(by_name['Exported sparse'], ['', 'Silver', '', 'false', ''])
 

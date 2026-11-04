@@ -250,13 +250,13 @@ class TestPropertiesValues(TransactionCase):
         self._reject('date', '2030-01-15T00:00:00')
         self._reject('date', 20300115)
 
-    def test_datetime_iso_is_converted_to_naive_utc(self):
+    def test_datetime_iso_is_stored_as_utc_text(self):
         self.assertEqual(
-            self._parse('datetime', '2030-01-15T10:00:00Z'), datetime.datetime(2030, 1, 15, 10, 0))
+            self._parse('datetime', '2030-01-15T10:00:00Z'), '2030-01-15 10:00:00')
         self.assertEqual(
-            self._parse('datetime', '2030-01-15T10:00:00+03:00'), datetime.datetime(2030, 1, 15, 7, 0))
+            self._parse('datetime', '2030-01-15T10:00:00+03:00'), '2030-01-15 07:00:00')
         self.assertEqual(
-            self._parse('datetime', '2030-01-15T10:00:00'), datetime.datetime(2030, 1, 15, 10, 0))
+            self._parse('datetime', '2030-01-15T10:00:00'), '2030-01-15 10:00:00')
         self._reject('datetime', 'not a date')
         self._reject('datetime', 5)
 

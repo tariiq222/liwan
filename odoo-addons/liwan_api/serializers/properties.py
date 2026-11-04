@@ -290,4 +290,5 @@ def _parse_datetime(raw, field):
         value = datetime.datetime.fromisoformat(raw.replace('Z', '+00:00'))
     except ValueError:
         raise _invalid(field, 'must be an ISO-8601 datetime') from None
-    return _utc(value)
+    # The engine stores the values as JSON, so a datetime is kept in Odoo's own UTC text form.
+    return fields.Datetime.to_string(_utc(value))

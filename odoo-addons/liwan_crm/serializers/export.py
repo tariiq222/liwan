@@ -12,6 +12,8 @@ FORMULA_PREFIXES = ('=', '+', '-', '@', '\t', '\r')
 E164 = re.compile(r'\+[0-9]{6,15}')
 # What separates the option keys of a multi-valued property in one cell.
 OPTION_SEPARATOR = ', '
+# Property types written as plain numbers, like the fixed price column.
+NUMBER_TYPES = ('integer', 'float')
 
 
 def _safe(value):
@@ -53,7 +55,14 @@ def export_csv(leads, definition):
 def _property_values(lead, definition):
     """One cell per defined property: its label form, formula-safe, empty when unset."""
     values = dump_values(lead, PROPERTIES_FIELD)
-    return [_safe(_text(item, values.get(item['name']))) for item in definition]
+    return [_cell(item, values.get(item['name'])) for item in definition]
+
+
+def _cell(item, value):
+    """A number stays a number a spreadsheet can add up; every text form is made formula-safe."""
+    if item['type'] in NUMBER_TYPES and value is not None:
+        return value
+    return _safe(_text(item, value))
 
 
 def _text(item, value):
