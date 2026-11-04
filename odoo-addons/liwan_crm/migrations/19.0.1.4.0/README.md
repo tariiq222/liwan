@@ -1,0 +1,1 @@
+No data migration: the new `res.company.liwan_lead_properties_definition` and `crm.lead.lead_properties` (now defined by the company instead of the sales team) start empty, and team-level definitions were never exposed through the API, so no tenant data moves.

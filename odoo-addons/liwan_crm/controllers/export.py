@@ -26,10 +26,14 @@ class CrmExportController(http.Controller):
     @requires_capability('crm.leads.export')
     def export_opportunities(self, **_):
         """Every opportunity the caller reads (open, won and lost) that the list filters keep."""
-        domain = [*visible_domain(), *filter_domain(parse_list_filters(request.httprequest.args), default_status='all')]
+        definition = request.env['res.company']._liwan_lead_properties_definition()
+        domain = [
+            *visible_domain(),
+            *filter_domain(parse_list_filters(request.httprequest.args, definition), default_status='all'),
+        ]
         leads = request.env['crm.lead'].with_context(active_test=False).search(domain, order=ORDER)
         filename = f'crm-opportunities-{fields.Date.context_today(leads)}.csv'
-        return request.make_response(export_csv(leads), headers=[
+        return request.make_response(export_csv(leads, definition), headers=[
             ('Content-Type', 'text/csv; charset=utf-8'),
             ('Content-Disposition', content_disposition(filename)),
             ('Cache-Control', 'private, no-store'),
