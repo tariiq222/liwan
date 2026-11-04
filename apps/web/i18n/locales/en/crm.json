@@ -139,6 +139,10 @@
       "sources": {
         "title": "Sources",
         "hint": "Where an opportunity came from, used in reports."
+      },
+      "customFields": {
+        "title": "Custom fields",
+        "hint": "Extra fields saved with every opportunity of the company. Presets do not change them; agents fill them on each opportunity."
       }
     },
     "opportunities": {
@@ -196,6 +200,7 @@
         "stage": "Stage",
         "probability": "Probability",
         "probabilitySave": "Save probability",
+        "customFieldsSave": "Save fields",
         "agent": "Agent",
         "source": "Source",
         "listPrice": "{term} price",
@@ -220,7 +225,8 @@
         "managerBanner": "The call attempts are used up and a manager has to decide: assign again or reopen.",
         "closedWon": "Closed as sold.",
         "closedLost": "Closed as lost.",
-        "probabilitySaved": "Probability saved"
+        "probabilitySaved": "Probability saved",
+        "customFieldsSaved": "Fields saved"
       },
       "call": {
         "title": "Record a call",

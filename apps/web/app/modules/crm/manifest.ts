@@ -17,6 +17,7 @@ const manifest: AppManifest = {
     parts: [
       { id: 'preset', labelKey: 'crm.settings.preset.title', icon: 'i-lucide-wand-sparkles', capability: 'crm.settings.read' },
       { id: 'terms', labelKey: 'crm.settings.terms.title', icon: 'i-lucide-spell-check', capability: 'crm.settings.read' },
+      { id: 'customFields', labelKey: 'crm.settings.customFields.title', icon: 'i-lucide-list-plus', capability: 'crm.settings.read' },
       { id: 'followup', labelKey: 'crm.settings.followup.title', icon: 'i-lucide-phone-forwarded', capability: 'crm.settings.read' },
       { id: 'distribution', labelKey: 'crm.settings.distribution.title', icon: 'i-lucide-shuffle', capability: 'crm.settings.read' },
       { id: 'privacy', labelKey: 'crm.settings.privacy.title', icon: 'i-lucide-shield-check', capability: 'crm.settings.read' },
