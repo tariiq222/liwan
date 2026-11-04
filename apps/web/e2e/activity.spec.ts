@@ -31,7 +31,7 @@ test('task activity: post a comment and see a tracking entry after a state chang
   // wait for the client-rendered detail body before interacting (SSR hydration race)
   await expect(page.locator('h1')).toHaveText(name)
 
-  const tabs = page.getByTestId('task-detail-tabs')
+  const tabs = page.getByTestId('task-activity-tabs')
   await tabs.getByRole('tab', { name: 'التعليقات', exact: true }).click()
   const comments = page.getByTestId('task-comments-card')
   const composer = comments.getByPlaceholder('اكتب تعليقًا…')
