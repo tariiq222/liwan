@@ -54,7 +54,7 @@ def parse_sse(text: str):
 @pytest.fixture
 def client_factory():
     def make(responses):
-        settings = Settings.from_env({"AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_ALLOW_MEMORY_STATE": "true"})
+        settings = Settings.from_env({"AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true"})
         app = create_app(ScriptedChatModel(responses), MemoryRunStore(), InMemorySaver(), settings)
         return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai")
     return make
@@ -182,7 +182,7 @@ async def test_provider_failure_streams_an_error_and_the_run_can_be_reused(clien
                 raise ConnectionError("provider down")
             return super()._next(messages)
 
-    settings = Settings.from_env({"AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_ALLOW_MEMORY_STATE": "true"})
+    settings = Settings.from_env({"AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true"})
     model = Exploding(responses=[ai_text("boom"), ai_text("رجعت")])
     app = create_app(model, MemoryRunStore(), InMemorySaver(), settings)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai") as client:
@@ -199,7 +199,7 @@ async def test_healthz(client_factory):
         assert (await client.get("/healthz")).json() == {"ok": True}
 
 
-SETTINGS = Settings.from_env({"AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_ALLOW_MEMORY_STATE": "true"})
+SETTINGS = Settings.from_env({"AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true"})
 LEAKY = "sk-secret postgresql://u:pw@h/db"
 RESUME_C1 = {"call_id": "c_1", "result": {"ok": True, "data": {"items": [], "total": 0}}}
 

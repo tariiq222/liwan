@@ -46,7 +46,7 @@ def serve_fake():
 
 
 def service_client(base_url, provider="openai", **extra):
-    settings = Settings.from_env({"AI_PROVIDER": provider, "AI_MODEL": "gpt-test", "AI_API_KEY": "sk-test", "AI_BASE_URL": base_url, "AI_ALLOW_MEMORY_STATE": "true", **extra})
+    settings = Settings.from_env({"AI_PROVIDER": provider, "AI_MODEL": "gpt-test", "AI_API_KEY": "sk-test", "AI_BASE_URL": base_url, "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true", **extra})
     app = create_app(build_chat_model(settings), MemoryRunStore(), InMemorySaver(), settings)
     return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai")
 

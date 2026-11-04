@@ -1,4 +1,4 @@
-"""The shared service token: every route but /healthz needs it once AI_SERVICE_TOKEN is set."""
+"""The shared service token: every route but /healthz needs it, and only AI_DEV_INSECURE=true may boot without one."""
 import hmac
 import logging
 
@@ -14,18 +14,27 @@ from tests.test_service import BODY, HEADERS, fresh, parse_sse
 
 TOKEN = "t" * 24 + "-service-token"
 ENV = {"AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_ALLOW_MEMORY_STATE": "true"}
+DEV_INSECURE = {**ENV, "AI_DEV_INSECURE": "true"}
 WITH_TOKEN = {**HEADERS, "X-Liwan-Service-Token": TOKEN}
 
 
-def make_client(token=TOKEN, responses=()):
-    settings = Settings.from_env({**ENV, **({"AI_SERVICE_TOKEN": token} if token else {})})
+def make_client(token=TOKEN, responses=(), settings=None):
+    settings = settings or Settings.from_env(
+        {**ENV, **({"AI_SERVICE_TOKEN": token} if token else {"AI_DEV_INSECURE": "true"})}
+    )
     app = create_app(ScriptedChatModel(list(responses)), MemoryRunStore(), InMemorySaver(), settings)
     return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai")
 
 
-def test_the_token_is_optional_and_read_from_the_environment():
-    assert Settings.from_env(ENV).service_token is None
+def test_the_token_is_required_and_read_from_the_environment():
+    with pytest.raises(SettingsError) as error:
+        Settings.from_env(ENV)
+    assert error.value.variable == "AI_SERVICE_TOKEN"
     assert Settings.from_env({**ENV, "AI_SERVICE_TOKEN": TOKEN}).service_token == TOKEN
+
+
+def test_the_dev_flag_is_the_only_way_to_run_without_a_token():
+    assert Settings.from_env(DEV_INSECURE).service_token is None
 
 
 @pytest.mark.parametrize("token", ["short", "x" * 23])

@@ -81,7 +81,7 @@ services:
       AI_OPENROUTER_REFERER: "${AI_OPENROUTER_REFERER:-}"
       AI_OPENROUTER_TITLE: "${AI_OPENROUTER_TITLE:-}"
       AI_DATABASE_URL: "${AI_DATABASE_URL:-}"
-      AI_SERVICE_TOKEN: "${AI_SERVICE_TOKEN:-}"
+      AI_SERVICE_TOKEN: "${AI_SERVICE_TOKEN:?set AI_SERVICE_TOKEN (deploy/ai/ensure_secrets.sh generates it)}"
       AI_RUN_RETENTION_DAYS: "${AI_RUN_RETENTION_DAYS:-30}"
     expose: ["8600"]
     cap_drop: [ALL]

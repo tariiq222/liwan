@@ -32,9 +32,27 @@ MIN_SERVICE_TOKEN_LENGTH = 24
 GENERATION_ID = re.compile(r"^[a-z][a-z0-9_-]{0,62}$")
 
 
-def _service_token(environ: Mapping[str, str]) -> str | None:
+def _dev_insecure(environ: Mapping[str, str]) -> bool:
+    """``AI_DEV_INSECURE=true`` is the only way to run without a token, and it never touches real state."""
+    if environ.get("AI_DEV_INSECURE", "") != "true":
+        return False
+    if environ.get("AI_ALLOW_MEMORY_STATE") != "true" or environ.get("AI_DATABASE_URL", "").strip():
+        msg = "AI_DEV_INSECURE=true requires AI_ALLOW_MEMORY_STATE=true and no AI_DATABASE_URL"
+        raise SettingsError("AI_DEV_INSECURE", msg)
+    return True
+
+
+def _service_token(environ: Mapping[str, str], *, dev_insecure: bool) -> str | None:
     token = environ.get("AI_SERVICE_TOKEN") or None
-    if token is not None and len(token) < MIN_SERVICE_TOKEN_LENGTH:
+    if token is None:
+        if not dev_insecure:
+            msg = (
+                "AI_SERVICE_TOKEN is required "
+                f"(at least {MIN_SERVICE_TOKEN_LENGTH} characters; set AI_DEV_INSECURE=true only for local development)"
+            )
+            raise SettingsError("AI_SERVICE_TOKEN", msg)
+        return None
+    if len(token) < MIN_SERVICE_TOKEN_LENGTH:
         msg = f"AI_SERVICE_TOKEN must be at least {MIN_SERVICE_TOKEN_LENGTH} characters"
         raise SettingsError("AI_SERVICE_TOKEN", msg)
     return token
@@ -94,6 +112,7 @@ class Settings:
         if REGISTRY[provider].needs_api_key and not api_key:
             msg = f"AI_API_KEY is required for provider {provider}"
             raise SettingsError("AI_API_KEY", msg)
+        dev_insecure = _dev_insecure(environ)
         database_url = environ.get("AI_DATABASE_URL", "").strip() or None
         if database_url is None and environ.get("AI_ALLOW_MEMORY_STATE") != "true":
             msg = "AI_DATABASE_URL is required (set AI_ALLOW_MEMORY_STATE=true only for local development)"
@@ -105,7 +124,7 @@ class Settings:
             base_url=environ.get("AI_BASE_URL") or None,
             database_url=database_url,
             default_timeout_seconds=int(environ.get("AI_DEFAULT_TIMEOUT_SECONDS", "120")),
-            service_token=_service_token(environ),
+            service_token=_service_token(environ, dev_insecure=dev_insecure),
             openrouter_referer=environ.get("AI_OPENROUTER_REFERER") or None,
             openrouter_title=environ.get("AI_OPENROUTER_TITLE") or None,
             state_version=state_version,

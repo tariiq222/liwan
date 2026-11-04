@@ -9,7 +9,7 @@ from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call
 
 
 def settings(provider, **extra):
-    env = {"AI_PROVIDER": provider, "AI_MODEL": "m", "AI_ALLOW_MEMORY_STATE": "true", **extra}
+    env = {"AI_PROVIDER": provider, "AI_MODEL": "m", "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true", **extra}
     return Settings.from_env(env)
 
 

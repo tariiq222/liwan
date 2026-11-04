@@ -391,8 +391,8 @@ def create_app(model, store: RunStore, checkpointer, settings: Settings) -> Fast
 def log_boot_warnings(settings: Settings) -> None:
     if settings.database_url is None:
         log.warning("AI_ALLOW_MEMORY_STATE=true: run state lives in memory and is lost on restart (development only)")
-    if settings.service_token is None:
-        log.warning("AI_SERVICE_TOKEN is not set: the service accepts any caller (development only)")
+    if settings.service_token is None:  # Settings.from_env allows this only under AI_DEV_INSECURE=true
+        log.warning("AI_DEV_INSECURE=true: no service token, development only")
 
 
 class EnvApp:

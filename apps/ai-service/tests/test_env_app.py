@@ -12,6 +12,7 @@ async def test_env_app_runs_its_lifespan_and_serves(monkeypatch):
     monkeypatch.setenv("AI_PROVIDER", "ollama")
     monkeypatch.setenv("AI_MODEL", "m")
     monkeypatch.setenv("AI_ALLOW_MEMORY_STATE", "true")
+    monkeypatch.setenv("AI_DEV_INSECURE", "true")
     monkeypatch.delenv("AI_DATABASE_URL", raising=False)
     app = EnvApp()
     sent = []
@@ -49,6 +50,7 @@ async def run_startup(monkeypatch, *, build_error):
     monkeypatch.setenv("AI_PROVIDER", "ollama")
     monkeypatch.setenv("AI_MODEL", "m")
     monkeypatch.setenv("AI_ALLOW_MEMORY_STATE", "true")
+    monkeypatch.setenv("AI_DEV_INSECURE", "true")
     closed = []
 
     async def aclose():
@@ -102,6 +104,7 @@ async def test_shutdown_waits_for_the_persist_tasks_before_closing_the_pool(monk
     monkeypatch.setenv("AI_PROVIDER", "ollama")
     monkeypatch.setenv("AI_MODEL", "m")
     monkeypatch.setenv("AI_ALLOW_MEMORY_STATE", "true")
+    monkeypatch.setenv("AI_DEV_INSECURE", "true")
     order = []
 
     async def aclose():
@@ -160,11 +163,12 @@ async def test_memory_boot_warns_once_about_state_and_about_the_missing_token_wi
     monkeypatch.setenv("AI_PROVIDER", "ollama")
     monkeypatch.setenv("AI_MODEL", "m")
     monkeypatch.setenv("AI_ALLOW_MEMORY_STATE", "true")
+    monkeypatch.setenv("AI_DEV_INSECURE", "true")
     monkeypatch.delenv("AI_DATABASE_URL", raising=False)
     monkeypatch.delenv("AI_SERVICE_TOKEN", raising=False)
     assert (await start_env_app())[0] == {"type": "lifespan.startup.complete"}
     texts = [record.getMessage() for record in caplog.records]
-    assert sum("memory" in text for text in texts) == 1 and sum("AI_SERVICE_TOKEN" in text for text in texts) == 1
+    assert sum("memory" in text for text in texts) == 1 and sum("AI_DEV_INSECURE" in text for text in texts) == 1
 
 
 async def test_a_database_and_a_token_boot_without_warnings(monkeypatch, caplog):

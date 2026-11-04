@@ -6,7 +6,7 @@ from liwan_ai_service.settings import CleanupSettings, Settings, SettingsError
 def test_settings_from_env_reads_the_provider_and_defaults():
     settings = Settings.from_env({
         "AI_PROVIDER": "ollama", "AI_MODEL": "qwen2.5:7b", "AI_BASE_URL": "http://ollama:11434",
-        "AI_DATABASE_URL": "postgresql://ai:ai@db/ai",
+        "AI_DATABASE_URL": "postgresql://ai:ai@db/ai", "AI_SERVICE_TOKEN": "t" * 30,
     })
     assert settings.provider == "ollama"
     assert settings.model == "qwen2.5:7b"
@@ -44,7 +44,7 @@ def test_retention_must_be_at_least_one_day(days):
     assert error.value.variable == "AI_RUN_RETENTION_DAYS"
 
 
-ENV = {"AI_PROVIDER": "ollama", "AI_MODEL": "m"}
+ENV = {"AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_SERVICE_TOKEN": "t" * 30}
 
 
 @pytest.mark.parametrize("flag", [None, "", "True", "1", "yes", "false"])
@@ -57,6 +57,28 @@ def test_a_missing_database_stops_the_boot_unless_memory_state_is_exactly_true(f
 def test_memory_state_is_allowed_only_when_asked_for():
     assert Settings.from_env({**ENV, "AI_ALLOW_MEMORY_STATE": "true"}).database_url is None
     assert Settings.from_env({**ENV, "AI_DATABASE_URL": "postgresql://ai@db/ai"}).database_url == "postgresql://ai@db/ai"
+
+
+def test_token_required_without_dev_flag():
+    with pytest.raises(SettingsError) as error:
+        Settings.from_env({**ENV, "AI_DATABASE_URL": "postgresql://x/liwan_ai"} | {"AI_SERVICE_TOKEN": ""})
+    assert error.value.variable == "AI_SERVICE_TOKEN"
+
+
+def test_dev_flag_allows_missing_token():
+    settings = Settings.from_env({
+        "AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_DEV_INSECURE": "true", "AI_ALLOW_MEMORY_STATE": "true",
+    })
+    assert settings.service_token is None
+
+
+def test_dev_flag_refused_with_database():
+    with pytest.raises(SettingsError) as error:
+        Settings.from_env({
+            "AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_DEV_INSECURE": "true",
+            "AI_ALLOW_MEMORY_STATE": "true", "AI_DATABASE_URL": "postgresql://x/liwan_ai",
+        })
+    assert error.value.variable == "AI_DEV_INSECURE"
 
 
 def test_incompatible_state_contract_fails_before_opening_state():
@@ -78,13 +100,13 @@ def test_generation_identity_is_explicit_and_validated():
 @pytest.mark.parametrize("model", ["a\nb", "a\x00b", "a\x7fb", "a\x85b", "a\x9fb", "x" * 129])
 def test_a_model_name_the_usage_ledger_would_refuse_stops_the_boot(model):
     with pytest.raises(SettingsError) as error:
-        Settings.from_env({"AI_PROVIDER": "ollama", "AI_MODEL": model, "AI_ALLOW_MEMORY_STATE": "true"})
+        Settings.from_env({"AI_PROVIDER": "ollama", "AI_MODEL": model, "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true"})
     assert error.value.variable == "AI_MODEL"
 
 
 def test_the_longest_model_name_and_a_unicode_one_boot():
     for model in ("x" * 128, "نموذج-١"):
-        assert Settings.from_env({"AI_PROVIDER": "ollama", "AI_MODEL": model, "AI_ALLOW_MEMORY_STATE": "true"}).model == model
+        assert Settings.from_env({"AI_PROVIDER": "ollama", "AI_MODEL": model, "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true"}).model == model
 
 
 def test_every_registered_provider_name_fits_the_usage_ledger_rule():

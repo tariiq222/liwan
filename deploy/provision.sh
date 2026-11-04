@@ -12,6 +12,11 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 [ -f .env ] || { echo "deploy/.env missing (copy .env.example)"; exit 1; }
+# The AI service refuses to run without its token, so when the ai profile is enabled we generate the missing
+# AI_SERVICE_TOKEN and AI_DB_PASSWORD once. An existing value is never printed or rotated.
+if grep -Eq '^COMPOSE_PROFILES=([^#]*,)?ai(,|$|[[:space:]])' .env; then
+  sh ai/ensure_secrets.sh .env
+fi
 [ -f branding.json ] || { echo "deploy/branding.json missing (copy branding.example.json)"; exit 1; }
 
 # Copies branding.json + the logo it names into data/seed/, resolving a
