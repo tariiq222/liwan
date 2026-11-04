@@ -11,10 +11,41 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage, SystemMessage
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 
+from liwan_ai_service.control import MemoryControlState
+from liwan_ai_service.service import create_app
+from liwan_ai_service.store import MemoryRunStore
 from liwan_ai_service.titles import TITLE_RULES
 from liwan_ai_service.usage import ModelIdentity
 
 IDENTITY = ModelIdentity("ollama", "m")  # what the Settings of the service tests name
+
+
+def make_memory_app(model, settings, *, store=None, checkpointer=None, control=None):
+    """A service app over memory state: the test keeps the store and the control state it drives."""
+    from langgraph.checkpoint.memory import InMemorySaver
+
+    return create_app(
+        model, store or MemoryRunStore(), checkpointer or InMemorySaver(), settings, control or MemoryControlState(),
+    )
+
+
+async def open_test_state(database_url: str):
+    """A Postgres run store, checkpointer and control state in ``database_url`` (the test's own bootstrapped schema)."""
+    from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+    from psycopg_pool import AsyncConnectionPool
+
+    from liwan_ai_service.control import open_control
+    from liwan_ai_service.store import PostgresRunStore
+
+    control = await open_control(database_url, initialize=True)
+    pool = AsyncConnectionPool(database_url, min_size=1, max_size=5, kwargs={"autocommit": True, "prepare_threshold": 0}, open=False)
+    await pool.open()
+
+    async def aclose() -> None:
+        await pool.close()
+        await control.aclose()
+
+    return PostgresRunStore(pool), AsyncPostgresSaver(pool), control, aclose
 
 
 def new_id() -> str:

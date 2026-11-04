@@ -1,4 +1,4 @@
-"""HTTP surface (master plan ع2). Every run is owned by (tenant, user_ref) from the headers."""
+"""HTTP surface (master plan ع2). Every run is owned by its user inside the tenant's own database."""
 from __future__ import annotations
 
 import asyncio
@@ -15,6 +15,7 @@ from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.types import Command
 
+from liwan_ai_service.control import ControlState, MemoryControlState, StateCompatibilityError, open_control
 from liwan_ai_service.contracts import (
     AI_STATE_VERSION,
     ClaimRequest,
@@ -33,10 +34,9 @@ from liwan_ai_service.providers import build_chat_model
 from liwan_ai_service.records import records_from_results
 from liwan_ai_service.settings import GENERATION_ID, Settings, SettingsError
 from liwan_ai_service.sse import format_event
-from liwan_ai_service.store import ACTIVE, EXECUTING, RunRecord, RunStore, is_stale, open_state
+from liwan_ai_service.store import ACTIVE, EXECUTING, MemoryRunStore, RunRecord, RunStore, is_stale
 from liwan_ai_service.titles import TITLE_TIMEOUT_SECONDS, generate_title, title_from
 from liwan_ai_service.usage import ModelIdentity, call_event, new_call_id, usage_event
-
 log = logging.getLogger("liwan_ai_service")
 WAITING = ("waiting_tool", "waiting_user", "executing")  # what a resume may answer: a claimed write call is still waiting for its result
 FINISHED = ("done", "failed", "limit_reached")
@@ -79,7 +79,16 @@ def owner(x_liwan_tenant: str = Header(...), x_liwan_user: str = Header(...)) ->
     return Owner(x_liwan_tenant, x_liwan_user)
 
 
-def create_app(model, store: RunStore, checkpointer, settings: Settings) -> FastAPI:
+def create_app(model, store: RunStore, checkpointer, settings: Settings, control: ControlState | None = None) -> FastAPI:
+    """The service over one tenant's run store; ``control`` holds the release identity and the generation drain.
+
+    Memory development state has no persisted control either, so an absent ``control`` becomes a per-process
+    ``MemoryControlState``; with a real ``AI_DATABASE_URL`` the caller must pass the persisted control state.
+    """
+    if control is None:
+        if settings.database_url is not None:
+            raise StateCompatibilityError("the release control state is required with real state")
+        control = MemoryControlState()
     if settings.generation_id is not None and not GENERATION_ID.fullmatch(settings.generation_id):
         raise SettingsError("AI_GENERATION_ID", "AI_GENERATION_ID is invalid")
     identity = ModelIdentity(settings.provider, settings.model)
@@ -99,7 +108,7 @@ def create_app(model, store: RunStore, checkpointer, settings: Settings) -> Fast
     admitted = 0
 
     async def is_draining() -> bool:
-        return bool(settings.generation_id and await store.generation_draining(settings.generation_id))
+        return bool(settings.generation_id and await control.generation_draining(settings.generation_id))
 
     async def admitted_work() -> AsyncIterator[None]:
         nonlocal admitted
@@ -136,7 +145,7 @@ def create_app(model, store: RunStore, checkpointer, settings: Settings) -> Fast
         stats = pool.get_stats() if pool is not None else {}
         return {
             "state_version": AI_STATE_VERSION,
-            "state_id": store.state_id,
+            "state_id": control.state_id,
             "generation_id": settings.generation_id,
             "accepting": not draining,
             "drained": draining and active == 0 and admitted == 0 and not in_flight,
@@ -156,12 +165,13 @@ def create_app(model, store: RunStore, checkpointer, settings: Settings) -> Fast
 
     @app.post("/internal/release/drain", dependencies=[Depends(internal_token)])
     async def release_drain() -> dict[str, Any]:
-        await store.drain_generation(settings.generation_id)
+        await control.drain_generation(settings.generation_id)
         return await release_evidence()
 
     async def owned_run(run_id: str, who: Owner) -> RunRecord:
+        # The database is the tenant: ownership is the user alone.
         record = await store.get(run_id)
-        if record is None or record.tenant != who.tenant or record.user_ref != who.user_ref:
+        if record is None or record.user_ref != who.user_ref:
             raise HTTPException(404, "run not found")
         return record
 
@@ -315,7 +325,7 @@ def create_app(model, store: RunStore, checkpointer, settings: Settings) -> Fast
             replies = interrupted_replies(state.values.get("messages", []))
             graph_input: Any = {"messages": [*replies, HumanMessage(request.message)], **request_state(request)}
         else:
-            record = await store.create(request.new_run_id, who.tenant, who.user_ref, title_from(request.message))
+            record = await store.create(request.new_run_id, who.user_ref, title_from(request.message))
             if record is None:
                 raise HTTPException(409, "a run with this new_run_id already exists")
             lease, graph_input = record.lease, initial_state(request)
@@ -359,7 +369,7 @@ def create_app(model, store: RunStore, checkpointer, settings: Settings) -> Fast
 
     @api.get("/v1/runs")
     async def list_runs(who: Annotated[Owner, Depends(owner)], archived: bool = False) -> RunList:
-        records = await store.list_for_owner(who.tenant, who.user_ref, RUN_LIST_LIMIT, archived=archived)
+        records = await store.list_for_owner(who.user_ref, RUN_LIST_LIMIT, archived=archived)
         items = [summary_of(record) for record in records]
         return RunList(items=items, total=len(items))
 
@@ -395,6 +405,21 @@ def log_boot_warnings(settings: Settings) -> None:
         log.warning("AI_DEV_INSECURE=true: no service token, development only")
 
 
+async def open_runtime_state(database_url: str | None) -> tuple[RunStore, object, ControlState, object]:
+    """Open the release control state and the run state (memory today; per tenant databases in the next stage)."""
+    from langgraph.checkpoint.memory import InMemorySaver
+
+    control = await open_control(database_url)
+    if database_url is not None:  # per-tenant pools replace this branch: one database per tenant
+        await control.aclose()
+        raise StateCompatibilityError("per-tenant state not wired yet")
+
+    async def aclose() -> None:
+        await control.aclose()
+
+    return MemoryRunStore(), InMemorySaver(), control, aclose
+
+
 class EnvApp:
     """ASGI app configured from the environment whose state opens on uvicorn's own event loop.
 
@@ -416,8 +441,8 @@ class EnvApp:
                 try:
                     settings = Settings.from_env(os.environ)
                     log_boot_warnings(settings)
-                    store, checkpointer, aclose = await open_state(settings.database_url)
-                    self.inner = create_app(build_chat_model(settings), store, checkpointer, settings)
+                    store, checkpointer, control, aclose = await open_runtime_state(settings.database_url)
+                    self.inner = create_app(build_chat_model(settings), store, checkpointer, settings, control)
                 except Exception as error:  # noqa: BLE001 - the server must report why it cannot start, without secrets
                     if aclose is not None:
                         await aclose()

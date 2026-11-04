@@ -6,6 +6,7 @@ from dataclasses import replace
 import httpx
 from langgraph.checkpoint.memory import InMemorySaver
 
+from liwan_ai_service.control import MemoryControlState
 from liwan_ai_service.service import create_app
 from liwan_ai_service.store import MemoryRunStore
 from tests.fakes import ScriptedChatModel, ai_text
@@ -16,18 +17,18 @@ ADMIN = {"x-liwan-service-token": TOKEN}
 OWNER = {**HEADERS, **ADMIN}
 
 
-def client(store, checkpoints, generation):
+def client(store, checkpoints, control, generation):
     settings = replace(SETTINGS, service_token=TOKEN, generation_id=generation)
-    app = create_app(ScriptedChatModel([ai_text("done")], title_responses=[ai_text("title")]), store, checkpoints, settings)
+    app = create_app(ScriptedChatModel([ai_text("done")], title_responses=[ai_text("title")]), store, checkpoints, settings, control)
     return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai")
 
 
 async def test_drained_generation_stays_closed_after_restart_and_another_generation_can_accept():
-    store, checkpoints = MemoryRunStore(), InMemorySaver()
-    async with client(store, checkpoints, "old-ai") as old:
+    store, checkpoints, control = MemoryRunStore(), InMemorySaver(), MemoryControlState()
+    async with client(store, checkpoints, control, "old-ai") as old:
         before = (await old.post("/internal/release/drain", headers=ADMIN)).json()
         assert before["drained"] and not before["accepting"]
-    async with client(store, checkpoints, "old-ai") as restarted, client(store, checkpoints, "new-ai") as new:
+    async with client(store, checkpoints, control, "old-ai") as restarted, client(store, checkpoints, control, "new-ai") as new:
         status = (await restarted.get("/internal/release/readiness", headers=ADMIN)).json()
         assert status["drained"] and not status["accepting"]
         assert (await restarted.post("/v1/runs", json=fresh(), headers=OWNER)).status_code == 503
@@ -39,17 +40,21 @@ async def test_drained_generation_stays_closed_after_restart_and_another_generat
 
 
 async def test_release_administration_requires_generation_identity_even_with_valid_token():
-    app = create_app(ScriptedChatModel([]), MemoryRunStore(), InMemorySaver(), replace(SETTINGS, service_token=TOKEN))
+    app = create_app(
+        ScriptedChatModel([]), MemoryRunStore(), InMemorySaver(), replace(SETTINGS, service_token=TOKEN), MemoryControlState(),
+    )
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai") as http:
         for method, path in (("GET", "/internal/release/readiness"), ("POST", "/internal/release/drain")):
             assert (await http.request(method, path, headers=ADMIN)).status_code == 503
 
 
-async def test_state_identity_is_generated_per_store_and_never_taken_from_generation_label():
-    first, second = MemoryRunStore(), MemoryRunStore()
-    async with client(first, InMemorySaver(), "same-label") as a, client(second, InMemorySaver(), "same-label") as b:
+async def test_state_identity_comes_from_the_control_state_and_never_from_the_generation_label():
+    first, second = MemoryControlState(), MemoryControlState()
+    async with client(MemoryRunStore(), InMemorySaver(), first, "same-label") as a, \
+            client(MemoryRunStore(), InMemorySaver(), second, "same-label") as b:
         ea = (await a.get("/internal/release/readiness", headers=ADMIN)).json()
         eb = (await b.get("/internal/release/readiness", headers=ADMIN)).json()
+        assert ea["state_id"] == first.state_id and eb["state_id"] == second.state_id
         assert ea["state_id"] != eb["state_id"]
         assert ea["generation_id"] == eb["generation_id"] == "same-label"
 
@@ -57,9 +62,9 @@ async def test_state_identity_is_generated_per_store_and_never_taken_from_genera
 async def test_admission_is_counted_before_waiting_for_persisted_generation_gate():
     import asyncio
 
-    store, checkpoints = MemoryRunStore(), InMemorySaver()
+    store, checkpoints, control = MemoryRunStore(), InMemorySaver(), MemoryControlState()
     entered, resume = asyncio.Event(), asyncio.Event()
-    real_gate = store.generation_draining
+    real_gate = control.generation_draining
     first = True
 
     async def paused_gate(generation):
@@ -70,8 +75,8 @@ async def test_admission_is_counted_before_waiting_for_persisted_generation_gate
             await resume.wait()
         return await real_gate(generation)
 
-    store.generation_draining = paused_gate
-    async with client(store, checkpoints, "old-ai") as http:
+    control.generation_draining = paused_gate
+    async with client(store, checkpoints, control, "old-ai") as http:
         starting = asyncio.create_task(http.post("/v1/runs", json=fresh(), headers=OWNER))
         await asyncio.wait_for(entered.wait(), 5)
         draining = (await http.post("/internal/release/drain", headers=ADMIN)).json()

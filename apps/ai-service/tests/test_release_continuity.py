@@ -4,9 +4,10 @@ from dataclasses import replace
 import httpx
 from langgraph.checkpoint.memory import InMemorySaver
 
+from liwan_ai_service.control import MemoryControlState
 from liwan_ai_service.service import create_app
 from liwan_ai_service.store import MemoryRunStore
-from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call
+from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call, make_memory_app
 from tests.test_service import HEADERS, RESUME_C1, SETTINGS, fresh, parse_sse
 
 TOKEN = "t" * 30
@@ -20,16 +21,16 @@ def client(app):
 
 async def test_internal_drain_requires_a_configured_service_token():
     for settings, expected in ((SETTINGS, 503), (replace(SETTINGS, service_token=TOKEN, generation_id="old-ai"), 401)):
-        app = create_app(ScriptedChatModel([]), MemoryRunStore(), InMemorySaver(), settings)
+        app = make_memory_app(ScriptedChatModel([]), settings)
         async with client(app) as http:
             assert (await http.post("/internal/release/drain")).status_code == expected
 
 
 async def test_drain_blocks_new_work_but_allows_claimed_effect_to_settle_across_compatible_apps():
-    store, checkpoints = MemoryRunStore(), InMemorySaver()
+    store, checkpoints, control = MemoryRunStore(), InMemorySaver(), MemoryControlState()
     settings = replace(SETTINGS, service_token=TOKEN, generation_id="old-ai")
-    old = create_app(ScriptedChatModel([ai_tool_call("pmo__draft_project", {"name": "x"}, "c_1")]), store, checkpoints, settings)
-    new = create_app(ScriptedChatModel([ai_text("تم")]), store, checkpoints, replace(settings, generation_id="new-ai"))
+    old = create_app(ScriptedChatModel([ai_tool_call("pmo__draft_project", {"name": "x"}, "c_1")]), store, checkpoints, settings, control)
+    new = create_app(ScriptedChatModel([ai_text("تم")]), store, checkpoints, replace(settings, generation_id="new-ai"), control)
     async with client(old) as a, client(new) as b:
         run_id = parse_sse((await a.post("/v1/runs", json=fresh(), headers=OWNER)).text)[0][1]["run_id"]
         path = f"/v1/runs/{run_id}"
@@ -50,7 +51,7 @@ async def test_drain_blocks_new_work_but_allows_claimed_effect_to_settle_across_
 
 async def test_an_incompatible_bff_state_version_is_refused_before_any_run_is_created():
     store = MemoryRunStore()
-    app = create_app(ScriptedChatModel([ai_text("x")]), store, InMemorySaver(), SETTINGS)
+    app = make_memory_app(ScriptedChatModel([ai_text("x")]), SETTINGS, store=store)
     async with client(app) as http:
         response = await http.post("/v1/runs", json=fresh(), headers={**HEADERS, "x-liwan-ai-state-version": "future"})
         assert response.status_code == 503
@@ -65,7 +66,7 @@ async def test_active_stream_and_its_settlement_prevent_retirement():
 
     started = asyncio.Event()
     store = MemoryRunStore()
-    app = create_app(SlowChatModel([], started=started), store, InMemorySaver(), replace(SETTINGS, service_token=TOKEN, generation_id="old-ai"))
+    app = make_memory_app(SlowChatModel([], started=started), replace(SETTINGS, service_token=TOKEN, generation_id="old-ai"), store=store)
     async with client(app) as http:
         call = asyncio.create_task(http.post("/v1/runs", json=fresh(), headers=OWNER))
         await asyncio.wait_for(started.wait(), 5)
@@ -81,8 +82,10 @@ async def test_active_stream_and_its_settlement_prevent_retirement():
 
 async def test_automatic_pending_read_remains_in_drain_until_its_existing_result_settles():
     store = MemoryRunStore()
-    app = create_app(ScriptedChatModel([ai_tool_call("pmo__list_my_tasks", {}, "c_1"), ai_text("تم"), ai_text("عنوان")]), store,
-                     InMemorySaver(), replace(SETTINGS, service_token=TOKEN, generation_id="old-ai"))
+    app = make_memory_app(
+        ScriptedChatModel([ai_tool_call("pmo__list_my_tasks", {}, "c_1"), ai_text("تم"), ai_text("عنوان")]),
+        replace(SETTINGS, service_token=TOKEN, generation_id="old-ai"), store=store,
+    )
     async with client(app) as http:
         run_id = parse_sse((await http.post("/v1/runs", json=fresh(), headers=OWNER)).text)[0][1]["run_id"]
         evidence = (await http.post("/internal/release/drain", headers=ADMIN)).json()

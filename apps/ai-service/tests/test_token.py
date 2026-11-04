@@ -4,12 +4,9 @@ import logging
 
 import httpx
 import pytest
-from langgraph.checkpoint.memory import InMemorySaver
 
-from liwan_ai_service.service import create_app
 from liwan_ai_service.settings import Settings, SettingsError
-from liwan_ai_service.store import MemoryRunStore
-from tests.fakes import ScriptedChatModel, ai_text
+from tests.fakes import ScriptedChatModel, ai_text, make_memory_app
 from tests.test_service import BODY, HEADERS, fresh, parse_sse
 
 TOKEN = "t" * 24 + "-service-token"
@@ -22,7 +19,7 @@ def make_client(token=TOKEN, responses=(), settings=None):
     settings = settings or Settings.from_env(
         {**ENV, **({"AI_SERVICE_TOKEN": token} if token else {"AI_DEV_INSECURE": "true"})}
     )
-    app = create_app(ScriptedChatModel(list(responses)), MemoryRunStore(), InMemorySaver(), settings)
+    app = make_memory_app(ScriptedChatModel(list(responses)), settings)
     return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai")
 
 

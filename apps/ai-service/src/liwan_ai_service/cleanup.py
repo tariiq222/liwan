@@ -5,13 +5,13 @@ import asyncio
 import os
 import sys
 
+from liwan_ai_service.service import open_runtime_state
 from liwan_ai_service.settings import CleanupSettings
-from liwan_ai_service.store import open_state
 
 
 async def run() -> str:
     settings = CleanupSettings.from_env(os.environ)
-    store, _checkpointer, aclose = await open_state(settings.database_url)
+    store, _checkpointer, _control, aclose = await open_runtime_state(settings.database_url)
     try:
         gone = await store.delete_older_than(settings.retention_days)
     finally:

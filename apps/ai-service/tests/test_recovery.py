@@ -13,9 +13,9 @@ from langgraph.checkpoint.memory import InMemorySaver
 
 from liwan_ai_service.contracts import RunRequest
 from liwan_ai_service.graph import build_graph, request_state, run_config
-from liwan_ai_service.service import STALE_AFTER_SECONDS, create_app
+from liwan_ai_service.service import STALE_AFTER_SECONDS
 from liwan_ai_service.store import MemoryRunStore
-from tests.fakes import IDENTITY, ScriptedChatModel, ai_text, ai_tool_call, new_id
+from tests.fakes import IDENTITY, ScriptedChatModel, ai_text, ai_tool_call, make_memory_app, new_id
 from tests.test_contracts import READ_TOOL
 from tests.test_service import BODY, HEADERS, LEAKY, RESUME_C1, SETTINGS, fresh, parse_sse
 
@@ -23,7 +23,7 @@ TASKS = "pmo__list_my_tasks"
 
 
 def make_app(model, store=None, checkpointer=None):
-    return create_app(model, store or MemoryRunStore(), checkpointer or InMemorySaver(), SETTINGS)
+    return make_memory_app(model, SETTINGS, store=store, checkpointer=checkpointer)
 
 
 def client_for(app):
@@ -197,7 +197,7 @@ async def test_continuing_a_thread_cuts_short_tool_calls_that_never_got_a_reply(
     store = MemoryRunStore()
     model = ScriptedChatModel([ai_text("من جديد")])
     async with client_for(make_app(model, store, checkpointer)) as client:
-        record = await store.create(new_id(), "t1", "42")
+        record = await store.create(new_id(), "42")
         await store.finish(record.run_id, "failed", record.lease)
         graph = build_graph(model, checkpointer, IDENTITY)  # the thread a cancel left behind: a plan checkpoint, no interrupt, no reply
         await graph.aupdate_state(run_config(record.run_id, 6), {**request_state(RunRequest.model_validate(fresh())), "messages": [ai_tool_call(TASKS, {}, "c_9")]}, as_node="plan")

@@ -13,7 +13,8 @@ import pytest
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
-from liwan_ai_service.store import open_state
+from liwan_ai_service.control import open_control
+from liwan_ai_service.store import initialize_tenant
 
 pytestmark = pytest.mark.skipif(os.environ.get("AI_DURABLE_RELEASE_TEST") != "1", reason="explicit local scratch acceptance only")
 TOKEN = "synthetic-durable-test-token-" * 2
@@ -23,7 +24,7 @@ import asyncio, importlib.util, json, os, sys
 from pathlib import Path
 import liwan_ai_service
 import liwan_ai_service.contracts
-for name in ('settings', 'store', 'service'):
+for name in ('settings', 'control', 'store', 'service'):
     path = Path(os.environ['AI_TEST_SOURCE_DIR']) / (name+'.py')
     spec = importlib.util.spec_from_file_location('liwan_ai_service.'+name, path)
     module = importlib.util.module_from_spec(spec)
@@ -31,19 +32,19 @@ for name in ('settings', 'store', 'service'):
     setattr(liwan_ai_service, name, module)
     spec.loader.exec_module(module)
 import httpx
+from liwan_ai_service.control import open_control
 from liwan_ai_service.service import create_app
 from liwan_ai_service.settings import Settings
-from liwan_ai_service.store import open_state
-from tests.fakes import ScriptedChatModel, ai_text
+from tests.fakes import ScriptedChatModel, ai_text, open_test_state
 from tests.test_service import BODY, HEADERS, fresh
 async def main():
     token = 'synthetic-durable-test-token-' * 2
     admin = {'x-liwan-service-token':token}
-    store, checkpoints, close = await open_state(os.environ['AI_TEST_DATABASE_URL'])
+    store, checkpoints, control, close = await open_test_state(os.environ['AI_TEST_DATABASE_URL'])
     settings = Settings.from_env({'AI_PROVIDER':'ollama', 'AI_MODEL':'scripted',
         'AI_DATABASE_URL':os.environ['AI_TEST_DATABASE_URL'], 'AI_TENANT_DATABASE':os.environ['AI_TENANT_DATABASE'], 'AI_SERVICE_TOKEN':token,
         'AI_GENERATION_ID':sys.argv[2]})
-    app = create_app(ScriptedChatModel([ai_text('done')], title_responses=[ai_text('title')]), store, checkpoints, settings)
+    app = create_app(ScriptedChatModel([ai_text('done')], title_responses=[ai_text('title')]), store, checkpoints, settings, control)
     try:
         if sys.argv[1] == 'serve':
             import uvicorn
@@ -52,7 +53,7 @@ async def main():
             while not server.started:
                 if task.done(): await task
                 await asyncio.sleep(0.01)
-            print(json.dumps({'port':server.servers[0].sockets[0].getsockname()[1], 'state_id':store.state_id}), flush=True)
+            print(json.dumps({'port':server.servers[0].sockets[0].getsockname()[1], 'state_id':control.state_id}), flush=True)
             await task
         else:
             async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url='http://ai') as client:
@@ -83,9 +84,10 @@ async def scratch_states():
         for schema in schemas:
             await conn.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema)))
             scoped = make_conninfo(database_url, options=f"-c search_path={schema}")
-            store, _, close = await open_state(scoped, initialize=True)
-            states.append({"url": scoped, "state_id": store.state_id, "schema": schema, "database": config["dbname"]})
-            await close()
+            await initialize_tenant(scoped)
+            control = await open_control(scoped, initialize=True)
+            states.append({"url": scoped, "state_id": control.state_id, "schema": schema, "database": config["dbname"]})
+            await control.aclose()
         assert states[0]["state_id"] != states[1]["state_id"]
         yield states
     finally:

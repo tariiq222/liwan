@@ -7,10 +7,8 @@ from datetime import timedelta
 import httpx
 import pytest
 from langchain_core.messages import AIMessage
-from langgraph.checkpoint.memory import InMemorySaver
 
 from liwan_ai_service import service
-from liwan_ai_service.service import create_app
 from liwan_ai_service.settings import Settings
 from liwan_ai_service.store import EXECUTING, MemoryRunStore
 from tests.fakes import (
@@ -22,6 +20,7 @@ from tests.fakes import (
     ai_blocks,
     ai_text,
     ai_tool_call,
+    make_memory_app,
     new_id,
 )
 from tests.test_contracts import DRAFT_TOOL, READ_TOOL
@@ -55,7 +54,7 @@ def parse_sse(text: str):
 def client_factory():
     def make(responses):
         settings = Settings.from_env({"AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true"})
-        app = create_app(ScriptedChatModel(responses), MemoryRunStore(), InMemorySaver(), settings)
+        app = make_memory_app(ScriptedChatModel(responses), settings)
         return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai")
     return make
 
@@ -111,12 +110,12 @@ async def test_resume_with_a_wrong_call_id_is_409_and_changes_nothing(client_fac
         assert (await client.get(f"/v1/runs/{run_id}", headers=HEADERS)).json()["pending"]["call_id"] == "c_1"
 
 
-async def test_another_tenant_or_user_cannot_see_or_resume_the_run(client_factory):
+async def test_another_user_cannot_see_or_resume_the_run(client_factory):
+    other_user = {"X-Liwan-Tenant": "t1", "X-Liwan-User": "7"}  # another tenant is another database: the run is simply absent
     async with client_factory([ai_tool_call("pmo__list_my_tasks", {}, "c_1")]) as client:
         run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
-        for headers in ({"X-Liwan-Tenant": "t2", "X-Liwan-User": "42"}, {"X-Liwan-Tenant": "t1", "X-Liwan-User": "7"}):
-            assert (await client.get(f"/v1/runs/{run_id}", headers=headers)).status_code == 404
-            assert (await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_1", "result": {"ok": True, "data": {}}}, headers=headers)).status_code == 404
+        assert (await client.get(f"/v1/runs/{run_id}", headers=other_user)).status_code == 404
+        assert (await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_1", "result": {"ok": True, "data": {}}}, headers=other_user)).status_code == 404
 
 
 async def start(client, message, headers=HEADERS):
@@ -126,19 +125,16 @@ async def start(client, message, headers=HEADERS):
 
 async def test_the_run_list_is_the_callers_own_newest_first_with_a_title_set_once(client_factory):
     other_user = {"X-Liwan-Tenant": "t1", "X-Liwan-User": "7"}
-    other_tenant = {"X-Liwan-Tenant": "t2", "X-Liwan-User": "42"}
-    async with client_factory([ai_text("ا")] * 6) as client:
+    async with client_factory([ai_text("ا")] * 4) as client:
         older = await start(client, "  أول\n  رسالة  ")
         newer = await start(client, "ثاني " * 30)
         await start(client, "لمستخدم آخر", other_user)
-        await start(client, "لمستأجر آخر", other_tenant)
         await client.post("/v1/runs", json={**BODY, "message": "رد لاحق", "run_id": older}, headers=HEADERS)  # continuing touches it, never retitles it
         listed = (await client.get("/v1/runs", headers=HEADERS)).json()
         assert listed["total"] == 2 and [item["run_id"] for item in listed["items"]] == [older, newer]
         assert listed["items"][0]["title"] == "أول رسالة" and listed["items"][1]["title"].endswith("…") and len(listed["items"][1]["title"]) <= 60
         assert set(listed["items"][0]) == {"run_id", "title", "status", "updated_at", "archived"} and listed["items"][0]["archived"] is False
         assert (await client.get("/v1/runs", headers=other_user)).json()["total"] == 1
-        assert (await client.get("/v1/runs", headers={"X-Liwan-Tenant": "t3", "X-Liwan-User": "42"})).json() == {"items": [], "total": 0}
         assert (await client.get(f"/v1/runs/{newer}", headers=HEADERS)).json()["run_id"] == newer  # the list route does not shadow the item route
 
 
@@ -150,7 +146,7 @@ async def test_the_run_list_needs_the_owner_headers(client_factory):
 async def test_a_stale_executing_run_is_listed_as_failed():
     store = MemoryRunStore()
     async with make_client(ScriptedChatModel([]), store) as client:
-        record = await store.create(new_id(), "t1", "42", "كتابة")
+        record = await store.create(new_id(), "42", "كتابة")
         record.status = EXECUTING
         record.updated_at -= timedelta(seconds=service.STALE_AFTER_SECONDS + 1)
         assert (await client.get("/v1/runs", headers=HEADERS)).json()["items"][0]["status"] == "failed"
@@ -184,7 +180,7 @@ async def test_provider_failure_streams_an_error_and_the_run_can_be_reused(clien
 
     settings = Settings.from_env({"AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true"})
     model = Exploding(responses=[ai_text("boom"), ai_text("رجعت")])
-    app = create_app(model, MemoryRunStore(), InMemorySaver(), settings)
+    app = make_memory_app(model, settings)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai") as client:
         events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
         run_id = events[0][1]["run_id"]
@@ -205,7 +201,7 @@ RESUME_C1 = {"call_id": "c_1", "result": {"ok": True, "data": {"items": [], "tot
 
 
 def make_client(model, store=None):
-    app = create_app(model, store or MemoryRunStore(), InMemorySaver(), SETTINGS)
+    app = make_memory_app(model, SETTINGS, store=store)
     return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai")
 
 
@@ -486,8 +482,8 @@ async def test_patch_accepts_the_longest_title(client_factory):
 async def test_patch_is_for_the_owner_only(client_factory):
     async with client_factory([ai_text("ا")]) as client:
         run_id = await start(client, "رسالة")
-        for headers in ({"X-Liwan-Tenant": "t2", "X-Liwan-User": "42"}, {"X-Liwan-Tenant": "t1", "X-Liwan-User": "7"}):
-            assert (await client.patch(f"/v1/runs/{run_id}", json={"title": "مخترق", "archived": True}, headers=headers)).status_code == 404
+        headers = {"X-Liwan-Tenant": "t1", "X-Liwan-User": "7"}  # another tenant cannot reach this database at all
+        assert (await client.patch(f"/v1/runs/{run_id}", json={"title": "مخترق", "archived": True}, headers=headers)).status_code == 404
         assert (await client.patch("/v1/runs/r_missing", json={"title": "x"}, headers=HEADERS)).status_code == 404
         assert (await client.patch(f"/v1/runs/{run_id}", json={"title": "x"})).status_code == 422  # owner headers are required
         assert await listed_titles(client) == ["رسالة"] and await listed_titles(client, archived=True) == []
@@ -505,6 +501,6 @@ async def test_patch_does_not_shadow_the_other_run_routes(client_factory):
 
 async def test_patch_needs_the_service_token_when_one_is_set():
     settings = Settings.from_env({"AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_ALLOW_MEMORY_STATE": "true", "AI_SERVICE_TOKEN": "s" * 32})
-    app = create_app(ScriptedChatModel([]), MemoryRunStore(), InMemorySaver(), settings)
+    app = make_memory_app(ScriptedChatModel([]), settings)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai") as client:
         assert (await client.patch("/v1/runs/r_x", json={"title": "x"}, headers=HEADERS)).status_code == 401

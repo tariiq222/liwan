@@ -12,9 +12,8 @@ from liwan_ai_service import service, usage
 from liwan_ai_service.contracts import ModelCallEvent, ModelUsageEvent, RunRequest
 from liwan_ai_service.errors import is_transient_provider_error
 from liwan_ai_service.graph import build_graph, initial_state, run_config
-from liwan_ai_service.service import create_app
 from liwan_ai_service.store import MemoryRunStore
-from tests.fakes import IDENTITY, FlakyChatModel, ScriptedChatModel, SlowChatModel, SlowTitleChatModel, ai_text, ai_usage, new_id
+from tests.fakes import IDENTITY, FlakyChatModel, ScriptedChatModel, SlowChatModel, SlowTitleChatModel, ai_text, ai_usage, make_memory_app, new_id
 from tests.test_service import BODY, HEADERS, SETTINGS, fresh, parse_sse
 
 REQUEST = httpx.Request("POST", "http://provider/v1/chat/completions")
@@ -107,7 +106,7 @@ def test_only_transient_provider_errors_are_retried(error, transient):
 
 
 def make_client(model):
-    app = create_app(model, MemoryRunStore(), InMemorySaver(), SETTINGS)
+    app = make_memory_app(model, SETTINGS)
     return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai")
 
 
@@ -183,8 +182,8 @@ async def test_a_new_run_id_names_the_run_and_a_second_use_of_it_is_a_conflict()
         assert events[0] == ("run", {"run_id": body["new_run_id"]})
         again = await client.post("/v1/runs", json={**body, "message": "ثانية"}, headers=HEADERS)
         assert again.status_code == 409
-        other_owner = await client.post("/v1/runs", json={**body, "tenant": "t9"}, headers={"X-Liwan-Tenant": "t9", "X-Liwan-User": "42"})
-        assert other_owner.status_code == 409
+        other_owner = await client.post("/v1/runs", json={**body, "user_ref": "7"}, headers={"X-Liwan-Tenant": "t1", "X-Liwan-User": "7"})
+        assert other_owner.status_code == 409  # the run id is unique, not per user
 
 
 async def test_an_empty_run_id_is_not_a_continuation_and_does_not_bypass_the_one_of_rule():
