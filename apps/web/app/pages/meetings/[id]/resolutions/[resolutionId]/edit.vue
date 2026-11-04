@@ -129,7 +129,7 @@ async function save() {
             <UFormField :label="t('meetingMinutesForm.executionPeriod')" name="executionPeriod">
               <UInput id="resolution-period" v-model="executionPeriod" maxlength="500" class="w-full" :disabled="!hydrated || isPending" :placeholder="t('meetingMinutesForm.executionPeriodPlaceholder')" />
             </UFormField>
-            <UFormField class="sm:col-span-2" :label="t('meetingMinutesForm.project')" name="project">
+            <UFormField class="liwan-span-full" :label="t('meetingMinutesForm.project')" name="project">
               <MeetingProjectFilter id="resolution-project" hide-label :model-value="projectId" :disabled="!hydrated || isPending" @update:model-value="projectId = $event" />
             </UFormField>
             <UFormField :label="t('meetingsUi.priority')" name="priority">

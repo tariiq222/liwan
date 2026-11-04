@@ -163,7 +163,7 @@ async function submit() {
             @update:model-value="planId = !$event || $event === 'none' ? null : Number($event)"
           />
         </UFormField>
-        <UFormField :label="t(`${namespace}.form.description`)" name="hr-departure-description" class="md:col-span-2">
+        <UFormField :label="t(`${namespace}.form.description`)" name="hr-departure-description" class="liwan-span-full">
           <UTextarea v-model="description" class="w-full" :rows="3" :disabled="!canManage || !hydrated || pending" />
         </UFormField>
         <UFormField v-if="!departure" :label="t(`${namespace}.form.setContractEnd`)" name="hr-departure-contract-end">

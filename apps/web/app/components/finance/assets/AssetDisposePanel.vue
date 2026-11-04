@@ -56,7 +56,7 @@ async function submit() {
       <UFormField :label="t('financeAssets.dispose.minAccount')" name="finance-asset-dispose-min" :help="t('financeAssets.dispose.defaultHelp')">
         <AccountPicker id="finance-asset-dispose-min" v-model="draft.minAccountId" :aria-label="t('financeAssets.dispose.minAccount')" />
       </UFormField>
-      <UFormField :label="t('financeAssets.dispose.note')" name="finance-asset-dispose-note" class="sm:col-span-2">
+      <UFormField :label="t('financeAssets.dispose.note')" name="finance-asset-dispose-note" class="liwan-span-full">
         <UInput id="finance-asset-dispose-note" v-model="draft.note" class="w-full" maxlength="255" :disabled="!hydrated || dispose.isPending.value" />
       </UFormField>
     </div>

@@ -161,7 +161,7 @@ async function save() {
       <UAlert v-if="context.series || context.project" color="neutral" variant="subtle" icon="i-lucide-info" :title="[context.series && t('meetingsUx.context.series', { name: context.series }), context.project && t('meetingsUx.context.project', { name: context.project })].filter(Boolean).join(' · ')" />
       <SharedFormSection panel :title="t('meetingsUi.sectionSchedule')" :description="t('meetingsUx.browserTimeZone', { zone: browserTimeZone })">
         <div class="liwan-auto-grid">
-          <UFormField class="sm:col-span-2" :label="t('meetingsUi.title')" name="name" required :error="serverErrors.name || (visibleErrors.name ? t(`meetingsUx.errors.${visibleErrors.name}`) : undefined)">
+          <UFormField class="liwan-span-full" :label="t('meetingsUi.title')" name="name" required :error="serverErrors.name || (visibleErrors.name ? t(`meetingsUx.errors.${visibleErrors.name}`) : undefined)">
             <UInput id="meeting-name" v-model="name" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!visibleErrors.name" required />
           </UFormField>
           <UFormField :label="t('meetingsUi.date')" name="date" :error="serverErrors.date || (visibleErrors.date ? t(`meetingsUx.errors.${visibleErrors.date}`) : undefined)">
@@ -179,7 +179,7 @@ async function save() {
           <UFormField :label="t('meetingsUi.location')" name="location" :error="serverErrors.location">
             <UInput id="meeting-location" v-model="location" class="w-full" :disabled="!hydrated || isPending" />
           </UFormField>
-          <UFormField class="sm:col-span-2" :label="t('meetingsUi.url')" name="meetingUrl" :error="serverErrors.meetingUrl || (visibleErrors.meetingUrl ? t(`meetingsUx.errors.${visibleErrors.meetingUrl}`) : undefined)">
+          <UFormField class="liwan-span-full" :label="t('meetingsUi.url')" name="meetingUrl" :error="serverErrors.meetingUrl || (visibleErrors.meetingUrl ? t(`meetingsUx.errors.${visibleErrors.meetingUrl}`) : undefined)">
             <UInput id="meeting-url" v-model="meetingUrl" dir="ltr" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!visibleErrors.meetingUrl" />
           </UFormField>
         </div>

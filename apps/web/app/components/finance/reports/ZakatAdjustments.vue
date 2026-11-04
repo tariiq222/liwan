@@ -84,10 +84,10 @@ async function confirmRemove() {
         <UFormField :label="t('financeReports.zakat.amount')" name="finance-zakat-amount" required :error="attempted && !(amount > 0) ? t('financeReports.zakat.amountInvalid') : undefined">
           <UInput id="finance-zakat-amount" v-model="draft.amount" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || add.isPending.value" />
         </UFormField>
-        <UFormField :label="t('financeReports.zakat.label')" name="finance-zakat-label" required class="sm:col-span-2" :error="attempted && draft.label.trim() === '' ? t('financeReports.zakat.labelRequired') : undefined">
+        <UFormField :label="t('financeReports.zakat.label')" name="finance-zakat-label" required class="liwan-span-full" :error="attempted && draft.label.trim() === '' ? t('financeReports.zakat.labelRequired') : undefined">
           <UInput id="finance-zakat-label" v-model="draft.label" class="w-full" maxlength="255" :disabled="!hydrated || add.isPending.value" />
         </UFormField>
-        <UFormField :label="t('financeReports.zakat.note')" name="finance-zakat-note" class="sm:col-span-2"><UInput id="finance-zakat-note" v-model="draft.note" class="w-full" maxlength="255" :disabled="!hydrated || add.isPending.value" /></UFormField>
+        <UFormField :label="t('financeReports.zakat.note')" name="finance-zakat-note" class="liwan-span-full"><UInput id="finance-zakat-note" v-model="draft.note" class="w-full" maxlength="255" :disabled="!hydrated || add.isPending.value" /></UFormField>
       </div>
       <div class="flex justify-end"><UButton type="submit" color="primary" :disabled="!hydrated" :loading="add.isPending.value" :label="t('financeReports.zakat.addAdjustment')" data-testid="finance-zakat-adjustment-submit" /></div>
     </UForm>

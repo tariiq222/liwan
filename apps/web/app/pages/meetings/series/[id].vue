@@ -290,7 +290,7 @@ function setHistoryPage(page: number) {
         <SharedUnsavedChanges :dirty="occurrenceDirty" />
         <SharedFormSection panel :title="t('meetingsUx.occurrence.title')" :description="t('meetingsUx.occurrence.hint')">
           <div class="liwan-auto-grid">
-            <UFormField class="sm:col-span-2" :label="t('meetingsUx.occurrence.name')" name="name" :error="occurrenceServerErrors.name">
+            <UFormField class="liwan-span-full" :label="t('meetingsUx.occurrence.name')" name="name" :error="occurrenceServerErrors.name">
               <UInput id="occurrence-name" v-model="occurrenceName" class="w-full" :disabled="!hydrated || addOccurrence.isPending.value" />
             </UFormField>
             <UFormField :label="t('meetingsUi.date')" name="date" :error="occurrenceVisibleErrors.date ? t(`meetingsUx.errors.${occurrenceVisibleErrors.date}`) : undefined">

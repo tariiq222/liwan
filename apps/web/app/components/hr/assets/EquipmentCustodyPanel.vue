@@ -62,7 +62,7 @@ function assign() {
       <UFormField :label="t('hrAssets.custody.date')" for="hr-asset-assign-date">
         <SharedDateField id="hr-asset-assign-date" v-model="assignDate" :disabled="!hydrated || props.pending" />
       </UFormField>
-      <div class="sm:col-span-2">
+      <div class="liwan-span-full">
         <UButton
           color="primary"
           :disabled="!hydrated || !canAssign"

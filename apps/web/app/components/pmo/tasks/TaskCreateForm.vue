@@ -220,7 +220,7 @@ async function submit() {
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
   <form novalidate data-testid="task-create-form" class="liwan-form" @submit.prevent="submit">
-    <UAlert v-if="generalError" role="alert" class="sm:col-span-2" color="error" variant="subtle" :title="generalError" />
+    <UAlert v-if="generalError" role="alert" class="liwan-span-full" color="error" variant="subtle" :title="generalError" />
     <UFormField :label="t('tasks.newTitle')" name="name" required :error="fieldError('name')">
       <UInput id="new-task-name" v-model="name" required class="w-full" :disabled="!hydrated || isPending" />
     </UFormField>
@@ -262,10 +262,10 @@ async function submit() {
       <UButton v-if="projectQuick" type="button" color="neutral" variant="ghost" class="w-full justify-between font-semibold" trailing-icon="i-lucide-chevron-down" :ui="{ trailingIcon: 'transition-transform group-data-[state=open]:rotate-180' }">{{ t('tasks.quick.optional') }}</UButton>
       <template #content>
         <div class="grid gap-6" :class="projectQuick && 'pt-4'">
-          <UFormField :label="t('tasks.drawer.description')" name="description" class="sm:col-span-2">
+          <UFormField :label="t('tasks.drawer.description')" name="description" class="liwan-span-full">
             <UTextarea id="new-task-description" v-model="description" class="w-full" :rows="4" :placeholder="t('tasks.descriptionField.placeholder')" :disabled="!hydrated || isPending" />
           </UFormField>
-          <UFormField :label="t('tasks.deliverables.title')" :description="t('tasks.deliverables.hint')" name="deliverables" class="sm:col-span-2">
+          <UFormField :label="t('tasks.deliverables.title')" :description="t('tasks.deliverables.hint')" name="deliverables" class="liwan-span-full">
             <div class="grid gap-2">
               <div v-if="deliverables.length" class="space-y-2">
                 <div v-for="(item, index) in deliverables" :key="index" class="flex items-center gap-2">
@@ -282,7 +282,7 @@ async function submit() {
         </div>
       </template>
     </UCollapsible>
-    <SharedFormActions class="flex flex-wrap gap-2 justify-end sm:col-span-2">
+    <SharedFormActions class="flex flex-wrap gap-2 justify-end liwan-span-full">
       <UButton color="neutral" variant="outline" type="button" :disabled="isPending" @click="emit('cancel')">{{ t('app.cancel') }}</UButton>
       <UButton type="submit" :loading="isPending" :disabled="!hydrated || isPending">{{ t('app.create') }}</UButton>
     </SharedFormActions>
