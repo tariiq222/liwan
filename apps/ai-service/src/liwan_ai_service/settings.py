@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from liwan_ai_service.contracts import AI_STATE_VERSION, MODEL_NAME, PROVIDER_NAME
 from liwan_ai_service.provider_registry import REGISTRY
+from liwan_ai_service.tenancy import tenancy_from_env
 
 
 class SettingsError(ValueError):
@@ -87,6 +88,9 @@ class Settings:
     openrouter_title: str | None = None
     state_version: str = AI_STATE_VERSION
     generation_id: str | None = None
+    tenancy_mode: str = "dedicated"
+    tenant_database: str | None = None
+    tenant_registry_path: str | None = None
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str]) -> Settings:
@@ -117,6 +121,7 @@ class Settings:
         if database_url is None and environ.get("AI_ALLOW_MEMORY_STATE") != "true":
             msg = "AI_DATABASE_URL is required (set AI_ALLOW_MEMORY_STATE=true only for local development)"
             raise SettingsError("AI_DATABASE_URL", msg)
+        tenancy_mode, tenant_database, tenant_registry_path = tenancy_from_env(environ)
         return cls(
             provider=provider,
             model=model,
@@ -128,5 +133,8 @@ class Settings:
             openrouter_referer=environ.get("AI_OPENROUTER_REFERER") or None,
             openrouter_title=environ.get("AI_OPENROUTER_TITLE") or None,
             state_version=state_version,
+            tenancy_mode=tenancy_mode,
+            tenant_database=tenant_database,
+            tenant_registry_path=tenant_registry_path,
             generation_id=generation_id,
         )

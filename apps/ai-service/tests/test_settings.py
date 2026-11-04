@@ -6,13 +6,14 @@ from liwan_ai_service.settings import CleanupSettings, Settings, SettingsError
 def test_settings_from_env_reads_the_provider_and_defaults():
     settings = Settings.from_env({
         "AI_PROVIDER": "ollama", "AI_MODEL": "qwen2.5:7b", "AI_BASE_URL": "http://ollama:11434",
-        "AI_DATABASE_URL": "postgresql://ai:ai@db/ai", "AI_SERVICE_TOKEN": "t" * 30,
+        "AI_DATABASE_URL": "postgresql://ai:ai@db/ai", "AI_SERVICE_TOKEN": "t" * 30, "AI_TENANT_DATABASE": "acme_db",
     })
     assert settings.provider == "ollama"
     assert settings.model == "qwen2.5:7b"
     assert settings.base_url == "http://ollama:11434"
     assert settings.api_key is None
     assert settings.default_timeout_seconds == 120
+    assert settings.tenancy_mode == "dedicated" and settings.tenant_database == "acme_db"
 
 
 def test_cloud_provider_requires_an_api_key():
@@ -56,12 +57,13 @@ def test_a_missing_database_stops_the_boot_unless_memory_state_is_exactly_true(f
 
 def test_memory_state_is_allowed_only_when_asked_for():
     assert Settings.from_env({**ENV, "AI_ALLOW_MEMORY_STATE": "true"}).database_url is None
-    assert Settings.from_env({**ENV, "AI_DATABASE_URL": "postgresql://ai@db/ai"}).database_url == "postgresql://ai@db/ai"
+    real = {**ENV, "AI_DATABASE_URL": "postgresql://ai@db/ai", "AI_TENANT_DATABASE": "acme_db"}
+    assert Settings.from_env(real).database_url == "postgresql://ai@db/ai"
 
 
 def test_token_required_without_dev_flag():
     with pytest.raises(SettingsError) as error:
-        Settings.from_env({**ENV, "AI_DATABASE_URL": "postgresql://x/liwan_ai"} | {"AI_SERVICE_TOKEN": ""})
+        Settings.from_env({**ENV, "AI_DATABASE_URL": "postgresql://x/liwan_ai", "AI_TENANT_DATABASE": "acme_db"} | {"AI_SERVICE_TOKEN": ""})
     assert error.value.variable == "AI_SERVICE_TOKEN"
 
 

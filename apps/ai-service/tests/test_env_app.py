@@ -176,6 +176,7 @@ async def test_a_database_and_a_token_boot_without_warnings(monkeypatch, caplog)
     monkeypatch.setenv("AI_PROVIDER", "ollama")
     monkeypatch.setenv("AI_MODEL", "m")
     monkeypatch.setenv("AI_DATABASE_URL", "postgresql://u:pw@h/db")
+    monkeypatch.setenv("AI_TENANT_DATABASE", "acme_db")
     monkeypatch.setenv("AI_SERVICE_TOKEN", "t" * 30)
 
     async def fake_open_state(_url):

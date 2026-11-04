@@ -9,7 +9,7 @@ import httpx
 import psycopg
 import pytest
 from psycopg import sql
-from psycopg.conninfo import make_conninfo
+from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
 from tests.test_release_continuity import ADMIN, OWNER
 from tests.test_service import BODY, RESUME_C1, fresh, parse_sse
@@ -35,7 +35,7 @@ async def main():
     store, checkpointer, close = await open_state(os.environ["AI_TEST_DATABASE_URL"])
     responses = ([ai_tool_call("pmo__draft_project", {"name":"x"}, "c_1")] if sys.argv[2] == "old" else
                  [ai_text("claim completed"), ai_text("active finished")])
-    settings = Settings.from_env({"AI_PROVIDER":"ollama", "AI_MODEL":"scripted-fake", "AI_DATABASE_URL":os.environ["AI_TEST_DATABASE_URL"], "AI_SERVICE_TOKEN":"t"*30, "AI_GENERATION_ID":sys.argv[2]})
+    settings = Settings.from_env({"AI_PROVIDER":"ollama", "AI_MODEL":"scripted-fake", "AI_DATABASE_URL":os.environ["AI_TEST_DATABASE_URL"], "AI_TENANT_DATABASE":os.environ["AI_TENANT_DATABASE"], "AI_SERVICE_TOKEN":"t"*30, "AI_GENERATION_ID":sys.argv[2]})
     app = create_app(DelayedScript(responses, title_responses=[ai_text("title"), ai_text("active title")]), store, checkpointer, settings)
     try:
         await uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=int(sys.argv[1]), log_level="error", access_log=False)).serve()
@@ -70,7 +70,7 @@ async def runtimes():
     conn = await psycopg.AsyncConnection.connect(database_url, autocommit=True)
     await conn.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema)))
     isolated = make_conninfo(database_url, options=f"-c search_path={schema}")
-    env = {**os.environ, "AI_TEST_DATABASE_URL": isolated, "AI_DATABASE_URL": isolated}
+    env = {**os.environ, "AI_TEST_DATABASE_URL": isolated, "AI_DATABASE_URL": isolated, "AI_TENANT_DATABASE": conninfo_to_dict(database_url)["dbname"]}
     try:
         bootstrap = await asyncio.create_subprocess_exec(sys.executable, "-m", "liwan_ai_service.store", "--initialize", env=env,
                                                          stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)

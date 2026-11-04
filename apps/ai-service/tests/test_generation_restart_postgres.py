@@ -41,7 +41,7 @@ async def main():
     admin = {'x-liwan-service-token':token}
     store, checkpoints, close = await open_state(os.environ['AI_TEST_DATABASE_URL'])
     settings = Settings.from_env({'AI_PROVIDER':'ollama', 'AI_MODEL':'scripted',
-        'AI_DATABASE_URL':os.environ['AI_TEST_DATABASE_URL'], 'AI_SERVICE_TOKEN':token,
+        'AI_DATABASE_URL':os.environ['AI_TEST_DATABASE_URL'], 'AI_TENANT_DATABASE':os.environ['AI_TENANT_DATABASE'], 'AI_SERVICE_TOKEN':token,
         'AI_GENERATION_ID':sys.argv[2]})
     app = create_app(ScriptedChatModel([ai_text('done')], title_responses=[ai_text('title')]), store, checkpoints, settings)
     try:
@@ -84,7 +84,7 @@ async def scratch_states():
             await conn.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema)))
             scoped = make_conninfo(database_url, options=f"-c search_path={schema}")
             store, _, close = await open_state(scoped, initialize=True)
-            states.append({"url": scoped, "state_id": store.state_id, "schema": schema})
+            states.append({"url": scoped, "state_id": store.state_id, "schema": schema, "database": config["dbname"]})
             await close()
         assert states[0]["state_id"] != states[1]["state_id"]
         yield states
@@ -100,6 +100,7 @@ def child_env(state):
     return {
         **os.environ,
         "AI_TEST_DATABASE_URL": state["url"],
+        "AI_TENANT_DATABASE": state["database"],
         "AI_TEST_SOURCE_DIR": str(Path(__file__).resolve().parents[1] / "src/liwan_ai_service"),
         "PYTHONPATH": os.pathsep.join((str(Path(liwan_ai_service.__file__).parent.parent), str(Path(tests.__file__).parent.parent))),
     }
