@@ -14,6 +14,7 @@ import {
   InboxTagSchema,
   InboxTemplateListSchema,
   InboxTemplateSchema,
+  InboxVerifyTokenSchema,
   type InboxCannedReplyWrite,
   type InboxChannelCreate,
   type InboxChannelPatch,
@@ -199,6 +200,16 @@ export function useTestInboxChannel(id: MaybeRefOrGetter<number>) {
   })
 }
 export const useSyncInboxTemplates = (id: MaybeRefOrGetter<number>) => useChannelAction(id, 'templates/sync')
+
+/** A fresh webhook handshake token: the only response that carries it, shown once for the Meta app settings. */
+export function useRotateInboxVerifyToken(id: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => $api(`/api/v1/inbox/channels/${toValue(id)}/verify-token`, { method: 'POST', schema: InboxVerifyTokenSchema }),
+    onSettled: () => qc.invalidateQueries({ queryKey: inboxKeys.all }),
+  })
+}
 
 // ---------------------------------------------------------------- templates (settings)
 /** A channel's id and name, readable by whoever manages its templates without administering the channel. */

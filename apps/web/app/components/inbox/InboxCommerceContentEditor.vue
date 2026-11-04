@@ -75,7 +75,7 @@ function removeSection(index: number) {
     <p v-if="draft.type === 'catalog_message'" class="text-xs text-muted">{{ t('inbox.catalog.picker.thumbnailHint') }}</p>
     <p class="text-sm font-medium text-highlighted">{{ isList ? t('inbox.catalog.picker.pickFor', { section: draft.sections[activeSection]?.title || String(activeSection + 1) }) : draft.type === 'product' ? t('inbox.catalog.picker.pickOne') : t('inbox.catalog.picker.pickThumbnail') }}</p>
     <InboxProductPicker v-if="props.source" v-model:q="q" :items="items.data.value?.items ?? []" :picked="picked" :max="max" :loading="items.isPending.value" :error="items.error.value" @toggle="onToggle" @retry="items.refetch()" />
-    <p v-else class="text-sm text-warning" data-testid="inbox-commerce-no-source">{{ t('inbox.catalog.picker.needsChannel') }}</p>
+    <p v-else class="text-sm text-status-warning-foreground" data-testid="inbox-commerce-no-source">{{ t('inbox.catalog.picker.needsChannel') }}</p>
     <p v-if="problem" class="text-xs text-muted" data-testid="inbox-commerce-problem">{{ t(`inbox.catalog.picker.problems.${problem}`) }}</p>
   </SharedSubCard>
 </template>

@@ -240,7 +240,9 @@
           "least_open": "New conversations go to the member with the fewest open conversations."
         },
         "firstResponse": "First-response alert (minutes)",
-        "firstResponseHint": "The assignee is notified when a customer has waited this long without a reply. 0 turns the alert off."
+        "firstResponseHint": "The assignee is notified when a customer has waited this long without a reply. 0 turns the alert off.",
+        "reportRetention": "Report history retention (months)",
+        "reportRetentionHint": "How long the daily performance rows behind the reports are kept. It does not affect conversations."
       },
       "presets": {
         "title": "Sector presets",
@@ -341,7 +343,12 @@
           "callbackUrl": "Callback URL",
           "verifyToken": "Verify token",
           "copy": "Copy",
-          "copied": "Copied"
+          "copied": "Copied",
+          "verifyTokenHint": "Used for the subscription handshake in the Meta app. It is not shown after it is generated.",
+          "verifyTokenSet": "Handshake token is set",
+          "verifyTokenMissing": "No handshake token",
+          "verifyTokenRotate": "Generate a new token",
+          "verifyTokenOnce": "Copy it now: it will not be shown again."
         },
         "details": "Channel details",
         "secrets": "Replace secrets",
@@ -1757,7 +1764,9 @@
           "payment": "Any payment status",
           "channel": "Any channel"
         }
-      }
+      },
+      "totalIncomplete": "Total is incomplete: a line has no known price.",
+      "manageTemplates": "Manage templates"
     },
     "campaigns": {
       "title": "Campaigns",
@@ -2107,6 +2116,15 @@
         "history": "Consent history"
       },
       "navLabel": "Campaign sections"
+    },
+    "providerError": {
+      "tokenInvalid": "Meta access token is invalid. Update the channel token.",
+      "rateLimited": "Meta is throttling sends (rate limit). It will retry.",
+      "windowClosed": "The 24-hour reply window is closed. Send an approved template.",
+      "unreachable": "Meta is unreachable (network). It will retry.",
+      "recipient": "The number is not a valid WhatsApp recipient.",
+      "unknown": "Meta: {message}",
+      "uncertain": "Meta did not confirm the send. Check that it arrived before retrying."
     }
   },
   "errors": {

@@ -49,8 +49,12 @@ const clear = () => update({ date_from: undefined, date_to: undefined })
     @retry="hydrated && flow.refetch()"
   >
     <SharedFilterBar embedded class="w-full" :active-count="Number(!!dateFrom) + Number(!!dateTo)" :default-open="!!dateFrom || !!dateTo" :disabled="!hydrated" @clear="clear">
-      <label class="flex items-center gap-2 text-sm">{{ t('inbox.flows.responses.from') }}<SharedDateField :model-value="dateFrom" :max-value="dateTo" :aria-label="t('inbox.flows.responses.from')" :disabled="!hydrated" @update:model-value="update({ date_from: $event ?? undefined })" /></label>
-      <label class="flex items-center gap-2 text-sm">{{ t('inbox.flows.responses.to') }}<SharedDateField :model-value="dateTo" :min-value="dateFrom" :aria-label="t('inbox.flows.responses.to')" :disabled="!hydrated" @update:model-value="update({ date_to: $event ?? undefined })" /></label>
+      <SharedFilterField :label="t('inbox.flows.responses.from')">
+        <SharedDateField :model-value="dateFrom" :max-value="dateTo" :aria-label="t('inbox.flows.responses.from')" :disabled="!hydrated" @update:model-value="update({ date_from: $event ?? undefined })" />
+      </SharedFilterField>
+      <SharedFilterField :label="t('inbox.flows.responses.to')">
+        <SharedDateField :model-value="dateTo" :min-value="dateFrom" :aria-label="t('inbox.flows.responses.to')" :disabled="!hydrated" @update:model-value="update({ date_to: $event ?? undefined })" />
+      </SharedFilterField>
     </SharedFilterBar>
     <InboxFlowResponsesTable
       :flow="flow.data.value"

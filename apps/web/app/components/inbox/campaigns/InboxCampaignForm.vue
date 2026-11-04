@@ -236,7 +236,7 @@ async function submit() {
       </UFormField>
       <InboxTemplatePreview v-if="previewParts" :parts="previewParts" />
       <SharedLoadingSkeleton v-else-if="preview.isFetching.value" />
-      <p v-if="missingCount" class="text-sm text-warning" role="status" data-testid="inbox-campaign-preview-missing">{{ t('inbox.campaigns.form.previewMissing', { count: missingCount }) }}</p>
+      <p v-if="missingCount" class="text-sm text-status-warning-foreground" role="status" data-testid="inbox-campaign-preview-missing">{{ t('inbox.campaigns.form.previewMissing', { count: missingCount }) }}</p>
     </SharedSubCard>
 
     <ul v-if="selected" class="flex flex-col gap-1 text-xs text-muted" data-testid="inbox-campaign-hints">

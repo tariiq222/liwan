@@ -26,6 +26,7 @@ const body = ref('')
 const templateId = ref<number | undefined>(undefined)
 
 const manage = computed(() => can('inbox.orders.manage'))
+const canManageTemplates = computed(() => can('inbox.channels.manage') || can('inbox.templates.manage'))
 const isCart = computed(() => props.state === 'cart')
 const unpaid = computed(() => props.state === 'ordered' && (props.paymentStatus === 'payable' || props.paymentStatus === 'processing' || props.paymentStatus === null))
 const order = useInboxOrder(() => props.orderId, () => step.value === 'edit')
@@ -79,7 +80,12 @@ function confirmCancel() {
       </UFormField>
       <template v-else>
         <UAlert color="info" variant="subtle" icon="i-lucide-clock" :title="t('inbox.composer.windowClosed')" :description="t('inbox.orders.templateNeeded')" />
-        <p v-if="!payTemplates.length" class="text-sm text-warning" data-testid="inbox-order-no-template">{{ t('inbox.orders.noPayTemplate') }}</p>
+        <p v-if="!payTemplates.length" class="text-sm text-status-warning-foreground" data-testid="inbox-order-no-template">
+          {{ t('inbox.orders.noPayTemplate') }}
+          <NuxtLink v-if="canManageTemplates" class="underline" :to="`/settings/apps/inbox/channels/${props.channelId}/templates`" data-testid="inbox-order-templates-link">
+            {{ t('inbox.orders.manageTemplates') }}
+          </NuxtLink>
+        </p>
         <UFormField v-else :label="t('inbox.orders.payTemplate')" required>
           <USelect v-model="templateId" class="w-full" :items="payTemplates" :placeholder="t('inbox.composer.pickTemplate')" :disabled="busy" data-testid="inbox-order-template" />
         </UFormField>

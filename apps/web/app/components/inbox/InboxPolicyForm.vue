@@ -16,6 +16,7 @@ const ASSIGNMENTS: readonly InboxAssignmentPolicy[] = ['manual', 'round_robin', 
 const visibility = ref<InboxVisibilityPolicy>('department')
 const assignment = ref<InboxAssignmentPolicy>('manual')
 const alertMinutes = ref(0)
+const reportRetention = ref(36)
 const autoClose = ref(72)
 const retention = ref(24)
 watch(data, (settings) => {
@@ -25,15 +26,18 @@ watch(data, (settings) => {
   retention.value = settings.retention_months
   assignment.value = settings.assignment_policy
   alertMinutes.value = settings.first_response_alert_minutes
+  reportRetention.value = settings.report_retention_months
 }, { immediate: true })
 
 const draft = computed(() => ({
   visibility_policy: visibility.value, auto_close_hours: autoClose.value, retention_months: retention.value,
   assignment_policy: assignment.value, first_response_alert_minutes: alertMinutes.value,
+  report_retention_months: reportRetention.value,
 }))
 const dirty = computed(() => !!data.value && JSON.stringify(draft.value) !== JSON.stringify({
   visibility_policy: data.value.visibility_policy, auto_close_hours: data.value.auto_close_hours, retention_months: data.value.retention_months,
   assignment_policy: data.value.assignment_policy, first_response_alert_minutes: data.value.first_response_alert_minutes,
+  report_retention_months: data.value.report_retention_months,
 }))
 const valid = computed(() => InboxSettingsPatchSchema.safeParse(draft.value).success)
 const policyItems = computed(() => POLICIES.map(value => ({ value, label: t(`inbox.settings.policy.visibility.${value}`), description: t(`inbox.settings.policy.visibilityHint.${value}`) })))
@@ -68,6 +72,9 @@ function submit() {
       </div>
       <UFormField :label="t('inbox.settings.policy.assignmentLabel')" :description="t('inbox.settings.policy.assignmentDescription')">
         <URadioGroup v-model="assignment" :items="assignmentItems" :disabled="!hydrated || isPending" data-testid="inbox-assignment" />
+      </UFormField>
+      <UFormField :label="t('inbox.settings.policy.reportRetention')" :description="t('inbox.settings.policy.reportRetentionHint')">
+        <UInputNumber v-model="reportRetention" class="w-full sm:w-60" :min="12" :max="120" :disabled="!hydrated || isPending" data-testid="inbox-report-retention" />
       </UFormField>
       <UFormField :label="t('inbox.settings.policy.firstResponse')" :description="t('inbox.settings.policy.firstResponseHint')">
         <UInputNumber v-model="alertMinutes" class="w-full sm:w-60" :min="0" :max="1440" :disabled="!hydrated || isPending" data-testid="inbox-first-response" />
