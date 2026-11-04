@@ -33,7 +33,8 @@ test('long creation keeps Next visible and submits its own form from the footer'
 test('the operational record summary precedes the task description on a phone', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await enterFoundation(page, '/tasks/101')
-  const summary = page.locator('[data-slot="record-summary"]')
+  // The task record's operational summary is its aside (the properties), which `asideFirst` places before the main column.
+  const summary = page.locator('[data-slot="record-aside"]')
   await expect(summary).toBeVisible()
   const content = page.locator('[data-slot="record-main"]')
   expect((await summary.boundingBox())!.y).toBeLessThan((await content.boundingBox())!.y)

@@ -97,7 +97,7 @@
       "cancelTitle": "Cancel title editing",
       "workflowStage": "Workflow stage",
       "stageUnset": "Not set",
-      "primaryMetadata": "Primary task details",
+      "properties": "Properties",
       "sectionAssignment": "Assignment and schedule",
       "sectionOrganization": "Organization",
       "sections": "Task sections",
@@ -114,7 +114,6 @@
       "cancelLink": "Cancel"
     },
     "drawer": {
-      "details": "Details",
       "deadlineTime": "Deadline time",
       "activity": "Activity",
       "assignees": "Assignees",
@@ -129,7 +128,6 @@
       "addSubtask": "Add subtask",
       "dependsOn": "Depends on",
       "attachments": "Attachments",
-      "metrics": "Metrics",
       "age": "Age",
       "cycle": "Cycle time",
       "days": "{n} day | {n} days",

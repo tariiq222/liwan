@@ -64,13 +64,13 @@ test('more opens the same provider on the page and loads its next server page', 
 
 test('a background record refresh error keeps loaded content with retry', async ({ page }) => {
   await enterFoundation(page, '/tasks/101')
-  await expect(page.locator('[data-slot="record-summary"]')).toContainText('نورة الحربي')
+  await expect(page.locator('[data-slot="record-aside"]')).toContainText('نورة الحربي')
   await page.route('**/api/v1/tasks/101', route => route.fulfill({ status: 500, json: { code: 'internal', message: 'تعذر التحديث' } }))
   await page.clock.install()
   await page.clock.fastForward(6000)
   await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')))
   await expect(page.locator('[data-slot="error-state"]')).toBeVisible()
-  await expect(page.locator('[data-slot="record-summary"]')).toContainText('نورة الحربي')
+  await expect(page.locator('[data-slot="record-aside"]')).toContainText('نورة الحربي')
   await expect(page.locator('[data-slot="record-main"]')).toBeVisible()
   await expect(page.getByRole('button', { name: 'إعادة المحاولة', exact: true })).toBeVisible()
 })
