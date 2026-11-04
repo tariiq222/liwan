@@ -130,14 +130,14 @@
 - Consumes: `TenantDirectory` (Task 2), `PostgresRunStore`, `MemoryRunStore`, `validate_tenant` (Task 3), `build_graph(model, checkpointer, identity)` (`graph.py:125`).
 - Produces:
   - `@dataclass(frozen=True) class TenantState`: `database: str`, `store: RunStore`, `graph: CompiledStateGraph`.
-  - `class TenantStates`: `async def for_tenant(self, tenant: str) -> TenantState` (raises `UnknownTenant` → 403, `StateCompatibilityError` → 503 `ai_state_uninitialized`); `async def each(self) -> AsyncIterator[TenantState]` over `directory.databases()` (opens pools on demand, closes the ones it opened when idle); `async def close_idle(self) -> None`; `async def aclose(self) -> None`.
+  - `class TenantStates`: `def use(self, tenant: str)` — an async context manager yielding `TenantState` and keeping its pool open until the block ends (raises `UnknownTenant` → 403, `StateCompatibilityError` → 503 `ai_state_uninitialized`); `async def each(self) -> AsyncIterator[TenantState]` over `directory.databases()` (opens pools on demand, closes the ones it opened when idle); `async def close_idle(self) -> None`; `async def aclose(self) -> None`.
   - Constructor: `TenantStates(directory, base_conninfo: str | None, graph_factory: Callable[[object], CompiledStateGraph], *, max_open: int = 32, idle_seconds: float = 300, pool_max_size: int = 5)`. `base_conninfo is None` → memory mode (one `MemoryRunStore` + `InMemorySaver` per tenant, kept for the process).
   - Pools: `AsyncConnectionPool(make_conninfo(base, dbname=db, options="-c search_path=liwan_ai"), min_size=0, max_size=pool_max_size, kwargs={"autocommit": True, "prepare_threshold": 0})`; least-recently-used pool closed when `max_open` is exceeded; one `asyncio.Lock` per database guards opening so two requests never open two pools.
 
 - [ ] **Step 1: Write failing tests** (memory mode unless noted):
-  - `test_each_tenant_gets_its_own_store`: a run created through `for_tenant("a")` is absent from `for_tenant("b").store.get(run_id)`.
+  - `test_each_tenant_gets_its_own_store`: a run created through `use("a")` is absent from the `use("b")` store.
   - `test_unknown_tenant_raises`: directory refusing `"zzz"` → `UnknownTenant`.
-  - `test_concurrent_open_creates_one_state` (gather 20 `for_tenant("a")` → one object).
+  - `test_concurrent_open_creates_one_state` (gather 20 `use("a")` → one object).
   - Postgres: `test_uninitialized_tenant_is_503` (schema exists, no tables → `StateCompatibilityError`, and another initialized tenant still works); `test_lru_closes_oldest_pool` with `max_open=1`.
 - [ ] **Step 2: Run** `.venv/bin/pytest -q tests/test_tenant_state.py` → FAIL.
 - [ ] **Step 3: Implement** `tenant_state.py`.
@@ -152,7 +152,7 @@
 
 **Interfaces:**
 - Consumes: `TenantStates`, `TenantState` (Task 4), `ControlState` (Task 3), `UnknownTenant` (Task 2).
-- Produces: `create_app(model, states: TenantStates, control: ControlState, settings: Settings) -> FastAPI`. Every route resolves `state = await states.for_tenant(who.tenant)` once and uses `state.store` / `state.graph`. `owned_run` checks `record.user_ref == who.user_ref` only (the database is the tenant). `UnknownTenant` → `HTTPException(403, "tenant not served")`; `StateCompatibilityError` → `HTTPException(503, "ai_state_uninitialized")`. Release evidence: `state_id = control.state_id`; activity summed over `states.each()`; `"activity_scope": "tenant_states"`. The ASGI app opens control + states at startup and closes both at shutdown; a background task calls `states.close_idle()` every 60 s.
+- Produces: `create_app(model, states: TenantStates, control: ControlState, settings: Settings) -> FastAPI`. Every route enters `async with states.use(who.tenant) as state:` for the whole request (a streaming run keeps it until the stream ends) and uses `state.store` / `state.graph`. `owned_run` checks `record.user_ref == who.user_ref` only (the database is the tenant). `UnknownTenant` → `HTTPException(403, "tenant not served")`; `StateCompatibilityError` → `HTTPException(503, "ai_state_uninitialized")`. Release evidence: `state_id = control.state_id`; activity summed over `states.each()`; `"activity_scope": "tenant_states"`. The ASGI app opens control + states at startup and closes both at shutdown; a background task calls `states.close_idle()` every 60 s.
 
 - [ ] **Step 1: Write failing tests** in `test_service.py`:
   - `test_run_of_other_tenant_is_not_found`: start a run as tenant `a`/user `1`, then GET `/v1/runs/{id}` as tenant `b`/user `1` → 404.
