@@ -13,6 +13,14 @@ describe('aimsAtMenu', () => {
     expect(aimsAtMenu({ x: 1390, y: 476 }, { x: 1390, y: 500 }, menu)).toBe(false)
   })
 
+  it('slight drift toward the menu while moving down the rail does not aim at it', () => {
+    expect(aimsAtMenu({ x: 1390, y: 476 }, { x: 1387, y: 500 }, menu)).toBe(false)
+  })
+
+  it('a steep but deliberate diagonal toward the menu bottom still aims at it', () => {
+    expect(aimsAtMenu({ x: 1390, y: 476 }, { x: 1384, y: 506 }, menu)).toBe(true)
+  })
+
   it('moving away from the menu does not aim at it', () => {
     expect(aimsAtMenu({ x: 1390, y: 476 }, { x: 1400, y: 486 }, menu)).toBe(false)
   })

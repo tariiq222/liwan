@@ -39,11 +39,13 @@ useEventListener(() => typeof document === 'undefined' ? null : document, 'point
   trail.push({ x: event.clientX, y: event.clientY, at: event.timeStamp })
   while (trail.length > 1 && event.timeStamp - trail[0]!.at > AIM_SAMPLE_MS) trail.shift()
 }, { passive: true })
+// A trail older than the sample window (a resting pointer, or keyboard focus) says nothing about where it is heading.
 function aimingAtMenu() {
-  const menu = column.value?.querySelector('.liwan-context-sidebar')?.getBoundingClientRect()
   const from = trail[0]
   const to = trail.at(-1)
-  return !!menu && !!from && !!to && from !== to && aimsAtMenu(from, to, menu)
+  if (!from || !to || from === to || performance.now() - to.at > AIM_SAMPLE_MS) return false
+  const menu = column.value?.querySelector('.liwan-context-sidebar')?.getBoundingClientRect()
+  return !!menu && aimsAtMenu(from, to, menu)
 }
 function peekFrom(id: string, anchor: HTMLElement) {
   peek(id, anchor.getBoundingClientRect().top, !!peekItem.value && id !== peekId.value && aimingAtMenu())
