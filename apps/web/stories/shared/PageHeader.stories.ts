@@ -46,7 +46,7 @@ export const WithKpiToggle: Story = {
 // page passes nothing; a title alone is the smallest header.
 export const TitleOnly: Story = {
   name: 'عنوان فقط',
-  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:36', 'أصغر ترويسة: بطاقة مدمجة بأيقونة التطبيق من الغلاف وعنوان واحد، بلا وصف ولا وسوم ولا إجراءات.'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:40', 'أصغر ترويسة: بطاقة مدمجة بأيقونة التطبيق من الغلاف وعنوان واحد، بلا وصف ولا وسوم ولا إجراءات.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => {
@@ -60,7 +60,7 @@ export const TitleOnly: Story = {
 // Tags are short facts about the page's subject (state, count, owner) drawn inline after the title; a tag with `to` is a link.
 export const WithTags: Story = {
   name: 'وسوم بعد العنوان',
-  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:36', 'الوسوم: حالة السجل وعدد القائمة وصاحبه تظهر بعد العنوان في السطر نفسه كشارات ناعمة، والوسم الذي له `to` رابط.'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:40', 'الوسوم: حالة السجل وعدد القائمة وصاحبه تظهر بعد العنوان في السطر نفسه كشارات ناعمة، والوسم الذي له `to` رابط.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => {
@@ -80,7 +80,7 @@ export const WithTags: Story = {
 // shell's published ancestors come before it. A step that only links back to this same page is dropped.
 export const WithBack: Story = {
   name: 'مسار تحت العنوان',
-  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:36'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:40'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
@@ -234,7 +234,7 @@ export const StickyHeading: Story = {
 
 export const HiddenTitle: Story = {
   name: 'عنوان يملكه الإطار',
-  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:36', 'داخل إطار مشروع يملك العنوان: `hideTitle` يرسم الإجراءات وحدها ويبقى اسم الصفحة مسجلًا للغلاف.'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:40', 'داخل إطار مشروع يملك العنوان: `hideTitle` يرسم الإجراءات وحدها ويبقى اسم الصفحة مسجلًا للغلاف.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),

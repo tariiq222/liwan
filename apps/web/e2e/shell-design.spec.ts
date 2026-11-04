@@ -104,6 +104,50 @@ test.describe('hidden application menu', () => {
     await expect(menu).toBeVisible()
     await expect.poll(async () => (await main.boundingBox())!.width).toBeLessThan(start.width)
   })
+
+  test('opens level with the hovered rail item and stays open on the way into it', async ({ page, context }) => {
+    await context.clearCookies({ name: 'liwan-context-sidebar' })
+    await login(page)
+    await open(page, '/my-tasks')
+    const menu = page.getByTestId('application-navigation')
+    const rail = page.getByTestId('module-rail')
+    const item = (name: string) => rail.getByRole('link', { name, exact: true })
+    const center = async (name: string) => {
+      const box = (await item(name).boundingBox())!
+      return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+    }
+    const top = async (locator: typeof menu) => Math.round((await locator.boundingBox())!.y)
+
+    await item('الاجتماعات').hover()
+    await expect(menu).toHaveAttribute('aria-label', 'الاجتماعات')
+    await expect.poll(() => top(menu)).toBe(await top(item('الاجتماعات')))
+
+    // Moving along the rail swaps the menu and re-anchors it to the new item.
+    const projects = await center('المشاريع')
+    await page.mouse.move(projects.x, projects.y, { steps: 6 })
+    await expect(menu).toHaveAttribute('aria-label', 'المشاريع')
+    await expect.poll(() => top(menu)).toBe(await top(item('المشاريع')))
+
+    // A diagonal into the menu's last link crosses the rail items below without swapping the menu.
+    const meetings = await center('الاجتماعات')
+    await page.mouse.move(meetings.x, meetings.y, { steps: 6 })
+    await expect(menu).toHaveAttribute('aria-label', 'الاجتماعات')
+    await expect.poll(async () => (await menu.boundingBox())!.width).toBe(230)
+    const last = (await menu.getByRole('link').last().boundingBox())!
+    await page.mouse.move(last.x + last.width - 24, last.y + last.height / 2, { steps: 30 })
+    await expect(menu).toHaveAttribute('aria-label', 'الاجتماعات')
+    await expect(menu).toHaveAttribute('data-overlay', 'true')
+
+    // On a short screen a tall menu lifts only as far as the viewport needs.
+    await page.mouse.move(800, 500)
+    await expect(menu).toBeHidden()
+    await page.setViewportSize({ width: 1440, height: 600 })
+    await item('المحادثات').hover()
+    await expect(menu).toHaveAttribute('aria-label', 'المحادثات')
+    await expect.poll(async () => (await menu.boundingBox())!.width).toBe(230)
+    await expect.poll(async () => { const box = (await menu.boundingBox())!; return box.y + box.height }).toBeLessThanOrEqual(600)
+    expect(await top(menu)).toBeLessThanOrEqual(await top(item('المحادثات')))
+  })
 })
 
 test.describe('folded card on a touch device', () => {

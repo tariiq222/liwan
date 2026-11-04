@@ -10,7 +10,9 @@ import PageState from '../feedback/PageState.vue'
 /*
  * The record template (Tasmim spec §6, template 2): header with back link and actions, optional
  * operational summary, tabs, the main column and an optional supporting aside. The aside sits at the inline end on wide screens
- * and after the main column on phones, so reading and focus order stay the DOM order.
+ * and after the main column on phones, so reading and focus order stay the DOM order. With `asideFirst` the aside is the
+ * record's operational summary (the task properties): it comes first in the DOM, so a phone reads it before the content,
+ * and wide screens still place it at the inline end.
  */
 const props = defineProps<{
   title: string
@@ -22,6 +24,8 @@ const props = defineProps<{
   keepContent?: boolean
   /** A frame around the page already shows the heading (the project workspace): draw no heading. Actions still render. */
   hideHeader?: boolean
+  /** The aside is the operational summary: it precedes the main column on phones (DESIGN.md §5). */
+  asideFirst?: boolean
 }>()
 defineEmits<{ retry: [] }>()
 const { t } = useI18n()
@@ -37,6 +41,7 @@ const heading = computed(() => (ready.value ? props.title.trim() || t('states.un
       <template v-if="props.loading && !props.title" #title>
         <USkeleton class="inline-block h-6 w-48 align-middle" /><span class="sr-only">{{ t('app.loading') }}</span>
       </template>
+      <template v-if="$slots.title && !(props.loading && !props.title)" #title><slot name="title" /></template>
       <template v-if="$slots.back" #back><slot name="back" /></template>
       <template v-if="$slots.tags" #tags><slot name="tags" /></template>
       <template v-if="ready && $slots.actions" #actions><slot name="actions" /></template>
@@ -46,8 +51,11 @@ const heading = computed(() => (ready.value ? props.title.trim() || t('states.un
     <PageState v-if="props.error" :error="props.error" @retry="$emit('retry')" />
     <LoadingSkeleton v-if="props.loading && !preserve" variant="record" />
     <div v-else-if="!props.error || preserve" data-slot="record-body" class="grid gap-(--liwan-gap-card)" :class="{ 'lg:grid-cols-[minmax(0,1fr)_20rem]': $slots.aside }">
+      <aside v-if="$slots.aside && props.asideFirst" data-slot="record-aside" class="grid min-w-0 gap-(--liwan-gap-card) lg:sticky lg:top-4 lg:order-last lg:self-start" :aria-label="t('states.properties')">
+        <slot name="aside" />
+      </aside>
       <div data-slot="record-main" class="grid min-w-0 content-start gap-(--liwan-gap-card)"><slot /></div>
-      <aside v-if="$slots.aside" data-slot="record-aside" class="grid min-w-0 gap-(--liwan-gap-card) lg:sticky lg:top-4 lg:self-start" :aria-label="t('states.properties')">
+      <aside v-if="$slots.aside && !props.asideFirst" data-slot="record-aside" class="grid min-w-0 gap-(--liwan-gap-card) lg:sticky lg:top-4 lg:self-start" :aria-label="t('states.properties')">
         <slot name="aside" />
       </aside>
     </div>
