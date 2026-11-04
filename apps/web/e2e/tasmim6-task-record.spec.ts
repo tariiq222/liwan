@@ -20,17 +20,21 @@ test.describe('Plan 6a: the task record', () => {
       await open(page, '/tasks/101')
       await expect(page.getByTestId('task-properties').getByRole('combobox').first()).toBeEnabled()
       const tabs = page.getByTestId('task-detail-tabs')
-      for (const name of ['التفاصيل', 'المهام الفرعية', 'المرفقات']) await expect(tabs.getByRole('tab', { name, exact: true })).toBeVisible()
+      for (const name of ['المهام الفرعية', 'المهام السابقة', 'المرفقات']) await expect(tabs.getByRole('tab', { name, exact: true })).toBeVisible()
       await tabs.getByRole('tab', { name: 'المهام الفرعية', exact: true }).click()
       await expect(page.getByTestId('task-properties')).toBeVisible()
     })
-    test('the title edits in the properties panel: Escape reverts the draft', async ({ page }) => {
+    test('the title edits from the header: Escape reverts the draft', async ({ page }) => {
       await open(page, '/tasks/101')
+      const heading = page.getByRole('heading', { level: 1 })
+      await heading.getByRole('button', { name: 'تعديل عنوان المهمة' }).click()
       const input = page.getByTestId('task-title-input')
       const original = await input.inputValue()
       await input.fill(`${original} draft`)
       await input.press('Escape')
-      await expect(input).toHaveValue(original)
+      // Escape puts the saved name back and leaves the field: the heading keeps its text and the page its URL.
+      await expect(input).toHaveCount(0)
+      await expect(heading).toHaveText(original)
       await expect(page).toHaveURL(/\/tasks\/101/)
     })
     test('archive asks inline and never in a dialog', async ({ page }) => {
@@ -70,10 +74,10 @@ test.describe('Plan 6a: the task record', () => {
     test.use({ viewport: PHONE })
     test('the summary comes before the sections and nothing overflows', async ({ page }) => {
       await open(page, '/tasks/101')
-      // The summary (properties) comes first on a phone, then the sections.
-      const summary = await page.locator('[data-slot="record-summary"]').boundingBox()
+      // The record aside (the properties) comes first on a phone, then the main column.
+      const aside = await page.locator('[data-slot="record-aside"]').boundingBox()
       const main = await page.locator('[data-slot="record-main"]').boundingBox()
-      expect(main!.y).toBeGreaterThan(summary!.y)
+      expect(main!.y).toBeGreaterThan(aside!.y)
       expect(await fitsWidth(page)).toBe(true)
     })
   })
