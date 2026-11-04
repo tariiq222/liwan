@@ -5,7 +5,7 @@ import { useScrollEdges } from '../../composables/useScrollEdges'
 import type { ShellRailGroups } from '../../types/shell'
 
 const props = defineProps<{ rail: ShellRailGroups; activeId: string | null; homeTo: string }>()
-const emit = defineEmits<{ peek: [id: string]; release: [] }>()
+const emit = defineEmits<{ peek: [id: string, anchor: HTMLElement]; release: [] }>()
 const { t } = useI18n()
 const scroller = ref<HTMLElement | null>(null)
 const content = ref<HTMLElement | null>(null)
@@ -17,6 +17,8 @@ const groups = computed(() => [
 ].filter(group => group.items.length || group.key === 'applications'))
 const fromMouse = (event: PointerEvent) => event.pointerType === 'mouse'
 const fromKeyboard = (event: FocusEvent) => (event.target as HTMLElement).matches(':focus-visible')
+// The link itself is the anchor, so the host can open the item's menu level with it.
+const peekFrom = (event: Event, id: string) => emit('peek', id, event.currentTarget as HTMLElement)
 function capture(group: string, target: 'container' | 'content', element: unknown) {
   if (group !== 'applications') return
   const destination = target === 'container' ? scroller : content
@@ -44,9 +46,9 @@ function capture(group: string, target: 'container' | 'content', element: unknow
             :data-active="item.id === props.activeId"
             :aria-current="item.id === props.activeId ? 'page' : undefined"
             :title="t(item.labelKey)"
-            @pointerenter="fromMouse($event) && emit('peek', item.id)"
+            @pointerenter="fromMouse($event) && peekFrom($event, item.id)"
             @pointerleave="fromMouse($event) && emit('release')"
-            @focus="fromKeyboard($event) && emit('peek', item.id)"
+            @focus="fromKeyboard($event) && peekFrom($event, item.id)"
             @blur="emit('release')"
           >
             <span data-slot="icon" class="liwan-module-rail-icon" aria-hidden="true"><UIcon :name="item.icon" class="liwan-shell-icon" /></span>

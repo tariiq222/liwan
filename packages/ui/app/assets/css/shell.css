@@ -257,6 +257,11 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 /* Opened over the page: the page keeps its margin, and only this state may cast a shadow because nothing clips it. */
 .liwan-context-column:has(> .liwan-context-sidebar[data-overlay="true"]) { width: 230px; overflow: visible; }
 .liwan-context-sidebar[data-overlay="true"] { max-height: 100%; overflow-y: auto; box-shadow: var(--liwan-shell-shadow); scrollbar-width: none; }
+/* A hovered menu opens level with its rail item so the pointer reaches it sideways without crossing other items; it
+   moves up only as far as needed to stay on screen. */
+.liwan-context-column[data-anchored="true"] {
+  inset-block-start: max(var(--shell-top), min(var(--peek-top), 100svh - var(--shell-inset) - var(--peek-height)));
+}
 .liwan-context-column > :is(.liwan-context-sidebar:not([data-panel="true"]), .liwan-quick-views) { flex: none; }
 /* Context sidebar: a white floating card beside the rail. The column's cards carry no shadow: the column scrolls, so it
    would clip a shadow into a grey band behind the cards. The border alone outlines each card. */
