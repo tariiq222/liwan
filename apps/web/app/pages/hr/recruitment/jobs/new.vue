@@ -75,7 +75,7 @@ async function submit() {
               data-testid="hr-recruitment-job-name"
             />
           </UFormField>
-          <div class="grid gap-4 sm:grid-cols-2">
+          <div class="liwan-auto-grid gap-4">
             <UFormField :label="t('hrRecruitment.jobs.columns.department')" name="hr-recruitment-job-department">
               <USelect
                 id="hr-recruitment-job-department"

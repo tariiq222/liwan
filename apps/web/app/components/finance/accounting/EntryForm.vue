@@ -80,7 +80,7 @@ async function submit() {
     <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" data-testid="finance-entry-form-error" />
     <SharedFormSection panel :title="t('financeAccounting.form.details')">
       <div class="grid gap-4">
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="liwan-auto-grid gap-4">
           <UFormField :label="t('financeAccounting.form.journal')" name="finance-entry-journal" required :error="shown?.journal ? t('financeAccounting.form.journalRequired') : undefined">
             <USelect id="finance-entry-journal" :model-value="draft.journalId ?? undefined" class="w-full" :items="journalItems" :loading="journals.isPending.value" :placeholder="t('financeAccounting.form.journalPlaceholder')" :color="shown?.journal ? 'error' : undefined" :disabled="!hydrated || pending" @update:model-value="draft.journalId = $event" />
           </UFormField>
@@ -96,17 +96,17 @@ async function submit() {
 
     <SharedFormSection panel :title="t('financeAccounting.form.lines')" :description="t('financeAccounting.form.linesHint')">
       <ol class="grid gap-4" data-testid="finance-entry-lines">
-        <li v-for="(line, index) in draft.lines" :key="line.key" class="grid gap-3 rounded-card bg-elevated p-3 md:grid-cols-2" :data-testid="`finance-entry-line-${index}`">
+        <li v-for="(line, index) in draft.lines" :key="line.key" class="liwan-auto-grid gap-3 rounded-card bg-elevated p-3" :data-testid="`finance-entry-line-${index}`">
           <UFormField :label="t('financeAccounting.form.account')" :name="`finance-line-account-${index}`" required :error="shown?.lines[index]?.account ? t('financeAccounting.form.accountRequired') : undefined">
             <AccountPicker v-model="line.accountId" :disabled="pending" :invalid="!!shown?.lines[index]?.account" :aria-label="t('financeAccounting.form.lineAria', { number: index + 1, field: t('financeAccounting.form.account') })" />
           </UFormField>
           <UFormField :label="t('financeAccounting.form.partner')" :name="`finance-line-partner-${index}`">
             <PartnerPicker v-model="line.partnerId" kind="any" :disabled="pending" :placeholder="t('financeAccounting.form.partnerPlaceholder')" :aria-label="t('financeAccounting.form.lineAria', { number: index + 1, field: t('financeAccounting.form.partner') })" />
           </UFormField>
-          <UFormField :label="t('financeAccounting.form.lineName')" :name="`finance-line-name-${index}`" required :error="shown?.lines[index]?.name ? t('financeAccounting.form.lineNameRequired') : undefined" class="md:col-span-2">
+          <UFormField :label="t('financeAccounting.form.lineName')" :name="`finance-line-name-${index}`" required :error="shown?.lines[index]?.name ? t('financeAccounting.form.lineNameRequired') : undefined" class="liwan-span-full">
             <UInput v-model="line.name" class="w-full" maxlength="255" :disabled="!hydrated || pending" :aria-label="t('financeAccounting.form.lineAria', { number: index + 1, field: t('financeAccounting.form.lineName') })" />
           </UFormField>
-          <div class="grid gap-3 md:col-span-2 md:grid-cols-[1fr_1fr_auto] md:items-start">
+          <div class="liwan-span-full grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-start">
             <UFormField :label="t('financeAccounting.form.debit')" :name="`finance-line-debit-${index}`" :error="shown?.lines[index]?.amount ? t('financeAccounting.form.amountInvalid') : undefined">
               <UInput v-model="line.debit" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" :aria-label="t('financeAccounting.form.lineAria', { number: index + 1, field: t('financeAccounting.form.debit') })" />
             </UFormField>

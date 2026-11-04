@@ -11,7 +11,7 @@ describe('the finance pages stay on their templates', () => {
     ['pages/finance/index.vue', ['<SharedListPage', 'kpi-toggle', '<SharedKpiStrip', '<SharedRecordSection', '<SharedPageState']],
     ['pages/finance/partners/index.vue', ['<SharedListPage', 'create-test-id="finance-partner-new"', ':tags="headerTags"', "kind: 'count'", '<SharedListCard', '<SharedListFooter', 'embedded', '<SharedFilterChoice', '<SharedSegmentedControl', '<SharedInlineConfirm', '<SharedEmptyState']],
     ['pages/finance/partners/[partnerId].vue', ['<SharedRecordPage', '<SharedIdentityCard', '<SharedInlineConfirm', '<SharedRowActions', ':tags="headerTags"', "kind: 'category'", '#aside']],
-    ['pages/finance/partners/[partnerId]/edit.vue', ['<PartnerForm', ':back-to="backTo"', '<SharedPageContainer width="form"']],
+    ['pages/finance/partners/[partnerId]/edit.vue', ['<PartnerForm', ':back-to="backTo"', '<SharedPageContainer']],
     ['components/finance/PartnerTable.vue', ['<SharedDataTable', ' bare', '#mobile-row', '<SharedRowActions', '<SharedStatusBadge']],
     ['components/finance/PartnerProperties.vue', ['<SharedPropertiesPanel', '<SharedPropertyRow']],
     ['components/finance/PartnerForm.vue', ['<SharedFormSection panel', '<SharedFormActions', '<SharedUnsavedChanges']],

@@ -100,7 +100,7 @@ async function submitTotp() {
         <p class="text-sm text-muted">{{ $t('auth.signInToContinue') }}</p>
       </div>
     </template>
-    <UForm v-if="!mfaPending" novalidate :state="state" :validate="validate" class="grid gap-5" @submit="submit">
+    <UForm v-if="!mfaPending" novalidate :state="state" :validate="validate" class="liwan-form" @submit="submit">
       <UFormField :label="$t('auth.username')" name="login" required>
         <UInput id="login" v-model="state.login" autocomplete="username" dir="ltr" class="w-full text-start" />
       </UFormField>
@@ -110,7 +110,7 @@ async function submitTotp() {
       <UAlert v-if="errorMessage" role="alert" color="error" variant="subtle" :title="errorMessage" />
       <UButton type="submit" size="lg" class="w-full justify-center" :disabled="!hydrated" :loading="pending" :label="$t('auth.signIn')" />
     </UForm>
-    <UForm v-else novalidate :state="totpState" :validate="validateTotp" class="grid gap-5" @submit="submitTotp">
+    <UForm v-else novalidate :state="totpState" :validate="validateTotp" class="liwan-form" @submit="submitTotp">
       <UFormField :label="$t('auth.totpTitle')" name="totp" required>
         <UInput
           id="totp-code" v-model="totpState.code" inputmode="numeric" autocomplete="one-time-code"

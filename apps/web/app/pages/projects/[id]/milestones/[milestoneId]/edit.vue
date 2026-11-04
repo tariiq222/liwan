@@ -22,7 +22,7 @@ function retry() {
 </script>
 
 <template>
-  <SharedPageContainer width="form">
+  <SharedPageContainer>
     <SharedPageHeader :title="t('projects.milestones.edit')" :back-to="backTo" :back-label="t('projects.tabs.milestones')" />
     <template v-if="projectId === null || milestoneId === null">
       <p class="text-muted">{{ t('projects.invalidId') }}</p>

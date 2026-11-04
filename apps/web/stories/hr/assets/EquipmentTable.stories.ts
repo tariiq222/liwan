@@ -33,7 +33,7 @@ const meta = {
   render: args => ({
     components: { EquipmentTable, ListCard, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="liwan-shell-main"><PageContainer width="list"><ListCard><EquipmentTable v-bind="args" /></ListCard></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer><ListCard><EquipmentTable v-bind="args" /></ListCard></PageContainer></main>',
   }),
 } satisfies Meta<typeof EquipmentTable>
 

@@ -61,7 +61,7 @@ async function submit() {
 </script>
 
 <template>
-  <UForm novalidate :state="draft" class="grid gap-4 p-(--liwan-card-pad)" data-testid="finance-partner-bank-form" @submit="submit">
+  <UForm novalidate :state="draft" class="liwan-form p-(--liwan-card-pad)" data-testid="finance-partner-bank-form" @submit="submit">
     <SharedUnsavedChanges :dirty="JSON.stringify(draft) !== JSON.stringify(initial)" />
     <UAlert v-if="generalError" role="alert" color="error" variant="subtle" :title="generalError" data-testid="finance-partner-bank-error" />
     <UFormField :label="t('finance.partners.banks.accNumber')" name="finance-bank-acc-number" required :description="t('finance.partners.banks.accNumberHint')" :error="fieldError('accNumber')">

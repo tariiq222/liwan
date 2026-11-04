@@ -15,7 +15,7 @@ type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   parameters: storyContext('apps/web/app/pages/hr/onboarding/[runId].vue:2'),
-  render: args => ({ components: { RunSteps, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer width="list"><RunSteps v-bind="args" /></PageContainer></main>' }),
+  render: args => ({ components: { RunSteps, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer><RunSteps v-bind="args" /></PageContainer></main>' }),
 }
 
 export const Finished: Story = { name: 'منجزة', args: { run: { ...run, done: 2, state: 'done', steps: run.steps.map(step => ({ ...step, state: 'done', can_complete: false })) } } }

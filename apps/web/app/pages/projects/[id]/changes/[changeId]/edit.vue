@@ -14,7 +14,7 @@ const backTo = computed(() => recordParentTo(`/projects/${projectId.value}/chang
 </script>
 
 <template>
-  <SharedPageContainer width="form">
+  <SharedPageContainer>
     <SharedPageHeader :title="t('projects.changes.edit')" :back-to="backTo" :back-label="t('projects.changes.title')" />
     <SharedPageState
       :loading="item.isLoading.value"

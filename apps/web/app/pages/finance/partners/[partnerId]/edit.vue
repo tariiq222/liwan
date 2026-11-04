@@ -20,7 +20,7 @@ function saved() { void navigateTo(backTo.value) }
 </script>
 
 <template>
-  <SharedPageContainer width="form">
+  <SharedPageContainer>
     <SharedPageHeader :title="t('finance.partners.edit')" :back-to="backTo" />
     <SharedPageState v-if="!canManage" :empty="true" :empty-text="t('errors.forbidden')" />
     <SharedPageState v-else :loading="query.isLoading.value" :error="query.error.value" :empty="!partner" @retry="query.refetch">

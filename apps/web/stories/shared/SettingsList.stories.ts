@@ -23,7 +23,7 @@ const meta = {
   render: args => ({
     components: { SettingsPage, SettingsList, SettingsListRow },
     setup: () => ({ args, rows }),
-    template: `<main class="liwan-shell-main"><SettingsPage width="form"><SettingsList v-bind="args">
+    template: `<main class="liwan-shell-main"><SettingsPage><SettingsList v-bind="args">
       <SettingsListRow v-for="row in rows" :key="row.id" :name="row.name" :active="row.active" :locked="row.locked" :can-edit="args.canEdit" />
       <template #add><UInput class="min-w-40 flex-1" placeholder="اسم جديد" aria-label="اسم جديد" /></template>
     </SettingsList></SettingsPage></main>`,

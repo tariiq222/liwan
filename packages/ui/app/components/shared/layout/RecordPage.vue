@@ -12,7 +12,7 @@ import PageState from '../feedback/PageState.vue'
  * operational summary, tabs, the main column and an optional supporting aside. The aside sits at the inline end on wide screens
  * and after the main column on phones, so reading and focus order stay the DOM order.
  */
-const props = withDefaults(defineProps<{
+const props = defineProps<{
   title: string
   tags?: PageHeaderTag[]
   backTo?: RouteLocationRaw
@@ -22,9 +22,7 @@ const props = withDefaults(defineProps<{
   keepContent?: boolean
   /** A frame around the page already shows the heading (the project workspace): draw no heading. Actions still render. */
   hideHeader?: boolean
-  /** `full` lets a record page that is a dashboard of cards (the project overview) use the whole workspace width. */
-  width?: 'detail' | 'full'
-}>(), { width: 'detail' })
+}>()
 defineEmits<{ retry: [] }>()
 const { t } = useI18n()
 const preserve = computed(() => !!props.keepContent && !['forbidden', 'notFound'].includes(errorStateKind(props.error)))
@@ -34,7 +32,7 @@ const heading = computed(() => (ready.value ? props.title.trim() || t('states.un
 </script>
 
 <template>
-  <PageContainer :width="props.width" data-template="record">
+  <PageContainer data-template="record">
     <PageHeader :title="heading" :tags="props.tags" :back-to="props.backTo" :back-label="props.backLabel" :hide-title="props.hideHeader">
       <template v-if="props.loading && !props.title" #title>
         <USkeleton class="inline-block h-6 w-48 align-middle" /><span class="sr-only">{{ t('app.loading') }}</span>

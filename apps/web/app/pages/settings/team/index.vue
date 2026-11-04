@@ -26,7 +26,7 @@ const eventRows = computed(() => (events.data.value?.items ?? []).map(event => e
 </script>
 
 <template>
-  <SharedSettingsPage width="list">
+  <SharedSettingsPage>
     <SharedPageHeader :title="t('settings.sections.team.title')" />
     <SharedForbiddenState v-if="!parts.length" :description="t('access.forbidden')" />
     <template v-else>

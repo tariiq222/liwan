@@ -54,12 +54,9 @@ test.describe('Plan 6b: the HR forms', () => {
       await expect(page.locator('main [data-slot="record-section"] > header')).toHaveCount(2)
       await expect(page.locator('#hr-employee-name')).toHaveValue('سارة محمد')
       await expect(page.getByRole('button', { name: 'حفظ' })).toBeEnabled()
-      const { width, rootFontSize } = await page.locator('[data-layout-width="form"]').evaluate(node => ({
-        width: node.getBoundingClientRect().width,
-        rootFontSize: Number.parseFloat(getComputedStyle(document.documentElement).fontSize),
-      }))
-      // The approved width is 58rem at each supported root size (14/16/18px).
-      expect(width / rootFontSize).toBeLessThanOrEqual(58 + 1 / rootFontSize)
+      // Every shell page fills the workspace: the form page has no width band.
+      const maxWidth = await page.locator('[data-slot="page-container"]').first().evaluate(node => getComputedStyle(node).maxWidth)
+      expect(maxWidth).toBe('none')
       await expect(page.getByRole('link', { name: 'رجوع', exact: true })).toHaveAttribute('href', /\/hr\/employees\/1/)
     })
 

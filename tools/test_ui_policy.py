@@ -443,9 +443,8 @@ class StaticGateTest(unittest.TestCase):
                                            "\n.dark { color: #fff; }",
             UI + "assets/css/components.css": ".liwan-status-text-warning { color: var(--status-warning); }\n"
                                                ".liwan-unread-count { color: var(--unread-count-foreground); }",
-            UI + "assets/css/shell.css": ".liwan-page-width-list { max-width: none; }\n"
-                                          ".liwan-page-width-detail { max-width: 68rem; }\n"
-                                          ".liwan-page-width-form { max-width: 58rem; }",
+            UI + "assets/css/shell.css": ".liwan-auto-grid { display: grid; "
+                                          "grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); }",
         }
         snapshot.update(files)
         return snapshot
@@ -586,12 +585,15 @@ class StaticGateTest(unittest.TestCase):
         wide = {self.PAGES + "probe.vue": '<div class="mx-auto max-w-5xl">'}
         self.assertTrue(any("max-width" in error for error in policy.page_shell_errors(wide)))
 
-    def test_page_width_probe_tolerates_minified_css(self):
+    def test_auto_grid_probe_tolerates_minified_css(self):
         minified = self.whole()
-        minified[UI + "assets/css/shell.css"] = (".liwan-page-width-list{max-width:none}"
-                                                  ".liwan-page-width-detail{max-width:68rem}"
-                                                  ".liwan-page-width-form{max-width:58rem}")
-        self.assertEqual([e for e in policy.page_shell_errors(minified) if "page width" in e], [])
+        minified[UI + "assets/css/shell.css"] = ".liwan-auto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr))}"
+        self.assertEqual([e for e in policy.page_shell_errors(minified) if "shell.css" in e], [])
+
+    def test_a_page_width_band_is_reported(self):
+        banded = self.whole()
+        banded[UI + "assets/css/shell.css"] += "\n.liwan-page-width-detail { max-width: 68rem; }"
+        self.assertTrue(any("retired page width band" in e for e in policy.page_shell_errors(banded)))
 
     def test_completeness_rules_say_nothing_about_a_partial_snapshot(self):
         # The caller passed one file; reporting every missing token would be noise.

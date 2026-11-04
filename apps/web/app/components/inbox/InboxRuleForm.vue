@@ -76,7 +76,7 @@ async function submit() {
 </script>
 
 <template>
-  <form class="flex flex-col gap-5" novalidate data-testid="inbox-rule-form" @submit.prevent="submit">
+  <form class="liwan-form" novalidate data-testid="inbox-rule-form" @submit.prevent="submit">
     <SharedUnsavedChanges :dirty="dirty" />
 
     <UFormField :label="t('inbox.settings.name')" required :error="nameError ?? fieldError('name')">

@@ -83,7 +83,7 @@ async function toggleArchive() {
 
     <PlanForm v-if="plan && canManage" :plan="plan" :providers="providers.data.value?.items ?? []" :back-to="backTo" />
     <SharedRecordSection v-else-if="plan" variant="panel" :title="t('hrInsurance.form.planDetails')">
-      <dl class="grid gap-x-6 sm:grid-cols-2">
+      <dl class="liwan-auto-grid gap-x-6">
         <SharedPropertyRow :label="t('hrInsurance.form.tier')" :value="plan.tier" />
         <SharedPropertyRow :label="t('hrInsurance.form.policyNumber')" :value="plan.policy_number" />
         <SharedPropertyRow :label="t('hrInsurance.form.validFrom')" :value="plan.valid_from" />

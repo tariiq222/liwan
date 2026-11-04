@@ -41,13 +41,13 @@ async function reloadPolicy() {
 </script>
 
 <template>
-  <SharedSettingsPage width="form">
+  <SharedSettingsPage>
     <SharedPageHeader :title="t('access.branches.title')" back-to="/settings/team" />
     <SharedRecordSection v-if="canCreate && purchaseOnly" variant="panel" data-testid="branch-purchase" :title="t('access.branches.create.title')" :description="t('access.branches.create.purchaseDescription')">
       <UButton to="/subscription/branches/new" icon="i-lucide-plus" :disabled="!hydrated">{{ t('access.branches.create.purchase') }}</UButton>
     </SharedRecordSection>
     <SharedRecordSection v-else-if="canCreate" variant="panel" data-testid="branch-create" :title="t('access.branches.create.title')" :description="t('access.branches.create.description')">
-      <form class="grid gap-4" @submit.prevent="submitBranch">
+      <form class="liwan-form" @submit.prevent="submitBranch">
         <UFormField :label="t('access.branches.create.name')" name="branch-name">
           <UInput v-model="branchName" maxlength="200" class="w-full" :disabled="!hydrated || create.isPending.value" />
         </UFormField>

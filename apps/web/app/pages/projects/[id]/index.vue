@@ -38,7 +38,7 @@ const copyTo = computed(() => ({
   <!-- The workspace frame above is this page's h1, so hide-header draws no heading here. The title still
        names the page for the shell. The frame and its tabs span the full list width, so the record is full width
        too and the summary tiles line up with the tab strip. -->
-  <SharedRecordPage :keep-content="!!project" v-else hide-header width="full" :title="t('nav.projectSummary')" :loading="loading" :error="error" @retry="refetch">
+  <SharedRecordPage :keep-content="!!project" v-else hide-header :title="t('nav.projectSummary')" :loading="loading" :error="error" @retry="refetch">
     <template v-if="canCopy" #actions>
       <UButton color="neutral" variant="outline" icon="i-lucide-copy" :to="copyTo" data-testid="project-copy-link" :label="t('projects.copy.action')" />
     </template>

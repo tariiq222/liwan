@@ -15,7 +15,7 @@ type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   parameters: storyContext('apps/web/app/pages/hr/onboarding/plans/new.vue:2'),
-  render: args => ({ components: { PlanForm, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer width="list"><PlanForm v-bind="args" /></PageContainer></main>' }),
+  render: args => ({ components: { PlanForm, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer><PlanForm v-bind="args" /></PageContainer></main>' }),
 }
 
 export const Editing: Story = { name: 'تعديل خطة', args: { plan } }

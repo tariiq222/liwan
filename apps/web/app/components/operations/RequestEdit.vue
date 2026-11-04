@@ -19,7 +19,7 @@ async function refresh() { const response = await record.refetch(); if (response
 
 </script>
 <template>
-  <SharedPageContainer width="form">
+  <SharedPageContainer>
     <SharedPageHeader :title="t('operations.editRequest')" :back-to="backTo" :back-label="t('operations.request')" />
     <SharedPageState :loading="id !== null && record.isPending.value" :error="id === null ? { status: 404 } : record.error.value" @retry="hydrated && record.refetch()">
       <RequestForm v-if="record.data.value?.allowed_actions.edit" :key="record.data.value.id" :record="record.data.value" :back-to="backTo" :save="save" :refresh="refresh" @saved="navigateTo(backTo)" />

@@ -27,7 +27,7 @@ const columns = computed<TableColumn<FinanceReconcileProposal>[]>(() => [
 <template>
   <template v-if="page.line && page.statement">
     <SharedRecordSection variant="action" :title="t('financeBank.reconcile.lineTitle')" :description="page.open ? t('financeBank.reconcile.lineHint') : undefined" data-testid="finance-bank-reconcile-line">
-      <dl class="grid gap-2 text-sm sm:grid-cols-2">
+      <dl class="liwan-auto-grid gap-2 text-sm">
         <div class="flex items-center justify-between gap-3"><dt class="text-muted">{{ t('financeBank.columns.date') }}</dt><dd><bdi class="tabular-nums">{{ page.line.date }}</bdi></dd></div>
         <div class="flex items-center justify-between gap-3"><dt class="text-muted">{{ t('financeBank.columns.label') }}</dt><dd class="font-semibold text-highlighted">{{ page.line.payment_ref }}</dd></div>
         <div class="flex items-center justify-between gap-3"><dt class="text-muted">{{ t('financeBank.columns.partner') }}</dt><dd>{{ page.line.partner?.name ?? dash }}</dd></div>

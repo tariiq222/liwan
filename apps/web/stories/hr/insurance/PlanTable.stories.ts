@@ -28,7 +28,7 @@ const meta = {
   render: args => ({
     components: { PlanTable, ListCard, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="liwan-shell-main"><PageContainer width="list"><ListCard><PlanTable v-bind="args" /></ListCard></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer><ListCard><PlanTable v-bind="args" /></ListCard></PageContainer></main>',
   }),
 } satisfies Meta<typeof PlanTable>
 

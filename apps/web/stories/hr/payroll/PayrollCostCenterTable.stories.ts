@@ -26,7 +26,7 @@ const meta = {
   render: args => ({
     components: { PayrollCostCenterTable, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="liwan-shell-main"><PageContainer width="list"><PayrollCostCenterTable v-bind="args" /></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer><PayrollCostCenterTable v-bind="args" /></PageContainer></main>',
   }),
 } satisfies Meta<typeof PayrollCostCenterTable>
 

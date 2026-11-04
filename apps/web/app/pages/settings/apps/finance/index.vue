@@ -45,7 +45,7 @@ const ZATCA_TONE = { not_started: 'neutral', compliance_checked: 'info', onboard
 </script>
 
 <template>
-  <SharedSettingsPage width="form">
+  <SharedSettingsPage>
     <SharedPageHeader :title="t('nav.finance')" :tags="headerTags" />
     <SharedForbiddenState v-if="!parts.length" :description="t('errors.forbidden')" />
     <template v-else>

@@ -26,7 +26,7 @@ onMounted(() => { today.value = new Date().toLocaleDateString(locale.value, { we
 </script>
 
 <template>
-  <SharedPageContainer width="list" data-testid="foundation-home">
+  <SharedPageContainer data-testid="foundation-home">
     <SharedPageHeader :title="t('nav.home')" />
     <HomeTabs />
     <p class="-mt-2 text-sm text-muted" data-testid="home-greeting">

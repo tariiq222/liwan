@@ -12,5 +12,5 @@ export default meta
 type Story = StoryObj<typeof meta>
 export const Default: Story = {
   parameters: storyContext('apps/web/app/components/documents/DocumentCreateForm.vue:35'),
-  render: args => ({ components: { DocumentEditor, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer width="form"><DocumentEditor v-bind="args" /></PageContainer></main>' }),
+  render: args => ({ components: { DocumentEditor, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer><DocumentEditor v-bind="args" /></PageContainer></main>' }),
 }

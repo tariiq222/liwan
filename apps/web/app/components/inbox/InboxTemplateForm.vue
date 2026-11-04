@@ -122,7 +122,7 @@ defineExpose({ draft })
 </script>
 
 <template>
-  <form class="grid gap-6" :class="{ 'lg:grid-cols-[minmax(0,1fr)_20rem]': props.sideBySide }" novalidate data-testid="inbox-template-form" @submit.prevent="submit">
+  <form class="liwan-form" :class="{ 'lg:grid-cols-[minmax(0,1fr)_20rem]': props.sideBySide }" novalidate data-testid="inbox-template-form" @submit.prevent="submit">
     <SharedUnsavedChanges :dirty="dirty" />
     <div class="min-w-0 space-y-6" :class="{ 'order-2': !props.sideBySide }">
       <UAlert v-if="serverError" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('inbox.templates.serverError')" :description="serverError.message" data-testid="inbox-template-server-error" />

@@ -111,7 +111,7 @@ async function submit() {
 </script>
 
 <template>
-  <form class="flex flex-col gap-4" novalidate data-testid="inbox-catalog-item-form" @submit.prevent="submit">
+  <form class="liwan-form" novalidate data-testid="inbox-catalog-item-form" @submit.prevent="submit">
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedSegmentedControl v-if="!editing" v-model="tab" class="self-start" :items="tabItems" :label="t('inbox.catalog.itemForm.source')" />
 

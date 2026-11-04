@@ -30,7 +30,7 @@ function submit() {
 </script>
 
 <template>
-  <form class="flex flex-col gap-5" novalidate data-testid="inbox-hours-form" @submit.prevent="submit">
+  <form class="liwan-form" novalidate data-testid="inbox-hours-form" @submit.prevent="submit">
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedRecordSection variant="panel" :description="t('inbox.automation.hours.hint')">
       <InboxWorkingHoursEditor v-model="draft" :disabled="isPending" />

@@ -144,7 +144,7 @@ const noticeKey = computed(() => notice.value === 'start' ? 'subscription.trial.
 definePageMeta({ middleware: 'customer-commercial' })
 </script>
 <template>
-  <SharedSettingsPage width="detail">
+  <SharedSettingsPage>
     <SharedPageHeader :title="t('subscription.change.title')" back-to="/subscription" />
     <SharedForbiddenState v-if="!allowed" />
     <SharedPageState v-else :loading="pending" :error="error" :empty="!pending && !error && !plans.length" :empty-text="t('subscription.change.empty')" @retry="refresh">
@@ -163,7 +163,7 @@ definePageMeta({ middleware: 'customer-commercial' })
             </div>
           </SharedFormSection>
           <SharedFormSection panel :title="t('subscription.change.quantities')">
-            <div class="grid gap-5 sm:grid-cols-3">
+            <div class="liwan-auto-grid gap-5">
               <UFormField :label="t('subscription.change.users')" :help="`${t('subscription.change.included', { count: minUsers })} · ${t('subscription.change.perUser', { price: userUnit ? money(userUnit.amount) : '—' })}`">
                 <UInputNumber v-model="users" :min="minUsers" :disabled="!hydrated" class="w-full" />
               </UFormField>

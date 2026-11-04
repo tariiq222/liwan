@@ -20,7 +20,7 @@ function retryDependencies() { void query.refetch(); void departments.refetch();
 function saved() { void navigateTo(backTo.value) }
 </script>
 <template>
-  <SharedPageContainer width="form">
+  <SharedPageContainer>
     <SharedPageHeader :title="t('hr.employee.editTitle')" :back-to="backTo" />
     <SharedForbiddenState v-if="!canManage" />
     <SharedPageState

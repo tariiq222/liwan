@@ -12,7 +12,7 @@ const meta = {
   title: 'Access/BranchStrictCard', component: BranchStrictCard,
   parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/pages/settings/apps/hr/index.vue:138'), msw: { handlers: { strict: handler('payroll', false) } } },
   args: { scope: 'payroll', path: '/api/v1/hr/payroll/branch-strictness', canRead: true, canEdit: true },
-  render: args => ({ components: { BranchStrictCard, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer width="form"><BranchStrictCard v-bind="args" /></PageContainer></main>' }),
+  render: args => ({ components: { BranchStrictCard, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer><BranchStrictCard v-bind="args" /></PageContainer></main>' }),
 } satisfies Meta<typeof BranchStrictCard>
 export default meta
 type Story = StoryObj<typeof meta>

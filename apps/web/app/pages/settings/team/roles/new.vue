@@ -114,7 +114,7 @@ async function submit() {
       <SharedUnsavedChanges :dirty="dirty" />
       <SharedFormSection panel :title="t('access.roles.details')">
         <div class="grid gap-4">
-          <div class="liwan-form-grid">
+          <div class="liwan-auto-grid">
             <UFormField :label="t('access.roles.nameArabic')" name="name-ar" required :error="nameError"><UInput id="name-ar" v-model="nameAr" class="w-full" required :disabled="!hydrated || create.isPending.value" /></UFormField>
             <UFormField :label="t('access.roles.nameEnglish')" name="name-en"><UInput id="name-en" v-model="nameEn" dir="ltr" class="w-full" :disabled="!hydrated || create.isPending.value" /></UFormField>
           </div>

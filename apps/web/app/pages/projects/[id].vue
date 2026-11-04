@@ -92,7 +92,7 @@ provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)
 <template>
   <div class="liwan-project-workspace flex flex-col gap-(--liwan-gap-card)">
     <!-- One compact card like SharedPageHeader (DESIGN.md §4): chip, title and tags, actions, the trail, then the tab strips. Only this card sticks (identity and tabs); the phase stepper is its own card below and scrolls away. -->
-    <SharedPageContainer v-if="showFrame" width="list" class="liwan-workspace-head liwan-print-hide" data-sticky="true" data-testid="project-workspace-frame">
+    <SharedPageContainer v-if="showFrame" class="liwan-workspace-head liwan-print-hide" data-sticky="true" data-testid="project-workspace-frame">
       <header class="flex flex-col gap-3 rounded-card bg-default px-4 py-3 ring ring-default">
         <div class="flex flex-col gap-0.5" data-testid="project-workspace-identity">
           <template v-if="project">
@@ -132,7 +132,7 @@ provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)
         <ProjectWorkspaceTabs v-if="showPlanningTabs && projectId" :project-id="projectId" :active="project?.active" level="planning" />
       </header>
     </SharedPageContainer>
-    <SharedPageContainer v-if="showFrame && project" width="list" class="liwan-print-hide" data-testid="project-phase-card">
+    <SharedPageContainer v-if="showFrame && project" class="liwan-print-hide" data-testid="project-phase-card">
       <div class="rounded-card bg-default px-4 py-3 ring ring-default">
         <ProjectPhaseStepper :current="project.phase_state.current" />
       </div>

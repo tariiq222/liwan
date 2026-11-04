@@ -68,7 +68,7 @@ function onCancel() {
       </ProjectCharterForm>
     </SharedPageState>
   </SharedStandalonePage>
-  <SharedPageContainer v-else width="form">
+  <SharedPageContainer v-else>
     <SharedPageHeader :title="t('projects.clarity.editCharter')">
       <template #actions>
         <SharedStatusBadge v-if="charterState" data-testid="charter-state-badge" :tone="isDraft ? 'warning' : charterState === 'submitted' ? 'info' : 'success'" :label="t(`projects.charter.state.${charterState}`)" :aria-label="`${t('projects.charter.stateLabel')}: ${t(`projects.charter.state.${charterState}`)}`" />

@@ -17,7 +17,7 @@ const validId = computed(() => Number.isSafeInteger(conversationId.value) && con
 
 <template>
   <InboxWorkspace v-if="validId" :conversation-id="conversationId" :info-open="infoOpen" :orders-open="ordersOpen" />
-  <SharedPageContainer v-else width="list" data-testid="inbox-not-found">
+  <SharedPageContainer v-else data-testid="inbox-not-found">
     <SharedPageHeader :title="t('inbox.title')" back-to="/inbox" :back-label="t('inbox.title')" />
     <SharedNotFoundState back-to="/inbox" :back-label="t('inbox.title')" />
   </SharedPageContainer>

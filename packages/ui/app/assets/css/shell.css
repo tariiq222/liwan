@@ -7,14 +7,16 @@
 [data-workspace-area="true"] [data-slot="page-header"] { min-height: 2.25rem; align-items: center; }
 [data-workspace-area="true"] .liwan-form-footer { justify-content: flex-end; }
 
-.liwan-page-width-list, .liwan-page-width-full, .liwan-page-width-detail, .liwan-page-width-form { width: 100%; margin-inline: auto; }
-.liwan-page-width-list { max-width: none; }
-.liwan-page-width-full { max-width: none; }
-.liwan-page-width-detail { max-width: 68rem; }
-.liwan-page-width-form { max-width: 58rem; }
+/* Equal-weight content tiles by its own width: one column on a phone, two on a narrow screen, up to four on a wide one.
+   An item that owns the row (a long editor, a table, a nested grid) spans it. */
+.liwan-auto-grid, .liwan-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(max(min(100%, var(--liwan-auto-grid-min, 15rem)), calc((100% - 4.5rem) / 4)), 1fr)); }
+.liwan-auto-grid { gap: var(--liwan-auto-grid-gap, 1.25rem 1rem); }
+:is(.liwan-auto-grid, .liwan-form) > :is(.liwan-span-full, [data-span="full"]) { grid-column: 1 / -1; }
+:is(.liwan-auto-grid, .liwan-form) > :has(textarea, [contenteditable="true"], table, .liwan-auto-grid) { grid-column: 1 / -1; }
+/* In a form and a form section only stacked fields tile; a section, a hint, an alert, a list, the footer or a horizontal switch row owns its row. */
+:is(.liwan-field-grid, .liwan-form) > :not([data-slot="root"][data-orientation="vertical"]) { grid-column: 1 / -1; }
 
-.liwan-form { display: grid; gap: var(--liwan-gap-card); width: 100%; max-width: 58rem; margin-inline: auto; }
-.liwan-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--liwan-gap-card); }
+.liwan-form { gap: var(--liwan-gap-card); width: 100%; }
 
 .liwan-form-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-block-start: 20px; border-block-start: 1px solid var(--border); }
 /* A settings panel as a list of rows: name and hint at the start, the control at the end, a rule between rows. */
@@ -63,7 +65,6 @@ html[dir="rtl"] .schedule-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in
 }
 
 @media (max-width: 600px) {
-  .liwan-form-grid { grid-template-columns: minmax(0, 1fr); }
   .liwan-setting-rows > [data-orientation="horizontal"] { flex-direction: column; align-items: stretch; gap: 10px; }
 }
 
@@ -477,8 +478,6 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   }
   .liwan-page-stack:has(.liwan-list-card-fill) [data-slot="page-header"][data-sticky="true"]::before { content: none; }
 }
-/* Under the project workspace card the detail and form widths start at the card's inline edge instead of centring, so records line up with it. */
-.liwan-project-workspace:has(.liwan-workspace-head) :is(.liwan-page-width-detail, .liwan-page-width-form) { margin-inline: 0; }
 /* Full-bleed only for a WIDE panel (chat owns its own scrolling layout); a default-width panel (AI history) keeps the page padding and scroll. */
 .liwan-shell:has(.liwan-context-sidebar[data-panel="true"][data-panel-width="wide"]) .liwan-shell-main { --liwan-pad-x: 0px; --liwan-pad-top: 0px; padding: 0; overflow: hidden; }
 .liwan-page-content-motion { animation: liwan-page-content-enter var(--liwan-motion-feedback) var(--liwan-motion-ease) both; }
@@ -534,7 +533,6 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .liwan-settings-layout { display: block; min-width: 0; }
 /* Geometry only: U components own surfaces and field styling. */
 .liwan-settings-content { min-width: 0; width: 100%; container: settings / inline-size; }
-.liwan-settings-content .liwan-form { max-width: none; margin-inline: 0; }
 .liwan-settings-content .liwan-settings-anchor { scroll-margin-block-start: 88px; }
 .liwan-settings-field { display: grid; min-width: 0; gap: .5rem; font-size: var(--text-sm); }
 .liwan-settings-field > span { color: var(--ui-text-muted); }
@@ -547,9 +545,6 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 @container settings (min-width: 640px) {
   .liwan-settings-options, .liwan-settings-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .liwan-settings-branding { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
-}
-@container settings (max-width: 480px) {
-  .liwan-settings-content .liwan-form-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* Creation actions have a dedicated surface outside the body scroller. */

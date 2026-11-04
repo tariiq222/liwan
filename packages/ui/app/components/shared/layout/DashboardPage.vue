@@ -19,7 +19,7 @@ const { shown: kpisShown } = useKpiVisibility()
 </script>
 
 <template>
-  <SharedPageContainer width="list" data-template="dashboard-page">
+  <SharedPageContainer data-template="dashboard-page">
     <SharedPageHeader :title="props.title" :tags="props.tags" :hide-title="props.hideHeader" :kpi-toggle="props.kpiToggle">
       <template v-if="$slots.actions" #actions>
         <slot name="actions" />

@@ -25,7 +25,7 @@ function retryAccessData() {
 </script>
 
 <template>
-  <SharedSettingsPage width="form">
+  <SharedSettingsPage>
     <SharedPageHeader :title="t('access.users.editAccess')" :back-to="backTo" />
     <UButton v-if="!forbidden && can('access.roles.read')" :to="`/settings/team/users/${id}/branches`" color="neutral" variant="outline" :label="t('access.branches.delegation')" />
     <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />

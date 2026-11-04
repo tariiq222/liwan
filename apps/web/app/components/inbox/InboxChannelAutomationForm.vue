@@ -43,7 +43,7 @@ function submit() {
 </script>
 
 <template>
-  <form class="flex flex-col gap-4" novalidate data-testid="inbox-automation-form" @submit.prevent="submit">
+  <form class="liwan-form" novalidate data-testid="inbox-automation-form" @submit.prevent="submit">
     <SharedUnsavedChanges :dirty="dirty" />
 
     <SharedRecordSection variant="panel" :title="t('inbox.automation.welcome.title')" :description="t('inbox.automation.welcome.hint')">

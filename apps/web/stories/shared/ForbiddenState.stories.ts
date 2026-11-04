@@ -10,7 +10,7 @@ const meta = {
   render: args => ({
     components: { ForbiddenState, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="liwan-shell-main"><PageContainer width="detail"><ForbiddenState v-bind="args" /></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer><ForbiddenState v-bind="args" /></PageContainer></main>',
   }),
 } satisfies Meta<typeof ForbiddenState>
 export default meta

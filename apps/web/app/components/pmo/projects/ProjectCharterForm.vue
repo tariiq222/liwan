@@ -436,7 +436,7 @@ function discardToServer() {
       <template #state><slot name="state" /></template>
       <template #actions><slot name="actions" /></template>
     </ProjectCharterDisplay>
-    <form v-else class="grid gap-(--liwan-card-pad)" data-testid="project-charter-wizard" @submit.prevent="isLastStep ? finalize() : next()">
+    <form v-else class="liwan-form" data-testid="project-charter-wizard" @submit.prevent="isLastStep ? finalize() : next()">
       <div v-if="attestRequired">
         <UBadge color="primary" variant="subtle" data-testid="project-create-ai-badge">{{ t('projects.create.aiBadge') }}</UBadge>
       </div>

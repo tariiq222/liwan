@@ -13,7 +13,7 @@ const profile = computed(() => cards.value.find(card => card.entry.section === '
 </script>
 
 <template>
-  <SharedPageContainer width="list" data-testid="personal-overview">
+  <SharedPageContainer data-testid="personal-overview">
     <SharedPageHeader :title="t('nav.account')" icon="i-lucide-user-round">
       <template #actions><UButton v-if="cards.length > 1" color="neutral" variant="outline" icon="i-lucide-sliders-horizontal" :label="t(customize ? 'account.finishCustomize' : 'account.customize')" :disabled="!hydrated" :aria-pressed="customize" @click="customize = !customize" /></template>
     </SharedPageHeader>

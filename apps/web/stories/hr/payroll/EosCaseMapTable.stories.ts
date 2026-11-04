@@ -21,7 +21,7 @@ const meta = {
   render: args => ({
     components: { EosCaseMapTable, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="liwan-shell-main"><PageContainer width="list"><EosCaseMapTable v-bind="args" /></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer><EosCaseMapTable v-bind="args" /></PageContainer></main>',
   }),
 } satisfies Meta<typeof EosCaseMapTable>
 

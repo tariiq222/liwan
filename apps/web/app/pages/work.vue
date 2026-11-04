@@ -45,7 +45,7 @@ function clearFilters() {
 </script>
 
 <template>
-  <SharedPageContainer width="list" data-testid="work-page">
+  <SharedPageContainer data-testid="work-page">
     <SharedPageHeader :title="t('myTasks.work.title')">
       <UButton to="/my-tasks" color="neutral" variant="outline" size="sm" class="rounded-full" icon="i-lucide-list-checks" :label="t('myTasks.work.myList')" data-testid="work-my-list" />
       <UButton v-if="can('tasks.tasks.create')" to="/my-tasks/new" size="sm" class="rounded-full" icon="i-lucide-plus" :label="t('myTasks.new')" data-testid="work-new-task" />

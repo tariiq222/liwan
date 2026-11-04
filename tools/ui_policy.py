@@ -607,9 +607,10 @@ def theme_errors(current: dict[str, str]) -> list[str]:
     return errors
 
 
-# Every internal page sits in one of the approved shells, and the width
-# vocabulary lives in CSS classes rather than ad-hoc max-width utilities.
-PAGE_SHELLS = ('SharedPageContainer', 'SharedCreatePanel', 'SharedSettingsPage', 'liwan-page-width-form',
+# Every internal page sits in one of the approved shells and fills the workspace
+# (owner decision 2026-11-04): no page width band and no ad-hoc max-width utility.
+# Equal-weight content tiles on the one shared auto grid.
+PAGE_SHELLS = ('SharedPageContainer', 'SharedCreatePanel', 'SharedSettingsPage',
                'ChatWorkspace', 'InboxWorkspace', 'TaskDetailPage',
                # Application-owned reusable pages compose the approved shared shells.
                'HrLeaveList', 'HrLeaveRecord', 'RequestCreate', 'RequestRecord', 'RequestEdit',
@@ -625,8 +626,7 @@ PAGE_SHELL_EXEMPT = frozenset(PAGES + name for name in (
 ))
 AD_HOC_WIDTH = re.compile(r'liwan-page-stack[^"\n]*(?:max-w-\[1440px\]|max-w-\[940px\]|max-w-(?:2xl|3xl|4xl|5xl|7xl))'
                           r'|class="[^"]*max-w-(?:3xl|4xl|5xl|7xl)[^"]*"')
-PAGE_WIDTHS = tuple(re.compile(rf'\.liwan-page-width-{name}\s*\{{[^}}]*max-width:\s*{value}')
-                    for name, value in (('list', 'none'), ('detail', '68rem'), ('form', '58rem')))
+AUTO_GRID = re.compile(r'\.liwan-auto-grid\b[^{]*\{[^}]*repeat\(auto-fill')
 STATUS_TOKENS = ('--status-success', '--status-warning', '--status-info', '--status-danger',
                  '--status-danger-foreground', '--unread-count-foreground', '.liwan-status-text-warning',
                  '.liwan-unread-count')
@@ -641,12 +641,13 @@ def page_shell_errors(current: dict[str, str]) -> list[str]:
         if complete and path not in PAGE_SHELL_EXEMPT and not any(shell in source for shell in PAGE_SHELLS):
             errors.append(path + ': page needs one of the approved shells (' + ', '.join(PAGE_SHELLS) + ')')
         if AD_HOC_WIDTH.search(source):
-            errors.append(path + ': ad-hoc page max-width; use the SharedPageContainer width vocabulary')
+            errors.append(path + ': ad-hoc page max-width; shell pages fill the workspace')
     if complete:
         shell = current.get(UI + 'assets/css/shell.css', '')
-        for width in PAGE_WIDTHS:
-            if not width.search(shell):
-                errors.append(f'{UI}assets/css/shell.css: missing page width rule {width.pattern}')
+        if 'liwan-page-width-' in shell:
+            errors.append(f'{UI}assets/css/shell.css: retired page width band; shell pages fill the workspace')
+        if not AUTO_GRID.search(shell):
+            errors.append(f'{UI}assets/css/shell.css: missing the shared .liwan-auto-grid rule')
     if complete:
         status = current.get(UI + 'assets/css/components.css', '') + current.get(UI + 'assets/css/tokens.css', '')
         for token in STATUS_TOKENS:

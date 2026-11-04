@@ -80,7 +80,7 @@ async function submit() {
           <USelect id="hr-insurance-plan" class="w-full" :model-value="planId ? String(planId) : undefined" :items="planOptions" :placeholder="t('hrInsurance.form.choosePlan')" :disabled="!hydrated || isPending" data-testid="hr-insurance-plan" @update:model-value="planId = $event ? Number($event) : null" />
         </UFormField>
         <p v-if="chosenPlan" class="text-sm text-muted" data-testid="hr-insurance-plan-validity">{{ t('hrInsurance.form.planValidity', { from: chosenPlan.valid_from, to: chosenPlan.valid_to }) }}</p>
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="liwan-auto-grid gap-4">
           <UFormField :label="t('hrInsurance.form.dateFrom')" name="hr-insurance-date-from" required :error="dateError">
             <SharedDateField id="hr-insurance-date-from" v-model="dateFrom" :disabled="!hydrated || isPending" />
           </UFormField>
@@ -94,7 +94,7 @@ async function submit() {
       </div>
     </SharedFormSection>
     <SharedFormSection panel :title="t('hrInsurance.form.shares')" :description="t('hrInsurance.form.sharesHint')">
-      <div class="grid gap-4 sm:grid-cols-2">
+      <div class="liwan-auto-grid gap-4">
         <UFormField :label="t('hrInsurance.form.employeeShare')" name="hr-insurance-employee-share">
           <UInputNumber id="hr-insurance-employee-share" v-model="employeeShare" class="w-full" :min="0" :disabled="!hydrated || isPending" data-testid="hr-insurance-employee-share" />
         </UFormField>

@@ -15,7 +15,7 @@ const descriptionOf = (id: string) => (te(`launcher.apps.${id}.description`) ? t
 </script>
 
 <template>
-  <SharedPageContainer width="list" data-testid="launcher-page">
+  <SharedPageContainer data-testid="launcher-page">
     <SharedPageHeader :title="t('nav.home')" />
     <HomeTabs />
     <p class="-mt-2 text-sm text-muted">{{ t('launcher.description') }}</p>

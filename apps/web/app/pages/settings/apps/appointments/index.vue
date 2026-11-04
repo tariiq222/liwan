@@ -20,7 +20,7 @@ async function reloadSettings() {
 </script>
 
 <template>
-  <SharedSettingsPage width="form">
+  <SharedSettingsPage>
     <SharedPageHeader :title="t('appointments.settings.title')" />
     <SharedForbiddenState v-if="!parts.length" :description="t('errors.forbidden')" />
     <SharedPageState v-else-if="!settings.data.value" :loading="settings.isLoading.value" :error="settings.error.value" :empty="true" @retry="settings.refetch()" />

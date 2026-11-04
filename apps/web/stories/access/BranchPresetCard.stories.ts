@@ -17,7 +17,7 @@ const meta = {
   title: 'Access/BranchPresetCard', component: BranchPresetCard,
   parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/pages/settings/team/branches.vue:27') },
   args: { policy: policy('independent_branches'), reloadPolicy: async () => policy('independent_branches') },
-  render: args => ({ components: { BranchPresetCard, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer width="form"><BranchPresetCard v-bind="args" /></PageContainer></main>' }),
+  render: args => ({ components: { BranchPresetCard, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer><BranchPresetCard v-bind="args" /></PageContainer></main>' }),
 } satisfies Meta<typeof BranchPresetCard>
 export default meta
 type Story = StoryObj<typeof meta>

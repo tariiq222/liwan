@@ -67,7 +67,7 @@ function saveContact() {
 <template>
   <div class="flex flex-col gap-4 p-4" data-testid="inbox-contact-panel">
     <SharedRecordSection variant="panel" :title="t('inbox.panel.contact')">
-      <form class="flex flex-col gap-3" @submit.prevent="saveContact">
+      <form class="liwan-form" @submit.prevent="saveContact">
         <UFormField :label="t('inbox.panel.name')">
           <UInput v-model="name" class="w-full" :disabled="lockedReply || savingContact" />
         </UFormField>

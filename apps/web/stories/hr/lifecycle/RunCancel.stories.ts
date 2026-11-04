@@ -9,7 +9,7 @@ const meta = {
   component: RunCancel,
   parameters: { layout: 'fullscreen' },
   args: { run, namespace: 'hrOnboarding', pending: false },
-  render: args => ({ components: { RunCancel, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer width="list"><RunCancel v-bind="args" /></PageContainer></main>' }),
+  render: args => ({ components: { RunCancel, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer><RunCancel v-bind="args" /></PageContainer></main>' }),
 } satisfies Meta<typeof RunCancel>
 export default meta
 type Story = StoryObj<typeof meta>

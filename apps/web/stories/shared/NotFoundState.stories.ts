@@ -17,13 +17,13 @@ export const WithBack: Story = {
   render: () => ({
     components: { NotFoundState, PageContainer },
     setup: () => ({ t: useI18n().t }),
-    template: '<main class="liwan-shell-main"><PageContainer width="detail"><NotFoundState back-to="/projects" :back-label="t(\'nav.projects\')" /></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer><NotFoundState back-to="/projects" :back-label="t(\'nav.projects\')" /></PageContainer></main>',
   }),
 }
 export const Bare: Story = {
   name: 'بلا رابط',
   render: () => ({
     components: { NotFoundState, PageContainer },
-    template: '<main class="liwan-shell-main"><PageContainer width="detail"><NotFoundState /></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer><NotFoundState /></PageContainer></main>',
   }),
 }

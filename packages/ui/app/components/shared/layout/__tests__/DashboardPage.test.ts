@@ -7,8 +7,7 @@ import { renderShared } from '../../../../../test/helpers/renderShared'
 const stubs = {
   SharedPageContainer: defineComponent({
     inheritAttrs: false,
-    props: { width: String },
-    setup(props, { attrs, slots }) { return () => h('div', { ...attrs, 'data-layout-width': props.width }, slots.default?.()) },
+    setup(_props, { attrs, slots }) { return () => h('div', attrs, slots.default?.()) },
   }),
   SharedPageHeader: defineComponent({
     props: { title: String, hideTitle: Boolean },
@@ -98,7 +97,7 @@ describe('SharedDashboardPage', () => {
       default: () => h('section', { 'data-chart-panel': '' }),
     }, withKpis(true))
     expect(html).toContain('data-template="dashboard-page"')
-    expect(html).toContain('data-layout-width="list"')
+    expect(html).not.toContain('data-layout-width')
     expect(html).toContain('<h1>Projects dashboard</h1>')
     // Slot content renders inside SSR fragment markers (<!--[-->…<!--]-->).
     expect(html).toMatch(/<div data-actions(?:="")?>(?:<!--\[-->)?<button>Export<\/button>/)

@@ -28,7 +28,7 @@ function panel(key: ChartKey, title: string, options: { variant?: 'pie' | 'donut
       const { t } = useI18n()
       return { chart: computed(() => dashboardCharts(t)[key]), t, title, options, grid: GRID }
     },
-    template: `<main class="liwan-shell-main"><PageContainer width="list"><div class="min-w-0" style="container-type: inline-size"><div class="min-w-0" :style="grid"><DashboardChartPanel :test-id="'story-' + title" :title="t(title)" description="" :chart="chart" :variant="options.variant" :has-data="options.hasData ?? true" :loading="options.loading ?? false" :empty-text="t('projects.dashboard.charts.noStatusData')" :accessible-label="t(title)" :span="options.wide ? 'full' : 'half'" :size="options.size" /></div></div></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer><div class="min-w-0" style="container-type: inline-size"><div class="min-w-0" :style="grid"><DashboardChartPanel :test-id="'story-' + title" :title="t(title)" description="" :chart="chart" :variant="options.variant" :has-data="options.hasData ?? true" :loading="options.loading ?? false" :empty-text="t('projects.dashboard.charts.noStatusData')" :accessible-label="t(title)" :span="options.wide ? 'full' : 'half'" :size="options.size" /></div></div></PageContainer></main>`,
   })
 }
 

@@ -57,7 +57,7 @@ async function submit() {
 
 <template>
   <SharedRecordSection variant="panel" :title="t('inbox.campaigns.import.title')" :description="t('inbox.campaigns.import.description')" data-testid="inbox-contact-import">
-    <form class="flex flex-col gap-4" novalidate @submit.prevent="submit">
+    <form class="liwan-form" novalidate @submit.prevent="submit">
       <UFormField :label="t('inbox.campaigns.import.file')" :description="t('inbox.campaigns.import.fileHint')" required>
         <div class="flex flex-wrap items-center gap-2">
           <SharedFileField accept=".csv,text/csv" :label="t('inbox.campaigns.import.choose')" :show-file-name="false" :disabled="!hydrated || isPending" data-testid="inbox-import-file" @change="pick" />

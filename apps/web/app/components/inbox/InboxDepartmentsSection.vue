@@ -62,7 +62,7 @@ function confirmDelete() {
     <SharedLoadingSkeleton v-if="isLoading" />
     <SharedPageState v-else-if="error" :error="error" @retry="refetch()" />
     <div v-else class="flex flex-col gap-3">
-      <form v-if="editing !== null" class="flex flex-col gap-3 rounded-control bg-elevated/50 p-3" novalidate @submit.prevent="submit">
+      <form v-if="editing !== null" class="liwan-form rounded-control bg-elevated/50 p-3" novalidate @submit.prevent="submit">
         <UFormField :label="t('inbox.settings.name')" required :error="attempted ? nameError : undefined">
           <UInput v-model="name" class="w-full" maxlength="128" :disabled="locked" data-testid="inbox-department-name" />
         </UFormField>

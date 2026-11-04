@@ -63,7 +63,7 @@ function submit() {
   <SharedFormSection id="campaigns" panel class="liwan-settings-anchor" :title="t('inbox.campaigns.settings.title')" :description="t('inbox.campaigns.settings.hint')">
     <SharedLoadingSkeleton v-if="isLoading" />
     <SharedPageState v-else-if="error" :error="error" @retry="refetch()" />
-    <form v-else class="flex flex-col gap-5" novalidate data-testid="inbox-campaign-settings" @submit.prevent="submit">
+    <form v-else class="liwan-form" novalidate data-testid="inbox-campaign-settings" @submit.prevent="submit">
       <SharedUnsavedChanges :dirty="dirty" />
       <UFormField :label="t('inbox.campaigns.settings.policyLabel')" :description="t('inbox.campaigns.settings.policyDescription')">
         <URadioGroup v-model="draft.consentPolicy" :items="policyItems" :disabled="!hydrated || isPending" data-testid="inbox-consent-policy" />

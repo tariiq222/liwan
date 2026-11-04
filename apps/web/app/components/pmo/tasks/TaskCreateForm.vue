@@ -219,7 +219,7 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <form novalidate data-testid="task-create-form" class="grid gap-5" @submit.prevent="submit">
+  <form novalidate data-testid="task-create-form" class="liwan-form" @submit.prevent="submit">
     <UAlert v-if="generalError" role="alert" class="sm:col-span-2" color="error" variant="subtle" :title="generalError" />
     <UFormField :label="t('tasks.newTitle')" name="name" required :error="fieldError('name')">
       <UInput id="new-task-name" v-model="name" required class="w-full" :disabled="!hydrated || isPending" />

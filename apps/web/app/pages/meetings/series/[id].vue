@@ -289,7 +289,7 @@ function setHistoryPage(page: number) {
       <form v-if="addingOccurrence && canAddOccurrence" ref="occurrenceForm" novalidate data-testid="meeting-occurrence-form" @submit.prevent="submitOccurrence">
         <SharedUnsavedChanges :dirty="occurrenceDirty" />
         <SharedFormSection panel :title="t('meetingsUx.occurrence.title')" :description="t('meetingsUx.occurrence.hint')">
-          <div class="liwan-form-grid">
+          <div class="liwan-auto-grid">
             <UFormField class="sm:col-span-2" :label="t('meetingsUx.occurrence.name')" name="name" :error="occurrenceServerErrors.name">
               <UInput id="occurrence-name" v-model="occurrenceName" class="w-full" :disabled="!hydrated || addOccurrence.isPending.value" />
             </UFormField>

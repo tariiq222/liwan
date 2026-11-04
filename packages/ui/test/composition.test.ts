@@ -40,7 +40,6 @@ function loadShared(name: string): Component {
       title: String,
       backTo: [String, Object],
       backLabel: String,
-      width: { type: String, default: 'list' },
     },
     setup(props) {
       return {
@@ -50,9 +49,6 @@ function loadShared(name: string): Component {
         trail: props.backTo ? [{ label: props.backLabel ?? 'Back', to: props.backTo }] : [],
         stickyHead: false,
         frameOwnsHeading: false,
-        // PageContainer derives its band from the prop; the route-shaped flags
-        // are presentation hooks, not part of the width vocabulary.
-        widthClass: `liwan-page-width-${props.width}`,
         pageArea: { plain: false, record: false }, workspaceArea: false,
       }
     },
@@ -118,18 +114,12 @@ describe('shared composition rendered contracts', () => {
     expect(activeRowMarker).toBeGreaterThan(controlsMarker)
   })
 
-  it('renders each page width as its own class, and defaults to the list band', async () => {
-    // The width is a vocabulary of three named bands, not a utility a page
-    // picks for itself: the class is what the stylesheet sizes.
-    for (const width of ['list', 'detail', 'form', 'full'] as const) {
-      const html = await renderShared('PageContainer', { width }, { default: () => h('p', 'محتوى') })
-      expect(html, width).toContain(`data-layout-width="${width}"`)
-      expect(html, width).toContain(`liwan-page-width-${width}`)
-      expect(html, width).toContain('محتوى')
-    }
-    const fallback = await renderShared('PageContainer', {}, { default: () => h('p', 'محتوى') })
-    expect(fallback).toContain('liwan-page-width-list')
-    expect(fallback, 'a band is a class, never an inline max-width').not.toMatch(/max-w-/)
+  it('renders every page at the full workspace width, with no width band', async () => {
+    const html = await renderShared('PageContainer', {}, { default: () => h('p', 'محتوى') })
+    expect(html).toContain('liwan-page-stack')
+    expect(html).toContain('محتوى')
+    expect(html).not.toContain('data-layout-width')
+    expect(html, 'no page caps its own width').not.toMatch(/liwan-page-width|max-w-/)
   })
 
   it('renders FormSection title and description with reference section spacing', async () => {
@@ -139,7 +129,7 @@ describe('shared composition rendered contracts', () => {
       { default: () => h('input', { 'aria-label': 'Name' }) },
     )
     expect(html).toContain('data-variant="flat"')
-    expect(html).toContain('<div class="space-y-5">')
+    expect(html).toContain('<div class="liwan-auto-grid liwan-field-grid">')
     expect(html).toContain('General')
     expect(html).toContain('Identity fields')
     expect(html).toContain('aria-label="Name"')

@@ -18,7 +18,7 @@ const number = (value: number) => new Intl.NumberFormat(locale.value).format(val
         <SharedStatusBadge size="sm" :tone="badge.tone" :label="t(badge.labelKey)" data-testid="hr-own-insurance-state" />
         <span class="text-sm text-muted">{{ props.enrollment.plan.provider.name }}<template v-if="props.enrollment.plan.tier"> · {{ props.enrollment.plan.tier }}</template></span>
       </div>
-      <dl class="grid gap-x-6 sm:grid-cols-2">
+      <dl class="liwan-auto-grid gap-x-6">
         <SharedPropertyRow :label="t('hrInsurance.own.coverage')" :value="`${formatDate(props.enrollment.date_from)} – ${formatDate(props.enrollment.date_end)}`" />
         <SharedPropertyRow :label="t('hrInsurance.own.memberNumber')">
           <bdi v-if="props.enrollment.member_number" dir="ltr" data-testid="hr-own-insurance-member">{{ props.enrollment.member_number }}</bdi>

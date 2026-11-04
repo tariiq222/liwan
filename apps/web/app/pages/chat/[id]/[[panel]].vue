@@ -16,7 +16,7 @@ const validId = computed(() => Number.isSafeInteger(conversationId.value) && con
 
 <template>
   <ChatWorkspace v-if="validId" :conversation-id="conversationId" :info-open="infoOpen" />
-  <SharedPageContainer v-else width="list" data-testid="chat-not-found">
+  <SharedPageContainer v-else data-testid="chat-not-found">
     <SharedPageHeader :title="t('chat.title')" back-to="/chat" :back-label="t('chat.title')" />
     <SharedNotFoundState back-to="/chat" :back-label="t('chat.title')" />
   </SharedPageContainer>

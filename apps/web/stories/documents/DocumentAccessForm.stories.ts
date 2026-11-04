@@ -12,7 +12,7 @@ export default meta
 type Story = StoryObj<typeof meta>
 export const Default: Story = {
   parameters: storyContext('apps/web/app/pages/documents/[documentId]/access.vue:25'),
-  render: args => ({ components: { DocumentAccessForm, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer width="form"><DocumentAccessForm v-bind="args" /></PageContainer></main>' }),
+  render: args => ({ components: { DocumentAccessForm, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer><DocumentAccessForm v-bind="args" /></PageContainer></main>' }),
 }
 
 export const Company: Story = { ...Default, args: { access: { ...access, visibility: 'company' } } }

@@ -79,7 +79,7 @@ async function confirmRemove() {
       </li>
     </ul>
     <UForm v-if="canManage" novalidate :state="draft" class="liwan-form" method="post" data-testid="finance-zakat-adjustment-form" @submit="submit">
-      <div class="liwan-form-grid">
+      <div class="liwan-auto-grid">
         <UFormField :label="t('financeReports.zakat.kind')" name="finance-zakat-kind"><USelect id="finance-zakat-kind" v-model="draft.kind" :items="kindItems" class="w-full" :disabled="!hydrated || add.isPending.value" /></UFormField>
         <UFormField :label="t('financeReports.zakat.amount')" name="finance-zakat-amount" required :error="attempted && !(amount > 0) ? t('financeReports.zakat.amountInvalid') : undefined">
           <UInput id="finance-zakat-amount" v-model="draft.amount" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || add.isPending.value" />

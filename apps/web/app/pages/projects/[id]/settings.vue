@@ -20,7 +20,7 @@ const canManage = computed(() => project.value?.can_manage ?? false)
 
 <template>
   <ProjectNotFoundState v-if="notFound" />
-  <SharedSettingsPage v-else width="list">
+  <SharedSettingsPage v-else>
     <SharedPageHeader
       :title="t('projects.settings.title')"
     />

@@ -7,20 +7,20 @@ const SHOTS = process.env.INTERNAL_UI_AUDIT_SHOTS
   || path.join(path.dirname(fileURLToPath(import.meta.url)), '../../test-results/internal-ui-audit')
 
 const ROUTES = [
-  { id: 'tasks', path: '/tasks', width: 'list', h1: 'مهامي' },
-  { id: 'projects', path: '/projects', width: 'list', h1: 'المشاريع' },
-  { id: 'project-detail', path: '/projects/1', width: 'detail', h1: 'الملخص' },
-  { id: 'project-settings', path: '/projects/1/settings', width: 'form', h1: 'إعدادات المشروع' },
-  { id: 'project-charter', path: '/projects/1/charter', width: 'form', h1: 'مشروع ألفا' },
-  { id: 'hr', path: '/hr', width: 'list', h1: 'الموظفون' },
-  { id: 'employee-new', path: '/hr/employees/new', width: 'form', h1: 'موظف جديد' },
-  { id: 'account', path: '/account', width: 'form', h1: 'الحساب' },
-  { id: 'settings-users', path: '/settings/team/users', width: null, h1: 'المستخدمون' },
-  { id: 'catalog-new', path: '/settings/apps/projects/catalogs/types/new', width: 'form', h1: 'نوع مشروع جديد' },
-  { id: 'notifications', path: '/notifications', width: 'form', h1: 'الإشعارات' },
-  { id: 'chat', path: '/chat', width: 'list', h1: 'المحادثة' },
-  { id: 'search', path: '/search', width: 'form', h1: 'بحث' },
-  { id: 'reports', path: '/reports', width: 'list', h1: 'التقارير' },
+  { id: 'tasks', path: '/tasks', h1: 'مهامي' },
+  { id: 'projects', path: '/projects', h1: 'المشاريع' },
+  { id: 'project-detail', path: '/projects/1', h1: 'الملخص' },
+  { id: 'project-settings', path: '/projects/1/settings', h1: 'إعدادات المشروع' },
+  { id: 'project-charter', path: '/projects/1/charter', h1: 'مشروع ألفا' },
+  { id: 'hr', path: '/hr', h1: 'الموظفون' },
+  { id: 'employee-new', path: '/hr/employees/new', h1: 'موظف جديد' },
+  { id: 'account', path: '/account', h1: 'الحساب' },
+  { id: 'settings-users', path: '/settings/team/users', h1: 'المستخدمون' },
+  { id: 'catalog-new', path: '/settings/apps/projects/catalogs/types/new', h1: 'نوع مشروع جديد' },
+  { id: 'notifications', path: '/notifications', h1: 'الإشعارات' },
+  { id: 'chat', path: '/chat', h1: 'المحادثة' },
+  { id: 'search', path: '/search', h1: 'بحث' },
+  { id: 'reports', path: '/reports', h1: 'التقارير' },
 ] as const
 
 test.describe.configure({ timeout: 90_000 })
@@ -98,9 +98,9 @@ async function visit(page: Page, route: (typeof ROUTES)[number], opts: { checkWi
     if (layout.display !== 'flex') defects.push(`full-height page overrides flex: ${layout.display}`)
     if (layout.headerHeight > 96) defects.push(`stretched page header: ${layout.headerHeight}px`)
   }
-  if (opts.checkWidth && route.width && !createPanel) {
-    const count = await page.locator(`[data-slot="page-container"][data-layout-width="${route.width}"]`).count()
-    if (!count) defects.push(`missing page-container width=${route.width}`)
+  if (opts.checkWidth && !createPanel) {
+    const banded = await page.locator('[data-slot="page-container"]').evaluateAll(nodes => nodes.filter(node => getComputedStyle(node).maxWidth !== 'none').length)
+    if (banded) defects.push(`page-container with a width band: ${banded}`)
   }
   if (opts.checkForm && (route.id === 'employee-new' || route.id === 'account' || route.id === 'catalog-new' || route.id === 'project-settings' || route.id === 'project-charter')) {
     const formish = page.locator('form, [data-testid="project-settings-page"], input').first()
@@ -218,14 +218,9 @@ test('desktop 1440 light medium — route smoke and targeted fixes', async ({ pa
   await page.screenshot({ path: shot('catalog-new-1920.png'), fullPage: true })
 
   await page.goto('/settings/apps/projects')
-  const settingsForm = page.locator('.liwan-settings-form-page')
-  await expect(settingsForm).toBeVisible()
-  const settingsBox = await settingsForm.evaluate((el) => {
-    const style = getComputedStyle(el)
-    return { width: el.getBoundingClientRect().width, maxWidth: style.maxWidth }
-  })
-  expect(settingsBox.maxWidth).toBe('940px')
-  expect(settingsBox.width).toBeLessThanOrEqual(940)
+  const settingsPage = page.locator('[data-slot="page-container"]').first()
+  await expect(settingsPage).toBeVisible()
+  expect(await settingsPage.evaluate(el => getComputedStyle(el).maxWidth)).toBe('none')
   coverage['catalog-new-1920'] = { ok: true, shot: 'catalog-new-1920.png' }
 
   fs.mkdirSync(SHOTS, { recursive: true })

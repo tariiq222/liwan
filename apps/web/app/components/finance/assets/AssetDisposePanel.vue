@@ -40,7 +40,7 @@ async function submit() {
     <p class="font-semibold text-highlighted">{{ t('financeAssets.dispose.title', { name: asset.name }) }}</p>
     <p class="text-sm text-muted">{{ t('financeAssets.dispose.hint') }}</p>
     <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" data-testid="finance-asset-dispose-error" />
-    <div class="liwan-form-grid">
+    <div class="liwan-auto-grid">
       <UFormField :label="t('financeAssets.dispose.date')" name="finance-asset-dispose-date" required :error="shown.date ? t('financeAssets.dispose.dateRequired') : undefined">
         <SharedDateField id="finance-asset-dispose-date" v-model="draft.date" :disabled="!hydrated || dispose.isPending.value" />
       </UFormField>

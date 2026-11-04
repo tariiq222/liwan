@@ -17,7 +17,7 @@ const meta = {
   parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/pages/projects/dashboard.vue:189') },
   render: () => ({
     components: { PageContainer, PendingCharterReviews },
-    template: '<main class="liwan-shell-main"><PageContainer width="list"><PendingCharterReviews /></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer><PendingCharterReviews /></PageContainer></main>',
   }),
 } satisfies Meta<typeof PendingCharterReviews>
 export default meta

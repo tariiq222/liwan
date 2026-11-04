@@ -12,7 +12,7 @@ const meta = {
   render: args => ({
     components: { ErrorState, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="liwan-shell-main"><PageContainer width="list"><ErrorState v-bind="args" /></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer><ErrorState v-bind="args" /></PageContainer></main>',
   }),
 } satisfies Meta<typeof ErrorState>
 export default meta

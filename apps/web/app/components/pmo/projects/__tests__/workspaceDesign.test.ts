@@ -24,7 +24,7 @@ describe('project workspace design contract', () => {
     expect(overview).toContain('density="compact"')
     expect(overview).toContain('emphasis')
     expect(overview).toContain('<SharedProgress')
-    expect(read('pages/projects/[id]/index.vue')).toContain('width="full"')
+    expect(read('pages/projects/[id]/index.vue')).toContain('<SharedRecordPage')
     expect(read('pages/projects/[id]/index.vue')).not.toContain('!max-w-none')
   })
 

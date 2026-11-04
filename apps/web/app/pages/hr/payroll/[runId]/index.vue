@@ -192,7 +192,6 @@ const partial = computed(() => !!run.value && !payslips.isLoading.value && rows.
 
 <template>
   <SharedRecordPage
-    width="full"
     :keep-content="!!run"
     :title="title"
     :tags="tags"

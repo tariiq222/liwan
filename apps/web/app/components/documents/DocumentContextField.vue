@@ -34,7 +34,7 @@ function selectOption(value: unknown) {
 }
 </script>
 <template>
-  <div v-if="available.length" class="grid gap-(--liwan-gap-card) sm:grid-cols-2">
+  <div v-if="available.length" class="liwan-auto-grid gap-(--liwan-gap-card)">
     <UFormField :label="t('documents.context')" name="document-context-kind">
       <USelect id="document-context-kind" :model-value="kind || 'none'" :items="[{ value: 'none', label: t('documents.noContext') }, ...available.map(item => ({ value: item.kind, label: item.label }))]" class="w-full" :disabled="disabled || !hydrated" @update:model-value="selectKind" />
     </UFormField>
@@ -44,7 +44,7 @@ function selectOption(value: unknown) {
       <SharedPagination class="mt-2" :page="Math.floor(offset / limit) + 1" :pages="pages" :disabled="disabled || options.isFetching.value" @update:page="offset = ($event - 1) * limit" />
     </UFormField>
     <UCheckbox
-      v-if="selectedKind === 'hr.employee' && modelValue" v-model="shareWithEmployee" class="sm:col-span-2" :label="t('documents.shareWithEmployee')" :description="t('documents.shareWithEmployeeHelp')"
+      v-if="selectedKind === 'hr.employee' && modelValue" v-model="shareWithEmployee" class="liwan-span-full" :label="t('documents.shareWithEmployee')" :description="t('documents.shareWithEmployeeHelp')"
       :disabled="disabled || !hydrated" data-testid="document-share-with-employee"
     />
   </div>

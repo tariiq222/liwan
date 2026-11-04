@@ -153,8 +153,8 @@ async function confirmEnd(row: HrInsuranceDependent) {
               <SharedDateField id="hr-insurance-dependent-end-date" v-model="endDate" />
             </UFormField>
           </SharedInlineConfirm>
-          <form v-if="editing === row.id" class="grid gap-3" :data-testid="`hr-insurance-dependent-form-${row.id}`" @submit.prevent="save(row)">
-            <div class="grid gap-3 sm:grid-cols-2">
+          <form v-if="editing === row.id" class="liwan-form" :data-testid="`hr-insurance-dependent-form-${row.id}`" @submit.prevent="save(row)">
+            <div class="liwan-auto-grid gap-3">
               <UFormField :label="t('hrInsurance.dependents.name')" :name="`hr-insurance-dependent-name-${row.id}`" required :error="nameError"><UInput v-model="draft.name" class="w-full" :disabled="busy" /></UFormField>
               <UFormField :label="t('hrInsurance.dependents.relationLabel')" :name="`hr-insurance-dependent-relation-${row.id}`" required :error="relationError"><USelect v-model="draft.relation" class="w-full" :items="relationItems" :disabled="busy" /></UFormField>
               <UFormField :label="t('hrInsurance.dependents.birthDate')" :name="`hr-insurance-dependent-birth-${row.id}`"><SharedDateField v-model="draft.birthDate" :disabled="busy" /></UFormField>
@@ -169,8 +169,8 @@ async function confirmEnd(row: HrInsuranceDependent) {
           </form>
         </li>
       </ul>
-      <form v-if="editing === 0" class="grid gap-3 rounded-card p-3 ring ring-default" data-testid="hr-insurance-dependent-form" @submit.prevent="save()">
-        <div class="grid gap-3 sm:grid-cols-2">
+      <form v-if="editing === 0" class="liwan-form rounded-card p-3 ring ring-default" data-testid="hr-insurance-dependent-form" @submit.prevent="save()">
+        <div class="liwan-auto-grid gap-3">
           <UFormField :label="t('hrInsurance.dependents.name')" name="hr-insurance-dependent-new-name" required :error="nameError"><UInput id="hr-insurance-dependent-new-name" v-model="draft.name" class="w-full" :disabled="busy" data-testid="hr-insurance-dependent-name" /></UFormField>
           <UFormField :label="t('hrInsurance.dependents.relationLabel')" name="hr-insurance-dependent-new-relation" required :error="relationError"><USelect id="hr-insurance-dependent-new-relation" v-model="draft.relation" class="w-full" :items="relationItems" :placeholder="t('hrInsurance.dependents.chooseRelation')" :disabled="busy" data-testid="hr-insurance-dependent-relation" /></UFormField>
           <UFormField :label="t('hrInsurance.dependents.birthDate')" name="hr-insurance-dependent-new-birth"><SharedDateField id="hr-insurance-dependent-new-birth" v-model="draft.birthDate" :disabled="busy" /></UFormField>

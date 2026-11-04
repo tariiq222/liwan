@@ -128,7 +128,7 @@ async function submit() {
   <UForm :state="{ employeeId, departureDate, reasonId, description }" class="liwan-form" method="post" :loading-auto="false" novalidate @submit="submit">
     <UAlert v-if="formError" role="alert" color="error" variant="subtle" :title="t(`${namespace}.form.saveError`)" :description="errorMessage" />
     <SharedFormSection panel :title="t(`${namespace}.departures.title`)">
-      <div class="liwan-form-grid">
+      <div class="liwan-auto-grid">
         <UFormField v-if="!departure" :label="t(`${namespace}.form.employee`)" name="hr-departure-employee" required :error="fieldError('employee_id')">
           <USelect
             id="hr-departure-employee"
