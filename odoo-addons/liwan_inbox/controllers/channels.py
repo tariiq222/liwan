@@ -118,6 +118,16 @@ class ChannelController(http.Controller):
         get_channel(channel_id, MANAGE_CHANNELS).unlink()
         return no_content()
 
+    @http.route('/api/v1/inbox/channels/<int:channel_id>/verify-token', type='json2', auth='user',
+                methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature('inbox.enabled', operation='write')
+    @requires_capability(MANAGE_CHANNELS)
+    def rotate_verify_token(self, channel_id, **_):
+        """A fresh handshake token for the Meta app; the only response that carries it, and only once."""
+        channel = get_channel(channel_id, MANAGE_CHANNELS)
+        return {'verify_token': channel._liwan_rotate_verify_token()}
+
     @http.route('/api/v1/inbox/channels/<int:channel_id>/test', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('inbox.enabled', operation='write')

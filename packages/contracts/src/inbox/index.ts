@@ -397,6 +397,8 @@ export const InboxSettingsSchema = z.object({
   assignment_policy: InboxAssignmentPolicySchema,
   // Alert agents when a customer has waited this long for a first reply; 0 turns the alert off.
   first_response_alert_minutes: z.number().int().min(0).max(1440),
+  // How long the daily performance rows behind the reports are kept (12..120 months).
+  report_retention_months: z.number().int().min(12).max(120),
 }).strict()
 export const InboxSettingsPatchSchema = InboxSettingsSchema.partial().strict()
 
@@ -510,14 +512,15 @@ export const InboxChannelSchema = z.object({
   has_app_secret: z.boolean(),
   // The Meta app id: needed only to upload the sample file of a media-header template.
   app_id: z.string().nullable(),
-  // Shown to the administrator to paste into the Meta app's webhook settings.
-  verify_token: z.string(),
+  // The handshake token is a secret: the API reports only whether one is stored (rotate it to get a new one).
+  has_verify_token: z.boolean(),
   callback_url: z.string(),
   last_error: z.string().nullable(),
   last_event_at: UtcDateTime.nullable(),
   health: InboxChannelHealthSchema,
 }).strict()
 export const InboxChannelListSchema = list(InboxChannelSchema)
+export const InboxVerifyTokenSchema = z.object({ verify_token: z.string() }).strict()
 
 const AppId = z.string().regex(/^\d{5,32}$/)
 

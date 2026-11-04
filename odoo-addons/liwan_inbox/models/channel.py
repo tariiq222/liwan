@@ -54,7 +54,8 @@ class LiwanInboxChannel(models.Model):
     app_id = fields.Char()
     access_token_enc = fields.Char(groups=SECRET_GROUPS, copy=False)
     app_secret_enc = fields.Char(groups=SECRET_GROUPS, copy=False)
-    verify_token = fields.Char(required=True, copy=False, default=lambda self: _new_verify_token())
+    # The webhook handshake secret: encrypted at rest like the other secrets and never returned in a read.
+    verify_token_enc = fields.Char(groups=SECRET_GROUPS, copy=False)
     last_error = fields.Char()
     last_event_at = fields.Datetime()
     conversation_ids = fields.One2many('liwan.inbox.conversation', 'channel_id')
@@ -105,6 +106,8 @@ class LiwanInboxChannel(models.Model):
         entitlement = self.env['liwan.entitlement.service']
         entitlement.require(WHATSAPP_FEATURE)
         entitlement._liwan_claim_channels(len(vals_list))
+        for values in vals_list:
+            values.setdefault('verify_token_enc', secret_box.encrypt(self.env, _new_verify_token()))
         return super().create(vals_list)
 
     def unlink(self):
@@ -139,6 +142,18 @@ class LiwanInboxChannel(models.Model):
     def _liwan_app_secret(self):
         self.ensure_one()
         return secret_box.decrypt(self.env, self.app_secret_enc) if self.app_secret_enc else None
+
+    def _liwan_verify_token(self):
+        """The plain webhook handshake token of the channel (compared in constant time by the hook)."""
+        self.ensure_one()
+        return secret_box.decrypt(self.env, self.verify_token_enc) if self.verify_token_enc else ''
+
+    def _liwan_rotate_verify_token(self):
+        """Replace the handshake token and return the new one once, for the administrator to paste into Meta."""
+        self.ensure_one()
+        token = _new_verify_token()
+        self.write({'verify_token_enc': secret_box.encrypt(self.env, token)})
+        return token
 
     def _liwan_auto_message(self, purpose):
         """The welcome or away message of the channel (empty when none is set)."""
