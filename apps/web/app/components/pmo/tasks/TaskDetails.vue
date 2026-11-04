@@ -18,6 +18,11 @@ const props = withDefaults(defineProps<{ task: TaskDetail; basePath?: string }>(
 const { t } = useI18n()
 const hydrated = useHydrated()
 const slots = useSlots()
+const route = useRoute()
+// A link to `#schedule` (the project timeline) opens the record on its schedule tab.
+const hashTab = () => (slots.schedule && route.hash === '#schedule' ? 'schedule' : 'subtasks')
+const workTab = ref(hashTab())
+watch(() => route.hash, () => { workTab.value = hashTab() })
 const workTabs = computed(() => [
   { label: t('tasks.drawer.subtasks'), value: 'subtasks', slot: 'subtasks', disabled: !hydrated.value },
   { label: t('taskLifecycle.dependencies'), value: 'dependencies', slot: 'dependencies', disabled: !hydrated.value },
@@ -42,8 +47,8 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
       data-testid="task-detail-tabs"
       variant="link"
       :ui="sectionTabsUi"
+      v-model="workTab"
       :items="workTabs"
-      default-value="subtasks"
       :unmount-on-hide="false"
       :aria-label="t('tasks.detail.sections')"
       class="min-w-0"
