@@ -15,7 +15,6 @@ from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.types import Command
 
-from liwan_ai_service.control import ControlState, StateCompatibilityError, open_control
 from liwan_ai_service.contracts import (
     AI_STATE_VERSION,
     ClaimRequest,
@@ -28,6 +27,7 @@ from liwan_ai_service.contracts import (
     RunStatus,
     RunSummary,
 )
+from liwan_ai_service.control import ControlState, StateCompatibilityError, open_control
 from liwan_ai_service.errors import client_error, redact
 from liwan_ai_service.graph import build_graph, initial_state, interrupted_replies, request_state, resume_value, run_config, text_of
 from liwan_ai_service.providers import build_chat_model
@@ -39,6 +39,7 @@ from liwan_ai_service.tenancy import UnknownTenant, directory_from_env
 from liwan_ai_service.tenant_state import TenantState, TenantStates
 from liwan_ai_service.titles import TITLE_TIMEOUT_SECONDS, generate_title, title_from
 from liwan_ai_service.usage import ModelIdentity, call_event, new_call_id, usage_event
+
 log = logging.getLogger("liwan_ai_service")
 WAITING = ("waiting_tool", "waiting_user", "executing")  # what a resume may answer: a claimed write call is still waiting for its result
 FINISHED = ("done", "failed", "limit_reached")
@@ -297,7 +298,8 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
         config = run_config(run_id, limits["max_steps"], deadline.when())
         try:
             yield format_event("run", {"run_id": run_id})
-            async with deadline, contextlib.aclosing(tenant.graph.astream(graph_input, config, stream_mode=["messages", "updates", "custom"])) as events:
+            events_of = tenant.graph.astream(graph_input, config, stream_mode=["messages", "updates", "custom"])
+            async with deadline, contextlib.aclosing(events_of) as events:
                 async for mode, payload in events:
                     if mode == "messages":
                         chunk, meta = payload

@@ -73,9 +73,11 @@ class TenantStates:
         finally:
             self._release(database)
 
-    async def each(self) -> AsyncIterator[TenantState]:
+    async def each(self, on_unavailable: Callable[[str, Exception], None] | None = None) -> AsyncIterator[TenantState]:
         """Every served tenant's state in directory order, skipping a database whose state was never initialized.
 
+        A database that cannot be opened stops the iteration, so a release check never counts it as idle, unless
+        ``on_unavailable`` is given: then it receives the database and the error, and the iteration goes on.
         The Postgres states this iteration itself opened are closed afterwards, unless a request used them
         meanwhile; a memory state lives for the process.
         """
@@ -86,6 +88,11 @@ class TenantStates:
                     state = await self._state_for(database, opened)
                 except StateCompatibilityError:
                     log.warning("database %s has no initialized AI state; skipped", database)
+                    continue
+                except Exception as error:
+                    if on_unavailable is None:
+                        raise
+                    on_unavailable(database, error)
                     continue
                 try:
                     yield state

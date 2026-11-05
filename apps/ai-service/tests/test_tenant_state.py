@@ -212,3 +212,18 @@ async def test_a_pool_in_use_is_neither_idle_closed_nor_evicted():
         await states.aclose()
         await first.drop()
         await second.drop()
+
+
+async def test_each_stops_at_an_unreachable_database_unless_told_to_skip_it():
+    class Unreachable(TenantStates):
+        def _memory_state(self, database):
+            if database == "db_a":
+                raise ConnectionError("refused")
+            return super()._memory_state(database)
+
+    states = Unreachable(MappingDirectory({"a": "db_a", "b": "db_b"}), None, graph_factory)
+    with pytest.raises(ConnectionError):
+        [state async for state in states.each()]  # a release check must not count an unreachable tenant as idle
+    skipped = []
+    served = [state.database async for state in states.each(on_unavailable=lambda database, error: skipped.append(database))]
+    assert served == ["db_b"] and skipped == ["db_a"]

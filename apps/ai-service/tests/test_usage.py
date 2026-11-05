@@ -12,7 +12,6 @@ from liwan_ai_service import service, usage
 from liwan_ai_service.contracts import ModelCallEvent, ModelUsageEvent, RunRequest
 from liwan_ai_service.errors import is_transient_provider_error
 from liwan_ai_service.graph import build_graph, initial_state, run_config
-from liwan_ai_service.store import MemoryRunStore
 from tests.fakes import IDENTITY, FlakyChatModel, ScriptedChatModel, SlowChatModel, SlowTitleChatModel, ai_text, ai_usage, make_memory_app, new_id
 from tests.test_service import BODY, HEADERS, SETTINGS, fresh, parse_sse
 

@@ -1,4 +1,4 @@
-"""Delete runs (and their checkpoints) older than AI_RUN_RETENTION_DAYS. Scheduled by the deployment."""
+"""Delete runs (and their checkpoints) older than AI_RUN_RETENTION_DAYS in every tenant. Scheduled by the deployment."""
 from __future__ import annotations
 
 import asyncio
@@ -15,26 +15,39 @@ def open_tenant_states(database_url: str | None) -> TenantStates:
     return TenantStates(directory_from_env(os.environ), database_url, lambda _checkpointer: None)
 
 
-async def run() -> str:
+async def run() -> tuple[str, list[str]]:
+    """Clean every tenant database; one tenant's failure is a line of its own and never stops the others."""
     settings = CleanupSettings.from_env(os.environ)
     states = open_tenant_states(settings.database_url)
     deleted = 0
+    cleaned_tenants = 0
+    failures: list[str] = []
     try:
-        async for state in states.each():
-            deleted += len(await state.store.delete_older_than(settings.retention_days))
+        def unavailable(database: str, error: Exception) -> None:
+            failures.append(f"{database}: {type(error).__name__}")
+
+        async for state in states.each(on_unavailable=unavailable):
+            try:
+                deleted += len(await state.store.delete_older_than(settings.retention_days))
+            except Exception as error:  # noqa: BLE001 - one tenant must not stop the others; the text may carry its connection string
+                failures.append(f"{state.database}: {type(error).__name__}")
+            else:
+                cleaned_tenants += 1
     finally:
         await states.aclose()
-    return f"deleted {deleted} runs older than {settings.retention_days} days"
+    return f"deleted {deleted} runs older than {settings.retention_days} days in {cleaned_tenants} tenants", failures
 
 
 async def main() -> int:
     try:
-        report = await run()
+        report, failures = await run()
     except Exception as error:  # noqa: BLE001 - the job reports why it failed by class only; the text may carry the connection string
         print(f"cleanup failed: {type(error).__name__}", file=sys.stderr)
         return 1
     print(report)
-    return 0
+    for line in failures:
+        print(f"cleanup failed for {line}", file=sys.stderr)
+    return 1 if failures else 0
 
 
 if __name__ == "__main__":
