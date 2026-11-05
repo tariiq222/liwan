@@ -87,14 +87,14 @@ async function submit() {
   <UForm :state="{ name, parentId, managerId }" class="liwan-form" method="post" :loading-auto="false" novalidate @submit="submit">
     <UAlert v-if="formError" role="alert" color="error" variant="subtle" :title="t('hr.form.saveError')" :description="errorMessage" />
     <SharedFormSection panel :title="t('hr.depts.general')" :description="t('hr.depts.formDescription')">
-      <div class="liwan-form-grid">
+      <div class="liwan-auto-grid">
         <UFormField :label="t('hr.depts.name')" name="hr-dept-name" required :error="fieldError('name')">
           <UInput id="hr-dept-name" v-model="name" class="w-full" :disabled="!canManage || !hydrated || pending" required />
         </UFormField>
       </div>
     </SharedFormSection>
     <SharedFormSection panel :title="t('hr.depts.assignment')">
-      <div class="liwan-form-grid">
+      <div class="liwan-auto-grid">
         <UFormField :label="t('hr.depts.parent')" name="hr-dept-parent" :error="fieldError('parent_id')">
           <USelect id="hr-dept-parent" :model-value="parentId ? String(parentId) : 'none'" :items="parentSelectOptions" class="w-full" :disabled="!canManage || !hydrated || pending" @update:model-value="parentId = idOrNull($event)" />
         </UFormField>

@@ -24,7 +24,7 @@ type Story = StoryObj<typeof meta>
 const render: Story['render'] = args => ({
   components: { MeetingTimeline, PageContainer },
   setup: () => ({ args }),
-  template: '<main class="liwan-shell-main"><PageContainer width="detail"><MeetingTimeline v-bind="args" /></PageContainer></main>',
+  template: '<main class="liwan-shell-main"><PageContainer><MeetingTimeline v-bind="args" /></PageContainer></main>',
 })
 
 export const Timeline: Story = {

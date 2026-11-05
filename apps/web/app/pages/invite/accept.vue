@@ -62,7 +62,7 @@ async function submit() {
 <template>
   <SharedStandalonePage :title="t('invite.title')">
     <p v-if="state === 'checking'" role="status" class="text-center text-sm text-muted">{{ t('invite.checking') }}</p>
-    <form v-else-if="state === 'form'" class="grid gap-4" @submit.prevent="submit">
+    <form v-else-if="state === 'form'" class="liwan-form" @submit.prevent="submit">
       <p class="-mt-2 text-center text-sm text-muted">{{ t('invite.subtitle') }}</p>
       <UFormField :label="t('invite.password')" name="password" required>
         <UInput id="password" v-model="password" type="password" autocomplete="new-password" required dir="ltr" class="w-full" />

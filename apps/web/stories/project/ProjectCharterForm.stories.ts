@@ -16,7 +16,7 @@ const meta = {
   render: args => ({
     components: { FormSection, PageContainer, ProjectCharterForm },
     setup: () => ({ args, t: useI18n().t }),
-    template: `<main class="liwan-shell-main"><PageContainer width="form"><FormSection :title="t('projects.charter.title')" :description="t('projects.create.defaultsHint')"><ProjectCharterForm v-bind="args" /></FormSection></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer><FormSection :title="t('projects.charter.title')" :description="t('projects.create.defaultsHint')"><ProjectCharterForm v-bind="args" /></FormSection></PageContainer></main>`,
   }),
 } satisfies Meta<typeof ProjectCharterForm>
 export default meta

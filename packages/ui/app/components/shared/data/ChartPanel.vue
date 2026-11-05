@@ -29,7 +29,7 @@ const height = computed(() => CHART_HEIGHT[props.size])
 </script>
 
 <template>
-  <UCard as="section" data-template="chart-panel" :data-span="props.span" :data-size="props.size" class="min-w-0 overflow-hidden" :class="{ '@min-[768px]:col-span-2': props.span === 'full' }" :aria-labelledby="titleId" :aria-busy="props.loading || undefined">
+  <UCard as="section" data-template="chart-panel" :data-span="props.span" :data-size="props.size" class="min-w-0 overflow-hidden" :aria-labelledby="titleId" :aria-busy="props.loading || undefined">
     <template #header>
       <div class="flex w-full flex-wrap items-start justify-between gap-3">
         <div class="min-w-0">

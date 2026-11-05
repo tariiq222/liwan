@@ -44,17 +44,17 @@ async function submit() {
 </script>
 
 <template>
-  <UForm novalidate :state="draft" class="grid gap-4 border-t border-default p-(--liwan-card-pad)" method="post" data-testid="finance-budget-line-form" @submit="submit">
+  <UForm novalidate :state="draft" class="liwan-form border-t border-default p-(--liwan-card-pad)" method="post" data-testid="finance-budget-line-form" @submit="submit">
     <h3 class="text-sm font-semibold text-highlighted">{{ t(line ? 'financeBudgets.lines.edit' : 'financeBudgets.lines.add') }}</h3>
     <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" data-testid="finance-budget-line-error" />
-    <div class="grid gap-4 sm:grid-cols-2">
+    <div class="liwan-auto-grid gap-4">
       <UFormField :label="t('financeBudgets.lines.account')" name="finance-budget-line-account" required :error="shown?.account ? t('financeBudgets.lines.accountRequired') : undefined">
         <AccountPicker v-model="draft.accountId" :disabled="pending" :invalid="!!shown?.account" :aria-label="t('financeBudgets.lines.account')" />
       </UFormField>
       <UFormField :label="t('financeBudgets.lines.amount')" name="finance-budget-line-amount" required :error="shown?.amount ? t('financeBudgets.lines.amountInvalid') : undefined">
         <UInput id="finance-budget-line-amount" v-model="draft.amount" inputmode="decimal" class="w-full tabular-nums" :color="shown?.amount ? 'error' : undefined" :disabled="!hydrated || pending" />
       </UFormField>
-      <UFormField :label="t('financeBudgets.lines.label')" name="finance-budget-line-label" class="sm:col-span-2">
+      <UFormField :label="t('financeBudgets.lines.label')" name="finance-budget-line-label" class="liwan-span-full">
         <UInput id="finance-budget-line-label" v-model="draft.label" class="w-full" maxlength="255" :disabled="!hydrated || pending" />
       </UFormField>
       <UFormField :label="t('financeBudgets.form.dateFrom')" name="finance-budget-line-from">

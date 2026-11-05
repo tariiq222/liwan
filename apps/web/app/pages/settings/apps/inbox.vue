@@ -25,7 +25,7 @@ const isSubPage = computed(() => /^\/settings\/apps\/inbox\/(?:channels\/(?!new$
 <template>
   <NuxtPage v-if="isSubPage" />
   <template v-else>
-    <SharedSettingsPage width="form">
+    <SharedSettingsPage>
       <SharedPageHeader :title="t('inbox.title')" />
       <div class="grid gap-(--liwan-gap-card)" data-testid="inbox-settings">
         <InboxPolicyForm v-if="shows('policy')" />

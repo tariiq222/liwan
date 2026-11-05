@@ -47,7 +47,7 @@ const optOut = () => save({ consent: { state: 'opted_out' } }, done)
         <UButton v-if="marketing.consent !== 'opted_in'" type="button" size="xs" color="neutral" variant="outline" icon="i-lucide-bell-ring" :disabled="off" :label="t('inbox.campaigns.marketing.recordOptIn')" data-testid="inbox-consent-opt-in" @click="asking = 'opt_in'" />
         <UButton v-if="marketing.consent !== 'opted_out'" type="button" size="xs" color="neutral" variant="outline" icon="i-lucide-bell-off" :disabled="off" :label="t('inbox.campaigns.marketing.recordOptOut')" data-testid="inbox-consent-opt-out" @click="asking = 'opt_out'" />
       </div>
-      <form v-if="asking === 'opt_in'" class="flex flex-col gap-2" novalidate @submit.prevent="optIn">
+      <form v-if="asking === 'opt_in'" class="liwan-form" novalidate @submit.prevent="optIn">
         <UFormField :label="t('inbox.campaigns.marketing.proof')" :description="t('inbox.campaigns.marketing.proofHint')" required>
           <UInput v-model="proof" class="w-full" maxlength="256" :disabled="off" data-testid="inbox-consent-proof" />
         </UFormField>

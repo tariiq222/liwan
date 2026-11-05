@@ -16,7 +16,7 @@ async function reloadSnapshot() {
 </script>
 
 <template>
-  <SharedSettingsPage width="form">
+  <SharedSettingsPage>
     <SharedPageHeader :title="t('settings.sections.system.title')" />
     <SharedForbiddenState v-if="!parts.length" :description="t('settings.forbidden')" />
     <template v-else>

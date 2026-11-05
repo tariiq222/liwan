@@ -110,7 +110,7 @@ async function submit() {
         <UFormField :label="t('hrInsurance.form.provider')" name="hr-insurance-provider" required :error="providerError" :hint="providerOptions.length ? undefined : t('hrInsurance.form.noProviders')">
           <USelect id="hr-insurance-provider" class="w-full" :model-value="providerId ? String(providerId) : undefined" :items="providerOptions" :placeholder="t('hrInsurance.form.chooseProvider')" :disabled="!hydrated || pending || !!props.plan" data-testid="hr-insurance-provider" @update:model-value="providerId = $event ? Number($event) : null" />
         </UFormField>
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="liwan-auto-grid gap-4">
           <UFormField :label="t('hrInsurance.form.planName')" name="hr-insurance-plan-name" required :error="nameError">
             <UInput id="hr-insurance-plan-name" v-model="name" class="w-full" :disabled="!hydrated || pending" data-testid="hr-insurance-plan-name" />
           </UFormField>
@@ -118,7 +118,7 @@ async function submit() {
             <UInput id="hr-insurance-tier" v-model="tier" class="w-full" :disabled="!hydrated || pending" data-testid="hr-insurance-tier" />
           </UFormField>
         </div>
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="liwan-auto-grid gap-4">
           <UFormField :label="t('hrInsurance.form.validFrom')" name="hr-insurance-valid-from" required :error="datesError">
             <SharedDateField id="hr-insurance-valid-from" v-model="validFrom" :disabled="!hydrated || pending" />
           </UFormField>
@@ -126,7 +126,7 @@ async function submit() {
             <SharedDateField id="hr-insurance-valid-to" v-model="validTo" :disabled="!hydrated || pending" />
           </UFormField>
         </div>
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="liwan-auto-grid gap-4">
           <UFormField :label="t('hrInsurance.form.policyNumber')" name="hr-insurance-policy-number">
             <UInput id="hr-insurance-policy-number" v-model="policyNumber" class="w-full" dir="ltr" :disabled="!hydrated || pending" data-testid="hr-insurance-policy-number" />
           </UFormField>

@@ -9,6 +9,9 @@ ARABIC_DIGITS = str.maketrans('٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹', '01234
 DEFAULT_COUNTRY = 'base.sa'
 NAME_MAX = 200
 EMAIL_MAX = 254
+# The engine field holding an opportunity's company-defined custom values
+# (liwan_api.serializers.properties translates it to the `properties` wire shape).
+PROPERTIES_FIELD = 'lead_properties'
 
 
 class CrmLead(models.Model):
@@ -33,6 +36,12 @@ class CrmLead(models.Model):
     liwan_needs_manager = fields.Boolean(string='Needs a manager decision', index=True, copy=False)
     liwan_import_batch_id = fields.Many2one(
         'liwan.crm.import.batch', string='Import batch', index='btree_not_null', ondelete='set null', copy=False,
+    )
+    # The custom fields the company defines for every opportunity of that company (Odoo's native
+    # properties engine). The definition is a company record, so the fields are shared by the company
+    # and not by a team; the engine reads the definition elevated, so an agent needs no extra ACL.
+    lead_properties = fields.Properties(
+        'Properties', definition='company_id.liwan_lead_properties_definition', copy=True,
     )
 
     # One phone per company: the existence check answers early; this index decides under concurrency.

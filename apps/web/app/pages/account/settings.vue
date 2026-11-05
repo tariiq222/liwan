@@ -51,7 +51,7 @@ async function logout() {
 </script>
 
 <template>
-  <SharedSettingsPage width="form">
+  <SharedSettingsPage>
     <SharedPageHeader :title="t('account.settings')" icon="i-lucide-settings-2" back-to="/account" :back-label="t('nav.account')" />
     <SharedPropertiesPanel v-if="me" :title="t('account.identity')">
       <SharedPropertyRow :label="t('auth.username')"><bdi dir="ltr">{{ me.login }}</bdi></SharedPropertyRow>

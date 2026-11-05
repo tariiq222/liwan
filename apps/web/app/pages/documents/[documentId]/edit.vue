@@ -33,7 +33,7 @@ async function save() {
 }
 </script>
 <template>
-  <SharedPageContainer width="form">
+  <SharedPageContainer>
     <SharedPageHeader :title="t('documents.edit')" :back-to="backTo" />
     <SharedPageState :loading="query.isLoading.value" :error="pageError" @retry="query.refetch">
       <SharedForbiddenState v-if="document && !document.allowed_actions.update" />

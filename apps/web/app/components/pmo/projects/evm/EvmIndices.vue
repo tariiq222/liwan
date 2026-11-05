@@ -17,7 +17,7 @@ const isIndex = (key: string) => key === 'tcpi'
 
 <template>
   <div class="space-y-(--liwan-gap-card)">
-    <div class="grid gap-(--liwan-gap-card) sm:grid-cols-2">
+    <div class="liwan-auto-grid gap-(--liwan-gap-card)">
       <SharedMetricTile
         v-for="[key, icon, value] in ([['spi', 'i-lucide-calendar-clock', evm.spi], ['cpi', 'i-lucide-wallet', evm.cpi]] as const)"
         :key="key"

@@ -128,7 +128,7 @@ async function submit() {
   <UForm :state="{ employeeId, departureDate, reasonId, description }" class="liwan-form" method="post" :loading-auto="false" novalidate @submit="submit">
     <UAlert v-if="formError" role="alert" color="error" variant="subtle" :title="t(`${namespace}.form.saveError`)" :description="errorMessage" />
     <SharedFormSection panel :title="t(`${namespace}.departures.title`)">
-      <div class="liwan-form-grid">
+      <div class="liwan-auto-grid">
         <UFormField v-if="!departure" :label="t(`${namespace}.form.employee`)" name="hr-departure-employee" required :error="fieldError('employee_id')">
           <USelect
             id="hr-departure-employee"
@@ -163,7 +163,7 @@ async function submit() {
             @update:model-value="planId = !$event || $event === 'none' ? null : Number($event)"
           />
         </UFormField>
-        <UFormField :label="t(`${namespace}.form.description`)" name="hr-departure-description" class="md:col-span-2">
+        <UFormField :label="t(`${namespace}.form.description`)" name="hr-departure-description" class="liwan-span-full">
           <UTextarea v-model="description" class="w-full" :rows="3" :disabled="!canManage || !hydrated || pending" />
         </UFormField>
         <UFormField v-if="!departure" :label="t(`${namespace}.form.setContractEnd`)" name="hr-departure-contract-end">

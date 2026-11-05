@@ -31,7 +31,7 @@ const meta = {
   render: args => ({
     components: { PayrollPostingPreview, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="liwan-shell-main"><PageContainer width="full"><PayrollPostingPreview v-bind="args" /></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer><PayrollPostingPreview v-bind="args" /></PageContainer></main>',
   }),
 } satisfies Meta<typeof PayrollPostingPreview>
 

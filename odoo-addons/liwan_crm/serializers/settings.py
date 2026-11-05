@@ -1,5 +1,13 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.addons.liwan_api.controllers.common import ApiError
+from odoo.addons.liwan_api.serializers.properties import (
+    MAX_LABEL,
+    MAX_OPTIONS,
+    MAX_PROPERTIES,
+    PROPERTY_TYPES,
+    dump_definition,
+    parse_definition,
+)
 from odoo.addons.liwan_crm.models.crm_settings import (
     AFTER_ATTEMPTS,
     DISTRIBUTION_MODES,
@@ -26,7 +34,7 @@ ENUMS = {
 BOOLEANS = ('recycle_enabled', 'view_log_enabled', 'discount_allowed')
 # Plain fields a values patch may carry; `preset` changes only through a preset patch.
 SCALAR_FIELDS = (*RANGES, *ENUMS, *BOOLEANS)
-WRITABLE = (*SCALAR_FIELDS, 'terms', 'distribution_user_ids')
+WRITABLE = (*SCALAR_FIELDS, 'terms', 'distribution_user_ids', 'lead_properties')
 
 
 def dump_terms(effective):
@@ -43,13 +51,14 @@ def dump_terms(effective):
     }
 
 
-def dump_settings(effective, revision, users):
+def dump_settings(effective, revision, users, lead_properties_definition):
     """The settings wire shape: values (terms nested), the allowed options, the revision and the names of the
     distribution agents (`users` is their recordset; the names are read here, never stored)."""
     values = {name: effective[name] for name in (
         'preset', *SCALAR_FIELDS, 'distribution_user_ids',
     )}
     values['terms'] = dump_terms(effective)
+    values['lead_properties'] = dump_definition(lead_properties_definition)
     return {
         'values': values,
         'distribution_users': [{'id': user.id, 'name': user.name} for user in users],
@@ -64,13 +73,18 @@ def dump_options():
         **{name: list(options) for name, options in ENUMS.items()},
         'term_gender': list(TERM_GENDERS),
         **{name: {'min': low, 'max': high} for name, (low, high) in RANGES.items()},
+        'property_types': list(PROPERTY_TYPES),
+        'property_limits': {
+            'max_properties': MAX_PROPERTIES, 'max_options': MAX_OPTIONS, 'max_label': MAX_LABEL,
+        },
     }
 
 
-def parse_settings_patch(payload):
-    """Validate a PATCH body into `{'revision', 'vals', 'user_ids'}`.
+def parse_settings_patch(payload, current_definition):
+    """Validate a PATCH body into `{'revision', 'vals', 'user_ids', 'lead_properties'}`.
 
-    `vals` holds flat model fields; `user_ids` is the new agent pool or None when untouched.
+    `vals` holds flat model fields; `user_ids` is the new agent pool or None when untouched;
+    `lead_properties` is the validated engine definition to install, or None when untouched.
     """
     unknown = sorted(set(payload) - {'revision', 'values', 'preset'})
     if unknown:
@@ -84,7 +98,10 @@ def parse_settings_patch(payload):
         preset = payload['preset']
         if preset not in PRESETS:
             raise ApiError(422, 'invalid', 'unknown preset', field='preset')
-        return {'revision': revision, 'vals': {**PRESETS[preset], 'preset': preset}, 'user_ids': None}
+        return {
+            'revision': revision, 'vals': {**PRESETS[preset], 'preset': preset},
+            'user_ids': None, 'lead_properties': None,
+        }
     values = payload['values']
     if not isinstance(values, dict) or not values:
         raise ApiError(422, 'invalid', 'values must be a non-empty object', field='values')
@@ -97,7 +114,15 @@ def parse_settings_patch(payload):
             vals[name] = _parse_scalar(name, values[name])
     if 'terms' in values:
         vals.update(_parse_terms(values['terms']))
-    return {'revision': revision, 'vals': vals, 'user_ids': _parse_user_ids(values.get('distribution_user_ids'))}
+    return {
+        'revision': revision,
+        'vals': vals,
+        'user_ids': _parse_user_ids(values.get('distribution_user_ids')),
+        'lead_properties': (
+            parse_definition(values['lead_properties'], 'lead_properties', current_definition)
+            if 'lead_properties' in values else None
+        ),
+    }
 
 
 def _parse_scalar(name, value):

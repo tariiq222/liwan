@@ -50,7 +50,7 @@ async function submit() {
 </script>
 
 <template>
-  <form class="flex flex-col gap-4" novalidate data-testid="inbox-catalog-connect" @submit.prevent="submit">
+  <form class="liwan-form" novalidate data-testid="inbox-catalog-connect" @submit.prevent="submit">
     <SharedUnsavedChanges :dirty="dirty" />
     <UFormField :label="t('inbox.catalog.connect.channel')" :description="t('inbox.catalog.connect.channelHint')" required :error="fieldError('channel_id', 'channel')">
       <USelect v-model="channelId" :items="channelItems" class="w-full" :placeholder="t('inbox.catalog.connect.pickChannel')" :disabled="off" data-testid="inbox-catalog-channel" />

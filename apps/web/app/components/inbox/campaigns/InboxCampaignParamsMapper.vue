@@ -17,8 +17,8 @@ const slotLabel = (row: ParamRow) => {
 <template>
   <div class="flex flex-col gap-3" data-testid="inbox-campaign-params">
     <p v-if="!rows.length" class="text-sm text-muted" data-testid="inbox-campaign-params-none">{{ t('inbox.campaigns.params.none') }}</p>
-    <SharedSubCard v-for="row in rows" :key="paramKey(row)" class="grid gap-3 sm:grid-cols-2" :data-testid="`inbox-campaign-param-${paramKey(row).replace(':', '-')}`">
-      <p class="text-sm font-medium text-highlighted sm:col-span-2">{{ slotLabel(row) }}</p>
+    <SharedSubCard v-for="row in rows" :key="paramKey(row)" class="liwan-auto-grid gap-3" :data-testid="`inbox-campaign-param-${paramKey(row).replace(':', '-')}`">
+      <p class="text-sm font-medium text-highlighted liwan-span-full">{{ slotLabel(row) }}</p>
       <UFormField :label="t('inbox.campaigns.params.sourceLabel')">
         <USelect v-model="row.source" :items="sourceItems" class="w-full" :disabled="props.disabled" :aria-label="`${slotLabel(row)}: ${t('inbox.campaigns.params.sourceLabel')}`" />
       </UFormField>

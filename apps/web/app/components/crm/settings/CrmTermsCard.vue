@@ -32,7 +32,7 @@ const preview = (key: 'customer' | 'opportunity' | 'package') => {
 
 <template>
   <SharedSettingsCard id="terms" v-bind="state" :title="t('crm.settings.terms.title')" :description="t('crm.settings.terms.hint')" :can-edit="canEdit" @save="save" @revert="revert" @reload="reload">
-    <fieldset v-for="group in groups" :key="group.key" class="grid gap-3 not-first:border-t not-first:border-default not-first:pt-4 sm:grid-cols-2">
+    <fieldset v-for="group in groups" :key="group.key" class="liwan-auto-grid gap-3 not-first:border-t not-first:border-default not-first:pt-4">
       <legend class="mb-2 text-sm font-medium text-highlighted">{{ group.label }}</legend>
       <UFormField :label="t('crm.settings.terms.arSingular')" :name="`${group.key}-ar-singular`">
         <UInput :id="`${group.key}-ar-singular`" v-model="draft.terms[group.key].ar.singular" class="w-full" :maxlength="60" :disabled="locked" />

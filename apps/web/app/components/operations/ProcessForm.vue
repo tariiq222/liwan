@@ -98,7 +98,7 @@ async function reload() {
 }
 </script>
 <template>
-  <form class="space-y-6" novalidate @submit.prevent="submit">
+  <form class="liwan-form" novalidate @submit.prevent="submit">
     <SharedUnsavedChanges :dirty="dirty" />
     <UAlert v-if="process?.state === 'published'" color="warning" :title="t('operations.editPublishedNotice')" />
     <SharedFormSection panel :title="t('operations.processInformation')">

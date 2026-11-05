@@ -82,7 +82,7 @@ async function submit() {
     <UButton v-if="conflict" color="neutral" variant="outline" :label="t('hrPayroll.revision.reload')" :loading="reloading" :disabled="!hydrated || reloading" data-testid="hr-payroll-settings-reload" @click="reload" />
     <UAlert v-if="reloadFailure" role="alert" color="error" variant="subtle" :title="t('hrPayroll.revision.reloadError')" />
     <SharedFormSection panel :title="t('hrPayroll.settings.generalTitle')" :description="t('hrPayroll.settings.generalHint')">
-      <div class="liwan-form-grid">
+      <div class="liwan-auto-grid">
         <UFormField :label="t('hrPayroll.settings.dayDivisor')" name="hr-payroll-divisor" :help="t('hrPayroll.settings.dayDivisorHint')" :error="fieldError('day_divisor')">
           <USelect id="hr-payroll-divisor" v-model="dayDivisor" class="w-full" :items="divisorOptions" :disabled="locked" data-testid="hr-payroll-divisor" />
         </UFormField>

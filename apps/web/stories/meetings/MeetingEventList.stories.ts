@@ -21,7 +21,7 @@ type Story = StoryObj<typeof meta>
 const render: Story['render'] = args => ({
   components: { MeetingEventList, PageContainer },
   setup: () => ({ args }),
-  template: '<main class="liwan-shell-main"><PageContainer width="detail"><MeetingEventList v-bind="args" /></PageContainer></main>',
+  template: '<main class="liwan-shell-main"><PageContainer><MeetingEventList v-bind="args" /></PageContainer></main>',
 })
 
 export const Populated: Story = {

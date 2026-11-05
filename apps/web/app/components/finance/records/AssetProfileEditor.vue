@@ -40,8 +40,8 @@ async function submit() {
 <template>
   <UForm :state="draft" class="liwan-form" method="post" :loading-auto="false" novalidate data-testid="finance-record-asset-profile-form" @submit="submit">
     <UAlert v-if="failure" role="alert" color="error" variant="subtle" :title="t('financeRecords.saveError')" :description="saveErrorMessage(failure, t('errors.generic'), t('errors.saveUncertain'))" />
-    <div class="liwan-form-grid">
-      <UFormField :label="t('financeRecords.assetProfiles.form.name')" name="finance-record-asset-profile-name" required class="sm:col-span-2">
+    <div class="liwan-auto-grid">
+      <UFormField :label="t('financeRecords.assetProfiles.form.name')" name="finance-record-asset-profile-name" required class="liwan-span-full">
         <UInput id="finance-record-asset-profile-name" v-model="draft.name" class="w-full" :disabled="!hydrated" required />
       </UFormField>
       <UFormField :label="t('financeRecords.assetProfiles.form.method')" name="finance-record-asset-profile-method" required>
@@ -56,7 +56,7 @@ async function submit() {
       <UFormField :label="t('financeRecords.assetProfiles.form.methodPeriod')" name="finance-record-asset-profile-period" required>
         <USelect id="finance-record-asset-profile-period" v-model="draft.methodPeriod" class="w-full" :items="periodItems" :disabled="!hydrated" />
       </UFormField>
-      <UFormField name="finance-record-asset-profile-prorata" class="sm:col-span-2">
+      <UFormField name="finance-record-asset-profile-prorata" class="liwan-span-full">
         <UCheckbox v-model="draft.prorata" :label="t('financeRecords.assetProfiles.form.prorata')" :disabled="!hydrated" />
       </UFormField>
       <UFormField :label="t('financeRecords.assetProfiles.form.assetAccount')" name="finance-record-asset-profile-asset" required>

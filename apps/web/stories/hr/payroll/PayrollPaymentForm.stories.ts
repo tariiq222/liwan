@@ -22,7 +22,7 @@ const meta = {
   render: args => ({
     components: { PayrollPaymentForm, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="liwan-shell-main"><PageContainer width="full"><PayrollPaymentForm v-bind="args" /></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer><PayrollPaymentForm v-bind="args" /></PageContainer></main>',
   }),
 } satisfies Meta<typeof PayrollPaymentForm>
 

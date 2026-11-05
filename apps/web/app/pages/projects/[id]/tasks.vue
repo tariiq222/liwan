@@ -105,10 +105,10 @@ function columnCreateTo(column: { state?: TaskState; stageId?: number }) {
 
 <template>
   <template v-if="isListRoute">
-    <SharedPageContainer v-if="!canRead" width="list">
+    <SharedPageContainer v-if="!canRead">
       <SharedForbiddenState />
     </SharedPageContainer>
-    <SharedPageContainer v-else-if="notFound || error" width="list">
+    <SharedPageContainer v-else-if="notFound || error">
       <ProjectNotFoundState v-if="notFound" embedded :back-to="projectReturnTo" />
       <SharedPageState v-else :error="error" @retry="refetch" />
     </SharedPageContainer>

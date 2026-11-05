@@ -64,7 +64,7 @@ function addDeliverable() {
         class="grid gap-3"
         :data-testid="`charter-objective-${index}`"
       >
-        <div class="grid gap-3 md:grid-cols-3">
+        <div class="liwan-auto-grid gap-3">
           <UFormField :label="t('projects.charter.fields.objectiveGoal')">
             <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.objectiveGoal'))" :text="t('projects.charter.help.objectiveGoal')" /></template>
             <UInput

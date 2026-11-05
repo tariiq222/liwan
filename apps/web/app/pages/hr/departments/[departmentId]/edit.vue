@@ -13,7 +13,7 @@ const backTo = computed(() => ({ path: `/hr/departments/${id.value}`, query: hrD
 function saved() { void navigateTo(backTo.value) }
 </script>
 <template>
-  <SharedPageContainer width="form">
+  <SharedPageContainer>
     <SharedPageHeader :title="t('hr.depts.edit')" :back-to="backTo" />
     <SharedForbiddenState v-if="!canManage" />
     <SharedPageState v-else :loading="query.isLoading.value || departments.isLoading.value || employees.isLoading.value" :error="initialDataReady ? undefined : dependencyError" :empty="!department" @retry="retryDependencies">

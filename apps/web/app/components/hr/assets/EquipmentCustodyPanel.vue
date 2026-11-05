@@ -46,7 +46,7 @@ function assign() {
         :value="props.equipment.employee && props.equipment.assign_date ? formatDate(props.equipment.assign_date) : t('hrAssets.custody.never')"
       />
     </SharedPropertiesPanel>
-    <div v-if="props.canManage && !props.equipment.employee" class="mt-4 grid gap-4 sm:grid-cols-2">
+    <div v-if="props.canManage && !props.equipment.employee" class="mt-4 liwan-auto-grid gap-4">
       <UFormField :label="t('hrAssets.custody.employee')" for="hr-asset-assign-employee">
         <USelect
           id="hr-asset-assign-employee"
@@ -62,7 +62,7 @@ function assign() {
       <UFormField :label="t('hrAssets.custody.date')" for="hr-asset-assign-date">
         <SharedDateField id="hr-asset-assign-date" v-model="assignDate" :disabled="!hydrated || props.pending" />
       </UFormField>
-      <div class="sm:col-span-2">
+      <div class="liwan-span-full">
         <UButton
           color="primary"
           :disabled="!hydrated || !canAssign"

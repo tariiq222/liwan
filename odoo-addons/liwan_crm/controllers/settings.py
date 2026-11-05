@@ -41,7 +41,7 @@ class CrmSettingsController(http.Controller):
     @requires_feature('crm.enabled', operation='write')
     @requires_capability('crm.settings.manage')
     def patch_settings(self, **payload):
-        parsed = parse_settings_patch(payload)
+        parsed = parse_settings_patch(payload, _lead_properties_definition())
         vals = parsed['vals']
         if parsed['user_ids'] is not None:
             vals['distribution_user_ids'] = [Command.set(_existing_company_users(parsed['user_ids']))]
@@ -52,6 +52,8 @@ class CrmSettingsController(http.Controller):
             raise ApiError(409, 'conflict', STALE)
         try:
             with request.env.cr.savepoint():
+                if parsed['lead_properties'] is not None:
+                    request.env['res.company']._liwan_set_lead_properties_definition(parsed['lead_properties'])
                 if row:
                     row.write({**vals, 'revision': revision + 1})
                 else:
@@ -61,12 +63,16 @@ class CrmSettingsController(http.Controller):
         return _dump_current()
 
 
+def _lead_properties_definition():
+    return request.env['res.company']._liwan_lead_properties_definition()
+
+
 def _dump_current():
     model = request.env['liwan.crm.settings']
     row = model._liwan_current()
     effective = model._liwan_effective()
     users = request.env['res.users'].browse(effective['distribution_user_ids'])
-    return dump_settings(effective, row.revision if row else 0, users)
+    return dump_settings(effective, row.revision if row else 0, users, _lead_properties_definition())
 
 
 def _existing_company_users(user_ids):

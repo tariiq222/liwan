@@ -24,7 +24,7 @@ function pick(value: string) {
 </script>
 
 <template>
-  <SharedPageContainer width="list" data-template="timeline-frame">
+  <SharedPageContainer data-template="timeline-frame">
     <SharedPageHeader :title="props.title" :hide-title="props.hideHeader">
       <template v-if="$slots.actions" #actions>
         <slot name="actions" />

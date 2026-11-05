@@ -230,7 +230,7 @@ function openLiveTask(_event: MouseEvent, task: (typeof items.value)[number]) { 
           <UButton v-if="state.q || state.scope !== 'all'" type="button" color="neutral" variant="outline" :label="t('filterCard.clear')" :disabled="!hydrated" @click="clearFilters" />
           <UButton v-else :to="createTo" icon="i-lucide-plus" :label="t('myTasks.new')" />
         </template>
-        <ul ref="cardList" class="grid min-w-0 gap-4 p-(--liwan-card-pad-dense) sm:grid-cols-2 xl:grid-cols-3" :aria-label="t('myTasks.title')" data-testid="my-tasks-cards">
+        <ul ref="cardList" class="liwan-card-grid min-w-0 gap-4 p-(--liwan-card-pad-dense)" :aria-label="t('myTasks.title')" data-testid="my-tasks-cards">
           <SharedSubCard v-for="(task, index) in items" :key="`${task.source}:${task.id}`" as="li" data-shortcut-row :data-row-index="index" tabindex="-1" class="outline-none focus-visible:ring-2 focus-visible:ring-primary">
             <MyTaskRow :task="task" :to="rowTo(task)" :today="today" part="card" @open="openLiveTask" />
           </SharedSubCard>

@@ -44,7 +44,7 @@ type Story = StoryObj<typeof meta>
 const render: Story['render'] = args => ({
   components: { MeetingMinutesDocument, PageContainer },
   setup: () => ({ args }),
-  template: '<main class="liwan-shell-main"><PageContainer width="detail"><MeetingMinutesDocument v-bind="args" /></PageContainer></main>',
+  template: '<main class="liwan-shell-main"><PageContainer><MeetingMinutesDocument v-bind="args" /></PageContainer></main>',
 })
 
 export const Structured: Story = {

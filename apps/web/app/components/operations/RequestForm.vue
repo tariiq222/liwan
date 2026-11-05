@@ -86,7 +86,7 @@ async function reload() {
 }
 </script>
 <template>
-  <form class="space-y-6" novalidate @submit.prevent="submit">
+  <form class="liwan-form" novalidate @submit.prevent="submit">
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedFormSection panel :title="t('operations.requestInformation')">
       <div class="grid gap-4">

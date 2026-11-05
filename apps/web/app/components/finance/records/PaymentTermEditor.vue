@@ -39,7 +39,7 @@ async function submit() {
 <template>
   <UForm :state="draft" class="liwan-form" method="post" :loading-auto="false" novalidate data-testid="finance-record-term-form" @submit="submit">
     <UAlert v-if="failure" role="alert" color="error" variant="subtle" :title="t('financeRecords.saveError')" :description="saveErrorMessage(failure, t('errors.generic'), t('errors.saveUncertain'))" />
-    <div class="liwan-form-grid">
+    <div class="liwan-auto-grid">
       <UFormField :label="t('financeRecords.paymentTerms.form.name')" name="finance-record-term-name" required>
         <UInput id="finance-record-term-name" v-model="draft.name" class="w-full" :disabled="!hydrated" required />
       </UFormField>
@@ -49,7 +49,7 @@ async function submit() {
     </div>
     <fieldset class="grid gap-3" :aria-describedby="'finance-record-term-total'">
       <legend class="text-sm font-semibold text-highlighted">{{ t('financeRecords.paymentTerms.form.lines') }}</legend>
-      <div v-for="(line, index) in draft.lines" :key="index" class="liwan-form-grid items-end" :data-testid="`finance-record-term-line-${index}`">
+      <div v-for="(line, index) in draft.lines" :key="index" class="liwan-auto-grid items-end" :data-testid="`finance-record-term-line-${index}`">
         <UFormField :label="t('financeRecords.paymentTerms.form.value')" :name="`finance-record-term-value-${index}`">
           <USelect :id="`finance-record-term-value-${index}`" v-model="line.value" class="w-full" :items="valueItems" :disabled="!hydrated" />
         </UFormField>

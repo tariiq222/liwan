@@ -11,7 +11,7 @@ const meta = {
   render: args => ({
     components: { LoadingSkeleton, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="liwan-shell-main"><PageContainer width="list"><LoadingSkeleton v-bind="args" /></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer><LoadingSkeleton v-bind="args" /></PageContainer></main>',
   }),
 } satisfies Meta<typeof LoadingSkeleton>
 export default meta

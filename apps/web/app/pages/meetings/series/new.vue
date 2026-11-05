@@ -120,7 +120,7 @@ function save() {
 
 <template>
   <SharedCreatePanel :title="t('meetingsUi.newSeries')" :back-to="backTo">
-    <form ref="formElement" novalidate class="grid gap-(--liwan-gap-card)" @submit.prevent="save">
+    <form ref="formElement" novalidate class="liwan-form" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
       <UAlert v-if="attemptedSubmit && Object.values(formErrors).filter(Boolean).length > 1" color="error" variant="subtle" role="alert" :title="t('meetingsUx.validationSummary', { count: Object.values(formErrors).filter(Boolean).length })" />
       <UAlert v-if="context" color="neutral" variant="subtle" icon="i-lucide-info" :title="t('meetingsUx.context.project', { name: context })" />

@@ -37,7 +37,7 @@ const items = computed(() => BRANCH_PRESETS.map(value => ({
     <URadioGroup
       v-model="draft.preset" variant="card" indicator="hidden" :items="items" :disabled="locked"
       :aria-label="t('access.branches.presets.title')" data-testid="branch-preset"
-      :ui="{ fieldset: 'grid grid-cols-1 sm:grid-cols-2' }"
+      :ui="{ fieldset: 'liwan-auto-grid' }"
     />
     <UAlert v-if="policy.preset === 'custom'" color="neutral" variant="subtle" :title="t('access.branches.presets.custom')" :description="t('access.branches.presets.customHint')" />
     <UAlert v-if="state.dirty" color="warning" variant="subtle" :title="t('access.branches.presets.confirm')" />

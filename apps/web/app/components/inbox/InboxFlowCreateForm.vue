@@ -69,7 +69,7 @@ defineExpose({ start, name, category, language, submit, build, serverError })
 </script>
 
 <template>
-  <form class="flex flex-col gap-4" novalidate data-testid="inbox-flow-create-form" @submit.prevent="submit">
+  <form class="liwan-form" novalidate data-testid="inbox-flow-create-form" @submit.prevent="submit">
     <UAlert v-if="serverError" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('inbox.flows.serverError')" :description="serverError.message" data-testid="inbox-flow-server-error" />
     <UFormField :label="t('inbox.flows.form.startFrom')" :description="t('inbox.flows.form.startFromHint')">
       <USelect v-model="start" :items="startItems" class="w-full" :disabled="off" data-testid="inbox-flow-start" />

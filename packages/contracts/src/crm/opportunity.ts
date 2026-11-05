@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { CustomFieldValuesSchema, CustomFieldWithValueSchema } from '../common/customFields'
+
 const NAME_MAX = 200
 const EMAIL_MAX = 254
 
@@ -36,6 +38,8 @@ export const CrmOpportunitySchema = z.strictObject({
   needs_manager: z.boolean(),
   active: z.boolean(),
   created_at: IsoDateTimeSchema,
+  // The company's custom fields, in its order, each with this opportunity's value.
+  properties: z.array(CustomFieldWithValueSchema),
 })
 
 export const CrmOpportunityListSchema = z.strictObject({
@@ -60,6 +64,8 @@ export const CrmOpportunityPatchSchema = z
     source_id: z.number().int().positive().nullable(),
     stage_id: z.number().int().positive(),
     probability: z.number().min(0).max(100),
+    // Only the custom fields this edit changes, keyed by the company definition's keys; null clears one.
+    properties: CustomFieldValuesSchema,
   })
   .partial()
   .refine((body) => Object.keys(body).length > 0, 'nothing to change')

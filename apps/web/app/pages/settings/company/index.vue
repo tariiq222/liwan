@@ -16,7 +16,7 @@ const { data: branding, isLoading: brandingLoading, error: brandingError, refetc
 </script>
 
 <template>
-  <SharedSettingsPage width="form">
+  <SharedSettingsPage>
     <SharedPageHeader :title="t('settings.sections.company.title')" />
     <SharedForbiddenState v-if="!parts.length" :description="t('settings.forbidden')" />
     <template v-else>

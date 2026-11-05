@@ -26,7 +26,7 @@ const meta = {
   render: args => ({
     components: { GosiStatementTable, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="liwan-shell-main"><PageContainer width="full"><GosiStatementTable v-bind="args" /></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer><GosiStatementTable v-bind="args" /></PageContainer></main>',
   }),
 } satisfies Meta<typeof GosiStatementTable>
 

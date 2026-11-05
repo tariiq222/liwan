@@ -1,6 +1,14 @@
 // Synthetic CRM for the isolated mock (MODULE_UI_PREVIEW=1): the settings, the terms and the five settings lists.
 // Shapes follow packages/contracts/src/crm. It keeps state, so the settings page can save against it; POST
 // /api/v1/__mock/reset-crm restores the seeds between spec runs. Revision conflicts answer 409 like the server.
+const SEED_PROPERTIES = [
+  { key: 'sector', label: 'القطاع', type: 'selection', options: [{ key: 'retail', label: 'تجزئة' }, { key: 'services', label: 'خدمات' }] },
+  { key: 'city', label: 'المدينة', type: 'char' },
+  { key: 'branch_count', label: 'عدد الفروع', type: 'integer' },
+  { key: 'decision_maker', label: 'صاحب القرار', type: 'boolean' },
+  { key: 'follow_up_on', label: 'موعد المتابعة', type: 'date' },
+  { key: 'interests', label: 'الاهتمامات', type: 'tags', options: [{ key: 'pricing', label: 'الأسعار' }, { key: 'support', label: 'الدعم' }] },
+]
 const seedSettings = () => ({
   revision: 0,
   values: {
@@ -23,6 +31,7 @@ const seedSettings = () => ({
       opportunity: { ar: { singular: 'فرصة', plural: 'فرص' }, en: { singular: 'opportunity', plural: 'opportunities' }, gender: 'f' },
       package: { ar: { singular: 'باقة', plural: 'باقات' }, en: { singular: 'plan', plural: 'plans' }, gender: 'f' },
     },
+    lead_properties: SEED_PROPERTIES,
   },
 })
 const OPTIONS = {
@@ -37,6 +46,8 @@ const OPTIONS = {
   recycle_after_days: { min: 1, max: 365 },
   recycle_cycles: { min: 0, max: 5 },
   discount_max_percent: { min: 0, max: 100 },
+  property_types: ['char', 'text', 'integer', 'float', 'boolean', 'date', 'datetime', 'selection', 'tags'],
+  property_limits: { max_properties: 50, max_options: 100, max_label: 64 },
 }
 const PRESETS = {
   general: { followup_attempts: 0, distribution_mode: 'manual' },
@@ -85,12 +96,31 @@ const seededCreatedAt = (id) => {
 }
 const ref = (rows, id) => { const row = rows.find(item => item.id === id); return row ? { id: row.id, name: row.name } : null }
 const mockUserRef = id => (id ? { id, name: USER_NAMES[id] ?? `#${id}` } : null)
+// A record's custom fields: the company definition in order, each field carrying the value given for its
+// key, or the empty value of its type (an empty tags list, an unchecked boolean, nothing for the rest).
+const emptyValue = field => (field.type === 'tags' ? [] : field.type === 'boolean' ? false : null)
+const propertiesOf = (definition, values = {}) => definition.map(field => ({
+  ...field, value: field.key in values ? values[field.key] : emptyValue(field),
+}))
+const valuesOf = properties => Object.fromEntries(properties.map(field => [field.key, field.value]))
+// A definition patch sends the whole ordered list: the server gives a new field, and a new option, its key.
+let nextPropertyKey = 1
+const serverKey = () => `p${nextPropertyKey++}`
+const withKeys = ({ key, options, ...field }) => ({
+  key: key ?? serverKey(), ...field, ...(options && { options: options.map(({ key, label }) => ({ key: key ?? serverKey(), label })) }),
+})
 const seedOpportunities = () => {
   const base = { email: '', lost_reason: null, package: null, list_price: 0, discount_percent: 0, final_price: 0, expected_revenue: 0, probability: 0, attempt_count: 0, next_call_at: null, cycle: 0, recycle_at: null, needs_manager: false, active: true, status: 'pending' }
-  const row = (id, contact_name, phone, stageId, userId, sourceId, extra = {}) => ({ ...base, id, contact_name, phone, stage: ref(seedLists().stages, stageId), user: mockUserRef(userId), source: ref(seedLists().sources, sourceId), created_at: seededCreatedAt(id), ...extra })
+  const row = (id, contact_name, phone, stageId, userId, sourceId, extra = {}) => ({
+    ...base, id, contact_name, phone, stage: ref(seedLists().stages, stageId), user: mockUserRef(userId), source: ref(seedLists().sources, sourceId),
+    properties: propertiesOf(SEED_PROPERTIES), created_at: seededCreatedAt(id), ...extra,
+  })
   return [
     row(1, 'أحمد العتيبي', '0501234567', 1, 2, 1, { attempt_count: 1, next_call_at: iso(-3), email: 'ahmad@example.com', probability: 25 }),
-    row(2, 'سارة القحطاني', '0507654321', 2, 2, 2, { attempt_count: 1, next_call_at: iso(20), probability: 50 }),
+    row(2, 'سارة القحطاني', '0507654321', 2, 2, 2, {
+      attempt_count: 1, next_call_at: iso(20), probability: 50,
+      properties: propertiesOf(SEED_PROPERTIES, { sector: 'retail', city: 'الرياض', branch_count: 3, decision_maker: true, follow_up_on: '2026-12-01', interests: ['pricing'] }),
+    }),
     row(3, 'محمد الدوسري', '0551112233', 3, 3, 1, { next_call_at: iso(48), probability: 75 }),
     row(4, 'نورة الزهراني', '0559988776', 1, null, 2),
     row(5, 'فهد الحربي', '0533344556', 4, 2, 1, { status: 'won', package: { id: 1, name: 'باقة أساسية' }, list_price: 120, discount_percent: 10, final_price: 108, expected_revenue: 108 }),
@@ -128,7 +158,6 @@ const merge = (base, patch) => Object.fromEntries(Object.entries(base).map(([key
   key,
   patch[key] === undefined ? value : (value && typeof value === 'object' && !Array.isArray(value) ? merge(value, patch[key]) : patch[key]),
 ]))
-
 const page = (rows, url) => {
   const offset = Number(url.searchParams.get('offset') ?? 0)
   const limit = Number(url.searchParams.get('limit') ?? 20)
@@ -178,6 +207,7 @@ export function crmPreviewWrite(method, path, body) {
     batches = []
     mappings = []
     closedAt = seedClosedAt()
+    nextPropertyKey = 1
     return { status: 200, body: { reset: true } }
   }
   const opportunityWrite = crmOpportunityWrite(method, path, body)
@@ -187,7 +217,16 @@ export function crmPreviewWrite(method, path, body) {
   if (method === 'PATCH' && path === '/api/v1/crm/settings') {
     if (body.revision !== settings.revision) return stale
     const values = body.preset ? { ...PRESETS[body.preset], preset: body.preset } : body.values
-    settings = { revision: settings.revision + 1, values: merge(settings.values, values) }
+    const saved = { revision: settings.revision + 1, values: merge(settings.values, values) }
+    // A definition patch sends the whole list: every record of the company then carries the new fields.
+    if (values.lead_properties) {
+      saved.values.lead_properties = values.lead_properties.map(withKeys)
+      opportunities = opportunities.map(opportunity => ({
+        ...opportunity,
+        properties: propertiesOf(saved.values.lead_properties, valuesOf(opportunity.properties)),
+      }))
+    }
+    settings = saved
     return { status: 200, body: dumpSettings() }
   }
   const stagesOrder = path === '/api/v1/crm/stages/order'
@@ -251,7 +290,7 @@ function crmOpportunityWrite(method, path, body) {
       id: Math.max(0, ...opportunities.map(item => item.id)) + 1, contact_name: body.contact_name, phone: body.phone, email: body.email ?? '',
       stage: ref(lists.stages, firstStage().id), user: mockUserRef('user_id' in body ? body.user_id : 2), source: ref(lists.sources, body.source_id),
       package: null, lost_reason: null, status: 'pending', list_price: 0, discount_percent: 0, final_price: 0, expected_revenue: 0, probability: 0, attempt_count: 0,
-      next_call_at: null, cycle: 0, recycle_at: null, needs_manager: false, active: true, created_at: iso(0),
+      next_call_at: null, cycle: 0, recycle_at: null, needs_manager: false, active: true, created_at: iso(0), properties: propertiesOf(settings.values.lead_properties),
     }
     opportunities.unshift(created)
     return { status: 200, body: created }
@@ -264,13 +303,18 @@ function crmOpportunityWrite(method, path, body) {
   if (method === 'PATCH' && !action) {
     if (lead.status !== 'pending') return closed
     if (body.phone && opportunities.some(item => item.id !== lead.id && item.phone === body.phone)) return invalid('phone', 'duplicate phone', 'duplicate_phone')
-    const { stage_id: stageId, source_id: sourceId, ...plain } = body
+    const { stage_id: stageId, source_id: sourceId, properties, ...plain } = body
     if (body.probability !== undefined && (typeof body.probability !== 'number' || !(body.probability >= 0 && body.probability <= 100))) return invalid('probability', 'must be a number from 0 to 100')
     if (stageId && !lists.stages.some(stage => stage.id === stageId)) return invalid('stage_id', 'stage does not exist')
     if (stageId && lists.stages.find(stage => stage.id === stageId).is_won) return invalid('stage_id', 'an opportunity is won through the sale action')
+    if (properties !== undefined) {
+      const unknown = Object.keys(properties).filter(key => !lead.properties.some(field => field.key === key))
+      if (unknown.length) return invalid('properties', 'unknown property')
+    }
     Object.assign(lead, plain)
     if (stageId) lead.stage = ref(lists.stages, stageId)
     if ('source_id' in body) lead.source = ref(lists.sources, sourceId)
+    if (properties !== undefined) lead.properties = lead.properties.map(field => (field.key in properties ? { ...field, value: properties[field.key] } : field))
     return { status: 200, body: lead }
   }
   if (method !== 'POST' || !action) return undefined
@@ -411,6 +455,7 @@ function commitImport(body, checked) {
       id: nextId, contact_name: item.name, phone: item.phone, email: item.email, stage: ref(lists.stages, firstStage().id), user: mockUserRef(agentId),
       source: ref(lists.sources, body.source_id), package: null, lost_reason: null, status: 'pending', list_price: 0, discount_percent: 0, final_price: 0,
       expected_revenue: 0, probability: 0, attempt_count: 0, next_call_at: null, cycle: 0, recycle_at: null, needs_manager: false, active: true, created_at: iso(0),
+      properties: propertiesOf(settings.values.lead_properties),
     })
   }
   const batch = {

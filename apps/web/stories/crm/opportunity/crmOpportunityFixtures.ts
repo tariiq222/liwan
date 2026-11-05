@@ -1,4 +1,13 @@
-import type { CrmCall, CrmLostReason, CrmOpportunity, CrmOutcome, CrmPackage, CrmStage } from '@liwan/contracts'
+import type { CrmCall, CrmLostReason, CrmOpportunity, CrmOutcome, CrmPackage, CrmStage, CustomFieldWithValue } from '@liwan/contracts'
+
+import { crmSettings } from '../settings/crmSettingsFixtures'
+
+// The company definition of the settings fixture, each field carrying this record's value or the empty one of its type.
+const withValues = (values: Record<string, CustomFieldWithValue['value']>): CustomFieldWithValue[] =>
+  crmSettings.values.lead_properties.map(field => ({
+    ...field,
+    value: values[field.key] ?? (field.type === 'tags' ? [] : field.type === 'boolean' ? false : null),
+  }))
 
 export const stages: CrmStage[] = [
   { id: 1, name: 'جديد', sequence: 10, is_won: false, active: true },
@@ -28,13 +37,33 @@ const base: CrmOpportunity = {
   id: 1, contact_name: 'أحمد العتيبي', phone: '0501234567', email: '', stage: { id: 1, name: 'جديد' }, user: { id: 3, name: 'ليلى الحربي' },
   source: { id: 1, name: 'الموقع' }, package: null, lost_reason: null, status: 'pending', list_price: 0, discount_percent: 0, final_price: 0, expected_revenue: 0,
   attempt_count: 0, next_call_at: null, cycle: 0, recycle_at: null, needs_manager: false, active: true, created_at: '2026-10-20T09:00:00Z',
+  properties: withValues({}),
 }
 
 export const opportunities: CrmOpportunity[] = [
   base,
   { ...base, id: 2, contact_name: 'سارة القحطاني', phone: '0507654321', stage: { id: 2, name: 'تم التواصل' }, next_call_at: '2026-10-29T09:00:00Z' },
   { ...base, id: 3, contact_name: 'نورة الزهراني', phone: '0559988776', user: null },
-  { ...base, id: 4, contact_name: 'عبدالله المطيري', phone: '0566677889', stage: { id: 3, name: 'مهتم' }, needs_manager: true, attempt_count: 3 },
+  {
+    ...base,
+    id: 4,
+    contact_name: 'عبدالله المطيري',
+    phone: '0566677889',
+    stage: { id: 3, name: 'مهتم' },
+    needs_manager: true,
+    attempt_count: 3,
+    properties: withValues({
+      sector: 'services',
+      city: 'الرياض',
+      branch_count: 4,
+      expected_budget: 45000.5,
+      decision_maker: true,
+      follow_up_on: '2026-11-02',
+      last_contact_at: '2026-10-28T11:30:00Z',
+      interests: ['pricing', 'support'],
+      notes: 'يفضّل التواصل بعد الظهر',
+    }),
+  },
   { ...base, id: 5, contact_name: 'فهد الحربي', phone: '0533344556', stage: { id: 4, name: 'تم البيع' }, status: 'won', package: { id: 1, name: 'باقة أساسية' }, list_price: 120, discount_percent: 10, final_price: 108 },
 ]
 

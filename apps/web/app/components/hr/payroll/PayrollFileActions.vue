@@ -40,7 +40,7 @@ function download(kind: Kind) {
 
 <template>
   <SharedFormSection class="liwan-print-hide" panel :title="t('hrPayroll.files.title')" :description="t('hrPayroll.files.hint')" data-testid="hr-payroll-files">
-    <div class="liwan-form-grid">
+    <div class="liwan-auto-grid">
       <UFormField :label="t('hrPayroll.files.bankProfile')" name="hr-payroll-file-bank-profile">
         <USelect id="hr-payroll-file-bank-profile" class="w-full" :items="items('bank')" :model-value="profileId('bank')" @update:model-value="chosen.bank = String($event)" :disabled="!hydrated || props.pending !== null" data-testid="hr-payroll-file-bank-profile" />
       </UFormField>

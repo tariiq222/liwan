@@ -15,7 +15,7 @@ type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   parameters: storyContext('apps/web/app/pages/hr/offboarding.vue:2'),
-  render: args => ({ components: { DepartureTable, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer width="list"><DepartureTable v-bind="args" /></PageContainer></main>' }),
+  render: args => ({ components: { DepartureTable, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer><DepartureTable v-bind="args" /></PageContainer></main>' }),
 }
 
 export const Empty: Story = { name: 'بلا سجلات', args: { departures: [] } }

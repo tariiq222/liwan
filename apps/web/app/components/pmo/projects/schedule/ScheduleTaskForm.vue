@@ -126,14 +126,14 @@ async function discard() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" guard-route-updates />
-  <form data-testid="project-task-schedule-form" class="space-y-6" @submit.prevent="save">
+  <form data-testid="project-task-schedule-form" class="liwan-form" @submit.prevent="save">
     <UAlert color="warning" variant="subtle" :title="t('projects.schedule.deadlineEffect')" />
     <UAlert v-if="props.canWrite === false" color="warning" variant="subtle" :title="t('projects.schedule.readOnly')" />
     <UAlert v-if="changed" role="alert" color="warning" variant="subtle" :title="t('projects.schedule.changed')">
       <template #actions><UButton type="button" color="neutral" variant="outline" :disabled="!hydrated || pending" @click="reload">{{ t('projects.schedule.reload') }}</UButton></template>
     </UAlert>
     <SharedInlineConfirm v-if="confirmDiscard" :title="t('app.unsavedChangesTitle')" :description="t('app.unsavedChanges')" :confirm-label="t(discardAction === 'reload' ? 'projects.schedule.reload' : 'projects.schedule.discard')" @confirm="discard" @cancel="confirmDiscard = false" />
-    <div class="grid gap-4 sm:grid-cols-2">
+    <div class="liwan-auto-grid gap-4">
       <UFormField :label="t('projects.schedule.start')">
         <SharedDateField
           :min-value="props.milestone?.start_date ?? props.projectStart"

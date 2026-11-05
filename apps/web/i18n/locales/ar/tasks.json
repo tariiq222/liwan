@@ -97,7 +97,7 @@
       "cancelTitle": "إلغاء تعديل العنوان",
       "workflowStage": "مرحلة سير العمل",
       "stageUnset": "غير محددة",
-      "primaryMetadata": "بيانات المهمة الأساسية",
+      "properties": "الخصائص",
       "sectionAssignment": "الإسناد والجدولة",
       "sectionOrganization": "التنظيم",
       "sections": "أقسام المهمة",
@@ -114,7 +114,6 @@
       "cancelLink": "إلغاء"
     },
     "drawer": {
-      "details": "التفاصيل",
       "deadlineTime": "وقت الموعد",
       "activity": "النشاط",
       "assignees": "المسؤولون",
@@ -129,7 +128,6 @@
       "addSubtask": "إضافة مهمة فرعية",
       "dependsOn": "تعتمد على",
       "attachments": "المرفقات",
-      "metrics": "المؤشرات",
       "age": "العمر",
       "cycle": "زمن الإنجاز",
       "days": "أقل من يوم | يوم واحد | يومان | {n} أيام | {n} يومًا | {n} يوم",

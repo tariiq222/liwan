@@ -12,5 +12,5 @@ export default meta
 type Story = StoryObj<typeof meta>
 export const Default: Story = {
   parameters: storyContext('apps/web/app/pages/documents/[documentId].vue:86'),
-  render: args => ({ components: { DocumentReader, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer width="form"><DocumentReader v-bind="args" /></PageContainer></main>' }),
+  render: args => ({ components: { DocumentReader, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer><DocumentReader v-bind="args" /></PageContainer></main>' }),
 }

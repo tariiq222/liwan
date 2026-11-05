@@ -13,7 +13,8 @@ import pytest
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
-from liwan_ai_service.store import open_state
+from liwan_ai_service.control import open_control
+from liwan_ai_service.store import initialize_tenant
 
 pytestmark = pytest.mark.skipif(os.environ.get("AI_DURABLE_RELEASE_TEST") != "1", reason="explicit local scratch acceptance only")
 TOKEN = "synthetic-durable-test-token-" * 2
@@ -23,7 +24,7 @@ import asyncio, importlib.util, json, os, sys
 from pathlib import Path
 import liwan_ai_service
 import liwan_ai_service.contracts
-for name in ('settings', 'store', 'service'):
+for name in ('settings', 'control', 'store', 'service'):
     path = Path(os.environ['AI_TEST_SOURCE_DIR']) / (name+'.py')
     spec = importlib.util.spec_from_file_location('liwan_ai_service.'+name, path)
     module = importlib.util.module_from_spec(spec)
@@ -31,19 +32,19 @@ for name in ('settings', 'store', 'service'):
     setattr(liwan_ai_service, name, module)
     spec.loader.exec_module(module)
 import httpx
-from liwan_ai_service.service import create_app
+from liwan_ai_service.service import close_runtime_state, create_app, open_runtime_state
 from liwan_ai_service.settings import Settings
-from liwan_ai_service.store import open_state
 from tests.fakes import ScriptedChatModel, ai_text
-from tests.test_service import BODY, HEADERS, fresh
+from tests.test_service import HEADERS, fresh
 async def main():
     token = 'synthetic-durable-test-token-' * 2
     admin = {'x-liwan-service-token':token}
-    store, checkpoints, close = await open_state(os.environ['AI_TEST_DATABASE_URL'])
     settings = Settings.from_env({'AI_PROVIDER':'ollama', 'AI_MODEL':'scripted',
-        'AI_DATABASE_URL':os.environ['AI_TEST_DATABASE_URL'], 'AI_SERVICE_TOKEN':token,
-        'AI_GENERATION_ID':sys.argv[2]})
-    app = create_app(ScriptedChatModel([ai_text('done')], title_responses=[ai_text('title')]), store, checkpoints, settings)
+        'AI_DATABASE_URL':os.environ['AI_TEST_DATABASE_URL'], 'AI_SERVICE_TOKEN':token, 'AI_GENERATION_ID':sys.argv[2],
+        'LIWAN_TENANCY_MODE':'shared', 'LIWAN_TENANT_REGISTRY_PATH':os.environ['LIWAN_TENANT_REGISTRY_PATH']})
+    model = ScriptedChatModel([ai_text('done')], title_responses=[ai_text('title')])
+    states, control = await open_runtime_state(model, settings)
+    app = create_app(model, states, control, settings)
     try:
         if sys.argv[1] == 'serve':
             import uvicorn
@@ -52,7 +53,7 @@ async def main():
             while not server.started:
                 if task.done(): await task
                 await asyncio.sleep(0.01)
-            print(json.dumps({'port':server.servers[0].sockets[0].getsockname()[1], 'state_id':store.state_id}), flush=True)
+            print(json.dumps({'port':server.servers[0].sockets[0].getsockname()[1], 'state_id':control.state_id}), flush=True)
             await task
         else:
             async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url='http://ai') as client:
@@ -64,13 +65,13 @@ async def main():
                 print(json.dumps({'evidence':ready, 'start_status':result.status_code}))
     finally:
         await app.state.drain()
-        await close()
+        await close_runtime_state(states, control)
 asyncio.run(main())
 """
 
 
 @pytest.fixture
-async def scratch_states():
+async def scratch_states(tmp_path):
     database_url = os.environ["AI_TEST_DATABASE_URL"]
     config = conninfo_to_dict(database_url)
     if not config.get("dbname", "").startswith("liwan_scratch_") or config.get("host") not in ("127.0.0.1", "localhost", "::1"):
@@ -80,12 +81,20 @@ async def scratch_states():
     schemas = [f"release_durable_1016_{suffix}_{name}" for name in ("a", "b")]
     states = []
     try:
+        # Both runtimes of this proof serve one tenant database: the runtime resolves t1 through the registry.
+        await conn.execute("CREATE SCHEMA IF NOT EXISTS liwan_ai")
+        await initialize_tenant(make_conninfo(database_url, options="-c search_path=liwan_ai"))
+        registry = tmp_path / "tenants.json"
+        registry.write_text(
+            json.dumps({"schemaVersion": 1, "snapshotRevision": 1, "targets": [{"tenantId": "t1", "database": config["dbname"], "enabled": True}]}),
+            encoding="utf-8",
+        )
         for schema in schemas:
             await conn.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema)))
             scoped = make_conninfo(database_url, options=f"-c search_path={schema}")
-            store, _, close = await open_state(scoped, initialize=True)
-            states.append({"url": scoped, "state_id": store.state_id, "schema": schema})
-            await close()
+            control = await open_control(scoped, initialize=True)
+            states.append({"url": scoped, "state_id": control.state_id, "schema": schema, "registry": str(registry)})
+            await control.aclose()
         assert states[0]["state_id"] != states[1]["state_id"]
         yield states
     finally:
@@ -100,6 +109,8 @@ def child_env(state):
     return {
         **os.environ,
         "AI_TEST_DATABASE_URL": state["url"],
+        "LIWAN_TENANCY_MODE": "shared",
+        "LIWAN_TENANT_REGISTRY_PATH": state["registry"],
         "AI_TEST_SOURCE_DIR": str(Path(__file__).resolve().parents[1] / "src/liwan_ai_service"),
         "PYTHONPATH": os.pathsep.join((str(Path(liwan_ai_service.__file__).parent.parent), str(Path(tests.__file__).parent.parent))),
     }

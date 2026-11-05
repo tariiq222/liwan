@@ -236,7 +236,7 @@ async function submit() {
               data-testid="hr-asset-edit-name"
             />
           </UFormField>
-          <div class="grid gap-4 sm:grid-cols-2">
+          <div class="liwan-auto-grid gap-4">
             <UFormField :label="t('hrAssets.columns.category')" name="hr-asset-edit-category">
               <USelect
                 id="hr-asset-edit-category"
@@ -253,7 +253,7 @@ async function submit() {
               <SharedDateField id="hr-asset-edit-warranty" v-model="form.warrantyDate" :disabled="!hydrated || !canManage || writing" />
             </UFormField>
           </div>
-          <div class="grid gap-4 sm:grid-cols-2">
+          <div class="liwan-auto-grid gap-4">
             <UFormField :label="t('hrAssets.form.serialNo')" name="hr-asset-edit-serial">
               <UInput id="hr-asset-edit-serial" v-model="form.serialNo" class="w-full" :disabled="!hydrated || !canManage || writing" data-testid="hr-asset-edit-serial" />
             </UFormField>

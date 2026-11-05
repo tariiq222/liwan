@@ -13,10 +13,10 @@ import StateMenu from './StateMenu.vue'
 import TaskCompletionApproval from './TaskCompletionApproval.vue'
 import TaskDetails from './TaskDetails.vue'
 import TaskProperties from './TaskProperties.vue'
+import TaskTitleEditor from './TaskTitleEditor.vue'
 
-// Container-agnostic body: a compact task context row followed by section
-// tabs. The page wrapper owns the shell title so this component stays focused
-// on task data, editing, activity, and navigation.
+// The task record: the heading carries the editable name, the state menu and the deadline; the main
+// column holds approval, description, work tabs and activity; the properties sit in the record aside.
 // basePath routes prev/next within the host's own URL space (default /tasks,
 // مهامي's own list). siblingParams lets a host that keeps its filters in the
 // URL (the project screen) drive prev/next from those instead of the
@@ -94,7 +94,8 @@ function onKeydown(e: KeyboardEvent) {
 
 useEventListener(document, 'keydown', onKeydown)
 const title = computed(() => task.value?.name ?? t('tasks.detail.pageLabel'))
-// The task's context sits in the heading: its project (a link), the workflow stage and the deadline. The deadline is the
+// The task's context sits in the heading as short facts: the project, but only on the plain `/tasks`
+// host because inside a project its frame already names the project, and the deadline. The deadline is the
 // same tag the lists draw (DESIGN.md: overdue danger, today warning, a future date success, closed neutral, none no tag),
 // counted from the instant the Deadline property prints so the tag and the date cannot disagree.
 const headerTags = computed<PageHeaderTag[]>(() => {
@@ -102,8 +103,7 @@ const headerTags = computed<PageHeaderTag[]>(() => {
   if (!current) return []
   const deadline = deadlineTagView(current, t)
   return [
-    ...(current.project ? [{ label: current.project.name, icon: 'i-lucide-folder-kanban', to: `/projects/${current.project.id}`, testId: 'task-detail-context', kind: 'project' as const }] : []),
-    { label: `${t('tasks.detail.workflowStage')}: ${current.stage?.name ?? t('tasks.detail.stageUnset')}`, icon: 'i-lucide-git-commit-horizontal', kind: 'category' },
+    ...(current.project && props.basePath === '/tasks' ? [{ label: current.project.name, icon: 'i-lucide-folder-kanban', to: `/projects/${current.project.id}`, testId: 'task-detail-context', kind: 'project' as const }] : []),
     ...(deadline ? [{ ...statusTag({ tone: deadline.tone, label: deadline.label }, 'deadline-badge'), icon: deadline.icon }] : []),
   ]
 })
@@ -112,18 +112,25 @@ const headerTags = computed<PageHeaderTag[]>(() => {
 <template>
   <SharedRecordPage
     :title="title"
-    :tags="headerTags"
     :back-to="archiveConfirmOpen ? undefined : backTo"
     :back-label="props.backLabel ?? t('tasks.detail.back')"
     :loading="!task && !error"
     :error="error"
     :keep-content="!!task"
+    aside-first
     @retry="refetch"
   >
+    <template v-if="task" #title>
+      <TaskTitleEditor :task="task" />
+    </template>
     <template #back>
       <UButton :to="backTo" data-testid="task-detail-back" color="neutral" variant="outline" class="focus-visible:ring-2 focus-visible:ring-primary" :disabled="!hydrated">
         <UIcon name="i-lucide-arrow-right" aria-hidden="true" class="size-4.5 ltr:rotate-180" />{{ props.backLabel ?? t('tasks.detail.back') }}
       </UButton>
+    </template>
+    <template #tags>
+      <StateMenu v-if="task" :task="task" :can-approve="task.can_approve" />
+      <SharedHeaderTags :tags="headerTags" />
     </template>
     <template v-if="task" #actions>
       <div data-testid="task-detail-menu" class="flex flex-none items-center gap-1.5" role="group" :aria-label="t('tasks.detail.menu')">
@@ -146,18 +153,18 @@ const headerTags = computed<PageHeaderTag[]>(() => {
     <template v-if="task">
       <SharedInlineConfirm v-if="archiveConfirmOpen" data-testid="task-archive-confirm" :title="t('tasks.drawer.archive')" :description="t('tasks.drawer.archiveConfirm')" :confirm-label="t('tasks.drawer.archive')" :pending="archiving" @confirm="doArchive" @cancel="archiveConfirmOpen = false" />
 
-      <div data-testid="task-detail-grid" class="min-w-0 space-y-6">
-        <div data-testid="task-details-card" class="min-w-0 space-y-6">
-          <div class="flex flex-wrap items-center gap-2">
-            <StateMenu :task="task" :can-approve="task.can_approve" />
-          </div>
+      <div data-testid="task-detail-grid" class="grid min-w-0 gap-(--liwan-gap-card)">
+        <div data-testid="task-details-card" class="grid min-w-0 gap-(--liwan-gap-card)">
           <TaskCompletionApproval :task="task" />
-          <TaskDetails :key="task.id" :task="task" :base-path="props.basePath" />
-          <slot name="details" :task="task" />
+          <TaskDetails :key="task.id" :task="task" :base-path="props.basePath">
+            <template v-if="$slots.details" #schedule>
+              <slot name="details" :task="task" />
+            </template>
+          </TaskDetails>
         </div>
       </div>
     </template>
-    <template v-if="task" #summary>
+    <template v-if="task" #aside>
       <TaskProperties :key="task.id" :task="task" />
     </template>
   </SharedRecordPage>

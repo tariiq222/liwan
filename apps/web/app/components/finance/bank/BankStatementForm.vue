@@ -68,7 +68,7 @@ async function submit() {
     <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" data-testid="finance-bank-form-error" />
     <SharedFormSection panel :title="t('financeBank.form.details')">
       <div class="grid gap-4">
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="liwan-auto-grid gap-4">
           <UFormField :label="t('financeBank.form.journal')" name="finance-bank-journal" required :error="shown.journal_id ? t('financeBank.form.journalRequired') : undefined">
             <SharedPageState :loading="journals.isLoading.value" :error="journals.error.value" :empty="!journals.isLoading.value && !journalItems.length" :empty-text="t('financeBank.form.noJournals')" @retry="journals.refetch">
               <USelect id="finance-bank-journal" :model-value="draft.journalId ?? undefined" :items="journalItems" class="w-full" :color="shown.journal_id ? 'error' : undefined" :disabled="!hydrated || pending" @update:model-value="value => { draft.journalId = Number(value) }" />
@@ -81,7 +81,7 @@ async function submit() {
         <UFormField :label="t('financeBank.form.name')" name="finance-bank-name" :hint="t('financeBank.form.nameHint')" :error="shown.name ? t('financeBank.form.nameInvalid') : undefined">
           <UInput id="finance-bank-name" v-model="draft.name" class="w-full" maxlength="255" :disabled="!hydrated || pending" />
         </UFormField>
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="liwan-auto-grid gap-4">
           <UFormField :label="t('financeBank.form.balanceStart')" name="finance-bank-balance-start" :error="shown.balance_start ? t('financeBank.form.numberInvalid') : undefined">
             <UInput id="finance-bank-balance-start" v-model="draft.balanceStart" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" />
           </UFormField>

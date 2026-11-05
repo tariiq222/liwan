@@ -52,7 +52,7 @@ function confirmDelete() {
     <SharedLoadingSkeleton v-if="isLoading" />
     <SharedPageState v-else-if="error" :error="error" @retry="refetch()" />
     <div v-else class="flex flex-col gap-3">
-      <form v-if="editing !== null" class="flex flex-col gap-3 rounded-control bg-elevated/50 p-3" novalidate @submit.prevent="submit">
+      <form v-if="editing !== null" class="liwan-form rounded-control bg-elevated/50 p-3" novalidate @submit.prevent="submit">
         <UFormField :label="t('inbox.settings.canned.shortcut')" :description="t('inbox.settings.canned.shortcutHint')" required :error="attempted && !draft.shortcut ? t('inbox.settings.requiredName') : undefined">
           <UInput v-model="shortcut" class="w-full" maxlength="32" dir="auto" :disabled="locked" data-testid="inbox-canned-shortcut" />
         </UFormField>

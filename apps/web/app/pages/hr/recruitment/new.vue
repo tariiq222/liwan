@@ -89,7 +89,7 @@ async function submit() {
                 @update:model-value="jobId = $event ? Number($event) : null"
               />
             </UFormField>
-            <div class="grid gap-4 sm:grid-cols-2">
+            <div class="liwan-auto-grid gap-4">
               <UFormField :label="t('hrRecruitment.form.email')" name="hr-recruitment-email" :error="emailError">
                 <UInput id="hr-recruitment-email" v-model="emailFrom" type="email" class="w-full" :disabled="!hydrated || isPending" data-testid="hr-recruitment-email" />
               </UFormField>

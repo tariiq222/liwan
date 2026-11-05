@@ -94,11 +94,11 @@ async function save() {
       <UButton v-if="createdResolutionId || receiptId" type="button" class="w-fit" :disabled="!hydrated" :label="t('meetingsUx.returnAfterRecommendation')" @click="save" />
       <UButton v-else color="neutral" :to="backTo" :label="t('app.back')" />
     </div>
-    <form ref="formElement" novalidate v-else-if="query.data.value" class="grid gap-(--liwan-gap-card)" @submit.prevent="save">
+    <form ref="formElement" novalidate v-else-if="query.data.value" class="liwan-form" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
       <UAlert v-if="editorContext" color="neutral" variant="subtle" icon="i-lucide-info" :title="t('meetingsUx.recommendationEditorContext', { name: query.data.value.name })" />
       <SharedFormSection panel :title="t('meetingsUi.resolutions')">
-        <div class="liwan-form-grid">
+        <div class="liwan-auto-grid">
           <UFormField :label="t('meetingsUi.resolutionTitle')" name="name" required :error="visibleErrors.name">
             <UInput id="res-name" v-model="name" class="w-full" :aria-invalid="Boolean(visibleErrors.name)" :disabled="!hydrated || isPending" required />
           </UFormField>
@@ -119,7 +119,7 @@ async function save() {
           <UFormField :label="t('meetingMinutesForm.executionPeriod')" name="executionPeriod">
             <UInput id="res-period" v-model="executionPeriod" maxlength="500" class="w-full" :disabled="!hydrated || isPending" :placeholder="t('meetingMinutesForm.executionPeriodPlaceholder')" />
           </UFormField>
-          <UFormField class="sm:col-span-2" :label="t('meetingMinutesForm.project')" name="project">
+          <UFormField class="liwan-span-full" :label="t('meetingMinutesForm.project')" name="project">
             <MeetingProjectFilter id="res-project" hide-label :model-value="projectId" :disabled="!hydrated || isPending" @update:model-value="projectId = $event" />
           </UFormField>
           <UFormField :label="t('meetingsUi.priority')" name="priority">

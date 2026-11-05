@@ -115,7 +115,7 @@ async function submit() {
             />
           </UFormField>
           <p v-if="selectedType?.support_document" class="text-sm text-muted">{{ t('hr.leave.form.documentHint') }}</p>
-          <div class="grid gap-4 sm:grid-cols-2">
+          <div class="liwan-auto-grid gap-4">
             <UFormField :label="t('hr.leave.form.from')" name="hr-leave-from" required :error="fromError">
               <SharedDateField id="hr-leave-from" :model-value="dateFrom" :disabled="!hydrated || isPending" data-testid="hr-leave-from" @update:model-value="pickFrom" />
             </UFormField>

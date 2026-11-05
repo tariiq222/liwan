@@ -220,7 +220,7 @@ async function confirmHire() {
     </SharedIdentityCard>
 
     <SharedRecordSection v-if="applicant" variant="panel" :title="t('hrRecruitment.detail.pipeline')">
-      <div class="grid gap-4 sm:grid-cols-2">
+      <div class="liwan-auto-grid gap-4">
         <UFormField :label="t('hrRecruitment.columns.stage')" for="hr-recruitment-record-stage">
           <USelect
             id="hr-recruitment-record-stage"

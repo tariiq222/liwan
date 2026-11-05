@@ -5,8 +5,8 @@
 // the shell (packages/ui/app/assets/css/components.css, @media print); its `footer` (print and back
 // actions) is not printed. The card's `#header` slot replaces the title heading when the page
 // needs more than a title (a logo and a sentence); the slot's owner then draws the `<h1>`.
-// `width` sets the on-screen width of a `print` page: `detail` for a document of its own,
-// `list` inside a frame whose tabs and band span the page (the project charter).
+// `width` sets the on-screen width of a `print` page: `detail` for a document of its own
+// (68rem, centred), `list` inside a frame whose tabs and band span the page (the project charter).
 // `surface="brand"` fills the `card` page with the lavender brand surface (sign-in only, DESIGN.md §1) and
 // draws the `brand` slot (the white logo) on it above the card; the card itself stays on the default surface.
 const props = withDefaults(defineProps<{
@@ -45,7 +45,7 @@ const props = withDefaults(defineProps<{
       </UCard>
     </div>
   </main>
-  <article v-else :class="['liwan-print grid min-w-0 gap-6', props.width === 'list' ? 'liwan-page-width-list' : 'liwan-page-width-detail']" data-template="standalone-page" data-variant="print">
+  <article v-else :class="['liwan-print grid w-full min-w-0 gap-6', props.width === 'detail' && 'mx-auto max-w-[68rem]']" data-template="standalone-page" data-variant="print">
     <h1 v-if="props.title" class="text-2xl font-semibold text-highlighted">{{ props.title }}</h1>
     <slot />
     <footer v-if="$slots.footer" class="liwan-print-hide flex flex-wrap items-center justify-end gap-2">

@@ -18,7 +18,7 @@ async function save(body: DocumentAccessUpdate) {
 }
 </script>
 <template>
-  <SharedPageContainer width="form">
+  <SharedPageContainer>
     <SharedPageHeader :title="t('documents.access')" :back-to="backTo" />
     <SharedPageState :loading="document.isLoading.value || (document.data.value?.allowed_actions.manage_access && query.isLoading.value)" :error="document.error.value || query.error.value" @retry="document.refetch(); query.refetch()">
       <SharedForbiddenState v-if="document.data.value && !document.data.value.allowed_actions.manage_access" />

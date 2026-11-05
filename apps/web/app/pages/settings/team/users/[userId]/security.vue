@@ -23,7 +23,7 @@ onBeforeUnmount(() => { successKey.value = '' })
 </script>
 
 <template>
-  <SharedSettingsPage width="form">
+  <SharedSettingsPage>
     <SharedPageHeader :title="t('access.users.security')" :back-to="backTo" />
     <UAlert v-if="successKey && !blocked" role="status" color="success" variant="subtle" icon="i-lucide-circle-check" :title="t(successKey)" />
     <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />

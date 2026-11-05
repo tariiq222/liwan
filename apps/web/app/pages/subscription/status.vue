@@ -67,7 +67,7 @@ async function cancelFirstOrder() {
 definePageMeta({ middleware: 'customer-commercial' })
 </script>
 <template>
-  <SharedSettingsPage width="form">
+  <SharedSettingsPage>
     <SharedPageHeader :title="t('subscription.status.title')" back-to="/subscription" />
     <SharedForbiddenState v-if="!allowed" />
     <SharedPageState v-else :loading="pending" :error="error" @retry="refresh">

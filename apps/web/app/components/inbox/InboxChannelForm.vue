@@ -55,7 +55,7 @@ async function submit() {
 </script>
 
 <template>
-  <form class="space-y-6" novalidate @submit.prevent="submit">
+  <form class="liwan-form" novalidate @submit.prevent="submit">
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedFormSection panel :title="t('inbox.settings.channels.form.account')" :description="t('inbox.settings.channels.form.accountHint')">
       <div class="grid gap-4">

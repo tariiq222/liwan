@@ -54,7 +54,7 @@ async function submit() {
 </script>
 
 <template>
-  <form class="flex flex-col gap-5" novalidate data-testid="inbox-audience-form" @submit.prevent="submit">
+  <form class="liwan-form" novalidate data-testid="inbox-audience-form" @submit.prevent="submit">
     <SharedUnsavedChanges :dirty="dirty" />
     <UFormField :label="t('inbox.settings.name')" required :error="nameError ?? fieldError('name')">
       <UInput v-model="draft.name" class="w-full" maxlength="128" :disabled="off" data-testid="inbox-audience-name" />

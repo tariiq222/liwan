@@ -31,6 +31,11 @@ const opportunity = {
   needs_manager: false,
   active: true,
   created_at: '2026-10-28T09:00:00Z',
+  properties: [
+    { key: 'sector', label: 'القطاع', type: 'selection', options: [{ key: 'retail', label: 'تجزئة' }], value: 'retail' },
+    { key: 'followers', label: 'المتابعون', type: 'integer', value: 3 },
+    { key: 'notes', label: 'ملاحظات', type: 'char', value: null },
+  ],
 }
 
 describe('CrmOpportunitySchema', () => {
@@ -42,6 +47,17 @@ describe('CrmOpportunitySchema', () => {
   it('rejects an unknown key and an unknown status', () => {
     expect(() => CrmOpportunitySchema.parse({ ...opportunity, agent_id: 3 })).toThrow()
     expect(() => CrmOpportunitySchema.parse({ ...opportunity, status: 'open' })).toThrow()
+  })
+
+  it('carries the company definition in order, each field with its value', () => {
+    const fields = CrmOpportunitySchema.parse(opportunity).properties
+    expect(fields.map(field => [field.key, field.value])).toEqual([['sector', 'retail'], ['followers', 3], ['notes', null]])
+  })
+
+  it('refuses a record field without a value or with options it may not carry', () => {
+    expect(() => CrmOpportunitySchema.parse({ ...opportunity, properties: [{ key: 'k', label: 'x', type: 'char' }] })).toThrow()
+    expect(() => CrmOpportunitySchema.parse({ ...opportunity, properties: [{ key: 'k', label: 'x', type: 'char', options: [], value: null }] })).toThrow()
+    expect(() => CrmOpportunitySchema.parse({ ...opportunity, properties: [{ key: 'k', label: 'x', type: 'tags', options: [{ key: 'a', label: 'أ' }], value: [1] }] })).toThrow()
   })
 })
 
@@ -58,6 +74,12 @@ describe('CrmOpportunityPatchSchema', () => {
     expect(CrmOpportunityPatchSchema.parse({ stage_id: 2 })).toEqual({ stage_id: 2 })
     expect(() => CrmOpportunityPatchSchema.parse({})).toThrow()
     expect(() => CrmOpportunityPatchSchema.parse({ user_id: 2 })).toThrow()
+  })
+
+  it('accepts a partial set of custom-field values, null clearing one', () => {
+    const properties = { sector: 'retail', followers: 4, note: null }
+    expect(CrmOpportunityPatchSchema.parse({ properties })).toEqual({ properties })
+    expect(() => CrmOpportunityPatchSchema.parse({ properties: { sector: { key: 'retail' } } })).toThrow()
   })
 })
 

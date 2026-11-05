@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CrmCustomFieldsCard from '@/components/crm/settings/CrmCustomFieldsCard.vue'
 import CrmDistributionCard from '@/components/crm/settings/CrmDistributionCard.vue'
 import CrmFollowupCard from '@/components/crm/settings/CrmFollowupCard.vue'
 import CrmNamedListCard from '@/components/crm/settings/CrmNamedListCard.vue'
@@ -28,7 +29,7 @@ async function reloadSettings() {
 </script>
 
 <template>
-  <SharedSettingsPage width="form">
+  <SharedSettingsPage>
     <SharedPageHeader :title="t('nav.crm')" />
     <SharedForbiddenState v-if="!parts.length" :description="t('errors.forbidden')" />
     <template v-else>
@@ -36,6 +37,7 @@ async function reloadSettings() {
         <template v-if="settings.data.value">
           <CrmPresetCard v-if="shows('preset')" :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
           <CrmTermsCard v-if="shows('terms')" :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
+          <CrmCustomFieldsCard v-if="shows('customFields')" :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
           <CrmFollowupCard v-if="shows('followup')" :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
           <CrmDistributionCard v-if="shows('distribution')" :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
           <CrmPrivacyCard v-if="shows('privacy')" :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />

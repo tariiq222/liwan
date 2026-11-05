@@ -68,7 +68,7 @@ async function submit() {
     <UAlert v-if="props.truncated" color="info" variant="subtle" icon="i-lucide-info" :title="t('hrPayroll.financeSettings.truncated')" data-testid="hr-payroll-finance-truncated" />
     <UAlert v-if="alertMessage" role="alert" color="error" variant="subtle" :title="t('hrPayroll.financeSettings.saveError')" :description="alertMessage" />
     <SharedFormSection panel :title="t('hrPayroll.financeSettings.title')" :description="t('hrPayroll.financeSettings.hint')">
-      <div class="liwan-form-grid">
+      <div class="liwan-auto-grid">
         <UFormField :label="t('hrPayroll.financeSettings.journal')" name="hr-payroll-finance-journal" :error="fieldError('journal_id')">
           <USelect v-if="props.journals" id="hr-payroll-finance-journal" v-model="draft.journal" class="w-full" :items="items(props.journals, props.settings.journal)" :placeholder="t('hrPayroll.financeSettings.journalPlaceholder')" :disabled="disabled" data-testid="hr-payroll-finance-journal" />
           <UInput v-else id="hr-payroll-finance-journal" class="w-full" :model-value="readOnly(props.settings.journal)" readonly disabled />
@@ -83,7 +83,7 @@ async function submit() {
       </div>
     </SharedFormSection>
     <SharedFormSection panel :title="t('hrPayroll.financeSettings.accountsTitle')">
-      <div class="liwan-form-grid">
+      <div class="liwan-auto-grid">
         <UFormField
           v-for="role in HR_PAYROLL_ACCOUNT_ROLES"
           :key="role"

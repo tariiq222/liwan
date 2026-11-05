@@ -25,7 +25,7 @@ const canManage = computed(() => !denied.value && schedule.data.value?.can_manag
       <UButton data-testid="project-task-schedule-edit" color="neutral" variant="outline" :disabled="!hydrated" @click="editing = true">{{ t('projects.schedule.editTitle') }}</UButton>
     </template>
     <SharedPageState :loading="!task && (schedule.isLoading.value || project.isLoading.value)" :error="schedule.error.value || project.error.value" :empty="!task && !schedule.isLoading.value && !schedule.error.value" :empty-text="t('projects.schedule.unavailable')" @retry="() => { schedule.refetch(); project.refetch() }">
-      <dl v-if="task && !editing" class="grid gap-4 sm:grid-cols-2">
+      <dl v-if="task && !editing" class="liwan-auto-grid gap-4">
         <div><dt class="text-sm text-muted">{{ t('projects.schedule.start') }}</dt><dd class="mt-1"><bdi>{{ formatCalendarDate(task.start) || '—' }}</bdi></dd></div>
         <div><dt class="text-sm text-muted">{{ t('projects.schedule.end') }}</dt><dd class="mt-1"><bdi>{{ formatCalendarDate(task.end) || '—' }}</bdi></dd></div>
       </dl>

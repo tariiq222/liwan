@@ -43,7 +43,7 @@ function submit() {
 </script>
 
 <template>
-  <form class="flex flex-col gap-4" novalidate data-testid="inbox-automation-form" @submit.prevent="submit">
+  <form class="liwan-form" novalidate data-testid="inbox-automation-form" @submit.prevent="submit">
     <SharedUnsavedChanges :dirty="dirty" />
 
     <SharedRecordSection variant="panel" :title="t('inbox.automation.welcome.title')" :description="t('inbox.automation.welcome.hint')">
@@ -85,7 +85,7 @@ function submit() {
           <UFormField :label="t('inbox.automation.csat.question')" :hint="`${draft.csat.question.length}/1024`" required>
             <UTextarea v-model="draft.csat.question" class="w-full" :rows="2" autoresize :maxlength="1024" :disabled="off" data-testid="inbox-csat-question" />
           </UFormField>
-          <div class="grid gap-3 sm:grid-cols-3">
+          <div class="liwan-auto-grid gap-3">
             <UFormField v-for="score in CSAT_SCORES" :key="score" :label="t(`inbox.automation.csat.options.${score}`)" :hint="`${draft.csat[score].length}/20`" required>
               <UInput v-model="draft.csat[score]" class="w-full" :maxlength="20" :disabled="off" :data-testid="`inbox-csat-${score}`" />
             </UFormField>

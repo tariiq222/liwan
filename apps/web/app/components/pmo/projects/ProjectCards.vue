@@ -30,7 +30,7 @@ function openWithKeyboard(project: Project, event: KeyboardEvent) {
   <div class="min-w-0">
     <div class="p-(--liwan-card-pad-dense)">
       <SharedLoadingSkeleton v-if="isLoading" variant="cards" :count="6" />
-      <div v-else class="grid gap-(--liwan-gap-card) sm:grid-cols-2 xl:grid-cols-3">
+      <div v-else class="liwan-card-grid">
         <article
           v-for="project in items"
           :key="project.id"

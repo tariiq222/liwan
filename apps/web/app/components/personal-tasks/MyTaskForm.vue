@@ -84,7 +84,7 @@ watch(() => props.error, async error => {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" guard-route-updates />
-  <form novalidate class="grid gap-5" data-testid="my-task-form" @submit.prevent="submit">
+  <form novalidate class="liwan-form" data-testid="my-task-form" @submit.prevent="submit">
     <UAlert v-if="generalError" role="alert" color="error" variant="subtle" :title="generalError" data-testid="my-task-form-error" />
     <UFormField :label="t('myTasks.form.name')" name="name" required :error="localNameError ?? serverError('name')">
       <UInput
@@ -101,7 +101,7 @@ watch(() => props.error, async error => {
     <UFormField :label="t('myTasks.form.description')" name="description" :error="serverError('description')">
       <UTextarea id="my-task-description" v-model="values.description" class="w-full" :rows="4" :disabled="!hydrated || pending" />
     </UFormField>
-    <div class="grid gap-5 sm:grid-cols-2">
+    <div class="liwan-auto-grid gap-5">
       <UFormField :label="t('myTasks.form.deadline')" name="date_deadline" :error="serverError('date_deadline')">
         <SharedDateField id="my-task-deadline" v-model="values.deadline" :aria-label="t('myTasks.form.deadline')" :disabled="!hydrated || pending" />
       </UFormField>

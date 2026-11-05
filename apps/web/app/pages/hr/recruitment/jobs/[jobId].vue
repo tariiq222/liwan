@@ -150,7 +150,7 @@ const applicantsTo = computed(() => ({ path: '/hr/recruitment', query: { job_id:
               data-testid="hr-recruitment-job-edit-name"
             />
           </UFormField>
-          <div class="grid gap-4 sm:grid-cols-2">
+          <div class="liwan-auto-grid gap-4">
             <UFormField :label="t('hrRecruitment.jobs.columns.department')" name="hr-recruitment-edit-department">
               <USelect
                 id="hr-recruitment-edit-department"

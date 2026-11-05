@@ -15,7 +15,7 @@ type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   parameters: storyContext('apps/web/app/pages/hr/offboarding/new.vue:2'),
-  render: args => ({ components: { DepartureForm, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer width="list"><DepartureForm v-bind="args" /></PageContainer></main>' }),
+  render: args => ({ components: { DepartureForm, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer><DepartureForm v-bind="args" /></PageContainer></main>' }),
 }
 
 export const Editing: Story = { name: 'تعديل سجل', args: { departure } }

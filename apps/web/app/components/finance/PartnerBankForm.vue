@@ -61,13 +61,13 @@ async function submit() {
 </script>
 
 <template>
-  <UForm novalidate :state="draft" class="grid gap-4 p-(--liwan-card-pad)" data-testid="finance-partner-bank-form" @submit="submit">
+  <UForm novalidate :state="draft" class="liwan-form p-(--liwan-card-pad)" data-testid="finance-partner-bank-form" @submit="submit">
     <SharedUnsavedChanges :dirty="JSON.stringify(draft) !== JSON.stringify(initial)" />
     <UAlert v-if="generalError" role="alert" color="error" variant="subtle" :title="generalError" data-testid="finance-partner-bank-error" />
     <UFormField :label="t('finance.partners.banks.accNumber')" name="finance-bank-acc-number" required :description="t('finance.partners.banks.accNumberHint')" :error="fieldError('accNumber')">
       <UInput id="finance-bank-acc-number" v-model="draft.accNumber" class="w-full" dir="ltr" autocomplete="off" maxlength="40" :disabled="locked" />
     </UFormField>
-    <div class="grid gap-4 sm:grid-cols-3">
+    <div class="liwan-auto-grid gap-4">
       <UFormField :label="t('finance.partners.banks.holderName')" name="finance-bank-holder" :error="fieldError('holderName')">
         <UInput id="finance-bank-holder" v-model="draft.holderName" class="w-full" maxlength="255" :disabled="locked" />
       </UFormField>

@@ -80,7 +80,7 @@ onBeforeUnmount(clearSecrets)
       <UAlert v-if="props.user.protected" color="neutral" variant="subtle" icon="i-lucide-lock" :title="t('access.protectedUser')" />
       <template v-else>
         <div v-if="canReset || canReactivate" class="grid gap-3">
-          <div class="grid gap-4 sm:grid-cols-2">
+          <div class="liwan-auto-grid gap-4">
             <UFormField :label="t('access.users.password')" name="admin-password">
               <UInput id="admin-password" v-model="password" type="password" autocomplete="new-password" dir="ltr" class="w-full" :disabled="!hydrated || anyPending" />
             </UFormField>
