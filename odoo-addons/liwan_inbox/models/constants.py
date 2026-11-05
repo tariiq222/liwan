@@ -21,6 +21,8 @@ DEFAULT_TIMEZONE = 'Asia/Riyadh'
 
 # A customer-service window: free-form replies are accepted this long after the last inbound message, by kind.
 REPLY_WINDOWS = {'whatsapp': timedelta(hours=24), 'tiktok': timedelta(hours=48)}
+# TikTok also limits one sender to this many messages in a row before the customer writes again.
+TIKTOK_MAX_REPLIES = 10
 PREVIEW_LENGTH = 140
 MAX_ATTEMPTS = 5
 BACKOFF_MINUTES = (1, 2, 4, 8, 16)

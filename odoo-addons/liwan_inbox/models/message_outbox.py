@@ -9,7 +9,7 @@ from odoo.exceptions import UserError
 from .abstract_interactive import COMMERCE_TYPES
 from .batch import process_each
 from .constants import BACKOFF_MINUTES, MAX_ATTEMPTS, OUTBOX_BATCH, TYPING_MAX_AGE
-from odoo.addons.liwan_inbox.adapters import errors, whatsapp
+from odoo.addons.liwan_inbox.adapters import errors, tiktok, whatsapp
 
 _logger = logging.getLogger(__name__)
 
@@ -105,6 +105,8 @@ class LiwanInboxMessageOutbox(models.Model):
     def _liwan_provider_send(self):
         """Send this message and return the whatsapp.SendResult (provider message id, held for a quality check)."""
         conversation = self.conversation_id
+        if conversation.channel_id.kind == 'tiktok':
+            return self._liwan_tiktok_provider_send(conversation)
         credentials = conversation.channel_id._liwan_credentials()
         to = conversation.identity_id.address
         context_id = self.reply_to_id.provider_message_id or None
@@ -131,6 +133,25 @@ class LiwanInboxMessageOutbox(models.Model):
         else:
             provider_id = whatsapp.send_text(credentials, to, self.body, context_id)
         return whatsapp.SendResult(provider_id, held=False)
+
+    def _liwan_tiktok_provider_send(self, conversation):
+        """A text, an image or a button card to the conversation's TikTok id (the card title is its body)."""
+        credentials = conversation.channel_id._liwan_credentials()
+        target = conversation.provider_conversation_id
+        if self.kind == 'image':
+            return whatsapp.SendResult(tiktok.send_image(credentials, target, self._liwan_tiktok_media_id(credentials)), held=False)
+        if self.interactive_type == 'buttons':
+            buttons = [tiktok.Button(option.option_id, option.title) for option in self.option_ids.sorted('sequence')]
+            return whatsapp.SendResult(tiktok.send_buttons(credentials, target, self.body, buttons), held=False)
+        context_id = self.reply_to_id.provider_message_id or None
+        return whatsapp.SendResult(tiktok.send_text(credentials, target, self.body, context_id), held=False)
+
+    def _liwan_tiktok_media_id(self, credentials):
+        """The TikTok media id of this message's image; it is uploaded once and kept for retries."""
+        if not self.media_id:
+            attachment = self._liwan_file()
+            self.media_id = tiktok.upload_image(credentials, attachment.name, attachment.mimetype, attachment.raw)
+        return self.media_id
 
     def _liwan_send_media(self, credentials, to, context_id):
         media_id = self._liwan_media_id(credentials)

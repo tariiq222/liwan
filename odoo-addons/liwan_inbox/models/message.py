@@ -11,10 +11,12 @@ from .constants import (
     MESSAGES_OUT_LIMIT,
     OUTBOX_CRON,
     REPLY_PREVIEW_LENGTH,
+    REPLY_WINDOWS,
+    TIKTOK_MAX_REPLIES,
 )
 from .template import APPROVED, HEADER_TYPES, MEDIA_HEADERS, PLACEHOLDER
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
-from odoo.addons.liwan_inbox.adapters import media_rules
+from odoo.addons.liwan_inbox.adapters import media_rules, tiktok
 from odoo.addons.liwan_inbox.adapters.whatsapp import MEDIA_KINDS
 
 # A status never moves a message backwards (statuses may arrive out of order). `failed` is terminal
@@ -157,6 +159,7 @@ class LiwanInboxMessage(models.Model):
     @api.model
     def _liwan_queue_automated(self, conversation, values):
         """Queue a free-form reply sent by the automation: marked automated, with no author."""
+        self._liwan_check_tiktok_content(conversation, values)
         return self._liwan_queue_free_form(conversation, {**values, 'automated': True, 'author_id': False})
 
     @api.model
@@ -177,6 +180,11 @@ class LiwanInboxMessage(models.Model):
         uploaded as `media_id`, so the file stays the campaign's); `wake=False` leaves waking the outbox to the caller.
         """
         self._liwan_require_sendable(conversation)
+        if conversation.channel_id.kind == 'tiktok':
+            raise LiwanAccessRule(
+                INVALID, self.env._('TikTok has no approved templates; send text, an image or a button card.'),
+                details={'reason': 'inbox_tiktok_unsupported_kind'},
+            )
         header, extra = header or {}, extra or {}
         values = self._liwan_template_values(conversation, template, params, header, button_params)
         values['business_initiated'] = not self._liwan_window_open(conversation)
@@ -196,6 +204,7 @@ class LiwanInboxMessage(models.Model):
         """
         self._liwan_require_sendable(conversation)
         self._liwan_require_window(conversation)
+        self._liwan_check_tiktok_content(conversation, values, attachment)
         if reply_to:
             self._liwan_require_reply_target(conversation, reply_to)
         if values.get('kind') in COMMERCE_TYPES:
@@ -303,11 +312,90 @@ class LiwanInboxMessage(models.Model):
 
     @api.model
     def _liwan_require_window(self, conversation):
+        kind = conversation.channel_id.kind
         if not self._liwan_window_open(conversation):
-            raise LiwanAccessRule(
-                INVALID, self.env._('The 24-hour reply window is closed; send an approved template.'),
-                details={'reason': 'inbox_window_closed'},
+            hours = int(REPLY_WINDOWS[kind].total_seconds() // 3600)
+            message = (
+                self.env._('The %(hours)s-hour reply window is closed; wait for the customer to write again.', hours=hours)
+                if kind == 'tiktok' else
+                self.env._('The %(hours)s-hour reply window is closed; send an approved template.', hours=hours)
             )
+            raise LiwanAccessRule(INVALID, message, details={'reason': 'inbox_window_closed'})
+        if kind == 'tiktok' and self._liwan_tiktok_replies_in_a_row(conversation) >= TIKTOK_MAX_REPLIES:
+            raise LiwanAccessRule(
+                INVALID,
+                self.env._('TikTok allows at most %(count)s messages in a row before the customer writes again.', count=TIKTOK_MAX_REPLIES),
+                details={'reason': 'inbox_tiktok_reply_limit'},
+            )
+
+    @api.model
+    def _liwan_tiktok_replies_in_a_row(self, conversation):
+        """The messages sent since the customer's last message (TikTok stops the sender after TIKTOK_MAX_REPLIES)."""
+        if not conversation.last_inbound_at:
+            return 0
+        return self.search_count([
+            ('conversation_id', '=', conversation.id), ('direction', '=', 'out'),
+            ('date', '>', conversation.last_inbound_at),
+        ])
+
+    @api.model
+    def _liwan_check_tiktok_content(self, conversation, values, attachment=None):
+        """Refuse content TikTok cannot carry, before anything is queued (D3)."""
+        if conversation.channel_id.kind != 'tiktok':
+            return
+        problem = (
+            self._liwan_tiktok_image_problem(conversation, values, attachment) if attachment is not None
+            else self._liwan_tiktok_message_problem(values)
+        )
+        if problem:
+            raise LiwanAccessRule(INVALID, problem, details={'reason': 'inbox_tiktok_unsupported_kind'})
+
+    @api.model
+    def _liwan_tiktok_image_problem(self, conversation, values, attachment):
+        """A TikTok image: JPEG or PNG, at most 3 MB, without a caption, and only where TikTok allows one."""
+        if attachment.mimetype not in tiktok.IMAGE_MIMETYPES:
+            return self.env._('TikTok sends a JPEG or PNG image only.')
+        if attachment.file_size > tiktok.IMAGE_MAX_BYTES:
+            return self.env._('A TikTok image is at most 3 MB.')
+        if not conversation.image_send_capable:
+            return self.env._('This TikTok conversation cannot receive an image.')
+        placeholder = f'[{media_rules.kind_of(attachment.mimetype)}]'
+        if values.get('body') and values['body'] != placeholder:
+            return self.env._('A TikTok image cannot carry a caption; send the text as its own message.')
+        return False
+
+    @api.model
+    def _liwan_tiktok_message_problem(self, values):
+        """A TikTok message without a file: a text, or a button card with 1 to 3 buttons."""
+        if values.get('template_name') or values.get('template_id'):
+            return self.env._('TikTok has no approved templates; send text, an image or a button card.')
+        if values.get('interactive_type') == 'buttons':
+            return self._liwan_tiktok_card_problem(values)
+        if values.get('kind') == 'text':
+            body = values.get('body') or ''
+            if not 0 < len(body) <= tiktok.TEXT_MAX:
+                return self.env._('A TikTok text is 1 to %(count)s characters.', count=tiktok.TEXT_MAX)
+            return False
+        return self.env._('TikTok can send a text, one image or a button card only.')
+
+    @api.model
+    def _liwan_tiktok_card_problem(self, values):
+        """A TikTok button card: a title of up to 40 characters and 1 to 3 buttons (title 20, id 40)."""
+        title = values.get('body') or ''
+        if not 0 < len(title) <= tiktok.CARD_TITLE_MAX:
+            return self.env._('A TikTok button card title is 1 to %(count)s characters.', count=tiktok.CARD_TITLE_MAX)
+        buttons = [
+            command[2] for command in values.get('option_ids') or []
+            if isinstance(command, (list, tuple)) and len(command) == 3 and command[0] == 0
+        ]
+        if not 1 <= len(buttons) <= tiktok.MAX_BUTTONS:
+            return self.env._('A TikTok button card has 1 to %(count)s buttons.', count=tiktok.MAX_BUTTONS)
+        for button in buttons:
+            if not 0 < len(button.get('title') or '') <= tiktok.BUTTON_TITLE_MAX:
+                return self.env._('A TikTok button title is 1 to %(count)s characters.', count=tiktok.BUTTON_TITLE_MAX)
+            if not 0 < len(button.get('option_id') or '') <= tiktok.BUTTON_ID_MAX:
+                return self.env._('A TikTok button id is 1 to %(count)s characters.', count=tiktok.BUTTON_ID_MAX)
+        return False
 
     @api.model
     def _liwan_template_values(self, conversation, template, params, header, button_params):
