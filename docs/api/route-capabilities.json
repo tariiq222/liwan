@@ -738,6 +738,16 @@
       "handler": "user_branches",
       "no_capability_reason": null
     },
+    "GET /api/v1/ai/agents": {
+      "addon": "liwan_ai",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "list_agents",
+      "no_capability_reason": null
+    },
     "GET /api/v1/ai/monitoring": {
       "addon": "liwan_ai",
       "auth": "user",
@@ -5271,6 +5281,16 @@
       "capability_source": "decorator",
       "feature_keys": [],
       "handler": "update_user_branches",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/ai/agents/{key}": {
+      "addon": "liwan_ai",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "update_agent",
       "no_capability_reason": null
     },
     "PATCH /api/v1/ai/settings": {

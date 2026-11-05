@@ -23,12 +23,12 @@ MESSAGE = {
     'result': 'ok', 'http_status': None, 'draft': None, 'approved': None, 'attested': False,
 }
 READ = {
-    'conversation_id': 'r_test_01', 'kind': 'read', 'tool_name': 'probe.list_things',
+    'conversation_id': 'r_test_01', 'kind': 'read', 'agent': 'probe', 'tool_name': 'probe.list_things',
     'input': {'limit': 5, 'token': 'secret'}, 'result': 'ok', 'http_status': 200,
     'draft': None, 'approved': None, 'attested': False,
 }
 DRAFT = {
-    'conversation_id': 'r_test_01', 'kind': 'draft', 'tool_name': 'probe.draft_thing',
+    'conversation_id': 'r_test_01', 'kind': 'draft', 'agent': 'probe', 'tool_name': 'probe.draft_thing',
     'input': {'name': 'A'}, 'result': 'proposed', 'http_status': None,
     'draft': {'name': 'A'}, 'approved': None, 'attested': False,
 }
@@ -392,7 +392,7 @@ class TestAiAuditHardening(AiProbe, LiwanApiCase):
             self.assertEqual(caught.exception.liwan_field, 'input')
         for literal in ('NaN', 'Infinity', '-Infinity'):
             body = (
-                '{"conversation_id": "r_test_01", "kind": "read", "tool_name": "probe.list_things", '
+                '{"conversation_id": "r_test_01", "kind": "read", "agent": "probe", "tool_name": "probe.list_things", '
                 f'"result": "ok", "input": {{"n": {literal}}}}}'
             )
             response = self.url_open(

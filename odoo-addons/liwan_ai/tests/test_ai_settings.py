@@ -177,4 +177,4 @@ class TestAiSettings(AiProbe, LiwanApiCase):
         self.assertEqual(body['users']['items'][0], {
             'user': {'id': self.employee.id, 'name': self.employee.name}, 'messages': 2, 'tokens': 30, 'tool_calls': 0,
         })
-        self.assertEqual(set(body), {'month', 'totals', 'users', 'tools'})
+        self.assertEqual(set(body), {'month', 'totals', 'users', 'tools', 'agents'})

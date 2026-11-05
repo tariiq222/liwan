@@ -45,11 +45,11 @@ class AiSettingsController(http.Controller):
     @requires_capability(AI_SETTINGS_MANAGE)
     def write_settings(self, **payload):
         require_tenant_manager()
-        provider_mode, revision = parse_settings_patch(payload)
+        values, revision = parse_settings_patch(payload)
         settings = request.env['liwan.ai.settings']._liwan_current()
         if settings.revision != revision:
             raise ApiError(409, 'conflict', 'the AI settings changed since they were read')
-        settings.write({'provider_mode': provider_mode, 'revision': revision + 1})
+        settings.write({**values, 'revision': revision + 1})
         return dump_settings(request.env)
 
     @http.route('/api/v1/ai/consent', type='json2', auth='user', methods=['POST'], readonly=False)

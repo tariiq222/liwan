@@ -44,7 +44,7 @@ class TestAiToolsRoute(AiProbe, LiwanApiCase):
 
     def test_no_capability_means_an_empty_catalog_not_an_error(self):
         body = self.api('GET', '/api/v1/ai/tools').json()
-        self.assertEqual(body, {'items': [], 'total': 0, 'limits': body['limits']})
+        self.assertEqual(body, {'items': [], 'total': 0, 'agents': [], 'limits': body['limits']})
 
     def test_limits_block_reports_configured_values(self):
         self.granted = {READ_CAP, WRITE_CAP}
