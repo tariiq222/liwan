@@ -101,6 +101,8 @@ class LiwanInboxAutomation(models.AbstractModel):
     @api.model
     def _liwan_greeting(self, channel, inside, away_due, welcome_due):
         """'away', 'welcome' or None: the automatic message the channel sends before the rules (away suppresses welcome)."""
+        if channel.kind == 'tiktok':
+            welcome_due = False  # TikTok sends its own WELCOME_MESSAGE there (D10)
         if not inside and channel.away_enabled and channel._liwan_auto_message('away'):
             return 'away' if away_due else None
         if channel.welcome_enabled and channel._liwan_auto_message('welcome') and welcome_due:
