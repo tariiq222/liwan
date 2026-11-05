@@ -91,6 +91,24 @@ class TestOutbox(LiwanInboxCase):
         self.assertEqual((message.delivery_state, message.attempts), ('queued', 1))
         self.assertNotIn(ACCESS_TOKEN, message.error)
 
+    def test_an_unconfirmed_read_timeout_fails_without_a_retry_and_a_retry_clears_it(self):
+        message = self.queue()
+        queued_at = message.next_attempt_at
+        self.run_outbox(MagicMock(side_effect=requests.ReadTimeout('the answer arrived too late')))
+        self.assertEqual((message.delivery_state, message.attempts), ('failed', 1))
+        self.assertTrue(message.unconfirmed)
+        self.assertFalse(message.error_code)
+        self.assertEqual(message.next_attempt_at, queued_at)  # not rescheduled
+        message._liwan_retry()
+        self.assertEqual((message.delivery_state, message.unconfirmed), ('queued', False))
+
+    def test_a_connect_timeout_stays_queued_and_unconfirmed_is_false(self):
+        message = self.queue()
+        self.run_outbox(MagicMock(side_effect=requests.ConnectTimeout('never reached')))
+        self.assertEqual((message.delivery_state, message.attempts), ('queued', 1))
+        self.assertTrue(message.next_attempt_at)
+        self.assertFalse(message.unconfirmed)
+
     def test_a_client_error_fails_permanently_at_once(self):
         message = self.queue()
         self.run_outbox(MagicMock(return_value=response(400, {'error': {'message': 'Invalid parameter'}})))

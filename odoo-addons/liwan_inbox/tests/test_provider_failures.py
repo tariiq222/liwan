@@ -22,10 +22,15 @@ class TestProviderFailures(BaseCase):
     def test_a_read_timeout_is_unconfirmed_and_not_retried(self):
         error = self.call(requests.exceptions.ReadTimeout('the answer arrived too late'))
         self.assertFalse(error.retryable)
-        self.assertEqual(error.code, whatsapp.UNCERTAIN_CODE)
+        self.assertTrue(error.unconfirmed)
+        self.assertIsNone(error.code)
 
     def test_a_connection_error_is_retried(self):
-        self.assertTrue(self.call(requests.exceptions.ConnectionError('refused')).retryable)
+        error = self.call(requests.exceptions.ConnectionError('refused'))
+        self.assertTrue(error.retryable)
+        self.assertFalse(error.unconfirmed)
 
     def test_a_connect_timeout_is_retried(self):
-        self.assertTrue(self.call(requests.exceptions.ConnectTimeout('never reached')).retryable)
+        error = self.call(requests.exceptions.ConnectTimeout('never reached'))
+        self.assertTrue(error.retryable)
+        self.assertFalse(error.unconfirmed)

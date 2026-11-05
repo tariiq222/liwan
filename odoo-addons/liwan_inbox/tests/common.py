@@ -19,8 +19,9 @@ ACCESS_TOKEN = 'EAAB-access-token-0123456789'
 APP_SECRET = 'app-secret-0123456789abcdef'
 # Every key of InboxMessageSchema (packages/contracts/src/inbox/index.ts).
 MESSAGE_KEYS = {
-    'id', 'direction', 'kind', 'body', 'author', 'template', 'delivery_state', 'error', 'attachments', 'reply_to',
-    'reactions', 'location', 'interactive', 'commerce', 'selected_option', 'flow_response', 'automated', 'campaign', 'created_at',
+    'id', 'direction', 'kind', 'body', 'author', 'template', 'delivery_state', 'error', 'error_code', 'unconfirmed',
+    'attachments', 'reply_to', 'reactions', 'location', 'interactive', 'commerce', 'selected_option', 'flow_response',
+    'automated', 'campaign', 'created_at',
 }
 
 

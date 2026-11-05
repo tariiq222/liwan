@@ -58,7 +58,7 @@ function seed() {
   let nextMessageId = 100
   const message = (direction, body, hoursAgo, extra = {}) => ({
     id: nextMessageId++, direction, kind: 'text', body, author: direction === 'in' ? null : AGENTS[0], template: null, campaign: null,
-    delivery_state: direction === 'in' ? 'received' : 'sent', error: null, attachments: [], reply_to: null,
+    delivery_state: direction === 'in' ? 'received' : 'sent', error: null, error_code: null, unconfirmed: false, attachments: [], reply_to: null,
     reactions: { customer: null, agent: null }, location: null, interactive: null, selected_option: null, flow_response: null, automated: false, commerce: null, created_at: ago(hoursAgo), ...extra,
   })
   const quote = target => ({ id: target.id, preview: target.body.slice(0, 80) })
@@ -313,7 +313,7 @@ function patchConversation(conv, body) {
 
 function appendMessage(conv, fields) {
   const created = {
-    id: state.ids.message(), direction: 'out', kind: 'text', body: '', author: ME, template: null, campaign: null, delivery_state: 'queued', error: null, attachments: [],
+    id: state.ids.message(), direction: 'out', kind: 'text', body: '', author: ME, template: null, campaign: null, delivery_state: 'queued', error: null, error_code: null, unconfirmed: false, attachments: [],
     reply_to: null, reactions: { customer: null, agent: null }, location: null, interactive: null, selected_option: null, flow_response: null, automated: false, commerce: null, created_at: iso(Date.now()), ...fields,
   }
   state.messages[conv.id].push(created)
@@ -1035,7 +1035,7 @@ export function inboxPreviewData(method, path, url, body = {}) {
     if (parts[5] === 'retry' && method === 'POST') {
       const item = Object.values(state.messages).flat().find(candidate => candidate.id === id)
       if (!item || item.delivery_state !== 'failed') return fail(422, 'invalid', 'only a failed message can be retried')
-      Object.assign(item, { delivery_state: 'queued', error: null })
+      Object.assign(item, { delivery_state: 'queued', error: null, error_code: null, unconfirmed: false })
       state.statuses.set(item.id, Date.now())
       return ok(item)
     }

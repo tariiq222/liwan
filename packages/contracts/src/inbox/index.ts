@@ -149,6 +149,10 @@ export const InboxMessageSchema = z.object({
   }).strict().nullable(),
   delivery_state: InboxDeliveryStateSchema,
   error: z.string().nullable(),
+  // Meta's numeric error code of a failed send.
+  error_code: z.number().int().nullable(),
+  // The provider may have sent it (no answer arrived): never retried automatically.
+  unconfirmed: z.boolean(),
   attachments: z.array(InboxAttachmentSchema),
   // The message this one answers (WhatsApp context), with a short preview of its text.
   reply_to: z.object({ id: Id, preview: z.string() }).strict().nullable(),
