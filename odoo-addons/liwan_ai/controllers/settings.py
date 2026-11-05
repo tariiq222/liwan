@@ -21,7 +21,7 @@ AI_FEATURE = 'ai.enabled'
 
 
 def require_tenant_manager():
-    """The provider mode and the residency consent bind every company of the tenant: only a settings manager of its
+    """The provider mode and the AI acknowledgement bind every company of the tenant: only a settings manager of its
     root company reads or changes them, never the manager of one branch company."""
     root = request.env['liwan.entitlement.service']._liwan_profile().root_company_id
     if not request.env['liwan.access.service']._liwan_has_capability(request.env.user, AI_SETTINGS_MANAGE, company=root):
@@ -29,7 +29,7 @@ def require_tenant_manager():
 
 
 class AiSettingsController(http.Controller):
-    """The tenant administrator's AI policy: provider mode, residency consent, usage and monitoring."""
+    """The tenant administrator's AI policy: provider mode, AI acknowledgement, usage and monitoring."""
 
     @http.route('/api/v1/ai/settings', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

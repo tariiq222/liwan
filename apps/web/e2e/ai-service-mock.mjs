@@ -78,8 +78,8 @@ const COMPANY_NOTES = [
 ]
 const TENANT = {
   retention_days: 30, leaver_retention_days: 30, key: { configured: false, provider: null, model: null, last4: null, updated_at: null },
-  platform: { provider: 'mock', model: 'mock-model', location: 'outside' },
-  providers: [{ name: 'anthropic', location: 'outside', needs_api_key: true }, { name: 'openai', location: 'outside', needs_api_key: true }, { name: 'ollama', location: 'inside', needs_api_key: false }],
+  platform: { provider: 'mock', model: 'mock-model' },
+  providers: [{ name: 'anthropic', needs_api_key: true }, { name: 'openai', needs_api_key: true }, { name: 'ollama', needs_api_key: false }],
 }
 
 http.createServer(async (req, res) => {

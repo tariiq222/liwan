@@ -71,11 +71,21 @@ function pick(source: unknown, segments: string[], target: Node): void {
   pick(value, rest, child)
 }
 
-/** Contract ع1 `result_summary`: a whitelist of dotted paths; `[]` means every element. */
-export function summarizeResult(data: unknown, paths: string[]): unknown {
+/** A copy of `value` without any key named in `blocked`, at any depth: a path that ends on a whole object carries none. */
+function withoutBlocked(value: unknown, blocked: ReadonlySet<string>): unknown {
+  if (Array.isArray(value)) return value.map(item => withoutBlocked(item, blocked))
+  if (value === null || typeof value !== 'object') return value
+  return Object.fromEntries(Object.entries(value).filter(([key]) => !blocked.has(key)).map(([key, item]) => [key, withoutBlocked(item, blocked)]))
+}
+
+/**
+ * Contract ع1 `result_summary`: a whitelist of dotted paths; `[]` means every element. The outbound data policy's blocked
+ * field names (spec 2026-11-04 §6.12) are then removed at any depth.
+ */
+export function summarizeResult(data: unknown, paths: string[], blocked: ReadonlySet<string>): unknown {
   const target: Node = {}
   for (const path of paths) pick(data, path.split('.'), target)
-  return target
+  return withoutBlocked(target, blocked)
 }
 
 type ErrorBody = { code?: unknown; message?: unknown; error?: { code?: unknown; message?: unknown } }
@@ -90,9 +100,9 @@ export function upstreamError(body: unknown): { code: string; message: string; d
   return { code: source.code, message: typeof source.message === 'string' ? source.message : '', ...(details !== undefined ? { details } : {}) }
 }
 
-export function toolResultFromUpstream(status: number, body: unknown, tool: AiTool): ToolResult {
+export function toolResultFromUpstream(status: number, body: unknown, tool: AiTool, blocked: ReadonlySet<string>): ToolResult {
   if (status >= 200 && status < 300) {
-    const data = summarizeResult(body, tool.result_summary)
+    const data = summarizeResult(body, tool.result_summary, blocked)
     if (Buffer.byteLength(JSON.stringify(data)) > MAX_RESULT_BYTES) return toolError('result_too_large', 'The result is too large to hand to the assistant')
     return { ok: true, data }
   }

@@ -129,10 +129,10 @@ class TestAiSettings(AiProbe, LiwanApiCase):
         self.assertEqual(signed['user'], {'id': self.manager.id, 'name': 'Huda'})
         self.assertEqual(self.api('POST', '/api/v1/ai/consent', SIGNATURE).json()['consent']['signed'], signed)
         self.assertEqual(self.env['liwan.ai.consent'].search_count([]), 1)
-        self.assertTrue(self.env['liwan.ai.tool.registry']._liwan_ai_policy()['outside_allowed'])
+        self.assertTrue(self.env['liwan.ai.tool.registry']._liwan_ai_policy()['consent_signed'])
         self.patch(consent_text, 'CONSENT_VERSION', '2099-01-01')
         self.assertFalse(self.env['liwan.ai.consent']._liwan_valid())
-        self.assertFalse(self.env['liwan.ai.tool.registry']._liwan_ai_policy()['outside_allowed'])
+        self.assertFalse(self.env['liwan.ai.tool.registry']._liwan_ai_policy()['consent_signed'])
 
     def test_revoke(self):
         self._as_manager()

@@ -1,4 +1,4 @@
-"""The tenant's own AI configuration: write-only key, residency consent, output cap and per-tenant retention."""
+"""The tenant's own AI configuration: write-only key, signed AI acknowledgement, output cap and per-tenant retention."""
 from dataclasses import replace
 from datetime import timedelta
 
@@ -31,8 +31,8 @@ async def test_the_key_is_write_only_and_retention_is_bounded():
     async with client_for(make_memory_app(ScriptedChatModel([]), replace(SETTINGS, keyring=KEYRING))) as client:
         initial = (await client.get("/v1/tenant/config", headers=HEADERS)).json()
         assert initial["retention_days"] == 30 and initial["key"]["configured"] is False
-        assert initial["platform"] == {"provider": "ollama", "model": "m", "location": "inside"}
-        assert {"name": "anthropic", "location": "outside", "needs_api_key": True} in initial["providers"]
+        assert initial["platform"] == {"provider": "ollama", "model": "m"}
+        assert {"name": "anthropic", "needs_api_key": True} in initial["providers"]
         written = await client.put("/v1/tenant/config/key", json=KEY_BODY, headers=HEADERS)
         assert written.status_code == 200 and TENANT_KEY not in written.text
         assert written.json()["key"] | {"updated_at": None} == {
@@ -73,41 +73,45 @@ async def test_a_tenant_key_run_uses_the_tenants_model_and_is_billed_to_the_tena
 
     monkeypatch.setattr(service, "build_tenant_model", build)
     platform = ScriptedChatModel([])
-    consented = {**TENANT_POLICY, "outside_allowed": True}
     async with client_for(make_memory_app(platform, replace(SETTINGS, keyring=KEYRING))) as client:
         await client.put("/v1/tenant/config/key", json=KEY_BODY, headers=HEADERS)
-        events = parse_sse((await client.post("/v1/runs", json=run_body(consented), headers=HEADERS)).text)
+        events = parse_sse((await client.post("/v1/runs", json=run_body(TENANT_POLICY), headers=HEADERS)).text)
     assert built == [("anthropic", "claude-test", TENANT_KEY)]
     calls = [data for name, data in events if name == "model_call"]
     assert calls and all(call["billing"] == "tenant_key" and call["provider"] == "anthropic" for call in calls)
     assert platform.calls == [] and events[-1][1] == {"status": "done"}
 
 
-async def test_an_outside_provider_without_consent_never_sees_the_message():
+UNSIGNED = {**PLATFORM_POLICY, "consent_signed": False}
+
+
+@pytest.mark.parametrize("provider", ["ollama", "anthropic"])
+async def test_no_provider_sees_the_message_without_the_signed_acknowledgement(provider):
+    # Every provider, a local model included: the acknowledgement is not about where a provider processes (§6.8).
     model = ScriptedChatModel([ai_text("x")])
-    outside = Settings.from_env({
-        "AI_PROVIDER": "anthropic", "AI_MODEL": "m", "AI_API_KEY": "sk-platform", "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true",
+    settings = Settings.from_env({
+        "AI_PROVIDER": provider, "AI_MODEL": "m", "AI_API_KEY": "sk-platform", "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true",
     })
-    async with client_for(make_memory_app(model, outside)) as client:
-        refused = await client.post("/v1/runs", json=run_body(PLATFORM_POLICY), headers=HEADERS)
-        assert refused.status_code == 403 and refused.json() == {"detail": "ai_consent_required"}
+    async with client_for(make_memory_app(model, settings)) as client:
+        for policy in (UNSIGNED, {**UNSIGNED, "provider_mode": "setup"}, {**UNSIGNED, "provider_mode": "tenant_key"}):
+            refused = await client.post("/v1/runs", json=run_body(policy), headers=HEADERS)
+            assert refused.status_code == 403 and refused.json() == {"detail": "ai_consent_required"}
         assert model.calls == []
-        allowed = await client.post("/v1/runs", json=run_body({**PLATFORM_POLICY, "outside_allowed": True}), headers=HEADERS)
+        allowed = await client.post("/v1/runs", json=run_body(PLATFORM_POLICY), headers=HEADERS)
     assert parse_sse(allowed.text)[-1][1] == {"status": "done"}
 
 
 async def test_a_revoked_consent_stops_a_waiting_run_at_its_resume():
     model = ScriptedChatModel([ai_tool_call("pmo__list_my_tasks", {}, "c_1"), ai_text("تم")])
-    outside = Settings.from_env({
+    settings = Settings.from_env({
         "AI_PROVIDER": "anthropic", "AI_MODEL": "m", "AI_API_KEY": "sk-platform", "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true",
     })
-    consented = {**PLATFORM_POLICY, "outside_allowed": True}
-    async with client_for(make_memory_app(model, outside)) as client:
-        run_id = parse_sse((await client.post("/v1/runs", json=run_body(consented), headers=HEADERS)).text)[0][1]["run_id"]
+    async with client_for(make_memory_app(model, settings)) as client:
+        run_id = parse_sse((await client.post("/v1/runs", json=run_body(PLATFORM_POLICY), headers=HEADERS)).text)[0][1]["run_id"]
         result = {"ok": True, "data": {"items": [], "total": 0}}
-        revoked = await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_1", "policy": PLATFORM_POLICY, "result": result}, headers=HEADERS)
+        revoked = await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_1", "policy": UNSIGNED, "result": result}, headers=HEADERS)
         assert revoked.status_code == 403
-        resumed = await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_1", "policy": consented, "result": result}, headers=HEADERS)
+        resumed = await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_1", "policy": PLATFORM_POLICY, "result": result}, headers=HEADERS)
     assert parse_sse(resumed.text)[-1][1] == {"status": "done"}
 
 

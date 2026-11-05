@@ -125,7 +125,7 @@ class Policy(Strict):
     """The tenant's AI policy as Odoo states it for this request (spec 2026-11-04 §6.8); the service enforces it."""
 
     provider_mode: Billing  # whose account pays the request; "setup" runs on the platform provider
-    outside_allowed: bool  # a valid residency consent exists, so a provider outside the Kingdom may receive the data
+    consent_signed: bool  # the tenant signed the current AI acknowledgement; no provider runs a request without it
     max_output_tokens: int | None = Field(ge=0, le=1_000_000)  # platform runs only; null means no cap, 0 allows no answer
 
 
@@ -207,7 +207,7 @@ class ToolResult(Strict):
 class ResumeRequest(Strict):
     call_id: str = Field(min_length=1, max_length=40)
     result: ToolResult
-    policy: Policy  # the policy now: a consent revoked while the run waited stops it here
+    policy: Policy  # the policy now: an acknowledgement revoked while the run waited stops it here
 
 
 class ClaimRequest(Strict):
@@ -352,14 +352,12 @@ class KeyView(Strict):
 
 class ProviderView(Strict):
     name: str
-    location: Literal["inside", "outside"]
     needs_api_key: bool
 
 
 class PlatformView(Strict):
     provider: str
     model: str
-    location: Literal["inside", "outside"]
 
 
 class TenantConfigView(Strict):

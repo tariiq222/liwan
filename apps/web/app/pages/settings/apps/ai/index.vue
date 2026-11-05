@@ -4,14 +4,14 @@ import AiCompanyMemoryCard from '@/components/ai/settings/AiCompanyMemoryCard.vu
 import AiKeyCard from '@/components/ai/settings/AiKeyCard.vue'
 import AiPolicyCard from '@/components/ai/settings/AiPolicyCard.vue'
 import AiProviderCard from '@/components/ai/settings/AiProviderCard.vue'
-import AiResidencyCard from '@/components/ai/settings/AiResidencyCard.vue'
+import AiConsentCard from '@/components/ai/settings/AiConsentCard.vue'
 import AiRetentionCard from '@/components/ai/settings/AiRetentionCard.vue'
 import AiUsageCard from '@/components/ai/settings/AiUsageCard.vue'
 import { useAiAgentSettings, useAiMonitoring, useAiSettings, useAiTenantConfig } from '@/composables/ai/useAiSettings'
 import { useAdminRoles } from '@/composables/useAdminRoles'
 import { ApiError } from '@/composables/useApi'
 
-// The tenant's AI settings (spec 2026-11-04 §6.7-6.9): whose provider runs the AI, the residency consent, how long
+// The tenant's AI settings (spec 2026-11-04 §6.7-6.9): whose provider runs the AI, the use acknowledgement, how long
 // conversations are kept, what each agent may do, and this month's use. Every part needs `ai.settings.manage`; the
 // server checks it again. Limiting an agent to some roles also needs the role catalog (`access.roles.read`).
 const { t } = useI18n()
@@ -62,7 +62,7 @@ async function reloadConfig() {
           <AiKeyCard v-if="config.data.value" :config="config.data.value" />
           <SharedPageState v-else :loading="config.isLoading.value" :error="config.error.value" :empty="true" @retry="config.refetch()" />
         </template>
-        <AiResidencyCard v-if="shows('residency')" :settings="settings.data.value" :config="config.data.value" />
+        <AiConsentCard v-if="shows('consent')" :settings="settings.data.value" />
         <AiRetentionCard v-if="shows('retention') && config.data.value" :config="config.data.value" :reload-config="reloadConfig" />
         <template v-if="shows('agents')">
           <AiPolicyCard :settings="settings.data.value" :reload-settings="reloadSettings" />

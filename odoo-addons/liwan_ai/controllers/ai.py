@@ -46,7 +46,10 @@ class AiController(http.Controller):
         items = [dump_tool(item) for item in tools]
         agents = [dump_agent(item) for item in registry._liwan_ai_agents_for_user(tools)]
         # tool_calls_per_run is enforced by the AI service/executor from this limits block, not by Odoo.
-        return {'items': items, 'total': len(items), 'agents': agents, 'limits': registry._liwan_ai_limits()}
+        return {
+            'items': items, 'total': len(items), 'agents': agents, 'limits': registry._liwan_ai_limits(),
+            'blocked_fields': registry._liwan_ai_blocked_fields(),
+        }
 
     @http.route('/api/v1/ai/conversations/<string:conversation_id>/mode', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

@@ -12,12 +12,33 @@ TOOL_NAME = re.compile(r'^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$')
 SUMMARY_PATH = re.compile(r'^[a-z_][a-z0-9_]*(\[\])?(\.[a-z_][a-z0-9_]*(\[\])?)*$')
 PLACEHOLDER = re.compile(r'\{([a-z_][a-z0-9_]*)\}')
 REQUIRED_TEXT = ('owner', 'capability', 'feature_key', 'description_ar', 'description_en')
-# Platform constant (spec 2026-11-04 §6.7): payroll, bank and private contact data never reach a model, whatever an
-# application declares. A result_summary path with one of these segments is refused when the registry loads.
+# Platform constant, the outbound data policy (spec 2026-11-04 §6.12): these fields never reach any model provider,
+# whoever's provider or key it is and whatever an application declares. A result_summary path with one of these segments
+# is refused when the registry loads; phase 5 refuses them as indexable sources too. The groups follow the PDPL sensitive
+# categories, then the identifiers the owner blocked (identity, bank, compensation); mobile and email stay blocked here and
+# the Nuxt content scan tokenizes whatever free text still carries.
 SENSITIVE_FIELDS = frozenset({
-    'wage', 'salary', 'payslip', 'payslips', 'gosi', 'iban', 'acc_number', 'bank_account', 'bank_account_id',
-    'bank_ids', 'identification_id', 'ssnid', 'passport_id', 'private_phone', 'private_email', 'private_street',
-    'phone', 'mobile', 'email', 'notes', 'memo',
+    # health
+    'health', 'medical', 'medical_notes', 'diagnosis', 'disease', 'illness', 'sick', 'sick_leave', 'disability',
+    'blood_type', 'pregnancy', 'medication', 'allergies', 'insurance_class',
+    # biometric and genetic
+    'biometric', 'fingerprint', 'face_image', 'face_template', 'genetic', 'dna',
+    # credit
+    # (an accounting line's debit/credit amount is not credit data and stays allowed)
+    'credit_score', 'credit_history', 'credit_rating', 'credit_limit', 'debt', 'loan', 'loans',
+    # religion or belief, ethnic origin, unknown parentage
+    'religion', 'belief', 'sect', 'ethnicity', 'ethnic_origin', 'race', 'tribe', 'parentage',
+    # security and criminal
+    'criminal', 'criminal_record', 'conviction', 'convictions', 'police_record', 'security_check',
+    # identity numbers
+    'identification_id', 'ssnid', 'passport_id', 'iqama', 'iqama_number', 'national_id', 'permit_no', 'visa_no',
+    'border_number',
+    # bank
+    'iban', 'acc_number', 'bank_account', 'bank_account_id', 'bank_ids', 'partner_bank_id',
+    # compensation
+    'wage', 'salary', 'payslip', 'payslips', 'gosi', 'allowance', 'allowances', 'net_wage', 'gross_wage', 'compensation',
+    # private contact data and free notes
+    'private_phone', 'private_email', 'private_street', 'phone', 'mobile', 'email', 'notes', 'memo',
 })
 TOOL_MODES = ('on', 'approval', 'off')
 # Shared input schemas for the applications' tools.
@@ -120,6 +141,14 @@ class LiwanAiToolRegistry(models.AbstractModel):
                 self._liwan_ai_error(name, f'result_summary path {path!r} is invalid')
 
     @api.model
+    def _liwan_ai_blocked_fields(self):
+        """Every field name no result may carry: the platform constant and each agent's own sensitive fields. The Nuxt
+        executor strips these keys at any depth of a result, so a summary path that ends on a whole object cannot carry
+        one either (spec 2026-11-04 §6.12, layer 1)."""
+        agents = self.env['liwan.ai.agent.registry']._liwan_ai_agent_map().values()
+        return sorted(SENSITIVE_FIELDS.union(*(agent.get('sensitive_fields', ()) for agent in agents)))
+
+    @api.model
     def _liwan_ai_check_sensitive(self, item, agent):
         """Refuse a result field that is sensitive by platform rule or by its agent's declaration."""
         sensitive = SENSITIVE_FIELDS | set(agent.get('sensitive_fields', ()))
@@ -205,11 +234,12 @@ class LiwanAiToolRegistry(models.AbstractModel):
 
     @api.model
     def _liwan_ai_policy(self):
-        """What the Nuxt server passes with every run: whose provider runs it, and what the run may spend."""
+        """What the Nuxt server passes with every run: whose provider runs it, whether the tenant signed the current AI
+        acknowledgement (no run on any provider without it, spec 2026-11-04 §6.8), and what the run may spend."""
         entitlement = self.env['liwan.entitlement.service']
         return {
             'provider_mode': self.env['liwan.ai.settings']._liwan_current().provider_mode,
-            'outside_allowed': bool(self.env['liwan.ai.consent']._liwan_valid()),
+            'consent_signed': bool(self.env['liwan.ai.consent']._liwan_valid()),
             'tokens_monthly': entitlement._liwan_limit_value('ai.tokens.monthly'),
             'tokens_used': self.env['liwan.ai.usage']._liwan_platform_tokens_used(),
             'output_tokens_per_run': entitlement._liwan_limit_value('ai.output_tokens.per_run'),

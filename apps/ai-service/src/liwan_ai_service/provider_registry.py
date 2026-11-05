@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 from langchain_core.language_models import BaseChatModel
 
@@ -18,17 +18,12 @@ OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 OLLAMA_BASE_URL = "http://localhost:11434"
 
 
-Location = Literal["inside", "outside"]
-
-
 @dataclass(frozen=True)
 class ProviderSpec:
     name: str
     needs_api_key: bool
     default_base_url: str | None
     build: Callable[[Settings, str | None], BaseChatModel]  # (settings, base_url resolved from AI_BASE_URL or the default)
-    # Where the provider processes the data: "outside" the Kingdom needs the tenant's signed consent (spec 2026-11-04 §6.8).
-    location: Location
 
 
 def _anthropic(settings: Settings, base_url: str | None) -> BaseChatModel:
@@ -63,9 +58,9 @@ def _openrouter(settings: Settings, base_url: str | None) -> BaseChatModel:
 
 
 _SPECS = (
-    ProviderSpec("anthropic", needs_api_key=True, default_base_url=None, build=_anthropic, location="outside"),
-    ProviderSpec("openai", needs_api_key=True, default_base_url=None, build=_openai, location="outside"),
-    ProviderSpec("ollama", needs_api_key=False, default_base_url=OLLAMA_BASE_URL, build=_ollama, location="inside"),
-    ProviderSpec("openrouter", needs_api_key=True, default_base_url=OPENROUTER_BASE_URL, build=_openrouter, location="outside"),
+    ProviderSpec("anthropic", needs_api_key=True, default_base_url=None, build=_anthropic),
+    ProviderSpec("openai", needs_api_key=True, default_base_url=None, build=_openai),
+    ProviderSpec("ollama", needs_api_key=False, default_base_url=OLLAMA_BASE_URL, build=_ollama),
+    ProviderSpec("openrouter", needs_api_key=True, default_base_url=OPENROUTER_BASE_URL, build=_openrouter),
 )
 REGISTRY: dict[str, ProviderSpec] = {spec.name: spec for spec in _SPECS}

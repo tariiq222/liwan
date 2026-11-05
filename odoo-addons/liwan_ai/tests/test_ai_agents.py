@@ -3,6 +3,7 @@ from odoo.exceptions import ValidationError
 from odoo.fields import Command
 from odoo.tests import new_test_user, tagged
 
+from odoo.addons.liwan_ai.models.tool_registry import SENSITIVE_FIELDS
 from odoo.addons.liwan_ai.tests.common import (
     CREATE_CAP,
     PROBE_AGENT,
@@ -52,6 +53,17 @@ class TestAiAgentRegistry(AiProbe, LiwanApiCase):
     def test_sensitive_fields_never_reach_a_result_summary(self):
         self._rejected((PROBE_AGENT,), ({**PROBE_TOOLS[0], 'result_summary': ['items[].partner.iban']},), 'sensitive field iban')
         self._rejected((PROBE_AGENT,), ({**PROBE_TOOLS[0], 'result_summary': ['items[].secret_note']},), 'sensitive field secret_note')
+
+    def test_every_outbound_policy_category_is_refused(self):
+        # One field per blocked group of the outbound data policy (spec 2026-11-04 §6.12).
+        for field in ('medical', 'fingerprint', 'genetic', 'credit_score', 'religion', 'ethnicity', 'parentage',
+                      'criminal_record', 'iqama', 'national_id', 'iban', 'salary', 'mobile', 'email'):
+            with self.subTest(field=field):
+                self._rejected((PROBE_AGENT,), ({**PROBE_TOOLS[0], 'result_summary': [f'items[].{field}']},), f'sensitive field {field}')
+
+    def test_an_accounting_credit_amount_is_not_credit_data(self):
+        self.assertNotIn('credit', SENSITIVE_FIELDS)
+        self.assertNotIn('debit', SENSITIVE_FIELDS)
 
     def test_an_external_tool_must_wait_for_a_person(self):
         self._rejected((PROBE_AGENT,), ({**PROBE_TOOLS[0], 'external': True},), 'outside party')

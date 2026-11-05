@@ -4,7 +4,7 @@ from odoo import api, models
 AI_USE = 'ai.use'
 AI_SETTINGS_MANAGE = 'ai.settings.manage'
 EMPLOYEE_PERMISSIONS = frozenset({AI_USE})
-# The tenant administrator chooses the provider, signs the residency consent and reads the monitoring view.
+# The tenant administrator chooses the provider, signs the AI acknowledgement and reads the monitoring view.
 ADMIN_PERMISSIONS = frozenset({AI_SETTINGS_MANAGE})
 
 
